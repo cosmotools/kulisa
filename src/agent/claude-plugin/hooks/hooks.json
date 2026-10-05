@@ -1,0 +1,16 @@
+{
+  "description": "Ask the Kulisa this session runs in (KULISA_URL, set in its terminal) for context. Outside Kulisa they do nothing. Claude Code runs hook commands in bash on every OS (Git Bash on Windows); curl ships with all three.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -z \"$KULISA_URL\" ] || curl -sf --max-time 3 --data-binary @- \"$KULISA_URL/hooks/session-start\" || true",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

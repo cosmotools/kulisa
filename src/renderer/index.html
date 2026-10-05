@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en" class="loading">
+<head>
+  <meta charset="utf-8">
+  <title>Kulisa</title>
+  <link rel="stylesheet" href="../../node_modules/@xterm/xterm/css/xterm.css">
+  <link rel="stylesheet" href="../../node_modules/@fontsource/jetbrains-mono/400.css">
+  <link rel="stylesheet" href="../../node_modules/@fontsource/jetbrains-mono/700.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header id="topbar">
+    <!-- The app icon (assets/icon.svg) with the curtain in the project's color (--project): each project its own
+         curtain. -->
+    <svg class="logo" viewBox="100 100 824 824" aria-hidden="true">
+      <defs>
+        <linearGradient id="drape" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" class="fold"/><stop offset=".3" class="lit"/><stop offset=".55" class="fold"/><stop offset=".8" class="lit"/><stop offset="1" class="fold"/>
+        </linearGradient>
+        <clipPath id="body"><rect x="100" y="100" width="824" height="824" rx="185"/></clipPath>
+      </defs>
+      <g clip-path="url(#body)">
+        <rect x="100" y="100" width="824" height="824" fill="#17181b"/>
+        <path d="M100 100 H466 C438 390 374 630 318 924 H100 Z" fill="url(#drape)"/>
+        <path d="M924 100 H558 C586 390 650 630 706 924 H924 Z" fill="url(#drape)"/>
+      </g>
+      <path d="M446 390 L446 740 L529 659 L584 777 L641 751 L586 635 L700 629 Z" fill="#ffd27a" stroke="#17181b" stroke-width="26" stroke-linejoin="round"/>
+    </svg>
+    <button id="openProjects" title="Switch project"><b id="projectName">Kulisa</b> ▾</button>
+    <button id="openProfiles" title="Profiles of this project">Profiles ▾</button>
+    <button id="zoomReset" hidden title="Kulisa's zoom. Click to reset (Ctrl 0)"></button>
+    <button id="windowMenu" title="Zoom, layout">⋮</button>
+  </header>
+  <main id="dock"></main>
+
+  <!-- Dialogs: Esc, a click outside (closedby) or a button of their method="dialog" form closes them. -->
+  <dialog id="profiles" closedby="any">
+    <h2>Profiles</h2>
+    <p class="hint">A profile is a separate browser profile, as in Chrome: its own cookies, storage, tabs and sign-ins.
+      Sign in by hand in its pane; the agent in the terminal then uses it.</p>
+    <div id="plist"></div>
+    <form id="padd"><input id="newProfile" placeholder="New profile name, e.g. Ann · admin" spellcheck="false"><button>Add</button></form>
+    <form method="dialog" class="foot"><button id="closeProfiles">Done</button></form>
+  </dialog>
+  <dialog id="projects" closedby="any">
+    <h2>Projects</h2>
+    <p class="hint">A project is a folder, usually a repository, with its own profiles, layout and agent. Opening
+      another one stops this project's agent; its conversation continues when you come back.</p>
+    <div id="projlist"></div>
+    <form id="projnew"><input id="newProject" placeholder="New project without a folder, e.g. Tenant audit" spellcheck="false"><button>Create</button></form>
+    <form method="dialog" class="foot"><button type="button" id="openFolder">Open Folder…</button><button id="closeProjects">Close</button></form>
+  </dialog>
+  <div id="term"></div>
+  <!-- The menus (menu.js) -->
+  <div id="menu" popover role="menu" tabindex="-1"></div>
+  <span id="menuPoint"></span>
+
+  <!-- Built by renderer.js -->
+  <template id="tpl-pane">
+    <div class="pane">
+      <nav class="tabs"><button class="add" title="New tab">+</button></nav>
+      <div class="bar">
+        <button class="back" title="Back">◀</button><button class="fwd" title="Forward">▶</button><button class="reload" title="Reload">⟳</button>
+        <input class="addr" spellcheck="false">
+        <button class="zoom tool" hidden title="This site's zoom in this profile (Ctrl + / − / 0 in the page). Click to reset."></button>
+        <button class="pick tool" title="Click an element on the page to mention it to the agent">⌖ Pick</button>
+        <button class="devtools tool" title="DevTools of this tab (F12)">DevTools</button>
+      </div>
+      <div class="content"></div>
+    </div>
+  </template>
+  <template id="tpl-tab"><div class="tab"><img alt="" hidden><span class="title"></span><span class="x" title="Close tab">×</span></div></template>
+  <template id="tpl-ptab"><div class="ptab"><span class="dot"></span><b class="pname" title="Double-click to rename"></b><span class="caption"></span><button class="close" title="Close profile: its tabs go, its sign-ins stay (open it again in Profiles…)">×</button></div></template>
+  <template id="tpl-prow">
+    <div class="prow">
+      <span class="dot"></span><input class="name" spellcheck="false"><code class="pid"></code>
+      <span class="ntabs"></span><button class="open" hidden>Open</button><button class="del">Delete…</button>
+    </div>
+  </template>
+  <template id="tpl-menuitem">
+    <button class="item" role="menuitem"><span class="dot" hidden></span><span class="text"><span class="label"></span><small></small></span><kbd></kbd></button>
+  </template>
+  <template id="tpl-menuzoom">
+    <div class="zoomrow"><span>Zoom</span><button class="out" title="Zoom out (Ctrl −)">−</button><output></output><button class="in" title="Zoom in (Ctrl +)">+</button></div>
+  </template>
+  <template id="tpl-projrow">
+    <div class="projrow"><span class="dot"></span><div class="what"><b class="name"></b><span class="folder"></span></div>
+      <span class="here">open now</span><button class="open">Open</button></div>
+  </template>
+  <script src="../../node_modules/dockview-core/dist/dockview-core.js"></script>
+  <script src="../../node_modules/@xterm/xterm/lib/xterm.js"></script>
+  <script src="../../node_modules/@xterm/addon-fit/lib/addon-fit.js"></script>
+  <script src="../../node_modules/@xterm/addon-unicode11/lib/addon-unicode11.js"></script>
+  <script src="../../node_modules/@xterm/addon-webgl/lib/addon-webgl.js"></script>
+  <script src="menu.js"></script>
+  <script src="renderer.js"></script>
+</body>
+</html>

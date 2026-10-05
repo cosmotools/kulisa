@@ -1,0 +1,5 @@
+{
+  "mcpServers": {
+    "kulisa": { "type": "http", "url": "${KULISA_MCP_URL}" }
+  }
+}

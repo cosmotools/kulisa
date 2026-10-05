@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Kulisa: a stage curtain drawn apart, the agent's pointer on stage. The rounded square follows the macOS grid
+       (824 px body in 1024 px); scripts/icons.js renders all sizes and formats from this file. -->
+  <defs>
+    <linearGradient id="drape" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#7d1820"/><stop offset=".3" stop-color="#c8333b"/><stop offset=".55" stop-color="#8f1d25"/>
+      <stop offset=".8" stop-color="#d23c44"/><stop offset="1" stop-color="#7d1820"/>
+    </linearGradient>
+    <clipPath id="body"><rect x="100" y="100" width="824" height="824" rx="185"/></clipPath>
+  </defs>
+  <g clip-path="url(#body)">
+    <rect x="100" y="100" width="824" height="824" fill="#17181b"/>
+    <path d="M100 100 H466 C438 390 374 630 318 924 H100 Z" fill="url(#drape)"/>
+    <path d="M924 100 H558 C586 390 650 630 706 924 H924 Z" fill="url(#drape)"/>
+  </g>
+  <path d="M446 390 L446 740 L529 659 L584 777 L641 751 L586 635 L700 629 Z" fill="#ffd27a" stroke="#17181b" stroke-width="26" stroke-linejoin="round"/>
+</svg>

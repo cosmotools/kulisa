@@ -1,0 +1,47 @@
+{
+  "name": "kulisa",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Profiles, live panes and a coding agent in one window for testing multi-user web apps",
+  "type": "commonjs",
+  "devDependencies": {
+    "@electron-forge/cli": "8.0.1",
+    "@electron-forge/maker-deb": "8.0.1",
+    "@electron-forge/maker-dmg": "8.0.1",
+    "@electron-forge/maker-squirrel": "8.0.1",
+    "@electron-forge/maker-zip": "8.0.1",
+    "@electron-forge/plugin-auto-unpack-natives": "8.0.1",
+    "@electron/rebuild": "^4.2.0",
+    "@playwright/mcp": "0.0.83",
+    "@resvg/resvg-js": "2.6.2",
+    "electron": "^44.5.1",
+    "png2icons": "2.0.1"
+  },
+  "dependencies": {
+    "@fontsource/jetbrains-mono": "^5.3.0",
+    "@modelcontextprotocol/sdk": "^1.32.0",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/addon-unicode11": "^0.9.0",
+    "@xterm/addon-webgl": "^0.19.0",
+    "@xterm/xterm": "^6.0.0",
+    "dockview-core": "8.4.0",
+    "node-pty": "^1.1.0",
+    "playwright-core": "1.64.0-alpha-1790635538000",
+    "ws": "^8.22.0",
+    "zod": "^4.6.5"
+  },
+  "scripts": {
+    "start": "electron --no-sandbox .",
+    "test": "electron --no-sandbox test/run.js && electron --no-sandbox test/run.js --restart",
+    "postinstall": "electron-rebuild -f -w node-pty",
+    "package": "electron-forge package",
+    "make": "electron-forge make",
+    "icons": "node scripts/icons.js"
+  },
+  "main": "src/main/index.js",
+  "author": "Kulisa contributors",
+  "allowScripts": {
+    "node-pty@1.1.0": true,
+    "electron-winstaller@5.4.4": true
+  }
+}

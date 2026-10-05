@@ -1,0 +1,8 @@
+{
+  "name": "kulisa",
+  "version": "0.1.0",
+  "description": "Work with Kulisa's browser profiles: the panes above the terminal, each a separate signed-in browser.",
+  "author": {
+    "name": "Kulisa contributors"
+  }
+}
