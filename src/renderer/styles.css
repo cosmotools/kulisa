@@ -37,14 +37,18 @@ input { background: var(--field); color: var(--text-strong); padding: 0 8px; use
   -webkit-app-region: drag;
   & button { -webkit-app-region: no-drag; padding: 0 14px; }
   /* The app icon with the curtain in the project's color: each project its own curtain. */
-  .logo { width: 24px; height: 24px; flex: none;
+  .logo { width: 26px; height: 26px; flex: none;
     .lit { stop-color: var(--project); }
     .fold { stop-color: color-mix(in srgb, var(--project) 55%, black); } }
   #openProjects { border-color: color-mix(in srgb, var(--project) 45%, transparent); background: color-mix(in srgb, var(--project) 18%, transparent);
     &:hover { background: color-mix(in srgb, var(--project) 28%, transparent); } }
-  /* At the right end: the Kulisa zoom, only when not 100% (as Chrome's magnifier), and ⋮, the window's menu. */
+  /* At the right end: the Kulisa zoom, only when not 100% (as Chrome's magnifier), and ☰, the window's menu: an icon
+     alone, kept clear of the OS window buttons. */
   #zoomReset { margin-inline-start: auto; }
-  #windowMenu { margin-inline: auto var(--gap); padding: 0 10px; font-weight: bold;
+  #windowMenu { margin-inline: auto calc(var(--gap) * 3); padding: 0 4px; border: none; background: none; color: var(--text-dim);
+    display: grid; place-items: center;
+    svg { width: 18px; height: 18px; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; }
+    &:hover { color: var(--text-strong); }
     #zoomReset:not([hidden]) + & { margin-inline-start: 0; } }
 }
 
@@ -74,9 +78,10 @@ input { background: var(--field); color: var(--text-strong); padding: 0 8px; use
 .ptab { display: flex; align-items: center; gap: 6px; height: 100%; padding: 0 8px; min-width: 0; }
 .pname { cursor: text; white-space: nowrap; }
 .caption { flex: 1; color: var(--note); font-weight: normal; }
-/* ×: close the profile (the island's top right) */
-.ptab .close { border: none; background: none; padding: 0 6px; height: 24px; color: var(--text-muted);
-  &:hover { background: var(--island-hi); color: var(--text-strong); } }
+/* ×: close the profile (the island's top right); an icon alone, as ☰ */
+.ptab .close { display: grid; place-items: center; border: none; background: none; padding: 0 4px; color: var(--text-muted);
+  svg { width: 16px; height: 16px; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; }
+  &:hover { color: var(--text-strong); } }
 
 /* A profile's pane: its tabs, the address bar, the page */
 .pane { height: 100%; display: flex; flex-direction: column; min-width: 0; }

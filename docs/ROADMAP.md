@@ -28,11 +28,11 @@ Feature numbers refer to [SPEC.md](SPEC.md), section 2. Update this file when so
   the project's environment (direnv's `.envrc`, e.g. another Claude account) applies; untested on macOS (login
   shell) and Windows (started directly, no shell).
 - **Window grid.** Profiles' panes and the terminal are peer panels in a grid (dockview): drag one to another
-  place, stack panels as tabs, resize; JetBrains' Islands look. Ready-made arrangements in ⋮ → Arrange panels: profiles in
+  place, stack panels as tabs, resize; JetBrains' Islands look. Ready-made arrangements in ☰ → Arrange panels: profiles in
   columns with the terminal below, two by two with the terminal right, one profile at a time. The grid is saved
   and restored.
 - **Zoom.** One text size and control height for the whole UI (`--font`, `--control` in styles.css). The Kulisa
-  zoom (Ctrl + / − / 0 outside the pages, or ⋮ in the title bar, as Chrome's menu; the title bar shows it when not
+  zoom (Ctrl + / − / 0 outside the pages, or ☰ in the title bar, as Chrome's menu; the title bar shows it when not
   100%) scales the UI, the terminal and the pages
   together; Ctrl + / − / 0 in a page zooms that site in that profile on top of it, as in Chrome. Both saved.
 - **Closing a profile.** × at the top right of its pane (or its right-click menu, or the agent) closes it: the
@@ -40,7 +40,7 @@ Feature numbers refer to [SPEC.md](SPEC.md), section 2. Update this file when so
   (a menu of the profiles, as the project button's; or `profile_open`) brings it back with the same tabs. Stays closed across restarts (`closed` in
   profiles.json).
 - **Menus.** Kulisa draws its menus in HTML, as Chrome does (a popover, `src/renderer/menu.js`): the project
-  button (projects with their color and folder), ⋮ (the zoom row "− 100% +", Arrange panels), and right-click on a
+  button (projects with their color and folder), ☰ (the zoom row "− 100% +", Arrange panels), and right-click on a
   pane's header (New tab, Rename, Delete profile…), a tab (Reload, Duplicate, Close, Close others) and the
   terminal (Copy, Paste, Select all, Clear). The pages are native views above the HTML, so while a menu is open
   they are pictures of themselves, as during a drag. Native menus were tried first (2026-10-05): rows of text

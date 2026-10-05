@@ -29,7 +29,8 @@
     <button id="openProjects" title="Switch project"><b id="projectName">Kulisa</b> ▾</button>
     <button id="openProfiles" title="Profiles of this project">Profiles ▾</button>
     <button id="zoomReset" hidden title="Kulisa's zoom. Click to reset (Ctrl 0)"></button>
-    <button id="windowMenu" title="Zoom, layout">⋮</button>
+    <button id="windowMenu" title="Menu: zoom, layout" aria-label="Menu">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12"/></svg></button>
   </header>
   <main id="dock"></main>
 
@@ -70,7 +71,7 @@
     </div>
   </template>
   <template id="tpl-tab"><div class="tab"><img alt="" hidden><span class="title"></span><span class="x" title="Close tab">×</span></div></template>
-  <template id="tpl-ptab"><div class="ptab"><span class="dot"></span><b class="pname" title="Double-click to rename"></b><span class="caption"></span><button class="close" title="Close profile: its tabs go, its sign-ins stay (open it again in Profiles…)">×</button></div></template>
+  <template id="tpl-ptab"><div class="ptab"><span class="dot"></span><b class="pname" title="Double-click to rename"></b><span class="caption"></span><button class="close" title="Close profile: its tabs go, its sign-ins stay (open it again in Profiles)" aria-label="Close profile"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></div></template>
   <template id="tpl-prow">
     <div class="prow">
       <span class="dot"></span><input class="name" spellcheck="false"><code class="pid"></code>

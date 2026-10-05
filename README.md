@@ -44,11 +44,11 @@ your shell in the project's folder, as if you typed `claude` in a terminal there
 (direnv's `.envrc`, nvm, mise) applies; when it exits, the shell stays.
 
 Panes and the terminal are panels: drag one by its header to another place (or onto another panel to stack them as
-tabs), drag the gaps between them to resize; **⋮ → Arrange panels** offers ready-made arrangements. The grid is
+tabs), drag the gaps between them to resize; **☰ → Arrange panels** offers ready-made arrangements. The grid is
 kept across restarts. Profiles are added, renamed and deleted in **Profiles ▾ → Manage Profiles…**, or by right-clicking a pane's header
 (a name can also be renamed by double-clicking it). **×** at the top right of a profile's pane closes it: its tabs
 go and free their memory, it stays signed in; **Profiles ▾** lists it as closed and brings it back with the same tabs. Right-click a tab or the terminal for their menus. **Zoom:**
-Ctrl + / Ctrl − / Ctrl 0 outside the pages, or ⋮ in the title bar, zooms all of Kulisa, and the pages follow; when it
+Ctrl + / Ctrl − / Ctrl 0 outside the pages, or ☰ in the title bar, zooms all of Kulisa, and the pages follow; when it
 is not 100%, the title bar shows it (click to reset). The same keys in a page zoom that site in that profile on top of it (shown in the address bar,
 click to reset). Both are kept across restarts. **DevTools** on a pane (or F12, Ctrl+Shift+I in its page) opens the DevTools of its active tab. Kulisa's own DevTools
 (F12 outside the pages) exist only when running from source (`npm start`), not in a packaged build. Data

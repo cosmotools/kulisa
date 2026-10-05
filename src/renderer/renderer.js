@@ -394,7 +394,7 @@ api.onDidDrop(unfreeze);
 document.addEventListener('dragend', unfreeze, true);
 document.addEventListener('drop', () => setTimeout(unfreeze), true);
 
-// ---------- the window's menu (⋮) and zoom ----------
+// ---------- the window's menu (☰) and zoom ----------
 // The Kulisa zoom (the main process zooms this page and the profiles' pages with it). Shown in the top bar only when
 // it is not 100%, as Chrome does; a click there resets it.
 const zoomReset = document.getElementById('zoomReset');
@@ -407,7 +407,7 @@ kulisa.invoke('zoom:get').then(showZoom);
 kulisa.on('zoom', (z) => { showZoom(z); scheduleLayout(); });
 zoomReset.onclick = () => kulisa.invoke('zoom:ui', 0);
 const windowMenu = document.getElementById('windowMenu');
-// ⋮, as Chrome's: the zoom row (stays open while you click − and +), then the ready-made arrangements.
+// ☰, as Chrome's ⋮: the zoom row (stays open while you click − and +), then the ready-made arrangements.
 windowMenu.onclick = () => {
   const zoom = tpl('tpl-menuzoom');
   zoom.querySelector('output').textContent = `${Math.round(uiZoom * 100)}%`;
