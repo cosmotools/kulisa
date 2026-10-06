@@ -6,7 +6,6 @@
 (() => {
   const dialog = document.getElementById('projects');
   const list = document.getElementById('projlist');
-  const newProject = document.getElementById('newProject');
   const button = document.getElementById('openProjects');
   // The open project in the title bar: its name, and its color for the whole window (--project).
   const showProject = ({ name, color }) => {
@@ -61,6 +60,7 @@
       ...projects.map((p) => (p.id === current ? { label: p.name, sub: p.folder, color: p.color, keys: '✓' }
         : { label: p.name, sub: p.folder, color: p.color, run: () => kulisa.invoke('project:open', { id: p.id }) })),
       '-',
+      { label: 'New Project…', run: create },
       { label: 'Open Folder…', run: () => kulisa.invoke('project:open-folder') },
       { label: 'Manage Projects…', run: manage },
       ...(current === null ? [] : ['-', { label: 'Close Project', run: () => kulisa.invoke('project:close') },
@@ -86,12 +86,8 @@
   });
   document.getElementById('openFolder').onclick = () => kulisa.invoke('project:open-folder');
   document.getElementById('welcome-open').onclick = () => kulisa.invoke('project:open-folder');
-  // A project without a folder of one's own: the Projects dialog, at its field for the name.
-  document.getElementById('welcome-new').onclick = async () => { await manage(); newProject.focus(); };
-  document.getElementById('projnew').onsubmit = (e) => {
-    e.preventDefault();
-    const name = newProject.value.trim();
-    if (!name) return newProject.focus();
-    kulisa.invoke('project:new', { name });
-  };
+  // New Project…: its name and where its folder goes (a module of its own, loaded then).
+  const create = async () => { dialog.close(); (await import('./new-project.js')).newProject(); };
+  document.getElementById('welcome-new').onclick = create;
+  document.getElementById('projectsNew').onclick = create;
 })();

@@ -325,7 +325,7 @@ module.exports = (test) => {
     await waitFor(async () => (await viewOn(shell, ui, 'sam-admin')) && viewOn(shell, ui, 'elon-buyer'));
   });
 
-  test('welcome screen: Close Project in the project menu; links open in the browser', async (ctx) => {
+  test('welcome screen: Close Project in the project menu; links open in the browser; New Project… asks where its folder goes', async (ctx) => {
     const { shell, ui } = ctx;
     await ui(`document.getElementById('openProjects').click()`);
     assert.deepEqual((await menuRows(ui)).slice(-3), ['-', 'Close Project', 'Remove Project…']);
@@ -346,8 +346,37 @@ module.exports = (test) => {
     } finally { electron.shell.openExternal = openExternal; }
     assert.equal(opened[0], 'https://kulisa.app/');
     assert.ok(await ui(`location.protocol === 'file:' && !!document.getElementById('welcome')`), 'the window stays on its page');
-    await ui(`[...document.querySelectorAll('#welcome-list .item')].find((b) => b.querySelector('.label').textContent === 'project').click()`);
-    await waitFor(() => shell.ws?.n === 1 && shell.ws.loaded && shell.pty);
+
+    // New Project…: a name and where its folder goes, the home folder unless another is chosen; git on by default.
+    await ui(`document.getElementById('welcome-new').click()`);
+    await waitFor(() => ui(`document.getElementById('newproject').open`));
+    assert.equal(await ui(`document.getElementById('nplocation').value`), require('os').homedir());
+    assert.equal(await ui(`document.getElementById('npgit').checked`), true);
+    const made = path.join(root, 'made');
+    fs.mkdirSync(path.join(made, 'Taken'), { recursive: true });
+    fs.writeFileSync(path.join(made, 'Taken', 'notes.txt'), '');
+    const showOpenDialog = electron.dialog.showOpenDialog;
+    electron.dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [made] });
+    try {
+      await ui(`document.getElementById('npbrowse').click()`);
+      await waitFor(async () => (await ui(`document.getElementById('nplocation').value`)) === made);
+    } finally { electron.dialog.showOpenDialog = showOpenDialog; }
+    const named = (n) => ui(`(() => { const i = document.getElementById('npname'); i.value = ${JSON.stringify(n)}; i.dispatchEvent(new Event('input')); })()`);
+    await named('Taken');
+    await ui(`document.getElementById('npform').requestSubmit()`);
+    await waitFor(async () => /already there and not empty/.test(await ui(`document.querySelector('#newproject .error').textContent`)));
+    assert.ok(!shell.store.projects().some((p) => p.id === 'taken'), 'a folder with files in it is not taken');
+    await named('Shop');
+    assert.equal(await ui(`document.getElementById('npwhere').textContent`), `The project will be created in ${path.join(made, 'Shop')}`);
+    await ui(`document.getElementById('npform').requestSubmit()`);
+    await waitFor(() => shell.project === path.join(made, 'Shop') && shell.ws?.loaded && shell.pty);
+    assert.ok(fs.existsSync(path.join(made, 'Shop', '.git')), 'git init in it');
+    assert.equal(await ui(`document.getElementById('newproject').open`), false);
+    await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
+    await ui(`document.getElementById('openProjects').click()`);
+    await menuRows(ui);
+    await choose(ui, 'project');
+    await waitFor(() => shell.project === project && shell.ws?.n === 1 && shell.ws.loaded && shell.pty);
     ctx.watchPty(shell.pty);
     await waitFor(() => ui(`!document.documentElement.classList.contains('noproject') && !document.documentElement.classList.contains('loading')`));
     await waitFor(async () => (await viewOn(shell, ui, 'sam-admin')) && viewOn(shell, ui, 'elon-buyer'));

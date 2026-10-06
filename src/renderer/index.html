@@ -74,9 +74,22 @@
       <p class="hint">A project is a folder, usually a repository, with its own profiles, layout and agent. Opening
         another one stops this project's agent; its conversation continues when you come back.</p>
       <div id="projlist"></div>
-      <form id="projnew" class="row"><input id="newProject" data-name maxlength="64" placeholder="New project without a folder, e.g. tenant-audit" spellcheck="false"><button>Create</button></form>
     </div>
-    <footer><button id="openFolder" class="start">Open Folder…</button><button id="closeProjects" class="primary" command="close" commandfor="projects">Close</button></footer>
+    <footer><button id="projectsNew" class="start">New Project…</button><button id="openFolder">Open Folder…</button><button id="closeProjects" class="primary" command="close" commandfor="projects">Close</button></footer>
+  </dialog>
+  <!-- New Project…, as JetBrains' (new-project.js, loaded when needed) -->
+  <dialog id="newproject" closedby="any">
+    <header><h2>New Project</h2><button class="x" type="button" command="close" commandfor="newproject" title="Close" aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></header>
+    <form id="npform">
+      <div class="body">
+        <label class="field"><span>Name</span><input id="npname" data-name maxlength="64" placeholder="e.g. tenant-audit" spellcheck="false"></label>
+        <label class="field"><span>Location</span><span class="pick"><input id="nplocation" spellcheck="false"><button type="button" id="npbrowse">Browse…</button></span></label>
+        <p id="npwhere" class="hint"></p>
+        <label class="check"><input type="checkbox" id="npgit" checked>Create Git repository <small>workspaces need it</small></label>
+        <p class="error"></p>
+      </div>
+      <footer><button type="button" command="close" commandfor="newproject">Cancel</button><button id="npcreate" class="primary">Create</button></footer>
+    </form>
   </dialog>
   <dialog id="wsnew" closedby="any">
     <header><h2>New Workspace</h2><button class="x" type="button" command="close" commandfor="wsnew" title="Close" aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></header>

@@ -184,7 +184,12 @@ dialog { width: 560px; max-height: 85vh; padding: 0; flex-direction: column; bac
   /* A field and its button in one row (adding a profile, a project) */
   .row { display: flex; gap: var(--gap); margin-top: 12px; input { flex: 1; } }
   /* A labelled field, the labels in one column */
-  .field { display: grid; grid-template-columns: 80px 1fr; align-items: center; gap: var(--gap); margin-top: var(--gap); }
+  .field { display: grid; grid-template-columns: 80px 1fr; align-items: center; gap: var(--gap); margin-top: var(--gap);
+    .pick { display: flex; gap: var(--gap); input { flex: 1; min-width: 0; } } }
+  /* Under the fields, in the fields' column */
+  .field ~ .hint { margin: 6px 0 0 calc(80px + var(--gap)); overflow-wrap: anywhere; }
+  .check { display: flex; align-items: center; gap: var(--gap); margin: 12px 0 0 calc(80px + var(--gap));
+    input { height: auto; margin: 0; } small { color: var(--text-muted); } }
   footer { display: flex; justify-content: flex-end; gap: var(--gap); padding: 12px 18px; border-top: 1px solid var(--island-hi);
     .start { margin-inline-end: auto; }
     button { min-width: 80px; } }

@@ -56,7 +56,7 @@ module.exports = (test) => {
 
     // The project button: a menu of the projects (this one not choosable), Open Folder, and the dialog for the rest.
     await ui(`document.getElementById('openProjects').click()`);
-    assert.deepEqual(await menuRows(ui), ['project', 'other', '-', 'Open Folder…', 'Manage Projects…', '-', 'Close Project', 'Remove Project…']);
+    assert.deepEqual(await menuRows(ui), ['project', 'other', '-', 'New Project…', 'Open Folder…', 'Manage Projects…', '-', 'Close Project', 'Remove Project…']);
     const rows = await ui(`[...document.querySelectorAll('#menu .item')].slice(0, 2).map((b) => ({ dot: getComputedStyle(b.querySelector('.dot')).backgroundColor,
       folder: b.querySelector('small').textContent, check: b.querySelector('kbd').textContent }))`);
     assert.deepEqual(rows.map((r) => r.folder), [project, other], 'each with its folder');

@@ -293,13 +293,26 @@ function start(options = {}) {
     const r = await dialog.showOpenDialog(shell.win, { title: 'Open a project folder', properties: ['openDirectory', 'createDirectory'] });
     return r.canceled || !r.filePaths[0] ? projectsInfo() : openLater(store.projectFor(r.filePaths[0]));
   });
-  // A project for someone without a repository: Kulisa makes its folder, ~/Kulisa/<name>.
-  ipcMain.handle('project:new', (_e, { name }) => {
+  // New Project…, as JetBrains': the folder <location>/<name>, the location the home folder unless the human picks
+  // another, so they know where the agent's files are. A folder that is there already must be empty; git init in it
+  // when asked (workspaces need git).
+  ipcMain.handle('project:new-defaults', () => ({ location: options.projectsHome || app.getPath('home'), sep: path.sep }));
+  ipcMain.handle('project:pick-location', async (_e, { location }) => {
+    const r = await dialog.showOpenDialog(shell.win, { title: 'Where to create the project', defaultPath: location, properties: ['openDirectory', 'createDirectory'] });
+    return r.canceled ? null : r.filePaths[0] || null;
+  });
+  ipcMain.handle('project:new', async (_e, { name, location, git }) => {
     name = name?.trim();
     const bad = nameError(name);
     if (bad) return { error: bad };
-    const folder = path.join(options.projectsHome || path.join(app.getPath('home'), 'Kulisa'), name);
+    location = location?.trim().replace(/^~(?=$|[\\/])/, app.getPath('home'));
+    if (!location || !path.isAbsolute(location)) return { error: 'the location must be the full path of a folder' };
+    const folder = path.join(location, name);
+    if (fs.existsSync(folder) && (!fs.statSync(folder).isDirectory() || fs.readdirSync(folder).length)) {
+      return { error: `${folder} is already there and not empty; to work in it, use Open Folder…` };
+    }
     fs.mkdirSync(folder, { recursive: true });
+    if (git) await worktrees.initRepo(folder).catch((e) => console.error('[git]', e.message));
     return openLater(store.projectFor(folder, name));
   });
   ipcMain.handle('project:close', () => shell.closeProject());

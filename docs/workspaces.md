@@ -11,8 +11,10 @@ A **project** is a folder, usually a repository, with its workspaces. Kulisa kee
 (`projects/<id>/`), never in the project's folder, so sign-ins stay out of its git.
 
 - **One project is open at a time.** The project button in the title bar is a menu of the projects (each with its
-  color and folder), Open Folder…, and Manage Projects… (a dialog: also New Project, a project without a folder of
-  its own: Kulisa makes `~/Kulisa/<name>`). Opening another closes this one: all its workspaces saved, their agents
+  color and folder), New Project…, Open Folder…, and Manage Projects…. **New Project…**, as JetBrains': a name and a
+  location, the user's home folder unless they type or browse to another; the dialog shows the folder it makes
+  (`<location>/<name>`; one that is there must be empty), so the human knows where the agent's files are. Create Git
+  repository is on by default (`git init`, nothing committed): workspaces need git. Opening another closes this one: all its workspaces saved, their agents
   stopped. Coming back restores them and resumes their agents. The window builds the other grid in place, hidden
   until it is laid out, so nothing jumps.
 - **Each project has a color** (a glow from the middle of the window, the logo's curtain, the name's plate), to tell

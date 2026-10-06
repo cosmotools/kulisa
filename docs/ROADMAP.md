@@ -24,8 +24,10 @@ Feature numbers refer to [SPEC.md](SPEC.md), section 2. Update this file when so
   (Playwright's `page.consoleMessages()`, `pageErrors()`, `requests()`), errors or failures only on request.
 - **Projects.** A project is a folder (usually a repository) with its own profiles, tabs, grid and agent
   session; the Kulisa zoom is global. The project's name in the title bar opens a menu of the projects, as in
-  JetBrains: open another, Open Folder…, and Manage Projects… (the dialog: also create one without a folder,
-  `~/Kulisa/<name>`). Opening another closes this one (tabs, sign-ins
+  JetBrains: open another, New Project…, Open Folder…, and Manage Projects…. New Project… (2026-10-06), as
+  JetBrains': a name and a location (the home folder by default, Browse…), the folder it makes shown, Create Git
+  repository on by default. It made `~/Kulisa/<name>` without asking before: the human then did not know where the
+  agent's files were. Opening another closes this one (tabs, sign-ins
   and grid saved, agent stopped); coming back resumes the agent's conversation (Claude Code: `--resume` with the session the
   SessionStart hook reported; Codex: `resume --last`). Data in `<user data>/projects/<id>/`. Each project gets its own color: a round glow from the middle of the window
   (seen in the gaps between the islands and the title bar), the logo's curtain and the name's plate. The agent is typed into the user's shell started in the project's folder, so
