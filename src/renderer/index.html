@@ -151,6 +151,24 @@
   <template id="tpl-menuzoom">
     <div class="zoomrow"><span>Zoom</span><button class="out" title="Zoom out (Ctrl −)">−</button><output></output><button class="in" title="Zoom in (Ctrl +)">+</button></div>
   </template>
+  <!-- ☰'s ready-made arrangements as pictures (renderer.js): the profiles' pages light (.a-page), the terminal dark with its prompt (.a-term), as in the window -->
+  <template id="tpl-menuarrange">
+    <div class="arrange">
+      <button data-preset="columns" title="Profiles in columns, terminal below"><svg viewBox="0 0 48 32" aria-hidden="true">
+        <rect class="a-page" x="1" y="1" width="14.67" height="19" rx="2"/><rect class="a-page" x="16.67" y="1" width="14.67" height="19" rx="2"/>
+        <rect class="a-page" x="32.33" y="1" width="14.67" height="19" rx="2"/><rect class="a-term" x="1" y="21.5" width="46" height="9.5" rx="2"/><path class="a-prompt" d="M4 24l2.5 2-2.5 2M8 28.5h3.5"/></svg>
+        <span>Columns</span></button>
+      <button data-preset="grid" title="Profiles two by two, terminal right"><svg viewBox="0 0 48 32" aria-hidden="true">
+        <rect class="a-page" x="1" y="1" width="15" height="14.25" rx="2"/><rect class="a-page" x="17.5" y="1" width="15" height="14.25" rx="2"/>
+        <rect class="a-page" x="1" y="16.75" width="15" height="14.25" rx="2"/><rect class="a-page" x="17.5" y="16.75" width="15" height="14.25" rx="2"/>
+        <rect class="a-term" x="34" y="1" width="13" height="30" rx="2"/><path class="a-prompt" d="M37 3.5l2.5 2-2.5 2M41 8h3.5"/></svg>
+        <span>Two by two</span></button>
+      <button data-preset="focus" title="One profile at a time (the others as tabs), terminal below"><svg viewBox="0 0 48 32" aria-hidden="true">
+        <rect class="a-tab" x="1" y="1" width="10" height="3" rx="1"/><rect class="a-tab off" x="12" y="1" width="10" height="3" rx="1"/>
+        <rect class="a-page" x="1" y="5" width="46" height="15" rx="2"/><rect class="a-term" x="1" y="21.5" width="46" height="9.5" rx="2"/><path class="a-prompt" d="M4 24l2.5 2-2.5 2M8 28.5h3.5"/></svg>
+        <span>One at a time</span></button>
+    </div>
+  </template>
   <template id="tpl-wstab">
     <div class="wstab"><span class="state"></span><span class="name"></span><button class="close" aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></div>
   </template>

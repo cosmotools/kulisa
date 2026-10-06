@@ -67,8 +67,8 @@ Feature numbers refer to [SPEC.md](SPEC.md), section 2. Update this file when so
   menu opens the same dialog (with Cancel) and starts the chosen agent with a new conversation; found when a
   fresh start with Codex and no Codex account left no way back.
 - **No project at first start** (2026-10-06, found testing a fresh install: Kulisa opened the folder it was started
-  from, `~/Kulisa/Default` when installed). The Welcome screen (the term: CLAUDE.md), as JetBrains': Open Folder…,
-  New Project…, and the recent projects; links to kulisa.app, the documentation (the README on GitHub for now), GitHub
+  from, `~/Kulisa/Default` when installed). The Welcome screen (the term: CLAUDE.md), as JetBrains': New Project…,
+  Open Folder…, and the recent projects; links to kulisa.app, the documentation (the README on GitHub for now), GitHub
   and its issues, opened in the user's browser, and Kulisa's version. **Close Project** in the project button's menu
   shows it again. **Remove Project…** (2026-10-06; the project menu: the open one's Remove Project…, any row's ×; on the
   Welcome screen a recent project's × and right-click menu; one function in `app.js`): after a question, the project is closed if open, each of
@@ -94,7 +94,8 @@ Feature numbers refer to [SPEC.md](SPEC.md), section 2. Update this file when so
   keep letters of any language. Names given before stay until renamed.
 - **Window grid.** Profiles' panes and the terminal are peer panels in a grid (dockview): drag one to another
   place, stack panels as tabs, resize; JetBrains' Islands look. Ready-made arrangements in ☰ → Arrange panels: profiles in
-  columns with the terminal below, two by two with the terminal right, one profile at a time. The grid is saved
+  columns with the terminal below, two by two with the terminal right, one profile at a time; each drawn as a small
+  picture of itself (2026-10-06, as Windows' snap layouts), the words in its tooltip. The grid is saved
   and restored.
 - **Zoom.** One text size and control height for the whole UI (`--font`, `--control` in styles.css). The Kulisa
   zoom (Ctrl + / − / 0 outside the pages, or ☰ in the title bar, as Chrome's menu; the title bar shows it when not
@@ -105,7 +106,8 @@ Feature numbers refer to [SPEC.md](SPEC.md), section 2. Update this file when so
   (a menu of the profiles, as the project button's; or `profile_open`) brings it back with the same tabs. Stays closed across restarts (`closed` in
   profiles.json).
 - **Menus.** Kulisa draws its menus in HTML, as Chrome does (a popover, `src/renderer/menu.js`): the project
-  button (projects with their color and folder), Profiles ▾ (open and closed profiles, Manage Profiles…), ☰ (the zoom row "− 100% +", Arrange panels), and right-click on a
+  button (projects with their color and folder, a × on hover to remove one), Profiles ▾ (open and closed profiles,
+  Manage Profiles…), ☰ (the zoom row "− 100% +", Arrange panels as pictures), and right-click on a
   pane's header (New tab, Rename, Close profile, Delete profile…), a tab (Reload, Duplicate, Close, Close others) and the
   terminal (Copy, Paste, Select all, Clear, Change agent…). The pages are native views above the HTML, so while a menu is open
   they are pictures of themselves, as during a drag. Native menus were tried first (2026-10-05): rows of text

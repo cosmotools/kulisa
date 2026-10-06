@@ -259,5 +259,15 @@ dialog button:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent
     span { flex: 1; }
     output { min-width: 4em; text-align: center; }
     button { width: var(--control); padding: 0; font-size: 1.15em; } }
+  /* Arrange panels as pictures, as the window looks: the profiles' pages light, the terminal dark with its prompt */
+  .arrange { display: flex; gap: 4px; padding: 2px 4px 4px;
+    button { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: auto; padding: 8px 10px 6px;
+      color: var(--text-dim); white-space: nowrap; &:is(:hover, :focus-visible) { color: var(--text-strong); } }
+    svg { width: 64px; height: 43px; } /* the classes are a-…: .pane and .tab are the grid's own, and size rects too */
+    .a-page, .a-tab { fill: color-mix(in srgb, var(--page) 70%, transparent); }
+    .a-tab.off { fill: var(--line); }
+    .a-term { fill: var(--window); stroke: var(--line); stroke-width: 1; }
+    .a-prompt { fill: none; stroke: var(--text-dim); stroke-width: 1; stroke-linecap: round; stroke-linejoin: round; }
+    button:is(:hover, :focus-visible) :is(.a-page, .a-tab:not(.off)) { fill: var(--page); } }
 }
 

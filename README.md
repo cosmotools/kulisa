@@ -37,9 +37,10 @@ setuid on a plain install. The `.deb` installs it setuid, so the installed app r
 | `KULISA_SHOT` | Save a screenshot of the whole window to this PNG file ~4 s after start (`KULISA_SHOT_DELAY`, ms) |
 
 **Projects:** a project is a folder, usually a repository, with its own profiles, grid and agent. The project's
-name in the title bar opens **Projects**: open another one, open a folder, create a project without a folder
-(Kulisa makes `~/Kulisa/<name>`), close the project (back to the Welcome screen), or remove it (Kulisa's data of it and its forks; its folder stays). Opening another project closes this one: its tabs and sign-ins are kept, and its
-agent stops; when you come back, the agent continues the conversation where it can (`claude --resume`,
+name in the title bar opens a menu of the projects: open another one, remove one (its **×** on hover: Kulisa's data
+of it and its forks; its folder stays), **New Project…** (a name and where its folder goes, your home folder by
+default; git on by default), **Open Folder…**, close the project (back to the Welcome screen). Opening another
+project closes this one: its tabs and sign-ins are kept, and its agent stops; when you come back, the agent continues the conversation where it can (`claude --resume`,
 `codex resume --last`). The agent starts in your shell in the project's folder, as if you typed its command in a
 terminal there, so the project's environment (direnv's `.envrc`, nvm, mise) applies; when it exits, the shell stays.
 
@@ -54,11 +55,11 @@ on a branch of its own next to the project (`~/IdeaProjects/myshop@checkout/`; `
 `.worktreeinclude` are copied), copies of main's profiles, still signed in, and a new agent session started there.
 The fork's app runs on its own ports: the usual ones plus `KULISA_PORT_OFFSET` (100, 200, …), and the fork's tabs
 on local addresses point there. Click a workspace to switch; the others keep working. **×** on a fork deletes it
-(its folder, branch, profile copies and conversation; it asks first when the fork has changes not in main); **×**
-on main closes the project. A project needs git for workspaces (**Initialize git…** in the strip runs `git init`).
+(its folder, branch, profile copies and conversation), after a question that says what goes and any work not in
+main; **×** on main closes the project. A project needs git for workspaces (**Initialize git…** in the strip runs `git init`).
 
 Panes and the terminal are panels: drag one by its header to another place (or onto another panel to stack them as
-tabs), drag the gaps between them to resize; **☰ → Arrange panels** offers ready-made arrangements. The grid is
+tabs), drag the gaps between them to resize; **☰ → Arrange panels** offers ready-made arrangements, each drawn as a picture. The grid is
 kept across restarts. Profiles are added, renamed and deleted in **Profiles ▾ → Manage Profiles…**, or by right-clicking a pane's header
 (a name can also be renamed by double-clicking it). **×** at the top right of a profile's pane closes it: its tabs
 go and free their memory, it stays signed in; **Profiles ▾** lists it as closed and brings it back with the same tabs. Right-click a tab or the terminal for their menus. **Zoom:**
@@ -73,7 +74,8 @@ click to reset). Both are kept across restarts. **DevTools** on a pane (or F12, 
 ```
 src/main/        Electron main process
   index.js         entry: reads the environment, calls app.start()
-  app.js           window, projects and their workspaces (open, show, create, close), IPC, quit
+  app.js           window, projects and their workspaces (open, show, create, close, remove), IPC, quit
+  names.js         the one rule for names of projects, workspaces and profiles; slugs for ids and folders
   workspaces.js    a workspace: its profiles, agent (terminal, environment) and folder; a fork's copies of the profiles
   agents.js        the agent CLIs to choose from: how to find, install, start and resume each
   worktrees.js     git for workspaces: worktree and branch of a fork, files outside git copied, changes, removal

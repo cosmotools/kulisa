@@ -142,20 +142,28 @@ module.exports = (test) => {
     assert.ok(!['#e5534b', '#57ab5a', '#539bf5'].includes(saved.at(-1).color), 'and its color');
     assert.equal(list.rename('ann', 'Bob').id, 'bob-2');
   });
-  test('grid presets: columns, grid, focus', async ({ shell, ui }) => {
+  test('grid presets: columns, grid, focus; each fits the window, nothing cut off', async ({ shell, ui }) => {
     const at = async () => ({ sam: await pageBox(ui, 'sam-admin'), elon: await pageBox(ui, 'elon-buyer'), term: await box(ui, '#term') });
+    // Every panel inside the grid's room (#dock less its padding): none cut off at the right or the bottom.
+    const fits = async () => assert.deepEqual(await ui(`(() => { const d = document.getElementById('dock'), r = d.getBoundingClientRect(), s = getComputedStyle(d);
+      const right = r.right - parseFloat(s.paddingRight), bottom = r.bottom - parseFloat(s.paddingBottom);
+      return [...d.querySelectorAll('.dv-groupview')].map((g) => g.getBoundingClientRect()).filter((g) => g.right > right + 1 || g.bottom > bottom + 1)
+        .map((g) => ({ right: g.right - right, bottom: g.bottom - bottom })); })()`), [], 'panels cut off');
     await ui(`window.__layoutPreset('columns')`);
     await waitFor(() => viewOn(shell, ui, 'elon-buyer'));
+    await fits();
     let b = await at();
     assert.ok(b.sam.x < b.elon.x && b.sam.y === b.elon.y && b.term.y > b.sam.y + b.sam.height - 1, 'profiles side by side, terminal below');
     await ui(`window.__layoutPreset('focus')`);
     await waitFor(() => viewOn(shell, ui, 'sam-admin'));
+    await fits();
     b = await at();
     assert.equal(b.elon, null, 'Elon is a tab behind Sam');
     assert.ok(b.term.y > b.sam.y + b.sam.height - 1);
     // Left in this layout for the restart phase.
     await ui(`window.__layoutPreset('grid')`);
     await waitFor(async () => (await viewOn(shell, ui, 'sam-admin')) && viewOn(shell, ui, 'elon-buyer'));
+    await fits();
     b = await at();
     assert.ok(b.sam.x < b.elon.x && b.term.x > b.elon.x + b.elon.width - 1, 'profiles in a row of two, terminal on the right');
     await waitFor(() => fs.existsSync(pfile('layout.json')));
@@ -227,8 +235,14 @@ module.exports = (test) => {
     await ui(`window.__term.clearSelection()`);
 
     await ui(`document.getElementById('windowMenu').click()`);
-    assert.deepEqual((await menuRows(ui)).slice(2), ['# Arrange panels', 'Profiles in columns, terminal below', 'Profiles two by two, terminal right', 'One profile at a time, terminal below']);
-    await choose(ui, 'One profile at a time, terminal below');
+    // The arrangements as pictures, a short name under each, the full words in the tooltip.
+    assert.deepEqual((await menuRows(ui)).slice(2), ['# Arrange panels', 'arrange: Columns, Two by two, One at a time']);
+    const pics = await ui(`[...document.querySelectorAll('#menu .arrange button')].map((b) => ({ title: b.title,
+      panes: b.querySelectorAll('svg .a-page').length, term: b.querySelectorAll('svg .a-term').length, w: b.querySelector('svg').getBoundingClientRect().width }))`);
+    assert.deepEqual(pics.map((p) => [p.panes, p.term]), [[3, 1], [4, 1], [1, 1]]);
+    assert.ok(pics.every((p) => p.title && p.w >= 40), JSON.stringify(pics));
+    await ui(`document.querySelector('#menu .arrange [data-preset="focus"]').click()`);
+    assert.equal(await menuOpen(ui), false, 'a choice closes the menu');
     await waitFor(async () => (await pageBox(ui, 'elon-buyer')) === null && viewOn(shell, ui, 'sam-admin'));
     await ui(`window.__layoutPreset('grid')`); // as the grid presets test left it, for the restart phase
   });

@@ -11,21 +11,22 @@ A **project** is a folder, usually a repository, with its workspaces. Kulisa kee
 (`projects/<id>/`), never in the project's folder, so sign-ins stay out of its git.
 
 - **One project is open at a time.** The project button in the title bar is a menu of the projects (each with its
-  color and folder; × on hover removes one), New Project…, Open Folder…, Close Project and Remove
-  Project… (the open one). No separate Manage Projects dialog: as in JetBrains, the menu and the Welcome screen do it
-  all. **New Project…**, as JetBrains': a name and a
-  location, the user's home folder unless they type or browse to another; the dialog shows the folder it makes
-  (`<location>/<name>`; one that is there must be empty), so the human knows where the agent's files are. Create Git
-  repository is on by default (`git init`, nothing committed): workspaces need git. Opening another closes this one: all its workspaces saved, their agents
-  stopped. Coming back restores them and resumes their agents. The window builds the other grid in place, hidden
-  until it is laid out, so nothing jumps.
+  color and folder; × on hover removes one), New Project…, Open Folder…, Close Project and Remove Project… (the open
+  one). No separate Manage Projects dialog: as in JetBrains, the menu and the Welcome screen do it all.
+- **New Project…**, as JetBrains': a name and a location, the user's home folder unless they type or browse to
+  another; the dialog shows the folder it makes (`<location>/<name>`; one that is there must be empty), so the human
+  knows where the agent's files are. Create Git repository is on by default (`git init`, nothing committed):
+  workspaces need git.
+- **Opening another project** closes this one: all its workspaces saved, their agents stopped. Coming back restores
+  them and resumes their agents. The window builds the other grid in place, hidden until it is laid out, so nothing
+  jumps.
 - **Each project has a color** (a glow from the middle of the window, the logo's curtain, the name's plate), to tell
   projects apart at a glance.
 - **The Welcome screen** (the term: CLAUDE.md) is what the window shows with no project open: at the first start, and
-  after Close Project (the project button's menu), closing main, or removing the open project. New Project…, Open Folder…, the recent projects (acting as the menu's rows),
-  and links (the website, the documentation, GitHub, reporting an issue; they open in the user's browser) with
-  Kulisa's version. Later starts open the project opened last;
-  `KULISA_PROJECT=<folder> npm start` opens that one.
+  after Close Project (the project button's menu), closing main, or removing the open project. New Project…, Open
+  Folder…, the recent projects (a click opens one, × or a right-click removes it), and links (the website, the
+  documentation, GitHub, reporting an issue; they open in the user's browser) with Kulisa's version. Later starts
+  open the project opened last; `KULISA_PROJECT=<folder> npm start` opens that one.
 - **The agent** of each workspace starts in the user's own shell, in the workspace's folder, as if the human typed
   it in a terminal there: the project's environment applies (direnv's `.envrc`, nvm, mise; e.g. a project's
   `CLAUDE_CONFIG_DIR`, another Claude account), not the one Kulisa was started with. When it exits, the shell stays.
@@ -193,6 +194,7 @@ rm -rf ~/.config/Kulisa/projects/myshop   # all its workspaces and profiles, sig
 | `src/main/agents.js` | the agents to choose from: find, install, start, resume; Claude's folder trust |
 | `src/main/store.js` | the data folder above |
 | `src/main/terminal.js` | a terminal per workspace |
+| `src/renderer/projects.js`, `new-project.js` | the project menu, the Welcome screen; New Project… (loaded when needed) |
 | `src/renderer/workspaces.js` | the strip and the new-workspace dialog |
 | `src/renderer/agent-picker.js` | choosing and installing an agent (loaded when needed) |
 | `src/renderer/renderer.js` | building a workspace's grid, the slide |

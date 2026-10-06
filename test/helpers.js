@@ -25,7 +25,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const menuRows = async (ui) => {
   await waitFor(() => ui(`document.getElementById('menu').matches(':popover-open')`));
   return ui(`[...document.getElementById('menu').children].map((r) => r.matches('hr') ? '-' : r.matches('.heading') ? '# ' + r.textContent
-    : r.matches('.zoomrow') ? 'zoom' : r.querySelector('.label').textContent + (r.disabled ? ' (off)' : ''))`);
+    : r.matches('.zoomrow') ? 'zoom' : r.matches('.arrange') ? 'arrange: ' + [...r.querySelectorAll('span')].map((s) => s.textContent).join(', ')
+    : r.querySelector('.label').textContent + (r.disabled ? ' (off)' : ''))`);
 };
 const choose = (ui, label) => ui(`[...document.querySelectorAll('#menu .item')].find((b) => b.querySelector('.label').textContent === ${JSON.stringify(label)}).click()`);
 // The profile editor: Profiles ▾, then Manage Profiles….

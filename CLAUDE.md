@@ -68,6 +68,8 @@ inside Kulisa; no external Chrome windows.
     semantic elements (`header`, `main`, `nav`, `dialog`).
   - What the platform does natively stays native: `<dialog>` with `form method="dialog"` and `closedby`, `hidden`,
     form submit; one delegated listener on a container rather than one per item.
+  - Every dialog has the same parts (`index.html`, styles.css): `header` (title, × when it may be closed), `.body`,
+    `footer` with the buttons at the right end, the main one last (`.primary`, `.danger` when it deletes).
   - CSS: nesting, custom properties for every color and size (`:root` in styles.css; no literal colors elsewhere),
     `:is()`, `:has()`, `color-mix()`, logical properties. Before overriding dockview, check that its own variables
     or rules don't already do it.
@@ -168,8 +170,8 @@ Layers, each using only the ones below it:
 
 Modules (`src/main`):
 
-- `app.js`: the window; projects and their workspaces (open, show, create, close, one after another: `serial`);
-  IPC; quit. `shell.profiles`, `shell.closed`, `shell.pty` are the shown workspace's.
+- `app.js`: the window; projects and their workspaces (open, show, create, close, remove, one after another:
+  `serial`); IPC; quit; the question before deleting (`shell.ask`, asked in the window: `ask.js`). `shell.profiles`, `shell.closed`, `shell.pty` are the shown workspace's.
 - `workspaces.js`: a workspace: its profiles, its agent in its own terminal and environment, a fork's copies.
 - `worktrees.js`: git for forks (the user's git, never a shell): worktree, branch, files outside git, direnv.
 - `agents.js`: the agents to choose from, one entry each: find, install, start, resume. Agent-specific code goes
@@ -177,6 +179,7 @@ Modules (`src/main`):
 - `project-profiles.js`: a workspace's profiles in order, open and closed: create, rename, close, open, delete.
 - `profiles.js`: a profile: `session.fromPath(<workspace>/Profile <k>)` plus a `WebContentsView` per tab.
 - `store.js`: Kulisa's data folder, laid out as Chrome's user data.
+- `names.js`: the one rule for names (projects, workspaces, profiles: an email address's characters) and slugs.
 - `session-cookies.js`, `signin-pages.js`, `signin-pause.js`, `mimic-chrome.js`: sign-ins that last, the sign-in
   pause, presenting as Google Chrome.
 - `cdp-proxy.js`, `local-only.js`: the CDP endpoint per profile; refusing web pages.

@@ -201,12 +201,16 @@ function applyPreset(name) {
   for (const p of state) if (!panes.has(p.key)) createPane(p);
   api.clear();
   const share = presets[name]();
-  // The terminal's share of the window, once the grid has a size (at first start the window may have none yet).
+  // The terminal's share of the window, once the grid has a size (at first start the window may have none yet). The
+  // grid's room is #dock less its padding (the gaps at the window's edges): laid out to clientWidth, it was that much
+  // wider and taller than its room, the right and bottom cut off until the window was resized.
   const size = () => {
-    if (dockEl.clientHeight < 100) return false;
-    api.layout(dockEl.clientWidth, dockEl.clientHeight);
-    api.getPanel('terminal').group.api.setSize(share.height ? { height: Math.round(dockEl.clientHeight * share.height) }
-      : { width: Math.round(dockEl.clientWidth * share.width) });
+    const s = getComputedStyle(dockEl);
+    const w = dockEl.clientWidth - parseFloat(s.paddingLeft) - parseFloat(s.paddingRight);
+    const h = dockEl.clientHeight - parseFloat(s.paddingTop) - parseFloat(s.paddingBottom);
+    if (h < 100) return false;
+    api.layout(w, h);
+    api.getPanel('terminal').group.api.setSize(share.height ? { height: Math.round(h * share.height) } : { width: Math.round(w * share.width) });
     return true;
   };
   if (!size()) { const ro = new ResizeObserver(() => size() && ro.disconnect()); ro.observe(dockEl); }
@@ -302,20 +306,21 @@ kulisa.invoke('zoom:get').then(showZoom);
 kulisa.on('zoom', (z) => { showZoom(z); scheduleLayout(); });
 zoomReset.onclick = () => kulisa.invoke('zoom:ui', 0);
 const windowMenu = document.getElementById('windowMenu');
-// ☰, as Chrome's ⋮: the zoom row (stays open while you click − and +), then the ready-made arrangements.
+// ☰, as Chrome's ⋮: the zoom row (stays open while you click − and +), then the ready-made arrangements, each a
+// picture of itself (seen at a glance, as Windows' snap layouts), its words in the tooltip.
 windowMenu.onclick = () => {
   const zoom = tpl('tpl-menuzoom');
   zoom.querySelector('output').textContent = `${Math.round(uiZoom * 100)}%`;
   zoom.querySelector('.in').onclick = () => kulisa.invoke('zoom:ui', 1);
   zoom.querySelector('.out').onclick = () => kulisa.invoke('zoom:ui', -1);
-  openMenu([
-    { element: zoom },
-    '-',
-    { heading: 'Arrange panels' },
-    { label: 'Profiles in columns, terminal below', run: () => applyPreset('columns') },
-    { label: 'Profiles two by two, terminal right', run: () => applyPreset('grid') },
-    { label: 'One profile at a time, terminal below', run: () => applyPreset('focus') },
-  ], windowMenu);
+  const arrange = tpl('tpl-menuarrange');
+  arrange.onclick = (e) => {
+    const preset = e.target.closest('[data-preset]')?.dataset.preset;
+    if (!preset) return;
+    document.getElementById('menu').hidePopover();
+    applyPreset(preset);
+  };
+  openMenu([{ element: zoom }, '-', { heading: 'Arrange panels' }, { element: arrange }], windowMenu);
 };
 
 // ---------- context menus ----------
