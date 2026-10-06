@@ -34,6 +34,16 @@ module.exports = (test) => {
     assert.equal(withOffset('http://localhost:3000/', 0), 'http://localhost:3000/');
   });
 
+  test('workspaces: a project reached through a symlink is placed right in its repository (macOS: /tmp, /var)', async () => {
+    const { repoOf } = require('../src/main/worktrees');
+    const repo = path.join(root, 'linked-repo'), link = path.join(root, 'linked');
+    fs.mkdirSync(path.join(repo, 'app'), { recursive: true });
+    git(repo, 'init', '-q');
+    fs.symlinkSync(repo, link, 'junction');
+    assert.equal((await repoOf(path.join(link, 'app'))).sub, 'app');
+    assert.equal((await repoOf(link)).sub, '');
+  });
+
   test("workspaces: Claude Code trusts a fork's folder as it trusts main; its config as the session tells it", async () => {
     const os = require('os');
     assert.equal(claudeConfigOf('/home/u/.claude-work/projects/-x/1.jsonl'), '/home/u/.claude-work/.claude.json');
@@ -139,7 +149,7 @@ module.exports = (test) => {
     await call('browser_navigate', { profile: 'sam-admin', url: `${SITE}/app?fork` });
     const mainSam = main.profiles.get('sam-admin');
     const ws = await fork(ctx, 'Feature-X');
-    const wt = `${project}@feature-x`;
+    const wt = `${fs.realpathSync(project)}@feature-x`; // next to the repository's real path (macOS: /var is /private/var)
     assert.equal(ws.n, 2);
     assert.equal(ws.folder, wt);
     assert.equal(git(wt, 'rev-parse', '--abbrev-ref', 'HEAD'), 'feature-x');
@@ -239,8 +249,7 @@ module.exports = (test) => {
     await ui(`${wsTab(spike.n)}.querySelector('.close').click()`);
     await waitFor(() => !shell.workspaces.has(spike.n) && shell.ws.n === 1);
     ctx.asked.length = 0;
-    await waitFor(() => !fs.existsSync(spike.folder));
-    assert.equal(git(project, 'branch', '--list', 'spike'), '');
+    await waitFor(() => !fs.existsSync(spike.folder) && git(project, 'branch', '--list', 'spike') === '');
     assert.deepEqual(JSON.parse(fs.readFileSync(path.join(userData, 'projects', 'project', 'workspaces.json'), 'utf8')).list.map((w) => w.name), ['main', 'Feature-X']);
   });
 
@@ -296,6 +305,25 @@ module.exports = (test) => {
     await ui(`${wsTab(ws.n)}.querySelector('.close').click()`);
     await waitFor(() => !shell.workspaces.has(ws.n) && shell.ws.n === 1);
     ctx.asked.length = 0;
+  });
+
+  test('workspaces: the project closed while the window still slides to another workspace; opened again, its pages show', async (ctx) => {
+    const { shell, ui } = ctx;
+    await ui(`${wsTab(2)}.click()`);
+    await waitFor(() => shell.ws.n === 2 && shell.ws.loaded);
+    // Back to main, and the project closed the moment main's state goes to the window, which is still sliding.
+    const wc = shell.win.webContents, send = wc.send;
+    let closed = null;
+    wc.send = function (channel, ...args) { send.call(this, channel, ...args); if (channel === 'state') closed ??= shell.closeProject(); };
+    try { await shell.showWorkspace(1); } finally { wc.send = send; }
+    assert.ok(closed, 'closing was asked for during the switch');
+    await closed;
+    await waitFor(() => ui(`document.documentElement.classList.contains('noproject')`));
+    await sleep(600); // the human looks at the Welcome screen a moment; the window has long finished sliding
+    await ui(`[...document.querySelectorAll('#welcome-list .item')].find((b) => b.querySelector('.label').textContent === 'project').click()`);
+    await waitFor(() => shell.ws?.n === 1 && shell.ws.loaded && shell.pty);
+    ctx.watchPty(shell.pty);
+    await waitFor(async () => (await viewOn(shell, ui, 'sam-admin')) && viewOn(shell, ui, 'elon-buyer'));
   });
 
   // Last in phase 1: main is shown and Feature-X waits in the strip for the restart phase.

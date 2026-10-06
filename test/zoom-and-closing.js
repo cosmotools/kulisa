@@ -89,7 +89,7 @@ module.exports = (test) => {
     await waitFor(() => shell.profiles.has('cleo'));
     await waitFor(() => ui(`${row}.querySelector('.open').hidden`));
     await ui(`document.getElementById('closeProfiles').click()`);
-    assert.deepEqual(shell.profiles.get('cleo').tabs.map((t) => t.url), [`${SITE}/app`, `${SITE}/app?second`]);
+    await waitFor(() => JSON.stringify(shell.profiles.get('cleo').tabs.map((t) => t.url)) === JSON.stringify([`${SITE}/app`, `${SITE}/app?second`]));
     assert.equal(await who(ctx, 'cleo'), 'Signed in as cleo');
     await waitFor(() => ui(`!!document.querySelector('${header}')`));
 

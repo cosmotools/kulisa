@@ -7,16 +7,22 @@ const panes = new Map(); // profile key (its folder; stable across renames) -> {
 let state = []; // the open profiles of the shown workspace, as the main process sends them
 let gridReady = null;
 let leaving = null; // the grid being taken down (an animation), before the next one is built
+// Grids taken down so far. A state, or the reveal of a grid, from before the latest one is stale: another switch began
+// meanwhile, and its own state comes once it is done.
+let closings = 0;
 let slideIn = 0; // the next grid slides in from this side (1 right, -1 left), as macOS desktops do
 const pictures = new Map(); // workspace number -> { profile id: data URL }: its pages when it was left, for sliding in
 const dockEl = document.getElementById('dock');
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 
 kulisa.on('state', async (s) => {
+  const seen = closings;
   await leaving; // the grid on screen goes first (it clears the state)
+  if (seen !== closings) return;
   state = s;
   const first = !gridReady;
   await (gridReady ??= restoreGrid());
+  if (seen !== closings) return;
   render();
   if (first) reveal();
 });
@@ -24,12 +30,15 @@ kulisa.on('state', async (s) => {
 // pages hidden (html.loading): nothing jumps while the window loads, e.g. when another project is opened. A workspace
 // shown from the strip slides in with pictures of its pages, then the pages themselves come.
 function reveal() {
+  const seen = closings;
   requestAnimationFrame(() => requestAnimationFrame(async () => { // after sendLayout's frame
+    if (seen !== closings) return;
     const dir = slideIn; slideIn = 0;
     document.documentElement.classList.remove('loading');
     if (dir) {
       showPictures(pictures.get(workspaces.current) || {});
       await dockEl.animate([{ translate: `${dir * 30}% 0`, opacity: 0 }, { translate: '0 0', opacity: 1 }], { duration: 200, easing: 'ease-out' }).finished;
+      if (seen !== closings) return;
       for (const img of document.querySelectorAll('.pane .content img.snapshot')) img.remove();
       sendLayout(); // the boxes measured while it slid were off by the slide
     }
@@ -219,7 +228,11 @@ window.__layoutPreset = applyPreset; // for tests
 // them; kept for when it comes back), unless the system asks for reduced motion; otherwise it is hidden at once, so
 // nothing half-built shows. The title bar stays; the terminal panel too (another project: its terminals go).
 kulisa.on('grid:closing', ({ dir, ws, pics }) => {
+  closings++;
+  const before = leaving, building = gridReady; // one still sliding out, or being built, goes first
   leaving = (async () => {
+    await before;
+    await building?.catch(() => {});
     for (const d of document.querySelectorAll('dialog[open]')) d.close();
     clearTimeout(saveTimer);
     if (pics) pictures.set(ws, pics);

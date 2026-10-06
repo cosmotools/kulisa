@@ -110,7 +110,9 @@ npm run icons # renders assets/icon.svg to icon.png/.ico/.icns (committed; run a
   run `npm run postinstall` after that.
 
 - **Sandbox and native module.** Electron needs `--no-sandbox` here (`chrome-sandbox` is not setuid); the npm
-  scripts pass it. `npm install` rebuilds `node-pty` for Electron (postinstall).
+  scripts pass it. `npm install` (`scripts/postinstall.js`) rebuilds `node-pty` for Electron on Linux; on macOS and
+  Windows it uses node-pty's prebuilt N-API binaries (no Xcode or Visual Studio needed) and makes macOS's
+  `spawn-helper` executable (node-pty 1.1.0 ships it without the bit: every terminal fails with `posix_spawnp failed`).
 - **Starting the app from a Claude Code session.** The app's terminal starts `claude`, which would inherit the
   parent session's `CLAUDE_*` variables, take itself for a child session and not save its history. Unset them all
   except `CLAUDE_CONFIG_DIR`, and run it in the background:
@@ -220,4 +222,4 @@ What must hold in the window:
 - **With the monitor off or the screen locked**, Chromium renders at 1–2 fps, and anything waiting for frames
   crawls. Don't trust timings taken then (`xset q` shows "Monitor is Off").
 - **`ensureSite()` reuses whatever listens on :4417.** A stale server from an earlier run makes tests lie. Check
-  `ss -ltnp | grep 4417`.
+  `ss -ltnp | grep 4417` (macOS: `lsof -nP -iTCP:4417 -sTCP:LISTEN`).

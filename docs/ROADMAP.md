@@ -377,7 +377,23 @@ Feature numbers refer to [SPEC.md](SPEC.md), section 2. Update this file when so
   per-launch token (passed to the agent through the environment, like `KULISA_MCP_URL`) at least.
 - **`signin-pause.js` is a temporary implementation** to be replaced by the author. It recognizes sign-in pages
   only by host and pauses the whole profile.
-- **macOS and Windows are untested** (only Linux so far; Kulisa targets all three, see SPEC section 4). Known gaps:
+- **macOS: `npm test` passes** (2026-10-06, macOS 15.7 on Apple silicon, both phases). Fixed on the way: `npm install`
+  needed Xcode's tools and node-pty's `spawn-helper` lacked the executable bit (`scripts/postinstall.js`); a fork of a
+  project reached through a symlink (`/tmp`, `/var` are `/private/…`) got main's folder (`worktrees.js`); Electron's
+  default menu stayed in the system bar, its Cmd+R reloading Kulisa's own page (now Kulisa, Edit, Window); window
+  screenshots needed the screen-recording permission (now put together from the window's parts without it); a race
+  in the window when a project closed while a workspace switch still slid in left the pages hidden (any OS). Still
+  open on macOS:
+  - **A covered window stops rendering.** macOS tells Chromium when the window is fully covered by others; it then
+    stops drawing it and its pages (no `requestAnimationFrame`, `document.visibilityState` hidden), the profile
+    views included. An agent working while the human is in another app may crawl wherever Playwright waits for a
+    frame (screenshots, some clicks), as with the monitor off (REPORT, Surprises 1). The tests turn it off
+    (`disable-backgrounding-occluded-windows`); for the app, to decide with the author (CPU of pages drawn while
+    nobody sees them).
+  - Not checked by hand yet: the window buttons (traffic lights) over the title bar, dragging and maximizing; the
+    agent typed into zsh (direnv, `claude --resume`); packaging (`.dmg`, signing, notarization).
+  - Tooltips still say Ctrl for the zoom keys (Cmd works); the terminal's menu says ⌘C/⌘V.
+- **Windows is untested** (Kulisa targets all three, see SPEC section 4). Known gaps (some also for macOS):
   - `mimic-chrome.js` takes the machine part (OS, OS version, CPU, the UA's platform) from what Electron's
     Chromium reports itself, so it should match Chrome everywhere. Compared with real Chrome on Linux only; check
     on macOS and Windows against a real Chrome (`navigator.userAgentData.getHighEntropyValues`).
@@ -401,13 +417,13 @@ Feature numbers refer to [SPEC.md](SPEC.md), section 2. Update this file when so
     - Both: switching projects (the agent stops, `claude --resume` on coming back) and the project folder dialog
       ("Open Folder…", native) are untested, and so is the native question when deleting a profile.
   - `safeStorage` (Keychain, DPAPI) for session cookies: expected to work, untested.
-  - macOS: the window screenshot (`KULISA_SHOT`) needs the screen-recording permission; distribution needs code
+  - macOS: distribution needs code
     signing and notarization (Apple Developer account). Windows: code signing certificate.
   - The first start: a packaged app opens no project (the window offers to open one), later the project opened last
     (untested packaged).
   - The one-row title bar (`titleBarStyle: 'hidden'` + `titleBarOverlay`, Window Controls Overlay): checked on
     Linux/X11 only. Check the window buttons, dragging and double-click to maximize on macOS (traffic lights on the
     left), Windows and Wayland.
-  - Tests run only on Linux. Needs CI with a macOS/Windows/Linux matrix (GitHub Actions on the repository).
+  - Tests run on Linux and macOS by hand. Needs CI with a macOS/Windows/Linux matrix (GitHub Actions on the repository).
 - **No performance numbers taken with the monitor on.** CPU, RAM, many profiles; see REPORT, E8.
 - **`playwright-core` is pinned to a 1.64 alpha.** Move to the stable release once it ships with the same APIs.

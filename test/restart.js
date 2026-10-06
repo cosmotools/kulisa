@@ -47,7 +47,7 @@ module.exports = (test) => {
     assert.equal(fork.loaded, false);
     await ui(`document.querySelector('#wslist .wstab[data-ws="2"]').click()`);
     await waitFor(() => shell.ws === fork && fork.loaded && fork.pty);
-    assert.equal(fork.folder, `${project}@feature-x`);
+    assert.equal(fork.folder, `${fs.realpathSync(project)}@feature-x`);
     assert.deepEqual([...shell.profiles.keys()], ['sam-admin', 'elon-buyer']);
     await ctx.call('browser_navigate', { profile: 'sam-admin', url: `${SITE}/app` });
     assert.equal(await who(ctx, 'sam-admin'), 'Signed in as sam');

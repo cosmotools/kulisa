@@ -1,6 +1,6 @@
 // The Kulisa window: profile panes, the agent CLI in a terminal, point-and-tell, the CDP proxy and the MCP server.
 // start(options) is used by the entry point (index.js) and by the tests.
-const { app, BrowserWindow, ipcMain, desktopCapturer, dialog, shell: electronShell } = require('electron');
+const { app, BrowserWindow, ipcMain, desktopCapturer, dialog, Menu, nativeImage, shell: electronShell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { EventEmitter } = require('events');
@@ -332,8 +332,10 @@ function start(options = {}) {
         zoomFactor: shell.uiZoom },
     }));
     // Electron's default File/Edit/View/Window menu adds a row on Linux and Windows and gives nothing (its Ctrl+R
-    // reloads the shell). On macOS the menu lives in the system bar and stays (Cmd+C/V need its Edit roles).
-    win.removeMenu();
+    // reloads the shell). On macOS the menu lives in the system bar: Kulisa, Edit (Cmd+C/V/A in fields, pages and the
+    // terminal) and Window; not View, whose Cmd+R would reload Kulisa's own page whichever page has the focus.
+    if (process.platform === 'darwin') Menu.setApplicationMenu(Menu.buildFromTemplate([{ role: 'appMenu' }, { role: 'editMenu' }, { role: 'windowMenu' }]));
+    else win.removeMenu();
     // Links in the window (the Welcome screen's: the website, GitHub) open in the user's browser; the window itself
     // never leaves its page.
     win.webContents.setWindowOpenHandler(({ url }) => {
@@ -484,15 +486,34 @@ function start(options = {}) {
 }
 
 // The whole window, profile views included (BrowserWindow.capturePage misses WebContentsViews), captured like a
-// screen recorder would.
+// screen recorder would; without the screen-recording permission (macOS asks for it), put together from its parts.
 async function screenshotWindow(win, file) {
   const [width, height] = win.getContentSize();
-  const sources = await desktopCapturer.getSources({ types: ['window'], thumbnailSize: { width, height } });
+  const sources = await desktopCapturer.getSources({ types: ['window'], thumbnailSize: { width, height } }).catch(() => []);
   const source = sources.find((s) => s.id === win.getMediaSourceId());
-  if (!source) throw new Error('window not found among capture sources');
-  fs.writeFileSync(file, source.thumbnail.toPNG());
+  fs.writeFileSync(file, (source?.thumbnail || await composeWindow(win)).toPNG());
   console.log('[kulisa] screenshot', file);
   return file;
+}
+
+// The window's page with the pages of the profile views it shows laid over it where they are (no OS window buttons).
+async function composeWindow(win) {
+  const page = await win.webContents.capturePage();
+  const { width, height } = page.getSize();
+  const scale = width / win.getContentSize()[0];
+  const out = page.toBitmap();
+  for (const v of win.contentView.children) {
+    if (v.webContents === win.webContents || !v.webContents || !v.getVisible()) continue;
+    const b = v.getBounds();
+    const x = Math.round(b.x * scale), y = Math.round(b.y * scale);
+    const w = Math.min(Math.round(b.width * scale), width - x), h = Math.min(Math.round(b.height * scale), height - y);
+    if (w <= 0 || h <= 0 || x < 0 || y < 0) continue;
+    const img = await v.webContents.capturePage();
+    const px = img.resize({ width: Math.round(b.width * scale), height: Math.round(b.height * scale) }).toBitmap();
+    const stride = Math.round(b.width * scale) * 4;
+    for (let r = 0; r < h; r++) out.set(px.subarray(r * stride, r * stride + w * 4), ((y + r) * width + x) * 4);
+  }
+  return nativeImage.createFromBitmap(out, { width, height, scaleFactor: scale });
 }
 
 function normalizeUrl(u) {

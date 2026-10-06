@@ -24,7 +24,8 @@ const ok = (p) => p.then(() => true, () => false);
 async function repoOf(folder) {
   const top = await git(folder, ['rev-parse', '--show-toplevel']).catch(() => null);
   if (!top) return null;
-  return { top: path.resolve(top), sub: path.relative(path.resolve(top), path.resolve(folder)), commit: await ok(git(folder, ['rev-parse', '--verify', 'HEAD^{commit}'])) };
+  // git prints the real path; the folder may be reached through a symlink (macOS: /tmp, /var are /private/…).
+  return { top: path.resolve(top), sub: path.relative(path.resolve(top), fs.realpathSync.native(folder)), commit: await ok(git(folder, ['rev-parse', '--verify', 'HEAD^{commit}'])) };
 }
 
 // A name for the branch and the folder: lower case, letters (any language), digits and dashes.

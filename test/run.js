@@ -11,6 +11,9 @@ const { ensureSite } = require('./fixtures/site');
 const { root, userData, project, sleep, waitFor } = require('./helpers');
 
 const restart = process.argv.includes('--restart');
+// macOS stops rendering a window that other windows cover (no requestAnimationFrame, pages hidden), and a test window
+// started from a terminal opens behind it: the tests would depend on what is on the screen.
+app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
 // direnv's list of allowed .envrc files (workspaces copy and allow them): the test's own, not the user's.
 process.env.XDG_DATA_HOME = path.join(root, 'xdg-data');
 const FILES = restart ? ['restart'] : ['agent', 'profiles', 'window', 'grid', 'zoom-and-closing', 'workspaces'];

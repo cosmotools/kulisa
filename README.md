@@ -11,7 +11,7 @@ how the design was tested: [docs/REPORT.md](docs/REPORT.md).
 ## Run
 
 ```sh
-npm install          # Node 22.13+. Rebuilds node-pty for Electron.
+npm install          # Node 22.13+. Linux: rebuilds node-pty for Electron; macOS, Windows: its prebuilt binaries
 npm start            # opens the project used last; at first start the window offers to open one
 KULISA_PROJECT=~/my-app npm start
 npm test             # starts the real app against a local test site, then again to check a restart
@@ -20,7 +20,7 @@ npm run make         # installers for this platform, in out/make/ (.deb on Linux
 npm run icons        # after changing assets/icon.svg: icon.png, .ico, .icns next to it
 ```
 
-Kulisa targets macOS, Windows and Linux; so far it is tested on Ubuntu only (see docs/ROADMAP.md). Installers are
+Kulisa targets macOS, Windows and Linux; `npm test` passes on Ubuntu and macOS, Windows is untested (see docs/ROADMAP.md). Installers are
 built with [Electron Forge](https://www.electronforge.io/) (`forge.config.js`), each on its own platform.
 
 `npm start` and `npm test` run Electron with `--no-sandbox`: on Linux `chrome-sandbox` in `node_modules` is not

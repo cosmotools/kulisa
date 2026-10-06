@@ -34,7 +34,7 @@
   "scripts": {
     "start": "electron --no-sandbox .",
     "test": "electron --no-sandbox test/run.js && electron --no-sandbox test/run.js --restart",
-    "postinstall": "electron-rebuild -f -w node-pty",
+    "postinstall": "node scripts/postinstall.js",
     "package": "electron-forge package",
     "make": "electron-forge make",
     "icons": "node scripts/icons.js"

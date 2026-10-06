@@ -89,10 +89,12 @@ kulisa.on('terminal:reset', ({ ws }) => terminals.get(ws)?.term.reset()); // ano
 
 function termCopy() { navigator.clipboard.writeText(term.getSelection()); }
 function termPaste() { navigator.clipboard.readText().then((t) => term.paste(t)); }
+// macOS: Cmd+C/V, from the Edit menu in the system bar (app.js); Ctrl+Shift+C/V work there too.
+const MAC = navigator.platform.startsWith('Mac');
 function terminalMenu() {
   return [
-    { label: 'Copy', keys: 'Ctrl+Shift+C', enabled: term.hasSelection(), run: termCopy },
-    { label: 'Paste', keys: 'Ctrl+Shift+V', run: termPaste },
+    { label: 'Copy', keys: MAC ? '⌘C' : 'Ctrl+Shift+C', enabled: term.hasSelection(), run: termCopy },
+    { label: 'Paste', keys: MAC ? '⌘V' : 'Ctrl+Shift+V', run: termPaste },
     { label: 'Select all', run: () => term.selectAll() },
     '-',
     { label: 'Clear', run: () => term.clear() },

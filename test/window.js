@@ -32,7 +32,13 @@ module.exports = (test) => {
     assert.equal(files.length, 6);
   });
   test('one row on top: no menu bar, OS window buttons over the top bar', async ({ shell, ui }) => {
-    assert.equal(shell.win.isMenuBarVisible(), false);
+    if (process.platform === 'darwin') {
+      // The menu is in the system bar: Edit for Cmd+C/V, no View (its Cmd+R would reload Kulisa's own page).
+      const roles = (items) => items.flatMap((i) => [i.role, ...(i.submenu ? roles(i.submenu.items) : [])]).filter(Boolean).map((r) => r.toLowerCase());
+      const all = roles(require('electron').Menu.getApplicationMenu().items);
+      assert.ok(['copy', 'paste', 'selectall', 'quit'].every((r) => all.includes(r)), all.join(' '));
+      assert.ok(!['reload', 'forcereload', 'toggledevtools'].some((r) => all.includes(r)), all.join(' '));
+    } else assert.equal(shell.win.isMenuBarVisible(), false);
     assert.equal(await ui(`navigator.windowControlsOverlay.visible`), true);
     const bar = await ui(`(() => { const r = document.getElementById('topbar').getBoundingClientRect(); return { top: r.top, height: r.height, right: r.right }; })()`);
     const controls = await ui(`(() => { const r = navigator.windowControlsOverlay.getTitlebarAreaRect(); return { x: r.x, width: r.width }; })()`);
