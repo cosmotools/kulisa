@@ -69,7 +69,10 @@ function trustLikeMain(file, mainFolder, folder) {
 // What Claude Code keeps of a deleted fork's folder, all of it (undocumented layout, as of Claude Code 2.1; what is not
 // found is skipped), in the config dir the sessions used (from the transcript the SessionStart hook reported, else
 // main's: the same environment):
-//   projects/<folder, non-alphanumerics as ->/   its conversations (<session>.jsonl, and a folder per session)
+//   projects/<folder, non-alphanumerics as ->/   its conversations (<session>.jsonl, and a folder per session).
+//                                                 Folders of other forks can map to the same name (kulisa@ыва and
+//                                                 kulisa@фыв are both kulisa----): only the sessions whose recorded
+//                                                 cwd is the fork's folder go
 //   file-history/<session>, session-env/<session>, debug/<session>.txt, todos/<session>-*   per session
 //   history.jsonl                                 the prompts typed, a line each with "project": <folder>
 //   .claude.json (claudeConfigOf)                 projects[<folder>]: its trust and settings
@@ -82,8 +85,12 @@ function forgetClaude({ folder, saved = {}, main = {} }) {
   const dir = path.dirname(projects);
   const conversations = path.join(projects, folder.replace(/[^a-zA-Z0-9]/g, '-'));
   const sessions = new Set([saved.sessionId, ...(fs.existsSync(conversations) ? fs.readdirSync(conversations) : [])
-    .filter((f) => f.endsWith('.jsonl')).map((f) => f.slice(0, -'.jsonl'.length))].filter(Boolean));
-  fs.rmSync(conversations, { recursive: true, force: true });
+    .filter((f) => f.endsWith('.jsonl') && cwdOf(path.join(conversations, f)) === folder).map((f) => f.slice(0, -'.jsonl'.length))].filter(Boolean));
+  for (const id of sessions) {
+    fs.rmSync(path.join(conversations, `${id}.jsonl`), { force: true });
+    fs.rmSync(path.join(conversations, id), { recursive: true, force: true });
+  }
+  try { fs.rmdirSync(conversations); } catch {} // when nothing of another folder is left in it
   for (const id of sessions) {
     for (const f of [['file-history', id], ['session-env', id], ['debug', `${id}.txt`]]) fs.rmSync(path.join(dir, ...f), { recursive: true, force: true });
     const todos = path.join(dir, 'todos');
@@ -99,6 +106,19 @@ function forgetClaude({ folder, saved = {}, main = {} }) {
     }
   } catch (e) { if (e.code !== 'ENOENT') console.warn('[agents] forget:', e.message); }
   return true;
+}
+
+// The folder a Claude Code transcript was made in: the cwd of its first line that has one.
+function cwdOf(file) {
+  try {
+    const fd = fs.openSync(file, 'r'), buf = Buffer.alloc(65536);
+    const head = buf.toString('utf8', 0, fs.readSync(fd, buf, 0, buf.length, 0));
+    fs.closeSync(fd);
+    for (const line of head.split('\n')) {
+      try { const cwd = JSON.parse(line).cwd; if (cwd) return cwd; } catch {}
+    }
+  } catch {}
+  return null;
 }
 
 // What Codex keeps of a deleted fork's folder (undocumented layout, as of Codex 0.160), in CODEX_HOME (~/.codex):

@@ -60,7 +60,9 @@ module.exports = (test) => {
     // Claude: a config dir as Claude Code lays it out, with the fork's things and main's.
     const cfg = path.join(root, 'claude-config'), fork = '/p@f', main = '/p';
     const conv = path.join(cfg, 'projects', '-p-f'), mainConv = path.join(cfg, 'projects', '-p');
-    put(path.join(conv, 's1.jsonl')); put(path.join(conv, 's2.jsonl')); put(path.join(conv, 's1', 'subagents', 'a.jsonl'));
+    const transcript = (cwd) => `{"type":"summary"}\n${JSON.stringify({ type: 'user', cwd })}\n`;
+    put(path.join(conv, 's1.jsonl'), transcript(fork)); put(path.join(conv, 's2.jsonl'), transcript(fork)); put(path.join(conv, 's1', 'subagents', 'a.jsonl'));
+    put(path.join(conv, 'o1.jsonl'), transcript('/p-f')); // another folder Claude names the same (-p-f)
     put(path.join(mainConv, 'm1.jsonl'));
     for (const id of ['s1', 's2', 'm1']) {
       put(path.join(cfg, 'file-history', id, 'x')); put(path.join(cfg, 'session-env', id, 'x'));
@@ -72,7 +74,7 @@ module.exports = (test) => {
     assert.equal(agent('claude').forget({ ...ctx, folder: main }), false, "never main's folder");
     assert.equal(agent('claude').forget({ ...ctx, saved: { transcript: path.join(root, 'elsewhere', 'x.jsonl') }, main: {} }), false, "not a Claude transcript's path");
     assert.equal(agent('claude').forget({ ...ctx, saved: {} }), true, "no session reported: main's config dir");
-    assert.ok(!fs.existsSync(conv), "the fork's conversations");
+    assert.deepEqual(fs.readdirSync(conv), ['o1.jsonl'], "the fork's conversations; another folder's of the same name stay");
     for (const id of ['s1', 's2']) {
       assert.ok(!fs.existsSync(path.join(cfg, 'file-history', id)) && !fs.existsSync(path.join(cfg, 'session-env', id)) &&
         !fs.existsSync(path.join(cfg, 'debug', `${id}.txt`)) && !fs.existsSync(path.join(cfg, 'todos', `${id}-agent-${id}.json`)), `session ${id}`);

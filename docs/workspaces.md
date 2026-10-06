@@ -136,7 +136,8 @@ and closes its profiles, then deletes:
   removed at the next start if a file was still open);
 - what its agent keeps of the fork's folder (`agents.js`, each agent's `forget`; undocumented layouts, so what is
   not found is skipped):
-  - Claude Code, in the config dir its sessions used: `projects/<folder>/` (every conversation there),
+  - Claude Code, in the config dir its sessions used: its conversations in `projects/<folder>/` (those recorded in
+    the fork's folder: Claude names that folder with non-Latin letters as `-`, so other folders can share it),
     `file-history/`, `session-env/`, `debug/`, `todos/` of those sessions, the folder's lines in `history.jsonl`,
     and `projects["<folder>"]` in `.claude.json` (the trust Kulisa gave it). Never main's folder.
   - Codex, in `CODEX_HOME` (`~/.codex`): the session files whose folder is the fork's (`sessions/`,
