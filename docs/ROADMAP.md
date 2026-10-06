@@ -417,8 +417,8 @@ Feature numbers refer to [SPEC.md](SPEC.md), section 2. Update this file when so
     - Both: switching projects (the agent stops, `claude --resume` on coming back) and the project folder dialog
       ("Open Folder…", native) are untested, and so is the native question when deleting a profile.
   - `safeStorage` (Keychain, DPAPI) for session cookies: expected to work, untested.
-  - macOS: distribution needs code
-    signing and notarization (Apple Developer account). Windows: code signing certificate.
+  - macOS: distribution needs code signing and notarization (Apple Developer account). Windows: code signing
+    certificate.
   - The first start: a packaged app opens no project (the window offers to open one), later the project opened last
     (untested packaged).
   - The one-row title bar (`titleBarStyle: 'hidden'` + `titleBarOverlay`, Window Controls Overlay): checked on

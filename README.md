@@ -20,8 +20,9 @@ npm run make         # installers for this platform, in out/make/ (.deb on Linux
 npm run icons        # after changing assets/icon.svg: icon.png, .ico, .icns next to it
 ```
 
-Kulisa targets macOS, Windows and Linux; `npm test` passes on Ubuntu and macOS, Windows is untested (see docs/ROADMAP.md). Installers are
-built with [Electron Forge](https://www.electronforge.io/) (`forge.config.js`), each on its own platform.
+Kulisa targets macOS, Windows and Linux; `npm test` passes on Ubuntu and macOS, Windows is untested (see
+docs/ROADMAP.md). Installers are built with [Electron Forge](https://www.electronforge.io/) (`forge.config.js`), each
+on its own platform.
 
 `npm start` and `npm test` run Electron with `--no-sandbox`: on Linux `chrome-sandbox` in `node_modules` is not
 setuid on a plain install. The `.deb` installs it setuid, so the installed app runs sandboxed.

@@ -221,15 +221,17 @@ module.exports = (test) => {
     assert.equal(await ui(`document.activeElement.querySelector('.label')?.textContent`), 'Paste', 'arrows move over the enabled rows');
     await choose(ui, 'Select all');
     await waitFor(() => ui(`window.__term.hasSelection()`));
-    // The Edit menu's Copy (Cmd+C on macOS) copies the terminal's selection.
-    const { clipboard } = require('electron');
-    const users = await clipboard.readText();
+    // The Edit menu's Copy (Cmd+C on macOS) copies the terminal's selection. The clipboard is the user's: all of it
+    // is put back after.
+    const { clipboard, ClipboardItem } = require('electron');
+    const users = await Promise.all((await clipboard.read()).map(async (item) =>
+      new ClipboardItem(Object.fromEntries(await Promise.all(item.types.map(async (t) => [t, await item.getType(t)]))))));
     await clipboard.writeText('');
     await ui(`document.querySelector('#term textarea').focus()`);
     shell.win.webContents.copy();
     await waitFor(async () => (await clipboard.readText()).length > 0);
     assert.equal((await clipboard.readText()).trim(), (await ui(`window.__term.getSelection()`)).trim());
-    await clipboard.writeText(users);
+    await clipboard.write(users);
     await ui(`window.__term.clearSelection()`);
 
     await ui(`document.getElementById('windowMenu').click()`);

@@ -12,5 +12,5 @@ if (fs.existsSync(prebuilds)) {
   const helper = path.join(prebuilds, 'spawn-helper');
   if (fs.existsSync(helper)) fs.chmodSync(helper, 0o755);
 } else {
-  execFileSync(process.execPath, [require.resolve('@electron/rebuild/lib/cli.js'), '-f', '-w', 'node-pty'], { stdio: 'inherit' });
+  execFileSync(process.execPath, [path.join(path.dirname(require.resolve('@electron/rebuild')), 'cli.js'), '-f', '-w', 'node-pty'], { stdio: 'inherit' });
 }
