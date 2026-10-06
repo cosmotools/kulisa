@@ -224,7 +224,7 @@ function start(options = {}) {
   }
   // The question before deleting, the same for a workspace and a project: what goes for good, the work not in main
   // that goes with it, what stays.
-  const deleteQuestion = ({ message, ok, goes, notInMain, stays }) => ({ message, ok, detail: [
+  const deleteQuestion = ({ message, ok, goes, notInMain, stays }) => ({ message, ok, danger: true, detail: [
     `Deleted for good:\n${goes.map((g) => `• ${g}`).join('\n')}`,
     notInMain?.length && `Work not in main, deleted with it:\n${notInMain.map((g) => `• ${g}`).join('\n')}`,
     stays,
@@ -341,6 +341,9 @@ function start(options = {}) {
       return { action: 'deny' };
     });
     win.webContents.on('will-navigate', (e) => e.preventDefault());
+    // Questions the page was asking go unanswered once it is gone or loaded again (shell.ask).
+    win.webContents.on('render-process-gone', unanswered);
+    win.webContents.on('did-start-navigation', (d) => { if (d.isMainFrame && !d.isSameDocument) unanswered(); });
     // F12 or Ctrl+Shift+I anywhere outside a profile's page (bars, terminal): DevTools of Kulisa's own UI.
     win.webContents.on('before-input-event', (e, i) => {
       // Ctrl + / - / 0 outside the pages: the Kulisa zoom.
@@ -437,9 +440,18 @@ function start(options = {}) {
     for (const p of shell.profiles.values()) p.setHidden(shell.viewsHidden);
     return pics;
   });
-  // A question with a button that does it and Cancel, as the OS draws it (deleting a profile, closing a workspace).
-  const ask = shell.ask = async ({ message, detail, ok }) =>
-    (await dialog.showMessageBox(shell.win, { type: 'warning', message, detail, buttons: [ok, 'Cancel'], defaultId: 1, cancelId: 1 })).response === 0;
+  // A question with a button that does it and Cancel (deleting a profile, a workspace, a project), asked in the
+  // window's own dialog (ask.js), as all of Kulisa's dialogs look. No answer (the window's page gone) is a no.
+  const answers = new Map(); // question id -> resolve
+  let questions = 0;
+  shell.ask = ({ message, detail, ok, danger }) => new Promise((resolve) => {
+    const id = ++questions;
+    answers.set(id, resolve);
+    shell.win.webContents.send('ask', { id, message, detail, ok, danger });
+  });
+  const ask = (q) => shell.ask(q); // through shell: the tests answer it
+  const unanswered = () => { for (const resolve of answers.values()) resolve(false); answers.clear(); };
+  ipcMain.on('ask:answer', (_e, { id, ok }) => { answers.get(id)?.(ok === true); answers.delete(id); });
   ipcMain.handle('confirm', (_e, q) => ask(q));
   ipcMain.handle('layout:load', () => shell.ws?.store.layout());
   ipcMain.on('layout:save', (_e, { ws, layout }) => { if (!switching && ws === shell.ws?.n) shell.ws.store.saveLayout(layout); });

@@ -93,10 +93,17 @@ async function setup(shell) {
   const termText = () => ui(`(() => { const b = window.__term.buffer.active;
     return Array.from({ length: b.length }, (_, i) => b.getLine(i)).map((l, i) => (i && !l.isWrapped ? '\\n' : '') + l.translateToString(true)).join(''); })()`);
   await waitFor(async () => (await termText()).includes('agent: rc of')); // the agent runs
-  // Native questions (deleting a profile) are not shown on screen: the test answers them with ctx.answer.
-  const { dialog } = require('electron');
+  // Questions (deleting a profile, a workspace…) are answered in the window's dialog, as the human would: ctx.answer
+  // true clicks the button that does it, false Cancel; null leaves the dialog to the test. ctx.asked: what was asked.
   const asked = [];
   const ctx = { shell, call, ui, ptyOutput: () => pty, watchPty, termText, asked, answer: true };
-  dialog.showMessageBox = async (_win, o) => { asked.push(o); return { response: ctx.answer ? 0 : 1 }; };
+  const ask = shell.ask;
+  shell.ask = (q) => {
+    asked.push(q);
+    const answer = ask(q), yes = ctx.answer;
+    if (yes !== null) waitFor(() => ui(`document.getElementById('ask').open && document.querySelector('#ask h2').textContent === ${JSON.stringify(q.message)}`))
+      .then(() => ui(`document.querySelector('#ask ${yes ? '.ok' : 'button[value=""]'}').click()`));
+    return answer;
+  };
   return ctx;
 }

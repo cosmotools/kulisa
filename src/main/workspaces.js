@@ -141,7 +141,7 @@ class Workspace {
   async agentDeletesProfile(id) {
     const p = this.profiles.get(id) || this.closed.get(id)?.cfg;
     if (!p) return { error: `no profile ${id}` };
-    const ok = await this.shell.ask({ message: `The agent asks to delete the profile ${p.name}.`, ok: 'Delete',
+    const ok = await this.shell.ask({ message: `The agent asks to delete the profile ${p.name}.`, ok: 'Delete', danger: true,
       detail: 'Its sign-ins, cookies, storage and tabs are removed for good.' });
     return ok ? this.deleteProfile(id) : { error: 'the human said no' };
   }

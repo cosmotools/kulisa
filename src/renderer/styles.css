@@ -4,7 +4,7 @@
      bar). --window is also in app.js (the window's background and the OS buttons' strip). */
   --window: #2b2d30; --island: #1e1f22; --island-hi: #393b40; --field: #2b2d30; --button: #393b40; --line: #4e5157;
   --text: #dfe1e5; --text-strong: #ffffff; --text-dim: #b4b8bf; --text-muted: #868a91; --accent: #3574f0;
-  --page: #ffffff; --backdrop: #0008; --note: #ffcc66; --shadow: #000a; --done: #57ab5a; --error: #ff7b72;
+  --page: #ffffff; --backdrop: #0008; --note: #ffcc66; --shadow: #000a; --done: #57ab5a; --error: #ff7b72; --danger: #c94f4f;
   --project: #c8333b; /* the open project's color (renderer.js); until then the app icon's own red */
   /* One text size and one control height for the whole UI (the terminal uses the same size, renderer.js); the
      Kulisa zoom scales all of it together. */
@@ -166,16 +166,37 @@ input { background: var(--field); color: var(--text-strong); padding: 0 8px; use
 /* The terminal waits outside the grid until its panel is there (no project open): it takes no room meanwhile. */
 body > #term { display: none; }
 
-/* Dialogs: Profiles, Projects */
-dialog { width: 560px; background: var(--island); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px;
+/* Dialogs, one look for all (index.html), as in JetBrains: the title with × on top, the content, and a strip of
+   buttons at the bottom, the main one last (blue; red when it deletes). */
+dialog { width: 560px; max-height: 85vh; padding: 0; flex-direction: column; background: var(--island); color: var(--text);
+  border: 1px solid var(--line); border-radius: var(--island-radius); box-shadow: 0 12px 40px var(--shadow);
+  &[open] { display: flex; }
   &::backdrop { background: var(--backdrop); }
-  h2 { margin: 0 0 4px; font-size: 1.1em; }
-  .hint { margin: 0 0 10px; color: var(--text-muted); }
-  form:not(.foot) { display: flex; gap: var(--gap); margin-top: 10px; input { flex: 1; } }
-  .foot { display: flex; justify-content: flex-end; gap: var(--gap); margin-top: 12px; }
+  > form { display: contents; }
+  header { display: flex; align-items: center; gap: var(--gap); padding: 12px 12px 0 18px;
+    h2 { flex: 1; margin: 0; font-size: 1.1em; font-weight: 600; color: var(--text-strong); }
+    .x { display: grid; place-items: center; width: var(--control); padding: 0; border: none; background: none; color: var(--text-muted);
+      svg { width: 14px; height: 14px; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; }
+      &:hover { color: var(--text-strong); background: var(--island-hi); } } }
+  .body { flex: 1; min-height: 0; overflow: auto; padding: 12px 18px 16px; }
+  .hint { margin: 0 0 12px; color: var(--text-muted); }
+  .error { margin: 10px 0 0; color: var(--error); &:empty { display: none; } }
+  /* A field and its button in one row (adding a profile, a project) */
+  .row { display: flex; gap: var(--gap); margin-top: 12px; input { flex: 1; } }
+  /* A labelled field, the labels in one column */
+  .field { display: grid; grid-template-columns: 80px 1fr; align-items: center; gap: var(--gap); margin-top: var(--gap); }
+  footer { display: flex; justify-content: flex-end; gap: var(--gap); padding: 12px 18px; border-top: 1px solid var(--island-hi);
+    .start { margin-inline-end: auto; }
+    button { min-width: 80px; } }
 }
-#openFolder { margin-inline-end: auto; }
-#wsnew .error, #agents .error { margin: 8px 0 0; color: var(--error); &:empty { display: none; } }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--text-strong);
+  &:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 85%, white); } }
+button.danger { background: var(--danger); border-color: var(--danger); color: var(--text-strong);
+  &:hover:not(:disabled) { background: color-mix(in srgb, var(--danger) 85%, white); } }
+dialog button:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 70%, transparent); outline-offset: 1px; }
+/* A question before something that cannot be undone (ask.js): what goes, line by line */
+#ask { width: 480px;
+  .detail { margin: 0; white-space: pre-line; overflow-wrap: anywhere; user-select: text; &:empty { display: none; } } }
 /* The agents to choose from (agent-picker.js) */
 #agents { width: 640px;
   .agentrow { display: flex; gap: var(--gap); align-items: center; padding: 8px 4px; border-bottom: 1px solid var(--island-hi); cursor: pointer;

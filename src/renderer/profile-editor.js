@@ -2,7 +2,7 @@
 // (Manage Profiles…: add, rename, open a closed one, delete).
 //   profileEditor.update(open)   the open profiles, from each state (renderer.js)
 //   profileEditor.showPane       set by renderer.js: bring an open profile's pane to the front (key)
-//   deleteProfile(p)             after the human confirms in a native question; also from a pane's menu
+//   deleteProfile(p)             after the human confirms (ask.js); also from a pane's menu
 const profileEditor = (() => {
   const dialog = document.getElementById('profiles');
   const plist = document.getElementById('plist');
@@ -70,7 +70,7 @@ const profileEditor = (() => {
   return editor;
 })();
 async function deleteProfile(p) {
-  const ok = await kulisa.invoke('confirm', { message: `Delete the profile ${p.name}?`, ok: 'Delete',
+  const ok = await kulisa.invoke('confirm', { message: `Delete the profile ${p.name}?`, ok: 'Delete', danger: true,
     detail: 'Its sign-ins, cookies, storage and tabs are removed for good.' });
   if (ok) kulisa.invoke('profile:delete', { profile: p.id });
 }

@@ -22,3 +22,6 @@ function coverWhileOpen(dialog) {
   dialog.addEventListener('close', () => kulisa.invoke('views:hidden', viewsCovered()));
   return () => { kulisa.invoke('views:hidden', true); dialog.showModal(); };
 }
+// A question from the main process before something that cannot be undone (shell.ask in app.js): the window asks it
+// (ask.js, loaded when needed) and sends back the answer.
+kulisa.on('ask', async ({ id, ...q }) => kulisa.send('ask:answer', { id, ok: await (await import('./ask.js')).ask(q) }));

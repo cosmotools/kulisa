@@ -105,8 +105,14 @@ Feature numbers refer to [SPEC.md](SPEC.md), section 2. Update this file when so
   pane's header (New tab, Rename, Close profile, Delete profile…), a tab (Reload, Duplicate, Close, Close others) and the
   terminal (Copy, Paste, Select all, Clear, Change agent…). The pages are native views above the HTML, so while a menu is open
   they are pictures of themselves, as during a drag. Native menus were tried first (2026-10-05): rows of text
-  only, no buttons in a row; and a native menu in a page had frozen the desktop before (Deferred ideas). Deleting
-  a profile asks with the OS's own question (`dialog.showMessageBox`). Not in the pages yet.
+  only, no buttons in a row; and a native menu in a page had frozen the desktop before (Deferred ideas). Not in
+  the pages yet.
+- **Dialogs, one look** (2026-10-06), as in JetBrains: the title with × on top, the content, and a strip of buttons
+  at the bottom right, the main one last (blue; red when it deletes); the same markup and styles for all
+  (`index.html`, styles.css). Questions before something that cannot be undone (deleting a profile, a workspace, a
+  project; Initialize git) are asked in that dialog too (`shell.ask` → `ask.js`, queued, Cancel focused), no longer
+  with the OS's own question (`dialog.showMessageBox`): that one looked different on each OS and plain on Linux, and
+  could not mark the deleting button or lay out what goes. The OS's own windows stay for choosing a folder.
 - **App icon.** A stage curtain drawn apart with the agent's pointer (`assets/icon.svg`); in the window's top
   bar, the taskbar, and the installers (`.deb` checked: menu entry and pixmap; `.exe`, `.dmg` not built yet). Run
   from source (`npm start`), GNOME's dock shows a generic icon: it takes icons from installed `.desktop` files
@@ -399,7 +405,7 @@ Feature numbers refer to [SPEC.md](SPEC.md), section 2. Update this file when so
       resolves, the shell stays after the agent exits. Without an agent command the terminal falls back to
       `COMSPEC` (untested). SIGINT and SIGTERM work differently there (quit handling in `app.js`).
     - Both: switching projects (the agent stops, `claude --resume` on coming back) and the project folder dialog
-      ("Open Folder…", native) are untested, and so is the native question when deleting a profile.
+      ("Open Folder…", native) are untested.
   - `safeStorage` (Keychain, DPAPI) for session cookies: expected to work, untested.
   - macOS: the window screenshot (`KULISA_SHOT`) needs the screen-recording permission; distribution needs code
     signing and notarization (Apple Developer account). Windows: code signing certificate.

@@ -12,7 +12,7 @@ const workspaces = (() => {
   const name = document.getElementById('wsname');
   const agent = document.getElementById('wsagent');
   const error = dialog.querySelector('.error');
-  const create = form.querySelector('button');
+  const create = document.getElementById('wscreate');
   const ws = { current: null };
   const STATES = { working: 'The agent is working', waiting: 'The agent waits for you', done: 'The agent is done' };
 

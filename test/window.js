@@ -57,4 +57,41 @@ module.exports = (test) => {
     assert.equal(png.subarray(1, 4).toString(), 'PNG');
     assert.ok(png.length > 10000, `${png.length} bytes`);
   });
+  test('dialogs: one look (title and ×, content, buttons at the bottom right, the main one last); a question is asked in it', async (ctx) => {
+    const { shell, ui } = ctx;
+    const looks = await ui(`[...document.querySelectorAll('dialog')].map((d) => ({ id: d.id, title: !!d.querySelector('header h2'),
+      body: !!d.querySelector('.body'), last: d.querySelector('footer > button:last-child')?.className }))`);
+    assert.deepEqual(looks.map((l) => l.id), ['profiles', 'projects', 'wsnew', 'agents', 'ask']);
+    for (const l of looks) assert.ok(l.title && l.body && /primary|ok/.test(l.last), JSON.stringify(l));
+
+    // A question before deleting: the title, what goes line by line, Cancel (focused) and a red Delete at the right.
+    ctx.answer = null; // the test answers
+    const view = () => [...shell.profiles.values()][0].get().view.getVisible();
+    const open = () => ui(`document.getElementById('ask').open`);
+    let answer = shell.ask({ message: 'Delete the thing?', ok: 'Delete', danger: true, detail: 'Deleted for good:\n• a\n• b' });
+    await waitFor(open);
+    const q = await ui(`(() => { const d = document.getElementById('ask'), r = (q) => d.querySelector(q).getBoundingClientRect(), ok = d.querySelector('.ok');
+      return { title: d.querySelector('h2').textContent, lines: d.querySelector('.detail').innerText.split('\\n').length, ok: ok.textContent,
+        order: r('header').bottom <= r('.body').top && r('.body').bottom <= r('footer').top, right: Math.round(r('footer').right - ok.getBoundingClientRect().right),
+        focused: document.activeElement.textContent }; })()`);
+    assert.deepEqual(q, { title: 'Delete the thing?', lines: 3, ok: 'Delete', order: true, right: 18, focused: 'Cancel' });
+    assert.equal(await ui(`getComputedStyle(document.querySelector('#ask .ok')).backgroundColor`), 'rgb(201, 79, 79)', 'red');
+    assert.equal(view(), false, 'pages hidden under the dialog');
+    shell.win.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' });
+    assert.equal(await answer, false, 'Esc says no');
+    await waitFor(view);
+
+    // Two at once: the second waits for the first. Not deleting: the main button is blue.
+    answer = shell.ask({ message: 'Initialize it?', ok: 'Initialize' });
+    const second = shell.ask({ message: 'Delete the other?', ok: 'Delete', danger: true });
+    await waitFor(open);
+    assert.equal(await ui(`document.querySelector('#ask h2').textContent`), 'Initialize it?');
+    assert.equal(await ui(`getComputedStyle(document.querySelector('#ask .ok')).backgroundColor`), 'rgb(53, 116, 240)', 'blue');
+    await ui(`document.querySelector('#ask .ok').click()`);
+    assert.equal(await answer, true);
+    await waitFor(async () => (await open()) && (await ui(`document.querySelector('#ask h2').textContent`)) === 'Delete the other?');
+    await ui(`document.querySelector('#ask button[value=""]').click()`);
+    assert.equal(await second, false, 'Cancel says no');
+    ctx.answer = true;
+  });
 };

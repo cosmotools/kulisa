@@ -56,41 +56,59 @@
     </nav>
   </section>
 
-  <!-- Dialogs: Esc, a click outside (closedby) or a button of their method="dialog" form closes them. -->
+  <!-- Dialogs, one look for all, as in JetBrains: header (the title; × for those that may be closed), .body, footer
+       (the buttons at the right end, the main one last). Esc, a click outside (closedby) or × closes them. -->
   <dialog id="profiles" closedby="any">
-    <h2>Profiles</h2>
-    <p class="hint">A profile is a separate browser profile, as in Chrome: its own cookies, storage, tabs and sign-ins.
-      Sign in by hand in its pane; the agent in the terminal then uses it.</p>
-    <div id="plist"></div>
-    <form id="padd"><input id="newProfile" data-name maxlength="64" placeholder="New profile, e.g. ann@shop.com or ann.admin" spellcheck="false"><button>Add</button></form>
-    <form method="dialog" class="foot"><button id="closeProfiles">Done</button></form>
+    <header><h2>Profiles</h2><button class="x" type="button" command="close" commandfor="profiles" title="Close" aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></header>
+    <div class="body">
+      <p class="hint">A profile is a separate browser profile, as in Chrome: its own cookies, storage, tabs and sign-ins.
+        Sign in by hand in its pane; the agent in the terminal then uses it.</p>
+      <div id="plist"></div>
+      <form id="padd" class="row"><input id="newProfile" data-name maxlength="64" placeholder="New profile, e.g. ann@shop.com or ann.admin" spellcheck="false"><button>Add</button></form>
+    </div>
+    <footer><button id="closeProfiles" class="primary" command="close" commandfor="profiles">Done</button></footer>
   </dialog>
   <dialog id="projects" closedby="any">
-    <h2>Projects</h2>
-    <p class="hint">A project is a folder, usually a repository, with its own profiles, layout and agent. Opening
-      another one stops this project's agent; its conversation continues when you come back.</p>
-    <div id="projlist"></div>
-    <form id="projnew"><input id="newProject" data-name maxlength="64" placeholder="New project without a folder, e.g. tenant-audit" spellcheck="false"><button>Create</button></form>
-    <form method="dialog" class="foot"><button type="button" id="openFolder">Open Folder…</button><button id="closeProjects">Close</button></form>
+    <header><h2>Projects</h2><button class="x" type="button" command="close" commandfor="projects" title="Close" aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></header>
+    <div class="body">
+      <p class="hint">A project is a folder, usually a repository, with its own profiles, layout and agent. Opening
+        another one stops this project's agent; its conversation continues when you come back.</p>
+      <div id="projlist"></div>
+      <form id="projnew" class="row"><input id="newProject" data-name maxlength="64" placeholder="New project without a folder, e.g. tenant-audit" spellcheck="false"><button>Create</button></form>
+    </div>
+    <footer><button id="openFolder" class="start">Open Folder…</button><button id="closeProjects" class="primary" command="close" commandfor="projects">Close</button></footer>
   </dialog>
   <dialog id="wsnew" closedby="any">
-    <h2>New workspace</h2>
-    <p class="hint">A fork of main for one task: its own branch and folder next to the project, its own agent, and
-      copies of main's profiles, signed in. The app under test runs on its own ports there.</p>
-    <form id="wsform"><input id="wsname" data-name maxlength="64" placeholder="What it is for, e.g. checkout-redesign" spellcheck="false">
-      <select id="wsagent" title="The agent of this workspace"></select><button>Create</button></form>
-    <p class="error"></p>
+    <header><h2>New Workspace</h2><button class="x" type="button" command="close" commandfor="wsnew" title="Close" aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></header>
+    <form id="wsform">
+      <div class="body">
+        <p class="hint">A fork of main for one task: its own branch and folder next to the project, its own agent, and
+          copies of main's profiles, signed in. The app under test runs on its own ports there.</p>
+        <label class="field"><span>Name</span><input id="wsname" data-name maxlength="64" placeholder="What it is for, e.g. checkout-redesign" spellcheck="false"></label>
+        <label class="field"><span>Agent</span><select id="wsagent"></select></label>
+        <p class="error"></p>
+      </div>
+      <footer><button type="button" command="close" commandfor="wsnew">Cancel</button><button id="wscreate" class="primary">Create</button></footer>
+    </form>
   </dialog>
   <!-- Choosing a workspace's agent, installing it (agent-picker.js, loaded when needed) -->
   <dialog id="agents" closedby="none">
-    <h2>Choose the agent</h2>
-    <p class="hint">The agent works in this workspace's terminal: it writes the code and uses the profiles. If it is not
-      on this computer yet, Kulisa installs it with its maker's installer. On its first start it asks you to sign in.</p>
-    <div id="agentlist"></div>
-    <p id="agentprogress" class="hint"></p>
-    <details id="agentdetails" hidden><summary>Details</summary><pre id="agentlog"></pre></details>
-    <p class="error"></p>
-    <div class="foot"><button id="agentcancel" hidden>Cancel</button><button id="agentstart" disabled>Start</button></div>
+    <header><h2>Choose the Agent</h2></header>
+    <div class="body">
+      <p class="hint">The agent works in this workspace's terminal: it writes the code and uses the profiles. If it is not
+        on this computer yet, Kulisa installs it with its maker's installer. On its first start it asks you to sign in.</p>
+      <div id="agentlist"></div>
+      <p id="agentprogress" class="hint"></p>
+      <details id="agentdetails" hidden><summary>Details</summary><pre id="agentlog"></pre></details>
+      <p class="error"></p>
+    </div>
+    <footer><button id="agentcancel" hidden>Cancel</button><button id="agentstart" class="primary" disabled>Start</button></footer>
+  </dialog>
+  <!-- A question before something that cannot be undone (deleting a workspace, a project, a profile): ask.js -->
+  <dialog id="ask" closedby="any">
+    <header><h2></h2><button class="x" type="button" command="close" commandfor="ask" title="Close" aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></header>
+    <div class="body"><p class="detail"></p></div>
+    <form method="dialog"><footer><button value="" autofocus>Cancel</button><button value="ok" class="ok"></button></footer></form>
   </dialog>
   <div id="term"></div>
   <!-- The menus (menu.js) -->

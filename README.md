@@ -98,8 +98,8 @@ src/agent/claude-plugin/  the Kulisa plugin for Claude Code: MCP config, the pro
 src/preload/     the window's bridge to the main process
 src/renderer/    window UI. renderer.js: the grid of panels (dockview), panes, ☰ and right-click menus; parts in their
                  own files: common.js, menu.js (the menus), terminal.js (xterm.js, one per workspace), projects.js,
-                 workspaces.js (the strip, the new-workspace dialog), profile-editor.js; agent-picker.js (choosing and
-                 installing an agent; an ES module loaded when needed)
+                 workspaces.js (the strip, the new-workspace dialog), profile-editor.js; ES modules loaded when
+                 needed: agent-picker.js (choosing and installing an agent), ask.js (questions before deleting)
 assets/          the app icon: icon.svg (source) and what each OS needs, rendered by scripts/icons.js
 test/            run.js (starts the app, runs the files in order), helpers.js, the tests by area (agent.js,
                  profiles.js, window.js, grid.js, zoom-and-closing.js, workspaces.js; restart.js after a restart),
