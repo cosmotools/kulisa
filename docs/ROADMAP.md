@@ -24,7 +24,9 @@ Feature numbers refer to [SPEC.md](SPEC.md), section 2. Update this file when so
   (Playwright's `page.consoleMessages()`, `pageErrors()`, `requests()`), errors or failures only on request.
 - **Projects.** A project is a folder (usually a repository) with its own profiles, tabs, grid and agent
   session; the Kulisa zoom is global. The project's name in the title bar opens a menu of the projects, as in
-  JetBrains: open another, New Project…, Open Folder…, and Manage Projects…. New Project… (2026-10-06), as
+  JetBrains: open another, remove one (its × on hover), New Project…, Open Folder…. The Manage
+  Projects dialog was dropped (2026-10-06): the menu and the Welcome screen do all it did, as in JetBrains, whose
+  Manage Projects… only shows the Welcome screen. New Project… (2026-10-06), as
   JetBrains': a name and a location (the home folder by default, Browse…), the folder it makes shown, Create Git
   repository on by default. It made `~/Kulisa/<name>` without asking before: the human then did not know where the
   agent's files were. Opening another closes this one (tabs, sign-ins
@@ -68,8 +70,8 @@ Feature numbers refer to [SPEC.md](SPEC.md), section 2. Update this file when so
   from, `~/Kulisa/Default` when installed). The Welcome screen (the term: CLAUDE.md), as JetBrains': Open Folder…,
   New Project…, and the recent projects; links to kulisa.app, the documentation (the README on GitHub for now), GitHub
   and its issues, opened in the user's browser, and Kulisa's version. **Close Project** in the project button's menu
-  shows it again. **Remove Project…** (2026-10-06; the project menu, Manage Projects…, a recent project's × and
-  right-click menu on the Welcome screen; one function in `app.js`): after a question, the project is closed if open, each of
+  shows it again. **Remove Project…** (2026-10-06; the project menu: the open one's Remove Project…, any row's ×; on the
+  Welcome screen a recent project's × and right-click menu; one function in `app.js`): after a question, the project is closed if open, each of
   its workspaces deleted (one `deleteWorkspace`, also behind a fork's ×), its data removed; its own folder stays. A
   deleted fork leaves nothing behind: worktree, branch, direnv's permission, profiles, and what its agent keeps of
   the folder (Claude Code's conversations, history and trust; Codex's sessions and trust; not Codex's databases).

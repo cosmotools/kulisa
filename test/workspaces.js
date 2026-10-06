@@ -382,7 +382,7 @@ module.exports = (test) => {
     await waitFor(async () => (await viewOn(shell, ui, 'sam-admin')) && viewOn(shell, ui, 'elon-buyer'));
   });
 
-  test('projects: Remove Project… asks, closes the project when open, deletes its data and forks, never its folder', async (ctx) => {
+  test('projects: Remove Project… (× in the menu, Remove for the open one, the Welcome screen) asks, closes the project when open, deletes its data and forks, never its folder', async (ctx) => {
     const { shell, ui } = ctx;
     const projects = () => shell.store.projects().map((p) => p.id);
     // A project that is not open, with a fork that has a commit of its own, as Kulisa lays them out.
@@ -396,14 +396,14 @@ module.exports = (test) => {
     fs.mkdirSync(path.join(data, '1', 'Profile 1'), { recursive: true });
     fs.writeFileSync(path.join(data, 'workspaces.json'), JSON.stringify({ next: 3, current: 1, list: [{ n: 1, name: 'main' }, { n: 2, name: 'Idea', ...wt, offset: 100 }] }));
 
-    // From Manage Projects…: the human is told what goes, says no, then yes.
-    await ui(`document.getElementById('openProjects').click()`);
-    await menuRows(ui);
-    await choose(ui, 'Manage Projects…');
-    await waitFor(() => ui(`!!document.querySelector('#projlist .projrow[data-project="${p.id}"]')`));
-    const removeRow = `document.querySelector('#projlist .projrow[data-project="${p.id}"] .remove').click()`;
+    // From the project menu, its row's ×: the human is told what goes, says no, then yes.
+    const removeRow = async () => {
+      await ui(`document.getElementById('openProjects').click()`);
+      await menuRows(ui);
+      await ui(`[...document.querySelectorAll('#menu .removable')].find((r) => r.querySelector('.label').textContent === 'spare').querySelector('.remove').click()`);
+    };
     ctx.answer = false;
-    await ui(removeRow);
+    await removeRow();
     await waitFor(() => ctx.asked.length);
     const q = ctx.asked.pop();
     assert.equal(q.message, 'Remove the project spare?');
@@ -411,15 +411,16 @@ module.exports = (test) => {
     assert.ok(q.detail.includes(wt.worktree) && q.detail.includes('Idea: 1 commit of its own') && q.detail.includes(`${spare} stays as it is`));
     assert.ok(projects().includes(p.id) && fs.existsSync(data) && fs.existsSync(wt.worktree), 'kept when the human says no');
     ctx.answer = true;
-    await ui(removeRow);
+    await removeRow();
     await waitFor(() => !projects().includes(p.id));
     ctx.asked.length = 0;
     await waitFor(() => !fs.existsSync(data) && !fs.existsSync(wt.worktree));
     assert.equal(git(spare, 'branch', '--list', wt.branch), '', "the fork's branch");
     assert.equal(fs.readFileSync(path.join(spare, 'a.txt'), 'utf8'), 'a', "the project's own folder stays");
-    await waitFor(() => ui(`!document.querySelector('#projlist .projrow[data-project="${p.id}"]')`));
     assert.equal(shell.ws?.n, 1, 'another project: the open one stays open');
-    await ui(`document.getElementById('projects').close()`);
+    await ui(`document.getElementById('openProjects').click()`);
+    assert.ok(!(await menuRows(ui)).includes('spare'), 'gone from the menu');
+    await ui(`document.getElementById('menu').hidePopover()`);
 
     // The open project, from the project button's menu: closed first, then removed; the Welcome screen.
     const gone = path.join(root, 'gone');

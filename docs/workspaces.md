@@ -11,7 +11,9 @@ A **project** is a folder, usually a repository, with its workspaces. Kulisa kee
 (`projects/<id>/`), never in the project's folder, so sign-ins stay out of its git.
 
 - **One project is open at a time.** The project button in the title bar is a menu of the projects (each with its
-  color and folder), New Project…, Open Folder…, and Manage Projects…. **New Project…**, as JetBrains': a name and a
+  color and folder; × on hover removes one), New Project…, Open Folder…, Close Project and Remove
+  Project… (the open one). No separate Manage Projects dialog: as in JetBrains, the menu and the Welcome screen do it
+  all. **New Project…**, as JetBrains': a name and a
   location, the user's home folder unless they type or browse to another; the dialog shows the folder it makes
   (`<location>/<name>`; one that is there must be empty), so the human knows where the agent's files are. Create Git
   repository is on by default (`git init`, nothing committed): workspaces need git. Opening another closes this one: all its workspaces saved, their agents
@@ -20,7 +22,7 @@ A **project** is a folder, usually a repository, with its workspaces. Kulisa kee
 - **Each project has a color** (a glow from the middle of the window, the logo's curtain, the name's plate), to tell
   projects apart at a glance.
 - **The Welcome screen** (the term: CLAUDE.md) is what the window shows with no project open: at the first start, and
-  after Close Project (the project button's menu), closing main, or removing the open project. Open Folder…, New Project…, the recent projects,
+  after Close Project (the project button's menu), closing main, or removing the open project. New Project…, Open Folder…, the recent projects (acting as the menu's rows),
   and links (the website, the documentation, GitHub, reporting an issue; they open in the user's browser) with
   Kulisa's version. Later starts open the project opened last;
   `KULISA_PROJECT=<folder> npm start` opens that one.
@@ -153,8 +155,8 @@ What stays in any case: an agent Kulisa installed (it serves every project).
 
 ## Removing a project
 
-**Remove Project…**: in the project button's menu (the open project), Manage Projects… (a button per project), and
-a recent project on the Welcome screen (its × on hover, or its right-click menu). All call one function (`removeProject` in `app.js`):
+**Remove Project…**: in the project button's menu (Remove Project… for the open project; any project's × on hover),
+and a recent project on the Welcome screen (its × on hover, or its right-click menu). All call one function (`removeProject` in `app.js`):
 Kulisa asks first, saying what goes and which forks have work not in main; closes the project if it is open;
 deletes each of its workspaces as above, forks first; then removes it from `projects.json` with its data folder
 `projects/<id>/`. The project's own folder stays as it is.

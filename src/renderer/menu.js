@@ -1,16 +1,17 @@
 // Kulisa's menus, drawn in HTML as Chrome draws its own: a popover (#menu in index.html) with rows that may hold
-// buttons (the zoom row), colored dots and a second line. Esc, a click outside, a chosen item, the same button
-// again or leaving the window closes it. Up and down move between the rows' buttons; Enter or Space chooses.
-//   openMenu(items, at)   items: { label, sub, keys, color, enabled, run } (no run: shown only), '-', { heading },
-//                         { element } (a row of its own). at: the button to open it under, or the mouse event to
-//                         open it at.
+// buttons (the zoom row; a row's ×), colored dots and a second line. Esc, a click outside, a chosen item, the same
+// button again or leaving the window closes it. Up and down move between the rows' buttons; Enter or Space chooses.
+//   openMenu(items, at)   items: { label, sub, keys, color, enabled, run, remove } (no run: shown only), '-',
+//                         { heading }, { element } (a row of its own). remove: { title, run }, a × at the row's end,
+//                         shown on hover (as JetBrains' recent projects). at: the button to open it under, or the
+//                         mouse event to open it at.
 //   menuCover             { cover, uncover }: what else has to happen while a menu is open. The window sets it:
 //                         the pages are native views above its HTML and would hide the menu (renderer.js).
 const menuCover = { cover: async () => {}, uncover: () => {} };
 const openMenu = (() => {
   const el = document.getElementById('menu');
   const point = document.getElementById('menuPoint');
-  const row = () => document.getElementById('tpl-menuitem').content.firstElementChild.cloneNode(true);
+  const row = () => tpl('tpl-menuitem');
   let items = [], source = null;
   const isOpen = () => el.matches(':popover-open');
   const close = () => { if (isOpen()) el.hidePopover(); };
@@ -18,11 +19,13 @@ const openMenu = (() => {
   // A hide and a show in one go (another menu right away) may come as one toggle event, or the hide's after the show.
   el.addEventListener('toggle', () => { if (!isOpen()) { source = null; menuCover.uncover(); } });
   el.onclick = (e) => {
-    const b = e.target.closest('.item');
+    const b = e.target.closest('.item, .remove');
     if (!b) return;
     close();
-    items[b.dataset.i].run?.();
+    const it = items[b.closest('[data-i]').dataset.i];
+    (b.matches('.remove') ? it.remove : it).run?.();
   };
+  el.addEventListener('contextmenu', (e) => e.preventDefault()); // no menu over a menu
   el.onkeydown = (e) => {
     if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
     e.preventDefault();
@@ -55,7 +58,12 @@ const openMenu = (() => {
       b.querySelector('small').textContent = it.sub || '';
       b.querySelector('kbd').textContent = it.keys || '';
       if (it.color) { b.querySelector('.dot').hidden = false; b.style.setProperty('--color', it.color); }
-      return b;
+      if (!it.remove) return b;
+      const r = tpl('tpl-menuremovable');
+      r.dataset.i = i;
+      r.querySelector('.remove').title = it.remove.title;
+      r.prepend(b);
+      return r;
     }));
     source = at;
     // At the pointer: a point the popover is anchored to, as to a button (styles.css keeps it in the window).

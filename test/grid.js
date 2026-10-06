@@ -56,7 +56,7 @@ module.exports = (test) => {
 
     // The project button: a menu of the projects (this one not choosable), Open Folder, and the dialog for the rest.
     await ui(`document.getElementById('openProjects').click()`);
-    assert.deepEqual(await menuRows(ui), ['project', 'other', '-', 'New Project…', 'Open Folder…', 'Manage Projects…', '-', 'Close Project', 'Remove Project…']);
+    assert.deepEqual(await menuRows(ui), ['project', 'other', '-', 'New Project…', 'Open Folder…', '-', 'Close Project', 'Remove Project…']);
     const rows = await ui(`[...document.querySelectorAll('#menu .item')].slice(0, 2).map((b) => ({ dot: getComputedStyle(b.querySelector('.dot')).backgroundColor,
       folder: b.querySelector('small').textContent, check: b.querySelector('kbd').textContent }))`);
     assert.deepEqual(rows.map((r) => r.folder), [project, other], 'each with its folder');
@@ -67,12 +67,15 @@ module.exports = (test) => {
     assert.ok(under, 'under the button');
     await ui(`document.getElementById('openProjects').click()`); // again: closes it
     await waitFor(async () => !(await menuOpen(ui)));
+    // Each project's row has a × at its end, shown on hover (Remove project…), as in JetBrains.
     await ui(`document.getElementById('openProjects').click()`);
     await menuRows(ui);
-    await choose(ui, 'Manage Projects…');
-    await waitFor(() => ui(`document.getElementById('projects').open && !!document.querySelector('#projlist .projrow[data-project="project"] .open')`));
-    assert.equal(await ui(`document.querySelector('#projlist .projrow[data-project="other"] .here').textContent`), 'open now');
-    await ui(`document.getElementById('closeProjects').click()`);
+    const x = await ui(`(() => { const rows = [...document.querySelectorAll('#menu .removable')], x = rows[0].querySelector('.remove');
+      return { rows: rows.length, title: x.title, shown: getComputedStyle(x).visibility }; })()`);
+    assert.deepEqual(x, { rows: 2, title: 'Remove project…', shown: 'hidden' });
+    await rightClick(ui, '#menu .removable .item');
+    assert.ok(await menuOpen(ui) && (await menuRows(ui)).includes('New Project…'), 'a right-click in the menu opens no other menu');
+    await ui(`document.getElementById('menu').hidePopover()`);
     // While the window loads again, no page shows before it has its place in the grid (nothing jumps).
     const jumps = [];
     const watch = setInterval(() => {

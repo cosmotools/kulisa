@@ -27,7 +27,7 @@ button, input, select {
 button { cursor: pointer; &:disabled { opacity: .35; cursor: default; } }
 input { background: var(--field); color: var(--text-strong); padding: 0 8px; user-select: text; }
 .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; background: var(--color); }
-.caption, .tab .title, .projrow .folder, .prow .pid { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.caption, .tab .title, .prow .pid { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 
 /* The window's title bar (titleBarOverlay in app.js). env(titlebar-area-*) leaves room for the OS window buttons on
    every platform; dragging it moves the window, except on its controls. */
@@ -145,19 +145,7 @@ input { background: var(--field); color: var(--text-strong); padding: 0 8px; use
   .start { display: flex; gap: var(--gap); }
   h3 { margin: calc(var(--gap) * 2) 0 0; width: min(480px, 100%); font-size: 1em; color: var(--text-dim); }
   &:has(#welcome-list:empty) h3 { display: none; }
-  #welcome-list { display: flex; flex-direction: column; width: min(480px, 100%); }
-  /* A recent project: a click opens it; × (on hover) removes it */
-  .recent { display: flex; align-items: center; border-radius: var(--radius);
-    &:hover { background: var(--island-hi); }
-    .item { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--gap); height: auto; min-height: var(--control);
-      padding: 4px 10px; text-align: start; border: none; background: none; }
-    .text { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-    small { color: var(--text-muted); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-    .remove { display: grid; place-items: center; height: auto; padding: 4px; margin-inline-end: 6px; border: none; background: none;
-      color: var(--text-muted); visibility: hidden;
-      svg { width: 14px; height: 14px; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; }
-      &:hover { color: var(--text-strong); } }
-    &:is(:hover, :focus-within) .remove { visibility: visible; } }
+  #welcome-list { width: min(520px, 100%); margin-top: var(--gap); }
   .links { display: flex; flex-wrap: wrap; justify-content: center; gap: calc(var(--gap) * 2); margin-top: calc(var(--gap) * 3);
     color: var(--text-muted);
     a { color: inherit; &:hover { color: var(--text); } } }
@@ -165,6 +153,23 @@ input { background: var(--field); color: var(--text-strong); padding: 0 8px; use
 .noproject :is(#dock, #openProfiles) { display: none; }
 /* The terminal waits outside the grid until its panel is there (no project open): it takes no room meanwhile. */
 body > #term { display: none; }
+
+/* The Welcome screen's recent projects (tpl-project), acting as the project menu's rows: a click opens one, × (on
+   hover) or a right-click removes it. */
+#welcome-list { display: flex; flex-direction: column; gap: 4px;
+  .project { display: flex; align-items: center; border-radius: var(--radius);
+    &:is(:hover, :focus-within) { background: var(--island-hi); } }
+  .item { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; height: auto; padding: 10px 14px;
+    text-align: start; border: none; background: none; }
+  .text { flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .label { color: var(--text-strong); }
+  small { color: var(--text-muted); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .remove { display: grid; place-items: center; height: auto; padding: 6px; margin-inline-end: 8px; border: none; background: none;
+    color: var(--text-muted); visibility: hidden;
+    svg { width: 14px; height: 14px; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; }
+    &:hover { color: var(--text-strong); } }
+  .project:is(:hover, :focus-within) .remove { visibility: visible; }
+}
 
 /* Dialogs, one look for all (index.html), as in JetBrains: the title with × on top, the content, and a strip of
    buttons at the bottom, the main one last (blue; red when it deletes). */
@@ -191,7 +196,7 @@ dialog { width: 560px; max-height: 85vh; padding: 0; flex-direction: column; bac
   .check { display: flex; align-items: center; gap: var(--gap); margin: 12px 0 0 calc(80px + var(--gap));
     input { height: auto; margin: 0; } small { color: var(--text-muted); } }
   footer { display: flex; justify-content: flex-end; gap: var(--gap); padding: 12px 18px; border-top: 1px solid var(--island-hi);
-    .start { margin-inline-end: auto; }
+    .start { margin-inline-end: auto; } /* it and the buttons before it at the left end */
     button { min-width: 80px; } }
 }
 button.primary { background: var(--accent); border-color: var(--accent); color: var(--text-strong);
@@ -216,17 +221,11 @@ dialog button:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent
   #agentlog { max-height: 180px; overflow: auto; margin: 6px 0 0; padding: 8px; border-radius: var(--radius); background: var(--window);
     font: 12px "JetBrains Mono", monospace; white-space: pre-wrap; user-select: text; }
 }
-.prow, .projrow { padding: 6px 0; border-bottom: 1px solid var(--island-hi); }
+.prow { padding: 6px 0; border-bottom: 1px solid var(--island-hi); }
 .prow { display: flex; gap: var(--gap); align-items: center;
   .name { flex: 1; }
   .pid { color: var(--text-muted); width: 120px; }
   .ntabs { color: var(--text-muted); min-width: 48px; text-align: right; white-space: nowrap; }
-}
-.projrow { display: flex; gap: var(--gap); align-items: center;
-  .what { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-  .folder, .here { color: var(--text-muted); }
-  .here { padding: 0 10px; }
-  &.current .open, &:not(.current) .here { display: none; }
 }
 
 /* Menus (menu.js): under their button or at the pointer (#menuPoint), flipped to stay in the window. */
@@ -246,6 +245,15 @@ dialog button:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent
     small { color: var(--text-muted); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
     kbd { font: inherit; color: var(--text-muted); }
     :is(small, kbd):empty { display: none; } }
+  /* A row with a × at its end, shown on hover or focus (a recent project: removing it) */
+  .removable { display: flex; align-items: center; border-radius: var(--radius);
+    &:is(:hover, :focus-within) { background: var(--island-hi); }
+    .item:is(:hover, :focus-visible) { background: none; }
+    .remove { display: grid; place-items: center; flex: none; width: var(--control); height: var(--control); padding: 0; margin-inline-end: 2px;
+      color: var(--text-muted); visibility: hidden;
+      svg { width: 14px; height: 14px; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; }
+      &:is(:hover, :focus-visible) { color: var(--text-strong); } }
+    &:is(:hover, :focus-within) .remove { visibility: visible; } }
   /* Zoom  −  100%  +  as in Chrome's menu */
   .zoomrow { display: flex; align-items: center; gap: 2px; padding-inline-start: 10px;
     span { flex: 1; }

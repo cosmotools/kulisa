@@ -37,7 +37,7 @@ inside Kulisa; no external Chrome windows.
 - **The agent is the human's choice, per workspace** (`agents.js`): never assume `claude` is installed. Kulisa
   installs a missing agent itself with its maker's installer when the human asks, without steps for them to type.
 - **Terminology: "Welcome screen"** (the author also says "Экран"), as JetBrains names it: what the window shows
-  instead of the grid when no project is open (at first start, after closing main): Open Folder…, New Project…,
+  instead of the grid when no project is open (at first start, after closing main): New Project…, Open Folder…,
   the recent projects. `#welcome` in `index.html`, `projects.js`. Not "window" (there is one) or "page".
 - **Terminology: "workspace"**, the word tools for parallel agents use (e.g. Conductor), for one line of work
   inside a project: an agent (its terminal and session, any agent CLI), a branch of the code, profiles and a grid.

@@ -44,7 +44,7 @@
     <img class="applogo" src="../../assets/icon.svg" alt="Kulisa">
     <h2>No project is open</h2>
     <p class="hint">A project is a folder, usually a repository: Kulisa keeps its profiles, workspaces and agents.</p>
-    <div class="start"><button id="welcome-open">Open Folder…</button><button id="welcome-new">New Project…</button></div>
+    <div class="start"><button id="welcome-new">New Project…</button><button id="welcome-open">Open Folder…</button></div>
     <h3>Recent</h3>
     <div id="welcome-list"></div>
     <nav class="links">
@@ -67,15 +67,6 @@
       <form id="padd" class="row"><input id="newProfile" data-name maxlength="64" placeholder="New profile, e.g. ann@shop.com or ann.admin" spellcheck="false"><button>Add</button></form>
     </div>
     <footer><button id="closeProfiles" class="primary" command="close" commandfor="profiles">Done</button></footer>
-  </dialog>
-  <dialog id="projects" closedby="any">
-    <header><h2>Projects</h2><button class="x" type="button" command="close" commandfor="projects" title="Close" aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></header>
-    <div class="body">
-      <p class="hint">A project is a folder, usually a repository, with its own profiles, layout and agent. Opening
-        another one stops this project's agent; its conversation continues when you come back.</p>
-      <div id="projlist"></div>
-    </div>
-    <footer><button id="projectsNew" class="start">New Project…</button><button id="openFolder">Open Folder…</button><button id="closeProjects" class="primary" command="close" commandfor="projects">Close</button></footer>
   </dialog>
   <!-- New Project…, as JetBrains' (new-project.js, loaded when needed) -->
   <dialog id="newproject" closedby="any">
@@ -153,6 +144,10 @@
   <template id="tpl-menuitem">
     <button class="item" role="menuitem"><span class="dot" hidden></span><span class="text"><span class="label"></span><small></small></span><kbd></kbd></button>
   </template>
+  <!-- A menu row with a × at its end (menu.js, remove): the row's item goes first -->
+  <template id="tpl-menuremovable">
+    <div class="removable"><button class="remove" aria-label="Remove"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></div>
+  </template>
   <template id="tpl-menuzoom">
     <div class="zoomrow"><span>Zoom</span><button class="out" title="Zoom out (Ctrl −)">−</button><output></output><button class="in" title="Zoom in (Ctrl +)">+</button></div>
   </template>
@@ -163,13 +158,10 @@
     <label class="agentrow"><input type="radio" name="agent"><span class="what"><b class="name"></b><small class="needs"></small>
       <small class="install-line"></small></span><span class="status"></span><button type="button" class="install">Install</button></label>
   </template>
-  <template id="tpl-recent">
-    <div class="recent"><button class="item"><span class="dot"></span><span class="text"><span class="label"></span><small></small></span></button>
+  <!-- A recent project on the Welcome screen (projects.js) -->
+  <template id="tpl-project">
+    <div class="project"><button class="item"><span class="dot"></span><span class="text"><span class="label"></span><small></small></span></button>
       <button class="remove" title="Remove project…" aria-label="Remove project"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></div>
-  </template>
-  <template id="tpl-projrow">
-    <div class="projrow"><span class="dot"></span><div class="what"><b class="name"></b><span class="folder"></span></div>
-      <span class="here">open now</span><button class="open">Open</button><button class="remove">Remove…</button></div>
   </template>
   <script src="../../node_modules/dockview-core/dist/dockview-core.js"></script>
   <script src="../../node_modules/@xterm/xterm/lib/xterm.js"></script>
