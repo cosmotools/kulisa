@@ -1,16 +1,23 @@
-// xterm.js in the renderer, node-pty here running the agent CLI unchanged. One agent at a time; opening another
-// project replaces it.
+// xterm.js in the renderer, node-pty here running the agent CLI unchanged. One terminal per workspace (its key); the
+// window shows the shown workspace's, the others keep running (and the window keeps their output).
 const { ipcMain } = require('electron');
 const os = require('os');
 const pty = require('node-pty');
 
-// The terminal's size as the window measures it. The agent starts only once it is known: Claude Code draws its
-// prompt for the size it starts with and does not fully redraw on the first resize. Listening from require time,
-// so a size sent while the window loads is not missed.
-let size = null, current = null, sized;
-const firstSize = new Promise((r) => (sized = r));
-ipcMain.on('pty:resize', (_e, s) => { size = s; sized(); try { current?.resize(s.cols, s.rows); } catch {} });
-ipcMain.on('pty:in', (_e, d) => current?.write(d));
+// The terminal's size as the window measures it, per workspace. An agent starts only once its size is known: Claude
+// Code draws its prompt for the size it starts with and does not fully redraw on the first resize. Listening from
+// require time, so a size sent while the window loads is not missed.
+const terms = new Map(); // key -> { pty, size, sized (resolves the first size) }
+const termOf = (key) => {
+  if (!terms.has(key)) { const t = { pty: null, size: null }; t.firstSize = new Promise((r) => (t.sized = r)); terms.set(key, t); }
+  return terms.get(key);
+};
+ipcMain.on('pty:resize', (_e, { ws, cols, rows }) => {
+  const t = termOf(ws);
+  t.size = { cols, rows }; t.sized();
+  try { t.pty?.resize(cols, rows); } catch {}
+});
+ipcMain.on('pty:in', (_e, { ws, data }) => terms.get(ws)?.pty?.write(data));
 
 // The user's shell as a terminal app starts it (login shell on macOS, as Terminal and VS Code do). An app started
 // from the Dock or a menu may have no SHELL; the account's shell is the same then.
@@ -22,9 +29,11 @@ const shQuote = (a) => (/^[\w@%+=:,./-]+$/.test(a) ? a : `'${a.replace(/'/g, `'\
 // opened a terminal in the project and ran it: the shell's startup sets the project's environment (direnv's .envrc,
 // nvm, mise …), which Kulisa's own environment (where Kulisa was started) is not. When the agent exits, the shell
 // stays. shell: { command, args } instead of the user's, or false to start the agent directly (as on Windows).
-async function startTerminal(win, cfg) {
-  await Promise.race([firstSize, new Promise((r) => setTimeout(r, 5000))]);
-  const { cols, rows } = size || { cols: 120, rows: 30 };
+// key: the workspace's; the window sends its input and size, and gets its output, under it.
+async function startTerminal(win, cfg, key) {
+  const t = termOf(key);
+  await Promise.race([t.firstSize, new Promise((r) => setTimeout(r, 5000))]);
+  const { cols, rows } = t.size || { cols: 120, rows: 30 };
   const sh = cfg.shell === false ? null : cfg.shell || userShell();
   const command = cfg.command || (process.platform === 'win32' ? process.env.COMSPEC || 'cmd.exe' : process.env.SHELL || 'bash');
   const p = pty.spawn(sh ? sh.command : command, sh ? sh.args || [] : cfg.args || [], {
@@ -34,11 +43,12 @@ async function startTerminal(win, cfg) {
   if (sh && cfg.command) typeWhenReady(p, ` ${[cfg.command, ...(cfg.args || [])].map(shQuote).join(' ')}\r`);
   p.spawnSize = { cols: p.cols, rows: p.rows };
   p.spawnArgs = cfg.args || [];
+  p.key = key;
   // An agent that was replaced says nothing more in the window.
-  const send = (d) => { if (current === p && !win.isDestroyed()) win.webContents.send('pty:out', d); };
+  const send = (data) => { if (t.pty === p && !win.isDestroyed()) win.webContents.send('pty:out', { ws: key, data }); };
   p.onData(send);
   p.onExit(({ exitCode }) => send(`\r\n[process exited ${exitCode}]\r\n`));
-  current = p;
+  t.pty = p;
   return p;
 }
 
@@ -56,9 +66,10 @@ function typeWhenReady(p, line) {
   const limit = setTimeout(type, 5000);
 }
 
-// Stop the agent; its output no longer reaches the window.
+// Stop the agent; its output no longer reaches the window. The terminal's size is kept for the next agent there.
 function stopTerminal(p) {
-  if (current === p) current = null;
+  const t = terms.get(p.key);
+  if (t?.pty === p) t.pty = null;
   try { p.kill(); } catch {}
 }
 

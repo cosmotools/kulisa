@@ -1,124 +1,169 @@
-// Kulisa's own data in the user-data folder.
-//   settings.json            the Kulisa zoom, the last project
+// Kulisa's own data in the user-data folder, laid out as Chrome lays out its own (Local State, then a folder per
+// profile), so what is known about Chrome's storage applies:
+//   settings.json            the Kulisa zoom, the last project (null: the window was left with no project)
 //   projects.json            the projects: { id, name, folder, color }; a project is a folder (a repository, or one
 //                            Kulisa made); its color tints the window, to tell projects apart at a glance
-//   projects/<id>/           per project: profiles.json (who, sites zoomed in each, closed ones), tabs.json (open URLs
-//                            per profile, closed ones too), layout.json (the window's grid), agent.json (the agent's session, to resume it)
-// Browser profiles themselves live in Electron's Partitions/ next to them, one folder per partition, unique across
-// projects. Nothing goes into the project's own folder: sign-ins must not end up in its git.
+//   projects/<id>/
+//     workspaces.json        the project's workspaces: { next, current, list: [{ n, name, branch, worktree, folder,
+//                            base, offset }] }; main is n 1, the project's own folder (ROADMAP, "Workspaces")
+//     <n>/                   a workspace (WorkspaceStore): profiles.json (its profiles in order: folder, name, color,
+//                            sites' zoom, closed; as Chrome's Local State), layout.json (the window's grid), agent.json
+//                            (the agent's session, to resume it), and a folder per profile:
+//       Profile <k>/         a Chromium profile (session.fromPath) with Kulisa's own files in it: Kulisa Tabs.json
+//                            (its tabs' URLs), Kulisa Session Cookies.bin (session-cookies.js)
+//   deleted-folders.json     folders of deleted profiles and workspaces, removed at the next start (a session keeps
+//                            its files open while Kulisa runs)
+// Nothing goes into the project's own folder: sign-ins must not end up in its git.
 const fs = require('fs');
 const path = require('path');
+const { slugOf } = require('./names');
 
-const PROJECT_FILES = ['profiles.json', 'tabs.json', 'layout.json'];
 // Muted, to sit on the dark window; a new project takes the first one no project has.
 const PROJECT_COLORS = ['#4a7bd0', '#3f9a7a', '#b4823a', '#9a5fc0', '#c0584f', '#3c9fb0', '#b0607f', '#7d9a3f'];
+const TABS_FILE = 'Kulisa Tabs.json';
+const SESSION_COOKIES_FILE = 'Kulisa Session Cookies.bin';
+// Chromium's caches inside a profile: rebuilt by themselves, so a copy of a profile goes without them.
+const CACHES = new Set(['Cache', 'Code Cache', 'GPUCache', 'DawnGraphiteCache', 'DawnWebGPUCache', 'GrShaderCache', 'ShaderCache']);
 
 class Store {
-  // defaultFolder: the project to put the data of a single-project Kulisa (before projects) into.
-  constructor(dir, { defaultFolder } = {}) {
+  constructor(dir) {
     this.dir = dir;
     fs.mkdirSync(dir, { recursive: true });
     this.projectsFile = path.join(dir, 'projects.json');
-    this.deletedFile = path.join(dir, 'deleted-partitions.json');
+    this.deletedFile = path.join(dir, 'deleted-folders.json');
     this.settingsFile = path.join(dir, 'settings.json');
     this.project = null; this.projectDir = null;
-    if (defaultFolder) this.migrate(defaultFolder);
     this.purgeDeleted();
   }
 
-  // Kulisa before projects kept profiles.json, tabs.json and layout.json here: they become the first project's,
-  // copied (the originals stay, and count as live for purgeDeleted).
-  migrate(folder) {
-    if (fs.existsSync(this.projectsFile) || !PROJECT_FILES.some((f) => fs.existsSync(path.join(this.dir, f)))) return;
-    const p = this.projectFor(folder);
-    for (const f of PROJECT_FILES) if (fs.existsSync(path.join(this.dir, f))) fs.copyFileSync(path.join(this.dir, f), path.join(this.dirOf(p), f));
-  }
-
-  projects() {
-    const list = readJSON(this.projectsFile) || [];
-    // Projects made before colors get one now, each its own.
-    if (list.some((p) => !p.color)) {
-      for (const p of list) if (!p.color) p.color = nextColor(list);
-      writeJSON(this.projectsFile, list);
-    }
-    return list;
-  }
+  projects() { return readJSON(this.projectsFile) || []; }
   dirOf(p) { const d = path.join(this.dir, 'projects', p.id); fs.mkdirSync(d, { recursive: true }); return d; }
   // The project of a folder; a new one if no project has it.
   projectFor(folder, name = path.basename(folder) || folder) {
     const list = this.projects();
     const found = list.find((p) => samePath(p.folder, folder));
     if (found) return found;
-    const base = name.toLowerCase().replace(/[^a-z0-9а-яё]+/gi, '-').replace(/^-|-$/g, '') || 'project';
+    const base = slugOf(name, 'project');
     let id = base, n = 2;
     while (list.some((p) => p.id === id)) id = `${base}-${n++}`;
     const p = { id, name, folder, color: nextColor(list) };
     writeJSON(this.projectsFile, [...list, p]);
     return p;
   }
-  // The project opened last, if it is still in the list.
+  // The project opened last, if it is still in the list; null at first start, or when the window was left with no
+  // project open.
   lastProject() { const id = this.settings().lastProject; return this.projects().find((p) => p.id === id) || null; }
-  // From now on profiles(), tabs(), layout() and agent() are this project's.
+  // From now on workspaces() are this project's.
   openProject(p) {
     this.project = p; this.projectDir = this.dirOf(p);
     this.saveSettings({ ...this.settings(), lastProject: p.id });
   }
-  file(name) { if (!this.projectDir) throw new Error('no project open'); return path.join(this.projectDir, name); }
+  // The window is left with no project (and opens so at the next start).
+  closeProject() {
+    this.project = null; this.projectDir = null;
+    this.saveSettings({ ...this.settings(), lastProject: null });
+  }
 
-  // Folder of a persist: partition, or null for anything that would not land inside Partitions/.
-  partitionDir(partition) {
-    const name = partition.replace(/^persist:/, '');
-    if (!partition.startsWith('persist:') || !name || /[\\/]|^\.\.?$/.test(name)) return null;
-    return path.join(this.dir, 'Partitions', name);
+  // The open project's workspaces (workspaces.json); of another project: workspacesOf(p), workspaceOf(p, n).
+  workspaces() { return this.workspacesOf(this.project); }
+  saveWorkspaces(w) { writeJSON(path.join(this.projectDir, 'workspaces.json'), w); }
+  wsDir(n) { return path.join(this.projectDir, String(n)); }
+  workspace(n) { return new WorkspaceStore(this.wsDir(n), this); }
+  workspacesOf(p) {
+    return readJSON(path.join(this.dir, 'projects', p.id, 'workspaces.json')) || { next: 2, current: 1, list: [{ n: 1, name: 'main' }] };
   }
-  // Partitions of every project's profiles (and of the files from before projects).
-  livePartitions() {
-    const files = [path.join(this.dir, 'profiles.json'), ...this.projects().map((p) => path.join(this.dir, 'projects', p.id, 'profiles.json'))];
-    return new Set(files.flatMap((f) => (readJSON(f) || []).map(withPartition).map((p) => p.partition)));
+  workspaceOf(p, n) { return new WorkspaceStore(path.join(this.dir, 'projects', p.id, String(n)), this); }
+  // A project gone from Kulisa: from the list, and its data (profiles with their sign-ins, workspaces); never its
+  // folder. Its profiles' sessions may still be open: what cannot go now goes at the next start.
+  removeProject(p) {
+    writeJSON(this.projectsFile, this.projects().filter((x) => x.id !== p.id));
+    if (this.settings().lastProject === p.id) this.saveSettings({ ...this.settings(), lastProject: null });
+    const dir = path.join(this.dir, 'projects', p.id);
+    this.markDeleted(dir);
+    try { fs.rmSync(dir, { recursive: true, force: true }); } catch (e) { console.warn('[store]', e.message); }
   }
-  // A partition for a new profile that no profile of any project, pending deletion or leftover folder uses.
-  freePartition(id) {
-    const inUse = this.livePartitions();
-    const taken = (p) => inUse.has(p) || this.deleted().includes(p) || fs.existsSync(this.partitionDir(p) || '');
-    let p = `persist:${id}`, n = 2;
-    while (taken(p)) p = `persist:${id}-${n++}`;
-    return p;
-  }
+
+  // Folders to remove at the next start, before any session opens them; only inside the data folder.
   deleted() { return readJSON(this.deletedFile) || []; }
-  markDeleted(partition) { writeJSON(this.deletedFile, [...new Set([...this.deleted(), partition])]); }
-  // Remove folders of profiles deleted in an earlier run, before any session opens them.
+  markDeleted(folder) { writeJSON(this.deletedFile, [...new Set([...this.deleted(), folder])]); }
   purgeDeleted() {
-    const live = this.livePartitions();
-    for (const p of this.deleted()) {
-      const dir = !live.has(p) && this.partitionDir(p);
-      if (dir) fs.rmSync(dir, { recursive: true, force: true });
+    for (const d of this.deleted()) {
+      const rel = path.relative(this.dir, d);
+      if (rel && !rel.startsWith('..') && !path.isAbsolute(rel)) fs.rmSync(d, { recursive: true, force: true });
     }
     fs.rmSync(this.deletedFile, { force: true });
-  }
-  profiles() { return (readJSON(this.file('profiles.json')) || []).map(withPartition); }
-  // closed: the human closed it (app.js); it stays closed until opened again.
-  saveProfiles(list) {
-    writeJSON(this.file('profiles.json'), list.map(({ id, name, color, partition, siteZoom, closed }) =>
-      ({ id, name, color, partition, zoom: siteZoom, ...(closed && { closed }) })));
   }
   // Kulisa's own settings: { uiZoom, lastProject }.
   settings() { return readJSON(this.settingsFile) || {}; }
   saveSettings(s) { writeJSON(this.settingsFile, s); }
-  tabs() { return readJSON(this.file('tabs.json')) || {}; }
-  saveTabs(byProfile) { writeJSON(this.file('tabs.json'), byProfile); }
+}
+
+// One workspace's data: its profiles (each a folder), grid and agent session.
+class WorkspaceStore {
+  constructor(dir, store) { this.dir = dir; this.store = store; fs.mkdirSync(dir, { recursive: true }); }
+  file(name) { return path.join(this.dir, name); }
+  profileDir(folder) { return path.join(this.dir, folder); }
+  // list: { folder, id, name, color, zoom, closed } (project-profiles.js); closed until opened again.
+  profiles() { return readJSON(this.file('profiles.json')) || []; }
+  saveProfiles(list) {
+    writeJSON(this.file('profiles.json'), list.map(({ folder, id, name, color, zoom, closed }) =>
+      ({ folder, id, name, color, zoom, ...(closed && { closed }) })));
+  }
+  // A profile's tabs (their URLs), in its own folder.
+  tabs(folder) { return readJSON(path.join(this.profileDir(folder), TABS_FILE)) || []; }
+  saveTabs(folder, urls) {
+    const json = JSON.stringify(urls);
+    if ((this.saved ??= new Map()).get(folder) === json) return; // written after every change of the window's state
+    this.saved.set(folder, json);
+    fs.mkdirSync(this.profileDir(folder), { recursive: true });
+    writeJSON(path.join(this.profileDir(folder), TABS_FILE), urls);
+  }
+  // A folder for a new profile, as Chrome numbers them: one no profile has, never one still on disk (a deleted
+  // profile's folder stays until the next start, its session may still be open).
+  freeFolder(taken = []) {
+    const used = [...taken, ...this.profiles().map((p) => p.folder), ...(fs.existsSync(this.dir) ? fs.readdirSync(this.dir) : [])];
+    const n = Math.max(0, ...used.map((f) => Number(/^Profile (\d+)$/.exec(f)?.[1] || 0))) + 1;
+    return `Profile ${n}`;
+  }
+  markDeleted(folder) { this.store.markDeleted(this.profileDir(folder)); }
   // The window's grid as dockview serializes it (renderer.js).
   layout() { return readJSON(this.file('layout.json')); }
   saveLayout(layout) { writeJSON(this.file('layout.json'), layout); }
-  // The project's agent session: { sessionId, transcript } as the agent's hooks report it (agent-hooks.js).
+  // The workspace's agent session: { sessionId, transcript } as the agent's hooks report it (agent-hooks.js).
   agent() { return readJSON(this.file('agent.json')) || {}; }
   saveAgent(a) { writeJSON(this.file('agent.json'), a); }
 }
 
+// Copy a profile's folder without its caches. An open profile can be copied once its data is flushed
+// (workspaces.js); a file that cannot be read (locked on Windows) is left out and logged.
+async function copyProfile(from, to) {
+  const walk = async (src, dst, top) => {
+    await fs.promises.mkdir(dst, { recursive: true });
+    for (const e of await fs.promises.readdir(src, { withFileTypes: true })) {
+      if (top && CACHES.has(e.name)) continue;
+      const s = path.join(src, e.name), d = path.join(dst, e.name);
+      try {
+        if (e.isDirectory()) await walk(s, d, false);
+        else if (e.isFile()) await fs.promises.copyFile(s, d);
+      } catch (err) { console.error('[store] not copied:', s, err.code || err.message); }
+    }
+  };
+  await walk(from, to, true);
+}
+
 const nextColor = (list) => PROJECT_COLORS.find((c) => !list.some((p) => p.color === c)) || PROJECT_COLORS[list.length % PROJECT_COLORS.length];
-// Profiles saved before partitions were stored use persist:<id>.
-const withPartition = (p) => ({ partition: `persist:${p.id}`, ...p });
 const samePath = (a, b) => (process.platform === 'linux' ? path.resolve(a) === path.resolve(b) : path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase());
 function readJSON(f) { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch { return null; } }
-function writeJSON(f, v) { try { fs.writeFileSync(f, JSON.stringify(v, null, 2)); } catch (e) { console.error('[store]', e.message); } }
+function writeJSON(f, v) { try { writeFileAtomic(f, JSON.stringify(v, null, 2)); } catch (e) { console.error('[store]', e.message); } }
+// Written whole or not at all: to a file next to it, then renamed over it. Kulisa may be killed or the computer lose
+// power while it writes (the tabs and session cookies are saved every few seconds); a half-written profiles.json
+// would lose the list of the profiles, a half-written session cookies file the sign-ins.
+function writeFileAtomic(file, data, options) {
+  const tmp = `${file}.${process.pid}.tmp`;
+  try {
+    fs.writeFileSync(tmp, data, options);
+    fs.renameSync(tmp, file);
+  } catch (e) { fs.rmSync(tmp, { force: true }); throw e; }
+}
 
-module.exports = { Store };
+module.exports = { Store, WorkspaceStore, copyProfile, writeFileAtomic, SESSION_COOKIES_FILE };

@@ -1,5 +1,5 @@
 {
-  "description": "Ask the Kulisa this session runs in (KULISA_URL, set in its terminal) for context. Outside Kulisa they do nothing. Claude Code runs hook commands in bash on every OS (Git Bash on Windows); curl ships with all three.",
+  "description": "Ask the Kulisa this session runs in (KULISA_URL, set in its terminal: the workspace's) for context, and tell it what the agent is doing (shown on the workspace's tab). Outside Kulisa they do nothing. Claude Code runs hook commands in bash on every OS (Git Bash on Windows); curl ships with all three.",
   "hooks": {
     "SessionStart": [
       {
@@ -7,6 +7,39 @@
           {
             "type": "command",
             "command": "[ -z \"$KULISA_URL\" ] || curl -sf --max-time 3 --data-binary @- \"$KULISA_URL/hooks/session-start\" || true",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -z \"$KULISA_URL\" ] || curl -sf --max-time 3 --data-binary @- \"$KULISA_URL/hooks/prompt\" || true",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -z \"$KULISA_URL\" ] || curl -sf --max-time 3 --data-binary @- \"$KULISA_URL/hooks/notification\" || true",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -z \"$KULISA_URL\" ] || curl -sf --max-time 3 --data-binary @- \"$KULISA_URL/hooks/stop\" || true",
             "timeout": 5
           }
         ]

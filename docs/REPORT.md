@@ -28,7 +28,7 @@ As measured on 2026-10-05. Timings taken with the monitor off are meaningless (S
 
 | # | Experiment | Result | Numbers | Notes |
 |---|---|---|---|---|
-| E1 | Strict sign-in, real Chrome + port + `AutomationControlled` | **partial**, then not pursued (external Chrome dropped) | `navigator.webdriver` false, console leak false, at load, after 3 s, and after Playwright `connectOverCDP` + reload. UA-CH: `"Google Chrome";v="151"` | Same as SPEC §5, now with Playwright attached (Runtime/Page/Network enabled) rather than raw CDP. `check` mode (attach + navigate + aria snapshot per site) was dry-run on a signed-out profile: it works, 5–10 s per site |
+| E1 | Strict sign-in, real Chrome + port + `AutomationControlled` | **partial**, then not pursued (external Chrome dropped) | `navigator.webdriver` false, console leak false, at load, after 3 s, and after Playwright `connectOverCDP` + reload. UA-CH: `"Google Chrome";v="151"` | Same as the check in the original spec, now with Playwright attached (Runtime/Page/Network enabled) rather than raw CDP. `check` mode (attach + navigate + aria snapshot per site) was dry-run on a signed-out profile: it works, 5–10 s per site |
 | E2 | Strict sign-in, Electron, 2 profiles, UA variants | **partial**; superseded by Chrome mimicry and the Kasada findings below | Default UA: `… Chrome/152.0.7977.130 Electron/44.5.1 Safari/537.36`. Stripped UA: `… Chrome/152.0.7977.130 Safari/537.36`. `Sec-CH-UA` in **both**: `"Not?A_Brand";v="24", "Chromium";v="152"` (no `Google Chrome` brand). webdriver false, leak false | Stripping the UA string leaves UA-CH untouched. A site that compares the UA with the brands sees a "Chrome" UA without a Chrome brand. Making them agree would mean spoofing UA-CH, which is out of scope (Rules), so it was not built |
 | E3 | Profiles and tabs in Electron | **pass** | 3 profiles side by side. Sign-in on the test app: Sam / Elon / Ann (signed out) isolated. `target=_blank`, `window.open()`, popup with features → 3 new tabs in the same profile, `window.opener` alive, popup signed in as the same user. Close tab OK. After restart: still signed in, tabs restored | Two traps fixed (see Surprises): `createWindow` must adopt `options.webContents`, and an uncaught main-process exception freezes the app |
 | E4 | Agent control of embedded panes without a port | **pass**, both options | E4a own MCP: navigate 18–26 ms, aria snapshot 30 ms, type 10 ms, click by locator 12–45 ms, screenshot 54 ms. E4b `@playwright/mcp --cdp-endpoint <proxy>/<profile>`: connect 260 ms, 25 tools, navigate 44–60 ms, snapshot 7 ms, type 34 ms, tabs/console/network 3–60 ms; screenshot 3–4.4 s, a few clicks 0.6–3 s (monitor off, see Status). webdriver false, leak false while attached | Electron's own `--remote-debugging-port`: webdriver **true**, and the shell UI (`index.html`) shows up as a target. With `AutomationControlled` disabled: webdriver false, but the UI is still exposed. The proxy exposes only profile tabs |
@@ -53,7 +53,7 @@ As measured on 2026-10-05. Timings taken with the monitor off are meaningless (S
    through `webContents.debugger`. It also has to support several sessions per tab (Playwright's `newCDPSession`),
    `attachToBrowserTarget`, and `about:blank` for new targets. That is about 200 lines in total
    (now `src/main/cdp-proxy.js`).
-4. **Electron's Chromium was newer than Chrome**, not older (152 vs 151). The "lags Chrome" assumption in SPEC §4 is
+4. **Electron's Chromium was newer than Chrome**, not older (152 vs 151). The "lags Chrome" assumption of the original spec is
    not always true. The giveaways are the `Electron/` token and the missing `Google Chrome` brand, not the version.
 5. **Two Electron traps that freeze the whole app.**
    - With `setWindowOpenHandler` → `createWindow`, you must pass `options.webContents` into the new
@@ -72,7 +72,7 @@ The author's direction: everything happens inside Kulisa. Profiles are created i
 embedded profile), the human signs in inside the pane, and the built-in Claude Code uses them. External
 Chrome was later dropped entirely.
 
-The author also decided (SPEC §8) that embedded profiles present themselves as Google Chrome of the same engine
+The author also decided (now SPEC, section 4) that embedded profiles present themselves as Google Chrome of the same engine
 version (now `src/main/mimic-chrome.js`, on by default, `KULISA_MIMIC=0` turns it off):
 - **UA string:** reduced like Chrome, `Chrome/152.0.0.0` without `Electron/…`.
 - **`navigator.userAgentData`:** set with CDP `Emulation.setUserAgentOverride`. The brand list is computed with

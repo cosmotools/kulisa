@@ -1,6 +1,6 @@
 node_modules/
-# point-and-tell notes Kulisa writes into the project it runs in
-.kulisa/
 # local environment (direnv)
 .envrc
 out/
+# Claude Code: personal settings stay local; the skills in .claude/skills are shared
+.claude/settings.local.json

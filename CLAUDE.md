@@ -2,8 +2,8 @@
 
 Desktop app (Electron) for developing and testing web apps with several users at once. Each **profile** is an
 embedded browser profile (own cookies, storage, tabs) shown as a pane. The human signs in by hand in a pane; a
-coding agent (Claude Code, unchanged CLI) runs in the built-in terminal and drives profiles through Kulisa's MCP
-server. Point-and-tell (⌖ Pick, then click an element) puts a reference with a Playwright locator into the agent's
+coding agent the human chooses (Claude Code, Codex: the unchanged CLI) runs in the built-in terminal and drives
+profiles through Kulisa's MCP server. Workspaces run several agents on one project at once. Point-and-tell (⌖ Pick, then click an element) puts a reference with a Playwright locator into the agent's
 prompt; the human writes the rest of the message around it.
 
 The author's framing: Kulisa is an IDE for developers (like JetBrains or VS Code), not a bot. Everything happens
@@ -15,6 +15,9 @@ inside Kulisa; no external Chrome windows.
 - `docs/ROADMAP.md`: what is done, what is next, open issues. Keep it current when a feature lands. **Before
   building something, look for it there** (Deferred ideas, Open issues): it may have been tried and put off, with
   the reason (a native menu in pages froze the desktop, and was built again without reading this).
+- `docs/profiles.md`, `docs/workspaces.md`: how profiles, and projects with their workspaces, work now: what the
+  human and the agent do, what Kulisa creates on the computer and removes, the code. Read the one for the part you
+  change; keep it current.
 - `README.md`: how to run, environment variables, a map of `src/`.
 
 ## Conventions
@@ -23,6 +26,31 @@ inside Kulisa; no external Chrome windows.
 - **Terminology: "profile"**, the word Chrome uses, for one embedded browser identity (cookies, storage, tabs) and
   its pane. Not "persona", "user" or "account" (an account is what a profile signs in to). Early commits and
   experiments said "persona".
+- **Terminology: "Kulisa plugin"** for the layer between the agent and the profiles (Architecture, layer 3): the
+  MCP server with the browser tools (agent-agnostic, where new abilities go) plus a package per agent that brings
+  it in with a skill and hooks (for Claude Code `src/agent/claude-plugin/`; Codex plugins have the same parts).
+  Giving the agent more it can do in the browsers is one of Kulisa's features: extend the MCP server, then describe
+  it in the skill.
+- **Terminology: "plugin" vs "extension".** A plugin is always an agent's (Claude Code's, Codex's), the Kulisa plugin
+  being one. Code that extends Kulisa itself (panels, features of the IDE) is an "extension", as in VS Code and
+  Chrome. Not "module": that is a file of code.
+- **The agent is the human's choice, per workspace** (`agents.js`): never assume `claude` is installed. Kulisa
+  installs a missing agent itself with its maker's installer when the human asks, without steps for them to type.
+- **Terminology: "Welcome screen"** (the author also says "Экран"), as JetBrains names it: what the window shows
+  instead of the grid when no project is open (at first start, after closing main): Open Folder…, New Project…,
+  the recent projects. `#welcome` in `index.html`, `projects.js`. Not "window" (there is one) or "page".
+- **Terminology: "workspace"**, the word tools for parallel agents use (e.g. Conductor), for one line of work
+  inside a project: an agent (its terminal and session, any agent CLI), a branch of the code, profiles and a grid.
+  Main is the project itself; forks are temporary worktrees next to it (`myshop@<ws>`). Several workspaces build
+  several features at once. A project is the folder; a workspace is inside it (not VS Code's sense of the word).
+  How they work: `docs/workspaces.md`; the decisions and what is left: ROADMAP, "Workspaces".
+- **Not tied to one agent or LLM vendor.** The user chooses the agent CLI (Claude Code, Codex, others); Kulisa must
+  not require Claude Code or any one model provider. When planning a feature, design it for any agent CLI:
+  - The core of a feature works through what every agent has: a terminal, the MCP server, files, git. Kulisa's
+    own data and conventions (e.g. its own folders), not one agent's (`.claude/…`).
+  - What only some agents can do (Claude Code's `--resume`, `--fork-session`, plugin, hooks) is an optional extra
+    per agent, kept in one place per agent, and the feature still works without it.
+  - Claude Code is the default and the best supported today; that is fine as long as the others are not locked out.
 - **Keep the amount of own code minimal, so the project stays under control.** Prefer maintained open-source
   libraries to writing our own.
   - Before writing browser or CDP code, check whether playwright-core already does it: picker
@@ -47,12 +75,17 @@ inside Kulisa; no external Chrome windows.
   - A reusable part of the window (a menu, a dialog, a list) is a file of its own in `src/renderer/` with a small
     interface, like `menu.js` (`openMenu(items, at)`); `renderer.js` wires such parts to the window and holds what
     is specific to it.
+  - A part needed only now and then (a first-start wizard, a dialog opened rarely) is an ES module loaded when
+    needed, with `import()` (works over `file://`, no build step; it sees the window's globals such as `tpl` and
+    `kulisa`), like `agent-picker.js`. Its markup stays in `index.html`. Parts the window uses all the time stay
+    plain scripts. Order in the code matters as much as speed: each part in its file, loaded when it is used.
 - **RAM matters.** Kulisa is Electron plus a Chromium process per tab, for several profiles at once, next to the
   user's own browser and IDE. When choosing how to build something, weigh how much memory it keeps and prefer the
   cheaper way. If a feature would noticeably raise RAM use (a process per tab or profile, keeping hidden things
   alive, large buffers), discuss it with the author before building it. Reference: 5 profiles × 3 tabs ≈ 4 GB,
   almost all in tab processes (REPORT, E8).
-- **Every behavior change comes with a test** in `test/run.js`, which drives the real app.
+- **Every behavior change comes with a test** in `test/` (the file of its area; `run.js` starts the real app and
+  runs the files in order, later tests building on earlier ones; shared helpers in `helpers.js`).
   - Fix a bug by first reproducing it as a failing test, then making it pass (the session-cookie bug was done
     this way).
   - Run `npm test` before committing.
@@ -66,7 +99,7 @@ inside Kulisa; no external Chrome windows.
 ## Commands
 
 ```sh
-npm start   # the app: the project in $KULISA_PROJECT, else the one opened last (at first start, the folder npm ran in)
+npm start   # the app: the project in $KULISA_PROJECT, else the one opened last (at first start none: open one)
 npm test    # real app against a local test site (test/fixtures/site.js), then a second run to check a restart
 npm run make  # installers for this platform with Electron Forge (forge.config.js), in out/make/
 npm run icons # renders assets/icon.svg to icon.png/.ico/.icns (committed; run after changing the SVG)
@@ -93,8 +126,9 @@ npm run icons # renders assets/icon.svg to icon.png/.ico/.icns (committed; run a
 - **The author's data is in `~/.config/Kulisa`**: profiles with real sign-ins to work tenants.
   - Never delete or overwrite it.
   - Tests use their own temp folder (`/tmp/kulisa-test`).
-  - To restart the author's running app, stop it gracefully with SIGINT to the main `electron … .` process, so
-    session cookies and tabs get saved; then `npm start` in the background.
+  - To restart the author's running app, or give them a fresh start: the `run-kulisa` skill
+    (`.claude/skills/run-kulisa/`): SIGINT to the main `electron … .` process, so session cookies and tabs get
+    saved; then `npm start` in the background.
 - **`src/main/signin-pause.js` is a deliberately temporary implementation** (the author's decision, see REPORT).
   Keep it isolated; the author will replace it. Claude declined to research hiding the agent from bot detection
   (Kasada); don't build that.
@@ -110,66 +144,57 @@ npm run icons # renders assets/icon.svg to icon.png/.ico/.icns (committed; run a
 
 ## Architecture
 
+How the parts work, in detail: `docs/profiles.md` (profiles, sign-ins, the CDP proxy, the agent's tools, point and
+tell) and `docs/workspaces.md` (projects, workspaces, agents, what is on the computer). Read the one for the part you
+change; keep it current. Here: the layers, the modules, and what must hold.
+
 Layers, each using only the ones below it:
 
-1. **Profiles** (`profiles.js`, `store.js`, `session-cookies.js`, `mimic-chrome.js`, `signin-*.js`): browser
-   profiles, their tabs and storage. Knows nothing about agents, MCP or the window UI.
+1. **Profiles** (`profiles.js`, `project-profiles.js`, `store.js`, `session-cookies.js`, `mimic-chrome.js`,
+   `signin-*.js`): browser profiles, their tabs and storage. Knows nothing about agents, MCP or the window UI.
 2. **Automation access** (`cdp-proxy.js`): the only way anything automated reaches a profile's pages, and where
    sign-in mode is enforced.
-3. **Agent bridge**: everything that lets an unchanged agent CLI understand and use profiles.
+3. **Kulisa plugin** (formerly "agent bridge"): everything that lets an unchanged agent CLI understand and use
+   profiles: tools, knowledge (skill) and hooks, as Claude Code and Codex plugins bundle them.
    - `mcp-server.js` is the functional part and is agent-agnostic: any capability for the agent is an MCP tool
-     there, so Codex and other CLIs get it too.
-   - Knowledge for Claude Code lives in the Kulisa plugin, `src/agent/claude-plugin/`, which `app.js` passes as
-     `claude --plugin-dir`: `.mcp.json` (the URL from `KULISA_MCP_URL`, set in the pty) and the `profiles` skill
-     (what profiles are, multi-user work, the sign-in rules, point-and-tell notes), and `hooks/hooks.json`. Hooks
-     are `curl` to `$KULISA_URL/hooks/<event>`, answered by `agent-hooks.js` (bash runs hook commands on every
-     OS, curl ships with all three); outside Kulisa they do nothing. Change the skill when a tool or a rule
-     changes. Packaged, the plugin sits outside the asar (`extraResource`). Point-and-tell types a short
-     `[kulisa pick: …]` reference into the agent's prompt without Enter (`picker.js`); it works with any agent CLI.
+     there, so Codex and other CLIs get it too. One URL per workspace (`/ws/<n>/mcp`).
+   - Claude Code's package is `src/agent/claude-plugin/` (`claude --plugin-dir`): `.mcp.json` (`KULISA_MCP_URL`),
+     the `profiles` skill (change it when a tool or a rule changes), `hooks/hooks.json` (`curl` to
+     `$KULISA_URL/hooks/<event>`, answered by `agent-hooks.js`; outside Kulisa they do nothing). Packaged, it sits
+     outside the asar (`extraResource`).
    - Do not add agent-facing behavior elsewhere (e.g. in `profiles.js` or the renderer).
-4. **Window** (`app.js`, `renderer/`, `ghost.js`, `picker.js`, `terminal.js`): what the human sees and does.
+4. **Window** (`app.js`, `workspaces.js`, `worktrees.js`, `agents.js`, `renderer/`, `ghost.js`, `picker.js`,
+   `terminal.js`): what the human sees and does.
 
-Modules (src/main):
+Modules (`src/main`):
 
-- `app.js`: window, projects, profile lifecycle, IPC, terminal, quit handling.
-  - A project is a folder with its own profiles, tabs, grid and agent session (`store.js`: `projects/<id>/`; never
-    in the project's folder, so sign-ins stay out of its git). Partitions are unique across projects. One project
-    is open at a time: opening another saves and closes this one's profiles and stops the agent; the window builds
-    the other's grid in place (not reloaded), hidden until laid out (`html.loading`, the views hidden meanwhile), so
-    nothing jumps. Claude Code resumes the project's session (the plugin's SessionStart hook reports it).
-  - The agent is typed into the user's shell started in the project's folder (`terminal.js`), so the project's
-    own environment applies (direnv's `.envrc`, nvm, mise), not the one Kulisa was started with; e.g. a project's
-    `CLAUDE_CONFIG_DIR` (another Claude account). On Windows it starts directly.
-  - Kulisa's own DevTools exist only when running from source (`appDevTools`, off when `app.isPackaged`; the
-    window is created with `devTools: false`). End users get DevTools for profiles' tabs only.
-- `profiles.js`: a profile is a `session.fromPartition(partition)` plus one `WebContentsView` per tab.
-  - The partition is fixed at creation; a rename changes only id and name.
-  - Sign-in mode detaches all automation from the profile's tabs.
-  - Close (`app.js`, `shell.closed`) closes its tabs and keeps the profile, signed in; the agent opens it with
-    `profile_open`.
-  - Delete wipes the session's data at once; the partition folder is removed at the next start
-    (`deleted-partitions.json` in `store.js`), and a new profile never reuses a deleted partition.
-- **Sizes and zoom.** UI text and controls use `--font` and `--control` (styles.css), not their own sizes. The
-  Kulisa zoom is Chromium's zoom of the window's page (`setUiZoom` in app.js); the renderer's boxes are CSS
-  pixels and `app.js` scales them for the native views. Pages get the Kulisa zoom times their site's own zoom
-  (`profiles.js`).
-- The window is a grid of peer panels (dockview, `renderer.js`): a pane per profile and the terminal; dragged,
-  stacked as tabs, resized, saved in `layout.json`. Profile views are native and draw above the window's HTML:
-  the renderer sends each pane's `.content` box (or that it is off screen) to the main process after every grid
-  change. Anything HTML over the panes must hide them (`views:hidden`): the profile editor; while a panel is
-  dragged and while a menu is open, pictures of the pages stand in for them (dockview's drop targets and the menus
-  are HTML).
-- `cdp-proxy.js`: a fake CDP "browser" endpoint per profile over `webContents.debugger`; no
-  `--remote-debugging-port`, so the shell UI is never exposed and `navigator.webdriver` stays false. Clients:
-  - the shell's own playwright-core connection (MCP tools, picker);
-  - `@playwright/mcp`, covered by a test.
-- `mcp-server.js`: tools take a `profile` id. Also serves `/hooks/*` (`agent-hooks.js`) for the plugin's hooks.
-- `ghost.js`: shows the agent's actions: Playwright's `screencast.showActions()` in the page (the shell's
-  connection), and a caption over the pane from commands passing through the proxy (any client).
-- `picker.js`: point-and-tell.
-- `mimic-chrome.js`: profiles present as Google Chrome of the same engine version (the author's decision).
-- `session-cookies.js`: session cookies saved encrypted with `safeStorage` and restored on start.
-- `signin-pages.js`: the sign-in host list; restore URLs for tabs on sign-in pages.
+- `app.js`: the window; projects and their workspaces (open, show, create, close, one after another: `serial`);
+  IPC; quit. `shell.profiles`, `shell.closed`, `shell.pty` are the shown workspace's.
+- `workspaces.js`: a workspace: its profiles, its agent in its own terminal and environment, a fork's copies.
+- `worktrees.js`: git for forks (the user's git, never a shell): worktree, branch, files outside git, direnv.
+- `agents.js`: the agents to choose from, one entry each: find, install, start, resume. Agent-specific code goes
+  here.
+- `project-profiles.js`: a workspace's profiles in order, open and closed: create, rename, close, open, delete.
+- `profiles.js`: a profile: `session.fromPath(<workspace>/Profile <k>)` plus a `WebContentsView` per tab.
+- `store.js`: Kulisa's data folder, laid out as Chrome's user data.
+- `session-cookies.js`, `signin-pages.js`, `signin-pause.js`, `mimic-chrome.js`: sign-ins that last, the sign-in
+  pause, presenting as Google Chrome.
+- `cdp-proxy.js`, `local-only.js`: the CDP endpoint per profile; refusing web pages.
+- `mcp-server.js`, `agent-hooks.js`, `ghost.js`, `picker.js`: the agent's tools and hooks, its actions shown, point
+  and tell.
+- `terminal.js`: a pty per workspace, the agent typed into the user's shell in its folder (the project's own
+  environment: direnv, nvm, mise). On Windows started directly.
+
+What must hold in the window:
+
+- **Profile views are native and draw above the window's HTML.** The renderer sends each pane's `.content` box (or
+  that it is off screen) to the main process after every grid change. Anything HTML over the panes must hide them
+  (`views:hidden`): dialogs; while a panel is dragged or a menu is open, pictures of the pages stand in for them.
+- **Sizes and zoom.** UI text and controls use `--font` and `--control` (styles.css), not their own sizes. The Kulisa
+  zoom is Chromium's zoom of the window's page (`setUiZoom` in app.js); the renderer's boxes are CSS pixels and
+  `app.js` scales them for the native views. Pages get the Kulisa zoom times their site's own zoom.
+- Kulisa's own DevTools exist only when running from source (`appDevTools`, off when `app.isPackaged`). End users
+  get DevTools for profiles' tabs only.
 
 ## Hard-won facts (each cost hours; details in docs/REPORT.md)
 

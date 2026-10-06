@@ -1,14 +1,19 @@
-// Kulisa window UI: the top bar, the profile editor, and a grid of peer panels (dockview): one pane per profile
-// (tab strip, address bar; the page itself is a WebContentsView laid over .content by the main process) and the
-// terminal. Panels can be dragged, stacked as tabs and resized; the grid is saved (layout.json) and restored.
-const panes = new Map(); // profile key (its partition; stable across renames) -> { el, tabEl, profile }
-let state = [];
-let closedProfiles = []; // closed by the human: { key, id, name, color, tabs (how many) }; shown in the editor only
+// Kulisa window UI: wires the parts (common.js, menu.js, terminal.js, projects.js, workspaces.js, profile-editor.js)
+// to a grid of peer panels (dockview) of the shown workspace: one pane per profile (tab strip, address bar; the page
+// itself is a WebContentsView laid over .content by the main process) and the terminal. Panels can be dragged,
+// stacked as tabs and resized; each workspace's grid is saved (its layout.json) and restored. Also the ☰ menu,
+// right-click menus, the agent's captions and point-and-tell.
+const panes = new Map(); // profile key (its folder; stable across renames) -> { el, tabEl, profile }
+let state = []; // the open profiles of the shown workspace, as the main process sends them
 let gridReady = null;
-// A copy of a <template> of index.html.
-const tpl = (id) => document.getElementById(id).content.firstElementChild.cloneNode(true);
+let leaving = null; // the grid being taken down (an animation), before the next one is built
+let slideIn = 0; // the next grid slides in from this side (1 right, -1 left), as macOS desktops do
+const pictures = new Map(); // workspace number -> { profile id: data URL }: its pages when it was left, for sliding in
+const dockEl = document.getElementById('dock');
+const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 
 kulisa.on('state', async (s) => {
+  await leaving; // the grid on screen goes first (it clears the state)
   state = s;
   const first = !gridReady;
   await (gridReady ??= restoreGrid());
@@ -16,94 +21,34 @@ kulisa.on('state', async (s) => {
   if (first) reveal();
 });
 // Until the grid is built and the pages have their places, the window shows no grid and the main process keeps the
-// pages hidden (html.loading): nothing jumps while the window loads, e.g. when another project is opened.
+// pages hidden (html.loading): nothing jumps while the window loads, e.g. when another project is opened. A workspace
+// shown from the strip slides in with pictures of its pages, then the pages themselves come.
 function reveal() {
-  requestAnimationFrame(() => requestAnimationFrame(() => { // after sendLayout's frame
+  requestAnimationFrame(() => requestAnimationFrame(async () => { // after sendLayout's frame
+    const dir = slideIn; slideIn = 0;
     document.documentElement.classList.remove('loading');
+    if (dir) {
+      showPictures(pictures.get(workspaces.current) || {});
+      await dockEl.animate([{ translate: `${dir * 30}% 0`, opacity: 0 }, { translate: '0 0', opacity: 1 }], { duration: 200, easing: 'ease-out' }).finished;
+      for (const img of document.querySelectorAll('.pane .content img.snapshot')) img.remove();
+      sendLayout(); // the boxes measured while it slid were off by the slide
+    }
     kulisa.invoke('views:hidden', viewsCovered());
   }));
 }
-
-// ---------- profiles ----------
-// The profile editor: add, rename, delete. A modal <dialog>; the profiles' views are native and would cover it,
-// so they are hidden while it is open.
-const editor = document.getElementById('profiles');
-const plist = document.getElementById('plist');
-const newProfile = document.getElementById('newProfile');
-const rows = new Map(); // profile key -> row element
-function openEditor() {
-  kulisa.invoke('views:hidden', true);
-  renderEditor(); editor.showModal(); newProfile.focus();
-}
-// The close event comes in a later task; the editor may be open again by then.
-// The pages stay hidden while a dialog is open or the grid is not laid out yet (html.loading).
-const viewsCovered = () => document.querySelector('dialog[open]') !== null || document.documentElement.classList.contains('loading');
-editor.addEventListener('close', () => kulisa.invoke('views:hidden', viewsCovered()));
-// The Profiles button: a menu of the project's profiles, as the project button's. An open one: its pane comes to the
-// front (it may be stacked behind another); a closed one opens. The editor (Manage Profiles…) for the rest.
-const openProfiles = document.getElementById('openProfiles');
-openProfiles.onclick = () => openMenu([
-  ...state.map((p) => ({ label: p.name, sub: `${p.tabs.length} tab${p.tabs.length === 1 ? '' : 's'}`, color: p.color,
-    run: () => api.getPanel(panelId(p.key))?.api.setActive() })),
-  ...closedProfiles.map((p) => ({ label: p.name, sub: 'closed · click to open', color: p.color,
-    run: () => kulisa.invoke('profile:open', { profile: p.id }) })),
-  ...(state.length || closedProfiles.length ? ['-'] : []),
-  { label: 'Manage Profiles…', run: openEditor },
-], openProfiles);
-document.getElementById('padd').onsubmit = async (e) => {
-  e.preventDefault();
-  const name = newProfile.value.trim();
-  if (!name) return newProfile.focus();
-  newProfile.value = '';
-  await kulisa.invoke('profile:new', { name });
-  newProfile.focus();
-};
-
-kulisa.on('closed-profiles', (list) => { closedProfiles = list; if (editor.open) renderEditor(); });
-function renderEditor() {
-  const all = [...state, ...closedProfiles.map((p) => ({ ...p, closed: true }))];
-  for (const [key, row] of rows) if (!all.some((p) => p.key === key)) { row.remove(); rows.delete(key); }
-  for (const p of all) {
-    const row = rows.get(p.key) || createRow(p);
-    row.profile = p;
-    row.style.setProperty('--color', p.color);
-    const name = row.querySelector('.name');
-    if (document.activeElement !== name) name.value = p.name;
-    row.querySelector('.pid').textContent = p.id;
-    const n = p.closed ? p.tabs : p.tabs.length;
-    row.querySelector('.ntabs').textContent = `${p.closed ? 'closed · ' : ''}${n} tab${n === 1 ? '' : 's'}`;
-    row.querySelector('.open').hidden = !p.closed;
-    plist.append(row); // keeps the order of state
+// Pictures of the pages in their panes (by profile id), standing in for the native views (hidden meanwhile).
+function showPictures(pics) {
+  for (const pane of panes.values()) {
+    const src = pics[pane.profile.id];
+    if (src) pane.el.querySelector('.content').append(Object.assign(document.createElement('img'), { className: 'snapshot', src }));
   }
 }
 
-function createRow(p) {
-  const row = tpl('tpl-prow');
-  rows.set(p.key, row);
-  const name = row.querySelector('.name');
-  const rename = () => {
-    const v = name.value.trim();
-    if (v && v !== row.profile.name) kulisa.invoke('profile:rename', { profile: row.profile.id, name: v });
-    else name.value = row.profile.name;
-  };
-  name.addEventListener('change', rename);
-  name.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') { e.preventDefault(); name.blur(); }
-    if (e.key === 'Escape') { e.preventDefault(); name.value = row.profile.name; name.blur(); }
-  });
-  row.querySelector('.open').onclick = () => kulisa.invoke('profile:open', { profile: row.profile.id });
-  row.querySelector('.del').onclick = () => deleteProfile(row.profile);
-  return row;
-}
-// After the human confirms in a native question.
-async function deleteProfile(p) {
-  const ok = await kulisa.invoke('confirm', { message: `Delete the profile ${p.name}?`, ok: 'Delete',
-    detail: 'Its sign-ins, cookies, storage and tabs are removed for good.' });
-  if (ok) kulisa.invoke('profile:delete', { profile: p.id });
-}
+// ---------- panes ----------
+profileEditor.showPane = (key) => api.getPanel(panelId(key))?.api.setActive();
 
 function render() {
-  if (editor.open) renderEditor();
+  profileEditor.update(state);
   syncGrid();
   for (const p of state) {
     const pane = panes.get(p.key);
@@ -177,7 +122,8 @@ function createPane(p) {
 }
 
 function renameProfile(pane, pname) {
-  const input = Object.assign(document.createElement('input'), { value: pane.profile.name, size: 24 });
+  const input = Object.assign(document.createElement('input'), { value: pane.profile.name, size: 24, maxLength: 64 });
+  input.dataset.name = ''; // only the characters names may have (common.js)
   pname.replaceWith(input); input.focus(); input.select();
   let done = false;
   const finish = (save) => {
@@ -190,68 +136,12 @@ function renameProfile(pane, pname) {
   input.addEventListener('blur', () => finish(false));
 }
 
-// ---------- projects ----------
-// A project is a folder with its own profiles, grid and agent; one is open at a time. Opening another one rebuilds the
-// grid in place (project:closing below, then that project's state).
-const projDialog = document.getElementById('projects');
-const projlist = document.getElementById('projlist');
-const newProject = document.getElementById('newProject');
-// The open project, from the URL (app.js), before the first paint.
-const showProject = ({ name, color }) => {
-  document.getElementById('projectName').textContent = name;
-  document.documentElement.style.setProperty('--project', color);
-};
-const fromUrl = new URLSearchParams(location.search).get('project');
-if (fromUrl) showProject(JSON.parse(fromUrl));
-function showProjects({ current, projects }) {
-  const open = projects.find((p) => p.id === current);
-  if (open) showProject(open);
-  projlist.replaceChildren(...projects.map((p) => {
-    const row = tpl('tpl-projrow');
-    row.dataset.project = p.id;
-    row.style.setProperty('--color', p.color);
-    row.classList.toggle('current', p.id === current);
-    row.querySelector('.name').textContent = p.name;
-    const folder = row.querySelector('.folder');
-    folder.textContent = folder.title = p.folder;
-    row.querySelector('.open').onclick = () => kulisa.invoke('project:open', { id: p.id });
-    return row;
-  }));
-}
-kulisa.on('projects', showProjects); // when the project is open
-// The project button: a menu of the projects, as in JetBrains; the dialog (Manage Projects…) for the rest.
-const openProjects = document.getElementById('openProjects');
-openProjects.onclick = async () => {
-  const { current, projects } = await kulisa.invoke('projects:list');
-  openMenu([
-    ...projects.map((p) => (p.id === current ? { label: p.name, sub: p.folder, color: p.color, keys: '✓' }
-      : { label: p.name, sub: p.folder, color: p.color, run: () => kulisa.invoke('project:open', { id: p.id }) })),
-    '-',
-    { label: 'Open Folder…', run: () => kulisa.invoke('project:open-folder') },
-    { label: 'Manage Projects…', run: manageProjects },
-  ], openProjects);
-};
-async function manageProjects() {
-  kulisa.invoke('views:hidden', true);
-  projDialog.showModal(); // first: the closing menu shows the pages again unless a dialog is open
-  showProjects(await kulisa.invoke('projects:list'));
-}
-projDialog.addEventListener('close', () => kulisa.invoke('views:hidden', viewsCovered()));
-document.getElementById('openFolder').onclick = () => kulisa.invoke('project:open-folder');
-document.getElementById('projnew').onsubmit = (e) => {
-  e.preventDefault();
-  const name = newProject.value.trim();
-  if (!name) return newProject.focus();
-  kulisa.invoke('project:new', { name });
-};
-
 // ---------- the grid ----------
 // dockview lays out HTML; each profile's page is a native view, so after any change the main process gets where
 // each pane's .content box is, or that it is not on screen (stacked behind another pane in a group).
 const { createDockview, themeAbyssSpaced } = window['dockview-core'];
 const panelId = (key) => `profile:${key}`;
 const paneOf = (id) => panes.get(id.slice('profile:'.length));
-const termEl = document.getElementById('term');
 const terminalTab = Object.assign(document.createElement('div'), { className: 'ptab', innerHTML: '<b>Terminal</b>' });
 const api = createDockview(document.getElementById('dock'), {
   theme: { ...themeAbyssSpaced, name: 'kulisa', gap: 8 }, // --gap in styles.css
@@ -273,13 +163,13 @@ function sendLayout() {
     const r = c.getBoundingClientRect();
     rects[pane.profile.id] = { x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height) };
   }
-  kulisa.send('layout', rects);
+  kulisa.send('layout', { ws: workspaces.current, rects });
 }
 let saveTimer = 0;
 api.onDidLayoutChange(() => {
   scheduleLayout();
   clearTimeout(saveTimer);
-  if (!document.documentElement.classList.contains('loading')) saveTimer = setTimeout(() => kulisa.send('layout:save', api.toJSON()), 300); // not a grid being taken down or built
+  if (!document.documentElement.classList.contains('loading')) saveTimer = setTimeout(() => kulisa.send('layout:save', { ws: workspaces.current, layout: api.toJSON() }), 300); // not a grid being taken down or built
 });
 api.onDidActivePanelChange(scheduleLayout);
 
@@ -312,7 +202,6 @@ function applyPreset(name) {
   api.clear();
   const share = presets[name]();
   // The terminal's share of the window, once the grid has a size (at first start the window may have none yet).
-  const dockEl = document.getElementById('dock');
   const size = () => {
     if (dockEl.clientHeight < 100) return false;
     api.layout(dockEl.clientWidth, dockEl.clientHeight);
@@ -325,17 +214,28 @@ function applyPreset(name) {
 }
 window.__layoutPreset = applyPreset; // for tests
 
-// Another project is being opened: the grid goes (hidden at once, so nothing half-built shows) and is built again on
-// that project's first state. The title bar stays; the terminal panel too, cleared for the next agent.
-kulisa.on('project:closing', () => {
-  document.documentElement.classList.add('loading');
-  for (const d of document.querySelectorAll('dialog[open]')) d.close();
-  clearTimeout(saveTimer);
-  api.clear();
-  panes.clear();
-  state = [];
-  gridReady = null;
-  term.reset();
+// Another workspace is being shown (dir: where it is in the strip) or another project opened (dir 0): the grid goes
+// and is built again on the next state. A workspace slides out with pictures of its pages (the main process sends
+// them; kept for when it comes back), unless the system asks for reduced motion; otherwise it is hidden at once, so
+// nothing half-built shows. The title bar stays; the terminal panel too (another project: its terminals go).
+kulisa.on('grid:closing', ({ dir, ws, pics }) => {
+  leaving = (async () => {
+    for (const d of document.querySelectorAll('dialog[open]')) d.close();
+    clearTimeout(saveTimer);
+    if (pics) pictures.set(ws, pics);
+    if (dir && !reducedMotion.matches && gridReady) {
+      showPictures(pics || {});
+      await dockEl.animate([{ translate: '0 0', opacity: 1 }, { translate: `${-dir * 30}% 0`, opacity: 0 }], { duration: 160, easing: 'ease-in' }).finished;
+      slideIn = dir;
+    }
+    document.documentElement.classList.add('loading');
+    frozen = null;
+    api.clear();
+    panes.clear();
+    state = [];
+    gridReady = null;
+    if (!dir) { resetTerminals(); pictures.clear(); }
+  })();
 });
 
 async function restoreGrid() {
@@ -371,12 +271,7 @@ function syncGrid() {
 // meanwhile they become pictures of themselves.
 let frozen = null;
 function freeze() {
-  return frozen ??= kulisa.invoke('views:hidden', true, { snapshots: true }).then((pics) => {
-    for (const pane of panes.values()) {
-      const src = pics[pane.profile.id];
-      if (src) pane.el.querySelector('.content').append(Object.assign(document.createElement('img'), { className: 'snapshot', src }));
-    }
-  });
+  return frozen ??= kulisa.invoke('views:hidden', true, { snapshots: true }).then(showPictures);
 }
 async function unfreeze() {
   if (!frozen) return;
@@ -424,7 +319,7 @@ windowMenu.onclick = () => {
 };
 
 // ---------- context menus ----------
-// Right-click on a pane's header, a tab, the terminal.
+// Right-click on a pane's header, a tab, the terminal (terminal.js).
 document.addEventListener('contextmenu', (e) => {
   const header = e.target.closest('.ptab[data-panel^="profile:"]');
   const tab = e.target.closest('.tabs .tab');
@@ -455,18 +350,10 @@ function tabMenu(profile, tab) {
       run: () => { for (const x of p.tabs) if (x.id !== tab) kulisa.invoke('tab:close', { profile, tab: x.id }); } },
   ];
 }
-function terminalMenu() {
-  return [
-    { label: 'Copy', keys: 'Ctrl+Shift+C', enabled: term.hasSelection(), run: () => navigator.clipboard.writeText(term.getSelection()) },
-    { label: 'Paste', keys: 'Ctrl+Shift+V', run: () => navigator.clipboard.readText().then((t) => term.paste(t)) },
-    { label: 'Select all', run: () => term.selectAll() },
-    '-',
-    { label: 'Clear', run: () => term.clear() },
-  ];
-}
 
 // ---------- agent activity: caption over the pane (the cursor itself is drawn inside the page, see ghost.js) ----------
 kulisa.on('agent', (a) => {
+  if (a.ws !== workspaces.current) return; // a workspace in the background
   const pane = [...panes.values()].find((x) => x.profile.id === a.profile);
   if (!pane || pane.profile.signinMode) return;
   const cap = pane.tabEl.querySelector('.caption');
@@ -491,53 +378,3 @@ async function startPick(profile) {
   cap.textContent = res && res.error ? `Pick failed: ${res.error}` : '';
 }
 
-// ---------- terminal ----------
-// xterm.js set up as VS Code does: Unicode 11 character widths (Claude Code draws ✅ ⏵ ✻ and the like; with the
-// default Unicode 6 widths the cursor and the input line drift off the text), the WebGL renderer, and a bundled
-// font so it looks and measures the same on every OS.
-// The UI's text size (--font in styles.css), so the terminal matches the rest.
-const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
-const fontSize = parseFloat(css('--font')) || 14;
-const term = new Terminal({ fontSize, fontFamily: '"JetBrains Mono", monospace', cursorBlink: true,
-  allowProposedApi: true, theme: { background: css('--island'), foreground: css('--text') } }); // the panels' colors
-term.loadAddon(new Unicode11Addon.Unicode11Addon());
-term.unicode.activeVersion = '11';
-const fit = new FitAddon.FitAddon();
-term.loadAddon(fit);
-// Open once the font is loaded: xterm measures the cell size at open. Output written before is kept.
-Promise.all([`${fontSize}px`, `bold ${fontSize}px`].map((f) => document.fonts.load(`${f} "JetBrains Mono"`))).catch(() => {}).then(() => {
-  term.open(termEl);
-  window.__termRenderer = 'dom';
-  try {
-    const webgl = new WebglAddon.WebglAddon();
-    webgl.onContextLoss(() => { webgl.dispose(); window.__termRenderer = 'dom'; }); // back to the DOM renderer
-    term.loadAddon(webgl);
-    window.__termRenderer = 'webgl';
-  } catch (e) { console.warn('[terminal] WebGL renderer unavailable:', e.message); }
-  fitTerminal();
-});
-// Only once the terminal is in its panel and the grid has settled: the agent starts at the first size sent
-// (terminal.js) and draws its prompt for it.
-let fitTimer = 0;
-window.__ptySizes = []; // for tests
-const fitTerminal = () => {
-  clearTimeout(fitTimer);
-  fitTimer = setTimeout(() => {
-    if (!term.element || !termEl.closest('#dock')) return;
-    try { fit.fit(); } catch { return; }
-    const size = { cols: term.cols, rows: term.rows };
-    window.__ptySizes.push(size);
-    kulisa.send('pty:resize', size);
-  }, 100);
-};
-new ResizeObserver(fitTerminal).observe(termEl);
-term.onData((d) => kulisa.send('pty:in', d));
-kulisa.on('pty:out', (d) => term.write(d));
-kulisa.on('terminal:focus', () => term.focus());
-// Ctrl+Shift+C copies the selection, Ctrl+Shift+V pastes (terminal convention); Ctrl+C stays SIGINT.
-term.attachCustomKeyEventHandler((e) => {
-  if (e.type === 'keydown' && e.ctrlKey && e.shiftKey && e.code === 'KeyC') { navigator.clipboard.writeText(term.getSelection()); return false; }
-  if (e.type === 'keydown' && e.ctrlKey && e.shiftKey && e.code === 'KeyV') { navigator.clipboard.readText().then((t) => term.paste(t)); return false; }
-  return true;
-});
-window.__term = term; // for tests

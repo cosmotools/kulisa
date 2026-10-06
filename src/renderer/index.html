@@ -33,6 +33,28 @@
       <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12"/></svg></button>
   </header>
   <main id="dock"></main>
+  <!-- The project's workspaces (workspaces.js), under the grid -->
+  <nav id="workspaces">
+    <div id="wslist"></div>
+    <button id="wsadd" title="New workspace" aria-label="New workspace">+</button>
+    <button id="wsinit" hidden title="Workspaces need git: run git init in the project's folder">Initialize git…</button>
+  </nav>
+  <!-- The Welcome screen (projects.js): no project open; what to open, as JetBrains' Welcome screen -->
+  <section id="welcome">
+    <img class="applogo" src="../../assets/icon.svg" alt="Kulisa">
+    <h2>No project is open</h2>
+    <p class="hint">A project is a folder, usually a repository: Kulisa keeps its profiles, workspaces and agents.</p>
+    <div class="start"><button id="welcome-open">Open Folder…</button><button id="welcome-new">New Project…</button></div>
+    <h3>Recent</h3>
+    <div id="welcome-list"></div>
+    <nav class="links">
+      <a href="https://kulisa.app" target="_blank">kulisa.app</a>
+      <a href="https://github.com/cosmotools/kulisa#readme" target="_blank">Documentation</a>
+      <a href="https://github.com/cosmotools/kulisa" target="_blank">GitHub</a>
+      <a href="https://github.com/cosmotools/kulisa/issues" target="_blank">Report an issue</a>
+      <span id="version"></span>
+    </nav>
+  </section>
 
   <!-- Dialogs: Esc, a click outside (closedby) or a button of their method="dialog" form closes them. -->
   <dialog id="profiles" closedby="any">
@@ -40,7 +62,7 @@
     <p class="hint">A profile is a separate browser profile, as in Chrome: its own cookies, storage, tabs and sign-ins.
       Sign in by hand in its pane; the agent in the terminal then uses it.</p>
     <div id="plist"></div>
-    <form id="padd"><input id="newProfile" placeholder="New profile name, e.g. Ann · admin" spellcheck="false"><button>Add</button></form>
+    <form id="padd"><input id="newProfile" data-name maxlength="64" placeholder="New profile, e.g. ann@shop.com or ann.admin" spellcheck="false"><button>Add</button></form>
     <form method="dialog" class="foot"><button id="closeProfiles">Done</button></form>
   </dialog>
   <dialog id="projects" closedby="any">
@@ -48,12 +70,31 @@
     <p class="hint">A project is a folder, usually a repository, with its own profiles, layout and agent. Opening
       another one stops this project's agent; its conversation continues when you come back.</p>
     <div id="projlist"></div>
-    <form id="projnew"><input id="newProject" placeholder="New project without a folder, e.g. Tenant audit" spellcheck="false"><button>Create</button></form>
+    <form id="projnew"><input id="newProject" data-name maxlength="64" placeholder="New project without a folder, e.g. tenant-audit" spellcheck="false"><button>Create</button></form>
     <form method="dialog" class="foot"><button type="button" id="openFolder">Open Folder…</button><button id="closeProjects">Close</button></form>
+  </dialog>
+  <dialog id="wsnew" closedby="any">
+    <h2>New workspace</h2>
+    <p class="hint">A fork of main for one task: its own branch and folder next to the project, its own agent, and
+      copies of main's profiles, signed in. The app under test runs on its own ports there.</p>
+    <form id="wsform"><input id="wsname" data-name maxlength="64" placeholder="What it is for, e.g. checkout-redesign" spellcheck="false">
+      <select id="wsagent" title="The agent of this workspace"></select><button>Create</button></form>
+    <p class="error"></p>
+  </dialog>
+  <!-- Choosing a workspace's agent, installing it (agent-picker.js, loaded when needed) -->
+  <dialog id="agents" closedby="none">
+    <h2>Choose the agent</h2>
+    <p class="hint">The agent works in this workspace's terminal: it writes the code and uses the profiles. If it is not
+      on this computer yet, Kulisa installs it with its maker's installer. On its first start it asks you to sign in.</p>
+    <div id="agentlist"></div>
+    <p id="agentprogress" class="hint"></p>
+    <details id="agentdetails" hidden><summary>Details</summary><pre id="agentlog"></pre></details>
+    <p class="error"></p>
+    <div class="foot"><button id="agentcancel" hidden>Cancel</button><button id="agentstart" disabled>Start</button></div>
   </dialog>
   <div id="term"></div>
   <!-- The menus (menu.js) -->
-  <div id="menu" popover role="menu" tabindex="-1"></div>
+  <div id="menu" popover="manual" role="menu" tabindex="-1"></div>
   <span id="menuPoint"></span>
 
   <!-- Built by renderer.js -->
@@ -74,7 +115,7 @@
   <template id="tpl-ptab"><div class="ptab"><span class="dot"></span><b class="pname" title="Double-click to rename"></b><span class="caption"></span><button class="close" title="Close profile: its tabs go, its sign-ins stay (open it again in Profiles)" aria-label="Close profile"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></div></template>
   <template id="tpl-prow">
     <div class="prow">
-      <span class="dot"></span><input class="name" spellcheck="false"><code class="pid"></code>
+      <span class="dot"></span><input class="name" data-name maxlength="64" spellcheck="false"><code class="pid"></code>
       <span class="ntabs"></span><button class="open" hidden>Open</button><button class="del">Delete…</button>
     </div>
   </template>
@@ -84,16 +125,32 @@
   <template id="tpl-menuzoom">
     <div class="zoomrow"><span>Zoom</span><button class="out" title="Zoom out (Ctrl −)">−</button><output></output><button class="in" title="Zoom in (Ctrl +)">+</button></div>
   </template>
+  <template id="tpl-wstab">
+    <div class="wstab"><span class="state"></span><span class="name"></span><button class="close" aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></div>
+  </template>
+  <template id="tpl-agent">
+    <label class="agentrow"><input type="radio" name="agent"><span class="what"><b class="name"></b><small class="needs"></small>
+      <small class="install-line"></small></span><span class="status"></span><button type="button" class="install">Install</button></label>
+  </template>
+  <template id="tpl-recent">
+    <div class="recent"><button class="item"><span class="dot"></span><span class="text"><span class="label"></span><small></small></span></button>
+      <button class="remove" title="Remove project…" aria-label="Remove project"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></div>
+  </template>
   <template id="tpl-projrow">
     <div class="projrow"><span class="dot"></span><div class="what"><b class="name"></b><span class="folder"></span></div>
-      <span class="here">open now</span><button class="open">Open</button></div>
+      <span class="here">open now</span><button class="open">Open</button><button class="remove">Remove…</button></div>
   </template>
   <script src="../../node_modules/dockview-core/dist/dockview-core.js"></script>
   <script src="../../node_modules/@xterm/xterm/lib/xterm.js"></script>
   <script src="../../node_modules/@xterm/addon-fit/lib/addon-fit.js"></script>
   <script src="../../node_modules/@xterm/addon-unicode11/lib/addon-unicode11.js"></script>
   <script src="../../node_modules/@xterm/addon-webgl/lib/addon-webgl.js"></script>
+  <script src="common.js"></script>
   <script src="menu.js"></script>
+  <script src="terminal.js"></script>
+  <script src="projects.js"></script>
+  <script src="workspaces.js"></script>
+  <script src="profile-editor.js"></script>
   <script src="renderer.js"></script>
 </body>
 </html>

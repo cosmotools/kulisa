@@ -1,4 +1,5 @@
-// A profile: one embedded browser profile (an Electron session partition) with its own tabs.
+// A profile: one embedded browser profile (an Electron session on a folder of its own, as a Chrome profile) with its
+// own tabs.
 // Each tab is a WebContentsView. Automation reaches the tabs only through the CDP proxy (cdp-proxy.js), and the
 // shell's own Playwright connection (`connect`) is one client of that proxy.
 const { EventEmitter } = require('events');
@@ -24,19 +25,20 @@ function zoomKey(i) {
 const PAGE_RADIUS = 6; // matches the panes' rounded corners (renderer styles.css)
 
 class Profile extends EventEmitter {
-  // cfg: { id, name, color, partition }. The partition (cookies, storage) is fixed at creation; a rename changes
-  // id and name only.
+  // cfg: { id, name, color, folder, dir }. The folder (cookies, storage; dir is its absolute path) is fixed at
+  // creation; a rename changes id and name only.
+  // ws: the workspace's number (profiles of different workspaces share ids).
   // mimic: a chromeIdentity() to present as Google Chrome, or null.
-  constructor(win, cfg, { mimic = null } = {}) {
+  constructor(win, cfg, { ws, mimic = null } = {}) {
     super();
     this.win = win;
     this.id = cfg.id; this.name = cfg.name; this.color = cfg.color;
-    this.partition = cfg.partition;
+    this.folder = cfg.folder; this.dir = cfg.dir; this.ws = ws;
     // Page zoom: pages follow the Kulisa zoom (baseZoom, set by the window); a site the human zoomed with Ctrl + / -
     // in a page keeps its own factor on top of it, per host, in this profile only (saved in profiles.json).
     this.baseZoom = 1;
     this.siteZoom = { ...(cfg.zoom || {}) };
-    this.session = session.fromPartition(this.partition);
+    this.session = session.fromPath(this.dir);
     this.mimic = mimic ? mimicChrome.applyToSession(this.session, mimic) : null;
     this.tabs = []; this.active = null; this.bounds = { x: 0, y: 0, width: 0, height: 0 };
     this.browser = null; this.context = null; this.endpoint = null; this.signinMode = false;
@@ -172,8 +174,8 @@ class Profile extends EventEmitter {
     })));
   }
 
-  // Delete: close, and wipe the profile's data (cookies, storage, cache). The partition folder itself is removed at
-  // the next start (store.js); Electron keeps it open while the app runs.
+  // Delete: close, and wipe the profile's data (cookies, storage, cache). Its folder itself is removed at the next
+  // start (store.js); Electron keeps it open while the app runs.
   async destroy() {
     await this.close();
     await wipeSession(this.session);
@@ -236,14 +238,14 @@ class Profile extends EventEmitter {
   }
 
   info() {
-    // key: stable across renames (the partition), for the UI to keep the same pane.
-    return { key: this.partition, id: this.id, name: this.name, color: this.color, active: this.active, signinMode: this.signinMode,
+    // key: stable across renames (the folder), for the UI to keep the same pane.
+    return { key: this.folder, id: this.id, name: this.name, color: this.color, active: this.active, signinMode: this.signinMode,
       tabs: this.tabs.map((t) => ({ id: t.id, title: t.title, url: t.url, favicon: t.favicon, loading: t.loading, canBack: t.canBack, canFwd: t.canFwd,
         zoom: this.pageZoom(t) })) };
   }
 }
 
-// A profile's data gone: cookies, storage, cache. Also for a closed profile (no Profile object, only its partition).
+// A profile's data gone: cookies, storage, cache. Also for a closed profile (no Profile object, only its folder).
 async function wipeSession(sess) {
   await sess.clearStorageData();
   await sess.clearCache();

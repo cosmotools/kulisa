@@ -12,7 +12,7 @@ human sees everything you do there: your cursor and a caption are drawn in the p
 
 | Tool | Use |
 |---|---|
-| `browser_profiles` | List profiles: id, name, `signinMode`, tabs. Call it first; the human may add profiles at any time. |
+| `browser_profiles` | List profiles: id, name, `signinMode`, tabs; closed ones as `closed: true` with their number of tabs. Call it first; the human may add profiles at any time. |
 | `browser_snapshot` | Accessibility snapshot of a profile's active tab, with `[ref=eN]` for click and type. |
 | `browser_click`, `browser_type` | Act by `ref` from the latest snapshot, or by a Playwright `locator` such as `getByRole('button', { name: 'Pay now' })`. |
 | `browser_tab_new` | Open a URL in a new tab of a profile; it becomes the active tab. |
@@ -20,16 +20,18 @@ human sees everything you do there: your cursor and a caption are drawn in the p
 | `browser_navigate` | Load a URL in the profile's active tab, replacing what it shows. |
 | `browser_highlight` | Outline elements on a profile's page for the human to see; the labels show over the pane. They go when the human clicks or types there; an empty list clears them. |
 | `browser_screenshot` | See the page when the snapshot is not enough (layout, images, colors). |
+| `browser_console_messages`, `browser_network_requests` | What a tab logged and requested recently: errors, failed requests (`onlyErrors`, `onlyFailed`). |
 | `profile_open` | Open a closed profile (`closed: true` in `browser_profiles`): its pane and tabs come back, still signed in. |
 | `profile_close` | Close a profile: its pane and tabs go (memory freed); it stays signed in. |
 | `profile_create` | A new, empty profile for a user the task needs and no profile has. |
 | `profile_delete` | Delete a profile for good (sign-ins, storage, tabs). The human confirms it in a dialog. |
 
-Every browser tool takes `profile`: the id from `browser_profiles`, not the display name.
+Every browser tool takes `profile`: the id from `browser_profiles`, not the display name. Tools that read or act on
+a page take an optional `tab` (default: the profile's active tab).
 
 ## How to work
 
-- **Pick the profile by who the task is about.** Names say who a profile is ("Sam · seller", "Ann · admin"). If it
+- **Pick the profile by who the task is about.** Names say who a profile is, often the account it signs in to ("sam@shop.com", "ann.admin"). If it
   is unclear which user to act as, ask.
 - **Several users at once** is what Kulisa is for: act as one profile, then check the effect as another ("Sam sends
   an invite, Ann sees it"). Re-read the second profile with `browser_snapshot` after the first one acts; reload if
@@ -49,6 +51,20 @@ Every browser tool takes `profile`: the id from `browser_profiles`, not the disp
   when the task needs that user, not to look around, and close what you opened when you are done with it. Close a
   profile the human opened only when they ask.
 
+## Workspaces
+
+The human may run several agents on one project at once, each in a Kulisa **workspace**: main is the project's own
+folder; a fork is a git worktree next to it (`<project>@<name>`) on a branch of its own, with copies of main's
+profiles. You see only your workspace's profiles. In a fork (the session start says so):
+
+- Work and commit on the fork's branch; the human merges it into main (or asks you to open a pull request).
+- The worktree has the project's files in git and `.env*`, but no installed dependencies: install them first
+  (`npm install`, `pip install`, …) before running anything.
+- Run the app under test on its usual ports plus `$KULISA_PORT_OFFSET` (3000 → 3100 with 100), so it does not clash
+  with main's: through `PORT`, a `--port` flag, `.env.local`, or the published ports of `docker compose`. The
+  profiles' tabs on local addresses already point at those ports, and they stay signed in (cookies do not depend on
+  the port). If the app cannot run on other ports, tell the human.
+
 ## Signing in: never you
 
 - Never sign in, type passwords or one-time codes, or read cookies or tokens. The human signs in by hand.
@@ -66,11 +82,13 @@ The human can click ⌖ Pick on a pane and then an element on its page. A refere
 the human's message, and they write around it what they want, e.g.:
 
 ```
-[kulisa pick: elon-buyer getByRole('button', { name: 'Pay now' }) · details: .kulisa/notes/<id>/note.md] does nothing
+[kulisa pick: elon-buyer tab k7 getByRole('button', { name: 'Pay now' })] does nothing
 ```
 
-- After `pick:` come the profile id and a Playwright locator for the element: pass the locator as `locator` to
-  `browser_click` or `browser_type`, or use it to find the element in the app's source code.
-- The details file has more: the page, the element's HTML, attributes, computed styles, a cropped screenshot, and
-  the tab's recent console errors and failed requests. Read it before changing code.
+- After `pick:` come the profile id, the tab and a Playwright locator for the element. Pass the tab as `tab` and the
+  locator as `locator` to the browser tools (the human may have switched to another tab since), or use the locator
+  to find the element in the app's source code.
+- Look at the element on the live page before changing code: `browser_snapshot` of that tab, `browser_screenshot`
+  when the look matters, and when something does not work, `browser_console_messages` (errors) and
+  `browser_network_requests` (failed requests) of that tab.
 - One message can hold several picks, also from different profiles ("sent here, did not appear there").

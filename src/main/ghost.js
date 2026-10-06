@@ -3,14 +3,13 @@
 //   MCP tools use: a mark at the action point, the element outlined, a title; all fade out. Actions of other clients
 //   (@playwright/mcp) are not drawn in the page.
 // - Over the pane (the window's HTML): a caption from every CDP command through the proxy, from any client.
+// Captions go to the window with the profile's workspace; it shows those of the workspace on screen.
 function installGhost(shell) {
   const send = (a) => { if (!shell.win.isDestroyed()) shell.win.webContents.send('agent', a); };
-  // A caption over a pane from elsewhere (browser_highlight's labels); sticky ones stay until the next caption.
-  shell.caption = (profile, caption, sticky = false) => send({ profile, caption, sticky });
   shell.bus.on('agent-command', (c) => {
     const a = describe(c); if (!a) return;
-    send({ profile: c.profile, ...a });
-    shell.bus.emit('agent-action', { profile: c.profile, t: Date.now(), ...a });
+    send({ ws: c.ws, profile: c.profile, ...a });
+    shell.bus.emit('agent-action', { ws: c.ws, profile: c.profile, t: Date.now(), ...a });
   });
   // On every connection of the shell (a new one after sign-in mode), for every page in it.
   const annotate = (profile) => {
@@ -23,7 +22,7 @@ function installGhost(shell) {
     } }).catch(() => {});
     ctx.pages().forEach(on); ctx.on('page', on);
   };
-  for (const p of shell.profiles.values()) annotate(p);
+  for (const ws of shell.workspaces.values()) for (const p of ws.profiles.values()) annotate(p);
   shell.bus.on('profile-added', annotate);
 }
 

@@ -31,6 +31,13 @@ const openMenu = (() => {
     rows.at(i < 0 ? (down ? 0 : -1) : (i + (down ? 1 : -1)) % rows.length)?.focus();
   };
   addEventListener('blur', close);
+  // A manual popover, closed here: by a press outside it (its own button's press is left to the button, which toggles
+  // it) and by Esc. The platform's light dismiss would also take the release of the right-click that opened it: on
+  // Linux a menu opens on the press, just below the pointer, so the release comes outside and closed it at once.
+  document.addEventListener('pointerdown', (e) => {
+    if (isOpen() && !el.contains(e.target) && !(source instanceof Element && source.contains(e.target))) close();
+  }, true);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && isOpen()) { e.preventDefault(); close(); } }, true);
 
   return async (list, at) => {
     const again = isOpen() && source === at;

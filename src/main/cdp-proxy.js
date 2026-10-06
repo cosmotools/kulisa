@@ -1,6 +1,7 @@
 // CDP proxy: one fake "browser" endpoint per profile, backed by webContents.debugger of that profile's tabs.
-// No --remote-debugging-port: the shell UI is never exposed, only profile tabs.
-//   http://127.0.0.1:<port>/<profile>/json/version  -> webSocketDebuggerUrl ws://127.0.0.1:<port>/<profile>
+// No --remote-debugging-port: the shell UI is never exposed, only profile tabs. A profile is known by its workspace's
+// number and its id (key):
+//   http://127.0.0.1:<port>/<ws>/<profile>/json/version  -> webSocketDebuggerUrl ws://127.0.0.1:<port>/<ws>/<profile>
 // Clients: playwright-core chromium.connectOverCDP(), @playwright/mcp --cdp-endpoint.
 // Every command passes through here, so the shell can show it (ghost cursor, timeline).
 const http = require('http');
@@ -11,20 +12,20 @@ const { fromLocalTool } = require('./local-only');
 class CdpProxy extends EventEmitter {
   constructor() { super(); this.profiles = new Map(); this.clients = new Set(); }
 
-  addProfile(profile) { this.profiles.set(profile.id, profile); }
+  addProfile(profile) { this.profiles.set(key(profile), profile); }
   removeProfile(profile) {
-    this.profiles.delete(profile.id);
+    this.profiles.delete(key(profile));
     for (const c of this.clients) if (c.profile === profile) c.ws.close();
   }
 
   listen(port = 0) {
     this.server = http.createServer((req, res) => {
       if (!fromLocalTool(req)) { res.writeHead(403); return res.end(); }
-      const [, pid, ...rest] = req.url.split('/');
-      const p = this.profiles.get(pid);
+      const [, ws, pid, ...rest] = req.url.split('/');
+      const p = this.profiles.get(`${ws}/${pid}`);
       if (!p) { res.writeHead(404); return res.end(); }
       const route = '/' + rest.join('/').replace(/\/$/, '');
-      const wsUrl = `ws://127.0.0.1:${this.port}/${pid}`;
+      const wsUrl = `ws://127.0.0.1:${this.port}/${ws}/${pid}`;
       res.setHeader('content-type', 'application/json');
       if (route === '/json/version') return res.end(JSON.stringify({ Browser: `Kulisa/${process.versions.chrome}`, 'Protocol-Version': '1.3', 'User-Agent': p.session.getUserAgent(), webSocketDebuggerUrl: wsUrl }));
       if (route === '/json/list' || route === '/json') return res.end(JSON.stringify(p.tabs.map((t) => ({ id: t.id, type: 'page', title: t.title, url: t.url }))));
@@ -33,7 +34,7 @@ class CdpProxy extends EventEmitter {
     const wss = new WebSocketServer({ noServer: true, perMessageDeflate: false, maxPayload: 256 * 1024 * 1024 });
     this.server.on('upgrade', (req, sock, head) => {
       if (!fromLocalTool(req)) return sock.end('HTTP/1.1 403 Forbidden\r\n\r\n');
-      const p = this.profiles.get(req.url.split('/')[1]);
+      const p = this.profiles.get(req.url.split('/').slice(1, 3).join('/'));
       if (!p) return sock.destroy();
       // The human is signing in: no automation attaches (except the shell's own reconnect when the mode ends).
       if (p.signinMode && !p.resuming) return sock.destroy();
@@ -41,8 +42,13 @@ class CdpProxy extends EventEmitter {
     });
     return new Promise((r) => this.server.listen(port, '127.0.0.1', () => { this.port = this.server.address().port; r(this.port); }));
   }
-  endpoint(profileId) { return `http://127.0.0.1:${this.port}/${profileId}`; }
+  endpoint(profile) { return `http://127.0.0.1:${this.port}/${key(profile)}`; }
+  // The profile's id changed: its endpoint too.
+  renamed(profile, oldId) {
+    this.profiles.delete(`${profile.ws}/${oldId}`); this.addProfile(profile);
+  }
 }
+const key = (profile) => `${profile.ws}/${profile.id}`;
 
 // Attach the tab's debugger once and learn its real Chrome target id.
 async function ensureTarget(tab) {
@@ -84,7 +90,7 @@ class ProxyClient {
     const { id, method, params = {}, sessionId } = msg;
     const reply = (result) => this._send({ id, result, ...(sessionId ? { sessionId } : {}) });
     const fail = (message) => this._send({ id, error: { code: -32000, message }, ...(sessionId ? { sessionId } : {}) });
-    this.proxy.emit('command', { profile: this.profile.id, method, params, sessionId });
+    this.proxy.emit('command', { profile: this.profile.id, ws: this.profile.ws, method, params, sessionId });
 
     if (sessionId && this.sessions.get(sessionId)?.browser) return this._browserCommand(id, method, params, sessionId, reply, fail);
     if (sessionId) {

@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "description": "Profiles, live panes and a coding agent in one window for testing multi-user web apps",
+  "homepage": "https://kulisa.app",
   "type": "commonjs",
   "devDependencies": {
     "@electron-forge/cli": "8.0.1",

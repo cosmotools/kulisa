@@ -4,11 +4,11 @@
      bar). --window is also in app.js (the window's background and the OS buttons' strip). */
   --window: #2b2d30; --island: #1e1f22; --island-hi: #393b40; --field: #2b2d30; --button: #393b40; --line: #4e5157;
   --text: #dfe1e5; --text-strong: #ffffff; --text-dim: #b4b8bf; --text-muted: #868a91; --accent: #3574f0;
-  --page: #ffffff; --backdrop: #0008; --note: #ffcc66; --shadow: #000a;
+  --page: #ffffff; --backdrop: #0008; --note: #ffcc66; --shadow: #000a; --done: #57ab5a; --error: #ff7b72;
   --project: #c8333b; /* the open project's color (renderer.js); until then the app icon's own red */
   /* One text size and one control height for the whole UI (the terminal uses the same size, renderer.js); the
      Kulisa zoom scales all of it together. */
-  --font: 14px; --control: 28px; --radius: 6px; --gap: 8px;
+  --font: 14px; --control: 28px; --radius: 6px; --gap: 8px; --island-radius: 10px;
   color-scheme: dark;
 }
 html { height: 100%; }
@@ -67,7 +67,7 @@ input { background: var(--field); color: var(--text-strong); padding: 0 8px; use
     --dv-activegroup-hiddenpanel-tab-color: var(--text-muted); --dv-inactivegroup-hiddenpanel-tab-color: var(--text-muted);
     --dv-activegroup-visiblepanel-tab-color: var(--text-strong); --dv-inactivegroup-visiblepanel-tab-color: var(--text);
     --dv-tab-divider-color: transparent; --dv-separator-border: transparent;
-    --dv-border-radius: 10px; --dv-tab-border-radius: var(--radius); --dv-tab-margin: 4px 2px; --dv-spacing-padding: 0px;
+    --dv-border-radius: var(--island-radius); --dv-tab-border-radius: var(--radius); --dv-tab-margin: 4px 2px; --dv-spacing-padding: 0px;
     --dv-active-sash-color: var(--accent); --dv-drag-over-background-color: color-mix(in srgb, var(--accent) 25%, transparent);
   }
   :is(.dockview-theme-abyss-spaced, .dv-dockview) { background: transparent; }
@@ -109,6 +109,62 @@ input { background: var(--field); color: var(--text-strong); padding: 0 8px; use
 }
 
 #term { height: 100%; padding: 4px 4px 4px 8px; }
+.xterm-host { height: 100%; }
+
+/* The workspaces of the project, under the grid, as a browser's tab strip (workspaces.js) */
+#workspaces { display: flex; align-items: center; gap: 4px; flex: none; padding: 0 var(--gap) var(--gap);
+  .noproject & { display: none; }
+  #wslist { display: flex; gap: 4px; min-width: 0; overflow-x: auto; }
+  #wsadd { border: none; background: none; padding: 0 8px; font-size: 1.2em; color: var(--text-dim);
+    &:hover:not(:disabled) { color: var(--text-strong); } }
+}
+.wstab { display: flex; align-items: center; gap: 6px; height: var(--control); padding: 0 4px 0 10px; border-radius: var(--radius);
+  color: var(--text-dim); cursor: pointer; white-space: nowrap;
+  &:hover { background: var(--island-hi); }
+  &.active { background: var(--island); color: var(--text-strong); }
+  .close { display: grid; place-items: center; height: auto; border: none; background: none; padding: 2px; color: var(--text-muted);
+    svg { width: 14px; height: 14px; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; }
+    &:hover { color: var(--text-strong); } }
+  /* The agent's state: working (pulsing), waiting for you, done; nothing when unknown */
+  .state { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--text-muted);
+    &[data-state="working"] { background: var(--accent); animation: pulse 1.2s ease-in-out infinite; }
+    &[data-state="waiting"] { background: var(--note); }
+    &[data-state="done"] { background: var(--done); }
+    @media (prefers-reduced-motion: reduce) { animation: none !important; } }
+}
+@keyframes pulse { 50% { opacity: .35; } }
+
+/* The Welcome screen (no project open): what to open, on one island in the grid's place (text on the project's glow
+   reads badly) */
+#welcome { display: none; flex: 1; align-content: center; justify-items: center; gap: var(--gap); padding: var(--gap);
+  margin: 0 var(--gap) var(--gap); border-radius: var(--island-radius); background: var(--island);
+  .noproject & { display: grid; }
+  .applogo { width: 96px; height: 96px; margin-bottom: var(--gap); }
+  h2 { margin: 0; font-size: 1.3em; }
+  .hint { margin: 0 0 var(--gap); color: var(--text-muted); }
+  .start { display: flex; gap: var(--gap); }
+  h3 { margin: calc(var(--gap) * 2) 0 0; width: min(480px, 100%); font-size: 1em; color: var(--text-dim); }
+  &:has(#welcome-list:empty) h3 { display: none; }
+  #welcome-list { display: flex; flex-direction: column; width: min(480px, 100%); }
+  /* A recent project: a click opens it; × (on hover) removes it */
+  .recent { display: flex; align-items: center; border-radius: var(--radius);
+    &:hover { background: var(--island-hi); }
+    .item { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--gap); height: auto; min-height: var(--control);
+      padding: 4px 10px; text-align: start; border: none; background: none; }
+    .text { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    small { color: var(--text-muted); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .remove { display: grid; place-items: center; height: auto; padding: 4px; margin-inline-end: 6px; border: none; background: none;
+      color: var(--text-muted); visibility: hidden;
+      svg { width: 14px; height: 14px; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; }
+      &:hover { color: var(--text-strong); } }
+    &:is(:hover, :focus-within) .remove { visibility: visible; } }
+  .links { display: flex; flex-wrap: wrap; justify-content: center; gap: calc(var(--gap) * 2); margin-top: calc(var(--gap) * 3);
+    color: var(--text-muted);
+    a { color: inherit; &:hover { color: var(--text); } } }
+}
+.noproject :is(#dock, #openProfiles) { display: none; }
+/* The terminal waits outside the grid until its panel is there (no project open): it takes no room meanwhile. */
+body > #term { display: none; }
 
 /* Dialogs: Profiles, Projects */
 dialog { width: 560px; background: var(--island); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px;
@@ -119,6 +175,21 @@ dialog { width: 560px; background: var(--island); color: var(--text); border: 1p
   .foot { display: flex; justify-content: flex-end; gap: var(--gap); margin-top: 12px; }
 }
 #openFolder { margin-inline-end: auto; }
+#wsnew .error, #agents .error { margin: 8px 0 0; color: var(--error); &:empty { display: none; } }
+/* The agents to choose from (agent-picker.js) */
+#agents { width: 640px;
+  .agentrow { display: flex; gap: var(--gap); align-items: center; padding: 8px 4px; border-bottom: 1px solid var(--island-hi); cursor: pointer;
+    input { height: auto; flex: none; }
+    .what { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+    small { color: var(--text-muted); }
+    .install-line { font-family: "JetBrains Mono", monospace; overflow-wrap: anywhere; &:empty { display: none; } }
+    &:not(:has(input:checked)) .install-line { display: none; }
+    .status { color: var(--text-muted); white-space: nowrap; } }
+  #agentprogress { margin: 10px 0 0; &:empty { display: none; } }
+  #agentdetails { margin-top: 6px; summary { cursor: pointer; color: var(--text-muted); } }
+  #agentlog { max-height: 180px; overflow: auto; margin: 6px 0 0; padding: 8px; border-radius: var(--radius); background: var(--window);
+    font: 12px "JetBrains Mono", monospace; white-space: pre-wrap; user-select: text; }
+}
 .prow, .projrow { padding: 6px 0; border-bottom: 1px solid var(--island-hi); }
 .prow { display: flex; gap: var(--gap); align-items: center;
   .name { flex: 1; }
