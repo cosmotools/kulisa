@@ -51,7 +51,7 @@ lines (`stroke`) of the text's color; a filled part has `fill="currentColor"`. U
 | `i-zoom`, `i-theme`, `i-arrange`, `i-agent`, `i-exit` | ☰'s rows: Zoom, Theme, Arrange panels, Agents…, Exit |
 | `i-working`, `i-waiting`, `i-done` | an agent's state on a tab (`.state`) |
 
-An icon is 16 px; × and + are 14 px, as in Chrome (`.icon`). ☰'s and the agent's states are Lucide's (lucide.dev, ISC), drawn on 24 × 24 with
+An icon is 16 px; × and + are 14 px, as in Chrome (`.icon`), and so is an agent's state. ☰'s and the agent's states are Lucide's (lucide.dev, ISC), drawn on 24 × 24 with
 their lines thickened to match; take a new one from there rather than drawing it. Pictures are not icons: the app logo (`assets/icon.svg`,
 in the title bar) and the arrangements in ☰ are drawn in place. The test `icons: …` in `test/window.js` checks that
 every other `<svg>` uses the sprite.
@@ -77,7 +77,7 @@ every other `<svg>` uses the sprite.
 - `.removable`: a row with a × (`button.remove.icon.quiet`) at its end, shown on hover or focus; the row is lit as
   one. A recent project in the project menu and on the Welcome screen.
 - `.dot`: a 10 px circle in `--color`.
-- `.striptab`: a tab of a strip, as a browser's: an optional `.dot`, `.name`, the agent's `.state`, × at the end
+- `.striptab`: a tab of a strip, as a browser's: the agent's `.state`, `.name`, × at the end
   (`button.close.icon.quiet.small`); lit under the pointer. `.active`: the shown one, on the islands' color;
   `.colored.active`: on a plate of its own `--color`. A workspace's tab (`tpl-wstab`) and a project's
   (`tpl-projecttab`, colored).

@@ -76,7 +76,7 @@ Example: the project `~/IdeaProjects/myshop`, a fork named "Checkout redesign":
 ## What the human does
 
 - **The strip** under the grid: a tab per workspace, with the agent's state as an icon (working, waiting for you,
-  done; from Claude Code's hooks only). A click shows that workspace: the grid on screen slides out and the
+  done; from its hooks: "Choosing the agent"). A click shows that workspace: the grid on screen slides out and the
   other one in at once, as macOS desktops do (a view transition on the compositor, the pages as pictures meanwhile;
   not with reduced motion). The one left keeps running.
 - **+** asks for a name and the agent (main's by default) and makes a fork. Off without git: then **Initialize
