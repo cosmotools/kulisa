@@ -122,8 +122,9 @@ command everywhere, without asking.
   2026-10-06): Claude Code `curl -fsSL https://claude.ai/install.sh | bash`, Codex
   `curl -fsSL https://chatgpt.com/codex/install.sh | sh` (`install.ps1` on Windows).
 - Each agent is one entry in `agents.js`: how to find, install, start (Claude Code with the Kulisa plugin; Codex
-  with the MCP server as a config override, `-c mcp_servers.kulisa.url=…`), resume (`claude --resume` with the session
-  the `SessionStart` hook reported; `codex resume --last`) and forget a fork's folder.
+  with the MCP server and its hooks as config overrides, `-c mcp_servers.kulisa.url=…`, `-c hooks=…`), resume
+  (`claude --resume` and `codex resume` with the session the `SessionStart` hook reported; else `codex resume
+  --last`) and forget a fork's folder.
 - **Agents…** (☰, and the Welcome screen, before any project) opens a dialog of its own with the same list at any
   time, with nothing to choose: each agent's version (its `--version`), its folder (marked when it is not on the user's `PATH`: Kulisa runs it
   from there), its maker's website, and Install for the others. Installing there starts nothing; the agent is chosen
@@ -132,14 +133,23 @@ command everywhere, without asking.
 - The dialog is part of the window, not a window of its own: no extra process, and its code is a module loaded only
   when it is needed: `agent-picker.js` (choosing) and `agents.js` (the Agents window) are two dialogs of their own
   around one list of agents with Install (`agent-list.js`), each with its own state.
-- The agent's state on the tabs comes from Claude Code's hooks (`agent-hooks.js`; checked with Claude Code 2.1.293,
-  2026-10-08): `UserPromptSubmit` working; `Stop` done; waiting for you when it asks for a permission or a question
-  (`Notification` of type `permission_prompt`, `elicitation_*`) or a turn ends with an API error (`StopFailure`: a
-  limit, a sign-in); unknown again at `SessionEnd` (`/exit`, `/clear`). Not `idle_prompt`, sent a minute after an
-  answer: the tab already says done. Done means "come and see": once the human sees that workspace (shown with
+- The agent's state on the tabs comes from its hooks. Kulisa has events of its own (`agent-hooks.js`): `prompt`
+  working, `waiting` for the human, `stop` done, `interrupt` and `session-end` unknown (but a session ending after a
+  done turn keeps it). Which of an agent's hooks sends which is the agent's, in one place each:
+  - Claude Code, its plugin's `hooks.json` (checked with 2.1.293, 2026-10-08): `UserPromptSubmit`, `Stop`, and
+    waiting when it asks for a permission or a question (`Notification` matched to `permission_prompt`,
+    `elicitation_*`) or a turn ends with an API error (`StopFailure`: a limit, a sign-in); `SessionEnd` (`/exit`,
+    `/clear`). Not `idle_prompt`, sent a minute after an answer: the tab already says done. Esc ends a turn without
+    any hook, so the tab says working until the next prompt.
+  - Codex, its entry in `agents.js` as a config override (`-c hooks=…`; built from its documentation, not yet tried in
+    a session: ROADMAP): `UserPromptSubmit`, `PermissionRequest` waiting, `Stop`, `Interrupt` (Esc), `SessionEnd`
+    (also after 30 minutes idle), and `SessionStart`, which gives it the open profiles as Claude Code gets them and
+    the session to resume. Codex runs a hook only once the human has trusted it (`/hooks`, once: the command line is
+    the same for every workspace); Kulisa never bypasses that, which would run any project's hooks unreviewed too.
+
+  Done means "come and see": once the human sees that workspace (shown with
   Kulisa's window in focus; at once when it was on screen) its tab shows nothing (`Workspace.seen`, `tabState`), the
-  agent still done for the rest of Kulisa. Esc ends a turn without
-  any hook, so the tab says working until the next prompt.
+  agent still done for the rest of Kulisa.
   A project's tab shows the most pressing of its workspaces' (waiting, done, working: a done one asks the human to
   come, a working one does not), each one's in its tooltip.
   Other agents show none yet (ROADMAP).
@@ -254,7 +264,7 @@ deletes each of its workspaces as above, forks first; then removes it from `proj
   `KULISA_URL`) and sees only its workspace's profiles. Profile ids repeat across workspaces; inside Kulisa a profile
   is `<project id>/<n>/<id>` (CDP proxy, highlights).
 - Closing a project's tab stops all its workspaces; opening it again, or restarting, restores them and resumes their
-  agents where the agent can (Claude `--resume`, Codex `resume --last`).
+  agents where the agent can (Claude `--resume`, Codex `resume`).
 
 ## Removing everything by hand
 

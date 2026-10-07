@@ -82,8 +82,8 @@ every other `<svg>` uses the sprite.
   `.colored.active`: on a plate of its own `--color`. A workspace's tab (`tpl-wstab`) and a project's
   (`tpl-projecttab`, colored).
 - `.state`: an agent's state by `data-state` (from its hooks), an icon each so that color is not the only sign (some
-  people do not tell yellow from green): working (sparkles, twinkling; not with reduced motion), waiting for you (a
-  bell), done (a check: come and see, until the human sees that workspace); nothing otherwise, as nothing asks for
+  people do not tell yellow from green): working (sparkles in `--accent`, twinkling; not with reduced motion), waiting
+  for you (a bell in `--note`), done (a check in `--done`: come and see, until the human sees that workspace); nothing otherwise, as nothing asks for
   the human then (the author's rule). On a workspace's tab, and on a project's in the project's color (there the icon
   alone tells the state); `showAgentState` (`common.js`)
   sets it with its tooltip.

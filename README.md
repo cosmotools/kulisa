@@ -50,7 +50,7 @@ open another one (in a tab of this window or in a new window: Kulisa asks), remo
 folder stays), **New Project…** (a name and where its folder goes, your home folder by default; git on by default),
 **Open Folder…**, close the project. Closing the last tab shows the Welcome screen. A closed project keeps its tabs and
 sign-ins; when you open it again, its agent continues the conversation where it can (`claude --resume`,
-`codex resume --last`). The agent starts in your shell in the project's folder, as if you typed its command in a
+`codex resume`). The agent starts in your shell in the project's folder, as if you typed its command in a
 terminal there, so the project's environment (direnv's `.envrc`, nvm, mise) applies; when it exits, the shell stays.
 
 **The agent:** the first time a workspace starts, Kulisa asks which agent to run there: Claude Code, Codex, or

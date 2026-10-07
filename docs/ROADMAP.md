@@ -30,12 +30,14 @@ here; what is left of it stays.
     Kulisa's `-c mcp_servers.kulisa.url=…` lists the server, enabled; `codex resume` takes `--last` and `-c`. Not yet
     tried: a whole session driving the profiles. It gets the MCP tools but not
     the profiles skill: give every agent the essentials through the MCP server's own `instructions`, or a Codex
-    plugin. Its state on the tabs: none yet. Codex has hooks now (stable and on by default in 0.160.1;
-    learn.chatgpt.com/docs/hooks), and theirs fit Kulisa's states better than Claude Code's: `UserPromptSubmit`
-    working, `PermissionRequest` waiting, `Stop` done, `Interrupt` (Esc, which Claude Code does not report),
-    `SessionEnd`. To try: passing them per session without touching `~/.codex` (`-c hooks…`, or a Codex plugin;
-    `plugin_hooks` shows as removed in `codex features list`), and Codex's review before a hook runs (the human
-    trusts it once in `/hooks`).
+    plugin.
+  - Codex's hooks (the agent's state, the session to resume, the open profiles at start; workspaces.md, "Choosing the
+    agent"): built from its documentation (learn.chatgpt.com/docs/hooks) on 2026-10-08, not yet tried in a session:
+    no Codex account here then. Checked: Codex 0.160.1 takes the `-c hooks=…` override and checks a handler's fields,
+    but not the events' names (a wrong one passes silently). To try, signed in: how Codex asks to trust the hooks and
+    that trusting once is enough; that `$KULISA_URL` reaches the hook's command; that `SessionStart`'s answer
+    (Claude Code's shape, `hookSpecificOutput.additionalContext`) is taken; each event moving the tab (Esc:
+    `Interrupt`); `codex resume <session>`. Windows: the command is sh's (`commandWindows` for PowerShell).
   - More agents (Gemini CLI, …): an entry each in `agents.js`.
   - Windows: the installers run in PowerShell, untested; macOS untested.
   - A hint in an empty grid (no profiles yet): "create the first profile".
@@ -44,8 +46,8 @@ here; what is left of it stays.
 - **Workspaces, rest** (how they work now, and why: [workspaces.md](workspaces.md)).
   - Helping the agent run the app ("Kulisa plugin: running the app", above). Today the agent gets
     `KULISA_PORT_OFFSET` and a line about it at session start.
-  - The agent's state on the workspace tab for other agent CLIs: today only Claude Code's hooks report it (Codex's
-    hooks: "Choosing the agent, rest"). For CLIs without hooks, e.g. from MCP calls and terminal output (working
+  - The agent's state on the workspace tab for other agent CLIs: Claude Code's hooks report it, Codex's are built
+    and not yet tried ("Choosing the agent, rest"). For CLIs without hooks, e.g. from MCP calls and terminal output (working
     while they come, idle after a quiet while).
   - Tried with Claude Code in forks; the tests run `cat` as the agent. Still to check in a fork: the hooks
     (session, state), `--resume` after a restart.

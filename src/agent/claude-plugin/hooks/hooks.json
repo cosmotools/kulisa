@@ -1,5 +1,5 @@
 {
-  "description": "Ask the Kulisa this session runs in (KULISA_URL, set in its terminal: the workspace's) for context, and tell it what the agent is doing (shown on the workspace's tab). Outside Kulisa they do nothing. Claude Code runs hook commands in bash on every OS (Git Bash on Windows); curl ships with all three.",
+  "description": "Ask the Kulisa this session runs in (KULISA_URL, set in its terminal: the workspace's) for context, and tell it what the agent is doing (shown on the workspace's tab; agent-hooks.js): working, waiting for the human (a permission, a question, a turn ended by an API error; not idle_prompt, a minute after an answer, which done already says), done, the session's end. Outside Kulisa they do nothing. Claude Code runs hook commands in bash on every OS (Git Bash on Windows); curl ships with all three.",
   "hooks": {
     "SessionStart": [
       {
@@ -25,10 +25,11 @@
     ],
     "Notification": [
       {
+        "matcher": "permission_prompt|elicitation_dialog|elicitation_url_dialog",
         "hooks": [
           {
             "type": "command",
-            "command": "[ -z \"$KULISA_URL\" ] || curl -sf --max-time 3 --data-binary @- \"$KULISA_URL/hooks/notification\" || true",
+            "command": "[ -z \"$KULISA_URL\" ] || curl -sf --max-time 3 --data-binary @- \"$KULISA_URL/hooks/waiting\" || true",
             "timeout": 5
           }
         ]
@@ -50,7 +51,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "[ -z \"$KULISA_URL\" ] || curl -sf --max-time 3 --data-binary @- \"$KULISA_URL/hooks/stop-failure\" || true",
+            "command": "[ -z \"$KULISA_URL\" ] || curl -sf --max-time 3 --data-binary @- \"$KULISA_URL/hooks/waiting\" || true",
             "timeout": 5
           }
         ]

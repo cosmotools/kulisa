@@ -85,6 +85,24 @@ module.exports = (test) => {
     assert.deepEqual(Object.keys(config.projects), [main]);
     assert.equal(config.userID, 'u');
 
+    // Which of each agent's hooks tells Kulisa which of its events (agent-hooks.js). Claude Code: waiting only for what
+    // needs the human, not idle_prompt (a minute after an answer); a turn ended by an API error waits for them too.
+    const claudeHooks = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'src', 'agent', 'claude-plugin', 'hooks', 'hooks.json'), 'utf8')).hooks;
+    const sends = (h) => h[0].hooks[0].command.match(/hooks\/([\w-]+)/)[1];
+    assert.deepEqual(Object.fromEntries(Object.entries(claudeHooks).map(([e, h]) => [e, sends(h)])), { SessionStart: 'session-start',
+      UserPromptSubmit: 'prompt', Notification: 'waiting', Stop: 'stop', StopFailure: 'waiting', SessionEnd: 'session-end' });
+    const needsYou = new RegExp(`^(${claudeHooks.Notification[0].matcher})$`);
+    assert.deepEqual(['permission_prompt', 'elicitation_dialog', 'idle_prompt', 'auth_success'].map((t) => needsYou.test(t)), [true, true, false, false]);
+    // Codex: its hooks as a config override, the same command line for every workspace (trusted once); resuming the
+    // session its SessionStart reported.
+    const codexArgs = (url) => agent('codex').args({ env: { KULISA_MCP_URL: url } });
+    const hooks = codexArgs('http://127.0.0.1:1/ws/a/1/mcp')[3];
+    assert.equal(hooks, codexArgs('http://127.0.0.1:2/ws/b/2/mcp')[3]);
+    assert.deepEqual([...hooks.matchAll(/(\w+)=\[\{hooks=\[\{[^}]*hooks\/([\w-]+)/g)].map((m) => `${m[1]} ${m[2]}`),
+      ['SessionStart session-start', 'UserPromptSubmit prompt', 'PermissionRequest waiting', 'Stop stop', 'Interrupt interrupt', 'SessionEnd session-end']);
+    assert.deepEqual(agent('codex').resume({ started: true, sessionId: 's9' }), ['resume', 's9']);
+    assert.deepEqual(agent('codex').resume({ started: true }), ['resume', '--last']);
+
     // Codex: its sessions in the fork's folder and its trust of the folder.
     const home = path.join(root, 'codex-home');
     const session = (f, cwd) => put(path.join(home, f), `${JSON.stringify({ type: 'session_meta', payload: { id: 'x', cwd } })}\n{"more":1}\n`);
@@ -198,11 +216,8 @@ module.exports = (test) => {
     await waitFor(async () => (await state()) === 'working #i-working true');
     await post('stop');
     await waitFor(async () => (await state()) === 'done #i-done true');
-    // A minute after the answer Claude Code says it is idle: still done. A permission it asks for: waiting.
-    await post('notification', { notification_type: 'idle_prompt' });
-    await sleep(300);
-    assert.equal(await state(), 'done #i-done true');
-    await post('notification', { notification_type: 'permission_prompt' });
+    // A permission the agent asks for: waiting.
+    await post('waiting');
     await waitFor(async () => (await state()) === 'waiting #i-waiting true');
     // The project's tab: the most pressing of its workspaces', each one's in its tooltip.
     shell.current.workspaces.get(1).setState('working');
@@ -211,12 +226,18 @@ module.exports = (test) => {
     await post('stop'); // done, come and see, before one working
     await waitFor(async () => (await projectState())[0] === 'done');
     shell.current.workspaces.get(1).setState(null);
-    // A turn ended by an API error needs the human; the session's end makes it unknown again.
+    // Interrupted by the human (Codex's Interrupt), or its session ended: unknown again; but a session ending after a
+    // done turn (Codex: 30 minutes idle) leaves "come and see".
     await post('prompt');
-    await post('stop-failure', { error_type: 'rate_limit' });
-    await waitFor(async () => (await state()) === 'waiting #i-waiting true');
-    await post('session-end', { reason: 'prompt_input_exit' });
+    await post('interrupt');
     await waitFor(async () => (await state()) === ' #i-done false');
+    await post('prompt');
+    await post('session-end');
+    await waitFor(async () => (await state()) === ' #i-done false');
+    await post('stop');
+    await post('session-end');
+    await sleep(300);
+    assert.equal(await state(), 'done #i-done true');
     fork.caption('sam-admin', 'from the fork');
     await sleep(200);
     assert.equal(await ui(`document.querySelector('.ptab[data-panel="${panel(shell, 'sam-admin')}"] .caption').textContent`), '');

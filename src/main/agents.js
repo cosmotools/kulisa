@@ -35,10 +35,10 @@ const AGENTS = [
     id: 'codex', name: 'Codex', maker: 'OpenAI', command: 'codex', site: 'https://developers.openai.com/codex',
     needs: 'A ChatGPT plan (Plus, Pro, Business, Enterprise) or an OpenAI API key',
     install: { posix: 'curl -fsSL https://chatgpt.com/codex/install.sh | sh', win32: 'irm https://chatgpt.com/codex/install.ps1 | iex' },
-    // Kulisa's MCP server as a config override (a TOML value), not written into the user's ~/.codex/config.toml.
-    args: ({ env }) => ['-c', `mcp_servers.kulisa.url="${env.KULISA_MCP_URL}"`],
-    // Its last conversation in this folder (each workspace has its own folder).
-    resume: ({ started }) => started && ['resume', '--last'],
+    // Kulisa's MCP server and hooks as config overrides (TOML values), not written into the user's ~/.codex/config.toml.
+    args: ({ env }) => ['-c', `mcp_servers.kulisa.url="${env.KULISA_MCP_URL}"`, '-c', `hooks=${codexHooks()}`],
+    // The conversation its SessionStart hook reported, else its last one in this folder (each workspace has its own).
+    resume: ({ started, sessionId }) => started && ['resume', sessionId || '--last'],
     forget: ({ folder }) => forgetCodex(folder),
   },
   { id: 'shell', name: 'Terminal only', maker: '', command: null, needs: "No agent: your shell in the workspace's folder" },
@@ -121,6 +121,18 @@ function cwdOf(file) {
   } catch {}
   return null;
 }
+
+// Codex's hooks (its docs, learn.chatgpt.com/docs/hooks; not yet tried in a session, ROADMAP), each telling Kulisa an
+// event of its own (agent-hooks.js) as Claude Code's plugin does. The command is the same for every workspace
+// (KULISA_URL comes from the terminal's environment), so the human trusts them once in Codex's /hooks: Codex runs no
+// hook it has not been told to trust, and Kulisa never passes --dangerously-bypass-hook-trust (it would run any
+// project's hooks unreviewed too). SessionEnd hooks get at most 3 s.
+const CODEX_HOOKS = { SessionStart: 'session-start', UserPromptSubmit: 'prompt', PermissionRequest: 'waiting', Stop: 'stop',
+  Interrupt: 'interrupt', SessionEnd: 'session-end' };
+const codexHooks = () => `{${Object.entries(CODEX_HOOKS).map(([event, to]) => {
+  const t = event === 'SessionEnd' ? 1 : 3;
+  return `${event}=[{hooks=[{type="command",timeout=${t + 1},command='curl -sf --max-time ${t} --data-binary @- "$KULISA_URL/hooks/${to}" || true'}]}]`;
+}).join(',')}}`;
 
 // What Codex keeps of a deleted fork's folder (undocumented layout, as of Codex 0.160), in CODEX_HOME (~/.codex):
 //   sessions/…/rollout-*.jsonl, archived_sessions/…   its conversations: the first line's payload.cwd is the folder

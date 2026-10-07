@@ -1,6 +1,8 @@
-// What the Kulisa plugin's hooks ask Kulisa for (src/agent/claude-plugin/hooks/hooks.json), served next to the
-// MCP server at /ws/<project>/<n>/hooks/<event> (KULISA_URL is the workspace's). The hook's input (Claude Code's JSON) comes as
-// the request body; answers are Claude Code hook output (JSON on the hook's stdout).
+// What agents' hooks tell Kulisa and ask it for, served next to the MCP server at /ws/<project>/<n>/hooks/<event>
+// (KULISA_URL is the workspace's). The events are Kulisa's own; which of an agent's hooks sends which is the agent's
+// (Claude Code: src/agent/claude-plugin/hooks/hooks.json; Codex: its entry in agents.js). The hook's input (the
+// agent's JSON: Codex's hooks take Claude Code's shape) comes as the request body; answers are hook output (JSON on
+// the hook's stdout).
 
 // SessionStart: the profiles as they are now, so the agent knows them before its first tool call. Also notes the
 // session, so that opening the project again resumes it (workspaces.js).
@@ -23,20 +25,18 @@ function sessionStart(ws, input) {
   return { hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: context } };
 }
 
-// What the agent is doing, shown on its workspace's tab: working on a prompt, waiting for the human, done; unknown
-// (null) once its session ends (/exit, /clear: a new one starts). Waiting is for what needs the human: a permission, a
-// question (Claude Code's notification_type; an older one without it, any notification), or a turn ended by an API
-// error (a limit, a sign-in). Not idle_prompt, a minute after the answer: done says that already (tried 2026-10-08).
-// Esc ends a turn without a hook (Claude Code has none for it): the tab says working until the next prompt.
-const NEEDS_YOU = new Set(['permission_prompt', 'elicitation_dialog', 'elicitation_url_dialog']);
-const state = (s, when = () => true) => (ws, input) => { if (when(input)) ws.setState(s); return {}; };
+// What the agent is doing, shown on its workspace's tab (workspaces.md, "Choosing the agent"): working on a prompt
+// (prompt), waiting for the human (waiting: a permission, a question, a turn ended by an error), done (stop); unknown
+// once the human interrupted it (interrupt: they are there) or its session ended (session-end), but a done one keeps
+// "come and see" (Codex ends a session after 30 minutes idle).
+const state = (s, when = () => true) => (ws) => { if (when(ws)) ws.setState(s); return {}; };
 const handlers = {
   'session-start': sessionStart,
   prompt: state('working'),
-  notification: state('waiting', (input) => !input?.notification_type || NEEDS_YOU.has(input.notification_type)),
+  waiting: state('waiting'),
   stop: state('done'),
-  'stop-failure': state('waiting'),
-  'session-end': state(null),
+  interrupt: state(null),
+  'session-end': state(null, (ws) => ws.state !== 'done'),
 };
 
 // Route /hooks/<event> of a workspace; returns false for other paths.

@@ -57,7 +57,8 @@ The agent learns how to work with profiles from the Kulisa plugin (CLAUDE.md, Ar
 `src/agent/claude-plugin/`, started with `claude --plugin-dir`: the MCP config, the profiles skill
 (`skills/profiles/SKILL.md`; keep it in step with the tools) and hooks, among them `SessionStart`, which tells the
 agent which profiles are open and tells Kulisa its session (to resume it). The user's own MCP servers stay available
-(no `--strict-mcp-config`). Codex gets the MCP server as a config override, not the skill yet (ROADMAP).
+(no `--strict-mcp-config`). Codex gets the MCP server and the hooks as config overrides (its `SessionStart` brings the open profiles), not the
+skill yet (ROADMAP).
 
 The human sees what the agent does (`ghost.js`): Playwright's action annotations in the page (a mark at the action
 point, the element outlined) and a caption over the pane for every command through the proxy.
