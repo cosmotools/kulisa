@@ -1,13 +1,17 @@
 # Kulisa
 
-Desktop app (Electron) for developing and testing web apps with several users at once. Each **profile** is an
+Desktop app (Electron) where the AI agent the human chooses works in their signed-in browser profiles, side by side:
+it builds, checks the result as every user, fixes, and goes again until it works, while the human watches or takes a
+break. Made first for developing and testing web apps with several users at once. Each **profile** is an
 embedded browser profile (own cookies, storage, tabs) shown as a pane. The human signs in by hand in a pane; a
 coding agent the human chooses (Claude Code, Codex: the unchanged CLI) runs in the built-in terminal and drives
 profiles through Kulisa's MCP server. Workspaces run several agents on one project at once. Point-and-tell (Pick, then click an element) puts a reference with a Playwright locator into the agent's
 prompt; the human writes the rest of the message around it.
 
-The author's framing: Kulisa is an IDE for developers (like JetBrains or VS Code), not a bot. Everything happens
-inside Kulisa; no external Chrome windows.
+The author's framing: Kulisa is made first for developers, as an IDE is (like JetBrains or VS Code), and is good for
+any work in web apps (several clients' tenants, admin and support work). Not a bot, and not a tool for farms of
+accounts or getting past bot detection (the author despises those): the human's own accounts, signed in by hand.
+Everything happens inside Kulisa; no external Chrome windows.
 
 - `docs/SPEC.md`: the product: problem, features and phases, architecture decisions.
 - `docs/REPORT.md`: how the design was tested and decided. Read its later sections (sign-in, Kasada, session

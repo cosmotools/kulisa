@@ -2,9 +2,13 @@
 
 ![Kulisa: three profiles of a shop (buyer, seller, admin) side by side, the agent outlining the new orders in two of them, and Claude Code in the terminal below](docs/images/kulisa.png)
 
-One window for testing a web app with several users at once. Each **profile** is an embedded browser profile, as
-in Chrome (cookies, storage, tabs). You sign in by hand in a profile's pane; a coding agent you choose (Claude Code, Codex) runs
-in the built-in terminal and drives the profiles through Kulisa's MCP server. Point at an element (Pick; Pick again or Esc cancels): a reference
+**Your AI agent builds, checks the result as every user, fixes, and goes again until it works. Watch every step, or
+take a break.**
+
+Kulisa is a desktop app where the agent you choose (Claude Code, Codex) works in your signed-in browser profiles, side
+by side. It is made for developing web apps with several users at once, and good for any work in web apps. Each
+**profile** is an embedded browser profile, as in Chrome (cookies, storage, tabs). You sign in by hand in a profile's
+pane, never the agent; the agent runs in the built-in terminal and drives the profiles through Kulisa's MCP server. Point at an element (Pick; Pick again or Esc cancels): a reference
 with a locator the agent can act on lands in its prompt, and you write the rest of the message around it.
 
 Website: [kulisa.app](https://kulisa.app). The product and its decisions: [docs/SPEC.md](docs/SPEC.md); how it works: [docs/profiles.md](docs/profiles.md),

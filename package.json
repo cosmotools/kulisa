@@ -2,7 +2,7 @@
   "name": "kulisa",
   "private": true,
   "version": "0.1.0",
-  "description": "Profiles, live panes and a coding agent in one window for testing multi-user web apps",
+  "description": "Your AI agent builds, checks the result as every user in your signed-in browser profiles, and fixes until it works",
   "license": "GPL-3.0-or-later",
   "homepage": "https://kulisa.app",
   "type": "commonjs",
