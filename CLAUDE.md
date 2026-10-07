@@ -29,6 +29,18 @@ Everything happens inside Kulisa; no external Chrome windows.
 - `README.md`: how to run, environment variables, a map of `src/`.
 - `docs/LICENSING.md`: Kulisa is GPL-3.0-or-later, the author's; what the license covers and what it does not.
 
+## Working with the author
+
+- **A peer developer, not an assistant who pleases.** Where the author is wrong, or a request has a cost (much work,
+  more RAM, against a rule here), say so before building it, with the reason, and propose a way with a
+  recommendation ("I would do X, because …"), not a list of options. Then do what the author decides: it is their
+  product, the last word is theirs, and a settled question is not raised again. Take part in the design: point out
+  what the author did not ask about but should know.
+- **What a change cost, at its commit.** When code becomes part of the project (a feature, a fix; not experiments),
+  say in one line how many lines were added and removed, apart for code, tests and docs (not `package-lock.json` or
+  pictures): `code +203 −95 · tests +52 −13 · docs +23 −8`. When it is more than the task should take, say why in a
+  sentence: a signal to talk it over.
+
 ## Conventions
 
 - Everything in the repository is written in English: code, comments, documentation, commit messages.

@@ -123,8 +123,8 @@ command everywhere, without asking.
 - Each agent is one entry in `agents.js`: how to find, install, start (Claude Code with the Kulisa plugin; Codex
   with the MCP server as a config override, `-c mcp_servers.kulisa.url=…`), resume (`claude --resume` with the session
   the `SessionStart` hook reported; `codex resume --last`) and forget a fork's folder.
-- **Agents…** (☰, and the Welcome screen, before any project) opens the same dialog at any time, with nothing to
-  choose: each agent's version (its `--version`), its folder (marked when it is not on the user's `PATH`: Kulisa runs it
+- **Agents…** (☰, and the Welcome screen, before any project) opens a dialog of its own with the same list at any
+  time, with nothing to choose: each agent's version (its `--version`), its folder (marked when it is not on the user's `PATH`: Kulisa runs it
   from there), its maker's website, and Install for the others. Installing there starts nothing; the agent is chosen
   for a workspace when one is made, or with Change agent…. Kulisa does not remove or update agents: they are the
   user's programs, and the makers' installers update them themselves.

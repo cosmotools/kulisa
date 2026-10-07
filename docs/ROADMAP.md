@@ -259,7 +259,7 @@ here; what is left of it stays.
   - `safeStorage` (Keychain, DPAPI) for session cookies: expected to work, untested.
   - macOS: the window screenshot (`KULISA_SHOT`) needs the screen-recording permission; distribution needs code
     signing and notarization (Apple Developer account). Windows: code signing certificate.
-  - The first start: a packaged app opens no project (the window offers to open one), later the project tabs open last
+  - The first start: a packaged app opens no project (the Welcome screen), later the project tabs open last
     (untested packaged).
   - The one-row title bar (`titleBarStyle: 'hidden'` + `titleBarOverlay`, Window Controls Overlay): checked on
     Linux/X11 only. Check the window buttons, dragging and double-click to maximize on macOS (traffic lights on the
