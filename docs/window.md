@@ -82,7 +82,14 @@ could not mark the deleting button or lay out what goes. The OS's own dialogs st
 
 One terminal per workspace (xterm.js in the window, node-pty in the main process: `terminal.js`), running the agent
 the human chose ([workspaces.md](workspaces.md), "Choosing the agent") unchanged. Unicode 11 widths (the cursor stays
-put after an emoji), a bundled font, the GPU renderer. The agent starts once the terminal is laid out, at its real
+put after an emoji), a bundled font, the GPU renderer. Copy and paste take the keys of the OS's own terminal, so hands
+need nothing new: Ctrl+Shift+C / V (GNOME Terminal, Konsole); on Windows also Ctrl+V, and Ctrl+C copies a selection,
+else interrupts (Windows Terminal); on macOS ⌘C / ⌘V (the app menu's). xterm leaves those keys to the app, as VS Code
+sets its own; otherwise Ctrl+C and Ctrl+V go to the agent (Claude Code pastes an image with Ctrl+V, with Alt+V on
+Windows). The paste itself is Chromium's, which xterm takes (pasting again from Kulisa had doubled it).
+With nothing selected in xterm, copying keeps the clipboard: Claude Code selects with its own mouse and puts its text
+there itself (an empty copy had wiped it). Keys are known by `keyCode` too, as ibus with a Cyrillic layout leaves
+`code` out. The agent starts once the terminal is laid out, at its real
 size. When a project moves to another window, what its terminals show moves along (xterm's serialize addon, as VS
 Code keeps terminals), at the same size.
 

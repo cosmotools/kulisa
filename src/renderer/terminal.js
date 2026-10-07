@@ -58,12 +58,10 @@ function makeTerminal(ws, size) {
     if (shownTerminal === ws) { window.__termRenderer = entry.renderer; fitTerminal(); }
   });
   t.onData((data) => kulisa.send('pty:in', { ws, data }));
-  // Ctrl+Shift+C copies the selection, Ctrl+Shift+V pastes (terminal convention); Ctrl+C stays SIGINT.
   t.attachCustomKeyEventHandler((e) => {
-    if (e.type !== 'keydown' || !e.ctrlKey || !e.shiftKey) return true;
-    if (e.code === 'KeyC') { termCopy(); return false; }
-    if (e.code === 'KeyV') { termPaste(); return false; }
-    return true;
+    const does = e.type === 'keydown' && clipboardKey(e, kulisa.platform, t.hasSelection());
+    if (does === 'copy') { termCopy(); if (kulisa.platform === 'win32') t.clearSelection(); }
+    return !does; // a paste is the page's own (Chromium's Ctrl+V, Ctrl+Shift+V), which xterm takes: pasting here too doubled it
   });
   return entry;
 }
@@ -118,12 +116,29 @@ kulisa.on('pty:out', ({ ws, data }) => terminalOf(ws).term.write(data));
 kulisa.on('terminal:focus', () => term?.focus());
 kulisa.on('terminal:reset', ({ ws }) => terminals.get(ws)?.term.reset()); // another agent starts there
 
-function termCopy() { navigator.clipboard.writeText(term.getSelection()); }
+// Copy and paste as the OS's own terminal does, so hands need nothing new (xterm leaves the keys to the app, as VS Code
+// sets its own): Ctrl+Shift+C / V everywhere (GNOME Terminal, Konsole); on Windows also Ctrl+V, and Ctrl+C copies a
+// selection, else interrupts (Windows Terminal). On macOS ⌘C / ⌘V are the app menu's Copy and Paste, which xterm takes
+// as the page's copy and paste events. Otherwise Ctrl+C and Ctrl+V go to the agent (Claude Code pastes an image).
+const clipboardKeys = { darwin: ['⌘C', '⌘V'], win32: ['Ctrl+C', 'Ctrl+V'] }[kulisa.platform] || ['Ctrl+Shift+C', 'Ctrl+Shift+V'];
+// The key by its place (code) or, when an input method leaves that out (ibus with a Cyrillic layout), by keyCode, which
+// Chromium gives as on a Latin layout.
+const isKey = (e, letter) => e.code === `Key${letter}` || e.keyCode === letter.charCodeAt(0);
+function clipboardKey(e, platform, selected) {
+  if (!e.ctrlKey || e.altKey || e.metaKey) return null;
+  const win = platform === 'win32';
+  if (isKey(e, 'C') && (e.shiftKey || win && selected)) return 'copy';
+  if (isKey(e, 'V') && (e.shiftKey || win)) return 'paste';
+  return null;
+}
+// Nothing selected, nothing copied: the clipboard keeps what is there (an agent selecting with its own mouse, as
+// Claude Code does, puts its text there itself), as GNOME Terminal does.
+function termCopy() { if (term.hasSelection()) navigator.clipboard.writeText(term.getSelection()); }
 function termPaste() { navigator.clipboard.readText().then((t) => term.paste(t)); }
 function terminalMenu() {
   return [
-    { label: 'Copy', keys: 'Ctrl+Shift+C', enabled: term.hasSelection(), run: termCopy },
-    { label: 'Paste', keys: 'Ctrl+Shift+V', run: termPaste },
+    { label: 'Copy', keys: clipboardKeys[0], enabled: term.hasSelection(), run: termCopy },
+    { label: 'Paste', keys: clipboardKeys[1], run: termPaste },
     { label: 'Select all', run: () => term.selectAll() },
     '-',
     { label: 'Clear', run: () => term.clear() },

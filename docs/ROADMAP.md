@@ -104,7 +104,7 @@ here; what is left of it stays.
     axe-core (Deque's, the most used) on the window's page; by hand with Orca (Linux), NVDA (Windows), VoiceOver
     (macOS).
 - **Keyboard shortcuts** (an IDE's power users work by them, as in JetBrains and VS Code). Today Kulisa takes only a
-  few: its zoom (Ctrl + / − / 0 outside the pages), F12 and Ctrl+Shift+I (DevTools), Ctrl+Shift+C / V in the terminal.
+  few: its zoom (Ctrl + / − / 0 outside the pages), F12 and Ctrl+Shift+I (DevTools), copy and paste in the terminal (the OS's own terminal's keys: [window.md](window.md), The terminal).
   - Which actions get one: switching projects and workspaces (Ctrl+Tab, Ctrl+1…9), a new tab, a new profile, the focus
     between the terminal and the panels, Pick, closing.
   - A command palette, where every action is found by its name (VS Code's Ctrl+Shift+P, JetBrains' Find Action):
@@ -274,6 +274,9 @@ here; what is left of it stays.
   - The one-row title bar (`titleBarStyle: 'hidden'` + `titleBarOverlay`, Window Controls Overlay): checked on
     Linux/X11 only. Check the window buttons, dragging and double-click to maximize on macOS (traffic lights on the
     left), Windows and Wayland.
+  - Copy and paste in the terminal (`clipboardKey` in `terminal.js`): checked on Linux only. Windows: Ctrl+V pastes
+    once, Ctrl+C copies a selection and interrupts without one. macOS: ⌘C / ⌘V through Electron's default app menu
+    (Kulisa sets none), and Ctrl+V reaching the agent.
   - Several windows (Move to New Window): a profile's native views moved from one window to another, and a window's
     place restored (`getNormalBounds`, maximized); checked on Linux/X11 only. Dragging a project's tab: tested with
     synthetic events only, not yet by hand; a tab let go outside the windows is told from a cancelled drag by where the

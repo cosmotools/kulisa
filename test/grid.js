@@ -1,6 +1,7 @@
 // The grid of panels, projects, layouts, menus.
 const fs = require('fs');
 const path = require('path');
+const { clipboard } = require('electron');
 const { assert, root, userData, project, pfile, savedTabs, panel, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, menuOpen, rightClick,
   box, pageBox, viewOn, dock, ctrl, near, projectTabs, projectTab, savedWindows } = require('./helpers');
 
@@ -479,6 +480,33 @@ module.exports = (test) => {
     await choose(ui, 'Select all');
     await waitFor(() => ui(`window.__term.hasSelection()`));
     await ui(`window.__term.clearSelection()`);
+    // Copy and paste as the OS's own terminal: here Linux's Ctrl+Shift+C / V; a paste lands once (Chromium's own
+    // paste and Kulisa's both pasted it); Ctrl+V and Ctrl+C go to the agent. Windows' and macOS' keys, and the menu's.
+    const keys = (keyCode, modifiers) => { for (const type of ['keyDown', 'keyUp']) shell.win.webContents.sendInputEvent({ type, keyCode, modifiers }); };
+    await clipboard.writeText('kulisa-paste');
+    shell.win.focus(); await ui(`window.__term.focus()`);
+    const before = ctx.ptyOutput().length;
+    keys('V', ['control', 'shift']);
+    await waitFor(() => ctx.ptyOutput().slice(before).includes('kulisa-paste'));
+    await sleep(300);
+    assert.equal(ctx.ptyOutput().slice(before).split('kulisa-paste').length - 1, 1, 'pasted once');
+    await clipboard.writeText('');
+    await ui(`window.__term.selectAll()`);
+    keys('C', ['control', 'shift']);
+    await waitFor(async () => (await clipboard.readText()).includes('kulisa-paste'));
+    await ui(`window.__term.clearSelection()`);
+    keys('C', ['control', 'shift']);
+    await sleep(300);
+    assert.ok((await clipboard.readText()).includes('kulisa-paste'), 'nothing selected: the clipboard is kept');
+    keys('U', ['control']); // the agent's line emptied
+    const key = (code, mods = {}) => JSON.stringify({ code, ctrlKey: true, ...mods });
+    assert.deepEqual(await ui(`[
+      ['linux', ${key('KeyV', { shiftKey: true })}], ['linux', ${key('KeyC', { shiftKey: true })}, true], ['linux', ${key('KeyV')}], ['linux', ${key('KeyC')}, true],
+      ['win32', ${key('KeyV')}], ['win32', ${key('KeyC')}, true], ['win32', ${key('KeyC')}, false], ['win32', ${key('KeyV', { shiftKey: true })}],
+      ['darwin', ${key('KeyV')}], ['darwin', ${key('KeyV', { ctrlKey: false, metaKey: true })}],
+      ['linux', ${JSON.stringify({ code: '', keyCode: 86, ctrlKey: true, shiftKey: true })}]].map(([os, e, selected]) => clipboardKey(e, os, selected))`),
+    ['paste', 'copy', null, null, 'paste', 'copy', null, 'paste', null, null, 'paste'], 'the keys of each OS; by keyCode when code is left out (ibus, Cyrillic)');
+    assert.deepEqual(await ui(`clipboardKeys`), ['Ctrl+Shift+C', 'Ctrl+Shift+V'], "the menu's keys for Linux");
 
     await ui(`document.getElementById('windowMenu').click()`);
     // The arrangements as pictures, a short name under each, the full words in the tooltip.
