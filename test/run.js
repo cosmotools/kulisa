@@ -26,7 +26,7 @@ const agent = { command: 'bash', args: ['-c', 'echo "agent: $FROM_RC"; exec cat 
 const bin = path.join(root, 'bin');
 const agents = [
   { id: 'fake', name: 'Fake agent', maker: 'Kulisa tests', needs: 'Nothing', command: 'kulisa-fake-agent', dirs: [bin],
-    install: { posix: `echo "installing the fake agent"; mkdir -p '${bin}' && printf '#!/bin/sh\\necho "fake agent in $PWD, ports + $KULISA_PORT_OFFSET"\\nexec cat\\n' > '${bin}/kulisa-fake-agent' && chmod +x '${bin}/kulisa-fake-agent' && echo done` },
+    install: { posix: `echo "installing the fake agent"; mkdir -p '${bin}' && printf '#!/bin/sh\\ncase "$1" in --version) echo "kulisa-fake-agent 1.2.3"; exit;; esac\\necho "fake agent in $PWD, ports + $KULISA_PORT_OFFSET"\\nexec cat\\n' > '${bin}/kulisa-fake-agent' && chmod +x '${bin}/kulisa-fake-agent' && echo done` },
     args: () => [] },
   { id: 'shell', name: 'Terminal only', maker: '', command: null, needs: 'No agent' },
 ];

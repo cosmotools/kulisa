@@ -481,7 +481,7 @@ module.exports = (test) => {
 
     await ui(`document.getElementById('windowMenu').click()`);
     // The arrangements as pictures, a short name under each, the full words in the tooltip.
-    assert.deepEqual((await menuRows(ui)).slice(3), ['# Arrange panels', 'arrange: Columns, Two by two, One at a time']);
+    assert.deepEqual((await menuRows(ui)).slice(3), ['# Arrange panels', 'arrange: Columns, Two by two, One at a time', '-', 'Agents…']);
     const pics = await ui(`[...document.querySelectorAll('#menu .arrange button')].map((b) => ({ title: b.title,
       panes: b.querySelectorAll('svg .a-page').length, term: b.querySelectorAll('svg .a-term').length, w: b.querySelector('svg').getBoundingClientRect().width }))`);
     assert.deepEqual(pics.map((p) => [p.panes, p.term]), [[3, 1], [4, 1], [1, 1]]);

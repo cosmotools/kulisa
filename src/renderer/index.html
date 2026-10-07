@@ -65,7 +65,7 @@
     <img class="applogo" src="../../assets/icon.svg" alt="Kulisa">
     <h2>No project is open</h2>
     <p class="hint">A project is a folder, usually a repository: Kulisa keeps its profiles, workspaces and agents.</p>
-    <div class="start"><button id="welcome-new">New Project…</button><button id="welcome-open">Open Folder…</button></div>
+    <div class="start"><button id="welcome-new">New Project…</button><button id="welcome-open">Open Folder…</button><button id="welcome-agents">Agents…</button></div>
     <h3>Recent</h3>
     <div id="welcome-list"></div>
     <nav class="links">
@@ -117,17 +117,24 @@
     </form>
   </dialog>
   <!-- Choosing a workspace's agent, installing it (agent-picker.js, loaded when needed) -->
-  <dialog id="agents" closedby="none">
+  <dialog id="agentpick" closedby="none">
     <header><h2>Choose the Agent</h2></header>
     <div class="body">
       <p class="hint">The agent works in this workspace's terminal: it writes the code and uses the profiles. If it is not
         on this computer yet, Kulisa installs it with its maker's installer. On its first start it asks you to sign in.</p>
-      <div id="agentlist"></div>
-      <p id="agentprogress" class="hint"></p>
-      <details id="agentdetails" hidden><summary>Details</summary><pre id="agentlog"></pre></details>
-      <p class="error"></p>
     </div>
     <footer><button id="agentcancel" hidden>Cancel</button><button id="agentstart" class="primary" disabled>Start</button></footer>
+  </dialog>
+  <!-- The Agents window (agents.js, loaded when needed; ☰, the Welcome screen): what is installed, its version and
+       folder; Install for the others -->
+  <dialog id="agents" closedby="any">
+    <header><h2>Agents</h2><button class="x icon quiet" type="button" command="close" commandfor="agents" title="Close"
+      aria-label="Close"><svg aria-hidden="true"><use href="#i-close"/></svg></button></header>
+    <div class="body">
+      <p class="hint">The agents Kulisa can run in a workspace's terminal. Install one here; choose it for a workspace
+        when you make one, or with Change agent… in the terminal's menu.</p>
+    </div>
+    <footer><button class="primary" type="button" command="close" commandfor="agents">Close</button></footer>
   </dialog>
   <!-- A question before something that cannot be undone (deleting a workspace, a project, a profile): ask.js -->
   <dialog id="ask" closedby="any">
@@ -200,9 +207,19 @@
   <template id="tpl-wstab">
     <div class="wstab striptab"><span class="state"></span><span class="name"></span><button class="close icon quiet small" aria-label="Close"><svg aria-hidden="true"><use href="#i-close"/></svg></button></div>
   </template>
+  <!-- The agents with Install, in both agents' dialogs (agent-list.js) -->
+  <template id="tpl-agentlist">
+    <div class="agentlist">
+      <div class="rows"></div>
+      <p class="progress hint"></p>
+      <details hidden><summary>Details</summary><pre></pre></details>
+      <p class="error"></p>
+    </div>
+  </template>
   <template id="tpl-agent">
     <label class="agentrow"><input type="radio" name="agent"><span class="what"><b class="name"></b><small class="needs"></small>
-      <small class="install-line"></small></span><span class="status"></span><button type="button" class="install">Install</button></label>
+      <small class="where"></small><small class="install-line"></small></span><a class="site" target="_blank">Website</a><span
+      class="status"></span><button type="button" class="install">Install</button></label>
   </template>
   <!-- An open project's tab in the title bar (projects.js) -->
   <template id="tpl-projecttab">

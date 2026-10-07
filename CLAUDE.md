@@ -124,7 +124,10 @@ Everything happens inside Kulisa; no external Chrome windows.
   runs the files in order, later tests building on earlier ones; shared helpers in `helpers.js`).
   - Fix a bug by first reproducing it as a failing test, then making it pass (the session-cookie bug was done
     this way).
-  - Run `npm test` before committing.
+  - **The full suite (`npm test`, about 80 s) runs once, when the author says the work is done** ("всё ок", "commit"),
+    before the commit; fix what fails and run it again. Not after each edit while building: check then with a
+    screenshot (`KULISA_SHOT`) or in the author's running Kulisa, restarted with the change. The test files are one
+    chain (later ones build on earlier ones), so one file alone does not run (tried 2026-10-07).
 - **Kulisa runs on macOS, Windows and Linux.** Write code for all three: no shell commands, Unix-only paths or
   signals, or Linux-only flags without a branch for the others. Keep platform branches few and in one place per
   concern (e.g. the shell fallback in `terminal.js`). What is untested on a platform goes into ROADMAP.

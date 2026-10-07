@@ -166,18 +166,21 @@ body > #term { display: none; }
 /* A question before something that cannot be undone (ask.js): what goes, line by line */
 #ask { width: 480px;
   .detail { margin: 0; white-space: pre-line; overflow-wrap: anywhere; user-select: text; &:empty { display: none; } } }
-/* The agents to choose from (agent-picker.js) */
-#agents { width: 640px;
+/* The agents (agent-list.js), in both their dialogs: choosing a workspace's agent and the Agents window */
+:is(#agentpick, #agents) { width: 640px; }
+.agentlist {
   .agentrow { display: flex; gap: var(--gap); align-items: center; padding: 8px 4px; border-bottom: 1px solid var(--island-hi);
     input { height: auto; flex: none; }
     .what { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
     small { color: var(--text-muted); }
-    .install-line { font-family: "JetBrains Mono", monospace; overflow-wrap: anywhere; &:empty { display: none; } }
-    &:not(:has(input:checked)) .install-line { display: none; }
+    :is(.install-line, .where) { font-family: "JetBrains Mono", monospace; overflow-wrap: anywhere; &:empty { display: none; } }
+    /* Choosing: what Install runs only for the chosen one */
+    &:has(input:not(:checked)) .install-line { display: none; }
+    .site { color: var(--text-muted); white-space: nowrap; &:hover { color: var(--text); } &:not([href]) { display: none; } }
     .status { color: var(--text-muted); white-space: nowrap; } }
-  #agentprogress { margin: 10px 0 0; &:empty { display: none; } }
-  #agentdetails { margin-top: 6px; summary { color: var(--text-muted); } }
-  #agentlog { max-height: 180px; overflow: auto; margin: 6px 0 0; padding: 8px; border-radius: var(--radius); background: var(--window);
+  .progress { margin: 10px 0 0; &:empty { display: none; } }
+  details { margin-top: 6px; summary { color: var(--text-muted); } }
+  pre { max-height: 180px; overflow: auto; margin: 6px 0 0; padding: 8px; border-radius: var(--radius); background: var(--window);
     font: 12px "JetBrains Mono", monospace; white-space: pre-wrap; user-select: text; }
 }
 /* The profile editor's rows (profile-editor.js) */

@@ -123,8 +123,14 @@ command everywhere, without asking.
 - Each agent is one entry in `agents.js`: how to find, install, start (Claude Code with the Kulisa plugin; Codex
   with the MCP server as a config override, `-c mcp_servers.kulisa.url=…`), resume (`claude --resume` with the session
   the `SessionStart` hook reported; `codex resume --last`) and forget a fork's folder.
+- **Agents…** (☰, and the Welcome screen, before any project) opens the same dialog at any time, with nothing to
+  choose: each agent's version (its `--version`), its folder (marked when it is not on the user's `PATH`: Kulisa runs it
+  from there), its maker's website, and Install for the others. Installing there starts nothing; the agent is chosen
+  for a workspace when one is made, or with Change agent…. Kulisa does not remove or update agents: they are the
+  user's programs, and the makers' installers update them themselves.
 - The dialog is part of the window, not a window of its own: no extra process, and its code is a module loaded only
-  when it is needed (`agent-picker.js`).
+  when it is needed: `agent-picker.js` (choosing) and `agents.js` (the Agents window) are two dialogs of their own
+  around one list of agents with Install (`agent-list.js`), each with its own state.
 - The agent's state on the tabs comes from Claude Code's hooks (UserPromptSubmit, Notification, Stop); other agents
   show none yet.
 
@@ -305,6 +311,6 @@ Designed with the author on 2026-10-06 and 2026-10-07.
 | `src/main/terminal.js` | a terminal per workspace |
 | `src/renderer/projects.js`, `new-project.js` | the project tabs and the + menu, the Welcome screen; New Project… (loaded when needed) |
 | `src/renderer/workspaces.js` | the strip and the new-workspace dialog |
-| `src/renderer/agent-picker.js` | choosing and installing an agent (loaded when needed) |
+| `src/renderer/agent-picker.js`, `agents.js`, `agent-list.js` | choosing a workspace's agent; the Agents window; the list of agents with Install that both show (loaded when needed) |
 | `src/renderer/renderer.js`, `window.css` | building a workspace's grid; the slide (a view transition) |
 | `test/workspaces.js` | the tests; `test/restart.js` after a restart |

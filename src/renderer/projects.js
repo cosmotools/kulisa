@@ -158,4 +158,6 @@
   // New Project…: its name and where its folder goes (a module of its own, loaded then).
   const create = async () => (await import('./new-project.js')).newProject();
   document.getElementById('welcome-new').onclick = create;
+  // Agents…: what is installed, and installing one, before any project (agents.js, loaded then).
+  document.getElementById('welcome-agents').onclick = async () => (await import('./agents.js')).showAgents();
 })();

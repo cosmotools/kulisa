@@ -1,6 +1,6 @@
 ---
 name: run-kulisa
-description: Restart the author's running Kulisa after a change passes the tests, or give them a fresh start "as if just installed". Use whenever Kulisa (the app itself, not the tests) has to be stopped, started or restarted on the author's machine.
+description: Restart the author's running Kulisa after a change, or give them a fresh start "as if just installed". Use whenever Kulisa (the app itself, not the tests) has to be stopped, started or restarted on the author's machine.
 ---
 
 # Running the author's Kulisa
@@ -10,7 +10,8 @@ sign-ins (CLAUDE.md, Rules). `kulisa.sh` next to this file does the steps the sa
 
 ## Restart after a change
 
-Once `npm test` passes, restart it without asking (the author wants the change live):
+After each change, restart it without asking, so the author sees it (the author wants the change live; the full
+`npm test` runs only when they say the work is done, CLAUDE.md):
 
 1. `.claude/skills/run-kulisa/kulisa.sh stop`: SIGINT to the main Electron process, so session cookies and tabs are
    saved. Never `kill -9`, never `pkill -f` (it matches the shell running it).

@@ -259,17 +259,43 @@ module.exports = (test) => {
     assert.deepEqual(JSON.parse(fs.readFileSync(path.join(userData, 'projects', 'project', 'workspaces.json'), 'utf8')).list.map((w) => w.name), ['main', 'Feature-X']);
   });
 
+  // ☰ → Agents…: the agents dialog with nothing to choose; it closes as any dialog.
+  const openAgents = async (ui) => {
+    await ui(`document.getElementById('windowMenu').click()`);
+    await menuRows(ui);
+    await choose(ui, 'Agents…');
+    // It opens with the agents in it, not with a line that flips to them.
+    await waitFor(() => ui(`document.getElementById('agents').open`), 20000);
+    assert.equal(await ui(`document.querySelectorAll('#agents .agentrow').length`), 3);
+  };
+  const agentRow = (id, q) => `document.querySelector('#agents [data-agent="${id}"] ${q}')`;
+  test('agents: ☰ → Agents… shows what is installed and installs the others; nothing is chosen or started', async (ctx) => {
+    const { shell, ui } = ctx;
+    const pty = shell.ws.pty;
+    await openAgents(ui);
+    assert.equal(await ui(`document.querySelector('#agents h2').textContent`), 'Agents');
+    assert.equal(await ui(`document.querySelectorAll('#agents input').length`), 0, 'no choice to make');
+    assert.equal(await ui(agentRow('fake', '.status') + '.textContent'), 'Not installed');
+    assert.equal(await ui(agentRow('fake', '.install') + '.hidden'), false);
+    assert.match(await ui(agentRow('fake', '.install-line') + '.textContent'), /^Install runs Kulisa tests's installer/);
+    assert.equal(await ui(agentRow('shell', '.install') + '.hidden'), true);
+    assert.equal(shell.ws.profiles.values().next().value.get().view.getVisible(), false, 'pages hidden under the dialog');
+    await ui(`document.querySelector('#agents header .x').click()`);
+    await waitFor(async () => !(await ui(`document.getElementById('agents').open`)));
+    assert.equal(shell.ws.pty, pty, 'the agent goes on');
+  });
+
   test('workspaces: a fork with another agent; one not installed is installed from the window, then started', async (ctx) => {
     const { shell, ui } = ctx;
     await ui(`document.getElementById('wsadd').click()`);
     await waitFor(async () => (await ui(`[...document.getElementById('wsagent').options].map((o) => o.value + (o.selected ? ' *' : '')).join()`)) === 'custom *,fake,shell');
     await ui(`document.getElementById('wsagent').value = 'fake'; document.getElementById('wsname').value = 'Agent-pick'; document.getElementById('wsform').requestSubmit()`);
     // Not installed: the window asks, the chosen one preselected, with what Install runs.
-    await waitFor(() => ui(`document.getElementById('agents').open && document.querySelectorAll('#agentlist .agentrow').length === 3`), 20000);
+    await waitFor(() => ui(`document.getElementById('agentpick').open && document.querySelectorAll('#agentpick .agentrow').length === 3`), 20000);
     const ws = shell.ws;
     assert.equal(ws.name, 'Agent-pick');
     assert.equal(ws.pty, null, 'no agent before the human chooses');
-    const row = `document.querySelector('#agentlist .agentrow:has(input[value="fake"])')`;
+    const row = `document.querySelector('#agentpick .agentrow:has(input[value="fake"])')`;
     assert.equal(await ui(`${row}.querySelector('input').checked`), true);
     assert.equal(await ui(`${row}.querySelector('.status').textContent`), 'Not installed');
     assert.match(await ui(`${row}.querySelector('.install-line').textContent`), /^Install runs Kulisa tests's installer: echo "installing the fake agent"/);
@@ -277,33 +303,33 @@ module.exports = (test) => {
     assert.equal(ws.profiles.get('sam-admin').get().view.getVisible(), false, 'pages hidden under the dialog');
     await ui(`${row}.querySelector('.install').click()`);
     await waitFor(async () => (await ui(`${row}.querySelector('.status').textContent`)) === 'Installed', 10000);
-    assert.equal(await ui(`document.getElementById('agentprogress').textContent`), 'Fake agent is installed. Start it; it asks you to sign in.');
-    assert.equal(await ui(`document.getElementById('agentdetails').open`), false, "the installer's own output only under Details");
-    assert.match(await ui(`document.getElementById('agentlog').textContent`), /installing the fake agent\s+done/);
+    assert.equal(await ui(`document.querySelector('#agentpick .progress').textContent`), 'Fake agent is installed. Start it; it asks you to sign in.');
+    assert.equal(await ui(`document.querySelector('#agentpick details').open`), false, "the installer's own output only under Details");
+    assert.match(await ui(`document.querySelector('#agentpick pre').textContent`), /installing the fake agent\s+done/);
     await ui(`document.getElementById('agentstart').click()`);
     await waitFor(() => ws.pty);
     ctx.watchPty(ws.pty);
     await waitFor(async () => (await ctx.termText()).includes(`fake agent in ${ws.folder}, ports + ${ws.offset}`));
     assert.equal(JSON.parse(fs.readFileSync(pfile('agent.json', ws.n), 'utf8')).agent, 'fake');
-    assert.equal(await ui(`document.getElementById('agents').open`), false);
+    assert.equal(await ui(`document.getElementById('agentpick').open`), false);
 
     // A wrong choice is not a trap: the terminal's menu changes the agent; Cancel leaves it as it is.
     const changeAgent = async () => {
       await rightClick(ui, '#term');
       await menuRows(ui);
       await choose(ui, 'Change agent…');
-      await waitFor(() => ui(`document.getElementById('agents').open && document.querySelectorAll('#agentlist .agentrow').length === 3`), 20000);
+      await waitFor(() => ui(`document.getElementById('agentpick').open && document.querySelectorAll('#agentpick .agentrow').length === 3`), 20000);
     };
     const fakePty = ws.pty;
     await changeAgent();
     assert.equal(await ui(`document.getElementById('agentcancel').hidden`), false);
-    assert.equal(await ui(`document.querySelector('#agentlist input:checked').value`), 'fake', 'the current one chosen');
+    assert.equal(await ui(`document.querySelector('#agentpick input:checked').value`), 'fake', 'the current one chosen');
     await ui(`document.getElementById('agentcancel').click()`);
-    await waitFor(async () => !(await ui(`document.getElementById('agents').open`)));
+    await waitFor(async () => !(await ui(`document.getElementById('agentpick').open`)));
     await sleep(300);
     assert.equal(ws.pty, fakePty, 'Cancel: the agent goes on');
     await changeAgent();
-    await ui(`document.querySelector('#agentlist input[value="shell"]').click()`);
+    await ui(`document.querySelector('#agentpick input[value="shell"]').click()`);
     await ui(`document.getElementById('agentstart').click()`);
     await waitFor(() => ws.pty && ws.pty !== fakePty);
     assert.deepEqual(JSON.parse(fs.readFileSync(pfile('agent.json', ws.n), 'utf8')), { agent: 'shell', started: true }, 'a new conversation');
@@ -311,6 +337,19 @@ module.exports = (test) => {
     await ui(`${wsTab(ws.n)}.querySelector('.close').click()`);
     await waitFor(() => !shell.current.workspaces.has(ws.n) && shell.ws.n === 1);
     ctx.asked.length = 0;
+  });
+
+  test('agents: once installed, the Agents window shows its version and where it is', async (ctx) => {
+    const { ui } = ctx;
+    await openAgents(ui);
+    assert.equal(await ui(agentRow('fake', '.status') + '.textContent'), 'Installed');
+    assert.equal(await ui(agentRow('fake', '.install') + '.hidden'), true);
+    assert.equal(await ui(agentRow('fake', '.where') + '.textContent'),
+      `1.2.3 · ${path.join(root, 'bin', 'kulisa-fake-agent')} · not on your PATH: Kulisa runs it from here`);
+    assert.equal(await ui(agentRow('fake', '.install-line') + '.textContent'), '');
+    await ctx.shell.screenshot(path.join(root, 'agents.png'));
+    await ui(`document.querySelector('#agents footer button').click()`);
+    await waitFor(async () => !(await ui(`document.getElementById('agents').open`)));
   });
 
   // Last in phase 1: main is shown and Feature-X waits in the strip for the restart phase.

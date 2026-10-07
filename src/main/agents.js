@@ -3,6 +3,7 @@
 // install it (its maker's own installer, run by Kulisa for the human), how to start it connected to Kulisa and how
 // to continue a workspace's conversation. Each workspace has its own (agent.json).
 //   id, name, maker, needs   shown in the window when the human chooses
+//   site                     the maker's page of it (the Agents window links to it)
 //   command                  the program; null: the user's shell only, no agent
 //   install                  the maker's installer, a command line for sh (posix) and PowerShell (win32)
 //   dirs                     where the installer puts the program (default ~/.local/bin, as the native installers)
@@ -20,7 +21,7 @@ const { writeFileAtomic } = require('./store');
 
 const AGENTS = [
   {
-    id: 'claude', name: 'Claude Code', maker: 'Anthropic', command: 'claude',
+    id: 'claude', name: 'Claude Code', maker: 'Anthropic', command: 'claude', site: 'https://code.claude.com/docs',
     needs: 'A Claude plan (Pro, Max, Team, Enterprise) or an Anthropic API key',
     install: { posix: 'curl -fsSL https://claude.ai/install.sh | bash', win32: 'irm https://claude.ai/install.ps1 | iex' },
     // The Kulisa plugin: its MCP config (KULISA_MCP_URL), the profiles skill, the hooks.
@@ -31,7 +32,7 @@ const AGENTS = [
     forget: (ctx) => forgetClaude(ctx),
   },
   {
-    id: 'codex', name: 'Codex', maker: 'OpenAI', command: 'codex',
+    id: 'codex', name: 'Codex', maker: 'OpenAI', command: 'codex', site: 'https://developers.openai.com/codex',
     needs: 'A ChatGPT plan (Plus, Pro, Business, Enterprise) or an OpenAI API key',
     install: { posix: 'curl -fsSL https://chatgpt.com/codex/install.sh | sh', win32: 'irm https://chatgpt.com/codex/install.ps1 | iex' },
     // Kulisa's MCP server as a config override (a TOML value), not written into the user's ~/.codex/config.toml.
@@ -179,6 +180,17 @@ async function findAgent(agent, cwd) {
   return local ? { path: local, onPath: false } : null;
 }
 
+// The version of an installed agent, as its --version says it ("2.1.289 (Claude Code)", "codex-cli 0.160.1"), or
+// null. Its input is closed at once: a program that does not know --version must not wait for it.
+function agentVersion(found) {
+  if (!found?.path) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const p = execFile(found.path, ['--version'], { timeout: 5000, windowsHide: true }, (e, out) =>
+      resolve(e ? null : String(out).match(/\d+\.\d+(\.\d+)?/)?.[0] ?? null));
+    p.stdin?.end();
+  });
+}
+
 // Run the maker's installer; its output goes to onData as it comes (without terminal colors). Resolves to the exit
 // code.
 function installAgent(agent, onData) {
@@ -195,4 +207,4 @@ function installAgent(agent, onData) {
 // The command line the window shows before installing.
 const installLine = (agent) => agent.install?.[process.platform === 'win32' ? 'win32' : 'posix'] || null;
 
-module.exports = { AGENTS, findAgent, installAgent, installLine, trustLikeMain, claudeConfigOf };
+module.exports = { AGENTS, findAgent, agentVersion, installAgent, installLine, trustLikeMain, claudeConfigOf };

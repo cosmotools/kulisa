@@ -111,7 +111,7 @@ module.exports = (test) => {
     const { shell, ui } = ctx;
     const looks = await ui(`[...document.querySelectorAll('dialog')].map((d) => ({ id: d.id, title: !!d.querySelector('header h2'),
       body: !!d.querySelector('.body'), last: d.querySelector('footer > button:last-child')?.className }))`);
-    assert.deepEqual(looks.map((l) => l.id), ['profiles', 'newproject', 'wsnew', 'agents', 'ask']);
+    assert.deepEqual(looks.map((l) => l.id), ['profiles', 'newproject', 'wsnew', 'agentpick', 'agents', 'ask']);
     for (const l of looks) assert.ok(l.title && l.body && /primary|ok/.test(l.last), JSON.stringify(l));
 
     // A question before deleting: the title, what goes line by line, Cancel (focused) and a red Delete at the right.

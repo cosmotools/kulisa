@@ -396,14 +396,19 @@ function start(options = {}) {
   shell.chooseAgent.cancel = (ws) => { choosing.get(ws.key)?.(null); choosing.delete(ws.key); };
   ipcMain.on('agent:chosen', (_e, { ws, id }) => { const r = choosing.get(ws); choosing.delete(ws); r?.(id ? shell.agentFor(id) : null); });
   ipcMain.handle('agent:change', (e) => at(e)?.ws?.changeAgent());
-  // The agents to choose from; with check, whether each is installed (for the workspace's folder: its environment).
-  ipcMain.handle('agents:list', async (e, { check } = {}) => {
+  // The agents to choose from; with check, whether each is installed (for the workspace's folder: its environment);
+  // with details (the Agents window), also where it is and its version.
+  ipcMain.handle('agents:list', async (e, { check, details } = {}) => {
     const w = at(e);
-    const list = await Promise.all(known.map(async (a) => ({
-      id: a.id, name: a.name, maker: a.maker, needs: a.needs, install: agents.installLine(a),
-      ...(check && { installed: !!(await agents.findAgent(a, w?.ws?.folder || app.getPath('home'))) }),
-    })));
-    return { list, main: w?.current?.main.store.agent().agent ?? custom?.id ?? null };
+    const list = await Promise.all(known.map(async (a) => {
+      const found = (check || details) && await agents.findAgent(a, w?.ws?.folder || app.getPath('home'));
+      return {
+        id: a.id, name: a.name, maker: a.maker, needs: a.needs, site: a.site, install: agents.installLine(a),
+        ...((check || details) && { installed: !!found }),
+        ...(details && { path: found?.path ?? null, onPath: found?.onPath ?? null, version: await agents.agentVersion(found) }),
+      };
+    }));
+    return { list, main: w?.current?.main.store.agent().agent ?? custom?.id ?? null, home: app.getPath('home') };
   });
   // The maker's installer, run when the human clicks Install (that is their go-ahead); its output goes to the window.
   ipcMain.handle('agents:install', async (e, { id }) => {

@@ -60,7 +60,7 @@ when it changes, as JetBrains' Sync with OS). Saved (`settings.json`), the same 
 Kulisa draws its menus in HTML, as Chrome does (a popover, `menu.js`; [ui.md](ui.md), Menus):
 
 - + after the project tabs (the projects), a project tab's right-click menu, Profiles ▾ (open and closed
-  profiles, Manage Profiles…), ☰ (the zoom row, the theme row, Arrange panels);
+  profiles, Manage Profiles…), ☰ (the zoom row, the theme row, Arrange panels, Agents…);
 - right-click on a pane's header (New tab, Rename, Close profile, Delete profile…), a tab (Reload, Duplicate,
   Close, Close others) and the terminal (Copy, Paste, Select all, Clear, Change agent…).
 

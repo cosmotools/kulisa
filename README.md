@@ -56,7 +56,8 @@ terminal there, so the project's environment (direnv's `.envrc`, nvm, mise) appl
 **The agent:** the first time a workspace starts, Kulisa asks which agent to run there: Claude Code, Codex, or
 the terminal only. One that is not installed gets an **Install** button (Kulisa runs its maker's installer); on its
 first start the agent asks you to sign in to it. Each workspace keeps its choice; **Change agent…** in the
-terminal's right-click menu picks another (with a new conversation).
+terminal's right-click menu picks another (with a new conversation). **☰ → Agents…** (also on the Welcome screen)
+shows at any time which agents are installed, their versions and folders, and installs the others.
 
 **Workspaces:** several tasks of a project at once, each with its own agent. The strip under the grid shows the
 project's workspaces: **main** is the project itself; **+** makes a fork of it with a name you give: a git worktree
@@ -112,7 +113,8 @@ src/preload/     the window's bridge to the main process
 src/renderer/    window UI. renderer.js: the grid of panels (dockview), panes, ☰ and right-click menus; parts in their
                  own files: common.js, menu.js (the menus), terminal.js (xterm.js, one per workspace), projects.js,
                  workspaces.js (the strip, the new-workspace dialog), profile-editor.js; ES modules loaded when
-                 needed: agent-picker.js (choosing and installing an agent), ask.js (questions before deleting or
+                 needed: agent-picker.js (choosing and installing an agent), agents.js (the Agents
+                 window), both with agent-list.js, ask.js (questions before deleting or
                  closing), new-project.js (New Project…). Styles: tokens.css, components.css, window.css; the icons are a
                  sprite in index.html (docs/ui.md)
 assets/          the app icon: icon.svg (source) and what each OS needs, rendered by scripts/icons.js
