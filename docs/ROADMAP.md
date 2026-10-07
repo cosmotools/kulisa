@@ -1,154 +1,31 @@
 # Roadmap
 
-Feature numbers refer to [SPEC.md](SPEC.md), section 2. Update this file when something lands or changes plan.
-
-## Done
-
-- **Feature 1, profiles.** A profile editor (Profiles ▾ → Manage Profiles…): add, rename, delete (with a confirmation; wipes the
-  profile's sign-ins and data). Renaming also works by double-clicking a pane's name. Each profile has its own
-  cookies and storage; tabs, `target=_blank` and `window.open` stay in it. Sign-ins and tabs survive restarts,
-  session cookies included.
-- **Feature 2, see what the agent does.** Playwright's action annotations in the page (a mark at each action
-  point, the element outlined, a title, fading out; for the agent's Kulisa tools); a caption in the pane header
-  for any client.
-- **The agent points back.** `browser_highlight` outlines elements on a profile's page (Playwright's
-  `locator.highlight()`, following the element) and shows the labels in the pane header, until the human
-  clicks or types in that tab.
-- **Feature 3, point and tell.** ⌖ Pick (again, or Esc in the page, cancels), then click an element: a reference to
-  it (profile, tab, locator) is typed into the agent's prompt without Enter, and the terminal gets the focus. Picks
-  from several panes go into one message. The locator only (2026-10-06): nothing is saved and nothing written into
-  the project (the details file and `<project>/.kulisa/notes` are gone); the agent looks at the element on the live
-  page with its tools, on that tab (`tab` on the browser tools), and reads the tab's console and requests. If a
-  transient element (tooltip, open menu, toast) turns out to need it, add a screenshot taken at the pick.
-- **Console and network tools.** `browser_console_messages` and `browser_network_requests` of a profile's tab
-  (Playwright's `page.consoleMessages()`, `pageErrors()`, `requests()`), errors or failures only on request.
-- **Projects.** A project is a folder (usually a repository) with its own profiles, tabs, grid and agent
-  session; the Kulisa zoom is global. The project's name in the title bar opens a menu of the projects, as in
-  JetBrains: open another, remove one (its × on hover), New Project…, Open Folder…. The Manage
-  Projects dialog was dropped (2026-10-06): the menu and the Welcome screen do all it did, as in JetBrains, whose
-  Manage Projects… only shows the Welcome screen. New Project… (2026-10-06), as
-  JetBrains': a name and a location (the home folder by default, Browse…), the folder it makes shown, Create Git
-  repository on by default. It made `~/Kulisa/<name>` without asking before: the human then did not know where the
-  agent's files were. Opening another closes this one (tabs, sign-ins
-  and grid saved, agent stopped); coming back resumes the agent's conversation (Claude Code: `--resume` with the session the
-  SessionStart hook reported; Codex: `resume --last`). Data in `<user data>/projects/<id>/`. Each project gets its own color: a round glow from the middle of the window
-  (seen in the gaps between the islands and the title bar), the logo's curtain and the name's plate. The agent is typed into the user's shell started in the project's folder, so
-  the project's environment (direnv's `.envrc`, e.g. another Claude account) applies; untested on macOS (login
-  shell) and Windows (started directly, no shell).
-- **Workspaces, first version** (2026-10-06; how they work now: [workspaces.md](workspaces.md); the design and what
-  is left: Next, "Workspaces"). A strip of the
-  project's workspaces under the grid: main (the project itself) and its forks, each with its agent's state (Claude
-  Code's hooks: working, waiting for you, done). + asks for a name and makes a fork of main: a git worktree with its
-  own branch next to the project (`myshop@<name>`, started as Claude Code's `--worktree`; `.env*`, Claude's local
-  settings and `.worktreeinclude` copied), copies of main's profiles (signed in; closed ones closed, open ones with
-  their active tab, moved to the fork's port offset), main's grid, and a new agent session in its folder with
-  `KULISA_PORT_OFFSET` and its own MCP URL (`/ws/<n>/mcp`: its agent sees its profiles only). A click on a tab shows
-  that workspace's grid and terminal, sliding as macOS desktops do with pictures of the pages (not with reduced
-  motion); the one left keeps running. × on a fork deletes it (worktree, branch, profile copies, Claude's
-  conversations), always asking first (what goes, and any commits or files not in main; until 2026-10-06 a fork
-  without changes went without a question); × on main closes the project, and the
-  window shows the Welcome screen. Without git, + is off and "Initialize git…" runs `git init`
-  after a confirmation. Restored after a restart; a workspace loads (profiles, agent) when first shown. Storage
-  as Chrome's (store.js): `projects/<id>/<n>/Profile <k>/` per profile via `session.fromPath`, with its tabs and
-  session cookies inside. Linux only so far.
-- **Choosing the agent** (2026-10-06, with the author; found testing a fresh install: Kulisa started `claude`
-  without asking). Each workspace has the agent the human chose for it (its `agent.json`): when one has none, or
-  it is not installed, a dialog asks: Claude Code (Anthropic), Codex (OpenAI) or the terminal only, each with what
-  it needs and whether it is on this computer. One that is not has an Install button: Kulisa runs its maker's own
-  installer (the command line shown before; its output while it runs), no "type command X" steps, for people who are
-  not programmers. Then the agent starts and asks the human to sign in to it. A new workspace proposes main's
-  agent, another can be picked in its dialog. Official native installers (no Node, no sudo, they update
-  themselves; checked 2026-10-06): Claude Code `curl -fsSL https://claude.ai/install.sh | bash`, Codex
-  `curl -fsSL https://chatgpt.com/codex/install.sh | sh` (`install.ps1` on Windows). Not a separate window, as
-  first proposed: a dialog in the window costs no extra process, and its code is a module loaded only when the
-  dialog is needed (`agent-picker.js`; the rule is in CLAUDE.md). Each agent is one entry in `agents.js`: how to
-  find, install, start (Claude Code: the plugin; Codex: the MCP server as a config override) and resume it.
-  `KULISA_AGENT` still forces one agent everywhere, without asking. **Change agent…** in the terminal's right-click
-  menu opens the same dialog (with Cancel) and starts the chosen agent with a new conversation; found when a
-  fresh start with Codex and no Codex account left no way back.
-- **No project at first start** (2026-10-06, found testing a fresh install: Kulisa opened the folder it was started
-  from, `~/Kulisa/Default` when installed). The Welcome screen (the term: CLAUDE.md), as JetBrains': New Project…,
-  Open Folder…, and the recent projects; links to kulisa.app, the documentation (the README on GitHub for now), GitHub
-  and its issues, opened in the user's browser, and Kulisa's version. **Close Project** in the project button's menu
-  shows it again. **Remove Project…** (2026-10-06; the project menu: the open one's Remove Project…, any row's ×; on the
-  Welcome screen a recent project's × and right-click menu; one function in `app.js`): after a question, the project is closed if open, each of
-  its workspaces deleted (one `deleteWorkspace`, also behind a fork's ×), its data removed; its own folder stays. A
-  deleted fork leaves nothing behind: worktree, branch, direnv's permission, profiles, and what its agent keeps of
-  the folder (Claude Code's conversations, history and trust; Codex's sessions and trust; not Codex's databases).
-  Later starts open the project opened last; `KULISA_PROJECT` names one. The
-  copying of data from older layouts (before projects, before workspaces) is gone: no such data is left.
-- **A fork's agent as main's** (2026-10-06, found testing: Claude Code asked whether to trust the fork's folder).
-  - direnv: a copied `.envrc` was blocked in the fork (direnv wants `direnv allow` per folder), so the project's
-    environment was missing there, `CLAUDE_CONFIG_DIR` included: the fork's Claude ran with another config, maybe
-    another account. Now Kulisa allows the copy when main's `.envrc` is allowed (same content), and removes direnv's
-    records of it when the fork is deleted (`worktrees.js`). Other tools with the same rule (mise's `trust`) are not handled yet.
-  - Claude Code's question about trusting a new folder: the fork's folder is marked trusted in Claude's own config
-    when main is (`agents.js`, Claude's entry; the config file found from the transcript path Claude reported, so it
-    is the one the project's environment chose). Undocumented format: when the file is not as expected, nothing is
-    changed and Claude asks as usual. Claude rewrites that file often; Kulisa writes it whole at once (rename), and
-    a write of Claude's at the same moment may undo it (then Claude asks).
-- **Names** (2026-10-06, the author's rule). Projects, workspaces and profiles are named with the characters of an
-  email address and the letters of any language: letters, digits, `@ . _ + -`, starting with a letter or a digit (not `@` alone, `.x`, `..`, `-x`), no spaces, at most 64 (`names.js`),
-  so a profile can be named after the account it signs in to. Name fields leave other characters out as they are
-  typed or pasted; the main process checks again (the agent's `profile_create` too). Branches, fork folders and ids
-  keep letters of any language. Names given before stay until renamed.
-- **Window grid.** Profiles' panes and the terminal are peer panels in a grid (dockview): drag one to another
-  place, stack panels as tabs, resize; JetBrains' Islands look. Ready-made arrangements in ☰ → Arrange panels: profiles in
-  columns with the terminal below, two by two with the terminal right, one profile at a time; each drawn as a small
-  picture of itself (2026-10-06, as Windows' snap layouts), the words in its tooltip. The grid is saved
-  and restored.
-- **Zoom.** One text size and control height for the whole UI (`--font`, `--control` in styles.css). The Kulisa
-  zoom (Ctrl + / − / 0 outside the pages, or ☰ in the title bar, as Chrome's menu; the title bar shows it when not
-  100%) scales the UI, the terminal and the pages
-  together; Ctrl + / − / 0 in a page zooms that site in that profile on top of it, as in Chrome. Both saved.
-- **Closing a profile.** × at the top right of its pane (or its right-click menu, or the agent) closes it: the
-  pane and tabs go and free their memory; it stays in the project, signed in (session cookies saved), and Profiles ▾
-  (a menu of the profiles, as the project button's; or `profile_open`) brings it back with the same tabs. Stays closed across restarts (`closed` in
-  profiles.json).
-- **Menus.** Kulisa draws its menus in HTML, as Chrome does (a popover, `src/renderer/menu.js`): the project
-  button (projects with their color and folder, a × on hover to remove one), Profiles ▾ (open and closed profiles,
-  Manage Profiles…), ☰ (the zoom row "− 100% +", Arrange panels as pictures), and right-click on a
-  pane's header (New tab, Rename, Close profile, Delete profile…), a tab (Reload, Duplicate, Close, Close others) and the
-  terminal (Copy, Paste, Select all, Clear, Change agent…). The pages are native views above the HTML, so while a menu is open
-  they are pictures of themselves, as during a drag. Native menus were tried first (2026-10-05): rows of text
-  only, no buttons in a row; and a native menu in a page had frozen the desktop before (Deferred ideas). Not in
-  the pages yet.
-- **Dialogs, one look** (2026-10-06), as in JetBrains: the title with × on top, the content, and a strip of buttons
-  at the bottom right, the main one last (blue; red when it deletes); the same markup and styles for all
-  (`index.html`, styles.css). Questions before something that cannot be undone (deleting a profile, a workspace, a
-  project; Initialize git) are asked in that dialog too (`shell.ask` → `ask.js`, queued, Cancel focused), no longer
-  with the OS's own question (`dialog.showMessageBox`): that one looked different on each OS and plain on Linux, and
-  could not mark the deleting button or lay out what goes. The OS's own windows stay for choosing a folder.
-- **App icon.** A stage curtain drawn apart with the agent's pointer (`assets/icon.svg`); in the window's top
-  bar, the taskbar, and the installers (`.deb` checked: menu entry and pixmap; `.exe`, `.dmg` not built yet). Run
-  from source (`npm start`), GNOME's dock shows a generic icon: it takes icons from installed `.desktop` files
-  only (the `.deb` installs one matching the window class `kulisa`); left as is on purpose.
-- **Packaging.** Electron Forge (`npm run make`): `.deb` on Linux (tested: installs `chrome-sandbox` setuid root,
-  the packaged app starts), Squirrel `.exe` on Windows, `.dmg`/`.zip` on macOS (not built yet).
-- **DevTools.** A DevTools button on each pane (also F12 or Ctrl+Shift+I in its page) opens the active tab's
-  DevTools in a separate window. Kulisa's own DevTools only when running from source; a packaged build has
-  none (`appDevTools`, off when `app.isPackaged`).
-- **Terminal.** The agent CLI the human chose for the workspace (Choosing the agent) runs unchanged in the window.
-- **MCP.** Tools take a profile id; `profile_create`, `profile_open`, `profile_close` and `profile_delete` manage
-  profiles (a deletion by the agent asks the human first); `browser_tab_new`/`_select`/`_close` manage tabs. `@playwright/mcp` also works through the per-profile CDP proxy. Web pages cannot reach the MCP
-  server or the proxy (`local-only.js`).
-- **Kulisa plugin.** `claude` starts with the Kulisa plugin (`src/agent/claude-plugin`): the MCP config and a
-  skill on working with profiles, and a `SessionStart` hook that tells it which profiles are open. The user's own
-  MCP servers stay available (no `--strict-mcp-config`).
-- **Profiles present as Google Chrome.** UA, UA-CH, `userAgentData` (`mimic-chrome.js`).
-- **Strict sign-in.** Entra, including a GoDaddy-federated tenant behind Kasada, passes with the automatic sign-in
-  pause.
+What is planned: ideas and the details of features still to build, deferred ideas, open issues. Feature numbers
+refer to [SPEC.md](SPEC.md), section 2. When a feature is built, it is documented in `docs/` (how it works and why:
+[profiles.md](profiles.md), [workspaces.md](workspaces.md), [window.md](window.md), [ui.md](ui.md)) and removed from
+here; what is left of it stays.
 
 ## Next
 
 - **Kulisa plugin: more the agent can do in the browsers** (a feature of its own; tools in `mcp-server.js`, each
-  described in the skill). Console and network are done; what else an agent needs comes from using it.
+  described in the skill). What else an agent needs comes from using it. The human
+  has handles the agent does not yet (the table of actions in [profiles.md](profiles.md)): back, forward, reload,
+  renaming a profile; each a thin tool on the core.
+- **The window's handles name their workspace.** A window's IPC acts on the workspace that window shows (found by
+  `event.sender`, so never another window's); an action sent just as the human switches workspaces or projects could
+  still reach the other one. The renderer should send the workspace's key, as `layout` does.
 - **Kulisa plugin: running the app** (a feature of its own, found while designing workspaces, 2026-10-06). The
   agent gets help with starting the app under test: the WS's port offset in its environment
   (`KULISA_PORT_OFFSET`), and the skill on how to apply it for common stacks (`PORT`, `--port`, `.env.local`,
   published ports in `docker compose`). Possibly tools: the app's address for this WS, opening the WS's profiles
   there once the server answers, reporting that the app cannot run here. To design with the workspaces.
-- **Choosing the agent, rest** (first version: Done). Still to do:
+  - Why: every worktree has the same README command (`npm run dev` → `localhost:3000`). Besides the port,
+    worktrees share the local database (migrations of different branches), Redis and queues, OAuth redirect URLs
+    registered for one address, and cookies (one jar for all ports of `localhost`). Common practice: a port per
+    worktree through `PORT` or `.env.local`, a database per branch, hostnames through a local proxy
+    (`a.localhost`), docker compose per worktree, or one dev server at a time. A project that cannot run twice:
+    one shared dev server, the panes show whose branch it is.
+- **Choosing the agent, rest** (how it works: [workspaces.md](workspaces.md), "Choosing the agent").
   - Codex (0.160.1, Linux, 2026-10-06): its installer puts it in `~/.local/bin`, as assumed; `codex mcp list` with
     Kulisa's `-c mcp_servers.kulisa.url=…` lists the server, enabled; `codex resume` takes `--last` and `-c`. Not yet
     tried: a whole session driving the profiles. It gets the MCP tools but not
@@ -158,132 +35,28 @@ Feature numbers refer to [SPEC.md](SPEC.md), section 2. Update this file when so
   - Windows: the installers run in PowerShell, untested; macOS untested.
   - A hint in an empty grid (no profiles yet): "create the first profile".
 - **Projects, rest.**
-  - Opening a project asks "this window or a new window"; a new window is a second window of the same Kulisa (two
-    instances cannot share the user-data folder). Needs what is one per app today (terminal, picker, the
-    window's IPC) to become one per window.
   - Use a profile of another project.
-- **Workspaces: several features of a project at once** (the term: CLAUDE.md; how they work now:
-  [workspaces.md](workspaces.md); below, the decisions as they were taken). Designed with the author on
-  2026-10-06; the first version is built (Done), what is left is at the end. A workspace (WS) is a branch of code,
-  profiles, a grid and an agent. The decisions:
-  - **Window.** Each WS is its own dockview grid, like a desktop in macOS: switching a WS changes the whole grid
-    (the switch animated like macOS desktops, with pictures of the pages; off with "reduce motion"). A strip of WS
-    tabs under the grid, outside dockview, as a browser's tab strip, with "+" and each agent's state (working,
-    waiting for you, done).
-  - **Main and forks.** Main is the project itself: its folder, its branch, its profiles with their sign-ins; it
-    is permanent, and closing it closes the project (the Welcome screen: "open a project or create one").
-    "+" in any WS makes a fork of main. Forks are temporary: their branch goes back into main through git (merge
-    or pull request), and the fork is closed and deleted. A fork never becomes main (no pointer, no swapping of
-    branches). Something a fork needs that main lacks (e.g. a new sign-in) is done in main; later forks get it.
-  - **Code: git only.** A fork's code is a git worktree with its own branch, next to the project:
-    `~/IdeaProjects/myshop@<ws>/` (visible, opens in an IDE; not inside the project, where IDEs and tools would see
-    it twice). The branch starts as Claude Code's `--worktree` does: from the remote's default branch after a
-    fetch, else the local HEAD; uncommitted changes are not carried. Files outside git: Kulisa copies small ones
-    (`.env*`, the agent's local settings such as Claude's `.claude/settings.local.json`) and follows
-    `.worktreeinclude` when the project has one; the agent installs dependencies (the skill says so). A project
-    without git has no WS: "+" is off, with "Initialize git" (only on the human's click). Kulisa writes nothing
-    into the project's own folder.
-  - **Agent.** A new WS gets a new agent session (any agent CLI), started in the WS's folder, so it has no
-    questions about access outside its folder (Claude still asks once whether to trust a new folder). Not a fork
-    of main's conversation (`--fork-session`): the fork's code starts clean, and an agent remembering main's
-    unfinished edits would be misled. A pick in a WS's pane goes to that WS's agent. Several agents in one WS: a
-    deferred idea (Deferred ideas).
-  - **Profiles.** A fork copies main's profiles, sign-ins included, opening only each one's active tab. Main's
-    profiles are open while they are copied: flush cookies and storage first; on Windows open files are locked
-    (to check). Risks with real SSO (rotated tokens may sign a copy or the original out) are accepted for now:
-    test the idea first.
-  - **Storage, as Chrome keeps it**, so what is known about Chrome's storage applies:
-    ```
-    ~/.config/Kulisa/projects/myshop/
-      workspaces.json             the WS: number, name, branch, folder
-      1/                          a WS (main is 1)
-        profiles.json             folder → name, color, closed   (as Chrome's Local State)
-        layout.json, agent.json
-        Profile 1/                a Chromium profile (session.fromPath), plus Kulisa's own files in it:
-          Kulisa Tabs.json, Kulisa Session Cookies.bin
-    ```
-    Main is WS `1/`; forks get the next numbers. Profile folders are `Profile N`, as Chrome names them: fixed at
-    creation, so a rename touches only `profiles.json` (partition names kept a profile's first name). `Partitions/`,
-    `session-cookies/` and per-project `tabs.json` went (their data was copied over once, then the copying was removed
-    with the old data).
-    To check: how `session.fromPath` lays a profile out; whether caches can live outside the profile, as Chrome's
-    do on Linux (`~/.cache`), so a fork copies the folder whole.
-  - **Creating a fork** asks for its name (a dialog); the branch and the folder take it. All of main's profiles
-    are copied, closed ones stay closed.
-  - **Closing a fork** asks for confirmation, then deletes it: worktree folder, its branch (`git branch -D`; a
-    copy already pushed stays on the remote), profile copies, the agent's conversation. The dialog says when the
-    fork has changes not in main, which go with it. A fork without changes (no commits of its own, nothing
-    uncommitted) closed without asking at first, as Claude Code's `--worktree` does; since 2026-10-06 every fork asks
-    (the author's decision: its conversation and profile copies go too, and × is easy to hit by mistake), the
-    question the same as for removing a project: what goes for good, the work not in main. Later maybe an
-    archive to reopen closed forks (Conductor keeps the git state and the conversation) or an agent that names the
-    fork itself once it knows the task (Conductor does that too).
-  - **WS in the background** stay alive (their pages and agent keep working) in the first version. Unloading a
-    background WS's tabs while its agent does nothing is a later step: it needs to know the agent is idle (Claude
-    Code's hooks tell it; for other CLIs, no MCP calls and no terminal output for a while).
-  - **Opening another project** asks: in a new window (this project and its WS keep running) or in this one
-    (warns that this project's agents stop, when any is working). Coming back, or restarting Kulisa, restores all
-    WS and resumes their agents (where the agent can resume). The new window needs what is one per app today
-    (terminal, picker, the window's IPC) to become one per window; WS need a terminal per WS anyway.
-  - **Ports.** Each WS has a port offset (main 0, forks 100, 200, …): its app runs on the usual ports plus the
-    offset (3000 → 3100, 8080 → 8180), any number of services with one number. The fork's copied tabs are
-    rewritten to it (`localhost:3000/cart` → `localhost:3100/cart`); cookies do not depend on the port, so the
-    copies stay signed in to the app (separate hostnames such as `checkout.localhost` would lose that). The local
-    database is the developer's matter (`docker compose` already names containers after the folder, so a fork
-    gets its own; only published ports clash). Known limit: an app that cannot change its port (hard-coded,
-    OAuth bound to `localhost:3000`) cannot run in a fork; the agent says so.
-
-  Checked before building (2026-10-06): `session.fromPath` lays out a plain Chromium profile in the folder (Cookies,
-  Local Storage, IndexedDB…), its caches included (Cache, Code Cache, GPUCache, Dawn*): they cannot live elsewhere, so
-  a copy skips them. A profile copied while open, after flushing cookies and storage, opens signed in with its
-  storage (Linux).
-
-  Built differently from the above, or added while building:
-  - A workspace loads (profiles, agent) when it is first shown, not at the start: after a restart nothing works in
-    the background anyway, and the agent starts at its terminal's real size.
-  - The agent's state comes from Claude Code's hooks only (UserPromptSubmit, Notification, Stop); other CLIs show
-    none.
-  - Without git, + stays off until git has a first commit; Kulisa checks again when the pointer comes to the strip.
-
-  Still to do:
-  - Opening another project asks "this window or a new window" (Projects, rest); today it opens in this window,
-    without warning about working agents.
+- **Workspaces, rest** (how they work now, and why: [workspaces.md](workspaces.md)).
   - Helping the agent run the app ("Kulisa plugin: running the app", above). Today the agent gets
     `KULISA_PORT_OFFSET` and a line about it at session start.
   - The agent's state on the workspace tab for other agent CLIs (Codex…): today only Claude Code's hooks report
     it. For the others, e.g. from MCP calls and terminal output (working while they come, idle after a quiet
     while).
-  - Tried with Claude Code in forks (the trust question and direnv fixed: Done, "A fork's agent as main's"); the
-    tests run `cat` as the agent. Still to check in a fork: the hooks (session, state), `--resume` after a restart.
-  - Unloading a background workspace whose agent is idle (above).
+  - Tried with Claude Code in forks; the tests run `cat` as the agent. Still to check in a fork: the hooks
+    (session, state), `--resume` after a restart.
+  - Unloading a background workspace's tabs while its agent is idle: it needs to know the agent is idle (Claude
+    Code's hooks tell it; for other CLIs, no MCP calls and no terminal output for a while).
+  - Other tools that, like direnv, want a folder allowed before they apply (mise's `trust`): not handled yet.
   - Windows: copying an open profile (locked files are skipped and logged), removing a deleted fork's profile
     folders while their sessions are open (left for the next start). macOS and Windows untested.
   - A fork's start point is the remote's default branch: local commits not pushed yet are not in it (as with Claude
     Code's `--worktree`). If that surprises, an option as Claude's `worktree.baseRef: "head"`.
-
-  Earlier notes, partly superseded by the above:
-  - The MCP server tells agents apart by a URL per agent with a secret token. Built: a URL per workspace
-    (`/ws/<n>/mcp`); the token is not (Open issues, local processes).
-  - **Two agents need the same account.** Options:
-    - *Fork* (copy the profile folder, sign-ins included; Playwright's `storageState` does the same for parallel
-      tests). Cannot be merged back: storage and rotated tokens have one valid copy. With rotating tokens
-      (Microsoft, Google) a copy can sign the other out, the original included; apps with one session per user
-      kick one out; logout ends both; forgotten forks keep live sessions on disk. If built: started by the
-      human, tied to an agent, on closing the agent "delete / keep as a profile / replace the original".
-    - *Linked clone*: copies that keep the sign-in cookies in sync (Electron's cookie `changed` event), so a
-      rotated token reaches all copies; tabs stay separate. To check: sign-ins kept in `localStorage` (MSAL).
-    - *A pool per role*: the human signs in "admin #1", "admin #2"; an agent takes a free one and returns it.
-    - *Shared profile, own tabs*, actions queued: no copies, weak isolation (shared cookies, logout).
-    - Whether an agent may take a free profile itself or only gets one from the human.
-  - **The app under test runs once.** Every worktree has the same README command (`npm run dev` →
-    `localhost:3000`). Besides the port, worktrees share the local database (migrations of different branches),
-    Redis and queues, OAuth redirect URLs registered for one address, and cookies (one jar for all ports of
-    `localhost`). Common practice: a port per worktree through `PORT` or `.env.local`, a database per branch,
-    hostnames through a local proxy (`a.localhost`), docker compose per worktree, or one dev server at a time.
-    Kulisa could give each agent `PORT` and its name in the environment, tell it in the skill to run its server
-    there, and open the agent's profiles at the address the agent reports. A project that cannot run twice:
-    one shared dev server, the panes show whose branch it is.
-  - RAM: each agent is a Claude Code process (about 200–400 MB) plus its own profiles.
+  - The agent making and closing forks itself (MCP tools on `Project.createFork`, `deleteFork`), e.g. to hand
+    parallel parts of a task to agents of their own, as Conductor does: a gap in the table of actions
+    ([workspaces.md](workspaces.md), "Actions"). To discuss with "Several agents in one workspace" (Deferred
+    ideas); deleting asks the human, as `profile_delete` does.
+  - Maybe: an archive to reopen closed forks (Conductor keeps the git state and the conversation), or an agent that
+    names the fork itself once it knows the task (Conductor does that too).
 - **Discuss security for the end user** (with the author, before a public release). Kulisa holds signed-in work
   accounts and lets an agent act in them. Topics, each to decide or document for users:
   - **What the agent can do in signed-in accounts:** read private data (it saw passwords in a Teams chat), send
@@ -298,6 +71,54 @@ Feature numbers refer to [SPEC.md](SPEC.md), section 2. Update this file when so
     channel; profile pages are sandboxed and have no preload. Check against Electron's security checklist.
   - **Distribution:** code signing, notarization, auto-update channel, the `.deb`'s setuid `chrome-sandbox`.
   - **Presenting as Google Chrome:** what users should know (sites' terms, bot detection).
+- **Accessibility** (a11y; before a public release, as security). Kulisa should work for people who see poorly, do
+  not use a mouse, or use a screen reader, as the big IDEs do; for software bought by public bodies and large companies
+  it is also a requirement (Section 508 in the US, EN 301 549 in the EU, both on WCAG). Start from Electron's guide
+  (electronjs.org/docs/latest/tutorial/accessibility): Electron turns Chromium's accessibility tree on by itself when
+  assistive technology runs (JAWS, NVDA, VoiceOver, Orca); `app.setAccessibilitySupportEnabled()` turns it on by hand,
+  and on macOS other apps can ask for it (`AXManualAccessibility`); the OS's setting always wins.
+  - Already there: icon buttons have names (`aria-label`, checked by a test), the Kulisa zoom scales the whole UI,
+    slides follow reduced motion, semantic elements (`header`, `nav`, `dialog`), dialogs focus Cancel.
+  - Seeing: high contrast, the OS's setting (`nativeTheme.shouldUseHighContrastColors`; CSS `forced-colors` on
+    Windows, where the browser puts in the system's colors: check that nothing disappears; `prefers-contrast`); WCAG
+    contrast of every token in both themes (the muted text first).
+  - Keyboard: everything without a mouse, focus always visible. Moving between the panels and tabs (what dockview
+    has for it first), the project and workspace tabs, the menus (arrows, Esc), the dialogs. Shortcuts are a feature of
+    their own (below); for accessibility they must not clash with screen readers and the OS, and single-key ones must
+    be possible to turn off (WCAG 2.1.4).
+  - Screen readers: the window read in a sensible order, with names and states (a tab's agent state, the shown
+    project). Kulisa's own questions: the profiles' pages are native views of their own (a tree each) next to the
+    window's page, and pictures stand in for them under menus and dialogs: how a screen reader moves between them. The
+    terminal: xterm's `screenReaderMode` (as VS Code turns on when it detects one).
+  - Checking: Chromium's accessibility tree in DevTools (Accessibility pane); automated checks in the tests, e.g.
+    axe-core (Deque's, the most used) on the window's page; by hand with Orca (Linux), NVDA (Windows), VoiceOver
+    (macOS).
+- **Keyboard shortcuts** (an IDE's power users work by them, as in JetBrains and VS Code). Today Kulisa takes only a
+  few: its zoom (Ctrl + / − / 0 outside the pages), F12 and Ctrl+Shift+I (DevTools), Ctrl+Shift+C / V in the terminal.
+  - Which actions get one: switching projects and workspaces (Ctrl+Tab, Ctrl+1…9), a new tab, a new profile, the focus
+    between the terminal and the panels, Pick, closing.
+  - A command palette, where every action is found by its name (VS Code's Ctrl+Shift+P, JetBrains' Find Action):
+    every action also reachable without remembering keys.
+  - Who gets a key: Kulisa, the page of a profile (the site under test has shortcuts of its own) or the terminal (the
+    agent CLI uses Ctrl+C, Ctrl+R and others). A rule for what Kulisa takes everywhere, and what only outside the
+    pages and the terminal; the same keys on every OS (Cmd on macOS).
+  - A list of the shortcuts (in the palette, the menus' rows already have room for a key: `kbd`); remapping later.
+- **Auto-update** (not started; discuss with the author before building). The point: users never download a new
+  version by hand; installed copies update themselves in the background from the installers on GitHub Releases of
+  `cosmotools/kulisa` (where they are to be published anyway), the new version starting next time.
+  - Windows and macOS: Electron's own `autoUpdater` (Squirrel; Forge already makes the Squirrel `.exe`), most
+    simply through the Electron team's `update-electron-app` and the free update.electronjs.org service for public
+    GitHub repositories; Forge's GitHub publisher uploads the release. macOS needs the app signed (and notarized)
+    for updates to apply.
+  - Linux: Electron has no updater for the `.deb`. Without downloading by hand: an apt repository of our own
+    (Kulisa updates with the system's updates; the repository must be hosted and signed), Flathub or the Snap
+    Store (they update apps themselves, but their sandbox may get in the way of running the user's agent CLIs, git
+    and project folders), or AppImage with electron-updater (electron-builder's, not Forge's). Telling the user
+    that a newer release is out is only a stopgap.
+  - Size: Squirrel downloads the whole app (100+ MB) each time; delta updates if that matters.
+  - Needs first: releases on GitHub (versioning, the publisher in `forge.config.js`), code signing (Distribution in
+    the security list above). Updating must not touch the user's data folder or interrupt running agents: apply
+    on the next start, not mid-session.
 - **Feature 7, rest.** Reset a profile to a clean state (keeping its name), seeded test users.
 - **Feature 4, timeline.** One feed of DOM (rrweb-like), network, console and agent actions across profiles; scrub
   back and pick in the past.
@@ -311,6 +132,28 @@ Feature numbers refer to [SPEC.md](SPEC.md), section 2. Update this file when so
 - **Feature 5, run to test.** Save a multi-profile run as a Playwright test.
 
 ## Deferred ideas
+
+- **A public skill: "read the documentation of the installed version"** (2026-10-07; to judge around 2026-11-07,
+  after a few features built with Electron). An agent builds from what it learned in training, older than the
+  libraries in use; Kulisa's agent got the dark mode wrong until it read Electron's guide. Today it is a rule in
+  CLAUDE.md (Conventions): before building anything that touches Electron, look it up in the installed version's
+  documentation (the guides and `breaking-changes.md` at the version's tag, the API in `electron.d.ts`); the same for playwright-core's `types.d.ts`; and name what was read in
+  the plan. To judge: did plans name what was read, did features need redoing for an outdated API. If it works,
+  publish it as a skill for any Electron project (an agent skill, `SKILL.md`; check Codex reads it): none of the
+  Electron skills found (2026-10-07: electron-apps, full-stack-skills, gentleman-skills) points to the installed
+  version's docs, they retell Electron in text that ages as training does. If plans skip it, a hook instead.
+- **A screenshot taken at a pick** (point and tell), if a transient element (a tooltip, an open menu, a toast) turns
+  out to need it: today the pick is a locator only, and the agent looks at the live page.
+- **Two agents need the same account** (before workspaces; forks copy main's profiles today). Options:
+  - *Fork* (copy the profile folder, sign-ins included; Playwright's `storageState` does the same for parallel
+    tests). Cannot be merged back: storage and rotated tokens have one valid copy. With rotating tokens
+    (Microsoft, Google) a copy can sign the other out, the original included; apps with one session per user
+    kick one out; logout ends both; forgotten forks keep live sessions on disk.
+  - *Linked clone*: copies that keep the sign-in cookies in sync (Electron's cookie `changed` event), so a
+    rotated token reaches all copies; tabs stay separate. To check: sign-ins kept in `localStorage` (MSAL).
+  - *A pool per role*: the human signs in "admin #1", "admin #2"; an agent takes a free one and returns it.
+  - *Shared profile, own tabs*, actions queued: no copies, weak isolation (shared cookies, logout).
+  - Whether an agent may take a free profile itself or only gets one from the human.
 
 - **Workspaces for projects without git: a shadow repository** (2026-10-06). Kulisa keeps the history itself
   (`git --git-dir=<Kulisa data>/projects/<id>/git --work-tree=<project>`), so nothing appears in the user's folder,
@@ -348,11 +191,12 @@ Feature numbers refer to [SPEC.md](SPEC.md), section 2. Update this file when so
   `'mica'`) on Windows 11; on Linux only a transparent window (KDE can blur it, GNOME cannot: the desktop would show
   through sharp, worse than now), nothing reliable on Windows 10. Deferred: the author works on GNOME and would not
   see it. If built: only where it is real (macOS, Windows 11), opaque elsewhere; a few lines where the window is made
-  (`app.js`) and a translucent background color for those systems (`styles.css`). Check transparent windows'
+  (`app.js`) and a translucent background color for those systems (`tokens.css`). Check transparent windows'
   known issues there (resizing, maximizing, the title bar overlay, profile views above the HTML). Faking the blur
   (a picture of the wallpaper, blurred) was rejected: a workaround, and it lags when the window moves.
 - **A panel in its own OS window** (e.g. a profile on a second monitor). dockview has popout windows, but a
-  profile's page is a native view of the main window and would have to move to the new window. To discuss.
+  profile's page is a native view of its window and would have to move to the new window (`Profile.moveTo` does that
+  for a whole project, Move to New Window). To discuss.
 - **A right-click menu in pages** (copy, paste, open a link in a new tab of the profile, Inspect Element; more items
   later). Tried with electron-context-menu (native GTK menu) on 2026-10-05 and removed:
   - On Ubuntu GNOME (X11) a right-click in a profile's page froze the whole desktop, twice: gnome-shell logged a
@@ -363,7 +207,7 @@ Feature numbers refer to [SPEC.md](SPEC.md), section 2. Update this file when so
   - Before trying again: show it only where the page did not handle the right-click, and either find the cause of
     the freeze in a minimal window first or draw the menu in HTML (a small view above the page, as VS Code draws
     its menus on Linux).
-  - The window's menus are HTML now (Menus, above); a page menu could be one too, over a picture of the page.
+  - The window's menus are HTML now ([window.md](window.md), Menus); a page menu could be one too, over a picture of the page.
 - **Memory of panes off screen.** A pane stacked behind another keeps its tabs alive (and their memory). Unloading
   them while hidden would save RAM at the cost of reloading; not done.
 - **A Kulisa profile as a real Chrome profile.** Wanted: the profile's folder in Chrome's own format, so one button
@@ -410,16 +254,38 @@ Feature numbers refer to [SPEC.md](SPEC.md), section 2. Update this file when so
       `powershell.exe`) in the project's folder, as on the other systems: the PowerShell profile applies, `.cmd`
       resolves, the shell stays after the agent exits. Without an agent command the terminal falls back to
       `COMSPEC` (untested). SIGINT and SIGTERM work differently there (quit handling in `app.js`).
-    - Both: switching projects (the agent stops, `claude --resume` on coming back) and the project folder dialog
+    - Both: closing a project and opening it again (`claude --resume`) and the project folder dialog
       ("Open Folder…", native) are untested.
   - `safeStorage` (Keychain, DPAPI) for session cookies: expected to work, untested.
   - macOS: the window screenshot (`KULISA_SHOT`) needs the screen-recording permission; distribution needs code
     signing and notarization (Apple Developer account). Windows: code signing certificate.
-  - The first start: a packaged app opens no project (the window offers to open one), later the project opened last
+  - The first start: a packaged app opens no project (the window offers to open one), later the project tabs open last
     (untested packaged).
   - The one-row title bar (`titleBarStyle: 'hidden'` + `titleBarOverlay`, Window Controls Overlay): checked on
     Linux/X11 only. Check the window buttons, dragging and double-click to maximize on macOS (traffic lights on the
     left), Windows and Wayland.
+  - Several windows (Move to New Window): a profile's native views moved from one window to another, and a window's
+    place restored (`getNormalBounds`, maximized); checked on Linux/X11 only. Dragging a project's tab: tested with
+    synthetic events only, not yet by hand; a tab let go outside the windows is told from a cancelled drag by where the
+    pointer is (`screen.getCursorScreenPoint`), which Wayland may not report.
+  - The theme (☰ → Theme): the OS buttons' strip recolored (`setTitleBarOverlay`) and System following the OS
+    (`nativeTheme.shouldUseDarkColors`, `updated`; on Linux through GTK or the desktop portal): checked on
+    Linux/X11 (GNOME) by the tests only, not by changing the OS's setting by hand. macOS draws its own window
+    buttons.
   - Tests run only on Linux. Needs CI with a macOS/Windows/Linux matrix (GitHub Actions on the repository).
+- **A profile dropped from its list, its folder left behind** (found 2026-10-07; to come back to). The author's
+  data held a `Profile 2` in a main workspace, in no `profiles.json` and not in `deleted-folders.json`.
+  - Not deleted: deleting a profile, open or closed, removes its folder at the next start (tried 2026-10-07), and
+    removes its session cookies file at once; that file is still there.
+  - Its timestamps: created 2026-10-06 22:17; session cookies and storage written 22:42:12, as closing a profile
+    does; at 22:42:41 `Profile 3` was created and `profiles.json` written without `Profile 2`. So it was closed and
+    then dropped from the list without being deleted. The code path is not found; ask the author what they did then.
+  - Whatever the cause, a folder no `profiles.json` names: proposed to add it back to the list as a closed profile
+    (nothing signed in is lost; the human deletes it if not needed), rather than remove it at start, which would
+    destroy sign-ins of a profile dropped by a bug. The author's decision.
+- **Profiles' caches have no limit of Kulisa's.** Chromium's HTTP cache, Code Cache and GPU caches per profile
+  (on the author's main profiles 47 and 78 MB after a few days); Chromium sets the HTTP cache's limit itself from the
+  free disk space. Several profiles in several projects add up. To decide: a limit (`--disk-cache-size`, the whole
+  app) or clearing a profile's cache when it is closed.
 - **No performance numbers taken with the monitor on.** CPU, RAM, many profiles; see REPORT, E8.
 - **`playwright-core` is pinned to a 1.64 alpha.** Move to the stable release once it ships with the same APIs.

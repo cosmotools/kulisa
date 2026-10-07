@@ -97,12 +97,13 @@ async function setup(shell) {
   // true clicks the button that does it, false Cancel; null leaves the dialog to the test. ctx.asked: what was asked.
   const asked = [];
   const ctx = { shell, call, ui, ptyOutput: () => pty, watchPty, termText, asked, answer: true };
-  const ask = shell.ask;
-  shell.ask = (q) => {
+  const ask = shell.askWhich;
+  // Asked in the window w (window.js), the first one when none is named; shell.ask asks through it.
+  shell.askWhich = (q, w = shell.windows[0]) => {
     asked.push(q);
-    const answer = ask(q), yes = ctx.answer;
-    if (yes !== null) waitFor(() => ui(`document.getElementById('ask').open && document.querySelector('#ask h2').textContent === ${JSON.stringify(q.message)}`))
-      .then(() => ui(`document.querySelector('#ask ${yes ? '.ok' : 'button[value=""]'}').click()`));
+    const answer = ask(q, w), yes = ctx.answer, there = (js) => w.win.webContents.executeJavaScript(js);
+    if (yes !== null) waitFor(() => there(`document.getElementById('ask').open && document.querySelector('#ask h2').textContent === ${JSON.stringify(q.message)}`))
+      .then(() => there(`document.querySelector('#ask ${yes === 'other' ? '.other' : yes ? '.ok' : 'button[value=""]'}').click()`));
     return answer;
   };
   return ctx;

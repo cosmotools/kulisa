@@ -1,7 +1,7 @@
 // Kulisa's MCP server for the agent. Every tool takes `profile`; implemented with playwright-core through the
 // CDP proxy, so every action also reaches the pane's caption and action annotations (ghost.js).
-// Streamable HTTP, one URL per workspace: http://127.0.0.1:<port>/ws/<n>/mcp; its agent sees that workspace's
-// profiles only. Stateless (a new server per request).
+// Streamable HTTP, one URL per workspace: http://127.0.0.1:<port>/ws/<project>/<n>/mcp (the parts
+// percent-encoded); its agent sees that workspace's profiles only. Stateless (a new server per request).
 const http = require('http');
 const vm = require('vm');
 const { McpServer } = require('@modelcontextprotocol/sdk/server/mcp.js');
@@ -9,6 +9,7 @@ const { StreamableHTTPServerTransport } = require('@modelcontextprotocol/sdk/ser
 const { z } = require('zod');
 const { handleHookRequest } = require('./agent-hooks');
 const { fromLocalTool } = require('./local-only');
+const { toUrl } = require('./profiles');
 const { version: VERSION } = require('../../package.json');
 
 // The agent's highlights per profile (by '<workspace>/<profile id>'): { disposables, tab, onInput }; kept across MCP
@@ -29,12 +30,21 @@ function buildServer(ws) {
   const closed = [...ws.closed.values()].map(({ cfg }) => `${cfg.id} (${cfg.name}, closed)`);
   const profileArg = z.string().describe(`Profile id. Current: ${[...[...ws.profiles.values()].map((p) => `${p.id} (${p.name})`), ...closed].join(', ') || 'none yet'}; call browser_profiles for the live list`);
   const text = (t) => ({ content: [{ type: 'text', text: t }] });
-  const pageOfCheck = (profile) => {
-    if (ws.closed.has(profile)) throw new Error(`Profile "${profile}" is closed (the human closed its pane; it is still signed in). Open it with profile_open if the task needs it.`);
-    if (!ws.profiles.has(profile)) throw new Error(`No profile "${profile}". Profiles: ${[...ws.profiles.keys()].join(', ') || 'none — create one with profile_create'}`);
-    if (ws.profiles.get(profile).signinMode) throw new Error(`Profile "${profile}" is in sign-in mode: the human is signing in. Wait and try again later.`);
+  // The agent's handles on the core: profiles and tabs found as the window finds them (workspaces.js), plus what only
+  // automation keeps to: no agent while the human signs in.
+  const profileOf = (id) => {
+    const r = ws.find(id);
+    if (r.error) throw new Error(r.closed ? `${r.error} With profile_open, if the task needs it.` : r.error);
+    if (r.profile.signinMode) throw new Error(`Profile "${id}" is in sign-in mode: the human is signing in. Wait and try again later.`);
+    return r.profile;
   };
-  const pageOf = async (profile, tab) => { pageOfCheck(profile); return ws.profiles.get(profile).page(tab); };
+  const tabOf = (id, tabId) => {
+    profileOf(id);
+    const r = ws.findTab(id, tabId);
+    if (r.error) throw new Error(r.error);
+    return r;
+  };
+  const pageOf = (id, tabId) => { const { profile, tab } = tabOf(id, tabId); return profile.page(tab.id); };
   // The element for a ref or a locator. Waits a second for it to appear, then fails with what to do instead:
   // a guessed name ("New chat" for "New message") would otherwise cost the agent the action's full timeout.
   const target = async (page, { ref, locator }) => {
@@ -80,7 +90,7 @@ function buildServer(ws) {
     description: 'Delete a profile for good: its sign-ins, cookies, storage and tabs. The human is asked to confirm, and only they can sign a new profile in. Only when the human asks, or a profile you created is no longer needed.',
     inputSchema: { profile: z.string().describe('Profile id, open or closed') },
   }, async ({ profile }) => {
-    const r = await ws.agentDeletesProfile(profile);
+    const r = await ws.deleteProfile(profile, 'agent');
     if (r.error) throw new Error(r.error);
     return text(`Deleted profile ${profile}.`);
   });
@@ -95,7 +105,6 @@ function buildServer(ws) {
   });
 
   // Tabs. Other tools act on the profile's active tab, or on the tab they are given; these open, switch and close tabs.
-  const profileOf = (profile) => { pageOfCheck(profile); return ws.profiles.get(profile); };
   const tabArg = z.string().describe('Tab id from browser_profiles');
   const onTab = z.string().optional().describe('Tab id (from browser_profiles or a [kulisa pick: …] reference); default: the active tab');
   server.registerTool('browser_tab_new', {
@@ -111,16 +120,14 @@ function buildServer(ws) {
   });
   server.registerTool('browser_tab_select', { description: 'Make a tab the active one in its profile (the pane shows it; other tools act on it).', inputSchema: { profile: profileArg, tab: tabArg } },
     async ({ profile, tab }) => {
-      const p = profileOf(profile);
-      if (!p.get(tab)) throw new Error(`No tab ${tab} in ${profile}`);
-      p.activate(tab);
-      return text(`Active tab of ${profile}: ${tab} ${p.get(tab).wc.getURL()}`);
+      const { profile: p, tab: t } = tabOf(profile, tab);
+      p.activate(t.id);
+      return text(`Active tab of ${profile}: ${t.id} ${t.wc.getURL()}`);
     });
   server.registerTool('browser_tab_close', { description: 'Close a tab of the profile. Close only tabs you opened, unless the human asked.', inputSchema: { profile: profileArg, tab: tabArg } },
     async ({ profile, tab }) => {
-      const p = profileOf(profile);
-      if (!p.get(tab)) throw new Error(`No tab ${tab} in ${profile}`);
-      p.closeTab(tab);
+      const { profile: p, tab: t } = tabOf(profile, tab);
+      p.closeTab(t.id);
       return text(`Closed tab ${tab} of ${profile}`);
     });
 
@@ -139,8 +146,8 @@ function buildServer(ws) {
     },
   }, async ({ profile, tab: tabId, elements }) => {
     const page = await pageOf(profile, tabId);
-    const p = ws.profiles.get(profile);
-    const hkey = `${ws.n}/${profile}`;
+    const p = profileOf(profile);
+    const hkey = `${ws.key}/${profile}`;
     await clearHighlights(hkey);
     const shown = [];
     for (const el of elements) {
@@ -150,7 +157,7 @@ function buildServer(ws) {
       shown.push(await loc.highlight({ style: { outline: `3px solid ${p.color}`, outlineOffset: '2px' } }));
     }
     if (shown.length) {
-      const tab = p.get(tabId);
+      const { tab } = tabOf(profile, tabId);
       const onInput = (_e, input) => {
         if (!['mouseDown', 'keyDown', 'rawKeyDown'].includes(input.type)) return;
         clearHighlights(hkey); ws.caption(profile, '');
@@ -162,10 +169,12 @@ function buildServer(ws) {
     return text(elements.length ? `Highlighted ${elements.length} element(s) in ${profile}` : `Cleared highlights in ${profile}`);
   });
 
+  // As the human's address bar (Profile.navigate), but through Playwright, as everything the agent does in a page: the
+  // human sees it (ghost.js), and the sign-in pause holds (CLAUDE.md, Architecture).
   server.registerTool('browser_navigate', { description: "Navigate the profile's active tab to a URL.", inputSchema: { profile: profileArg, url: z.string() } },
     async ({ profile, url }) => {
       const page = await pageOf(profile);
-      await page.goto(url, { waitUntil: 'domcontentloaded' });
+      await page.goto(toUrl(url), { waitUntil: 'domcontentloaded' });
       return text(`Navigated ${profile} to ${page.url()} — "${await page.title()}"`);
     });
 
@@ -232,15 +241,17 @@ function buildServer(ws) {
   return server;
 }
 
+const safeDecode = (s) => { try { return decodeURIComponent(s); } catch { return ''; } };
+
 async function startMcpServer(shell, cfg) {
   const srv = http.createServer(async (req, res) => {
     if (!fromLocalTool(req)) { res.writeHead(403); return res.end(); }
-    // /ws/<n>/…: a workspace of the open project, loaded.
-    const m = req.url.match(/^\/ws\/(\d+)(\/.*)$/);
-    const ws = m && shell.workspaces.get(Number(m[1]));
+    // /ws/<project>/<n>/…: a workspace of an open project, loaded.
+    const m = req.url.match(/^\/ws\/([^/]+)\/(\d+)(\/.*)$/);
+    const ws = m && shell.workspaceOf(safeDecode(m[1]), Number(m[2]));
     if (!ws?.loaded) { res.writeHead(404); return res.end(); }
-    if (handleHookRequest(ws, m[2], req, res)) return;
-    if (!m[2].startsWith('/mcp')) { res.writeHead(404); return res.end(); }
+    if (handleHookRequest(ws, m[3], req, res)) return;
+    if (!m[3].startsWith('/mcp')) { res.writeHead(404); return res.end(); }
     let body = ''; req.on('data', (d) => (body += d));
     await new Promise((r) => req.on('end', r));
     let json;
@@ -253,7 +264,7 @@ async function startMcpServer(shell, cfg) {
   });
   await new Promise((r) => srv.listen(cfg.port || 0, '127.0.0.1', r));
   const base = `http://127.0.0.1:${srv.address().port}`;
-  console.log('[kulisa] MCP server:', `${base}/ws/<n>/mcp`);
+  console.log('[kulisa] MCP server:', `${base}/ws/<project>/<n>/mcp`);
   return { base, srv };
 }
 

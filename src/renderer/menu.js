@@ -4,7 +4,8 @@
 //   openMenu(items, at)   items: { label, sub, keys, color, enabled, run, remove } (no run: shown only), '-',
 //                         { heading }, { element } (a row of its own). remove: { title, run }, a × at the row's end,
 //                         shown on hover (as JetBrains' recent projects). at: the button to open it under, or the
-//                         mouse event to open it at.
+//                         mouse event to open it at. A button with data-menu-end (⋮, ☰: at the end of a bar)
+//                         gets the menu under it toward the start, its end edge at the button's, as Chrome's ⋮.
 //   menuCover             { cover, uncover }: what else has to happen while a menu is open. The window sets it:
 //                         the pages are native views above its HTML and would hide the menu (renderer.js).
 const menuCover = { cover: async () => {}, uncover: () => {} };
@@ -66,7 +67,8 @@ const openMenu = (() => {
       return r;
     }));
     source = at;
-    // At the pointer: a point the popover is anchored to, as to a button (styles.css keeps it in the window).
+    el.classList.toggle('end', at instanceof Element && 'menuEnd' in at.dataset);
+    // At the pointer: a point the popover is anchored to, as to a button (components.css keeps it in the window).
     if (at instanceof MouseEvent) point.style.translate = `${at.clientX}px ${at.clientY}px`;
     await menuCover.cover();
     el.showPopover({ source: at instanceof MouseEvent ? point : at });

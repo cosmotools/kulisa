@@ -6,9 +6,29 @@
   <link rel="stylesheet" href="../../node_modules/@xterm/xterm/css/xterm.css">
   <link rel="stylesheet" href="../../node_modules/@fontsource/jetbrains-mono/400.css">
   <link rel="stylesheet" href="../../node_modules/@fontsource/jetbrains-mono/700.css">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="components.css">
+  <link rel="stylesheet" href="window.css">
+  <!-- The theme (dark, light, system: tokens.css) comes in the URL, set before the first paint (window.js, load) -->
+  <script>document.documentElement.dataset.theme = new URLSearchParams(location.search).get('theme') || 'dark';</script>
 </head>
 <body>
+  <!-- Icons (docs/ui.md): each drawn once here, on a 16 × 16 grid in lines of the text's color, and used as
+       <svg aria-hidden="true"><use href="#i-…"/></svg>. Their size is the place's (components.css, .icon). -->
+  <svg hidden>
+    <symbol id="i-close" viewBox="0 0 16 16"><path d="M3.5 3.5l9 9M12.5 3.5l-9 9"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10"/></symbol>
+    <symbol id="i-menu" viewBox="0 0 16 16"><path d="M2 4h12M2 8h12M2 12h12"/></symbol>
+    <symbol id="i-more" viewBox="0 0 16 16"><path d="M8 3.5h.01M8 8h.01M8 12.5h.01"/></symbol>
+    <!-- Back, forward, reload: Chrome's -->
+    <symbol id="i-back" viewBox="0 0 16 16"><path d="M13 8H3.5M7.5 4 3.5 8l4 4"/></symbol>
+    <symbol id="i-forward" viewBox="0 0 16 16"><path d="M3 8h9.5M8.5 4l4 4-4 4"/></symbol>
+    <symbol id="i-reload" viewBox="0 0 16 16"><path d="M13 8a5 5 0 1 1-1.46-3.54M12.5 1.8v3h-3"/></symbol>
+    <!-- Pick: DevTools' inspect icon, a square and an arrow at its corner -->
+    <symbol id="i-pick" viewBox="0 0 16 16"><path d="M13.5 7V3.5a1 1 0 0 0-1-1h-9a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1H7"/><path fill="currentColor" d="M9 9l5.5 2-2.4.9-.9 2.4z"/></symbol>
+    <!-- A site without an icon of its own, as Chrome's globe -->
+    <symbol id="i-globe" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M2 8h12M8 2c-2.2 2.6-2.2 9.4 0 12M8 2c2.2 2.6 2.2 9.4 0 12"/></symbol>
+  </svg>
   <header id="topbar">
     <!-- The app icon (assets/icon.svg) with the curtain in the project's color (--project): each project its own
          curtain. -->
@@ -26,17 +46,18 @@
       </g>
       <path d="M446 390 L446 740 L529 659 L584 777 L641 751 L586 635 L700 629 Z" fill="#ffd27a" stroke="#17181b" stroke-width="26" stroke-linejoin="round"/>
     </svg>
-    <button id="openProjects" title="Switch project"><b id="projectName">Kulisa</b> ▾</button>
+    <!-- The open projects as tabs (projects.js), then + : the menu of the projects -->
+    <nav id="projectTabs" aria-label="Open projects"></nav>
+    <button id="openProjects" class="icon" title="Open a project" aria-label="Open a project"><svg aria-hidden="true"><use href="#i-plus"/></svg></button>
     <button id="openProfiles" title="Profiles of this project">Profiles ▾</button>
     <button id="zoomReset" hidden title="Kulisa's zoom. Click to reset (Ctrl 0)"></button>
-    <button id="windowMenu" title="Menu: zoom, layout" aria-label="Menu">
-      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12"/></svg></button>
+    <button id="windowMenu" class="icon" data-menu-end title="Menu: zoom, layout" aria-label="Menu"><svg aria-hidden="true"><use href="#i-menu"/></svg></button>
   </header>
   <main id="dock"></main>
   <!-- The project's workspaces (workspaces.js), under the grid -->
   <nav id="workspaces">
     <div id="wslist"></div>
-    <button id="wsadd" title="New workspace" aria-label="New workspace">+</button>
+    <button id="wsadd" class="icon" title="New workspace" aria-label="New workspace"><svg aria-hidden="true"><use href="#i-plus"/></svg></button>
     <button id="wsinit" hidden title="Workspaces need git: run git init in the project's folder">Initialize git…</button>
   </nav>
   <!-- The Welcome screen (projects.js): no project open; what to open, as JetBrains' Welcome screen -->
@@ -59,7 +80,7 @@
   <!-- Dialogs, one look for all, as in JetBrains: header (the title; × for those that may be closed), .body, footer
        (the buttons at the right end, the main one last). Esc, a click outside (closedby) or × closes them. -->
   <dialog id="profiles" closedby="any">
-    <header><h2>Profiles</h2><button class="x" type="button" command="close" commandfor="profiles" title="Close" aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></header>
+    <header><h2>Profiles</h2><button class="x icon quiet" type="button" command="close" commandfor="profiles" title="Close" aria-label="Close"><svg aria-hidden="true"><use href="#i-close"/></svg></button></header>
     <div class="body">
       <p class="hint">A profile is a separate browser profile, as in Chrome: its own cookies, storage, tabs and sign-ins.
         Sign in by hand in its pane; the agent in the terminal then uses it.</p>
@@ -70,7 +91,7 @@
   </dialog>
   <!-- New Project…, as JetBrains' (new-project.js, loaded when needed) -->
   <dialog id="newproject" closedby="any">
-    <header><h2>New Project</h2><button class="x" type="button" command="close" commandfor="newproject" title="Close" aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></header>
+    <header><h2>New Project</h2><button class="x icon quiet" type="button" command="close" commandfor="newproject" title="Close" aria-label="Close"><svg aria-hidden="true"><use href="#i-close"/></svg></button></header>
     <form id="npform">
       <div class="body">
         <label class="field"><span>Name</span><input id="npname" data-name maxlength="64" placeholder="e.g. tenant-audit" spellcheck="false"></label>
@@ -83,7 +104,7 @@
     </form>
   </dialog>
   <dialog id="wsnew" closedby="any">
-    <header><h2>New Workspace</h2><button class="x" type="button" command="close" commandfor="wsnew" title="Close" aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></header>
+    <header><h2>New Workspace</h2><button class="x icon quiet" type="button" command="close" commandfor="wsnew" title="Close" aria-label="Close"><svg aria-hidden="true"><use href="#i-close"/></svg></button></header>
     <form id="wsform">
       <div class="body">
         <p class="hint">A fork of main for one task: its own branch and folder next to the project, its own agent, and
@@ -110,9 +131,9 @@
   </dialog>
   <!-- A question before something that cannot be undone (deleting a workspace, a project, a profile): ask.js -->
   <dialog id="ask" closedby="any">
-    <header><h2></h2><button class="x" type="button" command="close" commandfor="ask" title="Close" aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></header>
+    <header><h2></h2><button class="x icon quiet" type="button" command="close" commandfor="ask" title="Close" aria-label="Close"><svg aria-hidden="true"><use href="#i-close"/></svg></button></header>
     <div class="body"><p class="detail"></p></div>
-    <form method="dialog"><footer><button value="" autofocus>Cancel</button><button value="ok" class="ok"></button></footer></form>
+    <form method="dialog"><footer><button value="" autofocus>Cancel</button><button value="other" class="other" hidden></button><button value="ok" class="ok"></button></footer></form>
   </dialog>
   <div id="term"></div>
   <!-- The menus (menu.js) -->
@@ -122,19 +143,23 @@
   <!-- Built by renderer.js -->
   <template id="tpl-pane">
     <div class="pane">
-      <nav class="tabs"><button class="add" title="New tab">+</button></nav>
+      <!-- The tabs scroll in .strip; + is next to it, never over a tab, as in Chrome -->
+      <nav class="tabs"><div class="strip"></div><button class="add icon" title="New tab" aria-label="New tab"><svg aria-hidden="true"><use href="#i-plus"/></svg></button></nav>
       <div class="bar">
-        <button class="back" title="Back">◀</button><button class="fwd" title="Forward">▶</button><button class="reload" title="Reload">⟳</button>
+        <button class="back icon" title="Back" aria-label="Back"><svg aria-hidden="true"><use href="#i-back"/></svg></button>
+        <button class="fwd icon" title="Forward" aria-label="Forward"><svg aria-hidden="true"><use href="#i-forward"/></svg></button>
+        <button class="reload icon" title="Reload" aria-label="Reload"><svg aria-hidden="true"><use href="#i-reload"/></svg></button>
         <input class="addr" spellcheck="false">
         <button class="zoom tool" hidden title="This site's zoom in this profile (Ctrl + / − / 0 in the page). Click to reset."></button>
-        <button class="pick tool" title="Click an element on the page to mention it to the agent">⌖ Pick</button>
-        <button class="devtools tool" title="DevTools of this tab (F12)">DevTools</button>
+        <button class="pick icon" title="Pick an element on the page to mention it to the agent (again or Esc: cancel)" aria-label="Pick an element"><svg aria-hidden="true"><use href="#i-pick"/></svg></button>
+        <button class="more icon" data-menu-end title="More: DevTools" aria-label="More"><svg aria-hidden="true"><use href="#i-more"/></svg></button>
       </div>
       <div class="content"></div>
     </div>
   </template>
-  <template id="tpl-tab"><div class="tab"><img alt="" hidden><span class="title"></span><span class="x" title="Close tab">×</span></div></template>
-  <template id="tpl-ptab"><div class="ptab"><span class="dot"></span><b class="pname" title="Double-click to rename"></b><span class="caption"></span><button class="close" title="Close profile: its tabs go, its sign-ins stay (open it again in Profiles)" aria-label="Close profile"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></div></template>
+  <!-- A tab: the site's icon (a globe until it has one, as Chrome's), its title, × -->
+  <template id="tpl-tab"><div class="tab"><img alt="" hidden><svg class="globe" aria-hidden="true"><use href="#i-globe"/></svg><span class="title"></span><span class="x icon small" title="Close tab"><svg aria-hidden="true"><use href="#i-close"/></svg></span></div></template>
+  <template id="tpl-ptab"><div class="ptab"><span class="dot"></span><b class="pname" title="Double-click to rename"></b><span class="caption"></span><button class="close icon quiet" title="Close profile: its tabs go, its sign-ins stay (open it again in Profiles)" aria-label="Close profile"><svg aria-hidden="true"><use href="#i-close"/></svg></button></div></template>
   <template id="tpl-prow">
     <div class="prow">
       <span class="dot"></span><input class="name" data-name maxlength="64" spellcheck="false"><code class="pid"></code>
@@ -146,7 +171,10 @@
   </template>
   <!-- A menu row with a × at its end (menu.js, remove): the row's item goes first -->
   <template id="tpl-menuremovable">
-    <div class="removable"><button class="remove" aria-label="Remove"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></div>
+    <div class="removable"><button class="remove icon quiet" aria-label="Remove"><svg aria-hidden="true"><use href="#i-close"/></svg></button></div>
+  </template>
+  <template id="tpl-menutheme">
+    <div class="themerow"><span>Theme</span><button data-theme="dark">Dark</button><button data-theme="light">Light</button><button data-theme="system" title="As the operating system">System</button></div>
   </template>
   <template id="tpl-menuzoom">
     <div class="zoomrow"><span>Zoom</span><button class="out" title="Zoom out (Ctrl −)">−</button><output></output><button class="in" title="Zoom in (Ctrl +)">+</button></div>
@@ -170,22 +198,27 @@
     </div>
   </template>
   <template id="tpl-wstab">
-    <div class="wstab"><span class="state"></span><span class="name"></span><button class="close" aria-label="Close"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></div>
+    <div class="wstab striptab"><span class="state"></span><span class="name"></span><button class="close icon quiet small" aria-label="Close"><svg aria-hidden="true"><use href="#i-close"/></svg></button></div>
   </template>
   <template id="tpl-agent">
     <label class="agentrow"><input type="radio" name="agent"><span class="what"><b class="name"></b><small class="needs"></small>
       <small class="install-line"></small></span><span class="status"></span><button type="button" class="install">Install</button></label>
   </template>
+  <!-- An open project's tab in the title bar (projects.js) -->
+  <template id="tpl-projecttab">
+    <div class="projecttab striptab colored" draggable="true"><span class="dot"></span><span class="name"></span><span class="state"></span><button class="close icon quiet small" title="Close the project (its tabs and sign-ins are kept)" aria-label="Close project"><svg aria-hidden="true"><use href="#i-close"/></svg></button></div>
+  </template>
   <!-- A recent project on the Welcome screen (projects.js) -->
   <template id="tpl-project">
-    <div class="project"><button class="item"><span class="dot"></span><span class="text"><span class="label"></span><small></small></span></button>
-      <button class="remove" title="Remove project…" aria-label="Remove project"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg></button></div>
+    <div class="removable"><button class="item"><span class="dot"></span><span class="text"><span class="label"></span><small></small></span></button>
+      <button class="remove icon quiet" title="Remove project…" aria-label="Remove project"><svg aria-hidden="true"><use href="#i-close"/></svg></button></div>
   </template>
   <script src="../../node_modules/dockview-core/dist/dockview-core.js"></script>
   <script src="../../node_modules/@xterm/xterm/lib/xterm.js"></script>
   <script src="../../node_modules/@xterm/addon-fit/lib/addon-fit.js"></script>
   <script src="../../node_modules/@xterm/addon-unicode11/lib/addon-unicode11.js"></script>
   <script src="../../node_modules/@xterm/addon-webgl/lib/addon-webgl.js"></script>
+  <script src="../../node_modules/@xterm/addon-serialize/lib/addon-serialize.js"></script>
   <script src="common.js"></script>
   <script src="menu.js"></script>
   <script src="terminal.js"></script>

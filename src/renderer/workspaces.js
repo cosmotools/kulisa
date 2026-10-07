@@ -1,8 +1,9 @@
 // Workspaces (ROADMAP, "Workspaces"): the strip under the grid, as a browser's tab strip. A tab per workspace of the
-// open project (main and its forks) with its agent's state (working, waiting for you, done); a click shows one, ×
+// shown project (main and its forks) with its agent's state (working, waiting for you, done); a click shows one, ×
 // closes it (a fork is deleted, asking first when it has changes; main closes the project), + makes a fork of main
 // with a name asked in a dialog. Forks need git: without it + is off, and "Initialize git…" offers git init.
-//   workspaces.current   the shown workspace's number; null when no project is open (the window offers to open one)
+//   workspaces.current   the shown workspace's key ("<project id>/<n>"); null when no project is open (the Welcome
+//                        screen)
 const workspaces = (() => {
   const list = document.getElementById('wslist');
   const add = document.getElementById('wsadd');
@@ -17,14 +18,14 @@ const workspaces = (() => {
   const STATES = { working: 'The agent is working', waiting: 'The agent waits for you', done: 'The agent is done' };
 
   kulisa.on('workspaces', ({ current, list: all, git }) => {
-    // Its terminal once the grid on screen has gone (another project: the terminals were reset).
+    // Its terminal once the grid on screen has gone.
     if (current !== null && (current !== ws.current || !term)) Promise.resolve(leaving).then(() => showTerminal(current));
     ws.current = current;
     document.documentElement.classList.toggle('noproject', current === null);
     list.replaceChildren(...all.map((w) => {
       const el = tpl('tpl-wstab');
-      el.dataset.ws = w.n;
-      el.classList.toggle('active', w.n === current);
+      el.dataset.ws = w.key;
+      el.classList.toggle('active', w.key === current);
       el.querySelector('.name').textContent = w.name;
       const state = el.querySelector('.state');
       state.dataset.state = w.state || '';
@@ -41,9 +42,9 @@ const workspaces = (() => {
   list.onclick = (e) => {
     const tab = e.target.closest('.wstab');
     if (!tab) return;
-    const n = Number(tab.dataset.ws);
-    if (e.target.closest('.close')) kulisa.invoke('ws:close', n);
-    else if (n !== ws.current) kulisa.invoke('ws:show', n);
+    const key = tab.dataset.ws;
+    if (e.target.closest('.close')) kulisa.invoke('ws:close', key);
+    else if (key !== ws.current) kulisa.invoke('ws:show', key);
   };
   init.onclick = () => kulisa.invoke('ws:git-init');
   // Whether forks are possible is checked again as the pointer comes (git init or a first commit in the terminal).

@@ -6,27 +6,28 @@ const { ipcMain } = require('electron');
 const { typeIntoPrompt } = require('./terminal');
 
 function installPicker(shell) {
-  // Profiles in pick mode (of the workspace on screen, by id) -> { profile, page, cancel }. Pick mode ends with a
-  // click on an element, or is cancelled by Esc in the page or by the Pick button again (pick:cancel). The reference
-  // goes to the agent of the profile's workspace.
-  shell.picking = new Map();
-  ipcMain.handle('pick:cancel', (_e, { profile }) => shell.picking.get(profile)?.cancel());
-  ipcMain.handle('pick:start', async (_e, { profile: pid }) => {
+  // Profiles in pick mode, each window's (window.js: picking, of the workspace on screen, by id) -> { profile, page,
+  // cancel }. Pick mode ends with a click on an element, or is cancelled by Esc in the page or by the Pick button again
+  // (pick:cancel). The reference goes to the agent of the profile's workspace.
+  ipcMain.handle('pick:cancel', (e, { profile }) => shell.windowOf(e.sender)?.picking.get(profile)?.cancel());
+  ipcMain.handle('pick:start', async (e, { profile: pid }) => {
     try {
-      const profile = shell.profiles.get(pid);
-      const ws = shell.ws;
-      const tab = profile.get();
+      const w = shell.windowOf(e.sender), ws = w?.ws;
+      if (!ws) return { error: 'no workspace is open' };
+      const found = ws.findTab(pid); // its active tab (workspaces.js, the agent's checks too)
+      if (found.error) return found;
+      const { profile, tab } = found;
       const page = await profile.page(tab.id);
       const wc = tab.wc;
       let cancelled = false;
       const cancel = () => { cancelled = true; return page.cancelPickLocator().catch(() => {}); };
       const onKey = (e, input) => { if (input.type === 'keyDown' && input.key === 'Escape') { e.preventDefault(); cancel(); } };
-      shell.picking.set(pid, { profile, page, cancel });
+      w.picking.set(pid, { profile, page, cancel });
       wc.on('before-input-event', onKey);
       wc.focus();
       let picked;
       try { picked = await page.pickLocator(); } catch (e) { if (!cancelled) throw e; } finally {
-        shell.picking.delete(pid);
+        w.picking.delete(pid);
         if (!wc.isDestroyed()) wc.off('before-input-event', onKey);
       }
       if (cancelled || !picked) return { cancelled: true };
@@ -38,8 +39,8 @@ function installPicker(shell) {
       const reference = `[kulisa pick: ${profile.id} tab ${tab.id} ${locator}] `;
       if (ws.pty) typeIntoPrompt(ws.pty, reference);
       // The human goes on typing in the terminal: move the focus there from the page.
-      shell.win.webContents.focus();
-      shell.win.webContents.send('terminal:focus');
+      if (!w.win.isDestroyed()) w.win.webContents.focus();
+      w.send('terminal:focus');
       return { tab: tab.id, locator, reference };
     } catch (e) { return { error: e.message }; }
   });

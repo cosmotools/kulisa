@@ -6,9 +6,9 @@
 const panes = new Map(); // profile key (its folder; stable across renames) -> { el, tabEl, profile }
 let state = []; // the open profiles of the shown workspace, as the main process sends them
 let gridReady = null;
-let leaving = null; // the grid being taken down (an animation), before the next one is built
-let slideIn = 0; // the next grid slides in from this side (1 right, -1 left), as macOS desktops do
-const pictures = new Map(); // workspace number -> { profile id: data URL }: its pages when it was left, for sliding in
+let leaving = null; // the grid being taken down, before the next one is built
+let sliding = null; // a workspace switch as a view transition: { transition, built } until the next grid is built
+const pictures = new Map(); // workspace key -> { profile id: data URL }: its pages when it was left, for sliding in
 const dockEl = document.getElementById('dock');
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 
@@ -22,17 +22,22 @@ kulisa.on('state', async (s) => {
 });
 // Until the grid is built and the pages have their places, the window shows no grid and the main process keeps the
 // pages hidden (html.loading): nothing jumps while the window loads, e.g. when another project is opened. A workspace
-// shown from the strip slides in with pictures of its pages, then the pages themselves come.
+// shown from the strip slides in with pictures of its pages (grid:closing), then the pages themselves come.
 function reveal() {
-  requestAnimationFrame(() => requestAnimationFrame(async () => { // after sendLayout's frame
-    const dir = slideIn; slideIn = 0;
+  if (sliding) {
+    const { transition, built } = sliding; sliding = null;
     document.documentElement.classList.remove('loading');
-    if (dir) {
-      showPictures(pictures.get(workspaces.current) || {});
-      await dockEl.animate([{ translate: `${dir * 30}% 0`, opacity: 0 }, { translate: '0 0', opacity: 1 }], { duration: 200, easing: 'ease-out' }).finished;
+    showPictures(pictures.get(workspaces.current) || {});
+    built(); // the transition's new state: it slides in
+    transition.finished.then(() => {
       for (const img of document.querySelectorAll('.pane .content img.snapshot')) img.remove();
-      sendLayout(); // the boxes measured while it slid were off by the slide
-    }
+      sendLayout();
+      kulisa.invoke('views:hidden', viewsCovered());
+    });
+    return;
+  }
+  requestAnimationFrame(() => requestAnimationFrame(() => { // after sendLayout's frame
+    document.documentElement.classList.remove('loading');
     kulisa.invoke('views:hidden', viewsCovered());
   }));
 }
@@ -67,14 +72,16 @@ function render() {
     zoom.hidden = !active || active.zoom === 1;
     if (active) zoom.textContent = `${Math.round(active.zoom * 100)}%`;
     const addr = pane.el.querySelector('.addr');
-    if (document.activeElement !== addr) addr.value = active ? active.url : '';
+    if (document.activeElement !== addr) addr.value = active ? shortUrl(active.url) : '';
+    // A tab the human opened (+, New tab): the address gets the focus once the tab is the active one, as in Chrome.
+    if (pane.typeInto && pane.typeInto === p.active) { pane.typeInto = null; addr.focus(); }
   }
   scheduleLayout();
 }
 
 // The tab strip; clicks are handled for the whole strip in createPane.
 function renderTabs(pane, p) {
-  const strip = pane.el.querySelector('.tabs');
+  const strip = pane.el.querySelector('.tabs .strip');
   strip.replaceChildren(...p.tabs.map((t) => {
     const el = tpl('tpl-tab');
     el.dataset.tab = t.id;
@@ -84,7 +91,14 @@ function renderTabs(pane, p) {
     if (t.favicon) { img.src = t.favicon; img.hidden = false; }
     el.querySelector('.title').textContent = (t.loading ? '⟳ ' : '') + (t.title || t.url || 'New tab');
     return el;
-  }), pane.add);
+  }));
+  // The active tab in sight, as Chrome scrolls to it.
+  const a = strip.querySelector('.tab.active')?.getBoundingClientRect();
+  if (a) {
+    const { left: start, right: end } = strip.getBoundingClientRect();
+    if (a.left < start) strip.scrollLeft -= start - a.left;
+    else if (a.right > end) strip.scrollLeft += a.right - end;
+  }
 }
 
 // A pane: its panel content (el) and its header in the grid (tabEl: color, name, the agent's caption).
@@ -97,29 +111,51 @@ function createPane(p) {
   panes.set(p.key, pane);
   const id = () => pane.profile.id;
   const tab = () => pane.profile.active;
+  el.querySelector('.tabs .strip').onwheel = (e) => { if (!e.deltaX) e.currentTarget.scrollLeft += e.deltaY; };
   el.querySelector('.tabs').onclick = (e) => {
     const t = e.target.closest('.tab')?.dataset.tab;
-    if (e.target.closest('.add')) kulisa.invoke('tab:new', { profile: id() });
+    if (e.target.closest('.add')) newTab(pane);
     else if (t && e.target.closest('.x')) kulisa.invoke('tab:close', { profile: id(), tab: t });
     else if (t) kulisa.invoke('tab:activate', { profile: id(), tab: t });
   };
   el.querySelector('.back').onclick = () => kulisa.invoke('tab:back', { profile: id(), tab: tab() });
   el.querySelector('.fwd').onclick = () => kulisa.invoke('tab:forward', { profile: id(), tab: tab() });
   el.querySelector('.reload').onclick = () => kulisa.invoke('tab:reload', { profile: id(), tab: tab() });
-  el.querySelector('.addr').onkeydown = (e) => {
+  const addr = el.querySelector('.addr');
+  addr.onkeydown = (e) => {
     if (e.key !== 'Enter') return;
     kulisa.invoke('tab:navigate', { profile: id(), tab: tab(), url: e.target.value });
     e.target.blur();
   };
+  // As Chrome's: shown without https:// and www. (shortUrl); getting the focus shows the whole address, selected; a
+  // click while editing places the caret, a drag selects.
+  const url = () => { const u = pane.profile.tabs.find((t) => t.id === tab())?.url || ''; return u === 'about:blank' ? '' : u; };
+  let clickedIn = false;
+  addr.onfocus = () => { addr.value = url(); addr.select(); };
+  addr.onblur = () => { addr.value = shortUrl(url()); };
+  addr.onmousedown = () => { clickedIn = document.activeElement !== addr; };
+  addr.onmouseup = (e) => {
+    if (clickedIn && addr.selectionStart === addr.selectionEnd) { e.preventDefault(); addr.select(); }
+    clickedIn = false;
+  };
   el.querySelector('.zoom').onclick = () => kulisa.invoke('tab:zoom', { profile: id(), tab: tab(), dir: 0 });
   el.querySelector('.pick').onclick = (e) => (e.currentTarget.classList.contains('active') ? kulisa.invoke('pick:cancel', { profile: id() }) : startPick(id()));
-  el.querySelector('.devtools').onclick = () => kulisa.invoke('tab:devtools', { profile: id(), tab: tab() });
+  // ⋮ at the end of the bar, as Chrome's: what a pane does less often.
+  const more = el.querySelector('.more');
+  more.onclick = () => openMenu([
+    { label: 'DevTools', keys: 'F12', run: () => kulisa.invoke('tab:devtools', { profile: id(), tab: tab() }) },
+  ], more);
   const pname = tabEl.querySelector('.pname');
   pname.ondblclick = () => renameProfile(pane, pname);
   tabEl.querySelector('.close').onclick = () => kulisa.invoke('profile:close', { profile: id() });
   new ResizeObserver(scheduleLayout).observe(el.querySelector('.content'));
   return pane;
 }
+
+// An address as Chrome shows it in the omnibox when not editing: no http(s)://, no www., no lone trailing /.
+const shortUrl = (u) => (u === 'about:blank' ? '' : u).replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/^([^/?#]+)\/$/, '$1');
+
+const newTab = async (pane) => { pane.typeInto = await kulisa.invoke('tab:new', { profile: pane.profile.id }); render(); };
 
 function renameProfile(pane, pname) {
   const input = Object.assign(document.createElement('input'), { value: pane.profile.name, size: 24, maxLength: 64 });
@@ -144,7 +180,7 @@ const panelId = (key) => `profile:${key}`;
 const paneOf = (id) => panes.get(id.slice('profile:'.length));
 const terminalTab = Object.assign(document.createElement('div'), { className: 'ptab', innerHTML: '<b>Terminal</b>' });
 const api = createDockview(document.getElementById('dock'), {
-  theme: { ...themeAbyssSpaced, name: 'kulisa', gap: 8 }, // --gap in styles.css
+  theme: { ...themeAbyssSpaced, name: 'kulisa', gap: 8 }, // --gap in tokens.css
   disableFloatingGroups: true,
   singleTabMode: 'fullwidth',
   createComponent: ({ id }) => ({ element: id === 'terminal' ? termEl : paneOf(id).el, init() {} }),
@@ -218,28 +254,41 @@ function applyPreset(name) {
 }
 window.__layoutPreset = applyPreset; // for tests
 
-// Another workspace is being shown (dir: where it is in the strip) or another project opened (dir 0): the grid goes
-// and is built again on the next state. A workspace slides out with pictures of its pages (the main process sends
-// them; kept for when it comes back), unless the system asks for reduced motion; otherwise it is hidden at once, so
-// nothing half-built shows. The title bar stays; the terminal panel too (another project: its terminals go).
+// Another workspace is being shown, or another project (dir: where it is in the strip or the project tabs; 0: none,
+// the window is left with no project): the grid goes and is built again on the next state. A workspace slides as macOS desktops do, the one left out and the next one in
+// at once, as a view transition (window.css): Chromium takes a picture of the grid on screen, with pictures of its
+// pages (the main process sends them; kept for when it comes back), and slides it out while the next grid, built
+// meanwhile (reveal), slides in. Not with reduced motion: then the grid is hidden at once, so nothing half-built shows.
+// The title bar stays; the terminal panel too, showing the next workspace's terminal (workspaces.js).
 kulisa.on('grid:closing', ({ dir, ws, pics }) => {
-  leaving = (async () => {
-    for (const d of document.querySelectorAll('dialog[open]')) d.close();
-    clearTimeout(saveTimer);
-    if (pics) pictures.set(ws, pics);
-    if (dir && !reducedMotion.matches && gridReady) {
-      showPictures(pics || {});
-      await dockEl.animate([{ translate: '0 0', opacity: 1 }, { translate: `${-dir * 30}% 0`, opacity: 0 }], { duration: 160, easing: 'ease-in' }).finished;
-      slideIn = dir;
-    }
+  for (const d of document.querySelectorAll('dialog[open]')) d.close();
+  clearTimeout(saveTimer);
+  if (pics) pictures.set(ws, pics);
+  const takeDown = () => {
     document.documentElement.classList.add('loading');
     frozen = null;
     api.clear();
     panes.clear();
     state = [];
     gridReady = null;
-    if (!dir) { resetTerminals(); pictures.clear(); }
-  })();
+  };
+  sliding = null;
+  if (!dir || reducedMotion.matches || !gridReady) { takeDown(); leaving = null; return; }
+  showPictures(pics || {});
+  let cleared, built;
+  leaving = new Promise((r) => (cleared = r));
+  const next = new Promise((r) => (built = r));
+  // While the next grid is built (the callback), Chromium shows the picture of this one and draws no frames: the
+  // building must not wait for one (reveal).
+  const transition = document.startViewTransition({ update: () => { takeDown(); cleared(); return next; }, types: [dir > 0 ? 'next' : 'previous'] });
+  sliding = { transition, built };
+});
+
+// Workspaces gone (their project closed, a fork deleted): their terminals and pictures too; a workspace opened again
+// later starts afresh.
+kulisa.on('workspaces:closed', (keys) => {
+  for (const key of keys) pictures.delete(key);
+  forgetTerminals(keys);
 });
 
 async function restoreGrid() {
@@ -305,14 +354,24 @@ const showZoom = (z) => {
 kulisa.invoke('zoom:get').then(showZoom);
 kulisa.on('zoom', (z) => { showZoom(z); scheduleLayout(); });
 zoomReset.onclick = () => kulisa.invoke('zoom:ui', 0);
+// The theme of Kulisa's own UI (app.js): Dark, Light or System, chosen in ☰; the first one came in the URL
+// (index.html). CSS does the rest (tokens.css: color-scheme, light-dark()); the terminal takes its colors again, also
+// when the OS changes its own (System).
+const root = document.documentElement;
+const showTheme = () => { for (const b of document.querySelectorAll('#menu .themerow [data-theme]')) b.ariaPressed = String(b.dataset.theme === root.dataset.theme); };
+kulisa.on('theme', (theme) => { root.dataset.theme = theme; themeTerminals(); showTheme(); });
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', themeTerminals);
 const windowMenu = document.getElementById('windowMenu');
-// ☰, as Chrome's ⋮: the zoom row (stays open while you click − and +), then the ready-made arrangements, each a
+// ☰, as Chrome's ⋮: the zoom row (stays open while you click − and +), the theme row (open too), then the ready-made arrangements, each a
 // picture of itself (seen at a glance, as Windows' snap layouts), its words in the tooltip.
 windowMenu.onclick = () => {
   const zoom = tpl('tpl-menuzoom');
   zoom.querySelector('output').textContent = `${Math.round(uiZoom * 100)}%`;
   zoom.querySelector('.in').onclick = () => kulisa.invoke('zoom:ui', 1);
   zoom.querySelector('.out').onclick = () => kulisa.invoke('zoom:ui', -1);
+  const themes = tpl('tpl-menutheme');
+  themes.onclick = (e) => { const t = e.target.closest('[data-theme]')?.dataset.theme; if (t) kulisa.invoke('theme:set', t); };
+  for (const b of themes.querySelectorAll('[data-theme]')) b.ariaPressed = String(b.dataset.theme === root.dataset.theme);
   const arrange = tpl('tpl-menuarrange');
   arrange.onclick = (e) => {
     const preset = e.target.closest('[data-preset]')?.dataset.preset;
@@ -320,7 +379,7 @@ windowMenu.onclick = () => {
     document.getElementById('menu').hidePopover();
     applyPreset(preset);
   };
-  openMenu([{ element: zoom }, '-', { heading: 'Arrange panels' }, { element: arrange }], windowMenu);
+  openMenu([{ element: zoom }, { element: themes }, '-', { heading: 'Arrange panels' }, { element: arrange }], windowMenu);
 };
 
 // ---------- context menus ----------
@@ -337,7 +396,7 @@ document.addEventListener('contextmenu', (e) => {
 function paneMenu(pane) {
   const p = pane.profile;
   return [
-    { label: 'New tab', run: () => kulisa.invoke('tab:new', { profile: p.id }) },
+    { label: 'New tab', run: () => newTab(pane) },
     { label: 'Rename', keys: 'Double-click', run: () => renameProfile(pane, pane.tabEl.querySelector('.pname')) },
     { label: 'Close profile', run: () => kulisa.invoke('profile:close', { profile: p.id }) },
     '-',
@@ -369,14 +428,14 @@ kulisa.on('agent', (a) => {
 });
 
 // ---------- point and tell ----------
-// ⌖ Pick, then click an element: a reference to it lands in the agent's prompt (not sent), and the terminal gets
+// Pick, then click an element: a reference to it lands in the agent's prompt (not sent), and the terminal gets
 // the focus, so the human writes what is wrong around it. Picks in several panes go into one message.
 // Pick again or Esc in the page cancels.
 async function startPick(profile) {
   const pane = [...panes.values()].find((x) => x.profile.id === profile);
   const cap = pane.tabEl.querySelector('.caption');
   const button = pane.el.querySelector('.pick');
-  cap.textContent = '⌖ click an element on the page · Esc to cancel';
+  cap.textContent = 'Click an element on the page · Esc to cancel';
   button.classList.add('active');
   const res = await kulisa.invoke('pick:start', { profile });
   button.classList.remove('active');

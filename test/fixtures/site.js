@@ -19,6 +19,7 @@ function handler(req, res) {
     res.end(body);
   };
   const user = Object.fromEntries((req.headers.cookie || '').split(/;\s*/).filter(Boolean).map((c) => c.split('='))).user;
+  if (u.pathname === '/hang') return; // a site that never answers (Kulisa must open a profile with such a tab anyway)
   if (u.pathname === '/headers') {
     const h = Object.fromEntries(Object.entries(req.headers).filter(([k]) => k === 'user-agent' || k.startsWith('sec-ch-ua')));
     return send(200, JSON.stringify(h), 'application/json');

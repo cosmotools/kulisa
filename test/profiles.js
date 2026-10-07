@@ -94,9 +94,31 @@ module.exports = (test) => {
       await waitFor(() => !wc.isDevToolsOpened());
     }
   });
-  test('the DevTools button of a pane opens and closes the DevTools of its active tab', async ({ shell, ui }) => {
+  test("DevTools in a pane's ⋮ menu opens and closes the DevTools of its active tab", async ({ shell, ui }) => {
     const wc = shell.profiles.get('sam-admin').get().wc;
-    const click = () => ui(`document.querySelector('.pane[data-profile="sam-admin"] .devtools').click()`);
+    const click = async () => {
+      await ui(`document.querySelector('.pane[data-profile="sam-admin"] .more').click()`);
+      assert.deepEqual(await menuRows(ui), ['DevTools']);
+      // As Chrome's ⋮: under the button, its right edge at the button's, so it stays over its own pane.
+      const [m, b] = await ui(`[document.getElementById('menu'), document.querySelector('.pane[data-profile="sam-admin"] .more')].map((e) => e.getBoundingClientRect().toJSON())`);
+      assert.ok(Math.abs(m.right - b.right) < 1 && m.top >= b.bottom, JSON.stringify({ m, b }));
+      // Back, forward, reload, Pick and ⋮ are icon buttons, as Chrome's: no border, no text, a name for screen readers.
+      assert.deepEqual(await ui(`[...document.querySelectorAll('.pane[data-profile="sam-admin"] .bar .icon')].map((b) =>
+        [b.className, b.textContent.trim(), !!b.querySelector('svg'), !!b.ariaLabel, getComputedStyle(b).borderTopWidth])`),
+      ['back', 'fwd', 'reload', 'pick', 'more'].map((c) => [`${c} icon`, '', true, true, '0px']));
+      // The same inset from the island's edges for everything in it, left, right and below.
+      const inset = await ui(`(() => {
+        const pane = document.querySelector('.pane[data-profile="sam-admin"]'), island = pane.closest('.dv-groupview').getBoundingClientRect();
+        const header = document.querySelector('.ptab[data-panel="' + pane.closest('.dv-groupview').querySelector('.ptab').dataset.panel + '"]');
+        const r = (e) => e.getBoundingClientRect();
+        const left = (e) => Math.round(r(e).left - island.left), right = (e) => Math.round(island.right - r(e).right);
+        return { dot: left(header.querySelector('.dot')), tab: left(pane.querySelector('.tab')), back: left(pane.querySelector('.back')),
+          page: left(pane.querySelector('.content')), close: right(header.querySelector('.close')), more: right(pane.querySelector('.more')),
+          pageRight: right(pane.querySelector('.content')), pageBottom: Math.round(island.bottom - r(pane.querySelector('.content')).bottom) };
+      })()`);
+      assert.deepEqual(inset, { dot: 8, tab: 8, back: 8, page: 8, close: 8, more: 8, pageRight: 8, pageBottom: 8 });
+      await choose(ui, 'DevTools');
+    };
     await click();
     await waitFor(() => wc.isDevToolsOpened());
     await click();

@@ -29,8 +29,9 @@ const shQuote = (a) => (/^[\w@%+=:,./-]+$/.test(a) ? a : `'${a.replace(/'/g, `'\
 // opened a terminal in the project and ran it: the shell's startup sets the project's environment (direnv's .envrc,
 // nvm, mise …), which Kulisa's own environment (where Kulisa was started) is not. When the agent exits, the shell
 // stays. shell: { command, args } instead of the user's, or false to start the agent directly (as on Windows).
-// key: the workspace's; the window sends its input and size, and gets its output, under it.
-async function startTerminal(win, cfg, key) {
+// key: the workspace's; the window sends its input and size, and gets its output, under it. send(channel, data): to
+// the workspace's window, whichever it is then.
+async function startTerminal(send, cfg, key) {
   const t = termOf(key);
   await Promise.race([t.firstSize, new Promise((r) => setTimeout(r, 5000))]);
   const { cols, rows } = t.size || { cols: 120, rows: 30 };
@@ -45,9 +46,9 @@ async function startTerminal(win, cfg, key) {
   p.spawnArgs = cfg.args || [];
   p.key = key;
   // An agent that was replaced says nothing more in the window.
-  const send = (data) => { if (t.pty === p && !win.isDestroyed()) win.webContents.send('pty:out', { ws: key, data }); };
-  p.onData(send);
-  p.onExit(({ exitCode }) => send(`\r\n[process exited ${exitCode}]\r\n`));
+  const out = (data) => { if (t.pty === p) send('pty:out', { ws: key, data }); };
+  p.onData(out);
+  p.onExit(({ exitCode }) => out(`\r\n[process exited ${exitCode}]\r\n`));
   t.pty = p;
   return p;
 }
@@ -73,9 +74,13 @@ function stopTerminal(p) {
   try { p.kill(); } catch {}
 }
 
+// A workspace gone (its project closed, a fork deleted): its terminal's size too. Opened again, the window measures
+// it anew.
+const forgetTerminal = (key) => terms.delete(key);
+
 // Put text into the agent's prompt as a paste (bracketed: one block, nothing in it is taken as a key), not sent.
 function typeIntoPrompt(p, text) {
   p.write(`\x1b[200~${text}\x1b[201~`);
 }
 
-module.exports = { startTerminal, stopTerminal, typeIntoPrompt };
+module.exports = { startTerminal, stopTerminal, forgetTerminal, typeIntoPrompt };

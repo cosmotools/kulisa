@@ -39,20 +39,20 @@ module.exports = (test) => {
     // A page's own requests carry Origin.
     assert.equal(await status(url, { ...json, origin: 'https://evil.example' }, 'POST'), 403);
     const ws = (origin) => new Promise((resolve) => {
-      const s = new WebSocket(`ws://127.0.0.1:${proxy.port}/1/sam-seller`, origin ? { origin } : {});
+      const s = new WebSocket(`ws://127.0.0.1:${proxy.port}/project/1/sam-seller`, origin ? { origin } : {});
       s.on('open', () => { s.close(); resolve('open'); }); s.on('error', () => resolve('refused'));
     });
     assert.equal(await ws('https://evil.example'), 'refused');
     assert.equal(await ws(), 'open'); // Playwright and other local tools send no Origin
     assert.equal(await status(`${shell.ws.env().KULISA_URL}/hooks/session-start`, {}), 200);
-    assert.equal(await status(`${shell.mcp.base}/ws/9/hooks/session-start`, {}), 404, 'no such workspace');
+    assert.equal(await status(`${shell.mcp.base}/ws/project/9/hooks/session-start`, {}), 404, 'no such workspace');
   });
   test('agent bridge: the Claude Code plugin is valid and points at this MCP server', async ({ shell }) => {
     assert.ok(fs.existsSync(path.join(CLAUDE_PLUGIN, '.claude-plugin', 'plugin.json')));
     assert.ok(fs.existsSync(path.join(CLAUDE_PLUGIN, 'skills', 'profiles', 'SKILL.md')));
     const mcp = JSON.parse(fs.readFileSync(path.join(CLAUDE_PLUGIN, '.mcp.json'), 'utf8'));
     assert.equal(mcp.mcpServers.kulisa.url, '${KULISA_MCP_URL}');
-    assert.equal(shell.ws.env().KULISA_MCP_URL, `${shell.mcp.base}/ws/1/mcp`);
+    assert.equal(shell.ws.env().KULISA_MCP_URL, `${shell.mcp.base}/ws/project/1/mcp`);
     // With Claude Code installed, check the plugin the way it loads it.
     const { spawnSync } = require('child_process');
     const v = spawnSync('claude', ['plugin', 'validate', CLAUDE_PLUGIN], { encoding: 'utf8' });
@@ -70,6 +70,23 @@ module.exports = (test) => {
     assert.equal(elon.active, first);
     await call('browser_tab_close', { profile: 'elon-buyer', tab: id });
     await waitFor(() => elon.tabs.length === 1);
+  });
+  test('the window and the agent act on one core: an address read the same way, the same refusals', async ({ shell, call, ui }) => {
+    const sam = shell.profiles.get('sam-seller');
+    const host = SITE.replace('http://', ''); // 127.0.0.1:4417, a host and a port (not a scheme)
+    await ui(`kulisa.invoke('tab:navigate', { profile: 'sam-seller', tab: '${sam.active}', url: '${host}/app?by=human' })`);
+    await waitFor(() => sam.get().wc.getURL() === `${SITE}/app?by=human`);
+    await call('browser_navigate', { profile: 'sam-seller', url: `${host}/app?by=agent` });
+    assert.equal(sam.get().wc.getURL(), `${SITE}/app?by=agent`);
+    const id = (await call('browser_tab_new', { profile: 'sam-seller', url: `${host}/app?tab` })).text.match(/Opened tab (\w+)/)[1];
+    assert.equal(sam.get(id).wc.getURL(), `${SITE}/app?tab`);
+    await ui(`kulisa.invoke('tab:close', { profile: 'sam-seller', tab: '${id}' })`);
+    await waitFor(() => !sam.get(id));
+
+    assert.match((await ui(`kulisa.invoke('tab:reload', { profile: 'nobody' })`)).error, /No profile "nobody"/);
+    await assert.rejects(call('browser_snapshot', { profile: 'nobody' }), /No profile "nobody"/);
+    assert.match((await ui(`kulisa.invoke('tab:close', { profile: 'sam-seller', tab: 'k999' })`)).error, /No tab k999 in sam-seller/);
+    await assert.rejects(call('browser_tab_close', { profile: 'sam-seller', tab: 'k999' }), /No tab k999 in sam-seller/);
   });
   test('agent bridge: at session start the plugin hook tells the agent which profiles are open, and Kulisa notes the session', async ({ shell }) => {
     const hooks = JSON.parse(fs.readFileSync(path.join(CLAUDE_PLUGIN, 'hooks', 'hooks.json'), 'utf8'));
@@ -125,10 +142,10 @@ module.exports = (test) => {
     for (const input of [[{ type: 'mouseDown', x: 300, y: 300, button: 'left', clickCount: 1 }, { type: 'mouseUp', x: 300, y: 300, button: 'left', clickCount: 1 }],
       [{ type: 'keyDown', keyCode: 'Shift' }, { type: 'keyUp', keyCode: 'Shift' }]]) {
       await call('browser_highlight', { profile: 'sam-seller', elements: [{ locator: "getByRole('button', { name: 'Sign in' })", label: 'here' }] });
-      assert.equal(highlights.has('1/sam-seller'), true);
+      assert.equal(highlights.has('project/1/sam-seller'), true);
       const wc = sam.get().wc; wc.focus();
       for (const e of input) wc.sendInputEvent(e);
-      await waitFor(() => !highlights.has('1/sam-seller'));
+      await waitFor(() => !highlights.has('project/1/sam-seller'));
     }
   });
   test('agent: an element that is not there fails fast, with what to do instead', async ({ call }) => {
@@ -160,16 +177,56 @@ module.exports = (test) => {
     assert.equal(shot.content[0].type, 'image');
   });
 
-  test('tab strip: + opens a tab, a click on a tab makes it active, × closes it', async ({ shell, ui }) => {
+  test('tab strip: + opens a tab with the focus in its empty address, a click on a tab makes it active, × closes it', async ({ shell, ui }) => {
     const elon = shell.profiles.get('elon-buyer');
     const strip = `document.querySelector('.pane[data-profile="elon-buyer"] .tabs')`;
     const first = elon.active, n = elon.tabs.length;
     await ui(`${strip}.querySelector('.add').click()`);
     await waitFor(() => elon.tabs.length === n + 1 && elon.active !== first);
+    await waitFor(() => ui(`(() => { const a = document.querySelector('.pane[data-profile="elon-buyer"] .addr'); return document.activeElement === a && a.value === ''; })()`));
+    // The keys go there, not to the new tab's page (a native view that would take the focus as it loads). Where the
+    // keys go inside the window; when another app on the desktop is active (it took the focus while the tests ran:
+    // seen 2 times in 15), no view has them, and Kulisa rightly leaves it so.
+    const page = elon.get(elon.active).wc;
+    const keys = () => (!shell.win.isFocused() ? 'another app' : shell.win.webContents.isFocused() ? 'window' : page.isFocused() ? 'page' : 'none');
+    await elon.get(elon.active).ready; await sleep(500);
+    assert.ok(['window', 'another app'].includes(keys()), `the window has the focus, not the page: ${keys()}`);
+    // A click into the page gives it the keys, and they stay there.
+    page.sendInputEvent({ type: 'mouseDown', x: 20, y: 20, button: 'left', clickCount: 1 }); page.sendInputEvent({ type: 'mouseUp', x: 20, y: 20, button: 'left', clickCount: 1 });
+    page.focus();
+    await sleep(300);
+    assert.ok(['page', 'another app'].includes(keys()), `the page keeps the focus once clicked: ${keys()}`);
+    await ui(`document.activeElement.blur()`);
     await waitFor(async () => (await ui(`${strip}.querySelectorAll('.tab').length`)) === n + 1);
     await ui(`${strip}.querySelector('.tab[data-tab="${first}"] .title').click()`);
     await waitFor(() => elon.active === first);
     await ui(`${strip}.querySelector('.tab:last-of-type .x').click()`);
+    await waitFor(() => elon.tabs.length === n);
+  });
+  test('many tabs: they shrink as in Chrome; the strip, the toolbar and the page stay inside the pane', async ({ shell, ui }) => {
+    const elon = shell.profiles.get('elon-buyer'), n = elon.tabs.length;
+    const pane = '.pane[data-profile="elon-buyer"]';
+    const before = await pageBox(ui, 'elon-buyer');
+    // A lone tab has its full width (220px, as Chrome's), not shrunk while there is room.
+    assert.equal(await ui(`Math.round(document.querySelector('.pane[data-profile="sam-seller"] .tabs .tab').getBoundingClientRect().width)`), 220);
+    for (let i = 0; i < 24; i++) await ui(`kulisa.invoke('tab:new', { profile: 'elon-buyer' })`);
+    await waitFor(async () => (await ui(`document.querySelectorAll('${pane} .tabs .tab').length`)) === n + 24);
+    await sleep(300);
+    const fit = await ui(`(() => { const p = document.querySelector('${pane}'), r = (q) => p.querySelector(q).getBoundingClientRect(), pr = p.getBoundingClientRect();
+      return { pane: p.scrollWidth <= p.clientWidth, tabs: r('.tabs').right <= pr.right, add: r('.tabs .add').right <= pr.right, more: r('.more').right <= pr.right,
+        group: p.closest('.dv-groupview').scrollWidth <= p.closest('.dv-groupview').clientWidth }; })()`);
+    assert.deepEqual(fit, { pane: true, tabs: true, add: true, more: true, group: true });
+    // The active one (the last opened) in sight, with its ×; the others their icon alone.
+    const strip = await ui(`(() => { const s = document.querySelector('${pane} .tabs'), r = s.getBoundingClientRect(), a = s.querySelector('.tab.active').getBoundingClientRect();
+      const other = s.querySelector('.tab:not(.active)'), shown = (e) => getComputedStyle(e).display !== 'none';
+      return { activeInSight: a.left >= r.left && a.right <= s.querySelector('.add').getBoundingClientRect().left,
+        nothingUnderAdd: s.querySelector('.strip').getBoundingClientRect().right <= s.querySelector('.add').getBoundingClientRect().left,
+        activeX: shown(s.querySelector('.tab.active .x')), otherIcon: shown(other.querySelector('.globe')) || shown(other.querySelector('img')), otherTitle: shown(other.querySelector('.title')) }; })()`);
+    // + and a tab's × are the same icon size.
+    assert.deepEqual(await ui(`['.tab.active .x svg', '.add svg'].map((q) => document.querySelector('${pane} .tabs ' + q).getBoundingClientRect().width)`), [14, 14]);
+    assert.deepEqual(strip, { activeInSight: true, nothingUnderAdd: true, activeX: true, otherIcon: true, otherTitle: false });
+    assert.deepEqual(await pageBox(ui, 'elon-buyer'), before, 'the page keeps its place and size');
+    for (const t of elon.tabs.slice(n)) elon.closeTab(t.id);
     await waitFor(() => elon.tabs.length === n);
   });
   test('back and forward buttons are enabled only when there is somewhere to go', async ({ call, ui }) => {
@@ -179,6 +236,28 @@ module.exports = (test) => {
     await waitFor(async () => JSON.stringify(await buttons()) === '[false,true]');
     await ui(`[...document.querySelectorAll('.pane')][0].querySelector('.back').click()`);
     await waitFor(async () => JSON.stringify(await buttons()) === '[false,false]');
+  });
+  test('the address as in Chrome: shown without http(s)://, a click shows all of it selected; a second click places the caret', async ({ shell, ui }) => {
+    const addr = '.pane[data-profile="sam-seller"] .addr';
+    const z = shell.win.webContents.getZoomFactor(), b = await box(ui, addr);
+    shell.win.webContents.focus(); // the last test left the focus in a page
+    const click = () => {
+      const x = Math.round((b.x + b.width / 3) * z), y = Math.round((b.y + b.height / 2) * z);
+      for (const type of ['mouseDown', 'mouseUp']) shell.win.webContents.sendInputEvent({ type, x, y, button: 'left', clickCount: 1 });
+    };
+    const sel = () => ui(`(() => { const a = document.querySelector('${addr}'); return [document.activeElement === a, a.selectionStart, a.selectionEnd, a.value.length]; })()`);
+    const value = () => ui(`document.querySelector('${addr}').value`);
+    const full = shell.profiles.get('sam-seller').get().wc.getURL();
+    assert.ok(full.startsWith('http://'), full);
+    assert.equal(await value(), full.replace('http://', ''));
+    click();
+    await waitFor(async () => { const [focused, start, end, n] = await sel(); return focused && start === 0 && end === n && n > 0; });
+    assert.equal(await value(), full);
+    await sleep(400); // not a double-click
+    click();
+    await waitFor(async () => { const [focused, start, end] = await sel(); return focused && start === end; });
+    await ui(`document.querySelector('${addr}').blur()`);
+    assert.equal(await value(), full.replace('http://', ''));
   });
   test('profiles are isolated', async (ctx) => {
     await ctx.call('browser_navigate', { profile: 'elon-buyer', url: `${SITE}/app` });
@@ -307,7 +386,7 @@ module.exports = (test) => {
     const before = ptyOutput().length;
     for (const cancel of ['button', 'esc']) {
       await ui(`${button}.click()`);
-      await waitFor(async () => (await ui(`${button}.classList.contains('active')`)) && shell.picking?.has('elon-buyer'));
+      await waitFor(async () => (await ui(`${button}.classList.contains('active')`)) && shell.windows[0].picking.has('elon-buyer'));
       await sleep(300);
       if (cancel === 'button') await ui(`${button}.click()`);
       else {
@@ -315,7 +394,7 @@ module.exports = (test) => {
         wc.focus();
         wc.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' }); wc.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
       }
-      await waitFor(async () => !(await ui(`${button}.classList.contains('active')`)) && !shell.picking.has('elon-buyer'));
+      await waitFor(async () => !(await ui(`${button}.classList.contains('active')`)) && !shell.windows[0].picking.has('elon-buyer'));
       assert.equal(await ui(`document.querySelector('.ptab[data-panel="profile:Profile 2"] .caption').textContent`), '', cancel);
     }
     await sleep(300);

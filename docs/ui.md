@@ -1,0 +1,117 @@
+# The window's UI
+
+What the window is built of: the tokens, the icons, and the components, each defined once, so every dialog, button
+and list looks and behaves the same. **Before making a button, an icon, a row or a dialog, look here:** use the
+component, or add one here (and in `components.css`) when nothing fits. Keep this file current.
+
+Plain HTML, CSS and JS, no build step (CLAUDE.md, Window UI): markup in `index.html` (repeated parts as
+`<template>`s), styles in three files loaded in this order:
+
+| File | What |
+|---|---|
+| `src/renderer/tokens.css` | every color and size (`:root`); no literal color anywhere else |
+| `src/renderer/components.css` | the components below |
+| `src/renderer/window.css` | the window's layout and its own parts (title bar with the project tabs, panes, workspaces' strip, Welcome screen, the dialogs' and menus' contents). It places components and adjusts them through their custom properties; it does not make its own buttons, icons or rows |
+
+## Tokens (`tokens.css`)
+
+- Colors for both themes ([window.md](window.md), Theme): each is `light-dark(light, dark)`, so a new color gets
+  both values. JS reads a color as shown through an element that uses it (`terminal.js`), not the token's text.
+  JetBrains' themes: `--window` (gaps, title bar), `--island` (panels, dialogs, menus), `--island-hi`
+  (a lit row, a divider), `--toolbar` (a pane's toolbar and active tab), `--field`, `--button`, `--line` (borders);
+  text `--text`, `--text-strong`, `--text-dim`, `--text-muted`; `--accent` (main button, focus), `--danger`,
+  `--error`, `--note` (the agent's caption), `--done`; `--on-accent` (text on `--accent` and `--danger`),
+  `--selection` (the terminal's); `--page`, `--backdrop`, `--shadow`; `--hover` (under the
+  pointer, on any background); `--project` (the open project's color, set by `renderer.js`).
+- Sizes: `--font` (all text, the terminal too), `--control` (the height of buttons and fields), `--radius`,
+  `--tab-radius`, `--island-radius`, `--gap` (the space between and inside islands; also dockview's `gap` in
+  `renderer.js`). The Kulisa zoom scales them all.
+
+## Icons
+
+Each icon is drawn once, as a `<symbol id="i-…">` in the sprite at the top of `index.html`, on a 16 × 16 grid, in
+lines (`stroke`) of the text's color; a filled part has `fill="currentColor"`. Use it as:
+
+```html
+<svg aria-hidden="true"><use href="#i-close"/></svg>
+```
+
+| Icon | Where |
+|---|---|
+| `i-close` | × of dialogs, profiles, tabs, workspaces; removing a row |
+| `i-plus` | new tab, new workspace, opening a project (the + after the project tabs) |
+| `i-menu` | ☰, the window's menu |
+| `i-more` | ⋮, a pane's menu |
+| `i-back`, `i-forward`, `i-reload` | a pane's toolbar (Chrome's) |
+| `i-pick` | Pick (DevTools' inspect icon) |
+| `i-globe` | a tab whose site has no icon |
+
+An icon is 16 px; × and + are 14 px, as in Chrome (`.icon`). Pictures are not icons: the app logo (`assets/icon.svg`,
+in the title bar) and the arrangements in ☰ are drawn in place. The test `icons: …` in `test/window.js` checks that
+every other `<svg>` uses the sprite.
+
+## Components (`components.css`)
+
+### Buttons
+
+- `<button>`: a framed button with text, `--control` high. `.primary` (blue, the main action of a dialog, last in its
+  footer), `.danger` (red, when it deletes). Disabled: faded.
+- `.icon`: an icon alone, round, no frame, lit under the pointer (`--hover`); always with `aria-label` (or `title`).
+  - `.quiet`: muted until pointed at, for × and removing.
+  - `.small`: 22 px, inside a row (a tab's ×, a workspace's ×).
+  - `--icon`: the icon's size, when a place needs another (☰ is 18 px).
+  - A `<span class="icon">` where a button cannot be (a tab's ×, inside the tab).
+- In a menu or the title bar, a button is still one of these.
+
+### Rows
+
+- `.item`: a row of a menu or a list (`tpl-menuitem`, `tpl-project`): an optional `.dot` (a profile's or project's
+  color, `--color`), `.text` with `.label` and a `small` line under it, a `kbd` key at the end. Lit under the
+  pointer and on keyboard focus.
+- `.removable`: a row with a × (`button.remove.icon.quiet`) at its end, shown on hover or focus; the row is lit as
+  one. A recent project in the project menu and on the Welcome screen.
+- `.dot`: a 10 px circle in `--color`.
+- `.striptab`: a tab of a strip, as a browser's: an optional `.dot`, `.name`, the agent's `.state`, × at the end
+  (`button.close.icon.quiet.small`); lit under the pointer. `.active`: the shown one, on the islands' color;
+  `.colored.active`: on a plate of its own `--color`. A workspace's tab (`tpl-wstab`) and a project's
+  (`tpl-projecttab`, colored).
+- `.state`: an agent's state, an 8 px circle by `data-state` (from its hooks): working (pulsing), waiting for you,
+  done; muted when unknown. On a workspace's tab and a project's.
+
+### Dialogs
+
+Every dialog is a `<dialog>` with the same parts:
+
+```html
+<dialog id="…" closedby="any">
+  <header><h2>Title</h2><button class="x icon quiet" type="button" command="close" commandfor="…" title="Close"
+    aria-label="Close"><svg aria-hidden="true"><use href="#i-close"/></svg></button></header>
+  <div class="body">…</div>
+  <footer><button type="button" command="close" commandfor="…">Cancel</button><button class="primary">Create</button></footer>
+</dialog>
+```
+
+- `header`: the title, and × when it may be closed (Esc and a click outside close it too: `closedby`).
+- `.body`: `.hint` (what it is about, muted), `.field` (a label and its input, the labels in one column), `.row` (a
+  field with its button), `.check` (a checkbox in the fields' column), `.error` (hidden while empty).
+- `footer`: the buttons at the right end, the main one last; `.start` puts a button at the left end.
+- While a dialog is open the profiles' pages are hidden (`coverWhileOpen`, `common.js`): they are native views
+  above the HTML.
+- Questions before something that cannot be undone, before closing, or between two ways to go (This Window or New
+  Window), are not new dialogs: `shell.ask` (main process) → `ask.js`; `other` adds the second way's button before
+  the main one.
+
+### Menus
+
+`openMenu(items, at)` (`menu.js`): one popover, under its button (`data-menu-end`: its right edge at the button's) or
+at the pointer, flipped to stay in the window. Items are `{ label, sub, keys, color, enabled, run, remove }`, `'-'`
+(a divider), `{ heading }` or `{ element }` (a row of its own); rows are `.item` and `.removable`. A menu's own kind of row (the zoom row, the theme
+row, the arrangements) is a template in `index.html` and its look in `window.css`. While a menu is open, the pages are
+pictures of themselves.
+
+## Adding something
+
+- A new icon: a `<symbol>` in the sprite, a row in the table above.
+- A new kind of control or row: in `components.css` with a comment saying what it is and its variants, and a section
+  here. A part used by one place only (the tab strip, the omnibox) stays in `window.css`.
+- A new dialog: the markup above in `index.html`; its own contents' look in `window.css` under its id.

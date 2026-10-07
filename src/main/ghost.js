@@ -5,7 +5,7 @@
 // - Over the pane (the window's HTML): a caption from every CDP command through the proxy, from any client.
 // Captions go to the window with the profile's workspace; it shows those of the workspace on screen.
 function installGhost(shell) {
-  const send = (a) => { if (!shell.win.isDestroyed()) shell.win.webContents.send('agent', a); };
+  const send = (a) => shell.workspace(a.ws)?.window?.send('agent', a);
   shell.bus.on('agent-command', (c) => {
     const a = describe(c); if (!a) return;
     send({ ws: c.ws, profile: c.profile, ...a });
@@ -22,7 +22,7 @@ function installGhost(shell) {
     } }).catch(() => {});
     ctx.pages().forEach(on); ctx.on('page', on);
   };
-  for (const ws of shell.workspaces.values()) for (const p of ws.profiles.values()) annotate(p);
+  for (const project of shell.open.values()) for (const ws of project.workspaces.values()) for (const p of ws.profiles.values()) annotate(p);
   shell.bus.on('profile-added', annotate);
 }
 

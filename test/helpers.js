@@ -18,6 +18,8 @@ const savedTabs = (id, ws = 1) => {
 // The id of a profile's panel in the grid (its folder: stable across renames).
 const panel = (shell, id) => `profile:${(shell.profiles.get(id) || shell.closed.get(id)?.cfg).folder}`;
 const SITE = 'http://127.0.0.1:4417';
+// The windows as settings.json keeps them for the next start: each one's tabs and the one shown.
+const savedWindows = () => JSON.parse(fs.readFileSync(path.join(userData, 'settings.json'), 'utf8')).windows.map(({ tabs, shown }) => ({ tabs, shown }));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // Kulisa's menus (menu.js): wait for the open one and get its rows ('-' a line, '# …' a heading,
@@ -25,9 +27,12 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const menuRows = async (ui) => {
   await waitFor(() => ui(`document.getElementById('menu').matches(':popover-open')`));
   return ui(`[...document.getElementById('menu').children].map((r) => r.matches('hr') ? '-' : r.matches('.heading') ? '# ' + r.textContent
-    : r.matches('.zoomrow') ? 'zoom' : r.matches('.arrange') ? 'arrange: ' + [...r.querySelectorAll('span')].map((s) => s.textContent).join(', ')
+    : r.matches('.zoomrow') ? 'zoom' : r.matches('.themerow') ? 'theme' : r.matches('.arrange') ? 'arrange: ' + [...r.querySelectorAll('span')].map((s) => s.textContent).join(', ')
     : r.querySelector('.label').textContent + (r.disabled ? ' (off)' : ''))`);
 };
+// The project tabs in the title bar: their names, the shown one with ' *'.
+const projectTabs = (ui) => ui(`[...document.querySelectorAll('#projectTabs .projecttab')].map((t) => t.querySelector('.name').textContent + (t.classList.contains('active') ? ' *' : ''))`);
+const projectTab = (id) => `document.querySelector('#projectTabs [data-project="${id}"]')`;
 const choose = (ui, label) => ui(`[...document.querySelectorAll('#menu .item')].find((b) => b.querySelector('.label').textContent === ${JSON.stringify(label)}).click()`);
 // The profile editor: Profiles ▾, then Manage Profiles….
 const manageProfiles = async (ui) => {
@@ -70,5 +75,5 @@ const ctrl = (wc, keyCode) => {
 };
 const near = (a, b) => Math.abs(a - b) < 1e-6;
 
-module.exports = { assert, root, userData, project, pfile, savedTabs, panel, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, menuOpen, rightClick,
+module.exports = { assert, root, userData, project, pfile, savedTabs, savedWindows, panel, SITE, sleep, waitFor, who, menuRows, choose, projectTabs, projectTab, manageProfiles, menuOpen, rightClick,
   box, pageBox, viewOn, dock, ctrl, near };

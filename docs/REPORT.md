@@ -6,7 +6,8 @@ Claude Code 2.1.289.
 
 This is the record of how Kulisa's design was tested and decided: the experiments of the original task (E1–E8,
 2026-10-05), then the sign-in work and fixes that followed. What Kulisa is now: [SPEC.md](SPEC.md),
-[ROADMAP.md](ROADMAP.md), the code.
+[profiles.md](profiles.md), [workspaces.md](workspaces.md), [window.md](window.md), the code; what is next:
+[ROADMAP.md](ROADMAP.md).
 
 ## Outcome
 

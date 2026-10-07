@@ -1,41 +1,46 @@
-// A workspace (ROADMAP, "Workspaces"; the term: CLAUDE.md): one line of work in the open project. Its code (main: the
+// A workspace (ROADMAP, "Workspaces"; the term: CLAUDE.md): one line of work in a project. Its code (main: the
 // project's folder; a fork: a git worktree next to it, worktrees.js), its profiles (folders in its data, store.js), its
-// grid and its agent, in a terminal of its own. The window shows one workspace at a time; the others keep running. A
-// workspace loads (profiles, agent) the first time it is shown, so a restart does not start every one at once.
+// grid and its agent, in a terminal of its own. Its project's window shows one workspace at a time; the others keep
+// running, those of the other open projects too. A workspace loads (profiles, agent) the first time it is shown, so a
+// restart does not start every one at once.
 const { session } = require('electron');
 const { Profile, wipeSession } = require('./profiles');
 const { ProjectProfiles } = require('./project-profiles');
 const { installSigninPause } = require('./signin-pause');
-const { startTerminal, stopTerminal } = require('./terminal');
+const { startTerminal, stopTerminal, forgetTerminal } = require('./terminal');
 const { clearHighlights } = require('./mcp-server');
 const { copyProfile } = require('./store');
 
 class Workspace {
-  // entry: { n, name, branch, worktree, folder, base, offset } from workspaces.json; main is n 1, in the project's
-  // folder (projectFolder).
-  // shell: the window (app.js): win, store, proxy, mcp, sessionCookies, chromeIdentity, signin, uiZoom, viewsHidden,
-  // picking, bus, ask; the agents (agentFor, findAgent, chooseAgent, plugin); and wsChanged(ws, now, agentState),
-  // called after any change of its profiles or its agent's state.
-  constructor(shell, entry, projectFolder) {
-    this.shell = shell; this.entry = entry;
+  // project: its project (projects.js); entry: { n, name, branch, worktree, folder, base,
+  // offset } from its workspaces.json; main is n 1, in the project's folder. key: the workspace among all open ones
+  // ("<project id>/<n>"): the windows, the terminals, the CDP proxy and the MCP server's URLs know it by that.
+  // shell: the app (app.js): store, proxy, mcp, sessionCookies, chromeIdentity, signin, uiZoom, bus, ask; the agents
+  // (agentFor, findAgent, chooseAgent, plugin); and wsChanged(ws, now, agentState), called after any change of its
+  // profiles or its agent's state. Its window is its project's (window.js: win, viewsHidden, picking, send), which
+  // changes when the project moves to another window.
+  constructor(shell, project, entry) {
+    this.shell = shell; this.project = project; this.entry = entry;
     this.n = entry.n; this.name = entry.name; this.main = entry.n === 1;
-    this.folder = entry.folder || projectFolder;
+    this.key = `${project.id}/${this.n}`;
+    this.folder = entry.folder || project.folder;
     this.offset = entry.offset || 0;
-    this.store = shell.store.workspace(this.n);
+    this.store = shell.store.workspaceOf(project, this.n);
     this.state = null; // the agent's, from its hooks: 'working', 'waiting' (for the human), 'done'
     this.pty = null; this.loaded = false;
     this.list = new ProjectProfiles(this.store, this._profileHooks());
     this.profiles = this.list.profiles; this.closed = this.list.closed;
   }
-  shown() { return this.shell.ws === this; }
+  get window() { return this.project.window; }
+  shown() { return this.window?.ws === this; }
 
   // What it takes to run a profile of this workspace (project-profiles.js).
   _profileHooks() {
     const shell = this.shell;
     return {
       make: (cfg) => {
-        const profile = new Profile(shell.win, cfg, { ws: this.n, mimic: shell.chromeIdentity });
-        profile.hidden = !this.shown() || shell.viewsHidden;
+        const profile = new Profile(this.window.win, cfg, { ws: this.key, mimic: shell.chromeIdentity });
+        profile.hidden = !this.shown() || this.window.viewsHidden;
         shell.proxy.addProfile(profile);
         profile.endpoint = shell.proxy.endpoint(profile);
         profile.setBaseZoom(shell.uiZoom);
@@ -47,15 +52,16 @@ class Workspace {
       start: async (profile, urls) => {
         await shell.sessionCookies.restore(profile); // before the first request of any tab
         await Promise.all(urls.map((u, i) => profile.newTab(u, { activate: i === 0 }).ready));
-        if (!profile.signinMode) await profile.connect(profile.endpoint);
+        // The window opens even if the shell's connection fails; the agent's tools say so for this profile.
+        if (!profile.signinMode) await profile.connect(profile.endpoint).catch((e) => console.error(`[kulisa] ${profile.id}: no Playwright connection: ${e.message.split('\n')[0]}`));
         shell.bus.emit('profile-added', profile);
         profile.on('signin-mode', (on) => { if (!on) shell.bus.emit('profile-added', profile); });
       },
       // Its sign-ins saved (session cookies too) for when it opens again; its tabs and automation gone.
       unload: async (p) => {
-        const pick = shell.picking?.get(p.id);
+        const pick = this.window?.picking.get(p.id);
         if (pick?.profile === p) pick.cancel();
-        await clearHighlights(`${this.n}/${p.id}`);
+        await clearHighlights(`${this.key}/${p.id}`);
         await shell.sessionCookies.persist(p);
         shell.proxy.removeProfile(p);
         await p.close();
@@ -94,13 +100,13 @@ class Workspace {
     this.resumedSession = resume ? saved.sessionId ?? null : null;
     this.agent = agent;
     if (!this.main) {
-      const main = shell.workspaces.get(1);
+      const main = this.project.main;
       await agent.prepare?.({ folder: this.folder, main: { folder: main.folder, ...main.store.agent() } });
     }
     // The program by name, as the human would type it, unless the shell does not find it yet (just installed).
     const command = found.onPath ? agent.command : found.path;
-    this.pty = await startTerminal(shell.win, { command, shell: agent.shell, cwd: this.folder, env: this.env(),
-      args: [...(resume || []), ...(agent.args?.({ env: this.env(), plugin: shell.plugin }) || [])] }, this.n);
+    this.pty = await startTerminal((channel, data) => this.window?.send(channel, data), { command, shell: agent.shell, cwd: this.folder, env: this.env(),
+      args: [...(resume || []), ...(agent.args?.({ env: this.env(), plugin: shell.plugin }) || [])] }, this.key);
     this.store.saveAgent({ ...this.store.agent(), agent: agent.id, started: true });
   }
   // Another agent for this workspace, chosen by the human (the terminal's menu): the running one stops, the chosen one
@@ -111,45 +117,62 @@ class Workspace {
     await this.starting;
     if (this.pty) { stopTerminal(this.pty); this.pty = null; }
     this.store.saveAgent({ agent: agent.id });
-    if (!this.shell.win.isDestroyed()) this.shell.win.webContents.send('terminal:reset', { ws: this.n });
+    this.window?.send('terminal:reset', { ws: this.key });
     await this.startAgent();
     return { changed: true, agent: agent.id };
   }
   // What the agent gets in its environment: where Kulisa's MCP server and hooks are for this workspace (the Kulisa
   // plugin reads them, other agent CLIs can too), its name, and the offset for the ports of the app it runs.
   env() {
-    const base = `${this.shell.mcp.base}/ws/${this.n}`;
+    const base = `${this.shell.mcp.base}/ws/${encodeURIComponent(this.project.id)}/${this.n}`;
     return { KULISA_MCP_URL: `${base}/mcp`, KULISA_URL: base, KULISA_WORKSPACE: this.name, KULISA_PORT_OFFSET: String(this.offset) };
   }
-  // Its agent stopped, its profiles saved and closed (another project opens, or the workspace is deleted).
+  // Its agent stopped, its profiles saved and closed (its project closes, or the workspace is deleted).
+  // Its tabs are saved first, as they are: closing them one by one changes the profiles, and nothing is saved then.
   async unload() {
     this.shell.chooseAgent.cancel?.(this);
     if (this.pty) { stopTerminal(this.pty); this.pty = null; }
-    await this.list.unloadAll();
+    forgetTerminal(this.key);
+    if (this.loaded) this.list.saveTabs();
     this.loaded = false;
+    await this.list.unloadAll();
   }
   // The agent's session, as its hooks report it (agent-hooks.js).
   saveAgent(s) { if (this.loaded) this.store.saveAgent({ ...this.store.agent(), ...s }); }
   setState(state) { this.state = state; this.shell.wsChanged(this, false, true); }
 
-  // Profiles: from the window, the panes and the agent (mcp-server.js). Closed profiles stay closed across restarts.
+  // Profiles and their tabs: the one core the human (the window, app.js) and the agent (mcp-server.js) both act on.
+  // Each side only translates (CLAUDE.md, Architecture): the checks, the questions and what an action does are here
+  // and in Profile, so both get the same. A refusal is { error } saying why. Closed profiles stay closed across
+  // restarts.
+  find(id) {
+    const profile = this.profiles.get(id);
+    if (profile) return { profile };
+    if (this.closed.has(id)) return { error: `Profile "${id}" is closed (it is still signed in): open it first.`, closed: true };
+    return { error: `No profile "${id}". Profiles: ${[...this.profiles.keys(), ...this.closed.keys()].join(', ') || 'none yet'}` };
+  }
+  // A tab of an open profile; no tabId: its active tab.
+  findTab(id, tabId) {
+    const r = this.find(id);
+    if (r.error) return r;
+    const tab = r.profile.get(tabId);
+    return tab && !tab.wc.isDestroyed() ? { ...r, tab } : { error: tabId ? `No tab ${tabId} in ${id}` : `Profile "${id}" has no tab` };
+  }
   createProfile(name) { return this.list.create(name); }
+  renameProfile(id, name) { return this.list.rename(id, name); }
   closeProfile(id) { return this.list.close(id); }
   openProfile(id) { return this.list.open(id); }
-  deleteProfile(id) { return this.list.delete(id); } // the human confirms first: the editor, or agentDeletesProfile
-  // The agent deletes only what the human confirms: sign-ins are made by hand and cannot be made again by code.
-  async agentDeletesProfile(id) {
+  // Always after the human says yes, whoever asks (by: 'human' or 'agent'): sign-ins are made by hand and cannot be
+  // made again by code.
+  async deleteProfile(id, by = 'human') {
     const p = this.profiles.get(id) || this.closed.get(id)?.cfg;
-    if (!p) return { error: `no profile ${id}` };
-    const ok = await this.shell.ask({ message: `The agent asks to delete the profile ${p.name}.`, ok: 'Delete', danger: true,
-      detail: 'Its sign-ins, cookies, storage and tabs are removed for good.' });
-    return ok ? this.deleteProfile(id) : { error: 'the human said no' };
+    if (!p) return { error: `No profile "${id}"` };
+    const ok = await this.shell.ask({ ok: 'Delete', danger: true, detail: 'Its sign-ins, cookies, storage and tabs are removed for good.',
+      message: by === 'agent' ? `The agent asks to delete the profile ${p.name}.` : `Delete the profile ${p.name}?` }, this.window);
+    return ok ? this.list.delete(id) : { error: 'the human said no' };
   }
   // A caption over a profile's pane (ghost.js, browser_highlight); sticky ones stay until the next caption.
-  caption(profile, caption, sticky = false) {
-    const win = this.shell.win;
-    if (!win.isDestroyed()) win.webContents.send('agent', { ws: this.n, profile, caption, sticky });
-  }
+  caption(profile, caption, sticky = false) { this.window?.send('agent', { ws: this.key, profile, caption, sticky }); }
 
   // A fork's profiles: copies of this workspace's (main's), sign-ins included, each folder without its caches. Open
   // ones are flushed first and open in the fork with their active tab only; closed ones stay closed. URLs of the app
@@ -175,8 +198,8 @@ class Workspace {
   }
 
   info() {
-    const { n, name, main, state, folder, offset } = this;
-    return { n, name, main, state, folder, offset, branch: this.entry.branch || null, agent: this.agent?.name || null };
+    const { n, key, name, main, state, folder, offset } = this;
+    return { n, key, name, main, state, folder, offset, branch: this.entry.branch || null, agent: this.agent?.name || null };
   }
 }
 

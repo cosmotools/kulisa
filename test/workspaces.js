@@ -4,14 +4,14 @@ const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 const { assert, root, userData, project, pfile, savedTabs, panel, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, menuOpen, rightClick,
-  box, pageBox, viewOn, dock, ctrl, near } = require('./helpers');
+  box, pageBox, viewOn, dock, ctrl, near, projectTabs, projectTab, savedWindows } = require('./helpers');
 const { withOffset } = require('../src/main/workspaces');
 const { trustLikeMain, claudeConfigOf } = require('../src/main/agents');
 const hasDirenv = (() => { try { execFileSync('direnv', ['version']); return true; } catch { return false; } })();
 
 const git = (cwd, ...args) => execFileSync('git', ['-c', 'user.name=Kulisa test', '-c', 'user.email=test@example.invalid', ...args], { cwd, encoding: 'utf8' }).trim();
 const tabs = (ui) => ui(`[...document.querySelectorAll('#wslist .wstab')].map((t) => t.querySelector('.name').textContent + (t.classList.contains('active') ? ' *' : ''))`);
-const wsTab = (n) => `document.querySelector('#wslist .wstab[data-ws="${n}"]')`;
+const wsTab = (n) => `document.querySelector('#wslist .wstab[data-ws$="/${n}"]')`;
 // + and the name in the dialog; resolves once the new workspace is shown, its agent started.
 async function fork(ctx, name) {
   const { shell, ui } = ctx;
@@ -152,7 +152,7 @@ module.exports = (test) => {
       assert.equal(execFileSync('direnv', ['exec', wt, 'sh', '-c', 'echo $FROM_ENVRC'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim(), `envrc of ${wt}`);
     }
     await waitFor(async () => (await ctx.termText()).includes(`agent: rc of ${wt}`)); // its agent, in its folder
-    assert.deepEqual(ws.env(), { KULISA_MCP_URL: `${shell.mcp.base}/ws/2/mcp`, KULISA_URL: `${shell.mcp.base}/ws/2`, KULISA_WORKSPACE: 'Feature-X', KULISA_PORT_OFFSET: '100' });
+    assert.deepEqual(ws.env(), { KULISA_MCP_URL: `${shell.mcp.base}/ws/project/2/mcp`, KULISA_URL: `${shell.mcp.base}/ws/project/2`, KULISA_WORKSPACE: 'Feature-X', KULISA_PORT_OFFSET: '100' });
     assert.equal(shell.resumedSession, null, 'a new conversation');
 
     // Profiles: the same, the closed ones closed, each open one with its active tab moved to the fork's ports.
@@ -199,6 +199,21 @@ module.exports = (test) => {
     assert.equal(await ui(`document.querySelector('.ptab[data-panel="${panel(shell, 'sam-admin')}"] .caption').textContent`), '');
   });
 
+  test('workspaces: switching slides both grids at once (a view transition, the way of the strip); then the pages are live again', async ({ shell, ui }) => {
+    const slide = (n) => ui(`(async () => {
+      const seen = new Set(); let on = true;
+      const look = () => { for (const t of ['next', 'previous']) if (document.documentElement.matches(':active-view-transition-type(' + t + ')')) seen.add(t); if (on) requestAnimationFrame(look); };
+      look();
+      await kulisa.invoke('ws:show', 'project/${n}');
+      await new Promise((r) => setTimeout(r, 800)); on = false;
+      return [...seen];
+    })()`);
+    const live = async () => (await ui(`document.querySelectorAll('img.snapshot').length`)) === 0 && viewOn(shell, ui, 'sam-admin');
+    assert.deepEqual(await slide(2), ['next']);
+    await waitFor(live);
+    assert.deepEqual(await slide(1), ['previous']);
+    await waitFor(live);
+  });
   test('workspaces: closing a fork asks first, saying what goes and any work not in main; it is deleted with its branch, folder and profiles', async (ctx) => {
     const { shell, ui } = ctx;
     const empty = await fork(ctx, 'Empty');
@@ -211,7 +226,7 @@ module.exports = (test) => {
     assert.match(context, /workspace "Empty".*branch empty.*plus 200/s);
     const dir = path.join(userData, 'projects', 'project', '3');
     await ui(`${wsTab(3)}.querySelector('.close').click()`);
-    await waitFor(() => !shell.workspaces.has(3) && shell.ws.n === 1);
+    await waitFor(() => !shell.current.workspaces.has(3) && shell.ws.n === 1);
     const asked = ctx.asked.pop();
     assert.equal(asked.message, 'Delete the workspace Empty?', 'asked also without changes');
     assert.ok(asked.detail.startsWith('Deleted for good:') && asked.detail.includes(`${project}@empty`) && asked.detail.includes('its branch empty'));
@@ -234,13 +249,13 @@ module.exports = (test) => {
     const q = ctx.asked.pop();
     assert.equal(q.message, 'Delete the workspace Spike?');
     assert.match(q.detail, /Work not in main, deleted with it:\n• 1 commit of its own and 1 uncommitted file/);
-    assert.ok(shell.workspaces.has(spike.n) && fs.existsSync(spike.folder), 'kept when the human says no');
+    assert.ok(shell.current.workspaces.has(spike.n) && fs.existsSync(spike.folder), 'kept when the human says no');
     ctx.answer = true;
     await ui(`${wsTab(spike.n)}.querySelector('.close').click()`);
-    await waitFor(() => !shell.workspaces.has(spike.n) && shell.ws.n === 1);
+    await waitFor(() => !shell.current.workspaces.has(spike.n) && shell.ws.n === 1);
     ctx.asked.length = 0;
-    await waitFor(() => !fs.existsSync(spike.folder));
-    assert.equal(git(project, 'branch', '--list', 'spike'), '');
+    // The folder goes first (git worktree remove), then the branch.
+    await waitFor(() => !fs.existsSync(spike.folder) && git(project, 'branch', '--list', 'spike') === '');
     assert.deepEqual(JSON.parse(fs.readFileSync(path.join(userData, 'projects', 'project', 'workspaces.json'), 'utf8')).list.map((w) => w.name), ['main', 'Feature-X']);
   });
 
@@ -294,16 +309,16 @@ module.exports = (test) => {
     assert.deepEqual(JSON.parse(fs.readFileSync(pfile('agent.json', ws.n), 'utf8')), { agent: 'shell', started: true }, 'a new conversation');
     assert.equal(ws.agent.id, 'shell');
     await ui(`${wsTab(ws.n)}.querySelector('.close').click()`);
-    await waitFor(() => !shell.workspaces.has(ws.n) && shell.ws.n === 1);
+    await waitFor(() => !shell.current.workspaces.has(ws.n) && shell.ws.n === 1);
     ctx.asked.length = 0;
   });
 
   // Last in phase 1: main is shown and Feature-X waits in the strip for the restart phase.
   test('workspaces: closing main closes the project; the window offers projects to open', async (ctx) => {
     const { shell, ui } = ctx;
-    const fork = shell.workspaces.get(2);
+    const fork = shell.current.workspaces.get(2);
     await ui(`${wsTab(1)}.querySelector('.close').click()`);
-    await waitFor(() => shell.ws === null && shell.workspaces.size === 0);
+    await waitFor(() => shell.ws === null && !shell.current);
     assert.ok(fork.profiles.size === 0 && !fork.pty, 'every workspace of the project stopped');
     await waitFor(() => ui(`document.documentElement.classList.contains('noproject')`));
     assert.equal(await ui(`getComputedStyle(document.getElementById('welcome')).display`), 'grid');
@@ -312,16 +327,16 @@ module.exports = (test) => {
     assert.ok(await ui(`(() => { const w = document.getElementById('welcome'), s = getComputedStyle(w);
       return w.getBoundingClientRect().height > innerHeight * 0.8 && s.backgroundColor === getComputedStyle(document.querySelector('dialog')).backgroundColor; })()`));
     assert.equal(await ui(`getComputedStyle(document.getElementById('workspaces')).display`), 'none');
-    assert.equal(await ui(`document.getElementById('projectName').textContent`), 'No project');
+    assert.deepEqual(await projectTabs(ui), [], 'no project tab');
     assert.equal(await ui(`document.documentElement.style.getPropertyValue('--project')`), '', "no project's color");
     assert.equal(shell.win.getTitle(), 'Kulisa');
-    assert.equal(JSON.parse(fs.readFileSync(path.join(userData, 'settings.json'), 'utf8')).lastProject, null);
+    assert.deepEqual(savedWindows(), [{ tabs: [], shown: null }], 'the window opens so next time');
     await ui(`[...document.querySelectorAll('#welcome-list .item')].find((b) => b.querySelector('.label').textContent === 'project').click()`);
     await waitFor(() => shell.ws?.n === 1 && shell.ws.loaded && shell.pty);
     ctx.watchPty(shell.pty);
     await waitFor(() => ui(`!document.documentElement.classList.contains('noproject') && !document.documentElement.classList.contains('loading')`));
     await waitFor(async () => JSON.stringify(await tabs(ui)) === '["main *","Feature-X"]');
-    assert.equal(shell.workspaces.get(2).loaded, false, 'a workspace loads when it is shown');
+    assert.equal(shell.current.workspaces.get(2).loaded, false, 'a workspace loads when it is shown');
     await waitFor(async () => (await viewOn(shell, ui, 'sam-admin')) && viewOn(shell, ui, 'elon-buyer'));
   });
 
@@ -330,7 +345,7 @@ module.exports = (test) => {
     await ui(`document.getElementById('openProjects').click()`);
     assert.deepEqual((await menuRows(ui)).slice(-3), ['-', 'Close Project', 'Remove Project…']);
     await choose(ui, 'Close Project');
-    await waitFor(() => shell.ws === null && shell.workspaces.size === 0);
+    await waitFor(() => shell.ws === null && !shell.current);
     await waitFor(() => ui(`document.documentElement.classList.contains('noproject')`));
     await ui(`document.getElementById('openProjects').click()`);
     assert.ok(!(await menuRows(ui)).includes('Close Project'), 'nothing to close');
@@ -369,17 +384,21 @@ module.exports = (test) => {
     await named('Shop');
     assert.equal(await ui(`document.getElementById('npwhere').textContent`), `The project will be created in ${path.join(made, 'Shop')}`);
     await ui(`document.getElementById('npform').requestSubmit()`);
-    await waitFor(() => shell.project === path.join(made, 'Shop') && shell.ws?.loaded && shell.pty);
+    await waitFor(() => shell.current?.folder === path.join(made, 'Shop') && shell.ws?.loaded && shell.pty);
     assert.ok(fs.existsSync(path.join(made, 'Shop', '.git')), 'git init in it');
     assert.equal(await ui(`document.getElementById('newproject').open`), false);
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
     await ui(`document.getElementById('openProjects').click()`);
     await menuRows(ui);
     await choose(ui, 'project');
-    await waitFor(() => shell.project === project && shell.ws?.n === 1 && shell.ws.loaded && shell.pty);
+    await waitFor(() => shell.current?.folder === project && shell.ws?.n === 1 && shell.ws.loaded && shell.pty);
     ctx.watchPty(shell.pty);
     await waitFor(() => ui(`!document.documentElement.classList.contains('noproject') && !document.documentElement.classList.contains('loading')`));
     await waitFor(async () => (await viewOn(shell, ui, 'sam-admin')) && viewOn(shell, ui, 'elon-buyer'));
+    assert.deepEqual(await projectTabs(ui), ['Shop', 'project *']);
+    await ui(`${projectTab('shop')}.querySelector('.close').click()`);
+    await waitFor(() => !shell.open.has('shop'));
+    ctx.asked.length = 0;
   });
 
   test('projects: Remove Project… (× in the menu, Remove for the open one, the Welcome screen) asks, closes the project when open, deletes its data and forks, never its folder', async (ctx) => {
@@ -426,17 +445,26 @@ module.exports = (test) => {
     const gone = path.join(root, 'gone');
     fs.mkdirSync(gone);
     await ui(`kulisa.invoke('project:open', { folder: ${JSON.stringify(gone)} })`);
-    await waitFor(() => shell.project === gone && shell.ws?.loaded && shell.pty);
+    await waitFor(() => shell.current?.folder === gone && shell.ws?.loaded && shell.pty);
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
     await ui(`document.getElementById('openProjects').click()`);
     assert.deepEqual((await menuRows(ui)).slice(-3), ['-', 'Close Project', 'Remove Project…']);
     await choose(ui, 'Remove Project…');
     await waitFor(() => !projects().includes('gone'));
     ctx.asked.length = 0;
-    assert.equal(shell.ws, null);
-    await waitFor(() => ui(`document.documentElement.classList.contains('noproject')`));
+    await waitFor(() => shell.current?.folder === project && shell.ws?.loaded);
+    assert.deepEqual(await projectTabs(ui), ['project *'], 'the tab next to it shown');
     assert.ok(fs.existsSync(gone) && !fs.existsSync(path.join(userData, 'projects', 'gone')));
-    assert.equal(JSON.parse(fs.readFileSync(path.join(userData, 'settings.json'), 'utf8')).lastProject, null);
+    assert.deepEqual(savedWindows(), [{ tabs: ['project'], shown: 'project' }]);
+
+    // Close Project in a tab's right-click menu: the last tab, so the Welcome screen.
+    await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
+    await rightClick(ui, '#projectTabs [data-project="project"] .name');
+    await menuRows(ui); // it opens once the window has the list of windows
+    await choose(ui, 'Close Project');
+    await waitFor(() => shell.ws === null && shell.open.size === 0);
+    ctx.asked.length = 0;
+    await waitFor(() => ui(`document.documentElement.classList.contains('noproject')`));
 
     // A recent project's × on the Welcome screen: the same question.
     ctx.answer = false;
@@ -453,5 +481,37 @@ module.exports = (test) => {
     ctx.watchPty(shell.pty);
     await waitFor(() => ui(`!document.documentElement.classList.contains('noproject') && !document.documentElement.classList.contains('loading')`));
     await waitFor(async () => (await viewOn(shell, ui, 'sam-admin')) && viewOn(shell, ui, 'elon-buyer'));
+  });
+  test('the CDP proxy takes ids in any letters (percent-encoded in its URLs)', async ({ shell }) => {
+    // Last: a profile made and deleted here would take a folder number the tests before count on.
+    const { id } = await shell.ws.createProfile('Анна');
+    const p = shell.profiles.get(id);
+    await waitFor(() => p.browser);
+    assert.ok(p.endpoint.endsWith(`/project/1/${encodeURIComponent(id)}`));
+    await p.newTab('about:blank').ready;
+    assert.equal((await p.page()).url(), 'about:blank', 'Playwright reached its tab');
+    await shell.ws.deleteProfile(id);
+  });
+  // Last in phase 1: the tabs the restart phase finds (restart.js).
+  test('projects: another tab left in the background', async ({ shell, ui }) => {
+    await ui(`kulisa.invoke('project:open', { folder: ${JSON.stringify(path.join(root, 'other'))} })`);
+    await waitFor(() => shell.current?.id === 'other' && shell.ws.loaded);
+    await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
+    await ui(`${projectTab('project')}.click()`);
+    await waitFor(() => shell.current?.id === 'project' && shell.ws.loaded);
+    assert.deepEqual(await projectTabs(ui), ['project *', 'other']);
+  });
+  test('projects: one left in a window of its own (restart.js: the windows come back)', async ({ shell, ui }) => {
+    const third = path.join(root, 'third');
+    fs.mkdirSync(third, { recursive: true });
+    await ui(`kulisa.invoke('project:open', { folder: ${JSON.stringify(third)} })`);
+    await waitFor(() => shell.current?.id === 'third' && shell.ws.loaded);
+    await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
+    await ui(`kulisa.invoke('project:move', { id: 'third', terminals: {} })`);
+    await waitFor(() => shell.windows[1]?.current?.id === 'third' && !shell.windows[1].switching);
+    shell.windows[1].win.setBounds({ x: 40, y: 50, width: 1000, height: 700 });
+    await ui(`${projectTab('project')}.click()`);
+    await waitFor(() => shell.current?.id === 'project' && shell.ws.loaded);
+    assert.deepEqual(await projectTabs(ui), ['project *', 'other']);
   });
 };

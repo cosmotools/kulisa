@@ -1,8 +1,8 @@
 # Projects and workspaces
 
 How projects and their workspaces work today: what they are, what the human does, what Kulisa creates on the
-computer and removes again, and where the code is. The decisions behind them and what is still to do:
-[ROADMAP.md](ROADMAP.md), "Workspaces" and "Choosing the agent". Profiles: [profiles.md](profiles.md). Keep this file
+computer and removes again, why it is built so, and where the code is. What is still to do:
+[ROADMAP.md](ROADMAP.md). Profiles: [profiles.md](profiles.md); the window: [window.md](window.md). Keep this file
 current when they change.
 
 ## Projects
@@ -10,23 +10,45 @@ current when they change.
 A **project** is a folder, usually a repository, with its workspaces. Kulisa keeps its data in its own data folder
 (`projects/<id>/`), never in the project's folder, so sign-ins stay out of its git.
 
-- **One project is open at a time.** The project button in the title bar is a menu of the projects (each with its
-  color and folder; × on hover removes one), New Project…, Open Folder…, Close Project and Remove Project… (the open
-  one). No separate Manage Projects dialog: as in JetBrains, the menu and the Welcome screen do it all.
+- **Open projects are tabs** in the title bar, right of the logo, as a browser's: each with its color's dot and its
+  agents' state (the most pressing of its workspaces': waiting for you, working, done). A click shows one; the others
+  keep running, their agents and pages, until the human closes their tab: ×, the middle button, or Close Project in
+  its right-click menu (with Remove Project…). Closing a tab asks first (the author's decision, 2026-10-07; before, only when its agent was working), and says so when an agent is still working. **+** after the tabs
+  is the menu of the projects (each with its color and folder, the open ones marked ✓; × on hover removes one), New
+  Project…, Open Folder…, Close Project and Remove Project… (the shown one). No separate Manage Projects dialog: as
+  in JetBrains, the menu and the Welcome screen do it all.
 - **New Project…**, as JetBrains': a name and a location, the user's home folder unless they type or browse to
   another; the dialog shows the folder it makes (`<location>/<name>`; one that is there must be empty), so the human
   knows where the agent's files are. Create Git repository is on by default (`git init`, nothing committed):
   workspaces need git.
-- **Opening another project** closes this one: all its workspaces saved, their agents stopped. Coming back restores
-  them and resumes their agents. The window builds the other grid in place, hidden until it is laid out, so nothing
-  jumps.
-- **Each project has a color** (a glow from the middle of the window, the logo's curtain, the name's plate), to tell
-  projects apart at a glance.
+- **Opening another project** (the + menu, Open Folder…, New Project…) in a window with projects open asks where, as
+  JetBrains does: **This Window** adds its tab at the end and shows it, the one on screen keeps running; **New
+  Window** opens it in a window of its own. From the Welcome screen (no tab open) it opens in that window without a
+  question; a project already open is shown in its window. Showing
+  another tab slides the grid towards it, as switching workspaces does; the window builds the other grid in place, so
+  nothing jumps. **Closing a tab** stops the project's agents and closes its profiles (tabs and sign-ins kept); the
+  tab next to it is shown, or the Welcome screen when it was the last. Opening it again restores its workspaces and
+  resumes their agents.
+- **Move to New Window** (a tab's right-click menu) puts the project into a window of its own, next to this one, e.g.
+  to drag it to a second monitor; **Move to Window: …** (one item per other window, named by its projects) puts it
+  into that window, as a browser moves a tab. It keeps running: its agents, its pages (the same ones, moved, not
+  loaded again), what its terminals showed. The only tab of a window does not go to a new window; moved into another
+  one, its window closes. **Dragging a tab** does the same with the mouse: within the tabs it changes their order
+  (kept); let go on another window's tabs, the project moves there, where it was let go; let go outside every Kulisa
+  window, it opens in a new window there (the window appears when the mouse is let go, as in VS Code). Each window has its tabs and its + menu (a
+  project open in another window is marked ✓ too; choosing it brings that window to the front). The OS's × on a
+  window closes its projects, as closing their tabs would, after one question ("Close the window?"); on the last
+  window it quits Kulisa, and the windows with their tabs open again at the next start, where they were: nothing is
+  lost, so it asks only when that would stop a working agent ("Quit Kulisa?"). A window whose last tab
+  is closed closes too, unless it is the only one: then it shows the Welcome screen.
+- **Each project has a color** (the shown one's: a glow from the middle of the window, the logo's curtain, its tab's
+  plate), to tell projects apart at a glance.
 - **The Welcome screen** (the term: CLAUDE.md) is what the window shows with no project open: at the first start, and
-  after Close Project (the project button's menu), closing main, or removing the open project. New Project…, Open
+  after the last tab is closed (×, Close Project, closing main, removing the project). New Project…, Open
   Folder…, the recent projects (a click opens one, × or a right-click removes it), and links (the website, the
   documentation, GitHub, reporting an issue; they open in the user's browser) with Kulisa's version. Later starts
-  open the project opened last; `KULISA_PROJECT=<folder> npm start` opens that one.
+  open the windows that were open, each with its tabs, showing the one shown last (`windows` in `settings.json`);
+  `KULISA_PROJECT=<folder> npm start` adds that one to the first window and shows it.
 - **The agent** of each workspace starts in the user's own shell, in the workspace's folder, as if the human typed
   it in a terminal there: the project's environment applies (direnv's `.envrc`, nvm, mise; e.g. a project's
   `CLAUDE_CONFIG_DIR`, another Claude account), not the one Kulisa was started with. When it exits, the shell stays.
@@ -53,16 +75,58 @@ Example: the project `~/IdeaProjects/myshop`, a fork named "Checkout redesign":
 ## What the human does
 
 - **The strip** under the grid: a tab per workspace, with the agent's state as a dot (working, waiting for you,
-  done; from Claude Code's hooks only). A click shows that workspace: its grid and terminal slide in as macOS
-  desktops do (not with reduced motion). The one left keeps running.
+  done; from Claude Code's hooks only). A click shows that workspace: the grid on screen slides out and the
+  other one in at once, as macOS desktops do (a view transition on the compositor, the pages as pictures meanwhile;
+  not with reduced motion). The one left keeps running.
 - **+** asks for a name and the agent (main's by default) and makes a fork. Off without git: then **Initialize
   git…** runs `git init` in the project after a confirmation (nothing is committed); + stays off until the first
   commit.
 - **×** on a fork closes and deletes it, after a question: what goes for good (its folder, branch, profile copies,
   its agent's conversations) and any work not in main (commits of its own, uncommitted files), as removing a
-  project asks. **×** on main closes the project: the window
+  project asks. **×** on main closes the project, after the same question: the window
   shows the Welcome screen.
 - **Change agent…** in the terminal's right-click menu picks another agent for the shown workspace.
+
+## Actions: the human's and the agent's
+
+As for profiles ([profiles.md](profiles.md), "Actions"), each action is written once, in the core, with its question
+to the human; the window's IPC (`app.js`) is a handle on it. The agent has no handle on projects and workspaces yet:
+
+| Action | The human | The agent | The core |
+|---|---|---|---|
+| Open a project | + menu, Open Folder…, New Project…, the Welcome screen | none: it works inside one project | `openLater` (`app.js`), asking This Window or New Window; then `openProject` or `openInNewWindow` |
+| Close a project | a tab's ×, middle button, Close Project, main's × | none: it would stop itself | `closeProjects` (`app.js`), asking first |
+| Close a window, quit | the OS's × | none | `closeProjects` for the window's projects; quitting asks only when an agent works |
+| Move a project | Move to New Window, Move to Window, dragging its tab | none: where the human sees it is the human's | `moveProject` (`app.js`) |
+| Remove a project | Remove Project…, ×, the Welcome screen | none: it deletes sign-ins, the human's to decide | `removeProject` (`app.js`), `askRemoveProject`, `removeProjectData` (`projects.js`) |
+| Make a fork | + in the strip | not yet (ROADMAP, "Workspaces, rest") | `Project.createFork` |
+| Close (delete) a fork | its × | not yet (same) | `Project.askDeleteFork`, `deleteFork` |
+| Show a workspace | a click on its tab | none: what the human looks at is theirs | `AppWindow.showWorkspace` (`window.js`) |
+| Initialize git | Initialize git… in the strip | none: the agent has git itself | `Project.initGit`, asking first |
+| Change the agent | Change agent… (the terminal's menu) | none: the human's choice | `Workspace.changeAgent` |
+
+## Choosing the agent
+
+Each workspace runs the agent the human chose for it (its `agent.json`); Kulisa never assumes one is installed (it
+started `claude` without asking until 2026-10-06). When a workspace has none, or its agent is not on the computer, a
+dialog asks: Claude Code (Anthropic), Codex (OpenAI) or the terminal only, each with what it needs and whether it is
+on this computer. One that is not has **Install**: Kulisa runs its maker's own installer (the command shown before,
+its output while it runs), with no steps for the human to type, for people who are not programmers. Then the agent
+starts and asks the human to sign in to it. A new fork proposes main's agent; another can be picked in its dialog.
+**Change agent…** (the terminal's right-click menu) opens the same dialog, with Cancel, and starts the chosen agent
+with a new conversation: the way back when, say, Codex was chosen without a Codex account. `KULISA_AGENT` forces one
+command everywhere, without asking.
+
+- The installers are the makers' official native ones (no Node, no sudo, they update themselves; checked
+  2026-10-06): Claude Code `curl -fsSL https://claude.ai/install.sh | bash`, Codex
+  `curl -fsSL https://chatgpt.com/codex/install.sh | sh` (`install.ps1` on Windows).
+- Each agent is one entry in `agents.js`: how to find, install, start (Claude Code with the Kulisa plugin; Codex
+  with the MCP server as a config override, `-c mcp_servers.kulisa.url=…`), resume (`claude --resume` with the session
+  the `SessionStart` hook reported; `codex resume --last`) and forget a fork's folder.
+- The dialog is part of the window, not a window of its own: no extra process, and its code is a module loaded only
+  when it is needed (`agent-picker.js`).
+- The agent's state on the tabs comes from Claude Code's hooks (UserPromptSubmit, Notification, Stop); other agents
+  show none yet.
 
 ## Creating a fork, step by step
 
@@ -97,7 +161,8 @@ In Kulisa's data folder (`~/.config/Kulisa` on Linux, `~/Library/Application Sup
 
 ```
 projects.json                     the projects: id, name, folder, color
-settings.json                     the Kulisa zoom, the project opened last
+settings.json                     the Kulisa zoom, the theme; the windows: each one's projects (its tabs), the one
+                                  shown, where it was
 deleted-folders.json              folders to remove at the next start (a session keeps its files open)
 projects/<project id>/
   workspaces.json                 { next, current, list: [{ n, name, branch, worktree, folder, base, offset }] }
@@ -129,7 +194,7 @@ Nothing is written into the project's own folder (main's).
 
 ## Deleting a workspace: what goes
 
-One function deletes a workspace (`deleteWorkspace` in `app.js`), whether a fork is closed (×) or its project
+One function deletes a workspace (`deleteWorkspace` in `projects.js`), whether a fork is closed (×) or its project
 removed. A deleted fork leaves nothing on the computer that Kulisa or its agent made for it. Kulisa stops its agent
 and closes its profiles, then deletes:
 
@@ -156,21 +221,24 @@ What stays in any case: an agent Kulisa installed (it serves every project).
 
 ## Removing a project
 
-**Remove Project…**: in the project button's menu (Remove Project… for the open project; any project's × on hover),
-and a recent project on the Welcome screen (its × on hover, or its right-click menu). All call one function (`removeProject` in `app.js`):
+**Remove Project…**: in the + menu (Remove Project… for the shown project; any project's × on hover), a tab's
+right-click menu, and a recent project on the Welcome screen (its × on hover, or its right-click menu). All call one function (`removeProject` in `app.js`):
 Kulisa asks first, saying what goes and which forks have work not in main; closes the project if it is open;
 deletes each of its workspaces as above, forks first; then removes it from `projects.json` with its data folder
 `projects/<id>/`. The project's own folder stays as it is.
 
 ## While Kulisa runs
 
-- The window shows one workspace. The others keep running: their pages and agent go on, their pages hidden.
+- Each window shows one workspace of its shown project. The others keep running, the other open projects' too: their
+  pages and agent go on, their pages hidden.
 - A workspace loads (its profiles start, its agent starts) the first time it is shown, also after a restart.
-- Each workspace has its own MCP URL, `http://127.0.0.1:4450/ws/<n>/mcp`, and hooks under `/ws/<n>/hooks/`; its
-  agent gets them in its environment (`KULISA_MCP_URL`, `KULISA_URL`) and sees only its workspace's profiles.
-  Profile ids repeat across workspaces; inside Kulisa a profile is `<n>/<id>` (CDP proxy, highlights).
-- Opening another project closes all workspaces of this one; coming back, or restarting, restores them and resumes
-  their agents where the agent can (Claude `--resume`, Codex `resume --last`).
+- A workspace is known among all open ones by its key, `<project id>/<n>` (the window, the terminals). Each has its own
+  MCP URL, `http://127.0.0.1:4450/ws/<project id>/<n>/mcp`, and hooks under `/ws/<project id>/<n>/hooks/` (each part
+  percent-encoded: ids have letters of any language); its agent gets them in its environment (`KULISA_MCP_URL`,
+  `KULISA_URL`) and sees only its workspace's profiles. Profile ids repeat across workspaces; inside Kulisa a profile
+  is `<project id>/<n>/<id>` (CDP proxy, highlights).
+- Closing a project's tab stops all its workspaces; opening it again, or restarting, restores them and resumes their
+  agents where the agent can (Claude `--resume`, Codex `resume --last`).
 
 ## Removing everything by hand
 
@@ -184,18 +252,59 @@ git branch -D checkout-redesign
 rm -rf ~/.config/Kulisa/projects/myshop   # all its workspaces and profiles, sign-ins included
 ```
 
+## Why it is built this way
+
+Designed with the author on 2026-10-06 and 2026-10-07.
+
+- **Main is permanent, forks are temporary, and a fork never becomes main**: no pointer to move, no branches
+  swapped. Something a fork needs that main lacks (a new sign-in) is done in main; later forks get it.
+- **Code through git only.** The fork's folder is next to the project (`myshop@<ws>`): visible, and it opens in an
+  IDE; inside the project, IDEs and tools would see the code twice. Kulisa writes nothing into the project's folder.
+  A project without git has no forks; `git init` runs only on the human's click: run without asking, it could put
+  secrets into history, or a huge folder, or nest a repository.
+- **A new conversation for a fork**, not a fork of main's (`--fork-session`): the fork's code starts clean, and an
+  agent remembering main's unfinished edits would be misled. Started in the fork's folder, it has no questions about
+  access outside it.
+- **Profiles copied, sign-ins included.** Accepted risk: with real SSO, rotated tokens may sign a copy or the
+  original out. `session.fromPath` keeps the caches inside the profile (they cannot live elsewhere), so a copy
+  skips them; a profile copied while open, after a flush, opens signed in (checked on Linux).
+- **Storage as Chrome lays it out**, so what is known about Chrome's storage applies. `Profile N` folders are fixed
+  at creation: a rename touches only `profiles.json`.
+- **One port offset per workspace** moves any number of services with one number. Cookies do not depend on the
+  port, so the copies stay signed in to the app (separate hostnames such as `checkout.localhost` would lose that).
+  The local database is the developer's matter (`docker compose` already names containers after the folder, so a
+  fork gets its own; only published ports clash). An app that cannot change its port (hard-coded, OAuth bound to
+  `localhost:3000`) cannot run in a fork; the agent says so.
+- **Every fork asks before it is deleted**, also one without changes (at first that one went without a question,
+  as with Claude Code's `--worktree`): its conversation and profile copies go too, and × is easy to hit by mistake.
+- **A workspace loads when first shown**, not at the start: after a restart nothing works in the background anyway,
+  and the agent starts at its terminal's real size.
+- **Workspaces and projects in the background keep running**, their pages and agents. Memory: each agent is a
+  process of its own (Claude Code about 200–400 MB) plus its profiles' tabs.
+- **Another project opens in a tab**, as in a browser. At first opening one closed the shown one and stopped its
+  agents; now the human closes a tab when it is safe.
+- **Several windows are one Kulisa**, not a second instance: two cannot share the data folder. A project moves with
+  its pages' native views (`Profile.moveTo`), not loaded again, and with what its terminals show (xterm's serialize
+  addon, as VS Code keeps terminals), at their size, so its agent is never told a default one. A window is one more
+  renderer process for Kulisa's own page, only while it is open.
+- **Claude's trust of a fork's folder**: Claude's config is undocumented; when the file is not as expected, nothing
+  is changed and Claude asks as usual. Claude rewrites that file often; Kulisa writes it whole at once (a rename),
+  and a write of Claude's at the same moment may undo it (then Claude asks).
+
 ## The code
 
 | File | What |
 |---|---|
-| `src/main/app.js` | open, show, create and close workspaces (one at a time, `serial`); IPC; the window's state |
+| `src/main/app.js` | the windows; open, close and move projects (one change at a time, `serial`); IPC |
+| `src/main/window.js` | a window: its project tabs, show a project or a workspace, the grid's state, its questions |
+| `src/main/projects.js` | an open project: its workspaces; making a fork, deleting one (with the question); removing a project's data |
 | `src/main/workspaces.js` | a workspace: its profiles, its agent (start, change, environment), a fork's profile copies, ports |
 | `src/main/worktrees.js` | git: the fork's worktree and branch, files outside git, direnv, changes, removal |
 | `src/main/agents.js` | the agents to choose from: find, install, start, resume; Claude's folder trust |
 | `src/main/store.js` | the data folder above |
 | `src/main/terminal.js` | a terminal per workspace |
-| `src/renderer/projects.js`, `new-project.js` | the project menu, the Welcome screen; New Project… (loaded when needed) |
+| `src/renderer/projects.js`, `new-project.js` | the project tabs and the + menu, the Welcome screen; New Project… (loaded when needed) |
 | `src/renderer/workspaces.js` | the strip and the new-workspace dialog |
 | `src/renderer/agent-picker.js` | choosing and installing an agent (loaded when needed) |
-| `src/renderer/renderer.js` | building a workspace's grid, the slide |
+| `src/renderer/renderer.js`, `window.css` | building a workspace's grid; the slide (a view transition) |
 | `test/workspaces.js` | the tests; `test/restart.js` after a restart |

@@ -2,7 +2,8 @@
 
 Name: **Kulisa**, from the Russian *кулиса*, the wings of a theatre stage. The metaphor: the agent is the director working from the wings, the profiles are the actors, the panes are the stage, and the developer watches from the audience and stops the scene when something is wrong. Website: [kulisa.app](https://kulisa.app) (the domain the author's choice, 2026-10-05; live since 2026-10-06), its code in the separate repo `cosmotools/kulisa-site`.
 
-What is built so far and what comes next: [ROADMAP.md](ROADMAP.md). How the decisions below were reached: [REPORT.md](REPORT.md).
+What is built: [profiles.md](profiles.md), [workspaces.md](workspaces.md), [window.md](window.md); what comes next:
+[ROADMAP.md](ROADMAP.md). How the decisions below were reached: [REPORT.md](REPORT.md).
 
 ## 1. Problem
 
@@ -14,7 +15,7 @@ The author already built **cast** (a Claude Code plugin: one persistent Chrome p
 
 ## 2. Concept
 
-One desktop app per project, an IDE for multi-user web apps (in the class of VS Code or JetBrains IDEs, not a bot). Everything happens inside Kulisa; no external browser windows. On one screen:
+One desktop app for the developer's projects (each a tab, as in a browser), an IDE for multi-user web apps (in the class of VS Code or JetBrains IDEs, not a bot). Everything happens inside Kulisa; no external browser windows. On one screen:
 
 - **Profiles**: persistent identities of the app's users, each an embedded browser profile with its own cookies, storage and tabs, and later its own mailbox, locale, timezone and device. The human creates them in the app and signs in by hand.
 - **Panes**: each profile's browser, side by side, live, with its own tab strip.
@@ -78,8 +79,11 @@ Point-and-tell alone is already standard. The differentiator is **all of the app
   the timeline and mail) can be moved, stacked as tabs and resized; ready-made arrangements; the grid is saved.
 - **Terminal**: xterm.js + node-pty running the agent CLI unchanged.
 - **Point-and-tell delivery**: a short reference typed into the agent's prompt without Enter; the human writes the rest of the message around it.
+- **License: GPL-3.0-or-later**, free forever for what runs on the user's computer (the author's decision,
+  2026-10-07): anyone may fork it, and no one can close it. The name and logo stay the author's ([LICENSING.md](LICENSING.md)).
 - **Event bus**: agent commands pass through the main process; the pane captions and later the timeline subscribe to it.
 
 ## 5. Open questions
 
-- Business model: likely free/open core (panes, profiles, picker) and paid team features (shared recordings, shared profiles, CI runs).
+- Paid services, if any: only what costs money to run (a cloud service, e.g. shared recordings for a team), never what
+  runs on the user's computer, which stays free.

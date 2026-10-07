@@ -1,0 +1,212 @@
+/* The window: where the components (components.css) go and how its own parts are laid out: the title bar, the grid
+   and the profiles' panes, the workspaces' strip, the Welcome screen, the contents of the dialogs and menus. */
+html { height: 100%; }
+/* The project's color as a round glow from the middle of the window: seen in the title bar and the gaps between the
+   islands, fading towards the edges. */
+body {
+  margin: 0; height: 100%; overflow: hidden; display: flex; flex-direction: column;
+  font: var(--font) system-ui, sans-serif; color: var(--text);
+  user-select: none; cursor: default; /* a desktop app: labels and buttons are not text to select; fields are */
+  background: radial-gradient(circle, color-mix(in srgb, var(--project) 60%, transparent), transparent 90%) var(--window);
+}
+.caption, .tab .title, .prow .pid { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+
+/* The window's title bar (titleBarOverlay in app.js). env(titlebar-area-*) leaves room for the OS window buttons on
+   every platform; dragging it moves the window, except on its controls. */
+#topbar {
+  display: flex; gap: var(--gap); align-items: center; flex: none; height: 44px;
+  padding-left: calc(env(titlebar-area-x, 0px) + var(--gap)); width: env(titlebar-area-width, 100%);
+  -webkit-app-region: drag;
+  & button { -webkit-app-region: no-drag; &:not(.icon) { padding: 0 14px; } }
+  /* The app icon with the curtain in the project's color: each project its own curtain. */
+  .logo { width: 26px; height: 26px; flex: none;
+    .lit { stop-color: var(--project); }
+    .fold { stop-color: color-mix(in srgb, var(--project) 55%, black); } }
+  /* The open projects' tabs (.striptab.colored: the shown one on a plate of its color, as the window's glow). Many
+     tabs shrink, then the row scrolls; an agent's state only when it is known. */
+  #projectTabs { display: flex; gap: 4px; min-width: 0; overflow-x: auto; scrollbar-width: none;
+    .striptab { min-width: 72px; -webkit-app-region: no-drag; }
+    .state[data-state=""] { display: none; }
+    /* A tab being dragged; where a dropped one would go (projects.js). */
+    .dragging { opacity: .5; }
+    .drop-before { box-shadow: inset 2px 0 var(--accent); }
+    .drop-after { box-shadow: inset -2px 0 var(--accent); } }
+  /* At the right end: the Kulisa zoom, only when not 100% (as Chrome's magnifier), and ☰, the window's menu, kept
+     clear of the OS window buttons. */
+  #zoomReset { margin-inline-start: auto; }
+  #windowMenu { --icon: 18px; margin-inline: auto calc(var(--gap) * 3);
+    #zoomReset:not([hidden]) + & { margin-inline-start: 0; } }
+}
+
+/* The grid (dockview, theme abyss-spaced): panels are islands with rounded corners on the window, as in JetBrains'
+   Islands look. dockview paints its whole area in the islands' color; only the islands keep it. A profile's page is
+   a native view over .content, rounded in profiles.js (PAGE_RADIUS). */
+#dock {
+  flex: 1; min-height: 0; padding: 0 var(--gap) var(--gap); transition: opacity .15s;
+  .loading & { opacity: 0; transition: none; } /* until the grid is laid out (renderer.js, reveal) */
+  .dockview-theme-abyss-spaced {
+    color-scheme: inherit; /* the theme's own is dark; Kulisa's is the root's (tokens.css: light-dark()) */
+    --dv-group-view-background-color: var(--island);
+    --dv-tabs-and-actions-container-background-color: var(--island); --dv-tabs-and-actions-container-height: 36px; --dv-tab-font-size: var(--font);
+    /* One color per island: a lone panel's header is not a separate chip; stacked panels show the chosen one. */
+    --dv-activegroup-visiblepanel-tab-background-color: transparent; --dv-inactivegroup-visiblepanel-tab-background-color: transparent;
+    --dv-activegroup-hiddenpanel-tab-background-color: transparent; --dv-inactivegroup-hiddenpanel-tab-background-color: transparent;
+    --dv-activegroup-hiddenpanel-tab-color: var(--text-muted); --dv-inactivegroup-hiddenpanel-tab-color: var(--text-muted);
+    --dv-activegroup-visiblepanel-tab-color: var(--text-strong); --dv-inactivegroup-visiblepanel-tab-color: var(--text);
+    --dv-tab-divider-color: transparent; --dv-separator-border: transparent;
+    --dv-border-radius: var(--island-radius); --dv-tab-border-radius: var(--radius); --dv-tab-margin: 4px 2px; --dv-spacing-padding: 0px;
+    --dv-active-sash-color: var(--accent); --dv-drag-over-background-color: color-mix(in srgb, var(--accent) 25%, transparent);
+  }
+  :is(.dockview-theme-abyss-spaced, .dv-dockview) { background: transparent; }
+  .dv-tabs-container:has(.dv-tab + .dv-tab) .dv-active-tab { background: var(--island-hi); }
+  .dv-tabs-and-actions-container { padding-inline: 0; } /* the header's own (.ptab) sets the inset */
+  view-transition-name: grid;
+  :active-view-transition & { transition: none; } /* the next grid comes in sliding, not fading */
+}
+/* Switching workspaces (renderer.js, grid:closing): the grid on screen slides out and the next one in at once, as
+   macOS desktops do; types next and previous say which way. Pictures, so the compositor moves them. */
+::view-transition-old(grid), ::view-transition-new(grid) { animation: .3s cubic-bezier(.2, .8, .2, 1) both; mix-blend-mode: normal; }
+:active-view-transition-type(next) {
+  &::view-transition-old(grid) { animation-name: grid-to-left; }
+  &::view-transition-new(grid) { animation-name: grid-from-right; } }
+:active-view-transition-type(previous) {
+  &::view-transition-old(grid) { animation-name: grid-to-right; }
+  &::view-transition-new(grid) { animation-name: grid-from-left; } }
+@keyframes grid-to-left { to { translate: -100% 0; } }
+@keyframes grid-from-right { from { translate: 100% 0; } }
+@keyframes grid-to-right { to { translate: 100% 0; } }
+@keyframes grid-from-left { from { translate: -100% 0; } }
+
+/* A panel's header: a profile's color, name, the agent's caption, × (closing the profile) */
+/* Everything in a panel keeps --gap from the island's edges: the header's dot and ×, the tabs, the toolbar's first and
+   last button, the page (dockview's tab has a margin of 2px, --dv-tab-margin). */
+.ptab { display: flex; align-items: center; gap: 6px; height: 100%; padding: 0 calc(var(--gap) - 2px); min-width: 0; }
+.pname { cursor: text; white-space: nowrap; }
+.caption { flex: 1; color: var(--note); font-weight: normal; }
+
+/* A profile's pane, as a Chrome window: the tabs on the island's color, the active one of a piece with the toolbar
+   (back, forward, reload, the address, Pick, ⋮) and the frame around the page, a step lighter. */
+.pane { height: 100%; display: flex; flex-direction: column; min-width: 0; background: var(--toolbar);
+  border-radius: 0 0 var(--island-radius) var(--island-radius); }
+.tabs { display: flex; align-items: end; padding: 0 var(--gap); flex: none; background: var(--island);
+  .strip { display: flex; align-items: end; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+  .add { align-self: center; margin-inline-start: 4px; }
+}
+/* Many tabs shrink as Chrome's: narrow ones show their icon alone; the active one keeps its ×; past that the strip
+   scrolls (the wheel too, renderer.js). */
+.tab { position: relative; display: flex; align-items: center; gap: 6px; width: 220px; flex: 0 1 auto; min-width: 40px; /* a width, not a basis: size containment leaves it no other */ height: 32px; padding: 0 8px 0 12px;
+  container-type: inline-size;
+  border-radius: var(--tab-radius) var(--tab-radius) 0 0; color: var(--text-dim);
+  &:hover:not(.active) { background: color-mix(in srgb, var(--toolbar) 50%, var(--island)); }
+  &.active { background: var(--toolbar); color: var(--text-strong); min-width: 64px; } /* its icon and × */
+  /* a short line between two tabs, as Chrome's, where neither is lit */
+  &:not(.active, :hover) + &:not(.active, :hover)::before { content: ''; position: absolute; inset-inline-start: 0; inset-block: 9px;
+    border-inline-start: 1px solid var(--line); }
+  img { width: 16px; height: 16px; flex: none; }
+  .globe { stroke-width: 1.2; }
+  img:not([hidden]) + .globe { display: none; }
+  .title { flex: 1; min-width: 0; }
+}
+@container (max-width: 80px) {
+  .tab:not(.active) :is(.title, .x), .tab.active .title { display: none; }
+  .tab:not(.active) :is(img, .globe) { margin-inline: auto; }
+}
+.bar { display: flex; align-items: center; gap: 2px; padding: 4px var(--gap); flex: none;
+  /* the site's zoom, when not 100% */
+  .tool { padding: 0 8px; background: none; color: var(--text-dim); &:hover { background: var(--hover); } }
+  .more svg { stroke-width: 2.5; }
+  .pick.active { background: var(--accent); color: var(--on-accent); }
+  /* the omnibox: a pill a step darker than the toolbar; focused, an accent ring */
+  .addr { flex: 1; min-width: 0; margin-inline: 4px; padding: 0 14px; border: none; border-radius: calc(var(--control) / 2);
+    background: var(--island); color: var(--text);
+    &:hover { background: color-mix(in srgb, var(--island) 80%, var(--text)); }
+    &:focus { outline: 2px solid var(--accent); outline-offset: -2px; background: var(--island); color: var(--text-strong); } }
+}
+/* The profile's WebContentsView is placed over this box by the main process; while a panel is dragged, a picture of
+   the page (img.snapshot) stands in for it. */
+.content { flex: 1; position: relative; overflow: hidden; margin: 0 var(--gap) var(--gap); border-radius: var(--radius); background: var(--page);
+  .snapshot { position: absolute; inset: 0; width: 100%; height: 100%; }
+}
+
+#term { height: 100%; padding: 4px 4px 4px 8px; }
+.xterm-host { height: 100%; }
+
+/* The workspaces of the project, under the grid, as a browser's tab strip (workspaces.js) */
+#workspaces { display: flex; align-items: center; gap: 4px; flex: none; padding: 0 var(--gap) var(--gap);
+  .noproject & { display: none; }
+  #wslist { display: flex; gap: 4px; min-width: 0; overflow-x: auto; }
+}
+
+/* The Welcome screen (no project open): what to open, on one island in the grid's place (text on the project's glow
+   reads badly) */
+#welcome { display: none; flex: 1; align-content: center; justify-items: center; gap: var(--gap); padding: var(--gap);
+  margin: 0 var(--gap) var(--gap); border-radius: var(--island-radius); background: var(--island);
+  .noproject & { display: grid; }
+  .applogo { width: 96px; height: 96px; margin-bottom: var(--gap); }
+  h2 { margin: 0; font-size: 1.3em; }
+  .hint { margin: 0 0 var(--gap); color: var(--text-muted); }
+  .start { display: flex; gap: var(--gap); }
+  h3 { margin: calc(var(--gap) * 2) 0 0; width: min(480px, 100%); font-size: 1em; color: var(--text-dim); }
+  &:has(#welcome-list:empty) h3 { display: none; }
+  .links { display: flex; flex-wrap: wrap; justify-content: center; gap: calc(var(--gap) * 2); margin-top: calc(var(--gap) * 3);
+    color: var(--text-muted);
+    a { color: inherit; &:hover { color: var(--text); } } }
+}
+.noproject :is(#dock, #openProfiles) { display: none; }
+/* The terminal waits outside the grid until its panel is there (no project open): it takes no room meanwhile. */
+body > #term { display: none; }
+/* The recent projects (tpl-project), as the project menu's rows but roomier: a click opens one, × (on hover) or a
+   right-click removes it. */
+#welcome-list { display: flex; flex-direction: column; gap: 4px; width: min(520px, 100%); margin-top: var(--gap);
+  .item { gap: 12px; padding: 10px 14px; .text { gap: 3px; } .label { color: var(--text-strong); } }
+  .remove { margin-inline-end: 8px; }
+}
+
+/* The dialogs' own contents */
+/* A question before something that cannot be undone (ask.js): what goes, line by line */
+#ask { width: 480px;
+  .detail { margin: 0; white-space: pre-line; overflow-wrap: anywhere; user-select: text; &:empty { display: none; } } }
+/* The agents to choose from (agent-picker.js) */
+#agents { width: 640px;
+  .agentrow { display: flex; gap: var(--gap); align-items: center; padding: 8px 4px; border-bottom: 1px solid var(--island-hi);
+    input { height: auto; flex: none; }
+    .what { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+    small { color: var(--text-muted); }
+    .install-line { font-family: "JetBrains Mono", monospace; overflow-wrap: anywhere; &:empty { display: none; } }
+    &:not(:has(input:checked)) .install-line { display: none; }
+    .status { color: var(--text-muted); white-space: nowrap; } }
+  #agentprogress { margin: 10px 0 0; &:empty { display: none; } }
+  #agentdetails { margin-top: 6px; summary { color: var(--text-muted); } }
+  #agentlog { max-height: 180px; overflow: auto; margin: 6px 0 0; padding: 8px; border-radius: var(--radius); background: var(--window);
+    font: 12px "JetBrains Mono", monospace; white-space: pre-wrap; user-select: text; }
+}
+/* The profile editor's rows (profile-editor.js) */
+.prow { display: flex; gap: var(--gap); align-items: center; padding: 6px 0; border-bottom: 1px solid var(--island-hi);
+  .name { flex: 1; }
+  .pid { color: var(--text-muted); width: 120px; }
+  .ntabs { color: var(--text-muted); min-width: 48px; text-align: right; white-space: nowrap; }
+}
+
+/* The menus' own rows (renderer.js) */
+#menu {
+  :is(.zoomrow, .themerow, .arrange) button { border: none; background: none; &:is(:hover, :focus-visible):not(:disabled) { background: var(--island-hi); outline: none; } }
+  /* Theme  Dark  Light  System: the chosen one lit */
+  .themerow { display: flex; align-items: center; gap: 2px; padding-inline-start: 10px;
+    span { flex: 1; margin-inline-end: 12px; }
+    button { padding: 0 8px; color: var(--text-dim); &[aria-pressed="true"] { background: var(--island-hi); color: var(--text-strong); } } }
+  /* Zoom  −  100%  +  as in Chrome's menu */
+  .zoomrow { display: flex; align-items: center; gap: 2px; padding-inline-start: 10px;
+    span { flex: 1; }
+    output { min-width: 4em; text-align: center; }
+    button { width: var(--control); padding: 0; font-size: 1.15em; } }
+  /* Arrange panels as pictures, as the window looks: the profiles' pages light, the terminal dark with its prompt */
+  .arrange { display: flex; gap: 4px; padding: 2px 4px 4px;
+    button { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: auto; padding: 8px 10px 6px;
+      color: var(--text-dim); white-space: nowrap; &:is(:hover, :focus-visible) { color: var(--text-strong); } }
+    svg { width: 64px; height: 43px; } /* the classes are a-…: .pane and .tab are the grid's own, and size rects too */
+    .a-page, .a-tab { fill: color-mix(in srgb, var(--page) 70%, transparent); stroke: var(--line); stroke-width: 1; } /* the edge: white on a light menu */
+    .a-tab.off { fill: var(--line); }
+    .a-term { fill: var(--window); stroke: var(--line); stroke-width: 1; }
+    .a-prompt { fill: none; stroke: var(--text-dim); stroke-width: 1; stroke-linecap: round; stroke-linejoin: round; }
+    button:is(:hover, :focus-visible) :is(.a-page, .a-tab:not(.off)) { fill: var(--page); } }
+}

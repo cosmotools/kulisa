@@ -1,5 +1,5 @@
 // What the Kulisa plugin's hooks ask Kulisa for (src/agent/claude-plugin/hooks/hooks.json), served next to the
-// MCP server at /ws/<n>/hooks/<event> (KULISA_URL is the workspace's). The hook's input (Claude Code's JSON) comes as
+// MCP server at /ws/<project>/<n>/hooks/<event> (KULISA_URL is the workspace's). The hook's input (Claude Code's JSON) comes as
 // the request body; answers are Claude Code hook output (JSON on the hook's stdout).
 
 // SessionStart: the profiles as they are now, so the agent knows them before its first tool call. Also notes the

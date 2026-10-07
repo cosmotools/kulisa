@@ -16,7 +16,7 @@ module.exports = (test) => {
     assert.equal(await ui(`document.getElementById('zoomReset').textContent`), '110%');
     assert.equal(await ui(`document.getElementById('zoomReset').hidden`), false);
     await ui(`document.getElementById('windowMenu').click()`);
-    assert.deepEqual((await menuRows(ui)).slice(0, 3), ['zoom', '-', '# Arrange panels']);
+    assert.deepEqual((await menuRows(ui)).slice(0, 4), ['zoom', 'theme', '-', '# Arrange panels']);
     assert.equal(await ui(`document.querySelector('#menu .zoomrow output').textContent`), '110%');
     await ui(`document.querySelector('#menu .zoomrow .in').click()`); // − 110% + in the menu, as in Chrome
     await waitFor(() => near(win.getZoomFactor(), 1.25));
@@ -79,6 +79,7 @@ module.exports = (test) => {
     const listed = JSON.parse((await call('browser_profiles', {})).text).find((p) => p.id === 'cleo');
     assert.deepEqual(listed, { id: 'cleo', name: 'Cleo', closed: true, tabs: 2 });
     await assert.rejects(call('browser_snapshot', { profile: 'cleo' }), /closed.*profile_open/);
+    assert.match((await ui(`kulisa.invoke('tab:new', { profile: 'cleo' })`)).error, /Profile "cleo" is closed/); // the window: the same check
 
     // Open again in the editor.
     await manageProfiles(ui);
@@ -103,7 +104,7 @@ module.exports = (test) => {
     await waitFor(() => shell.profiles.has('cleo'));
     // Closed right as it opens: it opens, then closes; nothing breaks.
     await call('profile_close', { profile: 'cleo' });
-    const [opened, closed] = await Promise.all([shell.openProfile('cleo'), shell.closeProfile('cleo')]);
+    const [opened, closed] = await Promise.all([shell.ws.openProfile('cleo'), shell.ws.closeProfile('cleo')]);
     assert.deepEqual([opened, closed], [{ id: 'cleo' }, { id: 'cleo' }]);
     assert.ok(shell.closed.has('cleo') && !shell.profiles.has('cleo'));
     assert.deepEqual(shell.closed.get('cleo').urls, [`${SITE}/app`, `${SITE}/app?second`], 'its tabs kept');
@@ -130,5 +131,17 @@ module.exports = (test) => {
     await call('profile_create', { name: 'Dora' });
     await call('browser_navigate', { profile: 'dora', url: `${SITE}/app/login?name=dora` });
     await call('profile_close', { profile: 'dora' });
+  });
+  test('a profile with a tab on a site that never answers opens anyway, and the agent can use it', async ({ shell, call }) => {
+    await call('profile_create', { name: 'Hung' });
+    await call('browser_tab_new', { profile: 'hung', url: `${SITE}/hang` }); // returns after 5 s without a page
+    await shell.ws.closeProfile('hung');
+    await waitFor(() => savedTabs('hung').some((u) => u.endsWith('/hang')));
+    const started = Date.now();
+    await shell.ws.openProfile('hung');
+    assert.ok(Date.now() - started < 10000, `opened in ${Date.now() - started} ms`);
+    const t = await call('browser_tab_new', { profile: 'hung', url: `${SITE}/app` });
+    assert.match(t.text, /app/);
+    await shell.ws.deleteProfile('hung');
   });
 };

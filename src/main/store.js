@@ -1,6 +1,7 @@
 // Kulisa's own data in the user-data folder, laid out as Chrome lays out its own (Local State, then a folder per
 // profile), so what is known about Chrome's storage applies:
-//   settings.json            the Kulisa zoom, the last project (null: the window was left with no project)
+//   settings.json            the Kulisa zoom, the theme; the windows: the projects open in each (its tabs, in
+//                            order), the one shown, where it was on screen
 //   projects.json            the projects: { id, name, folder, color }; a project is a folder (a repository, or one
 //                            Kulisa made); its color tints the window, to tell projects apart at a glance
 //   projects/<id>/
@@ -32,7 +33,6 @@ class Store {
     this.projectsFile = path.join(dir, 'projects.json');
     this.deletedFile = path.join(dir, 'deleted-folders.json');
     this.settingsFile = path.join(dir, 'settings.json');
-    this.project = null; this.projectDir = null;
     this.purgeDeleted();
   }
 
@@ -50,34 +50,33 @@ class Store {
     writeJSON(this.projectsFile, [...list, p]);
     return p;
   }
-  // The project opened last, if it is still in the list; null at first start, or when the window was left with no
-  // project open.
-  lastProject() { const id = this.settings().lastProject; return this.projects().find((p) => p.id === id) || null; }
-  // From now on workspaces() are this project's.
-  openProject(p) {
-    this.project = p; this.projectDir = this.dirOf(p);
-    this.saveSettings({ ...this.settings(), lastProject: p.id });
+  // The windows open last: [{ tabs: [project], shown: project or null, bounds, maximized }], each with its project
+  // tabs in order; none at first start. Before there were several windows, one window's were openProjects and
+  // lastProject.
+  windows() {
+    const s = this.settings(), list = this.projects();
+    const byId = (id) => list.find((p) => p.id === id) || null;
+    const saved = s.windows || (s.openProjects || s.lastProject ? [{ tabs: s.openProjects || [s.lastProject], shown: s.lastProject }] : []);
+    return saved.map((w) => ({ ...w, tabs: (w.tabs || []).map(byId).filter(Boolean), shown: byId(w.shown) }));
   }
-  // The window is left with no project (and opens so at the next start).
-  closeProject() {
-    this.project = null; this.projectDir = null;
-    this.saveSettings({ ...this.settings(), lastProject: null });
+  // windows: [{ tabs: [id], shown: id or null, bounds, maximized }].
+  saveWindows(windows) {
+    const { openProjects, lastProject, ...s } = this.settings();
+    this.saveSettings({ ...s, windows });
   }
 
-  // The open project's workspaces (workspaces.json); of another project: workspacesOf(p), workspaceOf(p, n).
-  workspaces() { return this.workspacesOf(this.project); }
-  saveWorkspaces(w) { writeJSON(path.join(this.projectDir, 'workspaces.json'), w); }
-  wsDir(n) { return path.join(this.projectDir, String(n)); }
-  workspace(n) { return new WorkspaceStore(this.wsDir(n), this); }
+  // A project's workspaces (workspaces.json) and each one's data.
   workspacesOf(p) {
     return readJSON(path.join(this.dir, 'projects', p.id, 'workspaces.json')) || { next: 2, current: 1, list: [{ n: 1, name: 'main' }] };
   }
+  saveWorkspacesOf(p, w) { writeJSON(path.join(this.dirOf(p), 'workspaces.json'), w); }
   workspaceOf(p, n) { return new WorkspaceStore(path.join(this.dir, 'projects', p.id, String(n)), this); }
   // A project gone from Kulisa: from the list, and its data (profiles with their sign-ins, workspaces); never its
   // folder. Its profiles' sessions may still be open: what cannot go now goes at the next start.
   removeProject(p) {
     writeJSON(this.projectsFile, this.projects().filter((x) => x.id !== p.id));
-    if (this.settings().lastProject === p.id) this.saveSettings({ ...this.settings(), lastProject: null });
+    this.saveWindows(this.windows().map((w) => ({ ...w, tabs: w.tabs.map((x) => x.id).filter((id) => id !== p.id),
+      shown: w.shown && w.shown.id !== p.id ? w.shown.id : null })));
     const dir = path.join(this.dir, 'projects', p.id);
     this.markDeleted(dir);
     try { fs.rmSync(dir, { recursive: true, force: true }); } catch (e) { console.warn('[store]', e.message); }
@@ -93,7 +92,7 @@ class Store {
     }
     fs.rmSync(this.deletedFile, { force: true });
   }
-  // Kulisa's own settings: { uiZoom, lastProject }.
+  // Kulisa's own settings: { uiZoom, theme, windows }.
   settings() { return readJSON(this.settingsFile) || {}; }
   saveSettings(s) { writeJSON(this.settingsFile, s); }
 }

@@ -1,7 +1,7 @@
-// The profiles of a workspace of the open project, in their order: open ones (a Profile: tabs, automation) and closed
+// The profiles of a workspace, in their order: open ones (a Profile: tabs, automation) and closed
 // ones (their settings and the URLs of their tabs only; still signed in). Creates, renames, closes, opens and deletes
 // them and keeps profiles.json and their tabs (store.js, WorkspaceStore). `profiles` (open ones: Profile) and `closed` (closed ones: their entry) are maps by
-// id, in the list's order, for everything that looks a profile up (shell.profiles, shell.closed).
+// id, in the list's order, for everything that looks a profile up (Workspace: profiles, closed).
 // What it takes to run a profile is the workspace's (workspaces.js), given as hooks:
 //   make(cfg) -> Profile        a Profile for the settings, not started yet
 //   start(profile, urls)        its tabs open, automation connected

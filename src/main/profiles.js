@@ -22,12 +22,22 @@ function zoomKey(i) {
   if (i.type !== 'keyDown' || !(i.control || i.meta) || i.alt) return undefined;
   return { '=': 1, '+': 1, '-': -1, '0': 0 }[i.key];
 }
-const PAGE_RADIUS = 6; // matches the panes' rounded corners (renderer styles.css)
+// What the human types in the address bar, or the agent passes, as a URL: one with a scheme as it is; a host (with a
+// path) over https, localhost over http; anything else is searched for. "localhost:3000" is a host and a port, not a
+// scheme.
+function toUrl(u) {
+  u = u.trim();
+  if (/^[a-z][\w+.-]*:/i.test(u) && !/^[\w.-]+:\d+(\/|$)/.test(u)) return u;
+  if (/^(localhost|127\.)/.test(u)) return 'http://' + u;
+  if (/^[\w.-]+(:\d+)?(\/|$)/.test(u)) return 'https://' + u;
+  return 'https://www.google.com/search?q=' + encodeURIComponent(u);
+}
+const PAGE_RADIUS = 6; // matches the panes' rounded corners (renderer window.css)
 
 class Profile extends EventEmitter {
   // cfg: { id, name, color, folder, dir }. The folder (cookies, storage; dir is its absolute path) is fixed at
   // creation; a rename changes id and name only.
-  // ws: the workspace's number (profiles of different workspaces share ids).
+  // win: the window it shows in (moveTo). ws: its workspace's key (profiles of different workspaces share ids).
   // mimic: a chromeIdentity() to present as Google Chrome, or null.
   constructor(win, cfg, { ws, mimic = null } = {}) {
     super();
@@ -75,6 +85,7 @@ class Profile extends EventEmitter {
   get(id) { id = id || this.active; return this.tabs.find((t) => t.id === id || t.targetId === id); }
 
   newTab(url, { activate = true } = {}) {
+    url = url && toUrl(url);
     const view = new WebContentsView({ webPreferences: { session: this.session, sandbox: true } });
     const tab = this._add(view);
     const wc = view.webContents;
@@ -86,6 +97,17 @@ class Profile extends EventEmitter {
     const ready = this.mimic
       ? wc.loadURL('about:blank').catch(() => {}).then(() => mimicChrome.applyToWebContents(wc, this.mimic)).catch((e) => console.error('[mimic]', e.message))
       : Promise.resolve();
+    // tab.answered (null once it has): the URL's first page, or its error page, is there. Until then Chromium holds
+    // CDP commands to the tab, so the proxy shows it to clients only after: a site that never answers would hang
+    // them, and opening the profile with them (cdp-proxy.js).
+    if (url && url !== 'about:blank') {
+      tab.answered = new Promise((resolve) => {
+        const navigated = (_e, u) => { if (u !== 'about:blank') done(); };
+        const failed = (_e, code, _d, _u, mainFrame) => { if (mainFrame && code !== -3) done(); }; // -3: replaced by another navigation
+        const done = () => { wc.off('did-navigate', navigated); wc.off('did-fail-load', failed); resolve(); };
+        wc.on('did-navigate', navigated); wc.on('did-fail-load', failed);
+      }).then(() => { tab.answered = null; });
+    }
     // tab.ready: the first navigation has committed. A client that attaches earlier sees a never-loaded tab.
     tab.ready = ready.then(() => url && new Promise((resolve) => {
       wc.once('did-navigate', resolve); setTimeout(resolve, 5000);
@@ -96,7 +118,7 @@ class Profile extends EventEmitter {
   }
 
   _add(view) {
-    const tab = { id: `k${nextTab++}`, view, wc: view.webContents, title: '', url: '', favicon: '', loading: false };
+    const tab = { id: `k${nextTab++}`, view, wc: view.webContents, title: '', url: '', favicon: '', loading: false, answered: null };
     const wc = tab.wc;
     view.setBorderRadius(PAGE_RADIUS);
     const update = () => {
@@ -182,6 +204,13 @@ class Profile extends EventEmitter {
     this.emit('deleted');
   }
 
+  // Its pages into another window (its project moved there), hidden until that window lays them out.
+  moveTo(win) {
+    for (const t of this.tabs) try { this.win.contentView.removeChildView(t.view); } catch {}
+    this.win = win; this.hidden = true;
+    if (this.active) this.activate(this.active);
+  }
+
   toggleDevTools(id) {
     const wc = this.get(id).wc;
     if (wc.isDevToolsOpened()) wc.closeDevTools();
@@ -194,7 +223,7 @@ class Profile extends EventEmitter {
     if (shown) { this.bounds = bounds; const t = this.get(); if (t) t.view.setBounds(bounds); }
     this._show();
   }
-  navigate(id, url) { this.get(id).wc.loadURL(url).catch(() => {}); }
+  navigate(id, url) { this.get(id).wc.loadURL(toUrl(url)).catch(() => {}); }
   back(id) { this.get(id).wc.navigationHistory.goBack(); }
   forward(id) { this.get(id).wc.navigationHistory.goForward(); }
   reload(id) { this.get(id).wc.reload(); }
@@ -264,4 +293,4 @@ async function targetIdOf(page) {
   return targetIds.get(page);
 }
 
-module.exports = { Profile, stepZoom, zoomKey, wipeSession };
+module.exports = { Profile, stepZoom, zoomKey, wipeSession, toUrl };

@@ -2,7 +2,7 @@
 const fs = require('fs');
 const path = require('path');
 const { assert, root, userData, project, pfile, savedTabs, panel, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, menuOpen, rightClick,
-  box, pageBox, viewOn, dock, ctrl, near } = require('./helpers');
+  box, pageBox, viewOn, dock, ctrl, near, projectTabs } = require('./helpers');
 
 module.exports = (test) => {
   test('after a restart: profiles, sign-ins and tabs are back', async (ctx) => {
@@ -43,23 +43,39 @@ module.exports = (test) => {
   test('after a restart: the fork waits in the strip, loads when shown, still signed in; main again', async (ctx) => {
     const { shell, ui } = ctx;
     await waitFor(async () => (await ui(`[...document.querySelectorAll('#wslist .wstab')].map((t) => t.querySelector('.name').textContent).join()`)) === 'main,Feature-X');
-    const fork = shell.workspaces.get(2);
+    const fork = shell.current.workspaces.get(2);
     assert.equal(fork.loaded, false);
-    await ui(`document.querySelector('#wslist .wstab[data-ws="2"]').click()`);
+    await ui(`document.querySelector('#wslist .wstab[data-ws="project/2"]').click()`);
     await waitFor(() => shell.ws === fork && fork.loaded && fork.pty);
     assert.equal(fork.folder, `${project}@feature-x`);
     assert.deepEqual([...shell.profiles.keys()], ['sam-admin', 'elon-buyer']);
     await ctx.call('browser_navigate', { profile: 'sam-admin', url: `${SITE}/app` });
     assert.equal(await who(ctx, 'sam-admin'), 'Signed in as sam');
-    await ui(`document.querySelector('#wslist .wstab[data-ws="1"]').click()`);
+    await ui(`document.querySelector('#wslist .wstab[data-ws="project/1"]').click()`);
     await waitFor(() => shell.ws.n === 1);
     await waitFor(async () => (await viewOn(shell, ui, 'sam-admin')) && viewOn(shell, ui, 'elon-buyer'));
   });
+  test('after a restart: the project tabs are as they were left; one in the background loads when shown', async ({ shell, ui }) => {
+    await waitFor(async () => JSON.stringify(await projectTabs(ui)) === '["project *","other"]');
+    assert.equal(shell.open.get('other').ws.loaded, false);
+  });
+  test('after a restart: a window of its own comes back where it was, with its project shown', async ({ shell }) => {
+    await waitFor(() => shell.windows.length === 2 && shell.windows[1].current?.id === 'third' && shell.windows[1].ws.loaded);
+    const second = shell.windows[1];
+    assert.deepEqual(second.tabs.map((p) => p.id), ['third']);
+    const { width, height } = second.win.getNormalBounds();
+    assert.deepEqual({ width, height }, { width: 1000, height: 700 });
+    await waitFor(async () => JSON.stringify(await projectTabs((js) => second.win.webContents.executeJavaScript(js))) === '["third *"]');
+  });
   test('after a restart: the grid is as it was left (preset "grid")', async ({ ui }) => {
-    const box = (sel) => ui(`(() => { const r = document.querySelector(${JSON.stringify(sel)}).getBoundingClientRect(); return { x: r.x, width: r.width }; })()`);
-    await waitFor(async () => (await ui(`document.querySelectorAll('.pane').length`)) === 2);
-    const sam = await box('.pane[data-profile="sam-admin"] .content'), elon = await box('.pane[data-profile="elon-buyer"] .content');
-    const term = await box('#term');
-    assert.ok(sam.x < elon.x && term.x > elon.x + elon.width - 1);
+    const box = (sel) => ui(`(() => { const r = document.querySelector(${JSON.stringify(sel)})?.getBoundingClientRect(); return r ? { x: r.x, width: r.width } : { x: -1, width: 0 }; })()`);
+    // Once the grid is laid out: the test before may end while the fork's panes (the same profile ids) are still going.
+    const columns = async () => {
+      if (!(await ui(`document.querySelectorAll('.pane[data-profile="sam-admin"], .pane[data-profile="elon-buyer"]').length === 2`))) return false;
+      const sam = await box('.pane[data-profile="sam-admin"] .content'), elon = await box('.pane[data-profile="elon-buyer"] .content');
+      const term = await box('#term');
+      return sam.width > 0 && sam.x < elon.x && term.x > elon.x + elon.width - 1;
+    };
+    await waitFor(columns, 3000);
   });
 };

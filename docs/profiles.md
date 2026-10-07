@@ -18,8 +18,10 @@ A profile is an Electron session on a folder of its own (`session.fromPath`), la
 
 - **Create** in Profiles ▾ → Manage Profiles… (a name; a color is picked). The new profile is empty and signed out.
   Names of profiles, projects and workspaces take letters (any language), digits and `@ . _ + -`, as an email
-  address does, starting with a letter or a digit, so a profile can be named after its account (`ann+test@shop.com`);
-  no spaces (`names.js`).
+  address does, starting with a letter or a digit (not `@` alone, `.x`, `..`, `-x`), at most 64, so a profile can be
+  named after its account (`ann+test@shop.com`); no spaces (`names.js`, the author's rule). Name fields leave other
+  characters out as they are typed or pasted, and the main process checks again (the agent's `profile_create` too).
+  Ids, branches and fork folders keep letters of any language.
 - **Sign in by hand** in its pane. Only the human signs in: Kulisa never types passwords or automates a sign-in,
   and never prints or logs cookies or tokens (CLAUDE.md, Rules).
 - **Rename**: double-click the pane's name, the editor, or the pane's right-click menu. Only the name and id
@@ -28,11 +30,14 @@ A profile is an Electron session on a folder of its own (`session.fromPath`), la
   Profiles ▾ lists it as closed and opens it again with the same tabs. Closed profiles stay closed across restarts.
 - **Delete** in the editor or the pane's menu, after a confirmation: its sign-ins, storage and tabs are gone for
   good.
-- **Tabs**: a tab strip and an address bar per pane; `target=_blank` and `window.open` open tabs of the same
-  profile. Right-click a tab: reload, duplicate, close, close others. DevTools of a tab: the button or F12.
+- **Tabs**: a tab strip and an address bar per pane, drawn as Chrome's (the active tab of a piece with the toolbar;
+  back, forward, reload as Chrome's icons; the address without `https://` and `www.` until it is clicked, then all
+  of it, selected; a tab opened with + gets the focus in its empty address; many tabs shrink to their icon, the strip
+  scrolls, the active tab stays in sight); `target=_blank` and `window.open` open tabs of the same
+  profile. Right-click a tab: reload, duplicate, close, close others. DevTools of a tab: the pane's ⋮ menu (where more of a pane's actions will go, as in Chrome) or F12.
 - **Zoom**: Ctrl + / − / 0 in a page zooms that site in that profile, on top of the Kulisa zoom (saved per profile,
   shown in the address bar).
-- **Pick** (⌖): click an element on the page; a reference to it goes into the agent's prompt (below).
+- **Pick** (DevTools' inspect icon, at the end of the address bar): click an element on the page; a reference to it goes into the agent's prompt (below).
 
 ## What the agent does
 
@@ -40,16 +45,50 @@ Through Kulisa's MCP server (`mcp-server.js`), every tool taking a profile id: `
 `browser_snapshot`, `browser_click`, `browser_type`, `browser_navigate`, `browser_tab_new` / `_select` / `_close`,
 `browser_highlight`, `browser_screenshot`, `browser_console_messages`, `browser_network_requests`; the tools reading
 or acting on a page take an optional `tab`. Profiles: `profile_create`, `profile_open`, `profile_close`, and
-`profile_delete`, which asks the human first. The agent learns how to work with profiles from the Kulisa plugin's
-skill (`src/agent/claude-plugin/skills/profiles/SKILL.md`); keep it in step with the tools.
+`profile_delete`, which asks the human first. The console and network tools (Playwright's `page.consoleMessages()`,
+`pageErrors()`, `requests()`) give errors or failures only when asked. `@playwright/mcp` works too, through the
+profile's CDP proxy (below).
+
+**The agent points back**: `browser_highlight` outlines elements on a profile's page (Playwright's
+`locator.highlight()`, following the element; it works on Trusted Types pages too) and shows its labels in the pane
+header, until the human clicks or types in that tab.
+
+The agent learns how to work with profiles from the Kulisa plugin (CLAUDE.md, Architecture). For Claude Code it is
+`src/agent/claude-plugin/`, started with `claude --plugin-dir`: the MCP config, the profiles skill
+(`skills/profiles/SKILL.md`; keep it in step with the tools) and hooks, among them `SessionStart`, which tells the
+agent which profiles are open and tells Kulisa its session (to resume it). The user's own MCP servers stay available
+(no `--strict-mcp-config`). Codex gets the MCP server as a config override, not the skill yet (ROADMAP).
 
 The human sees what the agent does (`ghost.js`): Playwright's action annotations in the page (a mark at the action
 point, the element outlined) and a caption over the pane for every command through the proxy.
 
-**Point and tell** (`picker.js`): ⌖ Pick, then a click on an element (Playwright's `page.pickLocator()`; Esc or Pick
+**Point and tell** (`picker.js`): Pick, then a click on an element (Playwright's `page.pickLocator()`; Esc or Pick
 again cancels). `[kulisa pick: <profile> tab <tab> <locator>]` is typed into the agent's prompt without Enter, and
 the terminal gets the focus: the human writes the rest of the message around it. Nothing is saved; the agent looks
 at the element on the live page with its tools.
+
+## Actions: the human's and the agent's
+
+Both act on one core (CLAUDE.md, Architecture): the window and the MCP tools find profiles and tabs with
+`Workspace.find` / `findTab` (the same refusals: no such profile, a closed one, no such tab) and call the same
+methods. A row with one side empty says why, or is a gap to fill.
+
+| Action | The human | The agent | The core |
+|---|---|---|---|
+| Create a profile | Manage Profiles… | `profile_create` | `Workspace.createProfile` |
+| Rename a profile | double-click, editor, pane menu | not yet | `Workspace.renameProfile` |
+| Close, open a profile | ×, Profiles ▾, editor | `profile_close`, `profile_open` | `Workspace.closeProfile`, `openProfile` |
+| Delete a profile | editor, pane menu | `profile_delete` | `Workspace.deleteProfile(id, by)`: asks the human either way |
+| Open a tab | +, Duplicate, New tab | `browser_tab_new` | `Profile.newTab` (the address read by `toUrl`) |
+| Switch, close a tab | a click, ×, Close others | `browser_tab_select`, `browser_tab_close` | `Profile.activate`, `closeTab` |
+| Go to an address | the address bar | `browser_navigate` (Playwright, so it is shown) | `toUrl`; `Profile.navigate` |
+| Back, forward, reload | the toolbar, tab menu | not yet | `Profile.back`, `forward`, `reload` |
+| Zoom a site | Ctrl + / − / 0 | none: how the human sees the page | `Profile.zoomSite` |
+| DevTools | ⋮, F12 | none: the agent has console and network tools | `Profile.toggleDevTools` |
+| Point at an element | Pick (into the agent's prompt) | `browser_highlight` (outlined for the human) | `picker.js`; the MCP server |
+| Read a page | looks at it | `browser_snapshot`, `browser_screenshot`, console, network | Playwright |
+| Act in a page | mouse, keyboard | `browser_click`, `browser_type` | the page itself; Playwright over the proxy |
+| Sign in | by hand | never (Rules) | the sign-in pause |
 
 ## Sign-ins that last
 
@@ -81,10 +120,12 @@ the first request already carries it. `navigator.webdriver` stays false. `KULISA
 ## How automation reaches the pages
 
 Only through the CDP proxy (`cdp-proxy.js`): a fake CDP "browser" endpoint per profile,
-`http://127.0.0.1:<port>/<workspace>/<profile>`, over each tab's `webContents.debugger`. There is no
+`http://127.0.0.1:<port>/<project>/<workspace>/<profile>` (each part percent-encoded), over each tab's `webContents.debugger`. There is no
 `--remote-debugging-port`, so Kulisa's own window is never exposed. Clients: the shell's own playwright-core
 connection (the MCP tools, the picker, the annotations) and `@playwright/mcp`. The proxy reports Chrome's real target
-ids (Playwright needs them) and fans out a tab's events to all clients. It and the MCP server listen on 127.0.0.1
+ids (Playwright needs them) and fans out a tab's events to all clients. A tab opening a URL is shown to clients only
+once the site has answered (its page or an error page, `tab.answered`): until then Chromium holds CDP commands to it,
+and a site that never answers made Playwright's connection, and opening the project, hang. It and the MCP server listen on 127.0.0.1
 only and refuse requests from web pages (`local-only.js`).
 
 ## What is on the computer

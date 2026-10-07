@@ -1,7 +1,8 @@
 // CDP proxy: one fake "browser" endpoint per profile, backed by webContents.debugger of that profile's tabs.
 // No --remote-debugging-port: the shell UI is never exposed, only profile tabs. A profile is known by its workspace's
-// number and its id (key):
-//   http://127.0.0.1:<port>/<ws>/<profile>/json/version  -> webSocketDebuggerUrl ws://127.0.0.1:<port>/<ws>/<profile>
+// key (its project's id and its number) and its id; each part percent-encoded in the URL (ids may have any letters):
+//   http://127.0.0.1:<port>/<project>/<n>/<profile>/json/version
+//     -> webSocketDebuggerUrl ws://127.0.0.1:<port>/<project>/<n>/<profile>
 // Clients: playwright-core chromium.connectOverCDP(), @playwright/mcp --cdp-endpoint.
 // Every command passes through here, so the shell can show it (ghost cursor, timeline).
 const http = require('http');
@@ -21,11 +22,10 @@ class CdpProxy extends EventEmitter {
   listen(port = 0) {
     this.server = http.createServer((req, res) => {
       if (!fromLocalTool(req)) { res.writeHead(403); return res.end(); }
-      const [, ws, pid, ...rest] = req.url.split('/');
-      const p = this.profiles.get(`${ws}/${pid}`);
+      const p = this.profiles.get(keyOf(req.url));
       if (!p) { res.writeHead(404); return res.end(); }
-      const route = '/' + rest.join('/').replace(/\/$/, '');
-      const wsUrl = `ws://127.0.0.1:${this.port}/${ws}/${pid}`;
+      const route = '/' + req.url.split('/').slice(4).join('/').replace(/\/$/, '');
+      const wsUrl = this.endpoint(p).replace(/^http/, 'ws');
       res.setHeader('content-type', 'application/json');
       if (route === '/json/version') return res.end(JSON.stringify({ Browser: `Kulisa/${process.versions.chrome}`, 'Protocol-Version': '1.3', 'User-Agent': p.session.getUserAgent(), webSocketDebuggerUrl: wsUrl }));
       if (route === '/json/list' || route === '/json') return res.end(JSON.stringify(p.tabs.map((t) => ({ id: t.id, type: 'page', title: t.title, url: t.url }))));
@@ -34,7 +34,7 @@ class CdpProxy extends EventEmitter {
     const wss = new WebSocketServer({ noServer: true, perMessageDeflate: false, maxPayload: 256 * 1024 * 1024 });
     this.server.on('upgrade', (req, sock, head) => {
       if (!fromLocalTool(req)) return sock.end('HTTP/1.1 403 Forbidden\r\n\r\n');
-      const p = this.profiles.get(req.url.split('/').slice(1, 3).join('/'));
+      const p = this.profiles.get(keyOf(req.url));
       if (!p) return sock.destroy();
       // The human is signing in: no automation attaches (except the shell's own reconnect when the mode ends).
       if (p.signinMode && !p.resuming) return sock.destroy();
@@ -42,13 +42,17 @@ class CdpProxy extends EventEmitter {
     });
     return new Promise((r) => this.server.listen(port, '127.0.0.1', () => { this.port = this.server.address().port; r(this.port); }));
   }
-  endpoint(profile) { return `http://127.0.0.1:${this.port}/${key(profile)}`; }
+  endpoint(profile) { return `http://127.0.0.1:${this.port}/${key(profile).split('/').map(encodeURIComponent).join('/')}`; }
   // The profile's id changed: its endpoint too.
   renamed(profile, oldId) {
     this.profiles.delete(`${profile.ws}/${oldId}`); this.addProfile(profile);
   }
 }
 const key = (profile) => `${profile.ws}/${profile.id}`;
+// The key a request's path names (its first three parts); '' when it is not one.
+function keyOf(url) {
+  try { return url.split(/[/?]/).slice(1, 4).map(decodeURIComponent).join('/'); } catch { return ''; }
+}
 
 // Attach the tab's debugger once and learn its real Chrome target id.
 async function ensureTarget(tab) {
@@ -67,6 +71,7 @@ class ProxyClient {
     this.sessions = new Map();        // our sessionId -> { tab, off } (page) or { browser: true }
     this.n = 0;
     this.childSessions = new Map();   // Chrome child sessionId (iframes, workers) -> tab
+    this.waiting = new Set();         // tabs to show once their site answers (tab.answered in profiles.js)
     proxy.clients.add(this);
     this.onTab = (tab) => this._tabAdded(tab);
     this.onClosed = (tab) => this._tabRemoved(tab);
@@ -114,18 +119,18 @@ class ProxyClient {
         return reply({ protocolVersion: '1.3', product: `Chrome/${process.versions.chrome}`, revision: '', userAgent: this.profile.session.getUserAgent(), jsVersion: process.versions.v8 });
       case 'Target.setAutoAttach':
         this.autoAttach = params;
-        return Promise.all(this.profile.tabs.map((t) => ensureTarget(t))).then(() => {
+        return Promise.all(this._shown().map((t) => ensureTarget(t))).then(() => {
           reply({});
-          for (const t of this.profile.tabs) this._attach(t, params.waitForDebuggerOnStart);
+          for (const t of this._shown()) this._attach(t, params.waitForDebuggerOnStart);
         });
       case 'Target.setDiscoverTargets':
         this.discover = params.discover;
-        return Promise.all(this.profile.tabs.map((t) => ensureTarget(t))).then(() => {
+        return Promise.all(this._shown().map((t) => ensureTarget(t))).then(() => {
           reply({});
-          if (this.discover) for (const t of this.profile.tabs) this._event('Target.targetCreated', { targetInfo: this._targetInfo(t) });
+          if (this.discover) for (const t of this._shown()) this._event('Target.targetCreated', { targetInfo: this._targetInfo(t) });
         });
       case 'Target.getTargets':
-        return Promise.all(this.profile.tabs.map((t) => ensureTarget(t))).then(() => reply({ targetInfos: this.profile.tabs.map((t) => this._targetInfo(t)) }));
+        return Promise.all(this._shown().map((t) => ensureTarget(t))).then(() => reply({ targetInfos: this._shown().map((t) => this._targetInfo(t)) }));
       case 'Target.getTargetInfo':
         if (!params.targetId) return reply({ targetInfo: { targetId: 'browser', type: 'browser', title: '', url: '', attached: true, canAccessOpener: false } });
         return reply({ targetInfo: this._targetInfo(this.profile.get(params.targetId)) });
@@ -192,7 +197,19 @@ class ProxyClient {
     this.sessions.delete(sid);
     if (sess.tab && this.attached.get(sess.tab.id) === sid) this.attached.delete(sess.tab.id);
   }
+  // The tabs a client sees: those whose site has answered; the others are shown when it does.
+  _shown() {
+    for (const t of this.profile.tabs) if (t.answered) this._tabAdded(t);
+    return this.profile.tabs.filter((t) => !t.answered);
+  }
   async _tabAdded(tab) {
+    if (tab.answered) {
+      if (this.waiting.has(tab)) return;
+      this.waiting.add(tab);
+      await tab.answered;
+      this.waiting.delete(tab);
+      if (!this.profile.tabs.includes(tab) || !this.proxy.clients.has(this)) return;
+    }
     await ensureTarget(tab);
     if (this.discover) this._event('Target.targetCreated', { targetInfo: this._targetInfo(tab) });
     if (this.autoAttach && this.autoAttach.autoAttach) this._attach(tab, this.autoAttach.waitForDebuggerOnStart);

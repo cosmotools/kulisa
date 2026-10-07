@@ -1,0 +1,109 @@
+/* Components: the parts the window is built of, each defined once (docs/ui.md). window.css places them and lays out
+   the window; it does not make its own buttons, icons, rows or dialogs. */
+*, *::before, *::after { box-sizing: border-box; }
+
+/* Controls */
+button, input, select {
+  font: inherit; color: var(--text); height: var(--control); padding: 0 10px;
+  border: 1px solid var(--line); border-radius: var(--radius); background: var(--button);
+}
+/* The arrow over buttons and tabs too, as in Chrome and other desktop apps (body), not a web page's hand */
+button:disabled { opacity: .35; }
+input { background: var(--field); color: var(--text-strong); padding: 0 8px; user-select: text; }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent);
+  &:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 85%, white); } }
+button.danger { background: var(--danger); border-color: var(--danger); color: var(--on-accent);
+  &:hover:not(:disabled) { background: color-mix(in srgb, var(--danger) 85%, white); } }
+/* A profile's or a project's color (--color on it or above) */
+.dot { width: 10px; height: 10px; border-radius: 50%; flex: none; background: var(--color); }
+/* A tab of a strip, as a browser's (tpl-wstab, tpl-projecttab): an optional .dot, the .name, the agent's .state, × at
+   the end (button.close.icon.quiet.small); lit under the pointer. .active: the shown one, on the islands' color;
+   .colored.active: on a plate of its own --color instead. */
+.striptab { display: flex; align-items: center; gap: 6px; flex: 0 1 auto; height: var(--control); padding: 0 2px 0 10px;
+  border: 1px solid transparent; border-radius: var(--radius); color: var(--text-dim); white-space: nowrap;
+  .name { overflow: hidden; text-overflow: ellipsis; }
+  &:hover { background: var(--hover); }
+  &.active { background: var(--island); color: var(--text-strong); }
+  &.colored.active { border-color: color-mix(in srgb, var(--color) 45%, transparent);
+    background: color-mix(in srgb, var(--color) 18%, transparent);
+    &:hover { background: color-mix(in srgb, var(--color) 28%, transparent); } } }
+/* An agent's state (data-state, from its hooks): working (pulsing), waiting for you, done; muted when unknown. On a
+   workspace's tab and a project's. */
+.state { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--text-muted);
+  &[data-state="working"] { background: var(--accent); animation: pulse 1.2s ease-in-out infinite; }
+  &[data-state="waiting"] { background: var(--note); }
+  &[data-state="done"] { background: var(--done); }
+  @media (prefers-reduced-motion: reduce) { animation: none !important; } }
+@keyframes pulse { 50% { opacity: .35; } }
+
+/* Icons (the sprite in index.html: hidden, which an <svg> does not get from the browser's own styles): lines in the
+   text's color. × and + are drawn smaller than the others, as in
+   Chrome. */
+svg[hidden] { display: none; }
+svg:has(> use) { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.5;
+  stroke-linecap: round; stroke-linejoin: round; }
+/* An icon button: the icon alone, round, lit under the pointer. --icon: the icon's size. .quiet: muted until pointed
+   at (× and removing); .small: in a row (a tab's ×, a workspace's ×). */
+.icon { --icon: 16px; display: grid; place-items: center; flex: none; width: var(--control); height: var(--control);
+  padding: 0; border: none; border-radius: 50%; background: none; color: var(--text-dim);
+  svg { width: var(--icon); height: var(--icon); }
+  &:has(use:is([href="#i-close"], [href="#i-plus"])) { --icon: 14px; }
+  &:hover:not(:disabled) { color: var(--text-strong); background: var(--hover); }
+  &.quiet { color: var(--text-muted); &:hover { color: var(--text-strong); } }
+  &.small { width: 22px; height: 22px; } }
+
+/* A row of a list or a menu (tpl-menuitem, tpl-project): a dot, the label with a line under it, a key */
+.item { display: flex; align-items: center; gap: var(--gap); width: 100%; height: auto; min-height: var(--control);
+  padding: 4px 10px; text-align: start; border: none; background: none;
+  &:is(:hover, :focus-visible):not(:disabled) { background: var(--island-hi); outline: none; }
+  .text { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  small { color: var(--text-muted); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  kbd { font: inherit; color: var(--text-muted); }
+  :is(small, kbd):empty { display: none; } }
+/* A row with a × at its end, shown on hover or focus (removing a recent project); the row lit as one */
+.removable { display: flex; align-items: center; border-radius: var(--radius);
+  &:is(:hover, :focus-within) { background: var(--island-hi); }
+  .item { flex: 1; min-width: 0; &:is(:hover, :focus-visible) { background: none; } }
+  .remove { margin-inline-end: 2px; visibility: hidden; }
+  &:is(:hover, :focus-within) .remove { visibility: visible; } }
+
+/* Dialogs, one look for all (index.html), as in JetBrains: the title with × on top, the content, and a strip of
+   buttons at the bottom, the main one last (blue; red when it deletes). */
+dialog { width: 560px; max-height: 85vh; padding: 0; flex-direction: column; background: var(--island); color: var(--text);
+  border: 1px solid var(--line); border-radius: var(--island-radius); box-shadow: 0 12px 40px var(--shadow);
+  &[open] { display: flex; }
+  &::backdrop { background: var(--backdrop); }
+  > form { display: contents; }
+  header { display: flex; align-items: center; gap: var(--gap); padding: 12px 12px 0 18px;
+    h2 { flex: 1; margin: 0; font-size: 1.1em; font-weight: 600; color: var(--text-strong); } }
+  .body { flex: 1; min-height: 0; overflow: auto; padding: 12px 18px 16px; }
+  .hint { margin: 0 0 12px; color: var(--text-muted); }
+  .error { margin: 10px 0 0; color: var(--error); &:empty { display: none; } }
+  /* A field and its button in one row (adding a profile, a project) */
+  .row { display: flex; gap: var(--gap); margin-top: 12px; input { flex: 1; } }
+  /* A labelled field, the labels in one column */
+  .field { display: grid; grid-template-columns: 80px 1fr; align-items: center; gap: var(--gap); margin-top: var(--gap);
+    .pick { display: flex; gap: var(--gap); input { flex: 1; min-width: 0; } } }
+  /* Under the fields, in the fields' column */
+  .field ~ .hint { margin: 6px 0 0 calc(80px + var(--gap)); overflow-wrap: anywhere; }
+  .check { display: flex; align-items: center; gap: var(--gap); margin: 12px 0 0 calc(80px + var(--gap));
+    input { height: auto; margin: 0; } small { color: var(--text-muted); } }
+  footer { display: flex; justify-content: flex-end; gap: var(--gap); padding: 12px 18px; border-top: 1px solid var(--island-hi);
+    .start { margin-inline-end: auto; } /* it and the buttons before it at the left end */
+    button { min-width: 80px; } }
+  button:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 70%, transparent); outline-offset: 1px; }
+}
+
+/* Menus (menu.js): under their button or at the pointer (#menuPoint), flipped to stay in the window; .end: their
+   right edge at the button's. Rows are .item and .removable; a menu's own rows are in window.css. */
+#menuPoint { position: fixed; inset: 0 auto auto 0; }
+#menu {
+  inset: auto; margin: 4px 0; position-area: block-end span-inline-end;
+  position-try-fallbacks: flip-block, flip-inline, flip-block flip-inline;
+  &.end { position-area: block-end span-inline-start; }
+  min-width: 240px; max-width: 420px; padding: 4px; border: 1px solid var(--line); border-radius: 8px;
+  background: var(--island); color: var(--text); box-shadow: 0 8px 24px var(--shadow); outline: none;
+  -webkit-app-region: no-drag;
+  hr { border: none; border-top: 1px solid var(--line); margin: 4px 6px; }
+  .heading { padding: 6px 10px 2px; color: var(--text-muted); }
+}

@@ -20,6 +20,20 @@ module.exports = (test) => {
     assert.equal(await ui(`window.__term.options.fontFamily.startsWith('"JetBrains Mono"')`), true);
     assert.equal(await ui(`window.__termRenderer`), 'webgl');
   });
+  test('icons: each from the sprite (docs/ui.md), drawn there once and in lines of the text\'s color; icon buttons have a name', async ({ ui }) => {
+    const r = await ui(`(() => {
+      const every = (q) => [...document.querySelectorAll(q), ...[...document.querySelectorAll('template')].flatMap((t) => [...t.content.querySelectorAll(q)])];
+      const ids = [...document.querySelectorAll('svg[hidden] > symbol')].map((s) => s.id);
+      const icons = every('svg').filter((s) => !s.closest('svg[hidden], .arrange') && !s.matches('.logo')); // pictures, not icons
+      const add = document.querySelector('.pane .add svg');
+      return { ids: ids.length === new Set(ids).size, drawnInPlace: icons.filter((s) => !s.querySelector(':scope > use')).length,
+        unknown: icons.map((s) => s.querySelector('use')?.getAttribute('href')).filter((h) => h && !ids.includes(h.slice(1))),
+        unnamed: every('.icon').filter((b) => !b.getAttribute('aria-label') && !b.title).map((b) => b.className),
+        lines: [getComputedStyle(add).fill, getComputedStyle(add).stroke === getComputedStyle(add.closest('button')).color],
+        sprite: document.querySelector('svg[hidden]').getBoundingClientRect().height }; // takes no room
+    })()`);
+    assert.deepEqual(r, { ids: true, drawnInPlace: 0, unknown: [], unnamed: [], lines: ['none', true], sprite: 0 });
+  });
   test('the app icon: in the top bar, and every file the window and the installers use', async ({ ui }) => {
     const img = await ui(`(() => { const i = document.querySelector('#topbar svg.logo'); return i && { w: i.viewBox.baseVal.width, h: i.getBoundingClientRect().height,
       drape: getComputedStyle(i.querySelector('stop.lit')).stopColor, project: getComputedStyle(document.documentElement).getPropertyValue('--project') }; })()`);
@@ -40,10 +54,13 @@ module.exports = (test) => {
     assert.equal(bar.height, 44);
     assert.ok(bar.right <= controls.x + controls.width, 'the bar ends where the window buttons begin');
   });
-  test('UI text is not selectable by dragging, as in a desktop app; fields are', async ({ ui }) => {
+  test('UI text is not selectable by dragging, as in a desktop app; fields are; the arrow over buttons', async ({ ui }) => {
     const sel = await ui(`(() => { const us = (q) => getComputedStyle(document.querySelector(q)).userSelect;
-      return { button: us('#openProjects'), name: us('#projectName'), tab: us('.tab .title'), header: us('.ptab'), field: us('.addr') }; })()`);
+      return { button: us('#openProjects'), name: us('.projecttab .name'), tab: us('.tab .title'), header: us('.ptab'), field: us('.addr') }; })()`);
     assert.deepEqual(sel, { button: 'none', name: 'none', tab: 'none', header: 'none', field: 'text' });
+    // The arrow over buttons and tabs, as in Chrome, not a web page's hand.
+    assert.deepEqual(await ui(`['#openProjects', '.projecttab', '.tab', '.tabs .add', '.bar .back', '.ptab .close', '#windowMenu'].map((q) => getComputedStyle(document.querySelector(q)).cursor)`),
+      ['default', 'default', 'default', 'default', 'default', 'default', 'default']);
   });
   test('screenshot of the whole window, profile views included', async ({ shell, ui }) => {
     await manageProfiles(ui);
@@ -56,6 +73,39 @@ module.exports = (test) => {
     const png = fs.readFileSync(file);
     assert.equal(png.subarray(1, 4).toString(), 'PNG');
     assert.ok(png.length > 10000, `${png.length} bytes`);
+  });
+  test('theme: Dark by default, Light or System in ☰; the window, the terminal and the OS buttons follow, the pages keep the OS\'s; saved', async ({ shell, ui }) => {
+    const { nativeTheme } = require('electron');
+    // What is shown: a panel's color, the terminal's; the controls' own scheme (color-scheme).
+    const DARK = 'rgb(30, 31, 34)', LIGHT = 'rgb(255, 255, 255)';
+    const look = () => ui(`(() => { const panel = getComputedStyle(document.querySelector('.dv-groupview')).backgroundColor;
+      return { shade: panel === '${DARK}' ? 'dark' : panel === '${LIGHT}' ? 'light' : panel, term: window.__term.options.theme.background,
+        scheme: getComputedStyle(document.querySelector('.omnibox input, input')).colorScheme,
+        chosen: [...document.querySelectorAll('#menu .themerow [aria-pressed="true"]')].map((b) => b.dataset.theme),
+        onAccent: getComputedStyle(document.querySelector('button.primary')).color }; })()`);
+    const page = shell.profiles.values().next().value.get().wc;
+    const pageDark = () => page.executeJavaScript(`matchMedia('(prefers-color-scheme: dark)').matches`);
+    const osDark = await pageDark();
+    const settings = () => JSON.parse(fs.readFileSync(path.join(userData, 'settings.json'), 'utf8')).theme;
+    await ui(`document.getElementById('windowMenu').click()`);
+    assert.deepEqual((await menuRows(ui)).slice(0, 2), ['zoom', 'theme']);
+    assert.deepEqual(await look(), { shade: 'dark', term: DARK, scheme: 'dark', chosen: ['dark'], onAccent: LIGHT });
+    const choose = async (t, shade) => {
+      await ui(`document.querySelector('#menu .themerow [data-theme="${t}"]').click()`);
+      await waitFor(async () => { const l = await look(); return l.shade === shade && l.term === (shade === 'dark' ? DARK : LIGHT) && l.chosen[0] === t; });
+      assert.equal(await menuOpen(ui), true, 'the menu stays open: the next one can be tried');
+      assert.equal(settings(), t, 'saved');
+    };
+    await choose('light', 'light');
+    assert.deepEqual(await look(), { shade: 'light', term: LIGHT, scheme: 'light', chosen: ['light'], onAccent: LIGHT });
+    assert.equal(await pageDark(), osDark, "a site under test keeps the OS's scheme");
+    await shell.screenshot(path.join(root, 'light.png'));
+    await choose('system', nativeTheme.shouldUseDarkColors ? 'dark' : 'light'); // the OS's, as the pages'
+    assert.equal((await look()).scheme, 'light dark');
+    await choose('dark', 'dark');
+    await shell.screenshot(path.join(root, 'dark.png'));
+    assert.equal(await pageDark(), osDark);
+    await ui(`document.getElementById('menu').hidePopover()`);
   });
   test('dialogs: one look (title and ×, content, buttons at the bottom right, the main one last); a question is asked in it', async (ctx) => {
     const { shell, ui } = ctx;

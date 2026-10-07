@@ -1,30 +1,46 @@
-// Projects: the project button (a menu of the projects, as in JetBrains: open one, remove one with its ×, New
-// Project…, Open Folder…, Close Project) and the Welcome screen (no project open: at first start, or after closing
-// main): what to open, as JetBrains' one, its recent projects acting as the menu's rows.
+// Projects: a tab per open project in the title bar, as a browser's tabs, right of the logo. A click shows one (the
+// others keep running: their agents and pages), × closes it (asking first while its agent works), a right-click
+// offers Close Project, Move to New Window (a window of its own, e.g. for a second monitor; it keeps running), Move to
+// Window (each other window; as a browser moves a tab) and Remove Project…. Dragging a tab does the same: within the
+// tabs it changes their order, onto another window's tabs it moves the project there, let go outside every Kulisa
+// window it opens a window there (the main process tells where the pointer is). + opens the menu of the projects (as JetBrains': open one, remove one with its ×, New Project…, Open
+// Folder…; one open in another window is shown there). With no tab open: the Welcome screen, what to open, its recent
+// projects acting as the menu's rows.
 // Removing a project is asked for from either (the main process asks the human and does it: removeProject).
-// A project is a folder with its workspaces (workspaces.js); one is open at a time. Opening another one rebuilds the
-// grid in place (renderer.js, grid:closing, then that project's state).
+// A project is a folder with its workspaces (workspaces.js). Showing another one rebuilds the grid in place
+// (renderer.js, grid:closing, then that project's state).
 (() => {
+  const tabs = document.getElementById('projectTabs');
   const button = document.getElementById('openProjects');
-  // The open project in the title bar: its name, and its color for the whole window (--project).
-  const showProject = ({ name, color }) => {
-    document.getElementById('projectName').textContent = name;
-    document.documentElement.style.setProperty('--project', color);
-  };
-  // From the URL (app.js), before the first paint; later from the main process when a project opens.
-  const query = new URLSearchParams(location.search);
-  const fromUrl = query.get('project');
-  if (fromUrl) showProject(JSON.parse(fromUrl));
-  document.getElementById('version').textContent = `Kulisa ${query.get('version')}`;
   const recent = document.getElementById('welcome-list');
+  const STATES = { working: 'The agent is working', waiting: 'The agent waits for you', done: 'The agent is done' };
+  let info = { current: null, projects: [], open: [], elsewhere: [] };
   const remove = (id) => kulisa.invoke('project:remove', { id });
-  function showProjects({ current, projects }) {
-    const open = projects.find((p) => p.id === current);
-    if (open) showProject(open);
-    else if (current === null) { // the window with no project: Kulisa's own colors
-      document.getElementById('projectName').textContent = 'No project';
-      document.documentElement.style.removeProperty('--project');
-    }
+  const openProject = (id) => kulisa.invoke('project:open', { id });
+  const close = (id) => kulisa.invoke('project:close', { id });
+
+  // The tabs, the shown project's color for the whole window (--project), and the Welcome screen's list.
+  function showProjects(next) {
+    info = next;
+    const { current, projects, open } = info;
+    const byId = new Map(projects.map((p) => [p.id, p]));
+    tabs.replaceChildren(...open.filter((o) => byId.has(o.id)).map((o) => {
+      const p = byId.get(o.id);
+      const el = tpl('tpl-projecttab');
+      el.dataset.project = p.id;
+      el.style.setProperty('--color', p.color);
+      el.classList.toggle('active', p.id === current);
+      el.title = p.folder || '';
+      el.querySelector('.name').textContent = p.name;
+      const state = el.querySelector('.state');
+      state.dataset.state = o.state || '';
+      state.title = STATES[o.state] || '';
+      return el;
+    }));
+    tabs.querySelector('.active')?.scrollIntoView({ inline: 'nearest' });
+    const shown = byId.get(current);
+    if (shown) document.documentElement.style.setProperty('--project', shown.color);
+    else document.documentElement.style.removeProperty('--project'); // no project: Kulisa's own colors
     recent.replaceChildren(...projects.map((p) => {
       const row = tpl('tpl-project');
       row.dataset.project = p.id;
@@ -34,23 +50,99 @@
       return row;
     }));
   }
+  // From the URL (app.js), before the first paint; later from the main process as projects open and close.
+  const query = new URLSearchParams(location.search);
+  if (query.get('projects')) showProjects(JSON.parse(query.get('projects')));
+  document.getElementById('version').textContent = `Kulisa ${query.get('version')}`;
   kulisa.on('projects', showProjects);
 
+  tabs.onclick = (e) => {
+    const id = e.target.closest('[data-project]')?.dataset.project;
+    if (!id) return;
+    if (e.target.closest('.close')) close(id);
+    else if (id !== info.current) kulisa.invoke('project:show', { id });
+  };
+  // The middle button closes a tab, as in a browser.
+  tabs.onauxclick = (e) => {
+    const id = e.button === 1 && e.target.closest('[data-project]')?.dataset.project;
+    if (id) close(id);
+  };
+  tabs.addEventListener('contextmenu', async (e) => {
+    const id = e.target.closest('[data-project]')?.dataset.project;
+    if (!id) return;
+    e.preventDefault();
+    const { open, windows } = await kulisa.invoke('projects:list');
+    const move = (to) => kulisa.invoke('project:move', { id, to, terminals: terminalsOf(id) });
+    openMenu([{ label: 'Close Project', run: () => close(id) },
+      // The only tab stays: a new window would be the same as this one.
+      { label: 'Move to New Window', enabled: open.length > 1, run: () => move(null) },
+      ...windows.map((w) => ({ label: `Move to Window: ${w.names.join(', ')}`, run: () => move(w.id) })),
+      '-', { label: 'Remove Project…', run: () => remove(id) }], e);
+  });
+
+  // HTML drag and drop, which also crosses windows. The tab carries its project and what its terminals show (the
+  // window it goes to has neither), as a type of Kulisa's own: a page under the pointer takes nothing from it.
+  const DRAG = 'application/x-kulisa-project';
+  let dragged = null; // the tab dragged from this window
+  const mark = (tab, side) => {
+    for (const t of tabs.querySelectorAll('.drop-before, .drop-after')) t.classList.remove('drop-before', 'drop-after');
+    tab?.classList.add(`drop-${side}`);
+  };
+  // Where a tab let go at e goes: before or after the tab under the pointer; the index among this window's tabs.
+  const dropAt = (e) => {
+    const tab = e.target.closest?.('[data-project]');
+    if (!tab) return null;
+    const r = tab.getBoundingClientRect(), side = e.clientX < r.x + r.width / 2 ? 'before' : 'after';
+    return { tab, side, index: [...tabs.children].indexOf(tab) + (side === 'after') };
+  };
+  tabs.addEventListener('dragstart', (e) => {
+    const tab = e.target.closest?.('[data-project]');
+    if (!tab) return;
+    dragged = tab;
+    tab.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData(DRAG, JSON.stringify({ id: tab.dataset.project, terminals: terminalsOf(tab.dataset.project) }));
+  });
+  tabs.addEventListener('dragover', (e) => {
+    const at = e.dataTransfer.types.includes(DRAG) && dropAt(e);
+    if (!at) return mark(null);
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    mark(at.tab, at.side);
+  });
+  tabs.addEventListener('dragleave', (e) => { if (!tabs.contains(e.relatedTarget)) mark(null); });
+  tabs.addEventListener('drop', (e) => {
+    const at = dropAt(e), data = e.dataTransfer.getData(DRAG);
+    mark(null);
+    if (!at || !data) return;
+    e.preventDefault();
+    const { id, terminals } = JSON.parse(data);
+    kulisa.invoke('project:drop', { id, index: at.index, terminals });
+  });
+  // Let go where no Kulisa window took it: outside them all, it goes to a new window there (the main process checks).
+  tabs.addEventListener('dragend', (e) => {
+    dragged?.classList.remove('dragging');
+    const id = dragged?.dataset.project;
+    dragged = null;
+    if (id && e.dataTransfer.dropEffect === 'none') kulisa.invoke('project:drag-out', { id, terminals: terminalsOf(id) });
+  });
+
   button.onclick = async () => {
-    const { current, projects } = await kulisa.invoke('projects:list');
+    const { current, projects, open, elsewhere } = await kulisa.invoke('projects:list');
+    const isOpen = (id) => open.some((o) => o.id === id) || elsewhere.includes(id);
     openMenu([
-      ...projects.map((p) => ({ label: p.name, sub: p.folder, color: p.color, ...(p.id === current ? { keys: '✓' } : { run: () => openProject(p.id) }),
+      ...projects.map((p) => ({ label: p.name, sub: p.folder, color: p.color, ...(isOpen(p.id) ? { keys: '✓' } : {}),
+        ...(p.id === current ? {} : { run: () => (isOpen(p.id) ? kulisa.invoke('project:show', { id: p.id }) : openProject(p.id)) }),
         remove: { title: 'Remove project…', run: () => remove(p.id) } })),
       '-',
       { label: 'New Project…', run: create },
       { label: 'Open Folder…', run: () => kulisa.invoke('project:open-folder') },
-      ...(current === null ? [] : ['-', { label: 'Close Project', run: () => kulisa.invoke('project:close') },
+      ...(current === null ? [] : ['-', { label: 'Close Project', run: () => close(current) },
         { label: 'Remove Project…', run: () => remove(current) }]),
     ], button);
   };
-  // A project in the menu or on the Welcome screen: a click opens it, its × (shown on hover) removes it; on the Welcome
-  // screen a right-click offers the same.
-  const openProject = (id) => kulisa.invoke('project:open', { id });
+  // A project on the Welcome screen: a click opens it, its × (shown on hover) removes it; a right-click offers the
+  // same.
   recent.onclick = (e) => {
     const id = e.target.closest('[data-project]')?.dataset.project;
     if (!id) return;

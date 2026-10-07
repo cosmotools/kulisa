@@ -78,7 +78,7 @@ profiles. You see only your workspace's profiles. In a fork (the session start s
 
 ## Elements the human points at ([kulisa pick: …])
 
-The human can click ⌖ Pick on a pane and then an element on its page. A reference to that element is put into
+The human can click Pick on a pane and then an element on its page. A reference to that element is put into
 the human's message, and they write around it what they want, e.g.:
 
 ```
