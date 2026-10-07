@@ -39,7 +39,7 @@ must have a name of its own and must not present itself as the official Kulisa; 
 ## What Kulisa ships from others
 
 Its dependencies keep their own licenses, all of which allow being part of a GPL-3.0 program: MIT, ISC, BSD,
-Apache-2.0 (npm packages), the SIL Open Font License (JetBrains Mono, the terminal's font) and Chromium's licenses
+Apache-2.0 (npm packages), ISC (icons from Lucide, copied into `index.html`), the SIL Open Font License (JetBrains Mono, the terminal's font) and Chromium's licenses
 (in Electron; packaged builds carry `LICENSE` and `LICENSES.chromium.html`). A new dependency must have a license
 compatible with GPL-3.0.
 

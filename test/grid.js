@@ -413,7 +413,8 @@ module.exports = (test) => {
     await waitFor(() => fs.existsSync(pfile('layout.json')));
   });
 
-  test('context menus: a pane\'s header, a tab, the terminal; pages are pictures while a menu is open; Arrange panels in ⋮', async ({ shell, ui }) => {
+  test('context menus: a pane\'s header, a tab, the terminal; pages are pictures while a menu is open; Arrange panels in ⋮; Exit', async (ctx) => {
+    const { shell, ui } = ctx;
     const elon = shell.profiles.get('elon-buyer');
     const header = '.ptab[data-panel="profile:Profile 2"]';
     await rightClick(ui, header);
@@ -481,7 +482,9 @@ module.exports = (test) => {
 
     await ui(`document.getElementById('windowMenu').click()`);
     // The arrangements as pictures, a short name under each, the full words in the tooltip.
-    assert.deepEqual((await menuRows(ui)).slice(3), ['# Arrange panels', 'arrange: Columns, Two by two, One at a time', '-', 'Agents…']);
+    assert.deepEqual((await menuRows(ui)).slice(3), ['# Arrange panels', 'arrange: Columns, Two by two, One at a time', '-', 'Agents…', '-', 'Exit']);
+    assert.deepEqual(await ui(`[...document.querySelectorAll('#menu svg:not([hidden]) > use')].map((u) => u.getAttribute('href'))`),
+      ['#i-zoom', '#i-theme', '#i-arrange', '#i-agent', '#i-exit'], 'each row with its icon');
     const pics = await ui(`[...document.querySelectorAll('#menu .arrange button')].map((b) => ({ title: b.title,
       panes: b.querySelectorAll('svg .a-page').length, term: b.querySelectorAll('svg .a-term').length, w: b.querySelector('svg').getBoundingClientRect().width }))`);
     assert.deepEqual(pics.map((p) => [p.panes, p.term]), [[3, 1], [4, 1], [1, 1]]);
@@ -490,5 +493,17 @@ module.exports = (test) => {
     assert.equal(await menuOpen(ui), false, 'a choice closes the menu');
     await waitFor(async () => (await pageBox(ui, 'elon-buyer')) === null && viewOn(shell, ui, 'sam-admin'));
     await ui(`window.__layoutPreset('grid')`); // as the grid presets test left it, for the restart phase
+
+    // Exit quits as the last window's × does: asked only when an agent works.
+    shell.ws.state = 'working';
+    ctx.answer = false;
+    await ui(`document.getElementById('windowMenu').click()`);
+    await menuRows(ui);
+    await choose(ui, 'Exit');
+    await waitFor(() => ctx.asked.length && ui(`!document.getElementById('ask').open`));
+    assert.equal(ctx.asked.pop().message, 'Quit Kulisa?');
+    assert.ok(!shell.win.isDestroyed() && shell.open.size, 'Kulisa goes on when the human says no');
+    shell.ws.state = null;
+    ctx.answer = true;
   });
 };

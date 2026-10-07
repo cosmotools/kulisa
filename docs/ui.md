@@ -25,7 +25,10 @@ Plain HTML, CSS and JS, no build step (CLAUDE.md, Window UI): markup in `index.h
   pointer, on any background); `--project` (the open project's color, set by `renderer.js`).
 - Sizes: `--font` (all text, the terminal too), `--control` (the height of buttons and fields), `--radius`,
   `--tab-radius`, `--island-radius`, `--gap` (the space between and inside islands; also dockview's `gap` in
-  `renderer.js`). The Kulisa zoom scales them all.
+  `renderer.js`); room as Chrome's menus and dialogs have it: `--row` (a row of a menu or a list), `--inset` (inside
+  a row, between its icon and text, between a dialog's fields), `--pad` (inside a dialog along its edges). Things
+  set close together were the author's complaint (2026-10-07): space comes from these, not from new numbers. The
+  Kulisa zoom scales them all.
 
 ## Icons
 
@@ -45,8 +48,10 @@ lines (`stroke`) of the text's color; a filled part has `fill="currentColor"`. U
 | `i-back`, `i-forward`, `i-reload` | a pane's toolbar (Chrome's) |
 | `i-pick` | Pick (DevTools' inspect icon) |
 | `i-globe` | a tab whose site has no icon |
+| `i-zoom`, `i-theme`, `i-arrange`, `i-agent`, `i-exit` | ☰'s rows: Zoom, Theme, Arrange panels, Agents…, Exit |
 
-An icon is 16 px; × and + are 14 px, as in Chrome (`.icon`). Pictures are not icons: the app logo (`assets/icon.svg`,
+An icon is 16 px; × and + are 14 px, as in Chrome (`.icon`). ☰'s are Lucide's (lucide.dev, ISC), drawn on 24 × 24 with
+their lines thickened to match; take a new one from there rather than drawing it. Pictures are not icons: the app logo (`assets/icon.svg`,
 in the title bar) and the arrangements in ☰ are drawn in place. The test `icons: …` in `test/window.js` checks that
 every other `<svg>` uses the sprite.
 
@@ -65,8 +70,8 @@ every other `<svg>` uses the sprite.
 
 ### Rows
 
-- `.item`: a row of a menu or a list (`tpl-menuitem`, `tpl-project`): an optional `.dot` (a profile's or project's
-  color, `--color`), `.text` with `.label` and a `small` line under it, a `kbd` key at the end. Lit under the
+- `.item`: a row of a menu or a list (`tpl-menuitem`, `tpl-project`), `--row` high: an optional icon (`.ico`) or `.dot`
+  (a profile's or project's color, `--color`), `.text` with `.label` and a `small` line under it, a `kbd` key at the end. Lit under the
   pointer and on keyboard focus.
 - `.removable`: a row with a × (`button.remove.icon.quiet`) at its end, shown on hover or focus; the row is lit as
   one. A recent project in the project menu and on the Welcome screen.
@@ -104,8 +109,8 @@ Every dialog is a `<dialog>` with the same parts:
 ### Menus
 
 `openMenu(items, at)` (`menu.js`): one popover, under its button (`data-menu-end`: its right edge at the button's) or
-at the pointer, flipped to stay in the window. Items are `{ label, sub, keys, color, enabled, run, remove }`, `'-'`
-(a divider), `{ heading }` or `{ element }` (a row of its own); rows are `.item` and `.removable`. A menu's own kind of row (the zoom row, the theme
+at the pointer, flipped to stay in the window. Items are `{ label, sub, keys, icon, color, enabled, run, remove }`,
+`'-'` (a divider), `{ heading, icon }` or `{ element }` (a row of its own); `icon` is the sprite's id, at the row's start; rows are `.item` and `.removable`. A menu's own kind of row (the zoom row, the theme
 row, the arrangements) is a template in `index.html` and its look in `window.css`. While a menu is open, the pages are
 pictures of themselves.
 

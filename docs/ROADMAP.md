@@ -68,7 +68,10 @@ here; what is left of it stays.
   - **Data at rest:** browser profiles in the user-data folder (Chromium's own cookie encryption), saved session
     cookies (`safeStorage`; what if the OS keyring is unavailable).
   - **Electron hardening:** the shell window runs with `sandbox: false` and a preload that forwards any IPC
-    channel; profile pages are sandboxed and have no preload. Check against Electron's security checklist.
+    channel; profile pages are sandboxed and have no preload. Check against Electron's security checklist. To
+    sandbox the window, its preload must be one file: a sandboxed preload `require`s only `electron`, `events`,
+    `timers`, `url` (Electron's `tutorial/sandbox.md`, "Preload scripts"), and ours takes the rule for names from
+    `../main/names`; pass that another way (IPC, `additionalArguments`).
   - **Distribution:** code signing, notarization, auto-update channel, the `.deb`'s setuid `chrome-sandbox`.
   - **Presenting as Google Chrome:** what users should know (sites' terms, bot detection).
 - **Accessibility** (a11y; before a public release, as security). Kulisa should work for people who see poorly, do

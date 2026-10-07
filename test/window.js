@@ -124,7 +124,7 @@ module.exports = (test) => {
       return { title: d.querySelector('h2').textContent, lines: d.querySelector('.detail').innerText.split('\\n').length, ok: ok.textContent,
         order: r('header').bottom <= r('.body').top && r('.body').bottom <= r('footer').top, right: Math.round(r('footer').right - ok.getBoundingClientRect().right),
         focused: document.activeElement.textContent }; })()`);
-    assert.deepEqual(q, { title: 'Delete the thing?', lines: 3, ok: 'Delete', order: true, right: 18, focused: 'Cancel' });
+    assert.deepEqual(q, { title: 'Delete the thing?', lines: 3, ok: 'Delete', order: true, right: 24, focused: 'Cancel' });
     assert.equal(await ui(`getComputedStyle(document.querySelector('#ask .ok')).backgroundColor`), 'rgb(201, 79, 79)', 'red');
     assert.equal(view(), false, 'pages hidden under the dialog');
     shell.win.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' });

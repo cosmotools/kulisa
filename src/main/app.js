@@ -237,8 +237,11 @@ function start(options = {}) {
   async function closeWindow(w) {
     if (!shell.windows.includes(w)) return;
     if (shell.windows.length > 1) return w.tabs.length ? closeProjects(w, [...w.tabs], { window: true }) : dropWindow(w);
-    if (await askClosing(w, [...shell.open.values()], { quit: true })) app.quit();
+    return quit(w);
   }
+  // Quitting Kulisa (the last window's ×, ☰ → Exit): every window and project comes back at the next start, so it asks
+  // only when an agent works; w: the window to ask in.
+  async function quit(w) { if (await askClosing(w, [...shell.open.values()], { quit: true })) app.quit(); }
   function dropWindow(w) { shell.windows.splice(shell.windows.indexOf(w), 1); w.destroy(); }
   // A fork of a project's main (projects.js), then shown.
   async function createWorkspace(project, name, agent) {
@@ -329,6 +332,7 @@ function start(options = {}) {
   // A project's tab dragged (projects.js): let go on this window's tabs, or where no window took it.
   ipcMain.handle('project:drop', (e, { id, index, terminals }) => serial(() => dropProject(shell.open.get(id), at(e), index, terminals)));
   ipcMain.handle('project:drag-out', (e, { id, terminals }) => serial(() => dragOut(shell.open.get(id), terminals)));
+  ipcMain.handle('app:quit', (e) => serial(() => quit(at(e))));
   ipcMain.handle('project:remove', (e, { id }) => serial(() => removeProject(id, at(e))));
   ipcMain.handle('ws:show', (e, key) => serial(() => { const ws = shell.workspace(key); return ws && ws.project.window.showWorkspace(ws); }));
   ipcMain.handle('ws:new', (e, { name, agent }) => serial(() => createWorkspace(at(e)?.current, name, agent)));

@@ -20,6 +20,9 @@
   /* One text size and one control height for the whole UI (the terminal uses the same size, renderer.js); the
      Kulisa zoom scales all of it together. */
   --font: 14px; --control: 28px; --radius: 6px; --tab-radius: 8px; --gap: 8px; --island-radius: 10px;
+  /* Room, as Chrome's menus and dialogs have it: a row of a menu or a list (its height, the space inside it and
+     between its icon and text, between a dialog's fields), and the space inside a dialog along its edges. */
+  --row: 34px; --inset: 12px; --pad: 24px;
   color-scheme: dark;
   &[data-theme="light"] { color-scheme: light; }
   &[data-theme="system"] { color-scheme: light dark; }

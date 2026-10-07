@@ -1,8 +1,8 @@
 // Kulisa's menus, drawn in HTML as Chrome draws its own: a popover (#menu in index.html) with rows that may hold
 // buttons (the zoom row; a row's ×), colored dots and a second line. Esc, a click outside, a chosen item, the same
 // button again or leaving the window closes it. Up and down move between the rows' buttons; Enter or Space chooses.
-//   openMenu(items, at)   items: { label, sub, keys, color, enabled, run, remove } (no run: shown only), '-',
-//                         { heading }, { element } (a row of its own). remove: { title, run }, a × at the row's end,
+//   openMenu(items, at)   items: { label, sub, keys, icon, color, enabled, run, remove } (no run: shown only), '-',
+//                         { heading, icon }, { element } (a row of its own). icon: the sprite's id, at the row's start. remove: { title, run }, a × at the row's end,
 //                         shown on hover (as JetBrains' recent projects). at: the button to open it under, or the
 //                         mouse event to open it at. A button with data-menu-end (⋮, ☰: at the end of a bar)
 //                         gets the menu under it toward the start, its end edge at the button's, as Chrome's ⋮.
@@ -13,6 +13,8 @@ const openMenu = (() => {
   const el = document.getElementById('menu');
   const point = document.getElementById('menuPoint');
   const row = () => tpl('tpl-menuitem');
+  // An <svg> has no hidden property: the attribute goes.
+  const icon = (id, svg = row().querySelector('.ico')) => { svg.removeAttribute('hidden'); svg.firstChild.setAttribute('href', `#${id}`); return svg; };
   let items = [], source = null;
   const isOpen = () => el.matches(':popover-open');
   const close = () => { if (isOpen()) el.hidePopover(); };
@@ -50,7 +52,11 @@ const openMenu = (() => {
     items = list;
     el.replaceChildren(...list.map((it, i) => {
       if (it === '-') return document.createElement('hr');
-      if (it.heading) return Object.assign(document.createElement('div'), { className: 'heading', textContent: it.heading });
+      if (it.heading) {
+        const h = Object.assign(document.createElement('div'), { className: 'heading' });
+        h.append(...(it.icon ? [icon(it.icon)] : []), it.heading);
+        return h;
+      }
       if (it.element) return it.element;
       const b = row();
       b.dataset.i = i;
@@ -58,6 +64,7 @@ const openMenu = (() => {
       b.querySelector('.label').textContent = it.label;
       b.querySelector('small').textContent = it.sub || '';
       b.querySelector('kbd').textContent = it.keys || '';
+      if (it.icon) icon(it.icon, b.querySelector('.ico'));
       if (it.color) { b.querySelector('.dot').hidden = false; b.style.setProperty('--color', it.color); }
       if (!it.remove) return b;
       const r = tpl('tpl-menuremovable');

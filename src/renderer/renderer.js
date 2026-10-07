@@ -366,7 +366,8 @@ kulisa.on('theme', (theme) => { root.dataset.theme = theme; themeTerminals(); sh
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', themeTerminals);
 const windowMenu = document.getElementById('windowMenu');
 // ☰, as Chrome's ⋮: the zoom row (stays open while you click − and +), the theme row (open too), then the ready-made arrangements, each a
-// picture of itself (seen at a glance, as Windows' snap layouts), its words in the tooltip; Agents… (agents.js).
+// picture of itself (seen at a glance, as Windows' snap layouts), its words in the tooltip; Agents… (agents.js); Exit,
+// as Chrome's, where the OS has no menu bar with Quit (not macOS: Cmd+Q there). Each row with its icon at the start.
 windowMenu.onclick = () => {
   const zoom = tpl('tpl-menuzoom');
   zoom.querySelector('output').textContent = `${Math.round(uiZoom * 100)}%`;
@@ -382,8 +383,9 @@ windowMenu.onclick = () => {
     document.getElementById('menu').hidePopover();
     applyPreset(preset);
   };
-  openMenu([{ element: zoom }, { element: themes }, '-', { heading: 'Arrange panels' }, { element: arrange }, '-',
-    { label: 'Agents…', run: async () => (await import('./agents.js')).showAgents() }], windowMenu);
+  openMenu([{ element: zoom }, { element: themes }, '-', { heading: 'Arrange panels', icon: 'i-arrange' }, { element: arrange }, '-',
+    { label: 'Agents…', icon: 'i-agent', run: async () => (await import('./agents.js')).showAgents() },
+    ...(kulisa.platform === 'darwin' ? [] : ['-', { label: 'Exit', icon: 'i-exit', run: () => kulisa.invoke('app:quit') }])], windowMenu);
 };
 
 // ---------- context menus ----------

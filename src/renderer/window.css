@@ -31,10 +31,11 @@ body {
     .dragging { opacity: .5; }
     .drop-before { box-shadow: inset 2px 0 var(--accent); }
     .drop-after { box-shadow: inset -2px 0 var(--accent); } }
-  /* At the right end: the Kulisa zoom, only when not 100% (as Chrome's magnifier), and ☰, the window's menu, kept
-     clear of the OS window buttons. */
+  /* At the right end: the Kulisa zoom, only when not 100% (as Chrome's magnifier), and ☰, the window's menu, as far
+     from the end of the title bar's area (the OS window buttons, or the window's edge on macOS) as the logo from its
+     start. */
   #zoomReset { margin-inline-start: auto; }
-  #windowMenu { --icon: 18px; margin-inline: auto calc(var(--gap) * 3);
+  #windowMenu { --icon: 18px; margin-inline: auto var(--gap);
     #zoomReset:not([hidden]) + & { margin-inline-start: 0; } }
 }
 
@@ -169,9 +170,9 @@ body > #term { display: none; }
 /* The agents (agent-list.js), in both their dialogs: choosing a workspace's agent and the Agents window */
 :is(#agentpick, #agents) { width: 640px; }
 .agentlist {
-  .agentrow { display: flex; gap: var(--gap); align-items: center; padding: 8px 4px; border-bottom: 1px solid var(--island-hi);
+  .agentrow { display: flex; gap: var(--inset); align-items: center; padding: var(--inset) 4px; border-bottom: 1px solid var(--island-hi);
     input { height: auto; flex: none; }
-    .what { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+    .what { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
     small { color: var(--text-muted); }
     :is(.install-line, .where) { font-family: "JetBrains Mono", monospace; overflow-wrap: anywhere; &:empty { display: none; } }
     /* Choosing: what Install runs only for the chosen one */
@@ -184,7 +185,7 @@ body > #term { display: none; }
     font: 12px "JetBrains Mono", monospace; white-space: pre-wrap; user-select: text; }
 }
 /* The profile editor's rows (profile-editor.js) */
-.prow { display: flex; gap: var(--gap); align-items: center; padding: 6px 0; border-bottom: 1px solid var(--island-hi);
+.prow { display: flex; gap: var(--inset); align-items: center; padding: 10px 0; border-bottom: 1px solid var(--island-hi);
   .name { flex: 1; }
   .pid { color: var(--text-muted); width: 120px; }
   .ntabs { color: var(--text-muted); min-width: 48px; text-align: right; white-space: nowrap; }
@@ -194,16 +195,19 @@ body > #term { display: none; }
 #menu {
   :is(.zoomrow, .themerow, .arrange) button { border: none; background: none; &:is(:hover, :focus-visible):not(:disabled) { background: var(--island-hi); outline: none; } }
   /* Theme  Dark  Light  System: the chosen one lit */
-  .themerow { display: flex; align-items: center; gap: 2px; padding-inline-start: 10px;
+  /* The rows of their own as the menu's .item: as high, the icon at the start */
+  :is(.zoomrow, .themerow) { min-height: var(--row); padding-inline: var(--inset) 4px;
+    > svg { margin-inline-end: calc(var(--inset) - 2px); } }
+  .themerow { display: flex; align-items: center; gap: 2px;
     span { flex: 1; margin-inline-end: 12px; }
     button { padding: 0 8px; color: var(--text-dim); &[aria-pressed="true"] { background: var(--island-hi); color: var(--text-strong); } } }
   /* Zoom  −  100%  +  as in Chrome's menu */
-  .zoomrow { display: flex; align-items: center; gap: 2px; padding-inline-start: 10px;
+  .zoomrow { display: flex; align-items: center; gap: 2px;
     span { flex: 1; }
     output { min-width: 4em; text-align: center; }
     button { width: var(--control); padding: 0; font-size: 1.15em; } }
   /* Arrange panels as pictures, as the window looks: the profiles' pages light, the terminal dark with its prompt */
-  .arrange { display: flex; gap: 4px; padding: 2px 4px 4px;
+  .arrange { display: flex; gap: 4px; padding: 2px 4px 6px;
     button { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: auto; padding: 8px 10px 6px;
       color: var(--text-dim); white-space: nowrap; &:is(:hover, :focus-visible) { color: var(--text-strong); } }
     svg { width: 64px; height: 43px; } /* the classes are a-…: .pane and .tab are the grid's own, and size rects too */

@@ -96,7 +96,7 @@ to the human; the window's IPC (`app.js`) is a handle on it. The agent has no ha
 |---|---|---|---|
 | Open a project | + menu, Open Folder…, New Project…, the Welcome screen | none: it works inside one project | `openLater` (`app.js`), asking This Window or New Window; then `openProject` or `openInNewWindow` |
 | Close a project | a tab's ×, middle button, Close Project, main's × | none: it would stop itself | `closeProjects` (`app.js`), asking first |
-| Close a window, quit | the OS's × | none | `closeProjects` for the window's projects; quitting asks only when an agent works |
+| Close a window, quit | the OS's ×, ☰ → Exit | none | `closeProjects` for the window's projects; `quit` (`app.js`), asking only when an agent works |
 | Move a project | Move to New Window, Move to Window, dragging its tab | none: where the human sees it is the human's | `moveProject` (`app.js`) |
 | Remove a project | Remove Project…, ×, the Welcome screen | none: it deletes sign-ins, the human's to decide | `removeProject` (`app.js`), `askRemoveProject`, `removeProjectData` (`projects.js`) |
 | Make a fork | + in the strip | not yet (ROADMAP, "Workspaces, rest") | `Project.createFork` |
