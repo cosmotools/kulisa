@@ -10,8 +10,9 @@ current when they change.
 A **project** is a folder, usually a repository, with its workspaces. Kulisa keeps its data in its own data folder
 (`projects/<id>/`), never in the project's folder, so sign-ins stay out of its git.
 
-- **Open projects are tabs** in the title bar, right of the logo, as a browser's: each with its color's dot and its
-  agents' state (the most pressing of its workspaces': waiting for you, working, done). A click shows one; the others
+- **Open projects are tabs** in the title bar, right of the logo, as a browser's: each with its agents' state as an
+  icon in the project's color (the most pressing of its workspaces' for the human: waiting for you, done, working), none when
+  nothing asks for the human. A click shows one; the others
   keep running, their agents and pages, until the human closes their tab: ×, the middle button, or Close Project in
   its right-click menu (with Remove Project…). Closing a tab asks first (the author's decision, 2026-10-07; before, only when its agent was working), and says so when an agent is still working. **+** after the tabs
   is the menu of the projects (each with its color and folder, the open ones marked ✓; × on hover removes one), New
@@ -74,7 +75,7 @@ Example: the project `~/IdeaProjects/myshop`, a fork named "Checkout redesign":
 
 ## What the human does
 
-- **The strip** under the grid: a tab per workspace, with the agent's state as a dot (working, waiting for you,
+- **The strip** under the grid: a tab per workspace, with the agent's state as an icon (working, waiting for you,
   done; from Claude Code's hooks only). A click shows that workspace: the grid on screen slides out and the
   other one in at once, as macOS desktops do (a view transition on the compositor, the pages as pictures meanwhile;
   not with reduced motion). The one left keeps running.
@@ -131,8 +132,17 @@ command everywhere, without asking.
 - The dialog is part of the window, not a window of its own: no extra process, and its code is a module loaded only
   when it is needed: `agent-picker.js` (choosing) and `agents.js` (the Agents window) are two dialogs of their own
   around one list of agents with Install (`agent-list.js`), each with its own state.
-- The agent's state on the tabs comes from Claude Code's hooks (UserPromptSubmit, Notification, Stop); other agents
-  show none yet.
+- The agent's state on the tabs comes from Claude Code's hooks (`agent-hooks.js`; checked with Claude Code 2.1.293,
+  2026-10-08): `UserPromptSubmit` working; `Stop` done; waiting for you when it asks for a permission or a question
+  (`Notification` of type `permission_prompt`, `elicitation_*`) or a turn ends with an API error (`StopFailure`: a
+  limit, a sign-in); unknown again at `SessionEnd` (`/exit`, `/clear`). Not `idle_prompt`, sent a minute after an
+  answer: the tab already says done. Done means "come and see": once the human sees that workspace (shown with
+  Kulisa's window in focus; at once when it was on screen) its tab shows nothing (`Workspace.seen`, `tabState`), the
+  agent still done for the rest of Kulisa. Esc ends a turn without
+  any hook, so the tab says working until the next prompt.
+  A project's tab shows the most pressing of its workspaces' (waiting, done, working: a done one asks the human to
+  come, a working one does not), each one's in its tooltip.
+  Other agents show none yet (ROADMAP).
 
 ## Creating a fork, step by step
 

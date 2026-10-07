@@ -7,8 +7,9 @@ const { Workspace } = require('./workspaces');
 const worktrees = require('./worktrees');
 const { nameError } = require('./names');
 
-// An agent's state on a project's tab: the most pressing of its workspaces'.
-const STATES = ['waiting', 'working', 'done'];
+// An agent's state on a project's tab: the most pressing of its workspaces' for the human: one waits for them, one is
+// done (come and see), then one working.
+const STATES = ['waiting', 'done', 'working'];
 
 class Project {
   // entry: the project in projects.json (store.js): { id, name, folder, color }. shell: the app (app.js), as
@@ -25,7 +26,9 @@ class Project {
   get main() { return this.workspaces.get(1); }
   // Its workspace with this key ("<project id>/<n>", workspaces.js), or null.
   workspace(key) { return [...this.workspaces.values()].find((w) => w.key === key) || null; }
-  state() { return STATES.find((s) => [...this.workspaces.values()].some((w) => w.state === s)) || null; }
+  state() { return STATES.find((s) => [...this.workspaces.values()].some((w) => w.tabState === s)) || null; }
+  // Each workspace's agent its tab shows a state for: { name, state }, for the project tab's tooltip.
+  states() { return [...this.workspaces.values()].filter((w) => w.tabState).map((w) => ({ name: w.name, state: w.tabState })); }
   async checkGit() {
     const repo = await worktrees.repoOf(this.folder);
     this.git = repo?.commit ? 'ok' : repo ? 'no-commit' : 'none';

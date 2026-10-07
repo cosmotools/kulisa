@@ -15,7 +15,6 @@ const workspaces = (() => {
   const error = dialog.querySelector('.error');
   const create = document.getElementById('wscreate');
   const ws = { current: null };
-  const STATES = { working: 'The agent is working', waiting: 'The agent waits for you', done: 'The agent is done' };
 
   kulisa.on('workspaces', ({ current, list: all, git }) => {
     // Its terminal once the grid on screen has gone.
@@ -27,9 +26,7 @@ const workspaces = (() => {
       el.dataset.ws = w.key;
       el.classList.toggle('active', w.key === current);
       el.querySelector('.name').textContent = w.name;
-      const state = el.querySelector('.state');
-      state.dataset.state = w.state || '';
-      state.title = STATES[w.state] || '';
+      showAgentState(el.querySelector('.state'), w.state);
       el.title = w.main ? `main: the project itself, ${w.folder}` : `branch ${w.branch} in ${w.folder}; the app's ports + ${w.offset}`;
       el.querySelector('.close').title = w.main ? 'Close the project' : 'Delete this workspace: its folder, branch, profile copies and conversation (asks first)';
       return el;

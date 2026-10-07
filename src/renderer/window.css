@@ -26,7 +26,8 @@ body {
      tabs shrink, then the row scrolls; an agent's state only when it is known. */
   #projectTabs { display: flex; gap: 4px; min-width: 0; overflow-x: auto; scrollbar-width: none;
     .striptab { min-width: 72px; -webkit-app-region: no-drag; }
-    .state[data-state=""] { display: none; }
+    /* An agent's state in the project's color: told by its icon alone. */
+    .state { color: var(--color); }
     /* A tab being dragged; where a dropped one would go (projects.js). */
     .dragging { opacity: .5; }
     .drop-before { box-shadow: inset 2px 0 var(--accent); }

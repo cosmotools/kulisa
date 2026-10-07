@@ -79,6 +79,7 @@ class AppWindow {
     // Where it was is kept for the next start; the app decides whether it closes now (app.js, closeWindow).
     win.on('close', (e) => { this.place = this.where(); shell.windowClosing(this, e); });
     win.on('closed', () => this.unanswered());
+    win.on('focus', () => this.seen());
   }
   get ws() { return this.current?.ws ?? null; }
   get profiles() { return this.ws?.profiles || NONE; }
@@ -112,7 +113,7 @@ class AppWindow {
     const { shell } = this;
     const others = shell.windows.filter((w) => w !== this && !w.win.isDestroyed());
     return { current: this.current?.id ?? null, projects: shell.store.projects(),
-      open: this.tabs.map((p) => ({ id: p.id, state: p.state() })),
+      open: this.tabs.map((p) => ({ id: p.id, state: p.state(), states: p.states() })),
       elsewhere: [...shell.open.values()].filter((p) => p.window !== this).map((p) => p.id),
       windows: others.map((w) => ({ id: w.id, names: w.tabs.map((p) => p.name) })) };
   }
@@ -136,7 +137,10 @@ class AppWindow {
   // A workspace of its projects changed: its profiles (now: right away), or its agent's state (shown on its tab and
   // its project's).
   changed(ws, now, agentState) {
-    if (agentState) { this.sendWorkspaces(); return this.sendProjects(); }
+    if (agentState) {
+      if (ws === this.ws && this.win.isFocused()) ws.see(); // done before the human's eyes: nothing to come and see
+      this.sendWorkspaces(); return this.sendProjects();
+    }
     if (ws !== this.ws) return ws.loaded && ws.list.saveTabs(); // not one being unloaded
     if (now) this.pushState(); else this.scheduleState();
   }
@@ -172,6 +176,7 @@ class AppWindow {
     if (!ws.loaded) await ws.loadProfiles();
     this.switching = false;
     this.pushState();
+    this.seen();
     // Not waited for: the human may first have to choose the agent (or switch away meanwhile).
     if (!ws.pty && !ws.starting) ws.starting = ws.startAgent().catch((e) => console.error('[agent]', e)).finally(() => { ws.starting = null; });
   }
@@ -213,6 +218,8 @@ class AppWindow {
     this.send('workspaces:closed', [ws.key]);
     if (ws.project === this.current) this.sendWorkspaces();
   }
+  // The human sees the shown workspace: an agent done there has nothing more to show (its ✓ says "come and see").
+  seen() { if (this.ws?.see()) { this.sendWorkspaces(); this.sendProjects(); } }
   // Whether a point on the screen is on it (a tab let go there: app.js, dragOut).
   contains({ x, y }) {
     if (this.win.isDestroyed() || this.win.isMinimized()) return false;

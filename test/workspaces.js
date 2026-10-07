@@ -189,14 +189,46 @@ module.exports = (test) => {
     assert.equal(JSON.parse(fs.readFileSync(path.join(userData, 'projects', 'project', 'workspaces.json'), 'utf8')).current, 1);
     // What the fork's agent does reaches its tab (Claude Code's hooks); its captions do not show on main's panes.
     const http = require('http');
-    const post = (url) => new Promise((r) => http.request(url, { method: 'POST' }, (res) => { res.resume(); res.on('end', r); }).end('{}'));
-    await post(`${fork.env().KULISA_URL}/hooks/prompt`);
-    await waitFor(async () => (await ui(`${wsTab(2)}.querySelector('.state').dataset.state`)) === 'working');
-    await post(`${fork.env().KULISA_URL}/hooks/stop`);
-    await waitFor(async () => (await ui(`${wsTab(2)}.querySelector('.state').dataset.state`)) === 'done');
+    const post = (event, input = {}) => new Promise((r) => http.request(`${fork.env().KULISA_URL}/hooks/${event}`, { method: 'POST' },
+      (res) => { res.resume(); res.on('end', r); }).end(JSON.stringify(input)));
+    const state = () => ui(`(() => { const s = ${wsTab(2)}.querySelector('.state'); return s.dataset.state + ' ' + s.querySelector('use').getAttribute('href') + ' ' + s.checkVisibility(); })()`);
+    const projectState = () => ui(`(() => { const t = ${projectTab('project')}, s = t.querySelector('.state'); return [s.dataset.state, s.title]; })()`);
+    assert.equal(await state(), ' #i-done false', 'unknown: no icon');
+    await post('prompt');
+    await waitFor(async () => (await state()) === 'working #i-working true');
+    await post('stop');
+    await waitFor(async () => (await state()) === 'done #i-done true');
+    // A minute after the answer Claude Code says it is idle: still done. A permission it asks for: waiting.
+    await post('notification', { notification_type: 'idle_prompt' });
+    await sleep(300);
+    assert.equal(await state(), 'done #i-done true');
+    await post('notification', { notification_type: 'permission_prompt' });
+    await waitFor(async () => (await state()) === 'waiting #i-waiting true');
+    // The project's tab: the most pressing of its workspaces', each one's in its tooltip.
+    shell.current.workspaces.get(1).setState('working');
+    await waitFor(async () => (await projectState())[0] === 'waiting');
+    assert.equal((await projectState())[1], 'The agent of main is working\nThe agent of ' + fork.name + ' waits for you');
+    await post('stop'); // done, come and see, before one working
+    await waitFor(async () => (await projectState())[0] === 'done');
+    shell.current.workspaces.get(1).setState(null);
+    // A turn ended by an API error needs the human; the session's end makes it unknown again.
+    await post('prompt');
+    await post('stop-failure', { error_type: 'rate_limit' });
+    await waitFor(async () => (await state()) === 'waiting #i-waiting true');
+    await post('session-end', { reason: 'prompt_input_exit' });
+    await waitFor(async () => (await state()) === ' #i-done false');
     fork.caption('sam-admin', 'from the fork');
     await sleep(200);
     assert.equal(await ui(`document.querySelector('.ptab[data-panel="${panel(shell, 'sam-admin')}"] .caption').textContent`), '');
+    // Done says "come and see" until the human sees that workspace.
+    await post('stop');
+    await waitFor(async () => (await state()) === 'done #i-done true');
+    await ui(`${wsTab(2)}.click()`);
+    await waitFor(async () => shell.ws === fork && (await state()) === ' #i-done false');
+    assert.equal(fork.state, 'done', 'the agent is still done: only its tab says nothing');
+    await ui(`${wsTab(1)}.click()`);
+    await waitFor(async () => shell.ws.n === 1 && (await viewOn(shell, ui, 'sam-admin')) && viewOn(shell, ui, 'elon-buyer')
+      && ui(`!document.documentElement.matches(':active-view-transition')`)); // its slide over before the next test watches one
   });
 
   test('workspaces: switching slides both grids at once (a view transition, the way of the strip); then the pages are live again', async ({ shell, ui }) => {

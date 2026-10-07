@@ -44,6 +44,28 @@
           }
         ]
       }
+    ],
+    "StopFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -z \"$KULISA_URL\" ] || curl -sf --max-time 3 --data-binary @- \"$KULISA_URL/hooks/stop-failure\" || true",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -z \"$KULISA_URL\" ] || curl -sf --max-time 1 --data-binary @- \"$KULISA_URL/hooks/session-end\" || true",
+            "timeout": 2
+          }
+        ]
+      }
     ]
   }
 }

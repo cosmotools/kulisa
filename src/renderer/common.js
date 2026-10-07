@@ -13,6 +13,15 @@ document.addEventListener('beforeinput', (e) => {
   e.preventDefault();
   if (ok) { input.setRangeText(ok, input.selectionStart, input.selectionEnd, 'end'); input.dispatchEvent(new Event('input', { bubbles: true })); }
 });
+// An agent's state on a tab (a workspace's, a project's; components.css .state): its icon, and words for the tooltip;
+// on a project's tab each of its workspaces' when more than one has one. Nothing when unknown.
+const AGENT_STATES = { working: 'is working', waiting: 'waits for you', done: 'is done' };
+function showAgentState(el, state, each = []) {
+  el.dataset.state = state || '';
+  el.querySelector('use').setAttribute('href', `#i-${state || 'done'}`);
+  el.title = each.length > 1 ? each.map((w) => `The agent of ${w.name} ${AGENT_STATES[w.state]}`).join('\n')
+    : state ? `The agent ${AGENT_STATES[state]}` : '';
+}
 // The profiles' pages are native views above the window's HTML: they stay hidden while a dialog is open or the grid
 // is not laid out yet (html.loading).
 const viewsCovered = () => document.querySelector('dialog[open]') !== null || document.documentElement.classList.contains('loading');

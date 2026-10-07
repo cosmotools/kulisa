@@ -13,7 +13,6 @@
   const tabs = document.getElementById('projectTabs');
   const button = document.getElementById('openProjects');
   const recent = document.getElementById('welcome-list');
-  const STATES = { working: 'The agent is working', waiting: 'The agent waits for you', done: 'The agent is done' };
   let info = { current: null, projects: [], open: [], elsewhere: [] };
   const remove = (id) => kulisa.invoke('project:remove', { id });
   const openProject = (id) => kulisa.invoke('project:open', { id });
@@ -32,9 +31,7 @@
       el.classList.toggle('active', p.id === current);
       el.title = p.folder || '';
       el.querySelector('.name').textContent = p.name;
-      const state = el.querySelector('.state');
-      state.dataset.state = o.state || '';
-      state.title = STATES[o.state] || '';
+      showAgentState(el.querySelector('.state'), o.state, o.states);
       return el;
     }));
     tabs.querySelector('.active')?.scrollIntoView({ inline: 'nearest' });

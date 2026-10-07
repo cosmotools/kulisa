@@ -27,6 +27,7 @@ class Workspace {
     this.offset = entry.offset || 0;
     this.store = shell.store.workspaceOf(project, this.n);
     this.state = null; // the agent's, from its hooks: 'working', 'waiting' (for the human), 'done'
+    this.seen = false; // the human has seen it since (its window: see), so a done one has nothing to come and see
     this.pty = null; this.loaded = false;
     this.list = new ProjectProfiles(this.store, this._profileHooks());
     this.profiles = this.list.profiles; this.closed = this.list.closed;
@@ -139,7 +140,11 @@ class Workspace {
   }
   // The agent's session, as its hooks report it (agent-hooks.js).
   saveAgent(s) { if (this.loaded) this.store.saveAgent({ ...this.store.agent(), ...s }); }
-  setState(state) { this.state = state; this.shell.wsChanged(this, false, true); }
+  setState(state) { this.state = state; this.seen = false; this.shell.wsChanged(this, false, true); }
+  // The human sees it (shown, its window in focus); true when that changes what its tab shows.
+  see() { const was = this.tabState; this.seen = true; return this.tabState !== was; }
+  // What its tab shows: the agent's state, but nothing for a done one the human has seen.
+  get tabState() { return this.state === 'done' && this.seen ? null : this.state; }
 
   // Profiles and their tabs: the one core the human (the window, app.js) and the agent (mcp-server.js) both act on.
   // Each side only translates (CLAUDE.md, Architecture): the checks, the questions and what an action does are here
@@ -198,7 +203,7 @@ class Workspace {
   }
 
   info() {
-    const { n, key, name, main, state, folder, offset } = this;
+    const { n, key, name, main, tabState: state, folder, offset } = this;
     return { n, key, name, main, state, folder, offset, branch: this.entry.branch || null, agent: this.agent?.name || null };
   }
 }

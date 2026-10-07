@@ -49,8 +49,9 @@ lines (`stroke`) of the text's color; a filled part has `fill="currentColor"`. U
 | `i-pick` | Pick (DevTools' inspect icon) |
 | `i-globe` | a tab whose site has no icon |
 | `i-zoom`, `i-theme`, `i-arrange`, `i-agent`, `i-exit` | ☰'s rows: Zoom, Theme, Arrange panels, Agents…, Exit |
+| `i-working`, `i-waiting`, `i-done` | an agent's state on a tab (`.state`) |
 
-An icon is 16 px; × and + are 14 px, as in Chrome (`.icon`). ☰'s are Lucide's (lucide.dev, ISC), drawn on 24 × 24 with
+An icon is 16 px; × and + are 14 px, as in Chrome (`.icon`). ☰'s and the agent's states are Lucide's (lucide.dev, ISC), drawn on 24 × 24 with
 their lines thickened to match; take a new one from there rather than drawing it. Pictures are not icons: the app logo (`assets/icon.svg`,
 in the title bar) and the arrangements in ☰ are drawn in place. The test `icons: …` in `test/window.js` checks that
 every other `<svg>` uses the sprite.
@@ -80,8 +81,12 @@ every other `<svg>` uses the sprite.
   (`button.close.icon.quiet.small`); lit under the pointer. `.active`: the shown one, on the islands' color;
   `.colored.active`: on a plate of its own `--color`. A workspace's tab (`tpl-wstab`) and a project's
   (`tpl-projecttab`, colored).
-- `.state`: an agent's state, an 8 px circle by `data-state` (from its hooks): working (pulsing), waiting for you,
-  done; muted when unknown. On a workspace's tab and a project's.
+- `.state`: an agent's state by `data-state` (from its hooks), an icon each so that color is not the only sign (some
+  people do not tell yellow from green): working (sparkles, twinkling; not with reduced motion), waiting for you (a
+  bell), done (a check: come and see, until the human sees that workspace); nothing otherwise, as nothing asks for
+  the human then (the author's rule). On a workspace's tab, and on a project's in the project's color (there the icon
+  alone tells the state); `showAgentState` (`common.js`)
+  sets it with its tooltip.
 
 ### Dialogs
 

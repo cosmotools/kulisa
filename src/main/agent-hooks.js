@@ -23,10 +23,21 @@ function sessionStart(ws, input) {
   return { hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: context } };
 }
 
-// What the agent is doing, shown on its workspace's tab: working on a prompt, waiting for the human (a permission or
-// a question), done.
-const state = (s) => (ws) => { ws.setState(s); return {}; };
-const handlers = { 'session-start': sessionStart, prompt: state('working'), notification: state('waiting'), stop: state('done') };
+// What the agent is doing, shown on its workspace's tab: working on a prompt, waiting for the human, done; unknown
+// (null) once its session ends (/exit, /clear: a new one starts). Waiting is for what needs the human: a permission, a
+// question (Claude Code's notification_type; an older one without it, any notification), or a turn ended by an API
+// error (a limit, a sign-in). Not idle_prompt, a minute after the answer: done says that already (tried 2026-10-08).
+// Esc ends a turn without a hook (Claude Code has none for it): the tab says working until the next prompt.
+const NEEDS_YOU = new Set(['permission_prompt', 'elicitation_dialog', 'elicitation_url_dialog']);
+const state = (s, when = () => true) => (ws, input) => { if (when(input)) ws.setState(s); return {}; };
+const handlers = {
+  'session-start': sessionStart,
+  prompt: state('working'),
+  notification: state('waiting', (input) => !input?.notification_type || NEEDS_YOU.has(input.notification_type)),
+  stop: state('done'),
+  'stop-failure': state('waiting'),
+  'session-end': state(null),
+};
 
 // Route /hooks/<event> of a workspace; returns false for other paths.
 function handleHookRequest(ws, url, req, res) {
