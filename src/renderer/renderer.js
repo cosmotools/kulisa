@@ -67,6 +67,9 @@ function render() {
     const active = p.tabs.find((t) => t.id === p.active);
     pane.el.querySelector('.back').disabled = !active?.canBack;
     pane.el.querySelector('.fwd').disabled = !active?.canFwd;
+    // Pick needs a page to point at: off on an empty tab (about:blank), unless picking already.
+    const pick = pane.el.querySelector('.pick');
+    pick.disabled = !pick.classList.contains('active') && (!active?.url || active.url === 'about:blank');
     // The site's own zoom in this profile, when it differs from the Kulisa zoom; a click resets it.
     const zoom = pane.el.querySelector('.zoom');
     zoom.hidden = !active || active.zoom === 1;

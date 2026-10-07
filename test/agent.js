@@ -401,6 +401,16 @@ module.exports = (test) => {
     assert.equal(ptyOutput().slice(before).includes('kulisa pick'), false);
   });
 
+  test('point and tell: Pick is off on an empty tab (about:blank)', async ({ shell, ui }) => {
+    const elon = shell.profiles.get('elon-buyer');
+    const disabled = () => ui(`document.querySelector('.pane[data-profile="elon-buyer"] .pick').disabled`);
+    assert.equal(await disabled(), false);
+    const tab = await ui(`kulisa.invoke('tab:new', { profile: 'elon-buyer' })`);
+    await waitFor(async () => elon.active === tab && (await disabled()));
+    elon.closeTab(tab);
+    await waitFor(async () => !(await disabled()));
+  });
+
   test('@playwright/mcp works through the CDP proxy', async ({ shell }) => {
     const { Client } = require('@modelcontextprotocol/sdk/client/index.js');
     const { StdioClientTransport } = require('@modelcontextprotocol/sdk/client/stdio.js');
