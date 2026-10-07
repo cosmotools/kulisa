@@ -106,7 +106,7 @@ module.exports = (test) => {
       assert.deepEqual(await ui(`[...document.querySelectorAll('.pane[data-profile="sam-admin"] .bar .icon')].map((b) =>
         [b.className, b.textContent.trim(), !!b.querySelector('svg'), !!b.ariaLabel, getComputedStyle(b).borderTopWidth])`),
       ['back', 'fwd', 'reload', 'pick', 'more'].map((c) => [`${c} icon`, '', true, true, '0px']));
-      // The same inset from the island's edges for everything in it, left, right and below.
+      // The same inset from the island's edges for the controls in it; the page reaches its edges (the author's choice, 2026-10-08).
       const inset = await ui(`(() => {
         const pane = document.querySelector('.pane[data-profile="sam-admin"]'), island = pane.closest('.dv-groupview').getBoundingClientRect();
         const header = document.querySelector('.ptab[data-panel="' + pane.closest('.dv-groupview').querySelector('.ptab').dataset.panel + '"]');
@@ -116,7 +116,7 @@ module.exports = (test) => {
           page: left(pane.querySelector('.content')), close: right(header.querySelector('.close')), more: right(pane.querySelector('.more')),
           pageRight: right(pane.querySelector('.content')), pageBottom: Math.round(island.bottom - r(pane.querySelector('.content')).bottom) };
       })()`);
-      assert.deepEqual(inset, { dot: 8, tab: 8, back: 8, page: 8, close: 8, more: 8, pageRight: 8, pageBottom: 8 });
+      assert.deepEqual(inset, { dot: 8, tab: 8, back: 8, page: 0, close: 8, more: 8, pageRight: 0, pageBottom: 0 });
       await choose(ui, 'DevTools');
     };
     await click();

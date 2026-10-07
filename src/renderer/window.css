@@ -87,7 +87,7 @@ body {
 .caption { flex: 1; color: var(--note); font-weight: normal; }
 
 /* A profile's pane, as a Chrome window: the tabs on the island's color, the active one of a piece with the toolbar
-   (back, forward, reload, the address, Pick, ⋮) and the frame around the page, a step lighter. */
+   (back, forward, reload, the address, Pick, ⋮) a step lighter; the page below to the island's edges. */
 .pane { height: 100%; display: flex; flex-direction: column; min-width: 0; background: var(--toolbar);
   border-radius: 0 0 var(--island-radius) var(--island-radius); }
 .tabs { display: flex; align-items: end; padding: 0 var(--gap); flex: none; background: var(--island);
@@ -126,7 +126,7 @@ body {
 }
 /* The profile's WebContentsView is placed over this box by the main process; while a panel is dragged, a picture of
    the page (img.snapshot) stands in for it. */
-.content { flex: 1; position: relative; overflow: hidden; margin: 0 var(--gap) var(--gap); border-radius: var(--radius); background: var(--page);
+.content { flex: 1; position: relative; overflow: hidden; border-radius: calc(var(--island-radius) - 2px); background: var(--page);
   .snapshot { position: absolute; inset: 0; width: 100%; height: 100%; }
 }
 

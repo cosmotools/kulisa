@@ -32,7 +32,7 @@ function toUrl(u) {
   if (/^[\w.-]+(:\d+)?(\/|$)/.test(u)) return 'https://' + u;
   return 'https://www.google.com/search?q=' + encodeURIComponent(u);
 }
-const PAGE_RADIUS = 6; // matches the panes' rounded corners (renderer window.css)
+const PAGE_RADIUS = 8; // a little less than the island's corners, which the page reaches (renderer window.css, .content)
 
 class Profile extends EventEmitter {
   // cfg: { id, name, color, folder, dir }. The folder (cookies, storage; dir is its absolute path) is fixed at
