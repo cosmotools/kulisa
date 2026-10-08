@@ -94,7 +94,8 @@ const profileEditor = (() => {
       if (document.activeElement !== name) name.value = p.name;
       const about = row.querySelector('.about');
       if (document.activeElement !== about) about.value = p.description || '';
-      row.querySelector('.pid').textContent = p.id;
+      name.title = `The agent calls it ${p.id}`;
+      row.dataset.profile = p.id;
       const n = p.closed ? p.tabs : p.tabs.length;
       row.querySelector('.ntabs').textContent = `${p.closed ? 'closed · ' : ''}${tabs(n)}`;
       row.querySelector('.open').hidden = !p.closed;

@@ -86,7 +86,7 @@ module.exports = (test) => {
 
     // Open again in the editor.
     await manageProfiles(ui);
-    const row = `[...document.querySelectorAll('#plist .prow')].find((r) => r.querySelector('.pid').textContent === 'cleo')`;
+    const row = `document.querySelector('#plist .prow[data-profile="cleo"]')`;
     await waitFor(() => ui(`!!${row}`));
     assert.equal(await ui(`${row}.querySelector('.ntabs').textContent`), 'closed · 2 tabs');
     await ui(`${row}.querySelector('.open').click()`);

@@ -45,7 +45,7 @@ module.exports = (test) => {
 
     await manageProfiles(ui);
     await waitFor(async () => (await ui(`document.querySelectorAll('#plist .prow').length`)) === 3);
-    const row = `[...document.querySelectorAll('#plist .prow')].find((r) => r.querySelector('.pid').textContent === 'temp')`;
+    const row = `document.querySelector('#plist .prow[data-profile="temp"]')`;
     ctx.answer = false; // Cancel
     await ui(`${row}.querySelector('.del').click()`);
     await waitFor(() => ctx.asked.length);
@@ -78,10 +78,10 @@ module.exports = (test) => {
   });
   test('rename in the profile editor', async ({ shell, ui }) => {
     await manageProfiles(ui);
-    const name = `[...document.querySelectorAll('#plist .prow')].find((r) => r.querySelector('.pid').textContent === 'elon-buyer').querySelector('.name')`;
+    const name = `document.querySelector('#plist .prow[data-profile="elon-buyer"]').querySelector('.name')`;
     await ui(`(() => { const n = ${name}; n.value = 'Elon.shopper'; n.dispatchEvent(new Event('change')); })()`);
     await waitFor(() => shell.profiles.has('elon-shopper'));
-    await ui(`(() => { const n = [...document.querySelectorAll('#plist .prow')].find((r) => r.querySelector('.pid').textContent === 'elon-shopper').querySelector('.name'); n.value = 'Elon.buyer'; n.dispatchEvent(new Event('change')); })()`);
+    await ui(`(() => { const n = document.querySelector('#plist .prow[data-profile="elon-shopper"]').querySelector('.name'); n.value = 'Elon.buyer'; n.dispatchEvent(new Event('change')); })()`);
     await waitFor(() => shell.profiles.has('elon-buyer'));
     await ui(`document.getElementById('closeProfiles').click()`);
   });

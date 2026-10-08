@@ -206,7 +206,7 @@ here; what is left of it stays.
 - **A desktop app's ways, not only buttons** (talked over with the author 2026-10-08, who liked them all). A web page
   puts a button on every action; a desktop app gives an action several ways in: a visible one for a newcomer, quick
   ones for daily use (keys above, a right-click, dragging). Kulisa has some, here and there (the menus of a project,
-  a workspace's tab and a pane; a double-click renames a profile; a middle click closes a project; projects and
+  a workspace's tab and a pane; a middle click closes a project; projects and
   panels are dragged). To build:
   - **The system's notifications: first** (small: Electron's `Notification`, `app.setBadgeCount`, `win.flashFrame`).
     The human is in their browser or IDE while agents work; today only the icon on a workspace's tab says one waits

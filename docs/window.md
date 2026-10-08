@@ -92,7 +92,7 @@ Kulisa draws its menus in HTML, as Chrome does (a popover, `menu.js`; [ui.md](ui
   projects' bar's row, Arrange panels, Agents…, Kulisa's version with the Welcome screen's links
   (Documentation, GitHub, Report an issue; one list in `index.html`), and Exit, which quits as the last window's × does; not on macOS, where
   Cmd+Q and the app's menu quit);
-- right-click on a pane's header (New tab, Rename, About this profile…, Close profile, Delete profile…), a tab (Reload, Duplicate,
+- right-click on a pane's header (New tab, About this profile…, Close profile, Delete profile…), a tab (Reload, Duplicate,
   Close, Close others) and the terminal (Copy, Paste, Select all, Clear, Change agent…).
 
 Native menus were tried first (2026-10-05): rows of text only, no buttons in a row; and a native menu in a page had

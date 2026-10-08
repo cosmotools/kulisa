@@ -483,7 +483,7 @@ module.exports = (test) => {
     const elon = shell.profiles.get('elon-buyer');
     const header = '.ptab[data-panel="profile:Profile 2"]';
     await rightClick(ui, header);
-    assert.deepEqual(await menuRows(ui), ['New tab', 'Rename', 'About this profile…', 'Close profile', '-', 'Delete profile…']);
+    assert.deepEqual(await menuRows(ui), ['New tab', 'About this profile…', 'Close profile', '-', 'Delete profile…']);
     const at = await ui(`(() => { const h = document.querySelector('${header}').getBoundingClientRect(), m = document.getElementById('menu').getBoundingClientRect();
       return Math.abs(m.left - (h.x + h.width / 2)) < 2 && Math.abs(m.top - (h.y + h.height / 2) - 4) < 2; })()`);
     assert.ok(at, 'at the pointer');
@@ -497,18 +497,13 @@ module.exports = (test) => {
     assert.equal(elon.get().view.getVisible(), false, 'a page over the second menu');
     await rightClick(ui, header);
     await sleep(300);
-    assert.deepEqual(await menuRows(ui), ['New tab', 'Rename', 'About this profile…', 'Close profile', '-', 'Delete profile…']);
+    assert.deepEqual(await menuRows(ui), ['New tab', 'About this profile…', 'Close profile', '-', 'Delete profile…']);
     assert.equal(elon.get().view.getVisible(), false, 'a page over the third menu');
     const n = elon.tabs.length;
     await choose(ui, 'New tab');
     await waitFor(() => elon.tabs.length === n + 1);
     await waitFor(() => elon.get().view.getVisible());
     assert.equal(await ui(`document.querySelectorAll('img.snapshot').length`), 0);
-    await rightClick(ui, header);
-    await menuRows(ui);
-    await choose(ui, 'Rename');
-    await waitFor(() => ui(`document.activeElement === document.querySelector('${header} input')`));
-    await ui(`document.activeElement.blur()`); // nothing renamed
 
     await waitFor(() => ui(`document.querySelectorAll('.pane[data-profile="elon-buyer"] .tabs .tab').length === ${n + 1}`));
     await rightClick(ui, '.pane[data-profile="elon-buyer"] .tabs .tab');

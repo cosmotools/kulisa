@@ -61,7 +61,7 @@ function render() {
     pane.el.dataset.profile = p.id;
     renderTabs(pane, p);
     pane.tabEl.querySelector('.pname').textContent = p.name;
-    pane.tabEl.querySelector('.pname').title = `${p.description ? `${p.description}\n\n` : ''}Double-click to rename`;
+    pane.tabEl.querySelector('.pname').title = p.description || '';
     pane.tabEl.querySelector('.avatar').src = avatarSrc(p.avatar);
     const cap = pane.tabEl.querySelector('.caption');
     if (p.signinMode) { cap.textContent = '🔒 Sign-in page — agent paused'; pane.signinShown = true; }
@@ -186,8 +186,6 @@ function createPane(p) {
   more.onclick = () => openMenu([
     { label: 'DevTools', keys: 'F12', run: () => act('tab:devtools', { profile: id(), tab: tab() }) },
   ], more);
-  const pname = tabEl.querySelector('.pname');
-  pname.ondblclick = () => renameProfile(pane, pname);
   tabEl.querySelector('.close').onclick = () => act('profile:close', { profile: id() });
   new ResizeObserver(scheduleLayout).observe(el.querySelector('.content'));
   return pane;
@@ -197,21 +195,6 @@ function createPane(p) {
 const shortUrl = (u) => (u === 'about:blank' ? '' : u).replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/^([^/?#]+)\/$/, '$1');
 
 const newTab = async (pane) => { pane.typeInto = await act('tab:new', { profile: pane.profile.id }); render(); };
-
-function renameProfile(pane, pname) {
-  const input = Object.assign(document.createElement('input'), { value: pane.profile.name, size: 24, maxLength: 64 });
-  input.dataset.name = ''; // only the characters names may have (common.js)
-  pname.replaceWith(input); input.focus(); input.select();
-  let done = false;
-  const finish = (save) => {
-    if (done) return; done = true;
-    input.replaceWith(pname);
-    const name = input.value.trim();
-    if (save && name && name !== pane.profile.name) act('profile:rename', { profile: pane.profile.id, name });
-  };
-  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') finish(true); if (e.key === 'Escape') finish(false); });
-  input.addEventListener('blur', () => finish(false));
-}
 
 // ---------- the grid ----------
 // dockview lays out HTML; each profile's page is a native view, so after any change the main process gets where
@@ -454,7 +437,6 @@ function paneMenu(pane) {
   const p = pane.profile;
   return [
     { label: 'New tab', run: () => newTab(pane) },
-    { label: 'Rename', keys: 'Double-click', run: () => renameProfile(pane, pane.tabEl.querySelector('.pname')) },
     { label: 'About this profile…', run: () => profileEditor.about(p.key) },
     { label: 'Close profile', run: () => act('profile:close', { profile: p.id }) },
     '-',

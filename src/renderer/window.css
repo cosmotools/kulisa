@@ -9,7 +9,7 @@ body {
   user-select: none; cursor: default; /* a desktop app: labels and buttons are not text to select; fields are */
   background: radial-gradient(circle, color-mix(in srgb, var(--project) 60%, transparent), transparent 90%) var(--window);
 }
-.caption, .tab .title, .prow .pid { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.caption, .tab .title { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 
 /* The window's title bar (titleBarOverlay in app.js). env(titlebar-area-*) leaves room for the OS window buttons on
    every platform; dragging it moves the window, except on its controls. */
@@ -80,7 +80,7 @@ body {
 /* Everything in a panel keeps --gap from the island's edges: the header's dot and ×, the tabs, the toolbar's first and
    last button, the page (dockview's tab has a margin of 2px, --dv-tab-margin). */
 .ptab { display: flex; align-items: center; gap: 6px; height: 100%; padding: 0 calc(var(--gap) - 2px); min-width: 0; }
-.pname { cursor: text; white-space: nowrap; }
+.pname { white-space: nowrap; }
 .caption { flex: 1; color: var(--note); font-weight: normal; }
 /* The terminal's: dictation at its end (voice.js); the microphone red while it records. */
 .dictation { display: flex; align-items: center; gap: 2px; margin-inline-start: auto;
@@ -252,11 +252,10 @@ body > #term { display: none; }
 }
 /* The profile editor's rows (profile-editor.js) */
 .prow { display: flex; gap: var(--inset); align-items: start; padding: 10px 0; border-bottom: 1px solid var(--island-hi);
-  .who { flex: 1; min-width: 0; display: grid; gap: 6px; }
+  .who { flex: 1; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
   .line { display: flex; gap: var(--inset); align-items: center; }
-  .name { flex: 1; }
-  .pid { color: var(--text-muted); width: 120px; }
-  .ntabs { color: var(--text-muted); min-width: 48px; text-align: right; white-space: nowrap; }
+  .name { flex: 1; min-width: 0; }
+  .ntabs { padding-inline: 9px; font-size: 0.9em; color: var(--text-muted); }
 }
 /* A profile's picture in the editor (a row's, the new one's) and the pictures to choose from, its own lit */
 #profiles { .pic { --avatar: 22px; }

@@ -216,7 +216,7 @@ module.exports = (test) => {
     [['seller in the test shop', 'avatars/fox.svg'], ['buyer; pays by card', 'avatars/penguin.svg']]);
     await ui(`document.getElementById('openProfiles').click()`);
     await manageProfiles(ui);
-    const row = `[...document.querySelectorAll('#plist .prow')].find((r) => r.querySelector('.pid').textContent === 'elon-buyer')`;
+    const row = `document.querySelector('#plist .prow[data-profile="elon-buyer"]')`;
     await waitFor(async () => (await ui(`${row}.querySelector('.about').value`)) === 'buyer; pays by card');
     assert.deepEqual(await ui(`[${row}.querySelector('.about').localName, ${row}.querySelector('.about').rows, getComputedStyle(${row}.querySelector('.about')).resize]`),
       ['textarea', 2, 'vertical'], 'two lines, made taller by hand');

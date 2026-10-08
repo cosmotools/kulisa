@@ -26,8 +26,8 @@ A profile is an Electron session on a folder of its own (`session.fromPath`), la
   Ids, branches and fork folders keep letters of any language.
 - **Sign in by hand** in its pane. Only the human signs in: Kulisa never types passwords or automates a sign-in,
   and never prints or logs cookies or tokens (CLAUDE.md, Rules).
-- **Rename**: double-click the pane's name, the editor, or the pane's right-click menu. Only the name and id
-  change; the folder (sign-ins), tabs and place stay.
+- **Rename**: in the editor (Manage Profiles…, or About this profile… in the pane's right-click menu). Only the
+  name and id change; the folder (sign-ins), tabs and place stay.
 - **Who it is** (the description): a few words on who the profile is in the app under test, its role, what it can do
   ("seller in the Acme shop; can approve refunds"), in the editor, or About this profile… in the pane's menu. Agents
   choose profiles by it: a name says which account is signed in, not who that is in the tests. Optional, and the
@@ -132,7 +132,7 @@ methods. A row with one side empty says why, or is a gap to fill.
 | Action | The human | The agent | The core |
 |---|---|---|---|
 | Create a profile | Manage Profiles… | `profile_create` | `Workspace.createProfile` |
-| Rename a profile | double-click, editor, pane menu | `profile_rename` | `Workspace.renameProfile` |
+| Rename a profile | the editor | `profile_rename` | `Workspace.renameProfile` |
 | Say who a profile is | New profile, editor, About this profile… | `profile_describe`, `profile_create` (the human's words only) | `Workspace.describeProfile` |
 | Change its picture | editor | none: how the human tells panes apart | `Workspace.setProfileAvatar` |
 | Close, open a profile | ×, 👥, editor | `profile_close`, `profile_open` | `Workspace.closeProfile`, `openProfile` |
