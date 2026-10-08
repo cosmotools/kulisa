@@ -201,6 +201,15 @@ here; what is left of it stays.
   - Nearly no RAM (the sound is handled in the tab already open), no new process. First: the permissions (Open
     issues, "Pages get the microphone and camera without asking"), so the agent can test the site's own request too.
 
+- **TypeScript, with esbuild** (2026-10-08, the author's question; put off: plain JavaScript is enough at this size).
+  Tried and dropped the same day: `tsc` checking JavaScript with types in JSDoc (`// @ts-check`), and `.mts` files
+  that Node 24 (Electron 44) runs as they are, types stripped: it works in the main process, packaged too, but not
+  in the window (Chromium runs no TypeScript), and the mix of `.mts`, `.js` and JSDoc was not one way of writing
+  code. If types are wanted: TypeScript everywhere, built by esbuild (`dist/`, source maps), the window's scripts
+  turned into modules (`import`), `node_modules` left out of the main process's bundle (`node-pty` is native;
+  `playwright-core` and the MCP SDK read their own files), `tsc` checking in `npm test`. A build also lets the window
+  use npm packages that ship no file for a `<script>` tag (today only dockview's and xterm's, which do), and a UI
+  library (Feature 4, timeline). Check first: the main process built so runs from source and packaged.
 - **Our own tools over Playwright, or a bridge to it** (the author's question, 2026-10-08; to discuss again after
   working in Kulisa). The author: a bridge passing the agent's calls to Playwright would be less code. Why the tools
   are Kulisa's own today: `@playwright/mcp` has no profile argument (a server per profile: its 25 tools each, and
@@ -303,7 +312,7 @@ here; what is left of it stays.
     format the other cannot read.
   - A profile folder is locked by whoever has it open, and Electron cannot unload a partition while running.
   - Electron does not write Chrome's tab session files (`Sessions/`) and drops session cookies; Kulisa keeps
-    them itself (`tabs.json`, `session-cookies/`).
+    them itself (`Kulisa Tabs.json`, `Kulisa Session Cookies.bin` in the profile's folder).
   - Considered and not chosen for now (a workaround, not native): an "Open in Chrome" button that starts Chrome
     (`chrome-launcher`) on its own folder per Kulisa profile and copies cookies and tabs over a short CDP
     connection. Copies only; `localStorage` tokens and Kasada-protected sessions may not carry over.

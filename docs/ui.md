@@ -53,7 +53,7 @@ lines (`stroke`) of the text's color; a filled part has `fill="currentColor"`. U
 | `i-globe` | a tab whose site has no icon |
 | `i-zoom`, `i-theme`, `i-arrange`, `i-agent`, `i-exit` | ☰'s rows: Zoom, Theme, Arrange panels, Agents…, Exit |
 | `i-mic` | dictation's microphone in the terminal's header (Lucide's mic) |
-| `i-users` | the profiles' chip on the shown workspace's tab (Lucide's users) |
+| `i-users` | the profiles' chip on every workspace's tab (Lucide's users) |
 | `i-working`, `i-waiting`, `i-done` | an agent's state on a tab (`.state`) |
 
 An icon is 16 px; × and + are 14 px, as in Chrome (`.icon`), and so is an agent's state. ☰'s and the agent's states are Lucide's (lucide.dev, ISC), drawn on 24 × 24 with
