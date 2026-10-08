@@ -359,6 +359,10 @@ function start(options = {}) {
     if (win.current !== ws.project) await win.show(ws.project);
   }));
   ipcMain.handle('ws:new', (e, { name, agent }) => serial(() => createWorkspace(at(e)?.current, name, agent)));
+  // The terminal's microphone and its language (voice.js in the renderer; Workspace.voice, dictate).
+  ipcMain.handle('voice:get', (e, key) => shell.workspace(key)?.voice() ?? null);
+  ipcMain.handle('voice:record', (e, { ws, on }) => shell.workspace(ws)?.dictate(on) ?? { recording: false });
+  ipcMain.handle('voice:language', (e, { ws, code }) => shell.workspace(ws)?.setVoiceLanguage(code) ?? { error: `no workspace ${ws}` });
   ipcMain.handle('ws:show-folder', (e, key) => { const ws = shell.workspace(key); return ws && electronShell.openPath(ws.folder); });
   ipcMain.handle('ws:close', (e, key) => serial(() => { const ws = shell.workspace(key); return ws ? closeWorkspace(ws) : { error: `no workspace ${key}` }; }));
   // The window asks again when the pointer comes to the shown project's workspaces: the human may have made the first commit meanwhile.
@@ -403,7 +407,7 @@ function start(options = {}) {
   // KULISA_MCP_URL, its hooks from KULISA_URL. Other agent CLIs get them too.
   shell.plugin = CLAUDE_PLUGIN;
   const custom = options.agent && { id: 'custom', name: options.agent.name || options.agent.command, custom: true,
-    command: options.agent.command, shell: options.agent.shell, args: () => options.agent.args || [],
+    command: options.agent.command, shell: options.agent.shell, args: () => options.agent.args || [], voice: options.agent.voice,
     resume: options.agent.resume && (({ sessionId, transcript }) => sessionId && transcript && fs.existsSync(transcript) && options.agent.resume(sessionId)) };
   const known = [...(custom ? [custom] : []), ...(options.agents || agents.AGENTS)];
   shell.agentFor = (id) => known.find((a) => a.id === (id ?? custom?.id)) || null;

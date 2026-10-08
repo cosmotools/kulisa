@@ -11,6 +11,8 @@ const { startTerminal, stopTerminal, forgetTerminal } = require('./terminal');
 const { clearHighlights } = require('./mcp-server');
 const { copyProfile } = require('./store');
 
+const DICTATION_LIMIT = 5 * 60_000; // a recording left on (a click and no second one)
+
 class Workspace {
   // project: its project (projects.js); entry: { n, name, branch, worktree, folder, base,
   // offset } from its workspaces.json; main is n 1, in the project's folder. key: the workspace among all open ones
@@ -107,8 +109,36 @@ class Workspace {
     // The program by name, as the human would type it, unless the shell does not find it yet (just installed).
     const command = found.onPath ? agent.command : found.path;
     this.pty = await startTerminal((channel, data) => this.window?.send(channel, data), { command, shell: agent.shell, cwd: this.folder, env: this.env(),
-      args: [...(resume || []), ...(agent.args?.({ env: this.env(), plugin: shell.plugin }) || [])] }, this.key);
+      args: [...(resume || []), ...(agent.args?.({ env: this.env(), plugin: shell.plugin }) || []), ...(agent.voice?.args || [])] }, this.key);
     this.store.saveAgent({ ...this.store.agent(), agent: agent.id, started: true });
+    this.window?.send('voice', { ws: this.key, voice: this.voice() });
+  }
+  // Dictation, where the agent has its own (agents.js, voice): what the window's microphone button shows ({ languages,
+  // language, note, recording }, or null: no button), recording, and the language chosen there. The human's only: the
+  // agent has no use for a microphone.
+  voice() {
+    const v = this.agent?.voice;
+    return v ? { languages: v.languages, language: v.language(this.store.agent()), note: v.note || '', recording: !!this.dictating } : null;
+  }
+  // Recording: the agent's key held, as a terminal shows a held key, its repeats. It stops when told, or after
+  // DICTATION_LIMIT, or when that agent is gone (another started, the workspace closed).
+  dictate(on) {
+    clearInterval(this.dictating);
+    this.dictating = null;
+    const v = this.agent?.voice, p = this.pty;
+    if (on && v && p) {
+      const until = Date.now() + DICTATION_LIMIT;
+      this.dictating = setInterval(() => {
+        if (this.pty === p && Date.now() < until) return p.write(v.key);
+        this.dictate(false);
+        this.window?.send('voice', { ws: this.key, voice: this.voice() });
+      }, v.repeat);
+    }
+    return { recording: !!this.dictating };
+  }
+  setVoiceLanguage(code) {
+    const v = this.agent?.voice;
+    return v ? v.setLanguage(this.store.agent(), code) : { error: 'this agent has no dictation' };
   }
   // Another agent for this workspace, chosen by the human (the terminal's menu): the running one stops, the chosen one
   // starts with a new conversation (the old one stays in the old agent's own history).

@@ -82,6 +82,11 @@ body {
 .ptab { display: flex; align-items: center; gap: 6px; height: 100%; padding: 0 calc(var(--gap) - 2px); min-width: 0; }
 .pname { cursor: text; white-space: nowrap; }
 .caption { flex: 1; color: var(--note); font-weight: normal; }
+/* The terminal's: dictation at its end (voice.js); the microphone red while it records. */
+.dictation { display: flex; align-items: center; gap: 2px; margin-inline-start: auto;
+  &[hidden] { display: none; }
+  .lang { font-weight: 600; }
+  .mic[aria-pressed="true"] { color: var(--danger); } }
 
 /* A profile's pane, as a Chrome window: the tabs on the island's color, the active one of a piece with the toolbar
    (back, forward, reload, the address, Pick, ⋮) a step lighter; the page below to the island's edges. */

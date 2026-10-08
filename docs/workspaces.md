@@ -142,6 +142,20 @@ command everywhere, without asking.
   with the MCP server and its hooks as config overrides, `-c mcp_servers.kulisa.url=…`, `-c hooks=…`), resume
   (`claude --resume` and `codex resume` with the session the `SessionStart` hook reported; else `codex resume
   --last`) and forget a fork's folder.
+- **Dictation**, where the agent has its own (its entry's `voice`: the arguments that turn it on, its key, its
+  languages, how to read and set the one it uses, and a note shown with it; Claude Code's voice mode, which needs a Claude.ai
+  account; Codex 0.160 has none, only a realtime voice conversation): the terminal's header has its language and a
+  microphone ([window.md](window.md), The terminal). The human needs to know neither the agent's command nor its key:
+  Kulisa turns it on for its own sessions (Claude Code: `--settings` with `voice: { enabled, mode: "hold",
+  autoSubmit: false }`, not the user's settings, checked with 2.1.294) and the button holds its key: space typed
+  again and again at a keyboard's repeat rate, as a terminal shows a held key (it tells no release), and Claude Code
+  records while they come, putting the text where the cursor is, after any text there. Its `tap` mode (a tap
+  starts, another stops) was tried first: it records only with the input empty, so a second sentence could not be
+  added (the author, 2026-10-08). The language is Claude Code's `language` setting, which is also the language it answers in; it has no
+  setting for dictation alone. The one chosen in Kulisa goes where its `/config` puts it (`<config dir>/settings.json`,
+  the language's English name), the rest of the file kept, never into a file that is not JSON. Claude Code reads that
+  file again when it changes and the language at each recording, so it holds from the next one, in every session
+  of the human's, as if set in `/config`. A settings file of one launch would not do: it is read once.
 - **Agents…** (☰, and the Welcome screen, before any project) opens a dialog of its own with the same list at any
   time, with nothing to choose: each agent's version (its `--version`), its folder (marked when it is not on the user's `PATH`: Kulisa runs it
   from there), its maker's website, and Install for the others. Installing there starts nothing; the agent is chosen
@@ -230,6 +244,7 @@ Outside it:
 | git's worktree record | `<repo>/.git/worktrees/<branch>/` | creating a fork |
 | direnv's permission for the fork's `.envrc` | direnv's data (`~/.local/share/direnv/allow/`) | creating a fork, if main's is allowed |
 | Claude Code's trust of the fork's folder | Claude's config: `<CLAUDE_CONFIG_DIR>/.claude.json`, else `~/.claude.json`, `projects["<fork folder>"]` | the fork's Claude starts, if main is trusted |
+| Claude Code's language, chosen for dictation | `<config dir>/settings.json`, `language` (as its `/config` sets it) | the human picks a language in the terminal's header; stays, as the human's setting |
 | The agent's conversation | the agent's own data (Claude: `<config dir>/projects/…/<session>.jsonl`; Codex: `~/.codex/sessions/`) | the agent runs |
 | The agent itself, when Kulisa installed it | its maker's place (`~/.local/bin/claude`, `~/.local/bin/codex`, …) | Install in the agent dialog |
 

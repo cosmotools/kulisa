@@ -53,6 +53,28 @@ module.exports = (test) => {
     assert.equal(trustLikeMain(file, '/p', '/p@f'), false, 'not as expected: nothing');
     assert.equal(fs.readFileSync(file, 'utf8'), '{"projects": [');
   });
+  test("agents: Claude Code's dictation is on in its sessions only; its language read and set in its settings, the rest kept", async () => {
+    const { AGENTS, claudeLanguage } = require('../src/main/agents');
+    const claude = AGENTS.find((a) => a.id === 'claude');
+    assert.deepEqual(claude.args({ plugin: '/p' }), ['--plugin-dir', '/p'], 'dictation is its voice entry\'s');
+    assert.deepEqual(JSON.parse(claude.voice.args.at(-1)), { voice: { enabled: true, mode: 'hold', autoSubmit: false } });
+    assert.deepEqual(['ru', 'Russian', 'русский', 'pt-BR', 'Klingon', '', undefined].map(claudeLanguage), ['ru', 'ru', 'ru', 'pt', 'en', 'en', 'en'],
+      'as Claude Code reads it: anything else is English');
+    // The settings of the config dir its session reported (as claudeConfigOf).
+    const dir = path.join(root, 'claude-voice'), settings = path.join(dir, 'settings.json');
+    const saved = { transcript: path.join(dir, 'projects', '-x', '1.jsonl') };
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(settings, JSON.stringify({ model: 'opus', language: 'German' }));
+    assert.equal(claude.voice.language(saved), 'de');
+    assert.deepEqual(claude.voice.setLanguage(saved, 'ru'), { language: 'ru' });
+    assert.deepEqual(JSON.parse(fs.readFileSync(settings, 'utf8')), { model: 'opus', language: 'Russian' }, 'as its /config writes it');
+    assert.equal(claude.voice.language(saved), 'ru');
+    assert.ok(claude.voice.setLanguage(saved, 'xx').error, 'only one it understands');
+    fs.writeFileSync(settings, '{ "model": ');
+    assert.ok(claude.voice.setLanguage(saved, 'en').error, 'not JSON: not touched');
+    assert.equal(fs.readFileSync(settings, 'utf8'), '{ "model": ');
+    fs.rmSync(dir, { recursive: true });
+  });
   test("workspaces: a deleted fork leaves nothing in Claude Code's and Codex's data; main's and others' stay", async () => {
     const { AGENTS } = require('../src/main/agents');
     const agent = (id) => AGENTS.find((a) => a.id === id);

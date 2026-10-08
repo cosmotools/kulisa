@@ -13,11 +13,21 @@
 //   forget(ctx)              a fork is deleted: everything the agent keeps of its folder goes (conversations, the
 //                            folder's trust, history); ctx { folder, saved (its agent.json), main (main's folder and
 //                            agent.json) }
+//   voice                    dictation, when the agent has its own (the window's microphone button; none without):
+//                            args  more arguments, which turn it on as the button needs it
+//                            key, repeat  what is typed into its terminal again and again while it records, every
+//                                  repeat ms, as a held key repeats (a terminal tells no key's release)
+//                            languages  the languages it understands (codes)
+//                            language(saved), setLanguage(saved, code)  the one it uses; saved: its agent.json
+//                            note  what the human should know about the language, shown with it
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { execFile, spawn } = require('child_process');
 const { writeFileAtomic } = require('./store');
+
+// The languages Claude Code's dictation understands (as of 2.1.294).
+const CLAUDE_LANGUAGES = ['en', 'es', 'fr', 'ja', 'de', 'pt', 'it', 'ko', 'hi', 'id', 'ru', 'pl', 'tr', 'nl', 'uk', 'el', 'cs', 'da', 'sv', 'no'];
 
 const AGENTS = [
   {
@@ -30,6 +40,21 @@ const AGENTS = [
     // A fork's folder is the project's own code: trusted as main is, so Claude Code does not ask again.
     prepare: ({ folder, main }) => { if (main.transcript) trustLikeMain(claudeConfigOf(main.transcript), main.folder, folder); },
     forget: (ctx) => forgetClaude(ctx),
+    // Its voice mode (needs a Claude.ai account), on for Kulisa's sessions only (not the user's settings): space held
+    // (its repeats coming) records, the text put where the cursor is, also after text already there, and left in the
+    // input for the human to send. Its tap mode (a tap starts, another stops) was tried first: it records only with
+    // the input empty (checked in 2.1.294's code), so a second sentence could not be added. The language is its
+    // `language` setting, which is also the one it answers in; read again at each recording, and the settings file is
+    // read again when it changes, so a language set here holds from the next recording, in every session of the
+    // human's.
+    voice: {
+      args: ['--settings', JSON.stringify({ voice: { enabled: true, mode: 'hold', autoSubmit: false } })],
+      key: ' ', repeat: 33, // a keyboard's repeat rate; Claude Code takes it for held after a few, and let go after a pause
+      note: 'Claude Code answers in it too: it is its language setting',
+      languages: CLAUDE_LANGUAGES,
+      language: (saved) => claudeLanguage(readJSON(claudeSettingsOf(saved))?.language),
+      setLanguage: (saved, code) => setClaudeLanguage(claudeSettingsOf(saved), code),
+    },
   },
   {
     id: 'codex', name: 'Codex', maker: 'OpenAI', command: 'codex', site: 'https://developers.openai.com/codex',
@@ -43,6 +68,35 @@ const AGENTS = [
   },
   { id: 'shell', name: 'Terminal only', maker: '', command: null, needs: "No agent: your shell in the workspace's folder" },
 ];
+
+// How Claude Code reads its `language` setting (as of 2.1.294): a code, or a language's name in English or in itself, or
+// a code with a region (pt-BR); anything else, and none, is English.
+const english = new Intl.DisplayNames(['en'], { type: 'language' });
+function claudeLanguage(value) {
+  const v = typeof value === 'string' ? value.trim().toLowerCase() : '';
+  return CLAUDE_LANGUAGES.find((c) => v === c || v === english.of(c).toLowerCase()
+    || v === new Intl.DisplayNames([c], { type: 'language' }).of(c).toLowerCase()) || CLAUDE_LANGUAGES.find((c) => v.split('-')[0] === c) || 'en';
+}
+// Claude Code's settings file: in the config dir its sessions use (as claudeConfigOf), else CLAUDE_CONFIG_DIR or
+// ~/.claude, where a first session will look.
+function claudeSettingsOf({ transcript } = {}) {
+  const dir = transcript ? path.dirname(path.dirname(path.dirname(transcript))) : process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
+  return path.join(dir, 'settings.json');
+}
+const readJSON = (file) => { try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return null; } };
+// Its `language`, as its /config sets it (the language's name in English, which it answers in too); the rest of the file
+// kept. A file that is there but not JSON is not touched.
+function setClaudeLanguage(file, code) {
+  if (!CLAUDE_LANGUAGES.includes(code)) return { error: `not a language it understands: ${code}` };
+  let settings = {};
+  if (fs.existsSync(file)) {
+    settings = readJSON(file);
+    if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return { error: `${file} is not JSON: fix or remove it first` };
+  } else fs.mkdirSync(path.dirname(file), { recursive: true });
+  settings.language = english.of(code);
+  writeFileAtomic(file, `${JSON.stringify(settings, null, 2)}\n`, fs.existsSync(file) ? { mode: fs.statSync(file).mode } : {});
+  return { language: code };
+}
 
 // Claude Code's own config file, as the session it reported tells it (<config dir>/projects/<folder>/<id>.jsonl, the
 // config dir being CLAUDE_CONFIG_DIR or ~/.claude), so it is the one the project's environment chose (direnv …).
@@ -219,4 +273,4 @@ function installAgent(agent, onData) {
 // The command line the window shows before installing.
 const installLine = (agent) => agent.install?.[process.platform === 'win32' ? 'win32' : 'posix'] || null;
 
-module.exports = { AGENTS, findAgent, agentVersion, installAgent, installLine, trustLikeMain, claudeConfigOf };
+module.exports = { AGENTS, findAgent, agentVersion, installAgent, installLine, trustLikeMain, claudeConfigOf, claudeLanguage };

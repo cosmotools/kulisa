@@ -323,6 +323,11 @@ here; what is left of it stays.
     - Both: closing a project and opening it again (`claude --resume`) and the project folder dialog
       ("Open Folder…", native) are untested.
   - `safeStorage` (Keychain, DPAPI) for session cookies: expected to work, untested.
+  - Dictation (the terminal's microphone): the agent records itself. macOS: the system asks for the microphone for
+    Kulisa (`NSMicrophoneUsageDescription` in `forge.config.js`); check that it asks and that `claude`'s `/voice`
+    then records, packaged and from `npm start` (the Terminal app's permission may be the one asked then); signed
+    with the hardened runtime it also needs the `com.apple.security.device.audio-input` entitlement. Windows: the
+    microphone privacy setting for desktop apps.
   - macOS: the window screenshot (`KULISA_SHOT`) needs the screen-recording permission; distribution needs code
     signing and notarization (Apple Developer account). Windows: code signing certificate.
   - The first start: a packaged app opens no project (the Welcome screen), later the projects open last

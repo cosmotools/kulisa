@@ -116,8 +116,9 @@ src/main/        Electron main process
 src/agent/claude-plugin/  the Kulisa plugin for Claude Code: MCP config, the profiles skill, hooks (claude --plugin-dir)
 src/preload/     the window's bridge to the main process
 src/renderer/    window UI. renderer.js: the grid of panels (dockview), panes, ☰ and right-click menus; parts in their
-                 own files: common.js, menu.js (the menus), terminal.js (xterm.js, one per workspace), projects.js,
-                 workspaces.js (the workspaces' tabs, the new-workspace dialog), profile-editor.js; ES modules loaded when
+                 own files: common.js, menu.js (the menus), terminal.js (xterm.js, one per workspace), voice.js
+                 (dictation), projects.js, workspaces.js (the workspaces' tabs, the new-workspace dialog),
+                 profile-editor.js; ES modules loaded when
                  needed: agent-picker.js (choosing and installing an agent), agents.js (the Agents
                  window), both with agent-list.js, ask.js (questions before deleting or
                  closing), new-project.js (New Project…). Styles: tokens.css, components.css, window.css; the icons are a

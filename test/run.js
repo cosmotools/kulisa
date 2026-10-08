@@ -20,7 +20,10 @@ fs.mkdirSync(project, { recursive: true });
 // its startup file sets an environment of the project, as direnv's .envrc does.
 const bashrc = path.join(root, 'bashrc');
 fs.writeFileSync(bashrc, `PS1='$ '\nexport FROM_RC="rc of $PWD"\n`);
-const agent = { command: 'bash', args: ['-c', 'echo "agent: $FROM_RC"; exec cat -v'], resume: () => [], shell: { command: 'bash', args: ['--rcfile', bashrc, '-i'] } };
+// Its dictation (agents.js, voice): cat shows the key the microphone holds (repeated); its language kept here.
+let dictation = 'en';
+const agent = { command: 'bash', args: ['-c', 'echo "agent: $FROM_RC"; exec cat -v'], resume: () => [], shell: { command: 'bash', args: ['--rcfile', bashrc, '-i'] },
+  voice: { key: '<v>', repeat: 50, note: 'it answers in it too', languages: ['en', 'ru', 'de'], language: () => dictation, setLanguage: (saved, code) => { dictation = code; return { language: code }; } } };
 // Agents to choose from for a workspace (agents.js): one that is not installed until its installer runs, into a
 // folder of the test.
 const bin = path.join(root, 'bin');

@@ -25,6 +25,39 @@ module.exports = (test) => {
       return { above: r.top - h.top, below: h.bottom - r.bottom }; })()`);
     assert.ok(Math.abs(above - below) <= 1, `the rows in the middle: ${above} above, ${below} below`);
   });
+  test("terminal: dictation where the agent has its own: its language and a microphone in the header; held, or from a click to the next, the agent's key is held; another language chosen there", async ({ ui, termText }) => {
+    await waitFor(() => ui(`!document.querySelector('.dictation').hidden`));
+    assert.equal(await ui(`document.querySelector('.dictation .lang').textContent`), 'EN');
+    assert.equal(await ui(`document.querySelector('.dictation .lang').title`), 'Dictation in English: the language you speak. it answers in it too',
+      "what the agent's entry says of it");
+    const keys = async () => ((await termText()).match(/<v>/g) || []).length;
+    const press = (type) => ui(`document.querySelector('.dictation .mic').dispatchEvent(new PointerEvent('${type}', { bubbles: true, button: 0, pointerId: 1 }))`);
+    const lit = () => ui(`document.querySelector('.dictation .mic').ariaPressed`);
+    const still = async () => { const n = await keys(); await sleep(300); return n === await keys(); };
+    // A click starts: the key repeats, as a held one does, and the button is lit until the next click.
+    let n = await keys();
+    await press('pointerdown'); await press('pointerup');
+    await sleep(600);
+    assert.ok((await keys()) >= n + 5, 'repeated while it records');
+    assert.equal(await lit(), 'true');
+    await press('pointerdown'); await press('pointerup');
+    assert.ok(await still(), 'stopped by the second click');
+    assert.equal(await lit(), 'false');
+    // Held: it records until let go.
+    n = await keys();
+    await press('pointerdown');
+    await sleep(600);
+    assert.equal(await lit(), 'true');
+    await press('pointerup');
+    assert.ok((await keys()) >= n + 5 && await still(), 'held, then let go');
+    assert.equal(await lit(), 'false');
+    assert.equal(await ui(`document.activeElement.closest('.xterm') !== null`), true, 'the keyboard back in the terminal, to send it');
+    // The languages it understands; another one chosen is the agent's.
+    await ui(`document.querySelector('.dictation .lang').click()`);
+    assert.equal((await menuRows(ui))[0], '# Dictation language');
+    await choose(ui, 'русский');
+    await waitFor(async () => (await ui(`document.querySelector('.dictation .lang').textContent`)) === 'RU');
+  });
   test('icons: each from the sprite (docs/ui.md), drawn there once and in lines of the text\'s color; icon buttons have a name', async ({ ui }) => {
     const r = await ui(`(() => {
       const every = (q) => [...document.querySelectorAll(q), ...[...document.querySelectorAll('template')].flatMap((t) => [...t.content.querySelectorAll(q)])];

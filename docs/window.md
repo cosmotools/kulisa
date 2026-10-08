@@ -121,6 +121,17 @@ With nothing selected in xterm, copying keeps the clipboard: Claude Code's fulls
 mouse and copies on release itself (code.claude.com/docs/en/fullscreen; an empty copy had wiped it); Shift held while
 dragging selects in xterm instead.
 
+**Dictation**, where the shown workspace's agent has its own ([workspaces.md](workspaces.md), "Choosing the
+agent"): the terminal's header ends with the language it hears (EN, RU …) and a microphone (`voice.js`). The
+microphone works as a voice message's button: held, the agent records until it is let go; a click starts and another
+click stops (or 5 minutes, a recording left on). The text goes where the cursor is in the agent's input, after what
+is there, so several sentences can be dictated one after another, and is left there to read and send (recognition
+makes mistakes, and a task misheard costs more than a key). Kulisa only holds the agent's key (`Workspace.dictate`);
+the agent records and recognizes. The button is lit while Kulisa holds it, which is when the agent records. The language opens a menu of those the agent
+understands, the system's first; it is the agent's own setting, so the agent answers in it too (said on hover).
+The agent hears through its own program (Claude Code: its audio module, or `arecord`/SoX on Linux); on macOS the
+system asks for the microphone on Kulisa's behalf (`NSMicrophoneUsageDescription`, `forge.config.js`).
+
 Links in the terminal, those an agent marks (OSC 8, as Claude Code does) and addresses in plain text (xterm's web-links
 addon), open with Ctrl+click (⌘ on macOS), and always ask where, in a menu at the pointer: a new tab in one of the
 shown workspace's open profiles, or the user's browser. Asked every time, so a link never lands somewhere the human
@@ -158,5 +169,5 @@ Installers are made with Electron Forge (`npm run make`, `forge.config.js`): `.d
 | `src/main/window.js` | a window: its BrowserWindow, keys (zoom, DevTools), the native views' places, its questions, screenshot |
 | `src/main/terminal.js` | a pty per workspace |
 | `src/renderer/renderer.js` | the grid (dockview), the panes, ☰, Arrange panels, the right-click menus |
-| `src/renderer/menu.js`, `ask.js`, `terminal.js` | the menus, the questions, the terminal |
+| `src/renderer/menu.js`, `ask.js`, `terminal.js`, `voice.js` | the menus, the questions, the terminal, its dictation |
 | `test/window.js`, `grid.js`, `zoom-and-closing.js` | the tests |

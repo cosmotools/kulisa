@@ -3,7 +3,7 @@
 // (Claude Code draws ✅ ⏵ ✻ and the like; with the default Unicode 6 widths the cursor and the input line drift off
 // the text), the WebGL renderer, and a bundled font so it looks and measures the same on every OS. The UI's text size
 // (--font in tokens.css), so the terminal matches the rest.
-//   termEl              the panel's element (renderer.js puts it in its panel)
+//   termEl, termTab     the panel's element and its header (renderer.js puts them in its panel)
 //   term                the shown workspace's terminal
 //   showTerminal(ws)    show a workspace's terminal (made the first time)
 //   forgetTerminals(keys)  forget those of workspaces gone (their project closed or moved, a fork deleted)
@@ -11,6 +11,7 @@
 //   terminalMenu()      its right-click menu (menu.js items)
 //   themeTerminals()    the colors again, after the theme changed
 const termEl = document.getElementById('term');
+const termTab = tpl('tpl-termtab');
 const terminals = new Map(); // workspace key -> { term, el, fit, opened }
 let term = null, shownTerminal = null;
 Object.defineProperty(window, '__term', { get: () => term }); // for tests
@@ -90,6 +91,7 @@ function showTerminal(ws) {
   term = shown.term;
   if (shown.opened) window.__termRenderer = shown.renderer;
   fitTerminal();
+  showDictation(ws);
 }
 function forgetTerminals(keys) {
   for (const key of keys) {

@@ -194,13 +194,12 @@ function renameProfile(pane, pname) {
 const { createDockview, themeAbyssSpaced } = window['dockview-core'];
 const panelId = (key) => `profile:${key}`;
 const paneOf = (id) => panes.get(id.slice('profile:'.length));
-const terminalTab = Object.assign(document.createElement('div'), { className: 'ptab', innerHTML: '<b>Terminal</b>' });
 const api = createDockview(document.getElementById('dock'), {
   theme: { ...themeAbyssSpaced, name: 'kulisa', gap: 8 }, // --gap in tokens.css
   disableFloatingGroups: true,
   singleTabMode: 'fullwidth',
   createComponent: ({ id }) => ({ element: id === 'terminal' ? termEl : paneOf(id).el, init() {} }),
-  createTabComponent: ({ id }) => ({ element: id === 'terminal' ? terminalTab : paneOf(id).tabEl, init() {} }),
+  createTabComponent: ({ id }) => ({ element: id === 'terminal' ? termTab : paneOf(id).tabEl, init() {} }),
 });
 window.__dock = api; // for tests
 
