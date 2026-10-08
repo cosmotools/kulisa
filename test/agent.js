@@ -243,27 +243,54 @@ module.exports = (test) => {
     assert.equal(shot.content[0].type, 'image');
   });
 
-  test('agent: keys, hover, select, files, waiting, evaluate, back and forward; dialogs answered as asked, the human\'s left', async ({ shell, call }) => {
+  test('agent: keys, hover, select, files, waiting, evaluate, back and forward; dialogs answered as asked, the human\'s left in the pane', async ({ shell, ui, call }) => {
     const p = { profile: 'sam-seller' };
     const out = async () => JSON.parse((await call('browser_evaluate', { ...p, function: '() => out.textContent' })).text);
     await call('browser_navigate', { ...p, url: `${SITE}/form` });
     const del = { ...p, locator: "getByRole('button', { name: 'Delete' })" };
-    // Answered in the page: no dialog opens (Electron's box would stay on screen after an answer over CDP).
-    const page = await shell.profiles.get('sam-seller').page();
-    let opened = 0; const count = () => opened++;
-    page.on('dialog', count);
+    // The agent's action answers its own dialog: none is shown.
+    const view = () => shell.profiles.get('sam-seller').get().view.getVisible();
+    const paneDialog = `document.querySelector('.pane[data-profile="sam-seller"] .pagedialog')`;
     assert.match((await call('browser_click', del)).text, /asked: confirm "Delete the draft\?"; dismissed/);
     assert.equal(await out(), 'kept');
     assert.match((await call('browser_click', { ...del, dialog: 'accept' })).text, /accepted/);
     assert.equal(await out(), 'deleted');
-    page.off('dialog', count);
-    assert.equal(opened, 0);
-    assert.equal(JSON.parse((await call('browser_evaluate', { ...p, function: "() => String(confirm).includes('native code')" })).text), true, 'the page\'s own confirm is back');
-    // A dialog the agent did not open is the human's: Playwright does not dismiss it (Profile.connect).
-    await call('browser_evaluate', { ...p, function: "() => { setTimeout(() => out.textContent = String(confirm('Yours?'))); }" });
-    await sleep(500);
-    // Still open (handling no dialog would throw); the human clicks OK.
+    assert.equal(await ui(`${paneDialog}.open`), false);
+    // A dialog the agent did not open is the human's, in its pane over a picture of the page (not Electron's message
+    // box in the middle of the window, which said nothing of where it came from); the human answers there.
+    const ask = async (js) => {
+      await call('browser_evaluate', { ...p, function: `() => { setTimeout(() => out.textContent = String(${js})); }` });
+      await waitFor(() => ui(`${paneDialog}.open`));
+    };
+    await ask("confirm('Yours?\\nReally.')");
+    assert.deepEqual(await ui(`[${paneDialog}.querySelector('h2').textContent, ${paneDialog}.querySelector('.message').textContent, ${paneDialog}.querySelector('.cancel').hidden]`),
+      ['127.0.0.1:4417 says', 'Yours?\nReally.', false]);
+    assert.equal(view(), false, 'the page drawn as a picture under its dialog');
+    // The page does nothing until it is answered: the agent's tools say so at once rather than wait.
+    await assert.rejects(call('browser_snapshot', p), /shows a confirm \("Yours\?\nReally\."\) for the human to answer/);
+    assert.match(await ui(`document.querySelector('.pane[data-profile="sam-seller"] .content').style.getPropertyValue('--picture')`), /^url\("data:image\/jpeg/);
+    // Gone from the pane, and the answer in the main process (it goes there after the pane has closed it).
+    const closed = () => waitFor(async () => !(await ui(`${paneDialog}.open`)) && !shell.profiles.get('sam-seller').get().dialog);
+    await ui(`${paneDialog}.querySelector('.primary').click()`);
+    await closed();
+    assert.equal(await out(), 'true');
+    assert.equal(view(), true);
+    await ask("confirm('No?')");
+    await ui(`${paneDialog}.querySelector('.cancel').click()`);
+    await closed();
+    assert.equal(await out(), 'false');
+    // An alert has OK only. Reloading while a dialog is open dismisses it, as in Chrome (Chromium holds the
+    // navigation until then).
+    await ask("alert('Saved')");
+    assert.equal(await ui(`${paneDialog}.querySelector('.cancel').hidden`), true);
+    await ui(`document.querySelector('.pane[data-profile="sam-seller"] .reload').click()`);
+    await closed();
+    await waitFor(async () => (await out()) === 'nothing yet');
+    assert.equal(view(), true);
+    // Answered over CDP by another client (an agent's own script): the pane's dialog goes too.
+    await ask("confirm('Script?')");
     await shell.profiles.get('sam-seller').get().wc.debugger.sendCommand('Page.handleJavaScriptDialog', { accept: true });
+    await closed();
     assert.equal(await out(), 'true');
     await call('browser_select_option', { ...p, locator: "getByLabel('Size')", values: ['L'] });
     assert.equal(await out(), 'size L');

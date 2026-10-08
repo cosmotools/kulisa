@@ -77,17 +77,18 @@ What the tools are for, beyond acting as one user:
 - **Several users at once.** `browser_wait_for` waits in any profile, so the agent acts as one user and waits for
   the effect as another (a message, an invite), up to 45 s a call (Codex gives an MCP tool 60 s).
   `browser_snapshot` with `also` reads several profiles' active tabs in one call, to compare what each user sees.
-- **Dialogs** (alert, confirm, "leave this page?"). With no listener Playwright dismisses every dialog, and the
-  shell's connection is always there, so the human's dialogs were dismissed too: `confirm()` answered Cancel before
-  they saw it. The connection now listens (`Profile.connect`), so dialogs stay for the human. Those an agent's
-  click, key or navigation opens are answered as it asks (`dialog: accept`), else dismissed, the safe answer; the
-  result says what the page asked. Electron shows no `prompt()` (it returns null), so there is nothing to type into.
-  Electron shows a dialog as its own message box in the middle of the window, not in the page as Chrome does, and
-  a dialog answered over CDP leaves that box on screen. So the agent's answer is given in the page: for the
-  action, each frame's `confirm` and `alert` are replaced by ones that answer and note what was asked, then put
-  back; no dialog opens. Over CDP only what that misses (a frame added during the action, a function the page kept
-  for itself, leaving a page); its box then stays (open issue in ROADMAP). A site could notice the replacement, but
-  only while the agent acts.
+- **Dialogs** (alert, confirm). A page's dialog is shown in its pane, as Chrome shows it in the page: "<site> says",
+  the message, OK (and Cancel for confirm), at the top of a dimmed picture of the page (a page is still while its
+  dialog is open), Enter and Esc as in Chrome. Electron showed its own message box in the middle of the window, which
+  did not say which page asked; its handler is a listener of an internal event (`-run-dialog`), replaced for every
+  tab (`Profile._dialog`; ROADMAP, "Workarounds of Electron bugs"). A dialog of a tab in the background shows when the
+  tab is chosen. Electron has no `prompt()` (it throws in the page). Starting a navigation (the address bar, reload)
+  dismisses an open dialog, as Chrome does: Chromium holds the navigation until it is answered. The dialogs an
+  agent's click, key or navigation opens are answered as it asks (`dialog: accept`), else dismissed, the safe
+  answer, and none is shown; the result says what the page asked. Others stay for the human; one answered over CDP
+  by another client (an agent's own script) leaves the pane too. While one is open the page does nothing (its JS waits,
+  as in Chrome), so the agent's tools on that tab say so at once instead of waiting for it. Its look is Chrome's
+  (smaller and plainer than Kulisa's own dialogs), as everything in the pane: it is the page's.
 - **Signing in stays the human's** (Rules): `profile_ask_signin` shows the request over the pane ("sign in,
   please: …"), optionally opens the app's sign-in page first (the window's way, `Profile.navigate`: a sign-in page
   puts the profile in sign-in mode, which cuts Playwright off), and waits until the human is through: the profile
@@ -145,7 +146,7 @@ methods. A row with one side empty says why, or is a gap to fill.
 | Point at an element | Pick (into the agent's prompt) | `browser_highlight` (outlined for the human) | `picker.js`; the MCP server |
 | Read a page | looks at it | `browser_snapshot`, `browser_screenshot`, console, network | Playwright |
 | Act in a page | mouse, keyboard | `browser_click`, `browser_type`, `browser_press_key`, `browser_hover`, `browser_select_option`, `browser_file_upload`, `browser_evaluate` | the page itself; Playwright over the proxy |
-| Answer a dialog | the dialog's buttons | `dialog` on the action that opened it | Playwright's `dialog` event |
+| Answer a dialog | the dialog in the pane | `dialog` on the action that opened it | `Profile._dialog`, `answerDialog` |
 | Sign in | by hand | never (Rules); asks with `profile_ask_signin` | the sign-in pause |
 
 ## Sign-ins that last

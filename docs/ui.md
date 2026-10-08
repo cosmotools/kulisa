@@ -22,7 +22,7 @@ Plain HTML, CSS and JS, no build step (CLAUDE.md, Window UI): markup in `index.h
   (a lit row, a divider), `--toolbar` (a pane's toolbar and active tab), `--field`, `--button`, `--line` (borders);
   text `--text`, `--text-strong`, `--text-dim`, `--text-muted`; `--accent` (main button, focus), `--danger`,
   `--error`, `--note` (the agent's caption), `--done`; `--on-accent` (text on `--accent` and `--danger`),
-  `--selection` (the terminal's); `--page`, `--backdrop`, `--shadow`; `--hover` (under the
+  `--selection` (the terminal's); `--page-button`, `--on-page-button` (Chrome's blue, a page's dialog: `.pagedialog`); `--page`, `--backdrop`, `--shadow`; `--hover` (under the
   pointer, on any background); `--project` (the open project's color, set by `renderer.js`).
 - Sizes: `--font` (all text, the terminal too), `--control` (the height of buttons and fields), `--radius`,
   `--tab-radius`, `--island-radius`, `--gap` (the space between and inside islands; also dockview's `gap` in
@@ -116,6 +116,9 @@ Every dialog is a `<dialog>` with the same parts:
 - `.body`: `.hint` (what it is about, muted), `.field` (a label and its input, the labels in one column), `.row` (a
   field with its button), `.check` (a checkbox in the fields' column), `.error` (hidden while empty).
 - `footer`: the buttons at the right end, the main one last; `.start` puts a button at the left end.
+- A page's alert or confirm (`.pagedialog`, in `tpl-pane`) has the same parts, opened non-modal (`show()`) right under
+  its pane's address bar, over a picture of the page, in Chrome's size, shape and blue (window.css): the page's, not
+  Kulisa's; `closedby="closerequest"` gives Esc.
 - While a dialog is open the profiles' pages are hidden (`coverWhileOpen`, `common.js`): they are native views
   above the HTML.
 - Questions before something that cannot be undone, before closing, or between two ways to go (This Window or New

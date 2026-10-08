@@ -191,7 +191,9 @@
         <button class="pick icon" title="Pick an element on the page to mention it to the agent (again or Esc: cancel)" aria-label="Pick an element"><svg aria-hidden="true"><use href="#i-pick"/></svg></button>
         <button class="more icon" data-menu-end title="More: DevTools" aria-label="More"><svg aria-hidden="true"><use href="#i-more"/></svg></button>
       </div>
-      <div class="content"></div>
+      <!-- The active tab's alert or confirm (profiles.js) over a picture of its page, as Chrome shows them -->
+      <div class="content"><dialog class="pagedialog" closedby="closerequest"><header><h2></h2></header><div class="body"><p class="message"></p></div>
+        <form method="dialog"><footer><button value="" class="cancel">Cancel</button><button value="ok" class="primary" autofocus>OK</button></footer></form></dialog></div>
     </div>
   </template>
   <!-- A tab: the site's icon (a globe until it has one, as Chrome's), its title, × -->

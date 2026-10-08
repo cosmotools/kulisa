@@ -45,9 +45,9 @@ a page take an optional `tab` (default: the profile's active tab).
   an invite, Ann sees it"). After the first one acts, wait for the effect in the second with `browser_wait_for`
   (the text it should show); if it does not come, reload it (`browser_navigate` with `go: reload`), as the app may
   not push updates. `browser_snapshot` with `also` shows what several users see in one call.
-- **Dialogs** (confirm, alert, "leave this page?") that your click, key or navigation opens are dismissed unless you
-  pass `dialog: accept`; the result says what the page asked. Accept only what the task means to do (a delete the
-  human asked for); dialogs you did not open are the human's.
+- **Dialogs** (confirm, alert) that your click, key or navigation opens are dismissed unless you pass
+  `dialog: accept`; the result says what the page asked. Accept only what the task means to do (a delete the human
+  asked for); dialogs you did not open are the human's, shown in the pane for them to answer.
 - **Keep the human's pages.** To open something new, use `browser_tab_new` rather than navigating away from a page
   the human has open (a chat, a form in progress). Navigate the active tab when it is yours or the human asks.
   Close only tabs you opened, unless asked.

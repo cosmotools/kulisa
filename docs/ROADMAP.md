@@ -337,14 +337,11 @@ here; what is left of it stays.
     Check: remove the workaround, open Teams (or a page with `app-region: drag`, then another page) in a pane, and
     click the page with a real mouse (`debug-kulisa` skill). Linux only so far; macOS and Windows draw frameless
     windows their own way (see "macOS and Windows are untested").
-- **Page dialogs (alert, confirm) in Electron** (found 2026-10-08). Electron shows them as its own message box in the
-  middle of the window, not inside the profile's page as Chrome does (the author asked for that), and has no
-  setting or event for them (`electron.d.ts`: only `disableDialogs`, which answers every dialog at once, before
-  CDP can). A dialog answered over CDP (`Page.handleJavaScriptDialog`) leaves Electron's box on screen, its buttons
-  doing nothing: the agent's answers are given in the page instead ([profiles.md](profiles.md), "Dialogs"), except
-  what that misses (a frame added during the action, a function the page kept, leaving a page). The human's dialog
-  in the pane, as Chrome has it, would need a preload whose `confirm`/`alert` wait on a synchronous IPC, which pages
-  can notice (a replaced function), against presenting as Chrome (`mimic-chrome.js`); to discuss.
+  - A page's alert and confirm in its pane (profiles.md, "Dialogs"): Electron has no API for them, so Kulisa replaces
+    the listener of its internal `-run-dialog` event (`lib/browser/api/web-contents.ts`, Electron 44; `-cancel-dialogs`
+    too). Check: that file at the new version's tag; the test of dialogs in `test/agent.js` fails when the event is
+    gone (Electron's message box comes back instead of the pane's dialog). Ask Electron for a public event
+    (`webContents` 'dialog', as `select-bluetooth-device` takes a callback), then use it.
 - **The MCP server and the CDP proxy do not authenticate local processes.** Web pages are refused
   (`local-only.js`: Host and Origin checks), but any local process can drive the signed-in profiles. Needs a
   per-launch token (passed to the agent through the environment, like `KULISA_MCP_URL`) at least.

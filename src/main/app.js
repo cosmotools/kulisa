@@ -485,6 +485,7 @@ function start(options = {}) {
   ipcMain.handle('tab:back', onTab((p, t) => p.back(t.id)));
   ipcMain.handle('tab:forward', onTab((p, t) => p.forward(t.id)));
   ipcMain.handle('tab:reload', onTab((p, t) => p.reload(t.id)));
+  ipcMain.handle('tab:dialog', onTab((p, t, { dialog, ok }) => p.answerDialog(t.id, dialog, ok)));
   ipcMain.handle('tab:devtools', onTab((p, t) => p.toggleDevTools(t.id)));
   ipcMain.handle('zoom:get', () => shell.uiZoom);
   ipcMain.handle('theme:set', (_e, theme) => ['dark', 'light', 'system'].includes(theme) && shell.setTheme(theme));

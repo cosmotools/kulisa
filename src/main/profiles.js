@@ -34,6 +34,7 @@ function toUrl(u) {
   if (/^[\w.-]+(:\d+)?(\/|$)/.test(u)) return 'https://' + u;
   return 'https://www.google.com/search?q=' + encodeURIComponent(u);
 }
+let dialogs = 0; // pages' dialogs, numbered: the human's answer goes to the one they saw
 const PAGE_RADIUS = 8; // a little less than the island's corners, which the page reaches (renderer window.css, .content)
 
 class Profile extends EventEmitter {
@@ -150,6 +151,17 @@ class Profile extends EventEmitter {
       const dir = zoomKey(i);
       if (dir !== undefined) { e.preventDefault(); this.zoomSite(tab.id, dir); }
     });
+    // alert and confirm in the tab's pane, as Chrome shows them in the page, not Electron's message box in the middle of
+    // the window, which did not say which page asked (Electron shows no prompt(): it throws in the page). Electron's
+    // handler is a listener of its internal event (lib/browser/api/web-contents.ts, Electron 44), replaced here: check
+    // it at every Electron upgrade (ROADMAP, "Workarounds of Electron bugs"). Answered by the human (answerDialog), by
+    // an action of the agent (tab.agentDialogs, mcp-server.js), or by another client over CDP. Chromium holds a
+    // navigation while a dialog is open; as Chrome does, it is dismissed when one starts (the address bar, reload).
+    wc.removeAllListeners('-run-dialog');
+    wc.on('-run-dialog', (info, answer) => this._dialog(tab, info, answer));
+    wc.on('-cancel-dialogs', () => this._dialogDone(tab));
+    wc.on('did-start-navigation', ({ isMainFrame, isSameDocument }) => { if (isMainFrame && !isSameDocument) this._dialogDone(tab, false); });
+    wc.debugger.on('message', (_e, method) => { if (method === 'Page.javascriptDialogClosed') this._dialogDone(tab); });
     wc.on('page-favicon-updated', (_e, favs) => { tab.favicon = favs[0] || ''; this.emit('changed'); });
     // window.open and target=_blank become tabs of the same profile; createWindow keeps the opener relationship.
     wc.setWindowOpenHandler(({ url }) => ({
@@ -181,6 +193,35 @@ class Profile extends EventEmitter {
     if (!this.tabs.length && !this.deleted && tab.closing) this.newTab('about:blank');
   }
 
+  // A page's dialog, over a picture of the page (a page is still while its dialog is open). The agent's own actions
+  // answer theirs as it asked.
+  async _dialog(tab, { dialogType: type, messageText: message, frame }, answer) {
+    if (tab.agentDialogs) { tab.agentDialogs.asked.push(`${type} "${message}"`); return answer(tab.agentDialogs.accept, ''); }
+    let host = ''; try { host = new URL(frame.url).host; } catch {}
+    const from = !host ? 'This page says' : frame.parent ? `An embedded page at ${host} says` : `${host} says`;
+    const dialog = tab.dialog = { id: ++dialogs, type, message, from, answer, picture: null };
+    const picture = await Promise.race([tab.wc.capturePage(), new Promise((ok) => setTimeout(ok, 500, null))]).catch(() => null);
+    if (tab.dialog !== dialog) return; // answered meanwhile
+    if (picture && !picture.isEmpty()) dialog.picture = `data:image/jpeg;base64,${picture.toJPEG(90).toString('base64')}`;
+    this._show(); this.emit('changed');
+    // The keys to the dialog, as they were the page's (Enter: OK, Esc: Cancel).
+    if (tab.id === this.active && this.shown && !this.win.isDestroyed()) this.win.webContents.focus();
+  }
+  // The human's answer (OK: true) to the dialog they saw (dialog: its id), not to one that came after it.
+  answerDialog(id, dialog, ok) {
+    const tab = this.get(id);
+    if (!tab?.dialog || tab.dialog.id !== dialog) return;
+    this._dialogDone(tab, ok);
+    tab.wc.focus();
+  }
+  // Answered (ok: true or false) or gone (cancelled, answered over CDP).
+  _dialogDone(tab, ok) {
+    if (!tab.dialog) return;
+    if (ok !== undefined) tab.dialog.answer(ok, '');
+    tab.dialog = null;
+    if (!tab.wc.isDestroyed()) { this._show(); this.emit('changed'); }
+  }
+
   closeTab(id) { const t = this.get(id); if (t) { t.closing = true; t.wc.close(); } }
 
   activate(id) {
@@ -189,15 +230,16 @@ class Profile extends EventEmitter {
       if (t.wc.isDestroyed()) continue;
       if (t.id === id) {
         if (!this.win.contentView.children.includes(t.view)) this.win.contentView.addChildView(t.view);
-        t.view.setBounds(this.bounds); t.view.setVisible(this.visible());
+        t.view.setBounds(this.bounds); t.view.setVisible(this.visible(t));
       } else t.view.setVisible(false);
     }
     this.active = id; this.emit('changed');
   }
 
-  visible() { return this.shown && !this.hidden; }
+  // The page is drawn: its pane on screen, nothing over it, not asking (its dialog is HTML, over a picture of it).
+  visible(tab = this.get()) { return this.shown && !this.hidden && !tab?.dialog; }
   setHidden(hidden) { this.hidden = hidden; this._show(); }
-  _show() { const t = this.get(); if (t && !t.wc.isDestroyed()) t.view.setVisible(this.visible()); }
+  _show() { const t = this.get(); if (t && !t.wc.isDestroyed()) t.view.setVisible(this.visible(t)); }
 
   // Close (the human closed the profile, or another project is opened): stop automation and close the tabs; the
   // profile's data stays.
@@ -287,7 +329,7 @@ class Profile extends EventEmitter {
     return { key: this.folder, id: this.id, name: this.name, avatar: this.avatar, description: this.description, active: this.active,
       signinMode: this.signinMode,
       tabs: this.tabs.map((t) => ({ id: t.id, title: t.title, url: t.url, favicon: t.favicon, loading: t.loading, canBack: t.canBack, canFwd: t.canFwd,
-        zoom: this.pageZoom(t) })) };
+        zoom: this.pageZoom(t), dialog: t.dialog && { id: t.dialog.id, type: t.dialog.type, message: t.dialog.message, from: t.dialog.from, picture: t.dialog.picture } })) };
   }
 }
 

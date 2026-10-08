@@ -120,7 +120,7 @@ module.exports = (test) => {
       return { shade: panel === '${DARK}' ? 'dark' : panel === '${LIGHT}' ? 'light' : panel, term: window.__term.options.theme.background,
         scheme: getComputedStyle(document.querySelector('.omnibox input, input')).colorScheme,
         chosen: [...document.querySelectorAll('#menu .themerow [aria-pressed="true"]')].map((b) => b.dataset.theme),
-        onAccent: getComputedStyle(document.querySelector('button.primary')).color }; })()`);
+        onAccent: getComputedStyle(document.querySelector('dialog[id] button.primary')).color }; })()`);
     const page = shell.profiles.values().next().value.get().wc;
     const pageDark = () => page.executeJavaScript(`matchMedia('(prefers-color-scheme: dark)').matches`);
     const osDark = await pageDark();
@@ -165,7 +165,7 @@ module.exports = (test) => {
   });
   test('dialogs: one look (title and ×, content, buttons at the bottom right, the main one last); a question is asked in it', async (ctx) => {
     const { shell, ui } = ctx;
-    const looks = await ui(`[...document.querySelectorAll('dialog')].map((d) => ({ id: d.id, title: !!d.querySelector('header h2'),
+    const looks = await ui(`[...document.querySelectorAll('dialog[id]')].map((d) => ({ id: d.id, title: !!d.querySelector('header h2'),
       body: !!d.querySelector('.body'), last: d.querySelector('footer > button:last-child')?.className }))`);
     assert.deepEqual(looks.map((l) => l.id), ['profiles', 'newproject', 'wsnew', 'agentpick', 'agents', 'ask']);
     for (const l of looks) assert.ok(l.title && l.body && /primary|ok/.test(l.last), JSON.stringify(l));

@@ -134,6 +134,19 @@ body {
    the page (img.snapshot) stands in for it. */
 .content { flex: 1; position: relative; overflow: hidden; border-radius: calc(var(--island-radius) - 2px); background: var(--page);
   .snapshot { position: absolute; inset: 0; width: 100%; height: 100%; }
+  /* A page's dialog, right under the address bar on a dimmed picture of the page, as Chrome shows it */
+  &:has(.pagedialog[open]) { background: linear-gradient(var(--backdrop), var(--backdrop)), var(--picture, none) 0 0 / 100% 100%, var(--page); }
+  /* As Chrome's (its size, shape and blue), not Kulisa's own dialogs: the page's */
+  .pagedialog { inset-block-start: 0; width: 450px; border-radius: calc(var(--island-radius) + 2px);
+    header { padding: var(--pad) var(--pad) 0; }
+    h2 { font-size: 1.15em; font-weight: 500; }
+    .body { padding-block: var(--inset) 0; }
+    footer { border-top: none; padding-block: var(--pad); }
+    footer button { height: calc(var(--control) + 8px); border-radius: calc(var(--control) / 2 + 4px); }
+    .primary { background: var(--page-button); border-color: var(--page-button); color: var(--on-page-button);
+      &:hover { background: color-mix(in srgb, var(--page-button) 85%, white); } }
+    .cancel { background: none; color: var(--page-button); }
+    .message { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; } }
 }
 
 #term { height: 100%; padding: 2px 4px 2px 8px; }

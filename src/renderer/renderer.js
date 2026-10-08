@@ -76,12 +76,30 @@ function render() {
     const zoom = pane.el.querySelector('.zoom');
     zoom.hidden = !active || active.zoom === 1;
     if (active) zoom.textContent = `${Math.round(active.zoom * 100)}%`;
+    showDialog(pane, active);
     const addr = pane.el.querySelector('.addr');
     if (document.activeElement !== addr) addr.value = active ? shortUrl(active.url) : '';
     // A tab the human opened (+, New tab): the address gets the focus once the tab is the active one, as in Chrome.
     if (pane.typeInto && pane.typeInto === p.active) { pane.typeInto = null; addr.focus(); }
   }
   scheduleLayout();
+}
+
+// The active tab's alert or confirm (profiles.js), over a picture of its page; the human's answer goes back when they
+// close it (OK, Cancel, Esc), not when it is closed for them (answered by the agent, the page gone: data-id emptied).
+// One answered is not shown again by a state sent before the answer arrived.
+function showDialog(pane, tab) {
+  const dialog = pane.el.querySelector('.pagedialog'), d = tab?.dialog;
+  const id = d && d.id !== pane.answered ? String(d.id) : '';
+  if (!id) { if (dialog.open) { dialog.dataset.id = ''; dialog.close(); } return; }
+  if (dialog.dataset.id === id) return;
+  Object.assign(dialog.dataset, { id, tab: tab.id });
+  dialog.querySelector('h2').textContent = d.from;
+  dialog.querySelector('.message').textContent = d.message;
+  dialog.querySelector('.cancel').hidden = d.type !== 'confirm';
+  pane.el.querySelector('.content').style.setProperty('--picture', d.picture ? `url("${d.picture}")` : 'none');
+  dialog.returnValue = '';
+  if (!dialog.open) dialog.show();
 }
 
 // The tab strip; clicks are handled for the whole strip in createPane. Kept by tab id: a tab's element stays, and one
@@ -127,6 +145,13 @@ function createPane(p) {
   panes.set(p.key, pane);
   const id = () => pane.profile.id;
   const tab = () => pane.profile.active;
+  el.querySelector('.pagedialog').addEventListener('close', (e) => {
+    const { id: dialog, tab } = e.target.dataset;
+    e.target.dataset.id = '';
+    if (!dialog) return;
+    pane.answered = Number(dialog);
+    act('tab:dialog', { profile: id(), tab, dialog: pane.answered, ok: e.target.returnValue === 'ok' });
+  });
   el.querySelector('.tabs .strip').onwheel = (e) => { if (!e.deltaX) e.currentTarget.scrollLeft += e.deltaY; };
   el.querySelector('.tabs').onclick = (e) => {
     const t = e.target.closest('.tab')?.dataset.tab;

@@ -16,6 +16,7 @@
   --done: light-dark(#3f8f45, #57ab5a); --error: light-dark(#d1242f, #ff7b72); --danger: light-dark(#db3b4b, #c94f4f);
   --on-accent: #ffffff; /* text on --accent and --danger */
   --selection: light-dark(#a6d2ff, #214283); /* selected text in the terminal */
+  --page-button: light-dark(#0b57d0, #a8c7fa); --on-page-button: light-dark(#ffffff, #062e6f); /* Chrome's, a page's dialog */
   --hover: color-mix(in srgb, var(--text) 12%, transparent); /* under a control the pointer is on, on any background */
   --project: #c8333b; /* the open project's color (renderer.js); until then the app icon's own red */
   /* One text size and one control height for the whole UI (the terminal uses the same size, renderer.js); the

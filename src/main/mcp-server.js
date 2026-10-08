@@ -56,7 +56,12 @@ function buildServer(ws) {
     if (r.error) throw new Error(r.error);
     return r;
   };
-  const pageOf = (id, tabId) => { const { profile, tab } = tabOf(id, tabId); return profile.page(tab.id); };
+  // A page showing a dialog is still until it is answered (Profile._dialog): acting on it would wait for nothing.
+  const pageOf = (id, tabId) => {
+    const { profile, tab } = tabOf(id, tabId);
+    if (tab.dialog) throw new Error(`Tab ${tab.id} of ${id} shows a ${tab.dialog.type} ("${tab.dialog.message}") for the human to answer; until then its page does nothing. Ask the human, or wait and try again.`);
+    return profile.page(tab.id);
+  };
   // The element for a ref or a locator. Waits a second for it to appear, then fails with what to do instead:
   // a guessed name ("New chat" for "New message") would otherwise cost the agent the action's full timeout.
   const locate = (page, { ref, locator }) => {
@@ -74,36 +79,14 @@ function buildServer(ws) {
     return loc;
   };
   const element = { ref: z.string().optional(), locator: z.string().optional() };
-  // Dialogs (alert, confirm, leaving a page; Electron shows no prompt()) are left for the human (profiles.js); those an action of the
-  // agent opens are answered as it asks, else dismissed, which is safe: the agent reads what was asked and can repeat
-  // the action with accept. In the page: its confirm and alert are replaced for the action, so no dialog opens, as
-  // Electron's box would stay on screen after an answer over CDP. Over CDP: what that misses (frames added during
-  // the action, a function the page kept, leaving the page).
-  const dialogArg = z.enum(['accept', 'dismiss']).optional().describe('How to answer a dialog (confirm, alert, leaving the page) this opens; default dismiss');
-  const answering = async (page, dialog = 'dismiss', act) => {
+  // Dialogs (alert, confirm; Electron shows no prompt()) an action of the agent opens are answered as it asks, else
+  // dismissed, which is safe: the agent reads what was asked and can repeat the action with accept. The tab answers
+  // them (Profile._dialog); others stay for the human, in the pane.
+  const dialogArg = z.enum(['accept', 'dismiss']).optional().describe('How to answer a dialog (confirm, alert) this opens; default dismiss');
+  const answering = async (tab, dialog = 'dismiss', act) => {
     const asked = [];
-    const on = (d) => { asked.push(`${d.type()} "${d.message()}"`); (dialog === 'accept' ? d.accept() : d.dismiss()).catch(() => {}); };
-    const frames = page.frames();
-    await Promise.all(frames.map((f) => f.evaluate((answer) => {
-      const k = Symbol.for('kulisa.dialogs');
-      if (window[k]) return;
-      const said = [];
-      window[k] = { said, confirm: window.confirm, alert: window.alert };
-      window.confirm = (m) => { said.push(`confirm "${m}"`); return answer; };
-      window.alert = (m) => { said.push(`alert "${m}"`); };
-    }, dialog === 'accept').catch(() => {})));
-    page.on('dialog', on);
-    try { await act(); } finally {
-      page.off('dialog', on);
-      // Gone with the document when the action left it.
-      for (const said of await Promise.all(frames.map((f) => f.evaluate(() => {
-        const k = Symbol.for('kulisa.dialogs'), was = window[k];
-        if (!was) return [];
-        Object.assign(window, { confirm: was.confirm, alert: was.alert });
-        delete window[k];
-        return was.said;
-      }).catch(() => [])))) asked.unshift(...said);
-    }
+    tab.agentDialogs = { accept: dialog === 'accept', asked };
+    try { await act(); } finally { tab.agentDialogs = null; }
     return asked.length ? ` The page asked: ${asked.join(', ')}; ${dialog}ed.` : '';
   };
 
@@ -282,9 +265,9 @@ function buildServer(ws) {
   }, async ({ profile, url, go, dialog }) => {
     if (!url === !go) throw new Error('pass url or go');
     const page = await pageOf(profile);
-    const history = tabOf(profile).tab.wc.navigationHistory;
+    const { tab } = tabOf(profile), history = tab.wc.navigationHistory;
     if (go === 'back' ? !history.canGoBack() : go === 'forward' && !history.canGoForward()) return text(`Nowhere to go ${go} in ${profile}'s tab; still at ${page.url()}.`);
-    const said = await answering(page, dialog, async () => {
+    const said = await answering(tab, dialog, async () => {
       const opts = { waitUntil: 'domcontentloaded' };
       await (url ? page.goto(toUrl(url), opts) : go === 'back' ? page.goBack(opts) : go === 'forward' ? page.goForward(opts) : page.reload(opts));
     });
@@ -310,7 +293,7 @@ function buildServer(ws) {
   async ({ profile, tab, ref, locator, dialog }) => {
     const page = await pageOf(profile, tab);
     const loc = await target(page, { ref, locator });
-    const said = await answering(page, dialog, async () => {
+    const said = await answering(tabOf(profile, tab).tab, dialog, async () => {
       await loc.click({ timeout: 5000 });
       await page.waitForLoadState('domcontentloaded').catch(() => {});
     });
@@ -323,7 +306,7 @@ function buildServer(ws) {
     const page = await pageOf(profile, tab);
     const loc = await target(page, { ref, locator });
     await loc.fill(value, { timeout: 5000 });
-    const said = submit ? await answering(page, dialog, () => loc.press('Enter')) : '';
+    const said = submit ? await answering(tabOf(profile, tab).tab, dialog, () => loc.press('Enter')) : '';
     return text(`Typed into ${locator || ref} as ${profile}.${said}`);
   });
 
@@ -333,7 +316,7 @@ function buildServer(ws) {
   }, async ({ profile, tab, key, ref, locator, dialog }) => {
     const page = await pageOf(profile, tab);
     const loc = ref || locator ? await target(page, { ref, locator }) : null;
-    const said = await answering(page, dialog, () => (loc ? loc.first().press(key, { timeout: 5000 }) : page.keyboard.press(key)));
+    const said = await answering(tabOf(profile, tab).tab, dialog, () => (loc ? loc.first().press(key, { timeout: 5000 }) : page.keyboard.press(key)));
     return text(`Pressed ${key} as ${profile}.${said}`);
   });
 
