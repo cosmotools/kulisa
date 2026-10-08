@@ -438,15 +438,12 @@ async function startMcpServer(shell, cfg) {
     if (!ws?.loaded) { res.writeHead(404); return res.end(); }
     if (handleHookRequest(ws, m[3], req, res)) return;
     if (!m[3].startsWith('/mcp')) { res.writeHead(404); return res.end(); }
-    let body = ''; req.on('data', (d) => (body += d));
-    await new Promise((r) => req.on('end', r));
-    let json;
-    try { json = body ? JSON.parse(body) : undefined; } catch { res.writeHead(400); return res.end(); }
+    // The transport reads the body itself (with a size limit) and answers a malformed one.
     const server = buildServer(ws);
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
     res.on('close', () => { transport.close(); server.close(); });
     await server.connect(transport);
-    await transport.handleRequest(req, res, json);
+    await transport.handleRequest(req, res);
   });
   await new Promise((r) => srv.listen(cfg.port || 0, '127.0.0.1', r));
   const base = `http://127.0.0.1:${srv.address().port}`;

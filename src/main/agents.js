@@ -24,6 +24,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { execFile, spawn } = require('child_process');
+const { stripVTControlCharacters } = require('util');
 const { writeFileAtomic } = require('./store');
 
 // The languages Claude Code's dictation understands (as of 2.1.294).
@@ -163,18 +164,17 @@ function forgetClaude({ folder, saved = {}, main = {} }) {
   return true;
 }
 
-// The folder a Claude Code transcript was made in: the cwd of its first line that has one.
-function cwdOf(file) {
+// The first lines of a transcript (JSONL, its first 64 KB), parsed; one that is not JSON is null.
+function headLines(file) {
   try {
     const fd = fs.openSync(file, 'r'), buf = Buffer.alloc(65536);
     const head = buf.toString('utf8', 0, fs.readSync(fd, buf, 0, buf.length, 0));
     fs.closeSync(fd);
-    for (const line of head.split('\n')) {
-      try { const cwd = JSON.parse(line).cwd; if (cwd) return cwd; } catch {}
-    }
-  } catch {}
-  return null;
+    return head.split('\n').map((line) => { try { return JSON.parse(line); } catch { return null; } });
+  } catch { return []; }
 }
+// The folder a Claude Code transcript was made in: the cwd of its first line that has one.
+const cwdOf = (file) => headLines(file).find((l) => l?.cwd)?.cwd ?? null;
 
 // Codex's hooks (its docs, learn.chatgpt.com/docs/hooks; not yet tried in a session, ROADMAP), each telling Kulisa an
 // event of its own (agent-hooks.js) as Claude Code's plugin does. The command is the same for every workspace
@@ -195,16 +195,11 @@ const codexHooks = () => `{${Object.entries(CODEX_HOOKS).map(([event, to]) => {
 function forgetCodex(folder) {
   if (!folder || !path.isAbsolute(folder)) return false;
   const home = process.env.CODEX_HOME || path.join(os.homedir(), '.codex');
-  const walk = (d) => (fs.existsSync(d) ? fs.readdirSync(d, { withFileTypes: true }) : []).flatMap((e) =>
-    (e.isDirectory() ? walk(path.join(d, e.name)) : e.name.endsWith('.jsonl') ? [path.join(d, e.name)] : []));
+  const walk = (d) => (fs.existsSync(d) ? fs.readdirSync(d, { recursive: true, withFileTypes: true }) : [])
+    .filter((e) => e.isFile() && e.name.endsWith('.jsonl')).map((e) => path.join(e.parentPath, e.name));
   for (const f of [...walk(path.join(home, 'sessions')), ...walk(path.join(home, 'archived_sessions'))]) {
-    try {
-      const fd = fs.openSync(f, 'r'), buf = Buffer.alloc(65536);
-      const first = buf.toString('utf8', 0, fs.readSync(fd, buf, 0, buf.length, 0)).split('\n')[0];
-      fs.closeSync(fd);
-      const meta = JSON.parse(first);
-      if ((meta.payload?.cwd ?? meta.cwd) === folder) fs.rmSync(f, { force: true });
-    } catch {}
+    const meta = headLines(f)[0];
+    if (meta && (meta.payload?.cwd ?? meta.cwd) === folder) fs.rmSync(f, { force: true });
   }
   // The table of the folder, up to the next table.
   const key = (q) => `[projects.${q}${q === '"' ? folder.replace(/\\/g, '\\\\') : folder}${q}]`;
@@ -265,7 +260,7 @@ function installAgent(agent, onData) {
   const p = process.platform === 'win32'
     ? spawn('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', line], { windowsHide: true })
     : spawn('/bin/sh', ['-c', line]);
-  const out = (d) => onData(String(d).replace(/\x1b\[[0-9;?]*[A-Za-z]/g, ''));
+  const out = (d) => onData(stripVTControlCharacters(String(d)));
   p.stdout.on('data', out); p.stderr.on('data', out);
   return new Promise((resolve) => { p.on('error', (e) => { out(`${e.message}\n`); resolve(1); }); p.on('close', (code) => resolve(code ?? 1)); });
 }

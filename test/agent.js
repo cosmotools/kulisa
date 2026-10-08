@@ -46,9 +46,9 @@ module.exports = (test) => {
   test('web pages cannot reach the MCP server, its hooks or the CDP proxy (Host and Origin checks)', async ({ shell }) => {
     const http = require('http');
     const WebSocket = require('ws');
-    const status = (url, headers, method = 'GET') => new Promise((resolve) => {
+    const status = (url, headers, method = 'GET', body = '{}') => new Promise((resolve) => {
       const r = http.request(url, { method, headers }, (res) => { res.resume(); resolve(res.statusCode); });
-      r.on('error', () => resolve('error')); r.end(method === 'POST' ? '{}' : undefined);
+      r.on('error', () => resolve('error')); r.end(method === 'POST' ? body : undefined);
     });
     const url = shell.ws.env().KULISA_MCP_URL;
     const mcp = new URL(url), proxy = new URL(shell.profiles.get('sam-seller').endpoint);
@@ -67,6 +67,9 @@ module.exports = (test) => {
     assert.equal(await ws(), 'open'); // Playwright and other local tools send no Origin
     assert.equal(await status(`${shell.ws.env().KULISA_URL}/hooks/session-start`, {}), 200);
     assert.equal(await status(`${shell.mcp.base}/ws/project/9/hooks/session-start`, {}), 404, 'no such workspace');
+    // The MCP SDK's transport reads the body: a malformed one is refused, and one over its limit (4 MB) is not kept.
+    assert.equal(await status(url, json, 'POST', '{not json'), 400);
+    assert.equal(await status(url, json, 'POST', 'x'.repeat(5 << 20)), 413);
   });
   test('agent bridge: the Claude Code plugin is valid and points at this MCP server', async ({ shell }) => {
     assert.ok(fs.existsSync(path.join(CLAUDE_PLUGIN, '.claude-plugin', 'plugin.json')));

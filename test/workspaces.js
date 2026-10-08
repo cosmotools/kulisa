@@ -398,6 +398,7 @@ module.exports = (test) => {
     assert.equal(await ui(`document.querySelector('#agentpick .progress').textContent`), 'Fake agent is installed. Start it; it asks you to sign in.');
     assert.equal(await ui(`document.querySelector('#agentpick details').open`), false, "the installer's own output only under Details");
     assert.match(await ui(`document.querySelector('#agentpick pre').textContent`), /installing the fake agent\s+done/);
+    assert.doesNotMatch(await ui(`document.querySelector('#agentpick pre').textContent`), /\x1b/, 'no terminal codes: colors, links');
     await ui(`document.getElementById('agentstart').click()`);
     await waitFor(() => ws.pty);
     ctx.watchPty(ws.pty);
