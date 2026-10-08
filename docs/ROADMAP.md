@@ -167,6 +167,22 @@ here; what is left of it stays.
 
 ## Deferred ideas
 
+- **The agent tests calls and voice: a profile's microphone and what it hears** (the author's idea, 2026-10-08,
+  after dictation was tried with a virtual microphone). Calls need several people at once, which is what profiles
+  are: the buyer calls, the seller hears; mute silences; the sound comes back after a reconnect; voice messages
+  arrive. Tools of the Kulisa plugin (`mcp-server.js`, any agent), e.g. one for what plays into a profile's
+  microphone (an audio file, or a tone) and one for what a profile hears (whether there is sound, its level, when).
+  - Per tab, when the agent asks: in that tab `getUserMedia` gets a stream made with WebAudio, and incoming sound
+    (`RTCPeerConnection`, `<audio>`) is taken with WebAudio too, by a script put into the page through Playwright over
+    the proxy (`addInitScript`). Not Chromium's `--use-fake-device-for-media-stream` and
+    `--use-file-for-fake-audio-capture`: they replace the microphone of every profile for the whole run, the human's
+    own calls too. The camera the same way (a picture or a video for the webcam).
+  - The agent cannot hear (Claude Code and Codex take no audio): check with tones, not speech, e.g. 440 Hz one way,
+    880 Hz the other, as calls are usually tested. What was said (speech to text: Whisper or a cloud service) only for
+    voice bots and assistants, later.
+  - Nearly no RAM (the sound is handled in the tab already open), no new process. First: the permissions (Open
+    issues, "Pages get the microphone and camera without asking"), so the agent can test the site's own request too.
+
 - **Our own tools over Playwright, or a bridge to it** (the author's question, 2026-10-08; to discuss again after
   working in Kulisa). The author: a bridge passing the agent's calls to Playwright would be less code. Why the tools
   are Kulisa's own today: `@playwright/mcp` has no profile argument (a server per profile: its 25 tools each, and
@@ -275,6 +291,16 @@ here; what is left of it stays.
     connection. Copies only; `localStorage` tokens and Kasada-protected sessions may not carry over.
 
 ## Open issues
+
+- **Pages get the microphone and camera without asking** (found 2026-10-08, talking about calls). Profiles' sessions
+  set no `setPermissionRequestHandler` / `setPermissionCheckHandler` (`session` in `electron.d.ts`, Electron 44), and
+  Electron then approves a page's requests by itself (its security checklist: "Handle session permission requests
+  from remote content"; check that it still says so for 44): any site in a profile can use the real microphone and
+  camera, and notifications, geolocation and the rest, with no question as Chrome asks. To build: ask as Chrome does,
+  in the profile's pane (an HTML bar over the page, as Chrome's bubble under the address bar; the pane's native view
+  draws over HTML, so the view is moved down or hidden meanwhile), remember the answer per site in that profile, and
+  let the human change it (a site's permissions in the pane's menu). The agent: grants nothing itself; a test that
+  needs the microphone asks the human, or uses the agent's own microphone (Deferred ideas, calls).
 
 - **Workarounds of Electron bugs: check at every Electron upgrade** whether they are still needed, and remove them
   when not.
