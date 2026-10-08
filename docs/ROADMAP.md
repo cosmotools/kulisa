@@ -10,9 +10,71 @@ here; what is left of it stays.
 - **Kulisa plugin: more the agent can do in the browsers** (tools in `mcp-server.js`, each described in the skill;
   what is built: [profiles.md](profiles.md), "What the agent does"). What else an agent needs comes from using it
   (the author moves to working in Kulisa, 2026-10-08): where the agent goes around the tools (its own Playwright
-  scripts, `curl`, asking the human to do it) is a tool missing. Thought of, not built: console and requests since
-  the agent's last action only; a button over the pane for the human to say they signed in, for sign-ins that keep
-  the address.
+  scripts, `curl`, asking the human to do it) is a tool missing; from every user's computer through "Ideas for
+  Kulisa" (below). Thought of, not built: console and requests since the agent's last action only; a button over the
+  pane for the human to say they signed in, for sign-ins that keep the address.
+- **Ideas for Kulisa: what agents could not do, sent to us** (designed with the author 2026-10-08; to build as one
+  feature). Agents on users' computers meet what Kulisa cannot do (a tool missing, a tool that does not work); they
+  note it, the human sends what they want, without leaving Kulisa. Nothing leaves the computer without the human's
+  click: a page could make the agent "report an idea" with the user's data in it (prompt injection), and Kulisa's
+  promise is that everything stays on the user's computer.
+  - **The agent notes** (`kulisa_idea` in `mcp-server.js`, any agent): `kind` (`missing`: no tool for it; `bug`: a
+    tool did not do what it says), `need` (what it had to do, in general words: "read an invitation email"),
+    `missing`, `instead` (what it did instead: its own script through the proxy, `curl`, asked the human, gave up),
+    `adds_to` (an earlier note of the same gap: its count grows). The tool's description lists the notes there are
+    (as `profileArg` lists profiles), so the agent sees what is noted. Written without addresses, names, page
+    contents or the project's name ("a chat app"); after it, one line to the human ("noted an idea for Kulisa"). The
+    rule in the tool's description, one sentence in `INSTRUCTIONS` (agents without the skill), a section in the skill.
+    It only notes; it never asks the human: how often an agent asks would be the agent's choice, and a question in
+    the middle of a task breaks it.
+  - **Kulisa notices by itself:**
+    - The agent going around the tools: the shell's own connection to the CDP proxy sends a header
+      (`connectOverCDP(endpoint, { headers })`), any other client of a profile's proxy is the agent's script or
+      `@playwright/mcp`. The next kulisa tool's answer in that workspace gets one line ("a program of yours drove
+      profile X directly: if a Kulisa tool was missing, note it with kulisa_idea"), at most once an hour per
+      workspace. No note without the agent: only it knows what for.
+    - Its own bugs: errors the tools throw on purpose (no such element, a closed profile) are the agent's; an
+      unexpected exception inside a tool (`TypeError` …) is Kulisa's, and becomes a `bug` note by itself: the tool,
+      the message, the stack without the user's paths.
+  - **Kept** (`ideas.js` in main: the core; `add` is the agent's only handle, sending and deleting the human's):
+    `ideas.json` in the data folder, `[{ id, at, kind, project, agent, need, missing, instead, count }]`, at most 30
+    (the oldest go), written whole. A note goes when sent, deleted, or with its project (Remove Project). Listed in
+    "What is on the computer" (workspaces.md), its removal tested.
+  - **The human: a question, at most once a day.** Kulisa, not the agent, asks, and its core decides when: only
+    after the agent's turn ended (done, from its hooks), never about a note it asked about before, at most once a
+    day. A bar at the bottom of the window, not a dialog (nothing covered, gone by itself after a minute): "The agent
+    noticed: no tool to read emails. Send · Later · Don't ask". Don't ask turns the questions off for good; notes
+    still gather in the list. No system notification: not urgent.
+  - **The human: the list**, ☰ → Ideas for Kulisa… (the number of notes in its row, a dot on ☰ while some are
+    unseen). A dialog (an ES module loaded when needed, its markup in `index.html`): what Kulisa's developers get
+    from the notes (a link to the page on kulisa.app); each note as it will be sent, editable, × deletes it, Send.
+    A checkbox at the footer's start, "Agents note ideas" (on by default: nothing leaves without a click): off, the
+    tool is not registered and the proxy's reminder is off.
+  - **Sending, without leaving Kulisa:** the main process POSTs the note (the fields, the count, Kulisa's version,
+    the agent and its version, the OS) to `https://ideas.kulisa.app`; on a network error the note stays and the
+    dialog says so. Then it is deleted. `KULISA_IDEAS_URL` replaces the address; the tests run a receiver of their
+    own and send nothing out.
+  - **The receiver:** a Cloudflare Worker (free plan, ~60 lines) checks the note (its fields, at most 8 KB, how
+    often from one IP; IPs not kept) and creates an issue through a GitHub App (only Issues: write, installed on
+    one repository; its key only in the Worker's secrets) in the private `cosmotools/kulisa-ideas`, labelled
+    `missing` or `bug`, by `kulisa-ideas[bot]`. The author sorts them and transfers good ones to `kulisa`. The
+    Worker's code lives in the same repository. Why so: a token in Kulisa's public code would be anyone's; a GitHub
+    App rather than the author's own token, so issues are the bot's and it can do nothing else; a private
+    repository, as the receiver is open to anyone and a note may hold what its user did not see. Not chosen: opening
+    a prefilled GitHub issue in the user's browser (the author: no leaving Kulisa; needs a GitHub account; public);
+    a GitHub sign-in in Kulisa (device flow: GitHub opens once, notes public and under the user's name); Sentry's
+    user feedback (no server of ours, but a third company sees users' data, and its SDK collects crashes too).
+  - **The author does** (outward-facing): the private repository, the GitHub App and its key, a Cloudflare account,
+    `ideas.kulisa.app` in DNS, the Worker's secrets (`wrangler secret put`). **Claude writes:** the Worker with
+    `wrangler.toml`, Kulisa's part, the page on what is received on kulisa.app (`kulisa-site`).
+  - **Tests** (`test/agent.js`, `test/window.js`): the tool notes, `adds_to` counts, the limit of 30, removing a
+    project removes its notes; a foreign proxy client brings the reminder once, the shell's does not; an unexpected
+    exception in a tool becomes a `bug` note, an error thrown on purpose does not; the question comes after done, not
+    twice for a note, not twice a day, never after Don't ask; the list edits, deletes and sends (to the test's
+    receiver), keeps the note when sending fails; the checkbox removes the tool.
+  - Docs when built: profiles.md (the tool, the table of actions), workspaces.md (`ideas.json`), window.md (☰, the
+    bar, the dialog), ui.md (the bar at the bottom, the dot on ☰), the skill, README, LICENSING (a service of
+    Kulisa's: its own terms). Estimate: code +350, tests +100, docs +60; the Worker apart.
 - **Kulisa plugin: running the app** (a feature of its own, found while designing workspaces, 2026-10-06). The
   agent gets help with starting the app under test: the WS's port offset in its environment
   (`KULISA_PORT_OFFSET`), and the skill on how to apply it for common stacks (`PORT`, `--port`, `.env.local`,
@@ -88,6 +150,10 @@ here; what is left of it stays.
     ideas); deleting asks the human, as `profile_delete` does.
   - Maybe: an archive to reopen closed forks (Conductor keeps the git state and the conversation), or an agent that
     names the fork itself once it knows the task (Conductor does that too).
+  - Forks copy main's profiles, sign-ins included; with rotating tokens (Microsoft, Google) a copy may sign the
+    other out, an app with one session per user kicks one out, a logout ends both. Not seen yet; if it happens: a
+    linked copy, its sign-in cookies kept in sync with main's (Electron's cookie `changed` event; to check: sign-ins
+    kept in `localStorage`, as MSAL does).
 - **Discuss security for the end user** (with the author, before a public release). Kulisa holds signed-in work
   accounts and lets an agent act in them. Topics, each to decide or document for users:
   - **What the agent can do in signed-in accounts:** read private data (it saw passwords in a Teams chat), send
@@ -235,26 +301,11 @@ here; what is left of it stays.
   file in the project that Kulisa only reads (the developer's own description wins).
 - **A screenshot taken at a pick** (point and tell), if a transient element (a tooltip, an open menu, a toast) turns
   out to need it: today the pick is a locator only, and the agent looks at the live page.
-- **Two agents need the same account** (before workspaces; forks copy main's profiles today). Options:
-  - *Fork* (copy the profile folder, sign-ins included; Playwright's `storageState` does the same for parallel
-    tests). Cannot be merged back: storage and rotated tokens have one valid copy. With rotating tokens
-    (Microsoft, Google) a copy can sign the other out, the original included; apps with one session per user
-    kick one out; logout ends both; forgotten forks keep live sessions on disk.
-  - *Linked clone*: copies that keep the sign-in cookies in sync (Electron's cookie `changed` event), so a
-    rotated token reaches all copies; tabs stay separate. To check: sign-ins kept in `localStorage` (MSAL).
-  - *A pool per role*: the human signs in "admin #1", "admin #2"; an agent takes a free one and returns it.
-  - *Shared profile, own tabs*, actions queued: no copies, weak isolation (shared cookies, logout).
-  - Whether an agent may take a free profile itself or only gets one from the human.
-
-- **Workspaces for projects without git: a shadow repository** (2026-10-06). Kulisa keeps the history itself
-  (`git --git-dir=<Kulisa data>/projects/<id>/git --work-tree=<project>`), so nothing appears in the user's folder,
-  and forks work as in a git project; also gives undo points. Needs rules for what stays out of snapshots and a
-  limit for huge folders. Not now: projects without git have no WS (no +; the human sets git up, docs/workspaces.md). `git init` in the
-  user's folder without asking was rejected (secrets in history, huge folders, nested repositories).
 - **Several agents in one workspace, working as a team** (discussed 2026-10-06; after workspaces, which do not
   depend on it). A workspace may hold several terminals, each an agent (any CLI, Claude and Codex together); all
   see the workspace's code and profiles. Covers a tester next to the developer, a side question (Claude: a forked
-  conversation), browser-only research. Cheaper than a workspace: one agent process, no profile copies. Agents
+  conversation), browser-only research, and parallel agents in a project without git (it has no forks). Cheaper than
+  a workspace: one agent process, no profile copies. Agents
   coordinate through the Kulisa plugin, for any agent:
   - `agents`: who is in the workspace, their role, what they are doing, which tabs and profiles they use.
   - `agent_message(to, text)`: typed into the other agent's prompt when it waits for input (as a pick), queued
@@ -285,9 +336,11 @@ here; what is left of it stays.
   (`app.js`) and a translucent background color for those systems (`tokens.css`). Check transparent windows'
   known issues there (resizing, maximizing, the title bar overlay, profile views above the HTML). Faking the blur
   (a picture of the wallpaper, blurred) was rejected: a workaround, and it lags when the window moves.
-- **A panel in its own OS window** (e.g. a profile on a second monitor). dockview has popout windows, but a
-  profile's page is a native view of its window and would have to move to the new window (`Profile.moveTo` does that
-  for a whole project, Move to New Window). To discuss.
+- **One panel in its own OS window** (e.g. the buyer's profile on a second monitor, the terminal and the other
+  profiles staying in the main window). Today only a whole project moves to another window (Move to New Window).
+  dockview has popout windows, and a profile's native views can move between windows (`Profile.moveTo`), but a
+  window shows one workspace's grid today: a window holding a part of another window's workspace is a new model
+  (the views' bounds, closing, restoring after a restart). Medium work; to discuss.
 - **A right-click menu in pages** (copy, paste, open a link in a new tab of the profile, Inspect Element; more items
   later). Tried with electron-context-menu (native GTK menu) on 2026-10-05 and removed:
   - On Ubuntu GNOME (X11) a right-click in a profile's page froze the whole desktop, twice: gnome-shell logged a
