@@ -4,6 +4,10 @@
 //   (@playwright/mcp) are not drawn in the page.
 // - Over the pane (the window's HTML): a caption from every CDP command through the proxy, from any client.
 // Captions go to the window with the profile's workspace; it shows those of the workspace on screen.
+// The agent's marks in the pages are in Kulisa's accent (tokens.css, --accent), the same in every profile: the pane says
+// whose page it is.
+const MARK = '#3574f0';
+
 function installGhost(shell) {
   const send = (a) => shell.workspace(a.ws)?.window?.send('agent', a);
   shell.bus.on('agent-command', (c) => {
@@ -16,8 +20,8 @@ function installGhost(shell) {
     const ctx = profile.context; if (!ctx) return;
     // cursor 'none': Playwright's pointer stays at the last action point; the rest fades out after `duration`.
     const on = (page) => page.screencast.showActions({ duration: 1200, position: 'bottom', cursor: 'none', style: {
-      point: `width: 22px; height: 22px; border-radius: 50%; border: 3px solid ${profile.color}; box-shadow: 0 0 0 3px #fff8`,
-      highlight: `outline: 2px solid ${profile.color}`,
+      point: `width: 22px; height: 22px; border-radius: 50%; border: 3px solid ${MARK}; box-shadow: 0 0 0 3px #fff8`,
+      highlight: `outline: 2px solid ${MARK}`,
       title: 'font-size: 13px',
     } }).catch(() => {});
     ctx.pages().forEach(on); ctx.on('page', on);
@@ -41,4 +45,4 @@ function describe({ method, params }) {
   return null;
 }
 
-module.exports = { installGhost, describe };
+module.exports = { installGhost, describe, MARK };

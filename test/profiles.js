@@ -6,7 +6,7 @@ const { assert, root, userData, project, pfile, savedTabs, panel, SITE, sleep, w
 
 module.exports = (test) => {
   test('rename keeps the profile and the sign-in', async (ctx) => {
-    const r = await ctx.ui(`kulisa.invoke('profile:rename', { profile: 'sam-seller', name: 'Sam.admin' })`);
+    const r = await ctx.ui(`act('profile:rename', { profile: 'sam-seller', name: 'Sam.admin' })`);
     assert.equal(r.id, 'sam-admin');
     assert.equal(await who(ctx, 'sam-admin'), 'Signed in as sam');
     await sleep(200); // the window re-renders after the state update
@@ -27,7 +27,7 @@ module.exports = (test) => {
     // Checked again where names are made: the agent, a rename, a project, a workspace.
     await assert.rejects(call('profile_create', { name: 'Ann admin' }), /letters, digits and @ \. _ \+ - only/);
     await assert.rejects(call('profile_create', { name: '@' }), /starting with a letter or a digit/);
-    assert.match((await ui(`kulisa.invoke('profile:rename', { profile: 'sam-admin', name: 'Sam admin' })`)).error, /only/);
+    assert.match((await ui(`act('profile:rename', { profile: 'sam-admin', name: 'Sam admin' })`)).error, /only/);
     assert.match((await ui(`kulisa.invoke('project:new', { name: '..' })`)).error, /starting with a letter or a digit/);
     assert.match((await ui(`kulisa.invoke('ws:new', { name: '@' })`)).error, /starting with a letter or a digit/);
     assert.match((await ui(`kulisa.invoke('ws:new', { name: 'a b' })`)).error, /only/);
@@ -35,7 +35,7 @@ module.exports = (test) => {
   });
   test('delete a profile in the editor: sign-ins and data gone, a new one of the same name starts clean', async (ctx) => {
     const { shell, ui, call } = ctx;
-    await ui(`kulisa.invoke('profile:new', { name: 'Temp' })`);
+    await ui(`act('profile:new', { name: 'Temp' })`);
     const temp = shell.profiles.get('temp');
     assert.equal(temp.folder, 'Profile 4'); // after Sam, Elon and Ann (the profile_create test)
     await call('browser_navigate', { profile: 'temp', url: `${SITE}/app/login?name=tim` });
@@ -70,11 +70,11 @@ module.exports = (test) => {
     await waitFor(async () => (await ui(`document.querySelectorAll('.pane').length`)) === 2);
 
     // Same name again: a new folder (the old one goes at the next start), signed out.
-    await ui(`kulisa.invoke('profile:new', { name: 'Temp' })`);
+    await ui(`act('profile:new', { name: 'Temp' })`);
     assert.equal(shell.profiles.get('temp').folder, 'Profile 5');
     await call('browser_navigate', { profile: 'temp', url: `${SITE}/app` });
     assert.equal(await who(ctx, 'temp'), 'Signed out');
-    await ui(`kulisa.invoke('profile:delete', { profile: 'temp' })`);
+    await ui(`act('profile:delete', { profile: 'temp' })`);
   });
   test('rename in the profile editor', async ({ shell, ui }) => {
     await manageProfiles(ui);
@@ -84,6 +84,13 @@ module.exports = (test) => {
     await ui(`(() => { const n = [...document.querySelectorAll('#plist .prow')].find((r) => r.querySelector('.pid').textContent === 'elon-shopper').querySelector('.name'); n.value = 'Elon.buyer'; n.dispatchEvent(new Event('change')); })()`);
     await waitFor(() => shell.profiles.has('elon-buyer'));
     await ui(`document.getElementById('closeProfiles').click()`);
+  });
+  test('a page never makes a region that drags the window (Teams declared one, and it took every click over the panes)', async ({ shell }) => {
+    const wc = shell.profiles.get('sam-admin').get().wc;
+    const back = wc.getURL();
+    await wc.loadURL(`${SITE}/drag`);
+    await waitFor(async () => (await wc.executeJavaScript("getComputedStyle(bar).getPropertyValue('app-region')")) === 'no-drag');
+    await wc.loadURL(back);
   });
   test("F12 opens and closes DevTools: a tab's, or Kulisa's own outside the pages", async ({ shell }) => {
     for (const wc of [shell.profiles.get('sam-admin').get().wc, shell.win.webContents]) {
@@ -112,11 +119,11 @@ module.exports = (test) => {
         const header = document.querySelector('.ptab[data-panel="' + pane.closest('.dv-groupview').querySelector('.ptab').dataset.panel + '"]');
         const r = (e) => e.getBoundingClientRect();
         const left = (e) => Math.round(r(e).left - island.left), right = (e) => Math.round(island.right - r(e).right);
-        return { dot: left(header.querySelector('.dot')), tab: left(pane.querySelector('.tab')), back: left(pane.querySelector('.back')),
+        return { avatar: left(header.querySelector('.avatar')), tab: left(pane.querySelector('.tab')), back: left(pane.querySelector('.back')),
           page: left(pane.querySelector('.content')), close: right(header.querySelector('.close')), more: right(pane.querySelector('.more')),
           pageRight: right(pane.querySelector('.content')), pageBottom: Math.round(island.bottom - r(pane.querySelector('.content')).bottom) };
       })()`);
-      assert.deepEqual(inset, { dot: 8, tab: 8, back: 8, page: 0, close: 8, more: 8, pageRight: 0, pageBottom: 0 });
+      assert.deepEqual(inset, { avatar: 8, tab: 8, back: 8, page: 0, close: 8, more: 8, pageRight: 0, pageBottom: 0 });
       await choose(ui, 'DevTools');
     };
     await click();

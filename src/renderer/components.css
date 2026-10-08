@@ -3,32 +3,35 @@
 *, *::before, *::after { box-sizing: border-box; }
 
 /* Controls */
-button, input, select {
+button, input, select, textarea {
   font: inherit; color: var(--text); height: var(--control); padding: 0 10px;
   border: 1px solid var(--line); border-radius: var(--radius); background: var(--button);
 }
 /* The arrow over buttons and tabs too, as in Chrome and other desktop apps (body), not a web page's hand */
 button:disabled { opacity: .35; }
-input { background: var(--field); color: var(--text-strong); padding: 0 8px; user-select: text; }
+input, textarea { background: var(--field); color: var(--text-strong); padding: 0 8px; user-select: text; }
+/* Text of more than a line: as high as its rows, resized only in height */
+textarea { height: auto; padding-block: 6px; resize: vertical; }
 button.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent);
   &:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 85%, white); } }
 button.danger { background: var(--danger); border-color: var(--danger); color: var(--on-accent);
   &:hover:not(:disabled) { background: color-mix(in srgb, var(--danger) 85%, white); } }
-/* A profile's or a project's color (--color on it or above) */
+/* A profile's picture (avatars.js): --avatar, its size where a place needs another */
+.avatar { width: var(--avatar, 16px); height: var(--avatar, 16px); flex: none; }
+/* A project's color (--color on it or above) */
 .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; background: var(--color); }
-/* A tab of a strip, as a browser's (tpl-wstab, tpl-projecttab): the agent's .state, the .name, × at
-   the end (button.close.icon.quiet.small); lit under the pointer. .active: the shown one, on the islands' color;
-   .colored.active: on a plate of its own --color instead. */
-.striptab { display: flex; align-items: center; gap: 6px; flex: 0 1 auto; height: var(--control); padding: 0 2px 0 10px;
-  border: 1px solid transparent; border-radius: var(--radius); color: var(--text-dim); white-space: nowrap;
-  .name { overflow: hidden; text-overflow: ellipsis; }
-  &:hover { background: var(--hover); }
-  &.active { background: var(--island); color: var(--text-strong); }
-  &.colored.active { border-color: color-mix(in srgb, var(--color) 45%, transparent);
-    background: color-mix(in srgb, var(--color) 18%, transparent);
-    &:hover { background: color-mix(in srgb, var(--color) 28%, transparent); } } }
+/* A tab of a strip on an island, as a browser's (tpl-wstab): the agent's .state, the .name, × at the end
+   (button.close.icon.quiet.small), shown under the pointer and on the shown tab, its room kept so nothing moves. A
+   step taller than a button and never narrow: a target for a quick throw of the mouse. Lit under the pointer;
+   .active: the shown one, in the panels' color on the dark island. */
+.striptab { display: flex; align-items: center; gap: 6px; flex: 0 1 auto; height: calc(var(--control) + 4px); min-width: 64px;
+  padding: 0 4px 0 12px; border-radius: var(--radius); color: var(--text-muted); white-space: nowrap;
+  .name { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+  &:hover { background: var(--hover); color: var(--text); }
+  &:not(:hover, .active) .close { visibility: hidden; }
+  &.active { background: var(--island); color: var(--text-strong); } }
 /* An agent's state (data-state, from its hooks), an icon each, not told by color alone: working (sparkles, twinkling),
-   waiting for you (a bell), done (a check) until seen; nothing otherwise. On a workspace's tab and a project's. */
+   waiting for you (a bell), done (a check) until seen; nothing otherwise. On a workspace's tab. */
 .state { display: grid; place-items: center; flex: none; color: var(--text-muted);
   svg { width: 14px; height: 14px; }
   &[data-state=""] { display: none; }
@@ -38,9 +41,11 @@ button.danger { background: var(--danger); border-color: var(--danger); color: v
   @media (prefers-reduced-motion: reduce) { svg { animation: none !important; } } }
 @keyframes twinkle { 50% { opacity: .45; scale: .8; } }
 
-/* Icons (the sprite in index.html: hidden, which an <svg> does not get from the browser's own styles): lines in the
-   text's color. × and + are drawn smaller than the others, as in
-   Chrome. */
+/* Icons (the sprite in index.html): lines in the text's color. × and + are drawn smaller than the others, as in
+   Chrome. The sprite takes no room but is not display: none: its gradients and clip paths (the logo's) would not
+   reach the <use>s then. An icon hidden (hidden, which an <svg> does not get from the browser's own styles) is not
+   shown. */
+.sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
 svg[hidden] { display: none; }
 svg:has(> use) { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.5;
   stroke-linecap: round; stroke-linejoin: round; }

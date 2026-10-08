@@ -1,16 +1,40 @@
 # The window
 
-How a Kulisa window works for the human: the title bar, the grid of panels, the zoom, the menus and dialogs, the
-terminal, and why they are built so. Projects and their tabs, several windows: [workspaces.md](workspaces.md);
+How a Kulisa window works for the human: the title bar, the grid of panels, the projects' bar, the zoom, the menus
+and dialogs, the terminal, and why they are built so. Projects and their workspaces in the projects' bar, several
+windows: [workspaces.md](workspaces.md);
 profiles' panes and tabs: [profiles.md](profiles.md); the components the window is built of: [ui.md](ui.md); what is
 next: [ROADMAP.md](ROADMAP.md). Keep this file current when the window changes.
 
 ## The title bar
 
-One row: the app's logo (the open project's color on its curtain), the project tabs and + ([workspaces.md](workspaces.md)),
-Profiles ▾, ☰, and the OS's window buttons drawn over its right end (`titleBarStyle: 'hidden'` with
+One row: the app's logo (the open project's color on its curtain), Profiles ▾, ☰, and the OS's window buttons drawn over its right end (`titleBarStyle: 'hidden'` with
 `titleBarOverlay`); no menu bar. Dragging the empty part moves the window. When the Kulisa zoom is not 100%, the bar
 shows it (a click resets it).
+
+Pages never drag the window, as in Chrome. Without a system title bar Electron takes `app-region: drag` from every
+view in the window, the profiles' pages too, and keeps a region after its page has gone: Teams
+(`teams.cloud.microsoft`, whose code is shared with the Teams desktop app) declares one, and from then on every click
+and wheel over the panes, the grid's sashes too, went to dragging the window; mouse moves still passed, so the pages
+looked frozen. Maximized, the window cannot be dragged, which made it work now and then (found 2026-10-08; reproduced
+in bare Electron 44 with `titleBarStyle: 'hidden'`, not with a system title bar). Every document of a profile gets
+`app-region: no-drag` on all elements (`insertCSS`, user origin, `!important` beats the page's), which also replaces a
+region left behind. A page can read that value (`getComputedStyle`), where Chrome says `none`; `none` would not
+replace a region left by the page before.
+
+## The projects' bar
+
+Under the grid, in the middle: an island per open project with its workspaces' tabs, then the projects' menu
+([workspaces.md](workspaces.md), Projects). ☰ → **Projects bar: Top, Bottom** puts it over the grid instead, under the
+title bar (`settings.json`: `bar`; the page gets it in its URL, so it is drawn in its place at once). Bottom is the
+default: the hand goes to the terminal under the grid all the time, so the tabs are where it already is; at first
+the projects were tabs in the title bar and the workspaces a strip under the grid, and both switched with the same
+slide, which mixed them up (2026-10-08). Each island looks like a tab of the grid, its flat side on the grid and
+merging into it with curves; the grid leaves no gap on that side. The grid is one dark box (`--well`, a step from its panels, so they
+stand apart) from edge to edge of the window, square, the gap inside it, its panels' gaps dark too; the islands are
+of its color, so an island merges into it wherever it meets it: on the window's glow, over a gap between two
+panels (profiles side by side, a split row), its curve hung in the air (2026-10-08). Its tabs are a step taller than a button and never
+narrow, targets for a quick throw of the mouse; nothing in the bar moves when another project or workspace is shown.
 
 ## The grid
 
@@ -23,7 +47,11 @@ Each fits the window with nothing cut off. The grid is saved per workspace (`lay
 
 The profiles' pages are native views above the window's HTML (CLAUDE.md, "What must hold in the window"). While a
 panel is dragged, a menu is open or a dialog is shown, the pages are pictures of themselves (or hidden), so the
-HTML can be on top; they are live again after.
+HTML can be on top; they are live again after. A page that gives no picture within 500 ms (covered, the monitor off,
+busy) leaves its pane empty meanwhile: waiting for it held the menu, and every one after it.
+
+A pane's tab strip and toolbar move as Chrome's: a tab opened grows in from the left (`.tab.opening`; the strip keeps
+its tabs' elements by id, so only a new one animates), the address's hover fades in. Not with reduced motion.
 
 ## Zoom
 
@@ -59,10 +87,11 @@ when it changes, as JetBrains' Sync with OS). Saved (`settings.json`), the same 
 
 Kulisa draws its menus in HTML, as Chrome does (a popover, `menu.js`; [ui.md](ui.md), Menus):
 
-- + after the project tabs (the projects), a project tab's right-click menu, Profiles ▾ (open and closed
-  profiles, Manage Profiles…), ☰ (as Chrome's ⋮, each row with its icon: the zoom row, the theme row, Arrange panels, Agents…, and Exit, which
-  quits as the last window's × does; not on macOS, where Cmd+Q and the app's menu quit);
-- right-click on a pane's header (New tab, Rename, Close profile, Delete profile…), a tab (Reload, Duplicate,
+- the button after the projects' islands (the projects), a project label's right-click menu, Profiles ▾ (open and
+  closed profiles, Manage Profiles…), ☰ (as Chrome's ⋮, each row with its icon: the zoom row, the theme row, the
+  projects' bar's row, Arrange panels, Agents…, and Exit, which quits as the last window's × does; not on macOS, where
+  Cmd+Q and the app's menu quit);
+- right-click on a pane's header (New tab, Rename, About this profile…, Close profile, Delete profile…), a tab (Reload, Duplicate,
   Close, Close others) and the terminal (Copy, Paste, Select all, Clear, Change agent…).
 
 Native menus were tried first (2026-10-05): rows of text only, no buttons in a row; and a native menu in a page had
@@ -72,7 +101,7 @@ frozen the desktop (ROADMAP, Deferred ideas, "A right-click menu in pages"). The
 
 Every dialog has one look, as in JetBrains: the title with × on top, the content, the buttons at the bottom right,
 the main one last (blue; red when it deletes) ([ui.md](ui.md), Dialogs). Questions before something that cannot be
-undone (deleting a profile, a workspace, a project; Initialize git), before closing (a project, a window, quitting
+undone (deleting a profile, a workspace, a project), before closing (a project, a window, quitting
 while an agent works: [workspaces.md](workspaces.md)) or between two ways to go (This Window or New Window) are asked
 in that dialog too (`shell.ask` → `ask.js`, queued, Cancel focused), in the window the action is
 in. Not the OS's own question (`dialog.showMessageBox`): it looked different on each OS and plain on Linux, and
@@ -98,7 +127,9 @@ did not expect (the author's choice, 2026-10-08: which profile a link belongs to
 "where that site is open" was not obvious). Only `http` and `https`; the address shows on hover. xterm's own handler
 asked with the browser's `confirm()`, an OS dialog. Keys are known by `keyCode` too, as ibus with a Cyrillic layout leaves
 `code` out. The agent starts once the terminal is laid out, at its real
-size. When a project moves to another window, what its terminals show moves along (xterm's serialize addon, as VS
+size. The rows that fit sit in the middle of the panel, what is left under a whole row shared above and below them:
+at the bottom, it was a row's height under the agent's status line in one workspace and nothing in another, whose
+grids differed by a pixel (2026-10-08). When a project moves to another window, what its terminals show moves along (xterm's serialize addon, as VS
 Code keeps terminals), at the same size.
 
 ## DevTools

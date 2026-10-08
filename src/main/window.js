@@ -1,7 +1,7 @@
 // A Kulisa window. Usually there is one; Move to New Window puts a project into a window of its own (e.g. on a second
-// monitor). Each window has a tab per project open in it (its title bar), shows one of them with that project's shown
-// workspace (its grid and terminal), and asks its questions in its own dialog; the projects behind its other tabs keep
-// running. What a window shows and asks is here. What the app has once (the store, the CDP proxy, the MCP server, the
+// monitor). Each window has a tab per project open in it (an island in its projects' bar), shows one of them with that
+// project's shown workspace (its grid and terminal), and asks its questions in its own dialog; the projects behind its
+// other tabs keep running. What a window shows and asks is here. What the app has once (the store, the CDP proxy, the MCP server, the
 // agents, the windows, one change after another: serial) is app.js's; what happens to projects and workspaces,
 // whichever window shows them, is the core's (projects.js, workspaces.js).
 const { BrowserWindow, desktopCapturer, screen, shell: electronShell } = require('electron');
@@ -92,11 +92,11 @@ class AppWindow {
   focus() { if (this.win.isMinimized()) this.win.restore(); this.win.focus(); }
   destroy() { this.unanswered(); if (!this.win.isDestroyed()) this.win.destroy(); }
 
-  // Its page, loaded once; its tabs (names, colors) and the shown one (shown) come along in the URL, so the title bar
-  // is drawn right at once. The profiles' views stay hidden until the renderer has the grid laid out (views:hidden).
+  // Its page, loaded once; its tabs (names, colors), the shown one (shown), the theme and where the projects' bar is
+  // come along in the URL, so the window is drawn right at once. The profiles' views stay hidden until the renderer has the grid laid out (views:hidden).
   async load(shown) {
     await this.win.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'), { query: {
-      version: require('../../package.json').version, theme: this.shell.theme,
+      version: require('../../package.json').version, theme: this.shell.theme, bar: this.shell.bar,
       projects: JSON.stringify({ current: shown?.id ?? null, projects: this.tabs.map(({ id, name, color }) => ({ id, name, color })),
         open: this.tabs.map(({ id }) => ({ id })) }) } });
     this.loaded = true;
@@ -113,7 +113,9 @@ class AppWindow {
     const { shell } = this;
     const others = shell.windows.filter((w) => w !== this && !w.win.isDestroyed());
     return { current: this.current?.id ?? null, projects: shell.store.projects(),
-      open: this.tabs.map((p) => ({ id: p.id, state: p.state(), states: p.states() })),
+      // Each with its workspaces and the one it shows, for the projects' bar (the shown project's also come as
+      // 'workspaces', with whether forks are possible)
+      open: this.tabs.map((p) => ({ id: p.id, ws: p.ws?.key ?? null, workspaces: [...p.workspaces.values()].map((w) => w.info()) })),
       elsewhere: [...shell.open.values()].filter((p) => p.window !== this).map((p) => p.id),
       windows: others.map((w) => ({ id: w.id, names: w.tabs.map((p) => p.name) })) };
   }
@@ -130,7 +132,7 @@ class AppWindow {
     if (!ws || this.switching) return;
     this.send('state', [...ws.profiles.values()].map((p) => p.info()));
     this.send('closed-profiles', [...ws.closed.values()].map(({ cfg, urls }) =>
-      ({ key: cfg.folder, id: cfg.id, name: cfg.name, color: cfg.color, tabs: urls.length })));
+      ({ key: cfg.folder, id: cfg.id, name: cfg.name, avatar: cfg.avatar, description: cfg.description, tabs: urls.length })));
     ws.list.saveTabs();
   }
   scheduleState() { clearTimeout(this.stateTimer); this.stateTimer = setTimeout(() => this.pushState(), 30); }
@@ -160,7 +162,7 @@ class AppWindow {
   // workspace comes.
   async show(project) {
     if (project === this.current) return;
-    if (this.current) await this.leaveGrid(Math.sign(this.tabs.indexOf(project) - this.tabs.indexOf(this.current)));
+    if (this.current) await this.leaveGrid(Math.sign(this.tabs.indexOf(project) - this.tabs.indexOf(this.current)), 'project');
     this.current = project;
     this.shell.saveWindows();
     this.win.setTitle(`${project.name} — Kulisa`);
@@ -181,10 +183,10 @@ class AppWindow {
     if (!ws.pty && !ws.starting) ws.starting = ws.startAgent().catch((e) => console.error('[agent]', e)).finally(() => { ws.starting = null; });
   }
   // The page takes the grid down; it gets the next workspace's state once its profiles are loaded. dir: where the
-  // next one is (1 right, -1 left, in the strip or in the project tabs; 0 none, the window is left with no project),
-  // for the page to slide that way. Pictures of its pages come along, for the page to slide them out (and in when it
-  // comes back).
-  async leaveGrid(dir) {
+  // next one is (1 right, -1 left, in the projects' bar; 0 none, the window is left with no project), for the page
+  // to slide that way; level: 'project' (it slides) or 'workspace' (replaced at once). Pictures of its pages come
+  // along, for the page to show them meanwhile (and when it comes back).
+  async leaveGrid(dir, level) {
     this.pushState(); // saves the tabs
     this.switching = true;
     clearTimeout(this.stateTimer);
@@ -192,7 +194,7 @@ class AppWindow {
     const pics = dir ? await this.pictures() : null;
     this.viewsHidden = true;
     for (const p of this.profiles.values()) p.setHidden(true);
-    this.send('grid:closing', { dir, ws: this.ws.key, pics });
+    this.send('grid:closing', { dir, level, ws: this.ws.key, pics });
   }
   // Before a project's tab goes (the project closes, or moves to another window): the tab next to it is shown, or the
   // window is left with none (the Welcome screen).
@@ -213,10 +215,11 @@ class AppWindow {
     }
     this.send('workspaces:closed', [...project.workspaces.values()].map((w) => w.key));
   }
-  // A fork of one of its projects deleted (projects.js): the page forgets it.
+  // A fork of one of its projects deleted (projects.js): the page forgets it, and its tab goes from its island.
   forkDeleted(ws) {
     this.send('workspaces:closed', [ws.key]);
     if (ws.project === this.current) this.sendWorkspaces();
+    this.sendProjects();
   }
   // The human sees the shown workspace: an agent done there has nothing more to show (its ✓ says "come and see").
   seen() { if (this.ws?.see()) { this.sendWorkspaces(); this.sendProjects(); } }
@@ -230,7 +233,7 @@ class AppWindow {
   async showWorkspace(next) {
     const project = next.project;
     if (next === project.ws) return;
-    if (project === this.current) await this.leaveGrid(Math.sign(next.n - project.ws.n));
+    if (project === this.current) await this.leaveGrid(Math.sign(next.n - project.ws.n), 'workspace');
     project.select(next);
     if (project !== this.current) return;
     this.sendWorkspaces();
@@ -249,11 +252,14 @@ class AppWindow {
     for (const p of this.profiles.values()) p.setHidden(this.viewsHidden);
     return pics;
   }
-  // JPEG: a picture shown for a moment, encoded three times faster than PNG (measured 2026-10-07).
+  // JPEG: a picture shown for a moment, encoded three times faster than PNG (measured 2026-10-07). A page that draws no
+  // frame (covered, the monitor off, busy) gives none: its pane is empty meanwhile. Waiting for it held every menu
+  // after it closed (the menus' tests failed now and then, 2026-10-07).
   async pictures() {
     const pics = {};
+    const later = (ms) => new Promise((ok) => setTimeout(ok, ms, null));
     await Promise.all([...this.profiles.values()].filter((p) => p.visible() && p.get()).map(async (p) => {
-      const img = await p.get().wc.capturePage().catch(() => null);
+      const img = await Promise.race([p.get().wc.capturePage(), later(500)]).catch(() => null);
       if (!img) return;
       pics[p.id] = `data:image/jpeg;base64,${img.toJPEG(90).toString('base64')}`;
     }));

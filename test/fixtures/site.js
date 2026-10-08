@@ -2,6 +2,9 @@
 //   /app      a fake multi-user app: a name cookie (no password; our own test site), links and buttons that open tabs
 //   /errors   a page that logs console errors and makes failing requests (for point and tell)
 //   /strict   like /app's buttons, with Trusted Types enforced (as Microsoft 365 apps do): no HTML from strings
+//   /form     controls for the agent's tools: dialogs, a select, a file input, a hover, keys, text shown later
+//   /drag     a header with app-region: drag, as Teams has (a page must never move Kulisa's window)
+//   /board    messages shared by every profile, polled (one profile posts, another waits to see it)
 //   /headers  echoes the User-Agent and Sec-CH-UA* request headers as JSON (asks for high-entropy hints with Accept-CH)
 // It runs in its own process: inside Electron's main process it can deadlock, because a synchronous Electron call
 // waits for a renderer that waits for a response from this (then blocked) server.
@@ -11,6 +14,8 @@ function page(title, body, color = '#4a7') {
   const icon = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="${color}"/></svg>`)}`;
   return `<!doctype html><html><head><meta charset="utf-8"><title>${title}</title><link rel="icon" href="${icon}"></head><body>${body}</body></html>`;
 }
+
+const board = [];
 
 function handler(req, res) {
   const u = new URL(req.url, 'http://x');
@@ -50,6 +55,24 @@ function handler(req, res) {
 <script>
 function pay() { console.error('PaymentError: card declined by stub'); fetch('/api/pay', { method: 'POST' }).then((r) => { document.getElementById('status').textContent = 'HTTP ' + r.status; }); }
 </script>`));
+  }
+  if (u.pathname === '/form') {
+    return send(200, page('form', `
+<h3>Form</h3><p id="out">nothing yet</p>
+<button onclick="out.textContent = confirm('Delete the draft?') ? 'deleted' : 'kept'">Delete</button>
+<select aria-label="Size" onchange="out.textContent = 'size ' + this.value"><option>S</option><option>M</option><option>L</option></select>
+<input type="file" aria-label="Attachment" onchange="out.textContent = 'file ' + this.files[0].name">
+<span onmouseenter="hint.hidden = false">Help</span><span id="hint" hidden>Hint shown</span>
+<button onclick="setTimeout(() => out.textContent = 'done later', 1500)">Later</button>
+<script>addEventListener('keydown', (e) => { if (e.key === 'Escape') out.textContent = 'Escape pressed'; });</script>`));
+  }
+  if (u.pathname === '/drag') return send(200, page('drag', `<header id="bar" style="app-region: drag; height: 60px">Title bar</header><p>page</p>`));
+  if (u.pathname === '/board/post') { board.push(u.searchParams.get('text') || ''); return send(302, '', 'text/plain', { location: '/board' }); }
+  if (u.pathname === '/board/messages') return send(200, JSON.stringify(board), 'application/json');
+  if (u.pathname === '/board') {
+    return send(200, page('board', `
+<form action="/board/post"><input name="text" aria-label="Message"><button>Post</button></form><ul id="list"></ul>
+<script>setInterval(async () => { list.replaceChildren(...(await (await fetch('/board/messages')).json()).map((t) => Object.assign(document.createElement('li'), { textContent: t }))); }, 300);</script>`));
   }
   if (u.pathname.startsWith('/api/')) return send(500, '{"error":"stub failure"}', 'application/json');
   send(404, 'not found', 'text/plain');

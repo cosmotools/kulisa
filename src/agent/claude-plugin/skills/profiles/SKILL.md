@@ -12,18 +12,24 @@ human sees everything you do there: your cursor and a caption are drawn in the p
 
 | Tool | Use |
 |---|---|
-| `browser_profiles` | List profiles: id, name, `signinMode`, tabs; closed ones as `closed: true` with their number of tabs. Call it first; the human may add profiles at any time. |
-| `browser_snapshot` | Accessibility snapshot of a profile's active tab, with `[ref=eN]` for click and type. |
+| `browser_profiles` | List profiles: id, name, `description` (who it is in the app; `null`: not said), `avatar` (its picture: the human may call a pane "the fox"), `signinMode`, tabs; closed ones as `closed: true` with their number of tabs. Call it first; the human may add profiles at any time. |
+| `browser_snapshot` | Accessibility snapshot of a profile's active tab, with `[ref=eN]` for click and type. `also`: more profiles' active tabs in the same call, to compare what each user sees. |
 | `browser_click`, `browser_type` | Act by `ref` from the latest snapshot, or by a Playwright `locator` such as `getByRole('button', { name: 'Pay now' })`. |
+| `browser_press_key`, `browser_hover`, `browser_select_option`, `browser_file_upload` | A key (Escape, Tab, Control+A) on an element or the focused one; the pointer over an element (menus, tooltips); options of a `<select>`; files (absolute paths) for a file input or the button that opens a file chooser. |
+| `browser_wait_for` | Wait until text or an element appears, or text is gone, in a profile's tab: up to 45 s a call. |
+| `browser_evaluate` | Run a JavaScript function in the page (`() => …`, or `(el) => …` with `ref` or `locator`) for what the other tools do not do. |
 | `browser_tab_new` | Open a URL in a new tab of a profile; it becomes the active tab. |
 | `browser_tab_select`, `browser_tab_close` | Switch to a tab (by id from `browser_profiles`), close a tab. |
-| `browser_navigate` | Load a URL in the profile's active tab, replacing what it shows. |
+| `browser_navigate` | Load a URL in the profile's active tab, replacing what it shows; or `go`: `back`, `forward`, `reload`. |
 | `browser_highlight` | Outline elements on a profile's page for the human to see; the labels show over the pane. They go when the human clicks or types there; an empty list clears them. |
 | `browser_screenshot` | See the page when the snapshot is not enough (layout, images, colors). |
 | `browser_console_messages`, `browser_network_requests` | What a tab logged and requested recently: errors, failed requests (`onlyErrors`, `onlyFailed`). |
 | `profile_open` | Open a closed profile (`closed: true` in `browser_profiles`): its pane and tabs come back, still signed in. |
 | `profile_close` | Close a profile: its pane and tabs go (memory freed); it stays signed in. |
 | `profile_create` | A new, empty profile for a user the task needs and no profile has. |
+| `profile_rename` | Rename a profile (its id follows), e.g. after the human signed it in to another account. |
+| `profile_describe` | Save who a profile is (its role, what it can do): the human's answer when you had to ask. |
+| `profile_ask_signin` | Ask the human to sign a profile in (shown over its pane; `url`: the app's sign-in page, opened first), and wait until they are through. |
 | `profile_delete` | Delete a profile for good (sign-ins, storage, tabs). The human confirms it in a dialog. |
 
 Every browser tool takes `profile`: the id from `browser_profiles`, not the display name. Tools that read or act on
@@ -31,11 +37,17 @@ a page take an optional `tab` (default: the profile's active tab).
 
 ## How to work
 
-- **Pick the profile by who the task is about.** Names say who a profile is, often the account it signs in to ("sam@shop.com", "ann.admin"). If it
-  is unclear which user to act as, ask.
+- **Pick the profile by its description**, which says who it is in the app ("seller in the Acme shop"). Never
+  guess a role from a name, an email or the sites it has open: a name says which account is signed in, not who that
+  is in the tests. When no description fits the task, or several do, ask the human once which profile it is, then
+  save their answer with `profile_describe` (their words, not your guess), so nobody has to ask again.
 - **Several users at once** is what Kulisa is for: act as one profile, then check the effect as another ("Sam sends
-  an invite, Ann sees it"). Re-read the second profile with `browser_snapshot` after the first one acts; reload if
-  the app does not push updates.
+  an invite, Ann sees it"). After the first one acts, wait for the effect in the second with `browser_wait_for`
+  (the text it should show); if it does not come, reload it (`browser_navigate` with `go: reload`), as the app may
+  not push updates. `browser_snapshot` with `also` shows what several users see in one call.
+- **Dialogs** (confirm, alert, "leave this page?") that your click, key or navigation opens are dismissed unless you
+  pass `dialog: accept`; the result says what the page asked. Accept only what the task means to do (a delete the
+  human asked for); dialogs you did not open are the human's.
 - **Keep the human's pages.** To open something new, use `browser_tab_new` rather than navigating away from a page
   the human has open (a chat, a form in progress). Navigate the active tab when it is yours or the human asks.
   Close only tabs you opened, unless asked.
@@ -68,10 +80,14 @@ profiles. You see only your workspace's profiles. In a fork (the session start s
 ## Signing in: never you
 
 - Never sign in, type passwords or one-time codes, or read cookies or tokens. The human signs in by hand.
-- A signed-out profile, or one on a sign-in page: tell the human which profile needs signing in, and wait.
+- A signed-out profile, or one on a sign-in page: ask the human with `profile_ask_signin` (say as whom and why),
+  which waits while they sign in; on "not yet", call it again or do something else meanwhile. Then check with
+  `browser_snapshot`.
 - `signinMode: true`, or an error saying the profile is in sign-in mode: the human is signing in right now, and
   Kulisa keeps all automation away from that profile until they finish. Do something else, then try again.
-- After `profile_create`, the new profile is empty and signed out: ask the human to sign it in in its pane.
+- After `profile_create`, the new profile is empty and signed out: ask the human to sign it in
+  (`profile_ask_signin`).
+- `browser_evaluate` is not a way around this rule: never read cookies, tokens or passwords with it.
 - Delete a profile (`profile_delete`) only when the human asks, or one you created is no longer needed. The
   human confirms each deletion; a deleted profile's sign-ins are gone and only the human can sign in again. If they
   say no, leave it.

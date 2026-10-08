@@ -8,13 +8,34 @@ const { app } = require('electron');
 const { CLAUDE_PLUGIN } = require('../src/main/app');
 
 module.exports = (test) => {
-  test('create profiles in the profile editor; views are hidden while it is open', async ({ shell, ui }) => {
+  test('create profiles in the profile editor, each with its own picture and, if the human says, who it is; views are hidden while it is open', async ({ shell, ui }) => {
     await manageProfiles(ui);
-    for (const name of ['Sam.seller', 'Elon.buyer']) {
-      await ui(`document.getElementById('newProfile').value = ${JSON.stringify(name)}; document.getElementById('padd').requestSubmit()`);
+    assert.match(await ui(`document.querySelector('#padd .hint').textContent`), /agent reads this .* You can skip it/s);
+    // The new profile's picture: the next free one, unless the human picks another (Elon: the penguin).
+    const shownNew = () => ui(`(() => { const b = document.querySelectorAll('#padd .pics [aria-pressed="true"]');
+      return b.length === 1 ? b[0].dataset.avatar : [...b].length; })()`);
+    assert.equal(await ui(`document.querySelectorAll('#padd .pics button').length`), 16, 'all of them to choose from, at once');
+    for (const [name, about, shown] of [['Sam.seller', ' seller in the test shop ', 'fox'], ['Elon.buyer', '', 'frog']]) {
+      await waitFor(async () => (await shownNew()) === shown);
+      if (name.startsWith('Elon')) {
+        await ui(`document.querySelector('#padd .pics [data-avatar="penguin"]').click()`);
+        assert.equal(await shownNew(), 'penguin');
+      }
+      // Enter in the description adds the profile too (Shift+Enter: a new line).
+      await ui(`document.getElementById('newProfile').value = ${JSON.stringify(name)}; document.getElementById('newAbout').value = ${JSON.stringify(about)};
+        ${name.startsWith('Sam') ? `document.getElementById('padd').requestSubmit()`
+    : `document.getElementById('newAbout').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))`}`);
       await waitFor(() => shell.profiles.size === (name.startsWith('Sam') ? 1 : 2));
     }
     assert.deepEqual([...shell.profiles.keys()], ['sam-seller', 'elon-buyer']);
+    assert.equal(await ui(`document.getElementById('newAbout').value`), '', 'the fields are emptied for the next one');
+    const read = () => { try { return JSON.parse(fs.readFileSync(pfile('profiles.json'), 'utf8')); } catch { return []; } };
+    await waitFor(() => read().length === 2); // written once the profile's tabs are open
+    const saved = read();
+    assert.deepEqual(saved.map(({ id, avatar, description, color }) => ({ id, avatar, description, color })),
+      [{ id: 'sam-seller', avatar: 'fox', description: 'seller in the test shop', color: undefined },
+        { id: 'elon-buyer', avatar: 'penguin', description: undefined, color: undefined }], 'pictures, not colors; who it is when said');
+    await waitFor(async () => (await shownNew()) === 'frog'); // the next one's, the pick forgotten
     assert.equal(shell.profiles.get('elon-buyer').get().view.getVisible(), false);
     await waitFor(async () => (await ui(`document.querySelectorAll('#plist .prow').length`)) === 2);
     await ui(`document.getElementById('closeProfiles').click()`);
@@ -74,19 +95,25 @@ module.exports = (test) => {
   test('the window and the agent act on one core: an address read the same way, the same refusals', async ({ shell, call, ui }) => {
     const sam = shell.profiles.get('sam-seller');
     const host = SITE.replace('http://', ''); // 127.0.0.1:4417, a host and a port (not a scheme)
-    await ui(`kulisa.invoke('tab:navigate', { profile: 'sam-seller', tab: '${sam.active}', url: '${host}/app?by=human' })`);
+    await ui(`act('tab:navigate', { profile: 'sam-seller', tab: '${sam.active}', url: '${host}/app?by=human' })`);
     await waitFor(() => sam.get().wc.getURL() === `${SITE}/app?by=human`);
     await call('browser_navigate', { profile: 'sam-seller', url: `${host}/app?by=agent` });
     assert.equal(sam.get().wc.getURL(), `${SITE}/app?by=agent`);
     const id = (await call('browser_tab_new', { profile: 'sam-seller', url: `${host}/app?tab` })).text.match(/Opened tab (\w+)/)[1];
     assert.equal(sam.get(id).wc.getURL(), `${SITE}/app?tab`);
-    await ui(`kulisa.invoke('tab:close', { profile: 'sam-seller', tab: '${id}' })`);
+    await ui(`act('tab:close', { profile: 'sam-seller', tab: '${id}' })`);
     await waitFor(() => !sam.get(id));
 
-    assert.match((await ui(`kulisa.invoke('tab:reload', { profile: 'nobody' })`)).error, /No profile "nobody"/);
+    assert.match((await ui(`act('tab:reload', { profile: 'nobody' })`)).error, /No profile "nobody"/);
     await assert.rejects(call('browser_snapshot', { profile: 'nobody' }), /No profile "nobody"/);
-    assert.match((await ui(`kulisa.invoke('tab:close', { profile: 'sam-seller', tab: 'k999' })`)).error, /No tab k999 in sam-seller/);
+    assert.match((await ui(`act('tab:close', { profile: 'sam-seller', tab: 'k999' })`)).error, /No tab k999 in sam-seller/);
     await assert.rejects(call('browser_tab_close', { profile: 'sam-seller', tab: 'k999' }), /No tab k999 in sam-seller/);
+    // An action of the window names its workspace: one sent for a workspace no longer shown (the human just switched)
+    // is refused, not done in the one shown now.
+    const tabs = sam.tabs.length;
+    assert.match((await ui(`kulisa.invoke('tab:new', { ws: 'project/2', profile: 'sam-seller' })`)).error, /not on screen/);
+    assert.match((await ui(`kulisa.invoke('tab:new', { profile: 'sam-seller' })`)).error, /not on screen/);
+    assert.equal(sam.tabs.length, tabs);
   });
   test('agent bridge: at session start the plugin hook tells the agent which profiles are open, and Kulisa notes the session', async ({ shell }) => {
     const hooks = JSON.parse(fs.readFileSync(path.join(CLAUDE_PLUGIN, 'hooks', 'hooks.json'), 'utf8'));
@@ -106,18 +133,19 @@ module.exports = (test) => {
     assert.deepEqual(JSON.parse(fs.readFileSync(pfile('agent.json'), 'utf8')), { agent: 'custom', started: true, sessionId: 'session-1', transcript });
     assert.equal(inKulisa.code, 0);
     const context = JSON.parse(inKulisa.out).hookSpecificOutput.additionalContext;
-    assert.match(context, /- sam-seller \("Sam.seller"\)/);
-    assert.match(context, /- elon-buyer \("Elon.buyer"\)/);
+    assert.match(context, /- sam-seller \("Sam.seller"\): seller in the test shop/);
+    assert.match(context, /- elon-buyer \("Elon.buyer"\): who it is is not said/);
     assert.match(context, /tab k\d+ \(active\)/);
     const outside = await run({});
     assert.deepEqual(outside, { code: 0, out: '' }, 'outside Kulisa the hook does nothing');
   });
   test('agent: highlight elements for the human (also on Trusted Types pages), then clear', async ({ shell, call }) => {
     const sam = shell.profiles.get('sam-seller');
-    // Pixels of the profile's color in the tab's own rendering: the outline and label are really drawn.
+    // Pixels of the agent's marks' color in the tab's own rendering: the outline and label are really drawn.
+    const { MARK } = require('../src/main/ghost');
     const colored = async () => {
       const img = await sam.get().wc.capturePage(); const px = img.toBitmap(); // BGRA
-      const [r, g, b] = sam.color.match(/\w\w/g).map((h) => parseInt(h, 16));
+      const [r, g, b] = MARK.match(/\w\w/g).map((h) => parseInt(h, 16));
       let n = 0; for (let i = 0; i < px.length; i += 4) if (Math.abs(px[i + 2] - r) < 8 && Math.abs(px[i + 1] - g) < 8 && Math.abs(px[i] - b) < 8) n++;
       return n;
     };
@@ -158,13 +186,51 @@ module.exports = (test) => {
     }
   });
   test('agent: create a profile with profile_create', async ({ shell, call, ui }) => {
-    const r = await call('profile_create', { name: 'Ann.admin' });
+    const r = await call('profile_create', { name: 'Ann.admin', description: 'the shop\'s admin' });
     assert.match(r.text, /Created profile ann-admin/);
     assert.ok(shell.profiles.has('ann-admin'));
     const list = JSON.parse((await call('browser_profiles', {})).text);
     assert.deepEqual(list.map((p) => p.id), ['sam-seller', 'elon-buyer', 'ann-admin']);
+    assert.deepEqual(list.map((p) => [p.avatar, p.description]), [['fox', 'seller in the test shop'], ['penguin', null], ['frog', 'the shop\'s admin']]);
     await waitFor(async () => (await ui(`document.querySelectorAll('.pane').length`)) === 3);
-    await ui(`kulisa.invoke('profile:delete', { profile: 'ann-admin' })`);
+    await ui(`act('profile:delete', { profile: 'ann-admin' })`);
+  });
+  test('who a profile is: the agent is told to choose by it and to ask; it saves the human\'s answer, the editor shows it', async ({ shell, call, ui }) => {
+    const { Client } = require('@modelcontextprotocol/sdk/client/index.js');
+    const { StreamableHTTPClientTransport } = require('@modelcontextprotocol/sdk/client/streamableHttp.js');
+    const c = new Client({ name: 'kulisa-test', version: '0' });
+    await c.connect(new StreamableHTTPClientTransport(new URL(shell.ws.env().KULISA_MCP_URL)));
+    assert.match(c.getInstructions(), /by its description .* ask the human once .* profile_describe/s, 'every agent, also without the skill');
+    await c.close();
+    const elon = shell.profiles.get('elon-buyer');
+    assert.match((await call('profile_describe', { profile: 'elon-buyer', description: 'buyer; pays by card' })).text, /Saved/);
+    assert.equal(elon.description, 'buyer; pays by card');
+    await assert.rejects(call('profile_describe', { profile: 'elon-buyer', description: 'x'.repeat(501) }), /at most 500/);
+    // The editor shows it and the human changes it there; the pane's name tells it on hover, Profiles ▾ under the name.
+    const header = `[...document.querySelectorAll('.ptab')].find((t) => t.querySelector('.pname')?.textContent === 'Elon.buyer')`;
+    await waitFor(async () => (await ui(`${header}.querySelector('.pname').title`)).startsWith('buyer; pays by card'));
+    await waitFor(() => ui(`(() => { const i = ${header}.querySelector('.avatar'); return i.complete && i.naturalWidth > 0; })()`)); // the picture is drawn
+    await ui(`document.getElementById('openProfiles').click()`);
+    assert.deepEqual(await ui(`[...document.querySelectorAll('#menu .item')].slice(0, 2).map((b) => [b.querySelector('small').textContent,
+      b.querySelector('.avatar').getAttribute('src')])`),
+    [['seller in the test shop', 'avatars/fox.svg'], ['buyer; pays by card', 'avatars/penguin.svg']]);
+    await ui(`document.getElementById('openProfiles').click()`);
+    await manageProfiles(ui);
+    const row = `[...document.querySelectorAll('#plist .prow')].find((r) => r.querySelector('.pid').textContent === 'elon-buyer')`;
+    await waitFor(async () => (await ui(`${row}.querySelector('.about').value`)) === 'buyer; pays by card');
+    assert.deepEqual(await ui(`[${row}.querySelector('.about').localName, ${row}.querySelector('.about').rows, getComputedStyle(${row}.querySelector('.about')).resize]`),
+      ['textarea', 2, 'vertical'], 'two lines, made taller by hand');
+    await ui(`(() => { const a = ${row}.querySelector('.about'); a.value = ''; a.dispatchEvent(new Event('change')); })()`);
+    await waitFor(() => elon.description === '');
+    // The picture: a click on it shows the others; one chosen, they go.
+    await ui(`${row}.querySelector('.pic').click()`);
+    assert.equal(await ui(`${row}.querySelectorAll('.pics button').length`), 16);
+    await ui(`${row}.querySelector('.pics [data-avatar="owl"]').click()`);
+    await waitFor(() => elon.avatar === 'owl');
+    assert.equal(await ui(`${row}.querySelector('.pics').hidden`), true);
+    await waitFor(async () => (await ui(`${row}.querySelector('.pic .avatar').getAttribute('src')`)) === 'avatars/owl.svg');
+    assert.match((await ui(`act('profile:avatar', { profile: 'elon-buyer', avatar: 'dragon' })`)).error, /no picture/);
+    await ui(`document.getElementById('closeProfiles').click()`);
   });
   test('agent: navigate, snapshot, type by ref, click by locator, screenshot', async ({ call }) => {
     await call('browser_navigate', { profile: 'sam-seller', url: `${SITE}/app` });
@@ -177,12 +243,92 @@ module.exports = (test) => {
     assert.equal(shot.content[0].type, 'image');
   });
 
+  test('agent: keys, hover, select, files, waiting, evaluate, back and forward; dialogs answered as asked, the human\'s left', async ({ shell, call }) => {
+    const p = { profile: 'sam-seller' };
+    const out = async () => JSON.parse((await call('browser_evaluate', { ...p, function: '() => out.textContent' })).text);
+    await call('browser_navigate', { ...p, url: `${SITE}/form` });
+    const del = { ...p, locator: "getByRole('button', { name: 'Delete' })" };
+    // Answered in the page: no dialog opens (Electron's box would stay on screen after an answer over CDP).
+    const page = await shell.profiles.get('sam-seller').page();
+    let opened = 0; const count = () => opened++;
+    page.on('dialog', count);
+    assert.match((await call('browser_click', del)).text, /asked: confirm "Delete the draft\?"; dismissed/);
+    assert.equal(await out(), 'kept');
+    assert.match((await call('browser_click', { ...del, dialog: 'accept' })).text, /accepted/);
+    assert.equal(await out(), 'deleted');
+    page.off('dialog', count);
+    assert.equal(opened, 0);
+    assert.equal(JSON.parse((await call('browser_evaluate', { ...p, function: "() => String(confirm).includes('native code')" })).text), true, 'the page\'s own confirm is back');
+    // A dialog the agent did not open is the human's: Playwright does not dismiss it (Profile.connect).
+    await call('browser_evaluate', { ...p, function: "() => { setTimeout(() => out.textContent = String(confirm('Yours?'))); }" });
+    await sleep(500);
+    // Still open (handling no dialog would throw); the human clicks OK.
+    await shell.profiles.get('sam-seller').get().wc.debugger.sendCommand('Page.handleJavaScriptDialog', { accept: true });
+    assert.equal(await out(), 'true');
+    await call('browser_select_option', { ...p, locator: "getByLabel('Size')", values: ['L'] });
+    assert.equal(await out(), 'size L');
+    assert.equal(JSON.parse((await call('browser_evaluate', { ...p, locator: "getByLabel('Size')", function: '(el) => el.value' })).text), 'L');
+    await call('browser_file_upload', { ...p, locator: "getByLabel('Attachment')", paths: [path.join(__dirname, '..', 'package.json')] });
+    assert.equal(await out(), 'file package.json');
+    await call('browser_hover', { ...p, locator: "getByText('Help')" });
+    await call('browser_wait_for', { ...p, text: 'Hint shown', seconds: 2 });
+    await call('browser_press_key', { ...p, key: 'Escape' });
+    assert.equal(await out(), 'Escape pressed');
+    await call('browser_click', { ...p, locator: "getByRole('button', { name: 'Later' })" });
+    await assert.rejects(call('browser_wait_for', { ...p, text: 'done later', seconds: 0.3 }), /After 0.3 s, "done later" is not there/);
+    await call('browser_wait_for', { ...p, text: 'done later', seconds: 5 });
+    await call('browser_wait_for', { ...p, textGone: 'Escape pressed', seconds: 1 });
+    assert.match((await call('browser_navigate', { ...p, go: 'back' })).text, /Went back: .*\/app/);
+    assert.match((await call('browser_navigate', { ...p, go: 'forward' })).text, /Went forward: .*\/form/);
+    assert.match((await call('browser_navigate', { ...p, go: 'forward' })).text, /Nowhere to go forward/);
+    assert.match((await call('browser_navigate', { ...p, go: 'reload' })).text, /Went reload: .*\/form/);
+    await call('browser_navigate', { ...p, go: 'back' });
+  });
+  test('agent: one profile acts, another waits to see it; several profiles read in one call', async ({ call }) => {
+    const tab = (await call('browser_tab_new', { profile: 'elon-buyer', url: `${SITE}/board` })).text.match(/Opened tab (\w+)/)[1];
+    const mine = (await call('browser_tab_new', { profile: 'sam-seller', url: `${SITE}/board` })).text.match(/Opened tab (\w+)/)[1];
+    await call('browser_type', { profile: 'sam-seller', locator: "getByLabel('Message')", text: 'hello elon', submit: true });
+    await call('browser_wait_for', { profile: 'elon-buyer', text: 'hello elon', seconds: 5 });
+    const both = (await call('browser_snapshot', { profile: 'sam-seller', also: ['elon-buyer', 'nobody'] })).text;
+    assert.match(both, /Profile: sam-seller[\s\S]*hello elon[\s\S]*Profile: elon-buyer[\s\S]*hello elon[\s\S]*Profile: nobody\n- No profile "nobody"/);
+    await call('browser_tab_close', { profile: 'sam-seller', tab: mine });
+    await call('browser_tab_close', { profile: 'elon-buyer', tab });
+  });
+  test('agent: rename a profile; ask the human to sign one in and wait until they are through', async ({ shell, call, ui }) => {
+    const name = shell.profiles.get('elon-buyer').name;
+    assert.match((await call('profile_rename', { profile: 'elon-buyer', name: 'elon.payer' })).text, /id is now elon-payer/);
+    assert.ok(shell.profiles.has('elon-payer'));
+    await call('profile_rename', { profile: 'elon-payer', name });
+    const elon = shell.profiles.get('elon-buyer');
+    const back = elon.get().wc.getURL();
+    const asking = call('profile_ask_signin', { profile: 'elon-buyer', url: `${SITE}/form`, why: 'as Elon' });
+    const cap = `document.querySelector('.ptab[data-panel="${panel(shell, 'elon-buyer')}"] .caption').textContent`;
+    await waitFor(async () => (await ui(cap)).includes('sign in, please: as Elon'));
+    assert.match(elon.get().wc.getURL(), /\/form$/, 'the sign-in page opened');
+    elon.get().wc.loadURL(back); // the human signs in and lands elsewhere
+    assert.match((await asking).text, /The human is through/);
+    await waitFor(async () => (await ui(cap)) === '');
+  });
+
+  test('a page that does not load says why, as Chrome\'s error page (Electron leaves it blank); the agent reads it too', async ({ shell, call, ui }) => {
+    const sam = shell.profiles.get('sam-seller'), wc = sam.get().wc, back = wc.getURL();
+    await ui(`act('tab:navigate', { profile: 'sam-seller', tab: '${sam.active}', url: 'http://127.0.0.1:4419/' })`); // nothing listens there
+    await waitFor(async () => /refused to connect/.test(await wc.executeJavaScript('document.body?.innerText || ""')));
+    assert.equal(wc.getURL(), 'http://127.0.0.1:4419/', 'the address stays the one that failed');
+    assert.match((await call('browser_snapshot', { profile: 'sam-seller' })).text, /This site can’t be reached[\s\S]*ERR_CONNECTION_REFUSED/);
+    await wc.loadURL(back);
+  });
   test('tab strip: + opens a tab with the focus in its empty address, a click on a tab makes it active, × closes it', async ({ shell, ui }) => {
     const elon = shell.profiles.get('elon-buyer');
     const strip = `document.querySelector('.pane[data-profile="elon-buyer"] .tabs')`;
     const first = elon.active, n = elon.tabs.length;
+    await ui(`window.__firstTab = ${strip}.querySelector('.tab[data-tab="${first}"]')`);
     await ui(`${strip}.querySelector('.add').click()`);
     await waitFor(() => elon.tabs.length === n + 1 && elon.active !== first);
+    // The strip keeps its tabs' elements; the new one grows in (.opening, until its animation ends), as Chrome's.
+    await waitFor(() => ui(`!!${strip}.querySelector('.tab[data-tab="${elon.active}"]')`));
+    assert.equal(await ui(`${strip}.querySelector('.tab[data-tab="${first}"]') === window.__firstTab`), true, 'the first tab\'s element stays');
+    await waitFor(() => ui(`!${strip}.querySelector('.tab.opening')`));
     await waitFor(() => ui(`(() => { const a = document.querySelector('.pane[data-profile="elon-buyer"] .addr'); return document.activeElement === a && a.value === ''; })()`));
     // The keys go there, not to the new tab's page (a native view that would take the focus as it loads). Where the
     // keys go inside the window; when another app on the desktop is active (it took the focus while the tests ran:
@@ -209,7 +355,7 @@ module.exports = (test) => {
     const before = await pageBox(ui, 'elon-buyer');
     // A lone tab has its full width (220px, as Chrome's), not shrunk while there is room.
     assert.equal(await ui(`Math.round(document.querySelector('.pane[data-profile="sam-seller"] .tabs .tab').getBoundingClientRect().width)`), 220);
-    for (let i = 0; i < 24; i++) await ui(`kulisa.invoke('tab:new', { profile: 'elon-buyer' })`);
+    for (let i = 0; i < 24; i++) await ui(`act('tab:new', { profile: 'elon-buyer' })`);
     await waitFor(async () => (await ui(`document.querySelectorAll('${pane} .tabs .tab').length`)) === n + 24);
     await sleep(300);
     const fit = await ui(`(() => { const p = document.querySelector('${pane}'), r = (q) => p.querySelector(q).getBoundingClientRect(), pr = p.getBoundingClientRect();
@@ -405,7 +551,7 @@ module.exports = (test) => {
     const elon = shell.profiles.get('elon-buyer');
     const disabled = () => ui(`document.querySelector('.pane[data-profile="elon-buyer"] .pick').disabled`);
     assert.equal(await disabled(), false);
-    const tab = await ui(`kulisa.invoke('tab:new', { profile: 'elon-buyer' })`);
+    const tab = await ui(`act('tab:new', { profile: 'elon-buyer' })`);
     await waitFor(async () => elon.active === tab && (await disabled()));
     elon.closeTab(tab);
     await waitFor(async () => !(await disabled()));

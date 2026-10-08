@@ -7,6 +7,7 @@ const { assert, root, userData, project, pfile, savedTabs, panel, SITE, sleep, w
 module.exports = (test) => {
   test('after a restart: profiles, sign-ins and tabs are back', async (ctx) => {
     assert.deepEqual([...ctx.shell.profiles.keys()], ['sam-admin', 'elon-buyer']);
+    assert.deepEqual([...ctx.shell.profiles.values()].map((p) => [p.avatar, p.description]), [['fox', 'seller in the test shop'], ['owl', '']]);
     for (const dir of ['Profile 3', 'Profile 4', 'Profile 5']) assert.ok(!fs.existsSync(pfile(dir)), `${dir} (deleted) removed`);
     assert.ok(fs.existsSync(pfile('Profile 1')), 'live profiles keep their folders');
     assert.ok(!fs.existsSync(path.join(userData, 'deleted-folders.json')));
@@ -40,11 +41,16 @@ module.exports = (test) => {
     await waitFor(() => near(tab.wc.getZoomFactor(), 1.25 * 1.1), 3000);
     tab.wc.close();
   });
-  test('after a restart: the fork waits in the strip, loads when shown, still signed in; main again', async (ctx) => {
+  test('after a restart: the fork waits in the bar with its tabs, loads when shown, still signed in; main again', async (ctx) => {
     const { shell, ui } = ctx;
     await waitFor(async () => (await ui(`[...document.querySelectorAll('#wslist .wstab')].map((t) => t.querySelector('.name').textContent).join()`)) === 'main,Feature-X');
     const fork = shell.current.workspaces.get(2);
     assert.equal(fork.loaded, false);
+    // Left loaded in the background: its tabs saved as Kulisa quit, not again as they closed (none left at last).
+    const forkDir = path.join(userData, 'projects', 'project', '2');
+    const saved = fs.readdirSync(forkDir).filter((d) => d.startsWith('Profile '))
+      .map((d) => JSON.parse(fs.readFileSync(path.join(forkDir, d, 'Kulisa Tabs.json'), 'utf8')));
+    assert.ok(saved.some((urls) => urls.length), `its tabs kept: ${JSON.stringify(saved)}`);
     await ui(`document.querySelector('#wslist .wstab[data-ws="project/2"]').click()`);
     await waitFor(() => shell.ws === fork && fork.loaded && fork.pty);
     assert.equal(fork.folder, `${project}@feature-x`);
@@ -55,7 +61,7 @@ module.exports = (test) => {
     await waitFor(() => shell.ws.n === 1);
     await waitFor(async () => (await viewOn(shell, ui, 'sam-admin')) && viewOn(shell, ui, 'elon-buyer'));
   });
-  test('after a restart: the project tabs are as they were left; one in the background loads when shown', async ({ shell, ui }) => {
+  test('after a restart: the open projects are as they were left; one in the background loads when shown', async ({ shell, ui }) => {
     await waitFor(async () => JSON.stringify(await projectTabs(ui)) === '["project *","other"]');
     assert.equal(shell.open.get('other').ws.loaded, false);
   });

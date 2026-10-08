@@ -16,7 +16,7 @@ module.exports = (test) => {
     assert.equal(await ui(`document.getElementById('zoomReset').textContent`), '110%');
     assert.equal(await ui(`document.getElementById('zoomReset').hidden`), false);
     await ui(`document.getElementById('windowMenu').click()`);
-    assert.deepEqual((await menuRows(ui)).slice(0, 4), ['zoom', 'theme', '-', '# Arrange panels']);
+    assert.deepEqual((await menuRows(ui)).slice(0, 5), ['zoom', 'theme', 'bar', '-', '# Arrange panels']);
     assert.equal(await ui(`document.querySelector('#menu .zoomrow output').textContent`), '110%');
     await ui(`document.querySelector('#menu .zoomrow .in').click()`); // − 110% + in the menu, as in Chrome
     await waitFor(() => near(win.getZoomFactor(), 1.25));
@@ -71,15 +71,18 @@ module.exports = (test) => {
     const tabs = shell.profiles.get('cleo').tabs.map((t) => t.wc);
     await waitFor(() => ui(`!!document.querySelector('${header} .close')`));
 
+    const { session } = require('electron');
+    assert.ok(await session.fromPath(cleoDir).getCacheSize() > 0, 'pages were cached');
     await ui(`document.querySelector('${header} .close').click()`);
     await waitFor(() => !shell.profiles.has('cleo') && tabs.every((wc) => wc.isDestroyed()));
+    await waitFor(async () => (await session.fromPath(cleoDir).getCacheSize()) === 0); // a closed profile keeps no cache
     await waitFor(() => ui(`!document.querySelector('${header}')`));
     assert.equal(saved('profiles.json').find((p) => p.id === 'cleo').closed, true);
     await waitFor(() => savedTabs('cleo').length === 2);
     const listed = JSON.parse((await call('browser_profiles', {})).text).find((p) => p.id === 'cleo');
-    assert.deepEqual(listed, { id: 'cleo', name: 'Cleo', closed: true, tabs: 2 });
+    assert.deepEqual(listed, { id: 'cleo', name: 'Cleo', description: null, avatar: 'frog', closed: true, tabs: 2 });
     await assert.rejects(call('browser_snapshot', { profile: 'cleo' }), /closed.*profile_open/);
-    assert.match((await ui(`kulisa.invoke('tab:new', { profile: 'cleo' })`)).error, /Profile "cleo" is closed/); // the window: the same check
+    assert.match((await ui(`act('tab:new', { profile: 'cleo' })`)).error, /Profile "cleo" is closed/); // the window: the same check
 
     // Open again in the editor.
     await manageProfiles(ui);
@@ -143,5 +146,24 @@ module.exports = (test) => {
     const t = await call('browser_tab_new', { profile: 'hung', url: `${SITE}/app` });
     assert.match(t.text, /app/);
     await shell.ws.deleteProfile('hung');
+  });
+  test('closing the last tab of a profile leaves an empty tab, not a pane without a page (the window and the agent)', async (ctx) => {
+    const { shell, call, ui } = ctx;
+    await call('profile_create', { name: 'Solo' });
+    const solo = shell.profiles.get('solo');
+    for (const close of [
+      () => ui(`document.querySelector('.pane[data-profile="solo"] .tabs .tab .x').click()`),
+      () => call('browser_tab_close', { profile: 'solo', tab: solo.active })]) {
+      const [only] = solo.tabs;
+      await call('browser_navigate', { profile: 'solo', url: `${SITE}/app` });
+      await waitFor(() => ui(`!!document.querySelector('.pane[data-profile="solo"] .tabs .tab .x')`));
+      await close();
+      await waitFor(() => solo.tabs.length === 1 && solo.tabs[0] !== only && solo.active === solo.tabs[0].id);
+      assert.equal(solo.get().view.getVisible(), true, 'its page is shown');
+      await waitFor(async () => (await ui(`document.querySelectorAll('.pane[data-profile="solo"] .tabs .tab').length`)) === 1);
+    }
+    await ui(`act('profile:delete', { profile: 'solo' })`);
+    await waitFor(() => !shell.profiles.has('solo'));
+    ctx.asked.length = 0; // its question, answered
   });
 };

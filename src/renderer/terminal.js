@@ -37,8 +37,8 @@ function themeTerminals() { for (const { term: t } of terminals.values()) t.opti
 const termLinks = {
   activate(e, uri) {
     if (!(kulisa.platform === 'darwin' ? e.metaKey : e.ctrlKey) || !/^https?:\/\//i.test(uri)) return;
-    openMenu([{ heading: uri }, ...state.map((p) => ({ label: `Open in ${p.name}`, color: p.color,
-      run: () => kulisa.invoke('tab:new', { profile: p.id, url: uri }) })),
+    openMenu([{ heading: uri }, ...state.map((p) => ({ label: `Open in ${p.name}`, avatar: p.avatar,
+      run: () => act('tab:new', { profile: p.id, url: uri }) })),
     '-', { label: 'Open in your browser', run: () => window.open(uri) }], e);
   },
   hover(_e, uri) { termEl.title = uri; },
@@ -159,6 +159,6 @@ function terminalMenu() {
     '-',
     { label: 'Clear', run: () => term.clear() },
     '-',
-    { label: 'Change agent…', run: () => kulisa.invoke('agent:change') },
+    { label: 'Change agent…', run: () => act('agent:change') },
   ];
 }

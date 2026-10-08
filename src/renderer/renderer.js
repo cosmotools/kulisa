@@ -61,6 +61,8 @@ function render() {
     pane.el.dataset.profile = p.id;
     renderTabs(pane, p);
     pane.tabEl.querySelector('.pname').textContent = p.name;
+    pane.tabEl.querySelector('.pname').title = `${p.description ? `${p.description}\n\n` : ''}Double-click to rename`;
+    pane.tabEl.querySelector('.avatar').src = avatarSrc(p.avatar);
     const cap = pane.tabEl.querySelector('.caption');
     if (p.signinMode) { cap.textContent = '🔒 Sign-in page — agent paused'; pane.signinShown = true; }
     else if (pane.signinShown) { cap.textContent = ''; pane.signinShown = false; }
@@ -82,34 +84,45 @@ function render() {
   scheduleLayout();
 }
 
-// The tab strip; clicks are handled for the whole strip in createPane.
+// The tab strip; clicks are handled for the whole strip in createPane. Kept by tab id: a tab's element stays, and one
+// opened in a strip already shown grows in from the left, as Chrome's (window.css, .tab.opening).
 function renderTabs(pane, p) {
   const strip = pane.el.querySelector('.tabs .strip');
-  strip.replaceChildren(...p.tabs.map((t) => {
-    const el = tpl('tpl-tab');
-    el.dataset.tab = t.id;
+  const els = (pane.tabEls ??= new Map());
+  const shown = els.size > 0;
+  for (const id of els.keys()) if (!p.tabs.some((t) => t.id === id)) { els.get(id).remove(); els.delete(id); }
+  p.tabs.forEach((t, i) => {
+    let el = els.get(t.id);
+    if (!el) {
+      el = tpl('tpl-tab'); el.dataset.tab = t.id; els.set(t.id, el);
+      if (shown) {
+        el.classList.add('opening');
+        el.addEventListener('animationend', () => { el.classList.remove('opening'); activeInSight(strip); }, { once: true }); // grown: in sight again
+      }
+    }
+    if (strip.children[i] !== el) strip.insertBefore(el, strip.children[i] || null); // moved only when out of place
     el.classList.toggle('active', t.id === p.active);
     el.title = t.url;
     const img = el.querySelector('img');
-    if (t.favicon) { img.src = t.favicon; img.hidden = false; }
+    if (t.favicon) { if (img.getAttribute('src') !== t.favicon) img.src = t.favicon; img.hidden = false; } else img.hidden = true;
     el.querySelector('.title').textContent = (t.loading ? '⟳ ' : '') + (t.title || t.url || 'New tab');
-    return el;
-  }));
-  // The active tab in sight, as Chrome scrolls to it.
+  });
+  activeInSight(strip);
+}
+// The active tab in sight, as Chrome scrolls to it.
+function activeInSight(strip) {
   const a = strip.querySelector('.tab.active')?.getBoundingClientRect();
-  if (a) {
-    const { left: start, right: end } = strip.getBoundingClientRect();
-    if (a.left < start) strip.scrollLeft -= start - a.left;
-    else if (a.right > end) strip.scrollLeft += a.right - end;
-  }
+  if (!a) return;
+  const { left: start, right: end } = strip.getBoundingClientRect();
+  if (a.left < start) strip.scrollLeft -= start - a.left;
+  else if (a.right > end) strip.scrollLeft += a.right - end;
 }
 
-// A pane: its panel content (el) and its header in the grid (tabEl: color, name, the agent's caption).
+// A pane: its panel content (el) and its header in the grid (tabEl: picture, name, the agent's caption).
 function createPane(p) {
   const el = tpl('tpl-pane');
   const tabEl = tpl('tpl-ptab');
   tabEl.dataset.panel = panelId(p.key);
-  tabEl.style.setProperty('--color', p.color);
   const pane = { el, tabEl, profile: p, add: el.querySelector('.tabs .add') };
   panes.set(p.key, pane);
   const id = () => pane.profile.id;
@@ -118,16 +131,16 @@ function createPane(p) {
   el.querySelector('.tabs').onclick = (e) => {
     const t = e.target.closest('.tab')?.dataset.tab;
     if (e.target.closest('.add')) newTab(pane);
-    else if (t && e.target.closest('.x')) kulisa.invoke('tab:close', { profile: id(), tab: t });
-    else if (t) kulisa.invoke('tab:activate', { profile: id(), tab: t });
+    else if (t && e.target.closest('.x')) act('tab:close', { profile: id(), tab: t });
+    else if (t) act('tab:activate', { profile: id(), tab: t });
   };
-  el.querySelector('.back').onclick = () => kulisa.invoke('tab:back', { profile: id(), tab: tab() });
-  el.querySelector('.fwd').onclick = () => kulisa.invoke('tab:forward', { profile: id(), tab: tab() });
-  el.querySelector('.reload').onclick = () => kulisa.invoke('tab:reload', { profile: id(), tab: tab() });
+  el.querySelector('.back').onclick = () => act('tab:back', { profile: id(), tab: tab() });
+  el.querySelector('.fwd').onclick = () => act('tab:forward', { profile: id(), tab: tab() });
+  el.querySelector('.reload').onclick = () => act('tab:reload', { profile: id(), tab: tab() });
   const addr = el.querySelector('.addr');
   addr.onkeydown = (e) => {
     if (e.key !== 'Enter') return;
-    kulisa.invoke('tab:navigate', { profile: id(), tab: tab(), url: e.target.value });
+    act('tab:navigate', { profile: id(), tab: tab(), url: e.target.value });
     e.target.blur();
   };
   // As Chrome's: shown without https:// and www. (shortUrl); getting the focus shows the whole address, selected; a
@@ -141,16 +154,16 @@ function createPane(p) {
     if (clickedIn && addr.selectionStart === addr.selectionEnd) { e.preventDefault(); addr.select(); }
     clickedIn = false;
   };
-  el.querySelector('.zoom').onclick = () => kulisa.invoke('tab:zoom', { profile: id(), tab: tab(), dir: 0 });
+  el.querySelector('.zoom').onclick = () => act('tab:zoom', { profile: id(), tab: tab(), dir: 0 });
   el.querySelector('.pick').onclick = (e) => (e.currentTarget.classList.contains('active') ? kulisa.invoke('pick:cancel', { profile: id() }) : startPick(id()));
   // ⋮ at the end of the bar, as Chrome's: what a pane does less often.
   const more = el.querySelector('.more');
   more.onclick = () => openMenu([
-    { label: 'DevTools', keys: 'F12', run: () => kulisa.invoke('tab:devtools', { profile: id(), tab: tab() }) },
+    { label: 'DevTools', keys: 'F12', run: () => act('tab:devtools', { profile: id(), tab: tab() }) },
   ], more);
   const pname = tabEl.querySelector('.pname');
   pname.ondblclick = () => renameProfile(pane, pname);
-  tabEl.querySelector('.close').onclick = () => kulisa.invoke('profile:close', { profile: id() });
+  tabEl.querySelector('.close').onclick = () => act('profile:close', { profile: id() });
   new ResizeObserver(scheduleLayout).observe(el.querySelector('.content'));
   return pane;
 }
@@ -158,7 +171,7 @@ function createPane(p) {
 // An address as Chrome shows it in the omnibox when not editing: no http(s)://, no www., no lone trailing /.
 const shortUrl = (u) => (u === 'about:blank' ? '' : u).replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/^([^/?#]+)\/$/, '$1');
 
-const newTab = async (pane) => { pane.typeInto = await kulisa.invoke('tab:new', { profile: pane.profile.id }); render(); };
+const newTab = async (pane) => { pane.typeInto = await act('tab:new', { profile: pane.profile.id }); render(); };
 
 function renameProfile(pane, pname) {
   const input = Object.assign(document.createElement('input'), { value: pane.profile.name, size: 24, maxLength: 64 });
@@ -169,7 +182,7 @@ function renameProfile(pane, pname) {
     if (done) return; done = true;
     input.replaceWith(pname);
     const name = input.value.trim();
-    if (save && name && name !== pane.profile.name) kulisa.invoke('profile:rename', { profile: pane.profile.id, name });
+    if (save && name && name !== pane.profile.name) act('profile:rename', { profile: pane.profile.id, name });
   };
   input.addEventListener('keydown', (e) => { if (e.key === 'Enter') finish(true); if (e.key === 'Escape') finish(false); });
   input.addEventListener('blur', () => finish(false));
@@ -257,13 +270,14 @@ function applyPreset(name) {
 }
 window.__layoutPreset = applyPreset; // for tests
 
-// Another workspace is being shown, or another project (dir: where it is in the strip or the project tabs; 0: none,
-// the window is left with no project): the grid goes and is built again on the next state. A workspace slides as macOS desktops do, the one left out and the next one in
-// at once, as a view transition (window.css): Chromium takes a picture of the grid on screen, with pictures of its
-// pages (the main process sends them; kept for when it comes back), and slides it out while the next grid, built
-// meanwhile (reveal), slides in. Not with reduced motion: then the grid is hidden at once, so nothing half-built shows.
-// The title bar stays; the terminal panel too, showing the next workspace's terminal (workspaces.js).
-kulisa.on('grid:closing', ({ dir, ws, pics }) => {
+// Another workspace is being shown, or another project (dir: where it is in the projects' bar; 0: none, the window
+// is left with no project; level: 'workspace' or 'project'): the grid goes and is built again on the next state, as a
+// view transition (window.css): Chromium takes a picture of the grid on screen, with pictures of its pages (the main
+// process sends them; kept for when it comes back), and shows it while the next grid is built (reveal). Another
+// project's grid slides in as macOS desktops do, the one left out and the next one in at once; another workspace's
+// replaces it at once. Not with reduced motion: then the grid is hidden at once, so nothing half-built shows. The
+// title bar and the projects' bar stay; the terminal panel too, showing the next workspace's terminal (workspaces.js).
+kulisa.on('grid:closing', ({ dir, level, ws, pics }) => {
   for (const d of document.querySelectorAll('dialog[open]')) d.close();
   clearTimeout(saveTimer);
   if (pics) pictures.set(ws, pics);
@@ -283,7 +297,7 @@ kulisa.on('grid:closing', ({ dir, ws, pics }) => {
   const next = new Promise((r) => (built = r));
   // While the next grid is built (the callback), Chromium shows the picture of this one and draws no frames: the
   // building must not wait for one (reveal).
-  const transition = document.startViewTransition({ update: () => { takeDown(); cleared(); return next; }, types: [dir > 0 ? 'next' : 'previous'] });
+  const transition = document.startViewTransition({ update: () => { takeDown(); cleared(); return next; }, types: [level, dir > 0 ? 'next' : 'previous'] });
   sliding = { transition, built };
 });
 
@@ -296,7 +310,7 @@ kulisa.on('workspaces:closed', (keys) => {
 
 async function restoreGrid() {
   for (const p of state) createPane(p);
-  const saved = await kulisa.invoke('layout:load');
+  const saved = await act('layout:load');
   // A saved grid may name profiles deleted since; dockview needs a component for every panel in it.
   const known = (id) => id === 'terminal' || panes.has(id.slice('profile:'.length));
   const ok = saved && Object.keys(saved.panels || {}).every(known);
@@ -364,10 +378,13 @@ const root = document.documentElement;
 const showTheme = () => { for (const b of document.querySelectorAll('#menu .themerow [data-theme]')) b.ariaPressed = String(b.dataset.theme === root.dataset.theme); };
 kulisa.on('theme', (theme) => { root.dataset.theme = theme; themeTerminals(); showTheme(); });
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', themeTerminals);
+// Where the projects' bar is (app.js: top or bottom), chosen in ☰ as the theme; the grid gets the room left.
+kulisa.on('bar', (bar) => { root.dataset.bar = bar; scheduleLayout(); });
 const windowMenu = document.getElementById('windowMenu');
-// ☰, as Chrome's ⋮: the zoom row (stays open while you click − and +), the theme row (open too), then the ready-made arrangements, each a
-// picture of itself (seen at a glance, as Windows' snap layouts), its words in the tooltip; Agents… (agents.js); Exit,
-// as Chrome's, where the OS has no menu bar with Quit (not macOS: Cmd+Q there). Each row with its icon at the start.
+// ☰, as Chrome's ⋮: the zoom row (stays open while you click − and +), the theme row and the projects' bar's (open
+// too), then the ready-made arrangements, each a picture of itself (seen at a glance, as Windows' snap layouts), its
+// words in the tooltip; Agents… (agents.js); Exit, as Chrome's, where the OS has no menu bar with Quit (not macOS:
+// Cmd+Q there). Each row with its icon at the start.
 windowMenu.onclick = () => {
   const zoom = tpl('tpl-menuzoom');
   zoom.querySelector('output').textContent = `${Math.round(uiZoom * 100)}%`;
@@ -376,6 +393,14 @@ windowMenu.onclick = () => {
   const themes = tpl('tpl-menutheme');
   themes.onclick = (e) => { const t = e.target.closest('[data-theme]')?.dataset.theme; if (t) kulisa.invoke('theme:set', t); };
   for (const b of themes.querySelectorAll('[data-theme]')) b.ariaPressed = String(b.dataset.theme === root.dataset.theme);
+  const bar = tpl('tpl-menubar');
+  bar.onclick = (e) => {
+    const b = e.target.closest('[data-bar]');
+    if (!b) return;
+    kulisa.invoke('bar:set', b.dataset.bar);
+    for (const o of bar.querySelectorAll('[data-bar]')) o.ariaPressed = String(o === b);
+  };
+  for (const b of bar.querySelectorAll('[data-bar]')) b.ariaPressed = String(b.dataset.bar === root.dataset.bar);
   const arrange = tpl('tpl-menuarrange');
   arrange.onclick = (e) => {
     const preset = e.target.closest('[data-preset]')?.dataset.preset;
@@ -383,7 +408,7 @@ windowMenu.onclick = () => {
     document.getElementById('menu').hidePopover();
     applyPreset(preset);
   };
-  openMenu([{ element: zoom }, { element: themes }, '-', { heading: 'Arrange panels', icon: 'i-arrange' }, { element: arrange }, '-',
+  openMenu([{ element: zoom }, { element: themes }, { element: bar }, '-', { heading: 'Arrange panels', icon: 'i-arrange' }, { element: arrange }, '-',
     { label: 'Agents…', icon: 'i-agent', run: async () => (await import('./agents.js')).showAgents() },
     ...(kulisa.platform === 'darwin' ? [] : ['-', { label: 'Exit', icon: 'i-exit', run: () => kulisa.invoke('app:quit') }])], windowMenu);
 };
@@ -404,7 +429,8 @@ function paneMenu(pane) {
   return [
     { label: 'New tab', run: () => newTab(pane) },
     { label: 'Rename', keys: 'Double-click', run: () => renameProfile(pane, pane.tabEl.querySelector('.pname')) },
-    { label: 'Close profile', run: () => kulisa.invoke('profile:close', { profile: p.id }) },
+    { label: 'About this profile…', run: () => profileEditor.about(p.key) },
+    { label: 'Close profile', run: () => act('profile:close', { profile: p.id }) },
     '-',
     { label: 'Delete profile…', run: () => deleteProfile(p) },
   ];
@@ -412,12 +438,12 @@ function paneMenu(pane) {
 function tabMenu(profile, tab) {
   const p = state.find((x) => x.id === profile), t = p.tabs.find((x) => x.id === tab);
   return [
-    { label: 'Reload', run: () => kulisa.invoke('tab:reload', { profile, tab }) },
-    { label: 'Duplicate', run: () => kulisa.invoke('tab:new', { profile, url: t.url }) },
+    { label: 'Reload', run: () => act('tab:reload', { profile, tab }) },
+    { label: 'Duplicate', run: () => act('tab:new', { profile, url: t.url }) },
     '-',
-    { label: 'Close tab', run: () => kulisa.invoke('tab:close', { profile, tab }) },
+    { label: 'Close tab', run: () => act('tab:close', { profile, tab }) },
     { label: 'Close other tabs', enabled: p.tabs.length > 1,
-      run: () => { for (const x of p.tabs) if (x.id !== tab) kulisa.invoke('tab:close', { profile, tab: x.id }); } },
+      run: () => { for (const x of p.tabs) if (x.id !== tab) act('tab:close', { profile, tab: x.id }); } },
   ];
 }
 

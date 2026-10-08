@@ -1,5 +1,5 @@
 /* The window: where the components (components.css) go and how its own parts are laid out: the title bar, the grid
-   and the profiles' panes, the workspaces' strip, the Welcome screen, the contents of the dialogs and menus. */
+   and the profiles' panes, the projects' bar, the Welcome screen, the contents of the dialogs and menus. */
 html { height: 100%; }
 /* The project's color as a round glow from the middle of the window: seen in the title bar and the gaps between the
    islands, fading towards the edges. */
@@ -19,19 +19,7 @@ body {
   -webkit-app-region: drag;
   & button { -webkit-app-region: no-drag; &:not(.icon) { padding: 0 14px; } }
   /* The app icon with the curtain in the project's color: each project its own curtain. */
-  .logo { width: 26px; height: 26px; flex: none;
-    .lit { stop-color: var(--project); }
-    .fold { stop-color: color-mix(in srgb, var(--project) 55%, black); } }
-  /* The open projects' tabs (.striptab.colored: the shown one on a plate of its color, as the window's glow). Many
-     tabs shrink, then the row scrolls; an agent's state only when it is known. */
-  #projectTabs { display: flex; gap: 4px; min-width: 0; overflow-x: auto; scrollbar-width: none;
-    .striptab { min-width: 72px; -webkit-app-region: no-drag; }
-    /* An agent's state in the project's color: told by its icon alone. */
-    .state { color: var(--color); }
-    /* A tab being dragged; where a dropped one would go (projects.js). */
-    .dragging { opacity: .5; }
-    .drop-before { box-shadow: inset 2px 0 var(--accent); }
-    .drop-after { box-shadow: inset -2px 0 var(--accent); } }
+  .logo { width: 26px; height: 26px; color: var(--project); }
   /* At the right end: the Kulisa zoom, only when not 100% (as Chrome's magnifier), and ☰, the window's menu, as far
      from the end of the title bar's area (the OS window buttons, or the window's edge on macOS) as the logo from its
      start. */
@@ -44,7 +32,11 @@ body {
    Islands look. dockview paints its whole area in the islands' color; only the islands keep it. A profile's page is
    a native view over .content, rounded in profiles.js (PAGE_RADIUS). */
 #dock {
-  flex: 1; min-height: 0; padding: 0 var(--gap) var(--gap); transition: opacity .15s;
+  flex: 1; min-height: 0; padding: var(--gap); transition: opacity .15s;
+  /* The workspace on one dark box from edge to edge of the window, its panels' gaps too, a step from its panels so
+     they stand apart: the projects' bar's islands, of its color, merge into it wherever they meet it, also over a gap
+     between two panels (on the window's glow a curve hung there, 2026-10-08). */
+  background: var(--well);
   .loading & { opacity: 0; transition: none; } /* until the grid is laid out (renderer.js, reveal) */
   .dockview-theme-abyss-spaced {
     color-scheme: inherit; /* the theme's own is dark; Kulisa's is the root's (tokens.css: light-dark()) */
@@ -65,15 +57,20 @@ body {
   view-transition-name: grid;
   :active-view-transition & { transition: none; } /* the next grid comes in sliding, not fading */
 }
-/* Switching workspaces (renderer.js, grid:closing): the grid on screen slides out and the next one in at once, as
-   macOS desktops do; types next and previous say which way. Pictures, so the compositor moves them. */
+/* Switching (renderer.js, grid:closing). Another project: the grid slides towards its tab, as macOS desktops do
+   (types next and previous say which way). Another workspace of the same project: the grid is replaced at once, as
+   Chrome switches tabs (no fade: a flash over the whole grid). Pictures, so the compositor moves them. */
 ::view-transition-old(grid), ::view-transition-new(grid) { animation: .3s cubic-bezier(.2, .8, .2, 1) both; mix-blend-mode: normal; }
-:active-view-transition-type(next) {
+:active-view-transition-type(project):active-view-transition-type(next) {
   &::view-transition-old(grid) { animation-name: grid-to-left; }
   &::view-transition-new(grid) { animation-name: grid-from-right; } }
-:active-view-transition-type(previous) {
+:active-view-transition-type(project):active-view-transition-type(previous) {
   &::view-transition-old(grid) { animation-name: grid-to-right; }
   &::view-transition-new(grid) { animation-name: grid-from-left; } }
+:active-view-transition-type(workspace) {
+  /* The groups too: their own animation (Chromium's, .25 s) held the transition's end, and with it the pages (the
+     native views, shown when it ends), while the terminal was already in its new place. */
+  &::view-transition-group(*), &::view-transition-old(*), &::view-transition-new(*) { animation: none; } }
 @keyframes grid-to-left { to { translate: -100% 0; } }
 @keyframes grid-from-right { from { translate: 100% 0; } }
 @keyframes grid-to-right { to { translate: 100% 0; } }
@@ -104,11 +101,15 @@ body {
   /* a short line between two tabs, as Chrome's, where neither is lit */
   &:not(.active, :hover) + &:not(.active, :hover)::before { content: ''; position: absolute; inset-inline-start: 0; inset-block: 9px;
     border-inline-start: 1px solid var(--line); }
+  /* opened: it grows in from the left, as Chrome's (renderer.js, renderTabs) */
+  &.opening { overflow: hidden; animation: tab-open .2s cubic-bezier(.2, .8, .2, 1);
+    @media (prefers-reduced-motion: reduce) { animation: none; } }
   img { width: 16px; height: 16px; flex: none; }
   .globe { stroke-width: 1.2; }
   img:not([hidden]) + .globe { display: none; }
   .title { flex: 1; min-width: 0; }
 }
+@keyframes tab-open { from { width: 0; min-width: 0; padding-inline: 0; } }
 @container (max-width: 80px) {
   .tab:not(.active) :is(.title, .x), .tab.active .title { display: none; }
   .tab:not(.active) :is(img, .globe) { margin-inline: auto; }
@@ -120,7 +121,7 @@ body {
   .pick.active { background: var(--accent); color: var(--on-accent); }
   /* the omnibox: a pill a step darker than the toolbar; focused, an accent ring */
   .addr { flex: 1; min-width: 0; margin-inline: 4px; padding: 0 14px; border: none; border-radius: calc(var(--control) / 2);
-    background: var(--island); color: var(--text);
+    background: var(--island); color: var(--text); transition: background-color .15s; /* a hover fades in, as Chrome's */
     &:hover { background: color-mix(in srgb, var(--island) 80%, var(--text)); }
     &:focus { outline: 2px solid var(--accent); outline-offset: -2px; background: var(--island); color: var(--text-strong); } }
 }
@@ -130,14 +131,60 @@ body {
   .snapshot { position: absolute; inset: 0; width: 100%; height: 100%; }
 }
 
-#term { height: 100%; padding: 4px 4px 4px 8px; }
-.xterm-host { height: 100%; }
+#term { height: 100%; padding: 2px 4px 2px 8px; }
+/* The rows that fit, in the middle: what is left under a whole row (the panel's height is any) shared above and
+   below, so no edge gets a row's height of it and a pixel more or less never costs a row (2026-10-08). */
+.xterm-host { height: 100%; display: flex; flex-direction: column; justify-content: center; &[hidden] { display: none; } }
 
-/* The workspaces of the project, under the grid, as a browser's tab strip (workspaces.js) */
-#workspaces { display: flex; align-items: center; gap: 4px; flex: none; padding: 0 var(--gap) var(--gap);
+/* The projects' bar (projects.js): each open project an island of its own, as an app in a dock: its label, then its
+   workspaces' tabs; then the projects' menu, apart on the window. In the middle, under the grid (where the hand goes
+   for the terminal anyway) or over it, as chosen in ☰ (data-bar, app.js). Each island as a tab: square where it meets
+   the grid and merging into it with curves (::before, ::after), rounded towards the window's edge. Every island keeps
+   its width whichever project is shown, so showing one moves none. Many shrink, then the bar scrolls. */
+#projectbar {
+  --r: var(--island-radius);
+  --edge: 100%; /* the islands' side away from the grid: the curves' centers */
+  display: flex; align-items: center; flex: none; align-self: center; max-width: calc(100% - 2 * var(--gap));
+  margin-block-end: var(--gap);
   .noproject & { display: none; }
-  #wslist { display: flex; gap: 4px; min-width: 0; overflow-x: auto; }
+  [data-bar="top"] & { --edge: 0%; margin-block-end: 0; }
+  #projectTabs { display: flex; gap: calc(2 * var(--r) + var(--gap)); min-width: 0;
+    padding-inline: var(--r); /* room for the outer islands' curves */
+    overflow-x: auto; scrollbar-width: none; }
+  /* As far from the last island's curve as the islands' curves from each other */
+  #openProjects { margin-inline-start: var(--gap); }
+  /* A project's island. Its tabs in the middle of the dark: no room on the grid's side (the grid's own gap is
+     there), as much on the other. */
+  .pisland { display: flex; align-items: center; gap: 2px; flex: 0 1 auto; min-width: 0; position: relative;
+    padding: 0 4px var(--gap); border-radius: 0 0 var(--r) var(--r); background: var(--well);
+    &::before, &::after { content: ""; position: absolute; inset-block-start: 0; width: var(--r); aspect-ratio: 1;
+      background: radial-gradient(circle at var(--x) var(--edge), transparent var(--r), var(--well) 0); }
+    &::before { --x: 0%; inset-inline-end: 100%; }
+    &::after { --x: 100%; inset-inline-start: 100%; }
+    [data-bar="top"] & { padding-block: var(--gap) 0; border-radius: var(--r) var(--r) 0 0;
+      &::before, &::after { inset-block: auto 0; } }
+    /* Another project's: the room of the shown one's + kept (the gap and the button); the workspace it comes back
+       to a step brighter. */
+    &:not(.active) { padding-inline-end: calc(4px + 2px + var(--control));
+      .selected { color: var(--text-dim); } }
+    &.active > .plabel { color: var(--text-strong); } }
+  /* The label is no tab and no button: the project's icon (the app's curtain, in its color) and its name. Its
+     workspaces are what is clicked; closing the project is main's ×, its right-click menu and the middle button;
+     dragging it moves the island. */
+  .plabel { display: flex; align-items: center; gap: 8px; padding-inline: 8px; color: var(--text-muted);
+    font-weight: 600; white-space: nowrap;
+    svg { width: 20px; height: 20px; color: var(--color); } }
+  /* An island being dragged; where a dropped one would go (projects.js). */
+  .dragging { opacity: .5; }
+  .drop-before { box-shadow: inset 2px 0 var(--accent); }
+  .drop-after { box-shadow: inset -2px 0 var(--accent); }
 }
+[data-bar="top"] #dock { order: 1; }
+/* The shown project's workspaces (workspaces.js): in its island, their tabs and + laid out as the other islands' tabs;
+   out of one (no project shown) not shown. */
+#workspaces { display: contents; #projectbar > & { display: none; } }
+#wslist { display: contents; }
+#wsadd.off { visibility: hidden; } /* no git or no first commit yet: no forks */
 
 /* The Welcome screen (no project open): what to open, on one island in the grid's place (text on the project's glow
    reads badly) */
@@ -186,20 +233,27 @@ body > #term { display: none; }
     font: 12px "JetBrains Mono", monospace; white-space: pre-wrap; user-select: text; }
 }
 /* The profile editor's rows (profile-editor.js) */
-.prow { display: flex; gap: var(--inset); align-items: center; padding: 10px 0; border-bottom: 1px solid var(--island-hi);
+.prow { display: flex; gap: var(--inset); align-items: start; padding: 10px 0; border-bottom: 1px solid var(--island-hi);
+  .who { flex: 1; min-width: 0; display: grid; gap: 6px; }
+  .line { display: flex; gap: var(--inset); align-items: center; }
   .name { flex: 1; }
   .pid { color: var(--text-muted); width: 120px; }
   .ntabs { color: var(--text-muted); min-width: 48px; text-align: right; white-space: nowrap; }
 }
+/* A profile's picture in the editor (a row's, the new one's) and the pictures to choose from, its own lit */
+#profiles { .pic { --avatar: 22px; }
+  .pics { display: flex; flex-wrap: wrap; gap: 2px; &[hidden] { display: none; }
+    [aria-pressed="true"] { background: var(--island-hi); box-shadow: inset 0 0 0 2px var(--accent); } } }
+#padd h3 { margin: calc(var(--gap) * 2) 0 0; font-size: 1em; color: var(--text-dim); }
 
 /* The menus' own rows (renderer.js) */
 #menu {
-  :is(.zoomrow, .themerow, .arrange) button { border: none; background: none; &:is(:hover, :focus-visible):not(:disabled) { background: var(--island-hi); outline: none; } }
-  /* Theme  Dark  Light  System: the chosen one lit */
+  :is(.zoomrow, .themerow, .barrow, .arrange) button { border: none; background: none; &:is(:hover, :focus-visible):not(:disabled) { background: var(--island-hi); outline: none; } }
   /* The rows of their own as the menu's .item: as high, the icon at the start */
-  :is(.zoomrow, .themerow) { min-height: var(--row); padding-inline: var(--inset) 4px;
+  :is(.zoomrow, .themerow, .barrow) { min-height: var(--row); padding-inline: var(--inset) 4px;
     > svg { margin-inline-end: calc(var(--inset) - 2px); } }
-  .themerow { display: flex; align-items: center; gap: 2px;
+  /* Theme  Dark  Light  System, Projects bar  Top  Bottom: the chosen one lit */
+  :is(.themerow, .barrow) { display: flex; align-items: center; gap: 2px;
     span { flex: 1; margin-inline-end: 12px; }
     button { padding: 0 8px; color: var(--text-dim); &[aria-pressed="true"] { background: var(--island-hi); color: var(--text-strong); } } }
   /* Zoom  −  100%  +  as in Chrome's menu */

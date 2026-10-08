@@ -1,8 +1,9 @@
 // Kulisa's menus, drawn in HTML as Chrome draws its own: a popover (#menu in index.html) with rows that may hold
-// buttons (the zoom row; a row's ×), colored dots and a second line. Esc, a click outside, a chosen item, the same
+// buttons (the zoom row; a row's ×), colored dots or profiles' pictures and a second line. Esc, a click outside, a chosen item, the same
 // button again or leaving the window closes it. Up and down move between the rows' buttons; Enter or Space chooses.
-//   openMenu(items, at)   items: { label, sub, keys, icon, color, enabled, run, remove } (no run: shown only), '-',
-//                         { heading, icon }, { element } (a row of its own). icon: the sprite's id, at the row's start. remove: { title, run }, a × at the row's end,
+//   openMenu(items, at)   items: { label, sub, keys, icon, color, avatar, enabled, run, remove } (no run: shown only),
+//                         '-', { heading, icon }, { element } (a row of its own). icon: the sprite's id, at the row's
+//                         start; color: a project's dot; avatar: a profile's picture. remove: { title, run }, a × at the row's end,
 //                         shown on hover (as JetBrains' recent projects). at: the button to open it under, or the
 //                         mouse event to open it at. A button with data-menu-end (⋮, ☰: at the end of a bar)
 //                         gets the menu under it toward the start, its end edge at the button's, as Chrome's ⋮.
@@ -66,6 +67,7 @@ const openMenu = (() => {
       b.querySelector('kbd').textContent = it.keys || '';
       if (it.icon) icon(it.icon, b.querySelector('.ico'));
       if (it.color) { b.querySelector('.dot').hidden = false; b.style.setProperty('--color', it.color); }
+      if (it.avatar) Object.assign(b.querySelector('.avatar'), { hidden: false, src: avatarSrc(it.avatar) });
       if (!it.remove) return b;
       const r = tpl('tpl-menuremovable');
       r.dataset.i = i;

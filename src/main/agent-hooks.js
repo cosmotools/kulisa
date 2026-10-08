@@ -6,14 +6,16 @@
 
 // SessionStart: the profiles as they are now, so the agent knows them before its first tool call. Also notes the
 // session, so that opening the project again resumes it (workspaces.js).
+// Each profile with who it is (its description, the human's words) or that it is not said: the agent then asks.
+const who = ({ id, name, description }) => `- ${id} ("${name}"): ${description ? description.replace(/\s+/g, ' ') : 'who it is is not said'}`;
 function sessionStart(ws, input) {
   if (input?.session_id) ws.saveAgent({ sessionId: input.session_id, transcript: input.transcript_path });
   const lines = [...ws.profiles.values()].map((p) => {
     const tabs = p.tabs.filter((t) => !t.wc.isDestroyed()).map((t) =>
       `    - tab ${t.id}${t.id === p.active ? ' (active)' : ''}: "${t.wc.getTitle()}" ${t.wc.getURL()}`);
-    return [`- ${p.id} ("${p.name}")${p.signinMode ? ': the human is signing in right now' : ''}`, ...tabs].join('\n');
+    return [`${who(p)}${p.signinMode ? '; the human is signing in right now' : ''}`, ...tabs].join('\n');
   });
-  const closed = [...ws.closed.values()].map(({ cfg }) => `- ${cfg.id} ("${cfg.name}")`);
+  const closed = [...ws.closed.values()].map(({ cfg }) => who(cfg));
   const context = [
     lines.length ? `Kulisa profiles open now (the panes above your terminal; call browser_profiles for the live state):\n${lines.join('\n')}`
       : closed.length ? 'No Kulisa profile is open.' : 'Kulisa has no profiles yet. The human creates them in Profiles ▾ → Manage Profiles…, or use profile_create when a task needs one.',

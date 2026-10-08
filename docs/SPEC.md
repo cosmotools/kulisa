@@ -40,7 +40,7 @@ One desktop app for the human's projects (each a tab, as in a browser), where th
 ### Features (all wanted, built in phases)
 
 1. **Profiles instead of tabs**: persistent identities that live as long as the project.
-2. **See what the agent does**: where the agent acts, in the profile's color, and a caption of the current action over the pane. The agent can also point back: outline elements for the human.
+2. **See what the agent does**: where the agent acts, marked in the page, and a caption of the current action over the pane. The agent can also point back: outline elements for the human.
 3. **Point and tell**: the human picks an element like DevTools' inspector and says what is wrong. The agent gets a reference it can act on (profile, tab, locator) and looks at the element on the live page with its tools: snapshot, screenshot, the tab's recent console errors and failed requests. Nothing is saved into the project. Picks from several panes go into one message: "sent here, did not appear there".
 4. **Timeline**: synchronized recording of DOM (rrweb-like), network, console and agent actions for all profiles. Scrub back to the moment a bug happened, pick an element in the past, tell the agent to fix it.
 5. **Run to test**: a multi-profile run the agent did by hand is saved as a Playwright test.

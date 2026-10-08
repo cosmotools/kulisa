@@ -27,12 +27,16 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const menuRows = async (ui) => {
   await waitFor(() => ui(`document.getElementById('menu').matches(':popover-open')`));
   return ui(`[...document.getElementById('menu').children].map((r) => r.matches('hr') ? '-' : r.matches('.heading') ? '# ' + r.textContent
-    : r.matches('.zoomrow') ? 'zoom' : r.matches('.themerow') ? 'theme' : r.matches('.arrange') ? 'arrange: ' + [...r.querySelectorAll('span')].map((s) => s.textContent).join(', ')
+    : r.matches('.zoomrow') ? 'zoom' : r.matches('.themerow') ? 'theme' : r.matches('.barrow') ? 'bar' : r.matches('.arrange') ? 'arrange: ' + [...r.querySelectorAll('span')].map((s) => s.textContent).join(', ')
     : r.querySelector('.label').textContent + (r.disabled ? ' (off)' : ''))`);
 };
-// The project tabs in the title bar: their names, the shown one with ' *'.
-const projectTabs = (ui) => ui(`[...document.querySelectorAll('#projectTabs .projecttab')].map((t) => t.querySelector('.name').textContent + (t.classList.contains('active') ? ' *' : ''))`);
+// The open projects in the projects' bar (their islands): their names, the shown one with ' *'.
+const projectTabs = (ui) => ui(`[...document.querySelectorAll('#projectTabs .pisland')].map((t) => t.querySelector('.plabel .name').textContent + (t.classList.contains('active') ? ' *' : ''))`);
 const projectTab = (id) => `document.querySelector('#projectTabs [data-project="${id}"]')`;
+// A project shown again as the human does it: a click on the workspace it shows, in its island.
+const showProject = (ui, id) => ui(`${projectTab(id)}.querySelector('.wstab.selected').click()`);
+// A project closed as the human does it: the middle button on its label (its right-click menu has Close Project too).
+const closeProject = (ui, id) => ui(`${projectTab(id)}.querySelector('.plabel').dispatchEvent(new MouseEvent('auxclick', { button: 1, bubbles: true }))`);
 const choose = (ui, label) => ui(`[...document.querySelectorAll('#menu .item')].find((b) => b.querySelector('.label').textContent === ${JSON.stringify(label)}).click()`);
 // The profile editor: Profiles ▾, then Manage Profiles….
 const manageProfiles = async (ui) => {
@@ -75,5 +79,5 @@ const ctrl = (wc, keyCode) => {
 };
 const near = (a, b) => Math.abs(a - b) < 1e-6;
 
-module.exports = { assert, root, userData, project, pfile, savedTabs, savedWindows, panel, SITE, sleep, waitFor, who, menuRows, choose, projectTabs, projectTab, manageProfiles, menuOpen, rightClick,
+module.exports = { assert, root, userData, project, pfile, savedTabs, savedWindows, panel, SITE, sleep, waitFor, who, menuRows, choose, projectTabs, projectTab, showProject, closeProject, manageProfiles, menuOpen, rightClick,
   box, pageBox, viewOn, dock, ctrl, near };

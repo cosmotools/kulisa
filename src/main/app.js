@@ -78,8 +78,11 @@ function start(options = {}) {
   const at = (e) => shell.windowOf(e.sender);
   const mimic = options.mimicChrome !== false;
   const appDevTools = options.appDevTools ?? !app.isPackaged;
-  // A workspace's profiles changed (now: right away), or its agent's state (workspaces.js): its window shows it.
-  shell.wsChanged = (ws, now, agentState) => ws.project.window?.changed(ws, now, agentState);
+  let quitting = false; // from before-quit on (below): closing a window asks nothing, tabs closing save nothing
+  // A workspace's profiles changed (now: right away), or its agent's state (workspaces.js): its window shows it. Not
+  // once quitting: the tabs are saved then, and each one closing as Kulisa quits saved its workspace's tabs again,
+  // fewer each time, at last none (one in the background at once: 2026-10-08, the author's tabs all about:blank).
+  shell.wsChanged = (ws, now, agentState) => quitting || ws.project.window?.changed(ws, now, agentState);
   // A question asked in a window (window.js), the first one when none is named: askWhich gives the button clicked
   // ('ok', 'other') or null; ask whether it was ok. Through shell: the tests answer it.
   shell.askWhich = (q, w = first()) => w.ask(q);
@@ -87,7 +90,6 @@ function start(options = {}) {
   shell.saveWindows = () => store.saveWindows(shell.windows.map((w) => w.saved()));
   // Every window's tabs and menus: which projects there are and where they are open.
   const sendProjects = () => { for (const w of shell.windows) w.sendProjects(); };
-  let quitting = false; // from before-quit on (below): closing a window asks nothing
 
   // The Kulisa zoom: the whole UI of every window (window.js), and the profiles' pages, which follow it (profiles.js).
   // The panes' boxes come in CSS pixels (window.js, layout).
@@ -109,6 +111,13 @@ function start(options = {}) {
     for (const w of shell.windows) w.setTheme(shell.theme, shell.shade());
   };
   nativeTheme.on('updated', () => { if (shell.theme === 'system') shell.setTheme(); });
+  // Where the bar of the open projects and their workspaces is: 'bottom' (the default: by the terminal, where the hand
+  // goes anyway) or 'top' (under the title bar, as browsers' tabs), chosen in ☰.
+  shell.bar = store.settings().bar || 'bottom';
+  shell.setBar = (bar) => {
+    shell.bar = bar; store.saveSettings({ ...store.settings(), bar });
+    for (const w of shell.windows) w.send('bar', bar);
+  };
   const allWorkspaces = () => [...shell.open.values()].flatMap((p) => [...p.workspaces.values()]);
   const allProfiles = () => allWorkspaces().flatMap((ws) => [...ws.profiles.values()]);
 
@@ -334,15 +343,18 @@ function start(options = {}) {
   ipcMain.handle('project:drag-out', (e, { id, terminals }) => serial(() => dragOut(shell.open.get(id), terminals)));
   ipcMain.handle('app:quit', (e) => serial(() => quit(at(e))));
   ipcMain.handle('project:remove', (e, { id }) => serial(() => removeProject(id, at(e))));
-  ipcMain.handle('ws:show', (e, key) => serial(() => { const ws = shell.workspace(key); return ws && ws.project.window.showWorkspace(ws); }));
+  // A workspace of another project too (the bar shows every open project's): it becomes that project's, then the
+  // project is shown.
+  ipcMain.handle('ws:show', (e, key) => serial(async () => {
+    const ws = shell.workspace(key);
+    if (!ws) return;
+    const win = ws.project.window;
+    await win.showWorkspace(ws);
+    if (win.current !== ws.project) await win.show(ws.project);
+  }));
   ipcMain.handle('ws:new', (e, { name, agent }) => serial(() => createWorkspace(at(e)?.current, name, agent)));
   ipcMain.handle('ws:close', (e, key) => serial(() => { const ws = shell.workspace(key); return ws ? closeWorkspace(ws) : { error: `no workspace ${key}` }; }));
-  // git init in the shown project's folder, only on the human's click, after they confirm.
-  ipcMain.handle('ws:git-init', async (e) => {
-    const project = at(e)?.current;
-    if (await project?.initGit() && project === project.window?.current) project.window.sendWorkspaces();
-  });
-  // The window asks again when the pointer comes to the strip: the human may have made the first commit meanwhile.
+  // The window asks again when the pointer comes to the shown project's workspaces: the human may have made the first commit meanwhile.
   ipcMain.handle('workspaces:get', async (e) => { const w = at(e); await w?.current?.checkGit(); w?.sendWorkspaces(); });
 
   const ready = app.whenReady().then(async () => {
@@ -399,7 +411,6 @@ function start(options = {}) {
   });
   shell.chooseAgent.cancel = (ws) => { choosing.get(ws.key)?.(null); choosing.delete(ws.key); };
   ipcMain.on('agent:chosen', (_e, { ws, id }) => { const r = choosing.get(ws); choosing.delete(ws); r?.(id ? shell.agentFor(id) : null); });
-  ipcMain.handle('agent:change', (e) => at(e)?.ws?.changeAgent());
   // The agents to choose from; with check, whether each is installed (for the workspace's folder: its environment);
   // with details (the Agents window), also where it is and its version.
   ipcMain.handle('agents:list', async (e, { check, details } = {}) => {
@@ -424,18 +435,23 @@ function start(options = {}) {
 
   // A window's handles on the profiles of its shown workspace (the editor, the panes): each only translates to the
   // workspace's own (workspaces.js), the same the agent's tools use (mcp-server.js). A refusal answers { error }.
-  const noWs = { error: 'no workspace is open' };
-  const wsOf = (e) => at(e)?.ws;
-  const onProfile = (fn) => (e, { profile, ...args }) => { const r = wsOf(e)?.find(profile) || noWs; return r.error ? r : fn(r.profile, args); };
-  const onTab = (fn) => (e, { profile, tab, ...args }) => { const r = wsOf(e)?.findTab(profile, tab) || noWs; return r.error ? r : fn(r.profile, r.tab, args); };
-  ipcMain.handle('profile:new', (e, { name }) => wsOf(e)?.createProfile(name) || noWs);
-  ipcMain.handle('profile:close', (e, { profile }) => wsOf(e)?.closeProfile(profile) || noWs);
-  ipcMain.handle('profile:open', (e, { profile }) => wsOf(e)?.openProfile(profile) || noWs);
-  ipcMain.handle('profile:rename', (e, { profile, name }) => wsOf(e)?.renameProfile(profile, name) || noWs);
-  ipcMain.handle('profile:delete', (e, { profile }) => wsOf(e)?.deleteProfile(profile, 'human') || noWs);
+  // Each names its workspace (renderer, workspaces.js: act): one sent just as the human switches workspaces or
+  // projects is refused, not done in the workspace shown by then.
+  const noWs = { error: 'that workspace is not on screen' };
+  const wsOf = (e, key) => { const ws = at(e)?.ws; return ws && ws.key === key ? ws : null; };
+  const onProfile = (fn) => (e, { ws, profile, ...args }) => { const r = wsOf(e, ws)?.find(profile) || noWs; return r.error ? r : fn(r.profile, args); };
+  const onTab = (fn) => (e, { ws, profile, tab, ...args }) => { const r = wsOf(e, ws)?.findTab(profile, tab) || noWs; return r.error ? r : fn(r.profile, r.tab, args); };
+  ipcMain.handle('profile:new', (e, { ws, name, description, avatar }) => wsOf(e, ws)?.createProfile(name, description, avatar) || noWs);
+  ipcMain.handle('profile:close', (e, { ws, profile }) => wsOf(e, ws)?.closeProfile(profile) || noWs);
+  ipcMain.handle('profile:open', (e, { ws, profile }) => wsOf(e, ws)?.openProfile(profile) || noWs);
+  ipcMain.handle('profile:rename', (e, { ws, profile, name }) => wsOf(e, ws)?.renameProfile(profile, name) || noWs);
+  ipcMain.handle('profile:describe', (e, { ws, profile, description }) => wsOf(e, ws)?.describeProfile(profile, description) || noWs);
+  ipcMain.handle('profile:avatar', (e, { ws, profile, avatar }) => wsOf(e, ws)?.setProfileAvatar(profile, avatar) || noWs);
+  ipcMain.handle('profile:delete', (e, { ws, profile }) => wsOf(e, ws)?.deleteProfile(profile, 'human') || noWs);
   ipcMain.handle('views:hidden', (e, hidden, opts) => at(e)?.hideViews(hidden, opts));
   ipcMain.on('ask:answer', (e, { id, answer }) => at(e)?.answer(id, answer));
-  ipcMain.handle('layout:load', (e) => wsOf(e)?.store.layout());
+  ipcMain.handle('layout:load', (e, { ws }) => wsOf(e, ws)?.store.layout());
+  ipcMain.handle('agent:change', (e, { ws }) => { const w = wsOf(e, ws); return w ? w.changeAgent() : noWs; });
   ipcMain.on('layout:save', (e, { ws, layout }) => at(e)?.saveLayout(ws, layout));
   ipcMain.on('layout', (e, { ws, rects }) => at(e)?.layout(ws, rects));
 
@@ -461,6 +477,7 @@ function start(options = {}) {
   ipcMain.handle('tab:devtools', onTab((p, t) => p.toggleDevTools(t.id)));
   ipcMain.handle('zoom:get', () => shell.uiZoom);
   ipcMain.handle('theme:set', (_e, theme) => ['dark', 'light', 'system'].includes(theme) && shell.setTheme(theme));
+  ipcMain.handle('bar:set', (_e, bar) => ['top', 'bottom'].includes(bar) && shell.setBar(bar));
   ipcMain.handle('zoom:ui', (_e, dir) => shell.setUiZoom(stepZoom(shell.uiZoom, dir)));
   ipcMain.handle('tab:zoom', onTab((p, t, { dir }) => p.zoomSite(t.id, dir)));
 

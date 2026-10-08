@@ -1,15 +1,15 @@
 // Kulisa's own data in the user-data folder, laid out as Chrome lays out its own (Local State, then a folder per
 // profile), so what is known about Chrome's storage applies:
-//   settings.json            the Kulisa zoom, the theme; the windows: the projects open in each (its tabs, in
-//                            order), the one shown, where it was on screen
+//   settings.json            the Kulisa zoom, the theme, where the projects' bar is; the windows: the projects open
+//                            in each (its tabs, in order), the one shown, where it was on screen
 //   projects.json            the projects: { id, name, folder, color }; a project is a folder (a repository, or one
 //                            Kulisa made); its color tints the window, to tell projects apart at a glance
 //   projects/<id>/
 //     workspaces.json        the project's workspaces: { next, current, list: [{ n, name, branch, worktree, folder,
 //                            base, offset }] }; main is n 1, the project's own folder (ROADMAP, "Workspaces")
-//     <n>/                   a workspace (WorkspaceStore): profiles.json (its profiles in order: folder, name, color,
-//                            sites' zoom, closed; as Chrome's Local State), layout.json (the window's grid), agent.json
-//                            (the agent's session, to resume it), and a folder per profile:
+//     <n>/                   a workspace (WorkspaceStore): profiles.json (its profiles in order: folder, name, avatar,
+//                            description, sites' zoom, closed; as Chrome's Local State), layout.json (the window's
+//                            grid), agent.json (the agent's session, to resume it), and a folder per profile:
 //       Profile <k>/         a Chromium profile (session.fromPath) with Kulisa's own files in it: Kulisa Tabs.json
 //                            (its tabs' URLs), Kulisa Session Cookies.bin (session-cookies.js)
 //   deleted-folders.json     folders of deleted profiles and workspaces, removed at the next start (a session keeps
@@ -92,7 +92,7 @@ class Store {
     }
     fs.rmSync(this.deletedFile, { force: true });
   }
-  // Kulisa's own settings: { uiZoom, theme, windows }.
+  // Kulisa's own settings: { uiZoom, theme, bar, windows }.
   settings() { return readJSON(this.settingsFile) || {}; }
   saveSettings(s) { writeJSON(this.settingsFile, s); }
 }
@@ -102,11 +102,11 @@ class WorkspaceStore {
   constructor(dir, store) { this.dir = dir; this.store = store; fs.mkdirSync(dir, { recursive: true }); }
   file(name) { return path.join(this.dir, name); }
   profileDir(folder) { return path.join(this.dir, folder); }
-  // list: { folder, id, name, color, zoom, closed } (project-profiles.js); closed until opened again.
+  // list: { folder, id, name, avatar, description, zoom, closed } (project-profiles.js); closed until opened again.
   profiles() { return readJSON(this.file('profiles.json')) || []; }
   saveProfiles(list) {
-    writeJSON(this.file('profiles.json'), list.map(({ folder, id, name, color, zoom, closed }) =>
-      ({ folder, id, name, color, zoom, ...(closed && { closed }) })));
+    writeJSON(this.file('profiles.json'), list.map(({ folder, id, name, avatar, description, zoom, closed }) =>
+      ({ folder, id, name, avatar, ...(description && { description }), zoom, ...(closed && { closed }) })));
   }
   // A profile's tabs (their URLs), in its own folder.
   tabs(folder) { return readJSON(path.join(this.profileDir(folder), TABS_FILE)) || []; }

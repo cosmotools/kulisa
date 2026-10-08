@@ -1,10 +1,10 @@
 // Workspaces: forks of main with their own branch and folder (git worktrees), copies of the profiles, their own agent;
-// the strip, switching, closing, the window with no project.
+// the projects' bar, switching, closing, the window with no project.
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 const { assert, root, userData, project, pfile, savedTabs, panel, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, menuOpen, rightClick,
-  box, pageBox, viewOn, dock, ctrl, near, projectTabs, projectTab, savedWindows } = require('./helpers');
+  box, pageBox, viewOn, dock, ctrl, near, projectTabs, projectTab, showProject, savedWindows } = require('./helpers');
 const { withOffset } = require('../src/main/workspaces');
 const { trustLikeMain, claudeConfigOf } = require('../src/main/agents');
 const hasDirenv = (() => { try { execFileSync('direnv', ['version']); return true; } catch { return false; } })();
@@ -118,24 +118,16 @@ module.exports = (test) => {
     assert.equal(fs.readFileSync(path.join(home, 'config.toml'), 'utf8'), `model = "x"\n\n[projects."${main}"]\ntrust_level = "trusted"\n`);
   });
 
-  test('workspaces: without git a project has main only; Initialize git asks first; + waits for a first commit', async (ctx) => {
+  test('workspaces: without git, or before a first commit, a project has main only and no +; its room kept', async (ctx) => {
     const { ui } = ctx;
     await waitFor(async () => JSON.stringify(await tabs(ui)) === '["main *"]');
-    assert.equal(await ui(`document.getElementById('wsadd').disabled`), true);
-    assert.equal(await ui(`document.getElementById('wsinit').hidden`), false);
-    ctx.answer = false;
-    await ui(`document.getElementById('wsinit').click()`);
-    await waitFor(() => ctx.asked.length);
-    assert.match(ctx.asked.pop().message, /^Initialize git in .*project\?$/);
-    await sleep(200);
-    assert.ok(!fs.existsSync(path.join(project, '.git')), 'nothing without the confirmation');
-    ctx.answer = true;
-    await ui(`document.getElementById('wsinit').click()`);
-    await waitFor(() => ui(`document.getElementById('wsinit').hidden`));
-    ctx.asked.length = 0;
-    assert.ok(fs.existsSync(path.join(project, '.git')));
-    assert.equal(await ui(`document.getElementById('wsadd').title`), 'Workspaces need a first commit in git');
-    // The human commits; the strip notices when the pointer comes to it.
+    const add = () => ui(`(() => { const b = document.getElementById('wsadd'); return { shown: getComputedStyle(b).visibility, width: b.offsetWidth }; })()`);
+    assert.deepEqual(await add(), { shown: 'hidden', width: 28 });
+    // The human sets git up in the terminal and commits; the bar notices when the pointer comes to it.
+    git(project, 'init', '-q');
+    await ui(`document.getElementById('workspaces').dispatchEvent(new PointerEvent('pointerenter'))`);
+    await sleep(300);
+    assert.equal((await add()).shown, 'hidden', 'not before a first commit');
     fs.writeFileSync(path.join(project, '.gitignore'), '.env*\nconfig/local.json\ntranscript.jsonl\n');
     fs.writeFileSync(path.join(project, '.worktreeinclude'), 'config/local.json\n');
     fs.writeFileSync(path.join(project, 'README.md'), '# shop\n');
@@ -148,7 +140,7 @@ module.exports = (test) => {
     fs.writeFileSync(path.join(project, 'config', 'local.json'), '{"db":"local"}');
     fs.writeFileSync(path.join(project, 'wip.txt'), 'not committed');
     await ui(`document.getElementById('workspaces').dispatchEvent(new PointerEvent('pointerenter'))`);
-    await waitFor(async () => !(await ui(`document.getElementById('wsadd').disabled`)));
+    await waitFor(async () => (await add()).shown === 'visible');
   });
 
   test('workspaces: + makes a fork of main: its branch and folder, files outside git, copies of the profiles signed in, its own agent and ports', async (ctx) => {
@@ -176,6 +168,8 @@ module.exports = (test) => {
     // Profiles: the same, the closed ones closed, each open one with its active tab moved to the fork's ports.
     assert.deepEqual([...shell.profiles.keys()], ['sam-admin', 'elon-buyer']);
     assert.deepEqual([...shell.closed.keys()], ['dora']);
+    assert.deepEqual(['sam-admin', 'elon-buyer'].map((id) => [shell.profiles.get(id).avatar, shell.profiles.get(id).description]),
+      [['fox', 'seller in the test shop'], ['owl', '']], 'with their pictures and who they are');
     assert.deepEqual(savedTabs('sam-admin', 2), ['http://127.0.0.1:4517/app?fork']);
     assert.equal(shell.profiles.get('sam-admin').tabs.length, 1);
     assert.ok(shell.profiles.get('sam-admin').dir.startsWith(path.join(userData, 'projects', 'project', '2')));
@@ -187,7 +181,7 @@ module.exports = (test) => {
     assert.match((await call('browser_snapshot', { profile: 'sam-admin' }, main)).text, /URL: .*\/app\?fork/);
     assert.ok(main.pty && main.pty !== shell.pty);
 
-    // The window: the fork's grid with its panes; the strip shows it.
+    // The window: the fork's grid with its panes; the bar shows it.
     await waitFor(async () => JSON.stringify(await tabs(ui)) === '["main","Feature-X *"]');
     await waitFor(() => viewOn(shell, ui, 'sam-admin'));
     assert.equal(await ui(`document.querySelectorAll('.pane').length`), 2);
@@ -210,7 +204,6 @@ module.exports = (test) => {
     const post = (event, input = {}) => new Promise((r) => http.request(`${fork.env().KULISA_URL}/hooks/${event}`, { method: 'POST' },
       (res) => { res.resume(); res.on('end', r); }).end(JSON.stringify(input)));
     const state = () => ui(`(() => { const s = ${wsTab(2)}.querySelector('.state'); return s.dataset.state + ' ' + s.querySelector('use').getAttribute('href') + ' ' + s.checkVisibility(); })()`);
-    const projectState = () => ui(`(() => { const t = ${projectTab('project')}, s = t.querySelector('.state'); return [s.dataset.state, s.title]; })()`);
     assert.equal(await state(), ' #i-done false', 'unknown: no icon');
     await post('prompt');
     await waitFor(async () => (await state()) === 'working #i-working true');
@@ -219,13 +212,7 @@ module.exports = (test) => {
     // A permission the agent asks for: waiting.
     await post('waiting');
     await waitFor(async () => (await state()) === 'waiting #i-waiting true');
-    // The project's tab: the most pressing of its workspaces', each one's in its tooltip.
-    shell.current.workspaces.get(1).setState('working');
-    await waitFor(async () => (await projectState())[0] === 'waiting');
-    assert.equal((await projectState())[1], 'The agent of main is working\nThe agent of ' + fork.name + ' waits for you');
-    await post('stop'); // done, come and see, before one working
-    await waitFor(async () => (await projectState())[0] === 'done');
-    shell.current.workspaces.get(1).setState(null);
+    assert.equal(await ui(`${wsTab(2)}.querySelector('.state').title`), 'The agent waits for you');
     // Interrupted by the human (Codex's Interrupt), or its session ended: unknown again; but a session ending after a
     // done turn (Codex: 30 minutes idle) leaves "come and see".
     await post('prompt');
@@ -252,19 +239,22 @@ module.exports = (test) => {
       && ui(`!document.documentElement.matches(':active-view-transition')`)); // its slide over before the next test watches one
   });
 
-  test('workspaces: switching slides both grids at once (a view transition, the way of the strip); then the pages are live again', async ({ shell, ui }) => {
-    const slide = (n) => ui(`(async () => {
-      const seen = new Set(); let on = true;
-      const look = () => { for (const t of ['next', 'previous']) if (document.documentElement.matches(':active-view-transition-type(' + t + ')')) seen.add(t); if (on) requestAnimationFrame(look); };
-      look();
+  test('workspaces: switching replaces the grid at once (a view transition with no animation: the pages come with the terminal); then the pages are live again', async ({ shell, ui }) => {
+    // The transition's types, and its animations once it runs: none, Chromium's own for its groups included (they
+    // kept the pages, shown when it ends, 250 ms behind the terminal, in its place at once).
+    const swap = (n) => ui(`(async () => {
+      const start = document.startViewTransition.bind(document); let seen;
+      document.startViewTransition = (o) => { const t = start(o); t.ready.then(() => { seen = { types: [...t.types],
+        animations: document.getAnimations().filter((a) => a.effect?.pseudoElement?.startsWith('::view-transition')).length }; }); return t; };
       await kulisa.invoke('ws:show', 'project/${n}');
-      await new Promise((r) => setTimeout(r, 800)); on = false;
-      return [...seen];
+      await new Promise((r) => setTimeout(r, 800));
+      delete document.startViewTransition; // the document's own again
+      return seen;
     })()`);
     const live = async () => (await ui(`document.querySelectorAll('img.snapshot').length`)) === 0 && viewOn(shell, ui, 'sam-admin');
-    assert.deepEqual(await slide(2), ['next']);
+    assert.deepEqual(await swap(2), { types: ['workspace', 'next'], animations: 0 });
     await waitFor(live);
-    assert.deepEqual(await slide(1), ['previous']);
+    assert.deepEqual(await swap(1), { types: ['workspace', 'previous'], animations: 0 });
     await waitFor(live);
   });
   test('workspaces: closing a fork asks first, saying what goes and any work not in main; it is deleted with its branch, folder and profiles', async (ctx) => {
@@ -405,10 +395,11 @@ module.exports = (test) => {
     await waitFor(async () => !(await ui(`document.getElementById('agents').open`)));
   });
 
-  // Last in phase 1: main is shown and Feature-X waits in the strip for the restart phase.
-  test('workspaces: closing main closes the project; the window offers projects to open', async (ctx) => {
+  // Last in phase 1: main is shown and Feature-X waits in the bar for the restart phase.
+  test('workspaces: × on main closes the project; the window offers projects to open', async (ctx) => {
     const { shell, ui } = ctx;
     const fork = shell.current.workspaces.get(2);
+    assert.equal(await ui(`${wsTab(1)}.querySelector('.close').title`), 'Close the project (asks first)');
     await ui(`${wsTab(1)}.querySelector('.close').click()`);
     await waitFor(() => shell.ws === null && !shell.current);
     assert.ok(fork.profiles.size === 0 && !fork.pty, 'every workspace of the project stopped');
@@ -488,8 +479,16 @@ module.exports = (test) => {
     await waitFor(() => ui(`!document.documentElement.classList.contains('noproject') && !document.documentElement.classList.contains('loading')`));
     await waitFor(async () => (await viewOn(shell, ui, 'sam-admin')) && viewOn(shell, ui, 'elon-buyer'));
     assert.deepEqual(await projectTabs(ui), ['Shop', 'project *']);
-    await ui(`${projectTab('shop')}.querySelector('.close').click()`);
+    // Another project's workspace, in its island: a click shows that project with it.
+    await ui(`${projectTab('shop')}.querySelector('.wstab[data-ws="shop/1"]').click()`);
+    await waitFor(() => shell.current?.id === 'shop' && shell.ws?.key === 'shop/1' && shell.ws.loaded);
+    assert.deepEqual(await projectTabs(ui), ['Shop *', 'project']);
+    await showProject(ui, 'project');
+    await waitFor(() => shell.current?.id === 'project' && shell.ws.loaded);
+    // Its tabs have their × too, in its island while another project is shown: main's closes it.
+    await ui(`${projectTab('shop')}.querySelector('.wstab[data-ws="shop/1"] .close').click()`);
     await waitFor(() => !shell.open.has('shop'));
+    assert.equal(shell.current?.id, 'project', 'the shown project stays');
     ctx.asked.length = 0;
   });
 
@@ -589,7 +588,7 @@ module.exports = (test) => {
     await ui(`kulisa.invoke('project:open', { folder: ${JSON.stringify(path.join(root, 'other'))} })`);
     await waitFor(() => shell.current?.id === 'other' && shell.ws.loaded);
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
-    await ui(`${projectTab('project')}.click()`);
+    await showProject(ui, 'project');
     await waitFor(() => shell.current?.id === 'project' && shell.ws.loaded);
     assert.deepEqual(await projectTabs(ui), ['project *', 'other']);
   });
@@ -602,7 +601,7 @@ module.exports = (test) => {
     await ui(`kulisa.invoke('project:move', { id: 'third', terminals: {} })`);
     await waitFor(() => shell.windows[1]?.current?.id === 'third' && !shell.windows[1].switching);
     shell.windows[1].win.setBounds({ x: 40, y: 50, width: 1000, height: 700 });
-    await ui(`${projectTab('project')}.click()`);
+    await showProject(ui, 'project');
     await waitFor(() => shell.current?.id === 'project' && shell.ws.loaded);
     assert.deepEqual(await projectTabs(ui), ['project *', 'other']);
   });

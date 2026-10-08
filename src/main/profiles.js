@@ -2,6 +2,8 @@
 // own tabs.
 // Each tab is a WebContentsView. Automation reaches the tabs only through the CDP proxy (cdp-proxy.js), and the
 // shell's own Playwright connection (`connect`) is one client of that proxy.
+const fs = require('fs');
+const path = require('path');
 const { EventEmitter } = require('events');
 const { session, WebContentsView } = require('electron');
 const { chromium } = require('playwright-core');
@@ -35,14 +37,14 @@ function toUrl(u) {
 const PAGE_RADIUS = 8; // a little less than the island's corners, which the page reaches (renderer window.css, .content)
 
 class Profile extends EventEmitter {
-  // cfg: { id, name, color, folder, dir }. The folder (cookies, storage; dir is its absolute path) is fixed at
+  // cfg: { id, name, avatar, description, folder, dir }. The folder (cookies, storage; dir is its absolute path) is fixed at
   // creation; a rename changes id and name only.
   // win: the window it shows in (moveTo). ws: its workspace's key (profiles of different workspaces share ids).
   // mimic: a chromeIdentity() to present as Google Chrome, or null.
   constructor(win, cfg, { ws, mimic = null } = {}) {
     super();
     this.win = win;
-    this.id = cfg.id; this.name = cfg.name; this.color = cfg.color;
+    this.id = cfg.id; this.name = cfg.name; this.avatar = cfg.avatar; this.description = cfg.description || '';
     this.folder = cfg.folder; this.dir = cfg.dir; this.ws = ws;
     // Page zoom: pages follow the Kulisa zoom (baseZoom, set by the window); a site the human zoomed with Ctrl + / -
     // in a page keeps its own factor on top of it, per host, in this profile only (saved in profiles.json).
@@ -62,6 +64,9 @@ class Profile extends EventEmitter {
     this.endpoint = endpoint;
     this.browser = await chromium.connectOverCDP(endpoint);
     this.context = this.browser.contexts()[0];
+    // With no listener Playwright dismisses every dialog (alert, confirm), the human's too; with one they stay for
+    // the human. The agent's tools answer those its own actions open (mcp-server.js).
+    this.context.on('dialog', () => {});
   }
   async disconnect() {
     const b = this.browser;
@@ -110,6 +115,7 @@ class Profile extends EventEmitter {
     }
     // tab.ready: the first navigation has committed. A client that attaches earlier sees a never-loaded tab.
     tab.ready = ready.then(() => url && new Promise((resolve) => {
+      if (wc.isDestroyed()) return resolve(); // closed before it loaded (its profile closed or deleted)
       wc.once('did-navigate', resolve); setTimeout(resolve, 5000);
       wc.loadURL(url).then(() => { if (this.mimic) wc.navigationHistory.clear(); }).catch(() => {});
     }));
@@ -130,6 +136,12 @@ class Profile extends EventEmitter {
     for (const e of ['did-start-loading', 'did-stop-loading', 'page-title-updated', 'did-navigate', 'did-navigate-in-page']) wc.on(e, update);
     // F12 or Ctrl+Shift+I: the tab's DevTools, in their own window (a WebContentsView cannot dock them).
     wc.on('did-navigate', () => this._applyZoom(tab));
+    wc.on('did-fail-load', (_e, code, desc, url, mainFrame) => { if (mainFrame && code !== -3) showError(wc, desc, url); }); // -3: replaced by another navigation
+    // A page never moves the window, as in Chrome. Kulisa's window has no system title bar, and Electron takes
+    // app-region: drag from its views too: Teams declares one, and it stays after the page has gone, taking every
+    // click and wheel over the panes (docs/window.md). Each document gets no-drag everywhere, which also replaces a
+    // region left behind. A workaround of electron/electron#54743: remove when fixed (ROADMAP, "Workarounds of Electron bugs").
+    wc.on('did-navigate', () => wc.insertCSS('html, html * { app-region: no-drag !important; }', { cssOrigin: 'user' }).catch(() => {}));
     wc.on('before-input-event', (e, i) => {
       if (i.type === 'keyDown' && (i.key === 'F12' || ((i.control || i.meta) && i.shift && i.key.toLowerCase() === 'i'))) {
         e.preventDefault(); this.toggleDevTools(tab.id);
@@ -163,9 +175,13 @@ class Profile extends EventEmitter {
     try { this.win.contentView.removeChildView(tab.view); } catch {}
     if (this.active === tab.id) { this.active = null; if (this.tabs.length) this.activate(this.tabs[Math.max(0, i - 1)].id); }
     this.emit('tab-closed', tab); this.emit('changed');
+    // Its last tab closed (closeTab: the human's ×, the agent's browser_tab_close), the profile still open: an empty
+    // tab takes its place, so the pane is never left without a page (its address and toolbar acting on nothing). Not
+    // for a tab destroyed otherwise: Kulisa quitting (a new tab then crashes Electron), its profile closing.
+    if (!this.tabs.length && !this.deleted && tab.closing) this.newTab('about:blank');
   }
 
-  closeTab(id) { const t = this.get(id); if (t) t.wc.close(); }
+  closeTab(id) { const t = this.get(id); if (t) { t.closing = true; t.wc.close(); } }
 
   activate(id) {
     if (this.win.isDestroyed()) return;
@@ -268,10 +284,41 @@ class Profile extends EventEmitter {
 
   info() {
     // key: stable across renames (the folder), for the UI to keep the same pane.
-    return { key: this.folder, id: this.id, name: this.name, color: this.color, active: this.active, signinMode: this.signinMode,
+    return { key: this.folder, id: this.id, name: this.name, avatar: this.avatar, description: this.description, active: this.active,
+      signinMode: this.signinMode,
       tabs: this.tabs.map((t) => ({ id: t.id, title: t.title, url: t.url, favicon: t.favicon, loading: t.loading, canBack: t.canBack, canFwd: t.canFwd,
         zoom: this.pageZoom(t) })) };
   }
+}
+
+// A page that did not load: Electron leaves it blank, Chrome says why. Its error page (chrome-error://, the address
+// still the one that failed) gets Kulisa's, for the human and for the agent's snapshot alike.
+const ERROR_PAGE = fs.readFileSync(path.join(__dirname, 'error-page.html'), 'utf8');
+function errorText(desc, host) {
+  if (desc === 'ERR_NAME_NOT_RESOLVED') return ['This site can’t be reached', `${host}’s server IP address could not be found.`];
+  if (desc === 'ERR_CONNECTION_REFUSED') return ['This site can’t be reached', `${host} refused to connect. A local app: is its server running?`];
+  if (desc === 'ERR_INTERNET_DISCONNECTED') return ['No internet', 'The computer is not connected to the internet.'];
+  if (/TIMED_OUT$/.test(desc)) return ['This site can’t be reached', `${host} took too long to respond.`];
+  if (desc.startsWith('ERR_CERT_')) return ['Your connection is not private', `${host}’s certificate is not trusted.`];
+  return ['This site can’t be reached', `${host} could not be loaded.`];
+}
+function showError(wc, desc, url) {
+  let host; try { host = new URL(url).host || url; } catch { host = url; }
+  const [title, reason] = errorText(desc, host);
+  const fill = ({ page, ...fields }) => {
+    document.documentElement.innerHTML = page;
+    for (const el of document.querySelectorAll('[data-field]')) el.textContent = fields[el.dataset.field];
+  };
+  wc.executeJavaScript(`(${fill})(${JSON.stringify({ page: ERROR_PAGE, title, reason, code: desc, host })})`).catch(() => {});
+}
+
+// A closed profile's caches gone: HTTP, compiled code, shaders. Sign-ins and sites' storage stay. Chromium sets the HTTP
+// cache's limit itself from the free disk space; profiles set aside should not keep theirs (ROADMAP, "Profiles'
+// caches").
+async function clearCaches(sess) {
+  await sess.clearCache();
+  await sess.clearCodeCaches({});
+  await sess.clearStorageData({ storages: ['shadercache'] });
 }
 
 // A profile's data gone: cookies, storage, cache. Also for a closed profile (no Profile object, only its folder).
@@ -293,4 +340,4 @@ async function targetIdOf(page) {
   return targetIds.get(page);
 }
 
-module.exports = { Profile, stepZoom, zoomKey, wipeSession, toUrl };
+module.exports = { Profile, stepZoom, zoomKey, wipeSession, clearCaches, toUrl };

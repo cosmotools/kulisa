@@ -150,7 +150,7 @@ Everything happens inside Kulisa; no external Chrome windows.
 ## Commands
 
 ```sh
-npm start   # the app: the project tabs open last, plus $KULISA_PROJECT's (at first start none: open one)
+npm start   # the app: the projects open last, plus $KULISA_PROJECT's (at first start none: open one)
 npm test    # real app against a local test site (test/fixtures/site.js), then a second run to check a restart
 npm run make  # installers for this platform with Electron Forge (forge.config.js), in out/make/
 npm run icons # renders assets/icon.svg to icon.png/.ico/.icns (committed; run after changing the SVG)
@@ -169,6 +169,9 @@ npm run icons # renders assets/icon.svg to icon.png/.ico/.icns (committed; run a
 - **Looking at the window.** `KULISA_SHOT=/tmp/kulisa.png npm start` saves a screenshot of the whole window,
   profile views included, about 4 s after start (`KULISA_SHOT_DELAY` in ms). In tests: `shell.screenshot(file)`.
   Then read the PNG. Use it to check any UI change.
+- **A bug the tests and screenshots do not show** (input going nowhere, a native view misbehaving): the
+  `debug-kulisa` skill (`.claude/skills/debug-kulisa/`): look inside the running app, a scratch Kulisa, real clicks,
+  bare Electron. Read it before guessing at causes.
 
 ## Rules
 
@@ -238,9 +241,10 @@ check, a rule or a way of doing an action is never written in a handle, nor twic
 Modules (`src/main`):
 
 - `app.js`: the app: its windows, the open projects (open, close, move one to a new window; one change after
-  another: `serial`), the agents, the windows' IPC (each message acts in the window it comes from: `event.sender`),
-  quit. `shell.win`, `shell.ws`, `shell.profiles`, `shell.closed`, `shell.pty` are the first window's (the tests').
-- `window.js`: a window: its project tabs and what it shows (show a project or a workspace, the grid's state, the
+  another: `serial`), the agents, the windows' IPC (each message acts in the window it comes from: `event.sender`;
+  one on profiles or tabs names its workspace too, refused when that window shows another by then: `act` in the
+  renderer), quit. `shell.win`, `shell.ws`, `shell.profiles`, `shell.closed`, `shell.pty` are the first window's (the tests').
+- `window.js`: a window: its open projects and what it shows (show a project or a workspace, the grid's state, the
   views' places), the questions asked there (`shell.ask(q, window)`, in its dialog: `ask.js`), the theme's colors
   CSS does not paint.
 - `projects.js`: an open project: its workspaces, making and deleting a fork, removing a project's data.
@@ -248,7 +252,8 @@ Modules (`src/main`):
 - `worktrees.js`: git for forks (the user's git, never a shell): worktree, branch, files outside git, direnv.
 - `agents.js`: the agents to choose from, one entry each: find, install, start, resume. Agent-specific code goes
   here.
-- `project-profiles.js`: a workspace's profiles in order, open and closed: create, rename, close, open, delete.
+- `project-profiles.js`: a workspace's profiles in order, open and closed: create, rename, describe, close, open,
+  delete. `avatars.js`: their pictures.
 - `profiles.js`: a profile: `session.fromPath(<workspace>/Profile <k>)` plus a `WebContentsView` per tab.
 - `store.js`: Kulisa's data folder, laid out as Chrome's user data.
 - `names.js`: the one rule for names (projects, workspaces, profiles: an email address's characters) and slugs.
@@ -298,5 +303,8 @@ What must hold in the window:
   sign-in, with mimicry on.
 - **With the monitor off or the screen locked**, Chromium renders at 1–2 fps, and anything waiting for frames
   crawls. Don't trust timings taken then (`xset q` shows "Monitor is Off").
+- **Profiles coming back on `about:blank`** (their saved tabs `[]`): fixed twice on 2026-10-08, by two different
+  paths (a profile still opening; tabs closing as Kulisa quits). Read `docs/profiles.md`, "Tabs that come back",
+  before looking for a third.
 - **`ensureSite()` reuses whatever listens on :4417.** A stale server from an earlier run makes tests lie. Check
   `ss -ltnp | grep 4417`.

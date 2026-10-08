@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { clipboard } = require('electron');
 const { assert, root, userData, project, pfile, savedTabs, panel, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, menuOpen, rightClick,
-  box, pageBox, viewOn, dock, ctrl, near, projectTabs, projectTab, savedWindows } = require('./helpers');
+  box, pageBox, viewOn, dock, ctrl, near, projectTabs, projectTab, showProject, closeProject, savedWindows } = require('./helpers');
 
 module.exports = (test) => {
   test('grid: a pane moved next to the terminal takes its page along', async ({ shell, ui }) => {
@@ -51,12 +51,15 @@ module.exports = (test) => {
     assert.equal(shell.resumedSession, null, 'a new project has no conversation to resume');
     await waitFor(async () => JSON.stringify(await projectTabs(ui)) === '["project","other *"]' && ui(`!!window.__dock.getPanel('terminal')`));
     assert.equal(await ui(`document.querySelectorAll('.pane').length`), 0);
-    assert.equal(await ui(`getComputedStyle(${projectTab('other')}).backgroundColor !== getComputedStyle(${projectTab('project')}).backgroundColor`), true, 'the shown tab on its plate');
-    // Not in another weight: a tab shown would change its width, and the tabs after it would jump.
-    const widths = () => ui(`[...document.querySelectorAll('#projectTabs .projecttab')].map((t) => t.getBoundingClientRect().width)`);
-    const before = await widths();
-    assert.equal(await ui(`getComputedStyle(${projectTab('other')}).fontWeight === getComputedStyle(${projectTab('project')}).fontWeight`), true);
-    await ui(`kulisa.invoke('profile:new', { name: 'Sam.seller' })`); // the same name as in the first project
+    // Each project's island with its workspaces, the one each shows marked.
+    assert.deepEqual(await ui(`[...document.querySelectorAll('#projectTabs .pisland')].map((g) => [...g.querySelectorAll('.wstab')]
+      .map((t) => t.querySelector('.name').textContent + (t.classList.contains('selected') ? ' *' : '')))`), [['main *'], ['main *']]);
+    // Every island keeps its place and width whichever project is shown, also while it switches: nothing jumps.
+    const islands = () => ui(`[...document.querySelectorAll('#projectTabs .pisland')].map((t) => { const r = t.getBoundingClientRect(); return [r.x, r.width]; })`);
+    const before = await islands();
+    await ui(`window.__islands = new Set(); { const tick = () => { __islands.add(JSON.stringify([...document.querySelectorAll('#projectTabs .pisland')]
+      .map((t) => { const r = t.getBoundingClientRect(); return [r.x, r.width]; }))); if (window.__islands) requestAnimationFrame(tick); }; tick(); }`);
+    await ui(`act('profile:new', { name: 'Sam.seller' })`); // the same name as in the first project
     const seller = shell.profiles.get('sam-seller');
     assert.equal(seller.dir, path.join(userData, 'projects', 'other', '1', 'Profile 1'), "profiles are in their project's data");
     assert.equal(seller.endpoint.endsWith('/other/1/sam-seller'), true, 'the CDP proxy knows it by its project too');
@@ -71,9 +74,9 @@ module.exports = (test) => {
     assert.deepEqual(rows.map((r) => r.folder), [project, other], 'each with its folder');
     assert.deepEqual(rows.map((r) => r.check), ['✓', '✓'], 'the open ones are marked');
     assert.equal(rows[0].dot, 'rgb(74, 123, 208)', "a dot in the project's color");
-    const under = await ui(`(() => { const b = document.getElementById('openProjects').getBoundingClientRect(), m = document.getElementById('menu').getBoundingClientRect();
-      return m.top >= b.bottom && m.top < b.bottom + 10 && Math.abs(m.left - b.left) < 2; })()`);
-    assert.ok(under, 'under the button');
+    const over = await ui(`(() => { const b = document.getElementById('openProjects').getBoundingClientRect(), m = document.getElementById('menu').getBoundingClientRect();
+      return m.bottom <= b.top && m.bottom > b.top - 10 && Math.abs(m.left - b.left) < 2; })()`);
+    assert.ok(over, 'over the button: the bar is at the bottom of the window');
     await ui(`document.getElementById('openProjects').click()`); // again: closes it
     await waitFor(async () => !(await menuOpen(ui)));
     // Each project's row has a × at its end, shown on hover (Remove project…), as in JetBrains.
@@ -85,13 +88,17 @@ module.exports = (test) => {
     await rightClick(ui, '#menu .removable .item');
     assert.ok(await menuOpen(ui) && (await menuRows(ui)).includes('New Project…'), 'a right-click in the menu opens no other menu');
     await ui(`document.getElementById('menu').hidePopover()`);
-    // A tab's right-click menu.
+    // The label's right-click menu.
     await rightClick(ui, '#projectTabs [data-project="other"] .name');
     assert.deepEqual(await menuRows(ui), ['Close Project', 'Move to New Window', '-', 'Remove Project…']);
     await ui(`document.getElementById('menu').hidePopover()`);
 
-    // A click on the first project's tab: it comes back as it was left, its agent the same; no page shows before it
-    // has its place in the grid (nothing jumps).
+    // A click on the label shows nothing: its workspaces are what is clicked.
+    await ui(`${projectTab('project')}.querySelector('.plabel').click()`);
+    await sleep(300);
+    assert.equal(shell.current?.folder, other);
+    // A click on the first project's workspace: it comes back as it was left, its agent the same; no page shows before
+    // it has its place in the grid (nothing jumps).
     const jumps = [];
     const watch = setInterval(() => {
       for (const p of shell.profiles.values()) {
@@ -99,7 +106,7 @@ module.exports = (test) => {
         if (v && !v.webContents.isDestroyed() && v.getVisible() && !v.getBounds().width) jumps.push(p.id);
       }
     }, 5);
-    await ui(`${projectTab('project')}.click()`);
+    await showProject(ui, 'project');
     await waitFor(() => shell.current?.folder === project && shell.profiles.get('sam-admin') === sam);
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
     await waitFor(async () => (await viewOn(shell, ui, 'sam-admin')) && viewOn(shell, ui, 'elon-buyer'));
@@ -108,19 +115,20 @@ module.exports = (test) => {
     assert.equal(shell.pty, firstPty, 'the same agent');
     assert.equal(seller.get().view.getVisible(), false, "the other project's pages hidden");
     assert.deepEqual(await projectTabs(ui), ['project *', 'other']);
-    assert.deepEqual(await widths(), before, 'the tabs keep their widths: nothing jumps');
+    const seen = await ui(`(() => { const s = [...__islands]; window.__islands = null; return s; })()`);
+    assert.deepEqual(seen, [JSON.stringify(before)], 'the islands keep their places, also while switching');
     assert.equal(shell.win.getTitle(), 'project — Kulisa');
 
-    // × on the shown tab asks first; Cancel keeps it open.
+    // Closing the project (the middle button on its label) asks first; Cancel keeps it open.
     ctx.asked.length = 0;
     ctx.answer = false;
-    await ui(`${projectTab('project')}.querySelector('.close').click()`);
+    await closeProject(ui, 'project');
     await waitFor(() => ctx.asked.length && ui(`!document.getElementById('ask').open`));
     assert.equal(ctx.asked.pop().message, 'Close the project project?');
     assert.ok(shell.open.has('project') && shell.current?.folder === project, 'still open when the human says no');
     ctx.answer = true;
     // Close: the project closes (tabs and sign-ins kept), the tab next to it is shown.
-    await ui(`${projectTab('project')}.querySelector('.close').click()`);
+    await closeProject(ui, 'project');
     await waitFor(() => shell.current?.folder === other && !shell.open.has('project'));
     ctx.asked.length = 0;
     assert.ok(sam.tabs.every((t) => t.wc.isDestroyed()), "the closed project's tabs are closed");
@@ -139,7 +147,7 @@ module.exports = (test) => {
     await waitFor(async () => (await viewOn(shell, ui, 'sam-admin')) && viewOn(shell, ui, 'elon-buyer'));
     assert.deepEqual(await projectTabs(ui), ['other', 'project *'], 'a tab opens at the end');
     // × on a tab in the background: that project closes, the one on screen stays.
-    await ui(`${projectTab('other')}.querySelector('.close').click()`);
+    await closeProject(ui, 'other');
     await waitFor(() => !shell.open.has('other'));
     ctx.asked.length = 0;
     assert.ok(seller.tabs.every((t) => t.wc.isDestroyed()));
@@ -208,7 +216,7 @@ module.exports = (test) => {
     await ui(`document.getElementById('menu').hidePopover()`);
     // Questions about its project are asked in its window.
     ctx.answer = false;
-    await ui2(`kulisa.invoke('profile:delete', { profile: 'sam-seller' })`);
+    await ui2(`act('profile:delete', { profile: 'sam-seller' })`);
     ctx.answer = true;
     assert.ok(ws.profiles.has('sam-seller'), 'kept: the human said no');
     assert.deepEqual(savedWindows(), [{ tabs: ['project'], shown: 'project' }, { tabs: ['other'], shown: 'other' }]);
@@ -224,7 +232,7 @@ module.exports = (test) => {
     await waitFor(async () => (await viewOn(shell, ui, 'sam-seller')) && (await ctx.termText()).includes('moved along'));
     assert.deepEqual(await projectTabs(ui), ['project', 'other *']);
     assert.deepEqual(savedWindows(), [{ tabs: ['project', 'other'], shown: 'other' }]);
-    await ui(`${projectTab('other')}.querySelector('.close').click()`);
+    await closeProject(ui, 'other');
     await waitFor(() => !shell.open.has('other') && shell.current?.id === 'project' && !first.switching);
 
     // Opening a project in a window with projects open asks where: This Window (a tab, as above), New Window, Cancel.
@@ -313,14 +321,18 @@ module.exports = (test) => {
     await dragEnd(ui, 'other', 'none');
     await sleep(300);
     assert.equal(shell.windows.length, 1);
-    shell.pointer = () => ({ x: b.x + b.width + 300, y: b.y + 200 });
+    // Let go beside the window, on the side with more room on the screen: where the window manager put the test's
+    // window varies, and a point off the screen gives a window the OS pulls back next to the first one.
+    const area = require('electron').screen.getDisplayMatching(b).workArea;
+    const right = area.x + area.width - (b.x + b.width) >= b.x - area.x;
+    shell.pointer = () => ({ x: right ? Math.min(b.x + b.width + 300, area.x + area.width - 10) : Math.max(b.x - 300, area.x + 10), y: b.y + 200 });
     await dragStart(ui, 'other');
     await dragEnd(ui, 'other', 'none');
     await waitFor(() => shell.windows.length === 2 && shell.windows[1].current === moved && !shell.windows[1].switching);
     shell.pointer = pointer;
     const second = shell.windows[1], ui2 = (js) => second.win.webContents.executeJavaScript(js);
     const nb = second.win.getBounds();
-    assert.ok(nb.x > b.x + 32, 'towards the pointer (the OS keeps it on the screen), not next to the first window');
+    assert.ok(right ? nb.x > b.x + 32 : nb.x < b.x - 32, `towards the pointer, not next to the first window: ${JSON.stringify({ b, nb, right })}`);
     assert.deepEqual(await projectTabs(ui), ['project *']);
     assert.equal(moved.ws.pty, pty, 'the same agent');
 
@@ -332,7 +344,7 @@ module.exports = (test) => {
     assert.ok(second.win.isDestroyed());
     assert.deepEqual(await projectTabs(ui), ['project', 'other *']);
     assert.equal(moved.ws.pty, pty);
-    await ui(`${projectTab('other')}.querySelector('.close').click()`);
+    await closeProject(ui, 'other');
     await waitFor(() => !shell.open.has('other') && shell.current?.id === 'project' && !shell.windows[0].switching);
     ctx.asked.length = 0;
   });
@@ -359,17 +371,18 @@ module.exports = (test) => {
     const { Store } = require('../src/main/store');
     const store = new Store(path.join(root, 'fresh-data'));
     const ws = store.workspaceOf(store.projectFor('/work/shop'), 1);
-    ws.saveProfiles([{ folder: 'Profile 1', id: 'sam', name: 'Sam', color: '#fff' }]);
+    ws.saveProfiles([{ folder: 'Profile 1', id: 'sam', name: 'Sam', avatar: 'fox' }]);
     const writeFileSync = fs.writeFileSync;
     fs.writeFileSync = (f, data, ...rest) => { writeFileSync(f, String(data).slice(0, 10), ...rest); throw new Error('the computer went off'); };
-    try { ws.saveProfiles([{ folder: 'Profile 2', id: 'ann', name: 'Ann', color: '#000' }]); } finally { fs.writeFileSync = writeFileSync; }
+    try { ws.saveProfiles([{ folder: 'Profile 2', id: 'ann', name: 'Ann', avatar: 'frog' }]); } finally { fs.writeFileSync = writeFileSync; }
     assert.deepEqual(ws.profiles().map((p) => p.id), ['sam']);
     assert.deepEqual(fs.readdirSync(ws.dir).filter((f) => f.endsWith('.tmp')), [], 'no half-written file left');
   });
-  test('project profiles: closing and opening keeps a profile\'s place; ids and colors stay unique with closed ones', async () => {
+  test('project profiles: closing and opening keeps a profile\'s place; ids and pictures stay unique with closed ones', async () => {
     const { ProjectProfiles } = require('../src/main/project-profiles');
+    // Made before pictures: Ann and Bob had colors only.
     let saved = [{ id: 'ann', name: 'Ann', color: '#e5534b', folder: 'Profile 1' }, { id: 'bob', name: 'Bob', color: '#57ab5a', folder: 'Profile 2', closed: true },
-      { id: 'cid', name: 'Cid', color: '#539bf5', folder: 'Profile 3' }];
+      { id: 'cid', name: 'Cid', avatar: 'fox', description: 'admin', folder: 'Profile 3' }];
     const store = { profiles: () => saved, tabs: (f) => (f === 'Profile 2' ? ['https://b/'] : []), saveProfiles: (l) => { saved = l; }, saveTabs() {},
       profileDir: (f) => `/data/${f}`, freeFolder: (taken) => `Profile ${taken.length + 1}`, markDeleted() {} };
     const fake = (cfg) => ({ ...cfg, siteZoom: cfg.zoom, urls: [] });
@@ -377,6 +390,7 @@ module.exports = (test) => {
       renamed() {}, remove: async () => {}, changed() {} });
     await list.load();
     assert.deepEqual([...list.profiles.keys()], ['ann', 'cid']);
+    assert.deepEqual(list.entries.map((e) => e.cfg.avatar), ['frog', 'panda', 'fox'], 'pictures given in place of colors, none twice');
     assert.deepEqual([...list.closed.keys()], ['bob']);
     await list.close('ann');
     await list.open('bob');
@@ -384,8 +398,40 @@ module.exports = (test) => {
     assert.deepEqual(saved.map((p) => `${p.id}${p.closed ? ' (closed)' : ''}`), ['ann (closed)', 'bob', 'cid'], 'each keeps its place');
     assert.equal((await list.create('Ann')).id, 'ann-2', 'a closed profile keeps its id');
     assert.equal(saved.at(-1).folder, 'Profile 4');
-    assert.ok(!['#e5534b', '#57ab5a', '#539bf5'].includes(saved.at(-1).color), 'and its color');
+    assert.equal(saved.at(-1).avatar, 'owl', 'and its picture');
+    assert.ok(saved.every((p) => !('color' in p)), 'colors are gone once written');
+    assert.equal(saved.find((p) => p.id === 'cid').description, 'admin');
     assert.equal(list.rename('ann', 'Bob').id, 'bob-2');
+    // Who it is and the picture: on an open profile and a closed one alike; the rest stays.
+    assert.deepEqual(list.describe('bob', '  buyer '), { id: 'bob' });
+    assert.equal(list.profiles.get('bob').description, 'buyer');
+    await list.close('bob');
+    assert.deepEqual(list.setAvatar('bob', 'cat'), { id: 'bob' });
+    const bob = saved.find((p) => p.id === 'bob');
+    assert.deepEqual([bob.name, bob.avatar, bob.description, bob.folder, bob.closed], ['Bob', 'cat', 'buyer', 'Profile 2', true]);
+    await list.open('bob');
+    assert.equal(list.profiles.get('bob').avatar, 'cat');
+    assert.match(list.setAvatar('bob', 'dragon').error, /no picture/);
+    assert.match(list.describe('bob', 'x'.repeat(501)).error, /at most 500/);
+    // Tabs saved while a profile is still opening (its session cookies restored before its tabs): the addresses it is
+    // opening, not none. Kulisa quit right then lost every profile's tabs (2026-10-08).
+    const tabsSaved = {};
+    let opened;
+    const slow = new ProjectProfiles({ ...store, profiles: () => [{ id: 'dan', name: 'Dan', avatar: 'fox', folder: 'Profile 9' }],
+      tabs: () => ['https://d/'], saveTabs: (f, urls) => { tabsSaved[f] = urls; } }, {
+      make: fake, start: (p, urls) => new Promise((r) => { opened = () => { p.urls = urls; r(); }; }), unload: async () => {},
+      urlsOf: (p) => p.urls, renamed() {}, remove: async () => {}, changed() {} });
+    const loading = slow.load();
+    await new Promise((r) => setImmediate(r));
+    slow.saveTabs();
+    assert.deepEqual(tabsSaved['Profile 9'], ['https://d/'], 'while it opens');
+    opened(); await loading;
+    slow.saveTabs();
+    assert.deepEqual(tabsSaved['Profile 9'], ['https://d/'], 'once open');
+    // More profiles than pictures: round again, nothing breaks.
+    const { AVATARS, nextAvatar } = require('../src/main/avatars');
+    assert.equal(nextAvatar(AVATARS), 'fox');
+    assert.equal(nextAvatar([...AVATARS, 'fox']), 'frog');
   });
   test('grid presets: columns, grid, focus; each fits the window, nothing cut off', async ({ shell, ui }) => {
     const at = async () => ({ sam: await pageBox(ui, 'sam-admin'), elon: await pageBox(ui, 'elon-buyer'), term: await box(ui, '#term') });
@@ -414,12 +460,23 @@ module.exports = (test) => {
     await waitFor(() => fs.existsSync(pfile('layout.json')));
   });
 
+  test('a menu opens even when a page gives no picture (a page that draws no frames: covered, the monitor off, busy)', async ({ shell, ui }) => {
+    const wc = shell.profiles.get('elon-buyer').get().wc;
+    wc.capturePage = () => new Promise(() => {}); // never
+    try {
+      await rightClick(ui, '.ptab[data-panel="profile:Profile 2"]');
+      await waitFor(() => menuOpen(ui), 2000);
+      assert.equal(await ui(`!!document.querySelector('.pane[data-profile="elon-buyer"] .content img.snapshot')`), false, 'no picture, the pane is empty meanwhile');
+      await ui(`document.getElementById('menu').hidePopover()`);
+      await waitFor(async () => !(await menuOpen(ui)));
+    } finally { delete wc.capturePage; }
+  });
   test('context menus: a pane\'s header, a tab, the terminal; pages are pictures while a menu is open; Arrange panels in ⋮; Exit', async (ctx) => {
     const { shell, ui } = ctx;
     const elon = shell.profiles.get('elon-buyer');
     const header = '.ptab[data-panel="profile:Profile 2"]';
     await rightClick(ui, header);
-    assert.deepEqual(await menuRows(ui), ['New tab', 'Rename', 'Close profile', '-', 'Delete profile…']);
+    assert.deepEqual(await menuRows(ui), ['New tab', 'Rename', 'About this profile…', 'Close profile', '-', 'Delete profile…']);
     const at = await ui(`(() => { const h = document.querySelector('${header}').getBoundingClientRect(), m = document.getElementById('menu').getBoundingClientRect();
       return Math.abs(m.left - (h.x + h.width / 2)) < 2 && Math.abs(m.top - (h.y + h.height / 2) - 4) < 2; })()`);
     assert.ok(at, 'at the pointer');
@@ -433,7 +490,7 @@ module.exports = (test) => {
     assert.equal(elon.get().view.getVisible(), false, 'a page over the second menu');
     await rightClick(ui, header);
     await sleep(300);
-    assert.deepEqual(await menuRows(ui), ['New tab', 'Rename', 'Close profile', '-', 'Delete profile…']);
+    assert.deepEqual(await menuRows(ui), ['New tab', 'Rename', 'About this profile…', 'Close profile', '-', 'Delete profile…']);
     assert.equal(elon.get().view.getVisible(), false, 'a page over the third menu');
     const n = elon.tabs.length;
     await choose(ui, 'New tab');
@@ -536,9 +593,9 @@ module.exports = (test) => {
 
     await ui(`document.getElementById('windowMenu').click()`);
     // The arrangements as pictures, a short name under each, the full words in the tooltip.
-    assert.deepEqual((await menuRows(ui)).slice(3), ['# Arrange panels', 'arrange: Columns, Two by two, One at a time', '-', 'Agents…', '-', 'Exit']);
+    assert.deepEqual((await menuRows(ui)).slice(4), ['# Arrange panels', 'arrange: Columns, Two by two, One at a time', '-', 'Agents…', '-', 'Exit']);
     assert.deepEqual(await ui(`[...document.querySelectorAll('#menu svg:not([hidden]) > use')].map((u) => u.getAttribute('href'))`),
-      ['#i-zoom', '#i-theme', '#i-arrange', '#i-agent', '#i-exit'], 'each row with its icon');
+      ['#i-zoom', '#i-theme', '#i-projects', '#i-arrange', '#i-agent', '#i-exit'], 'each row with its icon');
     const pics = await ui(`[...document.querySelectorAll('#menu .arrange button')].map((b) => ({ title: b.title,
       panes: b.querySelectorAll('svg .a-page').length, term: b.querySelectorAll('svg .a-term').length, w: b.querySelector('svg').getBoundingClientRect().width }))`);
     assert.deepEqual(pics.map((p) => [p.panes, p.term]), [[3, 1], [4, 1], [1, 1]]);

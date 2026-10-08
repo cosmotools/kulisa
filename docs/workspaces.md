@@ -10,14 +10,25 @@ current when they change.
 A **project** is a folder, usually a repository, with its workspaces. Kulisa keeps its data in its own data folder
 (`projects/<id>/`), never in the project's folder, so sign-ins stay out of its git.
 
-- **Open projects are tabs** in the title bar, right of the logo, as a browser's: each with its agents' state as an
-  icon in the project's color (the most pressing of its workspaces' for the human: waiting for you, done, working), none when
-  nothing asks for the human. A click shows one; the others
-  keep running, their agents and pages, until the human closes their tab: ×, the middle button, or Close Project in
-  its right-click menu (with Remove Project…). Closing a tab asks first (the author's decision, 2026-10-07; before, only when its agent was working), and says so when an agent is still working. **+** after the tabs
-  is the menu of the projects (each with its color and folder, the open ones marked ✓; × on hover removes one), New
-  Project…, Open Folder…, Close Project and Remove Project… (the shown one). No separate Manage Projects dialog: as
-  in JetBrains, the menu and the Welcome screen do it all.
+- **The projects' bar**: each open project an island of its own, as an app in a dock with its windows: its label
+  (its icon, the app's logo with the curtain in the project's color, and its name), then a tab per workspace with
+  its agent's state (below). Every open project's workspaces are there, so a click on any of them shows that project with it; the
+  others keep running, their agents and pages. The bar is in the middle under the grid, where the hand goes for the
+  terminal anyway, or over it (☰ → Projects bar: Top, Bottom; saved). Each island looks like a tab of the grid: square
+  where it meets the grid and merging into it with curves, rounded towards the window's edge.
+  - **Nothing in it moves** when another project or workspace is shown: every island keeps its width (another
+    project's keeps the room of the shown one's +; every tab the room of its ×; a project without git keeps the room
+    of its +),
+    and the shown project's tabs come with the projects' news, not after it. Islands that moved under the mouse made
+    the human miss (the author, 2026-10-08).
+  - **The label is no button**: its workspaces are what is clicked (two ways to the same thing confused). Closing the
+    project: main's ×, the middle button on its label, or Close Project in its right-click menu (with Move to New
+    Window, Move to Window, Remove Project…). Closing asks first
+    (the author's decision, 2026-10-07; before, only when its agent was working), and says so when an agent is still
+    working.
+  - **The button after the islands** is the menu of the projects (each with its color and folder, the open ones marked
+    ✓; × on hover removes one), New Project…, Open Folder…, Close Project and Remove Project… (the shown one). No
+    separate Manage Projects dialog: as in JetBrains, the menu and the Welcome screen do it all.
 - **New Project…**, as JetBrains': a name and a location, the user's home folder unless they type or browse to
   another; the dialog shows the folder it makes (`<location>/<name>`; one that is there must be empty), so the human
   knows where the agent's files are. Create Git repository is on by default (`git init`, nothing committed):
@@ -26,29 +37,30 @@ A **project** is a folder, usually a repository, with its workspaces. Kulisa kee
   JetBrains does: **This Window** adds its tab at the end and shows it, the one on screen keeps running; **New
   Window** opens it in a window of its own. From the Welcome screen (no tab open) it opens in that window without a
   question; a project already open is shown in its window. Showing
-  another tab slides the grid towards it, as switching workspaces does; the window builds the other grid in place, so
-  nothing jumps. **Closing a tab** stops the project's agents and closes its profiles (tabs and sign-ins kept); the
+  another project slides the grid towards its island, as macOS desktops do (a view transition on the compositor, the
+  pages as pictures meanwhile; not with reduced motion); the window builds the other grid in place, so nothing jumps.
+  **Closing a project** stops the project's agents and closes its profiles (tabs and sign-ins kept); the
   tab next to it is shown, or the Welcome screen when it was the last. Opening it again restores its workspaces and
   resumes their agents.
-- **Move to New Window** (a tab's right-click menu) puts the project into a window of its own, next to this one, e.g.
+- **Move to New Window** (the label's right-click menu) puts the project into a window of its own, next to this one, e.g.
   to drag it to a second monitor; **Move to Window: …** (one item per other window, named by its projects) puts it
   into that window, as a browser moves a tab. It keeps running: its agents, its pages (the same ones, moved, not
   loaded again), what its terminals showed. The only tab of a window does not go to a new window; moved into another
-  one, its window closes. **Dragging a tab** does the same with the mouse: within the tabs it changes their order
-  (kept); let go on another window's tabs, the project moves there, where it was let go; let go outside every Kulisa
-  window, it opens in a new window there (the window appears when the mouse is let go, as in VS Code). Each window has its tabs and its + menu (a
-  project open in another window is marked ✓ too; choosing it brings that window to the front). The OS's × on a
-  window closes its projects, as closing their tabs would, after one question ("Close the window?"); on the last
-  window it quits Kulisa, and the windows with their tabs open again at the next start, where they were: nothing is
-  lost, so it asks only when that would stop a working agent ("Quit Kulisa?"). A window whose last tab
-  is closed closes too, unless it is the only one: then it shows the Welcome screen.
-- **Each project has a color** (the shown one's: a glow from the middle of the window, the logo's curtain, its tab's
-  plate), to tell projects apart at a glance.
+  one, its window closes. **Dragging a label** does the same with the mouse: within the bar it changes the order
+  (kept); let go on another window's bar, the project moves there, where it was let go; let go outside every Kulisa
+  window, it opens in a new window there (the window appears when the mouse is let go, as in VS Code). Each window has
+  its bar and its projects' menu (a project open in another window is marked ✓ too; choosing it brings that window
+  to the front). The OS's × on a window closes its projects, as closing each would, after one question ("Close the window?"); on the last
+  window it quits Kulisa, and the windows with their projects open again at the next start, where they were: nothing
+  is lost, so it asks only when that would stop a working agent ("Quit Kulisa?"). A window whose last project is
+  closed closes too, unless it is the only one: then it shows the Welcome screen.
+- **Each project has a color** (the shown one's: a glow from the middle of the window, the logo's curtain; each one's
+  curtain on its label in the bar), to tell projects apart at a glance.
 - **The Welcome screen** (the term: CLAUDE.md) is what the window shows with no project open: at the first start, and
-  after the last tab is closed (×, Close Project, closing main, removing the project). New Project…, Open
+  after the last project is closed (Close Project, the middle button on its label, removing the project). New Project…, Open
   Folder…, the recent projects (a click opens one, × or a right-click removes it), and links (the website, the
   documentation, GitHub, reporting an issue; they open in the user's browser) with Kulisa's version. Later starts
-  open the windows that were open, each with its tabs, showing the one shown last (`windows` in `settings.json`);
+  open the windows that were open, each with its projects, showing the one shown last (`windows` in `settings.json`);
   `KULISA_PROJECT=<folder> npm start` adds that one to the first window and shows it.
 - **The agent** of each workspace starts in the user's own shell, in the workspace's folder, as if the human typed
   it in a terminal there: the project's environment applies (direnv's `.envrc`, nvm, mise; e.g. a project's
@@ -75,17 +87,21 @@ Example: the project `~/IdeaProjects/myshop`, a fork named "Checkout redesign":
 
 ## What the human does
 
-- **The strip** under the grid: a tab per workspace, with the agent's state as an icon (working, waiting for you,
-  done; from its hooks: "Choosing the agent"). A click shows that workspace: the grid on screen slides out and the
-  other one in at once, as macOS desktops do (a view transition on the compositor, the pages as pictures meanwhile;
-  not with reduced motion). The one left keeps running.
-- **+** asks for a name and the agent (main's by default) and makes a fork. Off without git: then **Initialize
-  git…** runs `git init` in the project after a confirmation (nothing is committed); + stays off until the first
-  commit.
-- **×** on a fork closes and deletes it, after a question: what goes for good (its folder, branch, profile copies,
-  its agent's conversations) and any work not in main (commits of its own, uncommitted files), as removing a
-  project asks. **×** on main closes the project, after the same question: the window
-  shows the Welcome screen.
+- **Its tabs** in its project's island in the projects' bar: a tab per workspace, with the agent's state as an icon
+  (working, waiting for you, done; from its hooks: "Choosing the agent"). A click shows that workspace, at once, as
+  Chrome switches tabs: no slide or fade (a flash over the whole grid at every switch; a slide made the workspaces
+  and the projects look alike). The pages come in the same frames as the terminal: the view transition that holds
+  the old grid's picture while the next one is built runs no animation at all, Chromium's own for its groups
+  included (it kept the pages, shown when it ends, 250 ms behind the terminal). The one left keeps running. Another
+  project's island marks the workspace it shows (a step brighter): where that project is when shown again.
+- **+** asks for a name and the agent (main's by default) and makes a fork. Forks need git and a first commit:
+  until then there is no + (its room kept), and nothing in the window offers git: who wants workspaces finds why
+  here (the author's decision, 2026-10-08; an Initialize git… button made the bar busier for the few who need it).
+  The bar checks again when the pointer comes to the island (a commit made in the terminal).
+- **×** on every workspace's tab, of any open project, under the pointer and on the shown one, as in Chrome (its
+  room kept). On a fork it deletes it, after a question: what goes for good (its folder, branch, profile copies, its
+  agent's conversations) and any work not in main (commits of its own, uncommitted files), as removing a project
+  asks. On main it closes the project, after its question.
 - **Change agent…** in the terminal's right-click menu picks another agent for the shown workspace.
 
 ## Actions: the human's and the agent's
@@ -96,14 +112,13 @@ to the human; the window's IPC (`app.js`) is a handle on it. The agent has no ha
 | Action | The human | The agent | The core |
 |---|---|---|---|
 | Open a project | + menu, Open Folder…, New Project…, the Welcome screen | none: it works inside one project | `openLater` (`app.js`), asking This Window or New Window; then `openProject` or `openInNewWindow` |
-| Close a project | a tab's ×, middle button, Close Project, main's × | none: it would stop itself | `closeProjects` (`app.js`), asking first |
+| Close a project | main's ×, the middle button on its label, Close Project (its right-click menu, the projects' menu) | none: it would stop itself | `closeProjects` (`app.js`), asking first |
 | Close a window, quit | the OS's ×, ☰ → Exit | none | `closeProjects` for the window's projects; `quit` (`app.js`), asking only when an agent works |
-| Move a project | Move to New Window, Move to Window, dragging its tab | none: where the human sees it is the human's | `moveProject` (`app.js`) |
+| Move a project | Move to New Window, Move to Window, dragging its label | none: where the human sees it is the human's | `moveProject` (`app.js`) |
 | Remove a project | Remove Project…, ×, the Welcome screen | none: it deletes sign-ins, the human's to decide | `removeProject` (`app.js`), `askRemoveProject`, `removeProjectData` (`projects.js`) |
-| Make a fork | + in the strip | not yet (ROADMAP, "Workspaces, rest") | `Project.createFork` |
-| Close (delete) a fork | its × | not yet (same) | `Project.askDeleteFork`, `deleteFork` |
-| Show a workspace | a click on its tab | none: what the human looks at is theirs | `AppWindow.showWorkspace` (`window.js`) |
-| Initialize git | Initialize git… in the strip | none: the agent has git itself | `Project.initGit`, asking first |
+| Make a fork | + in its project's island | not yet (ROADMAP, "Workspaces, rest") | `Project.createFork` |
+| Close (delete) a fork | its ×, in any open project's island | not yet (same) | `Project.askDeleteFork`, `deleteFork` |
+| Show a workspace | a click on its tab, of any open project | none: what the human looks at is theirs | `AppWindow.showWorkspace`, then `show` its project (`window.js`) |
 | Change the agent | Change agent… (the terminal's menu) | none: the human's choice | `Workspace.changeAgent` |
 
 ## Choosing the agent
@@ -150,8 +165,6 @@ command everywhere, without asking.
   Done means "come and see": once the human sees that workspace (shown with
   Kulisa's window in focus; at once when it was on screen) its tab shows nothing (`Workspace.seen`, `tabState`), the
   agent still done for the rest of Kulisa.
-  A project's tab shows the most pressing of its workspaces' (waiting, done, working: a done one asks the human to
-  come, a working one does not), each one's in its tooltip.
   Other agents show none yet (ROADMAP).
 
 ## Creating a fork, step by step
@@ -187,14 +200,14 @@ In Kulisa's data folder (`~/.config/Kulisa` on Linux, `~/Library/Application Sup
 
 ```
 projects.json                     the projects: id, name, folder, color
-settings.json                     the Kulisa zoom, the theme; the windows: each one's projects (its tabs), the one
-                                  shown, where it was
+settings.json                     the Kulisa zoom, the theme, where the projects' bar is; the windows: each one's
+                                  projects (in the bar's order), the one shown, where it was
 deleted-folders.json              folders to remove at the next start (a session keeps its files open)
 projects/<project id>/
   workspaces.json                 { next, current, list: [{ n, name, branch, worktree, folder, base, offset }] }
                                   main is { n: 1, name: "main" }; base: the commit the fork started from
   1/                              main
-    profiles.json                 its profiles in order: folder, id, name, color, sites' zoom, closed
+    profiles.json                 its profiles in order: folder, id, name, avatar, description, sites' zoom, closed
     layout.json                   its grid (dockview)
     agent.json                    { agent, started, sessionId, transcript }: which agent, its conversation
     Profile 1/                    a Chromium profile (session.fromPath), with Kulisa's own files in it:
@@ -247,8 +260,8 @@ What stays in any case: an agent Kulisa installed (it serves every project).
 
 ## Removing a project
 
-**Remove Project…**: in the + menu (Remove Project… for the shown project; any project's × on hover), a tab's
-right-click menu, and a recent project on the Welcome screen (its × on hover, or its right-click menu). All call one function (`removeProject` in `app.js`):
+**Remove Project…**: in the projects' menu (Remove Project… for the shown project; any project's × on hover), a
+project label's right-click menu, and a recent project on the Welcome screen (its × on hover, or its right-click menu). All call one function (`removeProject` in `app.js`):
 Kulisa asks first, saying what goes and which forks have work not in main; closes the project if it is open;
 deletes each of its workspaces as above, forks first; then removes it from `projects.json` with its data folder
 `projects/<id>/`. The project's own folder stays as it is.
@@ -263,7 +276,7 @@ deletes each of its workspaces as above, forks first; then removes it from `proj
   percent-encoded: ids have letters of any language); its agent gets them in its environment (`KULISA_MCP_URL`,
   `KULISA_URL`) and sees only its workspace's profiles. Profile ids repeat across workspaces; inside Kulisa a profile
   is `<project id>/<n>/<id>` (CDP proxy, highlights).
-- Closing a project's tab stops all its workspaces; opening it again, or restarting, restores them and resumes their
+- Closing a project stops all its workspaces; opening it again, or restarting, restores them and resumes their
   agents where the agent can (Claude `--resume`, Codex `resume`).
 
 ## Removing everything by hand
@@ -307,8 +320,8 @@ Designed with the author on 2026-10-06 and 2026-10-07.
   and the agent starts at its terminal's real size.
 - **Workspaces and projects in the background keep running**, their pages and agents. Memory: each agent is a
   process of its own (Claude Code about 200–400 MB) plus its profiles' tabs.
-- **Another project opens in a tab**, as in a browser. At first opening one closed the shown one and stopped its
-  agents; now the human closes a tab when it is safe.
+- **Another project opens beside the shown one** (an island in the bar), as a browser opens a tab. At first opening
+  one closed the shown one and stopped its agents; now the human closes a project when it is safe.
 - **Several windows are one Kulisa**, not a second instance: two cannot share the data folder. A project moves with
   its pages' native views (`Profile.moveTo`), not loaded again, and with what its terminals show (xterm's serialize
   addon, as VS Code keeps terminals), at their size, so its agent is never told a default one. A window is one more
@@ -322,15 +335,15 @@ Designed with the author on 2026-10-06 and 2026-10-07.
 | File | What |
 |---|---|
 | `src/main/app.js` | the windows; open, close and move projects (one change at a time, `serial`); IPC |
-| `src/main/window.js` | a window: its project tabs, show a project or a workspace, the grid's state, its questions |
+| `src/main/window.js` | a window: its open projects, show a project or a workspace, the grid's state, its questions |
 | `src/main/projects.js` | an open project: its workspaces; making a fork, deleting one (with the question); removing a project's data |
 | `src/main/workspaces.js` | a workspace: its profiles, its agent (start, change, environment), a fork's profile copies, ports |
 | `src/main/worktrees.js` | git: the fork's worktree and branch, files outside git, direnv, changes, removal |
 | `src/main/agents.js` | the agents to choose from: find, install, start, resume; Claude's folder trust |
 | `src/main/store.js` | the data folder above |
 | `src/main/terminal.js` | a terminal per workspace |
-| `src/renderer/projects.js`, `new-project.js` | the project tabs and the + menu, the Welcome screen; New Project… (loaded when needed) |
-| `src/renderer/workspaces.js` | the strip and the new-workspace dialog |
+| `src/renderer/projects.js`, `new-project.js` | the projects' bar (an island per project) and the projects' menu, the Welcome screen; New Project… (loaded when needed) |
+| `src/renderer/workspaces.js` | the workspaces' tabs in the bar, the new-workspace dialog |
 | `src/renderer/agent-picker.js`, `agents.js`, `agent-list.js` | choosing a workspace's agent; the Agents window; the list of agents with Install that both show (loaded when needed) |
 | `src/renderer/renderer.js`, `window.css` | building a workspace's grid; the slide (a view transition) |
 | `test/workspaces.js` | the tests; `test/restart.js` after a restart |

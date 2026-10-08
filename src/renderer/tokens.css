@@ -7,6 +7,7 @@
      (gaps, title bar); light, white islands on a light grey window. --window and --text are also in window.js (the
      window's background and the OS buttons' strip). */
   --window: light-dark(#ebecf0, #2b2d30); --island: light-dark(#ffffff, #1e1f22); --island-hi: light-dark(#dfe1e5, #393b40);
+  --well: light-dark(#d3d6dc, #131416); /* under a workspace's panels and the projects' islands: a step from the islands */
   --toolbar: light-dark(#f2f3f5, #2f3135); --field: light-dark(#ffffff, #2b2d30); --button: light-dark(#ffffff, #393b40);
   --line: light-dark(#c9ccd6, #4e5157);
   --text: light-dark(#1e1f22, #dfe1e5); --text-strong: light-dark(#000000, #ffffff); --text-dim: light-dark(#494b57, #b4b8bf);

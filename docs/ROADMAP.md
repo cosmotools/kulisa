@@ -7,13 +7,12 @@ here; what is left of it stays.
 
 ## Next
 
-- **Kulisa plugin: more the agent can do in the browsers** (a feature of its own; tools in `mcp-server.js`, each
-  described in the skill). What else an agent needs comes from using it. The human
-  has handles the agent does not yet (the table of actions in [profiles.md](profiles.md)): back, forward, reload,
-  renaming a profile; each a thin tool on the core.
-- **The window's handles name their workspace.** A window's IPC acts on the workspace that window shows (found by
-  `event.sender`, so never another window's); an action sent just as the human switches workspaces or projects could
-  still reach the other one. The renderer should send the workspace's key, as `layout` does.
+- **Kulisa plugin: more the agent can do in the browsers** (tools in `mcp-server.js`, each described in the skill;
+  what is built: [profiles.md](profiles.md), "What the agent does"). What else an agent needs comes from using it
+  (the author moves to working in Kulisa, 2026-10-08): where the agent goes around the tools (its own Playwright
+  scripts, `curl`, asking the human to do it) is a tool missing. Thought of, not built: console and requests since
+  the agent's last action only; a button over the pane for the human to say they signed in, for sign-ins that keep
+  the address.
 - **Kulisa plugin: running the app** (a feature of its own, found while designing workspaces, 2026-10-06). The
   agent gets help with starting the app under test: the WS's port offset in its environment
   (`KULISA_PORT_OFFSET`), and the skill on how to apply it for common stacks (`PORT`, `--port`, `.env.local`,
@@ -25,6 +24,31 @@ here; what is left of it stays.
     worktree through `PORT` or `.env.local`, a database per branch, hostnames through a local proxy
     (`a.localhost`), docker compose per worktree, or one dev server at a time. A project that cannot run twice:
     one shared dev server, the panes show whose branch it is.
+- **Sign-in: whoever holds the password signs in** (discussed with the author 2026-10-08; the best idea so far,
+  not final: to think over again before building). Today the sign-in pause is tied to the page's address (a list of
+  hosts), so the agent cannot test the developer's own sign-in, sign-up and password reset through Auth0 and the like
+  until they work: it stops and asks the human every time.
+  - The idea: the pause belongs to the human's sign-in, not to an address. The agent signs in itself where it holds
+    the password (test users from the project, accounts it signed up itself, or what the human gave it). For the
+    human's own accounts it hands the profile over (`profile_ask_signin`, or a button over the pane when the human
+    signs in unasked); while the human signs in, nothing automated is attached, as today.
+  - The host list stays only for restoring tabs (one-time sign-in URLs). One concept ("whose turn it is in the
+    profile") instead of three (hosts, the pause, a per-profile "test" flag, also considered and dropped).
+  - The rule for the agent: never ask the human for a password (one given in chat stays in the agent's transcript
+    and at its provider); hand over instead. Kulisa's own code still never types passwords or prints cookies or tokens.
+  - Its cost: a human signing in unasked without the button keeps the agent attached (then a hint on a known
+    sign-in page: "Your sign-in? Detach the agent").
+  - Thought over again on 2026-10-08, no decision; the author wants an elegant, simple rule. Dropped: pausing when
+    the human focuses a secret field (`type=password`, `autocomplete="one-time-code"` …) plus a short list of sites
+    that refuse automation and an exception for sign-ins returning to `localhost`: four mechanisms, not one rule.
+    Dropped: "these sites are never the developer's" (Microsoft, Google): it breaks Kulisa for developers at those
+    companies testing their own sign-in. Whose account it is cannot be told from the site, only from who types.
+  - Open idea, "whoever holds the wheel drives": a key the human presses in a pane takes that profile from the agent
+    (clicks and scrolling do not); typing in the terminal, or "Give back to the agent" on the pane, returns it. The
+    agent types wherever it holds the password; no host list for the pause. To check: whether GoDaddy's Kasada
+    passes when the agent is detached at the first key rather than before the page loads (else the human takes the
+    profile first and reloads, as `profile_ask_signin` does); telling the human's keys from the agent's (Electron's
+    `before-input-event`, or the proxy knowing its own `Input.*`).
 - **Choosing the agent, rest** (how it works: [workspaces.md](workspaces.md), "Choosing the agent").
   - Codex (0.160.1, Linux, 2026-10-06): its installer puts it in `~/.local/bin`, as assumed; `codex mcp list` with
     Kulisa's `-c mcp_servers.kulisa.url=…` lists the server, enabled; `codex resume` takes `--last` and `-c`. Not yet
@@ -78,7 +102,7 @@ here; what is left of it stays.
     channel; profile pages are sandboxed and have no preload. Check against Electron's security checklist. To
     sandbox the window, its preload must be one file: a sandboxed preload `require`s only `electron`, `events`,
     `timers`, `url` (Electron's `tutorial/sandbox.md`, "Preload scripts"), and ours takes the rule for names from
-    `../main/names`; pass that another way (IPC, `additionalArguments`).
+    `../main/names` and the profiles' pictures from `../main/avatars`; pass that another way (IPC, `additionalArguments`).
   - **Distribution:** code signing, notarization, auto-update channel, the `.deb`'s setuid `chrome-sandbox`.
   - **Presenting as Google Chrome:** what users should know (sites' terms, bot detection).
 - **Accessibility** (a11y; before a public release, as security). Kulisa should work for people who see poorly, do
@@ -143,6 +167,16 @@ here; what is left of it stays.
 
 ## Deferred ideas
 
+- **Our own tools over Playwright, or a bridge to it** (the author's question, 2026-10-08; to discuss again after
+  working in Kulisa). The author: a bridge passing the agent's calls to Playwright would be less code. Why the tools
+  are Kulisa's own today: `@playwright/mcp` has no profile argument (a server per profile: its 25 tools each, and
+  profiles come and go while the agent's servers are fixed at its start); the core's rules live in the tools (the
+  sign-in pause, dialogs, captions and highlights over the pane, the human's tabs); and a tool running the agent's
+  Playwright code cannot run in Electron's main process (`vm` is no boundary; it has Node and the profiles), while
+  in a process of its own it is what the agent can already do with a script through the CDP proxy. Each tool is a
+  few lines of Playwright; most of their size is the descriptions the agent reads. Claude's recommendation: keep the
+  tools, with `browser_evaluate` and the proxy for rare needs; if the agent often writes its own Playwright scripts,
+  that names a missing tool, or is the reason to run its code in a process of its own.
 - **A public skill: "read the documentation of the installed version"** (2026-10-07; to judge around 2026-11-07,
   after a few features built with Electron). An agent builds from what it learned in training, older than the
   libraries in use; Kulisa's agent got the dark mode wrong until it read Electron's guide. Today it is a rule in
@@ -152,6 +186,10 @@ here; what is left of it stays.
   publish it as a skill for any Electron project (an agent skill, `SKILL.md`; check Codex reads it): none of the
   Electron skills found (2026-10-07: electron-apps, full-stack-skills, gentleman-skills) points to the installed
   version's docs, they retell Electron in text that ages as training does. If plans skip it, a hook instead.
+- **Who a profile is, shared by a team** (cast had it: a slot per role with its description in a file committed to
+  the project, each developer signing it in to their own account). Kulisa keeps descriptions in its own data
+  ([profiles.md](profiles.md), "Who it is"), as it writes nothing into the project's folder. If a team needs it: a
+  file in the project that Kulisa only reads (the developer's own description wins).
 - **A screenshot taken at a pick** (point and tell), if a transient element (a tooltip, an open menu, a toast) turns
   out to need it: today the pick is a locator only, and the agent looks at the live page.
 - **Two agents need the same account** (before workspaces; forks copy main's profiles today). Options:
@@ -168,7 +206,7 @@ here; what is left of it stays.
 - **Workspaces for projects without git: a shadow repository** (2026-10-06). Kulisa keeps the history itself
   (`git --git-dir=<Kulisa data>/projects/<id>/git --work-tree=<project>`), so nothing appears in the user's folder,
   and forks work as in a git project; also gives undo points. Needs rules for what stays out of snapshots and a
-  limit for huge folders. Not now: projects without git have no WS ("Initialize git" instead). `git init` in the
+  limit for huge folders. Not now: projects without git have no WS (no +; the human sets git up, docs/workspaces.md). `git init` in the
   user's folder without asking was rejected (secrets in history, huge folders, nested repositories).
 - **Several agents in one workspace, working as a team** (discussed 2026-10-06; after workspaces, which do not
   depend on it). A workspace may hold several terminals, each an agent (any CLI, Claude and Codex together); all
@@ -238,12 +276,30 @@ here; what is left of it stays.
 
 ## Open issues
 
+- **Workarounds of Electron bugs: check at every Electron upgrade** whether they are still needed, and remove them
+  when not.
+  - Drag regions (`app-region: drag`) of a view's page stay after the page has gone, in a window without a system
+    title bar; they took every click over the panes after Teams (window.md, "The title bar"). Workaround:
+    `app-region: no-drag` in every profile page (`profiles.js`, `_add`). Electron issue: [electron/electron#54743](https://github.com/electron/electron/issues/54743) (2026-10-08).
+    Check: remove the workaround, open Teams (or a page with `app-region: drag`, then another page) in a pane, and
+    click the page with a real mouse (`debug-kulisa` skill). Linux only so far; macOS and Windows draw frameless
+    windows their own way (see "macOS and Windows are untested").
+- **Page dialogs (alert, confirm) in Electron** (found 2026-10-08). Electron shows them as its own message box in the
+  middle of the window, not inside the profile's page as Chrome does (the author asked for that), and has no
+  setting or event for them (`electron.d.ts`: only `disableDialogs`, which answers every dialog at once, before
+  CDP can). A dialog answered over CDP (`Page.handleJavaScriptDialog`) leaves Electron's box on screen, its buttons
+  doing nothing: the agent's answers are given in the page instead ([profiles.md](profiles.md), "Dialogs"), except
+  what that misses (a frame added during the action, a function the page kept, leaving a page). The human's dialog
+  in the pane, as Chrome has it, would need a preload whose `confirm`/`alert` wait on a synchronous IPC, which pages
+  can notice (a replaced function), against presenting as Chrome (`mimic-chrome.js`); to discuss.
 - **The MCP server and the CDP proxy do not authenticate local processes.** Web pages are refused
   (`local-only.js`: Host and Origin checks), but any local process can drive the signed-in profiles. Needs a
   per-launch token (passed to the agent through the environment, like `KULISA_MCP_URL`) at least.
 - **`signin-pause.js` is a temporary implementation** to be replaced by the author. It recognizes sign-in pages
   only by host and pauses the whole profile.
 - **macOS and Windows are untested** (only Linux so far; Kulisa targets all three, see SPEC section 4). Known gaps:
+  - Drag regions left by a page (Workarounds of Electron bugs, above): seen on Linux; whether macOS and Windows
+    have the bug, and whether the workaround is enough there, is not known. Open Teams in a pane and click its page.
   - `mimic-chrome.js` takes the machine part (OS, OS version, CPU, the UA's platform) from what Electron's
     Chromium reports itself, so it should match Chrome everywhere. Compared with real Chrome on Linux only; check
     on macOS and Windows against a real Chrome (`navigator.userAgentData.getHighEntropyValues`).
@@ -269,7 +325,7 @@ here; what is left of it stays.
   - `safeStorage` (Keychain, DPAPI) for session cookies: expected to work, untested.
   - macOS: the window screenshot (`KULISA_SHOT`) needs the screen-recording permission; distribution needs code
     signing and notarization (Apple Developer account). Windows: code signing certificate.
-  - The first start: a packaged app opens no project (the Welcome screen), later the project tabs open last
+  - The first start: a packaged app opens no project (the Welcome screen), later the projects open last
     (untested packaged).
   - The one-row title bar (`titleBarStyle: 'hidden'` + `titleBarOverlay`, Window Controls Overlay): checked on
     Linux/X11 only. Check the window buttons, dragging and double-click to maximize on macOS (traffic lights on the
@@ -278,8 +334,8 @@ here; what is left of it stays.
     once, Ctrl+C copies a selection and interrupts without one. macOS: ⌘C / ⌘V through Electron's default app menu
     (Kulisa sets none), and Ctrl+V reaching the agent.
   - Several windows (Move to New Window): a profile's native views moved from one window to another, and a window's
-    place restored (`getNormalBounds`, maximized); checked on Linux/X11 only. Dragging a project's tab: tested with
-    synthetic events only, not yet by hand; a tab let go outside the windows is told from a cancelled drag by where the
+    place restored (`getNormalBounds`, maximized); checked on Linux/X11 only. Dragging a project's label: tested with
+    synthetic events only, not yet by hand; a project let go outside the windows is told from a cancelled drag by where the
     pointer is (`screen.getCursorScreenPoint`), which Wayland may not report.
   - The theme (☰ → Theme): the OS buttons' strip recolored (`setTitleBarOverlay`) and System following the OS
     (`nativeTheme.shouldUseDarkColors`, `updated`; on Linux through GTK or the desktop portal): checked on
@@ -303,14 +359,26 @@ here; what is left of it stays.
   - Whatever the cause, a folder no `profiles.json` names: proposed to add it back to the list as a closed profile
     (nothing signed in is lost; the human deletes it if not needed), rather than remove it at start, which would
     destroy sign-ins of a profile dropped by a bug. The author's decision.
-- **Profiles' caches have no limit of Kulisa's.** Chromium's HTTP cache, Code Cache and GPU caches per profile
-  (on the author's main profiles 47 and 78 MB after a few days); Chromium sets the HTTP cache's limit itself from the
-  free disk space. Several profiles in several projects add up. To decide: a limit (`--disk-cache-size`, the whole
-  app) or clearing a profile's cache when it is closed.
-- **Some tests fail now and then** (seen 2026-10-07, 2 runs of 3): the menus (`context menus …`), DevTools in ⋮, the
-  address bar's click; each waits for a menu or the focus. On 2026-10-08 `projects: a tab dragged …` failed in three
-  runs in a row, the committed code too ("towards the pointer": the new window's place), and `closing main …` after it;
-  they had passed that day: likely where the window manager puts the test's window. Cause not looked for. Also to look at: the slowest tests
-  (closing a fork 11 s, a site that never answers 10 s) may wait on fixed timeouts.
+  - The author started over with fresh data on 2026-10-08: watched, not fixed. To look for it (read only): every
+    `Profile N` folder of a workspace that its `profiles.json` does not name and `deleted-folders.json` does not list:
+    `for d in ~/.config/Kulisa/projects/*/*/; do for f in "$d"Profile\ *; do [ -d "$f" ] || continue;
+    cat "$d/profiles.json" ~/.config/Kulisa/deleted-folders.json 2>/dev/null | grep -qF "\"$(basename "$f")\"" ||
+    echo "$f"; done; done` (one `grep` over several files, one of them missing, fails here: `grep` is ugrep).
+    When one shows up, ask the author what they did just before.
+- **Profiles' caches** (2026-10-08: a closed profile's caches are cleared, [profiles.md](profiles.md), "What is on
+  the computer"; to decide for good, the author). Chromium's HTTP cache, Code Cache and GPU caches per profile (on
+  the author's main profiles 47 and 78 MB after a few days); Chromium sets the HTTP cache's limit itself from the
+  free disk space, and open profiles still grow to it. Several profiles in several projects add up.
+  - Alternative: a limit for the whole app, `--disk-cache-size=<bytes>` (`app.commandLine.appendSwitch` before
+    ready): every profile's HTTP cache at most that, open ones too; not the code and GPU caches.
+  - Or both, or clearing when a workspace or project is closed as well. Cost of clearing: the first load of a
+    reopened profile's sites is slower (no cache), which matters little for profiles set aside.
+- **Tests that failed now and then** (fixed 2026-10-08; watch whether they come back). The menus' tests (context
+  menus, DevTools in ⋮, the zoom's) waited for a picture of every page before a menu opened, and a page drawing no
+  frame (covered, the monitor off) held that menu and every one after it: pictures now wait 500 ms at most
+  (`window.js`, test "a menu opens even when a page gives no picture"). `projects: a tab dragged …` let go off the
+  screen when the window manager put the test's window near its right edge; it lets go on the side with room now.
+  Not looked at: the address bar's click (seen 2026-10-07). Slow but not flaky: closing a fork (11 s, git's work), a
+  site that never answers (10 s: two 5 s waits by design).
 - **No performance numbers taken with the monitor on.** CPU, RAM, many profiles; see REPORT, E8.
 - **`playwright-core` is pinned to a 1.64 alpha.** Move to the stable release once it ships with the same APIs.

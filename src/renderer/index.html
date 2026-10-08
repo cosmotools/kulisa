@@ -10,12 +10,14 @@
   <link rel="stylesheet" href="components.css">
   <link rel="stylesheet" href="window.css">
   <!-- The theme (dark, light, system: tokens.css) comes in the URL, set before the first paint (window.js, load) -->
-  <script>document.documentElement.dataset.theme = new URLSearchParams(location.search).get('theme') || 'dark';</script>
+  <!-- So does where the projects' bar is (top, bottom) -->
+  <script>{ const q = new URLSearchParams(location.search), root = document.documentElement;
+    root.dataset.theme = q.get('theme') || 'dark'; root.dataset.bar = q.get('bar') || 'bottom'; }</script>
 </head>
 <body>
   <!-- Icons (docs/ui.md): each drawn once here, on a 16 × 16 grid in lines of the text's color, and used as
        <svg aria-hidden="true"><use href="#i-…"/></svg>. Their size is the place's (components.css, .icon). -->
-  <svg hidden>
+  <svg class="sprite" aria-hidden="true">
     <symbol id="i-close" viewBox="0 0 16 16"><path d="M3.5 3.5l9 9M12.5 3.5l-9 9"/></symbol>
     <symbol id="i-plus" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10"/></symbol>
     <symbol id="i-menu" viewBox="0 0 16 16"><path d="M2 4h12M2 8h12M2 12h12"/></symbol>
@@ -39,38 +41,46 @@
     <symbol id="i-waiting" viewBox="0 0 24 24"><g stroke-width="2.25"><path d="M10.268 21a2 2 0 0 0 3.464 0M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/></g></symbol>
     <symbol id="i-done" viewBox="0 0 24 24"><g stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></g></symbol>
     <symbol id="i-exit" viewBox="0 0 24 24"><g stroke-width="2.25"><path d="M16 17l5-5-5-5M21 12H9M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/></g></symbol>
-  </svg>
-  <header id="topbar">
-    <!-- The app icon (assets/icon.svg) with the curtain in the project's color (--project): each project its own
-         curtain. -->
-    <svg class="logo" viewBox="100 100 824 824" aria-hidden="true">
-      <defs>
-        <linearGradient id="drape" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0" class="fold"/><stop offset=".3" class="lit"/><stop offset=".55" class="fold"/><stop offset=".8" class="lit"/><stop offset="1" class="fold"/>
-        </linearGradient>
-        <clipPath id="body"><rect x="100" y="100" width="824" height="824" rx="185"/></clipPath>
-      </defs>
-      <g clip-path="url(#body)">
+    <!-- The app icon (assets/icon.svg) with its curtain in any color: currentColor (the project's, --color or --project
+         of the place), its folds a shadow over it, the same for every color (a gradient of the color itself would be
+         one for all: a <use> takes the sprite's, not its own). In the title bar and on a project's label. -->
+    <defs>
+      <linearGradient id="logo-folds" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0" stop-opacity=".4"/><stop offset=".3" stop-opacity="0"/><stop offset=".55" stop-opacity=".3"/><stop offset=".8" stop-opacity="0"/><stop offset="1" stop-opacity=".4"/>
+      </linearGradient>
+      <clipPath id="logo-body"><rect x="100" y="100" width="824" height="824" rx="185"/></clipPath>
+    </defs>
+    <symbol id="i-logo" viewBox="100 100 824 824">
+      <g clip-path="url(#logo-body)" stroke="none">
         <rect x="100" y="100" width="824" height="824" fill="#17181b"/>
-        <path d="M100 100 H466 C438 390 374 630 318 924 H100 Z" fill="url(#drape)"/>
-        <path d="M924 100 H558 C586 390 650 630 706 924 H924 Z" fill="url(#drape)"/>
+        <path d="M100 100 H466 C438 390 374 630 318 924 H100 Z" fill="currentColor"/>
+        <path d="M924 100 H558 C586 390 650 630 706 924 H924 Z" fill="currentColor"/>
+        <path d="M100 100 H466 C438 390 374 630 318 924 H100 Z" fill="url(#logo-folds)"/>
+        <path d="M924 100 H558 C586 390 650 630 706 924 H924 Z" fill="url(#logo-folds)"/>
       </g>
       <path d="M446 390 L446 740 L529 659 L584 777 L641 751 L586 635 L700 629 Z" fill="#ffd27a" stroke="#17181b" stroke-width="26" stroke-linejoin="round"/>
-    </svg>
-    <!-- The open projects as tabs (projects.js), then + : the menu of the projects -->
-    <nav id="projectTabs" aria-label="Open projects"></nav>
-    <button id="openProjects" class="icon" title="Open a project" aria-label="Open a project"><svg aria-hidden="true"><use href="#i-plus"/></svg></button>
+    </symbol>
+    <!-- The projects' menu: Lucide's folder-open -->
+    <symbol id="i-projects" viewBox="0 0 24 24"><g stroke-width="2.25"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></g></symbol>
+  </svg>
+  <header id="topbar">
+    <!-- The app icon with the curtain in the project's color (--project): each project its own curtain -->
+    <svg class="logo" aria-hidden="true"><use href="#i-logo"/></svg>
     <button id="openProfiles" title="Profiles of this project">Profiles ▾</button>
     <button id="zoomReset" hidden title="Kulisa's zoom. Click to reset (Ctrl 0)"></button>
     <button id="windowMenu" class="icon" data-menu-end title="Menu: zoom, layout" aria-label="Menu"><svg aria-hidden="true"><use href="#i-menu"/></svg></button>
   </header>
   <main id="dock"></main>
-  <!-- The project's workspaces (workspaces.js), under the grid -->
-  <nav id="workspaces">
-    <div id="wslist"></div>
-    <button id="wsadd" class="icon" title="New workspace" aria-label="New workspace"><svg aria-hidden="true"><use href="#i-plus"/></svg></button>
-    <button id="wsinit" hidden title="Workspaces need git: run git init in the project's folder">Initialize git…</button>
-  </nav>
+  <!-- The projects' bar, under the grid or over it (☰): an island per open project (projects.js), its label and its
+       workspaces' tabs; the shown one's live (workspaces.js, put there by projects.js); then the menu of the projects -->
+  <footer id="projectbar">
+    <nav id="projectTabs" aria-label="Open projects"></nav>
+    <nav id="workspaces" aria-label="Workspaces of the project">
+      <div id="wslist"></div>
+      <button id="wsadd" class="icon" title="New workspace: a fork of main with its own branch, folder, agent and copies of the profiles" aria-label="New workspace"><svg aria-hidden="true"><use href="#i-plus"/></svg></button>
+    </nav>
+    <button id="openProjects" class="icon" title="Projects: open another, New Project…, Open Folder…" aria-label="Projects"><svg aria-hidden="true"><use href="#i-projects"/></svg></button>
+  </footer>
   <!-- The Welcome screen (projects.js): no project open; what to open, as JetBrains' Welcome screen -->
   <section id="welcome">
     <img class="applogo" src="../../assets/icon.svg" alt="Kulisa">
@@ -96,7 +106,15 @@
       <p class="hint">A profile is a separate browser profile, as in Chrome: its own cookies, storage, tabs and sign-ins.
         Sign in by hand in its pane; the agent in the terminal then uses it.</p>
       <div id="plist"></div>
-      <form id="padd" class="row"><input id="newProfile" data-name maxlength="64" placeholder="New profile, e.g. ann@shop.com or ann.admin" spellcheck="false"><button>Add</button></form>
+      <form id="padd">
+        <h3>New profile</h3>
+        <div class="field"><span>Picture</span><div class="pics" role="group" aria-label="Picture"></div></div>
+        <label class="field"><span>Name</span><input id="newProfile" data-name maxlength="64" placeholder="e.g. ann@shop.com or ann.admin" spellcheck="false"></label>
+        <label class="field"><span>About</span><textarea id="newAbout" rows="2" maxlength="500" placeholder="e.g. seller in the Acme shop; can approve refunds"></textarea></label>
+        <p class="hint">The agent reads this to choose the right profile for a task: who this is in your app, its role, what
+          it can do. You can skip it: the agent will ask you when it needs to know, and save your answer here.</p>
+        <div class="field"><span></span><span><button>Add</button></span></div>
+      </form>
     </div>
     <footer><button id="closeProfiles" class="primary" command="close" commandfor="profiles">Done</button></footer>
   </dialog>
@@ -177,15 +195,20 @@
   </template>
   <!-- A tab: the site's icon (a globe until it has one, as Chrome's), its title, × -->
   <template id="tpl-tab"><div class="tab"><img alt="" hidden><svg class="globe" aria-hidden="true"><use href="#i-globe"/></svg><span class="title"></span><span class="x icon small" title="Close tab"><svg aria-hidden="true"><use href="#i-close"/></svg></span></div></template>
-  <template id="tpl-ptab"><div class="ptab"><span class="dot"></span><b class="pname" title="Double-click to rename"></b><span class="caption"></span><button class="close icon quiet" title="Close profile: its tabs go, its sign-ins stay (open it again in Profiles)" aria-label="Close profile"><svg aria-hidden="true"><use href="#i-close"/></svg></button></div></template>
+  <template id="tpl-ptab"><div class="ptab"><img class="avatar" alt=""><b class="pname"></b><span class="caption"></span><button class="close icon quiet" title="Close profile: its tabs go, its sign-ins stay (open it again in Profiles)" aria-label="Close profile"><svg aria-hidden="true"><use href="#i-close"/></svg></button></div></template>
   <template id="tpl-prow">
     <div class="prow">
-      <span class="dot"></span><input class="name" data-name maxlength="64" spellcheck="false"><code class="pid"></code>
-      <span class="ntabs"></span><button class="open" hidden>Open</button><button class="del">Delete…</button>
+      <button class="pic icon" type="button" title="Change the picture" aria-label="Change the picture" aria-expanded="false"><img class="avatar" alt=""></button>
+      <div class="who">
+        <div class="line"><input class="name" data-name maxlength="64" spellcheck="false" aria-label="Name"><code class="pid"></code>
+          <span class="ntabs"></span><button class="open" hidden>Open</button><button class="del">Delete…</button></div>
+        <textarea class="about" rows="2" maxlength="500" aria-label="About this profile" placeholder="About: who this is in your app, for the agent (optional)"></textarea>
+        <div class="pics" hidden></div>
+      </div>
     </div>
   </template>
   <template id="tpl-menuitem">
-    <button class="item" role="menuitem"><svg class="ico" aria-hidden="true" hidden><use/></svg><span class="dot" hidden></span><span class="text"><span class="label"></span><small></small></span><kbd></kbd></button>
+    <button class="item" role="menuitem"><svg class="ico" aria-hidden="true" hidden><use/></svg><span class="dot" hidden></span><img class="avatar" alt="" hidden><span class="text"><span class="label"></span><small></small></span><kbd></kbd></button>
   </template>
   <!-- A menu row with a × at its end (menu.js, remove): the row's item goes first -->
   <template id="tpl-menuremovable">
@@ -193,6 +216,9 @@
   </template>
   <template id="tpl-menutheme">
     <div class="themerow"><svg aria-hidden="true"><use href="#i-theme"/></svg><span>Theme</span><button data-theme="dark">Dark</button><button data-theme="light">Light</button><button data-theme="system" title="As the operating system">System</button></div>
+  </template>
+  <template id="tpl-menubar">
+    <div class="barrow"><svg aria-hidden="true"><use href="#i-projects"/></svg><span>Projects bar</span><button data-bar="top">Top</button><button data-bar="bottom">Bottom</button></div>
   </template>
   <template id="tpl-menuzoom">
     <div class="zoomrow"><svg aria-hidden="true"><use href="#i-zoom"/></svg><span>Zoom</span><button class="out" title="Zoom out (Ctrl −)">−</button><output></output><button class="in" title="Zoom in (Ctrl +)">+</button></div>
@@ -232,9 +258,10 @@
       <small class="where"></small><small class="install-line"></small></span><a class="site" target="_blank">Website</a><span
       class="status"></span><button type="button" class="install">Install</button></label>
   </template>
-  <!-- An open project's tab in the title bar (projects.js) -->
-  <template id="tpl-projecttab">
-    <div class="projecttab striptab colored" draggable="true"><span class="state" data-state=""><svg aria-hidden="true"><use href="#i-done"/></svg></span><span class="name"></span><button class="close icon quiet small" title="Close the project (its tabs and sign-ins are kept)" aria-label="Close project"><svg aria-hidden="true"><use href="#i-close"/></svg></button></div>
+  <!-- An open project in the projects' bar (projects.js): its island, its label first (dragged to move the project),
+       then its workspaces' tabs -->
+  <template id="tpl-pisland">
+    <div class="pisland"><div class="plabel" draggable="true"><svg aria-hidden="true"><use href="#i-logo"/></svg><span class="name"></span></div></div>
   </template>
   <!-- A recent project on the Welcome screen (projects.js) -->
   <template id="tpl-project">
@@ -251,8 +278,8 @@
   <script src="common.js"></script>
   <script src="menu.js"></script>
   <script src="terminal.js"></script>
-  <script src="projects.js"></script>
   <script src="workspaces.js"></script>
+  <script src="projects.js"></script> <!-- uses workspaces.tab -->
   <script src="profile-editor.js"></script>
   <script src="renderer.js"></script>
 </body>

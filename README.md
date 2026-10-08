@@ -19,7 +19,7 @@ how the design was tested: [docs/REPORT.md](docs/REPORT.md).
 
 ```sh
 npm install          # Node 22.13+. Rebuilds node-pty for Electron.
-npm start            # opens the windows and project tabs open last; at first start the Welcome screen
+npm start            # opens the windows and projects open last; at first start the Welcome screen
 KULISA_PROJECT=~/my-app npm start
 npm test             # starts the real app against a local test site, then again to check a restart
 npm run package      # the app for this platform, in out/
@@ -43,12 +43,15 @@ setuid on a plain install. The `.deb` installs it setuid, so the installed app r
 | `KULISA_MCP_PORT` | MCP server port (default 4450; `0` picks a free one) |
 | `KULISA_SHOT` | Save a screenshot of the whole window to this PNG file ~4 s after start (`KULISA_SHOT_DELAY`, ms) |
 
-**Projects:** a project is a folder, usually a repository, with its own profiles, grid and agent. Open projects are
-tabs in the title bar, as in a browser: a click shows one, and the others keep running (their agents and pages) until
-you close their tab (**×**, after a question; closing a window asks once for all its projects). **+** after the tabs opens a menu of the projects:
-open another one (in a tab of this window or in a new window: Kulisa asks), remove one (its **×** on hover: Kulisa's data of it and its forks; its
-folder stays), **New Project…** (a name and where its folder goes, your home folder by default; git on by default),
-**Open Folder…**, close the project. Closing the last tab shows the Welcome screen. A closed project keeps its tabs and
+**Projects:** a project is a folder, usually a repository, with its own profiles, grid and agent. The bar under the
+grid (or over it: **☰ → Projects bar**) has an island per open project, as apps in a dock: its name, then its
+workspaces. A click on a workspace shows it, of any project, and the others keep running (their agents and pages)
+until you close their project (**×** on its main, the middle button on its name, or **Close Project** in its
+right-click menu, after a question; closing a window asks once for all its projects). The button after the islands opens a menu of the
+projects: open another one (in this window or in a new window: Kulisa asks), remove one (its **×** on hover:
+Kulisa's data of it and its forks; its folder stays), **New Project…** (a name and where its folder goes, your home
+folder by default; git on by default), **Open Folder…**, close the project. Closing the last project shows the
+Welcome screen. A closed project keeps its tabs and
 sign-ins; when you open it again, its agent continues the conversation where it can (`claude --resume`,
 `codex resume`). The agent starts in your shell in the project's folder, as if you typed its command in a
 terminal there, so the project's environment (direnv's `.envrc`, nvm, mise) applies; when it exits, the shell stays.
@@ -59,18 +62,18 @@ first start the agent asks you to sign in to it. Each workspace keeps its choice
 terminal's right-click menu picks another (with a new conversation). **☰ → Agents…** (also on the Welcome screen)
 shows at any time which agents are installed, their versions and folders, and installs the others.
 
-**Workspaces:** several tasks of a project at once, each with its own agent. The strip under the grid shows the
-project's workspaces: **main** is the project itself; **+** makes a fork of it with a name you give: a git worktree
+**Workspaces:** several tasks of a project at once, each with its own agent, in its project's island: **main** is
+the project itself; **+** makes a fork of it with a name you give: a git worktree
 on a branch of its own next to the project (`~/IdeaProjects/myshop@checkout/`; `.env*` and files named in
 `.worktreeinclude` are copied), copies of main's profiles, still signed in, and a new agent session started there.
 The fork's app runs on its own ports: the usual ones plus `KULISA_PORT_OFFSET` (100, 200, …), and the fork's tabs
 on local addresses point there. Click a workspace to switch; the others keep working. **×** on a fork deletes it
 (its folder, branch, profile copies and conversation), after a question that says what goes and any work not in
-main; **×** on main closes the project. A project needs git for workspaces (**Initialize git…** in the strip runs `git init`).
+main; **×** on main closes the project. Workspaces need git and a first commit: until then a project has no **+**.
 
 Panes and the terminal are panels: drag one by its header to another place (or onto another panel to stack them as
 tabs), drag the gaps between them to resize; **☰ → Arrange panels** offers ready-made arrangements, each drawn as a picture. The grid is
-kept across restarts. Profiles are added, renamed and deleted in **Profiles ▾ → Manage Profiles…**, or by right-clicking a pane's header
+kept across restarts. Profiles are added, renamed, described (who each one is in your app: the agent chooses profiles by it, and asks you when it is not said), given another picture and deleted in **Profiles ▾ → Manage Profiles…**, or by right-clicking a pane's header
 (a name can also be renamed by double-clicking it). **×** at the top right of a profile's pane closes it: its tabs
 go and free their memory, it stays signed in; **Profiles ▾** lists it as closed and brings it back with the same tabs. Right-click a tab or the terminal for their menus. **Zoom:**
 Ctrl + / Ctrl − / Ctrl 0 outside the pages, or ☰ in the title bar, zooms all of Kulisa, and the pages follow; when it
@@ -86,13 +89,14 @@ click to reset). Both are kept across restarts. **☰ → Theme**: Dark (the def
 src/main/        Electron main process
   index.js         entry: reads the environment, calls app.start()
   app.js           the app: windows, open projects (open, close, move to a new window), agents, IPC, quit
-  window.js        a window: its project tabs and what it shows, its questions
+  window.js        a window: its open projects and what it shows, its questions
   projects.js      an open project: its workspaces; making and deleting a fork; removing a project's data
   names.js         the one rule for names of projects, workspaces and profiles; slugs for ids and folders
   workspaces.js    a workspace: its profiles, agent (terminal, environment) and folder; a fork's copies of the profiles
   agents.js        the agent CLIs to choose from: how to find, install, start and resume each
   worktrees.js     git for workspaces: worktree and branch of a fork, files outside git copied, changes, removal
-  project-profiles.js  a workspace's profiles in order, open and closed: create, rename, close, open, delete
+  project-profiles.js  a workspace's profiles in order, open and closed: create, rename, describe, close, open, delete
+  avatars.js       the profiles' pictures to choose from (Noto Emoji's, in src/renderer/avatars/)
   profiles.js      a profile: a session on its own folder, tabs (WebContentsView), Playwright connection, sign-in mode
   store.js         projects.json, settings.json (Kulisa zoom, theme, the windows and their tabs); per project in projects/<id>/:
                    workspaces.json, and per workspace <n>/: profiles.json (with sites' zoom), layout.json (the window's
@@ -113,7 +117,7 @@ src/agent/claude-plugin/  the Kulisa plugin for Claude Code: MCP config, the pro
 src/preload/     the window's bridge to the main process
 src/renderer/    window UI. renderer.js: the grid of panels (dockview), panes, ☰ and right-click menus; parts in their
                  own files: common.js, menu.js (the menus), terminal.js (xterm.js, one per workspace), projects.js,
-                 workspaces.js (the strip, the new-workspace dialog), profile-editor.js; ES modules loaded when
+                 workspaces.js (the workspaces' tabs, the new-workspace dialog), profile-editor.js; ES modules loaded when
                  needed: agent-picker.js (choosing and installing an agent), agents.js (the Agents
                  window), both with agent-list.js, ask.js (questions before deleting or
                  closing), new-project.js (New Project…). Styles: tokens.css, components.css, window.css; the icons are a

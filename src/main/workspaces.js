@@ -163,8 +163,10 @@ class Workspace {
     const tab = r.profile.get(tabId);
     return tab && !tab.wc.isDestroyed() ? { ...r, tab } : { error: tabId ? `No tab ${tabId} in ${id}` : `Profile "${id}" has no tab` };
   }
-  createProfile(name) { return this.list.create(name); }
+  createProfile(name, description, avatar) { return this.list.create(name, description, avatar); }
   renameProfile(id, name) { return this.list.rename(id, name); }
+  describeProfile(id, description) { return this.list.describe(id, description); }
+  setProfileAvatar(id, avatar) { return this.list.setAvatar(id, avatar); }
   closeProfile(id) { return this.list.close(id); }
   openProfile(id) { return this.list.open(id); }
   // Always after the human says yes, whoever asks (by: 'human' or 'agent'): sign-ins are made by hand and cannot be
@@ -194,8 +196,9 @@ class Workspace {
       const urls = p ? (active ? [this._urlOf(active)] : []) : closed ? e.urls : e.urls.slice(0, 1);
       await copyProfile(e.cfg.dir, dest.profileDir(e.cfg.folder));
       dest.saveTabs(e.cfg.folder, urls.filter((u) => u && u !== 'about:blank').map((u) => withOffset(u, offset)));
-      const { id, name, color, folder, zoom } = p ? { ...e.cfg, id: p.id, name: p.name, color: p.color, zoom: p.siteZoom } : e.cfg;
-      list.push({ id, name, color, folder, zoom, closed });
+      const { id, name, avatar, description, folder, zoom } = p
+        ? { ...e.cfg, id: p.id, name: p.name, avatar: p.avatar, description: p.description, zoom: p.siteZoom } : e.cfg;
+      list.push({ id, name, avatar, description, folder, zoom, closed });
     }
     dest.saveProfiles(list);
     const layout = this.store.layout();

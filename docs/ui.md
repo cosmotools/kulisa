@@ -11,13 +11,14 @@ Plain HTML, CSS and JS, no build step (CLAUDE.md, Window UI): markup in `index.h
 |---|---|
 | `src/renderer/tokens.css` | every color and size (`:root`); no literal color anywhere else |
 | `src/renderer/components.css` | the components below |
-| `src/renderer/window.css` | the window's layout and its own parts (title bar with the project tabs, panes, workspaces' strip, Welcome screen, the dialogs' and menus' contents). It places components and adjusts them through their custom properties; it does not make its own buttons, icons or rows |
+| `src/renderer/window.css` | the window's layout and its own parts (title bar, panes, the projects' bar, Welcome screen, the dialogs' and menus' contents). It places components and adjusts them through their custom properties; it does not make its own buttons, icons or rows |
 
 ## Tokens (`tokens.css`)
 
 - Colors for both themes ([window.md](window.md), Theme): each is `light-dark(light, dark)`, so a new color gets
   both values. JS reads a color as shown through an element that uses it (`terminal.js`), not the token's text.
-  JetBrains' themes: `--window` (gaps, title bar), `--island` (panels, dialogs, menus), `--island-hi`
+  JetBrains' themes: `--window` (gaps, title bar), `--island` (panels, dialogs, menus), `--well` (under a
+  workspace's panels and the projects' islands, a step from `--island`), `--island-hi`
   (a lit row, a divider), `--toolbar` (a pane's toolbar and active tab), `--field`, `--button`, `--line` (borders);
   text `--text`, `--text-strong`, `--text-dim`, `--text-muted`; `--accent` (main button, focus), `--danger`,
   `--error`, `--note` (the agent's caption), `--done`; `--on-accent` (text on `--accent` and `--danger`),
@@ -42,7 +43,9 @@ lines (`stroke`) of the text's color; a filled part has `fill="currentColor"`. U
 | Icon | Where |
 |---|---|
 | `i-close` | × of dialogs, profiles, tabs, workspaces; removing a row |
-| `i-plus` | new tab, new workspace, opening a project (the + after the project tabs) |
+| `i-plus` | new tab, new workspace |
+| `i-projects` | the projects' menu (after the islands of the projects' bar), its row in ☰ (Lucide's folder-open) |
+| `i-logo` | the app icon with its curtain in `currentColor`: the title bar's (`--project`) and a project's label in the projects' bar (its `--color`). The folds are a shadow over the color, one for every color: a `<use>` takes the sprite's gradient, not one of its own |
 | `i-menu` | ☰, the window's menu |
 | `i-more` | ⋮, a pane's menu |
 | `i-back`, `i-forward`, `i-reload` | a pane's toolbar (Chrome's) |
@@ -52,8 +55,10 @@ lines (`stroke`) of the text's color; a filled part has `fill="currentColor"`. U
 | `i-working`, `i-waiting`, `i-done` | an agent's state on a tab (`.state`) |
 
 An icon is 16 px; × and + are 14 px, as in Chrome (`.icon`), and so is an agent's state. ☰'s and the agent's states are Lucide's (lucide.dev, ISC), drawn on 24 × 24 with
-their lines thickened to match; take a new one from there rather than drawing it. Pictures are not icons: the app logo (`assets/icon.svg`,
-in the title bar) and the arrangements in ☰ are drawn in place. The test `icons: …` in `test/window.js` checks that
+their lines thickened to match; take a new one from there rather than drawing it. The sprite takes no room but is not
+`display: none`, so the logo's gradient and clip path reach its `<use>`s. Pictures are not icons: the arrangements in ☰
+are drawn in place; the Welcome screen shows `assets/icon.svg` itself; the profiles' pictures are files of their own
+(`src/renderer/avatars/`, Noto Emoji, in their own colors). The test `icons: …` in `test/window.js` checks that
 every other `<svg>` uses the sprite.
 
 ## Components (`components.css`)
@@ -71,22 +76,23 @@ every other `<svg>` uses the sprite.
 
 ### Rows
 
-- `.item`: a row of a menu or a list (`tpl-menuitem`, `tpl-project`), `--row` high: an optional icon (`.ico`) or `.dot`
-  (a profile's or project's color, `--color`), `.text` with `.label` and a `small` line under it, a `kbd` key at the end. Lit under the
+- `.item`: a row of a menu or a list (`tpl-menuitem`, `tpl-project`), `--row` high: an optional icon (`.ico`), `.dot`
+  (a project's color, `--color`) or `.avatar` (a profile's picture), `.text` with `.label` and a `small` line under it, a `kbd` key at the end. Lit under the
   pointer and on keyboard focus.
 - `.removable`: a row with a × (`button.remove.icon.quiet`) at its end, shown on hover or focus; the row is lit as
   one. A recent project in the project menu and on the Welcome screen.
-- `.dot`: a 10 px circle in `--color`.
-- `.striptab`: a tab of a strip, as a browser's: the agent's `.state`, `.name`, × at the end
-  (`button.close.icon.quiet.small`); lit under the pointer. `.active`: the shown one, on the islands' color;
-  `.colored.active`: on a plate of its own `--color`. A workspace's tab (`tpl-wstab`) and a project's
-  (`tpl-projecttab`, colored).
+- `.dot`: a 10 px circle in `--color`, a project's.
+- `.avatar`: a profile's picture (`<img>`, `avatarSrc(name)` in `common.js`), 16 px; `--avatar` where a place needs
+  another size (22 px in the editor).
+- `.striptab`: a tab of a strip on an island, as a browser's: the agent's `.state`, `.name`, × at the end
+  (`button.close.icon.quiet.small`), shown under the pointer and on the shown tab, its room kept so nothing moves. A
+  step taller than a button (`--control` + 4 px) and at least 64 px wide: a target for a quick throw of the mouse.
+  Lit under the pointer; `.active`: the shown one, in the panels' color (`--island`) on the dark island. A
+  workspace's tab (`tpl-wstab`).
 - `.state`: an agent's state by `data-state` (from its hooks), an icon each so that color is not the only sign (some
   people do not tell yellow from green): working (sparkles in `--accent`, twinkling; not with reduced motion), waiting
   for you (a bell in `--note`), done (a check in `--done`: come and see, until the human sees that workspace); nothing otherwise, as nothing asks for
-  the human then (the author's rule). On a workspace's tab, and on a project's in the project's color (there the icon
-  alone tells the state); `showAgentState` (`common.js`)
-  sets it with its tooltip.
+  the human then (the author's rule). On a workspace's tab; `showAgentState` (`common.js`) sets it with its tooltip.
 
 ### Dialogs
 
@@ -114,7 +120,7 @@ Every dialog is a `<dialog>` with the same parts:
 ### Menus
 
 `openMenu(items, at)` (`menu.js`): one popover, under its button (`data-menu-end`: its right edge at the button's) or
-at the pointer, flipped to stay in the window. Items are `{ label, sub, keys, icon, color, enabled, run, remove }`,
+at the pointer, flipped to stay in the window. Items are `{ label, sub, keys, icon, color, avatar, enabled, run, remove }`,
 `'-'` (a divider), `{ heading, icon }` or `{ element }` (a row of its own); `icon` is the sprite's id, at the row's start; rows are `.item` and `.removable`. A menu's own kind of row (the zoom row, the theme
 row, the arrangements) is a template in `index.html` and its look in `window.css`. While a menu is open, the pages are
 pictures of themselves.
@@ -123,5 +129,5 @@ pictures of themselves.
 
 - A new icon: a `<symbol>` in the sprite, a row in the table above.
 - A new kind of control or row: in `components.css` with a comment saying what it is and its variants, and a section
-  here. A part used by one place only (the tab strip, the omnibox) stays in `window.css`.
+  here. A part used by one place only (a pane's tab strip, the omnibox, the projects' islands) stays in `window.css`.
 - A new dialog: the markup above in `index.html`; its own contents' look in `window.css` under its id.

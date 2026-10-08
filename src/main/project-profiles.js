@@ -11,20 +11,26 @@
 //   remove({ cfg, profile })    its data gone for good (profile: when it is open)
 //   changed()                   after any change: the window's state and the tabs are saved
 const { nameError, slugOf } = require('./names');
+const { clearCaches } = require('./profiles');
+const { AVATARS, nextAvatar } = require('./avatars');
 
-const COLORS = ['#e5534b', '#57ab5a', '#539bf5', '#d29922', '#b083f0', '#39c5cf', '#f778ba'];
+// A profile's description: who it is in the app under test, for agents to choose profiles by (profiles.md). The
+// human's words, optional.
+const ABOUT_MAX = 500;
 
 class ProjectProfiles {
   constructor(store, hooks) {
     this.store = store; this.hooks = hooks;
-    this.entries = []; // { cfg: { id, name, color, folder, dir, zoom }, urls, profile }
+    this.entries = []; // { cfg: { id, name, avatar, description, folder, dir, zoom }, urls, profile }
     this.profiles = new Map(); this.closed = new Map();
   }
 
-  // The workspace's profiles from its store; the closed ones stay closed.
+  // The workspace's profiles from its store; the closed ones stay closed. Profiles made before pictures (with a
+  // color) get one.
   async load() {
-    this.entries = this.store.profiles().map(({ closed, ...cfg }) =>
+    this.entries = this.store.profiles().map(({ closed, color, ...cfg }) =>
       ({ cfg: { ...cfg, dir: this.store.profileDir(cfg.folder) }, urls: this.store.tabs(cfg.folder), profile: null, closed }));
+    for (const e of this.entries) if (!AVATARS.includes(e.cfg.avatar)) e.cfg.avatar = this._nextAvatar();
     this._sync();
     for (const e of this.entries) if (!e.closed) await this._start(e);
     for (const e of this.entries) delete e.closed;
@@ -36,12 +42,14 @@ class ProjectProfiles {
   }
 
   // A new, empty profile; from the editor and from the agent (profile_create).
-  async create(name) {
-    const bad = nameError(name?.trim());
+  // avatar: the human's pick (the editor), else the next one free.
+  async create(name, description = '', avatar) {
+    const bad = nameError(name?.trim()) || aboutError(description) || (avatar && !AVATARS.includes(avatar) && `no picture ${avatar}`);
     if (bad) return { error: bad };
     const id = this._idFor(name);
     const folder = this.store.freeFolder(this.entries.map((x) => x.cfg.folder));
-    const e = { cfg: { id, name: name.trim(), color: this._nextColor(), folder, dir: this.store.profileDir(folder) }, urls: [], profile: null };
+    const e = { cfg: { id, name: name.trim(), avatar: avatar || this._nextAvatar(), description: description.trim(), folder,
+      dir: this.store.profileDir(folder) }, urls: [], profile: null };
     this.entries.push(e);
     await this._start(e);
     this._changed();
@@ -60,6 +68,7 @@ class ProjectProfiles {
     e.profile = null;
     this._sync();
     await this.hooks.unload(p);
+    await clearCaches(p.session).catch((err) => console.error(`[kulisa] ${id}: caches not cleared: ${err.message}`));
     this._changed();
     return { id };
   }
@@ -87,6 +96,25 @@ class ProjectProfiles {
     return { id };
   }
 
+  // Who the profile is in the app under test (empty: not said), and its picture: the rest stays.
+  describe(id, description) {
+    const bad = aboutError(description);
+    if (bad) return { error: bad };
+    return this._set(id, { description: description.trim() });
+  }
+  setAvatar(id, avatar) {
+    if (!AVATARS.includes(avatar)) return { error: `no picture ${avatar}` };
+    return this._set(id, { avatar });
+  }
+  _set(id, fields) {
+    const e = this._find(id);
+    if (!e) return { error: `no profile ${id}` };
+    Object.assign(e.cfg, fields);
+    if (e.profile) Object.assign(e.profile, fields);
+    this._changed();
+    return { id };
+  }
+
   // Delete: its tabs, sign-ins and storage are gone for good. The human confirms first (the editor, or the agent's
   // request: workspaces.js).
   async delete(id) {
@@ -102,8 +130,11 @@ class ProjectProfiles {
     return { id };
   }
 
-  // Where every profile's tabs are, each saved in its folder.
-  saveTabs() { for (const e of this.entries) this.store.saveTabs(e.cfg.folder, e.profile ? this.hooks.urlsOf(e.profile) : e.urls); }
+  // Where every profile's tabs are, each saved in its folder. One still opening (its session cookies are restored
+  // before its tabs) is saved as what it opens: it has no tabs yet, and Kulisa quitting right then lost them all.
+  saveTabs() {
+    for (const e of this.entries) this.store.saveTabs(e.cfg.folder, e.profile && !e.starting ? this.hooks.urlsOf(e.profile) : e.urls);
+  }
   save() { this.store.saveProfiles(this.entries.map((e) => (e.profile ? this._cfgOf(e) : { ...e.cfg, closed: true }))); }
 
   // Open: the Profile is in the maps at once; its tabs are opening until `starting` settles.
@@ -113,7 +144,9 @@ class ProjectProfiles {
     e.starting = this.hooks.start(e.profile, e.urls.length ? e.urls : ['about:blank']);
     try { await e.starting; } finally { e.starting = null; }
   }
-  _cfgOf({ cfg, profile: p }) { return p ? { id: p.id, name: p.name, color: p.color, folder: p.folder, dir: p.dir, zoom: p.siteZoom } : cfg; }
+  _cfgOf({ cfg, profile: p }) {
+    return p ? { id: p.id, name: p.name, avatar: p.avatar, description: p.description, folder: p.folder, dir: p.dir, zoom: p.siteZoom } : cfg;
+  }
   _changed() { this.save(); this.hooks.changed(); }
   _find(id) { return this.entries.find((e) => e.cfg.id === id); }
   _sync() {
@@ -129,11 +162,9 @@ class ProjectProfiles {
     while (this._find(id) && id !== except) id = `${base}-${n++}`;
     return id;
   }
-  // The first color no profile uses yet.
-  _nextColor() {
-    const used = new Set(this.entries.map((e) => e.cfg.color));
-    return COLORS.find((c) => !used.has(c)) || COLORS[this.entries.length % COLORS.length];
-  }
+  _nextAvatar() { return nextAvatar(this.entries.map((e) => e.profile?.avatar ?? e.cfg.avatar)); }
 }
+const aboutError = (d) => (typeof d !== 'string' ? 'a description is text'
+  : d.trim().length > ABOUT_MAX ? `a description is at most ${ABOUT_MAX} characters` : null);
 
 module.exports = { ProjectProfiles };

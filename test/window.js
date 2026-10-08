@@ -11,7 +11,7 @@ module.exports = (test) => {
     assert.deepEqual(shell.pty.spawnSize, first);
     assert.ok(first.rows >= 10 && first.cols >= 80, `a real size: ${JSON.stringify(first)}`);
   });
-  test('terminal: Unicode 11 widths (cursor stays put after emoji), bundled font, GPU renderer', async ({ ui }) => {
+  test('terminal: Unicode 11 widths (cursor stays put after emoji), bundled font, GPU renderer, the rows in the middle', async ({ ui }) => {
     // Claude Code draws ✅, ⏵, ✻…; with Unicode 6 widths xterm puts the cursor one cell off after each wide one.
     const x = await ui(`new Promise((r) => window.__term.write('\\r\\n✅🙂x', () => r(window.__term.buffer.active.cursorX)))`);
     assert.equal(x, 5);
@@ -19,25 +19,30 @@ module.exports = (test) => {
     assert.equal(await ui(`window.__term.options.fontSize`), await ui(`parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--font'))`), 'the terminal uses the UI text size');
     assert.equal(await ui(`window.__term.options.fontFamily.startsWith('"JetBrains Mono"')`), true);
     assert.equal(await ui(`window.__termRenderer`), 'webgl');
+    // What is left under a whole row is shared above and below the rows.
+    const { above, below } = await ui(`(() => { const h = document.querySelector('.xterm-host:not([hidden])').getBoundingClientRect(),
+      r = document.querySelector('.xterm-host:not([hidden]) .xterm-screen').getBoundingClientRect();
+      return { above: r.top - h.top, below: h.bottom - r.bottom }; })()`);
+    assert.ok(Math.abs(above - below) <= 1, `the rows in the middle: ${above} above, ${below} below`);
   });
   test('icons: each from the sprite (docs/ui.md), drawn there once and in lines of the text\'s color; icon buttons have a name', async ({ ui }) => {
     const r = await ui(`(() => {
       const every = (q) => [...document.querySelectorAll(q), ...[...document.querySelectorAll('template')].flatMap((t) => [...t.content.querySelectorAll(q)])];
-      const ids = [...document.querySelectorAll('svg[hidden] > symbol')].map((s) => s.id);
-      const icons = every('svg').filter((s) => !s.closest('svg[hidden], .arrange') && !s.matches('.logo')); // pictures, not icons
+      const ids = [...document.querySelectorAll('svg.sprite > symbol')].map((s) => s.id);
+      const icons = every('svg').filter((s) => !s.closest('svg.sprite, .arrange')); // pictures, not icons
       const add = document.querySelector('.pane .add svg');
       return { ids: ids.length === new Set(ids).size, drawnInPlace: icons.filter((s) => !s.querySelector(':scope > use')).length,
         unknown: icons.map((s) => s.querySelector('use')?.getAttribute('href')).filter((h) => h && !ids.includes(h.slice(1))),
         unnamed: every('.icon').filter((b) => !b.getAttribute('aria-label') && !b.title).map((b) => b.className),
         lines: [getComputedStyle(add).fill, getComputedStyle(add).stroke === getComputedStyle(add.closest('button')).color],
-        sprite: document.querySelector('svg[hidden]').getBoundingClientRect().height }; // takes no room
+        sprite: document.querySelector('svg.sprite').getBoundingClientRect().height }; // takes no room
     })()`);
     assert.deepEqual(r, { ids: true, drawnInPlace: 0, unknown: [], unnamed: [], lines: ['none', true], sprite: 0 });
   });
   test('the app icon: in the top bar, and every file the window and the installers use', async ({ ui }) => {
-    const img = await ui(`(() => { const i = document.querySelector('#topbar svg.logo'); return i && { w: i.viewBox.baseVal.width, h: i.getBoundingClientRect().height,
-      drape: getComputedStyle(i.querySelector('stop.lit')).stopColor, project: getComputedStyle(document.documentElement).getPropertyValue('--project') }; })()`);
-    assert.ok(img && img.w > 0 && img.h >= 16, JSON.stringify(img));
+    const img = await ui(`(() => { const i = document.querySelector('#topbar svg.logo'); const r = i?.getBoundingClientRect(); return i && { w: r.width, h: r.height, drawn: !!i.querySelector('use[href="#i-logo"]'),
+      drape: getComputedStyle(i).color, project: getComputedStyle(document.documentElement).getPropertyValue('--project') }; })()`);
+    assert.ok(img && img.drawn && img.w >= 16 && img.h >= 16, JSON.stringify(img));
     assert.equal(img.drape, 'rgb(74, 123, 208)', "the curtain is in the project's color (#4a7bd0, the first one)");
     const forge = require('../forge.config.js');
     const files = [forge.packagerConfig.icon + '.png', forge.packagerConfig.icon + '.ico', forge.packagerConfig.icon + '.icns',
@@ -56,10 +61,10 @@ module.exports = (test) => {
   });
   test('UI text is not selectable by dragging, as in a desktop app; fields are; the arrow over buttons', async ({ ui }) => {
     const sel = await ui(`(() => { const us = (q) => getComputedStyle(document.querySelector(q)).userSelect;
-      return { button: us('#openProjects'), name: us('.projecttab .name'), tab: us('.tab .title'), header: us('.ptab'), field: us('.addr') }; })()`);
+      return { button: us('#openProjects'), name: us('.plabel .name'), tab: us('.tab .title'), header: us('.ptab'), field: us('.addr') }; })()`);
     assert.deepEqual(sel, { button: 'none', name: 'none', tab: 'none', header: 'none', field: 'text' });
     // The arrow over buttons and tabs, as in Chrome, not a web page's hand.
-    assert.deepEqual(await ui(`['#openProjects', '.projecttab', '.tab', '.tabs .add', '.bar .back', '.ptab .close', '#windowMenu'].map((q) => getComputedStyle(document.querySelector(q)).cursor)`),
+    assert.deepEqual(await ui(`['#openProjects', '.plabel', '.tab', '.tabs .add', '.bar .back', '.ptab .close', '#windowMenu'].map((q) => getComputedStyle(document.querySelector(q)).cursor)`),
       ['default', 'default', 'default', 'default', 'default', 'default', 'default']);
   });
   test('screenshot of the whole window, profile views included', async ({ shell, ui }) => {
@@ -88,7 +93,7 @@ module.exports = (test) => {
     const osDark = await pageDark();
     const settings = () => JSON.parse(fs.readFileSync(path.join(userData, 'settings.json'), 'utf8')).theme;
     await ui(`document.getElementById('windowMenu').click()`);
-    assert.deepEqual((await menuRows(ui)).slice(0, 2), ['zoom', 'theme']);
+    assert.deepEqual((await menuRows(ui)).slice(0, 3), ['zoom', 'theme', 'bar']);
     assert.deepEqual(await look(), { shade: 'dark', term: DARK, scheme: 'dark', chosen: ['dark'], onAccent: LIGHT });
     const choose = async (t, shade) => {
       await ui(`document.querySelector('#menu .themerow [data-theme="${t}"]').click()`);
@@ -106,6 +111,24 @@ module.exports = (test) => {
     await shell.screenshot(path.join(root, 'dark.png'));
     assert.equal(await pageDark(), osDark);
     await ui(`document.getElementById('menu').hidePopover()`);
+  });
+  test('the projects\' bar: under the grid by default, over it when chosen in ☰; the grid and its pages take the room left; saved', async ({ shell, ui }) => {
+    const id = shell.profiles.keys().next().value;
+    const where = () => ui(`(() => { const r = (id) => document.getElementById(id).getBoundingClientRect(), bar = r('projectbar'), grid = r('dock');
+      return { bar: bar.bottom <= grid.top ? 'top' : bar.top >= grid.bottom ? 'bottom' : 'over the grid', under: bar.top >= r('topbar').bottom,
+        chosen: [...document.querySelectorAll('#menu .barrow [aria-pressed="true"]')].map((b) => b.dataset.bar) }; })()`);
+    const saved = () => JSON.parse(fs.readFileSync(path.join(userData, 'settings.json'), 'utf8')).bar;
+    assert.equal((await where()).bar, 'bottom');
+    for (const bar of ['top', 'bottom']) {
+      await ui(`document.getElementById('windowMenu').click()`);
+      await menuRows(ui);
+      await ui(`document.querySelector('#menu .barrow [data-bar="${bar}"]').click()`);
+      await waitFor(async () => (await where()).bar === bar && saved() === bar);
+      assert.deepEqual(await where(), { bar, under: true, chosen: [bar] }, 'under the title bar either way');
+      assert.equal(await menuOpen(ui), true, 'the menu stays open: the other one can be tried');
+      await ui(`document.getElementById('menu').hidePopover()`);
+      await waitFor(() => viewOn(shell, ui, id), 3000); // the pages follow the grid
+    }
   });
   test('dialogs: one look (title and ×, content, buttons at the bottom right, the main one last); a question is asked in it', async (ctx) => {
     const { shell, ui } = ctx;
