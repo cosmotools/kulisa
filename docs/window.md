@@ -87,8 +87,16 @@ need nothing new: Ctrl+Shift+C / V (GNOME Terminal, Konsole); on Windows also Ct
 else interrupts (Windows Terminal); on macOS ⌘C / ⌘V (the app menu's). xterm leaves those keys to the app, as VS Code
 sets its own; otherwise Ctrl+C and Ctrl+V go to the agent (Claude Code pastes an image with Ctrl+V, with Alt+V on
 Windows). The paste itself is Chromium's, which xterm takes (pasting again from Kulisa had doubled it).
-With nothing selected in xterm, copying keeps the clipboard: Claude Code selects with its own mouse and puts its text
-there itself (an empty copy had wiped it). Keys are known by `keyCode` too, as ibus with a Cyrillic layout leaves
+With nothing selected in xterm, copying keeps the clipboard: Claude Code's fullscreen rendering selects with its own
+mouse and copies on release itself (code.claude.com/docs/en/fullscreen; an empty copy had wiped it); Shift held while
+dragging selects in xterm instead.
+
+Links in the terminal, those an agent marks (OSC 8, as Claude Code does) and addresses in plain text (xterm's web-links
+addon), open with Ctrl+click (⌘ on macOS), and always ask where, in a menu at the pointer: a new tab in one of the
+shown workspace's open profiles, or the user's browser. Asked every time, so a link never lands somewhere the human
+did not expect (the author's choice, 2026-10-08: which profile a link belongs to cannot be told, and a rule such as
+"where that site is open" was not obvious). Only `http` and `https`; the address shows on hover. xterm's own handler
+asked with the browser's `confirm()`, an OS dialog. Keys are known by `keyCode` too, as ibus with a Cyrillic layout leaves
 `code` out. The agent starts once the terminal is laid out, at its real
 size. When a project moves to another window, what its terminals show moves along (xterm's serialize addon, as VS
 Code keeps terminals), at the same size.

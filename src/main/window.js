@@ -52,10 +52,10 @@ class AppWindow {
     // Electron's default File/Edit/View/Window menu adds a row on Linux and Windows and gives nothing (its Ctrl+R
     // reloads the shell). On macOS the menu lives in the system bar and stays (Cmd+C/V need its Edit roles).
     win.removeMenu();
-    // Links in the window (the Welcome screen's: the website, GitHub) open in the user's browser; the window itself
-    // never leaves its page.
+    // Links in the window (the Welcome screen's: the website, GitHub; the terminal's, Open in your browser) open in the
+    // user's browser; the window itself never leaves its page.
     win.webContents.setWindowOpenHandler(({ url }) => {
-      if (/^https:\/\//.test(url)) electronShell.openExternal(url);
+      if (/^https?:\/\//.test(url)) electronShell.openExternal(url);
       return { action: 'deny' };
     });
     win.webContents.on('will-navigate', (e) => e.preventDefault());

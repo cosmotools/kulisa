@@ -508,6 +508,32 @@ module.exports = (test) => {
     ['paste', 'copy', null, null, 'paste', 'copy', null, 'paste', null, null, 'paste'], 'the keys of each OS; by keyCode when code is left out (ibus, Cyrillic)');
     assert.deepEqual(await ui(`clipboardKeys`), ['Ctrl+Shift+C', 'Ctrl+Shift+V'], "the menu's keys for Linux");
 
+    // Links in the terminal, marked by the agent (OSC 8) or in plain text: Ctrl+click asks where, at the pointer: a tab of
+    // one of the open profiles, or the user's browser. A plain click, or an address that is not http(s), does nothing.
+    await ui(`new Promise((r) => window.__term.write('\\r\\n\\x1b]8;;${SITE}/app\\x07the app\\x1b]8;;\\x07 and https://example.com/docs\\r\\n', r))`);
+    assert.equal(await ui(`window.__term.options.linkHandler === termLinks`), true, "the agent's links (OSC 8) are Kulisa's");
+    const click = (uri, mods) => ui(`termLinks.activate(new MouseEvent('click', { clientX: 120, clientY: 600, ...${JSON.stringify(mods)} }), ${JSON.stringify(uri)})`);
+    await click(`${SITE}/app`, {});
+    await click('javascript:alert(1)', { ctrlKey: true });
+    await sleep(200);
+    assert.equal(await menuOpen(ui), false, 'a plain click, or not http(s): nothing');
+    const names = await ui(`state.map((p) => p.name)`);
+    await click(`${SITE}/app`, { ctrlKey: true });
+    assert.deepEqual(await menuRows(ui), [`# ${SITE}/app`, ...names.map((n) => `Open in ${n}`), '-', 'Open in your browser']);
+    const linked = shell.profiles.get(await ui(`state[0].id`)), had = linked.tabs.length;
+    await choose(ui, `Open in ${names[0]}`);
+    await waitFor(() => linked.tabs.length === had + 1 && linked.get().url.startsWith(`${SITE}/app`));
+    await linked.closeTab(linked.get().id);
+    const electron = require('electron'), openExternal = electron.shell.openExternal, opened = [];
+    electron.shell.openExternal = async (url) => { opened.push(url); };
+    try {
+      await click('https://example.com/docs', { ctrlKey: true });
+      await menuRows(ui);
+      await choose(ui, 'Open in your browser');
+      await waitFor(() => opened.length === 1);
+      assert.deepEqual(opened, ['https://example.com/docs']);
+    } finally { electron.shell.openExternal = openExternal; }
+
     await ui(`document.getElementById('windowMenu').click()`);
     // The arrangements as pictures, a short name under each, the full words in the tooltip.
     assert.deepEqual((await menuRows(ui)).slice(3), ['# Arrange panels', 'arrange: Columns, Two by two, One at a time', '-', 'Agents…', '-', 'Exit']);

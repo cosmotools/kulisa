@@ -30,16 +30,32 @@ const termTheme = () => ({ background: shown('--island'), foreground: shown('--t
   selectionBackground: shown('--selection') });
 function themeTerminals() { for (const { term: t } of terminals.values()) t.options.theme = termTheme(); }
 
+// Links in the terminal: those an agent marks (OSC 8, as Claude Code does) and addresses in plain text (the web-links
+// addon). Ctrl+click (⌘ on macOS) asks where, in a menu at the pointer: a tab of one of the shown workspace's open
+// profiles, or the user's browser. Always asked, so a link never opens somewhere unexpected (the author's choice:
+// which profile a link belongs to cannot be told). http and https only; the address shows on hover.
+const termLinks = {
+  activate(e, uri) {
+    if (!(kulisa.platform === 'darwin' ? e.metaKey : e.ctrlKey) || !/^https?:\/\//i.test(uri)) return;
+    openMenu([{ heading: uri }, ...state.map((p) => ({ label: `Open in ${p.name}`, color: p.color,
+      run: () => kulisa.invoke('tab:new', { profile: p.id, url: uri }) })),
+    '-', { label: 'Open in your browser', run: () => window.open(uri) }], e);
+  },
+  hover(_e, uri) { termEl.title = uri; },
+  leave() { termEl.title = ''; },
+};
+
 // size: { cols, rows } to start with (a terminal coming from another window: its contents are laid out for it).
 function makeTerminal(ws, size) {
   const el = Object.assign(document.createElement('div'), { className: 'xterm-host', hidden: true });
   termEl.append(el);
   const t = new Terminal({ ...size, fontSize: termFontSize, fontFamily: '"JetBrains Mono", monospace', cursorBlink: true,
-    allowProposedApi: true, theme: termTheme(), minimumContrastRatio: 4.5 });
+    allowProposedApi: true, theme: termTheme(), minimumContrastRatio: 4.5, linkHandler: termLinks });
   t.loadAddon(new Unicode11Addon.Unicode11Addon());
   t.unicode.activeVersion = '11';
   const fit = new FitAddon.FitAddon();
   t.loadAddon(fit);
+  t.loadAddon(new WebLinksAddon.WebLinksAddon(termLinks.activate, termLinks));
   const serialize = new SerializeAddon.SerializeAddon();
   t.loadAddon(serialize);
   const entry = { term: t, el, fit, serialize, opened: false };

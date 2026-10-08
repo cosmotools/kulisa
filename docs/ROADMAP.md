@@ -308,7 +308,9 @@ here; what is left of it stays.
   free disk space. Several profiles in several projects add up. To decide: a limit (`--disk-cache-size`, the whole
   app) or clearing a profile's cache when it is closed.
 - **Some tests fail now and then** (seen 2026-10-07, 2 runs of 3): the menus (`context menus …`), DevTools in ⋮, the
-  address bar's click; each waits for a menu or the focus. Cause not looked for. Also to look at: the slowest tests
+  address bar's click; each waits for a menu or the focus. On 2026-10-08 `projects: a tab dragged …` failed in three
+  runs in a row, the committed code too ("towards the pointer": the new window's place), and `closing main …` after it;
+  they had passed that day: likely where the window manager puts the test's window. Cause not looked for. Also to look at: the slowest tests
   (closing a fork 11 s, a site that never answers 10 s) may wait on fixed timeouts.
 - **No performance numbers taken with the monitor on.** CPU, RAM, many profiles; see REPORT, E8.
 - **`playwright-core` is pinned to a 1.64 alpha.** Move to the stable release once it ships with the same APIs.
