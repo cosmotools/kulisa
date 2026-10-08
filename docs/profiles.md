@@ -16,7 +16,7 @@ A profile is an Electron session on a folder of its own (`session.fromPath`), la
 
 ## What the human does
 
-- **Create** in Profiles ▾ → Manage Profiles…: a name and, if the human wants, who the profile is (below); all
+- **Create** in 👥 → Manage Profiles… (the profiles' chip on the shown workspace's tab; also its right-click menu): a name and, if the human wants, who the profile is (below); all
   the pictures, the next free one lit, a click picks another. Enter in either field adds it (Shift+Enter: a new
   line in the description). The new profile is empty and signed out.
   Names of profiles, projects and workspaces take letters (any language), digits and `@ . _ + -`, as an email
@@ -32,7 +32,7 @@ A profile is an Electron session on a folder of its own (`session.fromPath`), la
   ("seller in the Acme shop; can approve refunds"), in the editor, or About this profile… in the pane's menu. Agents
   choose profiles by it: a name says which account is signed in, not who that is in the tests. Optional, and the
   dialog says so, with what it is for: left empty, the agent asks the human when a task needs to know and saves the
-  answer (below). At most 500 characters; shown under the name in Profiles ▾ and when pointing at the pane's name.
+  answer (below). At most 500 characters; shown under the name in 👥's menu and when pointing at the pane's name.
   The human's own words: a button to have an AI rewrite them was proposed and not built (2026-10-08): the reader is
   an agent, which understands them as they are, and a rewrite would add what the human did not say.
 - **Picture**: an animal, as Chrome's profile avatars and Google's anonymous animals, each profile of a workspace its
@@ -42,7 +42,7 @@ A profile is an Electron session on a folder of its own (`session.fromPath`), la
   OS and are missing on some Linux. Profiles had a color until 2026-10-08; a profile with one gets a picture when
   its workspace loads.
 - **Close**: × on the pane (or its menu, or the agent). Its tabs go and free their memory; it stays signed in, and
-  Profiles ▾ lists it as closed and opens it again with the same tabs. Closed profiles stay closed across restarts.
+  👥 lists it as closed and opens it again with the same tabs. Closed profiles stay closed across restarts.
 - **Delete** in the editor or the pane's menu, after a confirmation: its sign-ins, storage and tabs are gone for
   good.
 - **Tabs**: a tab strip and an address bar per pane, drawn as Chrome's (the active tab of a piece with the toolbar;
@@ -134,7 +134,7 @@ methods. A row with one side empty says why, or is a gap to fill.
 | Rename a profile | double-click, editor, pane menu | `profile_rename` | `Workspace.renameProfile` |
 | Say who a profile is | New profile, editor, About this profile… | `profile_describe`, `profile_create` (the human's words only) | `Workspace.describeProfile` |
 | Change its picture | editor | none: how the human tells panes apart | `Workspace.setProfileAvatar` |
-| Close, open a profile | ×, Profiles ▾, editor | `profile_close`, `profile_open` | `Workspace.closeProfile`, `openProfile` |
+| Close, open a profile | ×, 👥, editor | `profile_close`, `profile_open` | `Workspace.closeProfile`, `openProfile` |
 | Delete a profile | editor, pane menu | `profile_delete` | `Workspace.deleteProfile(id, by)`: asks the human either way |
 | Open a tab | +, Duplicate, New tab | `browser_tab_new` | `Profile.newTab` (the address read by `toUrl`) |
 | Switch, close a tab | a click, ×, Close others | `browser_tab_select`, `browser_tab_close` | `Profile.activate`, `closeTab`; the last one closed, an empty tab takes its place |
@@ -243,5 +243,5 @@ space (ROADMAP, "Profiles' caches").
 | `src/main/mimic-chrome.js` | presenting as Google Chrome |
 | `src/main/cdp-proxy.js` | the CDP endpoint per profile |
 | `src/main/mcp-server.js`, `ghost.js`, `picker.js` | the agent's tools, its actions shown, point and tell |
-| `src/renderer/renderer.js`, `profile-editor.js` | the panes, Profiles ▾ and the editor |
+| `src/renderer/renderer.js`, `profile-editor.js` | the panes, the profiles' chip (👥) and the editor |
 | `test/agent.js`, `profiles.js`, `zoom-and-closing.js`, `restart.js` | the tests |

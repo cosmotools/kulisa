@@ -24,6 +24,7 @@ class AppWindow {
     this.id = ++windows; // for a page to name another window (project:move)
     this.tabs = []; // the projects open in it (projects.js: Project), its tabs in order
     this.current = null; // the one shown
+    this.profilesOpen = new WeakMap(); // workspace -> how many profiles its tab said were open
     // True until the page has laid out the shown workspace's grid (the renderer then shows the views).
     this.viewsHidden = true;
     // From leaving a workspace until the next one's profiles are all loaded: nothing is saved, and the page gets no
@@ -139,6 +140,11 @@ class AppWindow {
   // A workspace of its projects changed: its profiles (now: right away), or its agent's state (shown on its tab and
   // its project's).
   changed(ws, now, agentState) {
+    const open = ws.openProfiles();
+    if (this.profilesOpen.get(ws) !== open) { // the number on its tab
+      this.profilesOpen.set(ws, open);
+      if (!agentState) { if (ws.project === this.current) this.sendWorkspaces(); this.sendProjects(); }
+    }
     if (agentState) {
       if (ws === this.ws && this.win.isFocused()) ws.see(); // done before the human's eyes: nothing to come and see
       this.sendWorkspaces(); return this.sendProjects();

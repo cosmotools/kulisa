@@ -41,6 +41,7 @@
     <symbol id="i-waiting" viewBox="0 0 24 24"><g stroke-width="2.25"><path d="M10.268 21a2 2 0 0 0 3.464 0M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/></g></symbol>
     <symbol id="i-done" viewBox="0 0 24 24"><g stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></g></symbol>
     <symbol id="i-mic" viewBox="0 0 24 24"><g stroke-width="2.25"><path d="M12 19v3M19 10v2a7 7 0 0 1-14 0v-2"/><rect x="9" y="2" width="6" height="13" rx="3"/></g></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><g stroke-width="2.25"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/><circle cx="9" cy="7" r="4"/></g></symbol>
     <symbol id="i-exit" viewBox="0 0 24 24"><g stroke-width="2.25"><path d="M16 17l5-5-5-5M21 12H9M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/></g></symbol>
     <!-- The app icon (assets/icon.svg) with its curtain in any color: currentColor (the project's, --color or --project
          of the place), its folds a shadow over it, the same for every color (a gradient of the color itself would be
@@ -67,7 +68,6 @@
   <header id="topbar">
     <!-- The app icon with the curtain in the project's color (--project): each project its own curtain -->
     <svg class="logo" aria-hidden="true"><use href="#i-logo"/></svg>
-    <button id="openProfiles" title="Profiles of this project">Profiles ▾</button>
     <button id="zoomReset" hidden title="Kulisa's zoom. Click to reset (Ctrl 0)"></button>
     <button id="windowMenu" class="icon" data-menu-end title="Menu: zoom, layout" aria-label="Menu"><svg aria-hidden="true"><use href="#i-menu"/></svg></button>
   </header>
@@ -78,6 +78,7 @@
     <nav id="projectTabs" aria-label="Open projects"></nav>
     <nav id="workspaces" aria-label="Workspaces of the project">
       <div id="wslist"></div>
+      <button id="openProfiles" class="chip" aria-haspopup="menu"><svg aria-hidden="true"><use href="#i-users"/></svg><span class="count"></span></button>
       <button id="wsadd" class="icon" title="New workspace: a fork of main with its own branch, folder, agent and copies of the profiles" aria-label="New workspace"><svg aria-hidden="true"><use href="#i-plus"/></svg></button>
     </nav>
     <button id="openProjects" class="icon" title="Projects: open another, New Project…, Open Folder…" aria-label="Projects"><svg aria-hidden="true"><use href="#i-projects"/></svg></button>
@@ -246,7 +247,7 @@
     <div class="ptab"><b>Terminal</b><span class="dictation" hidden><button class="icon lang" aria-haspopup="menu" aria-label="Dictation language"></button><button class="icon mic" aria-label="Speak to the agent"><svg aria-hidden="true"><use href="#i-mic"/></svg></button></span></div>
   </template>
   <template id="tpl-wstab">
-    <div class="wstab striptab"><span class="state" data-state=""><svg aria-hidden="true"><use href="#i-done"/></svg></span><span class="name"></span><button class="close icon quiet small" aria-label="Close"><svg aria-hidden="true"><use href="#i-close"/></svg></button></div>
+    <div class="wstab striptab"><span class="state" data-state=""><svg aria-hidden="true"><use href="#i-done"/></svg></span><span class="name"></span><span class="chip"><svg aria-hidden="true"><use href="#i-users"/></svg><span class="count"></span></span><button class="close icon quiet small" aria-label="Close"><svg aria-hidden="true"><use href="#i-close"/></svg></button></div>
   </template>
   <!-- The agents with Install, in both agents' dialogs (agent-list.js) -->
   <template id="tpl-agentlist">

@@ -30,6 +30,11 @@ button.danger { background: var(--danger); border-color: var(--danger); color: v
   &:hover { background: var(--hover); color: var(--text); }
   &:not(:hover, .active) .close { visibility: hidden; }
   &.active { background: var(--island); color: var(--text-strong); } }
+/* A chip: an icon and a number inside a tab (a workspace's open profiles); a button on the shown one */
+.chip { display: flex; align-items: center; gap: 3px; flex: none; height: 22px; padding: 0 6px; border: none;
+  border-radius: 11px; background: none; color: var(--text-muted); font-variant-numeric: tabular-nums;
+  svg { width: 14px; height: 14px; }
+  &:is(button):hover { background: var(--hover); color: var(--text-strong); } }
 /* An agent's state (data-state, from its hooks), an icon each, not told by color alone: working (sparkles, twinkling),
    waiting for you (a bell), done (a check) until seen; nothing otherwise. On a workspace's tab. */
 .state { display: grid; place-items: center; flex: none; color: var(--text-muted);

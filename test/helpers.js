@@ -38,7 +38,7 @@ const showProject = (ui, id) => ui(`${projectTab(id)}.querySelector('.wstab.sele
 // A project closed as the human does it: the middle button on its label (its right-click menu has Close Project too).
 const closeProject = (ui, id) => ui(`${projectTab(id)}.querySelector('.plabel').dispatchEvent(new MouseEvent('auxclick', { button: 1, bubbles: true }))`);
 const choose = (ui, label) => ui(`[...document.querySelectorAll('#menu .item')].find((b) => b.querySelector('.label').textContent === ${JSON.stringify(label)}).click()`);
-// The profile editor: Profiles ▾, then Manage Profiles….
+// The profile editor: the profiles' chip (👥), then Manage Profiles….
 const manageProfiles = async (ui) => {
   await ui(`document.getElementById('openProfiles').click()`);
   await menuRows(ui);

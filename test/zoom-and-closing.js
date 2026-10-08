@@ -97,7 +97,7 @@ module.exports = (test) => {
     assert.equal(await who(ctx, 'cleo'), 'Signed in as cleo');
     await waitFor(() => ui(`!!document.querySelector('${header}')`));
 
-    // The agent closes it; Profiles ▾ lists it as closed and opens it.
+    // The agent closes it; the profiles' chip lists it as closed and opens it.
     await call('profile_close', { profile: 'cleo' });
     assert.ok(!shell.profiles.has('cleo') && shell.closed.has('cleo'));
     await ui(`document.getElementById('openProfiles').click()`);

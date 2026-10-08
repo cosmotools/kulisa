@@ -206,7 +206,7 @@ body {
     color: var(--text-muted);
     a { color: inherit; &:hover { color: var(--text); } } }
 }
-.noproject :is(#dock, #openProfiles) { display: none; }
+.noproject #dock { display: none; }
 /* The terminal waits outside the grid until its panel is there (no project open): it takes no room meanwhile. */
 body > #term { display: none; }
 /* The recent projects (tpl-project), as the project menu's rows but roomier: a click opens one, × (on hover) or a

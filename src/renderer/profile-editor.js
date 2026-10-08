@@ -1,7 +1,8 @@
-// Profiles: the Profiles button (a menu of the project's profiles, as the project button's) and the profile editor
-// (Manage Profiles…: add, rename, describe, change the picture, open a closed one, delete).
+// Profiles: the shown workspace's chip (on its tab, workspaces.js: how many are open; a menu of its profiles) and the
+// profile editor (Manage Profiles…: add, rename, describe, change the picture, open a closed one, delete).
 //   profileEditor.update(open)   the open profiles, from each state (renderer.js)
 //   profileEditor.about(key)     the editor, in that profile's description (a pane's menu)
+//   profileEditor.menu()        the chip's menu's items (also the shown workspace tab's right-click menu)
 //   profileEditor.showPane       set by renderer.js: bring an open profile's pane to the front (key)
 //   deleteProfile(p)             the main process asks the human first (workspaces.js); also from a pane's menu
 const profileEditor = (() => {
@@ -15,7 +16,7 @@ const profileEditor = (() => {
   let open = [];
   let closed = []; // closed by the human: { key, id, name, avatar, description, tabs (how many) }
   const editor = {
-    update(list) { open = list; if (dialog.open) render(); },
+    update(list) { open = list; count(); if (dialog.open) render(); },
     about(key) { manage(); rows.get(key)?.querySelector('.about').focus(); },
     showPane: () => {},
   };
@@ -53,15 +54,22 @@ const profileEditor = (() => {
   // An open profile: its pane comes to the front (it may be stacked behind another); a closed one opens. Each with who
   // it is, when said.
   const tabs = (n) => `${n} tab${n === 1 ? '' : 's'}`;
-  button.onclick = () => openMenu([
+  editor.menu = () => [
     ...open.map((p) => ({ label: p.name, sub: p.description || tabs(p.tabs.length), avatar: p.avatar,
       run: () => editor.showPane(p.key) })),
     ...closed.map((p) => ({ label: p.name, sub: `closed · click to open${p.description ? ` · ${p.description}` : ''}`, avatar: p.avatar,
       run: () => act('profile:open', { profile: p.id }) })),
     ...(open.length || closed.length ? ['-'] : []),
     { label: 'Manage Profiles…', run: manage },
-  ], button);
-  kulisa.on('closed-profiles', (list) => { closed = list; if (dialog.open) render(); });
+  ];
+  button.onclick = () => openMenu(editor.menu(), button);
+  kulisa.on('closed-profiles', (list) => { closed = list; count(); if (dialog.open) render(); });
+  // The button shows how many are open; its title says the rest.
+  function count() {
+    button.querySelector('.count').textContent = open.length;
+    button.title = `Profiles of this workspace: ${open.length} open${closed.length ? `, ${closed.length} closed` : ''}`;
+    button.ariaLabel = button.title;
+  }
   // Enter adds the profile from its description too; Shift+Enter starts a new line.
   newAbout.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.target.form.requestSubmit(); } });
   padd.onsubmit = async (e) => {

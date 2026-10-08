@@ -214,12 +214,26 @@ module.exports = (test) => {
   test('workspaces: switching shows the other grid and terminal; the one left keeps running; the agent\'s state shows on its tab', async (ctx) => {
     const { shell, ui } = ctx;
     const fork = shell.ws, sam = fork.profiles.get('sam-admin');
-    // A tab's right-click menu: Show Folder opens the fork's worktree in the file manager.
+    // Every workspace's tab says how many of its profiles are open; the shown one's is a button with a menu of them.
+    const chip = () => ui(`(() => { const b = document.getElementById('openProfiles'); return b.closest('.wstab')?.dataset.ws + ' ' + b.textContent + ' ' + document.querySelectorAll('#projectbar #openProfiles').length; })()`);
+    const counts = () => ui(`[...document.querySelectorAll('#wslist .wstab')].map((t) => t.querySelector('.chip').textContent)`);
+    const widths = () => ui(`[...document.querySelectorAll('#wslist .wstab')].map((t) => t.getBoundingClientRect().width)`);
+    assert.equal(await chip(), `${fork.key} 2 1`);
+    assert.deepEqual(await counts(), [String(shell.workspaceOf('project', 1).profiles.size), '2']);
+    const before = await widths();
+    assert.match(await ui(`document.getElementById('openProfiles').title`), /^Profiles of this workspace: 2 open/);
+    // A tab's right-click menu: the shown one's has its profiles too, as the chip's; another's only its folder. Show
+    // Folder opens the fork's worktree in the file manager.
+    await rightClick(ui, `#wslist .wstab[data-ws$="/1"] .name`);
+    assert.deepEqual(await menuRows(ui), ['Show Folder']);
+    await ui(`document.getElementById('menu').hidePopover()`);
     const electron = require('electron'), openPath = electron.shell.openPath, shown = [];
     electron.shell.openPath = async (dir) => { shown.push(dir); return ''; };
     try {
       await rightClick(ui, `#projectTabs .wstab[data-ws="${fork.key}"] .name`);
-      assert.deepEqual(await menuRows(ui), ['Show Folder']);
+      const rows = await menuRows(ui);
+      assert.deepEqual([rows[0], ...rows.slice(-4)], ['# Profiles', '-', 'Manage Profiles…', '-', 'Show Folder']);
+      assert.deepEqual(rows.slice(1, -4).toSorted(), ['Dora', 'Elon.buyer', 'Sam.admin'], 'its open and closed profiles');
       await choose(ui, 'Show Folder');
       await waitFor(() => shown.length === 1);
     } finally { electron.shell.openPath = openPath; }
@@ -227,6 +241,8 @@ module.exports = (test) => {
     assert.notEqual(fork.folder, project, "the fork's own, not main's");
     await ui(`${wsTab(1)}.click()`);
     await waitFor(() => shell.ws.n === 1);
+    await waitFor(async () => (await chip()) === `${shell.ws.key} ${await ui(`document.querySelectorAll('.pane').length`)} 1`); // the button goes with it
+    assert.deepEqual(await widths(), before, 'the tabs keep their widths');
     await waitFor(async () => (await viewOn(shell, ui, 'sam-admin')) && viewOn(shell, ui, 'elon-buyer'));
     assert.equal(sam.get().view.getVisible(), false, "the fork's pages are hidden");
     assert.ok(sam.tabs.every((t) => !t.wc.isDestroyed()) && fork.pty, 'and alive, its agent too');

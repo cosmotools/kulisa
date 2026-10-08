@@ -237,7 +237,12 @@ class Workspace {
 
   info() {
     const { n, key, name, main, tabState: state, folder, offset } = this;
-    return { n, key, name, main, state, folder, offset, branch: this.entry.branch || null, agent: this.agent?.name || null };
+    return { n, key, name, main, state, folder, offset, branch: this.entry.branch || null, agent: this.agent?.name || null,
+      profiles: this.openProfiles() };
+  }
+  // How many of its profiles are open (on its tab); from its store until it is loaded.
+  openProfiles() {
+    return this.loaded ? this.profiles.size : this.store.profiles().filter((p) => !p.closed).length;
   }
 }
 

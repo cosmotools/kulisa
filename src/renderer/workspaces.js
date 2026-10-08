@@ -1,7 +1,8 @@
 // Workspaces (docs/workspaces.md): a tab per workspace (main and its forks) with its agent's state (working, waiting
 // for you, done), in its project's island in the projects' bar (projects.js puts them there; every open project's). A
 // click shows one, of any project; × deletes a fork or, on main, closes the project (asking first); + makes a fork of
-// main with a name asked in a dialog; a right-click shows its folder. Forks need git and a first commit: until then there is no + (docs/workspaces.md
+// main with a name asked in a dialog; the shown one's chip shows its profiles (profile-editor.js); a right-click
+// shows them too, and its folder. Forks need git and a first commit: until then there is no + (docs/workspaces.md
 // says why).
 //   workspaces.current   the shown workspace's key ("<project id>/<n>"); null when no project is open (the Welcome
 //                        screen)
@@ -15,6 +16,7 @@ const workspaces = (() => {
   const error = dialog.querySelector('.error');
   const create = document.getElementById('wscreate');
   const ws = { current: null };
+  const profilesButton = document.getElementById('openProfiles');
   // A workspace's tab, the shown project's or another open one's (projects.js). active: the one on screen; selected:
   // the one its project shows (another project's: where it is when shown again).
   ws.tab = (w, active, selected = active) => {
@@ -24,6 +26,12 @@ const workspaces = (() => {
     el.classList.toggle('selected', selected);
     el.querySelector('.name').textContent = w.name;
     showAgentState(el.querySelector('.state'), w.state);
+    // How many profiles are open there, on every tab (their widths stay as the shown one changes); on the shown one a
+    // button with the menu of them (profile-editor.js).
+    const chip = el.querySelector('.chip');
+    chip.querySelector('.count').textContent = w.profiles;
+    if (active) chip.replaceWith(profilesButton);
+    else chip.title = `${w.profiles} profile${w.profiles === 1 ? '' : 's'} open`;
     el.title = w.main ? `main: the project itself, ${w.folder}` : `branch ${w.branch} in ${w.folder}; the app's ports + ${w.offset}`;
     el.querySelector('.close').title = w.main ? 'Close the project (asks first)' : 'Delete this workspace: its folder, branch, profile copies and conversation (asks first)';
     return el;
@@ -48,12 +56,16 @@ const workspaces = (() => {
     if (e.target.closest('.close')) kulisa.invoke('ws:close', key);
     else if (key !== ws.current) kulisa.invoke('ws:show', key);
   });
-  // Its right-click menu: the workspace's folder (main's is the project's, a fork's its worktree) in the file manager.
+  // Its right-click menu: the shown one's profiles, as its chip's menu; the workspace's folder (main's is the
+  // project's, a fork's its worktree) in the file manager.
   document.getElementById('projectTabs').addEventListener('contextmenu', (e) => {
     const key = e.target.closest('.wstab')?.dataset.ws;
     if (!key) return;
     e.preventDefault();
-    openMenu([{ label: 'Show Folder', run: () => kulisa.invoke('ws:show-folder', key) }], e);
+    openMenu([
+      ...(key === ws.current ? [{ heading: 'Profiles' }, ...profileEditor.menu(), '-'] : []),
+      { label: 'Show Folder', run: () => kulisa.invoke('ws:show-folder', key) },
+    ], e);
   });
   // Whether forks are possible is checked again as the pointer comes (git init or a first commit in the terminal).
   document.getElementById('workspaces').addEventListener('pointerenter', () => kulisa.invoke('workspaces:get'));

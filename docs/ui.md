@@ -53,6 +53,7 @@ lines (`stroke`) of the text's color; a filled part has `fill="currentColor"`. U
 | `i-globe` | a tab whose site has no icon |
 | `i-zoom`, `i-theme`, `i-arrange`, `i-agent`, `i-exit` | ☰'s rows: Zoom, Theme, Arrange panels, Agents…, Exit |
 | `i-mic` | dictation's microphone in the terminal's header (Lucide's mic) |
+| `i-users` | the profiles' chip on the shown workspace's tab (Lucide's users) |
 | `i-working`, `i-waiting`, `i-done` | an agent's state on a tab (`.state`) |
 
 An icon is 16 px; × and + are 14 px, as in Chrome (`.icon`), and so is an agent's state. ☰'s and the agent's states are Lucide's (lucide.dev, ISC), drawn on 24 × 24 with
@@ -90,6 +91,9 @@ every other `<svg>` uses the sprite.
   step taller than a button (`--control` + 4 px) and at least 64 px wide: a target for a quick throw of the mouse.
   Lit under the pointer; `.active`: the shown one, in the panels' color (`--island`) on the dark island. A
   workspace's tab (`tpl-wstab`).
+- `.chip`: an icon and a number inside a tab: on every workspace's tab, 👥 and how many of its profiles are open; on
+  the shown one a button (`#openProfiles`, lit under the pointer) with the menu of them. On every tab, so that tabs
+  keep their widths as another is shown.
 - `.state`: an agent's state by `data-state` (from its hooks), an icon each so that color is not the only sign (some
   people do not tell yellow from green): working (sparkles in `--accent`, twinkling; not with reduced motion), waiting
   for you (a bell in `--note`), done (a check in `--done`: come and see, until the human sees that workspace); nothing otherwise, as nothing asks for

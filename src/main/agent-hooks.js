@@ -18,7 +18,7 @@ function sessionStart(ws, input) {
   const closed = [...ws.closed.values()].map(({ cfg }) => who(cfg));
   const context = [
     lines.length ? `Kulisa profiles open now (the panes above your terminal; call browser_profiles for the live state):\n${lines.join('\n')}`
-      : closed.length ? 'No Kulisa profile is open.' : 'Kulisa has no profiles yet. The human creates them in Profiles ▾ → Manage Profiles…, or use profile_create when a task needs one.',
+      : closed.length ? 'No Kulisa profile is open.' : 'Kulisa has no profiles yet. The human creates them with 👥 on the workspace tab at the bottom → Manage Profiles…, or use profile_create when a task needs one.',
     closed.length && `Closed profiles (signed in, no pane; profile_open opens one when the task needs it):\n${closed.join('\n')}`,
     !ws.main && `You are in the Kulisa workspace "${ws.name}", a fork of the project: a git worktree of its own on branch ${ws.entry.branch}, ` +
       `and copies of the project's profiles. Run the app under test on its usual ports plus ${ws.offset} (KULISA_PORT_OFFSET); ` +

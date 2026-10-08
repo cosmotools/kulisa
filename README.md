@@ -73,9 +73,9 @@ main; **×** on main closes the project. Workspaces need git and a first commit:
 
 Panes and the terminal are panels: drag one by its header to another place (or onto another panel to stack them as
 tabs), drag the gaps between them to resize; **☰ → Arrange panels** offers ready-made arrangements, each drawn as a picture. The grid is
-kept across restarts. Profiles are added, renamed, described (who each one is in your app: the agent chooses profiles by it, and asks you when it is not said), given another picture and deleted in **Profiles ▾ → Manage Profiles…**, or by right-clicking a pane's header
+kept across restarts. Profiles are added, renamed, described (who each one is in your app: the agent chooses profiles by it, and asks you when it is not said), given another picture and deleted in **👥 → Manage Profiles…** (👥 with the number of open profiles is on the shown workspace's tab, at the bottom), or by right-clicking a pane's header
 (a name can also be renamed by double-clicking it). **×** at the top right of a profile's pane closes it: its tabs
-go and free their memory, it stays signed in; **Profiles ▾** lists it as closed and brings it back with the same tabs. Right-click a tab or the terminal for their menus. **Zoom:**
+go and free their memory, it stays signed in; **👥** lists it as closed and brings it back with the same tabs. Right-click a tab or the terminal for their menus. **Zoom:**
 Ctrl + / Ctrl − / Ctrl 0 outside the pages, or ☰ in the title bar, zooms all of Kulisa, and the pages follow; when it
 is not 100%, the title bar shows it (click to reset). The same keys in a page zoom that site in that profile on top of it (shown in the address bar,
 click to reset). Both are kept across restarts. **☰ → Theme**: Dark (the default), Light, or System (as your OS); profiles' pages keep your OS's. **☰ → Exit** quits

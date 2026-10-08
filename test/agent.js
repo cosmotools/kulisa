@@ -206,7 +206,7 @@ module.exports = (test) => {
     assert.match((await call('profile_describe', { profile: 'elon-buyer', description: 'buyer; pays by card' })).text, /Saved/);
     assert.equal(elon.description, 'buyer; pays by card');
     await assert.rejects(call('profile_describe', { profile: 'elon-buyer', description: 'x'.repeat(501) }), /at most 500/);
-    // The editor shows it and the human changes it there; the pane's name tells it on hover, Profiles ▾ under the name.
+    // The editor shows it and the human changes it there; the pane's name tells it on hover, the profiles' chip's menu under the name.
     const header = `[...document.querySelectorAll('.ptab')].find((t) => t.querySelector('.pname')?.textContent === 'Elon.buyer')`;
     await waitFor(async () => (await ui(`${header}.querySelector('.pname').title`)).startsWith('buyer; pays by card'));
     await waitFor(() => ui(`(() => { const i = ${header}.querySelector('.avatar'); return i.complete && i.naturalWidth > 0; })()`)); // the picture is drawn

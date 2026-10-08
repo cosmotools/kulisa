@@ -8,7 +8,7 @@ next: [ROADMAP.md](ROADMAP.md). Keep this file current when the window changes.
 
 ## The title bar
 
-One row: the app's logo (the open project's color on its curtain), Profiles ▾, ☰, and the OS's window buttons drawn over its right end (`titleBarStyle: 'hidden'` with
+One row: the app's logo (the open project's color on its curtain), ☰, and the OS's window buttons drawn over its right end (`titleBarStyle: 'hidden'` with
 `titleBarOverlay`); no menu bar. Dragging the empty part moves the window. When the Kulisa zoom is not 100%, the bar
 shows it (a click resets it).
 
@@ -87,8 +87,8 @@ when it changes, as JetBrains' Sync with OS). Saved (`settings.json`), the same 
 
 Kulisa draws its menus in HTML, as Chrome does (a popover, `menu.js`; [ui.md](ui.md), Menus):
 
-- the button after the projects' islands (the projects), a project label's right-click menu, Profiles ▾ (open and
-  closed profiles, Manage Profiles…), ☰ (as Chrome's ⋮, each row with its icon: the zoom row, the theme row, the
+- the button after the projects' islands (the projects), a project label's right-click menu, the profiles' chip on the shown workspace's tab (open
+  and closed profiles, Manage Profiles…; the tab's right-click menu has them too, with Show Folder), ☰ (as Chrome's ⋮, each row with its icon: the zoom row, the theme row, the
   projects' bar's row, Arrange panels, Agents…, Kulisa's version with the Welcome screen's links
   (Documentation, GitHub, Report an issue; one list in `index.html`), and Exit, which quits as the last window's × does; not on macOS, where
   Cmd+Q and the app's menu quit);

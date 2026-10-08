@@ -137,6 +137,24 @@ here; what is left of it stays.
     agent CLI uses Ctrl+C, Ctrl+R and others). A rule for what Kulisa takes everywhere, and what only outside the
     pages and the terminal; the same keys on every OS (Cmd on macOS).
   - A list of the shortcuts (in the palette, the menus' rows already have room for a key: `kbd`); remapping later.
+- **A desktop app's ways, not only buttons** (talked over with the author 2026-10-08, who liked them all). A web page
+  puts a button on every action; a desktop app gives an action several ways in: a visible one for a newcomer, quick
+  ones for daily use (keys above, a right-click, dragging). Kulisa has some, here and there (the menus of a project,
+  a workspace's tab and a pane; a double-click renames a profile; a middle click closes a project; projects and
+  panels are dragged). To build:
+  - **The system's notifications: first** (small: Electron's `Notification`, `app.setBadgeCount`, `win.flashFrame`).
+    The human is in their browser or IDE while agents work; today only the icon on a workspace's tab says one waits
+    or is done, seen only while looking at Kulisa. A notification ("checkout: the agent waits for you"; a click shows
+    that workspace), the number of waiting agents on the app's icon in the dock or taskbar, the window flashing there.
+  - **Undo rather than "are you sure?"** for what can be undone: closing a profile, a workspace's tab, a project shows
+    "Closed · Undo" for a few seconds, and Ctrl+Z brings it back. Deleting (a fork, a profile with its sign-ins) is
+    for good and keeps its question.
+  - **A right-click menu on every object, as a rule** (a profile's pane, a workspace's tab, a project's island, the
+    terminal): all of its actions there, so the window shows only one or two buttons and the rest lives in menus.
+  - **Dragging from the system**: a folder from the file manager onto Kulisa opens it as a project; a link onto a
+    profile's pane opens it in a tab there; a file onto the terminal types its path, as terminals do.
+  - Not swipes (a phone's gesture; on a laptop's touchpad a sideways swipe is the OS's and the pages' back and
+    forward), nor a double-click as the only way to anything (nobody sees it; only a shortcut to a menu's item).
 - **Auto-update** (not started; discuss with the author before building). The point: users never download a new
   version by hand; installed copies update themselves in the background from the installers on GitHub Releases of
   `cosmotools/kulisa` (where they are to be published anyway), the new version starting next time.
