@@ -192,6 +192,17 @@ module.exports = (test) => {
   test('workspaces: switching shows the other grid and terminal; the one left keeps running; the agent\'s state shows on its tab', async (ctx) => {
     const { shell, ui } = ctx;
     const fork = shell.ws, sam = fork.profiles.get('sam-admin');
+    // A tab's right-click menu: Show Folder opens the fork's worktree in the file manager.
+    const electron = require('electron'), openPath = electron.shell.openPath, shown = [];
+    electron.shell.openPath = async (dir) => { shown.push(dir); return ''; };
+    try {
+      await rightClick(ui, `#projectTabs .wstab[data-ws="${fork.key}"] .name`);
+      assert.deepEqual(await menuRows(ui), ['Show Folder']);
+      await choose(ui, 'Show Folder');
+      await waitFor(() => shown.length === 1);
+    } finally { electron.shell.openPath = openPath; }
+    assert.equal(shown[0], fork.folder);
+    assert.notEqual(fork.folder, project, "the fork's own, not main's");
     await ui(`${wsTab(1)}.click()`);
     await waitFor(() => shell.ws.n === 1);
     await waitFor(async () => (await viewOn(shell, ui, 'sam-admin')) && viewOn(shell, ui, 'elon-buyer'));

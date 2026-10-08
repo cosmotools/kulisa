@@ -1,7 +1,7 @@
 // Workspaces (docs/workspaces.md): a tab per workspace (main and its forks) with its agent's state (working, waiting
 // for you, done), in its project's island in the projects' bar (projects.js puts them there; every open project's). A
 // click shows one, of any project; × deletes a fork or, on main, closes the project (asking first); + makes a fork of
-// main with a name asked in a dialog. Forks need git and a first commit: until then there is no + (docs/workspaces.md
+// main with a name asked in a dialog; a right-click shows its folder. Forks need git and a first commit: until then there is no + (docs/workspaces.md
 // says why).
 //   workspaces.current   the shown workspace's key ("<project id>/<n>"); null when no project is open (the Welcome
 //                        screen)
@@ -47,6 +47,13 @@ const workspaces = (() => {
     const key = tab.dataset.ws;
     if (e.target.closest('.close')) kulisa.invoke('ws:close', key);
     else if (key !== ws.current) kulisa.invoke('ws:show', key);
+  });
+  // Its right-click menu: the workspace's folder (main's is the project's, a fork's its worktree) in the file manager.
+  document.getElementById('projectTabs').addEventListener('contextmenu', (e) => {
+    const key = e.target.closest('.wstab')?.dataset.ws;
+    if (!key) return;
+    e.preventDefault();
+    openMenu([{ label: 'Show Folder', run: () => kulisa.invoke('ws:show-folder', key) }], e);
   });
   // Whether forks are possible is checked again as the pointer comes (git init or a first commit in the terminal).
   document.getElementById('workspaces').addEventListener('pointerenter', () => kulisa.invoke('workspaces:get'));

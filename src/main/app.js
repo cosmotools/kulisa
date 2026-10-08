@@ -359,6 +359,7 @@ function start(options = {}) {
     if (win.current !== ws.project) await win.show(ws.project);
   }));
   ipcMain.handle('ws:new', (e, { name, agent }) => serial(() => createWorkspace(at(e)?.current, name, agent)));
+  ipcMain.handle('ws:show-folder', (e, key) => { const ws = shell.workspace(key); return ws && electronShell.openPath(ws.folder); });
   ipcMain.handle('ws:close', (e, key) => serial(() => { const ws = shell.workspace(key); return ws ? closeWorkspace(ws) : { error: `no workspace ${key}` }; }));
   // The window asks again when the pointer comes to the shown project's workspaces: the human may have made the first commit meanwhile.
   ipcMain.handle('workspaces:get', async (e) => { const w = at(e); await w?.current?.checkGit(); w?.sendWorkspaces(); });

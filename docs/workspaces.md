@@ -26,6 +26,8 @@ A **project** is a folder, usually a repository, with its workspaces. Kulisa kee
     Window, Move to Window, Show Data Folder, Remove Project…). Closing asks first
     (the author's decision, 2026-10-07; before, only when its agent was working), and says so when an agent is still
     working.
+  - **A workspace tab's right-click menu**: Show Folder, its folder (main's is the project's, a fork's its worktree)
+    in the OS's file manager (`shell.openPath`).
   - **The button after the islands** is the menu of the projects (each with its color and folder, the open ones marked
     ✓; × on hover removes one), New Project…, Open Folder…, Close Project and Remove Project… (the shown one). No
     separate Manage Projects dialog: as in JetBrains, the menu and the Welcome screen do it all.
