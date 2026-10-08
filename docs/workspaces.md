@@ -23,7 +23,7 @@ A **project** is a folder, usually a repository, with its workspaces. Kulisa kee
     the human miss (the author, 2026-10-08).
   - **The label is no button**: its workspaces are what is clicked (two ways to the same thing confused). Closing the
     project: main's ×, the middle button on its label, or Close Project in its right-click menu (with Move to New
-    Window, Move to Window, Remove Project…). Closing asks first
+    Window, Move to Window, Show Data Folder, Remove Project…). Closing asks first
     (the author's decision, 2026-10-07; before, only when its agent was working), and says so when an agent is still
     working.
   - **The button after the islands** is the menu of the projects (each with its color and folder, the open ones marked
@@ -58,8 +58,8 @@ A **project** is a folder, usually a repository, with its workspaces. Kulisa kee
   curtain on its label in the bar), to tell projects apart at a glance.
 - **The Welcome screen** (the term: CLAUDE.md) is what the window shows with no project open: at the first start, and
   after the last project is closed (Close Project, the middle button on its label, removing the project). New Project…, Open
-  Folder…, the recent projects (a click opens one, × or a right-click removes it), and links (the website, the
-  documentation, GitHub, reporting an issue; they open in the user's browser) with Kulisa's version. Later starts
+  Folder…, the recent projects (a click opens one, × or a right-click removes it), and links (the
+  documentation, GitHub, reporting an issue, also in ☰; they open in the user's browser) with Kulisa's version. Later starts
   open the windows that were open, each with its projects, showing the one shown last (`windows` in `settings.json`);
   `KULISA_PROJECT=<folder> npm start` adds that one to the first window and shows it.
 - **The agent** of each workspace starts in the user's own shell, in the workspace's folder, as if the human typed
@@ -196,7 +196,9 @@ command everywhere, without asking.
 ## What is on the computer
 
 In Kulisa's data folder (`~/.config/Kulisa` on Linux, `~/Library/Application Support/Kulisa` on macOS,
-`%APPDATA%\Kulisa` on Windows), laid out as Chrome lays out its user data (`store.js`):
+`%APPDATA%\Kulisa` on Windows), laid out as Chrome lays out its user data (`store.js`). Show Data Folder in a
+project label's right-click menu opens its `projects/<id>` in the file manager (`shell.openPath`), for the human who
+asks where it is or what takes the disk; nothing in it is for editing by hand, so it is no button in sight:
 
 ```
 projects.json                     the projects: id, name, folder, color

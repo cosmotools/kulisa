@@ -45,7 +45,7 @@ lines (`stroke`) of the text's color; a filled part has `fill="currentColor"`. U
 | `i-close` | × of dialogs, profiles, tabs, workspaces; removing a row |
 | `i-plus` | new tab, new workspace |
 | `i-projects` | the projects' menu (after the islands of the projects' bar), its row in ☰ (Lucide's folder-open) |
-| `i-logo` | the app icon with its curtain in `currentColor`: the title bar's (`--project`) and a project's label in the projects' bar (its `--color`). The folds are a shadow over the color, one for every color: a `<use>` takes the sprite's gradient, not one of its own |
+| `i-logo` | the app icon with its curtain in `currentColor`: the title bar's (`--project`), a project's label in the projects' bar (its `--color`) and ☰'s version heading. The folds are a shadow over the color, one for every color: a `<use>` takes the sprite's gradient, not one of its own |
 | `i-menu` | ☰, the window's menu |
 | `i-more` | ⋮, a pane's menu |
 | `i-back`, `i-forward`, `i-reload` | a pane's toolbar (Chrome's) |

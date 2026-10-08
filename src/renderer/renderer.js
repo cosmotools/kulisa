@@ -383,7 +383,7 @@ kulisa.on('bar', (bar) => { root.dataset.bar = bar; scheduleLayout(); });
 const windowMenu = document.getElementById('windowMenu');
 // ☰, as Chrome's ⋮: the zoom row (stays open while you click − and +), the theme row and the projects' bar's (open
 // too), then the ready-made arrangements, each a picture of itself (seen at a glance, as Windows' snap layouts), its
-// words in the tooltip; Agents… (agents.js); Exit, as Chrome's, where the OS has no menu bar with Quit (not macOS:
+// words in the tooltip; Agents… (agents.js); the version with the website's and GitHub's links; Exit, as Chrome's, where the OS has no menu bar with Quit (not macOS:
 // Cmd+Q there). Each row with its icon at the start.
 windowMenu.onclick = () => {
   const zoom = tpl('tpl-menuzoom');
@@ -410,6 +410,8 @@ windowMenu.onclick = () => {
   };
   openMenu([{ element: zoom }, { element: themes }, { element: bar }, '-', { heading: 'Arrange panels', icon: 'i-arrange' }, { element: arrange }, '-',
     { label: 'Agents…', icon: 'i-agent', run: async () => (await import('./agents.js')).showAgents() },
+    // Kulisa's version and the Welcome screen's links (index.html, one list), in the user's browser (window.js).
+    '-', { heading: document.getElementById('version').textContent, icon: 'i-logo' }, ...[...document.querySelectorAll('#welcome .links a')].map((a) => ({ label: a.textContent, run: () => open(a.href) })),
     ...(kulisa.platform === 'darwin' ? [] : ['-', { label: 'Exit', icon: 'i-exit', run: () => kulisa.invoke('app:quit') }])], windowMenu);
 };
 

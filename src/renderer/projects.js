@@ -77,7 +77,8 @@
       // The only tab stays: a new window would be the same as this one.
       { label: 'Move to New Window', enabled: open.length > 1, run: () => move(null) },
       ...windows.map((w) => ({ label: `Move to Window: ${w.names.join(', ')}`, run: () => move(w.id) })),
-      '-', { label: 'Remove Project…', run: () => remove(id) }], e);
+      '-', { label: 'Show Data Folder', run: () => kulisa.invoke('project:show-data', { id }) },
+      { label: 'Remove Project…', run: () => remove(id) }], e);
   });
 
   // HTML drag and drop, which also crosses windows. The tab carries its project and what its terminals show (the

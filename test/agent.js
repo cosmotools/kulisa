@@ -289,6 +289,8 @@ module.exports = (test) => {
     const mine = (await call('browser_tab_new', { profile: 'sam-seller', url: `${SITE}/board` })).text.match(/Opened tab (\w+)/)[1];
     await call('browser_type', { profile: 'sam-seller', locator: "getByLabel('Message')", text: 'hello elon', submit: true });
     await call('browser_wait_for', { profile: 'elon-buyer', text: 'hello elon', seconds: 5 });
+    // The poster's page too: reloaded by the post, it shows the board at its next poll (the snapshot came before).
+    await call('browser_wait_for', { profile: 'sam-seller', text: 'hello elon', seconds: 5 });
     const both = (await call('browser_snapshot', { profile: 'sam-seller', also: ['elon-buyer', 'nobody'] })).text;
     assert.match(both, /Profile: sam-seller[\s\S]*hello elon[\s\S]*Profile: elon-buyer[\s\S]*hello elon[\s\S]*Profile: nobody\n- No profile "nobody"/);
     await call('browser_tab_close', { profile: 'sam-seller', tab: mine });

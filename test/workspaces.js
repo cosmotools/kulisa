@@ -434,7 +434,7 @@ module.exports = (test) => {
     assert.ok(!(await menuRows(ui)).includes('Close Project'), 'nothing to close');
     await ui(`document.getElementById('menu').hidePopover()`);
     assert.deepEqual(await ui(`[...document.querySelectorAll('#welcome .links a')].map((a) => a.textContent)`),
-      ['kulisa.app', 'Documentation', 'GitHub', 'Report an issue']);
+      ['Documentation', 'GitHub', 'Report an issue']);
     assert.equal(await ui(`document.getElementById('version').textContent`), `Kulisa ${require('../package.json').version}`);
     const electron = require('electron'), openExternal = electron.shell.openExternal, opened = [];
     electron.shell.openExternal = async (url) => { opened.push(url); };
@@ -442,7 +442,7 @@ module.exports = (test) => {
       await ui(`document.querySelector('#welcome .links a').click()`);
       await waitFor(() => opened.length === 1);
     } finally { electron.shell.openExternal = openExternal; }
-    assert.equal(opened[0], 'https://kulisa.app/');
+    assert.equal(opened[0], 'https://github.com/cosmotools/kulisa#readme');
     assert.ok(await ui(`location.protocol === 'file:' && !!document.getElementById('welcome')`), 'the window stays on its page');
 
     // New Project…: a name and where its folder goes, the home folder unless another is chosen; git on by default.

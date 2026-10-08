@@ -1,7 +1,7 @@
 // Kulisa, the app: its windows (window.js) with their project tabs, the open projects, the agents, the CDP proxy and
 // the MCP server, the windows' IPC (each message acts in the window it comes from), quitting. start(options) is used by
 // the entry point (index.js) and by the tests.
-const { app, ipcMain, dialog, screen, nativeTheme } = require('electron');
+const { app, ipcMain, dialog, screen, nativeTheme, shell: electronShell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { EventEmitter } = require('events');
@@ -342,6 +342,12 @@ function start(options = {}) {
   ipcMain.handle('project:drop', (e, { id, index, terminals }) => serial(() => dropProject(shell.open.get(id), at(e), index, terminals)));
   ipcMain.handle('project:drag-out', (e, { id, terminals }) => serial(() => dragOut(shell.open.get(id), terminals)));
   ipcMain.handle('app:quit', (e) => serial(() => quit(at(e))));
+  // Kulisa's data of an open project (its profiles, workspaces), in the OS's file manager: for the human who wants to
+  // know where it is or what takes the disk. Opened, not changed.
+  ipcMain.handle('project:show-data', (e, { id }) => {
+    const p = shell.open.get(id);
+    return p && electronShell.openPath(store.dirOf(p.entry));
+  });
   ipcMain.handle('project:remove', (e, { id }) => serial(() => removeProject(id, at(e))));
   // A workspace of another project too (the bar shows every open project's): it becomes that project's, then the
   // project is shown.

@@ -90,8 +90,15 @@ module.exports = (test) => {
     await ui(`document.getElementById('menu').hidePopover()`);
     // The label's right-click menu.
     await rightClick(ui, '#projectTabs [data-project="other"] .name');
-    assert.deepEqual(await menuRows(ui), ['Close Project', 'Move to New Window', '-', 'Remove Project…']);
-    await ui(`document.getElementById('menu').hidePopover()`);
+    assert.deepEqual(await menuRows(ui), ['Close Project', 'Move to New Window', '-', 'Show Data Folder', 'Remove Project…']);
+    // Show Data Folder: Kulisa's folder of that project, in the file manager.
+    const electron = require('electron'), openPath = electron.shell.openPath, shown = [];
+    electron.shell.openPath = async (dir) => { shown.push(dir); return ''; };
+    try {
+      await choose(ui, 'Show Data Folder');
+      await waitFor(() => shown.length === 1);
+    } finally { electron.shell.openPath = openPath; }
+    assert.equal(shown[0], path.join(userData, 'projects', 'other'));
 
     // A click on the label shows nothing: its workspaces are what is clicked.
     await ui(`${projectTab('project')}.querySelector('.plabel').click()`);
@@ -223,7 +230,7 @@ module.exports = (test) => {
 
     // Back into the first window (Move to Window, as a browser moves a tab): the only tab of the second, so it closes.
     await rightClick(ui2, '#projectTabs [data-project="other"] .name');
-    assert.deepEqual(await menuRows(ui2), ['Close Project', 'Move to New Window (off)', 'Move to Window: project', '-', 'Remove Project…']);
+    assert.deepEqual(await menuRows(ui2), ['Close Project', 'Move to New Window (off)', 'Move to Window: project', '-', 'Show Data Folder', 'Remove Project…']);
     await choose(ui2, 'Move to Window: project');
     await waitFor(() => shell.windows.length === 1 && shell.current === moved && !first.switching);
     assert.ok(second.win.isDestroyed());
@@ -593,9 +600,10 @@ module.exports = (test) => {
 
     await ui(`document.getElementById('windowMenu').click()`);
     // The arrangements as pictures, a short name under each, the full words in the tooltip.
-    assert.deepEqual((await menuRows(ui)).slice(4), ['# Arrange panels', 'arrange: Columns, Two by two, One at a time', '-', 'Agents…', '-', 'Exit']);
+    assert.deepEqual((await menuRows(ui)).slice(4), ['# Arrange panels', 'arrange: Columns, Two by two, One at a time', '-', 'Agents…', '-',
+      `# Kulisa ${require('../package.json').version}`, 'Documentation', 'GitHub', 'Report an issue', '-', 'Exit']);
     assert.deepEqual(await ui(`[...document.querySelectorAll('#menu svg:not([hidden]) > use')].map((u) => u.getAttribute('href'))`),
-      ['#i-zoom', '#i-theme', '#i-projects', '#i-arrange', '#i-agent', '#i-exit'], 'each row with its icon');
+      ['#i-zoom', '#i-theme', '#i-projects', '#i-arrange', '#i-agent', '#i-logo', '#i-exit'], 'each row with its icon');
     const pics = await ui(`[...document.querySelectorAll('#menu .arrange button')].map((b) => ({ title: b.title,
       panes: b.querySelectorAll('svg .a-page').length, term: b.querySelectorAll('svg .a-term').length, w: b.querySelector('svg').getBoundingClientRect().width }))`);
     assert.deepEqual(pics.map((p) => [p.panes, p.term]), [[3, 1], [4, 1], [1, 1]]);
@@ -604,6 +612,15 @@ module.exports = (test) => {
     assert.equal(await menuOpen(ui), false, 'a choice closes the menu');
     await waitFor(async () => (await pageBox(ui, 'elon-buyer')) === null && viewOn(shell, ui, 'sam-admin'));
     await ui(`window.__layoutPreset('grid')`); // as the grid presets test left it, for the restart phase
+    // ☰'s links open in the user's browser.
+    electron.shell.openExternal = async (url) => { opened.push(url); };
+    try {
+      await ui(`document.getElementById('windowMenu').click()`);
+      await menuRows(ui);
+      await choose(ui, 'GitHub');
+      await waitFor(() => opened.length === 2);
+    } finally { electron.shell.openExternal = openExternal; }
+    assert.equal(opened[1], 'https://github.com/cosmotools/kulisa');
 
     // Exit quits as the last window's × does: asked only when an agent works.
     shell.ws.state = 'working';
