@@ -44,6 +44,12 @@ panel stacked behind another hides its page until it is chosen. **☰ → Arrang
 arrangements, each drawn as a small picture of itself, as Windows' snap layouts (the words in its tooltip):
 profiles in columns with the terminal below, two by two with the terminal on the right, one profile at a time.
 Each fits the window with nothing cut off. The grid is saved per workspace (`layout.json`) and restored.
+The workspace's other terminals ("The terminal") are panels too, next to the agent's; an arrangement keeps them there.
+
+The window itself never scrolls, also not from a script (`overflow` on `html` and `body`, window.css): a panel stacked
+behind another is kept laid out below the grid (dockview), which made the page taller than the window, and the
+projects' bar bringing its tab into view (`scrollIntoView`) moved the whole grid up by a window's height
+(2026-10-09, after an agent's turn ended).
 
 The profiles' pages are native views above the window's HTML (CLAUDE.md, "What must hold in the window"). While a
 panel is dragged, a menu is open or a dialog is shown, the pages are pictures of themselves (or hidden), so the

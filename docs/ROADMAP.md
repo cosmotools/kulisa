@@ -78,8 +78,11 @@ here; what is left of it stays.
 - **Kulisa plugin: running the app, rest** (designed 2026-10-06 with the workspaces; the terminals it runs in built
   2026-10-09: [window.md](window.md), "The terminal"). Any agent is told its workspace's ports in the MCP server's
   instructions and runs the app with `terminal_run`, where the human sees it.
-  - To try in real sessions, Claude Code and Codex, in main and in a fork: does the agent find how to run the
-    project (README, compose), move its ports, and use `terminal_run` rather than its own background shell.
+  - Tried 2026-10-09 with Claude Code 2.1.295 on a small Node project ("run the app and open it in the buyer
+    profile"): in a fork it read the README and `$KULISA_PORT_OFFSET`, ran `PORT=3100 npm run dev` with
+    `terminal_run`, read it and opened 3100 in the profile; in main the same on 3000. Without Kulisa's tools (a
+    workspace not loaded) it ran the server in its own background shell. To try: Codex (see "Choosing the agent,
+    rest": once there is a Codex account), and a project with docker compose.
   - Possibly tools: the app's address for this workspace, opening its profiles there once the server answers.
   - Besides the port, worktrees share the local database (migrations of different branches), Redis and queues,
     OAuth redirect URLs registered for one address. Common practice: a database per branch, docker compose per
@@ -118,9 +121,9 @@ here; what is left of it stays.
 - **Choosing the agent, rest** (how it works: [workspaces.md](workspaces.md), "Choosing the agent").
   - Codex (0.160.1, Linux, 2026-10-06): its installer puts it in `~/.local/bin`, as assumed; `codex mcp list` with
     Kulisa's `-c mcp_servers.kulisa.url=…` lists the server, enabled; `codex resume` takes `--last` and `-c`. Not yet
-    tried: a whole session driving the profiles. It gets the MCP tools but not
-    the profiles skill: give every agent the essentials through the MCP server's own `instructions`, or a Codex
-    plugin.
+    tried: a whole session driving the profiles. It gets the MCP tools and the MCP server's `instructions` (the
+    essentials: profiles, sign-in, `terminal_run`, the workspace's ports), not the profiles skill: Codex has skills
+    and plugins, but none found that a session takes without writing into the user's `~/.codex` (2026-10-09).
   - Codex's hooks (the agent's state, the session to resume, the open profiles at start; workspaces.md, "Choosing the
     agent"): built from its documentation (learn.chatgpt.com/docs/hooks) on 2026-10-08, not yet tried in a session:
     no Codex account here then. Checked: Codex 0.160.1 takes the `-c hooks=…` override and checks a handler's fields,
@@ -128,6 +131,13 @@ here; what is left of it stays.
     that trusting once is enough; that `$KULISA_URL` reaches the hook's command; that `SessionStart`'s answer
     (Claude Code's shape, `hookSpecificOutput.additionalContext`) is taken; each event moving the tab (Esc:
     `Interrupt`); `codex resume <session>`. Windows: the command is sh's (`commandWindows` for PowerShell).
+  - **Once there is a Codex account** (the author has none yet, 2026-10-09; it is signed in by the human, `codex
+    login`), try in one go, in main and in a fork, as Claude Code was tried ("running the app, rest"):
+    1. A session driving the profiles: `browser_profiles`, a snapshot, a click; the sign-in pause.
+    2. Running the app: does it read the instructions, move its ports, use `terminal_run` (Codex was expected to
+       wait on a server in its own shell) and open the app in a profile.
+    3. Its hooks, as in the item above: trusting them, `$KULISA_URL`, `SessionStart`'s answer, the tab's state,
+       `codex resume`.
   - More agents (Gemini CLI, …): an entry each in `agents.js`.
   - Windows: the installers run in PowerShell, untested; macOS untested.
   - A hint in an empty grid (no profiles yet): "create the first profile".
@@ -495,5 +505,15 @@ here; what is left of it stays.
   screen when the window manager put the test's window near its right edge; it lets go on the side with room now.
   Not looked at: the address bar's click (seen 2026-10-07). Slow but not flaky: closing a fork (11 s, git's work), a
   site that never answers (10 s: two 5 s waits by design).
+- **The main process exits with SIGTRAP now and then** (found 2026-10-09). In about a third of the test runs, at the
+  test "closing the last tab of a profile …" right after "a site that never answers", just after `[mimic] target
+  closed while handling command`, with nothing in Chromium's log (`ELECTRON_ENABLE_LOGGING`): not a CHECK of
+  Chromium's, likely native code in the main process. Not new: 2 of 6 runs at `6edb5e6` too, and apport
+  (`/var/log/apport.log`) recorded many crashes of the author's running Kulisa on 2026-10-08 and 09. To find: a stack
+  (a core dump through apport, or gdb on the test run), then what of Kulisa's reaches it.
+- **The menus' tests fail again now and then** (2026-10-09, after the terminals next to the agent's): "DevTools in a
+  pane's ⋮ menu" (the menu does not open) and "context menus" (closed right after a real right-click's release, or
+  ☰ not opening from another menu), 4 of 9 runs, against none of 6 runs at `6edb5e6`. Maybe the terminals, maybe
+  chance; to look at before more work on menus (see "Tests that failed now and then" above).
 - **No performance numbers taken with the monitor on.** CPU, RAM, many profiles; see REPORT, E8.
 - **`playwright-core` is pinned to a 1.64 alpha.** Move to the stable release once it ships with the same APIs.

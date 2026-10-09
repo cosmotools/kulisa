@@ -71,6 +71,11 @@ on local addresses point there. Click a workspace to switch; the others keep wor
 (its folder, branch, profile copies and conversation), after a question that says what goes and any work not in
 main; **×** on main closes the project. Workspaces need git and a first commit: until then a project has no **+**.
 
+**More terminals:** **+** in the terminal's header opens your shell in the workspace's folder next to the agent's.
+The agent runs what keeps running there too (the app's dev server, `docker compose up`), in a terminal of its own
+behind its tab, so you see it, stop it and type into it; it reads the output itself. Terminals are kept across
+restarts, as in an IDE, each a fresh shell in its place; **×** or `exit` closes one.
+
 Panes and the terminal are panels: drag one by its header to another place (or onto another panel to stack them as
 tabs), drag the gaps between them to resize; **☰ → Arrange panels** offers ready-made arrangements, each drawn as a picture. The grid is
 kept across restarts. Profiles are added, renamed, described (who each one is in your app: the agent chooses profiles by it, and asks you when it is not said), given another picture and deleted in **👥 → Manage Profiles…** (👥 on the shown workspace's tab, at the bottom; every workspace's tab shows how many of its profiles are open), or by right-clicking a pane's
@@ -112,11 +117,11 @@ src/main/        Electron main process
   session-cookies.js  keeps session cookies across restarts (encrypted with the OS keyring)
   picker.js        point and tell: Playwright pickLocator → a reference (profile, tab, locator) typed into the agent's prompt
   ghost.js         the agent's actions: Playwright's annotations in the page, a caption over the pane
-  terminal.js      node-pty running the agent CLI, one per workspace
+  terminal.js      node-pty: the agent CLI, one per workspace, and the workspace's other terminals
 src/agent/claude-plugin/  the Kulisa plugin for Claude Code: MCP config, the profiles skill, hooks (claude --plugin-dir)
 src/preload/     the window's bridge to the main process
 src/renderer/    window UI. renderer.js: the grid of panels (dockview), panes, ☰ and right-click menus; parts in their
-                 own files: common.js, menu.js (the menus), terminal.js (xterm.js, one per workspace), voice.js
+                 own files: common.js, menu.js (the menus), terminal.js (xterm.js: the agent's, one per workspace, and the others), voice.js
                  (dictation), projects.js, workspaces.js (the workspaces' tabs, the new-workspace dialog),
                  profile-editor.js; ES modules loaded when
                  needed: agent-picker.js (choosing and installing an agent), agents.js (the Agents

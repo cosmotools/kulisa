@@ -75,6 +75,10 @@ module.exports = (test) => {
     await waitFor(async () => (await call('terminal_read', { name: 'dev server' })).text.includes('ready at offset 0'));
     assert.ok(await group(`term:${dev.id}`));
     assert.equal(await active(`term:${dev.id}`), false, 'behind');
+    // Laid out below the grid while behind (dockview), it does not make the window scrollable: the agent's state on its
+    // tab (the projects' bar brings its tab into view) had moved the grid up by a window's height.
+    await ui(`document.querySelector('#projectTabs > *').scrollIntoView()`);
+    assert.deepEqual(await ui(`[document.documentElement.scrollTop, document.documentElement.scrollHeight <= innerHeight]`), [0, true]);
     assert.equal(await active(`term:${human.id}`), true, "the human's stays in front");
     assert.equal((await call('terminal_read', {})).text, `"Terminal 2" (the human's)\n"dev server" (yours): echo "ready at offset $KULISA_PORT_OFFSET"; sleep 30`);
     await assert.rejects(call('terminal_stop', { name: 'nope' }), /no terminal "nope"; open now: "Terminal 2", "dev server"/);

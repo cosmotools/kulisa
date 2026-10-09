@@ -41,7 +41,7 @@
       return el;
     }));
     if (!workspacesNav.isConnected) button.before(workspacesNav); // no project shown: kept in the bar, not shown
-    tabs.querySelector('.active')?.scrollIntoView({ inline: 'nearest' });
+    tabs.querySelector('.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     const shown = byId.get(current);
     if (shown) document.documentElement.style.setProperty('--project', shown.color);
     else document.documentElement.style.removeProperty('--project'); // no project: Kulisa's own colors

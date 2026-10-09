@@ -19,7 +19,7 @@ One desktop app for the human's projects (each an island in a bar under the grid
 
 - **Profiles**: persistent identities of the app's users, each an embedded browser profile with its own cookies, storage and tabs, and later its own mailbox, locale, timezone and device. The human creates them in the app and signs in by hand.
 - **Panes**: each profile's browser, side by side, live, with its own tab strip.
-- **Terminal**: any CLI coding agent (Claude Code, Codex, …) runs unchanged in a real pty inside the app. The app does not replace the agent; it gives the agent an MCP server to drive profiles.
+- **Terminal**: any CLI coding agent (Claude Code, Codex, …) runs unchanged in a real pty inside the app. The app does not replace the agent; it gives the agent an MCP server to drive profiles. More terminals next to it: the human's shells, and what the agent keeps running (the app's dev server) where the human sees it.
 - **Timeline**: one feed of everything that happens across all profiles.
 
 ```
@@ -77,7 +77,7 @@ Point-and-tell alone is already standard. The differentiator is **all of the app
 - **Kulisa plugin** (between the agent and the profiles): for Claude Code, a plugin passed with `--plugin-dir` carries the MCP config, a skill on working with profiles, and hooks. The MCP server itself stays agent-agnostic.
 - **Window**: a grid of peer panels (dockview), as in JetBrains IDEs: each profile's pane and the terminal (later
   the timeline and mail) can be moved, stacked as tabs and resized; ready-made arrangements; the grid is saved.
-- **Terminal**: xterm.js + node-pty running the agent CLI unchanged.
+- **Terminal**: xterm.js + node-pty running the agent CLI unchanged; the workspace's other terminals the same way, the agent's through MCP tools (`terminal_run`).
 - **Point-and-tell delivery**: a short reference typed into the agent's prompt without Enter; the human writes the rest of the message around it.
 - **License: GPL-3.0-or-later**, free forever for what runs on the user's computer (the author's decision,
   2026-10-07): anyone may fork it, and no one can close it. The name and logo stay the author's ([LICENSING.md](LICENSING.md)).
