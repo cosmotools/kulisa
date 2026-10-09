@@ -99,7 +99,9 @@ async function setup(shell) {
   // Questions (deleting a profile, a workspace…) are answered in the window's dialog, as the human would: ctx.answer
   // true clicks the button that does it, false Cancel; null leaves the dialog to the test. ctx.asked: what was asked.
   const asked = [];
-  const ctx = { shell, call, ui, ptyOutput: () => pty, watchPty, termText, asked, answer: true };
+  // What the MCP server tells the agent of workspace ws at the start (its instructions).
+  const instructions = async (ws = shell.ws) => (await mcpOf(ws.env().KULISA_MCP_URL)).getInstructions();
+  const ctx = { shell, call, instructions, ui, ptyOutput: () => pty, watchPty, termText, asked, answer: true };
   const ask = shell.askWhich;
   // Asked in the window w (window.js), the first one when none is named; shell.ask asks through it.
   shell.askWhich = (q, w = shell.windows[0]) => {

@@ -148,6 +148,9 @@ methods. A row with one side empty says why, or is a gap to fill.
 | Act in a page | mouse, keyboard | `browser_click`, `browser_type`, `browser_press_key`, `browser_hover`, `browser_select_option`, `browser_file_upload`, `browser_evaluate` | the page itself; Playwright over the proxy |
 | Answer a dialog | the dialog in the pane | `dialog` on the action that opened it | `Profile._dialog`, `answerDialog` |
 | Sign in | by hand | never (Rules); asks with `profile_ask_signin` | the sign-in pause |
+| Open a terminal next to the agent's, run in it | + in the terminal's header, then types | `terminal_run` (a name and a command) | `Workspace.openTerminal`, `runInTerminal` |
+| Read a terminal, stop what runs there | looks at it, Ctrl+C | `terminal_read`, `terminal_stop` | `Workspace.readTerminal`, `interruptTerminal` |
+| Close a terminal | ×, Close in its menu, `exit` | `terminal_stop` with `close` | `Workspace.closeTerminal`; a shell's exit too |
 
 ## Sign-ins that last
 

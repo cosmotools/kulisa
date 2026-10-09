@@ -31,6 +31,9 @@ human sees everything you do there: your cursor and a caption are drawn in the p
 | `profile_describe` | Save who a profile is (its role, what it can do): the human's answer when you had to ask. |
 | `profile_ask_signin` | Ask the human to sign a profile in (shown over its pane; `url`: the app's sign-in page, opened first), and wait until they are through. |
 | `profile_delete` | Delete a profile for good (sign-ins, storage, tabs). The human confirms it in a dialog. |
+| `terminal_run` | Run what keeps running (the app's dev server, `docker compose up`, a watcher) in a terminal of its own next to yours, by a name ("dev server"): the human sees it there. The same name again types into it. |
+| `terminal_read` | The last lines a terminal shows, as plain text (errors, the address the server listens on); without a name, the terminals open, yours and the human's. |
+| `terminal_stop` | Ctrl+C in a terminal (`close: true` closes it). The human's own terminals only when they ask. |
 
 Every browser tool takes `profile`: the id from `browser_profiles`, not the display name. Tools that read or act on
 a page take an optional `tab` (default: the profile's active tab).
@@ -72,8 +75,8 @@ profiles. You see only your workspace's profiles. In a fork (the session start s
 - Work and commit on the fork's branch; the human merges it into main (or asks you to open a pull request).
 - The worktree has the project's files in git and `.env*`, but no installed dependencies: install them first
   (`npm install`, `pip install`, …) before running anything.
-- Run the app under test on its usual ports plus `$KULISA_PORT_OFFSET` (3000 → 3100 with 100), so it does not clash
-  with main's: through `PORT`, a `--port` flag, `.env.local`, or the published ports of `docker compose`. The
+- Run the app under test with `terminal_run`, not in your own shell or its background, on its usual ports plus
+  `$KULISA_PORT_OFFSET` (3000 → 3100 with 100), so it does not clash with main's: through `PORT`, a `--port` flag, `.env.local`, or the published ports of `docker compose`. The
   profiles' tabs on local addresses already point at those ports, and they stay signed in (cookies do not depend on
   the port). If the app cannot run on other ports, tell the human.
 

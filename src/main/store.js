@@ -131,6 +131,9 @@ class WorkspaceStore {
   // The workspace's agent session: { sessionId, transcript } as the agent's hooks report it (agent-hooks.js).
   agent() { return readJSON(this.file('agent.json')) || {}; }
   saveAgent(a) { writeJSON(this.file('agent.json'), a); }
+  // Its terminals besides the agent's, opened again after a restart: [{ id, name, by }] (workspaces.js).
+  terminals() { return readJSON(this.file('terminals.json')) || []; }
+  saveTerminals(list) { writeJSON(this.file('terminals.json'), list); }
 }
 
 // Copy a profile's folder without its caches. An open profile can be copied once its data is flushed

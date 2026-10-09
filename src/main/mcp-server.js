@@ -33,11 +33,21 @@ const pageKey = (u) => { try { const x = new URL(u); return x.origin + x.pathnam
 const INSTRUCTIONS = 'Kulisa profiles are the users of the app under test, each a browser profile the human signed in to by hand. ' +
   'Choose a profile by its description (browser_profiles), not by guessing from its name: when no description tells ' +
   'which profile a task means, or several do, ask the human once and save their answer with profile_describe. ' +
-  'Never sign in, type passwords or read cookies or tokens: ask the human with profile_ask_signin.';
+  'Never sign in, type passwords or read cookies or tokens: ask the human with profile_ask_signin. ' +
+  'Run what keeps running (the app\'s dev server, docker compose up, a watcher) with terminal_run, not in your own ' +
+  'shell or its background: the human sees it in a terminal next to yours, and you read its output with terminal_read.';
+// Where the app under test runs in this workspace: forks of a project run their own copy of it, on ports moved by the
+// workspace's offset (workspaces.md, Ports), so they do not clash.
+const portsOf = (ws) => (ws.offset
+  ? ` This is workspace "${ws.name}", a copy of the project next to others: run the app on its usual ports plus ` +
+    `${ws.offset} (3000 → ${3000 + ws.offset}; $KULISA_PORT_OFFSET), through PORT, a --port flag, .env.local or the ` +
+    'published ports of docker compose. The profiles\' tabs on local addresses already point there. If the app cannot ' +
+    'run on other ports, tell the human.'
+  : ' This is the project\'s main workspace: the app runs on its usual ports.');
 
 // ws: the workspace (workspaces.js) whose profiles the tools act on.
 function buildServer(ws) {
-  const server = new McpServer({ name: 'kulisa', version: VERSION }, { instructions: INSTRUCTIONS });
+  const server = new McpServer({ name: 'kulisa', version: VERSION }, { instructions: INSTRUCTIONS + portsOf(ws) });
   // Profiles can be created while the agent runs, so this is a string checked at call time, not an enum.
   const closed = [...ws.closed.values()].map(({ cfg }) => `${cfg.id} (${cfg.name}, closed)`);
   const profileArg = z.string().describe(`Profile id. Current: ${[...[...ws.profiles.values()].map((p) => `${p.id} (${p.name})`), ...closed].join(', ') || 'none yet'}; call browser_profiles for the live list`);
@@ -423,6 +433,34 @@ function buildServer(ws) {
       if (!onlyFailed || failure || status >= 400) lines.push(`${r.method()} ${clip(r.url())} → ${failure || status || 'pending'}`);
     }
     return text(lines.length ? lines.slice(-100).join('\n') : `No ${onlyFailed ? 'failed ' : ''}requests in ${profile}'s tab ${page.url()}`);
+  });
+
+  // Terminals next to the agent's (Workspace.openTerminal): what keeps running, where the human sees it.
+  const done = (r) => { if (r.error) throw new Error(r.error); return r; };
+  const nameArg = z.string().describe('The terminal\'s name, e.g. "dev server"');
+  server.registerTool('terminal_run', {
+    description: "Run a command that keeps running (the app's dev server, docker compose up, a watcher) in a terminal of its own next to yours, where the human sees it: the user's shell in the workspace's folder, with your environment. A terminal of that name already open gets the command typed in: stop what runs there first (terminal_stop). Then read its output with terminal_read.",
+    inputSchema: { name: nameArg, command: z.string().describe('A shell command line, e.g. "npm run dev -- --port 3100"') },
+  }, async ({ name, command }) => {
+    const r = done(await ws.runInTerminal(name, command));
+    return text(`${r.again ? 'Typed into' : 'Started in'} terminal "${r.name}": ${command}. Read its output with terminal_read.`);
+  });
+  server.registerTool('terminal_read', {
+    description: 'The last lines a terminal next to yours shows, as plain text (a server\'s errors, the address it listens on). Without a name: the terminals open.',
+    inputSchema: { name: nameArg.optional(), lines: z.number().int().min(1).max(500).optional().describe('Default 50') },
+  }, async ({ name, lines }) => {
+    if (!name) {
+      const list = ws.terminalsInfo();
+      return text(list.length ? list.map((t) => `"${t.name}" (${t.by === 'agent' ? 'yours' : "the human's"})${t.command ? `: ${t.command}` : ''}`).join('\n') : 'No terminals open besides yours.');
+    }
+    return text(done(ws.readTerminal(name, lines)).text || '(nothing yet)');
+  });
+  server.registerTool('terminal_stop', {
+    description: 'Stop what runs in a terminal next to yours (Ctrl+C); close: true closes the terminal too. The human\'s own terminals: only when they ask.',
+    inputSchema: { name: nameArg, close: z.boolean().optional() },
+  }, async ({ name, close }) => {
+    done(close ? ws.closeTerminal(name) : ws.interruptTerminal(name));
+    return text(close ? `Closed terminal "${name}".` : `Pressed Ctrl+C in terminal "${name}".`);
   });
   return server;
 }

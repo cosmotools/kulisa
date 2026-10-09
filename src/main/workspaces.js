@@ -7,7 +7,7 @@ const { session } = require('electron');
 const { Profile, wipeSession } = require('./profiles');
 const { ProjectProfiles } = require('./project-profiles');
 const { installSigninPause } = require('./signin-pause');
-const { startTerminal, stopTerminal, forgetTerminal } = require('./terminal');
+const { startTerminal, stopTerminal, forgetTerminal, terminalSize, terminalTail } = require('./terminal');
 const { clearHighlights } = require('./mcp-server');
 const { copyProfile } = require('./store');
 
@@ -31,6 +31,7 @@ class Workspace {
     this.state = null; // the agent's, from its hooks: 'working', 'waiting' (for the human), 'done'
     this.seen = false; // the human has seen it since (its window: see), so a done one has nothing to come and see
     this.pty = null; this.loaded = false;
+    this.terminals = new Map(); this.terminalSeq = 0; // its other terminals (openTerminal), by id
     this.list = new ProjectProfiles(this.store, this._profileHooks());
     this.profiles = this.list.profiles; this.closed = this.list.closed;
   }
@@ -84,7 +85,11 @@ class Workspace {
   // (signin-pages.js); a tab still loading, the URL it is opening.
   _urlOf(t) { return this.shell.signin.restoreUrl(t.wc) || t.pendingUrl; }
 
-  async loadProfiles() { await this.list.load(); this.loaded = true; }
+  // Its terminals come back with it, as they were left (openTerminal), not waited for: their panels are listed at once.
+  async loadProfiles() {
+    await this.list.load(); this.loaded = true;
+    for (const { id, name, by } of this.store.terminals()) this.openTerminal({ id, name, by }).catch((e) => console.error('[terminal]', e));
+  }
   // The workspace's agent (agents.js) in its folder, continuing its last conversation where the agent can. One not
   // chosen yet, or not installed: the window asks the human (and installs it); asked again the next time the
   // workspace is shown if they left without choosing.
@@ -152,6 +157,69 @@ class Workspace {
     await this.startAgent();
     return { changed: true, agent: agent.id };
   }
+  // Its terminals besides the agent's, each a panel next to the agent's: the human's shells (+ on the terminal's
+  // header) and what the agent keeps running there for the human to see (terminal_run: the app's dev server, docker
+  // compose), rather than in the background of its own shell, which some agents cannot do and the human does not see.
+  // Each is the user's shell in the workspace's folder with the agent's environment (the port offset), the command
+  // typed in. As in an IDE they are kept: when the workspace is loaded again (a restart, its project opened again)
+  // each comes back where it was (its id, its panel's in the saved grid), a shell with nothing running: the agent
+  // runs its command again. They go when closed (×, terminal_stop) or their shell exits. by: 'human' (the panel comes
+  // to the front) or 'agent' (behind the agent's terminal).
+  saveTerminals() { this.store.saveTerminals([...this.terminals.values()].map(({ id, name, by }) => ({ id, name, by }))); }
+  terminalsInfo() { return [...this.terminals.values()].map(({ id, name, command, by }) => ({ id, name, command, by })); }
+  // A terminal by its name (as the agent knows it) or id (as the window does).
+  terminal(which) {
+    const t = typeof which === 'number' ? this.terminals.get(which)
+      : [...this.terminals.values()].find((x) => x.name.toLowerCase() === String(which).trim().toLowerCase());
+    return t || { error: `no terminal "${which}"; open now: ${[...this.terminals.values()].map((x) => `"${x.name}"`).join(', ') || 'none'}` };
+  }
+  async openTerminal({ id, name, command = '', by = 'human' } = {}) {
+    if (!this.loaded) return { error: 'the workspace is not open' };
+    name = name?.trim();
+    if (name && !this.terminal(name).error) return { error: `there is a terminal "${name}" already` };
+    for (let n = 2; !name; n++) if (this.terminal(`Terminal ${n}`).error) name = `Terminal ${n}`;
+    id ??= this.terminalSeq + 1;
+    this.terminalSeq = Math.max(this.terminalSeq, id);
+    const key = `${this.key}#${id}`, t = { id, name, command, by, key };
+    this.terminals.set(id, t);
+    this.saveTerminals();
+    this.shell.wsChanged(this, true); // its panel, which the window sizes
+    t.pty = await startTerminal((channel, data) => this.window?.send(channel, data),
+      { line: command, cwd: this.folder, env: this.env(), size: terminalSize(this.key) }, key);
+    // The shell exited by itself (exit), not stopped by Kulisa (closing, quitting: the terminal is kept then).
+    t.pty.onExit(() => { if (!t.pty.stopped) this.closeTerminal(id); });
+    return { id, name };
+  }
+  // A command typed into a terminal already open (its last one stopped first: interruptTerminal), or into a new one.
+  async runInTerminal(name, command) {
+    const t = this.terminal(name);
+    if (t.error) return this.openTerminal({ name, command, by: 'agent' });
+    t.command = command;
+    t.pty?.write(`${command}\r`);
+    this.shell.wsChanged(this, true);
+    return { id: t.id, name: t.name, again: true };
+  }
+  // Ctrl+C, as the human would press it: what runs there stops, the shell stays.
+  interruptTerminal(which) {
+    const t = this.terminal(which);
+    if (t.error) return t;
+    t.pty?.write('\x03');
+    return { id: t.id };
+  }
+  readTerminal(which, lines = 50) {
+    const t = this.terminal(which);
+    return t.error ? t : { text: t.pty ? terminalTail(t.pty, lines) : '' };
+  }
+  closeTerminal(which) {
+    const t = this.terminal(which);
+    if (t.error) return t;
+    this.terminals.delete(t.id);
+    this.saveTerminals();
+    if (t.pty) stopTerminal(t.pty);
+    forgetTerminal(t.key);
+    this.shell.wsChanged(this, true);
+    return { id: t.id };
+  }
   // What the agent gets in its environment: where Kulisa's MCP server and hooks are for this workspace (the Kulisa
   // plugin reads them, other agent CLIs can too), its name, and the offset for the ports of the app it runs.
   env() {
@@ -164,6 +232,8 @@ class Workspace {
     this.shell.chooseAgent.cancel?.(this);
     if (this.pty) { stopTerminal(this.pty); this.pty = null; }
     forgetTerminal(this.key);
+    for (const t of this.terminals.values()) { if (t.pty) stopTerminal(t.pty); forgetTerminal(t.key); }
+    this.terminals.clear();
     if (this.loaded) this.list.saveTabs();
     this.loaded = false;
     await this.list.unloadAll();

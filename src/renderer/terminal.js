@@ -3,16 +3,22 @@
 // (Claude Code draws ✅ ⏵ ✻ and the like; with the default Unicode 6 widths the cursor and the input line drift off
 // the text), the WebGL renderer, and a bundled font so it looks and measures the same on every OS. The UI's text size
 // (--font in tokens.css), so the terminal matches the rest.
-//   termEl, termTab     the panel's element and its header (renderer.js puts them in its panel)
+// A workspace's other terminals (the human's shells, what the agent runs: main/workspaces.js) are panels of their own,
+// each its element and header, keyed "<workspace>#<id>" as in the main process.
+//   termEl, termTab     the agent's panel's element and its header (renderer.js puts them in its panel)
 //   term                the shown workspace's terminal
 //   showTerminal(ws)    show a workspace's terminal (made the first time)
-//   forgetTerminals(keys)  forget those of workspaces gone (their project closed or moved, a fork deleted)
+//   termHost(key), termHeader(key, info)  another terminal's element and header, for its panel
+//   forgetTerminals(keys)  forget those of workspaces gone (their project closed or moved, a fork deleted), with their
+//                       other terminals, or other terminals closed
 //   terminalsOf(project)   what a project's terminals show, for the window it moves to (terminals:restore there)
-//   terminalMenu()      its right-click menu (menu.js items)
+//   terminalMenu(el)    the right-click menu of the terminal at el (menu.js items)
 //   themeTerminals()    the colors again, after the theme changed
 const termEl = document.getElementById('term');
 const termTab = tpl('tpl-termtab');
-const terminals = new Map(); // workspace key -> { term, el, fit, opened }
+termTab.querySelector('.add').onclick = () => act('terminal:open'); // a shell of the human's, next to the agent's
+const terminals = new Map(); // terminal key -> { term, el, fit, opened }
+const hosts = new Map(); // another terminal's key -> { el, tab }: its panel's element and header
 let term = null, shownTerminal = null;
 Object.defineProperty(window, '__term', { get: () => term }); // for tests
 window.__ptySizes = []; // for tests: the sizes sent for the shown workspace
@@ -48,8 +54,9 @@ const termLinks = {
 
 // size: { cols, rows } to start with (a terminal coming from another window: its contents are laid out for it).
 function makeTerminal(ws, size) {
-  const el = Object.assign(document.createElement('div'), { className: 'xterm-host', hidden: true });
-  termEl.append(el);
+  const other = ws.includes('#');
+  const el = Object.assign(document.createElement('div'), { className: 'xterm-host', hidden: !other });
+  (other ? termHost(ws) : termEl).append(el);
   const t = new Terminal({ ...size, fontSize: termFontSize, fontFamily: '"JetBrains Mono", monospace', cursorBlink: true,
     allowProposedApi: true, theme: termTheme(), minimumContrastRatio: 4.5, linkHandler: termLinks });
   t.loadAddon(new Unicode11Addon.Unicode11Addon());
@@ -73,11 +80,12 @@ function makeTerminal(ws, size) {
     } catch (e) { console.warn('[terminal] WebGL renderer unavailable:', e.message); }
     entry.opened = true;
     if (shownTerminal === ws) { window.__termRenderer = entry.renderer; fitTerminal(); }
+    if (other) fitOther(ws);
   });
   t.onData((data) => kulisa.send('pty:in', { ws, data }));
   t.attachCustomKeyEventHandler((e) => {
     const does = e.type === 'keydown' && clipboardKey(e, kulisa.platform, t.hasSelection());
-    if (does === 'copy') { termCopy(); if (kulisa.platform === 'win32') t.clearSelection(); }
+    if (does === 'copy') { termCopy(t); if (kulisa.platform === 'win32') t.clearSelection(); }
     return !does; // a paste is the page's own (Chromium's Ctrl+V, Ctrl+Shift+V), which xterm takes: pasting here too doubled it
   });
   return entry;
@@ -94,12 +102,41 @@ function showTerminal(ws) {
   showDictation(ws);
 }
 function forgetTerminals(keys) {
-  for (const key of keys) {
+  const all = new Set([...terminals.keys(), ...hosts.keys()].filter((k) => keys.some((key) => k === key || k.startsWith(`${key}#`))));
+  for (const key of all) {
     const e = terminals.get(key);
-    if (!e) continue;
-    e.term.dispose(); e.el.remove(); terminals.delete(key);
+    if (e) { e.term.dispose(); e.el.remove(); terminals.delete(key); }
+    hosts.get(key)?.observer.disconnect();
+    hosts.delete(key);
     if (shownTerminal === key) { term = null; shownTerminal = null; }
   }
+}
+
+// Another terminal's panel: its element, sized to the panel whenever that changes (behind another panel it has no
+// size: fitted once it comes to the front), and its header (name, ×).
+function termHost(key) {
+  if (!hosts.has(key)) {
+    const el = Object.assign(document.createElement('div'), { className: 'term' });
+    const tab = tpl('tpl-othertermtab');
+    tab.querySelector('.close').onclick = () => act('terminal:close', { id: Number(key.split('#')[1]) });
+    const observer = new ResizeObserver(() => fitOther(key));
+    observer.observe(el);
+    hosts.set(key, { el, tab, observer });
+  }
+  return hosts.get(key).el;
+}
+function termHeader(key, { name, command }) {
+  termHost(key);
+  const tab = hosts.get(key).tab;
+  tab.querySelector('b').textContent = name;
+  tab.title = command;
+  return tab;
+}
+function fitOther(key) {
+  const e = terminals.get(key);
+  if (!e?.opened || !e.el.isConnected || !e.fit.proposeDimensions()?.cols) return;
+  try { e.fit.fit(); } catch { return; }
+  kulisa.send('pty:resize', { ws: key, cols: e.term.cols, rows: e.term.rows });
 }
 
 // Their contents as escape sequences (xterm's serialize addon, as VS Code keeps terminals across reloads), which
@@ -151,16 +188,21 @@ function clipboardKey(e, platform, selected) {
 }
 // Nothing selected, nothing copied: the clipboard keeps what is there (an agent selecting with its own mouse, as
 // Claude Code does, puts its text there itself), as GNOME Terminal does.
-function termCopy() { if (term.hasSelection()) navigator.clipboard.writeText(term.getSelection()); }
-function termPaste() { navigator.clipboard.readText().then((t) => term.paste(t)); }
-function terminalMenu() {
+function termCopy(t = term) { if (t.hasSelection()) navigator.clipboard.writeText(t.getSelection()); }
+function termPaste(t = term) { navigator.clipboard.readText().then((text) => t.paste(text)); }
+// The menu of the terminal at el: the agent's ends with Change agent…, another with Close.
+function terminalMenu(el) {
+  const host = el.closest('.term'), key = host && [...hosts].find(([, h]) => h.el === host)?.[0];
+  const t = key ? terminals.get(key)?.term : term;
+  if (!t) return null;
   return [
-    { label: 'Copy', keys: clipboardKeys[0], enabled: term.hasSelection(), run: termCopy },
-    { label: 'Paste', keys: clipboardKeys[1], run: termPaste },
-    { label: 'Select all', run: () => term.selectAll() },
+    { label: 'Copy', keys: clipboardKeys[0], enabled: t.hasSelection(), run: () => termCopy(t) },
+    { label: 'Paste', keys: clipboardKeys[1], run: () => termPaste(t) },
+    { label: 'Select all', run: () => t.selectAll() },
     '-',
-    { label: 'Clear', run: () => term.clear() },
+    { label: 'Clear', run: () => t.clear() },
     '-',
-    { label: 'Change agent…', run: () => act('agent:change') },
+    key ? { label: 'Close', run: () => act('terminal:close', { id: Number(key.split('#')[1]) }) }
+      : { label: 'Change agent…', run: () => act('agent:change') },
   ];
 }

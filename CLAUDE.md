@@ -262,8 +262,9 @@ Modules (`src/main`):
 - `cdp-proxy.js`, `local-only.js`: the CDP endpoint per profile; refusing web pages.
 - `mcp-server.js`, `agent-hooks.js`, `ghost.js`, `picker.js`: the agent's tools and hooks, its actions shown, point
   and tell.
-- `terminal.js`: a pty per workspace, the agent typed into the user's shell in its folder (the project's own
-  environment: direnv, nvm, mise). On Windows started directly.
+- `terminal.js`: a pty per workspace for its agent, and its other terminals (a dev server the agent runs, the
+  human's shells); the agent typed into the user's shell in its folder (the project's own
+  environment: direnv, nvm, mise). On Windows started directly (the other terminals in cmd).
 
 What must hold in the window:
 

@@ -201,13 +201,18 @@ const newTab = async (pane) => { pane.typeInto = await act('tab:new', { profile:
 // each pane's .content box is, or that it is not on screen (stacked behind another pane in a group).
 const { createDockview, themeAbyssSpaced } = window['dockview-core'];
 const panelId = (key) => `profile:${key}`;
+// The workspace's other terminals (main/workspaces.js: openTerminal), each a panel "term:<id>" next to the agent's.
+let otherTerms = [];
+const isOtherTerm = (id) => id.startsWith('term:');
+const otherTermKey = (id) => `${workspaces.current}#${id.slice('term:'.length)}`;
 const paneOf = (id) => panes.get(id.slice('profile:'.length));
 const api = createDockview(document.getElementById('dock'), {
   theme: { ...themeAbyssSpaced, name: 'kulisa', gap: 8 }, // --gap in tokens.css
   disableFloatingGroups: true,
   singleTabMode: 'fullwidth',
-  createComponent: ({ id }) => ({ element: id === 'terminal' ? termEl : paneOf(id).el, init() {} }),
-  createTabComponent: ({ id }) => ({ element: id === 'terminal' ? termTab : paneOf(id).tabEl, init() {} }),
+  createComponent: ({ id }) => ({ element: id === 'terminal' ? termEl : isOtherTerm(id) ? termHost(otherTermKey(id)) : paneOf(id).el, init() {} }),
+  createTabComponent: ({ id }) => ({ element: id === 'terminal' ? termTab
+    : isOtherTerm(id) ? termHeader(otherTermKey(id), otherTerms.find((t) => `term:${t.id}` === id) || { name: '', command: '' }) : paneOf(id).tabEl, init() {} }),
 });
 window.__dock = api; // for tests
 
@@ -273,6 +278,7 @@ function applyPreset(name) {
     return true;
   };
   if (!size()) { const ro = new ResizeObserver(() => size() && ro.disconnect()); ro.observe(dockEl); }
+  syncTerminals(); // the other terminals, next to the agent's again
   scheduleLayout();
 }
 window.__layoutPreset = applyPreset; // for tests
@@ -319,7 +325,8 @@ async function restoreGrid() {
   for (const p of state) createPane(p);
   const saved = await act('layout:load');
   // A saved grid may name profiles deleted since; dockview needs a component for every panel in it.
-  const known = (id) => id === 'terminal' || panes.has(id.slice('profile:'.length));
+  // Other terminals are not brought back after a restart: their panels are taken out below (syncTerminals).
+  const known = (id) => id === 'terminal' || isOtherTerm(id) || panes.has(id.slice('profile:'.length));
   const ok = saved && Object.keys(saved.panels || {}).every(known);
   if (ok) {
     try { api.fromJSON(saved); } catch (e) { console.warn('[layout] saved grid not restored:', e.message); api.clear(); }
@@ -339,10 +346,33 @@ function syncGrid() {
   for (const p of state) {
     if (!panes.has(p.key)) createPane(p);
     if (api.getPanel(panelId(p.key))) continue;
-    const last = api.panels.filter((x) => x.id !== 'terminal').at(-1);
+    const last = api.panels.filter((x) => x.id !== 'terminal' && !isOtherTerm(x.id)).at(-1);
     addProfilePanel(p, last ? { referencePanel: last.id, direction: 'right' } : { referencePanel: 'terminal', direction: 'above' });
   }
+  syncTerminals();
 }
+// Other terminals follow the workspace's: a new one a tab in the agent's terminal's group, in front when the human
+// opened it (+), behind when the agent did (the human watches the agent); a closed one goes.
+function syncTerminals() {
+  for (const panel of api.panels.filter((x) => isOtherTerm(x.id) && !otherTerms.some((t) => `term:${t.id}` === x.id))) {
+    api.removePanel(panel);
+    forgetTerminals([otherTermKey(panel.id)]);
+  }
+  for (const t of otherTerms) {
+    const id = `term:${t.id}`, key = otherTermKey(id);
+    termHeader(key, t);
+    if (api.getPanel(id)) continue;
+    api.addPanel({ id, component: 'term', tabComponent: 'term', title: t.name, renderer: 'always',
+      position: { referencePanel: 'terminal', direction: 'within' }, inactive: t.by === 'agent' });
+    const { term: x } = terminalOf(key);
+    if (t.by === 'human') termFont.then(() => x.focus());
+  }
+}
+kulisa.on('terminals', async (list) => {
+  await leaving; // as the state: the next workspace's, once the grid on screen has gone
+  otherTerms = list;
+  if (gridReady) { await gridReady; syncTerminals(); }
+});
 
 // Dragging a panel (drop targets are HTML) or a menu: the pages are native views above the window's HTML, so
 // meanwhile they become pictures of themselves.
@@ -429,7 +459,7 @@ document.addEventListener('contextmenu', (e) => {
   const header = e.target.closest('.ptab[data-panel^="profile:"]');
   const tab = e.target.closest('.tabs .tab');
   const items = header ? paneMenu(paneOf(header.dataset.panel)) : tab ? tabMenu(e.target.closest('.pane').dataset.profile, tab.dataset.tab)
-    : e.target.closest('#term') ? terminalMenu() : null;
+    : e.target.closest('#term, .term') ? terminalMenu(e.target) : null;
   if (!items) return;
   e.preventDefault();
   openMenu(items, e);

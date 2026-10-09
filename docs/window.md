@@ -110,8 +110,8 @@ could not mark the deleting button or lay out what goes. The OS's own dialogs st
 
 ## The terminal
 
-One terminal per workspace (xterm.js in the window, node-pty in the main process: `terminal.js`), running the agent
-the human chose ([workspaces.md](workspaces.md), "Choosing the agent") unchanged. Unicode 11 widths (the cursor stays
+A terminal per workspace for its agent (xterm.js in the window, node-pty in the main process: `terminal.js`), running
+the agent the human chose ([workspaces.md](workspaces.md), "Choosing the agent") unchanged. Unicode 11 widths (the cursor stays
 put after an emoji), a bundled font, the GPU renderer. Copy and paste take the keys of the OS's own terminal, so hands
 need nothing new: Ctrl+Shift+C / V (GNOME Terminal, Konsole); on Windows also Ctrl+V, and Ctrl+C copies a selection,
 else interrupts (Windows Terminal); on macOS ⌘C / ⌘V (the app menu's). xterm leaves those keys to the app, as VS Code
@@ -120,6 +120,19 @@ Windows). The paste itself is Chromium's, which xterm takes (pasting again from 
 With nothing selected in xterm, copying keeps the clipboard: Claude Code's fullscreen rendering selects with its own
 mouse and copies on release itself (code.claude.com/docs/en/fullscreen; an empty copy had wiped it); Shift held while
 dragging selects in xterm instead.
+
+**Other terminals** next to the agent's, each a tab in its panel's group (dockview's: moved, split off and saved as
+any panel): the human's shells (+ in the agent's terminal's header, `Terminal 2` …) and what the agent keeps
+running for the human to see (`terminal_run`: the app's dev server, `docker compose up`), behind the agent's tab
+so the human goes on watching the agent. Each is the user's shell in the workspace's folder with the agent's
+environment (`KULISA_PORT_OFFSET`), the command typed in, so the human can stop it, type into it and read it as
+in their own terminal; the agent reads its last lines (`terminal_read`, colors left out) and presses Ctrl+C
+(`terminal_stop`). Why not the agent's own background shell: some agents cannot keep a process running (Codex waits
+on it), and the human does not see what runs there. The workspace closing ends what runs in it. As in an IDE, the terminals are kept (`terminals.json`): when the workspace loads again
+(a restart, its project opened again) each comes back in its place in the grid, its shell with nothing running; the
+agent runs its command again. × or the menu's Close, or the shell's `exit`, ends one for good
+(`Workspace.openTerminal`, `runInTerminal`, `interruptTerminal`, `readTerminal`, `closeTerminal`). The main process
+keeps each one's last 200 KB of output for the agent, in memory.
 
 **Dictation**, where the shown workspace's agent has its own ([workspaces.md](workspaces.md), "Choosing the
 agent"): the terminal's header ends with the language it hears (EN, RU …) and a microphone (`voice.js`). The
@@ -167,7 +180,7 @@ Installers are made with Electron Forge (`npm run make`, `forge.config.js`): `.d
 |---|---|
 | `src/main/app.js` | the windows, the Kulisa zoom, the theme, the IPC |
 | `src/main/window.js` | a window: its BrowserWindow, keys (zoom, DevTools), the native views' places, its questions, screenshot |
-| `src/main/terminal.js` | a pty per workspace |
+| `src/main/terminal.js` | the ptys: the agent's per workspace, and its other terminals; their output's last 200 KB |
 | `src/renderer/renderer.js` | the grid (dockview), the panes, ☰, Arrange panels, the right-click menus |
 | `src/renderer/menu.js`, `ask.js`, `terminal.js`, `voice.js` | the menus, the questions, the terminal, its dictation |
 | `test/window.js`, `grid.js`, `zoom-and-closing.js` | the tests |

@@ -2,7 +2,7 @@
 const fs = require('fs');
 const path = require('path');
 const { assert, root, userData, project, pfile, savedTabs, panel, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, menuOpen, rightClick,
-  box, pageBox, viewOn, dock, ctrl, near, projectTabs } = require('./helpers');
+  box, pageBox, viewOn, dock, ctrl, near, projectTabs, showProject } = require('./helpers');
 
 module.exports = (test) => {
   test('after a restart: profiles, sign-ins and tabs are back', async (ctx) => {
@@ -83,5 +83,15 @@ module.exports = (test) => {
       return sam.width > 0 && sam.x < elon.x && term.x > elon.x + elon.width - 1;
     };
     await waitFor(columns, 3000);
+  });
+  test("after a restart: a workspace's other terminal comes back in its place when it loads, a shell with nothing running", async ({ shell, ui, call }) => {
+    await showProject(ui, 'other');
+    await waitFor(() => shell.current?.id === 'other' && shell.ws.loaded);
+    assert.deepEqual(shell.ws.terminalsInfo().map(({ name, by, command }) => ({ name, by, command })), [{ name: 'dev server', by: 'agent', command: '' }]);
+    const { id } = shell.ws.terminal('dev server');
+    await waitFor(() => ui(`window.__dock.getPanel('term:${id}')?.group.id === window.__dock.getPanel('terminal').group.id`));
+    await waitFor(() => shell.ws.terminal('dev server').pty);
+    await sleep(500);
+    assert.ok(!(await call('terminal_read', { name: 'dev server' })).text.includes('served before'), 'nothing runs there');
   });
 };

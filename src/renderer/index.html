@@ -251,7 +251,11 @@
   </template>
   <!-- The terminal's header: its name; dictation's language and microphone when the agent has its own (voice.js) -->
   <template id="tpl-termtab">
-    <div class="ptab"><b>Terminal</b><span class="dictation" hidden><button class="icon lang" aria-haspopup="menu" aria-label="Dictation language"></button><button class="icon mic" aria-label="Speak to the agent"><svg aria-hidden="true"><use href="#i-mic"/></svg></button></span></div>
+    <div class="ptab"><b>Terminal</b><button class="add icon quiet small" title="New terminal: your shell in the workspace's folder" aria-label="New terminal"><svg aria-hidden="true"><use href="#i-plus"/></svg></button><span class="dictation" hidden><button class="icon lang" aria-haspopup="menu" aria-label="Dictation language"></button><button class="icon mic" aria-label="Speak to the agent"><svg aria-hidden="true"><use href="#i-mic"/></svg></button></span></div>
+  </template>
+  <!-- Another terminal's header (terminal.js): its name, × closing it -->
+  <template id="tpl-othertermtab">
+    <div class="ptab"><b></b><button class="close icon quiet" title="Close terminal: what runs there stops" aria-label="Close terminal"><svg aria-hidden="true"><use href="#i-close"/></svg></button></div>
   </template>
   <template id="tpl-wstab">
     <div class="wstab striptab"><span class="state" data-state=""><svg aria-hidden="true"><use href="#i-done"/></svg></span><span class="name"></span><span class="chip"><svg aria-hidden="true"><use href="#i-users"/></svg><span class="count"></span></span><button class="close icon quiet small" aria-label="Close"><svg aria-hidden="true"><use href="#i-close"/></svg></button></div>

@@ -58,6 +58,44 @@ module.exports = (test) => {
     await choose(ui, 'русский');
     await waitFor(async () => (await ui(`document.querySelector('.dictation .lang').textContent`)) === 'RU');
   });
+  test("terminals next to the agent's: + opens the human's shell in front; the agent runs what keeps running in its own, behind, reads it, stops it, closes it; × and a shell's exit close one", async ({ shell, ui, call, instructions }) => {
+    const ws = shell.ws, group = (id) => ui(`window.__dock.getPanel(${JSON.stringify(id)})?.group.id === window.__dock.getPanel('terminal').group.id`);
+    const active = (id) => ui(`window.__dock.getPanel(${JSON.stringify(id)})?.api.isActive === true`);
+    assert.match(await instructions(), /terminal_run, not in your own shell.*This is the project's main workspace: the app runs on its usual ports\.$/s);
+    await ui(`document.querySelector('.ptab .add').click()`);
+    await waitFor(() => ws.terminals.size === 1);
+    const [human] = ws.terminalsInfo();
+    assert.deepEqual([human.name, human.by], ['Terminal 2', 'human']);
+    await waitFor(() => active(`term:${human.id}`));
+    assert.ok(await group(`term:${human.id}`), "a tab next to the agent's terminal");
+
+    // The agent's: its environment (the port offset), behind (the human watches the agent), read back as plain text.
+    assert.match((await call('terminal_run', { name: 'dev server', command: 'echo "ready at offset $KULISA_PORT_OFFSET"; sleep 30' })).text, /^Started in terminal "dev server"/);
+    const dev = ws.terminal('dev server');
+    await waitFor(async () => (await call('terminal_read', { name: 'dev server' })).text.includes('ready at offset 0'));
+    assert.ok(await group(`term:${dev.id}`));
+    assert.equal(await active(`term:${dev.id}`), false, 'behind');
+    assert.equal(await active(`term:${human.id}`), true, "the human's stays in front");
+    assert.equal((await call('terminal_read', {})).text, `"Terminal 2" (the human's)\n"dev server" (yours): echo "ready at offset $KULISA_PORT_OFFSET"; sleep 30`);
+    await assert.rejects(call('terminal_stop', { name: 'nope' }), /no terminal "nope"; open now: "Terminal 2", "dev server"/);
+    // Stopped: Ctrl+C, the shell stays; the same name again types into it.
+    await call('terminal_stop', { name: 'dev server' });
+    await waitFor(async () => (await call('terminal_read', { name: 'dev server', lines: 3 })).text.includes('^C'));
+    assert.match((await call('terminal_run', { name: 'Dev Server', command: 'echo again' })).text, /^Typed into terminal "dev server"/);
+    await waitFor(async () => /^again$/m.test((await call('terminal_read', { name: 'dev server' })).text));
+    // Closed by the agent: its panel and its process go.
+    const pid = dev.pty.pid;
+    await call('terminal_stop', { name: 'dev server', close: true });
+    await waitFor(async () => !(await ui(`!!window.__dock.getPanel('term:${dev.id}')`)));
+    await waitFor(() => { try { process.kill(pid, 0); return false; } catch { return true; } });
+    // A shell that exits closes its terminal; × closes the human's.
+    await call('terminal_run', { name: 'once', command: 'exit' });
+    await waitFor(() => !ws.terminal('once').id && ws.terminals.size === 1);
+    await ui(`[...document.querySelectorAll('.ptab')].find((t) => t.querySelector('b')?.textContent === 'Terminal 2').querySelector('.close').click()`);
+    await waitFor(() => ws.terminals.size === 0);
+    await waitFor(async () => (await ui(`window.__dock.panels.filter((p) => p.id.startsWith('term:')).length`)) === 0);
+    assert.equal(await active('terminal'), true, "the agent's in front again");
+  });
   test('icons: each from the sprite (docs/ui.md), drawn there once and in lines of the text\'s color; icon buttons have a name', async ({ ui }) => {
     const r = await ui(`(() => {
       const every = (q) => [...document.querySelectorAll(q), ...[...document.querySelectorAll('template')].flatMap((t) => [...t.content.querySelectorAll(q)])];

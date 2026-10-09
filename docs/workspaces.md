@@ -233,6 +233,8 @@ projects/<project id>/
     profiles.json                 its profiles in order: folder, id, name, avatar, description, sites' zoom, closed
     layout.json                   its grid (dockview)
     agent.json                    { agent, started, sessionId, transcript }: which agent, its conversation
+    terminals.json                its other terminals [{ id, name, by }], opened again when it loads; one goes when
+                                  closed
     Profile 1/                    a Chromium profile (session.fromPath), with Kulisa's own files in it:
       Kulisa Tabs.json              the URLs of its tabs
       Kulisa Session Cookies.bin    its session cookies, encrypted with the OS keyring
@@ -365,7 +367,7 @@ Designed with the author on 2026-10-06 and 2026-10-07.
 | `src/main/worktrees.js` | git: the fork's worktree and branch, files outside git, direnv, changes, removal |
 | `src/main/agents.js` | the agents to choose from: find, install, start, resume; Claude's folder trust |
 | `src/main/store.js` | the data folder above |
-| `src/main/terminal.js` | a terminal per workspace |
+| `src/main/terminal.js` | the workspace's terminals: its agent's and the others (window.md, The terminal) |
 | `src/renderer/projects.js`, `new-project.js` | the projects' bar (an island per project) and the projects' menu, the Welcome screen; New Project… (loaded when needed) |
 | `src/renderer/workspaces.js` | the workspaces' tabs in the bar, the new-workspace dialog |
 | `src/renderer/agent-picker.js`, `agents.js`, `agent-list.js` | choosing a workspace's agent; the Agents window; the list of agents with Install that both show (loaded when needed) |

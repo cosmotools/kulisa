@@ -75,17 +75,21 @@ here; what is left of it stays.
   - Docs when built: profiles.md (the tool, the table of actions), workspaces.md (`ideas.json`), window.md (☰, the
     bar, the dialog), ui.md (the bar at the bottom, the dot on ☰), the skill, README, LICENSING (a service of
     Kulisa's: its own terms). Estimate: code +350, tests +100, docs +60; the Worker apart.
-- **Kulisa plugin: running the app** (a feature of its own, found while designing workspaces, 2026-10-06). The
-  agent gets help with starting the app under test: the WS's port offset in its environment
-  (`KULISA_PORT_OFFSET`), and the skill on how to apply it for common stacks (`PORT`, `--port`, `.env.local`,
-  published ports in `docker compose`). Possibly tools: the app's address for this WS, opening the WS's profiles
-  there once the server answers, reporting that the app cannot run here. To design with the workspaces.
-  - Why: every worktree has the same README command (`npm run dev` → `localhost:3000`). Besides the port,
-    worktrees share the local database (migrations of different branches), Redis and queues, OAuth redirect URLs
-    registered for one address, and cookies (one jar for all ports of `localhost`). Common practice: a port per
-    worktree through `PORT` or `.env.local`, a database per branch, hostnames through a local proxy
-    (`a.localhost`), docker compose per worktree, or one dev server at a time. A project that cannot run twice:
-    one shared dev server, the panes show whose branch it is.
+- **Kulisa plugin: running the app, rest** (designed 2026-10-06 with the workspaces; the terminals it runs in built
+  2026-10-09: [window.md](window.md), "The terminal"). Any agent is told its workspace's ports in the MCP server's
+  instructions and runs the app with `terminal_run`, where the human sees it.
+  - To try in real sessions, Claude Code and Codex, in main and in a fork: does the agent find how to run the
+    project (README, compose), move its ports, and use `terminal_run` rather than its own background shell.
+  - Possibly tools: the app's address for this workspace, opening its profiles there once the server answers.
+  - Besides the port, worktrees share the local database (migrations of different branches), Redis and queues,
+    OAuth redirect URLs registered for one address. Common practice: a database per branch, docker compose per
+    worktree (it names containers after the folder already), or one dev server at a time. The developer's matter;
+    perhaps recipes in the skill. A project that cannot run twice: one shared dev server, the panes show whose
+    branch it is.
+- **Other terminals: ▶ after a restart** (the author's idea, 2026-10-09). Today a workspace's other terminals come
+  back after a restart as shells with nothing running (the agent runs its command again). Then: the command they
+  ran is kept too, and ▶ in the header runs it again (starting by itself could run what the human did not expect,
+  e.g. migrations).
 - **Sign-in: whoever holds the password signs in** (discussed with the author 2026-10-08; the best idea so far,
   not final: to think over again before building). Today the sign-in pause is tied to the page's address (a list of
   hosts), so the agent cannot test the developer's own sign-in, sign-up and password reset through Auth0 and the like
@@ -302,7 +306,8 @@ here; what is left of it stays.
 - **A screenshot taken at a pick** (point and tell), if a transient element (a tooltip, an open menu, a toast) turns
   out to need it: today the pick is a locator only, and the agent looks at the live page.
 - **Several agents in one workspace, working as a team** (discussed 2026-10-06; after workspaces, which do not
-  depend on it). A workspace may hold several terminals, each an agent (any CLI, Claude and Codex together); all
+  depend on it). A workspace may hold several terminals, each an agent (any CLI, Claude and Codex together; built on
+  the workspace's other terminals, [window.md](window.md), "The terminal"); all
   see the workspace's code and profiles. Covers a tester next to the developer, a side question (Claude: a forked
   conversation), browser-only research, and parallel agents in a project without git (it has no forks). Cheaper than
   a workspace: one agent process, no profile copies. Agents
@@ -422,7 +427,9 @@ here; what is left of it stays.
       `.cmd` that node-pty may not find. Proposed: type it into PowerShell (`pwsh -NoExit`, falling back to
       `powershell.exe`) in the project's folder, as on the other systems: the PowerShell profile applies, `.cmd`
       resolves, the shell stays after the agent exits. Without an agent command the terminal falls back to
-      `COMSPEC` (untested). SIGINT and SIGTERM work differently there (quit handling in `app.js`).
+      `COMSPEC` (untested). SIGINT and SIGTERM work differently there (quit handling in `app.js`). The other
+      terminals (`terminal_run`, +) type their command into `COMSPEC` there: untested; PowerShell as above would
+      serve them too, and `terminal_stop`'s Ctrl+C in cmd asks "Terminate batch job?".
     - Both: closing a project and opening it again (`claude --resume`) and the project folder dialog
       ("Open Folder…", native) are untested.
   - `safeStorage` (Keychain, DPAPI) for session cookies: expected to work, untested.

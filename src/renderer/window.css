@@ -149,7 +149,7 @@ body {
     .message { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; } }
 }
 
-#term { height: 100%; padding: 2px 4px 2px 8px; }
+#term, .term { height: 100%; padding: 2px 4px 2px 8px; }
 /* The rows that fit, in the middle: what is left under a whole row (the panel's height is any) shared above and
    below, so no edge gets a row's height of it and a pixel more or less never costs a row (2026-10-08). */
 .xterm-host { height: 100%; display: flex; flex-direction: column; justify-content: center; &[hidden] { display: none; } }

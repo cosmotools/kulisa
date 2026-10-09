@@ -186,6 +186,7 @@ module.exports = (test) => {
     await waitFor(async () => (await ctx.termText()).includes(`agent: rc of ${wt}`)); // its agent, in its folder
     assert.deepEqual(ws.env(), { KULISA_MCP_URL: `${shell.mcp.base}/ws/project/2/mcp`, KULISA_URL: `${shell.mcp.base}/ws/project/2`, KULISA_WORKSPACE: 'Feature-X', KULISA_PORT_OFFSET: '100' });
     assert.equal(shell.resumedSession, null, 'a new conversation');
+    assert.match(await ctx.instructions(ws), /This is workspace "Feature-X", .* usual ports plus 100 \(3000 → 3100; \$KULISA_PORT_OFFSET\)/, 'its ports, told to any agent');
 
     // Profiles: the same, the closed ones closed, each open one with its active tab moved to the fork's ports.
     assert.deepEqual([...shell.profiles.keys()], ['sam-admin', 'elon-buyer']);
@@ -634,10 +635,12 @@ module.exports = (test) => {
     await shell.ws.deleteProfile(id);
   });
   // Last in phase 1: the tabs the restart phase finds (restart.js).
-  test('projects: another tab left in the background', async ({ shell, ui }) => {
+  test('projects: another tab left in the background, with a terminal its agent ran something in', async ({ shell, ui, call }) => {
     await ui(`kulisa.invoke('project:open', { folder: ${JSON.stringify(path.join(root, 'other'))} })`);
     await waitFor(() => shell.current?.id === 'other' && shell.ws.loaded);
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
+    await call('terminal_run', { name: 'dev server', command: 'echo "served before"; sleep 60' });
+    await waitFor(async () => /^served before$/m.test((await call('terminal_read', { name: 'dev server' })).text));
     await showProject(ui, 'project');
     await waitFor(() => shell.current?.id === 'project' && shell.ws.loaded);
     assert.deepEqual(await projectTabs(ui), ['project *', 'other']);

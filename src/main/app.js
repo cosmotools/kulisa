@@ -463,6 +463,8 @@ function start(options = {}) {
   ipcMain.on('ask:answer', (e, { id, answer }) => at(e)?.answer(id, answer));
   ipcMain.handle('layout:load', (e, { ws }) => wsOf(e, ws)?.store.layout());
   ipcMain.handle('agent:change', (e, { ws }) => { const w = wsOf(e, ws); return w ? w.changeAgent() : noWs; });
+  ipcMain.handle('terminal:open', (e, { ws }) => { const w = wsOf(e, ws); return w ? w.openTerminal() : noWs; });
+  ipcMain.handle('terminal:close', (e, { ws, id }) => wsOf(e, ws)?.closeTerminal(id) || noWs);
   ipcMain.on('layout:save', (e, { ws, layout }) => at(e)?.saveLayout(ws, layout));
   ipcMain.on('layout', (e, { ws, rects }) => at(e)?.layout(ws, rects));
 
@@ -506,7 +508,7 @@ function start(options = {}) {
       await shell.sessionCookies?.persist(p);
       await p.disconnect();
     }
-    for (const ws of allWorkspaces()) if (ws.pty) stopTerminal(ws.pty);
+    for (const ws of allWorkspaces()) for (const p of [ws.pty, ...[...ws.terminals.values()].map((t) => t.pty)]) if (p) stopTerminal(p);
     app.quit();
   });
   process.on('SIGINT', () => app.quit());

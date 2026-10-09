@@ -127,10 +127,12 @@ class AppWindow {
     const p = this.current;
     this.send('workspaces', { current: this.ws?.key ?? null, list: p ? [...p.workspaces.values()].map((w) => w.info()) : [], git: p?.git ?? null });
   }
-  // The shown workspace's profiles, open and closed, for the page to build its grid from; their tabs saved.
+  // The shown workspace's profiles, open and closed, and its other terminals, for the page to build its grid from; their
+  // tabs saved.
   pushState() {
     const ws = this.ws;
     if (!ws || this.switching) return;
+    this.send('terminals', ws.terminalsInfo()); // before the state, which builds the grid with their panels
     this.send('state', [...ws.profiles.values()].map((p) => p.info()));
     this.send('closed-profiles', [...ws.closed.values()].map(({ cfg, urls }) =>
       ({ key: cfg.folder, id: cfg.id, name: cfg.name, avatar: cfg.avatar, description: cfg.description, tabs: urls.length })));

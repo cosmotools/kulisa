@@ -1,8 +1,13 @@
-// xterm.js in the renderer, node-pty here running the agent CLI unchanged. One terminal per workspace (its key); the
-// window shows the shown workspace's, the others keep running (and the window keeps their output).
+// xterm.js in the renderer, node-pty here running the agent CLI unchanged. A workspace's agent has its terminal (the
+// workspace's key); the workspace's other terminals (workspaces.js, openTerminal) are "<key>#<id>". The window shows
+// the shown workspace's, the others keep running (and the window keeps their output).
 const { ipcMain } = require('electron');
 const os = require('os');
+const { stripVTControlCharacters } = require('util');
 const pty = require('node-pty');
+
+// What an agent can read back of a terminal's output (terminalTail): its last characters, kept per terminal.
+const TAIL = 200_000;
 
 // The terminal's size as the window measures it, per workspace. An agent starts only once its size is known: Claude
 // Code draws its prompt for the size it starts with and does not fully redraw on the first resize. Listening from
@@ -25,28 +30,32 @@ const userShell = () => (process.platform === 'win32' ? null
   : { command: process.env.SHELL || os.userInfo().shell || '/bin/sh', args: process.platform === 'darwin' ? ['-l'] : [] });
 const shQuote = (a) => (/^[\w@%+=:,./-]+$/.test(a) ? a : `'${a.replace(/'/g, `'\\''`)}'`);
 
-// cfg: { command, args, cwd, env, shell }. The agent is typed into the user's shell started in cwd, as if the human
+// cfg: { command, args, cwd, env, shell, line, size }. The agent is typed into the user's shell started in cwd, as if the human
 // opened a terminal in the project and ran it: the shell's startup sets the project's environment (direnv's .envrc,
 // nvm, mise …), which Kulisa's own environment (where Kulisa was started) is not. When the agent exits, the shell
 // stays. shell: { command, args } instead of the user's, or false to start the agent directly (as on Windows).
+// line: a command line typed into the shell as it is (a terminal's other than the agent's; none: the shell alone),
+// on Windows into cmd. size: start at it rather than wait for the window's (a terminal behind another panel has none).
 // key: the workspace's; the window sends its input and size, and gets its output, under it. send(channel, data): to
 // the workspace's window, whichever it is then.
 async function startTerminal(send, cfg, key) {
   const t = termOf(key);
-  await Promise.race([t.firstSize, new Promise((r) => setTimeout(r, 5000))]);
-  const { cols, rows } = t.size || { cols: 120, rows: 30 };
-  const sh = cfg.shell === false ? null : cfg.shell || userShell();
+  if (!cfg.size) await Promise.race([t.firstSize, new Promise((r) => setTimeout(r, 5000))]);
+  const { cols, rows } = t.size || cfg.size || { cols: 120, rows: 30 };
+  const sh = cfg.shell === false ? null : cfg.shell || userShell() || (cfg.line !== undefined ? { command: process.env.COMSPEC || 'cmd.exe' } : null);
   const command = cfg.command || (process.platform === 'win32' ? process.env.COMSPEC || 'cmd.exe' : process.env.SHELL || 'bash');
   const p = pty.spawn(sh ? sh.command : command, sh ? sh.args || [] : cfg.args || [], {
     name: 'xterm-256color', cols, rows, cwd: cfg.cwd || process.cwd(),
     env: { ...process.env, COLORTERM: 'truecolor', ...(cfg.env || {}) },
   });
-  if (sh && cfg.command) typeWhenReady(p, ` ${[cfg.command, ...(cfg.args || [])].map(shQuote).join(' ')}\r`);
+  if (cfg.line) typeWhenReady(p, `${cfg.line}\r`);
+  else if (sh && cfg.command) typeWhenReady(p, ` ${[cfg.command, ...(cfg.args || [])].map(shQuote).join(' ')}\r`);
   p.spawnSize = { cols: p.cols, rows: p.rows };
   p.spawnArgs = cfg.args || [];
   p.key = key;
   // An agent that was replaced says nothing more in the window.
-  const out = (data) => { if (t.pty === p) send('pty:out', { ws: key, data }); };
+  p.tail = '';
+  const out = (data) => { p.tail = (p.tail + data).slice(-TAIL); if (t.pty === p) send('pty:out', { ws: key, data }); };
   p.onData(out);
   p.onExit(({ exitCode }) => out(`\r\n[process exited ${exitCode}]\r\n`));
   t.pty = p;
@@ -69,18 +78,28 @@ function typeWhenReady(p, line) {
 
 // Stop the agent; its output no longer reaches the window. The terminal's size is kept for the next agent there.
 function stopTerminal(p) {
+  p.stopped = true;
   const t = terms.get(p.key);
   if (t?.pty === p) t.pty = null;
   try { p.kill(); } catch {}
 }
 
-// A workspace gone (its project closed, a fork deleted): its terminal's size too. Opened again, the window measures
-// it anew.
+// A workspace gone (its project closed, a fork deleted), or a terminal closed: its size too. Opened again, the window
+// measures it anew.
 const forgetTerminal = (key) => terms.delete(key);
+// The size the window gave a terminal, if any.
+const terminalSize = (key) => terms.get(key)?.size || null;
+
+// The last lines of a terminal's output as plain text, as it shows them: colors and cursor moves left out, a line
+// rewritten in place (a progress bar, \r) as it was last written.
+function terminalTail(p, lines) {
+  return stripVTControlCharacters(p.tail).split('\n').map((l) => l.split('\r').filter(Boolean).at(-1) ?? '')
+    .map((l) => l.trimEnd()).join('\n').trimEnd().split('\n').slice(-lines).join('\n');
+}
 
 // Put text into the agent's prompt as a paste (bracketed: one block, nothing in it is taken as a key), not sent.
 function typeIntoPrompt(p, text) {
   p.write(`\x1b[200~${text}\x1b[201~`);
 }
 
-module.exports = { startTerminal, stopTerminal, forgetTerminal, typeIntoPrompt };
+module.exports = { startTerminal, stopTerminal, forgetTerminal, terminalSize, terminalTail, typeIntoPrompt };
