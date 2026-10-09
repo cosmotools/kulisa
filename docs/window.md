@@ -89,9 +89,9 @@ Kulisa draws its menus in HTML, as Chrome does (a popover, `menu.js`; [ui.md](ui
 
 - the button after the projects' islands (the projects), a project label's right-click menu, the profiles' chip on the shown workspace's tab (open
   and closed profiles, Manage Profiles…; the tab's right-click menu has them too, with Show Folder), ☰ (as Chrome's ⋮, each row with its icon: the zoom row, the theme row, the
-  projects' bar's row, Arrange panels, Agents…, Kulisa's version with the Welcome screen's links
+  projects' bar's row, Arrange panels, Agents…, the Welcome screen's links
   (Documentation, GitHub, Report an issue; one list in `index.html`), and Exit, which quits as the last window's × does; not on macOS, where
-  Cmd+Q and the app's menu quit);
+  Cmd+Q and the app's menu quit; under them all Kulisa's version, small and dim: words, not a row, as nothing happens on a click);
 - right-click on a pane's header (New tab, About this profile…, Close profile, Delete profile…), a tab (Reload, Duplicate,
   Close, Close others) and the terminal (Copy, Paste, Select all, Clear, Change agent…).
 

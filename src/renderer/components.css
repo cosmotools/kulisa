@@ -119,4 +119,6 @@ dialog { width: 560px; max-height: 85vh; padding: 0; flex-direction: column; bac
   .item { border-radius: var(--radius); }
   hr { border: none; border-top: 1px solid var(--line); margin: 6px var(--inset); }
   .heading { display: flex; align-items: center; gap: var(--inset); min-height: var(--row); padding: 0 var(--inset); color: var(--text-dim); }
+  /* { note }: words under the rows, not one of them (☰'s version) */
+  .note { display: block; padding: 6px var(--inset) 2px; color: var(--text-muted); text-align: end; }
 }

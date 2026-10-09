@@ -45,7 +45,8 @@ lines (`stroke`) of the text's color; a filled part has `fill="currentColor"`. U
 | `i-close` | × of dialogs, profiles, tabs, workspaces; removing a row |
 | `i-plus` | new tab, new workspace |
 | `i-projects` | the projects' menu (after the islands of the projects' bar), its row in ☰ (Lucide's folder-open) |
-| `i-logo` | the app icon with its curtain in `currentColor`: the title bar's (`--project`), a project's label in the projects' bar (its `--color`) and ☰'s version heading. The folds are a shadow over the color, one for every color: a `<use>` takes the sprite's gradient, not one of its own |
+| `i-logo` | the app icon with its curtain in `currentColor`: the title bar's (`--project`), and a project's label in the projects' bar (its `--color`). The folds are a shadow over the color, one for every color: a `<use>` takes the sprite's gradient, not one of its own |
+| `i-docs`, `i-github`, `i-bug` | the Welcome screen's links (Documentation, GitHub, Report an issue) as rows of ☰ (`data-icon` on each link; Lucide's book-open, github, bug) |
 | `i-menu` | ☰, the window's menu |
 | `i-more` | ⋮, a pane's menu |
 | `i-back`, `i-forward`, `i-reload` | a pane's toolbar (Chrome's) |
@@ -129,7 +130,8 @@ Every dialog is a `<dialog>` with the same parts:
 
 `openMenu(items, at)` (`menu.js`): one popover, under its button (`data-menu-end`: its right edge at the button's) or
 at the pointer, flipped to stay in the window. Items are `{ label, sub, keys, icon, color, avatar, enabled, run, remove }`,
-`'-'` (a divider), `{ heading, icon }` or `{ element }` (a row of its own); `icon` is the sprite's id, at the row's start; rows are `.item` and `.removable`. A menu's own kind of row (the zoom row, the theme
+`'-'` (a divider), `{ heading, icon }`, `{ note }` (small dim words under the rows, not one of them: ☰'s version, so nothing
+looks clickable that is not) or `{ element }` (a row of its own); `icon` is the sprite's id, at the row's start; rows are `.item` and `.removable`. A menu's own kind of row (the zoom row, the theme
 row, the arrangements) is a template in `index.html` and its look in `window.css`. While a menu is open, the pages are
 pictures of themselves.
 

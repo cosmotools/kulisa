@@ -26,7 +26,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // 'zoom' the zoom row; an item: its label, '(off)' when disabled); choose one by its label.
 const menuRows = async (ui) => {
   await waitFor(() => ui(`document.getElementById('menu').matches(':popover-open')`));
-  return ui(`[...document.getElementById('menu').children].map((r) => r.matches('hr') ? '-' : r.matches('.heading') ? '# ' + r.textContent
+  return ui(`[...document.getElementById('menu').children].map((r) => r.matches('hr') ? '-' : r.matches('.heading') ? '# ' + r.textContent : r.matches('.note') ? '~ ' + r.textContent
     : r.matches('.zoomrow') ? 'zoom' : r.matches('.themerow') ? 'theme' : r.matches('.barrow') ? 'bar' : r.matches('.arrange') ? 'arrange: ' + [...r.querySelectorAll('span')].map((s) => s.textContent).join(', ')
     : r.querySelector('.label').textContent + (r.disabled ? ' (off)' : ''))`);
 };

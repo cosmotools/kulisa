@@ -2,7 +2,7 @@
 // buttons (the zoom row; a row's ×), colored dots or profiles' pictures and a second line. Esc, a click outside, a chosen item, the same
 // button again or leaving the window closes it. Up and down move between the rows' buttons; Enter or Space chooses.
 //   openMenu(items, at)   items: { label, sub, keys, icon, color, avatar, enabled, run, remove } (no run: shown only),
-//                         '-', { heading, icon }, { element } (a row of its own). icon: the sprite's id, at the row's
+//                         '-', { heading, icon }, { note } (small dim words, not a row: ☰'s version), { element } (a row of its own). icon: the sprite's id, at the row's
 //                         start; color: a project's dot; avatar: a profile's picture. remove: { title, run }, a × at the row's end,
 //                         shown on hover (as JetBrains' recent projects). at: the button to open it under, or the
 //                         mouse event to open it at. A button with data-menu-end (⋮, ☰: at the end of a bar)
@@ -58,6 +58,7 @@ const openMenu = (() => {
         h.append(...(it.icon ? [icon(it.icon)] : []), it.heading);
         return h;
       }
+      if (it.note) return Object.assign(document.createElement('small'), { className: 'note', textContent: it.note });
       if (it.element) return it.element;
       const b = row();
       b.dataset.i = i;
