@@ -511,9 +511,12 @@ here; what is left of it stays.
   Chromium's, likely native code in the main process. Not new: 2 of 6 runs at `6edb5e6` too, and apport
   (`/var/log/apport.log`) recorded many crashes of the author's running Kulisa on 2026-10-08 and 09. To find: a stack
   (a core dump through apport, or gdb on the test run), then what of Kulisa's reaches it.
-- **The menus' tests fail again now and then** (2026-10-09, after the terminals next to the agent's): "DevTools in a
-  pane's ⋮ menu" (the menu does not open) and "context menus" (closed right after a real right-click's release, or
-  ☰ not opening from another menu), 4 of 9 runs, against none of 6 runs at `6edb5e6`. Maybe the terminals, maybe
-  chance; to look at before more work on menus (see "Tests that failed now and then" above).
+- **The menus' tests fail when the test's window loses the focus** (found 2026-10-09). A menu closes when Kulisa's
+  window loses the focus (menu.js), as it should; the tests run on the real desktop, so a click in another app, a
+  notification, or the human working while they run closes a menu in the middle of "context menus" (seen: the
+  window's blur with no other Electron window taking the focus). Many runs in a row while the author worked: about
+  1 in 7. "DevTools in a pane's ⋮ menu" had a race of its own (its detached window took the focus just after the
+  test opened ⋮ again), fixed in the test. Way out: run the tests on a desktop of their own (Xvfb, `xvfb-run`; not
+  installed here: check the GPU renderer test there), or not use the computer while they run.
 - **No performance numbers taken with the monitor on.** CPU, RAM, many profiles; see REPORT, E8.
 - **`playwright-core` is pinned to a 1.64 alpha.** Move to the stable release once it ships with the same APIs.

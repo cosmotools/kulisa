@@ -128,6 +128,10 @@ module.exports = (test) => {
     };
     await click();
     await waitFor(() => wc.isDevToolsOpened());
+    // Its window takes the focus a moment later, and Kulisa's window losing it closes a menu opened meanwhile (menu.js).
+    // A human comes to ⋮ again after that; the test too. (A window manager may leave the focus with Kulisa, and may not
+    // give it back when asked.)
+    await waitFor(() => !shell.win.isFocused(), 3000).catch(() => {});
     await click();
     await waitFor(() => !wc.isDevToolsOpened());
   });
