@@ -26,7 +26,7 @@ module.exports = (test) => {
     const press = (wc) => { wc.focus(); wc.sendInputEvent({ type: 'keyDown', keyCode: 'F12' }); wc.sendInputEvent({ type: 'keyUp', keyCode: 'F12' }); };
     press(shell.win.webContents);
     shell.win.webContents.openDevTools({ mode: 'detach' });
-    await sleep(500);
+    await sleep(500); // nothing to wait for: that they do not open
     assert.equal(shell.win.webContents.isDevToolsOpened(), false);
     const tab = shell.profiles.get('sam-admin').get().wc;
     press(tab);

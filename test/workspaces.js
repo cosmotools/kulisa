@@ -41,7 +41,7 @@ module.exports = (test) => {
     // The human sets git up in the terminal and commits; the bar notices when the pointer comes to it.
     git(project, 'init', '-q');
     await ui(`document.getElementById('workspaces').dispatchEvent(new PointerEvent('pointerenter'))`);
-    await sleep(300);
+    await sleep(300); // nothing to wait for: that + does not come
     assert.equal((await add()).shown, 'hidden', 'not before a first commit');
     fs.writeFileSync(path.join(project, '.gitignore'), '.env*\nconfig/local.json\ntranscript.jsonl\n');
     fs.writeFileSync(path.join(project, '.worktreeinclude'), 'config/local.json\n');
@@ -166,10 +166,10 @@ module.exports = (test) => {
     await waitFor(async () => (await state()) === ' #i-done false');
     await post('stop');
     await post('session-end');
-    await sleep(300);
+    await sleep(300); // nothing to wait for: that it stays
     assert.equal(await state(), 'done #i-done true');
     fork.caption('sam-admin', 'from the fork');
-    await sleep(200);
+    await sleep(200); // nothing to wait for: that it does not show
     assert.equal(await ui(`document.querySelector('.ptab[data-panel="${panel(shell, 'sam-admin')}"] .caption').textContent`), '');
     // Done says "come and see" until the human sees that workspace.
     await post('stop');
@@ -313,7 +313,7 @@ module.exports = (test) => {
     assert.equal(await ui(`document.querySelector('#agentpick input:checked').value`), 'fake', 'the current one chosen');
     await ui(`document.getElementById('agentcancel').click()`);
     await waitFor(async () => !(await ui(`document.getElementById('agentpick').open`)));
-    await sleep(300);
+    await sleep(300); // nothing to wait for: that no other agent starts
     assert.equal(ws.pty, fakePty, 'Cancel: the agent goes on');
     await changeAgent();
     await ui(`document.querySelector('#agentpick input[value="shell"]').click()`);

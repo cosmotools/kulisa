@@ -9,8 +9,7 @@ module.exports = (test) => {
     const r = await ctx.ui(`act('profile:rename', { profile: 'sam-seller', name: 'Sam.admin' })`);
     assert.equal(r.id, 'sam-admin');
     assert.equal(await who(ctx, 'sam-admin'), 'Signed in as sam');
-    await sleep(200); // the window re-renders after the state update
-    assert.deepEqual(await ctx.ui(`[...document.querySelectorAll('.pname')].map((e) => e.textContent)`), ['Sam.admin', 'Elon.buyer']);
+    await waitFor(async () => JSON.stringify(await ctx.ui(`[...document.querySelectorAll('.pname')].map((e) => e.textContent)`)) === '["Sam.admin","Elon.buyer"]');
   });
   test('names: typed, pasted, from the agent, checked where they are made (the rule itself: unit/names.test.js)', async (ctx) => {
     const { shell, ui, call } = ctx;
@@ -46,7 +45,7 @@ module.exports = (test) => {
     await ui(`${row}.querySelector('.del').click()`);
     await waitFor(() => ctx.asked.length);
     assert.equal(ctx.asked.pop().message, 'Delete the profile Temp?');
-    await sleep(100);
+    await sleep(100); // nothing to wait for: that nothing happens
     assert.ok(shell.profiles.has('temp'), 'nothing is deleted without the confirmation');
     ctx.answer = true;
     const deleted = new Promise((r) => temp.once('deleted', r));

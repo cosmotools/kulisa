@@ -59,7 +59,7 @@ module.exports = (test) => {
     const { id } = shell.ws.terminal('dev server');
     await waitFor(() => ui(`window.__dock?.getPanel('term:${id}')?.group.id === window.__dock?.getPanel('terminal')?.group.id`));
     await waitFor(() => shell.ws.terminal('dev server').pty);
-    await sleep(500);
+    await sleep(500); // nothing to wait for: that nothing runs
     assert.ok(!(await call('terminal_read', { name: 'dev server' })).text.includes('served before'), 'nothing runs there');
   });
 };

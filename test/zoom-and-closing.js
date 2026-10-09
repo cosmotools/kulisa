@@ -57,9 +57,9 @@ module.exports = (test) => {
     await viaHistory.wc.loadURL('http://localhost:4417/app?login=1'); // localhost is a sign-in host in this test
     await elon.newTab(`http://localhost:4417/headers?redirect_uri=${back}`).ready; // opened directly on sign-in
     await elon.newTab('http://localhost:4417/headers').ready; // nothing to come back to
-    await sleep(300);
-    const saved = savedTabs('elon-buyer');
-    assert.deepEqual(saved, [`${SITE}/errors`, `${SITE}/app?n=5`, `${SITE}/`]);
+    const expected = [`${SITE}/errors`, `${SITE}/app?n=5`, `${SITE}/`];
+    await waitFor(() => JSON.stringify(savedTabs('elon-buyer')) === JSON.stringify(expected)).catch(() => {});
+    assert.deepEqual(savedTabs('elon-buyer'), expected);
   });
   test('close a profile (its × or the agent) and open it again (the editor or the agent): signed in, same tabs; the agent deletes only what the human confirms', async (ctx) => {
     const { shell, ui, call } = ctx;

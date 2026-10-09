@@ -102,7 +102,7 @@ module.exports = (test) => {
 
     // A click on the label shows nothing: its workspaces are what is clicked.
     await ui(`${projectTab('project')}.querySelector('.plabel').click()`);
-    await sleep(300);
+    await sleep(300); // nothing to wait for: that nothing happens
     assert.equal(shell.current?.folder, other);
     // A click on the first project's workspace: it comes back as it was left, its agent the same; no page shows before
     // it has its place in the grid (nothing jumps).
@@ -249,10 +249,8 @@ module.exports = (test) => {
     await waitFor(() => ctx.asked.length && ui(`document.getElementById('ask').open`));
     assert.deepEqual([ctx.asked[0].message, ctx.asked[0].ok, ctx.asked[0].other], ['Where to open the project other?', 'This Window', 'New Window']);
     assert.deepEqual(await ui(`[...document.querySelectorAll('#ask footer button:not([hidden])')].map((b) => b.textContent)`), ['Cancel', 'New Window', 'This Window']);
-    await sleep(700); // the window's picture follows the screen a moment later
-    await shell.screenshot(path.join(root, 'open-where.png'));
     await ui(`document.querySelector('#ask button[value=""]').click()`);
-    await sleep(300);
+    await sleep(300); // nothing to wait for: that it does not open
     assert.ok(!shell.open.has('other'), 'Cancel: not opened');
     ctx.answer = 'other';
     await ui(`kulisa.invoke('project:open', { folder: ${JSON.stringify(other)} })`);
@@ -326,7 +324,7 @@ module.exports = (test) => {
     // Let go outside every window: a new window there. Inside one (or cancelled): nothing.
     await dragStart(ui, 'other');
     await dragEnd(ui, 'other', 'none');
-    await sleep(300);
+    await sleep(300); // nothing to wait for: that no window comes
     assert.equal(shell.windows.length, 1);
     // Let go beside the window, on the side with more room on the screen: where the window manager put the test's
     // window varies, and a point off the screen gives a window the OS pulls back next to the first one.
@@ -407,11 +405,10 @@ module.exports = (test) => {
     assert.ok(await ui(`!!document.querySelector('.pane[data-profile="elon-buyer"] .content img.snapshot')`));
     // Another menu right from this one: the pages stay pictures.
     await ui(`document.getElementById('windowMenu').click()`);
-    await sleep(300);
-    assert.equal(await menuOpen(ui), true);
+    await waitFor(async () => (await menuRows(ui))[0] === 'zoom');
     assert.equal(elon.get().view.getVisible(), false, 'a page over the second menu');
     await rightClick(ui, header);
-    await sleep(300);
+    await waitFor(async () => (await menuRows(ui))[0] === 'New tab');
     assert.deepEqual(await menuRows(ui), ['New tab', 'About this profile…', 'Close profile', '-', 'Delete profile…']);
     assert.equal(elon.get().view.getVisible(), false, 'a page over the third menu');
     const n = elon.tabs.length;
@@ -433,10 +430,9 @@ module.exports = (test) => {
     const t = await box(ui, '#term'), z = shell.win.webContents.getZoomFactor();
     const x = Math.round((t.x + t.width / 2) * z), y = Math.round((t.y + t.height / 2) * z);
     shell.win.webContents.sendInputEvent({ type: 'mouseDown', x, y, button: 'right', clickCount: 1 });
-    await sleep(100);
-    shell.win.webContents.sendInputEvent({ type: 'mouseUp', x, y, button: 'right', clickCount: 1 });
     await waitFor(() => menuOpen(ui)); // once the pages' pictures are there (menuCover): slower under load
-    await sleep(300);
+    shell.win.webContents.sendInputEvent({ type: 'mouseUp', x, y, button: 'right', clickCount: 1 });
+    await sleep(300); // nothing to wait for: that the release does not close it
     assert.equal(await menuOpen(ui), true, 'open after the release');
     shell.win.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' }); shell.win.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
     await waitFor(async () => !(await menuOpen(ui)));
@@ -462,7 +458,7 @@ module.exports = (test) => {
     const before = ctx.ptyOutput().length;
     keys('V', ['control', 'shift']);
     await waitFor(() => ctx.ptyOutput().slice(before).includes('kulisa-paste'));
-    await sleep(300);
+    await sleep(300); // nothing to wait for: that it is not pasted twice
     assert.equal(ctx.ptyOutput().slice(before).split('kulisa-paste').length - 1, 1, 'pasted once');
     await clipboard.writeText('');
     await ui(`window.__term.selectAll()`);
@@ -470,7 +466,7 @@ module.exports = (test) => {
     await waitFor(async () => (await clipboard.readText()).includes('kulisa-paste'));
     await ui(`window.__term.clearSelection()`);
     keys('C', ['control', 'shift']);
-    await sleep(300);
+    await sleep(300); // nothing to wait for: that the clipboard is not emptied
     assert.ok((await clipboard.readText()).includes('kulisa-paste'), 'nothing selected: the clipboard is kept');
     keys('U', ['control']); // the agent's line emptied
     const key = (code, mods = {}) => JSON.stringify({ code, ctrlKey: true, ...mods });
@@ -489,7 +485,7 @@ module.exports = (test) => {
     const click = (uri, mods) => ui(`termLinks.activate(new MouseEvent('click', { clientX: 120, clientY: 600, ...${JSON.stringify(mods)} }), ${JSON.stringify(uri)})`);
     await click(`${SITE}/app`, {});
     await click('javascript:alert(1)', { ctrlKey: true });
-    await sleep(200);
+    await sleep(200); // nothing to wait for: that no menu opens
     assert.equal(await menuOpen(ui), false, 'a plain click, or not http(s): nothing');
     const names = await ui(`state.map((p) => p.name)`);
     await click(`${SITE}/app`, { ctrlKey: true });

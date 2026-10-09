@@ -51,7 +51,9 @@ not listed for screenshots and focus differs from a desktop), so they never take
   profile made for one test is deleted at its end: folder numbers are counted by later tests).
 - **What it writes stays in its folder** (`root`, `userData`, `project` from `helpers.js`); nothing in the user's
   data or home. A unit test makes its own temporary folder and removes it (`after`).
-- **Budget**: a test that takes over 2 s says why in a comment (git's work, a wait by design).
+- **Budget**: a test that takes over 2 s says why in a comment (git's work, a wait by design). Each action of the
+  agent (a click, typing, a key) waits 1.2 s while it is shown in the page (`ghost.js`, Playwright's
+  `showActions`): a test of the agent's tools takes about that per action.
 
 ## Running them
 

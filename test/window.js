@@ -33,23 +33,23 @@ module.exports = (test) => {
     const keys = async () => ((await termText()).match(/<v>/g) || []).length;
     const press = (type) => ui(`document.querySelector('.dictation .mic').dispatchEvent(new PointerEvent('${type}', { bubbles: true, button: 0, pointerId: 1 }))`);
     const lit = () => ui(`document.querySelector('.dictation .mic').ariaPressed`);
-    const still = async () => { const n = await keys(); await sleep(300); return n === await keys(); };
+    const still = async () => { const n = await keys(); await sleep(300); return n === await keys(); }; // that no more come
     // A click starts: the key repeats, as a held one does, and the button is lit until the next click.
     let n = await keys();
     await press('pointerdown'); await press('pointerup');
-    await sleep(600);
-    assert.ok((await keys()) >= n + 5, 'repeated while it records');
+    await waitFor(async () => (await keys()) >= n + 5); // repeated while it records
     assert.equal(await lit(), 'true');
     await press('pointerdown'); await press('pointerup');
-    assert.ok(await still(), 'stopped by the second click');
+    await waitFor(still, 3000); // stopped by the second click (the keys sent before it still echo a moment)
     assert.equal(await lit(), 'false');
     // Held: it records until let go.
     n = await keys();
     await press('pointerdown');
-    await sleep(600);
+    await sleep(600); // held longer than a click (400 ms, voice.js): that is what makes it a hold
+    assert.ok((await keys()) >= n + 5, 'repeated while held');
     assert.equal(await lit(), 'true');
     await press('pointerup');
-    assert.ok((await keys()) >= n + 5 && await still(), 'held, then let go');
+    await waitFor(still, 3000); // held, then let go
     assert.equal(await lit(), 'false');
     assert.equal(await ui(`document.activeElement.closest('.xterm') !== null`), true, 'the keyboard back in the terminal, to send it');
     // The languages it understands; another one chosen is the agent's.
@@ -143,11 +143,12 @@ module.exports = (test) => {
       ['default', 'default', 'default', 'default', 'default', 'default', 'default']);
   });
   test('screenshot of the whole window, profile views included', async ({ shell, ui }) => {
+    const view = () => [...shell.profiles.values()][0].get().view.getVisible();
     await manageProfiles(ui);
-    await sleep(300);
+    await waitFor(async () => (await ui(`document.getElementById('profiles').open`)) && !view());
     await shell.screenshot(path.join(root, 'editor.png'));
     await ui(`document.getElementById('closeProfiles').click()`);
-    await sleep(300);
+    await waitFor(view);
     const file = path.join(root, 'window.png');
     await shell.screenshot(file);
     const png = fs.readFileSync(file);

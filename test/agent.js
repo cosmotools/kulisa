@@ -158,11 +158,11 @@ module.exports = (test) => {
         { locator: "getByRole('button', { name: 'Sign in' })", label: 'Sign in is here' },
         { locator: 'locator("a").first()' }] });
       assert.match(r.text, /Highlighted 2 element/);
-      await sleep(300);
+      await waitFor(async () => (await colored()) > 300).catch(() => {});
       assert.ok(await colored() > 300, `${url}: outline and label visible (${await colored()} px)`);
       if (url.endsWith('/app')) await shell.screenshot(path.join(root, 'highlight.png'));
       await call('browser_highlight', { profile: 'sam-seller', elements: [] });
-      await sleep(300);
+      await waitFor(async () => (await colored()) < 50).catch(() => {});
       assert.ok(await colored() < 50, `${url}: cleared (${await colored()} px)`);
     }
   });
@@ -179,6 +179,7 @@ module.exports = (test) => {
       await waitFor(() => !highlights.has('project/1/sam-seller'));
     }
   });
+  // 1 s each: how long a tool looks for an element before it says there is none (by design).
   test('agent: an element that is not there fails fast, with what to do instead', async ({ call }) => {
     await call('browser_navigate', { profile: 'sam-seller', url: `${SITE}/app` });
     for (const [tool, args] of [['browser_highlight', { elements: [{ locator: "getByRole('button', { name: 'New chat' })" }] }],
@@ -235,12 +236,13 @@ module.exports = (test) => {
     assert.match((await ui(`act('profile:avatar', { profile: 'elon-buyer', avatar: 'dragon' })`)).error, /no picture/);
     await ui(`document.getElementById('closeProfiles').click()`);
   });
+  // Each action of the agent waits while it is shown in the page (1.2 s, ghost.js): the agent's tests take seconds.
   test('agent: navigate, snapshot, type by ref, click by locator, screenshot', async ({ call }) => {
     await call('browser_navigate', { profile: 'sam-seller', url: `${SITE}/app` });
     const snap = await call('browser_snapshot', { profile: 'sam-seller' });
     const ref = snap.text.match(/textbox "Name"[^\n]*\[ref=(\w+)\]/)[1];
     await call('browser_type', { profile: 'sam-seller', ref, text: 'sam', submit: true });
-    await sleep(300);
+    await call('browser_wait_for', { profile: 'sam-seller', text: 'Signed in as sam' });
     await call('browser_click', { profile: 'sam-seller', locator: "getByRole('button', { name: 'Checkout' })" });
     const shot = await call('browser_screenshot', { profile: 'sam-seller' });
     assert.equal(shot.content[0].type, 'image');
@@ -367,12 +369,12 @@ module.exports = (test) => {
     // seen 2 times in 15), no view has them, and Kulisa rightly leaves it so.
     const page = elon.get(elon.active).wc;
     const keys = () => (!shell.win.isFocused() ? 'another app' : shell.win.webContents.isFocused() ? 'window' : page.isFocused() ? 'page' : 'none');
-    await elon.get(elon.active).ready; await sleep(500);
+    await elon.get(elon.active).ready; await sleep(500); // nothing to wait for: that the page does not take them
     assert.ok(['window', 'another app'].includes(keys()), `the window has the focus, not the page: ${keys()}`);
     // A click into the page gives it the keys, and they stay there.
     page.sendInputEvent({ type: 'mouseDown', x: 20, y: 20, button: 'left', clickCount: 1 }); page.sendInputEvent({ type: 'mouseUp', x: 20, y: 20, button: 'left', clickCount: 1 });
     page.focus();
-    await sleep(300);
+    await sleep(300); // nothing to wait for: that they stay
     assert.ok(['page', 'another app'].includes(keys()), `the page keeps the focus once clicked: ${keys()}`);
     await ui(`document.activeElement.blur()`);
     await waitFor(async () => (await ui(`${strip}.querySelectorAll('.tab').length`)) === n + 1);
@@ -389,7 +391,7 @@ module.exports = (test) => {
     assert.equal(await ui(`Math.round(document.querySelector('.pane[data-profile="sam-seller"] .tabs .tab').getBoundingClientRect().width)`), 220);
     for (let i = 0; i < 24; i++) await ui(`act('tab:new', { profile: 'elon-buyer' })`);
     await waitFor(async () => (await ui(`document.querySelectorAll('${pane} .tabs .tab').length`)) === n + 24);
-    await sleep(300);
+    await waitFor(() => ui(`!document.querySelector('${pane} .tabs .tab.opening')`)); // grown in
     const fit = await ui(`(() => { const p = document.querySelector('${pane}'), r = (q) => p.querySelector(q).getBoundingClientRect(), pr = p.getBoundingClientRect();
       return { pane: p.scrollWidth <= p.clientWidth, tabs: r('.tabs').right <= pr.right, add: r('.tabs .add').right <= pr.right, more: r('.more').right <= pr.right,
         group: p.closest('.dv-groupview').scrollWidth <= p.closest('.dv-groupview').clientWidth }; })()`);
@@ -446,7 +448,7 @@ module.exports = (test) => {
   test('target=_blank and window.open open tabs of the same profile', async ({ shell, call }) => {
     const sam = shell.profiles.get('sam-seller');
     const before = sam.tabs.length;
-    const waitTabs = async (n) => { for (let i = 0; i < 50 && sam.tabs.length < n; i++) await sleep(100); assert.equal(sam.tabs.length, n); };
+    const waitTabs = async (n) => { await waitFor(() => sam.tabs.length >= n).catch(() => {}); assert.equal(sam.tabs.length, n); };
     await call('browser_click', { profile: 'sam-seller', locator: "getByRole('link', { name: 'target=_blank link' })" });
     await waitTabs(before + 1);
     // the new tab is now the active one; it has the same buttons
@@ -457,7 +459,7 @@ module.exports = (test) => {
     assert.match(await popup.locator('#who').textContent(), /Signed in as sam/);
     assert.equal(await popup.evaluate(() => !!window.opener), true);
     for (const t of sam.tabs.slice(1)) sam.closeTab(t.id);
-    for (let i = 0; i < 50 && sam.tabs.length > 1; i++) await sleep(100);
+    await waitFor(() => sam.tabs.length === 1);
   });
 
   test('profiles present themselves as Google Chrome (UA, UA-CH headers, userAgentData, popups)', async ({ shell }) => {
@@ -493,13 +495,11 @@ module.exports = (test) => {
     const elon = shell.profiles.get('elon-buyer');
     const wc = elon.get().wc;
     await wc.loadURL('http://localhost:4417/app'); // localhost is a sign-in host in this test
-    for (let i = 0; i < 50 && !elon.signinMode; i++) await sleep(100);
-    assert.equal(elon.signinMode, true);
+    await waitFor(() => elon.signinMode);
     await assert.rejects(call('browser_snapshot', { profile: 'elon-buyer' }), /sign-in mode/);
     assert.equal(await wc.executeJavaScript('navigator.webdriver'), false);
     await wc.loadURL(`${SITE}/app`);
-    for (let i = 0; i < 50 && elon.signinMode; i++) await sleep(100);
-    assert.equal(elon.signinMode, false);
+    await waitFor(() => !elon.signinMode);
     assert.equal(await who({ call }, 'elon-buyer'), 'Signed out');
   });
 
@@ -518,21 +518,22 @@ module.exports = (test) => {
     const page = await elon.page();
     await page.goto(`${SITE}/errors`);
     await page.locator('#pay').click();
-    await sleep(300);
+    await page.getByText('HTTP 500').waitFor(); // its error logged, its request failed: for the next test
     const pending = ui(`kulisa.invoke('pick:start', { profile: 'elon-buyer' })`);
-    await sleep(800);
+    await waitFor(() => shell.windows[0].picking.has('elon-buyer'));
     const b = await page.locator('#pay').boundingBox();
     const x = Math.round(b.x + b.width / 2), y = Math.round(b.y + b.height / 2);
     const wc = elon.get().wc;
-    wc.sendInputEvent({ type: 'mouseMove', x, y }); await sleep(100);
+    wc.sendInputEvent({ type: 'mouseMove', x, y });
     wc.sendInputEvent({ type: 'mouseDown', x, y, button: 'left', clickCount: 1 });
     wc.sendInputEvent({ type: 'mouseUp', x, y, button: 'left', clickCount: 1 });
     const pick = await pending;
     assert.equal(pick.locator, "getByRole('button', { name: 'Pay now' })");
     assert.equal(pick.tab, elon.active);
     assert.ok(!fs.existsSync(path.join(project, '.kulisa')), 'nothing is written into the project');
-    await sleep(500);
     const ref = `[kulisa pick: elon-buyer tab ${pick.tab} getByRole('button', { name: 'Pay now' })]`;
+    await waitFor(() => ptyOutput().includes(ref));
+    await sleep(300); // nothing to wait for: that it is not sent (cat would print it again)
     // The agent here is `cat`: the terminal echoes typed input, and cat prints it again only after Enter. Once
     // means it waits in the prompt for the human to write about it.
     assert.equal(ptyOutput().split(ref).length - 1, 1, ptyOutput());
@@ -565,7 +566,6 @@ module.exports = (test) => {
     for (const cancel of ['button', 'esc']) {
       await ui(`${button}.click()`);
       await waitFor(async () => (await ui(`${button}.classList.contains('active')`)) && shell.windows[0].picking.has('elon-buyer'));
-      await sleep(300);
       if (cancel === 'button') await ui(`${button}.click()`);
       else {
         const wc = elon.get().wc;
@@ -575,7 +575,7 @@ module.exports = (test) => {
       await waitFor(async () => !(await ui(`${button}.classList.contains('active')`)) && !shell.windows[0].picking.has('elon-buyer'));
       assert.equal(await ui(`document.querySelector('.ptab[data-panel="profile:Profile 2"] .caption').textContent`), '', cancel);
     }
-    await sleep(300);
+    await sleep(300); // nothing to wait for: that nothing comes
     assert.equal(ptyOutput().slice(before).includes('kulisa pick'), false);
   });
 
