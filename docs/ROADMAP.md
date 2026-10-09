@@ -397,6 +397,38 @@ here; what is left of it stays.
   let the human change it (a site's permissions in the pane's menu). The agent: grants nothing itself; a test that
   needs the microphone asks the human, or uses the agent's own microphone (Deferred ideas, calls).
 
+- **The window has no minimum size** (found 2026-10-09; the author will build it). The human can drag the window
+  down to 1×1 px: `new BrowserWindow` (`window.js`) sets no `minWidth`/`minHeight`, and Electron's default is 0.
+  This task is only the window's outer bounds; what the grid does inside a small window is the next item.
+  - What Electron 44 gives (`docs/api/base-window.md`, `structures/base-window-options.md` at `v44.5.1`):
+    `minWidth`/`minHeight` in the constructor and `win.setMinimumSize(w, h)` later, on all three platforms (on Linux a
+    hint to the window manager: X11 and openbox keep it, Wayland gets `xdg_toplevel.set_min_size`). The sizes are DIP,
+    so the Kulisa zoom does not scale them. The minimum constrains only the human: `setBounds`/`setSize` and the
+    constructor's bounds pass below it. `will-resize` is macOS and Windows only, so no clamping there.
+  - How others do it: VS Code a fixed minimum (`WindowMinimumSize`: 400×270, 600 wide with a side panel), changed
+    with `setMinimumSize` when its layout changes; Chrome one derived from its own layout (tab strip, toolbar, window
+    buttons); most Electron apps (Slack, Discord) one constant. All take the smallest size at which the UI still
+    works, not a comfortable one.
+  - Decided: VS Code's way, a fixed minimum times the Kulisa zoom. Not derived from the grid as Chrome's
+    (dockview's `api.minimumWidth`, the sum of the panels' minimums): with five profiles in a row that would keep the
+    window from half a screen next to the human's IDE, which is the point of a narrow window.
+  - To build:
+    - `minWidth`/`minHeight` of about 640×400 DIP at zoom 1 (half of a 1366 px laptop screen still fits): the top bar
+      (44 px × zoom, `TITLE_BAR_HEIGHT`) holds the OS window buttons (Window Controls Overlay, right; left on macOS),
+      ☰ and one project tab, with something useful under it. The exact numbers from screenshots (`KULISA_SHOT`).
+    - The minimum follows the zoom: `shell.setUiZoom` (`app.js`) calls `setMinimumSize(base × zoom)` on every
+      window, and grows one now smaller than that with `setSize` (Electron does not).
+    - Bounds restored from `settings.json` are raised to the minimum when the window is made, next to `onScreen`
+      (`window.js`), since the constructor does not keep to it.
+    - Test (e2e, window group): a window saved at 10×10 opens at the minimum; a larger zoom grows a window at the
+      minimum. The OS limit on the human's drag cannot be tested with `setSize`, which passes below it.
+    - Document it in `docs/window.md`.
+- **The grid in a small window** (separate from the window's minimum above, not decided). When the panes do not fit,
+  dockview overflows and cuts them, the profiles' native views get boxes near 0, and the terminal may get 0 columns
+  (`pty.resize` is in a `try` in `terminal.js`, but the agent's CLI draws garbage at a tiny size). Ways to weigh:
+  panes shrink to a `minimumWidth` per panel (dockview) and views too small to use are hidden, or a narrow grid
+  turns into tabs.
+
 - **Workarounds of Electron bugs: check at every Electron upgrade** whether they are still needed, and remove them
   when not.
   - Drag regions (`app-region: drag`) of a view's page stay after the page has gone, in a window without a system
