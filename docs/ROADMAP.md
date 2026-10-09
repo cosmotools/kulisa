@@ -93,6 +93,42 @@ here; what is left of it stays.
   back after a restart as shells with nothing running (the agent runs its command again). Then: the command they
   ran is kept too, and ▶ in the header runs it again (starting by itself could run what the human did not expect,
   e.g. migrations).
+- **Closing and opening the agent's terminal** (the author's idea, 2026-10-09; being discussed, not decided). Today
+  the agent's terminal cannot be closed: its menu has Change agent… where the others have Close. The goal is the full
+  set of actions: close it when the human wants (more room on the screen, memory, no agent for a while), open an
+  agent again when they want (Claude Code, Codex, a plain shell).
+  - Processes stay as they are: Kulisa starts the user's shell in a pty and types the agent's command into it
+    (`terminal.js`), as a human in GNOME Terminal would, so the project's environment applies (direnv, nvm, mise).
+    Closing kills that shell (`p.kill()`) and the agent with it (SIGHUP), and frees its memory (hundreds of MB).
+    Opening again starts a new shell and types the agent with `--resume`: the same conversation (`agents.js`: Claude
+    `--resume <id>`, Codex `resume <id>|--last`). Starting the agent directly in the pty, without a shell, was
+    weighed and left: the project's environment is made by the shell's startup files and cannot be passed in `env`
+    without running a shell anyway.
+  - Proposed: × or Close ends it (agent.json keeps the agent and its session, and that it is closed: a restart does
+    not bring it back); + offers the installed agents and Shell; Ctrl+` opens the workspace's agent when closed. A new
+    workspace or fork still starts with its agent open.
+  - In the code (Claude's recommendation): today the agent's terminal is a thing of its own (`Workspace.pty`, panel
+    id `terminal`, started by `startAgent`, closed only by `changeAgent` or `unload`) and the others another
+    (`Workspace.terminals`, `openTerminal`/`closeTerminal`, `terminals.json`). Make them one list, each terminal
+    saying whether Kulisa started an agent in it (`agent: 'claude' | null`): that one gets picks, dictation and the
+    hooks' state, and after a restart runs its agent again with resume; a shell comes back empty. Cheaper: give the
+    agent's terminal its own close and open and keep the two kinds (about half the code), but everything about
+    terminals stays written twice, and "Several agents in one workspace" (Deferred ideas) would need the merge
+    anyway. To change with it: the renderer assumes the panel `terminal` is always there (it anchors new profiles
+    and terminals, and the grid adds it back: `renderer.js` ~335, ~351, ~367); saved grids name it, so a migration.
+  - Open questions for the author, each with Claude's proposal:
+    - A second agent in the same workspace (Codex next to Claude)? Proposed: not yet; + shows the open one.
+      Several agents is its own task (Deferred ideas), with each terminal's own hooks state, picks and dictation.
+    - Ask before closing? Proposed: only while the agent works (its hooks say so); agents without hooks: never,
+      as Ctrl+C in any terminal.
+    - Pick and dictation with the agent closed? Proposed: they open the agent and put the reference there.
+    - Where + lives once the agent's terminal can be gone (today it is in that terminal's header)? Proposed: the
+      title bar, always there. Change agent… then goes: close one, open another.
+    - The agent exits by itself (`/exit`, a crash)? Today the shell stays; proposed: still so, and Ctrl+` starts
+      the agent again in that shell, with resume.
+    - agent.json keeps one session: Claude → Codex → Claude loses Claude's conversation (`startAgent` resumes only
+      the same agent). Proposed: the last session of each agent.
+  - Cost, roughly: code +200–300 · tests +80 · docs +50.
 - **Sign-in: whoever holds the password signs in** (discussed with the author 2026-10-08; the best idea so far,
   not final: to think over again before building). Today the sign-in pause is tied to the page's address (a list of
   hosts), so the agent cannot test the developer's own sign-in, sign-up and password reset through Auth0 and the like
