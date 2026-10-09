@@ -4,6 +4,13 @@
 // agent's JSON: Codex's hooks take Claude Code's shape) comes as the request body; answers are hook output (JSON on
 // the hook's stdout).
 
+// The agent may have other browser tools too (the user's MCP servers and plugins stay: profiles.md), some with the same
+// names (browser_click …) and their own "profiles" at session start; this says which browser is the human's. Told to
+// every agent in the MCP server's instructions, and again next to the profiles at session start.
+const ONLY_BROWSER = 'Kulisa profiles are the only browser here: drive them with the kulisa MCP server\'s tools. Do not use ' +
+  'another browser\'s tools (Playwright MCP with its own browser, chrome-devtools, Claude in Chrome, cast, others), even ' +
+  'when their tools have the same names: that browser is not the one the human sees, and it is not signed in.';
+
 // SessionStart: the profiles as they are now, so the agent knows them before its first tool call. Also notes the
 // session, so that opening the project again resumes it (workspaces.js).
 // Each profile with who it is (its description, the human's words) or that it is not said: the agent then asks.
@@ -17,6 +24,7 @@ function sessionStart(ws, input) {
   });
   const closed = [...ws.closed.values()].map(({ cfg }) => who(cfg));
   const context = [
+    ONLY_BROWSER,
     lines.length ? `Kulisa profiles open now (the panes above your terminal; call browser_profiles for the live state):\n${lines.join('\n')}`
       : closed.length ? 'No Kulisa profile is open.' : 'Kulisa has no profiles yet. The human creates them with 👥 on the workspace tab at the bottom → Manage Profiles…, or use profile_create when a task needs one.',
     closed.length && `Closed profiles (signed in, no pane; profile_open opens one when the task needs it):\n${closed.join('\n')}`,
@@ -57,4 +65,4 @@ function handleHookRequest(ws, url, req, res) {
   return true;
 }
 
-module.exports = { handleHookRequest, sessionStart };
+module.exports = { handleHookRequest, sessionStart, ONLY_BROWSER };

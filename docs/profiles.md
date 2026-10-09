@@ -121,7 +121,12 @@ The agent learns how to work with profiles from the Kulisa plugin (CLAUDE.md, Ar
 `src/agent/claude-plugin/`, started with `claude --plugin-dir`: the MCP config, the profiles skill
 (`skills/profiles/SKILL.md`; keep it in step with the tools) and hooks, among them `SessionStart`, which tells the
 agent which profiles are open and tells Kulisa its session (to resume it). The user's own MCP servers stay available
-(no `--strict-mcp-config`). Codex gets the MCP server and the hooks as config overrides (its `SessionStart` brings the open profiles), not the
+(no `--strict-mcp-config`). Some of them may drive another browser with tools of the same names (cast's,
+Playwright MCP's `browser_click` …), and an agent has no priority among MCP servers: it chooses by names and
+descriptions. So every agent is told, in the MCP server's `instructions` and again at the session's start next to the
+profiles (`ONLY_BROWSER`, `agent-hooks.js`), that the profiles are the only browser here, and why: another browser is
+not the one the human sees, and not signed in. Not blocked (`--disallowedTools` would need every such server's name,
+and would refuse it also when the human asks for it). Codex gets the MCP server and the hooks as config overrides (its `SessionStart` brings the open profiles), not the
 skill yet (ROADMAP).
 
 The human sees what the agent does (`ghost.js`): Playwright's action annotations in the page, each shown 500 ms,

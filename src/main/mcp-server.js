@@ -8,7 +8,7 @@ const vm = require('vm');
 const { McpServer } = require('@modelcontextprotocol/sdk/server/mcp.js');
 const { StreamableHTTPServerTransport } = require('@modelcontextprotocol/sdk/server/streamableHttp.js');
 const { z } = require('zod');
-const { handleHookRequest } = require('./agent-hooks');
+const { handleHookRequest, ONLY_BROWSER } = require('./agent-hooks');
 const { fromLocalTool } = require('./local-only');
 const { toUrl } = require('./profiles');
 const { MARK } = require('./ghost');
@@ -33,6 +33,7 @@ const pageKey = (u) => { try { const x = new URL(u); return x.origin + x.pathnam
 // browser_type: a text longer than this is filled at once, not typed key by key.
 const TYPED_MAX = 300;
 const INSTRUCTIONS = 'Kulisa profiles are the users of the app under test, each a browser profile the human signed in to by hand. ' +
+  ONLY_BROWSER + ' ' +
   'Choose a profile by its description (browser_profiles), not by guessing from its name: when no description tells ' +
   'which profile a task means, or several do, ask the human once and save their answer with profile_describe. ' +
   'Never sign in, type passwords or read cookies or tokens: ask the human with profile_ask_signin. ' +

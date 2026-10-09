@@ -118,7 +118,7 @@ module.exports = (test) => {
     assert.match((await ui(`kulisa.invoke('tab:new', { profile: 'sam-seller' })`)).error, /not on screen/);
     assert.equal(sam.tabs.length, tabs);
   });
-  test('agent bridge: at session start the plugin hook tells the agent which profiles are open, and Kulisa notes the session', async ({ shell }) => {
+  test('agent bridge: at session start the plugin hook tells the agent which profiles are open, and Kulisa notes the session', async ({ shell, instructions }) => {
     const hooks = JSON.parse(fs.readFileSync(path.join(CLAUDE_PLUGIN, 'hooks', 'hooks.json'), 'utf8'));
     const command = hooks.hooks.SessionStart[0].hooks[0].command;
     const { spawn } = require('child_process');
@@ -139,6 +139,11 @@ module.exports = (test) => {
     assert.match(context, /- sam-seller \("Sam.seller"\): seller in the test shop/);
     assert.match(context, /- elon-buyer \("Elon.buyer"\): who it is is not said/);
     assert.match(context, /tab k\d+ \(active\)/);
+    // Another browser's tools may sit next to Kulisa's with the same names (cast's browser_click, Playwright MCP's):
+    // every agent is told which browser is the human's, Claude Code again next to the profiles.
+    const only = /Kulisa profiles are the only browser here.*Do not use another browser's tools/s;
+    assert.match(context, only);
+    assert.match(await instructions(), only);
     const outside = await run({});
     assert.deepEqual(outside, { code: 0, out: '' }, 'outside Kulisa the hook does nothing');
   });
