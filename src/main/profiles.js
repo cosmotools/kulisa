@@ -114,10 +114,14 @@ class Profile extends EventEmitter {
         wc.on('did-navigate', navigated); wc.on('did-fail-load', failed);
       }).then(() => { tab.answered = null; });
     }
-    // tab.ready: the first navigation has committed. A client that attaches earlier sees a never-loaded tab.
+    // tab.ready: the first navigation has committed, or failed (its error page shows: a site refusing to connect,
+    // e.g. a fork's dev server not started yet, held its profile 5 s). A client that attaches earlier sees a
+    // never-loaded tab.
     tab.ready = ready.then(() => url && new Promise((resolve) => {
       if (wc.isDestroyed()) return resolve(); // closed before it loaded (its profile closed or deleted)
-      wc.once('did-navigate', resolve); setTimeout(resolve, 5000);
+      const failed = (_e, code, _d, _u, mainFrame) => { if (mainFrame && code !== -3) done(); };
+      const done = () => { wc.off('did-navigate', done); wc.off('did-fail-load', failed); resolve(); };
+      wc.on('did-navigate', done); wc.on('did-fail-load', failed); setTimeout(done, 5000);
       wc.loadURL(url).then(() => { if (this.mimic) wc.navigationHistory.clear(); }).catch(() => {});
     }));
     if (activate) this.activate(tab.id);

@@ -12,12 +12,8 @@ module.exports = (test) => {
     await sleep(200); // the window re-renders after the state update
     assert.deepEqual(await ctx.ui(`[...document.querySelectorAll('.pname')].map((e) => e.textContent)`), ['Sam.admin', 'Elon.buyer']);
   });
-  test('names: the characters of an email address, letters of any language; typed, pasted, from the agent', async (ctx) => {
+  test('names: typed, pasted, from the agent, checked where they are made (the rule itself: unit/names.test.js)', async (ctx) => {
     const { shell, ui, call } = ctx;
-    const { nameError, slugOf } = require('../src/main/names');
-    for (const ok of ['ann+test@shop.com', 'ann_lee.admin', 'Анна', '花子', 'x'.repeat(64)]) assert.equal(nameError(ok), null, ok);
-    for (const bad of ['', '@', '-', '_x', '-x', '.x', 'Ann admin', 'Sam · seller', 'a/b', '..', '.', 'x'.repeat(65)]) assert.ok(nameError(bad), bad);
-    assert.equal(slugOf('花子@Shop.com', 'p'), '花子-shop-com');
     // The field leaves other characters out, typed or pasted.
     await manageProfiles(ui);
     await ui(`document.getElementById('newProfile').focus()`);

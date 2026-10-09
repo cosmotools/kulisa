@@ -466,8 +466,9 @@ here; what is left of it stays.
     (`nativeTheme.shouldUseDarkColors`, `updated`; on Linux through GTK or the desktop portal): checked on
     Linux/X11 (GNOME) by the tests only, not by changing the OS's setting by hand. macOS draws its own window
     buttons.
-  - Tests run only on Linux. Needs CI with a macOS/Windows/Linux matrix (GitHub Actions on the repository). The
-    test bench assumes Linux; to adapt on each OS where it can be run (the author's decision, 2026-10-08), known so far:
+  - Tests run often on Linux only; on macOS and Windows before a release (the author's decision, 2026-10-09). CI with
+    a matrix (GitHub Actions) would do it. There they run on the human's screen (Xvfb is Linux's), taking its focus.
+    The test bench assumes Linux; to adapt on each OS where it can be run (the author's decision, 2026-10-08), known so far:
     - Windows: the agent is `bash -c '… exec cat -v'` with a `bashrc` (`test/run.js`), the fake agent's installer is
       `sh` only (`printf`, `chmod`; the real agents have a `win32` one), the hooks' test runs commands with `bash`
       (`test/agent.js`). A Node script as the agent would run everywhere.
@@ -498,20 +499,12 @@ here; what is left of it stays.
     ready): every profile's HTTP cache at most that, open ones too; not the code and GPU caches.
   - Or both, or clearing when a workspace or project is closed as well. Cost of clearing: the first load of a
     reopened profile's sites is slower (no cache), which matters little for profiles set aside.
-- **Tests that failed now and then** (fixed 2026-10-08; watch whether they come back). The menus' tests (context
-  menus, DevTools in ⋮, the zoom's) waited for a picture of every page before a menu opened, and a page drawing no
-  frame (covered, the monitor off) held that menu and every one after it: pictures now wait 500 ms at most
-  (`window.js`, test "a menu opens even when a page gives no picture"). `projects: a tab dragged …` let go off the
-  screen when the window manager put the test's window near its right edge; it lets go on the side with room now.
-  Not looked at: the address bar's click (seen 2026-10-07). Slow but not flaky: closing a fork (11 s, git's work), a
-  site that never answers (10 s: two 5 s waits by design).
-- **The menus' tests fail when the test's window loses the focus** (found 2026-10-09). A menu closes when Kulisa's
-  window loses the focus (menu.js), as it should; the tests run on the real desktop, so a click in another app, a
-  notification, or the human working while they run closes a menu in the middle of "context menus" (seen: the
-  window's blur with no other Electron window taking the focus). Many runs in a row while the author worked: about
-  1 in 7. "DevTools in a pane's ⋮ menu" had a race of its own (its detached window took the focus just after the
-  test opened ⋮ again), fixed in the test. The clipboard's check in the same test is shared with the desktop too.
-  Way out: run the tests on a desktop of their own (Xvfb, `xvfb-run`; not installed here: check the GPU renderer
-  test there), or not use the computer while they run.
+- **Tests that failed now and then.** Fixed 2026-10-08: pictures of pages for a menu wait 500 ms at most (`window.js`,
+  test "a menu opens even when a page gives no picture"); a project's label let go on the side of the screen with
+  room. 2026-10-09: the tests run on a screen of their own on Linux (Xvfb, [testing.md](testing.md)), so the human's
+  work no longer takes the focus from them (menus closed in the middle of a test, about 1 run in 7); races that a
+  slower screen showed (a click while the window still showed another project) are waited for. Watch whether any
+  come back. Not looked at: the address bar's click (seen 2026-10-07). Slow but not flaky: closing a fork (11 s,
+  git's work), a site that never answers (10 s: two 5 s waits by design).
 - **No performance numbers taken with the monitor on.** CPU, RAM, many profiles; see REPORT, E8.
 - **`playwright-core` is pinned to a 1.64 alpha.** Move to the stable release once it ships with the same APIs.

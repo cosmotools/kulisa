@@ -147,6 +147,18 @@ module.exports = (test) => {
     assert.match(t.text, /app/);
     await shell.ws.deleteProfile('hung');
   });
+  test('a tab on a site that refuses to connect (its dev server not started, as in a new fork) opens at once, and so does its profile', async ({ shell, call }) => {
+    await call('profile_create', { name: 'Down' });
+    let started = Date.now();
+    await call('browser_tab_new', { profile: 'down', url: 'http://127.0.0.1:4419/app' }); // nothing listens there
+    assert.ok(Date.now() - started < 2000, `tab opened in ${Date.now() - started} ms`);
+    await shell.ws.closeProfile('down');
+    await waitFor(() => savedTabs('down').some((u) => u.includes(':4419/')));
+    started = Date.now();
+    await shell.ws.openProfile('down');
+    assert.ok(Date.now() - started < 2000, `profile opened in ${Date.now() - started} ms`);
+    await shell.ws.deleteProfile('down');
+  });
   test('closing the last tab of a profile leaves an empty tab, not a pane without a page (the window and the agent)', async (ctx) => {
     const { shell, call, ui } = ctx;
     await call('profile_create', { name: 'Solo' });

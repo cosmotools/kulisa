@@ -36,7 +36,9 @@
   },
   "scripts": {
     "start": "electron --no-sandbox .",
-    "test": "electron --no-sandbox test/run.js && electron --no-sandbox test/run.js --restart",
+    "test": "node test/start.js",
+    "test:visible": "node test/start.js --visible",
+    "test:unit": "node --test \"test/unit/*.test.js\"",
     "postinstall": "electron-rebuild -f -w node-pty",
     "package": "electron-forge package",
     "make": "electron-forge make",

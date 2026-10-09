@@ -1,8 +1,9 @@
 // Kulisa tests: start the real app (Electron) against a local test site, drive it like the human (IPC, input
-// events) and like the agent (MCP), and check the results. Two phases share a temporary user-data folder:
-//   electron test/run.js            the tests in the files below, in this order (later ones build on earlier ones)
-//   electron test/run.js --restart  after a restart: profiles, sign-ins and tabs are still there (restart.js)
-// `npm test` runs both. Shared helpers: helpers.js.
+// events) and like the agent (MCP), and check the results. A group of files (start.js) runs in one app, in order,
+// later files building on earlier ones; then a second run after a restart, in the same temporary folder:
+//   electron test/run.js --files=agent,profiles             the tests in these files
+//   electron test/run.js --restart --files=restart-profiles  after a restart: what the group left is still there
+// `npm test` runs every group, in parallel (start.js). Shared helpers: helpers.js.
 const { app } = require('electron');
 const path = require('path');
 const fs = require('fs');
@@ -13,7 +14,8 @@ const { root, userData, project, sleep, waitFor } = require('./helpers');
 const restart = process.argv.includes('--restart');
 // direnv's list of allowed .envrc files (workspaces copy and allow them): the test's own, not the user's.
 process.env.XDG_DATA_HOME = path.join(root, 'xdg-data');
-const FILES = restart ? ['restart'] : ['agent', 'profiles', 'window', 'grid', 'zoom-and-closing', 'workspaces'];
+const FILES = (process.argv.find((a) => a.startsWith('--files=')) || '').slice(8).split(',').filter(Boolean);
+if (!FILES.length) { console.error('which test files: --files=agent,profiles (npm test runs them all)'); process.exit(2); }
 if (!restart) fs.rmSync(root, { recursive: true, force: true });
 fs.mkdirSync(project, { recursive: true });
 // The agent: cat, typed into a bash started as a terminal would start the user's shell, in the project's folder;
@@ -38,6 +40,9 @@ const tests = [];
 const test = (name, fn) => tests.push({ name, fn });
 for (const f of FILES) require(`./${f}`)(test);
 
+// A run that hangs (a test past its timeout, quitting) ends anyway: nothing runs on unseen.
+setTimeout(() => { console.error('the whole run took over 5 minutes: stopped'); app.exit(2); }, 5 * 60000).unref();
+
 const sitePromise = ensureSite();
 // The restart phase runs as a packaged build would as to DevTools: Kulisa's own are off (appDevTools).
 // After the restart no project is named: the one opened last opens.
@@ -60,7 +65,6 @@ start({ userData, project: restart ? undefined : project, agent, agents, mcpPort
     // Quit the way a user closes the window (before-quit saves session cookies, kills the pty), then set the code.
     app.on('will-quit', (e) => {
       e.preventDefault();
-      if (restart && !failed) fs.rmSync(root, { recursive: true, force: true });
       app.exit(failed ? 1 : 0);
     });
     app.quit();

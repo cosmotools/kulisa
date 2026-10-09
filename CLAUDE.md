@@ -27,6 +27,7 @@ Everything happens inside Kulisa; no external Chrome windows.
 - `docs/ui.md`: what the window's UI is built of: tokens, icons, components (buttons, rows, dialogs, menus). Look
   there before making a button, an icon, a row or a dialog; keep it current.
 - `README.md`: how to run, environment variables, a map of `src/`.
+- `docs/testing.md`: how the tests are built and written. Read it before writing a test.
 - `docs/LICENSING.md`: Kulisa is GPL-3.0-or-later, the author's; what the license covers and what it does not.
 
 ## Working with the author
@@ -132,14 +133,16 @@ Everything happens inside Kulisa; no external Chrome windows.
     when it goes, and its removal is tested.
   - The same in development: tests write only in their temp folder; screenshots, logs and scripts made while working
     go into the session's scratch folder and are deleted when the task is done.
-- **Every behavior change comes with a test** in `test/` (the file of its area; `run.js` starts the real app and
-  runs the files in order, later tests building on earlier ones; shared helpers in `helpers.js`).
+- **Every behavior change comes with a test.** **Read `docs/testing.md` before writing one**: the two layers (unit
+  tests in plain Node, e2e in the real app), the groups of e2e files, and how a test is written (wait for a state,
+  never for time).
   - Fix a bug by first reproducing it as a failing test, then making it pass (the session-cookie bug was done
     this way).
-  - **The full suite (`npm test`, about 80 s) runs once, when the author says the work is done** ("всё ок", "commit"),
-    before the commit; fix what fails and run it again. Not after each edit while building: check then with a
-    screenshot (`KULISA_SHOT`) or in the author's running Kulisa, restarted with the change. The test files are one
-    chain (later ones build on earlier ones), so one file alone does not run (tried 2026-10-07).
+  - **The full suite (`npm test`, about a minute) runs once, when the author says the work is done** ("всё ок",
+    "commit"), before the commit; fix what fails and run it again. While building: `npm run test:unit` (a second),
+    one group (`npm test -- <group>`), a screenshot (`KULISA_SHOT`) or the author's running Kulisa, restarted with
+    the change. On Linux the tests run on a screen of their own (Xvfb, openbox): they never take the author's
+    focus.
 - **Kulisa runs on macOS, Windows and Linux.** Write code for all three: no shell commands, Unix-only paths or
   signals, or Linux-only flags without a branch for the others. Keep platform branches few and in one place per
   concern (e.g. the shell fallback in `terminal.js`). What is untested on a platform goes into ROADMAP.
@@ -151,7 +154,9 @@ Everything happens inside Kulisa; no external Chrome windows.
 
 ```sh
 npm start   # the app: the projects open last, plus $KULISA_PROJECT's (at first start none: open one)
-npm test    # real app against a local test site (test/fixtures/site.js), then a second run to check a restart
+npm test    # unit tests, then the e2e groups in parallel, each the real app against a local test site, then restarted
+npm run test:unit     # the unit tests alone (plain Node, a second)
+npm run test:visible  # e2e on your screen, to watch them (npm test uses Xvfb on Linux when installed)
 npm run make  # installers for this platform with Electron Forge (forge.config.js), in out/make/
 npm run icons # renders assets/icon.svg to icon.png/.ico/.icns (committed; run after changing the SVG)
 ```

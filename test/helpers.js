@@ -4,7 +4,8 @@ const fs = require('fs');
 const os = require('os');
 const assert = require('assert/strict');
 
-const root = path.join(os.tmpdir(), 'kulisa-test');
+// The test folder: each group of files its own (start.js), else kulisa-test.
+const root = process.env.KULISA_TEST_ROOT || path.join(os.tmpdir(), 'kulisa-test');
 const userData = path.join(root, 'data');
 const project = path.join(root, 'project');
 
@@ -34,7 +35,12 @@ const menuRows = async (ui) => {
 const projectTabs = (ui) => ui(`[...document.querySelectorAll('#projectTabs .pisland')].map((t) => t.querySelector('.plabel .name').textContent + (t.classList.contains('active') ? ' *' : ''))`);
 const projectTab = (id) => `document.querySelector('#projectTabs [data-project="${id}"]')`;
 // A project shown again as the human does it: a click on the workspace it shows, in its island.
-const showProject = (ui, id) => ui(`${projectTab(id)}.querySelector('.wstab.selected').click()`);
+// Once its island is drawn: the bar is drawn again as projects load (seen after a restart, on a slow screen).
+const showProject = async (ui, id) => {
+  const tab = `${projectTab(id)}?.querySelector('.wstab.selected')`;
+  await waitFor(() => ui(`!!${tab}`));
+  return ui(`${tab}.click()`);
+};
 // A project closed as the human does it: the middle button on its label (its right-click menu has Close Project too).
 const closeProject = (ui, id) => ui(`${projectTab(id)}.querySelector('.plabel').dispatchEvent(new MouseEvent('auxclick', { button: 1, bubbles: true }))`);
 const choose = (ui, label) => ui(`[...document.querySelectorAll('#menu .item')].find((b) => b.querySelector('.label').textContent === ${JSON.stringify(label)}).click()`);

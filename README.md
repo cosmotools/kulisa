@@ -21,7 +21,8 @@ how the design was tested: [docs/REPORT.md](docs/REPORT.md).
 npm install          # Node 22.13+. Rebuilds node-pty for Electron.
 npm start            # opens the windows and projects open last; at first start the Welcome screen
 KULISA_PROJECT=~/my-app npm start
-npm test             # starts the real app against a local test site, then again to check a restart
+npm test             # unit tests, then the real app against a local test site (groups in parallel), then restarted
+npm run test:visible # the same on your screen (npm test uses its own screen on Linux: sudo apt install xvfb openbox)
 npm run package      # the app for this platform, in out/
 npm run make         # installers for this platform, in out/make/ (.deb on Linux, .exe on Windows, .dmg/.zip on macOS)
 npm run icons        # after changing assets/icon.svg: icon.png, .ico, .icns next to it
@@ -129,9 +130,9 @@ src/renderer/    window UI. renderer.js: the grid of panels (dockview), panes, �
                  closing), new-project.js (New Project…). Styles: tokens.css, components.css, window.css; the icons are a
                  sprite in index.html (docs/ui.md)
 assets/          the app icon: icon.svg (source) and what each OS needs, rendered by scripts/icons.js
-test/            run.js (starts the app, runs the files in order), helpers.js, the tests by area (agent.js,
-                 profiles.js, window.js, grid.js, zoom-and-closing.js, workspaces.js; restart.js after a restart),
-                 fixtures/site.js
+test/            start.js (npm test: the groups in parallel), run.js (one app, its files in order), helpers.js,
+                 setup.js, the tests by area (agent.js, profiles.js, window.js, grid.js, zoom-and-closing.js,
+                 workspaces.js; restart-*.js after a restart), unit/ (plain Node), fixtures/site.js (docs/testing.md)
 ```
 
 The experiments behind the design (SPEC section 6, E1–E8) were removed after they answered their questions.

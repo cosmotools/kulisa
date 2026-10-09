@@ -372,4 +372,4 @@ Designed with the author on 2026-10-06 and 2026-10-07.
 | `src/renderer/workspaces.js` | the workspaces' tabs in the bar, the new-workspace dialog |
 | `src/renderer/agent-picker.js`, `agents.js`, `agent-list.js` | choosing a workspace's agent; the Agents window; the list of agents with Install that both show (loaded when needed) |
 | `src/renderer/renderer.js`, `window.css` | building a workspace's grid; the slide (a view transition) |
-| `test/workspaces.js` | the tests; `test/restart.js` after a restart |
+| `test/workspaces.js` | the tests; `test/restart-workspaces.js` after a restart; `test/unit/agents.test.js` |

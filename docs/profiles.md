@@ -55,7 +55,9 @@ A profile is an Electron session on a folder of its own (`session.fromPath`), la
 - **A page that does not load** says why, as Chrome's error page does (Electron leaves it blank): the site cannot be
   found, refused to connect (a local app whose server is not running), took too long, no internet, an untrusted
   certificate; with Chromium's code (`ERR_…`). The address stays the one that failed, so reload tries it again; the
-  agent's snapshot reads the same words (`error-page.html`, filled in by `profiles.js`).
+  agent's snapshot reads the same words (`error-page.html`, filled in by `profiles.js`). A tab whose site refuses to connect
+  (a fork's tabs on its ports before its dev server runs) is ready at once with that page: it held its profile's
+  opening 5 s until 2026-10-09.
 - **Pick** (DevTools' inspect icon, at the end of the address bar): click an element on the page; a reference to it goes into the agent's prompt (below). Off on an empty tab (`about:blank`): nothing to point at.
 
 ## What the agent does
@@ -176,7 +178,7 @@ again, look for a third such moment first (which file went `[]`, and when: log a
 2. **Tabs closing as Kulisa quits**: after the tabs were saved, each one destroyed saved its workspace again, one
    fewer each time, none at last. A workspace in the background (shown before, then left) saved at once and lost
    all; the shown one's save waited 30 ms and missed the exit. Now nothing is saved from then on (`quitting` in
-   `shell.wsChanged`, `app.js`; test in `restart.js`: the fork left loaded in the background keeps its tabs).
+   `shell.wsChanged`, `app.js`; test in `restart-workspaces.js`: the fork left loaded in the background keeps its tabs).
 
 What is lost cannot be recovered from Kulisa's files; Chromium's own history in the profile's folder still has the
 pages.
@@ -248,4 +250,4 @@ space (ROADMAP, "Profiles' caches").
 | `src/main/cdp-proxy.js` | the CDP endpoint per profile |
 | `src/main/mcp-server.js`, `ghost.js`, `picker.js` | the agent's tools, its actions shown, point and tell |
 | `src/renderer/renderer.js`, `profile-editor.js` | the panes, the profiles' chip (👥) and the editor |
-| `test/agent.js`, `profiles.js`, `zoom-and-closing.js`, `restart.js` | the tests |
+| `test/agent.js`, `profiles.js`, `zoom-and-closing.js`, `restart-profiles.js`, `unit/store.test.js` | the tests |
