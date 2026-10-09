@@ -596,9 +596,9 @@ module.exports = (test) => {
     await ui(`document.getElementById('windowMenu').click()`);
     // The arrangements as pictures, a short name under each, the full words in the tooltip.
     assert.deepEqual((await menuRows(ui)).slice(4), ['# Arrange panels', 'arrange: Columns, Two by two, One at a time', '-', 'Agents…', '-',
-      `# Kulisa ${require('../package.json').version}`, 'Documentation', 'GitHub', 'Report an issue', '-', 'Exit']);
+      'Documentation', 'GitHub', 'Report an issue', '-', 'Exit', `~ Kulisa ${require('../package.json').version}`], "Kulisa's version a note under the rows, not one of them");
     assert.deepEqual(await ui(`[...document.querySelectorAll('#menu svg:not([hidden]) > use')].map((u) => u.getAttribute('href'))`),
-      ['#i-zoom', '#i-theme', '#i-projects', '#i-arrange', '#i-agent', '#i-logo', '#i-exit'], 'each row with its icon');
+      ['#i-zoom', '#i-theme', '#i-projects', '#i-arrange', '#i-agent', '#i-docs', '#i-github', '#i-bug', '#i-exit'], 'each row with its icon');
     const pics = await ui(`[...document.querySelectorAll('#menu .arrange button')].map((b) => ({ title: b.title,
       panes: b.querySelectorAll('svg .a-page').length, term: b.querySelectorAll('svg .a-term').length, w: b.querySelector('svg').getBoundingClientRect().width }))`);
     assert.deepEqual(pics.map((p) => [p.panes, p.term]), [[3, 1], [4, 1], [1, 1]]);

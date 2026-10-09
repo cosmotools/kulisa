@@ -17,11 +17,6 @@ module.exports = (test) => {
     assert.equal(await ui(`document.getElementById('zoomReset').hidden`), false);
     await ui(`document.getElementById('windowMenu').click()`);
     assert.deepEqual((await menuRows(ui)).slice(0, 5), ['zoom', 'theme', 'bar', '-', '# Arrange panels']);
-    // The links with their icons, then Kulisa's version as a note under them all, not a row (nothing to click).
-    const rows = await menuRows(ui), exit = process.platform === 'darwin' ? [] : ['-', 'Exit'];
-    assert.deepEqual(rows.slice(-5 - exit.length), ['-', 'Documentation', 'GitHub', 'Report an issue', ...exit, `~ Kulisa ${require('../package.json').version}`]);
-    assert.deepEqual(await ui(`[...document.querySelectorAll('#menu .item .ico:not([hidden]) use')].map((u) => u.getAttribute('href')).filter((h) => ['#i-docs', '#i-github', '#i-bug'].includes(h))`),
-      ['#i-docs', '#i-github', '#i-bug']);
     assert.equal(await ui(`document.querySelector('#menu .zoomrow output').textContent`), '110%');
     await ui(`document.querySelector('#menu .zoomrow .in').click()`); // − 110% + in the menu, as in Chrome
     await waitFor(() => near(win.getZoomFactor(), 1.25));
