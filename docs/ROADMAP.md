@@ -510,5 +510,28 @@ here; what is left of it stays.
   found 2026-10-09, to come back to). Most of it is showing the project `other` until its workspace has loaded and
   the terminal's shell runs; it looks like another 5 s wait (as a tab's `ready` held a profile on a refused site:
   `profiles.js`). To find: time the steps of loading `other` after a restart (its profiles' tabs, its terminals).
+- **The GPU renderer only on terminals in sight** (discussed with the author 2026-10-09; the author builds it later).
+  Today every terminal loads xterm's WebGL addon when made (`makeTerminal` in `src/renderer/terminal.js`), hidden ones
+  too (other workspaces and projects, terminals behind another panel): each keeps a WebGL context and its glyph atlas.
+  Chromium keeps at most 16 contexts per page; the 17th takes the oldest one's, and that terminal falls back to the DOM
+  renderer for good (`onContextLoss`), drawing slower. Nothing breaks: at about 5 projects × 3 workspaces it starts.
+  - The fix: a terminal gets the WebGL addon when it comes into sight and disposes of it when hidden (`showTerminal`;
+    the other terminals' panels: dockview's visibility of a panel), so only the terminals on screen hold a context.
+    The buffer (the text, scrollback) is untouched: it is xterm's, not the renderer's. About 15 lines. Test
+    (`test/window.js`, next to "GPU renderer"): the shown terminal is `webgl`, a hidden one has none and gets it back
+    when shown; `window.__termRenderer` reports the shown one already.
+  - Measured 2026-10-09 (bare Electron 44 with the same xterm 6.0.0, addons and options; 173×43, scrollback full;
+    Xvfb, so the GPU was software (llvmpipe) and its memory is RAM there). GPU process now → with the fix: 5
+    terminals 85 → 37 MB, 10: 155 → 47, 20: 228 → 47 (4 contexts lost), 30: 243 → 54 (14 of 30 fell back to DOM).
+    The window's renderer barely changes (10: 96 → 92 MB): most of a terminal's memory is its buffer, about 5 MB with
+    a full scrollback. Cost: showing a terminal takes ~35 ms more (69 ms instead of 33: a context and an atlas
+    made again). The author had 4 terminals then: a gain of ~25 MB, so not urgent. To check on a real GPU when
+    built: the switch's time and the video memory.
+  - Not chosen: **one xterm for all terminals**, switched between workspaces as YouTube reuses one player (the
+    author's idea). A player keeps no state (the video is on the server); a terminal's state is its buffer, kept only
+    in xterm (the pty in the main process passes bytes on). It would have to live elsewhere anyway (`@xterm/headless`
+    per pty: the same memory, plus serializing and writing it again at every switch, losing the scroll position and
+    the selection; or the raw output replayed: a log that grows, slow for a long session), and several terminals are
+    on screen at once (the other terminals' panels, other windows). VS Code too keeps an xterm per terminal.
 - **No performance numbers taken with the monitor on.** CPU, RAM, many profiles; see REPORT, E8.
 - **`playwright-core` is pinned to a 1.64 alpha.** Move to the stable release once it ships with the same APIs.
