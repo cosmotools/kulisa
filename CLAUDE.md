@@ -282,6 +282,10 @@ What must hold in the window:
 
 - **`setWindowOpenHandler` → `createWindow`:** pass `options.webContents` into the new `WebContentsView`.
   A fresh one freezes the main process.
+- **Never make a `webContents` inside another's `'destroyed'` event.** Chromium is still taking the old one down;
+  the new one crashed the main process now and then with SIGTRAP (`CHECK(!frame_tree_->IsBeingDestroyed())`), in
+  about 40% of test runs and in the author's running Kulisa. The empty tab after the last one closes is made on the
+  next turn (`Profile._removed`). Found with gdb and Electron's breakpad symbols (2026-10-09).
 - **An uncaught exception in the main process** opens a modal GTK dialog that blocks everything, including the
   proxy and MCP. `app.js` logs instead; keep it that way.
 - **No HTTP server in the Electron main process that the app's own pages load from.** A sync Electron call

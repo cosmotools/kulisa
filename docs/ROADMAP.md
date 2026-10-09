@@ -505,18 +505,13 @@ here; what is left of it stays.
   screen when the window manager put the test's window near its right edge; it lets go on the side with room now.
   Not looked at: the address bar's click (seen 2026-10-07). Slow but not flaky: closing a fork (11 s, git's work), a
   site that never answers (10 s: two 5 s waits by design).
-- **The main process exits with SIGTRAP now and then** (found 2026-10-09). In about a third of the test runs, at the
-  test "closing the last tab of a profile …" right after "a site that never answers", just after `[mimic] target
-  closed while handling command`, with nothing in Chromium's log (`ELECTRON_ENABLE_LOGGING`): not a CHECK of
-  Chromium's, likely native code in the main process. Not new: 2 of 6 runs at `6edb5e6` too, and apport
-  (`/var/log/apport.log`) recorded many crashes of the author's running Kulisa on 2026-10-08 and 09. To find: a stack
-  (a core dump through apport, or gdb on the test run), then what of Kulisa's reaches it.
 - **The menus' tests fail when the test's window loses the focus** (found 2026-10-09). A menu closes when Kulisa's
   window loses the focus (menu.js), as it should; the tests run on the real desktop, so a click in another app, a
   notification, or the human working while they run closes a menu in the middle of "context menus" (seen: the
   window's blur with no other Electron window taking the focus). Many runs in a row while the author worked: about
   1 in 7. "DevTools in a pane's ⋮ menu" had a race of its own (its detached window took the focus just after the
-  test opened ⋮ again), fixed in the test. Way out: run the tests on a desktop of their own (Xvfb, `xvfb-run`; not
-  installed here: check the GPU renderer test there), or not use the computer while they run.
+  test opened ⋮ again), fixed in the test. The clipboard's check in the same test is shared with the desktop too.
+  Way out: run the tests on a desktop of their own (Xvfb, `xvfb-run`; not installed here: check the GPU renderer
+  test there), or not use the computer while they run.
 - **No performance numbers taken with the monitor on.** CPU, RAM, many profiles; see REPORT, E8.
 - **`playwright-core` is pinned to a 1.64 alpha.** Move to the stable release once it ships with the same APIs.

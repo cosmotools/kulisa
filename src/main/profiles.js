@@ -189,8 +189,10 @@ class Profile extends EventEmitter {
     this.emit('tab-closed', tab); this.emit('changed');
     // Its last tab closed (closeTab: the human's ×, the agent's browser_tab_close), the profile still open: an empty
     // tab takes its place, so the pane is never left without a page (its address and toolbar acting on nothing). Not
-    // for a tab destroyed otherwise: Kulisa quitting (a new tab then crashes Electron), its profile closing.
-    if (!this.tabs.length && !this.deleted && tab.closing) this.newTab('about:blank');
+    // for a tab destroyed otherwise: Kulisa quitting (a new tab then crashes Electron), its profile closing. Not from
+    // within this 'destroyed' event either: Chromium is still taking the old tab down, and a new one made meanwhile
+    // crashed the main process now and then (CHECK(!frame_tree_->IsBeingDestroyed()) in RenderFrameCreated, 2026-10-09).
+    if (!this.tabs.length && !this.deleted && tab.closing) setImmediate(() => { if (!this.tabs.length && !this.deleted) this.newTab('about:blank'); });
   }
 
   // A page's dialog, over a picture of the page (a page is still while its dialog is open). The agent's own actions
