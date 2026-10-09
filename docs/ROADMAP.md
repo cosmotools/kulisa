@@ -405,13 +405,66 @@ here; what is left of it stays.
   - An agent acting in another agent's tab: only a hint ("agent 1's tab"), or refused?
   - Who coordinates: the human (agents equal, roles set by the human, talking directly; proposed to start with),
     a lead agent that splits the task and hands it out (as Claude Code's agent teams), or both.
-- **A store** (the author's idea, 2026-10-06). Installs four kinds of things: agent plugins (Claude Code, Codex),
-  MCP servers, skills, and Kulisa extensions (code that extends the IDE: a panel and its tools). Examples of
-  extensions:
-  - **Stripe:** a panel with the project's test-mode events and webhooks, test cards in one click; tools for the
-    agent to read events and trigger them ("the buyer pays, the seller sees the order").
-  - **Feature flags** (LaunchDarkly, Unleash, GrowthBook, PostHog): each profile's flags in a panel, switched per
-    profile; a tool for the agent to set them, to check a feature with the flag on and off, per role.
+- **A store of extensions** (the author's idea, 2026-10-06; on 2026-10-09 the author decided to design it next, with
+  voice commands as its first extension). Installs four kinds of things: agent plugins (Claude Code, Codex),
+  MCP servers, skills, and Kulisa extensions (code that extends the IDE: a panel and its tools).
+  - **Why** (the author): the project stays manageable to support. What not everyone needs (heavy dependencies, a
+    microphone always on, one service's panel) lives outside the core, installed by whoever wants it, and can be
+    turned off or removed. A feature built into the core first would have to be cut out of it later. The installer
+    stays small: an extension's native modules and models come with it.
+  - **The order** (decided 2026-10-09): first the store and the extension API are designed, on their own; then the
+    voice commands branch is rewritten as the first extension, which tests the API on real code. A second one
+    (Stripe, below) before the API is called stable: an API drawn from one example is usually wrong.
+  - **The first extension: voice commands**, a working prototype on the branch `worktree-voice-trigger` (worktree
+    `.claude/worktrees/voice-trigger`; tried by the author with their own voice, 2026-10-09: it works). With them
+    on, Kulisa listens for its name: "Эй, Кулиса" holds the agent's dictation key (the agent records and recognizes
+    the task itself), a pause lets go; "Кулиса, отправь" is Enter, "Кулиса, стоп" is Esc. The phrases are
+    recognized on the computer (sherpa-onnx's keyword spotter, a 30 MB model downloaded the first time, Silero VAD)
+    in a utility process alive only while they are on (about 100 MB). Why it fits an extension: a 32 MB native
+    module per platform, a downloaded model, an always-on microphone, and Russian only so far. In the core today it
+    touches: `app.js` (its IPC, a `voiceModel` option), `workspaces.js` (`press`), `voice.js`, `index.html` and
+    `window.css` (the ear in the terminal's header), `forge.config.js` (`asar.unpack` for the native module),
+    `package.json`, the tests' `run.js` (Chromium's fake microphone). Its own files: `listen.js`,
+    `listen-worker.js`, the renderer's `listen.js` and `listen-worklet.js`, `test/unit/listen.test.js`,
+    `test/fixtures/hey-kulisa.wav`. The branch's docs say how it works (`docs/window.md`, Voice commands) and what is
+    left (its ROADMAP, "Voice commands, rest").
+  - **Before it is installed** (the author's idea): the ear stays in the terminal's header; a click opens the store
+    at voice commands, with Install. So the core shows suggested extensions where they would be used.
+  - **The Kulisa plugin as a built-in extension**, on by default and not to be turned off (the author's idea,
+    2026-10-09; to decide when the store is designed). Claude's objection: the Kulisa plugin is the core's second
+    handle (the MCP tools call the same `Workspace` and `Profile` as the window), and the rules on it (the sign-in
+    pause, 127.0.0.1 only, `local-only.js`) are the core's; as an extension the API would have to expose nearly the
+    whole core, and a boundary that cannot be turned off separates little. Proposed instead: extensions may add
+    MCP tools and lines to the skill (Stripe needs it), and the Kulisa plugin stays in the core.
+  - **What the API should give, as voice commands need it** (Claude's list, for rewriting the branch):
+    - A manifest: id, name, version, description; its main-process entry and its window module; what it adds to
+      the window; what it uses (the microphone, the network, MCP tools), shown before Install; its platforms when it
+      has native code.
+    - Main process: `activate(kulisa)` and `deactivate()`, without a restart (turned off, its processes end and its
+      button goes). The windows and the workspace each shows, with an event when that changes. The core's actions
+      only, never a terminal's pty: `dictate(on)`, `press(key)`, `voice()` (the agent's dictation), as the window's
+      and the agent's handles call them (CLAUDE.md, "One core"). Its own data folder (`<data>/extensions/<id>/`),
+      removed with it ("Nothing piles up"). `utilityProcess.fork` of its own files, ended by Kulisa when it is
+      turned off. Its own IPC channels (`ext:<id>:…`) between its two halves. A download with a SHA-256 check, for
+      models. A log line prefix.
+    - Window: places to add to: the terminal's header (after dictation), ☰, a panel in the grid (Stripe); its icons
+      added to the sprite; the window's components (`.icon`, `openMenu`, `ask`) rather than its own; its module
+      loaded with `import()` when it is turned on. The microphone for the window only for an extension that asked
+      for it (today the window's session grants media to all of its own pages).
+    - MCP: tools added to every workspace's server and lines to the skill, behind `local-only.js` as the others.
+    - Native modules: N-API only (no rebuild per Electron version); the store downloads the platform's package
+      (sherpa-onnx-node's per-platform packages) and keeps it outside the asar.
+    - Tests: an extension's unit tests in plain Node, and e2e in the same harness (`run.js`), with switches it needs
+      (the fake microphone) and a cache of its downloads in the tests' folder.
+    - Development: an extension loaded from a folder (as `claude --plugin-dir`), restarted when its files change.
+  - Taken into the core apart from the extension (it is the core's): Esc in the agent's terminal clears its
+    working or waiting state (`Workspace.interrupted` on the branch), since Claude Code runs no hook when a turn
+    is interrupted; today the tab says working until the next prompt.
+  - Other extensions:
+    - **Stripe:** a panel with the project's test-mode events and webhooks, test cards in one click; tools for the
+      agent to read events and trigger them ("the buyer pays, the seller sees the order").
+    - **Feature flags** (LaunchDarkly, Unleash, GrowthBook, PostHog): each profile's flags in a panel, switched
+      per profile; a tool for the agent to set them, to check a feature with the flag on and off, per role.
 - **A translucent, blurred window background** (the author's idea, 2026-10-06; Windows 7's Aero glass): the
   desktop blurred behind the gaps between the islands, the title bar and the project's glow; the islands stay
   opaque. The blur is the OS's, not Kulisa's: Electron's `vibrancy` on macOS, `backgroundMaterial: 'acrylic'` (or
