@@ -382,6 +382,19 @@ here; what is left of it stays.
     (`chrome-launcher`) on its own folder per Kulisa profile and copies cookies and tabs over a short CDP
     connection. Copies only; `localStorage` tokens and Kasada-protected sessions may not carry over.
 
+- **Voice commands, rest** (first version 2026-10-09: [window.md](window.md), The terminal). Tried with synthetic
+  speech only (a female voice: every phrase; a male one, which the model also mishears in plain recognition: only
+  "Эй, Кулиса"); the author's own voice decides the thresholds (`keywordsThreshold`, the pause of 1.2 s). Left:
+  - Other languages: the phrases in the dictation language (English: sherpa-onnx's keyword-spotting model trained
+    on GigaSpeech, "Hey Kulisa"); a model per language, downloaded when chosen.
+  - Agents without dictation (Codex): "отправь" and "стоп" would work for them too, but the ear sits with the
+    microphone, shown only for an agent with dictation.
+  - "Кулиса, отмена" (clear the input): the key differs per agent (an entry in `agents.js`).
+  - False triggers from what plays nearby (a video, a call, the profiles' own pages' sound): measure over a day of
+    the author's work.
+  - The model stays in the data folder once downloaded (30 MB) until Kulisa's data goes; removing it when voice
+    commands are turned off would download it again each time.
+
 ## Open issues
 
 - **Pages get the microphone and camera without asking** (found 2026-10-08, talking about calls). Profiles' sessions
@@ -451,6 +464,10 @@ here; what is left of it stays.
     then records, packaged and from `npm start` (the Terminal app's permission may be the one asked then); signed
     with the hardened runtime it also needs the `com.apple.security.device.audio-input` entitlement. Windows: the
     microphone privacy setting for desktop apps.
+  - Voice commands (the ear: `listen.js`): Kulisa's window records then, the same permission as above. sherpa-onnx's
+    native package for the platform (`sherpa-onnx-darwin-*`, `-win-*`) loads in the utility process from outside the
+    asar (`asar.unpack` in `forge.config.js`): checked packaged on Linux only; on macOS signed with the hardened
+    runtime it may need `allowLoadingUnsignedLibraries` in `utilityProcess.fork` (its dylibs signed otherwise).
   - macOS: the window screenshot (`KULISA_SHOT`) needs the screen-recording permission; distribution needs code
     signing and notarization (Apple Developer account). Windows: code signing certificate.
   - The first start: a packaged app opens no project (the Welcome screen), later the projects open last

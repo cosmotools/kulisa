@@ -6,13 +6,16 @@ module.exports = {
   packagerConfig: {
     name: 'Kulisa',
     executableName: 'kulisa',
-    asar: true,
+    // sherpa-onnx's native package (voice commands, listen-worker.js) loads its libraries (onnxruntime) from beside its
+    // .node file: the whole package outside the archive, not only the .node (the plugin below).
+    asar: { unpack: '**/node_modules/sherpa-onnx-{darwin,linux,win}-*/**' },
     // The app icon, rendered from assets/icon.svg (npm run icons); Forge adds .icns on macOS, .ico on Windows.
     icon: 'assets/icon',
     // The Claude Code plugin is read by `claude` from disk, so it sits next to the asar: resources/claude-plugin.
     extraResource: ['src/agent/claude-plugin'],
     // macOS asks for the microphone on Kulisa's behalf when the agent in its terminal records (dictation).
-    extendInfo: { NSMicrophoneUsageDescription: 'The agent in Kulisa\'s terminal listens when you dictate a task to it.' },
+    // So does Kulisa itself, while voice commands are on (listen.js).
+    extendInfo: { NSMicrophoneUsageDescription: 'The agent in Kulisa\'s terminal listens when you dictate a task to it, and Kulisa listens for its name while voice commands are on.' },
     // Only what the app runs; Forge also leaves out devDependencies.
     ignore: [/^\/(test|docs|out|scripts)(\/|$)/, /^\/\.kulisa(\/|$)/, /^\/forge\.config\.js$/],
   },

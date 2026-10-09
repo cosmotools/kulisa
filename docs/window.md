@@ -167,6 +167,29 @@ understands, the system's first; it is the agent's own setting, so the agent ans
 The agent hears through its own program (Claude Code: its audio module, or `arecord`/SoX on Linux); on macOS the
 system asks for the microphone on Kulisa's behalf (`NSMicrophoneUsageDescription`, `forge.config.js`).
 
+**Voice commands**, next to the microphone (the ear; the author's idea, 2026-10-09: the agent works while the human
+takes a break, and talks to it without the keyboard): turned on, Kulisa listens for its name and a few phrases and does
+what the hands would. "Эй, Кулиса" holds the agent's dictation key, with a short tone; the agent records and
+recognizes the task as with the microphone, and the first pause (1.2 s) lets go, or 8 s with nothing said. "Кулиса,
+отправь" is Enter, "Кулиса, стоп" is Esc. Each phrase starts with the name, so a "кулиса" or "отправь" in other talk
+does nothing. A phrase heard while the agent records only ends the recording: its words are in the text by then, so
+the text is left to read rather than sent. A dictation started by the button is the human's: a pause does not end
+it. They act on the workspace shown in the window they were turned on in; off when it closes, and at every start
+(an always-on microphone is the human's choice each time).
+- Only the phrases are recognized by Kulisa, on the computer (`listen.js`): sherpa-onnx's keyword spotter (k2-fsa,
+  Apache-2.0, a native N-API module: no rebuild for Electron) on the small streaming Russian model of Vosk's makers,
+  and Silero VAD for the pauses. What the human dictates is the agent's own recognition. Russian only for now
+  (ROADMAP).
+- They run in a utility process of their own (`listen-worker.js`, `utilityProcess`), started when they are turned on
+  and ended when they are turned off, so their memory (about 100 MB, mostly the model; 2–3 % of a core while
+  listening) is there only then. The window's microphone (`listen.js` in the renderer: `getUserMedia`, an
+  AudioWorklet at 16 kHz) goes to it through the main process a tenth of a second at a time; nothing is kept.
+- The model (30 MB) is downloaded the first time they are turned on, from Hugging Face at fixed revisions, each file
+  checked by its SHA-256; the ear breathes meanwhile, its progress in its title. Why not Vosk's own Node package:
+  unmaintained since 2022 (ffi-napi). Why not sherpa-onnx's WebAssembly build: 286 MB against 147 MB for the native
+  one, measured on the same model. Why not one model per phrase (openWakeWord): a new phrase would need training;
+  here it is a line (`PHRASES`).
+
 Links in the terminal, those an agent marks (OSC 8, as Claude Code does) and addresses in plain text (xterm's web-links
 addon), open with Ctrl+click (⌘ on macOS), and always ask where, in a menu at the pointer: a new tab in one of the
 shown workspace's open profiles, or the user's browser. Asked every time, so a link never lands somewhere the human

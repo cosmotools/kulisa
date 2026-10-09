@@ -49,6 +49,9 @@ not listed for screenshots and focus differs from a desktop), so they never take
   comments say why it matters (the bug it once was).
 - **Leave what later files need, say so** ("left closed for the restart phase"), and clean up the rest (a
   profile made for one test is deleted at its end: folder numbers are counted by later tests).
+- **The microphone is Chromium's fake one** (`run.js`), playing `fixtures/hey-kulisa.wav` (synthetic speech) in a
+  loop, for voice commands; their model is downloaded once into `/tmp/kulisa-test/voice-model` and kept there for
+  the next runs, the one thing the tests keep.
 - **What it writes stays in its folder** (`root`, `userData`, `project` from `helpers.js`); nothing in the user's
   data or home. A unit test makes its own temporary folder and removes it (`after`).
 - **Budget**: a test that takes over 2 s says why in a comment (git's work, a wait by design). Each action of the

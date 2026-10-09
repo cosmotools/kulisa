@@ -176,7 +176,9 @@ command everywhere, without asking.
     waiting when it asks for a permission or a question (`Notification` matched to `permission_prompt`,
     `elicitation_*`) or a turn ends with an API error (`StopFailure`: a limit, a sign-in); `SessionEnd` (`/exit`,
     `/clear`). Not `idle_prompt`, sent a minute after an answer: the tab already says done. Esc ends a turn without
-    any hook, so the tab says working until the next prompt.
+    any hook, so Kulisa itself takes an Esc typed into the agent's terminal, or said ("Кулиса, стоп"), for the
+    interrupt: working or waiting become unknown (`Workspace.interrupted`; an Esc that only closed a menu does so
+    too, until the next hook).
   - Codex, its entry in `agents.js` as a config override (`-c hooks=…`; built from its documentation, not yet tried in
     a session: ROADMAP): `UserPromptSubmit`, `PermissionRequest` waiting, `Stop`, `Interrupt` (Esc), `SessionEnd`
     (also after 30 minutes idle), and `SessionStart`, which gives it the open profiles as Claude Code gets them and
@@ -225,6 +227,8 @@ asks where it is or what takes the disk; nothing in it is for editing by hand, s
 projects.json                     the projects: id, name, folder, color
 settings.json                     the Kulisa zoom, the theme, where the projects' bar is; the windows: each one's
                                   projects (in the bar's order), the one shown, where it was
+Voice Commands/<version>/         the model voice commands recognize their phrases with (30 MB), downloaded the first
+                                  time they are turned on; a new version replaces the old one (listen.js)
 deleted-folders.json              folders to remove at the next start (a session keeps its files open)
 projects/<project id>/
   workspaces.json                 { next, current, list: [{ n, name, branch, worktree, folder, base, offset }] }

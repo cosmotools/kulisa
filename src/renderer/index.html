@@ -41,6 +41,7 @@
     <symbol id="i-waiting" viewBox="0 0 24 24"><g stroke-width="2.25"><path d="M10.268 21a2 2 0 0 0 3.464 0M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/></g></symbol>
     <symbol id="i-done" viewBox="0 0 24 24"><g stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></g></symbol>
     <symbol id="i-mic" viewBox="0 0 24 24"><g stroke-width="2.25"><path d="M12 19v3M19 10v2a7 7 0 0 1-14 0v-2"/><rect x="9" y="2" width="6" height="13" rx="3"/></g></symbol>
+    <symbol id="i-ear" viewBox="0 0 24 24"><g stroke-width="2.25"><path d="M6 8.5a6.5 6.5 0 1 1 13 0c0 6-6 6-6 10a3.5 3.5 0 1 1-7 0M15 8.5a2.5 2.5 0 0 0-5 0v1a2 2 0 1 1 0 4"/></g></symbol>
     <symbol id="i-users" viewBox="0 0 24 24"><g stroke-width="2.25"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/><circle cx="9" cy="7" r="4"/></g></symbol>
     <symbol id="i-exit" viewBox="0 0 24 24"><g stroke-width="2.25"><path d="M16 17l5-5-5-5M21 12H9M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/></g></symbol>
     <!-- The Welcome screen's links, also in ☰ (Lucide's book-open, github, bug) -->
@@ -259,9 +260,9 @@
         <span>One at a time</span></button>
     </div>
   </template>
-  <!-- The terminal's header: its name; dictation's language and microphone when the agent has its own (voice.js) -->
+  <!-- The terminal's header: its name; dictation's language, microphone and voice commands when the agent has its own (voice.js) -->
   <template id="tpl-termtab">
-    <div class="ptab"><b>Terminal</b><button class="add icon quiet small" data-keys="terminal.new" title="New terminal: your shell in the workspace's folder" aria-label="New terminal"><svg aria-hidden="true"><use href="#i-plus"/></svg></button><span class="dictation" hidden><button class="icon lang" aria-haspopup="menu" aria-label="Dictation language"></button><button class="icon mic" aria-label="Speak to the agent"><svg aria-hidden="true"><use href="#i-mic"/></svg></button></span></div>
+    <div class="ptab"><b>Terminal</b><button class="add icon quiet small" data-keys="terminal.new" title="New terminal: your shell in the workspace's folder" aria-label="New terminal"><svg aria-hidden="true"><use href="#i-plus"/></svg></button><span class="dictation" hidden><button class="icon lang" aria-haspopup="menu" aria-label="Dictation language"></button><button class="icon mic" aria-label="Speak to the agent"><svg aria-hidden="true"><use href="#i-mic"/></svg></button><button class="icon listen" aria-label="Voice commands" aria-pressed="false"><svg aria-hidden="true"><use href="#i-ear"/></svg></button></span></div>
   </template>
   <!-- Another terminal's header (terminal.js): its name, × closing it -->
   <template id="tpl-othertermtab">

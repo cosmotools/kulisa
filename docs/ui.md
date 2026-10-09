@@ -54,6 +54,7 @@ lines (`stroke`) of the text's color; a filled part has `fill="currentColor"`. U
 | `i-globe` | a tab whose site has no icon |
 | `i-zoom`, `i-theme`, `i-arrange`, `i-agent`, `i-keyboard`, `i-exit` | ☰'s rows: Zoom, Theme, Arrange panels, Agents…, Keyboard Shortcuts, Exit |
 | `i-mic` | dictation's microphone in the terminal's header (Lucide's mic) |
+| `i-ear` | voice commands in the terminal's header (Lucide's ear) |
 | `i-users` | the profiles' chip on every workspace's tab (Lucide's users) |
 | `i-working`, `i-waiting`, `i-done` | an agent's state on a tab (`.state`) |
 

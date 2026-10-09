@@ -43,10 +43,16 @@ for (const f of FILES) require(`./${f}`)(test);
 // A run that hangs (a test past its timeout, quitting) ends anyway: nothing runs on unseen.
 setTimeout(() => { console.error('the whole run took over 5 minutes: stopped'); app.exit(2); }, 5 * 60000).unref();
 
+// The microphone, for voice commands (window.js): Chromium's fake one, playing "Эй, Кулиса" again and again. Their
+// model is downloaded once into the tests' folder and kept there for the next runs (30 MB).
+app.commandLine.appendSwitch('use-fake-device-for-media-stream');
+app.commandLine.appendSwitch('use-file-for-fake-audio-capture', path.join(__dirname, 'fixtures', 'hey-kulisa.wav'));
+const voiceModel = path.join(path.dirname(root), 'voice-model');
+
 const sitePromise = ensureSite();
 // The restart phase runs as a packaged build would as to DevTools: Kulisa's own are off (appDevTools).
 // After the restart no project is named: the one opened last opens.
-start({ userData, project: restart ? undefined : project, agent, agents, mcpPort: 0, signinHosts: ['localhost'], appDevTools: !restart })
+start({ userData, project: restart ? undefined : project, agent, agents, mcpPort: 0, signinHosts: ['localhost'], appDevTools: !restart, voiceModel })
   .then(async (shell) => {
     await sitePromise;
     const ctx = await setup(shell);

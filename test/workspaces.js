@@ -161,6 +161,19 @@ module.exports = (test) => {
     await post('prompt');
     await post('interrupt');
     await waitFor(async () => (await state()) === ' #i-done false');
+    // Esc in its terminal (the keyboard, or "Кулиса, стоп"): Claude Code stops the turn and runs no hook, so working
+    // was shown on and on (found trying voice commands, 2026-10-09). A done one stays done.
+    const esc = () => ui(`kulisa.send('pty:in', { ws: '${fork.key}', data: '\\x1b' })`);
+    for (const s of ['prompt', 'waiting']) {
+      await post(s);
+      await waitFor(async () => (await state()).startsWith(s === 'prompt' ? 'working' : 'waiting'));
+      await esc();
+      await waitFor(async () => (await state()) === ' #i-done false');
+    }
+    await post('stop');
+    await esc();
+    await sleep(300); // nothing to wait for: that it stays
+    assert.equal(await state(), 'done #i-done true');
     await post('prompt');
     await post('session-end');
     await waitFor(async () => (await state()) === ' #i-done false');

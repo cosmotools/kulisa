@@ -122,6 +122,8 @@ src/main/        Electron main process
   picker.js        point and tell: Playwright pickLocator → a reference (profile, tab, locator) typed into the agent's prompt
   ghost.js         the agent's actions: Playwright's annotations in the page, a caption over the pane
   terminal.js      node-pty: the agent CLI, one per workspace, and the workspace's other terminals
+  listen.js        voice commands: "Эй, Кулиса" and a few phrases, recognized on the computer in a utility process
+                   of their own (listen-worker.js, sherpa-onnx) while they are on
 src/agent/claude-plugin/  the Kulisa plugin for Claude Code: MCP config, the profiles skill, hooks (claude --plugin-dir)
 src/preload/     the window's bridge to the main process
 src/renderer/    window UI. renderer.js: the grid of panels (dockview), panes, ☰ and right-click menus; parts in their
@@ -130,7 +132,8 @@ src/renderer/    window UI. renderer.js: the grid of panels (dockview), panes, �
                  profile-editor.js; ES modules loaded when
                  needed: agent-picker.js (choosing and installing an agent), agents.js (the Agents
                  window), both with agent-list.js, ask.js (questions before deleting or
-                 closing), new-project.js (New Project…), shortcuts.js (Keyboard Shortcuts). Styles: tokens.css, components.css, window.css; the icons are a
+                 closing), new-project.js (New Project…), shortcuts.js (Keyboard Shortcuts), listen.js (voice
+                 commands' microphone, with listen-worklet.js). Styles: tokens.css, components.css, window.css; the icons are a
                  sprite in index.html (docs/ui.md)
 assets/          the app icon: icon.svg (source) and what each OS needs, rendered by scripts/icons.js
 test/            start.js (npm test: the groups in parallel), run.js (one app, its files in order), helpers.js,

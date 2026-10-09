@@ -58,6 +58,23 @@ module.exports = (test) => {
     await choose(ui, 'русский');
     await waitFor(async () => (await ui(`document.querySelector('.dictation .lang').textContent`)) === 'RU');
   });
+  test('voice commands: the ear turns them on (their model downloaded the first time); "Эй, Кулиса" holds the agent\'s dictation key, which is let go again; off, their process is gone', async ({ shell, ui, termText }) => {
+    // The microphone plays test/fixtures/hey-kulisa.wav in a loop (run.js): a second of silence, the name, four
+    // seconds of silence. The dictation it starts ends at the name heard again (the next loop) or after the wait:
+    // about 10 s, by design; the first run also downloads the model.
+    const keys = async () => ((await termText()).match(/<v>/g) || []).length;
+    const ear = `document.querySelector('.dictation .listen')`;
+    const n = await keys();
+    await ui(`${ear}.click()`);
+    await waitFor(() => ui(`${ear}.ariaPressed === 'true'`), 25000);
+    assert.ok(shell.listener.child, 'a process of their own while they are on');
+    await waitFor(async () => (await keys()) >= n + 5, 8000); // heard: the key held
+    await waitFor(() => !shell.ws.dictating, 12000);
+    assert.equal(await ui(`document.querySelector('.dictation .mic').ariaPressed`), 'false', 'the microphone button no longer lit');
+    await ui(`${ear}.click()`);
+    await waitFor(() => ui(`${ear}.ariaPressed === 'false'`));
+    assert.equal(shell.listener.child, null);
+  });
   test("terminals next to the agent's: + opens the human's shell in front; the agent runs what keeps running in its own, behind, reads it, stops it, closes it; × and a shell's exit close one", async ({ shell, ui, call, instructions }) => {
     const ws = shell.ws, group = (id) => ui(`window.__dock.getPanel(${JSON.stringify(id)})?.group.id === window.__dock.getPanel('terminal').group.id`);
     const active = (id) => ui(`window.__dock.getPanel(${JSON.stringify(id)})?.api.isActive === true`);

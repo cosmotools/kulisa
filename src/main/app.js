@@ -17,6 +17,7 @@ const agents = require('./agents');
 const { nameError } = require('./names');
 const { stopTerminal } = require('./terminal');
 const keys = require('./keys');
+const { Listener } = require('./listen');
 
 // Electron shows a blocking modal dialog on an uncaught main-process exception, which also stops the proxy and
 // the MCP server; log instead.
@@ -40,6 +41,7 @@ const CLAUDE_PLUGIN = app.isPackaged ? path.join(process.resourcesPath, 'claude-
 //   mcpPort    port of the MCP server (default 4450)
 //   mimicChrome  present profiles as Google Chrome (default true)
 //   signinHosts  extra sign-in hosts (sign-in pause, tab restore)
+//   voiceModel  the folder voice commands keep their model in (default: the data folder; the tests share one)
 function start(options = {}) {
   const userData = options.userData || path.join(app.getPath('appData'), 'Kulisa');
   app.setPath('userData', userData);
@@ -361,9 +363,16 @@ function start(options = {}) {
   }));
   ipcMain.handle('ws:new', (e, { name, agent }) => serial(() => createWorkspace(at(e)?.current, name, agent)));
   // The terminal's microphone and its language (voice.js in the renderer; Workspace.voice, dictate).
+  // Esc typed into an agent's terminal (its key is the workspace's): Workspace.interrupted.
+  ipcMain.on('pty:in', (e, { ws, data }) => { if (data === '\x1b') shell.workspace(ws)?.interrupted(); });
   ipcMain.handle('voice:get', (e, key) => shell.workspace(key)?.voice() ?? null);
   ipcMain.handle('voice:record', (e, { ws, on }) => shell.workspace(ws)?.dictate(on) ?? { recording: false });
   ipcMain.handle('voice:language', (e, { ws, code }) => shell.workspace(ws)?.setVoiceLanguage(code) ?? { error: `no workspace ${ws}` });
+  // Voice commands: on and off, and the window's microphone while they are on (listen.js; listen.js in the renderer).
+  const listener = shell.listener = new Listener(shell, options.voiceModel || userData);
+  ipcMain.handle('listen:set', (e, on) => (at(e) ? listener.set(at(e), on) : { on: false }));
+  ipcMain.handle('listen:get', () => listener.state());
+  ipcMain.on('listen:audio', (e, samples) => { const w = at(e); if (w) listener.audio(w, samples); });
   ipcMain.handle('ws:show-folder', (e, key) => { const ws = shell.workspace(key); return ws && electronShell.openPath(ws.folder); });
   ipcMain.handle('ws:close', (e, key) => serial(() => { const ws = shell.workspace(key); return ws ? closeWorkspace(ws) : { error: `no workspace ${key}` }; }));
   // The window asks again when the pointer comes to the shown project's workspaces: the human may have made the first commit meanwhile.
@@ -549,6 +558,7 @@ function start(options = {}) {
     for (const ws of allWorkspaces()) if (ws !== ws.project.window?.ws && ws.loaded) ws.list.saveTabs();
     shell.saveWindows();
     shell.stopAutosave?.();
+    listener.stop();
     for (const p of allProfiles()) {
       await shell.sessionCookies?.persist(p);
       await p.disconnect();

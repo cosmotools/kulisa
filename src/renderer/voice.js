@@ -65,6 +65,38 @@ const showDictation = (() => {
     }))], lang);
   };
 
+  // Voice commands (listen.js): the name instead of the microphone, and a few phrases instead of keys. The ear is lit
+  // while they listen; the first time, the model is downloaded (its progress in the title).
+  const ear = box.querySelector('.listen');
+  const HOW = '“Эй, Кулиса” starts dictation and a pause ends it, “Кулиса, отправь” sends, “Кулиса, стоп” stops the agent';
+  const mine = () => import('./listen.js');
+  let listening = false; // this window's microphone is on for them
+  const showEar = ({ on, busy }) => {
+    ear.ariaPressed = String(on);
+    ear.ariaBusy = String(!!busy);
+    ear.title = busy || (on ? `Voice commands are on: ${HOW}. Click to turn them off`
+      : `Voice commands: ${HOW}. Russian, recognized on this computer`);
+  };
+  kulisa.on('listen', async (s) => {
+    showEar(s);
+    if (s.heard && listening) (await mine()).cue();
+    if (!s.on && !s.busy && listening) { listening = false; (await mine()).hear(false); } // stopped in the main process
+  });
+  ear.onclick = async () => {
+    const on = ear.ariaPressed !== 'true';
+    if (!on) { listening = false; (await mine()).hear(false); return showEar(await kulisa.invoke('listen:set', false)); }
+    const s = await kulisa.invoke('listen:set', true);
+    let error = s.error;
+    if (s.on && !error) {
+      try { listening = true; await (await mine()).hear(true); } catch (e) {
+        listening = false; error = `No microphone: ${e.message}`;
+        showEar(await kulisa.invoke('listen:set', false));
+      }
+    }
+    if (error) (await import('./ask.js')).ask({ message: 'Voice commands did not start', detail: error });
+  };
+  kulisa.invoke('listen:get').then(showEar);
+
   return async (ws) => {
     if (shown !== ws && known.get(shown)?.recording) record(shown, false); // not left on in a workspace out of sight
     shown = ws;
