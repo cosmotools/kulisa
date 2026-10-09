@@ -13,6 +13,43 @@ here; what is left of it stays.
   scripts, `curl`, asking the human to do it) is a tool missing; from every user's computer through "Ideas for
   Kulisa" (below). Thought of, not built: console and requests since the agent's last action only; a button over the
   pane for the human to say they signed in, for sign-ins that keep the address.
+- **Screenshots the agent can use** (the author's idea, 2026-10-09; to discuss with the author before building).
+  `browser_screenshot` today takes the visible part of a tab, JPEG at the screen's pixel density (`mcp-server.js`).
+  Proposed, on the same tool, so every agent gets it through the MCP server (the skill and a line in `INSTRUCTIONS`
+  describe it):
+  - `ref` / `locator`: one element (`locator.screenshot`); `fullPage`: the whole page, scrolled;
+  - `also`: several profiles' active tabs in one call, as `browser_snapshot` has it ("what the buyer sees, what the
+    seller sees");
+  - `scale: 'css'` by default (playwright-core's `screenshot` option): at a device's pixel density the picture is
+    several times larger and costs the agent's context for nothing.
+  - Small, independent of the device views below. Estimate: code +30, tests +30, docs +10.
+- **Phone, tablet and desktop views of a site** (the author's idea, 2026-10-09; to discuss with the author before
+  building). Responsive layouts are checked today only by resizing the pane.
+  - A device view **per tab**, as Chrome DevTools' device mode, written once in the core (the tab), with both handles:
+    the agent's `browser_device` (`phone`, `tablet`, `desktop`, or a width and height) and `device` on
+    `browser_tab_new`, so the agent opens a tab of its own as a phone and leaves the human's tab as it was; the
+    human's in the pane's ⋮ menu (Device: Desktop, Tablet, Phone), with a mark in the address bar as a site's zoom
+    has (a click resets it). Every other tool then works in that view (snapshot, click, type): the agent tests the
+    mobile layout, not only looks at it. `browser_screenshot` with `devices: ['phone', 'tablet', 'desktop']` takes
+    one picture in each and puts the tab back as it was; the human sees it switch (the caption over the pane says
+    why). Not in a hidden tab: one more process, and without the page's state (a form half filled).
+  - The size: Electron's own `webContents.enableDeviceEmulation` (`screenPosition: 'mobile'`, `screenSize`,
+    `viewSize`, `deviceScaleFactor`, `scale` to fit a desktop's width into a narrow pane; `electron.d.ts`, 44.5.1):
+    not CDP, so it survives the sign-in pause, which detaches the debugger and with it every CDP override. To try
+    first in bare Electron: where it draws a page smaller than its `WebContentsView` (centered, in a corner, what
+    around it) and what `scale` does; else CDP's `Emulation.setDeviceMetricsOverride`, put back after the pause.
+  - The presets: playwright-core's `devices` (Pixel 7, Galaxy Tab S9, Desktop Chrome), not numbers of our own.
+    Android ones: Kulisa is Chromium, so its UA honestly says Chrome; an "iPhone" would be its size only, never
+    Safari (WebKit is not in Electron; a separate question).
+  - A mobile UA and touch (CDP `Emulation.setUserAgentOverride` with `mobile: true`,
+    `Emulation.setTouchEmulationEnabled`), else sites that choose by the UA on the server (`m.site`) send the desktop
+    one: a mobile variant of `mimic-chrome.js`'s identity, put back after the pause where the identity is
+    (`Profile.setSigninMode`). During the pause only the desktop identity: a strict sign-in (GoDaddy's Kasada) may
+    not take an Android UA from a Linux machine.
+  - Kept with the tab across restarts (a field in `Kulisa Tabs.json`). No RAM: no process, no buffers.
+  - Next to it, small: `browser_emulate_media` (dark or light, print, reduced motion; Playwright's
+    `page.emulateMedia`): the profiles' pages follow the OS's theme, so the agent cannot check the site's other one.
+  - Estimate: code +200 (the core ~80, the pane ~60, MCP ~60), tests +90, docs +40.
 - **Ideas for Kulisa: what agents could not do, sent to us** (designed with the author 2026-10-08; to build as one
   feature). Agents on users' computers meet what Kulisa cannot do (a tool missing, a tool that does not work); they
   note it, the human sends what they want, without leaving Kulisa. Nothing leaves the computer without the human's
