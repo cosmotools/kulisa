@@ -457,9 +457,8 @@ here; what is left of it stays.
     - Tests: an extension's unit tests in plain Node, and e2e in the same harness (`run.js`), with switches it needs
       (the fake microphone) and a cache of its downloads in the tests' folder.
     - Development: an extension loaded from a folder (as `claude --plugin-dir`), restarted when its files change.
-  - Taken into the core apart from the extension (it is the core's): Esc in the agent's terminal clears its
-    working or waiting state (`Workspace.interrupted` on the branch), since Claude Code runs no hook when a turn
-    is interrupted; today the tab says working until the next prompt.
+  - Esc clearing the agent's working state, found on the branch, is in main since 2026-10-09
+    (`Workspace.interrupted`): when rewriting, take main's.
   - Other extensions:
     - **Stripe:** a panel with the project's test-mode events and webhooks, test cards in one click; tools for the
       agent to read events and trigger them ("the buyer pays, the seller sees the order").

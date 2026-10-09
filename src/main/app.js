@@ -361,6 +361,8 @@ function start(options = {}) {
   }));
   ipcMain.handle('ws:new', (e, { name, agent }) => serial(() => createWorkspace(at(e)?.current, name, agent)));
   // The terminal's microphone and its language (voice.js in the renderer; Workspace.voice, dictate).
+  // Esc typed into an agent's terminal (its key is the workspace's): Workspace.interrupted.
+  ipcMain.on('pty:in', (e, { ws, data }) => { if (data === '\x1b') shell.workspace(ws)?.interrupted(); });
   ipcMain.handle('voice:get', (e, key) => shell.workspace(key)?.voice() ?? null);
   ipcMain.handle('voice:record', (e, { ws, on }) => shell.workspace(ws)?.dictate(on) ?? { recording: false });
   ipcMain.handle('voice:language', (e, { ws, code }) => shell.workspace(ws)?.setVoiceLanguage(code) ?? { error: `no workspace ${ws}` });

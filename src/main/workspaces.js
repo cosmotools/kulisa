@@ -241,6 +241,9 @@ class Workspace {
   // The agent's session, as its hooks report it (agent-hooks.js).
   saveAgent(s) { if (this.loaded) this.store.saveAgent({ ...this.store.agent(), ...s }); }
   setState(state) { this.state = state; this.seen = false; this.shell.wsChanged(this, false, true); }
+  // Esc in the agent's terminal: a turn stopped so reports nothing (Claude Code runs no Stop hook then), so working or
+  // waiting is no longer known; the human is there. An Esc that only closed a menu clears it too, until the next hook.
+  interrupted() { if (this.state === 'working' || this.state === 'waiting') this.setState(null); }
   // The human sees it (shown, its window in focus); true when that changes what its tab shows.
   see() { const was = this.tabState; this.seen = true; return this.tabState !== was; }
   // What its tab shows: the agent's state, but nothing for a done one the human has seen.
