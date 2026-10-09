@@ -236,7 +236,7 @@ module.exports = (test) => {
     assert.match((await ui(`act('profile:avatar', { profile: 'elon-buyer', avatar: 'dragon' })`)).error, /no picture/);
     await ui(`document.getElementById('closeProfiles').click()`);
   });
-  // Each action of the agent waits while it is shown in the page (1.2 s, ghost.js): the agent's tests take seconds.
+  // Each action of the agent waits while it is shown in the page (0.5 s, ghost.js): the agent's tests take seconds.
   test('agent: navigate, snapshot, type by ref, click by locator, screenshot', async ({ call }) => {
     await call('browser_navigate', { profile: 'sam-seller', url: `${SITE}/app` });
     const snap = await call('browser_snapshot', { profile: 'sam-seller' });
@@ -248,6 +248,24 @@ module.exports = (test) => {
     assert.equal(shot.content[0].type, 'image');
   });
 
+  test('agent: typing goes key by key, as a person types, replacing what the field held; a long text at once', async ({ call }) => {
+    const p = { profile: 'sam-seller', locator: "getByLabel('Name')" };
+    await call('browser_navigate', { profile: 'sam-seller', url: `${SITE}/app` });
+    // Each change of the field: one for each key typed, one for a fill (clearing it first is one too).
+    const typed = async (text) => {
+      await call('browser_evaluate', { ...p, function: "(el) => { el.value = 'old'; window.keys = 0; el.oninput = () => window.keys++; }" });
+      const t0 = Date.now();
+      await call('browser_type', { ...p, text });
+      return { ...JSON.parse((await call('browser_evaluate', { ...p, function: '(el) => ({ value: el.value, keys: window.keys })' })).text), ms: Date.now() - t0 };
+    };
+    const word = await typed('Анна');
+    assert.deepEqual([word.value, word.keys], ['Анна', 1 + 4], 'an input for each letter, any language (not on a US keyboard: as typed text, without key codes)');
+    const long = await typed('x'.repeat(400));
+    assert.deepEqual([long.value.length, long.keys], [400, 1], 'filled at once');
+    const most = await typed('y'.repeat(300));
+    assert.equal(most.keys, 1 + 300);
+    assert.ok(most.ms < 5000, `300 keys in ${most.ms} ms`);
+  });
   test('agent: keys, hover, select, files, waiting, evaluate, back and forward; dialogs answered as asked, the human\'s left in the pane', async ({ shell, ui, call }) => {
     const p = { profile: 'sam-seller' };
     const out = async () => JSON.parse((await call('browser_evaluate', { ...p, function: '() => out.textContent' })).text);

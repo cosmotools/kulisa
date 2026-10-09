@@ -14,7 +14,7 @@ human sees everything you do there: your cursor and a caption are drawn in the p
 |---|---|
 | `browser_profiles` | List profiles: id, name, `description` (who it is in the app; `null`: not said), `avatar` (its picture: the human may call a pane "the fox"), `signinMode`, tabs; closed ones as `closed: true` with their number of tabs. Call it first; the human may add profiles at any time. |
 | `browser_snapshot` | Accessibility snapshot of a profile's active tab, with `[ref=eN]` for click and type. `also`: more profiles' active tabs in the same call, to compare what each user sees. |
-| `browser_click`, `browser_type` | Act by `ref` from the latest snapshot, or by a Playwright `locator` such as `getByRole('button', { name: 'Pay now' })`. |
+| `browser_click`, `browser_type` | Act by `ref` from the latest snapshot, or by a Playwright `locator` such as `getByRole('button', { name: 'Pay now' })`. `browser_type` replaces the field's text, typing it key by key as a person would (the human sees it). |
 | `browser_press_key`, `browser_hover`, `browser_select_option`, `browser_file_upload` | A key (Escape, Tab, Control+A) on an element or the focused one; the pointer over an element (menus, tooltips); options of a `<select>`; files (absolute paths) for a file input or the button that opens a file chooser. |
 | `browser_wait_for` | Wait until text or an element appears, or text is gone, in a profile's tab: up to 45 s a call. |
 | `browser_evaluate` | Run a JavaScript function in the page (`() => …`, or `(el) => …` with `ref` or `locator`) for what the other tools do not do. |

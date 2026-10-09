@@ -506,5 +506,9 @@ here; what is left of it stays.
   slower screen showed (a click while the window still showed another project) are waited for. Watch whether any
   come back. Not looked at: the address bar's click (seen 2026-10-07). Slow but not flaky: closing a fork (11 s,
   git's work), a site that never answers (10 s: two 5 s waits by design).
+- **The test "after a restart: a workspace's other terminal comes back …" takes 5.6 s** (`restart-workspaces.js`;
+  found 2026-10-09, to come back to). Most of it is showing the project `other` until its workspace has loaded and
+  the terminal's shell runs; it looks like another 5 s wait (as a tab's `ready` held a profile on a refused site:
+  `profiles.js`). To find: time the steps of loading `other` after a restart (its profiles' tabs, its terminals).
 - **No performance numbers taken with the monitor on.** CPU, RAM, many profiles; see REPORT, E8.
 - **`playwright-core` is pinned to a 1.64 alpha.** Move to the stable release once it ships with the same APIs.

@@ -30,6 +30,8 @@ const signinAsks = new Map();
 const pageKey = (u) => { try { const x = new URL(u); return x.origin + x.pathname; } catch { return u; } };
 
 // For every agent, those without the Kulisa plugin's skill too (Codex): what it must know before the first call.
+// browser_type: a text longer than this is filled at once, not typed key by key.
+const TYPED_MAX = 300;
 const INSTRUCTIONS = 'Kulisa profiles are the users of the app under test, each a browser profile the human signed in to by hand. ' +
   'Choose a profile by its description (browser_profiles), not by guessing from its name: when no description tells ' +
   'which profile a task means, or several do, ask the human once and save their answer with profile_describe. ' +
@@ -310,12 +312,16 @@ function buildServer(ws) {
     return text(`Clicked ${locator || ref} as ${profile}. Now at ${page.url()}.${said}`);
   });
 
-  server.registerTool('browser_type', { description: 'Fill text into an element by ref or locator; submit presses Enter.',
+  server.registerTool('browser_type', { description: 'Type text into an element by ref or locator, replacing what it holds, key by key as a person types (a long text at once); submit presses Enter.',
     inputSchema: { profile: profileArg, tab: onTab, ...element, text: z.string(), submit: z.boolean().optional(), dialog: dialogArg } },
   async ({ profile, tab, ref, locator, text: value, submit, dialog }) => {
     const page = await pageOf(profile, tab);
     const loc = await target(page, { ref, locator });
-    await loc.fill(value, { timeout: 5000 });
+    // Key by key, so the human sees it typed and the page gets the keys a person's typing sends (suggestions,
+    // checks as one types): 40 ms a key, faster for a longer text, about 1.5 s at most; a long one (a pasted
+    // paragraph) filled at once.
+    await loc.fill(value.length > TYPED_MAX ? value : '', { timeout: 5000 });
+    if (value && value.length <= TYPED_MAX) await loc.pressSequentially(value, { delay: Math.min(40, 1500 / value.length), timeout: 15000 });
     const said = submit ? await answering(tabOf(profile, tab).tab, dialog, () => loc.press('Enter')) : '';
     return text(`Typed into ${locator || ref} as ${profile}.${said}`);
   });

@@ -18,8 +18,10 @@ function installGhost(shell) {
   // On every connection of the shell (a new one after sign-in mode), for every page in it.
   const annotate = (profile) => {
     const ctx = profile.context; if (!ctx) return;
-    // cursor 'none': Playwright's pointer stays at the last action point; the rest fades out after `duration`.
-    const on = (page) => page.screencast.showActions({ duration: 1200, position: 'bottom', cursor: 'none', style: {
+    // The agent's own pointer, moving from one action to the next, so the human sees where it acts (it stays at the
+    // last action point); the rest fades out after `duration`. Each action waits that long (measured 2026-10-09), so
+    // it is Playwright's default, 500 ms: 1200 cost every click 1.2 s.
+    const on = (page) => page.screencast.showActions({ duration: 500, position: 'bottom', cursor: 'pointer', style: {
       point: `width: 22px; height: 22px; border-radius: 50%; border: 3px solid ${MARK}; box-shadow: 0 0 0 3px #fff8`,
       highlight: `outline: 2px solid ${MARK}`,
       title: 'font-size: 13px',

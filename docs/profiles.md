@@ -109,6 +109,12 @@ profile's CDP proxy (below).
 `locator.highlight()`, following the element; it works on Trusted Types pages too) and shows its labels in the pane
 header, until the human clicks or types in that tab.
 
+**The agent types as a person does**: `browser_type` clears the field and types its text key by key (Playwright's
+`pressSequentially`), 40 ms a key, faster for a longer text (about 1.5 s at most), so the human sees it typed and the
+page gets the keys typing sends (suggestions, checks as one types). A text over 300 characters (a pasted paragraph)
+is filled at once (`TYPED_MAX`, `mcp-server.js`). Letters not on a US keyboard come as typed text, without key codes
+(Playwright's way).
+
 The agent learns how to work with profiles from the Kulisa plugin (CLAUDE.md, Architecture). For Claude Code it is
 `src/agent/claude-plugin/`, started with `claude --plugin-dir`: the MCP config, the profiles skill
 (`skills/profiles/SKILL.md`; keep it in step with the tools) and hooks, among them `SessionStart`, which tells the
@@ -116,8 +122,11 @@ agent which profiles are open and tells Kulisa its session (to resume it). The u
 (no `--strict-mcp-config`). Codex gets the MCP server and the hooks as config overrides (its `SessionStart` brings the open profiles), not the
 skill yet (ROADMAP).
 
-The human sees what the agent does (`ghost.js`): Playwright's action annotations in the page (a mark at the action
-point, the element outlined) and a caption over the pane for every command through the proxy. The marks and
+The human sees what the agent does (`ghost.js`): Playwright's action annotations in the page, each shown 500 ms,
+which every action waits for (1.2 s until 2026-10-09 cost an agent a minute every 50 clicks): a mark at the action
+point, the element outlined, and the agent's own pointer, moving from one action to the next and staying at the last
+(Playwright's `cursor: 'pointer'`; not the OS's: the human's mouse stays theirs; no test of its pixels, Playwright
+draws it); and a caption over the pane for every command through the proxy. The marks and
 `browser_highlight`'s outlines are in Kulisa's accent in every profile (`MARK`): the pane says whose page it is.
 
 **Point and tell** (`picker.js`): Pick, then a click on an element (Playwright's `page.pickLocator()`; Esc or Pick
