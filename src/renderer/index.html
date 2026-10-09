@@ -66,6 +66,8 @@
       </g>
       <path d="M446 390 L446 740 L529 659 L584 777 L641 751 L586 635 L700 629 Z" fill="#ffd27a" stroke="#17181b" stroke-width="26" stroke-linejoin="round"/>
     </symbol>
+    <!-- Keyboard Shortcuts in ☰: Lucide's keyboard -->
+    <symbol id="i-keyboard" viewBox="0 0 24 24"><g stroke-width="2.25"><path d="M10 8h.01M12 12h.01M14 8h.01M16 12h.01M18 8h.01M6 8h.01M7 16h10M8 12h.01"/><rect width="20" height="16" x="2" y="4" rx="2"/></g></symbol>
     <!-- The projects' menu: Lucide's folder-open -->
     <symbol id="i-projects" viewBox="0 0 24 24"><g stroke-width="2.25"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></g></symbol>
   </svg>
@@ -83,7 +85,7 @@
     <nav id="workspaces" aria-label="Workspaces of the project">
       <div id="wslist"></div>
       <button id="openProfiles" class="chip" aria-haspopup="menu"><svg aria-hidden="true"><use href="#i-users"/></svg><span class="count"></span></button>
-      <button id="wsadd" class="icon" title="New workspace: a fork of main with its own branch, folder, agent and copies of the profiles" aria-label="New workspace"><svg aria-hidden="true"><use href="#i-plus"/></svg></button>
+      <button id="wsadd" class="icon" data-keys="workspace.new" title="New workspace: a fork of main with its own branch, folder, agent and copies of the profiles" aria-label="New workspace"><svg aria-hidden="true"><use href="#i-plus"/></svg></button>
     </nav>
     <button id="openProjects" class="icon" title="Projects: open another, New Project…, Open Folder…" aria-label="Projects"><svg aria-hidden="true"><use href="#i-projects"/></svg></button>
   </footer>
@@ -170,6 +172,14 @@
     </div>
     <footer><button class="primary" type="button" command="close" commandfor="agents">Close</button></footer>
   </dialog>
+  <!-- Keyboard Shortcuts (shortcuts.js, loaded when needed; ☰ and its key): every key of Kulisa, as this OS shows it -->
+  <dialog id="shortcuts" closedby="any">
+    <header><h2>Keyboard Shortcuts</h2><button class="x icon quiet" type="button" command="close" commandfor="shortcuts" title="Close"
+      aria-label="Close"><svg aria-hidden="true"><use href="#i-close"/></svg></button></header>
+    <div class="body"></div>
+    <footer><button class="primary" type="button" command="close" commandfor="shortcuts">Close</button></footer>
+  </dialog>
+  <template id="tpl-keygroup"><section class="keygroup"><h3></h3><p class="hint"></p><dl></dl></section></template>
   <!-- A question before something that cannot be undone (deleting a workspace, a project, a profile): ask.js -->
   <dialog id="ask" closedby="any">
     <header><h2></h2><button class="x icon quiet" type="button" command="close" commandfor="ask" title="Close" aria-label="Close"><svg aria-hidden="true"><use href="#i-close"/></svg></button></header>
@@ -185,14 +195,14 @@
   <template id="tpl-pane">
     <div class="pane">
       <!-- The tabs scroll in .strip; + is next to it, never over a tab, as in Chrome -->
-      <nav class="tabs"><div class="strip"></div><button class="add icon" title="New tab" aria-label="New tab"><svg aria-hidden="true"><use href="#i-plus"/></svg></button></nav>
+      <nav class="tabs"><div class="strip"></div><button class="add icon" data-keys="tab.new" title="New tab" aria-label="New tab"><svg aria-hidden="true"><use href="#i-plus"/></svg></button></nav>
       <div class="bar">
-        <button class="back icon" title="Back" aria-label="Back"><svg aria-hidden="true"><use href="#i-back"/></svg></button>
-        <button class="fwd icon" title="Forward" aria-label="Forward"><svg aria-hidden="true"><use href="#i-forward"/></svg></button>
-        <button class="reload icon" title="Reload" aria-label="Reload"><svg aria-hidden="true"><use href="#i-reload"/></svg></button>
+        <button class="back icon" data-keys="tab.back" title="Back" aria-label="Back"><svg aria-hidden="true"><use href="#i-back"/></svg></button>
+        <button class="fwd icon" data-keys="tab.forward" title="Forward" aria-label="Forward"><svg aria-hidden="true"><use href="#i-forward"/></svg></button>
+        <button class="reload icon" data-keys="tab.reload" title="Reload" aria-label="Reload"><svg aria-hidden="true"><use href="#i-reload"/></svg></button>
         <input class="addr" spellcheck="false">
         <button class="zoom tool" hidden title="This site's zoom in this profile (Ctrl + / − / 0 in the page). Click to reset."></button>
-        <button class="pick icon" title="Pick an element on the page to mention it to the agent (again or Esc: cancel)" aria-label="Pick an element"><svg aria-hidden="true"><use href="#i-pick"/></svg></button>
+        <button class="pick icon" data-keys="pick" title="Pick an element on the page to mention it to the agent (again or Esc: cancel)" aria-label="Pick an element"><svg aria-hidden="true"><use href="#i-pick"/></svg></button>
         <button class="more icon" data-menu-end title="More: DevTools" aria-label="More"><svg aria-hidden="true"><use href="#i-more"/></svg></button>
       </div>
       <!-- The active tab's alert or confirm (profiles.js) over a picture of its page, as Chrome shows them -->
@@ -251,7 +261,7 @@
   </template>
   <!-- The terminal's header: its name; dictation's language and microphone when the agent has its own (voice.js) -->
   <template id="tpl-termtab">
-    <div class="ptab"><b>Terminal</b><button class="add icon quiet small" title="New terminal: your shell in the workspace's folder" aria-label="New terminal"><svg aria-hidden="true"><use href="#i-plus"/></svg></button><span class="dictation" hidden><button class="icon lang" aria-haspopup="menu" aria-label="Dictation language"></button><button class="icon mic" aria-label="Speak to the agent"><svg aria-hidden="true"><use href="#i-mic"/></svg></button></span></div>
+    <div class="ptab"><b>Terminal</b><button class="add icon quiet small" data-keys="terminal.new" title="New terminal: your shell in the workspace's folder" aria-label="New terminal"><svg aria-hidden="true"><use href="#i-plus"/></svg></button><span class="dictation" hidden><button class="icon lang" aria-haspopup="menu" aria-label="Dictation language"></button><button class="icon mic" aria-label="Speak to the agent"><svg aria-hidden="true"><use href="#i-mic"/></svg></button></span></div>
   </template>
   <!-- Another terminal's header (terminal.js): its name, × closing it -->
   <template id="tpl-othertermtab">
@@ -299,5 +309,6 @@
   <script src="projects.js"></script> <!-- uses workspaces.tab -->
   <script src="profile-editor.js"></script>
   <script src="renderer.js"></script>
+  <script src="keys.js"></script>
 </body>
 </html>

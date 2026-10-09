@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 const { assert, root, userData, project, pfile, savedTabs, panel, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, menuOpen, rightClick,
-  box, pageBox, viewOn, dock, ctrl, near, projectTabs, projectTab, showProject, savedWindows } = require('./helpers');
+  box, pageBox, viewOn, dock, press, ctrl, near, projectTabs, projectTab, showProject, savedWindows } = require('./helpers');
 const { withOffset } = require('../src/main/workspaces');
 const hasDirenv = (() => { try { execFileSync('direnv', ['version']); return true; } catch { return false; } })();
 
@@ -199,6 +199,21 @@ module.exports = (test) => {
     await waitFor(live);
     assert.deepEqual(await swap(1), { types: ['workspace', 'previous'], animations: 0 });
     await waitFor(live);
+  });
+  test('workspaces: Ctrl+Shift+2 shows the second, Ctrl+Shift+PgUp and PgDn the one before and after, from the terminal too', async ({ shell, ui }) => {
+    const win = shell.win.webContents;
+    const shown = async (n) => { await waitFor(async () => shell.ws.n === n && !shell.windows[0].switching && (await ui(`!document.documentElement.classList.contains('loading')`))); };
+    win.focus();
+    await ui(`window.__term.focus()`);
+    await waitFor(() => shell.windows[0].keyZone === 'terminal');
+    press(win, '2', 'control', 'shift');
+    await shown(2);
+    press(win, 'PageUp', 'control', 'shift');
+    await shown(1);
+    press(win, 'PageDown', 'control', 'shift');
+    await shown(2);
+    await ui(`${wsTab(1)}.click()`);
+    await shown(1);
   });
   test('workspaces: closing a fork asks first, saying what goes and any work not in main; it is deleted with its branch, folder and profiles', async (ctx) => {
     const { shell, ui } = ctx;

@@ -78,12 +78,11 @@ const viewOn = async (shell, ui, id) => {
 };
 const dock = (ui, js) => ui(`(() => { const api = window.__dock; ${js} })()`);
 
-// Ctrl + a key in a webContents (zoom keys).
-const ctrl = (wc, keyCode) => {
-  wc.focus();
-  for (const type of ['keyDown', 'keyUp']) wc.sendInputEvent({ type, keyCode, modifiers: ['control'] });
-};
+// A key with modifiers ('control', 'shift', 'alt') into a webContents, as the keyboard sends it there; Ctrl + a key
+// with the keyboard put there first (zoom keys).
+const press = (wc, keyCode, ...modifiers) => { for (const type of ['keyDown', 'keyUp']) wc.sendInputEvent({ type, keyCode, modifiers }); };
+const ctrl = (wc, keyCode) => { wc.focus(); press(wc, keyCode, 'control'); };
 const near = (a, b) => Math.abs(a - b) < 1e-6;
 
 module.exports = { assert, root, userData, project, pfile, savedTabs, savedWindows, panel, SITE, sleep, waitFor, who, menuRows, choose, projectTabs, projectTab, showProject, closeProject, manageProfiles, menuOpen, rightClick,
-  box, pageBox, viewOn, dock, ctrl, near };
+  box, pageBox, viewOn, dock, press, ctrl, near };

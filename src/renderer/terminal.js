@@ -175,7 +175,7 @@ kulisa.on('terminal:reset', ({ ws }) => terminals.get(ws)?.term.reset()); // ano
 // sets its own): Ctrl+Shift+C / V everywhere (GNOME Terminal, Konsole); on Windows also Ctrl+V, and Ctrl+C copies a
 // selection, else interrupts (Windows Terminal). On macOS ⌘C / ⌘V are the app menu's Copy and Paste, which xterm takes
 // as the page's copy and paste events. Otherwise Ctrl+C and Ctrl+V go to the agent (Claude Code pastes an image).
-const clipboardKeys = { darwin: ['⌘C', '⌘V'], win32: ['Ctrl+C', 'Ctrl+V'] }[kulisa.platform] || ['Ctrl+Shift+C', 'Ctrl+Shift+V'];
+// The keys as shown (menus, Keyboard Shortcuts) are main/keys.js's.
 // The key by its place (code) or, when an input method leaves that out (ibus with a Cyrillic layout), by keyCode, which
 // Chromium gives as on a Latin layout.
 const isKey = (e, letter) => e.code === `Key${letter}` || e.keyCode === letter.charCodeAt(0);
@@ -196,8 +196,8 @@ function terminalMenu(el) {
   const t = key ? terminals.get(key)?.term : term;
   if (!t) return null;
   return [
-    { label: 'Copy', keys: clipboardKeys[0], enabled: t.hasSelection(), run: () => termCopy(t) },
-    { label: 'Paste', keys: clipboardKeys[1], run: () => termPaste(t) },
+    { label: 'Copy', keys: keyText('terminal.copy'), enabled: t.hasSelection(), run: () => termCopy(t) },
+    { label: 'Paste', keys: keyText('terminal.paste'), run: () => termPaste(t) },
     { label: 'Select all', run: () => t.selectAll() },
     '-',
     { label: 'Clear', run: () => t.clear() },

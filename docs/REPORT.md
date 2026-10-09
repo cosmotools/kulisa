@@ -178,3 +178,24 @@ GoDaddy). Now a tab on a sign-in page is saved as where the sign-in started (`sr
 3. else the tab is not restored.
 
 All three cases are covered by `npm test`.
+
+## Keyboard shortcuts: Electron's application menu or before-input-event (2026-10-09)
+
+Before building Kulisa's keys ([window.md](window.md), Keys), Electron's own way of keys was tried: an application
+menu with accelerators (`tutorial/keyboard-shortcuts.md` of Electron 44.5.1). Bare Electron 44.5.1 on Xvfb with
+openbox, a window as Kulisa's (`titleBarStyle: 'hidden'`, `titleBarOverlay`) with a `WebContentsView` in it, real keys
+from xdotool.
+
+- The menu's keys work hidden (`setMenuBarVisibility(false)`), with the keyboard in the window's page or in the view;
+  not after `removeMenu()` or `setApplicationMenu(null)`. Alt does not show the hidden menu bar.
+- Layouts: on a Russian one, Ctrl+Е is Ctrl+T, Ctrl+Shift+З Ctrl+Shift+P, Ctrl+Ё Ctrl+\`.
+- `setIgnoreMenuShortcuts` per key, in `before-input-event`, works: a "terminal" kept Ctrl+T, the menu got
+  Ctrl+Shift+P.
+- `sendInputEvent` reaches the menu, as the human's keys do.
+- **But on Linux the page gets a key first, and the menu only what the page did not handle**: a page without a
+  handler got Ctrl+T and the menu acted too (two things for one key); a page calling `preventDefault` on it (xterm does
+  for every key it sends to the agent, as do many web apps) kept it from the menu altogether.
+- `preventDefault` in `before-input-event` keeps a key from both the page and the menu.
+
+So Kulisa takes its keys in `before-input-event`, before any page, on every OS, with its own table; the application
+menu stays for macOS's menu bar. The scripts were removed after; what they showed is above.

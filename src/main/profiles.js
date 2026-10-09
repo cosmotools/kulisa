@@ -19,11 +19,6 @@ function stepZoom(z, dir) {
   const next = dir > 0 ? ZOOM_STEPS.find((s) => s > z + 1e-6) : ZOOM_STEPS.findLast((s) => s < z - 1e-6);
   return next ?? z;
 }
-// Ctrl + / - / 0 (Cmd on macOS) in a keyDown input event: 1, -1 or 0; undefined for any other input.
-function zoomKey(i) {
-  if (i.type !== 'keyDown' || !(i.control || i.meta) || i.alt) return undefined;
-  return { '=': 1, '+': 1, '-': -1, '0': 0 }[i.key];
-}
 // What the human types in the address bar, or the agent passes, as a URL: one with a scheme as it is; a host (with a
 // path) over https, localhost over http; anything else is searched for. "localhost:3000" is a host and a port, not a
 // scheme.
@@ -34,6 +29,7 @@ function toUrl(u) {
   if (/^[\w.-]+(:\d+)?(\/|$)/.test(u)) return 'https://' + u;
   return 'https://www.google.com/search?q=' + encodeURIComponent(u);
 }
+const CLOSED_KEPT = 10; // closed tabs' addresses kept to open again
 let dialogs = 0; // pages' dialogs, numbered: the human's answer goes to the one they saw
 const PAGE_RADIUS = 8; // a little less than the island's corners, which the page reaches (renderer window.css, .content)
 
@@ -53,7 +49,7 @@ class Profile extends EventEmitter {
     this.siteZoom = { ...(cfg.zoom || {}) };
     this.session = session.fromPath(this.dir);
     this.mimic = mimic ? mimicChrome.applyToSession(this.session, mimic) : null;
-    this.tabs = []; this.active = null; this.bounds = { x: 0, y: 0, width: 0, height: 0 };
+    this.tabs = []; this.active = null; this.closedUrls = []; this.bounds = { x: 0, y: 0, width: 0, height: 0 };
     this.browser = null; this.context = null; this.endpoint = null; this.signinMode = false;
     this.hidden = false; // views hidden while a window-wide dialog is open or a pane is dragged (they draw above the HTML)
     this.shown = true; // false while the pane is not on screen in the grid (stacked behind another pane)
@@ -139,7 +135,6 @@ class Profile extends EventEmitter {
       this.emit('changed');
     };
     for (const e of ['did-start-loading', 'did-stop-loading', 'page-title-updated', 'did-navigate', 'did-navigate-in-page']) wc.on(e, update);
-    // F12 or Ctrl+Shift+I: the tab's DevTools, in their own window (a WebContentsView cannot dock them).
     wc.on('did-navigate', () => this._applyZoom(tab));
     wc.on('did-fail-load', (_e, code, desc, url, mainFrame) => { if (mainFrame && code !== -3) showError(wc, desc, url); }); // -3: replaced by another navigation
     // A page never moves the window, as in Chrome. Kulisa's window has no system title bar, and Electron takes
@@ -147,14 +142,6 @@ class Profile extends EventEmitter {
     // click and wheel over the panes (docs/window.md). Each document gets no-drag everywhere, which also replaces a
     // region left behind. A workaround of electron/electron#54743: remove when fixed (ROADMAP, "Workarounds of Electron bugs").
     wc.on('did-navigate', () => wc.insertCSS('html, html * { app-region: no-drag !important; }', { cssOrigin: 'user' }).catch(() => {}));
-    wc.on('before-input-event', (e, i) => {
-      if (i.type === 'keyDown' && (i.key === 'F12' || ((i.control || i.meta) && i.shift && i.key.toLowerCase() === 'i'))) {
-        e.preventDefault(); this.toggleDevTools(tab.id);
-      }
-      // Ctrl + / - / 0 (Cmd on macOS): zoom this site, as in Chrome.
-      const dir = zoomKey(i);
-      if (dir !== undefined) { e.preventDefault(); this.zoomSite(tab.id, dir); }
-    });
     // alert and confirm in the tab's pane, as Chrome shows them in the page, not Electron's message box in the middle of
     // the window, which did not say which page asked (Electron shows no prompt(): it throws in the page). Electron's
     // handler is a listener of its internal event (lib/browser/api/web-contents.ts, Electron 44), replaced here: check
@@ -228,7 +215,17 @@ class Profile extends EventEmitter {
     if (!tab.wc.isDestroyed()) { this._show(); this.emit('changed'); }
   }
 
-  closeTab(id) { const t = this.get(id); if (t) { t.closing = true; t.wc.close(); } }
+  // The addresses of the tabs closed (the human's or the agent's), the last at the end, for reopenTab: in memory, as
+  // Chrome keeps them.
+  closeTab(id) {
+    const t = this.get(id);
+    if (!t) return;
+    const url = t.wc.getURL();
+    if (url && url !== 'about:blank') { this.closedUrls.push(url); this.closedUrls.splice(0, this.closedUrls.length - CLOSED_KEPT); }
+    t.closing = true; t.wc.close();
+  }
+  // The tab closed last, again (Ctrl+Shift+T); null when none was.
+  reopenTab() { const url = this.closedUrls.pop(); return url ? this.newTab(url) : null; }
 
   activate(id) {
     if (this.win.isDestroyed()) return;
@@ -275,6 +272,7 @@ class Profile extends EventEmitter {
     if (this.active) this.activate(this.active);
   }
 
+  // The tab's DevTools, in their own window (a WebContentsView cannot dock them).
   toggleDevTools(id) {
     const wc = this.get(id).wc;
     if (wc.isDevToolsOpened()) wc.closeDevTools();
@@ -290,7 +288,8 @@ class Profile extends EventEmitter {
   navigate(id, url) { this.get(id).wc.loadURL(toUrl(url)).catch(() => {}); }
   back(id) { this.get(id).wc.navigationHistory.goBack(); }
   forward(id) { this.get(id).wc.navigationHistory.goForward(); }
-  reload(id) { this.get(id).wc.reload(); }
+  // ignoreCache: as Ctrl+Shift+R, every file loaded again.
+  reload(id, { ignoreCache = false } = {}) { const wc = this.get(id).wc; if (ignoreCache) wc.reloadIgnoringCache(); else wc.reload(); }
 
   // Sign-in mode: nothing automated is attached while the human signs in. Playwright disconnects, every tab's
   // debugger is detached (dropping Runtime/Network/Page domains, Playwright's init scripts and bindings), and
@@ -388,4 +387,4 @@ async function targetIdOf(page) {
   return targetIds.get(page);
 }
 
-module.exports = { Profile, stepZoom, zoomKey, wipeSession, clearCaches, toUrl };
+module.exports = { Profile, stepZoom, wipeSession, clearCaches, toUrl };

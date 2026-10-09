@@ -197,9 +197,8 @@ here; what is left of it stays.
     Windows, where the browser puts in the system's colors: check that nothing disappears; `prefers-contrast`); WCAG
     contrast of every token in both themes (the muted text first).
   - Keyboard: everything without a mouse, focus always visible. Moving between the panels and tabs (what dockview
-    has for it first), the project and workspace tabs, the menus (arrows, Esc), the dialogs. Shortcuts are a feature of
-    their own (below); for accessibility they must not clash with screen readers and the OS, and single-key ones must
-    be possible to turn off (WCAG 2.1.4).
+    has for it first), the project and workspace tabs, the menus (arrows, Esc), the dialogs. Shortcuts are built
+    ([window.md](window.md), Keys: none without a modifier, WCAG 2.1.4); check they do not clash with screen readers.
   - Screen readers: the window read in a sensible order, with names and states (a tab's agent state, the shown
     project). Kulisa's own questions: the profiles' pages are native views of their own (a tree each) next to the
     window's page, and pictures stand in for them under menus and dialogs: how a screen reader moves between them. The
@@ -207,16 +206,14 @@ here; what is left of it stays.
   - Checking: Chromium's accessibility tree in DevTools (Accessibility pane); automated checks in the tests, e.g.
     axe-core (Deque's, the most used) on the window's page; by hand with Orca (Linux), NVDA (Windows), VoiceOver
     (macOS).
-- **Keyboard shortcuts** (an IDE's power users work by them, as in JetBrains and VS Code). Today Kulisa takes only a
-  few: its zoom (Ctrl + / − / 0 outside the pages), F12 and Ctrl+Shift+I (DevTools), copy and paste in the terminal (the OS's own terminal's keys: [window.md](window.md), The terminal).
-  - Which actions get one: switching projects and workspaces (Ctrl+Tab, Ctrl+1…9), a new tab, a new profile, the focus
-    between the terminal and the panels, Pick, closing.
-  - A command palette, where every action is found by its name (VS Code's Ctrl+Shift+P, JetBrains' Find Action):
-    every action also reachable without remembering keys.
-  - Who gets a key: Kulisa, the page of a profile (the site under test has shortcuts of its own) or the terminal (the
-    agent CLI uses Ctrl+C, Ctrl+R and others). A rule for what Kulisa takes everywhere, and what only outside the
-    pages and the terminal; the same keys on every OS (Cmd on macOS).
-  - A list of the shortcuts (in the palette, the menus' rows already have room for a key: `kbd`); remapping later.
+- **Keyboard shortcuts, rest** (built: [window.md](window.md), Keys; the table in `src/main/keys.js`).
+  - **A command palette** (Ctrl+Shift+P, as VS Code's; JetBrains' Find Action), where every action is found by its
+    name, with its key: the next step. The commands are the keys' table plus the menus' actions: one list of commands
+    (an id, a label, `run`) the menus, the keys and the palette use; an ES module loaded when opened.
+  - Moving the keyboard between the panels and the tabs of the bar without a mouse (with Accessibility, above).
+  - Find in a page (Ctrl+F, as Chrome's: `webContents.findInPage`), a bar of its own over the page.
+  - Remapping: the keys in `settings.json` over the table's (VS Code's `keybindings.json`).
+  - A closed tab comes back with its address only, not its history (Chrome's keeps it): Electron has no API for that.
 - **A desktop app's ways, not only buttons** (talked over with the author 2026-10-08, who liked them all). A web page
   puts a button on every action; a desktop app gives an action several ways in: a visible one for a newcomer, quick
   ones for daily use (keys above, a right-click, dragging). Kulisa has some, here and there (the menus of a project,
@@ -487,6 +484,12 @@ here; what is left of it stays.
   - The one-row title bar (`titleBarStyle: 'hidden'` + `titleBarOverlay`, Window Controls Overlay): checked on
     Linux/X11 only. Check the window buttons, dragging and double-click to maximize on macOS (traffic lights on the
     left), Windows and Wayland.
+  - Keyboard shortcuts ([window.md](window.md), Keys): checked on Linux only (with Latin and Russian layouts). macOS:
+    ⌘ for Kulisa's and Chrome's keys, ⌘⌥1…9 for workspaces, ⌘[ / ⌘] back and forward, its own menu bar (Quit, Edit,
+    Window) instead of Electron's default; check that a page does not get ⌘-keys before Kulisa (on Linux
+    `before-input-event` comes first, and the app menu after the page: REPORT, "Keyboard shortcuts"), and that Ctrl
+    stays the terminal's. Windows: Alt+D and F6 to the address bar, Ctrl+F4; the keys with AltGr layouts (Polish,
+    German), where AltGr is Ctrl+Alt.
   - Copy and paste in the terminal (`clipboardKey` in `terminal.js`): checked on Linux only. Windows: Ctrl+V pastes
     once, Ctrl+C copies a selection and interrupts without one. macOS: ⌘C / ⌘V through Electron's default app menu
     (Kulisa sets none), and Ctrl+V reaching the agent.

@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { clipboard } = require('electron');
 const { assert, root, userData, project, pfile, savedTabs, panel, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, menuOpen, rightClick,
-  box, pageBox, viewOn, dock, ctrl, near, projectTabs, projectTab, showProject, closeProject, savedWindows } = require('./helpers');
+  box, pageBox, viewOn, dock, press, ctrl, near, projectTabs, projectTab, showProject, closeProject, savedWindows } = require('./helpers');
 
 module.exports = (test) => {
   test('grid: a pane moved next to the terminal takes its page along', async ({ shell, ui }) => {
@@ -452,7 +452,7 @@ module.exports = (test) => {
     await ui(`window.__term.clearSelection()`);
     // Copy and paste as the OS's own terminal: here Linux's Ctrl+Shift+C / V; a paste lands once (Chromium's own
     // paste and Kulisa's both pasted it); Ctrl+V and Ctrl+C go to the agent. Windows' and macOS' keys, and the menu's.
-    const keys = (keyCode, modifiers) => { for (const type of ['keyDown', 'keyUp']) shell.win.webContents.sendInputEvent({ type, keyCode, modifiers }); };
+    const keys = (keyCode, modifiers) => press(shell.win.webContents, keyCode, ...modifiers);
     await clipboard.writeText('kulisa-paste');
     shell.win.focus(); await ui(`window.__term.focus()`);
     const before = ctx.ptyOutput().length;
@@ -476,7 +476,7 @@ module.exports = (test) => {
       ['darwin', ${key('KeyV')}], ['darwin', ${key('KeyV', { ctrlKey: false, metaKey: true })}],
       ['linux', ${JSON.stringify({ code: '', keyCode: 86, ctrlKey: true, shiftKey: true })}]].map(([os, e, selected]) => clipboardKey(e, os, selected))`),
     ['paste', 'copy', null, null, 'paste', 'copy', null, 'paste', null, null, 'paste'], 'the keys of each OS; by keyCode when code is left out (ibus, Cyrillic)');
-    assert.deepEqual(await ui(`clipboardKeys`), ['Ctrl+Shift+C', 'Ctrl+Shift+V'], "the menu's keys for Linux");
+    assert.deepEqual(await ui(`[keyText('terminal.copy'), keyText('terminal.paste')]`), ['Ctrl+Shift+C', 'Ctrl+Shift+V'], "the menu's keys for Linux (main/keys.js)");
 
     // Links in the terminal, marked by the agent (OSC 8) or in plain text: Ctrl+click asks where, at the pointer: a tab of
     // one of the open profiles, or the user's browser. A plain click, or an address that is not http(s), does nothing.
@@ -506,10 +506,10 @@ module.exports = (test) => {
 
     await ui(`document.getElementById('windowMenu').click()`);
     // The arrangements as pictures, a short name under each, the full words in the tooltip.
-    assert.deepEqual((await menuRows(ui)).slice(4), ['# Arrange panels', 'arrange: Columns, Two by two, One at a time', '-', 'Agents…', '-',
+    assert.deepEqual((await menuRows(ui)).slice(4), ['# Arrange panels', 'arrange: Columns, Two by two, One at a time', '-', 'Agents…', 'Keyboard Shortcuts', '-',
       'Documentation', 'GitHub', 'Report an issue', '-', 'Exit', `~ Kulisa ${require('../package.json').version}`], "Kulisa's version a note under the rows, not one of them");
     assert.deepEqual(await ui(`[...document.querySelectorAll('#menu svg:not([hidden]) > use')].map((u) => u.getAttribute('href'))`),
-      ['#i-zoom', '#i-theme', '#i-projects', '#i-arrange', '#i-agent', '#i-docs', '#i-github', '#i-bug', '#i-exit'], 'each row with its icon');
+      ['#i-zoom', '#i-theme', '#i-projects', '#i-arrange', '#i-agent', '#i-keyboard', '#i-docs', '#i-github', '#i-bug', '#i-exit'], 'each row with its icon');
     const pics = await ui(`[...document.querySelectorAll('#menu .arrange button')].map((b) => ({ title: b.title,
       panes: b.querySelectorAll('svg .a-page').length, term: b.querySelectorAll('svg .a-term').length, w: b.querySelector('svg').getBoundingClientRect().width }))`);
     assert.deepEqual(pics.map((p) => [p.panes, p.term]), [[3, 1], [4, 1], [1, 1]]);

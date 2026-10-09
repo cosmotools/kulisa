@@ -81,7 +81,9 @@ Panes and the terminal are panels: drag one by its header to another place (or o
 tabs), drag the gaps between them to resize; **☰ → Arrange panels** offers ready-made arrangements, each drawn as a picture. The grid is
 kept across restarts. Profiles are added, renamed, described (who each one is in your app: the agent chooses profiles by it, and asks you when it is not said), given another picture and deleted in **👥 → Manage Profiles…** (👥 on the shown workspace's tab, at the bottom; every workspace's tab shows how many of its profiles are open), or by right-clicking a pane's
 header. **×** at the top right of a profile's pane closes it: its tabs
-go and free their memory, it stays signed in; **👥** lists it as closed and brings it back with the same tabs. Right-click a tab or the terminal for their menus. **Zoom:**
+go and free their memory, it stays signed in; **👥** lists it as closed and brings it back with the same tabs. Right-click a tab or the terminal for their menus. **Keys:** Chrome's keys in a profile's page (Ctrl+T, Ctrl+W,
+Ctrl+Shift+T, Ctrl+L, Ctrl+Tab …), Kulisa's everywhere, the terminal too (Ctrl+` the agent's terminal and back, Ctrl+Shift+1…9
+a workspace); every other key in the terminal is the agent's. **☰ → Keyboard Shortcuts** (Ctrl+Shift+/) lists them all. **Zoom:**
 Ctrl + / Ctrl − / Ctrl 0 outside the pages, or ☰ in the title bar, zooms all of Kulisa, and the pages follow; when it
 is not 100%, the title bar shows it (click to reset). The same keys in a page zoom that site in that profile on top of it (shown in the address bar,
 click to reset). Both are kept across restarts. **☰ → Theme**: Dark (the default), Light, or System (as your OS); profiles' pages keep your OS's. **☰ → Exit** quits
@@ -96,6 +98,7 @@ src/main/        Electron main process
   index.js         entry: reads the environment, calls app.start()
   app.js           the app: windows, open projects (open, close, move to a new window), agents, IPC, quit
   window.js        a window: its open projects and what it shows, its questions
+  keys.js          the keyboard shortcuts: one table, which key an input event is (app.js takes them before the pages)
   projects.js      an open project: its workspaces; making and deleting a fork; removing a project's data
   names.js         the one rule for names of projects, workspaces and profiles; slugs for ids and folders
   workspaces.js    a workspace: its profiles, agent (terminal, environment) and folder; a fork's copies of the profiles
@@ -123,11 +126,11 @@ src/agent/claude-plugin/  the Kulisa plugin for Claude Code: MCP config, the pro
 src/preload/     the window's bridge to the main process
 src/renderer/    window UI. renderer.js: the grid of panels (dockview), panes, ☰ and right-click menus; parts in their
                  own files: common.js, menu.js (the menus), terminal.js (xterm.js: the agent's, one per workspace, and the others), voice.js
-                 (dictation), projects.js, workspaces.js (the workspaces' tabs, the new-workspace dialog),
+                 (dictation), keys.js (where the keyboard is, the keys' commands), projects.js, workspaces.js (the workspaces' tabs, the new-workspace dialog),
                  profile-editor.js; ES modules loaded when
                  needed: agent-picker.js (choosing and installing an agent), agents.js (the Agents
                  window), both with agent-list.js, ask.js (questions before deleting or
-                 closing), new-project.js (New Project…). Styles: tokens.css, components.css, window.css; the icons are a
+                 closing), new-project.js (New Project…), shortcuts.js (Keyboard Shortcuts). Styles: tokens.css, components.css, window.css; the icons are a
                  sprite in index.html (docs/ui.md)
 assets/          the app icon: icon.svg (source) and what each OS needs, rendered by scripts/icons.js
 test/            start.js (npm test: the groups in parallel), run.js (one app, its files in order), helpers.js,

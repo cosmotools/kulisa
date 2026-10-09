@@ -52,7 +52,7 @@ lines (`stroke`) of the text's color; a filled part has `fill="currentColor"`. U
 | `i-back`, `i-forward`, `i-reload` | a pane's toolbar (Chrome's) |
 | `i-pick` | Pick (DevTools' inspect icon) |
 | `i-globe` | a tab whose site has no icon |
-| `i-zoom`, `i-theme`, `i-arrange`, `i-agent`, `i-exit` | ☰'s rows: Zoom, Theme, Arrange panels, Agents…, Exit |
+| `i-zoom`, `i-theme`, `i-arrange`, `i-agent`, `i-keyboard`, `i-exit` | ☰'s rows: Zoom, Theme, Arrange panels, Agents…, Keyboard Shortcuts, Exit |
 | `i-mic` | dictation's microphone in the terminal's header (Lucide's mic) |
 | `i-users` | the profiles' chip on every workspace's tab (Lucide's users) |
 | `i-working`, `i-waiting`, `i-done` | an agent's state on a tab (`.state`) |
@@ -76,6 +76,8 @@ every other `<svg>` uses the sprite.
   - `--icon`: the icon's size, when a place needs another (☰ is 18 px).
   - A `<span class="icon">` where a button cannot be (a tab's ×, inside the tab).
 - In a menu or the title bar, a button is still one of these.
+- `data-keys="<command>"` (a command of `src/main/keys.js`): its key at the end of its tooltip, "Reload (Ctrl+R)", as
+  Chrome's toolbar says it (`showKeys`, `common.js`; templates get it as they are copied).
 
 ### Rows
 
@@ -129,8 +131,8 @@ Every dialog is a `<dialog>` with the same parts:
 ### Menus
 
 `openMenu(items, at)` (`menu.js`): one popover, under its button (`data-menu-end`: its right edge at the button's) or
-at the pointer, flipped to stay in the window. Items are `{ label, sub, keys, icon, color, avatar, enabled, run, remove }`,
-`'-'` (a divider), `{ heading, icon }`, `{ note }` (small dim words under the rows, not one of them: ☰'s version, so nothing
+at the pointer, flipped to stay in the window. Items are `{ label, sub, keys, icon, color, avatar, enabled, run, remove }`
+(`keys`: the row's key at its end, from the keys' table: `keyText(id)`, `common.js`), `'-'` (a divider), `{ heading, icon }`, `{ note }` (small dim words under the rows, not one of them: ☰'s version, so nothing
 looks clickable that is not) or `{ element }` (a row of its own); `icon` is the sprite's id, at the row's start; rows are `.item` and `.removable`. A menu's own kind of row (the zoom row, the theme
 row, the arrangements) is a template in `index.html` and its look in `window.css`. While a menu is open, the pages are
 pictures of themselves.

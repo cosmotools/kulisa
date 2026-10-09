@@ -14,7 +14,7 @@ const { ensureSite } = require('./fixtures/site');
 // A group starts from nothing, or from setup.js (the profiles the first group makes on its way).
 const GROUPS = {
   profiles: { files: ['agent', 'profiles', 'zoom-and-closing'], restart: ['restart-profiles'] },
-  workspaces: { files: ['setup', 'window', 'grid', 'workspaces'], restart: ['restart-workspaces'] },
+  workspaces: { files: ['setup', 'window', 'keys', 'grid', 'workspaces'], restart: ['restart-workspaces'] },
 };
 
 const visible = process.argv.includes('--visible');

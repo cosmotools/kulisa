@@ -223,7 +223,7 @@ Layers, each using only the ones below it:
      `$KULISA_URL/hooks/<event>`, answered by `agent-hooks.js`; outside Kulisa they do nothing). Packaged, it sits
      outside the asar (`extraResource`).
    - Do not add agent-facing behavior elsewhere (e.g. in `profiles.js` or the renderer).
-4. **Window** (`app.js`, `window.js`, `projects.js`, `workspaces.js`, `worktrees.js`, `agents.js`, `renderer/`, `ghost.js`, `picker.js`,
+4. **Window** (`app.js`, `window.js`, `keys.js`, `projects.js`, `workspaces.js`, `worktrees.js`, `agents.js`, `renderer/`, `ghost.js`, `picker.js`,
    `terminal.js`): what the human sees and does.
 
 **One core, with handles for the human and for the agent.** The human (the window) and the agent (the Kulisa
@@ -252,6 +252,9 @@ Modules (`src/main`):
 - `window.js`: a window: its open projects and what it shows (show a project or a workspace, the grid's state, the
   views' places), the questions asked there (`shell.ask(q, window)`, in its dialog: `ask.js`), the theme's colors
   CSS does not paint.
+- `keys.js`: the keyboard shortcuts: one table (what each key does, and where: a page, everywhere, the terminal) and
+  which key an input event is; `app.js` takes them before any page does (`before-input-event`), the window runs them
+  (`renderer/keys.js`). A new key goes into the table (`docs/window.md`, Keys).
 - `projects.js`: an open project: its workspaces, making and deleting a fork, removing a project's data.
 - `workspaces.js`: a workspace: its profiles, its agent in its own terminal and environment, a fork's copies.
 - `worktrees.js`: git for forks (the user's git, never a shell): worktree, branch, files outside git, direnv.

@@ -1,7 +1,7 @@
 // Kulisa, the app: its windows (window.js) with their project tabs, the open projects, the agents, the CDP proxy and
 // the MCP server, the windows' IPC (each message acts in the window it comes from), quitting. start(options) is used by
 // the entry point (index.js) and by the tests.
-const { app, ipcMain, dialog, screen, nativeTheme, shell: electronShell } = require('electron');
+const { app, ipcMain, dialog, screen, nativeTheme, Menu, shell: electronShell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { EventEmitter } = require('events');
@@ -16,6 +16,7 @@ const worktrees = require('./worktrees');
 const agents = require('./agents');
 const { nameError } = require('./names');
 const { stopTerminal } = require('./terminal');
+const keys = require('./keys');
 
 // Electron shows a blocking modal dialog on an uncaught main-process exception, which also stops the proxy and
 // the MCP server; log instead.
@@ -369,6 +370,10 @@ function start(options = {}) {
   ipcMain.handle('workspaces:get', async (e) => { const w = at(e); await w?.current?.checkGit(); w?.sendWorkspaces(); });
 
   const ready = app.whenReady().then(async () => {
+    // macOS keeps a menu bar for the app: Electron's default one would reload Kulisa's own page with ⌘R. Its own
+    // menu: Quit, Hide (the app's), Copy and Paste (the Edit menu's roles: ⌘C, ⌘V in fields and the terminal), the
+    // windows. Kulisa's keys are taken before it (onKey). Elsewhere the windows have no menu (window.js).
+    if (process.platform === 'darwin') Menu.setApplicationMenu(Menu.buildFromTemplate([{ role: 'appMenu' }, { role: 'editMenu' }, { role: 'windowMenu' }]));
     shell.sessionCookies = new SessionCookies();
     shell.proxy = new CdpProxy();
     await shell.proxy.listen(0);
@@ -481,12 +486,18 @@ function start(options = {}) {
     tab.ready.then(back);
     return tab.id;
   }));
-  ipcMain.handle('tab:close', onTab((p, t) => p.closeTab(t.id)));
-  ipcMain.handle('tab:activate', onTab((p, t) => p.activate(t.id)));
+  // focus: the keyboard was in the tab's page (a key closed or switched it): it goes to the page shown next, as in Chrome.
+  ipcMain.handle('tab:close', onTab((p, t, { focus }) => {
+    if (focus) p.once('tab-closed', () => setImmediate(() => p.get()?.wc.focus()));
+    p.closeTab(t.id);
+  }));
+  ipcMain.handle('tab:activate', onTab((p, t, { focus }) => { p.activate(t.id); if (focus) t.wc.focus(); }));
+  ipcMain.handle('tab:focus', onTab((p, t) => t.wc.focus()));
+  ipcMain.handle('tab:reopen', onProfile((p) => p.reopenTab()?.id ?? null));
   ipcMain.handle('tab:navigate', onTab((p, t, { url }) => p.navigate(t.id, url)));
   ipcMain.handle('tab:back', onTab((p, t) => p.back(t.id)));
   ipcMain.handle('tab:forward', onTab((p, t) => p.forward(t.id)));
-  ipcMain.handle('tab:reload', onTab((p, t) => p.reload(t.id)));
+  ipcMain.handle('tab:reload', onTab((p, t, { ignoreCache }) => p.reload(t.id, { ignoreCache })));
   ipcMain.handle('tab:dialog', onTab((p, t, { dialog, ok }) => p.answerDialog(t.id, dialog, ok)));
   ipcMain.handle('tab:devtools', onTab((p, t) => p.toggleDevTools(t.id)));
   ipcMain.handle('zoom:get', () => shell.uiZoom);
@@ -494,6 +505,40 @@ function start(options = {}) {
   ipcMain.handle('bar:set', (_e, bar) => ['top', 'bottom'].includes(bar) && shell.setBar(bar));
   ipcMain.handle('zoom:ui', (_e, dir) => shell.setUiZoom(stepZoom(shell.uiZoom, dir)));
   ipcMain.handle('tab:zoom', onTab((p, t, { dir }) => p.zoomSite(t.id, dir)));
+
+  // ---------- keyboard shortcuts (keys.js) ----------
+  // Every key typed in the window or in a profile's page comes here first (before-input-event), before the page
+  // gets it: one of Kulisa's is taken (the page never sees it) and done, here or by the window; any other goes on
+  // to the page, the terminal's agent or the site.
+  const keymap = keys.keymap();
+  const ZOOM = { 'zoom.in': 1, 'zoom.out': -1, 'zoom.reset': 0, 'site.zoomIn': 1, 'site.zoomOut': -1, 'site.zoomReset': 0 };
+  // A profile's tab by its webContents, of a workspace shown in a window.
+  const tabOf = (wc) => {
+    for (const w of shell.windows) for (const profile of w.profiles.values()) {
+      const tab = profile.tabs.find((t) => t.wc === wc);
+      if (tab) return { w, profile, tab };
+    }
+    return null;
+  };
+  function onKey(wc, e, input) {
+    if (input.type !== 'keyDown') return;
+    const w = shell.windowOf(wc), t = !w && tabOf(wc);
+    if (!w && !t) return; // DevTools, a tab of a workspace not on screen
+    const zone = w ? w.keyZone : 'page';
+    const pane = zone.startsWith('pane:') ? zone.slice('pane:'.length) : null;
+    // The nearest group first: in a page, the page's keys (its zoom, its DevTools); in the window, Kulisa's.
+    const hit = keys.match(keymap, input, zone === 'page' ? ['page', 'global'] : pane ? ['global', 'page'] : ['global'], { always: zone === 'dialog' });
+    if (!hit || (hit.id === 'devtools.app' && !appDevTools)) return;
+    e.preventDefault();
+    const win = w || t.w;
+    if (hit.id in ZOOM) return hit.id.startsWith('zoom.') ? shell.setUiZoom(stepZoom(shell.uiZoom, ZOOM[hit.id])) : t.profile.zoomSite(t.tab.id, ZOOM[hit.id]);
+    if (hit.id === 'devtools.app') return win.toggleDevTools();
+    if (hit.id === 'devtools.tab') return t.profile.toggleDevTools(t.tab.id);
+    if (hit.window) win.win.webContents.focus();
+    win.send('command', { id: hit.id, n: hit.n, profile: t ? t.profile.id : pane, tab: t ? t.tab.id : null, ws: win.ws?.key ?? null, page: !!t });
+  }
+  app.on('web-contents-created', (_e, wc) => wc.on('before-input-event', (e, input) => onKey(wc, e, input)));
+  ipcMain.on('keys:zone', (e, zone) => { const w = at(e); if (w) w.keyZone = String(zone); });
 
   // Save session cookies and flush persistent ones before quitting, so sign-ins survive a restart; the windows and
   // their tabs open again at the next start.

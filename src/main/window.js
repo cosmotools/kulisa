@@ -7,7 +7,7 @@
 const { BrowserWindow, desktopCapturer, screen, shell: electronShell } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const { stepZoom, zoomKey } = require('./profiles');
+const keys = require('./keys');
 
 const TITLE_BAR_HEIGHT = 44; // keep in sync with #topbar in window.css
 // The window's background and the OS buttons' strip, in each theme: --window and --text in tokens.css.
@@ -34,6 +34,9 @@ class AppWindow {
     this.picking = new Map(); // profiles in pick mode (picker.js), of the workspace on screen, by id
     this.answers = new Map(); // questions asked in it (ask), by id -> resolve
     this.loaded = false; this.pending = []; // what is sent before its page has loaded goes once it has
+    // Where the keyboard is in its page, for the keys (app.js, keys.js): 'window', 'terminal', 'dialog', or
+    // 'pane:<profile id>' (an address bar, a pane's toolbar), as the page tells.
+    this.keyZone = 'window';
     if (near) {
       const b = near.getNormalBounds();
       bounds = at ? { ...b, x: at.x - 120, y: at.y - 20 } : { ...b, x: b.x + 32, y: b.y + 32 };
@@ -65,18 +68,6 @@ class AppWindow {
     // Questions the page was asking go unanswered once it is gone or loaded again (ask).
     win.webContents.on('render-process-gone', () => this.unanswered());
     win.webContents.on('did-start-navigation', (d) => { if (d.isMainFrame && !d.isSameDocument) this.unanswered(); });
-    win.webContents.on('before-input-event', (e, i) => {
-      // Ctrl + / - / 0 outside the pages: the Kulisa zoom.
-      const dir = zoomKey(i);
-      if (dir !== undefined) { e.preventDefault(); shell.setUiZoom(stepZoom(shell.uiZoom, dir)); }
-      // F12 or Ctrl+Shift+I anywhere outside a profile's page (bars, terminal): DevTools of Kulisa's own UI.
-      if (appDevTools && i.type === 'keyDown' && (i.key === 'F12' || ((i.control || i.meta) && i.shift && i.key.toLowerCase() === 'i'))) {
-        e.preventDefault();
-        const wc = win.webContents;
-        // Detached like the profiles' DevTools: docked ones would sit under the profile views.
-        if (wc.isDevToolsOpened()) wc.closeDevTools(); else wc.openDevTools({ mode: 'detach', title: 'Kulisa · DevTools' });
-      }
-    });
     // Where it was is kept for the next start; the app decides whether it closes now (app.js, closeWindow).
     win.on('close', (e) => { this.place = this.where(); shell.windowClosing(this, e); });
     win.on('closed', () => this.unanswered());
@@ -91,13 +82,19 @@ class AppWindow {
     return { tabs: this.tabs.map((p) => p.id), shown: this.current?.id ?? null, ...(this.win.isDestroyed() ? this.place : this.where()) };
   }
   focus() { if (this.win.isMinimized()) this.win.restore(); this.win.focus(); }
+  // Kulisa's own DevTools (only when running from source: appDevTools), detached like the profiles' DevTools: docked
+  // ones would sit under the profile views.
+  toggleDevTools() {
+    const wc = this.win.webContents;
+    if (wc.isDevToolsOpened()) wc.closeDevTools(); else wc.openDevTools({ mode: 'detach', title: 'Kulisa · DevTools' });
+  }
   destroy() { this.unanswered(); if (!this.win.isDestroyed()) this.win.destroy(); }
 
-  // Its page, loaded once; its tabs (names, colors), the shown one (shown), the theme and where the projects' bar is
-  // come along in the URL, so the window is drawn right at once. The profiles' views stay hidden until the renderer has the grid laid out (views:hidden).
+  // Its page, loaded once; its tabs (names, colors), the shown one (shown), the theme, where the projects' bar is and
+  // the keyboard shortcuts (keys.js: for menus and tooltips) come along in the URL, so the window is drawn right at once. The profiles' views stay hidden until the renderer has the grid laid out (views:hidden).
   async load(shown) {
     await this.win.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'), { query: {
-      version: require('../../package.json').version, theme: this.shell.theme, bar: this.shell.bar,
+      version: require('../../package.json').version, theme: this.shell.theme, bar: this.shell.bar, keys: JSON.stringify(keys.list()),
       projects: JSON.stringify({ current: shown?.id ?? null, projects: this.tabs.map(({ id, name, color }) => ({ id, name, color })),
         open: this.tabs.map(({ id }) => ({ id })) }) } });
     this.loaded = true;

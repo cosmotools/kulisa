@@ -1,7 +1,7 @@
 # The window
 
 How a Kulisa window works for the human: the title bar, the grid of panels, the projects' bar, the zoom, the menus
-and dialogs, the terminal, and why they are built so. Projects and their workspaces in the projects' bar, several
+and dialogs, the terminal, the keyboard shortcuts, and why they are built so. Projects and their workspaces in the projects' bar, several
 windows: [workspaces.md](workspaces.md);
 profiles' panes and tabs: [profiles.md](profiles.md); the components the window is built of: [ui.md](ui.md); what is
 next: [ROADMAP.md](ROADMAP.md). Keep this file current when the window changes.
@@ -95,11 +95,13 @@ Kulisa draws its menus in HTML, as Chrome does (a popover, `menu.js`; [ui.md](ui
 
 - the button after the projects' islands (the projects), a project label's right-click menu, the profiles' chip on the shown workspace's tab (open
   and closed profiles, Manage Profiles…; the tab's right-click menu has them too, with Show Folder), ☰ (as Chrome's ⋮, each row with its icon: the zoom row, the theme row, the
-  projects' bar's row, Arrange panels, Agents…, the Welcome screen's links
+  projects' bar's row, Arrange panels, Agents…, Keyboard Shortcuts, the Welcome screen's links
   (Documentation, GitHub, Report an issue; one list in `index.html`), and Exit, which quits as the last window's × does; not on macOS, where
   Cmd+Q and the app's menu quit; under them all Kulisa's version, small and dim: words, not a row, as nothing happens on a click);
 - right-click on a pane's header (New tab, About this profile…, Close profile, Delete profile…), a tab (Reload, Duplicate,
   Close, Close others) and the terminal (Copy, Paste, Select all, Clear, Change agent…).
+
+A row whose command has a key shows it at its end (Keys, below).
 
 Native menus were tried first (2026-10-05): rows of text only, no buttons in a row; and a native menu in a page had
 frozen the desktop (ROADMAP, Deferred ideas, "A right-click menu in pages"). There is no menu in the pages yet.
@@ -163,6 +165,48 @@ at the bottom, it was a row's height under the agent's status line in one worksp
 grids differed by a pixel (2026-10-08). When a project moves to another window, what its terminals show moves along (xterm's serialize addon, as VS
 Code keeps terminals), at the same size.
 
+## Keys
+
+Kulisa's keyboard shortcuts, as an IDE has them, one table for all (`src/main/keys.js`): the keys, the command each
+does, and where; the window's menus, the buttons' tooltips ("Reload (Ctrl+R)", `data-keys` in `index.html`) and
+**Keyboard Shortcuts** (☰, or Ctrl+Shift+/: `shortcuts.js`) show them from it, as this OS writes them (⇧⌘T on macOS),
+so they are never out of date.
+
+Who gets a key depends on where the keyboard is:
+
+- **In a profile's page, or its pane** (its address bar, its toolbar): Chrome's keys, for that pane, as the hands know
+  them: Ctrl+T a new tab with the address to type in, Ctrl+W, Ctrl+Shift+T (the tab closed last: its address, kept in
+  memory, ten at most), Ctrl+L / Alt+D / F6, Ctrl+R / F5, Ctrl+Shift+R (not from the cache), Alt+← / →, Ctrl+Tab,
+  Ctrl+PgDn / PgUp, Ctrl+1…8, Ctrl+9; and Ctrl+Shift+C for Pick (Chrome's Inspect). The site does not get them, as in
+  Chrome. Closing or switching a tab from the page leaves the keyboard in the page shown next.
+- **Everywhere, the terminal too**: Ctrl+` to the agent's terminal and back to the page used last, Ctrl+Shift+` a new
+  terminal, Ctrl+Shift+1…9 a workspace of the shown project, Ctrl+Shift+PgDn / PgUp the next or previous one of every
+  open project (in the bar's order), Ctrl+Shift+N a new workspace, Ctrl+Shift+/ the list. Ctrl+Shift+… and Ctrl+` are
+  what agents and sites leave alone; Alt+letters are Claude Code's (Alt+V, Alt+P, Alt+T), Ctrl+Alt+arrows GNOME's,
+  Ctrl+Shift+U and E ibus's, so Kulisa takes none of them.
+- **In the terminal** every other key is the agent's (Ctrl+R, Ctrl+T, Ctrl+O …), with the copy and paste of the OS's
+  terminal (The terminal, above).
+- **In a dialog** its keys are its own; only the zoom works there.
+
+The zoom and DevTools keys mean the nearest: in a page that site's zoom and that tab's DevTools, elsewhere Kulisa's.
+No key without a modifier but F keys (WCAG 2.1.4). On macOS the keys are ⌘'s and Ctrl stays the terminal's;
+workspaces are ⌘⌥1…9 (⌘⇧3, 4, 5 are macOS's screenshots), back and forward ⌘[ and ⌘] as in Chrome.
+
+How: the main process sees every key of the window and of every tab before the page does (`before-input-event`, on
+every webContents as it is made: `app.js`), and takes one of Kulisa's (`preventDefault`: the page never gets it) or
+leaves it, untouched. Where the keyboard is in the window's own page, the page tells it (`keys:zone`: the terminal, a
+dialog, a pane; `src/renderer/keys.js`), which also runs the commands the main process sends back (`command`, with
+the profile and tab). Letters are matched by what they type on a Latin layout (Ctrl+W on an AZERTY keyboard is its W)
+and by their place on others (Ctrl+Е on a Russian one is Ctrl+T); digits and keys typed with Shift by their place. Keys
+are written as Electron's accelerators (`CommandOrControl+T`).
+
+Not Electron's application menu with accelerators, its own way of keys, tried first in bare Electron 44 (REPORT,
+"Keyboard shortcuts"): on Linux the page gets a key before the menu, and the menu none that the page handled itself,
+as xterm and many web apps do: Kulisa's keys would not work in the terminal nor in those apps, and others would act
+twice (the site's and Kulisa's). Nor `globalShortcut`: it takes keys from every app on the computer. macOS has its own
+menu bar with Quit, Hide, the Edit menu (⌘C, ⌘V) and the windows (Electron's default one reloaded Kulisa's own page with
+⌘R); Linux and Windows windows have no menu.
+
 ## DevTools
 
 A pane's ⋮ menu (where more of a pane's actions will go, as in Chrome), or F12 or Ctrl+Shift+I in its page, opens
@@ -185,8 +229,10 @@ Installers are made with Electron Forge (`npm run make`, `forge.config.js`): `.d
 | File | What |
 |---|---|
 | `src/main/app.js` | the windows, the Kulisa zoom, the theme, the IPC |
-| `src/main/window.js` | a window: its BrowserWindow, keys (zoom, DevTools), the native views' places, its questions, screenshot |
+| `src/main/window.js` | a window: its BrowserWindow, the native views' places, its questions, screenshot |
+| `src/main/keys.js` | the keyboard shortcuts: the table, which key an input event is; `app.js` takes them (Keys) |
 | `src/main/terminal.js` | the ptys: the agent's per workspace, and its other terminals; their output's last 200 KB |
 | `src/renderer/renderer.js` | the grid (dockview), the panes, ☰, Arrange panels, the right-click menus |
 | `src/renderer/menu.js`, `ask.js`, `terminal.js`, `voice.js` | the menus, the questions, the terminal, its dictation |
-| `test/window.js`, `grid.js`, `zoom-and-closing.js` | the tests |
+| `src/renderer/keys.js`, `shortcuts.js` | where the keyboard is, the commands the keys run; Keyboard Shortcuts (loaded when needed) |
+| `test/window.js`, `grid.js`, `keys.js`, `zoom-and-closing.js`, `unit/keys.test.js` | the tests |

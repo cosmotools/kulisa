@@ -50,6 +50,7 @@ function showPictures(pics) {
 }
 
 // ---------- panes ----------
+const paneOfProfile = (id) => [...panes.values()].find((x) => x.profile.id === id);
 profileEditor.showPane = (key) => api.getPanel(panelId(key))?.api.setActive();
 
 function render() {
@@ -184,7 +185,7 @@ function createPane(p) {
   // ⋮ at the end of the bar, as Chrome's: what a pane does less often.
   const more = el.querySelector('.more');
   more.onclick = () => openMenu([
-    { label: 'DevTools', keys: 'F12', run: () => act('tab:devtools', { profile: id(), tab: tab() }) },
+    { label: 'DevTools', keys: keyText('devtools.tab'), run: () => act('tab:devtools', { profile: id(), tab: tab() }) },
   ], more);
   tabEl.querySelector('.close').onclick = () => act('profile:close', { profile: id() });
   new ResizeObserver(scheduleLayout).observe(el.querySelector('.content'));
@@ -420,7 +421,7 @@ kulisa.on('bar', (bar) => { root.dataset.bar = bar; scheduleLayout(); });
 const windowMenu = document.getElementById('windowMenu');
 // ☰, as Chrome's ⋮: the zoom row (stays open while you click − and +), the theme row and the projects' bar's (open
 // too), then the ready-made arrangements, each a picture of itself (seen at a glance, as Windows' snap layouts), its
-// words in the tooltip; Agents… (agents.js); the Welcome screen's links; Exit, as Chrome's, where the OS has no menu bar with Quit (not macOS:
+// words in the tooltip; Agents… (agents.js); Keyboard Shortcuts (shortcuts.js); the Welcome screen's links; Exit, as Chrome's, where the OS has no menu bar with Quit (not macOS:
 // Cmd+Q there). Each row with its icon at the start; Kulisa's version under them all, a note rather than a row.
 windowMenu.onclick = () => {
   const zoom = tpl('tpl-menuzoom');
@@ -447,6 +448,7 @@ windowMenu.onclick = () => {
   };
   openMenu([{ element: zoom }, { element: themes }, { element: bar }, '-', { heading: 'Arrange panels', icon: 'i-arrange' }, { element: arrange }, '-',
     { label: 'Agents…', icon: 'i-agent', run: async () => (await import('./agents.js')).showAgents() },
+    { label: 'Keyboard Shortcuts', icon: 'i-keyboard', keys: keyText('shortcuts'), run: async () => (await import('./shortcuts.js')).showShortcuts() },
     // The Welcome screen's links (index.html, one list), in the user's browser (window.js).
     '-', ...[...document.querySelectorAll('#welcome .links a')].map((a) => ({ label: a.textContent, icon: a.dataset.icon, run: () => open(a.href) })),
     ...(kulisa.platform === 'darwin' ? [] : ['-', { label: 'Exit', icon: 'i-exit', run: () => kulisa.invoke('app:quit') }]),
@@ -467,7 +469,7 @@ document.addEventListener('contextmenu', (e) => {
 function paneMenu(pane) {
   const p = pane.profile;
   return [
-    { label: 'New tab', run: () => newTab(pane) },
+    { label: 'New tab', keys: keyText('tab.new'), run: () => newTab(pane) },
     { label: 'About this profile…', run: () => profileEditor.about(p.key) },
     { label: 'Close profile', run: () => act('profile:close', { profile: p.id }) },
     '-',
@@ -477,10 +479,10 @@ function paneMenu(pane) {
 function tabMenu(profile, tab) {
   const p = state.find((x) => x.id === profile), t = p.tabs.find((x) => x.id === tab);
   return [
-    { label: 'Reload', run: () => act('tab:reload', { profile, tab }) },
+    { label: 'Reload', keys: keyText('tab.reload'), run: () => act('tab:reload', { profile, tab }) },
     { label: 'Duplicate', run: () => act('tab:new', { profile, url: t.url }) },
     '-',
-    { label: 'Close tab', run: () => act('tab:close', { profile, tab }) },
+    { label: 'Close tab', keys: keyText('tab.close'), run: () => act('tab:close', { profile, tab }) },
     { label: 'Close other tabs', enabled: p.tabs.length > 1,
       run: () => { for (const x of p.tabs) if (x.id !== tab) act('tab:close', { profile, tab: x.id }); } },
   ];
@@ -489,7 +491,7 @@ function tabMenu(profile, tab) {
 // ---------- agent activity: caption over the pane (the cursor itself is drawn inside the page, see ghost.js) ----------
 kulisa.on('agent', (a) => {
   if (a.ws !== workspaces.current) return; // a workspace in the background
-  const pane = [...panes.values()].find((x) => x.profile.id === a.profile);
+  const pane = paneOfProfile(a.profile);
   if (!pane || pane.profile.signinMode) return;
   const cap = pane.tabEl.querySelector('.caption');
   cap.textContent = a.caption ? `↖ agent: ${a.caption}` : '';
@@ -503,7 +505,7 @@ kulisa.on('agent', (a) => {
 // the focus, so the human writes what is wrong around it. Picks in several panes go into one message.
 // Pick again or Esc in the page cancels.
 async function startPick(profile) {
-  const pane = [...panes.values()].find((x) => x.profile.id === profile);
+  const pane = paneOfProfile(profile);
   const cap = pane.tabEl.querySelector('.caption');
   const button = pane.el.querySelector('.pick');
   cap.textContent = 'Click an element on the page · Esc to cancel';

@@ -1,6 +1,16 @@
 // What several parts of the window use (loaded first).
+// Kulisa's keyboard shortcuts (main/keys.js), as this OS shows them, from the URL (window.js): each { id, group,
+// label, keys }. keyText(id): a command's first key, for menus.
+const shortcuts = JSON.parse(new URLSearchParams(location.search).get('keys') || '[]');
+const keyText = (id) => shortcuts.find((s) => s.id === id)?.keys[0] || '';
+// A button with data-keys="<command>" says its key in its tooltip ("Reload (Ctrl+R)"), as Chrome's toolbar does.
+function showKeys(root) {
+  for (const el of root.querySelectorAll('[data-keys]')) if (keyText(el.dataset.keys)) el.title = `${el.title} (${keyText(el.dataset.keys)})`;
+  return root;
+}
+showKeys(document);
 // A copy of a <template> of index.html.
-const tpl = (id) => document.getElementById(id).content.firstElementChild.cloneNode(true);
+const tpl = (id) => showKeys(document.getElementById(id).content.firstElementChild.cloneNode(true));
 // A profile's picture (avatars.js): its file.
 const avatarSrc = (a) => `avatars/${a}.svg`;
 // Name fields (data-name: projects, workspaces, profiles) take only the characters names may have (names.js in the
