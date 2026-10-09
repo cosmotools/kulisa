@@ -562,7 +562,8 @@ module.exports = (test) => {
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
     await ui(`kulisa.invoke('project:move', { id: 'third', terminals: {} })`);
     await waitFor(() => shell.windows[1]?.current?.id === 'third' && !shell.windows[1].switching);
-    shell.windows[1].win.setBounds({ x: 40, y: 50, width: 1000, height: 700 });
+    // Smaller than the window's minimum (setBounds passes below it, the human's drag does not): it comes back at it.
+    shell.windows[1].win.setBounds({ x: 40, y: 50, width: 10, height: 10 });
     await showProject(ui, 'project');
     await waitFor(() => shell.current?.id === 'project' && shell.ws.loaded);
     assert.deepEqual(await projectTabs(ui), ['project *', 'other']);

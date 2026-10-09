@@ -59,6 +59,20 @@ busy) leaves its pane empty meanwhile: waiting for it held the menu, and every o
 A pane's tab strip and toolbar move as Chrome's: a tab opened grows in from the left (`.tab.opening`; the strip keeps
 its tabs' elements by id, so only a new one animates), the address's hover fades in. Not with reduced motion.
 
+## The window's size
+
+The window has a minimum, as VS Code's: 640×400 (DIP) times the Kulisa zoom (`MIN_SIZE` in `window.js`), the
+smallest size at which the top bar (the OS buttons, ☰, a project tab) and something under it still fit; half of a
+1366 px laptop screen holds it. It is fixed, not derived from the grid as Chrome's is from its own layout: the sum of
+the panels' minimums (dockview's `minimumWidth`) would keep a window with five profiles in a row from half a screen
+next to the human's IDE, which is what a narrow window is for. What the grid does when its panes do not fit is open
+(ROADMAP).
+
+The OS keeps the minimum only while the human drags the window's edge (`minWidth`/`minHeight`, `setMinimumSize`; on
+Linux a hint to the window manager). The constructor's bounds and `setSize` pass below it, so Kulisa raises a window
+to it itself: bounds restored from `settings.json` when the window is made, and a window now smaller when the zoom
+grows (`setZoom`; it is not made smaller again when the zoom goes down).
+
 ## Zoom
 
 - **The Kulisa zoom**: Ctrl + / − / 0 outside the pages, or the zoom row in ☰. It scales the whole UI of every

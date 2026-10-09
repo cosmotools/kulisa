@@ -27,6 +27,22 @@ module.exports = (test) => {
     await waitFor(async () => (await ui(`({ cols: window.__term.cols })`)).cols < 200, 3000); // the terminal refits
     await waitFor(() => JSON.parse(fs.readFileSync(path.join(userData, 'settings.json'), 'utf8')).uiZoom === 1.25);
   });
+  test('the window\'s minimum follows the Kulisa zoom; a window at the minimum grows with it, and keeps its size back', async ({ shell, ui }) => {
+    const win = shell.win, size = win.getSize();
+    assert.deepEqual(win.getMinimumSize(), [800, 500], '640×400 at 125%');
+    win.setSize(800, 500);
+    await waitFor(() => win.getSize()[0] === 800);
+    ctrl(win.webContents, '=');
+    await waitFor(() => near(win.webContents.getZoomFactor(), 1.5));
+    assert.deepEqual(win.getMinimumSize(), [960, 600]);
+    await waitFor(() => win.getSize()[0] === 960 && win.getSize()[1] === 600);
+    ctrl(win.webContents, '-');
+    await waitFor(() => near(win.webContents.getZoomFactor(), 1.25));
+    assert.deepEqual(win.getMinimumSize(), [800, 500]);
+    assert.deepEqual(win.getSize(), [960, 600], 'not made smaller');
+    win.setSize(...size);
+    await waitFor(() => win.getSize()[0] === size[0] && viewOn(shell, ui, 'sam-admin'));
+  });
   test('page zoom: Ctrl+= in a page zooms that site in that profile only, shows on the pane, is saved', async ({ shell, ui }) => {
     const sam = shell.profiles.get('sam-admin');
     const tab = sam.get();

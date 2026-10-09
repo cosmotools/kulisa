@@ -33,12 +33,13 @@ module.exports = (test) => {
     await waitFor(async () => JSON.stringify(await projectTabs(ui)) === '["project *","other"]');
     assert.equal(shell.open.get('other').ws.loaded, false);
   });
-  test('after a restart: a window of its own comes back where it was, with its project shown', async ({ shell }) => {
+  test('after a restart: a window of its own comes back where it was, with its project shown; saved smaller than the minimum, at the minimum', async ({ shell }) => {
     await waitFor(() => shell.windows.length === 2 && shell.windows[1].current?.id === 'third' && shell.windows[1].ws.loaded);
     const second = shell.windows[1];
     assert.deepEqual(second.tabs.map((p) => p.id), ['third']);
     const { width, height } = second.win.getNormalBounds();
-    assert.deepEqual({ width, height }, { width: 1000, height: 700 });
+    assert.deepEqual({ width, height }, { width: 640, height: 400 });
+    assert.deepEqual(second.win.getMinimumSize(), [640, 400]);
     await waitFor(async () => JSON.stringify(await projectTabs((js) => second.win.webContents.executeJavaScript(js))) === '["third *"]');
   });
   test('after a restart: the grid is as it was left (preset "grid")', async ({ ui }) => {

@@ -12,6 +12,12 @@ const keys = require('./keys');
 const TITLE_BAR_HEIGHT = 44; // keep in sync with #topbar in window.css
 // The window's background and the OS buttons' strip, in each theme: --window and --text in tokens.css.
 const COLORS = { dark: { window: '#2b2d30', text: '#dfe1e5' }, light: { window: '#ebecf0', text: '#1e1f22' } };
+// The smallest window whose UI still works (the top bar with the OS buttons, ☰ and a project tab, something under
+// it), as VS Code's: fixed, times the Kulisa zoom, in DIP. Not the grid's own minimum: with five profiles in a row it
+// would keep the window from half a screen next to the human's IDE. The OS holds it for the human's drag only;
+// the constructor's bounds and setSize pass below it, so a window is raised to it here.
+const MIN_SIZE = { width: 640, height: 400 };
+const minSize = (z) => ({ width: Math.round(MIN_SIZE.width * z), height: Math.round(MIN_SIZE.height * z) });
 const NONE = new Map(); // the workspaces and profiles when no project is open
 let questions = 0, windows = 0;
 
@@ -41,8 +47,10 @@ class AppWindow {
       const b = near.getNormalBounds();
       bounds = at ? { ...b, x: at.x - 120, y: at.y - 20 } : { ...b, x: b.x + 32, y: b.y + 32 };
     } else if (bounds && !onScreen(bounds)) bounds = null;
+    const min = minSize(shell.uiZoom);
+    if (bounds) bounds = { ...bounds, width: Math.max(bounds.width, min.width), height: Math.max(bounds.height, min.height) };
     const win = (this.win = new BrowserWindow({
-      width: 1700, height: 1050, ...bounds, title: 'Kulisa', backgroundColor: COLORS[shell.shade()].window,
+      width: 1700, height: 1050, ...bounds, minWidth: min.width, minHeight: min.height, title: 'Kulisa', backgroundColor: COLORS[shell.shade()].window,
       icon: path.join(__dirname, '..', '..', 'assets', 'icon.png'), // taskbar and window switcher on Linux and Windows
       // One row on top, as in VS Code: no system title bar; the OS window buttons are drawn over the right end of
       // the window's own top bar (left on macOS). The page lays out around them (Window Controls Overlay).
@@ -278,10 +286,14 @@ class AppWindow {
     for (const [id, r] of Object.entries(rects)) this.profiles.get(id)?.layout(r.shown === false ? r : Object.fromEntries(Object.entries(r).map(([k, v]) => [k, Math.round(v * z)])));
   }
   saveLayout(key, layout) { if (!this.switching && key === this.ws?.key) this.ws.store.saveLayout(layout); }
-  // The Kulisa zoom (app.js): Chromium's zoom of the page, the OS title bar overlay with it.
+  // The Kulisa zoom (app.js): Chromium's zoom of the page, the OS title bar overlay and the window's minimum with it
+  // (a window now smaller grows to it; Electron leaves it as it is).
   setZoom(z) {
     if (this.win.isDestroyed()) return;
     this.win.webContents.setZoomFactor(z);
+    const min = minSize(z), [width, height] = this.win.getSize();
+    this.win.setMinimumSize(min.width, min.height);
+    if ((width < min.width || height < min.height) && !this.win.isMaximized() && !this.win.isFullScreen()) this.win.setSize(Math.max(width, min.width), Math.max(height, min.height));
     if (process.platform !== 'darwin') this.win.setTitleBarOverlay({ height: Math.round(TITLE_BAR_HEIGHT * z) }); // macOS: fixed buttons
     this.send('zoom', z);
   }
