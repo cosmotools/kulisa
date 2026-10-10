@@ -90,7 +90,7 @@ module.exports = (test) => {
     await ui(`document.getElementById('menu').hidePopover()`);
     // The label's right-click menu.
     await rightClick(ui, '#projectTabs [data-project="other"] .name');
-    assert.deepEqual(await menuRows(ui), ['New Task', '-', 'Close Project', 'Move to New Window', '-', 'Show Data Folder', 'Remove Project…']);
+    assert.deepEqual(await menuRows(ui), ['New Task', '-', 'Close Project', 'Move to New Window', '-', 'Project Settings…', 'Show Data Folder', 'Remove Project…']);
     // Show Data Folder: Kulisa's folder of that project, in the file manager.
     const electron = require('electron'), openPath = electron.shell.openPath, shown = [];
     electron.shell.openPath = async (dir) => { shown.push(dir); return ''; };
@@ -233,7 +233,7 @@ module.exports = (test) => {
 
     // Back into the first window (Move to Window, as a browser moves a tab): the only tab of the second, so it closes.
     await rightClick(ui2, '#projectTabs [data-project="other"] .name');
-    assert.deepEqual(await menuRows(ui2), ['New Task', '-', 'Close Project', 'Move to New Window (off)', 'Move to Window: project', '-', 'Show Data Folder', 'Remove Project…']);
+    assert.deepEqual(await menuRows(ui2), ['New Task', '-', 'Close Project', 'Move to New Window (off)', 'Move to Window: project', '-', 'Project Settings…', 'Show Data Folder', 'Remove Project…']);
     await choose(ui2, 'Move to Window: project');
     await waitFor(() => shell.windows.length === 1 && shell.current === moved && !first.switching);
     assert.ok(second.win.isDestroyed());

@@ -11,6 +11,15 @@ function showKeys(root) {
 showKeys(document);
 // A copy of a <template> of index.html.
 const tpl = (id) => showKeys(document.getElementById(id).content.firstElementChild.cloneNode(true));
+// A project's icon from the sprite (projects.js in the main process, PROJECT_ICONS): one of Kulisa's set, or the app's
+// curtain (logo, the default); drawn in the project's --color.
+function projectIcon(name) {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'), use = document.createElementNS(svg.namespaceURI, 'use');
+  svg.setAttribute('aria-hidden', 'true');
+  use.setAttribute('href', !name || name === 'logo' || name === 'favicon' ? '#i-logo' : `#i-p-${name}`);
+  svg.append(use);
+  return svg;
+}
 // A profile's picture (avatars.js): its file.
 const avatarSrc = (a) => `avatars/${a}.svg`;
 // Name fields (data-name: projects, tasks, profiles) take only the characters names may have (names.js in the

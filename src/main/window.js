@@ -103,7 +103,7 @@ class AppWindow {
   async load(shown) {
     await this.win.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'), { query: {
       version: require('../../package.json').version, theme: this.shell.theme, bar: this.shell.bar, keys: JSON.stringify(keys.list()),
-      projects: JSON.stringify({ current: shown?.id ?? null, projects: this.tabs.map(({ id, name, color }) => ({ id, name, color })),
+      projects: JSON.stringify({ current: shown?.id ?? null, projects: this.shell.projects().filter((p) => this.tabs.some((t) => t.id === p.id)),
         open: this.tabs.map(({ id }) => ({ id })) }) } });
     this.loaded = true;
     for (const [channel, data] of this.pending.splice(0)) this.send(channel, data);
@@ -118,7 +118,7 @@ class AppWindow {
   info() {
     const { shell } = this;
     const others = shell.windows.filter((w) => w !== this && !w.win.isDestroyed());
-    return { current: this.current?.id ?? null, projects: shell.store.projects(),
+    return { current: this.current?.id ?? null, projects: shell.projects(),
       // Each with its tasks, open and closed, the one it shows and whether its group is folded, for the projects' bar
       // (the shown project's also come as 'tasks')
       open: this.tabs.map((p) => ({ id: p.id, task: p.task?.key ?? null, collapsed: p.collapsed, tasks: [...p.tasks.values()].map((t) => t.info()) })),

@@ -55,6 +55,7 @@ lines (`stroke`) of the text's color; a filled part has `fill="currentColor"`. U
 | `i-zoom`, `i-theme`, `i-arrange`, `i-agent`, `i-keyboard`, `i-exit` | ☰'s rows: Zoom, Theme, Arrange panels, Agents…, Keyboard Shortcuts, Exit |
 | `i-mic` | dictation's microphone in the terminal's header (Lucide's mic) |
 | `i-users` | the profiles' chip on every task's tab (Lucide's users) |
+| `i-p-cart`, `i-p-briefcase`, `i-p-globe`, `i-p-flask`, `i-p-rocket`, `i-p-code`, `i-p-building`, `i-p-people`, `i-p-book`, `i-p-heart` | a project's icon to choose (Lucide's shopping-cart, briefcase, globe, flask-conical, rocket, code, building-2, users-round, book-open-text, heart), drawn in its color (`projectIcon`, `common.js`) |
 | `i-working`, `i-waiting`, `i-done` | an agent's state on a tab (`.state`) |
 
 An icon is 16 px; × and + are 14 px, as in Chrome (`.icon`), and so is an agent's state. ☰'s and the agent's states are Lucide's (lucide.dev, ISC), drawn on 24 × 24 with
@@ -87,6 +88,8 @@ every other `<svg>` uses the sprite.
 - `.removable`: a row with a × (`button.remove.icon.quiet`) at its end, shown on hover or focus; the row is lit as
   one. A recent project in the project menu and on the Welcome screen.
 - `.dot`: a 10 px circle in `--color`, a project's.
+- `.choices`: icon buttons (`.icon`, `aria-pressed`) to choose one of, the chosen one ringed in `--accent`: a
+  profile's pictures, a project's colors (a `.dot` each) and icons.
 - `.avatar`: a profile's picture (`<img>`, `avatarSrc(name)` in `common.js`), 16 px; `--avatar` where a place needs
   another size (22 px in the editor).
 - `.striptab`: a tab of a strip on an island, as a browser's: the agent's `.state`, `.name`, × at the end

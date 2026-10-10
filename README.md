@@ -51,7 +51,8 @@ it), its tasks, and **+** for a new task. A click on a task shows it, of any pro
 or **Close Project** in its right-click menu, after a question; closing a window asks once for all its projects). The button after the islands opens a menu of the
 projects: open another one (in this window or in a new window: Kulisa asks), remove one (its **×** on hover:
 Kulisa's data of it and its tasks' copies; its folder stays), **New Project…** (a name and where its folder goes,
-your home folder by default; git on by default, with an empty first commit), **Open Folder…**, close the project. Closing the last project shows the
+`~/Kulisa` by default; git on by default, with an empty first commit; its color, icon and agent; the same in
+**Project Settings…** on its name's right-click menu), **Open Folder…**, close the project. Closing the last project shows the
 Welcome screen. A closed project keeps its tabs and
 sign-ins; when you open it again, its agent continues the conversation where it can (`claude --resume`,
 `codex resume`). The agent starts in your shell in its task's folder, as if you typed its command in a terminal
@@ -131,7 +132,7 @@ src/renderer/    window UI. renderer.js: the grid of panels (dockview), panes, �
                  profile-editor.js; ES modules loaded when
                  needed: agent-picker.js (choosing and installing an agent), agents.js (the Agents
                  window), both with agent-list.js, ask.js (questions before deleting or
-                 closing), new-project.js (New Project…), shortcuts.js (Keyboard Shortcuts). Styles: tokens.css, components.css, window.css; the icons are a
+                 closing), project-editor.js (New Project…, Project Settings…), shortcuts.js (Keyboard Shortcuts). Styles: tokens.css, components.css, window.css; the icons are a
                  sprite in index.html (docs/ui.md)
 assets/          the app icon: icon.svg (source) and what each OS needs, rendered by scripts/icons.js
 test/            start.js (npm test: the groups in parallel), run.js (one app, its files in order), helpers.js,

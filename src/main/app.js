@@ -7,10 +7,10 @@ const fs = require('fs');
 const { EventEmitter } = require('events');
 const { stepZoom } = require('./profiles');
 const { CdpProxy } = require('./cdp-proxy');
-const { Store } = require('./store');
+const { Store, PROJECT_COLORS } = require('./store');
 const { signinPages } = require('./signin-pages');
 const { SessionCookies } = require('./session-cookies');
-const { Project, askRemoveProject, removeProjectData } = require('./projects');
+const { Project, askRemoveProject, removeProjectData, faviconOf, PROJECT_ICONS } = require('./projects');
 const { AppWindow } = require('./window');
 const worktrees = require('./worktrees');
 const agents = require('./agents');
@@ -49,7 +49,7 @@ function start(options = {}) {
   const saved = store.windows().filter((w, i) => i === 0 || w.tabs.length);
   if (!saved.length) saved.push({ tabs: [], shown: null });
   if (options.project) {
-    const p = store.projectFor(path.resolve(options.project));
+    const p = projectOfFolder(path.resolve(options.project));
     const w = saved.find((x) => x.tabs.some((t) => t.id === p.id)) || saved[0];
     if (!w.tabs.some((t) => t.id === p.id)) w.tabs.push(p);
     w.shown = p;
@@ -84,6 +84,16 @@ function start(options = {}) {
   // once quitting: the tabs are saved then, and each one closing as Kulisa quits saved its task's tabs again,
   // fewer each time, at last none (one in the background at once: 2026-10-08, the author's tabs all about:blank).
   shell.taskChanged = (task, now, agentState) => quitting || task.project.window?.changed(task, now, agentState);
+  // A project for a folder opened (Open Folder…, KULISA_PROJECT): its site's favicon as its icon when it has one.
+  function projectOfFolder(folder) { return store.projectFor(folder, undefined, { icon: faviconOf(folder) ? 'favicon' : undefined }); }
+  // A color, icon or agent the window sent for a project: one of those offered, or why not.
+  const lookError = ({ color, icon, agent }) => (color && !PROJECT_COLORS.includes(color) ? `no color ${color}`
+    : icon && icon !== 'favicon' && !PROJECT_ICONS.includes(icon) ? `no icon ${icon}`
+      : agent && !shell.agentFor(agent) ? `no agent ${agent}` : null);
+  // The projects as the windows show them: each with its favicon's picture when that is its icon (read once a folder).
+  const favicons = new Map();
+  shell.projects = () => store.projects().map((p) => (p.icon !== 'favicon' ? p
+    : { ...p, favicon: favicons.get(p.folder) ?? favicons.set(p.folder, faviconOf(p.folder)).get(p.folder) }));
   // A question asked in a window (window.js), the first one when none is named: askWhich gives the button clicked
   // ('ok', 'other') or null; ask whether it was ok. Through shell: the tests answer it.
   shell.askWhich = (q, w = first()) => w.ask(q);
@@ -343,25 +353,28 @@ function start(options = {}) {
     return w.info();
   };
   ipcMain.handle('project:open', (e, { id, folder }) => {
-    const p = id ? store.projects().find((x) => x.id === id) : folder && fs.existsSync(folder) ? store.projectFor(path.resolve(folder)) : null;
+    const p = id ? store.projects().find((x) => x.id === id) : folder && fs.existsSync(folder) ? projectOfFolder(path.resolve(folder)) : null;
     return p ? openLater(p, at(e)) : { error: 'no such project' };
   });
   ipcMain.handle('project:open-folder', async (e) => {
     const w = at(e);
     const r = await dialog.showOpenDialog(w.win, { title: 'Open a project folder', properties: ['openDirectory', 'createDirectory'] });
-    return r.canceled || !r.filePaths[0] ? w.info() : openLater(store.projectFor(r.filePaths[0]), w);
+    return r.canceled || !r.filePaths[0] ? w.info() : openLater(projectOfFolder(r.filePaths[0]), w);
   });
-  // New Project…, as JetBrains': the folder <location>/<name>, the location the home folder unless the human picks
-  // another, so they know where the agent's files are. A folder that is there already must be empty; git init in it
-  // when asked, with an empty first commit: tasks get copies of their own (worktrees) from it.
-  ipcMain.handle('project:new-defaults', () => ({ location: options.projectsHome || app.getPath('home'), sep: path.sep }));
+  // New Project…, as JetBrains': the folder <location>/<name>, the location ~/Kulisa (every new project's place, as
+  // JetBrains' ~/PycharmProjects) unless the human picks another, so they know where the agent's files are. A folder
+  // that is there already must be empty; git init in it when asked, with an empty first commit: tasks get copies of
+  // their own (worktrees) from it. With its color, icon and the agent its tasks run (project-editor.js).
+  const choices = () => ({ colors: PROJECT_COLORS, icons: PROJECT_ICONS, agents: known.filter((a) => !a.custom).map(({ id, name }) => ({ id, name })) });
+  ipcMain.handle('project:new-defaults', () => ({ location: options.projectsHome || path.join(app.getPath('home'), 'Kulisa'), sep: path.sep,
+    color: store.nextColor(), ...choices() }));
   ipcMain.handle('project:pick-location', async (e, { location }) => {
     const r = await dialog.showOpenDialog(at(e).win, { title: 'Where to create the project', defaultPath: location, properties: ['openDirectory', 'createDirectory'] });
     return r.canceled ? null : r.filePaths[0] || null;
   });
-  ipcMain.handle('project:new', async (e, { name, location, git }) => {
+  ipcMain.handle('project:new', async (e, { name, location, git, color, icon, agent }) => {
     name = name?.trim();
-    const bad = nameError(name);
+    const bad = nameError(name) || lookError({ color, icon, agent });
     if (bad) return { error: bad };
     location = location?.trim().replace(/^~(?=$|[\\/])/, app.getPath('home'));
     if (!location || !path.isAbsolute(location)) return { error: 'the location must be the full path of a folder' };
@@ -371,7 +384,28 @@ function start(options = {}) {
     }
     fs.mkdirSync(folder, { recursive: true });
     if (git) await worktrees.initRepo(folder).catch((err) => console.error('[git]', err.stderr || err.message));
-    return openLater(store.projectFor(folder, name), at(e));
+    return openLater(store.projectFor(folder, name, { color, icon, agent }), at(e));
+  });
+  // Project Settings… (a group label's menu): its name, color, icon and the agent its new tasks run; its folder is
+  // shown, not changed (its tasks' copies are made from it).
+  ipcMain.handle('project:settings-get', (e, { id }) => {
+    const p = store.projects().find((x) => x.id === id);
+    return p ? { id, name: p.name, folder: p.folder, color: p.color, icon: p.icon || 'logo', agent: p.agent || null, favicon: faviconOf(p.folder), ...choices() } : { error: `no project ${id}` };
+  });
+  ipcMain.handle('project:settings', (e, { id, name, color, icon, agent }) => {
+    name = name?.trim();
+    const bad = nameError(name) || lookError({ color, icon, agent });
+    if (bad) return { error: bad };
+    const entry = store.updateProject(id, { name, color, icon: icon === 'logo' ? null : icon, agent: agent || null });
+    if (!entry) return { error: `no project ${id}` };
+    favicons.delete(entry.folder);
+    const open = shell.open.get(id);
+    if (open) {
+      open.update(entry);
+      if (open.window?.current === open) open.window.win.setTitle(`${entry.name} — Kulisa`);
+    }
+    sendProjects();
+    return { id };
   });
   // A project open in any window: that window shows it (brought to the front).
   ipcMain.handle('project:show', (e, { id }) => serial(() => {

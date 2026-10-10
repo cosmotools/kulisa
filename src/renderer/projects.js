@@ -31,6 +31,10 @@
       const el = tpl('tpl-pisland');
       el.dataset.project = p.id;
       el.style.setProperty('--color', p.color);
+      // Its icon: its site's favicon, one of Kulisa's set, or the app's curtain in its color.
+      const favicon = el.querySelector('.favicon');
+      if (p.icon === 'favicon' && p.favicon) { favicon.src = p.favicon; favicon.hidden = false; el.querySelector('.plabel svg').remove(); }
+      else el.querySelector('.plabel svg').replaceWith(projectIcon(p.icon));
       el.classList.toggle('active', p.id === current);
       el.title = p.folder || '';
       el.querySelector('.name').textContent = p.name;
@@ -90,7 +94,8 @@
       // The only tab stays: a new window would be the same as this one.
       { label: 'Move to New Window', enabled: open.length > 1, run: () => move(null) },
       ...windows.map((w) => ({ label: `Move to Window: ${w.names.join(', ')}`, run: () => move(w.id) })),
-      '-', { label: 'Show Data Folder', run: () => kulisa.invoke('project:show-data', { id }) },
+      '-', { label: 'Project Settings…', run: async () => (await import('./project-editor.js')).editProject(id) },
+      { label: 'Show Data Folder', run: () => kulisa.invoke('project:show-data', { id }) },
       { label: 'Remove Project…', run: () => remove(id) }], e);
   });
 
@@ -170,7 +175,7 @@
   });
   document.getElementById('welcome-open').onclick = () => kulisa.invoke('project:open-folder');
   // New Project…: its name and where its folder goes (a module of its own, loaded then).
-  const create = async () => (await import('./new-project.js')).newProject();
+  const create = async () => (await import('./project-editor.js')).newProject();
   document.getElementById('welcome-new').onclick = create;
   // Agents…: what is installed, and installing one, before any project (agents.js, loaded then).
   document.getElementById('welcome-agents').onclick = async () => (await import('./agents.js')).showAgents();

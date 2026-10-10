@@ -527,7 +527,11 @@ module.exports = (test) => {
     // New Project…: a name and where its folder goes, the home folder unless another is chosen; git on by default.
     await ui(`document.getElementById('welcome-new').click()`);
     await waitFor(() => ui(`document.getElementById('newproject').open`));
-    assert.equal(await ui(`document.getElementById('nplocation').value`), require('os').homedir());
+    assert.equal(await ui(`document.getElementById('nplocation').value`), path.join(require('os').homedir(), 'Kulisa'), "every new project's place");
+    // Its color (the next free one chosen), its icon (the curtain), the agent its tasks run (the first one known).
+    assert.deepEqual(await ui(`[...document.querySelectorAll('#npcolors [aria-pressed="true"], #npicons [aria-pressed="true"]')].map((b) => b.dataset.value)`),
+      [shell.store.nextColor(), 'logo']);
+    assert.equal(await ui(`document.getElementById('npagent').value`), 'fake');
     assert.equal(await ui(`document.getElementById('npgit').checked`), true);
     const made = path.join(root, 'made');
     fs.mkdirSync(path.join(made, 'Taken'), { recursive: true });
@@ -544,10 +548,15 @@ module.exports = (test) => {
     await waitFor(async () => /already there and not empty/.test(await ui(`document.querySelector('#newproject .error').textContent`)));
     assert.ok(!shell.store.projects().some((p) => p.id === 'taken'), 'a folder with files in it is not taken');
     await named('Shop');
+    // Another color and icon; no agent: the window asks when a task starts (here the tests' own, which is there).
+    await ui(`document.querySelectorAll('#npcolors button')[3].click(); document.querySelector('#npicons [data-value="rocket"]').click(); document.getElementById('npagent').value = ''`);
     assert.equal(await ui(`document.getElementById('npwhere').textContent`), `The project will be created in ${path.join(made, 'Shop')}`);
     await ui(`document.getElementById('npform').requestSubmit()`);
     await waitFor(() => shell.current?.folder === path.join(made, 'Shop') && shell.task?.loaded && shell.pty);
     assert.ok(fs.existsSync(path.join(made, 'Shop', '.git')), 'git init in it');
+    const shop = shell.store.projects().find((p) => p.id === 'shop');
+    assert.deepEqual([shop.color, shop.icon, shop.agent], [require('../src/main/store').PROJECT_COLORS[3], 'rocket', undefined]);
+    assert.equal(await ui(`${projectTab('shop')}.querySelector('.plabel use').getAttribute('href')`), '#i-p-rocket');
     assert.equal(git(path.join(made, 'Shop'), 'log', '--format=%s'), 'Initial commit', 'an empty first commit');
     assert.equal(shell.task.folder, path.join(made, 'Shop@task-1'), 'so its first task has a copy of its own');
     assert.equal(await ui(`document.getElementById('newproject').open`), false);
@@ -571,6 +580,43 @@ module.exports = (test) => {
     await ui(`${projectTab('shop')}.querySelector('.tasktab[data-task="shop/1"] .close').click()`);
     await waitFor(() => !shell.open.has('shop'));
     assert.equal(shell.current?.id, 'project', 'the shown project stays');
+    ctx.asked.length = 0;
+  });
+
+  test('projects: Project Settings… changes its name, color, icon and the agent its new tasks run; a folder with a favicon gets it as its icon', async (ctx) => {
+    const { shell, ui } = ctx;
+    const site = path.join(root, 'site');
+    fs.mkdirSync(path.join(site, 'public'), { recursive: true });
+    fs.writeFileSync(path.join(site, 'public', 'favicon.svg'), '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><circle cx="8" cy="8" r="8" fill="red"/></svg>');
+    await ui(`kulisa.invoke('project:open', { folder: ${JSON.stringify(site)} })`);
+    await waitFor(() => shell.current?.id === 'site' && shell.task?.loaded && shell.pty);
+    ctx.watchPty(shell.pty);
+    await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
+    assert.equal(shell.store.projects().find((p) => p.id === 'site').icon, 'favicon');
+    await waitFor(() => ui(`${projectTab('site')}.querySelector('.favicon').src.startsWith('data:image/svg+xml;base64,')`));
+    // Its settings: the favicon among the icons to choose from, the folder shown and not changed.
+    await rightClick(ui, `#projectTabs [data-project="site"] .name`);
+    await menuRows(ui);
+    await choose(ui, 'Project Settings…');
+    await waitFor(() => ui(`document.getElementById('newproject').open && document.querySelector('#newproject h2').textContent === 'Project Settings'`));
+    assert.equal(await ui(`document.querySelector('#npicons [aria-pressed="true"]').dataset.value`), 'favicon');
+    assert.equal(await ui(`document.getElementById('npwhere').textContent`), `Its folder: ${site}`);
+    assert.equal(await ui(`document.getElementById('nplocationrow').checkVisibility()`), false);
+    await ui(`(() => { const n = document.getElementById('npname'); n.value = 'Site-2'; n.dispatchEvent(new Event('input'));
+      document.querySelectorAll('#npcolors button')[5].click(); document.querySelector('#npicons [data-value="globe"]').click();
+      document.getElementById('npagent').value = 'shell'; document.getElementById('npform').requestSubmit(); })()`);
+    await waitFor(async () => !(await ui(`document.getElementById('newproject').open`)));
+    const entry = shell.store.projects().find((p) => p.id === 'site');
+    assert.deepEqual([entry.name, entry.color, entry.icon, entry.agent, entry.folder], ['Site-2', require('../src/main/store').PROJECT_COLORS[5], 'globe', 'shell', site]);
+    await waitFor(async () => (await projectTabs(ui)).includes('Site-2 *') && shell.win.getTitle() === 'Site-2 — Kulisa');
+    assert.equal(await ui(`${projectTab('site')}.querySelector('.plabel use').getAttribute('href')`), '#i-p-globe');
+    // Its new tasks run its agent (the first kept the one it started with).
+    ctx.answer = true; // no git: a second task in the folder, after the question
+    const task = await newTask(ctx);
+    ctx.asked.length = 0;
+    assert.equal(JSON.parse(fs.readFileSync(path.join(userData, 'projects', 'site', String(task.n), 'agent.json'), 'utf8')).agent, 'shell');
+    await ui(`kulisa.invoke('project:close', { id: 'site' })`);
+    await waitFor(() => !shell.open.has('site'));
     ctx.asked.length = 0;
   });
 

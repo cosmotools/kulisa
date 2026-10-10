@@ -4,6 +4,7 @@
 // to another window, and removing a project's data for good. Nothing runs when it opens: a task loads when it is first
 // shown.
 const fs = require('fs');
+const path = require('path');
 const { Task } = require('./tasks');
 const worktrees = require('./worktrees');
 
@@ -12,7 +13,7 @@ class Project {
   // Task takes it. window: the window it is open in (window.js, add).
   constructor(shell, entry) {
     this.shell = shell; this.store = shell.store; this.entry = entry; this.window = null;
-    this.id = entry.id; this.name = entry.name; this.folder = entry.folder; this.color = entry.color;
+    this.id = entry.id; this.folder = entry.folder; this.update(entry);
     this.git = null; // 'ok', 'no-commit' (no copies before a first commit), 'none'
     this.tasks = new Map(); // by number, open and closed
     const { next, current, collapsed, list } = this.store.tasksOf(entry);
@@ -20,6 +21,8 @@ class Project {
     for (const e of list) this.tasks.set(e.n, new Task(shell, this, e));
     this.task = this.open().find((t) => t.n === current) || this.open()[0] || null; // the one it shows
   }
+  // Its name, color, icon and default agent, as Project Settings… left them (store.js, updateProject).
+  update(entry) { this.entry = entry; this.name = entry.name; this.color = entry.color; }
   // Its open tasks, in the order they were made (the bar's); the closed ones, the one closed last first.
   open() { return [...this.tasks.values()].filter((t) => !t.entry.closed); }
   closedTasks() { return [...this.tasks.values()].filter((t) => t.entry.closed).sort((a, b) => b.entry.closedAt - a.entry.closedAt); }
@@ -54,7 +57,8 @@ class Project {
   // worktree of its own on a branch of the same name next to the project (worktrees.js), with a port offset no other
   // task has (100, 200, …: the project's own folder keeps the usual ports); without, it works right in the project's
   // folder. Its profiles and agent are those of the task from (the project's on screen), copied, until profiles have
-  // masters (ROADMAP, "Projects and tasks", step 4); the first task has none. The new Task, or { error }.
+  // masters (ROADMAP, "Projects and tasks", step 4); the first task has none. Its agent is the project's (Project
+  // Settings…), else that task's. The new Task, or { error }.
   async createTask(from = this.task) {
     await this.checkGit();
     const n = this.next, name = `task-${n}`;
@@ -67,10 +71,9 @@ class Project {
       entry = { n, name, branch: wt.branch, worktree: wt.worktree, folder: wt.folder, base: wt.base, offset };
     }
     const data = this.store.taskOf(this, n);
-    if (from) {
-      await from.copyProfilesInto(data, entry.offset - from.offset);
-      data.saveAgent({ agent: from.store.agent().agent });
-    }
+    if (from) await from.copyProfilesInto(data, entry.offset - from.offset);
+    const agent = this.entry.agent || from?.store.agent().agent; // none: the window asks as the task starts
+    if (agent) data.saveAgent({ agent });
     this.next = n + 1;
     const task = new Task(this.shell, this, entry);
     this.tasks.set(n, task);
@@ -169,4 +172,21 @@ const deleteQuestion = ({ message, ok, goes, notInMain, stays }) => ({ message, 
 const changesText = ({ commits, dirty }) => [commits && `${commits} commit${commits === 1 ? '' : 's'} of its own`,
   dirty && `${dirty} uncommitted file${dirty === 1 ? '' : 's'}`].filter(Boolean).join(' and ');
 
-module.exports = { Project, askRemoveProject, removeProjectData };
+// A project's own icon: its site's favicon, where web projects keep it (a framework's public or static folder, Next's
+// app/), as a data URL for the window; null when there is none. Kulisa's own set (PROJECT_ICONS, the sprite's
+// i-p-<name>) otherwise; logo: the app's curtain in the project's color.
+const PROJECT_ICONS = ['logo', 'cart', 'briefcase', 'globe', 'flask', 'rocket', 'code', 'building', 'people', 'book', 'heart'];
+const FAVICONS = ['favicon.svg', 'favicon.ico', 'favicon.png', 'icon.svg', 'icon.png'].flatMap((f) =>
+  ['', 'public', 'static', 'app', 'src', 'src/app', 'assets', 'web', 'www'].map((d) => path.join(d, f)));
+const IMAGE_TYPES = { '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.png': 'image/png' };
+function faviconOf(folder) {
+  for (const f of FAVICONS) {
+    try {
+      const file = path.join(folder, f), size = fs.statSync(file).size;
+      if (size && size <= 128 * 1024) return `data:${IMAGE_TYPES[path.extname(f)]};base64,${fs.readFileSync(file).toString('base64')}`;
+    } catch {}
+  }
+  return null;
+}
+
+module.exports = { Project, askRemoveProject, removeProjectData, faviconOf, PROJECT_ICONS };

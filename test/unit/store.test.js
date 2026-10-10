@@ -28,6 +28,18 @@ test('projects: at first start none is opened; each gets its own color', async (
   later.saveWindows([]);
   assert.deepEqual(later.settings(), { uiZoom: 1, windows: [] });
 });
+test('projects: made with a color, icon and agent chosen; settings change them, never the id or folder', async () => {
+  const { Store, PROJECT_COLORS } = require('../../src/main/store');
+  const store = new Store(path.join(root, 'look-data'));
+  const p = store.projectFor('/work/app', 'app', { color: PROJECT_COLORS[4], icon: 'rocket', agent: 'codex' });
+  assert.deepEqual(p, { id: 'app', name: 'app', folder: '/work/app', color: PROJECT_COLORS[4], icon: 'rocket', agent: 'codex' });
+  assert.equal(store.nextColor(), PROJECT_COLORS[0], 'the next new one: the first color no project has');
+  const changed = store.updateProject('app', { name: 'App-2', icon: null, agent: null, id: 'app', folder: '/work/app' });
+  assert.deepEqual(changed, { id: 'app', name: 'App-2', folder: '/work/app', color: PROJECT_COLORS[4] }, 'none: back to the curtain, the window asks');
+  assert.deepEqual(new Store(path.join(root, 'look-data')).projects(), [changed]);
+  assert.equal(store.updateProject('gone', { name: 'x' }), null);
+});
+
 test('store: a write cut short leaves the file as it was', async () => {
   const { Store } = require('../../src/main/store');
   const store = new Store(path.join(root, 'fresh-data'));

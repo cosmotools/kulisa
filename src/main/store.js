@@ -2,8 +2,9 @@
 // profile), so what is known about Chrome's storage applies:
 //   settings.json            the Kulisa zoom, the theme, where the projects' bar is; the windows: the projects open
 //                            in each (its tabs, in order), the one shown, where it was on screen
-//   projects.json            the projects: { id, name, folder, color }; a project is a folder (a repository, or one
-//                            Kulisa made); its color tints the window, to tell projects apart at a glance
+//   projects.json            the projects: { id, name, folder, color, icon, agent }; a project is a folder (a
+//                            repository, or one Kulisa made); its color tints the window and its icon marks its group,
+//                            to tell projects apart at a glance; agent: the one its new tasks run
 //   projects/<id>/
 //     tasks.json             the project's tasks: { next, current, collapsed, list: [{ n, name, branch, worktree,
 //                            folder, base, offset, closed, closedAt }] }; one without a worktree works in the
@@ -39,17 +40,28 @@ class Store {
 
   projects() { return readJSON(this.projectsFile) || []; }
   dirOf(p) { const d = path.join(this.dir, 'projects', p.id); fs.mkdirSync(d, { recursive: true }); return d; }
-  // The project of a folder; a new one if no project has it.
-  projectFor(folder, name = path.basename(folder) || folder) {
+  // The project of a folder; a new one if no project has it, with what the human chose for it (New Project…: color,
+  // icon, agent), else the next free color.
+  projectFor(folder, name = path.basename(folder) || folder, { color, icon, agent } = {}) {
     const list = this.projects();
     const found = list.find((p) => samePath(p.folder, folder));
     if (found) return found;
     const base = slugOf(name, 'project');
     let id = base, n = 2;
     while (list.some((p) => p.id === id)) id = `${base}-${n++}`;
-    const p = { id, name, folder, color: nextColor(list) };
+    const p = { id, name, folder, color: color || this.nextColor(), ...(icon && { icon }), ...(agent && { agent }) };
     writeJSON(this.projectsFile, [...list, p]);
     return p;
+  }
+  nextColor() { return nextColor(this.projects()); }
+  // A project's name, color, icon or default agent changed (Project Settings…); its id and folder stay. null fields
+  // go (an agent no longer chosen).
+  updateProject(id, fields) {
+    const list = this.projects(), i = list.findIndex((p) => p.id === id);
+    if (i < 0) return null;
+    list[i] = Object.fromEntries(Object.entries({ ...list[i], ...fields }).filter(([, v]) => v != null));
+    writeJSON(this.projectsFile, list);
+    return list[i];
   }
   // The windows open last: [{ tabs: [project], shown: project or null, bounds, maximized }], each with its project
   // tabs in order; none at first start. Before there were several windows, one window's were openProjects and
@@ -172,4 +184,4 @@ function writeFileAtomic(file, data, options) {
   } catch (e) { fs.rmSync(tmp, { force: true }); throw e; }
 }
 
-module.exports = { Store, TaskStore, copyProfile, writeFileAtomic, SESSION_COOKIES_FILE };
+module.exports = { Store, TaskStore, copyProfile, writeFileAtomic, SESSION_COOKIES_FILE, PROJECT_COLORS };

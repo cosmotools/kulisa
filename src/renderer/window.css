@@ -193,7 +193,7 @@ body {
      the project is its right-click menu and the middle button; dragging it moves the island. */
   .plabel { display: flex; align-items: center; gap: 8px; padding-inline: 8px; color: var(--text-muted);
     font-weight: 600; white-space: nowrap; cursor: default;
-    svg { width: 20px; height: 20px; color: var(--color); } }
+    svg, .favicon { width: 20px; height: 20px; color: var(--color); } }
   /* An island being dragged; where a dropped one would go (projects.js). */
   .dragging { opacity: .5; }
   .drop-before { box-shadow: inset 2px 0 var(--accent); }
@@ -258,10 +258,10 @@ body > #term { display: none; }
   .name { flex: 1; min-width: 0; }
   .ntabs { padding-inline: 9px; font-size: 0.9em; color: var(--text-muted); }
 }
-/* A profile's picture in the editor (a row's, the new one's) and the pictures to choose from, its own lit */
-#profiles { .pic { --avatar: 22px; }
-  .pics { display: flex; flex-wrap: wrap; gap: 2px; &[hidden] { display: none; }
-    [aria-pressed="true"] { background: var(--island-hi); box-shadow: inset 0 0 0 2px var(--accent); } } }
+/* A profile's picture in the editor (a row's, the new one's); the pictures to choose from are .choices */
+#profiles .pic { --avatar: 22px; }
+/* A project's colors and icons to choose from (project-editor.js): a color a dot, an icon in the project's color */
+#newproject .choices { .dot { width: 14px; height: 14px; } svg { color: var(--color); } img { width: 16px; height: 16px; } }
 #padd h3 { margin: calc(var(--gap) * 2) 0 0; font-size: 1em; color: var(--text-dim); }
 /* Keyboard Shortcuts (shortcuts.js): a group's heading and what it is about, then each command and its keys as key
    caps, one under the other */
