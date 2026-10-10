@@ -5,17 +5,20 @@
 // tells it where); while a panel is dragged or a menu is open, a picture of the page stands in for it.
 import { computed, onBeforeUnmount, onMounted, onUpdated, reactive, ref, watch } from 'vue';
 import type { DockviewPanelApi } from 'dockview-vue';
+import { DialogContent, DialogDescription, DialogRoot, DialogTitle } from 'reka-ui';
 import Icon from '../Icon.vue';
+import ButtonMenu from '../menu/ButtonMenu.vue';
+import RightClickMenu from '../menu/RightClickMenu.vue';
 import { act, store, togglePick } from '../../lib/store';
 import { keyText, withKeys } from '../../lib/common';
-import { openMenu } from '../../lib/menu';
+import type { MenuItem } from '../../lib/menu';
 import { panes, scheduleLayout, type PaneHandle } from '../../lib/grid';
 
 const props = defineProps<{ params: { api: DockviewPanelApi } }>();
 const key = props.params.api.id.slice('profile:'.length);
 const profile = computed(() => store.profiles.find((p) => p.key === key));
 const active = computed(() => profile.value?.tabs.find((t) => t.id === profile.value!.active));
-const content = ref<HTMLElement>(), addr = ref<HTMLInputElement>(), strip = ref<HTMLElement>(), pageDialog = ref<HTMLDialogElement>();
+const content = ref<HTMLElement>(), addr = ref<HTMLInputElement>(), strip = ref<HTMLElement>();
 const id = () => profile.value!.id;
 const tab = () => profile.value!.active;
 
@@ -66,44 +69,40 @@ function tabClick(e: MouseEvent, t: string) {
   if ((e.target as Element).closest('.x')) act('tab:close', { profile: id(), tab: t });
   else act('tab:activate', { profile: id(), tab: t });
 }
-function tabMenu(e: MouseEvent, t: string) {
-  const p = profile.value!, profileId = p.id, url = p.tabs.find((x) => x.id === t)?.url;
-  openMenu([
+// A tab's right-click menu (the strip's: for the tab it was on).
+function tabMenu(e: MouseEvent): MenuItem[] | null {
+  const t = (e.target as Element).closest<HTMLElement>('.tab')?.dataset.tab, p = profile.value;
+  if (!t || !p) return null;
+  const profileId = p.id, url = p.tabs.find((x) => x.id === t)?.url;
+  return [
     { label: 'Reload', keys: keyText('tab.reload'), run: () => act('tab:reload', { profile: profileId, tab: t }) },
     { label: 'Duplicate', run: () => act('tab:new', { profile: profileId, url }) },
     '-',
     { label: 'Close tab', keys: keyText('tab.close'), run: () => act('tab:close', { profile: profileId, tab: t }) },
     { label: 'Close other tabs', enabled: p.tabs.length > 1,
       run: () => { for (const x of p.tabs) if (x.id !== t) act('tab:close', { profile: profileId, tab: x.id }); } },
-  ], e);
+  ];
 }
 // ⋮ at the end of the bar, as Chrome's: what a pane does less often.
-const more = (e: MouseEvent) => openMenu([
+const more = (): MenuItem[] => [
   { label: 'DevTools', keys: keyText('devtools.tab'), run: () => act('tab:devtools', { profile: id(), tab: tab() }) },
-], e.currentTarget as Element);
+];
 const picking = computed(() => !!profile.value && !!store.picking[profile.value.id]);
 
-// The active tab's alert or confirm (profiles.js), over a picture of its page; the human's answer goes back when they
-// close it (OK, Cancel, Esc), not when it is closed for them (answered by the agent, the page gone: data-id emptied). One
-// answered is not shown again by a state sent before the answer arrived.
-let answered: number | null = null;
-const shownDialog = computed(() => { const d = active.value?.dialog; return d && d.id !== answered ? d : null; });
-watch(() => [shownDialog.value?.id, active.value?.id], () => {
-  const dialog = pageDialog.value, d = shownDialog.value;
-  if (!dialog) return;
-  if (!d) { if (dialog.open) { dialog.dataset.id = ''; dialog.close(); } return; }
-  if (dialog.dataset.id === String(d.id)) return;
-  Object.assign(dialog.dataset, { id: String(d.id), tab: active.value!.id });
-  dialog.returnValue = '';
-  if (!dialog.open) dialog.show();
-}, { flush: 'post' });
-function dialogClosed() {
-  const dialog = pageDialog.value!, { id: d, tab: t } = dialog.dataset;
-  dialog.dataset.id = '';
+// The active tab's alert or confirm (profiles.js), over a picture of its page, as Chrome shows it: Reka's Dialog, not
+// modal (the other panes and the rest of the window go on), in the pane. The human's answer goes back when they close
+// it (OK, Cancel, Esc; a click outside does nothing), not when it goes for them (answered by the agent, the page gone:
+// the state has it no more). One answered is not shown again by a state sent before the answer arrived. OK has the
+// keyboard, as in Chrome.
+const answered = ref<number | null>(null);
+const shownDialog = computed(() => { const d = active.value?.dialog; return d && d.id !== answered.value ? d : null; });
+function answer(ok: boolean) {
+  const d = shownDialog.value;
   if (!d) return;
-  answered = Number(d);
-  act('tab:dialog', { profile: id(), tab: t, dialog: answered, ok: dialog.returnValue === 'ok' });
+  answered.value = d.id;
+  act('tab:dialog', { profile: id(), tab: tab(), dialog: d.id, ok });
 }
+const focusOk = (e: Event) => { e.preventDefault(); (e.currentTarget as HTMLElement).querySelector<HTMLElement>('.primary')?.focus(); };
 
 let observer: ResizeObserver;
 const handle: PaneHandle = { get content() { return content.value!; }, focusAddress, newTab };
@@ -121,14 +120,14 @@ onBeforeUnmount(() => { observer.disconnect(); if (panes.get(key) === handle) pa
   <div v-if="profile" class="pane" :data-profile="profile.id">
     <!-- The tabs scroll in .strip; + is next to it, never over a tab, as in Chrome -->
     <nav class="tabs">
-      <div ref="strip" class="strip" @wheel="(e) => { if (!e.deltaX) strip!.scrollLeft += e.deltaY; }">
+      <RightClickMenu :items="tabMenu"><div ref="strip" class="strip" @wheel="(e) => { if (!e.deltaX) strip!.scrollLeft += e.deltaY; }">
         <div v-for="t in profile.tabs" :key="t.id" class="tab" :class="{ active: t.id === profile.active, opening: opening.has(t.id) }" :data-tab="t.id"
-          :title="t.url" @click="tabClick($event, t.id)" @contextmenu.prevent="tabMenu($event, t.id)" @animationend="grown(t.id)">
+          :title="t.url" @click="tabClick($event, t.id)" @animationend="grown(t.id)">
           <img alt="" :hidden="!t.favicon" :src="t.favicon || undefined"><Icon class="globe" name="i-globe" />
           <span class="title">{{ (t.loading ? '⟳ ' : '') + (t.title || t.url || 'New tab') }}</span>
           <span class="x icon small" title="Close tab"><Icon name="i-close" /></span>
         </div>
-      </div>
+      </div></RightClickMenu>
       <button class="add icon" :title="withKeys('New tab', 'tab.new')" aria-label="New tab" @click="newTab"><Icon name="i-plus" /></button>
     </nav>
     <div class="bar">
@@ -144,14 +143,16 @@ onBeforeUnmount(() => { observer.disconnect(); if (panes.get(key) === handle) pa
       <!-- Pick needs a page to point at: off on an empty tab (about:blank), unless picking already. -->
       <button class="pick icon" :class="{ active: picking }" :title="withKeys('Pick an element on the page to mention it to the agent (again or Esc: cancel)', 'pick')"
         aria-label="Pick an element" :disabled="!picking && (!active?.url || active.url === 'about:blank')" @click="togglePick(profile.id)"><Icon name="i-pick" /></button>
-      <button class="more icon" data-menu-end title="More: DevTools" aria-label="More" @click="more"><Icon name="i-more" /></button>
+      <ButtonMenu :items="more" end><button class="more icon" title="More: DevTools" aria-label="More"><Icon name="i-more" /></button></ButtonMenu>
     </div>
     <div ref="content" class="content" :style="{ '--picture': shownDialog?.picture ? `url(${JSON.stringify(shownDialog.picture)})` : 'none' }">
-      <dialog ref="pageDialog" class="pagedialog" closedby="closerequest" @close="dialogClosed">
-        <header><h2>{{ shownDialog?.from }}</h2></header>
-        <div class="body"><p class="message">{{ shownDialog?.message }}</p></div>
-        <form method="dialog"><footer><button value="" class="cancel" :hidden="shownDialog?.type !== 'confirm'">Cancel</button><button value="ok" class="primary" autofocus>OK</button></footer></form>
-      </dialog>
+      <DialogRoot :open="!!shownDialog" :modal="false" @update:open="(o) => o || answer(false)">
+        <DialogContent class="pagedialog dialog" @interact-outside.prevent @open-auto-focus="focusOk">
+          <header><DialogTitle>{{ shownDialog?.from }}</DialogTitle></header>
+          <div class="body"><DialogDescription class="message">{{ shownDialog?.message }}</DialogDescription></div>
+          <footer><button v-if="shownDialog?.type === 'confirm'" class="cancel" @click="answer(false)">Cancel</button><button class="primary" @click="answer(true)">OK</button></footer>
+        </DialogContent>
+      </DialogRoot>
       <img v-if="store.pictures[profile.id]" class="snapshot" alt="" :src="store.pictures[profile.id]">
     </div>
   </div>
@@ -201,9 +202,9 @@ onBeforeUnmount(() => { observer.disconnect(); if (panes.get(key) === handle) pa
 .content { flex: 1; position: relative; overflow: hidden; border-radius: calc(var(--island-radius) - 2px); background: var(--page);
   .snapshot { position: absolute; inset: 0; width: 100%; height: 100%; }
   /* A page's dialog, right under the address bar on a dimmed picture of the page, as Chrome shows it */
-  &:has(.pagedialog[open]) { background: linear-gradient(var(--backdrop), var(--backdrop)), var(--picture, none) 0 0 / 100% 100%, var(--page); }
+  &:has(.pagedialog) { background: linear-gradient(var(--backdrop), var(--backdrop)), var(--picture, none) 0 0 / 100% 100%, var(--page); }
   /* As Chrome's (its size, shape and blue), not Kulisa's own dialogs: the page's */
-  .pagedialog { inset-block-start: 0; width: 450px; border-radius: calc(var(--island-radius) + 2px);
+  .pagedialog { position: absolute; inset: 0 0 auto; margin-inline: auto; width: 450px; border-radius: calc(var(--island-radius) + 2px);
     header { padding: var(--pad) var(--pad) 0; }
     h2 { font-size: 1.15em; font-weight: 500; }
     .body { padding-block: var(--inset) 0; }

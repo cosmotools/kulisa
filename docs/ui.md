@@ -4,12 +4,14 @@ What the window is built of: the tokens, the icons, and the components, each def
 and list looks and behaves the same. **Before making a button, an icon, a row or a dialog, look here:** use the
 component, or add one here (and in `components.css`) when nothing fits. Keep this file current.
 
-Vue 3 components in TypeScript, built by Vite (CLAUDE.md, Window UI; `vite.config.mts`, into `dist/renderer`):
+Vue 3 components in TypeScript, built by Vite (CLAUDE.md, Window UI; `vite.config.mts`, into `dist/renderer`). The
+generic parts (menus, dialogs) are Reka UI's (`reka-ui`: behavior, keyboard and accessibility, no look of its own), in
+the look below:
 
 | Where | What |
 |---|---|
-| `src/renderer/components/*.vue` | the window's parts, each its markup, behavior and own look (`<style>`, rooted at its id or class): `App.vue` puts them together; `grid/` the grid's panels and headers, `menu/` ☰'s own rows |
-| `src/renderer/lib/*.ts` | what parts share or what outlives a component: `store.ts` (what the main process sends, `act`), `grid.ts`, `terminals.ts`, `menu.ts`, `ask.ts`, `dialogs.ts`, `keys.ts`, `voice.ts`, `views.ts` (the pages under HTML), `profiles.ts` (the profiles' menu), `names.ts` (name fields), `common.ts`, `test-hooks.ts` (what the tests reach by name) |
+| `src/renderer/components/*.vue` | the window's parts, each its markup, behavior and own look (`<style>`, rooted at its id or class): `App.vue` puts them together; `grid/` the grid's panels and headers, `menu/` the menus (`ButtonMenu`, `RightClickMenu`, `PointMenu`, `MenuRows`) and ☰'s own rows; `Modal.vue` the dialogs |
+| `src/renderer/lib/*.ts` | what parts share or what outlives a component: `store.ts` (what the main process sends, `act`), `grid.ts`, `terminals.ts`, `menu.ts` (what a menu holds), `ask.ts`, `dialogs.ts`, `keys.ts`, `voice.ts`, `views.ts` (the pages under HTML: `covered()` for every menu and dialog), `profiles.ts` (the profiles' menu), `names.ts` (name fields), `common.ts`, `test-hooks.ts` (what the tests reach by name) |
 | `src/renderer/types.ts`, `env.d.ts` | the shapes the main process sends; the bridge to it (`src/preload`) and Vite's types |
 | `src/renderer/tokens.css` | every color and size (`:root`); no literal color anywhere else |
 | `src/renderer/components.css` | the shared components below, global |
@@ -115,40 +117,57 @@ every other `<svg>` uses the sprite.
 
 ### Dialogs
 
-Every dialog is `Modal.vue`, a `<dialog>` with the same parts:
+Every dialog is `Modal.vue`, Reka UI's Dialog (`reka-ui`) with the same parts:
 
 ```html
 <Modal id="…" title="Title" form form-id="…" @submit="save">
   …the content…
-  <template #footer><button type="button" command="close" commandfor="…">Cancel</button><button class="primary">Create</button></template>
+  <template #footer><DialogClose>Cancel</DialogClose><button class="primary">Create</button></template>
 </Modal>
 ```
 
-- `header`: the title, and × when it may be closed (`closable`; Esc and a click outside close it too: `closedby`).
+- `header`: the title, and × when it may be closed (`closable`; Esc and a click outside close it too; `stay`: not
+  while something runs, an agent's install). Over a dimmed backdrop (`.backdrop`), in the middle of the window
+  (`.dialog`).
 - `.body`: `.hint` (what it is about, muted), `.field` (a label and its input, the labels in one column; `.pick` in
   it: the input with its button, Location and Browse…), `.row` (a line of controls under the fields: Add Folder…,
   Add Agent…, Add Account), `.check` (a checkbox in the fields' column), `.error` (hidden while empty).
-- `footer`: the buttons at the right end, the main one last; `.start` puts a button at the left end.
+- `footer`: the buttons at the right end, the main one last; `.start` puts a button at the left end. A button that
+  only closes is Reka's `DialogClose`.
 - With `form` the content and the buttons are a form: Enter submits.
-- Its ref: `open()` (hiding the profiles' pages while it is open: `showModal`, `lib/views.ts`), `close(value)`, `el`.
+- Its ref: `await open()` (shown, the keyboard in its `[autofocus]` field or on it; the profiles' pages hidden while it
+  is open: `covered('hide')`, `lib/views.ts`), `close()`, `isOpen()`. Kept in the page while closed (`unmountOnHide`
+  off), so it is filled before it opens; when it closes, the keyboard goes back where it was.
 - Every dialog is in `App.vue` from the start and registers what it does (`registerDialog`); anything opens one by
   name: `(await dialog('projects')).openProjects(id)` (`lib/dialogs.ts`).
-- A page's alert or confirm (`.pagedialog`, in `ProfilePane.vue`) is not a `Modal`: opened non-modal (`show()`) right
-  under its pane's address bar, over a picture of the page, in Chrome's size, shape and blue: the page's, not Kulisa's;
-  `closedby="closerequest"` gives Esc.
+- A page's alert or confirm (`.pagedialog`, in `ProfilePane.vue`) is not a `Modal`: a Dialog that is not modal (the
+  other panes go on), in its pane right under the address bar, over a picture of the page, in Chrome's size, shape and
+  blue: the page's, not Kulisa's. Esc is Cancel; a click outside does nothing; OK has the keyboard.
 - Questions before something that cannot be undone, before closing, or between two ways to go (This Window or New
-  Window), are not new dialogs: `shell.ask` (main process) or `ask(q)` (`lib/ask.ts`) → `Ask.vue`; `other` adds the
-  second way's button before the main one.
+  Window), are not new dialogs: `shell.ask` (main process) or `ask(q)` (`lib/ask.ts`) → `Ask.vue`, Reka's AlertDialog
+  in the same look: Cancel has the keyboard, Esc is Cancel, a click outside does nothing (it waits for an answer);
+  `other` adds the second way's button before the main one.
 
 ### Menus
 
-`openMenu(items, at)` (`lib/menu.ts`, drawn by `Menu.vue`): one popover, under its button (`data-menu-end`: its right
-edge at the button's) or at the pointer, flipped to stay in the window. Items are `{ label, sub, keys, icon, color,
-avatar, enabled, run, remove }` (`keys`: the row's key at its end, from the keys' table: `keyText(id)`,
-`lib/common.ts`), `'-'` (a divider), `{ heading, icon }`, `{ note }` (small dim words under the rows, not one of them:
-☰'s version, so nothing looks clickable that is not) or `{ component, props }` (a row of its own: ☰'s zoom, theme,
-projects' bar and arrangements, `components/menu/`); `icon` is the sprite's id, at the row's start; rows are `.item`
-and `.removable`. While a menu is open, the pages are pictures of themselves.
+Reka UI's menus, the rows built as one opens: a button's (`ButtonMenu.vue`: ☰, ⋮, the projects' button, the profiles'
+chip …; `end`: its end edge at the button's, at a bar's end), an area's right-click menu at the pointer
+(`RightClickMenu.vue`: `items(e)` builds the rows for what was right-clicked, or `null`: none), one at a point
+(`menuAt(e, items)` in `lib/menu.ts`, `PointMenu.vue`: a link in the terminal). `ButtonMenu` opens on the press, so a
+press, a drag to a row and the release there chooses it, as the OS's menus; Enter, Space or ↓ on the button open it.
+Rows are chosen with the left button only (on Linux a right-click menu opens on the press, and the release must not
+choose a row). One menu at a time; Esc, a press outside, the same button, a chosen row or leaving the window closes
+it, and the keyboard goes back where it was. While one is open, the pages are pictures of themselves
+(`covered('pictures')`); it shows once they are.
+
+Items (`lib/menu.ts`, laid out by `menu/MenuRows.vue`) are `{ label, sub, keys, icon, color, avatar, enabled, run,
+remove }` (`MenuButton.vue`; `keys`: the row's key at its end, from the keys' table: `keyText(id)`, `lib/common.ts`;
+`remove`: a × after the row, an item of its own), `'-'` (a divider), `{ heading, icon }`, `{ note }` (small dim words
+under the rows, not one of them: ☰'s version, so nothing looks clickable that is not), `{ choose, chosen, rows }` (one
+of them checked: the dictation language) or `{ component, props }` (a row of its own: ☰'s zoom, theme, projects' bar
+and arrangements, `components/menu/`, built of Reka's menu items; − and + and the choices leave the menu open);
+`icon` is the sprite's id, at the row's start; rows are `.item` and `.removable`, lit as Reka highlights them
+(`[data-highlighted]`).
 
 ## Adding something
 
@@ -158,3 +177,5 @@ and `.removable`. While a menu is open, the pages are pictures of themselves.
   the projects' islands) keeps its look in its own `.vue` file.
 - A new dialog: a component with `Modal.vue`, in `App.vue`, registered in `lib/dialogs.ts`; its own contents' look in
   its `<style>` under its id.
+- Something generic (a menu, a dialog, a choice, a field): Reka UI's part, in Kulisa's look; never our own where Reka
+  has one (CLAUDE.md, Window UI).

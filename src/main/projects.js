@@ -286,6 +286,7 @@ async function dropProfile(shell, entry, folder) {
 function changeAgents(shell, id, list) {
   const entry = shell.store.updateProject(id, { agents: list.length ? list : null });
   shell.open.get(id)?.update(entry);
+  shell.sendProjects(); // +'s right-click menu has them
   return { agents: agentsInfo(shell, entry) };
 }
 // An account removed since (Agents…) is left out.

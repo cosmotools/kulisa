@@ -18,7 +18,7 @@ const startable = computed(() => !list.value?.installing && !!list.value?.chosen
 async function chooseAgent({ task, selected, cancel }: { task: string; selected?: string; cancel?: boolean }) {
   asking = task;
   cancellable.value = !!cancel;
-  await list.value!.load(selected, () => { if (!modal.value!.el!.open) modal.value!.open(); });
+  await list.value!.load(selected, () => modal.value!.open());
 }
 registerDialog('agentpick', { chooseAgent });
 kulisa.on<{ task: string; selected?: string; cancel?: boolean }>('agent:choose', async (q) => { await whenLeft(); chooseAgent(q); });
@@ -34,7 +34,7 @@ function start() {
 </script>
 
 <template>
-  <Modal id="agentpick" ref="modal" title="Choose the Agent" :closable="false" closedby="none" @close="closed">
+  <Modal id="agentpick" ref="modal" title="Choose the Agent" :closable="false" @close="closed">
     <p class="hint">The agent works in this task's terminal: it writes the code and uses the profiles. If it is not on this
       computer yet, Kulisa installs it with its maker's installer. On its first start it asks you to sign in.</p>
     <AgentList ref="list" choose :installed="(a) => `${a.name} is installed. Start it; it asks you to sign in.`" />

@@ -6,7 +6,7 @@
 import type { AddPanelPositionOptions, DockviewApi } from 'dockview-vue';
 import type { OtherTerminal, Profile } from '../types';
 import { act, setLoading, store } from './store';
-import { forgetFrozen, freeze, showViews, unfreeze } from './views';
+import { closeLayers, forgetFrozen, freeze, showViews, unfreeze } from './views';
 import { reducedMotion } from './common';
 import { forgetTerminals, otherTermKey, termFont, terminalOf } from './terminals';
 
@@ -152,7 +152,7 @@ Object.assign(window, { __layoutPreset: applyPreset }); // for tests
 // it at once. Not with reduced motion: then the grid is hidden at once, so nothing half-built shows. The title bar and
 // the projects' bar stay; the terminal panel too, showing the next task's terminal (terminals.ts).
 kulisa.on<{ dir: number; level: 'task' | 'project'; task: string; pics?: Record<string, string> }>('grid:closing', ({ dir, level, task, pics }) => {
-  for (const d of document.querySelectorAll('dialog[open]')) (d as HTMLDialogElement).close();
+  closeLayers(); // its dialogs and menus are for the grid that goes
   clearSave();
   if (pics) pictures.set(task, pics);
   const takeDown = () => {

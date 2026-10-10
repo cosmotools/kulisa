@@ -106,7 +106,9 @@ when it changes, as JetBrains' Sync with OS). Saved (`settings.json`), the same 
 
 ## Menus
 
-Kulisa draws its menus in HTML, as Chrome does (a popover, `lib/menu.ts`, `Menu.vue`; [ui.md](ui.md), Menus):
+Kulisa draws its menus in HTML, as Chrome does (Reka UI's menus: `components/menu/`; [ui.md](ui.md), Menus): a
+button's opens on the press (press, drag to a row, let go there), a right-click's at the pointer, one at a time; the
+pages are pictures of themselves meanwhile; afterwards the keyboard is back where it was:
 
 - the button after the projects' islands (the projects), a project label's right-click menu, +'s right-click menu (New
   Task with each of the project's agents), the profiles' chip on the shown task's tab (open
@@ -128,8 +130,9 @@ Every dialog has one look, as in JetBrains: the title with × on top, the conten
 the main one last (blue; red when it deletes) ([ui.md](ui.md), Dialogs). Questions before something that cannot be
 undone (deleting a profile, a task, a project), before closing (a project, a window, quitting
 while an agent works: [tasks.md](tasks.md)) or between two ways to go (This Window or New Window) are asked
-in that dialog too (`shell.ask` → `lib/ask.ts`, `Ask.vue`, queued, Cancel focused), in the window the action is
-in. Not the OS's own question (`dialog.showMessageBox`): it looked different on each OS and plain on Linux, and
+in that dialog too (`shell.ask` → `lib/ask.ts`, `Ask.vue`, queued, Cancel focused; Esc is Cancel, a click outside
+does nothing: it waits for an answer), in the window the action is in. While a dialog is open the profiles' pages are
+hidden (they are native views above the HTML), and the keys are the dialog's (Keys). Not the OS's own question (`dialog.showMessageBox`): it looked different on each OS and plain on Linux, and
 could not mark the deleting button or lay out what goes. The OS's own dialogs stay for choosing a folder.
 
 ## The terminal
@@ -250,6 +253,6 @@ Installers are made with Electron Forge (`npm run make`, `forge.config.js`): `.d
 | `src/main/terminal.js` | the ptys: the agent's per task, and its other terminals; their output's last 200 KB |
 | `src/renderer/components/Grid.vue`, `grid/*.vue`, `lib/grid.ts` | the grid (dockview), the panes and their headers, the terminals' panels, Arrange panels |
 | `src/renderer/components/TopBar.vue`, `menu/*.vue` | the title bar, ☰ and its own rows |
-| `src/renderer/components/Menu.vue`, `Ask.vue`, `lib/menu.ts`, `ask.ts`, `terminals.ts`, `voice.ts` | the menus, the questions, the terminals, dictation |
+| `src/renderer/components/menu/*.vue`, `Modal.vue`, `Ask.vue`, `lib/menu.ts`, `views.ts`, `ask.ts`, `terminals.ts`, `voice.ts` | the menus, the dialogs and questions (Reka UI's), the pages under them, the terminals, dictation |
 | `src/renderer/lib/keys.ts`, `components/Shortcuts.vue` | where the keyboard is, the commands the keys run; Keyboard Shortcuts |
 | `test/window.js`, `grid.js`, `keys.js`, `zoom-and-closing.js`, `unit/keys.test.js` | the tests |

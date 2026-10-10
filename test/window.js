@@ -2,7 +2,7 @@
 const fs = require('fs');
 const path = require('path');
 const { assert, root, userData, project, pfile, savedTabs, panel, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, menuOpen, rightClick,
-  box, pageBox, viewOn, dock, ctrl, near } = require('./helpers');
+  box, pageBox, viewOn, dock, ctrl, near, closeMenu } = require('./helpers');
 
 module.exports = (test) => {
   test('the agent starts at the terminal\'s real size, not a default one', async ({ shell, ui }) => {
@@ -145,7 +145,7 @@ module.exports = (test) => {
   test('screenshot of the whole window, profile views included', async ({ shell, ui }) => {
     const view = () => [...shell.profiles.values()][0].get().view.getVisible();
     await manageProfiles(ui);
-    await waitFor(async () => (await ui(`document.getElementById('profiles').open`)) && !view());
+    await waitFor(async () => (await ui(`(document.getElementById('profiles')?.dataset.state === 'open')`)) && !view());
     await shell.screenshot(path.join(root, 'editor.png'));
     await ui(`document.getElementById('closeProfiles').click()`);
     await waitFor(view);
@@ -162,8 +162,8 @@ module.exports = (test) => {
     const look = () => ui(`(() => { const panel = getComputedStyle(document.querySelector('.dv-groupview')).backgroundColor;
       return { shade: panel === '${DARK}' ? 'dark' : panel === '${LIGHT}' ? 'light' : panel, term: window.__term.options.theme.background,
         scheme: getComputedStyle(document.querySelector('.omnibox input, input')).colorScheme,
-        chosen: [...document.querySelectorAll('#menu .themerow [aria-pressed="true"]')].map((b) => b.dataset.theme),
-        onAccent: getComputedStyle(document.querySelector('dialog[id] button.primary')).color }; })()`);
+        chosen: [...document.querySelectorAll('.menu[data-state="open"] .themerow [data-state="checked"]')].map((b) => b.dataset.theme),
+        onAccent: getComputedStyle(document.querySelector('.dialog[id] button.primary')).color }; })()`);
     const page = shell.profiles.values().next().value.get().wc;
     const pageDark = () => page.executeJavaScript(`matchMedia('(prefers-color-scheme: dark)').matches`);
     const osDark = await pageDark();
@@ -172,7 +172,7 @@ module.exports = (test) => {
     assert.deepEqual((await menuRows(ui)).slice(0, 3), ['zoom', 'theme', 'bar']);
     assert.deepEqual(await look(), { shade: 'dark', term: DARK, scheme: 'dark', chosen: ['dark'], onAccent: LIGHT });
     const choose = async (t, shade) => {
-      await ui(`document.querySelector('#menu .themerow [data-theme="${t}"]').click()`);
+      await ui(`document.querySelector('.menu[data-state="open"] .themerow [data-theme="${t}"]').click()`);
       await waitFor(async () => { const l = await look(); return l.shade === shade && l.term === (shade === 'dark' ? DARK : LIGHT) && l.chosen[0] === t; });
       assert.equal(await menuOpen(ui), true, 'the menu stays open: the next one can be tried');
       assert.equal(settings(), t, 'saved');
@@ -186,37 +186,37 @@ module.exports = (test) => {
     await choose('dark', 'dark');
     await shell.screenshot(path.join(root, 'dark.png'));
     assert.equal(await pageDark(), osDark);
-    await ui(`document.getElementById('menu').hidePopover()`);
+    await closeMenu(ui);
   });
   test('the projects\' bar: under the grid by default, over it when chosen in ☰; the grid and its pages take the room left; saved', async ({ shell, ui }) => {
     const id = shell.profiles.keys().next().value;
     const where = () => ui(`(() => { const r = (id) => document.getElementById(id).getBoundingClientRect(), bar = r('projectbar'), grid = r('dock');
       return { bar: bar.bottom <= grid.top ? 'top' : bar.top >= grid.bottom ? 'bottom' : 'over the grid', under: bar.top >= r('topbar').bottom,
-        chosen: [...document.querySelectorAll('#menu .barrow [aria-pressed="true"]')].map((b) => b.dataset.bar) }; })()`);
+        chosen: [...document.querySelectorAll('.menu[data-state="open"] .barrow [data-state="checked"]')].map((b) => b.dataset.bar) }; })()`);
     const saved = () => JSON.parse(fs.readFileSync(path.join(userData, 'settings.json'), 'utf8')).bar;
     assert.equal((await where()).bar, 'bottom');
     for (const bar of ['top', 'bottom']) {
       await ui(`document.getElementById('windowMenu').click()`);
       await menuRows(ui);
-      await ui(`document.querySelector('#menu .barrow [data-bar="${bar}"]').click()`);
+      await ui(`document.querySelector('.menu[data-state="open"] .barrow [data-bar="${bar}"]').click()`);
       await waitFor(async () => (await where()).bar === bar && saved() === bar);
       assert.deepEqual(await where(), { bar, under: true, chosen: [bar] }, 'under the title bar either way');
       assert.equal(await menuOpen(ui), true, 'the menu stays open: the other one can be tried');
-      await ui(`document.getElementById('menu').hidePopover()`);
+      await closeMenu(ui);
       await waitFor(() => viewOn(shell, ui, id), 3000); // the pages follow the grid
     }
   });
   test('dialogs: one look (title and ×, content, buttons at the bottom right, the main one last); a question is asked in it', async (ctx) => {
     const { shell, ui } = ctx;
-    const looks = await ui(`[...document.querySelectorAll('dialog[id]')].map((d) => ({ id: d.id, title: !!d.querySelector('header h2'),
+    const looks = await ui(`[...document.querySelectorAll('.dialog[id]')].map((d) => ({ id: d.id, title: !!d.querySelector('header h2'),
       body: !!d.querySelector('.body'), last: d.querySelector('footer > button:last-child')?.className }))`);
-    assert.deepEqual(looks.map((l) => l.id), ['profiles', 'projects', 'taskrename', 'agentpick', 'agents', 'shortcuts', 'ask']);
+    assert.deepEqual(looks.map((l) => l.id), ['profiles', 'projects', 'taskrename', 'agentpick', 'agents', 'shortcuts']); // the question's only while asked: below
     for (const l of looks) assert.ok(l.title && l.body && /primary|ok/.test(l.last), JSON.stringify(l));
 
     // A question before deleting: the title, what goes line by line, Cancel (focused) and a red Delete at the right.
     ctx.answer = null; // the test answers
     const view = () => [...shell.profiles.values()][0].get().view.getVisible();
-    const open = () => ui(`document.getElementById('ask').open`);
+    const open = () => ui(`(document.getElementById('ask')?.dataset.state === 'open')`);
     let answer = shell.ask({ message: 'Delete the thing?', ok: 'Delete', danger: true, detail: 'Deleted for good:\n• a\n• b' });
     await waitFor(open);
     const q = await ui(`(() => { const d = document.getElementById('ask'), r = (q) => d.querySelector(q).getBoundingClientRect(), ok = d.querySelector('.ok');
@@ -239,7 +239,7 @@ module.exports = (test) => {
     await ui(`document.querySelector('#ask .ok').click()`);
     assert.equal(await answer, true);
     await waitFor(async () => (await open()) && (await ui(`document.querySelector('#ask h2').textContent`)) === 'Delete the other?');
-    await ui(`document.querySelector('#ask button[value=""]').click()`);
+    await ui(`document.querySelector('#ask .cancel').click()`);
     assert.equal(await second, false, 'Cancel says no');
     ctx.answer = true;
   });

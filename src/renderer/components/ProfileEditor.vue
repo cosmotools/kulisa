@@ -3,6 +3,7 @@
 // profiles, open and closed (ProfileRow.vue), and a new one: its picture (the one it would get lit, until the human
 // picks another), name and who it is. Enter in either field adds it (Shift+Enter: a new line in who it is).
 import { computed, nextTick, ref } from 'vue';
+import { DialogClose } from 'reka-ui';
 import Modal from './Modal.vue';
 import Avatars from './Avatars.vue';
 import ProfileRow from './ProfileRow.vue';
@@ -16,11 +17,11 @@ const rows = computed(() => [...store.profiles.map((p) => ({ ...p, closed: false
 const picked = ref<string | null>(null);
 const newPicture = computed(() => picked.value || kulisa.nextAvatar(rows.value.map((p) => p.avatar)));
 
-function manage() { modal.value!.open(); newProfile.value!.focus(); }
+async function manage() { await modal.value!.open(); newProfile.value!.focus(); }
 registerDialog('profiles', {
   manage,
   async about(key) {
-    manage();
+    await manage();
     const id = rows.value.find((p) => p.key === key)?.id;
     await nextTick();
     list.value!.querySelector<HTMLElement>(`.prow[data-profile="${CSS.escape(id || '')}"] .about`)?.focus();
@@ -54,7 +55,7 @@ function aboutKey(e: KeyboardEvent) {
       <div class="field"><span /><span><button>Add</button></span></div>
     </form>
     <template #footer>
-      <button id="closeProfiles" class="primary" command="close" commandfor="profiles">Done</button>
+      <DialogClose id="closeProfiles" class="primary">Done</DialogClose>
     </template>
   </Modal>
 </template>

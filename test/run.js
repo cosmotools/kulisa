@@ -117,8 +117,8 @@ async function setup(shell) {
   shell.askWhich = (q, w = shell.windows[0]) => {
     asked.push(q);
     const answer = ask(q, w), yes = ctx.answer, there = (js) => w.win.webContents.executeJavaScript(js);
-    if (yes !== null) waitFor(() => there(`document.getElementById('ask').open && document.querySelector('#ask h2').textContent === ${JSON.stringify(q.message)}`))
-      .then(() => there(`document.querySelector('#ask ${yes === 'other' ? '.other' : yes ? '.ok' : 'button[value=""]'}').click()`));
+    if (yes !== null) waitFor(() => there(`(document.getElementById('ask')?.dataset.state === 'open') && document.querySelector('#ask h2').textContent === ${JSON.stringify(q.message)}`))
+      .then(() => there(`document.querySelector('#ask ${yes === 'other' ? '.other' : yes ? '.ok' : '.cancel'}').click()`));
     return answer;
   };
   return ctx;

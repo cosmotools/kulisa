@@ -4,16 +4,15 @@
 // Change agent….
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { fitTerminal, terminalMenu, termEl } from '../../lib/terminals';
-import { openMenu } from '../../lib/menu';
+import RightClickMenu from '../menu/RightClickMenu.vue';
 
 const root = ref<HTMLElement>();
 onMounted(() => { root.value!.append(termEl); fitTerminal(); });
 onBeforeUnmount(() => { if (termEl.parentElement === root.value) document.body.append(termEl); });
-function menu(e: MouseEvent) { const items = terminalMenu(e.target as Element); if (items) openMenu(items, e); }
 </script>
 
 <template>
-  <div ref="root" class="termpanel" @contextmenu.prevent="menu" />
+  <RightClickMenu :items="(e) => terminalMenu(e.target as Element)"><div ref="root" class="termpanel" /></RightClickMenu>
 </template>
 
 <style>

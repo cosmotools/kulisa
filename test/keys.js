@@ -55,7 +55,7 @@ module.exports = (test) => {
 
     // Keyboard Shortcuts: from the terminal too, every group with this OS's keys; also in ☰ with its key.
     press(win, '/', 'control', 'shift');
-    await waitFor(() => ui(`document.getElementById('shortcuts').open`));
+    await waitFor(() => ui(`(document.getElementById('shortcuts')?.dataset.state === 'open')`));
     assert.deepEqual(await ui(`[...document.querySelectorAll('#shortcuts h3')].map((h) => h.textContent)`), ['Everywhere', 'In a profile\'s page', 'In the terminal']);
     const row = (label) => ui(`(() => { const dt = [...document.querySelectorAll('#shortcuts dt')].find((d) => d.textContent === ${JSON.stringify(label)});
       return [...dt.nextElementSibling.querySelectorAll('kbd')].map((k) => k.textContent); })()`);
@@ -67,13 +67,13 @@ module.exports = (test) => {
     press(win, 'N', 'control', 'shift');
     await sleep(200); // that nothing is made: nothing to wait for
     assert.equal(shell.current.tasks.size, 1);
-    await ui(`document.getElementById('shortcuts').close()`);
+    await ui(`document.querySelector('#shortcuts .x').click()`);
     await ui(`document.getElementById('windowMenu').click()`);
     assert.ok((await menuRows(ui)).includes('Keyboard Shortcuts'));
-    assert.equal(await ui(`[...document.querySelectorAll('#menu .item')].find((b) => b.querySelector('.label').textContent === 'Keyboard Shortcuts').querySelector('kbd').textContent`), 'Ctrl+Shift+/');
+    assert.equal(await ui(`[...document.querySelectorAll('.menu[data-state="open"] .item')].find((b) => b.querySelector('.label').textContent === 'Keyboard Shortcuts').querySelector('kbd').textContent`), 'Ctrl+Shift+/');
     await choose(ui, 'Keyboard Shortcuts');
-    await waitFor(() => ui(`document.getElementById('shortcuts').open`));
-    await ui(`document.getElementById('shortcuts').close()`);
+    await waitFor(() => ui(`(document.getElementById('shortcuts')?.dataset.state === 'open')`));
+    await ui(`document.querySelector('#shortcuts .x').click()`);
     // The buttons say their keys, as Chrome's toolbar does; the menus too.
     assert.equal(await ui(`document.querySelector('.pane[data-profile="sam-admin"] .reload').title`), 'Reload (Ctrl+R)');
     assert.match(await ui(`document.querySelector('.pane[data-profile="sam-admin"] .pick').title`), /\(Ctrl\+Shift\+C\)$/);

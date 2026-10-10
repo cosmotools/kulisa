@@ -1,34 +1,40 @@
 <script setup lang="ts">
-// The question (lib/ask.ts): its title, what goes as its text, Cancel (focused) and the button that does it (red when
-// it deletes), another way before it when there is one.
-import { nextTick, ref, watch } from 'vue';
-import Modal from './Modal.vue';
+// The question (lib/ask.ts), on Reka's AlertDialog in the dialogs' one look: its title, what goes as its text, Cancel
+// (focused) and the button that does it (red when it deletes), another way before it when there is one. Esc is
+// Cancel; a click outside does nothing (it waits for an answer, as an alert dialog does).
+import { shallowRef, watch } from 'vue';
+import { AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogOverlay, AlertDialogPortal,
+  AlertDialogRoot, AlertDialogTitle } from 'reka-ui';
 import { asking } from '../lib/ask';
+import { covered } from '../lib/views';
 
-const modal = ref<InstanceType<typeof Modal>>();
-watch(asking, async (a) => {
-  if (!a) return;
-  await nextTick();
-  modal.value!.el!.returnValue = '';
-  modal.value!.open();
-});
-function closed() {
+const { open } = covered('hide');
+const q = shallowRef(asking.value?.q);
+let answer = '';
+watch(asking, (a) => { if (a) { q.value = a.q; answer = ''; open.value = true; } });
+watch(open, (o) => {
+  if (o) return;
   const a = asking.value;
   asking.value = null;
-  a?.answer(modal.value!.el!.returnValue);
-}
+  a?.answer(answer);
+});
 </script>
 
 <template>
-  <Modal id="ask" ref="modal" @close="closed">
-    <template #title>{{ asking?.q.message }}</template>
-    <p class="detail">{{ asking?.q.detail }}</p>
-    <template #footer>
-      <button value="" autofocus @click="modal!.close('')">Cancel</button>
-      <button v-if="asking?.q.other" value="other" class="other" @click="modal!.close('other')">{{ asking.q.other }}</button>
-      <button value="ok" :class="['ok', asking?.q.danger ? 'danger' : 'primary']" @click="modal!.close('ok')">{{ asking?.q.ok || 'OK' }}</button>
-    </template>
-  </Modal>
+  <AlertDialogRoot v-model:open="open">
+    <AlertDialogPortal>
+      <AlertDialogOverlay class="backdrop" />
+      <AlertDialogContent id="ask" class="dialog">
+        <header><AlertDialogTitle>{{ q?.message }}</AlertDialogTitle></header>
+        <div class="body"><AlertDialogDescription class="detail">{{ q?.detail }}</AlertDialogDescription></div>
+        <footer>
+          <AlertDialogCancel class="cancel">Cancel</AlertDialogCancel>
+          <AlertDialogAction v-if="q?.other" class="other" @click="answer = 'other'">{{ q.other }}</AlertDialogAction>
+          <AlertDialogAction :class="['ok', q?.danger ? 'danger' : 'primary']" @click="answer = 'ok'">{{ q?.ok || 'OK' }}</AlertDialogAction>
+        </footer>
+      </AlertDialogContent>
+    </AlertDialogPortal>
+  </AlertDialogRoot>
 </template>
 
 <style>

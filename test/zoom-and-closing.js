@@ -2,7 +2,7 @@
 const fs = require('fs');
 const path = require('path');
 const { assert, root, userData, project, pfile, savedTabs, panel, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, menuOpen, rightClick,
-  box, pageBox, viewOn, dock, ctrl, near } = require('./helpers');
+  box, pageBox, viewOn, dock, ctrl, near, closeMenu } = require('./helpers');
 
 module.exports = (test) => {
   test('Kulisa zoom: Ctrl+= outside the pages scales the whole UI, pages follow, panes still fit; saved', async ({ shell, ui }) => {
@@ -17,12 +17,12 @@ module.exports = (test) => {
     assert.equal(await ui(`document.getElementById('zoomReset').hidden`), false);
     await ui(`document.getElementById('windowMenu').click()`);
     assert.deepEqual((await menuRows(ui)).slice(0, 5), ['zoom', 'theme', 'bar', '-', '# Arrange panels']);
-    assert.equal(await ui(`document.querySelector('#menu .zoomrow output').textContent`), '110%');
-    await ui(`document.querySelector('#menu .zoomrow .in').click()`); // − 110% + in the menu, as in Chrome
+    assert.equal(await ui(`document.querySelector('.menu[data-state="open"] .zoomrow output').textContent`), '110%');
+    await ui(`document.querySelector('.menu[data-state="open"] .zoomrow .in').click()`); // − 110% + in the menu, as in Chrome
     await waitFor(() => near(win.getZoomFactor(), 1.25));
-    await waitFor(async () => (await ui(`document.querySelector('#menu .zoomrow output').textContent`)) === '125%');
+    await waitFor(async () => (await ui(`document.querySelector('.menu[data-state="open"] .zoomrow output').textContent`)) === '125%');
     assert.equal(await menuOpen(ui), true, 'the menu stays open for more clicks');
-    await ui(`document.getElementById('menu').hidePopover()`);
+    await closeMenu(ui);
     await waitFor(() => viewOn(shell, ui, 'sam-admin'));
     await waitFor(async () => (await ui(`({ cols: window.__term.cols })`)).cols < 200, 3000); // the terminal refits
     await waitFor(() => JSON.parse(fs.readFileSync(path.join(userData, 'settings.json'), 'utf8')).uiZoom === 1.25);
@@ -118,7 +118,7 @@ module.exports = (test) => {
     assert.ok(!shell.profiles.has('cleo') && shell.closed.has('cleo'));
     await ui(`document.getElementById('openProfiles').click()`);
     assert.deepEqual(await menuRows(ui), ['Sam.admin', 'Elon.buyer', 'Cleo', '-', 'Manage Profiles…']);
-    assert.deepEqual(await ui(`[...document.querySelectorAll('#menu .item small')].map((e) => e.textContent).slice(2, 3)`), ['closed · click to open']);
+    assert.deepEqual(await ui(`[...document.querySelectorAll('.menu[data-state="open"] .item small')].map((e) => e.textContent).slice(2, 3)`), ['closed · click to open']);
     await choose(ui, 'Cleo');
     await waitFor(() => shell.profiles.has('cleo'));
     // Closed right as it opens: it opens, then closes; nothing breaks.

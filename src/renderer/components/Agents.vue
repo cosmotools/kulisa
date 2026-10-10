@@ -4,6 +4,7 @@
 // is chosen for a task when one is made, or with Change agent…. Add Account: for an agent that has accounts (Claude
 // Code, Codex), a name; its folder is made, and it asks to sign in at its first start in a task.
 import { computed, ref } from 'vue';
+import { DialogClose } from 'reka-ui';
 import Modal from './Modal.vue';
 import AgentList from './AgentList.vue';
 import { registerDialog } from '../lib/dialogs';
@@ -15,7 +16,7 @@ const own = computed(() => (list.value?.agents || []).filter((a) => a.accounts &
 
 registerDialog('agents', {
   async showAgents() {
-    await list.value!.load(undefined, () => { if (!modal.value!.el!.open) modal.value!.open(); });
+    await list.value!.load(undefined, () => modal.value!.open());
     name.value!.value = ''; error.value = '';
   },
 });
@@ -26,12 +27,11 @@ async function add() {
   name.value!.value = ''; error.value = '';
   await list.value!.reload();
 }
-// Esc or a click outside while installing: it stays.
-const cancel = (e: Event) => { if (list.value?.installing) e.preventDefault(); };
 </script>
 
 <template>
-  <Modal id="agents" ref="modal" title="Agents" @cancel="cancel">
+  <!-- While an agent installs, it stays (Esc, a click outside, ×). -->
+  <Modal id="agents" ref="modal" title="Agents" :stay="!!list?.installing">
     <p class="hint">The agents Kulisa can run in a task's terminal, with their accounts. Install one here; choose it for a
       project (Project Settings…) or a task (Change agent… in the terminal's menu). An account is the agent with a sign-in
       of its own (a work and a personal one side by side): it asks you to sign in at its first start in a task. Yours
@@ -44,7 +44,7 @@ const cancel = (e: Event) => { if (list.value?.installing) e.preventDefault(); }
     </form>
     <p id="accounterror" class="error">{{ error }}</p>
     <template #footer>
-      <button class="primary" type="button" command="close" commandfor="agents" :disabled="list?.installing">Close</button>
+      <DialogClose class="primary" :disabled="list?.installing">Close</DialogClose>
     </template>
   </Modal>
 </template>

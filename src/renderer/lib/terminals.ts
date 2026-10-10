@@ -14,7 +14,7 @@ import { SerializeAddon } from '@xterm/addon-serialize';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import { act, store } from './store';
 import { keyText } from './common';
-import { openMenu, type MenuItem } from './menu';
+import { menuAt, type MenuItem } from './menu';
 import { whenLeft } from './grid';
 
 interface Entry { term: Terminal; el: HTMLElement; fit: FitAddon; serialize: SerializeAddon; opened: boolean; renderer?: 'dom' | 'webgl' }
@@ -53,9 +53,9 @@ matchMedia('(prefers-color-scheme: dark)').addEventListener('change', themeTermi
 export const termLinks = {
   activate(e: MouseEvent, uri: string) {
     if (!(kulisa.platform === 'darwin' ? e.metaKey : e.ctrlKey) || !/^https?:\/\//i.test(uri)) return;
-    openMenu([{ heading: uri }, ...store.profiles.map((p) => ({ label: `Open in ${p.name}`, avatar: p.avatar,
+    menuAt(e, [{ heading: uri }, ...store.profiles.map((p) => ({ label: `Open in ${p.name}`, avatar: p.avatar,
       run: () => act('tab:new', { profile: p.id, url: uri }) })),
-    '-', { label: 'Open in your browser', run: () => { window.open(uri); } }], e);
+    '-', { label: 'Open in your browser', run: () => { window.open(uri); } }]);
   },
   hover(_e: MouseEvent, uri: string) { termEl.title = uri; },
   leave() { termEl.title = ''; },

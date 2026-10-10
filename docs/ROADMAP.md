@@ -17,7 +17,10 @@ here; what is left of it stays.
     author's data was cleared of the old format then (one data format only: old data is deleted, never read or
     migrated). The author is testing it by hand. The window was then rewritten in Vue 3 and TypeScript, built by Vite (the author's
     decision, 2026-10-10: the whole renderer at once, TypeScript from the start, the bugs of the rebuild after; how it is
-    built: CLAUDE.md, Window UI; [ui.md](ui.md)); the author tests that too. Next: fix what the author's testing finds;
+    built: CLAUDE.md, Window UI; [ui.md](ui.md)); the author tests that too. 2026-10-11: its generic parts are moving to
+    Reka UI (the author's decision: nothing of our own where Reka has it, at once, a commit per step): menus and
+    dialogs done; the form controls (ToggleGroup, ColorSwatchPicker, RadioGroup, Select, Checkbox, Listbox, Tabs,
+    Collapsible, Toggle, Field, Editable) next, then the rest of the docs. Next: fix what the author's testing finds;
     then what is left of each step ("Left:" in it), only once the author has decided it.
     Open, for the author to decide: Refresh from Master… now matters only for a local app's cookies (keep or drop);
     a script the agent runs in a page (`browser_evaluate`) could read a test password back from its field (only the
@@ -407,8 +410,8 @@ here; what is left of it stays.
 - **Feature 7, rest.** Reset a profile to a clean state (keeping its name), seeded test users.
 - **Feature 4, timeline.** One feed of DOM (rrweb-like), network, console and agent actions across profiles; scrub
   back and pick in the past.
-  - A Vue component as the rest of the window (CLAUDE.md, Window UI). Not Tailwind (styles are tiny) and no ready-made
-    component kits (Kulisa needs its own IDE look).
+  - A Vue component as the rest of the window (CLAUDE.md, Window UI). Not Tailwind (styles are tiny); its generic parts
+    Reka UI's (no look of its own: Kulisa keeps its IDE look), no kit with a look of its own.
 - **Feature 6, profile mail.** A local mail catcher with a mailbox per profile, shown next to the panes and
   readable by the agent.
 - **Feature 5, run to test.** Save a multi-profile run as a Playwright test.
@@ -586,6 +589,11 @@ here; what is left of it stays.
 
 ## Open issues
 
+- **The OS's window buttons are not dimmed under a dialog** (the author, 2026-10-11; put off). They are drawn by the
+  OS over the window (`titleBarOverlay`, `window.js`), so the dialog's backdrop, HTML, cannot cover them: under a
+  dialog they stay bright. To look at: dim them with `setTitleBarOverlay` while a dialog is open (Windows and Linux;
+  macOS's traffic lights have no such color), or leave them, as many desktop apps do.
+
 - **Pages get the microphone and camera without asking** (found 2026-10-08, talking about calls). Profiles' sessions
   set no `setPermissionRequestHandler` / `setPermissionCheckHandler` (`session` in `electron.d.ts`, Electron 44), and
   Electron then approves a page's requests by itself (its security checklist: "Handle session permission requests
@@ -715,7 +723,9 @@ here; what is left of it stays.
   room. 2026-10-09: the tests run on a screen of their own on Linux (Xvfb, [testing.md](testing.md)), so the human's
   work no longer takes the focus from them (menus closed in the middle of a test, about 1 run in 7); races that a
   slower screen showed (a click while the window still showed another project) are waited for. Watch whether any
-  come back. Not looked at: the address bar's click (seen 2026-10-07); the first point-and-tell test once timed out waiting for the pick (2026-10-10, right after the window moved to Vue; not in the runs after). Slow but not flaky: deleting a task (a fork's closing took 11 s,
+  come back. Not looked at: the address bar's click (seen 2026-10-07); the first point-and-tell test once timed out waiting for the pick (2026-10-10, right after the window moved to Vue; not in the runs after); "Sign In to Master… opens its master …"
+  failed once in a few runs (2026-10-11): the test's `browser_navigate` right after Refresh from Master… was cut by the
+  tab's own reload (`page.goto … interrupted by another navigation`). Slow but not flaky: deleting a task (a fork's closing took 11 s,
   git's work), a site that never answers (10 s: two 5 s waits by design).
 - **The test "after a restart: a task's other terminal comes back …" takes 5.6 s** (`restart-tasks.js`;
   found 2026-10-09, to come back to). Most of it is showing the project `other` until its task has loaded and

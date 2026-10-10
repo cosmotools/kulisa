@@ -3,6 +3,7 @@
 // (main/keys.js), so it is never out of date: a group's heading and what it is about, then each command and its keys
 // as key caps, one under the other.
 import { ref } from 'vue';
+import { DialogClose } from 'reka-ui';
 import Modal from './Modal.vue';
 import { shortcuts } from '../lib/common';
 import { registerDialog } from '../lib/dialogs';
@@ -13,7 +14,7 @@ const GROUPS = [
   ['terminal', 'In the terminal', 'Every other key goes to the agent.'],
 ];
 const modal = ref<InstanceType<typeof Modal>>();
-registerDialog('shortcuts', { showShortcuts() { if (!modal.value!.el!.open) modal.value!.open(); } });
+registerDialog('shortcuts', { showShortcuts() { modal.value!.open(); } });
 </script>
 
 <template>
@@ -26,7 +27,7 @@ registerDialog('shortcuts', { showShortcuts() { if (!modal.value!.el!.open) moda
         </template>
       </dl>
     </section>
-    <template #footer><button class="primary" type="button" command="close" commandfor="shortcuts">Close</button></template>
+    <template #footer><DialogClose class="primary">Close</DialogClose></template>
   </Modal>
 </template>
 

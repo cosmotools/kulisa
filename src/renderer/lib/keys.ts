@@ -2,16 +2,18 @@
 // process has to know where the keyboard is in this page to know whose a key is: the terminal's agent gets all but a
 // few, a pane (its address bar, its toolbar) gets Chrome's keys for that profile, a dialog keeps its own. It sends the
 // commands back here, with the profile and tab they act on.
+import { watch } from 'vue';
 import { act, store } from './store';
 import { paneOfProfile } from './grid';
 import { shownTerm } from './terminals';
 import { dialog } from './dialogs';
+import { dialogsOpen } from './views';
 import type { Profile } from '../types';
 
 let zone = 'window';
 let lastPane: string | null = null; // the profile whose page or pane had the keyboard last: where Ctrl+` goes back to
 const zoneOf = (el: Element | null) => {
-  if (document.querySelector('dialog:modal')) return 'dialog'; // its keys are its own, wherever its focus is (none, at first)
+  if (dialogsOpen.value) return 'dialog'; // its keys are its own, wherever its focus is
   if (!el || el === document.body) return 'window';
   if (el.closest('.xterm')) return 'terminal';
   const pane = el.closest<HTMLElement>('.pane');
@@ -24,7 +26,7 @@ const report = () => {
 };
 document.addEventListener('focusin', report);
 document.addEventListener('focusout', () => setTimeout(report)); // where it went is known after the event
-new MutationObserver(report).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['open'] }); // a dialog opened or closed
+watch(dialogsOpen, report); // a dialog opened or closed
 
 // A task's tab in the projects' bar shown, as a click on it does (TaskTab.vue).
 const showTask = (tab?: Element) => { const key = (tab as HTMLElement | undefined)?.dataset.task; if (key && key !== store.current) kulisa.invoke('task:show', key); };

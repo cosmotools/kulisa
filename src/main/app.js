@@ -123,8 +123,8 @@ function start(options = {}) {
   shell.askWhich = (q, w = first()) => w.ask(q);
   shell.ask = async (q, w) => (await shell.askWhich(q, w)) === 'ok';
   shell.saveWindows = () => store.saveWindows(shell.windows.map((w) => w.saved()));
-  // Every window's tabs and menus: which projects there are and where they are open.
-  const sendProjects = () => { for (const w of shell.windows) w.sendProjects(); };
+  // Every window's tabs and menus: which projects there are, where they are open, their agents (+'s menu).
+  const sendProjects = shell.sendProjects = () => { for (const w of shell.windows) w.sendProjects(); };
 
   // The Kulisa zoom: the whole UI of every window (window.js), and the profiles' pages, which follow it (profiles.js).
   // The panes' boxes come in CSS pixels (window.js, layout).

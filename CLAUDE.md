@@ -122,19 +122,25 @@ unasked. This paragraph is removed when the rewrite is finished.
   later). Electron ships a recent Chromium; use what it has instead of code or workarounds:
   - A part of the window is one `.vue` file in `src/renderer/components/`: its markup, its behavior and its own look
     (`<style>`, rooted at its id or class) together. What several parts share, or what outlives a component (the
-    store of what the main process sends, the grid, the terminals' xterms, the menu, the questions, the keys), is a
-    TypeScript module in `src/renderer/lib/` with a small interface (`openMenu(items, at)`, `ask(q)`,
-    `dialog('projects')`). State the main process sends lives in `lib/store.ts` (Vue's `reactive`) and components
-    draw from it; no DOM built by hand where a template does it. `types.ts`: the shapes the main process sends.
-  - Semantic elements (`header`, `main`, `nav`, `dialog`); what the platform does natively stays native: `<dialog>`
-    (`Modal.vue`) with `closedby`, `hidden`, form submit.
+    store of what the main process sends, the grid, the terminals' xterms, the pages under menus and dialogs, the
+    questions, the keys), is a TypeScript module in `src/renderer/lib/` with a small interface (`covered('hide')`,
+    `ask(q)`, `dialog('projects')`). State the main process sends lives in `lib/store.ts` (Vue's `reactive`) and
+    components draw from it; no DOM built by hand where a template does it. `types.ts`: the shapes the main process sends.
+  - **Generic UI is Reka UI's** (`reka-ui`, the author's decision, 2026-10-11): menus, dialogs, and the controls Reka
+    has (choices, radios, selects, checkboxes, lists, tabs …), in Kulisa's look (Reka has no look of its own); nothing
+    of our own where Reka has it, and every new part built on it. Its documentation for agents:
+    `https://reka-ui.com/llms.txt` (each page as `.md`); its API: the installed version's `node_modules/reka-ui/dist/`
+    (`.d.ts`); name what you read in the plan. Not Reka's: what is not generic (the grid is dockview's, the terminal
+    xterm's) and tooltips (the native `title`: drawn above the profiles' pages, an HTML one would be under them).
+  - Semantic elements (`header`, `main`, `nav`), `hidden`, form submit.
   - **One set of components** (`docs/ui.md`): the window is built of them, each defined once. Icons are the
     sprite's (`Sprite.vue`, used as `<Icon name="i-…">`), never drawn in place; icon buttons are `.icon`; rows
-    `.item`; every dialog is `Modal.vue`: `header` (title, × when it may be closed), `.body`, `footer` with the buttons
-    at the right end, the main one last (`.primary`, `.danger` when it deletes). Global CSS only in `tokens.css`
-    (colors, sizes) and `components.css` (the shared components); a part's own CSS places components, never restyles
-    them into new ones. Something new that more than one place could use goes into `components.css` (or a component
-    of its own) and `docs/ui.md` first.
+    `.item`; menus are `ButtonMenu.vue`, `RightClickMenu.vue` (`components/menu/`); every dialog is `Modal.vue`
+    (Reka's Dialog; questions `Ask.vue`, its AlertDialog): `header` (title, × when it may be closed), `.body`,
+    `footer` with the buttons at the right end, the main one last (`.primary`, `.danger` when it deletes). Global CSS
+    only in `tokens.css` (colors, sizes) and `components.css` (the shared components); a part's own CSS places
+    components, never restyles them into new ones. Something new that more than one place could use goes into
+    `components.css` (or a component of its own) and `docs/ui.md` first.
   - CSS: nesting, custom properties for every color and size (`tokens.css`; no literal colors elsewhere; each color
     `light-dark()` for both themes),
     `:is()`, `:has()`, `color-mix()`, logical properties. Before overriding dockview, check that its own variables
@@ -314,6 +320,7 @@ What must hold in the window:
   project moves them: `Profile.moveTo`). The renderer sends each pane's `.content` box (or
   that it is off screen) to the main process after every grid change. Anything HTML over the panes must hide them
   (`views:hidden`): dialogs; while a panel is dragged or a menu is open, pictures of the pages stand in for them.
+  Every menu and dialog opens through `covered()` (`lib/views.ts`), which puts the pages back however it closes.
 - **Sizes and zoom.** UI text and controls use `--font` and `--control` (tokens.css), not their own sizes. The Kulisa
   zoom is Chromium's zoom of every window's page (`setUiZoom` in app.js); the renderer's boxes are CSS pixels and
   `window.js` scales them for the native views. Pages get the Kulisa zoom times their site's own zoom.

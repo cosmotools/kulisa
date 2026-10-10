@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // A Kulisa window (docs/window.md): the title bar, the shown task's grid (or the Welcome screen with no project open),
-// the projects' bar under it or over it, the dialogs and the menu.
+// the projects' bar under it or over it, the dialogs and the menu at a point.
 import Sprite from './Sprite.vue';
 import TopBar from './TopBar.vue';
 import Grid from './Grid.vue';
@@ -13,7 +13,7 @@ import AgentPicker from './AgentPicker.vue';
 import Agents from './Agents.vue';
 import Shortcuts from './Shortcuts.vue';
 import Ask from './Ask.vue';
-import Menu from './Menu.vue';
+import PointMenu from './menu/PointMenu.vue';
 </script>
 
 <template>
@@ -29,7 +29,7 @@ import Menu from './Menu.vue';
   <Agents />
   <Shortcuts />
   <Ask />
-  <Menu />
+  <PointMenu />
 </template>
 
 <style>

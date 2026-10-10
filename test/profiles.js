@@ -18,7 +18,7 @@ module.exports = (test) => {
     await ui(`document.getElementById('newProfile').focus()`);
     shell.win.webContents.insertText('ann admin·@shop.com');
     await waitFor(async () => (await ui(`document.getElementById('newProfile').value`)) === 'annadmin@shop.com');
-    await ui(`document.getElementById('newProfile').value = ''; document.getElementById('profiles').close()`);
+    await ui(`document.getElementById('newProfile').value = ''; document.querySelector('#profiles .x').click()`);
     // Checked again where names are made: the agent, a rename, a project, a task.
     await assert.rejects(call('profile_create', { name: 'Ann admin' }), /letters, digits and @ \. _ \+ - only/);
     await assert.rejects(call('profile_create', { name: '@' }), /starting with a letter or a digit/);
@@ -104,7 +104,7 @@ module.exports = (test) => {
       await ui(`document.querySelector('.pane[data-profile="sam-admin"] .more').click()`);
       assert.deepEqual(await menuRows(ui), ['DevTools']);
       // As Chrome's ⋮: under the button, its right edge at the button's, so it stays over its own pane.
-      const [m, b] = await ui(`[document.getElementById('menu'), document.querySelector('.pane[data-profile="sam-admin"] .more')].map((e) => e.getBoundingClientRect().toJSON())`);
+      const [m, b] = await ui(`[document.querySelector('.menu[data-state="open"]'), document.querySelector('.pane[data-profile="sam-admin"] .more')].map((e) => e.getBoundingClientRect().toJSON())`);
       assert.ok(Math.abs(m.right - b.right) < 1 && m.top >= b.bottom, JSON.stringify({ m, b }));
       // Back, forward, reload, Pick and ⋮ are icon buttons, as Chrome's: no border, no text, a name for screen readers.
       assert.deepEqual(await ui(`[...document.querySelectorAll('.pane[data-profile="sam-admin"] .bar .icon')].map((b) =>

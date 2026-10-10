@@ -11,10 +11,12 @@
 // favicon when it has one, Kulisa's set, or the app's curtain in its color); its local addresses. The main process
 // checks and saves (project:new, project:settings, project:repo-*, project:agent-*, project:profile-*).
 import { computed, ref } from 'vue';
+import { DialogClose } from 'reka-ui';
 import Modal from './Modal.vue';
 import Icon from './Icon.vue';
+import ButtonMenu from './menu/ButtonMenu.vue';
 import { avatarSrc, projectIcon } from '../lib/common';
-import { openMenu } from '../lib/menu';
+import type { MenuItem } from '../lib/menu';
 import { registerDialog } from '../lib/dialogs';
 import type { ProjectChoices, ProjectEntry, ProjectProfile, ProjectRepo, ProjectSettings } from '../types';
 
@@ -83,11 +85,13 @@ async function openProjects(id?: string) {
   const { current, projects: all } = await kulisa.invoke<{ current: string | null; projects: ProjectEntry[] }>('projects:list');
   const at = id || current || all[0]?.id;
   await (at ? edit(at) : fresh());
-  if (!modal.value!.el!.open) modal.value!.open();
+  await show();
 }
+// Open, the keyboard in the name (fresh and edit put it there when it is already open).
+async function show() { if (!modal.value!.isOpen()) { await modal.value!.open(); nameInput.value!.focus(); } }
 registerDialog('projects', {
   openProjects,
-  async newProject() { await fresh(); if (!modal.value!.el!.open) modal.value!.open(); },
+  async newProject() { await fresh(); await show(); },
 });
 
 async function browse() {
@@ -131,7 +135,7 @@ async function agents(channel: string, args: Record<string, unknown>) {
   showDefaults();
 }
 const addable = computed(() => choices.value.agents.filter((x) => !mine.value.some((m) => m.id === x.id)));
-const addAgent = (e: MouseEvent) => openMenu(addable.value.map((x) => ({ label: x.name, run: () => agents('project:agent-add', { agent: x.id }) })), e.currentTarget as Element);
+const addAgent = (): MenuItem[] => addable.value.map((x) => ({ label: x.name, run: () => agents('project:agent-add', { agent: x.id }) }));
 
 // Its profiles (profile-store.js): who each is, and the other projects that have it too. New makes one (closed in its
 // tasks: opened in a task, a copy of its master is made there); From Another Project… takes one another project has; ×
@@ -146,8 +150,8 @@ async function addProfile() {
   if (!newName.value.trim()) return newProfile.value!.focus();
   if (!(await profileChange('project:profile-new', { name: newName.value }))?.error) newName.value = '';
 }
-const fromAnother = (e: MouseEvent) => openMenu(others.value.map((p) => ({ label: p.name, sub: p.also.join(', '), avatar: p.avatar,
-  run: () => profileChange('project:profile-add', { profile: p.id }) })), e.currentTarget as Element);
+const fromAnother = (): MenuItem[] => others.value.map((p) => ({ label: p.name, sub: p.also.join(', '), avatar: p.avatar,
+  run: () => profileChange('project:profile-add', { profile: p.id }) }));
 </script>
 
 <template>
@@ -202,7 +206,7 @@ const fromAnother = (e: MouseEvent) => openMenu(others.value.map((p) => ({ label
           </div>
         </div>
       </div>
-      <div id="npagentsadd" class="row" :hidden="isNew"><button id="npagentadd" type="button" aria-haspopup="menu" :disabled="!addable.length" @click="addAgent">Add Agent…</button></div>
+      <div id="npagentsadd" class="row" :hidden="isNew"><ButtonMenu :items="addAgent"><button id="npagentadd" type="button" :disabled="!addable.length">Add Agent…</button></ButtonMenu></div>
       <p id="npagenterror" class="error">{{ agentError }}</p>
       <div id="npprofilesrow" class="field" :hidden="isNew"><span>Profiles</span>
         <div id="npprofiles">
@@ -218,7 +222,7 @@ const fromAnother = (e: MouseEvent) => openMenu(others.value.map((p) => ({ label
         <input id="npnewprofile" ref="newProfile" v-model="newName" data-name maxlength="64" placeholder="A new one, e.g. ann@shop.com" spellcheck="false" aria-label="New profile"
           @keydown.enter.prevent="addProfile">
         <button id="npprofilenew" type="button" @click="addProfile">New</button>
-        <button id="npprofilefrom" type="button" aria-haspopup="menu" :disabled="!others.length" @click="fromAnother">From Another Project…</button>
+        <ButtonMenu :items="fromAnother"><button id="npprofilefrom" type="button" :disabled="!others.length">From Another Project…</button></ButtonMenu>
       </div>
       <p id="npprofileerror" class="error">{{ profileError }}</p>
       <div class="field"><span>Color</span>
@@ -240,7 +244,7 @@ const fromAnother = (e: MouseEvent) => openMenu(others.value.map((p) => ({ label
       <p id="nperror" class="error">{{ error }}</p>
     </div>
     <template #footer>
-      <button type="button" command="close" commandfor="projects">Cancel</button><button id="npcreate" class="primary" :disabled="saving">{{ isNew ? 'Create' : 'Save' }}</button>
+      <DialogClose>Cancel</DialogClose><button id="npcreate" class="primary" :disabled="saving">{{ isNew ? 'Create' : 'Save' }}</button>
     </template>
   </Modal>
 </template>

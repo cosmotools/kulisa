@@ -7,8 +7,9 @@
 // understands, the system's first; it is the agent's own setting, so the agent answers in it too (said on hover).
 import { computed } from 'vue';
 import Icon from '../Icon.vue';
+import ButtonMenu from '../menu/ButtonMenu.vue';
 import { store } from '../../lib/store';
-import { openMenu } from '../../lib/menu';
+import type { MenuItem } from '../../lib/menu';
 import { ask } from '../../lib/ask';
 import { shownTerm } from '../../lib/terminals';
 import { record, voices } from '../../lib/voice';
@@ -34,19 +35,20 @@ function release(e: PointerEvent) {
 const key = (e: MouseEvent) => { if (!e.detail) record(store.current!, !v.value?.recording); };
 
 // The languages the agent understands: the system's first, then by name in each language itself.
-function languages(e: MouseEvent) {
+function languages(): MenuItem[] {
   const task = store.current, now = v.value;
-  if (!task || !now) return;
+  if (!task || !now) return [];
   const system = navigator.language.split('-')[0];
   const order = now.languages.toSorted((a, b) => Number(b === system) - Number(a === system) || name(a).localeCompare(name(b)));
-  openMenu([{ heading: 'Dictation language' }, ...order.map((code) => ({
-    label: name(code), sub: name(code, 'en') === name(code) ? '' : name(code, 'en'), icon: code === now.language ? 'i-done' : undefined,
-    run: async () => {
+  return [{ heading: 'Dictation language' }, {
+    chosen: now.language,
+    rows: order.map((code) => ({ value: code, label: name(code), sub: name(code, 'en') === name(code) ? '' : name(code, 'en') })),
+    async choose(code) {
       const r = await kulisa.invoke<{ language?: string; error?: string }>('voice:language', { task, code });
       if (r?.error) return ask({ message: 'The language was not changed', detail: r.error });
       if (voices[task]) voices[task]!.language = r.language!; // as it is now: recording may have changed meanwhile
     },
-  }))], e.currentTarget as Element);
+  }];
 }
 </script>
 
@@ -54,8 +56,8 @@ function languages(e: MouseEvent) {
   <!-- The panel is not dragged by its header from here. -->
   <span class="dictation" :hidden="!v" @dragstart.prevent>
     <template v-if="v">
-      <button class="icon lang" aria-haspopup="menu" aria-label="Dictation language"
-        :title="`Dictation in ${name(v.language, 'en')}: the language you speak${v.note ? `. ${v.note}` : ''}`" @click="languages">{{ v.language.toUpperCase() }}</button>
+      <ButtonMenu :items="languages"><button class="icon lang" aria-label="Dictation language"
+        :title="`Dictation in ${name(v.language, 'en')}: the language you speak${v.note ? `. ${v.note}` : ''}`">{{ v.language.toUpperCase() }}</button></ButtonMenu>
       <button class="icon mic" aria-label="Speak to the agent" :aria-pressed="v.recording"
         :title="v.recording ? 'Recording: click to stop' : 'Speak to the agent: hold, or click to start and again to stop'"
         @pointerdown="press" @pointerup="release" @pointercancel="release" @click="key"><Icon name="i-mic" /></button>

@@ -6,9 +6,10 @@
 import { computed } from 'vue';
 import type { DockviewPanelApi } from 'dockview-vue';
 import Icon from '../Icon.vue';
+import RightClickMenu from '../menu/RightClickMenu.vue';
 import { act, store } from '../../lib/store';
 import { avatarSrc, keyText } from '../../lib/common';
-import { openMenu } from '../../lib/menu';
+import type { MenuItem } from '../../lib/menu';
 import { panes } from '../../lib/grid';
 import { dialog } from '../../lib/dialogs';
 import { deleteProfile } from '../../lib/profiles';
@@ -18,10 +19,10 @@ const key = props.params.api.id.slice('profile:'.length);
 const profile = computed(() => store.profiles.find((p) => p.key === key));
 const caption = computed(() => (profile.value?.signinMode ? '🔒 Sign-in page — agent paused' : store.captions[profile.value?.id || ''] || ''));
 
-function menu(e: MouseEvent) {
+function menu(): MenuItem[] | null {
   const p = profile.value;
-  if (!p) return;
-  openMenu([
+  if (!p) return null;
+  return [
     { label: 'New tab', keys: keyText('tab.new'), run: () => panes.get(key)?.newTab() },
     { label: 'About this profile…', run: async () => (await dialog('profiles')).about(key) },
     { label: 'Sign In to Master…', run: () => act('profile:master', { profile: p.id }) },
@@ -29,19 +30,19 @@ function menu(e: MouseEvent) {
     { label: 'Close profile', run: () => act('profile:close', { profile: p.id }) },
     '-',
     { label: 'Delete profile…', run: () => deleteProfile(p.id) },
-  ], e);
+  ];
 }
 </script>
 
 <template>
-  <div class="ptab" :data-panel="params.api.id" @contextmenu.prevent="menu">
+  <RightClickMenu :items="menu"><div class="ptab" :data-panel="params.api.id">
     <template v-if="profile">
       <img class="avatar" alt="" :src="avatarSrc(profile.avatar)"><b class="pname" :title="profile.description || ''">{{ profile.name }}</b>
       <span class="caption">{{ caption }}</span>
       <button class="close icon quiet" title="Close profile: its tabs go, its sign-ins stay (open it again in Profiles)" aria-label="Close profile"
         @click="act('profile:close', { profile: profile.id })"><Icon name="i-close" /></button>
     </template>
-  </div>
+  </div></RightClickMenu>
 </template>
 
 <style>

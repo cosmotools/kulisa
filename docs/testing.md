@@ -50,6 +50,11 @@ not listed for screenshots and focus differs from a desktop), so they never take
 - **Before a click, wait until the window is ready for it**: a project or task being shown
   (`!shell.windows[0].switching`, no `loading` class on the root), the panel there (`getPanel(...)?.`), the
   element drawn. A click while the window builds another grid is lost.
+- **Menus and dialogs are Reka UI's**: `menuRows`, `choose`, `menuOpen`, `closeMenu`, `rightClick` (`helpers.js`) read
+  and drive the open menu (`.menu[data-state="open"]`, shown once it is `.ready`: the pages under it are pictures);
+  a dialog is open when its `data-state` is `open`, and closed with its ×. How they behave under the hand (press, drag
+  and let go; a right-click's release; the keyboard) is tested with input events (`sendInputEvent`): a key that types
+  needs its `char` event too (Enter sends a form on it), and `insertText` is awaited before the next key.
 - **Names say what the human sees or gets**, as a sentence ("deleting a task asks first, saying what goes"); the
   comments say why it matters (the bug it once was).
 - **Leave what later files need, say so** ("left closed for the restart phase"), and clean up the rest (a

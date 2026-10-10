@@ -23,13 +23,22 @@ const SITE = 'http://127.0.0.1:4417';
 const savedWindows = () => JSON.parse(fs.readFileSync(path.join(userData, 'settings.json'), 'utf8')).windows.map(({ tabs, shown }) => ({ tabs, shown }));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// Kulisa's menus (menu.js): wait for the open one and get its rows ('-' a line, '# …' a heading,
-// 'zoom' the zoom row; an item: its label, '(off)' when disabled); choose one by its label.
+// Kulisa's menus (Reka's, docs/ui.md, Menus): the open one, once it is shown (the pages under it are pictures);
+// its rows ('-' a line, '# …' a heading, '~ …' a note, 'zoom' the zoom row; an item: its label, '(off)' when
+// disabled); choose one by its label; close it as Esc does.
+const MENU = `document.querySelector('.menu[data-state="open"]')`;
+const menuOpen = (ui) => ui(`!!document.querySelector('.menu[data-state="open"].ready')`);
 const menuRows = async (ui) => {
-  await waitFor(() => ui(`document.getElementById('menu').matches(':popover-open')`));
-  return ui(`[...document.getElementById('menu').children].map((r) => r.matches('hr') ? '-' : r.matches('.heading') ? '# ' + r.textContent : r.matches('.note') ? '~ ' + r.textContent
+  await waitFor(() => menuOpen(ui));
+  return ui(`(() => { const row = (r) => r.matches('[role="separator"]') ? '-' : r.matches('.heading') ? '# ' + r.textContent : r.matches('.note') ? '~ ' + r.textContent
     : r.matches('.zoomrow') ? 'zoom' : r.matches('.themerow') ? 'theme' : r.matches('.barrow') ? 'bar' : r.matches('.arrange') ? 'arrange: ' + [...r.querySelectorAll('span')].map((s) => s.textContent).join(', ')
-    : r.querySelector('.label').textContent + (r.disabled ? ' (off)' : ''))`);
+    : r.matches('[role="group"]') ? [...r.children].map(row)
+    : r.querySelector('.label').textContent + ((r.matches('.item') ? r : r.querySelector('.item')).matches('[data-disabled]') ? ' (off)' : '');
+  return [...${MENU}.children].flatMap(row); })()`);
+};
+const closeMenu = async (ui) => {
+  await ui(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); 0`);
+  await waitFor(async () => !(await ui(`!!${MENU}`)));
 };
 // The open projects in the projects' bar (their islands): their names, the shown one with ' *'.
 const projectTabs = (ui) => ui(`[...document.querySelectorAll('#projectTabs .pisland')].map((t) => t.querySelector('.plabel .name').textContent + (t.classList.contains('active') ? ' *' : ''))`);
@@ -43,17 +52,19 @@ const showProject = async (ui, id) => {
 };
 // A project closed as the human does it: the middle button on its label (its right-click menu has Close Project too).
 const closeProject = (ui, id) => ui(`${projectTab(id)}.querySelector('.plabel').dispatchEvent(new MouseEvent('auxclick', { button: 1, bubbles: true }))`);
-const choose = (ui, label) => ui(`[...document.querySelectorAll('#menu .item')].find((b) => b.querySelector('.label').textContent === ${JSON.stringify(label)}).click()`);
+const choose = (ui, label) => ui(`[...${MENU}.querySelectorAll('.item')].find((b) => b.querySelector('.label').textContent === ${JSON.stringify(label)}).click()`);
 // The profile editor: the profiles' chip (👥), then Manage Profiles….
 const manageProfiles = async (ui) => {
   await ui(`document.getElementById('openProfiles').click()`);
   await menuRows(ui);
   await choose(ui, 'Manage Profiles…');
 };
-const menuOpen = (ui) => ui(`document.getElementById('menu').matches(':popover-open')`);
-// A right-click on an element of the window, at its middle.
+// A right-click on an element of the window, at its middle: the press (it closes a menu open elsewhere), then the
+// menu's event, as a mouse sends them on Linux.
 const rightClick = (ui, sel) => ui(`(() => { const e = document.querySelector(${JSON.stringify(sel)}), r = e.getBoundingClientRect();
-  e.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: r.x + r.width / 2, clientY: r.y + r.height / 2 })); })()`);
+  const at = { bubbles: true, cancelable: true, composed: true, button: 2, buttons: 2, clientX: r.x + r.width / 2, clientY: r.y + r.height / 2 };
+  e.dispatchEvent(new PointerEvent('pointerdown', { ...at, pointerType: 'mouse', isPrimary: true }));
+  e.dispatchEvent(new MouseEvent('contextmenu', at)); })()`);
 
 async function waitFor(cond, ms = 5000) {
   for (const end = Date.now() + ms; Date.now() < end; await sleep(50)) if (await cond()) return;
@@ -84,5 +95,5 @@ const press = (wc, keyCode, ...modifiers) => { for (const type of ['keyDown', 'k
 const ctrl = (wc, keyCode) => { wc.focus(); press(wc, keyCode, 'control'); };
 const near = (a, b) => Math.abs(a - b) < 1e-6;
 
-module.exports = { assert, root, userData, project, pfile, savedTabs, savedWindows, panel, SITE, sleep, waitFor, who, menuRows, choose, projectTabs, projectTab, showProject, closeProject, manageProfiles, menuOpen, rightClick,
+module.exports = { assert, root, userData, project, pfile, savedTabs, savedWindows, panel, SITE, sleep, waitFor, who, menuRows, choose, projectTabs, projectTab, showProject, closeProject, manageProfiles, menuOpen, closeMenu, rightClick,
   box, pageBox, viewOn, dock, press, ctrl, near };

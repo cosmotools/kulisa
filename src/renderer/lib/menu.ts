@@ -1,11 +1,7 @@
-// Kulisa's menus, drawn in HTML as Chrome draws its own (Menu.vue: a popover with rows that may hold buttons, colored
-// dots or profiles' pictures and a second line). Esc, a click outside, a chosen item, the same button again or leaving
-// the window closes it.
-//   openMenu(items, at)   at: the button to open it under, or the mouse event to open it at. A button with
-//                         data-menu-end (⋮, ☰: at the end of a bar) gets the menu under it toward the start, its end
-//                         edge at the button's, as Chrome's ⋮.
-import { markRaw, nextTick, shallowRef, type Component } from 'vue';
-import { freeze, unfreeze } from './views';
+// What a menu holds, as the window's parts build their menus (docs/ui.md, Menus): rows (MenuButton.vue), lines,
+// headings, notes, choices, rows of their own. Drawn by Reka's menus: ButtonMenu.vue (a button's), RightClickMenu.vue
+// (an area's), PointMenu.vue (at a point); menu/MenuRows.vue lays out the items.
+import { shallowRef, type Component } from 'vue';
 
 export interface MenuRow {
   label: string; sub?: string; keys?: string;
@@ -14,37 +10,20 @@ export interface MenuRow {
   avatar?: string; // a profile's picture
   enabled?: boolean;
   run?: () => unknown; // none: shown only
-  remove?: { title: string; run: () => unknown }; // a × at the row's end, shown on hover (as JetBrains' recent projects)
+  remove?: { title: string; run: () => unknown }; // a × after the row, shown on hover (as JetBrains' recent projects)
 }
 export type MenuItem = '-' | MenuRow
   | { heading: string; icon?: string }
   | { note: string } // small dim words under the rows, not a row (☰'s version)
+  | { choose: (value: string) => unknown; chosen: string; rows: (MenuRow & { value: string })[] } // one of them, checked
   | { component: Component; props?: Record<string, unknown> }; // a row of its own (☰'s zoom, theme …)
 
-export const menuItems = shallowRef<MenuItem[]>([]);
-export const menuEnd = shallowRef(false);
-let el: HTMLElement | null = null, point: HTMLElement | null = null;
-let source: Element | MouseEvent | null = null;
-export const isOpen = () => !!el?.matches(':popover-open');
-export const closeMenu = () => { if (isOpen()) el!.hidePopover(); };
-export const isSource = (target: Node) => source instanceof Element && source.contains(target);
-// Menu.vue, mounted: its popover and the point it opens at.
-export function menuMounted(menu: HTMLElement, at: HTMLElement) { el = menu; point = at; }
-// The popover hidden (a hide and a show in one go may come as one toggle event, or the hide's after the show).
-export function menuClosed() { source = null; unfreeze(); }
-
-export async function openMenu(list: MenuItem[], at: Element | MouseEvent) {
-  const again = isOpen() && source === at;
-  closeMenu();
-  if (again) return;
-  menuItems.value = list.map((it) => (typeof it === 'object' && 'component' in it ? { ...it, component: markRaw(it.component) } : it));
-  source = at;
-  menuEnd.value = at instanceof Element && 'menuEnd' in (at as HTMLElement).dataset;
-  // At the pointer: a point the popover is anchored to, as to a button (components.css keeps it in the window).
-  if (at instanceof MouseEvent) point!.style.translate = `${at.clientX}px ${at.clientY}px`;
-  await nextTick();
-  // The pages are native views above the window's HTML and would hide the menu: pictures of them meanwhile.
-  await freeze();
-  el!.showPopover({ source: at instanceof MouseEvent ? point! : at as HTMLElement } as ShowPopoverOptions);
-  el!.focus();
+// A menu at a point with no button or area of its own: a link in the terminal (Ctrl+click). PointMenu.vue shows it.
+export const pointMenu = shallowRef<{ x: number; y: number; items: MenuItem[] } | null>(null);
+export const menuAt = (e: MouseEvent, items: MenuItem[]) => { pointMenu.value = { x: e.clientX, y: e.clientY, items }; };
+// A menu closed: the keyboard back where it was before it opened (the terminal, a field, its button), unless another
+// menu has opened meanwhile (the focus leaving that one would close it).
+export function focusBack(e: Event, el: Element | null) {
+  e.preventDefault();
+  if (!document.querySelector('.menu[data-state="open"]') && el instanceof HTMLElement && el.isConnected) el.focus();
 }

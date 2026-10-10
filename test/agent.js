@@ -221,7 +221,7 @@ module.exports = (test) => {
     await waitFor(async () => (await ui(`${header}.querySelector('.pname').title`)).startsWith('buyer; pays by card'));
     await waitFor(() => ui(`(() => { const i = ${header}.querySelector('.avatar'); return i.complete && i.naturalWidth > 0; })()`)); // the picture is drawn
     await ui(`document.getElementById('openProfiles').click()`);
-    assert.deepEqual(await ui(`[...document.querySelectorAll('#menu .item')].slice(0, 2).map((b) => [b.querySelector('small').textContent,
+    assert.deepEqual(await ui(`[...document.querySelectorAll('.menu[data-state="open"] .item')].slice(0, 2).map((b) => [b.querySelector('small').textContent,
       b.querySelector('.avatar').getAttribute('src')])`),
     [['seller in the test shop', 'avatars/fox.svg'], ['buyer; pays by card', 'avatars/penguin.svg']]);
     await ui(`document.getElementById('openProfiles').click()`);
@@ -284,22 +284,22 @@ module.exports = (test) => {
     assert.equal(await out(), 'kept');
     assert.match((await call('browser_click', { ...del, dialog: 'accept' })).text, /accepted/);
     assert.equal(await out(), 'deleted');
-    assert.equal(await ui(`${paneDialog}.open`), false);
+    assert.equal(await ui(`${paneDialog}?.dataset.state === 'open'`), false);
     // A dialog the agent did not open is the human's, in its pane over a picture of the page (not Electron's message
     // box in the middle of the window, which said nothing of where it came from); the human answers there.
     const ask = async (js) => {
       await call('browser_evaluate', { ...p, function: `() => { setTimeout(() => out.textContent = String(${js})); }` });
-      await waitFor(() => ui(`${paneDialog}.open`));
+      await waitFor(() => ui(`${paneDialog}?.dataset.state === 'open'`));
     };
     await ask("confirm('Yours?\\nReally.')");
-    assert.deepEqual(await ui(`[${paneDialog}.querySelector('h2').textContent, ${paneDialog}.querySelector('.message').textContent, ${paneDialog}.querySelector('.cancel').hidden]`),
+    assert.deepEqual(await ui(`[${paneDialog}.querySelector('h2').textContent, ${paneDialog}.querySelector('.message').textContent, !${paneDialog}.querySelector('.cancel')]`),
       ['127.0.0.1:4417 says', 'Yours?\nReally.', false]);
     assert.equal(view(), false, 'the page drawn as a picture under its dialog');
     // The page does nothing until it is answered: the agent's tools say so at once rather than wait.
     await assert.rejects(call('browser_snapshot', p), /shows a confirm \("Yours\?\nReally\."\) for the human to answer/);
     assert.match(await ui(`document.querySelector('.pane[data-profile="sam-seller"] .content').style.getPropertyValue('--picture')`), /^url\("data:image\/jpeg/);
     // Gone from the pane, and the answer in the main process (it goes there after the pane has closed it).
-    const closed = () => waitFor(async () => !(await ui(`${paneDialog}.open`)) && !shell.profiles.get('sam-seller').get().dialog);
+    const closed = () => waitFor(async () => !(await ui(`${paneDialog}?.dataset.state === 'open'`)) && !shell.profiles.get('sam-seller').get().dialog);
     await ui(`${paneDialog}.querySelector('.primary').click()`);
     await closed();
     assert.equal(await out(), 'true');
@@ -311,7 +311,7 @@ module.exports = (test) => {
     // An alert has OK only. Reloading while a dialog is open dismisses it, as in Chrome (Chromium holds the
     // navigation until then).
     await ask("alert('Saved')");
-    assert.equal(await ui(`${paneDialog}.querySelector('.cancel').hidden`), true);
+    assert.equal(await ui(`!${paneDialog}.querySelector('.cancel')`), true);
     await ui(`document.querySelector('.pane[data-profile="sam-seller"] .reload').click()`);
     await closed();
     await waitFor(async () => (await out()) === 'nothing yet');

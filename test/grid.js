@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { clipboard } = require('electron');
 const { assert, root, userData, project, pfile, savedTabs, panel, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, menuOpen, rightClick,
-  box, pageBox, viewOn, dock, press, ctrl, near, projectTabs, projectTab, showProject, closeProject, savedWindows } = require('./helpers');
+  box, pageBox, viewOn, dock, press, ctrl, near, projectTabs, projectTab, showProject, closeProject, savedWindows, closeMenu } = require('./helpers');
 
 module.exports = (test) => {
   test('grid: a pane moved next to the terminal takes its page along', async ({ shell, ui }) => {
@@ -72,12 +72,12 @@ module.exports = (test) => {
     // +: a menu of the projects (the open ones marked), Open Folder, and the dialog for the rest.
     await ui(`document.getElementById('openProjects').click()`);
     assert.deepEqual(await menuRows(ui), ['project', 'other', '-', 'Projects…', 'New Project…', 'Open Folder…', '-', 'Close Project', 'Remove Project…']);
-    const rows = await ui(`[...document.querySelectorAll('#menu .item')].slice(0, 2).map((b) => ({ dot: getComputedStyle(b.querySelector('.dot')).backgroundColor,
+    const rows = await ui(`[...document.querySelectorAll('.menu[data-state="open"] .item')].slice(0, 2).map((b) => ({ dot: getComputedStyle(b.querySelector('.dot')).backgroundColor,
       folder: b.querySelector('small').textContent, check: b.querySelector('kbd').textContent }))`);
     assert.deepEqual(rows.map((r) => r.folder), [project, other], 'each with its folder');
     assert.deepEqual(rows.map((r) => r.check), ['✓', '✓'], 'the open ones are marked');
     assert.equal(rows[0].dot, 'rgb(74, 123, 208)', "a dot in the project's color");
-    const over = await ui(`(() => { const b = document.getElementById('openProjects').getBoundingClientRect(), m = document.getElementById('menu').getBoundingClientRect();
+    const over = await ui(`(() => { const b = document.getElementById('openProjects').getBoundingClientRect(), m = document.querySelector('.menu[data-state="open"]').getBoundingClientRect();
       return m.bottom <= b.top && m.bottom > b.top - 10 && Math.abs(m.left - b.left) < 2; })()`);
     assert.ok(over, 'over the button: the bar is at the bottom of the window');
     await ui(`document.getElementById('openProjects').click()`); // again: closes it
@@ -85,12 +85,12 @@ module.exports = (test) => {
     // Each project's row has a × at its end, shown on hover (Remove project…), as in JetBrains.
     await ui(`document.getElementById('openProjects').click()`);
     await menuRows(ui);
-    const x = await ui(`(() => { const rows = [...document.querySelectorAll('#menu .removable')], x = rows[0].querySelector('.remove');
+    const x = await ui(`(() => { const rows = [...document.querySelectorAll('.menu[data-state="open"] .removable')], x = rows[0].querySelector('.remove');
       return { rows: rows.length, title: x.title, shown: getComputedStyle(x).visibility }; })()`);
     assert.deepEqual(x, { rows: 2, title: 'Remove project…', shown: 'hidden' });
-    await rightClick(ui, '#menu .removable .item');
+    await rightClick(ui, '.menu[data-state="open"] .removable .item');
     assert.ok(await menuOpen(ui) && (await menuRows(ui)).includes('New Project…'), 'a right-click in the menu opens no other menu');
-    await ui(`document.getElementById('menu').hidePopover()`);
+    await closeMenu(ui);
     // The label's right-click menu.
     await rightClick(ui, '#projectTabs [data-project="other"] .name');
     assert.deepEqual(await menuRows(ui), ['New Task', '-', 'Close Project', 'Move to New Window', '-', 'Project Settings…', 'Show Data Folder', 'Remove Project…']);
@@ -136,7 +136,7 @@ module.exports = (test) => {
     ctx.asked.length = 0;
     ctx.answer = false;
     await closeProject(ui, 'project');
-    await waitFor(() => ctx.asked.length && ui(`!document.getElementById('ask').open`));
+    await waitFor(() => ctx.asked.length && ui(`!(document.getElementById('ask')?.dataset.state === 'open')`));
     assert.equal(ctx.asked.pop().message, 'Close the project project?');
     assert.ok(shell.open.has('project') && shell.current?.folder === project, 'still open when the human says no');
     ctx.answer = true;
@@ -225,8 +225,8 @@ module.exports = (test) => {
     // Each window's + menu marks the projects open in either.
     await ui(`document.getElementById('openProjects').click()`);
     await menuRows(ui);
-    assert.deepEqual(await ui(`[...document.querySelectorAll('#menu .item kbd')].slice(0, 2).map((k) => k.textContent)`), ['✓', '✓']);
-    await ui(`document.getElementById('menu').hidePopover()`);
+    assert.deepEqual(await ui(`[...document.querySelectorAll('.menu[data-state="open"] .item kbd')].slice(0, 2).map((k) => k.textContent)`), ['✓', '✓']);
+    await closeMenu(ui);
     // Questions about its project are asked in its window.
     ctx.answer = false;
     await ui2(`act('profile:delete', { profile: 'sam-seller' })`);
@@ -252,10 +252,10 @@ module.exports = (test) => {
     ctx.asked.length = 0;
     ctx.answer = null;
     await ui(`kulisa.invoke('project:open', { folder: ${JSON.stringify(other)} })`);
-    await waitFor(() => ctx.asked.length && ui(`document.getElementById('ask').open`));
+    await waitFor(() => ctx.asked.length && ui(`(document.getElementById('ask')?.dataset.state === 'open')`));
     assert.deepEqual([ctx.asked[0].message, ctx.asked[0].ok, ctx.asked[0].other], ['Where to open the project other?', 'This Window', 'New Window']);
     assert.deepEqual(await ui(`[...document.querySelectorAll('#ask footer button:not([hidden])')].map((b) => b.textContent)`), ['Cancel', 'New Window', 'This Window']);
-    await ui(`document.querySelector('#ask button[value=""]').click()`);
+    await ui(`document.querySelector('#ask .cancel').click()`);
     await sleep(300); // nothing to wait for: that it does not open
     assert.ok(!shell.open.has('other'), 'Cancel: not opened');
     ctx.answer = 'other';
@@ -271,7 +271,7 @@ module.exports = (test) => {
     ctx.asked.length = 0;
     ctx.answer = false;
     third.win.close();
-    await waitFor(() => ctx.asked.length && third.win.webContents.executeJavaScript(`!document.getElementById('ask').open`));
+    await waitFor(() => ctx.asked.length && third.win.webContents.executeJavaScript(`!(document.getElementById('ask')?.dataset.state === 'open')`));
     const q = ctx.asked.pop();
     assert.equal(q.message, 'Close the window?');
     assert.match(q.detail, /Its projects close: other\./);
@@ -288,7 +288,7 @@ module.exports = (test) => {
     shell.task.state = 'working';
     ctx.answer = false;
     shell.win.close();
-    await waitFor(() => ctx.asked.length && ui(`!document.getElementById('ask').open`));
+    await waitFor(() => ctx.asked.length && ui(`!(document.getElementById('ask')?.dataset.state === 'open')`));
     const quit = ctx.asked.pop();
     assert.equal(quit.message, 'Quit Kulisa?');
     assert.match(quit.detail, /^An agent is still working \(task-1\): quitting stops it\./);
@@ -394,7 +394,7 @@ module.exports = (test) => {
       await rightClick(ui, '.ptab[data-panel="profile:Profile 2"]');
       await waitFor(() => menuOpen(ui), 2000);
       assert.equal(await ui(`!!document.querySelector('.pane[data-profile="elon-buyer"] .content img.snapshot')`), false, 'no picture, the pane is empty meanwhile');
-      await ui(`document.getElementById('menu').hidePopover()`);
+      await closeMenu(ui);
       await waitFor(async () => !(await menuOpen(ui)));
     } finally { delete wc.capturePage; }
   });
@@ -404,8 +404,8 @@ module.exports = (test) => {
     const header = '.ptab[data-panel="profile:Profile 2"]';
     await rightClick(ui, header);
     assert.deepEqual(await menuRows(ui), ['New tab', 'About this profile…', 'Sign In to Master…', 'Refresh from Master…', 'Close profile', '-', 'Delete profile…']);
-    const at = await ui(`(() => { const h = document.querySelector('${header}').getBoundingClientRect(), m = document.getElementById('menu').getBoundingClientRect();
-      return Math.abs(m.left - (h.x + h.width / 2)) < 2 && Math.abs(m.top - (h.y + h.height / 2) - 4) < 2; })()`);
+    const at = await ui(`(() => { const h = document.querySelector('${header}').getBoundingClientRect(), m = document.querySelector('.menu[data-state="open"]').getBoundingClientRect();
+      return Math.abs(m.left - (h.x + h.width / 2)) <= 4 && Math.abs(m.top - (h.y + h.height / 2)) <= 4; })()`);
     assert.ok(at, 'at the pointer');
     // The pages are native views above the menu: pictures of them stand in meanwhile.
     assert.equal(elon.get().view.getVisible(), false);
@@ -452,7 +452,7 @@ module.exports = (test) => {
     await waitFor(async () => !(await menuOpen(ui)));
     await rightClick(ui, '#term .xterm-screen');
     assert.deepEqual(await menuRows(ui), ['Copy (off)', 'Paste', 'Select all', '-', 'Clear', '-', 'Change agent…'], 'nothing selected to copy');
-    await ui(`document.getElementById('menu').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))`);
+    await ui(`document.querySelector('.menu[data-state="open"]').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))`);
     assert.equal(await ui(`document.activeElement.querySelector('.label')?.textContent`), 'Paste', 'arrows move over the enabled rows');
     await choose(ui, 'Select all');
     await waitFor(() => ui(`window.__term.hasSelection()`));
@@ -515,13 +515,13 @@ module.exports = (test) => {
     // The arrangements as pictures, a short name under each, the full words in the tooltip.
     assert.deepEqual((await menuRows(ui)).slice(4), ['# Arrange panels', 'arrange: Columns, Two by two, One at a time', '-', 'Agents…', 'Keyboard Shortcuts', '-',
       'Documentation', 'GitHub', 'Report an issue', '-', 'Exit', `~ Kulisa ${require('../package.json').version}`], "Kulisa's version a note under the rows, not one of them");
-    assert.deepEqual(await ui(`[...document.querySelectorAll('#menu svg:not([hidden]) > use')].map((u) => u.getAttribute('href'))`),
+    assert.deepEqual(await ui(`[...document.querySelectorAll('.menu[data-state="open"] svg:not([hidden]) > use')].map((u) => u.getAttribute('href'))`),
       ['#i-zoom', '#i-theme', '#i-projects', '#i-arrange', '#i-agent', '#i-keyboard', '#i-docs', '#i-github', '#i-bug', '#i-exit'], 'each row with its icon');
-    const pics = await ui(`[...document.querySelectorAll('#menu .arrange button')].map((b) => ({ title: b.title,
+    const pics = await ui(`[...document.querySelectorAll('.menu[data-state="open"] .arrange [role="menuitem"]')].map((b) => ({ title: b.title,
       panes: b.querySelectorAll('svg .a-page').length, term: b.querySelectorAll('svg .a-term').length, w: b.querySelector('svg').getBoundingClientRect().width }))`);
     assert.deepEqual(pics.map((p) => [p.panes, p.term]), [[3, 1], [4, 1], [1, 1]]);
     assert.ok(pics.every((p) => p.title && p.w >= 40), JSON.stringify(pics));
-    await ui(`document.querySelector('#menu .arrange [data-preset="focus"]').click()`);
+    await ui(`document.querySelector('.menu[data-state="open"] .arrange [data-preset="focus"]').click()`);
     assert.equal(await menuOpen(ui), false, 'a choice closes the menu');
     await waitFor(async () => (await pageBox(ui, 'elon-buyer')) === null && viewOn(shell, ui, 'sam-admin'));
     await ui(`window.__layoutPreset('grid')`); // as the grid presets test left it, for the restart phase
@@ -541,10 +541,67 @@ module.exports = (test) => {
     await ui(`document.getElementById('windowMenu').click()`);
     await menuRows(ui);
     await choose(ui, 'Exit');
-    await waitFor(() => ctx.asked.length && ui(`!document.getElementById('ask').open`));
+    await waitFor(() => ctx.asked.length && ui(`!(document.getElementById('ask')?.dataset.state === 'open')`));
     assert.equal(ctx.asked.pop().message, 'Quit Kulisa?');
     assert.ok(!shell.win.isDestroyed() && shell.open.size, 'Kulisa goes on when the human says no');
     shell.task.state = null;
     ctx.answer = true;
+  });
+  test("menus with the mouse and the keyboard, as the OS's: a press on ☰, a drag to a row and the release there chooses it; a click opens, the next closes; a right-click's release over a row chooses nothing; Enter and the arrows; the keyboard back where it was", async (ctx) => {
+    const { shell, ui } = ctx, wc = shell.win.webContents, z = wc.getZoomFactor();
+    const scaled = ({ x, y }) => ({ x: Math.round(x * z), y: Math.round(y * z) });
+    const mid = async (sel) => { const b = await box(ui, sel); return scaled({ x: b.x + b.width / 2, y: b.y + b.height / 2 }); };
+    const rowAt = async (label) => scaled(await ui(`(() => { const r = [...document.querySelectorAll('.menu[data-state="open"] .item')]
+      .find((e) => e.querySelector('.label').textContent === ${JSON.stringify(label)}).getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`));
+    const mouse = (type, at, button = 'left', modifiers = []) => wc.sendInputEvent({ type, ...at, button, clickCount: 1, modifiers });
+    const anyMenu = () => ui(`!!document.querySelector('.menu[data-state="open"]')`);
+    const shortcuts = () => ui(`document.getElementById('shortcuts')?.dataset.state === 'open'`);
+
+    // Pressed on ☰, dragged to Keyboard Shortcuts, let go there: chosen.
+    const menuButton = await mid('#windowMenu');
+    mouse('mouseDown', menuButton);
+    await waitFor(() => menuOpen(ui));
+    const to = await rowAt('Keyboard Shortcuts');
+    mouse('mouseMove', to, 'left', ['leftButtonDown']);
+    mouse('mouseUp', to);
+    await waitFor(shortcuts);
+    await ui(`document.querySelector('#shortcuts .x').click()`);
+    await waitFor(async () => !(await shortcuts()));
+
+    // A click opens it (the click after the press is not a second toggle); a click on the same button closes it.
+    mouse('mouseDown', menuButton); mouse('mouseUp', menuButton);
+    await waitFor(() => menuOpen(ui));
+    await sleep(200); // nothing to wait for: that it stays open
+    assert.equal(await anyMenu(), true, 'open after the click');
+    mouse('mouseDown', menuButton); mouse('mouseUp', menuButton);
+    await waitFor(async () => !(await anyMenu()));
+
+    // The keyboard: Enter on ☰ opens it on its first row, ↓ goes to the next, Esc closes it, ☰ has the keyboard again.
+    await ui(`document.getElementById('windowMenu').focus()`);
+    press(wc, 'Enter');
+    await waitFor(() => menuOpen(ui));
+    await waitFor(() => ui(`!!document.activeElement.closest('.menu[data-state="open"]')`));
+    const first = await ui(`document.activeElement.textContent`);
+    press(wc, 'Down');
+    await waitFor(async () => (await ui(`document.activeElement.textContent`)) !== first);
+    press(wc, 'Escape');
+    await waitFor(async () => !(await anyMenu()));
+    assert.equal(await ui(`document.activeElement.id`), 'windowMenu');
+
+    // A right-click in the terminal: on Linux the menu opens on the press, and letting go over a row chooses nothing.
+    // Esc closes it, and the keyboard is back in the terminal.
+    await ui(`window.__term.focus()`);
+    const at = await mid('#term .xterm-screen');
+    mouse('mouseDown', at, 'right');
+    await waitFor(() => menuOpen(ui));
+    const paste = await rowAt('Paste'), before = ctx.ptyOutput().length;
+    mouse('mouseMove', paste, 'right', ['rightButtonDown']);
+    mouse('mouseUp', paste, 'right');
+    await sleep(300); // nothing to wait for: that nothing is chosen
+    assert.equal(await anyMenu(), true, 'still open');
+    assert.equal(ctx.ptyOutput().length, before, 'nothing pasted');
+    press(wc, 'Escape');
+    await waitFor(async () => !(await anyMenu()));
+    assert.ok(await ui(`!!document.activeElement.closest('#term')`), 'the keyboard back in the terminal');
   });
 };

@@ -4,15 +4,19 @@
 // right-click removes it: the main process asks first), and links with Kulisa's version. On one island in the grid's
 // place (text on the project's glow reads badly).
 import Icon from './Icon.vue';
+import RightClickMenu from './menu/RightClickMenu.vue';
 import icon from '../../../assets/icon.svg';
 import { store } from '../lib/store';
 import { LINKS, version } from '../lib/common';
-import { openMenu } from '../lib/menu';
+import type { MenuItem } from '../lib/menu';
 import { dialog } from '../lib/dialogs';
 
 const openProject = (id: string) => kulisa.invoke('project:open', { id });
 const remove = (id: string) => kulisa.invoke('project:remove', { id });
-const menu = (e: MouseEvent, id: string) => openMenu([{ label: 'Open', run: () => openProject(id) }, '-', { label: 'Remove Project…', run: () => remove(id) }], e);
+function menu(e: MouseEvent): MenuItem[] | null {
+  const id = (e.target as Element).closest<HTMLElement>('[data-project]')?.dataset.project;
+  return id ? [{ label: 'Open', run: () => openProject(id) }, '-', { label: 'Remove Project…', run: () => remove(id) }] : null;
+}
 </script>
 
 <template>
@@ -26,12 +30,12 @@ const menu = (e: MouseEvent, id: string) => openMenu([{ label: 'Open', run: () =
       <button id="welcome-agents" @click="dialog('agents').then((d) => d.showAgents())">Agents…</button>
     </div>
     <h3 v-if="store.projects.projects.length">Recent</h3>
-    <div id="welcome-list">
-      <div v-for="p in store.projects.projects" :key="p.id" class="removable" :data-project="p.id" :style="{ '--color': p.color }" @contextmenu.prevent="menu($event, p.id)">
+    <RightClickMenu :items="menu"><div id="welcome-list">
+      <div v-for="p in store.projects.projects" :key="p.id" class="removable" :data-project="p.id" :style="{ '--color': p.color }">
         <button class="item" @click="openProject(p.id)"><span class="dot" /><span class="text"><span class="label">{{ p.name }}</span><small :title="p.folder">{{ p.folder }}</small></span></button>
         <button class="remove icon quiet" title="Remove project…" aria-label="Remove project" @click="remove(p.id)"><Icon name="i-close" /></button>
       </div>
-    </div>
+    </div></RightClickMenu>
     <nav class="links">
       <a v-for="l in LINKS" :key="l.href" :href="l.href" target="_blank">{{ l.label }}</a>
       <span id="version">Kulisa {{ version }}</span>

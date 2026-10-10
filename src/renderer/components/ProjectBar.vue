@@ -5,7 +5,8 @@
 // configuration (its right-click: New Task with one of its agents). A click on the label folds the group to it (the
 // shown task's tab stays) and back. A right-click: New Task, its closed tasks (one opens again), Close Project (asking
 // first; also the middle button), Move to New Window (a window of its own, e.g. for a second monitor; it keeps
-// running), Move to Window (each other window; as a browser moves a tab) and Remove Project…. Dragging the label does
+// running), Move to Window (each other window; as a browser moves a tab) and Remove Project…; a task's tab: the shown
+// one's profiles, Rename… (its name and branch), Show Folder, Delete Task…. Dragging the label does
 // the same: within the bar it changes the order, onto another window's bar it moves the project there, let go outside
 // every Kulisa window it opens a window there (the main process tells where the pointer is). The button after the
 // islands opens the menu of the projects (as JetBrains': open one, remove one with its ×, Projects…, New Project…, Open
@@ -17,14 +18,17 @@
 import { computed, nextTick, ref, watch } from 'vue';
 import Icon from './Icon.vue';
 import TaskTab from './TaskTab.vue';
+import ButtonMenu from './menu/ButtonMenu.vue';
+import RightClickMenu from './menu/RightClickMenu.vue';
 import { store } from '../lib/store';
 import { keyText, projectIcon, withKeys } from '../lib/common';
-import { openMenu } from '../lib/menu';
 import { dialog } from '../lib/dialogs';
+import { profilesMenu } from '../lib/profiles';
 import { terminalsOf } from '../lib/terminals';
-import type { ProjectsInfo } from '../types';
+import type { MenuItem } from '../lib/menu';
+import type { TaskInfo } from '../types';
 
-const tabs = ref<HTMLElement>(), button = ref<HTMLButtonElement>();
+const tabs = ref<HTMLElement>();
 const islands = computed(() => {
   const byId = new Map(store.projects.projects.map((p) => [p.id, p]));
   return store.projects.open.filter((o) => byId.has(o.id)).map((o) => ({ o, p: byId.get(o.id)!, open: (o.tasks || []).filter((t) => !t.closed) }));
@@ -52,21 +56,26 @@ function auxclick(e: MouseEvent) {
   const id = e.button === 1 && projectOf(e);
   if (id) close(id);
 }
-// Its right-click menu: New Task, its closed tasks (a click opens one again), then the project's own actions. On +: New
-// Task with each of its agents, the default first (what + itself runs).
-async function menu(e: MouseEvent) {
-  const id = projectOf(e);
-  if (!id) return;
-  const { open, windows } = await kulisa.invoke<Required<ProjectsInfo>>('projects:list');
-  if ((e.target as Element).closest('.add')) {
+// The bar's right-click menu, for what it was on. A task's tab: the shown one's profiles, Rename…, Show Folder, Delete
+// Task…. A project's island: New Task, its closed tasks (a click opens one again), then the project's own actions. +:
+// New Task with each of its agents, the default first (what + itself runs). From what the window was last told
+// (store.projects): it opens at once.
+function menu(e: MouseEvent): MenuItem[] | null {
+  const id = projectOf(e), target = e.target as Element;
+  if (!id) return null;
+  const { open, windows = [] } = store.projects;
+  const key = target.closest<HTMLElement>('.tasktab')?.dataset.task;
+  const t = key && [...store.taskTabs.list, ...open.flatMap((o) => o.tasks || [])].find((x) => x.key === key);
+  if (t) return taskMenu(t);
+  if (target.closest('.add')) {
     const agents = open.find((o) => o.id === id)?.agents || [];
-    return openMenu(agents.length ? [{ heading: 'New Task with' }, ...agents.map((a, i) => ({ label: a.name, sub: i ? undefined : 'the default',
+    return agents.length ? [{ heading: 'New Task with' }, ...agents.map((a, i) => ({ label: a.name, sub: i ? undefined : 'the default',
       run: () => kulisa.invoke('task:new', { project: id, agent: a.id }) }))]
-      : [{ note: 'No agents: add them in Project Settings…' }, { label: 'Project Settings…', run: () => manage(id) }], e);
+      : [{ note: 'No agents: add them in Project Settings…' }, { label: 'Project Settings…', run: () => manage(id) }];
   }
-  const closed = (open.find((o) => o.id === id)?.tasks || []).filter((t) => t.closed);
+  const closed = (open.find((o) => o.id === id)?.tasks || []).filter((x) => x.closed);
   const move = (to: number | null) => kulisa.invoke('project:move', { id, to, terminals: terminalsOf(id) });
-  openMenu([{ label: 'New Task', keys: id === store.projects.current ? keyText('task.new') : undefined, run: () => kulisa.invoke('task:new', { project: id }) },
+  return [{ label: 'New Task', keys: id === store.projects.current ? keyText('task.new') : undefined, run: () => kulisa.invoke('task:new', { project: id }) },
     ...(closed.length ? ['-' as const, { heading: 'Closed tasks' }, ...closed.map((t) => ({ label: t.name, sub: [t.branch, t.merged && 'merged'].filter(Boolean).join(' · ') || undefined,
       run: () => kulisa.invoke('task:open', t.key) }))] : []),
     // Its PR merged, nothing uncommitted: deleting loses nothing (projects.js, checkMerged).
@@ -77,8 +86,14 @@ async function menu(e: MouseEvent) {
     ...windows.map((w) => ({ label: `Move to Window: ${w.names.join(', ')}`, run: () => move(w.id) })),
     '-', { label: 'Project Settings…', run: () => manage(id) },
     { label: 'Show Data Folder', run: () => kulisa.invoke('project:show-data', { id }) },
-    { label: 'Remove Project…', run: () => remove(id) }], e);
+    { label: 'Remove Project…', run: () => remove(id) }];
 }
+const taskMenu = ({ key, name }: TaskInfo): MenuItem[] => [
+  ...(key === store.current ? [{ heading: 'Profiles' }, ...profilesMenu(), '-' as const] : []),
+  { label: 'Rename…', run: async () => (await dialog('taskrename')).rename(key, name) },
+  { label: 'Show Folder', run: () => kulisa.invoke('task:show-folder', key) },
+  '-', { label: 'Delete Task…', run: () => kulisa.invoke('task:delete', key) },
+];
 
 // HTML drag and drop, which also crosses windows. The island carries its project and what its terminals show (the
 // window it goes to has neither), as a type of Kulisa's own: a page under the pointer takes nothing from it.
@@ -122,10 +137,10 @@ function dragend(e: DragEvent) {
   if (id && e.dataTransfer!.dropEffect === 'none') kulisa.invoke('project:drag-out', { id, terminals: terminalsOf(id) });
 }
 
-async function projectsMenu() {
-  const { current, projects, open, elsewhere } = await kulisa.invoke<Required<ProjectsInfo>>('projects:list');
+function projectsMenu(): MenuItem[] {
+  const { current, projects, open, elsewhere = [] } = store.projects;
   const isOpen = (id: string) => open.some((o) => o.id === id) || elsewhere.includes(id);
-  openMenu([
+  return [
     ...projects.map((p) => ({ label: p.name, sub: p.folder, color: p.color, ...(isOpen(p.id) ? { keys: '✓' } : {}),
       ...(p.id === current ? {} : { run: () => (isOpen(p.id) ? kulisa.invoke('project:show', { id: p.id }) : openProject(p.id)) }),
       remove: { title: 'Remove project…', run: () => remove(p.id) } })),
@@ -135,13 +150,13 @@ async function projectsMenu() {
     { label: 'Open Folder…', run: () => kulisa.invoke('project:open-folder') },
     ...(current === null ? [] : ['-' as const, { label: 'Close Project', run: () => close(current) },
       { label: 'Remove Project…', run: () => remove(current) }]),
-  ], button.value!);
+  ];
 }
 </script>
 
 <template>
   <footer id="projectbar">
-    <nav id="projectTabs" ref="tabs" aria-label="Open projects" @click="click" @auxclick="auxclick" @contextmenu.prevent="menu"
+    <RightClickMenu :items="menu"><nav id="projectTabs" ref="tabs" aria-label="Open projects" @click="click" @auxclick="auxclick"
       @dragstart="dragstart" @dragover="dragover" @dragleave="dragleave" @drop="drop" @dragend="dragend">
       <div v-for="{ o, p, open } in islands" :key="p.id" class="pisland" :data-project="p.id" :title="p.folder || ''" :style="{ '--color': p.color }"
         :class="{ active: p.id === store.projects.current, collapsed: !!o.collapsed, dragging: dragged === p.id,
@@ -158,8 +173,8 @@ async function projectsMenu() {
         <TaskTab v-for="t in open" v-else :key="t.key" :t :active="false" :selected="t.key === o.task" />
         <button class="add icon" :title="withKeys('New task: its own copy of the code, branch, agent and profiles', 'task.new')" aria-label="New task"><Icon name="i-plus" /></button>
       </div>
-    </nav>
-    <button id="openProjects" ref="button" class="icon" title="Projects: open another, New Project…, Open Folder…" aria-label="Projects" @click="projectsMenu"><Icon name="i-projects" /></button>
+    </nav></RightClickMenu>
+    <ButtonMenu :items="projectsMenu"><button id="openProjects" class="icon" title="Projects: open another, New Project…, Open Folder…" aria-label="Projects"><Icon name="i-projects" /></button></ButtonMenu>
   </footer>
 </template>
 
