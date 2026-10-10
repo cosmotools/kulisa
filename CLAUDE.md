@@ -50,6 +50,13 @@ unasked. This paragraph is removed when the rewrite is finished.
   recommendation ("I would do X, because …"), not a list of options. Then do what the author decides: it is their
   product, the last word is theirs, and a settled question is not raised again. Take part in the design: point out
   what the author did not ask about but should know.
+- **The time to rewrite is not an argument** (the author, 2026-10-10: with AI a rewrite costs nothing). When
+  weighing a tool or a library, or replacing one with another, the better one is chosen on its merits (what it does,
+  RAM, how well it is maintained, its license, how it fits); the time a move takes, the agent's to write it and the
+  author's to check it by hand, is not weighed against it: the result matters, not the time. What a move may lose
+  (the workarounds in Hard-won facts and the docs, behavior no test covers) is not a reason against it either, but
+  a part of the plan: named, and kept with tests first. Not about when a feature is built: what is put off for its
+  turn ("later") stays put off.
 - **What a change cost, at its commit.** When code becomes part of the project (a feature, a fix; not experiments),
   say in one line how many lines were added and removed, apart for code, tests and docs (not `package-lock.json` or
   pictures): `code +203 −95 · tests +52 −13 · docs +23 −8`. When it is more than the task should take, say why in a
