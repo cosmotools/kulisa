@@ -29,7 +29,8 @@ module.exports = (test) => {
     }
     assert.deepEqual([...shell.profiles.keys()], ['sam-seller', 'elon-buyer']);
     assert.equal(await ui(`document.getElementById('newAbout').value`), '', 'the fields are emptied for the next one');
-    const read = () => { try { return JSON.parse(fs.readFileSync(pfile('profiles.json'), 'utf8')); } catch { return []; } };
+    // Who they are: in the store of profiles (profile-store.js), the same in every task.
+    const read = () => { try { return JSON.parse(fs.readFileSync(path.join(userData, 'profiles.json'), 'utf8')).list; } catch { return []; } };
     await waitFor(() => read().length === 2); // written once the profile's tabs are open
     const saved = read();
     assert.deepEqual(saved.map(({ id, avatar, description, color }) => ({ id, avatar, description, color })),

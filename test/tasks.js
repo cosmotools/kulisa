@@ -103,16 +103,20 @@ module.exports = (test) => {
     assert.match(told, /folder .*project is the human's: never change it on your own\. Asked to merge your work into main there, first check for the human's uncommitted changes/);
     assert.match(told, /usual ports plus 100 \(3000 → 3100; \$KULISA_PORT_OFFSET\)/);
 
-    // Profiles: the same, the closed ones closed, each open one with its active tab moved to the task's ports.
+    // Profiles: those open in the task on screen open here too, the closed ones closed, each a copy of its master (not of
+    // the first task's copy: what was signed in there stays there; a master's sign-ins come with it).
     assert.deepEqual([...shell.profiles.keys()], ['sam-admin', 'elon-buyer']);
     assert.deepEqual([...shell.closed.keys()], ['dora']);
     assert.deepEqual(['sam-admin', 'elon-buyer'].map((id) => [shell.profiles.get(id).avatar, shell.profiles.get(id).description]),
       [['fox', 'seller in the test shop'], ['owl', '']], 'with their pictures and who they are');
-    assert.deepEqual(savedTabs('sam-admin', 2), ['http://127.0.0.1:4517/app?task']);
-    assert.equal(shell.profiles.get('sam-admin').tabs.length, 1);
     assert.ok(shell.profiles.get('sam-admin').dir.startsWith(path.join(userData, 'projects', 'project', '2')));
+    assert.ok(!fs.existsSync(pfile('Profile 3', 2)), 'a closed one is copied when it is first opened');
     await call('browser_navigate', { profile: 'sam-admin', url: `${SITE}/app` });
-    assert.equal(await who(ctx, 'sam-admin'), 'Signed in as sam', 'the copy is signed in');
+    assert.equal(await who(ctx, 'sam-admin'), 'Signed out', 'its master was never signed in');
+    // Signed in in this task's copy: there only (restart-tasks.js: it stays).
+    await call('browser_navigate', { profile: 'sam-admin', url: `${SITE}/app/login?name=sam` });
+    assert.equal(await who(ctx, 'sam-admin'), 'Signed in as sam');
+    assert.equal(await who({ call: (n, a) => call(n, a, first) }, 'sam-admin'), 'Signed in as sam', "the first task's own sign-in");
     // The first task's profiles keep running, hidden; its agent sees its own.
     assert.ok(firstSam.tabs.every((t) => !t.wc.isDestroyed()) && !firstSam.get().view.getVisible());
     assert.equal(firstSam.get().wc.getURL(), `${SITE}/app?task`, "the new task's agent acts in its own copy");
@@ -654,6 +658,34 @@ module.exports = (test) => {
     assert.deepEqual([entry.name, entry.color, entry.icon, entry.agent, entry.folder], ['Site-2', require('../src/main/store').PROJECT_COLORS[5], 'globe', 'shell', site]);
     await waitFor(async () => (await projectTabs(ui)).includes('Site-2 *') && shell.win.getTitle() === 'Site-2 — Kulisa');
     assert.equal(await ui(`${projectTab('site')}.querySelector('.plabel use').getAttribute('href')`), '#i-p-globe');
+    // Its profiles: a new one; one of another project, the same person (its master, its sign-ins); × lets go of one.
+    await rightClick(ui, `#projectTabs [data-project="site"] .name`);
+    await menuRows(ui);
+    await choose(ui, 'Project Settings…');
+    await waitFor(() => ui(`document.getElementById('newproject').open`));
+    assert.equal(await ui(`document.querySelectorAll('#npprofiles .removable').length`), 0);
+    await ui(`document.getElementById('npnewprofile').value = 'Site-user'; document.getElementById('npprofilenew').click()`);
+    await waitFor(() => ui(`!!document.querySelector('#npprofiles [data-profile="site-user"]')`));
+    await ui(`document.getElementById('npprofilefrom').click()`);
+    assert.ok((await menuRows(ui)).includes('Sam.admin'));
+    await choose(ui, 'Sam.admin');
+    await waitFor(async () => (await ui(`document.querySelector('#npprofiles [data-profile="sam-admin"] small')?.textContent`)) === 'seller in the test shop · also in project');
+    await waitFor(() => shell.closed.has('sam-admin') && shell.closed.has('site-user')); // its task lists them, closed
+    await ui(`document.querySelector('#npprofiles [data-profile="site-user"] .remove').click()`);
+    await waitFor(() => ctx.asked.length);
+    assert.equal(ctx.asked.pop().message, 'Delete the profile Site-user?', 'in no other project: it goes for good');
+    await waitFor(() => !shell.closed.has('site-user') && !shell.profileStore.get('site-user'));
+    await ui(`document.getElementById('newproject').close()`);
+    // Opened in this task: a copy of its master, here.
+    await ui(`act('profile:open', { profile: 'sam-admin' })`);
+    await waitFor(() => shell.profiles.has('sam-admin'));
+    assert.equal(shell.profiles.get('sam-admin').dir, path.join(userData, 'projects', 'site', '1', shell.profileStore.get('sam-admin').folder));
+    // Let go here: it stays in project, with its master.
+    ctx.answer = true;
+    await ui(`act('profile:delete', { profile: 'sam-admin' })`);
+    assert.equal(ctx.asked.pop().message, 'Remove the profile Sam.admin from Site-2?');
+    await waitFor(() => !shell.profiles.has('sam-admin'));
+    assert.deepEqual(shell.profileStore.get('sam-admin').projects, ['project']);
     // Its new tasks run its agent (the first kept the one it started with).
     ctx.answer = true; // no git: a second task in the folder, after the question
     const task = await newTask(ctx);
@@ -737,7 +769,9 @@ module.exports = (test) => {
     const wt = await require('../src/main/worktrees').createWorktree(spare, 'idea');
     fs.writeFileSync(path.join(wt.folder, 'b.txt'), 'b'); git(wt.folder, 'add', '-A'); git(wt.folder, 'commit', '-qm', 'b');
     const data = path.join(userData, 'projects', p.id);
-    fs.mkdirSync(path.join(data, '1', 'Profile 1'), { recursive: true });
+    // A profile of its own (in no other project): its master goes with it.
+    const own = shell.profileStore.create(p.id, { name: 'Spare-user', avatar: 'fox' });
+    fs.mkdirSync(path.join(data, '1', own.folder), { recursive: true });
     fs.writeFileSync(path.join(data, 'tasks.json'), JSON.stringify({ next: 3, current: 1, list: [{ n: 1, name: 'task-1', offset: 0, folder: spare }, { n: 2, name: 'Idea', branch: wt.branch, offset: 100, copies: [wt], folder: wt.folder }] }));
 
     // From the project menu, its row's ×: the human is told what goes, says no, then yes.
@@ -751,14 +785,15 @@ module.exports = (test) => {
     await waitFor(() => ctx.asked.length);
     const q = ctx.asked.pop();
     assert.equal(q.message, 'Remove the project spare?');
-    assert.match(q.detail, /sign-ins/);
+    assert.match(q.detail, /its profiles Spare-user \(in no other project\) with their sign-ins/);
     assert.ok(q.detail.includes(wt.worktree) && q.detail.includes('Idea: 1 commit of its own') && q.detail.includes(`Its folders stay as they are: ${spare}.`));
     assert.ok(projects().includes(p.id) && fs.existsSync(data) && fs.existsSync(wt.worktree), 'kept when the human says no');
     ctx.answer = true;
     await removeRow();
     await waitFor(() => !projects().includes(p.id));
     ctx.asked.length = 0;
-    await waitFor(() => !fs.existsSync(data) && !fs.existsSync(wt.worktree));
+    await waitFor(() => !fs.existsSync(data) && !fs.existsSync(wt.worktree) && !fs.existsSync(shell.profileStore.masterDir(own.folder)));
+    assert.equal(shell.profileStore.get('spare-user'), null);
     assert.equal(git(spare, 'branch', '--list', wt.branch), '', "the task's branch");
     assert.equal(fs.readFileSync(path.join(spare, 'a.txt'), 'utf8'), 'a', "the project's own folder stays");
     assert.equal(shell.task?.n, 1, 'another project: the open one stays open');

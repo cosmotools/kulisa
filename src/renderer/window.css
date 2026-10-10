@@ -263,7 +263,7 @@ body > #term { display: none; }
 /* A profile's picture in the editor (a row's, the new one's); the pictures to choose from are .choices */
 #profiles .pic { --avatar: 22px; }
 /* A project's colors and icons to choose from (project-editor.js): a color a dot, an icon in the project's color */
-#newproject :is(#npreposadd, #npcodeerror) { margin-inline-start: calc(80px + var(--inset)); }
+#newproject :is(#npreposadd, #npcodeerror, #npprofilesadd, #npprofileerror) { margin-inline-start: calc(80px + var(--inset)); }
 #newproject .choices { .dot { width: 14px; height: 14px; } svg { color: var(--color); } img { width: 16px; height: 16px; } }
 #padd h3 { margin: calc(var(--gap) * 2) 0 0; font-size: 1em; color: var(--text-dim); }
 /* Keyboard Shortcuts (shortcuts.js): a group's heading and what it is about, then each command and its keys as key

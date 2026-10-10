@@ -24,7 +24,7 @@ const repos = document.getElementById('nprepos');
 const url = document.getElementById('npurl');
 const former = document.getElementById('npformer');
 const showDialog = coverWhileOpen(dialog);
-const codeRows = ['npreposrow', 'npreposadd'].map((id) => document.getElementById(id));
+const codeRows = ['npreposrow', 'npreposadd', 'npprofilesrow', 'npprofilesadd'].map((id) => document.getElementById(id));
 let sep = '/', editing = null, folder = '';
 
 const target = () => (editing ? folder : `${place.value.trim().replace(/[\\/]+$/, '')}${sep}${name.value.trim()}`);
@@ -88,9 +88,10 @@ export async function editProject(id) {
   name.value = c.name; create.disabled = false;
   document.getElementById('nplocationrow').hidden = document.getElementById('npgitrow').hidden = true;
   for (const r of codeRows) r.hidden = false;
-  url.value = ''; codeError.textContent = '';
+  url.value = ''; codeError.textContent = ''; newProfile.value = ''; profileError.textContent = '';
   fill(c, c);
   showCode(c);
+  showProfiles(c);
   update();
   showDialog();
   name.focus();
@@ -149,3 +150,40 @@ document.getElementById('npclone').onclick = async (e) => {
 document.getElementById('npshowformer').onclick = () => kulisa.invoke('project:show-former', { id: editing });
 // Enter in the URL clones, not saves the dialog.
 url.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); document.getElementById('npclone').click(); } };
+
+// Its profiles (profile-store.js): who each is, and the other projects that have it too. New makes one (closed in its
+// tasks: opened in a task, a copy of its master is made there); From Another Project… takes one another project has;
+// × lets go of one (the main process asks first). At once, not on Save.
+const profileRows = document.getElementById('npprofiles');
+const newProfile = document.getElementById('npnewprofile');
+const profileError = document.getElementById('npprofileerror');
+let others = [];
+function showProfiles({ profiles, others: rest }) {
+  others = rest;
+  profileRows.replaceChildren(...profiles.map((p) => {
+    const row = tpl('tpl-projprofile');
+    row.dataset.profile = p.id;
+    row.querySelector('.avatar').src = avatarSrc(p.avatar);
+    row.querySelector('.label').textContent = p.name;
+    row.querySelector('small').textContent = [p.description, p.also.length && `also in ${p.also.join(', ')}`].filter(Boolean).join(' · ');
+    return row;
+  }));
+  document.getElementById('npprofilefrom').disabled = !others.length;
+}
+async function profiles(channel, args) {
+  profileError.textContent = '';
+  const r = await kulisa.invoke(channel, { id: editing, ...args });
+  if (r?.error) profileError.textContent = r.error; else if (r?.profiles) showProfiles(r);
+  return r;
+}
+profileRows.onclick = (e) => {
+  const id = e.target.closest('.remove') && e.target.closest('[data-profile]')?.dataset.profile;
+  if (id) profiles('project:profile-remove', { profile: id });
+};
+document.getElementById('npprofilenew').onclick = async () => {
+  if (!newProfile.value.trim()) return newProfile.focus();
+  if (!(await profiles('project:profile-new', { name: newProfile.value })).error) newProfile.value = '';
+};
+newProfile.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); document.getElementById('npprofilenew').click(); } };
+document.getElementById('npprofilefrom').onclick = (e) => openMenu(others.map((p) => ({ label: p.name, sub: p.also.join(', '), avatar: p.avatar,
+  run: () => profiles('project:profile-add', { profile: p.id }) })), e.currentTarget);

@@ -8,9 +8,19 @@ how automation reaches the pages, and where the code is. Why it is built this wa
 
 A **profile** (the word Chrome uses; not "persona", "user" or "account") is one embedded browser identity: its own
 cookies, storage, sign-ins and tabs, shown as a pane in the grid. One profile is one user of the app under test
-("sam@shop.com", "ann.admin"); several profiles side by side are several users at once. Profiles belong to a
-task ([tasks.md](tasks.md)): a new task gets copies of those of the task on screen (until profiles have masters:
-ROADMAP, "Projects and tasks").
+("sam@shop.com", "ann.admin"); several profiles side by side are several users at once.
+
+**One store, a master and copies** (`profile-store.js`, `project-profiles.js`; built 2026-10-10). A profile is a
+person, the same in every project it is listed in: its name, id, picture and description are one, changed anywhere,
+seen everywhere. Its **master** is a folder in Kulisa's data (`profiles/Profile <k>/`) that no one works in. Each task
+([tasks.md](tasks.md)) of its projects works in a **copy** of the master, made when the profile is first opened in
+that task (not all at once: a closed one costs nothing), its tabs the master's moved to the task's ports. What a task
+has of a profile is its own: its copy (what is signed in there stays there), its tabs, open or closed, its sites'
+zoom. A new task opens the profiles open in the project's task on screen; the first task of a project opens them all.
+A project gets a profile when one is made in it (the editor, `profile_create`, Project Settings… → New) or taken from
+another project (Project Settings… → From Another Project…); it lets go of one with Delete (the editor, the pane's
+menu, `profile_delete`, × in Project Settings…), after a question: its copies in this project's tasks go; in no other
+project, its master goes too. Removing a project lets go of its profiles the same way.
 
 A profile is an Electron session on a folder of its own (`session.fromPath`), laid out as a Chrome profile, plus a
 `WebContentsView` per tab. Everything stays inside Kulisa: no external Chrome window.
@@ -44,8 +54,8 @@ A profile is an Electron session on a folder of its own (`session.fromPath`), la
   its task loads.
 - **Close**: × on the pane (or its menu, or the agent). Its tabs go and free their memory; it stays signed in, and
   👥 lists it as closed and opens it again with the same tabs. Closed profiles stay closed across restarts.
-- **Delete** in the editor or the pane's menu, after a confirmation: its sign-ins, storage and tabs are gone for
-  good.
+- **Delete** in the editor or the pane's menu, after a confirmation: the project lets go of it (above). In another
+  project too, it stays there, with its master; in none, its master's sign-ins, storage and tabs are gone for good.
 - **Tabs**: a tab strip and an address bar per pane, drawn as Chrome's (the active tab of a piece with the toolbar;
   back, forward, reload as Chrome's icons; the address without `https://` and `www.` until it is clicked, then all
   of it, selected; a tab opened with + gets the focus in its empty address; many tabs shrink to their icon, the strip
@@ -235,17 +245,20 @@ only and refuse requests from web pages (`local-only.js`).
 In the task's data folder ([tasks.md](tasks.md), "What is on the computer"):
 
 ```
+profiles.json                   { next, list: [{ id, name, avatar, description, folder, projects }] }: the profiles
+profiles/Profile 1/             a profile's master, a Chromium profile: Cookies, Local Storage, IndexedDB …
 projects/<project id>/<task>/
-  profiles.json                 the profiles in order: { folder, id, name, avatar, description, zoom (per site), closed }
-  Profile 1/                    a Chromium profile: Cookies, Local Storage, IndexedDB, Cache …
+  profiles.json                 what the task has of them: { folder, id, zoom (per site), closed }
+  Profile 1/                    its copy of the master, made at its first open here: a Chromium profile
     Kulisa Tabs.json            the URLs of its tabs, to open them again
     Kulisa Session Cookies.bin  its session cookies, encrypted
   Profile 2/ …
 ```
 
-The folder is named as Chrome names its profiles, fixed at creation; a new profile never takes the number of a folder
-still on disk. A deleted profile's data is wiped at once; its folder is removed at the next start
-(`deleted-folders.json`), because the session keeps its files open while Kulisa runs. Copying a profile (for a new task)
+The folder is named as Chrome names its profiles, fixed at creation, the same for the master and every copy; a new
+profile never takes a number used before (`next`: a task's copy of a deleted one may still be on disk, its session
+open, and would pass for the new one's copy). A deleted profile's data is wiped at once; its folder is removed at the next start
+(`deleted-folders.json`), because the session keeps its files open while Kulisa runs. Copying a master (a profile's first open in a task)
 leaves the caches out (Cache, Code Cache, GPUCache, Dawn*).
 
 Memory: each tab is a Chromium process; 5 profiles × 3 tabs ≈ 4 GB (REPORT, E8). Closing a profile frees its tabs.
@@ -260,7 +273,8 @@ space (ROADMAP, "Profiles' caches").
 |---|---|
 | `src/main/profiles.js` | a profile: its session, tabs (WebContentsView), the shell's Playwright connection, sign-in mode, zoom |
 | `src/main/error-page.html` | what a tab shows when its page did not load |
-| `src/main/project-profiles.js` | a task's profiles in order, open and closed: create, rename, describe, close, open, delete |
+| `src/main/profile-store.js` | the profiles, one store: who each is, its master, its projects |
+| `src/main/project-profiles.js` | a task's profiles: copies of their masters made at their first open, open and closed; create, rename, describe, close, open, let go |
 | `src/main/avatars.js`, `src/renderer/avatars/` | the profiles' pictures (Noto Emoji) |
 | `src/main/store.js` | `profiles.json`, the profile folders, their tabs |
 | `src/main/session-cookies.js` | session cookies across restarts |

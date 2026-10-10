@@ -3,6 +3,7 @@
 // grid and its agent, in a terminal of its own. Its project's window shows one task at a time; the others keep
 // running, those of the other open projects too. A task loads (profiles, agent) the first time it is shown, so a
 // restart does not start every one at once.
+const fs = require('fs');
 const { session } = require('electron');
 const { Profile, wipeSession } = require('./profiles');
 const { ProjectProfiles } = require('./project-profiles');
@@ -34,7 +35,7 @@ class Task {
     this.seen = false; // the human has seen it since (its window: see), so a done one has nothing to come and see
     this.pty = null; this.loaded = false;
     this.terminals = new Map(); this.terminalSeq = 0; // its other terminals (openTerminal), by id
-    this.list = new ProjectProfiles(this.store, this._profileHooks());
+    this.list = new ProjectProfiles(this.store, shell.profileStore, project.id, this._profileHooks());
     this.profiles = this.list.profiles; this.closed = this.list.closed;
   }
   get window() { return this.project.window; }
@@ -89,15 +90,23 @@ class Task {
         shell.proxy.removeProfile(p);
         await p.close();
       },
+      // Its first open in this task: a copy of its master (sign-ins included, caches left out: store.js), its tabs those
+      // of the master moved to this task's ports. Masters are not worked in, so nothing is open in one to flush.
+      copy: async (e) => {
+        await copyProfile(shell.profileStore.masterDir(e.cfg.folder), e.cfg.dir);
+        e.urls = this.store.tabs(e.cfg.folder).filter((u) => u && u !== 'about:blank').map((u) => withOffset(u, this.offset));
+        this.store.saveTabs(e.cfg.folder, e.urls);
+      },
       urlsOf: (p) => p.tabs.filter((t) => !t.wc.isDestroyed()).map((t) => this._urlOf(t)).filter((u) => u && u !== 'about:blank'),
       renamed: (p, oldId) => { shell.proxy.renamed(p, oldId); p.endpoint = shell.proxy.endpoint(p); },
       remove: async ({ cfg, profile }) => {
         shell.sessionCookies.forget(cfg);
-        if (!profile) return wipeSession(session.fromPath(cfg.dir));
+        if (!profile) return fs.existsSync(cfg.dir) && wipeSession(session.fromPath(cfg.dir)); // never opened here: no copy
         shell.proxy.removeProfile(profile);
         await profile.destroy();
       },
       changed: () => shell.taskChanged(this, true),
+      everywhere: () => shell.profilesChanged(this),
     };
   }
   // Where a tab is, to open it again: sign-in pages are one-time URLs, so where the sign-in started instead
@@ -305,38 +314,32 @@ class Task {
   openProfile(id) { return this.list.open(id); }
   // Always after the human says yes, whoever asks (by: 'human' or 'agent'): sign-ins are made by hand and cannot be
   // made again by code.
+  // Deleting is the project's letting go of it (projects.js, askDropProfile, dropProfile): in every task of the project,
+  // and, in no other project, its master too.
   async deleteProfile(id, by = 'human') {
     const p = this.profiles.get(id) || this.closed.get(id)?.cfg;
     if (!p) return { error: `No profile "${id}"` };
-    const ok = await this.shell.ask({ ok: 'Delete', danger: true, detail: 'Its sign-ins, cookies, storage and tabs are removed for good.',
-      message: by === 'agent' ? `The agent asks to delete the profile ${p.name}.` : `Delete the profile ${p.name}?` }, this.window);
-    return ok ? this.list.delete(id) : { error: 'the human said no' };
+    if (!await this.project.askDropProfile(p, by)) return { error: 'the human said no' };
+    await this.project.dropProfile(p.folder);
+    return { id };
   }
   // A caption over a profile's pane (ghost.js, browser_highlight); sticky ones stay until the next caption.
   caption(profile, caption, sticky = false) { this.window?.send('agent', { task: this.key, profile, caption, sticky }); }
 
-  // A new task's profiles (projects.js, createTask): copies of this task's, sign-ins included, each folder without its
-  // caches. Open ones are flushed first and open in the new task with their active tab only; closed ones stay closed.
-  // URLs of the app under test move to the new task's ports (shift: its offset less this one's). The grid comes along.
-  async copyProfilesInto(dest, shift) {
-    const entries = this.loaded ? this.list.entries
-      : this.store.profiles().map(({ closed, ...cfg }) => ({ cfg: { ...cfg, dir: this.store.profileDir(cfg.folder) }, urls: this.store.tabs(cfg.folder), closed }));
-    const list = [];
-    for (const e of entries) {
-      const p = e.profile;
-      if (p) await this.shell.sessionCookies.persist(p);
-      const closed = this.loaded ? !p : !!e.closed;
-      const active = p?.get();
-      const urls = p ? (active ? [this._urlOf(active)] : []) : closed ? e.urls : e.urls.slice(0, 1);
-      await copyProfile(e.cfg.dir, dest.profileDir(e.cfg.folder));
-      dest.saveTabs(e.cfg.folder, urls.filter((u) => u && u !== 'about:blank').map((u) => withOffset(u, shift)));
-      const { id, name, avatar, description, folder, zoom } = p
-        ? { ...e.cfg, id: p.id, name: p.name, avatar: p.avatar, description: p.description, zoom: p.siteZoom } : e.cfg;
-      list.push({ id, name, avatar, description, folder, zoom, closed });
+  // A profile its project let go (projects.js, dropProfile): its copy gone; a task not loaded loses it from its file.
+  async dropProfile(folder) {
+    if (this.loaded) return this.list.drop(folder);
+    const saved = this.store.profiles();
+    if (saved) this.store.saveProfiles(saved.filter((x) => x.folder !== folder));
+    const dir = this.store.profileDir(folder);
+    if (fs.existsSync(dir)) {
+      this.store.markDeleted(folder);
+      fs.rmSync(dir, { recursive: true, force: true });
     }
-    dest.saveProfiles(list);
-    const layout = this.store.layout();
-    if (layout) dest.saveLayout(layout);
+  }
+  // The folders of its profiles that are open, for a new task to open the same (projects.js, createTask).
+  openFolders() {
+    return this.loaded ? [...this.profiles.values()].map((p) => p.folder) : (this.store.profiles() || []).filter((p) => !p.closed).map((p) => p.folder);
   }
 
   info() {
@@ -346,7 +349,7 @@ class Task {
   }
   // How many of its profiles are open (on its tab); from its store until it is loaded.
   openProfiles() {
-    return this.loaded ? this.profiles.size : this.store.profiles().filter((p) => !p.closed).length;
+    return this.loaded ? this.profiles.size : this.store.profiles()?.filter((p) => !p.closed).length ?? this.shell.profileStore.of(this.project.id).length;
   }
 }
 

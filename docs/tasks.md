@@ -133,9 +133,9 @@ Example: the project `~/IdeaProjects/myshop`, its second task, named "Checkout-r
   included (it kept the pages, shown when it ends, 250 ms behind the terminal). The one left keeps running. Another
   project's group marks the task it shows (a step brighter): where that project is when shown again.
 - **+** at the end of a group (or Ctrl+Shift+N, or New Task in the label's menu) makes a task at once, no dialog: the
-  human describes the task to its agent in the terminal. Until profiles have masters (ROADMAP, "Projects and tasks",
-  step 4), a new task copies the profiles of the project's task on screen; the first task of a project has none. It
-  runs the project's agent (Project Settings…), else that task's; with neither, the window asks.
+  human describes the task to its agent in the terminal. It opens the profiles open in the project's task on screen
+  (the first task of a project: all of them), each a copy of its master ([profiles.md](profiles.md)). It runs the
+  project's agent (Project Settings…), else that task's; with neither, the window asks.
 - **×** on a task's tab closes it: its agent stops, its tabs close; its code, branch, profiles and conversation stay,
   and its project's menu lists it as closed. Opening it there shows it again and resumes its agent's conversation.
   It asks only when the agent is working (closing would stop it); nothing else is lost. × on a project's last open
@@ -257,10 +257,9 @@ command everywhere, without asking.
 3. **direnv.** When `.envrc` was copied and the project's `.envrc` is allowed, Kulisa runs `direnv allow` for the
    task's folder: same content. Without it the task would miss the project's environment (e.g. `CLAUDE_CONFIG_DIR`,
    and its agent would run with another account).
-4. **Profiles** (`Task.copyProfilesInto`), from the project's task on screen (none for the first task): each of its
-   profiles is copied, sign-ins included: open ones are flushed first (cookies, storage, session cookies), every
-   folder is copied without Chromium's caches. Closed profiles stay closed; open ones open with their active tab only.
-   Its grid comes along. A stand-in until profiles have masters (ROADMAP, "Projects and tasks", step 4).
+4. **Profiles**: those open in the project's task on screen are open here too, the others closed; each is a copy of
+   its master, made as the task loads (a closed one when it is first opened), without Chromium's caches, its tabs
+   the master's ([profiles.md](profiles.md)). The grid of the task on screen comes along.
 5. **Ports.** A task with a worktree gets a port offset no other task of the project has: 100, 200, …; 0 stays the
    project's folder's (the human's own dev server; a task without git works there). Copied tabs on local addresses
    move by the difference (`localhost:3000/cart` → `localhost:3100/cart`); cookies do not depend on the port, so they

@@ -74,8 +74,10 @@ here; what is left of it stays.
        former folder (no git) is not moved when a repository comes; profiles and agents as catalogs (steps 3, 4).
     3. The agents' catalog with accounts: built 2026-10-10 ([tasks.md](tasks.md), "Choosing the agent"). Left: the
        catalog in ☰ is the Agents window; a CLI's login started from there (today: at the first start in a task).
-    4. Profiles: the flat store, masters and copies on first open, signing in to a master, a profile in several
-       projects.
+    4. Profiles: 4a built 2026-10-10 ([profiles.md](profiles.md): the flat store, masters, copies at the first open,
+       a profile in several projects, Project Settings…'s Profiles). Left, 4b: signing in to a master (Sign In… in a
+       profile's menu: a window of its own on the master, nothing automated attached; closed, its sign-ins are kept),
+       and Refresh from Master on a task's copy (copied again, its own sign-ins lost: asked first).
     5. Login-password pairs and the narrowed rule (needs "what is local", below).
     6. Cookies of non-local sites kept in step between a master and its copies (Electron's cookies `changed` event
        and `cookies.set`), both ways: real accounts shared by all tasks. Limits: cookies only (sign-ins in

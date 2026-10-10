@@ -61,7 +61,10 @@ module.exports = (test) => {
       .map((t) => { const r = t.getBoundingClientRect(); return [r.x, r.width]; }))); if (window.__islands) requestAnimationFrame(tick); }; tick(); }`);
     await ui(`act('profile:new', { name: 'Sam.seller' })`); // the same name as in the first project
     const seller = shell.profiles.get('sam-seller');
-    assert.equal(seller.dir, path.join(userData, 'projects', 'other', '1', 'Profile 1'), "profiles are in their project's data");
+    // A copy in the task's data, of its master in the store of profiles, numbered as every profile is (Sam, Elon, Dora
+    // came first).
+    assert.equal(seller.dir, path.join(userData, 'projects', 'other', '1', 'Profile 4'), "a task's copy is in its task's data");
+    assert.ok(fs.existsSync(path.join(userData, 'profiles', 'Profile 4')), 'its master');
     assert.equal(seller.endpoint.endsWith('/other/1/sam-seller'), true, 'the CDP proxy knows it by its project too');
     await ctx.call('browser_navigate', { profile: 'sam-seller', url: `${SITE}/app` });
     assert.equal(await who(ctx, 'sam-seller'), 'Signed out', "the first project's sign-ins stay there");

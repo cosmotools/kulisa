@@ -110,7 +110,8 @@ src/main/        Electron main process
   agents.js        the agent CLIs to choose from: how to find, install, start and resume each
   accounts.js      the agents' accounts: your own config folder and those added in ☰ → Agents…
   worktrees.js     git for tasks: worktree and branch, files outside git copied, changes, renaming, removal
-  project-profiles.js  a task's profiles in order, open and closed: create, rename, describe, close, open, delete
+  profile-store.js     the profiles, one store: who each is, its master, its projects
+  project-profiles.js  a task's profiles (copies of their masters, made at their first open), open and closed
   avatars.js       the profiles' pictures to choose from (Noto Emoji's, in src/renderer/avatars/)
   profiles.js      a profile: a session on its own folder, tabs (WebContentsView), Playwright connection, sign-in mode
   store.js         projects.json, settings.json (Kulisa zoom, theme, the windows and their tabs); per project in projects/<id>/:

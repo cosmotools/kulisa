@@ -60,7 +60,9 @@ module.exports = (test) => {
     assert.ok(!fs.existsSync(shell.sessionCookies.file(temp)));
     const savedIds = () => JSON.parse(fs.readFileSync(pfile('profiles.json'), 'utf8')).map((p) => p.id).join();
     await waitFor(() => savedIds() === 'sam-admin,elon-buyer');
-    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(userData, 'deleted-folders.json'), 'utf8')), [pfile('Profile 3'), pfile('Profile 4')]); // Profile 3: Ann, the profile_create test
+    // Profile 3: Ann, the profile_create test; each its task's copy and its master (in no other project).
+    const master = (f) => path.join(userData, 'profiles', f);
+    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(userData, 'deleted-folders.json'), 'utf8')), [pfile('Profile 3'), master('Profile 3'), pfile('Profile 4'), master('Profile 4')]);
     await assert.rejects(call('browser_snapshot', { profile: 'temp' }), /No profile "temp"/);
     await waitFor(async () => (await ui(`document.querySelectorAll('.pane').length`)) === 2);
 

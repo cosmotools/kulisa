@@ -261,8 +261,9 @@ Modules (`src/main`):
 - `accounts.js`: the agents' accounts: the human's own config folder and those added, each a folder of its own.
 - `agents.js`: the agents to choose from, one entry each: find, install, start, resume. Agent-specific code goes
   here.
-- `project-profiles.js`: a task's profiles in order, open and closed: create, rename, describe, close, open,
-  delete. `avatars.js`: their pictures.
+- `profile-store.js`: the profiles, one store: who each is, its master, its projects.
+- `project-profiles.js`: a task's profiles (its project's, each a copy of its master made at its first open), open
+  and closed: create, rename, describe, close, open, let go. `avatars.js`: their pictures.
 - `profiles.js`: a profile: `session.fromPath(<task>/Profile <k>)` plus a `WebContentsView` per tab.
 - `store.js`: Kulisa's data folder, laid out as Chrome's user data.
 - `names.js`: the one rule for names (projects, tasks, profiles: an email address's characters) and slugs.

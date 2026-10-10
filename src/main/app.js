@@ -9,6 +9,8 @@ const { stepZoom } = require('./profiles');
 const { CdpProxy } = require('./cdp-proxy');
 const { Store, PROJECT_COLORS } = require('./store');
 const { Accounts } = require('./accounts');
+const { ProfileStore } = require('./profile-store');
+const { nextAvatar } = require('./avatars');
 const { signinPages } = require('./signin-pages');
 const { SessionCookies } = require('./session-cookies');
 const { Project, askRemoveProject, removeProjectData, faviconOf, addRepo, cloneRepo, defaultRepo, removeRepo, reposInfo, PROJECT_ICONS } = require('./projects');
@@ -62,6 +64,12 @@ function start(options = {}) {
   // task's open and closed profiles by id, its agent's terminal.
   const shell = { bus, store, proxy: null, mcp: null, open: new Map(), windows: [], signin: signinPages(options.signinHosts || []) };
   const first = () => shell.windows[0] ?? null;
+  // The profiles and their masters (profile-store.js); after who one is changed, or a project got or let go of one,
+  // every loaded task shows it (project-profiles.js, refresh), but the one it was changed in, which did.
+  shell.profileStore = new ProfileStore(userData, (dir) => store.markDeleted(dir));
+  shell.profilesChanged = (from) => {
+    for (const p of shell.open.values()) for (const t of p.tasks.values()) if (t.loaded && t !== from) { t.list.refresh(); shell.taskChanged(t, true); }
+  };
   // Where new projects go, and the folders of copies of tasks with several repositories (projects.js).
   shell.projectsHome = options.projectsHome || path.join(app.getPath('home'), 'Kulisa');
   Object.defineProperties(shell, {
@@ -394,8 +402,37 @@ function start(options = {}) {
   ipcMain.handle('project:settings-get', (e, { id }) => {
     const p = store.projects().find((x) => x.id === id);
     return p ? reposInfo(p).then((r) => ({ id, name: p.name, folder: p.folder, color: p.color, icon: p.icon || 'logo', agent: p.agent || null,
-      favicon: faviconOf(p.folder), ...r, ...choices() })) : { error: `no project ${id}` };
+      favicon: faviconOf(p.folder), ...r, ...profilesOf(id), ...choices() })) : { error: `no project ${id}` };
   });
+  // Its profiles (profile-store.js): those it has, and those of other projects it can take. A new one comes closed in
+  // its tasks (opened in a task, a copy of its master is made there); one let go asks first (projects.js).
+  const profilesOf = (id) => {
+    const names = (ids) => ids.filter((x) => x !== id).map((x) => store.projects().find((p) => p.id === x)?.name || x);
+    const view = (g) => ({ id: g.id, name: g.name, avatar: g.avatar, description: g.description || '', also: names(g.projects) });
+    const all = shell.profileStore.all();
+    return { profiles: all.filter((g) => g.projects.includes(id)).map(view), others: all.filter((g) => !g.projects.includes(id)).map(view) };
+  };
+  ipcMain.handle('project:profile-new', (e, { id, name }) => {
+    name = name?.trim();
+    const bad = nameError(name);
+    if (bad) return { error: bad };
+    shell.profileStore.create(id, { name, avatar: nextAvatar(shell.profileStore.of(id).map((g) => g.avatar)) });
+    shell.profilesChanged();
+    return profilesOf(id);
+  });
+  ipcMain.handle('project:profile-add', (e, { id, profile }) => {
+    const r = shell.profileStore.addTo(profile, id);
+    if (r.error) return r;
+    shell.profilesChanged();
+    return profilesOf(id);
+  });
+  ipcMain.handle('project:profile-remove', (e, { id, profile }) => serial(async () => {
+    const project = shell.open.get(id), g = shell.profileStore.get(profile);
+    if (!project || !g) return { error: project ? `no profile ${profile}` : 'the project is not open' };
+    if (!await project.askDropProfile(g)) return { error: 'the human said no' };
+    await project.dropProfile(g.folder);
+    return profilesOf(id);
+  }));
   // Its repositories or folders (projects.js): one picked in the OS's dialog (or given: the tests), cloned from a URL,
   // made the default, removed. Each answers with the project's settings as they are then.
   const settingsOf = async (id, r) => (r.error ? r : { ...(await reposInfo(store.projects().find((x) => x.id === id))) });

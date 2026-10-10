@@ -82,7 +82,12 @@ class Project {
       entry = { n, name, branch, offset, copies, ...(home && { home }), folder: copies.find((c) => c.repo === this.folder)?.folder };
     }
     const data = this.store.taskOf(this, n);
-    if (from) await from.copyProfilesInto(data, entry.offset - from.offset);
+    if (from) { // the profiles open in that task open here too (copies of their masters, made as it loads), its grid too
+      const open = from.openFolders();
+      data.saveProfiles(this.shell.profileStore.of(this.id).map((g) => ({ folder: g.folder, id: g.id, closed: !open.includes(g.folder) })));
+      const layout = from.store.layout();
+      if (layout) data.saveLayout(layout);
+    }
     const agent = this.entry.agent || from?.store.agent().agent; // none: the window asks as the task starts
     if (agent) data.saveAgent({ agent });
     this.next = n + 1;
@@ -107,6 +112,24 @@ class Project {
     }
     if (made.length) this.save();
     return made;
+  }
+  // A profile let go by the project (the editor's Delete, the agent's profile_delete, Project Settings…'s ×): asked
+  // first, saying what goes: its copies in this project's tasks; and its master, when no other project has it.
+  askDropProfile(p, by = 'human') {
+    const g = this.shell.profileStore.byFolder(p.folder);
+    const others = (g?.projects || []).filter((x) => x !== this.id).map((x) => this.store.projects().find((e) => e.id === x)?.name || x);
+    const agent = by === 'agent', end = agent ? '.' : '?';
+    return this.shell.ask(others.length
+      ? { ok: 'Remove', danger: true, message: `${agent ? 'The agent asks to remove' : 'Remove'} the profile ${p.name} from ${this.name}${end}`,
+        detail: `Its copies in this project's tasks go, with their tabs and what was signed in only there. It stays in ${others.join(', ')}, with its sign-ins.` }
+      : { ok: 'Delete', danger: true, message: `${agent ? 'The agent asks to delete' : 'Delete'} the profile ${p.name}${end}`,
+        detail: 'It is in no other project: its sign-ins, cookies, storage and tabs are removed for good.' }, this.window);
+  }
+  async dropProfile(folder) {
+    const g = this.shell.profileStore.byFolder(folder);
+    for (const t of this.tasks.values()) await t.dropProfile(folder);
+    if (g) this.shell.profileStore.removeFrom(g.id, this.id);
+    this.shell.profilesChanged();
   }
   // Two open tasks in the project's folder (no git: no copies) edit the same files: the human is told, and may go on.
   sharesFolder() { return this.git !== 'ok' && this.open().some((t) => !t.entry.copies && t.folder === this.folder); }
@@ -258,12 +281,16 @@ async function askRemoveProject(shell, p, w) {
     if (what) changed.push(`${e.name}: ${what}`);
   }
   return shell.ask(deleteQuestion({ message: `Remove the project ${p.name}?`, ok: 'Remove', goes: [
-    'its profiles with their sign-ins, and its layouts',
+    ...(() => {
+      const only = shell.profileStore.of(p.id).filter((g) => g.projects.length === 1).map((g) => g.name);
+      return [only.length ? `its profiles ${only.join(', ')} (in no other project) with their sign-ins` : null, "its tasks' copies of its profiles, and its layouts"].filter(Boolean);
+    })(),
     ...withCopies.map((e) => `its task ${e.name}: ${e.copies.map((c) => `the folder ${c.worktree}`).join(', ')}, the branch ${e.branch}, its agent's conversations`)],
   notInMain: changed, stays: `Its folders stay as they are: ${[...new Set([p.folder, ...reposOf(p)])].join(', ')}.` }), w);
 }
 async function removeProjectData(shell, p) {
   for (const e of shell.store.tasksOf(p).list) await deleteTask(shell, p, e);
+  for (const g of shell.profileStore.of(p.id)) shell.profileStore.removeFrom(g.id, p.id); // its own ones go with their masters
   shell.store.removeProject(p);
 }
 

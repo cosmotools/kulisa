@@ -10,11 +10,12 @@
 //     tasks.json             the project's tasks: { next, current, collapsed, list: [{ n, name, branch, worktree,
 //                            folder, base, offset, closed, closedAt }] }; one without a worktree works in the
 //                            project's own folder (tasks.md)
-//     <n>/                   a task (TaskStore): profiles.json (its profiles in order: folder, name, avatar,
-//                            description, sites' zoom, closed; as Chrome's Local State), layout.json (the window's
-//                            grid), agent.json (the agent's session, to resume it), and a folder per profile:
+//     <n>/                   a task (TaskStore): profiles.json (what it has of its project's profiles: folder,
+//                            sites' zoom, closed), layout.json (the window's grid), agent.json (the agent's session, to
+//                            resume it), and a copy of a profile's master per profile opened here:
 //       Profile <k>/         a Chromium profile (session.fromPath) with Kulisa's own files in it: Kulisa Tabs.json
 //                            (its tabs' URLs), Kulisa Session Cookies.bin (session-cookies.js)
+//   profiles.json, profiles/ the profiles and their masters (profile-store.js)
 //   deleted-folders.json     folders of deleted profiles and tasks, removed at the next start (a session keeps
 //                            its files open while Kulisa runs)
 // Nothing goes into the project's own folder: sign-ins must not end up in its git.
@@ -116,11 +117,11 @@ class TaskStore {
   constructor(dir, store) { this.dir = dir; this.store = store; fs.mkdirSync(dir, { recursive: true }); }
   file(name) { return path.join(this.dir, name); }
   profileDir(folder) { return path.join(this.dir, folder); }
-  // list: { folder, id, name, avatar, description, zoom, closed } (project-profiles.js); closed until opened again.
-  profiles() { return readJSON(this.file('profiles.json')) || []; }
+  // What the task has of its project's profiles (project-profiles.js): [{ folder, id, zoom, closed }] (the id, as it
+  // was then, only to read the file by; who a profile is: profile-store.js); null before the task first loads.
+  profiles() { return readJSON(this.file('profiles.json')); }
   saveProfiles(list) {
-    writeJSON(this.file('profiles.json'), list.map(({ folder, id, name, avatar, description, zoom, closed }) =>
-      ({ folder, id, name, avatar, ...(description && { description }), zoom, ...(closed && { closed }) })));
+    writeJSON(this.file('profiles.json'), list.map(({ folder, id, zoom, closed }) => ({ folder, id, zoom, ...(closed && { closed }) })));
   }
   // A profile's tabs (their URLs), in its own folder.
   tabs(folder) { return readJSON(path.join(this.profileDir(folder), TABS_FILE)) || []; }
@@ -130,13 +131,6 @@ class TaskStore {
     this.saved.set(folder, json);
     fs.mkdirSync(this.profileDir(folder), { recursive: true });
     writeJSON(path.join(this.profileDir(folder), TABS_FILE), urls);
-  }
-  // A folder for a new profile, as Chrome numbers them: one no profile has, never one still on disk (a deleted
-  // profile's folder stays until the next start, its session may still be open).
-  freeFolder(taken = []) {
-    const used = [...taken, ...this.profiles().map((p) => p.folder), ...(fs.existsSync(this.dir) ? fs.readdirSync(this.dir) : [])];
-    const n = Math.max(0, ...used.map((f) => Number(/^Profile (\d+)$/.exec(f)?.[1] || 0))) + 1;
-    return `Profile ${n}`;
   }
   markDeleted(folder) { this.store.markDeleted(this.profileDir(folder)); }
   // The window's grid as dockview serializes it (renderer.js).
