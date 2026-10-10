@@ -1,5 +1,6 @@
-// A project open in a window (a group of tabs there; window.js shows it): a folder with its tasks (tasks.js), each
-// with its code (a worktree of its own, or the folder itself without git), profiles, grid and agent. What happens to
+// A project open in a window (a group of tabs there; window.js shows it): its repositories or folders, and its tasks
+// (tasks.js), each with its code (a worktree of each repository, or a folder itself without git), profiles, grid and
+// agent. What happens to
 // a project's tasks whatever the window shows: making one, closing and opening it again, renaming, deleting, moving
 // to another window, and removing a project's data for good. Nothing runs when it opens: a task loads when it is first
 // shown.
@@ -9,20 +10,22 @@ const { Task } = require('./tasks');
 const worktrees = require('./worktrees');
 
 class Project {
-  // entry: the project in projects.json (store.js): { id, name, folder, color }. shell: the app (app.js), as
-  // Task takes it. window: the window it is open in (window.js, add).
+  // entry: the project in projects.json (store.js): { id, name, folder, repos, color, icon, agent }. shell: the app
+  // (app.js), as Task takes it. window: the window it is open in (window.js, add).
   constructor(shell, entry) {
-    this.shell = shell; this.store = shell.store; this.entry = entry; this.window = null;
-    this.id = entry.id; this.folder = entry.folder; this.update(entry);
-    this.git = null; // 'ok', 'no-commit' (no copies before a first commit), 'none'
+    this.shell = shell; this.store = shell.store; this.window = null;
+    this.id = entry.id; this.update(entry);
+    this.git = null; // its default repository's: 'ok', 'no-commit' (no copies before a first commit), 'none'
     this.tasks = new Map(); // by number, open and closed
     const { next, current, collapsed, list } = this.store.tasksOf(entry);
     this.next = next; this.collapsed = !!collapsed;
     for (const e of list) this.tasks.set(e.n, new Task(shell, this, e));
     this.task = this.open().find((t) => t.n === current) || this.open()[0] || null; // the one it shows
   }
-  // Its name, color, icon and default agent, as Project Settings… left them (store.js, updateProject).
-  update(entry) { this.entry = entry; this.name = entry.name; this.color = entry.color; }
+  // Its name, color, icon, default agent and repositories, as Project Settings… left them (store.js, updateProject).
+  // folder: its default repository (or folder), where its tasks' agents start.
+  update(entry) { this.entry = entry; this.name = entry.name; this.color = entry.color; this.folder = reposOf(entry)[0]; }
+  repos() { return reposOf(this.entry); }
   // Its open tasks, in the order they were made (the bar's); the closed ones, the one closed last first.
   open() { return [...this.tasks.values()].filter((t) => !t.entry.closed); }
   closedTasks() { return [...this.tasks.values()].filter((t) => t.entry.closed).sort((a, b) => b.entry.closedAt - a.entry.closedAt); }
@@ -30,10 +33,7 @@ class Project {
   taskByKey(key) { return [...this.tasks.values()].find((t) => t.key === key) || null; }
   // An agent.json of one of its tasks with a transcript: where its agents keep their data (agents.js: Claude's config).
   agentData() { return [...this.tasks.values()].map((t) => t.store.agent()).find((a) => a.transcript) || {}; }
-  async checkGit() {
-    const repo = await worktrees.repoOf(this.folder);
-    this.git = repo?.commit ? 'ok' : repo ? 'no-commit' : 'none';
-  }
+  async checkGit() { this.git = await gitOf(this.folder); }
   save() {
     this.store.saveTasksOf(this, { next: this.next, current: this.task?.n ?? null, ...(this.collapsed && { collapsed: true }),
       list: [...this.tasks.values()].map((t) => t.entry) });
@@ -53,22 +53,33 @@ class Project {
     this.select(task);
     return task;
   }
-  // A new task, named task-<n> until the agent or the human renames it. With git (and a first commit) its code is a
-  // worktree of its own on a branch of the same name next to the project (worktrees.js), with a port offset no other
-  // task has (100, 200, …: the project's own folder keeps the usual ports); without, it works right in the project's
-  // folder. Its profiles and agent are those of the task from (the project's on screen), copied, until profiles have
-  // masters (ROADMAP, "Projects and tasks", step 4); the first task has none. Its agent is the project's (Project
-  // Settings…), else that task's. The new Task, or { error }.
+  // A new task, named task-<n> until the agent or the human renames it. Its code: a worktree of each of the project's
+  // repositories with a commit, all on one branch of the task's name (worktrees.js): next to its repository when the
+  // project has one, else all in one folder, ~/Kulisa/<project>@task-<n>/<repo>/; with a port offset no other task
+  // has (100, 200, …: the project's own folder keeps the usual ports). A folder without git is used as it is: the
+  // task works right in it. Its profiles are copies of those of the task from (the project's on screen) until
+  // profiles have masters (ROADMAP, "Projects and tasks", step 4); the first task has none. Its agent is the
+  // project's (Project Settings…), else that task's. The new Task, or { error }.
   async createTask(from = this.task) {
     await this.checkGit();
-    const n = this.next, name = `task-${n}`;
-    let entry = { n, name, offset: 0 };
-    if (this.git === 'ok') {
-      let wt;
-      try { wt = await worktrees.createWorktree(this.folder, name); } catch (e) { return { error: e.stderr || e.message }; }
+    const n = this.next, name = `task-${n}`, repos = this.repos();
+    const gits = (await Promise.all(repos.map(async (r) => ((await gitOf(r)) === 'ok' ? r : null)))).filter(Boolean);
+    let entry = { n, name, offset: 0, folder: this.folder };
+    if (gits.length) {
+      const beside = repos.length === 1;
+      const branch = await worktrees.freeBranch(gits, name, { beside });
+      const home = beside ? null : freeFolder(path.join(this.shell.projectsHome, `${this.id}@${name}`));
+      const copies = [];
+      try {
+        for (const r of gits) copies.push(await worktrees.createWorktree(r, branch, home && path.join(home, copyName(copies, r))));
+      } catch (e) {
+        for (const c of copies) await worktrees.removeWorktree(c);
+        if (home) fs.rmSync(home, { recursive: true, force: true });
+        return { error: e.stderr || e.message };
+      }
       let offset = 100;
       while ([...this.tasks.values()].some((t) => t.offset === offset)) offset += 100;
-      entry = { n, name, branch: wt.branch, worktree: wt.worktree, folder: wt.folder, base: wt.base, offset };
+      entry = { n, name, branch, offset, copies, ...(home && { home }), folder: copies.find((c) => c.repo === this.folder)?.folder };
     }
     const data = this.store.taskOf(this, n);
     if (from) await from.copyProfilesInto(data, entry.offset - from.offset);
@@ -80,8 +91,25 @@ class Project {
     this.save();
     return task;
   }
+  // A repository the project got after the task was made (Project Settings…), copied for it on the task's branch (or
+  // the next free name there) into its folder of copies, ~/Kulisa/<project>@task-<n>/. The copies made.
+  async addCopies(task) {
+    const { entry } = task, made = [];
+    if (!entry.copies) return made; // a task in a folder without git stays as it is
+    for (const r of this.repos()) {
+      if (entry.copies.some((c) => c.repo === r) || (await gitOf(r)) !== 'ok') continue;
+      entry.home ??= freeFolder(path.join(this.shell.projectsHome, `${this.id}@task-${task.n}`));
+      const branch = await worktrees.freeBranch([r], entry.branch);
+      try {
+        const c = await worktrees.createWorktree(r, branch, path.join(entry.home, copyName(entry.copies, r)));
+        entry.copies.push(c); made.push(c);
+      } catch (e) { console.warn('[tasks] copy:', e.stderr || e.message); }
+    }
+    if (made.length) this.save();
+    return made;
+  }
   // Two open tasks in the project's folder (no git: no copies) edit the same files: the human is told, and may go on.
-  sharesFolder() { return this.git !== 'ok' && this.open().some((t) => !t.entry.worktree); }
+  sharesFolder() { return this.git !== 'ok' && this.open().some((t) => !t.entry.copies && t.folder === this.folder); }
   // × on its tab: its agent stops and its tabs close; everything else stays, and it is listed as closed. Once it is
   // not shown.
   async closeTask(task) {
@@ -95,16 +123,15 @@ class Project {
     delete task.entry.closed; delete task.entry.closedAt;
     this.save();
   }
-  // Deleting a task asks first, told what goes for good, with the work not in the project's main branch and not
+  // Deleting a task asks first, told what goes for good, with the work not in its repositories' main branches and not
   // pushed that goes with it.
   async askDeleteTask(task) {
-    const { entry } = task;
-    const what = entry.worktree && changesText(await worktrees.changes(this.folder, entry));
-    const goes = entry.worktree
-      ? [`its folder ${entry.worktree}`, `its branch ${entry.branch}`, 'its profiles with their sign-ins', "its agent's conversations in that folder"]
-      : ['its profiles with their sign-ins'];
+    const copies = task.entry.copies || [];
+    const what = changesText(await changesOf(copies));
+    const goes = [...copies.map((c) => `its folder ${c.worktree}, its branch ${c.branch}`), 'its profiles with their sign-ins',
+      ...(copies.length ? ["its agent's conversations in its folder"] : [])];
     return this.shell.ask(deleteQuestion({ message: `Delete the task ${task.name}?`, ok: 'Delete', goes, notInMain: what && [what],
-      stays: !entry.worktree && `It worked in the project's folder ${this.folder}: its files stay, and so does its agent's conversation there.` }), this.window);
+      stays: !copies.length && `It worked in ${task.folder}: its files stay, and so does its agent's conversation there.` }), this.window);
   }
   // Once it is not shown.
   async deleteTask(task) {
@@ -123,17 +150,38 @@ class Project {
   }
 }
 
-// A task deleted for good, the one way it is done (Delete, removing a project), once it is not running: its worktree
-// folder and branch (worktrees.js) and all its agent keeps of that folder (agents.js, forget); its data folder,
-// profiles with their sign-ins included. A task without a worktree worked in the project's folder: its data only; the
-// folder, and what its agent keeps of it, are the human's, as without Kulisa. p: the project's entry (open or not).
+// A project's repositories or folders, the default one first: those added in Project Settings…, else its own folder.
+const reposOf = (entry) => (entry.repos?.length ? entry.repos : [entry.folder]);
+const gitOf = async (folder) => { const r = await worktrees.repoOf(folder).catch(() => null); return r?.commit ? 'ok' : r ? 'no-commit' : 'none'; };
+// A copy's folder name in a task's folder of copies: its repository's, -2 when another copy has it.
+function copyName(copies, repo) {
+  const base = path.basename(repo);
+  let name = base, n = 2;
+  while (copies.some((c) => path.basename(c.worktree) === name)) name = `${base}-${n++}`;
+  return name;
+}
+// A folder not there yet: this one, else -2, -3 ….
+function freeFolder(f) {
+  let free = f, n = 2;
+  while (fs.existsSync(free)) free = `${f}-${n++}`;
+  return free;
+}
+const changesOf = async (copies) => (await Promise.all(copies.map((c) => worktrees.changes(c))))
+  .reduce((a, b) => ({ commits: a.commits + b.commits, dirty: a.dirty + b.dirty }), { commits: 0, dirty: 0 });
+
+// A task deleted for good, the one way it is done (Delete, removing a project), once it is not running: each copy's
+// worktree folder and branch (worktrees.js), its folder of copies, and all its agent keeps of its folder (agents.js,
+// forget); its data folder, profiles with their sign-ins included. A task without copies worked in a folder of the
+// project: its data only; the folder, and what its agent keeps of it, are the human's, as without Kulisa. p: the
+// project's entry (open or not).
 async function deleteTask(shell, p, entry) {
   const { store } = shell;
   const data = store.taskOf(p, entry.n);
-  if (entry.worktree) {
-    await worktrees.removeWorktree(p.folder, entry);
+  for (const c of entry.copies || []) await worktrees.removeWorktree(c);
+  if (entry.home) fs.rmSync(entry.home, { recursive: true, force: true });
+  if (entry.copies?.length) {
     const saved = data.agent();
-    const project = { folder: p.folder, ...store.tasksOf(p).list.map((e) => store.taskOf(p, e.n).agent()).find((a) => a.transcript) };
+    const project = { folder: reposOf(p)[0], ...store.tasksOf(p).list.map((e) => store.taskOf(p, e.n).agent()).find((a) => a.transcript) };
     try { shell.agentFor(saved.agent)?.forget?.({ folder: entry.folder, saved, project }); } catch (e) { console.warn('[agents] forget:', e.message); }
   }
   // Its profiles' sessions stay open in Electron until Kulisa quits: whatever cannot go now goes at the next start.
@@ -141,20 +189,78 @@ async function deleteTask(shell, p, entry) {
   try { fs.rmSync(data.dir, { recursive: true, force: true }); } catch (e) { console.warn('[tasks]', e.message); }
 }
 
+// A project's repositories or folders (Project Settings…), whether it is open or not: added, cloned, made the
+// default, removed. Its own folder stays one of them while it is in git; one without git becomes its former folder
+// once a repository is added: new tasks work in copies of the repositories, those working in it go on there. Open
+// tasks get a copy of a repository added while they run (Task.reposChanged). { repos } or { error }.
+async function addRepo(shell, id, folder) {
+  const p = shell.store.projects().find((x) => x.id === id);
+  if (!p) return { error: `no project ${id}` };
+  folder = path.resolve(folder);
+  if (!fs.statSync(folder, { throwIfNoEntry: false })?.isDirectory()) return { error: `${folder} is not a folder` };
+  const repos = p.repos?.length ? p.repos : (await gitOf(p.folder)) === 'none' ? [] : [p.folder];
+  if (repos.includes(folder)) return { error: `${folder} is in the project already` };
+  return changeRepos(shell, id, [...repos, folder]);
+}
+async function changeRepos(shell, id, repos) {
+  const entry = shell.store.updateProject(id, { repos: repos.length ? repos : null });
+  const open = shell.open.get(id);
+  if (open) {
+    open.update(entry);
+    for (const t of open.tasks.values()) await t.reposChanged();
+  }
+  return { repos: reposOf(entry) };
+}
+// Cloned from a URL with the user's git (worktrees.js, clone): into the project's own folder when it has no git
+// (~/Kulisa/<project>/<repo>), else next to it, never inside a repository.
+async function cloneRepo(shell, id, url) {
+  const p = shell.store.projects().find((x) => x.id === id);
+  if (!p) return { error: `no project ${id}` };
+  const name = (url || '').trim().replace(/[\/]+$/, '').split(/[\/:]/).pop().replace(/\.git$/, '');
+  if (!name) return { error: 'not a repository URL' };
+  const into = path.join((await gitOf(p.folder)) === 'none' ? p.folder : path.dirname(p.folder), name);
+  if (fs.existsSync(into)) return { error: `${into} is already there` };
+  try { await worktrees.clone(url.trim(), into); } catch (e) { fs.rmSync(into, { recursive: true, force: true }); return { error: e.stderr || e.message }; }
+  return addRepo(shell, id, into);
+}
+// Made the default (new tasks' agents start in its copy), or removed: only when no task has a copy of it or works in
+// it, as that would delete or strand their work; the error names them.
+async function defaultRepo(shell, id, repo) {
+  const p = shell.store.projects().find((x) => x.id === id);
+  const repos = p && reposOf(p);
+  if (!repos?.includes(repo)) return { error: `${repo} is not in the project` };
+  return changeRepos(shell, id, [repo, ...repos.filter((r) => r !== repo)]);
+}
+async function removeRepo(shell, id, repo) {
+  const p = shell.store.projects().find((x) => x.id === id);
+  const repos = p && reposOf(p);
+  if (!repos?.includes(repo)) return { error: `${repo} is not in the project` };
+  if (repos.length === 1) return { error: 'a project needs a folder: add another one first' };
+  const using = shell.store.tasksOf(p).list.filter((e) => e.copies?.some((c) => c.repo === repo) || (!e.copies && e.folder === repo));
+  if (using.length) return { error: `Tasks work in it: ${using.map((e) => e.name).join(', ')}. Delete them first (Delete Task… in a task's menu).` };
+  return changeRepos(shell, id, repos.filter((r) => r !== repo));
+}
+// What Project Settings… shows of them: each with whether it is in git, and the former folder while it is there.
+async function reposInfo(p) {
+  const repos = await Promise.all(reposOf(p).map(async (folder) => ({ folder, git: await gitOf(folder) })));
+  const former = p.repos?.length && !p.repos.includes(p.folder) && fs.existsSync(p.folder) ? p.folder : null;
+  return { repos, former };
+}
+
 // Removing a project: the question first, told what goes and which tasks have work not in main (the window closes the
 // project if it is open in between), then each of its tasks deleted and what is the project's as a whole (store.js:
 // its entry, its data folder). Never the project's own folder. p: its entry; w: the window that asks.
 async function askRemoveProject(shell, p, w) {
-  const list = shell.store.tasksOf(p).list, copies = list.filter((e) => e.worktree);
+  const withCopies = shell.store.tasksOf(p).list.filter((e) => e.copies?.length);
   const changed = [];
-  for (const e of copies) {
-    const what = changesText(await worktrees.changes(p.folder, e));
+  for (const e of withCopies) {
+    const what = changesText(await changesOf(e.copies));
     if (what) changed.push(`${e.name}: ${what}`);
   }
   return shell.ask(deleteQuestion({ message: `Remove the project ${p.name}?`, ok: 'Remove', goes: [
     'its profiles with their sign-ins, and its layouts',
-    ...copies.map((e) => `its task ${e.name}: the folder ${e.worktree}, the branch ${e.branch}, its agent's conversations`)],
-  notInMain: changed, stays: `The project's folder ${p.folder} stays as it is.` }), w);
+    ...withCopies.map((e) => `its task ${e.name}: ${e.copies.map((c) => `the folder ${c.worktree}`).join(', ')}, the branch ${e.branch}, its agent's conversations`)],
+  notInMain: changed, stays: `Its folders stay as they are: ${[...new Set([p.folder, ...reposOf(p)])].join(', ')}.` }), w);
 }
 async function removeProjectData(shell, p) {
   for (const e of shell.store.tasksOf(p).list) await deleteTask(shell, p, e);
@@ -189,4 +295,4 @@ function faviconOf(folder) {
   return null;
 }
 
-module.exports = { Project, askRemoveProject, removeProjectData, faviconOf, PROJECT_ICONS };
+module.exports = { Project, askRemoveProject, removeProjectData, faviconOf, reposOf, gitOf, addRepo, cloneRepo, defaultRepo, removeRepo, reposInfo, PROJECT_ICONS };

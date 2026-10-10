@@ -9,6 +9,10 @@
 //   dirs                     where the installer puts the program (default ~/.local/bin, as the native installers)
 //   args(ctx)                arguments that connect it to Kulisa; ctx: { env (the task's, tasks.js), plugin }
 //   resume(saved)            arguments that continue the conversation saved in agent.json, or nothing
+//   dirs(folders)            the task's other folders (its copies of the project's other repositories): { args, env }
+//                            that give them to it; without, it learns of them from the MCP server's instructions
+//   addDir(folder)           what is typed into its prompt when the task gets a folder while it runs (the human sends
+//                            it); without, a line saying so
 //   prepare(ctx)             before it starts in a task's copy (a worktree): ctx { folder, project: { folder (the
 //                            project's), and the task's agent.json } }
 //   forget(ctx)              a task's copy is deleted: everything the agent keeps of its folder goes (conversations,
@@ -39,6 +43,9 @@ const AGENTS = [
     // The Kulisa plugin: its MCP config (KULISA_MCP_URL), the profiles skill, the hooks.
     args: ({ plugin }) => ['--plugin-dir', plugin],
     resume: ({ sessionId, transcript }) => sessionId && transcript && fs.existsSync(transcript) && ['--resume', sessionId],
+    // The task's other repositories, with their CLAUDE.md read as its own folder's (checked with 2.1.296).
+    dirs: (folders) => ({ args: folders.flatMap((f) => ['--add-dir', f]), env: { CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD: '1' } }),
+    addDir: (folder) => `/add-dir ${folder}`,
     // A task's folder is the project's own code: trusted as the project's folder is, so Claude Code does not ask again.
     prepare: ({ folder, project }) => { if (project.transcript) trustLikeProject(claudeConfigOf(project.transcript), project.folder, folder); },
     forget: (ctx) => forgetClaude(ctx),
@@ -66,6 +73,8 @@ const AGENTS = [
     args: ({ env }) => ['-c', `mcp_servers.kulisa.url="${env.KULISA_MCP_URL}"`, '-c', `hooks=${codexHooks()}`],
     // The conversation its SessionStart hook reported, else its last one in this folder (each task has its own).
     resume: ({ started, sessionId }) => started && ['resume', sessionId || '--last'],
+    // The task's other repositories, writable as its own folder (checked with 0.160.1).
+    dirs: (folders) => ({ args: folders.flatMap((f) => ['--add-dir', f]) }),
     forget: ({ folder }) => forgetCodex(folder),
   },
   { id: 'shell', name: 'Terminal only', maker: '', command: null, needs: "No agent: your shell in the task's folder" },

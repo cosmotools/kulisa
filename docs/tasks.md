@@ -73,6 +73,17 @@ A **project** is a folder, usually a repository, with its tasks (below). Each ta
   the window asks as a task starts, as with Open Folder…); the folder is shown, not changed. The new-project dialog and
   this one are one (`project-editor.js`). A task keeps the agent it started with; Change agent… in its terminal picks
   another.
+- **Its code**, in Project Settings… too: the repositories or folders its tasks work on, the default one first (a
+  click on one makes it the default: new tasks' agents start in its copy). **Add Folder…** adds one from the
+  computer, **Clone** one from a URL with the user's own git (its credentials and keys; git asks for no password, so a
+  private repository it cannot reach fails with git's own words; cloned into the project's own folder when that has no
+  git, `~/Kulisa/<project>/<repo>`, else next to it, never inside a repository). Changes are made at once, not on
+  Save. A repository added while tasks run is copied for each loaded one (the others when they load) and its agent is
+  told, typed into its prompt for the human to send: Claude Code `/add-dir <folder>`, others a line saying so. **×**
+  removes one from the project (its folder stays), only when no task has a copy of it or works in it: the refusal
+  names those tasks (deleting a copy would delete their work). A project whose own folder has no git keeps it until a
+  repository is added; then it is its **former folder**: new tasks no longer work in it, those that did go on there,
+  and the settings say so, with Show, while it exists (the human moves its files, or asks an agent).
 - **The Welcome screen** (the term: CLAUDE.md) is what the window shows with no project open: at the first start, and
   after the last project is closed (Close Project, the middle button on its label, removing the project). New Project…, Open
   Folder…, the recent projects (a click opens one, × or a right-click removes it), and links (the
@@ -90,8 +101,12 @@ A **task** (the term: CLAUDE.md; "workspace" until 2026-10-10) is one line of wo
 code on a branch, browser profiles, a grid of panels and an agent in a terminal. Several tasks let several agents
 build several features of one project at once.
 
-- **Always a copy.** With git (and a first commit), every task is a git worktree next to the project on a branch of
-  its own, the first one too: the project's folder stays the human's, and no agent works in it on its own. Its work
+- **Always a copy.** With git (and a first commit), every task is a git worktree of each of the project's
+  repositories, all on one branch of its own, the first task too: next to its repository when the project has one
+  (`myshop@task-2`), else all in one folder of the task's (`~/Kulisa/<project>@task-<n>/<repo>/`, one place to see and
+  delete). Its agent starts in the copy of the default repository and gets the others: Claude Code and Codex as
+  `--add-dir` (Claude Code reading their `CLAUDE.md` too: `CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD`), every
+  agent in the MCP server's instructions and at its session's start (`agents.js`, `dirs`). With one repository: the project's folder stays the human's, and no agent works in it on its own. Its work
   goes back through git: the human asks the agent to merge into main (the agent first checks the project's folder for
   the human's uncommitted changes, and stops if there are any: the Kulisa plugin's skill and the MCP server's
   instructions), or to open a pull request.
@@ -150,6 +165,7 @@ to the human; the window's IPC (`app.js`) and the MCP tools are handles on it:
 | Delete a task | Delete Task… in its tab's menu | none: it deletes work and sign-ins, the human's to decide | `Project.askDeleteTask`, `deleteTask` |
 | Show a task | a click on its tab, of any open project | none: what the human looks at is theirs | `AppWindow.showTask`, then `show` its project (`window.js`) |
 | Fold a project's group | a click on its label | none: how the human sees the bar | `Project.collapse` |
+| Add, clone, make the default, remove a repository | Project Settings… | none: what the project is made of is the human's | `addRepo`, `cloneRepo`, `defaultRepo`, `removeRepo` (`projects.js`); `Task.reposChanged` |
 | Change the agent | Change agent… (the terminal's menu) | none: the human's choice | `Task.changeAgent` |
 
 ## Choosing the agent
@@ -216,12 +232,13 @@ command everywhere, without asking.
 
 ## Creating a task, step by step
 
-1. **Code** (`worktrees.js`), when the project's folder is in a repository with a commit; else the task works in the
-   folder and the rest of this step and the next two are skipped. The branch starts as Claude Code's `--worktree`
-   starts one: from the remote's default branch after `git fetch` (`origin/main`), else from `HEAD`. Uncommitted
-   changes of the project's folder are not carried. The branch and the folder are `task-<n>` (`-2`, `-3` if taken):
-   `git worktree add --no-track -b <branch> <repo>@<branch> <start>`. `--no-track`: pushing the task's branch never
-   goes to the default branch.
+1. **Code** (`worktrees.js`), a copy of each of the project's repositories with a commit; a folder without git is
+   used as it is (the task works right in it, and the next two steps skip it). Each branch starts as Claude Code's
+   `--worktree` starts one: from the remote's default branch after `git fetch` (`origin/main`), else from `HEAD`.
+   Uncommitted changes of the project's folders are not carried. The branch is `task-<n>`, one name free in every
+   repository (`-2`, `-3` if taken), the copies next to their repository with one, in `~/Kulisa/<project>@task-<n>/`
+   with several: `git worktree add --no-track -b <branch> <copy> <start>`. `--no-track`: pushing the task's branch
+   never goes to the default branch.
 2. **Files outside git** are copied from the project's folder when git ignores them and they are untracked: `.env*`
    and `.claude/settings.local.json` at the top, and whatever the project's `.worktreeinclude` names (gitignore
    syntax, as Claude Code reads it). Dependencies (`node_modules` …) are not copied: the agent installs them (the
@@ -255,9 +272,10 @@ settings.json                     the Kulisa zoom, the theme, where the projects
                                   projects (in the bar's order), the one shown, where it was
 deleted-folders.json              folders to remove at the next start (a session keeps its files open)
 projects/<project id>/
-  tasks.json                      { next, current, collapsed, list: [{ n, name, branch, worktree, folder, base,
-                                  offset, closed, closedAt }] }; base: the commit the task started from; no worktree:
-                                  it works in the project's folder
+  tasks.json                      { next, current, collapsed, list: [{ n, name, branch, offset, folder (its agent's),
+                                  copies: [{ repo, worktree, branch, base, folder }], home (its folder of copies),
+                                  closed, closedAt }] }; base: the commit a copy started from; no copies: it works in
+                                  a folder of the project
   1/, 2/ …                        a task
     profiles.json                 its profiles in order: folder, id, name, avatar, description, sites' zoom, closed
     layout.json                   its grid (dockview)
@@ -274,9 +292,11 @@ Outside it:
 
 | What | Where | Made when |
 |---|---|---|
-| The task's folder | `<repo>@task-<n>/`, next to the repository | creating a task |
-| The task's branch | the repository (`git branch`) | creating a task; renamed with the task |
-| git's worktree record | `<repo>/.git/worktrees/task-<n>/` | creating a task |
+| The task's copy | `<repo>@task-<n>/`, next to the repository (one repository) | creating a task |
+| The task's folder of copies | `~/Kulisa/<project>@task-<n>/<repo>/` (several repositories, or one added later) | creating a task; adding a repository |
+| The task's branch | each repository (`git branch`) | creating a task; renamed with the task |
+| git's worktree record | `<repo>/.git/worktrees/<copy>/` | creating a task |
+| A cloned repository | `~/Kulisa/<project>/<repo>/` or next to the project's folder | Clone in Project Settings…; stays, as the human's (removing it from the project leaves it) |
 | An empty first commit | the project's repository | New Project… with Create Git repository |
 | direnv's permission for the task's `.envrc` | direnv's data (`~/.local/share/direnv/allow/`) | creating a task, if the project's is allowed |
 | Claude Code's trust of the task's folder | Claude's config: `<CLAUDE_CONFIG_DIR>/.claude.json`, else `~/.claude.json`, `projects["<task folder>"]` | the task's Claude starts, if the project's folder is trusted |
@@ -292,8 +312,8 @@ One function deletes a task (`deleteTask` in `projects.js`), whether the human d
 project is removed. A deleted task leaves nothing on the computer that Kulisa or its agent made for it. Kulisa stops
 its agent and closes its profiles, then deletes:
 
-- the worktree folder (`git worktree remove --force`) and its branch (`git branch -D`); a copy already pushed stays
-  on the remote;
+- each copy (`git worktree remove --force`) and its branch (`git branch -D`), and its folder of copies; a branch
+  already pushed stays on the remote;
 - direnv's permission for its `.envrc`: the records in `<XDG data>/direnv/allow/` naming it (`worktrees.js`; not
   `direnv deny`, which newer direnv records too);
 - its data folder `projects/<id>/<n>/`, profiles with their sign-ins (also listed in `deleted-folders.json`,

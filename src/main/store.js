@@ -2,8 +2,9 @@
 // profile), so what is known about Chrome's storage applies:
 //   settings.json            the Kulisa zoom, the theme, where the projects' bar is; the windows: the projects open
 //                            in each (its tabs, in order), the one shown, where it was on screen
-//   projects.json            the projects: { id, name, folder, color, icon, agent }; a project is a folder (a
-//                            repository, or one Kulisa made); its color tints the window and its icon marks its group,
+//   projects.json            the projects: { id, name, folder, repos, color, icon, agent }; a project is a folder
+//                            (a repository, or one Kulisa made), and the repositories or folders added to it (repos,
+//                            the default first); its color tints the window and its icon marks its group,
 //                            to tell projects apart at a glance; agent: the one its new tasks run
 //   projects/<id>/
 //     tasks.json             the project's tasks: { next, current, collapsed, list: [{ n, name, branch, worktree,
@@ -44,7 +45,7 @@ class Store {
   // icon, agent), else the next free color.
   projectFor(folder, name = path.basename(folder) || folder, { color, icon, agent } = {}) {
     const list = this.projects();
-    const found = list.find((p) => samePath(p.folder, folder));
+    const found = list.find((p) => [p.folder, ...(p.repos || [])].some((f) => samePath(f, folder)));
     if (found) return found;
     const base = slugOf(name, 'project');
     let id = base, n = 2;

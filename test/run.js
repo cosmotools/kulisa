@@ -46,7 +46,7 @@ setTimeout(() => { console.error('the whole run took over 5 minutes: stopped'); 
 const sitePromise = ensureSite();
 // The restart phase runs as a packaged build would as to DevTools: Kulisa's own are off (appDevTools).
 // After the restart no project is named: the one opened last opens.
-start({ userData, project: restart ? undefined : project, agent, agents, mcpPort: 0, signinHosts: ['localhost'], appDevTools: !restart })
+start({ userData, project: restart ? undefined : project, projectsHome: path.join(root, 'Kulisa'), agent, agents, mcpPort: 0, signinHosts: ['localhost'], appDevTools: !restart })
   .then(async (shell) => {
     await sitePromise;
     const ctx = await setup(shell);

@@ -71,7 +71,9 @@ a page take an optional `tab` (default: the profile's active tab).
 
 The human may run several agents on one project at once, each in a Kulisa **task**: a git worktree of its own next
 to the project's folder (`<project>@task-<n>`) on a branch of its own, with copies of the profiles. You see only your
-task's profiles. The session start says where you are. Without git a task works right in the project's folder.
+task's profiles. A project of several repositories gives you a copy of each, all on your branch: you start in the
+default one's, the others are added folders (the session start names them). Without git a task works right in the
+project's folder.
 
 - **Name the task** with `task_rename` once you know what it is about (it starts as `task-<n>`): its tab and its
   branch take the name (`checkout-redesign`); the folder stays.

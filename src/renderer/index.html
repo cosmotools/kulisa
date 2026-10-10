@@ -147,6 +147,10 @@
         <label class="field"><span>Name</span><input id="npname" data-name maxlength="64" placeholder="e.g. tenant-audit" spellcheck="false"></label>
         <label class="field" id="nplocationrow"><span>Location</span><span class="pick"><input id="nplocation" spellcheck="false"><button type="button" id="npbrowse">Browse…</button></span></label>
         <p id="npwhere" class="hint"></p>
+        <div class="field" id="npreposrow"><span>Code</span><div id="nprepos"></div></div>
+        <div class="row" id="npreposadd"><button type="button" id="npaddrepo">Add Folder…</button><input id="npurl" placeholder="or clone from a URL: git@github.com:me/shop.git" spellcheck="false"><button type="button" id="npclone">Clone</button></div>
+        <p class="error" id="npcodeerror"></p>
+        <p id="npformer" class="hint" hidden><span></span> <button type="button" id="npshowformer">Show</button></p>
         <label class="check" id="npgitrow"><input type="checkbox" id="npgit" checked>Create Git repository <small>each task gets its own copy of the code</small></label>
         <div class="field"><span>Color</span><div id="npcolors" class="choices" role="group" aria-label="Color"></div></div>
         <div class="field"><span>Icon</span><div id="npicons" class="choices" role="group" aria-label="Icon"></div></div>
@@ -308,6 +312,11 @@
     <div class="pisland"><div class="plabel" draggable="true"><svg aria-hidden="true"><use href="#i-logo"/></svg><img class="favicon" alt="" hidden><span class="name"></span></div><button class="add icon" data-keys="task.new" title="New task: its own copy of the code, branch, agent and profiles" aria-label="New task"><svg aria-hidden="true"><use href="#i-plus"/></svg></button></div>
   </template>
   <!-- A recent project on the Welcome screen (projects.js) -->
+  <!-- A repository or folder of a project in Project Settings… (project-editor.js): a click makes it the default -->
+  <template id="tpl-repo">
+    <div class="removable"><button class="item" type="button"><span class="text"><span class="label"></span><small></small></span><kbd></kbd></button>
+      <button class="remove icon quiet" type="button" title="Remove from the project (its folder stays)" aria-label="Remove from the project"><svg aria-hidden="true"><use href="#i-close"/></svg></button></div>
+  </template>
   <template id="tpl-project">
     <div class="removable"><button class="item"><span class="dot"></span><span class="text"><span class="label"></span><small></small></span></button>
       <button class="remove icon quiet" title="Remove project…" aria-label="Remove project"><svg aria-hidden="true"><use href="#i-close"/></svg></button></div>

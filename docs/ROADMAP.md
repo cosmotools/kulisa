@@ -70,14 +70,8 @@ here; what is left of it stays.
     1. Tasks replace workspaces: built 2026-10-10 ([tasks.md](tasks.md)). Left of it: Kulisa offering to delete a
        closed task once its PR is merged; a new task copies the profiles and agent of the task on screen until
        steps 3 and 4 (the project's default agent, masters).
-    2. Projects as composites. 2a built 2026-10-10 ([tasks.md](tasks.md), Projects): New Project… and Project
-       Settings… (name, `~/Kulisa`, color, icon with the favicon, the agent of its new tasks). Left, 2b: several
-       repositories or folders in a project (local, or cloned from a URL; one default) and in a task (a worktree in
-       each on one branch; the agent's folders: Claude Code `--add-dir`, Codex `--add-dir`, others a line; one added
-       while a task works typed into its prompt), and the former folder. Decided with the author: with several
-       repositories a task's copies go into one folder, `~/Kulisa/<project>@task-<n>/<repo>/` (one repository: next
-       to it, as now); a repository is removed from a project only when no task has a copy of it (the question names
-       them); cloning uses the user's git as it is (an error from git shown, never a password asked for).
+    2. Projects as composites: built 2026-10-10 ([tasks.md](tasks.md), Projects and Tasks). Left: a task in the
+       former folder (no git) is not moved when a repository comes; profiles and agents as catalogs (steps 3, 4).
     3. The agents' catalog with accounts.
     4. Profiles: the flat store, masters and copies on first open, signing in to a master, a profile in several
        projects.

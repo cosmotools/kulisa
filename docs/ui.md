@@ -82,11 +82,11 @@ every other `<svg>` uses the sprite.
 
 ### Rows
 
-- `.item`: a row of a menu or a list (`tpl-menuitem`, `tpl-project`), `--row` high: an optional icon (`.ico`), `.dot`
+- `.item`: a row of a menu or a list (`tpl-menuitem`, `tpl-project`, `tpl-repo`), `--row` high: an optional icon (`.ico`), `.dot`
   (a project's color, `--color`) or `.avatar` (a profile's picture), `.text` with `.label` and a `small` line under it, a `kbd` key at the end. Lit under the
   pointer and on keyboard focus.
 - `.removable`: a row with a × (`button.remove.icon.quiet`) at its end, shown on hover or focus; the row is lit as
-  one. A recent project in the project menu and on the Welcome screen.
+  one. A recent project in the project menu and on the Welcome screen; a project's repository in Project Settings….
 - `.dot`: a 10 px circle in `--color`, a project's.
 - `.choices`: icon buttons (`.icon`, `aria-pressed`) to choose one of, the chosen one ringed in `--accent`: a
   profile's pictures, a project's colors (a `.dot` each) and icons.

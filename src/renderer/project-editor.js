@@ -2,8 +2,10 @@
 // its folder goes in (~/Kulisa unless the human types or browses to another); the dialog shows the folder it makes, so
 // the human knows where the agent's files are; Create Git repository (on by default: each task gets a copy of its
 // own). Both: its color (a dot each), its icon (its site's favicon when it has one, Kulisa's set, or the app's
-// curtain in its color) and the agent its new tasks run. Settings show the folder, which stays. The main process
-// checks and saves (project:new, project:settings). An ES module loaded when needed, CLAUDE.md "Window UI".
+// curtain in its color) and the agent its new tasks run. Settings show the folder, which stays, and its code: the
+// repositories or folders its tasks copy (a click on one makes it the default, × removes it, Add Folder… and Clone add
+// one: at once, not on Save) and its former folder. The main process checks and saves (project:new,
+// project:settings, project:repo-*). An ES module loaded when needed, CLAUDE.md "Window UI".
 //   newProject()       show the dialog for a new project
 //   editProject(id)    show it for that project
 const dialog = document.getElementById('newproject');
@@ -18,12 +20,16 @@ const icons = document.getElementById('npicons');
 const agent = document.getElementById('npagent');
 const create = document.getElementById('npcreate');
 const error = dialog.querySelector('.error');
+const repos = document.getElementById('nprepos');
+const url = document.getElementById('npurl');
+const former = document.getElementById('npformer');
 const showDialog = coverWhileOpen(dialog);
+const codeRows = ['npreposrow', 'npreposadd'].map((id) => document.getElementById(id));
 let sep = '/', editing = null, folder = '';
 
 const target = () => (editing ? folder : `${place.value.trim().replace(/[\\/]+$/, '')}${sep}${name.value.trim()}`);
 const update = () => {
-  where.textContent = editing ? `Its folder: ${folder}` : name.value.trim() && place.value.trim() ? `The project will be created in ${target()}` : '';
+  where.textContent = !editing && name.value.trim() && place.value.trim() ? `The project will be created in ${target()}` : '';
   error.textContent = '';
 };
 name.oninput = place.oninput = update;
@@ -67,6 +73,8 @@ export async function newProject() {
   title.textContent = 'New Project'; create.textContent = 'Create';
   name.value = ''; place.value = c.location; git.checked = true; create.disabled = false;
   document.getElementById('nplocationrow').hidden = document.getElementById('npgitrow').hidden = false;
+  for (const r of codeRows) r.hidden = true;
+  former.hidden = true;
   fill(c, { color: c.color, icon: 'logo', agent: c.agents[0]?.id });
   update();
   showDialog();
@@ -79,7 +87,10 @@ export async function editProject(id) {
   title.textContent = 'Project Settings'; create.textContent = 'Save';
   name.value = c.name; create.disabled = false;
   document.getElementById('nplocationrow').hidden = document.getElementById('npgitrow').hidden = true;
+  for (const r of codeRows) r.hidden = false;
+  url.value = ''; codeError.textContent = '';
   fill(c, c);
+  showCode(c);
   update();
   showDialog();
   name.focus();
@@ -98,3 +109,43 @@ form.onsubmit = async (e) => {
   create.disabled = false;
   if (r?.error) error.textContent = r.error; else dialog.close();
 };
+
+// Its repositories or folders, the default first, and its former folder (no git: tasks no longer work in it).
+function showCode({ repos: list, former: old }) {
+  repos.replaceChildren(...list.map(({ folder: f, git: g }, i) => {
+    const row = tpl('tpl-repo');
+    row.dataset.folder = f;
+    row.querySelector('.label').textContent = f.split(/[\\/]/).pop();
+    row.querySelector('small').textContent = row.querySelector('small').title = f;
+    row.querySelector('kbd').textContent = [i === 0 && 'default', g !== 'ok' && (g === 'none' ? 'no git' : 'no commit')].filter(Boolean).join(' · ');
+    row.querySelector('.item').title = i ? 'Make it the default: new tasks\' agents start in its copy' : 'The default: new tasks\' agents start in its copy';
+    return row;
+  }));
+  former.hidden = !old;
+  former.querySelector('span').textContent = old ? `Former folder ${old}: tasks no longer work in it; move its files into a repository.` : '';
+}
+// A change to them: the settings as they are then, or why not.
+const codeError = document.getElementById('npcodeerror');
+async function code(channel, args) {
+  codeError.textContent = '';
+  const r = await kulisa.invoke(channel, { id: editing, ...args });
+  if (r?.error) codeError.textContent = r.error; else if (r?.repos) showCode(r);
+  return r;
+}
+repos.onclick = (e) => {
+  const f = e.target.closest('[data-folder]')?.dataset.folder;
+  if (!f) return;
+  code(e.target.closest('.remove') ? 'project:repo-remove' : 'project:repo-default', { folder: f });
+};
+document.getElementById('npaddrepo').onclick = () => code('project:repo-add', {});
+// Cloning takes a while (the repository comes over the network): the button says so meanwhile.
+document.getElementById('npclone').onclick = async (e) => {
+  if (!url.value.trim()) return url.focus();
+  const b = e.currentTarget;
+  b.disabled = true; b.textContent = 'Cloning…';
+  if (!(await code('project:repo-clone', { url: url.value })).error) url.value = '';
+  b.disabled = false; b.textContent = 'Clone';
+};
+document.getElementById('npshowformer').onclick = () => kulisa.invoke('project:show-former', { id: editing });
+// Enter in the URL clones, not saves the dialog.
+url.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); document.getElementById('npclone').click(); } };

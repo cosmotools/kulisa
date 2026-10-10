@@ -100,7 +100,7 @@ module.exports = (test) => {
     assert.equal(shell.resumedSession, null, 'a new conversation');
     const told = await ctx.instructions(task);
     assert.match(told, /This is the Kulisa task "task-2": a git worktree of its own, .*project@task-2, on branch task-2/, 'where it works, told to any agent');
-    assert.match(told, /folder .*project is the human's: never change it on your own\. Asked to merge your work into main there, first check it for the human's uncommitted changes/);
+    assert.match(told, /folder .*project is the human's: never change it on your own\. Asked to merge your work into main there, first check for the human's uncommitted changes/);
     assert.match(told, /usual ports plus 100 \(3000 → 3100; \$KULISA_PORT_OFFSET\)/);
 
     // Profiles: the same, the closed ones closed, each open one with its active tab moved to the task's ports.
@@ -527,7 +527,7 @@ module.exports = (test) => {
     // New Project…: a name and where its folder goes, the home folder unless another is chosen; git on by default.
     await ui(`document.getElementById('welcome-new').click()`);
     await waitFor(() => ui(`document.getElementById('newproject').open`));
-    assert.equal(await ui(`document.getElementById('nplocation').value`), path.join(require('os').homedir(), 'Kulisa'), "every new project's place");
+    assert.equal(await ui(`document.getElementById('nplocation').value`), path.join(root, 'Kulisa'), "every new project's place (~/Kulisa; the tests' own here)");
     // Its color (the next free one chosen), its icon (the curtain), the agent its tasks run (the first one known).
     assert.deepEqual(await ui(`[...document.querySelectorAll('#npcolors [aria-pressed="true"], #npicons [aria-pressed="true"]')].map((b) => b.dataset.value)`),
       [shell.store.nextColor(), 'logo']);
@@ -600,7 +600,7 @@ module.exports = (test) => {
     await choose(ui, 'Project Settings…');
     await waitFor(() => ui(`document.getElementById('newproject').open && document.querySelector('#newproject h2').textContent === 'Project Settings'`));
     assert.equal(await ui(`document.querySelector('#npicons [aria-pressed="true"]').dataset.value`), 'favicon');
-    assert.equal(await ui(`document.getElementById('npwhere').textContent`), `Its folder: ${site}`);
+    assert.equal(await ui(`document.querySelector('#nprepos [data-folder] small').textContent`), site, 'its folder, as its code');
     assert.equal(await ui(`document.getElementById('nplocationrow').checkVisibility()`), false);
     await ui(`(() => { const n = document.getElementById('npname'); n.value = 'Site-2'; n.dispatchEvent(new Event('input'));
       document.querySelectorAll('#npcolors button')[5].click(); document.querySelector('#npicons [data-value="globe"]').click();
@@ -620,6 +620,68 @@ module.exports = (test) => {
     ctx.asked.length = 0;
   });
 
+  test('projects: several repositories: a task gets a copy of each on one branch, in one folder; one added while a task runs is copied and its agent told; one with copies is not removed', async (ctx) => {
+    const { shell, ui, call } = ctx;
+    const repo = (name) => {
+      const d = path.join(root, name);
+      fs.mkdirSync(d); git(d, 'init', '-q'); fs.writeFileSync(path.join(d, 'a.txt'), name); git(d, 'add', '-A'); git(d, 'commit', '-qm', name);
+      return d;
+    };
+    const api = repo('api'), web = repo('web');
+    await ui(`kulisa.invoke('project:open', { folder: ${JSON.stringify(api)} })`);
+    await waitFor(() => shell.current?.id === 'api' && shell.task?.loaded && shell.pty);
+    ctx.watchPty(shell.pty);
+    await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
+    const first = shell.task;
+    assert.equal(first.folder, `${api}@task-1`, 'one repository: its copy next to it');
+    // Added in Project Settings… while task-1 runs: copied for it into its folder of copies, its agent told.
+    const added = await ui(`kulisa.invoke('project:repo-add', { id: 'api', folder: ${JSON.stringify(web)} })`);
+    assert.deepEqual(added.repos.map((r) => r.folder), [api, web]);
+    const webCopy = path.join(root, 'Kulisa', 'api@task-1', 'web');
+    await waitFor(() => first.entry.copies.length === 2);
+    assert.equal(git(webCopy, 'rev-parse', '--abbrev-ref', 'HEAD'), 'task-1');
+    await waitFor(async () => (await ctx.termText()).includes(`Kulisa added ${webCopy} to this task`));
+    assert.deepEqual(first.dirs(), [webCopy]);
+    // A new task: a copy of each in one folder, on one branch; its agent told of the other.
+    const task = await newTask(ctx);
+    const home = path.join(root, 'Kulisa', 'api@task-2');
+    assert.equal(task.folder, path.join(home, 'api'));
+    assert.deepEqual(task.dirs(), [path.join(home, 'web')]);
+    for (const r of ['api', 'web']) assert.equal(git(path.join(home, r), 'rev-parse', '--abbrev-ref', 'HEAD'), 'task-2');
+    assert.match(await ctx.instructions(task), /The task's other folders: .*api@task-2\/web \(a worktree of .*\/web, branch task-2\)/);
+    // Its agent names it: the branch of each copy.
+    await call('task_rename', { name: 'Checkout' });
+    for (const r of ['api', 'web']) assert.equal(git(path.join(home, r), 'rev-parse', '--abbrev-ref', 'HEAD'), 'checkout');
+    // Project Settings… shows them, the default first; × on one tasks have copies of is refused, naming them.
+    await rightClick(ui, `#projectTabs [data-project="api"] .name`);
+    await menuRows(ui);
+    await choose(ui, 'Project Settings…');
+    await waitFor(() => ui(`document.querySelectorAll('#nprepos .removable').length === 2`));
+    assert.deepEqual(await ui(`[...document.querySelectorAll('#nprepos .removable')].map((r) => r.querySelector('.label').textContent + ' ' + r.querySelector('kbd').textContent)`), ['api default', 'web ']);
+    await ui(`document.querySelector('#nprepos [data-folder="${web}"] .remove').click()`);
+    await waitFor(async () => /Tasks work in it: task-1, Checkout/.test(await ui(`document.getElementById('npcodeerror').textContent`)));
+    await ui(`document.getElementById('newproject').close()`);
+    // Deleting the task: both copies, both branches and its folder go.
+    await ui(`kulisa.invoke('task:delete', '${task.key}')`);
+    await waitFor(() => !fs.existsSync(home));
+    assert.equal(git(web, 'branch', '--list', 'checkout') + git(api, 'branch', '--list', 'checkout'), '');
+    ctx.asked.length = 0;
+    // Cloned from a URL (a local one here) next to the project's folder, and copied for task-1; made the default.
+    const bare = path.join(root, 'docs.git');
+    git(root, 'clone', '-q', '--bare', web, bare);
+    const cloned = await ui(`kulisa.invoke('project:repo-clone', { id: 'api', url: ${JSON.stringify(bare)} })`);
+    assert.deepEqual(cloned.repos.map((r) => r.folder), [api, web, path.join(root, 'docs')]);
+    await waitFor(() => first.entry.copies.length === 3);
+    assert.equal((await ui(`kulisa.invoke('project:repo-default', { id: 'api', folder: ${JSON.stringify(web)} })`)).repos[0].folder, web);
+    await ui(`kulisa.invoke('project:close', { id: 'api' })`);
+    await waitFor(() => !shell.open.has('api'));
+    ctx.asked.length = 0;
+    // A project without git (Site-2, closed) getting a repository: its folder is a former one, shown in its settings.
+    await ui(`kulisa.invoke('project:repo-add', { id: 'site', folder: ${JSON.stringify(path.join(root, 'docs'))} })`);
+    const site = await ui(`kulisa.invoke('project:settings-get', { id: 'site' })`);
+    assert.deepEqual([site.repos.map((r) => r.folder), site.former], [[path.join(root, 'docs')], path.join(root, 'site')]);
+  });
+
   test("projects: Remove Project… (× in the menu, Remove for the open one, the Welcome screen) asks, closes the project when open, deletes its data and its tasks' copies, never its folder", async (ctx) => {
     const { shell, ui } = ctx;
     const projects = () => shell.store.projects().map((p) => p.id);
@@ -628,11 +690,11 @@ module.exports = (test) => {
     fs.mkdirSync(spare);
     git(spare, 'init', '-q'); fs.writeFileSync(path.join(spare, 'a.txt'), 'a'); git(spare, 'add', '-A'); git(spare, 'commit', '-qm', 'a');
     const p = shell.store.projectFor(spare);
-    const wt = await require('../src/main/worktrees').createWorktree(spare, 'Idea');
+    const wt = await require('../src/main/worktrees').createWorktree(spare, 'idea');
     fs.writeFileSync(path.join(wt.folder, 'b.txt'), 'b'); git(wt.folder, 'add', '-A'); git(wt.folder, 'commit', '-qm', 'b');
     const data = path.join(userData, 'projects', p.id);
     fs.mkdirSync(path.join(data, '1', 'Profile 1'), { recursive: true });
-    fs.writeFileSync(path.join(data, 'tasks.json'), JSON.stringify({ next: 3, current: 1, list: [{ n: 1, name: 'task-1', offset: 0 }, { n: 2, name: 'Idea', ...wt, offset: 100 }] }));
+    fs.writeFileSync(path.join(data, 'tasks.json'), JSON.stringify({ next: 3, current: 1, list: [{ n: 1, name: 'task-1', offset: 0, folder: spare }, { n: 2, name: 'Idea', branch: wt.branch, offset: 100, copies: [wt], folder: wt.folder }] }));
 
     // From the project menu, its row's ×: the human is told what goes, says no, then yes.
     const removeRow = async () => {
@@ -646,7 +708,7 @@ module.exports = (test) => {
     const q = ctx.asked.pop();
     assert.equal(q.message, 'Remove the project spare?');
     assert.match(q.detail, /sign-ins/);
-    assert.ok(q.detail.includes(wt.worktree) && q.detail.includes('Idea: 1 commit of its own') && q.detail.includes(`${spare} stays as it is`));
+    assert.ok(q.detail.includes(wt.worktree) && q.detail.includes('Idea: 1 commit of its own') && q.detail.includes(`Its folders stay as they are: ${spare}.`));
     assert.ok(projects().includes(p.id) && fs.existsSync(data) && fs.existsSync(wt.worktree), 'kept when the human says no');
     ctx.answer = true;
     await removeRow();

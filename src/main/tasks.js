@@ -7,7 +7,7 @@ const { session } = require('electron');
 const { Profile, wipeSession } = require('./profiles');
 const { ProjectProfiles } = require('./project-profiles');
 const { installSigninPause } = require('./signin-pause');
-const { startTerminal, stopTerminal, forgetTerminal, terminalSize, terminalTail } = require('./terminal');
+const { startTerminal, stopTerminal, forgetTerminal, terminalSize, terminalTail, typeIntoPrompt } = require('./terminal');
 const { clearHighlights } = require('./mcp-server');
 const { copyProfile } = require('./store');
 const { renameBranch } = require('./worktrees');
@@ -27,7 +27,7 @@ class Task {
     this.shell = shell; this.project = project; this.entry = entry;
     this.n = entry.n;
     this.key = `${project.id}/${this.n}`;
-    this.folder = entry.folder || project.folder;
+    this.folder = entry.folder || project.folder; // its agent's: the copy of the default repository
     this.offset = entry.offset || 0;
     this.store = shell.store.taskOf(project, this.n);
     this.state = null; // the agent's, from its hooks: 'working', 'waiting' (for the human), 'done'
@@ -41,14 +41,15 @@ class Task {
   shown() { return this.window?.task === this; }
   get name() { return this.entry.name; }
   // A new name, the agent's (task_rename) or the human's (Rename… on its tab): the name in the bar and its branch
-  // (git branch -m; -2, -3 when another branch has it). Its folder stays @task-<n>: its agent may be working there.
+  // of each of its copies (git branch -m; -2, -3 when another branch has it). Its folders stay: its agent may be
+  // working there.
   async rename(name) {
     name = name?.trim();
     const bad = nameError(name);
     if (bad) return { error: bad };
     const { entry } = this;
-    if (entry.worktree) {
-      try { entry.branch = await renameBranch(entry.worktree, entry.branch, name); } catch (e) { return { error: e.stderr || e.message }; }
+    if (entry.copies?.length) {
+      try { entry.branch = await renameBranch(entry.copies, name); } catch (e) { return { error: e.stderr || e.message }; }
     }
     entry.name = name;
     this.project.save();
@@ -103,6 +104,19 @@ class Task {
   // (signin-pages.js); a tab still loading, the URL it is opening.
   _urlOf(t) { return this.shell.signin.restoreUrl(t.wc) || t.pendingUrl; }
 
+  // The other folders its agent works in besides its own: its copies of the project's other repositories, and those
+  // of the project's folders without git, as they are (agents.js, dirs; the MCP server's instructions name them).
+  dirs() {
+    return [...new Set(this.project.repos().map((r) => this.entry.copies?.find((c) => c.repo === r)?.folder || r))].filter((d) => d !== this.folder);
+  }
+  // A repository added to its project while it runs (Project Settings…): copied for it, and its agent told, typed into
+  // its prompt for the human to send (agents.js, addDir: Claude Code's /add-dir; else a line saying so).
+  async reposChanged() {
+    if (!this.loaded) return;
+    for (const c of await this.project.addCopies(this)) {
+      if (this.pty) typeIntoPrompt(this.pty, this.agent?.addDir?.(c.folder) || `Kulisa added ${c.folder} to this task: a copy of the project's repository ${c.repo}, on branch ${c.branch}.`);
+    }
+  }
   // Its terminals come back with it, as they were left (openTerminal), not waited for: their panels are listed at once.
   async loadProfiles() {
     await this.list.load(); this.loaded = true;
@@ -125,11 +139,13 @@ class Task {
     const resume = (saved.agent === agent.id && agent.resume?.(saved)) || null;
     this.resumedSession = resume ? saved.sessionId ?? null : null;
     this.agent = agent;
-    if (this.entry.worktree) await agent.prepare?.({ folder: this.folder, project: { folder: this.project.folder, ...this.project.agentData() } });
+    await this.project.addCopies(this); // the project's repositories added since
+    const dirs = this.dirs(), more = (dirs.length && agent.dirs?.(dirs)) || {};
+    for (const c of this.entry.copies || []) await agent.prepare?.({ folder: c.folder, project: { folder: c.repo, ...this.project.agentData() } });
     // The program by name, as the human would type it, unless the shell does not find it yet (just installed).
     const command = found.onPath ? agent.command : found.path;
-    this.pty = await startTerminal((channel, data) => this.window?.send(channel, data), { command, shell: agent.shell, cwd: this.folder, env: this.env(),
-      args: [...(resume || []), ...(agent.args?.({ env: this.env(), plugin: shell.plugin }) || []), ...(agent.voice?.args || [])] }, this.key);
+    this.pty = await startTerminal((channel, data) => this.window?.send(channel, data), { command, shell: agent.shell, cwd: this.folder, env: { ...this.env(), ...more.env },
+      args: [...(resume || []), ...(agent.args?.({ env: this.env(), plugin: shell.plugin }) || []), ...(more.args || []), ...(agent.voice?.args || [])] }, this.key);
     this.store.saveAgent({ ...this.store.agent(), agent: agent.id, started: true });
     this.window?.send('voice', { task: this.key, voice: this.voice() });
   }

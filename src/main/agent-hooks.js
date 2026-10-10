@@ -66,15 +66,20 @@ function handleHookRequest(task, url, req, res) {
 // Where the agent works, for every agent (the MCP server's instructions, and at the session's start): its task, its
 // folder and branch, the project's folder that is the human's, its ports, naming the task (tasks.md).
 function taskContext(task) {
-  const { entry, project } = task;
-  const name = `Name the task with task_rename once you know what it is about${entry.worktree ? ' (its branch takes the name)' : ''}.`;
-  if (!entry.worktree) {
-    return `This is the Kulisa task "${task.name}", working right in the project's folder ${project.folder} (no git, so no copy ` +
-      `of its own); the app under test runs on its usual ports. ${name}`;
+  const { entry } = task, copies = entry.copies || [];
+  const name = `Name the task with task_rename once you know what it is about${copies.length ? ' (its branches take the name)' : ''}.`;
+  const shared = task.dirs().filter((d) => !copies.some((c) => c.folder === d));
+  const others = [...copies.filter((c) => c.folder !== task.folder).map((c) => `${c.folder} (a worktree of ${c.repo}, branch ${c.branch})`),
+    ...shared.map((d) => `${d} (the project's own folder: no git, no copy)`)];
+  const more = others.length ? ` The task's other folders: ${others.join('; ')}.` : '';
+  if (!copies.length) {
+    return `This is the Kulisa task "${task.name}", working right in the project's folder ${task.folder} (no git, so no copy ` +
+      `of its own); the app under test runs on its usual ports.${more} ${name}`;
   }
-  return `This is the Kulisa task "${task.name}": a git worktree of its own, ${task.folder}, on branch ${entry.branch}. The ` +
-    `project's folder ${project.folder} is the human's: never change it on your own. Asked to merge your work into main ` +
-    "there, first check it for the human's uncommitted changes (git status) and stop if there are any. " + name +
+  const repos = [...new Set(copies.map((c) => c.repo))];
+  return `This is the Kulisa task "${task.name}": a git worktree of its own, ${task.folder}, on branch ${entry.branch}.${more} The ` +
+    `project's ${repos.length > 1 ? `folders ${repos.join(', ')} are` : `folder ${repos[0]} is`} the human's: never change ${repos.length > 1 ? 'them' : 'it'} on your own. Asked to merge your work into main ` +
+    "there, first check for the human's uncommitted changes (git status) and stop if there are any. " + name +
     ` Run the app under test on its usual ports plus ${task.offset} (3000 → ${3000 + task.offset}; $KULISA_PORT_OFFSET), through ` +
     "PORT, a --port flag, .env.local or the published ports of docker compose; the profiles' tabs on local addresses already " +
     'point there. If the app cannot run on other ports, tell the human. Install dependencies first if the worktree has none ' +

@@ -10,7 +10,7 @@ const { CdpProxy } = require('./cdp-proxy');
 const { Store, PROJECT_COLORS } = require('./store');
 const { signinPages } = require('./signin-pages');
 const { SessionCookies } = require('./session-cookies');
-const { Project, askRemoveProject, removeProjectData, faviconOf, PROJECT_ICONS } = require('./projects');
+const { Project, askRemoveProject, removeProjectData, faviconOf, addRepo, cloneRepo, defaultRepo, removeRepo, reposInfo, PROJECT_ICONS } = require('./projects');
 const { AppWindow } = require('./window');
 const worktrees = require('./worktrees');
 const agents = require('./agents');
@@ -61,6 +61,8 @@ function start(options = {}) {
   // task's open and closed profiles by id, its agent's terminal.
   const shell = { bus, store, proxy: null, mcp: null, open: new Map(), windows: [], signin: signinPages(options.signinHosts || []) };
   const first = () => shell.windows[0] ?? null;
+  // Where new projects go, and the folders of copies of tasks with several repositories (projects.js).
+  shell.projectsHome = options.projectsHome || path.join(app.getPath('home'), 'Kulisa');
   Object.defineProperties(shell, {
     win: { get: () => first()?.win ?? null },
     current: { get: () => first()?.current ?? null },
@@ -366,7 +368,7 @@ function start(options = {}) {
   // that is there already must be empty; git init in it when asked, with an empty first commit: tasks get copies of
   // their own (worktrees) from it. With its color, icon and the agent its tasks run (project-editor.js).
   const choices = () => ({ colors: PROJECT_COLORS, icons: PROJECT_ICONS, agents: known.filter((a) => !a.custom).map(({ id, name }) => ({ id, name })) });
-  ipcMain.handle('project:new-defaults', () => ({ location: options.projectsHome || path.join(app.getPath('home'), 'Kulisa'), sep: path.sep,
+  ipcMain.handle('project:new-defaults', () => ({ location: shell.projectsHome, sep: path.sep,
     color: store.nextColor(), ...choices() }));
   ipcMain.handle('project:pick-location', async (e, { location }) => {
     const r = await dialog.showOpenDialog(at(e).win, { title: 'Where to create the project', defaultPath: location, properties: ['openDirectory', 'createDirectory'] });
@@ -390,8 +392,25 @@ function start(options = {}) {
   // shown, not changed (its tasks' copies are made from it).
   ipcMain.handle('project:settings-get', (e, { id }) => {
     const p = store.projects().find((x) => x.id === id);
-    return p ? { id, name: p.name, folder: p.folder, color: p.color, icon: p.icon || 'logo', agent: p.agent || null, favicon: faviconOf(p.folder), ...choices() } : { error: `no project ${id}` };
+    return p ? reposInfo(p).then((r) => ({ id, name: p.name, folder: p.folder, color: p.color, icon: p.icon || 'logo', agent: p.agent || null,
+      favicon: faviconOf(p.folder), ...r, ...choices() })) : { error: `no project ${id}` };
   });
+  // Its repositories or folders (projects.js): one picked in the OS's dialog (or given: the tests), cloned from a URL,
+  // made the default, removed. Each answers with the project's settings as they are then.
+  const settingsOf = async (id, r) => (r.error ? r : { ...(await reposInfo(store.projects().find((x) => x.id === id))) });
+  ipcMain.handle('project:repo-add', async (e, { id, folder }) => {
+    if (!folder) {
+      const r = await dialog.showOpenDialog(at(e).win, { title: 'Add a repository or folder to the project', properties: ['openDirectory'] });
+      if (r.canceled || !r.filePaths[0]) return {};
+      folder = r.filePaths[0];
+    }
+    return serial(async () => settingsOf(id, await addRepo(shell, id, folder)));
+  });
+  ipcMain.handle('project:repo-clone', (e, { id, url }) => serial(async () => settingsOf(id, await cloneRepo(shell, id, url))));
+  ipcMain.handle('project:repo-default', (e, { id, folder }) => serial(async () => settingsOf(id, await defaultRepo(shell, id, folder))));
+  ipcMain.handle('project:repo-remove', (e, { id, folder }) => serial(async () => settingsOf(id, await removeRepo(shell, id, folder))));
+  // Its former folder (no git; tasks no longer work in it), in the OS's file manager: the human moves its files.
+  ipcMain.handle('project:show-former', (e, { id }) => { const p = store.projects().find((x) => x.id === id); return p && electronShell.openPath(p.folder); });
   ipcMain.handle('project:settings', (e, { id, name, color, icon, agent }) => {
     name = name?.trim();
     const bad = nameError(name) || lookError({ color, icon, agent });
