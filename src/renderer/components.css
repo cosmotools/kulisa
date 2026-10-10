@@ -75,7 +75,11 @@ svg:has(> use) { width: 16px; height: 16px; flex: none; fill: none; stroke: curr
   .text { flex: 1; display: flex; flex-direction: column; min-width: 0; }
   small { color: var(--text-muted); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   kbd { font: inherit; color: var(--text-muted); }
-  :is(small, kbd):empty { display: none; } }
+  :is(small, kbd):empty { display: none; }
+  /* The chosen row of a list (a project in the projects' manager) */
+  &[aria-current="true"] { background: var(--island-hi); color: var(--text-strong); }
+  /* A radio at its start: the default of a list (a project's repositories, its agents) */
+  input[type="radio"] { flex: none; height: auto; margin: 0; accent-color: var(--accent); } }
 /* A row with a × at its end, shown on hover or focus (removing a recent project); the row lit as one */
 .removable { display: flex; align-items: center; border-radius: var(--radius);
   &:is(:hover, :focus-within) { background: var(--island-hi); }

@@ -378,20 +378,7 @@ class Task {
     return { id, cookies: set };
   }
   // A profile its project let go (projects.js, dropProfile): its copy gone; a task not loaded loses it from its file.
-  async dropProfile(folder) {
-    if (this.loaded) return this.list.drop(folder);
-    const saved = this.store.profiles();
-    if (saved) this.store.saveProfiles(saved.filter((x) => x.folder !== folder));
-    const dir = this.store.profileDir(folder);
-    if (fs.existsSync(dir)) {
-      this.store.markDeleted(folder);
-      fs.rmSync(dir, { recursive: true, force: true });
-    }
-  }
-  // The folders of its profiles that are open, for a new task to open the same (projects.js, createTask).
-  openFolders() {
-    return this.loaded ? [...this.profiles.values()].map((p) => p.folder) : (this.store.profiles() || []).filter((p) => !p.closed).map((p) => p.folder);
-  }
+  async dropProfile(folder) { return this.loaded ? this.list.drop(folder) : this.store.dropProfile(folder); }
 
   info() {
     const { n, key, name, tabState: state, folder, offset } = this;

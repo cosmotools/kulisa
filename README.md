@@ -44,17 +44,18 @@ setuid on a plain install. The `.deb` installs it setuid, so the installed app r
 | `KULISA_MCP_PORT` | MCP server port (default 4450; `0` picks a free one) |
 | `KULISA_SHOT` | Save a screenshot of the whole window to this PNG file ~4 s after start (`KULISA_SHOT_DELAY`, ms) |
 
-**Projects:** a project is a name, a color and an icon, its agent, its profiles, and its code: a folder, or one or
-more repositories (local, or cloned from a URL). The bar under the
+**Projects:** a project is the configuration its tasks are made from: a name, a color and an icon, its agents (one
+the default), its profiles, and its code: a folder, or one or more repositories (local, or cloned from a URL; one the
+default). **Projects** in the title bar (left of ☰) opens the projects' manager: every project on the left, open or
+not, and **+ New Project**; on the right the chosen one's configuration. The bar under the
 grid (or over it: **☰ → Projects bar**) has a group per open project, as Chrome's tab groups: its name (a click folds
 it), its tasks, and **+** for a new task. A click on a task shows it, of any project, and the others keep running
 (their agents and pages) until you close their project (**×** on its last open task, the middle button on its name,
 or **Close Project** in its right-click menu, after a question; closing a window asks once for all its projects). The button after the islands opens a menu of the
 projects: open another one (in this window or in a new window: Kulisa asks), remove one (its **×** on hover:
-Kulisa's data of it and its tasks' copies; its folder stays), **New Project…** (a name and where its folder goes,
-`~/Kulisa` by default; git on by default, with an empty first commit; its color, icon and agent; the same in
-**Project Settings…** on its name's right-click menu, where you also add its other repositories, local or cloned
-from a URL), **Open Folder…**, close the project. Closing the last project shows the
+Kulisa's data of it and its tasks' copies; its folder stays), **Projects…**, **New Project…** (a name and where its
+folder goes, `~/Kulisa` by default; git on by default, with an empty first commit; its color, icon and first agent),
+**Open Folder…**, close the project. **Project Settings…** on its name's right-click menu opens the manager at it. Closing the last project shows the
 Welcome screen. A closed project keeps its tabs and
 sign-ins; when you open it again, its agent continues the conversation where it can (`claude --resume`,
 `codex resume`). The agent starts in your shell in its task's folder, as if you typed its command in a terminal
@@ -71,8 +72,9 @@ Account** gives Claude Code or Codex a second sign-in (a work and a personal one
 **Tasks:** several tasks of a project at once, each with its own agent, in its project's group. **+** makes one at
 once, `task-<n>` until its agent names it (or you do: **Rename…** in its tab's menu): a git worktree on a branch of
 its own next to the project (`~/IdeaProjects/myshop@task-2/`; `.env*` and files named in `.worktreeinclude` are
-copied), the profiles open in the task on screen, each a copy of its master (where you signed in once, for every
-task), and a new session of its agent there. Your
+copied), a new session of the project's default agent there (right-click **+**: **New Task with** another of its
+agents), and its profiles, all closed until the agent or you open one (👥): each a copy of its master, where you
+signed in once, for every task. Your
 project's folder stays yours: agents merge into it only when you ask. The task's app runs on its own ports: the usual
 ones plus `KULISA_PORT_OFFSET` (100, 200, …), and its tabs on local addresses point there. Click a task to switch;
 the others keep working. **×** closes a task (its agent stops; its code, profiles and conversation stay, and its
@@ -142,7 +144,7 @@ src/renderer/    window UI. renderer.js: the grid of panels (dockview), panes, �
                  profile-editor.js; ES modules loaded when
                  needed: agent-picker.js (choosing and installing an agent), agents.js (the Agents
                  window), both with agent-list.js, ask.js (questions before deleting or
-                 closing), project-editor.js (New Project…, Project Settings…), shortcuts.js (Keyboard Shortcuts). Styles: tokens.css, components.css, window.css; the icons are a
+                 closing), project-editor.js (the projects' manager), shortcuts.js (Keyboard Shortcuts). Styles: tokens.css, components.css, window.css; the icons are a
                  sprite in index.html (docs/ui.md)
 assets/          the app icon: icon.svg (source) and what each OS needs, rendered by scripts/icons.js
 test/            start.js (npm test: the groups in parallel), run.js (one app, its files in order), helpers.js,

@@ -87,6 +87,7 @@
     <!-- The app icon with the curtain in the project's color (--project): each project its own curtain -->
     <svg class="logo" aria-hidden="true"><use href="#i-logo"/></svg>
     <button id="zoomReset" hidden title="Kulisa's zoom. Click to reset (Ctrl 0)"></button>
+    <button id="manageProjects" class="icon" title="Projects: each one's configuration, a new one" aria-label="Projects"><svg aria-hidden="true"><use href="#i-projects"/></svg></button>
     <button id="windowMenu" class="icon" data-menu-end title="Menu: zoom, layout" aria-label="Menu"><svg aria-hidden="true"><use href="#i-menu"/></svg></button>
   </header>
   <main id="dock"></main>
@@ -137,31 +138,40 @@
     </div>
     <footer><button id="closeProfiles" class="primary" command="close" commandfor="profiles">Done</button></footer>
   </dialog>
-  <!-- New Project… and Project Settings… (project-editor.js, loaded when needed): its name, its folder (where to make
-       it, or where it is), its color, icon and the agent its tasks run -->
-  <dialog id="newproject" closedby="any">
-    <header><h2>New Project</h2><button class="x icon quiet" type="button" command="close" commandfor="newproject" title="Close" aria-label="Close"><svg aria-hidden="true"><use href="#i-close"/></svg></button></header>
+  <!-- The projects' manager (project-editor.js, loaded when needed; the title bar's button, the projects' menu, a
+       label's Project Settings…): every project on the left, + New Project; on the right one project's configuration,
+       which its tasks are made from: name, folder (where to make it, or where it is), code, agents, profiles, color,
+       icon, local addresses -->
+  <dialog id="projects" closedby="any">
+    <header><h2>Projects</h2><button class="x icon quiet" type="button" command="close" commandfor="projects" title="Close" aria-label="Close"><svg aria-hidden="true"><use href="#i-close"/></svg></button></header>
     <form id="npform">
       <div class="body">
-        <label class="field"><span>Name</span><input id="npname" data-name maxlength="64" placeholder="e.g. tenant-audit" spellcheck="false"></label>
-        <label class="field" id="nplocationrow"><span>Location</span><span class="pick"><input id="nplocation" spellcheck="false"><button type="button" id="npbrowse">Browse…</button></span></label>
-        <p id="npwhere" class="hint"></p>
-        <div class="field" id="npreposrow"><span>Code</span><div id="nprepos"></div></div>
-        <div class="row" id="npreposadd"><button type="button" id="npaddrepo">Add Folder…</button><input id="npurl" placeholder="or clone from a URL: git@github.com:me/shop.git" spellcheck="false"><button type="button" id="npclone">Clone</button></div>
-        <p class="error" id="npcodeerror"></p>
-        <div class="field" id="npprofilesrow"><span>Profiles</span><div id="npprofiles"></div></div>
-        <div class="row" id="npprofilesadd"><input id="npnewprofile" data-name maxlength="64" placeholder="A new one, e.g. ann@shop.com" spellcheck="false" aria-label="New profile"><button type="button" id="npprofilenew">New</button><button type="button" id="npprofilefrom" aria-haspopup="menu">From Another Project…</button></div>
-        <p class="error" id="npprofileerror"></p>
-        <p id="npformer" class="hint" hidden><span></span> <button type="button" id="npshowformer">Show</button></p>
-        <label class="check" id="npgitrow"><input type="checkbox" id="npgit" checked>Create Git repository <small>each task gets its own copy of the code</small></label>
-        <div class="field"><span>Color</span><div id="npcolors" class="choices" role="group" aria-label="Color"></div></div>
-        <div class="field"><span>Icon</span><div id="npicons" class="choices" role="group" aria-label="Icon"></div></div>
-        <label class="field"><span>Agent</span><select id="npagent"></select></label>
-        <label class="field" id="nplocalrow"><span>Local</span><input id="nplocal" spellcheck="false" placeholder="More local addresses: a tunnel, dev domains (abc.ngrok.app shop.dev)"></label>
-        <p class="hint">The agent each new task of the project runs; Change agent… in a task's terminal picks another.</p>
-        <p class="error"></p>
+        <nav id="pjnav" aria-label="Projects"><div id="pjlist"></div><button type="button" id="pjnew"><svg aria-hidden="true"><use href="#i-plus"/></svg>New Project</button></nav>
+        <div id="pjconfig">
+          <h3 id="pjtitle"></h3>
+          <label class="field"><span>Name</span><input id="npname" data-name maxlength="64" placeholder="e.g. tenant-audit" spellcheck="false"></label>
+          <label class="field" id="nplocationrow"><span>Location</span><span class="pick"><input id="nplocation" spellcheck="false"><button type="button" id="npbrowse">Browse…</button></span></label>
+          <p id="npwhere" class="hint"></p>
+          <label class="check" id="npgitrow"><input type="checkbox" id="npgit" checked>Create Git repository <small>each task gets its own copy of the code</small></label>
+          <label class="field" id="npagentrow"><span>Agent</span><select id="npagent"></select></label>
+          <div class="field" id="npreposrow"><span>Code</span><div id="nprepos"></div></div>
+          <div class="row" id="npreposadd"><button type="button" id="npaddrepo">Add Folder…</button><input id="npurl" placeholder="or clone from a URL: git@github.com:me/shop.git" spellcheck="false"><button type="button" id="npclone">Clone</button></div>
+          <p class="error" id="npcodeerror"></p>
+          <p id="npformer" class="hint" hidden><span></span> <button type="button" id="npshowformer">Show</button></p>
+          <div class="field" id="npagentsrow"><span>Agents</span><div id="npagents"></div></div>
+          <div class="row" id="npagentsadd"><button type="button" id="npagentadd" aria-haspopup="menu">Add Agent…</button></div>
+          <p class="error" id="npagenterror"></p>
+          <div class="field" id="npprofilesrow"><span>Profiles</span><div id="npprofiles"></div></div>
+          <div class="row" id="npprofilesadd"><input id="npnewprofile" data-name maxlength="64" placeholder="A new one, e.g. ann@shop.com" spellcheck="false" aria-label="New profile"><button type="button" id="npprofilenew">New</button><button type="button" id="npprofilefrom" aria-haspopup="menu">From Another Project…</button></div>
+          <p class="error" id="npprofileerror"></p>
+          <div class="field"><span>Color</span><div id="npcolors" class="choices" role="group" aria-label="Color"></div></div>
+          <div class="field"><span>Icon</span><div id="npicons" class="choices" role="group" aria-label="Icon"></div></div>
+          <label class="field" id="nplocalrow"><span>Local</span><input id="nplocal" spellcheck="false" placeholder="More local addresses: a tunnel, dev domains (abc.ngrok.app shop.dev)"></label>
+          <p class="hint" id="nphint"></p>
+          <p class="error" id="nperror"></p>
+        </div>
       </div>
-      <footer><button type="button" command="close" commandfor="newproject">Cancel</button><button id="npcreate" class="primary">Create</button></footer>
+      <footer><button type="button" command="close" commandfor="projects">Cancel</button><button id="npcreate" class="primary">Create</button></footer>
     </form>
   </dialog>
   <!-- Rename… in a task tab's menu (tasks.js): its name, and its branch with it -->
@@ -320,12 +330,21 @@
     <div class="pisland"><div class="plabel" draggable="true"><svg aria-hidden="true"><use href="#i-logo"/></svg><img class="favicon" alt="" hidden><span class="name"></span></div><button class="add icon" data-keys="task.new" title="New task: its own copy of the code, branch, agent and profiles" aria-label="New task"><svg aria-hidden="true"><use href="#i-plus"/></svg></button></div>
   </template>
   <!-- A recent project on the Welcome screen (projects.js) -->
-  <!-- A repository or folder of a project in Project Settings… (project-editor.js): a click makes it the default -->
+  <!-- A repository or folder of a project in the projects' manager (project-editor.js): the radio makes it the default -->
   <template id="tpl-repo">
-    <div class="removable"><button class="item" type="button"><span class="text"><span class="label"></span><small></small></span><kbd></kbd></button>
+    <div class="removable"><label class="item"><input type="radio" name="npdefrepo"><span class="text"><span class="label"></span><small></small></span><kbd></kbd></label>
       <button class="remove icon quiet" type="button" title="Remove from the project (its folder stays)" aria-label="Remove from the project"><svg aria-hidden="true"><use href="#i-close"/></svg></button></div>
   </template>
-  <!-- A profile of a project in Project Settings… (project-editor.js): × lets go of it (asks first) -->
+  <!-- An agent of a project in the projects' manager (project-editor.js): the radio makes it the default (+ runs it), × removes it -->
+  <template id="tpl-projagent">
+    <div class="removable"><label class="item"><input type="radio" name="npdefagent"><span class="text"><span class="label"></span></span></label>
+      <button class="remove icon quiet" type="button" title="Remove from the project (its tasks keep it)" aria-label="Remove from the project"><svg aria-hidden="true"><use href="#i-close"/></svg></button></div>
+  </template>
+  <!-- A project in the projects' manager's list (project-editor.js): its color, name and folder; open or not -->
+  <template id="tpl-pjrow">
+    <button class="item" type="button"><span class="dot"></span><span class="text"><span class="label"></span><small></small></span><kbd></kbd></button>
+  </template>
+  <!-- A profile of a project in the projects' manager (project-editor.js): × lets go of it (asks first) -->
   <template id="tpl-projprofile">
     <div class="removable"><div class="item"><img class="avatar" alt=""><span class="text"><span class="label"></span><small></small></span></div>
       <button class="remove icon quiet" type="button" title="Remove from the project (asks first)" aria-label="Remove from the project"><svg aria-hidden="true"><use href="#i-close"/></svg></button></div>

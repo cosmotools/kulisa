@@ -10,7 +10,7 @@ const { Task } = require('./tasks');
 const worktrees = require('./worktrees');
 
 class Project {
-  // entry: the project in projects.json (store.js): { id, name, folder, repos, color, icon, agent }. shell: the app
+  // entry: the project in projects.json (store.js): { id, name, folder, repos, color, icon, agents }. shell: the app
   // (app.js), as Task takes it. window: the window it is open in (window.js, add).
   constructor(shell, entry) {
     this.shell = shell; this.store = shell.store; this.window = null;
@@ -22,10 +22,12 @@ class Project {
     for (const e of list) this.tasks.set(e.n, new Task(shell, this, e));
     this.task = this.open().find((t) => t.n === current) || this.open()[0] || null; // the one it shows
   }
-  // Its name, color, icon, default agent and repositories, as Project Settings… left them (store.js, updateProject).
+  // Its name, color, icon, agents and repositories, as the projects' manager left them (store.js, updateProject).
   // folder: its default repository (or folder), where its tasks' agents start.
   update(entry) { this.entry = entry; this.name = entry.name; this.color = entry.color; this.folder = reposOf(entry)[0]; }
   repos() { return reposOf(this.entry); }
+  // The agents' accounts its tasks run, the default first.
+  agents() { return agentsOf(this.shell, this.entry); }
   // Its open tasks, in the order they were made (the bar's); the closed ones, the one closed last first.
   open() { return [...this.tasks.values()].filter((t) => !t.entry.closed); }
   closedTasks() { return [...this.tasks.values()].filter((t) => t.entry.closed).sort((a, b) => b.entry.closedAt - a.entry.closedAt); }
@@ -57,10 +59,12 @@ class Project {
   // repositories with a commit, all on one branch of the task's name (worktrees.js): next to its repository when the
   // project has one, else all in one folder, ~/Kulisa/<project>@task-<n>/<repo>/; with a port offset no other task
   // has (100, 200, …: the project's own folder keeps the usual ports). A folder without git is used as it is: the
-  // task works right in it. Its profiles are copies of those of the task from (the project's on screen) until
-  // profiles have masters (ROADMAP, "Projects and tasks", step 4); the first task has none. Its agent is the
-  // project's (Project Settings…), else that task's. The new Task, or { error }.
-  async createTask(from = this.task) {
+  // task works right in it. Made from the project's configuration alone (the projects' manager), nothing from the
+  // task on screen: its agent the project's default one, or the one asked for (New Task with); none: the window asks
+  // as the task starts. No profile opens by itself: all its project's are listed closed, and the agent (profile_open)
+  // or the human (👥) opens one when it is needed, a copy of its master made then. The new Task, or { error }.
+  async createTask(agent = null) {
+    agent ??= this.agents()[0];
     await this.checkGit();
     const n = this.next, name = `task-${n}`, repos = this.repos();
     const gits = (await Promise.all(repos.map(async (r) => ((await gitOf(r)) === 'ok' ? r : null)))).filter(Boolean);
@@ -82,13 +86,7 @@ class Project {
       entry = { n, name, branch, offset, copies, ...(home && { home }), folder: copies.find((c) => c.repo === this.folder)?.folder };
     }
     const data = this.store.taskOf(this, n);
-    if (from) { // the profiles open in that task open here too (copies of their masters, made as it loads), its grid too
-      const open = from.openFolders();
-      data.saveProfiles(this.shell.profileStore.of(this.id).map((g) => ({ folder: g.folder, id: g.id, closed: !open.includes(g.folder) })));
-      const layout = from.store.layout();
-      if (layout) data.saveLayout(layout);
-    }
-    const agent = this.entry.agent || from?.store.agent().agent; // none: the window asks as the task starts
+    data.saveProfiles(this.shell.profileStore.of(this.id).map((g) => ({ folder: g.folder, id: g.id, closed: true })));
     if (agent) data.saveAgent({ agent });
     this.next = n + 1;
     const task = new Task(this.shell, this, entry);
@@ -113,25 +111,9 @@ class Project {
     if (made.length) this.save();
     return made;
   }
-  // A profile let go by the project (the editor's Delete, the agent's profile_delete, Project Settings…'s ×): asked
-  // first, saying what goes: its copies in this project's tasks; and its master, when no other project has it.
-  askDropProfile(p, by = 'human') {
-    const g = this.shell.profileStore.byFolder(p.folder);
-    const others = (g?.projects || []).filter((x) => x !== this.id).map((x) => this.store.projects().find((e) => e.id === x)?.name || x);
-    const agent = by === 'agent', end = agent ? '.' : '?';
-    return this.shell.ask(others.length
-      ? { ok: 'Remove', danger: true, message: `${agent ? 'The agent asks to remove' : 'Remove'} the profile ${p.name} from ${this.name}${end}`,
-        detail: `Its copies in this project's tasks go, with their tabs and what was signed in only there. It stays in ${others.join(', ')}, with its sign-ins.` }
-      : { ok: 'Delete', danger: true, message: `${agent ? 'The agent asks to delete' : 'Delete'} the profile ${p.name}${end}`,
-        detail: 'It is in no other project: its sign-ins, cookies, storage and tabs are removed for good.' }, this.window);
-  }
-  async dropProfile(folder) {
-    const g = this.shell.profileStore.byFolder(folder);
-    if (g?.projects.length === 1) { await this.shell.closeMaster(folder); this.shell.cookieSync.forget(folder); } // its master goes: its window first
-    for (const t of this.tasks.values()) await t.dropProfile(folder);
-    if (g) this.shell.profileStore.removeFrom(g.id, this.id);
-    this.shell.profilesChanged();
-  }
+  // A profile let go by the project (the editor's Delete, the agent's profile_delete): asked first (askDropProfile).
+  askDropProfile(p, by = 'human') { return askDropProfile(this.shell, this.entry, p, by, this.window); }
+  dropProfile(folder) { return dropProfile(this.shell, this.entry, folder); }
   // Two open tasks in the project's folder (no git: no copies) edit the same files: the human is told, and may go on.
   sharesFolder() { return this.git !== 'ok' && this.open().some((t) => !t.entry.copies && t.folder === this.folder); }
   // × on its tab: its agent stops and its tabs close; everything else stays, and it is listed as closed. Once it is
@@ -276,7 +258,58 @@ async function removeRepo(shell, id, repo) {
   if (using.length) return { error: `Tasks work in it: ${using.map((e) => e.name).join(', ')}. Delete them first (Delete Task… in a task's menu).` };
   return changeRepos(shell, id, repos.filter((r) => r !== repo));
 }
-// What Project Settings… shows of them: each with whether it is in git, and the former folder while it is there.
+// A profile a project lets go (the editor's Delete, the agent's profile_delete, × in the projects' manager), whether it
+// is open or not: asked first, saying what goes: its copies in the project's tasks; and its master, when no other
+// project has it. w: the window that asks.
+function askDropProfile(shell, entry, p, by, w) {
+  const g = shell.profileStore.byFolder(p.folder);
+  const others = (g?.projects || []).filter((x) => x !== entry.id).map((x) => shell.store.projects().find((e) => e.id === x)?.name || x);
+  const agent = by === 'agent', end = agent ? '.' : '?';
+  return shell.ask(others.length
+    ? { ok: 'Remove', danger: true, message: `${agent ? 'The agent asks to remove' : 'Remove'} the profile ${p.name} from ${entry.name}${end}`,
+      detail: `Its copies in this project's tasks go, with their tabs and what was signed in only there. It stays in ${others.join(', ')}, with its sign-ins.` }
+    : { ok: 'Delete', danger: true, message: `${agent ? 'The agent asks to delete' : 'Delete'} the profile ${p.name}${end}`,
+      detail: 'It is in no other project: its sign-ins, cookies, storage and tabs are removed for good.' }, w);
+}
+// Its copy goes from each of the project's tasks: a loaded one closes it, the others lose it from their files.
+async function dropProfile(shell, entry, folder) {
+  const g = shell.profileStore.byFolder(folder), open = shell.open.get(entry.id);
+  if (g?.projects.length === 1) { await shell.closeMaster(folder); shell.cookieSync.forget(folder); } // its master goes: its window first
+  if (open) for (const t of open.tasks.values()) await t.dropProfile(folder);
+  else for (const e of shell.store.tasksOf(entry).list) shell.store.taskOf(entry, e.n).dropProfile(folder);
+  if (g) shell.profileStore.removeFrom(g.id, entry.id);
+  shell.profilesChanged();
+}
+
+// The agents' accounts a project's tasks run (the projects' manager), whether it is open or not: added, made the
+// default (+ runs it), removed. A task keeps the agent it started with. { agents } or { error }.
+function changeAgents(shell, id, list) {
+  const entry = shell.store.updateProject(id, { agents: list.length ? list : null });
+  shell.open.get(id)?.update(entry);
+  return { agents: agentsInfo(shell, entry) };
+}
+// An account removed since (Agents…) is left out.
+const agentsOf = (shell, p) => (p.agents || []).filter((a) => shell.agentFor(a));
+const agentsInfo = (shell, p) => agentsOf(shell, p).map((a) => ({ id: a, name: shell.agentFor(a).name }));
+function addAgent(shell, id, agent) {
+  const p = shell.store.projects().find((x) => x.id === id);
+  if (!p) return { error: `no project ${id}` };
+  if (!shell.agentFor(agent) || shell.agentFor(agent).custom) return { error: `no agent ${agent}` };
+  if (p.agents?.includes(agent)) return { error: `${shell.agentFor(agent).name} is in the project already` };
+  return changeAgents(shell, id, [...(p.agents || []), agent]);
+}
+function defaultAgent(shell, id, agent) {
+  const p = shell.store.projects().find((x) => x.id === id);
+  if (!p?.agents?.includes(agent)) return { error: `${agent} is not in the project` };
+  return changeAgents(shell, id, [agent, ...p.agents.filter((a) => a !== agent)]);
+}
+function removeAgent(shell, id, agent) {
+  const p = shell.store.projects().find((x) => x.id === id);
+  if (!p?.agents?.includes(agent)) return { error: `${agent} is not in the project` };
+  return changeAgents(shell, id, p.agents.filter((a) => a !== agent));
+}
+
+// What the projects' manager shows of them: each with whether it is in git, and the former folder while it is there.
 async function reposInfo(p) {
   const repos = await Promise.all(reposOf(p).map(async (folder) => ({ folder, git: await gitOf(folder) })));
   const former = p.repos?.length && !p.repos.includes(p.folder) && fs.existsSync(p.folder) ? p.folder : null;
@@ -335,4 +368,5 @@ function faviconOf(folder) {
   return null;
 }
 
-module.exports = { Project, askRemoveProject, removeProjectData, faviconOf, reposOf, gitOf, addRepo, cloneRepo, defaultRepo, removeRepo, reposInfo, PROJECT_ICONS };
+module.exports = { Project, askRemoveProject, removeProjectData, faviconOf, reposOf, gitOf, addRepo, cloneRepo, defaultRepo, removeRepo, reposInfo,
+  askDropProfile, dropProfile, agentsInfo, addAgent, defaultAgent, removeAgent, PROJECT_ICONS };

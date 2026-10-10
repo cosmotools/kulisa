@@ -1,13 +1,15 @@
 // Projects: the projects' bar, under the grid or over it (☰), an island per open project, drawn as Chrome's tab
 // groups: its label (its icon, the curtain in its color, and its name), its open tasks' tabs (tasks.js), a click on
-// one showing that project with it (the others keep running: their agents and pages), and + for a new task. A click
+// one showing that project with it (the others keep running: their agents and pages), and + for a new task from the
+// project's configuration (its right-click: New Task with one of its agents). A click
 // on the label folds the group to it (the shown task's tab stays) and back. A right-click: New Task, its closed tasks
 // (one opens again), Close Project (asking first; also the middle button), Move to New Window (a window of its own,
 // e.g. for a second monitor; it keeps running), Move to Window (each other window; as a browser moves a tab) and
 // Remove Project…. Dragging the label does the same: within the bar it changes the order, onto another window's bar
 // it moves the project there, let go outside every Kulisa window it opens a window there (the main process tells
 // where the pointer is). The button after the islands opens the menu of the projects (as JetBrains': open one,
-// remove one with its ×, New Project…, Open Folder…; one open in another window is shown there). With no project
+// remove one with its ×, Projects…, New Project…, Open Folder…; one open in another window is shown there). The
+// title bar's Projects button, Projects… and Project Settings… open the projects' manager (project-editor.js). With no project
 // open: the Welcome screen, what to open, its recent projects acting as the menu's rows.
 // Removing a project is asked for from either (the main process asks the human and does it: removeProject).
 // Showing another project rebuilds the grid in place (renderer.js, grid:closing, then that project's state).
@@ -86,6 +88,13 @@
     if (!id) return;
     e.preventDefault();
     const { open, windows } = await kulisa.invoke('projects:list');
+    // On +: New Task with each of its agents, the default first (what + itself runs).
+    if (e.target.closest('.add')) {
+      const agents = open.find((o) => o.id === id)?.agents || [];
+      return openMenu(agents.length ? [{ heading: 'New Task with' }, ...agents.map((a, i) => ({ label: a.name, sub: i ? undefined : 'the default',
+        run: () => kulisa.invoke('task:new', { project: id, agent: a.id }) }))]
+        : [{ note: 'No agents: add them in Project Settings…' }, { label: 'Project Settings…', run: () => manage(id) }], e);
+    }
     const closed = (open.find((o) => o.id === id)?.tasks || []).filter((t) => t.closed);
     const move = (to) => kulisa.invoke('project:move', { id, to, terminals: terminalsOf(id) });
     openMenu([{ label: 'New Task', keys: id === info.current ? keyText('task.new') : undefined, run: () => kulisa.invoke('task:new', { project: id }) },
@@ -97,7 +106,7 @@
       // The only tab stays: a new window would be the same as this one.
       { label: 'Move to New Window', enabled: open.length > 1, run: () => move(null) },
       ...windows.map((w) => ({ label: `Move to Window: ${w.names.join(', ')}`, run: () => move(w.id) })),
-      '-', { label: 'Project Settings…', run: async () => (await import('./project-editor.js')).editProject(id) },
+      '-', { label: 'Project Settings…', run: () => manage(id) },
       { label: 'Show Data Folder', run: () => kulisa.invoke('project:show-data', { id }) },
       { label: 'Remove Project…', run: () => remove(id) }], e);
   });
@@ -157,6 +166,7 @@
         ...(p.id === current ? {} : { run: () => (isOpen(p.id) ? kulisa.invoke('project:show', { id: p.id }) : openProject(p.id)) }),
         remove: { title: 'Remove project…', run: () => remove(p.id) } })),
       '-',
+      { label: 'Projects…', run: () => manage() },
       { label: 'New Project…', run: create },
       { label: 'Open Folder…', run: () => kulisa.invoke('project:open-folder') },
       ...(current === null ? [] : ['-', { label: 'Close Project', run: () => close(current) },
@@ -177,8 +187,10 @@
     openMenu([{ label: 'Open', run: () => openProject(id) }, '-', { label: 'Remove Project…', run: () => remove(id) }], e);
   });
   document.getElementById('welcome-open').onclick = () => kulisa.invoke('project:open-folder');
-  // New Project…: its name and where its folder goes (a module of its own, loaded then).
+  // The projects' manager (a module of its own, loaded then): at a project, or with a new one (New Project…).
+  const manage = async (id) => (await import('./project-editor.js')).openProjects(id);
   const create = async () => (await import('./project-editor.js')).newProject();
+  document.getElementById('manageProjects').onclick = () => manage();
   document.getElementById('welcome-new').onclick = create;
   // Agents…: what is installed, and installing one, before any project (agents.js, loaded then).
   document.getElementById('welcome-agents').onclick = async () => (await import('./agents.js')).showAgents();

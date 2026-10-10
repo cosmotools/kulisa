@@ -76,7 +76,7 @@ module.exports = (test) => {
     fs.writeFileSync(path.join(project, 'wip.txt'), 'not committed');
   });
 
-  test('tasks: + makes task-<n>: its worktree and branch, files outside git, copies of the profiles signed in, the agent of the task on screen, its ports; the agent renames it', async (ctx) => {
+  test('tasks: + makes task-<n> from the project\'s configuration: its worktree and branch, files outside git, its profiles closed until opened (each a copy of its master), its ports; the agent renames it', async (ctx) => {
     const { shell, ui, call } = ctx;
     const first = shell.task;
     await call('browser_navigate', { profile: 'sam-admin', url: `${SITE}/app?task` });
@@ -103,10 +103,14 @@ module.exports = (test) => {
     assert.match(told, /folder .*project is the human's: never change it on your own\. Asked to merge your work into main there, first check for the human's uncommitted changes/);
     assert.match(told, /usual ports plus 100 \(3000 → 3100; \$KULISA_PORT_OFFSET\)/);
 
-    // Profiles: those open in the task on screen open here too, the closed ones closed, each a copy of its master (not of
-    // the first task's copy: what was signed in there stays there; a master's sign-ins come with it).
-    assert.deepEqual([...shell.profiles.keys()], ['sam-admin', 'elon-buyer']);
-    assert.deepEqual([...shell.closed.keys()], ['dora']);
+    // Profiles: none opens by itself, nothing taken from the task on screen; the agent opens those it needs, each a copy
+    // of its master (not of the first task's copy: what was signed in there stays there; a master's sign-ins come with it).
+    assert.deepEqual([...shell.profiles.keys()], []);
+    assert.deepEqual([...shell.closed.keys()], ['sam-admin', 'elon-buyer', 'dora']);
+    assert.ok(!fs.existsSync(pfile('Profile 1', 2)), 'no copy before it is opened');
+    await call('profile_open', { profile: 'sam-admin' });
+    await call('profile_open', { profile: 'elon-buyer' });
+    await waitFor(() => shell.profiles.has('sam-admin') && shell.profiles.has('elon-buyer'));
     assert.deepEqual(['sam-admin', 'elon-buyer'].map((id) => [shell.profiles.get(id).avatar, shell.profiles.get(id).description]),
       [['fox', 'seller in the test shop'], ['owl', '']], 'with their pictures and who they are');
     assert.ok(shell.profiles.get('sam-admin').dir.startsWith(path.join(userData, 'projects', 'project', '2')));
@@ -122,7 +126,7 @@ module.exports = (test) => {
     assert.equal(firstSam.get().wc.getURL(), `${SITE}/app?task`, "the new task's agent acts in its own copy");
     assert.match((await call('browser_snapshot', { profile: 'sam-admin' }, first)).text, /URL: .*\/app\?task/);
     assert.ok(first.pty && first.pty !== shell.pty);
-    assert.equal(JSON.parse(fs.readFileSync(pfile('agent.json', 2), 'utf8')).agent, 'custom', "the agent of the task on screen");
+    assert.equal(JSON.parse(fs.readFileSync(pfile('agent.json', 2), 'utf8')).agent, 'custom', "no agent in the project: the one there is (the tests' own)");
 
     // The window: the task's grid with its panes; the bar shows it.
     await waitFor(async () => JSON.stringify(await tabs(ui)) === '["task-1","task-2 *"]');
@@ -333,6 +337,7 @@ module.exports = (test) => {
     ctx.answer = true;
     await hook(task, 'stop'); // its turn over: closing asks nothing
     await waitFor(() => task.state === 'done');
+    await call('profile_open', { profile: 'sam-admin' }); // a new task opens none by itself
     const sam = task.profiles.get('sam-admin');
     // A copy of the master made after it was signed in to: signed in.
     await call('browser_navigate', { profile: 'sam-admin', url: `${SITE}/app` });
@@ -441,9 +446,10 @@ module.exports = (test) => {
 
   test('tasks: another agent for a task (Change agent…); one not installed is installed from the window, then started', async (ctx) => {
     const { shell, ui } = ctx;
-    // The new task runs the agent of the task on screen; Change agent… (the terminal's menu) picks another. One not
-    // installed: the window says so, with what Install runs.
+    // The new task runs the project's default agent (none here: the one there is); Change agent… (the terminal's menu)
+    // picks another. One not installed: the window says so, with what Install runs.
     const task = await newTask(ctx);
+    await ctx.call('profile_open', { profile: 'sam-admin' });
     const changeAgent = async () => {
       await rightClick(ui, '#term');
       await menuRows(ui);
@@ -625,7 +631,7 @@ module.exports = (test) => {
 
     // New Project…: a name and where its folder goes, the home folder unless another is chosen; git on by default.
     await ui(`document.getElementById('welcome-new').click()`);
-    await waitFor(() => ui(`document.getElementById('newproject').open`));
+    await waitFor(() => ui(`document.getElementById('projects').open`));
     assert.equal(await ui(`document.getElementById('nplocation').value`), path.join(root, 'Kulisa'), "every new project's place (~/Kulisa; the tests' own here)");
     // Its color (the next free one chosen), its icon (the curtain), the agent its tasks run (the first one known).
     assert.deepEqual(await ui(`[...document.querySelectorAll('#npcolors [aria-pressed="true"], #npicons [aria-pressed="true"]')].map((b) => b.dataset.value)`),
@@ -644,7 +650,7 @@ module.exports = (test) => {
     const named = (n) => ui(`(() => { const i = document.getElementById('npname'); i.value = ${JSON.stringify(n)}; i.dispatchEvent(new Event('input')); })()`);
     await named('Taken');
     await ui(`document.getElementById('npform').requestSubmit()`);
-    await waitFor(async () => /already there and not empty/.test(await ui(`document.querySelector('#newproject .error').textContent`)));
+    await waitFor(async () => /already there and not empty/.test(await ui(`document.getElementById('nperror').textContent`)));
     assert.ok(!shell.store.projects().some((p) => p.id === 'taken'), 'a folder with files in it is not taken');
     await named('Shop');
     // Another color and icon; no agent: the window asks when a task starts (here the tests' own, which is there).
@@ -654,11 +660,11 @@ module.exports = (test) => {
     await waitFor(() => shell.current?.folder === path.join(made, 'Shop') && shell.task?.loaded && shell.pty);
     assert.ok(fs.existsSync(path.join(made, 'Shop', '.git')), 'git init in it');
     const shop = shell.store.projects().find((p) => p.id === 'shop');
-    assert.deepEqual([shop.color, shop.icon, shop.agent], [require('../src/main/store').PROJECT_COLORS[3], 'rocket', undefined]);
+    assert.deepEqual([shop.color, shop.icon, shop.agents], [require('../src/main/store').PROJECT_COLORS[3], 'rocket', undefined]);
     assert.equal(await ui(`${projectTab('shop')}.querySelector('.plabel use').getAttribute('href')`), '#i-p-rocket');
     assert.equal(git(path.join(made, 'Shop'), 'log', '--format=%s'), 'Initial commit', 'an empty first commit');
     assert.equal(shell.task.folder, path.join(made, 'Shop@task-1'), 'so its first task has a copy of its own');
-    assert.equal(await ui(`document.getElementById('newproject').open`), false);
+    assert.equal(await ui(`document.getElementById('projects').open`), false);
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
     await ui(`document.getElementById('openProjects').click()`);
     await menuRows(ui);
@@ -682,7 +688,7 @@ module.exports = (test) => {
     ctx.asked.length = 0;
   });
 
-  test('projects: Project Settings… changes its name, color, icon and the agent its new tasks run; a folder with a favicon gets it as its icon', async (ctx) => {
+  test('projects: the projects\' manager (Project Settings…) changes its name, color, icon and agents, the default one + runs; a folder with a favicon gets it as its icon', async (ctx) => {
     const { shell, ui } = ctx;
     const site = path.join(root, 'site');
     fs.mkdirSync(path.join(site, 'public'), { recursive: true });
@@ -697,17 +703,19 @@ module.exports = (test) => {
     await rightClick(ui, `#projectTabs [data-project="site"] .name`);
     await menuRows(ui);
     await choose(ui, 'Project Settings…');
-    await waitFor(() => ui(`document.getElementById('newproject').open && document.querySelector('#newproject h2').textContent === 'Project Settings'`));
+    await waitFor(() => ui(`document.getElementById('projects').open && document.getElementById('pjtitle').textContent === 'site'`));
+    // The manager lists every project, this one chosen, the open ones marked.
+    assert.ok(await ui(`document.querySelector('#pjlist [data-project="site"]').ariaCurrent === 'true' && document.querySelector('#pjlist [data-project="site"] kbd').textContent === 'open'`));
     assert.equal(await ui(`document.querySelector('#npicons [aria-pressed="true"]').dataset.value`), 'favicon');
     assert.equal(await ui(`document.querySelector('#nprepos [data-folder] small').textContent`), site, 'its folder, as its code');
     assert.equal(await ui(`document.getElementById('nplocationrow').checkVisibility()`), false);
     await ui(`(() => { const n = document.getElementById('npname'); n.value = 'Site-2'; n.dispatchEvent(new Event('input'));
       document.querySelectorAll('#npcolors button')[5].click(); document.querySelector('#npicons [data-value="globe"]').click();
-      document.getElementById('npagent').value = 'shell'; document.getElementById('nplocal').value = 'abc.ngrok.app *.Shop.dev';
+      document.getElementById('nplocal').value = 'abc.ngrok.app *.Shop.dev';
       document.getElementById('npform').requestSubmit(); })()`);
-    await waitFor(async () => !(await ui(`document.getElementById('newproject').open`)));
+    await waitFor(async () => !(await ui(`document.getElementById('projects').open`)));
     const entry = shell.store.projects().find((p) => p.id === 'site');
-    assert.deepEqual([entry.name, entry.color, entry.icon, entry.agent, entry.folder], ['Site-2', require('../src/main/store').PROJECT_COLORS[5], 'globe', 'shell', site]);
+    assert.deepEqual([entry.name, entry.color, entry.icon, entry.folder], ['Site-2', require('../src/main/store').PROJECT_COLORS[5], 'globe', site]);
     assert.deepEqual(entry.local, ['abc.ngrok.app', 'shop.dev'], "its own local addresses, where test users' pairs may be typed (local.js)");
     await waitFor(async () => (await projectTabs(ui)).includes('Site-2 *') && shell.win.getTitle() === 'Site-2 — Kulisa');
     assert.equal(await ui(`${projectTab('site')}.querySelector('.plabel use').getAttribute('href')`), '#i-p-globe');
@@ -715,7 +723,7 @@ module.exports = (test) => {
     await rightClick(ui, `#projectTabs [data-project="site"] .name`);
     await menuRows(ui);
     await choose(ui, 'Project Settings…');
-    await waitFor(() => ui(`document.getElementById('newproject').open`));
+    await waitFor(() => ui(`document.getElementById('projects').open`));
     assert.equal(await ui(`document.querySelectorAll('#npprofiles .removable').length`), 0);
     await ui(`document.getElementById('npnewprofile').value = 'Site-user'; document.getElementById('npprofilenew').click()`);
     await waitFor(() => ui(`!!document.querySelector('#npprofiles [data-profile="site-user"]')`));
@@ -728,7 +736,7 @@ module.exports = (test) => {
     await waitFor(() => ctx.asked.length);
     assert.equal(ctx.asked.pop().message, 'Delete the profile Site-user?', 'in no other project: it goes for good');
     await waitFor(() => !shell.closed.has('site-user') && !shell.profileStore.get('site-user'));
-    await ui(`document.getElementById('newproject').close()`);
+    await ui(`document.getElementById('projects').close()`);
     // Opened in this task: a copy of its master, here.
     await ui(`act('profile:open', { profile: 'sam-admin' })`);
     await waitFor(() => shell.profiles.has('sam-admin'));
@@ -739,11 +747,44 @@ module.exports = (test) => {
     assert.equal(ctx.asked.pop().message, 'Remove the profile Sam.admin from Site-2?');
     await waitFor(() => !shell.profiles.has('sam-admin'));
     assert.deepEqual(shell.profileStore.get('sam-admin').projects, ['project']);
-    // Its new tasks run its agent (the first kept the one it started with).
+    // Its agents: a list, added from the agents' accounts, one the default (a radio); at once, not on Save.
+    await rightClick(ui, `#projectTabs [data-project="site"] .name`);
+    await menuRows(ui);
+    await choose(ui, 'Project Settings…');
+    await waitFor(() => ui(`document.getElementById('projects').open && !document.getElementById('npagentsrow').hidden`));
+    for (const name of ['Terminal only', 'Fake agent']) {
+      await ui(`document.getElementById('npagentadd').click()`);
+      await menuRows(ui);
+      await choose(ui, name);
+      await waitFor(async () => (await ui(`[...document.querySelectorAll('#npagents .label')].map((l) => l.textContent)`)).includes(name));
+    }
+    const agentRows = () => ui(`[...document.querySelectorAll('#npagents .removable')].map((r) => r.querySelector('.label').textContent + ' ' + r.querySelector('input').checked)`);
+    assert.deepEqual(await agentRows(), ['Terminal only true', 'Fake agent false'], 'the first added, the default');
+    assert.deepEqual(shell.store.projects().find((p) => p.id === 'site').agents, ['shell', 'fake']);
+    await ui(`document.querySelector('#npagents [data-agent="fake"] input').click()`);
+    await waitFor(async () => JSON.stringify(await agentRows()) === '["Fake agent true","Terminal only false"]');
+    await ui(`document.querySelector('#npagents [data-agent="shell"] input').click()`);
+    await waitFor(async () => JSON.stringify(await agentRows()) === '["Terminal only true","Fake agent false"]');
+    await ui(`document.getElementById('projects').close()`);
+    // + makes a task with the default one (the first kept the one it started with).
     ctx.answer = true; // no git: a second task in the folder, after the question
     const task = await newTask(ctx);
     ctx.asked.length = 0;
     assert.equal(JSON.parse(fs.readFileSync(path.join(userData, 'projects', 'site', String(task.n), 'agent.json'), 'utf8')).agent, 'shell');
+    // +'s right-click: New Task with one of its agents.
+    await rightClick(ui, '#projectTabs .pisland.active .add');
+    assert.deepEqual(await menuRows(ui), ['# New Task with', 'Terminal only', 'Fake agent']);
+    const before = shell.task;
+    await choose(ui, 'Fake agent');
+    await waitFor(() => shell.task !== before && shell.task.loaded && shell.pty, 20000);
+    ctx.watchPty(shell.pty);
+    ctx.asked.length = 0;
+    await waitFor(() => shell.task.agent?.id === 'fake');
+    assert.equal(shell.task.profiles.size, 0, 'no profile opens by itself');
+    // Removed: its tasks keep it; the project has one agent left.
+    await ui(`kulisa.invoke('project:agent-remove', { id: 'site', agent: 'fake' })`);
+    assert.deepEqual(shell.store.projects().find((p) => p.id === 'site').agents, ['shell']);
+    assert.equal(shell.task.agent.id, 'fake');
     await ui(`kulisa.invoke('project:close', { id: 'site' })`);
     await waitFor(() => !shell.open.has('site'));
     ctx.asked.length = 0;
@@ -786,10 +827,10 @@ module.exports = (test) => {
     await menuRows(ui);
     await choose(ui, 'Project Settings…');
     await waitFor(() => ui(`document.querySelectorAll('#nprepos .removable').length === 2`));
-    assert.deepEqual(await ui(`[...document.querySelectorAll('#nprepos .removable')].map((r) => r.querySelector('.label').textContent + ' ' + r.querySelector('kbd').textContent)`), ['api default', 'web ']);
+    assert.deepEqual(await ui(`[...document.querySelectorAll('#nprepos .removable')].map((r) => r.querySelector('.label').textContent + ' ' + r.querySelector('input').checked)`), ['api true', 'web false']);
     await ui(`document.querySelector('#nprepos [data-folder="${web}"] .remove').click()`);
     await waitFor(async () => /Tasks work in it: task-1, Checkout/.test(await ui(`document.getElementById('npcodeerror').textContent`)));
-    await ui(`document.getElementById('newproject').close()`);
+    await ui(`document.getElementById('projects').close()`);
     // Deleting the task: both copies, both branches and its folder go.
     await ui(`kulisa.invoke('task:delete', '${task.key}')`);
     await waitFor(() => !fs.existsSync(home));
@@ -809,6 +850,33 @@ module.exports = (test) => {
     await ui(`kulisa.invoke('project:repo-add', { id: 'site', folder: ${JSON.stringify(path.join(root, 'docs'))} })`);
     const site = await ui(`kulisa.invoke('project:settings-get', { id: 'site' })`);
     assert.deepEqual([site.repos.map((r) => r.folder), site.former], [[path.join(root, 'docs')], path.join(root, 'site')]);
+  });
+
+  test("projects: the title bar's Projects opens the manager at the shown project; another one, not open, is configured there too; + New Project", async (ctx) => {
+    const { shell, ui } = ctx;
+    await ui(`document.getElementById('manageProjects').click()`);
+    await waitFor(() => ui(`document.getElementById('projects').open && document.getElementById('pjtitle').textContent === ${JSON.stringify(shell.current.name)}`));
+    assert.equal(await ui(`document.querySelector('#pjlist [aria-current="true"]').dataset.project`), shell.current.id);
+    assert.equal(shell.task.profiles.get('sam-admin').get().view.getVisible(), false, 'pages hidden under the dialog');
+    // Site-2 is closed: its configuration all the same; a profile made and let go there (asked first).
+    await ui(`document.querySelector('#pjlist [data-project="site"]').click()`);
+    await waitFor(() => ui(`document.getElementById('pjtitle').textContent === 'Site-2' && document.querySelector('#pjlist [data-project="site"] kbd').textContent === ''`));
+    assert.ok(!shell.open.has('site'));
+    await ui(`document.getElementById('npnewprofile').value = 'Closed-one'; document.getElementById('npprofilenew').click()`);
+    await waitFor(() => ui(`!!document.querySelector('#npprofiles [data-profile="closed-one"]')`));
+    ctx.answer = true;
+    await ui(`document.querySelector('#npprofiles [data-profile="closed-one"] .remove').click()`);
+    await waitFor(() => ctx.asked.length && !shell.profileStore.get('closed-one'));
+    assert.equal(ctx.asked.pop().message, 'Delete the profile Closed-one?');
+    await waitFor(() => ui(`!document.querySelector('#npprofiles [data-profile="closed-one"]')`));
+    assert.equal(await ui(`document.getElementById('npprofileerror').textContent`), '');
+    // + New Project: the new project's fields on the right, none chosen on the left.
+    await ui(`document.getElementById('pjnew').click()`);
+    await waitFor(() => ui(`document.getElementById('pjtitle').textContent === 'New Project' && !document.getElementById('nplocationrow').hidden && document.getElementById('npagentsrow').hidden`));
+    assert.equal(await ui(`document.querySelectorAll('#pjlist [aria-current="true"]').length`), 0);
+    await shell.screenshot(path.join(root, 'projects.png'));
+    await ui(`document.getElementById('projects').close()`);
+    ctx.asked.length = 0;
   });
 
   test("tasks: a closed task whose PR is merged on the remote is marked in its group's menu; Delete Merged Tasks… deletes it after one question", async (ctx) => {

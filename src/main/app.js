@@ -14,7 +14,8 @@ const { CookieSync } = require('./cookie-sync');
 const { nextAvatar } = require('./avatars');
 const { signinPages } = require('./signin-pages');
 const { SessionCookies } = require('./session-cookies');
-const { Project, askRemoveProject, removeProjectData, faviconOf, addRepo, cloneRepo, defaultRepo, removeRepo, reposInfo, PROJECT_ICONS } = require('./projects');
+const { Project, askRemoveProject, removeProjectData, faviconOf, addRepo, cloneRepo, defaultRepo, removeRepo, reposInfo, askDropProfile, dropProfile,
+  agentsInfo, addAgent, defaultAgent, removeAgent, PROJECT_ICONS } = require('./projects');
 const { AppWindow, COLORS } = require('./window');
 const worktrees = require('./worktrees');
 const agents = require('./agents');
@@ -289,14 +290,16 @@ function start(options = {}) {
   function dropWindow(w) { shell.windows.splice(shell.windows.indexOf(w), 1); w.destroy(); }
   // A new task of a project (+ in its group: projects.js), then shown. Without git it would work in the folder another
   // open task works in: the human is told first.
-  async function createTask(project) {
+  // agent: New Task with (+'s right-click menu): one of the project's agents instead of its default.
+  async function createTask(project, agent) {
     if (!project) return { error: 'the project is not open' };
+    if (agent && !project.agents().includes(agent)) return { error: `${agent} is not one of ${project.name}'s agents` };
     await project.checkGit();
     if (project.sharesFolder() && !await shell.ask({ message: `Another task of ${project.name} works in its folder`, ok: 'Create Anyway',
       detail: `Without git, tasks have no copies of their own: both agents would work in ${project.folder}, and may get in each other's way.` }, project.window)) {
       return { error: 'the human said no' };
     }
-    const task = await project.createTask();
+    const task = await project.createTask(agent);
     if (task.error) return task;
     await showTask(task);
     return { n: task.n, key: task.key };
@@ -424,11 +427,12 @@ function start(options = {}) {
     if (git) await worktrees.initRepo(folder).catch((err) => console.error('[git]', err.stderr || err.message));
     return openLater(store.projectFor(folder, name, { color, icon, agent }), at(e));
   });
-  // Project Settings… (a group label's menu): its name, color, icon and the agent its new tasks run; its folder is
-  // shown, not changed (its tasks' copies are made from it).
+  // A project's configuration in the projects' manager (project-editor.js): its name, color, icon, agents,
+  // repositories, profiles and local addresses; its folder is shown, not changed (its tasks' copies are made from it).
+  // Open or not.
   ipcMain.handle('project:settings-get', (e, { id }) => {
     const p = store.projects().find((x) => x.id === id);
-    return p ? reposInfo(p).then((r) => ({ id, name: p.name, folder: p.folder, color: p.color, icon: p.icon || 'logo', agent: p.agent || null, local: p.local || [],
+    return p ? reposInfo(p).then((r) => ({ id, name: p.name, folder: p.folder, color: p.color, icon: p.icon || 'logo', projectAgents: agentsInfo(shell, p), local: p.local || [],
       favicon: faviconOf(p.folder), ...r, ...profilesOf(id), ...choices() })) : { error: `no project ${id}` };
   });
   // Its profiles (profile-store.js): those it has, and those of other projects it can take. A new one comes closed in
@@ -453,11 +457,12 @@ function start(options = {}) {
     shell.profilesChanged();
     return profilesOf(id);
   });
+  // The project open or not (projects.js, dropProfile); asked in the manager's window.
   ipcMain.handle('project:profile-remove', (e, { id, profile }) => serial(async () => {
-    const project = shell.open.get(id), g = shell.profileStore.get(profile);
-    if (!project || !g) return { error: project ? `no profile ${profile}` : 'the project is not open' };
-    if (!await project.askDropProfile(g)) return { error: 'the human said no' };
-    await project.dropProfile(g.folder);
+    const entry = store.projects().find((x) => x.id === id), g = shell.profileStore.get(profile);
+    if (!entry || !g) return { error: entry ? `no profile ${profile}` : `no project ${id}` };
+    if (!await askDropProfile(shell, entry, g, 'human', at(e))) return { error: 'the human said no' };
+    await dropProfile(shell, entry, g.folder);
     return profilesOf(id);
   }));
   // Its repositories or folders (projects.js): one picked in the OS's dialog (or given: the tests), cloned from a URL,
@@ -476,13 +481,17 @@ function start(options = {}) {
   ipcMain.handle('project:repo-remove', (e, { id, folder }) => serial(async () => settingsOf(id, await removeRepo(shell, id, folder))));
   // Its former folder (no git; tasks no longer work in it), in the OS's file manager: the human moves its files.
   ipcMain.handle('project:show-former', (e, { id }) => { const p = store.projects().find((x) => x.id === id); return p && electronShell.openPath(p.folder); });
-  ipcMain.handle('project:settings', (e, { id, name, color, icon, agent, local }) => {
+  // Its agents (projects.js): one added, made the default (+ runs it), removed. At once, not on Save.
+  ipcMain.handle('project:agent-add', (e, { id, agent }) => addAgent(shell, id, agent));
+  ipcMain.handle('project:agent-default', (e, { id, agent }) => defaultAgent(shell, id, agent));
+  ipcMain.handle('project:agent-remove', (e, { id, agent }) => removeAgent(shell, id, agent));
+  ipcMain.handle('project:settings', (e, { id, name, color, icon, local }) => {
     name = name?.trim();
     // Its own local addresses (local.js): hosts, each with its subdomains (a tunnel, its dev domains).
     local = [...new Set((local || []).map((h) => String(h).trim().toLowerCase().replace(/^\*\./, '')).filter(Boolean))];
-    const bad = nameError(name) || lookError({ color, icon, agent }) || local.find((h) => !/^[a-z0-9.-]+$/.test(h) || !h.includes('.')) && `not a host name: ${local.find((h) => !/^[a-z0-9.-]+$/.test(h) || !h.includes('.'))}`;
+    const bad = nameError(name) || lookError({ color, icon }) || local.find((h) => !/^[a-z0-9.-]+$/.test(h) || !h.includes('.')) && `not a host name: ${local.find((h) => !/^[a-z0-9.-]+$/.test(h) || !h.includes('.'))}`;
     if (bad) return { error: bad };
-    const entry = store.updateProject(id, { name, color, icon: icon === 'logo' ? null : icon, agent: agent || null, local: local.length ? local : null });
+    const entry = store.updateProject(id, { name, color, icon: icon === 'logo' ? null : icon, local: local.length ? local : null });
     if (!entry) return { error: `no project ${id}` };
     favicons.delete(entry.folder);
     const open = shell.open.get(id);
@@ -519,7 +528,7 @@ function start(options = {}) {
   // project is shown.
   const taskAt = (key, fn) => serial(() => { const task = shell.taskByKey(key); return task ? fn(task) : { error: `no task ${key}` }; });
   ipcMain.handle('task:show', (e, key) => taskAt(key, showTask));
-  ipcMain.handle('task:new', (e, { project } = {}) => serial(() => createTask(project ? shell.open.get(project) : at(e)?.current)));
+  ipcMain.handle('task:new', (e, { project, agent } = {}) => serial(() => createTask(project ? shell.open.get(project) : at(e)?.current, agent)));
   ipcMain.handle('task:close', (e, key) => taskAt(key, closeTask));
   ipcMain.handle('task:delete', (e, key) => taskAt(key, deleteTask));
   ipcMain.handle('task:open', (e, key) => taskAt(key, openTask));
@@ -604,7 +613,10 @@ function start(options = {}) {
   // with details (the Agents window), also where it is and its version.
   ipcMain.handle('agents:list', async (e, { check, details } = {}) => {
     const w = at(e), found = new Map(); // each agent looked for once, whatever its accounts
-    const list = await Promise.all(shell.accounts.all().map(async ({ id, agent: a, name, dir, own }) => {
+    // The project's agents first (Change agent…, Choose the Agent), in its order.
+    const mine = w?.current?.agents() || [], rank = (id) => (mine.includes(id) ? mine.indexOf(id) : mine.length);
+    const accounts = shell.accounts.all().sort((x, y) => rank(x.id) - rank(y.id)); // stable: the others as they were
+    const list = await Promise.all(accounts.map(async ({ id, agent: a, name, dir, own }) => {
       if ((check || details) && !found.has(a.id)) found.set(a.id, agents.findAgent(a, w?.task?.folder || app.getPath('home')));
       const f = await found.get(a.id);
       return {

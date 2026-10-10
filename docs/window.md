@@ -8,7 +8,8 @@ next: [ROADMAP.md](ROADMAP.md). Keep this file current when the window changes.
 
 ## The title bar
 
-One row: the app's logo (the open project's color on its curtain), ☰, and the OS's window buttons drawn over its right end (`titleBarStyle: 'hidden'` with
+One row: the app's logo (the open project's color on its curtain), Projects (the projects' manager:
+[tasks.md](tasks.md), Projects), ☰, and the OS's window buttons drawn over its right end (`titleBarStyle: 'hidden'` with
 `titleBarOverlay`); no menu bar. Dragging the empty part moves the window. When the Kulisa zoom is not 100%, the bar
 shows it (a click resets it).
 
@@ -25,7 +26,7 @@ replace a region left by the page before.
 ## The projects' bar
 
 Under the grid, in the middle: an island per open project, drawn as Chrome's tab groups (its label, which folds it;
-its open tasks' tabs; + for a new task), then the projects' menu ([tasks.md](tasks.md), Projects). ☰ → **Projects bar: Top, Bottom** puts it over the grid instead, under the
+its open tasks' tabs; + for a new task, its right-click New Task with one of the project's agents), then the projects' menu ([tasks.md](tasks.md), Projects). ☰ → **Projects bar: Top, Bottom** puts it over the grid instead, under the
 title bar (`settings.json`: `bar`; the page gets it in its URL, so it is drawn in its place at once). Bottom is the
 default: the hand goes to the terminal under the grid all the time, so the tabs are where it already is; at first
 the projects were tabs in the title bar and the tasks a strip under the grid, and both switched with the same
@@ -107,7 +108,8 @@ when it changes, as JetBrains' Sync with OS). Saved (`settings.json`), the same 
 
 Kulisa draws its menus in HTML, as Chrome does (a popover, `menu.js`; [ui.md](ui.md), Menus):
 
-- the button after the projects' islands (the projects), a project label's right-click menu, the profiles' chip on the shown task's tab (open
+- the button after the projects' islands (the projects), a project label's right-click menu, +'s right-click menu (New
+  Task with each of the project's agents), the profiles' chip on the shown task's tab (open
   and closed profiles, Manage Profiles…; the tab's right-click menu has them too, with Show Folder), ☰ (as Chrome's ⋮, each row with its icon: the zoom row, the theme row, the
   projects' bar's row, Arrange panels, Agents…, Keyboard Shortcuts, the Welcome screen's links
   (Documentation, GitHub, Report an issue; one list in `index.html`), and Exit, which quits as the last window's × does; not on macOS, where

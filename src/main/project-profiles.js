@@ -31,12 +31,12 @@ class ProjectProfiles {
     this.profiles = new Map(); this.closed = new Map();
   }
 
-  // The project's profiles, with what this task has of each; the closed ones stay closed. A task with nothing saved
-  // yet (the first of its project) opens them all; one the project got later comes closed.
+  // The project's profiles, with what this task has of each; the closed ones stay closed. A new task has them all
+  // closed (projects.js, createTask); one the project got later comes closed.
   async load() {
-    const saved = this.store.profiles(), state = new Map((saved || []).map((x) => [x.folder, x]));
+    const state = new Map((this.store.profiles() || []).map((x) => [x.folder, x]));
     this.entries = this.all.of(this.project).map((g) => ({ cfg: this._cfg(g, state.get(g.folder)), urls: this.store.tabs(g.folder),
-      profile: null, closed: saved ? !state.has(g.folder) || !!state.get(g.folder).closed : false }));
+      profile: null, closed: !state.has(g.folder) || !!state.get(g.folder).closed }));
     this._sync();
     for (const e of this.entries) if (!e.closed) await this._start(e);
     for (const e of this.entries) delete e.closed;

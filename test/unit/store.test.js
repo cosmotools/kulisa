@@ -22,19 +22,17 @@ test('projects: at first start none is opened; each gets its own color', async (
   assert.deepEqual(w.tabs.map((p) => p.id), ['blog', 'shop'], 'later: the tabs open last');
   assert.deepEqual([w.shown.id, w.bounds], ['shop', bounds], 'the one shown, where the window was');
   assert.deepEqual([gone.tabs, gone.shown], [[], null], 'projects no longer there are left out');
-  // Before there were several windows: one window's tabs.
-  later.saveSettings({ uiZoom: 1, openProjects: [shop.id], lastProject: shop.id });
-  assert.deepEqual(later.windows().map((x) => [x.tabs.map((p) => p.id), x.shown.id]), [[['shop'], 'shop']]);
+  later.saveSettings({ ...later.settings(), uiZoom: 1 });
   later.saveWindows([]);
-  assert.deepEqual(later.settings(), { uiZoom: 1, windows: [] });
+  assert.deepEqual(later.settings(), { uiZoom: 1, windows: [] }, 'the other settings kept');
 });
-test('projects: made with a color, icon and agent chosen; settings change them, never the id or folder', async () => {
+test('projects: made with a color, icon and a first agent chosen; settings change them, never the id or folder', async () => {
   const { Store, PROJECT_COLORS } = require('../../src/main/store');
   const store = new Store(path.join(root, 'look-data'));
   const p = store.projectFor('/work/app', 'app', { color: PROJECT_COLORS[4], icon: 'rocket', agent: 'codex' });
-  assert.deepEqual(p, { id: 'app', name: 'app', folder: '/work/app', color: PROJECT_COLORS[4], icon: 'rocket', agent: 'codex' });
+  assert.deepEqual(p, { id: 'app', name: 'app', folder: '/work/app', color: PROJECT_COLORS[4], icon: 'rocket', agents: ['codex'] });
   assert.equal(store.nextColor(), PROJECT_COLORS[0], 'the next new one: the first color no project has');
-  const changed = store.updateProject('app', { name: 'App-2', icon: null, agent: null, id: 'app', folder: '/work/app' });
+  const changed = store.updateProject('app', { name: 'App-2', icon: null, agents: null, id: 'app', folder: '/work/app' });
   assert.deepEqual(changed, { id: 'app', name: 'App-2', folder: '/work/app', color: PROJECT_COLORS[4] }, 'none: back to the curtain, the window asks');
   assert.deepEqual(new Store(path.join(root, 'look-data')).projects(), [changed]);
   assert.equal(store.updateProject('gone', { name: 'x' }), null);
@@ -87,10 +85,14 @@ test('project profiles: a task has its own copy of each, made at its first open;
       start: async (p, urls) => { p.urls = urls; }, unload: async () => {}, urlsOf: (p) => p.urls, renamed() {}, remove: async () => {}, changed() {}, everywhere() {} });
     return { list, copied, saved: () => saved };
   };
-  // The first task of the project opens them all, each a copy of its master made then.
+  // A task with nothing saved opens none (a new task has them all closed: projects.js, createTask); opened, each
+  // is a copy of its master made then.
   const a = task(1);
   await a.list.load();
-  assert.deepEqual([...a.list.profiles.keys()], ['ann', 'bob']);
+  assert.deepEqual([...a.list.profiles.keys()], []);
+  assert.deepEqual([...a.list.closed.keys()], ['ann', 'bob']);
+  assert.deepEqual(a.copied, [], 'nothing copied before it is opened');
+  await a.list.open('ann'); await a.list.open('bob');
   assert.deepEqual(a.copied, ['Profile 1', 'Profile 2']);
   assert.deepEqual(a.list.profiles.get('bob').urls, ['https://b/'], "the master's tabs");
   await a.list.close('ann');
@@ -122,7 +124,7 @@ test('project profiles: a task has its own copy of each, made at its first open;
   one.create('p', { name: 'Dan', avatar: 'fox' });
   const tabsSaved = {};
   let opened;
-  const slow = new ProjectProfiles({ profiles: () => null, saveProfiles() {}, tabs: () => ['https://d/'], saveTabs: (f, urls) => { tabsSaved[f] = urls; },
+  const slow = new ProjectProfiles({ profiles: () => [{ folder: 'Profile 1', id: 'dan' }], saveProfiles() {}, tabs: () => ['https://d/'], saveTabs: (f, urls) => { tabsSaved[f] = urls; },
     profileDir: () => root, markDeleted() {} }, one, 'p', {
     make: (cfg) => ({ ...cfg, urls: [] }), start: (p, urls) => new Promise((r) => { opened = () => { p.urls = urls; r(); }; }), unload: async () => {},
     urlsOf: (p) => p.urls, renamed() {}, remove: async () => {}, changed() {}, everywhere() {} });

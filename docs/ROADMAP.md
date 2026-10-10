@@ -12,9 +12,9 @@ here; what is left of it stays.
   was a folder with a main workspace and forks; now a project is a composite of things from catalogs, and the work is
   done in **tasks** (the word replaced "workspace" everywhere: code, docs, CLAUDE.md). No migration: Kulisa is in
   development, the new layout does not read the old data, the author starts with an empty `~/.config/Kulisa`.
-  - **Status** (keep it current: a new session reads it first). 2026-10-10: all six steps below are built and
-    committed on `tasks`, not pushed; the full `npm test` passes. The author is testing it by hand. Next: step 7, the projects'
-    manager (decided, not built); fix what the author's testing finds; then what is left of each step ("Left:" in it), only once the author has decided it.
+  - **Status** (keep it current: a new session reads it first). 2026-10-10: all steps below are built and
+    committed on `tasks`, not pushed; the full `npm test` passes. Step 7, the projects' manager, built 2026-10-10. The author is
+    testing it by hand. Next: fix what the author's testing finds; then what is left of each step ("Left:" in it), only once the author has decided it.
     Open, for the author to decide: Refresh from Master… now matters only for a local app's cookies (keep or drop);
     a script the agent runs in a page (`browser_evaluate`) could read a test password back from its field (only the
     skill forbids it: close it or not). For the author's real accounts, not testable by Claude: device-bound cookies
@@ -41,8 +41,8 @@ here; what is left of it stays.
     changeable), or one the human picks. That folder is the human's: Kulisa never deletes it. Once a repository is
     added, tasks no longer work in it; the editor shows it ("former folder, tasks no longer work in it", Show) while
     it exists, and the human moves its files (or asks the agent).
-  - **Tasks.** + in a project's group makes one with the project's default agent, its default repository and all its
-    profiles; the human describes the task in the agent's terminal. A task always works in copies: a worktree per
+  - **Tasks.** + in a project's group makes one with the project's default agent, its default repository and its
+    profiles, all closed until opened (step 7); the human describes the task in the agent's terminal. A task always works in copies: a worktree per
     repository, on one branch, named `task-N` until the agent renames it (an MCP tool; `git branch -m`). The agent
     starts in the default repository's copy and gets the others with their instructions: Claude Code `--add-dir` and
     `CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1`, Codex `--add-dir`, other CLIs a line at session start
@@ -88,24 +88,9 @@ here; what is left of it stays.
        ([profiles.md](profiles.md), "Sign-ins kept in step"). Left: device-bound session cookies (DBSC) to check with
        a real Google account in this Electron; sign-ins in a site's storage (MSAL) not kept in step; Refresh from
        Master… now matters only for a local app's cookies, to keep or drop.
-    7. **The projects' manager** (decided with the author 2026-10-10; not built). A project is one configuration
-       tasks are made from: name, color, icon, its folder (`~/Kulisa/<project>` without git), profiles, a list of
-       agents, a list of repositories.
-       - **Projects…**, a button in the title bar left of ☰ (also the projects' menu, the Welcome screen; Project
-         Settings… in a label's menu opens it at that project): one dialog, not an OS window (no extra process). On
-         the left every project, open or closed, and + New Project; on the right the chosen one's configuration,
-         what New Project… and Project Settings… show today (`project-editor.js`), which it replaces.
-       - **Agents: a list** of the agents' accounts (Agents…), + adds one, × removes it; one marked default, exactly
-         one (a radio, so + is never ambiguous). Today one agent (`agent` in `projects.json`).
-       - **Repositories**: the same mark for the default one instead of a click on the row. Every task still gets a
-         copy of each; the default is where its agent starts.
-       - **+ makes a task from the configuration**: the default agent, copies of the repositories. The other agents
-         in +'s right-click menu (New Task with ▸ Codex); Change agent… lists the project's agents first. No
-         copying from the task on screen (its agent, its grid).
-       - **A new task opens no profiles** (the first task too): all its project's are listed closed; the agent opens
-         one when it needs it (`profile_open`), the human with 👥 (a closed profile's row opens it). Today a task
-         opens those open in the task on screen, the first one all.
-       - Estimate: code +300 −150, tests +90, docs +50.
+    7. The projects' manager: built 2026-10-10 ([tasks.md](tasks.md), Projects: the Projects button in the title
+       bar, every project on the left, one's configuration on the right; a list of agents with a default; + makes a
+       task from the configuration, New Task with on its right-click; a new task opens no profile).
   - **Put off**: ongoing tasks ("watch the feedback for a month") with Kulisa kept in the tray (none in GNOME by
     default); rights on profiles, when real accounts come (one flag, "view only": reading allowed, clicks and typing
     refused; today the agent's own modes cover test users).

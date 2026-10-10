@@ -65,9 +65,9 @@ a page take an optional `tab` (default: the profile's active tab).
   highlights when they are no longer relevant.
 - **Prefer reusing profiles.** Each one is a browser with its own processes and memory. Create one only when the
   task needs a user that no profile is.
-- **Closed profiles** are users set aside to save memory; they are still signed in. Open one with `profile_open`
-  when the task needs that user, not to look around, and close what you opened when you are done with it. Close a
-  profile the human opened only when they ask.
+- **Closed profiles** are users set aside to save memory; they are still signed in. A new task starts with all of
+  them closed. Open one with `profile_open` when the task needs that user, not to look around, and close what you
+  opened when you are done with it. Close a profile the human opened only when they ask.
 
 ## Tasks
 

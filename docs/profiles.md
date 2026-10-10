@@ -16,10 +16,11 @@ seen everywhere. Its **master** is a folder in Kulisa's data (`profiles/Profile 
 ([tasks.md](tasks.md)) of its projects works in a **copy** of the master, made when the profile is first opened in
 that task (not all at once: a closed one costs nothing), its tabs the master's moved to the task's ports. What a task
 has of a profile is its own: its copy (what is signed in there stays there), its tabs, open or closed, its sites'
-zoom. A new task opens the profiles open in the project's task on screen; the first task of a project opens them all.
-A project gets a profile when one is made in it (the editor, `profile_create`, Project Settings… → New) or taken from
-another project (Project Settings… → From Another Project…); it lets go of one with Delete (the editor, the pane's
-menu, `profile_delete`, × in Project Settings…), after a question: its copies in this project's tasks go; in no other
+zoom. A new task opens none of them (the first one neither): the agent opens one when it needs it (`profile_open`),
+the human with 👥 ([tasks.md](tasks.md), What the human does).
+A project gets a profile when one is made in it (the editor, `profile_create`, the projects' manager → New) or taken
+from another project (the manager → From Another Project…); it lets go of one with Delete (the editor, the pane's
+menu, `profile_delete`, × in the manager, the project open or not), after a question: its copies in this project's tasks go; in no other
 project, its master goes too. Removing a project lets go of its profiles the same way.
 
 A profile is an Electron session on a folder of its own (`session.fromPath`), laid out as a Chrome profile, plus a
@@ -58,8 +59,7 @@ A profile is an Electron session on a folder of its own (`session.fromPath`), la
   own unless the human picks one twice; a click on it in the editor shows the others. It tells panes apart by shape and colors, not by a color alone
   (some people do not tell colors apart), and can be named ("the fox"). The pictures are Noto Emoji's (Google,
   Apache-2.0), in `src/renderer/avatars/`, the list in `avatars.js`; not the OS's emoji, which look different on each
-  OS and are missing on some Linux. Profiles had a color until 2026-10-08; a profile with one gets a picture when
-  its task loads.
+  OS and are missing on some Linux.
 - **Close**: × on the pane (or its menu, or the agent). Its tabs go and free their memory; it stays signed in, and
   👥 lists it as closed and opens it again with the same tabs. Closed profiles stay closed across restarts.
 - **Delete** in the editor or the pane's menu, after a confirmation: the project lets go of it (above). In another
@@ -227,7 +227,7 @@ author, 2026-10-10). How it is kept safe, each line with its reason:
   says `type ••••••` (`ghost.js`, `shell.typingSecret`). So it is in no transcript, log or screen share. (A script the
   agent runs in the page could read a field back; the skill forbids reading secrets, as it forbids cookies.)
 - **Only on a local page** (`local.js`, `Task.loginFor`): `localhost`, `*.localhost`, `*.test`, `*.local`, loopback and
-  private addresses, and the project's own list (Project Settings… → Local: a tunnel, dev domains, each with its
+  private addresses, and the project's own list (the projects' manager → Local: a tunnel, dev domains, each with its
   subdomains); or a page the same tab reached from one (an Auth0 dev tenant, a local Keycloak on another name).
   Elsewhere it is refused, so a pair cannot be typed into a real site, a look-alike page, or a link the agent was sent
   to. An address left out is safe the other way: the pair is not typed there.

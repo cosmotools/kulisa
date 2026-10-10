@@ -27,8 +27,10 @@ body {
      from the end of the title bar's area (the OS window buttons, or the window's edge on macOS) as the logo from its
      start. */
   #zoomReset { margin-inline-start: auto; }
-  #windowMenu { --icon: 18px; margin-inline: auto var(--gap);
+  /* Before it, the projects' manager (project-editor.js) */
+  #manageProjects { --icon: 18px; margin-inline-start: auto;
     #zoomReset:not([hidden]) + & { margin-inline-start: 0; } }
+  #windowMenu { --icon: 18px; margin-inline-end: var(--gap); }
 }
 
 /* The grid (dockview, theme abyss-spaced): panels are islands with rounded corners on the window, as in JetBrains'
@@ -262,9 +264,18 @@ body > #term { display: none; }
 }
 /* A profile's picture in the editor (a row's, the new one's); the pictures to choose from are .choices */
 #profiles .pic { --avatar: 22px; }
-/* A project's colors and icons to choose from (project-editor.js): a color a dot, an icon in the project's color */
-#newproject :is(#npreposadd, #npcodeerror, #npprofilesadd, #npprofileerror) { margin-inline-start: calc(80px + var(--inset)); }
-#newproject .choices { .dot { width: 14px; height: 14px; } svg { color: var(--color); } img { width: 16px; height: 16px; } }
+/* The projects' manager (project-editor.js): the projects on the left, each scrolling on its own, one project's
+   configuration on the right; its colors and icons to choose from (a color a dot, an icon in the project's color) */
+#projects { width: min(860px, 92vw); height: 85vh;
+  .body { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: var(--pad); overflow: hidden; padding-block-end: 0; }
+  #pjnav { display: flex; flex-direction: column; gap: var(--inset); min-height: 0; padding-inline-end: var(--pad);
+    border-inline-end: 1px solid var(--island-hi); }
+  #pjlist { flex: 1; min-height: 0; overflow: auto; }
+  #pjnew { display: flex; align-items: center; justify-content: center; gap: 6px; margin-block-end: 20px; }
+  #pjconfig { min-height: 0; overflow: auto; padding-block-end: 20px; }
+  #pjtitle { margin: 0; font-size: 1em; font-weight: 600; color: var(--text-strong); }
+  :is(#npreposadd, #npcodeerror, #npagentsadd, #npagenterror, #npprofilesadd, #npprofileerror) { margin-inline-start: calc(80px + var(--inset)); }
+  .choices { .dot { width: 14px; height: 14px; } svg { color: var(--color); } img { width: 16px; height: 16px; } } }
 #padd h3 { margin: calc(var(--gap) * 2) 0 0; font-size: 1em; color: var(--text-dim); }
 /* Keyboard Shortcuts (shortcuts.js): a group's heading and what it is about, then each command and its keys as key
    caps, one under the other */

@@ -44,7 +44,7 @@ lines (`stroke`) of the text's color; a filled part has `fill="currentColor"`. U
 |---|---|
 | `i-close` | × of dialogs, profiles, tabs, tasks; removing a row |
 | `i-plus` | new tab, new task |
-| `i-projects` | the projects' menu (after the islands of the projects' bar), its row in ☰ (Lucide's folder-open) |
+| `i-projects` | the projects' manager in the title bar, the projects' menu (after the islands of the projects' bar) (Lucide's folder-open) |
 | `i-logo` | the app icon with its curtain in `currentColor`: the title bar's (`--project`), and a project's label in the projects' bar (its `--color`). The folds are a shadow over the color, one for every color: a `<use>` takes the sprite's gradient, not one of its own |
 | `i-docs`, `i-github`, `i-bug` | the Welcome screen's links (Documentation, GitHub, Report an issue) as rows of ☰ (`data-icon` on each link; Lucide's book-open, github, bug) |
 | `i-menu` | ☰, the window's menu |
@@ -86,7 +86,11 @@ every other `<svg>` uses the sprite.
   (a project's color, `--color`) or `.avatar` (a profile's picture), `.text` with `.label` and a `small` line under it, a `kbd` key at the end. Lit under the
   pointer and on keyboard focus.
 - `.removable`: a row with a × (`button.remove.icon.quiet`) at its end, shown on hover or focus; the row is lit as
-  one. A recent project in the project menu and on the Welcome screen; a project's repository in Project Settings….
+  one. A recent project in the project menu and on the Welcome screen; a project's repository, agent and profile in the
+  projects' manager.
+- `.item[aria-current="true"]`: the chosen row of a list, lit (a project in the projects' manager).
+- A radio at a row's start (`input[type="radio"]` in an `.item`, the row a `<label>`): the default of a list, exactly one
+  (a project's repositories and agents in the manager).
 - `.dot`: a 10 px circle in `--color`, a project's.
 - `.choices`: icon buttons (`.icon`, `aria-pressed`) to choose one of, the chosen one ringed in `--accent`: a
   profile's pictures, a project's colors (a `.dot` each) and icons.

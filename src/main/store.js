@@ -2,14 +2,15 @@
 // profile), so what is known about Chrome's storage applies:
 //   settings.json            the Kulisa zoom, the theme, where the projects' bar is; the windows: the projects open
 //                            in each (its tabs, in order), the one shown, where it was on screen
-//   projects.json            the projects: { id, name, folder, repos, color, icon, agent }; a project is a folder
+//   projects.json            the projects: { id, name, folder, repos, color, icon, agents }; a project is a folder
 //                            (a repository, or one Kulisa made), and the repositories or folders added to it (repos,
 //                            the default first); its color tints the window and its icon marks its group,
-//                            to tell projects apart at a glance; agent: the one its new tasks run
+//                            to tell projects apart at a glance; agents: the agents' accounts its tasks run, the
+//                            default (+'s) first
 //   projects/<id>/
-//     tasks.json             the project's tasks: { next, current, collapsed, list: [{ n, name, branch, worktree,
-//                            folder, base, offset, closed, closedAt }] }; one without a worktree works in the
-//                            project's own folder (tasks.md)
+//     tasks.json             the project's tasks: { next, current, collapsed, list: [{ n, name, branch, offset, folder,
+//                            copies: [{ repo, worktree, branch, base, folder }], home, closed, closedAt }] }; one
+//                            without copies works in a folder of the project (tasks.md)
 //     <n>/                   a task (TaskStore): profiles.json (what it has of its project's profiles: folder,
 //                            sites' zoom, closed), layout.json (the window's grid), agent.json (the agent's session, to
 //                            resume it), and a copy of a profile's master per profile opened here:
@@ -43,7 +44,7 @@ class Store {
   projects() { return readJSON(this.projectsFile) || []; }
   dirOf(p) { const d = path.join(this.dir, 'projects', p.id); fs.mkdirSync(d, { recursive: true }); return d; }
   // The project of a folder; a new one if no project has it, with what the human chose for it (New Project…: color,
-  // icon, agent), else the next free color.
+  // icon, its first agent), else the next free color.
   projectFor(folder, name = path.basename(folder) || folder, { color, icon, agent } = {}) {
     const list = this.projects();
     const found = list.find((p) => [p.folder, ...(p.repos || [])].some((f) => samePath(f, folder)));
@@ -51,13 +52,13 @@ class Store {
     const base = slugOf(name, 'project');
     let id = base, n = 2;
     while (list.some((p) => p.id === id)) id = `${base}-${n++}`;
-    const p = { id, name, folder, color: color || this.nextColor(), ...(icon && { icon }), ...(agent && { agent }) };
+    const p = { id, name, folder, color: color || this.nextColor(), ...(icon && { icon }), ...(agent && { agents: [agent] }) };
     writeJSON(this.projectsFile, [...list, p]);
     return p;
   }
   nextColor() { return nextColor(this.projects()); }
-  // A project's name, color, icon or default agent changed (Project Settings…); its id and folder stay. null fields
-  // go (an agent no longer chosen).
+  // A project's name, color, icon, agents or repositories changed (the projects' manager); its id and folder stay.
+  // null fields go.
   updateProject(id, fields) {
     const list = this.projects(), i = list.findIndex((p) => p.id === id);
     if (i < 0) return null;
@@ -66,19 +67,13 @@ class Store {
     return list[i];
   }
   // The windows open last: [{ tabs: [project], shown: project or null, bounds, maximized }], each with its project
-  // tabs in order; none at first start. Before there were several windows, one window's were openProjects and
-  // lastProject.
+  // tabs in order; none at first start.
   windows() {
-    const s = this.settings(), list = this.projects();
-    const byId = (id) => list.find((p) => p.id === id) || null;
-    const saved = s.windows || (s.openProjects || s.lastProject ? [{ tabs: s.openProjects || [s.lastProject], shown: s.lastProject }] : []);
-    return saved.map((w) => ({ ...w, tabs: (w.tabs || []).map(byId).filter(Boolean), shown: byId(w.shown) }));
+    const list = this.projects(), byId = (id) => list.find((p) => p.id === id) || null;
+    return (this.settings().windows || []).map((w) => ({ ...w, tabs: w.tabs.map(byId).filter(Boolean), shown: byId(w.shown) }));
   }
   // windows: [{ tabs: [id], shown: id or null, bounds, maximized }].
-  saveWindows(windows) {
-    const { openProjects, lastProject, ...s } = this.settings();
-    this.saveSettings({ ...s, windows });
-  }
+  saveWindows(windows) { this.saveSettings({ ...this.settings(), windows }); }
 
   // A project's tasks (tasks.json) and each one's data.
   tasksOf(p) {
@@ -133,6 +128,15 @@ class TaskStore {
     writeJSON(path.join(this.profileDir(folder), TABS_FILE), urls);
   }
   markDeleted(folder) { this.store.markDeleted(this.profileDir(folder)); }
+  // A profile its project let go while the task is not loaded: gone from its list, its copy removed (listed for the
+  // next start too, in case a file of it is still open).
+  dropProfile(folder) {
+    const saved = this.profiles();
+    if (saved) this.saveProfiles(saved.filter((x) => x.folder !== folder));
+    if (!fs.existsSync(this.profileDir(folder))) return;
+    this.markDeleted(folder);
+    fs.rmSync(this.profileDir(folder), { recursive: true, force: true });
+  }
   // The window's grid as dockview serializes it (renderer.js).
   layout() { return readJSON(this.file('layout.json')); }
   saveLayout(layout) { writeJSON(this.file('layout.json'), layout); }
