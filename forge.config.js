@@ -15,7 +15,7 @@ module.exports = {
     extendInfo: { NSMicrophoneUsageDescription: 'The agent in Kulisa\'s terminal listens when you dictate a task to it.' },
     // Only what the app runs; Forge also leaves out devDependencies. The window is its build (dist/renderer), not its
     // sources (src/renderer), without source maps.
-    ignore: [/^\/(test|docs|out|scripts)(\/|$)/, /^\/\.kulisa(\/|$)/, /^\/src\/renderer(\/|$)/, /^\/(forge\.config\.js|vite\.config\.ts)$/, /\.map$/],
+    ignore: [/^\/(test|docs|out|scripts)(\/|$)/, /^\/\.kulisa(\/|$)/, /^\/src\/renderer(\/|$)/, /^\/(forge\.config\.js|vite\.config\.mts)$/, /\.map$/],
   },
   makers: [
     { name: '@electron-forge/maker-squirrel', platforms: ['win32'], config: { setupIcon: 'assets/icon.ico' } },
@@ -23,7 +23,7 @@ module.exports = {
     { name: '@electron-forge/maker-zip', platforms: ['darwin'] },
     { name: '@electron-forge/maker-deb', platforms: ['linux'], config: { options: { categories: ['Development'], icon: 'assets/icon.png' } } },
   ],
-  // The window built (type checked, then Vite: vite.config.ts) before it is packaged.
+  // The window built (type checked, then Vite: vite.config.mts) before it is packaged.
   hooks: { generateAssets: async () => require('child_process').execSync('npm run build', { stdio: 'inherit' }) },
   // node-pty is native: keep its .node files outside the asar archive so they can be loaded.
   plugins: [{ name: '@electron-forge/plugin-auto-unpack-natives', config: {} }],

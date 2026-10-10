@@ -139,7 +139,7 @@ src/main/        Electron main process
   terminal.js      node-pty: the agent CLI, one per task, and the task's other terminals
 src/agent/claude-plugin/  the Kulisa plugin for Claude Code: MCP config, the profiles skill, hooks (claude --plugin-dir)
 src/preload/     the window's bridge to the main process
-src/renderer/    window UI: Vue 3 components in TypeScript, built by Vite into dist/renderer (vite.config.ts; docs/ui.md).
+src/renderer/    window UI: Vue 3 components in TypeScript, built by Vite into dist/renderer (vite.config.mts; docs/ui.md).
                  components/: the window's parts (App.vue; TopBar, Grid and grid/ its panels, ProjectBar, TaskTab, Welcome,
                  the dialogs on Modal.vue, Menu); lib/: what they share (store.ts: what the main process sends;
                  grid.ts, terminals.ts, menu.ts, ask.ts, dialogs.ts, keys.ts, voice.ts). Styles: tokens.css,

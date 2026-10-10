@@ -4,7 +4,7 @@ What the window is built of: the tokens, the icons, and the components, each def
 and list looks and behaves the same. **Before making a button, an icon, a row or a dialog, look here:** use the
 component, or add one here (and in `components.css`) when nothing fits. Keep this file current.
 
-Vue 3 components in TypeScript, built by Vite (CLAUDE.md, Window UI; `vite.config.ts`, into `dist/renderer`):
+Vue 3 components in TypeScript, built by Vite (CLAUDE.md, Window UI; `vite.config.mts`, into `dist/renderer`):
 
 | Where | What |
 |---|---|

@@ -107,7 +107,7 @@ unasked. This paragraph is removed when the rewrite is finished.
     `webContents.debugger` over CDP.
   - When adding a dependency, prefer one that is widely used and maintained, and say why in the commit message. Its
     license must allow being part of a GPL-3.0 program (MIT, ISC, BSD, Apache-2.0 do; `docs/LICENSING.md`).
-- **Window UI: Vue 3 components in TypeScript, built by Vite** (`src/renderer`, `vite.config.ts`; since 2026-10-10,
+- **Window UI: Vue 3 components in TypeScript, built by Vite** (`src/renderer`, `vite.config.mts`; since 2026-10-10,
   `docs/ui.md`). The main process stays plain JavaScript for now (the author: the whole project moves to TypeScript
   later). Electron ships a recent Chromium; use what it has instead of code or workarounds:
   - A part of the window is one `.vue` file in `src/renderer/components/`: its markup, its behavior and its own look
