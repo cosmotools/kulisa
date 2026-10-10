@@ -1,16 +1,16 @@
-// Projects: the projects' bar, under the grid or over it (☰), an island per open project as an app in a dock: its
-// label (its icon, the curtain in its color, and its name), then its tasks' tabs (tasks.js), a click on one
-// showing that project with it (the others keep running: their agents and pages). The label is no button: a
-// right-click offers Close Project (asking first while its agent works; also the middle button), Move to New Window (a
-// window of its own, e.g. for a second monitor; it keeps running), Move to Window (each other window; as a browser
-// moves a tab) and Remove Project…. Dragging it does the same: within the bar it changes the order, onto another
-// window's bar it moves the project there, let go outside every Kulisa window it opens a window there (the main
-// process tells where the pointer is). The button after the islands opens the menu of the projects (as JetBrains':
-// open one, remove one with its ×, New Project…, Open Folder…; one open in another window is shown there). With no
-// project open: the Welcome screen, what to open, its recent projects acting as the menu's rows.
+// Projects: the projects' bar, under the grid or over it (☰), an island per open project, drawn as Chrome's tab
+// groups: its label (its icon, the curtain in its color, and its name), its open tasks' tabs (tasks.js), a click on
+// one showing that project with it (the others keep running: their agents and pages), and + for a new task. A click
+// on the label folds the group to it (the shown task's tab stays) and back. A right-click: New Task, its closed tasks
+// (one opens again), Close Project (asking first; also the middle button), Move to New Window (a window of its own,
+// e.g. for a second monitor; it keeps running), Move to Window (each other window; as a browser moves a tab) and
+// Remove Project…. Dragging the label does the same: within the bar it changes the order, onto another window's bar
+// it moves the project there, let go outside every Kulisa window it opens a window there (the main process tells
+// where the pointer is). The button after the islands opens the menu of the projects (as JetBrains': open one,
+// remove one with its ×, New Project…, Open Folder…; one open in another window is shown there). With no project
+// open: the Welcome screen, what to open, its recent projects acting as the menu's rows.
 // Removing a project is asked for from either (the main process asks the human and does it: removeProject).
-// A project is a folder with its tasks (tasks.js). Showing another one rebuilds the grid in place
-// (renderer.js, grid:closing, then that project's state).
+// Showing another project rebuilds the grid in place (renderer.js, grid:closing, then that project's state).
 (() => {
   const tabs = document.getElementById('projectTabs');
   const tasksNav = document.getElementById('tasks'); // the shown project's tasks, in its island
@@ -34,10 +34,12 @@
       el.classList.toggle('active', p.id === current);
       el.title = p.folder || '';
       el.querySelector('.name').textContent = p.name;
-      // The shown project's tasks live (tasks.js: + and git), its list from here at once (not the last
-      // project's until the tasks' news); another's as tabs to show it with.
-      if (p.id === current) { tasks.showList(o.tasks || [], o.task); el.append(tasksNav); }
-      else el.append(...(o.tasks || []).map((w) => tasks.tab(w, false, w.key === o.task)));
+      // The shown project's tasks live (tasks.js), its list from here at once (not the last project's until the
+      // tasks' news); another's as tabs to show it with. Closed ones are in its label's menu.
+      const open = (o.tasks || []).filter((t) => !t.closed);
+      el.classList.toggle('collapsed', !!o.collapsed);
+      if (p.id === current) { tasks.showList(open, o.task); el.querySelector('.add').before(tasksNav); }
+      else el.querySelector('.add').before(...open.map((t) => tasks.tab(t, false, t.key === o.task)));
       return el;
     }));
     if (!tasksNav.isConnected) button.before(tasksNav); // no project shown: kept in the bar, not shown
@@ -62,18 +64,29 @@
 
   // A project's own events, not its tasks' (tasks.js handles those).
   const projectOf = (e) => (e.target.closest('#tasks, .tasktab') ? undefined : e.target.closest('[data-project]')?.dataset.project);
-  // The label is not clicked to show its project: its tasks are. The middle button closes it, as a browser's tab.
+  // The label folds the group to it and back, as Chrome's tab groups (the shown task's tab stays); + makes a task.
+  // The middle button on the label closes the project, as a browser's tab.
+  tabs.addEventListener('click', (e) => {
+    const id = projectOf(e);
+    if (!id) return;
+    if (e.target.closest('.add')) kulisa.invoke('task:new', { project: id });
+    else if (e.target.closest('.plabel')) kulisa.invoke('project:collapse', { id, collapsed: !e.target.closest('.pisland').classList.contains('collapsed') });
+  });
   tabs.onauxclick = (e) => {
     const id = e.button === 1 && projectOf(e);
     if (id) close(id);
   };
+  // Its right-click menu: New Task, its closed tasks (a click opens one again), then the project's own actions.
   tabs.addEventListener('contextmenu', async (e) => {
     const id = projectOf(e);
     if (!id) return;
     e.preventDefault();
     const { open, windows } = await kulisa.invoke('projects:list');
+    const closed = (open.find((o) => o.id === id)?.tasks || []).filter((t) => t.closed);
     const move = (to) => kulisa.invoke('project:move', { id, to, terminals: terminalsOf(id) });
-    openMenu([{ label: 'Close Project', run: () => close(id) },
+    openMenu([{ label: 'New Task', keys: id === info.current ? keyText('task.new') : undefined, run: () => kulisa.invoke('task:new', { project: id }) },
+      ...(closed.length ? ['-', { heading: 'Closed tasks' }, ...closed.map((t) => ({ label: t.name, sub: t.branch || undefined, run: () => kulisa.invoke('task:open', t.key) }))] : []),
+      '-', { label: 'Close Project', run: () => close(id) },
       // The only tab stays: a new window would be the same as this one.
       { label: 'Move to New Window', enabled: open.length > 1, run: () => move(null) },
       ...windows.map((w) => ({ label: `Move to Window: ${w.names.join(', ')}`, run: () => move(w.id) })),

@@ -1,5 +1,5 @@
-// A task (ROADMAP, "Tasks"; the term: CLAUDE.md): one line of work in a project. Its code (main: the
-// project's folder; a fork: a git worktree next to it, worktrees.js), its profiles (folders in its data, store.js), its
+// A task (tasks.md; the term: CLAUDE.md): one line of work in a project. Its code (a git worktree of its own next to
+// the project, worktrees.js; without git, the project's folder itself), its profiles (folders in its data, store.js), its
 // grid and its agent, in a terminal of its own. Its project's window shows one task at a time; the others keep
 // running, those of the other open projects too. A task loads (profiles, agent) the first time it is shown, so a
 // restart does not start every one at once.
@@ -10,12 +10,14 @@ const { installSigninPause } = require('./signin-pause');
 const { startTerminal, stopTerminal, forgetTerminal, terminalSize, terminalTail } = require('./terminal');
 const { clearHighlights } = require('./mcp-server');
 const { copyProfile } = require('./store');
+const { renameBranch } = require('./worktrees');
+const { nameError } = require('./names');
 
 const DICTATION_LIMIT = 5 * 60_000; // a recording left on (a click and no second one)
 
 class Task {
-  // project: its project (projects.js); entry: { n, name, branch, worktree, folder, base,
-  // offset } from its tasks.json; main is n 1, in the project's folder. key: the task among all open ones
+  // project: its project (projects.js); entry: { n, name, branch, worktree, folder, base, offset, closed, closedAt }
+  // from its tasks.json; one without a worktree works in the project's folder. key: the task among all open ones
   // ("<project id>/<n>"): the windows, the terminals, the CDP proxy and the MCP server's URLs know it by that.
   // shell: the app (app.js): store, proxy, mcp, sessionCookies, chromeIdentity, signin, uiZoom, bus, ask; the agents
   // (agentFor, findAgent, chooseAgent, plugin); and taskChanged(task, now, agentState), called after any change of its
@@ -23,7 +25,7 @@ class Task {
   // changes when the project moves to another window.
   constructor(shell, project, entry) {
     this.shell = shell; this.project = project; this.entry = entry;
-    this.n = entry.n; this.name = entry.name; this.main = entry.n === 1;
+    this.n = entry.n;
     this.key = `${project.id}/${this.n}`;
     this.folder = entry.folder || project.folder;
     this.offset = entry.offset || 0;
@@ -37,6 +39,22 @@ class Task {
   }
   get window() { return this.project.window; }
   shown() { return this.window?.task === this; }
+  get name() { return this.entry.name; }
+  // A new name, the agent's (task_rename) or the human's (Rename… on its tab): the name in the bar and its branch
+  // (git branch -m; -2, -3 when another branch has it). Its folder stays @task-<n>: its agent may be working there.
+  async rename(name) {
+    name = name?.trim();
+    const bad = nameError(name);
+    if (bad) return { error: bad };
+    const { entry } = this;
+    if (entry.worktree) {
+      try { entry.branch = await renameBranch(entry.worktree, entry.branch, name); } catch (e) { return { error: e.stderr || e.message }; }
+    }
+    entry.name = name;
+    this.project.save();
+    this.window?.sendTasks(); this.window?.sendProjects();
+    return { name, branch: entry.branch || null };
+  }
 
   // What it takes to run a profile of this task (project-profiles.js).
   _profileHooks() {
@@ -107,10 +125,7 @@ class Task {
     const resume = (saved.agent === agent.id && agent.resume?.(saved)) || null;
     this.resumedSession = resume ? saved.sessionId ?? null : null;
     this.agent = agent;
-    if (!this.main) {
-      const main = this.project.main;
-      await agent.prepare?.({ folder: this.folder, main: { folder: main.folder, ...main.store.agent() } });
-    }
+    if (this.entry.worktree) await agent.prepare?.({ folder: this.folder, project: { folder: this.project.folder, ...this.project.agentData() } });
     // The program by name, as the human would type it, unless the shell does not find it yet (just installed).
     const command = found.onPath ? agent.command : found.path;
     this.pty = await startTerminal((channel, data) => this.window?.send(channel, data), { command, shell: agent.shell, cwd: this.folder, env: this.env(),
@@ -185,7 +200,7 @@ class Task {
     this.saveTerminals();
     this.shell.taskChanged(this, true); // its panel, which the window sizes
     t.pty = await startTerminal((channel, data) => this.window?.send(channel, data),
-      { line: command, cwd: this.folder, env: this.env(), size: terminalSize(this.key) }, key);
+      { line: command, cwd: this.folder, env: this.env(), size: terminalSize(this.key), sizeOf: this.key }, key);
     // The shell exited by itself (exit), not stopped by Kulisa (closing, quitting: the terminal is kept then).
     t.pty.onExit(() => { if (!t.pty.stopped) this.closeTerminal(id); });
     return { id, name };
@@ -284,10 +299,10 @@ class Task {
   // A caption over a profile's pane (ghost.js, browser_highlight); sticky ones stay until the next caption.
   caption(profile, caption, sticky = false) { this.window?.send('agent', { task: this.key, profile, caption, sticky }); }
 
-  // A fork's profiles: copies of this task's (main's), sign-ins included, each folder without its caches. Open
-  // ones are flushed first and open in the fork with their active tab only; closed ones stay closed. URLs of the app
-  // under test move to the fork's ports (offset). The grid comes along.
-  async forkProfilesInto(dest, offset) {
+  // A new task's profiles (projects.js, createTask): copies of this task's, sign-ins included, each folder without its
+  // caches. Open ones are flushed first and open in the new task with their active tab only; closed ones stay closed.
+  // URLs of the app under test move to the new task's ports (shift: its offset less this one's). The grid comes along.
+  async copyProfilesInto(dest, shift) {
     const entries = this.loaded ? this.list.entries
       : this.store.profiles().map(({ closed, ...cfg }) => ({ cfg: { ...cfg, dir: this.store.profileDir(cfg.folder) }, urls: this.store.tabs(cfg.folder), closed }));
     const list = [];
@@ -298,7 +313,7 @@ class Task {
       const active = p?.get();
       const urls = p ? (active ? [this._urlOf(active)] : []) : closed ? e.urls : e.urls.slice(0, 1);
       await copyProfile(e.cfg.dir, dest.profileDir(e.cfg.folder));
-      dest.saveTabs(e.cfg.folder, urls.filter((u) => u && u !== 'about:blank').map((u) => withOffset(u, offset)));
+      dest.saveTabs(e.cfg.folder, urls.filter((u) => u && u !== 'about:blank').map((u) => withOffset(u, shift)));
       const { id, name, avatar, description, folder, zoom } = p
         ? { ...e.cfg, id: p.id, name: p.name, avatar: p.avatar, description: p.description, zoom: p.siteZoom } : e.cfg;
       list.push({ id, name, avatar, description, folder, zoom, closed });
@@ -309,8 +324,8 @@ class Task {
   }
 
   info() {
-    const { n, key, name, main, tabState: state, folder, offset } = this;
-    return { n, key, name, main, state, folder, offset, branch: this.entry.branch || null, agent: this.agent?.name || null,
+    const { n, key, name, tabState: state, folder, offset } = this;
+    return { n, key, name, state, folder, offset, branch: this.entry.branch || null, closed: !!this.entry.closed, agent: this.agent?.name || null,
       profiles: this.openProfiles() };
   }
   // How many of its profiles are open (on its tab); from its store until it is loaded.
@@ -319,14 +334,14 @@ class Task {
   }
 }
 
-// A URL of the app under test in a task with a port offset: a local address with a port moves by the offset
-// (localhost:3000 → localhost:3100). Cookies do not depend on the port, so the profile stays signed in to the app.
-function withOffset(url, offset) {
-  if (!offset) return url;
+// A URL of the app under test moved to another task's ports: a local address with a port moves by shift, the
+// difference of the two tasks' offsets (localhost:3000 → localhost:3100). Cookies do not depend on the port, so the profile stays signed in to the app.
+function withOffset(url, shift) {
+  if (!shift) return url;
   try {
     const u = new URL(url);
     if (!u.port || !/^(localhost|127(\.\d+){3}|\[::1\])$|\.localhost$/.test(u.hostname)) return url;
-    u.port = String(Number(u.port) + offset);
+    u.port = String(Number(u.port) + shift);
     return u.href;
   } catch { return url; }
 }

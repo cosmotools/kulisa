@@ -1,5 +1,6 @@
-// The code of a task (ROADMAP, "Tasks"): a git worktree with its own branch next to the project,
-// `<repo>@<name>/`, made as Claude Code's --worktree makes one. Git only: a project without git has no tasks.
+// The code of a task (tasks.md): a git worktree with its own branch next to the project, `<repo>@<name>/`, made as
+// Claude Code's --worktree makes one. A project without git (or before its first commit) has no copies: its tasks work
+// in its folder.
 // Runs the user's git (a program on every OS), never a shell.
 const { execFile } = require('child_process');
 const fs = require('fs');
@@ -7,7 +8,7 @@ const os = require('os');
 const path = require('path');
 const { slugOf } = require('./names');
 
-// Files outside git that a fork needs and the project has: its environment and the agent's local settings. The
+// Files outside git that a task's copy needs and the project has: its environment and the agent's local settings. The
 // project's .worktreeinclude (gitignore syntax, as Claude Code reads it) adds more.
 const COPIED = ['/.env*', '/.claude/settings.local.json'];
 
@@ -52,7 +53,7 @@ async function createWorktree(folder, name) {
   const taken = async (b) => fs.existsSync(`${repo.top}@${b}`) || ok(git(repo.top, ['rev-parse', '--verify', '--quiet', `refs/heads/${b}`]));
   while (await taken(branch)) branch = `${s}-${n++}`;
   const worktree = `${repo.top}@${branch}`;
-  // --no-track: the branch is the fork's own; pushing it does not go to the default branch it started from.
+  // --no-track: the branch is the task's own; pushing it does not go to the default branch it started from.
   await git(repo.top, ['worktree', 'add', '--no-track', '-b', branch, worktree, base]);
   const copied = await copyIgnored(repo.top, worktree);
   await allowEnvrc(repo.top, worktree, copied);
@@ -77,9 +78,9 @@ async function copyIgnored(top, worktree) {
   return ignored;
 }
 
-// direnv runs a folder's .envrc only once the human has allowed it there, and the fork is a new folder: without this,
-// a project's environment (e.g. CLAUDE_CONFIG_DIR, another Claude account) would be missing in the fork, and its agent
-// would run as someone else. A copied .envrc is allowed in the fork when main's, the same content, is allowed.
+// direnv runs a folder's .envrc only once the human has allowed it there, and the task's is a new folder: without this,
+// a project's environment (e.g. CLAUDE_CONFIG_DIR, another Claude account) would be missing in the copy, and its agent
+// would run as someone else. A copied .envrc is allowed in the copy when the project's, the same content, is allowed.
 const run = (cmd, args, cwd) => new Promise((resolve) =>
   execFile(cmd, args, { cwd, timeout: 10000, windowsHide: true }, (e) => resolve(!e)));
 async function allowEnvrc(top, worktree, copied) {
@@ -87,16 +88,16 @@ async function allowEnvrc(top, worktree, copied) {
   if (await run('direnv', ['exec', top, 'true'], top)) await run('direnv', ['allow', worktree], worktree);
 }
 
-// What a fork has that main has not: commits of its own (since it started, not merged into main's HEAD) and
-// uncommitted files. mainFolder: the project's folder.
+// What a task has that main has not: commits of its own (since it started, not merged into main's HEAD, not on any
+// remote: pushed ones stay there) and uncommitted files. mainFolder: the project's folder.
 async function changes(mainFolder, { worktree, branch, base }) {
   const head = await git(mainFolder, ['rev-parse', 'HEAD']).catch(() => null);
-  const commits = Number(await git(mainFolder, ['rev-list', '--count', branch, `^${base}`, ...(head ? [`^${head}`] : [])]).catch(() => 0));
+  const commits = Number(await git(mainFolder, ['rev-list', '--count', branch, `^${base}`, ...(head ? [`^${head}`] : []), '--not', '--remotes']).catch(() => 0));
   const dirty = fs.existsSync(worktree) ? (await git(worktree, ['status', '--porcelain']).catch(() => '')).split('\n').filter(Boolean).length : 0;
   return { commits, dirty };
 }
 
-// direnv's records allowing the fork's .envrc (allowEnvrc), removed: one file per content it was allowed with, in
+// direnv's records allowing the task's .envrc (allowEnvrc), removed: one file per content it was allowed with, in
 // <XDG data>/direnv/allow/, holding the .envrc's path. Not `direnv deny`: newer direnv keeps a record of that too.
 function forgetEnvrc(worktree) {
   const dir = path.join(process.env.XDG_DATA_HOME || path.join(os.homedir(), '.local', 'share'), 'direnv', 'allow');
@@ -118,7 +119,22 @@ async function removeWorktree(mainFolder, { worktree, branch }) {
   await git(mainFolder, ['branch', '-D', branch]).catch((e) => console.warn('[worktrees] branch:', e.stderr || e.message));
 }
 
-// git init in the project's folder: only when the human asks for it (it commits nothing).
-const initRepo = (folder) => git(folder, ['init']);
+// A task renamed (its name is the agent's or the human's): its branch takes the name, unless another branch has it
+// (then -2, -3); the folder stays, an agent may be working in it. The new branch.
+async function renameBranch(worktree, branch, name) {
+  const s = slug(name);
+  if (s === branch) return branch;
+  let next = s, n = 2;
+  while (next !== branch && await ok(git(worktree, ['rev-parse', '--verify', '--quiet', `refs/heads/${next}`]))) next = `${s}-${n++}`;
+  if (next !== branch) await git(worktree, ['branch', '-m', branch, next]);
+  return next;
+}
 
-module.exports = { repoOf, createWorktree, changes, removeWorktree, initRepo, copyIgnored, slug, git };
+// git init in the project's folder, only when the human asks for it (New Project), with an empty first commit: a
+// worktree needs one. Nothing of the folder is committed. Without the user's name and email set in git, no commit.
+async function initRepo(folder) {
+  await git(folder, ['init']);
+  await git(folder, ['commit', '--allow-empty', '-m', 'Initial commit']);
+}
+
+module.exports = { repoOf, createWorktree, changes, renameBranch, removeWorktree, initRepo, copyIgnored, slug, git };

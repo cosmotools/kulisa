@@ -184,16 +184,15 @@ body {
     &::after { --x: 100%; inset-inline-start: 100%; }
     [data-bar="top"] & { padding-block: var(--gap) 0; border-radius: var(--r) var(--r) 0 0;
       &::before, &::after { inset-block: auto 0; } }
-    /* Another project's: the room of the shown one's + kept (the gap and the button); the task it comes back
-       to a step brighter. */
-    &:not(.active) { padding-inline-end: calc(4px + 2px + var(--control));
-      .selected { color: var(--text-dim); } }
-    &.active > .plabel { color: var(--text-strong); } }
-  /* The label is no tab and no button: the project's icon (the app's curtain, in its color) and its name. Its
-     tasks are what is clicked; closing the project is main's ×, its right-click menu and the middle button;
-     dragging it moves the island. */
+    /* Another project's: the task it comes back to a step brighter. */
+    &:not(.active) .selected { color: var(--text-dim); }
+    &.active > .plabel { color: var(--text-strong); }
+    /* Folded to its label, as a collapsed tab group: only the tab of the task it shows stays. */
+    &.collapsed .tasktab:not(.active, .selected) { display: none; } }
+  /* The label: the project's icon (the app's curtain, in its color) and its name. A click folds the group; closing
+     the project is its right-click menu and the middle button; dragging it moves the island. */
   .plabel { display: flex; align-items: center; gap: 8px; padding-inline: 8px; color: var(--text-muted);
-    font-weight: 600; white-space: nowrap;
+    font-weight: 600; white-space: nowrap; cursor: default;
     svg { width: 20px; height: 20px; color: var(--color); } }
   /* An island being dragged; where a dropped one would go (projects.js). */
   .dragging { opacity: .5; }
@@ -201,11 +200,10 @@ body {
   .drop-after { box-shadow: inset -2px 0 var(--accent); }
 }
 [data-bar="top"] #dock { order: 1; }
-/* The shown project's tasks (tasks.js): in its island, their tabs and + laid out as the other islands' tabs;
-   out of one (no project shown) not shown. */
+/* The shown project's tasks (tasks.js): in its island, their tabs laid out as the other islands' tabs; out of one
+   (no project shown) not shown. */
 #tasks { display: contents; #projectbar > & { display: none; } }
 #tasklist { display: contents; }
-#taskadd.off { visibility: hidden; } /* no git or no first commit yet: no forks */
 
 /* The Welcome screen (no project open): what to open, on one island in the grid's place (text on the project's glow
    reads badly) */

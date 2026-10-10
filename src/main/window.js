@@ -119,18 +119,17 @@ class AppWindow {
     const { shell } = this;
     const others = shell.windows.filter((w) => w !== this && !w.win.isDestroyed());
     return { current: this.current?.id ?? null, projects: shell.store.projects(),
-      // Each with its tasks and the one it shows, for the projects' bar (the shown project's also come as
-      // 'tasks', with whether forks are possible)
-      open: this.tabs.map((p) => ({ id: p.id, task: p.task?.key ?? null, tasks: [...p.tasks.values()].map((w) => w.info()) })),
+      // Each with its tasks, open and closed, the one it shows and whether its group is folded, for the projects' bar
+      // (the shown project's also come as 'tasks')
+      open: this.tabs.map((p) => ({ id: p.id, task: p.task?.key ?? null, collapsed: p.collapsed, tasks: [...p.tasks.values()].map((t) => t.info()) })),
       elsewhere: [...shell.open.values()].filter((p) => p.window !== this).map((p) => p.id),
       windows: others.map((w) => ({ id: w.id, names: w.tabs.map((p) => p.name) })) };
   }
   sendProjects() { this.send('projects', this.info()); }
-  // The shown project's tasks: their tabs (name, the agent's state), which is shown, and whether the project can
-  // have forks (git: 'ok', 'no-commit', 'none'; null without a project).
+  // The shown project's open tasks: their tabs (name, the agent's state) and which is shown.
   sendTasks() {
     const p = this.current;
-    this.send('tasks', { current: this.task?.key ?? null, list: p ? [...p.tasks.values()].map((w) => w.info()) : [], git: p?.git ?? null });
+    this.send('tasks', { current: this.task?.key ?? null, list: p ? p.open().map((t) => t.info()) : [] });
   }
   // The shown task's profiles, open and closed, and its other terminals, for the page to build its grid from; their
   // tabs saved.
@@ -175,12 +174,12 @@ class AppWindow {
   // task comes.
   async show(project) {
     if (project === this.current) return;
+    await project.ensureTask(); // one closed last, or a new one (a worktree: a moment)
     if (this.current) await this.leaveGrid(Math.sign(this.tabs.indexOf(project) - this.tabs.indexOf(this.current)), 'project');
     this.current = project;
     this.shell.saveWindows();
     this.win.setTitle(`${project.name} — Kulisa`);
     this.sendProjects();
-    await project.checkGit();
     this.sendTasks();
     await this.showLoaded();
   }
@@ -228,8 +227,8 @@ class AppWindow {
     }
     this.send('tasks:closed', [...project.tasks.values()].map((w) => w.key));
   }
-  // A fork of one of its projects deleted (projects.js): the page forgets it, and its tab goes from its island.
-  forkDeleted(task) {
+  // A task of one of its projects closed or deleted (projects.js): the page forgets it, and its tab goes from its group.
+  taskGone(task) {
     this.send('tasks:closed', [task.key]);
     if (task.project === this.current) this.sendTasks();
     this.sendProjects();
@@ -246,7 +245,7 @@ class AppWindow {
   async showTask(next) {
     const project = next.project;
     if (next === project.task) return;
-    if (project === this.current) await this.leaveGrid(Math.sign(next.n - project.task.n), 'task');
+    if (project === this.current) await this.leaveGrid(Math.sign(next.n - (project.task?.n ?? 0)), 'task');
     project.select(next);
     if (project !== this.current) return;
     this.sendTasks();

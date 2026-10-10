@@ -53,7 +53,7 @@ module.exports = (test) => {
     assert.equal(await ui(`document.querySelectorAll('.pane').length`), 0);
     // Each project's island with its tasks, the one each shows marked.
     assert.deepEqual(await ui(`[...document.querySelectorAll('#projectTabs .pisland')].map((g) => [...g.querySelectorAll('.tasktab')]
-      .map((t) => t.querySelector('.name').textContent + (t.classList.contains('selected') ? ' *' : '')))`), [['main *'], ['main *']]);
+      .map((t) => t.querySelector('.name').textContent + (t.classList.contains('selected') ? ' *' : '')))`), [['task-1 *'], ['task-1 *']]);
     // Every island keeps its place and width whichever project is shown, also while it switches: nothing jumps.
     const islands = () => ui(`[...document.querySelectorAll('#projectTabs .pisland')].map((t) => { const r = t.getBoundingClientRect(); return [r.x, r.width]; })`);
     const before = await islands();
@@ -90,7 +90,7 @@ module.exports = (test) => {
     await ui(`document.getElementById('menu').hidePopover()`);
     // The label's right-click menu.
     await rightClick(ui, '#projectTabs [data-project="other"] .name');
-    assert.deepEqual(await menuRows(ui), ['Close Project', 'Move to New Window', '-', 'Show Data Folder', 'Remove Project…']);
+    assert.deepEqual(await menuRows(ui), ['New Task', '-', 'Close Project', 'Move to New Window', '-', 'Show Data Folder', 'Remove Project…']);
     // Show Data Folder: Kulisa's folder of that project, in the file manager.
     const electron = require('electron'), openPath = electron.shell.openPath, shown = [];
     electron.shell.openPath = async (dir) => { shown.push(dir); return ''; };
@@ -100,10 +100,13 @@ module.exports = (test) => {
     } finally { electron.shell.openPath = openPath; }
     assert.equal(shown[0], path.join(userData, 'projects', 'other'));
 
-    // A click on the label shows nothing: its tasks are what is clicked.
+    // A click on the label folds its group and shows no project: its tasks are what is clicked (tasks.js tests the
+    // folding).
     await ui(`${projectTab('project')}.querySelector('.plabel').click()`);
-    await sleep(300); // nothing to wait for: that nothing happens
+    await waitFor(() => shell.open.get('project').collapsed);
     assert.equal(shell.current?.folder, other);
+    await ui(`${projectTab('project')}.querySelector('.plabel').click()`);
+    await waitFor(() => !shell.open.get('project').collapsed);
     // A click on the first project's task: it comes back as it was left, its agent the same; no page shows before
     // it has its place in the grid (nothing jumps).
     const jumps = [];
@@ -230,7 +233,7 @@ module.exports = (test) => {
 
     // Back into the first window (Move to Window, as a browser moves a tab): the only tab of the second, so it closes.
     await rightClick(ui2, '#projectTabs [data-project="other"] .name');
-    assert.deepEqual(await menuRows(ui2), ['Close Project', 'Move to New Window (off)', 'Move to Window: project', '-', 'Show Data Folder', 'Remove Project…']);
+    assert.deepEqual(await menuRows(ui2), ['New Task', '-', 'Close Project', 'Move to New Window (off)', 'Move to Window: project', '-', 'Show Data Folder', 'Remove Project…']);
     await choose(ui2, 'Move to Window: project');
     await waitFor(() => shell.windows.length === 1 && shell.current === moved && !first.switching);
     assert.ok(second.win.isDestroyed());
@@ -285,7 +288,7 @@ module.exports = (test) => {
     await waitFor(() => ctx.asked.length && ui(`!document.getElementById('ask').open`));
     const quit = ctx.asked.pop();
     assert.equal(quit.message, 'Quit Kulisa?');
-    assert.match(quit.detail, /^An agent is still working \(main\): quitting stops it\./);
+    assert.match(quit.detail, /^An agent is still working \(task-1\): quitting stops it\./);
     assert.ok(!shell.win.isDestroyed() && shell.open.has('project'), 'Kulisa goes on when the human says no');
     shell.task.state = null;
     ctx.answer = true;

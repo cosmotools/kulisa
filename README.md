@@ -36,7 +36,7 @@ setuid on a plain install. The `.deb` installs it setuid, so the installed app r
 
 | Variable | Effect |
 |---|---|
-| `KULISA_PROJECT` | Open the project in this folder (added if new). The agent of its main task runs there |
+| `KULISA_PROJECT` | Open the project in this folder (added if new), on the task it showed last, or a new one |
 | `KULISA_AGENT` | One agent command for every task, without asking (e.g. a CLI Kulisa does not know). It gets no Claude Code plugin; its task's MCP URL is in its environment as `KULISA_MCP_URL`, with `KULISA_PORT_OFFSET` and `KULISA_TASK` |
 | `KULISA_MIMIC=0` | Do not present profiles as Google Chrome |
 | `KULISA_SIGNIN_HOSTS` | More sign-in hosts for the automatic sign-in pause, comma-separated |
@@ -45,17 +45,17 @@ setuid on a plain install. The `.deb` installs it setuid, so the installed app r
 | `KULISA_SHOT` | Save a screenshot of the whole window to this PNG file ~4 s after start (`KULISA_SHOT_DELAY`, ms) |
 
 **Projects:** a project is a folder, usually a repository, with its own profiles, grid and agent. The bar under the
-grid (or over it: **☰ → Projects bar**) has an island per open project, as apps in a dock: its name, then its
-tasks. A click on a task shows it, of any project, and the others keep running (their agents and pages)
-until you close their project (**×** on its main, the middle button on its name, or **Close Project** in its
-right-click menu, after a question; closing a window asks once for all its projects). The button after the islands opens a menu of the
+grid (or over it: **☰ → Projects bar**) has a group per open project, as Chrome's tab groups: its name (a click folds
+it), its tasks, and **+** for a new task. A click on a task shows it, of any project, and the others keep running
+(their agents and pages) until you close their project (**×** on its last open task, the middle button on its name,
+or **Close Project** in its right-click menu, after a question; closing a window asks once for all its projects). The button after the islands opens a menu of the
 projects: open another one (in this window or in a new window: Kulisa asks), remove one (its **×** on hover:
-Kulisa's data of it and its forks; its folder stays), **New Project…** (a name and where its folder goes, your home
-folder by default; git on by default), **Open Folder…**, close the project. Closing the last project shows the
+Kulisa's data of it and its tasks' copies; its folder stays), **New Project…** (a name and where its folder goes,
+your home folder by default; git on by default, with an empty first commit), **Open Folder…**, close the project. Closing the last project shows the
 Welcome screen. A closed project keeps its tabs and
 sign-ins; when you open it again, its agent continues the conversation where it can (`claude --resume`,
-`codex resume`). The agent starts in your shell in the project's folder, as if you typed its command in a
-terminal there, so the project's environment (direnv's `.envrc`, nvm, mise) applies; when it exits, the shell stays.
+`codex resume`). The agent starts in your shell in its task's folder, as if you typed its command in a terminal
+there, so the project's environment (direnv's `.envrc`, nvm, mise) applies; when it exits, the shell stays.
 
 **The agent:** the first time a task starts, Kulisa asks which agent to run there: Claude Code, Codex, or
 the terminal only. One that is not installed gets an **Install** button (Kulisa runs its maker's installer); on its
@@ -63,14 +63,15 @@ first start the agent asks you to sign in to it. Each task keeps its choice; **C
 terminal's right-click menu picks another (with a new conversation). **☰ → Agents…** (also on the Welcome screen)
 shows at any time which agents are installed, their versions and folders, and installs the others.
 
-**Tasks:** several tasks of a project at once, each with its own agent, in its project's island: **main** is
-the project itself; **+** makes a fork of it with a name you give: a git worktree
-on a branch of its own next to the project (`~/IdeaProjects/myshop@checkout/`; `.env*` and files named in
-`.worktreeinclude` are copied), copies of main's profiles, still signed in, and a new agent session started there.
-The fork's app runs on its own ports: the usual ones plus `KULISA_PORT_OFFSET` (100, 200, …), and the fork's tabs
-on local addresses point there. Click a task to switch; the others keep working. **×** on a fork deletes it
-(its folder, branch, profile copies and conversation), after a question that says what goes and any work not in
-main; **×** on main closes the project. Tasks need git and a first commit: until then a project has no **+**.
+**Tasks:** several tasks of a project at once, each with its own agent, in its project's group. **+** makes one at
+once, `task-<n>` until its agent names it (or you do: **Rename…** in its tab's menu): a git worktree on a branch of
+its own next to the project (`~/IdeaProjects/myshop@task-2/`; `.env*` and files named in `.worktreeinclude` are
+copied), copies of the profiles of the task on screen, still signed in, and a new session of its agent there. Your
+project's folder stays yours: agents merge into it only when you ask. The task's app runs on its own ports: the usual
+ones plus `KULISA_PORT_OFFSET` (100, 200, …), and its tabs on local addresses point there. Click a task to switch;
+the others keep working. **×** closes a task (its agent stops; its code, profiles and conversation stay, and its
+project's menu opens it again); **Delete Task…** in its tab's menu deletes it, after a question that says what goes
+and any work not in main and not pushed. Without git, tasks work in the project's folder itself.
 
 **More terminals:** **+** in the terminal's header opens your shell in the task's folder next to the agent's.
 The agent runs what keeps running there too (the app's dev server, `docker compose up`), in a terminal of its own
@@ -99,11 +100,11 @@ src/main/        Electron main process
   app.js           the app: windows, open projects (open, close, move to a new window), agents, IPC, quit
   window.js        a window: its open projects and what it shows, its questions
   keys.js          the keyboard shortcuts: one table, which key an input event is (app.js takes them before the pages)
-  projects.js      an open project: its tasks; making and deleting a fork; removing a project's data
+  projects.js      an open project: its tasks (make, close, open again, delete); removing a project's data
   names.js         the one rule for names of projects, tasks and profiles; slugs for ids and folders
-  tasks.js    a task: its profiles, agent (terminal, environment) and folder; a fork's copies of the profiles
+  tasks.js         a task: its profiles, agent (terminal, environment), folder and name; copies for a new task
   agents.js        the agent CLIs to choose from: how to find, install, start and resume each
-  worktrees.js     git for tasks: worktree and branch of a fork, files outside git copied, changes, removal
+  worktrees.js     git for tasks: worktree and branch, files outside git copied, changes, renaming, removal
   project-profiles.js  a task's profiles in order, open and closed: create, rename, describe, close, open, delete
   avatars.js       the profiles' pictures to choose from (Noto Emoji's, in src/renderer/avatars/)
   profiles.js      a profile: a session on its own folder, tabs (WebContentsView), Playwright connection, sign-in mode

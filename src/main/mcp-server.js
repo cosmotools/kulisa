@@ -8,7 +8,7 @@ const vm = require('vm');
 const { McpServer } = require('@modelcontextprotocol/sdk/server/mcp.js');
 const { StreamableHTTPServerTransport } = require('@modelcontextprotocol/sdk/server/streamableHttp.js');
 const { z } = require('zod');
-const { handleHookRequest, ONLY_BROWSER } = require('./agent-hooks');
+const { handleHookRequest, taskContext, ONLY_BROWSER } = require('./agent-hooks');
 const { fromLocalTool } = require('./local-only');
 const { toUrl } = require('./profiles');
 const { MARK } = require('./ghost');
@@ -39,18 +39,9 @@ const INSTRUCTIONS = 'Kulisa profiles are the users of the app under test, each 
   'Never sign in, type passwords or read cookies or tokens: ask the human with profile_ask_signin. ' +
   'Run what keeps running (the app\'s dev server, docker compose up, a watcher) with terminal_run, not in your own ' +
   'shell or its background: the human sees it in a terminal next to yours, and you read its output with terminal_read.';
-// Where the app under test runs in this task: forks of a project run their own copy of it, on ports moved by the
-// task's offset (tasks.md, Ports), so they do not clash.
-const portsOf = (task) => (task.offset
-  ? ` This is task "${task.name}", a copy of the project next to others: run the app on its usual ports plus ` +
-    `${task.offset} (3000 → ${3000 + task.offset}; $KULISA_PORT_OFFSET), through PORT, a --port flag, .env.local or the ` +
-    'published ports of docker compose. The profiles\' tabs on local addresses already point there. If the app cannot ' +
-    'run on other ports, tell the human.'
-  : ' This is the project\'s main task: the app runs on its usual ports.');
-
 // task: the task (tasks.js) whose profiles the tools act on.
 function buildServer(task) {
-  const server = new McpServer({ name: 'kulisa', version: VERSION }, { instructions: INSTRUCTIONS + portsOf(task) });
+  const server = new McpServer({ name: 'kulisa', version: VERSION }, { instructions: `${INSTRUCTIONS} ${taskContext(task)}` });
   // Profiles can be created while the agent runs, so this is a string checked at call time, not an enum.
   const closed = [...task.closed.values()].map(({ cfg }) => `${cfg.id} (${cfg.name}, closed)`);
   const profileArg = z.string().describe(`Profile id. Current: ${[...[...task.profiles.values()].map((p) => `${p.id} (${p.name})`), ...closed].join(', ') || 'none yet'}; call browser_profiles for the live list`);
@@ -160,6 +151,15 @@ function buildServer(task) {
     const r = task.renameProfile(profile, name);
     if (r.error) throw new Error(r.error);
     return text(`Renamed ${profile} to "${name.trim()}"; its id is now ${r.id}.`);
+  });
+
+  server.registerTool('task_rename', {
+    description: 'Rename your Kulisa task once you know what it is about (it starts as task-<n>): its name on its tab, and its git branch, which takes the name. Its folder stays. Letters, digits and @ . _ + -, no spaces, e.g. checkout-redesign.',
+    inputSchema: { name: z.string().describe('The new name, e.g. checkout-redesign') },
+  }, async ({ name }) => {
+    const r = await task.rename(name);
+    if (r.error) throw new Error(r.error);
+    return text(`The task is now "${r.name}"${r.branch ? `, on branch ${r.branch}` : ''}.`);
   });
 
   server.registerTool('profile_describe', {

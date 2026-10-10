@@ -30,18 +30,19 @@ const userShell = () => (process.platform === 'win32' ? null
   : { command: process.env.SHELL || os.userInfo().shell || '/bin/sh', args: process.platform === 'darwin' ? ['-l'] : [] });
 const shQuote = (a) => (/^[\w@%+=:,./-]+$/.test(a) ? a : `'${a.replace(/'/g, `'\\''`)}'`);
 
-// cfg: { command, args, cwd, env, shell, line, size }. The agent is typed into the user's shell started in cwd, as if the human
+// cfg: { command, args, cwd, env, shell, line, size, sizeOf }. The agent is typed into the user's shell started in cwd, as if the human
 // opened a terminal in the project and ran it: the shell's startup sets the project's environment (direnv's .envrc,
 // nvm, mise …), which Kulisa's own environment (where Kulisa was started) is not. When the agent exits, the shell
 // stays. shell: { command, args } instead of the user's, or false to start the agent directly (as on Windows).
 // line: a command line typed into the shell as it is (a terminal's other than the agent's; none: the shell alone),
-// on Windows into cmd. size: start at it rather than wait for the window's (a terminal behind another panel has none).
+// on Windows into cmd. size: start at it rather than wait for the window's (a terminal behind another panel has none);
+// sizeOf: or at that terminal's (the agent's, whose panel it sits behind after a restart), whichever comes first.
 // key: the task's; the window sends its input and size, and gets its output, under it. send(channel, data): to
 // the task's window, whichever it is then.
 async function startTerminal(send, cfg, key) {
-  const t = termOf(key);
-  if (!cfg.size) await Promise.race([t.firstSize, new Promise((r) => setTimeout(r, 5000))]);
-  const { cols, rows } = t.size || cfg.size || { cols: 120, rows: 30 };
+  const t = termOf(key), like = cfg.sizeOf && termOf(cfg.sizeOf);
+  if (!cfg.size) await Promise.race([t.firstSize, like?.firstSize, new Promise((r) => setTimeout(r, 5000))].filter(Boolean));
+  const { cols, rows } = t.size || cfg.size || like?.size || { cols: 120, rows: 30 };
   const sh = cfg.shell === false ? null : cfg.shell || userShell() || (cfg.line !== undefined ? { command: process.env.COMSPEC || 'cmd.exe' } : null);
   const command = cfg.command || (process.platform === 'win32' ? process.env.COMSPEC || 'cmd.exe' : process.env.SHELL || 'bash');
   const p = pty.spawn(sh ? sh.command : command, sh ? sh.args || [] : cfg.args || [], {

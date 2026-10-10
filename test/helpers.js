@@ -9,7 +9,7 @@ const root = process.env.KULISA_TEST_ROOT || path.join(os.tmpdir(), 'kulisa-test
 const userData = path.join(root, 'data');
 const project = path.join(root, 'project');
 
-// A file of the test project's own data, of its main task (store.js; the project's id is its folder's name).
+// A file of the test project's own data, of its first task (or of task n) (store.js; the project's id is its folder's name).
 const pfile = (f, task = 1) => path.join(userData, 'projects', 'project', String(task), f);
 // The tabs saved for a profile (in its folder).
 const savedTabs = (id, task = 1) => {

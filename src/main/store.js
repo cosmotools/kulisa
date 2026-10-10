@@ -5,8 +5,9 @@
 //   projects.json            the projects: { id, name, folder, color }; a project is a folder (a repository, or one
 //                            Kulisa made); its color tints the window, to tell projects apart at a glance
 //   projects/<id>/
-//     tasks.json        the project's tasks: { next, current, list: [{ n, name, branch, worktree, folder,
-//                            base, offset }] }; main is n 1, the project's own folder (ROADMAP, "Tasks")
+//     tasks.json             the project's tasks: { next, current, collapsed, list: [{ n, name, branch, worktree,
+//                            folder, base, offset, closed, closedAt }] }; one without a worktree works in the
+//                            project's own folder (tasks.md)
 //     <n>/                   a task (TaskStore): profiles.json (its profiles in order: folder, name, avatar,
 //                            description, sites' zoom, closed; as Chrome's Local State), layout.json (the window's
 //                            grid), agent.json (the agent's session, to resume it), and a folder per profile:
@@ -67,7 +68,7 @@ class Store {
 
   // A project's tasks (tasks.json) and each one's data.
   tasksOf(p) {
-    return readJSON(path.join(this.dir, 'projects', p.id, 'tasks.json')) || { next: 2, current: 1, list: [{ n: 1, name: 'main' }] };
+    return readJSON(path.join(this.dir, 'projects', p.id, 'tasks.json')) || { next: 1, current: null, list: [] };
   }
   saveTasksOf(p, w) { writeJSON(path.join(this.dirOf(p), 'tasks.json'), w); }
   taskOf(p, n) { return new TaskStore(path.join(this.dir, 'projects', p.id, String(n)), this); }

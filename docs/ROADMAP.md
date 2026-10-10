@@ -67,14 +67,9 @@ here; what is left of it stays.
     not get past Google's own bot checks. The pause part goes into the author's replacement of `signin-pause.js`.
     To document in [profiles.md](profiles.md) as how the protection works, with the reason for each line.
   - **Steps**, each working on its own, with its tests:
-    1. Tasks replace workspaces: the rename (code, docs, CLAUDE.md; done), always copies (no main), × closes and Delete,
-       the task bar as tab groups, the task's temporary name and the agent's rename. Decided with the author
-       (2026-10-10): until step 4, a new task copies the profiles (sign-ins, active tab, grid) and the agent of the
-       project's task on screen, as a fork copied main's (a few lines, replaced by masters); the first task has none.
-       × on a project's last open task closes the project, as Chrome closes a window with its last tab; opening it
-       again opens the task closed last, or a new one when it has none. The human renames a task too (Rename… in
-       its tab's menu), as the agent does (`task_rename`): name and branch (`git branch -m`); its folder stays
-       `@task-N`, not moved under a running agent.
+    1. Tasks replace workspaces: built 2026-10-10 ([tasks.md](tasks.md)). Left of it: Kulisa offering to delete a
+       closed task once its PR is merged; a new task copies the profiles and agent of the task on screen until
+       steps 3 and 4 (the project's default agent, masters).
     2. Projects as composites: the wizard, the folder (`~/Kulisa`), several repositories in a task (worktrees on one
        branch, the agent's folders), color and favicon.
     3. The agents' catalog with accounts.
@@ -306,25 +301,21 @@ here; what is left of it stays.
   - The agent's state on the task tab for other agent CLIs: Claude Code's hooks report it, Codex's are built
     and not yet tried ("Choosing the agent, rest"). For CLIs without hooks, e.g. from MCP calls and terminal output (working
     while they come, idle after a quiet while).
-  - Tried with Claude Code in forks; the tests run `cat` as the agent. Still to check in a fork: the hooks
-    (session, state), `--resume` after a restart.
+  - Tried with Claude Code in forks (as tasks were called); the tests run `cat` as the agent. Still to check in a
+    task's copy: the hooks (session, state), `--resume` after a restart, `task_rename` called by Claude Code.
   - Unloading a background task's tabs while its agent is idle: it needs to know the agent is idle (Claude
     Code's hooks tell it; for other CLIs, no MCP calls and no terminal output for a while).
   - Other tools that, like direnv, want a folder allowed before they apply (mise's `trust`): not handled yet.
-  - Windows: copying an open profile (locked files are skipped and logged), removing a deleted fork's profile
+  - Windows: copying an open profile (locked files are skipped and logged), removing a deleted task's profile
     folders while their sessions are open (left for the next start). macOS and Windows untested.
-  - A fork's start point is the remote's default branch: local commits not pushed yet are not in it (as with Claude
+  - A task's start point is the remote's default branch: local commits not pushed yet are not in it (as with Claude
     Code's `--worktree`). If that surprises, an option as Claude's `worktree.baseRef: "head"`.
-  - The agent making and closing forks itself (MCP tools on `Project.createFork`, `deleteFork`), e.g. to hand
-    parallel parts of a task to agents of their own, as Conductor does: a gap in the table of actions
-    ([tasks.md](tasks.md), "Actions"). To discuss with "Several agents in one task" (Deferred
-    ideas); deleting asks the human, as `profile_delete` does.
-  - Maybe: an archive to reopen closed forks (Conductor keeps the git state and the conversation), or an agent that
-    names the fork itself once it knows the task (Conductor does that too).
-  - Forks copy main's profiles, sign-ins included; with rotating tokens (Microsoft, Google) a copy may sign the
-    other out, an app with one session per user kicks one out, a logout ends both. Not seen yet; if it happens: a
-    linked copy, its sign-in cookies kept in sync with main's (Electron's cookie `changed` event; to check: sign-ins
-    kept in `localStorage`, as MSAL does).
+  - The agent making tasks itself (an MCP tool on `Project.createTask`), e.g. to hand parallel parts of a task to
+    agents of their own, as Conductor does: a gap in the table of actions ([tasks.md](tasks.md), "Actions"). To
+    discuss with "Several agents in one task" (Deferred ideas); deleting stays the human's.
+  - New tasks copy the profiles of the task on screen, sign-ins included; with rotating tokens (Microsoft, Google) a
+    copy may sign the other out, an app with one session per user kicks one out, a logout ends both. Masters and
+    synced cookies replace this ("Projects and tasks", steps 4 and 6).
 - **Discuss security for the end user** (with the author, before a public release). Kulisa holds signed-in work
   accounts and lets an agent act in them. Topics, each to decide or document for users:
   - **What the agent can do in signed-in accounts:** read private data (it saw passwords in a Teams chat), send

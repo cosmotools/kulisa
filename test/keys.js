@@ -65,8 +65,8 @@ module.exports = (test) => {
     // In a dialog the keys are the dialog's: Ctrl+Shift+N makes no task.
     await waitFor(() => w.keyZone === 'dialog');
     press(win, 'N', 'control', 'shift');
-    await sleep(200); // that nothing opens: nothing to wait for
-    assert.equal(await ui(`document.getElementById('tasknew').open`), false);
+    await sleep(200); // that nothing is made: nothing to wait for
+    assert.equal(shell.current.tasks.size, 1);
     await ui(`document.getElementById('shortcuts').close()`);
     await ui(`document.getElementById('windowMenu').click()`);
     assert.ok((await menuRows(ui)).includes('Keyboard Shortcuts'));

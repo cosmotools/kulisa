@@ -30,7 +30,7 @@
     'task.n': ({ n }) => showTask(document.querySelectorAll('#tasklist .tasktab')[n - 1]),
     'task.next': () => stepTask(1),
     'task.previous': () => stepTask(-1),
-    'task.new': () => { const add = document.getElementById('taskadd'); if (!add.classList.contains('off')) add.click(); },
+    'task.new': () => kulisa.invoke('task:new'),
     shortcuts: async () => (await import('./shortcuts.js')).showShortcuts(),
     'tab.new': ({ pane }) => newTab(pane),
     'tab.close': ({ p, tab, page }) => act('tab:close', { profile: p.id, tab, focus: page }),

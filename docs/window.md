@@ -24,8 +24,8 @@ replace a region left by the page before.
 
 ## The projects' bar
 
-Under the grid, in the middle: an island per open project with its tasks' tabs, then the projects' menu
-([tasks.md](tasks.md), Projects). ☰ → **Projects bar: Top, Bottom** puts it over the grid instead, under the
+Under the grid, in the middle: an island per open project, drawn as Chrome's tab groups (its label, which folds it;
+its open tasks' tabs; + for a new task), then the projects' menu ([tasks.md](tasks.md), Projects). ☰ → **Projects bar: Top, Bottom** puts it over the grid instead, under the
 title bar (`settings.json`: `bar`; the page gets it in its URL, so it is drawn in its place at once). Bottom is the
 default: the hand goes to the terminal under the grid all the time, so the tabs are where it already is; at first
 the projects were tabs in the title bar and the tasks a strip under the grid, and both switched with the same

@@ -24,8 +24,8 @@ module.exports = (test) => {
     await assert.rejects(call('profile_create', { name: '@' }), /starting with a letter or a digit/);
     assert.match((await ui(`act('profile:rename', { profile: 'sam-admin', name: 'Sam admin' })`)).error, /only/);
     assert.match((await ui(`kulisa.invoke('project:new', { name: '..' })`)).error, /starting with a letter or a digit/);
-    assert.match((await ui(`kulisa.invoke('task:new', { name: '@' })`)).error, /starting with a letter or a digit/);
-    assert.match((await ui(`kulisa.invoke('task:new', { name: 'a b' })`)).error, /only/);
+    assert.match((await ui(`kulisa.invoke('task:rename', { key: tasks.current, name: '@' })`)).error, /starting with a letter or a digit/);
+    assert.match((await ui(`kulisa.invoke('task:rename', { key: tasks.current, name: 'a b' })`)).error, /only/);
     assert.ok(shell.profiles.has('sam-admin') && !shell.profiles.has('ann-admin-2'));
   });
   test('delete a profile in the editor: sign-ins and data gone, a new one of the same name starts clean', async (ctx) => {

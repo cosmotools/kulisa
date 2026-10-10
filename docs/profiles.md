@@ -9,7 +9,8 @@ how automation reaches the pages, and where the code is. Why it is built this wa
 A **profile** (the word Chrome uses; not "persona", "user" or "account") is one embedded browser identity: its own
 cookies, storage, sign-ins and tabs, shown as a pane in the grid. One profile is one user of the app under test
 ("sam@shop.com", "ann.admin"); several profiles side by side are several users at once. Profiles belong to a
-task ([tasks.md](tasks.md)): main has the human's, a fork has copies of them.
+task ([tasks.md](tasks.md)): a new task gets copies of those of the task on screen (until profiles have masters:
+ROADMAP, "Projects and tasks").
 
 A profile is an Electron session on a folder of its own (`session.fromPath`), laid out as a Chrome profile, plus a
 `WebContentsView` per tab. Everything stays inside Kulisa: no external Chrome window.
@@ -23,7 +24,7 @@ A profile is an Electron session on a folder of its own (`session.fromPath`), la
   address does, starting with a letter or a digit (not `@` alone, `.x`, `..`, `-x`), at most 64, so a profile can be
   named after its account (`ann+test@shop.com`); no spaces (`names.js`, the author's rule). Name fields leave other
   characters out as they are typed or pasted, and the main process checks again (the agent's `profile_create` too).
-  Ids, branches and fork folders keep letters of any language.
+  Ids and branches keep letters of any language.
 - **Sign in by hand** in its pane. Only the human signs in: Kulisa never types passwords or automates a sign-in,
   and never prints or logs cookies or tokens (CLAUDE.md, Rules).
 - **Rename**: in the editor (Manage Profiles…, or About this profile… in the pane's right-click menu). Only the
@@ -58,7 +59,7 @@ A profile is an Electron session on a folder of its own (`session.fromPath`), la
   found, refused to connect (a local app whose server is not running), took too long, no internet, an untrusted
   certificate; with Chromium's code (`ERR_…`). The address stays the one that failed, so reload tries it again; the
   agent's snapshot reads the same words (`error-page.html`, filled in by `profiles.js`). A tab whose site refuses to connect
-  (a fork's tabs on its ports before its dev server runs) is ready at once with that page: it held its profile's
+  (a new task's tabs on its ports before its dev server runs) is ready at once with that page: it held its profile's
   opening 5 s until 2026-10-09.
 - **Pick** (DevTools' inspect icon, at the end of the address bar): click an element on the page; a reference to it goes into the agent's prompt (below). Off on an empty tab (`about:blank`): nothing to point at.
 
@@ -196,7 +197,7 @@ again, look for a third such moment first (which file went `[]`, and when: log a
 2. **Tabs closing as Kulisa quits**: after the tabs were saved, each one destroyed saved its task again, one
    fewer each time, none at last. A task in the background (shown before, then left) saved at once and lost
    all; the shown one's save waited 30 ms and missed the exit. Now nothing is saved from then on (`quitting` in
-   `shell.taskChanged`, `app.js`; test in `restart-tasks.js`: the fork left loaded in the background keeps its tabs).
+   `shell.taskChanged`, `app.js`; test in `restart-tasks.js`: the task left loaded in the background keeps its tabs).
 
 What is lost cannot be recovered from Kulisa's files; Chromium's own history in the profile's folder still has the
 pages.
@@ -244,7 +245,7 @@ projects/<project id>/<task>/
 
 The folder is named as Chrome names its profiles, fixed at creation; a new profile never takes the number of a folder
 still on disk. A deleted profile's data is wiped at once; its folder is removed at the next start
-(`deleted-folders.json`), because the session keeps its files open while Kulisa runs. Copying a profile (a fork)
+(`deleted-folders.json`), because the session keeps its files open while Kulisa runs. Copying a profile (for a new task)
 leaves the caches out (Cache, Code Cache, GPUCache, Dawn*).
 
 Memory: each tab is a Chromium process; 5 profiles × 3 tabs ≈ 4 GB (REPORT, E8). Closing a profile frees its tabs.

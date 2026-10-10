@@ -28,9 +28,7 @@ function sessionStart(task, input) {
     lines.length ? `Kulisa profiles open now (the panes above your terminal; call browser_profiles for the live state):\n${lines.join('\n')}`
       : closed.length ? 'No Kulisa profile is open.' : 'Kulisa has no profiles yet. The human creates them with 👥 on the task tab at the bottom → Manage Profiles…, or use profile_create when a task needs one.',
     closed.length && `Closed profiles (signed in, no pane; profile_open opens one when the task needs it):\n${closed.join('\n')}`,
-    !task.main && `You are in the Kulisa task "${task.name}", a fork of the project: a git worktree of its own on branch ${task.entry.branch}, ` +
-      `and copies of the project's profiles. Run the app under test on its usual ports plus ${task.offset} (KULISA_PORT_OFFSET); ` +
-      'install dependencies first if the worktree has none (node_modules and the like are not copied).',
+    taskContext(task),
   ].filter(Boolean).join('\n\n');
   return { hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: context } };
 }
@@ -65,4 +63,22 @@ function handleHookRequest(task, url, req, res) {
   return true;
 }
 
-module.exports = { handleHookRequest, sessionStart, ONLY_BROWSER };
+// Where the agent works, for every agent (the MCP server's instructions, and at the session's start): its task, its
+// folder and branch, the project's folder that is the human's, its ports, naming the task (tasks.md).
+function taskContext(task) {
+  const { entry, project } = task;
+  const name = `Name the task with task_rename once you know what it is about${entry.worktree ? ' (its branch takes the name)' : ''}.`;
+  if (!entry.worktree) {
+    return `This is the Kulisa task "${task.name}", working right in the project's folder ${project.folder} (no git, so no copy ` +
+      `of its own); the app under test runs on its usual ports. ${name}`;
+  }
+  return `This is the Kulisa task "${task.name}": a git worktree of its own, ${task.folder}, on branch ${entry.branch}. The ` +
+    `project's folder ${project.folder} is the human's: never change it on your own. Asked to merge your work into main ` +
+    "there, first check it for the human's uncommitted changes (git status) and stop if there are any. " + name +
+    ` Run the app under test on its usual ports plus ${task.offset} (3000 → ${3000 + task.offset}; $KULISA_PORT_OFFSET), through ` +
+    "PORT, a --port flag, .env.local or the published ports of docker compose; the profiles' tabs on local addresses already " +
+    'point there. If the app cannot run on other ports, tell the human. Install dependencies first if the worktree has none ' +
+    '(node_modules and the like are not copied).';
+}
+
+module.exports = { handleHookRequest, sessionStart, taskContext, ONLY_BROWSER };

@@ -45,7 +45,7 @@ not listed for screenshots and focus differs from a desktop), so they never take
 - **Before a click, wait until the window is ready for it**: a project or task being shown
   (`!shell.windows[0].switching`, no `loading` class on the root), the panel there (`getPanel(...)?.`), the
   element drawn. A click while the window builds another grid is lost.
-- **Names say what the human sees or gets**, as a sentence ("closing a fork asks first, saying what goes"); the
+- **Names say what the human sees or gets**, as a sentence ("deleting a task asks first, saying what goes"); the
   comments say why it matters (the bug it once was).
 - **Leave what later files need, say so** ("left closed for the restart phase"), and clean up the rest (a
   profile made for one test is deleted at its end: folder numbers are counted by later tests).

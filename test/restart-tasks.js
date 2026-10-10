@@ -1,27 +1,28 @@
-// After a restart, what window.js, grid.js and tasks.js left: the fork, the projects and windows, the grid,
-// the terminals.
+// After a restart, what window.js, grid.js and tasks.js left: the tasks open and closed, the projects and windows,
+// the grid, the terminals.
 const fs = require('fs');
 const path = require('path');
 const { assert, root, userData, project, pfile, savedTabs, panel, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, menuOpen, rightClick,
   box, pageBox, viewOn, dock, ctrl, near, projectTabs, showProject } = require('./helpers');
 
 module.exports = (test) => {
-  test('after a restart: the fork waits in the bar with its tabs, loads when shown, still signed in; main again', async (ctx) => {
+  test('after a restart: the other task waits in the bar with its tabs, loads when shown, still signed in; a closed one stays closed', async (ctx) => {
     const { shell, ui } = ctx;
-    await waitFor(async () => (await ui(`[...document.querySelectorAll('#tasklist .tasktab')].map((t) => t.querySelector('.name').textContent).join()`)) === 'main,Feature-X');
-    const fork = shell.current.tasks.get(2);
-    assert.equal(fork.loaded, false);
+    await waitFor(async () => (await ui(`[...document.querySelectorAll('#tasklist .tasktab')].map((t) => t.querySelector('.name').textContent).join()`)) === 'task-1,Feature-X');
+    assert.equal(shell.current.tasks.get(5).entry.closed, true);
+    const second = shell.current.tasks.get(2);
+    assert.equal(second.loaded, false);
     // Left loaded in the background: its tabs saved as Kulisa quit, not again as they closed (none left at last).
-    const forkDir = path.join(userData, 'projects', 'project', '2');
-    const saved = fs.readdirSync(forkDir).filter((d) => d.startsWith('Profile '))
-      .map((d) => JSON.parse(fs.readFileSync(path.join(forkDir, d, 'Kulisa Tabs.json'), 'utf8')));
+    const secondDir = path.join(userData, 'projects', 'project', '2');
+    const saved = fs.readdirSync(secondDir).filter((d) => d.startsWith('Profile '))
+      .map((d) => JSON.parse(fs.readFileSync(path.join(secondDir, d, 'Kulisa Tabs.json'), 'utf8')));
     assert.ok(saved.some((urls) => urls.length), `its tabs kept: ${JSON.stringify(saved)}`);
-    // Once main has loaded: a click while the window still builds it is not taken.
+    // Once the first has loaded: a click while the window still builds it is not taken.
     await waitFor(() => shell.task?.loaded && !shell.windows[0].switching);
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
     await ui(`document.querySelector('#tasklist .tasktab[data-task="project/2"]').click()`);
-    await waitFor(() => shell.task === fork && fork.loaded && fork.pty);
-    assert.equal(fork.folder, `${project}@feature-x`);
+    await waitFor(() => shell.task === second && second.loaded && second.pty);
+    assert.equal(second.folder, `${project}@task-2`);
     assert.deepEqual([...shell.profiles.keys()], ['sam-admin', 'elon-buyer']);
     await ctx.call('browser_navigate', { profile: 'sam-admin', url: `${SITE}/app` });
     assert.equal(await who(ctx, 'sam-admin'), 'Signed in as sam');
@@ -44,7 +45,7 @@ module.exports = (test) => {
   });
   test('after a restart: the grid is as it was left (preset "grid")', async ({ ui }) => {
     const box = (sel) => ui(`(() => { const r = document.querySelector(${JSON.stringify(sel)})?.getBoundingClientRect(); return r ? { x: r.x, width: r.width } : { x: -1, width: 0 }; })()`);
-    // Once the grid is laid out: the test before may end while the fork's panes (the same profile ids) are still going.
+    // Once the grid is laid out: the test before may end while the second's panes (the same profile ids) are still going.
     const columns = async () => {
       if (!(await ui(`document.querySelectorAll('.pane[data-profile="sam-admin"], .pane[data-profile="elon-buyer"]').length === 2`))) return false;
       const sam = await box('.pane[data-profile="sam-admin"] .content'), elon = await box('.pane[data-profile="elon-buyer"] .content');

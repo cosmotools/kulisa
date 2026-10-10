@@ -78,14 +78,14 @@
     <button id="windowMenu" class="icon" data-menu-end title="Menu: zoom, layout" aria-label="Menu"><svg aria-hidden="true"><use href="#i-menu"/></svg></button>
   </header>
   <main id="dock"></main>
-  <!-- The projects' bar, under the grid or over it (☰): an island per open project (projects.js), its label and its
-       tasks' tabs; the shown one's live (tasks.js, put there by projects.js); then the menu of the projects -->
+  <!-- The projects' bar, under the grid or over it (☰): an island per open project, as Chrome's tab groups
+       (projects.js): its label, its tasks' tabs (the shown project's live: tasks.js, put there by projects.js) and +;
+       then the menu of the projects -->
   <footer id="projectbar">
     <nav id="projectTabs" aria-label="Open projects"></nav>
     <nav id="tasks" aria-label="Tasks of the project">
       <div id="tasklist"></div>
       <button id="openProfiles" class="chip" aria-haspopup="menu"><svg aria-hidden="true"><use href="#i-users"/></svg><span class="count"></span></button>
-      <button id="taskadd" class="icon" data-keys="task.new" title="New task: a fork of main with its own branch, folder, agent and copies of the profiles" aria-label="New task"><svg aria-hidden="true"><use href="#i-plus"/></svg></button>
     </nav>
     <button id="openProjects" class="icon" title="Projects: open another, New Project…, Open Folder…" aria-label="Projects"><svg aria-hidden="true"><use href="#i-projects"/></svg></button>
   </footer>
@@ -139,17 +139,17 @@
       <footer><button type="button" command="close" commandfor="newproject">Cancel</button><button id="npcreate" class="primary">Create</button></footer>
     </form>
   </dialog>
-  <dialog id="tasknew" closedby="any">
-    <header><h2>New Task</h2><button class="x icon quiet" type="button" command="close" commandfor="tasknew" title="Close" aria-label="Close"><svg aria-hidden="true"><use href="#i-close"/></svg></button></header>
+  <!-- Rename… in a task tab's menu (tasks.js): its name, and its branch with it -->
+  <dialog id="taskrename" closedby="any">
+    <header><h2>Rename Task</h2><button class="x icon quiet" type="button" command="close" commandfor="taskrename" title="Close" aria-label="Close"><svg aria-hidden="true"><use href="#i-close"/></svg></button></header>
     <form id="taskform">
       <div class="body">
-        <p class="hint">A fork of main for one task: its own branch and folder next to the project, its own agent, and
-          copies of main's profiles, signed in. The app under test runs on its own ports there.</p>
-        <label class="field"><span>Name</span><input id="taskname" data-name maxlength="64" placeholder="What it is for, e.g. checkout-redesign" spellcheck="false"></label>
-        <label class="field"><span>Agent</span><select id="taskagent"></select></label>
+        <p class="hint">What the task is about. Its git branch takes the name too; its folder stays. The agent names it
+          as well, once it knows.</p>
+        <label class="field"><span>Name</span><input id="taskname" data-name maxlength="64" placeholder="e.g. checkout-redesign" spellcheck="false"></label>
         <p class="error"></p>
       </div>
-      <footer><button type="button" command="close" commandfor="tasknew">Cancel</button><button id="taskcreate" class="primary">Create</button></footer>
+      <footer><button type="button" command="close" commandfor="taskrename">Cancel</button><button id="taskrenamed" class="primary">Rename</button></footer>
     </form>
   </dialog>
   <!-- Choosing a task's agent, installing it (agent-picker.js, loaded when needed) -->
@@ -284,10 +284,10 @@
       <small class="where"></small><small class="install-line"></small></span><a class="site" target="_blank">Website</a><span
       class="status"></span><button type="button" class="install">Install</button></label>
   </template>
-  <!-- An open project in the projects' bar (projects.js): its island, its label first (dragged to move the project),
-       then its tasks' tabs -->
+  <!-- An open project in the projects' bar (projects.js): its island, as a tab group: its label first (a click folds
+       it, dragging moves the project), then its tasks' tabs and + -->
   <template id="tpl-pisland">
-    <div class="pisland"><div class="plabel" draggable="true"><svg aria-hidden="true"><use href="#i-logo"/></svg><span class="name"></span></div></div>
+    <div class="pisland"><div class="plabel" draggable="true"><svg aria-hidden="true"><use href="#i-logo"/></svg><span class="name"></span></div><button class="add icon" data-keys="task.new" title="New task: its own copy of the code, branch, agent and profiles" aria-label="New task"><svg aria-hidden="true"><use href="#i-plus"/></svg></button></div>
   </template>
   <!-- A recent project on the Welcome screen (projects.js) -->
   <template id="tpl-project">

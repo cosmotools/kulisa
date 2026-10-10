@@ -253,23 +253,68 @@ function start(options = {}) {
   // only when an agent works; w: the window to ask in.
   async function quit(w) { if (await askClosing(w, [...shell.open.values()], { quit: true })) app.quit(); }
   function dropWindow(w) { shell.windows.splice(shell.windows.indexOf(w), 1); w.destroy(); }
-  // A fork of a project's main (projects.js), then shown.
-  async function createTask(project, name, agent) {
-    if (!project) return { error: 'no project is open' };
-    const task = await project.createFork(name, agent);
+  // A new task of a project (+ in its group: projects.js), then shown. Without git it would work in the folder another
+  // open task works in: the human is told first.
+  async function createTask(project) {
+    if (!project) return { error: 'the project is not open' };
+    await project.checkGit();
+    if (project.sharesFolder() && !await shell.ask({ message: `Another task of ${project.name} works in its folder`, ok: 'Create Anyway',
+      detail: `Without git, tasks have no copies of their own: both agents would work in ${project.folder}, and may get in each other's way.` }, project.window)) {
+      return { error: 'the human said no' };
+    }
+    const task = await project.createTask();
     if (task.error) return task;
-    await project.window.showTask(task);
+    await showTask(task);
     return { n: task.n, key: task.key };
   }
-  // Closing a fork deletes it, after the human says yes (projects.js); main is the project itself: closing it closes
-  // the project.
+  // A task of any open project shown: it becomes that project's, then the project is shown.
+  async function showTask(task) {
+    const win = task.project.window;
+    await win.showTask(task);
+    if (win.current !== task.project) await win.show(task.project);
+  }
+  // Before a task of a project leaves its bar (closed or deleted): the project shows the open task next to it.
+  async function leaveTask(task) {
+    const project = task.project, open = project.open(), i = open.indexOf(task);
+    if (project.task === task) await project.window.showTask(open[i + 1] || open[i - 1]);
+  }
+  // × on a task's tab: its agent stops, its tabs close, all else stays (projects.js, closeTask); asked first only when
+  // its agent is working. The last open task closes its project, as Chrome closes a window with its last tab (with
+  // closing a project's question); the project opens on it again.
   async function closeTask(task) {
     const project = task.project;
-    if (task.main) return closeProject(project);
-    if (!await project.askDeleteFork(task)) return { error: 'the human said no' };
-    if (project.task === task) await project.window.showTask(project.main);
-    await project.deleteFork(task);
-    project.window.forkDeleted(task);
+    if (project.open().length === 1) {
+      const r = await closeProject(project);
+      if (!r.error) await project.closeTask(task);
+      return r;
+    }
+    if (task.state === 'working' && !await shell.ask({ message: `Close the task ${task.name}?`, ok: 'Close',
+      detail: "Its agent is still working: closing stops it. Its conversation, code and profiles stay; open it again from its project's group." }, project.window)) {
+      return { error: 'the human said no' };
+    }
+    await leaveTask(task);
+    await project.closeTask(task);
+    project.window.taskGone(task);
+    return { n: task.n };
+  }
+  // Delete in a task's menu (open or closed), after the human says yes: everything of it goes (projects.js). The last
+  // open one closes its project first.
+  async function deleteTask(task) {
+    const project = task.project;
+    if (!await project.askDeleteTask(task)) return { error: 'the human said no' };
+    if (!task.entry.closed && project.open().length === 1) {
+      const r = await closeProject(project, { asked: true });
+      if (r.error) return r;
+    } else if (!task.entry.closed) await leaveTask(task);
+    await project.deleteTask(task);
+    project.window?.taskGone(task);
+    if (!project.window) sendProjects();
+    return { n: task.n };
+  }
+  // A closed task listed in its project's group menu, opened again: shown, its agent resumed.
+  async function openTask(task) {
+    task.project.reopen(task);
+    await showTask(task);
     return { n: task.n };
   }
   // Removing a project, from wherever a window asks for it (w): the human confirms, then it is closed if it is open,
@@ -308,7 +353,7 @@ function start(options = {}) {
   });
   // New Project…, as JetBrains': the folder <location>/<name>, the location the home folder unless the human picks
   // another, so they know where the agent's files are. A folder that is there already must be empty; git init in it
-  // when asked (tasks need git).
+  // when asked, with an empty first commit: tasks get copies of their own (worktrees) from it.
   ipcMain.handle('project:new-defaults', () => ({ location: options.projectsHome || app.getPath('home'), sep: path.sep }));
   ipcMain.handle('project:pick-location', async (e, { location }) => {
     const r = await dialog.showOpenDialog(at(e).win, { title: 'Where to create the project', defaultPath: location, properties: ['openDirectory', 'createDirectory'] });
@@ -325,7 +370,7 @@ function start(options = {}) {
       return { error: `${folder} is already there and not empty; to work in it, use Open Folder…` };
     }
     fs.mkdirSync(folder, { recursive: true });
-    if (git) await worktrees.initRepo(folder).catch((err) => console.error('[git]', err.message));
+    if (git) await worktrees.initRepo(folder).catch((err) => console.error('[git]', err.stderr || err.message));
     return openLater(store.projectFor(folder, name), at(e));
   });
   // A project open in any window: that window shows it (brought to the front).
@@ -352,14 +397,14 @@ function start(options = {}) {
   ipcMain.handle('project:remove', (e, { id }) => serial(() => removeProject(id, at(e))));
   // A task of another project too (the bar shows every open project's): it becomes that project's, then the
   // project is shown.
-  ipcMain.handle('task:show', (e, key) => serial(async () => {
-    const task = shell.taskByKey(key);
-    if (!task) return;
-    const win = task.project.window;
-    await win.showTask(task);
-    if (win.current !== task.project) await win.show(task.project);
-  }));
-  ipcMain.handle('task:new', (e, { name, agent }) => serial(() => createTask(at(e)?.current, name, agent)));
+  const taskAt = (key, fn) => serial(() => { const task = shell.taskByKey(key); return task ? fn(task) : { error: `no task ${key}` }; });
+  ipcMain.handle('task:show', (e, key) => taskAt(key, showTask));
+  ipcMain.handle('task:new', (e, { project } = {}) => serial(() => createTask(project ? shell.open.get(project) : at(e)?.current)));
+  ipcMain.handle('task:close', (e, key) => taskAt(key, closeTask));
+  ipcMain.handle('task:delete', (e, key) => taskAt(key, deleteTask));
+  ipcMain.handle('task:open', (e, key) => taskAt(key, openTask));
+  ipcMain.handle('task:rename', (e, { key, name }) => taskAt(key, (task) => task.rename(name)));
+  ipcMain.handle('project:collapse', (e, { id, collapsed }) => { shell.open.get(id)?.collapse(collapsed); sendProjects(); });
   // The terminal's microphone and its language (voice.js in the renderer; Task.voice, dictate).
   // Esc typed into an agent's terminal (its key is the task's): Task.interrupted.
   ipcMain.on('pty:in', (e, { task, data }) => { if (data === '\x1b') shell.taskByKey(task)?.interrupted(); });
@@ -367,9 +412,7 @@ function start(options = {}) {
   ipcMain.handle('voice:record', (e, { task, on }) => shell.taskByKey(task)?.dictate(on) ?? { recording: false });
   ipcMain.handle('voice:language', (e, { task, code }) => shell.taskByKey(task)?.setVoiceLanguage(code) ?? { error: `no task ${task}` });
   ipcMain.handle('task:show-folder', (e, key) => { const task = shell.taskByKey(key); return task && electronShell.openPath(task.folder); });
-  ipcMain.handle('task:close', (e, key) => serial(() => { const task = shell.taskByKey(key); return task ? closeTask(task) : { error: `no task ${key}` }; }));
-  // The window asks again when the pointer comes to the shown project's tasks: the human may have made the first commit meanwhile.
-  ipcMain.handle('tasks:get', async (e) => { const w = at(e); await w?.current?.checkGit(); w?.sendTasks(); });
+  ipcMain.handle('tasks:get', (e) => at(e)?.sendTasks());
 
   const ready = app.whenReady().then(async () => {
     // macOS keeps a menu bar for the app: Electron's default one would reload Kulisa's own page with ⌘R. Its own
@@ -441,7 +484,7 @@ function start(options = {}) {
         ...(details && { path: found?.path ?? null, onPath: found?.onPath ?? null, version: await agents.agentVersion(found) }),
       };
     }));
-    return { list, main: w?.current?.main.store.agent().agent ?? custom?.id ?? null, home: app.getPath('home') };
+    return { list, home: app.getPath('home') };
   });
   // The maker's installer, run when the human clicks Install (that is their go-ahead); its output goes to the window.
   ipcMain.handle('agents:install', async (e, { id }) => {

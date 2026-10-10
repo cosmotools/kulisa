@@ -63,9 +63,9 @@ Everything happens inside Kulisa; no external Chrome windows.
   the recent projects. `#welcome` in `index.html`, `projects.js`. Not "window" (there is one) or "page".
 - **Terminology: "task"** for one line of work inside a project: an agent (its terminal and session, any agent
   CLI), a branch of the code, profiles and a grid. It replaced "workspace" (the word of tools for parallel agents,
-  e.g. Conductor) on 2026-10-10; earlier commits say workspace. Main is the project itself; forks are temporary
-  worktrees next to it (`myshop@<task>`). Several tasks build several features at once. How they work and why:
-  `docs/tasks.md`; what is left: ROADMAP, "Projects and tasks" and "Tasks, rest".
+  e.g. Conductor) on 2026-10-10; earlier commits say workspace. Each works in a git worktree of its own next to the
+  project (`myshop@task-2`); the project's folder is the human's. Several tasks build several features at once. How
+  they work and why: `docs/tasks.md`; what is left: ROADMAP, "Projects and tasks" and "Tasks, rest".
 - **Not tied to one agent or LLM vendor.** The user chooses the agent CLI (Claude Code, Codex, others); Kulisa must
   not require Claude Code or any one model provider. When planning a feature, design it for any agent CLI:
   - The core of a feature works through what every agent has: a terminal, the MCP server, files, git. Kulisa's
@@ -126,7 +126,7 @@ Everything happens inside Kulisa; no external Chrome windows.
   almost all in tab processes (REPORT, E8).
 - **Nothing piles up on the user's computer.** Everything Kulisa writes has an owner and an end:
   - It goes when its owner goes (a profile, a task, a project: their data, the copies, git's and the agent's
-    records of a fork), at once or at the next start when a file is still open (`deleted-folders.json`).
+    records of a task's copy), at once or at the next start when a file is still open (`deleted-folders.json`).
   - It is rewritten rather than added to: no files per event, no logs that grow; or it has a limit.
   - Temporary files are removed when done, also after an error; pictures and the like stay in memory.
   - A new kind of file or folder is listed in "What is on the computer" (`docs/tasks.md`, `profiles.md`) with
@@ -255,9 +255,9 @@ Modules (`src/main`):
 - `keys.js`: the keyboard shortcuts: one table (what each key does, and where: a page, everywhere, the terminal) and
   which key an input event is; `app.js` takes them before any page does (`before-input-event`), the window runs them
   (`renderer/keys.js`). A new key goes into the table (`docs/window.md`, Keys).
-- `projects.js`: an open project: its tasks, making and deleting a fork, removing a project's data.
-- `tasks.js`: a task: its profiles, its agent in its own terminal and environment, a fork's copies.
-- `worktrees.js`: git for forks (the user's git, never a shell): worktree, branch, files outside git, direnv.
+- `projects.js`: an open project: its tasks (make, close, open again, delete), removing a project's data.
+- `tasks.js`: a task: its profiles, its agent in its own terminal and environment, renaming, copies for a new task.
+- `worktrees.js`: git for tasks (the user's git, never a shell): worktree, branch, files outside git, direnv.
 - `agents.js`: the agents to choose from, one entry each: find, install, start, resume. Agent-specific code goes
   here.
 - `project-profiles.js`: a task's profiles in order, open and closed: create, rename, describe, close, open,

@@ -9,10 +9,11 @@
 //   dirs                     where the installer puts the program (default ~/.local/bin, as the native installers)
 //   args(ctx)                arguments that connect it to Kulisa; ctx: { env (the task's, tasks.js), plugin }
 //   resume(saved)            arguments that continue the conversation saved in agent.json, or nothing
-//   prepare(ctx)             before it starts in a fork: ctx { folder, main: { folder, and main's agent.json } }
-//   forget(ctx)              a fork is deleted: everything the agent keeps of its folder goes (conversations, the
-//                            folder's trust, history); ctx { folder, saved (its agent.json), main (main's folder and
-//                            agent.json) }
+//   prepare(ctx)             before it starts in a task's copy (a worktree): ctx { folder, project: { folder (the
+//                            project's), and the task's agent.json } }
+//   forget(ctx)              a task's copy is deleted: everything the agent keeps of its folder goes (conversations,
+//                            the folder's trust, history); ctx { folder, saved (its agent.json), project (the
+//                            project's folder, and an agent.json of one of its tasks with a transcript) }
 //   voice                    dictation, when the agent has its own (the window's microphone button; none without):
 //                            args  more arguments, which turn it on as the button needs it
 //                            key, repeat  what is typed into its terminal again and again while it records, every
@@ -38,8 +39,8 @@ const AGENTS = [
     // The Kulisa plugin: its MCP config (KULISA_MCP_URL), the profiles skill, the hooks.
     args: ({ plugin }) => ['--plugin-dir', plugin],
     resume: ({ sessionId, transcript }) => sessionId && transcript && fs.existsSync(transcript) && ['--resume', sessionId],
-    // A fork's folder is the project's own code: trusted as main is, so Claude Code does not ask again.
-    prepare: ({ folder, main }) => { if (main.transcript) trustLikeMain(claudeConfigOf(main.transcript), main.folder, folder); },
+    // A task's folder is the project's own code: trusted as the project's folder is, so Claude Code does not ask again.
+    prepare: ({ folder, project }) => { if (project.transcript) trustLikeProject(claudeConfigOf(project.transcript), project.folder, folder); },
     forget: (ctx) => forgetClaude(ctx),
     // Its voice mode (needs a Claude.ai account), on for Kulisa's sessions only (not the user's settings): space held
     // (its repeats coming) records, the text put where the cursor is, also after text already there, and left in the
@@ -106,14 +107,14 @@ function claudeConfigOf(transcript) {
   return path.basename(dir) === '.claude' && path.dirname(dir) === os.homedir() ? path.join(os.homedir(), '.claude.json') : path.join(dir, '.claude.json');
 }
 // Claude Code asks once per folder whether to trust it, and keeps the answer in its config file
-// (projects[<folder>].hasTrustDialogAccepted). The fork's folder gets main's answer when it is yes. Not documented:
+// (projects[<folder>].hasTrustDialogAccepted). A task's folder gets the project folder's answer when it is yes. Not documented:
 // when the file is not as expected, nothing is changed (Claude asks, as without Kulisa). Written whole at once, so
 // Claude never reads it half-written.
-function trustLikeMain(file, mainFolder, folder) {
+function trustLikeProject(file, projectFolder, folder) {
   try {
     const config = JSON.parse(fs.readFileSync(file, 'utf8'));
     const projects = config.projects;
-    if (!projects || typeof projects !== 'object' || projects[mainFolder]?.hasTrustDialogAccepted !== true) return false;
+    if (!projects || typeof projects !== 'object' || projects[projectFolder]?.hasTrustDialogAccepted !== true) return false;
     if (projects[folder]?.hasTrustDialogAccepted === true) return true;
     projects[folder] = { allowedTools: [], mcpContextUris: [], mcpServers: {}, enabledMcpjsonServers: [], disabledMcpjsonServers: [],
       hasClaudeMdExternalIncludesApproved: false, hasClaudeMdExternalIncludesWarningShown: false, ...projects[folder], hasTrustDialogAccepted: true };
@@ -122,20 +123,20 @@ function trustLikeMain(file, mainFolder, folder) {
   } catch (e) { console.warn('[agents] trust:', e.message); return false; }
 }
 
-// What Claude Code keeps of a deleted fork's folder, all of it (undocumented layout, as of Claude Code 2.1; what is not
+// What Claude Code keeps of a deleted task's folder, all of it (undocumented layout, as of Claude Code 2.1; what is not
 // found is skipped), in the config dir the sessions used (from the transcript the SessionStart hook reported, else
-// main's: the same environment):
+// another task's of the project: the same environment):
 //   projects/<folder, non-alphanumerics as ->/   its conversations (<session>.jsonl, and a folder per session).
-//                                                 Folders of other forks can map to the same name (kulisa@ыва and
+//                                                 Folders of other tasks can map to the same name (kulisa@ыва and
 //                                                 kulisa@фыв are both kulisa----): only the sessions whose recorded
-//                                                 cwd is the fork's folder go
+//                                                 cwd is the task's folder go
 //   file-history/<session>, session-env/<session>, debug/<session>.txt, todos/<session>-*   per session
 //   history.jsonl                                 the prompts typed, a line each with "project": <folder>
 //   .claude.json (claudeConfigOf)                 projects[<folder>]: its trust and settings
-// Never main's folder.
-function forgetClaude({ folder, saved = {}, main = {} }) {
-  const transcript = saved.transcript || main.transcript;
-  if (!folder || !path.isAbsolute(folder) || folder === main.folder || !transcript) return false;
+// Never the project's folder.
+function forgetClaude({ folder, saved = {}, project = {} }) {
+  const transcript = saved.transcript || project.transcript;
+  if (!folder || !path.isAbsolute(folder) || folder === project.folder || !transcript) return false;
   const projects = path.dirname(path.dirname(transcript));
   if (path.basename(projects) !== 'projects') return false;
   const dir = path.dirname(projects);
@@ -188,7 +189,7 @@ const codexHooks = () => `{${Object.entries(CODEX_HOOKS).map(([event, to]) => {
   return `${event}=[{hooks=[{type="command",timeout=${t + 1},command='curl -sf --max-time ${t} --data-binary @- "$KULISA_URL/hooks/${to}" || true'}]}]`;
 }).join(',')}}`;
 
-// What Codex keeps of a deleted fork's folder (undocumented layout, as of Codex 0.160), in CODEX_HOME (~/.codex):
+// What Codex keeps of a deleted task's folder (undocumented layout, as of Codex 0.160), in CODEX_HOME (~/.codex):
 //   sessions/…/rollout-*.jsonl, archived_sessions/…   its conversations: the first line's payload.cwd is the folder
 //   config.toml                                       [projects."<folder>"]: its trust
 // Its own databases (state_*.sqlite) are not touched: their format is Codex's alone.
@@ -268,4 +269,4 @@ function installAgent(agent, onData) {
 // The command line the window shows before installing.
 const installLine = (agent) => agent.install?.[process.platform === 'win32' ? 'win32' : 'posix'] || null;
 
-module.exports = { AGENTS, findAgent, agentVersion, installAgent, installLine, trustLikeMain, claudeConfigOf, claudeLanguage };
+module.exports = { AGENTS, findAgent, agentVersion, installAgent, installLine, trustLikeProject, claudeConfigOf, claudeLanguage };

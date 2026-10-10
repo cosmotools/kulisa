@@ -61,7 +61,7 @@ module.exports = (test) => {
   test("terminals next to the agent's: + opens the human's shell in front; the agent runs what keeps running in its own, behind, reads it, stops it, closes it; × and a shell's exit close one", async ({ shell, ui, call, instructions }) => {
     const task = shell.task, group = (id) => ui(`window.__dock.getPanel(${JSON.stringify(id)})?.group.id === window.__dock.getPanel('terminal').group.id`);
     const active = (id) => ui(`window.__dock.getPanel(${JSON.stringify(id)})?.api.isActive === true`);
-    assert.match(await instructions(), /terminal_run, not in your own shell.*This is the project's main task: the app runs on its usual ports\.$/s);
+    assert.match(await instructions(), /terminal_run, not in your own shell.*This is the Kulisa task "task-1", working right in the project's folder .* the app under test runs on its usual ports\. Name the task with task_rename/s);
     await ui(`document.querySelector('.ptab .add').click()`);
     await waitFor(() => task.terminals.size === 1);
     const [human] = task.terminalsInfo();
@@ -210,7 +210,7 @@ module.exports = (test) => {
     const { shell, ui } = ctx;
     const looks = await ui(`[...document.querySelectorAll('dialog[id]')].map((d) => ({ id: d.id, title: !!d.querySelector('header h2'),
       body: !!d.querySelector('.body'), last: d.querySelector('footer > button:last-child')?.className }))`);
-    assert.deepEqual(looks.map((l) => l.id), ['profiles', 'newproject', 'tasknew', 'agentpick', 'agents', 'shortcuts', 'ask']);
+    assert.deepEqual(looks.map((l) => l.id), ['profiles', 'newproject', 'taskrename', 'agentpick', 'agents', 'shortcuts', 'ask']);
     for (const l of looks) assert.ok(l.title && l.body && /primary|ok/.test(l.last), JSON.stringify(l));
 
     // A question before deleting: the title, what goes line by line, Cancel (focused) and a red Delete at the right.
