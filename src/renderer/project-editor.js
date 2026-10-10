@@ -24,7 +24,7 @@ const repos = document.getElementById('nprepos');
 const url = document.getElementById('npurl');
 const former = document.getElementById('npformer');
 const showDialog = coverWhileOpen(dialog);
-const codeRows = ['npreposrow', 'npreposadd', 'npprofilesrow', 'npprofilesadd'].map((id) => document.getElementById(id));
+const codeRows = ['npreposrow', 'npreposadd', 'npprofilesrow', 'npprofilesadd', 'nplocalrow'].map((id) => document.getElementById(id));
 let sep = '/', editing = null, folder = '';
 
 const target = () => (editing ? folder : `${place.value.trim().replace(/[\\/]+$/, '')}${sep}${name.value.trim()}`);
@@ -90,6 +90,7 @@ export async function editProject(id) {
   for (const r of codeRows) r.hidden = false;
   url.value = ''; codeError.textContent = ''; newProfile.value = ''; profileError.textContent = '';
   fill(c, c);
+  document.getElementById('nplocal').value = (c.local || []).join(' ');
   showCode(c);
   showProfiles(c);
   update();
@@ -104,7 +105,8 @@ form.onsubmit = async (e) => {
   e.preventDefault();
   if (!name.value.trim()) return name.focus();
   create.disabled = true;
-  const look = { name: name.value, color: chosen(colors), icon: chosen(icons), agent: agent.value || null };
+  const look = { name: name.value, color: chosen(colors), icon: chosen(icons), agent: agent.value || null,
+    ...(editing && { local: document.getElementById('nplocal').value.split(/[\s,]+/).filter(Boolean) }) };
   const r = editing ? await kulisa.invoke('project:settings', { id: editing, ...look })
     : await kulisa.invoke('project:new', { ...look, location: place.value, git: git.checked });
   create.disabled = false;

@@ -86,9 +86,9 @@ Through Kulisa's MCP server (`mcp-server.js`), every tool taking a profile id: `
 `browser_snapshot`, `browser_click`, `browser_type`, `browser_press_key`, `browser_hover`, `browser_select_option`,
 `browser_file_upload`, `browser_wait_for`, `browser_evaluate`, `browser_navigate` (also back, forward, reload),
 `browser_tab_new` / `_select` / `_close`, `browser_highlight`, `browser_screenshot`, `browser_console_messages`,
-`browser_network_requests`; the tools reading or acting on a page take an optional `tab`. Profiles:
-`profile_create`, `profile_rename`, `profile_describe`, `profile_open`, `profile_close`, `profile_ask_signin`, and
-`profile_delete`, which asks the human first.
+`browser_network_requests`, `browser_type_login`; the tools reading or acting on a page take an optional `tab`.
+Profiles: `profile_create`, `profile_rename`, `profile_describe`, `profile_open`, `profile_close`, `profile_ask_signin`,
+`profile_set_login`, and `profile_delete`, which asks the human first. Tasks: `task_rename`.
 
 What the tools are for, beyond acting as one user:
 
@@ -186,10 +186,35 @@ methods. A row with one side empty says why, or is a gap to fill.
 | Act in a page | mouse, keyboard | `browser_click`, `browser_type`, `browser_press_key`, `browser_hover`, `browser_select_option`, `browser_file_upload`, `browser_evaluate` | the page itself; Playwright over the proxy |
 | Answer a dialog | the dialog in the pane | `dialog` on the action that opened it | `Profile._dialog`, `answerDialog` |
 | Sign in | by hand, in its master (Sign In to Master…) or a task's pane | never (Rules); asks with `profile_ask_signin` | `master.js`; the sign-in pause |
+| Save a test user's pair | the editor's login and password fields | `profile_set_login` | `Task.setLogin` (encrypted: `shell.secrets`) |
+| Sign in as a test user | types it | `browser_type_login` (never sees the password) | `Task.loginFor`, `local.js` |
 | Bring the master's sign-ins to a task's copy | Refresh from Master… | none: it replaces sign-ins, the human's to decide | `Task.refreshProfile`, `SessionCookies.copy` |
 | Open a terminal next to the agent's, run in it | + in the terminal's header, then types | `terminal_run` (a name and a command) | `Task.openTerminal`, `runInTerminal` |
 | Read a terminal, stop what runs there | looks at it, Ctrl+C | `terminal_read`, `terminal_stop` | `Task.readTerminal`, `interruptTerminal` |
 | Close a terminal | ×, Close in its menu, `exit` | `terminal_stop` with `close` | `Task.closeTerminal`; a shell's exit too |
+
+## Test users' sign-ins
+
+Real accounts are the human's to sign in to (Rules); a **test user of the app under test on this computer** is the
+agent's, so it can sign up, sign in and sign out as many users as the tests need without asking (designed with the
+author, 2026-10-10). How it is kept safe, each line with its reason:
+
+- **A pair per profile** (`profile-store.js`, `login`): a login and a password. Set by the human (the profile editor's
+  login and password fields) or the agent (`profile_set_login`, after it signed that user up). The password is
+  encrypted with the OS keyring (`safeStorage`), as session cookies are; without a keyring none is kept: never in the
+  clear on disk.
+- **The agent never gets the password.** `browser_type_login` (a field, `login` or `password`) has Kulisa type it into
+  the page; `browser_profiles` shows the login and whether a password is kept, not the password; the pane's caption
+  says `type ••••••` (`ghost.js`, `shell.typingSecret`). So it is in no transcript, log or screen share. (A script the
+  agent runs in the page could read a field back; the skill forbids reading secrets, as it forbids cookies.)
+- **Only on a local page** (`local.js`, `Task.loginFor`): `localhost`, `*.localhost`, `*.test`, `*.local`, loopback and
+  private addresses, and the project's own list (Project Settings… → Local: a tunnel, dev domains, each with its
+  subdomains); or a page the same tab reached from one (an Auth0 dev tenant, a local Keycloak on another name).
+  Elsewhere it is refused, so a pair cannot be typed into a real site, a look-alike page, or a link the agent was sent
+  to. An address left out is safe the other way: the pair is not typed there.
+- **Never on an account provider** (Google, Microsoft, Apple, GitHub, Facebook, Okta), even reached from a local app:
+  a test account there is the human's to sign in to, in the profile's master.
+- The agent's own rule (the MCP server's instructions, the skill): a real account's password never goes into a pair.
 
 ## Sign-ins that last
 
@@ -281,7 +306,8 @@ space (ROADMAP, "Profiles' caches").
 |---|---|
 | `src/main/profiles.js` | a profile: its session, tabs (WebContentsView), the shell's Playwright connection, sign-in mode, zoom |
 | `src/main/error-page.html` | what a tab shows when its page did not load |
-| `src/main/profile-store.js` | the profiles, one store: who each is, its master, its projects |
+| `src/main/profile-store.js` | the profiles, one store: who each is, its master, its projects, a test user's pair |
+| `src/main/local.js` | what is local: where a test user's pair may be typed |
 | `src/main/master.js`, `src/renderer/master.html`, `master.js`, `master.css` | a master's window, to sign in to it |
 | `src/main/project-profiles.js` | a task's profiles: copies of their masters made at their first open, open and closed; create, rename, describe, close, open, let go |
 | `src/main/avatars.js`, `src/renderer/avatars/` | the profiles' pictures (Noto Emoji) |

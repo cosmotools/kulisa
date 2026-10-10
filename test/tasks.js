@@ -680,10 +680,12 @@ module.exports = (test) => {
     assert.equal(await ui(`document.getElementById('nplocationrow').checkVisibility()`), false);
     await ui(`(() => { const n = document.getElementById('npname'); n.value = 'Site-2'; n.dispatchEvent(new Event('input'));
       document.querySelectorAll('#npcolors button')[5].click(); document.querySelector('#npicons [data-value="globe"]').click();
-      document.getElementById('npagent').value = 'shell'; document.getElementById('npform').requestSubmit(); })()`);
+      document.getElementById('npagent').value = 'shell'; document.getElementById('nplocal').value = 'abc.ngrok.app *.Shop.dev';
+      document.getElementById('npform').requestSubmit(); })()`);
     await waitFor(async () => !(await ui(`document.getElementById('newproject').open`)));
     const entry = shell.store.projects().find((p) => p.id === 'site');
     assert.deepEqual([entry.name, entry.color, entry.icon, entry.agent, entry.folder], ['Site-2', require('../src/main/store').PROJECT_COLORS[5], 'globe', 'shell', site]);
+    assert.deepEqual(entry.local, ['abc.ngrok.app', 'shop.dev'], "its own local addresses, where test users' pairs may be typed (local.js)");
     await waitFor(async () => (await projectTabs(ui)).includes('Site-2 *') && shell.win.getTitle() === 'Site-2 — Kulisa');
     assert.equal(await ui(`${projectTab('site')}.querySelector('.plabel use').getAttribute('href')`), '#i-p-globe');
     // Its profiles: a new one; one of another project, the same person (its master, its sign-ins); × lets go of one.

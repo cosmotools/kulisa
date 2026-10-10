@@ -34,6 +34,8 @@ human sees everything you do there: your cursor and a caption are drawn in the p
 | `terminal_run` | Run what keeps running (the app's dev server, `docker compose up`, a watcher) in a terminal of its own next to yours, by a name ("dev server"): the human sees it there. The same name again types into it. |
 | `terminal_read` | The last lines a terminal shows, as plain text (errors, the address the server listens on); without a name, the terminals open, yours and the human's. |
 | `terminal_stop` | Ctrl+C in a terminal (`close: true` closes it). The human's own terminals only when they ask. |
+| `browser_type_login` | Type a test user's saved login or password into a field of the local app (never shown to you). |
+| `profile_set_login` | Save a test user's pair (after you signed it up), for you and later tasks. |
 | `task_rename` | Name your task once you know what it is about: its tab, and its git branch. |
 
 Every browser tool takes `profile`: the id from `browser_profiles`, not the display name. Tools that read or act on
@@ -88,16 +90,22 @@ project's folder.
   addresses already point at those ports, and they stay signed in (cookies do not depend on the port). If the app
   cannot run on other ports, tell the human.
 
-## Signing in: never you
+## Signing in: real accounts are the human's; test users of the local app, yours
 
-- Never sign in, type passwords or one-time codes, or read cookies or tokens. The human signs in by hand.
+- Never sign in to a real account (Google, Microsoft, a client's tenant), type its password or a one-time code, or
+  read cookies or tokens. The human signs in by hand, once for every task, in the profile's master.
+- A **test user of the app under test on this computer** with a saved pair (`testLogin` in `browser_profiles`): sign
+  in yourself with `browser_type_login` (`field: "login"`, then `"password"`, `submit: true`). Kulisa types it, only on
+  a local page (localhost, `*.test`, a private network, the project's own list) or one the tab reached from it, never
+  on an account provider's; you never see the password. After you sign a test user up, save its pair with
+  `profile_set_login` so later tasks sign in too. Never put a real account's password there.
 - A signed-out profile, or one on a sign-in page: ask the human with `profile_ask_signin` (say as whom and why),
   which waits while they sign in; on "not yet", call it again or do something else meanwhile. Then check with
   `browser_snapshot`.
 - `signinMode: true`, or an error saying the profile is in sign-in mode: the human is signing in right now, and
   Kulisa keeps all automation away from that profile until they finish. Do something else, then try again.
-- After `profile_create`, the new profile is empty and signed out: ask the human to sign it in
-  (`profile_ask_signin`).
+- After `profile_create`, the new profile is empty and signed out: a test user of the local app you sign up or sign
+  in yourself (above); a real account, ask the human to sign it in (`profile_ask_signin`).
 - `browser_evaluate` is not a way around this rule: never read cookies, tokens or passwords with it.
 - Delete a profile (`profile_delete`) only when the human asks, or one you created is no longer needed. The
   human confirms each deletion; a deleted profile's sign-ins are gone and only the human can sign in again. If they

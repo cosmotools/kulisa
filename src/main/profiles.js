@@ -42,6 +42,7 @@ class Profile extends EventEmitter {
     super();
     this.win = win;
     this.id = cfg.id; this.name = cfg.name; this.avatar = cfg.avatar; this.description = cfg.description || '';
+    this.login = cfg.login || ''; this.hasPassword = !!cfg.hasPassword; // a test user's pair (profile-store.js): its login
     this.folder = cfg.folder; this.dir = cfg.dir; this.task = task;
     // Page zoom: pages follow the Kulisa zoom (baseZoom, set by the window); a site the human zoomed with Ctrl + / -
     // in a page keeps its own factor on top of it, per host, in this profile only (saved in profiles.json).
@@ -331,7 +332,7 @@ class Profile extends EventEmitter {
 
   info() {
     // key: stable across renames (the folder), for the UI to keep the same pane.
-    return { key: this.folder, id: this.id, name: this.name, avatar: this.avatar, description: this.description, active: this.active,
+    return { key: this.folder, id: this.id, name: this.name, avatar: this.avatar, description: this.description, login: this.login, hasPassword: this.hasPassword, active: this.active,
       signinMode: this.signinMode,
       tabs: this.tabs.map((t) => ({ id: t.id, title: t.title, url: t.url, favicon: t.favicon, loading: t.loading, canBack: t.canBack, canFwd: t.canFwd,
         zoom: this.pageZoom(t), dialog: t.dialog && { id: t.dialog.id, type: t.dialog.type, message: t.dialog.message, from: t.dialog.from, picture: t.dialog.picture } })) };

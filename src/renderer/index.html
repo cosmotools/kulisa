@@ -158,6 +158,7 @@
         <div class="field"><span>Color</span><div id="npcolors" class="choices" role="group" aria-label="Color"></div></div>
         <div class="field"><span>Icon</span><div id="npicons" class="choices" role="group" aria-label="Icon"></div></div>
         <label class="field"><span>Agent</span><select id="npagent"></select></label>
+        <label class="field" id="nplocalrow"><span>Local</span><input id="nplocal" spellcheck="false" placeholder="More local addresses: a tunnel, dev domains (abc.ngrok.app shop.dev)"></label>
         <p class="hint">The agent each new task of the project runs; Change agent… in a task's terminal picks another.</p>
         <p class="error"></p>
       </div>
@@ -250,6 +251,7 @@
           <button class="open" hidden>Open</button><button class="del">Delete…</button></div>
         <small class="ntabs"></small>
         <textarea class="about" rows="2" maxlength="500" aria-label="About this profile" placeholder="About: who this is in your app, for the agent (optional)"></textarea>
+        <div class="line"><input class="login" maxlength="200" spellcheck="false" autocomplete="off" aria-label="Test login" placeholder="Test login: a test user of your local app (optional)"><input class="password" type="password" maxlength="500" autocomplete="new-password" aria-label="Test password"></div>
         <div class="pics choices" hidden></div>
       </div>
     </div>

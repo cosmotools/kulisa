@@ -112,6 +112,7 @@ src/main/        Electron main process
   worktrees.js     git for tasks: worktree and branch, files outside git copied, changes, renaming, removal
   profile-store.js     the profiles, one store: who each is, its master, its projects
   master.js        a profile's master in a window of its own, to sign in to once for every task
+  local.js         what is local: where a test user's login-password pair may be typed
   project-profiles.js  a task's profiles (copies of their masters, made at their first open), open and closed
   avatars.js       the profiles' pictures to choose from (Noto Emoji's, in src/renderer/avatars/)
   profiles.js      a profile: a session on its own folder, tabs (WebContentsView), Playwright connection, sign-in mode

@@ -35,6 +35,15 @@ function handler(req, res) {
     // the way it survives a Chrome restart with "continue where you left off".
     return send(302, '', 'text/plain', { 'set-cookie': `user=${name}; Path=/; SameSite=Lax`, location: '/app' });
   }
+  // A test user's sign-in with a password (a profile's pair, browser_type_login): the password is "secret-<name>".
+  if (u.pathname === '/app/signin') {
+    return send(200, page('sign in', `<form action="/app/password"><input id="user" name="user" aria-label="User"><input id="pass" name="pass" type="password" aria-label="Password"><button>Sign in</button></form>`));
+  }
+  if (u.pathname === '/app/password') {
+    const name = (u.searchParams.get('user') || '').replace(/[^\w-]/g, '');
+    if (u.searchParams.get('pass') !== `secret-${name}`) return send(200, page('wrong', '<h2 id="who">Wrong password</h2>'));
+    return send(302, '', 'text/plain', { 'set-cookie': `user=${name}; Path=/; SameSite=Lax`, location: '/app' });
+  }
   if (u.pathname === '/app') {
     const n = u.searchParams.get('n') || '1';
     return send(200, page(user ? `App · ${user} · ${n}` : 'App · signed out', `

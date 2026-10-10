@@ -1,7 +1,7 @@
 // Kulisa, the app: its windows (window.js) with their project tabs, the open projects, the agents, the CDP proxy and
 // the MCP server, the windows' IPC (each message acts in the window it comes from), quitting. start(options) is used by
 // the entry point (index.js) and by the tests.
-const { app, ipcMain, dialog, screen, nativeTheme, Menu, shell: electronShell } = require('electron');
+const { app, ipcMain, dialog, screen, nativeTheme, Menu, safeStorage, shell: electronShell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { EventEmitter } = require('events');
@@ -67,6 +67,14 @@ function start(options = {}) {
   // The profiles and their masters (profile-store.js); after who one is changed, or a project got or let go of one,
   // every loaded task shows it (project-profiles.js, refresh), but the one it was changed in, which did.
   shell.profileStore = new ProfileStore(userData, (dir) => store.markDeleted(dir));
+  // Test users' passwords, encrypted with the OS keyring (tasks.js, setLogin); never kept in the clear.
+  shell.secrets = {
+    available: () => safeStorage.isEncryptionAvailable(),
+    encrypt: (s) => safeStorage.encryptString(s).toString('base64'),
+    decrypt: (b) => safeStorage.decryptString(Buffer.from(b, 'base64')),
+  };
+  // Profiles whose test password is being typed (mcp-server.js, browser_type_login): ghost.js shows no text for them.
+  shell.typingSecret = new Set();
   shell.profilesChanged = (from) => {
     for (const p of shell.open.values()) for (const t of p.tasks.values()) if (t.loaded && t !== from) { t.list.refresh(); shell.taskChanged(t, true); }
   };
@@ -403,7 +411,7 @@ function start(options = {}) {
   // shown, not changed (its tasks' copies are made from it).
   ipcMain.handle('project:settings-get', (e, { id }) => {
     const p = store.projects().find((x) => x.id === id);
-    return p ? reposInfo(p).then((r) => ({ id, name: p.name, folder: p.folder, color: p.color, icon: p.icon || 'logo', agent: p.agent || null,
+    return p ? reposInfo(p).then((r) => ({ id, name: p.name, folder: p.folder, color: p.color, icon: p.icon || 'logo', agent: p.agent || null, local: p.local || [],
       favicon: faviconOf(p.folder), ...r, ...profilesOf(id), ...choices() })) : { error: `no project ${id}` };
   });
   // Its profiles (profile-store.js): those it has, and those of other projects it can take. A new one comes closed in
@@ -451,11 +459,13 @@ function start(options = {}) {
   ipcMain.handle('project:repo-remove', (e, { id, folder }) => serial(async () => settingsOf(id, await removeRepo(shell, id, folder))));
   // Its former folder (no git; tasks no longer work in it), in the OS's file manager: the human moves its files.
   ipcMain.handle('project:show-former', (e, { id }) => { const p = store.projects().find((x) => x.id === id); return p && electronShell.openPath(p.folder); });
-  ipcMain.handle('project:settings', (e, { id, name, color, icon, agent }) => {
+  ipcMain.handle('project:settings', (e, { id, name, color, icon, agent, local }) => {
     name = name?.trim();
-    const bad = nameError(name) || lookError({ color, icon, agent });
+    // Its own local addresses (local.js): hosts, each with its subdomains (a tunnel, its dev domains).
+    local = [...new Set((local || []).map((h) => String(h).trim().toLowerCase().replace(/^\*\./, '')).filter(Boolean))];
+    const bad = nameError(name) || lookError({ color, icon, agent }) || local.find((h) => !/^[a-z0-9.-]+$/.test(h) || !h.includes('.')) && `not a host name: ${local.find((h) => !/^[a-z0-9.-]+$/.test(h) || !h.includes('.'))}`;
     if (bad) return { error: bad };
-    const entry = store.updateProject(id, { name, color, icon: icon === 'logo' ? null : icon, agent: agent || null });
+    const entry = store.updateProject(id, { name, color, icon: icon === 'logo' ? null : icon, agent: agent || null, local: local.length ? local : null });
     if (!entry) return { error: `no project ${id}` };
     favicons.delete(entry.folder);
     const open = shell.open.get(id);
@@ -628,6 +638,7 @@ function start(options = {}) {
   ipcMain.handle('layout:load', (e, { task }) => onScreen(e, task)?.store.layout());
   // A profile's master, to sign in to (master.js), and its cookies brought to this task's copy (tasks.js).
   ipcMain.handle('profile:master', (e, { task, profile }) => onScreen(e, task)?.openMaster(profile) || noTask);
+  ipcMain.handle('profile:login', (e, { task, profile, user, password }) => onScreen(e, task)?.setLogin(profile, user, password) || noTask);
   ipcMain.handle('profile:refresh', (e, { task, profile }) => onScreen(e, task)?.refreshProfile(profile) || noTask);
   ipcMain.handle('agent:change', (e, { task }) => { const w = onScreen(e, task); return w ? w.changeAgent() : noTask; });
   ipcMain.handle('terminal:open', (e, { task }) => { const w = onScreen(e, task); return w ? w.openTerminal() : noTask; });

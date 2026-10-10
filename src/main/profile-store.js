@@ -4,7 +4,9 @@
 // opened there (project-profiles.js). Who it is (name, id, picture, description) is the store's, the same in every
 // project and task; what a task has of it (open or closed, its tabs, sites' zoom) is the task's. A profile goes when its
 // last project lets it go, after a question. Plain Node (no Electron): unit-tested.
-//   profiles.json         { next, list: [{ id, name, avatar, description, folder, projects: [project id] }] }: next,
+//   profiles.json         { next, list: [{ id, name, avatar, description, folder, projects: [project id], login }] }:
+//                         login: a test user's pair, { user, secret } (the password encrypted with the OS keyring:
+//                         safeStorage; never in the clear, never logged); next,
 //                         the number of the next folder, never one used before (a task's copy of a deleted profile
 //                         stays on disk while its session is open, and a new profile must not find it)
 //   profiles/Profile <k>/ its master
@@ -52,6 +54,7 @@ class ProfileStore {
     if (!p) return null;
     Object.assign(p, fields);
     if (!p.description) delete p.description;
+    if (!p.login) delete p.login;
     this.save(list);
     return p;
   }

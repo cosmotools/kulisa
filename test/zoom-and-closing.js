@@ -194,4 +194,43 @@ module.exports = (test) => {
     await waitFor(() => !shell.profiles.has('solo'));
     ctx.asked.length = 0; // its question, answered
   });
+
+  test("test users' sign-ins: the agent saves a pair and signs in with it on a local page, never seeing the password; refused elsewhere; the human sets one in the editor", async (ctx) => {
+    const { shell, ui, call } = ctx;
+    await call('profile_create', { name: 'Tess' });
+    const actions = [];
+    const watch = (a) => actions.push(a.caption);
+    shell.bus.on('agent-action', watch);
+    try {
+      assert.match((await call('profile_set_login', { profile: 'tess', login: 'tester', password: 'secret-tester' })).text, /kept encrypted/);
+      const listed = JSON.parse((await call('browser_profiles', {})).text).find((p) => p.id === 'tess');
+      assert.deepEqual([listed.testLogin, listed.testPassword], ['tester', true]);
+      assert.ok(!fs.readFileSync(path.join(userData, 'profiles.json'), 'utf8').includes('secret-tester'), 'never in the clear');
+      await call('browser_navigate', { profile: 'tess', url: `${SITE}/app/signin` });
+      await call('browser_type_login', { profile: 'tess', locator: "locator('#user')", field: 'login' });
+      assert.match((await call('browser_type_login', { profile: 'tess', locator: "locator('#pass')", field: 'password', submit: true })).text, /^Typed Tess's password/);
+      assert.equal(await who(ctx, 'tess'), 'Signed in as tester');
+      assert.ok(!actions.some((c) => /secret/.test(c || '')) && actions.includes('type ••••••'), 'the pane shows dots, not the password');
+    } finally { shell.bus.off('agent-action', watch); }
+    // Not a local page: refused, nothing typed.
+    await call('browser_navigate', { profile: 'tess', url: 'data:text/html,<input id="x">' });
+    await assert.rejects(call('browser_type_login', { profile: 'tess', locator: "locator('#x')", field: 'password' }), /not the app under test on this computer/);
+    // The human: About this profile…'s login fields; the password saved encrypted, never shown back.
+    await manageProfiles(ui);
+    const row = `document.querySelector('#plist .prow[data-profile="tess"]')`;
+    await waitFor(() => ui(`${row}.querySelector('.login').value === 'tester'`));
+    assert.equal(await ui(`${row}.querySelector('.password').placeholder`), 'Password kept (type to change it)');
+    await ui(`(() => { const f = ${row}.querySelector('.password'); f.value = 'secret-tess'; f.dispatchEvent(new Event('change')); })()`);
+    await waitFor(() => ui(`${row}.querySelector('.password').value === ''`));
+    await ui(`(() => { const f = ${row}.querySelector('.login'); f.value = 'tess'; f.dispatchEvent(new Event('change')); })()`);
+    await waitFor(() => shell.profileStore.get('tess').login?.user === 'tess');
+    await ui(`document.getElementById('closeProfiles').click()`);
+    await call('browser_navigate', { profile: 'tess', url: `${SITE}/app/signin` });
+    await call('browser_type_login', { profile: 'tess', locator: "locator('#user')", field: 'login' });
+    await call('browser_type_login', { profile: 'tess', locator: "locator('#pass')", field: 'password', submit: true });
+    assert.equal(await who(ctx, 'tess'), 'Signed in as tess', "the human's pair");
+    ctx.answer = true;
+    await call('profile_delete', { profile: 'tess' });
+    ctx.asked.length = 0;
+  });
 };

@@ -94,6 +94,11 @@ const profileEditor = (() => {
       if (document.activeElement !== name) name.value = p.name;
       const about = row.querySelector('.about');
       if (document.activeElement !== about) about.value = p.description || '';
+      // Its test login, and whether a password is kept (never shown back: the field says so).
+      const login = row.querySelector('.login'), password = row.querySelector('.password');
+      if (document.activeElement !== login) login.value = p.login || '';
+      password.placeholder = p.hasPassword ? 'Password kept (type to change it)' : 'Test password';
+      password.disabled = !p.login;
       name.title = `The agent calls it ${p.id}`;
       row.dataset.profile = p.id;
       const n = p.closed ? p.tabs : p.tabs.length;
@@ -124,6 +129,17 @@ const profileEditor = (() => {
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); about.blur(); }
       if (e.key === 'Escape') { e.preventDefault(); about.value = row.profile.description || ''; about.blur(); }
     });
+    // A test user's pair (profiles.md, "Test users' sign-ins"): the login saved when the field is left (empty: the pair
+    // goes); a password typed, saved encrypted, then the field is emptied. The agent signs in with it on a local page.
+    const login = row.querySelector('.login'), password = row.querySelector('.password');
+    login.addEventListener('change', () => { if (login.value.trim() !== (row.profile.login || '')) act('profile:login', { profile: row.profile.id, user: login.value }); });
+    password.addEventListener('change', async () => {
+      if (!password.value) return;
+      const r = await act('profile:login', { profile: row.profile.id, user: login.value, password: password.value });
+      password.value = '';
+      if (r?.error) password.placeholder = r.error;
+    });
+    for (const f of [login, password]) f.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); f.blur(); } });
     row.show = pictures(row.querySelector('.pic'), row.querySelector('.pics'), () => row.profile.avatar,
       (avatar) => act('profile:avatar', { profile: row.profile.id, avatar }));
     row.querySelector('.open').onclick = () => act('profile:open', { profile: row.profile.id });

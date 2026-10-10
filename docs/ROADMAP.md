@@ -58,14 +58,10 @@ here; what is left of it stays.
     collapsible; + makes a task), a tab per task (the project's icon and color, the task's name, the agent's state).
     A group moves to another window whole (as a project does today), e.g. to keep one client's tasks out of a screen
     share. The Welcome screen: New Project…, Open Folder… (a project with that folder), recent projects.
-  - **Sign-in rule, narrowed** (CLAUDE.md, Rules, to change with it): the human signs in to real accounts; the agent
-    signs in to test users of local apps with their pairs. A pair is used only on a local address, or on a page
-    reached by a redirect from a local address in the same tab (an Auth0 dev tenant) unless that page is a big
-    account provider (Google, Microsoft, Apple, GitHub, Facebook, Okta, Entra). "Sign in with Google" on a local app:
-    the human signs in once to a test Google account in the profile's master, the agent goes the whole way itself
-    (account chooser, consent) with no sign-in pause on that path; it never types a Google password, and Kulisa does
-    not get past Google's own bot checks. The pause part goes into the author's replacement of `signin-pause.js`.
-    To document in [profiles.md](profiles.md) as how the protection works, with the reason for each line.
+  - **Sign-in rule, narrowed**: built with step 5 ([profiles.md](profiles.md), "Test users' sign-ins"; CLAUDE.md,
+    Rules). Left: "Sign in with Google" on a local app, where the human signs in once to a test Google account in the
+    profile's master and the agent goes the whole way itself (account chooser, consent) with no sign-in pause on that
+    path, never typing a Google password: the pause part goes into the author's replacement of `signin-pause.js`.
   - **Steps**, each working on its own, with its tests:
     1. Tasks replace workspaces: built 2026-10-10 ([tasks.md](tasks.md)). Left of it: Kulisa offering to delete a
        closed task once its PR is merged; a new task copies the profiles and agent of the task on screen until
@@ -78,15 +74,12 @@ here; what is left of it stays.
        profile in several projects, signing in to a master in a window of its own, Refresh from Master…). Left: the
        master's window has one tab shown at a time (a sign-in's popup takes it, the tab before comes back when it
        closes); Refresh brings cookies only (storage: step 6 has the same limit).
-    5. Login-password pairs and the narrowed rule (needs "what is local", below).
+    5. Login-password pairs and the narrowed rule: built 2026-10-10 ([profiles.md](profiles.md), "Test users'
+       sign-ins"; what is local: `local.js`, as proposed, with the project's own list in Project Settings…).
     6. Cookies of non-local sites kept in step between a master and its copies (Electron's cookies `changed` event
        and `cookies.set`), both ways: real accounts shared by all tasks. Limits: cookies only (sign-ins in
        localStorage, as MSAL keeps them, are not synced), device-bound cookies (DBSC) to check in this Electron, races
        between tasks to test; a logout of a real account in one task ends it in all.
-  - **Open: what is "local"** (to discuss before step 5): one definition in the core, for the pairs and for the
-    cookies not synced. Proposal: `localhost`, `*.localhost`, `*.test`, `*.local`, private IPs (`127.*`, `10.*`,
-    `192.168.*`, `172.16–31.*`), plus a project's own list (tunnels such as ngrok, own dev domains). A local address
-    left out makes its cookies shared by all tasks again.
   - **Put off**: ongoing tasks ("watch the feedback for a month") with Kulisa kept in the tray (none in GNOME by
     default); rights on profiles, when real accounts come (one flag, "view only": reading allowed, clicks and typing
     refused; today the agent's own modes cover test users).

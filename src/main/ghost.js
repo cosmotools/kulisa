@@ -11,7 +11,10 @@ const MARK = '#3574f0';
 function installGhost(shell) {
   const send = (a) => shell.taskByKey(a.task)?.window?.send('agent', a);
   shell.bus.on('agent-command', (c) => {
-    const a = describe(c); if (!a) return;
+    // A test user's password being typed (browser_type_login): that something is typed, not what.
+    const secret = shell.typingSecret?.has(`${c.task}/${c.profile}`) && /^Input\.(insertText|dispatchKeyEvent)$/.test(c.method);
+    const a = secret ? (c.method === 'Input.insertText' || c.params.type === 'keyDown' ? { caption: 'type ••••••' } : null) : describe(c);
+    if (!a) return;
     send({ task: c.task, profile: c.profile, ...a });
     shell.bus.emit('agent-action', { task: c.task, profile: c.profile, t: Date.now(), ...a });
   });

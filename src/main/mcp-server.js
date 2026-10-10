@@ -36,7 +36,9 @@ const INSTRUCTIONS = 'Kulisa profiles are the users of the app under test, each 
   ONLY_BROWSER + ' ' +
   'Choose a profile by its description (browser_profiles), not by guessing from its name: when no description tells ' +
   'which profile a task means, or several do, ask the human once and save their answer with profile_describe. ' +
-  'Never sign in, type passwords or read cookies or tokens: ask the human with profile_ask_signin. ' +
+  'Never sign in to a real account, type its password or a one-time code, or read cookies or tokens: ask the human ' +
+  'with profile_ask_signin. A test user of the app under test on this computer with a saved pair (testLogin in ' +
+  'browser_profiles) you sign in to yourself, with browser_type_login (you never see its password). ' +
   'Run what keeps running (the app\'s dev server, docker compose up, a watcher) with terminal_run, not in your own ' +
   'shell or its background: the human sees it in a terminal next to yours, and you read its output with terminal_read.';
 // task: the task (tasks.js) whose profiles the tools act on.
@@ -98,10 +100,11 @@ function buildServer(task) {
   // pane by ("the fox").
   server.registerTool('browser_profiles', { description: 'List profiles: id, name, description (who it is in the app; null: not said, ask the human), picture (avatar), whether the human is signing in (signinMode), tabs; closed ones (closed: true) need profile_open first.', inputSchema: {} },
     async () => text(JSON.stringify([
-      ...[...task.profiles.values()].map(({ id, name, description, avatar, signinMode, active, tabs }) =>
-        ({ id, name, description: description || null, avatar, signinMode, active,
+      ...[...task.profiles.values()].map(({ id, name, description, avatar, login, hasPassword, signinMode, active, tabs }) =>
+        ({ id, name, description: description || null, avatar, ...(login && { testLogin: login, testPassword: hasPassword }), signinMode, active,
           tabs: tabs.filter((t) => !t.wc.isDestroyed()).map((t) => ({ id: t.id, title: t.wc.getTitle(), url: t.wc.getURL() })) })),
       ...[...task.closed.values()].map(({ cfg, urls }) => ({ id: cfg.id, name: cfg.name, description: cfg.description || null, avatar: cfg.avatar,
+        ...(cfg.login && { testLogin: cfg.login, testPassword: cfg.hasPassword }),
         closed: true, tabs: urls.length })),
     ], null, 1)));
 
@@ -325,6 +328,31 @@ function buildServer(task) {
     if (value && value.length <= TYPED_MAX) await loc.pressSequentially(value, { delay: Math.min(40, 1500 / value.length), timeout: 15000 });
     const said = submit ? await answering(tabOf(profile, tab).tab, dialog, () => loc.press('Enter')) : '';
     return text(`Typed into ${locator || ref} as ${profile}.${said}`);
+  });
+
+  // A test user's sign-in (profiles.md, "Test users' sign-ins"): its saved login or password typed by Kulisa into a field
+  // of a local page; the agent never gets the password, the pane's caption shows dots. Real accounts stay the human's.
+  server.registerTool('browser_type_login', {
+    description: "Type a test user's saved login or password into a field (by ref or locator), replacing what it holds, to sign in to the app under test: only on a local page (localhost, *.test, a private network, the project's own list) or one the tab reached from it, never on Google, Microsoft or another account provider. You never see the password. The pair is saved by the human (About this profile…) or by you (profile_set_login).",
+    inputSchema: { profile: profileArg, tab: onTab, ...element, field: z.enum(['login', 'password']), submit: z.boolean().optional(), dialog: dialogArg },
+  }, async ({ profile, tab, ref, locator, field, submit, dialog }) => {
+    const r = task.loginFor(profile, tab, field);
+    if (r.error) throw new Error(r.error);
+    const page = await pageOf(profile, tab);
+    const loc = await target(page, { ref, locator });
+    const key = `${task.key}/${r.profile.id}`;
+    task.shell.typingSecret.add(key);
+    try { await loc.fill(r.value, { timeout: 5000 }); } finally { task.shell.typingSecret.delete(key); }
+    const said = submit ? await answering(r.tab, dialog, () => loc.press('Enter')) : '';
+    return text(`Typed ${r.profile.name}'s ${field} into ${locator || ref}.${said}`);
+  });
+  server.registerTool('profile_set_login', {
+    description: "Save a test user's login-password pair for a profile, e.g. after you signed that user up in the app under test, so you (and later tasks) sign in with browser_type_login. Only for test users of the app on this computer: never a real account's password.",
+    inputSchema: { profile: profileArg, login: z.string().describe('The user name or email'), password: z.string() },
+  }, async ({ profile, login, password }) => {
+    const r = task.setLogin(profile, login, password);
+    if (r.error) throw new Error(r.error);
+    return text(`Saved ${profile}'s test login ${login.trim()}; its password is kept encrypted.`);
   });
 
   server.registerTool('browser_press_key', {

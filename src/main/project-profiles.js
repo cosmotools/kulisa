@@ -55,9 +55,9 @@ class ProjectProfiles {
       const e = this.entries.find((x) => x.cfg.folder === g.folder);
       if (!e) { this.entries.push({ cfg: this._cfg(g), urls: [], profile: null }); continue; }
       const oldId = e.cfg.id;
-      Object.assign(e.cfg, { id: g.id, name: g.name, avatar: g.avatar, description: g.description || '' });
+      Object.assign(e.cfg, { id: g.id, name: g.name, avatar: g.avatar, description: g.description || '', ...loginOf(g) });
       if (e.profile) {
-        Object.assign(e.profile, { name: g.name, avatar: g.avatar, description: g.description || '' });
+        Object.assign(e.profile, { name: g.name, avatar: g.avatar, description: g.description || '', ...loginOf(g) });
         if (g.id !== oldId) { e.profile.id = g.id; this.hooks.renamed(e.profile, oldId); }
       }
     }
@@ -132,6 +132,24 @@ class ProjectProfiles {
     if (!AVATARS.includes(avatar)) return { error: `no picture ${avatar}` };
     return this._set(id, { avatar });
   }
+  // A test user's pair (profiles.md, "Test users' sign-ins"): its login, and its password as the caller encrypted it
+  // (tasks.js); an empty login takes the pair away.
+  setLogin(id, user, secret) {
+    const e = this._find(id);
+    if (!e) return { error: `no profile ${id}` };
+    user = user?.trim() || '';
+    if (user.length > 200) return { error: 'a login is at most 200 characters' };
+    const old = this.all.byFolder(e.cfg.folder)?.login;
+    const login = user ? { user, secret: secret ?? (old?.user ? old.secret : undefined) } : undefined;
+    if (login && !login.secret) delete login.secret;
+    this.all.update(e.cfg.folder, { login });
+    const shown = loginOf({ login });
+    Object.assign(e.cfg, shown);
+    if (e.profile) Object.assign(e.profile, shown);
+    this._changed();
+    this.hooks.everywhere();
+    return { id };
+  }
   _set(id, fields) {
     const e = this._find(id);
     if (!e) return { error: `no profile ${id}` };
@@ -178,7 +196,7 @@ class ProjectProfiles {
     try { await e.starting; } finally { e.starting = null; }
   }
   _cfg(g, state) {
-    return { id: g.id, name: g.name, avatar: g.avatar, description: g.description || '', folder: g.folder, dir: this.store.profileDir(g.folder), zoom: state?.zoom };
+    return { id: g.id, name: g.name, avatar: g.avatar, description: g.description || '', ...loginOf(g), folder: g.folder, dir: this.store.profileDir(g.folder), zoom: state?.zoom };
   }
   _cfgOf({ cfg, profile: p }) {
     return p ? { id: p.id, name: p.name, avatar: p.avatar, description: p.description, folder: p.folder, dir: p.dir, zoom: p.siteZoom } : cfg;
@@ -194,6 +212,8 @@ class ProjectProfiles {
   }
   _nextAvatar() { return nextAvatar(this.entries.map((e) => e.profile?.avatar ?? e.cfg.avatar)); }
 }
+// What a task shows of a profile's pair: its login, and whether it has a password (never the password).
+const loginOf = (g) => ({ login: g.login?.user || '', hasPassword: !!g.login?.secret });
 const aboutError = (d) => (typeof d !== 'string' ? 'a description is text'
   : d.trim().length > ABOUT_MAX ? `a description is at most ${ABOUT_MAX} characters` : null);
 

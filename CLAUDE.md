@@ -180,8 +180,11 @@ npm run icons # renders assets/icon.svg to icon.png/.ico/.icns (committed; run a
 
 ## Rules
 
-- **A human signs in, never the agent or the code.** Never type passwords, automate logins, or print or log
-  cookie values or tokens.
+- **A human signs in to real accounts, never the agent or the code.** Never type their passwords, automate their
+  logins, or print or log cookie values, tokens or passwords. The one exception, the author's design (2026-10-10;
+  `docs/profiles.md`, "Test users' sign-ins"): a test user of the app under test on this computer, whose pair Kulisa
+  keeps encrypted and types itself (`browser_type_login`), only on a local address (`local.js`) or a page the tab
+  reached from one, never on an account provider's; the agent never sees the password.
 - **The author's data is in `~/.config/Kulisa`**: profiles with real sign-ins to work tenants.
   - Never delete or overwrite it.
   - Tests use their own temp folder (`/tmp/kulisa-test`).

@@ -13,6 +13,7 @@ const { clearHighlights } = require('./mcp-server');
 const { copyProfile } = require('./store');
 const { renameBranch } = require('./worktrees');
 const { nameError } = require('./names');
+const { loginAllowed } = require('./local');
 
 const DICTATION_LIMIT = 5 * 60_000; // a recording left on (a click and no second one)
 
@@ -327,6 +328,29 @@ class Task {
   // A caption over a profile's pane (ghost.js, browser_highlight); sticky ones stay until the next caption.
   caption(profile, caption, sticky = false) { this.window?.send('agent', { task: this.key, profile, caption, sticky }); }
 
+  // A test user's pair (profiles.md, "Test users' sign-ins"): set by the human (About this profile…) or the agent
+  // (profile_set_login, e.g. after it signed that user up). The password is kept encrypted with the OS keyring, never
+  // in the clear: without a keyring it is not kept. An empty login takes the pair away.
+  setLogin(id, user, password) {
+    if (password && !this.shell.secrets.available()) return { error: 'this computer has no keyring to keep a password encrypted, so none is kept' };
+    if (password?.length > 500) return { error: 'a password is at most 500 characters' };
+    return this.list.setLogin(id, user, password ? this.shell.secrets.encrypt(password) : undefined);
+  }
+  // Its login or password, to type in a tab (the agent's browser_type_login; it never gets the password itself), only
+  // on a local page or one the tab reached from a local page, never a big account provider's (local.js).
+  loginFor(id, tabId, field) {
+    const r = this.findTab(id, tabId);
+    if (r.error) return r;
+    const pair = this.shell.profileStore.byFolder(r.profile.folder)?.login;
+    if (!pair?.user || (field === 'password' && !pair.secret)) {
+      return { error: `${r.profile.name} has no test login${pair?.user ? ' password' : ''} saved: ask the human to set one (About this profile…), or save the one you signed it up with (profile_set_login).` };
+    }
+    const h = r.tab.wc.navigationHistory, urls = h.getAllEntries().slice(0, h.getActiveIndex() + 1).map((e) => e.url);
+    if (!loginAllowed(urls, this.project.entry.local || [])) {
+      return { error: `${urls.at(-1)} is not the app under test on this computer: a test user's pair is typed only on a local address (localhost, *.test, a private network, the project's own list in Project Settings…) or a page the tab reached from one, never on Google, Microsoft or another account provider. A real account is the human's to sign in to (profile_ask_signin).` };
+    }
+    return { profile: r.profile, tab: r.tab, value: field === 'password' ? this.shell.secrets.decrypt(pair.secret) : pair.user };
+  }
   // Signing in to a profile's master (master.js), for every task's copy made from it from then on. The human's only:
   // the agent never signs in (profile_ask_signin asks the human to, in this task's copy).
   openMaster(id) {
