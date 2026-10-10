@@ -12,6 +12,15 @@ here; what is left of it stays.
   was a folder with a main workspace and forks; now a project is a composite of things from catalogs, and the work is
   done in **tasks** (the word replaced "workspace" everywhere: code, docs, CLAUDE.md). No migration: Kulisa is in
   development, the new layout does not read the old data, the author starts with an empty `~/.config/Kulisa`.
+  - **Status** (keep it current: a new session reads it first). 2026-10-10: all six steps below are built and
+    committed on `tasks`, not pushed; the full `npm test` passes. The author is testing it by hand. Next: fix what the
+    author's testing finds; then what is left of each step ("Left:" in it), only once the author has decided it.
+    Open, for the author to decide: Refresh from Master… now matters only for a local app's cookies (keep or drop);
+    a script the agent runs in a page (`browser_evaluate`) could read a test password back from its field (only the
+    skill forbids it: close it or not). For the author's real accounts, not testable by Claude: device-bound cookies
+    (DBSC, Google) and MSAL's sign-ins kept in step (step 6); "Sign in with Google" without the sign-in pause is the
+    author's own replacement of `signin-pause.js`. Not discussed, so not to build unasked: signing a CLI in from the
+    Agents window, tabs in a master's window, tasks in a former folder getting copies.
   - **Agents** (a catalog in ☰, global): the human picks a CLI (Claude Code, Codex, …) and signs in with the CLI's
     own login in Kulisa's terminal; each account has its own config folder (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`) in
     Kulisa's data folder, gone with the entry. An existing `~/.claude` is taken over as the first account, not signed
