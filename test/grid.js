@@ -547,7 +547,7 @@ module.exports = (test) => {
     shell.task.state = null;
     ctx.answer = true;
   });
-  test("menus with the mouse and the keyboard, as the OS's: a press on ☰, a drag to a row and the release there chooses it; a click opens, the next closes; a right-click's release over a row chooses nothing; Enter and the arrows; the keyboard back where it was", async (ctx) => {
+  test("menus with the mouse and the keyboard, as the OS's: a press on ☰, a drag to a row and the release there chooses it; a click opens, the next closes; a right-click's release over a row chooses nothing; Enter and the arrows; the keyboard back where it was; leaving the window closes it", async (ctx) => {
     const { shell, ui } = ctx, wc = shell.win.webContents, z = wc.getZoomFactor();
     const scaled = ({ x, y }) => ({ x: Math.round(x * z), y: Math.round(y * z) });
     const mid = async (sel) => { const b = await box(ui, sel); return scaled({ x: b.x + b.width / 2, y: b.y + b.height / 2 }); };
@@ -603,5 +603,15 @@ module.exports = (test) => {
     press(wc, 'Escape');
     await waitFor(async () => !(await anyMenu()));
     assert.ok(await ui(`!!document.activeElement.closest('#term')`), 'the keyboard back in the terminal');
+
+    // Leaving the window (another one takes the focus) closes a menu, as the OS's own menus close.
+    mouse('mouseDown', menuButton); mouse('mouseUp', menuButton);
+    await waitFor(() => menuOpen(ui));
+    const other = new (require('electron').BrowserWindow)({ width: 300, height: 200, show: false });
+    try {
+      other.show(); other.focus();
+      await waitFor(async () => !(await anyMenu()));
+    } finally { other.destroy(); }
+    shell.win.focus();
   });
 };

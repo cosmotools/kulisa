@@ -674,6 +674,11 @@ here; what is left of it stays.
     `before-input-event` comes first, and the app menu after the page: REPORT, "Keyboard shortcuts"), and that Ctrl
     stays the terminal's. Windows: Alt+D and F6 to the address bar, Ctrl+F4; the keys with AltGr layouts (Polish,
     German), where AltGr is Ctrl+Alt.
+  - The window's menus and dialogs (Reka UI, [ui.md](ui.md), Menus and Dialogs): checked on Linux only. A right-click
+    menu opens on the press on Linux and macOS but on the release on Windows: check that it opens at the pointer and
+    that the release does not choose a row (`MenuButton.vue` takes the left button only); a button's menu opening on
+    the press, and press, drag and let go on a row (macOS menus do it too); a window's blur closing a menu; Esc in a
+    field edited in place (a profile's name) not closing its dialog; Select's list over a dialog.
   - Copy and paste in the terminal (`clipboardKey` in `terminal.js`): checked on Linux only. Windows: Ctrl+V pastes
     once, Ctrl+C copies a selection and interrupts without one. macOS: ⌘C / ⌘V through Electron's default app menu
     (Kulisa sets none), and Ctrl+V reaching the agent.
@@ -723,7 +728,9 @@ here; what is left of it stays.
   room. 2026-10-09: the tests run on a screen of their own on Linux (Xvfb, [testing.md](testing.md)), so the human's
   work no longer takes the focus from them (menus closed in the middle of a test, about 1 run in 7); races that a
   slower screen showed (a click while the window still showed another project) are waited for. Watch whether any
-  come back. Not looked at: the address bar's click (seen 2026-10-07); the first point-and-tell test once timed out waiting for the pick (2026-10-10, right after the window moved to Vue; not in the runs after) Slow but not flaky: deleting a task (a fork's closing took 11 s,
+  come back. Not looked at: the address bar's click (seen 2026-10-07); the first point-and-tell test once timed out waiting for the pick (2026-10-10, right after the window moved to Vue; not in the runs after); "Move to New Window puts a project in a window
+  of its own" (a 30 s timeout) and "agents: ☰ → Agents… shows what is installed" failed together once in a full
+  `npm test` (2026-10-11, after the move to Reka UI; the output not kept), not in the four runs after. Slow but not flaky: deleting a task (a fork's closing took 11 s,
   git's work), a site that never answers (10 s: two 5 s waits by design).
 - **The test "after a restart: a task's other terminal comes back …" takes 5.6 s** (`restart-tasks.js`;
   found 2026-10-09, to come back to). Most of it is showing the project `other` until its task has loaded and
