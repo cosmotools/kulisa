@@ -315,7 +315,7 @@ kulisa.on('grid:closing', ({ dir, level, task, pics }) => {
   sliding = { transition, built };
 });
 
-// Tasks gone (their project closed, a fork deleted): their terminals and pictures too; a task opened again
+// Tasks gone (their project closed, a task deleted): their terminals and pictures too; a task opened again
 // later starts afresh.
 kulisa.on('tasks:closed', (keys) => {
   for (const key of keys) pictures.delete(key);

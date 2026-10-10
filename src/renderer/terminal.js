@@ -9,7 +9,7 @@
 //   term                the shown task's terminal
 //   showTerminal(task)    show a task's terminal (made the first time)
 //   termHost(key), termHeader(key, info)  another terminal's element and header, for its panel
-//   forgetTerminals(keys)  forget those of tasks gone (their project closed or moved, a fork deleted), with their
+//   forgetTerminals(keys)  forget those of tasks gone (their project closed or moved, a task deleted), with their
 //                       other terminals, or other terminals closed
 //   terminalsOf(project)   what a project's terminals show, for the window it moves to (terminals:restore there)
 //   terminalMenu(el)    the right-click menu of the terminal at el (menu.js items)

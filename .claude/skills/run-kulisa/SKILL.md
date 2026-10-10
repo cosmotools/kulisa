@@ -27,9 +27,9 @@ Do not start a second one while one runs: stop first.
 Only when the author asks for it in their message: it deletes their profiles and sign-ins for good.
 
 1. `kulisa.sh stop`.
-2. `kulisa.sh check`, and tell the author what is there besides the data: fork folders (`<repo>@<name>`),
-   worktrees, branches. Remove a fork (`git worktree remove --force <folder>`, `git branch -D <branch>`) only if they
-   say so; a fork may hold their work.
+2. `kulisa.sh check`, and tell the author what is there besides the data: tasks' copies (`<repo>@task-<n>`, or
+   `~/Kulisa/<project>@task-<n>/`), worktrees, branches. Remove a task's copy (`git worktree remove --force <folder>`,
+   `git branch -D <branch>`) only if they say so; a task may hold their work. Deleting the data does not remove them.
 3. `rm -rf ~/.config/Kulisa` (what they asked for), then `kulisa.sh check` again: no data, ports free.
 4. `kulisa.sh start` in the background, as above. At first start it opens no project: the Welcome screen.
 

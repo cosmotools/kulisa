@@ -1,4 +1,4 @@
-// The agents (agents.js): Claude Code's trust and dictation language, what a deleted fork leaves in each agent's data, which hook sends which event.
+// The agents (agents.js): Claude Code's trust and dictation language, what a deleted task leaves in each agent's data, which hook sends which event.
 // Plain Node (npm run test:unit), no Electron: logic that needs no window, in a temporary folder of its own.
 const { test, after } = require('node:test');
 const assert = require('assert/strict');
@@ -21,7 +21,7 @@ test("tasks: Claude Code trusts a task's folder as it trusts the project's; its 
     hasClaudeMdExternalIncludesApproved: false, hasClaudeMdExternalIncludesWarningShown: false, hasTrustDialogAccepted: true });
   assert.equal(read().userID, 'u', 'the rest stays');
   write({ '/p': { hasTrustDialogAccepted: false } });
-  assert.equal(trustLikeProject(file, '/p', '/p@f'), false, 'main not trusted: nothing');
+  assert.equal(trustLikeProject(file, '/p', '/p@f'), false, 'own not trusted: nothing');
   assert.equal(read().projects['/p@f'], undefined);
   fs.writeFileSync(file, '{"projects": [');
   assert.equal(trustLikeProject(file, '/p', '/p@f'), false, 'not as expected: nothing');
@@ -53,32 +53,32 @@ test("tasks: a deleted task leaves nothing in Claude Code's and Codex's data; th
   const { AGENTS } = require('../../src/main/agents');
   const agent = (id) => AGENTS.find((a) => a.id === id);
   const put = (f, text = '') => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, text); };
-  // Claude: a config dir as Claude Code lays it out, with the fork's things and main's.
-  const cfg = path.join(root, 'claude-config'), fork = '/p@f', main = '/p';
-  const conv = path.join(cfg, 'projects', '-p-f'), mainConv = path.join(cfg, 'projects', '-p');
+  // Claude: a config dir as Claude Code lays it out, with the task's things and the project folder's.
+  const cfg = path.join(root, 'claude-config'), copy = '/p@f', own = '/p';
+  const conv = path.join(cfg, 'projects', '-p-f'), ownConv = path.join(cfg, 'projects', '-p');
   const transcript = (cwd) => `{"type":"summary"}\n${JSON.stringify({ type: 'user', cwd })}\n`;
-  put(path.join(conv, 's1.jsonl'), transcript(fork)); put(path.join(conv, 's2.jsonl'), transcript(fork)); put(path.join(conv, 's1', 'subagents', 'a.jsonl'));
+  put(path.join(conv, 's1.jsonl'), transcript(copy)); put(path.join(conv, 's2.jsonl'), transcript(copy)); put(path.join(conv, 's1', 'subagents', 'a.jsonl'));
   put(path.join(conv, 'o1.jsonl'), transcript('/p-f')); // another folder Claude names the same (-p-f)
-  put(path.join(mainConv, 'm1.jsonl'));
+  put(path.join(ownConv, 'm1.jsonl'));
   for (const id of ['s1', 's2', 'm1']) {
     put(path.join(cfg, 'file-history', id, 'x')); put(path.join(cfg, 'session-env', id, 'x'));
     put(path.join(cfg, 'debug', `${id}.txt`)); put(path.join(cfg, 'todos', `${id}-agent-${id}.json`));
   }
-  put(path.join(cfg, 'history.jsonl'), [{ display: 'a', project: fork }, { display: 'b', project: main }, { display: 'c', project: fork }].map((l) => JSON.stringify(l)).join('\n') + '\n');
-  put(path.join(cfg, '.claude.json'), JSON.stringify({ userID: 'u', projects: { [main]: { hasTrustDialogAccepted: true }, [fork]: { hasTrustDialogAccepted: true } } }));
-  const ctx = { folder: fork, saved: { sessionId: 's1', transcript: path.join(conv, 's1.jsonl') }, project: { folder: main, transcript: path.join(mainConv, 'm1.jsonl') } };
-  assert.equal(agent('claude').forget({ ...ctx, folder: main }), false, "never the project's folder");
+  put(path.join(cfg, 'history.jsonl'), [{ display: 'a', project: copy }, { display: 'b', project: own }, { display: 'c', project: copy }].map((l) => JSON.stringify(l)).join('\n') + '\n');
+  put(path.join(cfg, '.claude.json'), JSON.stringify({ userID: 'u', projects: { [own]: { hasTrustDialogAccepted: true }, [copy]: { hasTrustDialogAccepted: true } } }));
+  const ctx = { folder: copy, saved: { sessionId: 's1', transcript: path.join(conv, 's1.jsonl') }, project: { folder: own, transcript: path.join(ownConv, 'm1.jsonl') } };
+  assert.equal(agent('claude').forget({ ...ctx, folder: own }), false, "never the project's folder");
   assert.equal(agent('claude').forget({ ...ctx, saved: { transcript: path.join(root, 'elsewhere', 'x.jsonl') }, project: {} }), false, "not a Claude transcript's path");
   assert.equal(agent('claude').forget({ ...ctx, saved: {} }), true, "no session reported: another task's config dir");
-  assert.deepEqual(fs.readdirSync(conv), ['o1.jsonl'], "the fork's conversations; another folder's of the same name stay");
+  assert.deepEqual(fs.readdirSync(conv), ['o1.jsonl'], "the task's conversations; another folder's of the same name stay");
   for (const id of ['s1', 's2']) {
     assert.ok(!fs.existsSync(path.join(cfg, 'file-history', id)) && !fs.existsSync(path.join(cfg, 'session-env', id)) &&
       !fs.existsSync(path.join(cfg, 'debug', `${id}.txt`)) && !fs.existsSync(path.join(cfg, 'todos', `${id}-agent-${id}.json`)), `session ${id}`);
   }
-  assert.ok(fs.existsSync(path.join(mainConv, 'm1.jsonl')) && fs.existsSync(path.join(cfg, 'file-history', 'm1')) && fs.existsSync(path.join(cfg, 'todos', 'm1-agent-m1.json')), "main's stay");
+  assert.ok(fs.existsSync(path.join(ownConv, 'm1.jsonl')) && fs.existsSync(path.join(cfg, 'file-history', 'm1')) && fs.existsSync(path.join(cfg, 'todos', 'm1-agent-m1.json')), "the project folder's stay");
   assert.deepEqual(fs.readFileSync(path.join(cfg, 'history.jsonl'), 'utf8').trim().split('\n').map((l) => JSON.parse(l).display), ['b']);
   const config = JSON.parse(fs.readFileSync(path.join(cfg, '.claude.json'), 'utf8'));
-  assert.deepEqual(Object.keys(config.projects), [main]);
+  assert.deepEqual(Object.keys(config.projects), [own]);
   assert.equal(config.userID, 'u');
 
   // Which of each agent's hooks tells Kulisa which of its events (agent-hooks.js). Claude Code: waiting only for what
@@ -99,19 +99,19 @@ test("tasks: a deleted task leaves nothing in Claude Code's and Codex's data; th
   assert.deepEqual(agent('codex').resume({ started: true, sessionId: 's9' }), ['resume', 's9']);
   assert.deepEqual(agent('codex').resume({ started: true }), ['resume', '--last']);
 
-  // Codex: its sessions in the fork's folder and its trust of the folder.
+  // Codex: its sessions in the task's folder and its trust of the folder.
   const home = path.join(root, 'codex-home');
   const session = (f, cwd) => put(path.join(home, f), `${JSON.stringify({ type: 'session_meta', payload: { id: 'x', cwd } })}\n{"more":1}\n`);
-  session('sessions/2026/10/06/rollout-a.jsonl', fork); session('archived_sessions/rollout-b.jsonl', fork); session('sessions/2026/10/06/rollout-c.jsonl', main);
-  put(path.join(home, 'config.toml'), `model = "x"\n\n[projects."${fork}"]\ntrust_level = "trusted"\n\n[projects."${main}"]\ntrust_level = "trusted"\n`);
+  session('sessions/2026/10/06/rollout-a.jsonl', copy); session('archived_sessions/rollout-b.jsonl', copy); session('sessions/2026/10/06/rollout-c.jsonl', own);
+  put(path.join(home, 'config.toml'), `model = "x"\n\n[projects."${copy}"]\ntrust_level = "trusted"\n\n[projects."${own}"]\ntrust_level = "trusted"\n`);
   const before = process.env.CODEX_HOME;
   process.env.CODEX_HOME = home;
-  try { assert.equal(agent('codex').forget({ folder: fork, saved: {}, project: { folder: main } }), true); } finally {
+  try { assert.equal(agent('codex').forget({ folder: copy, saved: {}, project: { folder: own } }), true); } finally {
     if (before === undefined) delete process.env.CODEX_HOME; else process.env.CODEX_HOME = before;
   }
   assert.ok(!fs.existsSync(path.join(home, 'sessions/2026/10/06/rollout-a.jsonl')) && !fs.existsSync(path.join(home, 'archived_sessions/rollout-b.jsonl')));
-  assert.ok(fs.existsSync(path.join(home, 'sessions/2026/10/06/rollout-c.jsonl')), "main's session stays");
-  assert.equal(fs.readFileSync(path.join(home, 'config.toml'), 'utf8'), `model = "x"\n\n[projects."${main}"]\ntrust_level = "trusted"\n`);
+  assert.ok(fs.existsSync(path.join(home, 'sessions/2026/10/06/rollout-c.jsonl')), "the project folder's session stays");
+  assert.equal(fs.readFileSync(path.join(home, 'config.toml'), 'utf8'), `model = "x"\n\n[projects."${own}"]\ntrust_level = "trusted"\n`);
 });
 
 test("agents: a task's other folders go to Claude Code and Codex as --add-dir (Claude reads their CLAUDE.md too); one added later is typed as /add-dir", () => {

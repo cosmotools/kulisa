@@ -112,7 +112,7 @@ class Profile extends EventEmitter {
       }).then(() => { tab.answered = null; });
     }
     // tab.ready: the first navigation has committed, or failed (its error page shows: a site refusing to connect,
-    // e.g. a fork's dev server not started yet, held its profile 5 s). A client that attaches earlier sees a
+    // e.g. a new task's dev server not started yet, held its profile 5 s). A client that attaches earlier sees a
     // never-loaded tab.
     tab.ready = ready.then(() => url && new Promise((resolve) => {
       if (wc.isDestroyed()) return resolve(); // closed before it loaded (its profile closed or deleted)

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Run the author's Kulisa from the repository (Linux; the author's machine). Used by SKILL.md.
 #   kulisa.sh stop     stop it gracefully (SIGINT to the main Electron process: session cookies and tabs get saved)
-#   kulisa.sh check    what a fresh start would find: no Kulisa running, its data, forks, worktrees, branches, ports
+#   kulisa.sh check    what a fresh start would find: no Kulisa running, its data, tasks' copies, worktrees, branches, ports
 #   kulisa.sh start    start it in the foreground (run this in the background from Claude Code), without the parent
 #                      Claude session's CLAUDE_* variables except CLAUDE_CONFIG_DIR (CLAUDE.md, Commands)
 set -u
@@ -22,7 +22,15 @@ case "${1:-}" in
   check)
     echo "electron processes: $(ps -eo comm | grep -c '^electron$')"
     if [ -e "$data" ]; then echo "data: $data exists"; else echo "data: none"; fi
-    ls -d "$HOME"/IdeaProjects/*@* 2>/dev/null | sed 's/^/fork folder: /'
+    # Tasks' copies: those the data names (next to a repository, or in ~/Kulisa/<project>@task-<n>/), then any
+    # <folder>@<name> in the usual places, left by data already gone
+    { [ -e "$data/projects.json" ] && node -e '
+        const fs = require("fs"), path = require("path"), d = process.argv[1];
+        for (const p of JSON.parse(fs.readFileSync(path.join(d, "projects.json"), "utf8"))) {
+          let t; try { t = JSON.parse(fs.readFileSync(path.join(d, "projects", p.id, "tasks.json"), "utf8")); } catch { continue; }
+          for (const k of t.list || []) for (const f of [k.home, ...(k.copies || []).map((c) => c.worktree)]) if (f) console.log(f);
+        }' "$data" 2>/dev/null
+      ls -d "$HOME"/IdeaProjects/*@* "$HOME"/Kulisa/*@* 2>/dev/null; } | sort -u | sed 's/^/task copy: /'
     git -C "$repo" worktree list | sed 's/^/worktree: /'
     git -C "$repo" branch --list | sed 's/^/branch: /'
     if ss -ltn | grep -qE ':(4450|4417) '; then echo "ports: 4450 or 4417 in use"; else echo "ports: free"; fi ;;

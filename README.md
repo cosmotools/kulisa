@@ -44,7 +44,8 @@ setuid on a plain install. The `.deb` installs it setuid, so the installed app r
 | `KULISA_MCP_PORT` | MCP server port (default 4450; `0` picks a free one) |
 | `KULISA_SHOT` | Save a screenshot of the whole window to this PNG file ~4 s after start (`KULISA_SHOT_DELAY`, ms) |
 
-**Projects:** a project is a folder, usually a repository, with its own profiles, grid and agent. The bar under the
+**Projects:** a project is a name, a color and an icon, its agent, its profiles, and its code: a folder, or one or
+more repositories (local, or cloned from a URL). The bar under the
 grid (or over it: **☰ → Projects bar**) has a group per open project, as Chrome's tab groups: its name (a click folds
 it), its tasks, and **+** for a new task. A click on a task shows it, of any project, and the others keep running
 (their agents and pages) until you close their project (**×** on its last open task, the middle button on its name,
@@ -70,7 +71,8 @@ Account** gives Claude Code or Codex a second sign-in (a work and a personal one
 **Tasks:** several tasks of a project at once, each with its own agent, in its project's group. **+** makes one at
 once, `task-<n>` until its agent names it (or you do: **Rename…** in its tab's menu): a git worktree on a branch of
 its own next to the project (`~/IdeaProjects/myshop@task-2/`; `.env*` and files named in `.worktreeinclude` are
-copied), copies of the profiles of the task on screen, still signed in, and a new session of its agent there. Your
+copied), the profiles open in the task on screen, each a copy of its master (where you signed in once, for every
+task), and a new session of its agent there. Your
 project's folder stays yours: agents merge into it only when you ask. The task's app runs on its own ports: the usual
 ones plus `KULISA_PORT_OFFSET` (100, 200, …), and its tabs on local addresses point there. Click a task to switch;
 the others keep working. **×** closes a task (its agent stops; its code, profiles and conversation stay, and its
@@ -136,7 +138,7 @@ src/agent/claude-plugin/  the Kulisa plugin for Claude Code: MCP config, the pro
 src/preload/     the window's bridge to the main process
 src/renderer/    window UI. renderer.js: the grid of panels (dockview), panes, ☰ and right-click menus; parts in their
                  own files: common.js, menu.js (the menus), terminal.js (xterm.js: the agent's, one per task, and the others), voice.js
-                 (dictation), keys.js (where the keyboard is, the keys' commands), projects.js, tasks.js (the tasks' tabs, the new-task dialog),
+                 (dictation), keys.js (where the keyboard is, the keys' commands), projects.js, tasks.js (the tasks' tabs, their menu, the Rename Task dialog),
                  profile-editor.js; ES modules loaded when
                  needed: agent-picker.js (choosing and installing an agent), agents.js (the Agents
                  window), both with agent-list.js, ask.js (questions before deleting or

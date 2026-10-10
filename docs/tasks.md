@@ -7,8 +7,10 @@ current when they change.
 
 ## Projects
 
-A **project** is a folder, usually a repository, with its tasks (below). Each task works in a copy of the folder
-(a git worktree), so the folder itself stays the human's. Kulisa keeps its data in its own data folder
+A **project** is a composite: a name, a color and an icon, the agent its tasks run, its profiles (each a person in
+one store, [profiles.md](profiles.md)), and its code: one or more repositories, or a folder without git
+(`~/Kulisa/<project>` by default, or one the human picks). The work is done in its tasks (below), each in copies of the
+repositories (git worktrees), so the project's folders stay the human's. Kulisa keeps its data in its own data folder
 (`projects/<id>/`), never in the project's folder, so sign-ins stay out of its git.
 
 - **The projects' bar**, drawn as Chrome's tab groups: each open project an island of its own, its group: its label
@@ -282,6 +284,8 @@ asks where it is or what takes the disk; nothing in it is for editing by hand, s
 
 ```
 projects.json                     the projects: id, name, folder, repos, color, icon, agent (its new tasks': an account)
+profiles.json                     the profiles, one store: who each is, its projects, a test user's pair (profiles.md)
+profiles/Profile <k>/             a profile's master, where the human signs in once for every task
 accounts.json                     the agents' accounts added (accounts.js): [{ id, agent, name }]
 agents/<id>/                      an added account's config folder (CLAUDE_CONFIG_DIR, CODEX_HOME): its sign-in,
                                   settings, conversations; gone when the account is removed
@@ -294,12 +298,13 @@ projects/<project id>/
                                   closed, closedAt }] }; base: the commit a copy started from; no copies: it works in
                                   a folder of the project
   1/, 2/ …                        a task
-    profiles.json                 its profiles in order: folder, id, name, avatar, description, sites' zoom, closed
+    profiles.json                 what it has of its project's profiles, in order: folder, id, sites' zoom, closed
     layout.json                   its grid (dockview)
     agent.json                    { agent, started, sessionId, transcript }: which agent, its conversation
     terminals.json                its other terminals [{ id, name, by }], opened again when it loads; one goes when
                                   closed
-    Profile 1/                    a Chromium profile (session.fromPath), with Kulisa's own files in it:
+    Profile 1/                    its copy of a master, made at its first open here: a Chromium profile
+                                  (session.fromPath), with Kulisa's own files in it:
       Kulisa Tabs.json              the URLs of its tabs
       Kulisa Session Cookies.bin    its session cookies, encrypted with the OS keyring
     Profile 2/ …
@@ -380,7 +385,7 @@ cd ~/IdeaProjects/myshop
 git worktree list                         # the tasks: <repo>@task-<n>, each with its branch
 git worktree remove --force ../myshop@task-2
 git branch -D checkout-redesign
-rm -rf ~/.config/Kulisa/projects/myshop   # all its tasks and profiles, sign-ins included
+rm -rf ~/.config/Kulisa/projects/myshop   # all its tasks with their profiles' copies (the masters stay)
 ```
 
 ## Why it is built this way
@@ -407,9 +412,12 @@ temporary forks), and again on 2026-10-10 (tasks; ROADMAP, "Projects and tasks")
 - **A new conversation for a task**, not a fork of another's (`--fork-session`): its code starts clean, and an agent
   remembering another task's unfinished edits would be misled. Started in the task's folder, it has no questions about
   access outside it.
-- **Profiles copied, sign-ins included.** Accepted risk: with real SSO, rotated tokens may sign a copy or the
-  original out. `session.fromPath` keeps the caches inside the profile (they cannot live elsewhere), so a copy
-  skips them; a profile copied while open, after a flush, opens signed in (checked on Linux).
+- **A master and a copy per task.** A task's profiles are copies of their masters, made at their first open, so
+  each task's local app keeps its own sessions (each task runs its own dev server, and cookies do not depend on the
+  port: shared, two tasks would sign each other out), while real accounts' cookies are kept in step between the
+  master and every copy, so the human signs in once ([profiles.md](profiles.md), "Sign-ins kept in step"). Copied
+  from task to task until 2026-10-10, with rotating tokens a copy signed the other out. `session.fromPath` keeps the
+  caches inside the profile (they cannot live elsewhere), so a copy skips them.
 - **Storage as Chrome lays it out**, so what is known about Chrome's storage applies. `Profile N` folders are fixed
   at creation: a rename touches only `profiles.json`.
 - **One port offset per task** moves any number of services with one number. Cookies do not depend on the

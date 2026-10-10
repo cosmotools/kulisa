@@ -13,8 +13,8 @@ here; what is left of it stays.
   done in **tasks** (the word replaced "workspace" everywhere: code, docs, CLAUDE.md). No migration: Kulisa is in
   development, the new layout does not read the old data, the author starts with an empty `~/.config/Kulisa`.
   - **Status** (keep it current: a new session reads it first). 2026-10-10: all six steps below are built and
-    committed on `tasks`, not pushed; the full `npm test` passes. The author is testing it by hand. Next: fix what the
-    author's testing finds; then what is left of each step ("Left:" in it), only once the author has decided it.
+    committed on `tasks`, not pushed; the full `npm test` passes. The author is testing it by hand. Next: step 7, the projects'
+    manager (decided, not built); fix what the author's testing finds; then what is left of each step ("Left:" in it), only once the author has decided it.
     Open, for the author to decide: Refresh from Master… now matters only for a local app's cookies (keep or drop);
     a script the agent runs in a page (`browser_evaluate`) could read a test password back from its field (only the
     skill forbids it: close it or not). For the author's real accounts, not testable by Claude: device-bound cookies
@@ -88,6 +88,24 @@ here; what is left of it stays.
        ([profiles.md](profiles.md), "Sign-ins kept in step"). Left: device-bound session cookies (DBSC) to check with
        a real Google account in this Electron; sign-ins in a site's storage (MSAL) not kept in step; Refresh from
        Master… now matters only for a local app's cookies, to keep or drop.
+    7. **The projects' manager** (decided with the author 2026-10-10; not built). A project is one configuration
+       tasks are made from: name, color, icon, its folder (`~/Kulisa/<project>` without git), profiles, a list of
+       agents, a list of repositories.
+       - **Projects…**, a button in the title bar left of ☰ (also the projects' menu, the Welcome screen; Project
+         Settings… in a label's menu opens it at that project): one dialog, not an OS window (no extra process). On
+         the left every project, open or closed, and + New Project; on the right the chosen one's configuration,
+         what New Project… and Project Settings… show today (`project-editor.js`), which it replaces.
+       - **Agents: a list** of the agents' accounts (Agents…), + adds one, × removes it; one marked default, exactly
+         one (a radio, so + is never ambiguous). Today one agent (`agent` in `projects.json`).
+       - **Repositories**: the same mark for the default one instead of a click on the row. Every task still gets a
+         copy of each; the default is where its agent starts.
+       - **+ makes a task from the configuration**: the default agent, copies of the repositories. The other agents
+         in +'s right-click menu (New Task with ▸ Codex); Change agent… lists the project's agents first. No
+         copying from the task on screen (its agent, its grid).
+       - **A new task opens no profiles** (the first task too): all its project's are listed closed; the agent opens
+         one when it needs it (`profile_open`), the human with 👥 (a closed profile's row opens it). Today a task
+         opens those open in the task on screen, the first one all.
+       - Estimate: code +300 −150, tests +90, docs +50.
   - **Put off**: ongoing tasks ("watch the feedback for a month") with Kulisa kept in the tray (none in GNOME by
     default); rights on profiles, when real accounts come (one flag, "view only": reading allowed, clicks and typing
     refused; today the agent's own modes cover test users).
@@ -201,8 +219,8 @@ here; what is left of it stays.
   2026-10-09: [window.md](window.md), "The terminal"). Any agent is told its task's ports in the MCP server's
   instructions and runs the app with `terminal_run`, where the human sees it.
   - Tried 2026-10-09 with Claude Code 2.1.295 on a small Node project ("run the app and open it in the buyer
-    profile"): in a fork it read the README and `$KULISA_PORT_OFFSET`, ran `PORT=3100 npm run dev` with
-    `terminal_run`, read it and opened 3100 in the profile; in main the same on 3000. Without Kulisa's tools (a
+    profile"): in a fork (a task now) it read the README and `$KULISA_PORT_OFFSET`, ran `PORT=3100 npm run dev` with
+    `terminal_run`, read it and opened 3100 in the profile; in main (the project's folder then) the same on 3000. Without Kulisa's tools (a
     task not loaded) it ran the server in its own background shell. To try: Codex (see "Choosing the agent,
     rest": once there is a Codex account), and a project with docker compose.
   - Possibly tools: the app's address for this task, opening its profiles there once the server answers.
@@ -228,7 +246,7 @@ here; what is left of it stays.
     without running a shell anyway.
   - Proposed: × or Close ends it (agent.json keeps the agent and its session, and that it is closed: a restart does
     not bring it back); + offers the installed agents and Shell; Ctrl+` opens the task's agent when closed. A new
-    task or fork still starts with its agent open.
+    task still starts with its agent open.
   - In the code (Claude's recommendation): today the agent's terminal is a thing of its own (`Task.pty`, panel
     id `terminal`, started by `startAgent`, closed only by `changeAgent` or `unload`) and the others another
     (`Task.terminals`, `openTerminal`/`closeTerminal`, `terminals.json`). Make them one list, each terminal
@@ -290,7 +308,7 @@ here; what is left of it stays.
     (Claude Code's shape, `hookSpecificOutput.additionalContext`) is taken; each event moving the tab (Esc:
     `Interrupt`); `codex resume <session>`. Windows: the command is sh's (`commandWindows` for PowerShell).
   - **Once there is a Codex account** (the author has none yet, 2026-10-09; it is signed in by the human, `codex
-    login`), try in one go, in main and in a fork, as Claude Code was tried ("running the app, rest"):
+    login`), try in one go, in a task with git and in a project without, as Claude Code was tried ("running the app, rest"):
     1. A session driving the profiles: `browser_profiles`, a snapshot, a click; the sign-in pause.
     2. Running the app: does it read the instructions, move its ports, use `terminal_run` (Codex was expected to
        wait on a server in its own shell) and open the app in a profile.
@@ -317,9 +335,6 @@ here; what is left of it stays.
   - The agent making tasks itself (an MCP tool on `Project.createTask`), e.g. to hand parallel parts of a task to
     agents of their own, as Conductor does: a gap in the table of actions ([tasks.md](tasks.md), "Actions"). To
     discuss with "Several agents in one task" (Deferred ideas); deleting stays the human's.
-  - New tasks copy the profiles of the task on screen, sign-ins included; with rotating tokens (Microsoft, Google) a
-    copy may sign the other out, an app with one session per user kicks one out, a logout ends both. Masters and
-    synced cookies replace this ("Projects and tasks", steps 4 and 6).
 - **Discuss security for the end user** (with the author, before a public release). Kulisa holds signed-in work
   accounts and lets an agent act in them. Topics, each to decide or document for users:
   - **What the agent can do in signed-in accounts:** read private data (it saw passwords in a Teams chat), send
@@ -376,7 +391,7 @@ here; what is left of it stays.
     or is done, seen only while looking at Kulisa. A notification ("checkout: the agent waits for you"; a click shows
     that task), the number of waiting agents on the app's icon in the dock or taskbar, the window flashing there.
   - **Undo rather than "are you sure?"** for what can be undone: closing a profile, a task's tab, a project shows
-    "Closed · Undo" for a few seconds, and Ctrl+Z brings it back. Deleting (a fork, a profile with its sign-ins) is
+    "Closed · Undo" for a few seconds, and Ctrl+Z brings it back. Deleting (a task, a profile with its sign-ins) is
     for good and keeps its question.
   - **A right-click menu on every object, as a rule** (a profile's pane, a task's tab, a project's island, the
     terminal): all of its actions there, so the window shows only one or two buttons and the rest lives in menus.
@@ -468,7 +483,7 @@ here; what is left of it stays.
   depend on it). A task may hold several terminals, each an agent (any CLI, Claude and Codex together; built on
   the task's other terminals, [window.md](window.md), "The terminal"); all
   see the task's code and profiles. Covers a tester next to the developer, a side question (Claude: a forked
-  conversation), browser-only research, and parallel agents in a project without git (it has no forks). Cheaper than
+  conversation), browser-only research, and parallel agents in a project without git (its tasks share its folder). Cheaper than
   a task: one agent process, no profile copies. Agents
   coordinate through the Kulisa plugin, for any agent:
   - `agents`: who is in the task, their role, what they are doing, which tabs and profiles they use.
@@ -689,7 +704,7 @@ here; what is left of it stays.
       `test/grid.js`), where macOS has ⌘; Ctrl+Shift+V pastes nothing there.
     - What one OS alone has: skipped with the reason, not left to fail.
 - **A profile dropped from its list, its folder left behind** (found 2026-10-07; to come back to). The author's
-  data held a `Profile 2` in a main task, in no `profiles.json` and not in `deleted-folders.json`.
+  data held a `Profile 2` in a main workspace (the model before tasks), in no `profiles.json` and not in `deleted-folders.json`.
   - Not deleted: deleting a profile, open or closed, removes its folder at the next start (tried 2026-10-07), and
     removes its session cookies file at once; that file is still there.
   - Its timestamps: created 2026-10-06 22:17; session cookies and storage written 22:42:12, as closing a profile
@@ -717,7 +732,7 @@ here; what is left of it stays.
   room. 2026-10-09: the tests run on a screen of their own on Linux (Xvfb, [testing.md](testing.md)), so the human's
   work no longer takes the focus from them (menus closed in the middle of a test, about 1 run in 7); races that a
   slower screen showed (a click while the window still showed another project) are waited for. Watch whether any
-  come back. Not looked at: the address bar's click (seen 2026-10-07). Slow but not flaky: closing a fork (11 s,
+  come back. Not looked at: the address bar's click (seen 2026-10-07). Slow but not flaky: deleting a task (a fork's closing took 11 s,
   git's work), a site that never answers (10 s: two 5 s waits by design).
 - **The test "after a restart: a task's other terminal comes back …" takes 5.6 s** (`restart-tasks.js`;
   found 2026-10-09, to come back to). Most of it is showing the project `other` until its task has loaded and

@@ -85,7 +85,7 @@ function stopTerminal(p) {
   try { p.kill(); } catch {}
 }
 
-// A task gone (its project closed, a fork deleted), or a terminal closed: its size too. Opened again, the window
+// A task gone (its project closed, a task deleted), or a terminal closed: its size too. Opened again, the window
 // measures it anew.
 const forgetTerminal = (key) => terms.delete(key);
 // The size the window gave a terminal, if any.

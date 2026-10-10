@@ -294,7 +294,8 @@ only and refuse requests from web pages (`local-only.js`).
 
 ## What is on the computer
 
-In the task's data folder ([tasks.md](tasks.md), "What is on the computer"):
+In Kulisa's data folder ([tasks.md](tasks.md), "What is on the computer"): the masters at its top, each task's copies
+in the task's folder:
 
 ```
 profiles.json                   { next, list: [{ id, name, avatar, description, folder, projects }] }: the profiles

@@ -163,7 +163,7 @@ module.exports = (test) => {
     assert.match(t.text, /app/);
     await shell.task.deleteProfile('hung');
   });
-  test('a tab on a site that refuses to connect (its dev server not started, as in a new fork) opens at once, and so does its profile', async ({ shell, call }) => {
+  test('a tab on a site that refuses to connect (its dev server not started, as in a new task) opens at once, and so does its profile', async ({ shell, call }) => {
     await call('profile_create', { name: 'Down' });
     let started = Date.now();
     await call('browser_tab_new', { profile: 'down', url: 'http://127.0.0.1:4419/app' }); // nothing listens there
