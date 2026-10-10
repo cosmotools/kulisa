@@ -13,8 +13,11 @@ here; what is left of it stays.
   done in **tasks** (the word replaced "workspace" everywhere: code, docs, CLAUDE.md). No migration: Kulisa is in
   development, the new layout does not read the old data, the author starts with an empty `~/.config/Kulisa`.
   - **Status** (keep it current: a new session reads it first). 2026-10-10: all steps below are built and
-    committed on `tasks`, not pushed; the full `npm test` passes. Step 7, the projects' manager, built 2026-10-10. The author is
-    testing it by hand. Next: fix what the author's testing finds; then what is left of each step ("Left:" in it), only once the author has decided it.
+    committed on `tasks`, not pushed; the full `npm test` passes. Step 7, the projects' manager, built 2026-10-10 (`147e862`); the
+    author's data was cleared of the old format then (one data format only: old data is deleted, never read or
+    migrated). The author is testing it by hand. Next: fix what the author's testing finds; then what is left of each
+    step ("Left:" in it), only once the author has decided it. After the rebuild has settled: "The window in Vue"
+    (decided 2026-10-10, below in Next), its first step Vite in Forge and the Welcome screen in Vue.
     Open, for the author to decide: Refresh from Master… now matters only for a local app's cookies (keep or drop);
     a script the agent runs in a page (`browser_evaluate`) could read a test password back from its field (only the
     skill forbids it: close it or not). For the author's real accounts, not testable by Claude: device-bound cookies
@@ -95,6 +98,45 @@ here; what is left of it stays.
     default); rights on profiles, when real accounts come (one flag, "view only": reading allowed, clicks and typing
     refused; today the agent's own modes cover test users).
 
+- **The window in Vue** (decided with the author 2026-10-10; to start once the rebuild around tasks has settled, not
+  in the middle of the author's testing). Today a part of the window is spread over files by kind: its markup in
+  `index.html`, its look in `window.css`, its behavior in a JS file, sometimes another's (the Welcome screen's list is
+  in `projects.js`, its switch in `tasks.js`): a consequence of "no build step", not a choice of structure. Wanted: a
+  part in one place, its markup, look and behavior together, as Vue's and Angular's components are.
+  - **Vue 3, single-file components (`.vue`), built by Vite** (`@electron-forge/plugin-vite`, Forge's own). Chosen
+    over: React (agents write it best, but a screen does not fit one file: styles apart); Svelte 5 (no official
+    dockview binding, agents mix its runes with Svelte 4); Solid (no binding, small community); Angular (heavy for a
+    window this size); Lit (no build, but Shadow DOM keeps `components.css` out of every component). Vue has all
+    three: a screen in one file with scoped CSS, dockview's official binding (`dockview-vue`; Kulisa uses
+    `dockview-core` today), agents that write it well. Its runtime is tens of KB: no matter for RAM next to a
+    Chromium process per tab. MIT.
+  - **What changes:** CLAUDE.md's "Window UI" (no build step, markup in `index.html` and `<template>`s, three CSS
+    files, ES modules loaded with `import()`) and `docs/ui.md` are rewritten for components; tokens stay CSS custom
+    properties, the shared components become Vue components. With the build, TypeScript and npm packages in the window
+    become possible (Deferred ideas, "TypeScript, with esbuild": decide together). The e2e tests find elements by
+    their ids and selectors: keep them where a part is rewritten.
+  - **The order:** first a step of its own: Vite in Forge and one part in Vue, the Welcome screen (small, on its
+    own); checked running from source and packaged (the `.deb`). Then each part when it is touched anyway; the
+    timeline and profile mail (Features 4, 6) written in Vue from the start. Until a part is rewritten, the window has
+    two ways of building UI: no new part in the old way.
+  - **The parts to rewrite** (where they are today: markup / behavior):
+    - the Welcome screen (`#welcome` / `projects.js`, `tasks.js`);
+    - the title bar: logo, the zoom's reset, Projects, ☰ (`#topbar` / `renderer.js`, `projects.js`);
+    - the projects' bar: islands, task tabs, 👥, the projects' menu (`#projectbar`, `tpl-pisland`, `tpl-tasktab` /
+      `projects.js`, `tasks.js`);
+    - the grid (`#dock` / `renderer.js`), its panels: a profile's pane, its tabs, address bar, Pick, ⋮, the agent's
+      caption, a page's dialog (`tpl-pane`, `tpl-tab`, `tpl-ptab` / `renderer.js`); the agent's terminal and the
+      others, dictation (`tpl-termtab`, `tpl-othertermtab` / `terminal.js`, `voice.js`). dockview and xterm stay
+      inside, wrapped: the native views' bounds, the pictures of pages under menus and dialogs and the view
+      transitions stay Kulisa's own code;
+    - the dialogs: the projects' manager (`project-editor.js`), Manage Profiles (`profile-editor.js`), Agents and
+      Choose the Agent (`agents.js`, `agent-picker.js`, `agent-list.js`), Rename Task (`tasks.js`), Keyboard Shortcuts
+      (`shortcuts.js`), the questions (`ask.js`);
+    - the menus: ☰ with its rows (zoom, theme, the bar, Arrange panels) and every right-click menu (`menu.js`,
+      `tpl-menu*`);
+    - the master's window (`master.html`, `master.js`).
+    Not the error page in a profile's tab (`src/main/error-page.html`): it is the page's, not the window's.
+  - Estimate of the first step: about a day; the rest part by part.
 - **Kulisa plugin: more the agent can do in the browsers** (tools in `mcp-server.js`, each described in the skill;
   what is built: [profiles.md](profiles.md), "What the agent does"). What else an agent needs comes from using it
   (the author moves to working in Kulisa, 2026-10-08): where the agent goes around the tools (its own Playwright
@@ -403,10 +445,7 @@ here; what is left of it stays.
 - **Feature 7, rest.** Reset a profile to a clean state (keeping its name), seeded test users.
 - **Feature 4, timeline.** One feed of DOM (rrweb-like), network, console and agent actions across profiles; scrub
   back and pick in the past.
-  - **Decide first: a UI library.** The window UI is plain HTML/CSS/JS with hand-kept keyed DOM updates (panes,
-    tabs, editor rows); layout is dockview's (framework-free). Fine at this size; the timeline and profile mail
-    would make that own code grow, and become dockview panels. Candidates: Preact (+ htm) or Lit, both small and
-    usable without a heavy build. Not Tailwind (styles are tiny; it needs a build step) and no ready-made
+  - Written in Vue from the start ("The window in Vue", above). Not Tailwind (styles are tiny) and no ready-made
     component kits (Kulisa needs its own IDE look).
 - **Feature 6, profile mail.** A local mail catcher with a mailbox per profile, shown next to the panes and
   readable by the agent.
@@ -437,8 +476,8 @@ here; what is left of it stays.
   code. If types are wanted: TypeScript everywhere, built by esbuild (`dist/`, source maps), the window's scripts
   turned into modules (`import`), `node_modules` left out of the main process's bundle (`node-pty` is native;
   `playwright-core` and the MCP SDK read their own files), `tsc` checking in `npm test`. A build also lets the window
-  use npm packages that ship no file for a `<script>` tag (today only dockview's and xterm's, which do), and a UI
-  library (Feature 4, timeline). Check first: the main process built so runs from source and packaged.
+  use npm packages that ship no file for a `<script>` tag (today only dockview's and xterm's, which do), and Vue
+  ("The window in Vue", above; Vite builds TypeScript too, so esbuild apart may not be needed). Check first: the main process built so runs from source and packaged.
 - **Our own tools over Playwright, or a bridge to it** (the author's question, 2026-10-08; to discuss again after
   working in Kulisa). The author: a bridge passing the agent's calls to Playwright would be less code. Why the tools
   are Kulisa's own today: `@playwright/mcp` has no profile argument (a server per profile: its 25 tools each, and

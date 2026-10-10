@@ -1,6 +1,11 @@
+# Dependencies and build output
 node_modules/
-# local environment (direnv)
-.envrc
 out/
-# Claude Code: personal settings stay local; the skills in .claude/skills are shared
+
+# The developer's own: their environment (direnv), their IDE's settings (JetBrains)
+.envrc
+.idea/
+
+# Claude Code: personal settings and its worktrees stay local; the skills in .claude/skills are shared
 .claude/settings.local.json
+.claude/worktrees/
