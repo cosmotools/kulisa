@@ -108,6 +108,18 @@ async function changes({ repo, worktree, branch, base }) {
   return { commits, dirty };
 }
 
+// A task's copy merged on its remote (its PR merged): it has commits of its own, all of them in the remote's default
+// branch (origin/HEAD, fetched first), and no uncommitted files; deleting it then loses nothing. A squash merge makes
+// new commits, so it is not seen.
+async function merged({ repo, worktree, branch, base }) {
+  const remote = await git(repo, ['rev-parse', '--abbrev-ref', 'origin/HEAD']).catch(() => null); // origin/main
+  if (!remote) return false;
+  await git(repo, ['fetch', '--quiet', 'origin', remote.replace(/^origin\//, '')], { timeout: 20000 }).catch(() => {});
+  const count = async (...a) => Number(await git(repo, ['rev-list', '--count', ...a]).catch(() => -1));
+  if ((await count(branch, `^${base}`)) < 1 || (await count(branch, `^${remote}`)) !== 0) return false;
+  return !fs.existsSync(worktree) || !(await git(worktree, ['status', '--porcelain']).catch(() => 'x'));
+}
+
 // direnv's records allowing the task's .envrc (allowEnvrc), removed: one file per content it was allowed with, in
 // <XDG data>/direnv/allow/, holding the .envrc's path. Not `direnv deny`: newer direnv keeps a record of that too.
 function forgetEnvrc(worktree) {
@@ -155,4 +167,4 @@ async function initRepo(folder) {
   await git(folder, ['commit', '--allow-empty', '-m', 'Initial commit']);
 }
 
-module.exports = { repoOf, freeBranch, createWorktree, changes, renameBranch, removeWorktree, clone, initRepo, copyIgnored, slug, git };
+module.exports = { repoOf, freeBranch, createWorktree, changes, merged, renameBranch, removeWorktree, clone, initRepo, copyIgnored, slug, git };

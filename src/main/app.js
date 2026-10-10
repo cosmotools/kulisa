@@ -329,6 +329,7 @@ function start(options = {}) {
     await leaveTask(task);
     await project.closeTask(task);
     project.window.taskGone(task);
+    project.checkMerged().then((found) => found && sendProjects()).catch(() => {});
     return { n: task.n };
   }
   // Delete in a task's menu (open or closed), after the human says yes: everything of it goes (projects.js). The last
@@ -344,6 +345,19 @@ function start(options = {}) {
     project.window?.taskGone(task);
     if (!project.window) sendProjects();
     return { n: task.n };
+  }
+  // Delete Merged Tasks… (its group's menu): its closed tasks whose PR is merged, after one question naming them;
+  // nothing of them is lost (projects.js, checkMerged).
+  async function deleteMerged(project) {
+    const list = project.closedTasks().filter((t) => t.entry.merged);
+    if (!list.length) return { error: 'no closed task of it is merged' };
+    if (!await shell.ask({ message: `Delete ${list.length === 1 ? `the task ${list[0].name}` : `${list.length} merged tasks`}?`, ok: 'Delete', danger: true,
+      detail: `Merged on the remote, nothing uncommitted: ${list.map((t) => `${t.name} (${t.entry.branch})`).join(', ')}. Their folders, branches, profiles' copies and agents' conversations go.` }, project.window)) {
+      return { error: 'the human said no' };
+    }
+    for (const t of list) await project.deleteTask(t);
+    sendProjects();
+    return { deleted: list.map((t) => t.n) };
   }
   // A closed task listed in its project's group menu, opened again: shown, its agent resumed.
   async function openTask(task) {
@@ -510,6 +524,7 @@ function start(options = {}) {
   ipcMain.handle('task:delete', (e, key) => taskAt(key, deleteTask));
   ipcMain.handle('task:open', (e, key) => taskAt(key, openTask));
   ipcMain.handle('task:rename', (e, { key, name }) => taskAt(key, (task) => task.rename(name)));
+  ipcMain.handle('project:delete-merged', (e, { id }) => serial(() => { const p = shell.open.get(id); return p ? deleteMerged(p) : { error: 'the project is not open' }; }));
   ipcMain.handle('project:collapse', (e, { id, collapsed }) => { shell.open.get(id)?.collapse(collapsed); sendProjects(); });
   // The terminal's microphone and its language (voice.js in the renderer; Task.voice, dictate).
   // Esc typed into an agent's terminal (its key is the task's): Task.interrupted.

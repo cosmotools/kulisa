@@ -63,9 +63,8 @@ here; what is left of it stays.
     profile's master and the agent goes the whole way itself (account chooser, consent) with no sign-in pause on that
     path, never typing a Google password: the pause part goes into the author's replacement of `signin-pause.js`.
   - **Steps**, each working on its own, with its tests:
-    1. Tasks replace workspaces: built 2026-10-10 ([tasks.md](tasks.md)). Left of it: Kulisa offering to delete a
-       closed task once its PR is merged; a new task copies the profiles and agent of the task on screen until
-       steps 3 and 4 (the project's default agent, masters).
+    1. Tasks replace workspaces: built 2026-10-10 ([tasks.md](tasks.md)), with Kulisa offering to delete a closed
+       task once its PR is merged. Left: a squash merge is not seen as merged.
     2. Projects as composites: built 2026-10-10 ([tasks.md](tasks.md), Projects and Tasks). Left: a task in the
        former folder (no git) is not moved when a repository comes; profiles and agents as catalogs (steps 3, 4).
     3. The agents' catalog with accounts: built 2026-10-10 ([tasks.md](tasks.md), "Choosing the agent"). Left: the

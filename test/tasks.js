@@ -811,6 +811,38 @@ module.exports = (test) => {
     assert.deepEqual([site.repos.map((r) => r.folder), site.former], [[path.join(root, 'docs')], path.join(root, 'site')]);
   });
 
+  test("tasks: a closed task whose PR is merged on the remote is marked in its group's menu; Delete Merged Tasks… deletes it after one question", async (ctx) => {
+    const { shell, ui } = ctx;
+    // A repository with a remote, as a clone of one is.
+    const origin = path.join(root, 'merge-origin.git'), dir = path.join(root, 'merge');
+    git(root, 'init', '-q', '--bare', '-b', 'main', origin);
+    fs.mkdirSync(dir); git(dir, 'init', '-q', '-b', 'main'); fs.writeFileSync(path.join(dir, 'a.txt'), 'a');
+    git(dir, 'add', '-A'); git(dir, 'commit', '-qm', 'a'); git(dir, 'remote', 'add', 'origin', origin);
+    git(dir, 'push', '-q', 'origin', 'main'); git(dir, 'remote', 'set-head', 'origin', 'main');
+    await ui(`kulisa.invoke('project:open', { folder: ${JSON.stringify(dir)} })`);
+    await waitFor(() => shell.current?.id === 'merge' && shell.task?.loaded && shell.pty);
+    ctx.watchPty(shell.pty);
+    await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
+    const first = shell.task;
+    const second = await newTask(ctx);
+    // task-1's work pushed, and merged into main on the remote; task-2 has a commit not merged.
+    fs.writeFileSync(path.join(first.folder, 'b.txt'), 'b'); git(first.folder, 'add', '-A'); git(first.folder, 'commit', '-qm', 'b');
+    git(first.folder, 'push', '-q', 'origin', `${first.entry.branch}:main`);
+    fs.writeFileSync(path.join(second.folder, 'c.txt'), 'c'); git(second.folder, 'add', '-A'); git(second.folder, 'commit', '-qm', 'c');
+    await ui(`${taskTab(1)}.querySelector('.close').click()`);
+    await waitFor(() => first.entry.closed && first.entry.merged, 10000); // a fetch from the remote
+    const rows = await groupMenu(ui);
+    assert.ok(rows.includes('Delete Merged Tasks…'));
+    await groupMenu(ui, 'Delete Merged Tasks…');
+    await waitFor(() => ctx.asked.length);
+    assert.equal(ctx.asked.pop().message, 'Delete the task task-1?');
+    await waitFor(() => !shell.current.tasks.has(1) && !fs.existsSync(first.folder));
+    assert.ok(shell.current.tasks.has(second.n) && !second.entry.merged, 'one not merged stays');
+    await ui(`kulisa.invoke('project:close', { id: 'merge' })`);
+    await waitFor(() => !shell.open.has('merge'));
+    ctx.asked.length = 0;
+  });
+
   test("projects: Remove Project… (× in the menu, Remove for the open one, the Welcome screen) asks, closes the project when open, deletes its data and its tasks' copies, never its folder", async (ctx) => {
     const { shell, ui } = ctx;
     const projects = () => shell.store.projects().map((p) => p.id);

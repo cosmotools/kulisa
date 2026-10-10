@@ -142,9 +142,21 @@ class Project {
     this.save();
     await task.unload();
   }
+  // Its closed tasks whose PR is merged (worktrees.js, merged: each copy's commits all in its remote's default branch,
+  // nothing uncommitted): marked, for its group's menu to offer deleting them (nothing is lost). Checked as the
+  // project is shown and a task is closed, in the background (a fetch takes a moment). True when one was found.
+  async checkMerged() {
+    let found = false;
+    for (const t of this.closedTasks()) {
+      if (t.entry.merged || !t.entry.copies?.length) continue;
+      if ((await Promise.all(t.entry.copies.map((c) => worktrees.merged(c)))).every(Boolean)) { t.entry.merged = true; found = true; }
+    }
+    if (found) this.save();
+    return found;
+  }
   // A closed task listed again in the bar (its project's menu), to be shown: it loads then, its agent resumed.
   reopen(task) {
-    delete task.entry.closed; delete task.entry.closedAt;
+    delete task.entry.closed; delete task.entry.closedAt; delete task.entry.merged;
     this.save();
   }
   // Deleting a task asks first, told what goes for good, with the work not in its repositories' main branches and not

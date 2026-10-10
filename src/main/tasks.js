@@ -395,7 +395,7 @@ class Task {
 
   info() {
     const { n, key, name, tabState: state, folder, offset } = this;
-    return { n, key, name, state, folder, offset, branch: this.entry.branch || null, closed: !!this.entry.closed, agent: this.agent?.name || null,
+    return { n, key, name, state, folder, offset, branch: this.entry.branch || null, closed: !!this.entry.closed, merged: !!this.entry.merged, agent: this.agent?.name || null,
       profiles: this.openProfiles() };
   }
   // How many of its profiles are open (on its tab); from its store until it is loaded.

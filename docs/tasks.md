@@ -144,7 +144,11 @@ Example: the project `~/IdeaProjects/myshop`, its second task, named "Checkout-r
 - **Delete Task…** in its tab's menu deletes it, after a question saying what goes for good: its folder, its branch,
   its profiles, its agent's conversations, and any work not in main and not pushed (commits of its own, uncommitted
   files). With git a task goes whole (worktree, branch, conversation); without, its files stay in the project's folder.
-  Deleting the last open task closes the project. Closed tasks stay on disk until the human deletes them.
+  Deleting the last open task closes the project. Closed tasks stay on disk until the human deletes them; Kulisa
+  offers it once a closed task's PR is merged: each of its copies has commits of its own, all in its remote's default
+  branch (`origin/HEAD`, fetched as the project is shown and as a task is closed, in the background), and nothing
+  uncommitted, so deleting it loses nothing. Its group's menu marks it "merged" and has **Delete Merged Tasks…**, one
+  question naming them. A squash merge makes new commits, so it is not seen: Delete Task… as for any other.
 - **Change agent…** in the terminal's right-click menu picks another agent for the shown task.
 
 ## Actions: the human's and the agent's

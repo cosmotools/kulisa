@@ -181,6 +181,7 @@ class AppWindow {
     this.win.setTitle(`${project.name} — Kulisa`);
     this.sendProjects();
     this.sendTasks();
+    project.checkMerged().then((found) => found && this.shell.sendProjects()).catch(() => {}); // its closed tasks whose PR is merged
     await this.showLoaded();
   }
   // The shown task: its profiles loaded (the first time it is shown), the page's grid built from its state
