@@ -15,9 +15,10 @@ here; what is left of it stays.
   - **Status** (keep it current: a new session reads it first). 2026-10-10: all steps below are built and
     committed on `tasks`, not pushed; the full `npm test` passes. Step 7, the projects' manager, built 2026-10-10 (`147e862`); the
     author's data was cleared of the old format then (one data format only: old data is deleted, never read or
-    migrated). The author is testing it by hand. Next: fix what the author's testing finds; then what is left of each
-    step ("Left:" in it), only once the author has decided it. After the rebuild has settled: "The window in Vue"
-    (decided 2026-10-10, below in Next), its first step Vite in Forge and the Welcome screen in Vue.
+    migrated). The author is testing it by hand. The window was then rewritten in Vue 3 and TypeScript, built by Vite (the author's
+    decision, 2026-10-10: the whole renderer at once, TypeScript from the start, the bugs of the rebuild after; how it is
+    built: CLAUDE.md, Window UI; [ui.md](ui.md)); the author tests that too. Next: fix what the author's testing finds;
+    then what is left of each step ("Left:" in it), only once the author has decided it.
     Open, for the author to decide: Refresh from Master… now matters only for a local app's cookies (keep or drop);
     a script the agent runs in a page (`browser_evaluate`) could read a test password back from its field (only the
     skill forbids it: close it or not). For the author's real accounts, not testable by Claude: device-bound cookies
@@ -98,45 +99,6 @@ here; what is left of it stays.
     default); rights on profiles, when real accounts come (one flag, "view only": reading allowed, clicks and typing
     refused; today the agent's own modes cover test users).
 
-- **The window in Vue** (decided with the author 2026-10-10; to start once the rebuild around tasks has settled, not
-  in the middle of the author's testing). Today a part of the window is spread over files by kind: its markup in
-  `index.html`, its look in `window.css`, its behavior in a JS file, sometimes another's (the Welcome screen's list is
-  in `projects.js`, its switch in `tasks.js`): a consequence of "no build step", not a choice of structure. Wanted: a
-  part in one place, its markup, look and behavior together, as Vue's and Angular's components are.
-  - **Vue 3, single-file components (`.vue`), built by Vite** (`@electron-forge/plugin-vite`, Forge's own). Chosen
-    over: React (agents write it best, but a screen does not fit one file: styles apart); Svelte 5 (no official
-    dockview binding, agents mix its runes with Svelte 4); Solid (no binding, small community); Angular (heavy for a
-    window this size); Lit (no build, but Shadow DOM keeps `components.css` out of every component). Vue has all
-    three: a screen in one file with scoped CSS, dockview's official binding (`dockview-vue`; Kulisa uses
-    `dockview-core` today), agents that write it well. Its runtime is tens of KB: no matter for RAM next to a
-    Chromium process per tab. MIT.
-  - **What changes:** CLAUDE.md's "Window UI" (no build step, markup in `index.html` and `<template>`s, three CSS
-    files, ES modules loaded with `import()`) and `docs/ui.md` are rewritten for components; tokens stay CSS custom
-    properties, the shared components become Vue components. With the build, TypeScript and npm packages in the window
-    become possible (Deferred ideas, "TypeScript, with esbuild": decide together). The e2e tests find elements by
-    their ids and selectors: keep them where a part is rewritten.
-  - **The order:** first a step of its own: Vite in Forge and one part in Vue, the Welcome screen (small, on its
-    own); checked running from source and packaged (the `.deb`). Then each part when it is touched anyway; the
-    timeline and profile mail (Features 4, 6) written in Vue from the start. Until a part is rewritten, the window has
-    two ways of building UI: no new part in the old way.
-  - **The parts to rewrite** (where they are today: markup / behavior):
-    - the Welcome screen (`#welcome` / `projects.js`, `tasks.js`);
-    - the title bar: logo, the zoom's reset, Projects, ☰ (`#topbar` / `renderer.js`, `projects.js`);
-    - the projects' bar: islands, task tabs, 👥, the projects' menu (`#projectbar`, `tpl-pisland`, `tpl-tasktab` /
-      `projects.js`, `tasks.js`);
-    - the grid (`#dock` / `renderer.js`), its panels: a profile's pane, its tabs, address bar, Pick, ⋮, the agent's
-      caption, a page's dialog (`tpl-pane`, `tpl-tab`, `tpl-ptab` / `renderer.js`); the agent's terminal and the
-      others, dictation (`tpl-termtab`, `tpl-othertermtab` / `terminal.js`, `voice.js`). dockview and xterm stay
-      inside, wrapped: the native views' bounds, the pictures of pages under menus and dialogs and the view
-      transitions stay Kulisa's own code;
-    - the dialogs: the projects' manager (`project-editor.js`), Manage Profiles (`profile-editor.js`), Agents and
-      Choose the Agent (`agents.js`, `agent-picker.js`, `agent-list.js`), Rename Task (`tasks.js`), Keyboard Shortcuts
-      (`shortcuts.js`), the questions (`ask.js`);
-    - the menus: ☰ with its rows (zoom, theme, the bar, Arrange panels) and every right-click menu (`menu.js`,
-      `tpl-menu*`);
-    - the master's window (`master.html`, `master.js`).
-    Not the error page in a profile's tab (`src/main/error-page.html`): it is the page's, not the window's.
-  - Estimate of the first step: about a day; the rest part by part.
 - **Kulisa plugin: more the agent can do in the browsers** (tools in `mcp-server.js`, each described in the skill;
   what is built: [profiles.md](profiles.md), "What the agent does"). What else an agent needs comes from using it
   (the author moves to working in Kulisa, 2026-10-08): where the agent goes around the tools (its own Playwright
@@ -213,7 +175,7 @@ here; what is left of it stays.
     noticed: no tool to read emails. Send · Later · Don't ask". Don't ask turns the questions off for good; notes
     still gather in the list. No system notification: not urgent.
   - **The human: the list**, ☰ → Ideas for Kulisa… (the number of notes in its row, a dot on ☰ while some are
-    unseen). A dialog (an ES module loaded when needed, its markup in `index.html`): what Kulisa's developers get
+    unseen). A dialog (a component, `Modal.vue`): what Kulisa's developers get
     from the notes (a link to the page on kulisa.app); each note as it will be sent, editable, × deletes it, Send.
     A checkbox at the footer's start, "Agents note ideas" (on by default: nothing leaves without a click): off, the
     tool is not registered and the proxy's reminder is off.
@@ -282,7 +244,7 @@ here; what is left of it stays.
     agent's terminal its own close and open and keep the two kinds (about half the code), but everything about
     terminals stays written twice, and "Several agents in one task" (Deferred ideas) would need the merge
     anyway. To change with it: the renderer assumes the panel `terminal` is always there (it anchors new profiles
-    and terminals, and the grid adds it back: `renderer.js` ~335, ~351, ~367); saved grids name it, so a migration.
+    and terminals, and the grid adds it back: `lib/grid.ts`, `restoreGrid`, `syncGrid`, `applyPreset`); saved grids name it, so a migration.
   - Open questions for the author, each with Claude's proposal:
     - A second agent in the same task (Codex next to Claude)? Proposed: not yet; + shows the open one.
       Several agents is its own task (Deferred ideas), with each terminal's own hooks state, picks and dictation.
@@ -403,7 +365,7 @@ here; what is left of it stays.
 - **Keyboard shortcuts, rest** (built: [window.md](window.md), Keys; the table in `src/main/keys.js`).
   - **A command palette** (Ctrl+Shift+P, as VS Code's; JetBrains' Find Action), where every action is found by its
     name, with its key: the next step. The commands are the keys' table plus the menus' actions: one list of commands
-    (an id, a label, `run`) the menus, the keys and the palette use; an ES module loaded when opened.
+    (an id, a label, `run`) the menus, the keys and the palette use; a dialog of its own (`Modal.vue`).
   - Moving the keyboard between the panels and the tabs of the bar without a mouse (with Accessibility, above).
   - Find in a page (Ctrl+F, as Chrome's: `webContents.findInPage`), a bar of its own over the page.
   - Remapping: the keys in `settings.json` over the table's (VS Code's `keybindings.json`).
@@ -445,7 +407,7 @@ here; what is left of it stays.
 - **Feature 7, rest.** Reset a profile to a clean state (keeping its name), seeded test users.
 - **Feature 4, timeline.** One feed of DOM (rrweb-like), network, console and agent actions across profiles; scrub
   back and pick in the past.
-  - Written in Vue from the start ("The window in Vue", above). Not Tailwind (styles are tiny) and no ready-made
+  - A Vue component as the rest of the window (CLAUDE.md, Window UI). Not Tailwind (styles are tiny) and no ready-made
     component kits (Kulisa needs its own IDE look).
 - **Feature 6, profile mail.** A local mail catcher with a mailbox per profile, shown next to the panes and
   readable by the agent.
@@ -469,15 +431,12 @@ here; what is left of it stays.
   - Nearly no RAM (the sound is handled in the tab already open), no new process. First: the permissions (Open
     issues, "Pages get the microphone and camera without asking"), so the agent can test the site's own request too.
 
-- **TypeScript, with esbuild** (2026-10-08, the author's question; put off: plain JavaScript is enough at this size).
-  Tried and dropped the same day: `tsc` checking JavaScript with types in JSDoc (`// @ts-check`), and `.mts` files
-  that Node 24 (Electron 44) runs as they are, types stripped: it works in the main process, packaged too, but not
-  in the window (Chromium runs no TypeScript), and the mix of `.mts`, `.js` and JSDoc was not one way of writing
-  code. If types are wanted: TypeScript everywhere, built by esbuild (`dist/`, source maps), the window's scripts
-  turned into modules (`import`), `node_modules` left out of the main process's bundle (`node-pty` is native;
-  `playwright-core` and the MCP SDK read their own files), `tsc` checking in `npm test`. A build also lets the window
-  use npm packages that ship no file for a `<script>` tag (today only dockview's and xterm's, which do), and Vue
-  ("The window in Vue", above; Vite builds TypeScript too, so esbuild apart may not be needed). Check first: the main process built so runs from source and packaged.
+- **The main process in TypeScript** (the window is, since 2026-10-10: CLAUDE.md, Window UI; the author: the whole
+  project moves to it later). Tried and dropped on 2026-10-08: `tsc` checking JavaScript with types in JSDoc, and `.mts`
+  files that Node 24 runs with their types stripped (a mix of `.mts`, `.js` and JSDoc was not one way of writing code).
+  To decide: built (Vite, as the window, or esbuild) into `dist/`, `node_modules` left out of its bundle (`node-pty` is
+  native; `playwright-core` and the MCP SDK read their own files); then Forge's own Vite plugin fits (it packages only
+  what Vite built). Check first: the main process built so runs from source and packaged.
 - **Our own tools over Playwright, or a bridge to it** (the author's question, 2026-10-08; to discuss again after
   working in Kulisa). The author: a bridge passing the agent's calls to Playwright would be less code. Why the tools
   are Kulisa's own today: `@playwright/mcp` has no profile argument (a server per profile: its 25 tools each, and
@@ -540,8 +499,8 @@ here; what is left of it stays.
     recognized on the computer (sherpa-onnx's keyword spotter, a 30 MB model downloaded the first time, Silero VAD)
     in a utility process alive only while they are on (about 100 MB). Why it fits an extension: a 32 MB native
     module per platform, a downloaded model, an always-on microphone, and Russian only so far. In the core today it
-    touches: `app.js` (its IPC, a `voiceModel` option), `tasks.js` (`press`), `voice.js`, `index.html` and
-    `window.css` (the ear in the terminal's header), `forge.config.js` (`asar.unpack` for the native module),
+    touches: `app.js` (its IPC, a `voiceModel` option), `tasks.js` (`press`), the renderer's dictation (now
+    `Dictation.vue`, rewritten in Vue since: the branch's window part is to be redone), `forge.config.js` (`asar.unpack` for the native module),
     `package.json`, the tests' `run.js` (Chromium's fake microphone). Its own files: `listen.js`,
     `listen-worker.js`, the renderer's `listen.js` and `listen-worklet.js`, `test/unit/listen.test.js`,
     `test/fixtures/hey-kulisa.wav`. The branch's docs say how it works (`docs/window.md`, Voice commands) and what is
@@ -639,7 +598,7 @@ here; what is left of it stays.
 
 - **The grid in a small window** (not decided; the window's own minimum is built: window.md, "The window's size"). When the panes do not fit,
   dockview overflows and cuts them, the profiles' native views get boxes near 0, and the terminal may get 0 columns
-  (`pty.resize` is in a `try` in `terminal.js`, but the agent's CLI draws garbage at a tiny size). Ways to weigh:
+  (`pty.resize` is in a `try` in `src/main/terminal.js`, but the agent's CLI draws garbage at a tiny size). Ways to weigh:
   panes shrink to a `minimumWidth` per panel (dockview) and views too small to use are hidden, or a narrow grid
   turns into tabs.
 
@@ -756,14 +715,14 @@ here; what is left of it stays.
   room. 2026-10-09: the tests run on a screen of their own on Linux (Xvfb, [testing.md](testing.md)), so the human's
   work no longer takes the focus from them (menus closed in the middle of a test, about 1 run in 7); races that a
   slower screen showed (a click while the window still showed another project) are waited for. Watch whether any
-  come back. Not looked at: the address bar's click (seen 2026-10-07). Slow but not flaky: deleting a task (a fork's closing took 11 s,
+  come back. Not looked at: the address bar's click (seen 2026-10-07); the first point-and-tell test once timed out waiting for the pick (2026-10-10, right after the window moved to Vue; not in the runs after). Slow but not flaky: deleting a task (a fork's closing took 11 s,
   git's work), a site that never answers (10 s: two 5 s waits by design).
 - **The test "after a restart: a task's other terminal comes back …" takes 5.6 s** (`restart-tasks.js`;
   found 2026-10-09, to come back to). Most of it is showing the project `other` until its task has loaded and
   the terminal's shell runs; it looks like another 5 s wait (as a tab's `ready` held a profile on a refused site:
   `profiles.js`). To find: time the steps of loading `other` after a restart (its profiles' tabs, its terminals).
 - **The GPU renderer only on terminals in sight** (discussed with the author 2026-10-09; the author builds it later).
-  Today every terminal loads xterm's WebGL addon when made (`makeTerminal` in `src/renderer/terminal.js`), hidden ones
+  Today every terminal loads xterm's WebGL addon when made (`makeTerminal` in `src/renderer/lib/terminals.ts`), hidden ones
   too (other tasks and projects, terminals behind another panel): each keeps a WebGL context and its glyph atlas.
   Chromium keeps at most 16 contexts per page; the 17th takes the oldest one's, and that terminal falls back to the DOM
   renderer for good (`onContextLoss`), drawing slower. Nothing breaks: at about 5 projects × 3 tasks it starts.

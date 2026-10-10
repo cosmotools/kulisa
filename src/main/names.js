@@ -2,7 +2,7 @@
 // letters of any language: a profile is often named after the account it signs in to (ann+test@shop.com), and the
 // names become folders, git branches and ids, where spaces and other signs get in the way.
 // Checked where names are made (app.js, project-profiles.js); the window keeps other characters out of name fields
-// as they are typed (preload, common.js).
+// as they are typed (preload, the renderer's lib/names.ts).
 const CHAR = /^[\p{L}\p{M}\p{N}@._+-]$/u;
 // Starting with a letter or a digit, as an email address does: not signs alone (@, -), no hidden folder (.x), no
 // other folder (. and ..), no command-line option (-x).

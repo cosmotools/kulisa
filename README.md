@@ -19,7 +19,8 @@ how the design was tested: [docs/REPORT.md](docs/REPORT.md).
 
 ```sh
 npm install          # Node 22.13+. Rebuilds node-pty for Electron.
-npm start            # opens the windows and projects open last; at first start the Welcome screen
+npm run build        # the window (src/renderer, Vue + TypeScript): type check, then Vite into dist/renderer
+npm start            # builds the window, then opens the windows and projects open last; at first start the Welcome screen
 KULISA_PROJECT=~/my-app npm start
 npm test             # unit tests, then the real app against a local test site (groups in parallel), then restarted
 npm run test:visible # the same on your screen (npm test uses its own screen on Linux: sudo apt install xvfb openbox)
@@ -119,7 +120,7 @@ src/main/        Electron main process
   local.js         what is local: where a test user's login-password pair may be typed
   cookie-sync.js   real accounts' cookies kept in step between a profile's master and its copies
   project-profiles.js  a task's profiles (copies of their masters, made at their first open), open and closed
-  avatars.js       the profiles' pictures to choose from (Noto Emoji's, in src/renderer/avatars/)
+  avatars.js       the profiles' pictures to choose from (Noto Emoji's, in src/renderer/public/avatars/)
   profiles.js      a profile: a session on its own folder, tabs (WebContentsView), Playwright connection, sign-in mode
   store.js         projects.json, settings.json (Kulisa zoom, theme, the windows and their tabs); per project in projects/<id>/:
                    tasks.json, and per task <n>/: profiles.json (with sites' zoom), layout.json (the window's
@@ -138,14 +139,12 @@ src/main/        Electron main process
   terminal.js      node-pty: the agent CLI, one per task, and the task's other terminals
 src/agent/claude-plugin/  the Kulisa plugin for Claude Code: MCP config, the profiles skill, hooks (claude --plugin-dir)
 src/preload/     the window's bridge to the main process
-src/renderer/    window UI. renderer.js: the grid of panels (dockview), panes, ☰ and right-click menus; parts in their
-                 own files: common.js, menu.js (the menus), terminal.js (xterm.js: the agent's, one per task, and the others), voice.js
-                 (dictation), keys.js (where the keyboard is, the keys' commands), projects.js, tasks.js (the tasks' tabs, their menu, the Rename Task dialog),
-                 profile-editor.js; ES modules loaded when
-                 needed: agent-picker.js (choosing and installing an agent), agents.js (the Agents
-                 window), both with agent-list.js, ask.js (questions before deleting or
-                 closing), project-editor.js (the projects' manager), shortcuts.js (Keyboard Shortcuts). Styles: tokens.css, components.css, window.css; the icons are a
-                 sprite in index.html (docs/ui.md)
+src/renderer/    window UI: Vue 3 components in TypeScript, built by Vite into dist/renderer (vite.config.ts; docs/ui.md).
+                 components/: the window's parts (App.vue; TopBar, Grid and grid/ its panels, ProjectBar, TaskTab, Welcome,
+                 the dialogs on Modal.vue, Menu); lib/: what they share (store.ts: what the main process sends;
+                 grid.ts, terminals.ts, menu.ts, ask.ts, dialogs.ts, keys.ts, voice.ts). Styles: tokens.css,
+                 components.css, each part's own in its file; the icons are Sprite.vue
+dist/            the window built (npm run build; not in git)
 assets/          the app icon: icon.svg (source) and what each OS needs, rendered by scripts/icons.js
 test/            start.js (npm test: the groups in parallel), run.js (one app, its files in order), helpers.js,
                  setup.js, the tests by area (agent.js, profiles.js, window.js, grid.js, zoom-and-closing.js,

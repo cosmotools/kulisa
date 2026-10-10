@@ -4,40 +4,42 @@ What the window is built of: the tokens, the icons, and the components, each def
 and list looks and behaves the same. **Before making a button, an icon, a row or a dialog, look here:** use the
 component, or add one here (and in `components.css`) when nothing fits. Keep this file current.
 
-Plain HTML, CSS and JS, no build step (CLAUDE.md, Window UI): markup in `index.html` (repeated parts as
-`<template>`s), styles in three files loaded in this order:
+Vue 3 components in TypeScript, built by Vite (CLAUDE.md, Window UI; `vite.config.ts`, into `dist/renderer`):
 
-| File | What |
+| Where | What |
 |---|---|
+| `src/renderer/components/*.vue` | the window's parts, each its markup, behavior and own look (`<style>`, rooted at its id or class): `App.vue` puts them together; `grid/` the grid's panels and headers, `menu/` ☰'s own rows |
+| `src/renderer/lib/*.ts` | what parts share or what outlives a component: `store.ts` (what the main process sends, `act`), `grid.ts`, `terminals.ts`, `menu.ts`, `ask.ts`, `dialogs.ts`, `keys.ts`, `voice.ts`, `views.ts` (the pages under HTML), `common.ts` |
 | `src/renderer/tokens.css` | every color and size (`:root`); no literal color anywhere else |
-| `src/renderer/components.css` | the components below |
-| `src/renderer/window.css` | the window's layout and its own parts (title bar, panes, the projects' bar, Welcome screen, the dialogs' and menus' contents). It places components and adjusts them through their custom properties; it does not make its own buttons, icons or rows |
+| `src/renderer/components.css` | the shared components below, global |
+| `src/renderer/index.html`, `main.ts`; `master.html`, `master.ts` | the window's page and a master's window's: the theme before the first paint, then the app |
+| `src/renderer/public/avatars/` | the profiles' pictures, copied as they are |
 
 ## Tokens (`tokens.css`)
 
 - Colors for both themes ([window.md](window.md), Theme): each is `light-dark(light, dark)`, so a new color gets
-  both values. JS reads a color as shown through an element that uses it (`terminal.js`), not the token's text.
+  both values. JS reads a color as shown through an element that uses it (`lib/terminals.ts`), not the token's text.
   JetBrains' themes: `--window` (gaps, title bar), `--island` (panels, dialogs, menus), `--well` (under a
   task's panels and the projects' islands, a step from `--island`), `--island-hi`
   (a lit row, a divider), `--toolbar` (a pane's toolbar and active tab), `--field`, `--button`, `--line` (borders);
   text `--text`, `--text-strong`, `--text-dim`, `--text-muted`; `--accent` (main button, focus), `--danger`,
   `--error`, `--note` (the agent's caption), `--done`; `--on-accent` (text on `--accent` and `--danger`),
   `--selection` (the terminal's); `--page-button`, `--on-page-button` (Chrome's blue, a page's dialog: `.pagedialog`); `--page`, `--backdrop`, `--shadow`; `--hover` (under the
-  pointer, on any background); `--project` (the open project's color, set by `renderer.js`).
+  pointer, on any background); `--project` (the open project's color, set by `lib/store.ts`).
 - Sizes: `--font` (all text, the terminal too), `--control` (the height of buttons and fields), `--radius`,
   `--tab-radius`, `--island-radius`, `--gap` (the space between and inside islands; also dockview's `gap` in
-  `renderer.js`); room as Chrome's menus and dialogs have it: `--row` (a row of a menu or a list), `--inset` (inside
+  `Grid.vue`); room as Chrome's menus and dialogs have it: `--row` (a row of a menu or a list), `--inset` (inside
   a row, between its icon and text, between a dialog's fields), `--pad` (inside a dialog along its edges). Things
   set close together were the author's complaint (2026-10-07): space comes from these, not from new numbers. The
   Kulisa zoom scales them all.
 
 ## Icons
 
-Each icon is drawn once, as a `<symbol id="i-…">` in the sprite at the top of `index.html`, on a 16 × 16 grid, in
-lines (`stroke`) of the text's color; a filled part has `fill="currentColor"`. Use it as:
+Each icon is drawn once, as a `<symbol id="i-…">` in the sprite (`Sprite.vue`, the window's first element), on a
+16 × 16 grid, in lines (`stroke`) of the text's color; a filled part has `fill="currentColor"`. Use it as:
 
 ```html
-<svg aria-hidden="true"><use href="#i-close"/></svg>
+<Icon name="i-close" />   <!-- Icon.vue: <svg aria-hidden="true"><use href="#i-close"/></svg> -->
 ```
 
 | Icon | Where |
@@ -55,14 +57,14 @@ lines (`stroke`) of the text's color; a filled part has `fill="currentColor"`. U
 | `i-zoom`, `i-theme`, `i-arrange`, `i-agent`, `i-keyboard`, `i-exit` | ☰'s rows: Zoom, Theme, Arrange panels, Agents…, Keyboard Shortcuts, Exit |
 | `i-mic` | dictation's microphone in the terminal's header (Lucide's mic) |
 | `i-users` | the profiles' chip on every task's tab (Lucide's users) |
-| `i-p-cart`, `i-p-briefcase`, `i-p-globe`, `i-p-flask`, `i-p-rocket`, `i-p-code`, `i-p-building`, `i-p-people`, `i-p-book`, `i-p-heart` | a project's icon to choose (Lucide's shopping-cart, briefcase, globe, flask-conical, rocket, code, building-2, users-round, book-open-text, heart), drawn in its color (`projectIcon`, `common.js`) |
+| `i-p-cart`, `i-p-briefcase`, `i-p-globe`, `i-p-flask`, `i-p-rocket`, `i-p-code`, `i-p-building`, `i-p-people`, `i-p-book`, `i-p-heart` | a project's icon to choose (Lucide's shopping-cart, briefcase, globe, flask-conical, rocket, code, building-2, users-round, book-open-text, heart), drawn in its color (`projectIcon`, `lib/common.ts`) |
 | `i-working`, `i-waiting`, `i-done` | an agent's state on a tab (`.state`) |
 
 An icon is 16 px; × and + are 14 px, as in Chrome (`.icon`), and so is an agent's state. ☰'s and the agent's states are Lucide's (lucide.dev, ISC), drawn on 24 × 24 with
 their lines thickened to match; take a new one from there rather than drawing it. The sprite takes no room but is not
 `display: none`, so the logo's gradient and clip path reach its `<use>`s. Pictures are not icons: the arrangements in ☰
-are drawn in place; the Welcome screen shows `assets/icon.svg` itself; the profiles' pictures are files of their own
-(`src/renderer/avatars/`, Noto Emoji, in their own colors). The test `icons: …` in `test/window.js` checks that
+are drawn in place; the Welcome screen shows `assets/icon.svg` itself (imported, so Vite bundles it); the profiles' pictures are files of their own
+(`src/renderer/public/avatars/`, Noto Emoji, in their own colors). The test `icons: …` in `test/window.js` checks that
 every other `<svg>` uses the sprite.
 
 ## Components (`components.css`)
@@ -77,12 +79,12 @@ every other `<svg>` uses the sprite.
   - `--icon`: the icon's size, when a place needs another (☰ is 18 px).
   - A `<span class="icon">` where a button cannot be (a tab's ×, inside the tab).
 - In a menu or the title bar, a button is still one of these.
-- `data-keys="<command>"` (a command of `src/main/keys.js`): its key at the end of its tooltip, "Reload (Ctrl+R)", as
-  Chrome's toolbar says it (`showKeys`, `common.js`; templates get it as they are copied).
+- `:title="withKeys('Reload', 'tab.reload')"` (a command of `src/main/keys.js`; `lib/common.ts`): its key at the end
+  of its tooltip, "Reload (Ctrl+R)", as Chrome's toolbar says it.
 
 ### Rows
 
-- `.item`: a row of a menu or a list (`tpl-menuitem`, `tpl-project`, `tpl-repo`), `--row` high: an optional icon (`.ico`), `.dot`
+- `.item`: a row of a menu or a list (`MenuButton.vue`, the Welcome screen's projects, the projects' manager's rows), `--row` high: an optional icon (`.ico`), `.dot`
   (a project's color, `--color`) or `.avatar` (a profile's picture), `.text` with `.label` and a `small` line under it, a `kbd` key at the end. Lit under the
   pointer and on keyboard focus.
 - `.removable`: a row with a × (`button.remove.icon.quiet`) at its end, shown on hover or focus; the row is lit as
@@ -94,59 +96,62 @@ every other `<svg>` uses the sprite.
 - `.dot`: a 10 px circle in `--color`, a project's.
 - `.choices`: icon buttons (`.icon`, `aria-pressed`) to choose one of, the chosen one ringed in `--accent`: a
   profile's pictures, a project's colors (a `.dot` each) and icons.
-- `.avatar`: a profile's picture (`<img>`, `avatarSrc(name)` in `common.js`), 16 px; `--avatar` where a place needs
+- `.avatar`: a profile's picture (`<img>`, `avatarSrc(name)` in `lib/common.ts`; `Avatars.vue` the ones to choose from), 16 px; `--avatar` where a place needs
   another size (22 px in the editor).
 - `.striptab`: a tab of a strip on an island, as a browser's: the agent's `.state`, `.name`, × at the end
   (`button.close.icon.quiet.small`), shown under the pointer and on the shown tab, its room kept so nothing moves. A
   step taller than a button (`--control` + 4 px) and at least 64 px wide: a target for a quick throw of the mouse.
   Lit under the pointer; `.active`: the shown one, in the panels' color (`--island`) on the dark island. A
-  task's tab (`tpl-tasktab`).
+  task's tab (`TaskTab.vue`).
 - `.chip`: an icon and a number inside a tab: on every task's tab, 👥 and how many of its profiles are open; on
   the shown one a button (`#openProfiles`, lit under the pointer) with the menu of them. On every tab, so that tabs
   keep their widths as another is shown.
 - `.state`: an agent's state by `data-state` (from its hooks), an icon each so that color is not the only sign (some
   people do not tell yellow from green): working (sparkles in `--accent`, twinkling; not with reduced motion), waiting
   for you (a bell in `--note`), done (a check in `--done`: come and see, until the human sees that task); nothing otherwise, as nothing asks for
-  the human then (the author's rule). On a task's tab; `showAgentState` (`common.js`) sets it with its tooltip.
+  the human then (the author's rule). On a task's tab (`TaskTab.vue`), with its tooltip.
 
 ### Dialogs
 
-Every dialog is a `<dialog>` with the same parts:
+Every dialog is `Modal.vue`, a `<dialog>` with the same parts:
 
 ```html
-<dialog id="…" closedby="any">
-  <header><h2>Title</h2><button class="x icon quiet" type="button" command="close" commandfor="…" title="Close"
-    aria-label="Close"><svg aria-hidden="true"><use href="#i-close"/></svg></button></header>
-  <div class="body">…</div>
-  <footer><button type="button" command="close" commandfor="…">Cancel</button><button class="primary">Create</button></footer>
-</dialog>
+<Modal id="…" title="Title" form form-id="…" @submit="save">
+  …the content…
+  <template #footer><button type="button" command="close" commandfor="…">Cancel</button><button class="primary">Create</button></template>
+</Modal>
 ```
 
-- `header`: the title, and × when it may be closed (Esc and a click outside close it too: `closedby`).
+- `header`: the title, and × when it may be closed (`closable`; Esc and a click outside close it too: `closedby`).
 - `.body`: `.hint` (what it is about, muted), `.field` (a label and its input, the labels in one column), `.row` (a
   field with its button), `.check` (a checkbox in the fields' column), `.error` (hidden while empty).
 - `footer`: the buttons at the right end, the main one last; `.start` puts a button at the left end.
-- A page's alert or confirm (`.pagedialog`, in `tpl-pane`) has the same parts, opened non-modal (`show()`) right under
-  its pane's address bar, over a picture of the page, in Chrome's size, shape and blue (window.css): the page's, not
-  Kulisa's; `closedby="closerequest"` gives Esc.
-- While a dialog is open the profiles' pages are hidden (`coverWhileOpen`, `common.js`): they are native views
-  above the HTML.
+- With `form` the content and the buttons are a form: Enter submits.
+- Its ref: `open()` (hiding the profiles' pages while it is open: `showModal`, `lib/views.ts`), `close(value)`, `el`.
+- Every dialog is in `App.vue` from the start and registers what it does (`registerDialog`); anything opens one by
+  name: `(await dialog('projects')).openProjects(id)` (`lib/dialogs.ts`).
+- A page's alert or confirm (`.pagedialog`, in `ProfilePane.vue`) is not a `Modal`: opened non-modal (`show()`) right
+  under its pane's address bar, over a picture of the page, in Chrome's size, shape and blue: the page's, not Kulisa's;
+  `closedby="closerequest"` gives Esc.
 - Questions before something that cannot be undone, before closing, or between two ways to go (This Window or New
-  Window), are not new dialogs: `shell.ask` (main process) → `ask.js`; `other` adds the second way's button before
-  the main one.
+  Window), are not new dialogs: `shell.ask` (main process) or `ask(q)` (`lib/ask.ts`) → `Ask.vue`; `other` adds the
+  second way's button before the main one.
 
 ### Menus
 
-`openMenu(items, at)` (`menu.js`): one popover, under its button (`data-menu-end`: its right edge at the button's) or
-at the pointer, flipped to stay in the window. Items are `{ label, sub, keys, icon, color, avatar, enabled, run, remove }`
-(`keys`: the row's key at its end, from the keys' table: `keyText(id)`, `common.js`), `'-'` (a divider), `{ heading, icon }`, `{ note }` (small dim words under the rows, not one of them: ☰'s version, so nothing
-looks clickable that is not) or `{ element }` (a row of its own); `icon` is the sprite's id, at the row's start; rows are `.item` and `.removable`. A menu's own kind of row (the zoom row, the theme
-row, the arrangements) is a template in `index.html` and its look in `window.css`. While a menu is open, the pages are
-pictures of themselves.
+`openMenu(items, at)` (`lib/menu.ts`, drawn by `Menu.vue`): one popover, under its button (`data-menu-end`: its right
+edge at the button's) or at the pointer, flipped to stay in the window. Items are `{ label, sub, keys, icon, color,
+avatar, enabled, run, remove }` (`keys`: the row's key at its end, from the keys' table: `keyText(id)`,
+`lib/common.ts`), `'-'` (a divider), `{ heading, icon }`, `{ note }` (small dim words under the rows, not one of them:
+☰'s version, so nothing looks clickable that is not) or `{ component, props }` (a row of its own: ☰'s zoom, theme,
+projects' bar and arrangements, `components/menu/`); `icon` is the sprite's id, at the row's start; rows are `.item`
+and `.removable`. While a menu is open, the pages are pictures of themselves.
 
 ## Adding something
 
-- A new icon: a `<symbol>` in the sprite, a row in the table above.
-- A new kind of control or row: in `components.css` with a comment saying what it is and its variants, and a section
-  here. A part used by one place only (a pane's tab strip, the omnibox, the projects' islands) stays in `window.css`.
-- A new dialog: the markup above in `index.html`; its own contents' look in `window.css` under its id.
+- A new icon: a `<symbol>` in `Sprite.vue`, a row in the table above.
+- A new kind of control or row: in `components.css` with a comment saying what it is and its variants (or a component
+  of its own when it has behavior), and a section here. A part used by one place only (a pane's tab strip, the omnibox,
+  the projects' islands) keeps its look in its own `.vue` file.
+- A new dialog: a component with `Modal.vue`, in `App.vue`, registered in `lib/dialogs.ts`; its own contents' look in
+  its `<style>` under its id.

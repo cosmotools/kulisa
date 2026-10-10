@@ -137,7 +137,7 @@ class TaskStore {
     this.markDeleted(folder);
     fs.rmSync(this.profileDir(folder), { recursive: true, force: true });
   }
-  // The window's grid as dockview serializes it (renderer.js).
+  // The window's grid as dockview serializes it (the renderer's lib/grid.ts).
   layout() { return readJSON(this.file('layout.json')); }
   saveLayout(layout) { writeJSON(this.file('layout.json'), layout); }
   // The task's agent session: { sessionId, transcript } as the agent's hooks report it (agent-hooks.js).

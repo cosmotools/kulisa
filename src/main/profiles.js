@@ -31,7 +31,7 @@ function toUrl(u) {
 }
 const CLOSED_KEPT = 10; // closed tabs' addresses kept to open again
 let dialogs = 0; // pages' dialogs, numbered: the human's answer goes to the one they saw
-const PAGE_RADIUS = 8; // a little less than the island's corners, which the page reaches (renderer window.css, .content)
+const PAGE_RADIUS = 8; // a little less than the island's corners, which the page reaches (the renderer's ProfilePane.vue, .content)
 
 class Profile extends EventEmitter {
   // cfg: { id, name, avatar, description, folder, dir }. The folder (cookies, storage; dir is its absolute path) is fixed at

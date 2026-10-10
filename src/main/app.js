@@ -405,7 +405,7 @@ function start(options = {}) {
   // New Project…, as JetBrains': the folder <location>/<name>, the location ~/Kulisa (every new project's place, as
   // JetBrains' ~/PycharmProjects) unless the human picks another, so they know where the agent's files are. A folder
   // that is there already must be empty; git init in it when asked, with an empty first commit: tasks get copies of
-  // their own (worktrees) from it. With its color, icon and the agent its tasks run (project-editor.js).
+  // their own (worktrees) from it. With its color, icon and the agent its tasks run (ProjectEditor.vue).
   const choices = () => ({ colors: PROJECT_COLORS, icons: PROJECT_ICONS, agents: shell.accounts.all().filter((a) => !a.agent.custom).map(({ id, name }) => ({ id, name })) });
   ipcMain.handle('project:new-defaults', () => ({ location: shell.projectsHome, sep: path.sep,
     color: store.nextColor(), ...choices() }));
@@ -427,7 +427,7 @@ function start(options = {}) {
     if (git) await worktrees.initRepo(folder).catch((err) => console.error('[git]', err.stderr || err.message));
     return openLater(store.projectFor(folder, name, { color, icon, agent }), at(e));
   });
-  // A project's configuration in the projects' manager (project-editor.js): its name, color, icon, agents,
+  // A project's configuration in the projects' manager (ProjectEditor.vue): its name, color, icon, agents,
   // repositories, profiles and local addresses; its folder is shown, not changed (its tasks' copies are made from it).
   // Open or not.
   ipcMain.handle('project:settings-get', (e, { id }) => {
@@ -535,7 +535,7 @@ function start(options = {}) {
   ipcMain.handle('task:rename', (e, { key, name }) => taskAt(key, (task) => task.rename(name)));
   ipcMain.handle('project:delete-merged', (e, { id }) => serial(() => { const p = shell.open.get(id); return p ? deleteMerged(p) : { error: 'the project is not open' }; }));
   ipcMain.handle('project:collapse', (e, { id, collapsed }) => { shell.open.get(id)?.collapse(collapsed); sendProjects(); });
-  // The terminal's microphone and its language (voice.js in the renderer; Task.voice, dictate).
+  // The terminal's microphone and its language (Dictation.vue in the renderer; Task.voice, dictate).
   // Esc typed into an agent's terminal (its key is the task's): Task.interrupted.
   ipcMain.on('pty:in', (e, { task, data }) => { if (data === '\x1b') shell.taskByKey(task)?.interrupted(); });
   ipcMain.handle('voice:get', (e, key) => shell.taskByKey(key)?.voice() ?? null);
@@ -583,7 +583,7 @@ function start(options = {}) {
 
   // ---------- agents ----------
   // Each task runs the agent the human chose for it (agents.js; saved in its agent.json). One not chosen yet or
-  // not installed: the window asks (agent-picker.js), installing it with its maker's installer if the human wants.
+  // not installed: the window asks (AgentPicker.vue), installing it with its maker's installer if the human wants.
   // The Kulisa plugin reads where Kulisa is from the environment, set per task (tasks.js): .mcp.json from
   // KULISA_MCP_URL, its hooks from KULISA_URL. Other agent CLIs get them too.
   shell.plugin = CLAUDE_PLUGIN;
@@ -676,7 +676,7 @@ function start(options = {}) {
   ipcMain.on('layout:save', (e, { task, layout }) => at(e)?.saveLayout(task, layout));
   ipcMain.on('layout', (e, { task, rects }) => at(e)?.layout(task, rects));
 
-  // A tab the human opens (+): the window keeps the keys for its address (renderer.js). Its page, a native view, takes
+  // A tab the human opens (+): the window keeps the keys for its address (ProfilePane.vue). Its page, a native view, takes
   // them as it loads (when, varies), so they go back each time, until the human clicks the page or it goes somewhere.
   ipcMain.handle('tab:new', onProfile((p, { url }) => {
     const tab = p.newTab(url || 'about:blank');

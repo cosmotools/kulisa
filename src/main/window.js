@@ -8,8 +8,9 @@ const { BrowserWindow, desktopCapturer, screen, shell: electronShell } = require
 const path = require('path');
 const fs = require('fs');
 const keys = require('./keys');
+const { page } = require('./pages');
 
-const TITLE_BAR_HEIGHT = 44; // keep in sync with #topbar in window.css
+const TITLE_BAR_HEIGHT = 44; // keep in sync with #topbar in TopBar.vue
 // The window's background and the OS buttons' strip, in each theme: --window and --text in tokens.css.
 const COLORS = { dark: { window: '#2b2d30', text: '#dfe1e5' }, light: { window: '#ebecf0', text: '#1e1f22' } };
 // The smallest window whose UI still works (the top bar with the OS buttons, ☰ and a project tab, something under
@@ -101,7 +102,7 @@ class AppWindow {
   // Its page, loaded once; its tabs (names, colors), the shown one (shown), the theme, where the projects' bar is and
   // the keyboard shortcuts (keys.js: for menus and tooltips) come along in the URL, so the window is drawn right at once. The profiles' views stay hidden until the renderer has the grid laid out (views:hidden).
   async load(shown) {
-    await this.win.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'), { query: {
+    await this.win.loadFile(page('index.html'), { query: {
       version: require('../../package.json').version, theme: this.shell.theme, bar: this.shell.bar, keys: JSON.stringify(keys.list()),
       projects: JSON.stringify({ current: shown?.id ?? null, projects: this.shell.projects().filter((p) => this.tabs.some((t) => t.id === p.id)),
         open: this.tabs.map(({ id }) => ({ id })) }) } });

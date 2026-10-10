@@ -1,0 +1,70 @@
+<script setup lang="ts">
+// The window's title bar (titleBarOverlay in window.js): the app's logo with the curtain in the open project's color
+// (--project: each project its own curtain), the Kulisa zoom when it is not 100% (a click resets it, as Chrome's
+// magnifier), Projects (the projects' manager), ☰. env(titlebar-area-*) leaves room for the OS window buttons on every
+// platform; dragging it moves the window, except on its controls.
+// ☰, as Chrome's ⋮: the zoom row (stays open while you click − and +), the theme row and the projects' bar's (open too),
+// then the ready-made arrangements, each a picture of itself; Agents…; Keyboard Shortcuts; the Welcome screen's links;
+// Exit, as Chrome's, where the OS has no menu bar with Quit (not macOS: Cmd+Q there). Each row with its icon at the
+// start; Kulisa's version under them all, a note rather than a row.
+import { ref } from 'vue';
+import Icon from './Icon.vue';
+import ZoomRow from './menu/ZoomRow.vue';
+import ChoiceRow from './menu/ChoiceRow.vue';
+import ArrangeRow from './menu/ArrangeRow.vue';
+import { store } from '../lib/store';
+import { keyText, LINKS, version } from '../lib/common';
+import { openMenu } from '../lib/menu';
+import { dialog } from '../lib/dialogs';
+
+const menuButton = ref<HTMLButtonElement>();
+const THEMES = [{ value: 'dark', label: 'Dark' }, { value: 'light', label: 'Light' }, { value: 'system', label: 'System', title: 'As the operating system' }];
+const BARS = [{ value: 'top', label: 'Top' }, { value: 'bottom', label: 'Bottom' }];
+function windowMenu() {
+  openMenu([
+    { component: ZoomRow },
+    { component: ChoiceRow, props: { kind: 'theme', icon: 'i-theme', label: 'Theme', choices: THEMES, get chosen() { return store.theme; },
+      onChoose: (t: string) => kulisa.invoke('theme:set', t) } },
+    { component: ChoiceRow, props: { kind: 'bar', icon: 'i-projects', label: 'Projects bar', choices: BARS, get chosen() { return store.bar; },
+      onChoose: (b: string) => kulisa.invoke('bar:set', b) } },
+    '-', { heading: 'Arrange panels', icon: 'i-arrange' }, { component: ArrangeRow }, '-',
+    { label: 'Agents…', icon: 'i-agent', run: async () => (await dialog('agents')).showAgents() },
+    { label: 'Keyboard Shortcuts', icon: 'i-keyboard', keys: keyText('shortcuts'), run: async () => (await dialog('shortcuts')).showShortcuts() },
+    '-', ...LINKS.map((l) => ({ label: l.label, icon: l.icon, run: () => open(l.href) })),
+    ...(kulisa.platform === 'darwin' ? [] : ['-' as const, { label: 'Exit', icon: 'i-exit', run: () => kulisa.invoke('app:quit') }]),
+    { note: `Kulisa ${version}` }], menuButton.value!);
+}
+</script>
+
+<template>
+  <header id="topbar">
+    <Icon class="logo" name="i-logo" />
+    <button id="zoomReset" :hidden="store.zoom === 1" title="Kulisa's zoom. Click to reset (Ctrl 0)" @click="kulisa.invoke('zoom:ui', 0)">{{ Math.round(store.zoom * 100) }}%</button>
+    <button id="manageProjects" class="icon" title="Projects: each one's configuration, a new one" aria-label="Projects"
+      @click="dialog('projects').then((d) => d.openProjects())"><Icon name="i-projects" /></button>
+    <button id="windowMenu" ref="menuButton" class="icon" data-menu-end title="Menu: zoom, layout" aria-label="Menu" @click="windowMenu"><Icon name="i-menu" /></button>
+  </header>
+</template>
+
+<style>
+#topbar {
+  display: flex; gap: var(--gap); align-items: center; flex: none; height: 44px;
+  padding-left: calc(env(titlebar-area-x, 0px) + var(--gap)); width: env(titlebar-area-width, 100%);
+  -webkit-app-region: drag;
+  & button { -webkit-app-region: no-drag; &:not(.icon) { padding: 0 14px; } }
+  .logo { width: 26px; height: 26px; color: var(--project); }
+  /* At the right end: the Kulisa zoom, only when not 100%, and ☰, the window's menu, as far from the end of the title
+     bar's area (the OS window buttons, or the window's edge on macOS) as the logo from its start. Before it, the
+     projects' manager. */
+  #zoomReset { margin-inline-start: auto; }
+  #manageProjects { --icon: 18px; margin-inline-start: auto;
+    #zoomReset:not([hidden]) + & { margin-inline-start: 0; } }
+  #windowMenu { --icon: 18px; margin-inline-end: var(--gap); }
+}
+/* The rows of ☰'s own (menu/*.vue) as the menu's .item: as high, the icon at the start */
+#menu {
+  :is(.zoomrow, .themerow, .barrow, .arrange) button { border: none; background: none; &:is(:hover, :focus-visible):not(:disabled) { background: var(--island-hi); outline: none; } }
+  :is(.zoomrow, .themerow, .barrow) { min-height: var(--row); padding-inline: var(--inset) 4px;
+    > svg { margin-inline-end: calc(var(--inset) - 2px); } }
+}
+</style>

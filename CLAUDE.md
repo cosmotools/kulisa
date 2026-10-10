@@ -73,7 +73,7 @@ unasked. This paragraph is removed when the rewrite is finished.
   installs a missing agent itself with its maker's installer when the human asks, without steps for them to type.
 - **Terminology: "Welcome screen"** (the author also says "Экран"), as JetBrains names it: what the window shows
   instead of the grid when no project is open (at first start, after its last tab is closed): New Project…, Open Folder…,
-  the recent projects. `#welcome` in `index.html`, `projects.js`. Not "window" (there is one) or "page".
+  the recent projects. `Welcome.vue`. Not "window" (there is one) or "page".
 - **Terminology: "task"** for one line of work inside a project: an agent (its terminal and session, any agent
   CLI), a branch of the code, profiles and a grid. It replaced "workspace" (the word of tools for parallel agents,
   e.g. Conductor) on 2026-10-10; earlier commits say workspace. Each works in a git worktree of its own next to the
@@ -107,31 +107,33 @@ unasked. This paragraph is removed when the rewrite is finished.
     `webContents.debugger` over CDP.
   - When adding a dependency, prefer one that is widely used and maintained, and say why in the commit message. Its
     license must allow being part of a GPL-3.0 program (MIT, ISC, BSD, Apache-2.0 do; `docs/LICENSING.md`).
-- **Window UI: current HTML, CSS and JS, no build step.** Electron ships a recent Chromium; use what it has instead
-  of code or workarounds:
-  - Markup in `index.html`, repeated parts as `<template>`s that `renderer.js` clones (not HTML strings in JS);
-    semantic elements (`header`, `main`, `nav`, `dialog`).
-  - What the platform does natively stays native: `<dialog>` with `form method="dialog"` and `closedby`, `hidden`,
-    form submit; one delegated listener on a container rather than one per item.
+- **Window UI: Vue 3 components in TypeScript, built by Vite** (`src/renderer`, `vite.config.ts`; since 2026-10-10,
+  `docs/ui.md`). The main process stays plain JavaScript for now (the author: the whole project moves to TypeScript
+  later). Electron ships a recent Chromium; use what it has instead of code or workarounds:
+  - A part of the window is one `.vue` file in `src/renderer/components/`: its markup, its behavior and its own look
+    (`<style>`, rooted at its id or class) together. What several parts share, or what outlives a component (the
+    store of what the main process sends, the grid, the terminals' xterms, the menu, the questions, the keys), is a
+    TypeScript module in `src/renderer/lib/` with a small interface (`openMenu(items, at)`, `ask(q)`,
+    `dialog('projects')`). State the main process sends lives in `lib/store.ts` (Vue's `reactive`) and components
+    draw from it; no DOM built by hand where a template does it. `types.ts`: the shapes the main process sends.
+  - Semantic elements (`header`, `main`, `nav`, `dialog`); what the platform does natively stays native: `<dialog>`
+    (`Modal.vue`) with `closedby`, `hidden`, form submit.
   - **One set of components** (`docs/ui.md`): the window is built of them, each defined once. Icons are the
-    sprite's in `index.html` (`<use href="#i-…">`), never drawn in place; icon buttons are `.icon`; rows `.item`;
-    every dialog has the same parts: `header` (title, × when it may be closed), `.body`, `footer` with the buttons at
-    the right end, the main one last (`.primary`, `.danger` when it deletes). CSS in three files: `tokens.css`
-    (colors, sizes), `components.css` (the components), `window.css` (the layout and the window's own parts; it
-    places components, never restyles them into new ones). Something new that more than one place could use goes
-    into `components.css` and `docs/ui.md` first.
+    sprite's (`Sprite.vue`, used as `<Icon name="i-…">`), never drawn in place; icon buttons are `.icon`; rows
+    `.item`; every dialog is `Modal.vue`: `header` (title, × when it may be closed), `.body`, `footer` with the buttons
+    at the right end, the main one last (`.primary`, `.danger` when it deletes). Global CSS only in `tokens.css`
+    (colors, sizes) and `components.css` (the shared components); a part's own CSS places components, never restyles
+    them into new ones. Something new that more than one place could use goes into `components.css` (or a component
+    of its own) and `docs/ui.md` first.
   - CSS: nesting, custom properties for every color and size (`tokens.css`; no literal colors elsewhere; each color
     `light-dark()` for both themes),
     `:is()`, `:has()`, `color-mix()`, logical properties. Before overriding dockview, check that its own variables
     or rules don't already do it.
   - No wrapper elements or rules without an effect; when touching a part, remove what it no longer needs.
-  - A reusable part of the window (a menu, a dialog, a list) is a file of its own in `src/renderer/` with a small
-    interface, like `menu.js` (`openMenu(items, at)`); `renderer.js` wires such parts to the window and holds what
-    is specific to it.
-  - A part needed only now and then (a first-start wizard, a dialog opened rarely) is an ES module loaded when
-    needed, with `import()` (works over `file://`, no build step; it sees the window's globals such as `tpl` and
-    `kulisa`), like `agent-picker.js`. Its markup stays in `index.html`. Parts the window uses all the time stay
-    plain scripts. Order in the code matters as much as speed: each part in its file, loaded when it is used.
+  - The e2e tests find elements by their ids and classes: keep them when a part changes, or change the test with it.
+  - `npm run build` type checks (vue-tsc) and builds into `dist/renderer`, which the main process loads from disk
+    (`src/main/pages.js`); `npm start` and `npm test` build first. No dev server: no page of the app may load from an
+    HTTP server of its own (Hard-won facts).
 - **RAM matters.** Kulisa is Electron plus a Chromium process per tab, for several profiles at once, next to the
   user's own browser and IDE. When choosing how to build something, weigh how much memory it keeps and prefer the
   cheaper way. If a feature would noticeably raise RAM use (a process per tab or profile, keeping hidden things
@@ -172,6 +174,8 @@ npm run test:unit     # the unit tests alone (plain Node, a second)
 npm run test:visible  # e2e on your screen, to watch them (npm test uses Xvfb on Linux when installed)
 npm run make  # installers for this platform with Electron Forge (forge.config.js), in out/make/
 npm run icons # renders assets/icon.svg to icon.png/.ico/.icns (committed; run after changing the SVG)
+npm run build # the window: type check (vue-tsc), then Vite into dist/renderer (npm start and npm test do it first)
+npm run watch # the window built again on every change; then reload it (Ctrl+R in its DevTools) or restart
 ```
 
 - **Node 22.13+ and npm 11.** npm 11 runs dependencies' install scripts only when listed in `allowScripts` in
@@ -264,13 +268,13 @@ Modules (`src/main`):
 - `app.js`: the app: its windows, the open projects (open, close, move one to a new window; one change after
   another: `serial`), the agents, the windows' IPC (each message acts in the window it comes from: `event.sender`;
   one on profiles or tabs names its task too, refused when that window shows another by then: `act` in the
-  renderer), quit. `shell.win`, `shell.task`, `shell.profiles`, `shell.closed`, `shell.pty` are the first window's (the tests').
+  renderer's `lib/store.ts`), quit. `shell.win`, `shell.task`, `shell.profiles`, `shell.closed`, `shell.pty` are the first window's (the tests').
 - `window.js`: a window: its open projects and what it shows (show a project or a task, the grid's state, the
   views' places), the questions asked there (`shell.ask(q, window)`, in its dialog: `ask.js`), the theme's colors
   CSS does not paint.
 - `keys.js`: the keyboard shortcuts: one table (what each key does, and where: a page, everywhere, the terminal) and
   which key an input event is; `app.js` takes them before any page does (`before-input-event`), the window runs them
-  (`renderer/keys.js`). A new key goes into the table (`docs/window.md`, Keys).
+  (`renderer/lib/keys.ts`). A new key goes into the table (`docs/window.md`, Keys).
 - `projects.js`: an open project: its tasks (make, close, open again, delete), removing a project's data.
 - `tasks.js`: a task: its profiles, its agent in its own terminal and environment, renaming, copies for a new task.
 - `worktrees.js`: git for tasks (the user's git, never a shell): worktree, branch, files outside git, direnv.

@@ -237,9 +237,9 @@ command everywhere, without asking.
   one after a question: its folder goes, with its sign-in, settings and conversations; a task or project that ran it
   asks for an agent again. The project's own environment still comes last (direnv's `.envrc` may set
   `CLAUDE_CONFIG_DIR`), as without Kulisa.
-- The dialog is part of the window, not a window of its own: no extra process, and its code is a module loaded only
-  when it is needed: `agent-picker.js` (choosing) and `agents.js` (the Agents window) are two dialogs of their own
-  around one list of agents with Install (`agent-list.js`), each with its own state.
+- The dialog is part of the window, not a window of its own: no extra process. `AgentPicker.vue` (choosing) and
+  `Agents.vue` (the Agents window) are two dialogs of their own around one list of agents with Install
+  (`AgentList.vue`), each with its own state.
 - The agent's state on the tabs comes from its hooks. Kulisa has events of its own (`agent-hooks.js`): `prompt`
   working, `waiting` for the human, `stop` done, `interrupt` and `session-end` unknown (but a session ending after a
   done turn keeps it). Which of an agent's hooks sends which is the agent's, in one place each:
@@ -465,8 +465,8 @@ temporary forks), and again on 2026-10-10 (tasks; ROADMAP, "Projects and tasks")
 | `src/main/agents.js` | the agents to choose from: find, install, start, resume; Claude's folder trust |
 | `src/main/store.js` | the data folder above |
 | `src/main/terminal.js` | the task's terminals: its agent's and the others (window.md, The terminal) |
-| `src/renderer/projects.js`, `project-editor.js` | the projects' bar (an island per project) and the projects' menu, the Welcome screen; the projects' manager (loaded when needed) |
-| `src/renderer/tasks.js` | the tasks' tabs in the bar, their menu, the Rename Task dialog |
-| `src/renderer/agent-picker.js`, `agents.js`, `agent-list.js` | choosing a task's agent; the Agents window; the list of agents with Install that both show (loaded when needed) |
-| `src/renderer/renderer.js`, `window.css` | building a task's grid; the slide (a view transition) |
+| `src/renderer/components/ProjectBar.vue`, `Welcome.vue`, `ProjectEditor.vue` | the projects' bar (an island per project) and the projects' menu, the Welcome screen; the projects' manager |
+| `src/renderer/components/TaskTab.vue`, `TaskRename.vue` | a task's tab in the bar, its menu, the Rename Task dialog |
+| `src/renderer/components/AgentPicker.vue`, `Agents.vue`, `AgentList.vue` | choosing a task's agent; the Agents window; the list of agents with Install that both show |
+| `src/renderer/lib/grid.ts`, `components/Grid.vue` | building a task's grid; the slide (a view transition) |
 | `test/tasks.js` | the tests; `test/restart-tasks.js` after a restart; `test/unit/agents.test.js` |

@@ -10,8 +10,9 @@ const fs = require('fs');
 const path = require('path');
 const { Profile, toUrl } = require('./profiles');
 const { writeFileAtomic } = require('./store');
+const { page } = require('./pages');
 
-const BAR = 44; // keep in sync with #bar in master.html
+const BAR = 44; // keep in sync with #bar in Master.vue
 
 function installMasters(shell, { preload, colors }) {
   shell.masters = new Map(); // folder -> { win, profile }
@@ -30,7 +31,7 @@ function installMasters(shell, { preload, colors }) {
     const profile = new Profile(win, { id: g.id, name: g.name, avatar: g.avatar, folder, dir }, { task: `master/${folder}`, mimic: shell.chromeIdentity });
     const m = { win, profile, closing: null };
     shell.masters.set(folder, m);
-    await win.loadFile(path.join(__dirname, '..', 'renderer', 'master.html'), { query: { name: g.name, theme: shell.shade() } });
+    await win.loadFile(page('master.html'), { query: { name: g.name, theme: shell.shade() } });
     const place = () => { const [width, height] = win.getContentSize(); profile.layout({ x: 0, y: BAR, width, height: Math.max(0, height - BAR) }); };
     const tell = () => { const t = profile.get(); if (!win.isDestroyed() && t && !t.wc.isDestroyed()) win.webContents.send('master:url', t.wc.getURL()); };
     profile.on('changed', () => { place(); tell(); });

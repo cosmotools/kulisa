@@ -575,7 +575,7 @@ module.exports = (test) => {
     // On an island in the grid's place, filling it (not on the project's glow).
     assert.ok(await ui(`(() => { const w = document.getElementById('welcome'), s = getComputedStyle(w);
       return w.getBoundingClientRect().height > innerHeight * 0.8 && s.backgroundColor === getComputedStyle(document.querySelector('dialog[id]')).backgroundColor; })()`));
-    assert.equal(await ui(`getComputedStyle(document.getElementById('tasks')).display`), 'none');
+    assert.equal(await ui(`document.getElementById('tasks')?.checkVisibility() ?? false`), false, 'no tasks shown');
     assert.deepEqual(await projectTabs(ui), [], 'no project tab');
     assert.equal(await ui(`document.documentElement.style.getPropertyValue('--project')`), '', "no project's color");
     assert.equal(shell.win.getTitle(), 'Kulisa');

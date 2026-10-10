@@ -308,10 +308,11 @@ module.exports = (test) => {
       ${projectTab(id)}.dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: window.__dt })); return window.__dt.getData('${DRAG}'); })()`);
     const dragEnd = (u, id, effect) => u(`(() => { window.__dt.dropEffect = '${effect}';
       ${projectTab(id)}.dispatchEvent(new DragEvent('dragend', { bubbles: true, dataTransfer: window.__dt })); })()`);
-    const dropOn = (u, id, side, data) => u(`(() => { const dt = new DataTransfer(); dt.setData('${DRAG}', ${JSON.stringify(data)});
+    // The mark is drawn with the window's next update (Vue), before the next frame.
+    const dropOn = (u, id, side, data) => u(`(async () => { const dt = new DataTransfer(); dt.setData('${DRAG}', ${JSON.stringify(data)});
       const t = ${projectTab(id)}, r = t.getBoundingClientRect();
       const o = { bubbles: true, cancelable: true, dataTransfer: dt, clientX: r.x + (${side === 'before'} ? 3 : r.width - 3), clientY: r.y + r.height / 2 };
-      t.dispatchEvent(new DragEvent('dragover', o)); const shown = t.classList.contains('drop-${side}');
+      t.dispatchEvent(new DragEvent('dragover', o)); await new Promise(requestAnimationFrame); const shown = t.classList.contains('drop-${side}');
       t.dispatchEvent(new DragEvent('drop', o)); return shown; })()`);
 
     // The pointer where a test says (dragend's dropEffect of synthetic events is 'none': taken for let go outside).

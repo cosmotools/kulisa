@@ -58,7 +58,7 @@ A profile is an Electron session on a folder of its own (`session.fromPath`), la
 - **Picture**: an animal, as Chrome's profile avatars and Google's anonymous animals, each profile of a task its
   own unless the human picks one twice; a click on it in the editor shows the others. It tells panes apart by shape and colors, not by a color alone
   (some people do not tell colors apart), and can be named ("the fox"). The pictures are Noto Emoji's (Google,
-  Apache-2.0), in `src/renderer/avatars/`, the list in `avatars.js`; not the OS's emoji, which look different on each
+  Apache-2.0), in `src/renderer/public/avatars/`, the list in `avatars.js`; not the OS's emoji, which look different on each
   OS and are missing on some Linux.
 - **Close**: × on the pane (or its menu, or the agent). Its tabs go and free their memory; it stays signed in, and
   👥 lists it as closed and opens it again with the same tabs. Closed profiles stay closed across restarts.
@@ -329,14 +329,14 @@ space (ROADMAP, "Profiles' caches").
 | `src/main/profile-store.js` | the profiles, one store: who each is, its master, its projects, a test user's pair |
 | `src/main/local.js` | what is local: where a test user's pair may be typed, which sites' cookies stay each task's |
 | `src/main/cookie-sync.js` | real accounts' cookies kept in step between a master and its copies |
-| `src/main/master.js`, `src/renderer/master.html`, `master.js`, `master.css` | a master's window, to sign in to it |
+| `src/main/master.js`, `src/renderer/master.html`, `master.ts`, `components/Master.vue` | a master's window, to sign in to it |
 | `src/main/project-profiles.js` | a task's profiles: copies of their masters made at their first open, open and closed; create, rename, describe, close, open, let go |
-| `src/main/avatars.js`, `src/renderer/avatars/` | the profiles' pictures (Noto Emoji) |
+| `src/main/avatars.js`, `src/renderer/public/avatars/` | the profiles' pictures (Noto Emoji) |
 | `src/main/store.js` | `profiles.json`, the profile folders, their tabs |
 | `src/main/session-cookies.js` | session cookies across restarts |
 | `src/main/signin-pages.js`, `signin-pause.js` | sign-in pages; the pause |
 | `src/main/mimic-chrome.js` | presenting as Google Chrome |
 | `src/main/cdp-proxy.js` | the CDP endpoint per profile |
 | `src/main/mcp-server.js`, `ghost.js`, `picker.js` | the agent's tools, its actions shown, point and tell |
-| `src/renderer/renderer.js`, `profile-editor.js` | the panes, the profiles' chip (👥) and the editor |
+| `src/renderer/components/grid/ProfilePane.vue`, `ProfileHeader.vue`, `ProfileEditor.vue`, `ProfileRow.vue`, `lib/profiles.ts` | the panes, the profiles' chip (👥) and the editor |
 | `test/agent.js`, `profiles.js`, `zoom-and-closing.js`, `restart-profiles.js`, `unit/store.test.js` | the tests |

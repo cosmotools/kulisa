@@ -1,0 +1,54 @@
+<script setup lang="ts">
+// The Agents window (☰, the Welcome screen; tasks.md, "Choosing the agent"): at any time, the agents with Install
+// (AgentList.vue), each with its version, folder and its maker's website. Nothing is chosen or started here: the agent
+// is chosen for a task when one is made, or with Change agent…. Add Account: for an agent that has accounts (Claude
+// Code, Codex), a name; its folder is made, and it asks to sign in at its first start in a task.
+import { computed, ref } from 'vue';
+import Modal from './Modal.vue';
+import AgentList from './AgentList.vue';
+import { registerDialog } from '../lib/dialogs';
+
+const modal = ref<InstanceType<typeof Modal>>(), list = ref<InstanceType<typeof AgentList>>();
+const name = ref<HTMLInputElement>(), agent = ref<HTMLSelectElement>();
+const error = ref('');
+const own = computed(() => (list.value?.agents || []).filter((a) => a.accounts && !a.account));
+
+registerDialog('agents', {
+  async showAgents() {
+    await list.value!.load(undefined, () => { if (!modal.value!.el!.open) modal.value!.open(); });
+    name.value!.value = ''; error.value = '';
+  },
+});
+async function add() {
+  if (!name.value!.value.trim()) return name.value!.focus();
+  const r = await kulisa.invoke<{ error?: string } | null>('accounts:add', { agent: agent.value!.value, name: name.value!.value });
+  if (r?.error) { error.value = r.error; return; }
+  name.value!.value = ''; error.value = '';
+  await list.value!.reload();
+}
+// Esc or a click outside while installing: it stays.
+const cancel = (e: Event) => { if (list.value?.installing) e.preventDefault(); };
+</script>
+
+<template>
+  <Modal id="agents" ref="modal" title="Agents" @cancel="cancel">
+    <p class="hint">The agents Kulisa can run in a task's terminal, with their accounts. Install one here; choose it for a
+      project (Project Settings…) or a task (Change agent… in the terminal's menu). An account is the agent with a sign-in
+      of its own (a work and a personal one side by side): it asks you to sign in at its first start in a task. Yours
+      (<code>~/.claude</code>, <code>~/.codex</code>) is the first.</p>
+    <AgentList ref="list" details :installed="(a) => `${a.name} is installed. Choose it for a task; on its first start it asks you to sign in.`" />
+    <form id="accountadd" class="row" :hidden="!own.length" @submit.prevent="add">
+      <select id="accountagent" ref="agent" aria-label="Agent"><option v-for="a in own" :key="a.id" :value="a.agent">{{ a.name }}</option></select>
+      <input id="accountname" ref="name" data-name maxlength="64" placeholder="Account name, e.g. work" spellcheck="false" aria-label="Account name">
+      <button id="accountaddbutton">Add Account</button>
+    </form>
+    <p id="accounterror" class="error">{{ error }}</p>
+    <template #footer>
+      <button class="primary" type="button" command="close" commandfor="agents" :disabled="list?.installing">Close</button>
+    </template>
+  </Modal>
+</template>
+
+<style>
+#agents { width: 640px; }
+</style>

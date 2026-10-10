@@ -16,7 +16,8 @@ field leaves characters out as they are typed is end to end. A module a unit tes
 
 ## End to end: groups
 
-`npm test` runs the unit tests, then the groups of e2e files in parallel (`GROUPS` in `start.js`):
+`npm test` runs the unit tests, builds the window (`npm run build`: its types checked, then Vite), then the groups of
+e2e files in parallel (`GROUPS` in `start.js`):
 
 - **A group is one app, its files in order**: later files build on what earlier ones left (profiles, sign-ins,
   projects), as the human's day does. Then the app is restarted in the same folder and the group's restart file
@@ -36,6 +37,10 @@ not listed for screenshots and focus differs from a desktop), so they never take
 
 ## Writing an e2e test
 
+- **The window draws with Vue**, after the change that causes it (a microtask later, before the next frame): wait
+  for what it shows rather than reading it in the same script as the event (`await new Promise(requestAnimationFrame)`).
+  What the tests reach by name in the window (`act`, `state`, `tasks.current`, `window.__dock` …): `lib/test-hooks.ts`
+  and the modules that set them.
 - **Act as the human or the agent does**: the window's own controls (`ui(...)` clicks, `act(...)` as the renderer
   sends it, input events), the MCP tools (`call`). Reach into the core (`shell.task.createProfile`) only to set up
   what another test already covers, as `setup.js` does.
@@ -63,7 +68,7 @@ after 30 s.
 
 | File | What |
 |---|---|
-| `test/start.js` | `npm test`: the unit tests, the groups in parallel, each on its own screen, then after a restart |
+| `test/start.js` | `npm test`: the unit tests, the window built, the groups in parallel, each on its own screen, then after a restart |
 | `test/run.js` | one app: starts Kulisa (`app.start`) with a fake agent (`cat`), runs the files it is given |
 | `test/helpers.js` | the group's folder, waiting, driving the window like the human |
 | `test/setup.js` | the fixture of a group that does not start with `agent.js` |

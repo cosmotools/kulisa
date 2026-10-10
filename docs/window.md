@@ -47,7 +47,7 @@ profiles in columns with the terminal below, two by two with the terminal on the
 Each fits the window with nothing cut off. The grid is saved per task (`layout.json`) and restored.
 The task's other terminals ("The terminal") are panels too, next to the agent's; an arrangement keeps them there.
 
-The window itself never scrolls, also not from a script (`overflow` on `html` and `body`, window.css): a panel stacked
+The window itself never scrolls, also not from a script (`overflow` on `html` and `body`, App.vue): a panel stacked
 behind another is kept laid out below the grid (dockview), which made the page taller than the window, and the
 projects' bar bringing its tab into view (`scrollIntoView`) moved the whole grid up by a window's height
 (2026-10-09, after an agent's turn ended).
@@ -97,7 +97,7 @@ when it changes, as JetBrains' Sync with OS). Saved (`settings.json`), the same 
   `data-theme` on the page's root, which sets `color-scheme`: `dark`, `light`, or `light dark` for System, where the
   page's own `prefers-color-scheme` (the OS's) picks. The browser's own controls (fields, scrollbars) follow. The
   choice comes in the page's URL, set before the first paint, so a light window never flashes dark. dockview's theme
-  sets `color-scheme: dark` on the grid; `window.css` gives it back the root's.
+  sets `color-scheme: dark` on the grid; `Grid.vue` gives it back the root's.
 - What CSS does not paint follows from the main process: the window's background and the OS buttons' strip
   (`window.js`).
 - The terminal takes the panels' colors (`term.options.theme`, set again on a change); the programs' own colors stay
@@ -106,13 +106,13 @@ when it changes, as JetBrains' Sync with OS). Saved (`settings.json`), the same 
 
 ## Menus
 
-Kulisa draws its menus in HTML, as Chrome does (a popover, `menu.js`; [ui.md](ui.md), Menus):
+Kulisa draws its menus in HTML, as Chrome does (a popover, `lib/menu.ts`, `Menu.vue`; [ui.md](ui.md), Menus):
 
 - the button after the projects' islands (the projects), a project label's right-click menu, +'s right-click menu (New
   Task with each of the project's agents), the profiles' chip on the shown task's tab (open
   and closed profiles, Manage Profiles…; the tab's right-click menu has them too, with Show Folder), ☰ (as Chrome's ⋮, each row with its icon: the zoom row, the theme row, the
   projects' bar's row, Arrange panels, Agents…, Keyboard Shortcuts, the Welcome screen's links
-  (Documentation, GitHub, Report an issue; one list in `index.html`), and Exit, which quits as the last window's × does; not on macOS, where
+  (Documentation, GitHub, Report an issue; one list in `lib/common.ts`), and Exit, which quits as the last window's × does; not on macOS, where
   Cmd+Q and the app's menu quit; under them all Kulisa's version, small and dim: words, not a row, as nothing happens on a click);
 - right-click on a pane's header (New tab, About this profile…, Close profile, Delete profile…), a tab (Reload, Duplicate,
   Close, Close others) and the terminal (Copy, Paste, Select all, Clear, Change agent…).
@@ -128,7 +128,7 @@ Every dialog has one look, as in JetBrains: the title with × on top, the conten
 the main one last (blue; red when it deletes) ([ui.md](ui.md), Dialogs). Questions before something that cannot be
 undone (deleting a profile, a task, a project), before closing (a project, a window, quitting
 while an agent works: [tasks.md](tasks.md)) or between two ways to go (This Window or New Window) are asked
-in that dialog too (`shell.ask` → `ask.js`, queued, Cancel focused), in the window the action is
+in that dialog too (`shell.ask` → `lib/ask.ts`, `Ask.vue`, queued, Cancel focused), in the window the action is
 in. Not the OS's own question (`dialog.showMessageBox`): it looked different on each OS and plain on Linux, and
 could not mark the deleting button or lay out what goes. The OS's own dialogs stay for choosing a folder.
 
@@ -159,7 +159,7 @@ agent runs its command again. × or the menu's Close, or the shell's `exit`, end
 keeps each one's last 200 KB of output for the agent, in memory.
 
 **Dictation**, where the shown task's agent has its own ([tasks.md](tasks.md), "Choosing the
-agent"): the terminal's header ends with the language it hears (EN, RU …) and a microphone (`voice.js`). The
+agent"): the terminal's header ends with the language it hears (EN, RU …) and a microphone (`Dictation.vue`). The
 microphone works as a voice message's button: held, the agent records until it is let go; a click starts and another
 click stops (or 5 minutes, a recording left on). The text goes where the cursor is in the agent's input, after what
 is there, so several sentences can be dictated one after another, and is left there to read and send (recognition
@@ -184,8 +184,8 @@ Code keeps terminals), at the same size.
 ## Keys
 
 Kulisa's keyboard shortcuts, as an IDE has them, one table for all (`src/main/keys.js`): the keys, the command each
-does, and where; the window's menus, the buttons' tooltips ("Reload (Ctrl+R)", `data-keys` in `index.html`) and
-**Keyboard Shortcuts** (☰, or Ctrl+Shift+/: `shortcuts.js`) show them from it, as this OS writes them (⇧⌘T on macOS),
+does, and where; the window's menus, the buttons' tooltips ("Reload (Ctrl+R)", `withKeys`) and
+**Keyboard Shortcuts** (☰, or Ctrl+Shift+/: `Shortcuts.vue`) show them from it, as this OS writes them (⇧⌘T on macOS),
 so they are never out of date.
 
 Who gets a key depends on where the keyboard is:
@@ -211,7 +211,7 @@ tasks are ⌘⌥1…9 (⌘⇧3, 4, 5 are macOS's screenshots), back and forward 
 How: the main process sees every key of the window and of every tab before the page does (`before-input-event`, on
 every webContents as it is made: `app.js`), and takes one of Kulisa's (`preventDefault`: the page never gets it) or
 leaves it, untouched. Where the keyboard is in the window's own page, the page tells it (`keys:zone`: the terminal, a
-dialog, a pane; `src/renderer/keys.js`), which also runs the commands the main process sends back (`command`, with
+dialog, a pane; `src/renderer/lib/keys.ts`), which also runs the commands the main process sends back (`command`, with
 the profile and tab). Letters are matched by what they type on a Latin layout (Ctrl+W on an AZERTY keyboard is its W)
 and by their place on others (Ctrl+Е on a Russian one is Ctrl+T); digits and keys typed with Shift by their place. Keys
 are written as Electron's accelerators (`CommandOrControl+T`).
@@ -248,7 +248,8 @@ Installers are made with Electron Forge (`npm run make`, `forge.config.js`): `.d
 | `src/main/window.js` | a window: its BrowserWindow, the native views' places, its questions, screenshot |
 | `src/main/keys.js` | the keyboard shortcuts: the table, which key an input event is; `app.js` takes them (Keys) |
 | `src/main/terminal.js` | the ptys: the agent's per task, and its other terminals; their output's last 200 KB |
-| `src/renderer/renderer.js` | the grid (dockview), the panes, ☰, Arrange panels, the right-click menus |
-| `src/renderer/menu.js`, `ask.js`, `terminal.js`, `voice.js` | the menus, the questions, the terminal, its dictation |
-| `src/renderer/keys.js`, `shortcuts.js` | where the keyboard is, the commands the keys run; Keyboard Shortcuts (loaded when needed) |
+| `src/renderer/components/Grid.vue`, `grid/*.vue`, `lib/grid.ts` | the grid (dockview), the panes and their headers, the terminals' panels, Arrange panels |
+| `src/renderer/components/TopBar.vue`, `menu/*.vue` | the title bar, ☰ and its own rows |
+| `src/renderer/components/Menu.vue`, `Ask.vue`, `lib/menu.ts`, `ask.ts`, `terminals.ts`, `voice.ts` | the menus, the questions, the terminals, dictation |
+| `src/renderer/lib/keys.ts`, `components/Shortcuts.vue` | where the keyboard is, the commands the keys run; Keyboard Shortcuts |
 | `test/window.js`, `grid.js`, `keys.js`, `zoom-and-closing.js`, `unit/keys.test.js` | the tests |
