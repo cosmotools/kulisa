@@ -7,6 +7,92 @@ here; what is left of it stays.
 
 ## Next
 
+- **Projects and tasks: Kulisa rebuilt around them** (designed with the author 2026-10-10; built first, on the branch
+  `tasks`, before the store of extensions). It replaces the model of [workspaces.md](workspaces.md): a project was a
+  folder with a main workspace and forks; now a project is a composite of things from catalogs, and the work is done
+  in **tasks** (the word replaces "workspace" everywhere: code, docs, CLAUDE.md). No migration: Kulisa is in
+  development, the new layout does not read the old data, the author starts with an empty `~/.config/Kulisa`.
+  - **Agents** (a catalog in ☰, global): the human picks a CLI (Claude Code, Codex, …) and signs in with the CLI's
+    own login in Kulisa's terminal; each account has its own config folder (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`) in
+    Kulisa's data folder, gone with the entry. An existing `~/.claude` is taken over as the first account, not signed
+    in again (and never deleted: it is the human's).
+  - **Profiles** (one flat store, each listing the projects it belongs to; it goes, after a question, when its last
+    project does; seen in the project's editor: + New, + From another project). A profile is a person with all their
+    sign-ins, in one or more forms:
+    - sessions of real accounts: the human signs in by hand to the profile's **master**, which no one works in
+      (opened in a window of its own for that);
+    - login-password pairs, for local addresses only (below): the agent signs in itself; kept by Kulisa, encrypted
+      (Electron's `safeStorage`, to read in the installed version's docs); set by the human in the editor or by the
+      agent (an MCP tool, e.g. after it signed a test user up); never logged;
+    - none: a blank profile, for sign-up tests (SPEC feature 7).
+  - **Projects** (composite; a wizard to create and edit): a name, a color from a pool, an icon (the repository's
+    favicon if it has one, else Kulisa's set), agents (one default), profiles, repositories or folders (local, or
+    cloned from a URL; one default). A project needs no repository: then it has a folder, by default
+    `~/Kulisa/<project>` (`~/Kulisa` is the default place of every new project, as JetBrains' `~/PycharmProjects`,
+    changeable), or one the human picks. That folder is the human's: Kulisa never deletes it. Once a repository is
+    added, tasks no longer work in it; the editor shows it ("former folder, tasks no longer work in it", Show) while
+    it exists, and the human moves its files (or asks the agent).
+  - **Tasks.** + in a project's group makes one with the project's default agent, its default repository and all its
+    profiles; the human describes the task in the agent's terminal. A task always works in copies: a worktree per
+    repository, on one branch, named `task-N` until the agent renames it (an MCP tool; `git branch -m`). The agent
+    starts in the default repository's copy and gets the others with their instructions: Claude Code `--add-dir` and
+    `CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1`, Codex `--add-dir`, other CLIs a line at session start
+    (`agents.js`, one entry each). More repositories only from the project, also while the task works (Kulisa types
+    into the agent's prompt what was added; Claude Code also gets `/add-dir`). A folder without git has no copies: the
+    task works right in it, and a second open task there shows a warning ("two agents may get in each other's way")
+    and may go on. Ports as today: one offset per task (`KULISA_PORT_OFFSET`, copied tabs moved).
+  - **Profiles in a task**: a copy of the master, made when the profile is first opened in the task (not all at
+    once). Local apps' sessions are each task's own (each task runs its own dev server, often with its own
+    database, and cookies do not depend on the port: shared, two tasks would keep signing each other out); the
+    agent signs in there with the profile's pair.
+  - **Closing and deleting.** × on a task's tab closes it: the agent stops, tabs close, everything else stays; it is
+    listed as closed in its project's group, and opening it resumes the agent's conversation. Delete is in the tab's
+    menu, after a question naming what is lost. With git a task is atomic: worktrees, branch and the agent's session
+    go together (the question warns of uncommitted files and of commits not in main and not pushed). Without git:
+    the conversation, profile copies and the task go, files in the folder stay. Closed tasks stay on disk until the
+    human deletes them; Kulisa offers it once the PR is merged.
+  - **The project's folder is the human's**: agents never touch it on their own. To bring work into it without a
+    remote, the human asks the agent ("merge into main"); the skill: first check the folder for the human's
+    uncommitted changes, and stop if there are any.
+  - **The bar is a task bar, drawn as Chrome's tab groups**: a group per project (its name, color and icon;
+    collapsible; + makes a task), a tab per task (the project's icon and color, the task's name, the agent's state).
+    A group moves to another window whole (as a project does today), e.g. to keep one client's tasks out of a screen
+    share. The Welcome screen: New Project…, Open Folder… (a project with that folder), recent projects.
+  - **Sign-in rule, narrowed** (CLAUDE.md, Rules, to change with it): the human signs in to real accounts; the agent
+    signs in to test users of local apps with their pairs. A pair is used only on a local address, or on a page
+    reached by a redirect from a local address in the same tab (an Auth0 dev tenant) unless that page is a big
+    account provider (Google, Microsoft, Apple, GitHub, Facebook, Okta, Entra). "Sign in with Google" on a local app:
+    the human signs in once to a test Google account in the profile's master, the agent goes the whole way itself
+    (account chooser, consent) with no sign-in pause on that path; it never types a Google password, and Kulisa does
+    not get past Google's own bot checks. The pause part goes into the author's replacement of `signin-pause.js`.
+    To document in [profiles.md](profiles.md) as how the protection works, with the reason for each line.
+  - **Steps**, each working on its own, with its tests:
+    1. Tasks replace workspaces: the rename (code, docs, CLAUDE.md), always copies (no main), × closes and Delete,
+       the task bar as tab groups, the task's temporary name and the agent's rename. Decided with the author
+       (2026-10-10): until step 4, a new task copies the profiles (sign-ins, active tab, grid) and the agent of the
+       project's task on screen, as a fork copied main's (a few lines, replaced by masters); the first task has none.
+       × on a project's last open task closes the project, as Chrome closes a window with its last tab; opening it
+       again opens the task closed last, or a new one when it has none. The human renames a task too (Rename… in
+       its tab's menu), as the agent does (`task_rename`): name and branch (`git branch -m`); its folder stays
+       `@task-N`, not moved under a running agent.
+    2. Projects as composites: the wizard, the folder (`~/Kulisa`), several repositories in a task (worktrees on one
+       branch, the agent's folders), color and favicon.
+    3. The agents' catalog with accounts.
+    4. Profiles: the flat store, masters and copies on first open, signing in to a master, a profile in several
+       projects.
+    5. Login-password pairs and the narrowed rule (needs "what is local", below).
+    6. Cookies of non-local sites kept in step between a master and its copies (Electron's cookies `changed` event
+       and `cookies.set`), both ways: real accounts shared by all tasks. Limits: cookies only (sign-ins in
+       localStorage, as MSAL keeps them, are not synced), device-bound cookies (DBSC) to check in this Electron, races
+       between tasks to test; a logout of a real account in one task ends it in all.
+  - **Open: what is "local"** (to discuss before step 5): one definition in the core, for the pairs and for the
+    cookies not synced. Proposal: `localhost`, `*.localhost`, `*.test`, `*.local`, private IPs (`127.*`, `10.*`,
+    `192.168.*`, `172.16–31.*`), plus a project's own list (tunnels such as ngrok, own dev domains). A local address
+    left out makes its cookies shared by all tasks again.
+  - **Put off**: ongoing tasks ("watch the feedback for a month") with Kulisa kept in the tray (none in GNOME by
+    default); rights on profiles, when real accounts come (one flag, "view only": reading allowed, clicks and typing
+    refused; today the agent's own modes cover test users).
+
 - **Kulisa plugin: more the agent can do in the browsers** (tools in `mcp-server.js`, each described in the skill;
   what is built: [profiles.md](profiles.md), "What the agent does"). What else an agent needs comes from using it
   (the author moves to working in Kulisa, 2026-10-08): where the agent goes around the tools (its own Playwright
@@ -214,8 +300,6 @@ here; what is left of it stays.
   - More agents (Gemini CLI, …): an entry each in `agents.js`.
   - Windows: the installers run in PowerShell, untested; macOS untested.
   - A hint in an empty grid (no profiles yet): "create the first profile".
-- **Projects, rest.**
-  - Use a profile of another project.
 - **Workspaces, rest** (how they work now, and why: [workspaces.md](workspaces.md)).
   - Helping the agent run the app ("Kulisa plugin: running the app", above). Today the agent gets
     `KULISA_PORT_OFFSET` and a line about it at session start.
