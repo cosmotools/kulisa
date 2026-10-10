@@ -27,7 +27,7 @@ import type { ProjectChoices, ProjectEntry, ProjectProfile, ProjectRepo, Project
 
 const modal = ref<InstanceType<typeof Modal>>();
 const nameField = ref<{ $el: HTMLInputElement }>(), newProfile = ref<HTMLInputElement>(), url = ref<HTMLInputElement>();
-const focusName = () => nameField.value!.$el.focus();
+const focusName = () => nameField.value?.$el.focus(); // when it is open
 const projects = ref<ProjectEntry[]>([]), openIds = ref<string[]>([]);
 const editing = ref<string | null>(null);
 const title = ref(''), name = ref(''), place = ref(''), sep = ref('/'), folder = ref('');

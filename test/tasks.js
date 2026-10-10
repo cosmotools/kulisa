@@ -582,7 +582,8 @@ module.exports = (test) => {
     assert.ok(await ui(`document.querySelector('#welcome .applogo').naturalWidth > 0`), 'the app logo loaded');
     // On an island in the grid's place, filling it (not on the project's glow).
     assert.ok(await ui(`(() => { const w = document.getElementById('welcome'), s = getComputedStyle(w);
-      return w.getBoundingClientRect().height > innerHeight * 0.8 && s.backgroundColor === getComputedStyle(document.querySelector('.dialog[id]')).backgroundColor; })()`));
+      return w.getBoundingClientRect().height > innerHeight * 0.8 && s.backgroundColor === (() => { const i = document.body.appendChild(document.createElement('i')); i.style.background = 'var(--island)';
+        const c = getComputedStyle(i).backgroundColor; i.remove(); return c; })(); })() // an island's, as the dialogs'`));
     assert.equal(await ui(`document.getElementById('tasks')?.checkVisibility() ?? false`), false, 'no tasks shown');
     assert.deepEqual(await projectTabs(ui), [], 'no project tab');
     assert.equal(await ui(`document.documentElement.style.getPropertyValue('--project')`), '', "no project's color");

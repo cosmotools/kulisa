@@ -163,7 +163,8 @@ module.exports = (test) => {
       return { shade: panel === '${DARK}' ? 'dark' : panel === '${LIGHT}' ? 'light' : panel, term: window.__term.options.theme.background,
         scheme: getComputedStyle(document.querySelector('.omnibox input, input')).colorScheme,
         chosen: [...document.querySelectorAll('.menu[data-state="open"] .themerow [data-state="checked"]')].map((b) => b.dataset.theme),
-        onAccent: getComputedStyle(document.querySelector('.dialog[id] button.primary')).color }; })()`);
+        onAccent: (() => { const b = document.body.appendChild(Object.assign(document.createElement('button'), { className: 'primary' }));
+          const c = getComputedStyle(b).color; b.remove(); return c; })() }; })()`); // a main button, as a dialog has (none in the page while closed)
     const page = shell.profiles.values().next().value.get().wc;
     const pageDark = () => page.executeJavaScript(`matchMedia('(prefers-color-scheme: dark)').matches`);
     const osDark = await pageDark();
@@ -206,12 +207,30 @@ module.exports = (test) => {
       await waitFor(() => viewOn(shell, ui, id), 3000); // the pages follow the grid
     }
   });
-  test('dialogs: one look (title and ×, content, buttons at the bottom right, the main one last); a question is asked in it', async (ctx) => {
+  test('dialogs: one look (title and ×, content, buttons at the bottom right, the main one last), in the page only while open; a question is asked in it', async (ctx) => {
     const { shell, ui } = ctx;
-    const looks = await ui(`[...document.querySelectorAll('.dialog[id]')].map((d) => ({ id: d.id, title: !!d.querySelector('header h2'),
-      body: !!d.querySelector('.body'), last: d.querySelector('footer > button:last-child')?.className }))`);
-    assert.deepEqual(looks.map((l) => l.id), ['profiles', 'projects', 'taskrename', 'agentpick', 'agents', 'shortcuts']); // the question's only while asked: below
-    for (const l of looks) assert.ok(l.title && l.body && /primary|ok/.test(l.last), JSON.stringify(l));
+    // Each opened as the human opens it, looked at, closed: a closed one leaves nothing in the page (no memory kept).
+    const isOpen = (id) => ui(`document.getElementById('${id}')?.dataset.state === 'open'`);
+    const fromMenu = async (row, at) => { await (at ? rightClick(ui, at) : ui(`document.getElementById('windowMenu').click()`)); await menuRows(ui); await choose(ui, row); };
+    const openers = {
+      profiles: () => manageProfiles(ui),
+      projects: () => ui(`document.getElementById('manageProjects').click()`),
+      taskrename: () => fromMenu('Rename…', '#tasklist .tasktab .name'),
+      agentpick: () => fromMenu('Change agent…', '#term'),
+      agents: () => fromMenu('Agents…'),
+      shortcuts: () => fromMenu('Keyboard Shortcuts'),
+    };
+    assert.equal(await ui(`document.querySelectorAll('.dialog').length`), 0, 'none in the page while closed');
+    for (const [id, open] of Object.entries(openers)) {
+      await open();
+      await waitFor(() => isOpen(id), 20000);
+      const l = await ui(`(() => { const d = document.getElementById('${id}'); return { id: '${id}', title: !!d.querySelector('header h2'),
+        body: !!d.querySelector('.body'), last: d.querySelector('footer > button:last-child')?.className }; })()`);
+      assert.ok(l.title && l.body && /primary|ok/.test(l.last), JSON.stringify(l));
+      await ui(`document.querySelector('${id === 'agentpick' ? '#agentcancel' : `#${id} .x`}').click()`); // the agent's choice: Cancel, no ×
+      await waitFor(async () => !(await isOpen(id)));
+    }
+    await waitFor(() => ui(`document.querySelectorAll('.dialog').length === 0`));
 
     // A question before deleting: the title, what goes line by line, Cancel (focused) and a red Delete at the right.
     ctx.answer = null; // the test answers

@@ -144,7 +144,7 @@ src/renderer/    window UI: Vue 3 components in TypeScript, built by Vite into d
                  components/: the window's parts (App.vue; TopBar, Grid and grid/ its panels, ProjectBar, TaskTab, Welcome,
                  the dialogs on Modal.vue, menu/ the menus; menus and dialogs are Reka UI's); lib/: what they share
                  (store.ts: what the main process sends;
-                 grid.ts, terminals.ts, menu.ts, ask.ts, dialogs.ts, keys.ts, voice.ts). Styles: tokens.css,
+                 grid.ts, terminals.ts, menu.ts, agents.ts, ask.ts, dialogs.ts, keys.ts, voice.ts). Styles: tokens.css,
                  components.css, each part's own in its file; the icons are Sprite.vue
 dist/            the window built (npm run build; not in git)
 assets/          the app icon: icon.svg (source) and what each OS needs, rendered by scripts/icons.js

@@ -12,9 +12,9 @@ const error = ref('');
 let renaming = '';
 registerDialog('taskrename', {
   async rename(key, current) {
-    renaming = key; input.value!.value = current; error.value = '';
+    renaming = key; error.value = '';
     await modal.value!.open();
-    input.value!.focus(); input.value!.select();
+    input.value!.value = current; input.value!.focus(); input.value!.select();
   },
 });
 async function save() {

@@ -9,16 +9,18 @@ import Modal from './Modal.vue';
 import SelectBox from './SelectBox.vue';
 import AgentList from './AgentList.vue';
 import { registerDialog } from '../lib/dialogs';
+import { agentList } from '../lib/agents';
 
-const modal = ref<InstanceType<typeof Modal>>(), list = ref<InstanceType<typeof AgentList>>();
+const modal = ref<InstanceType<typeof Modal>>();
+const list = agentList({ details: true, installed: (a) => `${a.name} is installed. Choose it for a task; on its first start it asks you to sign in.` });
 const name = ref<HTMLInputElement>(), agent = ref('');
 const error = ref('');
-const own = computed(() => (list.value?.agents || []).filter((a) => a.accounts && !a.account));
+const own = computed(() => list.state.agents.filter((a) => a.accounts && !a.account));
 const ownOptions = computed(() => own.value.map((a) => ({ value: a.agent!, label: a.name })));
 
 registerDialog('agents', {
   async showAgents() {
-    await list.value!.load(undefined, () => modal.value!.open());
+    await list.load(undefined, () => modal.value!.open());
     name.value!.value = ''; error.value = '';
     if (!own.value.some((a) => a.agent === agent.value)) agent.value = own.value[0]?.agent || '';
   },
@@ -28,18 +30,18 @@ async function add() {
   const r = await kulisa.invoke<{ error?: string } | null>('accounts:add', { agent: agent.value, name: name.value!.value });
   if (r?.error) { error.value = r.error; return; }
   name.value!.value = ''; error.value = '';
-  await list.value!.reload();
+  await list.reload();
 }
 </script>
 
 <template>
   <!-- While an agent installs, it stays (Esc, a click outside, ×). -->
-  <Modal id="agents" ref="modal" title="Agents" :stay="!!list?.installing">
+  <Modal id="agents" ref="modal" title="Agents" :stay="list.state.installing">
     <p class="hint">The agents Kulisa can run in a task's terminal, with their accounts. Install one here; choose it for a
       project (Project Settings…) or a task (Change agent… in the terminal's menu). An account is the agent with a sign-in
       of its own (a work and a personal one side by side): it asks you to sign in at its first start in a task. Yours
       (<code>~/.claude</code>, <code>~/.codex</code>) is the first.</p>
-    <AgentList ref="list" details :installed="(a) => `${a.name} is installed. Choose it for a task; on its first start it asks you to sign in.`" />
+    <AgentList :list />
     <FormRoot id="accountadd" class="row" :hidden="!own.length" @form-submit="add">
       <SelectBox id="accountagent" v-model="agent" :options="ownOptions" aria-label="Agent" />
       <input id="accountname" ref="name" data-name maxlength="64" placeholder="Account name, e.g. work" spellcheck="false" aria-label="Account name">
@@ -47,7 +49,7 @@ async function add() {
     </FormRoot>
     <p id="accounterror" class="error">{{ error }}</p>
     <template #footer>
-      <DialogClose class="primary" :disabled="list?.installing">Close</DialogClose>
+      <DialogClose class="primary" :disabled="list.state.installing">Close</DialogClose>
     </template>
   </Modal>
 </template>

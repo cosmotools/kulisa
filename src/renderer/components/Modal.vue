@@ -3,10 +3,11 @@
 // it may be closed; Esc and a click outside too), the content, the buttons at the bottom right, the main one last. With
 // form (formId: its id), the content and the buttons are Reka's form (Enter submits; errors: the main process's answer
 // by field, shown at the field's FieldError until it is changed). While it is open the profiles' pages
-// are hidden (they are native views above the HTML: lib/views.ts). Kept in the page while closed, so its parts keep
-// their state and can be filled before it opens. Afterwards the keyboard is back where it was.
+// are hidden (they are native views above the HTML: lib/views.ts). Its content is in the page only while it is open
+// (Reka's default: a closed dialog costs no memory), so a dialog opens first and then fills its fields; what must
+// outlive it lives in the dialog's own component (its setup) or in lib/. Afterwards the keyboard is back where it was.
 //   <Modal id title> content <template #footer> buttons </template></Modal>
-//   ref: await open() (shown, the keyboard in its [autofocus] field or on it), close(), isOpen()
+//   ref: await open() (shown, its content there, the keyboard in its [autofocus] field or on it), close(), isOpen()
 //   closable: false: no ×, Esc or click outside (it waits for an answer); stay: not now (an install under way)
 import { watch } from 'vue';
 import { DialogClose, DialogContent, DialogOverlay, DialogPortal, DialogRoot, DialogTitle, FormRoot } from 'reka-ui';
@@ -36,7 +37,7 @@ defineExpose({
 </script>
 
 <template>
-  <DialogRoot v-model:open="open" :unmount-on-hide="false">
+  <DialogRoot v-model:open="open">
     <DialogPortal>
       <DialogOverlay class="backdrop" />
       <DialogContent :id class="dialog" tabindex="-1" :aria-describedby="undefined" @escape-key-down="esc" @interact-outside="keep" @open-auto-focus="focus">

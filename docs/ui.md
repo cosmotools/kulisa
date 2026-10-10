@@ -11,7 +11,7 @@ the look below:
 | Where | What |
 |---|---|
 | `src/renderer/components/*.vue` | the window's parts, each its markup, behavior and own look (`<style>`, rooted at its id or class): `App.vue` puts them together; `grid/` the grid's panels and headers, `menu/` the menus (`ButtonMenu`, `RightClickMenu`, `PointMenu`, `MenuRows`) and ☰'s own rows; `Modal.vue` the dialogs |
-| `src/renderer/lib/*.ts` | what parts share or what outlives a component: `store.ts` (what the main process sends, `act`), `grid.ts`, `terminals.ts`, `menu.ts` (what a menu holds), `ask.ts`, `dialogs.ts`, `keys.ts`, `voice.ts`, `views.ts` (the pages under HTML: `covered()` for every menu and dialog), `profiles.ts` (the profiles' menu), `names.ts` (name fields), `common.ts`, `test-hooks.ts` (what the tests reach by name) |
+| `src/renderer/lib/*.ts` | what parts share or what outlives a component: `store.ts` (what the main process sends, `act`), `grid.ts`, `terminals.ts`, `menu.ts` (what a menu holds), `agents.ts` (the agents' list of a dialog, and an install under way), `ask.ts`, `dialogs.ts`, `keys.ts`, `voice.ts`, `views.ts` (the pages under HTML: `covered()` for every menu and dialog), `profiles.ts` (the profiles' menu), `names.ts` (name fields), `common.ts`, `test-hooks.ts` (what the tests reach by name) |
 | `src/renderer/types.ts`, `env.d.ts` | the shapes the main process sends; the bridge to it (`src/preload`) and Vite's types |
 | `src/renderer/tokens.css` | every color and size (`:root`); no literal color anywhere else |
 | `src/renderer/components.css` | the shared components below, global |
@@ -157,8 +157,10 @@ Every dialog is `Modal.vue`, Reka UI's Dialog (`reka-ui`) with the same parts:
   only closes is Reka's `DialogClose`.
 - With `form` the content and the buttons are a form: Enter submits.
 - Its ref: `await open()` (shown, the keyboard in its `[autofocus]` field or on it; the profiles' pages hidden while it
-  is open: `covered('hide')`, `lib/views.ts`), `close()`, `isOpen()`. Kept in the page while closed (`unmountOnHide`
-  off), so it is filled before it opens; when it closes, the keyboard goes back where it was.
+  is open: `covered('hide')`, `lib/views.ts`), `close()`, `isOpen()`. Its content is in the page only while it is open
+  (Reka's default; kept closed, the dialogs' parts took about 2.5 MB of the window's memory), so it opens first and
+  is filled after; what must outlive it lives in the dialog's component or in `lib/` (the agents' list and an install
+  under way: `lib/agents.ts`). When it closes, the keyboard goes back where it was.
 - Every dialog is in `App.vue` from the start and registers what it does (`registerDialog`); anything opens one by
   name: `(await dialog('projects')).openProjects(id)` (`lib/dialogs.ts`).
 - A page's alert or confirm (`.pagedialog`, in `ProfilePane.vue`) is not a `Modal`: a Dialog that is not modal (the
