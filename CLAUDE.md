@@ -13,6 +13,15 @@ any work in web apps (several clients' tenants, admin and support work). Not a b
 accounts or getting past bot detection (the author despises those): the human's own accounts, signed in by hand.
 Everything happens inside Kulisa; no external Chrome windows.
 
+**Being rewritten (since 2026-10-10, branch `tasks`).** Kulisa is being rebuilt around projects and tasks: tasks
+replace workspaces; projects are composites (repositories, agents with accounts, profiles); profiles live in one
+store with a master each and a copy per task; test users sign in with saved pairs on local pages; real accounts'
+cookies are kept in step between a master and its copies. The design, the steps and what is left of each: ROADMAP,
+"Projects and tasks: Kulisa rebuilt around them"; how the built parts work: `docs/tasks.md`, `docs/profiles.md`.
+Until it is done, some parts of the app, the docs and the tests may be outdated (still written for workspaces, main
+and forks), unfinished or unstable: check the ROADMAP section before trusting one, and say so when you find one.
+This paragraph is removed when the rewrite is finished.
+
 - `docs/SPEC.md`: the product: problem, features and phases, architecture decisions.
 - `docs/REPORT.md`: how the design was tested and decided. Read its later sections (sign-in, Kasada, session
   cookies) before changing sign-in, identity or persistence code.
