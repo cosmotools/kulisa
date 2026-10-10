@@ -182,7 +182,7 @@ async function deleteTask(shell, p, entry) {
   if (entry.copies?.length) {
     const saved = data.agent();
     const project = { folder: reposOf(p)[0], ...store.tasksOf(p).list.map((e) => store.taskOf(p, e.n).agent()).find((a) => a.transcript) };
-    try { shell.agentFor(saved.agent)?.forget?.({ folder: entry.folder, saved, project }); } catch (e) { console.warn('[agents] forget:', e.message); }
+    try { const a = shell.agentFor(saved.agent); a?.forget?.({ folder: entry.folder, saved, project, configDir: a.configDir }); } catch (e) { console.warn('[agents] forget:', e.message); }
   }
   // Its profiles' sessions stay open in Electron until Kulisa quits: whatever cannot go now goes at the next start.
   store.markDeleted(data.dir);

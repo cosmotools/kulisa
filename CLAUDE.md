@@ -258,6 +258,7 @@ Modules (`src/main`):
 - `projects.js`: an open project: its tasks (make, close, open again, delete), removing a project's data.
 - `tasks.js`: a task: its profiles, its agent in its own terminal and environment, renaming, copies for a new task.
 - `worktrees.js`: git for tasks (the user's git, never a shell): worktree, branch, files outside git, direnv.
+- `accounts.js`: the agents' accounts: the human's own config folder and those added, each a folder of its own.
 - `agents.js`: the agents to choose from, one entry each: find, install, start, resume. Agent-specific code goes
   here.
 - `project-profiles.js`: a task's profiles in order, open and closed: create, rename, describe, close, open,

@@ -207,6 +207,17 @@ command everywhere, without asking.
   from there), its maker's website, and Install for the others. Installing there starts nothing; the agent is chosen
   for a task when one is made, or with Change agent…. Kulisa does not remove or update agents: they are the
   user's programs, and the makers' installers update them themselves.
+- **Accounts** (the Agents window, `accounts.js`): an agent with a sign-in of its own, so one human runs a work and a
+  personal Claude side by side. Each is the agent with its own config folder, given to it by its variable
+  (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`: `config` in its `agents.js` entry); the agents without one (the terminal only)
+  have no accounts. The human's own folder (`~/.claude`, `~/.codex`, or what their variable names) is the agent's
+  first account, its id the agent's: taken over as it is, never signed in again, never removed (its row has no ×).
+  **Add Account** (an agent and a name) makes an empty folder in Kulisa's data (`agents/<id>/`); the agent asks to sign
+  in at its first start in a task, with its own login in that task's terminal. Every place that chooses an agent
+  (Project Settings…, Choose the Agent, Change agent…) lists the accounts under their agent. **×** removes an added
+  one after a question: its folder goes, with its sign-in, settings and conversations; a task or project that ran it
+  asks for an agent again. The project's own environment still comes last (direnv's `.envrc` may set
+  `CLAUDE_CONFIG_DIR`), as without Kulisa.
 - The dialog is part of the window, not a window of its own: no extra process, and its code is a module loaded only
   when it is needed: `agent-picker.js` (choosing) and `agents.js` (the Agents window) are two dialogs of their own
   around one list of agents with Install (`agent-list.js`), each with its own state.
@@ -267,7 +278,10 @@ project label's right-click menu opens its `projects/<id>` in the file manager (
 asks where it is or what takes the disk; nothing in it is for editing by hand, so it is no button in sight:
 
 ```
-projects.json                     the projects: id, name, folder, color, icon, agent (its new tasks')
+projects.json                     the projects: id, name, folder, repos, color, icon, agent (its new tasks': an account)
+accounts.json                     the agents' accounts added (accounts.js): [{ id, agent, name }]
+agents/<id>/                      an added account's config folder (CLAUDE_CONFIG_DIR, CODEX_HOME): its sign-in,
+                                  settings, conversations; gone when the account is removed
 settings.json                     the Kulisa zoom, the theme, where the projects' bar is; the windows: each one's
                                   projects (in the bar's order), the one shown, where it was
 deleted-folders.json              folders to remove at the next start (a session keeps its files open)

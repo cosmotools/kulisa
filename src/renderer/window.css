@@ -245,7 +245,9 @@ body > #term { display: none; }
     /* Choosing: what Install runs only for the chosen one */
     &:has(input:not(:checked)) .install-line { display: none; }
     .site { color: var(--text-muted); white-space: nowrap; &:hover { color: var(--text); } &:not([href]) { display: none; } }
-    .status { color: var(--text-muted); white-space: nowrap; } }
+    .status { color: var(--text-muted); white-space: nowrap; }
+    /* An account of the agent above it, set in under it */
+    &.account { padding-inline-start: 28px; } }
   .progress { margin: 10px 0 0; &:empty { display: none; } }
   details { margin-top: 6px; summary { color: var(--text-muted); } }
   pre { max-height: 180px; overflow: auto; margin: 6px 0 0; padding: 8px; border-radius: var(--radius); background: var(--window);

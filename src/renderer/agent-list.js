@@ -41,6 +41,9 @@ export function agentList(body, { choose = false, details = false, onChange = ()
       show();
       focus();
     },
+    // Again, after an account was added or removed.
+    async reload() { await fetch(); render(list.chosen()?.id); },
+    agents: () => agents,
   };
   const fetch = async () => ({ list: agents, home } = await kulisa.invoke('agents:list', details ? { details: true } : { check: true }));
   // ~ for the home folder, as a terminal shows it.
@@ -52,16 +55,20 @@ export function agentList(body, { choose = false, details = false, onChange = ()
       row.dataset.agent = a.id;
       const radio = row.querySelector('input');
       if (choose) { radio.value = a.id; radio.checked = a.id === selected; } else radio.remove();
-      row.querySelector('.name').textContent = a.maker ? `${a.name} · ${a.maker}` : a.name;
-      row.querySelector('.needs').textContent = a.needs || '';
-      if (details && a.path) {
+      // An account (accounts.js) under its agent: its name and its folder; the agent's own row says where yours is.
+      row.classList.toggle('account', !!a.account);
+      row.querySelector('.name').textContent = a.account || !a.maker ? a.name : `${a.name} · ${a.maker}`;
+      row.querySelector('.needs').textContent = a.account ? '' : [a.needs, a.own && `your account: ${short(a.own)}`].filter(Boolean).join(' · ');
+      if (details && a.account) row.querySelector('.where').textContent = `its own sign-in, in ${short(a.account)}`;
+      else if (details && a.path) {
         row.querySelector('.where').textContent = [a.version, short(a.path),
           a.onPath === false && 'not on your PATH: Kulisa runs it from here'].filter(Boolean).join(' · ');
       }
-      if (details && a.site) row.querySelector('.site').href = a.site;
-      row.querySelector('.install-line').textContent = a.install && !a.installed ? `Install runs ${a.maker || 'its maker'}'s installer: ${a.install}` : '';
-      row.querySelector('.status').textContent = a.installed ? (a.install ? 'Installed' : '') : 'Not installed';
-      row.querySelector('.install').hidden = a.installed || !a.install;
+      if (details && a.site && !a.account) row.querySelector('.site').href = a.site;
+      row.querySelector('.install-line').textContent = a.install && !a.installed && !a.account ? `Install runs ${a.maker || 'its maker'}'s installer: ${a.install}` : '';
+      row.querySelector('.status').textContent = a.installed ? (a.install && !a.account ? 'Installed' : '') : 'Not installed';
+      row.querySelector('.install').hidden = a.installed || !a.install || !!a.account;
+      row.querySelector('.remove').hidden = !(details && a.account);
       return row;
     }));
     update();
@@ -73,7 +80,14 @@ export function agentList(body, { choose = false, details = false, onChange = ()
     onChange();
   }
   rows.onchange = update;
-  rows.onclick = (e) => {
+  rows.onclick = async (e) => {
+    const gone = e.target.closest('.remove')?.closest('.agentrow');
+    if (gone) {
+      e.preventDefault();
+      const r = await kulisa.invoke('accounts:remove', { id: gone.dataset.agent });
+      if (!r?.error) await list.reload();
+      return;
+    }
     const row = e.target.closest('.install')?.closest('.agentrow');
     if (!row) return;
     e.preventDefault();

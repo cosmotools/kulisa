@@ -122,3 +122,23 @@ test("agents: a task's other folders go to Claude Code and Codex as --add-dir (C
   assert.equal(agent('claude').addDir('/k/web'), '/add-dir /k/web');
   assert.equal(agent('codex').addDir, undefined, 'others: a line saying so (tasks.js)');
 });
+
+test('accounts: the agent itself (the human\'s own folder) first, then those added; an added one has a folder of its own, gone when removed; the own one stays', () => {
+  const { Accounts } = require('../../src/main/accounts');
+  const data = path.join(root, 'accounts-data'), mine = path.join(root, 'my-claude');
+  fs.mkdirSync(mine, { recursive: true });
+  const defs = [{ id: 'claude', name: 'Claude Code', config: { env: 'CLAUDE_CONFIG_DIR', home: () => mine } }, { id: 'shell', name: 'Terminal only' }];
+  const marked = [];
+  const accounts = new Accounts(data, defs, (d) => marked.push(d));
+  assert.deepEqual(accounts.all().map((a) => [a.id, a.name, a.dir, a.own]), [['claude', 'Claude Code', mine, true], ['shell', 'Terminal only', null, true]]);
+  const work = accounts.add('claude', 'work');
+  assert.deepEqual([work.id, work.name, work.dir, work.own], ['claude-work', 'Claude Code · work', path.join(data, 'agents', 'claude-work'), false]);
+  assert.ok(fs.existsSync(work.dir));
+  assert.match(accounts.add('claude', 'Work').error, /already/);
+  assert.match(accounts.add('shell', 'x').error, /has no accounts/);
+  assert.match(accounts.add('claude', 'a b').error, /only/);
+  assert.deepEqual(new Accounts(data, defs).all().map((a) => a.id), ['claude', 'claude-work', 'shell'], 'kept');
+  assert.match(accounts.remove('claude').error, /your own account stays/);
+  assert.deepEqual(accounts.remove('claude-work'), { id: 'claude-work' });
+  assert.ok(!fs.existsSync(work.dir) && marked.includes(work.dir) && fs.existsSync(mine), "its folder gone, the human's own kept");
+});

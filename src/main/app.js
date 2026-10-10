@@ -8,6 +8,7 @@ const { EventEmitter } = require('events');
 const { stepZoom } = require('./profiles');
 const { CdpProxy } = require('./cdp-proxy');
 const { Store, PROJECT_COLORS } = require('./store');
+const { Accounts } = require('./accounts');
 const { signinPages } = require('./signin-pages');
 const { SessionCookies } = require('./session-cookies');
 const { Project, askRemoveProject, removeProjectData, faviconOf, addRepo, cloneRepo, defaultRepo, removeRepo, reposInfo, PROJECT_ICONS } = require('./projects');
@@ -367,7 +368,7 @@ function start(options = {}) {
   // JetBrains' ~/PycharmProjects) unless the human picks another, so they know where the agent's files are. A folder
   // that is there already must be empty; git init in it when asked, with an empty first commit: tasks get copies of
   // their own (worktrees) from it. With its color, icon and the agent its tasks run (project-editor.js).
-  const choices = () => ({ colors: PROJECT_COLORS, icons: PROJECT_ICONS, agents: known.filter((a) => !a.custom).map(({ id, name }) => ({ id, name })) });
+  const choices = () => ({ colors: PROJECT_COLORS, icons: PROJECT_ICONS, agents: shell.accounts.all().filter((a) => !a.agent.custom).map(({ id, name }) => ({ id, name })) });
   ipcMain.handle('project:new-defaults', () => ({ location: shell.projectsHome, sep: path.sep,
     color: store.nextColor(), ...choices() }));
   ipcMain.handle('project:pick-location', async (e, { location }) => {
@@ -513,7 +514,13 @@ function start(options = {}) {
     command: options.agent.command, shell: options.agent.shell, args: () => options.agent.args || [], voice: options.agent.voice,
     resume: options.agent.resume && (({ sessionId, transcript }) => sessionId && transcript && fs.existsSync(transcript) && options.agent.resume(sessionId)) };
   const known = [...(custom ? [custom] : []), ...(options.agents || agents.AGENTS)];
-  shell.agentFor = (id) => known.find((a) => a.id === (id ?? custom?.id)) || null;
+  // The agents with their accounts (accounts.js); an account is its agent with its config folder in its environment.
+  shell.accounts = new Accounts(userData, known, (dir) => store.markDeleted(dir));
+  shell.agentFor = (id) => {
+    const a = shell.accounts.find(id ?? custom?.id);
+    return a && { ...a.agent, id: a.id, agentId: a.agent.id, name: a.name, configDir: a.dir,
+      env: a.own || !a.agent.config ? {} : { [a.agent.config.env]: a.dir } };
+  };
   shell.findAgent = agents.findAgent;
   const choosing = new Map(); // task key -> resolve(agent or null)
   // Asked in the task's window. cancel: the human may leave it as it is (changing the agent; not when there is
@@ -528,16 +535,30 @@ function start(options = {}) {
   // The agents to choose from; with check, whether each is installed (for the task's folder: its environment);
   // with details (the Agents window), also where it is and its version.
   ipcMain.handle('agents:list', async (e, { check, details } = {}) => {
-    const w = at(e);
-    const list = await Promise.all(known.map(async (a) => {
-      const found = (check || details) && await agents.findAgent(a, w?.task?.folder || app.getPath('home'));
+    const w = at(e), found = new Map(); // each agent looked for once, whatever its accounts
+    const list = await Promise.all(shell.accounts.all().map(async ({ id, agent: a, name, dir, own }) => {
+      if ((check || details) && !found.has(a.id)) found.set(a.id, agents.findAgent(a, w?.task?.folder || app.getPath('home')));
+      const f = await found.get(a.id);
       return {
-        id: a.id, name: a.name, maker: a.maker, needs: a.needs, site: a.site, install: agents.installLine(a),
-        ...((check || details) && { installed: !!found }),
-        ...(details && { path: found?.path ?? null, onPath: found?.onPath ?? null, version: await agents.agentVersion(found) }),
+        id, agent: a.id, name, maker: a.maker, needs: a.needs, site: a.site, install: agents.installLine(a),
+        accounts: !!a.config, account: own ? null : dir, own: own && !!a.config && fs.existsSync(dir) ? dir : null,
+        ...((check || details) && { installed: !!f }),
+        ...(details && { path: f?.path ?? null, onPath: f?.onPath ?? null, version: await agents.agentVersion(f) }),
       };
     }));
     return { list, home: app.getPath('home') };
+  });
+  // An account added to an agent (the Agents window): its folder made, signed in at its first start in a task.
+  // Removed after a question: its folder goes, with its sign-in and conversations; the human's own is never removed.
+  ipcMain.handle('accounts:add', (e, { agent, name }) => { const a = shell.accounts.add(agent, name); return a.error ? a : { id: a.id }; });
+  ipcMain.handle('accounts:remove', async (e, { id }) => {
+    const a = shell.accounts.find(id);
+    if (!a || a.own) return { error: a ? "your own account stays: it is yours, not Kulisa's" : `no account ${id}` };
+    if (!await shell.ask({ message: `Remove the account ${a.name}?`, ok: 'Remove', danger: true,
+      detail: `Its folder ${a.dir} is deleted: its sign-in, settings and conversations. Tasks that ran it ask for an agent when they start again.` }, at(e))) {
+      return { error: 'the human said no' };
+    }
+    return shell.accounts.remove(id);
   });
   // The maker's installer, run when the human clicks Install (that is their go-ahead); its output goes to the window.
   ipcMain.handle('agents:install', async (e, { id }) => {

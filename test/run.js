@@ -30,15 +30,18 @@ const agent = { command: 'bash', args: ['-c', 'echo "agent: $FROM_RC"; exec cat 
 // folder of the test.
 const bin = path.join(root, 'bin');
 const agents = [
+  // With accounts (accounts.js) as Claude Code's, its folder in FAKE_CONFIG_DIR, which it prints.
   { id: 'fake', name: 'Fake agent', maker: 'Kulisa tests', needs: 'Nothing', command: 'kulisa-fake-agent', dirs: [bin],
-    install: { posix: `echo "installing the fake agent"; mkdir -p '${bin}' && printf '#!/bin/sh\\ncase "$1" in --version) echo "kulisa-fake-agent 1.2.3"; exit;; esac\\necho "fake agent in $PWD, ports + $KULISA_PORT_OFFSET"\\nexec cat\\n' > '${bin}/kulisa-fake-agent' && chmod +x '${bin}/kulisa-fake-agent' && printf '\\033[32mdone\\033]8;;https://kulisa.app\\007\\033]8;;\\007\\033[0m\\n'` }, // colored, a link: as installers print
+    config: { env: 'FAKE_CONFIG_DIR', home: () => path.join(root, 'fake-config') },
+    install: { posix: `echo "installing the fake agent"; mkdir -p '${bin}' && printf '#!/bin/sh\\ncase "$1" in --version) echo "kulisa-fake-agent 1.2.3"; exit;; esac\\necho "fake agent in $PWD, ports + $KULISA_PORT_OFFSET, config [$FAKE_CONFIG_DIR]"\\nexec cat\\n' > '${bin}/kulisa-fake-agent' && chmod +x '${bin}/kulisa-fake-agent' && printf '\\033[32mdone\\033]8;;https://kulisa.app\\007\\033]8;;\\007\\033[0m\\n'` }, // colored, a link: as installers print
     args: () => [] },
   { id: 'shell', name: 'Terminal only', maker: '', command: null, needs: 'No agent' },
 ];
 
 const tests = [];
 const test = (name, fn) => tests.push({ name, fn });
-for (const f of FILES) require(`./${f}`)(test);
+// A file that does not load (a syntax error) ends the run at once: Electron would wait, its app never ready.
+try { for (const f of FILES) require(`./${f}`)(test); } catch (e) { console.error(e); app.exit(2); }
 
 // A run that hangs (a test past its timeout, quitting) ends anyway: nothing runs on unseen.
 setTimeout(() => { console.error('the whole run took over 5 minutes: stopped'); app.exit(2); }, 5 * 60000).unref();

@@ -104,8 +104,8 @@ dialog { width: 560px; max-height: 85vh; padding: 0; flex-direction: column; bac
   .field ~ .hint { margin: 8px 0 0 calc(80px + var(--inset)); overflow-wrap: anywhere; }
   .check { display: flex; align-items: center; gap: var(--gap); margin: var(--inset) 0 0 calc(80px + var(--inset));
     input { height: auto; margin: 0; } small { color: var(--text-muted); } }
-  /* A field or a check a dialog leaves out in one of its uses (hidden) */
-  :is(.field, .check)[hidden] { display: none; }
+  /* A field, a check or a row a dialog leaves out in one of its uses (hidden) */
+  :is(.field, .check, .row)[hidden] { display: none; }
   footer { display: flex; justify-content: flex-end; gap: var(--gap); padding: 16px var(--pad); border-top: 1px solid var(--island-hi);
     .start { margin-inline-end: auto; } /* it and the buttons before it at the left end */
     button { min-width: 80px; } }

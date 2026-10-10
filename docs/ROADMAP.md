@@ -72,7 +72,8 @@ here; what is left of it stays.
        steps 3 and 4 (the project's default agent, masters).
     2. Projects as composites: built 2026-10-10 ([tasks.md](tasks.md), Projects and Tasks). Left: a task in the
        former folder (no git) is not moved when a repository comes; profiles and agents as catalogs (steps 3, 4).
-    3. The agents' catalog with accounts.
+    3. The agents' catalog with accounts: built 2026-10-10 ([tasks.md](tasks.md), "Choosing the agent"). Left: the
+       catalog in ☰ is the Agents window; a CLI's login started from there (today: at the first start in a task).
     4. Profiles: the flat store, masters and copies on first open, signing in to a master, a profile in several
        projects.
     5. Login-password pairs and the narrowed rule (needs "what is local", below).

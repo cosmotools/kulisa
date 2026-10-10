@@ -189,8 +189,12 @@
     <header><h2>Agents</h2><button class="x icon quiet" type="button" command="close" commandfor="agents" title="Close"
       aria-label="Close"><svg aria-hidden="true"><use href="#i-close"/></svg></button></header>
     <div class="body">
-      <p class="hint">The agents Kulisa can run in a task's terminal. Install one here; choose it for a task
-        when you make one, or with Change agent… in the terminal's menu.</p>
+      <p class="hint">The agents Kulisa can run in a task's terminal, with their accounts. Install one here; choose it
+        for a project (Project Settings…) or a task (Change agent… in the terminal's menu). An account is the agent with
+        a sign-in of its own (a work and a personal one side by side): it asks you to sign in at its first start in a
+        task. Yours (<code>~/.claude</code>, <code>~/.codex</code>) is the first.</p>
+      <form id="accountadd" class="row"><select id="accountagent" aria-label="Agent"></select><input id="accountname" data-name maxlength="64" placeholder="Account name, e.g. work" spellcheck="false" aria-label="Account name"><button id="accountaddbutton">Add Account</button></form>
+      <p class="error" id="accounterror"></p>
     </div>
     <footer><button class="primary" type="button" command="close" commandfor="agents">Close</button></footer>
   </dialog>
@@ -304,7 +308,7 @@
   <template id="tpl-agent">
     <label class="agentrow"><input type="radio" name="agent"><span class="what"><b class="name"></b><small class="needs"></small>
       <small class="where"></small><small class="install-line"></small></span><a class="site" target="_blank">Website</a><span
-      class="status"></span><button type="button" class="install">Install</button></label>
+      class="status"></span><button type="button" class="install">Install</button><button type="button" class="remove icon quiet" title="Remove this account: its folder goes, with its sign-in (asks first)" aria-label="Remove account" hidden><svg aria-hidden="true"><use href="#i-close"/></svg></button></label>
   </template>
   <!-- An open project in the projects' bar (projects.js): its island, as a tab group: its label first (a click folds
        it, dragging moves the project), then its tasks' tabs and + -->

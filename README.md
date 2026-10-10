@@ -63,7 +63,9 @@ there, so the project's environment (direnv's `.envrc`, nvm, mise) applies; when
 the terminal only. One that is not installed gets an **Install** button (Kulisa runs its maker's installer); on its
 first start the agent asks you to sign in to it. Each task keeps its choice; **Change agent…** in the
 terminal's right-click menu picks another (with a new conversation). **☰ → Agents…** (also on the Welcome screen)
-shows at any time which agents are installed, their versions and folders, and installs the others.
+shows at any time which agents are installed, their versions and folders, and installs the others; there **Add
+Account** gives Claude Code or Codex a second sign-in (a work and a personal one), a folder of its own; yours
+(`~/.claude`, `~/.codex`) is the first and stays as it is.
 
 **Tasks:** several tasks of a project at once, each with its own agent, in its project's group. **+** makes one at
 once, `task-<n>` until its agent names it (or you do: **Rename…** in its tab's menu): a git worktree on a branch of
@@ -106,6 +108,7 @@ src/main/        Electron main process
   names.js         the one rule for names of projects, tasks and profiles; slugs for ids and folders
   tasks.js         a task: its profiles, agent (terminal, environment), folder and name; copies for a new task
   agents.js        the agent CLIs to choose from: how to find, install, start and resume each
+  accounts.js      the agents' accounts: your own config folder and those added in ☰ → Agents…
   worktrees.js     git for tasks: worktree and branch, files outside git copied, changes, renaming, removal
   project-profiles.js  a task's profiles in order, open and closed: create, rename, describe, close, open, delete
   avatars.js       the profiles' pictures to choose from (Noto Emoji's, in src/renderer/avatars/)

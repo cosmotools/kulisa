@@ -141,10 +141,10 @@ class Task {
     this.agent = agent;
     await this.project.addCopies(this); // the project's repositories added since
     const dirs = this.dirs(), more = (dirs.length && agent.dirs?.(dirs)) || {};
-    for (const c of this.entry.copies || []) await agent.prepare?.({ folder: c.folder, project: { folder: c.repo, ...this.project.agentData() } });
+    for (const c of this.entry.copies || []) await agent.prepare?.({ folder: c.folder, project: { folder: c.repo, ...this.project.agentData() }, configDir: agent.configDir });
     // The program by name, as the human would type it, unless the shell does not find it yet (just installed).
     const command = found.onPath ? agent.command : found.path;
-    this.pty = await startTerminal((channel, data) => this.window?.send(channel, data), { command, shell: agent.shell, cwd: this.folder, env: { ...this.env(), ...more.env },
+    this.pty = await startTerminal((channel, data) => this.window?.send(channel, data), { command, shell: agent.shell, cwd: this.folder, env: { ...this.env(), ...more.env, ...agent.env },
       args: [...(resume || []), ...(agent.args?.({ env: this.env(), plugin: shell.plugin }) || []), ...(more.args || []), ...(agent.voice?.args || [])] }, this.key);
     this.store.saveAgent({ ...this.store.agent(), agent: agent.id, started: true });
     this.window?.send('voice', { task: this.key, voice: this.voice() });
@@ -154,7 +154,7 @@ class Task {
   // agent has no use for a microphone.
   voice() {
     const v = this.agent?.voice;
-    return v ? { languages: v.languages, language: v.language(this.store.agent()), note: v.note || '', recording: !!this.dictating } : null;
+    return v ? { languages: v.languages, language: v.language({ ...this.store.agent(), configDir: this.agent.configDir }), note: v.note || '', recording: !!this.dictating } : null;
   }
   // Recording: the agent's key held, as a terminal shows a held key, its repeats. It stops when told, or after
   // DICTATION_LIMIT, or when that agent is gone (another started, the task closed).
@@ -174,7 +174,7 @@ class Task {
   }
   setVoiceLanguage(code) {
     const v = this.agent?.voice;
-    return v ? v.setLanguage(this.store.agent(), code) : { error: 'this agent has no dictation' };
+    return v ? v.setLanguage({ ...this.store.agent(), configDir: this.agent.configDir }, code) : { error: 'this agent has no dictation' };
   }
   // Another agent for this task, chosen by the human (the terminal's menu): the running one stops, the chosen one
   // starts with a new conversation (the old one stays in the old agent's own history).

@@ -18,6 +18,8 @@
 //   forget(ctx)              a task's copy is deleted: everything the agent keeps of its folder goes (conversations,
 //                            the folder's trust, history); ctx { folder, saved (its agent.json), project (the
 //                            project's folder, and an agent.json of one of its tasks with a transcript) }
+//   config                   its accounts (accounts.js): { env, home() }: the variable naming its config folder, and
+//                            the human's own folder (where it keeps its sign-in without that variable)
 //   voice                    dictation, when the agent has its own (the window's microphone button; none without):
 //                            args  more arguments, which turn it on as the button needs it
 //                            key, repeat  what is typed into its terminal again and again while it records, every
@@ -42,12 +44,16 @@ const AGENTS = [
     install: { posix: 'curl -fsSL https://claude.ai/install.sh | bash', win32: 'irm https://claude.ai/install.ps1 | iex' },
     // The Kulisa plugin: its MCP config (KULISA_MCP_URL), the profiles skill, the hooks.
     args: ({ plugin }) => ['--plugin-dir', plugin],
+    config: { env: 'CLAUDE_CONFIG_DIR', home: () => process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude') },
     resume: ({ sessionId, transcript }) => sessionId && transcript && fs.existsSync(transcript) && ['--resume', sessionId],
     // The task's other repositories, with their CLAUDE.md read as its own folder's (checked with 2.1.296).
     dirs: (folders) => ({ args: folders.flatMap((f) => ['--add-dir', f]), env: { CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD: '1' } }),
     addDir: (folder) => `/add-dir ${folder}`,
     // A task's folder is the project's own code: trusted as the project's folder is, so Claude Code does not ask again.
-    prepare: ({ folder, project }) => { if (project.transcript) trustLikeProject(claudeConfigOf(project.transcript), project.folder, folder); },
+    prepare: ({ folder, project, configDir }) => {
+      const file = configDir ? claudeConfigFile(configDir) : project.transcript && claudeConfigOf(project.transcript);
+      if (file) trustLikeProject(file, project.folder, folder);
+    },
     forget: (ctx) => forgetClaude(ctx),
     // Its voice mode (needs a Claude.ai account), on for Kulisa's sessions only (not the user's settings): space held
     // (its repeats coming) records, the text put where the cursor is, also after text already there, and left in the
@@ -62,6 +68,7 @@ const AGENTS = [
       note: 'Claude Code answers in it too: it is its language setting',
       languages: CLAUDE_LANGUAGES,
       language: (saved) => claudeLanguage(readJSON(claudeSettingsOf(saved))?.language),
+      // saved: its agent.json, with the account's configDir (tasks.js)
       setLanguage: (saved, code) => setClaudeLanguage(claudeSettingsOf(saved), code),
     },
   },
@@ -71,11 +78,12 @@ const AGENTS = [
     install: { posix: 'curl -fsSL https://chatgpt.com/codex/install.sh | sh', win32: 'irm https://chatgpt.com/codex/install.ps1 | iex' },
     // Kulisa's MCP server and hooks as config overrides (TOML values), not written into the user's ~/.codex/config.toml.
     args: ({ env }) => ['-c', `mcp_servers.kulisa.url="${env.KULISA_MCP_URL}"`, '-c', `hooks=${codexHooks()}`],
+    config: { env: 'CODEX_HOME', home: () => process.env.CODEX_HOME || path.join(os.homedir(), '.codex') },
     // The conversation its SessionStart hook reported, else its last one in this folder (each task has its own).
     resume: ({ started, sessionId }) => started && ['resume', sessionId || '--last'],
     // The task's other repositories, writable as its own folder (checked with 0.160.1).
     dirs: (folders) => ({ args: folders.flatMap((f) => ['--add-dir', f]) }),
-    forget: ({ folder }) => forgetCodex(folder),
+    forget: ({ folder, configDir }) => forgetCodex(folder, configDir),
   },
   { id: 'shell', name: 'Terminal only', maker: '', command: null, needs: "No agent: your shell in the task's folder" },
 ];
@@ -88,10 +96,10 @@ function claudeLanguage(value) {
   return CLAUDE_LANGUAGES.find((c) => v === c || v === english.of(c).toLowerCase()
     || v === new Intl.DisplayNames([c], { type: 'language' }).of(c).toLowerCase()) || CLAUDE_LANGUAGES.find((c) => v.split('-')[0] === c) || 'en';
 }
-// Claude Code's settings file: in the config dir its sessions use (as claudeConfigOf), else CLAUDE_CONFIG_DIR or
-// ~/.claude, where a first session will look.
-function claudeSettingsOf({ transcript } = {}) {
-  const dir = transcript ? path.dirname(path.dirname(path.dirname(transcript))) : process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
+// Claude Code's settings file: in the config dir its sessions use (as claudeConfigOf), else its account's
+// (configDir), else CLAUDE_CONFIG_DIR or ~/.claude, where a first session will look.
+function claudeSettingsOf({ transcript, configDir } = {}) {
+  const dir = transcript ? path.dirname(path.dirname(path.dirname(transcript))) : configDir || process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
   return path.join(dir, 'settings.json');
 }
 const readJSON = (file) => { try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch { return null; } };
@@ -111,8 +119,9 @@ function setClaudeLanguage(file, code) {
 
 // Claude Code's own config file, as the session it reported tells it (<config dir>/projects/<folder>/<id>.jsonl, the
 // config dir being CLAUDE_CONFIG_DIR or ~/.claude), so it is the one the project's environment chose (direnv …).
-function claudeConfigOf(transcript) {
-  const dir = path.dirname(path.dirname(path.dirname(transcript)));
+function claudeConfigOf(transcript) { return claudeConfigFile(path.dirname(path.dirname(path.dirname(transcript)))); }
+// The config file of a config dir: ~/.claude keeps it next to it (~/.claude.json), CLAUDE_CONFIG_DIR inside.
+function claudeConfigFile(dir) {
   return path.basename(dir) === '.claude' && path.dirname(dir) === os.homedir() ? path.join(os.homedir(), '.claude.json') : path.join(dir, '.claude.json');
 }
 // Claude Code asks once per folder whether to trust it, and keeps the answer in its config file
@@ -202,9 +211,8 @@ const codexHooks = () => `{${Object.entries(CODEX_HOOKS).map(([event, to]) => {
 //   sessions/…/rollout-*.jsonl, archived_sessions/…   its conversations: the first line's payload.cwd is the folder
 //   config.toml                                       [projects."<folder>"]: its trust
 // Its own databases (state_*.sqlite) are not touched: their format is Codex's alone.
-function forgetCodex(folder) {
+function forgetCodex(folder, home = process.env.CODEX_HOME || path.join(os.homedir(), '.codex')) {
   if (!folder || !path.isAbsolute(folder)) return false;
-  const home = process.env.CODEX_HOME || path.join(os.homedir(), '.codex');
   const walk = (d) => (fs.existsSync(d) ? fs.readdirSync(d, { recursive: true, withFileTypes: true }) : [])
     .filter((e) => e.isFile() && e.name.endsWith('.jsonl')).map((e) => path.join(e.parentPath, e.name));
   for (const f of [...walk(path.join(home, 'sessions')), ...walk(path.join(home, 'archived_sessions'))]) {
