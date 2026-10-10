@@ -10,6 +10,7 @@ const { CdpProxy } = require('./cdp-proxy');
 const { Store, PROJECT_COLORS } = require('./store');
 const { Accounts } = require('./accounts');
 const { ProfileStore } = require('./profile-store');
+const { CookieSync } = require('./cookie-sync');
 const { nextAvatar } = require('./avatars');
 const { signinPages } = require('./signin-pages');
 const { SessionCookies } = require('./session-cookies');
@@ -67,6 +68,8 @@ function start(options = {}) {
   // The profiles and their masters (profile-store.js); after who one is changed, or a project got or let go of one,
   // every loaded task shows it (project-profiles.js, refresh), but the one it was changed in, which did.
   shell.profileStore = new ProfileStore(userData, (dir) => store.markDeleted(dir));
+  // Real accounts signed in once, in every task: non-local cookies kept in step between masters and copies.
+  shell.cookieSync = new CookieSync({ masterDir: (f) => shell.profileStore.masterDir(f), restore: (p) => shell.sessionCookies.restore(p) });
   // Test users' passwords, encrypted with the OS keyring (tasks.js, setLogin); never kept in the clear.
   shell.secrets = {
     available: () => safeStorage.isEncryptionAvailable(),
@@ -546,7 +549,7 @@ function start(options = {}) {
       else { w.sendProjects(); w.sendTasks(); }
     }
     shell.saveWindows();
-    shell.stopAutosave = shell.sessionCookies.autosave(allProfiles);
+    shell.stopAutosave = shell.sessionCookies.autosave(() => [...allProfiles(), ...shell.cookieSync.masters()]);
     shell.screenshot = (file) => first().screenshot(file);
     // KULISA_SHOT=<file.png>: save a screenshot of the window a few seconds after start (for checking UI changes).
     if (process.env.KULISA_SHOT) setTimeout(() => shell.screenshot(process.env.KULISA_SHOT).catch((e) => console.error('[shot]', e.message)), Number(process.env.KULISA_SHOT_DELAY || 4000));
@@ -723,6 +726,7 @@ function start(options = {}) {
     shell.saveWindows();
     shell.stopAutosave?.();
     for (const folder of [...(shell.masters?.keys() || [])]) await shell.closeMaster(folder); // their tabs and sign-ins saved
+    for (const m of shell.cookieSync.masters()) await shell.sessionCookies?.persist(m); // kept in step, not open in a window
     for (const p of allProfiles()) {
       await shell.sessionCookies?.persist(p);
       await p.disconnect();

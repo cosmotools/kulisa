@@ -127,7 +127,7 @@ class Project {
   }
   async dropProfile(folder) {
     const g = this.shell.profileStore.byFolder(folder);
-    if (g?.projects.length === 1) await this.shell.closeMaster(folder); // its master goes: its window first
+    if (g?.projects.length === 1) { await this.shell.closeMaster(folder); this.shell.cookieSync.forget(folder); } // its master goes: its window first
     for (const t of this.tasks.values()) await t.dropProfile(folder);
     if (g) this.shell.profileStore.removeFrom(g.id, this.id);
     this.shell.profilesChanged();

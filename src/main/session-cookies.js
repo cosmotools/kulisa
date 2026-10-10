@@ -44,6 +44,7 @@ class SessionCookies {
     await profile.session.cookies.flushStore().catch(() => {});
     profile.session.flushStorageData();
   }
+  // profile: a Profile, or { session, dir } (a master kept in step: cookie-sync.js).
 
   forget(profile) { fs.rmSync(this.file(profile), { force: true }); }
 

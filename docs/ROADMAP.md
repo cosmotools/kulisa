@@ -76,10 +76,10 @@ here; what is left of it stays.
        closes); Refresh brings cookies only (storage: step 6 has the same limit).
     5. Login-password pairs and the narrowed rule: built 2026-10-10 ([profiles.md](profiles.md), "Test users'
        sign-ins"; what is local: `local.js`, as proposed, with the project's own list in Project Settings…).
-    6. Cookies of non-local sites kept in step between a master and its copies (Electron's cookies `changed` event
-       and `cookies.set`), both ways: real accounts shared by all tasks. Limits: cookies only (sign-ins in
-       localStorage, as MSAL keeps them, are not synced), device-bound cookies (DBSC) to check in this Electron, races
-       between tasks to test; a logout of a real account in one task ends it in all.
+    6. Cookies of non-local sites kept in step between a master and its copies: built 2026-10-10
+       ([profiles.md](profiles.md), "Sign-ins kept in step"). Left: device-bound session cookies (DBSC) to check with
+       a real Google account in this Electron; sign-ins in a site's storage (MSAL) not kept in step; Refresh from
+       Master… now matters only for a local app's cookies, to keep or drop.
   - **Put off**: ongoing tasks ("watch the feedback for a month") with Kulisa kept in the tray (none in GNOME by
     default); rights on profiles, when real accounts come (one flag, "view only": reading allowed, clicks and typing
     refused; today the agent's own modes cover test users).

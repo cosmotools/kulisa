@@ -5,6 +5,9 @@
 //   electron test/run.js --restart --files=restart-profiles  after a restart: what the group left is still there
 // `npm test` runs every group, in parallel (start.js). Shared helpers: helpers.js.
 const { app } = require('electron');
+// A site that is not local (local.js) for the tests of real accounts' sign-ins kept in step (cookie-sync.js): the test
+// site under a name of its own.
+app.commandLine.appendSwitch('host-resolver-rules', 'MAP shop.example 127.0.0.1');
 const path = require('path');
 const fs = require('fs');
 const { start } = require('../src/main/app');

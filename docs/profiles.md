@@ -39,10 +39,11 @@ A profile is an Electron session on a folder of its own (`session.fromPath`), la
   a window of its own on the master (`master.js`): its page under a small bar (the address, Back, Forward, Reload),
   presenting as Chrome, its session cookies kept, and nothing automated attached to it (no CDP proxy, so no agent's
   tool, Playwright or picker reaches it, and no sign-in pause is needed). Closed, its tabs and sign-ins are saved;
-  every task's copy made from then on is signed in. A copy made before keeps its own sign-ins until **Refresh from
-  Master…** (the same menu, asked first): the master's cookies, session cookies included, replace the copy's, and its
-  tabs reload. Sign-ins a site keeps in its storage (Microsoft's MSAL, in localStorage) are not brought: sign in again
-  in that copy. Signing in in a task's pane works too, for that task only. Only the human signs in: Kulisa never types
+  its cookies reach every task's copy of the profile (below, "Sign-ins kept in step"). **Refresh from Master…** (the
+  same menu, asked first) replaces a copy's cookies with all of the master's, a local app's included, and reloads its
+  tabs. Sign-ins a site keeps in its storage (Microsoft's MSAL, in localStorage) are not brought: sign in again in that
+  copy. Signing in to a real account in a task's pane reaches the master and the other tasks too; to a local app, that
+  task only. Only the human signs in: Kulisa never types
   passwords or automates a sign-in, and never prints or logs cookies or tokens (CLAUDE.md, Rules).
 - **Rename**: in the editor (Manage Profiles…, or About this profile… in the pane's right-click menu). Only the
   name and id change; the folder (sign-ins), tabs and place stay.
@@ -193,6 +194,24 @@ methods. A row with one side empty says why, or is a gap to fill.
 | Read a terminal, stop what runs there | looks at it, Ctrl+C | `terminal_read`, `terminal_stop` | `Task.readTerminal`, `interruptTerminal` |
 | Close a terminal | ×, Close in its menu, `exit` | `terminal_stop` with `close` | `Task.closeTerminal`; a shell's exit too |
 
+## Sign-ins kept in step
+
+A real account is signed in to once, for every task (`cookie-sync.js`; built 2026-10-10): the cookies of sites that
+are not local (`local.js`) are kept in step between a profile's master and its copies open in tasks, both ways, as
+they change (Electron's cookies `changed` event, then `cookies.set` or `remove` in the others; a change it made itself
+is not taken back). A copy opening takes the master's first (its own non-local cookies give way). So a sign-in, a
+refreshed token or a sign-out in one task reaches the master and every other task with that profile open: signing out
+of a real account in one task signs it out everywhere. The cookies of local sites stay each copy's own: each task runs
+its own app, often with its own database, and cookies do not depend on the port, so shared they would sign the tasks
+out of each other.
+
+Taken: a cookie set or changed, or removed explicitly or sent already expired (a site's sign-out, `Max-Age=0`). Not
+taken: one replaced as part of a change (its new value comes as its own change), expired or evicted (each store does
+that itself). Masters not open in a window keep their session cookies in memory while Kulisa runs, saved with the
+others (every 30 s, as Kulisa quits). Limits: cookies only (sign-ins in a site's storage, as MSAL's, stay where they were
+made); device-bound session cookies (DBSC: a key per browser, Google's) are copied as any cookie and not tested yet;
+two tasks changing the same cookie at once end with the one that came last.
+
 ## Test users' sign-ins
 
 Real accounts are the human's to sign in to (Rules); a **test user of the app under test on this computer** is the
@@ -307,7 +326,8 @@ space (ROADMAP, "Profiles' caches").
 | `src/main/profiles.js` | a profile: its session, tabs (WebContentsView), the shell's Playwright connection, sign-in mode, zoom |
 | `src/main/error-page.html` | what a tab shows when its page did not load |
 | `src/main/profile-store.js` | the profiles, one store: who each is, its master, its projects, a test user's pair |
-| `src/main/local.js` | what is local: where a test user's pair may be typed |
+| `src/main/local.js` | what is local: where a test user's pair may be typed, which sites' cookies stay each task's |
+| `src/main/cookie-sync.js` | real accounts' cookies kept in step between a master and its copies |
 | `src/main/master.js`, `src/renderer/master.html`, `master.js`, `master.css` | a master's window, to sign in to it |
 | `src/main/project-profiles.js` | a task's profiles: copies of their masters made at their first open, open and closed; create, rename, describe, close, open, let go |
 | `src/main/avatars.js`, `src/renderer/avatars/` | the profiles' pictures (Noto Emoji) |

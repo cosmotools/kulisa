@@ -76,6 +76,8 @@ class Task {
       },
       start: async (profile, urls) => {
         await shell.sessionCookies.restore(profile); // before the first request of any tab
+        // Real accounts: the master's non-local cookies, then kept in step with it and the other tasks (cookie-sync.js).
+        await shell.cookieSync.attach(profile.folder, profile.session, this.project.entry.local || []);
         await Promise.all(urls.map((u, i) => profile.newTab(u, { activate: i === 0 }).ready));
         // The window opens even if the shell's connection fails; the agent's tools say so for this profile.
         if (!profile.signinMode) await profile.connect(profile.endpoint).catch((e) => console.error(`[kulisa] ${profile.id}: no Playwright connection: ${e.message.split('\n')[0]}`));
@@ -88,6 +90,7 @@ class Task {
         if (pick?.profile === p) pick.cancel();
         await clearHighlights(`${this.key}/${p.id}`);
         await shell.sessionCookies.persist(p);
+        shell.cookieSync.detach(p.folder, p.session);
         shell.proxy.removeProfile(p);
         await p.close();
       },

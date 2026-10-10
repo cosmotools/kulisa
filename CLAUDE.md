@@ -265,7 +265,8 @@ Modules (`src/main`):
 - `agents.js`: the agents to choose from, one entry each: find, install, start, resume. Agent-specific code goes
   here.
 - `profile-store.js`: the profiles, one store: who each is, its master, its projects. `master.js`: a master's window,
-  where the human signs in once for every task (nothing automated attached).
+  where the human signs in once for every task (nothing automated attached). `cookie-sync.js`: real accounts'
+  cookies kept in step between a master and its copies. `local.js`: what is local.
 - `project-profiles.js`: a task's profiles (its project's, each a copy of its master made at its first open), open
   and closed: create, rename, describe, close, open, let go. `avatars.js`: their pictures.
 - `profiles.js`: a profile: `session.fromPath(<task>/Profile <k>)` plus a `WebContentsView` per tab.

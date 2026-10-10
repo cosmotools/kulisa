@@ -165,6 +165,29 @@ module.exports = (test) => {
     assert.equal(await who(ctx, 'sam-admin'), 'Signed in as master');
   });
 
+  test("profiles: a real account's sign-in kept in step: signed in to a site (not local) in one task, it is in the others and the master; signed out, out everywhere; a local app's stays each task's", async (ctx) => {
+    const { shell, call } = ctx;
+    const first = shell.taskOf('project', 1), shop = 'http://shop.example:4417';
+    const inFirst = { call: (n, a) => call(n, a, first) };
+    await call('browser_navigate', { profile: 'sam-admin', url: `${shop}/app/login?name=real` });
+    assert.equal(await who(ctx, 'sam-admin'), 'Signed in as real');
+    await waitFor(async () => (await first.profiles.get('sam-admin').session.cookies.get({ domain: 'shop.example' })).some((c) => c.value === 'real'));
+    await call('browser_navigate', { profile: 'sam-admin', url: `${shop}/app` }, first);
+    assert.equal(await who(inFirst, 'sam-admin'), 'Signed in as real', 'in the other task too');
+    const master = require('electron').session.fromPath(shell.profileStore.masterDir(shell.profileStore.get('sam-admin').folder));
+    assert.ok((await master.cookies.get({ domain: 'shop.example' })).some((c) => c.value === 'real'), 'and in its master');
+    // Signed out in the first task: out in this one too.
+    await call('browser_navigate', { profile: 'sam-admin', url: `${shop}/app/logout` }, first);
+    await waitFor(async () => !(await shell.task.profiles.get('sam-admin').session.cookies.get({ domain: 'shop.example' })).length);
+    await call('browser_navigate', { profile: 'sam-admin', url: `${shop}/app` });
+    assert.equal(await who(ctx, 'sam-admin'), 'Signed out');
+    // A local app (127.0.0.1): each task's own sign-in, as before.
+    await call('browser_navigate', { profile: 'sam-admin', url: `${SITE}/app` });
+    assert.equal(await who(ctx, 'sam-admin'), 'Signed in as master');
+    await call('browser_navigate', { profile: 'sam-admin', url: `${SITE}/app` }, first);
+    assert.equal(await who(inFirst, 'sam-admin'), 'Signed in as sam');
+  });
+
   test('tasks: switching shows the other grid and terminal; the one left keeps running; the agent\'s state shows on its tab', async (ctx) => {
     const { shell, ui } = ctx;
     const second = shell.task, sam = second.profiles.get('sam-admin');

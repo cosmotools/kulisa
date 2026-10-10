@@ -36,6 +36,7 @@ function handler(req, res) {
     return send(302, '', 'text/plain', { 'set-cookie': `user=${name}; Path=/; SameSite=Lax`, location: '/app' });
   }
   // A test user's sign-in with a password (a profile's pair, browser_type_login): the password is "secret-<name>".
+  if (u.pathname === '/app/logout') return send(302, '', 'text/plain', { 'set-cookie': 'user=; Path=/; Max-Age=0', location: '/app' });
   if (u.pathname === '/app/signin') {
     return send(200, page('sign in', `<form action="/app/password"><input id="user" name="user" aria-label="User"><input id="pass" name="pass" type="password" aria-label="Password"><button>Sign in</button></form>`));
   }
