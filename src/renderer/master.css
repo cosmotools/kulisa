@@ -1,0 +1,4 @@
+/* The bar of a master's window (master.html): as high as main/master.js leaves it (BAR), the address filling it. */
+body { margin: 0; background: var(--window); color: var(--text); font: var(--font) system-ui, sans-serif; }
+#bar { display: flex; align-items: center; gap: var(--gap); height: 44px; box-sizing: border-box; padding: 0 var(--gap);
+  #go { flex: 1; display: flex; } #address { flex: 1; } .hint { color: var(--text-muted); white-space: nowrap; } }

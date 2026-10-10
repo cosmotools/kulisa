@@ -336,4 +336,4 @@ function onScreen(b) {
   return screen.getAllDisplays().some(({ workArea: a }) => b.x < a.x + a.width && b.x + b.width > a.x && b.y < a.y + a.height && b.y + b.height > a.y);
 }
 
-module.exports = { AppWindow };
+module.exports = { AppWindow, COLORS };

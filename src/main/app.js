@@ -14,7 +14,7 @@ const { nextAvatar } = require('./avatars');
 const { signinPages } = require('./signin-pages');
 const { SessionCookies } = require('./session-cookies');
 const { Project, askRemoveProject, removeProjectData, faviconOf, addRepo, cloneRepo, defaultRepo, removeRepo, reposInfo, PROJECT_ICONS } = require('./projects');
-const { AppWindow } = require('./window');
+const { AppWindow, COLORS } = require('./window');
 const worktrees = require('./worktrees');
 const agents = require('./agents');
 const { nameError } = require('./names');
@@ -91,6 +91,7 @@ function start(options = {}) {
   const mimic = options.mimicChrome !== false;
   const appDevTools = options.appDevTools ?? !app.isPackaged;
   let quitting = false; // from before-quit on (below): closing a window asks nothing, tabs closing save nothing
+  Object.defineProperty(shell, 'quitting', { get: () => quitting });
   // A task's profiles changed (now: right away), or its agent's state (tasks.js): its window shows it. Not
   // once quitting: the tabs are saved then, and each one closing as Kulisa quits saved its task's tabs again,
   // fewer each time, at last none (one in the background at once: 2026-10-08, the author's tabs all about:blank).
@@ -141,7 +142,8 @@ function start(options = {}) {
     for (const w of shell.windows) w.send('bar', bar);
   };
   const allTasks = () => [...shell.open.values()].flatMap((p) => [...p.tasks.values()]);
-  const allProfiles = () => allTasks().flatMap((task) => [...task.profiles.values()]);
+  // Every open profile: the tasks' copies, and the masters open to sign in to (master.js).
+  const allProfiles = () => [...allTasks().flatMap((task) => [...task.profiles.values()]), ...[...(shell.masters?.values() || [])].map((m) => m.profile)];
 
   // ---------- windows, projects and tasks ----------
   // A project is a folder with its tasks (store.js). Each window has a tab per project open in it, as a browser
@@ -526,6 +528,7 @@ function start(options = {}) {
     shell.mcp = await require('./mcp-server').startMcpServer(shell, { port: options.mcpPort ?? 4450 });
     require('./picker').installPicker(shell);
     require('./ghost').installGhost(shell);
+    require('./master').installMasters(shell, { preload: path.join(__dirname, '..', 'preload', 'index.js'), colors: () => COLORS[shell.shade()] });
 
     for (const [i, { w, shown }] of windows.entries()) {
       if (i) await w.load(shown);
@@ -623,6 +626,9 @@ function start(options = {}) {
   ipcMain.handle('views:hidden', (e, hidden, opts) => at(e)?.hideViews(hidden, opts));
   ipcMain.on('ask:answer', (e, { id, answer }) => at(e)?.answer(id, answer));
   ipcMain.handle('layout:load', (e, { task }) => onScreen(e, task)?.store.layout());
+  // A profile's master, to sign in to (master.js), and its cookies brought to this task's copy (tasks.js).
+  ipcMain.handle('profile:master', (e, { task, profile }) => onScreen(e, task)?.openMaster(profile) || noTask);
+  ipcMain.handle('profile:refresh', (e, { task, profile }) => onScreen(e, task)?.refreshProfile(profile) || noTask);
   ipcMain.handle('agent:change', (e, { task }) => { const w = onScreen(e, task); return w ? w.changeAgent() : noTask; });
   ipcMain.handle('terminal:open', (e, { task }) => { const w = onScreen(e, task); return w ? w.openTerminal() : noTask; });
   ipcMain.handle('terminal:close', (e, { task, id }) => onScreen(e, task)?.closeTerminal(id) || noTask);
@@ -705,6 +711,7 @@ function start(options = {}) {
     for (const task of allTasks()) if (task !== task.project.window?.task && task.loaded) task.list.saveTabs();
     shell.saveWindows();
     shell.stopAutosave?.();
+    for (const folder of [...(shell.masters?.keys() || [])]) await shell.closeMaster(folder); // their tabs and sign-ins saved
     for (const p of allProfiles()) {
       await shell.sessionCookies?.persist(p);
       await p.disconnect();

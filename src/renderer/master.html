@@ -1,0 +1,21 @@
+<!doctype html>
+<!-- The window of a profile's master (main/master.js): a bar over its page, where the human signs in once for every
+     task. The page itself is a native view under the bar. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'">
+  <title>Sign in</title>
+  <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="components.css">
+  <link rel="stylesheet" href="master.css">
+</head>
+<body>
+  <header id="bar">
+    <button id="back" type="button">Back</button><button id="forward" type="button">Forward</button><button id="reload" type="button">Reload</button>
+    <form id="go"><input id="address" spellcheck="false" aria-label="Address" placeholder="The site to sign in to, e.g. github.com"></form>
+    <span class="hint" id="what"></span>
+  </header>
+  <script src="master.js"></script>
+</body>
+</html>

@@ -140,6 +140,31 @@ module.exports = (test) => {
     await shell.screenshot(path.join(root, 'task.png'));
   });
 
+  test("profiles: Sign In to Master… opens its master in a window of its own, nothing automated on it; Refresh from Master… brings its sign-ins to this task's copy", async (ctx) => {
+    const { shell, ui, call } = ctx;
+    await rightClick(ui, `.ptab[data-panel="${panel(shell, 'sam-admin')}"] b`);
+    const rows = await menuRows(ui);
+    assert.ok(rows.includes('Sign In to Master…') && rows.includes('Refresh from Master…'));
+    await choose(ui, 'Sign In to Master…');
+    await waitFor(() => shell.masters.size === 1 && shell.masters.values().next().value.profile.get());
+    const m = shell.masters.values().next().value;
+    assert.equal(m.profile.dir, path.join(userData, 'profiles', shell.profileStore.get('sam-admin').folder));
+    assert.ok(![...shell.proxy.profiles.keys()].some((k) => k.startsWith('master/')), 'no CDP proxy for it: nothing automated reaches it');
+    // The human signs in there, by hand (here: its bar's address).
+    await m.win.webContents.executeJavaScript(`kulisa.invoke('master:go', '${SITE}/app/login?name=master')`);
+    await waitFor(() => m.profile.get().wc.getURL().endsWith('/app'));
+    await waitFor(async () => (await m.win.webContents.executeJavaScript(`document.getElementById('address').value`)).endsWith('/app'), 3000);
+    m.win.close();
+    await waitFor(() => !shell.masters.size);
+    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(m.profile.dir, 'Kulisa Tabs.json'), 'utf8')), [`${SITE}/app`], 'its tabs kept');
+    // This task's copy was made before: still its own sign-in, until Refresh from Master… (asked first).
+    assert.equal(await who(ctx, 'sam-admin'), 'Signed in as sam');
+    await ui(`act('profile:refresh', { profile: 'sam-admin' })`);
+    assert.match(ctx.asked.pop().message, /^Bring the sign-ins of Sam.admin's master to this task\?/);
+    await call('browser_navigate', { profile: 'sam-admin', url: `${SITE}/app` });
+    assert.equal(await who(ctx, 'sam-admin'), 'Signed in as master');
+  });
+
   test('tasks: switching shows the other grid and terminal; the one left keeps running; the agent\'s state shows on its tab', async (ctx) => {
     const { shell, ui } = ctx;
     const second = shell.task, sam = second.profiles.get('sam-admin');
@@ -264,7 +289,7 @@ module.exports = (test) => {
     await shown(1);
   });
   test('tasks: × closes a task: its agent stops and its tabs close, all else stays; asked first only while its agent works; its group\'s menu opens it again, its conversation resumed', async (ctx) => {
-    const { shell, ui } = ctx;
+    const { shell, ui, call } = ctx;
     const task = await newTask(ctx);
     assert.equal(task.n, 3);
     assert.equal(task.offset, 200);
@@ -286,6 +311,9 @@ module.exports = (test) => {
     await hook(task, 'stop'); // its turn over: closing asks nothing
     await waitFor(() => task.state === 'done');
     const sam = task.profiles.get('sam-admin');
+    // A copy of the master made after it was signed in to: signed in.
+    await call('browser_navigate', { profile: 'sam-admin', url: `${SITE}/app` });
+    assert.equal(await who(ctx, 'sam-admin'), 'Signed in as master');
     await ui(`${taskTab(3)}.querySelector('.close').click()`);
     // Its agent and tabs gone.
     await waitFor(() => task.entry.closed && !task.pty && sam.tabs.every((t) => t.wc.isDestroyed()) && shell.task?.n === 2);

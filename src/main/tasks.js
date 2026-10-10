@@ -93,6 +93,7 @@ class Task {
       // Its first open in this task: a copy of its master (sign-ins included, caches left out: store.js), its tabs those
       // of the master moved to this task's ports. Masters are not worked in, so nothing is open in one to flush.
       copy: async (e) => {
+        await shell.flushMaster(e.cfg.folder); // open to sign in to: what was done there is on disk
         await copyProfile(shell.profileStore.masterDir(e.cfg.folder), e.cfg.dir);
         e.urls = this.store.tabs(e.cfg.folder).filter((u) => u && u !== 'about:blank').map((u) => withOffset(u, this.offset));
         this.store.saveTabs(e.cfg.folder, e.urls);
@@ -326,6 +327,29 @@ class Task {
   // A caption over a profile's pane (ghost.js, browser_highlight); sticky ones stay until the next caption.
   caption(profile, caption, sticky = false) { this.window?.send('agent', { task: this.key, profile, caption, sticky }); }
 
+  // Signing in to a profile's master (master.js), for every task's copy made from it from then on. The human's only:
+  // the agent never signs in (profile_ask_signin asks the human to, in this task's copy).
+  openMaster(id) {
+    const r = this.find(id);
+    const p = r.profile || this.closed.get(id)?.cfg;
+    return p ? this.shell.openMaster(p.folder) : r;
+  }
+  // Refresh from Master…: the master's cookies (its sign-ins) brought to this task's copy, made before the master was
+  // signed in to; what was signed in only in this copy goes, so the human is asked first. Its open tabs reload.
+  async refreshProfile(id) {
+    const r = this.find(id);
+    if (r.error) return r;
+    const p = r.profile;
+    if (!await this.shell.ask({ message: `Bring the sign-ins of ${p.name}'s master to this task?`, ok: 'Refresh',
+      detail: "This task's copy of the profile takes its master's cookies: what was signed in only here goes. Sign-ins kept in a site's storage (as Microsoft's are) are not brought: sign in here again for those." }, this.window)) {
+      return { error: 'the human said no' };
+    }
+    await this.shell.flushMaster(p.folder);
+    const master = { session: session.fromPath(this.shell.profileStore.masterDir(p.folder)), dir: this.shell.profileStore.masterDir(p.folder) };
+    const set = await this.shell.sessionCookies.copy(master, p);
+    for (const t of p.tabs) if (!t.wc.isDestroyed()) t.wc.reload();
+    return { id, cookies: set };
+  }
   // A profile its project let go (projects.js, dropProfile): its copy gone; a task not loaded loses it from its file.
   async dropProfile(folder) {
     if (this.loaded) return this.list.drop(folder);

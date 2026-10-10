@@ -25,7 +25,7 @@ module.exports = (test) => {
     assert.equal(second.folder, `${project}@task-2`);
     assert.deepEqual([...shell.profiles.keys()], ['sam-admin', 'elon-buyer']);
     await ctx.call('browser_navigate', { profile: 'sam-admin', url: `${SITE}/app` });
-    assert.equal(await who(ctx, 'sam-admin'), 'Signed in as sam');
+    assert.equal(await who(ctx, 'sam-admin'), 'Signed in as master'); // its master's, brought by Refresh from Master…
     await ui(`document.querySelector('#tasklist .tasktab[data-task="project/1"]').click()`);
     await waitFor(() => shell.task.n === 1);
     await waitFor(async () => (await viewOn(shell, ui, 'sam-admin')) && viewOn(shell, ui, 'elon-buyer'));

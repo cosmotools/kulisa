@@ -35,8 +35,15 @@ A profile is an Electron session on a folder of its own (`session.fromPath`), la
   named after its account (`ann+test@shop.com`); no spaces (`names.js`, the author's rule). Name fields leave other
   characters out as they are typed or pasted, and the main process checks again (the agent's `profile_create` too).
   Ids and branches keep letters of any language.
-- **Sign in by hand** in its pane. Only the human signs in: Kulisa never types passwords or automates a sign-in,
-  and never prints or logs cookies or tokens (CLAUDE.md, Rules).
+- **Sign in by hand**, once for every task, in its master: **Sign In to Master…** in the pane's right-click menu opens
+  a window of its own on the master (`master.js`): its page under a small bar (the address, Back, Forward, Reload),
+  presenting as Chrome, its session cookies kept, and nothing automated attached to it (no CDP proxy, so no agent's
+  tool, Playwright or picker reaches it, and no sign-in pause is needed). Closed, its tabs and sign-ins are saved;
+  every task's copy made from then on is signed in. A copy made before keeps its own sign-ins until **Refresh from
+  Master…** (the same menu, asked first): the master's cookies, session cookies included, replace the copy's, and its
+  tabs reload. Sign-ins a site keeps in its storage (Microsoft's MSAL, in localStorage) are not brought: sign in again
+  in that copy. Signing in in a task's pane works too, for that task only. Only the human signs in: Kulisa never types
+  passwords or automates a sign-in, and never prints or logs cookies or tokens (CLAUDE.md, Rules).
 - **Rename**: in the editor (Manage Profiles…, or About this profile… in the pane's right-click menu). Only the
   name and id change; the folder (sign-ins), tabs and place stay.
 - **Who it is** (the description): a few words on who the profile is in the app under test, its role, what it can do
@@ -178,7 +185,8 @@ methods. A row with one side empty says why, or is a gap to fill.
 | Read a page | looks at it | `browser_snapshot`, `browser_screenshot`, console, network | Playwright |
 | Act in a page | mouse, keyboard | `browser_click`, `browser_type`, `browser_press_key`, `browser_hover`, `browser_select_option`, `browser_file_upload`, `browser_evaluate` | the page itself; Playwright over the proxy |
 | Answer a dialog | the dialog in the pane | `dialog` on the action that opened it | `Profile._dialog`, `answerDialog` |
-| Sign in | by hand | never (Rules); asks with `profile_ask_signin` | the sign-in pause |
+| Sign in | by hand, in its master (Sign In to Master…) or a task's pane | never (Rules); asks with `profile_ask_signin` | `master.js`; the sign-in pause |
+| Bring the master's sign-ins to a task's copy | Refresh from Master… | none: it replaces sign-ins, the human's to decide | `Task.refreshProfile`, `SessionCookies.copy` |
 | Open a terminal next to the agent's, run in it | + in the terminal's header, then types | `terminal_run` (a name and a command) | `Task.openTerminal`, `runInTerminal` |
 | Read a terminal, stop what runs there | looks at it, Ctrl+C | `terminal_read`, `terminal_stop` | `Task.readTerminal`, `interruptTerminal` |
 | Close a terminal | ×, Close in its menu, `exit` | `terminal_stop` with `close` | `Task.closeTerminal`; a shell's exit too |
@@ -274,6 +282,7 @@ space (ROADMAP, "Profiles' caches").
 | `src/main/profiles.js` | a profile: its session, tabs (WebContentsView), the shell's Playwright connection, sign-in mode, zoom |
 | `src/main/error-page.html` | what a tab shows when its page did not load |
 | `src/main/profile-store.js` | the profiles, one store: who each is, its master, its projects |
+| `src/main/master.js`, `src/renderer/master.html`, `master.js`, `master.css` | a master's window, to sign in to it |
 | `src/main/project-profiles.js` | a task's profiles: copies of their masters made at their first open, open and closed; create, rename, describe, close, open, let go |
 | `src/main/avatars.js`, `src/renderer/avatars/` | the profiles' pictures (Noto Emoji) |
 | `src/main/store.js` | `profiles.json`, the profile folders, their tabs |

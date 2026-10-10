@@ -471,6 +471,9 @@ function paneMenu(pane) {
   return [
     { label: 'New tab', keys: keyText('tab.new'), run: () => newTab(pane) },
     { label: 'About this profile…', run: () => profileEditor.about(p.key) },
+    // Its master (master.js): signed in to there, every new task's copy is too; one made before takes its cookies.
+    { label: 'Sign In to Master…', run: () => act('profile:master', { profile: p.id }) },
+    { label: 'Refresh from Master…', run: () => act('profile:refresh', { profile: p.id }) },
     { label: 'Close profile', run: () => act('profile:close', { profile: p.id }) },
     '-',
     { label: 'Delete profile…', run: () => deleteProfile(p) },
