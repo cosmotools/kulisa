@@ -38,17 +38,41 @@ const menuRows = async (ui) => {
 };
 const closeMenu = async (ui) => {
   await ui(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); 0`);
-  await waitFor(async () => !(await ui(`!!${MENU}`)));
+  await waitFor(async () => !(await ui(`!!document.querySelector('[data-state="open"]:is(.menu, [role="listbox"])')`)));
 };
 // The open projects in the projects' bar (their islands): their names, the shown one with ' *'.
 const projectTabs = (ui) => ui(`[...document.querySelectorAll('#projectTabs .pisland')].map((t) => t.querySelector('.plabel .name').textContent + (t.classList.contains('active') ? ' *' : ''))`);
 const projectTab = (id) => `document.querySelector('#projectTabs [data-project="${id}"]')`;
+// A click as the mouse makes it (the press, the release, the click) on an element: tabs are chosen on the press
+// (Reka's Tabs, as a browser's).
+const click = (ui, el) => ui(`(() => { const e = ${el}, r = e.getBoundingClientRect();
+  const at = { bubbles: true, cancelable: true, composed: true, button: 0, clientX: r.x + r.width / 2, clientY: r.y + r.height / 2 };
+  for (const t of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click']) e.dispatchEvent(new (t.startsWith('pointer') ? PointerEvent : MouseEvent)(t, { ...at, pointerType: 'mouse', isPrimary: true, buttons: /down/.test(t) ? 1 : 0 })); })()`);
 // A project shown again as the human does it: a click on the task it shows, in its island.
 // Once its island is drawn: the bar is drawn again as projects load (seen after a restart, on a slow screen).
 const showProject = async (ui, id) => {
   const tab = `${projectTab(id)}?.querySelector('.tasktab.selected')`;
   await waitFor(() => ui(`!!${tab}`));
-  return ui(`${tab}.click()`);
+  return click(ui, tab);
+};
+// Kulisa's selects (SelectBox.vue, Reka's Select): the chosen value; the values to choose from; one chosen as the mouse
+// does (the list opens on the press) and a row chosen with Enter (the release over a row chooses only once the pointer
+// has moved from the press).
+const chosen = (ui, id) => ui(`document.getElementById(${JSON.stringify(id)}).dataset.value`);
+const openSelect = async (ui, id) => {
+  await ui(`document.getElementById(${JSON.stringify(id)}).dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, button: 0, pointerType: 'mouse', isPrimary: true }))`);
+  await waitFor(() => ui(`!!document.querySelector('[role="listbox"][data-state="open"]')`));
+};
+const selectValues = async (ui, id) => {
+  await openSelect(ui, id);
+  const values = await ui(`[...document.querySelectorAll('[role="listbox"] .item')].map((o) => o.dataset.value)`);
+  await closeMenu(ui);
+  return values;
+};
+const select = async (ui, id, value) => {
+  await openSelect(ui, id);
+  await ui(`document.querySelector('[role="listbox"] .item[data-value=${JSON.stringify(value)}]').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }))`);
+  await waitFor(async () => (await chosen(ui, id)) === value);
 };
 // A project closed as the human does it: the middle button on its label (its right-click menu has Close Project too).
 const closeProject = (ui, id) => ui(`${projectTab(id)}.querySelector('.plabel').dispatchEvent(new MouseEvent('auxclick', { button: 1, bubbles: true }))`);
@@ -96,4 +120,5 @@ const ctrl = (wc, keyCode) => { wc.focus(); press(wc, keyCode, 'control'); };
 const near = (a, b) => Math.abs(a - b) < 1e-6;
 
 module.exports = { assert, root, userData, project, pfile, savedTabs, savedWindows, panel, SITE, sleep, waitFor, who, menuRows, choose, projectTabs, projectTab, showProject, closeProject, manageProfiles, menuOpen, closeMenu, rightClick,
+  click, chosen, selectValues, select,
   box, pageBox, viewOn, dock, press, ctrl, near };

@@ -222,7 +222,7 @@ module.exports = (test) => {
     assert.equal(await ui(`${row}.querySelector('.password').placeholder`), 'Password kept (type to change it)');
     await ui(`(() => { const f = ${row}.querySelector('.password'); f.value = 'secret-tess'; f.dispatchEvent(new Event('change')); })()`);
     await waitFor(() => ui(`${row}.querySelector('.password').value === ''`));
-    await ui(`(() => { const f = ${row}.querySelector('.login'); f.value = 'tess'; f.dispatchEvent(new Event('change')); })()`);
+    await ui(`(() => { const f = ${row}.querySelector('.login'); f.value = 'tess'; f.dispatchEvent(new Event('input')); f.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); })()`);
     await waitFor(() => shell.profileStore.get('tess').login?.user === 'tess');
     await ui(`document.getElementById('closeProfiles').click()`);
     await call('browser_navigate', { profile: 'tess', url: `${SITE}/app/signin` });

@@ -73,12 +73,25 @@ module.exports = (test) => {
     assert.equal(await who(ctx, 'temp'), 'Signed out');
     await ui(`act('profile:delete', { profile: 'temp' })`);
   });
-  test('rename in the profile editor', async ({ shell, ui }) => {
+  test('rename in the profile editor: the name is text until it is clicked; typed and Enter saves it, Esc puts it back', async ({ shell, ui }) => {
     await manageProfiles(ui);
-    const name = `document.querySelector('#plist .prow[data-profile="elon-buyer"]').querySelector('.name')`;
-    await ui(`(() => { const n = ${name}; n.value = 'Elon.shopper'; n.dispatchEvent(new Event('change')); })()`);
+    const wc = shell.win.webContents;
+    shell.win.focus(); wc.focus(); // the keyboard in the window, as the human's hands: focus events come then
+    const field = (id, part) => `document.querySelector('#plist .prow[data-profile="${id}"] ${part}')`;
+    const key = (keyCode, char) => { for (const type of ['keyDown', ...(char ? ['char'] : []), 'keyUp']) wc.sendInputEvent({ type, keyCode: type === 'char' ? char : keyCode }); };
+    const rename = async (id, name, keyCode, char) => {
+      await waitFor(() => ui(`!!${field(id, '.preview')}?.checkVisibility()`));
+      await ui(`${field(id, '.preview')}.focus()`); // a click or Tab: it is edited in place, all of it chosen
+      await waitFor(() => ui(`document.activeElement === ${field(id, '.name')}`));
+      await wc.insertText(name);
+      key(keyCode, char);
+    };
+    await rename('elon-buyer', 'Elon.shopper', 'Enter', '\r');
     await waitFor(() => shell.profiles.has('elon-shopper'));
-    await ui(`(() => { const n = document.querySelector('#plist .prow[data-profile="elon-shopper"]').querySelector('.name'); n.value = 'Elon.buyer'; n.dispatchEvent(new Event('change')); })()`);
+    await rename('elon-shopper', 'Elon.nobody', 'Escape');
+    await waitFor(() => ui(`${field('elon-shopper', '.preview')}?.textContent === 'Elon.shopper'`));
+    assert.ok(shell.profiles.has('elon-shopper'), 'Esc: not renamed');
+    await rename('elon-shopper', 'Elon.buyer', 'Enter', '\r');
     await waitFor(() => shell.profiles.has('elon-buyer'));
     await ui(`document.getElementById('closeProfiles').click()`);
   });

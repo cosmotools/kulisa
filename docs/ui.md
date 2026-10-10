@@ -62,7 +62,8 @@ Each icon is drawn once, as a `<symbol id="i-…">` in the sprite (`Sprite.vue`,
 | `i-mic` | dictation's microphone in the terminal's header (Lucide's mic) |
 | `i-users` | the profiles' chip on every task's tab (Lucide's users) |
 | `i-p-cart`, `i-p-briefcase`, `i-p-globe`, `i-p-flask`, `i-p-rocket`, `i-p-code`, `i-p-building`, `i-p-people`, `i-p-book`, `i-p-heart` | a project's icon to choose (Lucide's shopping-cart, briefcase, globe, flask-conical, rocket, code, building-2, users-round, book-open-text, heart), drawn in its color (`projectIcon`, `lib/common.ts`) |
-| `i-working`, `i-waiting`, `i-done` | an agent's state on a tab (`.state`) |
+| `i-working`, `i-waiting`, `i-done` | an agent's state on a tab (`.state`); `i-done` also checks the chosen row of a menu or a select, and a checkbox |
+| `i-down` | a select's button (`SelectBox.vue`) |
 
 An icon is 16 px; × and + are 14 px, as in Chrome (`.icon`), and so is an agent's state. ☰'s and the agent's states are Lucide's (lucide.dev, ISC), drawn on 24 × 24 with
 their lines thickened to match; take a new one from there rather than drawing it. The sprite takes no room but is not
@@ -94,12 +95,31 @@ every other `<svg>` uses the sprite.
 - `.removable`: a row with a × (`button.remove.icon.quiet`) at its end, shown on hover or focus; the row is lit as
   one. A recent project in the project menu and on the Welcome screen; a project's repository, agent and profile in the
   projects' manager.
-- `.item[aria-current="true"]`: the chosen row of a list, lit (a project in the projects' manager).
-- A radio at a row's start (`input[type="radio"]` in an `.item`, the row a `<label>`): the default of a list, exactly one
-  (a project's repositories and agents in the manager).
+- `.item[aria-selected="true"]`: the chosen row of a list (Reka's Listbox), lit (a project in the projects' manager).
 - `.dot`: a 10 px circle in `--color`, a project's.
-- `.choices`: icon buttons (`.icon`, `aria-pressed`) to choose one of, the chosen one ringed in `--accent`: a
-  profile's pictures, a project's colors (a `.dot` each) and icons.
+
+### Controls
+
+The window's controls are Reka UI's, in this look (CLAUDE.md, Window UI):
+
+- `.radio`: a radio (Reka's `RadioGroupItem`, its `RadioGroupIndicator` the dot), in a `RadioGroupRoot`: at a row's
+  start (the row a `<label>`), the default of a list, exactly one (a project's repositories and agents in the
+  manager), the agent to start (`AgentList.vue`). The arrows move between them.
+- `.checkbox`: a checkbox (Reka's `CheckboxRoot`, its `CheckboxIndicator` the check, `i-done`): Create Git repository.
+- `SelectBox.vue`: one of a few (Reka's `Select`): a button (`.select`) with the chosen one and `i-down`; its list a
+  menu's (`.menu`, rows `.item`, the chosen one checked). `v-model`, `options: [{ value, label }]`; `''` is a value too.
+- `.choices`: icon buttons (`.icon`) to choose one of, the chosen one ringed in `--accent`: a profile's pictures and
+  a project's icons (Reka's `ToggleGroup`, one always chosen), a project's colors (its `ColorSwatchPicker`, a `.dot`
+  each: the color's name for screen readers).
+- `.editable`: a value edited in place (Reka's `Editable`: a profile's name, who it is, its test login): text in a
+  field's box (`.preview`), a click or Tab edits it; Enter or leaving saves, Shift+Enter is a new line where it has
+  lines, Esc puts it back (and leaves the dialog open).
+- Fields (Reka's `FieldRoot`, `FieldLabel`, `FieldControl`, `FieldDescription`, `FieldError`) in `.field`; a
+  dialog's form is its `FormRoot` (`Modal.vue`, `errors`: the main process's refusal at its field).
+- Tabs: a pane's tabs and the tasks' tabs are Reka's `Tabs` (`activationMode` manual): chosen on the press, as a
+  browser's (not on their ×), one Tab stop for the strip, the arrows move and Enter chooses.
+- `Toggle`: a button that stays on (Pick, `[data-state="on"]`).
+- `Collapsible`: something shown on demand (an installer's Details, a profile's pictures to choose from).
 - `.avatar`: a profile's picture (`<img>`, `avatarSrc(name)` in `lib/common.ts`; `Avatars.vue` the ones to choose from), 16 px; `--avatar` where a place needs
   another size (22 px in a profile's row, `ProfileRow.vue`).
 - `.striptab`: a tab of a strip on an island, as a browser's: the agent's `.state`, `.name`, × at the end
@@ -131,7 +151,8 @@ Every dialog is `Modal.vue`, Reka UI's Dialog (`reka-ui`) with the same parts:
   (`.dialog`).
 - `.body`: `.hint` (what it is about, muted), `.field` (a label and its input, the labels in one column; `.pick` in
   it: the input with its button, Location and Browse…), `.row` (a line of controls under the fields: Add Folder…,
-  Add Agent…, Add Account), `.check` (a checkbox in the fields' column), `.error` (hidden while empty).
+  Add Agent…, Add Account), `.check` (a `.checkbox` in the fields' column), `.error` (hidden while empty); a field's
+  `.hint` under it (its `FieldDescription`).
 - `footer`: the buttons at the right end, the main one last; `.start` puts a button at the left end. A button that
   only closes is Reka's `DialogClose`.
 - With `form` the content and the buttons are a form: Enter submits.

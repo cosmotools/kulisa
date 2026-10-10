@@ -12,6 +12,7 @@
     <!-- Back, forward, reload: Chrome's -->
     <symbol id="i-back" viewBox="0 0 16 16"><path d="M13 8H3.5M7.5 4 3.5 8l4 4"/></symbol>
     <symbol id="i-forward" viewBox="0 0 16 16"><path d="M3 8h9.5M8.5 4l4 4-4 4"/></symbol>
+    <symbol id="i-down" viewBox="0 0 16 16"><path d="m4 6 4 4 4-4"/></symbol>
     <symbol id="i-reload" viewBox="0 0 16 16"><path d="M13 8a5 5 0 1 1-1.46-3.54M12.5 1.8v3h-3"/></symbol>
     <!-- Pick: DevTools' inspect icon, a square and an arrow at its corner -->
     <symbol id="i-pick" viewBox="0 0 16 16"><path d="M13.5 7V3.5a1 1 0 0 0-1-1h-9a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1H7"/><path fill="currentColor" d="M9 9l5.5 2-2.4.9-.9 2.4z"/></symbol>

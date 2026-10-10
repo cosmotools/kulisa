@@ -18,10 +18,32 @@ button.danger { background: var(--danger); border-color: var(--danger); color: v
   &:hover:not(:disabled) { background: color-mix(in srgb, var(--danger) 85%, white); } }
 /* A profile's picture (avatars.js): --avatar, its size where a place needs another */
 .avatar { width: var(--avatar, 16px); height: var(--avatar, 16px); flex: none; }
-/* Icon buttons to choose one of (.icon each, aria-pressed): a profile's pictures, a project's colors and icons; the
-   chosen one ringed */
-.choices { display: flex; flex-wrap: wrap; gap: 2px; &[hidden] { display: none; }
-  [aria-pressed="true"] { background: var(--island-hi); box-shadow: inset 0 0 0 2px var(--accent); } }
+/* Icon buttons to choose one of (.icon each; Reka's ToggleGroup, or its ColorSwatchPicker for colors): a profile's
+   pictures, a project's colors and icons; the chosen one ringed */
+.choices { display: flex; flex-wrap: wrap; gap: 2px; outline: none; &[hidden] { display: none; }
+  :is([aria-pressed="true"], [aria-selected="true"]) { background: var(--island-hi); box-shadow: inset 0 0 0 2px var(--accent); }
+  [data-highlighted] { background: var(--hover); } }
+/* A radio (Reka's RadioGroupItem, its RadioGroupIndicator the dot): the default of a list (a project's repositories,
+   its agents), the agent to start */
+.radio { display: grid; place-items: center; flex: none; width: 16px; height: 16px; padding: 0; border-radius: 50%;
+  background: var(--field); &[data-state="checked"] { border-color: var(--accent); }
+  > span { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); } }
+/* A checkbox (Reka's CheckboxRoot, its CheckboxIndicator the check) */
+.checkbox { display: grid; place-items: center; flex: none; width: 16px; height: 16px; padding: 0; background: var(--field);
+  &[data-state="checked"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+  svg { width: 12px; height: 12px; } }
+/* A value edited in place (Reka's Editable: a profile's name, who it is, its test login): shown as text in a field's
+   box (.preview, its placeholder dim when empty), a click or Tab edits it in an input of the same size */
+.editable { display: block; min-width: 0;
+  .preview { display: block; min-height: var(--control); padding: 5px 8px; border: 1px solid transparent; border-radius: var(--radius);
+    color: var(--text-strong); white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; outline: none;
+    &:is(:hover, :focus-visible) { border-color: var(--line); } }
+  &[data-empty] .preview { color: var(--text-muted); }
+  :is(input, textarea) { width: 100%; } }
+/* A field to choose one of a few (SelectBox.vue, Reka's Select): a button with the chosen one and a chevron; its list
+   a menu (.menu) */
+.select { display: flex; align-items: center; justify-content: space-between; gap: var(--gap); min-width: 0; background: var(--field);
+  color: var(--text-strong); text-align: start; svg { color: var(--text-dim); } }
 /* A project's color (--color on it or above) */
 .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; background: var(--color); }
 /* A tab of a strip on an island, as a browser's (TaskTab.vue): the agent's .state, the .name, × at the end
@@ -72,16 +94,14 @@ svg:has(> use) { width: 16px; height: 16px; flex: none; fill: none; stroke: curr
    a line under it, a key */
 .item { display: flex; align-items: center; gap: var(--inset); width: 100%; height: auto; min-height: var(--row);
   padding: 6px var(--inset); text-align: start; border: none; background: none;
-  &:is(:hover, :focus-visible):not(:disabled), &[data-highlighted] { background: var(--island-hi); outline: none; }
+  &:is(:hover, :focus-visible):not(:disabled, [aria-selected="true"]), &[data-highlighted] { background: var(--island-hi); outline: none; }
   &[data-disabled] { opacity: .35; } /* a menu's row that does nothing now, as a disabled button */
   .text { flex: 1; display: flex; flex-direction: column; min-width: 0; }
   small { color: var(--text-muted); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   kbd { font: inherit; color: var(--text-muted); }
   :is(small, kbd):empty { display: none; }
-  /* The chosen row of a list (a project in the projects' manager) */
-  &[aria-current="true"] { background: var(--island-hi); color: var(--text-strong); }
-  /* A radio at its start: the default of a list (a project's repositories, its agents) */
-  input[type="radio"] { flex: none; height: auto; margin: 0; accent-color: var(--accent); } }
+  /* The chosen row of a list (a project in the projects' manager: Reka's Listbox) */
+  &[aria-selected="true"] { background: var(--island-hi); color: var(--text-strong); } }
 /* A row with a × at its end, shown on hover or focus (removing a recent project); the row lit as one */
 .removable { display: flex; align-items: center; border-radius: var(--radius);
   &:is(:hover, :focus-within) { background: var(--island-hi); }
@@ -110,7 +130,9 @@ svg:has(> use) { width: 16px; height: 16px; flex: none; fill: none; stroke: curr
   /* Under the fields, in the fields' column */
   .field ~ .hint { margin: 8px 0 0 calc(var(--label) + var(--inset)); overflow-wrap: anywhere; }
   .check { display: flex; align-items: center; gap: var(--gap); margin: var(--inset) 0 0 calc(var(--label) + var(--inset));
-    input { height: auto; margin: 0; } small { color: var(--text-muted); } }
+    small { color: var(--text-muted); } }
+  /* A field's description under it, in the fields' column (Reka's FieldDescription) */
+  .field > .hint { grid-column: 2; margin: 0; overflow-wrap: anywhere; &:empty { display: none; } }
   /* A field, a check or a row a dialog leaves out in one of its uses (hidden) */
   :is(.field, .check, .row)[hidden] { display: none; }
   footer { display: flex; justify-content: flex-end; gap: var(--gap); padding: 16px var(--pad); border-top: 1px solid var(--island-hi);

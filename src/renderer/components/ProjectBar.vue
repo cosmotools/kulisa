@@ -18,6 +18,7 @@
 import { computed, nextTick, ref, watch } from 'vue';
 import Icon from './Icon.vue';
 import TaskTab from './TaskTab.vue';
+import { TabsList, TabsRoot } from 'reka-ui';
 import ButtonMenu from './menu/ButtonMenu.vue';
 import RightClickMenu from './menu/RightClickMenu.vue';
 import { store } from '../lib/store';
@@ -36,6 +37,7 @@ const islands = computed(() => {
 // The shown one in sight.
 watch(() => store.projects, () => nextTick(() => tabs.value?.querySelector('.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' })));
 
+const showTask = (key: string | number) => { if (key !== store.current) kulisa.invoke('task:show', String(key)); };
 const remove = (id: string) => kulisa.invoke('project:remove', { id });
 const openProject = (id: string) => kulisa.invoke('project:open', { id });
 const close = (id: string) => kulisa.invoke('project:close', { id });
@@ -156,8 +158,11 @@ function projectsMenu(): MenuItem[] {
 
 <template>
   <footer id="projectbar">
-    <RightClickMenu :items="menu"><nav id="projectTabs" ref="tabs" aria-label="Open projects" @click="click" @auxclick="auxclick"
-      @dragstart="dragstart" @dragover="dragover" @dragleave="dragleave" @drop="drop" @dragend="dragend">
+    <!-- Every open project's tasks one strip of tabs (Reka's Tabs): the shown task chosen; a press on another shows it. -->
+    <RightClickMenu :items="menu"><TabsRoot as-child :model-value="store.current ?? undefined" activation-mode="manual"
+      @update:model-value="showTask"><TabsList as-child :loop="false">
+      <nav id="projectTabs" ref="tabs" aria-label="Open projects" @click="click" @auxclick="auxclick"
+        @dragstart="dragstart" @dragover="dragover" @dragleave="dragleave" @drop="drop" @dragend="dragend">
       <div v-for="{ o, p, open } in islands" :key="p.id" class="pisland" :data-project="p.id" :title="p.folder || ''" :style="{ '--color': p.color }"
         :class="{ active: p.id === store.projects.current, collapsed: !!o.collapsed, dragging: dragged === p.id,
                   'drop-before': mark?.id === p.id && mark.side === 'before', 'drop-after': mark?.id === p.id && mark.side === 'after' }">
@@ -173,7 +178,8 @@ function projectsMenu(): MenuItem[] {
         <TaskTab v-for="t in open" v-else :key="t.key" :t :active="false" :selected="t.key === o.task" />
         <button class="add icon" :title="withKeys('New task: its own copy of the code, branch, agent and profiles', 'task.new')" aria-label="New task"><Icon name="i-plus" /></button>
       </div>
-    </nav></RightClickMenu>
+      </nav>
+    </TabsList></TabsRoot></RightClickMenu>
     <ButtonMenu :items="projectsMenu"><button id="openProjects" class="icon" title="Projects: open another, New Project…, Open Folder…" aria-label="Projects"><Icon name="i-projects" /></button></ButtonMenu>
   </footer>
 </template>

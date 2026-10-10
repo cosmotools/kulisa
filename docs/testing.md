@@ -54,7 +54,9 @@ not listed for screenshots and focus differs from a desktop), so they never take
   and drive the open menu (`.menu[data-state="open"]`, shown once it is `.ready`: the pages under it are pictures);
   a dialog is open when its `data-state` is `open`, and closed with its ×. How they behave under the hand (press, drag
   and let go; a right-click's release; the keyboard) is tested with input events (`sendInputEvent`): a key that types
-  needs its `char` event too (Enter sends a form on it), and `insertText` is awaited before the next key.
+  needs its `char` event too (Enter sends a form on it), and `insertText` is awaited before the next key; the window
+  has the keyboard first (`shell.win.focus()`), or focus events do not come. Tabs are chosen on the press:
+  `click(ui, el)` makes a mouse's whole click; a select (`SelectBox.vue`): `chosen`, `selectValues`, `select`.
 - **Names say what the human sees or gets**, as a sentence ("deleting a task asks first, saying what goes"); the
   comments say why it matters (the bug it once was).
 - **Leave what later files need, say so** ("left closed for the restart phase"), and clean up the rest (a

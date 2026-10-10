@@ -3,7 +3,7 @@
 // profiles, open and closed (ProfileRow.vue), and a new one: its picture (the one it would get lit, until the human
 // picks another), name and who it is. Enter in either field adds it (Shift+Enter: a new line in who it is).
 import { computed, nextTick, ref } from 'vue';
-import { DialogClose } from 'reka-ui';
+import { DialogClose, FieldControl, FieldDescription, FieldLabel, FieldRoot, FormRoot } from 'reka-ui';
 import Modal from './Modal.vue';
 import Avatars from './Avatars.vue';
 import ProfileRow from './ProfileRow.vue';
@@ -11,7 +11,8 @@ import { act, store } from '../lib/store';
 import { registerDialog } from '../lib/dialogs';
 
 const modal = ref<InstanceType<typeof Modal>>();
-const newProfile = ref<HTMLInputElement>(), newAbout = ref<HTMLTextAreaElement>(), list = ref<HTMLElement>();
+const nameField = ref<{ $el: HTMLInputElement }>(), aboutField = ref<{ $el: HTMLTextAreaElement }>(), list = ref<HTMLElement>();
+const newProfile = computed(() => nameField.value?.$el), newAbout = computed(() => aboutField.value?.$el);
 const rows = computed(() => [...store.profiles.map((p) => ({ ...p, closed: false as const })),
   ...store.closedProfiles.map((p) => ({ ...p, closed: true as const }))]);
 const picked = ref<string | null>(null);
@@ -45,15 +46,17 @@ function aboutKey(e: KeyboardEvent) {
     <p class="hint">A profile is a separate browser profile, as in Chrome: its own cookies, storage, tabs and sign-ins.
       Sign in by hand in its pane; the agent in the terminal then uses it.</p>
     <div id="plist" ref="list"><ProfileRow v-for="p in rows" :key="p.key" :p /></div>
-    <form id="padd" @submit.prevent="add">
+    <FormRoot id="padd" @form-submit="add">
       <h3>New profile</h3>
       <div class="field"><span>Picture</span><Avatars :current="newPicture" @choose="picked = $event" /></div>
-      <label class="field"><span>Name</span><input id="newProfile" ref="newProfile" data-name maxlength="64" placeholder="e.g. ann@shop.com or ann.admin" spellcheck="false"></label>
-      <label class="field"><span>About</span><textarea id="newAbout" ref="newAbout" rows="2" maxlength="500" placeholder="e.g. seller in the Acme shop; can approve refunds" @keydown="aboutKey" /></label>
-      <p class="hint">The agent reads this to choose the right profile for a task: who this is in your app, its role, what
-        it can do. You can skip it: the agent will ask you when it needs to know, and save your answer here.</p>
+      <FieldRoot class="field"><FieldLabel>Name</FieldLabel><FieldControl id="newProfile" ref="nameField" data-name maxlength="64"
+        placeholder="e.g. ann@shop.com or ann.admin" spellcheck="false" /></FieldRoot>
+      <FieldRoot class="field"><FieldLabel>About</FieldLabel><FieldControl id="newAbout" ref="aboutField" as="textarea" rows="2" maxlength="500"
+        placeholder="e.g. seller in the Acme shop; can approve refunds" @keydown="aboutKey" />
+        <FieldDescription class="hint">The agent reads this to choose the right profile for a task: who this is in your app, its role,
+          what it can do. You can skip it: the agent will ask you when it needs to know, and save your answer here.</FieldDescription></FieldRoot>
       <div class="field"><span /><span><button>Add</button></span></div>
-    </form>
+    </FormRoot>
     <template #footer>
       <DialogClose id="closeProfiles" class="primary">Done</DialogClose>
     </template>

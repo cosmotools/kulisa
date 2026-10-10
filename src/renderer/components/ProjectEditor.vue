@@ -9,11 +9,16 @@
 // (the radio makes one the default: + runs it, the others are in +'s right-click menu; Add Agent…, ×); its profiles
 // (New, From Another Project…, ×); these at once, not on Save. Both: its color (a dot each), its icon (its site's
 // favicon when it has one, Kulisa's set, or the app's curtain in its color); its local addresses. The main process
-// checks and saves (project:new, project:settings, project:repo-*, project:agent-*, project:profile-*).
+// checks and saves (project:new, project:settings, project:repo-*, project:agent-*, project:profile-*). Reka's parts:
+// the projects a Listbox, the defaults RadioGroups, the colors a ColorSwatchPicker, the icons a ToggleGroup, Create Git
+// repository a Checkbox, the agent a Select (SelectBox.vue), the fields Fields.
 import { computed, ref } from 'vue';
-import { DialogClose } from 'reka-ui';
+import { CheckboxIndicator, CheckboxRoot, ColorSwatchPickerItem, ColorSwatchPickerItemSwatch, ColorSwatchPickerRoot, DialogClose, FieldControl,
+  FieldDescription, FieldLabel, FieldRoot, ListboxContent, ListboxItem, ListboxRoot, RadioGroupIndicator, RadioGroupItem, RadioGroupRoot,
+  ToggleGroupItem, ToggleGroupRoot } from 'reka-ui';
 import Modal from './Modal.vue';
 import Icon from './Icon.vue';
+import SelectBox from './SelectBox.vue';
 import ButtonMenu from './menu/ButtonMenu.vue';
 import { avatarSrc, projectIcon } from '../lib/common';
 import type { MenuItem } from '../lib/menu';
@@ -21,7 +26,8 @@ import { registerDialog } from '../lib/dialogs';
 import type { ProjectChoices, ProjectEntry, ProjectProfile, ProjectRepo, ProjectSettings } from '../types';
 
 const modal = ref<InstanceType<typeof Modal>>();
-const nameInput = ref<HTMLInputElement>(), newProfile = ref<HTMLInputElement>(), url = ref<HTMLInputElement>();
+const nameField = ref<{ $el: HTMLInputElement }>(), newProfile = ref<HTMLInputElement>(), url = ref<HTMLInputElement>();
+const focusName = () => nameField.value!.$el.focus();
 const projects = ref<ProjectEntry[]>([]), openIds = ref<string[]>([]);
 const editing = ref<string | null>(null);
 const title = ref(''), name = ref(''), place = ref(''), sep = ref('/'), folder = ref('');
@@ -39,6 +45,7 @@ const isNew = computed(() => !editing.value);
 const target = computed(() => (editing.value ? folder.value : `${place.value.trim().replace(/[\\/]+$/, '')}${sep.value}${name.value.trim()}`));
 const where = computed(() => (!editing.value && name.value.trim() && place.value.trim() ? `The project will be created in ${target.value}` : ''));
 const iconValues = computed(() => [...(choices.value.favicon ? ['favicon'] : []), ...choices.value.icons]);
+const agentOptions = computed(() => [{ value: '', label: 'Ask when a task starts' }, ...choices.value.agents.map((a) => ({ value: a.id, label: a.name }))]);
 const iconTitle = (v: string) => (v === 'favicon' ? "The site's favicon" : v === 'logo' ? "Kulisa's curtain" : v);
 const base = (f: string) => f.split(/[\\/]/).pop()!;
 
@@ -62,7 +69,7 @@ async function fresh() {
   fill(c, { color: c.color, icon: 'logo' });
   agent.value = c.agents[0]?.id || '';
   await showList();
-  nameInput.value!.focus();
+  focusName();
 }
 async function edit(id: string) {
   const c = await kulisa.invoke<ProjectSettings>('project:settings-get', { id });
@@ -79,7 +86,7 @@ async function edit(id: string) {
   showDefaults();
   profiles.value = c.profiles; others.value = c.others;
   await showList();
-  nameInput.value!.focus();
+  focusName();
 }
 async function openProjects(id?: string) {
   const { current, projects: all } = await kulisa.invoke<{ current: string | null; projects: ProjectEntry[] }>('projects:list');
@@ -88,7 +95,7 @@ async function openProjects(id?: string) {
   await show();
 }
 // Open, the keyboard in the name (fresh and edit put it there when it is already open).
-async function show() { if (!modal.value!.isOpen()) { await modal.value!.open(); nameInput.value!.focus(); } }
+async function show() { if (!modal.value!.isOpen()) { await modal.value!.open(); focusName(); } }
 registerDialog('projects', {
   openProjects,
   async newProject() { await fresh(); await show(); },
@@ -99,7 +106,7 @@ async function browse() {
   if (picked) place.value = picked;
 }
 async function save() {
-  if (!name.value.trim()) return nameInput.value!.focus();
+  if (!name.value.trim()) return focusName();
   saving.value = true;
   const look = { name: name.value, color: color.value, icon: icon.value };
   const r = editing.value
@@ -157,35 +164,35 @@ const fromAnother = (): MenuItem[] => others.value.map((p) => ({ label: p.name, 
 <template>
   <Modal id="projects" ref="modal" title="Projects" form form-id="npform" @submit="save">
     <nav id="pjnav" aria-label="Projects">
-      <div id="pjlist">
-        <button v-for="p in projects" :key="p.id" class="item" type="button" :data-project="p.id" :style="{ '--color': p.color }"
-          :aria-current="p.id === editing" @click="p.id !== editing && edit(p.id)">
-          <span class="dot" /><span class="text"><span class="label">{{ p.name }}</span><small :title="p.folder">{{ p.folder }}</small></span>
-          <kbd>{{ openIds.includes(p.id) ? 'open' : '' }}</kbd>
-        </button>
-      </div>
+      <ListboxRoot id="pjlist" :model-value="editing ?? undefined" aria-label="Projects" @update:model-value="(id) => id && id !== editing && edit(String(id))">
+        <ListboxContent>
+          <ListboxItem v-for="p in projects" :key="p.id" :value="p.id" class="item" :data-project="p.id" :style="{ '--color': p.color }">
+            <span class="dot" /><span class="text"><span class="label">{{ p.name }}</span><small :title="p.folder">{{ p.folder }}</small></span>
+            <kbd>{{ openIds.includes(p.id) ? 'open' : '' }}</kbd>
+          </ListboxItem>
+        </ListboxContent>
+      </ListboxRoot>
       <button id="pjnew" type="button" @click="fresh"><Icon name="i-plus" />New Project</button>
     </nav>
     <div id="pjconfig">
       <h3 id="pjtitle">{{ title }}</h3>
-      <label class="field"><span>Name</span><input id="npname" ref="nameInput" v-model="name" data-name maxlength="64" placeholder="e.g. tenant-audit" spellcheck="false"
-        @input="error = ''"></label>
-      <label id="nplocationrow" class="field" :hidden="!isNew"><span>Location</span><span class="pick"><input id="nplocation" v-model="place" spellcheck="false"
-        @input="error = ''"><button id="npbrowse" type="button" @click="browse">Browse…</button></span></label>
-      <p id="npwhere" class="hint">{{ where }}</p>
-      <label id="npgitrow" class="check" :hidden="!isNew"><input id="npgit" v-model="git" type="checkbox">Create Git repository <small>each task gets its own copy of the code</small></label>
-      <label id="npagentrow" class="field" :hidden="!isNew"><span>Agent</span><select id="npagent" v-model="agent">
-        <option value="">Ask when a task starts</option><option v-for="a in choices.agents" :key="a.id" :value="a.id">{{ a.name }}</option></select></label>
+      <FieldRoot class="field"><FieldLabel>Name</FieldLabel><FieldControl id="npname" ref="nameField" v-model="name" data-name maxlength="64"
+        placeholder="e.g. tenant-audit" spellcheck="false" @input="error = ''" /></FieldRoot>
+      <FieldRoot id="nplocationrow" class="field" :hidden="!isNew"><FieldLabel>Location</FieldLabel><span class="pick"><FieldControl id="nplocation" v-model="place"
+        spellcheck="false" @input="error = ''" /><button id="npbrowse" type="button" @click="browse">Browse…</button></span>
+        <FieldDescription id="npwhere" class="hint">{{ where }}</FieldDescription></FieldRoot>
+      <label id="npgitrow" class="check" :hidden="!isNew"><CheckboxRoot id="npgit" v-model="git" class="checkbox"><CheckboxIndicator as-child><Icon name="i-done" /></CheckboxIndicator></CheckboxRoot>
+        Create Git repository <small>each task gets its own copy of the code</small></label>
+      <FieldRoot id="npagentrow" class="field" :hidden="!isNew"><FieldLabel>Agent</FieldLabel><SelectBox id="npagent" v-model="agent" :options="agentOptions" /></FieldRoot>
       <div id="npreposrow" class="field" :hidden="isNew"><span>Code</span>
-        <div id="nprepos">
+        <RadioGroupRoot id="nprepos" v-model="defRepo" aria-label="Code" @update:model-value="(folder) => code('project:repo-default', { folder })">
           <div v-for="r in repos" :key="r.folder" class="removable" :data-folder="r.folder">
-            <label class="item" title="The default: new tasks' agents start in its copy"><input v-model="defRepo" type="radio" name="npdefrepo" :value="r.folder" :aria-label="`${base(r.folder)}: the default`"
-              @change="code('project:repo-default', { folder: r.folder })"><span class="text"><span class="label">{{ base(r.folder) }}</span><small :title="r.folder">{{ r.folder }}</small></span>
+            <label class="item" title="The default: new tasks' agents start in its copy"><RadioGroupItem class="radio" :value="r.folder" :aria-label="`${base(r.folder)}: the default`"><RadioGroupIndicator /></RadioGroupItem><span class="text"><span class="label">{{ base(r.folder) }}</span><small :title="r.folder">{{ r.folder }}</small></span>
               <kbd>{{ r.git === 'ok' ? '' : r.git === 'none' ? 'no git' : 'no commit' }}</kbd></label>
             <button class="remove icon quiet" type="button" title="Remove from the project (its folder stays)" aria-label="Remove from the project"
               @click="code('project:repo-remove', { folder: r.folder })"><Icon name="i-close" /></button>
           </div>
-        </div>
+        </RadioGroupRoot>
       </div>
       <div id="npreposadd" class="row" :hidden="isNew">
         <button id="npaddrepo" type="button" @click="code('project:repo-add', {})">Add Folder…</button>
@@ -197,14 +204,13 @@ const fromAnother = (): MenuItem[] => others.value.map((p) => ({ label: p.name, 
       <p id="npformer" class="hint" :hidden="isNew || !former"><span>{{ former ? `Former folder ${former}: tasks no longer work in it; move its files into a repository.` : '' }}</span>
         <button id="npshowformer" type="button" @click="kulisa.invoke('project:show-former', { id: editing })">Show</button></p>
       <div id="npagentsrow" class="field" :hidden="isNew"><span>Agents</span>
-        <div id="npagents">
+        <RadioGroupRoot id="npagents" v-model="defAgent" aria-label="Agents" @update:model-value="(agent) => agents('project:agent-default', { agent })">
           <div v-for="a in mine" :key="a.id" class="removable" :data-agent="a.id">
-            <label class="item" title="The default: + makes a task with it"><input v-model="defAgent" type="radio" name="npdefagent" :value="a.id" :aria-label="`${a.name}: the default`"
-              @change="agents('project:agent-default', { agent: a.id })"><span class="text"><span class="label">{{ a.name }}</span></span></label>
+            <label class="item" title="The default: + makes a task with it"><RadioGroupItem class="radio" :value="a.id" :aria-label="`${a.name}: the default`"><RadioGroupIndicator /></RadioGroupItem><span class="text"><span class="label">{{ a.name }}</span></span></label>
             <button class="remove icon quiet" type="button" title="Remove from the project (its tasks keep it)" aria-label="Remove from the project"
               @click="agents('project:agent-remove', { agent: a.id })"><Icon name="i-close" /></button>
           </div>
-        </div>
+        </RadioGroupRoot>
       </div>
       <div id="npagentsadd" class="row" :hidden="isNew"><ButtonMenu :items="addAgent"><button id="npagentadd" type="button" :disabled="!addable.length">Add Agent…</button></ButtonMenu></div>
       <p id="npagenterror" class="error">{{ agentError }}</p>
@@ -226,19 +232,19 @@ const fromAnother = (): MenuItem[] => others.value.map((p) => ({ label: p.name, 
       </div>
       <p id="npprofileerror" class="error">{{ profileError }}</p>
       <div class="field"><span>Color</span>
-        <div id="npcolors" class="choices" role="group" aria-label="Color">
-          <button v-for="c in choices.colors" :key="c" type="button" class="icon" :data-value="c" :title="c" :aria-label="c" :aria-pressed="c === color"
-            :style="{ '--color': c }" @click="color = c"><span class="dot" /></button>
-        </div>
+        <ColorSwatchPickerRoot id="npcolors" class="choices" aria-label="Color" :model-value="color" @update:model-value="(c) => c && (color = String(c))">
+          <ColorSwatchPickerItem v-for="c in choices.colors" :key="c" :value="c" class="icon" :data-value="c" :title="c"><ColorSwatchPickerItemSwatch class="dot" /></ColorSwatchPickerItem>
+        </ColorSwatchPickerRoot>
       </div>
       <div class="field"><span>Icon</span>
-        <div id="npicons" class="choices" role="group" aria-label="Icon" :style="{ '--color': color }">
-          <button v-for="v in iconValues" :key="v" type="button" class="icon" :data-value="v" :title="iconTitle(v)" :aria-label="iconTitle(v)"
-            :aria-pressed="v === icon" @click="icon = v"><img v-if="v === 'favicon'" :src="choices.favicon" alt=""><Icon v-else :name="projectIcon(v)" /></button>
-        </div>
+        <ToggleGroupRoot id="npicons" class="choices" type="single" aria-label="Icon" :style="{ '--color': color }" :model-value="icon"
+          @update:model-value="(v) => v && (icon = String(v))">
+          <ToggleGroupItem v-for="v in iconValues" :key="v" :value="v" class="icon" :data-value="v" :title="iconTitle(v)" :aria-label="iconTitle(v)"><img v-if="v === 'favicon'"
+            :src="choices.favicon" alt=""><Icon v-else :name="projectIcon(v)" /></ToggleGroupItem>
+        </ToggleGroupRoot>
       </div>
-      <label id="nplocalrow" class="field" :hidden="isNew"><span>Local</span><input id="nplocal" v-model="local" spellcheck="false"
-        placeholder="More local addresses: a tunnel, dev domains (abc.ngrok.app shop.dev)"></label>
+      <FieldRoot id="nplocalrow" class="field" :hidden="isNew"><FieldLabel>Local</FieldLabel><FieldControl id="nplocal" v-model="local" spellcheck="false"
+        placeholder="More local addresses: a tunnel, dev domains (abc.ngrok.app shop.dev)" /></FieldRoot>
       <p id="nphint" class="hint">{{ isNew ? 'The agent its tasks run; add more in its configuration.'
         : '+ makes a task from this configuration: copies of its code, its default agent, its profiles closed until needed.' }}</p>
       <p id="nperror" class="error">{{ error }}</p>
@@ -261,5 +267,5 @@ const fromAnother = (): MenuItem[] => others.value.map((p) => ({ label: p.name, 
   #pjconfig { min-height: 0; overflow: auto; padding-block-end: 20px; }
   #pjtitle { margin: 0; font-size: 1em; font-weight: 600; color: var(--text-strong); }
   :is(#npreposadd, #npcodeerror, #npagentsadd, #npagenterror, #npprofilesadd, #npprofileerror) { margin-inline-start: calc(var(--label) + var(--inset)); }
-  .choices { .dot { width: 14px; height: 14px; } svg { color: var(--color); } img { width: 16px; height: 16px; } } }
+  .choices { .dot { width: 14px; height: 14px; background: var(--reka-color-swatch-color); } svg { color: var(--color); } img { width: 16px; height: 16px; } } }
 </style>

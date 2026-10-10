@@ -3,7 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const { assert, root, userData, project, pfile, savedTabs, panel, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, menuOpen, rightClick,
-  box, pageBox, viewOn, dock, ctrl, near } = require('./helpers');
+  box, pageBox, viewOn, dock, ctrl, near, click } = require('./helpers');
 const { app } = require('electron');
 const { CLAUDE_PLUGIN } = require('../src/main/app');
 
@@ -37,6 +37,7 @@ module.exports = (test) => {
       [{ id: 'sam-seller', avatar: 'fox', description: 'seller in the test shop', color: undefined },
         { id: 'elon-buyer', avatar: 'penguin', description: undefined, color: undefined }], 'pictures, not colors; who it is when said');
     await waitFor(async () => (await shownNew()) === 'frog'); // the next one's, the pick forgotten
+    await waitFor(() => shell.profiles.get('elon-buyer').get()); // its first tab comes after it is made
     assert.equal(shell.profiles.get('elon-buyer').get().view.getVisible(), false);
     await waitFor(async () => (await ui(`document.querySelectorAll('#plist .prow').length`)) === 2);
     await ui(`document.getElementById('closeProfiles').click()`);
@@ -230,14 +231,14 @@ module.exports = (test) => {
     await waitFor(async () => (await ui(`${row}.querySelector('.about').value`)) === 'buyer; pays by card');
     assert.deepEqual(await ui(`[${row}.querySelector('.about').localName, ${row}.querySelector('.about').rows, getComputedStyle(${row}.querySelector('.about')).resize]`),
       ['textarea', 2, 'vertical'], 'two lines, made taller by hand');
-    await ui(`(() => { const a = ${row}.querySelector('.about'); a.value = ''; a.dispatchEvent(new Event('change')); })()`);
+    await ui(`(() => { const a = ${row}.querySelector('.about'); a.value = ''; a.dispatchEvent(new Event('input')); a.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); })()`);
     await waitFor(() => elon.description === '');
     // The picture: a click on it shows the others; one chosen, they go.
     await ui(`${row}.querySelector('.pic').click()`);
     assert.equal(await ui(`${row}.querySelectorAll('.pics button').length`), 16);
     await ui(`${row}.querySelector('.pics [data-avatar="owl"]').click()`);
     await waitFor(() => elon.avatar === 'owl');
-    assert.equal(await ui(`${row}.querySelector('.pics').hidden`), true);
+    assert.equal(await ui(`!${row}.querySelector('.pics')`), true);
     await waitFor(async () => (await ui(`${row}.querySelector('.pic .avatar').getAttribute('src')`)) === 'avatars/owl.svg');
     assert.match((await ui(`act('profile:avatar', { profile: 'elon-buyer', avatar: 'dragon' })`)).error, /no picture/);
     await ui(`document.getElementById('closeProfiles').click()`);
@@ -402,7 +403,7 @@ module.exports = (test) => {
     assert.ok(['page', 'another app'].includes(keys()), `the page keeps the focus once clicked: ${keys()}`);
     await ui(`document.activeElement.blur()`);
     await waitFor(async () => (await ui(`${strip}.querySelectorAll('.tab').length`)) === n + 1);
-    await ui(`${strip}.querySelector('.tab[data-tab="${first}"] .title').click()`);
+    await click(ui, `${strip}.querySelector('.tab[data-tab="${first}"] .title')`);
     await waitFor(() => elon.active === first);
     await ui(`${strip}.querySelector('.tab:last-of-type .x').click()`);
     await waitFor(() => elon.tabs.length === n);
@@ -589,14 +590,14 @@ module.exports = (test) => {
     const before = ptyOutput().length;
     for (const cancel of ['button', 'esc']) {
       await ui(`${button}.click()`);
-      await waitFor(async () => (await ui(`${button}.classList.contains('active')`)) && shell.windows[0].picking.has('elon-buyer'));
+      await waitFor(async () => (await ui(`${button}.dataset.state === 'on'`)) && shell.windows[0].picking.has('elon-buyer'));
       if (cancel === 'button') await ui(`${button}.click()`);
       else {
         const wc = elon.get().wc;
         wc.focus();
         wc.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' }); wc.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
       }
-      await waitFor(async () => !(await ui(`${button}.classList.contains('active')`)) && !shell.windows[0].picking.has('elon-buyer'));
+      await waitFor(async () => !(await ui(`${button}.dataset.state === 'on'`)) && !shell.windows[0].picking.has('elon-buyer'));
       assert.equal(await ui(`document.querySelector('.ptab[data-panel="profile:Profile 2"] .caption').textContent`), '', cancel);
     }
     await sleep(300); // nothing to wait for: that nothing comes

@@ -5,7 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 const { assert, root, userData, project, pfile, savedTabs, panel, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, menuOpen, rightClick,
-  box, pageBox, viewOn, dock, press, ctrl, near, projectTabs, projectTab, showProject, savedWindows, closeMenu } = require('./helpers');
+  box, pageBox, viewOn, dock, press, ctrl, near, projectTabs, projectTab, showProject, savedWindows, closeMenu, chosen, select, selectValues, click } = require('./helpers');
 const { withOffset } = require('../src/main/tasks');
 const hasDirenv = (() => { try { execFileSync('direnv', ['version']); return true; } catch { return false; } })();
 
@@ -165,6 +165,8 @@ module.exports = (test) => {
     assert.equal(await who(ctx, 'sam-admin'), 'Signed in as sam');
     await ui(`act('profile:refresh', { profile: 'sam-admin' })`);
     assert.match(ctx.asked.pop().message, /^Bring the sign-ins of Sam.admin's master to this task\?/);
+    // Its tabs reload with them: once that is over (a navigation now would be cut by the reload).
+    await waitFor(() => !shell.task.profiles.get('sam-admin').get().wc.isLoading());
     await call('browser_navigate', { profile: 'sam-admin', url: `${SITE}/app` });
     assert.equal(await who(ctx, 'sam-admin'), 'Signed in as master');
   });
@@ -220,7 +222,7 @@ module.exports = (test) => {
     } finally { electron.shell.openPath = openPath; }
     assert.equal(shown[0], second.folder);
     assert.notEqual(second.folder, project, "the task's own, not the project's");
-    await ui(`${taskTab(1)}.click()`);
+    await click(ui, taskTab(1));
     await waitFor(() => shell.task.n === 1);
     await waitFor(async () => (await chip()) === `${shell.task.key} ${await ui(`document.querySelectorAll('.pane').length`)} 1`); // the button goes with it
     assert.deepEqual(await widths(), before, 'the tabs keep their widths');
@@ -274,10 +276,10 @@ module.exports = (test) => {
     // Done says "come and see" until the human sees that task.
     await post('stop');
     await waitFor(async () => (await state()) === 'done #i-done true');
-    await ui(`${taskTab(2)}.click()`);
+    await click(ui, taskTab(2));
     await waitFor(async () => shell.task === second && (await state()) === ' #i-done false');
     assert.equal(second.state, 'done', 'the agent is still done: only its tab says nothing');
-    await ui(`${taskTab(1)}.click()`);
+    await click(ui, taskTab(1));
     await waitFor(async () => shell.task.n === 1 && (await viewOn(shell, ui, 'sam-admin')) && viewOn(shell, ui, 'elon-buyer')
       && ui(`!document.documentElement.matches(':active-view-transition')`)); // its slide over before the next test watches one
   });
@@ -312,7 +314,7 @@ module.exports = (test) => {
     await shown(1);
     press(win, 'PageDown', 'control', 'shift');
     await shown(2);
-    await ui(`${taskTab(1)}.click()`);
+    await click(ui, taskTab(1));
     await shown(1);
   });
   test('tasks: × closes a task: its agent stops and its tabs close, all else stays; asked first only while its agent works; its group\'s menu opens it again, its conversation resumed', async (ctx) => {
@@ -437,7 +439,7 @@ module.exports = (test) => {
     const pty = shell.task.pty;
     await openAgents(ui);
     assert.equal(await ui(`document.querySelector('#agents h2').textContent`), 'Agents');
-    assert.equal(await ui(`document.querySelectorAll('#agents .agentrow input').length`), 0, 'no choice to make');
+    assert.equal(await ui(`document.querySelectorAll('#agents .agentrow [role="radio"]').length`), 0, 'no choice to make');
     assert.equal(await ui(agentRow('fake', '.status') + '.textContent'), 'Not installed');
     assert.equal(await ui(agentRow('fake', '.install') + '.hidden'), false);
     assert.match(await ui(agentRow('fake', '.install-line') + '.textContent'), /^Install runs Kulisa tests's installer/);
@@ -462,9 +464,9 @@ module.exports = (test) => {
     };
     const customPty = task.pty;
     await changeAgent();
-    await ui(`document.querySelector('#agentpick input[value="fake"]').click()`);
-    const row = `document.querySelector('#agentpick .agentrow:has(input[value="fake"])')`;
-    assert.equal(await ui(`${row}.querySelector('input').checked`), true);
+    await ui(`document.querySelector('#agentpick [role="radio"][value="fake"]').click()`);
+    const row = `document.querySelector('#agentpick .agentrow:has([role="radio"][value="fake"])')`;
+    assert.equal(await ui(`${row}.querySelector('[role="radio"]').ariaChecked === 'true'`), true);
     assert.equal(await ui(`${row}.querySelector('.status').textContent`), 'Not installed');
     assert.match(await ui(`${row}.querySelector('.install-line').textContent`), /^Install runs Kulisa tests's installer: echo "installing the fake agent"/);
     assert.equal(await ui(`document.getElementById('agentstart').disabled`), true);
@@ -472,7 +474,7 @@ module.exports = (test) => {
     await ui(`${row}.querySelector('.install').click()`);
     await waitFor(async () => (await ui(`${row}.querySelector('.status').textContent`)) === 'Installed', 10000);
     assert.equal(await ui(`document.querySelector('#agentpick .progress').textContent`), 'Fake agent is installed. Start it; it asks you to sign in.');
-    assert.equal(await ui(`document.querySelector('#agentpick details').open`), false, "the installer's own output only under Details");
+    assert.equal(await ui(`document.querySelector('#agentpick .details .more').dataset.state`), 'closed', "the installer's own output only under Details");
     assert.match(await ui(`document.querySelector('#agentpick pre').textContent`), /installing the fake agent\s+done/);
     assert.doesNotMatch(await ui(`document.querySelector('#agentpick pre').textContent`), /\x1b/, 'no terminal codes: colors, links');
     await ui(`document.getElementById('agentstart').click()`);
@@ -486,13 +488,13 @@ module.exports = (test) => {
     const fakePty = task.pty;
     await changeAgent();
     assert.equal(await ui(`document.getElementById('agentcancel').hidden`), false);
-    assert.equal(await ui(`document.querySelector('#agentpick input:checked').value`), 'fake', 'the current one chosen');
+    assert.equal(await ui(`document.querySelector('#agentpick [role="radio"][data-state="checked"]').value`), 'fake', 'the current one chosen');
     await ui(`document.getElementById('agentcancel').click()`);
     await waitFor(async () => !(await ui(`(document.getElementById('agentpick')?.dataset.state === 'open')`)));
     await sleep(300); // nothing to wait for: that no other agent starts
     assert.equal(task.pty, fakePty, 'Cancel: the agent goes on');
     await changeAgent();
-    await ui(`document.querySelector('#agentpick input[value="shell"]').click()`);
+    await ui(`document.querySelector('#agentpick [role="radio"][value="shell"]').click()`);
     await ui(`document.getElementById('agentstart').click()`);
     await waitFor(() => task.pty && task.pty !== fakePty);
     assert.deepEqual(JSON.parse(fs.readFileSync(pfile('agent.json', task.n), 'utf8')), { agent: 'shell', started: true }, 'a new conversation');
@@ -519,7 +521,7 @@ module.exports = (test) => {
   test("agents: an account of its own for an agent (☰ → Agents…): its folder in the agent's environment, a choice for tasks and projects; removed with its folder, after a question", async (ctx) => {
     const { shell, ui } = ctx;
     await openAgents(ui);
-    assert.deepEqual(await ui(`[...document.getElementById('accountagent').options].map((o) => o.value)`), ['fake'], 'the agents that have accounts');
+    assert.deepEqual(await selectValues(ui, 'accountagent'), ['fake'], 'the agents that have accounts');
     await ui(`document.getElementById('accountname').value = 'work'; document.getElementById('accountadd').requestSubmit()`);
     await waitFor(() => ui(`!!document.querySelector('#agents .agentrow.account[data-agent="fake-work"]')`));
     const dir = path.join(userData, 'agents', 'fake-work');
@@ -535,8 +537,10 @@ module.exports = (test) => {
     await rightClick(ui, '#term');
     await menuRows(ui);
     await choose(ui, 'Change agent…');
-    await waitFor(() => ui(`(document.getElementById('agentpick')?.dataset.state === 'open') && !!document.querySelector('#agentpick input[value="fake-work"]')`), 20000);
-    await ui(`document.querySelector('#agentpick input[value="fake-work"]').click(); document.getElementById('agentstart').click()`);
+    await waitFor(() => ui(`(document.getElementById('agentpick')?.dataset.state === 'open') && !!document.querySelector('#agentpick [role="radio"][value="fake-work"]')`), 20000);
+    await ui(`document.querySelector('#agentpick [role="radio"][value="fake-work"]').click()`);
+    await waitFor(() => ui(`document.querySelector('#agentpick [role="radio"][value="fake-work"]').dataset.state === 'checked'`));
+    await ui(`document.getElementById('agentstart').click()`);
     await waitFor(() => task.pty && task.agent?.id === 'fake-work');
     ctx.watchPty(task.pty);
     await waitFor(async () => (await ctx.termText()).includes(`config [${dir}]`));
@@ -638,10 +642,10 @@ module.exports = (test) => {
     await waitFor(() => ui(`(document.getElementById('projects')?.dataset.state === 'open')`));
     assert.equal(await ui(`document.getElementById('nplocation').value`), path.join(root, 'Kulisa'), "every new project's place (~/Kulisa; the tests' own here)");
     // Its color (the next free one chosen), its icon (the curtain), the agent its tasks run (the first one known).
-    assert.deepEqual(await ui(`[...document.querySelectorAll('#npcolors [aria-pressed="true"], #npicons [aria-pressed="true"]')].map((b) => b.dataset.value)`),
+    assert.deepEqual(await ui(`[...document.querySelectorAll('#npcolors [aria-selected="true"], #npicons [aria-pressed="true"]')].map((b) => b.dataset.value)`),
       [shell.store.nextColor(), 'logo']);
-    assert.equal(await ui(`document.getElementById('npagent').value`), 'fake');
-    assert.equal(await ui(`document.getElementById('npgit').checked`), true);
+    assert.equal(await chosen(ui, 'npagent'), 'fake');
+    assert.equal(await ui(`document.getElementById('npgit').getAttribute('aria-checked')`), 'true');
     const made = path.join(root, 'made');
     fs.mkdirSync(path.join(made, 'Taken'), { recursive: true });
     fs.writeFileSync(path.join(made, 'Taken', 'notes.txt'), '');
@@ -658,7 +662,8 @@ module.exports = (test) => {
     assert.ok(!shell.store.projects().some((p) => p.id === 'taken'), 'a folder with files in it is not taken');
     await named('Shop');
     // Another color and icon; no agent: the window asks when a task starts (here the tests' own, which is there).
-    await ui(`document.querySelectorAll('#npcolors button')[3].click(); document.querySelector('#npicons [data-value="rocket"]').click(); const a = document.getElementById('npagent'); a.value = ''; a.dispatchEvent(new Event('change'))`);
+    await ui(`document.querySelectorAll('#npcolors [role="option"]')[3].click(); document.querySelector('#npicons [data-value="rocket"]').click()`);
+    await select(ui, 'npagent', '');
     assert.equal(await ui(`document.getElementById('npwhere').textContent`), `The project will be created in ${path.join(made, 'Shop')}`);
     await ui(`document.getElementById('npform').requestSubmit()`);
     await waitFor(() => shell.current?.folder === path.join(made, 'Shop') && shell.task?.loaded && shell.pty);
@@ -679,7 +684,7 @@ module.exports = (test) => {
     await waitFor(async () => (await viewOn(shell, ui, 'sam-admin')) && viewOn(shell, ui, 'elon-buyer'));
     assert.deepEqual(await projectTabs(ui), ['Shop', 'project *']);
     // Another project's task, in its island: a click shows that project with it.
-    await ui(`${projectTab('shop')}.querySelector('.tasktab[data-task="shop/1"]').click()`);
+    await click(ui, `${projectTab('shop')}.querySelector('.tasktab[data-task="shop/1"]')`);
     await waitFor(() => shell.current?.id === 'shop' && shell.task?.key === 'shop/1' && shell.task.loaded && !shell.windows[0].switching);
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
     assert.deepEqual(await projectTabs(ui), ['Shop *', 'project']);
@@ -709,12 +714,12 @@ module.exports = (test) => {
     await choose(ui, 'Project Settings…');
     await waitFor(() => ui(`(document.getElementById('projects')?.dataset.state === 'open') && document.getElementById('pjtitle').textContent === 'site'`));
     // The manager lists every project, this one chosen, the open ones marked.
-    assert.ok(await ui(`document.querySelector('#pjlist [data-project="site"]').ariaCurrent === 'true' && document.querySelector('#pjlist [data-project="site"] kbd').textContent === 'open'`));
+    assert.ok(await ui(`document.querySelector('#pjlist [data-project="site"]').ariaSelected === 'true' && document.querySelector('#pjlist [data-project="site"] kbd').textContent === 'open'`));
     assert.equal(await ui(`document.querySelector('#npicons [aria-pressed="true"]').dataset.value`), 'favicon');
     assert.equal(await ui(`document.querySelector('#nprepos [data-folder] small').textContent`), site, 'its folder, as its code');
     assert.equal(await ui(`document.getElementById('nplocationrow').checkVisibility()`), false);
     await ui(`(() => { const n = document.getElementById('npname'); n.value = 'Site-2'; n.dispatchEvent(new Event('input'));
-      document.querySelectorAll('#npcolors button')[5].click(); document.querySelector('#npicons [data-value="globe"]').click();
+      document.querySelectorAll('#npcolors [role="option"]')[5].click(); document.querySelector('#npicons [data-value="globe"]').click();
       const l = document.getElementById('nplocal'); l.value = 'abc.ngrok.app *.Shop.dev'; l.dispatchEvent(new Event('input'));
       document.getElementById('npform').requestSubmit(); })()`);
     await waitFor(async () => !(await ui(`(document.getElementById('projects')?.dataset.state === 'open')`)));
@@ -762,12 +767,12 @@ module.exports = (test) => {
       await choose(ui, name);
       await waitFor(async () => (await ui(`[...document.querySelectorAll('#npagents .label')].map((l) => l.textContent)`)).includes(name));
     }
-    const agentRows = () => ui(`[...document.querySelectorAll('#npagents .removable')].map((r) => r.querySelector('.label').textContent + ' ' + r.querySelector('input').checked)`);
+    const agentRows = () => ui(`[...document.querySelectorAll('#npagents .removable')].map((r) => r.querySelector('.label').textContent + ' ' + r.querySelector('[role="radio"]').getAttribute('aria-checked'))`);
     assert.deepEqual(await agentRows(), ['Terminal only true', 'Fake agent false'], 'the first added, the default');
     assert.deepEqual(shell.store.projects().find((p) => p.id === 'site').agents, ['shell', 'fake']);
-    await ui(`document.querySelector('#npagents [data-agent="fake"] input').click()`);
+    await ui(`document.querySelector('#npagents [data-agent="fake"] [role="radio"]').click()`);
     await waitFor(async () => JSON.stringify(await agentRows()) === '["Fake agent true","Terminal only false"]');
-    await ui(`document.querySelector('#npagents [data-agent="shell"] input').click()`);
+    await ui(`document.querySelector('#npagents [data-agent="shell"] [role="radio"]').click()`);
     await waitFor(async () => JSON.stringify(await agentRows()) === '["Terminal only true","Fake agent false"]');
     await ui(`document.querySelector('#projects .x').click()`);
     // + makes a task with the default one (the first kept the one it started with).
@@ -831,7 +836,7 @@ module.exports = (test) => {
     await menuRows(ui);
     await choose(ui, 'Project Settings…');
     await waitFor(() => ui(`document.querySelectorAll('#nprepos .removable').length === 2`));
-    assert.deepEqual(await ui(`[...document.querySelectorAll('#nprepos .removable')].map((r) => r.querySelector('.label').textContent + ' ' + r.querySelector('input').checked)`), ['api true', 'web false']);
+    assert.deepEqual(await ui(`[...document.querySelectorAll('#nprepos .removable')].map((r) => r.querySelector('.label').textContent + ' ' + r.querySelector('[role="radio"]').getAttribute('aria-checked'))`), ['api true', 'web false']);
     await ui(`document.querySelector('#nprepos [data-folder="${web}"] .remove').click()`);
     await waitFor(async () => /Tasks work in it: task-1, Checkout/.test(await ui(`document.getElementById('npcodeerror').textContent`)));
     await ui(`document.querySelector('#projects .x').click()`);
@@ -860,7 +865,7 @@ module.exports = (test) => {
     const { shell, ui } = ctx;
     await ui(`document.getElementById('manageProjects').click()`);
     await waitFor(() => ui(`(document.getElementById('projects')?.dataset.state === 'open') && document.getElementById('pjtitle').textContent === ${JSON.stringify(shell.current.name)}`));
-    assert.equal(await ui(`document.querySelector('#pjlist [aria-current="true"]').dataset.project`), shell.current.id);
+    assert.equal(await ui(`document.querySelector('#pjlist [aria-selected="true"]').dataset.project`), shell.current.id);
     assert.equal(shell.task.profiles.get('sam-admin').get().view.getVisible(), false, 'pages hidden under the dialog');
     // Site-2 is closed: its configuration all the same; a profile made and let go there (asked first).
     await ui(`document.querySelector('#pjlist [data-project="site"]').click()`);
@@ -877,7 +882,7 @@ module.exports = (test) => {
     // + New Project: the new project's fields on the right, none chosen on the left.
     await ui(`document.getElementById('pjnew').click()`);
     await waitFor(() => ui(`document.getElementById('pjtitle').textContent === 'New Project' && !document.getElementById('nplocationrow').hidden && document.getElementById('npagentsrow').hidden`));
-    assert.equal(await ui(`document.querySelectorAll('#pjlist [aria-current="true"]').length`), 0);
+    assert.equal(await ui(`document.querySelectorAll('#pjlist [aria-selected="true"]').length`), 0);
     await shell.screenshot(path.join(root, 'projects.png'));
     await ui(`document.querySelector('#projects .x').click()`);
     ctx.asked.length = 0;

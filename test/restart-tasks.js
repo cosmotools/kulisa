@@ -3,7 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const { assert, root, userData, project, pfile, savedTabs, panel, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, menuOpen, rightClick,
-  box, pageBox, viewOn, dock, ctrl, near, projectTabs, showProject } = require('./helpers');
+  box, pageBox, viewOn, dock, ctrl, near, projectTabs, showProject, click } = require('./helpers');
 
 module.exports = (test) => {
   test('after a restart: the other task waits in the bar with its tabs, loads when shown, still signed in; a closed one stays closed', async (ctx) => {
@@ -20,13 +20,13 @@ module.exports = (test) => {
     // Once the first has loaded: a click while the window still builds it is not taken.
     await waitFor(() => shell.task?.loaded && !shell.windows[0].switching);
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
-    await ui(`document.querySelector('#tasklist .tasktab[data-task="project/2"]').click()`);
+    await click(ui, `document.querySelector('#tasklist .tasktab[data-task="project/2"]')`);
     await waitFor(() => shell.task === second && second.loaded && second.pty);
     assert.equal(second.folder, `${project}@task-2`);
     assert.deepEqual([...shell.profiles.keys()], ['sam-admin', 'elon-buyer']);
     await ctx.call('browser_navigate', { profile: 'sam-admin', url: `${SITE}/app` });
     assert.equal(await who(ctx, 'sam-admin'), 'Signed in as master'); // its master's, brought by Refresh from Master…
-    await ui(`document.querySelector('#tasklist .tasktab[data-task="project/1"]').click()`);
+    await click(ui, `document.querySelector('#tasklist .tasktab[data-task="project/1"]')`);
     await waitFor(() => shell.task.n === 1);
     await waitFor(async () => (await viewOn(shell, ui, 'sam-admin')) && viewOn(shell, ui, 'elon-buyer'));
   });

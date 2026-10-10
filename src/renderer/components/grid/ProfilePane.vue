@@ -5,7 +5,7 @@
 // tells it where); while a panel is dragged or a menu is open, a picture of the page stands in for it.
 import { computed, onBeforeUnmount, onMounted, onUpdated, reactive, ref, watch } from 'vue';
 import type { DockviewPanelApi } from 'dockview-vue';
-import { DialogContent, DialogDescription, DialogRoot, DialogTitle } from 'reka-ui';
+import { DialogContent, DialogDescription, DialogRoot, DialogTitle, TabsList, TabsRoot, TabsTrigger, Toggle } from 'reka-ui';
 import Icon from '../Icon.vue';
 import ButtonMenu from '../menu/ButtonMenu.vue';
 import RightClickMenu from '../menu/RightClickMenu.vue';
@@ -48,8 +48,9 @@ function addrUp(e: MouseEvent) {
 }
 function go() { act('tab:navigate', { profile: id(), tab: tab(), url: addr.value!.value }); addr.value!.blur(); }
 
-// The tab strip: a tab opened in a strip already shown grows in from the left, as Chrome's (.tab.opening); the active
-// tab in sight, as Chrome scrolls to it. Tabs are kept by id: an element stays as its tab does.
+// The tab strip, Reka's Tabs: a tab is chosen on the press, as in Chrome (not on its ×), the arrows move between them
+// and Enter chooses. A tab opened in a strip already shown grows in from the left, as Chrome's (.tab.opening); the
+// active tab in sight, as Chrome scrolls to it. Tabs are kept by id: an element stays as its tab does.
 const opening = reactive(new Set<string>());
 let known: Set<string> | null = null;
 watch(() => profile.value?.tabs.map((t) => t.id) || [], (ids) => {
@@ -65,10 +66,7 @@ function activeInSight() {
 }
 onUpdated(activeInSight);
 const grown = (t: string) => { opening.delete(t); activeInSight(); };
-function tabClick(e: MouseEvent, t: string) {
-  if ((e.target as Element).closest('.x')) act('tab:close', { profile: id(), tab: t });
-  else act('tab:activate', { profile: id(), tab: t });
-}
+const activate = (t: string | number) => act('tab:activate', { profile: id(), tab: String(t) });
 // A tab's right-click menu (the strip's: for the tab it was on).
 function tabMenu(e: MouseEvent): MenuItem[] | null {
   const t = (e.target as Element).closest<HTMLElement>('.tab')?.dataset.tab, p = profile.value;
@@ -119,17 +117,19 @@ onBeforeUnmount(() => { observer.disconnect(); if (panes.get(key) === handle) pa
 <template>
   <div v-if="profile" class="pane" :data-profile="profile.id">
     <!-- The tabs scroll in .strip; + is next to it, never over a tab, as in Chrome -->
-    <nav class="tabs">
-      <RightClickMenu :items="tabMenu"><div ref="strip" class="strip" @wheel="(e) => { if (!e.deltaX) strip!.scrollLeft += e.deltaY; }">
-        <div v-for="t in profile.tabs" :key="t.id" class="tab" :class="{ active: t.id === profile.active, opening: opening.has(t.id) }" :data-tab="t.id"
-          :title="t.url" @click="tabClick($event, t.id)" @animationend="grown(t.id)">
-          <img alt="" :hidden="!t.favicon" :src="t.favicon || undefined"><Icon class="globe" name="i-globe" />
-          <span class="title">{{ (t.loading ? '⟳ ' : '') + (t.title || t.url || 'New tab') }}</span>
-          <span class="x icon small" title="Close tab"><Icon name="i-close" /></span>
-        </div>
-      </div></RightClickMenu>
+    <TabsRoot as-child :model-value="profile.active" activation-mode="manual" @update:model-value="activate"><nav class="tabs">
+      <RightClickMenu :items="tabMenu"><TabsList as-child :loop="false"><div ref="strip" class="strip" @wheel="(e) => { if (!e.deltaX) strip!.scrollLeft += e.deltaY; }">
+        <TabsTrigger v-for="t in profile.tabs" :key="t.id" :value="t.id" as-child>
+          <div class="tab" :class="{ active: t.id === profile.active, opening: opening.has(t.id) }" :data-tab="t.id" :title="t.url" @animationend="grown(t.id)">
+            <img alt="" :hidden="!t.favicon" :src="t.favicon || undefined"><Icon class="globe" name="i-globe" />
+            <span class="title">{{ (t.loading ? '⟳ ' : '') + (t.title || t.url || 'New tab') }}</span>
+            <!-- Not a press on the tab: it is not chosen first. -->
+            <span class="x icon small" title="Close tab" @mousedown.prevent @click="act('tab:close', { profile: profile.id, tab: t.id })"><Icon name="i-close" /></span>
+          </div>
+        </TabsTrigger>
+      </div></TabsList></RightClickMenu>
       <button class="add icon" :title="withKeys('New tab', 'tab.new')" aria-label="New tab" @click="newTab"><Icon name="i-plus" /></button>
-    </nav>
+    </nav></TabsRoot>
     <div class="bar">
       <button class="back icon" :title="withKeys('Back', 'tab.back')" aria-label="Back" :disabled="!active?.canBack"
         @click="act('tab:back', { profile: id(), tab: tab() })"><Icon name="i-back" /></button>
@@ -141,8 +141,8 @@ onBeforeUnmount(() => { observer.disconnect(); if (panes.get(key) === handle) pa
       <button class="zoom tool" :hidden="!active || active.zoom === 1" title="This site's zoom in this profile (Ctrl + / − / 0 in the page). Click to reset."
         @click="act('tab:zoom', { profile: id(), tab: tab(), dir: 0 })">{{ active ? Math.round(active.zoom * 100) : 100 }}%</button>
       <!-- Pick needs a page to point at: off on an empty tab (about:blank), unless picking already. -->
-      <button class="pick icon" :class="{ active: picking }" :title="withKeys('Pick an element on the page to mention it to the agent (again or Esc: cancel)', 'pick')"
-        aria-label="Pick an element" :disabled="!picking && (!active?.url || active.url === 'about:blank')" @click="togglePick(profile.id)"><Icon name="i-pick" /></button>
+      <Toggle class="pick icon" :model-value="picking" :title="withKeys('Pick an element on the page to mention it to the agent (again or Esc: cancel)', 'pick')"
+        aria-label="Pick an element" :disabled="!picking && (!active?.url || active.url === 'about:blank')" @update:model-value="togglePick(profile.id)"><Icon name="i-pick" /></Toggle>
       <ButtonMenu :items="more" end><button class="more icon" title="More: DevTools" aria-label="More"><Icon name="i-more" /></button></ButtonMenu>
     </div>
     <div ref="content" class="content" :style="{ '--picture': shownDialog?.picture ? `url(${JSON.stringify(shownDialog.picture)})` : 'none' }">
@@ -192,7 +192,7 @@ onBeforeUnmount(() => { observer.disconnect(); if (panes.get(key) === handle) pa
   /* the site's zoom, when not 100% */
   .tool { padding: 0 8px; background: none; color: var(--text-dim); &:hover { background: var(--hover); } }
   .more svg { stroke-width: 2.5; }
-  .pick.active { background: var(--accent); color: var(--on-accent); }
+  .pick[data-state="on"] { background: var(--accent); color: var(--on-accent); }
   /* the omnibox: a pill a step darker than the toolbar; focused, an accent ring */
   .addr { flex: 1; min-width: 0; margin-inline: 4px; padding: 0 14px; border: none; border-radius: calc(var(--control) / 2);
     background: var(--island); color: var(--text); transition: background-color .15s; /* a hover fades in, as Chrome's */
