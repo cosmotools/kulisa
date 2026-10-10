@@ -31,6 +31,14 @@ export interface ProjectsInfo {
   elsewhere?: string[];
   windows?: { id: number; names: string[] }[];
 }
+// The projects' manager (app.js, project:*): what a project may be, its code, its profiles, its configuration.
+export interface ProjectChoices { colors: string[]; icons: string[]; agents: { id: string; name: string }[]; favicon?: string; color?: string; icon?: string }
+export interface ProjectRepo { folder: string; git: 'ok' | 'none' | 'nocommit' }
+export interface ProjectProfile { id: string; name: string; avatar: string; description?: string; also: string[] }
+export interface ProjectSettings extends ProjectChoices {
+  error?: string; name: string; folder: string; local?: string[]; repos: ProjectRepo[]; former?: string | null;
+  projectAgents: { id: string; name: string }[]; profiles: ProjectProfile[]; others: ProjectProfile[];
+}
 // Kulisa's keyboard shortcuts (main/keys.js), as this OS shows them.
 export interface Shortcut { id: string; group: string; label: string; keys: string[] }
 // A question from the main process (shell.ask) or the window.

@@ -77,7 +77,7 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   icon is its site's favicon (`favicon.*` or `icon.*` at the top or in `public/`, `static/`, `app/`, `src/`, `assets/`
   …, up to 128 KB; a project opened from a folder that has one gets it), one of Kulisa's set (Lucide's cart, briefcase,
   globe, flask, rocket, code, building, people, book, heart), or the app's curtain.
-- **Its configuration** (the manager's right side, `project-editor.js`, one form for a new project and an existing
+- **Its configuration** (the manager's right side, `ProjectEditor.vue`, one form for a new project and an existing
   one) changes its name, color, icon and local addresses on Save; the folder is shown, not changed.
 - **Its agents**: a list of the agents' accounts ("Choosing the agent", Accounts), Add Agent… adds one, × removes one,
   the radio makes one the default: + runs it, the others are in +'s right-click menu (New Task with). None: the window

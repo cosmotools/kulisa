@@ -24,7 +24,7 @@ button.danger { background: var(--danger); border-color: var(--danger); color: v
   [aria-pressed="true"] { background: var(--island-hi); box-shadow: inset 0 0 0 2px var(--accent); } }
 /* A project's color (--color on it or above) */
 .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; background: var(--color); }
-/* A tab of a strip on an island, as a browser's (tpl-tasktab): the agent's .state, the .name, × at the end
+/* A tab of a strip on an island, as a browser's (TaskTab.vue): the agent's .state, the .name, × at the end
    (button.close.icon.quiet.small), shown under the pointer and on the shown tab, its room kept so nothing moves. A
    step taller than a button and never narrow: a target for a quick throw of the mouse. Lit under the pointer;
    .active: the shown one, in the panels' color on the dark island. */
@@ -50,7 +50,7 @@ button.danger { background: var(--danger); border-color: var(--danger); color: v
   @media (prefers-reduced-motion: reduce) { svg { animation: none !important; } } }
 @keyframes twinkle { 50% { opacity: .45; scale: .8; } }
 
-/* Icons (the sprite in index.html): lines in the text's color. × and + are drawn smaller than the others, as in
+/* Icons (the sprite: Sprite.vue): lines in the text's color. × and + are drawn smaller than the others, as in
    Chrome. The sprite takes no room but is not display: none: its gradients and clip paths (the logo's) would not
    reach the <use>s then. An icon hidden (hidden, which an <svg> does not get from the browser's own styles) is not
    shown. */
@@ -68,7 +68,8 @@ svg:has(> use) { width: 16px; height: 16px; flex: none; fill: none; stroke: curr
   &.quiet { color: var(--text-muted); &:hover { color: var(--text-strong); } }
   &.small { width: 22px; height: 22px; } }
 
-/* A row of a list or a menu (tpl-menuitem, tpl-project): an icon (.ico) or a dot, the label with a line under it, a key */
+/* A row of a list or a menu (MenuButton.vue, the Welcome screen's projects): an icon (.ico) or a dot, the label with
+   a line under it, a key */
 .item { display: flex; align-items: center; gap: var(--inset); width: 100%; height: auto; min-height: var(--row);
   padding: 6px var(--inset); text-align: start; border: none; background: none;
   &:is(:hover, :focus-visible):not(:disabled) { background: var(--island-hi); outline: none; }
@@ -87,7 +88,7 @@ svg:has(> use) { width: 16px; height: 16px; flex: none; fill: none; stroke: curr
   .remove { margin-inline-end: 2px; visibility: hidden; }
   &:is(:hover, :focus-within) .remove { visibility: visible; } }
 
-/* Dialogs, one look for all (index.html), as in JetBrains: the title with × on top, the content, and a strip of
+/* Dialogs, one look for all (Modal.vue), as in JetBrains: the title with × on top, the content, and a strip of
    buttons at the bottom, the main one last (blue; red when it deletes). */
 dialog { width: 560px; max-height: 85vh; padding: 0; flex-direction: column; background: var(--island); color: var(--text);
   border: 1px solid var(--line); border-radius: var(--island-radius); box-shadow: 0 12px 40px var(--shadow);
@@ -102,11 +103,11 @@ dialog { width: 560px; max-height: 85vh; padding: 0; flex-direction: column; bac
   /* A field and its button in one row (adding a profile, a project) */
   .row { display: flex; gap: var(--gap); margin-top: var(--inset); input { flex: 1; } }
   /* A labelled field, the labels in one column */
-  .field { display: grid; grid-template-columns: 80px 1fr; align-items: center; gap: var(--inset); margin-top: var(--inset);
+  .field { display: grid; grid-template-columns: var(--label) 1fr; align-items: center; gap: var(--inset); margin-top: var(--inset);
     .pick { display: flex; gap: var(--gap); input { flex: 1; min-width: 0; } } }
   /* Under the fields, in the fields' column */
-  .field ~ .hint { margin: 8px 0 0 calc(80px + var(--inset)); overflow-wrap: anywhere; }
-  .check { display: flex; align-items: center; gap: var(--gap); margin: var(--inset) 0 0 calc(80px + var(--inset));
+  .field ~ .hint { margin: 8px 0 0 calc(var(--label) + var(--inset)); overflow-wrap: anywhere; }
+  .check { display: flex; align-items: center; gap: var(--gap); margin: var(--inset) 0 0 calc(var(--label) + var(--inset));
     input { height: auto; margin: 0; } small { color: var(--text-muted); } }
   /* A field, a check or a row a dialog leaves out in one of its uses (hidden) */
   :is(.field, .check, .row)[hidden] { display: none; }

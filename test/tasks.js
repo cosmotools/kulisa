@@ -654,7 +654,7 @@ module.exports = (test) => {
     assert.ok(!shell.store.projects().some((p) => p.id === 'taken'), 'a folder with files in it is not taken');
     await named('Shop');
     // Another color and icon; no agent: the window asks when a task starts (here the tests' own, which is there).
-    await ui(`document.querySelectorAll('#npcolors button')[3].click(); document.querySelector('#npicons [data-value="rocket"]').click(); document.getElementById('npagent').value = ''`);
+    await ui(`document.querySelectorAll('#npcolors button')[3].click(); document.querySelector('#npicons [data-value="rocket"]').click(); const a = document.getElementById('npagent'); a.value = ''; a.dispatchEvent(new Event('change'))`);
     assert.equal(await ui(`document.getElementById('npwhere').textContent`), `The project will be created in ${path.join(made, 'Shop')}`);
     await ui(`document.getElementById('npform').requestSubmit()`);
     await waitFor(() => shell.current?.folder === path.join(made, 'Shop') && shell.task?.loaded && shell.pty);
@@ -711,7 +711,7 @@ module.exports = (test) => {
     assert.equal(await ui(`document.getElementById('nplocationrow').checkVisibility()`), false);
     await ui(`(() => { const n = document.getElementById('npname'); n.value = 'Site-2'; n.dispatchEvent(new Event('input'));
       document.querySelectorAll('#npcolors button')[5].click(); document.querySelector('#npicons [data-value="globe"]').click();
-      document.getElementById('nplocal').value = 'abc.ngrok.app *.Shop.dev';
+      const l = document.getElementById('nplocal'); l.value = 'abc.ngrok.app *.Shop.dev'; l.dispatchEvent(new Event('input'));
       document.getElementById('npform').requestSubmit(); })()`);
     await waitFor(async () => !(await ui(`document.getElementById('projects').open`)));
     const entry = shell.store.projects().find((p) => p.id === 'site');
@@ -725,7 +725,7 @@ module.exports = (test) => {
     await choose(ui, 'Project Settings…');
     await waitFor(() => ui(`document.getElementById('projects').open`));
     assert.equal(await ui(`document.querySelectorAll('#npprofiles .removable').length`), 0);
-    await ui(`document.getElementById('npnewprofile').value = 'Site-user'; document.getElementById('npprofilenew').click()`);
+    await ui(`(() => { const n = document.getElementById('npnewprofile'); n.value = 'Site-user'; n.dispatchEvent(new Event('input')); document.getElementById('npprofilenew').click(); })()`);
     await waitFor(() => ui(`!!document.querySelector('#npprofiles [data-profile="site-user"]')`));
     await ui(`document.getElementById('npprofilefrom').click()`);
     assert.ok((await menuRows(ui)).includes('Sam.admin'));
@@ -862,7 +862,7 @@ module.exports = (test) => {
     await ui(`document.querySelector('#pjlist [data-project="site"]').click()`);
     await waitFor(() => ui(`document.getElementById('pjtitle').textContent === 'Site-2' && document.querySelector('#pjlist [data-project="site"] kbd').textContent === ''`));
     assert.ok(!shell.open.has('site'));
-    await ui(`document.getElementById('npnewprofile').value = 'Closed-one'; document.getElementById('npprofilenew').click()`);
+    await ui(`(() => { const n = document.getElementById('npnewprofile'); n.value = 'Closed-one'; n.dispatchEvent(new Event('input')); document.getElementById('npprofilenew').click(); })()`);
     await waitFor(() => ui(`!!document.querySelector('#npprofiles [data-profile="closed-one"]')`));
     ctx.answer = true;
     await ui(`document.querySelector('#npprofiles [data-profile="closed-one"] .remove').click()`);

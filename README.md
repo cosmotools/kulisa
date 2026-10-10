@@ -122,9 +122,10 @@ src/main/        Electron main process
   project-profiles.js  a task's profiles (copies of their masters, made at their first open), open and closed
   avatars.js       the profiles' pictures to choose from (Noto Emoji's, in src/renderer/public/avatars/)
   profiles.js      a profile: a session on its own folder, tabs (WebContentsView), Playwright connection, sign-in mode
-  store.js         projects.json, settings.json (Kulisa zoom, theme, the windows and their tabs); per project in projects/<id>/:
-                   tasks.json, and per task <n>/: profiles.json (with sites' zoom), layout.json (the window's
-                   grid), agent.json (the session to resume), Profile <k>/ (a Chromium profile, its tabs and session
+  store.js         projects.json, settings.json (Kulisa zoom, theme, the windows and their tabs), profiles.json and
+                   profiles/Profile <k>/ (the profiles' masters); per project in projects/<id>/: tasks.json, and per
+                   task <n>/: profiles.json (with sites' zoom), layout.json (the window's grid), agent.json (the
+                   session to resume), Profile <k>/ (its copy of a master: a Chromium profile, its tabs and session
                    cookies in it).
   cdp-proxy.js     per-profile CDP endpoint over webContents.debugger (no --remote-debugging-port)
   local-only.js    refuses requests from web pages to the MCP server and the proxy (Host, Origin)

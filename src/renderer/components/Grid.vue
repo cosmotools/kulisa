@@ -14,7 +14,9 @@ import OtherTerminal from './grid/OtherTerminal.vue';
 import OtherTerminalHeader from './grid/OtherTerminalHeader.vue';
 import { gridMounted } from '../lib/grid';
 
-const theme = { ...themeAbyssSpaced, name: 'kulisa', gap: 8 }; // --gap in tokens.css
+// dockview takes the gap between panels as a number: tokens.css's --gap, loaded before the window mounts (main.ts).
+const gap = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--gap'));
+const theme = { ...themeAbyssSpaced, name: 'kulisa', gap };
 const components = markRaw({ profile: ProfilePane, terminal: AgentTerminal, term: OtherTerminal }) as unknown as IDockviewVueProps['components']; // dockview-vue types its components as option objects
 const tabComponents = markRaw({ profile: ProfileHeader, terminal: AgentTerminalHeader, term: OtherTerminalHeader }) as unknown as IDockviewVueProps['tabComponents'];
 </script>

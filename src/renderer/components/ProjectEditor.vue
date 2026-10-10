@@ -10,36 +10,28 @@
 // (New, From Another Project…, ×); these at once, not on Save. Both: its color (a dot each), its icon (its site's
 // favicon when it has one, Kulisa's set, or the app's curtain in its color); its local addresses. The main process
 // checks and saves (project:new, project:settings, project:repo-*, project:agent-*, project:profile-*).
-import { computed, nextTick, ref } from 'vue';
+import { computed, ref } from 'vue';
 import Modal from './Modal.vue';
 import Icon from './Icon.vue';
 import { avatarSrc, projectIcon } from '../lib/common';
 import { openMenu } from '../lib/menu';
 import { registerDialog } from '../lib/dialogs';
-import type { ProjectEntry } from '../types';
-
-interface Choices { colors: string[]; icons: string[]; agents: { id: string; name: string }[]; favicon?: string; color?: string; icon?: string }
-interface Repo { folder: string; git: 'ok' | 'none' | 'nocommit' }
-interface ProjProfile { id: string; name: string; avatar: string; description?: string; also: string[] }
-interface Settings extends Choices {
-  error?: string; name: string; folder: string; local?: string[]; repos: Repo[]; former?: string | null;
-  projectAgents: { id: string; name: string }[]; profiles: ProjProfile[]; others: ProjProfile[];
-}
+import type { ProjectChoices, ProjectEntry, ProjectProfile, ProjectRepo, ProjectSettings } from '../types';
 
 const modal = ref<InstanceType<typeof Modal>>();
-const nameInput = ref<HTMLInputElement>(), agentSelect = ref<HTMLSelectElement>(), localInput = ref<HTMLInputElement>();
-const newProfile = ref<HTMLInputElement>(), url = ref<HTMLInputElement>();
+const nameInput = ref<HTMLInputElement>(), newProfile = ref<HTMLInputElement>(), url = ref<HTMLInputElement>();
 const projects = ref<ProjectEntry[]>([]), openIds = ref<string[]>([]);
 const editing = ref<string | null>(null);
 const title = ref(''), name = ref(''), place = ref(''), sep = ref('/'), folder = ref('');
-const git = ref(true), saving = ref(false), error = ref('');
-const choices = ref<Choices>({ colors: [], icons: [], agents: [] });
+const git = ref(true), agent = ref(''), local = ref(''), saving = ref(false), error = ref('');
+const choices = ref<ProjectChoices>({ colors: [], icons: [], agents: [] });
 const color = ref(''), icon = ref('logo');
-const repos = ref<Repo[]>([]), former = ref<string | null>(null), codeError = ref(''), cloning = ref(false);
+const repos = ref<ProjectRepo[]>([]), former = ref<string | null>(null), cloneUrl = ref(''), codeError = ref(''), cloning = ref(false);
 const mine = ref<{ id: string; name: string }[]>([]), agentError = ref('');
-const profiles = ref<ProjProfile[]>([]), others = ref<ProjProfile[]>([]), profileError = ref('');
-// Rows drawn again after each change (a refused one puts the radio back on the default).
-const codeDrawn = ref(0), agentsDrawn = ref(0);
+const profiles = ref<ProjectProfile[]>([]), others = ref<ProjectProfile[]>([]), newName = ref(''), profileError = ref('');
+// The defaults' radios: the first repository and agent, put back there when a change is refused.
+const defRepo = ref(''), defAgent = ref('');
+const showDefaults = () => { defRepo.value = repos.value[0]?.folder ?? ''; defAgent.value = mine.value[0]?.id ?? ''; };
 
 const isNew = computed(() => !editing.value);
 const target = computed(() => (editing.value ? folder.value : `${place.value.trim().replace(/[\\/]+$/, '')}${sep.value}${name.value.trim()}`));
@@ -54,36 +46,35 @@ async function showList() {
   projects.value = r.projects;
   openIds.value = [...r.open.map((o) => o.id), ...r.elsewhere];
 }
-function fill(c: Choices, look: { color?: string; icon?: string }) {
+function fill(c: ProjectChoices, look: { color?: string; icon?: string }) {
   choices.value = c;
   color.value = look.color || c.colors[0];
   icon.value = look.icon || 'logo';
 }
 
 async function fresh() {
-  const c = await kulisa.invoke<Choices & { location: string; sep: string; color: string }>('project:new-defaults');
+  const c = await kulisa.invoke<ProjectChoices & { location: string; sep: string; color: string }>('project:new-defaults');
   editing.value = null; sep.value = c.sep;
   title.value = 'New Project';
   name.value = ''; place.value = c.location; git.value = true; error.value = '';
   fill(c, { color: c.color, icon: 'logo' });
-  await nextTick();
-  agentSelect.value!.value = c.agents[0]?.id || '';
+  agent.value = c.agents[0]?.id || '';
   await showList();
   nameInput.value!.focus();
 }
 async function edit(id: string) {
-  const c = await kulisa.invoke<Settings>('project:settings-get', { id });
+  const c = await kulisa.invoke<ProjectSettings>('project:settings-get', { id });
   if (c.error) return fresh();
   editing.value = id; folder.value = c.folder;
   title.value = c.name;
   name.value = c.name; error.value = '';
   codeError.value = ''; agentError.value = ''; profileError.value = '';
-  if (url.value) url.value.value = '';
-  if (newProfile.value) newProfile.value.value = '';
+  cloneUrl.value = ''; newName.value = '';
   fill(c, c);
-  localInput.value!.value = (c.local || []).join(' ');
+  local.value = (c.local || []).join(' ');
   repos.value = c.repos; former.value = c.former || null;
   mine.value = c.projectAgents;
+  showDefaults();
   profiles.value = c.profiles; others.value = c.others;
   await showList();
   nameInput.value!.focus();
@@ -108,26 +99,26 @@ async function save() {
   saving.value = true;
   const look = { name: name.value, color: color.value, icon: icon.value };
   const r = editing.value
-    ? await kulisa.invoke<{ error?: string } | null>('project:settings', { id: editing.value, ...look, local: localInput.value!.value.split(/[\s,]+/).filter(Boolean) })
-    : await kulisa.invoke<{ error?: string } | null>('project:new', { ...look, agent: agentSelect.value!.value || null, location: place.value, git: git.value });
+    ? await kulisa.invoke<{ error?: string } | null>('project:settings', { id: editing.value, ...look, local: local.value.split(/[\s,]+/).filter(Boolean) })
+    : await kulisa.invoke<{ error?: string } | null>('project:new', { ...look, agent: agent.value || null, location: place.value, git: git.value });
   saving.value = false;
   if (r?.error) error.value = r.error; else modal.value!.close();
 }
 
-// A change to its code: the settings as they are then, or why not (its radio back on the default: drawn again).
+// A change to its code: the settings as they are then, or why not (its radio back on the default).
 async function code(channel: string, args: Record<string, unknown>) {
   codeError.value = '';
-  const r = await kulisa.invoke<{ error?: string; repos?: Repo[]; former?: string | null } | null>(channel, { id: editing.value, ...args });
-  codeDrawn.value++;
+  const r = await kulisa.invoke<{ error?: string; repos?: ProjectRepo[]; former?: string | null } | null>(channel, { id: editing.value, ...args });
   if (r?.error) codeError.value = r.error;
   else if (r?.repos) { repos.value = r.repos; if ('former' in r) former.value = r.former || null; }
+  showDefaults();
   return r;
 }
 // Cloning takes a while (the repository comes over the network): the button says so meanwhile.
 async function clone() {
-  if (!url.value!.value.trim()) return url.value!.focus();
+  if (!cloneUrl.value.trim()) return url.value!.focus();
   cloning.value = true;
-  if (!(await code('project:repo-clone', { url: url.value!.value }))?.error) url.value!.value = '';
+  if (!(await code('project:repo-clone', { url: cloneUrl.value }))?.error) cloneUrl.value = '';
   cloning.value = false;
 }
 
@@ -135,9 +126,9 @@ async function clone() {
 async function agents(channel: string, args: Record<string, unknown>) {
   agentError.value = '';
   const r = await kulisa.invoke<{ error?: string; agents?: { id: string; name: string }[] } | null>(channel, { id: editing.value, ...args });
-  agentsDrawn.value++;
   if (r?.agents) mine.value = r.agents;
   if (r?.error) agentError.value = r.error;
+  showDefaults();
 }
 const addable = computed(() => choices.value.agents.filter((x) => !mine.value.some((m) => m.id === x.id)));
 const addAgent = (e: MouseEvent) => openMenu(addable.value.map((x) => ({ label: x.name, run: () => agents('project:agent-add', { agent: x.id }) })), e.currentTarget as Element);
@@ -147,13 +138,13 @@ const addAgent = (e: MouseEvent) => openMenu(addable.value.map((x) => ({ label: 
 // lets go of one (the main process asks first).
 async function profileChange(channel: string, args: Record<string, unknown>) {
   profileError.value = '';
-  const r = await kulisa.invoke<{ error?: string; profiles?: ProjProfile[]; others?: ProjProfile[] } | null>(channel, { id: editing.value, ...args });
+  const r = await kulisa.invoke<{ error?: string; profiles?: ProjectProfile[]; others?: ProjectProfile[] } | null>(channel, { id: editing.value, ...args });
   if (r?.error) profileError.value = r.error; else if (r?.profiles) { profiles.value = r.profiles; others.value = r.others || []; }
   return r;
 }
 async function addProfile() {
-  if (!newProfile.value!.value.trim()) return newProfile.value!.focus();
-  if (!(await profileChange('project:profile-new', { name: newProfile.value!.value }))?.error) newProfile.value!.value = '';
+  if (!newName.value.trim()) return newProfile.value!.focus();
+  if (!(await profileChange('project:profile-new', { name: newName.value }))?.error) newName.value = '';
 }
 const fromAnother = (e: MouseEvent) => openMenu(others.value.map((p) => ({ label: p.name, sub: p.also.join(', '), avatar: p.avatar,
   run: () => profileChange('project:profile-add', { profile: p.id }) })), e.currentTarget as Element);
@@ -179,12 +170,12 @@ const fromAnother = (e: MouseEvent) => openMenu(others.value.map((p) => ({ label
         @input="error = ''"><button id="npbrowse" type="button" @click="browse">Browse…</button></span></label>
       <p id="npwhere" class="hint">{{ where }}</p>
       <label id="npgitrow" class="check" :hidden="!isNew"><input id="npgit" v-model="git" type="checkbox">Create Git repository <small>each task gets its own copy of the code</small></label>
-      <label id="npagentrow" class="field" :hidden="!isNew"><span>Agent</span><select id="npagent" ref="agentSelect">
+      <label id="npagentrow" class="field" :hidden="!isNew"><span>Agent</span><select id="npagent" v-model="agent">
         <option value="">Ask when a task starts</option><option v-for="a in choices.agents" :key="a.id" :value="a.id">{{ a.name }}</option></select></label>
       <div id="npreposrow" class="field" :hidden="isNew"><span>Code</span>
         <div id="nprepos">
-          <div v-for="(r, i) in repos" :key="`${r.folder}#${codeDrawn}`" class="removable" :data-folder="r.folder">
-            <label class="item" title="The default: new tasks' agents start in its copy"><input type="radio" name="npdefrepo" :checked="i === 0" :aria-label="`${base(r.folder)}: the default`"
+          <div v-for="r in repos" :key="r.folder" class="removable" :data-folder="r.folder">
+            <label class="item" title="The default: new tasks' agents start in its copy"><input v-model="defRepo" type="radio" name="npdefrepo" :value="r.folder" :aria-label="`${base(r.folder)}: the default`"
               @change="code('project:repo-default', { folder: r.folder })"><span class="text"><span class="label">{{ base(r.folder) }}</span><small :title="r.folder">{{ r.folder }}</small></span>
               <kbd>{{ r.git === 'ok' ? '' : r.git === 'none' ? 'no git' : 'no commit' }}</kbd></label>
             <button class="remove icon quiet" type="button" title="Remove from the project (its folder stays)" aria-label="Remove from the project"
@@ -195,7 +186,7 @@ const fromAnother = (e: MouseEvent) => openMenu(others.value.map((p) => ({ label
       <div id="npreposadd" class="row" :hidden="isNew">
         <button id="npaddrepo" type="button" @click="code('project:repo-add', {})">Add Folder…</button>
         <!-- Enter in the URL clones, not saves the dialog -->
-        <input id="npurl" ref="url" placeholder="or clone from a URL: git@github.com:me/shop.git" spellcheck="false" @keydown.enter.prevent="clone">
+        <input id="npurl" ref="url" v-model="cloneUrl" placeholder="or clone from a URL: git@github.com:me/shop.git" spellcheck="false" @keydown.enter.prevent="clone">
         <button id="npclone" type="button" :disabled="cloning" @click="clone">{{ cloning ? 'Cloning…' : 'Clone' }}</button>
       </div>
       <p id="npcodeerror" class="error">{{ codeError }}</p>
@@ -203,8 +194,8 @@ const fromAnother = (e: MouseEvent) => openMenu(others.value.map((p) => ({ label
         <button id="npshowformer" type="button" @click="kulisa.invoke('project:show-former', { id: editing })">Show</button></p>
       <div id="npagentsrow" class="field" :hidden="isNew"><span>Agents</span>
         <div id="npagents">
-          <div v-for="(a, i) in mine" :key="`${a.id}#${agentsDrawn}`" class="removable" :data-agent="a.id">
-            <label class="item" title="The default: + makes a task with it"><input type="radio" name="npdefagent" :checked="i === 0" :aria-label="`${a.name}: the default`"
+          <div v-for="a in mine" :key="a.id" class="removable" :data-agent="a.id">
+            <label class="item" title="The default: + makes a task with it"><input v-model="defAgent" type="radio" name="npdefagent" :value="a.id" :aria-label="`${a.name}: the default`"
               @change="agents('project:agent-default', { agent: a.id })"><span class="text"><span class="label">{{ a.name }}</span></span></label>
             <button class="remove icon quiet" type="button" title="Remove from the project (its tasks keep it)" aria-label="Remove from the project"
               @click="agents('project:agent-remove', { agent: a.id })"><Icon name="i-close" /></button>
@@ -224,7 +215,7 @@ const fromAnother = (e: MouseEvent) => openMenu(others.value.map((p) => ({ label
         </div>
       </div>
       <div id="npprofilesadd" class="row" :hidden="isNew">
-        <input id="npnewprofile" ref="newProfile" data-name maxlength="64" placeholder="A new one, e.g. ann@shop.com" spellcheck="false" aria-label="New profile"
+        <input id="npnewprofile" ref="newProfile" v-model="newName" data-name maxlength="64" placeholder="A new one, e.g. ann@shop.com" spellcheck="false" aria-label="New profile"
           @keydown.enter.prevent="addProfile">
         <button id="npprofilenew" type="button" @click="addProfile">New</button>
         <button id="npprofilefrom" type="button" aria-haspopup="menu" :disabled="!others.length" @click="fromAnother">From Another Project…</button>
@@ -242,7 +233,7 @@ const fromAnother = (e: MouseEvent) => openMenu(others.value.map((p) => ({ label
             :aria-pressed="v === icon" @click="icon = v"><img v-if="v === 'favicon'" :src="choices.favicon" alt=""><Icon v-else :name="projectIcon(v)" /></button>
         </div>
       </div>
-      <label id="nplocalrow" class="field" :hidden="isNew"><span>Local</span><input id="nplocal" ref="localInput" spellcheck="false"
+      <label id="nplocalrow" class="field" :hidden="isNew"><span>Local</span><input id="nplocal" v-model="local" spellcheck="false"
         placeholder="More local addresses: a tunnel, dev domains (abc.ngrok.app shop.dev)"></label>
       <p id="nphint" class="hint">{{ isNew ? 'The agent its tasks run; add more in its configuration.'
         : '+ makes a task from this configuration: copies of its code, its default agent, its profiles closed until needed.' }}</p>
@@ -265,6 +256,6 @@ const fromAnother = (e: MouseEvent) => openMenu(others.value.map((p) => ({ label
   #pjnew { display: flex; align-items: center; justify-content: center; gap: 6px; margin-block-end: 20px; }
   #pjconfig { min-height: 0; overflow: auto; padding-block-end: 20px; }
   #pjtitle { margin: 0; font-size: 1em; font-weight: 600; color: var(--text-strong); }
-  :is(#npreposadd, #npcodeerror, #npagentsadd, #npagenterror, #npprofilesadd, #npprofileerror) { margin-inline-start: calc(80px + var(--inset)); }
+  :is(#npreposadd, #npcodeerror, #npagentsadd, #npagenterror, #npprofilesadd, #npprofileerror) { margin-inline-start: calc(var(--label) + var(--inset)); }
   .choices { .dot { width: 14px; height: 14px; } svg { color: var(--color); } img { width: 16px; height: 16px; } } }
 </style>

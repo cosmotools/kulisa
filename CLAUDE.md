@@ -103,6 +103,9 @@ unasked. This paragraph is removed when the rewrite is finished.
     (`https://raw.githubusercontent.com/electron/electron/v<version>/docs/`: `README.md`, `tutorial/…`, `api/…`,
     `breaking-changes.md`); the API is in `node_modules/electron/electron.d.ts`. Name what you read in the plan. The
     dark mode was first built from memory, and redone after its guide was read.
+  - The same for Vue: before using a part of Vue new to the window, read its page in Vue's own documentation for
+    agents (`https://vuejs.org/llms.txt`, each page as `.md`; it describes 3.5, the installed version), and name it in
+    the plan. Official sources only, no community skills or MCP servers (the author, 2026-10-10).
   - Hand-written protocol code is the exception: today only `cdp-proxy.js`, because nothing existing exposes
     `webContents.debugger` over CDP.
   - When adding a dependency, prefer one that is widely used and maintained, and say why in the commit message. Its
@@ -270,7 +273,7 @@ Modules (`src/main`):
   one on profiles or tabs names its task too, refused when that window shows another by then: `act` in the
   renderer's `lib/store.ts`), quit. `shell.win`, `shell.task`, `shell.profiles`, `shell.closed`, `shell.pty` are the first window's (the tests').
 - `window.js`: a window: its open projects and what it shows (show a project or a task, the grid's state, the
-  views' places), the questions asked there (`shell.ask(q, window)`, in its dialog: `ask.js`), the theme's colors
+  views' places), the questions asked there (`shell.ask(q, window)`, in its dialog: `Ask.vue`), the theme's colors
   CSS does not paint.
 - `keys.js`: the keyboard shortcuts: one table (what each key does, and where: a page, everywhere, the terminal) and
   which key an input event is; `app.js` takes them before any page does (`before-input-event`), the window runs them

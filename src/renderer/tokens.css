@@ -18,13 +18,15 @@
   --selection: light-dark(#a6d2ff, #214283); /* selected text in the terminal */
   --page-button: light-dark(#0b57d0, #a8c7fa); --on-page-button: light-dark(#ffffff, #062e6f); /* Chrome's, a page's dialog */
   --hover: color-mix(in srgb, var(--text) 12%, transparent); /* under a control the pointer is on, on any background */
-  --project: #c8333b; /* the open project's color (renderer.js); until then the app icon's own red */
-  /* One text size and one control height for the whole UI (the terminal uses the same size, renderer.js); the
+  --project: #c8333b; /* the open project's color (lib/store.ts); until then the app icon's own red */
+  /* One text size and one control height for the whole UI (the terminal uses the same size, lib/terminals.ts); the
      Kulisa zoom scales all of it together. */
   --font: 14px; --control: 28px; --radius: 6px; --tab-radius: 8px; --gap: 8px; --island-radius: 10px;
   /* Room, as Chrome's menus and dialogs have it: a row of a menu or a list (its height, the space inside it and
      between its icon and text, between a dialog's fields), and the space inside a dialog along its edges. */
   --row: 34px; --inset: 12px; --pad: 24px;
+  /* A dialog's labels, in one column before their fields (.field), and what lines up with the fields under them */
+  --label: 80px;
   color-scheme: dark;
   &[data-theme="light"] { color-scheme: light; }
   &[data-theme="system"] { color-scheme: light dark; }
