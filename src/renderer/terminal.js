@@ -1,15 +1,15 @@
-// The terminal panel: each workspace's agent CLI in an xterm.js of its own, the panel showing the shown workspace's
+// The terminal panel: each task's agent CLI in an xterm.js of its own, the panel showing the shown task's
 // (the others keep their output while in the background). Set up as VS Code does: Unicode 11 character widths
 // (Claude Code draws ✅ ⏵ ✻ and the like; with the default Unicode 6 widths the cursor and the input line drift off
 // the text), the WebGL renderer, and a bundled font so it looks and measures the same on every OS. The UI's text size
 // (--font in tokens.css), so the terminal matches the rest.
-// A workspace's other terminals (the human's shells, what the agent runs: main/workspaces.js) are panels of their own,
-// each its element and header, keyed "<workspace>#<id>" as in the main process.
+// A task's other terminals (the human's shells, what the agent runs: main/tasks.js) are panels of their own,
+// each its element and header, keyed "<task>#<id>" as in the main process.
 //   termEl, termTab     the agent's panel's element and its header (renderer.js puts them in its panel)
-//   term                the shown workspace's terminal
-//   showTerminal(ws)    show a workspace's terminal (made the first time)
+//   term                the shown task's terminal
+//   showTerminal(task)    show a task's terminal (made the first time)
 //   termHost(key), termHeader(key, info)  another terminal's element and header, for its panel
-//   forgetTerminals(keys)  forget those of workspaces gone (their project closed or moved, a fork deleted), with their
+//   forgetTerminals(keys)  forget those of tasks gone (their project closed or moved, a fork deleted), with their
 //                       other terminals, or other terminals closed
 //   terminalsOf(project)   what a project's terminals show, for the window it moves to (terminals:restore there)
 //   terminalMenu(el)    the right-click menu of the terminal at el (menu.js items)
@@ -21,7 +21,7 @@ const terminals = new Map(); // terminal key -> { term, el, fit, opened }
 const hosts = new Map(); // another terminal's key -> { el, tab }: its panel's element and header
 let term = null, shownTerminal = null;
 Object.defineProperty(window, '__term', { get: () => term }); // for tests
-window.__ptySizes = []; // for tests: the sizes sent for the shown workspace
+window.__ptySizes = []; // for tests: the sizes sent for the shown task
 const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 const termFontSize = parseFloat(css('--font')) || 14;
 // xterm measures the cell size when it opens: once the font is loaded. Output written before is kept.
@@ -38,7 +38,7 @@ const termTheme = () => ({ background: shown('--island'), foreground: shown('--t
 function themeTerminals() { for (const { term: t } of terminals.values()) t.options.theme = termTheme(); }
 
 // Links in the terminal: those an agent marks (OSC 8, as Claude Code does) and addresses in plain text (the web-links
-// addon). Ctrl+click (⌘ on macOS) asks where, in a menu at the pointer: a tab of one of the shown workspace's open
+// addon). Ctrl+click (⌘ on macOS) asks where, in a menu at the pointer: a tab of one of the shown task's open
 // profiles, or the user's browser. Always asked, so a link never opens somewhere unexpected (the author's choice:
 // which profile a link belongs to cannot be told). http and https only; the address shows on hover.
 const termLinks = {
@@ -53,10 +53,10 @@ const termLinks = {
 };
 
 // size: { cols, rows } to start with (a terminal coming from another window: its contents are laid out for it).
-function makeTerminal(ws, size) {
-  const other = ws.includes('#');
+function makeTerminal(task, size) {
+  const other = task.includes('#');
   const el = Object.assign(document.createElement('div'), { className: 'xterm-host', hidden: !other });
-  (other ? termHost(ws) : termEl).append(el);
+  (other ? termHost(task) : termEl).append(el);
   const t = new Terminal({ ...size, fontSize: termFontSize, fontFamily: '"JetBrains Mono", monospace', cursorBlink: true,
     allowProposedApi: true, theme: termTheme(), minimumContrastRatio: 4.5, linkHandler: termLinks });
   t.loadAddon(new Unicode11Addon.Unicode11Addon());
@@ -67,9 +67,9 @@ function makeTerminal(ws, size) {
   const serialize = new SerializeAddon.SerializeAddon();
   t.loadAddon(serialize);
   const entry = { term: t, el, fit, serialize, opened: false };
-  terminals.set(ws, entry);
+  terminals.set(task, entry);
   termFont.then(() => {
-    if (terminals.get(ws) !== entry) return; // forgotten meanwhile
+    if (terminals.get(task) !== entry) return; // forgotten meanwhile
     t.open(el);
     entry.renderer = 'dom';
     try {
@@ -79,10 +79,10 @@ function makeTerminal(ws, size) {
       entry.renderer = 'webgl';
     } catch (e) { console.warn('[terminal] WebGL renderer unavailable:', e.message); }
     entry.opened = true;
-    if (shownTerminal === ws) { window.__termRenderer = entry.renderer; fitTerminal(); }
-    if (other) fitOther(ws);
+    if (shownTerminal === task) { window.__termRenderer = entry.renderer; fitTerminal(); }
+    if (other) fitOther(task);
   });
-  t.onData((data) => kulisa.send('pty:in', { ws, data }));
+  t.onData((data) => kulisa.send('pty:in', { task, data }));
   t.attachCustomKeyEventHandler((e) => {
     const does = e.type === 'keydown' && clipboardKey(e, kulisa.platform, t.hasSelection());
     if (does === 'copy') { termCopy(t); if (kulisa.platform === 'win32') t.clearSelection(); }
@@ -90,16 +90,16 @@ function makeTerminal(ws, size) {
   });
   return entry;
 }
-const terminalOf = (ws) => terminals.get(ws) || makeTerminal(ws);
+const terminalOf = (task) => terminals.get(task) || makeTerminal(task);
 
-function showTerminal(ws) {
-  shownTerminal = ws;
-  const shown = terminalOf(ws);
+function showTerminal(task) {
+  shownTerminal = task;
+  const shown = terminalOf(task);
   for (const e of terminals.values()) e.el.hidden = e !== shown;
   term = shown.term;
   if (shown.opened) window.__termRenderer = shown.renderer;
   fitTerminal();
-  showDictation(ws);
+  showDictation(task);
 }
 function forgetTerminals(keys) {
   const all = new Set([...terminals.keys(), ...hosts.keys()].filter((k) => keys.some((key) => k === key || k.startsWith(`${key}#`))));
@@ -136,7 +136,7 @@ function fitOther(key) {
   const e = terminals.get(key);
   if (!e?.opened || !e.el.isConnected || !e.fit.proposeDimensions()?.cols) return;
   try { e.fit.fit(); } catch { return; }
-  kulisa.send('pty:resize', { ws: key, cols: e.term.cols, rows: e.term.rows });
+  kulisa.send('pty:resize', { task: key, cols: e.term.cols, rows: e.term.rows });
 }
 
 // Their contents as escape sequences (xterm's serialize addon, as VS Code keeps terminals across reloads), which
@@ -150,12 +150,12 @@ kulisa.on('terminals:restore', (list) => {
 });
 
 // Only once the terminal is in its panel and the grid has settled: an agent starts at the first size sent for its
-// workspace (main/terminal.js) and draws its prompt for it.
+// task (main/terminal.js) and draws its prompt for it.
 let fitTimer = 0;
 function fitTerminal(tries = 50) {
   clearTimeout(fitTimer);
   fitTimer = setTimeout(() => {
-    const ws = shownTerminal, e = terminals.get(ws);
+    const task = shownTerminal, e = terminals.get(task);
     if (!e?.opened || !termEl.closest('#dock')) return;
     // No size yet (xterm has not measured its characters, or the panel is not laid out): again a moment later, so
     // the agent gets its real size, never xterm's default.
@@ -163,13 +163,13 @@ function fitTerminal(tries = 50) {
     try { e.fit.fit(); } catch { return; }
     const size = { cols: e.term.cols, rows: e.term.rows };
     window.__ptySizes.push(size);
-    kulisa.send('pty:resize', { ws, ...size });
+    kulisa.send('pty:resize', { task, ...size });
   }, 100);
 }
 new ResizeObserver(() => fitTerminal()).observe(termEl);
-kulisa.on('pty:out', ({ ws, data }) => terminalOf(ws).term.write(data));
+kulisa.on('pty:out', ({ task, data }) => terminalOf(task).term.write(data));
 kulisa.on('terminal:focus', () => term?.focus());
-kulisa.on('terminal:reset', ({ ws }) => terminals.get(ws)?.term.reset()); // another agent starts there
+kulisa.on('terminal:reset', ({ task }) => terminals.get(task)?.term.reset()); // another agent starts there
 
 // Copy and paste as the OS's own terminal does, so hands need nothing new (xterm leaves the keys to the app, as VS Code
 // sets its own): Ctrl+Shift+C / V everywhere (GNOME Terminal, Konsole); on Windows also Ctrl+V, and Ctrl+C copies a

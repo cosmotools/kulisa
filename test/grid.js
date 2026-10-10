@@ -46,13 +46,13 @@ module.exports = (test) => {
     assert.equal((await ctx.termText()).split('exec cat -v').length - 1, 1, 'the command that starts the agent shows once');
     assert.equal(shell.profiles.size, 0);
     assert.ok(sam.tabs.every((t) => !t.wc.isDestroyed()) && !sam.get().view.getVisible(), "the first project's pages keep running, hidden");
-    assert.equal(shell.open.get('project').workspaces.get(1).pty, firstPty, "and its agent");
+    assert.equal(shell.open.get('project').tasks.get(1).pty, firstPty, "and its agent");
     assert.equal(shell.win.getTitle(), 'other — Kulisa');
     assert.equal(shell.resumedSession, null, 'a new project has no conversation to resume');
     await waitFor(async () => JSON.stringify(await projectTabs(ui)) === '["project","other *"]' && ui(`!!window.__dock.getPanel('terminal')`));
     assert.equal(await ui(`document.querySelectorAll('.pane').length`), 0);
-    // Each project's island with its workspaces, the one each shows marked.
-    assert.deepEqual(await ui(`[...document.querySelectorAll('#projectTabs .pisland')].map((g) => [...g.querySelectorAll('.wstab')]
+    // Each project's island with its tasks, the one each shows marked.
+    assert.deepEqual(await ui(`[...document.querySelectorAll('#projectTabs .pisland')].map((g) => [...g.querySelectorAll('.tasktab')]
       .map((t) => t.querySelector('.name').textContent + (t.classList.contains('selected') ? ' *' : '')))`), [['main *'], ['main *']]);
     // Every island keeps its place and width whichever project is shown, also while it switches: nothing jumps.
     const islands = () => ui(`[...document.querySelectorAll('#projectTabs .pisland')].map((t) => { const r = t.getBoundingClientRect(); return [r.x, r.width]; })`);
@@ -100,11 +100,11 @@ module.exports = (test) => {
     } finally { electron.shell.openPath = openPath; }
     assert.equal(shown[0], path.join(userData, 'projects', 'other'));
 
-    // A click on the label shows nothing: its workspaces are what is clicked.
+    // A click on the label shows nothing: its tasks are what is clicked.
     await ui(`${projectTab('project')}.querySelector('.plabel').click()`);
     await sleep(300); // nothing to wait for: that nothing happens
     assert.equal(shell.current?.folder, other);
-    // A click on the first project's workspace: it comes back as it was left, its agent the same; no page shows before
+    // A click on the first project's task: it comes back as it was left, its agent the same; no page shows before
     // it has its place in the grid (nothing jumps).
     const jumps = [];
     const watch = setInterval(() => {
@@ -167,9 +167,9 @@ module.exports = (test) => {
     const { shell, ui } = ctx;
     const other = path.join(root, 'other');
     await ui(`kulisa.invoke('project:open', { folder: ${JSON.stringify(other)} })`);
-    await waitFor(() => shell.current?.id === 'other' && shell.ws.loaded && shell.pty);
+    await waitFor(() => shell.current?.id === 'other' && shell.task.loaded && shell.pty);
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
-    const moved = shell.current, ws = moved.ws, pty = ws.pty, seller = ws.profiles.get('sam-seller');
+    const moved = shell.current, task = moved.task, pty = task.pty, seller = task.profiles.get('sam-seller');
     await waitFor(async () => (await ctx.termText()).includes(`agent: rc of ${other}`));
     const first = shell.windows[0];
     // A line as wide as an agent's prompt box (Claude Code's), and the size the agent has.
@@ -187,13 +187,13 @@ module.exports = (test) => {
 
     // The first window keeps its other tab; the new one has the project, as it was: the same agent, the same pages
     // (moved into it, not loaded again), what the terminal showed.
-    await waitFor(() => shell.current?.id === 'project' && shell.ws.loaded);
+    await waitFor(() => shell.current?.id === 'project' && shell.task.loaded);
     assert.deepEqual(await projectTabs(ui), ['project *']);
     assert.equal(moved.window, second);
     await waitFor(async () => JSON.stringify(await projectTabs(ui2)) === '["other *"]');
     assert.equal(second.win.getTitle(), 'other — Kulisa');
-    assert.equal(ws.pty, pty, 'the same agent');
-    assert.equal(ws.profiles.get('sam-seller'), seller, 'the same profile');
+    assert.equal(task.pty, pty, 'the same agent');
+    assert.equal(task.profiles.get('sam-seller'), seller, 'the same profile');
     const view = seller.get().view;
     assert.ok(second.win.contentView.children.includes(view) && !first.win.contentView.children.includes(view), 'its page moved');
     await waitFor(async () => {
@@ -214,7 +214,7 @@ module.exports = (test) => {
     pty.write('moved along\r');
     await waitFor(async () => (await termText2()).includes('moved along'));
     await second.screenshot(path.join(root, 'second-window.png'));
-    await ctx.call('browser_navigate', { profile: 'sam-seller', url: `${SITE}/app?moved` }, ws);
+    await ctx.call('browser_navigate', { profile: 'sam-seller', url: `${SITE}/app?moved` }, task);
     assert.match(seller.get().wc.getURL(), /\?moved$/);
     // Each window's + menu marks the projects open in either.
     await ui(`document.getElementById('openProjects').click()`);
@@ -225,7 +225,7 @@ module.exports = (test) => {
     ctx.answer = false;
     await ui2(`act('profile:delete', { profile: 'sam-seller' })`);
     ctx.answer = true;
-    assert.ok(ws.profiles.has('sam-seller'), 'kept: the human said no');
+    assert.ok(task.profiles.has('sam-seller'), 'kept: the human said no');
     assert.deepEqual(savedWindows(), [{ tabs: ['project'], shown: 'project' }, { tabs: ['other'], shown: 'other' }]);
 
     // Back into the first window (Move to Window, as a browser moves a tab): the only tab of the second, so it closes.
@@ -234,7 +234,7 @@ module.exports = (test) => {
     await choose(ui2, 'Move to Window: project');
     await waitFor(() => shell.windows.length === 1 && shell.current === moved && !first.switching);
     assert.ok(second.win.isDestroyed());
-    assert.equal(ws.pty, pty, 'the same agent');
+    assert.equal(task.pty, pty, 'the same agent');
     assert.ok(first.win.contentView.children.includes(view), 'its page back');
     await waitFor(async () => (await viewOn(shell, ui, 'sam-seller')) && (await ctx.termText()).includes('moved along'));
     assert.deepEqual(await projectTabs(ui), ['project', 'other *']);
@@ -257,7 +257,7 @@ module.exports = (test) => {
     await waitFor(() => shell.windows.length === 2 && shell.windows[1].current?.id === 'other' && !shell.windows[1].switching);
     ctx.answer = true;
     const third = shell.windows[1], reopened = third.current;
-    await waitFor(() => reopened.ws.pty);
+    await waitFor(() => reopened.task.pty);
     assert.deepEqual(await projectTabs(ui), ['project *'], 'nothing new in the first window');
 
     // Closing the window (the OS's ×) closes its project, as closing its tab would, after one question in that window
@@ -274,12 +274,12 @@ module.exports = (test) => {
     third.win.close();
     await waitFor(() => shell.windows.length === 1 && !shell.open.has('other'));
     ctx.asked.length = 0;
-    assert.ok(third.win.isDestroyed() && reopened.ws.profiles.size === 0 && reopened.ws.pty === null);
+    assert.ok(third.win.isDestroyed() && reopened.task.profiles.size === 0 && reopened.task.pty === null);
     assert.deepEqual(savedWindows(), [{ tabs: ['project'], shown: 'project' }]);
     assert.equal(await viewOn(shell, ui, 'sam-admin'), true);
 
     // The last window's × quits Kulisa (its projects come back at the next start): asked only when an agent works.
-    shell.ws.state = 'working';
+    shell.task.state = 'working';
     ctx.answer = false;
     shell.win.close();
     await waitFor(() => ctx.asked.length && ui(`!document.getElementById('ask').open`));
@@ -287,16 +287,16 @@ module.exports = (test) => {
     assert.equal(quit.message, 'Quit Kulisa?');
     assert.match(quit.detail, /^An agent is still working \(main\): quitting stops it\./);
     assert.ok(!shell.win.isDestroyed() && shell.open.has('project'), 'Kulisa goes on when the human says no');
-    shell.ws.state = null;
+    shell.task.state = null;
     ctx.answer = true;
   });
   test('projects: a tab dragged changes the order, goes out into a new window and back into the first', async (ctx) => {
     const { shell, ui } = ctx;
     const other = path.join(root, 'other'), DRAG = 'application/x-kulisa-project';
     await ui(`kulisa.invoke('project:open', { folder: ${JSON.stringify(other)} })`); // This Window (ctx.answer)
-    await waitFor(() => shell.current?.id === 'other' && shell.ws.loaded && shell.pty && !shell.windows[0].switching);
+    await waitFor(() => shell.current?.id === 'other' && shell.task.loaded && shell.pty && !shell.windows[0].switching);
     ctx.asked.length = 0;
-    const moved = shell.current, pty = moved.ws.pty;
+    const moved = shell.current, pty = moved.task.pty;
     // Synthetic drag events, as the human's mouse would send them; a drop gets what the drag carried.
     const dragStart = (u, id) => u(`(() => { window.__dt = new DataTransfer();
       ${projectTab(id)}.dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: window.__dt })); return window.__dt.getData('${DRAG}'); })()`);
@@ -339,7 +339,7 @@ module.exports = (test) => {
     const nb = second.win.getBounds();
     assert.ok(right ? nb.x > b.x + 32 : nb.x < b.x - 32, `towards the pointer, not next to the first window: ${JSON.stringify({ b, nb, right })}`);
     assert.deepEqual(await projectTabs(ui), ['project *']);
-    assert.equal(moved.ws.pty, pty, 'the same agent');
+    assert.equal(moved.task.pty, pty, 'the same agent');
 
     // Onto the first window's tabs: back there, where it was let go; the second window, left empty, closes.
     data = await dragStart(ui2, 'other');
@@ -348,7 +348,7 @@ module.exports = (test) => {
     await waitFor(() => shell.windows.length === 1 && shell.current === moved && !shell.windows[0].switching);
     assert.ok(second.win.isDestroyed());
     assert.deepEqual(await projectTabs(ui), ['project', 'other *']);
-    assert.equal(moved.ws.pty, pty);
+    assert.equal(moved.task.pty, pty);
     await closeProject(ui, 'other');
     await waitFor(() => !shell.open.has('other') && shell.current?.id === 'project' && !shell.windows[0].switching);
     ctx.asked.length = 0;
@@ -529,7 +529,7 @@ module.exports = (test) => {
     assert.equal(opened[1], 'https://github.com/cosmotools/kulisa');
 
     // Exit quits as the last window's × does: asked only when an agent works.
-    shell.ws.state = 'working';
+    shell.task.state = 'working';
     ctx.answer = false;
     await ui(`document.getElementById('windowMenu').click()`);
     await menuRows(ui);
@@ -537,7 +537,7 @@ module.exports = (test) => {
     await waitFor(() => ctx.asked.length && ui(`!document.getElementById('ask').open`));
     assert.equal(ctx.asked.pop().message, 'Quit Kulisa?');
     assert.ok(!shell.win.isDestroyed() && shell.open.size, 'Kulisa goes on when the human says no');
-    shell.ws.state = null;
+    shell.task.state = null;
     ctx.answer = true;
   });
 };

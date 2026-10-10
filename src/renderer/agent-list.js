@@ -1,5 +1,5 @@
 // The agents Kulisa knows (agents.js in the main process) as a list with Install, in both dialogs that show them:
-// choosing a workspace's agent (agent-picker.js) and the Agents window (agents.js). Each row: who makes it and what
+// choosing a task's agent (agent-picker.js) and the Agents window (agents.js). Each row: who makes it and what
 // it needs, whether it is on this computer. One that is not has an Install button: Kulisa runs its maker's installer
 // (the command line is shown before). Meanwhile the list says only that it is installing: the installer's own output
 // (written for programmers: "open a new terminal and run …") is under Details, opened by itself when it fails.

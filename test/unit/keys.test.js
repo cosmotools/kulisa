@@ -14,7 +14,7 @@ test('keys: a letter is what it types on a Latin layout, its place on another; d
   assert.equal(id(linux, key('е', 'KeyT', 'c')), 'tab.new', 'Ctrl+Е on a Russian layout is Ctrl+T');
   assert.equal(id(linux, key('w', 'KeyZ', 'c')), 'tab.close', 'the W of an AZERTY keyboard, where a QWERTY one has Z');
   assert.equal(id(linux, key('ё', 'Backquote', 'c'), ['global']), 'terminal.focus');
-  assert.deepEqual(match(linux, key('!', 'Digit1', 'cs'), ['global']), { id: 'workspace.n', n: 1, main: false, window: false });
+  assert.deepEqual(match(linux, key('!', 'Digit1', 'cs'), ['global']), { id: 'task.n', n: 1, main: false, window: false });
   assert.equal(match(linux, key('3', 'Digit3', 'c'), ['page']).n, 3);
   assert.equal(id(linux, key('?', 'Slash', 'cs'), ['global']), 'shortcuts');
   assert.equal(id(linux, key('T', 'KeyT', 'cs')), 'tab.reopen');
@@ -76,7 +76,7 @@ test('keys: shown as the OS shows them; a range as its first and last', () => {
   assert.equal(display('Control+`', 'linux'), 'Ctrl+`');
   const shown = Object.fromEntries(list('linux').map((s) => [s.id, s.keys]));
   assert.deepEqual(shown['tab.n'], ['Ctrl+1…8']);
-  assert.deepEqual(shown['workspace.n'], ['Ctrl+Shift+1…9']);
+  assert.deepEqual(shown['task.n'], ['Ctrl+Shift+1…9']);
   assert.deepEqual(shown['tab.address'], ['Ctrl+L', 'Alt+D', 'F6']);
   assert.deepEqual(shown['terminal.copy'], ['Ctrl+Shift+C']);
   assert.deepEqual(Object.fromEntries(list('win32').map((s) => [s.id, s.keys]))['terminal.copy'], ['Ctrl+C']);

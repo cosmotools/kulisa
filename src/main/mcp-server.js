@@ -1,7 +1,7 @@
 // Kulisa's MCP server for the agent. Every tool takes `profile`; implemented with playwright-core through the
 // CDP proxy, so every action also reaches the pane's caption and action annotations (ghost.js).
-// Streamable HTTP, one URL per workspace: http://127.0.0.1:<port>/ws/<project>/<n>/mcp (the parts
-// percent-encoded); its agent sees that workspace's profiles only. Stateless (a new server per request).
+// Streamable HTTP, one URL per task: http://127.0.0.1:<port>/task/<project>/<n>/mcp (the parts
+// percent-encoded); its agent sees that task's profiles only. Stateless (a new server per request).
 const http = require('http');
 const path = require('path');
 const vm = require('vm');
@@ -14,7 +14,7 @@ const { toUrl } = require('./profiles');
 const { MARK } = require('./ghost');
 const { version: VERSION } = require('../../package.json');
 
-// The agent's highlights per profile (by '<workspace>/<profile id>'): { disposables, tab, onInput }; kept across MCP
+// The agent's highlights per profile (by '<task>/<profile id>'): { disposables, tab, onInput }; kept across MCP
 // requests (a server is built per request). They go when replaced, cleared, or on the first click or key press in
 // that tab.
 const highlights = new Map();
@@ -25,7 +25,7 @@ async function clearHighlights(profile) {
   for (const d of h.disposables) await d[Symbol.asyncDispose]().catch(() => {});
 }
 
-// profile_ask_signin's requests per profile ('<workspace>/<profile id>'): { at, page, wentIn }, kept across calls.
+// profile_ask_signin's requests per profile ('<task>/<profile id>'): { at, page, wentIn }, kept across calls.
 const signinAsks = new Map();
 const pageKey = (u) => { try { const x = new URL(u); return x.origin + x.pathname; } catch { return u; } };
 
@@ -39,33 +39,33 @@ const INSTRUCTIONS = 'Kulisa profiles are the users of the app under test, each 
   'Never sign in, type passwords or read cookies or tokens: ask the human with profile_ask_signin. ' +
   'Run what keeps running (the app\'s dev server, docker compose up, a watcher) with terminal_run, not in your own ' +
   'shell or its background: the human sees it in a terminal next to yours, and you read its output with terminal_read.';
-// Where the app under test runs in this workspace: forks of a project run their own copy of it, on ports moved by the
-// workspace's offset (workspaces.md, Ports), so they do not clash.
-const portsOf = (ws) => (ws.offset
-  ? ` This is workspace "${ws.name}", a copy of the project next to others: run the app on its usual ports plus ` +
-    `${ws.offset} (3000 → ${3000 + ws.offset}; $KULISA_PORT_OFFSET), through PORT, a --port flag, .env.local or the ` +
+// Where the app under test runs in this task: forks of a project run their own copy of it, on ports moved by the
+// task's offset (tasks.md, Ports), so they do not clash.
+const portsOf = (task) => (task.offset
+  ? ` This is task "${task.name}", a copy of the project next to others: run the app on its usual ports plus ` +
+    `${task.offset} (3000 → ${3000 + task.offset}; $KULISA_PORT_OFFSET), through PORT, a --port flag, .env.local or the ` +
     'published ports of docker compose. The profiles\' tabs on local addresses already point there. If the app cannot ' +
     'run on other ports, tell the human.'
-  : ' This is the project\'s main workspace: the app runs on its usual ports.');
+  : ' This is the project\'s main task: the app runs on its usual ports.');
 
-// ws: the workspace (workspaces.js) whose profiles the tools act on.
-function buildServer(ws) {
-  const server = new McpServer({ name: 'kulisa', version: VERSION }, { instructions: INSTRUCTIONS + portsOf(ws) });
+// task: the task (tasks.js) whose profiles the tools act on.
+function buildServer(task) {
+  const server = new McpServer({ name: 'kulisa', version: VERSION }, { instructions: INSTRUCTIONS + portsOf(task) });
   // Profiles can be created while the agent runs, so this is a string checked at call time, not an enum.
-  const closed = [...ws.closed.values()].map(({ cfg }) => `${cfg.id} (${cfg.name}, closed)`);
-  const profileArg = z.string().describe(`Profile id. Current: ${[...[...ws.profiles.values()].map((p) => `${p.id} (${p.name})`), ...closed].join(', ') || 'none yet'}; call browser_profiles for the live list`);
+  const closed = [...task.closed.values()].map(({ cfg }) => `${cfg.id} (${cfg.name}, closed)`);
+  const profileArg = z.string().describe(`Profile id. Current: ${[...[...task.profiles.values()].map((p) => `${p.id} (${p.name})`), ...closed].join(', ') || 'none yet'}; call browser_profiles for the live list`);
   const text = (t) => ({ content: [{ type: 'text', text: t }] });
-  // The agent's handles on the core: profiles and tabs found as the window finds them (workspaces.js), plus what only
+  // The agent's handles on the core: profiles and tabs found as the window finds them (tasks.js), plus what only
   // automation keeps to: no agent while the human signs in.
   const profileOf = (id) => {
-    const r = ws.find(id);
+    const r = task.find(id);
     if (r.error) throw new Error(r.closed ? `${r.error} With profile_open, if the task needs it.` : r.error);
     if (r.profile.signinMode) throw new Error(`Profile "${id}" is in sign-in mode: the human is signing in. Wait and try again later.`);
     return r.profile;
   };
   const tabOf = (id, tabId) => {
     profileOf(id);
-    const r = ws.findTab(id, tabId);
+    const r = task.findTab(id, tabId);
     if (r.error) throw new Error(r.error);
     return r;
   };
@@ -107,10 +107,10 @@ function buildServer(ws) {
   // pane by ("the fox").
   server.registerTool('browser_profiles', { description: 'List profiles: id, name, description (who it is in the app; null: not said, ask the human), picture (avatar), whether the human is signing in (signinMode), tabs; closed ones (closed: true) need profile_open first.', inputSchema: {} },
     async () => text(JSON.stringify([
-      ...[...ws.profiles.values()].map(({ id, name, description, avatar, signinMode, active, tabs }) =>
+      ...[...task.profiles.values()].map(({ id, name, description, avatar, signinMode, active, tabs }) =>
         ({ id, name, description: description || null, avatar, signinMode, active,
           tabs: tabs.filter((t) => !t.wc.isDestroyed()).map((t) => ({ id: t.id, title: t.wc.getTitle(), url: t.wc.getURL() })) })),
-      ...[...ws.closed.values()].map(({ cfg, urls }) => ({ id: cfg.id, name: cfg.name, description: cfg.description || null, avatar: cfg.avatar,
+      ...[...task.closed.values()].map(({ cfg, urls }) => ({ id: cfg.id, name: cfg.name, description: cfg.description || null, avatar: cfg.avatar,
         closed: true, tabs: urls.length })),
     ], null, 1)));
 
@@ -118,17 +118,17 @@ function buildServer(ws) {
     description: 'Open a closed profile: its pane comes back with its tabs, still signed in. Costs memory: open one only when the task needs it.',
     inputSchema: { profile: z.string().describe('Id of a closed profile (browser_profiles)') },
   }, async ({ profile }) => {
-    const r = await ws.openProfile(profile);
-    if (r.error) throw new Error(`${r.error}. Profiles: ${[...ws.profiles.keys(), ...ws.closed.keys()].join(', ')}`);
+    const r = await task.openProfile(profile);
+    if (r.error) throw new Error(`${r.error}. Profiles: ${[...task.profiles.keys(), ...task.closed.keys()].join(', ')}`);
     const page = await pageOf(profile); // its active tab loaded, for the next snapshot
     await page.waitForLoadState('domcontentloaded').catch(() => {});
-    return text(`Profile ${profile} is open, with ${ws.profiles.get(profile).tabs.length} tab(s); active: ${page.url()}`);
+    return text(`Profile ${profile} is open, with ${task.profiles.get(profile).tabs.length} tab(s); active: ${page.url()}`);
   });
   server.registerTool('profile_close', {
     description: "Close a profile: its pane and tabs go and free their memory; it stays signed in, and profile_open brings it back with the same tabs. Close profiles you opened when you are done with them, others only when the human asks.",
     inputSchema: { profile: z.string().describe('Id of an open profile') },
   }, async ({ profile }) => {
-    const r = await ws.closeProfile(profile);
+    const r = await task.closeProfile(profile);
     if (r.error) throw new Error(r.error);
     return text(`Closed profile ${profile}; it is still signed in.`);
   });
@@ -136,7 +136,7 @@ function buildServer(ws) {
     description: 'Delete a profile for good: its sign-ins, cookies, storage and tabs. The human is asked to confirm, and only they can sign a new profile in. Only when the human asks, or a profile you created is no longer needed.',
     inputSchema: { profile: z.string().describe('Profile id, open or closed') },
   }, async ({ profile }) => {
-    const r = await ws.deleteProfile(profile, 'agent');
+    const r = await task.deleteProfile(profile, 'agent');
     if (r.error) throw new Error(r.error);
     return text(`Deleted profile ${profile}.`);
   });
@@ -148,7 +148,7 @@ function buildServer(ws) {
       description: z.string().optional().describe('As in profile_describe: only what the human said'),
     },
   }, async ({ name, description }) => {
-    const r = await ws.createProfile(name, description);
+    const r = await task.createProfile(name, description);
     if (r.error) throw new Error(r.error);
     return text(`Created profile ${r.id} ("${name}"). It is signed out: ask the human to sign it in (profile_ask_signin).`);
   });
@@ -157,7 +157,7 @@ function buildServer(ws) {
     description: 'Rename a profile, e.g. after the human signed it in to another account. Its id follows the name.',
     inputSchema: { profile: profileArg, name: z.string().describe('As in profile_create') },
   }, async ({ profile, name }) => {
-    const r = ws.renameProfile(profile, name);
+    const r = task.renameProfile(profile, name);
     if (r.error) throw new Error(r.error);
     return text(`Renamed ${profile} to "${name.trim()}"; its id is now ${r.id}.`);
   });
@@ -166,7 +166,7 @@ function buildServer(ws) {
     description: "Save who a profile is in the app under test (its role, what it can do), which agents choose profiles by. Only the human's words: when no description tells which profile a task means, ask the human, then save their answer. An empty description clears it.",
     inputSchema: { profile: profileArg, description: z.string().describe('e.g. "seller in the Acme shop; can approve refunds"') },
   }, async ({ profile, description }) => {
-    const r = ws.describeProfile(profile, description);
+    const r = task.describeProfile(profile, description);
     if (r.error) throw new Error(r.error);
     return text(description.trim() ? `Saved: ${profile} is "${description.trim()}".` : `Cleared ${profile}'s description.`);
   });
@@ -206,9 +206,9 @@ function buildServer(ws) {
       "url: the app's sign-in page, opened first. Up to 45 s a call; \"not yet\": call again to keep waiting. Then check with browser_snapshot.",
     inputSchema: { profile: profileArg, url: z.string().optional(), why: z.string().optional().describe('A few words: as whom, for what') },
   }, async ({ profile, url, why }) => {
-    const r = ws.find(profile);
+    const r = task.find(profile);
     if (r.error) throw new Error(r.error);
-    const p = r.profile, key = `${ws.key}/${profile}`;
+    const p = r.profile, key = `${task.key}/${profile}`;
     let ask = signinAsks.get(key);
     if (!ask || Date.now() - ask.at > 10 * 60_000) {
       if (url) {
@@ -220,13 +220,13 @@ function buildServer(ws) {
       ask = { at: Date.now(), page: pageKey(p.get().wc.getURL()), wentIn: p.signinMode };
       signinAsks.set(key, ask);
     }
-    ws.caption(profile, `sign in, please${why ? `: ${why}` : ''}`, true);
+    task.caption(profile, `sign in, please${why ? `: ${why}` : ''}`, true);
     for (const until = Date.now() + 45_000; Date.now() < until; await new Promise((ok) => setTimeout(ok, 300))) {
       if (p.deleted) throw new Error(`Profile ${profile} was deleted.`);
       if (p.signinMode || p.resuming) { ask.wentIn = true; continue; }
       if (ask.wentIn || pageKey(p.get().wc.getURL()) !== ask.page) {
         signinAsks.delete(key);
-        ws.caption(profile, '');
+        task.caption(profile, '');
         return text(`The human is through: ${profile} is at ${p.get().wc.getURL()}. Check with browser_snapshot that it is signed in.`);
       }
     }
@@ -248,7 +248,7 @@ function buildServer(ws) {
     },
   }, async ({ profile, tab: tabId, elements }) => {
     const page = await pageOf(profile, tabId);
-    const hkey = `${ws.key}/${profile}`;
+    const hkey = `${task.key}/${profile}`;
     await clearHighlights(hkey);
     const shown = [];
     for (const el of elements) {
@@ -261,12 +261,12 @@ function buildServer(ws) {
       const { tab } = tabOf(profile, tabId);
       const onInput = (_e, input) => {
         if (!['mouseDown', 'keyDown', 'rawKeyDown'].includes(input.type)) return;
-        clearHighlights(hkey); ws.caption(profile, '');
+        clearHighlights(hkey); task.caption(profile, '');
       };
       tab.wc.on('input-event', onInput);
       highlights.set(hkey, { disposables: shown, tab, onInput });
     }
-    ws.caption(profile, elements.length ? `points at: ${elements.map((e, i) => e.label || `${i + 1}`).join(' · ')}` : '', elements.length > 0);
+    task.caption(profile, elements.length ? `points at: ${elements.map((e, i) => e.label || `${i + 1}`).join(' · ')}` : '', elements.length > 0);
     return text(elements.length ? `Highlighted ${elements.length} element(s) in ${profile}` : `Cleared highlights in ${profile}`);
   });
 
@@ -442,14 +442,14 @@ function buildServer(ws) {
     return text(lines.length ? lines.slice(-100).join('\n') : `No ${onlyFailed ? 'failed ' : ''}requests in ${profile}'s tab ${page.url()}`);
   });
 
-  // Terminals next to the agent's (Workspace.openTerminal): what keeps running, where the human sees it.
+  // Terminals next to the agent's (Task.openTerminal): what keeps running, where the human sees it.
   const done = (r) => { if (r.error) throw new Error(r.error); return r; };
   const nameArg = z.string().describe('The terminal\'s name, e.g. "dev server"');
   server.registerTool('terminal_run', {
-    description: "Run a command that keeps running (the app's dev server, docker compose up, a watcher) in a terminal of its own next to yours, where the human sees it: the user's shell in the workspace's folder, with your environment. A terminal of that name already open gets the command typed in: stop what runs there first (terminal_stop). Then read its output with terminal_read.",
+    description: "Run a command that keeps running (the app's dev server, docker compose up, a watcher) in a terminal of its own next to yours, where the human sees it: the user's shell in the task's folder, with your environment. A terminal of that name already open gets the command typed in: stop what runs there first (terminal_stop). Then read its output with terminal_read.",
     inputSchema: { name: nameArg, command: z.string().describe('A shell command line, e.g. "npm run dev -- --port 3100"') },
   }, async ({ name, command }) => {
-    const r = done(await ws.runInTerminal(name, command));
+    const r = done(await task.runInTerminal(name, command));
     return text(`${r.again ? 'Typed into' : 'Started in'} terminal "${r.name}": ${command}. Read its output with terminal_read.`);
   });
   server.registerTool('terminal_read', {
@@ -457,16 +457,16 @@ function buildServer(ws) {
     inputSchema: { name: nameArg.optional(), lines: z.number().int().min(1).max(500).optional().describe('Default 50') },
   }, async ({ name, lines }) => {
     if (!name) {
-      const list = ws.terminalsInfo();
+      const list = task.terminalsInfo();
       return text(list.length ? list.map((t) => `"${t.name}" (${t.by === 'agent' ? 'yours' : "the human's"})${t.command ? `: ${t.command}` : ''}`).join('\n') : 'No terminals open besides yours.');
     }
-    return text(done(ws.readTerminal(name, lines)).text || '(nothing yet)');
+    return text(done(task.readTerminal(name, lines)).text || '(nothing yet)');
   });
   server.registerTool('terminal_stop', {
     description: 'Stop what runs in a terminal next to yours (Ctrl+C); close: true closes the terminal too. The human\'s own terminals: only when they ask.',
     inputSchema: { name: nameArg, close: z.boolean().optional() },
   }, async ({ name, close }) => {
-    done(close ? ws.closeTerminal(name) : ws.interruptTerminal(name));
+    done(close ? task.closeTerminal(name) : task.interruptTerminal(name));
     return text(close ? `Closed terminal "${name}".` : `Pressed Ctrl+C in terminal "${name}".`);
   });
   return server;
@@ -477,14 +477,14 @@ const safeDecode = (s) => { try { return decodeURIComponent(s); } catch { return
 async function startMcpServer(shell, cfg) {
   const srv = http.createServer(async (req, res) => {
     if (!fromLocalTool(req)) { res.writeHead(403); return res.end(); }
-    // /ws/<project>/<n>/…: a workspace of an open project, loaded.
-    const m = req.url.match(/^\/ws\/([^/]+)\/(\d+)(\/.*)$/);
-    const ws = m && shell.workspaceOf(safeDecode(m[1]), Number(m[2]));
-    if (!ws?.loaded) { res.writeHead(404); return res.end(); }
-    if (handleHookRequest(ws, m[3], req, res)) return;
+    // /task/<project>/<n>/…: a task of an open project, loaded.
+    const m = req.url.match(/^\/task\/([^/]+)\/(\d+)(\/.*)$/);
+    const task = m && shell.taskOf(safeDecode(m[1]), Number(m[2]));
+    if (!task?.loaded) { res.writeHead(404); return res.end(); }
+    if (handleHookRequest(task, m[3], req, res)) return;
     if (!m[3].startsWith('/mcp')) { res.writeHead(404); return res.end(); }
     // The transport reads the body itself (with a size limit) and answers a malformed one.
-    const server = buildServer(ws);
+    const server = buildServer(task);
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
     res.on('close', () => { transport.close(); server.close(); });
     await server.connect(transport);
@@ -492,7 +492,7 @@ async function startMcpServer(shell, cfg) {
   });
   await new Promise((r) => srv.listen(cfg.port || 0, '127.0.0.1', r));
   const base = `http://127.0.0.1:${srv.address().port}`;
-  console.log('[kulisa] MCP server:', `${base}/ws/<project>/<n>/mcp`);
+  console.log('[kulisa] MCP server:', `${base}/task/<project>/<n>/mcp`);
   return { base, srv };
 }
 

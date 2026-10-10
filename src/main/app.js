@@ -23,7 +23,7 @@ const keys = require('./keys');
 process.on('uncaughtException', (e) => console.error('[kulisa] uncaught', e));
 process.on('unhandledRejection', (e) => console.error('[kulisa] unhandled rejection', e));
 
-const NONE = new Map(); // the workspaces and profiles when no project is open
+const NONE = new Map(); // the tasks and profiles when no project is open
 
 // The Kulisa plugin's package for Claude Code (CLAUDE.md, Architecture, layer 3): the MCP config, a skill, hooks.
 // Outside the asar archive when packaged (forge.config.js, extraResource), because claude reads it from disk.
@@ -33,9 +33,9 @@ const CLAUDE_PLUGIN = app.isPackaged ? path.join(process.resourcesPath, 'claude-
 //   userData   folder for Kulisa's data and browser profiles
 //   project    a project's folder to open (added to the first window's tabs and shown); default: the windows and tabs
 //              open last, else none (the window offers to open one, as VS Code)
-//   agent      { name, command, args, resume, shell } to run in every workspace that has not chosen one, without
+//   agent      { name, command, args, resume, shell } to run in every task that has not chosen one, without
 //              asking (KULISA_AGENT, the tests); resume(sessionId) gives the arguments that continue a session.
-//              Default: the human chooses from agents (agents.js) per workspace, in the window.
+//              Default: the human chooses from agents (agents.js) per task, in the window.
 //   agents     the agents to choose from, instead of agents.js's (tests)
 //   mcpPort    port of the MCP server (default 4450)
 //   mimicChrome  present profiles as Google Chrome (default true)
@@ -57,33 +57,33 @@ function start(options = {}) {
   for (const w of saved) if (!w.tabs.some((t) => t.id === w.shown?.id)) w.shown = w.tabs[0] || null;
   const bus = new EventEmitter(); // profile-added, agent-command, agent-action
   // The app: the projects open in any window (projects.js: Project, by id) and the windows (window.js: AppWindow).
-  // win, current, ws, profiles, closed, pty are the first window's (the tests'): its shown project and workspace, that
-  // workspace's open and closed profiles by id, its agent's terminal.
+  // win, current, task, profiles, closed, pty are the first window's (the tests'): its shown project and task, that
+  // task's open and closed profiles by id, its agent's terminal.
   const shell = { bus, store, proxy: null, mcp: null, open: new Map(), windows: [], signin: signinPages(options.signinHosts || []) };
   const first = () => shell.windows[0] ?? null;
   Object.defineProperties(shell, {
     win: { get: () => first()?.win ?? null },
     current: { get: () => first()?.current ?? null },
-    ws: { get: () => first()?.ws ?? null },
+    task: { get: () => first()?.task ?? null },
     profiles: { get: () => first()?.profiles || NONE },
     closed: { get: () => first()?.closed || NONE },
-    pty: { get: () => first()?.ws?.pty || null },
-    resumedSession: { get: () => first()?.ws?.resumedSession ?? null },
+    pty: { get: () => first()?.task?.pty || null },
+    resumedSession: { get: () => first()?.task?.resumedSession ?? null },
   });
-  // A workspace of an open project: by the project's id and its number (the MCP server's URLs), or by its key (the
+  // A task of an open project: by the project's id and its number (the MCP server's URLs), or by its key (the
   // windows', the CDP proxy's).
-  shell.workspaceOf = (id, n) => shell.open.get(id)?.workspaces.get(n) || null;
-  shell.workspace = (key) => { for (const p of shell.open.values()) { const ws = p.workspace(key); if (ws) return ws; } return null; };
+  shell.taskOf = (id, n) => shell.open.get(id)?.tasks.get(n) || null;
+  shell.taskByKey = (key) => { for (const p of shell.open.values()) { const task = p.taskByKey(key); if (task) return task; } return null; };
   // The window a page's message comes from (IPC: event.sender).
   shell.windowOf = (sender) => shell.windows.find((w) => !w.win.isDestroyed() && w.win.webContents === sender) || null;
   const at = (e) => shell.windowOf(e.sender);
   const mimic = options.mimicChrome !== false;
   const appDevTools = options.appDevTools ?? !app.isPackaged;
   let quitting = false; // from before-quit on (below): closing a window asks nothing, tabs closing save nothing
-  // A workspace's profiles changed (now: right away), or its agent's state (workspaces.js): its window shows it. Not
-  // once quitting: the tabs are saved then, and each one closing as Kulisa quits saved its workspace's tabs again,
+  // A task's profiles changed (now: right away), or its agent's state (tasks.js): its window shows it. Not
+  // once quitting: the tabs are saved then, and each one closing as Kulisa quits saved its task's tabs again,
   // fewer each time, at last none (one in the background at once: 2026-10-08, the author's tabs all about:blank).
-  shell.wsChanged = (ws, now, agentState) => quitting || ws.project.window?.changed(ws, now, agentState);
+  shell.taskChanged = (task, now, agentState) => quitting || task.project.window?.changed(task, now, agentState);
   // A question asked in a window (window.js), the first one when none is named: askWhich gives the button clicked
   // ('ok', 'other') or null; ask whether it was ok. Through shell: the tests answer it.
   shell.askWhich = (q, w = first()) => w.ask(q);
@@ -112,22 +112,22 @@ function start(options = {}) {
     for (const w of shell.windows) w.setTheme(shell.theme, shell.shade());
   };
   nativeTheme.on('updated', () => { if (shell.theme === 'system') shell.setTheme(); });
-  // Where the bar of the open projects and their workspaces is: 'bottom' (the default: by the terminal, where the hand
+  // Where the bar of the open projects and their tasks is: 'bottom' (the default: by the terminal, where the hand
   // goes anyway) or 'top' (under the title bar, as browsers' tabs), chosen in ☰.
   shell.bar = store.settings().bar || 'bottom';
   shell.setBar = (bar) => {
     shell.bar = bar; store.saveSettings({ ...store.settings(), bar });
     for (const w of shell.windows) w.send('bar', bar);
   };
-  const allWorkspaces = () => [...shell.open.values()].flatMap((p) => [...p.workspaces.values()]);
-  const allProfiles = () => allWorkspaces().flatMap((ws) => [...ws.profiles.values()]);
+  const allTasks = () => [...shell.open.values()].flatMap((p) => [...p.tasks.values()]);
+  const allProfiles = () => allTasks().flatMap((task) => [...task.profiles.values()]);
 
-  // ---------- windows, projects and workspaces ----------
-  // A project is a folder with its workspaces (store.js). Each window has a tab per project open in it, as a browser
+  // ---------- windows, projects and tasks ----------
+  // A project is a folder with its tasks (store.js). Each window has a tab per project open in it, as a browser
   // has; it shows one, the others keep running (their agents and pages), until the human closes their tab. Each
-  // workspace has its profiles, grid and agent (workspaces.js); a window shows one of its shown project's, the others
-  // keep running. Showing another project or workspace hides this one's pages, and the window builds the next grid in
-  // place (the page is not loaded again). A workspace loads (profiles, agent) the first time it is shown.
+  // task has its profiles, grid and agent (tasks.js); a window shows one of its shown project's, the others
+  // keep running. Showing another project or task hides this one's pages, and the window builds the next grid in
+  // place (the page is not loaded again). A task loads (profiles, agent) the first time it is shown.
   // Opening, showing, creating, moving and closing run one after another, in all windows.
   let queue = Promise.resolve();
   const serial = (fn) => { const r = queue.then(fn); queue = r.catch(() => {}); return r; };
@@ -165,8 +165,8 @@ function start(options = {}) {
   // quitting (quit), when the projects come back at the next start: asked only when that would stop a working agent.
   // True: go on.
   function askClosing(w, projects, { quit = false, window = false } = {}) {
-    const working = projects.flatMap((p) => [...p.workspaces.values()].filter((ws) => ws.state === 'working')
-      .map((ws) => (projects.length > 1 ? `${p.name}: ${ws.name}` : ws.name)));
+    const working = projects.flatMap((p) => [...p.tasks.values()].filter((task) => task.state === 'working')
+      .map((task) => (projects.length > 1 ? `${p.name}: ${task.name}` : task.name)));
     const busy = working.length ? `${working.length > 1 ? 'Agents are' : 'An agent is'} still working (${working.join(', ')}): ` : '';
     const it = working.length > 1 ? 'them' : 'it';
     if (quit) {
@@ -186,7 +186,7 @@ function start(options = {}) {
   }
   // A project into another window (to, its tab at index; none: a window of its own next to its window, or at the
   // point at), as a browser moves a tab; it keeps running: its agents, its pages (the same views, moved, not loaded
-  // again), what its terminals showed (terminals: { workspace key: their contents }, from the window it leaves). The
+  // again), what its terminals showed (terminals: { task key: their contents }, from the window it leaves). The
   // only tab of a window goes to a new one never (nothing would change); into another window, its window closes after
   // it.
   async function moveProject(project, terminals = {}, to = null, { index, at } = {}) {
@@ -194,7 +194,7 @@ function start(options = {}) {
     if (!from) return { error: 'the project is not open' };
     if (to === from) return { id: project.id };
     if (!to && from.tabs.length < 2) return { error: 'the project is the only one in its window' };
-    for (const ws of project.workspaces.values()) shell.chooseAgent.cancel(ws); // asked again in the other window
+    for (const task of project.tasks.values()) shell.chooseAgent.cancel(task); // asked again in the other window
     await from.leave(project);
     from.drop(project);
     const target = to || newWindow({ near: from.win, at });
@@ -254,23 +254,23 @@ function start(options = {}) {
   async function quit(w) { if (await askClosing(w, [...shell.open.values()], { quit: true })) app.quit(); }
   function dropWindow(w) { shell.windows.splice(shell.windows.indexOf(w), 1); w.destroy(); }
   // A fork of a project's main (projects.js), then shown.
-  async function createWorkspace(project, name, agent) {
+  async function createTask(project, name, agent) {
     if (!project) return { error: 'no project is open' };
-    const ws = await project.createFork(name, agent);
-    if (ws.error) return ws;
-    await project.window.showWorkspace(ws);
-    return { n: ws.n, key: ws.key };
+    const task = await project.createFork(name, agent);
+    if (task.error) return task;
+    await project.window.showTask(task);
+    return { n: task.n, key: task.key };
   }
   // Closing a fork deletes it, after the human says yes (projects.js); main is the project itself: closing it closes
   // the project.
-  async function closeWorkspace(ws) {
-    const project = ws.project;
-    if (ws.main) return closeProject(project);
-    if (!await project.askDeleteFork(ws)) return { error: 'the human said no' };
-    if (project.ws === ws) await project.window.showWorkspace(project.main);
-    await project.deleteFork(ws);
-    project.window.forkDeleted(ws);
-    return { n: ws.n };
+  async function closeTask(task) {
+    const project = task.project;
+    if (task.main) return closeProject(project);
+    if (!await project.askDeleteFork(task)) return { error: 'the human said no' };
+    if (project.task === task) await project.window.showTask(project.main);
+    await project.deleteFork(task);
+    project.window.forkDeleted(task);
+    return { n: task.n };
   }
   // Removing a project, from wherever a window asks for it (w): the human confirms, then it is closed if it is open,
   // and its data deleted (projects.js).
@@ -284,7 +284,7 @@ function start(options = {}) {
     return { id };
   }
   ipcMain.handle('projects:list', (e) => at(e)?.info());
-  // The switch runs on its own; the window hears about it through grid:closing, projects, workspaces and state. A
+  // The switch runs on its own; the window hears about it through grid:closing, projects, tasks and state. A
   // project not open yet, asked for in a window with projects open: the human chooses where, as in JetBrains: in a tab
   // of this window, or in a new window.
   const openLater = (p, w) => {
@@ -308,7 +308,7 @@ function start(options = {}) {
   });
   // New Project…, as JetBrains': the folder <location>/<name>, the location the home folder unless the human picks
   // another, so they know where the agent's files are. A folder that is there already must be empty; git init in it
-  // when asked (workspaces need git).
+  // when asked (tasks need git).
   ipcMain.handle('project:new-defaults', () => ({ location: options.projectsHome || app.getPath('home'), sep: path.sep }));
   ipcMain.handle('project:pick-location', async (e, { location }) => {
     const r = await dialog.showOpenDialog(at(e).win, { title: 'Where to create the project', defaultPath: location, properties: ['openDirectory', 'createDirectory'] });
@@ -343,33 +343,33 @@ function start(options = {}) {
   ipcMain.handle('project:drop', (e, { id, index, terminals }) => serial(() => dropProject(shell.open.get(id), at(e), index, terminals)));
   ipcMain.handle('project:drag-out', (e, { id, terminals }) => serial(() => dragOut(shell.open.get(id), terminals)));
   ipcMain.handle('app:quit', (e) => serial(() => quit(at(e))));
-  // Kulisa's data of an open project (its profiles, workspaces), in the OS's file manager: for the human who wants to
+  // Kulisa's data of an open project (its profiles, tasks), in the OS's file manager: for the human who wants to
   // know where it is or what takes the disk. Opened, not changed.
   ipcMain.handle('project:show-data', (e, { id }) => {
     const p = shell.open.get(id);
     return p && electronShell.openPath(store.dirOf(p.entry));
   });
   ipcMain.handle('project:remove', (e, { id }) => serial(() => removeProject(id, at(e))));
-  // A workspace of another project too (the bar shows every open project's): it becomes that project's, then the
+  // A task of another project too (the bar shows every open project's): it becomes that project's, then the
   // project is shown.
-  ipcMain.handle('ws:show', (e, key) => serial(async () => {
-    const ws = shell.workspace(key);
-    if (!ws) return;
-    const win = ws.project.window;
-    await win.showWorkspace(ws);
-    if (win.current !== ws.project) await win.show(ws.project);
+  ipcMain.handle('task:show', (e, key) => serial(async () => {
+    const task = shell.taskByKey(key);
+    if (!task) return;
+    const win = task.project.window;
+    await win.showTask(task);
+    if (win.current !== task.project) await win.show(task.project);
   }));
-  ipcMain.handle('ws:new', (e, { name, agent }) => serial(() => createWorkspace(at(e)?.current, name, agent)));
-  // The terminal's microphone and its language (voice.js in the renderer; Workspace.voice, dictate).
-  // Esc typed into an agent's terminal (its key is the workspace's): Workspace.interrupted.
-  ipcMain.on('pty:in', (e, { ws, data }) => { if (data === '\x1b') shell.workspace(ws)?.interrupted(); });
-  ipcMain.handle('voice:get', (e, key) => shell.workspace(key)?.voice() ?? null);
-  ipcMain.handle('voice:record', (e, { ws, on }) => shell.workspace(ws)?.dictate(on) ?? { recording: false });
-  ipcMain.handle('voice:language', (e, { ws, code }) => shell.workspace(ws)?.setVoiceLanguage(code) ?? { error: `no workspace ${ws}` });
-  ipcMain.handle('ws:show-folder', (e, key) => { const ws = shell.workspace(key); return ws && electronShell.openPath(ws.folder); });
-  ipcMain.handle('ws:close', (e, key) => serial(() => { const ws = shell.workspace(key); return ws ? closeWorkspace(ws) : { error: `no workspace ${key}` }; }));
-  // The window asks again when the pointer comes to the shown project's workspaces: the human may have made the first commit meanwhile.
-  ipcMain.handle('workspaces:get', async (e) => { const w = at(e); await w?.current?.checkGit(); w?.sendWorkspaces(); });
+  ipcMain.handle('task:new', (e, { name, agent }) => serial(() => createTask(at(e)?.current, name, agent)));
+  // The terminal's microphone and its language (voice.js in the renderer; Task.voice, dictate).
+  // Esc typed into an agent's terminal (its key is the task's): Task.interrupted.
+  ipcMain.on('pty:in', (e, { task, data }) => { if (data === '\x1b') shell.taskByKey(task)?.interrupted(); });
+  ipcMain.handle('voice:get', (e, key) => shell.taskByKey(key)?.voice() ?? null);
+  ipcMain.handle('voice:record', (e, { task, on }) => shell.taskByKey(task)?.dictate(on) ?? { recording: false });
+  ipcMain.handle('voice:language', (e, { task, code }) => shell.taskByKey(task)?.setVoiceLanguage(code) ?? { error: `no task ${task}` });
+  ipcMain.handle('task:show-folder', (e, key) => { const task = shell.taskByKey(key); return task && electronShell.openPath(task.folder); });
+  ipcMain.handle('task:close', (e, key) => serial(() => { const task = shell.taskByKey(key); return task ? closeTask(task) : { error: `no task ${key}` }; }));
+  // The window asks again when the pointer comes to the shown project's tasks: the human may have made the first commit meanwhile.
+  ipcMain.handle('tasks:get', async (e) => { const w = at(e); await w?.current?.checkGit(); w?.sendTasks(); });
 
   const ready = app.whenReady().then(async () => {
     // macOS keeps a menu bar for the app: Electron's default one would reload Kulisa's own page with ⌘R. Its own
@@ -396,7 +396,7 @@ function start(options = {}) {
     for (const [i, { w, shown }] of windows.entries()) {
       if (i) await w.load(shown);
       if (shown) await serial(() => w.show(shown));
-      else { w.sendProjects(); w.sendWorkspaces(); }
+      else { w.sendProjects(); w.sendTasks(); }
     }
     shell.saveWindows();
     shell.stopAutosave = shell.sessionCookies.autosave(allProfiles);
@@ -408,9 +408,9 @@ function start(options = {}) {
   });
 
   // ---------- agents ----------
-  // Each workspace runs the agent the human chose for it (agents.js; saved in its agent.json). One not chosen yet or
+  // Each task runs the agent the human chose for it (agents.js; saved in its agent.json). One not chosen yet or
   // not installed: the window asks (agent-picker.js), installing it with its maker's installer if the human wants.
-  // The Kulisa plugin reads where Kulisa is from the environment, set per workspace (workspaces.js): .mcp.json from
+  // The Kulisa plugin reads where Kulisa is from the environment, set per task (tasks.js): .mcp.json from
   // KULISA_MCP_URL, its hooks from KULISA_URL. Other agent CLIs get them too.
   shell.plugin = CLAUDE_PLUGIN;
   const custom = options.agent && { id: 'custom', name: options.agent.name || options.agent.command, custom: true,
@@ -419,22 +419,22 @@ function start(options = {}) {
   const known = [...(custom ? [custom] : []), ...(options.agents || agents.AGENTS)];
   shell.agentFor = (id) => known.find((a) => a.id === (id ?? custom?.id)) || null;
   shell.findAgent = agents.findAgent;
-  const choosing = new Map(); // workspace key -> resolve(agent or null)
-  // Asked in the workspace's window. cancel: the human may leave it as it is (changing the agent; not when there is
+  const choosing = new Map(); // task key -> resolve(agent or null)
+  // Asked in the task's window. cancel: the human may leave it as it is (changing the agent; not when there is
   // none yet).
-  shell.chooseAgent = (ws, agent, { cancel = false } = {}) => new Promise((resolve) => {
-    choosing.get(ws.key)?.(null);
-    choosing.set(ws.key, resolve);
-    ws.project.window?.send('agent:choose', { ws: ws.key, selected: agent?.id ?? null, cancel });
+  shell.chooseAgent = (task, agent, { cancel = false } = {}) => new Promise((resolve) => {
+    choosing.get(task.key)?.(null);
+    choosing.set(task.key, resolve);
+    task.project.window?.send('agent:choose', { task: task.key, selected: agent?.id ?? null, cancel });
   });
-  shell.chooseAgent.cancel = (ws) => { choosing.get(ws.key)?.(null); choosing.delete(ws.key); };
-  ipcMain.on('agent:chosen', (_e, { ws, id }) => { const r = choosing.get(ws); choosing.delete(ws); r?.(id ? shell.agentFor(id) : null); });
-  // The agents to choose from; with check, whether each is installed (for the workspace's folder: its environment);
+  shell.chooseAgent.cancel = (task) => { choosing.get(task.key)?.(null); choosing.delete(task.key); };
+  ipcMain.on('agent:chosen', (_e, { task, id }) => { const r = choosing.get(task); choosing.delete(task); r?.(id ? shell.agentFor(id) : null); });
+  // The agents to choose from; with check, whether each is installed (for the task's folder: its environment);
   // with details (the Agents window), also where it is and its version.
   ipcMain.handle('agents:list', async (e, { check, details } = {}) => {
     const w = at(e);
     const list = await Promise.all(known.map(async (a) => {
-      const found = (check || details) && await agents.findAgent(a, w?.ws?.folder || app.getPath('home'));
+      const found = (check || details) && await agents.findAgent(a, w?.task?.folder || app.getPath('home'));
       return {
         id: a.id, name: a.name, maker: a.maker, needs: a.needs, site: a.site, install: agents.installLine(a),
         ...((check || details) && { installed: !!found }),
@@ -448,32 +448,32 @@ function start(options = {}) {
     const w = at(e), a = shell.agentFor(id);
     if (!a?.install) return { error: `nothing to install for ${id}` };
     const code = await agents.installAgent(a, (data) => w?.send('agents:install-log', data));
-    return { code, installed: !!(await agents.findAgent(a, w?.ws?.folder || app.getPath('home'))) };
+    return { code, installed: !!(await agents.findAgent(a, w?.task?.folder || app.getPath('home'))) };
   });
 
-  // A window's handles on the profiles of its shown workspace (the editor, the panes): each only translates to the
-  // workspace's own (workspaces.js), the same the agent's tools use (mcp-server.js). A refusal answers { error }.
-  // Each names its workspace (renderer, workspaces.js: act): one sent just as the human switches workspaces or
-  // projects is refused, not done in the workspace shown by then.
-  const noWs = { error: 'that workspace is not on screen' };
-  const wsOf = (e, key) => { const ws = at(e)?.ws; return ws && ws.key === key ? ws : null; };
-  const onProfile = (fn) => (e, { ws, profile, ...args }) => { const r = wsOf(e, ws)?.find(profile) || noWs; return r.error ? r : fn(r.profile, args); };
-  const onTab = (fn) => (e, { ws, profile, tab, ...args }) => { const r = wsOf(e, ws)?.findTab(profile, tab) || noWs; return r.error ? r : fn(r.profile, r.tab, args); };
-  ipcMain.handle('profile:new', (e, { ws, name, description, avatar }) => wsOf(e, ws)?.createProfile(name, description, avatar) || noWs);
-  ipcMain.handle('profile:close', (e, { ws, profile }) => wsOf(e, ws)?.closeProfile(profile) || noWs);
-  ipcMain.handle('profile:open', (e, { ws, profile }) => wsOf(e, ws)?.openProfile(profile) || noWs);
-  ipcMain.handle('profile:rename', (e, { ws, profile, name }) => wsOf(e, ws)?.renameProfile(profile, name) || noWs);
-  ipcMain.handle('profile:describe', (e, { ws, profile, description }) => wsOf(e, ws)?.describeProfile(profile, description) || noWs);
-  ipcMain.handle('profile:avatar', (e, { ws, profile, avatar }) => wsOf(e, ws)?.setProfileAvatar(profile, avatar) || noWs);
-  ipcMain.handle('profile:delete', (e, { ws, profile }) => wsOf(e, ws)?.deleteProfile(profile, 'human') || noWs);
+  // A window's handles on the profiles of its shown task (the editor, the panes): each only translates to the
+  // task's own (tasks.js), the same the agent's tools use (mcp-server.js). A refusal answers { error }.
+  // Each names its task (renderer, tasks.js: act): one sent just as the human switches tasks or
+  // projects is refused, not done in the task shown by then.
+  const noTask = { error: 'that task is not on screen' };
+  const onScreen = (e, key) => { const task = at(e)?.task; return task && task.key === key ? task : null; };
+  const onProfile = (fn) => (e, { task, profile, ...args }) => { const r = onScreen(e, task)?.find(profile) || noTask; return r.error ? r : fn(r.profile, args); };
+  const onTab = (fn) => (e, { task, profile, tab, ...args }) => { const r = onScreen(e, task)?.findTab(profile, tab) || noTask; return r.error ? r : fn(r.profile, r.tab, args); };
+  ipcMain.handle('profile:new', (e, { task, name, description, avatar }) => onScreen(e, task)?.createProfile(name, description, avatar) || noTask);
+  ipcMain.handle('profile:close', (e, { task, profile }) => onScreen(e, task)?.closeProfile(profile) || noTask);
+  ipcMain.handle('profile:open', (e, { task, profile }) => onScreen(e, task)?.openProfile(profile) || noTask);
+  ipcMain.handle('profile:rename', (e, { task, profile, name }) => onScreen(e, task)?.renameProfile(profile, name) || noTask);
+  ipcMain.handle('profile:describe', (e, { task, profile, description }) => onScreen(e, task)?.describeProfile(profile, description) || noTask);
+  ipcMain.handle('profile:avatar', (e, { task, profile, avatar }) => onScreen(e, task)?.setProfileAvatar(profile, avatar) || noTask);
+  ipcMain.handle('profile:delete', (e, { task, profile }) => onScreen(e, task)?.deleteProfile(profile, 'human') || noTask);
   ipcMain.handle('views:hidden', (e, hidden, opts) => at(e)?.hideViews(hidden, opts));
   ipcMain.on('ask:answer', (e, { id, answer }) => at(e)?.answer(id, answer));
-  ipcMain.handle('layout:load', (e, { ws }) => wsOf(e, ws)?.store.layout());
-  ipcMain.handle('agent:change', (e, { ws }) => { const w = wsOf(e, ws); return w ? w.changeAgent() : noWs; });
-  ipcMain.handle('terminal:open', (e, { ws }) => { const w = wsOf(e, ws); return w ? w.openTerminal() : noWs; });
-  ipcMain.handle('terminal:close', (e, { ws, id }) => wsOf(e, ws)?.closeTerminal(id) || noWs);
-  ipcMain.on('layout:save', (e, { ws, layout }) => at(e)?.saveLayout(ws, layout));
-  ipcMain.on('layout', (e, { ws, rects }) => at(e)?.layout(ws, rects));
+  ipcMain.handle('layout:load', (e, { task }) => onScreen(e, task)?.store.layout());
+  ipcMain.handle('agent:change', (e, { task }) => { const w = onScreen(e, task); return w ? w.changeAgent() : noTask; });
+  ipcMain.handle('terminal:open', (e, { task }) => { const w = onScreen(e, task); return w ? w.openTerminal() : noTask; });
+  ipcMain.handle('terminal:close', (e, { task, id }) => onScreen(e, task)?.closeTerminal(id) || noTask);
+  ipcMain.on('layout:save', (e, { task, layout }) => at(e)?.saveLayout(task, layout));
+  ipcMain.on('layout', (e, { task, rects }) => at(e)?.layout(task, rects));
 
   // A tab the human opens (+): the window keeps the keys for its address (renderer.js). Its page, a native view, takes
   // them as it loads (when, varies), so they go back each time, until the human clicks the page or it goes somewhere.
@@ -514,7 +514,7 @@ function start(options = {}) {
   // to the page, the terminal's agent or the site.
   const keymap = keys.keymap();
   const ZOOM = { 'zoom.in': 1, 'zoom.out': -1, 'zoom.reset': 0, 'site.zoomIn': 1, 'site.zoomOut': -1, 'site.zoomReset': 0 };
-  // A profile's tab by its webContents, of a workspace shown in a window.
+  // A profile's tab by its webContents, of a task shown in a window.
   const tabOf = (wc) => {
     for (const w of shell.windows) for (const profile of w.profiles.values()) {
       const tab = profile.tabs.find((t) => t.wc === wc);
@@ -525,7 +525,7 @@ function start(options = {}) {
   function onKey(wc, e, input) {
     if (input.type !== 'keyDown') return;
     const w = shell.windowOf(wc), t = !w && tabOf(wc);
-    if (!w && !t) return; // DevTools, a tab of a workspace not on screen
+    if (!w && !t) return; // DevTools, a tab of a task not on screen
     const zone = w ? w.keyZone : 'page';
     const pane = zone.startsWith('pane:') ? zone.slice('pane:'.length) : null;
     // The nearest group first: in a page, the page's keys (its zoom, its DevTools); in the window, Kulisa's.
@@ -537,7 +537,7 @@ function start(options = {}) {
     if (hit.id === 'devtools.app') return win.toggleDevTools();
     if (hit.id === 'devtools.tab') return t.profile.toggleDevTools(t.tab.id);
     if (hit.window) win.win.webContents.focus();
-    win.send('command', { id: hit.id, n: hit.n, profile: t ? t.profile.id : pane, tab: t ? t.tab.id : null, ws: win.ws?.key ?? null, page: !!t });
+    win.send('command', { id: hit.id, n: hit.n, profile: t ? t.profile.id : pane, tab: t ? t.tab.id : null, task: win.task?.key ?? null, page: !!t });
   }
   app.on('web-contents-created', (_e, wc) => wc.on('before-input-event', (e, input) => onKey(wc, e, input)));
   ipcMain.on('keys:zone', (e, zone) => { const w = at(e); if (w) w.keyZone = String(zone); });
@@ -548,14 +548,14 @@ function start(options = {}) {
     if (quitting) return;
     e.preventDefault(); quitting = true;
     for (const w of shell.windows) w.pushState();
-    for (const ws of allWorkspaces()) if (ws !== ws.project.window?.ws && ws.loaded) ws.list.saveTabs();
+    for (const task of allTasks()) if (task !== task.project.window?.task && task.loaded) task.list.saveTabs();
     shell.saveWindows();
     shell.stopAutosave?.();
     for (const p of allProfiles()) {
       await shell.sessionCookies?.persist(p);
       await p.disconnect();
     }
-    for (const ws of allWorkspaces()) for (const p of [ws.pty, ...[...ws.terminals.values()].map((t) => t.pty)]) if (p) stopTerminal(p);
+    for (const task of allTasks()) for (const p of [task.pty, ...[...task.terminals.values()].map((t) => t.pty)]) if (p) stopTerminal(p);
     app.quit();
   });
   process.on('SIGINT', () => app.quit());

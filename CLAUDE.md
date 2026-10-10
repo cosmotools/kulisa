@@ -5,7 +5,7 @@ it builds, checks the result as every user, fixes, and goes again until it works
 break. Made first for developing and testing web apps with several users at once. Each **profile** is an
 embedded browser profile (own cookies, storage, tabs) shown as a pane. The human signs in by hand in a pane; a
 coding agent the human chooses (Claude Code, Codex: the unchanged CLI) runs in the built-in terminal and drives
-profiles through Kulisa's MCP server. Workspaces run several agents on one project at once. Point-and-tell (Pick, then click an element) puts a reference with a Playwright locator into the agent's
+profiles through Kulisa's MCP server. Tasks run several agents on one project at once. Point-and-tell (Pick, then click an element) puts a reference with a Playwright locator into the agent's
 prompt; the human writes the rest of the message around it.
 
 The author's framing: Kulisa is made first for developers, as an IDE is (like JetBrains or VS Code), and is good for
@@ -21,7 +21,7 @@ Everything happens inside Kulisa; no external Chrome windows.
   the ROADMAP, keeping only what is left of it. **Before
   building something, look for it there** (Deferred ideas, Open issues): it may have been tried and put off, with
   the reason (a native menu in pages froze the desktop, and was built again without reading this).
-- `docs/profiles.md`, `docs/workspaces.md`, `docs/window.md`: how profiles, projects with their workspaces, and the
+- `docs/profiles.md`, `docs/tasks.md`, `docs/window.md`: how profiles, projects with their tasks, and the
   window work now: what the human and the agent do, what Kulisa creates on the computer and removes, why it is built
   so, the code. Read the one for the part you change; keep it current.
 - `docs/ui.md`: what the window's UI is built of: tokens, icons, components (buttons, rows, dialogs, menus). Look
@@ -56,16 +56,16 @@ Everything happens inside Kulisa; no external Chrome windows.
 - **Terminology: "plugin" vs "extension".** A plugin is always an agent's (Claude Code's, Codex's), the Kulisa plugin
   being one. Code that extends Kulisa itself (panels, features of the IDE) is an "extension", as in VS Code and
   Chrome. Not "module": that is a file of code.
-- **The agent is the human's choice, per workspace** (`agents.js`): never assume `claude` is installed. Kulisa
+- **The agent is the human's choice, per task** (`agents.js`): never assume `claude` is installed. Kulisa
   installs a missing agent itself with its maker's installer when the human asks, without steps for them to type.
 - **Terminology: "Welcome screen"** (the author also says "Экран"), as JetBrains names it: what the window shows
   instead of the grid when no project is open (at first start, after its last tab is closed): New Project…, Open Folder…,
   the recent projects. `#welcome` in `index.html`, `projects.js`. Not "window" (there is one) or "page".
-- **Terminology: "workspace"**, the word tools for parallel agents use (e.g. Conductor), for one line of work
-  inside a project: an agent (its terminal and session, any agent CLI), a branch of the code, profiles and a grid.
-  Main is the project itself; forks are temporary worktrees next to it (`myshop@<ws>`). Several workspaces build
-  several features at once. A project is the folder; a workspace is inside it (not VS Code's sense of the word).
-  How they work and why: `docs/workspaces.md`; what is left: ROADMAP, "Workspaces, rest".
+- **Terminology: "task"** for one line of work inside a project: an agent (its terminal and session, any agent
+  CLI), a branch of the code, profiles and a grid. It replaced "workspace" (the word of tools for parallel agents,
+  e.g. Conductor) on 2026-10-10; earlier commits say workspace. Main is the project itself; forks are temporary
+  worktrees next to it (`myshop@<task>`). Several tasks build several features at once. How they work and why:
+  `docs/tasks.md`; what is left: ROADMAP, "Projects and tasks" and "Tasks, rest".
 - **Not tied to one agent or LLM vendor.** The user chooses the agent CLI (Claude Code, Codex, others); Kulisa must
   not require Claude Code or any one model provider. When planning a feature, design it for any agent CLI:
   - The core of a feature works through what every agent has: a terminal, the MCP server, files, git. Kulisa's
@@ -125,11 +125,11 @@ Everything happens inside Kulisa; no external Chrome windows.
   alive, large buffers), discuss it with the author before building it. Reference: 5 profiles × 3 tabs ≈ 4 GB,
   almost all in tab processes (REPORT, E8).
 - **Nothing piles up on the user's computer.** Everything Kulisa writes has an owner and an end:
-  - It goes when its owner goes (a profile, a workspace, a project: their data, the copies, git's and the agent's
+  - It goes when its owner goes (a profile, a task, a project: their data, the copies, git's and the agent's
     records of a fork), at once or at the next start when a file is still open (`deleted-folders.json`).
   - It is rewritten rather than added to: no files per event, no logs that grow; or it has a limit.
   - Temporary files are removed when done, also after an error; pictures and the like stay in memory.
-  - A new kind of file or folder is listed in "What is on the computer" (`docs/workspaces.md`, `profiles.md`) with
+  - A new kind of file or folder is listed in "What is on the computer" (`docs/tasks.md`, `profiles.md`) with
     when it goes, and its removal is tested.
   - The same in development: tests write only in their temp folder; screenshots, logs and scripts made while working
     go into the session's scratch folder and are deleted when the task is done.
@@ -204,7 +204,7 @@ npm run icons # renders assets/icon.svg to icon.png/.ico/.icns (committed; run a
 ## Architecture
 
 How the parts work, in detail: `docs/profiles.md` (profiles, sign-ins, the CDP proxy, the agent's tools, point and
-tell), `docs/workspaces.md` (projects, workspaces, agents, windows, what is on the computer) and `docs/window.md`
+tell), `docs/tasks.md` (projects, tasks, agents, windows, what is on the computer) and `docs/window.md`
 (the title bar, the grid, zoom, menus, dialogs, the terminal). Read the one for the part you
 change; keep it current. Here: the layers, the modules, and what must hold.
 
@@ -217,18 +217,18 @@ Layers, each using only the ones below it:
 3. **Kulisa plugin** (formerly "agent bridge"): everything that lets an unchanged agent CLI understand and use
    profiles: tools, knowledge (skill) and hooks, as Claude Code and Codex plugins bundle them.
    - `mcp-server.js` is the functional part and is agent-agnostic: any capability for the agent is an MCP tool
-     there, so Codex and other CLIs get it too. One URL per workspace (`/ws/<project>/<n>/mcp`).
+     there, so Codex and other CLIs get it too. One URL per task (`/task/<project>/<n>/mcp`).
    - Claude Code's package is `src/agent/claude-plugin/` (`claude --plugin-dir`): `.mcp.json` (`KULISA_MCP_URL`),
      the `profiles` skill (change it when a tool or a rule changes), `hooks/hooks.json` (`curl` to
      `$KULISA_URL/hooks/<event>`, answered by `agent-hooks.js`; outside Kulisa they do nothing). Packaged, it sits
      outside the asar (`extraResource`).
    - Do not add agent-facing behavior elsewhere (e.g. in `profiles.js` or the renderer).
-4. **Window** (`app.js`, `window.js`, `keys.js`, `projects.js`, `workspaces.js`, `worktrees.js`, `agents.js`, `renderer/`, `ghost.js`, `picker.js`,
+4. **Window** (`app.js`, `window.js`, `keys.js`, `projects.js`, `tasks.js`, `worktrees.js`, `agents.js`, `renderer/`, `ghost.js`, `picker.js`,
    `terminal.js`): what the human sees and does.
 
 **One core, with handles for the human and for the agent.** The human (the window) and the agent (the Kulisa
-plugin) do the same things to profiles, tabs and workspaces: open a tab, go to an address, close or delete a profile.
-Each such action is written once, in the core (`Workspace`: `find`, `findTab`, `createProfile`, `deleteProfile` …;
+plugin) do the same things to profiles, tabs and tasks: open a tab, go to an address, close or delete a profile.
+Each such action is written once, in the core (`Task`: `find`, `findTab`, `createProfile`, `deleteProfile` …;
 `Profile`: `newTab`, `navigate`, `closeTab` …), with its checks, its questions to the human and its rules. The
 windows' IPC (`app.js`) and the agent's MCP tools (`mcp-server.js`) are handles on it: each finds what to act on
 through the core, calls it, and translates the answer (`{ error }` for the window, an error the agent reads). A
@@ -247,30 +247,30 @@ Modules (`src/main`):
 
 - `app.js`: the app: its windows, the open projects (open, close, move one to a new window; one change after
   another: `serial`), the agents, the windows' IPC (each message acts in the window it comes from: `event.sender`;
-  one on profiles or tabs names its workspace too, refused when that window shows another by then: `act` in the
-  renderer), quit. `shell.win`, `shell.ws`, `shell.profiles`, `shell.closed`, `shell.pty` are the first window's (the tests').
-- `window.js`: a window: its open projects and what it shows (show a project or a workspace, the grid's state, the
+  one on profiles or tabs names its task too, refused when that window shows another by then: `act` in the
+  renderer), quit. `shell.win`, `shell.task`, `shell.profiles`, `shell.closed`, `shell.pty` are the first window's (the tests').
+- `window.js`: a window: its open projects and what it shows (show a project or a task, the grid's state, the
   views' places), the questions asked there (`shell.ask(q, window)`, in its dialog: `ask.js`), the theme's colors
   CSS does not paint.
 - `keys.js`: the keyboard shortcuts: one table (what each key does, and where: a page, everywhere, the terminal) and
   which key an input event is; `app.js` takes them before any page does (`before-input-event`), the window runs them
   (`renderer/keys.js`). A new key goes into the table (`docs/window.md`, Keys).
-- `projects.js`: an open project: its workspaces, making and deleting a fork, removing a project's data.
-- `workspaces.js`: a workspace: its profiles, its agent in its own terminal and environment, a fork's copies.
+- `projects.js`: an open project: its tasks, making and deleting a fork, removing a project's data.
+- `tasks.js`: a task: its profiles, its agent in its own terminal and environment, a fork's copies.
 - `worktrees.js`: git for forks (the user's git, never a shell): worktree, branch, files outside git, direnv.
 - `agents.js`: the agents to choose from, one entry each: find, install, start, resume. Agent-specific code goes
   here.
-- `project-profiles.js`: a workspace's profiles in order, open and closed: create, rename, describe, close, open,
+- `project-profiles.js`: a task's profiles in order, open and closed: create, rename, describe, close, open,
   delete. `avatars.js`: their pictures.
-- `profiles.js`: a profile: `session.fromPath(<workspace>/Profile <k>)` plus a `WebContentsView` per tab.
+- `profiles.js`: a profile: `session.fromPath(<task>/Profile <k>)` plus a `WebContentsView` per tab.
 - `store.js`: Kulisa's data folder, laid out as Chrome's user data.
-- `names.js`: the one rule for names (projects, workspaces, profiles: an email address's characters) and slugs.
+- `names.js`: the one rule for names (projects, tasks, profiles: an email address's characters) and slugs.
 - `session-cookies.js`, `signin-pages.js`, `signin-pause.js`, `mimic-chrome.js`: sign-ins that last, the sign-in
   pause, presenting as Google Chrome.
 - `cdp-proxy.js`, `local-only.js`: the CDP endpoint per profile; refusing web pages.
 - `mcp-server.js`, `agent-hooks.js`, `ghost.js`, `picker.js`: the agent's tools and hooks, its actions shown, point
   and tell.
-- `terminal.js`: a pty per workspace for its agent, and its other terminals (a dev server the agent runs, the
+- `terminal.js`: a pty per task for its agent, and its other terminals (a dev server the agent runs, the
   human's shells); the agent typed into the user's shell in its folder (the project's own
   environment: direnv, nvm, mise). On Windows started directly (the other terminals in cmd).
 

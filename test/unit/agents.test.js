@@ -9,7 +9,7 @@ const { trustLikeMain, claudeConfigOf } = require('../../src/main/agents');
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'kulisa-unit-'));
 after(() => fs.rmSync(root, { recursive: true, force: true }));
 
-test("workspaces: Claude Code trusts a fork's folder as it trusts main; its config as the session tells it", async () => {
+test("tasks: Claude Code trusts a fork's folder as it trusts main; its config as the session tells it", async () => {
   assert.equal(claudeConfigOf('/home/u/.claude-work/projects/-x/1.jsonl'), '/home/u/.claude-work/.claude.json');
   assert.equal(claudeConfigOf(path.join(os.homedir(), '.claude', 'projects', '-x', '1.jsonl')), path.join(os.homedir(), '.claude.json'));
   const file = path.join(root, 'claude.json');
@@ -49,7 +49,7 @@ test("agents: Claude Code's dictation is on in its sessions only; its language r
   assert.equal(fs.readFileSync(settings, 'utf8'), '{ "model": ');
   fs.rmSync(dir, { recursive: true });
 });
-test("workspaces: a deleted fork leaves nothing in Claude Code's and Codex's data; main's and others' stay", async () => {
+test("tasks: a deleted fork leaves nothing in Claude Code's and Codex's data; main's and others' stay", async () => {
   const { AGENTS } = require('../../src/main/agents');
   const agent = (id) => AGENTS.find((a) => a.id === id);
   const put = (f, text = '') => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, text); };
@@ -89,11 +89,11 @@ test("workspaces: a deleted fork leaves nothing in Claude Code's and Codex's dat
     UserPromptSubmit: 'prompt', Notification: 'waiting', Stop: 'stop', StopFailure: 'waiting', SessionEnd: 'session-end' });
   const needsYou = new RegExp(`^(${claudeHooks.Notification[0].matcher})$`);
   assert.deepEqual(['permission_prompt', 'elicitation_dialog', 'idle_prompt', 'auth_success'].map((t) => needsYou.test(t)), [true, true, false, false]);
-  // Codex: its hooks as a config override, the same command line for every workspace (trusted once); resuming the
+  // Codex: its hooks as a config override, the same command line for every task (trusted once); resuming the
   // session its SessionStart reported.
   const codexArgs = (url) => agent('codex').args({ env: { KULISA_MCP_URL: url } });
-  const hooks = codexArgs('http://127.0.0.1:1/ws/a/1/mcp')[3];
-  assert.equal(hooks, codexArgs('http://127.0.0.1:2/ws/b/2/mcp')[3]);
+  const hooks = codexArgs('http://127.0.0.1:1/task/a/1/mcp')[3];
+  assert.equal(hooks, codexArgs('http://127.0.0.1:2/task/b/2/mcp')[3]);
   assert.deepEqual([...hooks.matchAll(/(\w+)=\[\{hooks=\[\{[^}]*hooks\/([\w-]+)/g)].map((m) => `${m[1]} ${m[2]}`),
     ['SessionStart session-start', 'UserPromptSubmit prompt', 'PermissionRequest waiting', 'Stop stop', 'Interrupt interrupt', 'SessionEnd session-end']);
   assert.deepEqual(agent('codex').resume({ started: true, sessionId: 's9' }), ['resume', 's9']);

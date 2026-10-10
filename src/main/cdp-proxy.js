@@ -1,5 +1,5 @@
 // CDP proxy: one fake "browser" endpoint per profile, backed by webContents.debugger of that profile's tabs.
-// No --remote-debugging-port: the shell UI is never exposed, only profile tabs. A profile is known by its workspace's
+// No --remote-debugging-port: the shell UI is never exposed, only profile tabs. A profile is known by its task's
 // key (its project's id and its number) and its id; each part percent-encoded in the URL (ids may have any letters):
 //   http://127.0.0.1:<port>/<project>/<n>/<profile>/json/version
 //     -> webSocketDebuggerUrl ws://127.0.0.1:<port>/<project>/<n>/<profile>
@@ -16,7 +16,7 @@ class CdpProxy extends EventEmitter {
   addProfile(profile) { this.profiles.set(key(profile), profile); }
   removeProfile(profile) {
     this.profiles.delete(key(profile));
-    for (const c of this.clients) if (c.profile === profile) c.ws.close();
+    for (const c of this.clients) if (c.profile === profile) c.socket.close();
   }
 
   listen(port = 0) {
@@ -25,9 +25,9 @@ class CdpProxy extends EventEmitter {
       const p = this.profiles.get(keyOf(req.url));
       if (!p) { res.writeHead(404); return res.end(); }
       const route = '/' + req.url.split('/').slice(4).join('/').replace(/\/$/, '');
-      const wsUrl = this.endpoint(p).replace(/^http/, 'ws');
+      const taskUrl = this.endpoint(p).replace(/^http/, 'ws');
       res.setHeader('content-type', 'application/json');
-      if (route === '/json/version') return res.end(JSON.stringify({ Browser: `Kulisa/${process.versions.chrome}`, 'Protocol-Version': '1.3', 'User-Agent': p.session.getUserAgent(), webSocketDebuggerUrl: wsUrl }));
+      if (route === '/json/version') return res.end(JSON.stringify({ Browser: `Kulisa/${process.versions.chrome}`, 'Protocol-Version': '1.3', 'User-Agent': p.session.getUserAgent(), webSocketDebuggerUrl: taskUrl }));
       if (route === '/json/list' || route === '/json') return res.end(JSON.stringify(p.tabs.map((t) => ({ id: t.id, type: 'page', title: t.title, url: t.url }))));
       res.writeHead(404); res.end();
     });
@@ -38,17 +38,17 @@ class CdpProxy extends EventEmitter {
       if (!p) return sock.destroy();
       // The human is signing in: no automation attaches (except the shell's own reconnect when the mode ends).
       if (p.signinMode && !p.resuming) return sock.destroy();
-      wss.handleUpgrade(req, sock, head, (ws) => new ProxyClient(this, p, ws));
+      wss.handleUpgrade(req, sock, head, (socket) => new ProxyClient(this, p, socket));
     });
     return new Promise((r) => this.server.listen(port, '127.0.0.1', () => { this.port = this.server.address().port; r(this.port); }));
   }
   endpoint(profile) { return `http://127.0.0.1:${this.port}/${key(profile).split('/').map(encodeURIComponent).join('/')}`; }
   // The profile's id changed: its endpoint too.
   renamed(profile, oldId) {
-    this.profiles.delete(`${profile.ws}/${oldId}`); this.addProfile(profile);
+    this.profiles.delete(`${profile.task}/${oldId}`); this.addProfile(profile);
   }
 }
-const key = (profile) => `${profile.ws}/${profile.id}`;
+const key = (profile) => `${profile.task}/${profile.id}`;
 // The key a request's path names (its first three parts); '' when it is not one.
 function keyOf(url) {
   try { return url.split(/[/?]/).slice(1, 4).map(decodeURIComponent).join('/'); } catch { return ''; }
@@ -63,8 +63,8 @@ async function ensureTarget(tab) {
 }
 
 class ProxyClient {
-  constructor(proxy, profile, ws) {
-    this.proxy = proxy; this.profile = profile; this.ws = ws;
+  constructor(proxy, profile, socket) {
+    this.proxy = proxy; this.profile = profile; this.socket = socket;
     this.autoAttach = null;           // params of browser-level Target.setAutoAttach
     this.discover = false;
     this.attached = new Map();        // auto-attached tab.id -> sessionId
@@ -77,14 +77,14 @@ class ProxyClient {
     this.onClosed = (tab) => this._tabRemoved(tab);
     this.onChanged = () => this._infoChanged();
     profile.on('tab-added', this.onTab); profile.on('tab-closed', this.onClosed); profile.on('changed', this.onChanged);
-    ws.on('message', (d) => this._handle(JSON.parse(d.toString())).catch((e) => console.error('[proxy]', e)));
-    ws.on('close', () => {
+    socket.on('message', (d) => this._handle(JSON.parse(d.toString())).catch((e) => console.error('[proxy]', e)));
+    socket.on('close', () => {
       profile.off('tab-added', this.onTab); profile.off('tab-closed', this.onClosed); profile.off('changed', this.onChanged);
       for (const sess of this.sessions.values()) if (sess.off) sess.off();
       proxy.clients.delete(this);
     });
   }
-  _send(msg) { if (this.ws.readyState === 1) this.ws.send(JSON.stringify(msg)); }
+  _send(msg) { if (this.socket.readyState === 1) this.socket.send(JSON.stringify(msg)); }
   _event(method, params, sessionId) { this._send({ method, params, ...(sessionId ? { sessionId } : {}) }); }
   _targetInfo(tab) {
     // Real Chrome target ids: Playwright relies on "main frame id == target id".
@@ -95,7 +95,7 @@ class ProxyClient {
     const { id, method, params = {}, sessionId } = msg;
     const reply = (result) => this._send({ id, result, ...(sessionId ? { sessionId } : {}) });
     const fail = (message) => this._send({ id, error: { code: -32000, message }, ...(sessionId ? { sessionId } : {}) });
-    this.proxy.emit('command', { profile: this.profile.id, ws: this.profile.ws, method, params, sessionId });
+    this.proxy.emit('command', { profile: this.profile.id, task: this.profile.task, method, params, sessionId });
 
     if (sessionId && this.sessions.get(sessionId)?.browser) return this._browserCommand(id, method, params, sessionId, reply, fail);
     if (sessionId) {

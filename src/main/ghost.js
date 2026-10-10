@@ -3,17 +3,17 @@
 //   MCP tools use: a mark at the action point, the element outlined, a title; all fade out. Actions of other clients
 //   (@playwright/mcp) are not drawn in the page.
 // - Over the pane (the window's HTML): a caption from every CDP command through the proxy, from any client.
-// Captions go to the window with the profile's workspace; it shows those of the workspace on screen.
+// Captions go to the window with the profile's task; it shows those of the task on screen.
 // The agent's marks in the pages are in Kulisa's accent (tokens.css, --accent), the same in every profile: the pane says
 // whose page it is.
 const MARK = '#3574f0';
 
 function installGhost(shell) {
-  const send = (a) => shell.workspace(a.ws)?.window?.send('agent', a);
+  const send = (a) => shell.taskByKey(a.task)?.window?.send('agent', a);
   shell.bus.on('agent-command', (c) => {
     const a = describe(c); if (!a) return;
-    send({ ws: c.ws, profile: c.profile, ...a });
-    shell.bus.emit('agent-action', { ws: c.ws, profile: c.profile, t: Date.now(), ...a });
+    send({ task: c.task, profile: c.profile, ...a });
+    shell.bus.emit('agent-action', { task: c.task, profile: c.profile, t: Date.now(), ...a });
   });
   // On every connection of the shell (a new one after sign-in mode), for every page in it.
   const annotate = (profile) => {
@@ -28,7 +28,7 @@ function installGhost(shell) {
     } }).catch(() => {});
     ctx.pages().forEach(on); ctx.on('page', on);
   };
-  for (const project of shell.open.values()) for (const ws of project.workspaces.values()) for (const p of ws.profiles.values()) annotate(p);
+  for (const project of shell.open.values()) for (const task of project.tasks.values()) for (const p of task.profiles.values()) annotate(p);
   shell.bus.on('profile-added', annotate);
 }
 

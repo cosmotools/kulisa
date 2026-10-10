@@ -123,7 +123,7 @@ module.exports = (test) => {
     await waitFor(() => shell.profiles.has('cleo'));
     // Closed right as it opens: it opens, then closes; nothing breaks.
     await call('profile_close', { profile: 'cleo' });
-    const [opened, closed] = await Promise.all([shell.ws.openProfile('cleo'), shell.ws.closeProfile('cleo')]);
+    const [opened, closed] = await Promise.all([shell.task.openProfile('cleo'), shell.task.closeProfile('cleo')]);
     assert.deepEqual([opened, closed], [{ id: 'cleo' }, { id: 'cleo' }]);
     assert.ok(shell.closed.has('cleo') && !shell.profiles.has('cleo'));
     assert.deepEqual(shell.closed.get('cleo').urls, [`${SITE}/app`, `${SITE}/app?second`], 'its tabs kept');
@@ -154,26 +154,26 @@ module.exports = (test) => {
   test('a profile with a tab on a site that never answers opens anyway, and the agent can use it', async ({ shell, call }) => {
     await call('profile_create', { name: 'Hung' });
     await call('browser_tab_new', { profile: 'hung', url: `${SITE}/hang` }); // returns after 5 s without a page
-    await shell.ws.closeProfile('hung');
+    await shell.task.closeProfile('hung');
     await waitFor(() => savedTabs('hung').some((u) => u.endsWith('/hang')));
     const started = Date.now();
-    await shell.ws.openProfile('hung');
+    await shell.task.openProfile('hung');
     assert.ok(Date.now() - started < 10000, `opened in ${Date.now() - started} ms`);
     const t = await call('browser_tab_new', { profile: 'hung', url: `${SITE}/app` });
     assert.match(t.text, /app/);
-    await shell.ws.deleteProfile('hung');
+    await shell.task.deleteProfile('hung');
   });
   test('a tab on a site that refuses to connect (its dev server not started, as in a new fork) opens at once, and so does its profile', async ({ shell, call }) => {
     await call('profile_create', { name: 'Down' });
     let started = Date.now();
     await call('browser_tab_new', { profile: 'down', url: 'http://127.0.0.1:4419/app' }); // nothing listens there
     assert.ok(Date.now() - started < 2000, `tab opened in ${Date.now() - started} ms`);
-    await shell.ws.closeProfile('down');
+    await shell.task.closeProfile('down');
     await waitFor(() => savedTabs('down').some((u) => u.includes(':4419/')));
     started = Date.now();
-    await shell.ws.openProfile('down');
+    await shell.task.openProfile('down');
     assert.ok(Date.now() - started < 2000, `profile opened in ${Date.now() - started} ms`);
-    await shell.ws.deleteProfile('down');
+    await shell.task.deleteProfile('down');
   });
   test('closing the last tab of a profile leaves an empty tab, not a pane without a page (the window and the agent)', async (ctx) => {
     const { shell, call, ui } = ctx;

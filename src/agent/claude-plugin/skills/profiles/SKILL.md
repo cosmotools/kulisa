@@ -66,11 +66,11 @@ a page take an optional `tab` (default: the profile's active tab).
   when the task needs that user, not to look around, and close what you opened when you are done with it. Close a
   profile the human opened only when they ask.
 
-## Workspaces
+## Tasks
 
-The human may run several agents on one project at once, each in a Kulisa **workspace**: main is the project's own
+The human may run several agents on one project at once, each in a Kulisa **task**: main is the project's own
 folder; a fork is a git worktree next to it (`<project>@<name>`) on a branch of its own, with copies of main's
-profiles. You see only your workspace's profiles. In a fork (the session start says so):
+profiles. You see only your task's profiles. In a fork (the session start says so):
 
 - Work and commit on the fork's branch; the human merges it into main (or asks you to open a pull request).
 - The worktree has the project's files in git and `.env*`, but no installed dependencies: install them first

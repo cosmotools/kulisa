@@ -1,4 +1,4 @@
-// Names the human or the agent gives: projects, workspaces, profiles. The characters of an email address, with the
+// Names the human or the agent gives: projects, tasks, profiles. The characters of an email address, with the
 // letters of any language: a profile is often named after the account it signs in to (ann+test@shop.com), and the
 // names become folders, git branches and ids, where spaces and other signs get in the way.
 // Checked where names are made (app.js, project-profiles.js); the window keeps other characters out of name fields

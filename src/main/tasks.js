@@ -1,7 +1,7 @@
-// A workspace (ROADMAP, "Workspaces"; the term: CLAUDE.md): one line of work in a project. Its code (main: the
+// A task (ROADMAP, "Tasks"; the term: CLAUDE.md): one line of work in a project. Its code (main: the
 // project's folder; a fork: a git worktree next to it, worktrees.js), its profiles (folders in its data, store.js), its
-// grid and its agent, in a terminal of its own. Its project's window shows one workspace at a time; the others keep
-// running, those of the other open projects too. A workspace loads (profiles, agent) the first time it is shown, so a
+// grid and its agent, in a terminal of its own. Its project's window shows one task at a time; the others keep
+// running, those of the other open projects too. A task loads (profiles, agent) the first time it is shown, so a
 // restart does not start every one at once.
 const { session } = require('electron');
 const { Profile, wipeSession } = require('./profiles');
@@ -13,12 +13,12 @@ const { copyProfile } = require('./store');
 
 const DICTATION_LIMIT = 5 * 60_000; // a recording left on (a click and no second one)
 
-class Workspace {
+class Task {
   // project: its project (projects.js); entry: { n, name, branch, worktree, folder, base,
-  // offset } from its workspaces.json; main is n 1, in the project's folder. key: the workspace among all open ones
+  // offset } from its tasks.json; main is n 1, in the project's folder. key: the task among all open ones
   // ("<project id>/<n>"): the windows, the terminals, the CDP proxy and the MCP server's URLs know it by that.
   // shell: the app (app.js): store, proxy, mcp, sessionCookies, chromeIdentity, signin, uiZoom, bus, ask; the agents
-  // (agentFor, findAgent, chooseAgent, plugin); and wsChanged(ws, now, agentState), called after any change of its
+  // (agentFor, findAgent, chooseAgent, plugin); and taskChanged(task, now, agentState), called after any change of its
   // profiles or its agent's state. Its window is its project's (window.js: win, viewsHidden, picking, send), which
   // changes when the project moves to another window.
   constructor(shell, project, entry) {
@@ -27,7 +27,7 @@ class Workspace {
     this.key = `${project.id}/${this.n}`;
     this.folder = entry.folder || project.folder;
     this.offset = entry.offset || 0;
-    this.store = shell.store.workspaceOf(project, this.n);
+    this.store = shell.store.taskOf(project, this.n);
     this.state = null; // the agent's, from its hooks: 'working', 'waiting' (for the human), 'done'
     this.seen = false; // the human has seen it since (its window: see), so a done one has nothing to come and see
     this.pty = null; this.loaded = false;
@@ -36,19 +36,19 @@ class Workspace {
     this.profiles = this.list.profiles; this.closed = this.list.closed;
   }
   get window() { return this.project.window; }
-  shown() { return this.window?.ws === this; }
+  shown() { return this.window?.task === this; }
 
-  // What it takes to run a profile of this workspace (project-profiles.js).
+  // What it takes to run a profile of this task (project-profiles.js).
   _profileHooks() {
     const shell = this.shell;
     return {
       make: (cfg) => {
-        const profile = new Profile(this.window.win, cfg, { ws: this.key, mimic: shell.chromeIdentity });
+        const profile = new Profile(this.window.win, cfg, { task: this.key, mimic: shell.chromeIdentity });
         profile.hidden = !this.shown() || this.window.viewsHidden;
         shell.proxy.addProfile(profile);
         profile.endpoint = shell.proxy.endpoint(profile);
         profile.setBaseZoom(shell.uiZoom);
-        profile.on('changed', () => shell.wsChanged(this));
+        profile.on('changed', () => shell.taskChanged(this));
         profile.on('zoom', () => this.list.save());
         installSigninPause(profile, shell.signin.isSigninUrl);
         return profile;
@@ -78,7 +78,7 @@ class Workspace {
         shell.proxy.removeProfile(profile);
         await profile.destroy();
       },
-      changed: () => shell.wsChanged(this, true),
+      changed: () => shell.taskChanged(this, true),
     };
   }
   // Where a tab is, to open it again: sign-in pages are one-time URLs, so where the sign-in started instead
@@ -90,9 +90,9 @@ class Workspace {
     await this.list.load(); this.loaded = true;
     for (const { id, name, by } of this.store.terminals()) this.openTerminal({ id, name, by }).catch((e) => console.error('[terminal]', e));
   }
-  // The workspace's agent (agents.js) in its folder, continuing its last conversation where the agent can. One not
+  // The task's agent (agents.js) in its folder, continuing its last conversation where the agent can. One not
   // chosen yet, or not installed: the window asks the human (and installs it); asked again the next time the
-  // workspace is shown if they left without choosing.
+  // task is shown if they left without choosing.
   async startAgent() {
     const { shell } = this;
     let agent = shell.agentFor(this.store.agent().agent);
@@ -116,7 +116,7 @@ class Workspace {
     this.pty = await startTerminal((channel, data) => this.window?.send(channel, data), { command, shell: agent.shell, cwd: this.folder, env: this.env(),
       args: [...(resume || []), ...(agent.args?.({ env: this.env(), plugin: shell.plugin }) || []), ...(agent.voice?.args || [])] }, this.key);
     this.store.saveAgent({ ...this.store.agent(), agent: agent.id, started: true });
-    this.window?.send('voice', { ws: this.key, voice: this.voice() });
+    this.window?.send('voice', { task: this.key, voice: this.voice() });
   }
   // Dictation, where the agent has its own (agents.js, voice): what the window's microphone button shows ({ languages,
   // language, note, recording }, or null: no button), recording, and the language chosen there. The human's only: the
@@ -126,7 +126,7 @@ class Workspace {
     return v ? { languages: v.languages, language: v.language(this.store.agent()), note: v.note || '', recording: !!this.dictating } : null;
   }
   // Recording: the agent's key held, as a terminal shows a held key, its repeats. It stops when told, or after
-  // DICTATION_LIMIT, or when that agent is gone (another started, the workspace closed).
+  // DICTATION_LIMIT, or when that agent is gone (another started, the task closed).
   dictate(on) {
     clearInterval(this.dictating);
     this.dictating = null;
@@ -136,7 +136,7 @@ class Workspace {
       this.dictating = setInterval(() => {
         if (this.pty === p && Date.now() < until) return p.write(v.key);
         this.dictate(false);
-        this.window?.send('voice', { ws: this.key, voice: this.voice() });
+        this.window?.send('voice', { task: this.key, voice: this.voice() });
       }, v.repeat);
     }
     return { recording: !!this.dictating };
@@ -145,7 +145,7 @@ class Workspace {
     const v = this.agent?.voice;
     return v ? v.setLanguage(this.store.agent(), code) : { error: 'this agent has no dictation' };
   }
-  // Another agent for this workspace, chosen by the human (the terminal's menu): the running one stops, the chosen one
+  // Another agent for this task, chosen by the human (the terminal's menu): the running one stops, the chosen one
   // starts with a new conversation (the old one stays in the old agent's own history).
   async changeAgent() {
     const agent = await this.shell.chooseAgent(this, this.agent, { cancel: true });
@@ -153,15 +153,15 @@ class Workspace {
     await this.starting;
     if (this.pty) { stopTerminal(this.pty); this.pty = null; }
     this.store.saveAgent({ agent: agent.id });
-    this.window?.send('terminal:reset', { ws: this.key });
+    this.window?.send('terminal:reset', { task: this.key });
     await this.startAgent();
     return { changed: true, agent: agent.id };
   }
   // Its terminals besides the agent's, each a panel next to the agent's: the human's shells (+ on the terminal's
   // header) and what the agent keeps running there for the human to see (terminal_run: the app's dev server, docker
   // compose), rather than in the background of its own shell, which some agents cannot do and the human does not see.
-  // Each is the user's shell in the workspace's folder with the agent's environment (the port offset), the command
-  // typed in. As in an IDE they are kept: when the workspace is loaded again (a restart, its project opened again)
+  // Each is the user's shell in the task's folder with the agent's environment (the port offset), the command
+  // typed in. As in an IDE they are kept: when the task is loaded again (a restart, its project opened again)
   // each comes back where it was (its id, its panel's in the saved grid), a shell with nothing running: the agent
   // runs its command again. They go when closed (×, terminal_stop) or their shell exits. by: 'human' (the panel comes
   // to the front) or 'agent' (behind the agent's terminal).
@@ -174,7 +174,7 @@ class Workspace {
     return t || { error: `no terminal "${which}"; open now: ${[...this.terminals.values()].map((x) => `"${x.name}"`).join(', ') || 'none'}` };
   }
   async openTerminal({ id, name, command = '', by = 'human' } = {}) {
-    if (!this.loaded) return { error: 'the workspace is not open' };
+    if (!this.loaded) return { error: 'the task is not open' };
     name = name?.trim();
     if (name && !this.terminal(name).error) return { error: `there is a terminal "${name}" already` };
     for (let n = 2; !name; n++) if (this.terminal(`Terminal ${n}`).error) name = `Terminal ${n}`;
@@ -183,7 +183,7 @@ class Workspace {
     const key = `${this.key}#${id}`, t = { id, name, command, by, key };
     this.terminals.set(id, t);
     this.saveTerminals();
-    this.shell.wsChanged(this, true); // its panel, which the window sizes
+    this.shell.taskChanged(this, true); // its panel, which the window sizes
     t.pty = await startTerminal((channel, data) => this.window?.send(channel, data),
       { line: command, cwd: this.folder, env: this.env(), size: terminalSize(this.key) }, key);
     // The shell exited by itself (exit), not stopped by Kulisa (closing, quitting: the terminal is kept then).
@@ -196,7 +196,7 @@ class Workspace {
     if (t.error) return this.openTerminal({ name, command, by: 'agent' });
     t.command = command;
     t.pty?.write(`${command}\r`);
-    this.shell.wsChanged(this, true);
+    this.shell.taskChanged(this, true);
     return { id: t.id, name: t.name, again: true };
   }
   // Ctrl+C, as the human would press it: what runs there stops, the shell stays.
@@ -217,16 +217,16 @@ class Workspace {
     this.saveTerminals();
     if (t.pty) stopTerminal(t.pty);
     forgetTerminal(t.key);
-    this.shell.wsChanged(this, true);
+    this.shell.taskChanged(this, true);
     return { id: t.id };
   }
-  // What the agent gets in its environment: where Kulisa's MCP server and hooks are for this workspace (the Kulisa
+  // What the agent gets in its environment: where Kulisa's MCP server and hooks are for this task (the Kulisa
   // plugin reads them, other agent CLIs can too), its name, and the offset for the ports of the app it runs.
   env() {
-    const base = `${this.shell.mcp.base}/ws/${encodeURIComponent(this.project.id)}/${this.n}`;
-    return { KULISA_MCP_URL: `${base}/mcp`, KULISA_URL: base, KULISA_WORKSPACE: this.name, KULISA_PORT_OFFSET: String(this.offset) };
+    const base = `${this.shell.mcp.base}/task/${encodeURIComponent(this.project.id)}/${this.n}`;
+    return { KULISA_MCP_URL: `${base}/mcp`, KULISA_URL: base, KULISA_TASK: this.name, KULISA_PORT_OFFSET: String(this.offset) };
   }
-  // Its agent stopped, its profiles saved and closed (its project closes, or the workspace is deleted).
+  // Its agent stopped, its profiles saved and closed (its project closes, or the task is deleted).
   // Its tabs are saved first, as they are: closing them one by one changes the profiles, and nothing is saved then.
   async unload() {
     this.shell.chooseAgent.cancel?.(this);
@@ -240,7 +240,7 @@ class Workspace {
   }
   // The agent's session, as its hooks report it (agent-hooks.js).
   saveAgent(s) { if (this.loaded) this.store.saveAgent({ ...this.store.agent(), ...s }); }
-  setState(state) { this.state = state; this.seen = false; this.shell.wsChanged(this, false, true); }
+  setState(state) { this.state = state; this.seen = false; this.shell.taskChanged(this, false, true); }
   // Esc in the agent's terminal: a turn stopped so reports nothing (Claude Code runs no Stop hook then), so working or
   // waiting is no longer known; the human is there. An Esc that only closed a menu clears it too, until the next hook.
   interrupted() { if (this.state === 'working' || this.state === 'waiting') this.setState(null); }
@@ -282,9 +282,9 @@ class Workspace {
     return ok ? this.list.delete(id) : { error: 'the human said no' };
   }
   // A caption over a profile's pane (ghost.js, browser_highlight); sticky ones stay until the next caption.
-  caption(profile, caption, sticky = false) { this.window?.send('agent', { ws: this.key, profile, caption, sticky }); }
+  caption(profile, caption, sticky = false) { this.window?.send('agent', { task: this.key, profile, caption, sticky }); }
 
-  // A fork's profiles: copies of this workspace's (main's), sign-ins included, each folder without its caches. Open
+  // A fork's profiles: copies of this task's (main's), sign-ins included, each folder without its caches. Open
   // ones are flushed first and open in the fork with their active tab only; closed ones stay closed. URLs of the app
   // under test move to the fork's ports (offset). The grid comes along.
   async forkProfilesInto(dest, offset) {
@@ -319,7 +319,7 @@ class Workspace {
   }
 }
 
-// A URL of the app under test in a workspace with a port offset: a local address with a port moves by the offset
+// A URL of the app under test in a task with a port offset: a local address with a port moves by the offset
 // (localhost:3000 → localhost:3100). Cookies do not depend on the port, so the profile stays signed in to the app.
 function withOffset(url, offset) {
   if (!offset) return url;
@@ -331,4 +331,4 @@ function withOffset(url, offset) {
   } catch { return url; }
 }
 
-module.exports = { Workspace, withOffset };
+module.exports = { Task, withOffset };

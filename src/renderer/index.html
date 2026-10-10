@@ -79,13 +79,13 @@
   </header>
   <main id="dock"></main>
   <!-- The projects' bar, under the grid or over it (☰): an island per open project (projects.js), its label and its
-       workspaces' tabs; the shown one's live (workspaces.js, put there by projects.js); then the menu of the projects -->
+       tasks' tabs; the shown one's live (tasks.js, put there by projects.js); then the menu of the projects -->
   <footer id="projectbar">
     <nav id="projectTabs" aria-label="Open projects"></nav>
-    <nav id="workspaces" aria-label="Workspaces of the project">
-      <div id="wslist"></div>
+    <nav id="tasks" aria-label="Tasks of the project">
+      <div id="tasklist"></div>
       <button id="openProfiles" class="chip" aria-haspopup="menu"><svg aria-hidden="true"><use href="#i-users"/></svg><span class="count"></span></button>
-      <button id="wsadd" class="icon" data-keys="workspace.new" title="New workspace: a fork of main with its own branch, folder, agent and copies of the profiles" aria-label="New workspace"><svg aria-hidden="true"><use href="#i-plus"/></svg></button>
+      <button id="taskadd" class="icon" data-keys="task.new" title="New task: a fork of main with its own branch, folder, agent and copies of the profiles" aria-label="New task"><svg aria-hidden="true"><use href="#i-plus"/></svg></button>
     </nav>
     <button id="openProjects" class="icon" title="Projects: open another, New Project…, Open Folder…" aria-label="Projects"><svg aria-hidden="true"><use href="#i-projects"/></svg></button>
   </footer>
@@ -93,7 +93,7 @@
   <section id="welcome">
     <img class="applogo" src="../../assets/icon.svg" alt="Kulisa">
     <h2>No project is open</h2>
-    <p class="hint">A project is a folder, usually a repository: Kulisa keeps its profiles, workspaces and agents.</p>
+    <p class="hint">A project is a folder, usually a repository: Kulisa keeps its profiles, tasks and agents.</p>
     <div class="start"><button id="welcome-new">New Project…</button><button id="welcome-open">Open Folder…</button><button id="welcome-agents">Agents…</button></div>
     <h3>Recent</h3>
     <div id="welcome-list"></div>
@@ -133,30 +133,30 @@
         <label class="field"><span>Name</span><input id="npname" data-name maxlength="64" placeholder="e.g. tenant-audit" spellcheck="false"></label>
         <label class="field"><span>Location</span><span class="pick"><input id="nplocation" spellcheck="false"><button type="button" id="npbrowse">Browse…</button></span></label>
         <p id="npwhere" class="hint"></p>
-        <label class="check"><input type="checkbox" id="npgit" checked>Create Git repository <small>workspaces need it</small></label>
+        <label class="check"><input type="checkbox" id="npgit" checked>Create Git repository <small>tasks need it</small></label>
         <p class="error"></p>
       </div>
       <footer><button type="button" command="close" commandfor="newproject">Cancel</button><button id="npcreate" class="primary">Create</button></footer>
     </form>
   </dialog>
-  <dialog id="wsnew" closedby="any">
-    <header><h2>New Workspace</h2><button class="x icon quiet" type="button" command="close" commandfor="wsnew" title="Close" aria-label="Close"><svg aria-hidden="true"><use href="#i-close"/></svg></button></header>
-    <form id="wsform">
+  <dialog id="tasknew" closedby="any">
+    <header><h2>New Task</h2><button class="x icon quiet" type="button" command="close" commandfor="tasknew" title="Close" aria-label="Close"><svg aria-hidden="true"><use href="#i-close"/></svg></button></header>
+    <form id="taskform">
       <div class="body">
         <p class="hint">A fork of main for one task: its own branch and folder next to the project, its own agent, and
           copies of main's profiles, signed in. The app under test runs on its own ports there.</p>
-        <label class="field"><span>Name</span><input id="wsname" data-name maxlength="64" placeholder="What it is for, e.g. checkout-redesign" spellcheck="false"></label>
-        <label class="field"><span>Agent</span><select id="wsagent"></select></label>
+        <label class="field"><span>Name</span><input id="taskname" data-name maxlength="64" placeholder="What it is for, e.g. checkout-redesign" spellcheck="false"></label>
+        <label class="field"><span>Agent</span><select id="taskagent"></select></label>
         <p class="error"></p>
       </div>
-      <footer><button type="button" command="close" commandfor="wsnew">Cancel</button><button id="wscreate" class="primary">Create</button></footer>
+      <footer><button type="button" command="close" commandfor="tasknew">Cancel</button><button id="taskcreate" class="primary">Create</button></footer>
     </form>
   </dialog>
-  <!-- Choosing a workspace's agent, installing it (agent-picker.js, loaded when needed) -->
+  <!-- Choosing a task's agent, installing it (agent-picker.js, loaded when needed) -->
   <dialog id="agentpick" closedby="none">
     <header><h2>Choose the Agent</h2></header>
     <div class="body">
-      <p class="hint">The agent works in this workspace's terminal: it writes the code and uses the profiles. If it is not
+      <p class="hint">The agent works in this task's terminal: it writes the code and uses the profiles. If it is not
         on this computer yet, Kulisa installs it with its maker's installer. On its first start it asks you to sign in.</p>
     </div>
     <footer><button id="agentcancel" hidden>Cancel</button><button id="agentstart" class="primary" disabled>Start</button></footer>
@@ -167,7 +167,7 @@
     <header><h2>Agents</h2><button class="x icon quiet" type="button" command="close" commandfor="agents" title="Close"
       aria-label="Close"><svg aria-hidden="true"><use href="#i-close"/></svg></button></header>
     <div class="body">
-      <p class="hint">The agents Kulisa can run in a workspace's terminal. Install one here; choose it for a workspace
+      <p class="hint">The agents Kulisa can run in a task's terminal. Install one here; choose it for a task
         when you make one, or with Change agent… in the terminal's menu.</p>
     </div>
     <footer><button class="primary" type="button" command="close" commandfor="agents">Close</button></footer>
@@ -180,7 +180,7 @@
     <footer><button class="primary" type="button" command="close" commandfor="shortcuts">Close</button></footer>
   </dialog>
   <template id="tpl-keygroup"><section class="keygroup"><h3></h3><p class="hint"></p><dl></dl></section></template>
-  <!-- A question before something that cannot be undone (deleting a workspace, a project, a profile): ask.js -->
+  <!-- A question before something that cannot be undone (deleting a task, a project, a profile): ask.js -->
   <dialog id="ask" closedby="any">
     <header><h2></h2><button class="x icon quiet" type="button" command="close" commandfor="ask" title="Close" aria-label="Close"><svg aria-hidden="true"><use href="#i-close"/></svg></button></header>
     <div class="body"><p class="detail"></p></div>
@@ -261,14 +261,14 @@
   </template>
   <!-- The terminal's header: its name; dictation's language and microphone when the agent has its own (voice.js) -->
   <template id="tpl-termtab">
-    <div class="ptab"><b>Terminal</b><button class="add icon quiet small" data-keys="terminal.new" title="New terminal: your shell in the workspace's folder" aria-label="New terminal"><svg aria-hidden="true"><use href="#i-plus"/></svg></button><span class="dictation" hidden><button class="icon lang" aria-haspopup="menu" aria-label="Dictation language"></button><button class="icon mic" aria-label="Speak to the agent"><svg aria-hidden="true"><use href="#i-mic"/></svg></button></span></div>
+    <div class="ptab"><b>Terminal</b><button class="add icon quiet small" data-keys="terminal.new" title="New terminal: your shell in the task's folder" aria-label="New terminal"><svg aria-hidden="true"><use href="#i-plus"/></svg></button><span class="dictation" hidden><button class="icon lang" aria-haspopup="menu" aria-label="Dictation language"></button><button class="icon mic" aria-label="Speak to the agent"><svg aria-hidden="true"><use href="#i-mic"/></svg></button></span></div>
   </template>
   <!-- Another terminal's header (terminal.js): its name, × closing it -->
   <template id="tpl-othertermtab">
     <div class="ptab"><b></b><button class="close icon quiet" title="Close terminal: what runs there stops" aria-label="Close terminal"><svg aria-hidden="true"><use href="#i-close"/></svg></button></div>
   </template>
-  <template id="tpl-wstab">
-    <div class="wstab striptab"><span class="state" data-state=""><svg aria-hidden="true"><use href="#i-done"/></svg></span><span class="name"></span><span class="chip"><svg aria-hidden="true"><use href="#i-users"/></svg><span class="count"></span></span><button class="close icon quiet small" aria-label="Close"><svg aria-hidden="true"><use href="#i-close"/></svg></button></div>
+  <template id="tpl-tasktab">
+    <div class="tasktab striptab"><span class="state" data-state=""><svg aria-hidden="true"><use href="#i-done"/></svg></span><span class="name"></span><span class="chip"><svg aria-hidden="true"><use href="#i-users"/></svg><span class="count"></span></span><button class="close icon quiet small" aria-label="Close"><svg aria-hidden="true"><use href="#i-close"/></svg></button></div>
   </template>
   <!-- The agents with Install, in both agents' dialogs (agent-list.js) -->
   <template id="tpl-agentlist">
@@ -285,7 +285,7 @@
       class="status"></span><button type="button" class="install">Install</button></label>
   </template>
   <!-- An open project in the projects' bar (projects.js): its island, its label first (dragged to move the project),
-       then its workspaces' tabs -->
+       then its tasks' tabs -->
   <template id="tpl-pisland">
     <div class="pisland"><div class="plabel" draggable="true"><svg aria-hidden="true"><use href="#i-logo"/></svg><span class="name"></span></div></div>
   </template>
@@ -305,8 +305,8 @@
   <script src="menu.js"></script>
   <script src="terminal.js"></script>
   <script src="voice.js"></script>
-  <script src="workspaces.js"></script>
-  <script src="projects.js"></script> <!-- uses workspaces.tab -->
+  <script src="tasks.js"></script>
+  <script src="projects.js"></script> <!-- uses tasks.tab -->
   <script src="profile-editor.js"></script>
   <script src="renderer.js"></script>
   <script src="keys.js"></script>

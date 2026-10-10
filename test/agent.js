@@ -50,23 +50,23 @@ module.exports = (test) => {
       const r = http.request(url, { method, headers }, (res) => { res.resume(); resolve(res.statusCode); });
       r.on('error', () => resolve('error')); r.end(method === 'POST' ? body : undefined);
     });
-    const url = shell.ws.env().KULISA_MCP_URL;
+    const url = shell.task.env().KULISA_MCP_URL;
     const mcp = new URL(url), proxy = new URL(shell.profiles.get('sam-seller').endpoint);
     const json = { 'content-type': 'application/json', accept: 'application/json, text/event-stream' };
     // DNS rebinding: a page on evil.example resolving to 127.0.0.1 sends its own Host.
     assert.equal(await status(url, { ...json, host: `evil.example:${mcp.port}` }, 'POST'), 403);
-    assert.equal(await status(`${shell.ws.env().KULISA_URL}/hooks/session-start`, { host: `evil.example:${mcp.port}` }), 403);
+    assert.equal(await status(`${shell.task.env().KULISA_URL}/hooks/session-start`, { host: `evil.example:${mcp.port}` }), 403);
     assert.equal(await status(`${proxy.href}/json/version`, { host: `evil.example:${proxy.port}` }), 403);
     // A page's own requests carry Origin.
     assert.equal(await status(url, { ...json, origin: 'https://evil.example' }, 'POST'), 403);
-    const ws = (origin) => new Promise((resolve) => {
+    const task = (origin) => new Promise((resolve) => {
       const s = new WebSocket(`ws://127.0.0.1:${proxy.port}/project/1/sam-seller`, origin ? { origin } : {});
       s.on('open', () => { s.close(); resolve('open'); }); s.on('error', () => resolve('refused'));
     });
-    assert.equal(await ws('https://evil.example'), 'refused');
-    assert.equal(await ws(), 'open'); // Playwright and other local tools send no Origin
-    assert.equal(await status(`${shell.ws.env().KULISA_URL}/hooks/session-start`, {}), 200);
-    assert.equal(await status(`${shell.mcp.base}/ws/project/9/hooks/session-start`, {}), 404, 'no such workspace');
+    assert.equal(await task('https://evil.example'), 'refused');
+    assert.equal(await task(), 'open'); // Playwright and other local tools send no Origin
+    assert.equal(await status(`${shell.task.env().KULISA_URL}/hooks/session-start`, {}), 200);
+    assert.equal(await status(`${shell.mcp.base}/task/project/9/hooks/session-start`, {}), 404, 'no such task');
     // The MCP SDK's transport reads the body: a malformed one is refused, and one over its limit (4 MB) is not kept.
     assert.equal(await status(url, json, 'POST', '{not json'), 400);
     assert.equal(await status(url, json, 'POST', 'x'.repeat(5 << 20)), 413);
@@ -76,7 +76,7 @@ module.exports = (test) => {
     assert.ok(fs.existsSync(path.join(CLAUDE_PLUGIN, 'skills', 'profiles', 'SKILL.md')));
     const mcp = JSON.parse(fs.readFileSync(path.join(CLAUDE_PLUGIN, '.mcp.json'), 'utf8'));
     assert.equal(mcp.mcpServers.kulisa.url, '${KULISA_MCP_URL}');
-    assert.equal(shell.ws.env().KULISA_MCP_URL, `${shell.mcp.base}/ws/project/1/mcp`);
+    assert.equal(shell.task.env().KULISA_MCP_URL, `${shell.mcp.base}/task/project/1/mcp`);
     // With Claude Code installed, check the plugin the way it loads it.
     const { spawnSync } = require('child_process');
     const v = spawnSync('claude', ['plugin', 'validate', CLAUDE_PLUGIN], { encoding: 'utf8' });
@@ -111,10 +111,10 @@ module.exports = (test) => {
     await assert.rejects(call('browser_snapshot', { profile: 'nobody' }), /No profile "nobody"/);
     assert.match((await ui(`act('tab:close', { profile: 'sam-seller', tab: 'k999' })`)).error, /No tab k999 in sam-seller/);
     await assert.rejects(call('browser_tab_close', { profile: 'sam-seller', tab: 'k999' }), /No tab k999 in sam-seller/);
-    // An action of the window names its workspace: one sent for a workspace no longer shown (the human just switched)
+    // An action of the window names its task: one sent for a task no longer shown (the human just switched)
     // is refused, not done in the one shown now.
     const tabs = sam.tabs.length;
-    assert.match((await ui(`kulisa.invoke('tab:new', { ws: 'project/2', profile: 'sam-seller' })`)).error, /not on screen/);
+    assert.match((await ui(`kulisa.invoke('tab:new', { task: 'project/2', profile: 'sam-seller' })`)).error, /not on screen/);
     assert.match((await ui(`kulisa.invoke('tab:new', { profile: 'sam-seller' })`)).error, /not on screen/);
     assert.equal(sam.tabs.length, tabs);
   });
@@ -132,7 +132,7 @@ module.exports = (test) => {
       let out = ''; c.stdout.on('data', (d) => (out += d)); c.on('close', (code) => resolve({ code, out }));
       c.stdin.end(input);
     });
-    const inKulisa = await run(shell.ws.env());
+    const inKulisa = await run(shell.task.env());
     assert.deepEqual(JSON.parse(fs.readFileSync(pfile('agent.json'), 'utf8')), { agent: 'custom', started: true, sessionId: 'session-1', transcript });
     assert.equal(inKulisa.code, 0);
     const context = JSON.parse(inKulisa.out).hookSpecificOutput.additionalContext;
@@ -208,7 +208,7 @@ module.exports = (test) => {
     const { Client } = require('@modelcontextprotocol/sdk/client/index.js');
     const { StreamableHTTPClientTransport } = require('@modelcontextprotocol/sdk/client/streamableHttp.js');
     const c = new Client({ name: 'kulisa-test', version: '0' });
-    await c.connect(new StreamableHTTPClientTransport(new URL(shell.ws.env().KULISA_MCP_URL)));
+    await c.connect(new StreamableHTTPClientTransport(new URL(shell.task.env().KULISA_MCP_URL)));
     assert.match(c.getInstructions(), /by its description .* ask the human once .* profile_describe/s, 'every agent, also without the skill');
     await c.close();
     const elon = shell.profiles.get('elon-buyer');

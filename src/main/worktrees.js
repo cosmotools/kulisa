@@ -1,5 +1,5 @@
-// The code of a workspace (ROADMAP, "Workspaces"): a git worktree with its own branch next to the project,
-// `<repo>@<name>/`, made as Claude Code's --worktree makes one. Git only: a project without git has no workspaces.
+// The code of a task (ROADMAP, "Tasks"): a git worktree with its own branch next to the project,
+// `<repo>@<name>/`, made as Claude Code's --worktree makes one. Git only: a project without git has no tasks.
 // Runs the user's git (a program on every OS), never a shell.
 const { execFile } = require('child_process');
 const fs = require('fs');
@@ -28,7 +28,7 @@ async function repoOf(folder) {
 }
 
 // A name for the branch and the folder: lower case, letters (any language), digits and dashes.
-const slug = (name) => slugOf(name, 'workspace');
+const slug = (name) => slugOf(name, 'task');
 
 // Where a new branch starts, as Claude Code's --worktree: the remote's default branch after a fetch, else HEAD.
 async function startPoint(top) {
@@ -40,7 +40,7 @@ async function startPoint(top) {
   return 'HEAD';
 }
 
-// A new worktree for a workspace named `name`, next to the repository: { worktree, branch, base (the commit it starts
+// A new worktree for a task named `name`, next to the repository: { worktree, branch, base (the commit it starts
 // from), folder (the project's folder inside it) }. Uncommitted changes of the project are not carried; files outside
 // git that it needs are copied (COPIED, .worktreeinclude).
 async function createWorktree(folder, name) {

@@ -1,6 +1,6 @@
-// xterm.js in the renderer, node-pty here running the agent CLI unchanged. A workspace's agent has its terminal (the
-// workspace's key); the workspace's other terminals (workspaces.js, openTerminal) are "<key>#<id>". The window shows
-// the shown workspace's, the others keep running (and the window keeps their output).
+// xterm.js in the renderer, node-pty here running the agent CLI unchanged. A task's agent has its terminal (the
+// task's key); the task's other terminals (tasks.js, openTerminal) are "<key>#<id>". The window shows
+// the shown task's, the others keep running (and the window keeps their output).
 const { ipcMain } = require('electron');
 const os = require('os');
 const { stripVTControlCharacters } = require('util');
@@ -9,7 +9,7 @@ const pty = require('node-pty');
 // What an agent can read back of a terminal's output (terminalTail): its last characters, kept per terminal.
 const TAIL = 200_000;
 
-// The terminal's size as the window measures it, per workspace. An agent starts only once its size is known: Claude
+// The terminal's size as the window measures it, per task. An agent starts only once its size is known: Claude
 // Code draws its prompt for the size it starts with and does not fully redraw on the first resize. Listening from
 // require time, so a size sent while the window loads is not missed.
 const terms = new Map(); // key -> { pty, size, sized (resolves the first size) }
@@ -17,12 +17,12 @@ const termOf = (key) => {
   if (!terms.has(key)) { const t = { pty: null, size: null }; t.firstSize = new Promise((r) => (t.sized = r)); terms.set(key, t); }
   return terms.get(key);
 };
-ipcMain.on('pty:resize', (_e, { ws, cols, rows }) => {
-  const t = termOf(ws);
+ipcMain.on('pty:resize', (_e, { task, cols, rows }) => {
+  const t = termOf(task);
   t.size = { cols, rows }; t.sized();
   try { t.pty?.resize(cols, rows); } catch {}
 });
-ipcMain.on('pty:in', (_e, { ws, data }) => terms.get(ws)?.pty?.write(data));
+ipcMain.on('pty:in', (_e, { task, data }) => terms.get(task)?.pty?.write(data));
 
 // The user's shell as a terminal app starts it (login shell on macOS, as Terminal and VS Code do). An app started
 // from the Dock or a menu may have no SHELL; the account's shell is the same then.
@@ -36,8 +36,8 @@ const shQuote = (a) => (/^[\w@%+=:,./-]+$/.test(a) ? a : `'${a.replace(/'/g, `'\
 // stays. shell: { command, args } instead of the user's, or false to start the agent directly (as on Windows).
 // line: a command line typed into the shell as it is (a terminal's other than the agent's; none: the shell alone),
 // on Windows into cmd. size: start at it rather than wait for the window's (a terminal behind another panel has none).
-// key: the workspace's; the window sends its input and size, and gets its output, under it. send(channel, data): to
-// the workspace's window, whichever it is then.
+// key: the task's; the window sends its input and size, and gets its output, under it. send(channel, data): to
+// the task's window, whichever it is then.
 async function startTerminal(send, cfg, key) {
   const t = termOf(key);
   if (!cfg.size) await Promise.race([t.firstSize, new Promise((r) => setTimeout(r, 5000))]);
@@ -55,7 +55,7 @@ async function startTerminal(send, cfg, key) {
   p.key = key;
   // An agent that was replaced says nothing more in the window.
   p.tail = '';
-  const out = (data) => { p.tail = (p.tail + data).slice(-TAIL); if (t.pty === p) send('pty:out', { ws: key, data }); };
+  const out = (data) => { p.tail = (p.tail + data).slice(-TAIL); if (t.pty === p) send('pty:out', { task: key, data }); };
   p.onData(out);
   p.onExit(({ exitCode }) => out(`\r\n[process exited ${exitCode}]\r\n`));
   t.pty = p;
@@ -84,7 +84,7 @@ function stopTerminal(p) {
   try { p.kill(); } catch {}
 }
 
-// A workspace gone (its project closed, a fork deleted), or a terminal closed: its size too. Opened again, the window
+// A task gone (its project closed, a fork deleted), or a terminal closed: its size too. Opened again, the window
 // measures it anew.
 const forgetTerminal = (key) => terms.delete(key);
 // The size the window gave a terminal, if any.

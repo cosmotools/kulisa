@@ -62,11 +62,11 @@ module.exports = (test) => {
     assert.deepEqual(await row('New tab'), ['Ctrl+T']);
     assert.deepEqual(await row('Tab 1 to 8'), ['Ctrl+1…8']);
     assert.deepEqual(await row('Copy'), ['Ctrl+Shift+C']);
-    // In a dialog the keys are the dialog's: Ctrl+Shift+N makes no workspace.
+    // In a dialog the keys are the dialog's: Ctrl+Shift+N makes no task.
     await waitFor(() => w.keyZone === 'dialog');
     press(win, 'N', 'control', 'shift');
     await sleep(200); // that nothing opens: nothing to wait for
-    assert.equal(await ui(`document.getElementById('wsnew').open`), false);
+    assert.equal(await ui(`document.getElementById('tasknew').open`), false);
     await ui(`document.getElementById('shortcuts').close()`);
     await ui(`document.getElementById('windowMenu').click()`);
     assert.ok((await menuRows(ui)).includes('Keyboard Shortcuts'));

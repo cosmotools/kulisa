@@ -1,8 +1,8 @@
-// The profiles of a workspace, in their order: open ones (a Profile: tabs, automation) and closed
+// The profiles of a task, in their order: open ones (a Profile: tabs, automation) and closed
 // ones (their settings and the URLs of their tabs only; still signed in). Creates, renames, closes, opens and deletes
-// them and keeps profiles.json and their tabs (store.js, WorkspaceStore). `profiles` (open ones: Profile) and `closed` (closed ones: their entry) are maps by
-// id, in the list's order, for everything that looks a profile up (Workspace: profiles, closed).
-// What it takes to run a profile is the workspace's (workspaces.js), given as hooks:
+// them and keeps profiles.json and their tabs (store.js, TaskStore). `profiles` (open ones: Profile) and `closed` (closed ones: their entry) are maps by
+// id, in the list's order, for everything that looks a profile up (Task: profiles, closed).
+// What it takes to run a profile is the task's (tasks.js), given as hooks:
 //   make(cfg) -> Profile        a Profile for the settings, not started yet
 //   start(profile, urls)        its tabs open, automation connected
 //   unload(profile)             its tabs closed, its sign-ins saved
@@ -25,7 +25,7 @@ class ProjectProfiles {
     this.profiles = new Map(); this.closed = new Map();
   }
 
-  // The workspace's profiles from its store; the closed ones stay closed. Profiles made before pictures (with a
+  // The task's profiles from its store; the closed ones stay closed. Profiles made before pictures (with a
   // color) get one.
   async load() {
     this.entries = this.store.profiles().map(({ closed, color, ...cfg }) =>
@@ -35,7 +35,7 @@ class ProjectProfiles {
     for (const e of this.entries) if (!e.closed) await this._start(e);
     for (const e of this.entries) delete e.closed;
   }
-  // The workspace closes (another project opens, it is deleted): the open profiles are unloaded and the list goes.
+  // The task closes (another project opens, it is deleted): the open profiles are unloaded and the list goes.
   async unloadAll() {
     for (const e of this.entries) if (e.profile) await this.hooks.unload(e.profile);
     this.entries = []; this._sync();
@@ -116,7 +116,7 @@ class ProjectProfiles {
   }
 
   // Delete: its tabs, sign-ins and storage are gone for good. The human confirms first (the editor, or the agent's
-  // request: workspaces.js).
+  // request: tasks.js).
   async delete(id) {
     const e = this._find(id);
     if (!e) return { error: `no profile ${id}` };

@@ -1,14 +1,14 @@
-// Kulisa window UI: wires the parts (common.js, menu.js, terminal.js, projects.js, workspaces.js, profile-editor.js)
-// to a grid of peer panels (dockview) of the shown workspace: one pane per profile (tab strip, address bar; the page
+// Kulisa window UI: wires the parts (common.js, menu.js, terminal.js, projects.js, tasks.js, profile-editor.js)
+// to a grid of peer panels (dockview) of the shown task: one pane per profile (tab strip, address bar; the page
 // itself is a WebContentsView laid over .content by the main process) and the terminal. Panels can be dragged,
-// stacked as tabs and resized; each workspace's grid is saved (its layout.json) and restored. Also the ☰ menu,
+// stacked as tabs and resized; each task's grid is saved (its layout.json) and restored. Also the ☰ menu,
 // right-click menus, the agent's captions and point-and-tell.
 const panes = new Map(); // profile key (its folder; stable across renames) -> { el, tabEl, profile }
-let state = []; // the open profiles of the shown workspace, as the main process sends them
+let state = []; // the open profiles of the shown task, as the main process sends them
 let gridReady = null;
 let leaving = null; // the grid being taken down, before the next one is built
-let sliding = null; // a workspace switch as a view transition: { transition, built } until the next grid is built
-const pictures = new Map(); // workspace key -> { profile id: data URL }: its pages when it was left, for sliding in
+let sliding = null; // a task switch as a view transition: { transition, built } until the next grid is built
+const pictures = new Map(); // task key -> { profile id: data URL }: its pages when it was left, for sliding in
 const dockEl = document.getElementById('dock');
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 
@@ -21,13 +21,13 @@ kulisa.on('state', async (s) => {
   if (first) reveal();
 });
 // Until the grid is built and the pages have their places, the window shows no grid and the main process keeps the
-// pages hidden (html.loading): nothing jumps while the window loads, e.g. when another project is opened. A workspace
+// pages hidden (html.loading): nothing jumps while the window loads, e.g. when another project is opened. A task
 // shown from the strip slides in with pictures of its pages (grid:closing), then the pages themselves come.
 function reveal() {
   if (sliding) {
     const { transition, built } = sliding; sliding = null;
     document.documentElement.classList.remove('loading');
-    showPictures(pictures.get(workspaces.current) || {});
+    showPictures(pictures.get(tasks.current) || {});
     built(); // the transition's new state: it slides in
     transition.finished.then(() => {
       for (const img of document.querySelectorAll('.pane .content img.snapshot')) img.remove();
@@ -202,10 +202,10 @@ const newTab = async (pane) => { pane.typeInto = await act('tab:new', { profile:
 // each pane's .content box is, or that it is not on screen (stacked behind another pane in a group).
 const { createDockview, themeAbyssSpaced } = window['dockview-core'];
 const panelId = (key) => `profile:${key}`;
-// The workspace's other terminals (main/workspaces.js: openTerminal), each a panel "term:<id>" next to the agent's.
+// The task's other terminals (main/tasks.js: openTerminal), each a panel "term:<id>" next to the agent's.
 let otherTerms = [];
 const isOtherTerm = (id) => id.startsWith('term:');
-const otherTermKey = (id) => `${workspaces.current}#${id.slice('term:'.length)}`;
+const otherTermKey = (id) => `${tasks.current}#${id.slice('term:'.length)}`;
 const paneOf = (id) => panes.get(id.slice('profile:'.length));
 const api = createDockview(document.getElementById('dock'), {
   theme: { ...themeAbyssSpaced, name: 'kulisa', gap: 8 }, // --gap in tokens.css
@@ -228,13 +228,13 @@ function sendLayout() {
     const r = c.getBoundingClientRect();
     rects[pane.profile.id] = { x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height) };
   }
-  kulisa.send('layout', { ws: workspaces.current, rects });
+  kulisa.send('layout', { task: tasks.current, rects });
 }
 let saveTimer = 0;
 api.onDidLayoutChange(() => {
   scheduleLayout();
   clearTimeout(saveTimer);
-  if (!document.documentElement.classList.contains('loading')) saveTimer = setTimeout(() => kulisa.send('layout:save', { ws: workspaces.current, layout: api.toJSON() }), 300); // not a grid being taken down or built
+  if (!document.documentElement.classList.contains('loading')) saveTimer = setTimeout(() => kulisa.send('layout:save', { task: tasks.current, layout: api.toJSON() }), 300); // not a grid being taken down or built
 });
 api.onDidActivePanelChange(scheduleLayout);
 
@@ -284,17 +284,17 @@ function applyPreset(name) {
 }
 window.__layoutPreset = applyPreset; // for tests
 
-// Another workspace is being shown, or another project (dir: where it is in the projects' bar; 0: none, the window
-// is left with no project; level: 'workspace' or 'project'): the grid goes and is built again on the next state, as a
+// Another task is being shown, or another project (dir: where it is in the projects' bar; 0: none, the window
+// is left with no project; level: 'task' or 'project'): the grid goes and is built again on the next state, as a
 // view transition (window.css): Chromium takes a picture of the grid on screen, with pictures of its pages (the main
 // process sends them; kept for when it comes back), and shows it while the next grid is built (reveal). Another
-// project's grid slides in as macOS desktops do, the one left out and the next one in at once; another workspace's
+// project's grid slides in as macOS desktops do, the one left out and the next one in at once; another task's
 // replaces it at once. Not with reduced motion: then the grid is hidden at once, so nothing half-built shows. The
-// title bar and the projects' bar stay; the terminal panel too, showing the next workspace's terminal (workspaces.js).
-kulisa.on('grid:closing', ({ dir, level, ws, pics }) => {
+// title bar and the projects' bar stay; the terminal panel too, showing the next task's terminal (tasks.js).
+kulisa.on('grid:closing', ({ dir, level, task, pics }) => {
   for (const d of document.querySelectorAll('dialog[open]')) d.close();
   clearTimeout(saveTimer);
-  if (pics) pictures.set(ws, pics);
+  if (pics) pictures.set(task, pics);
   const takeDown = () => {
     document.documentElement.classList.add('loading');
     frozen = null;
@@ -315,9 +315,9 @@ kulisa.on('grid:closing', ({ dir, level, ws, pics }) => {
   sliding = { transition, built };
 });
 
-// Workspaces gone (their project closed, a fork deleted): their terminals and pictures too; a workspace opened again
+// Tasks gone (their project closed, a fork deleted): their terminals and pictures too; a task opened again
 // later starts afresh.
-kulisa.on('workspaces:closed', (keys) => {
+kulisa.on('tasks:closed', (keys) => {
   for (const key of keys) pictures.delete(key);
   forgetTerminals(keys);
 });
@@ -352,7 +352,7 @@ function syncGrid() {
   }
   syncTerminals();
 }
-// Other terminals follow the workspace's: a new one a tab in the agent's terminal's group, in front when the human
+// Other terminals follow the task's: a new one a tab in the agent's terminal's group, in front when the human
 // opened it (+), behind when the agent did (the human watches the agent); a closed one goes.
 function syncTerminals() {
   for (const panel of api.panels.filter((x) => isOtherTerm(x.id) && !otherTerms.some((t) => `term:${t.id}` === x.id))) {
@@ -370,7 +370,7 @@ function syncTerminals() {
   }
 }
 kulisa.on('terminals', async (list) => {
-  await leaving; // as the state: the next workspace's, once the grid on screen has gone
+  await leaving; // as the state: the next task's, once the grid on screen has gone
   otherTerms = list;
   if (gridReady) { await gridReady; syncTerminals(); }
 });
@@ -490,7 +490,7 @@ function tabMenu(profile, tab) {
 
 // ---------- agent activity: caption over the pane (the cursor itself is drawn inside the page, see ghost.js) ----------
 kulisa.on('agent', (a) => {
-  if (a.ws !== workspaces.current) return; // a workspace in the background
+  if (a.task !== tasks.current) return; // a task in the background
   const pane = paneOfProfile(a.profile);
   if (!pane || pane.profile.signinMode) return;
   const cap = pane.tabEl.querySelector('.caption');

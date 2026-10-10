@@ -1,6 +1,6 @@
 // New Project… (projects.js), as JetBrains': a name, and the location its folder goes in (the home folder unless the
 // human types or browses to another); the dialog shows the folder it makes, so the human knows where the agent's
-// files are. Create Git repository (on by default): workspaces need git. The main process makes the folder and opens
+// files are. Create Git repository (on by default): tasks need git. The main process makes the folder and opens
 // the project (project:new). An ES module loaded when needed, CLAUDE.md "Window UI".
 //   newProject()   show the dialog
 const dialog = document.getElementById('newproject');

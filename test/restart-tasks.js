@@ -1,4 +1,4 @@
-// After a restart, what window.js, grid.js and workspaces.js left: the fork, the projects and windows, the grid,
+// After a restart, what window.js, grid.js and tasks.js left: the fork, the projects and windows, the grid,
 // the terminals.
 const fs = require('fs');
 const path = require('path');
@@ -8,8 +8,8 @@ const { assert, root, userData, project, pfile, savedTabs, panel, SITE, sleep, w
 module.exports = (test) => {
   test('after a restart: the fork waits in the bar with its tabs, loads when shown, still signed in; main again', async (ctx) => {
     const { shell, ui } = ctx;
-    await waitFor(async () => (await ui(`[...document.querySelectorAll('#wslist .wstab')].map((t) => t.querySelector('.name').textContent).join()`)) === 'main,Feature-X');
-    const fork = shell.current.workspaces.get(2);
+    await waitFor(async () => (await ui(`[...document.querySelectorAll('#tasklist .tasktab')].map((t) => t.querySelector('.name').textContent).join()`)) === 'main,Feature-X');
+    const fork = shell.current.tasks.get(2);
     assert.equal(fork.loaded, false);
     // Left loaded in the background: its tabs saved as Kulisa quit, not again as they closed (none left at last).
     const forkDir = path.join(userData, 'projects', 'project', '2');
@@ -17,24 +17,24 @@ module.exports = (test) => {
       .map((d) => JSON.parse(fs.readFileSync(path.join(forkDir, d, 'Kulisa Tabs.json'), 'utf8')));
     assert.ok(saved.some((urls) => urls.length), `its tabs kept: ${JSON.stringify(saved)}`);
     // Once main has loaded: a click while the window still builds it is not taken.
-    await waitFor(() => shell.ws?.loaded && !shell.windows[0].switching);
+    await waitFor(() => shell.task?.loaded && !shell.windows[0].switching);
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
-    await ui(`document.querySelector('#wslist .wstab[data-ws="project/2"]').click()`);
-    await waitFor(() => shell.ws === fork && fork.loaded && fork.pty);
+    await ui(`document.querySelector('#tasklist .tasktab[data-task="project/2"]').click()`);
+    await waitFor(() => shell.task === fork && fork.loaded && fork.pty);
     assert.equal(fork.folder, `${project}@feature-x`);
     assert.deepEqual([...shell.profiles.keys()], ['sam-admin', 'elon-buyer']);
     await ctx.call('browser_navigate', { profile: 'sam-admin', url: `${SITE}/app` });
     assert.equal(await who(ctx, 'sam-admin'), 'Signed in as sam');
-    await ui(`document.querySelector('#wslist .wstab[data-ws="project/1"]').click()`);
-    await waitFor(() => shell.ws.n === 1);
+    await ui(`document.querySelector('#tasklist .tasktab[data-task="project/1"]').click()`);
+    await waitFor(() => shell.task.n === 1);
     await waitFor(async () => (await viewOn(shell, ui, 'sam-admin')) && viewOn(shell, ui, 'elon-buyer'));
   });
   test('after a restart: the open projects are as they were left; one in the background loads when shown', async ({ shell, ui }) => {
     await waitFor(async () => JSON.stringify(await projectTabs(ui)) === '["project *","other"]');
-    assert.equal(shell.open.get('other').ws.loaded, false);
+    assert.equal(shell.open.get('other').task.loaded, false);
   });
   test('after a restart: a window of its own comes back where it was, with its project shown; saved smaller than the minimum, at the minimum', async ({ shell }) => {
-    await waitFor(() => shell.windows.length === 2 && shell.windows[1].current?.id === 'third' && shell.windows[1].ws.loaded);
+    await waitFor(() => shell.windows.length === 2 && shell.windows[1].current?.id === 'third' && shell.windows[1].task.loaded);
     const second = shell.windows[1];
     assert.deepEqual(second.tabs.map((p) => p.id), ['third']);
     const { width, height } = second.win.getNormalBounds();
@@ -53,13 +53,13 @@ module.exports = (test) => {
     };
     await waitFor(columns, 3000);
   });
-  test("after a restart: a workspace's other terminal comes back in its place when it loads, a shell with nothing running", async ({ shell, ui, call }) => {
+  test("after a restart: a task's other terminal comes back in its place when it loads, a shell with nothing running", async ({ shell, ui, call }) => {
     await showProject(ui, 'other');
-    await waitFor(() => shell.current?.id === 'other' && shell.ws.loaded);
-    assert.deepEqual(shell.ws.terminalsInfo().map(({ name, by, command }) => ({ name, by, command })), [{ name: 'dev server', by: 'agent', command: '' }]);
-    const { id } = shell.ws.terminal('dev server');
+    await waitFor(() => shell.current?.id === 'other' && shell.task.loaded);
+    assert.deepEqual(shell.task.terminalsInfo().map(({ name, by, command }) => ({ name, by, command })), [{ name: 'dev server', by: 'agent', command: '' }]);
+    const { id } = shell.task.terminal('dev server');
     await waitFor(() => ui(`window.__dock?.getPanel('term:${id}')?.group.id === window.__dock?.getPanel('terminal')?.group.id`));
-    await waitFor(() => shell.ws.terminal('dev server').pty);
+    await waitFor(() => shell.task.terminal('dev server').pty);
     await sleep(500); // nothing to wait for: that nothing runs
     assert.ok(!(await call('terminal_read', { name: 'dev server' })).text.includes('served before'), 'nothing runs there');
   });

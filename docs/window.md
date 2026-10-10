@@ -1,8 +1,8 @@
 # The window
 
 How a Kulisa window works for the human: the title bar, the grid of panels, the projects' bar, the zoom, the menus
-and dialogs, the terminal, the keyboard shortcuts, and why they are built so. Projects and their workspaces in the projects' bar, several
-windows: [workspaces.md](workspaces.md);
+and dialogs, the terminal, the keyboard shortcuts, and why they are built so. Projects and their tasks in the projects' bar, several
+windows: [tasks.md](tasks.md);
 profiles' panes and tabs: [profiles.md](profiles.md); the components the window is built of: [ui.md](ui.md); what is
 next: [ROADMAP.md](ROADMAP.md). Keep this file current when the window changes.
 
@@ -24,27 +24,27 @@ replace a region left by the page before.
 
 ## The projects' bar
 
-Under the grid, in the middle: an island per open project with its workspaces' tabs, then the projects' menu
-([workspaces.md](workspaces.md), Projects). ☰ → **Projects bar: Top, Bottom** puts it over the grid instead, under the
+Under the grid, in the middle: an island per open project with its tasks' tabs, then the projects' menu
+([tasks.md](tasks.md), Projects). ☰ → **Projects bar: Top, Bottom** puts it over the grid instead, under the
 title bar (`settings.json`: `bar`; the page gets it in its URL, so it is drawn in its place at once). Bottom is the
 default: the hand goes to the terminal under the grid all the time, so the tabs are where it already is; at first
-the projects were tabs in the title bar and the workspaces a strip under the grid, and both switched with the same
+the projects were tabs in the title bar and the tasks a strip under the grid, and both switched with the same
 slide, which mixed them up (2026-10-08). Each island looks like a tab of the grid, its flat side on the grid and
 merging into it with curves; the grid leaves no gap on that side. The grid is one dark box (`--well`, a step from its panels, so they
 stand apart) from edge to edge of the window, square, the gap inside it, its panels' gaps dark too; the islands are
 of its color, so an island merges into it wherever it meets it: on the window's glow, over a gap between two
 panels (profiles side by side, a split row), its curve hung in the air (2026-10-08). Its tabs are a step taller than a button and never
-narrow, targets for a quick throw of the mouse; nothing in the bar moves when another project or workspace is shown.
+narrow, targets for a quick throw of the mouse; nothing in the bar moves when another project or task is shown.
 
 ## The grid
 
-A workspace's profiles' panes and its terminal are peer panels in a grid (dockview), in JetBrains' Islands look:
+A task's profiles' panes and its terminal are peer panels in a grid (dockview), in JetBrains' Islands look:
 drag one by its header to another place, onto another panel to stack them as tabs, drag the gaps to resize. A
 panel stacked behind another hides its page until it is chosen. **☰ → Arrange panels** offers ready-made
 arrangements, each drawn as a small picture of itself, as Windows' snap layouts (the words in its tooltip):
 profiles in columns with the terminal below, two by two with the terminal on the right, one profile at a time.
-Each fits the window with nothing cut off. The grid is saved per workspace (`layout.json`) and restored.
-The workspace's other terminals ("The terminal") are panels too, next to the agent's; an arrangement keeps them there.
+Each fits the window with nothing cut off. The grid is saved per task (`layout.json`) and restored.
+The task's other terminals ("The terminal") are panels too, next to the agent's; an arrangement keeps them there.
 
 The window itself never scrolls, also not from a script (`overflow` on `html` and `body`, window.css): a panel stacked
 behind another is kept laid out below the grid (dockview), which made the page taller than the window, and the
@@ -107,7 +107,7 @@ when it changes, as JetBrains' Sync with OS). Saved (`settings.json`), the same 
 
 Kulisa draws its menus in HTML, as Chrome does (a popover, `menu.js`; [ui.md](ui.md), Menus):
 
-- the button after the projects' islands (the projects), a project label's right-click menu, the profiles' chip on the shown workspace's tab (open
+- the button after the projects' islands (the projects), a project label's right-click menu, the profiles' chip on the shown task's tab (open
   and closed profiles, Manage Profiles…; the tab's right-click menu has them too, with Show Folder), ☰ (as Chrome's ⋮, each row with its icon: the zoom row, the theme row, the
   projects' bar's row, Arrange panels, Agents…, Keyboard Shortcuts, the Welcome screen's links
   (Documentation, GitHub, Report an issue; one list in `index.html`), and Exit, which quits as the last window's × does; not on macOS, where
@@ -124,16 +124,16 @@ frozen the desktop (ROADMAP, Deferred ideas, "A right-click menu in pages"). The
 
 Every dialog has one look, as in JetBrains: the title with × on top, the content, the buttons at the bottom right,
 the main one last (blue; red when it deletes) ([ui.md](ui.md), Dialogs). Questions before something that cannot be
-undone (deleting a profile, a workspace, a project), before closing (a project, a window, quitting
-while an agent works: [workspaces.md](workspaces.md)) or between two ways to go (This Window or New Window) are asked
+undone (deleting a profile, a task, a project), before closing (a project, a window, quitting
+while an agent works: [tasks.md](tasks.md)) or between two ways to go (This Window or New Window) are asked
 in that dialog too (`shell.ask` → `ask.js`, queued, Cancel focused), in the window the action is
 in. Not the OS's own question (`dialog.showMessageBox`): it looked different on each OS and plain on Linux, and
 could not mark the deleting button or lay out what goes. The OS's own dialogs stay for choosing a folder.
 
 ## The terminal
 
-A terminal per workspace for its agent (xterm.js in the window, node-pty in the main process: `terminal.js`), running
-the agent the human chose ([workspaces.md](workspaces.md), "Choosing the agent") unchanged. Unicode 11 widths (the cursor stays
+A terminal per task for its agent (xterm.js in the window, node-pty in the main process: `terminal.js`), running
+the agent the human chose ([tasks.md](tasks.md), "Choosing the agent") unchanged. Unicode 11 widths (the cursor stays
 put after an emoji), a bundled font, the GPU renderer. Copy and paste take the keys of the OS's own terminal, so hands
 need nothing new: Ctrl+Shift+C / V (GNOME Terminal, Konsole); on Windows also Ctrl+V, and Ctrl+C copies a selection,
 else interrupts (Windows Terminal); on macOS ⌘C / ⌘V (the app menu's). xterm leaves those keys to the app, as VS Code
@@ -146,22 +146,22 @@ dragging selects in xterm instead.
 **Other terminals** next to the agent's, each a tab in its panel's group (dockview's: moved, split off and saved as
 any panel): the human's shells (+ in the agent's terminal's header, `Terminal 2` …) and what the agent keeps
 running for the human to see (`terminal_run`: the app's dev server, `docker compose up`), behind the agent's tab
-so the human goes on watching the agent. Each is the user's shell in the workspace's folder with the agent's
+so the human goes on watching the agent. Each is the user's shell in the task's folder with the agent's
 environment (`KULISA_PORT_OFFSET`), the command typed in, so the human can stop it, type into it and read it as
 in their own terminal; the agent reads its last lines (`terminal_read`, colors left out) and presses Ctrl+C
 (`terminal_stop`). Why not the agent's own background shell: some agents cannot keep a process running (Codex waits
-on it), and the human does not see what runs there. The workspace closing ends what runs in it. As in an IDE, the terminals are kept (`terminals.json`): when the workspace loads again
+on it), and the human does not see what runs there. The task closing ends what runs in it. As in an IDE, the terminals are kept (`terminals.json`): when the task loads again
 (a restart, its project opened again) each comes back in its place in the grid, its shell with nothing running; the
 agent runs its command again. × or the menu's Close, or the shell's `exit`, ends one for good
-(`Workspace.openTerminal`, `runInTerminal`, `interruptTerminal`, `readTerminal`, `closeTerminal`). The main process
+(`Task.openTerminal`, `runInTerminal`, `interruptTerminal`, `readTerminal`, `closeTerminal`). The main process
 keeps each one's last 200 KB of output for the agent, in memory.
 
-**Dictation**, where the shown workspace's agent has its own ([workspaces.md](workspaces.md), "Choosing the
+**Dictation**, where the shown task's agent has its own ([tasks.md](tasks.md), "Choosing the
 agent"): the terminal's header ends with the language it hears (EN, RU …) and a microphone (`voice.js`). The
 microphone works as a voice message's button: held, the agent records until it is let go; a click starts and another
 click stops (or 5 minutes, a recording left on). The text goes where the cursor is in the agent's input, after what
 is there, so several sentences can be dictated one after another, and is left there to read and send (recognition
-makes mistakes, and a task misheard costs more than a key). Kulisa only holds the agent's key (`Workspace.dictate`);
+makes mistakes, and a task misheard costs more than a key). Kulisa only holds the agent's key (`Task.dictate`);
 the agent records and recognizes. The button is lit while Kulisa holds it, which is when the agent records. The language opens a menu of those the agent
 understands, the system's first; it is the agent's own setting, so the agent answers in it too (said on hover).
 The agent hears through its own program (Claude Code: its audio module, or `arecord`/SoX on Linux); on macOS the
@@ -169,13 +169,13 @@ system asks for the microphone on Kulisa's behalf (`NSMicrophoneUsageDescription
 
 Links in the terminal, those an agent marks (OSC 8, as Claude Code does) and addresses in plain text (xterm's web-links
 addon), open with Ctrl+click (⌘ on macOS), and always ask where, in a menu at the pointer: a new tab in one of the
-shown workspace's open profiles, or the user's browser. Asked every time, so a link never lands somewhere the human
+shown task's open profiles, or the user's browser. Asked every time, so a link never lands somewhere the human
 did not expect (the author's choice, 2026-10-08: which profile a link belongs to cannot be told, and a rule such as
 "where that site is open" was not obvious). Only `http` and `https`; the address shows on hover. xterm's own handler
 asked with the browser's `confirm()`, an OS dialog. Keys are known by `keyCode` too, as ibus with a Cyrillic layout leaves
 `code` out. The agent starts once the terminal is laid out, at its real
 size. The rows that fit sit in the middle of the panel, what is left under a whole row shared above and below them:
-at the bottom, it was a row's height under the agent's status line in one workspace and nothing in another, whose
+at the bottom, it was a row's height under the agent's status line in one task and nothing in another, whose
 grids differed by a pixel (2026-10-08). When a project moves to another window, what its terminals show moves along (xterm's serialize addon, as VS
 Code keeps terminals), at the same size.
 
@@ -194,8 +194,8 @@ Who gets a key depends on where the keyboard is:
   Ctrl+PgDn / PgUp, Ctrl+1…8, Ctrl+9; and Ctrl+Shift+C for Pick (Chrome's Inspect). The site does not get them, as in
   Chrome. Closing or switching a tab from the page leaves the keyboard in the page shown next.
 - **Everywhere, the terminal too**: Ctrl+` to the agent's terminal and back to the page used last, Ctrl+Shift+` a new
-  terminal, Ctrl+Shift+1…9 a workspace of the shown project, Ctrl+Shift+PgDn / PgUp the next or previous one of every
-  open project (in the bar's order), Ctrl+Shift+N a new workspace, Ctrl+Shift+/ the list. Ctrl+Shift+… and Ctrl+` are
+  terminal, Ctrl+Shift+1…9 a task of the shown project, Ctrl+Shift+PgDn / PgUp the next or previous one of every
+  open project (in the bar's order), Ctrl+Shift+N a new task, Ctrl+Shift+/ the list. Ctrl+Shift+… and Ctrl+` are
   what agents and sites leave alone; Alt+letters are Claude Code's (Alt+V, Alt+P, Alt+T), Ctrl+Alt+arrows GNOME's,
   Ctrl+Shift+U and E ibus's, so Kulisa takes none of them.
 - **In the terminal** every other key is the agent's (Ctrl+R, Ctrl+T, Ctrl+O …), with the copy and paste of the OS's
@@ -204,7 +204,7 @@ Who gets a key depends on where the keyboard is:
 
 The zoom and DevTools keys mean the nearest: in a page that site's zoom and that tab's DevTools, elsewhere Kulisa's.
 No key without a modifier but F keys (WCAG 2.1.4). On macOS the keys are ⌘'s and Ctrl stays the terminal's;
-workspaces are ⌘⌥1…9 (⌘⇧3, 4, 5 are macOS's screenshots), back and forward ⌘[ and ⌘] as in Chrome.
+tasks are ⌘⌥1…9 (⌘⇧3, 4, 5 are macOS's screenshots), back and forward ⌘[ and ⌘] as in Chrome.
 
 How: the main process sees every key of the window and of every tab before the page does (`before-input-event`, on
 every webContents as it is made: `app.js`), and takes one of Kulisa's (`preventDefault`: the page never gets it) or
@@ -245,7 +245,7 @@ Installers are made with Electron Forge (`npm run make`, `forge.config.js`): `.d
 | `src/main/app.js` | the windows, the Kulisa zoom, the theme, the IPC |
 | `src/main/window.js` | a window: its BrowserWindow, the native views' places, its questions, screenshot |
 | `src/main/keys.js` | the keyboard shortcuts: the table, which key an input event is; `app.js` takes them (Keys) |
-| `src/main/terminal.js` | the ptys: the agent's per workspace, and its other terminals; their output's last 200 KB |
+| `src/main/terminal.js` | the ptys: the agent's per task, and its other terminals; their output's last 200 KB |
 | `src/renderer/renderer.js` | the grid (dockview), the panes, ☰, Arrange panels, the right-click menus |
 | `src/renderer/menu.js`, `ask.js`, `terminal.js`, `voice.js` | the menus, the questions, the terminal, its dictation |
 | `src/renderer/keys.js`, `shortcuts.js` | where the keyboard is, the commands the keys run; Keyboard Shortcuts (loaded when needed) |

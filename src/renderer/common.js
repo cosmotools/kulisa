@@ -13,7 +13,7 @@ showKeys(document);
 const tpl = (id) => showKeys(document.getElementById(id).content.firstElementChild.cloneNode(true));
 // A profile's picture (avatars.js): its file.
 const avatarSrc = (a) => `avatars/${a}.svg`;
-// Name fields (data-name: projects, workspaces, profiles) take only the characters names may have (names.js in the
+// Name fields (data-name: projects, tasks, profiles) take only the characters names may have (names.js in the
 // main process, which checks them again): others are left out as they are typed or pasted.
 document.addEventListener('beforeinput', (e) => {
   const input = e.target;
@@ -25,7 +25,7 @@ document.addEventListener('beforeinput', (e) => {
   e.preventDefault();
   if (ok) { input.setRangeText(ok, input.selectionStart, input.selectionEnd, 'end'); input.dispatchEvent(new Event('input', { bubbles: true })); }
 });
-// An agent's state on its workspace's tab (components.css .state): its icon, and words for the tooltip. Nothing when
+// An agent's state on its task's tab (components.css .state): its icon, and words for the tooltip. Nothing when
 // unknown.
 const AGENT_STATES = { working: 'is working', waiting: 'waits for you', done: 'is done' };
 function showAgentState(el, state) {

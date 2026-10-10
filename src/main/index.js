@@ -2,7 +2,7 @@
 //   npm start                       opens the project used last; at first start none (the window offers to open one)
 //   KULISA_PROJECT=<dir> npm start  opens the project in <dir> (made if new)
 // Environment:
-//   KULISA_AGENT="cmd args…"   run this agent CLI in every workspace, without asking which (agents.js); it gets
+//   KULISA_AGENT="cmd args…"   run this agent CLI in every task, without asking which (agents.js); it gets
 //                              KULISA_MCP_URL, but no Claude Code plugin
 //   KULISA_MIMIC=0             do not present profiles as Google Chrome
 //   KULISA_SIGNIN_HOSTS=a,b    more sign-in hosts for the automatic sign-in pause

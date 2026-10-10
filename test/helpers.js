@@ -9,12 +9,12 @@ const root = process.env.KULISA_TEST_ROOT || path.join(os.tmpdir(), 'kulisa-test
 const userData = path.join(root, 'data');
 const project = path.join(root, 'project');
 
-// A file of the test project's own data, of its main workspace (store.js; the project's id is its folder's name).
-const pfile = (f, ws = 1) => path.join(userData, 'projects', 'project', String(ws), f);
+// A file of the test project's own data, of its main task (store.js; the project's id is its folder's name).
+const pfile = (f, task = 1) => path.join(userData, 'projects', 'project', String(task), f);
 // The tabs saved for a profile (in its folder).
-const savedTabs = (id, ws = 1) => {
-  const { folder } = JSON.parse(fs.readFileSync(pfile('profiles.json', ws), 'utf8')).find((p) => p.id === id);
-  return JSON.parse(fs.readFileSync(pfile(path.join(folder, 'Kulisa Tabs.json'), ws), 'utf8'));
+const savedTabs = (id, task = 1) => {
+  const { folder } = JSON.parse(fs.readFileSync(pfile('profiles.json', task), 'utf8')).find((p) => p.id === id);
+  return JSON.parse(fs.readFileSync(pfile(path.join(folder, 'Kulisa Tabs.json'), task), 'utf8'));
 };
 // The id of a profile's panel in the grid (its folder: stable across renames).
 const panel = (shell, id) => `profile:${(shell.profiles.get(id) || shell.closed.get(id)?.cfg).folder}`;
@@ -34,10 +34,10 @@ const menuRows = async (ui) => {
 // The open projects in the projects' bar (their islands): their names, the shown one with ' *'.
 const projectTabs = (ui) => ui(`[...document.querySelectorAll('#projectTabs .pisland')].map((t) => t.querySelector('.plabel .name').textContent + (t.classList.contains('active') ? ' *' : ''))`);
 const projectTab = (id) => `document.querySelector('#projectTabs [data-project="${id}"]')`;
-// A project shown again as the human does it: a click on the workspace it shows, in its island.
+// A project shown again as the human does it: a click on the task it shows, in its island.
 // Once its island is drawn: the bar is drawn again as projects load (seen after a restart, on a slow screen).
 const showProject = async (ui, id) => {
-  const tab = `${projectTab(id)}?.querySelector('.wstab.selected')`;
+  const tab = `${projectTab(id)}?.querySelector('.tasktab.selected')`;
   await waitFor(() => ui(`!!${tab}`));
   return ui(`${tab}.click()`);
 };

@@ -19,13 +19,13 @@ module.exports = (test) => {
     shell.win.webContents.insertText('ann admin·@shop.com');
     await waitFor(async () => (await ui(`document.getElementById('newProfile').value`)) === 'annadmin@shop.com');
     await ui(`document.getElementById('newProfile').value = ''; document.getElementById('profiles').close()`);
-    // Checked again where names are made: the agent, a rename, a project, a workspace.
+    // Checked again where names are made: the agent, a rename, a project, a task.
     await assert.rejects(call('profile_create', { name: 'Ann admin' }), /letters, digits and @ \. _ \+ - only/);
     await assert.rejects(call('profile_create', { name: '@' }), /starting with a letter or a digit/);
     assert.match((await ui(`act('profile:rename', { profile: 'sam-admin', name: 'Sam admin' })`)).error, /only/);
     assert.match((await ui(`kulisa.invoke('project:new', { name: '..' })`)).error, /starting with a letter or a digit/);
-    assert.match((await ui(`kulisa.invoke('ws:new', { name: '@' })`)).error, /starting with a letter or a digit/);
-    assert.match((await ui(`kulisa.invoke('ws:new', { name: 'a b' })`)).error, /only/);
+    assert.match((await ui(`kulisa.invoke('task:new', { name: '@' })`)).error, /starting with a letter or a digit/);
+    assert.match((await ui(`kulisa.invoke('task:new', { name: 'a b' })`)).error, /only/);
     assert.ok(shell.profiles.has('sam-admin') && !shell.profiles.has('ann-admin-2'));
   });
   test('delete a profile in the editor: sign-ins and data gone, a new one of the same name starts clean', async (ctx) => {

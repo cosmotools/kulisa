@@ -1,9 +1,9 @@
 // A Kulisa window. Usually there is one; Move to New Window puts a project into a window of its own (e.g. on a second
 // monitor). Each window has a tab per project open in it (an island in its projects' bar), shows one of them with that
-// project's shown workspace (its grid and terminal), and asks its questions in its own dialog; the projects behind its
+// project's shown task (its grid and terminal), and asks its questions in its own dialog; the projects behind its
 // other tabs keep running. What a window shows and asks is here. What the app has once (the store, the CDP proxy, the MCP server, the
-// agents, the windows, one change after another: serial) is app.js's; what happens to projects and workspaces,
-// whichever window shows them, is the core's (projects.js, workspaces.js).
+// agents, the windows, one change after another: serial) is app.js's; what happens to projects and tasks,
+// whichever window shows them, is the core's (projects.js, tasks.js).
 const { BrowserWindow, desktopCapturer, screen, shell: electronShell } = require('electron');
 const path = require('path');
 const fs = require('fs');
@@ -18,7 +18,7 @@ const COLORS = { dark: { window: '#2b2d30', text: '#dfe1e5' }, light: { window: 
 // the constructor's bounds and setSize pass below it, so a window is raised to it here.
 const MIN_SIZE = { width: 640, height: 400 };
 const minSize = (z) => ({ width: Math.round(MIN_SIZE.width * z), height: Math.round(MIN_SIZE.height * z) });
-const NONE = new Map(); // the workspaces and profiles when no project is open
+const NONE = new Map(); // the tasks and profiles when no project is open
 let questions = 0, windows = 0;
 
 class AppWindow {
@@ -30,14 +30,14 @@ class AppWindow {
     this.id = ++windows; // for a page to name another window (project:move)
     this.tabs = []; // the projects open in it (projects.js: Project), its tabs in order
     this.current = null; // the one shown
-    this.profilesOpen = new WeakMap(); // workspace -> how many profiles its tab said were open
-    // True until the page has laid out the shown workspace's grid (the renderer then shows the views).
+    this.profilesOpen = new WeakMap(); // task -> how many profiles its tab said were open
+    // True until the page has laid out the shown task's grid (the renderer then shows the views).
     this.viewsHidden = true;
-    // From leaving a workspace until the next one's profiles are all loaded: nothing is saved, and the page gets no
+    // From leaving a task until the next one's profiles are all loaded: nothing is saved, and the page gets no
     // state (a partial one would build a grid other than the saved one).
     this.switching = true;
     this.stateTimer = null;
-    this.picking = new Map(); // profiles in pick mode (picker.js), of the workspace on screen, by id
+    this.picking = new Map(); // profiles in pick mode (picker.js), of the task on screen, by id
     this.answers = new Map(); // questions asked in it (ask), by id -> resolve
     this.loaded = false; this.pending = []; // what is sent before its page has loaded goes once it has
     // Where the keyboard is in its page, for the keys (app.js, keys.js): 'window', 'terminal', 'dialog', or
@@ -81,9 +81,9 @@ class AppWindow {
     win.on('closed', () => this.unanswered());
     win.on('focus', () => this.seen());
   }
-  get ws() { return this.current?.ws ?? null; }
-  get profiles() { return this.ws?.profiles || NONE; }
-  get closed() { return this.ws?.closed || NONE; }
+  get task() { return this.current?.task ?? null; }
+  get profiles() { return this.task?.profiles || NONE; }
+  get closed() { return this.task?.closed || NONE; }
   where() { return { bounds: this.win.getNormalBounds(), maximized: this.win.isMaximized() }; }
   // What settings.json keeps of it (store.js, windows).
   saved() {
@@ -119,44 +119,44 @@ class AppWindow {
     const { shell } = this;
     const others = shell.windows.filter((w) => w !== this && !w.win.isDestroyed());
     return { current: this.current?.id ?? null, projects: shell.store.projects(),
-      // Each with its workspaces and the one it shows, for the projects' bar (the shown project's also come as
-      // 'workspaces', with whether forks are possible)
-      open: this.tabs.map((p) => ({ id: p.id, ws: p.ws?.key ?? null, workspaces: [...p.workspaces.values()].map((w) => w.info()) })),
+      // Each with its tasks and the one it shows, for the projects' bar (the shown project's also come as
+      // 'tasks', with whether forks are possible)
+      open: this.tabs.map((p) => ({ id: p.id, task: p.task?.key ?? null, tasks: [...p.tasks.values()].map((w) => w.info()) })),
       elsewhere: [...shell.open.values()].filter((p) => p.window !== this).map((p) => p.id),
       windows: others.map((w) => ({ id: w.id, names: w.tabs.map((p) => p.name) })) };
   }
   sendProjects() { this.send('projects', this.info()); }
-  // The shown project's workspaces: their tabs (name, the agent's state), which is shown, and whether the project can
+  // The shown project's tasks: their tabs (name, the agent's state), which is shown, and whether the project can
   // have forks (git: 'ok', 'no-commit', 'none'; null without a project).
-  sendWorkspaces() {
+  sendTasks() {
     const p = this.current;
-    this.send('workspaces', { current: this.ws?.key ?? null, list: p ? [...p.workspaces.values()].map((w) => w.info()) : [], git: p?.git ?? null });
+    this.send('tasks', { current: this.task?.key ?? null, list: p ? [...p.tasks.values()].map((w) => w.info()) : [], git: p?.git ?? null });
   }
-  // The shown workspace's profiles, open and closed, and its other terminals, for the page to build its grid from; their
+  // The shown task's profiles, open and closed, and its other terminals, for the page to build its grid from; their
   // tabs saved.
   pushState() {
-    const ws = this.ws;
-    if (!ws || this.switching) return;
-    this.send('terminals', ws.terminalsInfo()); // before the state, which builds the grid with their panels
-    this.send('state', [...ws.profiles.values()].map((p) => p.info()));
-    this.send('closed-profiles', [...ws.closed.values()].map(({ cfg, urls }) =>
+    const task = this.task;
+    if (!task || this.switching) return;
+    this.send('terminals', task.terminalsInfo()); // before the state, which builds the grid with their panels
+    this.send('state', [...task.profiles.values()].map((p) => p.info()));
+    this.send('closed-profiles', [...task.closed.values()].map(({ cfg, urls }) =>
       ({ key: cfg.folder, id: cfg.id, name: cfg.name, avatar: cfg.avatar, description: cfg.description, tabs: urls.length })));
-    ws.list.saveTabs();
+    task.list.saveTabs();
   }
   scheduleState() { clearTimeout(this.stateTimer); this.stateTimer = setTimeout(() => this.pushState(), 30); }
-  // A workspace of its projects changed: its profiles (now: right away), or its agent's state (shown on its tab and
+  // A task of its projects changed: its profiles (now: right away), or its agent's state (shown on its tab and
   // its project's).
-  changed(ws, now, agentState) {
-    const open = ws.openProfiles();
-    if (this.profilesOpen.get(ws) !== open) { // the number on its tab
-      this.profilesOpen.set(ws, open);
-      if (!agentState) { if (ws.project === this.current) this.sendWorkspaces(); this.sendProjects(); }
+  changed(task, now, agentState) {
+    const open = task.openProfiles();
+    if (this.profilesOpen.get(task) !== open) { // the number on its tab
+      this.profilesOpen.set(task, open);
+      if (!agentState) { if (task.project === this.current) this.sendTasks(); this.sendProjects(); }
     }
     if (agentState) {
-      if (ws === this.ws && this.win.isFocused()) ws.see(); // done before the human's eyes: nothing to come and see
-      this.sendWorkspaces(); return this.sendProjects();
+      if (task === this.task && this.win.isFocused()) task.see(); // done before the human's eyes: nothing to come and see
+      this.sendTasks(); return this.sendProjects();
     }
-    if (ws !== this.ws) return ws.loaded && ws.list.saveTabs(); // not one being unloaded
+    if (task !== this.task) return task.loaded && task.list.saveTabs(); // not one being unloaded
     if (now) this.pushState(); else this.scheduleState();
   }
 
@@ -172,7 +172,7 @@ class AppWindow {
     this.sendProjects();
   }
   // Another project on screen: the grid slides towards its tab (none: the window had no project), and its shown
-  // workspace comes.
+  // task comes.
   async show(project) {
     if (project === this.current) return;
     if (this.current) await this.leaveGrid(Math.sign(this.tabs.indexOf(project) - this.tabs.indexOf(this.current)), 'project');
@@ -181,23 +181,23 @@ class AppWindow {
     this.win.setTitle(`${project.name} — Kulisa`);
     this.sendProjects();
     await project.checkGit();
-    this.sendWorkspaces();
+    this.sendTasks();
     await this.showLoaded();
   }
-  // The shown workspace: its profiles loaded (the first time it is shown), the page's grid built from its state
+  // The shown task: its profiles loaded (the first time it is shown), the page's grid built from its state
   // (terminal panel included, even with no profiles), then its agent started at the terminal's size.
   async showLoaded() {
-    const ws = this.ws;
-    if (!ws.loaded) await ws.loadProfiles();
+    const task = this.task;
+    if (!task.loaded) await task.loadProfiles();
     this.switching = false;
     this.pushState();
     this.seen();
     // Not waited for: the human may first have to choose the agent (or switch away meanwhile).
-    if (!ws.pty && !ws.starting) ws.starting = ws.startAgent().catch((e) => console.error('[agent]', e)).finally(() => { ws.starting = null; });
+    if (!task.pty && !task.starting) task.starting = task.startAgent().catch((e) => console.error('[agent]', e)).finally(() => { task.starting = null; });
   }
-  // The page takes the grid down; it gets the next workspace's state once its profiles are loaded. dir: where the
+  // The page takes the grid down; it gets the next task's state once its profiles are loaded. dir: where the
   // next one is (1 right, -1 left, in the projects' bar; 0 none, the window is left with no project), for the page
-  // to slide that way; level: 'project' (it slides) or 'workspace' (replaced at once). Pictures of its pages come
+  // to slide that way; level: 'project' (it slides) or 'task' (replaced at once). Pictures of its pages come
   // along, for the page to show them meanwhile (and when it comes back).
   async leaveGrid(dir, level) {
     this.pushState(); // saves the tabs
@@ -207,7 +207,7 @@ class AppWindow {
     const pics = dir ? await this.pictures() : null;
     this.viewsHidden = true;
     for (const p of this.profiles.values()) p.setHidden(true);
-    this.send('grid:closing', { dir, level, ws: this.ws.key, pics });
+    this.send('grid:closing', { dir, level, task: this.task.key, pics });
   }
   // Before a project's tab goes (the project closes, or moves to another window): the tab next to it is shown, or the
   // window is left with none (the Welcome screen).
@@ -216,7 +216,7 @@ class AppWindow {
     const i = this.tabs.indexOf(project), next = this.tabs[i + 1] || this.tabs[i - 1];
     if (next) await this.show(next); else await this.leaveGrid(0);
   }
-  // Then the tab goes, and the page forgets its workspaces (terminals, pictures).
+  // Then the tab goes, and the page forgets its tasks (terminals, pictures).
   drop(project) {
     this.tabs.splice(this.tabs.indexOf(project), 1);
     if (project.window === this) project.window = null;
@@ -224,32 +224,32 @@ class AppWindow {
     if (this.current === project) {
       this.current = null;
       this.win.setTitle('Kulisa');
-      this.sendWorkspaces();
+      this.sendTasks();
     }
-    this.send('workspaces:closed', [...project.workspaces.values()].map((w) => w.key));
+    this.send('tasks:closed', [...project.tasks.values()].map((w) => w.key));
   }
   // A fork of one of its projects deleted (projects.js): the page forgets it, and its tab goes from its island.
-  forkDeleted(ws) {
-    this.send('workspaces:closed', [ws.key]);
-    if (ws.project === this.current) this.sendWorkspaces();
+  forkDeleted(task) {
+    this.send('tasks:closed', [task.key]);
+    if (task.project === this.current) this.sendTasks();
     this.sendProjects();
   }
-  // The human sees the shown workspace: an agent done there has nothing more to show (its ✓ says "come and see").
-  seen() { if (this.ws?.see()) { this.sendWorkspaces(); this.sendProjects(); } }
+  // The human sees the shown task: an agent done there has nothing more to show (its ✓ says "come and see").
+  seen() { if (this.task?.see()) { this.sendTasks(); this.sendProjects(); } }
   // Whether a point on the screen is on it (a tab let go there: app.js, dragOut).
   contains({ x, y }) {
     if (this.win.isDestroyed() || this.win.isMinimized()) return false;
     const b = this.win.getBounds();
     return x >= b.x && x < b.x + b.width && y >= b.y && y < b.y + b.height;
   }
-  // A workspace of a project of its tabs; another project's becomes the one it shows when it comes.
-  async showWorkspace(next) {
+  // A task of a project of its tabs; another project's becomes the one it shows when it comes.
+  async showTask(next) {
     const project = next.project;
-    if (next === project.ws) return;
-    if (project === this.current) await this.leaveGrid(Math.sign(next.n - project.ws.n), 'workspace');
+    if (next === project.task) return;
+    if (project === this.current) await this.leaveGrid(Math.sign(next.n - project.task.n), 'task');
     project.select(next);
     if (project !== this.current) return;
-    this.sendWorkspaces();
+    this.sendTasks();
     await this.showLoaded();
   }
 
@@ -259,7 +259,7 @@ class AppWindow {
   // place ({ profile id: data URL }).
   async hideViews(hidden, { snapshots = false } = {}) {
     const pics = hidden && snapshots ? await this.pictures() : {};
-    // While a project or a workspace is being switched they stay hidden, whatever comes (a closing menu shows them
+    // While a project or a task is being switched they stay hidden, whatever comes (a closing menu shows them
     // again); the page shows them once it has the next grid laid out.
     this.viewsHidden = !!hidden || this.switching;
     for (const p of this.profiles.values()) p.setHidden(this.viewsHidden);
@@ -278,14 +278,14 @@ class AppWindow {
     }));
     return pics;
   }
-  // Where the grid puts each pane's page (key: the workspace the page laid out), in CSS pixels; the views are placed
+  // Where the grid puts each pane's page (key: the task the page laid out), in CSS pixels; the views are placed
   // in window pixels.
   layout(key, rects) {
-    if (key !== this.ws?.key) return; // a workspace no longer on screen
+    if (key !== this.task?.key) return; // a task no longer on screen
     const z = this.win.webContents.getZoomFactor();
     for (const [id, r] of Object.entries(rects)) this.profiles.get(id)?.layout(r.shown === false ? r : Object.fromEntries(Object.entries(r).map(([k, v]) => [k, Math.round(v * z)])));
   }
-  saveLayout(key, layout) { if (!this.switching && key === this.ws?.key) this.ws.store.saveLayout(layout); }
+  saveLayout(key, layout) { if (!this.switching && key === this.task?.key) this.task.store.saveLayout(layout); }
   // The Kulisa zoom (app.js): Chromium's zoom of the page, the OS title bar overlay and the window's minimum with it
   // (a window now smaller grows to it; Electron leaves it as it is).
   setZoom(z) {

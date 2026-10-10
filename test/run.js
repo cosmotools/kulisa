@@ -12,7 +12,7 @@ const { ensureSite } = require('./fixtures/site');
 const { root, userData, project, sleep, waitFor } = require('./helpers');
 
 const restart = process.argv.includes('--restart');
-// direnv's list of allowed .envrc files (workspaces copy and allow them): the test's own, not the user's.
+// direnv's list of allowed .envrc files (tasks copy and allow them): the test's own, not the user's.
 process.env.XDG_DATA_HOME = path.join(root, 'xdg-data');
 const FILES = (process.argv.find((a) => a.startsWith('--files=')) || '').slice(8).split(',').filter(Boolean);
 if (!FILES.length) { console.error('which test files: --files=agent,profiles (npm test runs them all)'); process.exit(2); }
@@ -26,7 +26,7 @@ fs.writeFileSync(bashrc, `PS1='$ '\nexport FROM_RC="rc of $PWD"\n`);
 let dictation = 'en';
 const agent = { command: 'bash', args: ['-c', 'echo "agent: $FROM_RC"; exec cat -v'], resume: () => [], shell: { command: 'bash', args: ['--rcfile', bashrc, '-i'] },
   voice: { key: '<v>', repeat: 50, note: 'it answers in it too', languages: ['en', 'ru', 'de'], language: () => dictation, setLanguage: (saved, code) => { dictation = code; return { language: code }; } } };
-// Agents to choose from for a workspace (agents.js): one that is not installed until its installer runs, into a
+// Agents to choose from for a task (agents.js): one that is not installed until its installer runs, into a
 // folder of the test.
 const bin = path.join(root, 'bin');
 const agents = [
@@ -74,7 +74,7 @@ start({ userData, project: restart ? undefined : project, agent, agents, mcpPort
 async function setup(shell) {
   const { Client } = require('@modelcontextprotocol/sdk/client/index.js');
   const { StreamableHTTPClientTransport } = require('@modelcontextprotocol/sdk/client/streamableHttp.js');
-  // The agent of the workspace on screen (each has its own MCP URL), or of workspace ws.
+  // The agent of the task on screen (each has its own MCP URL), or of task task.
   const clients = new Map();
   const mcpOf = async (url) => {
     if (!clients.has(url)) {
@@ -84,8 +84,8 @@ async function setup(shell) {
     }
     return clients.get(url);
   };
-  const call = async (name, args, ws = shell.ws) => {
-    const mcp = await mcpOf(ws.env().KULISA_MCP_URL);
+  const call = async (name, args, task = shell.task) => {
+    const mcp = await mcpOf(task.env().KULISA_MCP_URL);
     const r = await mcp.callTool({ name, arguments: args });
     const text = r.content.filter((c) => c.type === 'text').map((c) => c.text).join('\n');
     if (r.isError) throw new Error(`${name}: ${text}`);
@@ -100,11 +100,11 @@ async function setup(shell) {
   const termText = () => ui(`(() => { const b = window.__term.buffer.active;
     return Array.from({ length: b.length }, (_, i) => b.getLine(i)).map((l, i) => (i && !l.isWrapped ? '\\n' : '') + l.translateToString(true)).join(''); })()`);
   await waitFor(async () => (await termText()).includes('agent: rc of')); // the agent runs
-  // Questions (deleting a profile, a workspace…) are answered in the window's dialog, as the human would: ctx.answer
+  // Questions (deleting a profile, a task…) are answered in the window's dialog, as the human would: ctx.answer
   // true clicks the button that does it, false Cancel; null leaves the dialog to the test. ctx.asked: what was asked.
   const asked = [];
-  // What the MCP server tells the agent of workspace ws at the start (its instructions).
-  const instructions = async (ws = shell.ws) => (await mcpOf(ws.env().KULISA_MCP_URL)).getInstructions();
+  // What the MCP server tells the agent of task task at the start (its instructions).
+  const instructions = async (task = shell.task) => (await mcpOf(task.env().KULISA_MCP_URL)).getInstructions();
   const ctx = { shell, call, instructions, ui, ptyOutput: () => pty, watchPty, termText, asked, answer: true };
   const ask = shell.askWhich;
   // Asked in the window w (window.js), the first one when none is named; shell.ask asks through it.

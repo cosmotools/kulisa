@@ -2,15 +2,15 @@
 
 What is planned: ideas and the details of features still to build, deferred ideas, open issues. Feature numbers
 refer to [SPEC.md](SPEC.md), section 2. When a feature is built, it is documented in `docs/` (how it works and why:
-[profiles.md](profiles.md), [workspaces.md](workspaces.md), [window.md](window.md), [ui.md](ui.md)) and removed from
+[profiles.md](profiles.md), [tasks.md](tasks.md), [window.md](window.md), [ui.md](ui.md)) and removed from
 here; what is left of it stays.
 
 ## Next
 
 - **Projects and tasks: Kulisa rebuilt around them** (designed with the author 2026-10-10; built first, on the branch
-  `tasks`, before the store of extensions). It replaces the model of [workspaces.md](workspaces.md): a project was a
-  folder with a main workspace and forks; now a project is a composite of things from catalogs, and the work is done
-  in **tasks** (the word replaces "workspace" everywhere: code, docs, CLAUDE.md). No migration: Kulisa is in
+  `tasks`, before the store of extensions). It replaces the model of workspaces ([tasks.md](tasks.md)): a project
+  was a folder with a main workspace and forks; now a project is a composite of things from catalogs, and the work is
+  done in **tasks** (the word replaced "workspace" everywhere: code, docs, CLAUDE.md). No migration: Kulisa is in
   development, the new layout does not read the old data, the author starts with an empty `~/.config/Kulisa`.
   - **Agents** (a catalog in ☰, global): the human picks a CLI (Claude Code, Codex, …) and signs in with the CLI's
     own login in Kulisa's terminal; each account has its own config folder (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`) in
@@ -67,7 +67,7 @@ here; what is left of it stays.
     not get past Google's own bot checks. The pause part goes into the author's replacement of `signin-pause.js`.
     To document in [profiles.md](profiles.md) as how the protection works, with the reason for each line.
   - **Steps**, each working on its own, with its tests:
-    1. Tasks replace workspaces: the rename (code, docs, CLAUDE.md), always copies (no main), × closes and Delete,
+    1. Tasks replace workspaces: the rename (code, docs, CLAUDE.md; done), always copies (no main), × closes and Delete,
        the task bar as tab groups, the task's temporary name and the agent's rename. Decided with the author
        (2026-10-10): until step 4, a new task copies the profiles (sign-ins, active tab, grid) and the agent of the
        project's task on screen, as a fork copied main's (a few lines, replaced by masters); the first task has none.
@@ -153,16 +153,16 @@ here; what is left of it stays.
   - **Kulisa notices by itself:**
     - The agent going around the tools: the shell's own connection to the CDP proxy sends a header
       (`connectOverCDP(endpoint, { headers })`), any other client of a profile's proxy is the agent's script or
-      `@playwright/mcp`. The next kulisa tool's answer in that workspace gets one line ("a program of yours drove
+      `@playwright/mcp`. The next kulisa tool's answer in that task gets one line ("a program of yours drove
       profile X directly: if a Kulisa tool was missing, note it with kulisa_idea"), at most once an hour per
-      workspace. No note without the agent: only it knows what for.
+      task. No note without the agent: only it knows what for.
     - Its own bugs: errors the tools throw on purpose (no such element, a closed profile) are the agent's; an
       unexpected exception inside a tool (`TypeError` …) is Kulisa's, and becomes a `bug` note by itself: the tool,
       the message, the stack without the user's paths.
   - **Kept** (`ideas.js` in main: the core; `add` is the agent's only handle, sending and deleting the human's):
     `ideas.json` in the data folder, `[{ id, at, kind, project, agent, need, missing, instead, count }]`, at most 30
     (the oldest go), written whole. A note goes when sent, deleted, or with its project (Remove Project). Listed in
-    "What is on the computer" (workspaces.md), its removal tested.
+    "What is on the computer" (tasks.md), its removal tested.
   - **The human: a question, at most once a day.** Kulisa, not the agent, asks, and its core decides when: only
     after the agent's turn ended (done, from its hooks), never about a note it asked about before, at most once a
     day. A bar at the bottom of the window, not a dialog (nothing covered, gone by itself after a minute): "The agent
@@ -195,24 +195,24 @@ here; what is left of it stays.
     exception in a tool becomes a `bug` note, an error thrown on purpose does not; the question comes after done, not
     twice for a note, not twice a day, never after Don't ask; the list edits, deletes and sends (to the test's
     receiver), keeps the note when sending fails; the checkbox removes the tool.
-  - Docs when built: profiles.md (the tool, the table of actions), workspaces.md (`ideas.json`), window.md (☰, the
+  - Docs when built: profiles.md (the tool, the table of actions), tasks.md (`ideas.json`), window.md (☰, the
     bar, the dialog), ui.md (the bar at the bottom, the dot on ☰), the skill, README, LICENSING (a service of
     Kulisa's: its own terms). Estimate: code +350, tests +100, docs +60; the Worker apart.
-- **Kulisa plugin: running the app, rest** (designed 2026-10-06 with the workspaces; the terminals it runs in built
-  2026-10-09: [window.md](window.md), "The terminal"). Any agent is told its workspace's ports in the MCP server's
+- **Kulisa plugin: running the app, rest** (designed 2026-10-06 with the tasks; the terminals it runs in built
+  2026-10-09: [window.md](window.md), "The terminal"). Any agent is told its task's ports in the MCP server's
   instructions and runs the app with `terminal_run`, where the human sees it.
   - Tried 2026-10-09 with Claude Code 2.1.295 on a small Node project ("run the app and open it in the buyer
     profile"): in a fork it read the README and `$KULISA_PORT_OFFSET`, ran `PORT=3100 npm run dev` with
     `terminal_run`, read it and opened 3100 in the profile; in main the same on 3000. Without Kulisa's tools (a
-    workspace not loaded) it ran the server in its own background shell. To try: Codex (see "Choosing the agent,
+    task not loaded) it ran the server in its own background shell. To try: Codex (see "Choosing the agent,
     rest": once there is a Codex account), and a project with docker compose.
-  - Possibly tools: the app's address for this workspace, opening its profiles there once the server answers.
+  - Possibly tools: the app's address for this task, opening its profiles there once the server answers.
   - Besides the port, worktrees share the local database (migrations of different branches), Redis and queues,
     OAuth redirect URLs registered for one address. Common practice: a database per branch, docker compose per
     worktree (it names containers after the folder already), or one dev server at a time. The developer's matter;
     perhaps recipes in the skill. A project that cannot run twice: one shared dev server, the panes show whose
     branch it is.
-- **Other terminals: ▶ after a restart** (the author's idea, 2026-10-09). Today a workspace's other terminals come
+- **Other terminals: ▶ after a restart** (the author's idea, 2026-10-09). Today a task's other terminals come
   back after a restart as shells with nothing running (the agent runs its command again). Then: the command they
   ran is kept too, and ▶ in the header runs it again (starting by itself could run what the human did not expect,
   e.g. migrations).
@@ -228,19 +228,19 @@ here; what is left of it stays.
     weighed and left: the project's environment is made by the shell's startup files and cannot be passed in `env`
     without running a shell anyway.
   - Proposed: × or Close ends it (agent.json keeps the agent and its session, and that it is closed: a restart does
-    not bring it back); + offers the installed agents and Shell; Ctrl+` opens the workspace's agent when closed. A new
-    workspace or fork still starts with its agent open.
-  - In the code (Claude's recommendation): today the agent's terminal is a thing of its own (`Workspace.pty`, panel
+    not bring it back); + offers the installed agents and Shell; Ctrl+` opens the task's agent when closed. A new
+    task or fork still starts with its agent open.
+  - In the code (Claude's recommendation): today the agent's terminal is a thing of its own (`Task.pty`, panel
     id `terminal`, started by `startAgent`, closed only by `changeAgent` or `unload`) and the others another
-    (`Workspace.terminals`, `openTerminal`/`closeTerminal`, `terminals.json`). Make them one list, each terminal
+    (`Task.terminals`, `openTerminal`/`closeTerminal`, `terminals.json`). Make them one list, each terminal
     saying whether Kulisa started an agent in it (`agent: 'claude' | null`): that one gets picks, dictation and the
     hooks' state, and after a restart runs its agent again with resume; a shell comes back empty. Cheaper: give the
     agent's terminal its own close and open and keep the two kinds (about half the code), but everything about
-    terminals stays written twice, and "Several agents in one workspace" (Deferred ideas) would need the merge
+    terminals stays written twice, and "Several agents in one task" (Deferred ideas) would need the merge
     anyway. To change with it: the renderer assumes the panel `terminal` is always there (it anchors new profiles
     and terminals, and the grid adds it back: `renderer.js` ~335, ~351, ~367); saved grids name it, so a migration.
   - Open questions for the author, each with Claude's proposal:
-    - A second agent in the same workspace (Codex next to Claude)? Proposed: not yet; + shows the open one.
+    - A second agent in the same task (Codex next to Claude)? Proposed: not yet; + shows the open one.
       Several agents is its own task (Deferred ideas), with each terminal's own hooks state, picks and dictation.
     - Ask before closing? Proposed: only while the agent works (its hooks say so); agents without hooks: never,
       as Ctrl+C in any terminal.
@@ -277,13 +277,13 @@ here; what is left of it stays.
     passes when the agent is detached at the first key rather than before the page loads (else the human takes the
     profile first and reloads, as `profile_ask_signin` does); telling the human's keys from the agent's (Electron's
     `before-input-event`, or the proxy knowing its own `Input.*`).
-- **Choosing the agent, rest** (how it works: [workspaces.md](workspaces.md), "Choosing the agent").
+- **Choosing the agent, rest** (how it works: [tasks.md](tasks.md), "Choosing the agent").
   - Codex (0.160.1, Linux, 2026-10-06): its installer puts it in `~/.local/bin`, as assumed; `codex mcp list` with
     Kulisa's `-c mcp_servers.kulisa.url=…` lists the server, enabled; `codex resume` takes `--last` and `-c`. Not yet
     tried: a whole session driving the profiles. It gets the MCP tools and the MCP server's `instructions` (the
-    essentials: profiles, sign-in, `terminal_run`, the workspace's ports), not the profiles skill: Codex has skills
+    essentials: profiles, sign-in, `terminal_run`, the task's ports), not the profiles skill: Codex has skills
     and plugins, but none found that a session takes without writing into the user's `~/.codex` (2026-10-09).
-  - Codex's hooks (the agent's state, the session to resume, the open profiles at start; workspaces.md, "Choosing the
+  - Codex's hooks (the agent's state, the session to resume, the open profiles at start; tasks.md, "Choosing the
     agent"): built from its documentation (learn.chatgpt.com/docs/hooks) on 2026-10-08, not yet tried in a session:
     no Codex account here then. Checked: Codex 0.160.1 takes the `-c hooks=…` override and checks a handler's fields,
     but not the events' names (a wrong one passes silently). To try, signed in: how Codex asks to trust the hooks and
@@ -300,15 +300,15 @@ here; what is left of it stays.
   - More agents (Gemini CLI, …): an entry each in `agents.js`.
   - Windows: the installers run in PowerShell, untested; macOS untested.
   - A hint in an empty grid (no profiles yet): "create the first profile".
-- **Workspaces, rest** (how they work now, and why: [workspaces.md](workspaces.md)).
+- **Tasks, rest** (how they work now, and why: [tasks.md](tasks.md)).
   - Helping the agent run the app ("Kulisa plugin: running the app", above). Today the agent gets
     `KULISA_PORT_OFFSET` and a line about it at session start.
-  - The agent's state on the workspace tab for other agent CLIs: Claude Code's hooks report it, Codex's are built
+  - The agent's state on the task tab for other agent CLIs: Claude Code's hooks report it, Codex's are built
     and not yet tried ("Choosing the agent, rest"). For CLIs without hooks, e.g. from MCP calls and terminal output (working
     while they come, idle after a quiet while).
   - Tried with Claude Code in forks; the tests run `cat` as the agent. Still to check in a fork: the hooks
     (session, state), `--resume` after a restart.
-  - Unloading a background workspace's tabs while its agent is idle: it needs to know the agent is idle (Claude
+  - Unloading a background task's tabs while its agent is idle: it needs to know the agent is idle (Claude
     Code's hooks tell it; for other CLIs, no MCP calls and no terminal output for a while).
   - Other tools that, like direnv, want a folder allowed before they apply (mise's `trust`): not handled yet.
   - Windows: copying an open profile (locked files are skipped and logged), removing a deleted fork's profile
@@ -317,7 +317,7 @@ here; what is left of it stays.
     Code's `--worktree`). If that surprises, an option as Claude's `worktree.baseRef: "head"`.
   - The agent making and closing forks itself (MCP tools on `Project.createFork`, `deleteFork`), e.g. to hand
     parallel parts of a task to agents of their own, as Conductor does: a gap in the table of actions
-    ([workspaces.md](workspaces.md), "Actions"). To discuss with "Several agents in one workspace" (Deferred
+    ([tasks.md](tasks.md), "Actions"). To discuss with "Several agents in one task" (Deferred
     ideas); deleting asks the human, as `profile_delete` does.
   - Maybe: an archive to reopen closed forks (Conductor keeps the git state and the conversation), or an agent that
     names the fork itself once it knows the task (Conductor does that too).
@@ -354,7 +354,7 @@ here; what is left of it stays.
     Windows, where the browser puts in the system's colors: check that nothing disappears; `prefers-contrast`); WCAG
     contrast of every token in both themes (the muted text first).
   - Keyboard: everything without a mouse, focus always visible. Moving between the panels and tabs (what dockview
-    has for it first), the project and workspace tabs, the menus (arrows, Esc), the dialogs. Shortcuts are built
+    has for it first), the project and task tabs, the menus (arrows, Esc), the dialogs. Shortcuts are built
     ([window.md](window.md), Keys: none without a modifier, WCAG 2.1.4); check they do not clash with screen readers.
   - Screen readers: the window read in a sensible order, with names and states (a tab's agent state, the shown
     project). Kulisa's own questions: the profiles' pages are native views of their own (a tree each) next to the
@@ -374,16 +374,16 @@ here; what is left of it stays.
 - **A desktop app's ways, not only buttons** (talked over with the author 2026-10-08, who liked them all). A web page
   puts a button on every action; a desktop app gives an action several ways in: a visible one for a newcomer, quick
   ones for daily use (keys above, a right-click, dragging). Kulisa has some, here and there (the menus of a project,
-  a workspace's tab and a pane; a middle click closes a project; projects and
+  a task's tab and a pane; a middle click closes a project; projects and
   panels are dragged). To build:
   - **The system's notifications: first** (small: Electron's `Notification`, `app.setBadgeCount`, `win.flashFrame`).
-    The human is in their browser or IDE while agents work; today only the icon on a workspace's tab says one waits
+    The human is in their browser or IDE while agents work; today only the icon on a task's tab says one waits
     or is done, seen only while looking at Kulisa. A notification ("checkout: the agent waits for you"; a click shows
-    that workspace), the number of waiting agents on the app's icon in the dock or taskbar, the window flashing there.
-  - **Undo rather than "are you sure?"** for what can be undone: closing a profile, a workspace's tab, a project shows
+    that task), the number of waiting agents on the app's icon in the dock or taskbar, the window flashing there.
+  - **Undo rather than "are you sure?"** for what can be undone: closing a profile, a task's tab, a project shows
     "Closed · Undo" for a few seconds, and Ctrl+Z brings it back. Deleting (a fork, a profile with its sign-ins) is
     for good and keeps its question.
-  - **A right-click menu on every object, as a rule** (a profile's pane, a workspace's tab, a project's island, the
+  - **A right-click menu on every object, as a rule** (a profile's pane, a task's tab, a project's island, the
     terminal): all of its actions there, so the window shows only one or two buttons and the rest lives in menus.
   - **Dragging from the system**: a folder from the file manager onto Kulisa opens it as a project; a link onto a
     profile's pane opens it in a tab there; a file onto the terminal types its path, as terminals do.
@@ -469,17 +469,17 @@ here; what is left of it stays.
   file in the project that Kulisa only reads (the developer's own description wins).
 - **A screenshot taken at a pick** (point and tell), if a transient element (a tooltip, an open menu, a toast) turns
   out to need it: today the pick is a locator only, and the agent looks at the live page.
-- **Several agents in one workspace, working as a team** (discussed 2026-10-06; after workspaces, which do not
-  depend on it). A workspace may hold several terminals, each an agent (any CLI, Claude and Codex together; built on
-  the workspace's other terminals, [window.md](window.md), "The terminal"); all
-  see the workspace's code and profiles. Covers a tester next to the developer, a side question (Claude: a forked
+- **Several agents in one task, working as a team** (discussed 2026-10-06; after tasks, which do not
+  depend on it). A task may hold several terminals, each an agent (any CLI, Claude and Codex together; built on
+  the task's other terminals, [window.md](window.md), "The terminal"); all
+  see the task's code and profiles. Covers a tester next to the developer, a side question (Claude: a forked
   conversation), browser-only research, and parallel agents in a project without git (it has no forks). Cheaper than
-  a workspace: one agent process, no profile copies. Agents
+  a task: one agent process, no profile copies. Agents
   coordinate through the Kulisa plugin, for any agent:
-  - `agents`: who is in the workspace, their role, what they are doing, which tabs and profiles they use.
+  - `agents`: who is in the task, their role, what they are doing, which tabs and profiles they use.
   - `agent_message(to, text)`: typed into the other agent's prompt when it waits for input (as a pick), queued
     while it works; for Claude Code possibly through hooks.
-  - A task list of the workspace, seen by the agents (MCP) and the human (a panel).
+  - A task list of the task, seen by the agents (MCP) and the human (a panel).
   - Own tabs: each agent works in tabs it opened (`browser_tab_new`); Kulisa knows whose tab is whose, the pane
     shows which agent acts. A pick goes to the terminal active last.
   - The skill: check who else is here, tell the one waiting when done, report a bug in another's part to its
@@ -506,7 +506,7 @@ here; what is left of it stays.
     recognized on the computer (sherpa-onnx's keyword spotter, a 30 MB model downloaded the first time, Silero VAD)
     in a utility process alive only while they are on (about 100 MB). Why it fits an extension: a 32 MB native
     module per platform, a downloaded model, an always-on microphone, and Russian only so far. In the core today it
-    touches: `app.js` (its IPC, a `voiceModel` option), `workspaces.js` (`press`), `voice.js`, `index.html` and
+    touches: `app.js` (its IPC, a `voiceModel` option), `tasks.js` (`press`), `voice.js`, `index.html` and
     `window.css` (the ear in the terminal's header), `forge.config.js` (`asar.unpack` for the native module),
     `package.json`, the tests' `run.js` (Chromium's fake microphone). Its own files: `listen.js`,
     `listen-worker.js`, the renderer's `listen.js` and `listen-worklet.js`, `test/unit/listen.test.js`,
@@ -516,7 +516,7 @@ here; what is left of it stays.
     at voice commands, with Install. So the core shows suggested extensions where they would be used.
   - **The Kulisa plugin as a built-in extension**, on by default and not to be turned off (the author's idea,
     2026-10-09; to decide when the store is designed). Claude's objection: the Kulisa plugin is the core's second
-    handle (the MCP tools call the same `Workspace` and `Profile` as the window), and the rules on it (the sign-in
+    handle (the MCP tools call the same `Task` and `Profile` as the window), and the rules on it (the sign-in
     pause, 127.0.0.1 only, `local-only.js`) are the core's; as an extension the API would have to expose nearly the
     whole core, and a boundary that cannot be turned off separates little. Proposed instead: extensions may add
     MCP tools and lines to the skill (Stripe needs it), and the Kulisa plugin stays in the core.
@@ -525,7 +525,7 @@ here; what is left of it stays.
       the window; what it uses (the microphone, the network, MCP tools), shown before Install; its platforms when it
       has native code.
     - Main process: `activate(kulisa)` and `deactivate()`, without a restart (turned off, its processes end and its
-      button goes). The windows and the workspace each shows, with an event when that changes. The core's actions
+      button goes). The windows and the task each shows, with an event when that changes. The core's actions
       only, never a terminal's pty: `dictate(on)`, `press(key)`, `voice()` (the agent's dictation), as the window's
       and the agent's handles call them (CLAUDE.md, "One core"). Its own data folder (`<data>/extensions/<id>/`),
       removed with it ("Nothing piles up"). `utilityProcess.fork` of its own files, ended by Kulisa when it is
@@ -535,14 +535,14 @@ here; what is left of it stays.
       added to the sprite; the window's components (`.icon`, `openMenu`, `ask`) rather than its own; its module
       loaded with `import()` when it is turned on. The microphone for the window only for an extension that asked
       for it (today the window's session grants media to all of its own pages).
-    - MCP: tools added to every workspace's server and lines to the skill, behind `local-only.js` as the others.
+    - MCP: tools added to every task's server and lines to the skill, behind `local-only.js` as the others.
     - Native modules: N-API only (no rebuild per Electron version); the store downloads the platform's package
       (sherpa-onnx-node's per-platform packages) and keeps it outside the asar.
     - Tests: an extension's unit tests in plain Node, and e2e in the same harness (`run.js`), with switches it needs
       (the fake microphone) and a cache of its downloads in the tests' folder.
     - Development: an extension loaded from a folder (as `claude --plugin-dir`), restarted when its files change.
   - Esc clearing the agent's working state, found on the branch, is in main since 2026-10-09
-    (`Workspace.interrupted`): when rewriting, take main's.
+    (`Task.interrupted`): when rewriting, take main's.
   - Other extensions:
     - **Stripe:** a panel with the project's test-mode events and webhooks, test cards in one click; tools for the
       agent to read events and trigger them ("the buyer pays, the seller sees the order").
@@ -560,7 +560,7 @@ here; what is left of it stays.
 - **One panel in its own OS window** (e.g. the buyer's profile on a second monitor, the terminal and the other
   profiles staying in the main window). Today only a whole project moves to another window (Move to New Window).
   dockview has popout windows, and a profile's native views can move between windows (`Profile.moveTo`), but a
-  window shows one workspace's grid today: a window holding a part of another window's workspace is a new model
+  window shows one task's grid today: a window holding a part of another window's task is a new model
   (the views' bounds, closing, restoring after a restart). Medium work; to discuss.
 - **A right-click menu in pages** (copy, paste, open a link in a new tab of the profile, Inspect Element; more items
   later). Tried with electron-context-menu (native GTK menu) on 2026-10-05 and removed:
@@ -668,7 +668,7 @@ here; what is left of it stays.
     Linux/X11 only. Check the window buttons, dragging and double-click to maximize on macOS (traffic lights on the
     left), Windows and Wayland.
   - Keyboard shortcuts ([window.md](window.md), Keys): checked on Linux only (with Latin and Russian layouts). macOS:
-    ⌘ for Kulisa's and Chrome's keys, ⌘⌥1…9 for workspaces, ⌘[ / ⌘] back and forward, its own menu bar (Quit, Edit,
+    ⌘ for Kulisa's and Chrome's keys, ⌘⌥1…9 for tasks, ⌘[ / ⌘] back and forward, its own menu bar (Quit, Edit,
     Window) instead of Electron's default; check that a page does not get ⌘-keys before Kulisa (on Linux
     `before-input-event` comes first, and the app menu after the page: REPORT, "Keyboard shortcuts"), and that Ctrl
     stays the terminal's. Windows: Alt+D and F6 to the address bar, Ctrl+F4; the keys with AltGr layouts (Polish,
@@ -694,7 +694,7 @@ here; what is left of it stays.
       `test/grid.js`), where macOS has ⌘; Ctrl+Shift+V pastes nothing there.
     - What one OS alone has: skipped with the reason, not left to fail.
 - **A profile dropped from its list, its folder left behind** (found 2026-10-07; to come back to). The author's
-  data held a `Profile 2` in a main workspace, in no `profiles.json` and not in `deleted-folders.json`.
+  data held a `Profile 2` in a main task, in no `profiles.json` and not in `deleted-folders.json`.
   - Not deleted: deleting a profile, open or closed, removes its folder at the next start (tried 2026-10-07), and
     removes its session cookies file at once; that file is still there.
   - Its timestamps: created 2026-10-06 22:17; session cookies and storage written 22:42:12, as closing a profile
@@ -704,7 +704,7 @@ here; what is left of it stays.
     (nothing signed in is lost; the human deletes it if not needed), rather than remove it at start, which would
     destroy sign-ins of a profile dropped by a bug. The author's decision.
   - The author started over with fresh data on 2026-10-08: watched, not fixed. To look for it (read only): every
-    `Profile N` folder of a workspace that its `profiles.json` does not name and `deleted-folders.json` does not list:
+    `Profile N` folder of a task that its `profiles.json` does not name and `deleted-folders.json` does not list:
     `for d in ~/.config/Kulisa/projects/*/*/; do for f in "$d"Profile\ *; do [ -d "$f" ] || continue;
     cat "$d/profiles.json" ~/.config/Kulisa/deleted-folders.json 2>/dev/null | grep -qF "\"$(basename "$f")\"" ||
     echo "$f"; done; done` (one `grep` over several files, one of them missing, fails here: `grep` is ugrep).
@@ -715,7 +715,7 @@ here; what is left of it stays.
   free disk space, and open profiles still grow to it. Several profiles in several projects add up.
   - Alternative: a limit for the whole app, `--disk-cache-size=<bytes>` (`app.commandLine.appendSwitch` before
     ready): every profile's HTTP cache at most that, open ones too; not the code and GPU caches.
-  - Or both, or clearing when a workspace or project is closed as well. Cost of clearing: the first load of a
+  - Or both, or clearing when a task or project is closed as well. Cost of clearing: the first load of a
     reopened profile's sites is slower (no cache), which matters little for profiles set aside.
 - **Tests that failed now and then.** Fixed 2026-10-08: pictures of pages for a menu wait 500 ms at most (`window.js`,
   test "a menu opens even when a page gives no picture"); a project's label let go on the side of the screen with
@@ -724,15 +724,15 @@ here; what is left of it stays.
   slower screen showed (a click while the window still showed another project) are waited for. Watch whether any
   come back. Not looked at: the address bar's click (seen 2026-10-07). Slow but not flaky: closing a fork (11 s,
   git's work), a site that never answers (10 s: two 5 s waits by design).
-- **The test "after a restart: a workspace's other terminal comes back …" takes 5.6 s** (`restart-workspaces.js`;
-  found 2026-10-09, to come back to). Most of it is showing the project `other` until its workspace has loaded and
+- **The test "after a restart: a task's other terminal comes back …" takes 5.6 s** (`restart-tasks.js`;
+  found 2026-10-09, to come back to). Most of it is showing the project `other` until its task has loaded and
   the terminal's shell runs; it looks like another 5 s wait (as a tab's `ready` held a profile on a refused site:
   `profiles.js`). To find: time the steps of loading `other` after a restart (its profiles' tabs, its terminals).
 - **The GPU renderer only on terminals in sight** (discussed with the author 2026-10-09; the author builds it later).
   Today every terminal loads xterm's WebGL addon when made (`makeTerminal` in `src/renderer/terminal.js`), hidden ones
-  too (other workspaces and projects, terminals behind another panel): each keeps a WebGL context and its glyph atlas.
+  too (other tasks and projects, terminals behind another panel): each keeps a WebGL context and its glyph atlas.
   Chromium keeps at most 16 contexts per page; the 17th takes the oldest one's, and that terminal falls back to the DOM
-  renderer for good (`onContextLoss`), drawing slower. Nothing breaks: at about 5 projects × 3 workspaces it starts.
+  renderer for good (`onContextLoss`), drawing slower. Nothing breaks: at about 5 projects × 3 tasks it starts.
   - The fix: a terminal gets the WebGL addon when it comes into sight and disposes of it when hidden (`showTerminal`;
     the other terminals' panels: dockview's visibility of a panel), so only the terminals on screen hold a context.
     The buffer (the text, scrollback) is untouched: it is xterm's, not the renderer's. About 15 lines. Test
@@ -745,7 +745,7 @@ here; what is left of it stays.
     a full scrollback. Cost: showing a terminal takes ~35 ms more (69 ms instead of 33: a context and an atlas
     made again). The author had 4 terminals then: a gain of ~25 MB, so not urgent. To check on a real GPU when
     built: the switch's time and the video memory.
-  - Not chosen: **one xterm for all terminals**, switched between workspaces as YouTube reuses one player (the
+  - Not chosen: **one xterm for all terminals**, switched between tasks as YouTube reuses one player (the
     author's idea). A player keeps no state (the video is on the server); a terminal's state is its buffer, kept only
     in xterm (the pty in the main process passes bytes on). It would have to live elsewhere anyway (`@xterm/headless`
     per pty: the same memory, plus serializing and writing it again at every switch, losing the scroll position and

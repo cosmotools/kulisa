@@ -3,7 +3,7 @@
 // again after a restart. On Linux, with Xvfb and openbox installed, each on a screen of its own: the tests' windows
 // never take the human's focus or clipboard (`npm run test:visible`: on the human's screen, to watch them; one group
 // after another, as they would fight for the focus there).
-//   npm test -- workspaces    one group only
+//   npm test -- tasks    one group only
 const { spawn, spawnSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');
@@ -14,7 +14,7 @@ const { ensureSite } = require('./fixtures/site');
 // A group starts from nothing, or from setup.js (the profiles the first group makes on its way).
 const GROUPS = {
   profiles: { files: ['agent', 'profiles', 'zoom-and-closing'], restart: ['restart-profiles'] },
-  workspaces: { files: ['setup', 'window', 'keys', 'grid', 'workspaces'], restart: ['restart-workspaces'] },
+  tasks: { files: ['setup', 'window', 'keys', 'grid', 'tasks'], restart: ['restart-tasks'] },
 };
 
 const visible = process.argv.includes('--visible');

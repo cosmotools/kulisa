@@ -1,5 +1,5 @@
 // Projects: the projects' bar, under the grid or over it (☰), an island per open project as an app in a dock: its
-// label (its icon, the curtain in its color, and its name), then its workspaces' tabs (workspaces.js), a click on one
+// label (its icon, the curtain in its color, and its name), then its tasks' tabs (tasks.js), a click on one
 // showing that project with it (the others keep running: their agents and pages). The label is no button: a
 // right-click offers Close Project (asking first while its agent works; also the middle button), Move to New Window (a
 // window of its own, e.g. for a second monitor; it keeps running), Move to Window (each other window; as a browser
@@ -9,11 +9,11 @@
 // open one, remove one with its ×, New Project…, Open Folder…; one open in another window is shown there). With no
 // project open: the Welcome screen, what to open, its recent projects acting as the menu's rows.
 // Removing a project is asked for from either (the main process asks the human and does it: removeProject).
-// A project is a folder with its workspaces (workspaces.js). Showing another one rebuilds the grid in place
+// A project is a folder with its tasks (tasks.js). Showing another one rebuilds the grid in place
 // (renderer.js, grid:closing, then that project's state).
 (() => {
   const tabs = document.getElementById('projectTabs');
-  const workspacesNav = document.getElementById('workspaces'); // the shown project's workspaces, in its island
+  const tasksNav = document.getElementById('tasks'); // the shown project's tasks, in its island
   const button = document.getElementById('openProjects');
   const recent = document.getElementById('welcome-list');
   let info = { current: null, projects: [], open: [], elsewhere: [] };
@@ -34,13 +34,13 @@
       el.classList.toggle('active', p.id === current);
       el.title = p.folder || '';
       el.querySelector('.name').textContent = p.name;
-      // The shown project's workspaces live (workspaces.js: + and git), its list from here at once (not the last
-      // project's until the workspaces' news); another's as tabs to show it with.
-      if (p.id === current) { workspaces.showList(o.workspaces || [], o.ws); el.append(workspacesNav); }
-      else el.append(...(o.workspaces || []).map((w) => workspaces.tab(w, false, w.key === o.ws)));
+      // The shown project's tasks live (tasks.js: + and git), its list from here at once (not the last
+      // project's until the tasks' news); another's as tabs to show it with.
+      if (p.id === current) { tasks.showList(o.tasks || [], o.task); el.append(tasksNav); }
+      else el.append(...(o.tasks || []).map((w) => tasks.tab(w, false, w.key === o.task)));
       return el;
     }));
-    if (!workspacesNav.isConnected) button.before(workspacesNav); // no project shown: kept in the bar, not shown
+    if (!tasksNav.isConnected) button.before(tasksNav); // no project shown: kept in the bar, not shown
     tabs.querySelector('.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     const shown = byId.get(current);
     if (shown) document.documentElement.style.setProperty('--project', shown.color);
@@ -60,9 +60,9 @@
   document.getElementById('version').textContent = `Kulisa ${query.get('version')}`;
   kulisa.on('projects', showProjects);
 
-  // A project's own events, not its workspaces' (workspaces.js handles those).
-  const projectOf = (e) => (e.target.closest('#workspaces, .wstab') ? undefined : e.target.closest('[data-project]')?.dataset.project);
-  // The label is not clicked to show its project: its workspaces are. The middle button closes it, as a browser's tab.
+  // A project's own events, not its tasks' (tasks.js handles those).
+  const projectOf = (e) => (e.target.closest('#tasks, .tasktab') ? undefined : e.target.closest('[data-project]')?.dataset.project);
+  // The label is not clicked to show its project: its tasks are. The middle button closes it, as a browser's tab.
   tabs.onauxclick = (e) => {
     const id = e.button === 1 && projectOf(e);
     if (id) close(id);

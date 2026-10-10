@@ -36,13 +36,13 @@ const PAGE_RADIUS = 8; // a little less than the island's corners, which the pag
 class Profile extends EventEmitter {
   // cfg: { id, name, avatar, description, folder, dir }. The folder (cookies, storage; dir is its absolute path) is fixed at
   // creation; a rename changes id and name only.
-  // win: the window it shows in (moveTo). ws: its workspace's key (profiles of different workspaces share ids).
+  // win: the window it shows in (moveTo). task: its task's key (profiles of different tasks share ids).
   // mimic: a chromeIdentity() to present as Google Chrome, or null.
-  constructor(win, cfg, { ws, mimic = null } = {}) {
+  constructor(win, cfg, { task, mimic = null } = {}) {
     super();
     this.win = win;
     this.id = cfg.id; this.name = cfg.name; this.avatar = cfg.avatar; this.description = cfg.description || '';
-    this.folder = cfg.folder; this.dir = cfg.dir; this.ws = ws;
+    this.folder = cfg.folder; this.dir = cfg.dir; this.task = task;
     // Page zoom: pages follow the Kulisa zoom (baseZoom, set by the window); a site the human zoomed with Ctrl + / -
     // in a page keeps its own factor on top of it, per host, in this profile only (saved in profiles.json).
     this.baseZoom = 1;

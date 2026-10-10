@@ -5,14 +5,14 @@
 //   projects.json            the projects: { id, name, folder, color }; a project is a folder (a repository, or one
 //                            Kulisa made); its color tints the window, to tell projects apart at a glance
 //   projects/<id>/
-//     workspaces.json        the project's workspaces: { next, current, list: [{ n, name, branch, worktree, folder,
-//                            base, offset }] }; main is n 1, the project's own folder (ROADMAP, "Workspaces")
-//     <n>/                   a workspace (WorkspaceStore): profiles.json (its profiles in order: folder, name, avatar,
+//     tasks.json        the project's tasks: { next, current, list: [{ n, name, branch, worktree, folder,
+//                            base, offset }] }; main is n 1, the project's own folder (ROADMAP, "Tasks")
+//     <n>/                   a task (TaskStore): profiles.json (its profiles in order: folder, name, avatar,
 //                            description, sites' zoom, closed; as Chrome's Local State), layout.json (the window's
 //                            grid), agent.json (the agent's session, to resume it), and a folder per profile:
 //       Profile <k>/         a Chromium profile (session.fromPath) with Kulisa's own files in it: Kulisa Tabs.json
 //                            (its tabs' URLs), Kulisa Session Cookies.bin (session-cookies.js)
-//   deleted-folders.json     folders of deleted profiles and workspaces, removed at the next start (a session keeps
+//   deleted-folders.json     folders of deleted profiles and tasks, removed at the next start (a session keeps
 //                            its files open while Kulisa runs)
 // Nothing goes into the project's own folder: sign-ins must not end up in its git.
 const fs = require('fs');
@@ -65,13 +65,13 @@ class Store {
     this.saveSettings({ ...s, windows });
   }
 
-  // A project's workspaces (workspaces.json) and each one's data.
-  workspacesOf(p) {
-    return readJSON(path.join(this.dir, 'projects', p.id, 'workspaces.json')) || { next: 2, current: 1, list: [{ n: 1, name: 'main' }] };
+  // A project's tasks (tasks.json) and each one's data.
+  tasksOf(p) {
+    return readJSON(path.join(this.dir, 'projects', p.id, 'tasks.json')) || { next: 2, current: 1, list: [{ n: 1, name: 'main' }] };
   }
-  saveWorkspacesOf(p, w) { writeJSON(path.join(this.dirOf(p), 'workspaces.json'), w); }
-  workspaceOf(p, n) { return new WorkspaceStore(path.join(this.dir, 'projects', p.id, String(n)), this); }
-  // A project gone from Kulisa: from the list, and its data (profiles with their sign-ins, workspaces); never its
+  saveTasksOf(p, w) { writeJSON(path.join(this.dirOf(p), 'tasks.json'), w); }
+  taskOf(p, n) { return new TaskStore(path.join(this.dir, 'projects', p.id, String(n)), this); }
+  // A project gone from Kulisa: from the list, and its data (profiles with their sign-ins, tasks); never its
   // folder. Its profiles' sessions may still be open: what cannot go now goes at the next start.
   removeProject(p) {
     writeJSON(this.projectsFile, this.projects().filter((x) => x.id !== p.id));
@@ -97,8 +97,8 @@ class Store {
   saveSettings(s) { writeJSON(this.settingsFile, s); }
 }
 
-// One workspace's data: its profiles (each a folder), grid and agent session.
-class WorkspaceStore {
+// One task's data: its profiles (each a folder), grid and agent session.
+class TaskStore {
   constructor(dir, store) { this.dir = dir; this.store = store; fs.mkdirSync(dir, { recursive: true }); }
   file(name) { return path.join(this.dir, name); }
   profileDir(folder) { return path.join(this.dir, folder); }
@@ -128,16 +128,16 @@ class WorkspaceStore {
   // The window's grid as dockview serializes it (renderer.js).
   layout() { return readJSON(this.file('layout.json')); }
   saveLayout(layout) { writeJSON(this.file('layout.json'), layout); }
-  // The workspace's agent session: { sessionId, transcript } as the agent's hooks report it (agent-hooks.js).
+  // The task's agent session: { sessionId, transcript } as the agent's hooks report it (agent-hooks.js).
   agent() { return readJSON(this.file('agent.json')) || {}; }
   saveAgent(a) { writeJSON(this.file('agent.json'), a); }
-  // Its terminals besides the agent's, opened again after a restart: [{ id, name, by }] (workspaces.js).
+  // Its terminals besides the agent's, opened again after a restart: [{ id, name, by }] (tasks.js).
   terminals() { return readJSON(this.file('terminals.json')) || []; }
   saveTerminals(list) { writeJSON(this.file('terminals.json'), list); }
 }
 
 // Copy a profile's folder without its caches. An open profile can be copied once its data is flushed
-// (workspaces.js); a file that cannot be read (locked on Windows) is left out and logged.
+// (tasks.js); a file that cannot be read (locked on Windows) is left out and logged.
 async function copyProfile(from, to) {
   const walk = async (src, dst, top) => {
     await fs.promises.mkdir(dst, { recursive: true });
@@ -171,4 +171,4 @@ function writeFileAtomic(file, data, options) {
   } catch (e) { fs.rmSync(tmp, { force: true }); throw e; }
 }
 
-module.exports = { Store, WorkspaceStore, copyProfile, writeFileAtomic, SESSION_COOKIES_FILE };
+module.exports = { Store, TaskStore, copyProfile, writeFileAtomic, SESSION_COOKIES_FILE };

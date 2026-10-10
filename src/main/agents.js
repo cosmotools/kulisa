@@ -1,13 +1,13 @@
 // The agent CLIs Kulisa knows (CLAUDE.md, "Not tied to one agent"; ROADMAP, "Choosing the agent"). Everything
 // Kulisa needs to know about one agent is its entry here: who makes it and what it needs, how to find it, how to
 // install it (its maker's own installer, run by Kulisa for the human), how to start it connected to Kulisa and how
-// to continue a workspace's conversation. Each workspace has its own (agent.json).
+// to continue a task's conversation. Each task has its own (agent.json).
 //   id, name, maker, needs   shown in the window when the human chooses
 //   site                     the maker's page of it (the Agents window links to it)
 //   command                  the program; null: the user's shell only, no agent
 //   install                  the maker's installer, a command line for sh (posix) and PowerShell (win32)
 //   dirs                     where the installer puts the program (default ~/.local/bin, as the native installers)
-//   args(ctx)                arguments that connect it to Kulisa; ctx: { env (the workspace's, workspaces.js), plugin }
+//   args(ctx)                arguments that connect it to Kulisa; ctx: { env (the task's, tasks.js), plugin }
 //   resume(saved)            arguments that continue the conversation saved in agent.json, or nothing
 //   prepare(ctx)             before it starts in a fork: ctx { folder, main: { folder, and main's agent.json } }
 //   forget(ctx)              a fork is deleted: everything the agent keeps of its folder goes (conversations, the
@@ -63,11 +63,11 @@ const AGENTS = [
     install: { posix: 'curl -fsSL https://chatgpt.com/codex/install.sh | sh', win32: 'irm https://chatgpt.com/codex/install.ps1 | iex' },
     // Kulisa's MCP server and hooks as config overrides (TOML values), not written into the user's ~/.codex/config.toml.
     args: ({ env }) => ['-c', `mcp_servers.kulisa.url="${env.KULISA_MCP_URL}"`, '-c', `hooks=${codexHooks()}`],
-    // The conversation its SessionStart hook reported, else its last one in this folder (each workspace has its own).
+    // The conversation its SessionStart hook reported, else its last one in this folder (each task has its own).
     resume: ({ started, sessionId }) => started && ['resume', sessionId || '--last'],
     forget: ({ folder }) => forgetCodex(folder),
   },
-  { id: 'shell', name: 'Terminal only', maker: '', command: null, needs: "No agent: your shell in the workspace's folder" },
+  { id: 'shell', name: 'Terminal only', maker: '', command: null, needs: "No agent: your shell in the task's folder" },
 ];
 
 // How Claude Code reads its `language` setting (as of 2.1.294): a code, or a language's name in English or in itself, or
@@ -177,7 +177,7 @@ function headLines(file) {
 const cwdOf = (file) => headLines(file).find((l) => l?.cwd)?.cwd ?? null;
 
 // Codex's hooks (its docs, learn.chatgpt.com/docs/hooks; not yet tried in a session, ROADMAP), each telling Kulisa an
-// event of its own (agent-hooks.js) as Claude Code's plugin does. The command is the same for every workspace
+// event of its own (agent-hooks.js) as Claude Code's plugin does. The command is the same for every task
 // (KULISA_URL comes from the terminal's environment), so the human trusts them once in Codex's /hooks: Codex runs no
 // hook it has not been told to trust, and Kulisa never passes --dangerously-bypass-hook-trust (it would run any
 // project's hooks unreviewed too). SessionEnd hooks get at most 3 s.

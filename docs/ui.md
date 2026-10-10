@@ -18,7 +18,7 @@ Plain HTML, CSS and JS, no build step (CLAUDE.md, Window UI): markup in `index.h
 - Colors for both themes ([window.md](window.md), Theme): each is `light-dark(light, dark)`, so a new color gets
   both values. JS reads a color as shown through an element that uses it (`terminal.js`), not the token's text.
   JetBrains' themes: `--window` (gaps, title bar), `--island` (panels, dialogs, menus), `--well` (under a
-  workspace's panels and the projects' islands, a step from `--island`), `--island-hi`
+  task's panels and the projects' islands, a step from `--island`), `--island-hi`
   (a lit row, a divider), `--toolbar` (a pane's toolbar and active tab), `--field`, `--button`, `--line` (borders);
   text `--text`, `--text-strong`, `--text-dim`, `--text-muted`; `--accent` (main button, focus), `--danger`,
   `--error`, `--note` (the agent's caption), `--done`; `--on-accent` (text on `--accent` and `--danger`),
@@ -42,8 +42,8 @@ lines (`stroke`) of the text's color; a filled part has `fill="currentColor"`. U
 
 | Icon | Where |
 |---|---|
-| `i-close` | × of dialogs, profiles, tabs, workspaces; removing a row |
-| `i-plus` | new tab, new workspace |
+| `i-close` | × of dialogs, profiles, tabs, tasks; removing a row |
+| `i-plus` | new tab, new task |
 | `i-projects` | the projects' menu (after the islands of the projects' bar), its row in ☰ (Lucide's folder-open) |
 | `i-logo` | the app icon with its curtain in `currentColor`: the title bar's (`--project`), and a project's label in the projects' bar (its `--color`). The folds are a shadow over the color, one for every color: a `<use>` takes the sprite's gradient, not one of its own |
 | `i-docs`, `i-github`, `i-bug` | the Welcome screen's links (Documentation, GitHub, Report an issue) as rows of ☰ (`data-icon` on each link; Lucide's book-open, github, bug) |
@@ -54,7 +54,7 @@ lines (`stroke`) of the text's color; a filled part has `fill="currentColor"`. U
 | `i-globe` | a tab whose site has no icon |
 | `i-zoom`, `i-theme`, `i-arrange`, `i-agent`, `i-keyboard`, `i-exit` | ☰'s rows: Zoom, Theme, Arrange panels, Agents…, Keyboard Shortcuts, Exit |
 | `i-mic` | dictation's microphone in the terminal's header (Lucide's mic) |
-| `i-users` | the profiles' chip on every workspace's tab (Lucide's users) |
+| `i-users` | the profiles' chip on every task's tab (Lucide's users) |
 | `i-working`, `i-waiting`, `i-done` | an agent's state on a tab (`.state`) |
 
 An icon is 16 px; × and + are 14 px, as in Chrome (`.icon`), and so is an agent's state. ☰'s and the agent's states are Lucide's (lucide.dev, ISC), drawn on 24 × 24 with
@@ -72,7 +72,7 @@ every other `<svg>` uses the sprite.
   footer), `.danger` (red, when it deletes). Disabled: faded.
 - `.icon`: an icon alone, round, no frame, lit under the pointer (`--hover`); always with `aria-label` (or `title`).
   - `.quiet`: muted until pointed at, for × and removing.
-  - `.small`: 22 px, inside a row (a tab's ×, a workspace's ×).
+  - `.small`: 22 px, inside a row (a tab's ×, a task's ×).
   - `--icon`: the icon's size, when a place needs another (☰ is 18 px).
   - A `<span class="icon">` where a button cannot be (a tab's ×, inside the tab).
 - In a menu or the title bar, a button is still one of these.
@@ -93,14 +93,14 @@ every other `<svg>` uses the sprite.
   (`button.close.icon.quiet.small`), shown under the pointer and on the shown tab, its room kept so nothing moves. A
   step taller than a button (`--control` + 4 px) and at least 64 px wide: a target for a quick throw of the mouse.
   Lit under the pointer; `.active`: the shown one, in the panels' color (`--island`) on the dark island. A
-  workspace's tab (`tpl-wstab`).
-- `.chip`: an icon and a number inside a tab: on every workspace's tab, 👥 and how many of its profiles are open; on
+  task's tab (`tpl-tasktab`).
+- `.chip`: an icon and a number inside a tab: on every task's tab, 👥 and how many of its profiles are open; on
   the shown one a button (`#openProfiles`, lit under the pointer) with the menu of them. On every tab, so that tabs
   keep their widths as another is shown.
 - `.state`: an agent's state by `data-state` (from its hooks), an icon each so that color is not the only sign (some
   people do not tell yellow from green): working (sparkles in `--accent`, twinkling; not with reduced motion), waiting
-  for you (a bell in `--note`), done (a check in `--done`: come and see, until the human sees that workspace); nothing otherwise, as nothing asks for
-  the human then (the author's rule). On a workspace's tab; `showAgentState` (`common.js`) sets it with its tooltip.
+  for you (a bell in `--note`), done (a check in `--done`: come and see, until the human sees that task); nothing otherwise, as nothing asks for
+  the human then (the author's rule). On a task's tab; `showAgentState` (`common.js`) sets it with its tooltip.
 
 ### Dialogs
 

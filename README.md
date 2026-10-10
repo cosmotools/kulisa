@@ -12,7 +12,7 @@ pane, never the agent; the agent runs in the built-in terminal and drives the pr
 with a locator the agent can act on lands in its prompt, and you write the rest of the message around it.
 
 Website: [kulisa.app](https://kulisa.app). The product and its decisions: [docs/SPEC.md](docs/SPEC.md); how it works: [docs/profiles.md](docs/profiles.md),
-[docs/workspaces.md](docs/workspaces.md), [docs/window.md](docs/window.md); plans: [docs/ROADMAP.md](docs/ROADMAP.md);
+[docs/tasks.md](docs/tasks.md), [docs/window.md](docs/window.md); plans: [docs/ROADMAP.md](docs/ROADMAP.md);
 how the design was tested: [docs/REPORT.md](docs/REPORT.md).
 
 ## Run
@@ -36,8 +36,8 @@ setuid on a plain install. The `.deb` installs it setuid, so the installed app r
 
 | Variable | Effect |
 |---|---|
-| `KULISA_PROJECT` | Open the project in this folder (added if new). The agent of its main workspace runs there |
-| `KULISA_AGENT` | One agent command for every workspace, without asking (e.g. a CLI Kulisa does not know). It gets no Claude Code plugin; its workspace's MCP URL is in its environment as `KULISA_MCP_URL`, with `KULISA_PORT_OFFSET` and `KULISA_WORKSPACE` |
+| `KULISA_PROJECT` | Open the project in this folder (added if new). The agent of its main task runs there |
+| `KULISA_AGENT` | One agent command for every task, without asking (e.g. a CLI Kulisa does not know). It gets no Claude Code plugin; its task's MCP URL is in its environment as `KULISA_MCP_URL`, with `KULISA_PORT_OFFSET` and `KULISA_TASK` |
 | `KULISA_MIMIC=0` | Do not present profiles as Google Chrome |
 | `KULISA_SIGNIN_HOSTS` | More sign-in hosts for the automatic sign-in pause, comma-separated |
 | `KULISA_DATA` | Data folder instead of `~/.config/Kulisa` (e.g. to try a build next to your real one) |
@@ -46,7 +46,7 @@ setuid on a plain install. The `.deb` installs it setuid, so the installed app r
 
 **Projects:** a project is a folder, usually a repository, with its own profiles, grid and agent. The bar under the
 grid (or over it: **☰ → Projects bar**) has an island per open project, as apps in a dock: its name, then its
-workspaces. A click on a workspace shows it, of any project, and the others keep running (their agents and pages)
+tasks. A click on a task shows it, of any project, and the others keep running (their agents and pages)
 until you close their project (**×** on its main, the middle button on its name, or **Close Project** in its
 right-click menu, after a question; closing a window asks once for all its projects). The button after the islands opens a menu of the
 projects: open another one (in this window or in a new window: Kulisa asks), remove one (its **×** on hover:
@@ -57,33 +57,33 @@ sign-ins; when you open it again, its agent continues the conversation where it 
 `codex resume`). The agent starts in your shell in the project's folder, as if you typed its command in a
 terminal there, so the project's environment (direnv's `.envrc`, nvm, mise) applies; when it exits, the shell stays.
 
-**The agent:** the first time a workspace starts, Kulisa asks which agent to run there: Claude Code, Codex, or
+**The agent:** the first time a task starts, Kulisa asks which agent to run there: Claude Code, Codex, or
 the terminal only. One that is not installed gets an **Install** button (Kulisa runs its maker's installer); on its
-first start the agent asks you to sign in to it. Each workspace keeps its choice; **Change agent…** in the
+first start the agent asks you to sign in to it. Each task keeps its choice; **Change agent…** in the
 terminal's right-click menu picks another (with a new conversation). **☰ → Agents…** (also on the Welcome screen)
 shows at any time which agents are installed, their versions and folders, and installs the others.
 
-**Workspaces:** several tasks of a project at once, each with its own agent, in its project's island: **main** is
+**Tasks:** several tasks of a project at once, each with its own agent, in its project's island: **main** is
 the project itself; **+** makes a fork of it with a name you give: a git worktree
 on a branch of its own next to the project (`~/IdeaProjects/myshop@checkout/`; `.env*` and files named in
 `.worktreeinclude` are copied), copies of main's profiles, still signed in, and a new agent session started there.
 The fork's app runs on its own ports: the usual ones plus `KULISA_PORT_OFFSET` (100, 200, …), and the fork's tabs
-on local addresses point there. Click a workspace to switch; the others keep working. **×** on a fork deletes it
+on local addresses point there. Click a task to switch; the others keep working. **×** on a fork deletes it
 (its folder, branch, profile copies and conversation), after a question that says what goes and any work not in
-main; **×** on main closes the project. Workspaces need git and a first commit: until then a project has no **+**.
+main; **×** on main closes the project. Tasks need git and a first commit: until then a project has no **+**.
 
-**More terminals:** **+** in the terminal's header opens your shell in the workspace's folder next to the agent's.
+**More terminals:** **+** in the terminal's header opens your shell in the task's folder next to the agent's.
 The agent runs what keeps running there too (the app's dev server, `docker compose up`), in a terminal of its own
 behind its tab, so you see it, stop it and type into it; it reads the output itself. Terminals are kept across
 restarts, as in an IDE, each a fresh shell in its place; **×** or `exit` closes one.
 
 Panes and the terminal are panels: drag one by its header to another place (or onto another panel to stack them as
 tabs), drag the gaps between them to resize; **☰ → Arrange panels** offers ready-made arrangements, each drawn as a picture. The grid is
-kept across restarts. Profiles are added, renamed, described (who each one is in your app: the agent chooses profiles by it, and asks you when it is not said), given another picture and deleted in **👥 → Manage Profiles…** (👥 on the shown workspace's tab, at the bottom; every workspace's tab shows how many of its profiles are open), or by right-clicking a pane's
+kept across restarts. Profiles are added, renamed, described (who each one is in your app: the agent chooses profiles by it, and asks you when it is not said), given another picture and deleted in **👥 → Manage Profiles…** (👥 on the shown task's tab, at the bottom; every task's tab shows how many of its profiles are open), or by right-clicking a pane's
 header. **×** at the top right of a profile's pane closes it: its tabs
 go and free their memory, it stays signed in; **👥** lists it as closed and brings it back with the same tabs. Right-click a tab or the terminal for their menus. **Keys:** Chrome's keys in a profile's page (Ctrl+T, Ctrl+W,
 Ctrl+Shift+T, Ctrl+L, Ctrl+Tab …), Kulisa's everywhere, the terminal too (Ctrl+` the agent's terminal and back, Ctrl+Shift+1…9
-a workspace); every other key in the terminal is the agent's. **☰ → Keyboard Shortcuts** (Ctrl+Shift+/) lists them all. **Zoom:**
+a task); every other key in the terminal is the agent's. **☰ → Keyboard Shortcuts** (Ctrl+Shift+/) lists them all. **Zoom:**
 Ctrl + / Ctrl − / Ctrl 0 outside the pages, or ☰ in the title bar, zooms all of Kulisa, and the pages follow; when it
 is not 100%, the title bar shows it (click to reset). The same keys in a page zoom that site in that profile on top of it (shown in the address bar,
 click to reset). Both are kept across restarts. **☰ → Theme**: Dark (the default), Light, or System (as your OS); profiles' pages keep your OS's. **☰ → Exit** quits
@@ -99,34 +99,34 @@ src/main/        Electron main process
   app.js           the app: windows, open projects (open, close, move to a new window), agents, IPC, quit
   window.js        a window: its open projects and what it shows, its questions
   keys.js          the keyboard shortcuts: one table, which key an input event is (app.js takes them before the pages)
-  projects.js      an open project: its workspaces; making and deleting a fork; removing a project's data
-  names.js         the one rule for names of projects, workspaces and profiles; slugs for ids and folders
-  workspaces.js    a workspace: its profiles, agent (terminal, environment) and folder; a fork's copies of the profiles
+  projects.js      an open project: its tasks; making and deleting a fork; removing a project's data
+  names.js         the one rule for names of projects, tasks and profiles; slugs for ids and folders
+  tasks.js    a task: its profiles, agent (terminal, environment) and folder; a fork's copies of the profiles
   agents.js        the agent CLIs to choose from: how to find, install, start and resume each
-  worktrees.js     git for workspaces: worktree and branch of a fork, files outside git copied, changes, removal
-  project-profiles.js  a workspace's profiles in order, open and closed: create, rename, describe, close, open, delete
+  worktrees.js     git for tasks: worktree and branch of a fork, files outside git copied, changes, removal
+  project-profiles.js  a task's profiles in order, open and closed: create, rename, describe, close, open, delete
   avatars.js       the profiles' pictures to choose from (Noto Emoji's, in src/renderer/avatars/)
   profiles.js      a profile: a session on its own folder, tabs (WebContentsView), Playwright connection, sign-in mode
   store.js         projects.json, settings.json (Kulisa zoom, theme, the windows and their tabs); per project in projects/<id>/:
-                   workspaces.json, and per workspace <n>/: profiles.json (with sites' zoom), layout.json (the window's
+                   tasks.json, and per task <n>/: profiles.json (with sites' zoom), layout.json (the window's
                    grid), agent.json (the session to resume), Profile <k>/ (a Chromium profile, its tabs and session
                    cookies in it).
   cdp-proxy.js     per-profile CDP endpoint over webContents.debugger (no --remote-debugging-port)
   local-only.js    refuses requests from web pages to the MCP server and the proxy (Host, Origin)
-  mcp-server.js    MCP tools for the agent, each takes a profile; a URL per workspace (/ws/<project>/<n>/mcp)
-  agent-hooks.js   answers for the plugin's hooks (/ws/<project>/<n>/hooks/…: the open profiles, the session; the agent's state)
+  mcp-server.js    MCP tools for the agent, each takes a profile; a URL per task (/task/<project>/<n>/mcp)
+  agent-hooks.js   answers for the plugin's hooks (/task/<project>/<n>/hooks/…: the open profiles, the session; the agent's state)
   mimic-chrome.js  UA, UA-CH headers and userAgentData of Google Chrome
   signin-pages.js  which pages are sign-in pages; what URL to restore instead of one
   signin-pause.js  pauses the agent on sign-in pages (temporary implementation, see docs/REPORT.md)
   session-cookies.js  keeps session cookies across restarts (encrypted with the OS keyring)
   picker.js        point and tell: Playwright pickLocator → a reference (profile, tab, locator) typed into the agent's prompt
   ghost.js         the agent's actions: Playwright's annotations in the page, a caption over the pane
-  terminal.js      node-pty: the agent CLI, one per workspace, and the workspace's other terminals
+  terminal.js      node-pty: the agent CLI, one per task, and the task's other terminals
 src/agent/claude-plugin/  the Kulisa plugin for Claude Code: MCP config, the profiles skill, hooks (claude --plugin-dir)
 src/preload/     the window's bridge to the main process
 src/renderer/    window UI. renderer.js: the grid of panels (dockview), panes, ☰ and right-click menus; parts in their
-                 own files: common.js, menu.js (the menus), terminal.js (xterm.js: the agent's, one per workspace, and the others), voice.js
-                 (dictation), keys.js (where the keyboard is, the keys' commands), projects.js, workspaces.js (the workspaces' tabs, the new-workspace dialog),
+                 own files: common.js, menu.js (the menus), terminal.js (xterm.js: the agent's, one per task, and the others), voice.js
+                 (dictation), keys.js (where the keyboard is, the keys' commands), projects.js, tasks.js (the tasks' tabs, the new-task dialog),
                  profile-editor.js; ES modules loaded when
                  needed: agent-picker.js (choosing and installing an agent), agents.js (the Agents
                  window), both with agent-list.js, ask.js (questions before deleting or
@@ -135,7 +135,7 @@ src/renderer/    window UI. renderer.js: the grid of panels (dockview), panes, �
 assets/          the app icon: icon.svg (source) and what each OS needs, rendered by scripts/icons.js
 test/            start.js (npm test: the groups in parallel), run.js (one app, its files in order), helpers.js,
                  setup.js, the tests by area (agent.js, profiles.js, window.js, grid.js, zoom-and-closing.js,
-                 workspaces.js; restart-*.js after a restart), unit/ (plain Node), fixtures/site.js (docs/testing.md)
+                 tasks.js; restart-*.js after a restart), unit/ (plain Node), fixtures/site.js (docs/testing.md)
 ```
 
 The experiments behind the design (SPEC section 6, E1–E8) were removed after they answered their questions.

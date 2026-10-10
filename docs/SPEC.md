@@ -2,7 +2,7 @@
 
 Name: **Kulisa**, from the Russian *кулиса*, the wings of a theatre stage. The metaphor: the agent is the director working from the wings, the profiles are the actors, the panes are the stage, and the developer watches from the audience and stops the scene when something is wrong. Website: [kulisa.app](https://kulisa.app) (the domain the author's choice, 2026-10-05; live since 2026-10-06), its code in the separate repo `cosmotools/kulisa-site`.
 
-What is built: [profiles.md](profiles.md), [workspaces.md](workspaces.md), [window.md](window.md); what comes next:
+What is built: [profiles.md](profiles.md), [tasks.md](tasks.md), [window.md](window.md); what comes next:
 [ROADMAP.md](ROADMAP.md). How the decisions below were reached: [REPORT.md](REPORT.md).
 
 ## 1. Problem
@@ -62,7 +62,7 @@ No product combines profiles + agent + live panes + a shared timeline for multi-
 | Replay.io + MCP | time-travel recording for agents | one browser, debugging/CI |
 | Pane (open source) | any CLI agent in terminals + browser tab | one identity |
 | AgentMux (github.com/agentmuxai/agentmux, alpha, CEF) | terminals + browser panes | per-pane identities only proposed (issue #3546, 2026-09-22) |
-| MultiZen (MIT) | 50 isolated Chromium profiles + MCP | multi-account ops / anti-detect, not a dev workspace |
+| MultiZen (MIT) | 50 isolated Chromium profiles + MCP | multi-account ops / anti-detect, not a dev task |
 
 Point-and-tell alone is already standard. The differentiator is **all of the app's users at once**.
 
@@ -77,7 +77,7 @@ Point-and-tell alone is already standard. The differentiator is **all of the app
 - **Kulisa plugin** (between the agent and the profiles): for Claude Code, a plugin passed with `--plugin-dir` carries the MCP config, a skill on working with profiles, and hooks. The MCP server itself stays agent-agnostic.
 - **Window**: a grid of peer panels (dockview), as in JetBrains IDEs: each profile's pane and the terminal (later
   the timeline and mail) can be moved, stacked as tabs and resized; ready-made arrangements; the grid is saved.
-- **Terminal**: xterm.js + node-pty running the agent CLI unchanged; the workspace's other terminals the same way, the agent's through MCP tools (`terminal_run`).
+- **Terminal**: xterm.js + node-pty running the agent CLI unchanged; the task's other terminals the same way, the agent's through MCP tools (`terminal_run`).
 - **Point-and-tell delivery**: a short reference typed into the agent's prompt without Enter; the human writes the rest of the message around it.
 - **License: GPL-3.0-or-later**, free forever for what runs on the user's computer (the author's decision,
   2026-10-07): anyone may fork it, and no one can close it. The name and logo stay the author's ([LICENSING.md](LICENSING.md)).

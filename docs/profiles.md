@@ -9,17 +9,17 @@ how automation reaches the pages, and where the code is. Why it is built this wa
 A **profile** (the word Chrome uses; not "persona", "user" or "account") is one embedded browser identity: its own
 cookies, storage, sign-ins and tabs, shown as a pane in the grid. One profile is one user of the app under test
 ("sam@shop.com", "ann.admin"); several profiles side by side are several users at once. Profiles belong to a
-workspace ([workspaces.md](workspaces.md)): main has the human's, a fork has copies of them.
+task ([tasks.md](tasks.md)): main has the human's, a fork has copies of them.
 
 A profile is an Electron session on a folder of its own (`session.fromPath`), laid out as a Chrome profile, plus a
 `WebContentsView` per tab. Everything stays inside Kulisa: no external Chrome window.
 
 ## What the human does
 
-- **Create** in 👥 → Manage Profiles… (the profiles' chip on the shown workspace's tab; also its right-click menu): a name and, if the human wants, who the profile is (below); all
+- **Create** in 👥 → Manage Profiles… (the profiles' chip on the shown task's tab; also its right-click menu): a name and, if the human wants, who the profile is (below); all
   the pictures, the next free one lit, a click picks another. Enter in either field adds it (Shift+Enter: a new
   line in the description). The new profile is empty and signed out.
-  Names of profiles, projects and workspaces take letters (any language), digits and `@ . _ + -`, as an email
+  Names of profiles, projects and tasks take letters (any language), digits and `@ . _ + -`, as an email
   address does, starting with a letter or a digit (not `@` alone, `.x`, `..`, `-x`), at most 64, so a profile can be
   named after its account (`ann+test@shop.com`); no spaces (`names.js`, the author's rule). Name fields leave other
   characters out as they are typed or pasted, and the main process checks again (the agent's `profile_create` too).
@@ -35,12 +35,12 @@ A profile is an Electron session on a folder of its own (`session.fromPath`), la
   answer (below). At most 500 characters; shown under the name in 👥's menu and when pointing at the pane's name.
   The human's own words: a button to have an AI rewrite them was proposed and not built (2026-10-08): the reader is
   an agent, which understands them as they are, and a rewrite would add what the human did not say.
-- **Picture**: an animal, as Chrome's profile avatars and Google's anonymous animals, each profile of a workspace its
+- **Picture**: an animal, as Chrome's profile avatars and Google's anonymous animals, each profile of a task its
   own unless the human picks one twice; a click on it in the editor shows the others. It tells panes apart by shape and colors, not by a color alone
   (some people do not tell colors apart), and can be named ("the fox"). The pictures are Noto Emoji's (Google,
   Apache-2.0), in `src/renderer/avatars/`, the list in `avatars.js`; not the OS's emoji, which look different on each
   OS and are missing on some Linux. Profiles had a color until 2026-10-08; a profile with one gets a picture when
-  its workspace loads.
+  its task loads.
 - **Close**: × on the pane (or its menu, or the agent). Its tabs go and free their memory; it stays signed in, and
   👥 lists it as closed and opens it again with the same tabs. Closed profiles stay closed across restarts.
 - **Delete** in the editor or the pane's menu, after a confirmation: its sign-ins, storage and tabs are gone for
@@ -144,17 +144,17 @@ at the element on the live page with its tools.
 ## Actions: the human's and the agent's
 
 Both act on one core (CLAUDE.md, Architecture): the window and the MCP tools find profiles and tabs with
-`Workspace.find` / `findTab` (the same refusals: no such profile, a closed one, no such tab) and call the same
+`Task.find` / `findTab` (the same refusals: no such profile, a closed one, no such tab) and call the same
 methods. A row with one side empty says why, or is a gap to fill.
 
 | Action | The human | The agent | The core |
 |---|---|---|---|
-| Create a profile | Manage Profiles… | `profile_create` | `Workspace.createProfile` |
-| Rename a profile | the editor | `profile_rename` | `Workspace.renameProfile` |
-| Say who a profile is | New profile, editor, About this profile… | `profile_describe`, `profile_create` (the human's words only) | `Workspace.describeProfile` |
-| Change its picture | editor | none: how the human tells panes apart | `Workspace.setProfileAvatar` |
-| Close, open a profile | ×, 👥, editor | `profile_close`, `profile_open` | `Workspace.closeProfile`, `openProfile` |
-| Delete a profile | editor, pane menu | `profile_delete` | `Workspace.deleteProfile(id, by)`: asks the human either way |
+| Create a profile | Manage Profiles… | `profile_create` | `Task.createProfile` |
+| Rename a profile | the editor | `profile_rename` | `Task.renameProfile` |
+| Say who a profile is | New profile, editor, About this profile… | `profile_describe`, `profile_create` (the human's words only) | `Task.describeProfile` |
+| Change its picture | editor | none: how the human tells panes apart | `Task.setProfileAvatar` |
+| Close, open a profile | ×, 👥, editor | `profile_close`, `profile_open` | `Task.closeProfile`, `openProfile` |
+| Delete a profile | editor, pane menu | `profile_delete` | `Task.deleteProfile(id, by)`: asks the human either way |
 | Open a tab | +, Duplicate, New tab | `browser_tab_new` | `Profile.newTab` (the address read by `toUrl`) |
 | Switch, close a tab | a click, ×, Close others, Ctrl+Tab, Ctrl+1…9, Ctrl+W | `browser_tab_select`, `browser_tab_close` | `Profile.activate`, `closeTab`; the last one closed, an empty tab takes its place |
 | Open the tab closed last again | Ctrl+Shift+T | none: it opens the address it wants (`browser_tab_new`) | `Profile.reopenTab` (the addresses of the last ten closed, in memory) |
@@ -168,9 +168,9 @@ methods. A row with one side empty says why, or is a gap to fill.
 | Act in a page | mouse, keyboard | `browser_click`, `browser_type`, `browser_press_key`, `browser_hover`, `browser_select_option`, `browser_file_upload`, `browser_evaluate` | the page itself; Playwright over the proxy |
 | Answer a dialog | the dialog in the pane | `dialog` on the action that opened it | `Profile._dialog`, `answerDialog` |
 | Sign in | by hand | never (Rules); asks with `profile_ask_signin` | the sign-in pause |
-| Open a terminal next to the agent's, run in it | + in the terminal's header, then types | `terminal_run` (a name and a command) | `Workspace.openTerminal`, `runInTerminal` |
-| Read a terminal, stop what runs there | looks at it, Ctrl+C | `terminal_read`, `terminal_stop` | `Workspace.readTerminal`, `interruptTerminal` |
-| Close a terminal | ×, Close in its menu, `exit` | `terminal_stop` with `close` | `Workspace.closeTerminal`; a shell's exit too |
+| Open a terminal next to the agent's, run in it | + in the terminal's header, then types | `terminal_run` (a name and a command) | `Task.openTerminal`, `runInTerminal` |
+| Read a terminal, stop what runs there | looks at it, Ctrl+C | `terminal_read`, `terminal_stop` | `Task.readTerminal`, `interruptTerminal` |
+| Close a terminal | ×, Close in its menu, `exit` | `terminal_stop` with `close` | `Task.closeTerminal`; a shell's exit too |
 
 ## Sign-ins that last
 
@@ -184,19 +184,19 @@ methods. A row with one side empty says why, or is a gap to fill.
 
 ## Tabs that come back
 
-Each profile's tabs are saved in its folder (`Kulisa Tabs.json`) after every change of its workspace and as Kulisa
+Each profile's tabs are saved in its folder (`Kulisa Tabs.json`) after every change of its task and as Kulisa
 quits, and opened again at the next start. Saving often means a moment with no tabs, saved, loses them all: the
 profiles come back on `about:blank`. It happened twice on 2026-10-08, each time from another path; when it happens
 again, look for a third such moment first (which file went `[]`, and when: log a stack where
-`WorkspaceStore.saveTabs` gets `[]`, as the second time was found):
+`TaskStore.saveTabs` gets `[]`, as the second time was found):
 
 1. **A profile still opening** (its session cookies restored before its tabs open) was saved with no tabs; Kulisa
    quitting right after a start lost every profile's. Now one opening is saved as what it opens
    (`ProjectProfiles.saveTabs`; test in `grid.js`).
-2. **Tabs closing as Kulisa quits**: after the tabs were saved, each one destroyed saved its workspace again, one
-   fewer each time, none at last. A workspace in the background (shown before, then left) saved at once and lost
+2. **Tabs closing as Kulisa quits**: after the tabs were saved, each one destroyed saved its task again, one
+   fewer each time, none at last. A task in the background (shown before, then left) saved at once and lost
    all; the shown one's save waited 30 ms and missed the exit. Now nothing is saved from then on (`quitting` in
-   `shell.wsChanged`, `app.js`; test in `restart-workspaces.js`: the fork left loaded in the background keeps its tabs).
+   `shell.taskChanged`, `app.js`; test in `restart-tasks.js`: the fork left loaded in the background keeps its tabs).
 
 What is lost cannot be recovered from Kulisa's files; Chromium's own history in the profile's folder still has the
 pages.
@@ -221,7 +221,7 @@ the first request already carries it. `navigator.webdriver` stays false. `KULISA
 ## How automation reaches the pages
 
 Only through the CDP proxy (`cdp-proxy.js`): a fake CDP "browser" endpoint per profile,
-`http://127.0.0.1:<port>/<project>/<workspace>/<profile>` (each part percent-encoded), over each tab's `webContents.debugger`. There is no
+`http://127.0.0.1:<port>/<project>/<task>/<profile>` (each part percent-encoded), over each tab's `webContents.debugger`. There is no
 `--remote-debugging-port`, so Kulisa's own window is never exposed. Clients: the shell's own playwright-core
 connection (the MCP tools, the picker, the annotations) and `@playwright/mcp`. The proxy reports Chrome's real target
 ids (Playwright needs them) and fans out a tab's events to all clients. A tab opening a URL is shown to clients only
@@ -231,10 +231,10 @@ only and refuse requests from web pages (`local-only.js`).
 
 ## What is on the computer
 
-In the workspace's data folder ([workspaces.md](workspaces.md), "What is on the computer"):
+In the task's data folder ([tasks.md](tasks.md), "What is on the computer"):
 
 ```
-projects/<project id>/<workspace>/
+projects/<project id>/<task>/
   profiles.json                 the profiles in order: { folder, id, name, avatar, description, zoom (per site), closed }
   Profile 1/                    a Chromium profile: Cookies, Local Storage, IndexedDB, Cache …
     Kulisa Tabs.json            the URLs of its tabs, to open them again
@@ -259,7 +259,7 @@ space (ROADMAP, "Profiles' caches").
 |---|---|
 | `src/main/profiles.js` | a profile: its session, tabs (WebContentsView), the shell's Playwright connection, sign-in mode, zoom |
 | `src/main/error-page.html` | what a tab shows when its page did not load |
-| `src/main/project-profiles.js` | a workspace's profiles in order, open and closed: create, rename, describe, close, open, delete |
+| `src/main/project-profiles.js` | a task's profiles in order, open and closed: create, rename, describe, close, open, delete |
 | `src/main/avatars.js`, `src/renderer/avatars/` | the profiles' pictures (Noto Emoji) |
 | `src/main/store.js` | `profiles.json`, the profile folders, their tabs |
 | `src/main/session-cookies.js` | session cookies across restarts |

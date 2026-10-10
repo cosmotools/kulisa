@@ -1,10 +1,10 @@
-// Profiles: the shown workspace's chip (on its tab, workspaces.js: how many are open; a menu of its profiles) and the
+// Profiles: the shown task's chip (on its tab, tasks.js: how many are open; a menu of its profiles) and the
 // profile editor (Manage Profiles…: add, rename, describe, change the picture, open a closed one, delete).
 //   profileEditor.update(open)   the open profiles, from each state (renderer.js)
 //   profileEditor.about(key)     the editor, in that profile's description (a pane's menu)
-//   profileEditor.menu()        the chip's menu's items (also the shown workspace tab's right-click menu)
+//   profileEditor.menu()        the chip's menu's items (also the shown task tab's right-click menu)
 //   profileEditor.showPane       set by renderer.js: bring an open profile's pane to the front (key)
-//   deleteProfile(p)             the main process asks the human first (workspaces.js); also from a pane's menu
+//   deleteProfile(p)             the main process asks the human first (tasks.js); also from a pane's menu
 const profileEditor = (() => {
   const dialog = document.getElementById('profiles');
   const plist = document.getElementById('plist');
@@ -67,7 +67,7 @@ const profileEditor = (() => {
   // The button shows how many are open; its title says the rest.
   function count() {
     button.querySelector('.count').textContent = open.length;
-    button.title = `Profiles of this workspace: ${open.length} open${closed.length ? `, ${closed.length} closed` : ''}`;
+    button.title = `Profiles of this task: ${open.length} open${closed.length ? `, ${closed.length} closed` : ''}`;
     button.ariaLabel = button.title;
   }
   // Enter adds the profile from its description too; Shift+Enter starts a new line.

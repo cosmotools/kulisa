@@ -7,7 +7,7 @@ with a test (CLAUDE.md); a bug is first reproduced by a failing test, then fixed
 
 | Layer | Where | Runs in | For |
 |---|---|---|---|
-| Unit | `test/unit/*.test.js` (`node:test`) | plain Node, about a second: `npm run test:unit` | logic that needs no window: names, the data folder, a workspace's profiles in order, the agents' files |
+| Unit | `test/unit/*.test.js` (`node:test`) | plain Node, about a second: `npm run test:unit` | logic that needs no window: names, the data folder, a task's profiles in order, the agents' files |
 | End to end | `test/*.js` (`run.js`) | the real app, against the local test site (`fixtures/site.js`) | everything the human or the agent does: the window, profiles' pages, MCP tools, restarts |
 
 A check goes into the cheapest layer that can show the behavior: a rule about names is a unit test; that the name
@@ -27,7 +27,7 @@ field leaves characters out as they are typed is end to end. A module a unit tes
 - **A new file** goes into the group whose state it needs; a new group when a file would make a group much longer
   than the others (the run takes as long as the longest group: today about a minute). Give it a `setup` fixture
   rather than a dependency on another group.
-- One group: `npm test -- workspaces`. Its folder is removed when it passes, kept to look at when it fails.
+- One group: `npm test -- tasks`. Its folder is removed when it passes, kept to look at when it fails.
 
 **On Linux the tests run on a screen of their own** (Xvfb, with the openbox window manager: without one windows are
 not listed for screenshots and focus differs from a desktop), so they never take the human's focus or clipboard.
@@ -37,12 +37,12 @@ not listed for screenshots and focus differs from a desktop), so they never take
 ## Writing an e2e test
 
 - **Act as the human or the agent does**: the window's own controls (`ui(...)` clicks, `act(...)` as the renderer
-  sends it, input events), the MCP tools (`call`). Reach into the core (`shell.ws.createProfile`) only to set up
+  sends it, input events), the MCP tools (`call`). Reach into the core (`shell.task.createProfile`) only to set up
   what another test already covers, as `setup.js` does.
 - **Wait for a state, never for time.** `waitFor(() => condition)` (5 s by default); `sleep` only where nothing can
   be waited for (that something did *not* happen, a double click's gap), and short. A screen without a GPU is
   slower than the author's: a test that passes only on a fast one is a race.
-- **Before a click, wait until the window is ready for it**: a project or workspace being shown
+- **Before a click, wait until the window is ready for it**: a project or task being shown
   (`!shell.windows[0].switching`, no `loading` class on the root), the panel there (`getPanel(...)?.`), the
   element drawn. A click while the window builds another grid is lost.
 - **Names say what the human sees or gets**, as a sentence ("closing a fork asks first, saying what goes"); the

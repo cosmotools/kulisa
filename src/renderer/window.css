@@ -36,7 +36,7 @@ body {
    a native view over .content, rounded in profiles.js (PAGE_RADIUS). */
 #dock {
   flex: 1; min-height: 0; padding: var(--gap); transition: opacity .15s;
-  /* The workspace on one dark box from edge to edge of the window, its panels' gaps too, a step from its panels so
+  /* The task on one dark box from edge to edge of the window, its panels' gaps too, a step from its panels so
      they stand apart: the projects' bar's islands, of its color, merge into it wherever they meet it, also over a gap
      between two panels (on the window's glow a curve hung there, 2026-10-08). */
   background: var(--well);
@@ -61,7 +61,7 @@ body {
   :active-view-transition & { transition: none; } /* the next grid comes in sliding, not fading */
 }
 /* Switching (renderer.js, grid:closing). Another project: the grid slides towards its tab, as macOS desktops do
-   (types next and previous say which way). Another workspace of the same project: the grid is replaced at once, as
+   (types next and previous say which way). Another task of the same project: the grid is replaced at once, as
    Chrome switches tabs (no fade: a flash over the whole grid). Pictures, so the compositor moves them. */
 ::view-transition-old(grid), ::view-transition-new(grid) { animation: .3s cubic-bezier(.2, .8, .2, 1) both; mix-blend-mode: normal; }
 :active-view-transition-type(project):active-view-transition-type(next) {
@@ -70,7 +70,7 @@ body {
 :active-view-transition-type(project):active-view-transition-type(previous) {
   &::view-transition-old(grid) { animation-name: grid-to-right; }
   &::view-transition-new(grid) { animation-name: grid-from-left; } }
-:active-view-transition-type(workspace) {
+:active-view-transition-type(task) {
   /* The groups too: their own animation (Chromium's, .25 s) held the transition's end, and with it the pages (the
      native views, shown when it ends), while the terminal was already in its new place. */
   &::view-transition-group(*), &::view-transition-old(*), &::view-transition-new(*) { animation: none; } }
@@ -158,7 +158,7 @@ body {
 .xterm-host { height: 100%; display: flex; flex-direction: column; justify-content: center; &[hidden] { display: none; } }
 
 /* The projects' bar (projects.js): each open project an island of its own, as an app in a dock: its label, then its
-   workspaces' tabs; then the projects' menu, apart on the window. In the middle, under the grid (where the hand goes
+   tasks' tabs; then the projects' menu, apart on the window. In the middle, under the grid (where the hand goes
    for the terminal anyway) or over it, as chosen in ☰ (data-bar, app.js). Each island as a tab: square where it meets
    the grid and merging into it with curves (::before, ::after), rounded towards the window's edge. Every island keeps
    its width whichever project is shown, so showing one moves none. Many shrink, then the bar scrolls. */
@@ -184,13 +184,13 @@ body {
     &::after { --x: 100%; inset-inline-start: 100%; }
     [data-bar="top"] & { padding-block: var(--gap) 0; border-radius: var(--r) var(--r) 0 0;
       &::before, &::after { inset-block: auto 0; } }
-    /* Another project's: the room of the shown one's + kept (the gap and the button); the workspace it comes back
+    /* Another project's: the room of the shown one's + kept (the gap and the button); the task it comes back
        to a step brighter. */
     &:not(.active) { padding-inline-end: calc(4px + 2px + var(--control));
       .selected { color: var(--text-dim); } }
     &.active > .plabel { color: var(--text-strong); } }
   /* The label is no tab and no button: the project's icon (the app's curtain, in its color) and its name. Its
-     workspaces are what is clicked; closing the project is main's ×, its right-click menu and the middle button;
+     tasks are what is clicked; closing the project is main's ×, its right-click menu and the middle button;
      dragging it moves the island. */
   .plabel { display: flex; align-items: center; gap: 8px; padding-inline: 8px; color: var(--text-muted);
     font-weight: 600; white-space: nowrap;
@@ -201,11 +201,11 @@ body {
   .drop-after { box-shadow: inset -2px 0 var(--accent); }
 }
 [data-bar="top"] #dock { order: 1; }
-/* The shown project's workspaces (workspaces.js): in its island, their tabs and + laid out as the other islands' tabs;
+/* The shown project's tasks (tasks.js): in its island, their tabs and + laid out as the other islands' tabs;
    out of one (no project shown) not shown. */
-#workspaces { display: contents; #projectbar > & { display: none; } }
-#wslist { display: contents; }
-#wsadd.off { visibility: hidden; } /* no git or no first commit yet: no forks */
+#tasks { display: contents; #projectbar > & { display: none; } }
+#tasklist { display: contents; }
+#taskadd.off { visibility: hidden; } /* no git or no first commit yet: no forks */
 
 /* The Welcome screen (no project open): what to open, on one island in the grid's place (text on the project's glow
    reads badly) */
@@ -236,7 +236,7 @@ body > #term { display: none; }
 /* A question before something that cannot be undone (ask.js): what goes, line by line */
 #ask { width: 480px;
   .detail { margin: 0; white-space: pre-line; overflow-wrap: anywhere; user-select: text; &:empty { display: none; } } }
-/* The agents (agent-list.js), in both their dialogs: choosing a workspace's agent and the Agents window */
+/* The agents (agent-list.js), in both their dialogs: choosing a task's agent and the Agents window */
 :is(#agentpick, #agents) { width: 640px; }
 .agentlist {
   .agentrow { display: flex; gap: var(--inset); align-items: center; padding: var(--inset) 4px; border-bottom: 1px solid var(--island-hi);

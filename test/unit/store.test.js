@@ -1,4 +1,4 @@
-// The data folder (store.js) and a workspace's profiles in order (project-profiles.js).
+// The data folder (store.js) and a task's profiles in order (project-profiles.js).
 // Plain Node (npm run test:unit), no Electron: logic that needs no window, in a temporary folder of its own.
 const { test, after } = require('node:test');
 const assert = require('assert/strict');
@@ -31,13 +31,13 @@ test('projects: at first start none is opened; each gets its own color', async (
 test('store: a write cut short leaves the file as it was', async () => {
   const { Store } = require('../../src/main/store');
   const store = new Store(path.join(root, 'fresh-data'));
-  const ws = store.workspaceOf(store.projectFor('/work/shop'), 1);
-  ws.saveProfiles([{ folder: 'Profile 1', id: 'sam', name: 'Sam', avatar: 'fox' }]);
+  const task = store.taskOf(store.projectFor('/work/shop'), 1);
+  task.saveProfiles([{ folder: 'Profile 1', id: 'sam', name: 'Sam', avatar: 'fox' }]);
   const writeFileSync = fs.writeFileSync;
   fs.writeFileSync = (f, data, ...rest) => { writeFileSync(f, String(data).slice(0, 10), ...rest); throw new Error('the computer went off'); };
-  try { ws.saveProfiles([{ folder: 'Profile 2', id: 'ann', name: 'Ann', avatar: 'frog' }]); } finally { fs.writeFileSync = writeFileSync; }
-  assert.deepEqual(ws.profiles().map((p) => p.id), ['sam']);
-  assert.deepEqual(fs.readdirSync(ws.dir).filter((f) => f.endsWith('.tmp')), [], 'no half-written file left');
+  try { task.saveProfiles([{ folder: 'Profile 2', id: 'ann', name: 'Ann', avatar: 'frog' }]); } finally { fs.writeFileSync = writeFileSync; }
+  assert.deepEqual(task.profiles().map((p) => p.id), ['sam']);
+  assert.deepEqual(fs.readdirSync(task.dir).filter((f) => f.endsWith('.tmp')), [], 'no half-written file left');
 });
 test('project profiles: closing and opening keeps a profile\'s place; ids and pictures stay unique with closed ones', async () => {
   const { ProjectProfiles } = require('../../src/main/project-profiles');

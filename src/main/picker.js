@@ -6,15 +6,15 @@ const { ipcMain } = require('electron');
 const { typeIntoPrompt } = require('./terminal');
 
 function installPicker(shell) {
-  // Profiles in pick mode, each window's (window.js: picking, of the workspace on screen, by id) -> { profile, page,
+  // Profiles in pick mode, each window's (window.js: picking, of the task on screen, by id) -> { profile, page,
   // cancel }. Pick mode ends with a click on an element, or is cancelled by Esc in the page or by the Pick button again
-  // (pick:cancel). The reference goes to the agent of the profile's workspace.
+  // (pick:cancel). The reference goes to the agent of the profile's task.
   ipcMain.handle('pick:cancel', (e, { profile }) => shell.windowOf(e.sender)?.picking.get(profile)?.cancel());
   ipcMain.handle('pick:start', async (e, { profile: pid }) => {
     try {
-      const w = shell.windowOf(e.sender), ws = w?.ws;
-      if (!ws) return { error: 'no workspace is open' };
-      const found = ws.findTab(pid); // its active tab (workspaces.js, the agent's checks too)
+      const w = shell.windowOf(e.sender), task = w?.task;
+      if (!task) return { error: 'no task is open' };
+      const found = task.findTab(pid); // its active tab (tasks.js, the agent's checks too)
       if (found.error) return found;
       const { profile, tab } = found;
       const page = await profile.page(tab.id);
@@ -37,7 +37,7 @@ function installPicker(shell) {
       // One line, short, so the agent CLI shows it in its prompt as typed text (not a collapsed paste). The tab: the
       // human may switch tabs before sending, and the agent's tools act on the active one unless told.
       const reference = `[kulisa pick: ${profile.id} tab ${tab.id} ${locator}] `;
-      if (ws.pty) typeIntoPrompt(ws.pty, reference);
+      if (task.pty) typeIntoPrompt(task.pty, reference);
       // The human goes on typing in the terminal: move the focus there from the page.
       if (!w.win.isDestroyed()) w.win.webContents.focus();
       w.send('terminal:focus');

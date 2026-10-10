@@ -21,16 +21,16 @@
   document.addEventListener('focusout', () => setTimeout(report)); // where it went is known after the event
   new MutationObserver(report).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['open'] }); // a dialog opened or closed
 
-  // A workspace's tab in the projects' bar shown, as a click on it does (workspaces.js).
-  const showWs = (tab) => { if (tab && tab.dataset.ws !== workspaces.current) kulisa.invoke('ws:show', tab.dataset.ws); };
+  // A task's tab in the projects' bar shown, as a click on it does (tasks.js).
+  const showTask = (tab) => { if (tab && tab.dataset.task !== tasks.current) kulisa.invoke('task:show', tab.dataset.task); };
   // What each command does. page: the key was typed in the profile's page, so the keyboard stays in its pages.
   const run = {
     'terminal.focus': () => (zone === 'terminal' && lastPane ? focusPage(lastPane) : term?.focus()),
     'terminal.new': () => act('terminal:open'),
-    'workspace.n': ({ n }) => showWs(document.querySelectorAll('#wslist .wstab')[n - 1]),
-    'workspace.next': () => stepWs(1),
-    'workspace.previous': () => stepWs(-1),
-    'workspace.new': () => { const add = document.getElementById('wsadd'); if (!add.classList.contains('off')) add.click(); },
+    'task.n': ({ n }) => showTask(document.querySelectorAll('#tasklist .tasktab')[n - 1]),
+    'task.next': () => stepTask(1),
+    'task.previous': () => stepTask(-1),
+    'task.new': () => { const add = document.getElementById('taskadd'); if (!add.classList.contains('off')) add.click(); },
     shortcuts: async () => (await import('./shortcuts.js')).showShortcuts(),
     'tab.new': ({ pane }) => newTab(pane),
     'tab.close': ({ p, tab, page }) => act('tab:close', { profile: p.id, tab, focus: page }),
@@ -46,11 +46,11 @@
     'tab.last': (c) => toTab(c, (_i, n) => n - 1),
     pick: ({ pane }) => pane.el.querySelector('.pick').click(), // again: cancels, as the button does
   };
-  // Every open project's workspaces, in the bar's order.
-  function stepWs(dir) {
-    const all = [...document.querySelectorAll('#projectTabs .wstab')];
-    const i = all.findIndex((t) => t.dataset.ws === workspaces.current);
-    if (all.length > 1) showWs(all[(i + dir + all.length) % all.length]);
+  // Every open project's tasks, in the bar's order.
+  function stepTask(dir) {
+    const all = [...document.querySelectorAll('#projectTabs .tasktab')];
+    const i = all.findIndex((t) => t.dataset.task === tasks.current);
+    if (all.length > 1) showTask(all[(i + dir + all.length) % all.length]);
   }
   function toTab({ p, tab, page }, to) {
     const i = to(p.tabs.findIndex((t) => t.id === tab), p.tabs.length);
@@ -58,8 +58,8 @@
   }
   const focusPage = (id) => { const p = paneOfProfile(id)?.profile; if (p) act('tab:focus', { profile: id, tab: p.active }); };
 
-  kulisa.on('command', ({ id, n, profile, tab, ws, page }) => {
-    if (ws !== workspaces.current || !run[id]) return; // a key typed as another workspace was coming
+  kulisa.on('command', ({ id, n, profile, tab, task, page }) => {
+    if (task !== tasks.current || !run[id]) return; // a key typed as another task was coming
     const pane = profile && paneOfProfile(profile);
     if (profile && !pane) return;
     if (page) lastPane = profile;

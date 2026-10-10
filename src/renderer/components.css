@@ -20,7 +20,7 @@ button.danger { background: var(--danger); border-color: var(--danger); color: v
 .avatar { width: var(--avatar, 16px); height: var(--avatar, 16px); flex: none; }
 /* A project's color (--color on it or above) */
 .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; background: var(--color); }
-/* A tab of a strip on an island, as a browser's (tpl-wstab): the agent's .state, the .name, × at the end
+/* A tab of a strip on an island, as a browser's (tpl-tasktab): the agent's .state, the .name, × at the end
    (button.close.icon.quiet.small), shown under the pointer and on the shown tab, its room kept so nothing moves. A
    step taller than a button and never narrow: a target for a quick throw of the mouse. Lit under the pointer;
    .active: the shown one, in the panels' color on the dark island. */
@@ -30,13 +30,13 @@ button.danger { background: var(--danger); border-color: var(--danger); color: v
   &:hover { background: var(--hover); color: var(--text); }
   &:not(:hover, .active) .close { visibility: hidden; }
   &.active { background: var(--island); color: var(--text-strong); } }
-/* A chip: an icon and a number inside a tab (a workspace's open profiles); a button on the shown one */
+/* A chip: an icon and a number inside a tab (a task's open profiles); a button on the shown one */
 .chip { display: flex; align-items: center; gap: 3px; flex: none; height: 22px; padding: 0 6px; border: none;
   border-radius: 11px; background: none; color: var(--text-muted); font-variant-numeric: tabular-nums;
   svg { width: 14px; height: 14px; }
   &:is(button):hover { background: var(--hover); color: var(--text-strong); } }
 /* An agent's state (data-state, from its hooks), an icon each, not told by color alone: working (sparkles, twinkling),
-   waiting for you (a bell), done (a check) until seen; nothing otherwise. On a workspace's tab. */
+   waiting for you (a bell), done (a check) until seen; nothing otherwise. On a task's tab. */
 .state { display: grid; place-items: center; flex: none; color: var(--text-muted);
   svg { width: 14px; height: 14px; }
   &[data-state=""] { display: none; }
@@ -55,7 +55,7 @@ svg[hidden] { display: none; }
 svg:has(> use) { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.5;
   stroke-linecap: round; stroke-linejoin: round; }
 /* An icon button: the icon alone, round, lit under the pointer. --icon: the icon's size. .quiet: muted until pointed
-   at (× and removing); .small: in a row (a tab's ×, a workspace's ×). */
+   at (× and removing); .small: in a row (a tab's ×, a task's ×). */
 .icon { --icon: 16px; display: grid; place-items: center; flex: none; width: var(--control); height: var(--control);
   padding: 0; border: none; border-radius: 50%; background: none; color: var(--text-dim);
   svg { width: var(--icon); height: var(--icon); }
