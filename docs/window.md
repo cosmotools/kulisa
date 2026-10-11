@@ -8,10 +8,10 @@ next: [ROADMAP.md](ROADMAP.md). Keep this file current when the window changes.
 
 ## The title bar
 
-One row: the app's logo (the open project's color on its curtain), ☰, and the OS's window buttons drawn over its right end (`titleBarStyle: 'hidden'` with
+One row: the app's logo (the open project's color on its curtain), Projects (the projects' manager:
+[tasks.md](tasks.md), Projects), ☰, and the OS's window buttons drawn over its right end (`titleBarStyle: 'hidden'` with
 `titleBarOverlay`); no menu bar. Dragging the empty part moves the window. When the Kulisa zoom is not 100%, the bar
-shows it (a click resets it). No Projects button since 2026-10-11 (the author): the projects' menu after the islands
-is Chrome's Tab groups menu, with Projects… ([tasks.md](tasks.md), Projects).
+shows it (a click resets it).
 
 Pages never drag the window, as in Chrome. Without a system title bar Electron takes `app-region: drag` from every
 view in the window, the profiles' pages too, and keeps a region after its page has gone: Teams

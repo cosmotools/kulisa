@@ -214,7 +214,7 @@ module.exports = (test) => {
     const fromMenu = async (row, at) => { await (at ? rightClick(ui, at) : ui(`document.getElementById('windowMenu').click()`)); await menuRows(ui); await choose(ui, row); };
     const openers = {
       profiles: () => manageProfiles(ui),
-      projects: async () => { await ui(`document.getElementById('openProjects').click()`); await menuRows(ui); await choose(ui, 'Projects…'); },
+      projects: () => ui(`document.getElementById('manageProjects').click()`),
       taskrename: () => fromMenu('Rename…', '#tasklist .tasktab .name'),
       agentpick: () => fromMenu('Change agent…', '#term'),
       agents: () => fromMenu('Agents…'),

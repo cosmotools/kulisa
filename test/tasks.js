@@ -947,13 +947,9 @@ module.exports = (test) => {
     assert.deepEqual([site.repos.map((r) => r.folder), site.former], [[path.join(root, 'docs')], path.join(root, 'site')]);
   });
 
-  test("projects: Projects… in the projects' menu opens the manager at the shown project; another one, not open, is configured there too; + New Project", async (ctx) => {
+  test("projects: the title bar's Projects opens the manager at the shown project; another one, not open, is configured there too; + New Project", async (ctx) => {
     const { shell, ui } = ctx;
-    // No Projects button in the title bar: the projects' menu is Chrome's Tab groups menu.
-    assert.equal(await ui(`!!document.getElementById('manageProjects')`), false);
-    await ui(`document.getElementById('openProjects').click()`);
-    await menuRows(ui);
-    await choose(ui, 'Projects…');
+    await ui(`document.getElementById('manageProjects').click()`);
     await waitFor(() => ui(`(document.getElementById('projects')?.dataset.state === 'open') && document.getElementById('pjtitle').textContent === ${JSON.stringify(shell.current.name)}`));
     assert.equal(await ui(`document.querySelector('#pjlist [aria-selected="true"]').dataset.project`), shell.current.id);
     assert.equal(shell.task.profiles.get('sam-admin').get().view.getVisible(), false, 'pages hidden under the dialog');

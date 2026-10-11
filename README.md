@@ -47,8 +47,8 @@ setuid on a plain install. The `.deb` installs it setuid, so the installed app r
 
 **Projects:** a project is the configuration its tasks are made from: a name, a color and an icon, its agents (one
 the default), its profiles, and its code: a folder, or one or more repositories (local, or cloned from a URL; one the
-default). **Projects…** in the projects' menu (the button after the islands) opens the projects' manager: every
-project on the left, open or not, and **+ New Project**; on the right the chosen one's configuration. The bar under the
+default). **Projects** in the title bar (left of ☰) opens the projects' manager: every project on the left, open or
+not, and **+ New Project**; on the right the chosen one's configuration. The bar under the
 grid (or over it: **☰ → Projects bar**) has a group per open project, as Chrome's tab groups: its name (a click folds
 it), its tasks, and **+** for a new task. A click on a task shows it, of any project, and the others keep running
 (their agents and pages) until you close their project (**×** on its last open task, the middle button on its name,

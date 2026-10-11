@@ -22,7 +22,8 @@ here; what is left of it stays.
     dialogs, then the controls (ToggleGroup, ColorSwatchPicker, RadioGroup, Select, Checkbox, Listbox, Tabs,
     Collapsible, Toggle, Field, Form, Editable) done; the author tests them. Built 2026-10-11 with the author: projects
     as Chrome's tab groups (Delete Project…, no Open Folder… as New Project… takes a folder there already, the group's
-    panel on the label's right-click, no Projects button in the title bar; tasks.md, Projects); the author tests it. Next: fix what the author's testing finds;
+    panel on the label's right-click; tasks.md, Projects); the author tests it. Being built: tasks, not projects, on
+    the Welcome screen and in the bar's button (the next item). Next: fix what the author's testing finds;
     then what is left of each step ("Left:" in it), only once the author has decided it.
     Open, for the author to decide: Refresh from Master… now matters only for a local app's cookies (keep or drop);
     a script the agent runs in a page (`browser_evaluate`) could read a test password back from its field (only the
@@ -114,6 +115,20 @@ here; what is left of it stays.
     default); rights on profiles, when real accounts come (one flag, "view only": reading allowed, clicks and typing
     refused; today the agent's own modes cover test users).
 
+- **Tasks, not projects, on the Welcome screen and in the bar's button** (decided with the author 2026-10-11, being
+  built; a commit per step). The bar's tabs are tasks, so what lists things to open lists tasks; everything about
+  projects is in the projects' manager.
+  1. **The Projects button in the title bar is back** (it was taken out the same day, when the bar's button still
+     listed the projects): the projects' manager, every project and its configuration, New Project.
+  2. **Delete Project… only in the projects' manager** (a button of its own there): not in the group's panel, the
+     Welcome screen or a menu any more.
+  3. **The Welcome screen lists tasks, grouped by project**: each project's heading (its icon and name in its color;
+     a click opens it as it was left, its right-click Project Settings…), its tasks under it (those open when it was
+     closed, then the closed ones, the one closed last first; a click opens the project on that task); a project with
+     none: "No tasks yet · New Task".
+  4. **The button after the islands lists tasks, of every project, one for all**, as Chrome's Search tabs: the same
+     list as the Welcome screen's (one component), a click shows or opens a task. Open, for the author: a search
+     field; the closed projects' tasks there too (Claude: yes); a key (Ctrl+Shift+A, as Chrome's).
 - **Switching a task's account in the middle of its conversation** (the author's question, 2026-10-11; to discuss
   again before building, after step 8). A task on Claude Code's account email1 runs out of its session's limit; the
   human goes on with email2, the same conversation. Today Change agent… starts a new conversation.

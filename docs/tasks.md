@@ -43,8 +43,9 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   - **The button after the islands** is the menu of the projects (each with its color and folder, the open ones marked
     ✓; × on hover deletes one), Projects…, New Project…, Close Project and Delete Project… (the shown
     one).
-- **The projects' manager** (Projects… in the projects' menu; Project Settings… in a group's panel, or a project's
-  right-click on the Welcome screen, opens it at that project): one dialog, every project on the left, open or not (the open
+- **The projects' manager** (the Projects button in the title bar, left of ☰; Projects… in the projects' menu; Project
+  Settings… in a group's panel, or a project's right-click on the Welcome screen, opens it at that project; back on
+  2026-10-11, after it was taken out for a few hours): one dialog, every project on the left, open or not (the open
   ones marked), + New Project under them; on the right one project's configuration, edited there whether the project
   is open or not. Decided with the author on 2026-10-10, when a project became the configuration its tasks are made
   from: the menu and the Welcome screen (JetBrains' way, 2026-10-07) showed no project's configuration without opening

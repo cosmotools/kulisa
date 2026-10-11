@@ -1,8 +1,7 @@
 <script setup lang="ts">
 // The window's title bar (titleBarOverlay in window.js): the app's logo with the curtain in the open project's color
 // (--project: each project its own curtain), the Kulisa zoom when it is not 100% (a click resets it, as Chrome's
-// magnifier), ☰. No Projects button (the author, 2026-10-11): the projects' menu after the islands is it, as Chrome's
-// Tab groups menu. env(titlebar-area-*) leaves room for the OS window buttons on every
+// magnifier), Projects (the projects' manager), ☰. env(titlebar-area-*) leaves room for the OS window buttons on every
 // platform; dragging it moves the window, except on its controls.
 // ☰, as Chrome's ⋮: the zoom row (stays open while you click − and +), the theme row and the projects' bar's (open too),
 // then the ready-made arrangements, each a picture of itself; Agents…; Keyboard Shortcuts; the Welcome screen's links;
@@ -38,6 +37,8 @@ const windowMenu = (): MenuItem[] => [
   <header id="topbar">
     <Icon class="logo" name="i-logo" />
     <button id="zoomReset" :hidden="store.zoom === 1" title="Kulisa's zoom. Click to reset (Ctrl 0)" @click="kulisa.invoke('zoom:ui', 0)">{{ Math.round(store.zoom * 100) }}%</button>
+    <button id="manageProjects" class="icon" title="Projects: each one's configuration, a new one" aria-label="Projects"
+      @click="dialog('projects').then((d) => d.openProjects())"><Icon name="i-projects" /></button>
     <ButtonMenu :items="windowMenu" end><button id="windowMenu" class="icon" title="Menu: zoom, layout" aria-label="Menu"><Icon name="i-menu" /></button></ButtonMenu>
   </header>
 </template>
@@ -50,9 +51,12 @@ const windowMenu = (): MenuItem[] => [
   & button { -webkit-app-region: no-drag; &:not(.icon) { padding: 0 14px; } }
   .logo { width: 26px; height: 26px; color: var(--project); }
   /* At the right end: the Kulisa zoom, only when not 100%, and ☰, the window's menu, as far from the end of the title
-     bar's area (the OS window buttons, or the window's edge on macOS) as the logo from its start. */
+     bar's area (the OS window buttons, or the window's edge on macOS) as the logo from its start. Before it, the
+     projects' manager. */
   #zoomReset { margin-inline-start: auto; }
-  #windowMenu { --icon: 18px; margin-inline-end: var(--gap); #zoomReset[hidden] + & { margin-inline-start: auto; } }
+  #manageProjects { --icon: 18px; margin-inline-start: auto;
+    #zoomReset:not([hidden]) + & { margin-inline-start: 0; } }
+  #windowMenu { --icon: 18px; margin-inline-end: var(--gap); }
 }
 /* The rows of ☰'s own (menu/*.vue) as the menu's .item: as high, the icon at the start */
 .menu {
