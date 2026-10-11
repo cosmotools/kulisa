@@ -355,7 +355,7 @@ What must hold in the window:
 - **A brand-new `webContents` has no renderer, and CDP commands wait for one.** Tabs go
   `about:blank` → identity override → real URL; clients attach only after `tab.ready`.
 - **Chromium holds CDP commands to a tab until its navigation commits.** A site that never answers hung
-  `connectOverCDP` and with it opening the project; the proxy shows a tab only once its site has answered
+  `connectOverCDP` and with it opening the task; the proxy shows a tab only once its site has answered
   (`tab.answered`, test `/hang`).
 - **Electron sends no `Sec-CH-UA*` on navigation requests** (Chrome does). `mimic-chrome.js` adds them, and
   high-entropy hints only after `Accept-CH`.

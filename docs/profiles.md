@@ -20,7 +20,7 @@ zoom. A new task opens none of them (the first one neither): the agent opens one
 the human with 👥 ([tasks.md](tasks.md), What the human does).
 A project gets a profile when one is made in it (the editor, `profile_create`, the projects' manager → New) or taken
 from another project (the manager → From Another Project…); it lets go of one with Delete (the editor, the pane's
-menu, `profile_delete`, × in the manager, the project open or not), after a question: its copies in this project's tasks go; in no other
+menu, `profile_delete`, × in the manager, its tasks open or not), after a question: its copies in this project's tasks go; in no other
 project, its master goes too. Removing a project lets go of its profiles the same way.
 
 A profile is an Electron session on a folder of its own (`session.fromPath`), laid out as a Chrome profile, plus a
@@ -289,7 +289,7 @@ Only through the CDP proxy (`cdp-proxy.js`): a fake CDP "browser" endpoint per p
 connection (the MCP tools, the picker, the annotations) and `@playwright/mcp`. The proxy reports Chrome's real target
 ids (Playwright needs them) and fans out a tab's events to all clients. A tab opening a URL is shown to clients only
 once the site has answered (its page or an error page, `tab.answered`): until then Chromium holds CDP commands to it,
-and a site that never answers made Playwright's connection, and opening the project, hang. It and the MCP server listen on 127.0.0.1
+and a site that never answers made Playwright's connection, and opening the task, hang. It and the MCP server listen on 127.0.0.1
 only and refuse requests from web pages (`local-only.js`).
 
 ## What is on the computer

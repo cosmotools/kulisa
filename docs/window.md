@@ -186,7 +186,7 @@ asked with the browser's `confirm()`, an OS dialog. Keys are known by `keyCode` 
 `code` out. The agent starts once the terminal is laid out, at its real
 size. The rows that fit sit in the middle of the panel, what is left under a whole row shared above and below them:
 at the bottom, it was a row's height under the agent's status line in one task and nothing in another, whose
-grids differed by a pixel (2026-10-08). When a project moves to another window, what its terminals show moves along (xterm's serialize addon, as VS
+grids differed by a pixel (2026-10-08). When a group moves to another window, what its terminals show moves along (xterm's serialize addon, as VS
 Code keeps terminals), at the same size.
 
 ## Keys
@@ -204,8 +204,8 @@ Who gets a key depends on where the keyboard is:
   Ctrl+PgDn / PgUp, Ctrl+1…8, Ctrl+9; and Ctrl+Shift+C for Pick (Chrome's Inspect). The site does not get them, as in
   Chrome. Closing or switching a tab from the page leaves the keyboard in the page shown next.
 - **Everywhere, the terminal too**: Ctrl+` to the agent's terminal and back to the page used last, Ctrl+Shift+` a new
-  terminal, Ctrl+Shift+1…9 a task of the shown project, Ctrl+Shift+PgDn / PgUp the next or previous one of every
-  open project (in the bar's order), Ctrl+Shift+N a new task, Ctrl+Shift+A Search Tasks (Chrome's Search tabs),
+  terminal, Ctrl+Shift+1…9 a task of the shown group, Ctrl+Shift+PgDn / PgUp the next or previous one of every
+  group (in the bar's order), Ctrl+Shift+N a new task, Ctrl+Shift+A Search Tasks (Chrome's Search tabs),
   Ctrl+Shift+/ the list. Ctrl+Shift+… and Ctrl+` are
   what agents and sites leave alone; Alt+letters are Claude Code's (Alt+V, Alt+P, Alt+T), Ctrl+Alt+arrows GNOME's,
   Ctrl+Shift+U and E ibus's, so Kulisa takes none of them.

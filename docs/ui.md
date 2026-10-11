@@ -184,7 +184,7 @@ Every dialog is `Modal.vue`, Reka UI's Dialog (`reka-ui`) with the same parts:
 
 ### Menus
 
-Reka UI's menus, the rows built as one opens: a button's (`ButtonMenu.vue`: ☰, ⋮, the projects' button, the profiles'
+Reka UI's menus, the rows built as one opens: a button's (`ButtonMenu.vue`: ☰, ⋮, a project's ⋯, the profiles'
 chip …; `end`: its end edge at the button's, at a bar's end), an area's right-click menu at the pointer
 (`RightClickMenu.vue`: `items(e)` builds the rows for what was right-clicked, or `null`: none), one at a point
 (`menuAt(e, items)` in `lib/menu.ts`, `PointMenu.vue`: a link in the terminal). `ButtonMenu` opens on the press, so a

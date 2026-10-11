@@ -49,7 +49,7 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   - **A task tab's right-click menu**: the shown one's profiles, as its chip's; Rename…; Show Folder, its folder (its
     worktree, or the project's without git) in the OS's file manager (`shell.openPath`); Delete Task….
   - **The button after the islands is Search Tasks** (🔍, Ctrl+Shift+A; as Chrome's Search tabs, its button at the
-    end of the tab strip; `TaskSearch.vue`): a panel with every project's tasks, the closed projects' too, grouped by
+    end of the tab strip; `TaskSearch.vue`): a panel with every project's tasks, open and closed, grouped by
     project (`TaskList.vue`), a search field at its top (a task by its name
     or branch, a project by its name, then all its tasks; ↑↓ and Enter while the keyboard stays in it). A click on a
     task shows it in its group, in its group's window (a closed one opened again; a new group in this window when its
@@ -102,7 +102,7 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
 - **Each project has a color and an icon**, to tell projects apart at a glance: the color is the shown one's glow from
   the middle of the window and the title bar logo's curtain; the icon is on its label in the bar, in its color. The
   icon is its site's favicon (`favicon.*` or `icon.*` at the top or in `public/`, `static/`, `app/`, `src/`, `assets/`
-  …, up to 128 KB; a project opened from a folder that has one gets it), one of Kulisa's set (Lucide's cart, briefcase,
+  …, up to 128 KB; a project made in a folder that has one gets it), one of Kulisa's set (Lucide's cart, briefcase,
   globe, flask, rocket, code, building, people, book, heart), or the app's curtain.
 - **Its configuration** (the manager's right side, `ProjectEditor.vue`, which is Settings with its tabs, one form for a new project and an existing
   one; a new project's form: Create, Cancel) changes its name, color, icon and local addresses as they change; the
@@ -434,9 +434,9 @@ What stays in any case: an agent Kulisa installed (it serves every project).
 ## Deleting a project
 
 **Delete Project…** in ⋯ at the top of a project's page in the projects' manager, open or not: there
-alone (the author, 2026-10-11: with everything else about a project; not in its group's panel, the Welcome screen or
+alone (the author, 2026-10-11: with everything else about a project; not in its group's menu, the Welcome screen or
 a menu). One function (`deleteProject` in `app.js`): Kulisa asks first, saying what goes and which tasks have
-work not in main and not pushed; closes the project if it is open; deletes each of its tasks as above; then removes it
+work not in main and not pushed; closes its group if it has one; deletes each of its tasks as above; then removes it
 from `projects.json` with its data folder `projects/<id>/`. The project's own folder stays as it is, and so do its
 agents' accounts, let go of (Settings → Agents deletes one: "Choosing the agent", Accounts).
 
@@ -506,12 +506,12 @@ temporary forks), and again on 2026-10-10 (tasks; ROADMAP, "Projects and tasks")
   question, as with Claude Code's `--worktree`): its conversation and profile copies go too.
 - **A task loads when first shown**, not at the start: after a restart nothing works in the background anyway,
   and the agent starts at its terminal's real size.
-- **Tasks and projects in the background keep running**, their pages and agents. Memory: each agent is a
+- **Tasks and groups in the background keep running**, their pages and agents. Memory: each agent is a
   process of its own (Claude Code about 200–400 MB) plus its profiles' tabs.
 - **Another project's task opens beside the shown one** (its group, an island in the bar), as a browser opens a tab.
   At first opening a project closed the shown one and stopped its agents; now the human closes a group (Close Group)
   when it is safe.
-- **Several windows are one Kulisa**, not a second instance: two cannot share the data folder. A project moves with
+- **Several windows are one Kulisa**, not a second instance: two cannot share the data folder. A group moves with
   its pages' native views (`Profile.moveTo`), not loaded again, and with what its terminals show (xterm's serialize
   addon, as VS Code keeps terminals), at their size, so its agent is never told a default one. A window is one more
   renderer process for Kulisa's own page, only while it is open.

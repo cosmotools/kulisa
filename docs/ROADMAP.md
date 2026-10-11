@@ -22,7 +22,7 @@ here; what is left of it stays.
     dialogs, then the controls (ToggleGroup, ColorSwatchPicker, RadioGroup, Select, Checkbox, Listbox, Tabs,
     Collapsible, Toggle, Field, Form, Editable) done; the author tests them. Built 2026-10-11 with the author: projects
     as Chrome's tab groups (Delete Project…, no Open Folder… as New Project… takes a folder there already, the group's
-    panel on the label's right-click; tasks.md, Projects); the author tests it. Built 2026-10-11 too: tasks, not projects,
+    menu on the label's right-click, its name, color and icon the projects' manager's alone; tasks.md, Projects); the author tests it. Built 2026-10-11 too: tasks, not projects,
     in the bar's button (Search Tasks, Ctrl+Shift+A) and the empty window instead of the Welcome screen (tasks.md,
     Projects); Delete Project… only in the projects' manager. And a project is no thing to open (the author's decision,
     2026-10-11): its island is the group of its open tasks (Close Group closes them, asking only when an agent works;
@@ -44,7 +44,7 @@ here; what is left of it stays.
     Settings → Agents or a project's page); each account has its own config folder (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`)
     in Kulisa's data folder, kept until the human deletes it there (no longer gone with its last project). The human's own `~/.claude` / `~/.codex` is no account (never used, never deleted).
   - **Profiles** (one flat store, each listing the projects it belongs to; it goes, after a question, when its last
-    project does; seen in the project's editor: + New, + From another project). A profile is a person with all their
+    project does; seen on the project's page in the projects' manager: + New, + From Another Project…). A profile is a person with all their
     sign-ins, in one or more forms:
     - sessions of real accounts: the human signs in by hand to the profile's **master**, which no one works in
       (opened in a window of its own for that);
@@ -52,12 +52,12 @@ here; what is left of it stays.
       (Electron's `safeStorage`, to read in the installed version's docs); set by the human in the editor or by the
       agent (an MCP tool, e.g. after it signed a test user up); never logged;
     - none: a blank profile, for sign-up tests (SPEC feature 7).
-  - **Projects** (composite; a wizard to create and edit): a name, a color from a pool, an icon (the repository's
+  - **Projects** (composite; made and changed on its page in the projects' manager): a name, a color from a pool, an icon (the repository's
     favicon if it has one, else Kulisa's set), agents (one default), profiles, repositories or folders (local, or
     cloned from a URL; one default). A project needs no repository: then it has a folder, by default
     `~/Kulisa/<project>` (`~/Kulisa` is the default place of every new project, as JetBrains' `~/PycharmProjects`,
     changeable), or one the human picks. That folder is the human's: Kulisa never deletes it. Once a repository is
-    added, tasks no longer work in it; the editor shows it ("former folder, tasks no longer work in it", Show) while
+    added, tasks no longer work in it; its page shows it ("former folder, tasks no longer work in it", Show) while
     it exists, and the human moves its files (or asks the agent).
   - **Tasks.** + in a project's group makes one with the project's default agent, its default repository and its
     profiles, all closed until opened (step 7); the human describes the task in the agent's terminal. A task always works in copies: a worktree per
@@ -83,8 +83,8 @@ here; what is left of it stays.
     uncommitted changes, and stop if there are any.
   - **The bar is a task bar, drawn as Chrome's tab groups**: a group per project (its name, color and icon;
     collapsible; + makes a task), a tab per task (the project's icon and color, the task's name, the agent's state).
-    A group moves to another window whole (as a project does today), e.g. to keep one client's tasks out of a screen
-    share. With no project open, the empty window (built: tasks.md).
+    A group moves to another window whole (built: Move to New Window), e.g. to keep one client's tasks out of a screen
+    share. With no task open, the empty window (built: tasks.md).
   - **Sign-in rule, narrowed**: built with step 5 ([profiles.md](profiles.md), "Test users' sign-ins"; CLAUDE.md,
     Rules). Left: "Sign in with Google" on a local app, where the human signs in once to a test Google account in the
     profile's master and the agent goes the whole way itself (account chooser, consent) with no sign-in pause on that
@@ -107,7 +107,7 @@ here; what is left of it stays.
        a real Google account in this Electron; sign-ins in a site's storage (MSAL) not kept in step; Refresh from
        Master… now matters only for a local app's cookies, to keep or drop.
     7. The projects' manager: built 2026-10-10 ([tasks.md](tasks.md), Projects: the Projects button in the title
-       bar, every project on the left, one's configuration on the right; a list of agents with a default; + makes a
+       bar, Settings → Projects since 2026-10-11; every project on the left, one's configuration on the right; a list of agents with a default; + makes a
        task from the configuration, New Task with on its right-click; a new task opens no profile).
     8. Agents' accounts made and chosen in the project, one store as the profiles': built 2026-10-11
        ([tasks.md](tasks.md), "Choosing the agent", Accounts). Changed with the author while building: no email asked
@@ -431,8 +431,8 @@ here; what is left of it stays.
   - A closed tab comes back with its address only, not its history (Chrome's keeps it): Electron has no API for that.
 - **A desktop app's ways, not only buttons** (talked over with the author 2026-10-08, who liked them all). A web page
   puts a button on every action; a desktop app gives an action several ways in: a visible one for a newcomer, quick
-  ones for daily use (keys above, a right-click, dragging). Kulisa has some, here and there (the menus of a project,
-  a task's tab and a pane; a middle click closes a project; projects and
+  ones for daily use (keys above, a right-click, dragging). Kulisa has some, here and there (the menus of a group,
+  a task's tab and a pane; a middle click closes a group; groups and
   panels are dragged). To build:
   - **The system's notifications: first** (small: Electron's `Notification`, `app.setBadgeCount`, `win.flashFrame`).
     The human is in their browser or IDE while agents work; today only the icon on a task's tab says one waits
@@ -610,7 +610,7 @@ here; what is left of it stays.
   known issues there (resizing, maximizing, the title bar overlay, profile views above the HTML). Faking the blur
   (a picture of the wallpaper, blurred) was rejected: a workaround, and it lags when the window moves.
 - **One panel in its own OS window** (e.g. the buyer's profile on a second monitor, the terminal and the other
-  profiles staying in the main window). Today only a whole project moves to another window (Move to New Window).
+  profiles staying in the main window). Today only a whole group moves to another window (Move to New Window).
   dockview has popout windows, and a profile's native views can move between windows (`Profile.moveTo`), but a
   window shows one task's grid today: a window holding a part of another window's task is a new model
   (the views' bounds, closing, restoring after a restart). Medium work; to discuss.
@@ -710,7 +710,7 @@ here; what is left of it stays.
       `COMSPEC` (untested). SIGINT and SIGTERM work differently there (quit handling in `app.js`). The other
       terminals (`terminal_run`, +) type their command into `COMSPEC` there: untested; PowerShell as above would
       serve them too, and `terminal_stop`'s Ctrl+C in cmd asks "Terminate batch job?".
-    - Both: closing a project and opening it again (`claude --resume`) and the project folder dialog
+    - Both: closing a task and opening it again (`claude --resume`) and the project folder dialog
       (New Project…'s Browse…, native) are untested.
   - `safeStorage` (Keychain, DPAPI) for session cookies: expected to work, untested.
   - Dictation (the terminal's microphone): the agent records itself. macOS: the system asks for the microphone for
@@ -720,7 +720,7 @@ here; what is left of it stays.
     microphone privacy setting for desktop apps.
   - macOS: the window screenshot (`KULISA_SHOT`) needs the screen-recording permission; distribution needs code
     signing and notarization (Apple Developer account). Windows: code signing certificate.
-  - The first start: a packaged app opens no project (the empty window, the projects' manager on New Project), later the projects open last
+  - The first start: a packaged app opens no task (the empty window, the projects' manager on New Project), later the groups open last
     (untested packaged).
   - The one-row title bar (`titleBarStyle: 'hidden'` + `titleBarOverlay`, Window Controls Overlay): checked on
     Linux/X11 only. Check the window buttons, dragging and double-click to maximize on macOS (traffic lights on the
@@ -778,7 +778,7 @@ here; what is left of it stays.
   free disk space, and open profiles still grow to it. Several profiles in several projects add up.
   - Alternative: a limit for the whole app, `--disk-cache-size=<bytes>` (`app.commandLine.appendSwitch` before
     ready): every profile's HTTP cache at most that, open ones too; not the code and GPU caches.
-  - Or both, or clearing when a task or project is closed as well. Cost of clearing: the first load of a
+  - Or both, or clearing when a task is closed as well. Cost of clearing: the first load of a
     reopened profile's sites is slower (no cache), which matters little for profiles set aside.
 - **Tests that failed now and then.** Fixed 2026-10-08: pictures of pages for a menu wait 500 ms at most (`window.js`,
   test "a menu opens even when a page gives no picture"); a project's label let go on the side of the screen with

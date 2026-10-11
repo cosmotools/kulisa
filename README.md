@@ -37,7 +37,7 @@ setuid on a plain install. The `.deb` installs it setuid, so the installed app r
 
 | Variable | Effect |
 |---|---|
-| `KULISA_PROJECT` | Open the project in this folder (added if new), on the task it showed last, or a new one |
+| `KULISA_PROJECT` | The project in this folder (added if new): its task shown last opened, or a new one |
 | `KULISA_AGENT` | One agent command for every task, without asking (e.g. a CLI Kulisa does not know). It gets no Claude Code plugin; its task's MCP URL is in its environment as `KULISA_MCP_URL`, with `KULISA_PORT_OFFSET` and `KULISA_TASK` |
 | `KULISA_MIMIC=0` | Do not present profiles as Google Chrome |
 | `KULISA_SIGNIN_HOSTS` | More sign-in hosts for the automatic sign-in pause, comma-separated |
@@ -52,7 +52,7 @@ the projects' manager: every project on the left
 and **+ New Project**; on the right the chosen one's page: **New Task**, its code, agents, profiles and look, each saved as it changes, and **⋯ → Delete Project…** (Kulisa's data of it and its tasks' copies; its folder stays). The bar under the
 grid (or over it: **☰ → Projects bar**) has a group per project with open tasks, as Chrome's tab groups: its name (a click folds
 it), its tasks, and **+** for a new task. A project itself is not opened or closed: its tasks are. A click on a task shows it, of any group, and the others keep running
-(their agents and pages) until you close them (**×** on a task; **Close Group** in its name's right-click panel or the middle
+(their agents and pages) until you close them (**×** on a task; **Close Group** in its name's right-click menu or the middle
 button on its name closes all its tasks, asking only when an agent works). The button after the islands (or Ctrl+Shift+A)
 searches every project's tasks, as Chrome's Search tabs: a click opens one, in its project's group (a new one in this
 window when it has none), and **New Task** under each project makes one. **Settings → Projects** has **New Project** (a name and where its
@@ -82,7 +82,7 @@ signed in once, for every task. Your
 project's folder stays yours: agents merge into it only when you ask. The task's app runs on its own ports: the usual
 ones plus `KULISA_PORT_OFFSET` (100, 200, …), and its tabs on local addresses point there. Click a task to switch;
 the others keep working. **×** closes a task (its agent stops; its code, profiles and conversation stay, and its
-project's menu opens it again); **Delete Task…** in its tab's menu deletes it, after a question that says what goes
+group's menu or Search Tasks opens it again); **Delete Task…** in its tab's menu deletes it, after a question that says what goes
 and any work not in main and not pushed. Without git, tasks work in the project's folder itself.
 
 **More terminals:** **+** in the terminal's header opens your shell in the task's folder next to the agent's.
