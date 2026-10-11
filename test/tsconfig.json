@@ -1,0 +1,7 @@
+// The tests: as strict as the code (tsconfig.json), but for null: a test counts on what it checks being there (the task
+// shown, a profile by its id), and when it is not, the test fails, which is what it is for (the author, 2026-10-11).
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": { "strictNullChecks": false },
+  "include": ["."]
+}

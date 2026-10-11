@@ -5,13 +5,15 @@
   "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
   "entry": [
     // The windows' preload, loaded by its path (window.js, master.js).
-    "src/preload/index.js",
+    "src/preload/index.cts",
     // The e2e groups, which run.js requires by name (start.js → run.js --files=…).
-    "test/*.js",
-    "!test/helpers.js",
+    "test/*.ts",
+    "!test/helpers.ts",
     // The debug-kulisa skill's script, run by its path.
     ".claude/skills/debug-kulisa/*.mjs"
   ],
-  // Forge's makers and plugins, named by strings in forge.config.js.
+  // direnv: the user's own, which tasks use when it is installed (worktrees.ts); the tests check it the same way.
+  "ignoreBinaries": ["direnv"],
+  // Forge's makers and plugins, named by strings in forge.config.ts.
   "ignoreDependencies": ["@electron-forge/maker-.*", "@electron-forge/plugin-auto-unpack-natives"]
 }

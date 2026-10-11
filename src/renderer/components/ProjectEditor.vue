@@ -134,7 +134,7 @@ async function newTask() {
   await kulisa.invoke('project:open', { id });
 }
 const more = (): MenuItem[] => [{ label: 'Delete Project…', run: deleteIt }];
-// Delete Project…, here alone (the author, 2026-10-11): asked first (projects.js, askDeleteProject), closed if open;
+// Delete Project…, here alone (the author, 2026-10-11): asked first (projects.ts, askDeleteProject), closed if open;
 // then Settings goes on to another project.
 async function deleteIt() {
   const r = await kulisa.invoke<{ error?: string } | null>('project:delete', { id: editing.value });
@@ -172,7 +172,7 @@ async function clone() {
 const codeMenu = (): MenuItem[] => [{ label: 'Add Folder…', run: () => code('project:repo-add', {}) },
   { label: 'Clone from URL…', run: () => startAdding('clone') }];
 
-// Its agents (the agents and their accounts: main/accounts.js), the default first: + runs it.
+// Its agents (the agents and their accounts: main/accounts.ts), the default first: + runs it.
 async function agents(channel: string, args: Record<string, unknown>) {
   agentError.value = '';
   const r = await kulisa.invoke<{ error?: string; agents?: { id: string; name: string }[] } | null>(channel, { id: editing.value, ...args });

@@ -22,7 +22,7 @@ button.primary { background: var(--accent); border-color: var(--accent); color: 
 button.danger { background: var(--danger); border-color: var(--danger); color: var(--on-accent);
   &:hover:not(:disabled) { background: color-mix(in srgb, var(--danger) 85%, white); }
   &:active:not(:disabled) { background: color-mix(in srgb, var(--danger) 82%, black); } }
-/* A profile's picture (avatars.js): --avatar, its size where a place needs another */
+/* A profile's picture (avatars.ts): --avatar, its size where a place needs another */
 .avatar { width: var(--avatar, 16px); height: var(--avatar, 16px); flex: none; }
 /* Icon buttons to choose one of (.icon each; Reka's ToggleGroup, or its ColorSwatchPicker for colors): a profile's
    pictures, a project's colors and icons; the chosen one ringed */

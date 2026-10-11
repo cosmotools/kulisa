@@ -2,7 +2,7 @@
 // Settings → Profiles (docs/profiles.md; the author, 2026-10-11), as Settings → Agents: every profile on the left, the
 // chosen one's fields on the right, each saved as it changes (a field on Enter or leaving it). A profile lives until it
 // is deleted here (− , asked first); a project's page adds and removes it there. Sign In… opens its master's window
-// (master.js), to sign in once for every task.
+// (master.ts), to sign in once for every task.
 import { nextTick, ref, watch } from 'vue';
 import { ListboxContent, ListboxItem, ListboxRoot, PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka-ui';
 import Icon from './Icon.vue';

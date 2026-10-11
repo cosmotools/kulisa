@@ -1,4 +1,4 @@
-// The agents Kulisa knows (main/agents.js), for a dialog that lists them with Install (AgentList.vue). The state lives
+// The agents Kulisa knows (main/agents.ts), for a dialog that lists them with Install (AgentList.vue). The state lives
 // with the dialog, not in the list: a closed dialog's content is unmounted (Modal.vue), and an install it started goes
 // on and shows when it opens again.
 //   const list = agentList({ choose, details, installed })   choose: a radio per row; details: each one's version, folder
@@ -22,7 +22,7 @@ export function agentList(opts: { choose?: boolean; details?: boolean; installed
     el: null as HTMLElement | null, // the list's element, while its dialog is open
   });
   const chosen = computed(() => state.agents.find((a) => a.id === state.selected));
-  // cached: what the main process found last time, if it has looked yet (main/app.js, agents:list).
+  // cached: what the main process found last time, if it has looked yet (main/app.ts, agents:list).
   // again: a look behind a list already shown, dropped when an install began meanwhile (it marks its own row).
   const fetchAgents = async (cached = false, again = false) => {
     const r = await kulisa.invoke<{ list: Agent[] | null; home: string }>('agents:list', { ...(opts.details ? { details: true } : { check: true }), cached });

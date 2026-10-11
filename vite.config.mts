@@ -1,5 +1,5 @@
 // The window's UI (src/renderer: Vue components in TypeScript), built by Vite into dist/renderer, which the main
-// process loads from disk (window.js, master.js): no dev server, as no page of the app may load from an HTTP server
+// process loads from disk (window.ts, master.ts): no dev server, as no page of the app may load from an HTTP server
 // of its own (CLAUDE.md, Hard-won facts). Two pages: the window (index.html) and a master's window (master.html).
 //   npm run build   type checks (vue-tsc), then builds; npm start and npm test build first
 //   npm run watch   builds again on every change (then reload the window: Ctrl+R in its DevTools, or restart)
@@ -21,7 +21,7 @@ export default defineConfig({
     target: 'esnext',
     cssTarget: 'chrome150',
     chunkSizeWarningLimit: 2000, // xterm, dockview and Vue in one bundle, read from disk: no network to split it for
-    sourcemap: true, // Kulisa's own DevTools, running from source; packaged builds leave them out (forge.config.js)
+    sourcemap: true, // Kulisa's own DevTools, running from source; packaged builds leave them out (forge.config.ts)
     rolldownOptions: { input: { index: resolve(renderer, 'index.html'), master: resolve(renderer, 'master.html') } },
   },
 });

@@ -86,7 +86,7 @@ const more = (): MenuItem[] => [
 ];
 const picking = computed(() => !!profile.value && !!store.picking[profile.value.id]);
 
-// The active tab's alert or confirm (profiles.js), over a picture of its page, as Chrome shows it: Reka's Dialog, not
+// The active tab's alert or confirm (profiles.ts), over a picture of its page, as Chrome shows it: Reka's Dialog, not
 // modal (the other panes and the rest of the window go on), in the pane. The human's answer goes back when they close
 // it (OK, Cancel, Esc; a click outside does nothing), not when it goes for them (answered by the agent, the page gone:
 // the state has it no more). One answered is not shown again by a state sent before the answer arrived. OK has the

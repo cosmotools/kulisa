@@ -14,4 +14,4 @@ import './lib/test-hooks';
 const app = createApp(App);
 app.config.globalProperties.kulisa = kulisa;
 app.mount('#app');
-kulisa.invoke('tasks:get'); // the shown task's tabs and terminal (window.js, sendTasks)
+kulisa.invoke('tasks:get'); // the shown task's tabs and terminal (window.ts, sendTasks)

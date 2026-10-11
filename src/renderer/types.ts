@@ -1,6 +1,6 @@
-// What the main process sends the window (window.js, profiles.js, tasks.js), as the window uses it.
+// What the main process sends the window (window.ts, profiles.ts, tasks.ts), as the window uses it.
 
-// A page's alert or confirm (profiles.js, Profile._dialog), shown in its pane.
+// A page's alert or confirm (profiles.ts, Profile._dialog), shown in its pane.
 interface PageDialog { id: number; type: 'alert' | 'confirm'; message: string; from: string; picture: string | null }
 interface Tab {
   id: string; title: string; url: string; favicon: string | null; loading: boolean; canBack: boolean; canFwd: boolean;
@@ -11,7 +11,7 @@ export interface Profile {
   key: string; id: string; name: string; avatar: string; description: string | null; login: string | null;
   hasPassword: boolean; active: string; signinMode: boolean; tabs: Tab[];
 }
-// A closed one (window.js, pushState): tabs is how many it had.
+// A closed one (window.ts, pushState): tabs is how many it had.
 export interface ClosedProfile { key: string; id: string; name: string; avatar: string; description: string | null; tabs: number }
 // Another terminal of the task (Task.terminalsInfo): the human's shell or what the agent runs.
 export interface OtherTerminal { id: number; name: string; command: string; by: 'human' | 'agent' }
@@ -23,7 +23,7 @@ export interface TaskInfo {
   closed: boolean; merged: boolean; agent: string | null;
 }
 export interface ProjectEntry { id: string; name: string; folder: string; color: string; icon?: string; favicon?: string; tasks: ProjectTask[] }
-// A task of a project, open or not (app.js, shell.projects): the bar's + lists the closed ones (NewTask.vue).
+// A task of a project, open or not (app.ts, shell.projects): the bar's + lists the closed ones (NewTask.vue).
 export interface ProjectTask { n: number; name: string; branch?: string; closed: boolean; merged: boolean }
 // The window's projects (AppWindow.info): every project, those open in it in the bar's order, the one shown.
 export interface ProjectsInfo {
@@ -33,10 +33,10 @@ export interface ProjectsInfo {
   elsewhere?: string[];
   windows?: { id: number; names: string[] }[];
 }
-// The projects' manager (app.js, project:*): what a project may be, its code, its profiles, its configuration.
-// agents: every account (main/accounts.js); clis: the agents a new account can be made of.
-// An agent's account (Settings → Agents: main/app.js, accounts:list), with the names of the projects it is in.
-// A profile in Settings → Profiles (app.js, profiles:list): who it is, its test login (never its password), its projects.
+// The projects' manager (app.ts, project:*): what a project may be, its code, its profiles, its configuration.
+// agents: every account (main/accounts.ts); clis: the agents a new account can be made of.
+// An agent's account (Settings → Agents: main/app.ts, accounts:list), with the names of the projects it is in.
+// A profile in Settings → Profiles (app.ts, profiles:list): who it is, its test login (never its password), its projects.
 export interface SettingsProfile { id: string; name: string; avatar: string; description: string; login: string; hasPassword: boolean; projects: string[] }
 export interface Account { id: string; agent: string; name: string; email: string | null; projects: string[] }
 export interface AccountsInfo { accounts: Account[]; clis: string[] }
@@ -49,7 +49,7 @@ export interface ProjectSettings extends ProjectChoices {
   error?: string; name: string; folder: string; local?: string[]; repos: ProjectRepo[]; former?: string | null;
   projectAgents: { id: string; name: string }[]; profiles: ProjectProfile[]; others: ProjectProfile[];
 }
-// Kulisa's keyboard shortcuts (main/keys.js), as this OS shows them.
+// Kulisa's keyboard shortcuts (main/keys.ts), as this OS shows them.
 export interface Shortcut { id: string; group: string; label: string; keys: string[] }
 // A question from the main process (shell.ask) or the window.
 export interface Question { message: string; detail?: string; ok?: string; other?: string; danger?: boolean }

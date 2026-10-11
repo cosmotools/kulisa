@@ -1,4 +1,4 @@
-// A master's window (master.html; main/master.js): its bar. Its theme and the profile's name come in the URL.
+// A master's window (master.html; main/master.ts): its bar. Its theme and the profile's name come in the URL.
 import './tokens.css';
 import './components.css';
 import { createApp } from 'vue';

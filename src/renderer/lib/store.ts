@@ -1,4 +1,4 @@
-// The window's state, as the main process sends it (window.js), for the components to draw.
+// The window's state, as the main process sends it (window.ts), for the components to draw.
 import { reactive, watch } from 'vue';
 import type { ClosedProfile, OtherTerminal, Profile, ProjectsInfo, TaskInfo } from '../types';
 import { initialProjects } from './common';
@@ -31,7 +31,7 @@ export const store = reactive({
 export function setLoading(on: boolean) { store.loading = on; root.classList.toggle('loading', on); }
 
 // The window's actions on the shown task's profiles and tabs name it, as the grid's layout does: one sent just as the
-// human switches tasks or projects is refused, not done in the other one (app.js, onScreen).
+// human switches tasks or projects is refused, not done in the other one (app.ts, onScreen).
 export const act = <T = any>(channel: string, args: Record<string, unknown> = {}) => kulisa.invoke<T>(channel, { ...args, task: store.current });
 
 kulisa.on<ProjectsInfo>('projects', (info) => {
@@ -49,7 +49,7 @@ kulisa.invoke<number>('zoom:get').then((z) => { store.zoom = z; });
 kulisa.on<string>('theme', (theme) => { store.theme = theme; });
 kulisa.on<string>('bar', (bar) => { store.bar = bar; });
 
-// The theme of Kulisa's own UI (app.js): CSS does the rest (tokens.css: color-scheme, light-dark()). The tasks' bar
+// The theme of Kulisa's own UI (app.ts): CSS does the rest (tokens.css: color-scheme, light-dark()). The tasks' bar
 // over the grid or under it. The open project's color for the whole window (--project); none: Kulisa's own colors.
 watch(() => store.theme, (t) => { root.dataset.theme = t; });
 watch(() => store.bar, (b) => { root.dataset.bar = b; });
@@ -58,7 +58,7 @@ watch(() => store.projects.projects.find((p) => p.id === store.projects.current)
   if (color) root.style.setProperty('--project', color); else root.style.removeProperty('--project');
 }, { immediate: true });
 
-// The agent's activity: a caption over the pane (the cursor itself is drawn inside the page, ghost.js). A sticky one
+// The agent's activity: a caption over the pane (the cursor itself is drawn inside the page, ghost.ts). A sticky one
 // (what highlighted elements are) stays until the next one; the others go after 4 s. Not over a sign-in page, which
 // says the agent is paused.
 const captionTimers = new Map<string, number>();
