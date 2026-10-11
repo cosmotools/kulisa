@@ -13,7 +13,7 @@ here; what is left of it stays.
   done in **tasks** (the word replaced "workspace" everywhere: code, docs, CLAUDE.md). No migration: Kulisa is in
   development, the new layout does not read the old data, the author starts with an empty `~/.config/Kulisa`.
   - **Status** (keep it current: a new session reads it first). 2026-10-10: all steps below are built and
-    committed on `tasks`, not pushed; the full `npm test` passes. Step 7, the projects' manager, built 2026-10-10 (`147e862`); the
+    committed (on `tasks` until 2026-10-11, then merged into `main`, the branch the stabilization goes on from); the full `npm test` passes. Step 7, the projects' manager, built 2026-10-10 (`147e862`); the
     author's data was cleared of the old format then (one data format only: old data is deleted, never read or
     migrated). The author is testing it by hand. The window was then rewritten in Vue 3 and TypeScript, built by Vite (the author's
     decision, 2026-10-10: the whole renderer at once, TypeScript from the start, the bugs of the rebuild after; how it is

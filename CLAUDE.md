@@ -13,7 +13,7 @@ any work in web apps (several clients' tenants, admin and support work). Not a b
 accounts or getting past bot detection (the author despises those): the human's own accounts, signed in by hand.
 Everything happens inside Kulisa; no external Chrome windows.
 
-**Being rewritten (since 2026-10-10, branch `tasks`).** Kulisa is being rebuilt around projects and tasks: tasks
+**Being rewritten (since 2026-10-10; on `main` since 2026-10-11, being stabilized there).** Kulisa is being rebuilt around projects and tasks: tasks
 replace workspaces; projects are composites (repositories, agents with accounts, profiles); profiles live in one
 store with a master each and a copy per task; test users sign in with saved pairs on local pages; real accounts'
 cookies are kept in step between a master and its copies. The design, the steps and what is left of each: ROADMAP,
