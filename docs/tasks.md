@@ -109,9 +109,13 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   and the settings say so, with Show, while it exists (the human moves its files, or asks an agent).
 - **The Welcome screen** (the term: CLAUDE.md) is what the window shows with no project open: at the first start, and
   after the last project is closed (Close Project, the middle button on its label, deleting the project). What a project
-  is, in a sentence (its code, its agents, its profiles; a task an agent in a copy of the code); New Project…; every
-  project, each with its icon in its color as on its label in the bar (a click opens one; its
-  right-click menu: Open, Project Settings…); and links (the
+  is, in a sentence (its code, its agents, its profiles; a task an agent in a copy of the code); New Project…; **the
+  tasks, grouped by project** (the author, 2026-10-11: the bar's tabs are tasks, so what is opened is a task): each
+  project's heading with its icon in its color, as its label in the bar (a click opens it as it was left; its
+  right-click: Open, Project Settings…), its tasks under it (those open when it was closed, then the closed ones, the
+  one closed last first; its branch when it is not its name, "closed", "merged"; a click opens the project on that
+  task, a closed one opened again), New Task for a project with none; the windows get each project's tasks with it
+  (`shell.projects`); and links (the
   documentation, GitHub, reporting an issue, also in ☰; they open in the user's browser) with Kulisa's version. Later starts
   open the windows that were open, each with its projects, showing the one shown last (`windows` in `settings.json`);
   `KULISA_PROJECT=<folder> npm start` adds that one to the first window and shows it.

@@ -1,21 +1,25 @@
 <script setup lang="ts">
 // The Welcome screen (no project open: at the first start, after the last project is closed), as JetBrains': New
-// Project… (also for a folder there already), the projects (a click opens one; its right-click has its
-// settings, in the projects' manager, where it is deleted too), and
-// links with Kulisa's version. On one island in the grid's
-// place (text on the project's glow reads badly).
+// Project… (also for a folder there already); the tasks, grouped by project (the author, 2026-10-11: the bar's tabs
+// are tasks, so what is opened from here is a task): each project's heading in its color (a click opens it as it was
+// left), its tasks under it (those open when it was closed, then the closed ones, the one closed last first; a click
+// opens the project on that task), New Task for one with none; a project's right-click: Open, Project Settings… (the
+// projects' manager, where it is deleted too). Links with Kulisa's version. On one island in the grid's place (text on
+// the project's glow reads badly).
 import ProjectIcon from './ProjectIcon.vue';
 import RightClickMenu from './menu/RightClickMenu.vue';
 import icon from '../../../assets/icon.svg';
 import { store } from '../lib/store';
 import { LINKS, version } from '../lib/common';
 import type { MenuItem } from '../lib/menu';
+import type { ProjectTask } from '../types';
 import { dialog } from '../lib/dialogs';
 
-const openProject = (id: string) => kulisa.invoke('project:open', { id });
+const open = (id: string, task?: number) => kulisa.invoke('project:open', { id, task });
+const about = (t: ProjectTask) => [t.branch !== t.name && t.branch, t.closed && 'closed', t.merged && 'merged'].filter(Boolean).join(' · ');
 function menu(e: MouseEvent): MenuItem[] | null {
   const id = (e.target as Element).closest<HTMLElement>('[data-project]')?.dataset.project;
-  return id ? [{ label: 'Open', run: () => openProject(id) }, { label: 'Project Settings…', run: () => dialog('projects').then((d) => d.openProjects(id)) }] : null;
+  return id ? [{ label: 'Open', run: () => open(id) }, { label: 'Project Settings…', run: () => dialog('projects').then((d) => d.openProjects(id)) }] : null;
 }
 </script>
 
@@ -28,10 +32,14 @@ function menu(e: MouseEvent): MenuItem[] | null {
     <div class="start">
       <button id="welcome-new" @click="dialog('projects').then((d) => d.newProject())">New Project…</button>
     </div>
-    <h3 v-if="store.projects.projects.length">Projects</h3>
+    <h3 v-if="store.projects.projects.length">Tasks</h3>
     <RightClickMenu :items="menu"><div id="welcome-list">
-      <button v-for="p in store.projects.projects" :key="p.id" class="item" :data-project="p.id" :style="{ '--color': p.color }" @click="openProject(p.id)"><ProjectIcon :p /><span
-        class="text"><span class="label">{{ p.name }}</span><small :title="p.folder">{{ p.folder }}</small></span></button>
+      <section v-for="p in store.projects.projects" :key="p.id" class="wgroup" :data-project="p.id" :style="{ '--color': p.color }">
+        <button class="item wproject" :title="p.folder" @click="open(p.id)"><ProjectIcon :p /><span class="text"><span class="label">{{ p.name }}</span></span></button>
+        <button v-for="t in p.tasks" :key="t.n" class="item wtask" :class="{ closed: t.closed }" :data-task="t.n" @click="open(p.id, t.n)"><span
+          class="text"><span class="label">{{ t.name }}</span><small>{{ about(t) }}</small></span></button>
+        <button v-if="!p.tasks.length" class="item wtask wnew" @click="open(p.id)"><span class="text"><span class="label">New Task</span><small>No tasks yet</small></span></button>
+      </section>
     </div></RightClickMenu>
     <nav class="links">
       <a v-for="l in LINKS" :key="l.href" :href="l.href" target="_blank">{{ l.label }}</a>
@@ -53,9 +61,15 @@ function menu(e: MouseEvent): MenuItem[] | null {
     color: var(--text-muted);
     a { color: inherit; &:hover { color: var(--text); } } }
 }
-/* The projects, as the project menu's rows but roomier */
-#welcome-list { display: flex; flex-direction: column; gap: 4px; width: min(520px, 100%); margin-top: var(--gap);
-  .item { gap: 12px; padding: 10px 14px; .text { gap: 3px; } .label { color: var(--text-strong); } }
+/* The tasks, grouped by project: each project's heading in its color, its tasks under it, set in to its name; rows
+   as a menu's but roomier; the list scrolls when it is long */
+#welcome-list { display: flex; flex-direction: column; gap: var(--gap); width: min(520px, 100%); max-height: 50vh; overflow: auto;
+  margin-top: var(--gap);
+  .wgroup { display: flex; flex-direction: column; gap: 2px; }
+  .item { gap: 12px; padding: 8px 14px; .text { gap: 3px; } }
+  .wproject .label { color: var(--text-strong); font-weight: 600; }
+  .wtask { padding-inline-start: calc(14px + 20px + 12px); .label { color: var(--text-strong); } &.closed .label { color: var(--text); } }
+  .wnew .label { color: var(--text-dim); }
   .picon { flex: none; width: 20px; height: 20px; color: var(--color); }
 }
 </style>

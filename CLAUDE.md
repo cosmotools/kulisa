@@ -80,7 +80,7 @@ unasked. This paragraph is removed when the rewrite is finished.
   installs a missing agent itself with its maker's installer when the human asks, without steps for them to type.
 - **Terminology: "Welcome screen"** (the author also says "Экран"), as JetBrains names it: what the window shows
   instead of the grid when no project is open (at first start, after its last tab is closed): New Project…,
-  the projects. `Welcome.vue`. Not "window" (there is one) or "page".
+  the tasks, grouped by project. `Welcome.vue`. Not "window" (there is one) or "page".
 - **Terminology: "task"** for one line of work inside a project: an agent (its terminal and session, any agent
   CLI), a branch of the code, profiles and a grid. It replaced "workspace" (the word of tools for parallel agents,
   e.g. Conductor) on 2026-10-10; earlier commits say workspace. Each works in a git worktree of its own next to the

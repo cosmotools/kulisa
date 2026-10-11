@@ -125,7 +125,16 @@ function start(options = {}) {
   // or one to choose in its group's panel.
   const favicons = new Map();
   const faviconFor = (folder) => (favicons.has(folder) ? favicons.get(folder) : favicons.set(folder, faviconOf(folder)).get(folder));
-  shell.projects = () => store.projects().map((p) => { const favicon = faviconFor(p.folder); return favicon ? { ...p, favicon } : p; });
+  // And its tasks (the Welcome screen's list): those open, as made, then the closed ones, the one closed last first.
+  const tasksOf = (p) => {
+    const list = store.tasksOf(p).list.map(({ n, name, branch, closed, closedAt, merged }) => ({ n, name, branch, closed: !!closed, closedAt, merged: !!merged }));
+    return [...list.filter((t) => !t.closed), ...list.filter((t) => t.closed).sort((a, b) => (b.closedAt || 0) - (a.closedAt || 0))]
+      .map(({ closedAt, ...t }) => t);
+  };
+  shell.projects = () => store.projects().map((p) => {
+    const favicon = faviconFor(p.folder);
+    return { ...p, ...(favicon && { favicon }), tasks: tasksOf(p) };
+  });
   // A question asked in a window (window.js), the first one when none is named: askWhich gives the button clicked
   // ('ok', 'other') or null; ask whether it was ok. Through shell: the tests answer it.
   shell.askWhich = (q, w = first()) => w.ask(q);
@@ -178,8 +187,14 @@ function start(options = {}) {
   const addProject = (p, w) => { const project = new Project(shell, p); shell.open.set(p.id, project); w.add(project); return project; };
   // A project shown: in a tab of window w at the end, unless it is open already: then its window shows it, brought to
   // the front.
-  async function openProject(p, w) {
-    const project = shell.open.get(p.id) || addProject(p, w);
+  // A project shown on its task n when asked for (the Welcome screen's tasks), opened again if it was closed.
+  const onTask = (project, n) => {
+    const task = n != null && project.tasks.get(n);
+    if (task) { if (task.entry.closed) project.reopen(task); project.select(task); }
+    return project;
+  };
+  async function openProject(p, w, n) {
+    const project = onTask(shell.open.get(p.id) || addProject(p, w), n);
     if (project.window !== w) project.window.focus();
     await project.window.show(project);
     sendProjects();
@@ -254,9 +269,9 @@ function start(options = {}) {
     return { id: project.id };
   }
   // A project not open yet, in a window of its own next to window from (the human chose New Window).
-  async function openInNewWindow(p, from) {
+  async function openInNewWindow(p, from, n) {
     const to = newWindow({ near: from.win });
-    await showInNew(to, addProject(p, to));
+    await showInNew(to, onTask(addProject(p, to), n));
   }
   async function showInNew(to, project) {
     const loading = to.load(project);
@@ -391,19 +406,19 @@ function start(options = {}) {
   // The switch runs on its own; the window hears about it through grid:closing, projects, tasks and state. A
   // project not open yet, asked for in a window with projects open: the human chooses where, as in JetBrains: in a tab
   // of this window, or in a new window.
-  const openLater = (p, w) => {
+  const openLater = (p, w, n) => {
     setImmediate(async () => {
       const where = shell.open.has(p.id) || !w.tabs.length ? 'ok' : await shell.askWhich({ message: `Where to open the project ${p.name}?`,
         detail: `This Window: in a tab of its own here; the projects open here keep running. New Window: in a window of its own.`,
         ok: 'This Window', other: 'New Window' }, w);
       if (!where || !shell.windows.includes(w)) return;
-      await serial(() => (where === 'other' && !shell.open.has(p.id) ? openInNewWindow(p, w) : openProject(p, w)));
+      await serial(() => (where === 'other' && !shell.open.has(p.id) ? openInNewWindow(p, w, n) : openProject(p, w, n)));
     });
     return w.info();
   };
-  ipcMain.handle('project:open', (e, { id, folder }) => {
+  ipcMain.handle('project:open', (e, { id, folder, task }) => {
     const p = id ? store.projects().find((x) => x.id === id) : folder && fs.existsSync(folder) ? projectOfFolder(path.resolve(folder)) : null;
-    return p ? openLater(p, at(e)) : { error: 'no such project' };
+    return p ? openLater(p, at(e), task) : { error: 'no such project' };
   });
   // New Project…, as JetBrains': the folder <location>/<name>, the location ~/Kulisa (every new project's place, as
   // JetBrains' ~/PycharmProjects) unless the human picks another, so they know where the agent's files are. A folder

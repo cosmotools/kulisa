@@ -647,12 +647,16 @@ module.exports = (test) => {
     assert.equal(await ui(`document.documentElement.style.getPropertyValue('--project')`), '', "no project's color");
     assert.equal(shell.win.getTitle(), 'Kulisa');
     assert.deepEqual(savedWindows(), [{ tabs: [], shown: null }], 'the window opens so next time');
-    // Every project, each with its icon in its color, as on its label in the bar.
-    assert.equal(await ui(`document.querySelector('#welcome h3').textContent`), 'Projects');
-    assert.deepEqual(await ui(`[...document.querySelectorAll('#welcome-list .item')].map((b) => b.querySelector('.picon use')?.getAttribute('href') ?? null)`),
+    // The tasks, grouped by project: each project's heading with its icon in its color, as on its label in the bar;
+    // its tasks under it, the one closed last first (all are closed here).
+    assert.equal(await ui(`document.querySelector('#welcome h3').textContent`), 'Tasks');
+    assert.deepEqual(await ui(`[...document.querySelectorAll('#welcome-list .wproject')].map((b) => b.querySelector('.picon use')?.getAttribute('href') ?? null)`),
       shell.store.projects().map((p) => (p.icon === 'favicon' ? null : p.icon && p.icon !== 'logo' ? `#i-p-${p.icon}` : '#i-logo')));
-    // Opened again: on the task closed last; the others wait in its group's menu.
-    await ui(`[...document.querySelectorAll('#welcome-list .item')].find((b) => b.querySelector('.label').textContent === 'project').click()`);
+    const byClosing = tasksFile().list.filter((e) => e.closed).sort((a, b) => b.closedAt - a.closedAt).map((e) => e.name);
+    assert.deepEqual(await ui(`[...document.querySelectorAll('#welcome-list [data-project="project"] .wtask .label')].map((l) => l.textContent)`), byClosing);
+    assert.equal(byClosing[0], 'Feature-X');
+    // Its heading: opened again as it was left, on the task closed last; the others wait in its group's panel.
+    await ui(`document.querySelector('#welcome-list [data-project="project"] .wproject').click()`);
     await waitFor(() => shell.task?.n === 2 && shell.task.loaded && shell.pty);
     ctx.watchPty(shell.pty);
     await waitFor(() => ui(`!document.documentElement.classList.contains('noproject') && !document.documentElement.classList.contains('loading')`));
@@ -1106,9 +1110,18 @@ module.exports = (test) => {
     await choose(ui, 'Project Settings…');
     await waitFor(() => ui(`document.getElementById('projects')?.dataset.state === 'open' && document.getElementById('pjtitle').textContent === 'project'`));
     await closeSettings(ui);
-    await ui(`document.querySelector('#welcome-list [data-project="project"]').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 300, clientY: 300 }))`);
-    await menuRows(ui);
-    await choose(ui, 'Open');
+    // A task's row: the project opens on that task, a closed one opened again.
+    const closed = shell.store.tasksOf({ id: 'project' }).list.find((e) => e.closed);
+    assert.ok(closed && closed.n !== 1, 'a closed task to open');
+    await ui(`document.querySelector('#welcome-list [data-project="project"] .wtask[data-task="${closed.n}"]').click()`);
+    await waitFor(() => shell.task?.n === closed.n && shell.task.loaded && shell.pty && !shell.windows[0].switching);
+    assert.ok(!shell.task.entry.closed, 'open again');
+    await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
+    // Closed again and back on task-1, as the tests after and the restart phase expect.
+    await ui(`${taskTab(closed.n)}.querySelector('.close').click()`);
+    await waitFor(() => shell.current.tasks.get(closed.n).entry.closed && !shell.windows[0].switching);
+    await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
+    if (shell.task?.n !== 1) await click(ui, taskTab(1));
     await waitFor(() => shell.task?.n === 1 && shell.task.loaded && shell.pty);
     ctx.watchPty(shell.pty);
     await waitFor(() => ui(`!document.documentElement.classList.contains('noproject') && !document.documentElement.classList.contains('loading')`));
