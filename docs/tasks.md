@@ -270,7 +270,9 @@ are not programmers); its accounts are made there too, or in a project's page.
   - **Made in Settings → Agents** (New Account… under its agent: in no project yet) **or in a project** (its page,
     New Account…, an agent: in that project): the agent's own sign-in starts at once, as
     its `/login` does (Claude Code `auth login`, Codex `login`), in a terminal there (`AccountSignIn.vue`),
-    and ends once signed in. Its folder in Kulisa's data has a fixed id (`agents/claude-<n>/`, never a number used
+    and ends once signed in. The terminal is under Details, closed (the author, 2026-10-11: the address it prints, with
+    the window open, only confused); it opens by itself when the sign-in fails, and is there for what the window does
+    not show (the address where the agent opened the user's browser instead, a code it asks for). Its folder in Kulisa's data has a fixed id (`agents/claude-<n>/`, never a number used
     before: a removed one's folder may wait for the next start), never renamed: Claude Code names its macOS Keychain
     entry after a hash of the config folder's path (checked in 2.1.296), so a folder renamed after the sign-in would
     lose it. The email it signed in to is read after it (`auth status`) and kept in `agents.json`: the account is
@@ -281,7 +283,9 @@ are not programmers); its accounts are made there too, or in a project's page.
     **The page opens in a clean browser of Kulisa's**, not the user's (the author, 2026-10-11: theirs is signed in to
     other accounts, which they would have to sign out of and back into): the agent's `BROWSER` is Kulisa's
     `src/agent/open-url`, which sends the address to Kulisa (its local server, a token per sign-in), and Kulisa shows
-    it in a window of its own with a master's bar (the address: the human sees which site it is), presenting as Chrome,
+    it in a window of its own under a bar as an OAuth popup's in Chrome (the author, 2026-10-11): the site it is on
+    alone, which the page cannot fake (the human sees where they sign in), no address to type, no back, forward or
+    reload (a master's window has them: there the human goes to sites themselves), presenting as Chrome,
     its session in memory only (nothing on disk); it closes when the sign-in ends, its session wiped, and closed by the
     human it ends the sign-in. Claude Code reads `BROWSER` on Linux (checked in 2.1.296); on macOS and Windows not
     checked (there it may still open the user's browser), and on Windows it is not set (a sh script).

@@ -445,6 +445,9 @@ module.exports = (test) => {
     assert.equal(await ui(`document.querySelector('#projects h2').textContent`), 'Settings');
     assert.equal(await ui(`document.querySelector('#projects .pjtab').dataset.state`), 'inactive', 'the Projects tab behind it');
     assert.equal(await ui(`document.querySelectorAll('#projects .agtab .agentrow [role="radio"]').length`), 0, 'no choice to make');
+    // Each agent with its maker's mark (the terminal only: a terminal's).
+    assert.ok(await ui(`!!document.querySelector('.sprite #i-agent-shell') && !!document.querySelector('.sprite #i-agent-claude') && !!document.querySelector('.sprite #i-agent-codex')`));
+    assert.equal(await ui(agentRow('shell', '.logo use') + `.getAttribute('href')`), '#i-agent-shell');
     assert.equal(await ui(`document.querySelector('#projects .agtab [data-accounts="fake"] .empty')?.textContent`), 'No accounts yet.');
     assert.equal(await ui(`document.querySelector('#projects .agtab [data-accounts="fake"] .accountnew').disabled`), true, 'not installed: no account yet');
     assert.equal(await ui(agentRow('fake', '.status') + '.textContent'), 'Not installed');
@@ -537,16 +540,21 @@ module.exports = (test) => {
   };
   const accountDir = (id) => path.join(userData, 'agents', id);
   const logouts = () => { try { return fs.readFileSync(path.join(root, 'logouts'), 'utf8').trim().split('\n'); } catch { return []; } };
-  test("agents: a new account is made in the project's settings: the agent's own sign-in at once, in a terminal there, its page in a clean browser of Kulisa's; named by the email it signed in to; a task runs it with its folder", async (ctx) => {
+  test("agents: a new account is made in the project's settings: the agent's own sign-in at once, in a terminal there (under Details), its page in a clean browser of Kulisa's (its site alone over it); named by the email it signed in to; a task runs it with its folder", async (ctx) => {
     const { shell, ui } = ctx;
     await projectSettings(ui);
     let p = await signIn(ctx);
     const dir = accountDir('fake-1');
     assert.ok(fs.existsSync(dir), 'its folder, a fixed id: never renamed');
-    assert.ok(await ui(`!!document.querySelector('#npsigninterm .xterm')`), 'the sign-in in a terminal of the dialog');
+    assert.ok(await ui(`!!document.querySelector('#npsigninterm .xterm') && !document.getElementById('npsigninterm').checkVisibility()`),
+      'the sign-in in a terminal of the dialog, under Details: what it says the window shows');
     // The page it opens is in a clean browser of Kulisa's, not the user's: a session in memory, no sign-in of theirs.
     const clean = [...shell.signinWindows][0];
     assert.equal(clean.profile.session.isPersistent(), false, 'nothing of it on disk');
+    // Its bar as an OAuth popup's: the site it is on, nothing to go elsewhere.
+    const bar = () => clean.win.webContents.executeJavaScript(`[document.getElementById('site')?.textContent.trim(), !!document.querySelector('#address, #back, #forward, #reload')]`);
+    await waitFor(async () => (await bar())[0] === `Not secure · ${new URL(SITE).host}`);
+    assert.equal((await bar())[1], false);
     assert.deepEqual(await clean.profile.session.cookies.get({ url: SITE }), []);
     p.write('Work@Shop.com\r');
     await waitFor(() => ui(`!!document.querySelector('#npagents [data-agent="fake-1"]') && !document.getElementById('npsignin')`));
@@ -576,6 +584,8 @@ module.exports = (test) => {
     p.write('\r');
     await waitFor(async () => /Not signed in/.test(await ui(`document.getElementById('npsigninerror').textContent`)));
     assert.equal(await ui(`document.getElementById('npsigninstart').hidden`), false);
+    assert.ok(await ui(`document.getElementById('npsigninterm').checkVisibility() && !!document.querySelector('#npsigninterm .xterm')`),
+      'its Details open by itself, with what the agent said');
     assert.ok(!fs.existsSync(accountDir('fake-5')));
     await ui(`document.getElementById('npsignincancel').click()`);
     await closeSettings(ui);

@@ -13,7 +13,7 @@ const { Profile, toUrl, wipeSession } = require('./profiles');
 const { writeFileAtomic } = require('./store');
 const { page } = require('./pages');
 
-const BAR = 44; // keep in sync with #bar in Master.vue
+const BAR = 44, SIGNIN_BAR = 32; // keep in sync with #bar in Master.vue
 
 function installMasters(shell, { preload, colors }) {
   shell.masters = new Map(); // folder -> { win, profile }
@@ -51,7 +51,7 @@ function installMasters(shell, { preload, colors }) {
   };
   // A clean browser for an agent's own sign-in (app.js, account:signin; tasks.md, Accounts): the page the agent opens
   // (its BROWSER is Kulisa's open-url), in a session in memory (a partition without persist:), so none of the human's
-  // sign-ins is there and nothing of it is written to disk; under a master's bar, so the human sees which site it is.
+  // sign-ins is there and nothing of it is written to disk; its bar the site alone, as an OAuth popup's (Master.vue).
   // Presenting as Chrome, nothing automated attached. Closed by the sign-in when it ends (or by the human: the sign-in
   // then gets nowhere), its session wiped with it. { closed (a promise), close() }.
   shell.signinWindows = new Set();
@@ -66,10 +66,10 @@ function installMasters(shell, { preload, colors }) {
     shell.signinWindows.add(m);
     const closed = new Promise((resolve) => win.on('closed', resolve));
     win.on('close', (e) => { if (!m.closed && !shell.quitting) { e.preventDefault(); close(m); } });
-    const place = () => { if (win.isDestroyed()) return; const [width, height] = win.getContentSize(); profile.layout({ x: 0, y: BAR, width, height: Math.max(0, height - BAR) }); };
+    const place = () => { if (win.isDestroyed()) return; const [width, height] = win.getContentSize(); profile.layout({ x: 0, y: SIGNIN_BAR, width, height: Math.max(0, height - SIGNIN_BAR) }); };
     const tell = () => { const t = profile.get(); if (!win.isDestroyed() && t && !t.wc.isDestroyed()) win.webContents.send('master:url', t.wc.getURL()); };
     try {
-      await win.loadFile(page('master.html'), { query: { what, theme: shell.shade() } });
+      await win.loadFile(page('master.html'), { query: { signin: '', what, theme: shell.shade() } });
       profile.on('changed', () => { place(); tell(); });
       win.on('resize', place);
       m.ready = profile.newTab(url).ready;
@@ -103,7 +103,7 @@ function installMasters(shell, { preload, colors }) {
   }
   // The bar's controls, each acting in the master of the window it comes from.
   const of = async (e) => {
-    const m = [...shell.masters.values(), ...shell.signinWindows].find((x) => !x.win.isDestroyed() && x.win.webContents === e.sender);
+    const m = [...shell.masters.values()].find((x) => !x.win.isDestroyed() && x.win.webContents === e.sender);
     await m?.ready;
     return m?.profile.get() ? m : null;
   };
