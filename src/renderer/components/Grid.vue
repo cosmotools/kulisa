@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // The grid of the shown task (lib/grid.ts; docs/window.md, The grid). A profile's page is a native view over its pane's
-// .content, rounded in profiles.js (PAGE_RADIUS).
+// .content, rounded in profiles.ts (PAGE_RADIUS).
 import { markRaw } from 'vue';
 import { DockviewVue, themeAbyssSpaced, type IDockviewVueProps } from 'dockview-vue';
 import 'dockview-vue/dist/styles/dockview.css';

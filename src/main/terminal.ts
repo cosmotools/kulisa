@@ -1,0 +1,123 @@
+// xterm.js in the renderer, node-pty here running the agent CLI unchanged. A task's agent has its terminal (the
+// task's key); the task's other terminals (tasks.ts, openTerminal) are "<key>#<id>". The window shows
+// the shown task's, the others keep running (and the window keeps their output).
+import { ipcMain } from 'electron';
+import { stripVTControlCharacters } from 'util';
+import os from 'os';
+import pty from 'node-pty';
+import type { IPty } from 'node-pty';
+
+// What an agent can read back of a terminal's output (terminalTail): its last characters, kept per terminal.
+const TAIL = 200_000;
+
+interface Size { cols: number; rows: number }
+// A terminal's process, with what Kulisa keeps of it.
+type Pty = IPty & { spawnSize: Size; spawnArgs: string[]; key: string; tail: string; stopped?: boolean };
+// How a terminal starts (startTerminal).
+interface TerminalConfig {
+  command?: string | null; args?: string[]; cwd?: string; env?: Record<string, string | undefined>;
+  shell?: { command: string; args?: string[] } | false | null; line?: string; size?: Size | null; sizeOf?: string;
+}
+type Send = (channel: string, data: unknown) => void;
+interface Term { pty: Pty | null; size: Size | null; firstSize: Promise<void>; sized: () => void }
+
+// The terminal's size as the window measures it, per task. An agent starts only once its size is known: Claude
+// Code draws its prompt for the size it starts with and does not fully redraw on the first resize. Listening from
+// require time, so a size sent while the window loads is not missed.
+const terms = new Map<string, Term>(); // key -> { pty, size, sized (resolves the first size) }
+const termOf = (key: string) => {
+  if (!terms.has(key)) {
+    let sized!: () => void;
+    const firstSize = new Promise<void>((r) => (sized = r));
+    terms.set(key, { pty: null, size: null, firstSize, sized });
+  }
+  return terms.get(key)!;
+};
+ipcMain.on('pty:resize', (_e, { task, cols, rows }: { task: string } & Size) => {
+  const t = termOf(task);
+  t.size = { cols, rows }; t.sized();
+  try { t.pty?.resize(cols, rows); } catch {}
+});
+ipcMain.on('pty:in', (_e, { task, data }: { task: string; data: string }) => terms.get(task)?.pty?.write(data));
+
+// The user's shell as a terminal app starts it (login shell on macOS, as Terminal and VS Code do). An app started
+// from the Dock or a menu may have no SHELL; the account's shell is the same then.
+const userShell = () => (process.platform === 'win32' ? null
+  : { command: process.env.SHELL || os.userInfo().shell || '/bin/sh', args: process.platform === 'darwin' ? ['-l'] : [] });
+const shQuote = (a: string) => (/^[\w@%+=:,./-]+$/.test(a) ? a : `'${a.replace(/'/g, `'\\''`)}'`);
+
+// cfg: { command, args, cwd, env, shell, line, size, sizeOf }. The agent is typed into the user's shell started in cwd, as if the human
+// opened a terminal in the project and ran it: the shell's startup sets the project's environment (direnv's .envrc,
+// nvm, mise …), which Kulisa's own environment (where Kulisa was started) is not. When the agent exits, the shell
+// stays. shell: { command, args } instead of the user's, or false to start the agent directly (as on Windows).
+// line: a command line typed into the shell as it is (a terminal's other than the agent's; none: the shell alone),
+// on Windows into cmd. size: start at it rather than wait for the window's (a terminal behind another panel has none);
+// sizeOf: or at that terminal's (the agent's, whose panel it sits behind after a restart), whichever comes first.
+// key: the task's; the window sends its input and size, and gets its output, under it. send(channel, data): to
+// the task's window, whichever it is then.
+async function startTerminal(send: Send, cfg: TerminalConfig, key: string): Promise<Pty> {
+  const t = termOf(key), like = cfg.sizeOf ? termOf(cfg.sizeOf) : null;
+  if (!cfg.size) await Promise.race([t.firstSize, like?.firstSize, new Promise((r) => setTimeout(r, 5000))].filter(Boolean));
+  const { cols, rows } = t.size || cfg.size || like?.size || { cols: 120, rows: 30 };
+  const sh: { command: string; args?: string[] } | null = cfg.shell === false ? null : cfg.shell || userShell() || (cfg.line !== undefined ? { command: process.env.COMSPEC || 'cmd.exe' } : null);
+  const command = cfg.command || (process.platform === 'win32' ? process.env.COMSPEC || 'cmd.exe' : process.env.SHELL || 'bash');
+  const p = pty.spawn(sh ? sh.command : command, sh ? sh.args || [] : cfg.args || [], {
+    name: 'xterm-256color', cols, rows, cwd: cfg.cwd || process.cwd(),
+    env: { ...process.env, COLORTERM: 'truecolor', ...(cfg.env || {}) } as Record<string, string>,
+  }) as Pty;
+  if (cfg.line) typeWhenReady(p, `${cfg.line}\r`);
+  else if (sh && cfg.command) typeWhenReady(p, ` ${[cfg.command, ...(cfg.args || [])].map(shQuote).join(' ')}\r`);
+  p.spawnSize = { cols: p.cols, rows: p.rows };
+  p.spawnArgs = cfg.args || [];
+  p.key = key;
+  // An agent that was replaced says nothing more in the window.
+  p.tail = '';
+  const out = (data: string) => { p.tail = (p.tail + data).slice(-TAIL); if (t.pty === p) send('pty:out', { task: key, data }); };
+  p.onData(out);
+  p.onExit(({ exitCode }) => out(`\r\n[process exited ${exitCode}]\r\n`));
+  t.pty = p;
+  return p;
+}
+
+// Type the agent's command once the shell reads its input line, or it shows twice (the terminal echoes what comes
+// before, then the shell shows it again). A shell reading a line turns bracketed paste on (bash, zsh, fish); for
+// other shells, once the output has been quiet for a moment. A leading space keeps it out of the shell's history
+// (bash's default ignorespace).
+function typeWhenReady(p: IPty, line: string) {
+  let done = false, quiet: NodeJS.Timeout | undefined;
+  const type = () => { if (done) return; done = true; sub.dispose(); clearTimeout(quiet); clearTimeout(limit); p.write(line); };
+  const sub = p.onData((d) => {
+    if (d.includes('\x1b[?2004h')) return type();
+    clearTimeout(quiet); quiet = setTimeout(type, 500);
+  });
+  const limit = setTimeout(type, 5000);
+}
+
+// Stop the agent; its output no longer reaches the window. The terminal's size is kept for the next agent there.
+function stopTerminal(p: Pty) {
+  p.stopped = true;
+  const t = terms.get(p.key);
+  if (t?.pty === p) t.pty = null;
+  try { p.kill(); } catch {}
+}
+
+// A task gone (its project closed, a task deleted), or a terminal closed: its size too. Opened again, the window
+// measures it anew.
+const forgetTerminal = (key: string) => terms.delete(key);
+// The size the window gave a terminal, if any.
+const terminalSize = (key: string) => terms.get(key)?.size || null;
+
+// The last lines of a terminal's output as plain text, as it shows them: colors and cursor moves left out, a line
+// rewritten in place (a progress bar, \r) as it was last written.
+function terminalTail(p: Pty, lines: number) {
+  return stripVTControlCharacters(p.tail).split('\n').map((l) => l.split('\r').filter(Boolean).at(-1) ?? '')
+    .map((l) => l.trimEnd()).join('\n').trimEnd().split('\n').slice(-lines).join('\n');
+}
+
+// Put text into the agent's prompt as a paste (bracketed: one block, nothing in it is taken as a key), not sent.
+function typeIntoPrompt(p: IPty, text: string) {
+  p.write(`\x1b[200~${text}\x1b[201~`);
+}
+
+export type { Pty };
+export { startTerminal, stopTerminal, forgetTerminal, terminalSize, terminalTail, typeIntoPrompt };

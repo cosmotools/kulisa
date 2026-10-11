@@ -62,7 +62,7 @@ function groupItems(id: string): MenuItem[] {
   return [{ label: 'New Task', keys: id === store.projects.current ? keyText('task.new') : undefined, run: () => kulisa.invoke('task:new', { project: id }) },
     ...(closed.length ? ['-' as const, { heading: 'Closed tasks' }, ...closed.map((t) => ({ label: t.name, sub: [t.branch, t.merged && 'merged'].filter(Boolean).join(' · ') || undefined,
       run: () => kulisa.invoke('task:open', t.key) }))] : []),
-    // Its PR merged, nothing uncommitted: deleting loses nothing (projects.js, checkMerged).
+    // Its PR merged, nothing uncommitted: deleting loses nothing (projects.ts, checkMerged).
     ...(closed.some((t) => t.merged) ? [{ label: 'Delete Merged Tasks…', run: () => kulisa.invoke('project:delete-merged', { id }) }] : []),
     // The only tab stays: a new window would be the same as this one.
     '-', { label: 'Move to New Window', enabled: open.length > 1, run: () => move(null) },

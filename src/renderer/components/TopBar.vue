@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // The window's title bar and ☰ (docs/window.md, The title bar, Menus). env(titlebar-area-*) leaves room for the OS
-// window buttons on every platform (titleBarOverlay in window.js). Exit only where the OS has no menu bar
+// window buttons on every platform (titleBarOverlay in window.ts). Exit only where the OS has no menu bar
 // with Quit (not macOS: Cmd+Q there).
 import Icon from './Icon.vue';
 import ButtonMenu from './menu/ButtonMenu.vue';

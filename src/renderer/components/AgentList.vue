@@ -2,7 +2,7 @@
 // The agents Kulisa knows (lib/agents.ts) as a list with Install, in both dialogs that show them: choosing a task's
 // agent (AgentPicker.vue) and Settings → Agents (AgentsTab.vue), whose state it draws (list); slot after: what goes under
 // an agent's row there (its accounts). Each row: who makes it and
-// what it needs, whether it is on this computer; choosing, the project's accounts (main/accounts.js). One that is not
+// what it needs, whether it is on this computer; choosing, the project's accounts (main/accounts.ts). One that is not
 // installed has an Install button: Kulisa runs its maker's installer (the command line is shown before). Meanwhile the
 // list says only that it is installing: the installer's own output (written for programmers: "open a new terminal and
 // run …") is under Details, opened by itself when it fails (Reka's Collapsible). Choosing, the rows are Reka's

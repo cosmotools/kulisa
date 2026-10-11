@@ -35,7 +35,7 @@ here; what is left of it stays.
     a script the agent runs in a page (`browser_evaluate`) could read a test password back from its field (only the
     skill forbids it: close it or not). For the author's real accounts, not testable by Claude: device-bound cookies
     (DBSC, Google) and MSAL's sign-ins kept in step (step 6); "Sign in with Google" without the sign-in pause is the
-    author's own replacement of `signin-pause.js`. Step 8 (agents' accounts made in the project, one store) built
+    author's own replacement of `signin-pause.ts`. Step 8 (agents' accounts made in the project, one store) built
     2026-10-11. Then (the author, 2026-10-11) the projects' manager became Settings, its tabs Projects and Agents: the
     agents and their accounts there (☰ → Agents… opens it), an account kept until deleted there, no longer gone with
     its last project (tasks.md, "Choosing the agent", Accounts). Then Settings → Profiles (the author, 2026-10-11): every profile and who it is there, kept until
@@ -74,7 +74,7 @@ here; what is left of it stays.
     repository, on one branch, named `task-N` until the agent renames it (an MCP tool; `git branch -m`). The agent
     starts in the default repository's copy and gets the others with their instructions: Claude Code `--add-dir` and
     `CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1`, Codex `--add-dir`, other CLIs a line at session start
-    (`agents.js`, one entry each). More repositories only from the project, also while the task works (Kulisa types
+    (`agents.ts`, one entry each). More repositories only from the project, also while the task works (Kulisa types
     into the agent's prompt what was added; Claude Code also gets `/add-dir`). A folder without git has no copies: the
     task works right in it, and a second open task there shows a warning ("two agents may get in each other's way")
     and may go on. Ports as today: one offset per task (`KULISA_PORT_OFFSET`, copied tabs moved).
@@ -98,7 +98,7 @@ here; what is left of it stays.
   - **Sign-in rule, narrowed**: built with step 5 ([profiles.md](profiles.md), "Test users' sign-ins"; CLAUDE.md,
     Rules). Left: "Sign in with Google" on a local app, where the human signs in once to a test Google account in the
     profile's master and the agent goes the whole way itself (account chooser, consent) with no sign-in pause on that
-    path, never typing a Google password: the pause part goes into the author's replacement of `signin-pause.js`.
+    path, never typing a Google password: the pause part goes into the author's replacement of `signin-pause.ts`.
   - **Steps**, each working on its own, with its tests:
     1. Tasks replace workspaces: built 2026-10-10 ([tasks.md](tasks.md)), with Kulisa offering to delete a closed
        task once its PR is merged. Left: a squash merge is not seen as merged.
@@ -111,7 +111,7 @@ here; what is left of it stays.
        master's window has one tab shown at a time (a sign-in's popup takes it, the tab before comes back when it
        closes); Refresh brings cookies only (storage: step 6 has the same limit).
     5. Login-password pairs and the narrowed rule: built 2026-10-10 ([profiles.md](profiles.md), "Test users'
-       sign-ins"; what is local: `local.js`, as proposed, with the project's own list in Project Settings…).
+       sign-ins"; what is local: `local.ts`, as proposed, with the project's own list in Project Settings…).
     6. Cookies of non-local sites kept in step between a master and its copies: built 2026-10-10
        ([profiles.md](profiles.md), "Sign-ins kept in step"). Left: device-bound session cookies (DBSC) to check with
        a real Google account in this Electron; sign-ins in a site's storage (MSAL) not kept in step; Refresh from
@@ -159,14 +159,14 @@ here; what is left of it stays.
   - Cost: prompt caching is per account, so the other account reads the whole context again at its first request;
     `/compact` before switching is cheaper. Not decided, an idea beyond the question: Kulisa offering the switch when
     the limit is reached (the `StopFailure` hook already marks the task waiting).
-- **Kulisa plugin: more the agent can do in the browsers** (tools in `mcp-server.js`, each described in the skill;
+- **Kulisa plugin: more the agent can do in the browsers** (tools in `mcp-server.ts`, each described in the skill;
   what is built: [profiles.md](profiles.md), "What the agent does"). What else an agent needs comes from using it
   (the author moves to working in Kulisa, 2026-10-08): where the agent goes around the tools (its own Playwright
   scripts, `curl`, asking the human to do it) is a tool missing; from every user's computer through "Ideas for
   Kulisa" (below). Thought of, not built: console and requests since the agent's last action only; a button over the
   pane for the human to say they signed in, for sign-ins that keep the address.
 - **Screenshots the agent can use** (the author's idea, 2026-10-09; to discuss with the author before building).
-  `browser_screenshot` today takes the visible part of a tab, JPEG at the screen's pixel density (`mcp-server.js`).
+  `browser_screenshot` today takes the visible part of a tab, JPEG at the screen's pixel density (`mcp-server.ts`).
   Proposed, on the same tool, so every agent gets it through the MCP server (the skill and a line in `INSTRUCTIONS`
   describe it):
   - `ref` / `locator`: one element (`locator.screenshot`); `fullPage`: the whole page, scrolled;
@@ -195,7 +195,7 @@ here; what is left of it stays.
     Safari (WebKit is not in Electron; a separate question).
   - A mobile UA and touch (CDP `Emulation.setUserAgentOverride` with `mobile: true`,
     `Emulation.setTouchEmulationEnabled`), else sites that choose by the UA on the server (`m.site`) send the desktop
-    one: a mobile variant of `mimic-chrome.js`'s identity, put back after the pause where the identity is
+    one: a mobile variant of `mimic-chrome.ts`'s identity, put back after the pause where the identity is
     (`Profile.setSigninMode`). During the pause only the desktop identity: a strict sign-in (GoDaddy's Kasada) may
     not take an Android UA from a Linux machine.
   - Kept with the tab across restarts (a field in `Kulisa Tabs.json`). No RAM: no process, no buffers.
@@ -207,7 +207,7 @@ here; what is left of it stays.
   note it, the human sends what they want, without leaving Kulisa. Nothing leaves the computer without the human's
   click: a page could make the agent "report an idea" with the user's data in it (prompt injection), and Kulisa's
   promise is that everything stays on the user's computer.
-  - **The agent notes** (`kulisa_idea` in `mcp-server.js`, any agent): `kind` (`missing`: no tool for it; `bug`: a
+  - **The agent notes** (`kulisa_idea` in `mcp-server.ts`, any agent): `kind` (`missing`: no tool for it; `bug`: a
     tool did not do what it says), `need` (what it had to do, in general words: "read an invitation email"),
     `missing`, `instead` (what it did instead: its own script through the proxy, `curl`, asked the human, gave up),
     `adds_to` (an earlier note of the same gap: its count grows). The tool's description lists the notes there are
@@ -256,7 +256,7 @@ here; what is left of it stays.
   - **The author does** (outward-facing): the private repository, the GitHub App and its key, a Cloudflare account,
     `ideas.kulisa.app` in DNS, the Worker's secrets (`wrangler secret put`). **Claude writes:** the Worker with
     `wrangler.toml`, Kulisa's part, the page on what is received on kulisa.app (`kulisa-site`).
-  - **Tests** (`test/agent.js`, `test/window.js`): the tool notes, `adds_to` counts, the limit of 30, removing a
+  - **Tests** (`test/agent.ts`, `test/window.ts`): the tool notes, `adds_to` counts, the limit of 30, removing a
     project removes its notes; a foreign proxy client brings the reminder once, the shell's does not; an unexpected
     exception in a tool becomes a `bug` note, an error thrown on purpose does not; the question comes after done, not
     twice for a note, not twice a day, never after Don't ask; the list edits, deletes and sends (to the test's
@@ -287,9 +287,9 @@ here; what is left of it stays.
   set of actions: close it when the human wants (more room on the screen, memory, no agent for a while), open an
   agent again when they want (Claude Code, Codex, a plain shell).
   - Processes stay as they are: Kulisa starts the user's shell in a pty and types the agent's command into it
-    (`terminal.js`), as a human in GNOME Terminal would, so the project's environment applies (direnv, nvm, mise).
+    (`terminal.ts`), as a human in GNOME Terminal would, so the project's environment applies (direnv, nvm, mise).
     Closing kills that shell (`p.kill()`) and the agent with it (SIGHUP), and frees its memory (hundreds of MB).
-    Opening again starts a new shell and types the agent with `--resume`: the same conversation (`agents.js`: Claude
+    Opening again starts a new shell and types the agent with `--resume`: the same conversation (`agents.ts`: Claude
     `--resume <id>`, Codex `resume <id>|--last`). Starting the agent directly in the pty, without a shell, was
     weighed and left: the project's environment is made by the shell's startup files and cannot be passed in `env`
     without running a shell anyway.
@@ -366,7 +366,7 @@ here; what is left of it stays.
        wait on a server in its own shell) and open the app in a profile.
     3. Its hooks, as in the item above: trusting them, `$KULISA_URL`, `SessionStart`'s answer, the tab's state,
        `codex resume`.
-  - More agents (Gemini CLI, …): an entry each in `agents.js`.
+  - More agents (Gemini CLI, …): an entry each in `agents.ts`.
   - Windows: the installers run in PowerShell, untested; macOS untested.
   - A hint in an empty grid: since step 7 a new task opens no profile and its grid is the terminal alone, so a hint
     would show in every new task; whether one is wanted (and what it says: the project's profiles in 👥, or "create
@@ -431,7 +431,7 @@ here; what is left of it stays.
   - Checking: Chromium's accessibility tree in DevTools (Accessibility pane); automated checks in the tests, e.g.
     axe-core (Deque's, the most used) on the window's page; by hand with Orca (Linux), NVDA (Windows), VoiceOver
     (macOS).
-- **Keyboard shortcuts, rest** (built: [window.md](window.md), Keys; the table in `src/main/keys.js`).
+- **Keyboard shortcuts, rest** (built: [window.md](window.md), Keys; the table in `src/main/keys.ts`).
   - **A command palette** (Ctrl+Shift+P, as VS Code's; JetBrains' Find Action), where every action is found by its
     name, with its key: the next step. The commands are the keys' table plus the menus' actions: one list of commands
     (an id, a label, `run`) the menus, the keys and the palette use; a dialog of its own (`Modal.vue`).
@@ -470,7 +470,7 @@ here; what is left of it stays.
     and project folders), or AppImage with electron-updater (electron-builder's, not Forge's). Telling the user
     that a newer release is out is only a stopgap.
   - Size: Squirrel downloads the whole app (100+ MB) each time; delta updates if that matters.
-  - Needs first: releases on GitHub (versioning, the publisher in `forge.config.js`), code signing (Distribution in
+  - Needs first: releases on GitHub (versioning, the publisher in `forge.config.ts`), code signing (Distribution in
     the security list above). Updating must not touch the user's data folder or interrupt running agents: apply
     on the next start, not mid-session.
 - **Feature 7, rest.** Reset a profile to a clean state (keeping its name), seeded test users.
@@ -487,7 +487,7 @@ here; what is left of it stays.
 - **The agent tests calls and voice: a profile's microphone and what it hears** (the author's idea, 2026-10-08,
   after dictation was tried with a virtual microphone). Calls need several people at once, which is what profiles
   are: the buyer calls, the seller hears; mute silences; the sound comes back after a reconnect; voice messages
-  arrive. Tools of the Kulisa plugin (`mcp-server.js`, any agent), e.g. one for what plays into a profile's
+  arrive. Tools of the Kulisa plugin (`mcp-server.ts`, any agent), e.g. one for what plays into a profile's
   microphone (an audio file, or a tone) and one for what a profile hears (whether there is sound, its level, when).
   - Per tab, when the agent asks: in that tab `getUserMedia` gets a stream made with WebAudio, and incoming sound
     (`RTCPeerConnection`, `<audio>`) is taken with WebAudio too, by a script put into the page through Playwright over
@@ -500,12 +500,6 @@ here; what is left of it stays.
   - Nearly no RAM (the sound is handled in the tab already open), no new process. First: the permissions (Open
     issues, "Pages get the microphone and camera without asking"), so the agent can test the site's own request too.
 
-- **The main process in TypeScript** (the window is, since 2026-10-10: CLAUDE.md, Window UI; the author: the whole
-  project moves to it later). Tried and dropped on 2026-10-08: `tsc` checking JavaScript with types in JSDoc, and `.mts`
-  files that Node 24 runs with their types stripped (a mix of `.mts`, `.js` and JSDoc was not one way of writing code).
-  To decide: built (Vite, as the window, or esbuild) into `dist/`, `node_modules` left out of its bundle (`node-pty` is
-  native; `playwright-core` and the MCP SDK read their own files); then Forge's own Vite plugin fits (it packages only
-  what Vite built). Check first: the main process built so runs from source and packaged.
 - **Our own tools over Playwright, or a bridge to it** (the author's question, 2026-10-08; to discuss again after
   working in Kulisa). The author: a bridge passing the agent's calls to Playwright would be less code. Why the tools
   are Kulisa's own today: `@playwright/mcp` has no profile argument (a server per profile: its 25 tools each, and
@@ -568,10 +562,10 @@ here; what is left of it stays.
     recognized on the computer (sherpa-onnx's keyword spotter, a 30 MB model downloaded the first time, Silero VAD)
     in a utility process alive only while they are on (about 100 MB). Why it fits an extension: a 32 MB native
     module per platform, a downloaded model, an always-on microphone, and Russian only so far. In the core today it
-    touches: `app.js` (its IPC, a `voiceModel` option), `tasks.js` (`press`), the renderer's dictation (now
-    `Dictation.vue`, rewritten in Vue since: the branch's window part is to be redone), `forge.config.js` (`asar.unpack` for the native module),
-    `package.json`, the tests' `run.js` (Chromium's fake microphone). Its own files: `listen.js`,
-    `listen-worker.js`, the renderer's `listen.js` and `listen-worklet.js`, `test/unit/listen.test.js`,
+    touches: `app.ts` (its IPC, a `voiceModel` option), `tasks.ts` (`press`), the renderer's dictation (now
+    `Dictation.vue`, rewritten in Vue since: the branch's window part is to be redone), `forge.config.ts` (`asar.unpack` for the native module),
+    `package.json`, the tests' `run.ts` (Chromium's fake microphone). Its own files: `listen.js`,
+    `listen-worker.js`, the renderer's `listen.js` and `listen-worklet.js`, `test/unit/listen.test.ts`,
     `test/fixtures/hey-kulisa.wav`. The branch's docs say how it works (`docs/window.md`, Voice commands) and what is
     left (its ROADMAP, "Voice commands, rest").
   - **Before it is installed** (the author's idea): the ear stays in the terminal's header; a click opens the store
@@ -579,7 +573,7 @@ here; what is left of it stays.
   - **The Kulisa plugin as a built-in extension**, on by default and not to be turned off (the author's idea,
     2026-10-09; to decide when the store is designed). Claude's objection: the Kulisa plugin is the core's second
     handle (the MCP tools call the same `Task` and `Profile` as the window), and the rules on it (the sign-in
-    pause, 127.0.0.1 only, `local-only.js`) are the core's; as an extension the API would have to expose nearly the
+    pause, 127.0.0.1 only, `local-only.ts`) are the core's; as an extension the API would have to expose nearly the
     whole core, and a boundary that cannot be turned off separates little. Proposed instead: extensions may add
     MCP tools and lines to the skill (Stripe needs it), and the Kulisa plugin stays in the core.
   - **What the API should give, as voice commands need it** (Claude's list, for rewriting the branch):
@@ -597,10 +591,10 @@ here; what is left of it stays.
       added to the sprite; the window's components (`.icon`, `ButtonMenu.vue`, `Modal.vue`, `ask`; [ui.md](ui.md)) rather than its own; its module
       loaded with `import()` when it is turned on. The microphone for the window only for an extension that asked
       for it (today the window's session grants media to all of its own pages).
-    - MCP: tools added to every task's server and lines to the skill, behind `local-only.js` as the others.
+    - MCP: tools added to every task's server and lines to the skill, behind `local-only.ts` as the others.
     - Native modules: N-API only (no rebuild per Electron version); the store downloads the platform's package
       (sherpa-onnx-node's per-platform packages) and keeps it outside the asar.
-    - Tests: an extension's unit tests in plain Node, and e2e in the same harness (`run.js`), with switches it needs
+    - Tests: an extension's unit tests in plain Node, and e2e in the same harness (`run.ts`), with switches it needs
       (the fake microphone) and a cache of its downloads in the tests' folder.
     - Development: an extension loaded from a folder (as `claude --plugin-dir`), restarted when its files change.
   - Esc clearing the agent's working state, found on the branch, is in main since 2026-10-09
@@ -616,7 +610,7 @@ here; what is left of it stays.
   `'mica'`) on Windows 11; on Linux only a transparent window (KDE can blur it, GNOME cannot: the desktop would show
   through sharp, worse than now), nothing reliable on Windows 10. Deferred: the author works on GNOME and would not
   see it. If built: only where it is real (macOS, Windows 11), opaque elsewhere; a few lines where the window is made
-  (`app.js`) and a translucent background color for those systems (`tokens.css`). Check transparent windows'
+  (`app.ts`) and a translucent background color for those systems (`tokens.css`). Check transparent windows'
   known issues there (resizing, maximizing, the title bar overlay, profile views above the HTML). Faking the blur
   (a picture of the wallpaper, blurred) was rejected: a workaround, and it lags when the window moves.
 - **One panel in its own OS window** (e.g. the buyer's profile on a second monitor, the terminal and the other
@@ -657,7 +651,7 @@ here; what is left of it stays.
 ## Open issues
 
 - **The OS's window buttons are not dimmed under a dialog** (the author, 2026-10-11; put off). They are drawn by the
-  OS over the window (`titleBarOverlay`, `window.js`), so the dialog's backdrop, HTML, cannot cover them: under a
+  OS over the window (`titleBarOverlay`, `window.ts`), so the dialog's backdrop, HTML, cannot cover them: under a
   dialog they stay bright. To look at: dim them with `setTitleBarOverlay` while a dialog is open (Windows and Linux;
   macOS's traffic lights have no such color), or leave them, as many desktop apps do.
 
@@ -673,7 +667,7 @@ here; what is left of it stays.
 
 - **The grid in a small window** (not decided; the window's own minimum is built: window.md, "The window's size"). When the panes do not fit,
   dockview overflows and cuts them, the profiles' native views get boxes near 0, and the terminal may get 0 columns
-  (`pty.resize` is in a `try` in `src/main/terminal.js`, but the agent's CLI draws garbage at a tiny size). Ways to weigh:
+  (`pty.resize` is in a `try` in `src/main/terminal.ts`, but the agent's CLI draws garbage at a tiny size). Ways to weigh:
   panes shrink to a `minimumWidth` per panel (dockview) and views too small to use are hidden, or a narrow grid
   turns into tabs.
 
@@ -681,24 +675,24 @@ here; what is left of it stays.
   when not.
   - Drag regions (`app-region: drag`) of a view's page stay after the page has gone, in a window without a system
     title bar; they took every click over the panes after Teams (window.md, "The title bar"). Workaround:
-    `app-region: no-drag` in every profile page (`profiles.js`, `_add`). Electron issue: [electron/electron#54743](https://github.com/electron/electron/issues/54743) (2026-10-08).
+    `app-region: no-drag` in every profile page (`profiles.ts`, `_add`). Electron issue: [electron/electron#54743](https://github.com/electron/electron/issues/54743) (2026-10-08).
     Check: remove the workaround, open Teams (or a page with `app-region: drag`, then another page) in a pane, and
     click the page with a real mouse (`debug-kulisa` skill). Linux only so far; macOS and Windows draw frameless
     windows their own way (see "macOS and Windows are untested").
   - A page's alert and confirm in its pane (profiles.md, "Dialogs"): Electron has no API for them, so Kulisa replaces
     the listener of its internal `-run-dialog` event (`lib/browser/api/web-contents.ts`, Electron 44; `-cancel-dialogs`
-    too). Check: that file at the new version's tag; the test of dialogs in `test/agent.js` fails when the event is
+    too). Check: that file at the new version's tag; the test of dialogs in `test/agent.ts` fails when the event is
     gone (Electron's message box comes back instead of the pane's dialog). Ask Electron for a public event
     (`webContents` 'dialog', as `select-bluetooth-device` takes a callback), then use it.
 - **The MCP server and the CDP proxy do not authenticate local processes.** Web pages are refused
-  (`local-only.js`: Host and Origin checks), but any local process can drive the signed-in profiles. Needs a
+  (`local-only.ts`: Host and Origin checks), but any local process can drive the signed-in profiles. Needs a
   per-launch token (passed to the agent through the environment, like `KULISA_MCP_URL`) at least.
-- **`signin-pause.js` is a temporary implementation** to be replaced by the author. It recognizes sign-in pages
+- **`signin-pause.ts` is a temporary implementation** to be replaced by the author. It recognizes sign-in pages
   only by host and pauses the whole profile.
 - **macOS and Windows are untested** (only Linux so far; Kulisa targets all three, see SPEC section 4). Known gaps:
   - Drag regions left by a page (Workarounds of Electron bugs, above): seen on Linux; whether macOS and Windows
     have the bug, and whether the workaround is enough there, is not known. Open Teams in a pane and click its page.
-  - `mimic-chrome.js` takes the machine part (OS, OS version, CPU, the UA's platform) from what Electron's
+  - `mimic-chrome.ts` takes the machine part (OS, OS version, CPU, the UA's platform) from what Electron's
     Chromium reports itself, so it should match Chrome everywhere. Compared with real Chrome on Linux only; check
     on macOS and Windows against a real Chrome (`navigator.userAgentData.getHighEntropyValues`).
   - `--no-sandbox` is needed only for `npm start`/`npm test` on Linux, where `chrome-sandbox` in `node_modules` is
@@ -706,7 +700,7 @@ here; what is left of it stays.
     so the npm scripts pass it on every OS: dev runs on macOS and Windows are unsandboxed for no reason. Packaged
     apps never use it. The `.deb` installs `chrome-sandbox` setuid root; the unpacked `out/` folder needs
     `--no-sandbox` to try it. Other Linux formats (AppImage, rpm, snap) are not set up.
-  - Starting the agent (`terminal.js`): on Linux and macOS it is typed into the user's shell started in the
+  - Starting the agent (`terminal.ts`): on Linux and macOS it is typed into the user's shell started in the
     project's folder, so the project's environment applies (direnv's `.envrc`, nvm, mise) and `PATH` is the
     user's even when Kulisa was started from a menu. Checked on Linux with bash only.
     - macOS: a login shell (`$SHELL -l`, zsh by default; `os.userInfo().shell` when started from the Dock without
@@ -717,14 +711,14 @@ here; what is left of it stays.
       `.cmd` that node-pty may not find. Proposed: type it into PowerShell (`pwsh -NoExit`, falling back to
       `powershell.exe`) in the project's folder, as on the other systems: the PowerShell profile applies, `.cmd`
       resolves, the shell stays after the agent exits. Without an agent command the terminal falls back to
-      `COMSPEC` (untested). SIGINT and SIGTERM work differently there (quit handling in `app.js`). The other
+      `COMSPEC` (untested). SIGINT and SIGTERM work differently there (quit handling in `app.ts`). The other
       terminals (`terminal_run`, +) type their command into `COMSPEC` there: untested; PowerShell as above would
       serve them too, and `terminal_stop`'s Ctrl+C in cmd asks "Terminate batch job?".
     - Both: closing a task and opening it again (`claude --resume`) and the project folder dialog
       (New Project…'s Browse…, native) are untested.
   - `safeStorage` (Keychain, DPAPI) for session cookies: expected to work, untested.
   - Dictation (the terminal's microphone): the agent records itself. macOS: the system asks for the microphone for
-    Kulisa (`NSMicrophoneUsageDescription` in `forge.config.js`); check that it asks and that `claude`'s `/voice`
+    Kulisa (`NSMicrophoneUsageDescription` in `forge.config.ts`); check that it asks and that `claude`'s `/voice`
     then records, packaged and from `npm start` (the Terminal app's permission may be the one asked then); signed
     with the hardened runtime it also needs the `com.apple.security.device.audio-input` entitlement. Windows: the
     microphone privacy setting for desktop apps.
@@ -746,7 +740,7 @@ here; what is left of it stays.
     that the release does not choose a row (`MenuButton.vue` takes the left button only); a button's menu opening on
     the press, and press, drag and let go on a row (macOS menus do it too); a window's blur closing a menu; Esc in a
     field edited in place (a profile's name) not closing its dialog; Select's list over a dialog.
-  - Copy and paste in the terminal (`clipboardKey` in `terminal.js`): checked on Linux only. Windows: Ctrl+V pastes
+  - Copy and paste in the terminal (`clipboardKey` in `terminal.ts`): checked on Linux only. Windows: Ctrl+V pastes
     once, Ctrl+C copies a selection and interrupts without one. macOS: ⌘C / ⌘V through Electron's default app menu
     (Kulisa sets none), and Ctrl+V reaching the agent.
   - Several windows (Move to New Window): a profile's native views moved from one window to another, and a window's
@@ -760,11 +754,11 @@ here; what is left of it stays.
   - Tests run often on Linux only; on macOS and Windows before a release (the author's decision, 2026-10-09). CI with
     a matrix (GitHub Actions) would do it. There they run on the human's screen (Xvfb is Linux's), taking its focus.
     The test bench assumes Linux; to adapt on each OS where it can be run (the author's decision, 2026-10-08), known so far:
-    - Windows: the agent is `bash -c '… exec cat -v'` with a `bashrc` (`test/run.js`), the fake agent's installer is
+    - Windows: the agent is `bash -c '… exec cat -v'` with a `bashrc` (`test/run.ts`), the fake agent's installer is
       `sh` only (`printf`, `chmod`; the real agents have a `win32` one), the hooks' test runs commands with `bash`
-      (`test/agent.js`). A Node script as the agent would run everywhere.
-    - macOS: keys are Ctrl's (`ctrl` in `helpers.js`, the zoom tests, `keys` in the terminal's copy and paste test,
-      `test/grid.js`), where macOS has ⌘; Ctrl+Shift+V pastes nothing there.
+      (`test/agent.ts`). A Node script as the agent would run everywhere.
+    - macOS: keys are Ctrl's (`ctrl` in `helpers.ts`, the zoom tests, `keys` in the terminal's copy and paste test,
+      `test/grid.ts`), where macOS has ⌘; Ctrl+Shift+V pastes nothing there.
     - What one OS alone has: skipped with the reason, not left to fail.
 - **A profile dropped from its list, its folder left behind** (found 2026-10-07; to come back to). The author's
   data held a `Profile 2` in a main workspace (the model before tasks), in no `profiles.json` and not in `deleted-folders.json`.
@@ -790,7 +784,7 @@ here; what is left of it stays.
     ready): every profile's HTTP cache at most that, open ones too; not the code and GPU caches.
   - Or both, or clearing when a task is closed as well. Cost of clearing: the first load of a
     reopened profile's sites is slower (no cache), which matters little for profiles set aside.
-- **Tests that failed now and then.** Fixed 2026-10-08: pictures of pages for a menu wait 500 ms at most (`window.js`,
+- **Tests that failed now and then.** Fixed 2026-10-08: pictures of pages for a menu wait 500 ms at most (`window.ts`,
   test "a menu opens even when a page gives no picture"); a project's label let go on the side of the screen with
   room. 2026-10-09: the tests run on a screen of their own on Linux (Xvfb, [testing.md](testing.md)), so the human's
   work no longer takes the focus from them (menus closed in the middle of a test, about 1 run in 7); races that a
@@ -809,10 +803,10 @@ here; what is left of it stays.
   open; 'custom' !== 'fake-1'), and "closing the last tab of a profile leaves an empty tab" (`browser_navigate` to the
   site interrupted by the empty tab's `about:blank`), each in one run of the two; alone, all passed in two runs. Slow but not flaky: deleting a task (a fork's closing took 11 s,
   git's work), a site that never answers (10 s: two 5 s waits by design).
-- **The test "after a restart: a task's other terminal comes back …" takes 5.6 s** (`restart-tasks.js`;
+- **The test "after a restart: a task's other terminal comes back …" takes 5.6 s** (`restart-tasks.ts`;
   found 2026-10-09, to come back to). Most of it is showing the project `other` until its task has loaded and
   the terminal's shell runs; it looks like another 5 s wait (as a tab's `ready` held a profile on a refused site:
-  `profiles.js`). To find: time the steps of loading `other` after a restart (its profiles' tabs, its terminals).
+  `profiles.ts`). To find: time the steps of loading `other` after a restart (its profiles' tabs, its terminals).
 - **The GPU renderer only on terminals in sight** (discussed with the author 2026-10-09; the author builds it later).
   Today every terminal loads xterm's WebGL addon when made (`makeTerminal` in `src/renderer/lib/terminals.ts`), hidden ones
   too (other tasks and projects, terminals behind another panel): each keeps a WebGL context and its glyph atlas.
@@ -821,7 +815,7 @@ here; what is left of it stays.
   - The fix: a terminal gets the WebGL addon when it comes into sight and disposes of it when hidden (`showTerminal`;
     the other terminals' panels: dockview's visibility of a panel), so only the terminals on screen hold a context.
     The buffer (the text, scrollback) is untouched: it is xterm's, not the renderer's. About 15 lines. Test
-    (`test/window.js`, next to "GPU renderer"): the shown terminal is `webgl`, a hidden one has none and gets it back
+    (`test/window.ts`, next to "GPU renderer"): the shown terminal is `webgl`, a hidden one has none and gets it back
     when shown; `window.__termRenderer` reports the shown one already.
   - Measured 2026-10-09 (bare Electron 44 with the same xterm 6.0.0, addons and options; 173×43, scrollback full;
     Xvfb, so the GPU was software (llvmpipe) and its memory is RAM there). GPU process now → with the fix: 5

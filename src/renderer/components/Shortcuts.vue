@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Keyboard Shortcuts (docs/window.md, Keys), from the same table that takes the keys (main/keys.js), so it is never
+// Keyboard Shortcuts (docs/window.md, Keys), from the same table that takes the keys (main/keys.ts), so it is never
 // out of date.
 import { ref } from 'vue';
 import { DialogClose } from 'reka-ui';

@@ -86,7 +86,7 @@ const more = (): MenuItem[] => [
 ];
 const picking = computed(() => !!profile.value && !!store.picking[profile.value.id]);
 
-// The active tab's alert or confirm (profiles.js), over a picture of its page, as Chrome shows it: Reka's Dialog, not
+// The active tab's alert or confirm (profiles.ts), over a picture of its page, as Chrome shows it: Reka's Dialog, not
 // modal (the other panes and the rest of the window go on), in the pane. The human's answer goes back when they close
 // it (OK, Cancel, Esc; a click outside does nothing), not when it goes for them (answered by the agent, the page gone:
 // the state has it no more). One answered is not shown again by a state sent before the answer arrived. OK has the
@@ -116,7 +116,7 @@ onBeforeUnmount(() => { observer.disconnect(); if (panes.get(key) === handle) pa
 <template>
   <div v-if="profile" class="pane" :data-profile="profile.id">
     <!-- The tabs scroll in .strip; + is next to it, never over a tab, as in Chrome -->
-    <TabsRoot as-child :model-value="profile.active" activation-mode="manual" @update:model-value="activate"><nav class="tabs">
+    <TabsRoot as-child :model-value="profile.active ?? undefined" activation-mode="manual" @update:model-value="activate"><nav class="tabs">
       <RightClickMenu :items="tabMenu"><TabsList as-child :loop="false"><div ref="strip" class="strip" @wheel="(e) => { if (!e.deltaX) strip!.scrollLeft += e.deltaY; }">
         <TabsTrigger v-for="t in profile.tabs" :key="t.id" :value="t.id" as-child>
           <div class="tab" :class="{ active: t.id === profile.active, opening: opening.has(t.id) }" :data-tab="t.id" :title="t.url" @animationend="grown(t.id)">

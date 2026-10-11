@@ -4,7 +4,7 @@
    themed by it. */
 :root {
   /* Colors: JetBrains' themes (New UI, Islands): dark, the islands (panels, dialogs) a step darker than the window
-     (gaps, title bar); light, white islands on a light grey window. --window and --text are also in window.js (the
+     (gaps, title bar); light, white islands on a light grey window. --window and --text are also in window.ts (the
      window's background and the OS buttons' strip). */
   --window: light-dark(#ebecf0, #2b2d30); --island: light-dark(#ffffff, #1e1f22); --island-hi: light-dark(#dfe1e5, #393b40);
   --well: light-dark(#d3d6dc, #131416); /* under a task's panels and the projects' islands: a step from the islands */

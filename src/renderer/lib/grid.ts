@@ -8,8 +8,8 @@ import { closeLayers, forgetFrozen, freeze, showViews, unfreeze } from './views'
 import { reducedMotion } from './common';
 import { forgetTerminals, otherTermKey, termFont, terminalOf } from './terminals';
 
-export const panelId = (key: string) => `profile:${key}`;
-export const isOtherTerm = (id: string) => id.startsWith('term:');
+const panelId = (key: string) => `profile:${key}`;
+const isOtherTerm = (id: string) => id.startsWith('term:');
 // What the window does with a mounted pane (ProfilePane.vue), by its profile's key.
 export interface PaneHandle { content: HTMLElement; focusAddress(): void; newTab(): void }
 export const panes = new Map<string, PaneHandle>();

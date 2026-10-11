@@ -1,4 +1,4 @@
-// Keyboard shortcuts in the window (main/keys.js has the table and takes the keys; docs/window.md, Keys). The main
+// Keyboard shortcuts in the window (main/keys.ts has the table and takes the keys; docs/window.md, Keys). The main
 // process has to know where the keyboard is in this page to know whose a key is; it sends the commands back here, with
 // the profile and tab they act on.
 import { watch } from 'vue';
@@ -73,5 +73,5 @@ kulisa.on<{ id: string; n?: number; profile?: string; tab?: string; task: string
   const p = profile ? store.profiles.find((x) => x.id === profile) : undefined;
   if (profile && (!p || !paneOfProfile(profile))) return;
   if (page) lastPane = profile!;
-  run[id]({ n, page, p, tab: tab || p?.active });
+  run[id]({ n, page, p, tab: tab || p?.active || undefined });
 });

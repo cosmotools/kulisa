@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The profiles' pictures to choose from (main/avatars.js; docs/profiles.md): Reka's ToggleGroup, one always chosen.
+// The profiles' pictures to choose from (main/avatars.ts; docs/profiles.md): Reka's ToggleGroup, one always chosen.
 import { ToggleGroupItem, ToggleGroupRoot } from 'reka-ui';
 import { avatarSrc } from '../lib/common';
 

@@ -9,7 +9,7 @@ repo="$(cd "$(dirname "$0")/../../.." && pwd)"
 data="${KULISA_DATA:-$HOME/.config/Kulisa}"
 
 # The app's main process: `electron … .` (npm start). Not its children (--type=), not the tests' site server
-# (`electron test/fixtures/site.js`, which outlives a test run).
+# (`electron test/fixtures/site.ts`, which outlives a test run).
 main_pid() { ps -eo pid,comm,args | awk '$2 == "electron" && $0 !~ /--type=/ && $NF == "." { print $1; exit }'; }
 
 case "${1:-}" in

@@ -134,7 +134,7 @@ async function newTask() {
   await kulisa.invoke('project:open', { id });
 }
 const more = (): MenuItem[] => [{ label: 'Delete Project…', run: deleteIt }];
-// Delete Project…, here alone (the author, 2026-10-11): asked first (projects.js, askDeleteProject), closed if open;
+// Delete Project…, here alone (the author, 2026-10-11): asked first (projects.ts, askDeleteProject), closed if open;
 // then Settings goes on to another project.
 async function deleteIt() {
   const r = await kulisa.invoke<{ error?: string } | null>('project:delete', { id: editing.value });
@@ -172,7 +172,7 @@ async function clone() {
 const codeMenu = (): MenuItem[] => [{ label: 'Add Folder…', run: () => code('project:repo-add', {}) },
   { label: 'Clone from URL…', run: () => startAdding('clone') }];
 
-// Its agents (the agents and their accounts: main/accounts.js), the default first: + runs it.
+// Its agents (the agents and their accounts: main/accounts.ts), the default first: + runs it.
 async function agents(channel: string, args: Record<string, unknown>) {
   agentError.value = '';
   const r = await kulisa.invoke<{ error?: string; agents?: { id: string; name: string }[] } | null>(channel, { id: editing.value, ...args });
@@ -258,7 +258,7 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
             <input id="npname" v-model="name" data-name maxlength="64" spellcheck="false" @input="error = ''" @change="saveLook" @keydown.enter.prevent="saveLook">
             <PopoverRoot :open="lookOpen" @update:open="toggleLook">
               <PopoverTrigger as-child><button id="pjlook" class="select" type="button" title="Color and icon" aria-label="Color and icon">
-                <ProjectIcon :p="{ icon, favicon: choices.favicon }" /><Icon name="i-down" /></button></PopoverTrigger>
+                <ProjectIcon :p="{ icon, favicon: choices.favicon ?? undefined }" /><Icon name="i-down" /></button></PopoverTrigger>
               <PopoverPortal>
                 <PopoverContent class="menu pjlookpanel" :class="{ ready: lookReady }" align="end" :side-offset="4" :collision-padding="4"
                   :style="{ '--color': color }" @close-auto-focus="focusBack($event, lookFocused)">
@@ -271,7 +271,7 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
                   <ToggleGroupRoot id="npicons" class="choices" type="single" aria-label="Icon" :model-value="icon"
                     @update:model-value="(v) => { if (v) { icon = String(v); saveLook(); } }">
                     <ToggleGroupItem v-for="v in iconValues" :key="v" :value="v" class="icon" :data-value="v" :title="iconTitle(v)" :aria-label="iconTitle(v)"><img v-if="v === 'favicon'"
-                      :src="choices.favicon" alt=""><Icon v-else :name="projectIcon(v)" /></ToggleGroupItem>
+                      :src="choices.favicon ?? undefined" alt=""><Icon v-else :name="projectIcon(v)" /></ToggleGroupItem>
                   </ToggleGroupRoot>
                 </PopoverContent>
               </PopoverPortal>

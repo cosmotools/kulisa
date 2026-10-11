@@ -1,0 +1,24 @@
+// The main process, the preload and the scripts: checked by tsc (npm run build), run by Node's type stripping as they
+// are (Electron's own Node, or plain Node 24.12+ for the unit tests), so erasable syntax only. The tests have their own
+// (test/tsconfig.json), the window too (src/renderer/tsconfig.json, vue-tsc). DOM: for the functions the main process
+// runs in pages (executeJavaScript, Playwright's evaluate).
+{
+  "compilerOptions": {
+    "target": "ES2024",
+    "lib": ["ES2024", "DOM"],
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "types": ["node"],
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+    "resolveJsonModule": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["src/main", "src/preload", "scripts", "forge.config.ts"]
+}

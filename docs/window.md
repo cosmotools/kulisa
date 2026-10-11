@@ -62,7 +62,7 @@ its tabs' elements by id, so only a new one animates), the address's hover fades
 
 ## The window's size
 
-The window has a minimum, as VS Code's: 640×400 (DIP) times the Kulisa zoom (`MIN_SIZE` in `window.js`), the
+The window has a minimum, as VS Code's: 640×400 (DIP) times the Kulisa zoom (`MIN_SIZE` in `window.ts`), the
 smallest size at which the top bar (the OS buttons, ☰, a project tab) and something under it still fit; half of a
 1366 px laptop screen holds it. It is fixed, not derived from the grid as Chrome's is from its own layout: the sum of
 the panels' minimums (dockview's `minimumWidth`) would keep a window with five profiles in a row from half a screen
@@ -77,7 +77,7 @@ grows (`setZoom`; it is not made smaller again when the zoom goes down).
 ## Zoom
 
 - **The Kulisa zoom**: Ctrl + / − / 0 outside the pages, or the zoom row in ☰. It scales the whole UI of every
-  window, the terminal and the pages together (Chromium's zoom of the window's page; `setUiZoom` in `app.js`). All
+  window, the terminal and the pages together (Chromium's zoom of the window's page; `setUiZoom` in `app.ts`). All
   text and controls take their size from `--font` and `--control` (tokens.css), so one zoom scales them all.
 - **A site's zoom**: the same keys in a page zoom that site in that profile on top of the Kulisa zoom, as in
   Chrome; shown in the address bar (a click resets it).
@@ -99,7 +99,7 @@ when it changes, as JetBrains' Sync with OS). Saved (`settings.json`), the same 
   choice comes in the page's URL, set before the first paint, so a light window never flashes dark. dockview's theme
   sets `color-scheme: dark` on the grid; `Grid.vue` gives it back the root's.
 - What CSS does not paint follows from the main process: the window's background and the OS buttons' strip
-  (`window.js`).
+  (`window.ts`).
 - The terminal takes the panels' colors (`term.options.theme`, set again on a change); the programs' own colors stay
   xterm's, made readable on either background by its `minimumContrastRatio` (as VS Code does), with no palette of
   Kulisa's own.
@@ -139,7 +139,7 @@ could not mark the deleting button or lay out what goes. The OS's own dialogs st
 
 ## The terminal
 
-A terminal per task for its agent (xterm.js in the window, node-pty in the main process: `terminal.js`), running
+A terminal per task for its agent (xterm.js in the window, node-pty in the main process: `terminal.ts`), running
 the agent the human chose ([tasks.md](tasks.md), "Choosing the agent") unchanged. Unicode 11 widths (the cursor stays
 put after an emoji), a bundled font, the GPU renderer. Copy and paste take the keys of the OS's own terminal, so hands
 need nothing new: Ctrl+Shift+C / V (GNOME Terminal, Konsole); on Windows also Ctrl+V, and Ctrl+C copies a selection,
@@ -172,7 +172,7 @@ makes mistakes, and a task misheard costs more than a key). Kulisa only holds th
 the agent records and recognizes. The button is lit while Kulisa holds it, which is when the agent records. The language opens a menu of those the agent
 understands, the system's first; it is the agent's own setting, so the agent answers in it too (said on hover).
 The agent hears through its own program (Claude Code: its audio module, or `arecord`/SoX on Linux); on macOS the
-system asks for the microphone on Kulisa's behalf (`NSMicrophoneUsageDescription`, `forge.config.js`).
+system asks for the microphone on Kulisa's behalf (`NSMicrophoneUsageDescription`, `forge.config.ts`).
 
 Links in the terminal, those an agent marks (OSC 8, as Claude Code does) and addresses in plain text (xterm's web-links
 addon), open with Ctrl+click (⌘ on macOS), and always ask where, in a menu at the pointer: a new tab in one of the
@@ -188,7 +188,7 @@ Code keeps terminals), at the same size.
 
 ## Keys
 
-Kulisa's keyboard shortcuts, as an IDE has them, one table for all (`src/main/keys.js`): the keys, the command each
+Kulisa's keyboard shortcuts, as an IDE has them, one table for all (`src/main/keys.ts`): the keys, the command each
 does, and where; the window's menus, the buttons' tooltips ("Reload (Ctrl+R)", `withKeys`) and
 **Keyboard Shortcuts** (☰, or Ctrl+Shift+/: `Shortcuts.vue`) show them from it, as this OS writes them (⇧⌘T on macOS),
 so they are never out of date.
@@ -215,7 +215,7 @@ No key without a modifier but F keys (WCAG 2.1.4). On macOS the keys are ⌘'s a
 tasks are ⌘⌥1…9 (⌘⇧3, 4, 5 are macOS's screenshots), back and forward ⌘[ and ⌘] as in Chrome.
 
 How: the main process sees every key of the window and of every tab before the page does (`before-input-event`, on
-every webContents as it is made: `app.js`), and takes one of Kulisa's (`preventDefault`: the page never gets it) or
+every webContents as it is made: `app.ts`), and takes one of Kulisa's (`preventDefault`: the page never gets it) or
 leaves it, untouched. Where the keyboard is in the window's own page, the page tells it (`keys:zone`: the terminal, a
 dialog, a pane; `src/renderer/lib/keys.ts`), which also runs the commands the main process sends back (`command`, with
 the profile and tab). Letters are matched by what they type on a Latin layout (Ctrl+W on an AZERTY keyboard is its W)
@@ -242,7 +242,7 @@ icons`): in the title bar, the taskbar and the installers. Run from source, GNOM
 takes icons from installed `.desktop` files only (the `.deb` installs one matching the window class `kulisa`); left
 so on purpose.
 
-Installers are made with Electron Forge (`npm run make`, `forge.config.js`): `.deb` on Linux (checked: it installs
+Installers are made with Electron Forge (`npm run make`, `forge.config.ts`): `.deb` on Linux (checked: it installs
 `chrome-sandbox` setuid root, a menu entry and the icon, and the app starts), Squirrel `.exe` on Windows,
 `.dmg`/`.zip` on macOS (those not built yet).
 
@@ -250,12 +250,12 @@ Installers are made with Electron Forge (`npm run make`, `forge.config.js`): `.d
 
 | File | What |
 |---|---|
-| `src/main/app.js` | the windows, the Kulisa zoom, the theme, the IPC |
-| `src/main/window.js` | a window: its BrowserWindow, the native views' places, its questions, screenshot |
-| `src/main/keys.js` | the keyboard shortcuts: the table, which key an input event is; `app.js` takes them (Keys) |
-| `src/main/terminal.js` | the ptys: the agent's per task, and its other terminals; their output's last 200 KB |
+| `src/main/app.ts` | the windows, the Kulisa zoom, the theme, the IPC |
+| `src/main/window.ts` | a window: its BrowserWindow, the native views' places, its questions, screenshot |
+| `src/main/keys.ts` | the keyboard shortcuts: the table, which key an input event is; `app.ts` takes them (Keys) |
+| `src/main/terminal.ts` | the ptys: the agent's per task, and its other terminals; their output's last 200 KB |
 | `src/renderer/components/Grid.vue`, `grid/*.vue`, `lib/grid.ts` | the grid (dockview), the panes and their headers, the terminals' panels, Arrange panels |
 | `src/renderer/components/TopBar.vue`, `menu/*.vue` | the title bar, ☰ and its own rows |
 | `src/renderer/components/menu/*.vue`, `Modal.vue`, `Ask.vue`, `lib/menu.ts`, `views.ts`, `ask.ts`, `terminals.ts`, `voice.ts` | the menus, the dialogs and questions (Reka UI's), the pages under them, the terminals, dictation |
 | `src/renderer/lib/keys.ts`, `components/Shortcuts.vue` | where the keyboard is, the commands the keys run; Keyboard Shortcuts |
-| `test/window.js`, `grid.js`, `keys.js`, `zoom-and-closing.js`, `unit/keys.test.js` | the tests |
+| `test/window.ts`, `grid.ts`, `keys.ts`, `zoom-and-closing.ts`, `unit/keys.test.ts` | the tests |

@@ -13,5 +13,9 @@ import './lib/test-hooks';
 
 const app = createApp(App);
 app.config.globalProperties.kulisa = kulisa;
+// Templates reach the bridge as kulisa too (master.ts as well).
+declare module 'vue' {
+  interface ComponentCustomProperties { kulisa: KulisaBridge }
+}
 app.mount('#app');
-kulisa.invoke('tasks:get'); // the shown task's tabs and terminal (window.js, sendTasks)
+kulisa.invoke('tasks:get'); // the shown task's tabs and terminal (window.ts, sendTasks)
