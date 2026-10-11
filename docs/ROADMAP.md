@@ -349,8 +349,8 @@ here; what is left of it stays.
     that trusting once is enough; that `$KULISA_URL` reaches the hook's command; that `SessionStart`'s answer
     (Claude Code's shape, `hookSpecificOutput.additionalContext`) is taken; each event moving the tab (Esc:
     `Interrupt`); `codex resume <session>`. Windows: the command is sh's (`commandWindows` for PowerShell).
-  - **Once there is a Codex account** (the author has none yet, 2026-10-09; made by the human in the projects'
-    manager, New Account…, which runs `codex login`), try in one go, in a task with git and in a project without, as Claude Code was tried ("running the app, rest"):
+  - **Once there is a Codex account** (the author has none yet, 2026-10-09; made by the human in Settings
+    → Agents or a project's page, New Account…, which runs `codex login`), try in one go, in a task with git and in a project without, as Claude Code was tried ("running the app, rest"):
     1. A session driving the profiles: `browser_profiles`, a snapshot, a click; the sign-in pause.
     2. Running the app: does it read the instructions, move its ports, use `terminal_run` (Codex was expected to
        wait on a server in its own shell) and open the app in a profile.

@@ -227,8 +227,8 @@ author, 2026-10-10). How it is kept safe, each line with its reason:
   says `type ••••••` (`ghost.js`, `shell.typingSecret`). So it is in no transcript, log or screen share. (A script the
   agent runs in the page could read a field back; the skill forbids reading secrets, as it forbids cookies.)
 - **Only on a local page** (`local.js`, `Task.loginFor`): `localhost`, `*.localhost`, `*.test`, `*.local`, loopback and
-  private addresses, and the project's own list (the projects' manager → Local: a tunnel, dev domains, each with its
-  subdomains); or a page the same tab reached from one (an Auth0 dev tenant, a local Keycloak on another name).
+  private addresses, and the project's own list (its page in Settings → Projects, Local addresses: a tunnel, dev
+  domains, each with its subdomains); or a page the same tab reached from one (an Auth0 dev tenant, a local Keycloak on another name).
   Elsewhere it is refused, so a pair cannot be typed into a real site, a look-alike page, or a link the agent was sent
   to. An address left out is safe the other way: the pair is not typed there.
 - **Never on an account provider** (Google, Microsoft, Apple, GitHub, Facebook, Okta), even reached from a local app:
