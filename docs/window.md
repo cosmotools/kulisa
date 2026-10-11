@@ -110,7 +110,7 @@ Kulisa draws its menus in HTML, as Chrome does (Reka UI's menus: `components/men
 button's opens on the press (press, drag to a row, let go there), a right-click's at the pointer, one at a time; the
 pages are pictures of themselves meanwhile; afterwards the keyboard is back where it was:
 
-- the button after the projects' islands (the projects), +'s right-click menu (New
+- +'s right-click menu (New
   Task with each of the project's agents), the profiles' chip on the shown task's tab (open
   and closed profiles, Manage Profiles…; the tab's right-click menu has them too, with Show Folder), ☰ (as Chrome's ⋮, each row with its icon: the zoom row, the theme row, the
   projects' bar's row, Arrange panels, Agents…, Keyboard Shortcuts, the links
@@ -121,6 +121,8 @@ pages are pictures of themselves meanwhile; afterwards the keyboard is back wher
   then Change agent… in the agent's, Close in the others).
 
 A project label's right-click opens its group's menu, as Chrome's tab groups have it ([tasks.md](tasks.md), Projects).
+Search Tasks, the button after the islands, is a panel, not a menu: its search field takes the letters typed
+([ui.md](ui.md), Panels).
 
 A row whose command has a key shows it at its end (Keys, below).
 

@@ -120,7 +120,7 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   names those tasks (deleting a copy would delete their work). A project whose own folder has no git keeps it until a
   repository is added; then it is its **former folder**: new tasks no longer work in it, those that did go on there,
   and the settings say so, with Show, while it exists (the human moves its files, or asks an agent).
-- **The empty window** (the term: CLAUDE.md) is what a window is with no project open: at the first start, and after
+- **The empty window** (the term: CLAUDE.md) is what a window is with no task open: at the first start, and after
   the last group is closed (Close Group, the middle button on its label, × on its last task, deleting the project). The title bar and
   the projects' bar as always (no islands; Search Tasks there, every project's tasks) and, in the grid's place, an
   empty island: "No task is open", Search Tasks, New Project…. At the first start (no project at all: nothing to do in Kulisa
@@ -466,7 +466,7 @@ temporary forks), and again on 2026-10-10 (tasks; ROADMAP, "Projects and tasks")
 - **× closes, Delete deletes.** A fork's × deleted it, the one way out; a task is often put aside and taken up again
   (waiting for a review, a question to the client), so × keeps everything and stops only what costs memory (its
   agent, its tabs); deleting is a menu item with its question. Closed tasks stay until the human deletes them.
-- **The last task's × closes the project**, as Chrome closes a window with its last tab: a project with no open task
+- **The last task's × closes the group**, as Chrome's tab group goes with its last tab: a group with no open task
   would show an empty grid with nothing to do there.
 - **Named by the agent.** A name asked for before the work starts is a guess; `task-<n>` until the agent (or the
   human) knows what the task is about. The branch follows the name; the folder does not, as an agent may be working
@@ -497,8 +497,9 @@ temporary forks), and again on 2026-10-10 (tasks; ROADMAP, "Projects and tasks")
   and the agent starts at its terminal's real size.
 - **Tasks and projects in the background keep running**, their pages and agents. Memory: each agent is a
   process of its own (Claude Code about 200–400 MB) plus its profiles' tabs.
-- **Another project opens beside the shown one** (an island in the bar), as a browser opens a tab. At first opening
-  one closed the shown one and stopped its agents; now the human closes a project when it is safe.
+- **Another project's task opens beside the shown one** (its group, an island in the bar), as a browser opens a tab.
+  At first opening a project closed the shown one and stopped its agents; now the human closes a group (Close Group)
+  when it is safe.
 - **Several windows are one Kulisa**, not a second instance: two cannot share the data folder. A project moves with
   its pages' native views (`Profile.moveTo`), not loaded again, and with what its terminals show (xterm's serialize
   addon, as VS Code keeps terminals), at their size, so its agent is never told a default one. A window is one more
