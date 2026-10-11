@@ -725,23 +725,38 @@ function start(options = {}) {
   shell.chooseAgent.cancel = (task) => { choosing.get(task.key)?.(null); choosing.delete(task.key); };
   ipcMain.on('agent:chosen', (_e, { task, id }) => { const r = choosing.get(task); choosing.delete(task); r?.(id ? shell.agentFor(id) : null); });
   // The agents to choose from; with check, whether each is installed (for the task's folder: its environment);
-  // with details (the Agents window), also where it is and its version.
-  ipcMain.handle('agents:list', async (e, { check, details } = {}) => {
-    const w = at(e), found = new Map(); // each agent looked for once, whatever its accounts
+  // with details (the Agents window), also where it is and its version. Finding them runs the user's login shell and
+  // each agent's --version, tenths of a second or more (the author, 2026-10-11: the list should come at once): with
+  // cached, what the last look in this folder found, kept in memory, or { list: null } before the first; the window
+  // shows it and looks again.
+  const seen = new Map(); // `${agent id}\n${folder}` -> { found, version }
+  const look = async (a, cwd, details) => {
+    const found = await agents.findAgent(a, cwd), old = seen.get(`${a.id}\n${cwd}`);
+    const s = { found, version: details ? await agents.agentVersion(found) : old?.version };
+    seen.set(`${a.id}\n${cwd}`, s);
+    return s;
+  };
+  ipcMain.handle('agents:list', async (e, { check, details, cached } = {}) => {
+    const w = at(e), looks = new Map(), cwd = w?.task?.folder || app.getPath('home'); // each agent looked for once, whatever its accounts
     // The project's agents first (Change agent…, Choose the Agent), in its order.
     const mine = w?.current?.agents() || [], rank = (id) => (mine.includes(id) ? mine.indexOf(id) : mine.length);
     // Choosing a task's: the project's accounts, and the agents without accounts (the terminal only); never another
     // project's account: it could go with that project while a task here runs it. The Agents window: the agents alone.
     const accounts = shell.accounts.all().filter((a) => (details ? a.own : a.choosable && (a.own || mine.includes(a.id))))
       .sort((x, y) => rank(x.id) - rank(y.id)); // stable: the others as they were
+    const of = (a) => {
+      if (cached) return seen.get(`${a.id}\n${cwd}`);
+      if (!looks.has(a.id)) looks.set(a.id, look(a, cwd, details));
+      return looks.get(a.id);
+    };
+    if (cached && (check || details) && accounts.some(({ agent: a }) => !of(a) || (details && of(a).version === undefined))) return { list: null };
     const list = await Promise.all(accounts.map(async ({ id, agent: a, name, dir, own }) => {
-      if ((check || details) && !found.has(a.id)) found.set(a.id, agents.findAgent(a, w?.task?.folder || app.getPath('home')));
-      const f = await found.get(a.id);
+      const f = check || details ? (await of(a)).found : null;
       return {
         id, agent: a.id, name, maker: a.maker, needs: a.needs, site: a.site, install: agents.installLine(a),
         account: own ? null : dir,
         ...((check || details) && { installed: !!f }),
-        ...(details && { path: f?.path ?? null, onPath: f?.onPath ?? null, version: await agents.agentVersion(f) }),
+        ...(details && { path: f?.path ?? null, onPath: f?.onPath ?? null, version: (await of(a)).version }),
       };
     }));
     return { list, home: app.getPath('home') };
@@ -751,7 +766,7 @@ function start(options = {}) {
     const w = at(e), a = shell.agentFor(id, { any: true });
     if (!a?.install) return { error: `nothing to install for ${id}` };
     const code = await agents.installAgent(a, (data) => w?.send('agents:install-log', data));
-    return { code, installed: !!(await agents.findAgent(a, w?.task?.folder || app.getPath('home'))) };
+    return { code, installed: !!(await look(a, w?.task?.folder || app.getPath('home'), true)).found };
   });
 
   // A window's handles on the profiles of its shown task (the editor, the panes): each only translates to the

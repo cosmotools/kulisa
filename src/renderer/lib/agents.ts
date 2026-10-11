@@ -22,24 +22,40 @@ export function agentList(opts: { choose?: boolean; details?: boolean; installed
     el: null as HTMLElement | null, // the list's element, while its dialog is open
   });
   const chosen = computed(() => state.agents.find((a) => a.id === state.selected));
-  const fetchAgents = async () => {
-    const r = await kulisa.invoke<{ list: Agent[]; home: string }>('agents:list', opts.details ? { details: true } : { check: true });
+  // cached: what the main process found last time, if it has looked yet (main/app.js, agents:list).
+  // again: a look behind a list already shown, dropped when an install began meanwhile (it marks its own row).
+  const fetchAgents = async (cached = false, again = false) => {
+    const r = await kulisa.invoke<{ list: Agent[] | null; home: string }>('agents:list', { ...(opts.details ? { details: true } : { check: true }), cached });
+    if (!r.list || (again && state.installing)) return false;
     state.agents = r.list; state.home = r.home;
+    return true;
   };
   // Choosing: the arrows choose, Tab goes on to Install or Start.
   const focus = async () => {
     await nextTick();
     state.el?.querySelector<HTMLElement>(opts.choose ? '[role="radio"][data-state="checked"]' : '.install:not([hidden])')?.focus();
   };
-  // The dialog opens with the list in it (finding the agents takes a few tenths of a second: the user's shell, their
-  // --version), not with a line that flips to it at once; only when it takes longer, it opens saying so.
+  // The dialog opens with the list in it, not with a line that flips to it at once: what was found last time, then
+  // looked for again (an agent installed, updated or removed meanwhile), the rows changed where it differs. The first
+  // time (the user's shell, their --version: a few tenths of a second) it waits, and only when it takes longer it opens
+  // saying so.
   async function load(sel: string | undefined, show: () => Promise<void>) {
     if (!state.installing) Object.assign(state, { showDetails: false, log: '', progress: '', error: '' });
+    const choose = () => { state.selected = sel ?? state.agents.find((a) => a.installed && a.install)?.id ?? state.agents.find((a) => a.install)?.id; };
+    if (await fetchAgents(true)) {
+      choose();
+      await show();
+      await focus();
+      const picked = state.selected;
+      if (state.installing || !(await fetchAgents(false, true))) return;
+      if (state.selected === picked && !state.agents.some((a) => a.id === picked)) choose();
+      return;
+    }
     const waiting = setTimeout(() => { state.looking = true; state.agents = []; show(); }, 500);
     await fetchAgents();
     clearTimeout(waiting);
     state.looking = false;
-    state.selected = sel ?? state.agents.find((a) => a.installed && a.install)?.id ?? state.agents.find((a) => a.install)?.id;
+    choose();
     await show();
     await focus();
   }

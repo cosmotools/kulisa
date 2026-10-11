@@ -513,6 +513,23 @@ module.exports = (test) => {
     await ctx.shell.screenshot(path.join(root, 'agents.png'));
     await closeAgents(ui);
   });
+  test('agents: the list comes at once with what the last look found, then looks again: an agent removed meanwhile shows so', async (ctx) => {
+    const { ui } = ctx;
+    const bin = path.join(root, 'bin', 'kulisa-fake-agent'), away = `${bin}.away`;
+    const fake = (cached) => ui(`kulisa.invoke('agents:list', { details: true, cached: ${cached} }).then((r) => r.list?.find((a) => a.id === 'fake'))`);
+    assert.equal((await fake(true)).version, '1.2.3', "the last look's, nothing run");
+    fs.renameSync(bin, away);
+    try {
+      assert.equal((await fake(true)).installed, true, 'not looked for again yet');
+      await openAgents(ui);
+      await waitFor(() => ui(agentRow('fake', '.status') + `.textContent === 'Not installed'`));
+      assert.equal((await fake(true)).installed, false, 'what the window looked for again is kept');
+      await closeAgents(ui);
+    } finally {
+      fs.renameSync(away, bin);
+      await fake(false);
+    }
+  });
 
   // The project's settings (Project Settings… in its label's menu), with its agents.
   const projectSettings = async (ui, id = 'project') => {

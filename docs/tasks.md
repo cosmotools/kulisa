@@ -261,6 +261,12 @@ are not programmers); its accounts are made there too, or in a project's page.
   from there), its maker's website, and Install for the others. Installing there starts nothing; the agent is chosen
   for a task when one is made, or with Change agent…. Kulisa does not remove or update agents: they are the
   user's programs, and the makers' installers update them themselves.
+- **The list comes at once** (the author, 2026-10-11), here and in choosing a task's agent: finding the agents runs
+  the user's login shell (`command -v`: Kulisa started from a menu has a shorter `PATH`) and each one's `--version`,
+  tenths of a second or more with a heavy `.bashrc`. So the window first shows what the last look in that folder found,
+  kept in the main process's memory (`agents:list`, `cached`; nothing on disk: it is the computer's state, which
+  changes without Kulisa), and looks again behind it, its rows changed where it differs (an agent installed, updated or
+  removed meanwhile). Only the first time after Kulisa starts does it wait for the look.
 - **Accounts** (`accounts.js`; decided with the author 2026-10-11): an agent with a sign-in of its own, so one human
   runs a work and a personal Claude side by side. Each is the agent with its own config folder, given to it by its
   variable (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`: `config` in its `agents.js` entry); the agents without one (the terminal
