@@ -1,11 +1,6 @@
 <script setup lang="ts">
-// Every project's tasks, grouped by project, under a search field: the bar's Search Tasks panel's (TaskSearch.vue; the
-// author, 2026-10-11: the bar's tabs are tasks, so what lists things to open lists tasks; a project is no thing to
-// open). Each project's heading in its color (a label, not a row), its tasks under it (the open ones, then the closed
-// ones, the one closed last first; a click shows it in its group's window, a closed one opened again, in a group of its
-// own in this window when its project has none here or elsewhere), New Task last. Reka's Listbox: ↑↓ through the rows,
-// Enter opens, while the keyboard stays in the search field. The search finds a task by its name or branch, a project
-// by its name (then all its tasks).
+// Every project's tasks under a search field, for Search Tasks (TaskSearch.vue; tasks.md, Projects). Reka's Listbox:
+// the keyboard stays in the search field while ↑↓ and Enter work the rows.
 //   <TaskList @chosen="…" />   chosen: a row was opened (the panel closes)
 import { computed, ref } from 'vue';
 import { ListboxContent, ListboxFilter, ListboxGroup, ListboxGroupLabel, ListboxItem, ListboxRoot, useFilter } from 'reka-ui';

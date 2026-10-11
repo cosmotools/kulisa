@@ -1,12 +1,7 @@
 <script setup lang="ts">
-// The window's title bar (titleBarOverlay in window.js): the app's logo with the curtain in the open project's color
-// (--project: each project its own curtain), the Kulisa zoom when it is not 100% (a click resets it, as Chrome's
-// magnifier), Settings (its tabs: Projects, Agents; ProjectEditor.vue), ☰. env(titlebar-area-*) leaves room for the OS window buttons on every
-// platform; dragging it moves the window, except on its controls.
-// ☰, as Chrome's ⋮: the zoom row (stays open while you click − and +), the theme row and the projects' bar's (open too),
-// then the ready-made arrangements, each a picture of itself; Agents… (Settings → Agents); Keyboard Shortcuts; the links (the documentation, GitHub, issues);
-// Exit, as Chrome's, where the OS has no menu bar with Quit (not macOS: Cmd+Q there). Each row with its icon at the
-// start; Kulisa's version under them all, a note rather than a row.
+// The window's title bar and ☰ (docs/window.md, The title bar, Menus). env(titlebar-area-*) leaves room for the OS
+// window buttons on every platform (titleBarOverlay in window.js). Exit only where the OS has no menu bar
+// with Quit (not macOS: Cmd+Q there).
 import Icon from './Icon.vue';
 import ButtonMenu from './menu/ButtonMenu.vue';
 import ZoomRow from './menu/ZoomRow.vue';

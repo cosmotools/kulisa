@@ -1,7 +1,6 @@
 <script setup lang="ts">
-// Keyboard Shortcuts (☰, or its key): every key of Kulisa, as this OS shows it, from the same table that takes them
-// (main/keys.js), so it is never out of date: a group's heading and what it is about, then each command and its keys
-// as key caps, one under the other.
+// Keyboard Shortcuts (docs/window.md, Keys), from the same table that takes the keys (main/keys.js), so it is never
+// out of date.
 import { ref } from 'vue';
 import { DialogClose } from 'reka-ui';
 import Modal from './Modal.vue';

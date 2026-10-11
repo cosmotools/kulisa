@@ -1,22 +1,8 @@
 <script setup lang="ts">
-// The projects' bar, under the grid or over it (☰), an island per project's group of open tasks in this window (it
-// comes with the first one opened and goes with the last one closed; a project itself is no thing to open), drawn as
-// Chrome's tab groups: its
-// label (its icon, the curtain in its color, and its name), its open tasks' tabs (TaskTab.vue), a click on one showing
-// that project with it (the others keep running: their agents and pages), and + for a new task from the project's
-// configuration (its right-click: New Task with one of its agents). A click on the label folds the group to it (the
-// shown task's tab stays) and back. A right-click opens its group's menu, as Chrome's (its name, color and icon are
-// the projects' manager's alone: Project Settings…): New Task, its closed tasks (one opens again), Move to New Window (a window of its own, e.g. for
-// a second monitor; it keeps running), Move to Window (each other window; as a browser moves a tab), Project
-// Settings…, Show Data Folder, Close Group (its tasks closed, asking first when an agent works; also the middle button); a task's tab: the shown
-// one's profiles, Rename… (its name and branch), Show Folder, Delete Task…. Dragging the label does
-// the same: within the bar it changes the order, onto another window's bar it moves the project there, let go outside
-// every Kulisa window it opens a window there (the main process tells where the pointer is). The button after the
-// islands searches every project's tasks, as Chrome's Search tabs (TaskSearch.vue); everything about projects is in the
-// projects' manager (the title bar's Projects button).
-// Each island looks like a tab of the grid: square where it meets the grid and merging into it with curves, rounded
-// towards the window's edge. Every island keeps its width whichever project is shown, so showing one moves none (the
-// author, 2026-10-08: islands that moved under the mouse made the human miss). Many shrink, then the bar scrolls.
+// The projects' bar: an island per group (tasks.md, Projects; docs/window.md, The projects' bar).
+// Every island keeps its width whichever task is shown, so showing one moves none (the author, 2026-10-08: islands that
+// moved under the mouse made the human miss). Where a dragged label is let go outside every Kulisa window, the main
+// process says (the page does not know where the pointer is then).
 import { computed, nextTick, ref, watch } from 'vue';
 import Icon from './Icon.vue';
 import TaskTab from './TaskTab.vue';

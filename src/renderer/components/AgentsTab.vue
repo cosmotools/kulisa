@@ -1,10 +1,6 @@
 <script setup lang="ts">
-// Settings → Agents (ProjectEditor.vue; ☰ → Agents… opens it; tasks.md, "Choosing the agent"): the agents Kulisa can
-// run, each with its version, folder, website and Install (AgentList.vue: list, whose state lives with Settings, so an
-// install goes on while the other tab is shown), and under each agent with accounts its accounts: the email, the
-// projects it is in, × deletes it (Delete Account…: refused while a task runs it, asked first; main/projects.js), New
-// Account… makes one, signed in right here (AccountSignIn.vue), in no project yet (a project's Add Agent… takes it).
-// An account lives until it is deleted here: a project let go of it, or deleted, keeps it (the author, 2026-10-11).
+// Settings → Agents (tasks.md, "Choosing the agent", Accounts). AgentList's state lives with Settings, so an install
+// goes on while the other tab is shown.
 import { ref, watch } from 'vue';
 import Icon from './Icon.vue';
 import AgentList from './AgentList.vue';

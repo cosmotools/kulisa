@@ -1,6 +1,5 @@
 <script setup lang="ts">
-// Another terminal of the task (the human's shell, what the agent runs: lib/terminals.ts), a panel next to the
-// agent's. Its right-click menu ends with Close.
+// Another terminal of the task, a panel next to the agent's (docs/window.md, The terminal; lib/terminals.ts).
 import { onMounted, ref } from 'vue';
 import type { DockviewPanelApi } from 'dockview-vue';
 import { otherTermKey, termHost, terminalMenu } from '../../lib/terminals';

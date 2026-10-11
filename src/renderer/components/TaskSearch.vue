@@ -1,10 +1,6 @@
 <script setup lang="ts">
-// The bar's button after the islands and its panel, as Chrome's Search tabs (its button at the end of the tab strip):
-// every project's tasks, the closed projects' too, grouped by project, a search field at the top (TaskList.vue). A
-// click on a task opens it (shown in its window, or its project opened on it), and the panel closes. Ctrl+Shift+A
-// opens it too (keys.ts). Everything about projects is in the projects' manager (the title bar's Projects button).
-// Reka's Popover (a dialog's keyboard), not a menu: a menu takes the letters typed (its typeahead). The pages are
-// pictures meanwhile, as under a menu, and it closes as one does (a press outside, Esc, a task opened, the window left).
+// Search Tasks, the bar's button after the islands and its panel (tasks.md, Projects). Reka's Popover, not a menu: a
+// menu takes the letters typed (its typeahead). The pages are pictures meanwhile, as under a menu.
 import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka-ui';
 import Icon from './Icon.vue';
 import TaskList from './TaskList.vue';

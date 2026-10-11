@@ -1,8 +1,6 @@
 <script setup lang="ts">
-// A row of a menu (menu/MenuRows.vue; docs/ui.md, Rows): its icon, a project's dot or a profile's picture, its label
-// with a line under it, its key at the end; a check when it is the chosen one of a choice (value). Reka's menu item:
-// the pointer lights it, the arrows move to it, its first letter finds it. Chosen with the left button only: on Linux a
-// right-click menu opens on the press, and the release over a row must not choose it.
+// A row of a menu (menu/MenuRows.vue; docs/ui.md, Rows). Chosen with the left button only: on Linux a right-click menu
+// opens on the press, and the release over a row must not choose it.
 import { DropdownMenuItem, DropdownMenuItemIndicator, DropdownMenuRadioItem } from 'reka-ui';
 import Icon from './Icon.vue';
 import { avatarSrc } from '../lib/common';

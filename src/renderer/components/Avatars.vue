@@ -1,6 +1,5 @@
 <script setup lang="ts">
-// The profiles' pictures to choose from (main/avatars.js), as Chrome's avatar grid, the chosen one lit
-// (components.css, .choices): Reka's ToggleGroup, one of them always chosen; the arrows move between them.
+// The profiles' pictures to choose from (main/avatars.js; docs/profiles.md): Reka's ToggleGroup, one always chosen.
 import { ToggleGroupItem, ToggleGroupRoot } from 'reka-ui';
 import { avatarSrc } from '../lib/common';
 

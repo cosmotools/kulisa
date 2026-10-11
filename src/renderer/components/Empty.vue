@@ -1,8 +1,5 @@
 <script setup lang="ts">
-// What a window shows in the grid's place with no task open (after its last group is closed; at the first start,
-// with the projects' manager opened on New Project over it: app.js, firstStart): an empty island, "No task is open",
-// Search Tasks (the bar's button: every project's tasks, New Task in each) and New Project…. Around it the window is as
-// always: the title bar (Projects, ☰ with the links and Kulisa's version), the projects' bar with no islands.
+// The empty window's island (CLAUDE.md, Terminology; tasks.md, Projects).
 import { dialog } from '../lib/dialogs';
 import { withKeys } from '../lib/common';
 

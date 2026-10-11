@@ -1,7 +1,6 @@
 <script setup lang="ts">
-// The agent's terminal panel: it shows the shown task's agent (lib/terminals.ts), whose xterms live as long as their
-// tasks and wait outside the grid while it has no such panel. Its right-click menu: Copy, Paste, Select all, Clear,
-// Change agent….
+// The agent's terminal panel (docs/window.md, The terminal). The agents' xterms live as long as their tasks
+// (lib/terminals.ts) and wait outside the grid while it has no such panel.
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { fitTerminal, terminalMenu, termEl } from '../../lib/terminals';
 import RightClickMenu from '../menu/RightClickMenu.vue';

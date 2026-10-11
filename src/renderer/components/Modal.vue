@@ -1,14 +1,12 @@
 <script setup lang="ts">
-// A dialog, one look for all, as in JetBrains (docs/ui.md, Dialogs), on Reka's Dialog: the title with × on top (when
-// it may be closed; Esc and a click outside too), the content, the buttons at the bottom right, the main one last. With
-// form (formId: its id), the content and the buttons are Reka's form (Enter submits; errors: the main process's answer
-// by field, shown at the field's FieldError until it is changed). While it is open the profiles' pages
-// are hidden (they are native views above the HTML: lib/views.ts). Its content is in the page only while it is open
-// (Reka's default: a closed dialog costs no memory), so a dialog opens first and then fills its fields; what must
-// outlive it lives in the dialog's own component (its setup) or in lib/. Afterwards the keyboard is back where it was.
+// A dialog, one look for all (docs/ui.md, Dialogs), on Reka's Dialog. While it is open the profiles' pages are hidden
+// (native views above the HTML: lib/views.ts). Its content is in the page only while it is open (Reka's default: a
+// closed dialog costs no memory), so a dialog opens first and then fills its fields; what must outlive it lives in the
+// dialog's own component (its setup) or in lib/.
 //   <Modal id title> content <template #footer> buttons </template></Modal>
 //   ref: await open() (shown, its content there, the keyboard in its [autofocus] field or on it), close(), isOpen()
 //   closable: false: no ×, Esc or click outside (it waits for an answer); stay: not now (an install under way)
+//   formId: the content and the buttons are Reka's form; errors: the main process's answer by field
 import { watch } from 'vue';
 import { DialogClose, DialogContent, DialogOverlay, DialogPortal, DialogRoot, DialogTitle, FormRoot } from 'reka-ui';
 import Icon from './Icon.vue';

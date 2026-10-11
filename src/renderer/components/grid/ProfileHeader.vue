@@ -1,8 +1,5 @@
 <script setup lang="ts">
-// A profile's panel's header in the grid: its picture, its name (who it is on hover), what the agent does there (its
-// caption; 🔒 on a sign-in page, where the agent is paused), × closing the profile (its tabs go, its sign-ins stay).
-// Its right-click menu: New tab, About this profile…, Sign In to Master… (its master's window: signed in there, every
-// task's copy is too), Refresh from Master…, Close profile, Delete profile….
+// A profile's panel's header in the grid (docs/profiles.md).
 import { computed } from 'vue';
 import type { DockviewPanelApi } from 'dockview-vue';
 import Icon from '../Icon.vue';

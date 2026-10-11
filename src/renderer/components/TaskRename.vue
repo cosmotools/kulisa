@@ -1,6 +1,5 @@
 <script setup lang="ts">
-// Rename… in a task tab's menu (TaskTab.vue): its name, and its branch with it; its folder stays. The main process's
-// refusal is shown at the field (Reka's FieldError) until the name is changed.
+// Rename… a task (tasks.md, Tasks). The main process's refusal is shown at the field until the name is changed.
 import { computed, ref } from 'vue';
 import { DialogClose, FieldControl, FieldError, FieldLabel, FieldRoot } from 'reka-ui';
 import Modal from './Modal.vue';

@@ -65,6 +65,12 @@ unasked. This paragraph is removed when the rewrite is finished.
 ## Conventions
 
 - Everything in the repository is written in English: code, comments, documentation, commit messages.
+- **Comments say why, not what** (the author, 2026-10-11: comments that retold the UI went out of date again and
+  again). A comment holds what the code cannot say: why it is so, a workaround and what it works around, a pointer
+  to REPORT or a doc. It does not retell what a part shows, what its buttons are or what things are called: that is
+  the docs' (`docs/`) and the code's own; a file's header is a line saying what it is, and the doc to read. Types are
+  TypeScript's, not a comment's. When a term or a part is renamed, look for the old word in the code's comments too,
+  not only in the docs.
 - **Terminology: "profile"**, the word Chrome uses, for one embedded browser identity (cookies, storage, tabs) and
   its pane. Not "persona", "user" or "account" (an account is what a profile signs in to). Early commits and
   experiments said "persona".

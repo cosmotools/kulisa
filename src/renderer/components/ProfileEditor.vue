@@ -1,7 +1,5 @@
 <script setup lang="ts">
-// The profile editor (Manage Profiles…: the profiles' chip, About this profile… in a pane's menu): the shown task's
-// profiles, open and closed (ProfileRow.vue), and a new one: its picture (the one it would get lit, until the human
-// picks another), name and who it is. Enter in either field adds it (Shift+Enter: a new line in who it is).
+// The profile editor, Manage Profiles… (docs/profiles.md).
 import { computed, nextTick, ref } from 'vue';
 import { DialogClose, FieldControl, FieldDescription, FieldLabel, FieldRoot, FormRoot } from 'reka-ui';
 import Modal from './Modal.vue';

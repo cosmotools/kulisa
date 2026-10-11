@@ -1,8 +1,6 @@
 <script setup lang="ts">
-// An area's right-click menu at the pointer (Reka's ContextMenu; docs/ui.md, Menus): a pane's header, its tabs, the
-// terminal, the projects' bar … One menu for the area: items(e) builds its rows for what the right-click was on (a
-// tab, an island), none where it has no menu. Closed as a button's menu is; afterwards the keyboard is back where it was
-// (the terminal).
+// An area's right-click menu at the pointer (Reka's ContextMenu; docs/ui.md, Menus). One menu for the area: items(e)
+// builds its rows for what the right-click was on, none where it has no menu.
 //   <RightClickMenu :items="(e) => […] | null"> <div …> </RightClickMenu>
 import { shallowRef } from 'vue';
 import { ContextMenuContent, ContextMenuPortal, ContextMenuRoot, ContextMenuTrigger } from 'reka-ui';

@@ -1,9 +1,6 @@
 <script setup lang="ts">
-// Choosing a task's agent (tasks.md, "Choosing the agent"): the agents with Install (AgentList.vue); Start starts the
-// chosen one in the task's terminal, and on its first start the agent asks the human to sign in. Asked by the main
-// process for a task whose agent is not chosen or not installed, once the grid it is for is on screen; and by Change
-// agent…, which may be left as it is (Cancel). Closed without a choice (another task or project was shown): it is
-// asked again when that task is shown again.
+// Choosing a task's agent (tasks.md, "Choosing the agent"). Asked once the grid it is for is on screen; closed without
+// a choice (another task was shown), it is asked again when that task is shown again.
 import { computed, ref } from 'vue';
 import Modal from './Modal.vue';
 import AgentList from './AgentList.vue';

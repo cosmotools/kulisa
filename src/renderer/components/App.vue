@@ -1,6 +1,5 @@
 <script setup lang="ts">
-// A Kulisa window (docs/window.md): the title bar, the shown task's grid (or an empty island with no project open: Empty.vue),
-// the projects' bar under it or over it, the dialogs and the menu at a point.
+// A Kulisa window (docs/window.md).
 import Sprite from './Sprite.vue';
 import TopBar from './TopBar.vue';
 import Grid from './Grid.vue';

@@ -1,8 +1,6 @@
 <script setup lang="ts">
-// The grid of the shown task (lib/grid.ts does what it holds), in JetBrains' Islands look: panels are islands with
-// rounded corners on one dark box (--well) from edge to edge of the window, a step from its panels so they stand apart;
-// the projects' bar's islands, of its color, merge into it wherever they meet it, also over a gap between two panels.
-// A profile's page is a native view over its pane's .content, rounded in profiles.js (PAGE_RADIUS).
+// The grid of the shown task (lib/grid.ts; docs/window.md, The grid). A profile's page is a native view over its pane's
+// .content, rounded in profiles.js (PAGE_RADIUS).
 import { markRaw } from 'vue';
 import { DockviewVue, themeAbyssSpaced, type IDockviewVueProps } from 'dockview-vue';
 import 'dockview-vue/dist/styles/dockview.css';

@@ -1,6 +1,5 @@
-// The shown task's profiles as a menu (its chip on the task's tab, the tab's right-click menu): an open one brings its
-// pane to the front (it may be stacked behind another); a closed one opens; each with who it is, when said; then
-// Manage Profiles… (ProfileEditor.vue).
+// The shown task's profiles as a menu (docs/profiles.md). An open one brings its pane to the front: it may be stacked
+// behind another.
 import { act, store } from './store';
 import { plural } from './common';
 import { showPane } from './grid';
