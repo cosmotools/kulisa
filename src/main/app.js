@@ -15,7 +15,7 @@ const { nextAvatar } = require('./avatars');
 const { signinPages } = require('./signin-pages');
 const { SessionCookies } = require('./session-cookies');
 const { Project, askDeleteProject, deleteProjectData, faviconOf, addRepo, cloneRepo, defaultRepo, removeRepo, reposInfo, askDropProfile, dropProfile,
-  agentsInfo, addAgent, defaultAgent, removeAgent, PROJECT_ICONS } = require('./projects');
+  agentsInfo, addAgent, defaultAgent, removeAgent, deleteAccount, PROJECT_ICONS } = require('./projects');
 const { AppWindow, COLORS } = require('./window');
 const worktrees = require('./worktrees');
 const agents = require('./agents');
@@ -526,22 +526,37 @@ function start(options = {}) {
   // Its agents (projects.js): one added, made the default (+ runs it), removed. At once, not on Save.
   ipcMain.handle('project:agent-add', (e, { id, agent }) => addAgent(shell, id, agent));
   ipcMain.handle('project:agent-default', (e, { id, agent }) => defaultAgent(shell, id, agent));
-  ipcMain.handle('project:agent-remove', (e, { id, agent }) => serial(() => removeAgent(shell, id, agent, at(e))));
-  // A new account of an agent, made in a project (the projects' manager; tasks.md, Accounts): a folder of its own
+  ipcMain.handle('project:agent-remove', (e, { id, agent }) => removeAgent(shell, id, agent));
+  // The accounts (Settings → Agents), each with the projects it is in; clis: the agents an account can be made of.
+  const accountsInfo = () => {
+    const names = new Map(store.projects().map((p) => [p.id, p.name]));
+    return { accounts: shell.accounts.all().filter((a) => !a.own).map(({ id, agent, name, email, projects }) => ({ id, agent: agent.id, name, email,
+      projects: projects.map((p) => names.get(p)).filter(Boolean) })),
+    clis: shell.accounts.all().filter((a) => a.own && a.agent.config?.login).map((a) => a.id) };
+  };
+  ipcMain.handle('accounts:list', () => accountsInfo());
+  // Delete Account… (projects.js: refused while a task runs it, asked first). { accounts, clis } or { error }.
+  ipcMain.handle('account:delete', (e, { id }) => serial(async () => {
+    const r = await deleteAccount(shell, id, at(e));
+    if (r.ok) shell.sendProjects(); // +'s right-click menu of the projects that had it
+    return r.ok ? accountsInfo() : r;
+  }));
+  // A new account of an agent, made in Settings → Agents or in a project (tasks.md, Accounts): a folder of its own
   // (accounts.js), then the agent's own sign-in in it, as /login, in a terminal of the window (key), which ends once signed
   // in; its status says the email it signed in to. The page it opens comes to Kulisa (its BROWSER: open-url, through the
   // local server with a token of this sign-in) and is shown in a clean browser of Kulisa's (master.js), not the user's
   // browser, already signed in to other accounts; it closes when the sign-in ends, and closed by the human it ends the
   // sign-in. Claude Code reads BROWSER on Linux (checked in 2.1.296); not set on Windows (a sh script). An email stored
   // already is that account, added to the project. Not one change after another
-  // (serial): a sign-in takes minutes. { agents } or { error } (null: cancelled).
+  // (serial): a sign-in takes minutes. In a project (id): { agents } (the project's); in Settings → Agents (no id):
+  // { accounts, clis }; or { error } (null: cancelled).
   const signins = shell.signins = new Map(); // a sign-in terminal's key -> its pty
   const openers = new Map(); // a sign-in's token -> what opens its page
   shell.signinOpen = (token, url) => { const open = openers.get(token); if (!open || !/^https?:\/\//.test(url)) return false; open(url); return true; };
   const cancel = (key) => { const p = signins.get(key); signins.delete(key); if (p) stopTerminal(p); };
   ipcMain.handle('account:signin', async (e, { id, agent: agentId, key }) => {
     const w = at(e), own = shell.accounts.find(agentId);
-    if (!store.projects().some((x) => x.id === id)) return { error: `no project ${id}` };
+    if (id && !store.projects().some((x) => x.id === id)) return { error: `no project ${id}` };
     if (!own?.own || !own.agent.config?.login) return { error: `${own?.name || agentId} has no accounts` };
     const found = await agents.findAgent(own.agent, app.getPath('home'));
     if (!found?.path) return { error: `${own.name} is not installed: install it in ☰ → Agents…` };
@@ -570,11 +585,11 @@ function start(options = {}) {
     if (cancelled || !got || existing) {
       if (got) await agents.signOut(own.agent, found, r.dir);
       shell.accounts.remove(r.dir);
-      if (existing) return addAgent(shell, id, existing.id);
+      if (existing) return id ? addAgent(shell, id, existing.id) : { error: `${existing.name} is an account already` };
       return { error: cancelled ? null : `Not signed in: ${own.name} ended with code ${code}.` };
     }
     shell.accounts.create(id, r.id, agentId, got.email);
-    return addAgent(shell, id, r.id);
+    return id ? addAgent(shell, id, r.id) : accountsInfo();
   });
   ipcMain.handle('account:signin-cancel', (e, { key }) => cancel(key));
   // Its name, color and icon (its group's panel too, ProjectBar.vue: local not sent, kept as it is).
@@ -683,7 +698,7 @@ function start(options = {}) {
   // The agents with their accounts (accounts.js); an account is its agent with its config folder in its environment.
   shell.accounts = new Accounts(userData, known, (dir) => store.markDeleted(dir));
   shell.accounts.clean();
-  // An account no project has any more (projects.js): signed out with its agent's own command (what it keeps outside
+  // An account the human deleted (projects.js, deleteAccount): signed out with its agent's own command (what it keeps outside
   // its folder goes too: Claude Code's Keychain entry on macOS), then its folder.
   shell.dropAccount = async (a) => {
     await agents.signOut(a.agent, await agents.findAgent(a.agent, app.getPath('home')), a.dir);

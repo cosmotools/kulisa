@@ -316,22 +316,32 @@ function defaultAgent(shell, id, agent) {
   if (!p?.agents?.includes(agent)) return { error: `${agent} is not in the project` };
   return changeAgents(shell, id, [agent, ...p.agents.filter((a) => a !== agent)]);
 }
-// An account of its own (accounts.js) only while none of its tasks, open or closed, runs it: it may go with its last
-// project (then after a question, signed out and its folder deleted), and a task would lose its sign-in and
-// conversation. An agent's own account (the human's folder) never goes, so its tasks keep it. w: the window that asks.
-async function removeAgent(shell, id, agent, w) {
+// Let go by the project, at once, nothing asked: an account stays in the store (accounts.js), and a task of the project
+// running it keeps it, as one running an agent without accounts does.
+function removeAgent(shell, id, agent) {
   const p = shell.store.projects().find((x) => x.id === id);
   if (!p?.agents?.includes(agent)) return { error: `${agent} is not in the project` };
-  const a = shell.accounts.find(agent);
-  if (a && !a.own) {
-    const using = shell.store.tasksOf(p).list.filter((e) => shell.store.taskOf(p, e.n).agent().agent === agent);
-    if (using.length) return { error: `Tasks run it: ${using.map((e) => e.name).join(', ')}. Delete them first (Delete Task… in a task's menu), or choose another agent there (Change agent…).` };
-    if (shell.accounts.last(agent, id) && !await shell.ask({ message: `Delete the account ${a.name}?`, ok: 'Delete', danger: true,
-      detail: `It is in no other project: its folder ${a.dir} goes, with its sign-in, settings and conversations.` }, w)) return { error: 'the human said no' };
-  }
   const r = changeAgents(shell, id, p.agents.filter((x) => x !== agent));
-  if (a && shell.accounts.removeFrom(agent, id).gone) await shell.dropAccount(a);
+  shell.accounts.removeFrom(agent, id);
   return r;
+}
+// Delete Account… (Settings → Agents): only while no task, of any project, open or closed, runs it (its conversation is
+// in its folder); asked first, naming the projects it is in; let go by them, signed out with its agent's own command,
+// its folder gone. w: the window that asks. { ok } or { error }.
+async function deleteAccount(shell, agent, w) {
+  const a = shell.accounts.find(agent);
+  if (!a || a.own) return { error: `no account ${agent}` };
+  const using = shell.store.projects().flatMap((p) => shell.store.tasksOf(p).list
+    .filter((e) => shell.store.taskOf(p, e.n).agent().agent === agent).map((e) => `${e.name} (${p.name})`));
+  if (using.length) return { error: `Tasks run it: ${using.join(', ')}. Delete them first (Delete Task… in a task's menu), or choose another agent there (Change agent…).` };
+  const projects = shell.store.projects().filter((p) => p.agents?.includes(agent));
+  if (!await shell.ask({ message: `Delete the account ${a.name}?`, ok: 'Delete', danger: true,
+    detail: [`Its folder ${a.dir} goes, with its sign-in, settings and conversations.`,
+      projects.length && `The projects ${projects.map((p) => p.name).join(', ')} let go of it.`].filter(Boolean).join(' ') }, w)) return { error: null };
+  for (const p of projects) changeAgents(shell, p.id, p.agents.filter((x) => x !== agent));
+  shell.accounts.drop(agent);
+  await shell.dropAccount(a);
+  return { ok: true };
 }
 
 // What the projects' manager shows of them: each with whether it is in git, and the former folder while it is there.
@@ -354,9 +364,7 @@ async function askDeleteProject(shell, p, w) {
   return shell.ask(deleteQuestion({ message: `Delete the project ${p.name}?`, ok: 'Delete', goes: [
     ...(() => {
       const only = shell.profileStore.of(p.id).filter((g) => g.projects.length === 1).map((g) => g.name);
-      const accounts = shell.accounts.all().filter((a) => !a.own && a.projects.every((x) => x === p.id)).map((a) => a.name);
-      return [only.length ? `its profiles ${only.join(', ')} (in no other project) with their sign-ins` : null, "its tasks' copies of its profiles, and its layouts",
-        accounts.length ? `its agents' accounts ${accounts.join(', ')} (in no other project) with their sign-ins and conversations` : null].filter(Boolean);
+      return [only.length ? `its profiles ${only.join(', ')} (in no other project) with their sign-ins` : null, "its tasks' copies of its profiles, and its layouts"].filter(Boolean);
     })(),
     ...withCopies.map((e) => `its task ${e.name}: ${e.copies.map((c) => `the folder ${c.worktree}`).join(', ')}, the branch ${e.branch}, its agent's conversations`)],
   notInMain: changed, stays: `Its folders stay as they are: ${[...new Set([p.folder, ...reposOf(p)])].join(', ')}.` }), w);
@@ -364,9 +372,8 @@ async function askDeleteProject(shell, p, w) {
 async function deleteProjectData(shell, p) {
   for (const e of shell.store.tasksOf(p).list) await deleteTask(shell, p, e);
   for (const g of shell.profileStore.of(p.id)) shell.profileStore.removeFrom(g.id, p.id); // its own ones go with their masters
-  for (const a of shell.accounts.all().filter((x) => !x.own && x.projects.includes(p.id))) {
-    if (shell.accounts.removeFrom(a.id, p.id).gone) await shell.dropAccount(a); // its own ones: signed out, their folders gone
-  }
+  // Its agents' accounts stay, let go of (Settings → Agents deletes one).
+  for (const a of shell.accounts.all().filter((x) => !x.own && x.projects.includes(p.id))) shell.accounts.removeFrom(a.id, p.id);
   shell.store.removeProject(p);
 }
 
@@ -399,4 +406,4 @@ function faviconOf(folder) {
 }
 
 module.exports = { Project, askDeleteProject, deleteProjectData, faviconOf, reposOf, gitOf, addRepo, cloneRepo, defaultRepo, removeRepo, reposInfo,
-  askDropProfile, dropProfile, agentsInfo, addAgent, defaultAgent, removeAgent, PROJECT_ICONS };
+  askDropProfile, dropProfile, agentsInfo, addAgent, defaultAgent, removeAgent, deleteAccount, PROJECT_ICONS };

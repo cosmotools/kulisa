@@ -57,10 +57,12 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
     tasks there (the author, 2026-10-11: the bar's tabs are tasks, so what lists things to open lists tasks): New
     Project and the rest are the projects' manager's, Close Group the group's menu's (and the middle button). A Popover in a menu's
     look, not a menu: a menu takes the letters typed (its typeahead), and the list is Reka's Listbox.
-- **The projects' manager** (the Projects button in the title bar, left of ☰; Project
-  Settings… in a group's menu opens it at that project; at the first start, no project yet, it opens by itself on
-  New Project; back on
-  2026-10-11, after it was taken out for a few hours): one dialog, + New Project and every project under it on the left
+- **Settings** (the button in the title bar, left of ☰; the author, 2026-10-11): one dialog, its tabs **Projects** (the
+  projects' manager) and **Agents** (the agents and their accounts: "Choosing the agent"). Project Settings… in a
+  group's menu opens it at that project; ☰ → Agents… on Agents; at the first start, no project yet, it opens by itself
+  on New Project. It was the projects' manager alone, under a Projects button, until the agents' accounts needed a
+  place outside projects. **The projects' manager**, its Projects tab (back on
+  2026-10-11, after it was taken out for a few hours): + New Project and every project under it on the left
   (its icon in its color, its name); on the right the chosen one's **page**: at its top its icon and name, **New Task**
   (a task of it, in its group) and **⋯** (Delete Project…); under them a card each (`.card`: a heading, a line saying
   what it is, its rows or an empty line, its add row): **Code**, **Agents**, **Profiles** (what its tasks are made
@@ -102,12 +104,12 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   icon is its site's favicon (`favicon.*` or `icon.*` at the top or in `public/`, `static/`, `app/`, `src/`, `assets/`
   …, up to 128 KB; a project opened from a folder that has one gets it), one of Kulisa's set (Lucide's cart, briefcase,
   globe, flask, rocket, code, building, people, book, heart), or the app's curtain.
-- **Its configuration** (the manager's right side, `ProjectEditor.vue`, one form for a new project and an existing
+- **Its configuration** (the manager's right side, `ProjectEditor.vue`, which is Settings with its tabs, one form for a new project and an existing
   one; a new project's form: Create, Cancel) changes its name, color, icon and local addresses as they change; the
   folder is shown (in Code), not changed.
 - **Its agents**: a list of its agents' accounts and the terminal only ("Choosing the agent", Accounts). **Add
-  Agent…** adds the terminal only or an account another project has; **New Account…** makes one, signed in right there;
-  × removes one; the radio makes one the default: + runs it, the others are in +'s right-click menu (New Task with).
+  Agent…** adds the terminal only or any account (made in another project or in Settings → Agents); **New Account…**
+  makes one, signed in right there; × lets go of one at once (the account stays: Settings → Agents deletes it); the radio makes one the default: + runs it, the others are in +'s right-click menu (New Task with).
   None: its tasks start with the terminal only. A task keeps the agent it started with; Change agent… in its terminal
   picks another of the project's.
 - **Its code**: the repositories or folders its tasks work on, the default one first (its radio: new tasks' agents
@@ -215,7 +217,8 @@ to the human; the window's IPC (`app.js`) and the MCP tools are handles on it:
 | Fold a project's group | a click on its label | none: how the human sees the bar | `Project.collapse` |
 | Add, clone, make the default, remove a repository | the projects' manager | none: what the project is made of is the human's | `addRepo`, `cloneRepo`, `defaultRepo`, `removeRepo` (`projects.js`); `Task.reposChanged` |
 | Add, make the default, remove an agent of the project | the projects' manager | none: what the project is made of is the human's | `addAgent`, `defaultAgent`, `removeAgent` (`projects.js`) |
-| Make an account of an agent | New Account… in the projects' manager | none: signing in is the human's (Rules) | `account:signin` (`app.js`), `Accounts.prepare`, `create` |
+| Make an account of an agent | New Account… in Settings → Agents or a project's page | none: signing in is the human's (Rules) | `account:signin` (`app.js`), `Accounts.prepare`, `create` |
+| Delete an account | × in Settings → Agents | none: it deletes a sign-in and conversations, the human's to decide | `deleteAccount` (`projects.js`), `shell.dropAccount` |
 | Change the agent | Change agent… (the terminal's menu) | none: the human's choice | `Task.changeAgent` |
 
 ## Choosing the agent
@@ -230,7 +233,7 @@ dialog, among the project's accounts and the terminal only. **Change agent…** 
 the same dialog, with Cancel, and starts the chosen one with a new conversation. `KULISA_AGENT` forces one command
 everywhere, without asking. An agent CLI itself is installed in ☰ → Agents… (**Install**: Kulisa runs its maker's own
 installer, the command shown before, its output while it runs, with no steps for the human to type, for people who
-are not programmers); its accounts are made in a project's settings.
+are not programmers); its accounts are made there too, or in a project's page.
 
 - The installers are the makers' official native ones (no Node, no sudo, they update themselves; checked
   2026-10-06): Claude Code `curl -fsSL https://claude.ai/install.sh | bash`, Codex
@@ -253,8 +256,8 @@ are not programmers); its accounts are made in a project's settings.
   the language's English name), the rest of the file kept, never into a file that is not JSON. Claude Code reads that
   file again when it changes and the language at each recording, so it holds from the next one, in every session
   of the human's, as if set in `/config`. A settings file of one launch would not do: it is read once.
-- **Agents…** (☰) opens a dialog of its own with the agents alone (their
-  accounts are the projects'), at any time, with nothing to choose: each agent's version (its `--version`), its folder (marked when it is not on the user's `PATH`: Kulisa runs it
+- **Settings → Agents** (☰ → Agents… opens it there; `AgentsTab.vue`) shows the agents at any time, with nothing to
+  choose, and under each one with accounts its accounts (below): each agent's version (its `--version`), its folder (marked when it is not on the user's `PATH`: Kulisa runs it
   from there), its maker's website, and Install for the others. Installing there starts nothing; the agent is chosen
   for a task when one is made, or with Change agent…. Kulisa does not remove or update agents: they are the
   user's programs, and the makers' installers update them themselves.
@@ -264,15 +267,17 @@ are not programmers); its accounts are made in a project's settings.
   only) have no accounts and are chosen as themselves. The human's own folder (`~/.claude`, `~/.codex`) is no account:
   every account is made in Kulisa and starts as a clean agent (no global `CLAUDE.md`, settings, plugins, skills or MCP
   servers of the human's: set up again in each), the author's choice over copying them.
-  - **Made in a project** (the projects' manager, New Account…, an agent): the agent's own sign-in starts at once, as
-    its `/login` does (Claude Code `auth login`, Codex `login`), in a terminal in the manager (`AccountSignIn.vue`),
+  - **Made in Settings → Agents** (New Account… under its agent: in no project yet) **or in a project** (its page,
+    New Account…, an agent: in that project): the agent's own sign-in starts at once, as
+    its `/login` does (Claude Code `auth login`, Codex `login`), in a terminal there (`AccountSignIn.vue`),
     and ends once signed in. Its folder in Kulisa's data has a fixed id (`agents/claude-<n>/`, never a number used
     before: a removed one's folder may wait for the next start), never renamed: Claude Code names its macOS Keychain
     entry after a hash of the config folder's path (checked in 2.1.296), so a folder renamed after the sign-in would
     lose it. The email it signed in to is read after it (`auth status`) and kept in `agents.json`: the account is
     shown as "Claude Code · ann@shop.com"; Codex's status may not say it (not tried yet: no Codex account), then its id.
     An email the store has already is that account: the new folder is signed out and removed, the existing one added
-    to the project. Cancel, the manager closed, or a sign-in ended without an account keeps nothing.
+    to the project (made in Settings → Agents: said so). Cancel, Settings closed, or a sign-in ended without an account
+    keeps nothing.
     **The page opens in a clean browser of Kulisa's**, not the user's (the author, 2026-10-11: theirs is signed in to
     other accounts, which they would have to sign out of and back into): the agent's `BROWSER` is Kulisa's
     `src/agent/open-url`, which sends the address to Kulisa (its local server, a token per sign-in), and Kulisa shows
@@ -282,17 +287,21 @@ are not programmers); its accounts are made in a project's settings.
     checked (there it may still open the user's browser), and on Windows it is not set (a sh script).
   - **One store** (`agents.json`), as the profiles': each account lists the projects it is in; **Add Agent…** in another
     project takes it there too. Choosing a task's agent (Change agent…, Choose the Agent) lists the project's accounts
-    and the agents themselves, never another project's: it could go with that project while a task here runs it.
-  - **× on an account** in a project is refused while any of the project's tasks, open or closed, runs it (counted
-    then from their `agent.json`, as × on a repository): the refusal names them. The terminal only may be removed (its
-    tasks keep it). An account no project lists any more goes, after a question ("Delete the
-    account …?"): signed out with its agent's own command (`auth logout`: what it keeps outside its folder goes too,
-    the Keychain's entry on macOS), then its folder, with its sign-in, settings and conversations. Deleting a project
-    does the same for the accounts only it had, named in its question.
+    and the agents themselves, never another project's: the project's page says who works in its tasks.
+  - **An account lives until the human deletes it** (the author, 2026-10-11: with every project deleted, every account
+    went, and the next project had none; a sign-in is made again only by signing in again). × on an account in a
+    project lets go of it at once, nothing asked, as of the terminal only: a task running it keeps it. Deleting a
+    project lets go of its accounts the same way. In Settings → Agents each account says the projects it is in ("in no
+    project"), and its × deletes it: refused while any task of any project, open or closed, runs it (counted from their
+    `agent.json`; its conversation is in its folder), naming them; else after a question ("Delete the account …?",
+    naming the projects that let go of it): signed out with its agent's own command (`auth logout`: what it keeps
+    outside its folder goes too, the Keychain's entry on macOS), then its folder, with its sign-in, settings and
+    conversations.
   The project's own environment still comes last (direnv's `.envrc` may set `CLAUDE_CONFIG_DIR`), as without Kulisa.
-- The dialog is part of the window, not a window of its own: no extra process. `AgentPicker.vue` (choosing) and
-  `Agents.vue` (the Agents window) are two dialogs of their own around one list of agents with Install
-  (`AgentList.vue`), each with its own state.
+- The dialogs are part of the window, not windows of their own: no extra process. `AgentPicker.vue` (choosing) and
+  Settings → Agents (`AgentsTab.vue`, its state kept by Settings, so an install goes on behind the Projects tab and
+  Settings stays open while it runs) are built around one list of agents with Install (`AgentList.vue`), each with
+  its own state.
 - The agent's state on the tabs comes from its hooks. Kulisa has events of its own (`agent-hooks.js`): `prompt`
   working, `waiting` for the human, `stop` done, `interrupt` and `session-end` unknown (but a session ending after a
   done turn keeps it). Which of an agent's hooks sends which is the agent's, in one place each:
@@ -353,7 +362,8 @@ profiles.json                     the profiles, one store: who each is, its proj
 profiles/Profile <k>/             a profile's master, where the human signs in once for every task
 agents.json                       the agents' accounts (accounts.js): { next, list: [{ id, agent, email, folder, projects }] }
 agents/<agent>-<n>/               an account's config folder (CLAUDE_CONFIG_DIR, CODEX_HOME): its sign-in, settings,
-                                  conversations; gone, signed out first, with its last project; one a sign-in left
+                                  conversations; gone, signed out first, when the human deletes it (Settings →
+                                  Agents); one a sign-in left
                                   unfinished (Kulisa quit meanwhile) goes at the next start
 settings.json                     the Kulisa zoom, the theme, where the projects' bar is; the windows: each one's
                                   projects (in the bar's order), the one shown, where it was
@@ -427,7 +437,8 @@ What stays in any case: an agent Kulisa installed (it serves every project).
 alone (the author, 2026-10-11: with everything else about a project; not in its group's panel, the Welcome screen or
 a menu). One function (`deleteProject` in `app.js`): Kulisa asks first, saying what goes and which tasks have
 work not in main and not pushed; closes the project if it is open; deletes each of its tasks as above; then removes it
-from `projects.json` with its data folder `projects/<id>/`. The project's own folder stays as it is.
+from `projects.json` with its data folder `projects/<id>/`. The project's own folder stays as it is, and so do its
+agents' accounts, let go of (Settings → Agents deletes one: "Choosing the agent", Accounts).
 
 ## While Kulisa runs
 
@@ -522,7 +533,7 @@ temporary forks), and again on 2026-10-10 (tasks; ROADMAP, "Projects and tasks")
 | `src/main/terminal.js` | the task's terminals: its agent's and the others (window.md, The terminal) |
 | `src/renderer/components/ProjectBar.vue`, `TaskSearch.vue`, `TaskList.vue`, `Empty.vue`, `ProjectEditor.vue` | the projects' bar (an island per project) and its Search Tasks; every project's tasks (Search Tasks' list); the empty window's island; the projects' manager |
 | `src/renderer/components/TaskTab.vue`, `TaskRename.vue` | a task's tab in the bar, its menu, the Rename Task dialog |
-| `src/renderer/components/AgentPicker.vue`, `Agents.vue`, `AgentList.vue` | choosing a task's agent; the Agents window; the list of agents with Install that both show |
+| `src/renderer/components/AgentPicker.vue`, `AgentsTab.vue`, `AgentList.vue` | choosing a task's agent; Settings → Agents, with the accounts; the list of agents with Install that both show |
 | `src/main/accounts.js`, `src/renderer/components/AccountSignIn.vue` | the agents' accounts, one store; a new one's sign-in in the projects' manager |
 | `src/renderer/lib/grid.ts`, `components/Grid.vue` | building a task's grid; the slide (a view transition) |
 | `test/tasks.js` | the tests; `test/restart-tasks.js` after a restart; `test/unit/agents.test.js` |

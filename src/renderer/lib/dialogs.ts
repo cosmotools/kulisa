@@ -6,8 +6,8 @@
 export interface Dialogs {
   profiles: { manage(): void; about(key: string): void };
   taskrename: { rename(key: string, name: string): void };
-  projects: { openProjects(id?: string): Promise<void>; newProject(): Promise<void> };
-  agents: { showAgents(): Promise<void> };
+  // Settings: its Projects tab (at a project, or New Project), its Agents tab.
+  projects: { openProjects(id?: string): Promise<void>; newProject(): Promise<void>; openAgents(): Promise<void> };
   agentpick: { chooseAgent(q: { task: string; selected?: string; cancel?: boolean }): Promise<void> };
   shortcuts: { showShortcuts(): void };
 }

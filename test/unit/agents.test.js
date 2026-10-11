@@ -123,7 +123,7 @@ test("agents: a task's other folders go to Claude Code and Codex as --add-dir (C
   assert.equal(agent('codex').addDir, undefined, 'others: a line saying so (tasks.js)');
 });
 
-test("accounts: one store, each listing its projects; its folder a fixed id, never a number used before, the email kept; an agent with accounts is no account itself", () => {
+test("accounts: one store, each listing its projects, kept in none until deleted; its folder a fixed id, never a number used before, the email kept; an agent with accounts is no account itself", () => {
   const { Accounts } = require('../../src/main/accounts');
   const data = path.join(root, 'accounts-data');
   const defs = [{ id: 'claude', name: 'Claude Code', config: { env: 'CLAUDE_CONFIG_DIR', home: () => '/nowhere', login: () => [] } }, { id: 'shell', name: 'Terminal only' }];
@@ -141,13 +141,17 @@ test("accounts: one store, each listing its projects; its folder a fixed id, nev
   assert.equal(accounts.byEmail('claude', null), null);
   accounts.addTo('claude-1', 'blog');
   assert.deepEqual(new Accounts(data, defs).all().map((a) => [a.id, a.projects]), [['claude', undefined], ['claude-1', ['shop', 'blog']], ['shell', undefined]], 'kept');
-  assert.equal(accounts.last('claude-1', 'shop'), false);
-  assert.deepEqual(accounts.removeFrom('claude-1', 'shop'), { gone: false });
-  assert.equal(accounts.last('claude-1', 'blog'), true);
-  assert.deepEqual(accounts.removeFrom('claude-1', 'blog'), { gone: true });
+  // Let go by its last project, it stays (a sign-in is made again only by signing in again); deleted, it goes.
+  accounts.removeFrom('claude-1', 'shop');
+  accounts.removeFrom('claude-1', 'blog');
+  assert.deepEqual(accounts.find('claude-1').projects, [], 'in no project, kept');
+  assert.deepEqual(accounts.create(null, accounts.prepare('claude').id, 'claude', 'cy@shop.com').projects, [], 'made in Settings → Agents: in no project');
+  accounts.drop('claude-1');
+  accounts.drop('claude-2');
+  assert.equal(accounts.find('claude-1'), null);
   accounts.remove(r.dir);
   assert.ok(!fs.existsSync(r.dir) && marked.includes(r.dir), 'its folder gone');
-  assert.equal(accounts.prepare('claude').id, 'claude-2', 'never a number used before: a removed folder may wait for the next start');
+  assert.equal(accounts.prepare('claude').id, 'claude-3', 'never a number used before: a removed folder may wait for the next start');
   // At start: a sign-in that did not end, and the format before (accounts.json), go.
   fs.writeFileSync(path.join(data, 'accounts.json'), '[]');
   const bob = accounts.create('shop', accounts.prepare('claude').id, 'claude', 'bob@shop.com');

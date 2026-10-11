@@ -10,7 +10,6 @@ import ProfileEditor from './ProfileEditor.vue';
 import ProjectEditor from './ProjectEditor.vue';
 import TaskRename from './TaskRename.vue';
 import AgentPicker from './AgentPicker.vue';
-import Agents from './Agents.vue';
 import Shortcuts from './Shortcuts.vue';
 import Ask from './Ask.vue';
 import PointMenu from './menu/PointMenu.vue';
@@ -26,7 +25,6 @@ import PointMenu from './menu/PointMenu.vue';
   <ProjectEditor />
   <TaskRename />
   <AgentPicker />
-  <Agents />
   <Shortcuts />
   <Ask />
   <PointMenu />

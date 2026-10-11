@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // The agents Kulisa knows (lib/agents.ts) as a list with Install, in both dialogs that show them: choosing a task's
-// agent (AgentPicker.vue) and the Agents window (Agents.vue), whose state it draws (list). Each row: who makes it and
+// agent (AgentPicker.vue) and Settings → Agents (AgentsTab.vue), whose state it draws (list); slot after: what goes under
+// an agent's row there (its accounts). Each row: who makes it and
 // what it needs, whether it is on this computer; choosing, the project's accounts (main/accounts.js). One that is not
 // installed has an Install button: Kulisa runs its maker's installer (the command line is shown before). Meanwhile the
 // list says only that it is installing: the installer's own output (written for programmers: "open a new terminal and
@@ -25,7 +26,7 @@ const status = (a: Agent) => (a.installed ? (a.install && !a.account ? 'Installe
   <div :ref="(el) => { s.el = el as HTMLElement | null; }" class="agentlist">
     <RadioGroupRoot v-model="s.selected" class="rows" aria-label="Agents" :disabled="s.installing">
       <p v-if="s.looking" class="hint">Looking for agents on this computer…</p>
-      <label v-for="a in s.agents" :key="a.id" class="agentrow" :class="{ account: !!a.account }" :data-agent="a.id">
+      <template v-for="a in s.agents" :key="a.id"><label class="agentrow" :class="{ account: !!a.account }" :data-agent="a.id">
         <RadioGroupItem v-if="list.choose" class="radio" :value="a.id"><RadioGroupIndicator /></RadioGroupItem>
         <span class="what"><b class="name">{{ a.account || !a.maker ? a.name : `${a.name} · ${a.maker}` }}</b><small class="needs">{{ needs(a) }}</small>
           <small class="where">{{ where(a) }}</small><small class="install-line">{{ installLine(a) }}</small></span>
@@ -33,7 +34,7 @@ const status = (a: Agent) => (a.installed ? (a.install && !a.account ? 'Installe
         <span class="status">{{ status(a) }}</span>
         <button type="button" class="install" :hidden="a.installed || !a.install || !!a.account" :disabled="s.installing"
           @click.prevent="list.install(a.id)">Install</button>
-      </label>
+      </label><slot name="after" :agent="a" /></template>
     </RadioGroupRoot>
     <p class="progress hint">{{ s.progress }}</p>
     <CollapsibleRoot v-model:open="s.detailsOpen" class="details" :hidden="!s.showDetails" :unmount-on-hide="false">

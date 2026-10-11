@@ -1,10 +1,10 @@
 <script setup lang="ts">
 // The window's title bar (titleBarOverlay in window.js): the app's logo with the curtain in the open project's color
 // (--project: each project its own curtain), the Kulisa zoom when it is not 100% (a click resets it, as Chrome's
-// magnifier), Projects (the projects' manager), ☰. env(titlebar-area-*) leaves room for the OS window buttons on every
+// magnifier), Settings (its tabs: Projects, Agents; ProjectEditor.vue), ☰. env(titlebar-area-*) leaves room for the OS window buttons on every
 // platform; dragging it moves the window, except on its controls.
 // ☰, as Chrome's ⋮: the zoom row (stays open while you click − and +), the theme row and the projects' bar's (open too),
-// then the ready-made arrangements, each a picture of itself; Agents…; Keyboard Shortcuts; the links (the documentation, GitHub, issues);
+// then the ready-made arrangements, each a picture of itself; Agents… (Settings → Agents); Keyboard Shortcuts; the links (the documentation, GitHub, issues);
 // Exit, as Chrome's, where the OS has no menu bar with Quit (not macOS: Cmd+Q there). Each row with its icon at the
 // start; Kulisa's version under them all, a note rather than a row.
 import Icon from './Icon.vue';
@@ -26,7 +26,7 @@ const windowMenu = (): MenuItem[] => [
     { component: ChoiceRow, props: { kind: 'bar', icon: 'i-projects', label: 'Projects bar', choices: BARS, chosen: () => store.bar,
       choose: (b: string) => kulisa.invoke('bar:set', b) } },
     '-', { heading: 'Arrange panels', icon: 'i-arrange' }, { component: ArrangeRow }, '-',
-    { label: 'Agents…', icon: 'i-agent', run: async () => (await dialog('agents')).showAgents() },
+    { label: 'Agents…', icon: 'i-agent', run: async () => (await dialog('projects')).openAgents() },
     { label: 'Keyboard Shortcuts', icon: 'i-keyboard', keys: keyText('shortcuts'), run: async () => (await dialog('shortcuts')).showShortcuts() },
     '-', ...LINKS.map((l) => ({ label: l.label, icon: l.icon, run: () => open(l.href) })),
     ...(kulisa.platform === 'darwin' ? [] : ['-' as const, { label: 'Exit', icon: 'i-exit', run: () => kulisa.invoke('app:quit') }]),
@@ -37,8 +37,8 @@ const windowMenu = (): MenuItem[] => [
   <header id="topbar">
     <Icon class="logo" name="i-logo" />
     <button id="zoomReset" :hidden="store.zoom === 1" title="Kulisa's zoom. Click to reset (Ctrl 0)" @click="kulisa.invoke('zoom:ui', 0)">{{ Math.round(store.zoom * 100) }}%</button>
-    <button id="manageProjects" class="icon" title="Projects: each one's configuration, a new one" aria-label="Projects"
-      @click="dialog('projects').then((d) => d.openProjects())"><Icon name="i-projects" /></button>
+    <button id="manageProjects" class="icon" title="Settings: projects, agents" aria-label="Settings"
+      @click="dialog('projects').then((d) => d.openProjects())"><Icon name="i-settings" /></button>
     <ButtonMenu :items="windowMenu" end><button id="windowMenu" class="icon" title="Menu: zoom, layout" aria-label="Menu"><Icon name="i-menu" /></button></ButtonMenu>
   </header>
 </template>

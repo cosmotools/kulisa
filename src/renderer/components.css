@@ -149,8 +149,14 @@ svg:has(> use) { width: 16px; height: 16px; flex: none; fill: none; stroke: curr
   .card { padding: var(--inset) var(--pad) var(--pad); border: 1px solid var(--island-hi); border-radius: var(--island-radius);
     h4 { margin: var(--inset) 0 2px; font-size: 1em; font-weight: 600; color: var(--text-strong); }
     > .hint { margin-block-end: var(--inset); }
-    .empty { margin: var(--inset) 0; color: var(--text-dim); }
     .field { grid-template-columns: calc(var(--label) - var(--pad)) 1fr; } }
+  /* A list's line when it has none ("No accounts yet.") */
+  .empty { margin: var(--inset) 0; color: var(--text-dim); }
+  /* Tabs at a dialog's top (Settings: Projects, Agents; Reka's Tabs): words, the chosen one underlined in --accent */
+  .dialogtabs { display: flex; gap: var(--pad); padding: 0 var(--pad); border-bottom: 1px solid var(--island-hi);
+    button { height: var(--control); padding: 0 2px; border: none; border-radius: 0; background: none; color: var(--text-muted);
+      border-bottom: 2px solid transparent; margin-bottom: -1px;
+      &:hover { color: var(--text); } &[data-state="active"] { color: var(--text-strong); border-bottom-color: var(--accent); } } }
   /* A field, a check or a row a dialog leaves out in one of its uses (hidden) */
   :is(.field, .check, .row)[hidden] { display: none; }
   footer { display: flex; justify-content: flex-end; gap: var(--gap); padding: 16px var(--pad); border-top: 1px solid var(--island-hi);

@@ -47,14 +47,15 @@ setuid on a plain install. The `.deb` installs it setuid, so the installed app r
 
 **Projects:** a project is the configuration its tasks are made from: a name, a color and an icon, its agents (one
 the default), its profiles, and its code: a folder, or one or more repositories (local, or cloned from a URL; one the
-default). **Projects** in the title bar (left of ☰) opens the projects' manager: every project on the left
+default). **Settings** in the title bar (left of ☰, the gear) has two tabs, **Projects** and **Agents**. Projects is
+the projects' manager: every project on the left
 and **+ New Project**; on the right the chosen one's page: **New Task**, its code, agents, profiles and look, each saved as it changes, and **⋯ → Delete Project…** (Kulisa's data of it and its tasks' copies; its folder stays). The bar under the
 grid (or over it: **☰ → Projects bar**) has a group per project with open tasks, as Chrome's tab groups: its name (a click folds
 it), its tasks, and **+** for a new task. A project itself is not opened or closed: its tasks are. A click on a task shows it, of any group, and the others keep running
 (their agents and pages) until you close them (**×** on a task; **Close Group** in its name's right-click panel or the middle
 button on its name closes all its tasks, asking only when an agent works). The button after the islands (or Ctrl+Shift+A)
 searches every project's tasks, as Chrome's Search tabs: a click opens one, in its project's group (a new one in this
-window when it has none), and **New Task** under each project makes one. The **Projects** button in the title bar opens the projects' manager, with **New Project** (a name and where its
+window when it has none), and **New Task** under each project makes one. **Settings → Projects** has **New Project** (a name and where its
 folder goes, `~/Kulisa` by default; git on by default, with an empty first commit; its color and icon; then its
 configuration: its agents' accounts, code, profiles; **New Task** makes its first task; a folder there already, a repository or not, is taken as it is). **Project Settings…** on its name's right-click menu opens the manager at it. Closing the last group leaves the
 window empty: Search Tasks and New Project… in it. A closed task keeps its tabs and
@@ -62,11 +63,12 @@ sign-ins; when you open it again, its agent continues the conversation where it 
 `codex resume`). The agent starts in your shell in its task's folder, as if you typed its command in a terminal
 there, so the project's environment (direnv's `.envrc`, nvm, mise) applies; when it exits, the shell stays.
 
-**The agent:** **☰ → Agents…** shows which agent CLIs are installed (Claude Code, Codex),
-their versions and folders, and installs the others (Kulisa runs its maker's installer). The agents a project's tasks
-run are its accounts, made in its settings: **New Account…** starts the agent's own sign-in right there, its page in a
-clean browser of Kulisa's (none of your other sign-ins there); the account is shown by the email you signed in to,
-has a folder of its own (several side by side: a work and a personal one), and goes (after a question) when no project
+**The agent:** **Settings → Agents** (or **☰ → Agents…**) shows which agent CLIs are installed (Claude Code, Codex),
+their versions and folders, installs the others (Kulisa runs its maker's installer), and lists each one's accounts.
+**New Account…** there, or in a project's page, starts the agent's own sign-in right there, its page in a clean browser
+of Kulisa's (none of your other sign-ins there); the account is shown by the email you signed in to and has a folder
+of its own (several side by side: a work and a personal one). A project's tasks run the accounts its page lists
+(**Add Agent…**). An account stays until you delete it in Settings → Agents (×, after a question), also when no project
 has it any more. Each starts as a clean agent: your own `~/.claude` and `~/.codex` are not used. A project without
 one starts its tasks with the terminal only. Each task keeps its choice; **Change agent…** in the terminal's
 right-click menu picks another of the project's (with a new conversation).
@@ -114,7 +116,8 @@ src/main/        Electron main process
   names.js         the one rule for names of projects, tasks and profiles; slugs for ids and folders
   tasks.js         a task: its profiles, agent (terminal, environment), folder and name; copies for a new task
   agents.js        the agent CLIs to choose from: how to find, install, start and resume each
-  accounts.js      the agents' accounts, one store: each made in a project (New Account…), a config folder of its own
+  accounts.js      the agents' accounts, one store: each made with New Account… (Settings), a config folder of its own,
+                   kept until deleted
   worktrees.js     git for tasks: worktree and branch, files outside git copied, changes, renaming, removal
   profile-store.js     the profiles, one store: who each is, its master, its projects
   master.js        a profile's master in a window of its own, to sign in to once for every task

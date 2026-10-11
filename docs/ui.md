@@ -50,7 +50,8 @@ Each icon is drawn once, as a `<symbol id="i-…">` in the sprite (`Sprite.vue`,
 |---|---|
 | `i-close` | × of dialogs, profiles, tabs, tasks; removing a row |
 | `i-plus` | new tab, new task |
-| `i-projects` | the projects' manager in the title bar (Lucide's folder-open) |
+| `i-settings` | Settings in the title bar (Lucide's settings) |
+| `i-projects` | ☰'s Projects bar row (Lucide's folder-open) |
 | `i-search` | Search Tasks, after the islands of the projects' bar (Lucide's search) |
 | `i-logo` | the app icon with its curtain in `currentColor`: the title bar's (`--project`), and a project's label in the projects' bar (its `--color`). The folds are a shadow over the color, one for every color: a `<use>` takes the sprite's gradient, not one of its own |
 | `i-docs`, `i-github`, `i-bug` | the links (Documentation, GitHub, Report an issue), rows of ☰ (`data-icon` on each link; Lucide's book-open, github, bug) |
@@ -161,6 +162,10 @@ Every dialog is `Modal.vue`, Reka UI's Dialog (`reka-ui`) with the same parts:
   projects' manager) has none: × closes it.
 - `.card` in the body: one part of what it edits, framed (a project's Code, Agents, Profiles, Look, Local
   addresses): an `h4`, a `.hint` saying what it is, its rows or fields, `.empty` when it has none, its `.row` to add.
+- `.empty`: a list's line when it has none ("No accounts yet."), dim.
+- `.dialogtabs`: tabs at the top of a dialog's body (Reka's `TabsList`, `TabsTrigger`s): words, the chosen one
+  underlined in `--accent`; chosen on the press, as every tab. Settings' Projects and Agents (`ProjectEditor.vue`).
+  Reka gives triggers and contents ids of their own: find them by `data-tab` and a class.
 - With `form` the content and the buttons are a form: Enter submits.
 - Its ref: `await open()` (shown, the keyboard in its `[autofocus]` field or on it; the profiles' pages hidden while it
   is open: `covered('hide')`, `lib/views.ts`), `close()`, `isOpen()`. Its content is in the page only while it is open

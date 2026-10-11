@@ -1,6 +1,7 @@
 <script setup lang="ts">
-// The projects' manager (the title bar's Projects button, Project Settings… in a group's menu; at the first start it
-// opens by itself on New Project): every project on the left (its icon in its color, its name) under + New Project;
+// Settings (the title bar's Settings button, Project Settings… in a group's menu; at the first start it opens by itself
+// on New Project), its tabs Reka's Tabs: Projects, and Agents (AgentsTab.vue: the agents and their accounts; ☰ →
+// Agents… opens it there). Projects, the projects' manager: every project on the left (its icon in its color, its name) under + New Project;
 // on the right the chosen one's page, what its tasks are made of (tasks.md, Projects). New Project, as JetBrains': a
 // name, and the location its folder goes in (~/Kulisa unless the human types or browses to another); it shows the
 // folder it makes, so the human knows where the agent's files are, or that the folder is there and is taken as it is
@@ -17,6 +18,7 @@
 // project:repo-*, project:agent-*, project:profile-*). Reka's parts: the projects a Listbox, the defaults RadioGroups,
 // the colors a ColorSwatchPicker, the icons a ToggleGroup, Create Git repository a Checkbox, the fields Fields.
 import { computed, ref, watch } from 'vue';
+import { TabsContent, TabsList, TabsRoot, TabsTrigger } from 'reka-ui';
 import { CheckboxIndicator, CheckboxRoot, ColorSwatchPickerItem, ColorSwatchPickerItemSwatch, ColorSwatchPickerRoot, DialogClose, FieldControl,
   FieldDescription, FieldLabel, FieldRoot, ListboxContent, ListboxItem, ListboxRoot, RadioGroupIndicator, RadioGroupItem, RadioGroupRoot,
   ToggleGroupItem, ToggleGroupRoot } from 'reka-ui';
@@ -24,13 +26,19 @@ import Modal from './Modal.vue';
 import Icon from './Icon.vue';
 import ButtonMenu from './menu/ButtonMenu.vue';
 import AccountSignIn from './AccountSignIn.vue';
+import AgentsTab from './AgentsTab.vue';
 import ProjectIcon from './ProjectIcon.vue';
 import { avatarSrc, iconTitle, projectIcon } from '../lib/common';
 import type { MenuItem } from '../lib/menu';
 import { registerDialog } from '../lib/dialogs';
-import type { ProjectChoices, ProjectEntry, ProjectProfile, ProjectRepo, ProjectSettings } from '../types';
+import { agentList } from '../lib/agents';
+import type { ProjectChoices, ProjectEntry, ProjectProfile, ProjectRepo, ProjectSettings, SignedIn } from '../types';
 
 const modal = ref<InstanceType<typeof Modal>>();
+// The tab shown; the agents' list (Settings → Agents) lives here, so an install goes on while Projects is shown, and
+// Settings stays open while it runs.
+const tab = ref<'projects' | 'agents'>('projects');
+const agentsList = agentList({ details: true, installed: (a) => `${a.name} is installed. Make an account of it below (New Account…).` });
 const nameField = ref<{ $el: HTMLInputElement }>(), newProfile = ref<HTMLInputElement>(), url = ref<HTMLInputElement>();
 const focusName = () => nameField.value?.$el.focus(); // when it is open
 const projects = ref<ProjectEntry[]>([]);
@@ -106,17 +114,19 @@ async function edit(id: string) {
   await showList();
   document.getElementById('pjconfig')?.scrollTo(0, 0); // at its top, not where the last one was scrolled
 }
-async function openProjects(id?: string) {
+async function openProjects(id?: string, on: typeof tab.value = 'projects') {
   const { current, projects: all } = await kulisa.invoke<{ current: string | null; projects: ProjectEntry[] }>('projects:list');
   const at = id || current || all[0]?.id;
   await (at ? edit(at) : fresh());
+  tab.value = on;
   await show();
 }
 // Open; a new project's: the keyboard in its name (fresh puts it there when it is already open).
 async function show() { if (!modal.value!.isOpen()) { await modal.value!.open(); if (isNew.value) focusName(); } }
 registerDialog('projects', {
   openProjects,
-  async newProject() { await fresh(); await show(); },
+  async newProject() { await fresh(); tab.value = 'projects'; await show(); },
+  openAgents: () => openProjects(undefined, 'agents'),
 });
 
 async function browse() {
@@ -190,11 +200,17 @@ const addable = computed(() => choices.value.agents.filter((x) => !mine.value.so
 const addAgent = (): MenuItem[] => addable.value.map((x) => ({ label: x.name, run: () => agents('project:agent-add', { agent: x.id }) }));
 const newAccount = (): MenuItem[] => choices.value.clis.map((c) => ({ label: c.name, run: () => { agentError.value = ''; signing.value = c; } }));
 // Signed in: the project's agents with it, and it among the accounts to add to other projects.
-async function signedIn(list: { id: string; name: string }[]) {
-  signing.value = null; mine.value = list; showDefaults();
-  const c = await kulisa.invoke<ProjectSettings>('project:settings-get', { id: editing.value });
-  if (!c.error) choices.value = { ...choices.value, agents: c.agents };
+async function signedIn(r: SignedIn) {
+  signing.value = null; mine.value = r.agents ?? mine.value; showDefaults();
+  await agentsNow();
 }
+// The accounts to add and the project's agents as they are now: one made or deleted (Settings → Agents) meanwhile.
+async function agentsNow() {
+  if (!editing.value) return;
+  const c = await kulisa.invoke<ProjectSettings>('project:settings-get', { id: editing.value });
+  if (!c.error) { choices.value = { ...choices.value, agents: c.agents }; mine.value = c.projectAgents; showDefaults(); }
+}
+watch(tab, (t) => { if (t === 'projects') agentsNow(); });
 
 // Its profiles (profile-store.js): who each is, and the other projects that have it too. New makes one (closed in its
 // tasks: opened in a task, a copy of its master is made there); From Another Project… takes one another project has; ×
@@ -214,7 +230,13 @@ const fromAnother = (): MenuItem[] => others.value.map((p) => ({ label: p.name, 
 </script>
 
 <template>
-  <Modal id="projects" ref="modal" title="Projects" form form-id="npform" @submit="submit" @close="saveLook">
+  <Modal id="projects" ref="modal" title="Settings" form form-id="npform" :stay="agentsList.state.installing" @submit="submit" @close="saveLook">
+    <TabsRoot id="settingstabs" v-model="tab" :unmount-on-hide="false">
+    <TabsList class="dialogtabs" aria-label="Settings">
+      <TabsTrigger value="projects" data-tab="projects" type="button">Projects</TabsTrigger><TabsTrigger value="agents" data-tab="agents" type="button">Agents</TabsTrigger>
+    </TabsList>
+    <!-- Reka gives its tabs and their contents ids of its own -->
+    <TabsContent class="pjtab" value="projects">
     <nav id="pjnav" aria-label="Projects">
       <button id="pjnew" type="button" @click="fresh"><Icon name="i-plus" />New Project</button>
       <ListboxRoot id="pjlist" :model-value="editing ?? undefined" aria-label="Projects" @update:model-value="(id) => id && id !== editing && edit(String(id))">
@@ -329,7 +351,10 @@ const fromAnother = (): MenuItem[] => others.value.map((p) => ({ label: p.name, 
         </section>
       </template>
     </div>
-    <template v-if="isNew" #footer>
+    </TabsContent>
+    <TabsContent class="agtab" value="agents"><AgentsTab :list="agentsList" :active="tab === 'agents'" /></TabsContent>
+    </TabsRoot>
+    <template v-if="isNew && tab === 'projects'" #footer>
       <DialogClose>Cancel</DialogClose><button id="npcreate" class="primary" :disabled="saving">Create</button>
     </template>
   </Modal>
@@ -339,7 +364,12 @@ const fromAnother = (): MenuItem[] => others.value.map((p) => ({ label: p.name, 
 /* The projects on the left, each scrolling on its own, one project's page on the right: its top (its icon in its
    color, its name, New Task, ⋯), then its cards */
 #projects { width: min(860px, 92vw); height: 85vh;
-  .body { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: var(--pad); overflow: hidden; padding-block-end: 0; }
+  .body { display: flex; flex-direction: column; overflow: hidden; padding-block: 0; }
+  #settingstabs { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .dialogtabs { padding: 0; margin-block-end: 16px; }
+  :is(.pjtab, .agtab):not([data-state="active"]) { display: none; }
+  .pjtab { flex: 1; min-height: 0; display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: var(--pad); }
+  .agtab { flex: 1; min-height: 0; overflow: auto; padding-block-end: 20px; }
   #pjnav { display: flex; flex-direction: column; gap: var(--inset); min-height: 0; padding-inline-end: var(--pad);
     border-inline-end: 1px solid var(--island-hi); }
   #pjlist { flex: 1; min-height: 0; overflow: auto; .picon { flex: none; width: 18px; height: 18px; color: var(--color); } }

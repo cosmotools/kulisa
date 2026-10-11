@@ -217,7 +217,6 @@ module.exports = (test) => {
       projects: () => ui(`document.getElementById('manageProjects').click()`),
       taskrename: () => fromMenu('Rename…', '#tasklist .tasktab .name'),
       agentpick: () => fromMenu('Change agent…', '#term'),
-      agents: () => fromMenu('Agents…'),
       shortcuts: () => fromMenu('Keyboard Shortcuts'),
     };
     assert.equal(await ui(`document.querySelectorAll('.dialog').length`), 0, 'none in the page while closed');

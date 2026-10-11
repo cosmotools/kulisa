@@ -33,12 +33,16 @@ here; what is left of it stays.
     skill forbids it: close it or not). For the author's real accounts, not testable by Claude: device-bound cookies
     (DBSC, Google) and MSAL's sign-ins kept in step (step 6); "Sign in with Google" without the sign-in pause is the
     author's own replacement of `signin-pause.js`. Step 8 (agents' accounts made in the project, one store) built
-    2026-10-11. Not discussed, so not to build unasked: tabs in a master's window, tasks in a
+    2026-10-11. Then (the author, 2026-10-11) the projects' manager became Settings, its tabs Projects and Agents: the
+    agents and their accounts there (☰ → Agents… opens it), an account kept until deleted there, no longer gone with
+    its last project (tasks.md, "Choosing the agent", Accounts). Open, for the author: profiles have the old rule (a
+    master goes with its last project, its sign-ins too); a Profiles tab in Settings would be their place outside
+    projects. Not discussed, so not to build unasked: tabs in a master's window, tasks in a
     former folder getting copies.
-  - **Agents** (the CLIs in ☰ → Agents…, global; their accounts made and chosen in a project since step 8, below): the
-    human picks a CLI (Claude Code, Codex, …) and signs in with the CLI's own login in the projects' manager (New
-    Account…); each account has its own config folder (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`) in Kulisa's data folder,
-    gone with its last project. The human's own `~/.claude` / `~/.codex` is no account (never used, never deleted).
+  - **Agents** (the CLIs and their accounts in Settings → Agents since 2026-10-11; chosen in a project since step 8,
+    below): the human picks a CLI (Claude Code, Codex, …) and signs in with the CLI's own login (New Account…, in
+    Settings → Agents or a project's page); each account has its own config folder (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`)
+    in Kulisa's data folder, kept until the human deletes it there (no longer gone with its last project). The human's own `~/.claude` / `~/.codex` is no account (never used, never deleted).
   - **Profiles** (one flat store, each listing the projects it belongs to; it goes, after a question, when its last
     project does; seen in the project's editor: + New, + From another project). A profile is a person with all their
     sign-ins, in one or more forms:
