@@ -2,7 +2,7 @@
 const fs = require('fs');
 const path = require('path');
 const { assert, root, userData, project, pfile, savedTabs, panel, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, menuOpen, rightClick,
-  box, pageBox, viewOn, dock, ctrl, near, closeMenu } = require('./helpers');
+  box, pageBox, viewOn, dock, ctrl, near, closeMenu, PORT } = require('./helpers');
 
 module.exports = (test) => {
   test('Kulisa zoom: Ctrl+= outside the pages scales the whole UI, pages follow, panes still fit; saved', async ({ shell, ui }) => {
@@ -56,7 +56,7 @@ module.exports = (test) => {
     for (const t of shell.profiles.get('elon-buyer').tabs) assert.ok(near(t.wc.getZoomFactor(), 1.25), 'other profiles keep the Kulisa zoom');
     await waitFor(async () => (await ui(`document.querySelector('.pane[data-profile="sam-admin"] .zoom').textContent`)) === '110%');
     const saved = JSON.parse(fs.readFileSync(pfile('profiles.json'), 'utf8')).find((p) => p.id === 'sam-admin');
-    assert.deepEqual(saved.zoom, { '127.0.0.1:4417': 1.1 });
+    assert.deepEqual(saved.zoom, { [`127.0.0.1:${PORT}`]: 1.1 });
     ctrl(tab.wc, '0');
     await waitFor(() => near(tab.wc.getZoomFactor(), 1.25));
     await waitFor(() => ui(`document.querySelector('.pane[data-profile="sam-admin"] .zoom').hidden`));
@@ -70,9 +70,9 @@ module.exports = (test) => {
     const back = encodeURIComponent(`${SITE}/app?n=9`);
     const viaHistory = elon.newTab(`${SITE}/app?n=5`);
     await viaHistory.ready;
-    await viaHistory.wc.loadURL('http://localhost:4417/app?login=1'); // localhost is a sign-in host in this test
-    await elon.newTab(`http://localhost:4417/headers?redirect_uri=${back}`).ready; // opened directly on sign-in
-    await elon.newTab('http://localhost:4417/headers').ready; // nothing to come back to
+    await viaHistory.wc.loadURL(`http://localhost:${PORT}/app?login=1`); // localhost is a sign-in host in this test
+    await elon.newTab(`http://localhost:${PORT}/headers?redirect_uri=${back}`).ready; // opened directly on sign-in
+    await elon.newTab(`http://localhost:${PORT}/headers`).ready; // nothing to come back to
     const expected = [`${SITE}/errors`, `${SITE}/app?n=5`, `${SITE}/`];
     await waitFor(() => JSON.stringify(savedTabs('elon-buyer')) === JSON.stringify(expected)).catch(() => {});
     assert.deepEqual(savedTabs('elon-buyer'), expected);

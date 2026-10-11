@@ -3,7 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const { assert, root, userData, project, pfile, savedTabs, panel, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, menuOpen, rightClick,
-  box, pageBox, viewOn, dock, ctrl, near, click } = require('./helpers');
+  box, pageBox, viewOn, dock, ctrl, near, click, PORT } = require('./helpers');
 const { app } = require('electron');
 const { CLAUDE_PLUGIN } = require('../src/main/app');
 
@@ -99,7 +99,7 @@ module.exports = (test) => {
   });
   test('the window and the agent act on one core: an address read the same way, the same refusals', async ({ shell, call, ui }) => {
     const sam = shell.profiles.get('sam-seller');
-    const host = SITE.replace('http://', ''); // 127.0.0.1:4417, a host and a port (not a scheme)
+    const host = SITE.replace('http://', ''); // 127.0.0.1:<port>, a host and a port (not a scheme)
     await ui(`act('tab:navigate', { profile: 'sam-seller', tab: '${sam.active}', url: '${host}/app?by=human' })`);
     await waitFor(() => sam.get().wc.getURL() === `${SITE}/app?by=human`);
     await call('browser_navigate', { profile: 'sam-seller', url: `${host}/app?by=agent` });
@@ -294,7 +294,7 @@ module.exports = (test) => {
     };
     await ask("confirm('Yours?\\nReally.')");
     assert.deepEqual(await ui(`[${paneDialog}.querySelector('h2').textContent, ${paneDialog}.querySelector('.message').textContent, !${paneDialog}.querySelector('.cancel')]`),
-      ['127.0.0.1:4417 says', 'Yours?\nReally.', false]);
+      [`127.0.0.1:${PORT} says`, 'Yours?\nReally.', false]);
     assert.equal(view(), false, 'the page drawn as a picture under its dialog');
     // The page does nothing until it is answered: the agent's tools say so at once rather than wait.
     await assert.rejects(call('browser_snapshot', p), /shows a confirm \("Yours\?\nReally\."\) for the human to answer/);
@@ -519,7 +519,7 @@ module.exports = (test) => {
   test('the agent pauses on sign-in pages and comes back after', async ({ shell, call }) => {
     const elon = shell.profiles.get('elon-buyer');
     const wc = elon.get().wc;
-    await wc.loadURL('http://localhost:4417/app'); // localhost is a sign-in host in this test
+    await wc.loadURL(`http://localhost:${PORT}/app`); // localhost is a sign-in host in this test
     await waitFor(() => elon.signinMode);
     await assert.rejects(call('browser_snapshot', { profile: 'elon-buyer' }), /sign-in mode/);
     assert.equal(await wc.executeJavaScript('navigator.webdriver'), false);
@@ -574,7 +574,7 @@ module.exports = (test) => {
     const errors = (await call('browser_console_messages', { profile: 'elon-buyer', tab: picked, onlyErrors: true })).text;
     assert.match(errors, /error: .*PaymentError/); // Playwright's page.consoleMessages()
     const failed = (await call('browser_network_requests', { profile: 'elon-buyer', tab: picked, onlyFailed: true })).text;
-    assert.match(failed, /POST http:\/\/127\.0\.0\.1:4417\/api\/pay → 500/); // page.requests()
+    assert.match(failed, new RegExp(`POST http://127\\.0\\.0\\.1:${PORT}/api/pay → 500`)); // page.requests()
     assert.doesNotMatch(failed, /GET .*\/errors /, 'only failed ones');
     assert.match((await call('browser_snapshot', { profile: 'elon-buyer', tab: picked })).text, /URL: .*\/errors/);
     assert.match((await call('browser_snapshot', { profile: 'elon-buyer' })).text, /URL: .*\/app/, 'default: the active tab');

@@ -1,5 +1,5 @@
-# Dependencies and build output
-node_modules/
+# Dependencies and build output (node_modules without a slash: in a worktree it is a link to the repository's)
+node_modules
 out/
 dist/
 

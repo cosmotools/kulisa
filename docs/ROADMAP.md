@@ -794,7 +794,10 @@ here; what is left of it stays.
   Window" timed out (30 s) once more on 2026-10-11 in one group's run, not in the two after; "DevTools in a pane's ⋮ menu
   opens and closes the DevTools of its active tab" failed once in a full `npm test` (2026-10-11), not in the run after; one test
   of the profiles group failed once more in a full `npm test` that day (which one not kept), not in the two runs after;
-  the DevTools one again later that day (its ⋮ menu did not open: `menuOpen` timed out), not in the run after. Slow but not flaky: deleting a task (a fork's closing took 11 s,
+  the DevTools one again later that day (its ⋮ menu did not open: `menuOpen` timed out), not in the run after. Under the load of two full
+  `npm test` at once (two worktrees, 2026-10-11) both agents' account tests failed (the account's sign-in menu did not
+  open; 'custom' !== 'fake-1'), and "closing the last tab of a profile leaves an empty tab" (`browser_navigate` to the
+  site interrupted by the empty tab's `about:blank`), each in one run of the two; alone, all passed in two runs. Slow but not flaky: deleting a task (a fork's closing took 11 s,
   git's work), a site that never answers (10 s: two 5 s waits by design).
 - **The test "after a restart: a task's other terminal comes back …" takes 5.6 s** (`restart-tasks.js`;
   found 2026-10-09, to come back to). Most of it is showing the project `other` until its task has loaded and

@@ -188,6 +188,19 @@ unasked. This paragraph is removed when the rewrite is finished.
 - Ask before anything outward-facing: pushing, publishing, registering domains.
 - Commit only when asked. The repo is public on GitHub (`origin`, github.com/cosmotools/kulisa); push only when
   asked, and never print the remote URL (`git remote -v`): it carries the author's token.
+- **Each piece of work in a worktree of its own** (the author, 2026-10-11: several Claude sessions work on Kulisa
+  at once, and one switching or editing the shared folder pulled the files out from under the others):
+  - Before the first change: `git worktree add .claude/worktrees/<name> -b <name> main` (from the local `main`, or
+    the branch the author names; not EnterWorktree's default, which starts from `origin`, behind the local one), and
+    work there. The repository's own folder is the author's: never edited, never switched to another branch.
+  - `node_modules` is a link to the repository's (`ln -s ../../../node_modules node_modules`) while the work does
+    not change the dependencies; work that does gets its own (`npm install`, then `npm run postinstall`).
+  - Commits go to the worktree's branch. Merging into `main` is done in a worktree with `main` checked out, never in
+    the repository's folder.
+  - `npm test` runs from several worktrees at once: each checkout has its own test folder and test site
+    (`test/start.js`). The author's Kulisa runs one checkout at a time: the `run-kulisa` skill, from the worktree.
+  - Once its branch is merged (or the author drops it), the worktree goes (`git worktree remove`), its branch
+    (`git branch -d`) and its test folder (`/tmp/kulisa-test-<worktree>-…`).
 
 ## Commands
 
@@ -228,7 +241,7 @@ npm run watch # the window built again on every change; then reload it (Ctrl+R i
   reached from one, never on an account provider's; the agent never sees the password.
 - **The author's data is in `~/.config/Kulisa`**: profiles with real sign-ins to work tenants.
   - Never delete or overwrite it.
-  - Tests use their own temp folder (`/tmp/kulisa-test`).
+  - Tests use their own temp folder (`/tmp/kulisa-test-<checkout>-<hash>`, one per checkout: `test/start.js`).
   - To restart the author's running app, or give them a fresh start: the `run-kulisa` skill
     (`.claude/skills/run-kulisa/`): SIGINT to the main `electron … .` process, so session cookies and tabs get
     saved; then `npm start` in the background.
@@ -371,5 +384,6 @@ What must hold in the window:
 - **Profiles coming back on `about:blank`** (their saved tabs `[]`): fixed twice on 2026-10-08, by two different
   paths (a profile still opening; tabs closing as Kulisa quits). Read `docs/profiles.md`, "Tabs that come back",
   before looking for a third.
-- **`ensureSite()` reuses whatever listens on :4417.** A stale server from an earlier run makes tests lie. Check
-  `ss -ltnp | grep 4417`.
+- **A test run used whatever test site listened on its port.** With the port fixed (:4417), a stale server from an
+  earlier run, or another worktree's run, made tests lie. `npm test` now starts a site of its own on a free port
+  (`KULISA_TEST_SITE`); tests take the address from `SITE`/`PORT` in `helpers.js`, never a literal port.

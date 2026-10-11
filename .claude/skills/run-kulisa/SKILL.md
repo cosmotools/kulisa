@@ -5,8 +5,14 @@ description: Restart the author's running Kulisa after a change, or give them a 
 
 # Running the author's Kulisa
 
-The author's Kulisa runs from this repository (`npm start`). Its data is in `~/.config/Kulisa`: profiles with real
-sign-ins (CLAUDE.md, Rules). `kulisa.sh` next to this file does the steps the same way each time.
+The author's Kulisa runs from one checkout of this repository at a time (`npm start`): the one whose `kulisa.sh` started
+it. Its data is in `~/.config/Kulisa`: profiles with real sign-ins (CLAUDE.md, Rules). `kulisa.sh` next to this file
+does the steps the same way each time.
+
+Work is done in a worktree of its own (CLAUDE.md, Conventions), so run that worktree's `kulisa.sh`
+(`.claude/worktrees/<name>/.claude/skills/run-kulisa/kulisa.sh`): the author then sees its code. Say from which
+worktree it runs now. Another session's Kulisa, started from its worktree, is stopped by this: tell the author whose
+change they no longer see.
 
 ## Restart after a change
 

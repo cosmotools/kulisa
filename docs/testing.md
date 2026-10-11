@@ -22,9 +22,12 @@ e2e files in parallel (`GROUPS` in `start.js`):
 - **A group is one app, its files in order**: later files build on what earlier ones left (profiles, sign-ins,
   projects), as the human's day does. Then the app is restarted in the same folder and the group's restart file
   checks what must survive (`restart-<group>.js`).
-- **Groups are independent**: each has its own folder (`$KULISA_TEST_ROOT`, `/tmp/kulisa-test/<group>`), its own
-  MCP port, on Linux its own screen; only the test site is shared. A group that does not start from nothing starts
-  from a fixture file (`setup.js`: the profiles and the agent's session the first group makes on its way).
+- **Groups are independent**: each has its own folder (`$KULISA_TEST_ROOT`,
+  `/tmp/kulisa-test-<checkout>-<hash>/<group>`), its own MCP port, on Linux its own screen; only the test site is
+  shared, the run's own on a free port (`$KULISA_TEST_SITE`; in a test `SITE` and `PORT` from `helpers.js`, never a
+  literal port). So runs from several worktrees go at once (CLAUDE.md, Conventions): each checkout its folder, each
+  run its site. A group that does not start from nothing starts from a fixture file (`setup.js`: the profiles and
+  the agent's session the first group makes on its way).
 - **A new file** goes into the group whose state it needs; a new group when a file would make a group much longer
   than the others (the run takes as long as the longest group: today about a minute). Give it a `setup` fixture
   rather than a dependency on another group.

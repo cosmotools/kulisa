@@ -12,7 +12,7 @@ const path = require('path');
 const fs = require('fs');
 const { start } = require('../src/main/app');
 const { ensureSite } = require('./fixtures/site');
-const { root, userData, project, sleep, waitFor } = require('./helpers');
+const { root, userData, project, SITE, PORT, sleep, waitFor } = require('./helpers');
 
 const restart = process.argv.includes('--restart');
 // direnv's list of allowed .envrc files (tasks copy and allow them): the test's own, not the user's.
@@ -35,7 +35,7 @@ const bin = path.join(root, 'bin');
 process.env.FAKE_LOGOUTS = path.join(root, 'logouts'); // the accounts the fake agent signed out of
 // Kulisa started from a folder direnv had loaded, as from a terminal in the repository: its state in the environment.
 Object.assign(process.env, { DIRENV_DIR: `-${root}`, DIRENV_FILE: path.join(root, '.envrc'), DIRENV_DIFF: 'eJyrrgUAAXUA-Q', DIRENV_WATCHES: 'eJyLjgUAARUAuQ' });
-process.env.FAKE_SIGNIN_PAGE = 'http://127.0.0.1:4417/app?signin'; // the page its sign-in opens (the test site)
+process.env.FAKE_SIGNIN_PAGE = `${SITE}/app?signin`; // the page its sign-in opens (the test site)
 const agents = [
   // With accounts (accounts.js) as Claude Code's, its folder in FAKE_CONFIG_DIR, which it prints; signed in, out and
   // asked who with its own commands (fixtures/fake-agent.sh).
@@ -55,7 +55,7 @@ try { for (const f of FILES) require(`./${f}`)(test); } catch (e) { console.erro
 // A run that hangs (a test past its timeout, quitting) ends anyway: nothing runs on unseen.
 setTimeout(() => { console.error('the whole run took over 5 minutes: stopped'); app.exit(2); }, 5 * 60000).unref();
 
-const sitePromise = ensureSite();
+const sitePromise = ensureSite(Number(PORT));
 // The restart phase runs as a packaged build would as to DevTools: Kulisa's own are off (appDevTools).
 // After the restart no project is named: the one opened last opens.
 start({ userData, project: restart ? undefined : project, projectsHome: path.join(root, 'Kulisa'), agent, agents, mcpPort: 0, signinHosts: ['localhost'], appDevTools: !restart })

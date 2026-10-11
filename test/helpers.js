@@ -18,7 +18,9 @@ const savedTabs = (id, task = 1) => {
 };
 // The id of a profile's panel in the grid (its folder: stable across renames).
 const panel = (shell, id) => `profile:${(shell.profiles.get(id) || shell.closed.get(id)?.cfg).folder}`;
-const SITE = 'http://127.0.0.1:4417';
+// The test site: the run's own (start.js gives each run a free port), else 4417.
+const SITE = process.env.KULISA_TEST_SITE || 'http://127.0.0.1:4417';
+const PORT = new URL(SITE).port;
 // The windows as settings.json keeps them for the next start: each one's tabs and the one shown.
 const savedWindows = () => JSON.parse(fs.readFileSync(path.join(userData, 'settings.json'), 'utf8')).windows.map(({ tabs, shown }) => ({ tabs, shown }));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -130,6 +132,6 @@ const press = (wc, keyCode, ...modifiers) => { for (const type of ['keyDown', 'k
 const ctrl = (wc, keyCode) => { wc.focus(); press(wc, keyCode, 'control'); };
 const near = (a, b) => Math.abs(a - b) < 1e-6;
 
-module.exports = { searchTasks, assert, root, userData, project, pfile, savedTabs, savedWindows, panel, SITE, sleep, waitFor, who, menuRows, choose, projectTabs, projectTab, showProject, closeProject, manageProfiles, menuOpen, closeMenu, rightClick,
+module.exports = { searchTasks, assert, root, userData, project, pfile, savedTabs, savedWindows, panel, SITE, PORT, sleep, waitFor, who, menuRows, choose, projectTabs, projectTab, showProject, closeProject, manageProfiles, menuOpen, closeMenu, rightClick,
   click, chosen, selectValues, select,
   box, pageBox, viewOn, dock, press, ctrl, near };

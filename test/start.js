@@ -6,7 +6,9 @@
 // after another, as they would fight for the focus there).
 //   npm test -- tasks    one group only
 const { spawn, spawnSync } = require('child_process');
+const crypto = require('crypto');
 const fs = require('fs');
+const net = require('net');
 const os = require('os');
 const path = require('path');
 const electron = require('electron');
@@ -25,11 +27,20 @@ if (process.platform === 'linux' && !hidden && !visible) {
   console.log('The tests run on your screen and take its focus; to run them on a screen of their own: sudo apt install xvfb openbox');
 }
 const run = path.join(__dirname, 'run.js');
-const folder = (group) => path.join(os.tmpdir(), 'kulisa-test', group);
+// The run's folder and test site are its checkout's own: runs from several worktrees at once (CLAUDE.md, Worktrees)
+// removed each other's folders, and tested against another one's site on the shared port 4417. The folder is the same
+// for every run of a checkout, so a failed run's, kept to look at, is replaced by the next run's.
+const repo = path.join(__dirname, '..');
+const base = path.join(os.tmpdir(), `kulisa-test-${path.basename(repo)}-${crypto.createHash('sha1').update(repo).digest('hex').slice(0, 6)}`);
+const folder = (group) => path.join(base, group);
+const freePort = () => new Promise((resolve) => {
+  const s = net.createServer().listen(0, '127.0.0.1', () => { const { port } = s.address(); s.close(() => resolve(port)); });
+});
+let site;
 
 // One run of the app, its output kept until it ends (groups side by side would mix their lines).
 function app(group, args) {
-  const env = { ...process.env, KULISA_TEST_ROOT: folder(group) };
+  const env = { ...process.env, KULISA_TEST_ROOT: folder(group), KULISA_TEST_SITE: site.url };
   let cmd = electron, argv = ['--no-sandbox', run, ...args];
   if (hidden) {
     // A screen as large as a monitor (tests open windows beside each other; -a: a free display), with a window
@@ -68,11 +79,11 @@ async function group(name) {
   if (build.status !== 0) process.exit(build.status ?? 1);
   const names = process.argv.slice(2).filter((a) => GROUPS[a]);
   const chosen = names.length ? names : Object.keys(GROUPS);
-  const site = await ensureSite(); // one for every group: a group's own would go with it while others still use it
+  site = await ensureSite(await freePort()); // one for every group: a group's own would go with it while others still use it
   const codes = [];
   if (visible) for (const n of chosen) codes.push(await group(n));
   else codes.push(...await Promise.all(chosen.map(group)));
   site.child?.kill();
-  try { fs.rmdirSync(path.join(os.tmpdir(), 'kulisa-test')); } catch {} // empty once every group passed
+  try { fs.rmdirSync(base); } catch {} // empty once every group passed
   process.exit(codes.some(Boolean) ? 1 : 0);
 })();

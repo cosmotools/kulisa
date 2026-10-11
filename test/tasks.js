@@ -5,7 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 const { assert, root, userData, project, pfile, savedTabs, panel, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, menuOpen, rightClick,
-  box, pageBox, viewOn, dock, press, ctrl, near, projectTabs, projectTab, showProject, savedWindows, closeMenu, chosen, select, selectValues, click, searchTasks } = require('./helpers');
+  box, pageBox, viewOn, dock, press, ctrl, near, projectTabs, projectTab, showProject, savedWindows, closeMenu, chosen, select, selectValues, click, searchTasks, PORT } = require('./helpers');
 const { withOffset } = require('../src/main/tasks');
 const hasDirenv = (() => { try { execFileSync('direnv', ['version']); return true; } catch { return false; } })();
 
@@ -173,7 +173,7 @@ module.exports = (test) => {
 
   test("profiles: a real account's sign-in kept in step: signed in to a site (not local) in one task, it is in the others and the master; signed out, out everywhere; a local app's stays each task's", async (ctx) => {
     const { shell, call } = ctx;
-    const first = shell.taskOf('project', 1), shop = 'http://shop.example:4417';
+    const first = shell.taskOf('project', 1), shop = `http://shop.example:${PORT}`;
     const inFirst = { call: (n, a) => call(n, a, first) };
     await call('browser_navigate', { profile: 'sam-admin', url: `${shop}/app/login?name=real` });
     assert.equal(await who(ctx, 'sam-admin'), 'Signed in as real');
@@ -532,7 +532,7 @@ module.exports = (test) => {
     await choose(ui, 'Fake agent');
     await waitFor(() => shell.signins.size);
     const p = [...shell.signins.values()][0];
-    await waitFor(() => p.tail.includes('Sign in as?') && [...shell.signinWindows][0]?.profile.get()?.wc.getURL() === 'http://127.0.0.1:4417/app?signin');
+    await waitFor(() => p.tail.includes('Sign in as?') && [...shell.signinWindows][0]?.profile.get()?.wc.getURL() === `${SITE}/app?signin`);
     return p;
   };
   const accountDir = (id) => path.join(userData, 'agents', id);

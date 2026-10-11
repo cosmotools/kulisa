@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run the author's Kulisa from the repository (Linux; the author's machine). Used by SKILL.md.
+# Run the author's Kulisa from the checkout this script is in (Linux; the author's machine). Used by SKILL.md.
 #   kulisa.sh stop     stop it gracefully (SIGINT to the main Electron process: session cookies and tabs get saved)
 #   kulisa.sh check    what a fresh start would find: no Kulisa running, its data, tasks' copies, worktrees, branches, ports
 #   kulisa.sh start    start it in the foreground (run this in the background from Claude Code), without the parent
@@ -33,7 +33,7 @@ case "${1:-}" in
       ls -d "$HOME"/IdeaProjects/*@* "$HOME"/Kulisa/*@* 2>/dev/null; } | sort -u | sed 's/^/task copy: /'
     git -C "$repo" worktree list | sed 's/^/worktree: /'
     git -C "$repo" branch --list | sed 's/^/branch: /'
-    if ss -ltn | grep -qE ':(4450|4417) '; then echo "ports: 4450 or 4417 in use"; else echo "ports: free"; fi ;;
+    if ss -ltn | grep -qE ':4450 '; then echo "ports: 4450 in use"; else echo "ports: free"; fi ;;
   start)
     cd "$repo" || exit 1
     exec env $(env | grep -o '^CLAUDE[A-Z_]*' | grep -v '^CLAUDE_CONFIG_DIR$' | sed 's/^/-u /') npm start ;;
