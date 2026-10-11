@@ -1,12 +1,14 @@
 <script setup lang="ts">
-// The projects' bar, under the grid or over it (☰), an island per open project, drawn as Chrome's tab groups: its
+// The projects' bar, under the grid or over it (☰), an island per project's group of open tasks in this window (it
+// comes with the first one opened and goes with the last one closed; a project itself is no thing to open), drawn as
+// Chrome's tab groups: its
 // label (its icon, the curtain in its color, and its name), its open tasks' tabs (TaskTab.vue), a click on one showing
 // that project with it (the others keep running: their agents and pages), and + for a new task from the project's
 // configuration (its right-click: New Task with one of its agents). A click on the label folds the group to it (the
 // shown task's tab stays) and back. A right-click opens its group's panel, as Chrome's (GroupPanel.vue): its name,
 // color and icon, then New Task, its closed tasks (one opens again), Move to New Window (a window of its own, e.g. for
 // a second monitor; it keeps running), Move to Window (each other window; as a browser moves a tab), Project
-// Settings…, Show Data Folder, Close Project (asking first; also the middle button); a task's tab: the shown
+// Settings…, Show Data Folder, Close Group (its tasks closed, asking first when an agent works; also the middle button); a task's tab: the shown
 // one's profiles, Rename… (its name and branch), Show Folder, Delete Task…. Dragging the label does
 // the same: within the bar it changes the order, onto another window's bar it moves the project there, let go outside
 // every Kulisa window it opens a window there (the main process tells where the pointer is). The button after the
@@ -46,7 +48,7 @@ const manage = async (id?: string) => (await dialog('projects')).openProjects(id
 // A project's own events, not its tasks' (TaskTab.vue handles those).
 const projectOf = (e: Event) => (e.target as Element).closest<HTMLElement>('[data-project]')?.dataset.project;
 // The label folds the group to it and back, as Chrome's tab groups; + makes a task. The middle button on the label
-// closes the project, as a browser's tab.
+// closes the group, as a browser's tab.
 function click(e: MouseEvent) {
   const id = projectOf(e), target = e.target as Element;
   if (!id) return;
@@ -92,7 +94,7 @@ function groupItems(id: string): MenuItem[] {
     ...windows.map((w) => ({ label: `Move to Window: ${w.names.join(', ')}`, run: () => move(w.id) })),
     '-', { label: 'Project Settings…', run: () => manage(id) },
     { label: 'Show Data Folder', run: () => kulisa.invoke('project:show-data', { id }) },
-    '-', { label: 'Close Project', run: () => close(id) }];
+    '-', { label: 'Close Group', run: () => close(id) }];
 }
 const panel = ref<InstanceType<typeof GroupPanel>>();
 const taskMenu = ({ key, name }: TaskInfo): MenuItem[] => [

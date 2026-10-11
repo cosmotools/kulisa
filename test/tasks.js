@@ -623,7 +623,7 @@ module.exports = (test) => {
   });
 
   // Last in phase 1: task-1 is shown, Feature-X waits in the bar and task-5 is closed, for the restart phase.
-  test('tasks: × on the last open task closes the project, as Chrome closes a window with its last tab; it opens again on that task', async (ctx) => {
+  test('tasks: × on the last open task closes its group, as Chrome\'s tab group goes with its last tab, nothing asked; a task opens it again', async (ctx) => {
     const { shell, ui } = ctx;
     const first = shell.current.tasks.get(1), second = shell.current.tasks.get(2);
     await ui(`${taskTab(1)}.querySelector('.close').click()`);
@@ -632,13 +632,13 @@ module.exports = (test) => {
     assert.equal(ctx.asked.length, 0);
     await ui(`${taskTab(2)}.querySelector('.close').click()`);
     await waitFor(() => shell.task === null && !shell.current);
-    assert.equal(ctx.asked.pop().message, 'Close the project project?', "closing a project's question");
+    assert.equal(ctx.asked.length, 0, 'no agent works: nothing asked');
     assert.ok(second.profiles.size === 0 && !second.pty, 'every task of the project stopped');
     assert.deepEqual(tasksFile().list.map((e) => [e.n, !!e.closed]), [[1, true], [2, true], [5, true]]);
     await waitFor(() => ui(`document.documentElement.classList.contains('noproject')`));
     // The empty window: an empty island in the grid's place with New Project…; the bar with no islands but Search Tasks.
     assert.equal(await ui(`getComputedStyle(document.getElementById('empty')).display`), 'grid');
-    assert.equal(await ui(`document.querySelector('#empty h2').textContent`), 'No project is open');
+    assert.equal(await ui(`document.querySelector('#empty h2').textContent`), 'No task is open');
     assert.ok(await ui(`(() => { const w = document.getElementById('empty'), s = getComputedStyle(w);
       return w.getBoundingClientRect().height > innerHeight * 0.7 && s.backgroundColor === (() => { const i = document.body.appendChild(document.createElement('i')); i.style.background = 'var(--island)';
         const c = getComputedStyle(i).backgroundColor; i.remove(); return c; })(); })() // an island's, as the dialogs'`));
@@ -654,11 +654,12 @@ module.exports = (test) => {
     assert.deepEqual(await ui(`[...document.querySelectorAll('.tasksearch .tlproject')].map((b) => b.querySelector('.picon use')?.getAttribute('href') ?? null)`),
       shell.store.projects().map((p) => (p.icon === 'favicon' ? null : p.icon && p.icon !== 'logo' ? `#i-p-${p.icon}` : '#i-logo')));
     const byClosing = tasksFile().list.filter((e) => e.closed).sort((a, b) => b.closedAt - a.closedAt).map((e) => e.name);
-    assert.deepEqual(await ui(`[...document.querySelectorAll('.tasksearch [data-project="project"] .tltask .label')].map((l) => l.textContent)`), byClosing);
+    assert.deepEqual(await ui(`[...document.querySelectorAll('.tasksearch [data-project="project"] .tltask:not(.tlnew) .label')].map((l) => l.textContent)`), byClosing);
     assert.equal(byClosing[0], 'Feature-X');
+    // Its heading is a label; a task of it opens its group again, on that task; the others wait in its group's panel.
+    assert.notEqual(await ui(`document.querySelector('.tasksearch [data-project="project"] .tlproject').getAttribute('role')`), 'option', 'no row');
     await closeMenu(ui);
-    // Its heading: opened again as it was left, on the task closed last; the others wait in its group's panel.
-    await searchTasks(ui, 'project');
+    await searchTasks(ui, 'project', 2);
     await waitFor(() => shell.task?.n === 2 && shell.task.loaded && shell.pty);
     ctx.watchPty(shell.pty);
     await waitFor(() => ui(`!document.documentElement.classList.contains('noproject') && !document.documentElement.classList.contains('loading')`));
@@ -684,9 +685,9 @@ module.exports = (test) => {
     assert.equal(tasksFile().collapsed, undefined);
   });
 
-  test('the empty window: Close Project in the group\'s panel; links in ☰ open in the browser; at the first start the manager on New Project; New Project… asks where its folder goes', async (ctx) => {
+  test('the empty window: Close Group in the group\'s panel; links in ☰ open in the browser; at the first start the manager on New Project; New Project… asks where its folder goes', async (ctx) => {
     const { shell, ui } = ctx;
-    assert.deepEqual((await groupMenu(ui, 'Close Project')).slice(-2), ['-', 'Close Project']);
+    assert.deepEqual((await groupMenu(ui, 'Close Group')).slice(-2), ['-', 'Close Group']);
     await waitFor(() => shell.task === null && !shell.current);
     await waitFor(() => ui(`document.documentElement.classList.contains('noproject')`));
     await ui(`document.getElementById('windowMenu').click()`);
@@ -743,17 +744,17 @@ module.exports = (test) => {
       ['text', true, 'none']);
     assert.ok(!shell.store.projects().some((p) => p.id === 'note'), 'a file is not taken');
     await named('Shop');
-    // Another color and icon. Created, it is not opened: the manager shows its configuration, and Open opens it (no
-    // question where: no project is open here).
+    // Another color and icon. Created, no task is made: the manager shows its configuration, and New Task makes one (no
+    // question where).
     await ui(`document.querySelectorAll('#npcolors [role="option"]')[3].click(); document.querySelector('#npicons [data-value="rocket"]').click()`);
     assert.equal(await ui(`document.getElementById('npwhere').textContent`), `The project will be created in ${path.join(made, 'Shop')}`);
     ctx.asked.length = 0;
     await ui(`document.getElementById('npform').requestSubmit()`);
     await waitFor(() => ui(`document.getElementById('pjtitle')?.textContent === 'Shop' && !document.getElementById('npagentsrow').hidden
-      && !document.getElementById('npopen').hidden && document.querySelector('#pjlist [data-project="shop"]')?.ariaSelected === 'true'`));
-    assert.ok(!shell.current && !shell.open.has('shop'), 'made, not opened');
-    assert.equal(ctx.asked.length, 0, 'no question where to open it');
-    await ui(`document.getElementById('npopen').click()`);
+      && !document.getElementById('npnewtask').hidden && document.querySelector('#pjlist [data-project="shop"]')?.ariaSelected === 'true'`));
+    assert.ok(!shell.current && !shell.open.has('shop'), 'made, no task');
+    assert.equal(ctx.asked.length, 0, 'nothing asked');
+    await ui(`document.getElementById('npnewtask').click()`);
     await waitFor(() => shell.current?.folder === path.join(made, 'Shop') && shell.task?.loaded && shell.pty);
     assert.ok(fs.existsSync(path.join(made, 'Shop', '.git')), 'git init in it');
     const shop = shell.store.projects().find((p) => p.id === 'shop');
@@ -763,11 +764,17 @@ module.exports = (test) => {
     assert.equal(shell.task.folder, path.join(made, 'Shop@task-1'), 'so its first task has a copy of its own');
     assert.equal(await ui(`(document.getElementById('projects')?.dataset.state === 'open')`), false);
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
-    await searchTasks(ui, 'project'); // its heading in Search Tasks: a closed project opened as it was left
+    await searchTasks(ui, 'project', 1); // a closed task in Search Tasks: its group opens again on it
     await waitFor(() => shell.current?.folder === project && shell.task?.n === 1 && shell.task.loaded && shell.pty);
     ctx.watchPty(shell.pty);
     await waitFor(() => ui(`!document.documentElement.classList.contains('noproject') && !document.documentElement.classList.contains('loading')`));
     await waitFor(async () => (await viewOn(shell, ui, 'sam-admin')) && viewOn(shell, ui, 'elon-buyer'));
+    // Feature-X, closed with its group, opened again from the group's panel (the tests after and the restart expect it).
+    await groupMenu(ui, 'Feature-X');
+    await waitFor(() => shell.task?.n === 2 && shell.task.loaded && !shell.windows[0].switching);
+    await click(ui, taskTab(1));
+    await waitFor(() => shell.task?.n === 1 && shell.task.loaded && !shell.windows[0].switching);
+    await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
     assert.deepEqual(await projectTabs(ui), ['Shop', 'project *']);
     // Another project's task, in its island: a click shows that project with it.
     await click(ui, `${projectTab('shop')}.querySelector('.tasktab[data-task="shop/1"]')`);
@@ -799,8 +806,8 @@ module.exports = (test) => {
     await menuRows(ui);
     await choose(ui, 'Project Settings…');
     await waitFor(() => ui(`(document.getElementById('projects')?.dataset.state === 'open') && document.getElementById('pjtitle').textContent === 'site'`));
-    // The manager lists every project, this one chosen, the open ones marked.
-    assert.ok(await ui(`document.querySelector('#pjlist [data-project="site"]').ariaSelected === 'true' && document.querySelector('#pjlist [data-project="site"] kbd').textContent === 'open'`));
+    // The manager lists every project, this one chosen (none marked open: a project is no thing to open).
+    assert.ok(await ui(`document.querySelector('#pjlist [data-project="site"]').ariaSelected === 'true' && !document.querySelector('#pjlist kbd')`));
     assert.equal(await ui(`document.querySelector('#npicons [aria-pressed="true"]').dataset.value`), 'favicon');
     assert.equal(await ui(`document.querySelector('#nprepos [data-folder] small').textContent`), site, 'its folder, as its code');
     assert.equal(await ui(`document.getElementById('nplocationrow').checkVisibility()`), false);
@@ -962,7 +969,7 @@ module.exports = (test) => {
     assert.equal(shell.task.profiles.get('sam-admin').get().view.getVisible(), false, 'pages hidden under the dialog');
     // Site-2 is closed: its configuration all the same; a profile made and let go there (asked first).
     await ui(`document.querySelector('#pjlist [data-project="site"]').click()`);
-    await waitFor(() => ui(`document.getElementById('pjtitle').textContent === 'Site-2' && document.querySelector('#pjlist [data-project="site"] kbd').textContent === ''`));
+    await waitFor(() => ui(`document.getElementById('pjtitle').textContent === 'Site-2'`));
     assert.ok(!shell.open.has('site'));
     await ui(`(() => { const n = document.getElementById('npnewprofile'); n.value = 'Closed-one'; n.dispatchEvent(new Event('input')); document.getElementById('npprofilenew').click(); })()`);
     await waitFor(() => ui(`!!document.querySelector('#npprofiles [data-profile="closed-one"]')`));
@@ -1078,14 +1085,14 @@ module.exports = (test) => {
     await waitFor(async () => (await ui(`document.getElementById('npwhere').textContent`)) === `${gone} is a git repository: the project takes it as it is`);
     assert.equal(await ui(`document.getElementById('npgitrow').hidden`), true, 'no Create Git repository: it is one');
     await ui(`document.getElementById('npform').requestSubmit()`);
-    await waitFor(() => ui(`document.getElementById('pjtitle')?.textContent === 'gone' && !document.getElementById('npopen').hidden`));
-    assert.ok(projects().includes('gone') && !shell.open.has('gone'), 'made, not opened');
+    await waitFor(() => ui(`document.getElementById('pjtitle')?.textContent === 'gone' && !document.getElementById('npnewtask').hidden`));
+    assert.ok(projects().includes('gone') && !shell.open.has('gone'), 'made, no task');
     assert.equal(git(gone, 'log', '--format=%s'), 'mine', 'its history as it was');
     assert.equal(fs.readFileSync(path.join(gone, 'a.txt'), 'utf8'), 'a');
     ctx.asked.length = 0;
-    await ui(`document.getElementById('npopen').click()`);
+    await ui(`document.getElementById('npnewtask').click()`);
     await waitFor(() => shell.current?.folder === gone && shell.task?.loaded && shell.pty);
-    assert.equal(ctx.asked.pop()?.message, 'Where to open the project gone?', 'opened, as any project not open');
+    assert.equal(ctx.asked.length, 0, 'its group in this window, nothing asked where');
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
     // The open one: closed, then deleted; the tab next to it shown.
     await removeRow('gone');
@@ -1098,28 +1105,26 @@ module.exports = (test) => {
     assert.ok(fs.existsSync(gone) && !fs.existsSync(path.join(userData, 'projects', 'gone')));
     assert.deepEqual(savedWindows(), [{ tabs: ['project'], shown: 'project' }]);
 
-    // Close Project in a tab's right-click menu: the last tab, so the Welcome screen.
+    // Close Group in its panel: the last group, so the empty window; its tasks closed.
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
     await rightClick(ui, '#projectTabs [data-project="project"] .name');
     await menuRows(ui); // it opens once the window has the list of windows
-    await choose(ui, 'Close Project');
+    await choose(ui, 'Close Group');
     await waitFor(() => shell.task === null && shell.open.size === 0);
     ctx.asked.length = 0;
     await waitFor(() => ui(`document.documentElement.classList.contains('noproject')`));
+    assert.ok(shell.store.tasksOf({ id: 'project' }).list.every((e) => e.closed), 'its tasks closed');
 
-    // A task in Search Tasks: the project opens on that task, a closed one opened again.
-    const closed = shell.store.tasksOf({ id: 'project' }).list.find((e) => e.closed);
-    assert.ok(closed && closed.n !== 1, 'a closed task to open');
-    await searchTasks(ui, 'project', closed.n);
-    await waitFor(() => shell.task?.n === closed.n && shell.task.loaded && shell.pty && !shell.windows[0].switching);
+    // A task in Search Tasks: its group again, on that task, opened again; another one of it goes into that group. Back
+    // on task-1 with Feature-X, as the tests after and the restart phase expect.
+    await searchTasks(ui, 'project', 2);
+    await waitFor(() => shell.task?.n === 2 && shell.task.loaded && shell.pty && !shell.windows[0].switching);
     assert.ok(!shell.task.entry.closed, 'open again');
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
-    // Closed again and back on task-1, as the tests after and the restart phase expect.
-    await ui(`${taskTab(closed.n)}.querySelector('.close').click()`);
-    await waitFor(() => shell.current.tasks.get(closed.n).entry.closed && !shell.windows[0].switching);
-    await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
-    if (shell.task?.n !== 1) await click(ui, taskTab(1));
-    await waitFor(() => shell.task?.n === 1 && shell.task.loaded && shell.pty);
+    await searchTasks(ui, 'project', 1);
+    await waitFor(() => shell.task?.n === 1 && shell.task.loaded && shell.pty && !shell.windows[0].switching);
+    assert.deepEqual(await projectTabs(ui), ['project *'], 'one group');
+    assert.deepEqual(await tabs(ui), ['task-1 *', 'Feature-X']);
     ctx.watchPty(shell.pty);
     await waitFor(() => ui(`!document.documentElement.classList.contains('noproject') && !document.documentElement.classList.contains('loading')`));
     await waitFor(async () => (await viewOn(shell, ui, 'sam-admin')) && viewOn(shell, ui, 'elon-buyer'));
@@ -1136,7 +1141,7 @@ module.exports = (test) => {
   });
   // Last in phase 1: the tabs the restart phase finds (restart-tasks.js).
   test('projects: another tab left in the background, with a terminal its agent ran something in', async ({ shell, ui, call }) => {
-    await ui(`kulisa.invoke('project:open', { folder: ${JSON.stringify(path.join(root, 'other'))} })`);
+    await ui(`kulisa.invoke('project:open', { folder: ${JSON.stringify(path.join(root, 'other'))}, task: 1 })`);
     await waitFor(() => shell.current?.id === 'other' && shell.task.loaded);
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
     await call('terminal_run', { name: 'dev server', command: 'echo "served before"; sleep 60' });

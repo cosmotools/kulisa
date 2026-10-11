@@ -28,7 +28,7 @@ the look below:
   text `--text`, `--text-strong`, `--text-dim`, `--text-muted`; `--accent` (main button, focus), `--danger`,
   `--error`, `--note` (the agent's caption), `--done`; `--on-accent` (text on `--accent` and `--danger`),
   `--selection` (the terminal's); `--page-button`, `--on-page-button` (Chrome's blue, a page's dialog: `.pagedialog`); `--page`, `--backdrop`, `--shadow`; `--hover` (under the
-  pointer, on any background); `--project` (the open project's color, set by `lib/store.ts`).
+  pointer, on any background); `--project` (the shown group's project's color, set by `lib/store.ts`).
 - Sizes: `--font` (all text, the terminal too), `--control` (the height of buttons and fields), `--radius`,
   `--tab-radius`, `--island-radius`, `--gap` (the space between and inside islands; also dockview's `gap` in
   `Grid.vue`); room as Chrome's menus and dialogs have it: `--row` (a row of a menu or a list), `--inset` (inside
@@ -169,8 +169,8 @@ Every dialog is `Modal.vue`, Reka UI's Dialog (`reka-ui`) with the same parts:
 - A page's alert or confirm (`.pagedialog`, in `ProfilePane.vue`) is not a `Modal`: a Dialog that is not modal (the
   other panes go on), in its pane right under the address bar, over a picture of the page, in Chrome's size, shape and
   blue: the page's, not Kulisa's. Esc is Cancel; a click outside does nothing; OK has the keyboard.
-- Questions before something that cannot be undone, before closing, or between two ways to go (This Window or New
-  Window), are not new dialogs: `shell.ask` (main process) or `ask(q)` (`lib/ask.ts`) → `Ask.vue`, Reka's AlertDialog
+- Questions before something that cannot be undone, before closing, or between two ways to go (a second button,
+  `other`), are not new dialogs: `shell.ask` (main process) or `ask(q)` (`lib/ask.ts`) → `Ask.vue`, Reka's AlertDialog
   in the same look: Cancel has the keyboard, Esc is Cancel, a click outside does nothing (it waits for an answer);
   `other` adds the second way's button before the main one.
 

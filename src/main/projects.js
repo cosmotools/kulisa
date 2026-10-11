@@ -159,6 +159,16 @@ class Project {
     this.save();
     await deleteTask(this.shell, this.entry, task.entry);
   }
+  // Its group closed (Close Group, a window's ×): its open tasks closed as × on each would, the shown one last (the one
+  // closed last is listed first). Then unload.
+  closeAll() {
+    const now = Date.now(), open = this.open();
+    for (const t of [...open.filter((t) => t !== this.task), ...open.filter((t) => t === this.task)]) {
+      t.entry.closed = true; t.entry.closedAt = now + (t === this.task ? 1 : 0);
+    }
+    this.task = null;
+    this.save();
+  }
   // Its agents stopped, its profiles saved and closed (its tab closes).
   async unload() { for (const task of this.tasks.values()) await task.unload(); }
   // Into another window (app.js, Move to New Window), running: its profiles' pages go there, hidden until that window

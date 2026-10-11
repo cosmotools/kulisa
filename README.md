@@ -20,7 +20,7 @@ how the design was tested: [docs/REPORT.md](docs/REPORT.md).
 ```sh
 npm install          # Node 22.13+. Rebuilds node-pty for Electron.
 npm run build        # the window (src/renderer, Vue + TypeScript): type check, then Vite into dist/renderer
-npm start            # builds the window, then opens the windows and projects open last; at first start the projects' manager on New Project
+npm start            # builds the window, then opens the windows and groups open last; at first start the projects' manager on New Project
 KULISA_PROJECT=~/my-app npm start
 npm test             # unit tests, then the real app against a local test site (groups in parallel), then restarted
 npm run test:visible # the same on your screen (npm test uses its own screen on Linux: sudo apt install xvfb openbox)
@@ -49,15 +49,15 @@ setuid on a plain install. The `.deb` installs it setuid, so the installed app r
 the default), its profiles, and its code: a folder, or one or more repositories (local, or cloned from a URL; one the
 default). **Projects** in the title bar (left of ☰) opens the projects' manager: every project on the left, open or
 not, and **+ New Project**; on the right the chosen one's configuration, and **Delete Project…** for it (Kulisa's data of it and its tasks' copies; its folder stays). The bar under the
-grid (or over it: **☰ → Projects bar**) has a group per open project, as Chrome's tab groups: its name (a click folds
-it), its tasks, and **+** for a new task. A click on a task shows it, of any project, and the others keep running
-(their agents and pages) until you close their project (**×** on its last open task, the middle button on its name,
-or **Close Project** in its right-click menu, after a question; closing a window asks once for all its projects). The button after the islands (or Ctrl+Shift+A)
-searches every project's tasks, as Chrome's Search tabs: a click opens one (another project's in this window or in a new
-window: Kulisa asks). The **Projects** button in the title bar opens the projects' manager, with **New Project** (a name and where its
+grid (or over it: **☰ → Projects bar**) has a group per project with open tasks, as Chrome's tab groups: its name (a click folds
+it), its tasks, and **+** for a new task. A project itself is not opened or closed: its tasks are. A click on a task shows it, of any group, and the others keep running
+(their agents and pages) until you close them (**×** on a task; **Close Group** in its name's right-click panel or the middle
+button on its name closes all its tasks, asking only when an agent works). The button after the islands (or Ctrl+Shift+A)
+searches every project's tasks, as Chrome's Search tabs: a click opens one, in its project's group (a new one in this
+window when it has none), and **New Task** under each project makes one. The **Projects** button in the title bar opens the projects' manager, with **New Project** (a name and where its
 folder goes, `~/Kulisa` by default; git on by default, with an empty first commit; its color and icon; then its
-configuration: its agents' accounts, code, profiles; **Open** opens it; a folder there already, a repository or not, is taken as it is). **Project Settings…** on its name's right-click menu opens the manager at it. Closing the last project leaves the
-window empty: New Project… in it, Search Tasks under it. A closed project keeps its tabs and
+configuration: its agents' accounts, code, profiles; **New Task** makes its first task; a folder there already, a repository or not, is taken as it is). **Project Settings…** on its name's right-click menu opens the manager at it. Closing the last group leaves the
+window empty: Search Tasks and New Project… in it. A closed task keeps its tabs and
 sign-ins; when you open it again, its agent continues the conversation where it can (`claude --resume`,
 `codex resume`). The agent starts in your shell in its task's folder, as if you typed its command in a terminal
 there, so the project's environment (direnv's `.envrc`, nvm, mise) applies; when it exits, the shell stays.
@@ -98,7 +98,7 @@ a task); every other key in the terminal is the agent's. **☰ → Keyboard Shor
 Ctrl + / Ctrl − / Ctrl 0 outside the pages, or ☰ in the title bar, zooms all of Kulisa, and the pages follow; when it
 is not 100%, the title bar shows it (click to reset). The same keys in a page zoom that site in that profile on top of it (shown in the address bar,
 click to reset). Both are kept across restarts. **☰ → Theme**: Dark (the default), Light, or System (as your OS); profiles' pages keep your OS's. **☰ → Exit** quits
-(on macOS Cmd+Q); the windows and their projects open again at the next start. **⋮ → DevTools** on a pane (or F12, Ctrl+Shift+I in its page) opens the DevTools of its active tab. Kulisa's own DevTools
+(on macOS Cmd+Q); the windows and their groups open again at the next start. **⋮ → DevTools** on a pane (or F12, Ctrl+Shift+I in its page) opens the DevTools of its active tab. Kulisa's own DevTools
 (F12 outside the pages) exist only when running from source (`npm start`), not in a packaged build. Data
 (profiles with your sign-ins) lives in `~/.config/Kulisa`.
 
@@ -107,10 +107,10 @@ click to reset). Both are kept across restarts. **☰ → Theme**: Dark (the def
 ```
 src/main/        Electron main process
   index.js         entry: reads the environment, calls app.start()
-  app.js           the app: windows, open projects (open, close, move to a new window), agents, IPC, quit
-  window.js        a window: its open projects and what it shows, its questions
+  app.js           the app: windows, groups (a project's open tasks: open a task, close, move to a new window), agents, IPC, quit
+  window.js        a window: its groups and what it shows, its questions
   keys.js          the keyboard shortcuts: one table, which key an input event is (app.js takes them before the pages)
-  projects.js      an open project: its tasks (make, close, open again, delete); removing a project's data
+  projects.js      a project's group: its tasks (make, close, open again, delete); removing a project's data
   names.js         the one rule for names of projects, tasks and profiles; slugs for ids and folders
   tasks.js         a task: its profiles, agent (terminal, environment), folder and name; copies for a new task
   agents.js        the agent CLIs to choose from: how to find, install, start and resume each

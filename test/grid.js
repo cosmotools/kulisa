@@ -97,7 +97,7 @@ module.exports = (test) => {
     assert.equal(shell.current?.folder, other);
     // The label's right-click: its group's panel, as Chrome's (its name, color and icon: below); under them its actions.
     await rightClick(ui, '#projectTabs [data-project="other"] .name');
-    assert.deepEqual(await menuRows(ui), ['New Task', '-', 'Move to New Window', '-', 'Project Settings…', 'Show Data Folder', '-', 'Close Project']);
+    assert.deepEqual(await menuRows(ui), ['New Task', '-', 'Move to New Window', '-', 'Project Settings…', 'Show Data Folder', '-', 'Close Group']);
     // Show Data Folder: Kulisa's folder of that project, in the file manager.
     const electron = require('electron'), openPath = electron.shell.openPath, shown = [];
     electron.shell.openPath = async (dir) => { shown.push(dir); return ''; };
@@ -164,18 +164,22 @@ module.exports = (test) => {
     await waitFor(() => entry().name === 'other');
     assert.equal(shell.win.getTitle(), 'project — Kulisa');
 
-    // Closing the project (the middle button on its label) asks first; Cancel keeps it open.
+    // Closing the group (the middle button on its label) asks first when an agent works; Cancel keeps it open.
     ctx.asked.length = 0;
     ctx.answer = false;
+    const working = shell.task;
+    working.state = 'working';
     await closeProject(ui, 'project');
     await waitFor(() => ctx.asked.length && ui(`!(document.getElementById('ask')?.dataset.state === 'open')`));
-    assert.equal(ctx.asked.pop().message, 'Close the project project?');
+    assert.equal(ctx.asked.pop().message, 'Close the group project?');
     assert.ok(shell.open.has('project') && shell.current?.folder === project, 'still open when the human says no');
     ctx.answer = true;
-    // Close: the project closes (tabs and sign-ins kept), the tab next to it is shown.
+    working.state = null;
+    // Close: no agent works, no question; its tasks close (tabs and sign-ins kept), the group next to it is shown.
     await closeProject(ui, 'project');
     await waitFor(() => shell.current?.folder === other && !shell.open.has('project'));
-    ctx.asked.length = 0;
+    assert.equal(ctx.asked.length, 0, 'nothing asked');
+    assert.ok(shell.store.tasksOf({ id: 'project' }).list.every((e) => e.closed), 'its tasks closed');
     assert.ok(sam.tabs.every((t) => t.wc.isDestroyed()), "the closed project's tabs are closed");
     assert.deepEqual(await projectTabs(ui), ['other *']);
     // Opened again from Search Tasks, on its task: the conversation goes on, the profiles signed in.
@@ -202,7 +206,7 @@ module.exports = (test) => {
   test('projects: Move to New Window puts a project in a window of its own, still running; closing that window closes it', async (ctx) => {
     const { shell, ui } = ctx;
     const other = path.join(root, 'other');
-    await ui(`kulisa.invoke('project:open', { folder: ${JSON.stringify(other)} })`);
+    await ui(`kulisa.invoke('project:open', { folder: ${JSON.stringify(other)}, task: 1 })`);
     await waitFor(() => shell.current?.id === 'other' && shell.task.loaded && shell.pty);
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
     const moved = shell.current, task = moved.task, pty = task.pty, seller = task.profiles.get('sam-seller');
@@ -267,7 +271,7 @@ module.exports = (test) => {
 
     // Back into the first window (Move to Window, as a browser moves a tab): the only tab of the second, so it closes.
     await rightClick(ui2, '#projectTabs [data-project="other"] .name');
-    assert.deepEqual(await menuRows(ui2), ['New Task', '-', 'Move to New Window (off)', 'Move to Window: project', '-', 'Project Settings…', 'Show Data Folder', '-', 'Close Project']);
+    assert.deepEqual(await menuRows(ui2), ['New Task', '-', 'Move to New Window (off)', 'Move to Window: project', '-', 'Project Settings…', 'Show Data Folder', '-', 'Close Group']);
     await choose(ui2, 'Move to Window: project');
     await waitFor(() => shell.windows.length === 1 && shell.current === moved && !first.switching);
     assert.ok(second.win.isDestroyed());
@@ -279,25 +283,23 @@ module.exports = (test) => {
     await closeProject(ui, 'other');
     await waitFor(() => !shell.open.has('other') && shell.current?.id === 'project' && !first.switching);
 
-    // Opening a project in a window with projects open asks where: This Window (a tab, as above), New Window, Cancel.
+    // A task of a project with no group: a group of its own in this window, nothing asked where; Move to New Window
+    // takes it away.
     ctx.asked.length = 0;
-    ctx.answer = null;
-    await ui(`kulisa.invoke('project:open', { folder: ${JSON.stringify(other)} })`);
-    await waitFor(() => ctx.asked.length && ui(`(document.getElementById('ask')?.dataset.state === 'open')`));
-    assert.deepEqual([ctx.asked[0].message, ctx.asked[0].ok, ctx.asked[0].other], ['Where to open the project other?', 'This Window', 'New Window']);
-    assert.deepEqual(await ui(`[...document.querySelectorAll('#ask footer button:not([hidden])')].map((b) => b.textContent)`), ['Cancel', 'New Window', 'This Window']);
-    await ui(`document.querySelector('#ask .cancel').click()`);
-    await sleep(300); // nothing to wait for: that it does not open
-    assert.ok(!shell.open.has('other'), 'Cancel: not opened');
-    ctx.answer = 'other';
-    await ui(`kulisa.invoke('project:open', { folder: ${JSON.stringify(other)} })`);
+    await searchTasks(ui, 'other', 1);
+    await waitFor(() => shell.current?.id === 'other' && shell.task?.n === 1 && shell.task.pty && !first.switching);
+    assert.equal(ctx.asked.length, 0, 'no question where');
+    assert.deepEqual(await projectTabs(ui), ['project', 'other *']);
+    await rightClick(ui, '#projectTabs [data-project="other"] .name');
+    await menuRows(ui);
+    await choose(ui, 'Move to New Window');
     await waitFor(() => shell.windows.length === 2 && shell.windows[1].current?.id === 'other' && !shell.windows[1].switching);
-    ctx.answer = true;
     const third = shell.windows[1], reopened = third.current;
     await waitFor(() => reopened.task.pty);
-    assert.deepEqual(await projectTabs(ui), ['project *'], 'nothing new in the first window');
+    const reopenedTask = reopened.task;
+    assert.deepEqual(await projectTabs(ui), ['project *'], 'nothing else in the first window');
 
-    // Closing the window (the OS's ×) closes its project, as closing its tab would, after one question in that window
+    // Closing the window (the OS's ×) closes its group, as Close Group would, after one question in that window
     // (the function that closes a tab); Kulisa goes on in the first.
     ctx.asked.length = 0;
     ctx.answer = false;
@@ -305,13 +307,13 @@ module.exports = (test) => {
     await waitFor(() => ctx.asked.length && third.win.webContents.executeJavaScript(`!(document.getElementById('ask')?.dataset.state === 'open')`));
     const q = ctx.asked.pop();
     assert.equal(q.message, 'Close the window?');
-    assert.match(q.detail, /Its projects close: other\./);
+    assert.match(q.detail, /Its tasks close: other\./);
     assert.ok(!third.win.isDestroyed() && shell.open.has('other'), 'still open when the human says no');
     ctx.answer = true;
     third.win.close();
     await waitFor(() => shell.windows.length === 1 && !shell.open.has('other'));
     ctx.asked.length = 0;
-    assert.ok(third.win.isDestroyed() && reopened.task.profiles.size === 0 && reopened.task.pty === null);
+    assert.ok(third.win.isDestroyed() && reopenedTask.profiles.size === 0 && reopenedTask.pty === null);
     assert.deepEqual(savedWindows(), [{ tabs: ['project'], shown: 'project' }]);
     assert.equal(await viewOn(shell, ui, 'sam-admin'), true);
 
@@ -330,7 +332,7 @@ module.exports = (test) => {
   test('projects: a tab dragged changes the order, goes out into a new window and back into the first', async (ctx) => {
     const { shell, ui } = ctx;
     const other = path.join(root, 'other'), DRAG = 'application/x-kulisa-project';
-    await ui(`kulisa.invoke('project:open', { folder: ${JSON.stringify(other)} })`); // This Window (ctx.answer)
+    await ui(`kulisa.invoke('project:open', { folder: ${JSON.stringify(other)}, task: 1 })`);
     await waitFor(() => shell.current?.id === 'other' && shell.task.loaded && shell.pty && !shell.windows[0].switching);
     ctx.asked.length = 0;
     const moved = shell.current, pty = moved.task.pty;

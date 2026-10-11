@@ -185,29 +185,37 @@ function start(options = {}) {
   const serial = (fn) => { const r = queue.then(fn); queue = r.catch(() => {}); return r; };
   const newWindow = (place) => { const w = new AppWindow(shell, place, { appDevTools }); shell.windows.push(w); return w; };
   const addProject = (p, w) => { const project = new Project(shell, p); shell.open.set(p.id, project); w.add(project); return project; };
-  // A project shown: in a tab of window w at the end, unless it is open already: then its window shows it, brought to
-  // the front.
-  // A project shown on its task n when asked for (Search Tasks), opened again if it was closed.
-  const onTask = (project, n) => {
-    const task = n != null && project.tasks.get(n);
-    if (task) { if (task.entry.closed) project.reopen(task); project.select(task); }
-    return project;
-  };
+  // A project is no thing to open (the author, 2026-10-11: it is what its tasks are made of: profiles, agents,
+  // repositories); its tasks are. Its island in a window's bar is the group of its open tasks there, as Chrome's tab
+  // group: it comes with the first one opened and goes with the last one closed. In code an open project (Project in
+  // shell.open, a tab of its window) is that group.
+  // Task n of project p shown (Search Tasks), opened again if it was closed; none: a new task of it. In its group's
+  // window, brought to the front; with no group yet, a new one at the end of window w's bar.
   async function openProject(p, w, n) {
-    const project = onTask(shell.open.get(p.id) || addProject(p, w), n);
+    const had = shell.open.get(p.id), project = had || addProject(p, w);
+    const task = n != null && project.tasks.get(n);
     if (project.window !== w) project.window.focus();
-    await project.window.show(project);
+    if (!task) {
+      const r = await createTask(project);
+      if (r.error && !had && !project.open().length) { await unload(project); sendProjects(); } // no group without a task
+      return r;
+    }
+    if (task.entry.closed) project.reopen(task);
+    await showTask(task);
     sendProjects();
+    return { n: task.n, key: task.key };
   }
-  // Closing projects, wherever it starts (a tab, main's ×, removing a project, a window's ×): one function, so one
-  // rule. The human is asked first, once, in their window w (asked: already, when a project is being removed). Each
-  // project's agents stop, its profiles are saved and closed (sign-ins and tabs kept for when it opens again), its tab
-  // goes; the one on screen goes last, so the tab next to it is shown, or none is left: an empty island in the grid's place, or the
-  // window closes when there is another (as a browser's).
+  // Closing groups, wherever it starts (Close Group, the middle button on a label, × on a group's last task, deleting a
+  // project, a window's ×): one function, so one rule. The human is asked first in their window w, only when an agent
+  // works (a window's ×: always; asked: already). Each group's tasks close as × on each would (projects.js, closeAll:
+  // agents stopped, profiles saved and closed, all kept to open again), its island goes; the one on screen goes last,
+  // so the one next to it is shown, or none is left: an empty island in the grid's place, or the window closes when
+  // there is another (as a browser's).
   async function closeProjects(w, projects, { asked = false, window = false } = {}) {
     if (!asked && !await askClosing(w, projects, { window })) return { error: 'the human said no' };
     for (const p of [...projects.filter((p) => p !== w.current), ...projects.filter((p) => p === w.current)]) {
       await w.leave(p);
+      p.closeAll();
       await unload(p);
     }
     if (!w.tabs.length && shell.windows.length > 1) dropWindow(w);
@@ -219,9 +227,9 @@ function start(options = {}) {
     if (!project || !shell.open.has(project.id)) return { error: 'the project is not open' };
     return closeProjects(project.window, [project], options);
   }
-  // The question before closing projects (one, or a window's: window), saying which agents are still working; or before
-  // quitting (quit), when the projects come back at the next start: asked only when that would stop a working agent.
-  // True: go on.
+  // The question before closing groups (one: only when an agent works; a window's: window), saying which agents are
+  // still working; or before quitting (quit), when the groups come back at the next start: asked only when that would
+  // stop a working agent. True: go on.
   function askClosing(w, projects, { quit = false, window = false } = {}) {
     const working = projects.flatMap((p) => [...p.tasks.values()].filter((task) => task.state === 'working')
       .map((task) => (projects.length > 1 ? `${p.name}: ${task.name}` : task.name)));
@@ -229,14 +237,17 @@ function start(options = {}) {
     const it = working.length > 1 ? 'them' : 'it';
     if (quit) {
       return !working.length || shell.ask({ message: 'Quit Kulisa?', ok: 'Quit',
-        detail: `${busy}quitting stops ${it}. The windows, their projects and conversations come back at the next start.` }, w);
+        detail: `${busy}quitting stops ${it}. The windows, their tasks and conversations come back at the next start.` }, w);
     }
-    const one = !window;
-    return shell.ask({ message: one ? `Close the project ${projects[0].name}?` : 'Close the window?', ok: 'Close',
-      detail: `${one ? '' : `Its projects close: ${projects.map((p) => p.name).join(', ')}. `}${busy ? `${busy}closing stops ${it}. ` : one ? 'Its agents stop. ' : ''}`
-        + `${one ? 'Its' : 'Their'} tabs, sign-ins and conversations come back when ${one ? 'it is' : 'they are'} opened again.` }, w);
+    if (!window) {
+      return !working.length || shell.ask({ message: `Close the group ${projects[0].name}?`, ok: 'Close',
+        detail: `${busy}closing stops ${it}. Its tasks' conversations, code and profiles stay: open them again from Search Tasks.` }, w);
+    }
+    return shell.ask({ message: 'Close the window?', ok: 'Close',
+      detail: `Its tasks close: ${projects.map((p) => p.name).join(', ')}. ${busy ? `${busy}closing stops ${it}. ` : ''}`
+        + 'Their conversations, code and profiles stay: open them again from Search Tasks.' }, w);
   }
-  // An open project no longer: its agents stopped, its profiles closed, its tab gone (not on screen any more).
+  // A group no longer: its agents stopped, its profiles closed, its island gone (not on screen any more).
   async function unload(project) {
     await project.unload();
     shell.open.delete(project.id);
@@ -267,11 +278,6 @@ function start(options = {}) {
       sendProjects();
     } else await showInNew(target, project);
     return { id: project.id };
-  }
-  // A project not open yet, in a window of its own next to window from (the human chose New Window).
-  async function openInNewWindow(p, from, n) {
-    const to = newWindow({ near: from.win });
-    await showInNew(to, onTask(addProject(p, to), n));
   }
   async function showInNew(to, project) {
     const loading = to.load(project);
@@ -342,19 +348,14 @@ function start(options = {}) {
     if (project.task === task) await project.window.showTask(open[i + 1] || open[i - 1]);
   }
   // × on a task's tab: its agent stops, its tabs close, all else stays (projects.js, closeTask); asked first only when
-  // its agent is working. The last open task closes its project, as Chrome closes a window with its last tab (with
-  // closing a project's question); the project opens on it again.
+  // its agent is working. The last open task closes its group, as Chrome's tab group goes with its last tab.
   async function closeTask(task) {
     const project = task.project;
-    if (project.open().length === 1) {
-      const r = await closeProject(project);
-      if (!r.error) await project.closeTask(task);
-      return r;
-    }
     if (task.state === 'working' && !await shell.ask({ message: `Close the task ${task.name}?`, ok: 'Close',
-      detail: "Its agent is still working: closing stops it. Its conversation, code and profiles stay; open it again from its project's group." }, project.window)) {
+      detail: 'Its agent is still working: closing stops it. Its conversation, code and profiles stay; open it again from Search Tasks.' }, project.window)) {
       return { error: 'the human said no' };
     }
+    if (project.open().length === 1) return closeProject(project, { asked: true });
     await leaveTask(task);
     await project.closeTask(task);
     project.window.taskGone(task);
@@ -406,17 +407,10 @@ function start(options = {}) {
     return { id };
   }
   ipcMain.handle('projects:list', (e) => at(e)?.info());
-  // The switch runs on its own; the window hears about it through grid:closing, projects, tasks and state. A
-  // project not open yet, asked for in a window with projects open: the human chooses where, as in JetBrains: in a tab
-  // of this window, or in a new window.
+  // The switch runs on its own; the window hears about it through grid:closing, projects, tasks and state. No
+  // question where (the author, 2026-10-11): a group of its own in this window, which Move to New Window takes away.
   const openLater = (p, w, n) => {
-    setImmediate(async () => {
-      const where = shell.open.has(p.id) || !w.tabs.length ? 'ok' : await shell.askWhich({ message: `Where to open the project ${p.name}?`,
-        detail: `This Window: in a tab of its own here; the projects open here keep running. New Window: in a window of its own.`,
-        ok: 'This Window', other: 'New Window' }, w);
-      if (!where || !shell.windows.includes(w)) return;
-      await serial(() => (where === 'other' && !shell.open.has(p.id) ? openInNewWindow(p, w, n) : openProject(p, w, n)));
-    });
+    setImmediate(() => serial(() => (shell.windows.includes(w) ? openProject(p, w, n) : null)).catch((err) => console.error('[project:open]', err)));
     return w.info();
   };
   ipcMain.handle('project:open', (e, { id, folder, task }) => {

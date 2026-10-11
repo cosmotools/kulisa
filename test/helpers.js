@@ -75,17 +75,17 @@ const select = async (ui, id, value) => {
   await ui(`document.querySelector('[role="listbox"] .item[data-value=${JSON.stringify(value)}]').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }))`);
   await waitFor(async () => (await chosen(ui, id)) === value);
 };
-// A project closed as the human does it: the middle button on its label (its right-click menu has Close Project too).
+// A group closed as the human does it: the middle button on its label (its panel has Close Group too).
 const closeProject = (ui, id) => ui(`${projectTab(id)}.querySelector('.plabel').dispatchEvent(new MouseEvent('auxclick', { button: 1, bubbles: true }))`);
 const choose = (ui, label) => ui(`[...${MENU}.querySelectorAll('.item')].find((b) => b.querySelector('.label').textContent === ${JSON.stringify(label)}).click()`);
 // The bar's Search Tasks panel (TaskSearch.vue): opened with its button; searchTasks(ui) its rows (a project's heading
-// as '# name', a task as its name), searchTasks(ui, project, n) a project's heading or its task n clicked.
+// as '# name', a task as its name), searchTasks(ui, project, n) a project's task n clicked, or its New Task.
 const SEARCH = `document.querySelector('.tasksearch[data-state="open"].ready')`;
 async function searchTasks(ui, project, n) {
   await ui(`document.getElementById('searchTasks').click()`);
   await waitFor(() => ui(`!!${SEARCH}`));
   if (project === undefined) return ui(`[...${SEARCH}.querySelectorAll('.item')].map((r) => (r.classList.contains('tlproject') ? '# ' : '') + r.querySelector('.label').textContent)`);
-  const row = n === undefined ? '.tlproject' : `.tltask[data-task="${n}"]`;
+  const row = n === undefined ? '.tlnew' : `.tltask[data-task="${n}"]`;
   await ui(`${SEARCH}.querySelector('[data-project=${JSON.stringify(project)}] ${row}').click()`);
   await waitFor(() => ui(`!${SEARCH}`));
 }

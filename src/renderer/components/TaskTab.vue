@@ -1,8 +1,8 @@
 <script setup lang="ts">
 // A task's tab in its project's group (ProjectBar.vue): its agent's state (working, waiting for you, done; from its
 // hooks), its name, how many of its profiles are open (on every tab, so their widths stay as the shown one changes;
-// on the shown one a button with the menu of them), × closing it (its agent stops, it stays in its project's menu; the
-// last one closes the project). A press shows it, of any project: Reka's tab (the bar's Tabs, ProjectBar.vue), as a
+// on the shown one a button with the menu of them), × closing it (its agent stops, it stays in Search Tasks and its group's panel;
+// the last one closes the group). A press shows it, of any project: Reka's tab (the bar's Tabs, ProjectBar.vue), as a
 // browser's; not on its × or its profiles' chip. Its right-click menu is the projects' bar's (ProjectBar.vue, taskMenu).
 //   active: the one on screen; selected: the one its project shows (another project's: where it is when shown again)
 import { computed } from 'vue';

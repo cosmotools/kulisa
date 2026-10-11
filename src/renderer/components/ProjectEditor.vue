@@ -6,8 +6,8 @@
 // where the agent's files are, or that the folder is there and is taken as it is (the one way to make a project of
 // existing code); Create Git repository (on by default: each task gets a copy of its own; not shown for a repository).
 // Create makes it
-// without opening it, and goes on to its configuration (its agents first: it has none yet); Open opens a project not
-// open. A project's configuration: its folder, which stays; its code, the repositories or folders its tasks copy (the
+// and goes on to its configuration (its agents first: it has none yet); New Task makes a task of it (a project is no
+// thing to open: its tasks are; the author, 2026-10-11). A project's configuration: its folder, which stays; its code, the repositories or folders its tasks copy (the
 // radio makes one the default: its agents start in its copy; × removes one; Add Folder… and Clone add one); its agents
 // (the radio makes one the default: + runs it, the others are in +'s right-click menu; Add Agent… takes an agent or an
 // account made before, New Account… makes one, signed in here: AccountSignIn.vue; ×); its profiles
@@ -32,7 +32,7 @@ import type { ProjectChoices, ProjectEntry, ProjectProfile, ProjectRepo, Project
 const modal = ref<InstanceType<typeof Modal>>();
 const nameField = ref<{ $el: HTMLInputElement }>(), newProfile = ref<HTMLInputElement>(), url = ref<HTMLInputElement>();
 const focusName = () => nameField.value?.$el.focus(); // when it is open
-const projects = ref<ProjectEntry[]>([]), openIds = ref<string[]>([]);
+const projects = ref<ProjectEntry[]>([]);
 const editing = ref<string | null>(null);
 const title = ref(''), name = ref(''), place = ref(''), sep = ref('/'), folder = ref('');
 const git = ref(true), local = ref(''), saving = ref(false), error = ref('');
@@ -66,11 +66,9 @@ const where = computed(() => {
 const iconValues = computed(() => [...(choices.value.favicon ? ['favicon'] : []), ...choices.value.icons]);
 const base = (f: string) => f.split(/[\\/]/).pop()!;
 
-// The projects, the one on the right chosen; open ones (in any window) marked.
+// The projects, the one on the right chosen.
 async function showList() {
-  const r = await kulisa.invoke<{ projects: ProjectEntry[]; open: { id: string }[]; elsewhere: string[] }>('projects:list');
-  projects.value = r.projects;
-  openIds.value = [...r.open.map((o) => o.id), ...r.elsewhere];
+  projects.value = (await kulisa.invoke<{ projects: ProjectEntry[] }>('projects:list')).projects;
 }
 function fill(c: ProjectChoices, look: { color?: string; icon?: string }) {
   choices.value = c;
@@ -136,9 +134,8 @@ async function save(stay = false) {
   else if (!stay) modal.value!.close();
   return true;
 }
-// Open (a project not open): what was changed saved, then it opens (asking where, when a window has projects open).
-const notOpen = computed(() => !!editing.value && !openIds.value.includes(editing.value));
-async function openIt() {
+// New Task: what was changed saved, then a task of it, in its group (a new one in this window when it has none).
+async function newTask() {
   const id = editing.value;
   if (!await save(true)) return;
   modal.value!.close();
@@ -210,7 +207,6 @@ const fromAnother = (): MenuItem[] => others.value.map((p) => ({ label: p.name, 
         <ListboxContent>
           <ListboxItem v-for="p in projects" :key="p.id" :value="p.id" class="item" :data-project="p.id" :style="{ '--color': p.color }">
             <span class="dot" /><span class="text"><span class="label">{{ p.name }}</span><small :title="p.folder">{{ p.folder }}</small></span>
-            <kbd>{{ openIds.includes(p.id) ? 'open' : '' }}</kbd>
           </ListboxItem>
         </ListboxContent>
       </ListboxRoot>
@@ -294,7 +290,7 @@ const fromAnother = (): MenuItem[] => others.value.map((p) => ({ label: p.name, 
     </div>
     <template #footer>
       <button id="npdelete" class="start danger" type="button" :hidden="isNew" :disabled="saving" @click="deleteIt">Delete Project…</button>
-      <button id="npopen" class="start" type="button" :hidden="!notOpen" :disabled="saving" @click="openIt">Open</button>
+      <button id="npnewtask" class="start" type="button" :hidden="!editing" :disabled="saving" @click="newTask">New Task</button>
       <DialogClose>Cancel</DialogClose><button id="npcreate" class="primary" :disabled="saving">{{ isNew ? 'Create' : 'Save' }}</button>
     </template>
   </Modal>

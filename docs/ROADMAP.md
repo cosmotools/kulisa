@@ -24,7 +24,9 @@ here; what is left of it stays.
     as Chrome's tab groups (Delete Project…, no Open Folder… as New Project… takes a folder there already, the group's
     panel on the label's right-click; tasks.md, Projects); the author tests it. Built 2026-10-11 too: tasks, not projects,
     in the bar's button (Search Tasks, Ctrl+Shift+A) and the empty window instead of the Welcome screen (tasks.md,
-    Projects); Delete Project… only in the projects' manager. Next: fix what the author's testing finds;
+    Projects); Delete Project… only in the projects' manager. And a project is no thing to open (the author's decision,
+    2026-10-11): its island is the group of its open tasks (Close Group closes them, asking only when an agent works;
+    no question where a task opens; one group per project, in one window; tasks.md, Projects). Next: fix what the author's testing finds;
     then what is left of each step ("Left:" in it), only once the author has decided it.
     Open, for the author to decide: Refresh from Master… now matters only for a local app's cookies (keep or drop);
     a script the agent runs in a page (`browser_evaluate`) could read a test password back from its field (only the

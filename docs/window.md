@@ -8,7 +8,7 @@ next: [ROADMAP.md](ROADMAP.md). Keep this file current when the window changes.
 
 ## The title bar
 
-One row: the app's logo (the open project's color on its curtain), Projects (the projects' manager:
+One row: the app's logo (the shown group's project's color on its curtain), Projects (the projects' manager:
 [tasks.md](tasks.md), Projects), ☰, and the OS's window buttons drawn over its right end (`titleBarStyle: 'hidden'` with
 `titleBarOverlay`); no menu bar. Dragging the empty part moves the window. When the Kulisa zoom is not 100%, the bar
 shows it (a click resets it).
@@ -25,7 +25,7 @@ replace a region left by the page before.
 
 ## The projects' bar
 
-Under the grid, in the middle: an island per open project, drawn as Chrome's tab groups (its label, which folds it;
+Under the grid, in the middle: an island per group (a project's open tasks), drawn as Chrome's tab groups (its label, which folds it;
 its open tasks' tabs; + for a new task, its right-click New Task with one of the project's agents), then Search Tasks, every project's tasks ([tasks.md](tasks.md), Projects). ☰ → **Projects bar: Top, Bottom** puts it over the grid instead, under the
 title bar (`settings.json`: `bar`; the page gets it in its URL, so it is drawn in its place at once). Bottom is the
 default: the hand goes to the terminal under the grid all the time, so the tabs are where it already is; at first
@@ -133,8 +133,8 @@ frozen the desktop (ROADMAP, Deferred ideas, "A right-click menu in pages"). The
 
 Every dialog has one look, as in JetBrains: the title with × on top, the content, the buttons at the bottom right,
 the main one last (blue; red when it deletes) ([ui.md](ui.md), Dialogs). Questions before something that cannot be
-undone (deleting a profile, a task, a project), before closing (a project, a window, quitting
-while an agent works: [tasks.md](tasks.md)) or between two ways to go (This Window or New Window) are asked
+undone (deleting a profile, a task, a project), before closing (a group or a task while an agent works, a window,
+quitting while an agent works: [tasks.md](tasks.md)) or between two ways to go (a second button, `other`) are asked
 in that dialog too (`shell.ask` → `lib/ask.ts`, `Ask.vue`, queued, Cancel focused; Esc is Cancel, a click outside
 does nothing: it waits for an answer), in the window the action is in. While a dialog is open the profiles' pages are
 hidden (they are native views above the HTML), and the keys are the dialog's (Keys). Not the OS's own question (`dialog.showMessageBox`): it looked different on each OS and plain on Linux, and
@@ -161,7 +161,7 @@ environment (`KULISA_PORT_OFFSET`), the command typed in, so the human can stop 
 in their own terminal; the agent reads its last lines (`terminal_read`, colors left out) and presses Ctrl+C
 (`terminal_stop`). Why not the agent's own background shell: some agents cannot keep a process running (Codex waits
 on it), and the human does not see what runs there. The task closing ends what runs in it. As in an IDE, the terminals are kept (`terminals.json`): when the task loads again
-(a restart, its project opened again) each comes back in its place in the grid, its shell with nothing running; the
+(a restart, its task opened again) each comes back in its place in the grid, its shell with nothing running; the
 agent runs its command again. × or the menu's Close, or the shell's `exit`, ends one for good
 (`Task.openTerminal`, `runInTerminal`, `interruptTerminal`, `readTerminal`, `closeTerminal`). The main process
 keeps each one's last 200 KB of output for the agent, in memory.

@@ -78,9 +78,13 @@ unasked. This paragraph is removed when the rewrite is finished.
   Chrome. Not "module": that is a file of code.
 - **The agent is the human's choice, per task** (`agents.js`): never assume `claude` is installed. Kulisa
   installs a missing agent itself with its maker's installer when the human asks, without steps for them to type.
-- **Terminology: "the empty window"**: what a window is with no project open (at first start, after its last
-  project is closed): the title bar and the projects' bar as always (no islands, Search Tasks there) and, in the
-  grid's place, an empty island: "No project is open", New Project…. `Empty.vue`. It replaced the Welcome screen
+- **Terminology: "group"**: a project's open tasks in a window, its island in the bar, as Chrome's tab group (it
+  comes with the first task opened, goes with the last one closed: Close Group). A project is no thing to open (the
+  author, 2026-10-11: it is what its tasks are made of: profiles, agents, repositories); not "open project" or "Close
+  Project" (earlier commits say so). In code a group is still an open project (`Project` in `shell.open`).
+- **Terminology: "the empty window"**: what a window is with no task open (at first start, after its last
+  group is closed): the title bar and the projects' bar as always (no islands, Search Tasks there) and, in the
+  grid's place, an empty island: "No task is open", Search Tasks, New Project…. `Empty.vue`. It replaced the Welcome screen
   (JetBrains' name; 2026-10-11), whose list of tasks is Search Tasks' now; earlier commits say Welcome screen.
 - **Terminology: "task"** for one line of work inside a project: an agent (its terminal and session, any agent
   CLI), a branch of the code, profiles and a grid. It replaced "workspace" (the word of tools for parallel agents,
@@ -185,7 +189,7 @@ unasked. This paragraph is removed when the rewrite is finished.
 ## Commands
 
 ```sh
-npm start   # the app: the projects open last, plus $KULISA_PROJECT's (at first start none: open one)
+npm start   # the app: the groups open last, plus $KULISA_PROJECT's (at first start none: the manager on New Project)
 npm test    # unit tests, then the e2e groups in parallel, each the real app against a local test site, then restarted
 npm run test:unit     # the unit tests alone (plain Node, a second)
 npm run test:visible  # e2e on your screen, to watch them (npm test uses Xvfb on Linux when installed)
@@ -282,17 +286,17 @@ check, a rule or a way of doing an action is never written in a handle, nor twic
 
 Modules (`src/main`):
 
-- `app.js`: the app: its windows, the open projects (open, close, move one to a new window; one change after
+- `app.js`: the app: its windows, the groups (open projects in code: a task opened, closed, moved to a new window; one change after
   another: `serial`), the agents, the windows' IPC (each message acts in the window it comes from: `event.sender`;
   one on profiles or tabs names its task too, refused when that window shows another by then: `act` in the
   renderer's `lib/store.ts`), quit. `shell.win`, `shell.task`, `shell.profiles`, `shell.closed`, `shell.pty` are the first window's (the tests').
-- `window.js`: a window: its open projects and what it shows (show a project or a task, the grid's state, the
+- `window.js`: a window: its groups and what it shows (show a group or a task, the grid's state, the
   views' places), the questions asked there (`shell.ask(q, window)`, in its dialog: `Ask.vue`), the theme's colors
   CSS does not paint.
 - `keys.js`: the keyboard shortcuts: one table (what each key does, and where: a page, everywhere, the terminal) and
   which key an input event is; `app.js` takes them before any page does (`before-input-event`), the window runs them
   (`renderer/lib/keys.ts`). A new key goes into the table (`docs/window.md`, Keys).
-- `projects.js`: an open project: its tasks (make, close, open again, delete), removing a project's data.
+- `projects.js`: a project's group (an open project in code): its tasks (make, close, open again, delete; closing them all), removing a project's data.
 - `tasks.js`: a task: its profiles, its agent in its own terminal and environment, renaming, copies for a new task.
 - `worktrees.js`: git for tasks (the user's git, never a shell): worktree, branch, files outside git, direnv.
 - `accounts.js`: the agents' accounts, one store: each made in a project (the agent's own sign-in), a config folder of
