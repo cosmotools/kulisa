@@ -222,16 +222,14 @@ export default (test: Test) => {
   test('tasks: switching shows the other grid and terminal; the one left keeps running; the agent\'s state shows on its tab', async (ctx) => {
     const { shell, ui } = ctx;
     const second = shell.task, sam = second.profiles.get('sam-admin');
-    // The shown task's tab has the profiles' button (👥, a menu of them), the others its room only; no number on any
-    // (profiles are the agent's hands: how many are open says nothing).
-    const chip = () => ui(`(() => { const b = document.getElementById('openProfiles'); return b.closest('.tasktab')?.dataset.task + ' ' + b.textContent.trim() + ' ' + document.querySelectorAll('#taskbar #openProfiles').length; })()`);
+    // No profiles' button on a task's tab, its right-click menu has them; the × on every tab, as Chrome's, not only
+    // the shown one's (the author, 2026-10-12).
+    assert.deepEqual(await ui(`[...document.querySelectorAll('#tasklist .tasktab')].map((t) => [...t.querySelectorAll('button')].map((b) => b.ariaLabel + ' ' + getComputedStyle(b).visibility))`),
+      [['Close visible'], ['Close visible']]);
     const widths = () => ui(`[...document.querySelectorAll('#tasklist .tasktab')].map((t) => t.getBoundingClientRect().width)`);
-    assert.equal(await chip(), `${second.key}  1`);
-    assert.deepEqual(await ui(`[...document.querySelectorAll('#tasklist .tasktab .chip')].map((c) => [c.textContent.trim(), getComputedStyle(c).visibility])`),
-      [['', 'hidden'], ['', 'visible']]);
     const before = await widths();
-    // A tab's right-click menu: the shown one's has its profiles too, as the chip's; then renaming, its folder,
-    // deleting. Show Folder opens the task's worktree in the file manager.
+    // A tab's right-click menu: the shown one's has its profiles; then renaming, its folder, deleting. Show Folder
+    // opens the task's worktree in the file manager.
     await rightClick(ui, `#tasklist .tasktab[data-task$="/1"] .name`);
     assert.deepEqual(await menuRows(ui), ['Rename…', 'Show Folder', '-', 'Delete Task…']);
     await closeMenu(ui);
@@ -249,7 +247,6 @@ export default (test: Test) => {
     assert.notEqual(second.folder, project, "the task's own, not the project's");
     await click(ui, taskTab(1));
     await waitFor(() => shell.task.n === 1);
-    await waitFor(async () => (await chip()) === `${shell.task.key}  1`); // the button goes with it
     assert.deepEqual(await widths(), before, 'the tabs keep their widths');
     await waitFor(async () => (await viewOn(shell, ui, 'sam-admin')) && viewOn(shell, ui, 'elon-buyer'));
     assert.equal(sam.get().view.getVisible(), false, "the second task's pages are hidden");
@@ -863,12 +860,14 @@ export default (test: Test) => {
       ['text', true, 'none']);
     assert.ok(!shell.store.projects().some((p) => p.id === 'note'), 'a file is not taken');
     await named('Shop');
-    // Created, no task is made: Settings shows its page, and New Task makes one (no question where).
+    // Created, no task is made: Settings shows its page; the bar's + makes one (no question where), Settings has no
+    // New Task (the author, 2026-10-12).
     assert.equal(await ui(`document.getElementById('npwhere').textContent`), `The project will be created in ${path.join(made, 'Shop')}`);
     ctx.asked.length = 0;
     await ui(`document.getElementById('npform').requestSubmit()`);
     await waitFor(() => ui(`${pageOf('Shop')} && !!document.getElementById('npagentsrow')
-      && !document.getElementById('npnewtask').hidden && document.querySelector('#pjlist [data-project="shop"]')?.ariaSelected === 'true'`));
+      && document.querySelector('#pjlist [data-project="shop"]')?.ariaSelected === 'true'`));
+    assert.equal(await ui(`[...document.querySelectorAll('#projects button')].some((b) => b.textContent.trim() === 'New Task')`), false);
     assert.ok(!shell.current && !shell.open.has('shop'), 'made, no task');
     assert.equal(ctx.asked.length, 0, 'nothing asked');
     // Its icon its site's favicon, none yet: the curtain shown, and chosen in its panel.
@@ -881,7 +880,8 @@ export default (test: Test) => {
     assert.equal(await ui(`document.querySelector('#pjlook use').getAttribute('href')`), '#i-p-rocket');
     await closeMenu(ui);
     await waitFor(() => ui(`!document.querySelector('.pjlookpanel') && document.getElementById('projects')?.dataset.state === 'open'`));
-    await ui(`document.getElementById('npnewtask').click()`);
+    await closeSettings(ui);
+    await plusMenu(ui, 'Shop');
     await waitFor(() => shell.current?.folder === path.join(made, 'Shop') && shell.task?.loaded && shell.pty);
     assert.ok(fs.existsSync(path.join(made, 'Shop', '.git')), 'git init in it');
     const shop = shell.store.projects().find((p) => p.id === 'shop');
@@ -1288,12 +1288,13 @@ export default (test: Test) => {
     assert.equal(await ui(`document.querySelector('#npsources .item kbd').textContent`), 'git');
     assert.equal(await ui(`document.getElementById('npgitrow').hidden`), true, 'no Create Git repository: it is one');
     await ui(`document.getElementById('npform').requestSubmit()`);
-    await waitFor(() => ui(`${pageOf('gone')} && !document.getElementById('npnewtask').hidden`));
+    await waitFor(() => ui(pageOf('gone')));
     assert.ok(projects().includes('gone') && !shell.open.has('gone'), 'made, no task');
     assert.equal(git(gone, 'log', '--format=%s'), 'mine', 'its history as it was');
     assert.equal(fs.readFileSync(path.join(gone, 'a.txt'), 'utf8'), 'a');
     ctx.asked.length = 0;
-    await ui(`document.getElementById('npnewtask').click()`);
+    await closeSettings(ui);
+    await plusMenu(ui, 'gone');
     await waitFor(() => shell.current?.folder === gone && shell.task?.loaded && shell.pty);
     assert.equal(ctx.asked.length, 0, 'its group in this window, nothing asked where');
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));

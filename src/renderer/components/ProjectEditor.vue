@@ -139,13 +139,6 @@ async function chooseIconFile() {
 }
 // The look's panel outlives the dialog's content (its open state is here): closed with it, or the pages stayed pictures.
 function closed() { lookOpen.value = false; adding.value = ''; return saveLook(); }
-// New Task: a task of it, in its group (a new one in this window when it has none).
-async function newTask() {
-  const id = editing.value;
-  await saveLook();
-  modal.value!.close();
-  await kulisa.invoke('project:open', { id });
-}
 const more = (): MenuItem[] => [{ label: 'Delete Project…', run: deleteIt }];
 // Delete Project…, here alone (the author, 2026-10-11): asked first (projects.ts, askDeleteProject), closed if open;
 // then Settings goes on to another project.
@@ -263,7 +256,6 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
         <template v-if="editing">
           <div id="pjhead" class="crumbs">
             <span>Projects</span><span aria-hidden="true">›</span><b id="pjtitle">{{ projects.find((p) => p.id === editing)?.name }}</b>
-            <button id="npnewtask" type="button" @click="newTask">New Task</button>
             <ButtonMenu :items="more" end><button id="pjmore" class="icon small" type="button" title="More" aria-label="More"><Icon name="i-more" /></button></ButtonMenu>
           </div>
           <!-- Enter saves it, not a form -->

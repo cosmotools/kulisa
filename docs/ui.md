@@ -83,7 +83,6 @@ Each icon is drawn once, as a `<symbol id="i-…">` in the sprite (`Sprite.vue`,
 | `i-globe` | a tab whose site has no icon |
 | `i-zoom`, `i-theme`, `i-arrange`, `i-agent`, `i-keyboard`, `i-exit` | ☰'s rows: Zoom, Theme, Arrange panels, Agents…, Keyboard Shortcuts, Exit |
 | `i-mic` | dictation's microphone in the terminal's header (Lucide's mic) |
-| `i-users` | the profiles' button on the shown task's tab (Lucide's users) |
 | `i-p-cart`, `i-p-briefcase`, `i-p-globe`, `i-p-flask`, `i-p-rocket`, `i-p-code`, `i-p-building`, `i-p-people`, `i-p-book`, `i-p-heart` | a project's icon to choose (Lucide's shopping-cart, briefcase, globe, flask-conical, rocket, code, building-2, users-round, book-open-text, heart), drawn in its color (`projectIcon`, `lib/common.ts`) |
 | `i-working`, `i-waiting`, `i-done` | an agent's state on a tab (`.state`); `i-done` also checks the chosen row of a menu, and a checkbox |
 | `i-down` | what opens below it: a `.select`'s choices, an agent's details (`AgentList.vue`) |
@@ -162,13 +161,11 @@ The window's controls are Reka UI's, in this look (CLAUDE.md, Window UI):
 - `.avatar`: a profile's picture (`<img>`, `avatarSrc(name)` in `lib/common.ts`; `Avatars.vue` the ones to choose from), 16 px; `--avatar` where a place needs
   another size (22 px in a profile's row, `ProfileRow.vue`).
 - `.striptab`: a tab of a strip on an island, as a browser's: the agent's `.state`, `.name`, × at the end
-  (`button.close.icon.quiet.small`), shown under the pointer and on the shown tab, its room kept so nothing moves. A
+  (`button.close.icon.quiet.small`), on every tab, always, as
+  Chrome's (the author, 2026-10-12: until then only under the pointer and on the shown tab). A
   step taller than a button (`--control` + 4 px) and at least 64 px wide: a target for a quick throw of the mouse.
   Lit under the pointer; `.active`: the shown one, in the panels' color (`--island`) on the dark island. A
   task's tab (`TaskTab.vue`).
-- `.chip`: an icon button inside a tab: on the shown task's tab 👥 (`#openProfiles`, lit under the pointer) with the
-  menu of its profiles; the other tabs keep its room only (not shown), so that tabs keep their widths as another is
-  shown. No number (the author, 2026-10-11).
 - `.state`: an agent's state by `data-state` (from its hooks), an icon each so that color is not the only sign (some
   people do not tell yellow from green): working (sparkles in `--accent`, twinkling; not with reduced motion), waiting
   for you (a bell in `--note`), done (a check in `--done`: come and see, until the human sees that task); nothing otherwise, as nothing asks for

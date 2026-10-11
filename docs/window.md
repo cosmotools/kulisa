@@ -110,8 +110,8 @@ Kulisa draws its menus in HTML, as Chrome does (Reka UI's menus: `components/men
 button's opens on the press (press, drag to a row, let go there), a right-click's at the pointer, one at a time; the
 pages are pictures of themselves meanwhile; afterwards the keyboard is back where it was:
 
-- the bar's + (every project, a new task of it; their closed tasks; New Project…), the profiles' button on the shown task's tab (open
-  and closed profiles, Manage Profiles…: Settings → Profiles; the tab's right-click menu has them too, with Show Folder), ☰ (as Chrome's ⋮, each row with its icon: the zoom row, the theme row, the
+- the bar's + (every project, a new task of it; their closed tasks; New Project…), a task tab's right-click menu (the shown one's open
+  and closed profiles, Manage Profiles…: Settings → Profiles; Rename…, Show Folder, Delete Task…), ☰ (as Chrome's ⋮, each row with its icon: the zoom row, the theme row, the
   tasks' bar's row, Arrange panels, Agents… (Settings on its Agents tab), Keyboard Shortcuts, the links
   (Documentation, GitHub, Report an issue; one list in `lib/common.ts`), and Exit, which quits as the last window's × does; not on macOS, where
   Cmd+Q and the app's menu quit; under them all Kulisa's version, small and dim: words, not a row, as nothing happens on a click);

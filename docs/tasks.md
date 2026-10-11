@@ -15,7 +15,7 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
 
 - **A project is no thing to open; its tasks are** (the author, 2026-10-11: a project is what its tasks are made of:
   profiles, agents, repositories). Its island in a window's bar is the **group** of its open tasks there, as Chrome's
-  tab group: it comes with the first task opened (the bar's +, New Task in the manager) and goes with the last one
+  tab group: it comes with the first task opened (the bar's +) and goes with the last one
   closed. There is no Open Project or Close Project, and no question where to open one: a task of a project with no
   group opens in a new group in this window, one with a group goes into it, in its window (one group per project, as
   Chrome's per window; Move to New Window takes a group away whole). In code the group is still an open project
@@ -27,7 +27,7 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   terminal anyway, or over it (☰ → Tasks bar: Top, Bottom; saved). Each island looks like a tab of the grid: square
   where it meets the grid and merging into it with curves, rounded towards the window's edge.
   - **Nothing in it moves** when another project or task is shown: every island keeps its width (every tab the room
-    of its × and of the profiles' button), and the shown project's tabs come with the projects' news, not after it. Islands that moved under the mouse made
+    of its ×), and the shown project's tabs come with the projects' news, not after it. Islands that moved under the mouse made
     the human miss (the author, 2026-10-08).
   - **A click on the label folds the group** to it, as Chrome's collapsed tab groups, and back (kept in
     `tasks.json`); the tab of the task it shows stays, so the grid on screen keeps its tab. Showing a project is a
@@ -41,12 +41,12 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
     × on its last open task) closes its tasks as × on each would (`Project.closeAll`: agents stopped, profiles saved
     and closed, everything kept; the shown one listed as closed last), its island goes; it asks only when an agent
     works (the author, 2026-10-11, with groups; before, a project's closing always asked).
-  - **The profiles' button** (👥) on the shown task's tab: its menu lists them, open and closed, and Manage
-    Profiles…; the other tabs keep its room, so that the tabs keep their widths as another is shown. On the tab
-    because profiles are a task's; it was a Profiles ▾ button in the title bar until the projects moved to this bar.
-    No number: every tab said how many of its profiles were open until 2026-10-11, when the author dropped it
-    (profiles are the agent's hands: how many are open says nothing).
-  - **A task tab's right-click menu**: the shown one's profiles, as its profiles' button's; Rename…; Show Folder, its folder (its
+  - **No profiles' button on a task's tab** (the author, 2026-10-12: the bar is no place to edit profiles, Settings is
+    for that). A 👥 on the shown task's tab had their menu until then (before it, a Profiles ▾ button in the title
+    bar), and every tab a number of its open profiles until 2026-10-11 (profiles are the agent's hands: how many are
+    open says nothing).
+  - **A task tab's right-click menu**: the shown one's profiles, open (shown in the grid) and closed (opened in the
+    task), and Manage Profiles… (Settings → Profiles); Rename…; Show Folder, its folder (its
     worktree, or the project's without git) in the OS's file manager (`shell.openPath`); Delete Task….
   - **The button after the islands is +**, a new task (Ctrl+Shift+A; `NewTask.vue`; the author, 2026-10-11): a task
     is made of a project (its profiles, agents and code), so its menu lists every project, with its icon in its
@@ -62,11 +62,11 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   left, **Projects** with every project under it (its icon in its color, its name), **Agents** (the agents and their
   accounts: "Choosing the agent") and **Profiles** (every profile and who it is: [profiles.md](profiles.md)), its **+** at
   the top New Project; on the right the chosen one's page under its path ("Projects › shop"). Project Settings… in a
-  group's menu opens it at that project; ☰ → Agents… on Agents; 👥 → Manage Profiles… and About this profile… on
+  group's menu opens it at that project; ☰ → Agents… on Agents; a task tab's Manage Profiles… and About this profile… on
   Profiles. It was the
   projects' manager alone, under a Projects button, until the agents' accounts needed a place outside projects; then
   tabs, Projects and Agents, until the tree. **A project's page** (the projects' manager, in earlier words): at its top
-  its path, **New Task** (a task of it, in its group) and **⋯** (Delete Project…); then **Name:** with its color and
+  its path and **⋯** (Delete Project…; no New Task there since 2026-10-12, the author: tasks are made in the bar); then **Name:** with its color and
   icon in a button beside it (a panel), and a group each under a titled line (`.titled`): **Code**, **Agents**,
   **Profiles** (what its tasks are made of), each a list (`.list`) with a toolbar over it: **+** adds (a menu), **−**
   removes the selected row (and Delete), **★** makes it the default (Code, Agents); a row's right-click has the same.
@@ -109,8 +109,7 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   has a copy of its own. Without git's user name and email set there is no commit, and tasks work in the folder. More
   repositories are added on its page (Code).
   **Create makes no task**: Settings opens on its page (its agents' accounts: New
-  Account…; its code, profiles), and **New Task** at its top makes its first task (`project:open` without a task: a
-  new one).
+  Account…; its code, profiles); its first task is made from the bar's + (the project is in its menu).
 - **Showing another group** slides the grid towards its island, as macOS desktops do (a view transition on the compositor, the
   pages as pictures meanwhile; not with reduced motion); the window builds the other grid in place, so nothing jumps.
   When a group closes, the one next to it is shown, or the empty window when it was the last.
@@ -223,7 +222,7 @@ Example: the project `~/IdeaProjects/myshop`, its second task, named "Checkout-r
   from the project's configuration alone, nothing taken from the task on screen: the human describes the task to its
   agent in the terminal. It runs the project's default agent; with none, the window asks. **No profile opens by itself**, the first task's
   neither: all the project's are listed closed, and the agent opens one when it needs it (`profile_open`), the human
-  with 👥; each a copy of its master made then ([profiles.md](profiles.md)). Decided with the author on 2026-10-10:
+  from the task's tab's right-click menu; each a copy of its master made then ([profiles.md](profiles.md)). Decided with the author on 2026-10-10:
   a task opened those open in the task on screen before (the first one all), each a browser's processes and memory
   whether the task needed it or not.
 - **×** on a task's tab closes it: its agent stops, its tabs close; its code, branch, profiles and conversation stay,
@@ -247,12 +246,12 @@ to the human; the window's IPC (`app.ts`) and the MCP tools are handles on it:
 
 | Action | The human | The agent | The core |
 |---|---|---|---|
-| Open a task (a group with it, when its project has none) | the bar's + (a closed one, or a new one), New Task in the manager | none: it works inside one task | `openProject` (`app.ts`): the task opened again and shown, or a new one (`createTask`) |
+| Open a task (a group with it, when its project has none) | the bar's + (a closed one, or a new one) | none: it works inside one task | `openProject` (`app.ts`): the task opened again and shown, or a new one (`createTask`) |
 | Close a group | Close Group in its menu, the middle button on its label, × on its last open task | none: it would stop itself | `closeProjects` (`app.ts`), `Project.closeAll`, asking only when an agent works |
 | Close a window, quit | the OS's ×, ☰ → Exit | none | `closeProjects` for the window's groups; `quit` (`app.ts`), asking only when an agent works |
 | Move a group | Move to New Window, Move to Window, dragging its label | none: where the human sees it is the human's | `moveProject` (`app.ts`) |
 | Delete a project | Delete Project… in the projects' manager | none: it deletes sign-ins, the human's to decide | `deleteProject` (`app.ts`), `askDeleteProject`, `deleteProjectData` (`projects.ts`) |
-| Make a task | the bar's +, Ctrl+Shift+N, New Task in its group's menu and in the manager | not yet (ROADMAP, "Tasks, rest") | `Project.createTask` |
+| Make a task | the bar's +, Ctrl+Shift+N, New Task in its group's menu | not yet (ROADMAP, "Tasks, rest") | `Project.createTask` |
 | Close a task, open it again | ×; the bar's +, its group's menu | none: what runs is the human's to stop | `Project.closeTask`, `reopen` |
 | Rename a task | Rename… in its tab's menu | `task_rename` | `Task.rename` |
 | Delete a task | Delete Task… in its tab's menu | none: it deletes work and sign-ins, the human's to decide | `Project.askDeleteTask`, `deleteTask` |

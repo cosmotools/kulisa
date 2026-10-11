@@ -10,7 +10,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import http from 'http';
 import WebSocket from 'ws';
-import { assert, root, project, pfile, panel, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, closeSettings, chooseProfile, setProfileField, closeMenu, box, pageBox, click, PORT } from './helpers.ts';
+import { assert, root, project, pfile, panel, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, closeSettings, chooseProfile, setProfileField, closeMenu, taskMenu, box, pageBox, click, PORT } from './helpers.ts';
 import { CLAUDE_PLUGIN } from '../src/main/app.ts';
 import { MARK } from '../src/main/ghost.ts';
 import { highlights } from '../src/main/mcp-server.ts';
@@ -248,15 +248,15 @@ export default (test: Test) => {
     assert.match((await call('profile_describe', { profile: 'elon-buyer', description: 'buyer; pays by card' })).text, /Saved/);
     assert.equal(elon.description, 'buyer; pays by card');
     await assert.rejects(call('profile_describe', { profile: 'elon-buyer', description: 'x'.repeat(501) }), /at most 500/);
-    // The editor shows it and the human changes it there; the pane's name tells it on hover, the profiles' chip's menu under the name.
+    // The editor shows it and the human changes it there; the pane's name tells it on hover, the task's tab's menu under the name.
     const header = `[...document.querySelectorAll('.ptab')].find((t) => t.querySelector('.pname')?.textContent === 'Elon.buyer')`;
     await waitFor(async () => (await ui(`${header}.querySelector('.pname').title`)).startsWith('buyer; pays by card'));
     await waitFor(() => ui(`(() => { const i = ${header}.querySelector('.avatar'); return i.complete && i.naturalWidth > 0; })()`)); // the picture is drawn
-    await ui(`document.getElementById('openProfiles').click()`);
+    await taskMenu(ui);
     assert.deepEqual(await ui(`[...document.querySelectorAll('.menu[data-state="open"] .item')].slice(0, 2).map((b) => [b.querySelector('small').textContent,
       b.querySelector('.avatar').getAttribute('src')])`),
     [['seller in the test shop', 'avatars/fox.svg'], ['buyer; pays by card', 'avatars/penguin.svg']]);
-    await ui(`document.getElementById('openProfiles').click()`);
+    await closeMenu(ui);
     // Settings → Profiles shows it and the human changes it there.
     await manageProfiles(ui);
     await chooseProfile(ui, 'elon-buyer');
