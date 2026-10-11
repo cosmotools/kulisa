@@ -19,7 +19,7 @@ const { Project, askDeleteProject, deleteProjectData, faviconOf, addRepo, cloneR
 const { AppWindow, COLORS } = require('./window');
 const worktrees = require('./worktrees');
 const agents = require('./agents');
-const { nameError } = require('./names');
+const { nameError, repoName } = require('./names');
 const { startTerminal, stopTerminal, forgetTerminal } = require('./terminal');
 const keys = require('./keys');
 
@@ -417,12 +417,12 @@ function start(options = {}) {
     const p = id ? store.projects().find((x) => x.id === id) : folder && fs.existsSync(folder) ? projectOfFolder(path.resolve(folder)) : null;
     return p ? openLater(p, at(e), task) : { error: 'no such project' };
   });
-  // New Project…, as JetBrains': the folder <location>/<name>, the location ~/Kulisa (every new project's place, as
-  // JetBrains' ~/PycharmProjects) unless the human picks another, so they know where the agent's files are. A folder
-  // that is there already must be empty; git init in it when asked, with an empty first commit: tasks get copies of
-  // their own (worktrees) from it. With its color and icon (ProjectEditor.vue). Made, not opened: the manager goes on to
-  // its configuration (its agents' accounts, its code, its profiles), and Open there opens it (the author, 2026-10-11:
-  // a question where to open it, right after Create, came unasked).
+  // New Project…, as JetBrains': its code first (below), then a new or cloned one's folder <location>/<name>, the
+  // location ~/Kulisa (every new project's place, as JetBrains' ~/PycharmProjects) unless the human picks another, so
+  // they know where the agent's files are. git init when asked, with an empty first commit: tasks get copies of their
+  // own (worktrees) from it. Made, not opened: the manager goes on to its configuration (its agents' accounts, its
+  // code, its profiles), and New Task there makes its first task (the author, 2026-10-11: a question where to open it,
+  // right after Create, came unasked).
   // agents: every account, the agents' own first; clis: the agents a new account can be made of (New Account…).
   const choices = () => {
     const all = shell.accounts.all().filter((a) => !a.agent.custom);
@@ -431,12 +431,14 @@ function start(options = {}) {
   };
   ipcMain.handle('project:new-defaults', () => ({ location: shell.projectsHome, sep: path.sep,
     color: store.nextColor(), ...choices() }));
-  ipcMain.handle('project:pick-location', async (e, { location }) => {
-    const r = await dialog.showOpenDialog(at(e).win, { title: 'Where to create the project', defaultPath: location, properties: ['openDirectory', 'createDirectory'] });
+  // Browse…: where a new or cloned project's folder goes, or (existing) the folder that is the project.
+  ipcMain.handle('project:pick-location', async (e, { location, existing }) => {
+    const r = await dialog.showOpenDialog(at(e).win, { title: existing ? "The project's folder" : 'Where to create the project', defaultPath: location,
+      properties: existing ? ['openDirectory'] : ['openDirectory', 'createDirectory'] });
     return r.canceled ? null : r.filePaths[0] || null;
   });
-  // What a new project's folder is now (the New Project form says it as the location is typed): not there (made), there
-  // (taken as it is, its files kept), a repository (git init skipped), or a project's already (refused).
+  // What a new project's folder is now (the New Project form says it as it is typed): not there, there (taken as it
+  // is, its files kept), a repository (git init skipped), or a project's already (refused).
   const folderState = async (folder) => {
     if (!fs.existsSync(folder)) return { state: 'new' };
     if (!fs.statSync(folder).isDirectory()) return { state: 'file' };
@@ -444,28 +446,67 @@ function start(options = {}) {
     if (of) return { state: 'project', project: of.name };
     return { state: (await worktrees.repoOf(folder)) ? 'repo' : fs.readdirSync(folder).length ? 'files' : 'empty' };
   };
-  const newFolder = (location, name) => {
-    location = location?.trim().replace(/^~(?=$|[\\/])/, app.getPath('home'));
-    return location && path.isAbsolute(location) && name?.trim() ? path.join(location, name.trim()) : null;
+  const full = (f) => {
+    f = f?.trim().replace(/^~(?=$|[\\/])/, app.getPath('home'));
+    return f && path.isAbsolute(f) ? path.normalize(f) : null;
   };
-  ipcMain.handle('project:folder-state', async (e, { location, name }) => {
-    const folder = newFolder(location, name);
+  // The code comes first (the author, 2026-10-11: a folder made in ~/Kulisa was in the way of code already on the
+  // disk or at a URL), one repository or several (a frontend and a backend): from 'new', <location>/<name>; 'folder',
+  // the folders given, nothing made, the first the project's; 'clone', one repository cloned into <location>/<name>,
+  // several into <location>/<name>/<repo> each.
+  const newFolder = ({ from, location, name, folder }) => (from === 'folder' ? full(folder)
+    : full(location) && name?.trim() ? path.join(full(location), name.trim()) : null);
+  ipcMain.handle('project:folder-state', async (e, args) => {
+    const folder = newFolder(args);
     return folder ? { folder, ...await folderState(folder) } : null;
   });
-  // New Project… is the one way in (the author, 2026-10-11; Open Folder… was not clear): a folder at its location that
-  // is there already, with files or a repository, is taken as it is.
-  ipcMain.handle('project:new', async (e, { name, location, git, color, icon }) => {
+  const refused = (folder, there) => ({ file: `${folder} is a file, not a folder`, project: `${folder} is the project ${there.project}'s already` })[there.state];
+  ipcMain.handle('project:new', async (e, { from = 'new', name, location, folders = [], urls = [], git, color, icon }) => {
     name = name?.trim();
     const bad = nameError(name) || lookError({ color, icon });
     if (bad) return { error: bad };
-    const folder = newFolder(location, name);
-    if (!folder) return { error: 'the location must be the full path of a folder' };
-    const there = await folderState(folder);
-    if (there.state === 'file') return { error: `${folder} is a file, not a folder` };
-    if (there.state === 'project') return { error: `${folder} is the project ${there.project}'s already` };
-    fs.mkdirSync(folder, { recursive: true });
-    if (git && there.state !== 'repo') await worktrees.initRepo(folder).catch((err) => console.error('[git]', err.stderr || err.message));
-    const entry = store.projectFor(folder, name, { color, icon });
+    let folder, repos = null;
+    if (from === 'folder') {
+      const given = [...new Set(folders.map(full))];
+      if (!given.length || given.includes(null)) return { error: given.length ? 'each folder must be a full path' : 'no folder' };
+      const states = await Promise.all(given.map(folderState));
+      for (const [i, f] of given.entries()) {
+        if (states[i].state === 'new') return { error: `${f} is not there` };
+        if (refused(f, states[i])) return { error: refused(f, states[i]) };
+      }
+      for (const [i, f] of given.entries()) {
+        if (git && states[i].state !== 'repo') await worktrees.initRepo(f).catch((err) => console.error('[git]', err.stderr || err.message));
+      }
+      [folder] = given;
+      if (given.length > 1) repos = given;
+    } else {
+      folder = newFolder({ location, name });
+      if (!folder) return { error: 'the location must be the full path of a folder' };
+      const there = await folderState(folder);
+      if (refused(folder, there)) return { error: refused(folder, there) };
+      if (from === 'clone') {
+        urls = [...new Set(urls.map((u) => u?.trim()).filter(Boolean))];
+        if (!urls.length) return { error: 'no repository URL' };
+        if (!['new', 'empty'].includes(there.state)) return { error: `${folder} is there already: choose another name or location` };
+        const intos = urls.length === 1 ? [folder] : urls.map((u) => path.join(folder, repoName(u)));
+        if (intos.includes(folder) && urls.length > 1 || new Set(intos).size < intos.length) return { error: 'two repositories of the same name' };
+        fs.mkdirSync(urls.length === 1 ? path.dirname(folder) : folder, { recursive: true }); // git runs there
+        for (const [i, u] of urls.entries()) {
+          try { await worktrees.clone(u, intos[i]); } catch (err) {
+            // None of it kept: a project with half its code would look made.
+            for (const f of intos.slice(0, i + 1)) if (f !== folder || there.state === 'new') fs.rmSync(f, { recursive: true, force: true });
+            if (there.state === 'new') fs.rmSync(folder, { recursive: true, force: true });
+            return { error: `${u}: ${err.stderr || err.message}` };
+          }
+        }
+        if (urls.length > 1) repos = intos;
+      } else {
+        fs.mkdirSync(folder, { recursive: true });
+        if (git && there.state !== 'repo') await worktrees.initRepo(folder).catch((err) => console.error('[git]', err.stderr || err.message));
+      }
+    }
+    let entry = store.projectFor(folder, name, { color, icon });
+    if (repos) entry = store.updateProject(entry.id, { repos });
     sendProjects(); // Search Tasks lists it
     return { id: entry.id };
   });

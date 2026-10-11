@@ -11,6 +11,7 @@ interface KulisaBridge {
   platform: string; // process.platform: 'linux', 'darwin', 'win32'
   nameChar(c: string): boolean; // a character names may have (main/names.js)
   nameMax: number;
+  repoName(url: string): string; // a folder's or repository URL's last part (main/names.js)
   avatars: string[]; // the profiles' pictures to choose from (main/avatars.js)
   nextAvatar(used: string[]): string;
   invoke<T = any>(channel: string, ...args: unknown[]): Promise<T>;

@@ -1128,7 +1128,8 @@ module.exports = (test) => {
     ctx.asked.length = 0;
   });
 
-  test("projects: Delete Project… (the projects' manager alone) asks, closes the project when open, deletes its data and its tasks' copies, never its folder", async (ctx) => {
+  test("projects: Delete Project… (the projects' manager alone) asks, closes the project when open, deletes its data and its tasks' copies, never its folder; New Project takes its code from folders on the disk or clones it from URLs, one or several, making no other folder", async (ctx) => {
+    // About 3 s: git's work (a worktree, a clone) and closing an open project.
     const { shell, ui } = ctx;
     const projects = () => shell.store.projects().map((p) => p.id);
     // A project that is not open, with a task that has a commit of its own, as Kulisa lays them out.
@@ -1181,17 +1182,36 @@ module.exports = (test) => {
     await waitFor(() => ui(`!document.querySelector('#pjlist [data-project="spare"]')`));
     await closeSettings(ui);
 
-    // New Project… on a repository there already (the one way in: Open Folder… is gone): taken as it is, its files
-    // and its history kept, no git init; made, not opened, as any new project; Open opens it.
+    // New Project… asks for its code first (the author, 2026-10-11: a folder made in ~/Kulisa was in the way of code
+    // already on the disk). Folder on disk, a repository: taken as it is, its files and its history kept, no git init,
+    // nothing made; named after its folder; made, not opened, as any new project; New Task opens it.
     const gone = path.join(root, 'gone');
     fs.mkdirSync(gone); git(gone, 'init', '-q'); fs.writeFileSync(path.join(gone, 'a.txt'), 'a'); git(gone, 'add', '-A'); git(gone, 'commit', '-qm', 'mine');
-    await ui(`document.getElementById('manageProjects').click()`);
-    await waitFor(() => ui(`document.getElementById('projects')?.dataset.state === 'open'`));
-    await ui(`document.getElementById('pjnew').click()`);
-    await waitFor(() => ui(`document.getElementById('projects')?.dataset.state === 'open' && !!document.getElementById('nplocationrow')`));
-    await ui(`(() => { for (const [id, v] of [['npname', 'gone'], ['nplocation', ${JSON.stringify(root)}]]) {
-      const i = document.getElementById(id); i.value = v; i.dispatchEvent(new Event('input')); } })()`);
-    await waitFor(async () => (await ui(`document.getElementById('npwhere').textContent`)) === `${gone} is a git repository: the project takes it as it is`);
+    const fill = (id, v) => ui(`(() => { const i = document.getElementById('${id}'); i.value = ${JSON.stringify(v)}; i.dispatchEvent(new Event('input')); })()`);
+    const newProject = async (from) => {
+      if (!await ui(`document.getElementById('projects')?.dataset.state === 'open'`)) await ui(`document.getElementById('manageProjects').click()`);
+      await waitFor(() => ui(`document.getElementById('projects')?.dataset.state === 'open'`));
+      await ui(`document.getElementById('pjnew').click()`);
+      await waitFor(() => ui(`!!document.querySelector('#npfrom [data-value="${from}"]')`));
+      await ui(`document.querySelector('#npfrom [data-value="${from}"]').click()`);
+      await waitFor(() => ui(`document.querySelector('#npfrom [data-value="${from}"]').dataset.state === 'checked'`));
+    };
+    await newProject('folder');
+    assert.equal(await ui(`!!document.getElementById('nplocationrow')`), false, 'no location: nothing is made');
+    const add = async (v) => { await fill('npsource', v); await ui(`document.getElementById('npaddsource').click()`); };
+    await add(path.join(root, 'nowhere'));
+    await waitFor(async () => (await ui(`document.getElementById('nperror').textContent`)) === `${path.join(root, 'nowhere')} is not there`);
+    assert.equal(await ui(`document.querySelectorAll('#npsources .removable').length`), 0, 'not in the list');
+    assert.ok(!fs.existsSync(path.join(root, 'nowhere')), 'not made');
+    const showOpenDialog = require('electron').dialog.showOpenDialog;
+    require('electron').dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [gone] });
+    try {
+      await fill('npsource', '');
+      await fill('npname', ''); // typed by the human: kept; emptied, it follows the first folder again
+      await ui(`document.getElementById('npbrowsesource').click()`);
+      await waitFor(async () => (await ui(`document.getElementById('npname').value`)) === 'gone');
+    } finally { require('electron').dialog.showOpenDialog = showOpenDialog; }
+    assert.equal(await ui(`document.querySelector('#npsources .removable kbd').textContent`), 'git');
     assert.equal(await ui(`document.getElementById('npgitrow').hidden`), true, 'no Create Git repository: it is one');
     await ui(`document.getElementById('npform').requestSubmit()`);
     await waitFor(() => ui(`${pageOf('gone')} && !document.getElementById('npnewtask').hidden`));
@@ -1213,6 +1233,71 @@ module.exports = (test) => {
     assert.deepEqual(await projectTabs(ui), ['project *'], 'the tab next to it shown');
     assert.ok(fs.existsSync(gone) && !fs.existsSync(path.join(userData, 'projects', 'gone')));
     assert.deepEqual(savedWindows(), [{ tabs: ['project'], shown: 'project' }]);
+
+    // Folder on disk, several (a frontend and a backend): taken as they are, the first the default and the project's
+    // folder; Create Git repository in the one without git only.
+    const back = path.join(root, 'back');
+    fs.mkdirSync(back); fs.writeFileSync(path.join(back, 'b.txt'), 'b');
+    await newProject('folder');
+    await add(gone);
+    await add(back);
+    await waitFor(async () => (await ui(`[...document.querySelectorAll('#npsources .removable')].map((r) => r.dataset.source + ' ' + r.querySelector('kbd').textContent + ' ' + !!r.querySelector('.badge')).join()`))
+      === `${gone} git true,${back} no git false`);
+    assert.equal(await ui(`document.getElementById('npgitrow').hidden`), false, 'Create Git repository: for the one without');
+    await ui(`document.getElementById('npform').requestSubmit()`);
+    await waitFor(() => ui(`${pageOf('gone')} && document.querySelectorAll('#nprepos .removable').length === 2`));
+    const both = shell.store.projects().find((x) => x.id === 'gone');
+    assert.deepEqual([both.folder, both.repos], [gone, [gone, back]]);
+    assert.equal(git(back, 'log', '--format=%s'), 'Initial commit', 'git init in the one without');
+    assert.equal(git(gone, 'log', '--format=%s'), 'mine', 'the repository as it was');
+    await removeRow('gone');
+    await waitFor(() => !projects().includes('gone'));
+
+    // Clone from URL (a local one here): cloned into <location>/<name>, named after the repository, and that clone is
+    // the project's folder: no empty one beside it, no git init. A folder with files there is refused.
+    const bare = path.join(root, 'cloned.git'), backBare = path.join(root, 'back.git');
+    git(root, 'clone', '-q', '--bare', gone, bare);
+    git(root, 'clone', '-q', '--bare', back, backBare);
+    await newProject('clone');
+    assert.equal(await ui(`document.getElementById('npgitrow').hidden`), true, 'no Create Git repository: it is one');
+    await fill('npsource', bare);
+    await ui(`document.getElementById('npaddsource').click()`);
+    await waitFor(async () => (await ui(`document.getElementById('npname').value`)) === 'cloned');
+    const into = path.join(root, 'Kulisa', 'cloned');
+    await waitFor(async () => (await ui(`document.getElementById('npwhere').textContent`)) === `The repository will be cloned into ${into}`);
+    await fill('nplocation', root);
+    await fill('npname', 'gone');
+    await waitFor(async () => (await ui(`document.getElementById('npwhere').textContent`)) === `${gone} is there already: choose another name or location`);
+    await fill('nplocation', path.join(root, 'Kulisa'));
+    await fill('npname', 'cloned');
+    await ui(`document.getElementById('npform').requestSubmit()`);
+    await waitFor(() => ui(`${pageOf('cloned')} && document.querySelectorAll('#nprepos .removable').length === 1`));
+    const cloned = shell.store.projects().find((x) => x.id === 'cloned');
+    assert.equal(cloned.folder, into);
+    assert.equal(git(into, 'log', '--format=%s'), 'mine', 'its history');
+    await removeRow('cloned');
+    await waitFor(() => !projects().includes('cloned'));
+    // Several: one folder of the project's, each repository cloned into it, the first the default; that folder is
+    // no former one (it holds them). A URL typed and not yet added counts.
+    await newProject('clone');
+    await fill('npsource', bare);
+    await ui(`document.getElementById('npaddsource').click()`);
+    await fill('npname', 'fullstack');
+    await fill('npsource', backBare);
+    const stack = path.join(root, 'Kulisa', 'fullstack');
+    await ui(`document.getElementById('npform').requestSubmit()`);
+    await waitFor(() => ui(`${pageOf('fullstack')} && document.querySelectorAll('#nprepos .removable').length === 2`));
+    const full = shell.store.projects().find((x) => x.id === 'fullstack');
+    assert.deepEqual([full.folder, full.repos], [stack, [path.join(stack, 'cloned'), path.join(stack, 'back')]]);
+    assert.equal((await ui(`kulisa.invoke('project:settings-get', { id: 'fullstack' })`)).former, null, 'it holds them: no former folder');
+    assert.equal(await ui(`document.getElementById('npformer').hidden`), true);
+    await removeRow('fullstack');
+    await waitFor(() => !projects().includes('fullstack'));
+    if (await ui(`document.getElementById('projects')?.dataset.state === 'open'`)) await closeSettings(ui);
+    ctx.asked.length = 0;
+    // A URL git cannot clone: git's own words, nothing left behind, the clones before it neither.
+    assert.ok((await ui(`kulisa.invoke('project:new', { from: 'clone', name: 'bad', location: ${JSON.stringify(root)}, urls: [${JSON.stringify(bare)}, ${JSON.stringify(path.join(root, 'none.git'))}] })`)).error);
+    assert.ok(!fs.existsSync(path.join(root, 'bad')) && !projects().includes('bad'));
 
     // Close Group in its menu: the last group, so the empty window; its tasks closed.
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));

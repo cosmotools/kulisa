@@ -32,8 +32,7 @@ button.danger { background: var(--danger); border-color: var(--danger); color: v
   /* a project's colors (Reka's ColorSwatchPicker: a dot each) and icons (in its color; its favicon a picture) */
   .dot { width: 14px; height: 14px; background: var(--reka-color-swatch-color); }
   svg { color: var(--color); } [data-value="favicon"] img { width: 16px; height: 16px; } }
-/* A radio (Reka's RadioGroupItem, its RadioGroupIndicator the dot): the default of a list (a project's repositories,
-   its agents), the agent to start */
+/* A radio (Reka's RadioGroupItem, its RadioGroupIndicator the dot): the agent to start, a new project's code */
 .radio { display: grid; place-items: center; flex: none; width: 16px; height: 16px; padding: 0; border-radius: 50%;
   background: var(--field); &[data-state="checked"] { border-color: var(--accent); }
   > span { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); } }

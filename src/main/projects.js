@@ -8,6 +8,7 @@ const fs = require('fs');
 const path = require('path');
 const { Task } = require('./tasks');
 const worktrees = require('./worktrees');
+const { repoName } = require('./names');
 
 class Project {
   // entry: the project in projects.json (store.js): { id, name, folder, repos, color, icon, agents }. shell: the app
@@ -244,7 +245,7 @@ async function changeRepos(shell, id, repos) {
 async function cloneRepo(shell, id, url) {
   const p = shell.store.projects().find((x) => x.id === id);
   if (!p) return { error: `no project ${id}` };
-  const name = (url || '').trim().replace(/[\/]+$/, '').split(/[\/:]/).pop().replace(/\.git$/, '');
+  const name = repoName(url);
   if (!name) return { error: 'not a repository URL' };
   const into = path.join((await gitOf(p.folder)) === 'none' ? p.folder : path.dirname(p.folder), name);
   if (fs.existsSync(into)) return { error: `${into} is already there` };
@@ -344,10 +345,12 @@ async function deleteAccount(shell, agent, w) {
   return { ok: true };
 }
 
-// What the projects' manager shows of them: each with whether it is in git, and the former folder while it is there.
+// What the projects' manager shows of them: each with whether it is in git, and the former folder while it is there:
+// one tasks worked in before a repository came, not one that holds the project's repositories (New Project's clones).
 async function reposInfo(p) {
   const repos = await Promise.all(reposOf(p).map(async (folder) => ({ folder, git: await gitOf(folder) })));
-  const former = p.repos?.length && !p.repos.includes(p.folder) && fs.existsSync(p.folder) ? p.folder : null;
+  const holds = p.repos?.some((r) => { const rel = path.relative(p.folder, r); return rel && !rel.startsWith('..') && !path.isAbsolute(rel); });
+  const former = p.repos?.length && !p.repos.includes(p.folder) && !holds && fs.existsSync(p.folder) ? p.folder : null;
   return { repos, former };
 }
 

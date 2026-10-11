@@ -109,7 +109,8 @@ every other `<svg>` uses the sprite.
 The window's controls are Reka UI's, in this look (CLAUDE.md, Window UI):
 
 - `.radio`: a radio (Reka's `RadioGroupItem`, its `RadioGroupIndicator` the dot), in a `RadioGroupRoot`: at a row's
-  start (the row a `<label>`), exactly one of a list: the agent to start (`AgentList.vue`). The arrows move between
+  start (the row a `<label>`), exactly one of a list: the agent to start (`AgentList.vue`), a new project's code (New folder, Folder on disk,
+  Clone from URL: in a row, `ProjectEditor.vue`). The arrows move between
   them. Not for a list's default, whose rows are what the list is about: a radio there read as choosing the row (the
   projects' manager until 2026-10-11); that is `.badge` and Make Default.
 - `.checkbox`: a checkbox (Reka's `CheckboxRoot`, its `CheckboxIndicator` the check, `i-done`): Create Git repository.
