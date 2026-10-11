@@ -128,9 +128,23 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   closed closes too, unless it is the only one: then it is the empty window.
 - **Each project has a color and an icon**, to tell projects apart at a glance: the color is the shown one's glow from
   the middle of the window and the title bar logo's curtain; the icon is on its label in the bar, in its color. The
-  icon is its site's favicon (`favicon.*` or `icon.*` at the top or in `public/`, `static/`, `app/`, `src/`, `assets/`
-  …, up to 128 KB; a project made in a folder that has one gets it), one of Kulisa's set (Lucide's cart, briefcase,
-  globe, flask, rocket, code, building, people, book, heart), or the app's curtain.
+  icon is one of:
+  - **Its site's favicon**, every new project's (the curtain while it has none): `favicon.*` (svg, png, ico, webp, gif,
+    jpg) anywhere in its code, `icon.*` only in an `app/` folder (Next's; elsewhere `icon.svg` is any component's).
+    The files are those git lists in each of its repositories, the default first (new ones too, not those it ignores:
+    no library's favicon from `node_modules`, no build's); a folder without git is read a few levels down, without
+    hidden folders, `node_modules`, `dist`, `build`, `vendor`. Of several, the nearest to the top, then svg, png, ico,
+    then a favicon before an icon, then by name (a monorepo's `apps/admin` before `apps/shop`: Choose File… for
+    another). Looked for without holding the window up, once; again as its settings open, so a favicon added or
+    changed meanwhile shows there and in the bar.
+  - **A picture file the human chose** (Choose File… in the icon's panel, the OS's dialog in the project's folder):
+    its path kept (relative inside the project), so the picture follows the file as the code changes it; read again
+    as its settings open. While the file is gone, the project shows its favicon (or the curtain); the choice stays until its look is changed again.
+  - **One of Kulisa's set** (Lucide's cart, briefcase, globe, flask, rocket, code, building, people, book, heart), or
+    the app's curtain.
+
+  A picture up to 128 KB is shown as it is; a larger PNG or JPEG made 64 px wide (Electron's `nativeImage` reads only
+  those two on every OS); another larger one is refused when chosen ("Not a picture Kulisa can show").
 - **Its configuration** (a project's page in Settings, `ProjectEditor.vue`) changes its name (on Enter or leaving it),
   color, icon (a panel from the button beside its name) and local addresses as they change; the folder is shown (in
   Code), not changed.
@@ -399,7 +413,7 @@ project label's right-click menu opens its `projects/<id>` in the file manager (
 asks where it is or what takes the disk; nothing in it is for editing by hand, so it is no button in sight:
 
 ```
-projects.json                     the projects: id, name, folder, repos, color, icon, agents (accounts, the default first)
+projects.json                     the projects: id, name, folder, repos, color, icon (a name or a picture's path), agents (accounts, the default first)
 profiles.json                     the profiles, one store: who each is, its projects, a test user's pair (profiles.md)
 profiles/Profile <k>/             a profile's master, where the human signs in once for every task
 agents.json                       the agents' accounts (accounts.ts): { next, list: [{ id, agent, email, folder, projects }] }

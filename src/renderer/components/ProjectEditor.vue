@@ -49,7 +49,8 @@ const profiles = ref<ProjectProfile[]>([]), others = ref<ProjectProfile[]>([]), 
 // The selected row of each list: what −, ★, Delete and its right-click act on. The default repository and agent are
 // the first ones: the main process keeps them in that order.
 const repoSel = ref<string>(), agentSel = ref<string>(), profileSel = ref<string>();
-const iconValues = computed(() => [...(choices.value.favicon ? ['favicon'] : []), ...choices.value.icons]);
+// Its favicon and the file chosen, with their pictures, then Kulisa's set.
+const iconValues = computed(() => { const pics = Object.keys(choices.value.pictures || {}); return [...pics.filter((v) => v === 'favicon'), ...pics.filter((v) => v !== 'favicon'), ...choices.value.icons]; });
 const base = (f: string) => f.split(/[\\/]/).pop()!;
 
 // The tree: Projects with every project under it (always open), and Agents.
@@ -123,6 +124,18 @@ async function saveLook() {
   error.value = r?.error || '';
   if (r?.error) saved = '';
   else if (editing.value === id) await showList();
+}
+// Choose File…: a picture as its icon, saved at once (the OS's dialog; refused: why, under the name).
+async function chooseIconFile() {
+  const id = editing.value;
+  const r = await kulisa.invoke<{ error?: string; icon?: string; pictures?: Record<string, string> }>('project:icon-file', { id });
+  if (editing.value !== id) return;
+  error.value = r.error || '';
+  if (!r.icon) return;
+  choices.value = { ...choices.value, pictures: r.pictures };
+  icon.value = r.icon;
+  saved = lookNow();
+  await showList();
 }
 // The look's panel outlives the dialog's content (its open state is here): closed with it, or the pages stayed pictures.
 function closed() { lookOpen.value = false; adding.value = ''; return saveLook(); }
@@ -258,7 +271,7 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
             <input id="npname" v-model="name" data-name maxlength="64" spellcheck="false" @input="error = ''" @change="saveLook" @keydown.enter.prevent="saveLook">
             <PopoverRoot :open="lookOpen" @update:open="toggleLook">
               <PopoverTrigger as-child><button id="pjlook" class="select" type="button" title="Color and icon" aria-label="Color and icon">
-                <ProjectIcon :p="{ icon, favicon: choices.favicon ?? undefined }" /><Icon name="i-down" /></button></PopoverTrigger>
+                <ProjectIcon :p="{ icon, favicon: choices.pictures?.[icon] }" /><Icon name="i-down" /></button></PopoverTrigger>
               <PopoverPortal>
                 <PopoverContent class="menu pjlookpanel" :class="{ ready: lookReady }" align="end" :side-offset="4" :collision-padding="4"
                   :style="{ '--color': color }" @close-auto-focus="focusBack($event, lookFocused)">
@@ -270,9 +283,11 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
                   <div class="heading">Icon</div>
                   <ToggleGroupRoot id="npicons" class="choices" type="single" aria-label="Icon" :model-value="icon"
                     @update:model-value="(v) => { if (v) { icon = String(v); saveLook(); } }">
-                    <ToggleGroupItem v-for="v in iconValues" :key="v" :value="v" class="icon" :data-value="v" :title="iconTitle(v)" :aria-label="iconTitle(v)"><img v-if="v === 'favicon'"
-                      :src="choices.favicon ?? undefined" alt=""><Icon v-else :name="projectIcon(v)" /></ToggleGroupItem>
+                    <ToggleGroupItem v-for="v in iconValues" :key="v" :value="v" class="icon" :data-value="v" :title="iconTitle(v)" :aria-label="iconTitle(v)"><img v-if="choices.pictures?.[v]"
+                      :src="choices.pictures[v]" alt=""><Icon v-else :name="projectIcon(v)" /></ToggleGroupItem>
                   </ToggleGroupRoot>
+                  <div role="separator" />
+                  <button id="npiconfile" class="item" type="button" @click="chooseIconFile"><Icon class="ico" name="i-folder" /><span class="text"><span class="label">Choose File…</span></span></button>
                 </PopoverContent>
               </PopoverPortal>
             </PopoverRoot></span></div>

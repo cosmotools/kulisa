@@ -769,7 +769,7 @@ export default (test: Test) => {
     await ui(`document.getElementById('emptynewtask').click()`);
     const rows = await menuRows(ui);
     assert.deepEqual(await ui(`[...document.querySelectorAll('.menu[data-state="open"] .item:not(.inset) .picon')].map((i) => i.querySelector('use')?.getAttribute('href') ?? null)`),
-      shell.store.projects().map((p) => (p.icon === 'favicon' ? null : p.icon && p.icon !== 'logo' ? `#i-p-${p.icon}` : '#i-logo')));
+      shell.store.projects().map((p) => (/^[a-z]+$/.test(p.icon ?? '') && !['logo', 'favicon'].includes(p.icon) ? `#i-p-${p.icon}` : '#i-logo')));
     const byClosing = tasksFile().list.filter((e) => e.closed).sort((a, b) => (b.closedAt ?? 0) - (a.closedAt ?? 0)).map((e) => `  ${e.name}`);
     assert.deepEqual(rows.slice(rows.indexOf('project') + 1, rows.indexOf('project') + 1 + byClosing.length), byClosing);
     assert.equal(byClosing[0], '  Feature-X');
@@ -871,7 +871,8 @@ export default (test: Test) => {
       && !document.getElementById('npnewtask').hidden && document.querySelector('#pjlist [data-project="shop"]')?.ariaSelected === 'true'`));
     assert.ok(!shell.current && !shell.open.has('shop'), 'made, no task');
     assert.equal(ctx.asked.length, 0, 'nothing asked');
-    assert.deepEqual([shell.store.projects().find((p) => p.id === 'shop').color, shell.store.projects().find((p) => p.id === 'shop').icon], [color, 'logo']);
+    // Its icon its site's favicon, none yet: the curtain shown, and chosen in its panel.
+    assert.deepEqual([shell.store.projects().find((p) => p.id === 'shop').color, shell.store.projects().find((p) => p.id === 'shop').icon], [color, 'favicon']);
     // Another color and icon: the icon at its top opens them; each saved as it is chosen, the panel left open.
     await openLook(ui);
     assert.deepEqual(await ui(`[...document.querySelectorAll('#npcolors [aria-selected="true"], #npicons [aria-pressed="true"]')].map((b) => b.dataset.value)`), [color, 'logo']);
@@ -916,7 +917,7 @@ export default (test: Test) => {
     ctx.asked.length = 0;
   });
 
-  test('projects: the projects\' manager (Project Settings…) changes its name, color, icon and agents, the default one + runs; a folder with a favicon gets it as its icon', async (ctx) => {
+  test('projects: the projects\' manager (Project Settings…) changes its name, color, icon (a file chosen too) and agents, the default one + runs; a folder with a favicon gets it as its icon', async (ctx) => {
     const { shell, ui } = ctx;
     const site = path.join(root, 'site');
     fs.mkdirSync(path.join(site, 'public'), { recursive: true });
@@ -944,6 +945,36 @@ export default (test: Test) => {
     await openLook(ui);
     assert.equal(await ui(`document.querySelector('#npicons [aria-pressed="true"]').dataset.value`), 'favicon');
     const entryOf = () => shell.store.projects().find((p) => p.id === 'site');
+    // Choose File…: a picture of the project's as its icon, kept by its path in the project; one it cannot show refused.
+    const logo = path.join(site, 'brand', 'logo.svg'), big = path.join(site, 'brand', 'big.svg');
+    fs.mkdirSync(path.dirname(logo), { recursive: true });
+    fs.writeFileSync(logo, '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect width="16" height="16" fill="blue"/></svg>');
+    fs.writeFileSync(big, `<svg xmlns="http://www.w3.org/2000/svg">${' '.repeat(200 * 1024)}</svg>`);
+    const showOpenDialog = electron.dialog.showOpenDialog;
+    try {
+      electron.dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [big] });
+      await ui(`document.getElementById('npiconfile').click()`);
+      await waitFor(() => ui(`document.getElementById('nperror').textContent.startsWith('Not a picture Kulisa can show: big.svg')`));
+      assert.equal(entryOf().icon, 'favicon');
+      electron.dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [logo] });
+      await ui(`document.getElementById('npiconfile').click()`);
+      await waitFor(() => entryOf().icon === path.join('brand', 'logo.svg'));
+    } finally { electron.dialog.showOpenDialog = showOpenDialog; }
+    const blue = JSON.stringify(`data:image/svg+xml;base64,${fs.readFileSync(logo).toString('base64')}`);
+    await waitFor(() => ui(`${projectTab('site')}.querySelector('.favicon').src === ${blue} && document.querySelector('#npicons [aria-pressed="true"] img')?.src === ${blue}`));
+    // The file gone: its favicon shown again as its settings open, the choice kept should the file come back.
+    fs.rmSync(logo);
+    await closeMenu(ui);
+    await closeSettings(ui);
+    await rightClick(ui, `#projectTabs [data-project="site"] .name`);
+    await menuRows(ui);
+    await choose(ui, 'Project Settings…');
+    await waitFor(() => ui(`(document.getElementById('projects')?.dataset.state === 'open') && ${pageOf('site')}`));
+    const red = JSON.stringify(`data:image/svg+xml;base64,${fs.readFileSync(path.join(site, 'public', 'favicon.svg')).toString('base64')}`);
+    await waitFor(() => ui(`${projectTab('site')}.querySelector('.favicon').src === ${red}`));
+    await openLook(ui);
+    assert.equal(await ui(`document.querySelector('#npicons [aria-pressed="true"]').dataset.value`), 'favicon');
+    assert.equal(entryOf().icon, path.join('brand', 'logo.svg'));
     await ui(`(() => { document.querySelectorAll('#npcolors [role="option"]')[5].click(); document.querySelector('#npicons [data-value="globe"]').click(); })()`);
     await waitFor(() => entryOf().color === PROJECT_COLORS[5] && entryOf().icon === 'globe');
     await closeMenu(ui);
