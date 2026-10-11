@@ -172,4 +172,4 @@ async function initRepo(folder: string) {
 }
 
 export type { GitError };
-export { repoOf, freeBranch, createWorktree, changes, merged, renameBranch, removeWorktree, clone, initRepo };
+export { git, repoOf, freeBranch, createWorktree, changes, merged, renameBranch, removeWorktree, clone, initRepo };

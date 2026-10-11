@@ -4,6 +4,7 @@
 // a project's tasks whatever the window shows: making one, closing and opening it again, renaming, deleting, moving
 // to another window, and removing a project's data for good. Nothing runs when it opens: a task loads when it is first
 // shown.
+import { nativeImage } from 'electron';
 import fs from 'fs';
 import path from 'path';
 import { Task } from './tasks.ts';
@@ -413,22 +414,30 @@ const deleteQuestion = ({ message, ok, goes, notInMain, stays }: { message: stri
 const changesText = ({ commits, dirty }: { commits: number; dirty: number }) => [commits && `${commits} commit${commits === 1 ? '' : 's'} of its own`,
   dirty && `${dirty} uncommitted file${dirty === 1 ? '' : 's'}`].filter(Boolean).join(' and ');
 
-// A project's own icon: its site's favicon, where web projects keep it (a framework's public or static folder, Next's
-// app/), as a data URL for the window; null when there is none. Kulisa's own set (PROJECT_ICONS, the sprite's
-// i-p-<name>) otherwise; logo: the app's curtain in the project's color.
+// A project's icon (docs/tasks.md, Projects): favicon, its site's (found in its code: favicons.ts; the curtain while it
+// has none), a picture file the human chose (its path, relative inside the project), one of Kulisa's set
+// (PROJECT_ICONS, the sprite's i-p-<name>), or logo: the app's curtain in the project's color.
 const PROJECT_ICONS = ['logo', 'cart', 'briefcase', 'globe', 'flask', 'rocket', 'code', 'building', 'people', 'book', 'heart'];
-const FAVICONS = ['favicon.svg', 'favicon.ico', 'favicon.png', 'icon.svg', 'icon.png'].flatMap((f) =>
-  ['', 'public', 'static', 'app', 'src', 'src/app', 'assets', 'web', 'www'].map((d) => path.join(d, f)));
-const IMAGE_TYPES: Record<string, string> = { '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.png': 'image/png' };
-function faviconOf(folder: string) {
-  for (const f of FAVICONS) {
-    try {
-      const file = path.join(folder, f), size = fs.statSync(file).size;
-      if (size && size <= 128 * 1024) return `data:${IMAGE_TYPES[path.extname(f)]};base64,${fs.readFileSync(file).toString('base64')}`;
-    } catch {}
-  }
-  return null;
+const iconFile = (p: ProjectEntry) => (p.icon && p.icon !== 'favicon' && !PROJECT_ICONS.includes(p.icon) ? path.resolve(p.folder, p.icon) : null);
+// A file as the project keeps it: relative when it is inside the project's folder.
+const iconOfFile = (p: ProjectEntry, file: string) => {
+  const rel = path.relative(p.folder, file);
+  return rel && !rel.startsWith('..') && !path.isAbsolute(rel) ? rel : file;
+};
+// A picture for the window, as a data URL; null when it is not there or not a picture. Up to 128 KB as it is; a larger
+// PNG or JPEG made 64 px wide (nativeImage reads only those two on every OS).
+const PICTURE_TYPES: Record<string, string> = { '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.png': 'image/png', '.webp': 'image/webp',
+  '.gif': 'image/gif', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg' };
+function pictureOf(file: string) {
+  const type = PICTURE_TYPES[path.extname(file).toLowerCase()];
+  try {
+    const size = fs.statSync(file).size;
+    if (!type || !size) return null;
+    if (size <= 128 * 1024) return `data:${type};base64,${fs.readFileSync(file).toString('base64')}`;
+    const image = ['image/png', 'image/jpeg'].includes(type) ? nativeImage.createFromPath(file) : null;
+    return image && !image.isEmpty() ? image.resize({ width: 64 }).toDataURL() : null;
+  } catch { return null; }
 }
 
-export { Project, askDeleteProject, deleteProjectData, faviconOf, addRepo, cloneRepo, defaultRepo, removeRepo, reposInfo,
+export { Project, askDeleteProject, deleteProjectData, iconFile, iconOfFile, pictureOf, PICTURE_TYPES, addRepo, cloneRepo, defaultRepo, removeRepo, reposInfo,
   askDropProfile, dropProfile, deleteProfile, agentsInfo, addAgent, defaultAgent, removeAgent, deleteAccount, PROJECT_ICONS };
