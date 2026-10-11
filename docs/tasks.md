@@ -20,11 +20,11 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   group opens in a new group in this window, one with a group goes into it, in its window (one group per project, as
   Chrome's per window; Move to New Window takes a group away whole). In code the group is still an open project
   (`Project` in `shell.open`, a tab of its window).
-- **The projects' bar**, drawn as Chrome's tab groups: each group an island of its own: its label
+- **The tasks' bar**, drawn as Chrome's tab groups: each group an island of its own: its label
   (its icon, the app's logo with the curtain in the project's color, and its name), a tab per open task with its
   agent's state (below), and + for a new task. Every group's tasks are there, so a click on any of them shows that group with it; the
   others keep running, their agents and pages. The bar is in the middle under the grid, where the hand goes for the
-  terminal anyway, or over it (☰ → Projects bar: Top, Bottom; saved). Each island looks like a tab of the grid: square
+  terminal anyway, or over it (☰ → Tasks bar: Top, Bottom; saved). Each island looks like a tab of the grid: square
   where it meets the grid and merging into it with curves, rounded towards the window's edge.
   - **Nothing in it moves** when another project or task is shown: every island keeps its width (every one has its
     +; every tab the room of its ×), and the shown project's tabs come with the projects' news, not after it. Islands that moved under the mouse made
@@ -145,7 +145,7 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   and the settings say so, with Show, while it exists (the human moves its files, or asks an agent).
 - **The empty window** (the term: CLAUDE.md) is what a window is with no task open: at the first start, and after
   the last group is closed (Close Group, the middle button on its label, × on its last task, deleting the project). The title bar and
-  the projects' bar as always (no islands; Search Tasks there, every project's tasks) and, in the grid's place, an
+  the tasks' bar as always (no islands; Search Tasks there, every project's tasks) and, in the grid's place, an
   empty island: "No task is open", Search Tasks, New Project…. At the first start (no project at all: nothing to do in Kulisa
   without one) the projects' manager opens by itself on New Project (`shell.firstStart`). It replaced the Welcome
   screen (the author, 2026-10-11: once Search Tasks listed the tasks, it was not needed): its list of tasks is Search
@@ -189,7 +189,7 @@ Example: the project `~/IdeaProjects/myshop`, its second task, named "Checkout-r
 
 ## What the human does
 
-- **Its tabs** in its project's group in the projects' bar: a tab per open task, with the agent's state as an icon
+- **Its tabs** in its project's group in the tasks' bar: a tab per open task, with the agent's state as an icon
   (working, waiting for you, done; from its hooks: "Choosing the agent"). A click shows that task, at once, as
   Chrome switches tabs: no slide or fade (a flash over the whole grid at every switch; a slide made the tasks
   and the projects look alike). The pages come in the same frames as the terminal: the view transition that holds
@@ -396,7 +396,7 @@ agents/<agent>-<n>/               an account's config folder (CLAUDE_CONFIG_DIR,
                                   conversations; gone, signed out first, when the human deletes it (Settings →
                                   Agents); one a sign-in left
                                   unfinished (Kulisa quit meanwhile) goes at the next start
-settings.json                     the Kulisa zoom, the theme, where the projects' bar is; the windows: each one's
+settings.json                     the Kulisa zoom, the theme, where the tasks' bar is; the windows: each one's
                                   projects (in the bar's order), the one shown, where it was
 deleted-folders.json              folders to remove at the next start (a session keeps its files open)
 projects/<project id>/
@@ -562,7 +562,7 @@ temporary forks), and again on 2026-10-10 (tasks; ROADMAP, "Projects and tasks")
 | `src/main/agents.js` | the agents to choose from: find, install, start, resume; Claude's folder trust |
 | `src/main/store.js` | the data folder above |
 | `src/main/terminal.js` | the task's terminals: its agent's and the others (window.md, The terminal) |
-| `src/renderer/components/ProjectBar.vue`, `TaskSearch.vue`, `TaskList.vue`, `Empty.vue`, `ProjectEditor.vue` | the projects' bar (an island per project) and its Search Tasks; every project's tasks (Search Tasks' list); the empty window's island; the projects' manager |
+| `src/renderer/components/TaskBar.vue`, `TaskSearch.vue`, `TaskList.vue`, `Empty.vue`, `ProjectEditor.vue` | the tasks' bar (an island per project) and its Search Tasks; every project's tasks (Search Tasks' list); the empty window's island; the projects' manager |
 | `src/renderer/components/TaskTab.vue`, `TaskRename.vue` | a task's tab in the bar, its menu, the Rename Task dialog |
 | `src/renderer/components/AgentPicker.vue`, `AgentsTab.vue`, `AgentList.vue` | choosing a task's agent; Settings → Agents, with the accounts; the list of agents with Install that both show |
 | `src/main/accounts.js`, `src/renderer/components/AccountSignIn.vue` | the agents' accounts, one store; a new one's sign-in (Settings → Agents, a project's page) |

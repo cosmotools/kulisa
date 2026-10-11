@@ -51,9 +51,9 @@ Each icon is drawn once, as a `<symbol id="i-…">` in the sprite (`Sprite.vue`,
 | `i-close` | × of dialogs, profiles, tabs, tasks; removing a row |
 | `i-plus` | new tab, new task; adding to a section of a dialog |
 | `i-settings` | Settings in the title bar (Lucide's settings) |
-| `i-projects` | ☰'s Projects bar row (Lucide's folder-open) |
-| `i-search` | Search Tasks, after the islands of the projects' bar (Lucide's search) |
-| `i-logo` | the app icon with its curtain in `currentColor`: the title bar's (`--project`), and a project's label in the projects' bar (its `--color`). The folds are a shadow over the color, one for every color: a `<use>` takes the sprite's gradient, not one of its own |
+| `i-projects` | ☰'s Tasks bar row (Lucide's folder-open) |
+| `i-search` | Search Tasks, after the islands of the tasks' bar (Lucide's search) |
+| `i-logo` | the app icon with its curtain in `currentColor`: the title bar's (`--project`), and a project's label in the tasks' bar (its `--color`). The folds are a shadow over the color, one for every color: a `<use>` takes the sprite's gradient, not one of its own |
 | `i-docs`, `i-github`, `i-bug` | the links (Documentation, GitHub, Report an issue), rows of ☰ (`data-icon` on each link; Lucide's book-open, github, bug) |
 | `i-menu` | ☰, the window's menu |
 | `i-more` | ⋮, a pane's menu |
@@ -95,7 +95,7 @@ every other `<svg>` uses the sprite.
 
 - `.item`: a row of a menu or a list (`MenuButton.vue`, Search Tasks' tasks, the projects' manager's rows), `--row` high: an optional icon (`.ico`), `.dot`
   (a project's color, `--color`), `ProjectIcon.vue` (a project's icon in its color: its favicon, one of Kulisa's set or
-  the curtain; `.picon`, also on its label in the projects' bar) or `.avatar` (a profile's picture), `.text` with `.label` and a `small` line under it, a `kbd` key at the end. Lit under the
+  the curtain; `.picon`, also on its label in the tasks' bar) or `.avatar` (a profile's picture), `.text` with `.label` and a `small` line under it, a `kbd` key at the end. Lit under the
   pointer and on keyboard focus.
 - `.removable`: a row with a × (`button.remove.icon.quiet`) at its end, shown on hover or focus; the row is lit as
   one. A project's repository, agent and profile in the projects' manager. `.action` before the ×: a small text
@@ -207,7 +207,7 @@ Items (`lib/menu.ts`, laid out by `menu/MenuRows.vue`) are `{ label, sub, keys, 
 remove }` (`MenuButton.vue`; `keys`: the row's key at its end, from the keys' table: `keyText(id)`, `lib/common.ts`;
 `remove`: a × after the row, an item of its own), `'-'` (a divider), `{ heading, icon }`, `{ note }` (small dim words
 under the rows, not one of them: ☰'s version, so nothing looks clickable that is not), `{ choose, chosen, rows }` (one
-of them checked: the dictation language) or `{ component, props }` (a row of its own: ☰'s zoom, theme, projects' bar
+of them checked: the dictation language) or `{ component, props }` (a row of its own: ☰'s zoom, theme, tasks' bar
 and arrangements, `components/menu/`, built of Reka's menu items; − and + and the choices leave the menu open);
 `icon` is the sprite's id, at the row's start; rows are `.item` and `.removable`, lit as Reka highlights them
 (`[data-highlighted]`).

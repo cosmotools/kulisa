@@ -198,7 +198,7 @@ module.exports = (test) => {
     const { shell, ui } = ctx;
     const second = shell.task, sam = second.profiles.get('sam-admin');
     // Every task's tab says how many of its profiles are open; the shown one's is a button with a menu of them.
-    const chip = () => ui(`(() => { const b = document.getElementById('openProfiles'); return b.closest('.tasktab')?.dataset.task + ' ' + b.textContent + ' ' + document.querySelectorAll('#projectbar #openProfiles').length; })()`);
+    const chip = () => ui(`(() => { const b = document.getElementById('openProfiles'); return b.closest('.tasktab')?.dataset.task + ' ' + b.textContent + ' ' + document.querySelectorAll('#taskbar #openProfiles').length; })()`);
     const counts = () => ui(`[...document.querySelectorAll('#tasklist .tasktab')].map((t) => t.querySelector('.chip').textContent)`);
     const widths = () => ui(`[...document.querySelectorAll('#tasklist .tasktab')].map((t) => t.getBoundingClientRect().width)`);
     assert.equal(await chip(), `${second.key} 2 1`);

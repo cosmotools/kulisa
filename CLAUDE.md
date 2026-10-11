@@ -88,11 +88,14 @@ unasked. This paragraph is removed when the rewrite is finished.
   comes with the first task opened, goes with the last one closed: Close Group). A project is no thing to open (the
   author, 2026-10-11: it is what its tasks are made of: profiles, agents, repositories); not "open project" or "Close
   Project" (earlier commits say so). In code a group is still an open project (`Project` in `shell.open`).
+- **Terminology: "the tasks' bar"**: the bar of the groups' islands with their tasks' tabs, under the grid or over it
+  (☰ → Tasks bar; `TaskBar.vue`, `#taskbar`). Not "taskbar", the OS's. It was "the projects' bar" (`ProjectBar.vue`)
+  until 2026-10-11: its tabs are tasks; earlier commits say so.
 - **Terminology: "Settings"**: the dialog behind the title bar's gear, its tabs Projects (the projects' manager: every
   project and its page) and Agents (the agents, their accounts). It was "the projects' manager" alone until 2026-10-11;
   the manager is still its Projects tab (`ProjectEditor.vue`, `dialog('projects')`).
 - **Terminology: "the empty window"**: what a window is with no task open (at first start, after its last
-  group is closed): the title bar and the projects' bar as always (no islands, Search Tasks there) and, in the
+  group is closed): the title bar and the tasks' bar as always (no islands, Search Tasks there) and, in the
   grid's place, an empty island: "No task is open", Search Tasks, New Project…. `Empty.vue`. It replaced the Welcome screen
   (JetBrains' name; 2026-10-11), whose list of tasks is Search Tasks' now; earlier commits say Welcome screen.
 - **Terminology: "task"** for one line of work inside a project: an agent (its terminal and session, any agent

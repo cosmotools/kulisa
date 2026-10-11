@@ -81,7 +81,7 @@ here; what is left of it stays.
   - **The project's folder is the human's**: agents never touch it on their own. To bring work into it without a
     remote, the human asks the agent ("merge into main"); the skill: first check the folder for the human's
     uncommitted changes, and stop if there are any.
-  - **The bar is a task bar, drawn as Chrome's tab groups**: a group per project (its name, color and icon;
+  - **The bar is the tasks' bar, drawn as Chrome's tab groups**: a group per project (its name, color and icon;
     collapsible; + makes a task), a tab per task (the project's icon and color, the task's name, the agent's state).
     A group moves to another window whole (built: Move to New Window), e.g. to keep one client's tasks out of a screen
     share. With no task open, the empty window (built: tasks.md).

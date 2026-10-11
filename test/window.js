@@ -76,7 +76,7 @@ module.exports = (test) => {
     assert.ok(await group(`term:${dev.id}`));
     assert.equal(await active(`term:${dev.id}`), false, 'behind');
     // Laid out below the grid while behind (dockview), it does not make the window scrollable: the agent's state on its
-    // tab (the projects' bar brings its tab into view) had moved the grid up by a window's height.
+    // tab (the tasks' bar brings its tab into view) had moved the grid up by a window's height.
     await ui(`document.querySelector('#projectTabs > *').scrollIntoView()`);
     assert.deepEqual(await ui(`[document.documentElement.scrollTop, document.documentElement.scrollHeight <= innerHeight]`), [0, true]);
     assert.equal(await active(`term:${human.id}`), true, "the human's stays in front");
@@ -191,7 +191,7 @@ module.exports = (test) => {
   });
   test('the projects\' bar: under the grid by default, over it when chosen in ☰; the grid and its pages take the room left; saved', async ({ shell, ui }) => {
     const id = shell.profiles.keys().next().value;
-    const where = () => ui(`(() => { const r = (id) => document.getElementById(id).getBoundingClientRect(), bar = r('projectbar'), grid = r('dock');
+    const where = () => ui(`(() => { const r = (id) => document.getElementById(id).getBoundingClientRect(), bar = r('taskbar'), grid = r('dock');
       return { bar: bar.bottom <= grid.top ? 'top' : bar.top >= grid.bottom ? 'bottom' : 'over the grid', under: bar.top >= r('topbar').bottom,
         chosen: [...document.querySelectorAll('.menu[data-state="open"] .barrow [data-state="checked"]')].map((b) => b.dataset.bar) }; })()`);
     const saved = () => JSON.parse(fs.readFileSync(path.join(userData, 'settings.json'), 'utf8')).bar;

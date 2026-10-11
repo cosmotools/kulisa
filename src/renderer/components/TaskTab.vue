@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// A task's tab in its group (ProjectBar.vue; tasks.md, Projects). The profiles' count is on every tab, not the shown
+// A task's tab in its group (TaskBar.vue; tasks.md, Projects). The profiles' count is on every tab, not the shown
 // one's alone, so the tabs keep their widths as another is shown.
 //   active: the one on screen; selected: the one its project shows (another project's: where it is when shown again)
 import { computed } from 'vue';

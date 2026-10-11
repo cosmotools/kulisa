@@ -50,7 +50,7 @@ the default), its profiles, and its code: a folder, or one or more repositories 
 default). **Settings** in the title bar (left of ☰, the gear) has two tabs, **Projects** and **Agents**. Projects is
 the projects' manager: every project on the left
 and **+ New Project**; on the right the chosen one's page: **New Task**, its code, agents, profiles and look, each saved as it changes, and **⋯ → Delete Project…** (Kulisa's data of it and its tasks' copies; its folder stays). The bar under the
-grid (or over it: **☰ → Projects bar**) has a group per project with open tasks, as Chrome's tab groups: its name (a click folds
+grid (or over it: **☰ → Tasks bar**) has a group per project with open tasks, as Chrome's tab groups: its name (a click folds
 it), its tasks, and **+** for a new task. A project itself is not opened or closed: its tasks are. A click on a task shows it, of any group, and the others keep running
 (their agents and pages) until you close them (**×** on a task; **Close Group** in its name's right-click menu or the middle
 button on its name closes all its tasks, asking only when an agent works). The button after the islands (or Ctrl+Shift+A)
@@ -147,7 +147,7 @@ src/main/        Electron main process
 src/agent/claude-plugin/  the Kulisa plugin for Claude Code: MCP config, the profiles skill, hooks (claude --plugin-dir)
 src/preload/     the window's bridge to the main process
 src/renderer/    window UI: Vue 3 components in TypeScript, built by Vite into dist/renderer (vite.config.mts; docs/ui.md).
-                 components/: the window's parts (App.vue; TopBar, Grid and grid/ its panels, ProjectBar, TaskTab, TaskSearch, Empty,
+                 components/: the window's parts (App.vue; TopBar, Grid and grid/ its panels, TaskBar, TaskTab, TaskSearch, Empty,
                  the dialogs on Modal.vue, menu/ the menus; menus and dialogs are Reka UI's); lib/: what they share
                  (store.ts: what the main process sends;
                  grid.ts, terminals.ts, menu.ts, agents.ts, ask.ts, dialogs.ts, keys.ts, voice.ts). Styles: tokens.css,

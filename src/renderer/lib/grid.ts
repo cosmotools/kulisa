@@ -142,13 +142,13 @@ export function applyPreset(name: string) {
 }
 Object.assign(window, { __layoutPreset: applyPreset }); // for tests
 
-// Another task is being shown, or another project (dir: where it is in the projects' bar; 0: none, the window is left
+// Another task is being shown, or another project (dir: where it is in the tasks' bar; 0: none, the window is left
 // with no project; level: 'task' or 'project'): the grid goes and is built again on the next state, as a view
 // transition (Grid.vue's styles): Chromium takes a picture of the grid on screen, with pictures of its pages (the main
 // process sends them; kept for when it comes back), and shows it while the next grid is built (reveal). Another
 // project's grid slides in as macOS desktops do, the one left out and the next one in at once; another task's replaces
 // it at once. Not with reduced motion: then the grid is hidden at once, so nothing half-built shows. The title bar and
-// the projects' bar stay; the terminal panel too, showing the next task's terminal (terminals.ts).
+// the tasks' bar stay; the terminal panel too, showing the next task's terminal (terminals.ts).
 kulisa.on<{ dir: number; level: 'task' | 'project'; task: string; pics?: Record<string, string> }>('grid:closing', ({ dir, level, task, pics }) => {
   closeLayers(); // its dialogs and menus are for the grid that goes
   clearSave();

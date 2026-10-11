@@ -18,7 +18,7 @@ const windowMenu = (): MenuItem[] => [
     { component: ZoomRow },
     { component: ChoiceRow, props: { kind: 'theme', icon: 'i-theme', label: 'Theme', choices: THEMES, chosen: () => store.theme,
       choose: (t: string) => kulisa.invoke('theme:set', t) } },
-    { component: ChoiceRow, props: { kind: 'bar', icon: 'i-projects', label: 'Projects bar', choices: BARS, chosen: () => store.bar,
+    { component: ChoiceRow, props: { kind: 'bar', icon: 'i-projects', label: 'Tasks bar', choices: BARS, chosen: () => store.bar,
       choose: (b: string) => kulisa.invoke('bar:set', b) } },
     '-', { heading: 'Arrange panels', icon: 'i-arrange' }, { component: ArrangeRow }, '-',
     { label: 'Agents…', icon: 'i-agent', run: async () => (await dialog('projects')).openAgents() },

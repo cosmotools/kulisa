@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The projects' bar: an island per group (tasks.md, Projects; docs/window.md, The projects' bar).
+// The tasks' bar: an island per group (tasks.md, Projects; docs/window.md, The tasks' bar).
 // Every island keeps its width whichever task is shown, so showing one moves none (the author, 2026-10-08: islands that
 // moved under the mouse made the human miss). Where a dragged label is let go outside every Kulisa window, the main
 // process says (the page does not know where the pointer is then).
@@ -132,7 +132,7 @@ function dragend(e: DragEvent) {
 </script>
 
 <template>
-  <footer id="projectbar">
+  <footer id="taskbar">
     <!-- Every open project's tasks one strip of tabs (Reka's Tabs): the shown task chosen; a press on another shows it. -->
     <RightClickMenu :items="menu"><TabsRoot as-child :model-value="store.current ?? undefined" activation-mode="manual"
       @update:model-value="showTask"><TabsList as-child :loop="false">
@@ -159,7 +159,7 @@ function dragend(e: DragEvent) {
 </template>
 
 <style>
-#projectbar {
+#taskbar {
   --r: var(--island-radius);
   --edge: 100%; /* the islands' side away from the grid: the curves' centers */
   display: flex; align-items: center; flex: none; align-self: center; max-width: calc(100% - 2 * var(--gap));

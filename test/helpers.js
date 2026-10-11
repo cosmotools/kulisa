@@ -42,7 +42,7 @@ const closeMenu = async (ui) => {
   await ui(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); 0`);
   await waitFor(async () => !(await ui(`!!document.querySelector('[data-state="open"]:is(.menu, [role="listbox"])')`)));
 };
-// The open projects in the projects' bar (their islands): their names, the shown one with ' *'.
+// The open projects in the tasks' bar (their islands): their names, the shown one with ' *'.
 const projectTabs = (ui) => ui(`[...document.querySelectorAll('#projectTabs .pisland')].map((t) => t.querySelector('.plabel .name').textContent + (t.classList.contains('active') ? ' *' : ''))`);
 const projectTab = (id) => `document.querySelector('#projectTabs [data-project="${id}"]')`;
 // A click as the mouse makes it (the press, the release, the click) on an element: tabs are chosen on the press

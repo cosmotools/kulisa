@@ -634,7 +634,7 @@ function start(options = {}) {
     return id ? addAgent(shell, id, r.id) : accountsInfo();
   });
   ipcMain.handle('account:signin-cancel', (e, { key }) => cancel(key));
-  // Its name, color and icon (its group's panel too, ProjectBar.vue: local not sent, kept as it is).
+  // Its name, color and icon (its group's panel too, TaskBar.vue: local not sent, kept as it is).
   ipcMain.handle('project:settings', (e, { id, name, color, icon, local = store.projects().find((p) => p.id === id)?.local }) => {
     name = name?.trim();
     // Its own local addresses (local.js): hosts, each with its subdomains (a tunnel, its dev domains).

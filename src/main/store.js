@@ -1,6 +1,6 @@
 // Kulisa's own data in the user-data folder, laid out as Chrome lays out its own (Local State, then a folder per
 // profile), so what is known about Chrome's storage applies:
-//   settings.json            the Kulisa zoom, the theme, where the projects' bar is; the windows: the projects open
+//   settings.json            the Kulisa zoom, the theme, where the tasks' bar is; the windows: the projects open
 //                            in each (its tabs, in order), the one shown, where it was on screen
 //   projects.json            the projects: { id, name, folder, repos, color, icon, agents }; a project is a folder
 //                            (a repository, or one Kulisa made), and the repositories or folders added to it (repos,

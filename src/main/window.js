@@ -1,5 +1,5 @@
 // A Kulisa window. Usually there is one; Move to New Window puts a project into a window of its own (e.g. on a second
-// monitor). Each window has a tab per project open in it (an island in its projects' bar), shows one of them with that
+// monitor). Each window has a tab per project open in it (an island in its tasks' bar), shows one of them with that
 // project's shown task (its grid and terminal), and asks its questions in its own dialog; the projects behind its
 // other tabs keep running. What a window shows and asks is here. What the app has once (the store, the CDP proxy, the MCP server, the
 // agents, the windows, one change after another: serial) is app.js's; what happens to projects and tasks,
@@ -99,7 +99,7 @@ class AppWindow {
   }
   destroy() { this.unanswered(); if (!this.win.isDestroyed()) this.win.destroy(); }
 
-  // Its page, loaded once; its tabs (names, colors), the shown one (shown), the theme, where the projects' bar is and
+  // Its page, loaded once; its tabs (names, colors), the shown one (shown), the theme, where the tasks' bar is and
   // the keyboard shortcuts (keys.js: for menus and tooltips) come along in the URL, so the window is drawn right at once. The profiles' views stay hidden until the renderer has the grid laid out (views:hidden).
   async load(shown) {
     await this.win.loadFile(page('index.html'), { query: {
@@ -120,7 +120,7 @@ class AppWindow {
     const { shell } = this;
     const others = shell.windows.filter((w) => w !== this && !w.win.isDestroyed());
     return { current: this.current?.id ?? null, projects: shell.projects(),
-      // Each with its tasks, open and closed, the one it shows and whether its group is folded, for the projects' bar
+      // Each with its tasks, open and closed, the one it shows and whether its group is folded, for the tasks' bar
       // (the shown project's also come as 'tasks')
       open: this.tabs.map((p) => ({ id: p.id, task: p.task?.key ?? null, collapsed: p.collapsed, tasks: [...p.tasks.values()].map((t) => t.info()),
         agents: p.agents().map((a) => ({ id: a, name: shell.agentFor(a).name })) })), // the default first: + runs it
@@ -198,7 +198,7 @@ class AppWindow {
     if (!task.pty && !task.starting) task.starting = task.startAgent().catch((e) => console.error('[agent]', e)).finally(() => { task.starting = null; });
   }
   // The page takes the grid down; it gets the next task's state once its profiles are loaded. dir: where the
-  // next one is (1 right, -1 left, in the projects' bar; 0 none, the window is left with no project), for the page
+  // next one is (1 right, -1 left, in the tasks' bar; 0 none, the window is left with no project), for the page
   // to slide that way; level: 'project' (it slides) or 'task' (replaced at once). Pictures of its pages come
   // along, for the page to show them meanwhile (and when it comes back).
   async leaveGrid(dir, level) {

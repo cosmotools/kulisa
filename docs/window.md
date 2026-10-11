@@ -1,7 +1,7 @@
 # The window
 
-How a Kulisa window works for the human: the title bar, the grid of panels, the projects' bar, the zoom, the menus
-and dialogs, the terminal, the keyboard shortcuts, and why they are built so. Projects and their tasks in the projects' bar, several
+How a Kulisa window works for the human: the title bar, the grid of panels, the tasks' bar, the zoom, the menus
+and dialogs, the terminal, the keyboard shortcuts, and why they are built so. Projects and their tasks in the tasks' bar, several
 windows: [tasks.md](tasks.md);
 profiles' panes and tabs: [profiles.md](profiles.md); the components the window is built of: [ui.md](ui.md); what is
 next: [ROADMAP.md](ROADMAP.md). Keep this file current when the window changes.
@@ -23,10 +23,10 @@ in bare Electron 44 with `titleBarStyle: 'hidden'`, not with a system title bar)
 region left behind. A page can read that value (`getComputedStyle`), where Chrome says `none`; `none` would not
 replace a region left by the page before.
 
-## The projects' bar
+## The tasks' bar
 
 Under the grid, in the middle: an island per group (a project's open tasks), drawn as Chrome's tab groups (its label, which folds it;
-its open tasks' tabs; + for a new task, its right-click New Task with one of the project's agents), then Search Tasks, every project's tasks ([tasks.md](tasks.md), Projects). ☰ → **Projects bar: Top, Bottom** puts it over the grid instead, under the
+its open tasks' tabs; + for a new task, its right-click New Task with one of the project's agents), then Search Tasks, every project's tasks ([tasks.md](tasks.md), Projects). ☰ → **Tasks bar: Top, Bottom** puts it over the grid instead, under the
 title bar (`settings.json`: `bar`; the page gets it in its URL, so it is drawn in its place at once). Bottom is the
 default: the hand goes to the terminal under the grid all the time, so the tabs are where it already is; at first
 the projects were tabs in the title bar and the tasks a strip under the grid, and both switched with the same
@@ -49,7 +49,7 @@ The task's other terminals ("The terminal") are panels too, next to the agent's;
 
 The window itself never scrolls, also not from a script (`overflow` on `html` and `body`, App.vue): a panel stacked
 behind another is kept laid out below the grid (dockview), which made the page taller than the window, and the
-projects' bar bringing its tab into view (`scrollIntoView`) moved the whole grid up by a window's height
+tasks' bar bringing its tab into view (`scrollIntoView`) moved the whole grid up by a window's height
 (2026-10-09, after an agent's turn ended).
 
 The profiles' pages are native views above the window's HTML (CLAUDE.md, "What must hold in the window"). While a
@@ -113,7 +113,7 @@ pages are pictures of themselves meanwhile; afterwards the keyboard is back wher
 - +'s right-click menu (New
   Task with each of the project's agents), the profiles' chip on the shown task's tab (open
   and closed profiles, Manage Profiles…; the tab's right-click menu has them too, with Show Folder), ☰ (as Chrome's ⋮, each row with its icon: the zoom row, the theme row, the
-  projects' bar's row, Arrange panels, Agents… (Settings on its Agents tab), Keyboard Shortcuts, the links
+  tasks' bar's row, Arrange panels, Agents… (Settings on its Agents tab), Keyboard Shortcuts, the links
   (Documentation, GitHub, Report an issue; one list in `lib/common.ts`), and Exit, which quits as the last window's × does; not on macOS, where
   Cmd+Q and the app's menu quit; under them all Kulisa's version, small and dim: words, not a row, as nothing happens on a click);
 - right-click on a pane's header (New tab, About this profile…, Sign In to Master…, Refresh from Master…, Close profile,

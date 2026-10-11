@@ -3,7 +3,7 @@
 import Sprite from './Sprite.vue';
 import TopBar from './TopBar.vue';
 import Grid from './Grid.vue';
-import ProjectBar from './ProjectBar.vue';
+import TaskBar from './TaskBar.vue';
 import Empty from './Empty.vue';
 import ProfileEditor from './ProfileEditor.vue';
 import ProjectEditor from './ProjectEditor.vue';
@@ -19,7 +19,7 @@ import PointMenu from './menu/PointMenu.vue';
   <TopBar />
   <Grid />
   <Empty />
-  <ProjectBar />
+  <TaskBar />
   <ProfileEditor />
   <ProjectEditor />
   <TaskRename />

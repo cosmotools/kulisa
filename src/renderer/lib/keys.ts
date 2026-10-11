@@ -27,7 +27,7 @@ document.addEventListener('focusin', report);
 document.addEventListener('focusout', () => setTimeout(report)); // where it went is known after the event
 watch(dialogsOpen, report); // a dialog opened or closed
 
-// A task's tab in the projects' bar shown, as a click on it does (TaskTab.vue).
+// A task's tab in the tasks' bar shown, as a click on it does (TaskTab.vue).
 const showTask = (tab?: Element) => { const key = (tab as HTMLElement | undefined)?.dataset.task; if (key && key !== store.current) kulisa.invoke('task:show', key); };
 interface Command { n?: number; page?: boolean; p?: Profile; tab?: string }
 // What each command does. page: the key was typed in the profile's page, so the keyboard stays in its pages.

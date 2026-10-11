@@ -31,7 +31,7 @@ const tabComponents = markRaw({ profile: ProfileHeader, terminal: AgentTerminalH
   flex: 1; min-height: 0; padding: var(--gap); transition: opacity .15s;
   background: var(--well);
   .loading & { opacity: 0; transition: none; } /* until the grid is laid out (lib/grid.ts, reveal) */
-  [data-bar="top"] & { order: 1; } /* under the projects' bar */
+  [data-bar="top"] & { order: 1; } /* under the tasks' bar */
   .noproject & { display: none; }
   .dockview-theme-abyss-spaced {
     color-scheme: inherit; /* the theme's own is dark; Kulisa's is the root's (tokens.css: light-dark()) */
