@@ -144,6 +144,12 @@ async function openIt() {
   modal.value!.close();
   await kulisa.invoke('project:open', { id });
 }
+// Delete Project…, here alone (the author, 2026-10-11): asked first (projects.js, askDeleteProject), closed if open;
+// then the manager goes on to another project.
+async function deleteIt() {
+  const r = await kulisa.invoke<{ error?: string } | null>('project:delete', { id: editing.value });
+  if (!r?.error) await openProjects();
+}
 
 // A change to its code: the settings as they are then, or why not (its radio back on the default).
 async function code(channel: string, args: Record<string, unknown>) {
@@ -287,6 +293,7 @@ const fromAnother = (): MenuItem[] => others.value.map((p) => ({ label: p.name, 
       <p id="nperror" class="error">{{ error }}</p>
     </div>
     <template #footer>
+      <button id="npdelete" class="start danger" type="button" :hidden="isNew" :disabled="saving" @click="deleteIt">Delete Project…</button>
       <button id="npopen" class="start" type="button" :hidden="!notOpen" :disabled="saving" @click="openIt">Open</button>
       <DialogClose>Cancel</DialogClose><button id="npcreate" class="primary" :disabled="saving">{{ isNew ? 'Create' : 'Save' }}</button>
     </template>

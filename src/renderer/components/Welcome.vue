@@ -1,10 +1,9 @@
 <script setup lang="ts">
 // The Welcome screen (no project open: at the first start, after the last project is closed), as JetBrains': New
 // Project… (also for a folder there already), the projects (a click opens one; its right-click has its
-// settings, in the projects' manager; its × on hover or the right-click removes it: the main process asks first), and
+// settings, in the projects' manager, where it is deleted too), and
 // links with Kulisa's version. On one island in the grid's
 // place (text on the project's glow reads badly).
-import Icon from './Icon.vue';
 import ProjectIcon from './ProjectIcon.vue';
 import RightClickMenu from './menu/RightClickMenu.vue';
 import icon from '../../../assets/icon.svg';
@@ -14,11 +13,9 @@ import type { MenuItem } from '../lib/menu';
 import { dialog } from '../lib/dialogs';
 
 const openProject = (id: string) => kulisa.invoke('project:open', { id });
-const remove = (id: string) => kulisa.invoke('project:delete', { id });
 function menu(e: MouseEvent): MenuItem[] | null {
   const id = (e.target as Element).closest<HTMLElement>('[data-project]')?.dataset.project;
-  return id ? [{ label: 'Open', run: () => openProject(id) }, { label: 'Project Settings…', run: () => dialog('projects').then((d) => d.openProjects(id)) },
-    '-', { label: 'Delete Project…', run: () => remove(id) }] : null;
+  return id ? [{ label: 'Open', run: () => openProject(id) }, { label: 'Project Settings…', run: () => dialog('projects').then((d) => d.openProjects(id)) }] : null;
 }
 </script>
 
@@ -33,10 +30,8 @@ function menu(e: MouseEvent): MenuItem[] | null {
     </div>
     <h3 v-if="store.projects.projects.length">Projects</h3>
     <RightClickMenu :items="menu"><div id="welcome-list">
-      <div v-for="p in store.projects.projects" :key="p.id" class="removable" :data-project="p.id" :style="{ '--color': p.color }">
-        <button class="item" @click="openProject(p.id)"><ProjectIcon :p /><span class="text"><span class="label">{{ p.name }}</span><small :title="p.folder">{{ p.folder }}</small></span></button>
-        <button class="remove icon quiet" title="Delete project…" aria-label="Delete project" @click="remove(p.id)"><Icon name="i-close" /></button>
-      </div>
+      <button v-for="p in store.projects.projects" :key="p.id" class="item" :data-project="p.id" :style="{ '--color': p.color }" @click="openProject(p.id)"><ProjectIcon :p /><span
+        class="text"><span class="label">{{ p.name }}</span><small :title="p.folder">{{ p.folder }}</small></span></button>
     </div></RightClickMenu>
     <nav class="links">
       <a v-for="l in LINKS" :key="l.href" :href="l.href" target="_blank">{{ l.label }}</a>
@@ -62,6 +57,5 @@ function menu(e: MouseEvent): MenuItem[] | null {
 #welcome-list { display: flex; flex-direction: column; gap: 4px; width: min(520px, 100%); margin-top: var(--gap);
   .item { gap: 12px; padding: 10px 14px; .text { gap: 3px; } .label { color: var(--text-strong); } }
   .picon { flex: none; width: 20px; height: 20px; color: var(--color); }
-  .remove { margin-inline-end: 8px; }
 }
 </style>

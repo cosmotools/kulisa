@@ -118,9 +118,9 @@ here; what is left of it stays.
 - **Tasks, not projects, on the Welcome screen and in the bar's button** (decided with the author 2026-10-11, being
   built; a commit per step). The bar's tabs are tasks, so what lists things to open lists tasks; everything about
   projects is in the projects' manager.
-  1. **The Projects button in the title bar is back** (it was taken out the same day, when the bar's button still
+  1. **The Projects button in the title bar is back** (built 2026-10-11; it was taken out the same day, when the bar's button still
      listed the projects): the projects' manager, every project and its configuration, New Project.
-  2. **Delete Project… only in the projects' manager** (a button of its own there): not in the group's panel, the
+  2. **Delete Project… only in the projects' manager** (built 2026-10-11, tasks.md, "Deleting a project"; a button of its own there): not in the group's panel, the
      Welcome screen or a menu any more.
   3. **The Welcome screen lists tasks, grouped by project**: each project's heading (its icon and name in its color;
      a click opens it as it was left, its right-click Project Settings…), its tasks under it (those open when it was

@@ -30,7 +30,7 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
     saved as they change (the name on Enter, or as the panel closes, also with Esc); under them New Task, its **closed
     tasks** under a heading (the one closed last first; a click opens one again; Delete Merged Tasks… when some are
     merged), Move to New Window, Move to Window, Project Settings… (what a group has not: its code, agents, profiles,
-    local addresses), Show Data Folder, Close Project, Delete Project…. Closing a project: that panel, the
+    local addresses), Show Data Folder, Close Project. Closing a project: that panel, the
     middle button on its label, or × on its last open task; it asks first (the author's decision, 2026-10-07; before,
     only when its agent was working), and says so when an agent is still working.
   - **The profiles' chip**: 👥 and how many of its profiles are open, on every task's tab (each task has its
@@ -41,8 +41,7 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   - **A task tab's right-click menu**: the shown one's profiles, as its chip's; Rename…; Show Folder, its folder (its
     worktree, or the project's without git) in the OS's file manager (`shell.openPath`); Delete Task….
   - **The button after the islands** is the menu of the projects (each with its color and folder, the open ones marked
-    ✓; × on hover deletes one), Projects…, New Project…, Close Project and Delete Project… (the shown
-    one).
+    ✓), Projects…, New Project…, Close Project (the shown one).
 - **The projects' manager** (the Projects button in the title bar, left of ☰; Projects… in the projects' menu; Project
   Settings… in a group's panel, or a project's right-click on the Welcome screen, opens it at that project; back on
   2026-10-11, after it was taken out for a few hours): one dialog, every project on the left, open or not (the open
@@ -60,7 +59,8 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   ("Initial commit"; nothing of the folder is in it), as a worktree needs one, so the first task already has a copy of
   its own. Without git's user name and email set there is no commit, and tasks work in the folder.
   **Create makes it without opening it**: the manager goes on to its configuration (its agents' accounts: New
-  Account…; its code, profiles), and **Open** there (at the footer's start, for any project not open) opens it, after
+  Account…; its code, profiles), and **Open** there (at the footer's start, for any project not open, after Delete
+  Project…: "Deleting a project") opens it, after
   saving what was changed (the author, 2026-10-11: opening right after Create asked where, unasked for).
 - **Opening another project** (the projects' menu, Open in the manager, the Welcome screen) in a window with projects open asks where, as
   JetBrains does: **This Window** adds its tab at the end and shows it, the one on screen keeps running; **New
@@ -111,7 +111,7 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   after the last project is closed (Close Project, the middle button on its label, deleting the project). What a project
   is, in a sentence (its code, its agents, its profiles; a task an agent in a copy of the code); New Project…; every
   project, each with its icon in its color as on its label in the bar (a click opens one; its
-  right-click menu: Open, Project Settings…, Delete Project…; × deletes it too); and links (the
+  right-click menu: Open, Project Settings…); and links (the
   documentation, GitHub, reporting an issue, also in ☰; they open in the user's browser) with Kulisa's version. Later starts
   open the windows that were open, each with its projects, showing the one shown last (`windows` in `settings.json`);
   `KULISA_PROJECT=<folder> npm start` adds that one to the first window and shows it.
@@ -193,7 +193,7 @@ to the human; the window's IPC (`app.js`) and the MCP tools are handles on it:
 | Close a project | its label's menu, the middle button on its label, × on its last open task, Close Project in the projects' menu | none: it would stop itself | `closeProjects` (`app.js`), asking first |
 | Close a window, quit | the OS's ×, ☰ → Exit | none | `closeProjects` for the window's projects; `quit` (`app.js`), asking only when an agent works |
 | Move a project | Move to New Window, Move to Window, dragging its label | none: where the human sees it is the human's | `moveProject` (`app.js`) |
-| Delete a project | Delete Project…, ×, the Welcome screen | none: it deletes sign-ins, the human's to decide | `deleteProject` (`app.js`), `askDeleteProject`, `deleteProjectData` (`projects.js`) |
+| Delete a project | Delete Project… in the projects' manager | none: it deletes sign-ins, the human's to decide | `deleteProject` (`app.js`), `askDeleteProject`, `deleteProjectData` (`projects.js`) |
 | Make a task | + in its group, Ctrl+Shift+N, New Task, New Task with (+'s right-click) | not yet (ROADMAP, "Tasks, rest") | `Project.createTask` |
 | Close a task, open it again | ×; its group's menu | none: what runs is the human's to stop | `Project.closeTask`, `reopen` |
 | Rename a task | Rename… in its tab's menu | `task_rename` | `Task.rename` |
@@ -410,9 +410,9 @@ What stays in any case: an agent Kulisa installed (it serves every project).
 
 ## Deleting a project
 
-**Delete Project…**: in the projects' menu (Delete Project… for the shown project; any project's × on hover), a
-project label's right-click menu, and a project on the Welcome screen (its × on hover, or its right-click
-menu). All call one function (`deleteProject` in `app.js`): Kulisa asks first, saying what goes and which tasks have
+**Delete Project…** at the footer's start of the projects' manager, for the project chosen there, open or not: there
+alone (the author, 2026-10-11: with everything else about a project; not in its group's panel, the Welcome screen or
+a menu). One function (`deleteProject` in `app.js`): Kulisa asks first, saying what goes and which tasks have
 work not in main and not pushed; closes the project if it is open; deletes each of its tasks as above; then removes it
 from `projects.json` with its data folder `projects/<id>/`. The project's own folder stays as it is.
 

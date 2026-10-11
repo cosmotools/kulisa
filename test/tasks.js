@@ -681,7 +681,7 @@ module.exports = (test) => {
   test('welcome screen: Close Project in the project menu; links open in the browser; New Project… asks where its folder goes', async (ctx) => {
     const { shell, ui } = ctx;
     await ui(`document.getElementById('openProjects').click()`);
-    assert.deepEqual((await menuRows(ui)).slice(-3), ['-', 'Close Project', 'Delete Project…']);
+    assert.deepEqual((await menuRows(ui)).slice(-2), ['-', 'Close Project']);
     await choose(ui, 'Close Project');
     await waitFor(() => shell.task === null && !shell.current);
     await waitFor(() => ui(`document.documentElement.classList.contains('noproject')`));
@@ -1007,7 +1007,7 @@ module.exports = (test) => {
     ctx.asked.length = 0;
   });
 
-  test("projects: Delete Project… (× in the menu, Remove for the open one, the Welcome screen) asks, closes the project when open, deletes its data and its tasks' copies, never its folder", async (ctx) => {
+  test("projects: Delete Project… (the projects' manager alone) asks, closes the project when open, deletes its data and its tasks' copies, never its folder", async (ctx) => {
     const { shell, ui } = ctx;
     const projects = () => shell.store.projects().map((p) => p.id);
     // A project that is not open, with a task that has a commit of its own, as Kulisa lays them out.
@@ -1027,11 +1027,13 @@ module.exports = (test) => {
     fs.writeFileSync(path.join(data, 'tasks.json'), JSON.stringify({ next: 3, current: 1, list: [{ n: 1, name: 'task-1', offset: 0, folder: spare }, { n: 2, name: 'Idea', branch: wt.branch, offset: 100, copies: [wt], folder: wt.folder }] }));
     shell.sendProjects(); // made behind the windows' back: they are told, as when a project is made
 
-    // From the project menu, its row's ×: the human is told what goes, says no, then yes.
-    const removeRow = async () => {
-      await ui(`document.getElementById('openProjects').click()`);
-      await menuRows(ui);
-      await ui(`[...document.querySelectorAll('.menu[data-state="open"] .removable')].find((r) => r.querySelector('.label').textContent === 'spare').querySelector('.remove').click()`);
+    // In the projects' manager, its Delete Project…: the human is told what goes, says no, then yes.
+    const removeRow = async (id = 'spare') => {
+      if (!await ui(`document.getElementById('projects')?.dataset.state === 'open'`)) await ui(`document.getElementById('manageProjects').click()`);
+      await waitFor(() => ui(`!!document.querySelector('#pjlist [data-project="${id}"]')`));
+      await ui(`document.querySelector('#pjlist [data-project="${id}"]').click()`);
+      await waitFor(() => ui(`document.getElementById('pjtitle').textContent === ${JSON.stringify(id)} && !document.getElementById('npdelete').hidden`));
+      await ui(`document.getElementById('npdelete').click()`);
     };
     ctx.answer = false;
     await removeRow();
@@ -1053,9 +1055,8 @@ module.exports = (test) => {
     assert.equal(git(spare, 'branch', '--list', wt.branch), '', "the task's branch");
     assert.equal(fs.readFileSync(path.join(spare, 'a.txt'), 'utf8'), 'a', "the project's own folder stays");
     assert.equal(shell.task?.n, 1, 'another project: the open one stays open');
-    await ui(`document.getElementById('openProjects').click()`);
-    assert.ok(!(await menuRows(ui)).includes('spare'), 'gone from the menu');
-    await closeMenu(ui);
+    await waitFor(() => ui(`!document.querySelector('#pjlist [data-project="spare"]')`));
+    await closeSettings(ui);
 
     // New Project… on a repository there already (the one way in: Open Folder… is gone): taken as it is, its files
     // and its history kept, no git init; made, not opened, as any new project; Open opens it.
@@ -1079,10 +1080,11 @@ module.exports = (test) => {
     await waitFor(() => shell.current?.folder === gone && shell.task?.loaded && shell.pty);
     assert.equal(ctx.asked.pop()?.message, 'Where to open the project gone?', 'opened, as any project not open');
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
-    await ui(`document.getElementById('openProjects').click()`);
-    assert.deepEqual((await menuRows(ui)).slice(-3), ['-', 'Close Project', 'Delete Project…']);
-    await choose(ui, 'Delete Project…');
+    // The open one: closed, then deleted; the tab next to it shown.
+    await removeRow('gone');
     await waitFor(() => !projects().includes('gone'));
+    // Its grid taken down closes the window's dialogs, the manager too (lib/views.ts, closeLayers).
+    if (await ui(`document.getElementById('projects')?.dataset.state === 'open'`)) await closeSettings(ui);
     ctx.asked.length = 0;
     await waitFor(() => shell.current?.folder === project && shell.task?.loaded);
     assert.deepEqual(await projectTabs(ui), ['project *'], 'the tab next to it shown');
@@ -1098,16 +1100,9 @@ module.exports = (test) => {
     ctx.asked.length = 0;
     await waitFor(() => ui(`document.documentElement.classList.contains('noproject')`));
 
-    // A recent project's × on the Welcome screen: the same question.
-    ctx.answer = false;
-    await ui(`document.querySelector('#welcome-list [data-project="project"] .remove').click()`);
-    await waitFor(() => ctx.asked.length);
-    assert.equal(ctx.asked.pop().message, 'Delete the project project?');
-    ctx.answer = true;
-    assert.ok(projects().includes('project'), 'kept when the human says no');
-    // A recent project's right-click menu on the Welcome screen.
+    // A project's right-click menu on the Welcome screen: no Delete there.
     await ui(`document.querySelector('#welcome-list [data-project="project"]').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 300, clientY: 300 }))`);
-    assert.deepEqual(await menuRows(ui), ['Open', 'Project Settings…', '-', 'Delete Project…']);
+    assert.deepEqual(await menuRows(ui), ['Open', 'Project Settings…']);
     await choose(ui, 'Project Settings…');
     await waitFor(() => ui(`document.getElementById('projects')?.dataset.state === 'open' && document.getElementById('pjtitle').textContent === 'project'`));
     await closeSettings(ui);

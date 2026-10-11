@@ -6,13 +6,13 @@
 // shown task's tab stays) and back. A right-click opens its group's panel, as Chrome's (GroupPanel.vue): its name,
 // color and icon, then New Task, its closed tasks (one opens again), Move to New Window (a window of its own, e.g. for
 // a second monitor; it keeps running), Move to Window (each other window; as a browser moves a tab), Project
-// Settings…, Show Data Folder, Close Project (asking first; also the middle button), Delete Project…; a task's tab: the shown
+// Settings…, Show Data Folder, Close Project (asking first; also the middle button); a task's tab: the shown
 // one's profiles, Rename… (its name and branch), Show Folder, Delete Task…. Dragging the label does
 // the same: within the bar it changes the order, onto another window's bar it moves the project there, let go outside
 // every Kulisa window it opens a window there (the main process tells where the pointer is). The button after the
 // islands opens the menu of the projects (as Chrome's Tab groups: open one, delete one with its ×, Projects…, New
-// Project…; one open in another window is shown there). Removing a project is asked for from either (the main process
-// asks the human and does it: deleteProject).
+// Project…; one open in another window is shown there). Deleting a project is the projects' manager's alone
+// (ProjectEditor.vue).
 // Each island looks like a tab of the grid: square where it meets the grid and merging into it with curves, rounded
 // towards the window's edge. Every island keeps its width whichever project is shown, so showing one moves none (the
 // author, 2026-10-08: islands that moved under the mouse made the human miss). Many shrink, then the bar scrolls.
@@ -41,7 +41,6 @@ const islands = computed(() => {
 watch(() => store.projects, () => nextTick(() => tabs.value?.querySelector('.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' })));
 
 const showTask = (key: string | number) => { if (key !== store.current) kulisa.invoke('task:show', String(key)); };
-const remove = (id: string) => kulisa.invoke('project:delete', { id });
 const openProject = (id: string) => kulisa.invoke('project:open', { id });
 const close = (id: string) => kulisa.invoke('project:close', { id });
 const manage = async (id?: string) => (await dialog('projects')).openProjects(id);
@@ -96,8 +95,7 @@ function groupItems(id: string): MenuItem[] {
     ...windows.map((w) => ({ label: `Move to Window: ${w.names.join(', ')}`, run: () => move(w.id) })),
     '-', { label: 'Project Settings…', run: () => manage(id) },
     { label: 'Show Data Folder', run: () => kulisa.invoke('project:show-data', { id }) },
-    '-', { label: 'Close Project', run: () => close(id) },
-    { label: 'Delete Project…', run: () => remove(id) }];
+    '-', { label: 'Close Project', run: () => close(id) }];
 }
 const panel = ref<InstanceType<typeof GroupPanel>>();
 const taskMenu = ({ key, name }: TaskInfo): MenuItem[] => [
@@ -154,13 +152,11 @@ function projectsMenu(): MenuItem[] {
   const isOpen = (id: string) => open.some((o) => o.id === id) || elsewhere.includes(id);
   return [
     ...projects.map((p) => ({ label: p.name, sub: p.folder, color: p.color, ...(isOpen(p.id) ? { keys: '✓' } : {}),
-      ...(p.id === current ? {} : { run: () => (isOpen(p.id) ? kulisa.invoke('project:show', { id: p.id }) : openProject(p.id)) }),
-      remove: { title: 'Delete project…', run: () => remove(p.id) } })),
+      ...(p.id === current ? {} : { run: () => (isOpen(p.id) ? kulisa.invoke('project:show', { id: p.id }) : openProject(p.id)) }) })),
     '-',
     { label: 'Projects…', run: () => manage() },
     { label: 'New Project…', run: create },
-    ...(current === null ? [] : ['-' as const, { label: 'Close Project', run: () => close(current) },
-      { label: 'Delete Project…', run: () => remove(current) }]),
+    ...(current === null ? [] : ['-' as const, { label: 'Close Project', run: () => close(current) }]),
   ];
 }
 </script>

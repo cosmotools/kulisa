@@ -48,13 +48,12 @@ setuid on a plain install. The `.deb` installs it setuid, so the installed app r
 **Projects:** a project is the configuration its tasks are made from: a name, a color and an icon, its agents (one
 the default), its profiles, and its code: a folder, or one or more repositories (local, or cloned from a URL; one the
 default). **Projects** in the title bar (left of ☰) opens the projects' manager: every project on the left, open or
-not, and **+ New Project**; on the right the chosen one's configuration. The bar under the
+not, and **+ New Project**; on the right the chosen one's configuration, and **Delete Project…** for it (Kulisa's data of it and its tasks' copies; its folder stays). The bar under the
 grid (or over it: **☰ → Projects bar**) has a group per open project, as Chrome's tab groups: its name (a click folds
 it), its tasks, and **+** for a new task. A click on a task shows it, of any project, and the others keep running
 (their agents and pages) until you close their project (**×** on its last open task, the middle button on its name,
 or **Close Project** in its right-click menu, after a question; closing a window asks once for all its projects). The button after the islands opens a menu of the
-projects: open another one (in this window or in a new window: Kulisa asks), delete one (its **×** on hover:
-Kulisa's data of it and its tasks' copies; its folder stays), **Projects…**, **New Project…** (a name and where its
+projects: open another one (in this window or in a new window: Kulisa asks), **Projects…**, **New Project…** (a name and where its
 folder goes, `~/Kulisa` by default; git on by default, with an empty first commit; its color and icon; then its
 configuration: its agents' accounts, code, profiles; **Open** opens it; a folder there already, a repository or not, is taken as it is), close the project. **Project Settings…** on its name's right-click menu opens the manager at it. Closing the last project shows the
 Welcome screen. A closed project keeps its tabs and
