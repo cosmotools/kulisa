@@ -195,6 +195,14 @@ and arrangements, `components/menu/`, built of Reka's menu items; − and + and 
 `icon` is the sprite's id, at the row's start; rows are `.item` and `.removable`, lit as Reka highlights them
 (`[data-highlighted]`).
 
+### Panels
+
+A panel is a menu's look with fields in it, where a menu cannot hold them (its rows take the keys typed and the
+focus under the pointer): Reka UI's Popover, `.menu` with its rows `.item` (buttons) under a top of its own, the pages
+pictures meanwhile (`covered('pictures')`), closed as a menu is (Esc, a press outside, a row chosen, the window left);
+a row's action runs once it has closed. One today: a project's group panel (`GroupPanel.vue`, the label's
+right-click: its name, colors and icons at its top, `.gphead`), as Chrome's tab group's.
+
 ## Adding something
 
 - A new icon: a `<symbol>` in `Sprite.vue`, a row in the table above.

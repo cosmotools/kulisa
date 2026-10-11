@@ -28,7 +28,10 @@ button.danger { background: var(--danger); border-color: var(--danger); color: v
    pictures, a project's colors and icons; the chosen one ringed */
 .choices { display: flex; flex-wrap: wrap; gap: 2px; outline: none; &[hidden] { display: none; }
   :is([aria-pressed="true"], [aria-selected="true"]) { background: var(--island-hi); box-shadow: inset 0 0 0 2px var(--accent); }
-  [data-highlighted] { background: var(--hover); } }
+  [data-highlighted] { background: var(--hover); }
+  /* a project's colors (Reka's ColorSwatchPicker: a dot each) and icons (in its color; its favicon a picture) */
+  .dot { width: 14px; height: 14px; background: var(--reka-color-swatch-color); }
+  svg { color: var(--color); } [data-value="favicon"] img { width: 16px; height: 16px; } }
 /* A radio (Reka's RadioGroupItem, its RadioGroupIndicator the dot): the default of a list (a project's repositories,
    its agents), the agent to start */
 .radio { display: grid; place-items: center; flex: none; width: 16px; height: 16px; padding: 0; border-radius: 50%;
@@ -115,6 +118,10 @@ svg:has(> use) { width: 16px; height: 16px; flex: none; fill: none; stroke: curr
   .remove { margin-inline-end: 2px; visibility: hidden; }
   &:is(:hover, :focus-within) .remove { visibility: visible; } }
 
+/* An error is text to copy (to search for it), unlike the rest of the window's words: in a dialog, a project's group
+   panel (GroupPanel.vue) */
+.error { margin: var(--inset) 0 0; color: var(--error); user-select: text; cursor: text; &:empty { display: none; } }
+
 /* Dialogs, one look for all (Modal.vue on Reka's Dialog; Ask.vue on its AlertDialog), as in JetBrains: the title
    with × on top, the content, and a strip of buttons at the bottom, the main one last (blue; red when it deletes). In
    the middle of the window over a dimmed backdrop; a menu opened from one is above it. */
@@ -127,8 +134,6 @@ svg:has(> use) { width: 16px; height: 16px; flex: none; fill: none; stroke: curr
     h2 { flex: 1; margin: 0; font-size: 1.1em; font-weight: 600; color: var(--text-strong); } }
   .body { flex: 1; min-height: 0; overflow: auto; padding: 16px var(--pad) 20px; }
   .hint { margin: 0 0 var(--inset); color: var(--text-muted); line-height: 1.45; }
-  /* An error is text to copy (to search for it), unlike the rest of the window's words */
-  .error { margin: var(--inset) 0 0; color: var(--error); user-select: text; cursor: text; &:empty { display: none; } }
   /* A field and its button in one row (adding a profile, a project) */
   .row { display: flex; gap: var(--gap); margin-top: var(--inset); input { flex: 1; } }
   /* A labelled field, the labels in one column */

@@ -91,9 +91,9 @@ module.exports = (test) => {
     await rightClick(ui, '.menu[data-state="open"] .removable .item');
     assert.ok(await menuOpen(ui) && (await menuRows(ui)).includes('New Project…'), 'a right-click in the menu opens no other menu');
     await closeMenu(ui);
-    // The label's right-click menu.
+    // The label's right-click: its group's panel, as Chrome's (its name, color and icon: below); under them its actions.
     await rightClick(ui, '#projectTabs [data-project="other"] .name');
-    assert.deepEqual(await menuRows(ui), ['New Task', '-', 'Close Project', 'Move to New Window', '-', 'Project Settings…', 'Show Data Folder', 'Delete Project…']);
+    assert.deepEqual(await menuRows(ui), ['New Task', '-', 'Move to New Window', '-', 'Project Settings…', 'Show Data Folder', '-', 'Close Project', 'Delete Project…']);
     // Show Data Folder: Kulisa's folder of that project, in the file manager.
     const electron = require('electron'), openPath = electron.shell.openPath, shown = [];
     electron.shell.openPath = async (dir) => { shown.push(dir); return ''; };
@@ -130,6 +130,34 @@ module.exports = (test) => {
     assert.deepEqual(await projectTabs(ui), ['project *', 'other']);
     const seen = await ui(`(() => { const s = [...__islands]; window.__islands = null; return s; })()`);
     assert.deepEqual(seen, [JSON.stringify(before)], 'the islands keep their places, also while switching');
+    // The group's panel: its name, color and icon edited in place at its top, the keyboard in the name.
+    await rightClick(ui, '#projectTabs [data-project="other"] .name');
+    await menuRows(ui);
+    const entry = () => shell.store.projects().find((p) => p.id === 'other');
+    await waitFor(() => ui(`document.activeElement?.id === 'gpname' && document.activeElement.value === 'other'`));
+    const look = { color: entry().color, icon: entry().icon };
+    const pick = shell.store.nextColor();
+    await ui(`document.querySelector('#gpcolors [data-value="${pick}"]').click(); document.querySelector('#gpicons [data-value="rocket"]').click()`);
+    await waitFor(() => entry().color === pick && entry().icon === 'rocket');
+    await waitFor(() => ui(`${projectTab('other')}.querySelector('.plabel use').getAttribute('href') === '#i-p-rocket'`));
+    assert.ok(await menuOpen(ui), 'it stays open while they are chosen');
+    // A name typed (a menu would take its letters for its rows), Enter: renamed, the panel closed.
+    const wc = shell.win.webContents;
+    await ui(`document.getElementById('gpname').select()`);
+    await wc.insertText('other-two');
+    for (const type of ['keyDown', 'char', 'keyUp']) wc.sendInputEvent({ type, keyCode: type === 'char' ? '\r' : 'Enter' });
+    await waitFor(async () => entry().name === 'other-two' && !(await menuOpen(ui)));
+    assert.deepEqual(await projectTabs(ui), ['project *', 'other-two']);
+    // Put back, from the panel again: Esc closes it, the name typed kept.
+    await rightClick(ui, '#projectTabs [data-project="other"] .name');
+    await menuRows(ui);
+    await waitFor(() => ui(`document.activeElement?.id === 'gpname'`));
+    await ui(`document.getElementById('gpname').select()`);
+    await wc.insertText('other');
+    await ui(`document.querySelector('#gpcolors [data-value="${look.color}"]').click(); document.querySelector('#gpicons [data-value="${look.icon || 'logo'}"]').click()`);
+    await waitFor(() => entry().color === look.color && (entry().icon || 'logo') === (look.icon || 'logo'));
+    await closeMenu(ui);
+    await waitFor(() => entry().name === 'other');
     assert.equal(shell.win.getTitle(), 'project — Kulisa');
 
     // Closing the project (the middle button on its label) asks first; Cancel keeps it open.
@@ -236,7 +264,7 @@ module.exports = (test) => {
 
     // Back into the first window (Move to Window, as a browser moves a tab): the only tab of the second, so it closes.
     await rightClick(ui2, '#projectTabs [data-project="other"] .name');
-    assert.deepEqual(await menuRows(ui2), ['New Task', '-', 'Close Project', 'Move to New Window (off)', 'Move to Window: project', '-', 'Project Settings…', 'Show Data Folder', 'Delete Project…']);
+    assert.deepEqual(await menuRows(ui2), ['New Task', '-', 'Move to New Window (off)', 'Move to Window: project', '-', 'Project Settings…', 'Show Data Folder', '-', 'Close Project', 'Delete Project…']);
     await choose(ui2, 'Move to Window: project');
     await waitFor(() => shell.windows.length === 1 && shell.current === moved && !first.switching);
     assert.ok(second.win.isDestroyed());

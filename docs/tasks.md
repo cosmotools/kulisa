@@ -24,10 +24,13 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
     the human miss (the author, 2026-10-08).
   - **A click on the label folds the group** to it, as Chrome's collapsed tab groups, and back (kept in
     `tasks.json`); the tab of the task it shows stays, so the grid on screen keeps its tab. Showing a project is a
-    click on one of its tasks (two ways to the same thing confused, when the label showed it too). Its right-click
-    menu: New Task, its **closed tasks** under a heading (the one closed last first; a click opens one again; Delete Merged
-    Tasks… when some are merged), Close Project, Move to New Window, Move to Window, Project Settings…, Show Data Folder,
-    Delete Project…. Closing a project: that menu, the
+    click on one of its tasks (two ways to the same thing confused, when the label showed it too).
+  - **A right-click on the label opens the group's panel**, as Chrome's tab group's (`GroupPanel.vue`; decided with
+    the author 2026-10-11, ROADMAP): at its top the project's name (the keyboard in it), its colors and its icons,
+    saved as they change (the name on Enter, or as the panel closes, also with Esc); under them New Task, its **closed
+    tasks** under a heading (the one closed last first; a click opens one again; Delete Merged Tasks… when some are
+    merged), Move to New Window, Move to Window, Project Settings… (what a group has not: its code, agents, profiles,
+    local addresses), Show Data Folder, Close Project, Delete Project…. Closing a project: that panel, the
     middle button on its label, or × on its last open task; it asks first (the author's decision, 2026-10-07; before,
     only when its agent was working), and says so when an agent is still working.
   - **The profiles' chip**: 👥 and how many of its profiles are open, on every task's tab (each task has its
@@ -85,7 +88,8 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   …, up to 128 KB; a project opened from a folder that has one gets it), one of Kulisa's set (Lucide's cart, briefcase,
   globe, flask, rocket, code, building, people, book, heart), or the app's curtain.
 - **Its configuration** (the manager's right side, `ProjectEditor.vue`, one form for a new project and an existing
-  one) changes its name, color, icon and local addresses on Save; the folder is shown, not changed.
+  one) changes its name, color, icon and local addresses on Save (the name, color and icon also in its group's panel);
+  the folder is shown, not changed.
 - **Its agents**: a list of its agents' accounts and the terminal only ("Choosing the agent", Accounts). **Add
   Agent…** adds the terminal only or an account another project has; **New Account…** makes one, signed in right there;
   × removes one; the radio makes one the default: + runs it, the others are in +'s right-click menu (New Task with).

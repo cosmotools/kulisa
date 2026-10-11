@@ -30,7 +30,8 @@ const MENU = `document.querySelector('.menu[data-state="open"]')`;
 const menuOpen = (ui) => ui(`!!document.querySelector('.menu[data-state="open"].ready')`);
 const menuRows = async (ui) => {
   await waitFor(() => menuOpen(ui));
-  return ui(`(() => { const row = (r) => r.matches('[role="separator"]') ? '-' : r.matches('.heading') ? '# ' + r.textContent : r.matches('.note') ? '~ ' + r.textContent
+  // A project's group panel (GroupPanel.vue) is read as a menu: its rows, not its name, colors and icons on top.
+  return ui(`(() => { const row = (r) => r.matches('.gphead') ? [] : r.matches('[role="separator"]') ? '-' : r.matches('.heading') ? '# ' + r.textContent : r.matches('.note') ? '~ ' + r.textContent
     : r.matches('.zoomrow') ? 'zoom' : r.matches('.themerow') ? 'theme' : r.matches('.barrow') ? 'bar' : r.matches('.arrange') ? 'arrange: ' + [...r.querySelectorAll('span')].map((s) => s.textContent).join(', ')
     : r.matches('[role="group"]') ? [...r.children].map(row)
     : r.querySelector('.label').textContent + ((r.matches('.item') ? r : r.querySelector('.item')).matches('[data-disabled]') ? ' (off)' : '');

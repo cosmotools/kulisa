@@ -3,14 +3,15 @@
 // label (its icon, the curtain in its color, and its name), its open tasks' tabs (TaskTab.vue), a click on one showing
 // that project with it (the others keep running: their agents and pages), and + for a new task from the project's
 // configuration (its right-click: New Task with one of its agents). A click on the label folds the group to it (the
-// shown task's tab stays) and back. A right-click: New Task, its closed tasks (one opens again), Close Project (asking
-// first; also the middle button), Move to New Window (a window of its own, e.g. for a second monitor; it keeps
-// running), Move to Window (each other window; as a browser moves a tab) and Delete Project…; a task's tab: the shown
+// shown task's tab stays) and back. A right-click opens its group's panel, as Chrome's (GroupPanel.vue): its name,
+// color and icon, then New Task, its closed tasks (one opens again), Move to New Window (a window of its own, e.g. for
+// a second monitor; it keeps running), Move to Window (each other window; as a browser moves a tab), Project
+// Settings…, Show Data Folder, Close Project (asking first; also the middle button), Delete Project…; a task's tab: the shown
 // one's profiles, Rename… (its name and branch), Show Folder, Delete Task…. Dragging the label does
 // the same: within the bar it changes the order, onto another window's bar it moves the project there, let go outside
 // every Kulisa window it opens a window there (the main process tells where the pointer is). The button after the
-// islands opens the menu of the projects (as JetBrains': open one, remove one with its ×, Projects…, New Project…, Open
-// Folder…; one open in another window is shown there). Removing a project is asked for from either (the main process
+// islands opens the menu of the projects (as Chrome's Tab groups: open one, delete one with its ×, Projects…, New
+// Project…; one open in another window is shown there). Removing a project is asked for from either (the main process
 // asks the human and does it: deleteProject).
 // Each island looks like a tab of the grid: square where it meets the grid and merging into it with curves, rounded
 // towards the window's edge. Every island keeps its width whichever project is shown, so showing one moves none (the
@@ -18,6 +19,7 @@
 import { computed, nextTick, ref, watch } from 'vue';
 import Icon from './Icon.vue';
 import TaskTab from './TaskTab.vue';
+import GroupPanel from './GroupPanel.vue';
 import { TabsList, TabsRoot } from 'reka-ui';
 import ButtonMenu from './menu/ButtonMenu.vue';
 import RightClickMenu from './menu/RightClickMenu.vue';
@@ -60,13 +62,12 @@ function auxclick(e: MouseEvent) {
   if (id) close(id);
 }
 // The bar's right-click menu, for what it was on. A task's tab: the shown one's profiles, Rename…, Show Folder, Delete
-// Task…. A project's island: New Task, its closed tasks (a click opens one again), then the project's own actions. +:
-// New Task with each of its agents, the default first (what + itself runs). From what the window was last told
-// (store.projects): it opens at once.
+// Task…. +: New Task with each of its agents, the default first (what + itself runs). A project's island: no menu, its
+// group's panel. From what the window was last told (store.projects): it opens at once.
 function menu(e: MouseEvent): MenuItem[] | null {
   const id = projectOf(e), target = e.target as Element;
   if (!id) return null;
-  const { open, windows = [] } = store.projects;
+  const { open } = store.projects;
   const key = target.closest<HTMLElement>('.tasktab')?.dataset.task;
   const t = key && [...store.taskTabs.list, ...open.flatMap((o) => o.tasks || [])].find((x) => x.key === key);
   if (t) return taskMenu(t);
@@ -76,6 +77,13 @@ function menu(e: MouseEvent): MenuItem[] | null {
       run: () => kulisa.invoke('task:new', { project: id, agent: a.id }) }))]
       : [{ note: 'No agents: add them in Project Settings…' }, { label: 'Project Settings…', run: () => manage(id) }];
   }
+  panel.value!.openAt(id, target.closest('.pisland')!.querySelector<HTMLElement>('.plabel')!, groupItems(id));
+  return null;
+}
+// A project's actions in its group's panel, in Chrome's order where Chrome has them (New tab in group … Close group,
+// Delete group last).
+function groupItems(id: string): MenuItem[] {
+  const { open, windows = [] } = store.projects;
   const closed = (open.find((o) => o.id === id)?.tasks || []).filter((x) => x.closed);
   const move = (to: number | null) => kulisa.invoke('project:move', { id, to, terminals: terminalsOf(id) });
   return [{ label: 'New Task', keys: id === store.projects.current ? keyText('task.new') : undefined, run: () => kulisa.invoke('task:new', { project: id }) },
@@ -83,14 +91,15 @@ function menu(e: MouseEvent): MenuItem[] | null {
       run: () => kulisa.invoke('task:open', t.key) }))] : []),
     // Its PR merged, nothing uncommitted: deleting loses nothing (projects.js, checkMerged).
     ...(closed.some((t) => t.merged) ? [{ label: 'Delete Merged Tasks…', run: () => kulisa.invoke('project:delete-merged', { id }) }] : []),
-    '-', { label: 'Close Project', run: () => close(id) },
     // The only tab stays: a new window would be the same as this one.
-    { label: 'Move to New Window', enabled: open.length > 1, run: () => move(null) },
+    '-', { label: 'Move to New Window', enabled: open.length > 1, run: () => move(null) },
     ...windows.map((w) => ({ label: `Move to Window: ${w.names.join(', ')}`, run: () => move(w.id) })),
     '-', { label: 'Project Settings…', run: () => manage(id) },
     { label: 'Show Data Folder', run: () => kulisa.invoke('project:show-data', { id }) },
+    '-', { label: 'Close Project', run: () => close(id) },
     { label: 'Delete Project…', run: () => remove(id) }];
 }
+const panel = ref<InstanceType<typeof GroupPanel>>();
 const taskMenu = ({ key, name }: TaskInfo): MenuItem[] => [
   ...(key === store.current ? [{ heading: 'Profiles' }, ...profilesMenu(), '-' as const] : []),
   { label: 'Rename…', run: async () => (await dialog('taskrename')).rename(key, name) },
@@ -179,6 +188,7 @@ function projectsMenu(): MenuItem[] {
       </div>
       </nav>
     </TabsList></TabsRoot></RightClickMenu>
+    <GroupPanel ref="panel" />
     <ButtonMenu :items="projectsMenu"><button id="openProjects" class="icon" title="Projects: open another, New Project…" aria-label="Projects"><Icon name="i-projects" /></button></ButtonMenu>
   </footer>
 </template>

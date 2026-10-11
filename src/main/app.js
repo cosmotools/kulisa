@@ -121,10 +121,11 @@ function start(options = {}) {
   const lookError = ({ color, icon, agent }) => (color && !PROJECT_COLORS.includes(color) ? `no color ${color}`
     : icon && icon !== 'favicon' && !PROJECT_ICONS.includes(icon) ? `no icon ${icon}`
       : agent && !shell.agentFor(agent) ? `no agent ${agent}` : null);
-  // The projects as the windows show them: each with its favicon's picture when that is its icon (read once a folder).
+  // The projects as the windows show them: each with its site's favicon when it has one (read once a folder), its icon
+  // or one to choose in its group's panel.
   const favicons = new Map();
-  shell.projects = () => store.projects().map((p) => (p.icon !== 'favicon' ? p
-    : { ...p, favicon: favicons.get(p.folder) ?? favicons.set(p.folder, faviconOf(p.folder)).get(p.folder) }));
+  const faviconFor = (folder) => (favicons.has(folder) ? favicons.get(folder) : favicons.set(folder, faviconOf(folder)).get(folder));
+  shell.projects = () => store.projects().map((p) => { const favicon = faviconFor(p.folder); return favicon ? { ...p, favicon } : p; });
   // A question asked in a window (window.js), the first one when none is named: askWhich gives the button clicked
   // ('ok', 'other') or null; ask whether it was ok. Through shell: the tests answer it.
   shell.askWhich = (q, w = first()) => w.ask(q);
@@ -564,7 +565,8 @@ function start(options = {}) {
     return addAgent(shell, id, r.id);
   });
   ipcMain.handle('account:signin-cancel', (e, { key }) => cancel(key));
-  ipcMain.handle('project:settings', (e, { id, name, color, icon, local }) => {
+  // Its name, color and icon (its group's panel too, ProjectBar.vue: local not sent, kept as it is).
+  ipcMain.handle('project:settings', (e, { id, name, color, icon, local = store.projects().find((p) => p.id === id)?.local }) => {
     name = name?.trim();
     // Its own local addresses (local.js): hosts, each with its subdomains (a tunnel, its dev domains).
     local = [...new Set((local || []).map((h) => String(h).trim().toLowerCase().replace(/^\*\./, '')).filter(Boolean))];

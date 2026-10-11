@@ -996,6 +996,7 @@ module.exports = (test) => {
     await waitFor(() => first.entry.closed && first.entry.merged, 10000); // a fetch from the remote
     const rows = await groupMenu(ui);
     assert.ok(rows.includes('Delete Merged Tasks…'));
+    ctx.asked.length = 0;
     await groupMenu(ui, 'Delete Merged Tasks…');
     await waitFor(() => ctx.asked.length);
     assert.equal(ctx.asked.pop().message, 'Delete the task task-1?');

@@ -24,7 +24,7 @@ import Modal from './Modal.vue';
 import Icon from './Icon.vue';
 import ButtonMenu from './menu/ButtonMenu.vue';
 import AccountSignIn from './AccountSignIn.vue';
-import { avatarSrc, projectIcon } from '../lib/common';
+import { avatarSrc, iconTitle, projectIcon } from '../lib/common';
 import type { MenuItem } from '../lib/menu';
 import { registerDialog } from '../lib/dialogs';
 import type { ProjectChoices, ProjectEntry, ProjectProfile, ProjectRepo, ProjectSettings } from '../types';
@@ -64,7 +64,6 @@ const where = computed(() => {
     ?? `The project will be created in ${t}`;
 });
 const iconValues = computed(() => [...(choices.value.favicon ? ['favicon'] : []), ...choices.value.icons]);
-const iconTitle = (v: string) => (v === 'favicon' ? "The site's favicon" : v === 'logo' ? "Kulisa's curtain" : v);
 const base = (f: string) => f.split(/[\\/]/).pop()!;
 
 // The projects, the one on the right chosen; open ones (in any window) marked.
@@ -306,5 +305,5 @@ const fromAnother = (): MenuItem[] => others.value.map((p) => ({ label: p.name, 
   #pjconfig { min-height: 0; overflow: auto; padding-block-end: 20px; }
   #pjtitle { margin: 0; font-size: 1em; font-weight: 600; color: var(--text-strong); }
   :is(#npreposadd, #npcodeerror, #npagentsadd, #npsignin, #npagenterror, #npprofilesadd, #npprofileerror) { margin-inline-start: calc(var(--label) + var(--inset)); }
-  .choices { .dot { width: 14px; height: 14px; background: var(--reka-color-swatch-color); } svg { color: var(--color); } img { width: 16px; height: 16px; } } }
+}
 </style>

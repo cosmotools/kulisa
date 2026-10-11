@@ -122,7 +122,7 @@ here; what is left of it stays.
   2. **No Open Folder…** (built 2026-10-11, tasks.md, Projects): it was not clear what it did (it made a project of the folder or opened the one there).
      New Project… is the one way in: a folder at its location that is there already, with files or a repository, is
      taken as it is (the dialog says so), else made.
-  3. **The label's right-click opens the group's panel**, as Chrome's: the name, the color and the icon edited in place
+  3. **The label's right-click opens the group's panel** (built 2026-10-11, tasks.md, Projects), as Chrome's: the name, the color and the icon edited in place
      at its top, then its actions: New Task, its closed tasks, Move to New Window, Move to Window, Project Settings…
      (its code, agents, profiles, local addresses: what a tab group has not), Show Data Folder, Close Project, Delete
      Project….
