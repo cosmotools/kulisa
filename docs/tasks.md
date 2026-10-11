@@ -40,16 +40,23 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
     as another is shown (`Window.changed` sends the number when it changes).
   - **A task tab's right-click menu**: the shown one's profiles, as its chip's; Rename…; Show Folder, its folder (its
     worktree, or the project's without git) in the OS's file manager (`shell.openPath`); Delete Task….
-  - **The button after the islands** is the menu of the projects (each with its color and folder, the open ones marked
-    ✓), Projects…, New Project…, Close Project (the shown one).
-- **The projects' manager** (the Projects button in the title bar, left of ☰; Projects… in the projects' menu; Project
+  - **The button after the islands is Search Tasks** (🔍, Ctrl+Shift+A; as Chrome's Search tabs, its button at the
+    end of the tab strip; `TaskSearch.vue`): a panel with every project's tasks, the closed projects' too, grouped by
+    project as on the Welcome screen (one list, `TaskList.vue`, in both), a search field at its top (a task by its name
+    or branch, a project by its name, then all its tasks; ↑↓ and Enter while the keyboard stays in it). A click on a
+    task of an open project shows it, in its window; on a closed project's task opens the project on it (asking where,
+    as any project), a closed task opened again; a project's heading opens it as it was left. Only tasks there (the
+    author, 2026-10-11: the bar's tabs are tasks, so what lists things to open lists tasks): New Project and the rest
+    are the projects' manager's, Close Project the group's panel's (and the middle button). A Popover in a menu's
+    look, not a menu: a menu takes the letters typed (its typeahead), and the list is Reka's Listbox.
+- **The projects' manager** (the Projects button in the title bar, left of ☰; Project
   Settings… in a group's panel, or a project's right-click on the Welcome screen, opens it at that project; back on
   2026-10-11, after it was taken out for a few hours): one dialog, every project on the left, open or not (the open
   ones marked), + New Project under them; on the right one project's configuration, edited there whether the project
   is open or not. Decided with the author on 2026-10-10, when a project became the configuration its tasks are made
   from: the menu and the Welcome screen (JetBrains' way, 2026-10-07) showed no project's configuration without opening
   it. A dialog, not a window of the OS: no process more.
-- **New Project** (in the manager; New Project… in the menu and on the Welcome screen), as JetBrains': a name and a location, `~/Kulisa` (every new project's place, as JetBrains'
+- **New Project** (in the manager; New Project… on the Welcome screen), as JetBrains': a name and a location, `~/Kulisa` (every new project's place, as JetBrains'
   `~/PycharmProjects`) unless they type or browse to another; the dialog shows the folder it makes
   (`<location>/<name>`), so the human knows where the agent's files are; its color (the next free one) and its icon.
   **A folder that is there already is taken as it is**, its files kept, and the dialog says so as the name and the
@@ -62,7 +69,7 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   Account…; its code, profiles), and **Open** there (at the footer's start, for any project not open, after Delete
   Project…: "Deleting a project") opens it, after
   saving what was changed (the author, 2026-10-11: opening right after Create asked where, unasked for).
-- **Opening another project** (the projects' menu, Open in the manager, the Welcome screen) in a window with projects open asks where, as
+- **Opening another project** (Search Tasks, Open in the manager, the Welcome screen) in a window with projects open asks where, as
   JetBrains does: **This Window** adds its tab at the end and shows it, the one on screen keeps running; **New
   Window** opens it in a window of its own. From the Welcome screen (no tab open) it opens in that window without a
   question; a project already open is shown in its window. Showing
@@ -78,8 +85,8 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   one, its window closes. **Dragging a label** does the same with the mouse: within the bar it changes the order
   (kept); let go on another window's bar, the project moves there, where it was let go; let go outside every Kulisa
   window, it opens in a new window there (the window appears when the mouse is let go, as in VS Code). Each window has
-  its bar and its projects' menu (a project open in another window is marked ✓ too; choosing it brings that window
-  to the front). The OS's × on a window closes its projects, as closing each would, after one question ("Close the window?"); on the last
+  its bar and its Search Tasks (every project's tasks, wherever they are open; one open in another window is shown
+  there, that window brought to the front). The OS's × on a window closes its projects, as closing each would, after one question ("Close the window?"); on the last
   window it quits Kulisa, and the windows with their projects open again at the next start, where they were: nothing
   is lost, so it asks only when that would stop a working agent ("Quit Kulisa?"). A window whose last project is
   closed closes too, unless it is the only one: then it shows the Welcome screen.
@@ -114,7 +121,7 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   project's heading with its icon in its color, as its label in the bar (a click opens it as it was left; its
   right-click: Open, Project Settings…), its tasks under it (those open when it was closed, then the closed ones, the
   one closed last first; its branch when it is not its name, "closed", "merged"; a click opens the project on that
-  task, a closed one opened again), New Task for a project with none; the windows get each project's tasks with it
+  task, a closed one opened again), New Task for a project with none (`TaskList.vue`, Search Tasks' list too); the windows get each project's tasks with it
   (`shell.projects`); and links (the
   documentation, GitHub, reporting an issue, also in ☰; they open in the user's browser) with Kulisa's version. Later starts
   open the windows that were open, each with its projects, showing the one shown last (`windows` in `settings.json`);
@@ -193,8 +200,8 @@ to the human; the window's IPC (`app.js`) and the MCP tools are handles on it:
 
 | Action | The human | The agent | The core |
 |---|---|---|---|
-| Open a project | the projects' menu, Open in the manager, the Welcome screen | none: it works inside one project | `openLater` (`app.js`), asking This Window or New Window; then `openProject` or `openInNewWindow` |
-| Close a project | its label's menu, the middle button on its label, × on its last open task, Close Project in the projects' menu | none: it would stop itself | `closeProjects` (`app.js`), asking first |
+| Open a project | Search Tasks, Open in the manager, the Welcome screen | none: it works inside one project | `openLater` (`app.js`), asking This Window or New Window; then `openProject` or `openInNewWindow` |
+| Close a project | its label's menu, the middle button on its label, × on its last open task | none: it would stop itself | `closeProjects` (`app.js`), asking first |
 | Close a window, quit | the OS's ×, ☰ → Exit | none | `closeProjects` for the window's projects; `quit` (`app.js`), asking only when an agent works |
 | Move a project | Move to New Window, Move to Window, dragging its label | none: where the human sees it is the human's | `moveProject` (`app.js`) |
 | Delete a project | Delete Project… in the projects' manager | none: it deletes sign-ins, the human's to decide | `deleteProject` (`app.js`), `askDeleteProject`, `deleteProjectData` (`projects.js`) |
@@ -510,7 +517,7 @@ temporary forks), and again on 2026-10-10 (tasks; ROADMAP, "Projects and tasks")
 | `src/main/agents.js` | the agents to choose from: find, install, start, resume; Claude's folder trust |
 | `src/main/store.js` | the data folder above |
 | `src/main/terminal.js` | the task's terminals: its agent's and the others (window.md, The terminal) |
-| `src/renderer/components/ProjectBar.vue`, `Welcome.vue`, `ProjectEditor.vue` | the projects' bar (an island per project) and the projects' menu, the Welcome screen; the projects' manager |
+| `src/renderer/components/ProjectBar.vue`, `TaskSearch.vue`, `TaskList.vue`, `Welcome.vue`, `ProjectEditor.vue` | the projects' bar (an island per project) and its Search Tasks; every project's tasks (Search Tasks' and the Welcome screen's list); the Welcome screen; the projects' manager |
 | `src/renderer/components/TaskTab.vue`, `TaskRename.vue` | a task's tab in the bar, its menu, the Rename Task dialog |
 | `src/renderer/components/AgentPicker.vue`, `Agents.vue`, `AgentList.vue` | choosing a task's agent; the Agents window; the list of agents with Install that both show |
 | `src/main/accounts.js`, `src/renderer/components/AccountSignIn.vue` | the agents' accounts, one store; a new one's sign-in in the projects' manager |

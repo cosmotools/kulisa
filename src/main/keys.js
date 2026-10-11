@@ -32,6 +32,7 @@ const KEYS = [
   { id: 'task.next', group: 'global', label: 'Next task (of every open project)', keys: ['CommandOrControl+Shift+PageDown'] },
   { id: 'task.previous', group: 'global', label: 'Previous task', keys: ['CommandOrControl+Shift+PageUp'] },
   { id: 'task.new', group: 'global', label: 'New task', keys: ['CommandOrControl+Shift+N'], window: true },
+  { id: 'tasks.search', group: 'global', label: 'Search tasks (of every project)', keys: ['CommandOrControl+Shift+A'], window: true }, // Chrome's Search tabs
   { id: 'shortcuts', group: 'global', label: 'Keyboard shortcuts', keys: ['CommandOrControl+Shift+/'], window: true },
   { id: 'zoom.in', group: 'global', label: 'Zoom Kulisa in', ...ZOOM_IN, always: true },
   { id: 'zoom.out', group: 'global', label: 'Zoom Kulisa out', ...ZOOM_OUT, always: true },

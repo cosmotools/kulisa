@@ -23,7 +23,7 @@ here; what is left of it stays.
     Collapsible, Toggle, Field, Form, Editable) done; the author tests them. Built 2026-10-11 with the author: projects
     as Chrome's tab groups (Delete Project…, no Open Folder… as New Project… takes a folder there already, the group's
     panel on the label's right-click; tasks.md, Projects); the author tests it. Being built: tasks, not projects, on
-    the Welcome screen and in the bar's button (the next item: steps 1–3 built, step 4 next, step 5 to decide). Next: fix what the author's testing finds;
+    the Welcome screen and in the bar's button (the next item: steps 1–4 built, step 5 to decide with the author). Next: fix what the author's testing finds;
     then what is left of each step ("Left:" in it), only once the author has decided it.
     Open, for the author to decide: Refresh from Master… now matters only for a local app's cookies (keep or drop);
     a script the agent runs in a page (`browser_evaluate`) could read a test password back from its field (only the
@@ -126,28 +126,17 @@ here; what is left of it stays.
      a click opens it as it was left, its right-click Project Settings…), its tasks under it (those open when it was
      closed, then the closed ones, the one closed last first; a click opens the project on that task); a project with
      none: "No tasks yet · New Task".
-  4. **Next to build: the button after the islands lists tasks, of every project, one for all** (decided), as
-     Chrome's Search tabs (its button at the end of the tab strip). Today it is `#openProjects` in `ProjectBar.vue`, a
-     `ButtonMenu` of the projects (`projectsMenu`: each project, Projects…, New Project…, Close Project); the projects
-     go from it (they are in the projects' manager, the Projects button). What it shows: the Welcome screen's list,
-     the tasks grouped by project (`Welcome.vue`: `.wgroup`, `.wproject`, `.wtask`; the data is `ProjectEntry.tasks`,
-     sent with every project by `shell.projects` in `app.js`; `project:open` takes `task` to open a project on it,
-     a closed one opened again): make that list one component, used by both. A click on an open project's task shows
-     it (`task:show`; in another window that window shows it), on a closed project's task opens the project on it (the
-     question This Window or New Window, as any project). Built as a panel (`GroupPanel.vue`'s way: Reka's Popover in a
-     menu's look, `covered('pictures')`), since it may have a search field (a menu takes the letters typed). Its icon:
-     a list or a search, not the folder (`i-projects` is the manager's). Open, for the author, to ask before building:
-     a search field at its top (Claude: yes, by the task's name, branch and project); the closed projects' tasks there
-     too (Claude: yes); a key (Ctrl+Shift+A, as Chrome's Search tabs; check the keys' table and that the agents leave
-     it alone); Close Project, now in that menu, stays only in the group's panel (and the middle button) or not.
+  4. **The button after the islands is Search Tasks** (built 2026-10-11, tasks.md, Projects; the author's answers:
+     a search field, the closed projects' tasks too, Ctrl+Shift+A, Close Project only in the group's panel and the
+     middle button): every project's tasks grouped by project, one list with the Welcome screen's (`TaskList.vue`).
   5. **Without the Welcome screen?** (the author's question, 2026-10-11: it seems not needed; not decided, to ask
-     first). What it has is elsewhere once step 4 is built: the tasks in the bar's button, the projects and New
+     first). What it has is elsewhere now that step 4 is built: the tasks in Search Tasks, the projects and New
      Project in the manager, the links in ☰. It is shown at the first start (no project yet) and after the last
      project is closed. Ways:
      - Claude's recommendation: an empty window instead, its title bar and bar as always (no islands, the tasks
        button there) and, in the grid's place, an empty island with "No project is open" and New Project…; at the
        first start the projects' manager opens by itself on New Project (nothing to do in Kulisa without one).
-       `Welcome.vue` goes (its list lives on in the tasks button); tests that read `#welcome` change with it.
+       `Welcome.vue` goes (its list lives on in Search Tasks, `TaskList.vue`); tests that read `#welcome` change with it.
      - Chrome's way: the last project closed closes its window, the last window quits Kulisa. Against it: a project is
        often closed to open another, and Kulisa would quit instead; the first start still needs something.
      - Keep the Welcome screen as it is now (step 3).

@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { clipboard } = require('electron');
 const { assert, root, userData, project, pfile, savedTabs, panel, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, menuOpen, rightClick,
-  box, pageBox, viewOn, dock, press, ctrl, near, projectTabs, projectTab, showProject, closeProject, savedWindows, closeMenu } = require('./helpers');
+  box, pageBox, viewOn, dock, press, ctrl, near, projectTabs, projectTab, showProject, closeProject, savedWindows, closeMenu, searchTasks } = require('./helpers');
 
 module.exports = (test) => {
   test('grid: a pane moved next to the terminal takes its page along', async ({ shell, ui }) => {
@@ -69,26 +69,32 @@ module.exports = (test) => {
     await ctx.call('browser_navigate', { profile: 'sam-seller', url: `${SITE}/app` });
     assert.equal(await who(ctx, 'sam-seller'), 'Signed out', "the first project's sign-ins stay there");
 
-    // +: a menu of the projects (the open ones marked), New Project, and the dialog for the rest.
-    await ui(`document.getElementById('openProjects').click()`);
-    assert.deepEqual(await menuRows(ui), ['project', 'other', '-', 'Projects…', 'New Project…', '-', 'Close Project']);
-    const rows = await ui(`[...document.querySelectorAll('.menu[data-state="open"] .item')].slice(0, 2).map((b) => ({ dot: getComputedStyle(b.querySelector('.dot')).backgroundColor,
-      folder: b.querySelector('small').textContent, check: b.querySelector('kbd').textContent }))`);
-    assert.deepEqual(rows.map((r) => r.folder), [project, other], 'each with its folder');
-    assert.deepEqual(rows.map((r) => r.check), ['✓', '✓'], 'the open ones are marked');
-    assert.equal(rows[0].dot, 'rgb(74, 123, 208)', "a dot in the project's color");
-    const over = await ui(`(() => { const b = document.getElementById('openProjects').getBoundingClientRect(), m = document.querySelector('.menu[data-state="open"]').getBoundingClientRect();
-      return m.bottom <= b.top && m.bottom > b.top - 10 && Math.abs(m.left - b.left) < 2; })()`);
-    assert.ok(over, 'over the button: the bar is at the bottom of the window');
-    await ui(`document.getElementById('openProjects').click()`); // again: closes it
+    // The button after the islands: Search Tasks, as Chrome's Search tabs: every project's tasks, grouped by project.
+    const rows = await searchTasks(ui);
+    assert.deepEqual(rows.filter((r) => r.startsWith('# ')), shell.store.projects().map((p) => `# ${p.name}`), 'every project, open or not');
+    assert.deepEqual(rows.slice(rows.indexOf('# other') + 1, rows.indexOf('# other') + 2), ['task-1'], 'its tasks under it');
+    const over = await ui(`(() => { const b = document.getElementById('searchTasks').getBoundingClientRect(), m = document.querySelector('.tasksearch[data-state="open"]').getBoundingClientRect();
+      return m.bottom <= b.top && m.bottom > b.top - 10 && Math.abs(m.right - b.right) < 2; })()`);
+    assert.ok(over, 'over the button, its end at the bar\'s: the bar is at the bottom of the window');
+    assert.equal(await ui(`document.activeElement.classList.contains('tlsearch')`), true, 'the keyboard in its search field');
+    // The search: a project by its name (all its tasks), a task by its name or branch.
+    shell.win.webContents.insertText('oth');
+    await waitFor(async () => JSON.stringify(await ui(`[...document.querySelectorAll('.tasksearch .tlgroup')].map((g) => g.dataset.project)`)) === '["other"]');
+    await ui(`(() => { const i = document.querySelector('.tasksearch .tlsearch'); i.select(); })()`);
+    shell.win.webContents.insertText('nothing like it');
+    await waitFor(async () => (await ui(`document.querySelector('.tasksearch .tlnone')?.textContent`)) === 'No task or project has that name');
+    await ui(`document.getElementById('searchTasks').click()`); // again: closes it
     await waitFor(async () => !(await menuOpen(ui)));
-    // No × on its rows: a project is deleted in the projects' manager alone.
-    await ui(`document.getElementById('openProjects').click()`);
-    await menuRows(ui);
-    assert.equal(await ui(`document.querySelectorAll('.menu[data-state="open"] .removable').length`), 0);
-    await rightClick(ui, '.menu[data-state="open"] .item');
-    assert.ok(await menuOpen(ui) && (await menuRows(ui)).includes('New Project…'), 'a right-click in the menu opens no other menu');
-    await closeMenu(ui);
+    // Ctrl+Shift+A opens it too, from anywhere (Chrome's key), the search field empty again; Enter opens the first row:
+    // a project open here shown.
+    press(shell.win.webContents, 'A', 'control', 'shift');
+    await waitFor(() => ui(`!!document.querySelector('.tasksearch[data-state="open"].ready')`));
+    assert.equal(await ui(`document.querySelector('.tasksearch .tlsearch').value`), '');
+    shell.win.webContents.insertText('other');
+    await waitFor(async () => (await ui(`document.querySelectorAll('.tasksearch .tlgroup').length`)) === 1);
+    press(shell.win.webContents, 'Return');
+    await waitFor(async () => !(await menuOpen(ui)));
+    assert.equal(shell.current?.folder, other);
     // The label's right-click: its group's panel, as Chrome's (its name, color and icon: below); under them its actions.
     await rightClick(ui, '#projectTabs [data-project="other"] .name');
     assert.deepEqual(await menuRows(ui), ['New Task', '-', 'Move to New Window', '-', 'Project Settings…', 'Show Data Folder', '-', 'Close Project']);
@@ -172,10 +178,8 @@ module.exports = (test) => {
     ctx.asked.length = 0;
     assert.ok(sam.tabs.every((t) => t.wc.isDestroyed()), "the closed project's tabs are closed");
     assert.deepEqual(await projectTabs(ui), ['other *']);
-    // Opened again from the menu: the conversation goes on, the profiles signed in.
-    await ui(`document.getElementById('openProjects').click()`);
-    await menuRows(ui);
-    await choose(ui, 'project');
+    // Opened again from Search Tasks, on its task: the conversation goes on, the profiles signed in.
+    await searchTasks(ui, 'project', 1);
     await waitFor(() => shell.current?.folder === project && shell.profiles.has('elon-buyer') && shell.pty);
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
     ctx.watchPty(shell.pty);
@@ -248,11 +252,12 @@ module.exports = (test) => {
     await second.screenshot(path.join(root, 'second-window.png'));
     await ctx.call('browser_navigate', { profile: 'sam-seller', url: `${SITE}/app?moved` }, task);
     assert.match(seller.get().wc.getURL(), /\?moved$/);
-    // Each window's + menu marks the projects open in either.
-    await ui(`document.getElementById('openProjects').click()`);
-    await menuRows(ui);
-    assert.deepEqual(await ui(`[...document.querySelectorAll('.menu[data-state="open"] .item kbd')].slice(0, 2).map((k) => k.textContent)`), ['✓', '✓']);
-    await closeMenu(ui);
+    // Search Tasks in either window lists every project; a task of one open in the other window: shown there, not
+    // moved, nothing asked.
+    const asked = ctx.asked.length;
+    await searchTasks(ui2, 'project', 1);
+    await waitFor(() => first.current?.id === 'project' && first.task?.n === 1);
+    assert.ok(shell.open.get('project').window === first && second.current?.id === 'other' && ctx.asked.length === asked);
     // Questions about its project are asked in its window.
     ctx.answer = false;
     await ui2(`act('profile:delete', { profile: 'sam-seller' })`);

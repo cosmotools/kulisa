@@ -5,7 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 const { assert, root, userData, project, pfile, savedTabs, panel, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, menuOpen, rightClick,
-  box, pageBox, viewOn, dock, press, ctrl, near, projectTabs, projectTab, showProject, savedWindows, closeMenu, chosen, select, selectValues, click } = require('./helpers');
+  box, pageBox, viewOn, dock, press, ctrl, near, projectTabs, projectTab, showProject, savedWindows, closeMenu, chosen, select, selectValues, click, searchTasks } = require('./helpers');
 const { withOffset } = require('../src/main/tasks');
 const hasDirenv = (() => { try { execFileSync('direnv', ['version']); return true; } catch { return false; } })();
 
@@ -650,13 +650,13 @@ module.exports = (test) => {
     // The tasks, grouped by project: each project's heading with its icon in its color, as on its label in the bar;
     // its tasks under it, the one closed last first (all are closed here).
     assert.equal(await ui(`document.querySelector('#welcome h3').textContent`), 'Tasks');
-    assert.deepEqual(await ui(`[...document.querySelectorAll('#welcome-list .wproject')].map((b) => b.querySelector('.picon use')?.getAttribute('href') ?? null)`),
+    assert.deepEqual(await ui(`[...document.querySelectorAll('#welcome-list .tlproject')].map((b) => b.querySelector('.picon use')?.getAttribute('href') ?? null)`),
       shell.store.projects().map((p) => (p.icon === 'favicon' ? null : p.icon && p.icon !== 'logo' ? `#i-p-${p.icon}` : '#i-logo')));
     const byClosing = tasksFile().list.filter((e) => e.closed).sort((a, b) => b.closedAt - a.closedAt).map((e) => e.name);
-    assert.deepEqual(await ui(`[...document.querySelectorAll('#welcome-list [data-project="project"] .wtask .label')].map((l) => l.textContent)`), byClosing);
+    assert.deepEqual(await ui(`[...document.querySelectorAll('#welcome-list [data-project="project"] .tltask .label')].map((l) => l.textContent)`), byClosing);
     assert.equal(byClosing[0], 'Feature-X');
     // Its heading: opened again as it was left, on the task closed last; the others wait in its group's panel.
-    await ui(`document.querySelector('#welcome-list [data-project="project"] .wproject').click()`);
+    await ui(`document.querySelector('#welcome-list [data-project="project"] .tlproject').click()`);
     await waitFor(() => shell.task?.n === 2 && shell.task.loaded && shell.pty);
     ctx.watchPty(shell.pty);
     await waitFor(() => ui(`!document.documentElement.classList.contains('noproject') && !document.documentElement.classList.contains('loading')`));
@@ -682,16 +682,12 @@ module.exports = (test) => {
     assert.equal(tasksFile().collapsed, undefined);
   });
 
-  test('welcome screen: Close Project in the project menu; links open in the browser; New Project… asks where its folder goes', async (ctx) => {
+  test('welcome screen: Close Project in the group\'s panel; links open in the browser; New Project… asks where its folder goes', async (ctx) => {
     const { shell, ui } = ctx;
-    await ui(`document.getElementById('openProjects').click()`);
-    assert.deepEqual((await menuRows(ui)).slice(-2), ['-', 'Close Project']);
-    await choose(ui, 'Close Project');
+    assert.deepEqual((await groupMenu(ui, 'Close Project')).slice(-2), ['-', 'Close Project']);
     await waitFor(() => shell.task === null && !shell.current);
     await waitFor(() => ui(`document.documentElement.classList.contains('noproject')`));
-    await ui(`document.getElementById('openProjects').click()`);
-    assert.ok(!(await menuRows(ui)).includes('Close Project'), 'nothing to close');
-    await closeMenu(ui);
+    assert.equal(await ui(`document.getElementById('searchTasks').checkVisibility()`), false, 'no bar: the Welcome screen lists the tasks');
     assert.deepEqual(await ui(`[...document.querySelectorAll('#welcome .links a')].map((a) => a.textContent)`),
       ['Documentation', 'GitHub', 'Report an issue']);
     assert.equal(await ui(`document.getElementById('version').textContent`), `Kulisa ${require('../package.json').version}`);
@@ -758,9 +754,7 @@ module.exports = (test) => {
     assert.equal(shell.task.folder, path.join(made, 'Shop@task-1'), 'so its first task has a copy of its own');
     assert.equal(await ui(`(document.getElementById('projects')?.dataset.state === 'open')`), false);
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
-    await ui(`document.getElementById('openProjects').click()`);
-    await menuRows(ui);
-    await choose(ui, 'project');
+    await searchTasks(ui, 'project'); // its heading in Search Tasks: a closed project opened as it was left
     await waitFor(() => shell.current?.folder === project && shell.task?.n === 1 && shell.task.loaded && shell.pty);
     ctx.watchPty(shell.pty);
     await waitFor(() => ui(`!document.documentElement.classList.contains('noproject') && !document.documentElement.classList.contains('loading')`));
@@ -1066,9 +1060,9 @@ module.exports = (test) => {
     // and its history kept, no git init; made, not opened, as any new project; Open opens it.
     const gone = path.join(root, 'gone');
     fs.mkdirSync(gone); git(gone, 'init', '-q'); fs.writeFileSync(path.join(gone, 'a.txt'), 'a'); git(gone, 'add', '-A'); git(gone, 'commit', '-qm', 'mine');
-    await ui(`document.getElementById('openProjects').click()`);
-    await menuRows(ui);
-    await choose(ui, 'New Project…');
+    await ui(`document.getElementById('manageProjects').click()`);
+    await waitFor(() => ui(`document.getElementById('projects')?.dataset.state === 'open'`));
+    await ui(`document.getElementById('pjnew').click()`);
     await waitFor(() => ui(`document.getElementById('projects')?.dataset.state === 'open' && !document.getElementById('nplocationrow').hidden`));
     await ui(`(() => { for (const [id, v] of [['npname', 'gone'], ['nplocation', ${JSON.stringify(root)}]]) {
       const i = document.getElementById(id); i.value = v; i.dispatchEvent(new Event('input')); } })()`);
@@ -1113,7 +1107,7 @@ module.exports = (test) => {
     // A task's row: the project opens on that task, a closed one opened again.
     const closed = shell.store.tasksOf({ id: 'project' }).list.find((e) => e.closed);
     assert.ok(closed && closed.n !== 1, 'a closed task to open');
-    await ui(`document.querySelector('#welcome-list [data-project="project"] .wtask[data-task="${closed.n}"]').click()`);
+    await ui(`document.querySelector('#welcome-list [data-project="project"] .tltask[data-task="${closed.n}"]').click()`);
     await waitFor(() => shell.task?.n === closed.n && shell.task.loaded && shell.pty && !shell.windows[0].switching);
     assert.ok(!shell.task.entry.closed, 'open again');
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));

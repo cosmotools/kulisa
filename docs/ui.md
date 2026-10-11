@@ -50,7 +50,8 @@ Each icon is drawn once, as a `<symbol id="i-…">` in the sprite (`Sprite.vue`,
 |---|---|
 | `i-close` | × of dialogs, profiles, tabs, tasks; removing a row |
 | `i-plus` | new tab, new task |
-| `i-projects` | the projects' manager in the title bar, the projects' menu (after the islands of the projects' bar) (Lucide's folder-open) |
+| `i-projects` | the projects' manager in the title bar (Lucide's folder-open) |
+| `i-search` | Search Tasks, after the islands of the projects' bar (Lucide's search) |
 | `i-logo` | the app icon with its curtain in `currentColor`: the title bar's (`--project`), and a project's label in the projects' bar (its `--color`). The folds are a shadow over the color, one for every color: a `<use>` takes the sprite's gradient, not one of its own |
 | `i-docs`, `i-github`, `i-bug` | the Welcome screen's links (Documentation, GitHub, Report an issue) as rows of ☰ (`data-icon` on each link; Lucide's book-open, github, bug) |
 | `i-menu` | ☰, the window's menu |
@@ -199,8 +200,10 @@ and arrangements, `components/menu/`, built of Reka's menu items; − and + and 
 A panel is a menu's look with fields in it, where a menu cannot hold them (its rows take the keys typed and the
 focus under the pointer): Reka UI's Popover, `.menu` with its rows `.item` (buttons) under a top of its own, the pages
 pictures meanwhile (`covered('pictures')`), closed as a menu is (Esc, a press outside, a row chosen, the window left);
-a row's action runs once it has closed. One today: a project's group panel (`GroupPanel.vue`, the label's
-right-click: its name, colors and icons at its top, `.gphead`), as Chrome's tab group's.
+a row's action runs once it has closed. Two today: a project's group panel (`GroupPanel.vue`, the label's
+right-click: its name, colors and icons at its top, `.gphead`), as Chrome's tab group's; Search Tasks
+(`TaskSearch.vue`, `.tasksearch`, the button after the islands), its rows Reka's Listbox under its search field
+(`TaskList.vue`: `ListboxFilter`, a `.tlgroup` per project, `.tlproject`, `.tltask`; the Welcome screen's list too).
 
 ## Adding something
 

@@ -10,9 +10,8 @@
 // one's profiles, Rename… (its name and branch), Show Folder, Delete Task…. Dragging the label does
 // the same: within the bar it changes the order, onto another window's bar it moves the project there, let go outside
 // every Kulisa window it opens a window there (the main process tells where the pointer is). The button after the
-// islands opens the menu of the projects (as Chrome's Tab groups: open one, delete one with its ×, Projects…, New
-// Project…; one open in another window is shown there). Deleting a project is the projects' manager's alone
-// (ProjectEditor.vue).
+// islands searches every project's tasks, as Chrome's Search tabs (TaskSearch.vue); everything about projects is in the
+// projects' manager (the title bar's Projects button).
 // Each island looks like a tab of the grid: square where it meets the grid and merging into it with curves, rounded
 // towards the window's edge. Every island keeps its width whichever project is shown, so showing one moves none (the
 // author, 2026-10-08: islands that moved under the mouse made the human miss). Many shrink, then the bar scrolls.
@@ -21,7 +20,7 @@ import Icon from './Icon.vue';
 import TaskTab from './TaskTab.vue';
 import GroupPanel from './GroupPanel.vue';
 import { TabsList, TabsRoot } from 'reka-ui';
-import ButtonMenu from './menu/ButtonMenu.vue';
+import TaskSearch from './TaskSearch.vue';
 import RightClickMenu from './menu/RightClickMenu.vue';
 import { store } from '../lib/store';
 import ProjectIcon from './ProjectIcon.vue';
@@ -41,10 +40,8 @@ const islands = computed(() => {
 watch(() => store.projects, () => nextTick(() => tabs.value?.querySelector('.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' })));
 
 const showTask = (key: string | number) => { if (key !== store.current) kulisa.invoke('task:show', String(key)); };
-const openProject = (id: string) => kulisa.invoke('project:open', { id });
 const close = (id: string) => kulisa.invoke('project:close', { id });
 const manage = async (id?: string) => (await dialog('projects')).openProjects(id);
-const create = async () => (await dialog('projects')).newProject();
 
 // A project's own events, not its tasks' (TaskTab.vue handles those).
 const projectOf = (e: Event) => (e.target as Element).closest<HTMLElement>('[data-project]')?.dataset.project;
@@ -147,18 +144,6 @@ function dragend(e: DragEvent) {
   if (id && e.dataTransfer!.dropEffect === 'none') kulisa.invoke('project:drag-out', { id, terminals: terminalsOf(id) });
 }
 
-function projectsMenu(): MenuItem[] {
-  const { current, projects, open, elsewhere = [] } = store.projects;
-  const isOpen = (id: string) => open.some((o) => o.id === id) || elsewhere.includes(id);
-  return [
-    ...projects.map((p) => ({ label: p.name, sub: p.folder, color: p.color, ...(isOpen(p.id) ? { keys: '✓' } : {}),
-      ...(p.id === current ? {} : { run: () => (isOpen(p.id) ? kulisa.invoke('project:show', { id: p.id }) : openProject(p.id)) }) })),
-    '-',
-    { label: 'Projects…', run: () => manage() },
-    { label: 'New Project…', run: create },
-    ...(current === null ? [] : ['-' as const, { label: 'Close Project', run: () => close(current) }]),
-  ];
-}
 </script>
 
 <template>
@@ -185,7 +170,7 @@ function projectsMenu(): MenuItem[] {
       </nav>
     </TabsList></TabsRoot></RightClickMenu>
     <GroupPanel ref="panel" />
-    <ButtonMenu :items="projectsMenu"><button id="openProjects" class="icon" title="Projects: open another, New Project…" aria-label="Projects"><Icon name="i-projects" /></button></ButtonMenu>
+    <TaskSearch />
   </footer>
 </template>
 
@@ -201,7 +186,7 @@ function projectsMenu(): MenuItem[] {
     padding-inline: var(--r); /* room for the outer islands' curves */
     overflow-x: auto; scrollbar-width: none; }
   /* As far from the last island's curve as the islands' curves from each other */
-  #openProjects { margin-inline-start: var(--gap); }
+  #searchTasks { margin-inline-start: var(--gap); }
   /* A project's island. Its tabs in the middle of the dark: no room on the grid's side (the grid's own gap is
      there), as much on the other. */
   .pisland { display: flex; align-items: center; gap: 2px; flex: 0 1 auto; min-width: 0; position: relative;

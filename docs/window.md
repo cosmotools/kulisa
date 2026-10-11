@@ -26,7 +26,7 @@ replace a region left by the page before.
 ## The projects' bar
 
 Under the grid, in the middle: an island per open project, drawn as Chrome's tab groups (its label, which folds it;
-its open tasks' tabs; + for a new task, its right-click New Task with one of the project's agents), then the projects' menu ([tasks.md](tasks.md), Projects). ☰ → **Projects bar: Top, Bottom** puts it over the grid instead, under the
+its open tasks' tabs; + for a new task, its right-click New Task with one of the project's agents), then Search Tasks, every project's tasks ([tasks.md](tasks.md), Projects). ☰ → **Projects bar: Top, Bottom** puts it over the grid instead, under the
 title bar (`settings.json`: `bar`; the page gets it in its URL, so it is drawn in its place at once). Bottom is the
 default: the hand goes to the terminal under the grid all the time, so the tabs are where it already is; at first
 the projects were tabs in the title bar and the tasks a strip under the grid, and both switched with the same
@@ -205,7 +205,8 @@ Who gets a key depends on where the keyboard is:
   Chrome. Closing or switching a tab from the page leaves the keyboard in the page shown next.
 - **Everywhere, the terminal too**: Ctrl+` to the agent's terminal and back to the page used last, Ctrl+Shift+` a new
   terminal, Ctrl+Shift+1…9 a task of the shown project, Ctrl+Shift+PgDn / PgUp the next or previous one of every
-  open project (in the bar's order), Ctrl+Shift+N a new task, Ctrl+Shift+/ the list. Ctrl+Shift+… and Ctrl+` are
+  open project (in the bar's order), Ctrl+Shift+N a new task, Ctrl+Shift+A Search Tasks (Chrome's Search tabs),
+  Ctrl+Shift+/ the list. Ctrl+Shift+… and Ctrl+` are
   what agents and sites leave alone; Alt+letters are Claude Code's (Alt+V, Alt+P, Alt+T), Ctrl+Alt+arrows GNOME's,
   Ctrl+Shift+U and E ibus's, so Kulisa takes none of them.
 - **In the terminal** every other key is the agent's (Ctrl+R, Ctrl+T, Ctrl+O …), with the copy and paste of the OS's

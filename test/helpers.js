@@ -78,6 +78,17 @@ const select = async (ui, id, value) => {
 // A project closed as the human does it: the middle button on its label (its right-click menu has Close Project too).
 const closeProject = (ui, id) => ui(`${projectTab(id)}.querySelector('.plabel').dispatchEvent(new MouseEvent('auxclick', { button: 1, bubbles: true }))`);
 const choose = (ui, label) => ui(`[...${MENU}.querySelectorAll('.item')].find((b) => b.querySelector('.label').textContent === ${JSON.stringify(label)}).click()`);
+// The bar's Search Tasks panel (TaskSearch.vue): opened with its button; searchTasks(ui) its rows (a project's heading
+// as '# name', a task as its name), searchTasks(ui, project, n) a project's heading or its task n clicked.
+const SEARCH = `document.querySelector('.tasksearch[data-state="open"].ready')`;
+async function searchTasks(ui, project, n) {
+  await ui(`document.getElementById('searchTasks').click()`);
+  await waitFor(() => ui(`!!${SEARCH}`));
+  if (project === undefined) return ui(`[...${SEARCH}.querySelectorAll('.item')].map((r) => (r.classList.contains('tlproject') ? '# ' : '') + r.querySelector('.label').textContent)`);
+  const row = n === undefined ? '.tlproject' : `.tltask[data-task="${n}"]`;
+  await ui(`${SEARCH}.querySelector('[data-project=${JSON.stringify(project)}] ${row}').click()`);
+  await waitFor(() => ui(`!${SEARCH}`));
+}
 // The profile editor: the profiles' chip (👥), then Manage Profiles….
 const manageProfiles = async (ui) => {
   await ui(`document.getElementById('openProfiles').click()`);
@@ -120,6 +131,6 @@ const press = (wc, keyCode, ...modifiers) => { for (const type of ['keyDown', 'k
 const ctrl = (wc, keyCode) => { wc.focus(); press(wc, keyCode, 'control'); };
 const near = (a, b) => Math.abs(a - b) < 1e-6;
 
-module.exports = { assert, root, userData, project, pfile, savedTabs, savedWindows, panel, SITE, sleep, waitFor, who, menuRows, choose, projectTabs, projectTab, showProject, closeProject, manageProfiles, menuOpen, closeMenu, rightClick,
+module.exports = { searchTasks, assert, root, userData, project, pfile, savedTabs, savedWindows, panel, SITE, sleep, waitFor, who, menuRows, choose, projectTabs, projectTab, showProject, closeProject, manageProfiles, menuOpen, closeMenu, rightClick,
   click, chosen, selectValues, select,
   box, pageBox, viewOn, dock, press, ctrl, near };

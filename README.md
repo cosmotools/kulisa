@@ -52,10 +52,11 @@ not, and **+ New Project**; on the right the chosen one's configuration, and **D
 grid (or over it: **☰ → Projects bar**) has a group per open project, as Chrome's tab groups: its name (a click folds
 it), its tasks, and **+** for a new task. A click on a task shows it, of any project, and the others keep running
 (their agents and pages) until you close their project (**×** on its last open task, the middle button on its name,
-or **Close Project** in its right-click menu, after a question; closing a window asks once for all its projects). The button after the islands opens a menu of the
-projects: open another one (in this window or in a new window: Kulisa asks), **Projects…**, **New Project…** (a name and where its
+or **Close Project** in its right-click menu, after a question; closing a window asks once for all its projects). The button after the islands (or Ctrl+Shift+A)
+searches every project's tasks, as Chrome's Search tabs: a click opens one (another project's in this window or in a new
+window: Kulisa asks). The **Projects** button in the title bar opens the projects' manager, with **New Project** (a name and where its
 folder goes, `~/Kulisa` by default; git on by default, with an empty first commit; its color and icon; then its
-configuration: its agents' accounts, code, profiles; **Open** opens it; a folder there already, a repository or not, is taken as it is), close the project. **Project Settings…** on its name's right-click menu opens the manager at it. Closing the last project shows the
+configuration: its agents' accounts, code, profiles; **Open** opens it; a folder there already, a repository or not, is taken as it is). **Project Settings…** on its name's right-click menu opens the manager at it. Closing the last project shows the
 Welcome screen. A closed project keeps its tabs and
 sign-ins; when you open it again, its agent continues the conversation where it can (`claude --resume`,
 `codex resume`). The agent starts in your shell in its task's folder, as if you typed its command in a terminal

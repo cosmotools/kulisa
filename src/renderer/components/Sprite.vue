@@ -68,7 +68,9 @@
     </symbol>
     <!-- Keyboard Shortcuts in ☰: Lucide's keyboard -->
     <symbol id="i-keyboard" viewBox="0 0 24 24"><g stroke-width="2.25"><path d="M10 8h.01M12 12h.01M14 8h.01M16 12h.01M18 8h.01M6 8h.01M7 16h10M8 12h.01"/><rect width="20" height="16" x="2" y="4" rx="2"/></g></symbol>
-    <!-- The projects' menu: Lucide's folder-open -->
+    <!-- The bar's Search Tasks: Lucide's search -->
+    <symbol id="i-search" viewBox="0 0 24 24"><g stroke-width="2.25"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></g></symbol>
+    <!-- The projects' manager: Lucide's folder-open -->
     <symbol id="i-projects" viewBox="0 0 24 24"><g stroke-width="2.25"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></g></symbol>
   </svg>
 </template>

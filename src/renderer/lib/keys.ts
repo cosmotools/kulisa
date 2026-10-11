@@ -39,6 +39,7 @@ const run: Record<string, (c: Command) => unknown> = {
   'task.next': () => stepTask(1),
   'task.previous': () => stepTask(-1),
   'task.new': () => kulisa.invoke('task:new'),
+  'tasks.search': () => document.getElementById('searchTasks')?.click(), // as a click on it: again closes it
   shortcuts: async () => (await dialog('shortcuts')).showShortcuts(),
   'tab.new': ({ p }) => paneOfProfile(p!.id)?.newTab(),
   'tab.close': ({ p, tab, page }) => act('tab:close', { profile: p!.id, tab, focus: page }),
