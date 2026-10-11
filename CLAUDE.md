@@ -211,13 +211,17 @@ unasked. This paragraph is removed when the rewrite is finished.
   at once, and one switching or editing the shared folder pulled the files out from under the others):
   - Before the first change: `git worktree add .claude/worktrees/<name> -b <name> main` (from the local `main`, or
     the branch the author names; not EnterWorktree's default, which starts from `origin`, behind the local one), and
-    work there. The repository's own folder is the author's: never edited, never switched to another branch.
+    work there.
+  - **The repository's own folder holds `main`, always** (the author, 2026-10-11: with `main` in a worktree, the
+    folder stayed on an old branch, and a session started there read an old CLAUDE.md and old docs). Nothing is
+    edited there and it is never switched to another branch; only merges into `main` are done in it.
   - `node_modules` is a link to the repository's (`ln -s ../../../node_modules node_modules`) while the work does
     not change the dependencies; work that does gets its own (`npm install`, then `npm run postinstall`).
-  - Commits go to the worktree's branch. Merging into `main` is done in a worktree with `main` checked out, never in
-    the repository's folder.
+  - Commits go to the worktree's branch. Merging into `main` is done in the repository's folder (`git -C <repo>
+    merge --no-ff <name>`), with nothing else there; no worktree has `main` checked out.
   - `npm test` runs from several worktrees at once: each checkout has its own test folder and test site
-    (`test/start.ts`). The author's Kulisa runs one checkout at a time: the `run-kulisa` skill, from the worktree.
+    (`test/start.ts`). The author's Kulisa runs one checkout at a time: the `run-kulisa` skill, from the worktree
+    while its work is shown, from the repository's folder (`main`) once it is merged.
   - Once its branch is merged (or the author drops it), the worktree goes (`git worktree remove`), its branch
     (`git branch -d`) and its test folder (`/tmp/kulisa-test-<worktree>-…`).
 

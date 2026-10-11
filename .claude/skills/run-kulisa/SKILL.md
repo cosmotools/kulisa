@@ -11,7 +11,7 @@ does the steps the same way each time.
 
 Work is done in a worktree of its own (CLAUDE.md, Conventions), so run that worktree's `kulisa.sh`
 (`.claude/worktrees/<name>/.claude/skills/run-kulisa/kulisa.sh`): the author then sees its code. Say from which
-worktree it runs now. Another session's Kulisa, started from its worktree, is stopped by this: tell the author whose
+worktree it runs now. Once the work is merged, run the repository's own `kulisa.sh` (its folder holds `main`). Another session's Kulisa, started from its worktree, is stopped by this: tell the author whose
 change they no longer see.
 
 ## Restart after a change
