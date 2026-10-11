@@ -20,8 +20,9 @@ here; what is left of it stays.
     built: CLAUDE.md, Window UI; [ui.md](ui.md)); the author tests that too. 2026-10-11: its generic parts are moving to
     Reka UI (the author's decision: nothing of our own where Reka has it, at once, a commit per step): menus and
     dialogs, then the controls (ToggleGroup, ColorSwatchPicker, RadioGroup, Select, Checkbox, Listbox, Tabs,
-    Collapsible, Toggle, Field, Form, Editable) done; the author tests them. Being built: projects as Chrome's tab
-    groups (the next item). Next: fix what the author's testing finds;
+    Collapsible, Toggle, Field, Form, Editable) done; the author tests them. Built 2026-10-11 with the author: projects
+    as Chrome's tab groups (Delete Project…, no Open Folder… as New Project… takes a folder there already, the group's
+    panel on the label's right-click, no Projects button in the title bar; tasks.md, Projects); the author tests it. Next: fix what the author's testing finds;
     then what is left of each step ("Left:" in it), only once the author has decided it.
     Open, for the author to decide: Refresh from Master… now matters only for a local app's cookies (keep or drop);
     a script the agent runs in a page (`browser_evaluate`) could read a test password back from its field (only the
@@ -113,22 +114,6 @@ here; what is left of it stays.
     default); rights on profiles, when real accounts come (one flag, "view only": reading allowed, clicks and typing
     refused; today the agent's own modes cover test users).
 
-- **Projects as Chrome's tab groups** (decided with the author 2026-10-11, being built; a commit per step). The bar's
-  tabs are tasks and a project is their group, so a project behaves as a tab group of Chrome's desktop
-  (support.google.com/chrome/answer/2391819, read 2026-10-11): a click on its label folds it (built); Close group keeps
-  it, reopened from ⋮ → Tab groups (our projects' menu, and the Welcome screen's list); Delete group deletes it.
-  1. **Delete Project…** (built 2026-10-11) instead of Remove Project…, as Chrome's Delete group and our Delete Task… (what it does is
-     unchanged: Kulisa's data of it and its tasks' copies go, its folder stays).
-  2. **No Open Folder…** (built 2026-10-11, tasks.md, Projects): it was not clear what it did (it made a project of the folder or opened the one there).
-     New Project… is the one way in: a folder at its location that is there already, with files or a repository, is
-     taken as it is (the dialog says so), else made.
-  3. **The label's right-click opens the group's panel** (built 2026-10-11, tasks.md, Projects), as Chrome's: the name, the color and the icon edited in place
-     at its top, then its actions: New Task, its closed tasks, Move to New Window, Move to Window, Project Settings…
-     (its code, agents, profiles, local addresses: what a tab group has not), Show Data Folder, Close Project, Delete
-     Project….
-  4. **No Projects button in the title bar**: the projects' menu after the islands is Chrome's Tab groups menu, with
-     Projects…; Project Settings… opens the manager at a project.
-  Not taken from Chrome: Ungroup, and moving a tab from one group to another (a task is a copy of its project's code).
 - **Switching a task's account in the middle of its conversation** (the author's question, 2026-10-11; to discuss
   again before building, after step 8). A task on Claude Code's account email1 runs out of its session's limit; the
   human goes on with email2, the same conversation. Today Change agent… starts a new conversation.

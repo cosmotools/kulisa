@@ -50,7 +50,7 @@ Each icon is drawn once, as a `<symbol id="i-…">` in the sprite (`Sprite.vue`,
 |---|---|
 | `i-close` | × of dialogs, profiles, tabs, tasks; removing a row |
 | `i-plus` | new tab, new task |
-| `i-projects` | the projects' manager in the title bar, the projects' menu (after the islands of the projects' bar) (Lucide's folder-open) |
+| `i-projects` | the projects' menu (after the islands of the projects' bar) (Lucide's folder-open) |
 | `i-logo` | the app icon with its curtain in `currentColor`: the title bar's (`--project`), and a project's label in the projects' bar (its `--color`). The folds are a shadow over the color, one for every color: a `<use>` takes the sprite's gradient, not one of its own |
 | `i-docs`, `i-github`, `i-bug` | the Welcome screen's links (Documentation, GitHub, Report an issue) as rows of ☰ (`data-icon` on each link; Lucide's book-open, github, bug) |
 | `i-menu` | ☰, the window's menu |
