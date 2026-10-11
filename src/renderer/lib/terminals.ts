@@ -1,11 +1,9 @@
-// The terminals: each task's agent CLI in an xterm.js of its own, the agent's panel (AgentTerminal.vue) showing the
-// shown task's (the others keep their output while in the background), and a task's other terminals (the human's
-// shells, what the agent runs: main/tasks.js), panels of their own (OtherTerminal.vue), keyed "<task>#<id>" as in the
-// main process. An xterm lives as long as its task, not its panel: the panels come and go with the grid, and adopt
-// the terminals' elements (termEl, termHost).
-// Set up as VS Code does: Unicode 11 character widths (Claude Code draws ✅ ⏵ ✻ and the like; with the default
-// Unicode 6 widths the cursor and the input line drift off the text), the WebGL renderer, and a bundled font so it
-// looks and measures the same on every OS. The UI's text size (--font in tokens.css), so the terminal matches the rest.
+// The terminals' xterms (docs/window.md, The terminal), keyed "<task>#<id>" as in the main process. An xterm lives as
+// long as its task, not its panel: the panels come and go with the grid, and adopt the terminals' elements (termEl,
+// termHost).
+// Set up as VS Code does: Unicode 11 character widths (Claude Code draws ✅ ⏵ ✻ and the like; with the default Unicode 6
+// widths the cursor and the input line drift off the text), the WebGL renderer, and a bundled font so it looks and
+// measures the same on every OS.
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { Unicode11Addon } from '@xterm/addon-unicode11';

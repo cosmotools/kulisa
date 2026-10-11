@@ -1,6 +1,4 @@
-// What a menu holds, as the window's parts build their menus (docs/ui.md, Menus): rows (MenuButton.vue), lines,
-// headings, notes, choices, rows of their own. Drawn by Reka's menus: ButtonMenu.vue (a button's), RightClickMenu.vue
-// (an area's), PointMenu.vue (at a point); menu/MenuRows.vue lays out the items.
+// What a menu holds, as the window's parts build their menus (docs/ui.md, Menus).
 import { shallowRef, type Component } from 'vue';
 
 export interface MenuRow {

@@ -1,9 +1,7 @@
 <script setup lang="ts">
-// A button with its menu (Reka's DropdownMenu; docs/ui.md, Menus): ☰, ⋮, the projects' button, the profiles' chip …
-// It opens on the press, as the OS's menus do, so a press, a drag to a row and the release there chooses it (Reka's
-// trigger opens on the click, after the release); the click that follows is the press's, not another toggle. The
-// same button again, Esc, a press outside, a chosen row or leaving the window closes it. Enter, Space or ↓ on the
-// button opens it. The rows are built as it opens: items(). Afterwards the keyboard is back where it was.
+// A button with its menu (Reka's DropdownMenu; docs/ui.md, Menus). It opens on the press, as the OS's menus do, so a
+// press, a drag to a row and the release there chooses it (Reka's trigger opens on the click, after the release); the
+// click that follows is the press's, not another toggle.
 //   <ButtonMenu :items="() => […]" end> <button …> </ButtonMenu>   end: its end edge at the button's (at a bar's end)
 import { shallowRef } from 'vue';
 import { DropdownMenuContent, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui';

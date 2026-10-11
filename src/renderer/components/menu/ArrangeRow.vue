@@ -1,7 +1,5 @@
 <script setup lang="ts">
-// ☰'s ready-made arrangements of the panels (lib/grid.ts, presets), each a picture of itself, as Windows' snap layouts:
-// the profiles' pages light (.a-page), the terminal dark with its prompt (.a-term), as in the window; the words in the
-// tooltip. Items of the menu: a choice closes it.
+// ☰'s ready-made arrangements of the panels (lib/grid.ts, presets), each a picture of itself, as Windows' snap layouts.
 import { DropdownMenuItem } from 'reka-ui';
 import { applyPreset } from '../../lib/grid';
 </script>

@@ -1,7 +1,6 @@
 <script setup lang="ts">
-// A row of ☰ with its few choices, the chosen one lit (it stays open, so another can be tried): Theme  Dark  Light
-// System, Projects bar  Top  Bottom. Reka's radio items of the menu. kind: the data attribute each has (data-theme,
-// data-bar).
+// A row of ☰ with its few choices (docs/ui.md, Menus); it stays open, so another can be tried. kind: the data attribute
+// each has (data-theme, data-bar).
 import { DropdownMenuRadioGroup, DropdownMenuRadioItem } from 'reka-ui';
 import Icon from '../Icon.vue';
 

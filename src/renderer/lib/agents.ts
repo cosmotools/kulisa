@@ -1,7 +1,6 @@
-// The agents Kulisa knows (main/agents.js), for a dialog that lists them with Install (AgentList.vue draws them):
-// choosing a task's agent (AgentPicker.vue) and Settings → Agents (AgentsTab.vue). The state lives with the dialog, not in
-// the list: a closed dialog's content is unmounted (Modal.vue), and an install it started goes on and shows when it
-// opens again.
+// The agents Kulisa knows (main/agents.js), for a dialog that lists them with Install (AgentList.vue). The state lives
+// with the dialog, not in the list: a closed dialog's content is unmounted (Modal.vue), and an install it started goes
+// on and shows when it opens again.
 //   const list = agentList({ choose, details, installed })   choose: a radio per row; details: each one's version, folder
 //   and website; installed(agent): what to say once it is installed.
 //   list.load(selected, show) the agents, then await show() (opens the dialog); reload(); chosen; state.installing …

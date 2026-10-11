@@ -1,7 +1,5 @@
 <script setup lang="ts">
-// The items of a menu (lib/menu.ts) as Reka's menu parts, in any of the window's menus: rows (MenuButton.vue), a row
-// with a × after it (its own item: the arrows reach it), lines, headings, the note under them all, a choice (one row
-// checked; choosing closes the menu) and rows of their own (☰'s zoom, theme …).
+// The items of a menu (lib/menu.ts) as Reka's menu parts. A row's × is an item of its own, so the arrows reach it.
 import { DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuSeparator } from 'reka-ui';
 import Icon from '../Icon.vue';
 import MenuButton from '../MenuButton.vue';

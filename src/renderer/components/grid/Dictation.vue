@@ -1,10 +1,7 @@
 <script setup lang="ts">
-// Dictation (docs/window.md, The terminal): where the shown task's agent has its own (main/agents.js, voice), the
-// language it hears and a microphone. The agent records and turns speech into text; Kulisa only holds its key
-// (Task.dictate), so nobody has to know the agent's command or key. The microphone works as a voice message's button:
-// held, it records until let go; a click starts, another click stops. The text goes where the cursor is in the agent's
-// input, after what is there, to read and send. Lit while it records. The language opens a menu of those the agent
-// understands, the system's first; it is the agent's own setting, so the agent answers in it too (said on hover).
+// Dictation (docs/window.md, The terminal): the agent records and turns speech into text; Kulisa only holds its key
+// (Task.dictate), so nobody has to know the agent's command or key. The language is the agent's own setting, so the
+// agent answers in it too.
 import { computed } from 'vue';
 import Icon from '../Icon.vue';
 import ButtonMenu from '../menu/ButtonMenu.vue';

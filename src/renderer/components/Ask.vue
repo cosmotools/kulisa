@@ -1,7 +1,5 @@
 <script setup lang="ts">
-// The question (lib/ask.ts), on Reka's AlertDialog in the dialogs' one look: its title, what goes as its text, Cancel
-// (focused) and the button that does it (red when it deletes), another way before it when there is one. Esc is
-// Cancel; a click outside does nothing (it waits for an answer, as an alert dialog does).
+// The question (lib/ask.ts), on Reka's AlertDialog. A click outside does nothing: it waits for an answer.
 import { shallowRef, watch } from 'vue';
 import { AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogOverlay, AlertDialogPortal,
   AlertDialogRoot, AlertDialogTitle } from 'reka-ui';

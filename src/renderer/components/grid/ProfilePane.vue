@@ -1,8 +1,7 @@
 <script setup lang="ts">
-// A profile's pane, as a Chrome window (its header is ProfileHeader.vue): the tabs on the island's color, the active
-// one of a piece with the toolbar (back, forward, reload, the address, the site's zoom, Pick, ⋮) a step lighter; the
-// page below to the island's edges. The page itself is a native view the main process lays over .content (lib/grid.ts
-// tells it where); while a panel is dragged or a menu is open, a picture of the page stands in for it.
+// A profile's pane, as a Chrome window (docs/profiles.md; docs/window.md, The grid). The page itself is a native view
+// the main process lays over .content (lib/grid.ts tells it where); while a panel is dragged or a menu is open, a
+// picture of the page stands in for it.
 import { computed, onBeforeUnmount, onMounted, onUpdated, reactive, ref, watch } from 'vue';
 import type { DockviewPanelApi } from 'dockview-vue';
 import { DialogContent, DialogDescription, DialogRoot, DialogTitle, TabsList, TabsRoot, TabsTrigger, Toggle } from 'reka-ui';

@@ -1,8 +1,6 @@
 <script setup lang="ts">
-// A profile in the profile editor (ProfileEditor.vue): its picture (a click shows the others: Reka's Collapsible), its
-// name, how many tabs, who it is, a test user's login and password; Open for a closed one, Delete…. The name, who it is
-// and the login are Reka's Editable: shown as text, edited in place (a click or Tab), saved when left or on Enter
-// (Shift+Enter: a new line in who it is), Esc puts back what was saved. The password is typed, saved and emptied.
+// A profile in the profile editor (ProfileEditor.vue; docs/profiles.md). The password is typed, saved and emptied:
+// never shown.
 import { ref } from 'vue';
 import { CollapsibleContent, CollapsibleRoot, CollapsibleTrigger, EditableArea, EditableInput, EditablePreview, EditableRoot } from 'reka-ui';
 import Avatars from './Avatars.vue';

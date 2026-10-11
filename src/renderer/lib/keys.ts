@@ -1,7 +1,6 @@
 // Keyboard shortcuts in the window (main/keys.js has the table and takes the keys; docs/window.md, Keys). The main
-// process has to know where the keyboard is in this page to know whose a key is: the terminal's agent gets all but a
-// few, a pane (its address bar, its toolbar) gets Chrome's keys for that profile, a dialog keeps its own. It sends the
-// commands back here, with the profile and tab they act on.
+// process has to know where the keyboard is in this page to know whose a key is; it sends the commands back here, with
+// the profile and tab they act on.
 import { watch } from 'vue';
 import { act, store } from './store';
 import { paneOfProfile } from './grid';

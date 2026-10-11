@@ -1,8 +1,6 @@
-// The grid of the shown task (dockview, drawn by Grid.vue): a pane per open profile (ProfilePane.vue: tab strip,
-// address bar; the page itself is a WebContentsView the main process lays over its .content box), the agent's
-// terminal and the task's other terminals, peer panels to drag, stack as tabs and resize. Each task's grid is saved
-// (its layout.json) and restored; ready-made arrangements (☰). After any change the main process gets where each
-// pane's .content box is, or that it is not on screen (stacked behind another pane in a group).
+// The grid of the shown task (dockview, drawn by Grid.vue; docs/window.md, The grid). After any change the main process
+// gets where each pane's .content box is, or that it is not on screen (stacked behind another pane), as it lays the
+// native views over them.
 import type { AddPanelPositionOptions, DockviewApi } from 'dockview-vue';
 import type { OtherTerminal, Profile } from '../types';
 import { act, setLoading, store } from './store';

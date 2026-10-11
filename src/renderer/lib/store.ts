@@ -1,6 +1,4 @@
-// The window's state, as the main process sends it (window.js), for the components to draw: the projects in its
-// bar, the shown task and its project's tasks, the shown task's profiles, the Kulisa zoom, the theme, where the
-// projects' bar is, what the agent says over each pane.
+// The window's state, as the main process sends it (window.js), for the components to draw.
 import { reactive, watch } from 'vue';
 import type { ClosedProfile, OtherTerminal, Profile, ProjectsInfo, TaskInfo } from '../types';
 import { initialProjects } from './common';

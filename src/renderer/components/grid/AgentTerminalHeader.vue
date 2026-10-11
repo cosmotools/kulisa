@@ -1,6 +1,5 @@
 <script setup lang="ts">
-// The agent's terminal's header: its name, + for a shell of the human's next to it (in the task's folder), and
-// dictation where the shown task's agent has its own (Dictation.vue).
+// The agent's terminal's header (docs/window.md, The terminal).
 import Icon from '../Icon.vue';
 import Dictation from './Dictation.vue';
 import { act } from '../../lib/store';
