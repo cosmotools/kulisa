@@ -20,6 +20,8 @@
 // command puts it in the window's HTML). always: also while a dialog is open. main: done in the main process.
 // display: only shown, the window does it (the terminal's copy and paste: terminal.ts).
 // The zoom's and DevTools' keys mean the nearest: a page's own in a page, Kulisa's elsewhere.
+import type { Shortcut } from '../renderer/types.ts';
+
 type Platform = NodeJS.Platform;
 type Group = 'global' | 'page' | 'terminal';
 interface Keys { keys: string[]; also?: string[]; mac?: string[]; win32?: string[]; main?: boolean }
@@ -150,8 +152,8 @@ function display(accelerator: string, platform = process.platform) {
 }
 
 // The table for the window: each binding with a label, its keys as shown (a range as its first and last: Ctrl+1…8).
-function list(platform = process.platform) {
-  return KEYS.filter((b) => b.label).map((b) => {
+function list(platform = process.platform): Shortcut[] {
+  return KEYS.filter((b): b is Binding & { label: string } => !!b.label).map((b) => {
     const shown = keysOf(b, platform).shown.map((a) => display(a, platform));
     return { id: b.id, group: b.group, label: b.label, keys: b.range ? [`${shown[0]}…${shown.at(-1)!.slice(-1)}`] : shown };
   });

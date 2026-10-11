@@ -116,7 +116,7 @@ onBeforeUnmount(() => { observer.disconnect(); if (panes.get(key) === handle) pa
 <template>
   <div v-if="profile" class="pane" :data-profile="profile.id">
     <!-- The tabs scroll in .strip; + is next to it, never over a tab, as in Chrome -->
-    <TabsRoot as-child :model-value="profile.active" activation-mode="manual" @update:model-value="activate"><nav class="tabs">
+    <TabsRoot as-child :model-value="profile.active ?? undefined" activation-mode="manual" @update:model-value="activate"><nav class="tabs">
       <RightClickMenu :items="tabMenu"><TabsList as-child :loop="false"><div ref="strip" class="strip" @wheel="(e) => { if (!e.deltaX) strip!.scrollLeft += e.deltaY; }">
         <TabsTrigger v-for="t in profile.tabs" :key="t.id" :value="t.id" as-child>
           <div class="tab" :class="{ active: t.id === profile.active, opening: opening.has(t.id) }" :data-tab="t.id" :title="t.url" @animationend="grown(t.id)">

@@ -15,9 +15,9 @@ import type { Shell } from './shell.ts';
 import type { Project } from './projects.ts';
 import type { Task } from './tasks.ts';
 import type { Profile, Bounds } from './profiles.ts';
+import type * as Sent from '../renderer/types.ts'; // what the window gets: its one definition
+type Question = Sent.Question;
 
-// A question in the window's dialog (ask): the button that does it (ok), maybe a second way (other), and Cancel.
-interface Question { message: string; detail?: string; ok?: string; other?: string; danger?: boolean }
 // Where a window was ({ bounds, maximized }), or where a new one goes: next to a window (near), under a point (at).
 interface Place { bounds?: Rectangle | null; maximized?: boolean; near?: Electron.BrowserWindow; at?: Point }
 type Shade = 'dark' | 'light';
@@ -131,7 +131,7 @@ class AppWindow {
 
   // The projects (store.ts), those open in its tabs in order, each with what its agents do, the one shown, those
   // open in another window, and the other windows (to move a project to: their id and their projects' names).
-  info() {
+  info(): Sent.ProjectsInfo {
     const { shell } = this;
     const others = shell.windows.filter((w) => w !== this && !w.win.isDestroyed());
     return { current: this.current?.id ?? null, projects: shell.projects(),
@@ -155,8 +155,8 @@ class AppWindow {
     if (!task || this.switching) return;
     this.send('terminals', task.terminalsInfo()); // before the state, which builds the grid with their panels
     this.send('state', [...task.profiles.values()].map((p) => p.info()));
-    this.send('closed-profiles', [...task.closed.values()].map(({ cfg, urls }) =>
-      ({ key: cfg.folder, id: cfg.id, name: cfg.name, avatar: cfg.avatar, description: cfg.description, tabs: urls.length })));
+    this.send('closed-profiles', [...task.closed.values()].map(({ cfg, urls }): Sent.ClosedProfile =>
+      ({ key: cfg.folder, id: cfg.id, name: cfg.name, avatar: cfg.avatar, description: cfg.description ?? '', tabs: urls.length })));
     task.list.saveTabs();
   }
   scheduleState() { clearTimeout(this.stateTimer); this.stateTimer = setTimeout(() => this.pushState(), 30); }
@@ -349,5 +349,5 @@ function onScreen(b: Rectangle) {
   return screen.getAllDisplays().some(({ workArea: a }) => b.x < a.x + a.width && b.x + b.width > a.x && b.y < a.y + a.height && b.y + b.height > a.y);
 }
 
-export type { Question, Place };
+export type { Place };
 export { AppWindow, COLORS };

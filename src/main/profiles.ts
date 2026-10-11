@@ -11,13 +11,14 @@ import fs from 'fs';
 import path from 'path';
 import { applyToSession, applyToWebContents } from './mimic-chrome.ts';
 import type { Identity } from './mimic-chrome.ts';
+import type * as Sent from '../renderer/types.ts'; // what the window gets: its one definition
 import { ensureTarget } from './cdp-proxy.ts';
 // Taken from the module, not imported by name: unit tests load this in plain Node, where 'electron' is only a path
 // (docs/testing.md, Two layers).
 const { session, WebContentsView } = electron;
 
 // A page's alert or confirm, shown in its pane (_dialog).
-interface Dialog { id: number; type: string; message: string; from: string; answer: (ok: boolean, text: string) => void; picture: string | null }
+interface Dialog { id: number; type: 'alert' | 'confirm'; message: string; from: string; answer: (ok: boolean, text: string) => void; picture: string | null }
 interface Tab {
   id: string; view: View; wc: WebContents; title: string; url: string; favicon: string; loading: boolean;
   canBack?: boolean; canFwd?: boolean;
@@ -58,7 +59,7 @@ function toUrl(u: string) {
 const CLOSED_KEPT = 10; // closed tabs' addresses kept to open again
 let dialogs = 0; // pages' dialogs, numbered: the human's answer goes to the one they saw
 // What Electron gives a page's dialog (its internal -run-dialog event).
-interface DialogInfo { dialogType: string; messageText: string; frame: { url: string; parent: unknown } }
+interface DialogInfo { dialogType: 'alert' | 'confirm'; messageText: string; frame: { url: string; parent: unknown } }
 const PAGE_RADIUS = 8; // a little less than the island's corners, which the page reaches (the renderer's ProfilePane.vue, .content)
 
 class Profile extends EventEmitter {
@@ -364,7 +365,7 @@ class Profile extends EventEmitter {
     this.emit('zoom'); this.emit('changed');
   }
 
-  info() {
+  info(): Sent.Profile {
     // key: stable across renames (the folder), for the UI to keep the same pane.
     return { key: this.folder, id: this.id, name: this.name, avatar: this.avatar, description: this.description, login: this.login, hasPassword: this.hasPassword, active: this.active,
       signinMode: this.signinMode,

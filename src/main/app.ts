@@ -36,6 +36,7 @@ import type { Task } from './tasks.ts';
 import type { Pty } from './terminal.ts';
 import type { GitError } from './worktrees.ts';
 import type { Place } from './window.ts';
+import type * as Sent from '../renderer/types.ts'; // what the window gets: its one definition
 import type { Result } from './result.ts';
 
 // What start takes (below).
@@ -545,7 +546,7 @@ function start(options: Options = {}) {
   // A project's configuration in the projects' manager (ProjectEditor.vue): its name, color, icon, agents,
   // repositories, profiles and local addresses; its folder is shown, not changed (its tasks' copies are made from it).
   // Open or not.
-  ipcMain.handle('project:settings-get', (_e, { id }: { id: string }) => {
+  ipcMain.handle('project:settings-get', (_e, { id }: { id: string }): Promise<Sent.ProjectSettings> | { error: string } => {
     const p = store.projects().find((x) => x.id === id);
     return p ? reposInfo(p).then((r) => ({ id, name: p.name, folder: p.folder, color: p.color, icon: p.icon || 'logo', projectAgents: agentsInfo(shell, p), local: p.local || [],
       favicon: faviconOf(p.folder), ...r, ...profilesOf(id), ...choices() })) : { error: `no project ${id}` };
@@ -601,20 +602,20 @@ function start(options: Options = {}) {
   ipcMain.handle('project:agent-default', (_e, { id, agent }: { id: string; agent: string }) => defaultAgent(shell, id, agent));
   ipcMain.handle('project:agent-remove', (_e, { id, agent }: { id: string; agent: string }) => removeAgent(shell, id, agent));
   // The accounts (Settings → Agents), each with the projects it is in; clis: the agents an account can be made of.
-  const accountsInfo = () => {
+  const accountsInfo = (): Sent.AccountsInfo => {
     const names = new Map(store.projects().map((p) => [p.id, p.name]));
-    return { accounts: shell.accounts.all().filter((a) => !a.own).map(({ id, agent, name, email, projects }) => ({ id, agent: agent.id, name, email,
-      projects: projects!.map((p) => names.get(p)).filter(Boolean) })),
+    return { accounts: shell.accounts.all().filter((a) => !a.own).map(({ id, agent, name, email, projects }) => ({ id, agent: agent.id, name, email: email ?? null,
+      projects: projects!.map((p) => names.get(p)).filter((n) => n !== undefined) })),
     clis: shell.accounts.all().filter((a) => a.own && a.agent.config?.login).map((a) => a.id) };
   };
   ipcMain.handle('accounts:list', () => accountsInfo());
   // Settings → Profiles (profile-store.ts): every profile, each with the projects it is in; who one is changed (checked
   // in the store), then every loaded task shows it; made in no project; its master to sign in to; deleted after a
   // question (projects.ts, deleteProfile). Each answers with the list as it is then, or { error }.
-  const profilesInfo = () => {
+  const profilesInfo = (): { profiles: Sent.SettingsProfile[] } => {
     const names = new Map(store.projects().map((p) => [p.id, p.name]));
     return { profiles: shell.profileStore.all().map((g) => ({ id: g.id, name: g.name, avatar: g.avatar, description: g.description || '',
-      login: g.login?.user || '', hasPassword: !!g.login?.secret, projects: g.projects.map((p) => names.get(p)).filter(Boolean) })) };
+      login: g.login?.user || '', hasPassword: !!g.login?.secret, projects: g.projects.map((p) => names.get(p)).filter((n) => n !== undefined) })) };
   };
   const profileChange = (r: Result<{ id: string }>) => { if (refused(r)) return r; shell.profilesChanged(); return { ...profilesInfo(), id: r.id }; };
   ipcMain.handle('profiles:list', () => profilesInfo());

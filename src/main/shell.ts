@@ -1,7 +1,7 @@
 // The app (shell: app.ts) every module of the main process is given, as a type. Types only: nothing here runs.
 import type { EventEmitter } from 'events';
 import type { BrowserWindow, Point, WebContents } from 'electron';
-import type { Store, ProjectEntry } from './store.ts';
+import type { Store } from './store.ts';
 import type { ProfileStore } from './profile-store.ts';
 import type { CookieSync } from './cookie-sync.ts';
 import type { SessionCookies } from './session-cookies.ts';
@@ -12,7 +12,8 @@ import type { Identity } from './mimic-chrome.ts';
 import type { Profile } from './profiles.ts';
 import type { Project } from './projects.ts';
 import type { Task } from './tasks.ts';
-import type { AppWindow, Question } from './window.ts';
+import type { AppWindow } from './window.ts';
+import type { Question, ProjectEntry as SentProject } from '../renderer/types.ts';
 import type { Master } from './master.ts';
 import type { Pty } from './terminal.ts';
 import type { signinPages } from './signin-pages.ts';
@@ -40,7 +41,7 @@ interface Shell {
   taskByKey(key: string): Task | null;
   windowOf(sender: WebContents): AppWindow | null;
   taskChanged(task: Task, now?: boolean, agentState?: boolean): void;
-  projects(): (ProjectEntry & { favicon?: string; tasks: unknown[] })[];
+  projects(): SentProject[];
   askWhich(q: Question, w?: AppWindow | null): Promise<string | null>;
   ask(q: Question, w?: AppWindow | null): Promise<boolean>;
   saveWindows(): void;

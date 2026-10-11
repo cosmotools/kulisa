@@ -73,5 +73,5 @@ kulisa.on<{ id: string; n?: number; profile?: string; tab?: string; task: string
   const p = profile ? store.profiles.find((x) => x.id === profile) : undefined;
   if (profile && (!p || !paneOfProfile(profile))) return;
   if (page) lastPane = profile!;
-  run[id]({ n, page, p, tab: tab || p?.active });
+  run[id]({ n, page, p, tab: tab || p?.active || undefined });
 });

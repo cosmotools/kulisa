@@ -15,7 +15,8 @@ import type { Shell } from './shell.ts';
 import type { ProjectEntry, TaskEntry, Copy, Store } from './store.ts';
 import type { StoredProfile } from './profile-store.ts';
 import type { ProfileConfig } from './profiles.ts';
-import type { AppWindow, Question } from './window.ts';
+import type { AppWindow } from './window.ts';
+import type { Question, ProjectRepo } from '../renderer/types.ts';
 import type { GitError } from './worktrees.ts';
 
 type Git = 'ok' | 'no-commit' | 'none';
@@ -371,8 +372,8 @@ async function deleteAccount(shell: Shell, agent: string, w: AppWindow | null): 
 
 // What the projects' manager shows of them: each with whether it is in git, and the former folder while it is there:
 // one tasks worked in before a repository came, not one that holds the project's repositories (New Project's clones).
-async function reposInfo(p: ProjectEntry) {
-  const repos = await Promise.all(reposOf(p).map(async (folder) => ({ folder, git: await gitOf(folder) })));
+async function reposInfo(p: ProjectEntry): Promise<{ repos: ProjectRepo[]; former: string | null }> {
+  const repos = await Promise.all(reposOf(p).map(async (folder): Promise<ProjectRepo> => ({ folder, git: await gitOf(folder) })));
   const holds = p.repos?.some((r) => { const rel = path.relative(p.folder, r); return rel && !rel.startsWith('..') && !path.isAbsolute(rel); });
   const former = p.repos?.length && !p.repos.includes(p.folder) && !holds && fs.existsSync(p.folder) ? p.folder : null;
   return { repos, former };

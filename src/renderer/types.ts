@@ -1,15 +1,16 @@
-// What the main process sends the window (window.ts, profiles.ts, tasks.ts), as the window uses it.
+// What the main process sends the window (window.ts, profiles.ts, tasks.ts), as the window uses it: the one
+// definition, which the main process's answers are typed with too.
 
 // A page's alert or confirm (profiles.ts, Profile._dialog), shown in its pane.
 interface PageDialog { id: number; type: 'alert' | 'confirm'; message: string; from: string; picture: string | null }
 interface Tab {
-  id: string; title: string; url: string; favicon: string | null; loading: boolean; canBack: boolean; canFwd: boolean;
-  zoom: number; dialog: PageDialog | null;
+  id: string; title: string; url: string; favicon: string | null; loading: boolean; canBack?: boolean; canFwd?: boolean;
+  zoom: number; dialog?: PageDialog | null;
 }
 // An open profile of the shown task (Profile.info): key is its folder, stable across renames.
 export interface Profile {
   key: string; id: string; name: string; avatar: string; description: string | null; login: string | null;
-  hasPassword: boolean; active: string; signinMode: boolean; tabs: Tab[];
+  hasPassword: boolean; active: string | null; signinMode: boolean; tabs: Tab[];
 }
 // A closed one (window.ts, pushState): tabs is how many it had.
 export interface ClosedProfile { key: string; id: string; name: string; avatar: string; description: string | null; tabs: number }
@@ -24,7 +25,7 @@ export interface TaskInfo {
 }
 export interface ProjectEntry { id: string; name: string; folder: string; color: string; icon?: string; favicon?: string; tasks: ProjectTask[] }
 // A task of a project, open or not (app.ts, shell.projects): the bar's + lists the closed ones (NewTask.vue).
-export interface ProjectTask { n: number; name: string; branch?: string; closed: boolean; merged: boolean }
+export interface ProjectTask { n: number; name: string; branch?: string | null; closed: boolean; merged: boolean }
 // The window's projects (AppWindow.info): every project, those open in it in the bar's order, the one shown.
 export interface ProjectsInfo {
   current: string | null;
@@ -42,8 +43,8 @@ export interface Account { id: string; agent: string; name: string; email: strin
 export interface AccountsInfo { accounts: Account[]; clis: string[] }
 // What a new account's sign-in answers (AccountSignIn.vue): the project's agents, made in one; else every account.
 export interface SignedIn extends Partial<AccountsInfo> { agents?: { id: string; name: string }[] }
-export interface ProjectChoices { colors: string[]; icons: string[]; agents: { id: string; name: string }[]; clis: { id: string; name: string }[]; favicon?: string; color?: string; icon?: string }
-export interface ProjectRepo { folder: string; git: 'ok' | 'none' | 'nocommit' }
+export interface ProjectChoices { colors: string[]; icons: string[]; agents: { id: string; name: string }[]; clis: { id: string; name: string }[]; favicon?: string | null; color?: string; icon?: string }
+export interface ProjectRepo { folder: string; git: 'ok' | 'none' | 'no-commit' }
 export interface ProjectProfile { id: string; name: string; avatar: string; description?: string; also: string[] }
 export interface ProjectSettings extends ProjectChoices {
   error?: string; name: string; folder: string; local?: string[]; repos: ProjectRepo[]; former?: string | null;
@@ -53,8 +54,3 @@ export interface ProjectSettings extends ProjectChoices {
 export interface Shortcut { id: string; group: string; label: string; keys: string[] }
 // A question from the main process (shell.ask) or the window.
 export interface Question { message: string; detail?: string; ok?: string; other?: string; danger?: boolean }
-
-// Templates reach the bridge as kulisa too (main.ts, master.ts: app.config.globalProperties).
-declare module 'vue' {
-  interface ComponentCustomProperties { kulisa: KulisaBridge }
-}

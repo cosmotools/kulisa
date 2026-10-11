@@ -258,7 +258,7 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
             <input id="npname" v-model="name" data-name maxlength="64" spellcheck="false" @input="error = ''" @change="saveLook" @keydown.enter.prevent="saveLook">
             <PopoverRoot :open="lookOpen" @update:open="toggleLook">
               <PopoverTrigger as-child><button id="pjlook" class="select" type="button" title="Color and icon" aria-label="Color and icon">
-                <ProjectIcon :p="{ icon, favicon: choices.favicon }" /><Icon name="i-down" /></button></PopoverTrigger>
+                <ProjectIcon :p="{ icon, favicon: choices.favicon ?? undefined }" /><Icon name="i-down" /></button></PopoverTrigger>
               <PopoverPortal>
                 <PopoverContent class="menu pjlookpanel" :class="{ ready: lookReady }" align="end" :side-offset="4" :collision-padding="4"
                   :style="{ '--color': color }" @close-auto-focus="focusBack($event, lookFocused)">
@@ -271,7 +271,7 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
                   <ToggleGroupRoot id="npicons" class="choices" type="single" aria-label="Icon" :model-value="icon"
                     @update:model-value="(v) => { if (v) { icon = String(v); saveLook(); } }">
                     <ToggleGroupItem v-for="v in iconValues" :key="v" :value="v" class="icon" :data-value="v" :title="iconTitle(v)" :aria-label="iconTitle(v)"><img v-if="v === 'favicon'"
-                      :src="choices.favicon" alt=""><Icon v-else :name="projectIcon(v)" /></ToggleGroupItem>
+                      :src="choices.favicon ?? undefined" alt=""><Icon v-else :name="projectIcon(v)" /></ToggleGroupItem>
                   </ToggleGroupRoot>
                 </PopoverContent>
               </PopoverPortal>

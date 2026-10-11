@@ -21,6 +21,7 @@ import type { TaskEntry, TaskStore } from './store.ts';
 import type { Pty } from './terminal.ts';
 import type { GitError } from './worktrees.ts';
 import type { Shell, AgentChoice } from './shell.ts';
+import type * as Sent from '../renderer/types.ts'; // what the window gets: its one definition
 import { refused } from './result.ts';
 import type { Result } from './result.ts';
 
@@ -231,7 +232,7 @@ class Task {
   // runs its command again. They go when closed (×, terminal_stop) or their shell exits. by: 'human' (the panel comes
   // to the front) or 'agent' (behind the agent's terminal).
   saveTerminals() { this.store.saveTerminals([...this.terminals.values()].map(({ id, name, by }) => ({ id, name, by }))); }
-  terminalsInfo() { return [...this.terminals.values()].map(({ id, name, command, by }) => ({ id, name, command, by })); }
+  terminalsInfo(): Sent.OtherTerminal[] { return [...this.terminals.values()].map(({ id, name, command, by }) => ({ id, name, command, by })); }
   // A terminal by its name (as the agent knows it) or id (as the window does).
   terminal(which: number | string): TaskTerminal | { error: string } {
     const t = typeof which === 'number' ? this.terminals.get(which)
@@ -399,7 +400,7 @@ class Task {
   // A profile its project let go (projects.ts, dropProfile): its copy gone; a task not loaded loses it from its file.
   async dropProfile(folder: string) { return this.loaded ? this.list.drop(folder) : this.store.dropProfile(folder); }
 
-  info() {
+  info(): Sent.TaskInfo {
     const { n, key, name, tabState: state, folder, offset } = this;
     return { n, key, name, state, folder, offset, branch: this.entry.branch || null, closed: !!this.entry.closed, merged: !!this.entry.merged, agent: this.agent?.name || null };
   }
