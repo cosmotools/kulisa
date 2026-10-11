@@ -22,7 +22,7 @@ watch(open, (o) => {
   <AlertDialogRoot v-model:open="open">
     <AlertDialogPortal>
       <AlertDialogOverlay class="backdrop" />
-      <AlertDialogContent id="ask" class="dialog">
+      <AlertDialogContent id="ask" class="dialog question">
         <header><AlertDialogTitle>{{ q?.message }}</AlertDialogTitle></header>
         <div class="body"><AlertDialogDescription class="detail">{{ q?.detail }}</AlertDialogDescription></div>
         <footer>

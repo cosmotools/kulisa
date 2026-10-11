@@ -204,10 +204,10 @@ onBeforeUnmount(() => { observer.disconnect(); if (panes.get(key) === handle) pa
   &:has(.pagedialog) { background: linear-gradient(var(--backdrop), var(--backdrop)), var(--picture, none) 0 0 / 100% 100%, var(--page); }
   /* As Chrome's (its size, shape and blue), not Kulisa's own dialogs: the page's */
   .pagedialog { position: absolute; inset: 0 0 auto; margin-inline: auto; width: 450px; border-radius: calc(var(--island-radius) + 2px);
-    header { padding: var(--pad) var(--pad) 0; }
+    header { padding: var(--page-pad) var(--page-pad) 0; }
     h2 { font-size: 1.15em; font-weight: 500; }
-    .body { padding-block: var(--inset) 0; }
-    footer { border-top: none; padding-block: var(--pad); }
+    .body { padding: var(--inset) var(--page-pad) 0; }
+    footer { border-top: none; padding: var(--page-pad); }
     footer button { height: calc(var(--control) + 8px); border-radius: calc(var(--control) / 2 + 4px); }
     .primary { background: var(--page-button); border-color: var(--page-button); color: var(--on-page-button);
       &:hover { background: color-mix(in srgb, var(--page-button) 85%, white); } }

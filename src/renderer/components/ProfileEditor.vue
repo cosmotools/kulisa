@@ -45,11 +45,11 @@ function aboutKey(e: KeyboardEvent) {
       Sign in by hand in its pane; the agent in the terminal then uses it.</p>
     <div id="plist" ref="list"><ProfileRow v-for="p in rows" :key="p.key" :p /></div>
     <FormRoot id="padd" @form-submit="add">
-      <h3>New profile</h3>
-      <div class="field"><span>Picture</span><Avatars :current="newPicture" @choose="picked = $event" /></div>
-      <FieldRoot class="field"><FieldLabel>Name</FieldLabel><FieldControl id="newProfile" ref="nameField" data-name maxlength="64"
+      <h3 class="titled">New Profile</h3>
+      <div class="field"><span>Picture:</span><Avatars :current="newPicture" @choose="picked = $event" /></div>
+      <FieldRoot class="field"><FieldLabel>Name:</FieldLabel><FieldControl id="newProfile" ref="nameField" data-name maxlength="64"
         placeholder="e.g. ann@shop.com or ann.admin" spellcheck="false" /></FieldRoot>
-      <FieldRoot class="field"><FieldLabel>About</FieldLabel><FieldControl id="newAbout" ref="aboutField" as="textarea" rows="2" maxlength="500"
+      <FieldRoot class="field"><FieldLabel>About:</FieldLabel><FieldControl id="newAbout" ref="aboutField" as="textarea" rows="2" maxlength="500"
         placeholder="e.g. seller in the Acme shop; can approve refunds" @keydown="aboutKey" />
         <FieldDescription class="hint">The agent reads this to choose the right profile for a task: who this is in your app, its role,
           what it can do. You can skip it: the agent will ask you when it needs to know, and save your answer here.</FieldDescription></FieldRoot>
@@ -62,5 +62,5 @@ function aboutKey(e: KeyboardEvent) {
 </template>
 
 <style>
-#padd h3 { margin: calc(var(--gap) * 2) 0 0; font-size: 1em; color: var(--text-dim); }
+#padd .titled { margin-top: var(--pad); }
 </style>

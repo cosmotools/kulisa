@@ -7,6 +7,7 @@ import TaskBar from './TaskBar.vue';
 import Empty from './Empty.vue';
 import ProfileEditor from './ProfileEditor.vue';
 import ProjectEditor from './ProjectEditor.vue';
+import NewProject from './NewProject.vue';
 import TaskRename from './TaskRename.vue';
 import AgentPicker from './AgentPicker.vue';
 import Shortcuts from './Shortcuts.vue';
@@ -22,6 +23,7 @@ import PointMenu from './menu/PointMenu.vue';
   <TaskBar />
   <ProfileEditor />
   <ProjectEditor />
+  <NewProject />
   <TaskRename />
   <AgentPicker />
   <Shortcuts />

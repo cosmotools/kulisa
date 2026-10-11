@@ -19,7 +19,7 @@ registerDialog('shortcuts', { showShortcuts() { modal.value!.open(); } });
 <template>
   <Modal id="shortcuts" ref="modal" title="Keyboard Shortcuts">
     <section v-for="[group, title, hint] in GROUPS" :key="group" class="keygroup">
-      <h3>{{ title }}</h3><p class="hint">{{ hint }}</p>
+      <h3 class="titled">{{ title }}</h3><p class="hint">{{ hint }}</p>
       <dl>
         <template v-for="s in shortcuts.filter((x) => x.group === group)" :key="s.id">
           <dt>{{ s.label }}</dt><dd><kbd v-for="k in s.keys" :key="k">{{ k }}</kbd></dd>
@@ -33,8 +33,7 @@ registerDialog('shortcuts', { showShortcuts() { modal.value!.open(); } });
 <style>
 #shortcuts {
   .keygroup + .keygroup { margin-top: calc(var(--gap) * 2); }
-  h3 { margin: 0; font-size: 1em; color: var(--text-dim); }
-  .hint { margin: 2px 0 var(--inset); }
+  .hint { margin: 4px 0 var(--gap); }
   dl { display: grid; grid-template-columns: 1fr auto; margin: 0; }
   :is(dt, dd) { display: flex; align-items: center; min-height: var(--row); border-bottom: 1px solid var(--island-hi); }
   dd { justify-content: end; gap: 6px; margin: 0; }

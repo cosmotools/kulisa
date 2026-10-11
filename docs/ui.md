@@ -18,6 +18,25 @@ the look below:
 | `src/renderer/index.html`, `main.ts`; `master.html`, `master.ts` | the window's page and a master's window's: the theme before the first paint, then the app |
 | `src/renderer/public/avatars/` | the profiles' pictures, copied as they are |
 
+## Desktop, not a web page
+
+Kulisa is a desktop app, an IDE: its window looks like one, JetBrains' Settings its model (the author, 2026-10-11:
+the dialogs, with big titles, framed cards, a paragraph each, pills and rows that showed their buttons under the
+pointer, read as a web page's and were hard to read). So:
+
+- **Two text sizes** (`--font`, `--font-small` for group titles and a dialog's title), two weights; nothing bigger.
+  Weight and color carry what matters, not size.
+- **Dense**: rows and controls `--control` high (`--row` the same), toolbar buttons 24 px, corners `--radius` (4 px)
+  on controls and `--island-radius` on windows and dialogs.
+- **Forms are "Label: field"**, the labels in one column (`.field`); a comment under a field only when needed.
+- **Groups under a titled line** (`.titled`), not framed cards: no frame in a frame.
+- **A list has a toolbar over it** (`.list`: + adds, − removes the selected row, ★ makes it the default), and
+  its actions act on the selected row (also Delete, and its right-click). A row shows facts: what it is, its path or
+  email muted after it, a state at its end in words ("default", "no commit yet"); no buttons that show under the
+  pointer, no pills.
+- **A dialog asks one thing and ends with its buttons** (`Modal.vue`); what is browsed (Settings) is a tree on the
+  left and a page on the right, under its path.
+
 ## Tokens (`tokens.css`)
 
 - Colors for both themes ([window.md](window.md), Theme): each is `light-dark(light, dark)`, so a new color gets
@@ -27,12 +46,15 @@ the look below:
   (a lit row, a divider), `--toolbar` (a pane's toolbar and active tab), `--field`, `--button`, `--line` (borders);
   text `--text`, `--text-strong`, `--text-dim`, `--text-muted`; `--accent` (main button, focus), `--danger`,
   `--error`, `--note` (the agent's caption), `--done`; `--on-accent` (text on `--accent` and `--danger`),
-  `--selection` (the terminal's); `--page-button`, `--on-page-button` (Chrome's blue, a page's dialog: `.pagedialog`); `--page`, `--backdrop`, `--shadow`; `--hover` (under the
+  `--selection` (the terminal's); `--chosen`, `--chosen-idle` (a list's selected row, while the list has the keyboard
+  and when it has not: JetBrains'); `--page-button`, `--on-page-button`, `--page-pad` (Chrome's blue and room, a page's
+  dialog: `.pagedialog`); `--page`, `--backdrop`, `--shadow`; `--hover` (under the
   pointer, on any background); `--project` (the shown group's project's color, set by `lib/store.ts`).
-- Sizes: `--font` (all text, the terminal too), `--control` (the height of buttons and fields), `--radius`,
+- Sizes: `--font` (all text, the terminal too), `--font-small` (a group's title, a dialog's title), `--control` (the
+  height of buttons and fields), `--radius`,
   `--tab-radius`, `--island-radius`, `--gap` (the space between and inside islands; also dockview's `gap` in
   `Grid.vue`); room as Chrome's menus and dialogs have it: `--row` (a row of a menu or a list), `--inset` (inside
-  a row, between its icon and text, between a dialog's fields), `--pad` (inside a dialog along its edges), `--label` (a dialog's labels' column, `.field`, and what lines up
+  a row, between its icon and text, between a dialog's fields), `--pad` (inside a dialog along its edges), `--label` (a form's labels' column, "Name:", `.field`, and what lines up
   with its fields). Things
   set close together were the author's complaint (2026-10-07): space comes from these, not from new numbers. The
   Kulisa zoom scales them all.
@@ -65,6 +87,8 @@ Each icon is drawn once, as a `<symbol id="i-…">` in the sprite (`Sprite.vue`,
 | `i-p-cart`, `i-p-briefcase`, `i-p-globe`, `i-p-flask`, `i-p-rocket`, `i-p-code`, `i-p-building`, `i-p-people`, `i-p-book`, `i-p-heart` | a project's icon to choose (Lucide's shopping-cart, briefcase, globe, flask-conical, rocket, code, building-2, users-round, book-open-text, heart), drawn in its color (`projectIcon`, `lib/common.ts`) |
 | `i-working`, `i-waiting`, `i-done` | an agent's state on a tab (`.state`); `i-done` also checks the chosen row of a menu or a select, and a checkbox |
 | `i-down` | a select's button (`SelectBox.vue`) |
+| `i-minus`, `i-star` | a list's toolbar (`.list`, after its `i-plus`): remove the selected row, make it the default (Lucide's star) |
+| `i-folder-plus`, `i-folder`, `i-git` | New Project's code: New Folder, Folders on Disk, Clone from URL (Lucide's folder-plus, folder, git-branch) |
 | `i-agent-claude`, `i-agent-codex`, `i-agent-shell` | an agent's row and its accounts' (`AgentList.vue`, `i-agent-<id>`, 20 px): the makers' own marks in their own colors (claude.ai's and developers.openai.com's favicons; not under the GPL: `docs/LICENSING.md`), and Lucide's square-terminal for the terminal only |
 
 An icon is 16 px; × and + are 14 px, as in Chrome (`.icon`), and so is an agent's state. ☰'s and the agent's states are Lucide's (lucide.dev, ISC), drawn on 24 × 24 with
@@ -81,9 +105,10 @@ every other `<svg>` uses the sprite.
 - `<button>`: a framed button with text, `--control` high. `.primary` (blue, the main action of a dialog, last in its
   footer), `.danger` (red, when it deletes). Lit under the pointer and darker while pressed, so it answers the hand;
   a button of its own kind (`.icon`, a tab) keeps its own (the rule is as weak as `button`'s). Disabled: faded.
-- `.icon`: an icon alone, round, no frame, lit under the pointer (`--hover`); always with `aria-label` (or `title`).
+- `.icon`: an icon alone, square with `--radius` corners as a toolbar's, no frame, lit under the pointer (`--hover`);
+  always with `aria-label` (or `title`).
   - `.quiet`: muted until pointed at, for × and removing.
-  - `.small`: 22 px, inside a row (a tab's ×, a task's ×).
+  - `.small`: 24 px, inside a row or a list's toolbar (a tab's ×, a task's ×, `.list`'s + − ★).
   - `--icon`: the icon's size, when a place needs another (☰ is 18 px).
   - A `<span class="icon">` where a button cannot be (a tab's ×, inside the tab).
 - In a menu or the title bar, a button is still one of these.
@@ -96,11 +121,17 @@ every other `<svg>` uses the sprite.
   (a project's color, `--color`), `ProjectIcon.vue` (a project's icon in its color: its favicon, one of Kulisa's set or
   the curtain; `.picon`, also on its label in the tasks' bar) or `.avatar` (a profile's picture), `.text` with `.label` and a `small` line under it, a `kbd` key at the end. Lit under the
   pointer and on keyboard focus.
-- `.removable`: a row with a × (`button.remove.icon.quiet`) at its end, shown on hover or focus; the row is lit as
-  one. A project's repository, agent and profile in the projects' manager. `.action` before the ×: a small text
-  button shown with it (Make Default).
-- `.badge`: a word marking a row, framed and small, at its end (Default).
-- `.item[aria-selected="true"]`: the chosen row of a list (Reka's Listbox), lit (a project in the projects' manager).
+- `.removable`: a menu's row with a × (`button.remove.icon.quiet`) at its end, shown on hover or focus; the row is
+  lit as one (removing a recent project). Not in a dialog's lists: those are `.list`.
+- `.list`: a list a dialog edits (a project's Code, Agents and Profiles; New Project's folders; an agent's accounts),
+  or chooses from (Settings → Agents' agents, no toolbar), as JetBrains': framed,
+  `.tools` over it (`.icon.small` buttons: + adds, often a `ButtonMenu`; − removes the selected row; ★ makes it the
+  default), its rows Reka's Listbox items (`.item` on one line: `.label`, its facts in a `small` after it, muted; a
+  state at the end, `kbd`: "default" (`.default`), `.warn` in `--note` when it needs the human), the selected one in
+  `--chosen` (`--chosen-idle` when the list has not the keyboard). Delete removes the selected one; a
+  `RightClickMenu` around the Listbox has the row's actions (it selects the row). `.empty` in it when it has none.
+- `.titled`: a group's title, its name and a line to the end (JetBrains' titled separator), over a `.list` or fields.
+- `.item[aria-selected="true"]`: the chosen row of a list (Reka's Listbox, Tree), lit.
 - `.dot`: a 10 px circle in `--color`, a project's.
 
 ### Controls
@@ -108,17 +139,16 @@ every other `<svg>` uses the sprite.
 The window's controls are Reka UI's, in this look (CLAUDE.md, Window UI):
 
 - `.radio`: a radio (Reka's `RadioGroupItem`, its `RadioGroupIndicator` the dot), in a `RadioGroupRoot`: at a row's
-  start (the row a `<label>`), exactly one of a list: the agent to start (`AgentList.vue`), a new project's code (New folder, Folder on disk,
-  Clone from URL: in a row, `ProjectEditor.vue`). The arrows move between
+  start (the row a `<label>`), exactly one of a list: the agent to start (`AgentList.vue`). The arrows move between
   them. Not for a list's default, whose rows are what the list is about: a radio there read as choosing the row (the
-  projects' manager until 2026-10-11); that is `.badge` and Make Default.
+  projects' manager until 2026-10-11); that is "default" at the row's end and ★. Not for a few big choices either
+  (New Project's code: a list on the dialog's left, Reka's Listbox, as JetBrains' New Project).
 - `.checkbox`: a checkbox (Reka's `CheckboxRoot`, its `CheckboxIndicator` the check, `i-done`): Create Git repository.
 - `SelectBox.vue`: one of a few (Reka's `Select`): a button (`.select`) with the chosen one and `i-down`; its list a
   menu's (`.menu`, rows `.item`, the chosen one checked). `v-model`, `options: [{ value, label }]`; `''` is a value too.
 - `.choices`: icon buttons (`.icon`) to choose one of, the chosen one ringed in `--accent`: a profile's pictures and
   a project's icons (Reka's `ToggleGroup`, one always chosen), a project's colors (its `ColorSwatchPicker`, a `.dot`
   each: the color's name for screen readers).
-- `.titlefield`: an `<input>` that reads as a title until pointed at or edited (a project's name at its page's top).
 - `.editable`: a value edited in place (Reka's `Editable`: a profile's name, who it is, its test login): text in a
   field's box (`.preview`), a click or Tab edits it; Enter or leaving saves, Shift+Enter is a new line where it has
   lines, Esc puts it back (and leaves the dialog open).
@@ -155,25 +185,26 @@ Every dialog is `Modal.vue`, Reka UI's Dialog (`reka-ui`) with the same parts:
 </Modal>
 ```
 
-- `header`: the title, and × when it may be closed (`closable`; Esc and a click outside close it too; `stay`: not
-  while something runs, an agent's install). Over a dimmed backdrop (`.backdrop`), in the middle of the window
-  (`.dialog`).
-- `.body`: `.hint` (what it is about, muted), `.field` (a label and its input, the labels in one column; `.pick` in
+- `header`: a title strip, as a window's: the title small in the middle (`--font-small`), × at its end when it may be
+  closed (`closable`; Esc and a click outside close it too; `stay`: not while something runs, an agent's install).
+  Over a dimmed backdrop (`.backdrop`), in the middle of the window (`.dialog`; its corners clip what is in it, a side
+  panel's color). A question (`.dialog.question`, `Ask.vue`) has no strip: its question is the first words, bold.
+- `.body`: `.hint` (what it is about, muted), `.field` (a label, "Name:", and its input, the labels in one column; `.pick` in
   it: the input with its button, Location and Browse…), `.row` (a line of controls: a field with its buttons,
   a URL to clone, a new profile's name), `.check` (a `.checkbox` in the fields' column), `.error` (hidden while empty; its text
   selectable, to copy and search for, as a question's detail is); a field's
   `.hint` under it (its `FieldDescription`).
 - `footer`: the buttons at the right end, the main one last; `.start` puts a button at the left end. A button that
-  only closes is Reka's `DialogClose`. A dialog whose parts are saved as they change (a project's page in the
-  projects' manager) has none: × closes it.
-- `.section` in the body: one part of what it edits, under a line (a project's Code, Agents, Profiles, Local
-  addresses): `.head` (its `h4`, its + at the end: a `ButtonMenu`, the one way to add to it), its `.rows`, `.empty`
-  when it has none (where it says what the part is), a `.row` for what is being added in place. Not framed cards: a
-  frame in a dialog in a split was a frame in a frame in a frame (until 2026-10-11).
+  only closes is Reka's `DialogClose`. A dialog whose parts are saved as they change (Settings) has none: × closes it.
+- A part of what it edits: a `.titled` line, then its `.list` or fields, a `.row` under the list for what is being
+  added in place (a URL to clone, a new profile's name). Not framed cards or sections with a + in their heading
+  (until 2026-10-11: a frame in a dialog in a split was a frame in a frame in a frame, and it read as a web page).
 - `.empty`: a list's line when it has none ("No accounts yet."), dim.
-- `.dialogtabs`: tabs at the top of a dialog's body (Reka's `TabsList`, `TabsTrigger`s): words, the chosen one
-  underlined in `--accent`; chosen on the press, as every tab. Settings' Projects and Agents (`ProjectEditor.vue`).
-  Reka gives triggers and contents ids of their own: find them by `data-tab` and a class.
+- A dialog that is browsed (Settings, `ProjectEditor.vue`) is a tree on the left (Reka's `Tree`, `#pjlist`: its rows
+  `.item`, `data-project` or `data-tab`; a parent opens and closes, it is not chosen) and the chosen page on the right
+  under its path (`.crumbs`: "Projects › shop", its actions at the end). A page of things with details (Settings →
+  Agents) is a `.list` on its left and the chosen one's fields on its right. A dialog of a few big choices and a form (New
+  Project) has the choices as a list on its left (Reka's Listbox), the form on its right.
 - With `form` the content and the buttons are a form: Enter submits.
 - Its ref: `await open()` (shown, the keyboard in its `[autofocus]` field or on it; the profiles' pages hidden while it
   is open: `covered('hide')`, `lib/views.ts`), `close()`, `isOpen()`. Its content is in the page only while it is open

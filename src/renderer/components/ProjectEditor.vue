@@ -1,30 +1,30 @@
 <script setup lang="ts">
-// Settings: its Projects tab (the projects' manager, a project's page) and its Agents tab. docs/tasks.md, Projects; docs/ui.md.
+// Settings, as JetBrains' (docs/tasks.md, Projects; docs/ui.md): a tree on the left (Projects and each project, Agents),
+// the chosen one's page on the right under its path. A project's page is saved as it changes (no OK, no Cancel).
+// New Project is a dialog of its own (NewProject.vue).
 import { computed, nextTick, ref, watch } from 'vue';
-import { TabsContent, TabsList, TabsRoot, TabsTrigger } from 'reka-ui';
-import { CheckboxIndicator, CheckboxRoot, ColorSwatchPickerItem, ColorSwatchPickerItemSwatch, ColorSwatchPickerRoot, DialogClose, FieldControl,
-  FieldLabel, FieldRoot, ListboxContent, ListboxItem, ListboxRoot, PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger,
-  RadioGroupIndicator, RadioGroupItem, RadioGroupRoot, ToggleGroupItem, ToggleGroupRoot } from 'reka-ui';
+import { ColorSwatchPickerItem, ColorSwatchPickerItemSwatch, ColorSwatchPickerRoot, ListboxContent, ListboxItem, ListboxRoot,
+  PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger, ToggleGroupItem, ToggleGroupRoot, TreeItem, TreeRoot } from 'reka-ui';
 import Modal from './Modal.vue';
 import Icon from './Icon.vue';
 import ButtonMenu from './menu/ButtonMenu.vue';
+import RightClickMenu from './menu/RightClickMenu.vue';
 import AccountSignIn from './AccountSignIn.vue';
 import AgentsTab from './AgentsTab.vue';
 import ProjectIcon from './ProjectIcon.vue';
 import { avatarSrc, iconTitle, projectIcon } from '../lib/common';
 import { focusAfterMenu, focusBack, type MenuItem } from '../lib/menu';
 import { covered } from '../lib/views';
-import { registerDialog } from '../lib/dialogs';
+import { dialog, registerDialog } from '../lib/dialogs';
 import { agentList } from '../lib/agents';
 import type { ProjectChoices, ProjectEntry, ProjectProfile, ProjectRepo, ProjectSettings, SignedIn } from '../types';
 
 const modal = ref<InstanceType<typeof Modal>>();
-// The tab shown; the agents' list (Settings → Agents) lives here, so an install goes on while Projects is shown, and
+// The page shown; the agents' list (Settings → Agents) lives here, so an install goes on while a project is shown, and
 // Settings stays open while it runs.
 const tab = ref<'projects' | 'agents'>('projects');
-const agentsList = agentList({ details: true, installed: (a) => `${a.name} is installed. Make an account of it below (New Account…).` });
-const nameField = ref<{ $el: HTMLInputElement }>(), newProfile = ref<HTMLInputElement>(), url = ref<HTMLInputElement>();
-const focusName = () => nameField.value?.$el.focus(); // when it is open
+const agentsList = agentList({ details: true, installed: (a) => `${a.name} is installed. Make an account of it below: + under Accounts.` });
+const newProfile = ref<HTMLInputElement>(), url = ref<HTMLInputElement>();
 const adding = ref<'' | 'clone' | 'profile'>('');
 async function startAdding(what: 'clone' | 'profile') {
   adding.value = what;
@@ -37,104 +37,50 @@ let lookFocused: Element | null = null;
 const toggleLook = (v: boolean) => { if (v) lookFocused = document.activeElement; lookOpen.value = v; };
 const projects = ref<ProjectEntry[]>([]);
 const editing = ref<string | null>(null);
-const name = ref(''), place = ref(''), sep = ref('/'), folder = ref('');
-const git = ref(true), local = ref(''), saving = ref(false), error = ref('');
+const name = ref(''), local = ref(''), error = ref('');
 const choices = ref<ProjectChoices>({ colors: [], icons: [], agents: [], clis: [] });
 const color = ref(''), icon = ref('logo');
 const repos = ref<ProjectRepo[]>([]), former = ref<string | null>(null), cloneUrl = ref(''), codeError = ref(''), cloning = ref(false);
 const mine = ref<{ id: string; name: string }[]>([]), agentError = ref('');
 const signing = ref<{ id: string; name: string } | null>(null); // New Account…: the agent it is of, while signing in
 const profiles = ref<ProjectProfile[]>([]), others = ref<ProjectProfile[]>([]), newName = ref(''), profileError = ref('');
-// The default repository and agent are the first ones: the main process keeps them in that order.
-
-const isNew = computed(() => !editing.value);
-// A new project's code, asked first (the author, 2026-10-11): a new folder, folders on the disk (nothing made), or
-// repositories cloned from URLs; several of them for a project of several (a frontend and a backend). Its name follows
-// the first folder's or repository's until the human types one.
-const from = ref<'new' | 'folder' | 'clone'>('new');
-const sources = ref<{ folder: string; state: string }[]>([]), urls = ref<string[]>([]), typedSource = ref('');
-let named = '';
-const nameOf = (s = '') => {
-  const n = [...kulisa.repoName(s)].filter((c) => kulisa.nameChar(c)).join('');
-  return n.replace(/^[^\p{L}\p{N}]+/u, '').slice(0, kulisa.nameMax);
-};
-watch([from, sources, urls], () => {
-  if (from.value === 'new' || (name.value.trim() && name.value !== named)) return;
-  name.value = named = nameOf(from.value === 'folder' ? sources.value[0]?.folder : urls.value[0]);
-}, { deep: true });
-// One more folder or URL (Enter in its field, Add, Browse…): a folder that is not there, or a project's, is refused.
-async function addSource(given?: string) {
-  const v = (given ?? typedSource.value).trim();
-  if (!v) return true;
-  error.value = '';
-  if (from.value === 'clone') { if (!urls.value.includes(v)) urls.value.push(v); typedSource.value = ''; return true; }
-  const r = await kulisa.invoke<{ folder: string; state: string; project?: string } | null>('project:folder-state', { from: 'folder', folder: v });
-  const why = !r ? `${v}: a full path, please` : ({ new: `${r.folder} is not there`, file: `${r.folder} is a file, not a folder`,
-    project: `${r.folder} is the project ${r.project}'s already` } as Record<string, string>)[r.state];
-  if (why) { error.value = why; return false; }
-  if (!sources.value.some((x) => x.folder === r!.folder)) sources.value.push({ folder: r!.folder, state: r!.state });
-  typedSource.value = '';
-  return true;
-}
-const sourceLine = (x: { state: string }) => (x.state === 'repo' ? 'git' : 'no git');
-// A new or cloned project's folder, and what it is (app.js, project:folder-state), asked again as it is typed.
-const target = computed(() => (editing.value ? folder.value : from.value === 'folder' ? ''
-  : `${place.value.trim().replace(/[\\/]+$/, '')}${sep.value}${name.value.trim()}`));
-const there = ref<{ state: string; project?: string } | null>(null);
-watch([name, place, editing, from], async () => {
-  const asked = target.value;
-  const r = editing.value || !asked ? null : await kulisa.invoke<{ state: string; project?: string } | null>('project:folder-state',
-    { location: place.value, name: name.value });
-  if (asked === target.value) there.value = r;
-});
-const where = computed(() => {
-  if (editing.value) return '';
-  if (from.value === 'folder') return sources.value.length > 1 ? 'The project takes these folders as they are; the first is the default' : '';
-  if (!name.value.trim() || !place.value.trim()) return '';
-  const t = target.value, state = there.value?.state ?? '';
-  const refused = ({ project: `${t} is the project ${there.value?.project}'s already`, file: `${t} is a file, not a folder` } as Record<string, string>)[state];
-  if (refused) return refused;
-  if (from.value === 'clone') return ['files', 'repo'].includes(state) ? `${t} is there already: choose another name or location`
-    : urls.value.length > 1 ? `The repositories will be cloned into ${t}, each in a folder of its own` : `The repository will be cloned into ${t}`;
-  return ({ files: `${t} is there already: the project takes it as it is, its files kept`,
-    repo: `${t} is a git repository: the project takes it as it is` } as Record<string, string>)[state] ?? `The project will be created in ${t}`;
-});
-// Create Git repository: not for a repository or a clone; on the disk, in the folders that are none.
-const askGit = computed(() => (from.value === 'folder' ? sources.value.some((x) => x.state !== 'repo')
-  : from.value === 'new' && there.value?.state !== 'repo'));
+// The selected row of each list: what −, ★, Delete and its right-click act on. The default repository and agent are
+// the first ones: the main process keeps them in that order.
+const repoSel = ref<string>(), agentSel = ref<string>(), profileSel = ref<string>();
 const iconValues = computed(() => [...(choices.value.favicon ? ['favicon'] : []), ...choices.value.icons]);
 const base = (f: string) => f.split(/[\\/]/).pop()!;
 
-// The projects, the one on the right chosen.
-async function showList() {
-  projects.value = (await kulisa.invoke<{ projects: ProjectEntry[] }>('projects:list')).projects;
-}
-function fill(c: ProjectChoices, look: { color?: string; icon?: string }) {
-  choices.value = c;
-  color.value = look.color || c.colors[0];
-  icon.value = look.icon || 'logo';
+// The tree: Projects with every project under it (always open), and Agents.
+type Node = { key: string; label: string; project?: ProjectEntry; children?: Node[] };
+const tree = computed<Node[]>(() => [{ key: 'projects', label: 'Projects', children: projects.value.map((p) => ({ key: `p:${p.id}`, label: p.name, project: p })) },
+  { key: 'agents', label: 'Agents' }]);
+const expanded = ref(['projects']);
+const chosenKey = computed(() => (tab.value === 'agents' ? 'agents' : editing.value ? `p:${editing.value}` : ''));
+const chosenNode = computed(() => [...tree.value, ...tree.value[0].children!].find((n) => n.key === chosenKey.value));
+// Choosing a row of the tree: a project's page or Agents; Projects itself only opens and closes.
+function choose(e: { detail: { value?: Node }; preventDefault(): void }) {
+  const n = e.detail.value;
+  if (!n || n.key === 'projects') return e.preventDefault();
+  if (n.key === 'agents') tab.value = 'agents';
+  else { tab.value = 'projects'; if (n.project!.id !== editing.value) edit(n.project!.id); }
 }
 
-async function fresh() {
-  await saveLook(); // the project left, what was typed in it kept
-  const c = await kulisa.invoke<ProjectChoices & { location: string; sep: string; color: string }>('project:new-defaults');
-  editing.value = null; sep.value = c.sep;
-  name.value = ''; place.value = c.location; git.value = true; error.value = '';
-  from.value = 'new'; sources.value = []; urls.value = []; typedSource.value = ''; named = '';
-  fill(c, { color: c.color, icon: 'logo' });
-  await showList();
-  focusName();
+async function showList() {
+  projects.value = (await kulisa.invoke<{ projects: ProjectEntry[] }>('projects:list')).projects;
 }
 async function edit(id: string) {
   lookOpen.value = false;
   await saveLook();
   const c = await kulisa.invoke<ProjectSettings>('project:settings-get', { id });
-  if (c.error) return fresh();
-  editing.value = id; folder.value = c.folder;
+  if (c.error) { editing.value = null; return showList(); }
+  editing.value = id;
   name.value = c.name; error.value = '';
   codeError.value = ''; agentError.value = ''; profileError.value = ''; signing.value = null; adding.value = '';
   cloneUrl.value = ''; newName.value = '';
-  fill(c, c);
+  repoSel.value = agentSel.value = profileSel.value = undefined;
+  choices.value = c;
+  color.value = c.color || c.colors[0];
+  icon.value = c.icon || 'logo';
   local.value = (c.local || []).join(' ');
   saved = lookNow();
   repos.value = c.repos; former.value = c.former || null;
@@ -146,34 +92,23 @@ async function edit(id: string) {
 async function openProjects(id?: string, on: typeof tab.value = 'projects') {
   const { current, projects: all } = await kulisa.invoke<{ current: string | null; projects: ProjectEntry[] }>('projects:list');
   const at = id || current || all[0]?.id;
-  await (at ? edit(at) : fresh());
+  if (at) await edit(at); else { editing.value = null; await showList(); }
   tab.value = on;
-  await show();
+  if (!modal.value!.isOpen()) await modal.value!.open();
 }
-// Open; a new project's: the keyboard in its name (fresh puts it there when it is already open).
-async function show() { if (!modal.value!.isOpen()) { await modal.value!.open(); if (isNew.value) focusName(); } }
+// New Project: its own dialog; Settings closes meanwhile, and comes back if it is cancelled.
+async function newProject() {
+  if (modal.value!.isOpen()) { await saveLook(); modal.value!.close(); }
+  await (await dialog('newproject')).open({ fromSettings: true });
+}
 registerDialog('projects', {
   openProjects,
-  async newProject() { await fresh(); tab.value = 'projects'; await show(); },
+  newProject: async () => (await dialog('newproject')).open(),
   openAgents: () => openProjects(undefined, 'agents'),
 });
 
-async function browse(existing = false) {
-  const picked = await kulisa.invoke<string | null>('project:pick-location', { location: place.value.trim(), existing });
-  if (picked && existing) await addSource(picked); else if (picked) place.value = picked;
-}
-// Create (a new project): made (a clone: cloned, which takes a while), then its page shown.
-async function create() {
-  if (from.value !== 'new' && !(await addSource())) return; // what is typed in its field counts
-  if (!name.value.trim()) { focusName(); return; }
-  saving.value = true;
-  const r = await kulisa.invoke<{ error?: string; id?: string } | null>('project:new', { from: from.value, name: name.value, color: color.value, icon: icon.value,
-    location: place.value, folders: sources.value.map((x) => x.folder), urls: [...urls.value], git: git.value && askGit.value });
-  saving.value = false;
-  if (r?.error) error.value = r.error; else await edit(r!.id!);
-}
-// A project's look and local addresses, saved as they change (its name on Enter or leaving it; the manager closed
-// with a name typed: saved too). Refused: why, under them, until changed again.
+// A project's look and local addresses, saved as they change (its name on Enter or leaving it; Settings closed with a
+// name typed: saved too). Refused: why, under them, until changed again.
 let saved = '';
 const lookNow = () => JSON.stringify({ name: name.value.trim(), color: color.value, icon: icon.value, local: local.value.split(/[\s,]+/).filter(Boolean) });
 async function saveLook() {
@@ -185,7 +120,6 @@ async function saveLook() {
   if (r?.error) saved = '';
   else if (editing.value === id) await showList();
 }
-const submit = () => (isNew.value ? create() : saveLook());
 // The look's panel outlives the dialog's content (its open state is here): closed with it, or the pages stayed pictures.
 function closed() { lookOpen.value = false; adding.value = ''; return saveLook(); }
 // New Task: a task of it, in its group (a new one in this window when it has none).
@@ -197,11 +131,14 @@ async function newTask() {
 }
 const more = (): MenuItem[] => [{ label: 'Delete Project…', run: deleteIt }];
 // Delete Project…, here alone (the author, 2026-10-11): asked first (projects.js, askDeleteProject), closed if open;
-// then the manager goes on to another project.
+// then Settings goes on to another project.
 async function deleteIt() {
   const r = await kulisa.invoke<{ error?: string } | null>('project:delete', { id: editing.value });
   if (!r?.error) await openProjects();
 }
+
+// A list's row a right-click was on: selected, and its actions.
+const rowAt = (e: MouseEvent, attr: string) => (e.target as Element).closest<HTMLElement>(`[${attr}]`)?.getAttribute(attr) ?? null;
 
 async function code(channel: string, args: Record<string, unknown>) {
   codeError.value = '';
@@ -210,6 +147,17 @@ async function code(channel: string, args: Record<string, unknown>) {
   else if (r?.repos) { repos.value = r.repos; if ('former' in r) former.value = r.former || null; }
   return r;
 }
+// The selection goes with its row, not when the row stays (refused, or a no to the question).
+const removeRepo = (folder = repoSel.value) => folder && code('project:repo-remove', { folder })
+  .then(() => { if (!repos.value.some((r) => r.folder === repoSel.value)) repoSel.value = undefined; });
+const defaultRepo = (folder = repoSel.value) => folder && code('project:repo-default', { folder });
+const repoMenu = (e: MouseEvent): MenuItem[] | null => {
+  const f = rowAt(e, 'data-folder');
+  if (!f) return null;
+  repoSel.value = f;
+  return [{ label: 'Make Default', enabled: repos.value[0]?.folder !== f, run: () => defaultRepo(f) },
+    { label: 'Remove from the Project', run: () => removeRepo(f) }];
+};
 // Cloning takes a while (the repository comes over the network): the button says so meanwhile.
 async function clone() {
   if (!cloneUrl.value.trim()) return url.value!.focus();
@@ -227,6 +175,16 @@ async function agents(channel: string, args: Record<string, unknown>) {
   if (r?.agents) mine.value = r.agents;
   if (r?.error) agentError.value = r.error;
 }
+const removeAgent = (agent = agentSel.value) => agent && agents('project:agent-remove', { agent })
+  .then(() => { if (!mine.value.some((a) => a.id === agentSel.value)) agentSel.value = undefined; });
+const defaultAgent = (agent = agentSel.value) => agent && agents('project:agent-default', { agent });
+const agentRowMenu = (e: MouseEvent): MenuItem[] | null => {
+  const a = rowAt(e, 'data-agent');
+  if (!a) return null;
+  agentSel.value = a;
+  return [{ label: 'Make Default', enabled: mine.value[0]?.id !== a, run: () => defaultAgent(a) },
+    { label: 'Remove from the Project', run: () => removeAgent(a) }];
+};
 const addable = computed(() => choices.value.agents.filter((x) => !mine.value.some((m) => m.id === x.id)));
 const agentMenu = (): MenuItem[] => [
   ...addable.value.map((x) => ({ label: x.name, run: () => agents('project:agent-add', { agent: x.id }) })),
@@ -251,6 +209,14 @@ async function profileChange(channel: string, args: Record<string, unknown>) {
   if (r?.error) profileError.value = r.error; else if (r?.profiles) { profiles.value = r.profiles; others.value = r.others || []; }
   return r;
 }
+const removeProfile = (profile = profileSel.value) => profile && profileChange('project:profile-remove', { profile })
+  .then(() => { if (!profiles.value.some((p) => p.id === profileSel.value)) profileSel.value = undefined; });
+const profileRowMenu = (e: MouseEvent): MenuItem[] | null => {
+  const p = rowAt(e, 'data-profile');
+  if (!p) return null;
+  profileSel.value = p;
+  return [{ label: 'Remove from the Project…', run: () => removeProfile(p) }];
+};
 async function addProfile() {
   if (!newName.value.trim()) return newProfile.value!.focus();
   if (!(await profileChange('project:profile-new', { name: newName.value }))?.error) { newName.value = ''; adding.value = ''; }
@@ -262,194 +228,188 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
 </script>
 
 <template>
-  <Modal id="projects" ref="modal" title="Settings" form form-id="npform" :stay="agentsList.state.installing" @submit="submit" @close="closed">
-    <TabsRoot id="settingstabs" v-model="tab" :unmount-on-hide="false">
-    <TabsList class="dialogtabs" aria-label="Settings">
-      <TabsTrigger value="projects" data-tab="projects" type="button">Projects</TabsTrigger><TabsTrigger value="agents" data-tab="agents" type="button">Agents</TabsTrigger>
-    </TabsList>
-    <!-- Reka gives its tabs and their contents ids of its own -->
-    <TabsContent class="pjtab" value="projects">
-    <nav id="pjnav" aria-label="Projects">
-      <button id="pjnew" type="button" @click="fresh"><Icon name="i-plus" />New Project</button>
-      <ListboxRoot id="pjlist" :model-value="editing ?? undefined" aria-label="Projects" @update:model-value="(id) => id && id !== editing && edit(String(id))">
-        <ListboxContent>
-          <ListboxItem v-for="p in projects" :key="p.id" :value="p.id" class="item" :data-project="p.id" :style="{ '--color': p.color }">
-            <ProjectIcon :p /><span class="text"><span class="label">{{ p.name }}</span></span>
-          </ListboxItem>
-        </ListboxContent>
-      </ListboxRoot>
-    </nav>
-    <div id="pjconfig" :style="{ '--color': color }">
-      <!-- A new project: its code first, then its name, where its folder goes, git; Create -->
-      <template v-if="isNew">
-        <h3 id="pjtitle">New Project</h3>
-        <div class="field"><span id="npfromlabel">Code</span>
-          <RadioGroupRoot id="npfrom" v-model="from" aria-labelledby="npfromlabel" orientation="horizontal" @update:model-value="error = ''">
-            <label v-for="[v, l] in [['new', 'New folder'], ['folder', 'Folder on disk'], ['clone', 'Clone from URL']]" :key="v">
-              <RadioGroupItem class="radio" :value="v" :data-value="v"><RadioGroupIndicator /></RadioGroupItem>{{ l }}</label>
-          </RadioGroupRoot></div>
-        <!-- Folders or URLs, one or several (a frontend and a backend): Enter or Add puts the one typed in the list -->
-        <div v-if="from !== 'new'" id="npsources" class="field"><span>{{ from === 'folder' ? 'Folders' : 'URLs' }}</span>
-          <div class="list">
-            <div v-for="(x, i) in from === 'folder' ? sources : urls.map((u) => ({ folder: u, state: '' }))" :key="x.folder" class="removable" :data-source="x.folder">
-              <div class="item"><span class="text"><span class="label" :title="x.folder">{{ x.folder }}</span></span>
-                <kbd v-if="x.state">{{ sourceLine(x) }}</kbd><span v-if="!i && (sources.length > 1 || urls.length > 1)" class="badge">Default</span></div>
-              <button class="remove icon quiet" type="button" title="Leave it out" aria-label="Leave it out"
-                @click="from === 'folder' ? sources.splice(i, 1) : urls.splice(i, 1)"><Icon name="i-close" /></button>
+  <Modal id="projects" ref="modal" title="Settings" :stay="agentsList.state.installing" @close="closed">
+    <div class="settings">
+      <nav id="pjnav" aria-label="Settings">
+        <div class="tools"><button id="pjnew" class="icon small" type="button" title="New Project…" aria-label="New Project" @click="newProject"><Icon name="i-plus" /></button></div>
+        <TreeRoot id="pjlist" v-slot="{ flattenItems }" v-model:expanded="expanded" :items="tree" :get-key="(n: Node) => n.key" :model-value="chosenNode"
+          aria-label="Settings">
+          <TreeItem v-for="it in flattenItems" :key="it._id" v-bind="it.bind" class="item" :data-project="it.value.project?.id" :data-tab="it.value.project ? undefined : it.value.key"
+            :style="{ '--color': it.value.project?.color }" @select="choose">
+            <Icon v-if="it.hasChildren" class="twist" name="i-down" /><ProjectIcon v-if="it.value.project" :p="it.value.project" /><span class="text"><span class="label">{{ it.value.label }}</span></span>
+          </TreeItem>
+        </TreeRoot>
+      </nav>
+
+      <div v-show="tab === 'projects'" id="pjconfig" :style="{ '--color': color }">
+        <template v-if="editing">
+          <div id="pjhead" class="crumbs">
+            <span>Projects</span><span aria-hidden="true">›</span><b id="pjtitle">{{ projects.find((p) => p.id === editing)?.name }}</b>
+            <button id="npnewtask" type="button" @click="newTask">New Task</button>
+            <ButtonMenu :items="more" end><button id="pjmore" class="icon small" type="button" title="More" aria-label="More"><Icon name="i-more" /></button></ButtonMenu>
+          </div>
+          <!-- Enter saves it, not a form -->
+          <div class="field"><label for="npname">Name:</label><span class="pick">
+            <input id="npname" v-model="name" data-name maxlength="64" spellcheck="false" @input="error = ''" @change="saveLook" @keydown.enter.prevent="saveLook">
+            <PopoverRoot :open="lookOpen" @update:open="toggleLook">
+              <PopoverTrigger as-child><button id="pjlook" class="select" type="button" title="Color and icon" aria-label="Color and icon">
+                <ProjectIcon :p="{ icon, favicon: choices.favicon }" /><Icon name="i-down" /></button></PopoverTrigger>
+              <PopoverPortal>
+                <PopoverContent class="menu pjlookpanel" :class="{ ready: lookReady }" align="end" :side-offset="4" :collision-padding="4"
+                  :style="{ '--color': color }" @close-auto-focus="focusBack($event, lookFocused)">
+                  <div class="heading">Color</div>
+                  <ColorSwatchPickerRoot id="npcolors" class="choices" aria-label="Color" :model-value="color"
+                    @update:model-value="(c) => { if (c) { color = String(c); saveLook(); } }">
+                    <ColorSwatchPickerItem v-for="c in choices.colors" :key="c" :value="c" class="icon" :data-value="c" :title="c"><ColorSwatchPickerItemSwatch class="dot" /></ColorSwatchPickerItem>
+                  </ColorSwatchPickerRoot>
+                  <div class="heading">Icon</div>
+                  <ToggleGroupRoot id="npicons" class="choices" type="single" aria-label="Icon" :model-value="icon"
+                    @update:model-value="(v) => { if (v) { icon = String(v); saveLook(); } }">
+                    <ToggleGroupItem v-for="v in iconValues" :key="v" :value="v" class="icon" :data-value="v" :title="iconTitle(v)" :aria-label="iconTitle(v)"><img v-if="v === 'favicon'"
+                      :src="choices.favicon" alt=""><Icon v-else :name="projectIcon(v)" /></ToggleGroupItem>
+                  </ToggleGroupRoot>
+                </PopoverContent>
+              </PopoverPortal>
+            </PopoverRoot></span></div>
+          <p id="nperror" class="error">{{ error }}</p>
+
+          <section id="npreposrow" class="group">
+            <h3 class="titled">Code</h3>
+            <div class="list">
+              <div class="tools">
+                <ButtonMenu :items="codeMenu"><button id="npreposadd" class="icon small" type="button" title="Add a repository or folder" aria-label="Add code"><Icon name="i-plus" /></button></ButtonMenu>
+                <button id="nprepodel" class="icon small" type="button" title="Remove from the project (its folder stays)" aria-label="Remove from the project" :disabled="!repoSel" @click="removeRepo()"><Icon name="i-minus" /></button>
+                <button id="nprepodefault" class="icon small" type="button" title="Make Default: new tasks' agents start in its copy" aria-label="Make Default"
+                  :disabled="!repoSel || repoSel === repos[0]?.folder" @click="defaultRepo()"><Icon name="i-star" /></button>
+              </div>
+              <RightClickMenu :items="repoMenu">
+                <ListboxRoot selection-behavior="replace" v-if="repos.length" id="nprepos" v-model="repoSel" aria-label="Code" @keydown.delete="removeRepo()">
+                  <ListboxContent>
+                    <ListboxItem v-for="(r, i) in repos" :key="r.folder" :value="r.folder" class="item" :data-folder="r.folder">
+                      <span class="text"><span class="label">{{ base(r.folder) }}</span><small :title="r.folder">{{ r.folder }}</small></span>
+                      <kbd v-if="r.git !== 'ok'" class="warn">{{ r.git === 'none' ? 'no git' : 'no commit yet' }}</kbd>
+                      <kbd v-if="!i && repos.length > 1" class="default" title="New tasks' agents start in its copy">default</kbd>
+                    </ListboxItem>
+                  </ListboxContent>
+                </ListboxRoot>
+              </RightClickMenu>
+              <p v-if="!repos.length" class="empty">No code yet: its tasks work in an empty folder.</p>
             </div>
-            <span class="pick"><input id="npsource" v-model="typedSource" spellcheck="false" :aria-label="from === 'folder' ? 'A folder' : 'A repository URL'"
-              :placeholder="from === 'folder' ? (sources.length ? 'Another folder' : '~/IdeaProjects/shop') : (urls.length ? 'Another URL' : 'git@github.com:me/shop.git')"
-              @input="error = ''" @keydown.enter.prevent="addSource()">
-              <button id="npaddsource" type="button" @click="addSource()">Add</button>
-              <button v-if="from === 'folder'" id="npbrowsesource" type="button" @click="browse(true)">Browse…</button></span>
-          </div></div>
-        <FieldRoot class="field"><FieldLabel>Name</FieldLabel><FieldControl id="npname" ref="nameField" v-model="name" data-name maxlength="64"
-          placeholder="e.g. tenant-audit" spellcheck="false" @input="error = ''" /></FieldRoot>
-        <FieldRoot v-if="from !== 'folder'" id="nplocationrow" class="field"><FieldLabel>Location</FieldLabel><span class="pick"><FieldControl id="nplocation" v-model="place"
-          spellcheck="false" @input="error = ''" /><button id="npbrowse" type="button" @click="browse()">Browse…</button></span></FieldRoot>
-        <p id="npwhere" class="hint">{{ where }}</p>
-        <label id="npgitrow" class="check" :hidden="!askGit"><CheckboxRoot id="npgit" v-model="git" class="checkbox"><CheckboxIndicator as-child><Icon name="i-done" /></CheckboxIndicator></CheckboxRoot>
-          Create Git repository <small>each task gets its own copy of the code</small></label>
-        <p id="nperror" class="error">{{ error }}</p>
-      </template>
-      <!-- A project's page: what its tasks are made of, each part saved as it changes -->
-      <template v-else>
-        <div id="pjhead">
-          <PopoverRoot :open="lookOpen" @update:open="toggleLook">
-            <PopoverTrigger as-child><button id="pjlook" class="icon" type="button" title="Color and icon" aria-label="Color and icon">
-              <ProjectIcon :p="{ icon, favicon: choices.favicon }" /></button></PopoverTrigger>
-            <PopoverPortal>
-              <PopoverContent class="menu pjlookpanel" :class="{ ready: lookReady }" align="start" :side-offset="4" :collision-padding="4"
-                :style="{ '--color': color }" @close-auto-focus="focusBack($event, lookFocused)">
-                <div class="heading">Color</div>
-                <ColorSwatchPickerRoot id="npcolors" class="choices" aria-label="Color" :model-value="color"
-                  @update:model-value="(c) => { if (c) { color = String(c); saveLook(); } }">
-                  <ColorSwatchPickerItem v-for="c in choices.colors" :key="c" :value="c" class="icon" :data-value="c" :title="c"><ColorSwatchPickerItemSwatch class="dot" /></ColorSwatchPickerItem>
-                </ColorSwatchPickerRoot>
-                <div class="heading">Icon</div>
-                <ToggleGroupRoot id="npicons" class="choices" type="single" aria-label="Icon" :model-value="icon"
-                  @update:model-value="(v) => { if (v) { icon = String(v); saveLook(); } }">
-                  <ToggleGroupItem v-for="v in iconValues" :key="v" :value="v" class="icon" :data-value="v" :title="iconTitle(v)" :aria-label="iconTitle(v)"><img v-if="v === 'favicon'"
-                    :src="choices.favicon" alt=""><Icon v-else :name="projectIcon(v)" /></ToggleGroupItem>
-                </ToggleGroupRoot>
-              </PopoverContent>
-            </PopoverPortal>
-          </PopoverRoot>
-          <!-- Enter saves it, not the form -->
-          <input id="npname" v-model="name" class="titlefield" data-name maxlength="64" spellcheck="false" aria-label="Name"
-            title="The project's name" @input="error = ''" @change="saveLook" @keydown.enter.prevent="saveLook">
-          <button id="npnewtask" class="primary" type="button" @click="newTask">New Task</button>
-          <ButtonMenu :items="more" end><button id="pjmore" class="icon" type="button" title="More" aria-label="More"><Icon name="i-more" /></button></ButtonMenu>
+            <!-- Enter in the URL clones; Esc puts it away -->
+            <div v-if="adding === 'clone'" id="npcloneline" class="row">
+              <input id="npurl" ref="url" v-model="cloneUrl" placeholder="git@github.com:me/shop.git" aria-label="Repository URL" spellcheck="false"
+                @keydown.enter.prevent="clone" @keydown.esc.stop.prevent="stopAdding">
+              <button type="button" @click="stopAdding">Cancel</button>
+              <button id="npclone" class="primary" type="button" :disabled="cloning" @click="clone">{{ cloning ? 'Cloning…' : 'Clone' }}</button>
+            </div>
+            <p id="npformer" class="hint" :hidden="!former"><span>{{ former ? `Former folder ${former}: tasks no longer work in it; move its files into a repository.` : '' }}</span>
+              <button id="npshowformer" type="button" @click="kulisa.invoke('project:show-former', { id: editing })">Show</button></p>
+            <p id="npcodeerror" class="error">{{ codeError }}</p>
+          </section>
+
+          <section id="npagentsrow" class="group">
+            <h3 class="titled">Agents</h3>
+            <div class="list">
+              <div class="tools">
+                <ButtonMenu :items="agentMenu"><button id="npagentadd" class="icon small" type="button" title="Add an agent" aria-label="Add an agent"
+                  :disabled="!!signing || (!addable.length && !choices.clis.length)"><Icon name="i-plus" /></button></ButtonMenu>
+                <button id="npagentdel" class="icon small" type="button" title="Remove from the project (its tasks keep it)" aria-label="Remove from the project" :disabled="!agentSel" @click="removeAgent()"><Icon name="i-minus" /></button>
+                <button id="npagentdefault" class="icon small" type="button" title="Make Default: + makes a task with it" aria-label="Make Default"
+                  :disabled="!agentSel || agentSel === mine[0]?.id" @click="defaultAgent()"><Icon name="i-star" /></button>
+              </div>
+              <RightClickMenu :items="agentRowMenu">
+                <ListboxRoot selection-behavior="replace" v-if="mine.length" id="npagents" v-model="agentSel" aria-label="Agents" @keydown.delete="removeAgent()">
+                  <ListboxContent>
+                    <ListboxItem v-for="(a, i) in mine" :key="a.id" :value="a.id" class="item" :data-agent="a.id">
+                      <span class="text"><span class="label">{{ a.name }}</span></span>
+                      <kbd v-if="!i && mine.length > 1" class="default" title="+ makes a task with it; the others are in +'s right-click menu">default</kbd>
+                    </ListboxItem>
+                  </ListboxContent>
+                </ListboxRoot>
+              </RightClickMenu>
+              <p v-if="!mine.length && !signing" class="empty">No agents yet: its tasks get the terminal only.</p>
+            </div>
+            <AccountSignIn v-if="signing && editing" :project="editing" :agent="signing" @done="signedIn" @close="signing = null" />
+            <p id="npagenterror" class="error">{{ agentError }}</p>
+          </section>
+
+          <section id="npprofilesrow" class="group">
+            <h3 class="titled">Profiles</h3>
+            <div class="list">
+              <div class="tools">
+                <ButtonMenu :items="profileMenu"><button id="npprofileadd" class="icon small" type="button"
+                  title="Add a profile: the browser profiles its tasks test as, each task with its own copy" aria-label="Add a profile"><Icon name="i-plus" /></button></ButtonMenu>
+                <button id="npprofiledel" class="icon small" type="button" title="Remove from the project (asks first)" aria-label="Remove from the project" :disabled="!profileSel" @click="removeProfile()"><Icon name="i-minus" /></button>
+              </div>
+              <RightClickMenu :items="profileRowMenu">
+                <ListboxRoot selection-behavior="replace" v-if="profiles.length" id="npprofiles" v-model="profileSel" aria-label="Profiles" @keydown.delete="removeProfile()">
+                  <ListboxContent>
+                    <ListboxItem v-for="p in profiles" :key="p.id" :value="p.id" class="item" :data-profile="p.id">
+                      <img class="avatar" alt="" :src="avatarSrc(p.avatar)"><span class="text"><span class="label">{{ p.name }}</span>
+                        <small>{{ [p.description, p.also.length && `also in ${p.also.join(', ')}`].filter(Boolean).join(' · ') }}</small></span>
+                    </ListboxItem>
+                  </ListboxContent>
+                </ListboxRoot>
+              </RightClickMenu>
+              <p v-if="!profiles.length && adding !== 'profile'" class="empty">No profiles yet: the browser profiles its tasks test as, signed in once.</p>
+            </div>
+            <!-- Enter makes it; Esc puts it away -->
+            <div v-if="adding === 'profile'" id="npprofilesadd" class="row">
+              <input id="npnewprofile" ref="newProfile" v-model="newName" data-name maxlength="64" placeholder="Its name, e.g. ann@shop.com" spellcheck="false"
+                aria-label="New profile" @keydown.enter.prevent="addProfile" @keydown.esc.stop.prevent="stopAdding">
+              <button type="button" @click="stopAdding">Cancel</button>
+              <button id="npprofilenew" class="primary" type="button" @click="addProfile">Create</button>
+            </div>
+            <p id="npprofileerror" class="error">{{ profileError }}</p>
+          </section>
+
+          <section id="nplocalrow" class="group">
+            <div class="field"><label for="nplocal">Local addresses:</label><input id="nplocal" v-model="local" spellcheck="false" placeholder="abc.ngrok.app shop.dev"
+              @input="error = ''" @change="saveLook"></div>
+            <p class="hint">Where Kulisa may type saved test users' passwords besides localhost and your network: a tunnel, dev domains.</p>
+          </section>
+        </template>
+        <div v-else id="pjnone" class="none">
+          <p class="empty">No projects yet.</p>
+          <button type="button" @click="newProject">New Project…</button>
         </div>
-        <p id="nperror" class="error">{{ error }}</p>
-        <section id="npreposrow" class="section">
-          <div class="head"><h4>Code</h4><ButtonMenu :items="codeMenu" end><button id="npreposadd" class="icon" type="button"
-            title="Add a repository or folder" aria-label="Add code"><Icon name="i-plus" /></button></ButtonMenu></div>
-          <div id="nprepos" class="rows">
-            <div v-for="(r, i) in repos" :key="r.folder" class="removable" :data-folder="r.folder">
-              <div class="item"><span class="text"><span class="label">{{ base(r.folder) }}</span><small :title="r.folder">{{ r.folder }}</small></span>
-                <kbd>{{ r.git === 'ok' ? '' : r.git === 'none' ? 'no git' : 'no commit' }}</kbd>
-                <span v-if="!i && repos.length > 1" class="badge" title="New tasks' agents start in its copy">Default</span></div>
-              <button v-if="i" class="action" type="button" title="New tasks' agents start in its copy" @click="code('project:repo-default', { folder: r.folder })">Make Default</button>
-              <button class="remove icon quiet" type="button" title="Remove from the project (its folder stays)" aria-label="Remove from the project"
-                @click="code('project:repo-remove', { folder: r.folder })"><Icon name="i-close" /></button>
-            </div>
-          </div>
-          <p v-if="!repos.length" class="empty">No code yet: its tasks work in an empty folder.</p>
-          <!-- Enter in the URL clones, not submits the form; Esc puts it away -->
-          <div v-if="adding === 'clone'" id="npcloneline" class="row">
-            <input id="npurl" ref="url" v-model="cloneUrl" placeholder="git@github.com:me/shop.git" aria-label="Repository URL" spellcheck="false"
-              @keydown.enter.prevent="clone" @keydown.esc.stop.prevent="stopAdding">
-            <button type="button" @click="stopAdding">Cancel</button>
-            <button id="npclone" class="primary" type="button" :disabled="cloning" @click="clone">{{ cloning ? 'Cloning…' : 'Clone' }}</button>
-          </div>
-          <p id="npformer" class="hint" :hidden="!former"><span>{{ former ? `Former folder ${former}: tasks no longer work in it; move its files into a repository.` : '' }}</span>
-            <button id="npshowformer" type="button" @click="kulisa.invoke('project:show-former', { id: editing })">Show</button></p>
-          <p id="npcodeerror" class="error">{{ codeError }}</p>
-        </section>
-        <section id="npagentsrow" class="section">
-          <div class="head"><h4>Agents</h4><ButtonMenu :items="agentMenu" end><button id="npagentadd" class="icon" type="button" title="Add an agent"
-            aria-label="Add an agent" :disabled="!!signing || (!addable.length && !choices.clis.length)"><Icon name="i-plus" /></button></ButtonMenu></div>
-          <div v-if="mine.length" id="npagents" class="rows">
-            <div v-for="(a, i) in mine" :key="a.id" class="removable" :data-agent="a.id">
-              <div class="item"><span class="text"><span class="label">{{ a.name }}</span></span>
-                <span v-if="!i && mine.length > 1" class="badge" title="+ makes a task with it">Default</span></div>
-              <button v-if="i" class="action" type="button" title="+ makes a task with it; the others are in +'s right-click menu" @click="agents('project:agent-default', { agent: a.id })">Make Default</button>
-              <button class="remove icon quiet" type="button" title="Remove from the project (its tasks keep it)" aria-label="Remove from the project"
-                @click="agents('project:agent-remove', { agent: a.id })"><Icon name="i-close" /></button>
-            </div>
-          </div>
-          <p v-else-if="!signing" class="empty">No agents yet: its tasks get the terminal only.</p>
-          <AccountSignIn v-if="signing && editing" :project="editing" :agent="signing" @done="signedIn" @close="signing = null" />
-          <p id="npagenterror" class="error">{{ agentError }}</p>
-        </section>
-        <section id="npprofilesrow" class="section">
-          <div class="head"><h4>Profiles</h4><ButtonMenu :items="profileMenu" end><button id="npprofileadd" class="icon" type="button"
-            title="Add a profile: the browser profiles its tasks test as, each task with its own copy" aria-label="Add a profile"><Icon name="i-plus" /></button></ButtonMenu></div>
-          <div id="npprofiles" class="rows">
-            <div v-for="p in profiles" :key="p.id" class="removable" :data-profile="p.id">
-              <div class="item"><img class="avatar" alt="" :src="avatarSrc(p.avatar)"><span class="text"><span class="label">{{ p.name }}</span>
-                <small>{{ [p.description, p.also.length && `also in ${p.also.join(', ')}`].filter(Boolean).join(' · ') }}</small></span></div>
-              <button class="remove icon quiet" type="button" title="Remove from the project (asks first)" aria-label="Remove from the project"
-                @click="profileChange('project:profile-remove', { profile: p.id })"><Icon name="i-close" /></button>
-            </div>
-          </div>
-          <p v-if="!profiles.length && adding !== 'profile'" class="empty">No profiles yet: the browser profiles its tasks test as, signed in once.</p>
-          <!-- Enter makes it, not submits the form; Esc puts it away -->
-          <div v-if="adding === 'profile'" id="npprofilesadd" class="row">
-            <input id="npnewprofile" ref="newProfile" v-model="newName" data-name maxlength="64" placeholder="Its name, e.g. ann@shop.com" spellcheck="false"
-              aria-label="New profile" @keydown.enter.prevent="addProfile" @keydown.esc.stop.prevent="stopAdding">
-            <button type="button" @click="stopAdding">Cancel</button>
-            <button id="npprofilenew" class="primary" type="button" @click="addProfile">Create</button>
-          </div>
-          <p id="npprofileerror" class="error">{{ profileError }}</p>
-        </section>
-        <section id="nplocalrow" class="section">
-          <div class="head"><h4>Local addresses</h4></div>
-          <input id="nplocal" v-model="local" spellcheck="false" aria-label="Local addresses" placeholder="abc.ngrok.app shop.dev" @input="error = ''" @change="saveLook">
-          <p class="hint">Where Kulisa may type saved test users' passwords besides localhost and your network: a tunnel, dev domains.</p>
-        </section>
-      </template>
+      </div>
+      <div v-show="tab === 'agents'" id="agconfig" class="agtab">
+        <div class="crumbs"><b>Agents</b></div>
+        <AgentsTab :list="agentsList" :active="tab === 'agents'" />
+      </div>
     </div>
-    </TabsContent>
-    <TabsContent class="agtab" value="agents"><AgentsTab :list="agentsList" :active="tab === 'agents'" /></TabsContent>
-    </TabsRoot>
-    <template v-if="isNew && tab === 'projects'" #footer>
-      <DialogClose>Cancel</DialogClose><button id="npcreate" class="primary" :disabled="saving">{{ saving && from === 'clone' ? 'Cloning…' : 'Create' }}</button>
-    </template>
   </Modal>
 </template>
 
 <style>
-/* The projects on the left, each scrolling on its own, one project's page on the right: its top (its icon in its
-   color, a button to its look; its name edited in place; New Task, ⋯), then its sections */
-#projects { width: min(860px, 92vw); height: 85vh;
-  .body { display: flex; flex-direction: column; overflow: hidden; padding-block: 0; }
-  #settingstabs { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-  .dialogtabs { padding: 0; margin-block-end: 16px; }
-  :is(.pjtab, .agtab):not([data-state="active"]) { display: none; }
-  .pjtab { flex: 1; min-height: 0; display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: calc(var(--pad) - var(--inset)); }
-  .agtab { flex: 1; min-height: 0; overflow: auto; padding-block-end: 20px; }
-  #pjnav { display: flex; flex-direction: column; gap: var(--inset); min-height: 0; padding-inline-end: var(--pad);
-    border-inline-end: 1px solid var(--island-hi); }
-  #pjlist { flex: 1; min-height: 0; overflow: auto; .picon { flex: none; width: 18px; height: 18px; color: var(--color); }
-    /* Reka keeps the last row pointed at highlighted: lit only while the list has the keyboard, else it looks chosen */
-    &:not(:focus-within) .item[data-highlighted]:not(:hover, [aria-selected="true"]) { background: none; } }
-  #pjnew { display: flex; align-items: center; justify-content: center; gap: 6px; }
-  /* Room at its sides for the sections' rows, which reach past their text to be lit as menus' rows are */
-  #pjconfig { display: flex; flex-direction: column; gap: var(--inset); min-height: 0; overflow: hidden auto; padding: 0 var(--inset) 20px;
+/* The tree on the left, the chosen page on the right, each scrolling on its own (JetBrains' Settings) */
+#projects { width: min(1000px, 94vw); height: min(680px, 88vh);
+  .body { display: flex; padding: 0; overflow: hidden; }
+  .settings { flex: 1; min-width: 0; display: flex; }
+  #pjnav { flex: none; width: 230px; display: flex; flex-direction: column; border-inline-end: 1px solid var(--island-hi); background: var(--window);
+    .tools { display: flex; justify-content: flex-end; padding: 4px; } }
+  #pjlist { flex: 1; min-height: 0; overflow: auto; padding: 0 4px 4px; outline: none;
+    .item { min-height: var(--row); padding: 0 8px; gap: var(--gap); border-radius: var(--radius); padding-inline-start: calc(8px + (var(--level, 1) - 1) * 18px); }
+    [aria-level="2"] { --level: 2; }
+    .twist { width: 12px; height: 12px; color: var(--text-dim); } [aria-expanded="false"] .twist { rotate: -90deg; }
+    .picon { flex: none; width: 16px; height: 16px; color: var(--color); }
+    [aria-selected="true"] { background: var(--chosen-idle); color: var(--text-strong); }
+    &:focus-within [aria-selected="true"] { background: var(--chosen); } }
+  :is(#pjconfig, #agconfig) { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--inset); overflow: hidden auto; padding: 0 var(--pad) var(--pad);
     > * { flex: none; } }
+  /* Where the page is in the tree, and what acts on it at its end */
+  .crumbs { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: var(--gap); min-height: calc(var(--control) + 12px);
+    background: var(--island); color: var(--text-muted);
+    b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; color: var(--text-strong); } }
+  .field { margin-top: 0; }
+  .group { display: flex; flex-direction: column; gap: var(--gap); margin-top: 4px;
+    > .error, > .hint { margin: 0; } > .hint:not([hidden]) { margin-inline-start: calc(var(--label) + var(--inset)); } }
+  .list [role="listbox"] { max-height: calc(6 * var(--row)); overflow: auto; }
+  .list .avatar { --avatar: 18px; }
   #npformer button { margin-inline-start: var(--gap); }
-  #npfrom { display: flex; flex-wrap: wrap; gap: var(--inset) var(--pad); label { display: flex; align-items: center; gap: var(--inset); } }
-  #npwhere:empty { display: none; }
-  #npsources { align-items: start; > span { line-height: var(--control); }
-    .list { display: flex; flex-direction: column; gap: 2px; min-width: 0; } .text { min-width: 0; }
-    .label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } } /* its whole path in its tooltip */
-  #pjtitle { margin: 0; font-size: 1em; font-weight: 600; color: var(--text-strong); }
-  #pjhead { display: flex; align-items: center; gap: var(--gap); padding-block-end: var(--inset);
-    #pjlook { --icon: 24px; width: 36px; height: 36px; .picon { width: 24px; height: 24px; color: var(--color); } }
-    .titlefield { flex: 1; min-width: 0; font-size: 1.3em; font-weight: 600; color: var(--text-strong); } }
-  #nplocal { width: 100%; }
+  #pjlook { width: auto; gap: 4px; padding: 0 6px; .picon { width: 16px; height: 16px; color: var(--color); } }
+  .none { display: flex; flex-direction: column; align-items: start; gap: var(--gap); padding-top: var(--pad); .empty { margin: 0; } }
 }
 /* The look's panel: a menu's look, the colors and icons under their headings */
 .pjlookpanel { min-width: 0; padding-block-end: var(--inset);

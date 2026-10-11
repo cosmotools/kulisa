@@ -91,9 +91,10 @@ unasked. This paragraph is removed when the rewrite is finished.
 - **Terminology: "the tasks' bar"**: the bar of the groups' islands with their tasks' tabs, under the grid or over it
   (☰ → Tasks bar; `TaskBar.vue`, `#taskbar`). Not "taskbar", the OS's. It was "the projects' bar" (`ProjectBar.vue`)
   until 2026-10-11: its tabs are tasks; earlier commits say so.
-- **Terminology: "Settings"**: the dialog behind the title bar's gear, its tabs Projects (the projects' manager: every
-  project and its page) and Agents (the agents, their accounts). It was "the projects' manager" alone until 2026-10-11;
-  the manager is still its Projects tab (`ProjectEditor.vue`, `dialog('projects')`).
+- **Terminology: "Settings"**: the dialog behind the title bar's gear, as JetBrains' Settings: a tree of Projects (every
+  project, each its page) and Agents (the agents, their accounts). It was "the projects' manager" alone until 2026-10-11,
+  then tabs; a project's page is still the manager in code (`ProjectEditor.vue`, `dialog('projects')`). New Project is a
+  dialog of its own (`NewProject.vue`).
 - **Terminology: "the empty window"**: what a window is with no task open (at first start, after its last
   group is closed): the title bar and the tasks' bar as always (no islands, its + there) and, in the
   grid's place, an empty island: "No task is open", New Task (the bar's + menu), New Project…. `Empty.vue`. It replaced
