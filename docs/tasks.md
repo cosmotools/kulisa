@@ -57,32 +57,36 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
     tasks there (the author, 2026-10-11: the bar's tabs are tasks, so what lists things to open lists tasks): New
     Project and the rest are the projects' manager's, Close Group the group's menu's (and the middle button). A Popover in a menu's
     look, not a menu: a menu takes the letters typed (its typeahead), and the list is Reka's Listbox.
-- **Settings** (the button in the title bar, left of ☰; the author, 2026-10-11): one dialog, its tabs **Projects** (the
-  projects' manager) and **Agents** (the agents and their accounts: "Choosing the agent"). Project Settings… in a
-  group's menu opens it at that project; ☰ → Agents… on Agents; at the first start, no project yet, it opens by itself
-  on New Project. It was the projects' manager alone, under a Projects button, until the agents' accounts needed a
-  place outside projects. **The projects' manager**, its Projects tab (back on
-  2026-10-11, after it was taken out for a few hours): + New Project and every project under it on the left
-  (its icon in its color, its name); on the right the chosen one's **page**: at its top its icon (a click opens its color and icon), its name (edited in
-  place), **New Task** (a task of it, in its group) and **⋯** (Delete Project…); under them a section each (`.section`:
-  a heading with its **+** at the end, its rows, a line when it has none): **Code**, **Agents**, **Profiles** (what its
-  tasks are made of), **Local addresses**. Each section adds the same way, with its **+** (a menu); what needs typing
-  (a URL to clone, a new profile's name) opens a field in place, under its rows (Esc puts it away). Explanations are in
-  the empty lines and the tooltips, not in a paragraph per section (the author, 2026-10-11: the page with cards, a
-  paragraph each and four ways to add read as documentation, not settings). **Everything is saved as it changes**: no Save and no
+- **Settings** (the button in the title bar, left of ☰; the author, 2026-10-11), as JetBrains' Settings (the author,
+  2026-10-11: the dialogs read as a web page's, not a desktop app's; docs/ui.md, Desktop, not a web page): a tree on the
+  left, **Projects** with every project under it (its icon in its color, its name) and **Agents** (the agents and their
+  accounts: "Choosing the agent"), its **+** at the top New Project; on the right the chosen one's page under its path
+  ("Projects › shop"). Project Settings… in a group's menu opens it at that project; ☰ → Agents… on Agents. It was the
+  projects' manager alone, under a Projects button, until the agents' accounts needed a place outside projects; then
+  tabs, Projects and Agents, until the tree. **A project's page** (the projects' manager, in earlier words): at its top
+  its path, **New Task** (a task of it, in its group) and **⋯** (Delete Project…); then **Name:** with its color and
+  icon in a button beside it (a panel), and a group each under a titled line (`.titled`): **Code**, **Agents**,
+  **Profiles** (what its tasks are made of), each a list (`.list`) with a toolbar over it: **+** adds (a menu), **−**
+  removes the selected row (and Delete), **★** makes it the default (Code, Agents); a row's right-click has the same.
+  What needs typing (a URL to clone, a new profile's name) opens a field in place, under the list (Esc puts it away).
+  Then **Local addresses:**. Explanations are in the empty lines and the tooltips, not in a paragraph per section (the
+  author, 2026-10-11: the page with cards, a paragraph each and four ways to add read as documentation, not settings).
+  **Everything is saved as it changes**: no Save and no
   Cancel (the author, 2026-10-11: with code, agents and profiles saved at once and the look on Save, it was not plain
   what Save and Cancel were for); the name on Enter or leaving its field, also when the manager closes or another
   project is chosen with one typed. Decided with the author on 2026-10-10, when a project became the configuration its tasks are made
   from: the menu and the Welcome screen (JetBrains' way, 2026-10-07) showed no project's configuration without opening
   it. A dialog, not a window of the OS: no process more.
-- **New Project** (in the manager; New Project… in the empty window), as JetBrains': **its code first** (the author,
+- **New Project** (a dialog of its own, `NewProject.vue`: Settings' +, which it takes the place of until Create or
+  Cancel; New Project… in the empty window; by itself at the first start, no project yet), as JetBrains': on the left
+  what its code comes from, on the right the form (**Name:**, **Location:**). **Its code first** (the author,
   2026-10-11: a folder made in `~/Kulisa` first, git on, was in the way of code already on the disk or at a URL: with
   a repository added after it, every task got a copy of the empty one too, or the empty folder stayed as a former one):
   - **New folder**: a name and a location, `~/Kulisa` (every new project's place, as JetBrains' `~/PycharmProjects`)
     unless they type or browse to another; the dialog shows the folder it makes (`<location>/<name>`), so the human
     knows where the agent's files are. A folder there already is taken as it is, its files kept.
-  - **Folder on disk**: one folder or several (a frontend and a backend: typed and Add, or Browse…, each a row with
-    "git" or "no git" and ×), taken as they are, nothing made: their files and, for repositories, their history kept.
+  - **Folders on disk**: one folder or several (a frontend and a backend: typed and Add, or + over the list, which
+    browses; each a row with "git" or "no git", − leaves the selected one out), taken as they are, nothing made: their files and, for repositories, their history kept.
     The first is the default repository and the project's folder (Open Folder… was until 2026-10-11, a command of its
     own whose effect was not clear, the author; now a choice inside New Project). Create Git repository runs in those
     without git. A folder that is not there, or a project's, is refused as it is added.
@@ -100,7 +104,7 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   first commit ("Initial commit"; nothing of the folder is in it), as a worktree needs one, so the first task already
   has a copy of its own. Without git's user name and email set there is no commit, and tasks work in the folder. More
   repositories are added on its page (Code).
-  **Create makes no task**: the manager goes on to its configuration (its agents' accounts: New
+  **Create makes no task**: Settings opens on its page (its agents' accounts: New
   Account…; its code, profiles), and **New Task** at its top makes its first task (`project:open` without a task: a
   new one).
 - **Showing another group** slides the grid towards its island, as macOS desktops do (a view transition on the compositor, the
@@ -123,23 +127,23 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   icon is its site's favicon (`favicon.*` or `icon.*` at the top or in `public/`, `static/`, `app/`, `src/`, `assets/`
   …, up to 128 KB; a project made in a folder that has one gets it), one of Kulisa's set (Lucide's cart, briefcase,
   globe, flask, rocket, code, building, people, book, heart), or the app's curtain.
-- **Its configuration** (the manager's right side, `ProjectEditor.vue`, which is Settings with its tabs, one form for a new project and an existing
-  one; a new project's form: Create, Cancel) changes its name (on Enter or leaving it), color, icon (a panel from its
-  icon) and local addresses as they change; the folder is shown (in Code), not changed.
+- **Its configuration** (a project's page in Settings, `ProjectEditor.vue`) changes its name (on Enter or leaving it),
+  color, icon (a panel from the button beside its name) and local addresses as they change; the folder is shown (in
+  Code), not changed.
 - **Its agents**: a list of its agents' accounts and the terminal only ("Choosing the agent", Accounts). Its
   **+** adds the terminal only or any account (made in another project or in Settings → Agents), or, under New Account,
-  makes one of an agent, signed in right there; × lets go of one at once (the account stays: Settings → Agents deletes
-  it); the first is the default, marked so when there are several (**Make Default** on another, as the pointer is on
-  it): the bar's + runs it, the others are in +'s right-click menu (New Task with).
+  makes one of an agent, signed in right there; − lets go of the selected one at once (the account stays: Settings →
+  Agents deletes it); the first is the default, marked "default" when there are several (**★**, or Make Default in a
+  row's right-click, on another): the bar's + runs it, the others are in +'s right-click menu (New Task with).
   None: its tasks start with the terminal only. A task keeps the agent it started with; Change agent… in its terminal
   picks another of the project's.
 - **Its code**: the repositories or folders its tasks work on, the default one first (marked when there are several,
-  **Make Default** on another: new tasks' agents start in its copy; every task gets a copy of each). Its **+**: **Add
+  **★** or Make Default in a row's right-click on another: new tasks' agents start in its copy; every task gets a copy of each). Its **+**: **Add
   Folder…** adds one from the computer, **Clone from URL…** one from a URL with the user's own git (its credentials and keys; git asks for no password, so a
   private repository it cannot reach fails with git's own words; cloned into the project's own folder when that has no
   git, `~/Kulisa/<project>/<repo>`, else next to it, never inside a repository). A repository added while tasks run is copied for each loaded one (the others when they load) and its agent is
-  told, typed into its prompt for the human to send: Claude Code `/add-dir <folder>`, others a line saying so. **×**
-  removes one from the project (its folder stays), only when no task has a copy of it or works in it: the refusal
+  told, typed into its prompt for the human to send: Claude Code `/add-dir <folder>`, others a line saying so. **−**
+  (or Delete, or the right-click) removes the selected one from the project (its folder stays), only when no task has a copy of it or works in it: the refusal
   names those tasks (deleting a copy would delete their work). A project whose own folder has no git keeps it until a
   repository is added; then it is its **former folder**: new tasks no longer work in it, those that did go on there,
   and the settings say so, with Show, while it exists (the human moves its files, or asks an agent).
@@ -147,7 +151,7 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   the last group is closed (Close Group, the middle button on its label, × on its last task, deleting the project). The title bar and
   the projects' bar as always (no islands; Search Tasks there, every project's tasks) and, in the grid's place, an
   empty island: "No task is open", Search Tasks, New Project…. At the first start (no project at all: nothing to do in Kulisa
-  without one) the projects' manager opens by itself on New Project (`shell.firstStart`). It replaced the Welcome
+  without one) New Project opens by itself (`shell.firstStart`). It replaced the Welcome
   screen (the author, 2026-10-11: once Search Tasks listed the tasks, it was not needed): its list of tasks is Search
   Tasks', the links and Kulisa's version are ☰'s, New Project the manager's. Later starts
   open the windows that were open, each with its projects, showing the one shown last (`windows` in `settings.json`);
@@ -320,7 +324,7 @@ are not programmers); its accounts are made there too, or in a project's page.
     project takes it there too. Choosing a task's agent (Change agent…, Choose the Agent) lists the project's accounts
     and the agents themselves, never another project's: the project's page says who works in its tasks.
   - **An account lives until the human deletes it** (the author, 2026-10-11: with every project deleted, every account
-    went, and the next project had none; a sign-in is made again only by signing in again). × on an account in a
+    went, and the next project had none; a sign-in is made again only by signing in again). − on an account in a
     project lets go of it at once, nothing asked, as of the terminal only: a task running it keeps it. Deleting a
     project lets go of its accounts the same way. In Settings → Agents each account says the projects it is in ("in no
     project"), and its × deletes it: refused while any task of any project, open or closed, runs it (counted from their
