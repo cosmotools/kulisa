@@ -2,16 +2,16 @@
 // The empty window's island (CLAUDE.md, Terminology; tasks.md, Projects).
 import { dialog } from '../lib/dialogs';
 import { withKeys } from '../lib/common';
+import { toggleNewTask } from '../lib/menu';
 
 kulisa.on('project:new', () => dialog('projects').then((d) => d.newProject()));
-const search = () => document.getElementById('searchTasks')?.click();
 </script>
 
 <template>
   <section id="empty">
     <h2>No task is open</h2>
     <div class="start">
-      <button id="emptysearch" class="primary" :title="withKeys('Every project\'s tasks', 'tasks.search')" @click.stop="search">Search Tasks</button>
+      <button id="emptynewtask" class="primary" :title="withKeys('Of which project, or a closed one', 'task.menu')" @click.stop="toggleNewTask">New Task</button>
       <button id="emptynew" @click="dialog('projects').then((d) => d.newProject())">New Project…</button>
     </div>
   </section>

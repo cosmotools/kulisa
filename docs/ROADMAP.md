@@ -26,7 +26,10 @@ here; what is left of it stays.
     in the bar's button (Search Tasks, Ctrl+Shift+A) and the empty window instead of the Welcome screen (tasks.md,
     Projects); Delete Project… only in the projects' manager. And a project is no thing to open (the author's decision,
     2026-10-11): its island is the group of its open tasks (Close Group closes them, asking only when an agent works;
-    no question where a task opens; one group per project, in one window; tasks.md, Projects). Next: fix what the author's testing finds;
+    no question where a task opens; one group per project, in one window; tasks.md, Projects). Then (the author,
+    2026-10-11) one + after the islands instead of Search Tasks and of each group's +: every project in its menu, a
+    task of it made with its default agent, its closed tasks under it; no number of open profiles on a task's tab
+    (tasks.md, Projects). Next: fix what the author's testing finds;
     then what is left of each step ("Left:" in it), only once the author has decided it.
     Open, for the author to decide: Refresh from Master… now matters only for a local app's cookies (keep or drop);
     a script the agent runs in a page (`browser_evaluate`) could read a test password back from its field (only the
@@ -59,7 +62,7 @@ here; what is left of it stays.
     changeable), or one the human picks. That folder is the human's: Kulisa never deletes it. Once a repository is
     added, tasks no longer work in it; its page shows it ("former folder, tasks no longer work in it", Show) while
     it exists, and the human moves its files (or asks the agent).
-  - **Tasks.** + in a project's group makes one with the project's default agent, its default repository and its
+  - **Tasks.** The bar's + (a project in its menu) makes one with the project's default agent, its default repository and its
     profiles, all closed until opened (step 7); the human describes the task in the agent's terminal. A task always works in copies: a worktree per
     repository, on one branch, named `task-N` until the agent renames it (an MCP tool; `git branch -m`). The agent
     starts in the default repository's copy and gets the others with their instructions: Claude Code `--add-dir` and
@@ -82,7 +85,7 @@ here; what is left of it stays.
     remote, the human asks the agent ("merge into main"); the skill: first check the folder for the human's
     uncommitted changes, and stop if there are any.
   - **The bar is the tasks' bar, drawn as Chrome's tab groups**: a group per project (its name, color and icon;
-    collapsible; + makes a task), a tab per task (the project's icon and color, the task's name, the agent's state).
+    collapsible), a tab per task, and one + after them, a task of any project (the project's icon and color, the task's name, the agent's state).
     A group moves to another window whole (built: Move to New Window), e.g. to keep one client's tasks out of a screen
     share. With no task open, the empty window (built: tasks.md).
   - **Sign-in rule, narrowed**: built with step 5 ([profiles.md](profiles.md), "Test users' sign-ins"; CLAUDE.md,
@@ -108,7 +111,7 @@ here; what is left of it stays.
        Master… now matters only for a local app's cookies, to keep or drop.
     7. The projects' manager: built 2026-10-10 ([tasks.md](tasks.md), Projects: the Projects button in the title
        bar, Settings → Projects since 2026-10-11; every project on the left, one's configuration on the right; a list of agents with a default; + makes a
-       task from the configuration, New Task with on its right-click; a new task opens no profile).
+       task from the configuration; a new task opens no profile).
     8. Agents' accounts made and chosen in the project, one store as the profiles': built 2026-10-11
        ([tasks.md](tasks.md), "Choosing the agent", Accounts). Changed with the author while building: no email asked
        (the sign-in starts at once, as `/login`; the folder a fixed id, never renamed: macOS keeps Claude Code's

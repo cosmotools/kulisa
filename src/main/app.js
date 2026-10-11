@@ -125,7 +125,7 @@ function start(options = {}) {
   // or one to choose in its group's panel.
   const favicons = new Map();
   const faviconFor = (folder) => (favicons.has(folder) ? favicons.get(folder) : favicons.set(folder, faviconOf(folder)).get(folder));
-  // And its tasks (Search Tasks' list): those open, as made, then the closed ones, the one closed last first.
+  // And its tasks (the bar's + lists the closed ones): those open, as made, then the closed ones, the one closed last first.
   const tasksOf = (p) => {
     const list = store.tasksOf(p).list.map(({ n, name, branch, closed, closedAt, merged }) => ({ n, name, branch, closed: !!closed, closedAt, merged: !!merged }));
     return [...list.filter((t) => !t.closed), ...list.filter((t) => t.closed).sort((a, b) => (b.closedAt || 0) - (a.closedAt || 0))]
@@ -189,7 +189,7 @@ function start(options = {}) {
   // repositories); its tasks are. Its island in a window's bar is the group of its open tasks there, as Chrome's tab
   // group: it comes with the first one opened and goes with the last one closed. In code an open project (Project in
   // shell.open, a tab of its window) is that group.
-  // Task n of project p shown (Search Tasks), opened again if it was closed; none: a new task of it. In its group's
+  // Task n of project p shown (the bar's +), opened again if it was closed; none: a new task of it. In its group's
   // window, brought to the front; with no group yet, a new one at the end of window w's bar.
   async function openProject(p, w, n) {
     const had = shell.open.get(p.id), project = had || addProject(p, w);
@@ -241,11 +241,11 @@ function start(options = {}) {
     }
     if (!window) {
       return !working.length || shell.ask({ message: `Close the group ${projects[0].name}?`, ok: 'Close',
-        detail: `${busy}closing stops ${it}. Its tasks' conversations, code and profiles stay: open them again from Search Tasks.` }, w);
+        detail: `${busy}closing stops ${it}. Its tasks' conversations, code and profiles stay: open them again from the bar's +.` }, w);
     }
     return shell.ask({ message: 'Close the window?', ok: 'Close',
       detail: `Its tasks close: ${projects.map((p) => p.name).join(', ')}. ${busy ? `${busy}closing stops ${it}. ` : ''}`
-        + 'Their conversations, code and profiles stay: open them again from Search Tasks.' }, w);
+        + 'Their conversations, code and profiles stay: open them again from the bar\'s +.' }, w);
   }
   // A group no longer: its agents stopped, its profiles closed, its island gone (not on screen any more).
   async function unload(project) {
@@ -320,18 +320,16 @@ function start(options = {}) {
   // only when an agent works; w: the window to ask in.
   async function quit(w) { if (await askClosing(w, [...shell.open.values()], { quit: true })) app.quit(); }
   function dropWindow(w) { shell.windows.splice(shell.windows.indexOf(w), 1); w.destroy(); }
-  // A new task of a project (+ in its group: projects.js), then shown. Without git it would work in the folder another
-  // open task works in: the human is told first.
-  // agent: New Task with (+'s right-click menu): one of the project's agents instead of its default.
-  async function createTask(project, agent) {
+  // A new task of a project (the bar's +, New Task: projects.js), with its default agent, then shown. Without git it
+  // would work in the folder another open task works in: the human is told first.
+  async function createTask(project) {
     if (!project) return { error: 'the project is not open' };
-    if (agent && !project.agents().includes(agent)) return { error: `${agent} is not one of ${project.name}'s agents` };
     await project.checkGit();
     if (project.sharesFolder() && !await shell.ask({ message: `Another task of ${project.name} works in its folder`, ok: 'Create Anyway',
       detail: `Without git, tasks have no copies of their own: both agents would work in ${project.folder}, and may get in each other's way.` }, project.window)) {
       return { error: 'the human said no' };
     }
-    const task = await project.createTask(agent);
+    const task = await project.createTask();
     if (task.error) return task;
     await showTask(task);
     return { n: task.n, key: task.key };
@@ -352,7 +350,7 @@ function start(options = {}) {
   async function closeTask(task) {
     const project = task.project;
     if (task.state === 'working' && !await shell.ask({ message: `Close the task ${task.name}?`, ok: 'Close',
-      detail: 'Its agent is still working: closing stops it. Its conversation, code and profiles stay; open it again from Search Tasks.' }, project.window)) {
+      detail: 'Its agent is still working: closing stops it. Its conversation, code and profiles stay; open it again from the bar\'s +.' }, project.window)) {
       return { error: 'the human said no' };
     }
     if (project.open().length === 1) return closeProject(project, { asked: true });
@@ -507,7 +505,7 @@ function start(options = {}) {
     }
     let entry = store.projectFor(folder, name, { color, icon });
     if (repos) entry = store.updateProject(entry.id, { repos });
-    sendProjects(); // Search Tasks lists it
+    sendProjects(); // the bar's + lists it
     return { id: entry.id };
   });
   // A project's configuration in the projects' manager (ProjectEditor.vue): its name, color, icon, agents,
@@ -673,7 +671,7 @@ function start(options = {}) {
   // project is shown.
   const taskAt = (key, fn) => serial(() => { const task = shell.taskByKey(key); return task ? fn(task) : { error: `no task ${key}` }; });
   ipcMain.handle('task:show', (e, key) => taskAt(key, showTask));
-  ipcMain.handle('task:new', (e, { project, agent } = {}) => serial(() => createTask(project ? shell.open.get(project) : at(e)?.current, agent)));
+  ipcMain.handle('task:new', (e, { project } = {}) => serial(() => createTask(project ? shell.open.get(project) : at(e)?.current)));
   ipcMain.handle('task:close', (e, key) => taskAt(key, closeTask));
   ipcMain.handle('task:delete', (e, key) => taskAt(key, deleteTask));
   ipcMain.handle('task:open', (e, key) => taskAt(key, openTask));

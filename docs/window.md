@@ -26,7 +26,7 @@ replace a region left by the page before.
 ## The tasks' bar
 
 Under the grid, in the middle: an island per group (a project's open tasks), drawn as Chrome's tab groups (its label, which folds it;
-its open tasks' tabs; + for a new task, its right-click New Task with one of the project's agents), then Search Tasks, every project's tasks ([tasks.md](tasks.md), Projects). ☰ → **Tasks bar: Top, Bottom** puts it over the grid instead, under the
+its open tasks' tabs), then +, a new task of any project or a closed one opened again ([tasks.md](tasks.md), Projects). ☰ → **Tasks bar: Top, Bottom** puts it over the grid instead, under the
 title bar (`settings.json`: `bar`; the page gets it in its URL, so it is drawn in its place at once). Bottom is the
 default: the hand goes to the terminal under the grid all the time, so the tabs are where it already is; at first
 the projects were tabs in the title bar and the tasks a strip under the grid, and both switched with the same
@@ -110,8 +110,7 @@ Kulisa draws its menus in HTML, as Chrome does (Reka UI's menus: `components/men
 button's opens on the press (press, drag to a row, let go there), a right-click's at the pointer, one at a time; the
 pages are pictures of themselves meanwhile; afterwards the keyboard is back where it was:
 
-- +'s right-click menu (New
-  Task with each of the project's agents), the profiles' chip on the shown task's tab (open
+- the bar's + (every project, a new task of it; their closed tasks; New Project…), the profiles' button on the shown task's tab (open
   and closed profiles, Manage Profiles…; the tab's right-click menu has them too, with Show Folder), ☰ (as Chrome's ⋮, each row with its icon: the zoom row, the theme row, the
   tasks' bar's row, Arrange panels, Agents… (Settings on its Agents tab), Keyboard Shortcuts, the links
   (Documentation, GitHub, Report an issue; one list in `lib/common.ts`), and Exit, which quits as the last window's × does; not on macOS, where
@@ -121,8 +120,6 @@ pages are pictures of themselves meanwhile; afterwards the keyboard is back wher
   then Change agent… in the agent's, Close in the others).
 
 A project label's right-click opens its group's menu, as Chrome's tab groups have it ([tasks.md](tasks.md), Projects).
-Search Tasks, the button after the islands, is a panel, not a menu: its search field takes the letters typed
-([ui.md](ui.md), Panels).
 
 A row whose command has a key shows it at its end (Keys, below).
 
@@ -205,7 +202,7 @@ Who gets a key depends on where the keyboard is:
   Chrome. Closing or switching a tab from the page leaves the keyboard in the page shown next.
 - **Everywhere, the terminal too**: Ctrl+` to the agent's terminal and back to the page used last, Ctrl+Shift+` a new
   terminal, Ctrl+Shift+1…9 a task of the shown group, Ctrl+Shift+PgDn / PgUp the next or previous one of every
-  group (in the bar's order), Ctrl+Shift+N a new task, Ctrl+Shift+A Search Tasks (Chrome's Search tabs),
+  group (in the bar's order), Ctrl+Shift+N a new task of the shown group's project, Ctrl+Shift+A the bar's + (a task of which project),
   Ctrl+Shift+/ the list. Ctrl+Shift+… and Ctrl+` are
   what agents and sites leave alone; Alt+letters are Claude Code's (Alt+V, Alt+P, Alt+T), Ctrl+Alt+arrows GNOME's,
   Ctrl+Shift+U and E ibus's, so Kulisa takes none of them.

@@ -49,10 +49,9 @@ Each icon is drawn once, as a `<symbol id="i-…">` in the sprite (`Sprite.vue`,
 | Icon | Where |
 |---|---|
 | `i-close` | × of dialogs, profiles, tabs, tasks; removing a row |
-| `i-plus` | new tab, new task; adding to a section of a dialog |
+| `i-plus` | new tab, new task (the bar's +, after the islands); adding to a section of a dialog |
 | `i-settings` | Settings in the title bar (Lucide's settings) |
 | `i-projects` | ☰'s Tasks bar row (Lucide's folder-open) |
-| `i-search` | Search Tasks, after the islands of the tasks' bar (Lucide's search) |
 | `i-logo` | the app icon with its curtain in `currentColor`: the title bar's (`--project`), and a project's label in the tasks' bar (its `--color`). The folds are a shadow over the color, one for every color: a `<use>` takes the sprite's gradient, not one of its own |
 | `i-docs`, `i-github`, `i-bug` | the links (Documentation, GitHub, Report an issue), rows of ☰ (`data-icon` on each link; Lucide's book-open, github, bug) |
 | `i-menu` | ☰, the window's menu |
@@ -62,7 +61,7 @@ Each icon is drawn once, as a `<symbol id="i-…">` in the sprite (`Sprite.vue`,
 | `i-globe` | a tab whose site has no icon |
 | `i-zoom`, `i-theme`, `i-arrange`, `i-agent`, `i-keyboard`, `i-exit` | ☰'s rows: Zoom, Theme, Arrange panels, Agents…, Keyboard Shortcuts, Exit |
 | `i-mic` | dictation's microphone in the terminal's header (Lucide's mic) |
-| `i-users` | the profiles' chip on every task's tab (Lucide's users) |
+| `i-users` | the profiles' button on the shown task's tab (Lucide's users) |
 | `i-p-cart`, `i-p-briefcase`, `i-p-globe`, `i-p-flask`, `i-p-rocket`, `i-p-code`, `i-p-building`, `i-p-people`, `i-p-book`, `i-p-heart` | a project's icon to choose (Lucide's shopping-cart, briefcase, globe, flask-conical, rocket, code, building-2, users-round, book-open-text, heart), drawn in its color (`projectIcon`, `lib/common.ts`) |
 | `i-working`, `i-waiting`, `i-done` | an agent's state on a tab (`.state`); `i-done` also checks the chosen row of a menu or a select, and a checkbox |
 | `i-down` | a select's button (`SelectBox.vue`) |
@@ -93,7 +92,7 @@ every other `<svg>` uses the sprite.
 
 ### Rows
 
-- `.item`: a row of a menu or a list (`MenuButton.vue`, Search Tasks' tasks, the projects' manager's rows), `--row` high: an optional icon (`.ico`), `.dot`
+- `.item`: a row of a menu or a list (`MenuButton.vue`, the projects' manager's rows), `--row` high: an optional icon (`.ico`), `.dot`
   (a project's color, `--color`), `ProjectIcon.vue` (a project's icon in its color: its favicon, one of Kulisa's set or
   the curtain; `.picon`, also on its label in the tasks' bar) or `.avatar` (a profile's picture), `.text` with `.label` and a `small` line under it, a `kbd` key at the end. Lit under the
   pointer and on keyboard focus.
@@ -137,9 +136,9 @@ The window's controls are Reka UI's, in this look (CLAUDE.md, Window UI):
   step taller than a button (`--control` + 4 px) and at least 64 px wide: a target for a quick throw of the mouse.
   Lit under the pointer; `.active`: the shown one, in the panels' color (`--island`) on the dark island. A
   task's tab (`TaskTab.vue`).
-- `.chip`: an icon and a number inside a tab: on every task's tab, 👥 and how many of its profiles are open; on
-  the shown one a button (`#openProfiles`, lit under the pointer) with the menu of them. On every tab, so that tabs
-  keep their widths as another is shown.
+- `.chip`: an icon button inside a tab: on the shown task's tab 👥 (`#openProfiles`, lit under the pointer) with the
+  menu of its profiles; the other tabs keep its room only (not shown), so that tabs keep their widths as another is
+  shown. No number (the author, 2026-10-11).
 - `.state`: an agent's state by `data-state` (from its hooks), an icon each so that color is not the only sign (some
   people do not tell yellow from green): working (sparkles in `--accent`, twinkling; not with reduced motion), waiting
   for you (a bell in `--note`), done (a check in `--done`: come and see, until the human sees that task); nothing otherwise, as nothing asks for
@@ -194,7 +193,7 @@ Every dialog is `Modal.vue`, Reka UI's Dialog (`reka-ui`) with the same parts:
 ### Menus
 
 Reka UI's menus, the rows built as one opens: a button's (`ButtonMenu.vue`: ☰, ⋮, a project's ⋯, the profiles'
-chip …; `end`: its end edge at the button's, at a bar's end), an area's right-click menu at the pointer
+button, the bar's + …; `end`: its end edge at the button's, at a bar's end), an area's right-click menu at the pointer
 (`RightClickMenu.vue`: `items(e)` builds the rows for what was right-clicked, or `null`: none), one at a point
 (`menuAt(e, items)` in `lib/menu.ts`, `PointMenu.vue`: a link in the terminal). `ButtonMenu` opens on the press, so a
 press, a drag to a row and the release there chooses it, as the OS's menus; Enter, Space or ↓ on the button open it.
@@ -203,13 +202,15 @@ choose a row). One menu at a time; Esc, a press outside, the same button, a chos
 it, and the keyboard goes back where it was. While one is open, the pages are pictures of themselves
 (`covered('pictures')`); it shows once they are.
 
-Items (`lib/menu.ts`, laid out by `menu/MenuRows.vue`) are `{ label, sub, keys, icon, color, avatar, enabled, run,
-remove }` (`MenuButton.vue`; `keys`: the row's key at its end, from the keys' table: `keyText(id)`, `lib/common.ts`;
+Items (`lib/menu.ts`, laid out by `menu/MenuRows.vue`) are `{ label, sub, keys, icon, color, avatar, project, inset,
+enabled, run, remove }` (`MenuButton.vue`; `keys`: the row's key at its end, from the keys' table: `keyText(id)`, `lib/common.ts`;
 `remove`: a × after the row, an item of its own), `'-'` (a divider), `{ heading, icon }`, `{ note }` (small dim words
 under the rows, not one of them: ☰'s version, so nothing looks clickable that is not), `{ choose, chosen, rows }` (one
 of them checked: the dictation language) or `{ component, props }` (a row of its own: ☰'s zoom, theme, tasks' bar
 and arrangements, `components/menu/`, built of Reka's menu items; − and + and the choices leave the menu open);
-`icon` is the sprite's id, at the row's start; rows are `.item` and `.removable`, lit as Reka highlights them
+`icon` is the sprite's id, at the row's start; `project` a project's icon in its color there (`ProjectIcon.vue`,
+`.picon`); `inset` sets a row in under the one above, its text under that one's (a project's closed task under it, in
+the bar's +); rows are `.item` and `.removable`, lit as Reka highlights them
 (`[data-highlighted]`).
 
 ### Panels
@@ -217,9 +218,7 @@ and arrangements, `components/menu/`, built of Reka's menu items; − and + and 
 A panel is a menu's look with fields in it, where a menu cannot hold them (its rows take the keys typed and the
 focus under the pointer): Reka UI's Popover, `.menu` with its rows `.item` (buttons) under a top of its own, the pages
 pictures meanwhile (`covered('pictures')`), closed as a menu is (Esc, a press outside, a row chosen, the window left);
-a row's action runs once it has closed. Search Tasks
-(`TaskSearch.vue`, `.tasksearch`, the button after the islands), its rows Reka's Listbox under its search field
-(`TaskList.vue`: `ListboxFilter`, a `.tlgroup` per project, `.tlproject`, `.tltask`); a project's color and icon
+a row's action runs once it has closed. One today: a project's color and icon
 (`.pjlookpanel` in `ProjectEditor.vue`, from its icon at its page's top: `.choices` under `.heading`s).
 
 A menu's row that opens a field (New Profile…) gives it the keyboard with `focusAfterMenu(el)` (`lib/menu.ts`): the

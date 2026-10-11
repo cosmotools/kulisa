@@ -6,6 +6,8 @@ export interface MenuRow {
   icon?: string; // the sprite's id, at the row's start
   color?: string; // a project's dot
   avatar?: string; // a profile's picture
+  project?: { icon?: string; favicon?: string; color: string }; // a project's icon, in its color (ProjectIcon.vue)
+  inset?: boolean; // set in under the row above, as its own (a project's closed task under it)
   enabled?: boolean;
   run?: () => unknown; // none: shown only
   remove?: { title: string; run: () => unknown }; // a × after the row, shown on hover (as JetBrains' recent projects)
@@ -35,3 +37,5 @@ export function focusBack(e: Event, el: Element | null) {
   given = null;
   if (!document.querySelector('.menu[data-state="open"]') && el instanceof HTMLElement && el.isConnected) el.focus();
 }
+// The bar's + menu (NewTask.vue) opened or closed as a click on it does: Ctrl+Shift+A, the empty window's New Task.
+export const toggleNewTask = () => document.getElementById('newTask')?.click();

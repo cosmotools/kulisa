@@ -61,11 +61,11 @@ class Project {
   // project has one, else all in one folder, ~/Kulisa/<project>@task-<n>/<repo>/; with a port offset no other task
   // has (100, 200, …: the project's own folder keeps the usual ports). A folder without git is used as it is: the
   // task works right in it. Made from the project's configuration alone (the projects' manager), nothing from the
-  // task on screen: its agent the project's default one, or the one asked for (New Task with); none: the window asks
+  // task on screen: its agent the project's default one; none: the window asks
   // as the task starts. No profile opens by itself: all its project's are listed closed, and the agent (profile_open)
   // or the human (👥) opens one when it is needed, a copy of its master made then. The new Task, or { error }.
-  async createTask(agent = null) {
-    agent ??= this.agents()[0];
+  async createTask() {
+    const agent = this.agents()[0];
     await this.checkGit();
     const n = this.next, name = `task-${n}`, repos = this.repos();
     const gits = (await Promise.all(repos.map(async (r) => ((await gitOf(r)) === 'ok' ? r : null)))).filter(Boolean);

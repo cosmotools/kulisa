@@ -95,9 +95,10 @@ unasked. This paragraph is removed when the rewrite is finished.
   project and its page) and Agents (the agents, their accounts). It was "the projects' manager" alone until 2026-10-11;
   the manager is still its Projects tab (`ProjectEditor.vue`, `dialog('projects')`).
 - **Terminology: "the empty window"**: what a window is with no task open (at first start, after its last
-  group is closed): the title bar and the tasks' bar as always (no islands, Search Tasks there) and, in the
-  grid's place, an empty island: "No task is open", Search Tasks, New Project…. `Empty.vue`. It replaced the Welcome screen
-  (JetBrains' name; 2026-10-11), whose list of tasks is Search Tasks' now; earlier commits say Welcome screen.
+  group is closed): the title bar and the tasks' bar as always (no islands, its + there) and, in the
+  grid's place, an empty island: "No task is open", New Task (the bar's + menu), New Project…. `Empty.vue`. It replaced
+  the Welcome screen (JetBrains' name; 2026-10-11), whose list of tasks is the bar's + now (the closed ones; Search
+  Tasks for a few hours before it); earlier commits say Welcome screen.
 - **Terminology: "task"** for one line of work inside a project: an agent (its terminal and session, any agent
   CLI), a branch of the code, profiles and a grid. It replaced "workspace" (the word of tools for parallel agents,
   e.g. Conductor) on 2026-10-10; earlier commits say workspace. Each works in a git worktree of its own next to the

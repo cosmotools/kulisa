@@ -51,16 +51,16 @@ default). **Settings** in the title bar (left of ☰, the gear) has two tabs, **
 the projects' manager: every project on the left
 and **+ New Project**; on the right the chosen one's page: **New Task**, its code, agents, profiles and look, each saved as it changes, and **⋯ → Delete Project…** (Kulisa's data of it and its tasks' copies; its folder stays). The bar under the
 grid (or over it: **☰ → Tasks bar**) has a group per project with open tasks, as Chrome's tab groups: its name (a click folds
-it), its tasks, and **+** for a new task. A project itself is not opened or closed: its tasks are. A click on a task shows it, of any group, and the others keep running
+it) and its tasks. A project itself is not opened or closed: its tasks are. A click on a task shows it, of any group, and the others keep running
 (their agents and pages) until you close them (**×** on a task; **Close Group** in its name's right-click menu or the middle
-button on its name closes all its tasks, asking only when an agent works). The button after the islands (or Ctrl+Shift+A)
-searches every project's tasks, as Chrome's Search tabs: a click opens one, in its project's group (a new one in this
-window when it has none), and **New Task** under each project makes one. **Settings → Projects** has **New Project**: its code first, a **New folder** (a name
+button on its name closes all its tasks, asking only when an agent works). **+** after the islands (or Ctrl+Shift+A)
+lists every project: a click makes a task of it with its default agent, in its group (a new one in this window when it
+has none); under each project its closed tasks, a click opens one again. **Settings → Projects** has **New Project**: its code first, a **New folder** (a name
 and where it goes, `~/Kulisa` by default; git on by default, with an empty first commit), **Folders on disk** (one or
 several, a frontend and a backend: taken as they are, nothing made) or **Clone from URL** (one or several: into
 `~/Kulisa/<name>` by default, several each in a folder of its own there); then its
 configuration: its agents' accounts, more code, profiles; **New Task** makes its first task. **Project Settings…** on its name's right-click menu opens the manager at it. Closing the last group leaves the
-window empty: Search Tasks and New Project… in it. A closed task keeps its tabs and
+window empty: New Task (+'s menu) and New Project… in it. A closed task keeps its tabs and
 sign-ins; when you open it again, its agent continues the conversation where it can (`claude --resume`,
 `codex resume`). The agent starts in your shell in its task's folder, as if you typed its command in a terminal
 there, so the project's environment (direnv's `.envrc`, nvm, mise) applies; when it exits, the shell stays.
@@ -75,16 +75,16 @@ has it any more. Each starts as a clean agent: your own `~/.claude` and `~/.code
 one starts its tasks with the terminal only. Each task keeps its choice; **Change agent…** in the terminal's
 right-click menu picks another of the project's (with a new conversation).
 
-**Tasks:** several tasks of a project at once, each with its own agent, in its project's group. **+** makes one at
-once, `task-<n>` until its agent names it (or you do: **Rename…** in its tab's menu): a git worktree on a branch of
+**Tasks:** several tasks of a project at once, each with its own agent, in its project's group. **+** (a project in
+its menu; Ctrl+Shift+N for the shown one's) makes one at once, `task-<n>` until its agent names it (or you do: **Rename…** in its tab's menu): a git worktree on a branch of
 its own next to the project (`~/IdeaProjects/myshop@task-2/`; `.env*` and files named in `.worktreeinclude` are
-copied), a new session of the project's default agent there (right-click **+**: **New Task with** another of its
-agents), and its profiles, all closed until the agent or you open one (👥): each a copy of its master, where you
+copied), a new session of the project's default agent there (another one: **Make Default** on it in the project's
+page, or **Change agent…** after), and its profiles, all closed until the agent or you open one (👥): each a copy of its master, where you
 signed in once, for every task. Your
 project's folder stays yours: agents merge into it only when you ask. The task's app runs on its own ports: the usual
 ones plus `KULISA_PORT_OFFSET` (100, 200, …), and its tabs on local addresses point there. Click a task to switch;
 the others keep working. **×** closes a task (its agent stops; its code, profiles and conversation stay, and its
-group's menu or Search Tasks opens it again); **Delete Task…** in its tab's menu deletes it, after a question that says what goes
+group's menu or **+** opens it again); **Delete Task…** in its tab's menu deletes it, after a question that says what goes
 and any work not in main and not pushed. Without git, tasks work in the project's folder itself.
 
 **More terminals:** **+** in the terminal's header opens your shell in the task's folder next to the agent's.
@@ -94,7 +94,7 @@ restarts, as in an IDE, each a fresh shell in its place; **×** or `exit` closes
 
 Panes and the terminal are panels: drag one by its header to another place (or onto another panel to stack them as
 tabs), drag the gaps between them to resize; **☰ → Arrange panels** offers ready-made arrangements, each drawn as a picture. The grid is
-kept across restarts. Profiles are added, renamed, described (who each one is in your app: the agent chooses profiles by it, and asks you when it is not said), given another picture and deleted in **👥 → Manage Profiles…** (👥 on the shown task's tab, at the bottom; every task's tab shows how many of its profiles are open), or by right-clicking a pane's
+kept across restarts. Profiles are added, renamed, described (who each one is in your app: the agent chooses profiles by it, and asks you when it is not said), given another picture and deleted in **👥 → Manage Profiles…** (👥 on the shown task's tab, at the bottom), or by right-clicking a pane's
 header. **×** at the top right of a profile's pane closes it: its tabs
 go and free their memory, it stays signed in; **👥** lists it as closed and brings it back with the same tabs. Right-click a tab or the terminal for their menus. **Keys:** Chrome's keys in a profile's page (Ctrl+T, Ctrl+W,
 Ctrl+Shift+T, Ctrl+L, Ctrl+Tab …), Kulisa's everywhere, the terminal too (Ctrl+` the agent's terminal and back, Ctrl+Shift+1…9
@@ -147,7 +147,7 @@ src/main/        Electron main process
 src/agent/claude-plugin/  the Kulisa plugin for Claude Code: MCP config, the profiles skill, hooks (claude --plugin-dir)
 src/preload/     the window's bridge to the main process
 src/renderer/    window UI: Vue 3 components in TypeScript, built by Vite into dist/renderer (vite.config.mts; docs/ui.md).
-                 components/: the window's parts (App.vue; TopBar, Grid and grid/ its panels, TaskBar, TaskTab, TaskSearch, Empty,
+                 components/: the window's parts (App.vue; TopBar, Grid and grid/ its panels, TaskBar, TaskTab, NewTask, Empty,
                  the dialogs on Modal.vue, menu/ the menus; menus and dialogs are Reka UI's); lib/: what they share
                  (store.ts: what the main process sends;
                  grid.ts, terminals.ts, menu.ts, agents.ts, ask.ts, dialogs.ts, keys.ts, voice.ts). Styles: tokens.css,

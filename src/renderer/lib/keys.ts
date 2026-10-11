@@ -7,6 +7,7 @@ import { paneOfProfile } from './grid';
 import { shownTerm } from './terminals';
 import { dialog } from './dialogs';
 import { dialogsOpen } from './views';
+import { toggleNewTask } from './menu';
 import type { Profile } from '../types';
 
 let zone = 'window';
@@ -38,7 +39,7 @@ const run: Record<string, (c: Command) => unknown> = {
   'task.next': () => stepTask(1),
   'task.previous': () => stepTask(-1),
   'task.new': () => kulisa.invoke('task:new'),
-  'tasks.search': () => document.getElementById('searchTasks')?.click(), // as a click on it: again closes it
+  'task.menu': () => toggleNewTask(), // as a press on +: again closes it
   shortcuts: async () => (await dialog('shortcuts')).showShortcuts(),
   'tab.new': ({ p }) => paneOfProfile(p!.id)?.newTab(),
   'tab.close': ({ p, tab, page }) => act('tab:close', { profile: p!.id, tab, focus: page }),

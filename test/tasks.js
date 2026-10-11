@@ -5,7 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 const { assert, root, userData, project, pfile, savedTabs, panel, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, menuOpen, rightClick,
-  box, pageBox, viewOn, dock, press, ctrl, near, projectTabs, projectTab, showProject, savedWindows, closeMenu, chosen, select, selectValues, click, searchTasks, PORT } = require('./helpers');
+  box, pageBox, viewOn, dock, press, ctrl, near, projectTabs, projectTab, showProject, savedWindows, closeMenu, chosen, select, selectValues, click, plusMenu, PORT } = require('./helpers');
 const { withOffset } = require('../src/main/tasks');
 const hasDirenv = (() => { try { execFileSync('direnv', ['version']); return true; } catch { return false; } })();
 
@@ -13,11 +13,11 @@ const git = (cwd, ...args) => execFileSync('git', ['-c', 'user.name=Kulisa test'
 const tabs = (ui) => ui(`[...document.querySelectorAll('#tasklist .tasktab')].map((t) => t.querySelector('.name').textContent + (t.classList.contains('active') ? ' *' : ''))`);
 const taskTab = (n) => `document.querySelector('#tasklist .tasktab[data-task$="/${n}"]')`;
 const tasksFile = () => JSON.parse(fs.readFileSync(path.join(userData, 'projects', 'project', 'tasks.json'), 'utf8'));
-// + in the shown project's group; resolves once the new task is shown, its agent started.
+// The bar's +, the shown project in its menu; resolves once the new task is shown, its agent started.
 async function newTask(ctx) {
   const { shell, ui } = ctx;
   const before = shell.task;
-  await ui(`document.querySelector('#projectTabs .pisland.active .add').click()`);
+  await plusMenu(ui, shell.current.name);
   await waitFor(() => shell.task !== before && shell.task.loaded && shell.pty, 20000);
   ctx.watchPty(shell.pty);
   return shell.task;
@@ -54,7 +54,7 @@ module.exports = (test) => {
     assert.equal(shell.task.entry.worktree, undefined);
     assert.match(await ui(`${taskTab(1)}.title`), /in the project's folder .*no git/);
     ctx.answer = false;
-    await ui(`document.querySelector('#projectTabs .pisland.active .add').click()`);
+    await plusMenu(ui, shell.current.name);
     await waitFor(() => ctx.asked.length);
     const q = ctx.asked.pop();
     assert.equal(q.message, 'Another task of project works in its folder');
@@ -197,14 +197,14 @@ module.exports = (test) => {
   test('tasks: switching shows the other grid and terminal; the one left keeps running; the agent\'s state shows on its tab', async (ctx) => {
     const { shell, ui } = ctx;
     const second = shell.task, sam = second.profiles.get('sam-admin');
-    // Every task's tab says how many of its profiles are open; the shown one's is a button with a menu of them.
-    const chip = () => ui(`(() => { const b = document.getElementById('openProfiles'); return b.closest('.tasktab')?.dataset.task + ' ' + b.textContent + ' ' + document.querySelectorAll('#taskbar #openProfiles').length; })()`);
-    const counts = () => ui(`[...document.querySelectorAll('#tasklist .tasktab')].map((t) => t.querySelector('.chip').textContent)`);
+    // The shown task's tab has the profiles' button (👥, a menu of them), the others its room only; no number on any
+    // (profiles are the agent's hands: how many are open says nothing).
+    const chip = () => ui(`(() => { const b = document.getElementById('openProfiles'); return b.closest('.tasktab')?.dataset.task + ' ' + b.textContent.trim() + ' ' + document.querySelectorAll('#taskbar #openProfiles').length; })()`);
     const widths = () => ui(`[...document.querySelectorAll('#tasklist .tasktab')].map((t) => t.getBoundingClientRect().width)`);
-    assert.equal(await chip(), `${second.key} 2 1`);
-    assert.deepEqual(await counts(), [String(shell.taskOf('project', 1).profiles.size), '2']);
+    assert.equal(await chip(), `${second.key}  1`);
+    assert.deepEqual(await ui(`[...document.querySelectorAll('#tasklist .tasktab .chip')].map((c) => [c.textContent.trim(), getComputedStyle(c).visibility])`),
+      [['', 'hidden'], ['', 'visible']]);
     const before = await widths();
-    assert.match(await ui(`document.getElementById('openProfiles').title`), /^Profiles of this task: 2 open/);
     // A tab's right-click menu: the shown one's has its profiles too, as the chip's; then renaming, its folder,
     // deleting. Show Folder opens the task's worktree in the file manager.
     await rightClick(ui, `#tasklist .tasktab[data-task$="/1"] .name`);
@@ -224,7 +224,7 @@ module.exports = (test) => {
     assert.notEqual(second.folder, project, "the task's own, not the project's");
     await click(ui, taskTab(1));
     await waitFor(() => shell.task.n === 1);
-    await waitFor(async () => (await chip()) === `${shell.task.key} ${await ui(`document.querySelectorAll('.pane').length`)} 1`); // the button goes with it
+    await waitFor(async () => (await chip()) === `${shell.task.key}  1`); // the button goes with it
     assert.deepEqual(await widths(), before, 'the tabs keep their widths');
     await waitFor(async () => (await viewOn(shell, ui, 'sam-admin')) && viewOn(shell, ui, 'elon-buyer'));
     assert.equal(sam.get().view.getVisible(), false, "the second task's pages are hidden");
@@ -721,30 +721,31 @@ module.exports = (test) => {
     assert.ok(second.profiles.size === 0 && !second.pty, 'every task of the project stopped');
     assert.deepEqual(tasksFile().list.map((e) => [e.n, !!e.closed]), [[1, true], [2, true], [5, true]]);
     await waitFor(() => ui(`document.documentElement.classList.contains('noproject')`));
-    // The empty window: an empty island in the grid's place with New Project…; the bar with no islands but Search Tasks.
+    // The empty window: an empty island in the grid's place with New Task and New Project…; the bar with no islands but +.
     assert.equal(await ui(`getComputedStyle(document.getElementById('empty')).display`), 'grid');
     assert.equal(await ui(`document.querySelector('#empty h2').textContent`), 'No task is open');
     assert.ok(await ui(`(() => { const w = document.getElementById('empty'), s = getComputedStyle(w);
       return w.getBoundingClientRect().height > innerHeight * 0.7 && s.backgroundColor === (() => { const i = document.body.appendChild(document.createElement('i')); i.style.background = 'var(--island)';
         const c = getComputedStyle(i).backgroundColor; i.remove(); return c; })(); })() // an island's, as the dialogs'`));
-    assert.equal(await ui(`document.getElementById('searchTasks').checkVisibility()`), true, 'Search Tasks there');
+    assert.equal(await ui(`document.getElementById('newTask').checkVisibility()`), true, '+ there');
     assert.equal(await ui(`document.getElementById('tasks')?.checkVisibility() ?? false`), false, 'no tasks shown');
     assert.deepEqual(await projectTabs(ui), [], 'no project tab');
     assert.equal(await ui(`document.documentElement.style.getPropertyValue('--project')`), '', "no project's color");
     assert.equal(shell.win.getTitle(), 'Kulisa');
     assert.deepEqual(savedWindows(), [{ tabs: [], shown: null }], 'the window opens so next time');
-    // Search Tasks: each project's heading with its icon in its color, as on its label in the bar; its tasks under it,
-    // the one closed last first (all are closed here).
-    await searchTasks(ui);
-    assert.deepEqual(await ui(`[...document.querySelectorAll('.tasksearch .tlproject')].map((b) => b.querySelector('.picon use')?.getAttribute('href') ?? null)`),
+    // The empty window's New Task opens the bar's + menu: every project with its icon in its color, as on its label in
+    // the bar, and its closed tasks set in under it, the one closed last first (all are closed here); New Project… last.
+    await ui(`document.getElementById('emptynewtask').click()`);
+    const rows = await menuRows(ui);
+    assert.deepEqual(await ui(`[...document.querySelectorAll('.menu[data-state="open"] .item:not(.inset) .picon')].map((i) => i.querySelector('use')?.getAttribute('href') ?? null)`),
       shell.store.projects().map((p) => (p.icon === 'favicon' ? null : p.icon && p.icon !== 'logo' ? `#i-p-${p.icon}` : '#i-logo')));
-    const byClosing = tasksFile().list.filter((e) => e.closed).sort((a, b) => b.closedAt - a.closedAt).map((e) => e.name);
-    assert.deepEqual(await ui(`[...document.querySelectorAll('.tasksearch [data-project="project"] .tltask:not(.tlnew) .label')].map((l) => l.textContent)`), byClosing);
-    assert.equal(byClosing[0], 'Feature-X');
-    // Its heading is a label; a task of it opens its group again, on that task; the others wait in its group's menu.
-    assert.notEqual(await ui(`document.querySelector('.tasksearch [data-project="project"] .tlproject').getAttribute('role')`), 'option', 'no row');
+    const byClosing = tasksFile().list.filter((e) => e.closed).sort((a, b) => b.closedAt - a.closedAt).map((e) => `  ${e.name}`);
+    assert.deepEqual(rows.slice(rows.indexOf('project') + 1, rows.indexOf('project') + 1 + byClosing.length), byClosing);
+    assert.equal(byClosing[0], '  Feature-X');
+    assert.deepEqual(rows.slice(0, 1).concat(rows.slice(-2)), ['# New Task of', '-', 'New Project…']);
     await closeMenu(ui);
-    await searchTasks(ui, 'project', 2);
+    // A closed task of it opens its group again, on that task; the others wait in its group's menu.
+    await plusMenu(ui, 'project', 'Feature-X');
     await waitFor(() => shell.task?.n === 2 && shell.task.loaded && shell.pty);
     ctx.watchPty(shell.pty);
     await waitFor(() => ui(`!document.documentElement.classList.contains('noproject') && !document.documentElement.classList.contains('loading')`));
@@ -856,7 +857,7 @@ module.exports = (test) => {
     assert.equal(shell.task.folder, path.join(made, 'Shop@task-1'), 'so its first task has a copy of its own');
     assert.equal(await ui(`(document.getElementById('projects')?.dataset.state === 'open')`), false);
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
-    await searchTasks(ui, 'project', 1); // a closed task in Search Tasks: its group opens again on it
+    await plusMenu(ui, 'project', 'task-1'); // a closed task in the bar's +: its group opens again on it
     await waitFor(() => shell.current?.folder === project && shell.task?.n === 1 && shell.task.loaded && shell.pty);
     ctx.watchPty(shell.pty);
     await waitFor(() => ui(`!document.documentElement.classList.contains('noproject') && !document.documentElement.classList.contains('loading')`));
@@ -984,13 +985,10 @@ module.exports = (test) => {
     const task = await newTask(ctx);
     ctx.asked.length = 0;
     assert.equal(JSON.parse(fs.readFileSync(path.join(userData, 'projects', 'site', String(task.n), 'agent.json'), 'utf8')).agent, 'shell');
-    // +'s right-click: New Task with one of its agents.
-    await rightClick(ui, '#projectTabs .pisland.active .add');
-    assert.deepEqual(await menuRows(ui), ['# New Task with', 'Terminal only', 'Fake agent · ann@shop.com']);
+    // Another agent: made the default on the project's page (Make Default), + runs it.
+    await ui(`kulisa.invoke('project:agent-default', { id: 'site', agent: '${ann.id}' })`);
     const before = shell.task;
-    await choose(ui, 'Fake agent · ann@shop.com');
-    await waitFor(() => shell.task !== before && shell.task.loaded && shell.pty, 20000);
-    ctx.watchPty(shell.pty);
+    await newTask(ctx);
     ctx.asked.length = 0;
     await waitFor(() => shell.task.agent?.id === ann.id);
     assert.equal(shell.task.profiles.size, 0, 'no profile opens by itself');
@@ -1309,13 +1307,13 @@ module.exports = (test) => {
     await waitFor(() => ui(`document.documentElement.classList.contains('noproject')`));
     assert.ok(shell.store.tasksOf({ id: 'project' }).list.every((e) => e.closed), 'its tasks closed');
 
-    // A task in Search Tasks: its group again, on that task, opened again; another one of it goes into that group. Back
-    // on task-1 with Feature-X, as the tests after and the restart phase expect.
-    await searchTasks(ui, 'project', 2);
+    // A closed task in the bar's +: its group again, on that task, opened again; another one of it goes into that
+    // group. Back on task-1 with Feature-X, as the tests after and the restart phase expect.
+    await plusMenu(ui, 'project', 'Feature-X');
     await waitFor(() => shell.task?.n === 2 && shell.task.loaded && shell.pty && !shell.windows[0].switching);
     assert.ok(!shell.task.entry.closed, 'open again');
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
-    await searchTasks(ui, 'project', 1);
+    await plusMenu(ui, 'project', 'task-1');
     await waitFor(() => shell.task?.n === 1 && shell.task.loaded && shell.pty && !shell.windows[0].switching);
     assert.deepEqual(await projectTabs(ui), ['project *'], 'one group');
     assert.deepEqual(await tabs(ui), ['task-1 *', 'Feature-X']);

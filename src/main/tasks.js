@@ -384,12 +384,7 @@ class Task {
 
   info() {
     const { n, key, name, tabState: state, folder, offset } = this;
-    return { n, key, name, state, folder, offset, branch: this.entry.branch || null, closed: !!this.entry.closed, merged: !!this.entry.merged, agent: this.agent?.name || null,
-      profiles: this.openProfiles() };
-  }
-  // How many of its profiles are open (on its tab); from its store until it is loaded.
-  openProfiles() {
-    return this.loaded ? this.profiles.size : this.store.profiles()?.filter((p) => !p.closed).length ?? this.shell.profileStore.of(this.project.id).length;
+    return { n, key, name, state, folder, offset, branch: this.entry.branch || null, closed: !!this.entry.closed, merged: !!this.entry.merged, agent: this.agent?.name || null };
   }
 }
 

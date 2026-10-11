@@ -27,7 +27,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // Kulisa's menus (Reka's, docs/ui.md, Menus): the open one, once it is shown (the pages under it are pictures);
 // its rows ('-' a line, '# …' a heading, '~ …' a note, 'zoom' the zoom row; an item: its label, '(off)' when
-// disabled); choose one by its label; close it as Esc does.
+// disabled, '  ' before it when it is set in under the row above); choose one by its label; close it as Esc does.
 const MENU = `document.querySelector('.menu[data-state="open"]')`;
 const menuOpen = (ui) => ui(`!!document.querySelector('.menu[data-state="open"].ready')`);
 const menuRows = async (ui) => {
@@ -35,7 +35,7 @@ const menuRows = async (ui) => {
   return ui(`(() => { const row = (r) => r.matches('[role="separator"]') ? '-' : r.matches('.heading') ? '# ' + r.textContent : r.matches('.note') ? '~ ' + r.textContent
     : r.matches('.zoomrow') ? 'zoom' : r.matches('.themerow') ? 'theme' : r.matches('.barrow') ? 'bar' : r.matches('.arrange') ? 'arrange: ' + [...r.querySelectorAll('span')].map((s) => s.textContent).join(', ')
     : r.matches('[role="group"]') ? [...r.children].map(row)
-    : r.querySelector('.label').textContent + ((r.matches('.item') ? r : r.querySelector('.item')).matches('[data-disabled]') ? ' (off)' : '');
+    : (r.matches('.inset') ? '  ' : '') + r.querySelector('.label').textContent + ((r.matches('.item') ? r : r.querySelector('.item')).matches('[data-disabled]') ? ' (off)' : '');
   return [...${MENU}.children].flatMap(row); })()`);
 };
 const closeMenu = async (ui) => {
@@ -79,16 +79,18 @@ const select = async (ui, id, value) => {
 // A group closed as the human does it: the middle button on its label (its menu has Close Group too).
 const closeProject = (ui, id) => ui(`${projectTab(id)}.querySelector('.plabel').dispatchEvent(new MouseEvent('auxclick', { button: 1, bubbles: true }))`);
 const choose = (ui, label) => ui(`[...${MENU}.querySelectorAll('.item')].find((b) => b.querySelector('.label').textContent === ${JSON.stringify(label)}).click()`);
-// The bar's Search Tasks panel (TaskSearch.vue): opened with its button; searchTasks(ui) its rows (a project's heading
-// as '# name', a task as its name), searchTasks(ui, project, n) a project's task n clicked, or its New Task.
-const SEARCH = `document.querySelector('.tasksearch[data-state="open"].ready')`;
-async function searchTasks(ui, project, n) {
-  await ui(`document.getElementById('searchTasks').click()`);
-  await waitFor(() => ui(`!!${SEARCH}`));
-  if (project === undefined) return ui(`[...${SEARCH}.querySelectorAll('.item')].map((r) => (r.classList.contains('tlproject') ? '# ' : '') + r.querySelector('.label').textContent)`);
-  const row = n === undefined ? '.tlnew' : `.tltask[data-task="${n}"]`;
-  await ui(`${SEARCH}.querySelector('[data-project=${JSON.stringify(project)}] ${row}').click()`);
-  await waitFor(() => ui(`!${SEARCH}`));
+// The bar's + (NewTask.vue), its menu opened with a click: plusMenu(ui) its rows (menuRows: a project by its name, its
+// closed tasks under it as '  name'); plusMenu(ui, project) a new task of that project (by its name); plusMenu(ui,
+// project, task) its closed task of that name opened again.
+async function plusMenu(ui, project, task) {
+  await ui(`document.getElementById('newTask').click()`);
+  const rows = await menuRows(ui);
+  if (project === undefined) return rows;
+  await ui(`(() => { const items = [...${MENU}.querySelectorAll('.item')], label = (r) => r.querySelector('.label').textContent;
+    const at = items.findIndex((r) => !r.matches('.inset') && label(r) === ${JSON.stringify(project)}), own = [];
+    for (const r of items.slice(at + 1)) { if (!r.matches('.inset')) break; own.push(r); }
+    (${JSON.stringify(task ?? null)} === null ? items[at] : own.find((r) => label(r) === ${JSON.stringify(task)})).click(); })()`);
+  await waitFor(async () => !(await menuOpen(ui)));
 }
 // The profile editor: the profiles' chip (👥), then Manage Profiles….
 const manageProfiles = async (ui) => {
@@ -132,6 +134,6 @@ const press = (wc, keyCode, ...modifiers) => { for (const type of ['keyDown', 'k
 const ctrl = (wc, keyCode) => { wc.focus(); press(wc, keyCode, 'control'); };
 const near = (a, b) => Math.abs(a - b) < 1e-6;
 
-module.exports = { searchTasks, assert, root, userData, project, pfile, savedTabs, savedWindows, panel, SITE, PORT, sleep, waitFor, who, menuRows, choose, projectTabs, projectTab, showProject, closeProject, manageProfiles, menuOpen, closeMenu, rightClick,
+module.exports = { plusMenu, assert, root, userData, project, pfile, savedTabs, savedWindows, panel, SITE, PORT, sleep, waitFor, who, menuRows, choose, projectTabs, projectTab, showProject, closeProject, manageProfiles, menuOpen, closeMenu, rightClick,
   click, chosen, selectValues, select,
   box, pageBox, viewOn, dock, press, ctrl, near };

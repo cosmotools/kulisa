@@ -31,8 +31,8 @@ const KEYS = [
     keys: digits('CommandOrControl+Shift+', 1, 9), mac: digits('Command+Alt+', 1, 9) }, // ⌘⇧3, 4, 5: macOS's screenshots
   { id: 'task.next', group: 'global', label: 'Next task (of every open project)', keys: ['CommandOrControl+Shift+PageDown'] },
   { id: 'task.previous', group: 'global', label: 'Previous task', keys: ['CommandOrControl+Shift+PageUp'] },
-  { id: 'task.new', group: 'global', label: 'New task', keys: ['CommandOrControl+Shift+N'], window: true },
-  { id: 'tasks.search', group: 'global', label: 'Search tasks (of every project)', keys: ['CommandOrControl+Shift+A'], window: true }, // Chrome's Search tabs
+  { id: 'task.new', group: 'global', label: 'New task of the shown project', keys: ['CommandOrControl+Shift+N'], window: true },
+  { id: 'task.menu', group: 'global', label: 'New task: of which project, or a closed one', keys: ['CommandOrControl+Shift+A'], window: true }, // the bar's +
   { id: 'shortcuts', group: 'global', label: 'Keyboard shortcuts', keys: ['CommandOrControl+Shift+/'], window: true },
   { id: 'zoom.in', group: 'global', label: 'Zoom Kulisa in', ...ZOOM_IN, always: true },
   { id: 'zoom.out', group: 'global', label: 'Zoom Kulisa out', ...ZOOM_OUT, always: true },

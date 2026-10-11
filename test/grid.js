@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { clipboard } = require('electron');
 const { assert, root, userData, project, pfile, savedTabs, panel, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, menuOpen, rightClick,
-  box, pageBox, viewOn, dock, press, ctrl, near, projectTabs, projectTab, showProject, closeProject, savedWindows, closeMenu, searchTasks } = require('./helpers');
+  box, pageBox, viewOn, dock, press, ctrl, near, projectTabs, projectTab, showProject, closeProject, savedWindows, closeMenu, plusMenu } = require('./helpers');
 
 module.exports = (test) => {
   test('grid: a pane moved next to the terminal takes its page along', async ({ shell, ui }) => {
@@ -69,32 +69,22 @@ module.exports = (test) => {
     await ctx.call('browser_navigate', { profile: 'sam-seller', url: `${SITE}/app` });
     assert.equal(await who(ctx, 'sam-seller'), 'Signed out', "the first project's sign-ins stay there");
 
-    // The button after the islands: Search Tasks, as Chrome's Search tabs: every project's tasks, grouped by project.
-    const rows = await searchTasks(ui);
-    assert.deepEqual(rows.filter((r) => r.startsWith('# ')), shell.store.projects().map((p) => `# ${p.name}`), 'every project, open or not');
-    assert.deepEqual(rows.slice(rows.indexOf('# other') + 1, rows.indexOf('# other') + 2), ['task-1'], 'its tasks under it');
-    const over = await ui(`(() => { const b = document.getElementById('searchTasks').getBoundingClientRect(), m = document.querySelector('.tasksearch[data-state="open"]').getBoundingClientRect();
+    // The button after the islands: +, a task of which project: every project, open or not (a task is made of one),
+    // its closed tasks under it (none here: both open), New Project… last. No + in the groups.
+    const names = shell.store.projects().map((p) => p.name);
+    assert.deepEqual(await plusMenu(ui), ['# New Task of', ...names, '-', 'New Project…']);
+    const over = await ui(`(() => { const b = document.getElementById('newTask').getBoundingClientRect(), m = document.querySelector('.menu[data-state="open"]').getBoundingClientRect();
       return m.bottom <= b.top && m.bottom > b.top - 10 && Math.abs(m.right - b.right) < 2; })()`);
     assert.ok(over, 'over the button, its end at the bar\'s: the bar is at the bottom of the window');
-    assert.equal(await ui(`document.activeElement.classList.contains('tlsearch')`), true, 'the keyboard in its search field');
-    // The search: a project by its name (all its tasks), a task by its name or branch.
-    shell.win.webContents.insertText('oth');
-    await waitFor(async () => JSON.stringify(await ui(`[...document.querySelectorAll('.tasksearch .tlgroup')].map((g) => g.dataset.project)`)) === '["other"]');
-    await ui(`(() => { const i = document.querySelector('.tasksearch .tlsearch'); i.select(); })()`);
-    shell.win.webContents.insertText('nothing like it');
-    await waitFor(async () => (await ui(`document.querySelector('.tasksearch .tlnone')?.textContent`)) === 'No task or project has that name');
-    await ui(`document.getElementById('searchTasks').click()`); // again: closes it
-    await waitFor(async () => !(await menuOpen(ui)));
-    // Ctrl+Shift+A opens it too, from anywhere (Chrome's key), the search field empty again; Enter opens the first row:
-    // a project open here shown.
+    assert.equal(await ui(`document.querySelectorAll('#projectTabs .add').length`), 0);
+    await closeMenu(ui);
+    // Ctrl+Shift+A opens it too, from anywhere; again closes it.
     press(shell.win.webContents, 'A', 'control', 'shift');
-    await waitFor(() => ui(`!!document.querySelector('.tasksearch[data-state="open"].ready')`));
-    assert.equal(await ui(`document.querySelector('.tasksearch .tlsearch').value`), '');
-    shell.win.webContents.insertText('other');
-    await waitFor(async () => (await ui(`document.querySelectorAll('.tasksearch .tlgroup').length`)) === 1);
-    press(shell.win.webContents, 'Return');
+    await waitFor(() => menuOpen(ui));
+    press(shell.win.webContents, 'A', 'control', 'shift');
     await waitFor(async () => !(await menuOpen(ui)));
-    assert.equal(shell.current?.folder, other);
+    await showProject(ui, 'other');
+    await waitFor(() => shell.current?.folder === other && !shell.windows[0].switching);
     // The label's right-click: its group's menu, as Chrome's.
     await rightClick(ui, '#projectTabs [data-project="other"] .name');
     assert.deepEqual(await menuRows(ui), ['New Task', '-', 'Move to New Window', '-', 'Project Settings…', 'Show Data Folder', '-', 'Close Group']);
@@ -158,8 +148,8 @@ module.exports = (test) => {
     assert.ok(shell.store.tasksOf({ id: 'project' }).list.every((e) => e.closed), 'its tasks closed');
     assert.ok(sam.tabs.every((t) => t.wc.isDestroyed()), "the closed project's tabs are closed");
     assert.deepEqual(await projectTabs(ui), ['other *']);
-    // Opened again from Search Tasks, on its task: the conversation goes on, the profiles signed in.
-    await searchTasks(ui, 'project', 1);
+    // Opened again from the bar's +, on its task: the conversation goes on, the profiles signed in.
+    await plusMenu(ui, 'project', 'task-1');
     await waitFor(() => shell.current?.folder === project && shell.profiles.has('elon-buyer') && shell.pty);
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
     ctx.watchPty(shell.pty);
@@ -232,12 +222,9 @@ module.exports = (test) => {
     await second.screenshot(path.join(root, 'second-window.png'));
     await ctx.call('browser_navigate', { profile: 'sam-seller', url: `${SITE}/app?moved` }, task);
     assert.match(seller.get().wc.getURL(), /\?moved$/);
-    // Search Tasks in either window lists every project; a task of one open in the other window: shown there, not
-    // moved, nothing asked.
-    const asked = ctx.asked.length;
-    await searchTasks(ui2, 'project', 1);
-    await waitFor(() => first.current?.id === 'project' && first.task?.n === 1);
-    assert.ok(shell.open.get('project').window === first && second.current?.id === 'other' && ctx.asked.length === asked);
+    // The bar's + in either window lists every project.
+    assert.deepEqual(await plusMenu(ui2), ['# New Task of', ...shell.store.projects().map((p) => p.name), '-', 'New Project…']);
+    await closeMenu(ui2);
     // Questions about its project are asked in its window.
     ctx.answer = false;
     await ui2(`act('profile:delete', { profile: 'sam-seller' })`);
@@ -262,7 +249,7 @@ module.exports = (test) => {
     // A task of a project with no group: a group of its own in this window, nothing asked where; Move to New Window
     // takes it away.
     ctx.asked.length = 0;
-    await searchTasks(ui, 'other', 1);
+    await plusMenu(ui, 'other', 'task-1');
     await waitFor(() => shell.current?.id === 'other' && shell.task?.n === 1 && shell.task.pty && !first.switching);
     assert.equal(ctx.asked.length, 0, 'no question where');
     assert.deepEqual(await projectTabs(ui), ['project', 'other *']);
@@ -621,6 +608,8 @@ module.exports = (test) => {
       other.show(); other.focus();
       await waitFor(async () => !(await anyMenu()));
     } finally { other.destroy(); }
+    // The window has the keyboard again before the tests after: a menu opened while it has not closes at once.
     shell.win.focus();
+    await waitFor(() => ui(`document.hasFocus()`));
   });
 };

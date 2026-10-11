@@ -4,14 +4,13 @@
 // moved under the mouse made the human miss). Where a dragged label is let go outside every Kulisa window, the main
 // process says (the page does not know where the pointer is then).
 import { computed, nextTick, ref, watch } from 'vue';
-import Icon from './Icon.vue';
 import TaskTab from './TaskTab.vue';
 import { TabsList, TabsRoot } from 'reka-ui';
-import TaskSearch from './TaskSearch.vue';
+import NewTask from './NewTask.vue';
 import RightClickMenu from './menu/RightClickMenu.vue';
 import { store } from '../lib/store';
 import ProjectIcon from './ProjectIcon.vue';
-import { keyText, withKeys } from '../lib/common';
+import { keyText } from '../lib/common';
 import { dialog } from '../lib/dialogs';
 import { profilesMenu } from '../lib/profiles';
 import { terminalsOf } from '../lib/terminals';
@@ -32,21 +31,19 @@ const manage = async (id?: string) => (await dialog('projects')).openProjects(id
 
 // A project's own events, not its tasks' (TaskTab.vue handles those).
 const projectOf = (e: Event) => (e.target as Element).closest<HTMLElement>('[data-project]')?.dataset.project;
-// The label folds the group to it and back, as Chrome's tab groups; + makes a task. The middle button on the label
-// closes the group, as a browser's tab.
+// The label folds the group to it and back, as Chrome's tab groups. The middle button on the label closes the group,
+// as a browser's tab. A new task is the bar's + (NewTask.vue), or New Task in the label's menu.
 function click(e: MouseEvent) {
   const id = projectOf(e), target = e.target as Element;
   if (!id) return;
-  if (target.closest('.add')) kulisa.invoke('task:new', { project: id });
-  else if (target.closest('.plabel')) kulisa.invoke('project:collapse', { id, collapsed: !target.closest('.pisland')!.classList.contains('collapsed') });
+  if (target.closest('.plabel')) kulisa.invoke('project:collapse', { id, collapsed: !target.closest('.pisland')!.classList.contains('collapsed') });
 }
 function auxclick(e: MouseEvent) {
   const id = e.button === 1 && projectOf(e);
   if (id) close(id);
 }
 // The bar's right-click menu, for what it was on. A task's tab: the shown one's profiles, Rename…, Show Folder, Delete
-// Task…. +: New Task with each of its agents, the default first (what + itself runs). A project's island: its
-// group's menu. From what the window was last told (store.projects): it opens at once.
+// Task…. A project's island: its group's menu. From what the window was last told (store.projects): it opens at once.
 function menu(e: MouseEvent): MenuItem[] | null {
   const id = projectOf(e), target = e.target as Element;
   if (!id) return null;
@@ -54,12 +51,6 @@ function menu(e: MouseEvent): MenuItem[] | null {
   const key = target.closest<HTMLElement>('.tasktab')?.dataset.task;
   const t = key && [...store.taskTabs.list, ...open.flatMap((o) => o.tasks || [])].find((x) => x.key === key);
   if (t) return taskMenu(t);
-  if (target.closest('.add')) {
-    const agents = open.find((o) => o.id === id)?.agents || [];
-    return agents.length ? [{ heading: 'New Task with' }, ...agents.map((a, i) => ({ label: a.name, sub: i ? undefined : 'the default',
-      run: () => kulisa.invoke('task:new', { project: id, agent: a.id }) }))]
-      : [{ note: 'No agents: add them in Project Settings…' }, { label: 'Project Settings…', run: () => manage(id) }];
-  }
   return groupItems(id);
 }
 // A project's actions in its group's menu, in Chrome's order where Chrome has them (New tab in group … Close group,
@@ -150,11 +141,10 @@ function dragend(e: DragEvent) {
           <div id="tasklist"><TaskTab v-for="t in store.taskTabs.list" :key="t.key" :t :active="t.key === store.taskTabs.active" :selected="t.key === store.taskTabs.active" /></div>
         </nav>
         <TaskTab v-for="t in open" v-else :key="t.key" :t :active="false" :selected="t.key === o.task" />
-        <button class="add icon" :title="withKeys('New task: its own copy of the code, branch, agent and profiles', 'task.new')" aria-label="New task"><Icon name="i-plus" /></button>
       </div>
       </nav>
     </TabsList></TabsRoot></RightClickMenu>
-    <TaskSearch />
+    <NewTask />
   </footer>
 </template>
 
@@ -169,9 +159,9 @@ function dragend(e: DragEvent) {
     padding-inline: var(--r); /* room for the outer islands' curves */
     overflow-x: auto; scrollbar-width: none; }
   /* As far from the last island's curve as the islands' curves from each other */
-  #searchTasks { margin-inline-start: var(--gap); }
-  /* No project open: Search Tasks alone, in the middle */
-  .noproject & { #projectTabs { display: none; } #searchTasks { margin-inline-start: 0; } }
+  #newTask { margin-inline-start: var(--gap); }
+  /* No project open: + alone, in the middle */
+  .noproject & { #projectTabs { display: none; } #newTask { margin-inline-start: 0; } }
   /* A project's island. Its tabs in the middle of the dark: no room on the grid's side (the grid's own gap is
      there), as much on the other. */
   .pisland { display: flex; align-items: center; gap: 2px; flex: 0 1 auto; min-width: 0; position: relative;

@@ -31,7 +31,6 @@ class AppWindow {
     this.id = ++windows; // for a page to name another window (project:move)
     this.tabs = []; // the projects open in it (projects.js: Project), its tabs in order
     this.current = null; // the one shown
-    this.profilesOpen = new WeakMap(); // task -> how many profiles its tab said were open
     // True until the page has laid out the shown task's grid (the renderer then shows the views).
     this.viewsHidden = true;
     // From leaving a task until the next one's profiles are all loaded: nothing is saved, and the page gets no
@@ -148,11 +147,6 @@ class AppWindow {
   // A task of its projects changed: its profiles (now: right away), or its agent's state (shown on its tab and
   // its project's).
   changed(task, now, agentState) {
-    const open = task.openProfiles();
-    if (this.profilesOpen.get(task) !== open) { // the number on its tab
-      this.profilesOpen.set(task, open);
-      if (!agentState) { if (task.project === this.current) this.sendTasks(); this.sendProjects(); }
-    }
     if (agentState) {
       if (task === this.task && this.win.isFocused()) task.see(); // done before the human's eyes: nothing to come and see
       this.sendTasks(); return this.sendProjects();

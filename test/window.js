@@ -136,10 +136,10 @@ module.exports = (test) => {
   });
   test('UI text is not selectable by dragging, as in a desktop app; fields are; the arrow over buttons', async ({ ui }) => {
     const sel = await ui(`(() => { const us = (q) => getComputedStyle(document.querySelector(q)).userSelect;
-      return { button: us('#searchTasks'), name: us('.plabel .name'), tab: us('.tab .title'), header: us('.ptab'), field: us('.addr') }; })()`);
+      return { button: us('#newTask'), name: us('.plabel .name'), tab: us('.tab .title'), header: us('.ptab'), field: us('.addr') }; })()`);
     assert.deepEqual(sel, { button: 'none', name: 'none', tab: 'none', header: 'none', field: 'text' });
     // The arrow over buttons and tabs, as in Chrome, not a web page's hand.
-    assert.deepEqual(await ui(`['#searchTasks', '.plabel', '.tab', '.tabs .add', '.bar .back', '.ptab .close', '#windowMenu'].map((q) => getComputedStyle(document.querySelector(q)).cursor)`),
+    assert.deepEqual(await ui(`['#newTask', '.plabel', '.tab', '.tabs .add', '.bar .back', '.ptab .close', '#windowMenu'].map((q) => getComputedStyle(document.querySelector(q)).cursor)`),
       ['default', 'default', 'default', 'default', 'default', 'default', 'default']);
   });
   test('screenshot of the whole window, profile views included', async ({ shell, ui }) => {

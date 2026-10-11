@@ -28,7 +28,7 @@ A profile is an Electron session on a folder of its own (`session.fromPath`), la
 
 ## What the human does
 
-- **Create** in 👥 → Manage Profiles… (the profiles' chip on the shown task's tab; also its right-click menu): a name and, if the human wants, who the profile is (below); all
+- **Create** in 👥 → Manage Profiles… (the profiles' button on the shown task's tab; also its right-click menu): a name and, if the human wants, who the profile is (below); all
   the pictures, the next free one lit, a click picks another. Enter in either field adds it (Shift+Enter: a new
   line in the description). The new profile is empty and signed out.
   Names of profiles, projects and tasks take letters (any language), digits and `@ . _ + -`, as an email
@@ -338,5 +338,5 @@ space (ROADMAP, "Profiles' caches").
 | `src/main/mimic-chrome.js` | presenting as Google Chrome |
 | `src/main/cdp-proxy.js` | the CDP endpoint per profile |
 | `src/main/mcp-server.js`, `ghost.js`, `picker.js` | the agent's tools, its actions shown, point and tell |
-| `src/renderer/components/grid/ProfilePane.vue`, `ProfileHeader.vue`, `ProfileEditor.vue`, `ProfileRow.vue`, `lib/profiles.ts` | the panes, the profiles' chip (👥) and the editor |
+| `src/renderer/components/grid/ProfilePane.vue`, `ProfileHeader.vue`, `ProfileEditor.vue`, `ProfileRow.vue`, `lib/profiles.ts` | the panes, the profiles' button (👥) and the editor |
 | `test/agent.js`, `profiles.js`, `zoom-and-closing.js`, `restart-profiles.js`, `unit/store.test.js` | the tests |
