@@ -281,9 +281,12 @@ are not programmers); its accounts are made there too, or in a project's page.
   the language's English name), the rest of the file kept, never into a file that is not JSON. Claude Code reads that
   file again when it changes and the language at each recording, so it holds from the next one, in every session
   of the human's, as if set in `/config`. A settings file of one launch would not do: it is read once.
-- **Settings → Agents** (☰ → Agents… opens it there; `AgentsTab.vue`) shows the agents at any time, with nothing to
-  choose (not the terminal only: nothing of it to set up there; the author, 2026-10-11), and under each one with accounts its accounts (below): each agent's version (its `--version`), its folder (marked when it is not on the user's `PATH`: Kulisa runs it
-  from there), its maker's website, and Install for the others. Installing there starts nothing; the agent is chosen
+- **Settings → Agents** (☰ → Agents… opens it there; `AgentsTab.vue`), as JetBrains' list of SDKs: the agents on the
+  left (not the terminal only: nothing of it to set up there; the author, 2026-10-11; "not installed" at a row's end),
+  the chosen one on the right: its maker and website, what it needs, its status (its version, its `--version`, and its
+  folder, marked when it is not on the user's `PATH`: Kulisa runs it from there; Install for the others, with the
+  command it runs), and its **Accounts** (below), a list with + (New Account…) and − (delete the selected one, asked
+  first; also Delete and the right-click). Installing there starts nothing; the agent is chosen
   for a task when one is made, or with Change agent…. Kulisa does not remove or update agents: they are the
   user's programs, and the makers' installers update them themselves.
 - **The list comes at once** (the author, 2026-10-11), here and in choosing a task's agent: finding the agents runs
@@ -298,7 +301,7 @@ are not programmers); its accounts are made there too, or in a project's page.
   only) have no accounts and are chosen as themselves. The human's own folder (`~/.claude`, `~/.codex`) is no account:
   every account is made in Kulisa and starts as a clean agent (no global `CLAUDE.md`, settings, plugins, skills or MCP
   servers of the human's: set up again in each), the author's choice over copying them.
-  - **Made in Settings → Agents** (New Account… under its agent: in no project yet) **or in a project** (its page,
+  - **Made in Settings → Agents** (+ over its agent's accounts: in no project yet) **or in a project** (its page,
     Agents' + → New Account, an agent: in that project): the agent's own sign-in starts at once, as
     its `/login` does (Claude Code `auth login`, Codex `login`), in a terminal there (`AccountSignIn.vue`),
     and ends once signed in. The terminal is under Details, closed (the author, 2026-10-11: the address it prints, with
@@ -327,16 +330,16 @@ are not programmers); its accounts are made there too, or in a project's page.
     went, and the next project had none; a sign-in is made again only by signing in again). − on an account in a
     project lets go of it at once, nothing asked, as of the terminal only: a task running it keeps it. Deleting a
     project lets go of its accounts the same way. In Settings → Agents each account says the projects it is in ("in no
-    project"), and its × deletes it: refused while any task of any project, open or closed, runs it (counted from their
+    project"), and − deletes it: refused while any task of any project, open or closed, runs it (counted from their
     `agent.json`; its conversation is in its folder), naming them; else after a question ("Delete the account …?",
     naming the projects that let go of it): signed out with its agent's own command (`auth logout`: what it keeps
     outside its folder goes too, the Keychain's entry on macOS), then its folder, with its sign-in, settings and
     conversations.
   The project's own environment still comes last (direnv's `.envrc` may set `CLAUDE_CONFIG_DIR`), as without Kulisa.
 - The dialogs are part of the window, not windows of their own: no extra process. `AgentPicker.vue` (choosing) and
-  Settings → Agents (`AgentsTab.vue`, its state kept by Settings, so an install goes on behind the Projects tab and
-  Settings stays open while it runs) are built around one list of agents with Install (`AgentList.vue`), each with
-  its own state.
+  Settings → Agents (`AgentsTab.vue`, its state kept by Settings, so an install goes on behind a project's page and
+  Settings stays open while it runs) share the state of one list of agents with Install (`lib/agents.ts`), each with
+  its own; choosing draws it as radios (`AgentList.vue`), Settings as a list and the chosen one's details.
 - The agent's state on the tabs comes from its hooks. Kulisa has events of its own (`agent-hooks.js`): `prompt`
   working, `waiting` for the human, `stop` done, `interrupt` and `session-end` unknown (but a session ending after a
   done turn keeps it). Which of an agent's hooks sends which is the agent's, in one place each:
@@ -568,7 +571,7 @@ temporary forks), and again on 2026-10-10 (tasks; ROADMAP, "Projects and tasks")
 | `src/main/terminal.js` | the task's terminals: its agent's and the others (window.md, The terminal) |
 | `src/renderer/components/ProjectBar.vue`, `TaskSearch.vue`, `TaskList.vue`, `Empty.vue`, `ProjectEditor.vue` | the projects' bar (an island per project) and its Search Tasks; every project's tasks (Search Tasks' list); the empty window's island; the projects' manager |
 | `src/renderer/components/TaskTab.vue`, `TaskRename.vue` | a task's tab in the bar, its menu, the Rename Task dialog |
-| `src/renderer/components/AgentPicker.vue`, `AgentsTab.vue`, `AgentList.vue` | choosing a task's agent; Settings → Agents, with the accounts; the list of agents with Install that both show |
-| `src/main/accounts.js`, `src/renderer/components/AccountSignIn.vue` | the agents' accounts, one store; a new one's sign-in in the projects' manager |
+| `src/renderer/components/AgentPicker.vue`, `AgentsTab.vue`, `AgentList.vue` | choosing a task's agent; Settings → Agents, the agents, the chosen one's details and accounts; the radios of agents with Install that choosing shows |
+| `src/main/accounts.js`, `src/renderer/components/AccountSignIn.vue` | the agents' accounts, one store; a new one's sign-in in Settings (a project's page, or Agents) |
 | `src/renderer/lib/grid.ts`, `components/Grid.vue` | building a task's grid; the slide (a view transition) |
 | `test/tasks.js` | the tests; `test/restart-tasks.js` after a restart; `test/unit/agents.test.js` |

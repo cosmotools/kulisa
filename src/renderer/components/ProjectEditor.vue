@@ -23,7 +23,7 @@ const modal = ref<InstanceType<typeof Modal>>();
 // The page shown; the agents' list (Settings → Agents) lives here, so an install goes on while a project is shown, and
 // Settings stays open while it runs.
 const tab = ref<'projects' | 'agents'>('projects');
-const agentsList = agentList({ details: true, installed: (a) => `${a.name} is installed. Make an account of it below (New Account…).` });
+const agentsList = agentList({ details: true, installed: (a) => `${a.name} is installed. Make an account of it below: + under Accounts.` });
 const newProfile = ref<HTMLInputElement>(), url = ref<HTMLInputElement>();
 const adding = ref<'' | 'clone' | 'profile'>('');
 async function startAdding(what: 'clone' | 'profile') {
@@ -147,7 +147,9 @@ async function code(channel: string, args: Record<string, unknown>) {
   else if (r?.repos) { repos.value = r.repos; if ('former' in r) former.value = r.former || null; }
   return r;
 }
-const removeRepo = (folder = repoSel.value) => folder && code('project:repo-remove', { folder }).then(() => { repoSel.value = undefined; });
+// The selection goes with its row, not when the row stays (refused, or a no to the question).
+const removeRepo = (folder = repoSel.value) => folder && code('project:repo-remove', { folder })
+  .then(() => { if (!repos.value.some((r) => r.folder === repoSel.value)) repoSel.value = undefined; });
 const defaultRepo = (folder = repoSel.value) => folder && code('project:repo-default', { folder });
 const repoMenu = (e: MouseEvent): MenuItem[] | null => {
   const f = rowAt(e, 'data-folder');
@@ -173,7 +175,8 @@ async function agents(channel: string, args: Record<string, unknown>) {
   if (r?.agents) mine.value = r.agents;
   if (r?.error) agentError.value = r.error;
 }
-const removeAgent = (agent = agentSel.value) => agent && agents('project:agent-remove', { agent }).then(() => { agentSel.value = undefined; });
+const removeAgent = (agent = agentSel.value) => agent && agents('project:agent-remove', { agent })
+  .then(() => { if (!mine.value.some((a) => a.id === agentSel.value)) agentSel.value = undefined; });
 const defaultAgent = (agent = agentSel.value) => agent && agents('project:agent-default', { agent });
 const agentRowMenu = (e: MouseEvent): MenuItem[] | null => {
   const a = rowAt(e, 'data-agent');
@@ -206,7 +209,8 @@ async function profileChange(channel: string, args: Record<string, unknown>) {
   if (r?.error) profileError.value = r.error; else if (r?.profiles) { profiles.value = r.profiles; others.value = r.others || []; }
   return r;
 }
-const removeProfile = (profile = profileSel.value) => profile && profileChange('project:profile-remove', { profile }).then((r) => { if (r?.profiles) profileSel.value = undefined; });
+const removeProfile = (profile = profileSel.value) => profile && profileChange('project:profile-remove', { profile })
+  .then(() => { if (!profiles.value.some((p) => p.id === profileSel.value)) profileSel.value = undefined; });
 const profileRowMenu = (e: MouseEvent): MenuItem[] | null => {
   const p = rowAt(e, 'data-profile');
   if (!p) return null;
@@ -279,7 +283,7 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
                   :disabled="!repoSel || repoSel === repos[0]?.folder" @click="defaultRepo()"><Icon name="i-star" /></button>
               </div>
               <RightClickMenu :items="repoMenu">
-                <ListboxRoot v-if="repos.length" id="nprepos" v-model="repoSel" aria-label="Code" @keydown.delete="removeRepo()">
+                <ListboxRoot selection-behavior="replace" v-if="repos.length" id="nprepos" v-model="repoSel" aria-label="Code" @keydown.delete="removeRepo()">
                   <ListboxContent>
                     <ListboxItem v-for="(r, i) in repos" :key="r.folder" :value="r.folder" class="item" :data-folder="r.folder">
                       <span class="text"><span class="label">{{ base(r.folder) }}</span><small :title="r.folder">{{ r.folder }}</small></span>
@@ -314,7 +318,7 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
                   :disabled="!agentSel || agentSel === mine[0]?.id" @click="defaultAgent()"><Icon name="i-star" /></button>
               </div>
               <RightClickMenu :items="agentRowMenu">
-                <ListboxRoot v-if="mine.length" id="npagents" v-model="agentSel" aria-label="Agents" @keydown.delete="removeAgent()">
+                <ListboxRoot selection-behavior="replace" v-if="mine.length" id="npagents" v-model="agentSel" aria-label="Agents" @keydown.delete="removeAgent()">
                   <ListboxContent>
                     <ListboxItem v-for="(a, i) in mine" :key="a.id" :value="a.id" class="item" :data-agent="a.id">
                       <span class="text"><span class="label">{{ a.name }}</span></span>
@@ -338,7 +342,7 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
                 <button id="npprofiledel" class="icon small" type="button" title="Remove from the project (asks first)" aria-label="Remove from the project" :disabled="!profileSel" @click="removeProfile()"><Icon name="i-minus" /></button>
               </div>
               <RightClickMenu :items="profileRowMenu">
-                <ListboxRoot v-if="profiles.length" id="npprofiles" v-model="profileSel" aria-label="Profiles" @keydown.delete="removeProfile()">
+                <ListboxRoot selection-behavior="replace" v-if="profiles.length" id="npprofiles" v-model="profileSel" aria-label="Profiles" @keydown.delete="removeProfile()">
                   <ListboxContent>
                     <ListboxItem v-for="p in profiles" :key="p.id" :value="p.id" class="item" :data-profile="p.id">
                       <img class="avatar" alt="" :src="avatarSrc(p.avatar)"><span class="text"><span class="label">{{ p.name }}</span>

@@ -551,10 +551,10 @@ module.exports = (test) => {
     await waitFor(() => ui(`!!document.querySelector('.pjlookpanel.ready #npicons')`));
   };
   // A list's row selected (a click), then a button of its toolbar acting on it (− removes, ★ makes it the default).
-  const onRow = async (ui, row, button) => {
+  const onRow = async (ui, row, button, buttonAt = `#${button}`) => {
     await ui(`document.querySelector(${JSON.stringify(row)}).click()`);
-    await waitFor(() => ui(`document.querySelector(${JSON.stringify(row)})?.ariaSelected === 'true' && !document.getElementById('${button}').disabled`));
-    await ui(`document.getElementById('${button}').click()`);
+    await waitFor(() => ui(`document.querySelector(${JSON.stringify(row)})?.ariaSelected === 'true' && !document.querySelector(${JSON.stringify(buttonAt)}).disabled`));
+    await ui(`document.querySelector(${JSON.stringify(buttonAt)}).click()`);
   };
   // The page shown: its name in place at its top.
   const pageOf = (name) => `(document.getElementById('npname')?.value === ${JSON.stringify(name)} && !!document.getElementById('pjhead'))`;
@@ -650,6 +650,8 @@ module.exports = (test) => {
     const { shell, ui } = ctx;
     const task = shell.task, dir = accountDir('fake-1');
     const row = (id) => `document.querySelector('#projects .agtab [data-account="${id}"]')`;
+    // An account deleted: its row selected, then − over its list.
+    const deleteAccount = (id) => onRow(ui, `#projects .agtab [data-account="${id}"]`, null, `#projects .agtab .list:has([data-account="${id}"]) .accountdel`);
     // × in the project lets go of it at once, nothing asked; the account stays, and the task running it keeps it.
     await projectSettings(ui);
     await onRow(ui, '#npagents [data-agent="fake-1"]', 'npagentdel');
@@ -662,7 +664,7 @@ module.exports = (test) => {
     await click(ui, `document.querySelector('#projects [data-tab="agents"]')`);
     await waitFor(() => ui(`!!${row('fake-1')}`));
     assert.equal(await ui(`${row('fake-1')}.querySelector('small').textContent`), 'in no project');
-    await ui(`${row('fake-1')}.querySelector('.remove').click()`);
+    await deleteAccount('fake-1');
     const said = () => ui(`document.getElementById('agentstaberror').textContent`);
     await waitFor(async () => !!(await said()));
     assert.match(await said(), new RegExp(`^Tasks run it: ${task.entry.name} \\(project\\)`));
@@ -675,12 +677,12 @@ module.exports = (test) => {
     await openAgents(ui);
     await waitFor(() => ui(`!!${row('fake-1')}`));
     ctx.answer = false;
-    await ui(`${row('fake-1')}.querySelector('.remove').click()`);
+    await deleteAccount('fake-1');
     await waitFor(() => ctx.asked.length);
     assert.equal(ctx.asked.pop().message, 'Delete the account Fake agent · work@shop.com?');
     assert.ok(fs.existsSync(dir), 'kept when the human says no');
     ctx.answer = true;
-    await ui(`${row('fake-1')}.querySelector('.remove').click()`);
+    await deleteAccount('fake-1');
     await waitFor(async () => !fs.existsSync(dir) && !(await ui(`!!${row('fake-1')}`)));
     assert.ok(logouts().includes(dir), 'signed out first, with its agent\'s own command');
     assert.deepEqual(JSON.parse(fs.readFileSync(path.join(userData, 'agents.json'), 'utf8')), { next: 6, list: [] });
@@ -707,7 +709,7 @@ module.exports = (test) => {
     // In no project and no task: deleted at once after the question.
     await click(ui, `document.querySelector('#projects [data-tab="agents"]')`);
     await waitFor(() => ui(`!!${row('fake-6')}`));
-    await ui(`${row('fake-6')}.querySelector('.remove').click()`);
+    await deleteAccount('fake-6');
     await waitFor(() => !fs.existsSync(accountDir('fake-6')) && !shell.accounts.find('fake-6'));
     ctx.asked.length = 0;
     await closeAgents(ui);

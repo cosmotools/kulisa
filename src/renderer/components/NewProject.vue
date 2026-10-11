@@ -121,7 +121,7 @@ async function closed() { if (fromSettings && !created) await (await dialog('pro
 <template>
   <Modal id="newproject" ref="modal" title="New Project" form form-id="npform" @submit="create" @close="closed">
     <div class="npsplit">
-      <ListboxRoot id="npfrom" v-model="from" class="npkinds" aria-label="Start from" @update:model-value="error = ''">
+      <ListboxRoot selection-behavior="replace" id="npfrom" v-model="from" class="npkinds" aria-label="Start from" @update:model-value="error = ''">
         <ListboxContent>
           <ListboxItem v-for="k in kinds" :key="k.value" :value="k.value" class="item" :data-value="k.value"><Icon :name="k.icon" /><span class="text"><span class="label">{{ k.label }}</span></span></ListboxItem>
         </ListboxContent>
@@ -135,7 +135,7 @@ async function closed() { if (fromSettings && !created) await (await dialog('pro
                 <button :id="from === 'folder' ? 'npbrowsesource' : 'npurladd'" class="icon small" type="button" :title="from === 'folder' ? 'Add Folder…' : 'Add a URL'" :aria-label="from === 'folder' ? 'Add Folder' : 'Add a URL'" @click="plus"><Icon name="i-plus" /></button>
                 <button class="icon small" type="button" title="Leave Out" aria-label="Leave Out" :disabled="!chosenSource" @click="removeSource"><Icon name="i-minus" /></button>
               </div>
-              <ListboxRoot v-if="rows.length" v-model="chosenSource" :aria-label="from === 'folder' ? 'Folders' : 'URLs'" @keydown.delete="removeSource">
+              <ListboxRoot selection-behavior="replace" v-if="rows.length" v-model="chosenSource" :aria-label="from === 'folder' ? 'Folders' : 'URLs'" @keydown.delete="removeSource">
                 <ListboxContent>
                   <ListboxItem v-for="(x, i) in rows" :key="x.folder" :value="x.folder" class="item" :data-source="x.folder">
                     <span class="text"><span class="label" :title="x.folder">{{ x.folder }}</span></span>
