@@ -39,6 +39,9 @@ export default (test: Test) => {
     await waitFor(() => shell.profileStore.get('sam-seller')?.description === 'seller in the test shop');
     await make('Elon.buyer');
     assert.equal(shell.profileStore.get('elon-buyer').avatar, 'frog', 'the next picture free');
+    // Its picture's button looks as a field to choose from (.select): the chosen one, a chevron, the fields' background.
+    assert.deepEqual(await ui(`(() => { const b = getComputedStyle(document.getElementById('profilepic')), f = document.body.appendChild(document.createElement('i'));
+      f.style.background = 'var(--field)'; const field = getComputedStyle(f).backgroundColor; f.remove(); return [b.display, b.backgroundColor === field]; })()`), ['flex', true]);
     await ui(`document.getElementById('profilepic').click()`);
     await waitFor(() => ui(`!!document.querySelector('.profilepics.ready')`));
     assert.equal(await ui(`document.querySelectorAll('.profilepics [data-avatar]').length`), 16, 'all of them to choose from, at once');
