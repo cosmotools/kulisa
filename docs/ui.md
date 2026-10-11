@@ -35,7 +35,7 @@ pointer, read as a web page's and were hard to read). So:
   email muted after it, a state at its end in words ("default", "no commit yet"); no buttons that show under the
   pointer, no pills.
 - **A dialog asks one thing and ends with its buttons** (`Modal.vue`); what is browsed (Settings) is a tree on the
-  left and a page on the right, under its path.
+  left and a page on the right, under its path. No search field over the tree (the author, 2026-10-11).
 
 ## Tokens (`tokens.css`)
 

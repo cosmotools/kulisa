@@ -7,133 +7,42 @@ here; what is left of it stays.
 
 ## Next
 
-- **Projects and tasks: Kulisa rebuilt around them** (designed with the author 2026-10-10; built first, on the branch
-  `tasks`, before the store of extensions). It replaces the model of workspaces ([tasks.md](tasks.md)): a project
-  was a folder with a main workspace and forks; now a project is a composite of things from catalogs, and the work is
-  done in **tasks** (the word replaced "workspace" everywhere: code, docs, CLAUDE.md). No migration: Kulisa is in
-  development, the new layout does not read the old data, the author starts with an empty `~/.config/Kulisa`.
-  - **Status** (keep it current: a new session reads it first). 2026-10-10: all steps below are built and
-    committed (on `tasks` until 2026-10-11, then merged into `main`, the branch the stabilization goes on from); the full `npm test` passes. Step 7, the projects' manager, built 2026-10-10 (`147e862`); the
-    author's data was cleared of the old format then (one data format only: old data is deleted, never read or
-    migrated). The author is testing it by hand. The window was then rewritten in Vue 3 and TypeScript, built by Vite (the author's
-    decision, 2026-10-10: the whole renderer at once, TypeScript from the start, the bugs of the rebuild after; how it is
-    built: CLAUDE.md, Window UI; [ui.md](ui.md)); the author tests that too. 2026-10-11: its generic parts are moving to
-    Reka UI (the author's decision: nothing of our own where Reka has it, at once, a commit per step): menus and
-    dialogs, then the controls (ToggleGroup, ColorSwatchPicker, RadioGroup, Select, Checkbox, Listbox, Tabs,
-    Collapsible, Toggle, Field, Form, Editable) done; the author tests them. Built 2026-10-11 with the author: projects
-    as Chrome's tab groups (Delete Project…, no Open Folder… as New Project… takes a folder there already, the group's
-    menu on the label's right-click, its name, color and icon the projects' manager's alone; tasks.md, Projects); the author tests it. Built 2026-10-11 too: tasks, not projects,
-    in the bar's button (Search Tasks, Ctrl+Shift+A) and the empty window instead of the Welcome screen (tasks.md,
-    Projects); Delete Project… only in the projects' manager. And a project is no thing to open (the author's decision,
-    2026-10-11): its island is the group of its open tasks (Close Group closes them, asking only when an agent works;
-    no question where a task opens; one group per project, in one window; tasks.md, Projects). Then (the author,
-    2026-10-11) one + after the islands instead of Search Tasks and of each group's +: every project in its menu, a
-    task of it made with its default agent, its closed tasks under it; no number of open profiles on a task's tab
-    (tasks.md, Projects). Next: fix what the author's testing finds;
-    then what is left of each step ("Left:" in it), only once the author has decided it.
-    Open, for the author to decide: Refresh from Master… now matters only for a local app's cookies (keep or drop);
-    a script the agent runs in a page (`browser_evaluate`) could read a test password back from its field (only the
-    skill forbids it: close it or not). For the author's real accounts, not testable by Claude: device-bound cookies
-    (DBSC, Google) and MSAL's sign-ins kept in step (step 6); "Sign in with Google" without the sign-in pause is the
-    author's own replacement of `signin-pause.ts`. Step 8 (agents' accounts made in the project, one store) built
-    2026-10-11. Then (the author, 2026-10-11) the projects' manager became Settings, its tabs Projects and Agents: the
-    agents and their accounts there (☰ → Agents… opens it), an account kept until deleted there, no longer gone with
-    its last project (tasks.md, "Choosing the agent", Accounts). Then Settings → Profiles (the author, 2026-10-11): every profile and who it is there, kept until
-    deleted there, as an account; the task's profile editor gone ([profiles.md](profiles.md)). Not discussed, so not to build unasked: tabs in a master's window, tasks in a
-    former folder getting copies.
-    **The window as a desktop app, not a web page** (the author, 2026-10-11: the dialogs were hard to read and not
-    plain; a mockup in JetBrains' Settings' style agreed; [ui.md](ui.md), Desktop, not a web page), on the branch
-    `desktop-ui`, a step at a time: (1) the foundations (two text sizes, dense rows, square icon buttons, `.list` with a
-    toolbar, `.titled`, "Label:" forms, a dialog's title strip) and (2) Settings as a tree with a project's page, New
-    Project a dialog of its own, (3) Settings → Agents as a list and the chosen agent's details (its accounts a
-    `.list`), (4) the other dialogs to the same rules where it is only their look ("Label:", `.titled`; Rename Task,
-    Profiles, Keyboard Shortcuts): built; the author looks. Decided with the author: icon buttons square everywhere; no
-    search field in Settings' tree; no × shown under the pointer in a dialog's lists (−, Delete, a right-click).
-  - **Agents** (the CLIs and their accounts in Settings → Agents since 2026-10-11; chosen in a project since step 8,
-    below): the human picks a CLI (Claude Code, Codex, …) and signs in with the CLI's own login (New Account…, in
-    Settings → Agents or a project's page); each account has its own config folder (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`)
-    in Kulisa's data folder, kept until the human deletes it there (no longer gone with its last project). The human's own `~/.claude` / `~/.codex` is no account (never used, never deleted).
-  - **Profiles** (one flat store, each listing the projects it belongs to; it goes, after a question, when its last
-    project does; seen on the project's page in the projects' manager: Profiles' + → New Profile…, From Another Project). A profile is a person with all their
-    sign-ins, in one or more forms:
-    - sessions of real accounts: the human signs in by hand to the profile's **master**, which no one works in
-      (opened in a window of its own for that);
-    - login-password pairs, for local addresses only (below): the agent signs in itself; kept by Kulisa, encrypted
-      (Electron's `safeStorage`, to read in the installed version's docs); set by the human in the editor or by the
-      agent (an MCP tool, e.g. after it signed a test user up); never logged;
-    - none: a blank profile, for sign-up tests (SPEC feature 7).
-  - **Projects** (composite; made and changed on its page in the projects' manager): a name, a color from a pool, an icon (the repository's
-    favicon if it has one, else Kulisa's set), agents (one default), profiles, repositories or folders (local, or
-    cloned from a URL; one default). A project needs no repository: then it has a folder, by default
-    `~/Kulisa/<project>` (`~/Kulisa` is the default place of every new project, as JetBrains' `~/PycharmProjects`,
-    changeable), or one the human picks. That folder is the human's: Kulisa never deletes it. Once a repository is
-    added, tasks no longer work in it; its page shows it ("former folder, tasks no longer work in it", Show) while
-    it exists, and the human moves its files (or asks the agent).
-  - **Tasks.** The bar's + (a project in its menu) makes one with the project's default agent, its default repository and its
-    profiles, all closed until opened (step 7); the human describes the task in the agent's terminal. A task always works in copies: a worktree per
-    repository, on one branch, named `task-N` until the agent renames it (an MCP tool; `git branch -m`). The agent
-    starts in the default repository's copy and gets the others with their instructions: Claude Code `--add-dir` and
-    `CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD=1`, Codex `--add-dir`, other CLIs a line at session start
-    (`agents.ts`, one entry each). More repositories only from the project, also while the task works (Kulisa types
-    into the agent's prompt what was added; Claude Code also gets `/add-dir`). A folder without git has no copies: the
-    task works right in it, and a second open task there shows a warning ("two agents may get in each other's way")
-    and may go on. Ports as today: one offset per task (`KULISA_PORT_OFFSET`, copied tabs moved).
-  - **Profiles in a task**: a copy of the master, made when the profile is first opened in the task (not all at
-    once). Local apps' sessions are each task's own (each task runs its own dev server, often with its own
-    database, and cookies do not depend on the port: shared, two tasks would keep signing each other out); the
-    agent signs in there with the profile's pair.
-  - **Closing and deleting.** × on a task's tab closes it: the agent stops, tabs close, everything else stays; it is
-    listed as closed in its project's group, and opening it resumes the agent's conversation. Delete is in the tab's
-    menu, after a question naming what is lost. With git a task is atomic: worktrees, branch and the agent's session
-    go together (the question warns of uncommitted files and of commits not in main and not pushed). Without git:
-    the conversation, profile copies and the task go, files in the folder stay. Closed tasks stay on disk until the
-    human deletes them; Kulisa offers it once the PR is merged.
-  - **The project's folder is the human's**: agents never touch it on their own. To bring work into it without a
-    remote, the human asks the agent ("merge into main"); the skill: first check the folder for the human's
-    uncommitted changes, and stop if there are any.
-  - **The bar is the tasks' bar, drawn as Chrome's tab groups**: a group per project (its name, color and icon;
-    collapsible), a tab per task, and one + after them, a task of any project (the project's icon and color, the task's name, the agent's state).
-    A group moves to another window whole (built: Move to New Window), e.g. to keep one client's tasks out of a screen
-    share. With no task open, the empty window (built: tasks.md).
-  - **Sign-in rule, narrowed**: built with step 5 ([profiles.md](profiles.md), "Test users' sign-ins"; CLAUDE.md,
-    Rules). Left: "Sign in with Google" on a local app, where the human signs in once to a test Google account in the
-    profile's master and the agent goes the whole way itself (account chooser, consent) with no sign-in pause on that
-    path, never typing a Google password: the pause part goes into the author's replacement of `signin-pause.ts`.
-  - **Steps**, each working on its own, with its tests:
-    1. Tasks replace workspaces: built 2026-10-10 ([tasks.md](tasks.md)), with Kulisa offering to delete a closed
-       task once its PR is merged. Left: a squash merge is not seen as merged.
-    2. Projects as composites: built 2026-10-10 ([tasks.md](tasks.md), Projects and Tasks). Left: a task in the
-       former folder (no git) is not moved when a repository comes; profiles and agents as catalogs (steps 3, 4).
-    3. The agents' catalog with accounts: built 2026-10-10 ([tasks.md](tasks.md), "Choosing the agent"); its accounts
-       redone in step 8.
-    4. Profiles: built 2026-10-10 ([profiles.md](profiles.md): the flat store, masters, copies at the first open, a
-       profile in several projects, signing in to a master in a window of its own, Refresh from Master…). Left: the
-       master's window has one tab shown at a time (a sign-in's popup takes it, the tab before comes back when it
-       closes); Refresh brings cookies only (storage: step 6 has the same limit).
-    5. Login-password pairs and the narrowed rule: built 2026-10-10 ([profiles.md](profiles.md), "Test users'
-       sign-ins"; what is local: `local.ts`, as proposed, with the project's own list in Project Settings…).
-    6. Cookies of non-local sites kept in step between a master and its copies: built 2026-10-10
-       ([profiles.md](profiles.md), "Sign-ins kept in step"). Left: device-bound session cookies (DBSC) to check with
-       a real Google account in this Electron; sign-ins in a site's storage (MSAL) not kept in step; Refresh from
-       Master… now matters only for a local app's cookies, to keep or drop.
-    7. The projects' manager: built 2026-10-10 ([tasks.md](tasks.md), Projects: the Projects button in the title
-       bar, Settings → Projects since 2026-10-11; every project on the left, one's configuration on the right; a list of agents with a default; + makes a
-       task from the configuration; a new task opens no profile).
-    8. Agents' accounts made and chosen in the project, one store as the profiles': built 2026-10-11
-       ([tasks.md](tasks.md), "Choosing the agent", Accounts). Changed with the author while building: no email asked
-       (the sign-in starts at once, as `/login`; the folder a fixed id, never renamed: macOS keeps Claude Code's
-       sign-in in the Keychain under a hash of the folder's path; the email read after it); the human's own
-       `~/.claude` / `~/.codex` is no account (each account a clean agent); a sign-in's page in a clean browser of
-       Kulisa's; a project with no agent starts its tasks with the terminal only. Left: the sign-in tried with a real
-       Claude account (the tests use a fake agent); Codex's (`codex login status` may not say the email); whether
-       Claude Code's Keychain entry on macOS goes with `auth logout`, and whether it reads `BROWSER` there and on
-       Windows, so its page opens in Kulisa's clean browser (macOS and Windows checks).
+- **Projects and tasks: Kulisa rebuilt around them** (designed with the author 2026-10-10). It replaced the model of
+  workspaces: a project is the configuration its tasks are made from, and the work is done in **tasks**; how it
+  works: [tasks.md](tasks.md), [profiles.md](profiles.md). No migration: the new layout does not read the old data
+  (one data format only: old data is deleted, never read or migrated).
+  - **Status** (keep it current: a new session reads it first). 2026-10-11: all eight steps are built and in `main`,
+    the branch the stabilization goes on from, and so is what came after them: the window in Vue 3 and Reka UI, the
+    groups and the tasks' bar as Chrome's tab groups with one + after the islands, the empty window, Settings as
+    JetBrains' (a tree of Projects, Agents and Profiles; [ui.md](ui.md), Desktop, not a web page), the whole project
+    in TypeScript. The author tests it by hand. Next: fix what the author's testing finds; then what is left of the
+    steps (below), only once the author has decided it.
+  - **Open, for the author to decide:** Refresh from Master… now matters only for a local app's cookies (keep or
+    drop); a script the agent runs in a page (`browser_evaluate`) could read a test password back from its field
+    (only the skill forbids it: close it or not). For the author's real accounts, not testable by Claude:
+    device-bound cookies (DBSC, Google) and MSAL's sign-ins kept in step. Not discussed, so not to build unasked: tabs
+    in a master's window, tasks in a former folder getting copies.
+  - **Left of the steps:**
+    - Tasks: a squash merge is not seen as merged (Kulisa offers to delete a closed task only once its commits are
+      in the remote's default branch).
+    - Projects: a task in the former folder (no git) is not moved when a repository comes.
+    - Profiles: the master's window has one tab shown at a time (a sign-in's popup takes it, the tab before comes
+      back when it closes); Refresh from Master… brings cookies only, not the sites' storage.
+    - Sign-ins kept in step: device-bound session cookies (DBSC) to check with a real Google account in this
+      Electron; sign-ins in a site's storage (MSAL) are not kept in step.
+    - "Sign in with Google" on a local app: the human signs in once to a test Google account in the profile's
+      master, and the agent goes the whole way itself (account chooser, consent) with no sign-in pause on that path,
+      never typing a Google password. The pause part goes into the author's replacement of `signin-pause.ts`.
+    - Agents' accounts: the sign-in tried with a real Claude account (the tests use a fake agent); Codex's (`codex
+      login status` may not say the email); whether Claude Code's Keychain entry on macOS goes with `auth logout`,
+      and whether it reads `BROWSER` there and on Windows, so its page opens in Kulisa's clean browser (macOS and
+      Windows checks).
   - **Put off**: ongoing tasks ("watch the feedback for a month") with Kulisa kept in the tray (none in GNOME by
     default); rights on profiles, when real accounts come (one flag, "view only": reading allowed, clicks and typing
     refused; today the agent's own modes cover test users).
 
 - **Switching a task's account in the middle of its conversation** (the author's question, 2026-10-11; to discuss
-  again before building, after step 8). A task on Claude Code's account email1 runs out of its session's limit; the
+  again before building). A task on Claude Code's account email1 runs out of its session's limit; the
   human goes on with email2, the same conversation. Today Change agent… starts a new conversation.
   - **The way agreed: the conversation moves** (Claude's recommendation, the author agreed). A conversation is
     `<account folder>/projects/<task folder>/<session>.jsonl`, and `claude --resume <session>` looks for it in the
@@ -150,7 +59,7 @@ here; what is left of it stays.
     undocumented; a session writes to `file-history/`, `session-env/`, `history.jsonl` too, to link the same way;
     removing an account no longer takes its conversations (they are shared).
   - Not chosen: one config folder whose sign-in Kulisa swaps. All tasks in a folder share its sign-in, so two
-    accounts could not run side by side (what step 8 is for); Claude Code keeps its tokens in macOS's Keychain and the
+    accounts could not run side by side (what accounts are for); Claude Code keeps its tokens in macOS's Keychain and the
     account in `.claude.json`, rewritten by Claude all the time; a running agent refreshes its token and would write
     the old account's back, so it stops anyway; and Kulisa would keep the resting accounts' OAuth tokens.
   - **To check first: Anthropic's terms.** Two accounts (work, personal) are ordinary; switching between two
@@ -267,11 +176,9 @@ here; what is left of it stays.
 - **Kulisa plugin: running the app, rest** (designed 2026-10-06 with the tasks; the terminals it runs in built
   2026-10-09: [window.md](window.md), "The terminal"). Any agent is told its task's ports in the MCP server's
   instructions and runs the app with `terminal_run`, where the human sees it.
-  - Tried 2026-10-09 with Claude Code 2.1.295 on a small Node project ("run the app and open it in the buyer
-    profile"): in a fork (a task now) it read the README and `$KULISA_PORT_OFFSET`, ran `PORT=3100 npm run dev` with
-    `terminal_run`, read it and opened 3100 in the profile; in main (the project's folder then) the same on 3000. Without Kulisa's tools (a
-    task not loaded) it ran the server in its own background shell. To try: Codex (see "Choosing the agent,
-    rest": once there is a Codex account), and a project with docker compose.
+  - Claude Code does it (tried 2026-10-09: it read `$KULISA_PORT_OFFSET`, ran the app on its port with `terminal_run`
+    and opened it in a profile). To try: Codex (see "Choosing the agent, rest": once there is a Codex account), and
+    a project with docker compose.
   - Possibly tools: the app's address for this task, opening its profiles there once the server answers.
   - Besides the port, worktrees share the local database (migrations of different branches), Redis and queues,
     OAuth redirect URLs registered for one address. Common practice: a database per branch, docker compose per
@@ -304,10 +211,11 @@ here; what is left of it stays.
     agent's terminal its own close and open and keep the two kinds (about half the code), but everything about
     terminals stays written twice, and "Several agents in one task" (Deferred ideas) would need the merge
     anyway. To change with it: the renderer assumes the panel `terminal` is always there (it anchors new profiles
-    and terminals, and the grid adds it back: `lib/grid.ts`, `restoreGrid`, `syncGrid`, `applyPreset`); saved grids name it, so a migration.
-  - The author's direction (2026-10-11, with step 8): a task may start with the terminal only, and + in the island of
+    and terminals, and the grid adds it back: `lib/grid.ts`, `restoreGrid`, `syncGrid`, `applyPreset`); saved grids name it: they are not migrated (a saved
+    grid of the old shape is dropped, the task's grid made anew).
+  - The author's direction (2026-10-11, with the agents' accounts): a task may start with the terminal only, and + in the island of
     terminals opens any number of the project's agents (its accounts) next to it; to design with "Several agents in one
-    task" (Deferred ideas), next after step 8.
+    task" (Deferred ideas), next.
   - Open questions for the author, each with Claude's proposal:
     - A second agent in the same task (Codex next to Claude)? Proposed: not yet; + shows the open one.
       Several agents is its own task (Deferred ideas), with each terminal's own hooks state, picks and dictation.
@@ -368,7 +276,7 @@ here; what is left of it stays.
        `codex resume`.
   - More agents (Gemini CLI, …): an entry each in `agents.ts`.
   - Windows: the installers run in PowerShell, untested; macOS untested.
-  - A hint in an empty grid: since step 7 a new task opens no profile and its grid is the terminal alone, so a hint
+  - A hint in an empty grid: a new task opens no profile and its grid is the terminal alone, so a hint
     would show in every new task; whether one is wanted (and what it says: the project's profiles in 👥, or "create
     the first profile" when it has none) is the author's to decide.
 - **Tasks, rest** (how they work now, and why: [tasks.md](tasks.md)).
@@ -377,8 +285,8 @@ here; what is left of it stays.
   - The agent's state on the task tab for other agent CLIs: Claude Code's hooks report it, Codex's are built
     and not yet tried ("Choosing the agent, rest"). For CLIs without hooks, e.g. from MCP calls and terminal output (working
     while they come, idle after a quiet while).
-  - Tried with Claude Code in forks (as tasks were called); the tests run `cat` as the agent. Still to check in a
-    task's copy: the hooks (session, state), `--resume` after a restart, `task_rename` called by Claude Code.
+  - To check with Claude Code in a task's copy (the tests run `cat` as the agent): the hooks (session, state),
+    `--resume` after a restart, `task_rename` called by Claude Code.
   - Unloading a background task's tabs while its agent is idle: it needs to know the agent is idle (Claude
     Code's hooks tell it; for other CLIs, no MCP calls and no terminal output for a while).
   - Other tools that, like direnv, want a folder allowed before they apply (mise's `trust`): not handled yet.
@@ -412,12 +320,8 @@ here; what is left of it stays.
   (electronjs.org/docs/latest/tutorial/accessibility): Electron turns Chromium's accessibility tree on by itself when
   assistive technology runs (JAWS, NVDA, VoiceOver, Orca); `app.setAccessibilitySupportEnabled()` turns it on by hand,
   and on macOS other apps can ask for it (`AXManualAccessibility`); the OS's setting always wins.
-  - Already there: the menus, dialogs, questions and controls are Reka UI's ([ui.md](ui.md)), which gives them their
-    roles and states, the keyboard (arrows, Enter, Esc, Tab), focus kept in a dialog and given back where it was when
-    it closes (questions focus Cancel); the tabs of the tasks and of a pane are Reka's Tabs (one Tab stop, arrows).
-    Icon buttons have names (`aria-label`, checked by a test), the Kulisa zoom scales the whole UI, motion follows
-    reduced motion, semantic elements (`header`, `main`, `nav`). What Reka gives is its promise, not checked yet
-    (Checking, below).
+  - The roles, states, keyboard and focus Reka UI gives the menus, dialogs and controls ([ui.md](ui.md)) are its
+    promise, not checked yet (Checking, below).
   - Seeing: high contrast, the OS's setting (`nativeTheme.shouldUseHighContrastColors`; CSS `forced-colors` on
     Windows, where the browser puts in the system's colors: check that nothing disappears; `prefers-contrast`); WCAG
     contrast of every token in both themes (the muted text first). Kulisa's own: Reka has no look.
@@ -784,12 +688,7 @@ here; what is left of it stays.
     ready): every profile's HTTP cache at most that, open ones too; not the code and GPU caches.
   - Or both, or clearing when a task is closed as well. Cost of clearing: the first load of a
     reopened profile's sites is slower (no cache), which matters little for profiles set aside.
-- **Tests that failed now and then.** Fixed 2026-10-08: pictures of pages for a menu wait 500 ms at most (`window.ts`,
-  test "a menu opens even when a page gives no picture"); a project's label let go on the side of the screen with
-  room. 2026-10-09: the tests run on a screen of their own on Linux (Xvfb, [testing.md](testing.md)), so the human's
-  work no longer takes the focus from them (menus closed in the middle of a test, about 1 run in 7); races that a
-  slower screen showed (a click while the window still showed another project) are waited for. Watch whether any
-  come back. Not looked at: the address bar's click (seen 2026-10-07); the first point-and-tell test once timed out waiting for the pick (2026-10-10, right after the window moved to Vue; not in the runs after); "Move to New Window puts a project in a window
+- **Tests that failed now and then.** Not looked at: the address bar's click (seen 2026-10-07); the first point-and-tell test once timed out waiting for the pick (2026-10-10, right after the window moved to Vue; not in the runs after); "Move to New Window puts a project in a window
   of its own" (a 30 s timeout) and "agents: ☰ → Agents… shows what is installed" failed together once in a full
   `npm test` (2026-10-11, after the move to Reka UI; the output not kept), not in the four runs after; the agents'
   tests failed together again once in a full `npm test` (2026-10-11, the projects' manager as a page: "☰ → Agents…"
