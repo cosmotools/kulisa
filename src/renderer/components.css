@@ -1,5 +1,5 @@
-/* Components: the parts the window is built of, each defined once (docs/ui.md). window.css places them and lays out
-   the window; it does not make its own buttons, icons, rows or dialogs. */
+/* Components: the parts the window is built of, each defined once (docs/ui.md). A part's own <style> places them and
+   lays it out; it does not make its own buttons, icons, rows or dialogs. */
 *, *::before, *::after { box-sizing: border-box; }
 
 /* Controls */
@@ -9,13 +9,19 @@ button, input, select, textarea {
 }
 /* The arrow over buttons and tabs too, as in Chrome and other desktop apps (body), not a web page's hand */
 button:disabled { opacity: .35; }
+/* A button answers the hand: lit under the pointer, darker while pressed, as JetBrains' and Chrome's. :where keeps it
+   as weak as the rule above, so every button of its own (.icon, a tab) keeps its own. */
+button:where(:not(:disabled):hover) { background: color-mix(in srgb, var(--button) 88%, var(--text)); }
+button:where(:not(:disabled):active) { background: color-mix(in srgb, var(--button) 78%, var(--text)); }
 input, textarea { background: var(--field); color: var(--text-strong); padding: 0 8px; user-select: text; }
 /* Text of more than a line: as high as its rows, resized only in height */
 textarea { height: auto; padding-block: 6px; resize: vertical; }
 button.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent);
-  &:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 85%, white); } }
+  &:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 85%, white); }
+  &:active:not(:disabled) { background: color-mix(in srgb, var(--accent) 82%, black); } }
 button.danger { background: var(--danger); border-color: var(--danger); color: var(--on-accent);
-  &:hover:not(:disabled) { background: color-mix(in srgb, var(--danger) 85%, white); } }
+  &:hover:not(:disabled) { background: color-mix(in srgb, var(--danger) 85%, white); }
+  &:active:not(:disabled) { background: color-mix(in srgb, var(--danger) 82%, black); } }
 /* A profile's picture (avatars.js): --avatar, its size where a place needs another */
 .avatar { width: var(--avatar, 16px); height: var(--avatar, 16px); flex: none; }
 /* Icon buttons to choose one of (.icon each; Reka's ToggleGroup, or its ColorSwatchPicker for colors): a profile's
@@ -121,7 +127,8 @@ svg:has(> use) { width: 16px; height: 16px; flex: none; fill: none; stroke: curr
     h2 { flex: 1; margin: 0; font-size: 1.1em; font-weight: 600; color: var(--text-strong); } }
   .body { flex: 1; min-height: 0; overflow: auto; padding: 16px var(--pad) 20px; }
   .hint { margin: 0 0 var(--inset); color: var(--text-muted); line-height: 1.45; }
-  .error { margin: var(--inset) 0 0; color: var(--error); &:empty { display: none; } }
+  /* An error is text to copy (to search for it), unlike the rest of the window's words */
+  .error { margin: var(--inset) 0 0; color: var(--error); user-select: text; cursor: text; &:empty { display: none; } }
   /* A field and its button in one row (adding a profile, a project) */
   .row { display: flex; gap: var(--gap); margin-top: var(--inset); input { flex: 1; } }
   /* A labelled field, the labels in one column */

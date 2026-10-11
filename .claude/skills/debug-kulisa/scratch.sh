@@ -3,7 +3,7 @@
 #   scratch.sh start <folder>   (the session's scratch folder; data and a project "myshop" go there, made anew)
 #   scratch.sh stop
 # Main process: Node inspector on 9230 (inspect.mjs 9230 …). The window's page: CDP on 9333 (Playwright
-# connectOverCDP; window.kulisa.invoke(…) there, e.g. 'profile:new'). MCP: http://127.0.0.1:4499/ws/myshop/1/mcp.
+# connectOverCDP; act(…) there, e.g. act('profile:new', { name })). MCP: http://127.0.0.1:4499/task/myshop/1/mcp.
 set -u
 repo=$(cd "$(dirname "$0")/../../.." && pwd)
 pid() { ps -eo pid,comm,args | awk '$2=="electron" && /--inspect=9230/ && !/--type=/ {print $1}'; }

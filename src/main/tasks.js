@@ -136,12 +136,14 @@ class Task {
     await this.list.load(); this.loaded = true;
     for (const { id, name, by } of this.store.terminals()) this.openTerminal({ id, name, by }).catch((e) => console.error('[terminal]', e));
   }
-  // The task's agent (agents.js) in its folder, continuing its last conversation where the agent can. One not
-  // chosen yet, or not installed: the window asks the human (and installs it); asked again the next time the
-  // task is shown if they left without choosing.
+  // The task's agent (agents.js) in its folder, continuing its last conversation where the agent can. None chosen and
+  // none in the project: the terminal alone (its accounts are added in the project's settings). One no longer there,
+  // or not installed: the window asks the human (and installs it); asked again the next time the task is shown if
+  // they left without choosing.
   async startAgent() {
     const { shell } = this;
     let agent = shell.agentFor(this.store.agent().agent);
+    if (!agent && !this.store.agent().agent && !this.project.agents().length) agent = shell.agentFor('shell');
     let found = agent && await shell.findAgent(agent, this.folder);
     if (!found) {
       agent = await shell.chooseAgent(this, agent);

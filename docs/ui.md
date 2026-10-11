@@ -77,7 +77,8 @@ every other `<svg>` uses the sprite.
 ### Buttons
 
 - `<button>`: a framed button with text, `--control` high. `.primary` (blue, the main action of a dialog, last in its
-  footer), `.danger` (red, when it deletes). Disabled: faded.
+  footer), `.danger` (red, when it deletes). Lit under the pointer and darker while pressed, so it answers the hand;
+  a button of its own kind (`.icon`, a tab) keeps its own (the rule is as weak as `button`'s). Disabled: faded.
 - `.icon`: an icon alone, round, no frame, lit under the pointer (`--hover`); always with `aria-label` (or `title`).
   - `.quiet`: muted until pointed at, for × and removing.
   - `.small`: 22 px, inside a row (a tab's ×, a task's ×).
@@ -151,7 +152,8 @@ Every dialog is `Modal.vue`, Reka UI's Dialog (`reka-ui`) with the same parts:
   (`.dialog`).
 - `.body`: `.hint` (what it is about, muted), `.field` (a label and its input, the labels in one column; `.pick` in
   it: the input with its button, Location and Browse…), `.row` (a line of controls under the fields: Add Folder…,
-  Add Agent…, Add Account), `.check` (a `.checkbox` in the fields' column), `.error` (hidden while empty); a field's
+  Add Agent…, New Account…), `.check` (a `.checkbox` in the fields' column), `.error` (hidden while empty; its text
+  selectable, to copy and search for, as a question's detail is); a field's
   `.hint` under it (its `FieldDescription`).
 - `footer`: the buttons at the right end, the main one last; `.start` puts a button at the left end. A button that
   only closes is Reka's `DialogClose`.

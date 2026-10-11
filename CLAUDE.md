@@ -294,11 +294,13 @@ Modules (`src/main`):
 - `projects.js`: an open project: its tasks (make, close, open again, delete), removing a project's data.
 - `tasks.js`: a task: its profiles, its agent in its own terminal and environment, renaming, copies for a new task.
 - `worktrees.js`: git for tasks (the user's git, never a shell): worktree, branch, files outside git, direnv.
-- `accounts.js`: the agents' accounts: the human's own config folder and those added, each a folder of its own.
+- `accounts.js`: the agents' accounts, one store: each made in a project (the agent's own sign-in), a config folder of
+  its own (not the human's `~/.claude`), shown by its email, gone with its last project.
 - `agents.js`: the agents to choose from, one entry each: find, install, start, resume. Agent-specific code goes
   here.
 - `profile-store.js`: the profiles, one store: who each is, its master, its projects. `master.js`: a master's window,
-  where the human signs in once for every task (nothing automated attached). `cookie-sync.js`: real accounts'
+  where the human signs in once for every task (nothing automated attached); the same window in memory is the clean
+  browser of an agent's own sign-in. `cookie-sync.js`: real accounts'
   cookies kept in step between a master and its copies. `local.js`: what is local.
 - `project-profiles.js`: a task's profiles (its project's, each a copy of its master made at its first open), open
   and closed: create, rename, describe, close, open, let go. `avatars.js`: their pictures.

@@ -5,10 +5,11 @@
 // no agent's tool sees it, so no sign-in pause is needed. The page is a Profile as a task's (its tabs, presenting as
 // Chrome, its session cookies kept), under a small bar of its own (master.html): the address, back, forward, reload.
 // One window per master; asked again, it comes to the front. Closed, its tabs and sign-ins are saved.
-const { BrowserWindow, ipcMain } = require('electron');
+// The same window, with a session in memory, is the clean browser of an agent's own sign-in (openSigninWindow).
+const { BrowserWindow, ipcMain, session } = require('electron');
 const fs = require('fs');
 const path = require('path');
-const { Profile, toUrl } = require('./profiles');
+const { Profile, toUrl, wipeSession } = require('./profiles');
 const { writeFileAtomic } = require('./store');
 const { page } = require('./pages');
 
@@ -48,8 +49,47 @@ function installMasters(shell, { preload, colors }) {
     place(); tell();
     return { folder };
   };
+  // A clean browser for an agent's own sign-in (app.js, account:signin; tasks.md, Accounts): the page the agent opens
+  // (its BROWSER is Kulisa's open-url), in a session in memory (a partition without persist:), so none of the human's
+  // sign-ins is there and nothing of it is written to disk; under a master's bar, so the human sees which site it is.
+  // Presenting as Chrome, nothing automated attached. Closed by the sign-in when it ends (or by the human: the sign-in
+  // then gets nowhere), its session wiped with it. { closed (a promise), close() }.
+  shell.signinWindows = new Set();
+  let signins = 0;
+  shell.openSigninWindow = async (url, what) => {
+    const win = new BrowserWindow({ width: 1000, height: 760, title: `${what} — Kulisa`, backgroundColor: colors().window,
+      autoHideMenuBar: true, webPreferences: { preload, sandbox: false } });
+    win.removeMenu();
+    const profile = new Profile(win, { id: 'signin', name: what, folder: null, dir: null,
+      session: session.fromPartition(`kulisa-signin-${++signins}`) }, { task: 'signin', mimic: shell.chromeIdentity });
+    const m = { win, profile, closing: null, signin: true };
+    shell.signinWindows.add(m);
+    const closed = new Promise((resolve) => win.on('closed', resolve));
+    win.on('close', (e) => { if (!m.closed && !shell.quitting) { e.preventDefault(); close(m); } });
+    const place = () => { if (win.isDestroyed()) return; const [width, height] = win.getContentSize(); profile.layout({ x: 0, y: BAR, width, height: Math.max(0, height - BAR) }); };
+    const tell = () => { const t = profile.get(); if (!win.isDestroyed() && t && !t.wc.isDestroyed()) win.webContents.send('master:url', t.wc.getURL()); };
+    try {
+      await win.loadFile(page('master.html'), { query: { what, theme: shell.shade() } });
+      profile.on('changed', () => { place(); tell(); });
+      win.on('resize', place);
+      m.ready = profile.newTab(url).ready;
+      await m.ready;
+      place(); tell();
+    } catch (e) { if (!m.closing) throw e; } // closed by the human while it opened
+    return { closed, close: () => close(m) };
+  };
   async function close(m) {
     if (m.closing) return m.closing;
+    if (m.signin) {
+      m.closing = (async () => {
+        await m.profile.close();
+        await wipeSession(m.profile.session).catch(() => {});
+        shell.signinWindows.delete(m);
+        m.closed = true;
+        if (!m.win.isDestroyed()) m.win.destroy();
+      })();
+      return m.closing;
+    }
     m.closing = (async () => {
       const urls = m.profile.tabs.filter((t) => !t.wc.isDestroyed()).map((t) => t.wc.getURL()).filter((u) => u && u !== 'about:blank');
       writeTabs(m.profile.dir, urls);
@@ -63,7 +103,7 @@ function installMasters(shell, { preload, colors }) {
   }
   // The bar's controls, each acting in the master of the window it comes from.
   const of = async (e) => {
-    const m = [...shell.masters.values()].find((x) => !x.win.isDestroyed() && x.win.webContents === e.sender);
+    const m = [...shell.masters.values(), ...shell.signinWindows].find((x) => !x.win.isDestroyed() && x.win.webContents === e.sender);
     await m?.ready;
     return m?.profile.get() ? m : null;
   };

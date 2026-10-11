@@ -20,7 +20,7 @@ const { AppWindow, COLORS } = require('./window');
 const worktrees = require('./worktrees');
 const agents = require('./agents');
 const { nameError } = require('./names');
-const { stopTerminal } = require('./terminal');
+const { startTerminal, stopTerminal, forgetTerminal } = require('./terminal');
 const keys = require('./keys');
 
 // Electron shows a blocking modal dialog on an uncaught main-process exception, which also stops the proxy and
@@ -33,6 +33,8 @@ const NONE = new Map(); // the tasks and profiles when no project is open
 // The Kulisa plugin's package for Claude Code (CLAUDE.md, Architecture, layer 3): the MCP config, a skill, hooks.
 // Outside the asar archive when packaged (forge.config.js, extraResource), because claude reads it from disk.
 const CLAUDE_PLUGIN = app.isPackaged ? path.join(process.resourcesPath, 'claude-plugin') : path.join(__dirname, '..', 'agent', 'claude-plugin');
+// The BROWSER of an agent's own sign-in (account:signin), there too: the agent runs it.
+const OPEN_URL = app.isPackaged ? path.join(process.resourcesPath, 'open-url') : path.join(__dirname, '..', 'agent', 'open-url');
 
 // options:
 //   userData   folder for Kulisa's data and browser profiles
@@ -46,6 +48,11 @@ const CLAUDE_PLUGIN = app.isPackaged ? path.join(process.resourcesPath, 'claude-
 //   mimicChrome  present profiles as Google Chrome (default true)
 //   signinHosts  extra sign-in hosts (sign-in pause, tab restore)
 function start(options = {}) {
+  // direnv's state from where Kulisa was started (a terminal in a folder direnv had loaded) is not Kulisa's: a task's
+  // shell took the task's folder for that folder left and undid its .envrc's changes, an agent's account variable
+  // with them (its CLAUDE_CONFIG_DIR gone: the agent ran with the user's own sign-in, 2026-10-11). Without it, direnv
+  // in each terminal starts clean and loads the task's own .envrc; git and direnv run by Kulisa too.
+  for (const k of Object.keys(process.env)) if (k.startsWith('DIRENV_')) delete process.env[k];
   const userData = options.userData || path.join(app.getPath('appData'), 'Kulisa');
   app.setPath('userData', userData);
   const store = new Store(userData);
@@ -405,17 +412,24 @@ function start(options = {}) {
   // New Project…, as JetBrains': the folder <location>/<name>, the location ~/Kulisa (every new project's place, as
   // JetBrains' ~/PycharmProjects) unless the human picks another, so they know where the agent's files are. A folder
   // that is there already must be empty; git init in it when asked, with an empty first commit: tasks get copies of
-  // their own (worktrees) from it. With its color, icon and the agent its tasks run (ProjectEditor.vue).
-  const choices = () => ({ colors: PROJECT_COLORS, icons: PROJECT_ICONS, agents: shell.accounts.all().filter((a) => !a.agent.custom).map(({ id, name }) => ({ id, name })) });
+  // their own (worktrees) from it. With its color and icon (ProjectEditor.vue). Made, not opened: the manager goes on to
+  // its configuration (its agents' accounts, its code, its profiles), and Open there opens it (the author, 2026-10-11:
+  // a question where to open it, right after Create, came unasked).
+  // agents: every account, the agents' own first; clis: the agents a new account can be made of (New Account…).
+  const choices = () => {
+    const all = shell.accounts.all().filter((a) => !a.agent.custom);
+    return { colors: PROJECT_COLORS, icons: PROJECT_ICONS, agents: all.filter((a) => a.choosable).map(({ id, name }) => ({ id, name })),
+      clis: all.filter((a) => a.own && a.agent.config?.login).map(({ id, name }) => ({ id, name })) };
+  };
   ipcMain.handle('project:new-defaults', () => ({ location: shell.projectsHome, sep: path.sep,
     color: store.nextColor(), ...choices() }));
   ipcMain.handle('project:pick-location', async (e, { location }) => {
     const r = await dialog.showOpenDialog(at(e).win, { title: 'Where to create the project', defaultPath: location, properties: ['openDirectory', 'createDirectory'] });
     return r.canceled ? null : r.filePaths[0] || null;
   });
-  ipcMain.handle('project:new', async (e, { name, location, git, color, icon, agent }) => {
+  ipcMain.handle('project:new', async (e, { name, location, git, color, icon }) => {
     name = name?.trim();
-    const bad = nameError(name) || lookError({ color, icon, agent });
+    const bad = nameError(name) || lookError({ color, icon });
     if (bad) return { error: bad };
     location = location?.trim().replace(/^~(?=$|[\\/])/, app.getPath('home'));
     if (!location || !path.isAbsolute(location)) return { error: 'the location must be the full path of a folder' };
@@ -425,7 +439,9 @@ function start(options = {}) {
     }
     fs.mkdirSync(folder, { recursive: true });
     if (git) await worktrees.initRepo(folder).catch((err) => console.error('[git]', err.stderr || err.message));
-    return openLater(store.projectFor(folder, name, { color, icon, agent }), at(e));
+    const entry = store.projectFor(folder, name, { color, icon });
+    sendProjects(); // the projects' menus and the Welcome screen list it
+    return { id: entry.id };
   });
   // A project's configuration in the projects' manager (ProjectEditor.vue): its name, color, icon, agents,
   // repositories, profiles and local addresses; its folder is shown, not changed (its tasks' copies are made from it).
@@ -484,7 +500,57 @@ function start(options = {}) {
   // Its agents (projects.js): one added, made the default (+ runs it), removed. At once, not on Save.
   ipcMain.handle('project:agent-add', (e, { id, agent }) => addAgent(shell, id, agent));
   ipcMain.handle('project:agent-default', (e, { id, agent }) => defaultAgent(shell, id, agent));
-  ipcMain.handle('project:agent-remove', (e, { id, agent }) => removeAgent(shell, id, agent));
+  ipcMain.handle('project:agent-remove', (e, { id, agent }) => serial(() => removeAgent(shell, id, agent, at(e))));
+  // A new account of an agent, made in a project (the projects' manager; tasks.md, Accounts): a folder of its own
+  // (accounts.js), then the agent's own sign-in in it, as /login, in a terminal of the window (key), which ends once signed
+  // in; its status says the email it signed in to. The page it opens comes to Kulisa (its BROWSER: open-url, through the
+  // local server with a token of this sign-in) and is shown in a clean browser of Kulisa's (master.js), not the user's
+  // browser, already signed in to other accounts; it closes when the sign-in ends, and closed by the human it ends the
+  // sign-in. Claude Code reads BROWSER on Linux (checked in 2.1.296); not set on Windows (a sh script). An email stored
+  // already is that account, added to the project. Not one change after another
+  // (serial): a sign-in takes minutes. { agents } or { error } (null: cancelled).
+  const signins = shell.signins = new Map(); // a sign-in terminal's key -> its pty
+  const openers = new Map(); // a sign-in's token -> what opens its page
+  shell.signinOpen = (token, url) => { const open = openers.get(token); if (!open || !/^https?:\/\//.test(url)) return false; open(url); return true; };
+  const cancel = (key) => { const p = signins.get(key); signins.delete(key); if (p) stopTerminal(p); };
+  ipcMain.handle('account:signin', async (e, { id, agent: agentId, key }) => {
+    const w = at(e), own = shell.accounts.find(agentId);
+    if (!store.projects().some((x) => x.id === id)) return { error: `no project ${id}` };
+    if (!own?.own || !own.agent.config?.login) return { error: `${own?.name || agentId} has no accounts` };
+    const found = await agents.findAgent(own.agent, app.getPath('home'));
+    if (!found?.path) return { error: `${own.name} is not installed: install it in ☰ → Agents…` };
+    const r = shell.accounts.prepare(agentId);
+    if (r.error) return r;
+    const token = crypto.randomUUID();
+    let page = null;
+    openers.set(token, async (url) => {
+      if (page) return;
+      page = shell.openSigninWindow(url, `Signing in to ${own.name}: a clean browser, closed when done`)
+        .catch((err) => { console.error('[accounts] sign-in window:', err.message); return null; });
+      (await page)?.closed.then(() => cancel(key)); // closed by the human: no sign-in (closed when done: it ended already)
+    });
+    const browser = process.platform === 'win32' ? {} : { BROWSER: OPEN_URL, KULISA_OPEN_URL: `${shell.mcp.base}/signin/${token}/open` };
+    const p = await startTerminal((channel, data) => w?.send(channel, data), { command: found.path, args: own.agent.config.login(),
+      cwd: app.getPath('home'), env: { [own.agent.config.env]: r.dir, ...browser }, shell: false }, key);
+    signins.set(key, p);
+    const code = await new Promise((resolve) => p.onExit(({ exitCode }) => resolve(exitCode)));
+    const cancelled = !signins.delete(key);
+    openers.delete(token);
+    forgetTerminal(key);
+    await (await page)?.close();
+    const got = await agents.accountEmail(own.agent, found, r.dir);
+    // One it has already (the same email): that one; the new folder signed out and gone.
+    const existing = got && shell.accounts.byEmail(agentId, got.email);
+    if (cancelled || !got || existing) {
+      if (got) await agents.signOut(own.agent, found, r.dir);
+      shell.accounts.remove(r.dir);
+      if (existing) return addAgent(shell, id, existing.id);
+      return { error: cancelled ? null : `Not signed in: ${own.name} ended with code ${code}.` };
+    }
+    shell.accounts.create(id, r.id, agentId, got.email);
+    return addAgent(shell, id, r.id);
+  });
+  ipcMain.handle('account:signin-cancel', (e, { key }) => cancel(key));
   ipcMain.handle('project:settings', (e, { id, name, color, icon, local }) => {
     name = name?.trim();
     // Its own local addresses (local.js): hosts, each with its subdomains (a tunnel, its dev domains).
@@ -593,10 +659,20 @@ function start(options = {}) {
   const known = [...(custom ? [custom] : []), ...(options.agents || agents.AGENTS)];
   // The agents with their accounts (accounts.js); an account is its agent with its config folder in its environment.
   shell.accounts = new Accounts(userData, known, (dir) => store.markDeleted(dir));
-  shell.agentFor = (id) => {
+  shell.accounts.clean();
+  // An account no project has any more (projects.js): signed out with its agent's own command (what it keeps outside
+  // its folder goes too: Claude Code's Keychain entry on macOS), then its folder.
+  shell.dropAccount = async (a) => {
+    await agents.signOut(a.agent, await agents.findAgent(a.agent, app.getPath('home')), a.dir);
+    shell.accounts.remove(a.dir);
+  };
+  // An agent or account a task may run (any: also an agent itself that has accounts, as for installing it, or a task
+  // that ran it before accounts were Kulisa's: its configDir the human's own folder).
+  shell.agentFor = (id, { any = false } = {}) => {
     const a = shell.accounts.find(id ?? custom?.id);
-    return a && { ...a.agent, id: a.id, agentId: a.agent.id, name: a.name, configDir: a.dir,
-      env: a.own || !a.agent.config ? {} : { [a.agent.config.env]: a.dir } };
+    if (!a || (!a.choosable && !any)) return null;
+    return { ...a.agent, id: a.id, agentId: a.agent.id, name: a.name, configDir: a.own ? a.agent.config?.home() ?? null : a.dir,
+      env: a.own ? {} : { [a.agent.config.env]: a.dir } };
   };
   shell.findAgent = agents.findAgent;
   const choosing = new Map(); // task key -> resolve(agent or null)
@@ -615,34 +691,25 @@ function start(options = {}) {
     const w = at(e), found = new Map(); // each agent looked for once, whatever its accounts
     // The project's agents first (Change agent…, Choose the Agent), in its order.
     const mine = w?.current?.agents() || [], rank = (id) => (mine.includes(id) ? mine.indexOf(id) : mine.length);
-    const accounts = shell.accounts.all().sort((x, y) => rank(x.id) - rank(y.id)); // stable: the others as they were
+    // Choosing a task's: the project's accounts, and the agents without accounts (the terminal only); never another
+    // project's account: it could go with that project while a task here runs it. The Agents window: the agents alone.
+    const accounts = shell.accounts.all().filter((a) => (details ? a.own : a.choosable && (a.own || mine.includes(a.id))))
+      .sort((x, y) => rank(x.id) - rank(y.id)); // stable: the others as they were
     const list = await Promise.all(accounts.map(async ({ id, agent: a, name, dir, own }) => {
       if ((check || details) && !found.has(a.id)) found.set(a.id, agents.findAgent(a, w?.task?.folder || app.getPath('home')));
       const f = await found.get(a.id);
       return {
         id, agent: a.id, name, maker: a.maker, needs: a.needs, site: a.site, install: agents.installLine(a),
-        accounts: !!a.config, account: own ? null : dir, own: own && !!a.config && fs.existsSync(dir) ? dir : null,
+        account: own ? null : dir,
         ...((check || details) && { installed: !!f }),
         ...(details && { path: f?.path ?? null, onPath: f?.onPath ?? null, version: await agents.agentVersion(f) }),
       };
     }));
     return { list, home: app.getPath('home') };
   });
-  // An account added to an agent (the Agents window): its folder made, signed in at its first start in a task.
-  // Removed after a question: its folder goes, with its sign-in and conversations; the human's own is never removed.
-  ipcMain.handle('accounts:add', (e, { agent, name }) => { const a = shell.accounts.add(agent, name); return a.error ? a : { id: a.id }; });
-  ipcMain.handle('accounts:remove', async (e, { id }) => {
-    const a = shell.accounts.find(id);
-    if (!a || a.own) return { error: a ? "your own account stays: it is yours, not Kulisa's" : `no account ${id}` };
-    if (!await shell.ask({ message: `Remove the account ${a.name}?`, ok: 'Remove', danger: true,
-      detail: `Its folder ${a.dir} is deleted: its sign-in, settings and conversations. Tasks that ran it ask for an agent when they start again.` }, at(e))) {
-      return { error: 'the human said no' };
-    }
-    return shell.accounts.remove(id);
-  });
   // The maker's installer, run when the human clicks Install (that is their go-ahead); its output goes to the window.
   ipcMain.handle('agents:install', async (e, { id }) => {
-    const w = at(e), a = shell.agentFor(id);
+    const w = at(e), a = shell.agentFor(id, { any: true });
     if (!a?.install) return { error: `nothing to install for ${id}` };
     const code = await agents.installAgent(a, (data) => w?.send('agents:install-log', data));
     return { code, installed: !!(await agents.findAgent(a, w?.task?.folder || app.getPath('home'))) };

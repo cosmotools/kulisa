@@ -9,7 +9,7 @@ import { computed, nextTick, reactive } from 'vue';
 
 export interface Agent {
   id: string; name: string; maker?: string; needs?: string; site?: string; install?: string; installed?: boolean;
-  account?: string; own?: string; accounts?: boolean; agent?: string; path?: string; onPath?: boolean; version?: string;
+  account?: string; agent?: string; path?: string; onPath?: boolean; version?: string;
 }
 
 // The installer's output goes to the list that runs it.
@@ -44,12 +44,6 @@ export function agentList(opts: { choose?: boolean; details?: boolean; installed
     await show();
     await focus();
   }
-  // Again, after an account was added or removed.
-  const reload = fetchAgents;
-  async function remove(id: string) {
-    const r = await kulisa.invoke<{ error?: string } | null>('accounts:remove', { id });
-    if (!r?.error) await reload();
-  }
   async function install(id: string) {
     const a = state.agents.find((x) => x.id === id)!;
     state.selected = id;
@@ -72,6 +66,6 @@ export function agentList(opts: { choose?: boolean; details?: boolean; installed
     if (opts.details && a.installed) await fetchAgents();
     await focus();
   }
-  return { ...opts, state, chosen, load, reload, remove, install };
+  return { ...opts, state, chosen, load, install };
 }
 export type AgentList = ReturnType<typeof agentList>;

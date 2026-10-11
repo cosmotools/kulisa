@@ -1,0 +1,4 @@
+#!/bin/sh
+# The BROWSER of an agent's own sign-in (app.js, account:signin): the page the agent opens goes to Kulisa, which shows it
+# in a clean browser of its own (master.js, openSigninWindow), not in the user's browser with their other sign-ins.
+exec curl -sf --max-time 5 --data-binary "$1" "$KULISA_OPEN_URL"

@@ -55,20 +55,22 @@ it), its tasks, and **+** for a new task. A click on a task shows it, of any pro
 or **Close Project** in its right-click menu, after a question; closing a window asks once for all its projects). The button after the islands opens a menu of the
 projects: open another one (in this window or in a new window: Kulisa asks), remove one (its **×** on hover:
 Kulisa's data of it and its tasks' copies; its folder stays), **Projects…**, **New Project…** (a name and where its
-folder goes, `~/Kulisa` by default; git on by default, with an empty first commit; its color, icon and first agent),
+folder goes, `~/Kulisa` by default; git on by default, with an empty first commit; its color and icon; then its
+configuration: its agents' accounts, code, profiles; **Open** opens it),
 **Open Folder…**, close the project. **Project Settings…** on its name's right-click menu opens the manager at it. Closing the last project shows the
 Welcome screen. A closed project keeps its tabs and
 sign-ins; when you open it again, its agent continues the conversation where it can (`claude --resume`,
 `codex resume`). The agent starts in your shell in its task's folder, as if you typed its command in a terminal
 there, so the project's environment (direnv's `.envrc`, nvm, mise) applies; when it exits, the shell stays.
 
-**The agent:** the first time a task starts, Kulisa asks which agent to run there: Claude Code, Codex, or
-the terminal only. One that is not installed gets an **Install** button (Kulisa runs its maker's installer); on its
-first start the agent asks you to sign in to it. Each task keeps its choice; **Change agent…** in the
-terminal's right-click menu picks another (with a new conversation). **☰ → Agents…** (also on the Welcome screen)
-shows at any time which agents are installed, their versions and folders, and installs the others; there **Add
-Account** gives Claude Code or Codex a second sign-in (a work and a personal one), a folder of its own; yours
-(`~/.claude`, `~/.codex`) is the first and stays as it is.
+**The agent:** **☰ → Agents…** (also on the Welcome screen) shows which agent CLIs are installed (Claude Code, Codex),
+their versions and folders, and installs the others (Kulisa runs its maker's installer). The agents a project's tasks
+run are its accounts, made in its settings: **New Account…** starts the agent's own sign-in right there, its page in a
+clean browser of Kulisa's (none of your other sign-ins there); the account is shown by the email you signed in to,
+has a folder of its own (several side by side: a work and a personal one), and goes (after a question) when no project
+has it any more. Each starts as a clean agent: your own `~/.claude` and `~/.codex` are not used. A project without
+one starts its tasks with the terminal only. Each task keeps its choice; **Change agent…** in the terminal's
+right-click menu picks another of the project's (with a new conversation).
 
 **Tasks:** several tasks of a project at once, each with its own agent, in its project's group. **+** makes one at
 once, `task-<n>` until its agent names it (or you do: **Rename…** in its tab's menu): a git worktree on a branch of
@@ -113,7 +115,7 @@ src/main/        Electron main process
   names.js         the one rule for names of projects, tasks and profiles; slugs for ids and folders
   tasks.js         a task: its profiles, agent (terminal, environment), folder and name; copies for a new task
   agents.js        the agent CLIs to choose from: how to find, install, start and resume each
-  accounts.js      the agents' accounts: your own config folder and those added in ☰ → Agents…
+  accounts.js      the agents' accounts, one store: each made in a project (New Account…), a config folder of its own
   worktrees.js     git for tasks: worktree and branch, files outside git copied, changes, renaming, removal
   profile-store.js     the profiles, one store: who each is, its master, its projects
   master.js        a profile's master in a window of its own, to sign in to once for every task

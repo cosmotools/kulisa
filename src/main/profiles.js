@@ -34,7 +34,7 @@ let dialogs = 0; // pages' dialogs, numbered: the human's answer goes to the one
 const PAGE_RADIUS = 8; // a little less than the island's corners, which the page reaches (the renderer's ProfilePane.vue, .content)
 
 class Profile extends EventEmitter {
-  // cfg: { id, name, avatar, description, folder, dir }. The folder (cookies, storage; dir is its absolute path) is fixed at
+  // cfg: { id, name, avatar, description, folder, dir, session }. The folder (cookies, storage; dir is its absolute path) is fixed at
   // creation; a rename changes id and name only.
   // win: the window it shows in (moveTo). task: its task's key (profiles of different tasks share ids).
   // mimic: a chromeIdentity() to present as Google Chrome, or null.
@@ -48,7 +48,7 @@ class Profile extends EventEmitter {
     // in a page keeps its own factor on top of it, per host, in this profile only (saved in profiles.json).
     this.baseZoom = 1;
     this.siteZoom = { ...(cfg.zoom || {}) };
-    this.session = session.fromPath(this.dir);
+    this.session = cfg.session || session.fromPath(this.dir); // a session of its own: one in memory (master.js)
     this.mimic = mimic ? mimicChrome.applyToSession(this.session, mimic) : null;
     this.tabs = []; this.active = null; this.closedUrls = []; this.bounds = { x: 0, y: 0, width: 0, height: 0 };
     this.browser = null; this.context = null; this.endpoint = null; this.signinMode = false;

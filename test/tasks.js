@@ -442,61 +442,48 @@ module.exports = (test) => {
     assert.equal(await ui(`document.querySelectorAll('#agents .agentrow [role="radio"]').length`), 0, 'no choice to make');
     assert.equal(await ui(agentRow('fake', '.status') + '.textContent'), 'Not installed');
     assert.equal(await ui(agentRow('fake', '.install') + '.hidden'), false);
-    assert.match(await ui(agentRow('fake', '.install-line') + '.textContent'), /^Install runs Kulisa tests's installer/);
+    assert.match(await ui(agentRow('fake', '.install-line') + '.textContent'), /^Install runs Kulisa tests's installer: echo "installing the fake agent"/);
     assert.equal(await ui(agentRow('shell', '.install') + '.hidden'), true);
     assert.equal(shell.task.profiles.values().next().value.get().view.getVisible(), false, 'pages hidden under the dialog');
+    // Installed with its maker's installer; what it said only under Details.
+    await ui(agentRow('fake', '.install') + '.click()');
+    await waitFor(async () => (await ui(agentRow('fake', '.status') + '.textContent')) === 'Installed', 10000);
+    assert.match(await ui(`document.querySelector('#agents .progress').textContent`), /^Fake agent is installed\. Make an account of it in a project's settings/);
+    assert.equal(await ui(`document.querySelector('#agents .details .more').dataset.state`), 'closed', "the installer's own output only under Details");
+    assert.match(await ui(`document.querySelector('#agents pre').textContent`), /installing the fake agent\s+done/);
+    assert.doesNotMatch(await ui(`document.querySelector('#agents pre').textContent`), /\x1b/, 'no terminal codes: colors, links');
     await ui(`document.querySelector('#agents header .x').click()`);
     await waitFor(async () => !(await ui(`(document.getElementById('agents')?.dataset.state === 'open')`)));
     assert.equal(shell.task.pty, pty, 'the agent goes on');
   });
 
-  test('tasks: another agent for a task (Change agent…); one not installed is installed from the window, then started', async (ctx) => {
+  test("tasks: another agent for a task (Change agent…): the project's accounts and the terminal alone; Cancel leaves it as it is", async (ctx) => {
     const { shell, ui } = ctx;
     // The new task runs the project's default agent (none here: the one there is); Change agent… (the terminal's menu)
-    // picks another. One not installed: the window says so, with what Install runs.
+    // picks another: an agent itself only when it has no accounts (the terminal only), else one of the project's
+    // accounts (none here yet).
     const task = await newTask(ctx);
     await ctx.call('profile_open', { profile: 'sam-admin' });
     const changeAgent = async () => {
       await rightClick(ui, '#term');
       await menuRows(ui);
       await choose(ui, 'Change agent…');
-      await waitFor(() => ui(`(document.getElementById('agentpick')?.dataset.state === 'open') && document.querySelectorAll('#agentpick .agentrow').length === 3`), 20000);
+      await waitFor(() => ui(`(document.getElementById('agentpick')?.dataset.state === 'open') && document.querySelectorAll('#agentpick .agentrow').length === 2`), 20000);
     };
     const customPty = task.pty;
     await changeAgent();
-    await ui(`document.querySelector('#agentpick [role="radio"][value="fake"]').click()`);
-    const row = `document.querySelector('#agentpick .agentrow:has([role="radio"][value="fake"])')`;
-    assert.equal(await ui(`${row}.querySelector('[role="radio"]').ariaChecked === 'true'`), true);
-    assert.equal(await ui(`${row}.querySelector('.status').textContent`), 'Not installed');
-    assert.match(await ui(`${row}.querySelector('.install-line').textContent`), /^Install runs Kulisa tests's installer: echo "installing the fake agent"/);
-    assert.equal(await ui(`document.getElementById('agentstart').disabled`), true);
+    assert.equal(await ui(`!!document.querySelector('#agentpick [role="radio"][value="fake"]')`), false, 'an agent with accounts: one of its accounts');
     assert.equal(task.profiles.get('sam-admin').get().view.getVisible(), false, 'pages hidden under the dialog');
-    await ui(`${row}.querySelector('.install').click()`);
-    await waitFor(async () => (await ui(`${row}.querySelector('.status').textContent`)) === 'Installed', 10000);
-    assert.equal(await ui(`document.querySelector('#agentpick .progress').textContent`), 'Fake agent is installed. Start it; it asks you to sign in.');
-    assert.equal(await ui(`document.querySelector('#agentpick .details .more').dataset.state`), 'closed', "the installer's own output only under Details");
-    assert.match(await ui(`document.querySelector('#agentpick pre').textContent`), /installing the fake agent\s+done/);
-    assert.doesNotMatch(await ui(`document.querySelector('#agentpick pre').textContent`), /\x1b/, 'no terminal codes: colors, links');
-    await ui(`document.getElementById('agentstart').click()`);
-    await waitFor(() => task.pty && task.pty !== customPty);
-    ctx.watchPty(task.pty);
-    await waitFor(async () => (await ctx.termText()).includes(`fake agent in ${task.folder}, ports + ${task.offset}, config []`));
-    assert.equal(JSON.parse(fs.readFileSync(pfile('agent.json', task.n), 'utf8')).agent, 'fake');
-    assert.equal(await ui(`(document.getElementById('agentpick')?.dataset.state === 'open')`), false);
-
-    // A wrong choice is not a trap: Change agent… again; Cancel leaves it as it is.
-    const fakePty = task.pty;
-    await changeAgent();
+    // A wrong choice is not a trap: Cancel leaves it as it is.
     assert.equal(await ui(`document.getElementById('agentcancel').hidden`), false);
-    assert.equal(await ui(`document.querySelector('#agentpick [role="radio"][data-state="checked"]').value`), 'fake', 'the current one chosen');
     await ui(`document.getElementById('agentcancel').click()`);
     await waitFor(async () => !(await ui(`(document.getElementById('agentpick')?.dataset.state === 'open')`)));
     await sleep(300); // nothing to wait for: that no other agent starts
-    assert.equal(task.pty, fakePty, 'Cancel: the agent goes on');
+    assert.equal(task.pty, customPty, 'Cancel: the agent goes on');
     await changeAgent();
     await ui(`document.querySelector('#agentpick [role="radio"][value="shell"]').click()`);
     await ui(`document.getElementById('agentstart').click()`);
-    await waitFor(() => task.pty && task.pty !== fakePty);
+    await waitFor(() => task.pty && task.pty !== customPty);
     assert.deepEqual(JSON.parse(fs.readFileSync(pfile('agent.json', task.n), 'utf8')), { agent: 'shell', started: true }, 'a new conversation');
     assert.equal(task.agent.id, 'shell');
     // Left closed for the restart phase (restart-tasks.js).
@@ -518,48 +505,119 @@ module.exports = (test) => {
     await waitFor(async () => !(await ui(`(document.getElementById('agents')?.dataset.state === 'open')`)));
   });
 
-  test("agents: an account of its own for an agent (☰ → Agents…): its folder in the agent's environment, a choice for tasks and projects; removed with its folder, after a question", async (ctx) => {
+  // The project's settings (Project Settings… in its label's menu), with its agents.
+  const projectSettings = async (ui, id = 'project') => {
+    await rightClick(ui, `#projectTabs [data-project="${id}"] .name`);
+    await menuRows(ui);
+    await choose(ui, 'Project Settings…');
+    await waitFor(() => ui(`(document.getElementById('projects')?.dataset.state === 'open') && !document.getElementById('npagentsrow').hidden`));
+  };
+  const closeSettings = async (ui) => {
+    await ui(`document.querySelector('#projects .x').click()`);
+    await waitFor(async () => !(await ui(`(document.getElementById('projects')?.dataset.state === 'open')`)));
+  };
+  // New Account… of the fake agent: its own sign-in starts at once; resolves with its terminal's pty (the sign-in
+  // waiting for the human), once its page is open in Kulisa's clean browser.
+  const signIn = async (ctx) => {
     const { shell, ui } = ctx;
-    await openAgents(ui);
-    assert.deepEqual(await selectValues(ui, 'accountagent'), ['fake'], 'the agents that have accounts');
-    await ui(`document.getElementById('accountname').value = 'work'; document.getElementById('accountadd').requestSubmit()`);
-    await waitFor(() => ui(`!!document.querySelector('#agents .agentrow.account[data-agent="fake-work"]')`));
-    const dir = path.join(userData, 'agents', 'fake-work');
-    assert.ok(fs.existsSync(dir), 'its folder, empty: it signs in at its first start');
-    assert.equal(await ui(agentRow('fake-work', '.name') + '.textContent'), 'Fake agent · work');
-    assert.match(await ui(agentRow('fake-work', '.where') + '.textContent'), /its own sign-in, in .*agents\/fake-work$/);
-    await ui(`document.getElementById('accountname').value = 'work'; document.getElementById('accountadd').requestSubmit()`);
-    await waitFor(async () => /has an account work already/.test(await ui(`document.getElementById('accounterror').textContent`)));
-    await ui(`document.querySelector('#agents header .x').click()`);
-    await waitFor(async () => !(await ui(`(document.getElementById('agents')?.dataset.state === 'open')`)));
-    // A task runs it: the agent with its folder in its variable.
+    shell.signins.clear();
+    await ui(`document.getElementById('npaccountnew').click()`);
+    assert.deepEqual(await menuRows(ui), ['Fake agent'], 'the agents that have accounts');
+    await choose(ui, 'Fake agent');
+    await waitFor(() => shell.signins.size);
+    const p = [...shell.signins.values()][0];
+    await waitFor(() => p.tail.includes('Sign in as?') && [...shell.signinWindows][0]?.profile.get()?.wc.getURL() === 'http://127.0.0.1:4417/app?signin');
+    return p;
+  };
+  const accountDir = (id) => path.join(userData, 'agents', id);
+  const logouts = () => { try { return fs.readFileSync(path.join(root, 'logouts'), 'utf8').trim().split('\n'); } catch { return []; } };
+  test("agents: a new account is made in the project's settings: the agent's own sign-in at once, in a terminal there, its page in a clean browser of Kulisa's; named by the email it signed in to; a task runs it with its folder", async (ctx) => {
+    const { shell, ui } = ctx;
+    await projectSettings(ui);
+    let p = await signIn(ctx);
+    const dir = accountDir('fake-1');
+    assert.ok(fs.existsSync(dir), 'its folder, a fixed id: never renamed');
+    assert.ok(await ui(`!!document.querySelector('#npsigninterm .xterm')`), 'the sign-in in a terminal of the dialog');
+    // The page it opens is in a clean browser of Kulisa's, not the user's: a session in memory, no sign-in of theirs.
+    const clean = [...shell.signinWindows][0];
+    assert.equal(clean.profile.session.isPersistent(), false, 'nothing of it on disk');
+    assert.deepEqual(await clean.profile.session.cookies.get({ url: SITE }), []);
+    p.write('Work@Shop.com\r');
+    await waitFor(() => ui(`!!document.querySelector('#npagents [data-agent="fake-1"]') && !document.getElementById('npsignin')`));
+    await waitFor(() => !shell.signinWindows.size && clean.win.isDestroyed(), 5000); // closed once the sign-in ended
+    assert.equal(await ui(`document.querySelector('#npagents [data-agent="fake-1"] .label').textContent`), 'Fake agent · work@shop.com');
+    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(userData, 'agents.json'), 'utf8')),
+      { next: 2, list: [{ id: 'fake-1', agent: 'fake', email: 'work@shop.com', folder: 'fake-1', projects: ['project'] }] });
+    // Signed in to an email it has already: that account, the new folder signed out and gone.
+    p = await signIn(ctx);
+    p.write('work@shop.com\r');
+    await waitFor(async () => /is in the project already/.test(await ui(`document.getElementById('npsigninerror').textContent`)));
+    assert.ok(!fs.existsSync(accountDir('fake-2')) && logouts().includes(accountDir('fake-2')));
+    await ui(`document.getElementById('npsignincancel').click()`);
+    await waitFor(() => ui(`!document.getElementById('npsignin')`));
+    // Its clean browser closed by the human: no sign-in, nothing kept.
+    p = await signIn(ctx);
+    [...shell.signinWindows][0].win.close();
+    await waitFor(async () => !shell.signins.size && !shell.signinWindows.size && !fs.existsSync(accountDir('fake-3')) && !(await ui(`document.getElementById('npsigninerror').textContent`)));
+    // Cancelled: nothing kept.
+    await ui(`document.getElementById('npsignincancel').click()`);
+    await waitFor(() => ui(`!document.getElementById('npsignin') && !document.getElementById('npagentsadd').hidden`));
+    p = await signIn(ctx);
+    await ui(`document.getElementById('npsignincancel').click()`);
+    await waitFor(async () => !fs.existsSync(accountDir('fake-4')) && !shell.signinWindows.size && !(await ui(`!!document.getElementById('npsignin')`)));
+    // Not signed in (the agent's sign-in ended without it): said so, Try Again.
+    p = await signIn(ctx);
+    p.write('\r');
+    await waitFor(async () => /Not signed in/.test(await ui(`document.getElementById('npsigninerror').textContent`)));
+    assert.equal(await ui(`document.getElementById('npsigninstart').hidden`), false);
+    assert.ok(!fs.existsSync(accountDir('fake-5')));
+    await ui(`document.getElementById('npsignincancel').click()`);
+    await closeSettings(ui);
+    // A task runs it: the agent with its folder in its variable. Choosing a task's agent lists the project's accounts.
     const task = await newTask(ctx);
+    await waitFor(() => task.agent?.id === 'fake-1', 20000); // the project's default: its one account
+    ctx.watchPty(task.pty);
+    await waitFor(async () => (await ctx.termText()).includes(`config [${dir}]`));
+    // Its shell gets none of direnv's state from where Kulisa was started: the user's direnv hook took the task's folder
+    // for a folder left, undid that .envrc's changes and with them the account's variable, and the agent ran with the
+    // user's own sign-in (2026-10-11, Kulisa started from the repository's folder).
+    if (process.platform === 'linux') {
+      assert.deepEqual(fs.readFileSync(`/proc/${task.pty.pid}/environ`, 'utf8').split('\0').filter((v) => v.startsWith('DIRENV_')), []);
+    }
     await rightClick(ui, '#term');
     await menuRows(ui);
     await choose(ui, 'Change agent…');
-    await waitFor(() => ui(`(document.getElementById('agentpick')?.dataset.state === 'open') && !!document.querySelector('#agentpick [role="radio"][value="fake-work"]')`), 20000);
-    await ui(`document.querySelector('#agentpick [role="radio"][value="fake-work"]').click()`);
-    await waitFor(() => ui(`document.querySelector('#agentpick [role="radio"][value="fake-work"]').dataset.state === 'checked'`));
-    await ui(`document.getElementById('agentstart').click()`);
-    await waitFor(() => task.pty && task.agent?.id === 'fake-work');
-    ctx.watchPty(task.pty);
-    await waitFor(async () => (await ctx.termText()).includes(`config [${dir}]`));
-    assert.ok((await ui(`kulisa.invoke('project:settings-get', { id: 'project' })`)).agents.some((a) => a.id === 'fake-work' && a.name === 'Fake agent · work'), 'a choice for projects too');
+    await waitFor(() => ui(`(document.getElementById('agentpick')?.dataset.state === 'open') && !!document.querySelector('#agentpick [role="radio"][value="fake-1"]')`), 20000);
+    await ui(`document.getElementById('agentcancel').click()`);
+    await waitFor(async () => !(await ui(`(document.getElementById('agentpick')?.dataset.state === 'open')`)));
+  });
+
+  test("agents: an account a task runs stays in its project; let go by its last project, it goes after a question, signed out, with its folder; the Agents window shows the agents alone", async (ctx) => {
+    const { shell, ui } = ctx;
+    const task = shell.task, dir = accountDir('fake-1');
+    await projectSettings(ui);
+    const remove = `document.querySelector('#npagents [data-agent="fake-1"] .remove').click()`;
+    await ui(remove);
+    await waitFor(async () => new RegExp(`Tasks run it: ${task.entry.name}`).test(await ui(`document.getElementById('npagenterror').textContent`)));
+    await closeSettings(ui);
     await ui(`kulisa.invoke('task:delete', '${task.key}')`);
     await waitFor(() => !shell.current.tasks.has(task.n) && shell.task?.n === 2);
     ctx.asked.length = 0;
-    // Removed: asked first; its folder goes. The agent's own account has no ×.
-    await openAgents(ui, 4);
-    assert.equal(await ui(agentRow('fake', '.remove') + '.hidden'), true);
+    await projectSettings(ui);
     ctx.answer = false;
-    await ui(agentRow('fake-work', '.remove') + '.click()');
+    await ui(remove);
     await waitFor(() => ctx.asked.length);
-    assert.equal(ctx.asked.pop().message, 'Remove the account Fake agent · work?');
+    assert.equal(ctx.asked.pop().message, 'Delete the account Fake agent · work@shop.com?');
     assert.ok(fs.existsSync(dir), 'kept when the human says no');
     ctx.answer = true;
-    await ui(agentRow('fake-work', '.remove') + '.click()');
-    await waitFor(async () => !fs.existsSync(dir) && !(await ui(`!!document.querySelector('#agents [data-agent="fake-work"]')`)));
+    await ui(remove);
+    await waitFor(async () => !fs.existsSync(dir) && !(await ui(`!!document.querySelector('#npagents [data-agent="fake-1"]')`)));
+    assert.ok(logouts().includes(dir), 'signed out first, with its agent\'s own command');
+    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(userData, 'agents.json'), 'utf8')), { next: 6, list: [] });
     ctx.asked.length = 0;
+    await closeSettings(ui);
+    await openAgents(ui);
+    assert.equal(await ui(`document.querySelectorAll('#agents .agentrow.account').length`), 0);
     await ui(`document.querySelector('#agents header .x').click()`);
     await waitFor(async () => !(await ui(`(document.getElementById('agents')?.dataset.state === 'open')`)));
   });
@@ -642,10 +700,11 @@ module.exports = (test) => {
     await ui(`document.getElementById('welcome-new').click()`);
     await waitFor(() => ui(`(document.getElementById('projects')?.dataset.state === 'open')`));
     assert.equal(await ui(`document.getElementById('nplocation').value`), path.join(root, 'Kulisa'), "every new project's place (~/Kulisa; the tests' own here)");
-    // Its color (the next free one chosen), its icon (the curtain), the agent its tasks run (the first one known).
+    // Its color (the next free one chosen), its icon (the curtain); no agent here: its accounts are made in its
+    // configuration, which Create goes on to.
     assert.deepEqual(await ui(`[...document.querySelectorAll('#npcolors [aria-selected="true"], #npicons [aria-pressed="true"]')].map((b) => b.dataset.value)`),
       [shell.store.nextColor(), 'logo']);
-    assert.equal(await chosen(ui, 'npagent'), 'fake');
+    assert.equal(await ui(`!!document.getElementById('npagent')`), false);
     assert.equal(await ui(`document.getElementById('npgit').getAttribute('aria-checked')`), 'true');
     const made = path.join(root, 'made');
     fs.mkdirSync(path.join(made, 'Taken'), { recursive: true });
@@ -660,13 +719,23 @@ module.exports = (test) => {
     await named('Taken');
     await ui(`document.getElementById('npform').requestSubmit()`);
     await waitFor(async () => /already there and not empty/.test(await ui(`document.getElementById('nperror').textContent`)));
+    // An error is text to copy and search for: it can be selected (the window's other words cannot).
+    assert.deepEqual(await ui(`(() => { const e = document.getElementById('nperror'); getSelection().selectAllChildren(e);
+      return [getComputedStyle(e).userSelect, getSelection().toString() === e.textContent, getComputedStyle(document.getElementById('pjtitle')).userSelect]; })()`),
+      ['text', true, 'none']);
     assert.ok(!shell.store.projects().some((p) => p.id === 'taken'), 'a folder with files in it is not taken');
     await named('Shop');
-    // Another color and icon; no agent: the window asks when a task starts (here the tests' own, which is there).
+    // Another color and icon. Created, it is not opened: the manager shows its configuration, and Open opens it (no
+    // question where: no project is open here).
     await ui(`document.querySelectorAll('#npcolors [role="option"]')[3].click(); document.querySelector('#npicons [data-value="rocket"]').click()`);
-    await select(ui, 'npagent', '');
     assert.equal(await ui(`document.getElementById('npwhere').textContent`), `The project will be created in ${path.join(made, 'Shop')}`);
+    ctx.asked.length = 0;
     await ui(`document.getElementById('npform').requestSubmit()`);
+    await waitFor(() => ui(`document.getElementById('pjtitle')?.textContent === 'Shop' && !document.getElementById('npagentsrow').hidden
+      && !document.getElementById('npopen').hidden && document.querySelector('#pjlist [data-project="shop"]')?.ariaSelected === 'true'`));
+    assert.ok(!shell.current && !shell.open.has('shop'), 'made, not opened');
+    assert.equal(ctx.asked.length, 0, 'no question where to open it');
+    await ui(`document.getElementById('npopen').click()`);
     await waitFor(() => shell.current?.folder === path.join(made, 'Shop') && shell.task?.loaded && shell.pty);
     assert.ok(fs.existsSync(path.join(made, 'Shop', '.git')), 'git init in it');
     const shop = shell.store.projects().find((p) => p.id === 'shop');
@@ -757,24 +826,30 @@ module.exports = (test) => {
     assert.equal(ctx.asked.pop().message, 'Remove the profile Sam.admin from Site-2?');
     await waitFor(() => !shell.profiles.has('sam-admin'));
     assert.deepEqual(shell.profileStore.get('sam-admin').projects, ['project']);
-    // Its agents: a list, added from the agents' accounts, one the default (a radio); at once, not on Save.
+    // Its agents: a list, added from the agents without accounts and the accounts other projects have (one made in
+    // project, as New Account… makes it), one the default (a radio); at once, not on Save.
+    const ann = shell.accounts.create('project', shell.accounts.prepare('fake').id, 'fake', 'ann@shop.com');
     await rightClick(ui, `#projectTabs [data-project="site"] .name`);
     await menuRows(ui);
     await choose(ui, 'Project Settings…');
     await waitFor(() => ui(`(document.getElementById('projects')?.dataset.state === 'open') && !document.getElementById('npagentsrow').hidden`));
-    for (const name of ['Terminal only', 'Fake agent']) {
+    await ui(`document.getElementById('npagentadd').click()`);
+    assert.ok(!(await menuRows(ui)).includes('Fake agent'), 'an agent with accounts: one of its accounts');
+    await closeMenu(ui);
+    for (const name of ['Terminal only', 'Fake agent · ann@shop.com']) {
       await ui(`document.getElementById('npagentadd').click()`);
       await menuRows(ui);
       await choose(ui, name);
       await waitFor(async () => (await ui(`[...document.querySelectorAll('#npagents .label')].map((l) => l.textContent)`)).includes(name));
     }
     const agentRows = () => ui(`[...document.querySelectorAll('#npagents .removable')].map((r) => r.querySelector('.label').textContent + ' ' + r.querySelector('[role="radio"]').getAttribute('aria-checked'))`);
-    assert.deepEqual(await agentRows(), ['Terminal only true', 'Fake agent false'], 'the first added, the default');
-    assert.deepEqual(shell.store.projects().find((p) => p.id === 'site').agents, ['shell', 'fake']);
-    await ui(`document.querySelector('#npagents [data-agent="fake"] [role="radio"]').click()`);
-    await waitFor(async () => JSON.stringify(await agentRows()) === '["Fake agent true","Terminal only false"]');
+    assert.deepEqual(await agentRows(), ['Terminal only true', 'Fake agent · ann@shop.com false'], 'the first added, the default');
+    assert.deepEqual(shell.store.projects().find((p) => p.id === 'site').agents, ['shell', ann.id]);
+    assert.deepEqual(shell.accounts.find(ann.id).projects, ['project', 'site'], 'the account lists the projects it is in');
+    await ui(`document.querySelector('#npagents [data-agent="${ann.id}"] [role="radio"]').click()`);
+    await waitFor(async () => JSON.stringify(await agentRows()) === '["Fake agent · ann@shop.com true","Terminal only false"]');
     await ui(`document.querySelector('#npagents [data-agent="shell"] [role="radio"]').click()`);
-    await waitFor(async () => JSON.stringify(await agentRows()) === '["Terminal only true","Fake agent false"]');
+    await waitFor(async () => JSON.stringify(await agentRows()) === '["Terminal only true","Fake agent · ann@shop.com false"]');
     await ui(`document.querySelector('#projects .x').click()`);
     // + makes a task with the default one (the first kept the one it started with).
     ctx.answer = true; // no git: a second task in the folder, after the question
@@ -783,18 +858,19 @@ module.exports = (test) => {
     assert.equal(JSON.parse(fs.readFileSync(path.join(userData, 'projects', 'site', String(task.n), 'agent.json'), 'utf8')).agent, 'shell');
     // +'s right-click: New Task with one of its agents.
     await rightClick(ui, '#projectTabs .pisland.active .add');
-    assert.deepEqual(await menuRows(ui), ['# New Task with', 'Terminal only', 'Fake agent']);
+    assert.deepEqual(await menuRows(ui), ['# New Task with', 'Terminal only', 'Fake agent · ann@shop.com']);
     const before = shell.task;
-    await choose(ui, 'Fake agent');
+    await choose(ui, 'Fake agent · ann@shop.com');
     await waitFor(() => shell.task !== before && shell.task.loaded && shell.pty, 20000);
     ctx.watchPty(shell.pty);
     ctx.asked.length = 0;
-    await waitFor(() => shell.task.agent?.id === 'fake');
+    await waitFor(() => shell.task.agent?.id === ann.id);
     assert.equal(shell.task.profiles.size, 0, 'no profile opens by itself');
-    // Removed: its tasks keep it; the project has one agent left.
-    await ui(`kulisa.invoke('project:agent-remove', { id: 'site', agent: 'fake' })`);
-    assert.deepEqual(shell.store.projects().find((p) => p.id === 'site').agents, ['shell']);
-    assert.equal(shell.task.agent.id, 'fake');
+    // An account its tasks run is not removed; an agent without accounts is (its tasks keep it).
+    assert.match((await ui(`kulisa.invoke('project:agent-remove', { id: 'site', agent: '${ann.id}' })`)).error, /^Tasks run it: /);
+    await ui(`kulisa.invoke('project:agent-remove', { id: 'site', agent: 'shell' })`);
+    assert.deepEqual(shell.store.projects().find((p) => p.id === 'site').agents, [ann.id]);
+    assert.equal(before.agent.id, 'shell');
     await ui(`kulisa.invoke('project:close', { id: 'site' })`);
     await waitFor(() => !shell.open.has('site'));
     ctx.asked.length = 0;
@@ -935,6 +1011,9 @@ module.exports = (test) => {
     // A profile of its own (in no other project): its master goes with it.
     const own = shell.profileStore.create(p.id, { name: 'Spare-user', avatar: 'fox' });
     fs.mkdirSync(path.join(data, '1', own.folder), { recursive: true });
+    // An agent's account of its own (in no other project): signed out, its folder gone with it.
+    const account = shell.accounts.create(p.id, shell.accounts.prepare('fake').id, 'fake', 'spare@shop.com');
+    fs.mkdirSync(account.dir, { recursive: true });
     fs.writeFileSync(path.join(data, 'tasks.json'), JSON.stringify({ next: 3, current: 1, list: [{ n: 1, name: 'task-1', offset: 0, folder: spare }, { n: 2, name: 'Idea', branch: wt.branch, offset: 100, copies: [wt], folder: wt.folder }] }));
     shell.sendProjects(); // made behind the windows' back: they are told, as when a project is made
 
@@ -950,6 +1029,7 @@ module.exports = (test) => {
     const q = ctx.asked.pop();
     assert.equal(q.message, 'Remove the project spare?');
     assert.match(q.detail, /its profiles Spare-user \(in no other project\) with their sign-ins/);
+    assert.match(q.detail, /its agents' accounts Fake agent · spare@shop.com \(in no other project\) with their sign-ins and conversations/);
     assert.ok(q.detail.includes(wt.worktree) && q.detail.includes('Idea: 1 commit of its own') && q.detail.includes(`Its folders stay as they are: ${spare}.`));
     assert.ok(projects().includes(p.id) && fs.existsSync(data) && fs.existsSync(wt.worktree), 'kept when the human says no');
     ctx.answer = true;
@@ -958,6 +1038,8 @@ module.exports = (test) => {
     ctx.asked.length = 0;
     await waitFor(() => !fs.existsSync(data) && !fs.existsSync(wt.worktree) && !fs.existsSync(shell.profileStore.masterDir(own.folder)));
     assert.equal(shell.profileStore.get('spare-user'), null);
+    await waitFor(() => !fs.existsSync(account.dir) && fs.readFileSync(path.join(root, 'logouts'), 'utf8').includes(account.dir));
+    assert.equal(shell.accounts.find(account.id), null);
     assert.equal(git(spare, 'branch', '--list', wt.branch), '', "the task's branch");
     assert.equal(fs.readFileSync(path.join(spare, 'a.txt'), 'utf8'), 'a', "the project's own folder stays");
     assert.equal(shell.task?.n, 1, 'another project: the open one stays open');

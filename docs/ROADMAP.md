@@ -26,12 +26,13 @@ here; what is left of it stays.
     a script the agent runs in a page (`browser_evaluate`) could read a test password back from its field (only the
     skill forbids it: close it or not). For the author's real accounts, not testable by Claude: device-bound cookies
     (DBSC, Google) and MSAL's sign-ins kept in step (step 6); "Sign in with Google" without the sign-in pause is the
-    author's own replacement of `signin-pause.js`. Not discussed, so not to build unasked: signing a CLI in from the
-    Agents window, tabs in a master's window, tasks in a former folder getting copies.
+    author's own replacement of `signin-pause.js`. Step 8 (agents' accounts made in the project, one store) built
+    2026-10-11. Not discussed, so not to build unasked: tabs in a master's window, tasks in a
+    former folder getting copies.
   - **Agents** (a catalog in ☰, global): the human picks a CLI (Claude Code, Codex, …) and signs in with the CLI's
     own login in Kulisa's terminal; each account has its own config folder (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`) in
     Kulisa's data folder, gone with the entry. An existing `~/.claude` is taken over as the first account, not signed
-    in again (and never deleted: it is the human's).
+    in again (and never deleted: it is the human's). Since step 8 (below) made and chosen in a project.
   - **Profiles** (one flat store, each listing the projects it belongs to; it goes, after a question, when its last
     project does; seen in the project's editor: + New, + From another project). A profile is a person with all their
     sign-ins, in one or more forms:
@@ -83,8 +84,8 @@ here; what is left of it stays.
        task once its PR is merged. Left: a squash merge is not seen as merged.
     2. Projects as composites: built 2026-10-10 ([tasks.md](tasks.md), Projects and Tasks). Left: a task in the
        former folder (no git) is not moved when a repository comes; profiles and agents as catalogs (steps 3, 4).
-    3. The agents' catalog with accounts: built 2026-10-10 ([tasks.md](tasks.md), "Choosing the agent"). Left: the
-       catalog in ☰ is the Agents window; a CLI's login started from there (today: at the first start in a task).
+    3. The agents' catalog with accounts: built 2026-10-10 ([tasks.md](tasks.md), "Choosing the agent"); its accounts
+       redone in step 8.
     4. Profiles: built 2026-10-10 ([profiles.md](profiles.md): the flat store, masters, copies at the first open, a
        profile in several projects, signing in to a master in a window of its own, Refresh from Master…). Left: the
        master's window has one tab shown at a time (a sign-in's popup takes it, the tab before comes back when it
@@ -98,10 +99,46 @@ here; what is left of it stays.
     7. The projects' manager: built 2026-10-10 ([tasks.md](tasks.md), Projects: the Projects button in the title
        bar, every project on the left, one's configuration on the right; a list of agents with a default; + makes a
        task from the configuration, New Task with on its right-click; a new task opens no profile).
+    8. Agents' accounts made and chosen in the project, one store as the profiles': built 2026-10-11
+       ([tasks.md](tasks.md), "Choosing the agent", Accounts). Changed with the author while building: no email asked
+       (the sign-in starts at once, as `/login`; the folder a fixed id, never renamed: macOS keeps Claude Code's
+       sign-in in the Keychain under a hash of the folder's path; the email read after it); the human's own
+       `~/.claude` / `~/.codex` is no account (each account a clean agent); a sign-in's page in a clean browser of
+       Kulisa's; a project with no agent starts its tasks with the terminal only. Left: the sign-in tried with a real
+       Claude account (the tests use a fake agent); Codex's (`codex login status` may not say the email); whether
+       Claude Code's Keychain entry on macOS goes with `auth logout`, and whether it reads `BROWSER` there and on
+       Windows, so its page opens in Kulisa's clean browser (macOS and Windows checks).
   - **Put off**: ongoing tasks ("watch the feedback for a month") with Kulisa kept in the tray (none in GNOME by
     default); rights on profiles, when real accounts come (one flag, "view only": reading allowed, clicks and typing
     refused; today the agent's own modes cover test users).
 
+- **Switching a task's account in the middle of its conversation** (the author's question, 2026-10-11; to discuss
+  again before building, after step 8). A task on Claude Code's account email1 runs out of its session's limit; the
+  human goes on with email2, the same conversation. Today Change agent… starts a new conversation.
+  - **The way agreed: the conversation moves** (Claude's recommendation, the author agreed). A conversation is
+    `<account folder>/projects/<task folder>/<session>.jsonl`, and `claude --resume <session>` looks for it in the
+    folder of the account it runs with. **Switch account…** in the terminal's menu (next to Change agent…) offers the
+    project's other accounts of the same CLI; Kulisa stops the agent, moves the session's file and its
+    `file-history/` to the other account's folder at the same place, and starts the agent there with `--resume`. Moved,
+    not copied: a conversation in one place, found by deleting the task as today (`agent.json` names the account).
+    Codex the same (`sessions/` in its `CODEX_HOME`, `codex resume <id>`). Between CLIs (Claude → Codex) a
+    conversation cannot move: their formats differ. Claude's layout is undocumented: check it with the installed
+    version first. Nothing secret is touched, and the other accounts keep running in their tasks.
+  - **The other way, kept to weigh: one folder of conversations per CLI.** Each account folder's `projects/` is a
+    link to one `agents/claude-sessions/` (a symlink; on Windows a junction, which needs no administrator), so
+    `--resume` finds a conversation under any account and nothing moves; sign-ins stay apart. Costs: also
+    undocumented; a session writes to `file-history/`, `session-env/`, `history.jsonl` too, to link the same way;
+    removing an account no longer takes its conversations (they are shared).
+  - Not chosen: one config folder whose sign-in Kulisa swaps. All tasks in a folder share its sign-in, so two
+    accounts could not run side by side (what step 8 is for); Claude Code keeps its tokens in macOS's Keychain and the
+    account in `.claude.json`, rewritten by Claude all the time; a running agent refreshes its token and would write
+    the old account's back, so it stops anyway; and Kulisa would keep the resting accounts' OAuth tokens.
+  - **To check first: Anthropic's terms.** Two accounts (work, personal) are ordinary; switching between two
+    subscriptions to get around a usage limit may be against Anthropic's Consumer Terms (not checked: read them
+    before building it as a feature of Kulisa; the risk is both accounts banned).
+  - Cost: prompt caching is per account, so the other account reads the whole context again at its first request;
+    `/compact` before switching is cheaper. Not decided, an idea beyond the question: Kulisa offering the switch when
+    the limit is reached (the `StopFailure` hook already marks the task waiting).
 - **Kulisa plugin: more the agent can do in the browsers** (tools in `mcp-server.js`, each described in the skill;
   what is built: [profiles.md](profiles.md), "What the agent does"). What else an agent needs comes from using it
   (the author moves to working in Kulisa, 2026-10-08): where the agent goes around the tools (its own Playwright
@@ -248,6 +285,9 @@ here; what is left of it stays.
     terminals stays written twice, and "Several agents in one task" (Deferred ideas) would need the merge
     anyway. To change with it: the renderer assumes the panel `terminal` is always there (it anchors new profiles
     and terminals, and the grid adds it back: `lib/grid.ts`, `restoreGrid`, `syncGrid`, `applyPreset`); saved grids name it, so a migration.
+  - The author's direction (2026-10-11, with step 8): a task may start with the terminal only, and + in the island of
+    terminals opens any number of the project's agents (its accounts) next to it; to design with "Several agents in one
+    task" (Deferred ideas), next after step 8.
   - Open questions for the author, each with Claude's proposal:
     - A second agent in the same task (Codex next to Claude)? Proposed: not yet; + shows the open one.
       Several agents is its own task (Deferred ideas), with each terminal's own hooks state, picks and dictation.
@@ -350,16 +390,20 @@ here; what is left of it stays.
   (electronjs.org/docs/latest/tutorial/accessibility): Electron turns Chromium's accessibility tree on by itself when
   assistive technology runs (JAWS, NVDA, VoiceOver, Orca); `app.setAccessibilitySupportEnabled()` turns it on by hand,
   and on macOS other apps can ask for it (`AXManualAccessibility`); the OS's setting always wins.
-  - Already there: icon buttons have names (`aria-label`, checked by a test), the Kulisa zoom scales the whole UI,
-    slides follow reduced motion, semantic elements (`header`, `nav`, `dialog`), dialogs focus Cancel.
+  - Already there: the menus, dialogs, questions and controls are Reka UI's ([ui.md](ui.md)), which gives them their
+    roles and states, the keyboard (arrows, Enter, Esc, Tab), focus kept in a dialog and given back where it was when
+    it closes (questions focus Cancel); the tabs of the tasks and of a pane are Reka's Tabs (one Tab stop, arrows).
+    Icon buttons have names (`aria-label`, checked by a test), the Kulisa zoom scales the whole UI, motion follows
+    reduced motion, semantic elements (`header`, `main`, `nav`). What Reka gives is its promise, not checked yet
+    (Checking, below).
   - Seeing: high contrast, the OS's setting (`nativeTheme.shouldUseHighContrastColors`; CSS `forced-colors` on
     Windows, where the browser puts in the system's colors: check that nothing disappears; `prefers-contrast`); WCAG
-    contrast of every token in both themes (the muted text first).
-  - Keyboard: everything without a mouse, focus always visible. Moving between the panels and tabs (what dockview
-    has for it first), the project and task tabs, the menus (arrows, Esc), the dialogs. Shortcuts are built
-    ([window.md](window.md), Keys: none without a modifier, WCAG 2.1.4); check they do not clash with screen readers.
-  - Screen readers: the window read in a sensible order, with names and states (a tab's agent state, the shown
-    project). Kulisa's own questions: the profiles' pages are native views of their own (a tree each) next to the
+    contrast of every token in both themes (the muted text first). Kulisa's own: Reka has no look.
+  - Keyboard: moving between the grid's panels, moving and resizing them without a mouse (dockview's, not Reka's:
+    what dockview has for it first); focus always visible. Shortcuts are built ([window.md](window.md), Keys: none
+    without a modifier, WCAG 2.1.4); check they do not clash with screen readers.
+  - Screen readers: the window read in a sensible order, with names for what is not Reka's (a tab's agent state, the
+    shown project). Kulisa's own questions: the profiles' pages are native views of their own (a tree each) next to the
     window's page, and pictures stand in for them under menus and dialogs: how a screen reader moves between them. The
     terminal: xterm's `screenReaderMode` (as VS Code turns on when it detects one).
   - Checking: Chromium's accessibility tree in DevTools (Accessibility pane); automated checks in the tests, e.g.
@@ -528,7 +572,7 @@ here; what is left of it stays.
       turned off. Its own IPC channels (`ext:<id>:…`) between its two halves. A download with a SHA-256 check, for
       models. A log line prefix.
     - Window: places to add to: the terminal's header (after dictation), ☰, a panel in the grid (Stripe); its icons
-      added to the sprite; the window's components (`.icon`, `openMenu`, `ask`) rather than its own; its module
+      added to the sprite; the window's components (`.icon`, `ButtonMenu.vue`, `Modal.vue`, `ask`; [ui.md](ui.md)) rather than its own; its module
       loaded with `import()` when it is turned on. The microphone for the window only for an extension that asked
       for it (today the window's session grants media to all of its own pages).
     - MCP: tools added to every task's server and lines to the skill, behind `local-only.js` as the others.
@@ -568,7 +612,8 @@ here; what is left of it stays.
   - Before trying again: show it only where the page did not handle the right-click, and either find the cause of
     the freeze in a minimal window first or draw the menu in HTML (a small view above the page, as VS Code draws
     its menus on Linux).
-  - The window's menus are HTML now ([window.md](window.md), Menus); a page menu could be one too, over a picture of the page.
+  - The window's menus are HTML now, Reka UI's ([window.md](window.md), Menus); a page menu could be one too
+    (`RightClickMenu.vue`), over a picture of the page.
 - **Memory of panes off screen.** A pane stacked behind another keeps its tabs alive (and their memory). Unloading
   them while hidden would save RAM at the cost of reloading; not done.
 - **A Kulisa profile as a real Chrome profile.** Wanted: the profile's folder in Chrome's own format, so one button
@@ -730,7 +775,9 @@ here; what is left of it stays.
   slower screen showed (a click while the window still showed another project) are waited for. Watch whether any
   come back. Not looked at: the address bar's click (seen 2026-10-07); the first point-and-tell test once timed out waiting for the pick (2026-10-10, right after the window moved to Vue; not in the runs after); "Move to New Window puts a project in a window
   of its own" (a 30 s timeout) and "agents: ☰ → Agents… shows what is installed" failed together once in a full
-  `npm test` (2026-10-11, after the move to Reka UI; the output not kept), not in the four runs after. Slow but not flaky: deleting a task (a fork's closing took 11 s,
+  `npm test` (2026-10-11, after the move to Reka UI; the output not kept), not in the four runs after; "Move to New
+  Window" timed out (30 s) once more on 2026-10-11 in one group's run, not in the two after; "DevTools in a pane's ⋮ menu
+  opens and closes the DevTools of its active tab" failed once in a full `npm test` (2026-10-11), not in the run after. Slow but not flaky: deleting a task (a fork's closing took 11 s,
   git's work), a site that never answers (10 s: two 5 s waits by design).
 - **The test "after a restart: a task's other terminal comes back …" takes 5.6 s** (`restart-tasks.js`;
   found 2026-10-09, to come back to). Most of it is showing the project `other` until its task has loaded and

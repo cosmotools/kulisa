@@ -32,11 +32,17 @@ const agent = { command: 'bash', args: ['-c', 'echo "agent: $FROM_RC"; exec cat 
 // Agents to choose from for a task (agents.js): one that is not installed until its installer runs, into a
 // folder of the test.
 const bin = path.join(root, 'bin');
+process.env.FAKE_LOGOUTS = path.join(root, 'logouts'); // the accounts the fake agent signed out of
+// Kulisa started from a folder direnv had loaded, as from a terminal in the repository: its state in the environment.
+Object.assign(process.env, { DIRENV_DIR: `-${root}`, DIRENV_FILE: path.join(root, '.envrc'), DIRENV_DIFF: 'eJyrrgUAAXUA-Q', DIRENV_WATCHES: 'eJyLjgUAARUAuQ' });
+process.env.FAKE_SIGNIN_PAGE = 'http://127.0.0.1:4417/app?signin'; // the page its sign-in opens (the test site)
 const agents = [
-  // With accounts (accounts.js) as Claude Code's, its folder in FAKE_CONFIG_DIR, which it prints.
+  // With accounts (accounts.js) as Claude Code's, its folder in FAKE_CONFIG_DIR, which it prints; signed in, out and
+  // asked who with its own commands (fixtures/fake-agent.sh).
   { id: 'fake', name: 'Fake agent', maker: 'Kulisa tests', needs: 'Nothing', command: 'kulisa-fake-agent', dirs: [bin],
-    config: { env: 'FAKE_CONFIG_DIR', home: () => path.join(root, 'fake-config') },
-    install: { posix: `echo "installing the fake agent"; mkdir -p '${bin}' && printf '#!/bin/sh\\ncase "$1" in --version) echo "kulisa-fake-agent 1.2.3"; exit;; esac\\necho "fake agent in $PWD, ports + $KULISA_PORT_OFFSET, config [$FAKE_CONFIG_DIR]"\\nexec cat\\n' > '${bin}/kulisa-fake-agent' && chmod +x '${bin}/kulisa-fake-agent' && printf '\\033[32mdone\\033]8;;https://kulisa.app\\007\\033]8;;\\007\\033[0m\\n'` }, // colored, a link: as installers print
+    config: { env: 'FAKE_CONFIG_DIR', home: () => path.join(root, 'fake-config'), login: () => ['auth', 'login'],
+      status: ['auth', 'status'], email: (out) => JSON.parse(out).email, logout: ['auth', 'logout'] },
+    install: { posix: `echo "installing the fake agent"; mkdir -p '${bin}' && cp '${path.join(__dirname, 'fixtures', 'fake-agent.sh')}' '${bin}/kulisa-fake-agent' && chmod +x '${bin}/kulisa-fake-agent' && printf '\\033[32mdone\\033]8;;https://kulisa.app\\007\\033]8;;\\007\\033[0m\\n'` }, // colored, a link: as installers print
     args: () => [] },
   { id: 'shell', name: 'Terminal only', maker: '', command: null, needs: 'No agent' },
 ];

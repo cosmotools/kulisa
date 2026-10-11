@@ -116,8 +116,9 @@ pages are pictures of themselves meanwhile; afterwards the keyboard is back wher
   projects' bar's row, Arrange panels, Agents…, Keyboard Shortcuts, the Welcome screen's links
   (Documentation, GitHub, Report an issue; one list in `lib/common.ts`), and Exit, which quits as the last window's × does; not on macOS, where
   Cmd+Q and the app's menu quit; under them all Kulisa's version, small and dim: words, not a row, as nothing happens on a click);
-- right-click on a pane's header (New tab, About this profile…, Close profile, Delete profile…), a tab (Reload, Duplicate,
-  Close, Close others) and the terminal (Copy, Paste, Select all, Clear, Change agent…).
+- right-click on a pane's header (New tab, About this profile…, Sign In to Master…, Refresh from Master…, Close profile,
+  Delete profile…), a tab (Reload, Duplicate, Close tab, Close other tabs) and a terminal (Copy, Paste, Select all, Clear;
+  then Change agent… in the agent's, Close in the others).
 
 A row whose command has a key shows it at its end (Keys, below).
 

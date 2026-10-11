@@ -18,8 +18,11 @@
 //   forget(ctx)              a task's copy is deleted: everything the agent keeps of its folder goes (conversations,
 //                            the folder's trust, history); ctx { folder, saved (its agent.json), project (the
 //                            project's folder, and an agent.json of one of its tasks with a transcript) }
-//   config                   its accounts (accounts.js): { env, home() }: the variable naming its config folder, and
-//                            the human's own folder (where it keeps its sign-in without that variable)
+//   config                   its accounts (accounts.js): { env, home(), login(), status, email(out), logout }:
+//                            the variable naming its config folder; the human's own folder (where it keeps its sign-in
+//                            without that variable); the arguments of its own sign-in (run in a terminal, it ends when
+//                            signed in), of its status (ends with 0 when signed in) and the email in what that says
+//                            (none: not known), and of signing out (accountEmail, signOut)
 //   voice                    dictation, when the agent has its own (the window's microphone button; none without):
 //                            args  more arguments, which turn it on as the button needs it
 //                            key, repeat  what is typed into its terminal again and again while it records, every
@@ -44,7 +47,11 @@ const AGENTS = [
     install: { posix: 'curl -fsSL https://claude.ai/install.sh | bash', win32: 'irm https://claude.ai/install.ps1 | iex' },
     // The Kulisa plugin: its MCP config (KULISA_MCP_URL), the profiles skill, the hooks.
     args: ({ plugin }) => ['--plugin-dir', plugin],
-    config: { env: 'CLAUDE_CONFIG_DIR', home: () => process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude') },
+    // Its own commands for its sign-in (checked with 2.1.296): `auth login` as its /login, `auth status --json` says the
+    // email, `auth logout` also clears it from the macOS Keychain.
+    config: { env: 'CLAUDE_CONFIG_DIR', home: () => process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude'),
+      login: () => ['auth', 'login'], status: ['auth', 'status', '--json'],
+      email: (out) => { try { return JSON.parse(out).email || null; } catch { return null; } }, logout: ['auth', 'logout'] },
     resume: ({ sessionId, transcript }) => sessionId && transcript && fs.existsSync(transcript) && ['--resume', sessionId],
     // The task's other repositories, with their CLAUDE.md read as its own folder's (checked with 2.1.296).
     dirs: (folders) => ({ args: folders.flatMap((f) => ['--add-dir', f]), env: { CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD: '1' } }),
@@ -78,7 +85,10 @@ const AGENTS = [
     install: { posix: 'curl -fsSL https://chatgpt.com/codex/install.sh | sh', win32: 'irm https://chatgpt.com/codex/install.ps1 | iex' },
     // Kulisa's MCP server and hooks as config overrides (TOML values), not written into the user's ~/.codex/config.toml.
     args: ({ env }) => ['-c', `mcp_servers.kulisa.url="${env.KULISA_MCP_URL}"`, '-c', `hooks=${codexHooks()}`],
-    config: { env: 'CODEX_HOME', home: () => process.env.CODEX_HOME || path.join(os.homedir(), '.codex') },
+    // Its own sign-in (0.160.1): `login`, `login status`, `logout`. Whether its status says the email is not known
+    // yet (no Codex account to try it with): without it the account is shown by its id.
+    config: { env: 'CODEX_HOME', home: () => process.env.CODEX_HOME || path.join(os.homedir(), '.codex'),
+      login: () => ['login'], status: ['login', 'status'], email: () => null, logout: ['logout'] },
     // The conversation its SessionStart hook reported, else its last one in this folder (each task has its own).
     resume: ({ started, sessionId }) => started && ['resume', sessionId || '--last'],
     // The task's other repositories, writable as its own folder (checked with 0.160.1).
@@ -283,7 +293,27 @@ function installAgent(agent, onData) {
   return new Promise((resolve) => { p.on('error', (e) => { out(`${e.message}\n`); resolve(1); }); p.on('close', (code) => resolve(code ?? 1)); });
 }
 
+// An account's sign-in, as its agent's own status says it, its config folder dir: { email } (null: signed in, the email
+// not known), or null when not signed in. found: where the agent is (findAgent).
+function accountEmail(agent, found, dir) {
+  if (!found?.path || !agent.config?.status) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const p = execFile(found.path, agent.config.status, { timeout: 20000, windowsHide: true, env: { ...process.env, [agent.config.env]: dir } },
+      (e, out) => resolve(e ? null : { email: agent.config.email(String(out))?.toLowerCase() ?? null }));
+    p.stdin?.end();
+  });
+}
+// Signed out of an account before its folder goes, with the agent's own command: what it keeps outside the folder
+// (Claude Code's Keychain entry on macOS) goes too.
+function signOut(agent, found, dir) {
+  if (!found?.path || !agent.config?.logout) return Promise.resolve();
+  return new Promise((resolve) => {
+    const p = execFile(found.path, agent.config.logout, { timeout: 20000, windowsHide: true, env: { ...process.env, [agent.config.env]: dir } }, () => resolve());
+    p.stdin?.end();
+  });
+}
+
 // The command line the window shows before installing.
 const installLine = (agent) => agent.install?.[process.platform === 'win32' ? 'win32' : 'posix'] || null;
 
-module.exports = { AGENTS, findAgent, agentVersion, installAgent, installLine, trustLikeProject, claudeConfigOf, claudeLanguage };
+module.exports = { AGENTS, findAgent, agentVersion, accountEmail, signOut, installAgent, installLine, trustLikeProject, claudeConfigOf, claudeLanguage };

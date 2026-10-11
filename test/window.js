@@ -244,6 +244,22 @@ module.exports = (test) => {
         focused: document.activeElement.textContent }; })()`);
     assert.deepEqual(q, { title: 'Delete the thing?', lines: 3, ok: 'Delete', order: true, right: 24, focused: 'Cancel' });
     assert.equal(await ui(`getComputedStyle(document.querySelector('#ask .ok')).backgroundColor`), 'rgb(201, 79, 79)', 'red');
+    // Its buttons answer the hand: lit under the pointer, another color while pressed (they looked dead, the author, 2026-10-11).
+    const wc = shell.win.webContents, z = wc.getZoomFactor();
+    const bg = (sel) => ui(`getComputedStyle(document.querySelector('${sel}')).backgroundColor`);
+    for (const sel of ['#ask footer button:not(.ok)', '#ask .ok']) {
+      const b = await box(ui, sel), at = { x: Math.round((b.x + b.width / 2) * z), y: Math.round((b.y + b.height / 2) * z) };
+      const still = await bg(sel);
+      wc.sendInputEvent({ type: 'mouseMove', ...at });
+      await waitFor(async () => (await bg(sel)) !== still);
+      const lit = await bg(sel);
+      wc.sendInputEvent({ type: 'mouseDown', ...at, button: 'left', clickCount: 1 });
+      await waitFor(async () => ![still, lit].includes(await bg(sel)));
+      wc.sendInputEvent({ type: 'mouseMove', x: 1, y: Math.round(at.y), modifiers: ['leftButtonDown'] }); // let go away from it: nothing chosen
+      wc.sendInputEvent({ type: 'mouseUp', x: 1, y: Math.round(at.y), button: 'left', clickCount: 1 });
+      await waitFor(async () => (await bg(sel)) === still);
+    }
+    assert.equal(await open(), true, 'still asking');
     assert.equal(view(), false, 'pages hidden under the dialog');
     shell.win.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' });
     assert.equal(await answer, false, 'Esc says no');

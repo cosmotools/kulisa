@@ -1,10 +1,12 @@
 <script setup lang="ts">
-// The bar of a master's window: the address (Enter goes there), back, forward, reload, and what the window is for. As
+// The bar of a master's window, or an agent's sign-in's (what: what it is for, main/master.js): the address (Enter goes
+// there), back, forward, reload, and what the window is for. As
 // high as main/master.js leaves it (BAR), the address filling it. While the human types an address, where the page
 // goes does not overwrite it.
 import { onMounted, ref } from 'vue';
 
-const name = new URLSearchParams(location.search).get('name');
+const query = new URLSearchParams(location.search);
+const what = query.get('what') || `${query.get('name')}: signed in here, every new task's copy is too`;
 const address = ref<HTMLInputElement>();
 let typing = false;
 const go = () => { typing = false; const url = address.value!.value.trim(); if (url) kulisa.invoke('master:go', url); };
@@ -19,7 +21,7 @@ onMounted(() => address.value!.focus());
     <button id="reload" type="button" @click="kulisa.invoke('master:reload')">Reload</button>
     <form id="go" @submit.prevent="go"><input id="address" ref="address" spellcheck="false" aria-label="Address" placeholder="The site to sign in to, e.g. github.com"
       @input="typing = true" @blur="typing = false"></form>
-    <span id="what" class="hint">{{ name }}: signed in here, every new task's copy is too</span>
+    <span id="what" class="hint">{{ what }}</span>
   </header>
 </template>
 

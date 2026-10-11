@@ -123,22 +123,35 @@ test("agents: a task's other folders go to Claude Code and Codex as --add-dir (C
   assert.equal(agent('codex').addDir, undefined, 'others: a line saying so (tasks.js)');
 });
 
-test('accounts: the agent itself (the human\'s own folder) first, then those added; an added one has a folder of its own, gone when removed; the own one stays', () => {
+test("accounts: one store, each listing its projects; its folder a fixed id, never a number used before, the email kept; an agent with accounts is no account itself", () => {
   const { Accounts } = require('../../src/main/accounts');
-  const data = path.join(root, 'accounts-data'), mine = path.join(root, 'my-claude');
-  fs.mkdirSync(mine, { recursive: true });
-  const defs = [{ id: 'claude', name: 'Claude Code', config: { env: 'CLAUDE_CONFIG_DIR', home: () => mine } }, { id: 'shell', name: 'Terminal only' }];
+  const data = path.join(root, 'accounts-data');
+  const defs = [{ id: 'claude', name: 'Claude Code', config: { env: 'CLAUDE_CONFIG_DIR', home: () => '/nowhere', login: () => [] } }, { id: 'shell', name: 'Terminal only' }];
   const marked = [];
   const accounts = new Accounts(data, defs, (d) => marked.push(d));
-  assert.deepEqual(accounts.all().map((a) => [a.id, a.name, a.dir, a.own]), [['claude', 'Claude Code', mine, true], ['shell', 'Terminal only', null, true]]);
-  const work = accounts.add('claude', 'work');
-  assert.deepEqual([work.id, work.name, work.dir, work.own], ['claude-work', 'Claude Code · work', path.join(data, 'agents', 'claude-work'), false]);
-  assert.ok(fs.existsSync(work.dir));
-  assert.match(accounts.add('claude', 'Work').error, /already/);
-  assert.match(accounts.add('shell', 'x').error, /has no accounts/);
-  assert.match(accounts.add('claude', 'a b').error, /only/);
-  assert.deepEqual(new Accounts(data, defs).all().map((a) => a.id), ['claude', 'claude-work', 'shell'], 'kept');
-  assert.match(accounts.remove('claude').error, /your own account stays/);
-  assert.deepEqual(accounts.remove('claude-work'), { id: 'claude-work' });
-  assert.ok(!fs.existsSync(work.dir) && marked.includes(work.dir) && fs.existsSync(mine), "its folder gone, the human's own kept");
+  assert.deepEqual(accounts.all().map((a) => [a.id, a.own, a.choosable]), [['claude', true, false], ['shell', true, true]], "the human's own ~/.claude is no account");
+  assert.deepEqual(accounts.choosable().map((a) => a.id), ['shell']);
+  const r = accounts.prepare('claude');
+  assert.deepEqual(r, { id: 'claude-1', dir: path.join(data, 'agents', 'claude-1') });
+  assert.ok(fs.existsSync(r.dir), 'its folder made before the sign-in');
+  assert.match(accounts.prepare('shell').error, /has no accounts/);
+  const ann = accounts.create('shop', r.id, 'claude', 'ann@shop.com');
+  assert.deepEqual([ann.id, ann.name, ann.dir, ann.own, ann.choosable, ann.projects], ['claude-1', 'Claude Code · ann@shop.com', r.dir, false, true, ['shop']]);
+  assert.equal(accounts.byEmail('claude', 'ann@shop.com').id, 'claude-1', 'an email it has already: that account');
+  assert.equal(accounts.byEmail('claude', null), null);
+  accounts.addTo('claude-1', 'blog');
+  assert.deepEqual(new Accounts(data, defs).all().map((a) => [a.id, a.projects]), [['claude', undefined], ['claude-1', ['shop', 'blog']], ['shell', undefined]], 'kept');
+  assert.equal(accounts.last('claude-1', 'shop'), false);
+  assert.deepEqual(accounts.removeFrom('claude-1', 'shop'), { gone: false });
+  assert.equal(accounts.last('claude-1', 'blog'), true);
+  assert.deepEqual(accounts.removeFrom('claude-1', 'blog'), { gone: true });
+  accounts.remove(r.dir);
+  assert.ok(!fs.existsSync(r.dir) && marked.includes(r.dir), 'its folder gone');
+  assert.equal(accounts.prepare('claude').id, 'claude-2', 'never a number used before: a removed folder may wait for the next start');
+  // At start: a sign-in that did not end, and the format before (accounts.json), go.
+  fs.writeFileSync(path.join(data, 'accounts.json'), '[]');
+  const bob = accounts.create('shop', accounts.prepare('claude').id, 'claude', 'bob@shop.com');
+  new Accounts(data, defs, (d) => marked.push(d)).clean();
+  assert.deepEqual(fs.readdirSync(path.join(data, 'agents')), [bob.id]);
+  assert.ok(!fs.existsSync(path.join(data, 'accounts.json')));
 });

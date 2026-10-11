@@ -32,7 +32,8 @@ export interface ProjectsInfo {
   windows?: { id: number; names: string[] }[];
 }
 // The projects' manager (app.js, project:*): what a project may be, its code, its profiles, its configuration.
-export interface ProjectChoices { colors: string[]; icons: string[]; agents: { id: string; name: string }[]; favicon?: string; color?: string; icon?: string }
+// agents: every account (main/accounts.js); clis: the agents a new account can be made of.
+export interface ProjectChoices { colors: string[]; icons: string[]; agents: { id: string; name: string }[]; clis: { id: string; name: string }[]; favicon?: string; color?: string; icon?: string }
 export interface ProjectRepo { folder: string; git: 'ok' | 'none' | 'nocommit' }
 export interface ProjectProfile { id: string; name: string; avatar: string; description?: string; also: string[] }
 export interface ProjectSettings extends ProjectChoices {
