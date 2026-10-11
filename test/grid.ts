@@ -8,6 +8,14 @@ import type { Test } from './run.ts';
 import type { UI } from './helpers.ts';
 
 export default (test: Test) => {
+  test("tasks' bar: an island's label and tabs as far from its sides as its tabs from its bottom", async ({ ui }) => {
+    const [island, icon, tab] = await ui(`(() => { const g = document.querySelector('#projectTabs .pisland.active');
+      return [g, g.querySelector('.plabel > :first-child'), [...g.querySelectorAll('.tasktab')].at(-1)].map((e) => e.getBoundingClientRect().toJSON()); })()`);
+    const bottom = island.bottom - tab.bottom;
+    assert.ok(bottom > 0);
+    assert.equal(icon.left - island.left, bottom, 'the icon from the left side');
+    assert.equal(island.right - tab.right, bottom, 'the last tab from the right side');
+  });
   test('grid: a pane moved next to the terminal takes its page along', async ({ shell, ui }) => {
     await dock(ui, `api.getPanel('profile:Profile 1').api.moveTo({ group: api.getPanel('terminal').group, position: 'right' })`);
     await waitFor(() => viewOn(shell, ui, 'sam-admin'));

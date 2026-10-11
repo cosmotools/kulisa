@@ -163,9 +163,9 @@ function dragend(e: DragEvent) {
   /* No project open: + alone, in the middle */
   .noproject & { #projectTabs { display: none; } #newTask { margin-inline-start: 0; } }
   /* A project's island. Its tabs in the middle of the dark: no room on the grid's side (the grid's own gap is
-     there), as much on the other. */
+     there), as much on the other and on the sides. */
   .pisland { display: flex; align-items: center; gap: 2px; flex: 0 1 auto; min-width: 0; position: relative;
-    padding: 0 4px var(--gap); border-radius: 0 0 var(--r) var(--r); background: var(--well);
+    padding: 0 var(--gap) var(--gap); border-radius: 0 0 var(--r) var(--r); background: var(--well);
     &::before, &::after { content: ""; position: absolute; inset-block-start: 0; width: var(--r); aspect-ratio: 1;
       background: radial-gradient(circle at var(--x) var(--edge), transparent var(--r), var(--well) 0); }
     &::before { --x: 0%; inset-inline-end: 100%; }
@@ -178,7 +178,7 @@ function dragend(e: DragEvent) {
     /* Folded to its label, as a collapsed tab group: only the tab of the task it shows stays. */
     &.collapsed .tasktab:not(.active, .selected) { display: none; } }
   /* The label: the project's icon (the app's curtain, in its color) and its name. */
-  .plabel { display: flex; align-items: center; gap: 8px; padding-inline: 8px; color: var(--text-muted);
+  .plabel { display: flex; align-items: center; gap: 8px; padding-inline-end: 8px; color: var(--text-muted);
     font-weight: 600; white-space: nowrap; cursor: default;
     svg, .favicon { width: 20px; height: 20px; color: var(--color); } }
   /* An island being dragged; where a dropped one would go. */
