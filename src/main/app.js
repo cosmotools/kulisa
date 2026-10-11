@@ -572,7 +572,8 @@ function start(options = {}) {
     });
     const browser = process.platform === 'win32' ? {} : { BROWSER: OPEN_URL, KULISA_OPEN_URL: `${shell.mcp.base}/signin/${token}/open` };
     const p = await startTerminal((channel, data) => w?.send(channel, data), { command: found.path, args: own.agent.config.login(),
-      cwd: app.getPath('home'), env: { [own.agent.config.env]: r.dir, ...browser }, shell: false }, key);
+      cwd: app.getPath('home'), env: { [own.agent.config.env]: r.dir, ...browser }, shell: false,
+      size: { cols: 100, rows: 8 } }, key); // its terminal is folded away, so no size would come
     signins.set(key, p);
     const code = await new Promise((resolve) => p.onExit(({ exitCode }) => resolve(exitCode)));
     const cancelled = !signins.delete(key);

@@ -1,28 +1,28 @@
 <script setup lang="ts">
-// A new account of an agent, made in Settings (AgentsTab.vue, or a project's page: ProjectEditor.vue; tasks.md,
-// Accounts): the agent's own sign-in (Claude Code's `auth login`, as its /login) starts at once in a terminal here, where
-// the human follows it; its page opens in a clean browser of Kulisa's (main/master.js). Once it ends signed in, the
-// account (named by the email it signed in to) is stored, and the project's when made in one (done, with what the main
-// process answered: the project's agents, or every account); Cancel, or Settings closed, stops it and nothing is kept. A terminal as the task's other ones (lib/terminals.ts), keyed "signin#<n>".
+// A new account of an agent, signed in with the agent's own sign-in (docs/tasks.md, Accounts).
+// Its terminal is under Details: the address it prints, with the sign-in window open, only confused (the author,
+// 2026-10-11); it is there for a failure and for what the window does not show (a code the agent asks for).
+import { CollapsibleContent, CollapsibleRoot, CollapsibleTrigger } from 'reka-ui';
 import { onBeforeUnmount, onMounted, ref } from 'vue';
-import { forgetTerminals, termHost, terminalOf } from '../lib/terminals';
+import Icon from './Icon.vue';
+import { forgetTerminals, termHost } from '../lib/terminals';
 import type { SignedIn } from '../types';
 
 const props = defineProps<{ project?: string | null; agent: { id: string; name: string } }>();
 const emit = defineEmits<{ done: [r: SignedIn]; close: [] }>();
-let n = 0;
+let n = 0, shown = ''; // kept after its sign-in ends: a failure's Details show what the agent said
 const host = ref<HTMLElement>();
-const running = ref(''), error = ref(''); // running: the sign-in terminal's key
+const running = ref(''), error = ref(''), details = ref(false); // running: the sign-in terminal's key
 
 async function start() {
   error.value = '';
-  const key = running.value = `signin#${Date.now()}-${++n}`;
+  details.value = false;
+  if (shown) forgetTerminals([shown]);
+  const key = running.value = shown = `signin#${Date.now()}-${++n}`;
   host.value!.replaceChildren(termHost(key));
-  terminalOf(key).term.focus();
   const r = await kulisa.invoke<SignedIn & { error?: string | null }>('account:signin', { id: props.project ?? null, agent: props.agent.id, key });
-  forgetTerminals([key]);
   if (running.value === key) running.value = '';
-  if (r.error) error.value = r.error;
+  if (r.error) { error.value = r.error; details.value = true; }
   else if (r.error === undefined) emit('done', r);
 }
 async function stop() {
@@ -32,14 +32,17 @@ async function stop() {
 }
 async function cancel() { await stop(); emit('close'); }
 onMounted(start);
-onBeforeUnmount(stop);
+onBeforeUnmount(() => { stop(); forgetTerminals([shown]); });
 </script>
 
 <template>
   <div id="npsignin">
-    <p class="hint">Signing in to a new account of {{ agent.name }}: it opens its sign-in page in a clean browser of
+    <p class="hint">Signing in to a new account of {{ agent.name }}: sign in in the window that opens, a clean browser of
       Kulisa's, where none of your accounts is signed in. The account is {{ project ? 'added' : 'kept' }} once you are signed in.</p>
-    <div id="npsigninterm" ref="host" :hidden="!running" />
+    <CollapsibleRoot v-model:open="details" :unmount-on-hide="false">
+      <CollapsibleTrigger class="more"><Icon name="i-down" />Details</CollapsibleTrigger>
+      <CollapsibleContent><div id="npsigninterm" ref="host" /></CollapsibleContent>
+    </CollapsibleRoot>
     <p id="npsigninerror" class="error">{{ error }}</p>
     <div class="row">
       <button id="npsigninstart" type="button" :hidden="!!running" @click="start">Try Again</button>
@@ -52,6 +55,6 @@ onBeforeUnmount(stop);
 /* Its terminal, a few rows high, framed as a field */
 #npsignin {
   .hint { margin-block: 0 var(--inset); }
-  #npsigninterm { height: 160px; border: 1px solid var(--line); border-radius: var(--radius); &[hidden] { display: none; } }
+  #npsigninterm { height: 160px; margin-block-start: 6px; border: 1px solid var(--line); border-radius: var(--radius); }
 }
 </style>

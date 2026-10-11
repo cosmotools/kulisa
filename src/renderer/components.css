@@ -180,3 +180,7 @@ svg:has(> use) { width: 16px; height: 16px; flex: none; fill: none; stroke: curr
   .note { display: block; padding: 6px var(--inset) 2px; color: var(--text-muted); text-align: end; }
   .check { margin-inline-start: auto; color: var(--accent); }
 }
+
+/* Details' trigger (Reka's Collapsible) */
+button.more { display: flex; align-items: center; gap: 4px; height: auto; padding: 0; border: none; background: none; color: var(--text-muted);
+  &:hover { color: var(--text); } svg { rotate: -90deg; } &[data-state="open"] svg { rotate: none; } }

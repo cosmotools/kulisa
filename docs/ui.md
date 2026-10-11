@@ -66,6 +66,7 @@ Each icon is drawn once, as a `<symbol id="i-…">` in the sprite (`Sprite.vue`,
 | `i-p-cart`, `i-p-briefcase`, `i-p-globe`, `i-p-flask`, `i-p-rocket`, `i-p-code`, `i-p-building`, `i-p-people`, `i-p-book`, `i-p-heart` | a project's icon to choose (Lucide's shopping-cart, briefcase, globe, flask-conical, rocket, code, building-2, users-round, book-open-text, heart), drawn in its color (`projectIcon`, `lib/common.ts`) |
 | `i-working`, `i-waiting`, `i-done` | an agent's state on a tab (`.state`); `i-done` also checks the chosen row of a menu or a select, and a checkbox |
 | `i-down` | a select's button (`SelectBox.vue`) |
+| `i-agent-claude`, `i-agent-codex`, `i-agent-shell` | an agent's row and its accounts' (`AgentList.vue`, `i-agent-<id>`, 20 px): the makers' own marks in their own colors (claude.ai's and developers.openai.com's favicons; not under the GPL: `docs/LICENSING.md`), and Lucide's square-terminal for the terminal only |
 
 An icon is 16 px; × and + are 14 px, as in Chrome (`.icon`), and so is an agent's state. ☰'s and the agent's states are Lucide's (lucide.dev, ISC), drawn on 24 × 24 with
 their lines thickened to match; take a new one from there rather than drawing it. The sprite takes no room but is not
@@ -122,7 +123,8 @@ The window's controls are Reka UI's, in this look (CLAUDE.md, Window UI):
 - Tabs: a pane's tabs and the tasks' tabs are Reka's `Tabs` (`activationMode` manual): chosen on the press, as a
   browser's (not on their ×), one Tab stop for the strip, the arrows move and Enter chooses.
 - `Toggle`: a button that stays on (Pick, `[data-state="on"]`).
-- `Collapsible`: something shown on demand (an installer's Details, a profile's pictures to choose from).
+- `Collapsible`: something shown on demand (a profile's pictures to choose from; Details: `button.more` its trigger, an
+  installer's output, an agent's sign-in's terminal).
 - `.avatar`: a profile's picture (`<img>`, `avatarSrc(name)` in `lib/common.ts`; `Avatars.vue` the ones to choose from), 16 px; `--avatar` where a place needs
   another size (22 px in a profile's row, `ProfileRow.vue`).
 - `.striptab`: a tab of a strip on an island, as a browser's: the agent's `.state`, `.name`, × at the end

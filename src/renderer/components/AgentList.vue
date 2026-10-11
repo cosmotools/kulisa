@@ -19,6 +19,8 @@ const needs = (a: Agent) => (a.account ? '' : a.needs || '');
 const where = (a: Agent) => (!props.list.details ? '' : a.account ? `its own sign-in, in ${short(a.account)}`
   : a.path ? [a.version, short(a.path), a.onPath === false && 'not on your PATH: Kulisa runs it from here'].filter(Boolean).join(' · ') : '');
 const installLine = (a: Agent) => (a.install && !a.installed && !a.account ? `Install runs ${a.maker || 'its maker'}'s installer: ${a.install}` : '');
+// An agent new to Kulisa may have no mark in the sprite.
+const mark = (a: Agent) => { const name = `i-agent-${a.agent || a.id}`; return document.getElementById(name) ? name : null; };
 const status = (a: Agent) => (a.installed ? (a.install && !a.account ? 'Installed' : '') : 'Not installed');
 </script>
 
@@ -28,6 +30,7 @@ const status = (a: Agent) => (a.installed ? (a.install && !a.account ? 'Installe
       <p v-if="s.looking" class="hint">Looking for agents on this computer…</p>
       <template v-for="a in s.agents" :key="a.id"><label class="agentrow" :class="{ account: !!a.account }" :data-agent="a.id">
         <RadioGroupItem v-if="list.choose" class="radio" :value="a.id"><RadioGroupIndicator /></RadioGroupItem>
+        <Icon v-if="mark(a)" class="logo" :name="mark(a)!" />
         <span class="what"><b class="name">{{ a.account || !a.maker ? a.name : `${a.name} · ${a.maker}` }}</b><small class="needs">{{ needs(a) }}</small>
           <small class="where">{{ where(a) }}</small><small class="install-line">{{ installLine(a) }}</small></span>
         <a class="site" target="_blank" :href="list.details && a.site && !a.account ? a.site : undefined">Website</a>
@@ -48,6 +51,7 @@ const status = (a: Agent) => (a.installed ? (a.install && !a.account ? 'Installe
 .agentlist {
   .agentrow { display: flex; gap: var(--inset); align-items: center; padding: var(--inset) 4px; border-bottom: 1px solid var(--island-hi);
     .what { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+    .logo { width: 20px; height: 20px; align-self: flex-start; }
     small { color: var(--text-muted); }
     :is(.install-line, .where) { font-family: "JetBrains Mono", monospace; overflow-wrap: anywhere; &:empty { display: none; } }
     /* Choosing: what Install runs only for the chosen one */
@@ -55,9 +59,7 @@ const status = (a: Agent) => (a.installed ? (a.install && !a.account ? 'Installe
     .site { color: var(--text-muted); white-space: nowrap; &:hover { color: var(--text); } &:not([href]) { display: none; } }
     .status { color: var(--text-muted); white-space: nowrap; } }
   .progress { margin: 10px 0 0; &:empty { display: none; } }
-  .details { margin-top: 6px; &[hidden] { display: none; }
-    .more { display: flex; align-items: center; gap: 4px; height: auto; padding: 0; border: none; background: none; color: var(--text-muted);
-      &:hover { color: var(--text); } svg { rotate: -90deg; } &[data-state="open"] svg { rotate: none; } } }
+  .details { margin-top: 6px; &[hidden] { display: none; } }
   pre { max-height: 180px; overflow: auto; margin: 6px 0 0; padding: 8px; border-radius: var(--radius); background: var(--window);
     font: 12px "JetBrains Mono", monospace; white-space: pre-wrap; user-select: text; }
 }
