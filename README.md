@@ -53,7 +53,7 @@ grid (or over it: **☰ → Projects bar**) has a group per open project, as Chr
 it), its tasks, and **+** for a new task. A click on a task shows it, of any project, and the others keep running
 (their agents and pages) until you close their project (**×** on its last open task, the middle button on its name,
 or **Close Project** in its right-click menu, after a question; closing a window asks once for all its projects). The button after the islands opens a menu of the
-projects: open another one (in this window or in a new window: Kulisa asks), remove one (its **×** on hover:
+projects: open another one (in this window or in a new window: Kulisa asks), delete one (its **×** on hover:
 Kulisa's data of it and its tasks' copies; its folder stays), **Projects…**, **New Project…** (a name and where its
 folder goes, `~/Kulisa` by default; git on by default, with an empty first commit; its color and icon; then its
 configuration: its agents' accounts, code, profiles; **Open** opens it),

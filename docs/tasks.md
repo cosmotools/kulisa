@@ -27,7 +27,7 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
     click on one of its tasks (two ways to the same thing confused, when the label showed it too). Its right-click
     menu: New Task, its **closed tasks** under a heading (the one closed last first; a click opens one again; Delete Merged
     Tasks… when some are merged), Close Project, Move to New Window, Move to Window, Project Settings…, Show Data Folder,
-    Remove Project…. Closing a project: that menu, the
+    Delete Project…. Closing a project: that menu, the
     middle button on its label, or × on its last open task; it asks first (the author's decision, 2026-10-07; before,
     only when its agent was working), and says so when an agent is still working.
   - **The profiles' chip**: 👥 and how many of its profiles are open, on every task's tab (each task has its
@@ -38,7 +38,7 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   - **A task tab's right-click menu**: the shown one's profiles, as its chip's; Rename…; Show Folder, its folder (its
     worktree, or the project's without git) in the OS's file manager (`shell.openPath`); Delete Task….
   - **The button after the islands** is the menu of the projects (each with its color and folder, the open ones marked
-    ✓; × on hover removes one), Projects…, New Project…, Open Folder…, Close Project and Remove Project… (the shown
+    ✓; × on hover deletes one), Projects…, New Project…, Open Folder…, Close Project and Delete Project… (the shown
     one).
 - **The projects' manager** (the Projects button in the title bar, left of ☰; Projects… in the projects' menu; Project
   Settings… in a label's menu opens it at that project): one dialog, every project on the left, open or not (the open
@@ -105,10 +105,10 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   repository is added; then it is its **former folder**: new tasks no longer work in it, those that did go on there,
   and the settings say so, with Show, while it exists (the human moves its files, or asks an agent).
 - **The Welcome screen** (the term: CLAUDE.md) is what the window shows with no project open: at the first start, and
-  after the last project is closed (Close Project, the middle button on its label, removing the project). What a project
+  after the last project is closed (Close Project, the middle button on its label, deleting the project). What a project
   is, in a sentence (its code, its agents, its profiles; a task an agent in a copy of the code); New Project…, Open
   Folder…; every project, each with its icon in its color as on its label in the bar (a click opens one; its
-  right-click menu: Open, Project Settings…, Remove Project…; × removes it too); and links (the
+  right-click menu: Open, Project Settings…, Delete Project…; × deletes it too); and links (the
   documentation, GitHub, reporting an issue, also in ☰; they open in the user's browser) with Kulisa's version. Later starts
   open the windows that were open, each with its projects, showing the one shown last (`windows` in `settings.json`);
   `KULISA_PROJECT=<folder> npm start` adds that one to the first window and shows it.
@@ -190,7 +190,7 @@ to the human; the window's IPC (`app.js`) and the MCP tools are handles on it:
 | Close a project | its label's menu, the middle button on its label, × on its last open task, Close Project in the projects' menu | none: it would stop itself | `closeProjects` (`app.js`), asking first |
 | Close a window, quit | the OS's ×, ☰ → Exit | none | `closeProjects` for the window's projects; `quit` (`app.js`), asking only when an agent works |
 | Move a project | Move to New Window, Move to Window, dragging its label | none: where the human sees it is the human's | `moveProject` (`app.js`) |
-| Remove a project | Remove Project…, ×, the Welcome screen | none: it deletes sign-ins, the human's to decide | `removeProject` (`app.js`), `askRemoveProject`, `removeProjectData` (`projects.js`) |
+| Delete a project | Delete Project…, ×, the Welcome screen | none: it deletes sign-ins, the human's to decide | `deleteProject` (`app.js`), `askDeleteProject`, `deleteProjectData` (`projects.js`) |
 | Make a task | + in its group, Ctrl+Shift+N, New Task, New Task with (+'s right-click) | not yet (ROADMAP, "Tasks, rest") | `Project.createTask` |
 | Close a task, open it again | ×; its group's menu | none: what runs is the human's to stop | `Project.closeTask`, `reopen` |
 | Rename a task | Rename… in its tab's menu | `task_rename` | `Task.rename` |
@@ -271,7 +271,7 @@ are not programmers); its accounts are made in a project's settings.
     then from their `agent.json`, as × on a repository): the refusal names them. The terminal only may be removed (its
     tasks keep it). An account no project lists any more goes, after a question ("Delete the
     account …?"): signed out with its agent's own command (`auth logout`: what it keeps outside its folder goes too,
-    the Keychain's entry on macOS), then its folder, with its sign-in, settings and conversations. Removing a project
+    the Keychain's entry on macOS), then its folder, with its sign-in, settings and conversations. Deleting a project
     does the same for the accounts only it had, named in its question.
   The project's own environment still comes last (direnv's `.envrc` may set `CLAUDE_CONFIG_DIR`), as without Kulisa.
 - The dialog is part of the window, not a window of its own: no extra process. `AgentPicker.vue` (choosing) and
@@ -381,7 +381,7 @@ Nothing is written into the project's own folder (but the first commit of a proj
 ## Deleting a task: what goes
 
 One function deletes a task (`deleteTask` in `projects.js`), whether the human deletes it (Delete Task…) or its
-project is removed. A deleted task leaves nothing on the computer that Kulisa or its agent made for it. Kulisa stops
+project is deleted. A deleted task leaves nothing on the computer that Kulisa or its agent made for it. Kulisa stops
 its agent and closes its profiles, then deletes:
 
 - each copy (`git worktree remove --force`) and its branch (`git branch -D`), and its folder of copies; a branch
@@ -405,11 +405,11 @@ keeps of it, are the human's, as without Kulisa.
 
 What stays in any case: an agent Kulisa installed (it serves every project).
 
-## Removing a project
+## Deleting a project
 
-**Remove Project…**: in the projects' menu (Remove Project… for the shown project; any project's × on hover), a
+**Delete Project…**: in the projects' menu (Delete Project… for the shown project; any project's × on hover), a
 project label's right-click menu, and a project on the Welcome screen (its × on hover, or its right-click
-menu). All call one function (`removeProject` in `app.js`): Kulisa asks first, saying what goes and which tasks have
+menu). All call one function (`deleteProject` in `app.js`): Kulisa asks first, saying what goes and which tasks have
 work not in main and not pushed; closes the project if it is open; deletes each of its tasks as above; then removes it
 from `projects.json` with its data folder `projects/<id>/`. The project's own folder stays as it is.
 
@@ -497,7 +497,7 @@ temporary forks), and again on 2026-10-10 (tasks; ROADMAP, "Projects and tasks")
 |---|---|
 | `src/main/app.js` | the windows; open, close and move projects (one change at a time, `serial`); IPC |
 | `src/main/window.js` | a window: its open projects, show a project or a task, the grid's state, its questions |
-| `src/main/projects.js` | an open project: its tasks; making, closing, opening again, deleting one (with the question); removing a project's data |
+| `src/main/projects.js` | an open project: its tasks; making, closing, opening again, deleting one (with the question); deleting a project's data |
 | `src/main/tasks.js` | a task: its profiles, its agent (start, change, environment), renaming, copies of its profiles for a new task, ports |
 | `src/main/worktrees.js` | git: a task's worktree and branch, files outside git, direnv, changes, renaming the branch, removal |
 | `src/main/agents.js` | the agents to choose from: find, install, start, resume; Claude's folder trust |

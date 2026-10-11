@@ -681,7 +681,7 @@ module.exports = (test) => {
   test('welcome screen: Close Project in the project menu; links open in the browser; New Project… asks where its folder goes', async (ctx) => {
     const { shell, ui } = ctx;
     await ui(`document.getElementById('openProjects').click()`);
-    assert.deepEqual((await menuRows(ui)).slice(-3), ['-', 'Close Project', 'Remove Project…']);
+    assert.deepEqual((await menuRows(ui)).slice(-3), ['-', 'Close Project', 'Delete Project…']);
     await choose(ui, 'Close Project');
     await waitFor(() => shell.task === null && !shell.current);
     await waitFor(() => ui(`document.documentElement.classList.contains('noproject')`));
@@ -1001,7 +1001,7 @@ module.exports = (test) => {
     ctx.asked.length = 0;
   });
 
-  test("projects: Remove Project… (× in the menu, Remove for the open one, the Welcome screen) asks, closes the project when open, deletes its data and its tasks' copies, never its folder", async (ctx) => {
+  test("projects: Delete Project… (× in the menu, Remove for the open one, the Welcome screen) asks, closes the project when open, deletes its data and its tasks' copies, never its folder", async (ctx) => {
     const { shell, ui } = ctx;
     const projects = () => shell.store.projects().map((p) => p.id);
     // A project that is not open, with a task that has a commit of its own, as Kulisa lays them out.
@@ -1031,7 +1031,7 @@ module.exports = (test) => {
     await removeRow();
     await waitFor(() => ctx.asked.length);
     const q = ctx.asked.pop();
-    assert.equal(q.message, 'Remove the project spare?');
+    assert.equal(q.message, 'Delete the project spare?');
     assert.match(q.detail, /its profiles Spare-user \(in no other project\) with their sign-ins/);
     assert.match(q.detail, /its agents' accounts Fake agent · spare@shop.com \(in no other project\) with their sign-ins and conversations/);
     assert.ok(q.detail.includes(wt.worktree) && q.detail.includes('Idea: 1 commit of its own') && q.detail.includes(`Its folders stay as they are: ${spare}.`));
@@ -1077,8 +1077,8 @@ module.exports = (test) => {
     assert.equal(ctx.asked.pop()?.message, 'Where to open the project gone?', 'opened, as any project not open');
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
     await ui(`document.getElementById('openProjects').click()`);
-    assert.deepEqual((await menuRows(ui)).slice(-3), ['-', 'Close Project', 'Remove Project…']);
-    await choose(ui, 'Remove Project…');
+    assert.deepEqual((await menuRows(ui)).slice(-3), ['-', 'Close Project', 'Delete Project…']);
+    await choose(ui, 'Delete Project…');
     await waitFor(() => !projects().includes('gone'));
     ctx.asked.length = 0;
     await waitFor(() => shell.current?.folder === project && shell.task?.loaded);
@@ -1099,12 +1099,12 @@ module.exports = (test) => {
     ctx.answer = false;
     await ui(`document.querySelector('#welcome-list [data-project="project"] .remove').click()`);
     await waitFor(() => ctx.asked.length);
-    assert.equal(ctx.asked.pop().message, 'Remove the project project?');
+    assert.equal(ctx.asked.pop().message, 'Delete the project project?');
     ctx.answer = true;
     assert.ok(projects().includes('project'), 'kept when the human says no');
     // A recent project's right-click menu on the Welcome screen.
     await ui(`document.querySelector('#welcome-list [data-project="project"]').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 300, clientY: 300 }))`);
-    assert.deepEqual(await menuRows(ui), ['Open', 'Project Settings…', '-', 'Remove Project…']);
+    assert.deepEqual(await menuRows(ui), ['Open', 'Project Settings…', '-', 'Delete Project…']);
     await choose(ui, 'Project Settings…');
     await waitFor(() => ui(`document.getElementById('projects')?.dataset.state === 'open' && document.getElementById('pjtitle').textContent === 'project'`));
     await closeSettings(ui);

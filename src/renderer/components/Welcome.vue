@@ -14,11 +14,11 @@ import type { MenuItem } from '../lib/menu';
 import { dialog, openFolder } from '../lib/dialogs';
 
 const openProject = (id: string) => kulisa.invoke('project:open', { id });
-const remove = (id: string) => kulisa.invoke('project:remove', { id });
+const remove = (id: string) => kulisa.invoke('project:delete', { id });
 function menu(e: MouseEvent): MenuItem[] | null {
   const id = (e.target as Element).closest<HTMLElement>('[data-project]')?.dataset.project;
   return id ? [{ label: 'Open', run: () => openProject(id) }, { label: 'Project Settings…', run: () => dialog('projects').then((d) => d.openProjects(id)) },
-    '-', { label: 'Remove Project…', run: () => remove(id) }] : null;
+    '-', { label: 'Delete Project…', run: () => remove(id) }] : null;
 }
 </script>
 
@@ -36,7 +36,7 @@ function menu(e: MouseEvent): MenuItem[] | null {
     <RightClickMenu :items="menu"><div id="welcome-list">
       <div v-for="p in store.projects.projects" :key="p.id" class="removable" :data-project="p.id" :style="{ '--color': p.color }">
         <button class="item" @click="openProject(p.id)"><ProjectIcon :p /><span class="text"><span class="label">{{ p.name }}</span><small :title="p.folder">{{ p.folder }}</small></span></button>
-        <button class="remove icon quiet" title="Remove project…" aria-label="Remove project" @click="remove(p.id)"><Icon name="i-close" /></button>
+        <button class="remove icon quiet" title="Delete project…" aria-label="Delete project" @click="remove(p.id)"><Icon name="i-close" /></button>
       </div>
     </div></RightClickMenu>
     <nav class="links">

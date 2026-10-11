@@ -334,14 +334,14 @@ async function reposInfo(p) {
 // Removing a project: the question first, told what goes and which tasks have work not in main (the window closes the
 // project if it is open in between), then each of its tasks deleted and what is the project's as a whole (store.js:
 // its entry, its data folder). Never the project's own folder. p: its entry; w: the window that asks.
-async function askRemoveProject(shell, p, w) {
+async function askDeleteProject(shell, p, w) {
   const withCopies = shell.store.tasksOf(p).list.filter((e) => e.copies?.length);
   const changed = [];
   for (const e of withCopies) {
     const what = changesText(await changesOf(e.copies));
     if (what) changed.push(`${e.name}: ${what}`);
   }
-  return shell.ask(deleteQuestion({ message: `Remove the project ${p.name}?`, ok: 'Remove', goes: [
+  return shell.ask(deleteQuestion({ message: `Delete the project ${p.name}?`, ok: 'Delete', goes: [
     ...(() => {
       const only = shell.profileStore.of(p.id).filter((g) => g.projects.length === 1).map((g) => g.name);
       const accounts = shell.accounts.all().filter((a) => !a.own && a.projects.every((x) => x === p.id)).map((a) => a.name);
@@ -351,7 +351,7 @@ async function askRemoveProject(shell, p, w) {
     ...withCopies.map((e) => `its task ${e.name}: ${e.copies.map((c) => `the folder ${c.worktree}`).join(', ')}, the branch ${e.branch}, its agent's conversations`)],
   notInMain: changed, stays: `Its folders stay as they are: ${[...new Set([p.folder, ...reposOf(p)])].join(', ')}.` }), w);
 }
-async function removeProjectData(shell, p) {
+async function deleteProjectData(shell, p) {
   for (const e of shell.store.tasksOf(p).list) await deleteTask(shell, p, e);
   for (const g of shell.profileStore.of(p.id)) shell.profileStore.removeFrom(g.id, p.id); // its own ones go with their masters
   for (const a of shell.accounts.all().filter((x) => !x.own && x.projects.includes(p.id))) {
@@ -388,5 +388,5 @@ function faviconOf(folder) {
   return null;
 }
 
-module.exports = { Project, askRemoveProject, removeProjectData, faviconOf, reposOf, gitOf, addRepo, cloneRepo, defaultRepo, removeRepo, reposInfo,
+module.exports = { Project, askDeleteProject, deleteProjectData, faviconOf, reposOf, gitOf, addRepo, cloneRepo, defaultRepo, removeRepo, reposInfo,
   askDropProfile, dropProfile, agentsInfo, addAgent, defaultAgent, removeAgent, PROJECT_ICONS };

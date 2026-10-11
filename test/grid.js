@@ -71,7 +71,7 @@ module.exports = (test) => {
 
     // +: a menu of the projects (the open ones marked), Open Folder, and the dialog for the rest.
     await ui(`document.getElementById('openProjects').click()`);
-    assert.deepEqual(await menuRows(ui), ['project', 'other', '-', 'Projects…', 'New Project…', 'Open Folder…', '-', 'Close Project', 'Remove Project…']);
+    assert.deepEqual(await menuRows(ui), ['project', 'other', '-', 'Projects…', 'New Project…', 'Open Folder…', '-', 'Close Project', 'Delete Project…']);
     const rows = await ui(`[...document.querySelectorAll('.menu[data-state="open"] .item')].slice(0, 2).map((b) => ({ dot: getComputedStyle(b.querySelector('.dot')).backgroundColor,
       folder: b.querySelector('small').textContent, check: b.querySelector('kbd').textContent }))`);
     assert.deepEqual(rows.map((r) => r.folder), [project, other], 'each with its folder');
@@ -82,18 +82,18 @@ module.exports = (test) => {
     assert.ok(over, 'over the button: the bar is at the bottom of the window');
     await ui(`document.getElementById('openProjects').click()`); // again: closes it
     await waitFor(async () => !(await menuOpen(ui)));
-    // Each project's row has a × at its end, shown on hover (Remove project…), as in JetBrains.
+    // Each project's row has a × at its end, shown on hover (Delete project…), as in JetBrains.
     await ui(`document.getElementById('openProjects').click()`);
     await menuRows(ui);
     const x = await ui(`(() => { const rows = [...document.querySelectorAll('.menu[data-state="open"] .removable')], x = rows[0].querySelector('.remove');
       return { rows: rows.length, title: x.title, shown: getComputedStyle(x).visibility }; })()`);
-    assert.deepEqual(x, { rows: 2, title: 'Remove project…', shown: 'hidden' });
+    assert.deepEqual(x, { rows: 2, title: 'Delete project…', shown: 'hidden' });
     await rightClick(ui, '.menu[data-state="open"] .removable .item');
     assert.ok(await menuOpen(ui) && (await menuRows(ui)).includes('New Project…'), 'a right-click in the menu opens no other menu');
     await closeMenu(ui);
     // The label's right-click menu.
     await rightClick(ui, '#projectTabs [data-project="other"] .name');
-    assert.deepEqual(await menuRows(ui), ['New Task', '-', 'Close Project', 'Move to New Window', '-', 'Project Settings…', 'Show Data Folder', 'Remove Project…']);
+    assert.deepEqual(await menuRows(ui), ['New Task', '-', 'Close Project', 'Move to New Window', '-', 'Project Settings…', 'Show Data Folder', 'Delete Project…']);
     // Show Data Folder: Kulisa's folder of that project, in the file manager.
     const electron = require('electron'), openPath = electron.shell.openPath, shown = [];
     electron.shell.openPath = async (dir) => { shown.push(dir); return ''; };
@@ -236,7 +236,7 @@ module.exports = (test) => {
 
     // Back into the first window (Move to Window, as a browser moves a tab): the only tab of the second, so it closes.
     await rightClick(ui2, '#projectTabs [data-project="other"] .name');
-    assert.deepEqual(await menuRows(ui2), ['New Task', '-', 'Close Project', 'Move to New Window (off)', 'Move to Window: project', '-', 'Project Settings…', 'Show Data Folder', 'Remove Project…']);
+    assert.deepEqual(await menuRows(ui2), ['New Task', '-', 'Close Project', 'Move to New Window (off)', 'Move to Window: project', '-', 'Project Settings…', 'Show Data Folder', 'Delete Project…']);
     await choose(ui2, 'Move to Window: project');
     await waitFor(() => shell.windows.length === 1 && shell.current === moved && !first.switching);
     assert.ok(second.win.isDestroyed());

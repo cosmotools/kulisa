@@ -14,7 +14,7 @@ const { CookieSync } = require('./cookie-sync');
 const { nextAvatar } = require('./avatars');
 const { signinPages } = require('./signin-pages');
 const { SessionCookies } = require('./session-cookies');
-const { Project, askRemoveProject, removeProjectData, faviconOf, addRepo, cloneRepo, defaultRepo, removeRepo, reposInfo, askDropProfile, dropProfile,
+const { Project, askDeleteProject, deleteProjectData, faviconOf, addRepo, cloneRepo, defaultRepo, removeRepo, reposInfo, askDropProfile, dropProfile,
   agentsInfo, addAgent, defaultAgent, removeAgent, PROJECT_ICONS } = require('./projects');
 const { AppWindow, COLORS } = require('./window');
 const worktrees = require('./worktrees');
@@ -377,12 +377,12 @@ function start(options = {}) {
   }
   // Removing a project, from wherever a window asks for it (w): the human confirms, then it is closed if it is open,
   // and its data deleted (projects.js).
-  async function removeProject(id, w) {
+  async function deleteProject(id, w) {
     const p = store.projects().find((x) => x.id === id);
     if (!p) return { error: `no project ${id}` };
-    if (!await askRemoveProject(shell, p, shell.open.get(id)?.window || w)) return { error: 'the human said no' };
+    if (!await askDeleteProject(shell, p, shell.open.get(id)?.window || w)) return { error: 'the human said no' };
     if (shell.open.has(id)) await closeProject(shell.open.get(id), { asked: true });
-    await removeProjectData(shell, p);
+    await deleteProjectData(shell, p);
     sendProjects();
     return { id };
   }
@@ -596,7 +596,7 @@ function start(options = {}) {
     const p = shell.open.get(id);
     return p && electronShell.openPath(store.dirOf(p.entry));
   });
-  ipcMain.handle('project:remove', (e, { id }) => serial(() => removeProject(id, at(e))));
+  ipcMain.handle('project:delete', (e, { id }) => serial(() => deleteProject(id, at(e))));
   // A task of another project too (the bar shows every open project's): it becomes that project's, then the
   // project is shown.
   const taskAt = (key, fn) => serial(() => { const task = shell.taskByKey(key); return task ? fn(task) : { error: `no task ${key}` }; });

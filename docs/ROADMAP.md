@@ -224,7 +224,7 @@ here; what is left of it stays.
       the message, the stack without the user's paths.
   - **Kept** (`ideas.js` in main: the core; `add` is the agent's only handle, sending and deleting the human's):
     `ideas.json` in the data folder, `[{ id, at, kind, project, agent, need, missing, instead, count }]`, at most 30
-    (the oldest go), written whole. A note goes when sent, deleted, or with its project (Remove Project). Listed in
+    (the oldest go), written whole. A note goes when sent, deleted, or with its project (Delete Project…). Listed in
     "What is on the computer" (tasks.md), its removal tested.
   - **The human: a question, at most once a day.** Kulisa, not the agent, asks, and its core decides when: only
     after the agent's turn ended (done, from its hooks), never about a note it asked about before, at most once a
