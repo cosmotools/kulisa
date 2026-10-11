@@ -24,10 +24,3 @@ const entry = (name: Name) => {
 };
 export function registerDialog<N extends Name>(name: N, api: Dialogs[N]) { entry(name).got!(api); }
 export const dialog = <N extends Name>(name: N) => entry(name).ready as Promise<Dialogs[N]>;
-
-// Open Folder… (the Welcome screen, the projects' menu): a folder a project has opens it; a new project made of it is
-// shown in the projects' manager, as New Project's, and Open there opens it (app.js, project:open-folder).
-export async function openFolder() {
-  const r = await kulisa.invoke<{ configure?: string }>('project:open-folder');
-  if (r?.configure) await (await dialog('projects')).openProjects(r.configure);
-}

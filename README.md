@@ -56,8 +56,7 @@ or **Close Project** in its right-click menu, after a question; closing a window
 projects: open another one (in this window or in a new window: Kulisa asks), delete one (its **×** on hover:
 Kulisa's data of it and its tasks' copies; its folder stays), **Projects…**, **New Project…** (a name and where its
 folder goes, `~/Kulisa` by default; git on by default, with an empty first commit; its color and icon; then its
-configuration: its agents' accounts, code, profiles; **Open** opens it),
-**Open Folder…** (a folder no project has becomes one: its configuration is shown first, as a new project's), close the project. **Project Settings…** on its name's right-click menu opens the manager at it. Closing the last project shows the
+configuration: its agents' accounts, code, profiles; **Open** opens it; a folder there already, a repository or not, is taken as it is), close the project. **Project Settings…** on its name's right-click menu opens the manager at it. Closing the last project shows the
 Welcome screen. A closed project keeps its tabs and
 sign-ins; when you open it again, its agent continues the conversation where it can (`claude --resume`,
 `codex resume`). The agent starts in your shell in its task's folder, as if you typed its command in a terminal

@@ -75,7 +75,7 @@ here; what is left of it stays.
   - **The bar is a task bar, drawn as Chrome's tab groups**: a group per project (its name, color and icon;
     collapsible; + makes a task), a tab per task (the project's icon and color, the task's name, the agent's state).
     A group moves to another window whole (as a project does today), e.g. to keep one client's tasks out of a screen
-    share. The Welcome screen: New Project…, Open Folder… (a project with that folder), the projects.
+    share. The Welcome screen: New Project…, the projects.
   - **Sign-in rule, narrowed**: built with step 5 ([profiles.md](profiles.md), "Test users' sign-ins"; CLAUDE.md,
     Rules). Left: "Sign in with Google" on a local app, where the human signs in once to a test Google account in the
     profile's master and the agent goes the whole way itself (account chooser, consent) with no sign-in pause on that
@@ -117,9 +117,9 @@ here; what is left of it stays.
   tabs are tasks and a project is their group, so a project behaves as a tab group of Chrome's desktop
   (support.google.com/chrome/answer/2391819, read 2026-10-11): a click on its label folds it (built); Close group keeps
   it, reopened from ⋮ → Tab groups (our projects' menu, and the Welcome screen's list); Delete group deletes it.
-  1. **Delete Project…** instead of Remove Project…, as Chrome's Delete group and our Delete Task… (what it does is
+  1. **Delete Project…** (built 2026-10-11) instead of Remove Project…, as Chrome's Delete group and our Delete Task… (what it does is
      unchanged: Kulisa's data of it and its tasks' copies go, its folder stays).
-  2. **No Open Folder…**: it was not clear what it did (it made a project of the folder or opened the one there).
+  2. **No Open Folder…** (built 2026-10-11, tasks.md, Projects): it was not clear what it did (it made a project of the folder or opened the one there).
      New Project… is the one way in: a folder at its location that is there already, with files or a repository, is
      taken as it is (the dialog says so), else made.
   3. **The label's right-click opens the group's panel**, as Chrome's: the name, the color and the icon edited in place
@@ -718,7 +718,7 @@ here; what is left of it stays.
       terminals (`terminal_run`, +) type their command into `COMSPEC` there: untested; PowerShell as above would
       serve them too, and `terminal_stop`'s Ctrl+C in cmd asks "Terminate batch job?".
     - Both: closing a project and opening it again (`claude --resume`) and the project folder dialog
-      ("Open Folder…", native) are untested.
+      (New Project…'s Browse…, native) are untested.
   - `safeStorage` (Keychain, DPAPI) for session cookies: expected to work, untested.
   - Dictation (the terminal's microphone): the agent records itself. macOS: the system asks for the microphone for
     Kulisa (`NSMicrophoneUsageDescription` in `forge.config.js`); check that it asks and that `claude`'s `/voice`
@@ -796,7 +796,8 @@ here; what is left of it stays.
   of its own" (a 30 s timeout) and "agents: ☰ → Agents… shows what is installed" failed together once in a full
   `npm test` (2026-10-11, after the move to Reka UI; the output not kept), not in the four runs after; "Move to New
   Window" timed out (30 s) once more on 2026-10-11 in one group's run, not in the two after; "DevTools in a pane's ⋮ menu
-  opens and closes the DevTools of its active tab" failed once in a full `npm test` (2026-10-11), not in the run after. Slow but not flaky: deleting a task (a fork's closing took 11 s,
+  opens and closes the DevTools of its active tab" failed once in a full `npm test` (2026-10-11), not in the run after; one test
+  of the profiles group failed once more in a full `npm test` that day (which one not kept), not in the two runs after. Slow but not flaky: deleting a task (a fork's closing took 11 s,
   git's work), a site that never answers (10 s: two 5 s waits by design).
 - **The test "after a restart: a task's other terminal comes back …" takes 5.6 s** (`restart-tasks.js`;
   found 2026-10-09, to come back to). Most of it is showing the project `other` until its task has loaded and

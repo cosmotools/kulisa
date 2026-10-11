@@ -15,6 +15,10 @@ test('projects: at first start none is opened; each gets its own color', async (
   assert.deepEqual(store.windows(), []);
   const shop = store.projectFor('/work/shop'), blog = store.projectFor('/work/blog');
   assert.notEqual(shop.color, blog.color);
+  // The project a folder is: its own, or one of its repositories (New Project… refuses a folder a project has).
+  store.updateProject(shop.id, { repos: ['/work/shop-api'] });
+  assert.deepEqual([store.projectOf('/work/shop/')?.id, store.projectOf('/work/shop-api')?.id, store.projectOf('/work/other')], ['shop', 'shop', null]);
+  store.updateProject(shop.id, { repos: null });
   const bounds = { x: 10, y: 20, width: 900, height: 700 };
   store.saveWindows([{ tabs: [blog.id, shop.id], shown: shop.id, bounds }, { tabs: ['gone'], shown: 'gone' }]);
   const later = new Store(path.join(root, 'fresh-data'));

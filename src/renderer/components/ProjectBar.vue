@@ -24,7 +24,7 @@ import RightClickMenu from './menu/RightClickMenu.vue';
 import { store } from '../lib/store';
 import ProjectIcon from './ProjectIcon.vue';
 import { keyText, withKeys } from '../lib/common';
-import { dialog, openFolder } from '../lib/dialogs';
+import { dialog } from '../lib/dialogs';
 import { profilesMenu } from '../lib/profiles';
 import { terminalsOf } from '../lib/terminals';
 import type { MenuItem } from '../lib/menu';
@@ -150,7 +150,6 @@ function projectsMenu(): MenuItem[] {
     '-',
     { label: 'Projects…', run: () => manage() },
     { label: 'New Project…', run: create },
-    { label: 'Open Folder…', run: openFolder },
     ...(current === null ? [] : ['-' as const, { label: 'Close Project', run: () => close(current) },
       { label: 'Delete Project…', run: () => remove(current) }]),
   ];
@@ -180,7 +179,7 @@ function projectsMenu(): MenuItem[] {
       </div>
       </nav>
     </TabsList></TabsRoot></RightClickMenu>
-    <ButtonMenu :items="projectsMenu"><button id="openProjects" class="icon" title="Projects: open another, New Project…, Open Folder…" aria-label="Projects"><Icon name="i-projects" /></button></ButtonMenu>
+    <ButtonMenu :items="projectsMenu"><button id="openProjects" class="icon" title="Projects: open another, New Project…" aria-label="Projects"><Icon name="i-projects" /></button></ButtonMenu>
   </footer>
 </template>
 

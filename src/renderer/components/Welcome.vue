@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // The Welcome screen (no project open: at the first start, after the last project is closed), as JetBrains': New
-// Project…, Open Folder…, the projects (a click opens one; its right-click has its
+// Project… (also for a folder there already), the projects (a click opens one; its right-click has its
 // settings, in the projects' manager; its × on hover or the right-click removes it: the main process asks first), and
 // links with Kulisa's version. On one island in the grid's
 // place (text on the project's glow reads badly).
@@ -11,7 +11,7 @@ import icon from '../../../assets/icon.svg';
 import { store } from '../lib/store';
 import { LINKS, version } from '../lib/common';
 import type { MenuItem } from '../lib/menu';
-import { dialog, openFolder } from '../lib/dialogs';
+import { dialog } from '../lib/dialogs';
 
 const openProject = (id: string) => kulisa.invoke('project:open', { id });
 const remove = (id: string) => kulisa.invoke('project:delete', { id });
@@ -30,7 +30,6 @@ function menu(e: MouseEvent): MenuItem[] | null {
       as. Each task is an agent of its own in a copy of the code.</p>
     <div class="start">
       <button id="welcome-new" @click="dialog('projects').then((d) => d.newProject())">New Project…</button>
-      <button id="welcome-open" @click="openFolder">Open Folder…</button>
     </div>
     <h3 v-if="store.projects.projects.length">Projects</h3>
     <RightClickMenu :items="menu"><div id="welcome-list">

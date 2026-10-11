@@ -115,7 +115,7 @@ function start(options = {}) {
   // once quitting: the tabs are saved then, and each one closing as Kulisa quits saved its task's tabs again,
   // fewer each time, at last none (one in the background at once: 2026-10-08, the author's tabs all about:blank).
   shell.taskChanged = (task, now, agentState) => quitting || task.project.window?.changed(task, now, agentState);
-  // A project for a folder opened (Open Folder…, KULISA_PROJECT): its site's favicon as its icon when it has one.
+  // A project for a folder opened (KULISA_PROJECT, project:open with a folder): its site's favicon as its icon when it has one.
   function projectOfFolder(folder) { return store.projectFor(folder, undefined, { icon: faviconOf(folder) ? 'favicon' : undefined }); }
   // A color, icon or agent the window sent for a project: one of those offered, or why not.
   const lookError = ({ color, icon, agent }) => (color && !PROJECT_COLORS.includes(color) ? `no color ${color}`
@@ -404,18 +404,6 @@ function start(options = {}) {
     const p = id ? store.projects().find((x) => x.id === id) : folder && fs.existsSync(folder) ? projectOfFolder(path.resolve(folder)) : null;
     return p ? openLater(p, at(e)) : { error: 'no such project' };
   });
-  // Open Folder…: a folder a project has opens that project; another becomes a project and, as New Project's, is made,
-  // not opened: the window shows its configuration in the projects' manager (its agents' accounts, its profiles), and
-  // Open there opens it. Opened at once, it started its first task with no agent and no profiles.
-  ipcMain.handle('project:open-folder', async (e) => {
-    const w = at(e);
-    const r = await dialog.showOpenDialog(w.win, { title: 'Open a project folder', properties: ['openDirectory', 'createDirectory'] });
-    if (r.canceled || !r.filePaths[0]) return w.info();
-    const known = store.projects().length, p = projectOfFolder(r.filePaths[0]);
-    if (store.projects().length === known) return openLater(p, w);
-    sendProjects();
-    return { configure: p.id };
-  });
   // New Project…, as JetBrains': the folder <location>/<name>, the location ~/Kulisa (every new project's place, as
   // JetBrains' ~/PycharmProjects) unless the human picks another, so they know where the agent's files are. A folder
   // that is there already must be empty; git init in it when asked, with an empty first commit: tasks get copies of
@@ -434,18 +422,36 @@ function start(options = {}) {
     const r = await dialog.showOpenDialog(at(e).win, { title: 'Where to create the project', defaultPath: location, properties: ['openDirectory', 'createDirectory'] });
     return r.canceled ? null : r.filePaths[0] || null;
   });
+  // What a new project's folder is now (the New Project form says it as the location is typed): not there (made), there
+  // (taken as it is, its files kept), a repository (git init skipped), or a project's already (refused).
+  const folderState = async (folder) => {
+    if (!fs.existsSync(folder)) return { state: 'new' };
+    if (!fs.statSync(folder).isDirectory()) return { state: 'file' };
+    const of = store.projectOf(folder);
+    if (of) return { state: 'project', project: of.name };
+    return { state: (await worktrees.repoOf(folder)) ? 'repo' : fs.readdirSync(folder).length ? 'files' : 'empty' };
+  };
+  const newFolder = (location, name) => {
+    location = location?.trim().replace(/^~(?=$|[\\/])/, app.getPath('home'));
+    return location && path.isAbsolute(location) && name?.trim() ? path.join(location, name.trim()) : null;
+  };
+  ipcMain.handle('project:folder-state', async (e, { location, name }) => {
+    const folder = newFolder(location, name);
+    return folder ? { folder, ...await folderState(folder) } : null;
+  });
+  // New Project… is the one way in (the author, 2026-10-11; Open Folder… was not clear): a folder at its location that
+  // is there already, with files or a repository, is taken as it is.
   ipcMain.handle('project:new', async (e, { name, location, git, color, icon }) => {
     name = name?.trim();
     const bad = nameError(name) || lookError({ color, icon });
     if (bad) return { error: bad };
-    location = location?.trim().replace(/^~(?=$|[\\/])/, app.getPath('home'));
-    if (!location || !path.isAbsolute(location)) return { error: 'the location must be the full path of a folder' };
-    const folder = path.join(location, name);
-    if (fs.existsSync(folder) && (!fs.statSync(folder).isDirectory() || fs.readdirSync(folder).length)) {
-      return { error: `${folder} is already there and not empty; to work in it, use Open Folder…` };
-    }
+    const folder = newFolder(location, name);
+    if (!folder) return { error: 'the location must be the full path of a folder' };
+    const there = await folderState(folder);
+    if (there.state === 'file') return { error: `${folder} is a file, not a folder` };
+    if (there.state === 'project') return { error: `${folder} is the project ${there.project}'s already` };
     fs.mkdirSync(folder, { recursive: true });
-    if (git) await worktrees.initRepo(folder).catch((err) => console.error('[git]', err.stderr || err.message));
+    if (git && there.state !== 'repo') await worktrees.initRepo(folder).catch((err) => console.error('[git]', err.stderr || err.message));
     const entry = store.projectFor(folder, name, { color, icon });
     sendProjects(); // the projects' menus and the Welcome screen list it
     return { id: entry.id };

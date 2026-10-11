@@ -3,7 +3,9 @@
 // label's menu): every project on the left, open or not, and + New Project; on the right one project's configuration,
 // which its tasks are made from (tasks.md, Projects). New Project, as JetBrains': a name, and the location its folder
 // goes in (~/Kulisa unless the human types or browses to another); it shows the folder it makes, so the human knows
-// where the agent's files are; Create Git repository (on by default: each task gets a copy of its own). Create makes it
+// where the agent's files are, or that the folder is there and is taken as it is (the one way to make a project of
+// existing code); Create Git repository (on by default: each task gets a copy of its own; not shown for a repository).
+// Create makes it
 // without opening it, and goes on to its configuration (its agents first: it has none yet); Open opens a project not
 // open. A project's configuration: its folder, which stays; its code, the repositories or folders its tasks copy (the
 // radio makes one the default: its agents start in its copy; × removes one; Add Folder… and Clone add one); its agents
@@ -14,7 +16,7 @@
 // checks and saves (project:new, project:settings, project:repo-*, project:agent-*, project:profile-*). Reka's parts:
 // the projects a Listbox, the defaults RadioGroups, the colors a ColorSwatchPicker, the icons a ToggleGroup, Create Git
 // repository a Checkbox, the fields Fields.
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { CheckboxIndicator, CheckboxRoot, ColorSwatchPickerItem, ColorSwatchPickerItemSwatch, ColorSwatchPickerRoot, DialogClose, FieldControl,
   FieldDescription, FieldLabel, FieldRoot, ListboxContent, ListboxItem, ListboxRoot, RadioGroupIndicator, RadioGroupItem, RadioGroupRoot,
   ToggleGroupItem, ToggleGroupRoot } from 'reka-ui';
@@ -46,7 +48,21 @@ const showDefaults = () => { defRepo.value = repos.value[0]?.folder ?? ''; defAg
 
 const isNew = computed(() => !editing.value);
 const target = computed(() => (editing.value ? folder.value : `${place.value.trim().replace(/[\\/]+$/, '')}${sep.value}${name.value.trim()}`));
-const where = computed(() => (!editing.value && name.value.trim() && place.value.trim() ? `The project will be created in ${target.value}` : ''));
+// What the folder at the location is (app.js, project:folder-state), asked again as the name or location is typed.
+const there = ref<{ state: string; project?: string } | null>(null);
+watch([name, place, editing], async () => {
+  const asked = target.value;
+  const r = editing.value ? null : await kulisa.invoke<{ state: string; project?: string } | null>('project:folder-state', { location: place.value, name: name.value });
+  if (asked === target.value) there.value = r;
+});
+const where = computed(() => {
+  if (editing.value || !name.value.trim() || !place.value.trim()) return '';
+  const t = target.value;
+  return ({ files: `${t} is there already: the project takes it as it is, its files kept`,
+    repo: `${t} is a git repository: the project takes it as it is`,
+    project: `${t} is the project ${there.value?.project}'s already`, file: `${t} is a file, not a folder` } as Record<string, string>)[there.value?.state ?? '']
+    ?? `The project will be created in ${t}`;
+});
 const iconValues = computed(() => [...(choices.value.favicon ? ['favicon'] : []), ...choices.value.icons]);
 const iconTitle = (v: string) => (v === 'favicon' ? "The site's favicon" : v === 'logo' ? "Kulisa's curtain" : v);
 const base = (f: string) => f.split(/[\\/]/).pop()!;
@@ -202,7 +218,7 @@ const fromAnother = (): MenuItem[] => others.value.map((p) => ({ label: p.name, 
       <FieldRoot id="nplocationrow" class="field" :hidden="!isNew"><FieldLabel>Location</FieldLabel><span class="pick"><FieldControl id="nplocation" v-model="place"
         spellcheck="false" @input="error = ''" /><button id="npbrowse" type="button" @click="browse">Browse…</button></span>
         <FieldDescription id="npwhere" class="hint">{{ where }}</FieldDescription></FieldRoot>
-      <label id="npgitrow" class="check" :hidden="!isNew"><CheckboxRoot id="npgit" v-model="git" class="checkbox"><CheckboxIndicator as-child><Icon name="i-done" /></CheckboxIndicator></CheckboxRoot>
+      <label id="npgitrow" class="check" :hidden="!isNew || there?.state === 'repo'"><CheckboxRoot id="npgit" v-model="git" class="checkbox"><CheckboxIndicator as-child><Icon name="i-done" /></CheckboxIndicator></CheckboxRoot>
         Create Git repository <small>each task gets its own copy of the code</small></label>
       <div id="npreposrow" class="field" :hidden="isNew"><span>Code</span>
         <RadioGroupRoot id="nprepos" v-model="defRepo" aria-label="Code" @update:model-value="(folder) => code('project:repo-default', { folder })">

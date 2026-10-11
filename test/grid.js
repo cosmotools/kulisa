@@ -69,9 +69,9 @@ module.exports = (test) => {
     await ctx.call('browser_navigate', { profile: 'sam-seller', url: `${SITE}/app` });
     assert.equal(await who(ctx, 'sam-seller'), 'Signed out', "the first project's sign-ins stay there");
 
-    // +: a menu of the projects (the open ones marked), Open Folder, and the dialog for the rest.
+    // +: a menu of the projects (the open ones marked), New Project, and the dialog for the rest.
     await ui(`document.getElementById('openProjects').click()`);
-    assert.deepEqual(await menuRows(ui), ['project', 'other', '-', 'Projects…', 'New Project…', 'Open Folder…', '-', 'Close Project', 'Delete Project…']);
+    assert.deepEqual(await menuRows(ui), ['project', 'other', '-', 'Projects…', 'New Project…', '-', 'Close Project', 'Delete Project…']);
     const rows = await ui(`[...document.querySelectorAll('.menu[data-state="open"] .item')].slice(0, 2).map((b) => ({ dot: getComputedStyle(b.querySelector('.dot')).backgroundColor,
       folder: b.querySelector('small').textContent, check: b.querySelector('kbd').textContent }))`);
     assert.deepEqual(rows.map((r) => r.folder), [project, other], 'each with its folder');

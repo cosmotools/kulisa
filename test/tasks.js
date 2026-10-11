@@ -720,14 +720,19 @@ module.exports = (test) => {
       await waitFor(async () => (await ui(`document.getElementById('nplocation').value`)) === made);
     } finally { electron.dialog.showOpenDialog = showOpenDialog; }
     const named = (n) => ui(`(() => { const i = document.getElementById('npname'); i.value = ${JSON.stringify(n)}; i.dispatchEvent(new Event('input')); })()`);
+    // A folder there already would be taken as it is (the form says so as it is typed); a file is refused.
     await named('Taken');
+    await waitFor(async () => (await ui(`document.getElementById('npwhere').textContent`)) === `${path.join(made, 'Taken')} is there already: the project takes it as it is, its files kept`);
+    assert.equal(await ui(`document.getElementById('npgitrow').hidden`), false, 'Create Git repository: it is none');
+    fs.writeFileSync(path.join(made, 'note'), '');
+    await named('note');
     await ui(`document.getElementById('npform').requestSubmit()`);
-    await waitFor(async () => /already there and not empty/.test(await ui(`document.getElementById('nperror').textContent`)));
+    await waitFor(async () => /is a file, not a folder/.test(await ui(`document.getElementById('nperror').textContent`)));
     // An error is text to copy and search for: it can be selected (the window's other words cannot).
     assert.deepEqual(await ui(`(() => { const e = document.getElementById('nperror'); getSelection().selectAllChildren(e);
       return [getComputedStyle(e).userSelect, getSelection().toString() === e.textContent, getComputedStyle(document.getElementById('pjtitle')).userSelect]; })()`),
       ['text', true, 'none']);
-    assert.ok(!shell.store.projects().some((p) => p.id === 'taken'), 'a folder with files in it is not taken');
+    assert.ok(!shell.store.projects().some((p) => p.id === 'note'), 'a file is not taken');
     await named('Shop');
     // Another color and icon. Created, it is not opened: the manager shows its configuration, and Open opens it (no
     // question where: no project is open here).
@@ -1051,29 +1056,26 @@ module.exports = (test) => {
     assert.ok(!(await menuRows(ui)).includes('spare'), 'gone from the menu');
     await closeMenu(ui);
 
-    // Open Folder… in the projects' menu: a new folder is made a project, not opened, as New Project's: the manager
-    // shows its configuration (opened at once, its first task started with no agent and no profiles). The same
-    // folder again opens that project.
+    // New Project… on a repository there already (the one way in: Open Folder… is gone): taken as it is, its files
+    // and its history kept, no git init; made, not opened, as any new project; Open opens it.
     const gone = path.join(root, 'gone');
-    fs.mkdirSync(gone);
-    const electron = require('electron'), showOpenDialog = electron.dialog.showOpenDialog;
-    electron.dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [gone] });
-    const openFolder = async () => {
-      await ui(`document.getElementById('openProjects').click()`);
-      await menuRows(ui);
-      await choose(ui, 'Open Folder…');
-    };
-    try {
-      await openFolder();
-      await waitFor(() => ui(`document.getElementById('projects')?.dataset.state === 'open' && document.getElementById('pjtitle').textContent === 'gone'
-        && !document.getElementById('npopen').hidden`));
-      assert.ok(projects().includes('gone') && !shell.open.has('gone'), 'made, not opened');
-      assert.equal(shell.current?.folder, project, 'the project on screen stays');
-      await closeSettings(ui);
-      ctx.asked.length = 0;
-      await openFolder();
-      await waitFor(() => shell.current?.folder === gone && shell.task?.loaded && shell.pty);
-    } finally { electron.dialog.showOpenDialog = showOpenDialog; }
+    fs.mkdirSync(gone); git(gone, 'init', '-q'); fs.writeFileSync(path.join(gone, 'a.txt'), 'a'); git(gone, 'add', '-A'); git(gone, 'commit', '-qm', 'mine');
+    await ui(`document.getElementById('openProjects').click()`);
+    await menuRows(ui);
+    await choose(ui, 'New Project…');
+    await waitFor(() => ui(`document.getElementById('projects')?.dataset.state === 'open' && !document.getElementById('nplocationrow').hidden`));
+    await ui(`(() => { for (const [id, v] of [['npname', 'gone'], ['nplocation', ${JSON.stringify(root)}]]) {
+      const i = document.getElementById(id); i.value = v; i.dispatchEvent(new Event('input')); } })()`);
+    await waitFor(async () => (await ui(`document.getElementById('npwhere').textContent`)) === `${gone} is a git repository: the project takes it as it is`);
+    assert.equal(await ui(`document.getElementById('npgitrow').hidden`), true, 'no Create Git repository: it is one');
+    await ui(`document.getElementById('npform').requestSubmit()`);
+    await waitFor(() => ui(`document.getElementById('pjtitle')?.textContent === 'gone' && !document.getElementById('npopen').hidden`));
+    assert.ok(projects().includes('gone') && !shell.open.has('gone'), 'made, not opened');
+    assert.equal(git(gone, 'log', '--format=%s'), 'mine', 'its history as it was');
+    assert.equal(fs.readFileSync(path.join(gone, 'a.txt'), 'utf8'), 'a');
+    ctx.asked.length = 0;
+    await ui(`document.getElementById('npopen').click()`);
+    await waitFor(() => shell.current?.folder === gone && shell.task?.loaded && shell.pty);
     assert.equal(ctx.asked.pop()?.message, 'Where to open the project gone?', 'opened, as any project not open');
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
     await ui(`document.getElementById('openProjects').click()`);

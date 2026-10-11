@@ -45,10 +45,12 @@ class Store {
   dirOf(p) { const d = path.join(this.dir, 'projects', p.id); fs.mkdirSync(d, { recursive: true }); return d; }
   // The project of a folder; a new one if no project has it, with what the human chose for it (New Project…: color,
   // icon, its first agent), else the next free color.
+  // The project a folder is (its own or one of its repositories), or null.
+  projectOf(folder) { return this.projects().find((p) => [p.folder, ...(p.repos || [])].some((f) => samePath(f, folder))) || null; }
   projectFor(folder, name = path.basename(folder) || folder, { color, icon, agent } = {}) {
-    const list = this.projects();
-    const found = list.find((p) => [p.folder, ...(p.repos || [])].some((f) => samePath(f, folder)));
+    const found = this.projectOf(folder);
     if (found) return found;
+    const list = this.projects();
     const base = slugOf(name, 'project');
     let id = base, n = 2;
     while (list.some((p) => p.id === id)) id = `${base}-${n++}`;

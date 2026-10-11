@@ -38,7 +38,7 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   - **A task tab's right-click menu**: the shown one's profiles, as its chip's; Rename…; Show Folder, its folder (its
     worktree, or the project's without git) in the OS's file manager (`shell.openPath`); Delete Task….
   - **The button after the islands** is the menu of the projects (each with its color and folder, the open ones marked
-    ✓; × on hover deletes one), Projects…, New Project…, Open Folder…, Close Project and Delete Project… (the shown
+    ✓; × on hover deletes one), Projects…, New Project…, Close Project and Delete Project… (the shown
     one).
 - **The projects' manager** (the Projects button in the title bar, left of ☰; Projects… in the projects' menu; Project
   Settings… in a label's menu opens it at that project): one dialog, every project on the left, open or not (the open
@@ -48,19 +48,17 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   it. A dialog, not a window of the OS: no process more.
 - **New Project** (in the manager; New Project… in the menu and on the Welcome screen), as JetBrains': a name and a location, `~/Kulisa` (every new project's place, as JetBrains'
   `~/PycharmProjects`) unless they type or browse to another; the dialog shows the folder it makes
-  (`<location>/<name>`; one that is there must be empty), so the human knows where the agent's files are; its color
-  (the next free one) and its icon. Create Git repository is on by default: `git init` and an empty
-  first commit ("Initial commit"; nothing of the folder is in it), as a worktree needs one, so the first task already
-  has a copy of its own. Without git's user name and email set there is no commit, and tasks work in the folder.
+  (`<location>/<name>`), so the human knows where the agent's files are; its color (the next free one) and its icon.
+  **A folder that is there already is taken as it is**, its files kept, and the dialog says so as the name and the
+  location are typed ("… is there already", "… is a git repository"; refused: a file, or a folder a project has): the
+  one way to make a project of existing code (Open Folder… was until 2026-10-11: what it did was not clear, the
+  author). Create Git repository is on by default, not shown for a repository: `git init` and an empty first commit
+  ("Initial commit"; nothing of the folder is in it), as a worktree needs one, so the first task already has a copy of
+  its own. Without git's user name and email set there is no commit, and tasks work in the folder.
   **Create makes it without opening it**: the manager goes on to its configuration (its agents' accounts: New
   Account…; its code, profiles), and **Open** there (at the footer's start, for any project not open) opens it, after
   saving what was changed (the author, 2026-10-11: opening right after Create asked where, unasked for).
-- **Open Folder…** (in the projects' menu and on the Welcome screen): a folder a project has (its own or one of its
-  repositories) opens that project. Another folder becomes a project (its name the folder's, the next free color, its
-  site's favicon as its icon when it has one) and, as New Project's, is made, not opened: the manager goes on to its
-  configuration, and Open there opens it (the author, 2026-10-11: opened at once, its first task started with no agent
-  and no profiles, with nothing saying where they are made).
-- **Opening another project** (the + menu, Open Folder… on a project's folder, Open in the manager) in a window with projects open asks where, as
+- **Opening another project** (the projects' menu, Open in the manager, the Welcome screen) in a window with projects open asks where, as
   JetBrains does: **This Window** adds its tab at the end and shows it, the one on screen keeps running; **New
   Window** opens it in a window of its own. From the Welcome screen (no tab open) it opens in that window without a
   question; a project already open is shown in its window. Showing
@@ -106,8 +104,8 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   and the settings say so, with Show, while it exists (the human moves its files, or asks an agent).
 - **The Welcome screen** (the term: CLAUDE.md) is what the window shows with no project open: at the first start, and
   after the last project is closed (Close Project, the middle button on its label, deleting the project). What a project
-  is, in a sentence (its code, its agents, its profiles; a task an agent in a copy of the code); New Project…, Open
-  Folder…; every project, each with its icon in its color as on its label in the bar (a click opens one; its
+  is, in a sentence (its code, its agents, its profiles; a task an agent in a copy of the code); New Project…; every
+  project, each with its icon in its color as on its label in the bar (a click opens one; its
   right-click menu: Open, Project Settings…, Delete Project…; × deletes it too); and links (the
   documentation, GitHub, reporting an issue, also in ☰; they open in the user's browser) with Kulisa's version. Later starts
   open the windows that were open, each with its projects, showing the one shown last (`windows` in `settings.json`);
@@ -186,7 +184,7 @@ to the human; the window's IPC (`app.js`) and the MCP tools are handles on it:
 
 | Action | The human | The agent | The core |
 |---|---|---|---|
-| Open a project | + menu, Open Folder…, New Project…, the Welcome screen | none: it works inside one project | `openLater` (`app.js`), asking This Window or New Window; then `openProject` or `openInNewWindow` |
+| Open a project | the projects' menu, Open in the manager, the Welcome screen | none: it works inside one project | `openLater` (`app.js`), asking This Window or New Window; then `openProject` or `openInNewWindow` |
 | Close a project | its label's menu, the middle button on its label, × on its last open task, Close Project in the projects' menu | none: it would stop itself | `closeProjects` (`app.js`), asking first |
 | Close a window, quit | the OS's ×, ☰ → Exit | none | `closeProjects` for the window's projects; `quit` (`app.js`), asking only when an agent works |
 | Move a project | Move to New Window, Move to Window, dragging its label | none: where the human sees it is the human's | `moveProject` (`app.js`) |
