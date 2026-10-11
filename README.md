@@ -22,7 +22,8 @@ npm install          # Node 22.13+. Rebuilds node-pty for Electron.
 npm run build        # the window (src/renderer, Vue + TypeScript): type check, then Vite into dist/renderer
 npm start            # builds the window, then opens the windows and groups open last; at first start the projects' manager on New Project
 KULISA_PROJECT=~/my-app npm start
-npm test             # unit tests, then the real app against a local test site (groups in parallel), then restarted
+npm run knip         # no file, export or dependency that nothing uses (docs/testing.md, Dead code)
+npm test             # unit tests, knip, then the real app against a local test site (groups in parallel), then restarted
 npm run test:visible # the same on your screen (npm test uses its own screen on Linux: sudo apt install xvfb openbox)
 npm run package      # the app for this platform, in out/
 npm run make         # installers for this platform, in out/make/ (.deb on Linux, .exe on Windows, .dmg/.zip on macOS)

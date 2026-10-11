@@ -7,7 +7,7 @@
 const fs = require('fs');
 const path = require('path');
 const { Task } = require('./tasks');
-const worktrees = require('./worktrees');
+const { freeBranch, createWorktree, removeWorktree, merged, repoOf, changes, clone } = require('./worktrees');
 const { repoName } = require('./names');
 
 class Project {
@@ -72,13 +72,13 @@ class Project {
     let entry = { n, name, offset: 0, folder: this.folder };
     if (gits.length) {
       const beside = repos.length === 1;
-      const branch = await worktrees.freeBranch(gits, name, { beside });
+      const branch = await freeBranch(gits, name, { beside });
       const home = beside ? null : freeFolder(path.join(this.shell.projectsHome, `${this.id}@${name}`));
       const copies = [];
       try {
-        for (const r of gits) copies.push(await worktrees.createWorktree(r, branch, home && path.join(home, copyName(copies, r))));
+        for (const r of gits) copies.push(await createWorktree(r, branch, home && path.join(home, copyName(copies, r))));
       } catch (e) {
-        for (const c of copies) await worktrees.removeWorktree(c);
+        for (const c of copies) await removeWorktree(c);
         if (home) fs.rmSync(home, { recursive: true, force: true });
         return { error: e.stderr || e.message };
       }
@@ -103,9 +103,9 @@ class Project {
     for (const r of this.repos()) {
       if (entry.copies.some((c) => c.repo === r) || (await gitOf(r)) !== 'ok') continue;
       entry.home ??= freeFolder(path.join(this.shell.projectsHome, `${this.id}@task-${task.n}`));
-      const branch = await worktrees.freeBranch([r], entry.branch);
+      const branch = await freeBranch([r], entry.branch);
       try {
-        const c = await worktrees.createWorktree(r, branch, path.join(entry.home, copyName(entry.copies, r)));
+        const c = await createWorktree(r, branch, path.join(entry.home, copyName(entry.copies, r)));
         entry.copies.push(c); made.push(c);
       } catch (e) { console.warn('[tasks] copy:', e.stderr || e.message); }
     }
@@ -132,7 +132,7 @@ class Project {
     let found = false;
     for (const t of this.closedTasks()) {
       if (t.entry.merged || !t.entry.copies?.length) continue;
-      if ((await Promise.all(t.entry.copies.map((c) => worktrees.merged(c)))).every(Boolean)) { t.entry.merged = true; found = true; }
+      if ((await Promise.all(t.entry.copies.map((c) => merged(c)))).every(Boolean)) { t.entry.merged = true; found = true; }
     }
     if (found) this.save();
     return found;
@@ -181,7 +181,7 @@ class Project {
 
 // A project's repositories or folders, the default one first: those added in Project Settings…, else its own folder.
 const reposOf = (entry) => (entry.repos?.length ? entry.repos : [entry.folder]);
-const gitOf = async (folder) => { const r = await worktrees.repoOf(folder).catch(() => null); return r?.commit ? 'ok' : r ? 'no-commit' : 'none'; };
+const gitOf = async (folder) => { const r = await repoOf(folder).catch(() => null); return r?.commit ? 'ok' : r ? 'no-commit' : 'none'; };
 // A copy's folder name in a task's folder of copies: its repository's, -2 when another copy has it.
 function copyName(copies, repo) {
   const base = path.basename(repo);
@@ -195,7 +195,7 @@ function freeFolder(f) {
   while (fs.existsSync(free)) free = `${f}-${n++}`;
   return free;
 }
-const changesOf = async (copies) => (await Promise.all(copies.map((c) => worktrees.changes(c))))
+const changesOf = async (copies) => (await Promise.all(copies.map((c) => changes(c))))
   .reduce((a, b) => ({ commits: a.commits + b.commits, dirty: a.dirty + b.dirty }), { commits: 0, dirty: 0 });
 
 // A task deleted for good, the one way it is done (Delete, removing a project), once it is not running: each copy's
@@ -206,7 +206,7 @@ const changesOf = async (copies) => (await Promise.all(copies.map((c) => worktre
 async function deleteTask(shell, p, entry) {
   const { store } = shell;
   const data = store.taskOf(p, entry.n);
-  for (const c of entry.copies || []) await worktrees.removeWorktree(c);
+  for (const c of entry.copies || []) await removeWorktree(c);
   if (entry.home) fs.rmSync(entry.home, { recursive: true, force: true });
   if (entry.copies?.length) {
     const saved = data.agent();
@@ -249,7 +249,7 @@ async function cloneRepo(shell, id, url) {
   if (!name) return { error: 'not a repository URL' };
   const into = path.join((await gitOf(p.folder)) === 'none' ? p.folder : path.dirname(p.folder), name);
   if (fs.existsSync(into)) return { error: `${into} is already there` };
-  try { await worktrees.clone(url.trim(), into); } catch (e) { fs.rmSync(into, { recursive: true, force: true }); return { error: e.stderr || e.message }; }
+  try { await clone(url.trim(), into); } catch (e) { fs.rmSync(into, { recursive: true, force: true }); return { error: e.stderr || e.message }; }
   return addRepo(shell, id, into);
 }
 // Made the default (new tasks' agents start in its copy), or removed: only when no task has a copy of it or works in
@@ -415,5 +415,5 @@ function faviconOf(folder) {
   return null;
 }
 
-module.exports = { Project, askDeleteProject, deleteProjectData, faviconOf, reposOf, gitOf, addRepo, cloneRepo, defaultRepo, removeRepo, reposInfo,
+module.exports = { Project, askDeleteProject, deleteProjectData, faviconOf, addRepo, cloneRepo, defaultRepo, removeRepo, reposInfo,
   askDropProfile, dropProfile, deleteProfile, agentsInfo, addAgent, defaultAgent, removeAgent, deleteAccount, PROJECT_ICONS };

@@ -23,4 +23,4 @@ const slugOf = (name, fallback) => name.trim().toLowerCase().replace(/[^\p{L}\p{
 // a project's or a clone's name until the human gives one.
 const repoName = (url) => (url || '').trim().replace(/[\\/]+$/, '').split(/[\\/:]/).pop().replace(/\.git$/, '');
 
-module.exports = { nameError, nameChar, slugOf, repoName, MAX, RULE };
+module.exports = { nameError, nameChar, slugOf, repoName, MAX };

@@ -11,7 +11,7 @@ import { scheduleLayout } from './grid';
 // window left).
 export const dialogsOpen = shallowRef(0);
 const dialogs = new Set<() => void>(), menus = new Set<() => void>();
-export const viewsCovered = () => dialogsOpen.value > 0 || store.loading;
+const viewsCovered = () => dialogsOpen.value > 0 || store.loading;
 export const showViews = () => kulisa.invoke('views:hidden', viewsCovered());
 
 // Opened at once, as Reka expects (a right-click menu takes the pointer's place in the same turn); the pages follow.
@@ -36,7 +36,7 @@ export function covered(how: 'hide' | 'pictures') {
   });
   return { open: model, ready };
 }
-export const closeMenus = () => { for (const close of [...menus]) close(); };
+const closeMenus = () => { for (const close of [...menus]) close(); };
 export const closeLayers = () => { closeMenus(); for (const close of [...dialogs]) close(); };
 // Leaving the window closes a menu, as the OS's own menus close.
 addEventListener('blur', closeMenus);

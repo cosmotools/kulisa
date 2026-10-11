@@ -112,6 +112,9 @@ unasked. This paragraph is removed when the rewrite is finished.
   - What only some agents can do (Claude Code's `--resume`, `--fork-session`, plugin, hooks) is an optional extra
     per agent, kept in one place per agent, and the feature still works without it.
   - Claude Code is the default and the best supported today; that is fine as long as the others are not locked out.
+- **A module is required destructured** (`const { repoOf } = require('./worktrees')`), never through an object
+  (`worktrees.repoOf()`): knip sees no use of a CommonJS module's member that way (docs/testing.md, Dead code). Until
+  the main process moves to TypeScript.
 - **Keep the amount of own code minimal, so the project stays under control.** Prefer maintained open-source
   libraries to writing our own.
   - Before writing browser or CDP code, check whether playwright-core already does it: picker
@@ -189,7 +192,8 @@ unasked. This paragraph is removed when the rewrite is finished.
   - Fix a bug by first reproducing it as a failing test, then making it pass (the session-cookie bug was done
     this way).
   - **The full suite (`npm test`, about a minute) runs once, when the author says the work is done** ("всё ок",
-    "commit"), before the commit; fix what fails and run it again. While building: `npm run test:unit` (a second),
+    "commit"), before the commit; fix what fails and run it again. `npm run knip` once a step, when its code is
+    written, before it is shown to the author (not after every change). While building: `npm run test:unit` (a second),
     one group (`npm test -- <group>`), a screenshot (`KULISA_SHOT`) or the author's running Kulisa, restarted with
     the change. On Linux the tests run on a screen of their own (Xvfb, openbox): they never take the author's
     focus.
@@ -217,8 +221,9 @@ unasked. This paragraph is removed when the rewrite is finished.
 
 ```sh
 npm start   # the app: the groups open last, plus $KULISA_PROJECT's (at first start none: the manager on New Project)
-npm test    # unit tests, then the e2e groups in parallel, each the real app against a local test site, then restarted
+npm test    # unit tests, knip, then the e2e groups in parallel, each the real app against a local test site, then restarted
 npm run test:unit     # the unit tests alone (plain Node, a second)
+npm run knip  # no file, export or dependency nothing uses: once a step, before showing it (docs/testing.md, Dead code)
 npm run test:visible  # e2e on your screen, to watch them (npm test uses Xvfb on Linux when installed)
 npm run make  # installers for this platform with Electron Forge (forge.config.js), in out/make/
 npm run icons # renders assets/icon.svg to icon.png/.ico/.icns (committed; run after changing the SVG)

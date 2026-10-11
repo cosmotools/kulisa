@@ -17,11 +17,11 @@ const { SessionCookies } = require('./session-cookies');
 const { Project, askDeleteProject, deleteProjectData, faviconOf, addRepo, cloneRepo, defaultRepo, removeRepo, reposInfo, askDropProfile, dropProfile,
   agentsInfo, addAgent, defaultAgent, removeAgent, deleteAccount, deleteProfile, PROJECT_ICONS } = require('./projects');
 const { AppWindow, COLORS } = require('./window');
-const worktrees = require('./worktrees');
-const agents = require('./agents');
+const { repoOf, initRepo, clone } = require('./worktrees');
+const { AGENTS, findAgent, accountEmail, signOut, agentVersion, installLine, installAgent } = require('./agents');
 const { nameError, repoName } = require('./names');
 const { startTerminal, stopTerminal, forgetTerminal } = require('./terminal');
-const keys = require('./keys');
+const { keymap, match } = require('./keys');
 
 // Electron shows a blocking modal dialog on an uncaught main-process exception, which also stops the proxy and
 // the MCP server; log instead.
@@ -449,7 +449,7 @@ function start(options = {}) {
     if (!fs.statSync(folder).isDirectory()) return { state: 'file' };
     const of = store.projectOf(folder);
     if (of) return { state: 'project', project: of.name };
-    return { state: (await worktrees.repoOf(folder)) ? 'repo' : fs.readdirSync(folder).length ? 'files' : 'empty' };
+    return { state: (await repoOf(folder)) ? 'repo' : fs.readdirSync(folder).length ? 'files' : 'empty' };
   };
   const full = (f) => {
     f = f?.trim().replace(/^~(?=$|[\\/])/, app.getPath('home'));
@@ -480,7 +480,7 @@ function start(options = {}) {
         if (refused(f, states[i])) return { error: refused(f, states[i]) };
       }
       for (const [i, f] of given.entries()) {
-        if (git && states[i].state !== 'repo') await worktrees.initRepo(f).catch((err) => console.error('[git]', err.stderr || err.message));
+        if (git && states[i].state !== 'repo') await initRepo(f).catch((err) => console.error('[git]', err.stderr || err.message));
       }
       [folder] = given;
       if (given.length > 1) repos = given;
@@ -497,7 +497,7 @@ function start(options = {}) {
         if (intos.includes(folder) && urls.length > 1 || new Set(intos).size < intos.length) return { error: 'two repositories of the same name' };
         fs.mkdirSync(urls.length === 1 ? path.dirname(folder) : folder, { recursive: true }); // git runs there
         for (const [i, u] of urls.entries()) {
-          try { await worktrees.clone(u, intos[i]); } catch (err) {
+          try { await clone(u, intos[i]); } catch (err) {
             // None of it kept: a project with half its code would look made.
             for (const f of intos.slice(0, i + 1)) if (f !== folder || there.state === 'new') fs.rmSync(f, { recursive: true, force: true });
             if (there.state === 'new') fs.rmSync(folder, { recursive: true, force: true });
@@ -507,7 +507,7 @@ function start(options = {}) {
         if (urls.length > 1) repos = intos;
       } else {
         fs.mkdirSync(folder, { recursive: true });
-        if (git && there.state !== 'repo') await worktrees.initRepo(folder).catch((err) => console.error('[git]', err.stderr || err.message));
+        if (git && there.state !== 'repo') await initRepo(folder).catch((err) => console.error('[git]', err.stderr || err.message));
       }
     }
     let entry = store.projectFor(folder, name, { color, icon });
@@ -629,7 +629,7 @@ function start(options = {}) {
     const w = at(e), own = shell.accounts.find(agentId);
     if (id && !store.projects().some((x) => x.id === id)) return { error: `no project ${id}` };
     if (!own?.own || !own.agent.config?.login) return { error: `${own?.name || agentId} has no accounts` };
-    const found = await agents.findAgent(own.agent, app.getPath('home'));
+    const found = await findAgent(own.agent, app.getPath('home'));
     if (!found?.path) return { error: `${own.name} is not installed: install it in ☰ → Agents…` };
     const r = shell.accounts.prepare(agentId);
     if (r.error) return r;
@@ -651,11 +651,11 @@ function start(options = {}) {
     openers.delete(token);
     forgetTerminal(key);
     await (await page)?.close();
-    const got = await agents.accountEmail(own.agent, found, r.dir);
+    const got = await accountEmail(own.agent, found, r.dir);
     // One it has already (the same email): that one; the new folder signed out and gone.
     const existing = got && shell.accounts.byEmail(agentId, got.email);
     if (cancelled || !got || existing) {
-      if (got) await agents.signOut(own.agent, found, r.dir);
+      if (got) await signOut(own.agent, found, r.dir);
       shell.accounts.remove(r.dir);
       if (existing) return id ? addAgent(shell, id, existing.id) : { error: `${existing.name} is an account already` };
       return { error: cancelled ? null : `Not signed in: ${own.name} ended with code ${code}.` };
@@ -735,12 +735,14 @@ function start(options = {}) {
     });
     // The first window's page tells how Chromium presents itself, before any profile is made.
     await windows[0].w.load(windows[0].shown);
-    const mimicChrome = require('./mimic-chrome');
-    shell.chromeIdentity = mimic ? mimicChrome.chromeIdentity(await mimicChrome.nativeIdentity(windows[0].w.win.webContents)) : null;
-    shell.mcp = await require('./mcp-server').startMcpServer(shell, { port: options.mcpPort ?? 4450 });
-    require('./picker').installPicker(shell);
-    require('./ghost').installGhost(shell);
-    require('./master').installMasters(shell, { preload: path.join(__dirname, '..', 'preload', 'index.js'), colors: () => COLORS[shell.shade()] });
+    const { chromeIdentity, nativeIdentity } = require('./mimic-chrome');
+    shell.chromeIdentity = mimic ? chromeIdentity(await nativeIdentity(windows[0].w.win.webContents)) : null;
+    const { startMcpServer } = require('./mcp-server'), { installPicker } = require('./picker');
+    const { installGhost } = require('./ghost'), { installMasters } = require('./master');
+    shell.mcp = await startMcpServer(shell, { port: options.mcpPort ?? 4450 });
+    installPicker(shell);
+    installGhost(shell);
+    installMasters(shell, { preload: path.join(__dirname, '..', 'preload', 'index.js'), colors: () => COLORS[shell.shade()] });
 
     for (const [i, { w, shown }] of windows.entries()) {
       if (i) await w.load(shown);
@@ -766,14 +768,14 @@ function start(options = {}) {
   const custom = options.agent && { id: 'custom', name: options.agent.name || options.agent.command, custom: true,
     command: options.agent.command, shell: options.agent.shell, args: () => options.agent.args || [], voice: options.agent.voice,
     resume: options.agent.resume && (({ sessionId, transcript }) => sessionId && transcript && fs.existsSync(transcript) && options.agent.resume(sessionId)) };
-  const known = [...(custom ? [custom] : []), ...(options.agents || agents.AGENTS)];
+  const known = [...(custom ? [custom] : []), ...(options.agents || AGENTS)];
   // The agents with their accounts (accounts.js); an account is its agent with its config folder in its environment.
   shell.accounts = new Accounts(userData, known, (dir) => store.markDeleted(dir));
   shell.accounts.clean();
   // An account the human deleted (projects.js, deleteAccount): signed out with its agent's own command (what it keeps outside
   // its folder goes too: Claude Code's Keychain entry on macOS), then its folder.
   shell.dropAccount = async (a) => {
-    await agents.signOut(a.agent, await agents.findAgent(a.agent, app.getPath('home')), a.dir);
+    await signOut(a.agent, await findAgent(a.agent, app.getPath('home')), a.dir);
     shell.accounts.remove(a.dir);
   };
   // An agent or account a task may run (any: also an agent itself that has accounts, as for installing it, or a task
@@ -784,7 +786,7 @@ function start(options = {}) {
     return { ...a.agent, id: a.id, agentId: a.agent.id, name: a.name, configDir: a.own ? a.agent.config?.home() ?? null : a.dir,
       env: a.own ? {} : { [a.agent.config.env]: a.dir } };
   };
-  shell.findAgent = agents.findAgent;
+  shell.findAgent = findAgent;
   const choosing = new Map(); // task key -> resolve(agent or null)
   // Asked in the task's window. cancel: the human may leave it as it is (changing the agent; not when there is
   // none yet).
@@ -802,8 +804,8 @@ function start(options = {}) {
   // shows it and looks again.
   const seen = new Map(); // `${agent id}\n${folder}` -> { found, version }
   const look = async (a, cwd, details) => {
-    const found = await agents.findAgent(a, cwd), old = seen.get(`${a.id}\n${cwd}`);
-    const s = { found, version: details ? await agents.agentVersion(found) : old?.version };
+    const found = await findAgent(a, cwd), old = seen.get(`${a.id}\n${cwd}`);
+    const s = { found, version: details ? await agentVersion(found) : old?.version };
     seen.set(`${a.id}\n${cwd}`, s);
     return s;
   };
@@ -825,7 +827,7 @@ function start(options = {}) {
     const list = await Promise.all(accounts.map(async ({ id, agent: a, name, dir, own }) => {
       const f = check || details ? (await of(a)).found : null;
       return {
-        id, agent: a.id, name, maker: a.maker, needs: a.needs, site: a.site, install: agents.installLine(a),
+        id, agent: a.id, name, maker: a.maker, needs: a.needs, site: a.site, install: installLine(a),
         account: own ? null : dir,
         ...((check || details) && { installed: !!f }),
         ...(details && { path: f?.path ?? null, onPath: f?.onPath ?? null, version: (await of(a)).version }),
@@ -837,7 +839,7 @@ function start(options = {}) {
   ipcMain.handle('agents:install', async (e, { id }) => {
     const w = at(e), a = shell.agentFor(id, { any: true });
     if (!a?.install) return { error: `nothing to install for ${id}` };
-    const code = await agents.installAgent(a, (data) => w?.send('agents:install-log', data));
+    const code = await installAgent(a, (data) => w?.send('agents:install-log', data));
     return { code, installed: !!(await look(a, w?.task?.folder || app.getPath('home'), true)).found };
   });
 
@@ -902,7 +904,7 @@ function start(options = {}) {
   // Every key typed in the window or in a profile's page comes here first (before-input-event), before the page
   // gets it: one of Kulisa's is taken (the page never sees it) and done, here or by the window; any other goes on
   // to the page, the terminal's agent or the site.
-  const keymap = keys.keymap();
+  const table = keymap();
   const ZOOM = { 'zoom.in': 1, 'zoom.out': -1, 'zoom.reset': 0, 'site.zoomIn': 1, 'site.zoomOut': -1, 'site.zoomReset': 0 };
   // A profile's tab by its webContents, of a task shown in a window.
   const tabOf = (wc) => {
@@ -919,7 +921,7 @@ function start(options = {}) {
     const zone = w ? w.keyZone : 'page';
     const pane = zone.startsWith('pane:') ? zone.slice('pane:'.length) : null;
     // The nearest group first: in a page, the page's keys (its zoom, its DevTools); in the window, Kulisa's.
-    const hit = keys.match(keymap, input, zone === 'page' ? ['page', 'global'] : pane ? ['global', 'page'] : ['global'], { always: zone === 'dialog' });
+    const hit = match(table, input, zone === 'page' ? ['page', 'global'] : pane ? ['global', 'page'] : ['global'], { always: zone === 'dialog' });
     if (!hit || (hit.id === 'devtools.app' && !appDevTools)) return;
     e.preventDefault();
     const win = w || t.w;

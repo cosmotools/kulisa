@@ -167,4 +167,4 @@ async function initRepo(folder) {
   await git(folder, ['commit', '--allow-empty', '-m', 'Initial commit']);
 }
 
-module.exports = { repoOf, freeBranch, createWorktree, changes, merged, renameBranch, removeWorktree, clone, initRepo, copyIgnored, slug, git };
+module.exports = { repoOf, freeBranch, createWorktree, changes, merged, renameBranch, removeWorktree, clone, initRepo };

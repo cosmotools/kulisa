@@ -1,8 +1,7 @@
 // After a restart, what agent.js, profiles.js and zoom-and-closing.js left: profiles, sign-ins, tabs, zoom.
 const fs = require('fs');
 const path = require('path');
-const { assert, root, userData, project, pfile, savedTabs, panel, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, menuOpen, rightClick,
-  box, pageBox, viewOn, dock, ctrl, near, projectTabs, showProject } = require('./helpers');
+const { assert, userData, pfile, SITE, sleep, waitFor, who } = require('./helpers');
 
 module.exports = (test) => {
   test('after a restart: profiles, sign-ins and tabs are back', async (ctx) => {

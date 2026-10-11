@@ -50,4 +50,4 @@ function describe({ method, params }) {
   return null;
 }
 
-module.exports = { installGhost, describe, MARK };
+module.exports = { installGhost, MARK };

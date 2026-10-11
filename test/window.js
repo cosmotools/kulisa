@@ -1,8 +1,8 @@
 // The window: the terminal, the app icon, the top bar, screenshots.
 const fs = require('fs');
 const path = require('path');
-const { assert, root, userData, project, pfile, savedTabs, panel, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, menuOpen, rightClick,
-  box, pageBox, viewOn, dock, ctrl, near, closeMenu } = require('./helpers');
+const { assert, root, userData, sleep, waitFor, menuRows, choose, manageProfiles, menuOpen, rightClick, box, viewOn,
+  closeMenu } = require('./helpers');
 
 module.exports = (test) => {
   test('the agent starts at the terminal\'s real size, not a default one', async ({ shell, ui }) => {

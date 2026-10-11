@@ -2,8 +2,9 @@
 const fs = require('fs');
 const path = require('path');
 const { clipboard } = require('electron');
-const { assert, root, userData, project, pfile, savedTabs, panel, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, menuOpen, rightClick,
-  box, pageBox, viewOn, dock, press, ctrl, near, projectTabs, projectTab, showProject, closeProject, savedWindows, closeMenu, plusMenu } = require('./helpers');
+const { assert, root, userData, project, pfile, SITE, sleep, waitFor, who, menuRows, choose, menuOpen, rightClick,
+  box, pageBox, viewOn, dock, press, projectTabs, projectTab, showProject, closeProject, savedWindows, closeMenu,
+  plusMenu } = require('./helpers');
 
 module.exports = (test) => {
   test('grid: a pane moved next to the terminal takes its page along', async ({ shell, ui }) => {

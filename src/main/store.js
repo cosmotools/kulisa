@@ -185,4 +185,4 @@ function writeFileAtomic(file, data, options) {
   } catch (e) { fs.rmSync(tmp, { force: true }); throw e; }
 }
 
-module.exports = { Store, TaskStore, copyProfile, writeFileAtomic, SESSION_COOKIES_FILE, PROJECT_COLORS };
+module.exports = { Store, copyProfile, writeFileAtomic, SESSION_COOKIES_FILE, PROJECT_COLORS };

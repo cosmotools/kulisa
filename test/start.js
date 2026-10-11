@@ -1,4 +1,5 @@
-// `npm test`: the unit tests (test/unit, plain Node, a second), the window built (npm run build: its types checked,
+// `npm test`: the unit tests (test/unit, plain Node, a second), knip (npm run knip: no file, export or dependency
+// nothing uses; docs/testing.md, Dead code), the window built (npm run build: its types checked,
 // then Vite), then the groups of e2e files, in parallel. Each group
 // runs in an app of its own (run.js), in its own folder, its files in order (later ones build on earlier ones), then
 // again after a restart. On Linux, with Xvfb and openbox installed, each on a screen of its own: the tests' windows
@@ -75,6 +76,8 @@ async function group(name) {
 (async () => {
   const unit = spawnSync(process.execPath, ['--test', 'test/unit/*.test.js'], { cwd: path.join(__dirname, '..'), stdio: 'inherit' });
   if (unit.status !== 0) process.exit(unit.status ?? 1);
+  const knip = spawnSync('npm', ['run', 'knip'], { cwd: path.join(__dirname, '..'), stdio: 'inherit', shell: process.platform === 'win32' });
+  if (knip.status !== 0) process.exit(knip.status ?? 1);
   const build = spawnSync('npm', ['run', 'build'], { cwd: path.join(__dirname, '..'), stdio: 'inherit', shell: process.platform === 'win32' });
   if (build.status !== 0) process.exit(build.status ?? 1);
   const names = process.argv.slice(2).filter((a) => GROUPS[a]);

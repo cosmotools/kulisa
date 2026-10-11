@@ -7,7 +7,7 @@ const path = require('path');
 const { EventEmitter } = require('events');
 const { session, WebContentsView } = require('electron');
 const { chromium } = require('playwright-core');
-const mimicChrome = require('./mimic-chrome');
+const { applyToSession, applyToWebContents } = require('./mimic-chrome');
 const { ensureTarget } = require('./cdp-proxy');
 
 let nextTab = 1;
@@ -49,7 +49,7 @@ class Profile extends EventEmitter {
     this.baseZoom = 1;
     this.siteZoom = { ...(cfg.zoom || {}) };
     this.session = cfg.session || session.fromPath(this.dir); // a session of its own: one in memory (master.js)
-    this.mimic = mimic ? mimicChrome.applyToSession(this.session, mimic) : null;
+    this.mimic = mimic ? applyToSession(this.session, mimic) : null;
     this.tabs = []; this.active = null; this.closedUrls = []; this.bounds = { x: 0, y: 0, width: 0, height: 0 };
     this.browser = null; this.context = null; this.endpoint = null; this.signinMode = false;
     this.hidden = false; // views hidden while a window-wide dialog is open or a pane is dragged (they draw above the HTML)
@@ -98,7 +98,7 @@ class Profile extends EventEmitter {
     // The identity override must be in place before the first request. A fresh webContents has no renderer and
     // CDP commands wait for one, so: about:blank (no network) → override → the real URL.
     const ready = this.mimic
-      ? wc.loadURL('about:blank').catch(() => {}).then(() => mimicChrome.applyToWebContents(wc, this.mimic)).catch((e) => console.error('[mimic]', e.message))
+      ? wc.loadURL('about:blank').catch(() => {}).then(() => applyToWebContents(wc, this.mimic)).catch((e) => console.error('[mimic]', e.message))
       : Promise.resolve();
     // tab.answered (null once it has): the URL's first page, or its error page, is there. Until then Chromium holds
     // CDP commands to the tab, so the proxy shows it to clients only after: a site that never answers would hang
@@ -163,7 +163,7 @@ class Profile extends EventEmitter {
         const v = new WebContentsView({ webPreferences: options.webPreferences, webContents: options.webContents });
         const t = this._add(v); t.url = url; this.activate(t.id);
         // A popup is already navigating; the session-level header hook covers its first request.
-        if (this.mimic) setImmediate(() => mimicChrome.applyToWebContents(v.webContents, this.mimic).catch(() => {}));
+        if (this.mimic) setImmediate(() => applyToWebContents(v.webContents, this.mimic).catch(() => {}));
         return v.webContents;
       },
     }));
@@ -304,7 +304,7 @@ class Profile extends EventEmitter {
       for (const t of this.tabs) {
         try { if (t.wc.debugger.isAttached()) t.wc.debugger.detach(); } catch {}
         t.targetId = null;
-        if (this.mimic) await mimicChrome.applyToWebContents(t.wc, this.mimic).catch(() => {});
+        if (this.mimic) await applyToWebContents(t.wc, this.mimic).catch(() => {});
       }
     } else {
       // Reconnect first, then leave the mode: the agent sees the profile again only when it is usable.

@@ -97,7 +97,7 @@ class ProxyClient {
     const fail = (message) => this._send({ id, error: { code: -32000, message }, ...(sessionId ? { sessionId } : {}) });
     this.proxy.emit('command', { profile: this.profile.id, task: this.profile.task, method, params, sessionId });
 
-    if (sessionId && this.sessions.get(sessionId)?.browser) return this._browserCommand(id, method, params, sessionId, reply, fail);
+    if (sessionId && this.sessions.get(sessionId)?.browser) return this._browserCommand(method, params, sessionId, reply, fail);
     if (sessionId) {
       const tab = this.sessions.get(sessionId)?.tab || this.childSessions.get(sessionId);
       if (!tab) return fail(`No session ${sessionId}`);
@@ -110,10 +110,10 @@ class ProxyClient {
       catch (e) { fail(e.message); }
       return;
     }
-    return this._browserCommand(id, method, params, undefined, reply, fail);
+    return this._browserCommand(method, params, undefined, reply, fail);
   }
 
-  _browserCommand(id, method, params, sessionId, reply, fail) {
+  _browserCommand(method, params, sessionId, reply, fail) {
     switch (method) {
       case 'Browser.getVersion':
         return reply({ protocolVersion: '1.3', product: `Chrome/${process.versions.chrome}`, revision: '', userAgent: this.profile.session.getUserAgent(), jsVersion: process.versions.v8 });

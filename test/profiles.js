@@ -1,9 +1,8 @@
 // Renaming and deleting profiles; DevTools.
 const fs = require('fs');
 const path = require('path');
-const { assert, root, userData, project, pfile, savedTabs, panel, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, closeSettings,
-  chooseProfile, setProfileField, menuOpen, rightClick,
-  box, pageBox, viewOn, dock, ctrl, near } = require('./helpers');
+const { assert, userData, pfile, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, closeSettings,
+  chooseProfile, setProfileField } = require('./helpers');
 
 module.exports = (test) => {
   test('rename keeps the profile and the sign-in', async (ctx) => {

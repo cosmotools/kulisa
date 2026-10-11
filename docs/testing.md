@@ -16,7 +16,7 @@ field leaves characters out as they are typed is end to end. A module a unit tes
 
 ## End to end: groups
 
-`npm test` runs the unit tests, builds the window (`npm run build`: its types checked, then Vite), then the groups of
+`npm test` runs the unit tests, knip (Dead code, below), builds the window (`npm run build`: its types checked, then Vite), then the groups of
 e2e files in parallel (`GROUPS` in `start.js`):
 
 - **A group is one app, its files in order**: later files build on what earlier ones left (profiles, sign-ins,
@@ -59,7 +59,7 @@ not listed for screenshots and focus differs from a desktop), so they never take
   and let go; a right-click's release; the keyboard) is tested with input events (`sendInputEvent`): a key that types
   needs its `char` event too (Enter sends a form on it), and `insertText` is awaited before the next key; the window
   has the keyboard first (`shell.win.focus()`), or focus events do not come. Tabs are chosen on the press:
-  `click(ui, el)` makes a mouse's whole click; a select (`SelectBox.vue`): `chosen`, `selectValues`, `select`.
+  `click(ui, el)` makes a mouse's whole click.
 - **Names say what the human sees or gets**, as a sentence ("deleting a task asks first, saying what goes"); the
   comments say why it matters (the bug it once was).
 - **Leave what later files need, say so** ("left closed for the restart phase"), and clean up the rest (a
@@ -70,15 +70,39 @@ not listed for screenshots and focus differs from a desktop), so they never take
   agent (a click, typing, a key) waits 0.5 s while it is shown in the page (`ghost.js`, Playwright's
   `showActions`): a test of the agent's tools takes about that per action.
 
+## Dead code
+
+`npm run knip` ([knip](https://knip.dev), under a second) fails on a file nothing loads, an export no other file
+imports, or a dependency nothing uses (and one used but not in `package.json`); `npm test` runs it after the unit
+tests. Inside a file, the window's TypeScript does the same for names and parameters (`noUnusedLocals`,
+`noUnusedParameters` in `src/renderer/tsconfig.json`, checked by `npm run build`). It runs once a step, when its
+code is written and before it is shown to the author, not after every change: midway, what is not called yet is
+dead.
+
+- What it finds goes: the file, or the `export` of what only its own file uses. A function made for the next step
+  waits for that step.
+- knip follows imports from the entry points its plugins know (`package.json`'s `main` and scripts, Vite with Vue,
+  `node --test`); what is loaded by a path is listed in `knip.jsonc` (the preload, the e2e groups `run.js` requires
+  by name), each with why. A finding about something used is fixed there, by its entry point; an `ignore` is the
+  last resort, with its reason beside it.
+- **A module is required destructured**, `const { repoOf } = require('./worktrees')`: knip does not see a member
+  of a CommonJS module reached through it (`const worktrees = require(…); worktrees.repoOf()`,
+  `require(…).repoOf()`) and takes it for unused (knip 6.41). This goes when the main process moves to TypeScript
+  (`import`).
+- Not covered yet: an unused import or local name in the `.js` files (the main process, the tests). TypeScript's
+  `noUnusedLocals` covers them once they move to it.
+- What knip cannot see at all: names that join two sides as strings (IPC channels, CSS classes, the sprite's icons,
+  tokens, the keys' table); when one side goes, the other is looked for by hand.
+
 ## Running them
 
 The full suite runs once, when the work is done, before the commit (CLAUDE.md); while building, the unit tests
-and the group of the files changed, or a screenshot. A whole run stops by itself after 5 minutes (`run.js`), a test
+and the group of the files changed, or a screenshot, and `npm run knip` once at the end of a step. A whole run stops by itself after 5 minutes (`run.js`), a test
 after 30 s.
 
 | File | What |
 |---|---|
-| `test/start.js` | `npm test`: the unit tests, the window built, the groups in parallel, each on its own screen, then after a restart |
+| `test/start.js` | `npm test`: the unit tests, knip, the window built, the groups in parallel, each on its own screen, then after a restart |
 | `test/run.js` | one app: starts Kulisa (`app.start`) with a fake agent (`cat`), runs the files it is given |
 | `test/helpers.js` | the group's folder, waiting, driving the window like the human |
 | `test/setup.js` | the fixture of a group that does not start with `agent.js` |

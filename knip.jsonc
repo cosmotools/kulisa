@@ -1,0 +1,17 @@
+// knip: files, exports and dependencies nothing uses (npm run knip; npm test runs it first). Its plugins find most
+// entry points themselves (package.json's main and scripts, Vite with Vue, node --test); listed here are those loaded
+// by a path instead of an import. docs/testing.md, "Dead code".
+{
+  "$schema": "https://unpkg.com/knip@6/schema-jsonc.json",
+  "entry": [
+    // The windows' preload, loaded by its path (window.js, master.js).
+    "src/preload/index.js",
+    // The e2e groups, which run.js requires by name (start.js → run.js --files=…).
+    "test/*.js",
+    "!test/helpers.js",
+    // The debug-kulisa skill's script, run by its path.
+    ".claude/skills/debug-kulisa/*.mjs"
+  ],
+  // Forge's makers and plugins, named by strings in forge.config.js.
+  "ignoreDependencies": ["@electron-forge/maker-.*", "@electron-forge/plugin-auto-unpack-natives"]
+}

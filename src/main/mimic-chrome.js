@@ -13,7 +13,7 @@ function brandList(major, fullVersion, full) {
   const greaseVersions = ['8', '99', '24'];
   const greaseBrand = `Not${chars[seed % chars.length]}A${chars[(seed + 1) % chars.length]}Brand`;
   const greaseMajor = greaseVersions[seed % greaseVersions.length];
-  const v = (x) => (full ? fullVersion : major);
+  const v = () => (full ? fullVersion : major);
   const grease = { brand: greaseBrand, version: full ? `${greaseMajor}.0.0.0` : greaseMajor };
   const chromium = { brand: 'Chromium', version: v() };
   const chrome = { brand: 'Google Chrome', version: v() };
@@ -92,4 +92,4 @@ async function applyToWebContents(wc, id) {
   await wc.debugger.sendCommand('Emulation.setUserAgentOverride', { userAgent: id.userAgent, userAgentMetadata: id.metadata });
 }
 
-module.exports = { nativeIdentity, chromeIdentity, applyToSession, applyToWebContents, brandList };
+module.exports = { nativeIdentity, chromeIdentity, applyToSession, applyToWebContents };

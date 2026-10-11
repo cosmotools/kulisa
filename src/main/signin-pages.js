@@ -44,4 +44,4 @@ function signinPages(extraHosts = []) {
   return { isSigninUrl, restoreUrl };
 }
 
-module.exports = { signinPages, SIGNIN_HOSTS };
+module.exports = { signinPages };

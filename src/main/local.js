@@ -31,4 +31,4 @@ function loginAllowed(history, extra = []) {
   return history.slice(0, -1).some((u) => isLocal(u, extra));
 }
 
-module.exports = { isLocal, loginAllowed, PROVIDERS };
+module.exports = { isLocal, loginAllowed };

@@ -1,8 +1,8 @@
 // Zoom, tabs on sign-in pages, closing profiles.
 const fs = require('fs');
 const path = require('path');
-const { assert, root, userData, project, pfile, savedTabs, panel, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, closeSettings, chooseProfile, setProfileField, menuOpen, rightClick,
-  box, pageBox, viewOn, dock, ctrl, near, closeMenu, PORT } = require('./helpers');
+const { assert, userData, pfile, savedTabs, panel, SITE, waitFor, who, menuRows, choose, manageProfiles,
+  closeSettings, chooseProfile, setProfileField, menuOpen, viewOn, ctrl, near, closeMenu, PORT } = require('./helpers');
 
 module.exports = (test) => {
   test('Kulisa zoom: Ctrl+= outside the pages scales the whole UI, pages follow, panes still fit; saved', async ({ shell, ui }) => {

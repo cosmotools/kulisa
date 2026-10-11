@@ -146,4 +146,4 @@ function list(platform = process.platform) {
   });
 }
 
-module.exports = { KEYS, keymap, match, keyOf, parse, display, list };
+module.exports = { KEYS, keymap, match, parse, display, list };

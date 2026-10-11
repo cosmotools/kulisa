@@ -39,7 +39,7 @@ document.body.append(probe);
 const shown = (v: string) => { probe.style.color = `var(${v})`; return getComputedStyle(probe).color; };
 const termTheme = () => ({ background: shown('--island'), foreground: shown('--text'), cursor: shown('--text'), cursorAccent: shown('--island'),
   selectionBackground: shown('--selection') });
-export function themeTerminals() { for (const { term: t } of terminals.values()) t.options.theme = termTheme(); }
+function themeTerminals() { for (const { term: t } of terminals.values()) t.options.theme = termTheme(); }
 // After the theme changed (☰), also when the OS changes its own (System). The root's data-theme first (store.ts).
 kulisa.on('theme', () => requestAnimationFrame(themeTerminals));
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', themeTerminals);
@@ -100,7 +100,7 @@ function makeTerminal(task: string, size?: { cols: number; rows: number }): Entr
 export const terminalOf = (task: string) => terminals.get(task) || makeTerminal(task);
 
 // A task's terminal in the agent's panel (made the first time).
-export function showTerminal(task: string) {
+function showTerminal(task: string) {
   shownTerminal = task;
   const e = terminalOf(task);
   for (const x of terminals.values()) if (!x.el.parentElement || x.el.parentElement === termEl) x.el.hidden = x !== e;

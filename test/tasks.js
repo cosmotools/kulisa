@@ -4,9 +4,11 @@
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
-const { assert, root, userData, project, pfile, savedTabs, panel, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, menuOpen, rightClick,
-  box, pageBox, viewOn, dock, press, ctrl, near, projectTabs, projectTab, showProject, savedWindows, closeMenu, chosen, select, selectValues, click, plusMenu, PORT } = require('./helpers');
+const { assert, root, userData, project, pfile, panel, SITE, sleep, waitFor, who, menuRows, choose, rightClick,
+  viewOn, press, projectTabs, projectTab, showProject, savedWindows, closeMenu, click, plusMenu, PORT } = require('./helpers');
 const { withOffset } = require('../src/main/tasks');
+const { PROJECT_COLORS } = require('../src/main/store');
+const { createWorktree } = require('../src/main/worktrees');
 const hasDirenv = (() => { try { execFileSync('direnv', ['version']); return true; } catch { return false; } })();
 
 const git = (cwd, ...args) => execFileSync('git', ['-c', 'user.name=Kulisa test', '-c', 'user.email=test@example.invalid', ...args], { cwd, encoding: 'utf8' }).trim();
@@ -878,7 +880,7 @@ module.exports = (test) => {
     await waitFor(() => shell.current?.folder === path.join(made, 'Shop') && shell.task?.loaded && shell.pty);
     assert.ok(fs.existsSync(path.join(made, 'Shop', '.git')), 'git init in it');
     const shop = shell.store.projects().find((p) => p.id === 'shop');
-    assert.deepEqual([shop.color, shop.icon, shop.agents], [require('../src/main/store').PROJECT_COLORS[3], 'rocket', undefined]);
+    assert.deepEqual([shop.color, shop.icon, shop.agents], [PROJECT_COLORS[3], 'rocket', undefined]);
     assert.equal(await ui(`${projectTab('shop')}.querySelector('.plabel use').getAttribute('href')`), '#i-p-rocket');
     assert.equal(git(path.join(made, 'Shop'), 'log', '--format=%s'), 'Initial commit', 'an empty first commit');
     assert.equal(shell.task.folder, path.join(made, 'Shop@task-1'), 'so its first task has a copy of its own');
@@ -939,7 +941,7 @@ module.exports = (test) => {
     assert.equal(await ui(`document.querySelector('#npicons [aria-pressed="true"]').dataset.value`), 'favicon');
     const entryOf = () => shell.store.projects().find((p) => p.id === 'site');
     await ui(`(() => { document.querySelectorAll('#npcolors [role="option"]')[5].click(); document.querySelector('#npicons [data-value="globe"]').click(); })()`);
-    await waitFor(() => entryOf().color === require('../src/main/store').PROJECT_COLORS[5] && entryOf().icon === 'globe');
+    await waitFor(() => entryOf().color === PROJECT_COLORS[5] && entryOf().icon === 'globe');
     await closeMenu(ui);
     await ui(`(() => { const l = document.getElementById('nplocal'); l.value = 'abc.ngrok.app *.Shop.dev'; l.dispatchEvent(new Event('input')); l.dispatchEvent(new Event('change')); })()`);
     await waitFor(() => entryOf().local?.length === 2);
@@ -949,7 +951,7 @@ module.exports = (test) => {
     await closeSettings(ui);
     await waitFor(() => entryOf().name === 'Site-2');
     const entry = entryOf();
-    assert.deepEqual([entry.name, entry.color, entry.icon, entry.folder], ['Site-2', require('../src/main/store').PROJECT_COLORS[5], 'globe', site]);
+    assert.deepEqual([entry.name, entry.color, entry.icon, entry.folder], ['Site-2', PROJECT_COLORS[5], 'globe', site]);
     assert.deepEqual(entry.local, ['abc.ngrok.app', 'shop.dev'], "its own local addresses, where test users' pairs may be typed (local.js)");
     await waitFor(async () => (await projectTabs(ui)).includes('Site-2 *') && shell.win.getTitle() === 'Site-2 — Kulisa');
     assert.equal(await ui(`${projectTab('site')}.querySelector('.plabel use').getAttribute('href')`), '#i-p-globe');
@@ -1171,7 +1173,7 @@ module.exports = (test) => {
     fs.mkdirSync(spare);
     git(spare, 'init', '-q'); fs.writeFileSync(path.join(spare, 'a.txt'), 'a'); git(spare, 'add', '-A'); git(spare, 'commit', '-qm', 'a');
     const p = shell.store.projectFor(spare);
-    const wt = await require('../src/main/worktrees').createWorktree(spare, 'idea');
+    const wt = await createWorktree(spare, 'idea');
     fs.writeFileSync(path.join(wt.folder, 'b.txt'), 'b'); git(wt.folder, 'add', '-A'); git(wt.folder, 'commit', '-qm', 'b');
     const data = path.join(userData, 'projects', p.id);
     // A profile of its own (in no other project): its master goes with it.

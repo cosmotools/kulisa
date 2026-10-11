@@ -48,10 +48,6 @@ button.danger { background: var(--danger); border-color: var(--danger); color: v
     &:is(:hover, :focus-visible) { border-color: var(--line); } }
   &[data-empty] .preview { color: var(--text-muted); }
   :is(input, textarea) { width: 100%; } }
-/* A field to choose one of a few (SelectBox.vue, Reka's Select): a button with the chosen one and a chevron; its list
-   a menu (.menu) */
-.select { display: flex; align-items: center; justify-content: space-between; gap: var(--gap); min-width: 0; background: var(--field);
-  color: var(--text-strong); text-align: start; svg { color: var(--text-dim); } }
 /* A project's color (--color on it or above) */
 .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; background: var(--color); }
 /* A tab of a strip on an island, as a browser's (TaskTab.vue): the agent's .state, the .name, × at the end

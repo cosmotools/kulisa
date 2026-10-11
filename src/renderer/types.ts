@@ -1,8 +1,8 @@
 // What the main process sends the window (window.js, profiles.js, tasks.js), as the window uses it.
 
 // A page's alert or confirm (profiles.js, Profile._dialog), shown in its pane.
-export interface PageDialog { id: number; type: 'alert' | 'confirm'; message: string; from: string; picture: string | null }
-export interface Tab {
+interface PageDialog { id: number; type: 'alert' | 'confirm'; message: string; from: string; picture: string | null }
+interface Tab {
   id: string; title: string; url: string; favicon: string | null; loading: boolean; canBack: boolean; canFwd: boolean;
   zoom: number; dialog: PageDialog | null;
 }
@@ -16,7 +16,7 @@ export interface ClosedProfile { key: string; id: string; name: string; avatar: 
 // Another terminal of the task (Task.terminalsInfo): the human's shell or what the agent runs.
 export interface OtherTerminal { id: number; name: string; command: string; by: 'human' | 'agent' }
 
-export type AgentState = 'working' | 'waiting' | 'done' | null;
+type AgentState = 'working' | 'waiting' | 'done' | null;
 // A task, for its tab (Task.info).
 export interface TaskInfo {
   n: number; key: string; name: string; state: AgentState; folder: string; offset: number; branch: string | null;

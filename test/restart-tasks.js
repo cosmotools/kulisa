@@ -2,8 +2,7 @@
 // the grid, the terminals.
 const fs = require('fs');
 const path = require('path');
-const { assert, root, userData, project, pfile, savedTabs, panel, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, menuOpen, rightClick,
-  box, pageBox, viewOn, dock, ctrl, near, projectTabs, showProject, click } = require('./helpers');
+const { assert, userData, project, SITE, sleep, waitFor, who, viewOn, projectTabs, showProject, click } = require('./helpers');
 
 module.exports = (test) => {
   test('after a restart: the other task waits in the bar with its tabs, loads when shown, still signed in; a closed one stays closed', async (ctx) => {

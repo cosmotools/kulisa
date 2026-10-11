@@ -132,4 +132,4 @@ class ProfileStore {
   }
 }
 
-module.exports = { ProfileStore, ABOUT_MAX };
+module.exports = { ProfileStore };

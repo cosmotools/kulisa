@@ -2,9 +2,8 @@
 // sign-in pause, the agent's cursor, point and tell, @playwright/mcp.
 const fs = require('fs');
 const path = require('path');
-const { assert, root, userData, project, pfile, savedTabs, panel, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, closeSettings,
-  chooseProfile, setProfileField, closeMenu, menuOpen, rightClick,
-  box, pageBox, viewOn, dock, ctrl, near, click, PORT } = require('./helpers');
+const { assert, root, project, pfile, panel, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles,
+  closeSettings, chooseProfile, setProfileField, closeMenu, box, pageBox, click, PORT } = require('./helpers');
 const { app } = require('electron');
 const { CLAUDE_PLUGIN } = require('../src/main/app');
 
