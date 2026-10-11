@@ -53,7 +53,7 @@ Each icon is drawn once, as a `<symbol id="i-…">` in the sprite (`Sprite.vue`,
 | `i-projects` | the projects' manager in the title bar (Lucide's folder-open) |
 | `i-search` | Search Tasks, after the islands of the projects' bar (Lucide's search) |
 | `i-logo` | the app icon with its curtain in `currentColor`: the title bar's (`--project`), and a project's label in the projects' bar (its `--color`). The folds are a shadow over the color, one for every color: a `<use>` takes the sprite's gradient, not one of its own |
-| `i-docs`, `i-github`, `i-bug` | the Welcome screen's links (Documentation, GitHub, Report an issue) as rows of ☰ (`data-icon` on each link; Lucide's book-open, github, bug) |
+| `i-docs`, `i-github`, `i-bug` | the links (Documentation, GitHub, Report an issue), rows of ☰ (`data-icon` on each link; Lucide's book-open, github, bug) |
 | `i-menu` | ☰, the window's menu |
 | `i-more` | ⋮, a pane's menu |
 | `i-back`, `i-forward`, `i-reload` | a pane's toolbar (Chrome's) |
@@ -69,7 +69,7 @@ Each icon is drawn once, as a `<symbol id="i-…">` in the sprite (`Sprite.vue`,
 An icon is 16 px; × and + are 14 px, as in Chrome (`.icon`), and so is an agent's state. ☰'s and the agent's states are Lucide's (lucide.dev, ISC), drawn on 24 × 24 with
 their lines thickened to match; take a new one from there rather than drawing it. The sprite takes no room but is not
 `display: none`, so the logo's gradient and clip path reach its `<use>`s. Pictures are not icons: the arrangements in ☰
-are drawn in place; the Welcome screen shows `assets/icon.svg` itself (imported, so Vite bundles it); the profiles' pictures are files of their own
+are drawn in place; the profiles' pictures are files of their own
 (`src/renderer/public/avatars/`, Noto Emoji, in their own colors). The test `icons: …` in `test/window.js` checks that
 every other `<svg>` uses the sprite.
 
@@ -91,7 +91,7 @@ every other `<svg>` uses the sprite.
 
 ### Rows
 
-- `.item`: a row of a menu or a list (`MenuButton.vue`, the Welcome screen's projects, the projects' manager's rows), `--row` high: an optional icon (`.ico`), `.dot`
+- `.item`: a row of a menu or a list (`MenuButton.vue`, Search Tasks' tasks, the projects' manager's rows), `--row` high: an optional icon (`.ico`), `.dot`
   (a project's color, `--color`), `ProjectIcon.vue` (a project's icon in its color: its favicon, one of Kulisa's set or
   the curtain; `.picon`, also on its label in the projects' bar) or `.avatar` (a profile's picture), `.text` with `.label` and a `small` line under it, a `kbd` key at the end. Lit under the
   pointer and on keyboard focus.
@@ -203,7 +203,7 @@ pictures meanwhile (`covered('pictures')`), closed as a menu is (Esc, a press ou
 a row's action runs once it has closed. Two today: a project's group panel (`GroupPanel.vue`, the label's
 right-click: its name, colors and icons at its top, `.gphead`), as Chrome's tab group's; Search Tasks
 (`TaskSearch.vue`, `.tasksearch`, the button after the islands), its rows Reka's Listbox under its search field
-(`TaskList.vue`: `ListboxFilter`, a `.tlgroup` per project, `.tlproject`, `.tltask`; the Welcome screen's list too).
+(`TaskList.vue`: `ListboxFilter`, a `.tlgroup` per project, `.tlproject`, `.tltask`).
 
 ## Adding something
 

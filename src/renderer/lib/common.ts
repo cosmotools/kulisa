@@ -20,7 +20,7 @@ export const projectIcon = (name?: string): string => (!name || name === 'logo' 
 // What a project's icon to choose is called (its tooltip, for screen readers).
 export const iconTitle = (v: string) => (v === 'favicon' ? "The site's favicon" : v === 'logo' ? "Kulisa's curtain" : v);
 
-// The Welcome screen's links, also in ☰; they open in the user's browser (window.js).
+// The links in ☰; they open in the user's browser (window.js).
 export const LINKS = [
   { label: 'Documentation', href: 'https://github.com/cosmotools/kulisa#readme', icon: 'i-docs' },
   { label: 'GitHub', href: 'https://github.com/cosmotools/kulisa', icon: 'i-github' },

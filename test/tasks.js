@@ -636,27 +636,29 @@ module.exports = (test) => {
     assert.ok(second.profiles.size === 0 && !second.pty, 'every task of the project stopped');
     assert.deepEqual(tasksFile().list.map((e) => [e.n, !!e.closed]), [[1, true], [2, true], [5, true]]);
     await waitFor(() => ui(`document.documentElement.classList.contains('noproject')`));
-    assert.equal(await ui(`getComputedStyle(document.getElementById('welcome')).display`), 'grid');
-    assert.ok(await ui(`document.querySelector('#welcome .applogo').naturalWidth > 0`), 'the app logo loaded');
-    // On an island in the grid's place, filling it (not on the project's glow).
-    assert.ok(await ui(`(() => { const w = document.getElementById('welcome'), s = getComputedStyle(w);
-      return w.getBoundingClientRect().height > innerHeight * 0.8 && s.backgroundColor === (() => { const i = document.body.appendChild(document.createElement('i')); i.style.background = 'var(--island)';
+    // The empty window: an empty island in the grid's place with New Project…; the bar with no islands but Search Tasks.
+    assert.equal(await ui(`getComputedStyle(document.getElementById('empty')).display`), 'grid');
+    assert.equal(await ui(`document.querySelector('#empty h2').textContent`), 'No project is open');
+    assert.ok(await ui(`(() => { const w = document.getElementById('empty'), s = getComputedStyle(w);
+      return w.getBoundingClientRect().height > innerHeight * 0.7 && s.backgroundColor === (() => { const i = document.body.appendChild(document.createElement('i')); i.style.background = 'var(--island)';
         const c = getComputedStyle(i).backgroundColor; i.remove(); return c; })(); })() // an island's, as the dialogs'`));
+    assert.equal(await ui(`document.getElementById('searchTasks').checkVisibility()`), true, 'Search Tasks there');
     assert.equal(await ui(`document.getElementById('tasks')?.checkVisibility() ?? false`), false, 'no tasks shown');
     assert.deepEqual(await projectTabs(ui), [], 'no project tab');
     assert.equal(await ui(`document.documentElement.style.getPropertyValue('--project')`), '', "no project's color");
     assert.equal(shell.win.getTitle(), 'Kulisa');
     assert.deepEqual(savedWindows(), [{ tabs: [], shown: null }], 'the window opens so next time');
-    // The tasks, grouped by project: each project's heading with its icon in its color, as on its label in the bar;
-    // its tasks under it, the one closed last first (all are closed here).
-    assert.equal(await ui(`document.querySelector('#welcome h3').textContent`), 'Tasks');
-    assert.deepEqual(await ui(`[...document.querySelectorAll('#welcome-list .tlproject')].map((b) => b.querySelector('.picon use')?.getAttribute('href') ?? null)`),
+    // Search Tasks: each project's heading with its icon in its color, as on its label in the bar; its tasks under it,
+    // the one closed last first (all are closed here).
+    await searchTasks(ui);
+    assert.deepEqual(await ui(`[...document.querySelectorAll('.tasksearch .tlproject')].map((b) => b.querySelector('.picon use')?.getAttribute('href') ?? null)`),
       shell.store.projects().map((p) => (p.icon === 'favicon' ? null : p.icon && p.icon !== 'logo' ? `#i-p-${p.icon}` : '#i-logo')));
     const byClosing = tasksFile().list.filter((e) => e.closed).sort((a, b) => b.closedAt - a.closedAt).map((e) => e.name);
-    assert.deepEqual(await ui(`[...document.querySelectorAll('#welcome-list [data-project="project"] .tltask .label')].map((l) => l.textContent)`), byClosing);
+    assert.deepEqual(await ui(`[...document.querySelectorAll('.tasksearch [data-project="project"] .tltask .label')].map((l) => l.textContent)`), byClosing);
     assert.equal(byClosing[0], 'Feature-X');
+    await closeMenu(ui);
     // Its heading: opened again as it was left, on the task closed last; the others wait in its group's panel.
-    await ui(`document.querySelector('#welcome-list [data-project="project"] .tlproject').click()`);
+    await searchTasks(ui, 'project');
     await waitFor(() => shell.task?.n === 2 && shell.task.loaded && shell.pty);
     ctx.watchPty(shell.pty);
     await waitFor(() => ui(`!document.documentElement.classList.contains('noproject') && !document.documentElement.classList.contains('loading')`));
@@ -682,26 +684,33 @@ module.exports = (test) => {
     assert.equal(tasksFile().collapsed, undefined);
   });
 
-  test('welcome screen: Close Project in the group\'s panel; links open in the browser; New Project… asks where its folder goes', async (ctx) => {
+  test('the empty window: Close Project in the group\'s panel; links in ☰ open in the browser; at the first start the manager on New Project; New Project… asks where its folder goes', async (ctx) => {
     const { shell, ui } = ctx;
     assert.deepEqual((await groupMenu(ui, 'Close Project')).slice(-2), ['-', 'Close Project']);
     await waitFor(() => shell.task === null && !shell.current);
     await waitFor(() => ui(`document.documentElement.classList.contains('noproject')`));
-    assert.equal(await ui(`document.getElementById('searchTasks').checkVisibility()`), false, 'no bar: the Welcome screen lists the tasks');
-    assert.deepEqual(await ui(`[...document.querySelectorAll('#welcome .links a')].map((a) => a.textContent)`),
-      ['Documentation', 'GitHub', 'Report an issue']);
-    assert.equal(await ui(`document.getElementById('version').textContent`), `Kulisa ${require('../package.json').version}`);
+    await ui(`document.getElementById('windowMenu').click()`);
+    const links = await menuRows(ui);
+    assert.deepEqual(links.slice(links.indexOf('Documentation'), links.indexOf('Documentation') + 3), ['Documentation', 'GitHub', 'Report an issue']);
     const electron = require('electron'), openExternal = electron.shell.openExternal, opened = [];
     electron.shell.openExternal = async (url) => { opened.push(url); };
     try {
-      await ui(`document.querySelector('#welcome .links a').click()`);
+      await choose(ui, 'Documentation');
       await waitFor(() => opened.length === 1);
     } finally { electron.shell.openExternal = openExternal; }
     assert.equal(opened[0], 'https://github.com/cosmotools/kulisa#readme');
-    assert.ok(await ui(`location.protocol === 'file:' && !!document.getElementById('welcome')`), 'the window stays on its page');
+    assert.ok(await ui(`location.protocol === 'file:' && !!document.getElementById('empty')`), 'the window stays on its page');
+    // The first start (no project yet): the manager opens by itself on New Project; not with projects there.
+    shell.firstStart(shell.windows[0]);
+    assert.equal(await ui(`document.getElementById('projects')?.dataset.state === 'open'`), false, 'projects there: nothing opens');
+    const projectsOf = shell.store.projects;
+    shell.store.projects = () => [];
+    try { shell.firstStart(shell.windows[0]); } finally { shell.store.projects = projectsOf; }
+    await waitFor(() => ui(`document.getElementById('projects')?.dataset.state === 'open' && !document.getElementById('nplocationrow').hidden`));
+    await closeSettings(ui);
 
     // New Project…: a name and where its folder goes, the home folder unless another is chosen; git on by default.
-    await ui(`document.getElementById('welcome-new').click()`);
+    await ui(`document.getElementById('emptynew').click()`);
     await waitFor(() => ui(`(document.getElementById('projects')?.dataset.state === 'open')`));
     assert.equal(await ui(`document.getElementById('nplocation').value`), path.join(root, 'Kulisa'), "every new project's place (~/Kulisa; the tests' own here)");
     // Its color (the next free one chosen), its icon (the curtain); no agent here: its accounts are made in its
@@ -1098,16 +1107,10 @@ module.exports = (test) => {
     ctx.asked.length = 0;
     await waitFor(() => ui(`document.documentElement.classList.contains('noproject')`));
 
-    // A project's right-click menu on the Welcome screen: no Delete there.
-    await ui(`document.querySelector('#welcome-list [data-project="project"]').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 300, clientY: 300 }))`);
-    assert.deepEqual(await menuRows(ui), ['Open', 'Project Settings…']);
-    await choose(ui, 'Project Settings…');
-    await waitFor(() => ui(`document.getElementById('projects')?.dataset.state === 'open' && document.getElementById('pjtitle').textContent === 'project'`));
-    await closeSettings(ui);
-    // A task's row: the project opens on that task, a closed one opened again.
+    // A task in Search Tasks: the project opens on that task, a closed one opened again.
     const closed = shell.store.tasksOf({ id: 'project' }).list.find((e) => e.closed);
     assert.ok(closed && closed.n !== 1, 'a closed task to open');
-    await ui(`document.querySelector('#welcome-list [data-project="project"] .tltask[data-task="${closed.n}"]').click()`);
+    await searchTasks(ui, 'project', closed.n);
     await waitFor(() => shell.task?.n === closed.n && shell.task.loaded && shell.pty && !shell.windows[0].switching);
     assert.ok(!shell.task.entry.closed, 'open again');
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));

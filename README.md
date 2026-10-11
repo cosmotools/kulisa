@@ -20,7 +20,7 @@ how the design was tested: [docs/REPORT.md](docs/REPORT.md).
 ```sh
 npm install          # Node 22.13+. Rebuilds node-pty for Electron.
 npm run build        # the window (src/renderer, Vue + TypeScript): type check, then Vite into dist/renderer
-npm start            # builds the window, then opens the windows and projects open last; at first start the Welcome screen
+npm start            # builds the window, then opens the windows and projects open last; at first start the projects' manager on New Project
 KULISA_PROJECT=~/my-app npm start
 npm test             # unit tests, then the real app against a local test site (groups in parallel), then restarted
 npm run test:visible # the same on your screen (npm test uses its own screen on Linux: sudo apt install xvfb openbox)
@@ -56,8 +56,8 @@ or **Close Project** in its right-click menu, after a question; closing a window
 searches every project's tasks, as Chrome's Search tabs: a click opens one (another project's in this window or in a new
 window: Kulisa asks). The **Projects** button in the title bar opens the projects' manager, with **New Project** (a name and where its
 folder goes, `~/Kulisa` by default; git on by default, with an empty first commit; its color and icon; then its
-configuration: its agents' accounts, code, profiles; **Open** opens it; a folder there already, a repository or not, is taken as it is). **Project Settings…** on its name's right-click menu opens the manager at it. Closing the last project shows the
-Welcome screen. A closed project keeps its tabs and
+configuration: its agents' accounts, code, profiles; **Open** opens it; a folder there already, a repository or not, is taken as it is). **Project Settings…** on its name's right-click menu opens the manager at it. Closing the last project leaves the
+window empty: New Project… in it, Search Tasks under it. A closed project keeps its tabs and
 sign-ins; when you open it again, its agent continues the conversation where it can (`claude --resume`,
 `codex resume`). The agent starts in your shell in its task's folder, as if you typed its command in a terminal
 there, so the project's environment (direnv's `.envrc`, nvm, mise) applies; when it exits, the shell stays.
@@ -142,7 +142,7 @@ src/main/        Electron main process
 src/agent/claude-plugin/  the Kulisa plugin for Claude Code: MCP config, the profiles skill, hooks (claude --plugin-dir)
 src/preload/     the window's bridge to the main process
 src/renderer/    window UI: Vue 3 components in TypeScript, built by Vite into dist/renderer (vite.config.mts; docs/ui.md).
-                 components/: the window's parts (App.vue; TopBar, Grid and grid/ its panels, ProjectBar, TaskTab, Welcome,
+                 components/: the window's parts (App.vue; TopBar, Grid and grid/ its panels, ProjectBar, TaskTab, TaskSearch, Empty,
                  the dialogs on Modal.vue, menu/ the menus; menus and dialogs are Reka UI's); lib/: what they share
                  (store.ts: what the main process sends;
                  grid.ts, terminals.ts, menu.ts, agents.ts, ask.ts, dialogs.ts, keys.ts, voice.ts). Styles: tokens.css,

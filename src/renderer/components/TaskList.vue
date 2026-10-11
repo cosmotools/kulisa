@@ -1,19 +1,17 @@
 <script setup lang="ts">
-// Every project's tasks, grouped by project (the author, 2026-10-11: the bar's tabs are tasks, so what lists things to
-// open lists tasks): the Welcome screen's list, and the bar's Search Tasks panel (TaskSearch.vue) with a search field
-// at its top. Each project's heading in its color (a click opens it as it was left), its tasks under it (those open
+// Every project's tasks, grouped by project, under a search field: the bar's Search Tasks panel's (TaskSearch.vue; the
+// author, 2026-10-11: the bar's tabs are tasks, so what lists things to open lists tasks). Each project's heading in its color (a click opens it as it was left), its tasks under it (those open
 // when it was closed, then the closed ones, the one closed last first; a click opens the project on that task, a
 // closed one opened again; an open project's is shown, in its window), New Task for one with none. Reka's Listbox:
 // ↑↓ through the rows, Enter opens, while the keyboard stays in the search field. The search finds a task by its name
 // or branch, a project by its name (then all its tasks).
-//   <TaskList search @chosen="…" />   chosen: a row was opened (the panel closes)
+//   <TaskList @chosen="…" />   chosen: a row was opened (the panel closes)
 import { computed, ref } from 'vue';
 import { ListboxContent, ListboxFilter, ListboxGroup, ListboxItem, ListboxRoot, useFilter } from 'reka-ui';
 import ProjectIcon from './ProjectIcon.vue';
 import { store } from '../lib/store';
 import type { ProjectTask } from '../types';
 
-defineProps<{ search?: boolean }>();
 const emit = defineEmits<{ chosen: [] }>();
 const query = ref('');
 const { contains } = useFilter({ sensitivity: 'base' });
@@ -34,7 +32,7 @@ function open(e: Event, id: string, task?: number) {
 
 <template>
   <ListboxRoot class="tasklist" highlight-on-hover aria-label="Tasks">
-    <ListboxFilter v-if="search" v-model="query" class="tlsearch" auto-focus placeholder="Search tasks" spellcheck="false" aria-label="Search tasks" />
+    <ListboxFilter v-model="query" class="tlsearch" auto-focus placeholder="Search tasks" spellcheck="false" aria-label="Search tasks" />
     <ListboxContent class="tlrows">
       <ListboxGroup v-for="{ p, tasks, all } in groups" :key="p.id" class="tlgroup" :data-project="p.id" :style="{ '--color': p.color }">
         <ListboxItem :value="p.id" class="item tlproject" :title="p.folder" @select="open($event, p.id)"><ProjectIcon :p /><span
@@ -44,7 +42,7 @@ function open(e: Event, id: string, task?: number) {
         <ListboxItem v-if="all && !p.tasks.length" :value="`${p.id}/new`" class="item tltask tlnew" @select="open($event, p.id)"><span
           class="text"><span class="label">New Task</span><small>No tasks yet</small></span></ListboxItem>
       </ListboxGroup>
-      <p v-if="search && !groups.length" class="tlnone">{{ query.trim() ? 'No task or project has that name' : 'No projects yet' }}</p>
+      <p v-if="!groups.length" class="tlnone">{{ query.trim() ? 'No task or project has that name' : 'No projects yet' }}</p>
     </ListboxContent>
   </ListboxRoot>
 </template>

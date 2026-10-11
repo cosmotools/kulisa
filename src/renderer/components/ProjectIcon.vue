@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // A project's icon: its site's favicon, one of Kulisa's set, or the app's curtain, in its color (--color, set by the
-// row or island it is in). The projects' bar and the Welcome screen.
+// row or island it is in). The projects' bar and Search Tasks.
 import Icon from './Icon.vue';
 import { projectIcon } from '../lib/common';
 import type { ProjectEntry } from '../types';

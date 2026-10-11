@@ -7,7 +7,7 @@ import { initialProjects } from './common';
 
 const root = document.documentElement;
 export const store = reactive({
-  // The shown task's key ("<project id>/<n>"); null with no project open (the Welcome screen).
+  // The shown task's key ("<project id>/<n>"); null with no project open (Empty.vue).
   current: null as string | null,
   // The shown project's open tasks and the one its group shows: from the projects' news as a project is shown, so its
   // group has them at once (not the last project's until the tasks' news), then from the tasks' news.

@@ -65,7 +65,7 @@ class AppWindow {
     // Electron's default File/Edit/View/Window menu adds a row on Linux and Windows and gives nothing (its Ctrl+R
     // reloads the shell). On macOS the menu lives in the system bar and stays (Cmd+C/V need its Edit roles).
     win.removeMenu();
-    // Links in the window (the Welcome screen's and ☰'s: the documentation, GitHub; the terminal's, Open in your browser) open in the
+    // Links in the window (☰'s: the documentation, GitHub; the terminal's, Open in your browser) open in the
     // user's browser; the window itself never leaves its page.
     win.webContents.setWindowOpenHandler(({ url }) => {
       if (/^https?:\/\//.test(url)) electronShell.openExternal(url);
@@ -212,7 +212,7 @@ class AppWindow {
     this.send('grid:closing', { dir, level, task: this.task.key, pics });
   }
   // Before a project's tab goes (the project closes, or moves to another window): the tab next to it is shown, or the
-  // window is left with none (the Welcome screen).
+  // window is left with none (an empty island in the grid's place).
   async leave(project) {
     if (project !== this.current) return;
     const i = this.tabs.indexOf(project), next = this.tabs[i + 1] || this.tabs[i - 1];

@@ -23,7 +23,7 @@ export interface TaskInfo {
   closed: boolean; merged: boolean; agent: string | null; profiles: number;
 }
 export interface ProjectEntry { id: string; name: string; folder: string; color: string; icon?: string; favicon?: string; tasks: ProjectTask[] }
-// A task of a project, open or not (app.js, shell.projects): the Welcome screen's list.
+// A task of a project, open or not (app.js, shell.projects): Search Tasks' list.
 export interface ProjectTask { n: number; name: string; branch?: string; closed: boolean; merged: boolean }
 // The window's projects (AppWindow.info): every project, those open in it in the bar's order, the one shown.
 export interface ProjectsInfo {

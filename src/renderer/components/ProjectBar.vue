@@ -180,13 +180,14 @@ function dragend(e: DragEvent) {
   --edge: 100%; /* the islands' side away from the grid: the curves' centers */
   display: flex; align-items: center; flex: none; align-self: center; max-width: calc(100% - 2 * var(--gap));
   margin-block-end: var(--gap);
-  .noproject & { display: none; }
   [data-bar="top"] & { --edge: 0%; margin-block-end: 0; }
   #projectTabs { display: flex; gap: calc(2 * var(--r) + var(--gap)); min-width: 0;
     padding-inline: var(--r); /* room for the outer islands' curves */
     overflow-x: auto; scrollbar-width: none; }
   /* As far from the last island's curve as the islands' curves from each other */
   #searchTasks { margin-inline-start: var(--gap); }
+  /* No project open: Search Tasks alone, in the middle */
+  .noproject & { #projectTabs { display: none; } #searchTasks { margin-inline-start: 0; } }
   /* A project's island. Its tabs in the middle of the dark: no room on the grid's side (the grid's own gap is
      there), as much on the other. */
   .pisland { display: flex; align-items: center; gap: 2px; flex: 0 1 auto; min-width: 0; position: relative;

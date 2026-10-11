@@ -4,7 +4,7 @@
 // magnifier), Projects (the projects' manager), ☰. env(titlebar-area-*) leaves room for the OS window buttons on every
 // platform; dragging it moves the window, except on its controls.
 // ☰, as Chrome's ⋮: the zoom row (stays open while you click − and +), the theme row and the projects' bar's (open too),
-// then the ready-made arrangements, each a picture of itself; Agents…; Keyboard Shortcuts; the Welcome screen's links;
+// then the ready-made arrangements, each a picture of itself; Agents…; Keyboard Shortcuts; the links (the documentation, GitHub, issues);
 // Exit, as Chrome's, where the OS has no menu bar with Quit (not macOS: Cmd+Q there). Each row with its icon at the
 // start; Kulisa's version under them all, a note rather than a row.
 import Icon from './Icon.vue';

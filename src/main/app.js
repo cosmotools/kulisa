@@ -125,7 +125,7 @@ function start(options = {}) {
   // or one to choose in its group's panel.
   const favicons = new Map();
   const faviconFor = (folder) => (favicons.has(folder) ? favicons.get(folder) : favicons.set(folder, faviconOf(folder)).get(folder));
-  // And its tasks (the Welcome screen's list): those open, as made, then the closed ones, the one closed last first.
+  // And its tasks (Search Tasks' list): those open, as made, then the closed ones, the one closed last first.
   const tasksOf = (p) => {
     const list = store.tasksOf(p).list.map(({ n, name, branch, closed, closedAt, merged }) => ({ n, name, branch, closed: !!closed, closedAt, merged: !!merged }));
     return [...list.filter((t) => !t.closed), ...list.filter((t) => t.closed).sort((a, b) => (b.closedAt || 0) - (a.closedAt || 0))]
@@ -187,7 +187,7 @@ function start(options = {}) {
   const addProject = (p, w) => { const project = new Project(shell, p); shell.open.set(p.id, project); w.add(project); return project; };
   // A project shown: in a tab of window w at the end, unless it is open already: then its window shows it, brought to
   // the front.
-  // A project shown on its task n when asked for (the Welcome screen's tasks), opened again if it was closed.
+  // A project shown on its task n when asked for (Search Tasks), opened again if it was closed.
   const onTask = (project, n) => {
     const task = n != null && project.tasks.get(n);
     if (task) { if (task.entry.closed) project.reopen(task); project.select(task); }
@@ -202,7 +202,7 @@ function start(options = {}) {
   // Closing projects, wherever it starts (a tab, main's ×, removing a project, a window's ×): one function, so one
   // rule. The human is asked first, once, in their window w (asked: already, when a project is being removed). Each
   // project's agents stop, its profiles are saved and closed (sign-ins and tabs kept for when it opens again), its tab
-  // goes; the one on screen goes last, so the tab next to it is shown, or none is left: the Welcome screen, or the
+  // goes; the one on screen goes last, so the tab next to it is shown, or none is left: an empty island in the grid's place, or the
   // window closes when there is another (as a browser's).
   async function closeProjects(w, projects, { asked = false, window = false } = {}) {
     if (!asked && !await askClosing(w, projects, { window })) return { error: 'the human said no' };
@@ -290,6 +290,9 @@ function start(options = {}) {
   }
   // A tab let go where no Kulisa window took it: outside them all, a new window there; on one (cancelled, or let go
   // elsewhere in a window), nothing.
+  // The first start (no project yet: nothing to do in Kulisa without one): the projects' manager opens by itself on New
+  // Project, over the empty window (Empty.vue).
+  shell.firstStart = (w) => { if (!store.projects().length) w.send('project:new'); };
   shell.pointer = () => screen.getCursorScreenPoint(); // where the pointer is on the screen (the tests set it)
   function dragOut(project, terminals) {
     const at = shell.pointer();
@@ -469,7 +472,7 @@ function start(options = {}) {
     fs.mkdirSync(folder, { recursive: true });
     if (git && there.state !== 'repo') await worktrees.initRepo(folder).catch((err) => console.error('[git]', err.stderr || err.message));
     const entry = store.projectFor(folder, name, { color, icon });
-    sendProjects(); // the projects' menus and the Welcome screen list it
+    sendProjects(); // Search Tasks lists it
     return { id: entry.id };
   });
   // A project's configuration in the projects' manager (ProjectEditor.vue): its name, color, icon, agents,
@@ -668,6 +671,7 @@ function start(options = {}) {
       if (shown) await serial(() => w.show(shown));
       else { w.sendProjects(); w.sendTasks(); }
     }
+    shell.firstStart(windows[0].w);
     shell.saveWindows();
     shell.stopAutosave = shell.sessionCookies.autosave(() => [...allProfiles(), ...shell.cookieSync.masters()]);
     shell.screenshot = (file) => first().screenshot(file);

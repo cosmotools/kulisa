@@ -1,11 +1,11 @@
 <script setup lang="ts">
-// A Kulisa window (docs/window.md): the title bar, the shown task's grid (or the Welcome screen with no project open),
+// A Kulisa window (docs/window.md): the title bar, the shown task's grid (or an empty island with no project open: Empty.vue),
 // the projects' bar under it or over it, the dialogs and the menu at a point.
 import Sprite from './Sprite.vue';
 import TopBar from './TopBar.vue';
 import Grid from './Grid.vue';
 import ProjectBar from './ProjectBar.vue';
-import Welcome from './Welcome.vue';
+import Empty from './Empty.vue';
 import ProfileEditor from './ProfileEditor.vue';
 import ProjectEditor from './ProjectEditor.vue';
 import TaskRename from './TaskRename.vue';
@@ -20,8 +20,8 @@ import PointMenu from './menu/PointMenu.vue';
   <Sprite />
   <TopBar />
   <Grid />
+  <Empty />
   <ProjectBar />
-  <Welcome />
   <ProfileEditor />
   <ProjectEditor />
   <TaskRename />

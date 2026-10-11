@@ -99,7 +99,7 @@ svg:has(> use) { width: 16px; height: 16px; flex: none; fill: none; stroke: curr
   &.quiet { color: var(--text-muted); &:hover { color: var(--text-strong); } }
   &.small { width: 22px; height: 22px; } }
 
-/* A row of a list or a menu (MenuButton.vue, the Welcome screen's projects): an icon (.ico) or a dot, the label with
+/* A row of a list or a menu (MenuButton.vue, Search Tasks' tasks): an icon (.ico) or a dot, the label with
    a line under it, a key */
 .item { display: flex; align-items: center; gap: var(--inset); width: 100%; height: auto; min-height: var(--row);
   padding: 6px var(--inset); text-align: start; border: none; background: none;

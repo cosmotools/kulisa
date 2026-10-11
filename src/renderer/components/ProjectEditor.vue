@@ -1,6 +1,6 @@
 <script setup lang="ts">
-// The projects' manager (the title bar's Projects button, Projects… in the projects' menu, Project Settings… in a
-// group's panel or on the Welcome screen): every project on the left, open or not, and + New Project; on the right one project's configuration,
+// The projects' manager (the title bar's Projects button, Project Settings… in a group's panel; at the
+// first start it opens by itself on New Project): every project on the left, open or not, and + New Project; on the right one project's configuration,
 // which its tasks are made from (tasks.md, Projects). New Project, as JetBrains': a name, and the location its folder
 // goes in (~/Kulisa unless the human types or browses to another); it shows the folder it makes, so the human knows
 // where the agent's files are, or that the folder is there and is taken as it is (the one way to make a project of

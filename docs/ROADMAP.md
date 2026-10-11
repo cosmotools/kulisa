@@ -22,8 +22,9 @@ here; what is left of it stays.
     dialogs, then the controls (ToggleGroup, ColorSwatchPicker, RadioGroup, Select, Checkbox, Listbox, Tabs,
     Collapsible, Toggle, Field, Form, Editable) done; the author tests them. Built 2026-10-11 with the author: projects
     as Chrome's tab groups (Delete Project…, no Open Folder… as New Project… takes a folder there already, the group's
-    panel on the label's right-click; tasks.md, Projects); the author tests it. Being built: tasks, not projects, on
-    the Welcome screen and in the bar's button (the next item: steps 1–4 built, step 5 to decide with the author). Next: fix what the author's testing finds;
+    panel on the label's right-click; tasks.md, Projects); the author tests it. Built 2026-10-11 too: tasks, not projects,
+    in the bar's button (Search Tasks, Ctrl+Shift+A) and the empty window instead of the Welcome screen (tasks.md,
+    Projects); Delete Project… only in the projects' manager. Next: fix what the author's testing finds;
     then what is left of each step ("Left:" in it), only once the author has decided it.
     Open, for the author to decide: Refresh from Master… now matters only for a local app's cookies (keep or drop);
     a script the agent runs in a page (`browser_evaluate`) could read a test password back from its field (only the
@@ -77,7 +78,7 @@ here; what is left of it stays.
   - **The bar is a task bar, drawn as Chrome's tab groups**: a group per project (its name, color and icon;
     collapsible; + makes a task), a tab per task (the project's icon and color, the task's name, the agent's state).
     A group moves to another window whole (as a project does today), e.g. to keep one client's tasks out of a screen
-    share. The Welcome screen: New Project…, the projects.
+    share. With no project open, the empty window (built: tasks.md).
   - **Sign-in rule, narrowed**: built with step 5 ([profiles.md](profiles.md), "Test users' sign-ins"; CLAUDE.md,
     Rules). Left: "Sign in with Google" on a local app, where the human signs in once to a test Google account in the
     profile's master and the agent goes the whole way itself (account chooser, consent) with no sign-in pause on that
@@ -115,31 +116,6 @@ here; what is left of it stays.
     default); rights on profiles, when real accounts come (one flag, "view only": reading allowed, clicks and typing
     refused; today the agent's own modes cover test users).
 
-- **Tasks, not projects, on the Welcome screen and in the bar's button** (decided with the author 2026-10-11, being
-  built; a commit per step). The bar's tabs are tasks, so what lists things to open lists tasks; everything about
-  projects is in the projects' manager.
-  1. **The Projects button in the title bar is back** (built 2026-10-11; it was taken out the same day, when the bar's button still
-     listed the projects): the projects' manager, every project and its configuration, New Project.
-  2. **Delete Project… only in the projects' manager** (built 2026-10-11, tasks.md, "Deleting a project"; a button of its own there): not in the group's panel, the
-     Welcome screen or a menu any more.
-  3. **The Welcome screen lists tasks, grouped by project** (built 2026-10-11, tasks.md, Projects): each project's heading (its icon and name in its color;
-     a click opens it as it was left, its right-click Project Settings…), its tasks under it (those open when it was
-     closed, then the closed ones, the one closed last first; a click opens the project on that task); a project with
-     none: "No tasks yet · New Task".
-  4. **The button after the islands is Search Tasks** (built 2026-10-11, tasks.md, Projects; the author's answers:
-     a search field, the closed projects' tasks too, Ctrl+Shift+A, Close Project only in the group's panel and the
-     middle button): every project's tasks grouped by project, one list with the Welcome screen's (`TaskList.vue`).
-  5. **Without the Welcome screen?** (the author's question, 2026-10-11: it seems not needed; not decided, to ask
-     first). What it has is elsewhere now that step 4 is built: the tasks in Search Tasks, the projects and New
-     Project in the manager, the links in ☰. It is shown at the first start (no project yet) and after the last
-     project is closed. Ways:
-     - Claude's recommendation: an empty window instead, its title bar and bar as always (no islands, the tasks
-       button there) and, in the grid's place, an empty island with "No project is open" and New Project…; at the
-       first start the projects' manager opens by itself on New Project (nothing to do in Kulisa without one).
-       `Welcome.vue` goes (its list lives on in Search Tasks, `TaskList.vue`); tests that read `#welcome` change with it.
-     - Chrome's way: the last project closed closes its window, the last window quits Kulisa. Against it: a project is
-       often closed to open another, and Kulisa would quit instead; the first start still needs something.
-     - Keep the Welcome screen as it is now (step 3).
 - **Switching a task's account in the middle of its conversation** (the author's question, 2026-10-11; to discuss
   again before building, after step 8). A task on Claude Code's account email1 runs out of its session's limit; the
   human goes on with email2, the same conversation. Today Change agent… starts a new conversation.
@@ -738,7 +714,7 @@ here; what is left of it stays.
     microphone privacy setting for desktop apps.
   - macOS: the window screenshot (`KULISA_SHOT`) needs the screen-recording permission; distribution needs code
     signing and notarization (Apple Developer account). Windows: code signing certificate.
-  - The first start: a packaged app opens no project (the Welcome screen), later the projects open last
+  - The first start: a packaged app opens no project (the empty window, the projects' manager on New Project), later the projects open last
     (untested packaged).
   - The one-row title bar (`titleBarStyle: 'hidden'` + `titleBarOverlay`, Window Controls Overlay): checked on
     Linux/X11 only. Check the window buttons, dragging and double-click to maximize on macOS (traffic lights on the

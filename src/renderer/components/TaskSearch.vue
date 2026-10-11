@@ -24,7 +24,7 @@ const toggle = (v: boolean) => { if (v) focused = document.activeElement; open.v
     <PopoverPortal>
       <PopoverContent class="menu tasksearch" :class="{ ready }" align="end" :side-offset="4" :collision-padding="4"
         @close-auto-focus="focusBack($event, focused)">
-        <TaskList search @chosen="open = false" />
+        <TaskList @chosen="open = false" />
       </PopoverContent>
     </PopoverPortal>
   </PopoverRoot>

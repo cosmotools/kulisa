@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// The Agents window (☰, the Welcome screen; tasks.md, "Choosing the agent"): at any time, the agents with Install
+// The Agents window (☰; tasks.md, "Choosing the agent"): at any time, the agents with Install
 // (AgentList.vue), each with its version, folder and its maker's website. Nothing is chosen or started here: the agent
 // is chosen for a task when one is made, or with Change agent…. The agents alone: their accounts are made and chosen in
 // a project's configuration (Projects…, New Account…).
