@@ -257,10 +257,16 @@ are not programmers); its accounts are made there too, or in a project's page.
   file again when it changes and the language at each recording, so it holds from the next one, in every session
   of the human's, as if set in `/config`. A settings file of one launch would not do: it is read once.
 - **Settings → Agents** (☰ → Agents… opens it there; `AgentsTab.vue`) shows the agents at any time, with nothing to
-  choose, and under each one with accounts its accounts (below): each agent's version (its `--version`), its folder (marked when it is not on the user's `PATH`: Kulisa runs it
+  choose (not the terminal only: nothing of it to set up there; the author, 2026-10-11), and under each one with accounts its accounts (below): each agent's version (its `--version`), its folder (marked when it is not on the user's `PATH`: Kulisa runs it
   from there), its maker's website, and Install for the others. Installing there starts nothing; the agent is chosen
   for a task when one is made, or with Change agent…. Kulisa does not remove or update agents: they are the
   user's programs, and the makers' installers update them themselves.
+- **The list comes at once** (the author, 2026-10-11), here and in choosing a task's agent: finding the agents runs
+  the user's login shell (`command -v`: Kulisa started from a menu has a shorter `PATH`) and each one's `--version`,
+  tenths of a second or more with a heavy `.bashrc`. So the window first shows what the last look in that folder found,
+  kept in the main process's memory (`agents:list`, `cached`; nothing on disk: it is the computer's state, which
+  changes without Kulisa), and looks again behind it, its rows changed where it differs (an agent installed, updated or
+  removed meanwhile). Only the first time after Kulisa starts does it wait for the look.
 - **Accounts** (`accounts.js`; decided with the author 2026-10-11): an agent with a sign-in of its own, so one human
   runs a work and a personal Claude side by side. Each is the agent with its own config folder, given to it by its
   variable (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`: `config` in its `agents.js` entry); the agents without one (the terminal
