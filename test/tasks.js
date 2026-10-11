@@ -425,7 +425,7 @@ module.exports = (test) => {
   });
 
   // ☰ → Agents…: Settings on its Agents tab, nothing to choose; it closes as any dialog.
-  const openAgents = async (ui, rows = 3) => {
+  const openAgents = async (ui, rows = 2) => {
     await ui(`document.getElementById('windowMenu').click()`);
     await menuRows(ui);
     await choose(ui, 'Agents…');
@@ -438,22 +438,21 @@ module.exports = (test) => {
     await waitFor(async () => !(await ui(`(document.getElementById('projects')?.dataset.state === 'open')`)));
   };
   const agentRow = (id, q) => `document.querySelector('#projects .agtab [data-agent="${id}"] ${q}')`;
-  test('agents: ☰ → Agents… is Settings → Agents: shows what is installed and installs the others; nothing is chosen or started', async (ctx) => {
+  test('agents: ☰ → Agents… is Settings → Agents: shows the agents (not the terminal only), what is installed and installs the others; nothing is chosen or started', async (ctx) => {
     const { shell, ui } = ctx;
     const pty = shell.task.pty;
     await openAgents(ui);
     assert.equal(await ui(`document.querySelector('#projects h2').textContent`), 'Settings');
     assert.equal(await ui(`document.querySelector('#projects .pjtab').dataset.state`), 'inactive', 'the Projects tab behind it');
     assert.equal(await ui(`document.querySelectorAll('#projects .agtab .agentrow [role="radio"]').length`), 0, 'no choice to make');
-    // Each agent with its maker's mark (the terminal only: a terminal's).
+    // The agents' marks (the terminal only's shown in choosing a task's agent).
     assert.ok(await ui(`!!document.querySelector('.sprite #i-agent-shell') && !!document.querySelector('.sprite #i-agent-claude') && !!document.querySelector('.sprite #i-agent-codex')`));
-    assert.equal(await ui(agentRow('shell', '.logo use') + `.getAttribute('href')`), '#i-agent-shell');
+    assert.equal(await ui(`!!${agentRow('shell', '')}`), false, 'not the terminal only: nothing of it to set up');
     assert.equal(await ui(`document.querySelector('#projects .agtab [data-accounts="fake"] .empty')?.textContent`), 'No accounts yet.');
     assert.equal(await ui(`document.querySelector('#projects .agtab [data-accounts="fake"] .accountnew').disabled`), true, 'not installed: no account yet');
     assert.equal(await ui(agentRow('fake', '.status') + '.textContent'), 'Not installed');
     assert.equal(await ui(agentRow('fake', '.install') + '.hidden'), false);
     assert.match(await ui(agentRow('fake', '.install-line') + '.textContent'), /^Install runs Kulisa tests's installer: echo "installing the fake agent"/);
-    assert.equal(await ui(agentRow('shell', '.install') + '.hidden'), true);
     assert.equal(shell.task.profiles.values().next().value.get().view.getVisible(), false, 'pages hidden under the dialog');
     // Installed with its maker's installer; what it said only under Details.
     await ui(agentRow('fake', '.install') + '.click()');
@@ -483,6 +482,7 @@ module.exports = (test) => {
     const customPty = task.pty;
     await changeAgent();
     assert.equal(await ui(`!!document.querySelector('#agentpick [role="radio"][value="fake"]')`), false, 'an agent with accounts: one of its accounts');
+    assert.equal(await ui(`document.querySelector('#agentpick [data-agent="shell"] .logo use').getAttribute('href')`), '#i-agent-shell');
     assert.equal(task.profiles.get('sam-admin').get().view.getVisible(), false, 'pages hidden under the dialog');
     // A wrong choice is not a trap: Cancel leaves it as it is.
     assert.equal(await ui(`document.getElementById('agentcancel').hidden`), false);

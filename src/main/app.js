@@ -741,8 +741,9 @@ function start(options = {}) {
     // The project's agents first (Change agent…, Choose the Agent), in its order.
     const mine = w?.current?.agents() || [], rank = (id) => (mine.includes(id) ? mine.indexOf(id) : mine.length);
     // Choosing a task's: the project's accounts, and the agents without accounts (the terminal only); never another
-    // project's account: it could go with that project while a task here runs it. The Agents window: the agents alone.
-    const accounts = shell.accounts.all().filter((a) => (details ? a.own : a.choosable && (a.own || mine.includes(a.id))))
+    // project's account: it could go with that project while a task here runs it. The Agents window: the agents alone,
+    // not the terminal only: nothing of it to set up there (the author, 2026-10-11).
+    const accounts = shell.accounts.all().filter((a) => (details ? a.own && a.agent.command : a.choosable && (a.own || mine.includes(a.id))))
       .sort((x, y) => rank(x.id) - rank(y.id)); // stable: the others as they were
     const of = (a) => {
       if (cached) return seen.get(`${a.id}\n${cwd}`);

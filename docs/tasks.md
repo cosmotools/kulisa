@@ -257,7 +257,7 @@ are not programmers); its accounts are made there too, or in a project's page.
   file again when it changes and the language at each recording, so it holds from the next one, in every session
   of the human's, as if set in `/config`. A settings file of one launch would not do: it is read once.
 - **Settings → Agents** (☰ → Agents… opens it there; `AgentsTab.vue`) shows the agents at any time, with nothing to
-  choose, and under each one with accounts its accounts (below): each agent's version (its `--version`), its folder (marked when it is not on the user's `PATH`: Kulisa runs it
+  choose (not the terminal only: nothing of it to set up there; the author, 2026-10-11), and under each one with accounts its accounts (below): each agent's version (its `--version`), its folder (marked when it is not on the user's `PATH`: Kulisa runs it
   from there), its maker's website, and Install for the others. Installing there starts nothing; the agent is chosen
   for a task when one is made, or with Change agent…. Kulisa does not remove or update agents: they are the
   user's programs, and the makers' installers update them themselves.
