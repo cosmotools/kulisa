@@ -647,6 +647,10 @@ module.exports = (test) => {
     assert.equal(await ui(`document.documentElement.style.getPropertyValue('--project')`), '', "no project's color");
     assert.equal(shell.win.getTitle(), 'Kulisa');
     assert.deepEqual(savedWindows(), [{ tabs: [], shown: null }], 'the window opens so next time');
+    // Every project, each with its icon in its color, as on its label in the bar.
+    assert.equal(await ui(`document.querySelector('#welcome h3').textContent`), 'Projects');
+    assert.deepEqual(await ui(`[...document.querySelectorAll('#welcome-list .item')].map((b) => b.querySelector('.picon use')?.getAttribute('href') ?? null)`),
+      shell.store.projects().map((p) => (p.icon === 'favicon' ? null : p.icon && p.icon !== 'logo' ? `#i-p-${p.icon}` : '#i-logo')));
     // Opened again: on the task closed last; the others wait in its group's menu.
     await ui(`[...document.querySelectorAll('#welcome-list .item')].find((b) => b.querySelector('.label').textContent === 'project').click()`);
     await waitFor(() => shell.task?.n === 2 && shell.task.loaded && shell.pty);
@@ -1047,11 +1051,30 @@ module.exports = (test) => {
     assert.ok(!(await menuRows(ui)).includes('spare'), 'gone from the menu');
     await closeMenu(ui);
 
-    // The open project, from the project button's menu: closed first, then removed; the Welcome screen.
+    // Open Folder… in the projects' menu: a new folder is made a project, not opened, as New Project's: the manager
+    // shows its configuration (opened at once, its first task started with no agent and no profiles). The same
+    // folder again opens that project.
     const gone = path.join(root, 'gone');
     fs.mkdirSync(gone);
-    await ui(`kulisa.invoke('project:open', { folder: ${JSON.stringify(gone)} })`);
-    await waitFor(() => shell.current?.folder === gone && shell.task?.loaded && shell.pty);
+    const electron = require('electron'), showOpenDialog = electron.dialog.showOpenDialog;
+    electron.dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [gone] });
+    const openFolder = async () => {
+      await ui(`document.getElementById('openProjects').click()`);
+      await menuRows(ui);
+      await choose(ui, 'Open Folder…');
+    };
+    try {
+      await openFolder();
+      await waitFor(() => ui(`document.getElementById('projects')?.dataset.state === 'open' && document.getElementById('pjtitle').textContent === 'gone'
+        && !document.getElementById('npopen').hidden`));
+      assert.ok(projects().includes('gone') && !shell.open.has('gone'), 'made, not opened');
+      assert.equal(shell.current?.folder, project, 'the project on screen stays');
+      await closeSettings(ui);
+      ctx.asked.length = 0;
+      await openFolder();
+      await waitFor(() => shell.current?.folder === gone && shell.task?.loaded && shell.pty);
+    } finally { electron.dialog.showOpenDialog = showOpenDialog; }
+    assert.equal(ctx.asked.pop()?.message, 'Where to open the project gone?', 'opened, as any project not open');
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
     await ui(`document.getElementById('openProjects').click()`);
     assert.deepEqual((await menuRows(ui)).slice(-3), ['-', 'Close Project', 'Remove Project…']);
@@ -1081,7 +1104,12 @@ module.exports = (test) => {
     assert.ok(projects().includes('project'), 'kept when the human says no');
     // A recent project's right-click menu on the Welcome screen.
     await ui(`document.querySelector('#welcome-list [data-project="project"]').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 300, clientY: 300 }))`);
-    assert.deepEqual(await menuRows(ui), ['Open', '-', 'Remove Project…']);
+    assert.deepEqual(await menuRows(ui), ['Open', 'Project Settings…', '-', 'Remove Project…']);
+    await choose(ui, 'Project Settings…');
+    await waitFor(() => ui(`document.getElementById('projects')?.dataset.state === 'open' && document.getElementById('pjtitle').textContent === 'project'`));
+    await closeSettings(ui);
+    await ui(`document.querySelector('#welcome-list [data-project="project"]').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 300, clientY: 300 }))`);
+    await menuRows(ui);
     await choose(ui, 'Open');
     await waitFor(() => shell.task?.n === 1 && shell.task.loaded && shell.pty);
     ctx.watchPty(shell.pty);

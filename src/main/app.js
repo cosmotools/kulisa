@@ -404,10 +404,17 @@ function start(options = {}) {
     const p = id ? store.projects().find((x) => x.id === id) : folder && fs.existsSync(folder) ? projectOfFolder(path.resolve(folder)) : null;
     return p ? openLater(p, at(e)) : { error: 'no such project' };
   });
+  // Open Folder…: a folder a project has opens that project; another becomes a project and, as New Project's, is made,
+  // not opened: the window shows its configuration in the projects' manager (its agents' accounts, its profiles), and
+  // Open there opens it. Opened at once, it started its first task with no agent and no profiles.
   ipcMain.handle('project:open-folder', async (e) => {
     const w = at(e);
     const r = await dialog.showOpenDialog(w.win, { title: 'Open a project folder', properties: ['openDirectory', 'createDirectory'] });
-    return r.canceled || !r.filePaths[0] ? w.info() : openLater(projectOfFolder(r.filePaths[0]), w);
+    if (r.canceled || !r.filePaths[0]) return w.info();
+    const known = store.projects().length, p = projectOfFolder(r.filePaths[0]);
+    if (store.projects().length === known) return openLater(p, w);
+    sendProjects();
+    return { configure: p.id };
   });
   // New Project…, as JetBrains': the folder <location>/<name>, the location ~/Kulisa (every new project's place, as
   // JetBrains' ~/PycharmProjects) unless the human picks another, so they know where the agent's files are. A folder

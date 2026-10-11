@@ -91,10 +91,11 @@ every other `<svg>` uses the sprite.
 ### Rows
 
 - `.item`: a row of a menu or a list (`MenuButton.vue`, the Welcome screen's projects, the projects' manager's rows), `--row` high: an optional icon (`.ico`), `.dot`
-  (a project's color, `--color`) or `.avatar` (a profile's picture), `.text` with `.label` and a `small` line under it, a `kbd` key at the end. Lit under the
+  (a project's color, `--color`), `ProjectIcon.vue` (a project's icon in its color: its favicon, one of Kulisa's set or
+  the curtain; `.picon`, also on its label in the projects' bar) or `.avatar` (a profile's picture), `.text` with `.label` and a `small` line under it, a `kbd` key at the end. Lit under the
   pointer and on keyboard focus.
 - `.removable`: a row with a × (`button.remove.icon.quiet`) at its end, shown on hover or focus; the row is lit as
-  one. A recent project in the project menu and on the Welcome screen; a project's repository, agent and profile in the
+  one. A project in the project menu and on the Welcome screen; a project's repository, agent and profile in the
   projects' manager.
 - `.item[aria-selected="true"]`: the chosen row of a list (Reka's Listbox), lit (a project in the projects' manager).
 - `.dot`: a 10 px circle in `--color`, a project's.

@@ -22,8 +22,9 @@ import { TabsList, TabsRoot } from 'reka-ui';
 import ButtonMenu from './menu/ButtonMenu.vue';
 import RightClickMenu from './menu/RightClickMenu.vue';
 import { store } from '../lib/store';
-import { keyText, projectIcon, withKeys } from '../lib/common';
-import { dialog } from '../lib/dialogs';
+import ProjectIcon from './ProjectIcon.vue';
+import { keyText, withKeys } from '../lib/common';
+import { dialog, openFolder } from '../lib/dialogs';
 import { profilesMenu } from '../lib/profiles';
 import { terminalsOf } from '../lib/terminals';
 import type { MenuItem } from '../lib/menu';
@@ -149,7 +150,7 @@ function projectsMenu(): MenuItem[] {
     '-',
     { label: 'Projects…', run: () => manage() },
     { label: 'New Project…', run: create },
-    { label: 'Open Folder…', run: () => kulisa.invoke('project:open-folder') },
+    { label: 'Open Folder…', run: openFolder },
     ...(current === null ? [] : ['-' as const, { label: 'Close Project', run: () => close(current) },
       { label: 'Remove Project…', run: () => remove(current) }]),
   ];
@@ -166,9 +167,8 @@ function projectsMenu(): MenuItem[] {
       <div v-for="{ o, p, open } in islands" :key="p.id" class="pisland" :data-project="p.id" :title="p.folder || ''" :style="{ '--color': p.color }"
         :class="{ active: p.id === store.projects.current, collapsed: !!o.collapsed, dragging: dragged === p.id,
                   'drop-before': mark?.id === p.id && mark.side === 'before', 'drop-after': mark?.id === p.id && mark.side === 'after' }">
-        <!-- Its icon: its site's favicon, one of Kulisa's set, or the app's curtain in its color. -->
         <div class="plabel" draggable="true">
-          <img v-if="p.icon === 'favicon' && p.favicon" class="favicon" alt="" :src="p.favicon"><Icon v-else :name="projectIcon(p.icon)" />
+          <ProjectIcon :p />
           <span class="name">{{ p.name }}</span>
         </div>
         <!-- The shown project's tasks live, the others' as tabs to show them with; closed ones are in its label's menu. -->

@@ -55,7 +55,12 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   **Create makes it without opening it**: the manager goes on to its configuration (its agents' accounts: New
   Account…; its code, profiles), and **Open** there (at the footer's start, for any project not open) opens it, after
   saving what was changed (the author, 2026-10-11: opening right after Create asked where, unasked for).
-- **Opening another project** (the + menu, Open Folder…, Open in the manager) in a window with projects open asks where, as
+- **Open Folder…** (in the projects' menu and on the Welcome screen): a folder a project has (its own or one of its
+  repositories) opens that project. Another folder becomes a project (its name the folder's, the next free color, its
+  site's favicon as its icon when it has one) and, as New Project's, is made, not opened: the manager goes on to its
+  configuration, and Open there opens it (the author, 2026-10-11: opened at once, its first task started with no agent
+  and no profiles, with nothing saying where they are made).
+- **Opening another project** (the + menu, Open Folder… on a project's folder, Open in the manager) in a window with projects open asks where, as
   JetBrains does: **This Window** adds its tab at the end and shows it, the one on screen keeps running; **New
   Window** opens it in a window of its own. From the Welcome screen (no tab open) it opens in that window without a
   question; a project already open is shown in its window. Showing
@@ -100,8 +105,10 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   repository is added; then it is its **former folder**: new tasks no longer work in it, those that did go on there,
   and the settings say so, with Show, while it exists (the human moves its files, or asks an agent).
 - **The Welcome screen** (the term: CLAUDE.md) is what the window shows with no project open: at the first start, and
-  after the last project is closed (Close Project, the middle button on its label, removing the project). New Project…, Open
-  Folder…, the recent projects (a click opens one, × or a right-click removes it), and links (the
+  after the last project is closed (Close Project, the middle button on its label, removing the project). What a project
+  is, in a sentence (its code, its agents, its profiles; a task an agent in a copy of the code); New Project…, Open
+  Folder…; every project, each with its icon in its color as on its label in the bar (a click opens one; its
+  right-click menu: Open, Project Settings…, Remove Project…; × removes it too); and links (the
   documentation, GitHub, reporting an issue, also in ☰; they open in the user's browser) with Kulisa's version. Later starts
   open the windows that were open, each with its projects, showing the one shown last (`windows` in `settings.json`);
   `KULISA_PROJECT=<folder> npm start` adds that one to the first window and shows it.
@@ -230,7 +237,7 @@ are not programmers); its accounts are made in a project's settings.
   the language's English name), the rest of the file kept, never into a file that is not JSON. Claude Code reads that
   file again when it changes and the language at each recording, so it holds from the next one, in every session
   of the human's, as if set in `/config`. A settings file of one launch would not do: it is read once.
-- **Agents…** (☰, and the Welcome screen, before any project) opens a dialog of its own with the agents alone (their
+- **Agents…** (☰) opens a dialog of its own with the agents alone (their
   accounts are the projects'), at any time, with nothing to choose: each agent's version (its `--version`), its folder (marked when it is not on the user's `PATH`: Kulisa runs it
   from there), its maker's website, and Install for the others. Installing there starts nothing; the agent is chosen
   for a task when one is made, or with Change agent…. Kulisa does not remove or update agents: they are the
@@ -366,7 +373,7 @@ Outside it:
 | direnv's permission for the task's `.envrc` | direnv's data (`~/.local/share/direnv/allow/`) | creating a task, if the project's is allowed |
 | Claude Code's trust of the task's folder | Claude's config: `<CLAUDE_CONFIG_DIR>/.claude.json`, else `~/.claude.json`, `projects["<task folder>"]` | the task's Claude starts, if the project's folder is trusted |
 | Claude Code's language, chosen for dictation | `<config dir>/settings.json`, `language` (as its `/config` sets it) | the human picks a language in the terminal's header; stays, as the human's setting |
-| The agent's conversation | the agent's own data (Claude: `<config dir>/projects/…/<session>.jsonl`; Codex: `~/.codex/sessions/`) | the agent runs |
+| The agent's conversation | the agent's own data (Claude: `<config dir>/projects/…/<session>.jsonl`; Codex: `<config dir>/sessions/`), in its account's folder (`agents/<agent>-<n>/`) | the agent runs |
 | The agent itself, when Kulisa installed it | its maker's place (`~/.local/bin/claude`, `~/.local/bin/codex`, …) | Install in the agent dialog |
 
 Nothing is written into the project's own folder (but the first commit of a project Kulisa made).
@@ -389,7 +396,7 @@ its agent and closes its profiles, then deletes:
     the task's folder: Claude names that folder with non-Latin letters as `-`, so other folders can share it),
     `file-history/`, `session-env/`, `debug/`, `todos/` of those sessions, the folder's lines in `history.jsonl`,
     and `projects["<folder>"]` in `.claude.json` (the trust Kulisa gave it). Never the project's folder.
-  - Codex, in `CODEX_HOME` (`~/.codex`): the session files whose folder is the task's (`sessions/`,
+  - Codex, in the `CODEX_HOME` its sessions used (its account's folder): the session files whose folder is the task's (`sessions/`,
     `archived_sessions/`) and `[projects."<folder>"]` in `config.toml`. Not its own databases (`state_*.sqlite`):
     their format is Codex's alone, so a record of the thread may stay there.
 
@@ -401,7 +408,7 @@ What stays in any case: an agent Kulisa installed (it serves every project).
 ## Removing a project
 
 **Remove Project…**: in the projects' menu (Remove Project… for the shown project; any project's × on hover), a
-project label's right-click menu, and a recent project on the Welcome screen (its × on hover, or its right-click
+project label's right-click menu, and a project on the Welcome screen (its × on hover, or its right-click
 menu). All call one function (`removeProject` in `app.js`): Kulisa asks first, saying what goes and which tasks have
 work not in main and not pushed; closes the project if it is open; deletes each of its tasks as above; then removes it
 from `projects.json` with its data folder `projects/<id>/`. The project's own folder stays as it is.

@@ -20,7 +20,8 @@ here; what is left of it stays.
     built: CLAUDE.md, Window UI; [ui.md](ui.md)); the author tests that too. 2026-10-11: its generic parts are moving to
     Reka UI (the author's decision: nothing of our own where Reka has it, at once, a commit per step): menus and
     dialogs, then the controls (ToggleGroup, ColorSwatchPicker, RadioGroup, Select, Checkbox, Listbox, Tabs,
-    Collapsible, Toggle, Field, Form, Editable) done; the author tests them. Next: fix what the author's testing finds;
+    Collapsible, Toggle, Field, Form, Editable) done; the author tests them. Being built: projects as Chrome's tab
+    groups (the next item). Next: fix what the author's testing finds;
     then what is left of each step ("Left:" in it), only once the author has decided it.
     Open, for the author to decide: Refresh from Master… now matters only for a local app's cookies (keep or drop);
     a script the agent runs in a page (`browser_evaluate`) could read a test password back from its field (only the
@@ -29,10 +30,10 @@ here; what is left of it stays.
     author's own replacement of `signin-pause.js`. Step 8 (agents' accounts made in the project, one store) built
     2026-10-11. Not discussed, so not to build unasked: tabs in a master's window, tasks in a
     former folder getting copies.
-  - **Agents** (a catalog in ☰, global): the human picks a CLI (Claude Code, Codex, …) and signs in with the CLI's
-    own login in Kulisa's terminal; each account has its own config folder (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`) in
-    Kulisa's data folder, gone with the entry. An existing `~/.claude` is taken over as the first account, not signed
-    in again (and never deleted: it is the human's). Since step 8 (below) made and chosen in a project.
+  - **Agents** (the CLIs in ☰ → Agents…, global; their accounts made and chosen in a project since step 8, below): the
+    human picks a CLI (Claude Code, Codex, …) and signs in with the CLI's own login in the projects' manager (New
+    Account…); each account has its own config folder (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`) in Kulisa's data folder,
+    gone with its last project. The human's own `~/.claude` / `~/.codex` is no account (never used, never deleted).
   - **Profiles** (one flat store, each listing the projects it belongs to; it goes, after a question, when its last
     project does; seen in the project's editor: + New, + From another project). A profile is a person with all their
     sign-ins, in one or more forms:
@@ -74,7 +75,7 @@ here; what is left of it stays.
   - **The bar is a task bar, drawn as Chrome's tab groups**: a group per project (its name, color and icon;
     collapsible; + makes a task), a tab per task (the project's icon and color, the task's name, the agent's state).
     A group moves to another window whole (as a project does today), e.g. to keep one client's tasks out of a screen
-    share. The Welcome screen: New Project…, Open Folder… (a project with that folder), recent projects.
+    share. The Welcome screen: New Project…, Open Folder… (a project with that folder), the projects.
   - **Sign-in rule, narrowed**: built with step 5 ([profiles.md](profiles.md), "Test users' sign-ins"; CLAUDE.md,
     Rules). Left: "Sign in with Google" on a local app, where the human signs in once to a test Google account in the
     profile's master and the agent goes the whole way itself (account chooser, consent) with no sign-in pause on that
@@ -112,6 +113,22 @@ here; what is left of it stays.
     default); rights on profiles, when real accounts come (one flag, "view only": reading allowed, clicks and typing
     refused; today the agent's own modes cover test users).
 
+- **Projects as Chrome's tab groups** (decided with the author 2026-10-11, being built; a commit per step). The bar's
+  tabs are tasks and a project is their group, so a project behaves as a tab group of Chrome's desktop
+  (support.google.com/chrome/answer/2391819, read 2026-10-11): a click on its label folds it (built); Close group keeps
+  it, reopened from ⋮ → Tab groups (our projects' menu, and the Welcome screen's list); Delete group deletes it.
+  1. **Delete Project…** instead of Remove Project…, as Chrome's Delete group and our Delete Task… (what it does is
+     unchanged: Kulisa's data of it and its tasks' copies go, its folder stays).
+  2. **No Open Folder…**: it was not clear what it did (it made a project of the folder or opened the one there).
+     New Project… is the one way in: a folder at its location that is there already, with files or a repository, is
+     taken as it is (the dialog says so), else made.
+  3. **The label's right-click opens the group's panel**, as Chrome's: the name, the color and the icon edited in place
+     at its top, then its actions: New Task, its closed tasks, Move to New Window, Move to Window, Project Settings…
+     (its code, agents, profiles, local addresses: what a tab group has not), Show Data Folder, Close Project, Delete
+     Project….
+  4. **No Projects button in the title bar**: the projects' menu after the islands is Chrome's Tab groups menu, with
+     Projects…; Project Settings… opens the manager at a project.
+  Not taken from Chrome: Ungroup, and moving a tab from one group to another (a task is a copy of its project's code).
 - **Switching a task's account in the middle of its conversation** (the author's question, 2026-10-11; to discuss
   again before building, after step 8). A task on Claude Code's account email1 runs out of its session's limit; the
   human goes on with email2, the same conversation. Today Change agent… starts a new conversation.
@@ -339,8 +356,8 @@ here; what is left of it stays.
     that trusting once is enough; that `$KULISA_URL` reaches the hook's command; that `SessionStart`'s answer
     (Claude Code's shape, `hookSpecificOutput.additionalContext`) is taken; each event moving the tab (Esc:
     `Interrupt`); `codex resume <session>`. Windows: the command is sh's (`commandWindows` for PowerShell).
-  - **Once there is a Codex account** (the author has none yet, 2026-10-09; it is signed in by the human, `codex
-    login`), try in one go, in a task with git and in a project without, as Claude Code was tried ("running the app, rest"):
+  - **Once there is a Codex account** (the author has none yet, 2026-10-09; made by the human in the projects'
+    manager, New Account…, which runs `codex login`), try in one go, in a task with git and in a project without, as Claude Code was tried ("running the app, rest"):
     1. A session driving the profiles: `browser_profiles`, a snapshot, a click; the sign-in pause.
     2. Running the app: does it read the instructions, move its ports, use `terminal_run` (Codex was expected to
        wait on a server in its own shell) and open the app in a profile.
@@ -348,7 +365,9 @@ here; what is left of it stays.
        `codex resume`.
   - More agents (Gemini CLI, …): an entry each in `agents.js`.
   - Windows: the installers run in PowerShell, untested; macOS untested.
-  - A hint in an empty grid (no profiles yet): "create the first profile".
+  - A hint in an empty grid: since step 7 a new task opens no profile and its grid is the terminal alone, so a hint
+    would show in every new task; whether one is wanted (and what it says: the project's profiles in 👥, or "create
+    the first profile" when it has none) is the author's to decide.
 - **Tasks, rest** (how they work now, and why: [tasks.md](tasks.md)).
   - Helping the agent run the app ("Kulisa plugin: running the app", above). Today the agent gets
     `KULISA_PORT_OFFSET` and a line about it at session start.

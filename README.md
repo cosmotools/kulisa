@@ -57,13 +57,13 @@ projects: open another one (in this window or in a new window: Kulisa asks), rem
 Kulisa's data of it and its tasks' copies; its folder stays), **Projects…**, **New Project…** (a name and where its
 folder goes, `~/Kulisa` by default; git on by default, with an empty first commit; its color and icon; then its
 configuration: its agents' accounts, code, profiles; **Open** opens it),
-**Open Folder…**, close the project. **Project Settings…** on its name's right-click menu opens the manager at it. Closing the last project shows the
+**Open Folder…** (a folder no project has becomes one: its configuration is shown first, as a new project's), close the project. **Project Settings…** on its name's right-click menu opens the manager at it. Closing the last project shows the
 Welcome screen. A closed project keeps its tabs and
 sign-ins; when you open it again, its agent continues the conversation where it can (`claude --resume`,
 `codex resume`). The agent starts in your shell in its task's folder, as if you typed its command in a terminal
 there, so the project's environment (direnv's `.envrc`, nvm, mise) applies; when it exits, the shell stays.
 
-**The agent:** **☰ → Agents…** (also on the Welcome screen) shows which agent CLIs are installed (Claude Code, Codex),
+**The agent:** **☰ → Agents…** shows which agent CLIs are installed (Claude Code, Codex),
 their versions and folders, and installs the others (Kulisa runs its maker's installer). The agents a project's tasks
 run are its accounts, made in its settings: **New Account…** starts the agent's own sign-in right there, its page in a
 clean browser of Kulisa's (none of your other sign-ins there); the account is shown by the email you signed in to,
