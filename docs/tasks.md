@@ -60,9 +60,14 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
 - **The projects' manager** (the Projects button in the title bar, left of ☰; Project
   Settings… in a group's menu opens it at that project; at the first start, no project yet, it opens by itself on
   New Project; back on
-  2026-10-11, after it was taken out for a few hours): one dialog, every project on the left, open or not (the open
-  ones marked), + New Project under them; on the right one project's configuration, edited there whether the project
-  is open or not. Decided with the author on 2026-10-10, when a project became the configuration its tasks are made
+  2026-10-11, after it was taken out for a few hours): one dialog, + New Project and every project under it on the left
+  (its icon in its color, its name); on the right the chosen one's **page**: at its top its icon and name, **New Task**
+  (a task of it, in its group) and **⋯** (Delete Project…); under them a card each (`.card`: a heading, a line saying
+  what it is, its rows or an empty line, its add row): **Code**, **Agents**, **Profiles** (what its tasks are made
+  of), **Look** (name, color, icon), **Local addresses**. **Everything is saved as it changes**: no Save and no
+  Cancel (the author, 2026-10-11: with code, agents and profiles saved at once and the look on Save, it was not plain
+  what Save and Cancel were for); the name on Enter or leaving its field, also when the manager closes or another
+  project is chosen with one typed. Decided with the author on 2026-10-10, when a project became the configuration its tasks are made
   from: the menu and the Welcome screen (JetBrains' way, 2026-10-07) showed no project's configuration without opening
   it. A dialog, not a window of the OS: no process more.
 - **New Project** (in the manager; New Project… in the empty window), as JetBrains': a name and a location, `~/Kulisa` (every new project's place, as JetBrains'
@@ -75,9 +80,8 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   ("Initial commit"; nothing of the folder is in it), as a worktree needs one, so the first task already has a copy of
   its own. Without git's user name and email set there is no commit, and tasks work in the folder.
   **Create makes no task**: the manager goes on to its configuration (its agents' accounts: New
-  Account…; its code, profiles), and **New Task** there (at the footer's start, after Delete
-  Project…: "Deleting a project") makes its first task, after
-  saving what was changed (`project:open` without a task: a new one).
+  Account…; its code, profiles), and **New Task** at its top makes its first task (`project:open` without a task: a
+  new one).
 - **Showing another group** slides the grid towards its island, as macOS desktops do (a view transition on the compositor, the
   pages as pictures meanwhile; not with reduced motion); the window builds the other grid in place, so nothing jumps.
   When a group closes, the one next to it is shown, or the empty window when it was the last.
@@ -99,19 +103,18 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   …, up to 128 KB; a project opened from a folder that has one gets it), one of Kulisa's set (Lucide's cart, briefcase,
   globe, flask, rocket, code, building, people, book, heart), or the app's curtain.
 - **Its configuration** (the manager's right side, `ProjectEditor.vue`, one form for a new project and an existing
-  one) changes its name, color, icon and local addresses on Save;
-  the folder is shown, not changed.
+  one; a new project's form: Create, Cancel) changes its name, color, icon and local addresses as they change; the
+  folder is shown (in Code), not changed.
 - **Its agents**: a list of its agents' accounts and the terminal only ("Choosing the agent", Accounts). **Add
   Agent…** adds the terminal only or an account another project has; **New Account…** makes one, signed in right there;
   × removes one; the radio makes one the default: + runs it, the others are in +'s right-click menu (New Task with).
   None: its tasks start with the terminal only. A task keeps the agent it started with; Change agent… in its terminal
-  picks another of the project's. Made at once, not on Save.
+  picks another of the project's.
 - **Its code**: the repositories or folders its tasks work on, the default one first (its radio: new tasks' agents
   start in its copy; every task gets a copy of each). **Add Folder…** adds one from the
   computer, **Clone** one from a URL with the user's own git (its credentials and keys; git asks for no password, so a
   private repository it cannot reach fails with git's own words; cloned into the project's own folder when that has no
-  git, `~/Kulisa/<project>/<repo>`, else next to it, never inside a repository). Changes are made at once, not on
-  Save. A repository added while tasks run is copied for each loaded one (the others when they load) and its agent is
+  git, `~/Kulisa/<project>/<repo>`, else next to it, never inside a repository). A repository added while tasks run is copied for each loaded one (the others when they load) and its agent is
   told, typed into its prompt for the human to send: Claude Code `/add-dir <folder>`, others a line saying so. **×**
   removes one from the project (its folder stays), only when no task has a copy of it or works in it: the refusal
   names those tasks (deleting a copy would delete their work). A project whose own folder has no git keeps it until a
@@ -420,7 +423,7 @@ What stays in any case: an agent Kulisa installed (it serves every project).
 
 ## Deleting a project
 
-**Delete Project…** at the footer's start of the projects' manager, for the project chosen there, open or not: there
+**Delete Project…** in ⋯ at the top of a project's page in the projects' manager, open or not: there
 alone (the author, 2026-10-11: with everything else about a project; not in its group's panel, the Welcome screen or
 a menu). One function (`deleteProject` in `app.js`): Kulisa asks first, saying what goes and which tasks have
 work not in main and not pushed; closes the project if it is open; deletes each of its tasks as above; then removes it

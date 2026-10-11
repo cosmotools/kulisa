@@ -157,7 +157,10 @@ Every dialog is `Modal.vue`, Reka UI's Dialog (`reka-ui`) with the same parts:
   selectable, to copy and search for, as a question's detail is); a field's
   `.hint` under it (its `FieldDescription`).
 - `footer`: the buttons at the right end, the main one last; `.start` puts a button at the left end. A button that
-  only closes is Reka's `DialogClose`.
+  only closes is Reka's `DialogClose`. A dialog whose parts are saved as they change (a project's page in the
+  projects' manager) has none: × closes it.
+- `.card` in the body: one part of what it edits, framed (a project's Code, Agents, Profiles, Look, Local
+  addresses): an `h4`, a `.hint` saying what it is, its rows or fields, `.empty` when it has none, its `.row` to add.
 - With `form` the content and the buttons are a form: Enter submits.
 - Its ref: `await open()` (shown, the keyboard in its `[autofocus]` field or on it; the profiles' pages hidden while it
   is open: `covered('hide')`, `lib/views.ts`), `close()`, `isOpen()`. Its content is in the page only while it is open

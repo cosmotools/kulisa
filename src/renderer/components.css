@@ -144,6 +144,13 @@ svg:has(> use) { width: 16px; height: 16px; flex: none; fill: none; stroke: curr
     small { color: var(--text-muted); } }
   /* A field's description under it, in the fields' column (Reka's FieldDescription) */
   .field > .hint { grid-column: 2; margin: 0; overflow-wrap: anywhere; &:empty { display: none; } }
+  /* A card: one part of what a dialog edits (a project's code, agents, profiles …), framed, so what belongs to it is
+     plain: its heading, a line saying what it is, its rows or fields, an .empty line when it has none, its add row */
+  .card { padding: var(--inset) var(--pad) var(--pad); border: 1px solid var(--island-hi); border-radius: var(--island-radius);
+    h4 { margin: var(--inset) 0 2px; font-size: 1em; font-weight: 600; color: var(--text-strong); }
+    > .hint { margin-block-end: var(--inset); }
+    .empty { margin: var(--inset) 0; color: var(--text-dim); }
+    .field { grid-template-columns: calc(var(--label) - var(--pad)) 1fr; } }
   /* A field, a check or a row a dialog leaves out in one of its uses (hidden) */
   :is(.field, .check, .row)[hidden] { display: none; }
   footer { display: flex; justify-content: flex-end; gap: var(--gap); padding: 16px var(--pad); border-top: 1px solid var(--island-hi);

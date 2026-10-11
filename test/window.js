@@ -225,8 +225,9 @@ module.exports = (test) => {
       await open();
       await waitFor(() => isOpen(id), 20000);
       const l = await ui(`(() => { const d = document.getElementById('${id}'); return { id: '${id}', title: !!d.querySelector('header h2'),
-        body: !!d.querySelector('.body'), last: d.querySelector('footer > button:last-child')?.className }; })()`);
-      assert.ok(l.title && l.body && /primary|ok/.test(l.last), JSON.stringify(l));
+        body: !!d.querySelector('.body'), footer: !!d.querySelector('footer'), last: d.querySelector('footer > button:last-child')?.className }; })()`);
+      // A dialog whose parts are saved as they change (a project's page) has no buttons at the bottom.
+      assert.ok(l.title && l.body && (id === 'projects' ? !l.footer : /primary|ok/.test(l.last)), JSON.stringify(l));
       await ui(`document.querySelector('${id === 'agentpick' ? '#agentcancel' : `#${id} .x`}').click()`); // the agent's choice: Cancel, no ×
       await waitFor(async () => !(await isOpen(id)));
     }

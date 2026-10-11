@@ -47,7 +47,7 @@ defineExpose({
         </header>
         <FormRoot v-if="form" :id="formId" :errors @form-submit="emit('submit')">
           <div class="body"><slot /></div>
-          <footer><slot name="footer" /></footer>
+          <footer v-if="$slots.footer"><slot name="footer" /></footer>
         </FormRoot>
         <template v-else>
           <div class="body"><slot /></div>

@@ -595,11 +595,6 @@ function start(options = {}) {
     sendProjects();
     return { id };
   });
-  // A project open in any window: that window shows it (brought to the front).
-  ipcMain.handle('project:show', (e, { id }) => serial(() => {
-    const p = shell.open.get(id);
-    return p && openProject(p.entry, p.window);
-  }));
   ipcMain.handle('project:close', (e, { id } = {}) => serial(() => closeProject(id ? shell.open.get(id) : at(e)?.current)));
   // to: the id of the window it goes to (window.js), none for a new one.
   ipcMain.handle('project:move', (e, { id, to, terminals }) => serial(() => {

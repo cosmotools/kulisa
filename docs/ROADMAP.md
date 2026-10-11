@@ -783,7 +783,10 @@ here; what is left of it stays.
   slower screen showed (a click while the window still showed another project) are waited for. Watch whether any
   come back. Not looked at: the address bar's click (seen 2026-10-07); the first point-and-tell test once timed out waiting for the pick (2026-10-10, right after the window moved to Vue; not in the runs after); "Move to New Window puts a project in a window
   of its own" (a 30 s timeout) and "agents: ☰ → Agents… shows what is installed" failed together once in a full
-  `npm test` (2026-10-11, after the move to Reka UI; the output not kept), not in the four runs after; "Move to New
+  `npm test` (2026-10-11, after the move to Reka UI; the output not kept), not in the four runs after; the agents'
+  tests failed together again once in a full `npm test` (2026-10-11, the projects' manager as a page: "☰ → Agents…"
+  0 !== 3, "Installed" read "Not installed", a new account's sign-in never started), not in the group alone nor in the
+  full run after: the fake agent's install seems to race something under two groups' load; "Move to New
   Window" timed out (30 s) once more on 2026-10-11 in one group's run, not in the two after; "DevTools in a pane's ⋮ menu
   opens and closes the DevTools of its active tab" failed once in a full `npm test` (2026-10-11), not in the run after; one test
   of the profiles group failed once more in a full `npm test` that day (which one not kept), not in the two runs after;

@@ -510,7 +510,7 @@ module.exports = (test) => {
     await rightClick(ui, `#projectTabs [data-project="${id}"] .name`);
     await menuRows(ui);
     await choose(ui, 'Project Settings…');
-    await waitFor(() => ui(`(document.getElementById('projects')?.dataset.state === 'open') && !document.getElementById('npagentsrow').hidden`));
+    await waitFor(() => ui(`(document.getElementById('projects')?.dataset.state === 'open') && !!document.getElementById('npagentsrow')`));
   };
   const closeSettings = async (ui) => {
     await ui(`document.querySelector('#projects .x').click()`);
@@ -707,7 +707,7 @@ module.exports = (test) => {
     const projectsOf = shell.store.projects;
     shell.store.projects = () => [];
     try { shell.firstStart(shell.windows[0]); } finally { shell.store.projects = projectsOf; }
-    await waitFor(() => ui(`document.getElementById('projects')?.dataset.state === 'open' && !document.getElementById('nplocationrow').hidden`));
+    await waitFor(() => ui(`document.getElementById('projects')?.dataset.state === 'open' && !!document.getElementById('nplocationrow')`));
     await closeSettings(ui);
 
     // New Project…: a name and where its folder goes, the home folder unless another is chosen; git on by default.
@@ -750,7 +750,7 @@ module.exports = (test) => {
     assert.equal(await ui(`document.getElementById('npwhere').textContent`), `The project will be created in ${path.join(made, 'Shop')}`);
     ctx.asked.length = 0;
     await ui(`document.getElementById('npform').requestSubmit()`);
-    await waitFor(() => ui(`document.getElementById('pjtitle')?.textContent === 'Shop' && !document.getElementById('npagentsrow').hidden
+    await waitFor(() => ui(`document.getElementById('pjtitle')?.textContent === 'Shop' && !!document.getElementById('npagentsrow')
       && !document.getElementById('npnewtask').hidden && document.querySelector('#pjlist [data-project="shop"]')?.ariaSelected === 'true'`));
     assert.ok(!shell.current && !shell.open.has('shop'), 'made, no task');
     assert.equal(ctx.asked.length, 0, 'nothing asked');
@@ -810,13 +810,22 @@ module.exports = (test) => {
     assert.ok(await ui(`document.querySelector('#pjlist [data-project="site"]').ariaSelected === 'true' && !document.querySelector('#pjlist kbd')`));
     assert.equal(await ui(`document.querySelector('#npicons [aria-pressed="true"]').dataset.value`), 'favicon');
     assert.equal(await ui(`document.querySelector('#nprepos [data-folder] small').textContent`), site, 'its folder, as its code');
-    assert.equal(await ui(`document.getElementById('nplocationrow').checkVisibility()`), false);
-    await ui(`(() => { const n = document.getElementById('npname'); n.value = 'Site-2'; n.dispatchEvent(new Event('input'));
-      document.querySelectorAll('#npcolors [role="option"]')[5].click(); document.querySelector('#npicons [data-value="globe"]').click();
-      const l = document.getElementById('nplocal'); l.value = 'abc.ngrok.app *.Shop.dev'; l.dispatchEvent(new Event('input'));
-      document.getElementById('npform').requestSubmit(); })()`);
-    await waitFor(async () => !(await ui(`(document.getElementById('projects')?.dataset.state === 'open')`)));
-    const entry = shell.store.projects().find((p) => p.id === 'site');
+    assert.equal(await ui(`!!document.getElementById('nplocationrow')`), false);
+    // A page, no Save: its top (New Task, ⋯), each part saved as it changes; the dialog stays open.
+    assert.equal(await ui(`!!document.getElementById('npcreate') || !!document.querySelector('#projects footer')`), false, 'no Save, no Cancel');
+    assert.equal(await ui(`document.querySelectorAll('#pjconfig .card h4').length && [...document.querySelectorAll('#pjconfig .card h4')].map((h) => h.textContent).join(', ')`),
+      'Code, Agents, Profiles, Look, Local addresses');
+    const entryOf = () => shell.store.projects().find((p) => p.id === 'site');
+    await ui(`(() => { document.querySelectorAll('#npcolors [role="option"]')[5].click(); document.querySelector('#npicons [data-value="globe"]').click(); })()`);
+    await waitFor(() => entryOf().color === require('../src/main/store').PROJECT_COLORS[5] && entryOf().icon === 'globe');
+    await ui(`(() => { const l = document.getElementById('nplocal'); l.value = 'abc.ngrok.app *.Shop.dev'; l.dispatchEvent(new Event('input')); l.dispatchEvent(new Event('change')); })()`);
+    await waitFor(() => entryOf().local?.length === 2);
+    // The name typed and the manager closed with ×: kept.
+    await ui(`(() => { const n = document.getElementById('npname'); n.value = 'Site-2'; n.dispatchEvent(new Event('input')); })()`);
+    assert.equal(entryOf().name, 'site', 'not yet: on Enter or leaving it');
+    await closeSettings(ui);
+    await waitFor(() => entryOf().name === 'Site-2');
+    const entry = entryOf();
     assert.deepEqual([entry.name, entry.color, entry.icon, entry.folder], ['Site-2', require('../src/main/store').PROJECT_COLORS[5], 'globe', site]);
     assert.deepEqual(entry.local, ['abc.ngrok.app', 'shop.dev'], "its own local addresses, where test users' pairs may be typed (local.js)");
     await waitFor(async () => (await projectTabs(ui)).includes('Site-2 *') && shell.win.getTitle() === 'Site-2 — Kulisa');
@@ -855,7 +864,7 @@ module.exports = (test) => {
     await rightClick(ui, `#projectTabs [data-project="site"] .name`);
     await menuRows(ui);
     await choose(ui, 'Project Settings…');
-    await waitFor(() => ui(`(document.getElementById('projects')?.dataset.state === 'open') && !document.getElementById('npagentsrow').hidden`));
+    await waitFor(() => ui(`(document.getElementById('projects')?.dataset.state === 'open') && !!document.getElementById('npagentsrow')`));
     await ui(`document.getElementById('npagentadd').click()`);
     assert.ok(!(await menuRows(ui)).includes('Fake agent'), 'an agent with accounts: one of its accounts');
     await closeMenu(ui);
@@ -981,7 +990,7 @@ module.exports = (test) => {
     assert.equal(await ui(`document.getElementById('npprofileerror').textContent`), '');
     // + New Project: the new project's fields on the right, none chosen on the left.
     await ui(`document.getElementById('pjnew').click()`);
-    await waitFor(() => ui(`document.getElementById('pjtitle').textContent === 'New Project' && !document.getElementById('nplocationrow').hidden && document.getElementById('npagentsrow').hidden`));
+    await waitFor(() => ui(`document.getElementById('pjtitle').textContent === 'New Project' && !!document.getElementById('nplocationrow') && !document.getElementById('npagentsrow')`));
     assert.equal(await ui(`document.querySelectorAll('#pjlist [aria-selected="true"]').length`), 0);
     await shell.screenshot(path.join(root, 'projects.png'));
     await ui(`document.querySelector('#projects .x').click()`);
@@ -1046,8 +1055,10 @@ module.exports = (test) => {
       if (!await ui(`document.getElementById('projects')?.dataset.state === 'open'`)) await ui(`document.getElementById('manageProjects').click()`);
       await waitFor(() => ui(`!!document.querySelector('#pjlist [data-project="${id}"]')`));
       await ui(`document.querySelector('#pjlist [data-project="${id}"]').click()`);
-      await waitFor(() => ui(`document.getElementById('pjtitle').textContent === ${JSON.stringify(id)} && !document.getElementById('npdelete').hidden`));
-      await ui(`document.getElementById('npdelete').click()`);
+      await waitFor(() => ui(`document.getElementById('pjtitle').textContent === ${JSON.stringify(id)} && !!document.getElementById('pjmore')`));
+      await ui(`document.getElementById('pjmore').click()`); // ⋯ at its top
+      await menuRows(ui);
+      await choose(ui, 'Delete Project…');
     };
     ctx.answer = false;
     await removeRow();
@@ -1079,7 +1090,7 @@ module.exports = (test) => {
     await ui(`document.getElementById('manageProjects').click()`);
     await waitFor(() => ui(`document.getElementById('projects')?.dataset.state === 'open'`));
     await ui(`document.getElementById('pjnew').click()`);
-    await waitFor(() => ui(`document.getElementById('projects')?.dataset.state === 'open' && !document.getElementById('nplocationrow').hidden`));
+    await waitFor(() => ui(`document.getElementById('projects')?.dataset.state === 'open' && !!document.getElementById('nplocationrow')`));
     await ui(`(() => { for (const [id, v] of [['npname', 'gone'], ['nplocation', ${JSON.stringify(root)}]]) {
       const i = document.getElementById(id); i.value = v; i.dispatchEvent(new Event('input')); } })()`);
     await waitFor(async () => (await ui(`document.getElementById('npwhere').textContent`)) === `${gone} is a git repository: the project takes it as it is`);

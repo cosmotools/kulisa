@@ -47,8 +47,8 @@ setuid on a plain install. The `.deb` installs it setuid, so the installed app r
 
 **Projects:** a project is the configuration its tasks are made from: a name, a color and an icon, its agents (one
 the default), its profiles, and its code: a folder, or one or more repositories (local, or cloned from a URL; one the
-default). **Projects** in the title bar (left of ☰) opens the projects' manager: every project on the left, open or
-not, and **+ New Project**; on the right the chosen one's configuration, and **Delete Project…** for it (Kulisa's data of it and its tasks' copies; its folder stays). The bar under the
+default). **Projects** in the title bar (left of ☰) opens the projects' manager: every project on the left
+and **+ New Project**; on the right the chosen one's page: **New Task**, its code, agents, profiles and look, each saved as it changes, and **⋯ → Delete Project…** (Kulisa's data of it and its tasks' copies; its folder stays). The bar under the
 grid (or over it: **☰ → Projects bar**) has a group per project with open tasks, as Chrome's tab groups: its name (a click folds
 it), its tasks, and **+** for a new task. A project itself is not opened or closed: its tasks are. A click on a task shows it, of any group, and the others keep running
 (their agents and pages) until you close them (**×** on a task; **Close Group** in its name's right-click panel or the middle
