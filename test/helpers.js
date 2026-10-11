@@ -30,8 +30,7 @@ const MENU = `document.querySelector('.menu[data-state="open"]')`;
 const menuOpen = (ui) => ui(`!!document.querySelector('.menu[data-state="open"].ready')`);
 const menuRows = async (ui) => {
   await waitFor(() => menuOpen(ui));
-  // A project's group panel (GroupPanel.vue) is read as a menu: its rows, not its name, colors and icons on top.
-  return ui(`(() => { const row = (r) => r.matches('.gphead') ? [] : r.matches('[role="separator"]') ? '-' : r.matches('.heading') ? '# ' + r.textContent : r.matches('.note') ? '~ ' + r.textContent
+  return ui(`(() => { const row = (r) => r.matches('[role="separator"]') ? '-' : r.matches('.heading') ? '# ' + r.textContent : r.matches('.note') ? '~ ' + r.textContent
     : r.matches('.zoomrow') ? 'zoom' : r.matches('.themerow') ? 'theme' : r.matches('.barrow') ? 'bar' : r.matches('.arrange') ? 'arrange: ' + [...r.querySelectorAll('span')].map((s) => s.textContent).join(', ')
     : r.matches('[role="group"]') ? [...r.children].map(row)
     : r.querySelector('.label').textContent + ((r.matches('.item') ? r : r.querySelector('.item')).matches('[data-disabled]') ? ' (off)' : '');
@@ -75,7 +74,7 @@ const select = async (ui, id, value) => {
   await ui(`document.querySelector('[role="listbox"] .item[data-value=${JSON.stringify(value)}]').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }))`);
   await waitFor(async () => (await chosen(ui, id)) === value);
 };
-// A group closed as the human does it: the middle button on its label (its panel has Close Group too).
+// A group closed as the human does it: the middle button on its label (its menu has Close Group too).
 const closeProject = (ui, id) => ui(`${projectTab(id)}.querySelector('.plabel').dispatchEvent(new MouseEvent('auxclick', { button: 1, bubbles: true }))`);
 const choose = (ui, label) => ui(`[...${MENU}.querySelectorAll('.item')].find((b) => b.querySelector('.label').textContent === ${JSON.stringify(label)}).click()`);
 // The bar's Search Tasks panel (TaskSearch.vue): opened with its button; searchTasks(ui) its rows (a project's heading

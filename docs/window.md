@@ -120,9 +120,7 @@ pages are pictures of themselves meanwhile; afterwards the keyboard is back wher
   Delete profile…), a tab (Reload, Duplicate, Close tab, Close other tabs) and a terminal (Copy, Paste, Select all, Clear;
   then Change agent… in the agent's, Close in the others).
 
-A project label's right-click opens its group's panel instead, as Chrome's tab groups have it ([tasks.md](tasks.md),
-Projects): its name typed there, which a menu would take for its rows (a menu finds a row by the letters typed and
-moves the focus under the pointer); it looks and closes as a menu (`GroupPanel.vue`; [ui.md](ui.md), Panels).
+A project label's right-click opens its group's menu, as Chrome's tab groups have it ([tasks.md](tasks.md), Projects).
 
 A row whose command has a key shows it at its end (Keys, below).
 

@@ -200,8 +200,7 @@ and arrangements, `components/menu/`, built of Reka's menu items; − and + and 
 A panel is a menu's look with fields in it, where a menu cannot hold them (its rows take the keys typed and the
 focus under the pointer): Reka UI's Popover, `.menu` with its rows `.item` (buttons) under a top of its own, the pages
 pictures meanwhile (`covered('pictures')`), closed as a menu is (Esc, a press outside, a row chosen, the window left);
-a row's action runs once it has closed. Two today: a project's group panel (`GroupPanel.vue`, the label's
-right-click: its name, colors and icons at its top, `.gphead`), as Chrome's tab group's; Search Tasks
+a row's action runs once it has closed. One today: Search Tasks
 (`TaskSearch.vue`, `.tasksearch`, the button after the islands), its rows Reka's Listbox under its search field
 (`TaskList.vue`: `ListboxFilter`, a `.tlgroup` per project, `.tlproject`, `.tltask`).
 

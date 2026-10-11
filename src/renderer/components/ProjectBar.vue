@@ -5,8 +5,8 @@
 // label (its icon, the curtain in its color, and its name), its open tasks' tabs (TaskTab.vue), a click on one showing
 // that project with it (the others keep running: their agents and pages), and + for a new task from the project's
 // configuration (its right-click: New Task with one of its agents). A click on the label folds the group to it (the
-// shown task's tab stays) and back. A right-click opens its group's panel, as Chrome's (GroupPanel.vue): its name,
-// color and icon, then New Task, its closed tasks (one opens again), Move to New Window (a window of its own, e.g. for
+// shown task's tab stays) and back. A right-click opens its group's menu, as Chrome's (its name, color and icon are
+// the projects' manager's alone: Project Settings…): New Task, its closed tasks (one opens again), Move to New Window (a window of its own, e.g. for
 // a second monitor; it keeps running), Move to Window (each other window; as a browser moves a tab), Project
 // Settings…, Show Data Folder, Close Group (its tasks closed, asking first when an agent works; also the middle button); a task's tab: the shown
 // one's profiles, Rename… (its name and branch), Show Folder, Delete Task…. Dragging the label does
@@ -20,7 +20,6 @@
 import { computed, nextTick, ref, watch } from 'vue';
 import Icon from './Icon.vue';
 import TaskTab from './TaskTab.vue';
-import GroupPanel from './GroupPanel.vue';
 import { TabsList, TabsRoot } from 'reka-ui';
 import TaskSearch from './TaskSearch.vue';
 import RightClickMenu from './menu/RightClickMenu.vue';
@@ -60,8 +59,8 @@ function auxclick(e: MouseEvent) {
   if (id) close(id);
 }
 // The bar's right-click menu, for what it was on. A task's tab: the shown one's profiles, Rename…, Show Folder, Delete
-// Task…. +: New Task with each of its agents, the default first (what + itself runs). A project's island: no menu, its
-// group's panel. From what the window was last told (store.projects): it opens at once.
+// Task…. +: New Task with each of its agents, the default first (what + itself runs). A project's island: its
+// group's menu. From what the window was last told (store.projects): it opens at once.
 function menu(e: MouseEvent): MenuItem[] | null {
   const id = projectOf(e), target = e.target as Element;
   if (!id) return null;
@@ -75,10 +74,9 @@ function menu(e: MouseEvent): MenuItem[] | null {
       run: () => kulisa.invoke('task:new', { project: id, agent: a.id }) }))]
       : [{ note: 'No agents: add them in Project Settings…' }, { label: 'Project Settings…', run: () => manage(id) }];
   }
-  panel.value!.openAt(id, target.closest('.pisland')!.querySelector<HTMLElement>('.plabel')!, groupItems(id));
-  return null;
+  return groupItems(id);
 }
-// A project's actions in its group's panel, in Chrome's order where Chrome has them (New tab in group … Close group,
+// A project's actions in its group's menu, in Chrome's order where Chrome has them (New tab in group … Close group,
 // Delete group last).
 function groupItems(id: string): MenuItem[] {
   const { open, windows = [] } = store.projects;
@@ -96,7 +94,6 @@ function groupItems(id: string): MenuItem[] {
     { label: 'Show Data Folder', run: () => kulisa.invoke('project:show-data', { id }) },
     '-', { label: 'Close Group', run: () => close(id) }];
 }
-const panel = ref<InstanceType<typeof GroupPanel>>();
 const taskMenu = ({ key, name }: TaskInfo): MenuItem[] => [
   ...(key === store.current ? [{ heading: 'Profiles' }, ...profilesMenu(), '-' as const] : []),
   { label: 'Rename…', run: async () => (await dialog('taskrename')).rename(key, name) },
@@ -171,7 +168,6 @@ function dragend(e: DragEvent) {
       </div>
       </nav>
     </TabsList></TabsRoot></RightClickMenu>
-    <GroupPanel ref="panel" />
     <TaskSearch />
   </footer>
 </template>

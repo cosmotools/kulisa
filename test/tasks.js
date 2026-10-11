@@ -656,7 +656,7 @@ module.exports = (test) => {
     const byClosing = tasksFile().list.filter((e) => e.closed).sort((a, b) => b.closedAt - a.closedAt).map((e) => e.name);
     assert.deepEqual(await ui(`[...document.querySelectorAll('.tasksearch [data-project="project"] .tltask:not(.tlnew) .label')].map((l) => l.textContent)`), byClosing);
     assert.equal(byClosing[0], 'Feature-X');
-    // Its heading is a label; a task of it opens its group again, on that task; the others wait in its group's panel.
+    // Its heading is a label; a task of it opens its group again, on that task; the others wait in its group's menu.
     assert.notEqual(await ui(`document.querySelector('.tasksearch [data-project="project"] .tlproject').getAttribute('role')`), 'option', 'no row');
     await closeMenu(ui);
     await searchTasks(ui, 'project', 2);
@@ -769,7 +769,7 @@ module.exports = (test) => {
     ctx.watchPty(shell.pty);
     await waitFor(() => ui(`!document.documentElement.classList.contains('noproject') && !document.documentElement.classList.contains('loading')`));
     await waitFor(async () => (await viewOn(shell, ui, 'sam-admin')) && viewOn(shell, ui, 'elon-buyer'));
-    // Feature-X, closed with its group, opened again from the group's panel (the tests after and the restart expect it).
+    // Feature-X, closed with its group, opened again from the group's menu (the tests after and the restart expect it).
     await groupMenu(ui, 'Feature-X');
     await waitFor(() => shell.task?.n === 2 && shell.task.loaded && !shell.windows[0].switching);
     await click(ui, taskTab(1));
@@ -1105,7 +1105,7 @@ module.exports = (test) => {
     assert.ok(fs.existsSync(gone) && !fs.existsSync(path.join(userData, 'projects', 'gone')));
     assert.deepEqual(savedWindows(), [{ tabs: ['project'], shown: 'project' }]);
 
-    // Close Group in its panel: the last group, so the empty window; its tasks closed.
+    // Close Group in its menu: the last group, so the empty window; its tasks closed.
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
     await rightClick(ui, '#projectTabs [data-project="project"] .name');
     await menuRows(ui); // it opens once the window has the list of windows

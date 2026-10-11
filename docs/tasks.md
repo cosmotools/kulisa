@@ -32,12 +32,12 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   - **A click on the label folds the group** to it, as Chrome's collapsed tab groups, and back (kept in
     `tasks.json`); the tab of the task it shows stays, so the grid on screen keeps its tab. Showing a project is a
     click on one of its tasks (two ways to the same thing confused, when the label showed it too).
-  - **A right-click on the label opens the group's panel**, as Chrome's tab group's (`GroupPanel.vue`; decided with
-    the author 2026-10-11, ROADMAP): at its top the project's name (the keyboard in it), its colors and its icons,
-    saved as they change (the name on Enter, or as the panel closes, also with Esc); under them New Task, its **closed
+  - **A right-click on the label opens the group's menu**, as Chrome's tab group's: New Task, its **closed
     tasks** under a heading (the one closed last first; a click opens one again; Delete Merged Tasks… when some are
     merged), Move to New Window, Move to Window, Project Settings… (what a group has not: its code, agents, profiles,
-    local addresses), Show Data Folder, Close Group. **Closing a group** (that panel, the middle button on its label,
+    local addresses), Show Data Folder, Close Group. The project's name, color and icon are the projects' manager's
+    alone (the author, 2026-10-11: a panel with them at the menu's top, as Chrome's, was there for a day and was
+    redundant). **Closing a group** (that menu, the middle button on its label,
     × on its last open task) closes its tasks as × on each would (`Project.closeAll`: agents stopped, profiles saved
     and closed, everything kept; the shown one listed as closed last), its island goes; it asks only when an agent
     works (the author, 2026-10-11, with groups; before, a project's closing always asked).
@@ -55,10 +55,10 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
     task shows it in its group, in its group's window (a closed one opened again; a new group in this window when its
     project has none); New Task under each project makes one there. A project's heading is a label, not a row. Only
     tasks there (the author, 2026-10-11: the bar's tabs are tasks, so what lists things to open lists tasks): New
-    Project and the rest are the projects' manager's, Close Group the group's panel's (and the middle button). A Popover in a menu's
+    Project and the rest are the projects' manager's, Close Group the group's menu's (and the middle button). A Popover in a menu's
     look, not a menu: a menu takes the letters typed (its typeahead), and the list is Reka's Listbox.
 - **The projects' manager** (the Projects button in the title bar, left of ☰; Project
-  Settings… in a group's panel opens it at that project; at the first start, no project yet, it opens by itself on
+  Settings… in a group's menu opens it at that project; at the first start, no project yet, it opens by itself on
   New Project; back on
   2026-10-11, after it was taken out for a few hours): one dialog, every project on the left, open or not (the open
   ones marked), + New Project under them; on the right one project's configuration, edited there whether the project
@@ -81,7 +81,7 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
 - **Showing another group** slides the grid towards its island, as macOS desktops do (a view transition on the compositor, the
   pages as pictures meanwhile; not with reduced motion); the window builds the other grid in place, so nothing jumps.
   When a group closes, the one next to it is shown, or the empty window when it was the last.
-- **Move to New Window** (the group's panel) puts the group into a window of its own, next to this one, e.g.
+- **Move to New Window** (the group's menu) puts the group into a window of its own, next to this one, e.g.
   to drag it to a second monitor; **Move to Window: …** (one item per other window, named by its projects) puts it
   into that window, as a browser moves a tab. It keeps running: its agents, its pages (the same ones, moved, not
   loaded again), what its terminals showed. The only tab of a window does not go to a new window; moved into another
@@ -99,7 +99,7 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   …, up to 128 KB; a project opened from a folder that has one gets it), one of Kulisa's set (Lucide's cart, briefcase,
   globe, flask, rocket, code, building, people, book, heart), or the app's curtain.
 - **Its configuration** (the manager's right side, `ProjectEditor.vue`, one form for a new project and an existing
-  one) changes its name, color, icon and local addresses on Save (the name, color and icon also in its group's panel);
+  one) changes its name, color, icon and local addresses on Save;
   the folder is shown, not changed.
 - **Its agents**: a list of its agents' accounts and the terminal only ("Choosing the agent", Accounts). **Add
   Agent…** adds the terminal only or an account another project has; **New Account…** makes one, signed in right there;
@@ -179,7 +179,7 @@ Example: the project `~/IdeaProjects/myshop`, its second task, named "Checkout-r
   a task opened those open in the task on screen before (the first one all), each a browser's processes and memory
   whether the task needed it or not.
 - **×** on a task's tab closes it: its agent stops, its tabs close; its code, branch, profiles and conversation stay,
-  and Search Tasks and its group's panel list it as closed. Opening it there shows it again and resumes its agent's
+  and Search Tasks and its group's menu list it as closed. Opening it there shows it again and resumes its agent's
   conversation. It asks only when the agent is working (closing would stop it); nothing else is lost. × on a group's
   last open task closes the group, as Chrome's tab group goes with its last tab.
 - **Delete Task…** in its tab's menu deletes it, after a question saying what goes for good: its folder, its branch,
@@ -200,12 +200,12 @@ to the human; the window's IPC (`app.js`) and the MCP tools are handles on it:
 | Action | The human | The agent | The core |
 |---|---|---|---|
 | Open a task (a group with it, when its project has none) | Search Tasks, New Task in the manager | none: it works inside one task | `openProject` (`app.js`): the task opened again and shown, or a new one (`createTask`) |
-| Close a group | Close Group in its panel, the middle button on its label, × on its last open task | none: it would stop itself | `closeProjects` (`app.js`), `Project.closeAll`, asking only when an agent works |
+| Close a group | Close Group in its menu, the middle button on its label, × on its last open task | none: it would stop itself | `closeProjects` (`app.js`), `Project.closeAll`, asking only when an agent works |
 | Close a window, quit | the OS's ×, ☰ → Exit | none | `closeProjects` for the window's groups; `quit` (`app.js`), asking only when an agent works |
 | Move a group | Move to New Window, Move to Window, dragging its label | none: where the human sees it is the human's | `moveProject` (`app.js`) |
 | Delete a project | Delete Project… in the projects' manager | none: it deletes sign-ins, the human's to decide | `deleteProject` (`app.js`), `askDeleteProject`, `deleteProjectData` (`projects.js`) |
 | Make a task | + in its group, Ctrl+Shift+N, New Task, New Task with (+'s right-click) | not yet (ROADMAP, "Tasks, rest") | `Project.createTask` |
-| Close a task, open it again | ×; Search Tasks, its group's panel | none: what runs is the human's to stop | `Project.closeTask`, `reopen` |
+| Close a task, open it again | ×; Search Tasks, its group's menu | none: what runs is the human's to stop | `Project.closeTask`, `reopen` |
 | Rename a task | Rename… in its tab's menu | `task_rename` | `Task.rename` |
 | Delete a task | Delete Task… in its tab's menu | none: it deletes work and sign-ins, the human's to decide | `Project.askDeleteTask`, `deleteTask` |
 | Show a task | a click on its tab, of any group | none: what the human looks at is theirs | `AppWindow.showTask`, then `show` its project (`window.js`) |

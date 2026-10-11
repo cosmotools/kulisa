@@ -95,7 +95,7 @@ module.exports = (test) => {
     press(shell.win.webContents, 'Return');
     await waitFor(async () => !(await menuOpen(ui)));
     assert.equal(shell.current?.folder, other);
-    // The label's right-click: its group's panel, as Chrome's (its name, color and icon: below); under them its actions.
+    // The label's right-click: its group's menu, as Chrome's.
     await rightClick(ui, '#projectTabs [data-project="other"] .name');
     assert.deepEqual(await menuRows(ui), ['New Task', '-', 'Move to New Window', '-', 'Project Settings…', 'Show Data Folder', '-', 'Close Group']);
     // Show Data Folder: Kulisa's folder of that project, in the file manager.
@@ -134,35 +134,11 @@ module.exports = (test) => {
     assert.deepEqual(await projectTabs(ui), ['project *', 'other']);
     const seen = await ui(`(() => { const s = [...__islands]; window.__islands = null; return s; })()`);
     assert.deepEqual(seen, [JSON.stringify(before)], 'the islands keep their places, also while switching');
-    // The group's panel: its name, color and icon edited in place at its top, the keyboard in the name.
+    // The label's right-click: its group's menu, rows only (its name, color and icon are the projects' manager's).
     await rightClick(ui, '#projectTabs [data-project="other"] .name');
     await menuRows(ui);
-    const entry = () => shell.store.projects().find((p) => p.id === 'other');
-    await waitFor(() => ui(`document.activeElement?.id === 'gpname' && document.activeElement.value === 'other'`));
-    const look = { color: entry().color, icon: entry().icon };
-    const pick = shell.store.nextColor();
-    await ui(`document.querySelector('#gpcolors [data-value="${pick}"]').click(); document.querySelector('#gpicons [data-value="rocket"]').click()`);
-    await waitFor(() => entry().color === pick && entry().icon === 'rocket');
-    await waitFor(() => ui(`${projectTab('other')}.querySelector('.plabel use').getAttribute('href') === '#i-p-rocket'`));
-    assert.ok(await menuOpen(ui), 'it stays open while they are chosen');
-    // A name typed (a menu would take its letters for its rows), Enter: renamed, the panel closed.
-    const wc = shell.win.webContents;
-    await ui(`document.getElementById('gpname').select()`);
-    await wc.insertText('other-two');
-    for (const type of ['keyDown', 'char', 'keyUp']) wc.sendInputEvent({ type, keyCode: type === 'char' ? '\r' : 'Enter' });
-    await waitFor(async () => entry().name === 'other-two' && !(await menuOpen(ui)));
-    assert.deepEqual(await projectTabs(ui), ['project *', 'other-two']);
-    // Put back, from the panel again: Esc closes it, the name typed kept.
-    await rightClick(ui, '#projectTabs [data-project="other"] .name');
-    await menuRows(ui);
-    await waitFor(() => ui(`document.activeElement?.id === 'gpname'`));
-    await ui(`document.getElementById('gpname').select()`);
-    await wc.insertText('other');
-    await ui(`document.querySelector('#gpcolors [data-value="${look.color}"]').click(); document.querySelector('#gpicons [data-value="${look.icon || 'logo'}"]').click()`);
-    await waitFor(() => entry().color === look.color && (entry().icon || 'logo') === (look.icon || 'logo'));
+    assert.equal(await ui(`document.querySelectorAll('.menu[data-state="open"] input').length`), 0, 'no fields');
     await closeMenu(ui);
-    await waitFor(() => entry().name === 'other');
-    assert.equal(shell.win.getTitle(), 'project — Kulisa');
 
     // Closing the group (the middle button on its label) asks first when an agent works; Cancel keeps it open.
     ctx.asked.length = 0;

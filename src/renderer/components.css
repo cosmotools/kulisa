@@ -118,8 +118,7 @@ svg:has(> use) { width: 16px; height: 16px; flex: none; fill: none; stroke: curr
   .remove { margin-inline-end: 2px; visibility: hidden; }
   &:is(:hover, :focus-within) .remove { visibility: visible; } }
 
-/* An error is text to copy (to search for it), unlike the rest of the window's words: in a dialog, a project's group
-   panel (GroupPanel.vue) */
+/* An error is text to copy (to search for it), unlike the rest of the window's words: in a dialog */
 .error { margin: var(--inset) 0 0; color: var(--error); user-select: text; cursor: text; &:empty { display: none; } }
 
 /* Dialogs, one look for all (Modal.vue on Reka's Dialog; Ask.vue on its AlertDialog), as in JetBrains: the title
