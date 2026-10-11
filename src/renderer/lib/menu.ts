@@ -19,9 +19,19 @@ export type MenuItem = '-' | MenuRow
 // A menu at a point with no button or area of its own: a link in the terminal (Ctrl+click). PointMenu.vue shows it.
 export const pointMenu = shallowRef<{ x: number; y: number; items: MenuItem[] } | null>(null);
 export const menuAt = (e: MouseEvent, items: MenuItem[]) => { pointMenu.value = { x: e.clientX, y: e.clientY, items }; };
+// A row whose action opens a field for the keyboard (New Profile…): the menu, closing, gives it there instead (forgotten
+// soon after, when the menu had closed before the field came).
+let given: HTMLElement | null = null;
+export function focusAfterMenu(el: HTMLElement | null | undefined) {
+  given = el ?? null;
+  el?.focus();
+  setTimeout(() => { if (given === el) given = null; }, 500);
+}
 // A menu closed: the keyboard back where it was before it opened (the terminal, a field, its button), unless another
 // menu has opened meanwhile (the focus leaving that one would close it).
 export function focusBack(e: Event, el: Element | null) {
   e.preventDefault();
+  if (given?.isConnected) { given.focus(); given = null; return; }
+  given = null;
   if (!document.querySelector('.menu[data-state="open"]') && el instanceof HTMLElement && el.isConnected) el.focus();
 }

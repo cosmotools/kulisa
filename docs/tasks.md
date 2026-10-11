@@ -63,10 +63,13 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   on New Project. It was the projects' manager alone, under a Projects button, until the agents' accounts needed a
   place outside projects. **The projects' manager**, its Projects tab (back on
   2026-10-11, after it was taken out for a few hours): + New Project and every project under it on the left
-  (its icon in its color, its name); on the right the chosen one's **page**: at its top its icon and name, **New Task**
-  (a task of it, in its group) and **⋯** (Delete Project…); under them a card each (`.card`: a heading, a line saying
-  what it is, its rows or an empty line, its add row): **Code**, **Agents**, **Profiles** (what its tasks are made
-  of), **Look** (name, color, icon), **Local addresses**. **Everything is saved as it changes**: no Save and no
+  (its icon in its color, its name); on the right the chosen one's **page**: at its top its icon (a click opens its color and icon), its name (edited in
+  place), **New Task** (a task of it, in its group) and **⋯** (Delete Project…); under them a section each (`.section`:
+  a heading with its **+** at the end, its rows, a line when it has none): **Code**, **Agents**, **Profiles** (what its
+  tasks are made of), **Local addresses**. Each section adds the same way, with its **+** (a menu); what needs typing
+  (a URL to clone, a new profile's name) opens a field in place, under its rows (Esc puts it away). Explanations are in
+  the empty lines and the tooltips, not in a paragraph per section (the author, 2026-10-11: the page with cards, a
+  paragraph each and four ways to add read as documentation, not settings). **Everything is saved as it changes**: no Save and no
   Cancel (the author, 2026-10-11: with code, agents and profiles saved at once and the look on Save, it was not plain
   what Save and Cancel were for); the name on Enter or leaving its field, also when the manager closes or another
   project is chosen with one typed. Decided with the author on 2026-10-10, when a project became the configuration its tasks are made
@@ -74,7 +77,8 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   it. A dialog, not a window of the OS: no process more.
 - **New Project** (in the manager; New Project… in the empty window), as JetBrains': a name and a location, `~/Kulisa` (every new project's place, as JetBrains'
   `~/PycharmProjects`) unless they type or browse to another; the dialog shows the folder it makes
-  (`<location>/<name>`), so the human knows where the agent's files are; its color (the next free one) and its icon.
+  (`<location>/<name>`), so the human knows where the agent's files are. Its color (the next free one) and icon (the
+  curtain, or its site's favicon) are not asked: one decision less to make a project, changed at its page's top.
   **A folder that is there already is taken as it is**, its files kept, and the dialog says so as the name and the
   location are typed ("… is there already", "… is a git repository"; refused: a file, or a folder a project has): the
   one way to make a project of existing code (Open Folder… was until 2026-10-11: what it did was not clear, the
@@ -105,16 +109,18 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   …, up to 128 KB; a project made in a folder that has one gets it), one of Kulisa's set (Lucide's cart, briefcase,
   globe, flask, rocket, code, building, people, book, heart), or the app's curtain.
 - **Its configuration** (the manager's right side, `ProjectEditor.vue`, which is Settings with its tabs, one form for a new project and an existing
-  one; a new project's form: Create, Cancel) changes its name, color, icon and local addresses as they change; the
-  folder is shown (in Code), not changed.
-- **Its agents**: a list of its agents' accounts and the terminal only ("Choosing the agent", Accounts). **Add
-  Agent…** adds the terminal only or any account (made in another project or in Settings → Agents); **New Account…**
-  makes one, signed in right there; × lets go of one at once (the account stays: Settings → Agents deletes it); the radio makes one the default: + runs it, the others are in +'s right-click menu (New Task with).
+  one; a new project's form: Create, Cancel) changes its name (on Enter or leaving it), color, icon (a panel from its
+  icon) and local addresses as they change; the folder is shown (in Code), not changed.
+- **Its agents**: a list of its agents' accounts and the terminal only ("Choosing the agent", Accounts). Its
+  **+** adds the terminal only or any account (made in another project or in Settings → Agents), or, under New Account,
+  makes one of an agent, signed in right there; × lets go of one at once (the account stays: Settings → Agents deletes
+  it); the first is the default, marked so when there are several (**Make Default** on another, as the pointer is on
+  it): the bar's + runs it, the others are in +'s right-click menu (New Task with).
   None: its tasks start with the terminal only. A task keeps the agent it started with; Change agent… in its terminal
   picks another of the project's.
-- **Its code**: the repositories or folders its tasks work on, the default one first (its radio: new tasks' agents
-  start in its copy; every task gets a copy of each). **Add Folder…** adds one from the
-  computer, **Clone** one from a URL with the user's own git (its credentials and keys; git asks for no password, so a
+- **Its code**: the repositories or folders its tasks work on, the default one first (marked when there are several,
+  **Make Default** on another: new tasks' agents start in its copy; every task gets a copy of each). Its **+**: **Add
+  Folder…** adds one from the computer, **Clone from URL…** one from a URL with the user's own git (its credentials and keys; git asks for no password, so a
   private repository it cannot reach fails with git's own words; cloned into the project's own folder when that has no
   git, `~/Kulisa/<project>/<repo>`, else next to it, never inside a repository). A repository added while tasks run is copied for each loaded one (the others when they load) and its agent is
   told, typed into its prompt for the human to send: Claude Code `/add-dir <folder>`, others a line saying so. **×**
@@ -274,7 +280,7 @@ are not programmers); its accounts are made there too, or in a project's page.
   every account is made in Kulisa and starts as a clean agent (no global `CLAUDE.md`, settings, plugins, skills or MCP
   servers of the human's: set up again in each), the author's choice over copying them.
   - **Made in Settings → Agents** (New Account… under its agent: in no project yet) **or in a project** (its page,
-    New Account…, an agent: in that project): the agent's own sign-in starts at once, as
+    Agents' + → New Account, an agent: in that project): the agent's own sign-in starts at once, as
     its `/login` does (Claude Code `auth login`, Codex `login`), in a terminal there (`AccountSignIn.vue`),
     and ends once signed in. The terminal is under Details, closed (the author, 2026-10-11: the address it prints, with
     the window open, only confused); it opens by itself when the sign-in fails, and is there for what the window does
@@ -295,7 +301,7 @@ are not programmers); its accounts are made there too, or in a project's page.
     its session in memory only (nothing on disk); it closes when the sign-in ends, its session wiped, and closed by the
     human it ends the sign-in. Claude Code reads `BROWSER` on Linux (checked in 2.1.296); on macOS and Windows not
     checked (there it may still open the user's browser), and on Windows it is not set (a sh script).
-  - **One store** (`agents.json`), as the profiles': each account lists the projects it is in; **Add Agent…** in another
+  - **One store** (`agents.json`), as the profiles': each account lists the projects it is in; the Agents' **+** of another
     project takes it there too. Choosing a task's agent (Change agent…, Choose the Agent) lists the project's accounts
     and the agents themselves, never another project's: the project's page says who works in its tasks.
   - **An account lives until the human deletes it** (the author, 2026-10-11: with every project deleted, every account

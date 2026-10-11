@@ -62,7 +62,7 @@ class Accounts {
     this.save([...this.stored().filter((x) => x.id !== id), { id, agent: agentId, email: email || null, folder: id, projects: project ? [project] : [] }]);
     return this.find(id);
   }
-  // Listed in another project too (Add Agent… in the projects' manager). The own ones are not stored.
+  // Listed in another project too (the Agents' + on a project's page). The own ones are not stored.
   addTo(id, project) {
     const list = this.stored(), x = list.find((a) => a.id === id);
     if (!x) return this.find(id);

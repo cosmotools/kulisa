@@ -56,7 +56,7 @@ it), its tasks, and **+** for a new task. A project itself is not opened or clos
 button on its name closes all its tasks, asking only when an agent works). The button after the islands (or Ctrl+Shift+A)
 searches every project's tasks, as Chrome's Search tabs: a click opens one, in its project's group (a new one in this
 window when it has none), and **New Task** under each project makes one. **Settings → Projects** has **New Project** (a name and where its
-folder goes, `~/Kulisa` by default; git on by default, with an empty first commit; its color and icon; then its
+folder goes, `~/Kulisa` by default; git on by default, with an empty first commit; then its
 configuration: its agents' accounts, code, profiles; **New Task** makes its first task; a folder there already, a repository or not, is taken as it is). **Project Settings…** on its name's right-click menu opens the manager at it. Closing the last group leaves the
 window empty: Search Tasks and New Project… in it. A closed task keeps its tabs and
 sign-ins; when you open it again, its agent continues the conversation where it can (`claude --resume`,
@@ -65,7 +65,7 @@ there, so the project's environment (direnv's `.envrc`, nvm, mise) applies; when
 
 **The agent:** **Settings → Agents** (or **☰ → Agents…**) shows which agent CLIs are installed (Claude Code, Codex),
 their versions and folders, installs the others (Kulisa runs its maker's installer), and lists each one's accounts.
-**New Account…** there, or in a project's page, starts the agent's own sign-in right there, its page in a clean browser
+**New Account…** there, or New Account under a project's Agents' **+**, starts the agent's own sign-in right there, its page in a clean browser
 of Kulisa's (none of your other sign-ins there); the account is shown by the email you signed in to and has a folder
 of its own (several side by side: a work and a personal one). A project's tasks run the accounts its page lists
 (**Add Agent…**). An account stays until you delete it in Settings → Agents (×, after a question), also when no project
