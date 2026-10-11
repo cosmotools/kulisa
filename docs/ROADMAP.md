@@ -44,8 +44,11 @@ here; what is left of it stays.
     `desktop-ui`, a step at a time: (1) the foundations (two text sizes, dense rows, square icon buttons, `.list` with a
     toolbar, `.titled`, "Label:" forms, a dialog's title strip) and (2) Settings as a tree with a project's page, New
     Project a dialog of its own, (3) Settings → Agents as a list and the chosen agent's details (its accounts a
-    `.list`): built; the author looks. Left: (4) the other dialogs to the same rules (Rename Task, a profile's dialog, an
-    account's sign-in, Keyboard Shortcuts, Search Tasks). Decided with the author: icon buttons square everywhere; no
+    `.list`), (4) the other dialogs to the same rules where it is only their look ("Label:", `.titled`; Rename Task,
+    Profiles, Keyboard Shortcuts): built; the author looks. Open, for the author: the task's Profiles dialog
+    (`ProfileEditor.vue`) as a list of its profiles and the chosen one's fields (Picture, Name, About, Test login and
+    password), + making one, as Settings → Agents, instead of every profile's fields one under another and a New Profile
+    form under them; not built unasked (no mockup of it was agreed). Decided with the author: icon buttons square everywhere; no
     search field in Settings' tree; no × shown under the pointer in a dialog's lists (−, Delete, a right-click).
   - **Agents** (the CLIs and their accounts in Settings → Agents since 2026-10-11; chosen in a project since step 8,
     below): the human picks a CLI (Claude Code, Codex, …) and signs in with the CLI's own login (New Account…, in
