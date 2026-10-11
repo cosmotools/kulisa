@@ -5,7 +5,6 @@ import TopBar from './TopBar.vue';
 import Grid from './Grid.vue';
 import TaskBar from './TaskBar.vue';
 import Empty from './Empty.vue';
-import ProfileEditor from './ProfileEditor.vue';
 import ProjectEditor from './ProjectEditor.vue';
 import NewProject from './NewProject.vue';
 import TaskRename from './TaskRename.vue';
@@ -21,7 +20,6 @@ import PointMenu from './menu/PointMenu.vue';
   <Grid />
   <Empty />
   <TaskBar />
-  <ProfileEditor />
   <ProjectEditor />
   <NewProject />
   <TaskRename />

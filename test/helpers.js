@@ -92,12 +92,26 @@ async function plusMenu(ui, project, task) {
     (${JSON.stringify(task ?? null)} === null ? items[at] : own.find((r) => label(r) === ${JSON.stringify(task)})).click(); })()`);
   await waitFor(async () => !(await menuOpen(ui)));
 }
-// The profile editor: the profiles' chip (👥), then Manage Profiles….
+// Settings → Profiles: the profiles' chip (👥), then Manage Profiles…; once its list is there.
 const manageProfiles = async (ui) => {
   await ui(`document.getElementById('openProfiles').click()`);
   await menuRows(ui);
   await choose(ui, 'Manage Profiles…');
+  await waitFor(() => ui(`document.getElementById('projects')?.dataset.state === 'open' && document.getElementById('profilestab')?.checkVisibility()`));
 };
+// Settings closed with its ×.
+const closeSettings = async (ui) => {
+  await ui(`document.querySelector('#projects .x').click()`);
+  await waitFor(async () => !(await ui(`document.getElementById('projects')?.dataset.state === 'open'`)));
+};
+// A profile in Settings → Profiles chosen (a click), its fields there.
+const chooseProfile = async (ui, id) => {
+  await ui(`document.querySelector('#profilestab [data-profile="${id}"]').click()`);
+  await waitFor(() => ui(`document.querySelector('#profilestab [data-profile="${id}"]')?.ariaSelected === 'true'`));
+};
+// A field of Settings → Profiles typed and left (saved on change).
+const setProfileField = (ui, id, value) => ui(`(() => { const f = document.getElementById('${id}'); f.value = ${JSON.stringify(value)};
+  f.dispatchEvent(new Event('input')); f.dispatchEvent(new Event('change')); })()`);
 // A right-click on an element of the window, at its middle: the press (it closes a menu open elsewhere), then the
 // menu's event, as a mouse sends them on Linux.
 const rightClick = (ui, sel) => ui(`(() => { const e = document.querySelector(${JSON.stringify(sel)}), r = e.getBoundingClientRect();
@@ -134,6 +148,6 @@ const press = (wc, keyCode, ...modifiers) => { for (const type of ['keyDown', 'k
 const ctrl = (wc, keyCode) => { wc.focus(); press(wc, keyCode, 'control'); };
 const near = (a, b) => Math.abs(a - b) < 1e-6;
 
-module.exports = { plusMenu, assert, root, userData, project, pfile, savedTabs, savedWindows, panel, SITE, PORT, sleep, waitFor, who, menuRows, choose, projectTabs, projectTab, showProject, closeProject, manageProfiles, menuOpen, closeMenu, rightClick,
+module.exports = { plusMenu, assert, root, userData, project, pfile, savedTabs, savedWindows, panel, SITE, PORT, sleep, waitFor, who, menuRows, choose, projectTabs, projectTab, showProject, closeProject, manageProfiles, closeSettings, chooseProfile, setProfileField, menuOpen, closeMenu, rightClick,
   click, chosen, selectValues, select,
   box, pageBox, viewOn, dock, press, ctrl, near };

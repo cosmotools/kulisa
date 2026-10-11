@@ -250,7 +250,7 @@ class AppWindow {
   }
 
   // ---------- the profiles' views ----------
-  // The profile editor and the grid's drop targets are HTML; the profiles' views are native and draw above it, so
+  // Settings and the grid's drop targets are HTML; the profiles' views are native and draw above it, so
   // they are hidden meanwhile. With snapshots: first a picture of each page on screen, for the page to show in its
   // place ({ profile id: data URL }).
   async hideViews(hidden, { snapshots = false } = {}) {

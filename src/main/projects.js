@@ -269,27 +269,37 @@ async function removeRepo(shell, id, repo) {
   if (using.length) return { error: `Tasks work in it: ${using.map((e) => e.name).join(', ')}. Delete them first (Delete Task… in a task's menu).` };
   return changeRepos(shell, id, repos.filter((r) => r !== repo));
 }
-// A profile a project lets go (the editor's Delete, the agent's profile_delete, × in the projects' manager), whether it
-// is open or not: asked first, saying what goes: its copies in the project's tasks; and its master, when no other
-// project has it. w: the window that asks.
+// A profile a project lets go (− on its page, the agent's profile_delete), whether it is open or not: asked first,
+// saying what goes: its copies in the project's tasks. The profile stays, with its master (its sign-ins): Settings →
+// Profiles deletes it (deleteProfile). w: the window that asks.
 function askDropProfile(shell, entry, p, by, w) {
-  const g = shell.profileStore.byFolder(p.folder);
-  const others = (g?.projects || []).filter((x) => x !== entry.id).map((x) => shell.store.projects().find((e) => e.id === x)?.name || x);
-  const agent = by === 'agent', end = agent ? '.' : '?';
-  return shell.ask(others.length
-    ? { ok: 'Remove', danger: true, message: `${agent ? 'The agent asks to remove' : 'Remove'} the profile ${p.name} from ${entry.name}${end}`,
-      detail: `Its copies in this project's tasks go, with their tabs and what was signed in only there. It stays in ${others.join(', ')}, with its sign-ins.` }
-    : { ok: 'Delete', danger: true, message: `${agent ? 'The agent asks to delete' : 'Delete'} the profile ${p.name}${end}`,
-      detail: 'It is in no other project: its sign-ins, cookies, storage and tabs are removed for good.' }, w);
+  const agent = by === 'agent';
+  return shell.ask({ ok: 'Remove', danger: true, message: `${agent ? 'The agent asks to remove' : 'Remove'} the profile ${p.name} from ${entry.name}${agent ? '.' : '?'}`,
+    detail: "Its copies in this project's tasks go, with their tabs and what was signed in only there. The profile stays, with its sign-ins: Settings → Profiles deletes it." }, w);
 }
 // Its copy goes from each of the project's tasks: a loaded one closes it, the others lose it from their files.
 async function dropProfile(shell, entry, folder) {
   const g = shell.profileStore.byFolder(folder), open = shell.open.get(entry.id);
-  if (g?.projects.length === 1) { await shell.closeMaster(folder); shell.cookieSync.forget(folder); } // its master goes: its window first
   if (open) for (const t of open.tasks.values()) await t.dropProfile(folder);
   else for (const e of shell.store.tasksOf(entry).list) shell.store.taskOf(entry, e.n).dropProfile(folder);
   if (g) shell.profileStore.removeFrom(g.id, entry.id);
   shell.profilesChanged();
+}
+// Deleting a profile (Settings → Profiles), after a question: its copies in every project's tasks, then its master
+// (its window first) with its sign-ins, for good. { ok }, or { error: null } when the human says no.
+async function deleteProfile(shell, id, w) {
+  const g = shell.profileStore.get(id);
+  if (!g) return { error: `no profile ${id}` };
+  const projects = shell.store.projects().filter((p) => g.projects.includes(p.id));
+  if (!await shell.ask({ message: `Delete the profile ${g.name}?`, ok: 'Delete', danger: true,
+    detail: ['Its sign-ins, cookies, storage and tabs are removed for good, here and in every task.',
+      projects.length && `The projects ${projects.map((p) => p.name).join(', ')} let go of it.`].filter(Boolean).join(' ') }, w)) return { error: null };
+  for (const p of projects) await dropProfile(shell, p, g.folder);
+  await shell.closeMaster(g.folder);
+  shell.cookieSync.forget(g.folder);
+  shell.profileStore.delete(id);
+  shell.profilesChanged();
+  return { ok: true };
 }
 
 // The agents' accounts a project's tasks run (the projects' manager), whether it is open or not: added, made the
@@ -365,17 +375,14 @@ async function askDeleteProject(shell, p, w) {
     if (what) changed.push(`${e.name}: ${what}`);
   }
   return shell.ask(deleteQuestion({ message: `Delete the project ${p.name}?`, ok: 'Delete', goes: [
-    ...(() => {
-      const only = shell.profileStore.of(p.id).filter((g) => g.projects.length === 1).map((g) => g.name);
-      return [only.length ? `its profiles ${only.join(', ')} (in no other project) with their sign-ins` : null, "its tasks' copies of its profiles, and its layouts"].filter(Boolean);
-    })(),
+    "its tasks' copies of its profiles, and its layouts",
     ...withCopies.map((e) => `its task ${e.name}: ${e.copies.map((c) => `the folder ${c.worktree}`).join(', ')}, the branch ${e.branch}, its agent's conversations`)],
-  notInMain: changed, stays: `Its folders stay as they are: ${[...new Set([p.folder, ...reposOf(p)])].join(', ')}.` }), w);
+  notInMain: changed, stays: `Its folders stay as they are: ${[...new Set([p.folder, ...reposOf(p)])].join(', ')}. Its profiles stay, with their sign-ins (Settings → Profiles).` }), w);
 }
 async function deleteProjectData(shell, p) {
   for (const e of shell.store.tasksOf(p).list) await deleteTask(shell, p, e);
-  for (const g of shell.profileStore.of(p.id)) shell.profileStore.removeFrom(g.id, p.id); // its own ones go with their masters
-  // Its agents' accounts stay, let go of (Settings → Agents deletes one).
+  // Its profiles and its agents' accounts stay, let go of (Settings → Profiles and → Agents delete them).
+  for (const g of shell.profileStore.of(p.id)) shell.profileStore.removeFrom(g.id, p.id);
   for (const a of shell.accounts.all().filter((x) => !x.own && x.projects.includes(p.id))) shell.accounts.removeFrom(a.id, p.id);
   shell.store.removeProject(p);
 }
@@ -409,4 +416,4 @@ function faviconOf(folder) {
 }
 
 module.exports = { Project, askDeleteProject, deleteProjectData, faviconOf, reposOf, gitOf, addRepo, cloneRepo, defaultRepo, removeRepo, reposInfo,
-  askDropProfile, dropProfile, agentsInfo, addAgent, defaultAgent, removeAgent, deleteAccount, PROJECT_ICONS };
+  askDropProfile, dropProfile, deleteProfile, agentsInfo, addAgent, defaultAgent, removeAgent, deleteAccount, PROJECT_ICONS };

@@ -12,7 +12,7 @@ export const profilesMenu = (): MenuItem[] => [
   ...store.closedProfiles.map((p) => ({ label: p.name, sub: `closed · click to open${p.description ? ` · ${p.description}` : ''}`, avatar: p.avatar,
     run: () => act('profile:open', { profile: p.id }) })),
   ...(store.profiles.length || store.closedProfiles.length ? ['-' as const] : []),
-  { label: 'Manage Profiles…', run: async () => (await dialog('profiles')).manage() },
+  { label: 'Manage Profiles…', run: async () => (await dialog('projects')).openProfiles() },
 ];
 // The main process asks the human first (Task.deleteProfile).
 export const deleteProfile = (id: string) => act('profile:delete', { profile: id });

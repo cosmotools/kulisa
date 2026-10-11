@@ -127,12 +127,12 @@ function buildServer(task) {
     return text(`Closed profile ${profile}; it is still signed in.`);
   });
   server.registerTool('profile_delete', {
-    description: 'Delete a profile for good: its sign-ins, cookies, storage and tabs. The human is asked to confirm, and only they can sign a new profile in. Only when the human asks, or a profile you created is no longer needed.',
+    description: "Remove a profile from this project: its copies in the project's tasks go (their tabs, and what was signed in only there); the profile itself stays, with its sign-ins, in Kulisa's Settings → Profiles, where only the human deletes profiles. The human is asked to confirm. Only when the human asks, or a profile you created is no longer needed.",
     inputSchema: { profile: z.string().describe('Profile id, open or closed') },
   }, async ({ profile }) => {
     const r = await task.deleteProfile(profile, 'agent');
     if (r.error) throw new Error(r.error);
-    return text(`Deleted profile ${profile}.`);
+    return text(`Removed profile ${profile} from the project; it stays in Settings → Profiles.`);
   });
 
   server.registerTool('profile_create', {
@@ -333,7 +333,7 @@ function buildServer(task) {
   // A test user's sign-in (profiles.md, "Test users' sign-ins"): its saved login or password typed by Kulisa into a field
   // of a local page; the agent never gets the password, the pane's caption shows dots. Real accounts stay the human's.
   server.registerTool('browser_type_login', {
-    description: "Type a test user's saved login or password into a field (by ref or locator), replacing what it holds, to sign in to the app under test: only on a local page (localhost, *.test, a private network, the project's own list) or one the tab reached from it, never on Google, Microsoft or another account provider. You never see the password. The pair is saved by the human (About this profile…) or by you (profile_set_login).",
+    description: "Type a test user's saved login or password into a field (by ref or locator), replacing what it holds, to sign in to the app under test: only on a local page (localhost, *.test, a private network, the project's own list) or one the tab reached from it, never on Google, Microsoft or another account provider. You never see the password. The pair is saved by the human (Settings → Profiles) or by you (profile_set_login).",
     inputSchema: { profile: profileArg, tab: onTab, ...element, field: z.enum(['login', 'password']), submit: z.boolean().optional(), dialog: dialogArg },
   }, async ({ profile, tab, ref, locator, field, submit, dialog }) => {
     const r = task.loginFor(profile, tab, field);

@@ -2,8 +2,10 @@
 // it is listed in. Its master is a Chromium profile folder in Kulisa's data (profiles/Profile <k>/) that the human
 // signs in to and no one works in; each task of its projects works in a copy of it, made when the profile is first
 // opened there (project-profiles.js). Who it is (name, id, picture, description) is the store's, the same in every
-// project and task; what a task has of it (open or closed, its tabs, sites' zoom) is the task's. A profile goes when its
-// last project lets it go, after a question. Plain Node (no Electron): unit-tested.
+// project and task; what a task has of it (open or closed, its tabs, sites' zoom) is the task's. A profile lives until
+// the human deletes it (Settings → Profiles; the author, 2026-10-11, as an agent's account): a project letting it go
+// keeps it, in no project then. Who it is changes here, checked here, for every handle (a task, Settings, the agent).
+// Plain Node (no Electron): unit-tested.
 //   profiles.json         { next, list: [{ id, name, avatar, description, folder, projects: [project id], login }] }:
 //                         login: a test user's pair, { user, secret } (the password encrypted with the OS keyring:
 //                         safeStorage; never in the clear, never logged); next,
@@ -12,8 +14,15 @@
 //   profiles/Profile <k>/ its master
 const fs = require('fs');
 const path = require('path');
-const { slugOf } = require('./names');
+const { slugOf, nameError } = require('./names');
 const { writeFileAtomic } = require('./store');
+const { AVATARS } = require('./avatars');
+
+// A profile's description: who it is in the app under test, for agents to choose profiles by (profiles.md). The
+// human's words, optional.
+const ABOUT_MAX = 500;
+const aboutError = (d) => (typeof d !== 'string' ? 'a description is text'
+  : d.trim().length > ABOUT_MAX ? `a description is at most ${ABOUT_MAX} characters` : null);
 
 class ProfileStore {
   // dir: Kulisa's data folder; markDeleted: a folder for the next start to remove when it cannot go now (store.js).
@@ -29,14 +38,14 @@ class ProfileStore {
   // A project's profiles, in the order they were made.
   of(project) { return this.all().filter((p) => p.projects.includes(project)); }
   masterDir(folder) { return path.join(this.dir, 'profiles', folder); }
-  // A new profile in a project: its master folder, empty, numbered as Chrome numbers its profiles, never a number used
-  // before. The fields are checked by the caller (project-profiles.js).
+  // A new profile, in a project or in none (Settings → Profiles): its master folder, empty, numbered as Chrome numbers
+  // its profiles, never a number used before. The fields are checked by the caller (check).
   create(project, { name, avatar, description = '' }) {
     const { next, list } = this.read();
     let n = next;
     while (fs.existsSync(this.masterDir(`Profile ${n}`))) n++;
     const folder = `Profile ${n}`;
-    const p = { id: this.idFor(name), name, avatar, ...(description && { description }), folder, projects: [project] };
+    const p = { id: this.idFor(name), name, avatar, ...(description && { description }), folder, projects: project ? [project] : [] };
     fs.mkdirSync(this.masterDir(folder), { recursive: true });
     this.save([...list, p], n + 1);
     return p;
@@ -47,6 +56,42 @@ class ProfileStore {
     let id = base, n = 2;
     while (list.some((p) => p.id === id && p.id !== except)) id = `${base}-${n++}`;
     return id;
+  }
+  // A new profile's fields, or why not.
+  check({ name, description = '', avatar }) {
+    return nameError(name?.trim()) || aboutError(description) || (avatar && !AVATARS.includes(avatar) && `no picture ${avatar}`) || null;
+  }
+  // Who it is changed, for every project and task at once: its name (and id, from it), what it is in the app, its
+  // picture, a test user's pair (its password as the caller encrypted it; an empty login takes the pair away). { id }
+  // (its id now), or { error } saying why not.
+  rename(id, name) {
+    const p = this.get(id);
+    if (!p) return { error: `no profile ${id}` };
+    const bad = nameError(name?.trim());
+    if (bad) return { error: bad };
+    const now = this.idFor(name, id);
+    this.update(p.folder, { id: now, name: name.trim() });
+    return { id: now };
+  }
+  describe(id, description) {
+    const bad = aboutError(description);
+    return bad ? { error: bad } : this._set(id, { description: description.trim() });
+  }
+  setAvatar(id, avatar) { return AVATARS.includes(avatar) ? this._set(id, { avatar }) : { error: `no picture ${avatar}` }; }
+  setLogin(id, user, secret) {
+    const p = this.get(id);
+    if (!p) return { error: `no profile ${id}` };
+    user = user?.trim() || '';
+    if (user.length > 200) return { error: 'a login is at most 200 characters' };
+    const login = user ? { user, secret: secret ?? (p.login?.user ? p.login.secret : undefined) } : undefined;
+    if (login && !login.secret) delete login.secret;
+    return this._set(id, { login });
+  }
+  _set(id, fields) {
+    const p = this.get(id);
+    if (!p) return { error: `no profile ${id}` };
+    this.update(p.folder, fields);
+    return { id };
   }
   // Who it is changed (name and id, picture, description): everywhere at once.
   update(folder, fields) {
@@ -66,18 +111,25 @@ class ProfileStore {
     this.save(list);
     return p;
   }
-  // Let go by a project; a profile in no project any more goes with its master (its sign-ins). { gone: true } then.
+  // Let go by a project: it stays, with its master (its sign-ins), in no project when that was its last.
   removeFrom(id, project) {
     const list = this.all(), p = list.find((x) => x.id === id);
     if (!p) return { error: `no profile ${id}` };
     p.projects = p.projects.filter((x) => x !== project);
-    if (p.projects.length) { this.save(list); return { gone: false, profile: p }; }
+    this.save(list);
+    return { profile: p };
+  }
+  // Deleted (Settings → Profiles, after a question): gone with its master. Its copies in tasks are the caller's
+  // (projects.js, deleteProfile).
+  delete(id) {
+    const list = this.all(), p = list.find((x) => x.id === id);
+    if (!p) return { error: `no profile ${id}` };
     this.save(list.filter((x) => x !== p));
     const dir = this.masterDir(p.folder);
     this.markDeleted(dir);
     try { fs.rmSync(dir, { recursive: true, force: true }); } catch (e) { console.warn('[profiles]', e.message); }
-    return { gone: true, profile: p };
+    return { profile: p };
   }
 }
 
-module.exports = { ProfileStore };
+module.exports = { ProfileStore, ABOUT_MAX };

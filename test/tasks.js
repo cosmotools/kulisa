@@ -171,6 +171,23 @@ module.exports = (test) => {
     assert.equal(await who(ctx, 'sam-admin'), 'Signed in as master');
   });
 
+  test('profiles: About this profile… opens Settings → Profiles at it; its Sign In… opens the same master window, once', async (ctx) => {
+    const { shell, ui } = ctx;
+    await rightClick(ui, `.ptab[data-panel="${panel(shell, 'sam-admin')}"] b`);
+    await menuRows(ui);
+    await choose(ui, 'About this profile…');
+    await waitFor(() => ui(`document.getElementById('projects')?.dataset.state === 'open' && document.querySelector('#pjlist [data-tab="profiles"]').ariaSelected === 'true'
+      && document.querySelector('#profilestab [data-profile="sam-admin"]')?.ariaSelected === 'true' && document.getElementById('profilename').value === 'Sam.admin'`));
+    assert.ok(shell.profiles.has('sam-admin') && !shell.task.profiles.get('sam-admin').get().view.getVisible(), 'pages hidden under Settings');
+    for (let i = 0; i < 2; i++) await ui(`document.getElementById('profilesignin').click()`);
+    await waitFor(() => shell.masters.size === 1 && shell.masters.values().next().value.profile.get());
+    assert.equal(shell.masters.values().next().value.profile.dir, path.join(userData, 'profiles', shell.profileStore.get('sam-admin').folder));
+    shell.masters.values().next().value.win.close();
+    await waitFor(() => !shell.masters.size);
+    await ui(`document.querySelector('#projects .x').click()`);
+    await waitFor(async () => !(await ui(`document.getElementById('projects')?.dataset.state === 'open'`)));
+  });
+
   test("profiles: a real account's sign-in kept in step: signed in to a site (not local) in one task, it is in the others and the master; signed out, out everywhere; a local app's stays each task's", async (ctx) => {
     const { shell, call } = ctx;
     const first = shell.taskOf('project', 1), shop = `http://shop.example:${PORT}`;
@@ -945,14 +962,16 @@ module.exports = (test) => {
     await newProfileHere(ui, 'Site-user');
     await waitFor(() => ui(`!!document.querySelector('#npprofiles [data-profile="site-user"]')`));
     await ui(`document.getElementById('npprofileadd').click()`);
-    assert.ok((await menuRows(ui)).join('|').includes('# From Another Project|Sam.admin'));
+    assert.ok((await menuRows(ui)).join('|').includes('# Other Profiles|Sam.admin'));
     await choose(ui, 'Sam.admin');
     await waitFor(async () => (await ui(`document.querySelector('#npprofiles [data-profile="sam-admin"] small')?.textContent`)) === 'seller in the test shop · also in project');
     await waitFor(() => shell.closed.has('sam-admin') && shell.closed.has('site-user')); // its task lists them, closed
     await onRow(ui, '#npprofiles [data-profile="site-user"]', 'npprofiledel');
     await waitFor(() => ctx.asked.length);
-    assert.equal(ctx.asked.pop().message, 'Delete the profile Site-user?', 'in no other project: it goes for good');
-    await waitFor(() => !shell.closed.has('site-user') && !shell.profileStore.get('site-user'));
+    assert.equal(ctx.asked.pop().message, 'Remove the profile Site-user from Site-2?');
+    await waitFor(() => !shell.closed.has('site-user'));
+    assert.deepEqual(shell.profileStore.get('site-user').projects, [], 'in no other project: kept all the same, until deleted in Settings → Profiles');
+    shell.profileStore.delete('site-user'); // not needed by later tests
     await ui(`document.querySelector('#projects .x').click()`);
     // Opened in this task: a copy of its master, here.
     await ui(`act('profile:open', { profile: 'sam-admin' })`);
@@ -1093,8 +1112,9 @@ module.exports = (test) => {
     await waitFor(() => ui(`!!document.querySelector('#npprofiles [data-profile="closed-one"]')`));
     ctx.answer = true;
     await onRow(ui, '#npprofiles [data-profile="closed-one"]', 'npprofiledel');
-    await waitFor(() => ctx.asked.length && !shell.profileStore.get('closed-one'));
-    assert.equal(ctx.asked.pop().message, 'Delete the profile Closed-one?');
+    await waitFor(() => ctx.asked.length && !shell.profileStore.get('closed-one')?.projects.length);
+    assert.equal(ctx.asked.pop().message, 'Remove the profile Closed-one from Site-2?');
+    shell.profileStore.delete('closed-one'); // not needed by later tests
     await waitFor(() => ui(`!document.querySelector('#npprofiles [data-profile="closed-one"]')`));
     assert.equal(await ui(`document.getElementById('npprofileerror').textContent`), '');
     await shell.screenshot(path.join(root, 'projects.png'));
@@ -1178,7 +1198,8 @@ module.exports = (test) => {
     await waitFor(() => ctx.asked.length);
     const q = ctx.asked.pop();
     assert.equal(q.message, 'Delete the project spare?');
-    assert.match(q.detail, /its profiles Spare-user \(in no other project\) with their sign-ins/);
+    assert.doesNotMatch(q.detail, /Spare-user/);
+    assert.match(q.detail, /Its profiles stay, with their sign-ins/);
     assert.doesNotMatch(q.detail, /accounts/, 'its accounts stay');
     assert.ok(q.detail.includes(wt.worktree) && q.detail.includes('Idea: 1 commit of its own') && q.detail.includes(`Its folders stay as they are: ${spare}.`));
     assert.ok(projects().includes(p.id) && fs.existsSync(data) && fs.existsSync(wt.worktree), 'kept when the human says no');
@@ -1186,8 +1207,10 @@ module.exports = (test) => {
     await removeRow();
     await waitFor(() => !projects().includes(p.id));
     ctx.asked.length = 0;
-    await waitFor(() => !fs.existsSync(data) && !fs.existsSync(wt.worktree) && !fs.existsSync(shell.profileStore.masterDir(own.folder)));
-    assert.equal(shell.profileStore.get('spare-user'), null);
+    await waitFor(() => !fs.existsSync(data) && !fs.existsSync(wt.worktree));
+    assert.ok(fs.existsSync(shell.profileStore.masterDir(own.folder)) && shell.profileStore.get('spare-user').projects.length === 0,
+      'its profile kept, with its sign-ins, in no project (as its account)');
+    shell.profileStore.delete('spare-user'); // not needed by later tests
     assert.ok(fs.existsSync(account.dir) && !fs.readFileSync(path.join(root, 'logouts'), 'utf8').includes(account.dir), 'its account kept, signed in');
     assert.deepEqual(shell.accounts.find(account.id).projects, []);
     assert.equal(git(spare, 'branch', '--list', wt.branch), '', "the task's branch");

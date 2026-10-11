@@ -30,7 +30,7 @@ human sees everything you do there: your cursor and a caption are drawn in the p
 | `profile_rename` | Rename a profile (its id follows), e.g. after the human signed it in to another account. |
 | `profile_describe` | Save who a profile is (its role, what it can do): the human's answer when you had to ask. |
 | `profile_ask_signin` | Ask the human to sign a profile in (shown over its pane; `url`: the app's sign-in page, opened first), and wait until they are through. |
-| `profile_delete` | Delete a profile for good (sign-ins, storage, tabs). The human confirms it in a dialog. |
+| `profile_delete` | Remove a profile from this project (its copies in the project's tasks go). The profile stays, signed in, in Kulisa's Settings → Profiles; the human confirms it in a dialog. |
 | `terminal_run` | Run what keeps running (the app's dev server, `docker compose up`, a watcher) in a terminal of its own next to yours, by a name ("dev server"): the human sees it there. The same name again types into it. |
 | `terminal_read` | The last lines a terminal shows, as plain text (errors, the address the server listens on); without a name, the terminals open, yours and the human's. |
 | `terminal_stop` | Ctrl+C in a terminal (`close: true` closes it). The human's own terminals only when they ask. |
@@ -107,9 +107,9 @@ project's folder.
 - After `profile_create`, the new profile is empty and signed out: a test user of the local app you sign up or sign
   in yourself (above); a real account, ask the human to sign it in (`profile_ask_signin`).
 - `browser_evaluate` is not a way around this rule: never read cookies, tokens or passwords with it.
-- Delete a profile (`profile_delete`) only when the human asks, or one you created is no longer needed. The
-  human confirms each deletion; a deleted profile's sign-ins are gone and only the human can sign in again. If they
-  say no, leave it.
+- Remove a profile (`profile_delete`) only when the human asks, or one you created is no longer needed. The
+  human confirms it; its copies in this project's tasks go, with what was signed in only there. Only the human
+  deletes a profile for good (Settings → Profiles). If they say no, leave it.
 
 ## Elements the human points at ([kulisa pick: …])
 

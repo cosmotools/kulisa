@@ -21,12 +21,12 @@ function menu(): MenuItem[] | null {
   if (!p) return null;
   return [
     { label: 'New tab', keys: keyText('tab.new'), run: () => panes.get(key)?.newTab() },
-    { label: 'About this profile…', run: async () => (await dialog('profiles')).about(key) },
+    { label: 'About this profile…', run: async () => (await dialog('projects')).openProfiles(p.id) },
     { label: 'Sign In to Master…', run: () => act('profile:master', { profile: p.id }) },
     { label: 'Refresh from Master…', run: () => act('profile:refresh', { profile: p.id }) },
     { label: 'Close profile', run: () => act('profile:close', { profile: p.id }) },
     '-',
-    { label: 'Delete profile…', run: () => deleteProfile(p.id) },
+    { label: 'Remove from Project…', run: () => deleteProfile(p.id) },
   ];
 }
 </script>

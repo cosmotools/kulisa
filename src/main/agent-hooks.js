@@ -26,7 +26,7 @@ function sessionStart(task, input) {
   const context = [
     ONLY_BROWSER,
     lines.length ? `Kulisa profiles open now (the panes above your terminal; call browser_profiles for the live state):\n${lines.join('\n')}`
-      : closed.length ? 'No Kulisa profile is open.' : 'Kulisa has no profiles yet. The human creates them with 👥 on the task tab at the bottom → Manage Profiles…, or use profile_create when a task needs one.',
+      : closed.length ? 'No Kulisa profile is open.' : "Kulisa has no profiles in this project yet. The human makes them in Settings (the gear at the top right) → Profiles and adds them on the project's page, or use profile_create when a task needs one.",
     closed.length && `Closed profiles (signed in, no pane; profile_open opens one when the task needs it):\n${closed.join('\n')}`,
     taskContext(task),
   ].filter(Boolean).join('\n\n');

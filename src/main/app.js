@@ -15,7 +15,7 @@ const { nextAvatar } = require('./avatars');
 const { signinPages } = require('./signin-pages');
 const { SessionCookies } = require('./session-cookies');
 const { Project, askDeleteProject, deleteProjectData, faviconOf, addRepo, cloneRepo, defaultRepo, removeRepo, reposInfo, askDropProfile, dropProfile,
-  agentsInfo, addAgent, defaultAgent, removeAgent, deleteAccount, PROJECT_ICONS } = require('./projects');
+  agentsInfo, addAgent, defaultAgent, removeAgent, deleteAccount, deleteProfile, PROJECT_ICONS } = require('./projects');
 const { AppWindow, COLORS } = require('./window');
 const worktrees = require('./worktrees');
 const agents = require('./agents');
@@ -83,6 +83,13 @@ function start(options = {}) {
     available: () => safeStorage.isEncryptionAvailable(),
     encrypt: (s) => safeStorage.encryptString(s).toString('base64'),
     decrypt: (b) => safeStorage.decryptString(Buffer.from(b, 'base64')),
+  };
+  // A test user's password as it is kept: encrypted, or why not; none given: the one kept stays (profile-store.js).
+  shell.loginSecret = (password) => {
+    if (!password) return {};
+    if (!shell.secrets.available()) return { error: 'this computer has no keyring to keep a password encrypted, so none is kept' };
+    if (password.length > 500) return { error: 'a password is at most 500 characters' };
+    return { secret: shell.secrets.encrypt(password) };
   };
   // Profiles whose test password is being typed (mcp-server.js, browser_type_login): ghost.js shows no text for them.
   shell.typingSecret = new Set();
@@ -574,6 +581,31 @@ function start(options = {}) {
     clis: shell.accounts.all().filter((a) => a.own && a.agent.config?.login).map((a) => a.id) };
   };
   ipcMain.handle('accounts:list', () => accountsInfo());
+  // Settings → Profiles (profile-store.js): every profile, each with the projects it is in; who one is changed (checked
+  // in the store), then every loaded task shows it; made in no project; its master to sign in to; deleted after a
+  // question (projects.js, deleteProfile). Each answers with the list as it is then, or { error }.
+  const profilesInfo = () => {
+    const names = new Map(store.projects().map((p) => [p.id, p.name]));
+    return { profiles: shell.profileStore.all().map((g) => ({ id: g.id, name: g.name, avatar: g.avatar, description: g.description || '',
+      login: g.login?.user || '', hasPassword: !!g.login?.secret, projects: g.projects.map((p) => names.get(p)).filter(Boolean) })) };
+  };
+  const profileChange = (r) => { if (r.error) return r; shell.profilesChanged(); return { ...profilesInfo(), id: r.id }; };
+  ipcMain.handle('profiles:list', () => profilesInfo());
+  ipcMain.handle('profiles:new', (e, { name }) => {
+    const bad = shell.profileStore.check({ name });
+    if (bad) return { error: bad };
+    const g = shell.profileStore.create(null, { name: name.trim(), avatar: nextAvatar(shell.profileStore.all().map((x) => x.avatar)) });
+    return { ...profilesInfo(), id: g.id };
+  });
+  ipcMain.handle('profiles:rename', (e, { profile, name }) => profileChange(shell.profileStore.rename(profile, name)));
+  ipcMain.handle('profiles:describe', (e, { profile, description }) => profileChange(shell.profileStore.describe(profile, description)));
+  ipcMain.handle('profiles:avatar', (e, { profile, avatar }) => profileChange(shell.profileStore.setAvatar(profile, avatar)));
+  ipcMain.handle('profiles:login', (e, { profile, user, password }) => {
+    const s = shell.loginSecret(password);
+    return s.error ? s : profileChange(shell.profileStore.setLogin(profile, user, s.secret));
+  });
+  ipcMain.handle('profiles:master', (e, { profile }) => { const g = shell.profileStore.get(profile); return g ? shell.openMaster(g.folder) : { error: `no profile ${profile}` }; });
+  ipcMain.handle('profiles:delete', (e, { profile }) => serial(async () => { const r = await deleteProfile(shell, profile, at(e)); return r.ok ? profilesInfo() : r; }));
   // Delete Account… (projects.js: refused while a task runs it, asked first). { accounts, clis } or { error }.
   ipcMain.handle('account:delete', (e, { id }) => serial(async () => {
     const r = await deleteAccount(shell, id, at(e));
@@ -817,19 +849,15 @@ function start(options = {}) {
   const onScreen = (e, key) => { const task = at(e)?.task; return task && task.key === key ? task : null; };
   const onProfile = (fn) => (e, { task, profile, ...args }) => { const r = onScreen(e, task)?.find(profile) || noTask; return r.error ? r : fn(r.profile, args); };
   const onTab = (fn) => (e, { task, profile, tab, ...args }) => { const r = onScreen(e, task)?.findTab(profile, tab) || noTask; return r.error ? r : fn(r.profile, r.tab, args); };
-  ipcMain.handle('profile:new', (e, { task, name, description, avatar }) => onScreen(e, task)?.createProfile(name, description, avatar) || noTask);
   ipcMain.handle('profile:close', (e, { task, profile }) => onScreen(e, task)?.closeProfile(profile) || noTask);
   ipcMain.handle('profile:open', (e, { task, profile }) => onScreen(e, task)?.openProfile(profile) || noTask);
-  ipcMain.handle('profile:rename', (e, { task, profile, name }) => onScreen(e, task)?.renameProfile(profile, name) || noTask);
-  ipcMain.handle('profile:describe', (e, { task, profile, description }) => onScreen(e, task)?.describeProfile(profile, description) || noTask);
-  ipcMain.handle('profile:avatar', (e, { task, profile, avatar }) => onScreen(e, task)?.setProfileAvatar(profile, avatar) || noTask);
+  // Let go by the task's project (projects.js, askDropProfile): Remove from Project… in its pane's menu.
   ipcMain.handle('profile:delete', (e, { task, profile }) => onScreen(e, task)?.deleteProfile(profile, 'human') || noTask);
   ipcMain.handle('views:hidden', (e, hidden, opts) => at(e)?.hideViews(hidden, opts));
   ipcMain.on('ask:answer', (e, { id, answer }) => at(e)?.answer(id, answer));
   ipcMain.handle('layout:load', (e, { task }) => onScreen(e, task)?.store.layout());
   // A profile's master, to sign in to (master.js), and its cookies brought to this task's copy (tasks.js).
   ipcMain.handle('profile:master', (e, { task, profile }) => onScreen(e, task)?.openMaster(profile) || noTask);
-  ipcMain.handle('profile:login', (e, { task, profile, user, password }) => onScreen(e, task)?.setLogin(profile, user, password) || noTask);
   ipcMain.handle('profile:refresh', (e, { task, profile }) => onScreen(e, task)?.refreshProfile(profile) || noTask);
   ipcMain.handle('agent:change', (e, { task }) => { const w = onScreen(e, task); return w ? w.changeAgent() : noTask; });
   ipcMain.handle('terminal:open', (e, { task }) => { const w = onScreen(e, task); return w ? w.openTerminal() : noTask; });

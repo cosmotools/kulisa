@@ -59,7 +59,7 @@ module.exports = (test) => {
     const before = await islands();
     await ui(`window.__islands = new Set(); { const tick = () => { __islands.add(JSON.stringify([...document.querySelectorAll('#projectTabs .pisland')]
       .map((t) => { const r = t.getBoundingClientRect(); return [r.x, r.width]; }))); if (window.__islands) requestAnimationFrame(tick); }; tick(); }`);
-    await ui(`act('profile:new', { name: 'Sam.seller' })`); // the same name as in the first project
+    await shell.task.createProfile('Sam.seller'); // the same name as in the first project (the agent's profile_create)
     const seller = shell.profiles.get('sam-seller');
     // A copy in the task's data, of its master in the store of profiles, numbered as every profile is (Sam, Elon, Dora
     // came first).
@@ -399,7 +399,7 @@ module.exports = (test) => {
     const elon = shell.profiles.get('elon-buyer');
     const header = '.ptab[data-panel="profile:Profile 2"]';
     await rightClick(ui, header);
-    assert.deepEqual(await menuRows(ui), ['New tab', 'About this profile…', 'Sign In to Master…', 'Refresh from Master…', 'Close profile', '-', 'Delete profile…']);
+    assert.deepEqual(await menuRows(ui), ['New tab', 'About this profile…', 'Sign In to Master…', 'Refresh from Master…', 'Close profile', '-', 'Remove from Project…']);
     const at = await ui(`(() => { const h = document.querySelector('${header}').getBoundingClientRect(), m = document.querySelector('.menu[data-state="open"]').getBoundingClientRect();
       return Math.abs(m.left - (h.x + h.width / 2)) <= 4 && Math.abs(m.top - (h.y + h.height / 2)) <= 4; })()`);
     assert.ok(at, 'at the pointer');
@@ -412,7 +412,7 @@ module.exports = (test) => {
     assert.equal(elon.get().view.getVisible(), false, 'a page over the second menu');
     await rightClick(ui, header);
     await waitFor(async () => (await menuRows(ui))[0] === 'New tab');
-    assert.deepEqual(await menuRows(ui), ['New tab', 'About this profile…', 'Sign In to Master…', 'Refresh from Master…', 'Close profile', '-', 'Delete profile…']);
+    assert.deepEqual(await menuRows(ui), ['New tab', 'About this profile…', 'Sign In to Master…', 'Refresh from Master…', 'Close profile', '-', 'Remove from Project…']);
     assert.equal(elon.get().view.getVisible(), false, 'a page over the third menu');
     const n = elon.tabs.length;
     await choose(ui, 'New tab');

@@ -94,8 +94,7 @@ restarts, as in an IDE, each a fresh shell in its place; **×** or `exit` closes
 
 Panes and the terminal are panels: drag one by its header to another place (or onto another panel to stack them as
 tabs), drag the gaps between them to resize; **☰ → Arrange panels** offers ready-made arrangements, each drawn as a picture. The grid is
-kept across restarts. Profiles are added, renamed, described (who each one is in your app: the agent chooses profiles by it, and asks you when it is not said), given another picture and deleted in **👥 → Manage Profiles…** (👥 on the shown task's tab, at the bottom), or by right-clicking a pane's
-header. **×** at the top right of a profile's pane closes it: its tabs
+kept across restarts. Profiles are made, renamed, described (who each one is in your app: the agent chooses profiles by it, and asks you when it is not said), given another picture, a test user's login, signed in to once for every task and deleted in **Settings → Profiles** (the gear at the top right; 👥 → Manage Profiles… on the shown task's tab, at the bottom, opens it too), and added to a project on its page there. **×** at the top right of a profile's pane closes it: its tabs
 go and free their memory, it stays signed in; **👥** lists it as closed and brings it back with the same tabs. Right-click a tab or the terminal for their menus. **Keys:** Chrome's keys in a profile's page (Ctrl+T, Ctrl+W,
 Ctrl+Shift+T, Ctrl+L, Ctrl+Tab …), Kulisa's everywhere, the terminal too (Ctrl+` the agent's terminal and back, Ctrl+Shift+1…9
 a task); every other key in the terminal is the agent's. **☰ → Keyboard Shortcuts** (Ctrl+Shift+/) lists them all. **Zoom:**

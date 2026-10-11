@@ -15,13 +15,8 @@
 //   changed()                   after any change: the window's state and the tabs are saved
 //   everywhere()                who a profile is changed in the store: every task shows it
 const fs = require('fs');
-const { nameError } = require('./names');
 const { clearCaches } = require('./profiles');
-const { AVATARS, nextAvatar } = require('./avatars');
-
-// A profile's description: who it is in the app under test, for agents to choose profiles by (profiles.md). The
-// human's words, optional.
-const ABOUT_MAX = 500;
+const { nextAvatar } = require('./avatars');
 
 class ProjectProfiles {
   // store: the task's (TaskStore); profiles: the store of profiles (ProfileStore); project: its project's id.
@@ -68,7 +63,7 @@ class ProjectProfiles {
   // A new, empty profile of the project, open here; from the editor and from the agent (profile_create).
   // avatar: the human's pick (the editor), else the next one free.
   async create(name, description = '', avatar) {
-    const bad = nameError(name?.trim()) || aboutError(description) || (avatar && !AVATARS.includes(avatar) && `no picture ${avatar}`);
+    const bad = this.all.check({ name, description, avatar });
     if (bad) return { error: bad };
     const g = this.all.create(this.project, { name: name.trim(), avatar: avatar || this._nextAvatar(), description: description.trim() });
     const e = { cfg: this._cfg(g), urls: [], profile: null };
@@ -102,63 +97,21 @@ class ProjectProfiles {
     return { id };
   }
 
-  // Rename: new name and id, in every project; the folders (sign-ins), tabs, place in the list and the agent
-  // connection stay.
-  rename(oldId, name) {
-    const e = this._find(oldId);
-    if (!e) return { error: `no profile ${oldId}` };
-    const bad = nameError(name?.trim());
-    if (bad) return { error: bad };
-    const id = this.all.idFor(name, oldId);
-    this.all.update(e.cfg.folder, { id, name: name.trim() });
-    Object.assign(e.cfg, { id, name: name.trim() });
-    if (e.profile) {
-      e.profile.name = e.cfg.name;
-      if (id !== oldId) { e.profile.id = id; this.hooks.renamed(e.profile, oldId); }
-    }
-    this._sync();
-    this._changed();
+  // Who a profile of the project is, changed (the store checks and keeps it: profile-store.js): its name and id (its
+  // folders, tabs, place in the list and the agent's connection stay), what it is in the app under test, its picture,
+  // a test user's pair (its password as the caller encrypted it: tasks.js). Here at once, the other tasks after.
+  rename(id, name) { return this._change(id, () => this.all.rename(id, name)); }
+  describe(id, description) { return this._change(id, () => this.all.describe(id, description)); }
+  setAvatar(id, avatar) { return this._change(id, () => this.all.setAvatar(id, avatar)); }
+  setLogin(id, user, secret) { return this._change(id, () => this.all.setLogin(id, user, secret)); }
+  _change(id, change) {
+    if (!this._find(id)) return { error: `no profile ${id}` };
+    const r = change();
+    if (r.error) return r;
+    this.refresh();
+    this.hooks.changed();
     this.hooks.everywhere();
-    return { id };
-  }
-
-  // Who the profile is in the app under test (empty: not said), and its picture: the rest stays.
-  describe(id, description) {
-    const bad = aboutError(description);
-    if (bad) return { error: bad };
-    return this._set(id, { description: description.trim() });
-  }
-  setAvatar(id, avatar) {
-    if (!AVATARS.includes(avatar)) return { error: `no picture ${avatar}` };
-    return this._set(id, { avatar });
-  }
-  // A test user's pair (profiles.md, "Test users' sign-ins"): its login, and its password as the caller encrypted it
-  // (tasks.js); an empty login takes the pair away.
-  setLogin(id, user, secret) {
-    const e = this._find(id);
-    if (!e) return { error: `no profile ${id}` };
-    user = user?.trim() || '';
-    if (user.length > 200) return { error: 'a login is at most 200 characters' };
-    const old = this.all.byFolder(e.cfg.folder)?.login;
-    const login = user ? { user, secret: secret ?? (old?.user ? old.secret : undefined) } : undefined;
-    if (login && !login.secret) delete login.secret;
-    this.all.update(e.cfg.folder, { login });
-    const shown = loginOf({ login });
-    Object.assign(e.cfg, shown);
-    if (e.profile) Object.assign(e.profile, shown);
-    this._changed();
-    this.hooks.everywhere();
-    return { id };
-  }
-  _set(id, fields) {
-    const e = this._find(id);
-    if (!e) return { error: `no profile ${id}` };
-    this.all.update(e.cfg.folder, fields);
-    Object.assign(e.cfg, fields);
-    if (e.profile) Object.assign(e.profile, fields);
-    this._changed();
-    this.hooks.everywhere();
-    return { id };
+    return r;
   }
 
   // Let go of in this task (its project let it go: projects.js, dropProfile): its copy's tabs, sign-ins and storage
@@ -214,7 +167,5 @@ class ProjectProfiles {
 }
 // What a task shows of a profile's pair: its login, and whether it has a password (never the password).
 const loginOf = (g) => ({ login: g.login?.user || '', hasPassword: !!g.login?.secret });
-const aboutError = (d) => (typeof d !== 'string' ? 'a description is text'
-  : d.trim().length > ABOUT_MAX ? `a description is at most ${ABOUT_MAX} characters` : null);
 
 module.exports = { ProjectProfiles };

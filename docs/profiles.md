@@ -18,25 +18,33 @@ that task (not all at once: a closed one costs nothing), its tabs the master's m
 has of a profile is its own: its copy (what is signed in there stays there), its tabs, open or closed, its sites'
 zoom. A new task opens none of them (the first one neither): the agent opens one when it needs it (`profile_open`),
 the human with 👥 ([tasks.md](tasks.md), What the human does).
-A project gets a profile when one is made in it (the editor, `profile_create`, the projects' manager → + → New Profile…) or taken
-from another project (the manager → + → From Another Project); it lets go of one with Delete (the editor, the pane's
-menu, `profile_delete`, × in the manager, its tasks open or not), after a question: its copies in this project's tasks go; in no other
-project, its master goes too. Removing a project lets go of its profiles the same way.
+**A profile lives until the human deletes it** (Settings → Profiles; the author, 2026-10-11, as the agents' accounts):
+a profile in no project is kept, with its master and sign-ins. A project gets a profile when one is made in it
+(`profile_create`, its page in Settings → Profiles' + → New Profile…) or taken from the others (its page's + → Other
+Profiles: made in Settings → Profiles, or another project's); it lets go of one (− on its page, Remove from Project…
+in the pane's menu, `profile_delete`; its tasks open or not), after a question: its copies in this project's tasks go,
+the profile stays. Removing a project lets go of its profiles the same way.
 
 A profile is an Electron session on a folder of its own (`session.fromPath`), laid out as a Chrome profile, plus a
 `WebContentsView` per tab. Everything stays inside Kulisa: no external Chrome window.
 
 ## What the human does
 
-- **Create** in 👥 → Manage Profiles… (the profiles' button on the shown task's tab; also its right-click menu): a name and, if the human wants, who the profile is (below); all
-  the pictures, the next free one lit, a click picks another. Enter in either field adds it (Shift+Enter: a new
-  line in the description). The new profile is empty and signed out.
+- **Settings → Profiles** (the gear's Settings, its tree; 👥 → Manage Profiles… and About this profile… in the pane's
+  menu open it, the latter at that profile; `ProfilesTab.vue`; it replaced the task's profile editor, 2026-10-11): every
+  profile on the left ("no project" at a row's end), the chosen one's fields on the right, each saved on Enter or
+  leaving it: **Picture**, **Name**, **About**, **Test login** and **Test password**, **Sign In…** (its master's
+  window, below) and the projects it is in. It is the human's one place for who a profile is: a profile is the same
+  in every project and task.
+- **Create** there: + , its name typed in place, Create: in no project yet, the next free picture, empty and signed
+  out; a project's page adds it (+ → Other Profiles). Or on a project's page (+ → New Profile…: in that project).
   Names of profiles, projects and tasks take letters (any language), digits and `@ . _ + -`, as an email
   address does, starting with a letter or a digit (not `@` alone, `.x`, `..`, `-x`), at most 64, so a profile can be
   named after its account (`ann+test@shop.com`); no spaces (`names.js`, the author's rule). Name fields leave other
   characters out as they are typed or pasted, and the main process checks again (the agent's `profile_create` too).
   Ids and branches keep letters of any language.
-- **Sign in by hand**, once for every task, in its master: **Sign In to Master…** in the pane's right-click menu opens
+- **Sign in by hand**, once for every task, in its master: **Sign In to Master…** in the pane's right-click menu, or
+  **Sign In…** in Settings → Profiles (no task needed: right after making it), opens
   a window of its own on the master (`master.js`): its page under a small bar (the address, Back, Forward, Reload),
   presenting as Chrome, its session cookies kept, and nothing automated attached to it (no CDP proxy, so no agent's
   tool, Playwright or picker reaches it, and no sign-in pause is needed). Closed, its tabs and sign-ins are saved;
@@ -46,24 +54,25 @@ A profile is an Electron session on a folder of its own (`session.fromPath`), la
   copy. Signing in to a real account in a task's pane reaches the master and the other tasks too; to a local app, that
   task only. Only the human signs in: Kulisa never types
   passwords or automates a sign-in, and never prints or logs cookies or tokens (CLAUDE.md, Rules).
-- **Rename**: in the editor (Manage Profiles…, or About this profile… in the pane's right-click menu). Only the
-  name and id change; the folder (sign-ins), tabs and place stay.
+- **Rename**: Settings → Profiles, its Name. Only the name and id change; the folder (sign-ins), tabs and place stay.
 - **Who it is** (the description): a few words on who the profile is in the app under test, its role, what it can do
-  ("seller in the Acme shop; can approve refunds"), in the editor, or About this profile… in the pane's menu. Agents
+  ("seller in the Acme shop; can approve refunds"), Settings → Profiles' About. Agents
   choose profiles by it: a name says which account is signed in, not who that is in the tests. Optional, and the
   dialog says so, with what it is for: left empty, the agent asks the human when a task needs to know and saves the
   answer (below). At most 500 characters; shown under the name in 👥's menu and when pointing at the pane's name.
   The human's own words: a button to have an AI rewrite them was proposed and not built (2026-10-08): the reader is
   an agent, which understands them as they are, and a rewrite would add what the human did not say.
 - **Picture**: an animal, as Chrome's profile avatars and Google's anonymous animals, each profile of a task its
-  own unless the human picks one twice; a click on it in the editor shows the others. It tells panes apart by shape and colors, not by a color alone
+  own unless the human picks one twice; Settings → Profiles' Picture shows the others. It tells panes apart by shape and colors, not by a color alone
   (some people do not tell colors apart), and can be named ("the fox"). The pictures are Noto Emoji's (Google,
   Apache-2.0), in `src/renderer/public/avatars/`, the list in `avatars.js`; not the OS's emoji, which look different on each
   OS and are missing on some Linux.
 - **Close**: × on the pane (or its menu, or the agent). Its tabs go and free their memory; it stays signed in, and
   👥 lists it as closed and opens it again with the same tabs. Closed profiles stay closed across restarts.
-- **Delete** in the editor or the pane's menu, after a confirmation: the project lets go of it (above). In another
-  project too, it stays there, with its master; in none, its master's sign-ins, storage and tabs are gone for good.
+- **Remove from Project…** (the pane's menu, − on the project's page), after a confirmation: the project lets go of it
+  (above); the profile stays. **Delete** in Settings → Profiles (− , Delete, a row's right-click), after a
+  confirmation: its copies in every project's tasks and its master, with its sign-ins, storage and tabs, go for good
+  (`projects.js`, `deleteProfile`).
 - **Tabs**: a tab strip and an address bar per pane, drawn as Chrome's (the active tab of a piece with the toolbar;
   back, forward, reload as Chrome's icons; the address without `https://` and `www.` until it is clicked, then all
   of it, selected; a tab opened with + gets the focus in its empty address; many tabs shrink to their icon, the strip
@@ -164,16 +173,20 @@ at the element on the live page with its tools.
 
 Both act on one core (CLAUDE.md, Architecture): the window and the MCP tools find profiles and tabs with
 `Task.find` / `findTab` (the same refusals: no such profile, a closed one, no such tab) and call the same
-methods. A row with one side empty says why, or is a gap to fill.
+methods; who a profile is changes and is checked in the store (`ProfileStore.rename`, `describe`, `setAvatar`,
+`setLogin`), which Settings → Profiles calls directly (no task needed) and a task's methods through its list
+(`ProjectProfiles`). A row with one side empty says why, or is a gap to fill.
 
 | Action | The human | The agent | The core |
 |---|---|---|---|
-| Create a profile | Manage Profiles… | `profile_create` | `Task.createProfile` |
-| Rename a profile | the editor | `profile_rename` | `Task.renameProfile` |
-| Say who a profile is | New profile, editor, About this profile… | `profile_describe`, `profile_create` (the human's words only) | `Task.describeProfile` |
-| Change its picture | editor | none: how the human tells panes apart | `Task.setProfileAvatar` |
-| Close, open a profile | ×, 👥, editor | `profile_close`, `profile_open` | `Task.closeProfile`, `openProfile` |
-| Delete a profile | editor, pane menu | `profile_delete` | `Task.deleteProfile(id, by)`: asks the human either way |
+| Create a profile | Settings → Profiles (in no project), a project's page (in it) | `profile_create` (in its project) | `ProfileStore.create`; `Task.createProfile` |
+| Rename a profile | Settings → Profiles | `profile_rename` | `ProfileStore.rename`; `Task.renameProfile` |
+| Say who a profile is | Settings → Profiles | `profile_describe`, `profile_create` (the human's words only) | `ProfileStore.describe`; `Task.describeProfile` |
+| Change its picture | Settings → Profiles | none: how the human tells panes apart | `ProfileStore.setAvatar` |
+| A test user's pair | Settings → Profiles | `profile_set_login` | `ProfileStore.setLogin` (`shell.loginSecret` encrypts) |
+| Close, open a profile | ×, 👥 | `profile_close`, `profile_open` | `Task.closeProfile`, `openProfile` |
+| Remove a profile from the project | Remove from Project…, − on its page | `profile_delete` | `Task.deleteProfile(id, by)`: asks the human either way |
+| Delete a profile | Settings → Profiles | none: its sign-ins are the human's | `deleteProfile` (`projects.js`) |
 | Open a tab | +, Duplicate, New tab | `browser_tab_new` | `Profile.newTab` (the address read by `toUrl`) |
 | Switch, close a tab | a click, ×, Close others, Ctrl+Tab, Ctrl+1…9, Ctrl+W | `browser_tab_select`, `browser_tab_close` | `Profile.activate`, `closeTab`; the last one closed, an empty tab takes its place |
 | Open the tab closed last again | Ctrl+Shift+T | none: it opens the address it wants (`browser_tab_new`) | `Profile.reopenTab` (the addresses of the last ten closed, in memory) |
@@ -187,7 +200,7 @@ methods. A row with one side empty says why, or is a gap to fill.
 | Act in a page | mouse, keyboard | `browser_click`, `browser_type`, `browser_press_key`, `browser_hover`, `browser_select_option`, `browser_file_upload`, `browser_evaluate` | the page itself; Playwright over the proxy |
 | Answer a dialog | the dialog in the pane | `dialog` on the action that opened it | `Profile._dialog`, `answerDialog` |
 | Sign in | by hand, in its master (Sign In to Master…) or a task's pane | never (Rules); asks with `profile_ask_signin` | `master.js`; the sign-in pause |
-| Save a test user's pair | the editor's login and password fields | `profile_set_login` | `Task.setLogin` (encrypted: `shell.secrets`) |
+| Save a test user's pair | Settings → Profiles' Test login and Test password | `profile_set_login` | `ProfileStore.setLogin`, `Task.setLogin` (encrypted: `shell.loginSecret`) |
 | Sign in as a test user | types it | `browser_type_login` (never sees the password) | `Task.loginFor`, `local.js` |
 | Bring the master's sign-ins to a task's copy | Refresh from Master… | none: it replaces sign-ins, the human's to decide | `Task.refreshProfile`, `SessionCookies.copy` |
 | Open a terminal next to the agent's, run in it | + in the terminal's header, then types | `terminal_run` (a name and a command) | `Task.openTerminal`, `runInTerminal` |
@@ -218,8 +231,8 @@ Real accounts are the human's to sign in to (Rules); a **test user of the app un
 agent's, so it can sign up, sign in and sign out as many users as the tests need without asking (designed with the
 author, 2026-10-10). How it is kept safe, each line with its reason:
 
-- **A pair per profile** (`profile-store.js`, `login`): a login and a password. Set by the human (the profile editor's
-  login and password fields) or the agent (`profile_set_login`, after it signed that user up). The password is
+- **A pair per profile** (`profile-store.js`, `login`): a login and a password. Set by the human (Settings → Profiles'
+  Test login and Test password) or the agent (`profile_set_login`, after it signed that user up). The password is
   encrypted with the OS keyring (`safeStorage`), as session cookies are; without a keyring none is kept: never in the
   clear on disk.
 - **The agent never gets the password.** `browser_type_login` (a field, `login` or `password`) has Kulisa type it into
@@ -299,7 +312,8 @@ in the task's folder:
 
 ```
 profiles.json                   { next, list: [{ id, name, avatar, description, folder, projects }] }: the profiles
-profiles/Profile 1/             a profile's master, a Chromium profile: Cookies, Local Storage, IndexedDB …
+profiles/Profile 1/             a profile's master, a Chromium profile: Cookies, Local Storage, IndexedDB …;
+                                kept in no project too, gone when the human deletes the profile (Settings → Profiles)
 projects/<project id>/<task>/
   profiles.json                 what the task has of them: { folder, id, zoom (per site), closed }
   Profile 1/                    its copy of the master, made at its first open here: a Chromium profile
@@ -338,5 +352,5 @@ space (ROADMAP, "Profiles' caches").
 | `src/main/mimic-chrome.js` | presenting as Google Chrome |
 | `src/main/cdp-proxy.js` | the CDP endpoint per profile |
 | `src/main/mcp-server.js`, `ghost.js`, `picker.js` | the agent's tools, its actions shown, point and tell |
-| `src/renderer/components/grid/ProfilePane.vue`, `ProfileHeader.vue`, `ProfileEditor.vue`, `ProfileRow.vue`, `lib/profiles.ts` | the panes, the profiles' button (👥) and the editor |
+| `src/renderer/components/grid/ProfilePane.vue`, `ProfileHeader.vue`, `lib/profiles.ts`; `ProfilesTab.vue`, `Avatars.vue` | the panes and the profiles' button (👥); Settings → Profiles and its pictures |
 | `test/agent.js`, `profiles.js`, `zoom-and-closing.js`, `restart-profiles.js`, `unit/store.test.js` | the tests |

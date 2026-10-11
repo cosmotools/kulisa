@@ -11,6 +11,7 @@ import ButtonMenu from './menu/ButtonMenu.vue';
 import RightClickMenu from './menu/RightClickMenu.vue';
 import AccountSignIn from './AccountSignIn.vue';
 import AgentsTab from './AgentsTab.vue';
+import ProfilesTab from './ProfilesTab.vue';
 import ProjectIcon from './ProjectIcon.vue';
 import { avatarSrc, iconTitle, projectIcon } from '../lib/common';
 import { focusAfterMenu, focusBack, type MenuItem } from '../lib/menu';
@@ -22,7 +23,8 @@ import type { ProjectChoices, ProjectEntry, ProjectProfile, ProjectRepo, Project
 const modal = ref<InstanceType<typeof Modal>>();
 // The page shown; the agents' list (Settings → Agents) lives here, so an install goes on while a project is shown, and
 // Settings stays open while it runs.
-const tab = ref<'projects' | 'agents'>('projects');
+const tab = ref<'projects' | 'agents' | 'profiles'>('projects');
+const profileAt = ref<string | null>(null); // Settings → Profiles opened at it (About this profile…)
 const agentsList = agentList({ details: true, installed: (a) => `${a.name} is installed. Make an account of it below: + under Accounts.` });
 const newProfile = ref<HTMLInputElement>(), url = ref<HTMLInputElement>();
 const adding = ref<'' | 'clone' | 'profile'>('');
@@ -53,15 +55,15 @@ const base = (f: string) => f.split(/[\\/]/).pop()!;
 // The tree: Projects with every project under it (always open), and Agents.
 type Node = { key: string; label: string; project?: ProjectEntry; children?: Node[] };
 const tree = computed<Node[]>(() => [{ key: 'projects', label: 'Projects', children: projects.value.map((p) => ({ key: `p:${p.id}`, label: p.name, project: p })) },
-  { key: 'agents', label: 'Agents' }]);
+  { key: 'agents', label: 'Agents' }, { key: 'profiles', label: 'Profiles' }]);
 const expanded = ref(['projects']);
-const chosenKey = computed(() => (tab.value === 'agents' ? 'agents' : editing.value ? `p:${editing.value}` : ''));
+const chosenKey = computed(() => (tab.value !== 'projects' ? tab.value : editing.value ? `p:${editing.value}` : ''));
 const chosenNode = computed(() => [...tree.value, ...tree.value[0].children!].find((n) => n.key === chosenKey.value));
 // Choosing a row of the tree: a project's page or Agents; Projects itself only opens and closes.
 function choose(e: { detail: { value?: Node }; preventDefault(): void }) {
   const n = e.detail.value;
   if (!n || n.key === 'projects') return e.preventDefault();
-  if (n.key === 'agents') tab.value = 'agents';
+  if (n.key === 'agents' || n.key === 'profiles') { profileAt.value = null; tab.value = n.key; }
   else { tab.value = 'projects'; if (n.project!.id !== editing.value) edit(n.project!.id); }
 }
 
@@ -89,7 +91,8 @@ async function edit(id: string) {
   await showList();
   document.getElementById('pjconfig')?.scrollTo(0, 0); // at its top, not where the last one was scrolled
 }
-async function openProjects(id?: string, on: typeof tab.value = 'projects') {
+async function openProjects(id?: string, on: typeof tab.value = 'projects', profile: string | null = null) {
+  profileAt.value = profile;
   const { current, projects: all } = await kulisa.invoke<{ current: string | null; projects: ProjectEntry[] }>('projects:list');
   const at = id || current || all[0]?.id;
   if (at) await edit(at); else { editing.value = null; await showList(); }
@@ -105,6 +108,7 @@ registerDialog('projects', {
   openProjects,
   newProject: async () => (await dialog('newproject')).open(),
   openAgents: () => openProjects(undefined, 'agents'),
+  openProfiles: (id?: string) => openProjects(undefined, 'profiles', id ?? null),
 });
 
 // A project's look and local addresses, saved as they change (its name on Enter or leaving it; Settings closed with a
@@ -195,11 +199,12 @@ async function signedIn(r: SignedIn) {
   signing.value = null; mine.value = r.agents ?? mine.value;
   await agentsNow();
 }
-// The accounts to add and the project's agents as they are now: one made or deleted (Settings → Agents) meanwhile.
+// The accounts and profiles to add, and the project's own, as they are now: one made, renamed or deleted (Settings →
+// Agents, → Profiles) meanwhile.
 async function agentsNow() {
   if (!editing.value) return;
   const c = await kulisa.invoke<ProjectSettings>('project:settings-get', { id: editing.value });
-  if (!c.error) { choices.value = { ...choices.value, agents: c.agents }; mine.value = c.projectAgents; }
+  if (!c.error) { choices.value = { ...choices.value, agents: c.agents }; mine.value = c.projectAgents; profiles.value = c.profiles; others.value = c.others; }
 }
 watch(tab, (t) => { if (t === 'projects') agentsNow(); });
 
@@ -222,7 +227,7 @@ async function addProfile() {
   if (!(await profileChange('project:profile-new', { name: newName.value }))?.error) { newName.value = ''; adding.value = ''; }
 }
 const profileMenu = (): MenuItem[] => [{ label: 'New Profile…', run: () => startAdding('profile') },
-  ...(others.value.length ? ['-' as const, { heading: 'From Another Project' }, ...others.value.map((p) => ({ label: p.name, sub: p.also.join(', '),
+  ...(others.value.length ? ['-' as const, { heading: 'Other Profiles' }, ...others.value.map((p) => ({ label: p.name, sub: p.also.join(', ') || 'in no project',
     avatar: p.avatar, run: () => profileChange('project:profile-add', { profile: p.id }) }))] : [])];
 const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value = ''; };
 </script>
@@ -374,6 +379,10 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
           <button type="button" @click="newProject">New Project…</button>
         </div>
       </div>
+      <div v-show="tab === 'profiles'" id="prconfig" class="prtab">
+        <div class="crumbs"><b>Profiles</b></div>
+        <ProfilesTab :active="tab === 'profiles'" :at="profileAt" />
+      </div>
       <div v-show="tab === 'agents'" id="agconfig" class="agtab">
         <div class="crumbs"><b>Agents</b></div>
         <AgentsTab :list="agentsList" :active="tab === 'agents'" />
@@ -396,7 +405,7 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
     .picon { flex: none; width: 16px; height: 16px; color: var(--color); }
     [aria-selected="true"] { background: var(--chosen-idle); color: var(--text-strong); }
     &:focus-within [aria-selected="true"] { background: var(--chosen); } }
-  :is(#pjconfig, #agconfig) { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--inset); overflow: hidden auto; padding: 0 var(--pad) var(--pad);
+  :is(#pjconfig, #agconfig, #prconfig) { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--inset); overflow: hidden auto; padding: 0 var(--pad) var(--pad);
     > * { flex: none; } }
   /* Where the page is in the tree, and what acts on it at its end */
   .crumbs { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: var(--gap); min-height: calc(var(--control) + 12px);

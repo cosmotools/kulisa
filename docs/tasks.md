@@ -59,15 +59,19 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
     field, from the morning of 2026-10-11 until its evening).
 - **Settings** (the button in the title bar, left of ☰; the author, 2026-10-11), as JetBrains' Settings (the author,
   2026-10-11: the dialogs read as a web page's, not a desktop app's; docs/ui.md, Desktop, not a web page): a tree on the
-  left, **Projects** with every project under it (its icon in its color, its name) and **Agents** (the agents and their
-  accounts: "Choosing the agent"), its **+** at the top New Project; on the right the chosen one's page under its path
-  ("Projects › shop"). Project Settings… in a group's menu opens it at that project; ☰ → Agents… on Agents. It was the
+  left, **Projects** with every project under it (its icon in its color, its name), **Agents** (the agents and their
+  accounts: "Choosing the agent") and **Profiles** (every profile and who it is: [profiles.md](profiles.md)), its **+** at
+  the top New Project; on the right the chosen one's page under its path ("Projects › shop"). Project Settings… in a
+  group's menu opens it at that project; ☰ → Agents… on Agents; 👥 → Manage Profiles… and About this profile… on
+  Profiles. It was the
   projects' manager alone, under a Projects button, until the agents' accounts needed a place outside projects; then
   tabs, Projects and Agents, until the tree. **A project's page** (the projects' manager, in earlier words): at its top
   its path, **New Task** (a task of it, in its group) and **⋯** (Delete Project…); then **Name:** with its color and
   icon in a button beside it (a panel), and a group each under a titled line (`.titled`): **Code**, **Agents**,
   **Profiles** (what its tasks are made of), each a list (`.list`) with a toolbar over it: **+** adds (a menu), **−**
   removes the selected row (and Delete), **★** makes it the default (Code, Agents); a row's right-click has the same.
+  Its Profiles are only which profiles its tasks have: + makes one in it or adds one of the others, − lets go of one
+  (the profile stays); who a profile is, is Settings → Profiles'.
   What needs typing (a URL to clone, a new profile's name) opens a field in place, under the list (Esc puts it away).
   Then **Local addresses:**. Explanations are in the empty lines and the tooltips, not in a paragraph per section (the
   author, 2026-10-11: the page with cards, a paragraph each and four ways to add read as documentation, not settings).

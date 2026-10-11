@@ -38,9 +38,8 @@ here; what is left of it stays.
     author's own replacement of `signin-pause.js`. Step 8 (agents' accounts made in the project, one store) built
     2026-10-11. Then (the author, 2026-10-11) the projects' manager became Settings, its tabs Projects and Agents: the
     agents and their accounts there (☰ → Agents… opens it), an account kept until deleted there, no longer gone with
-    its last project (tasks.md, "Choosing the agent", Accounts). Open, for the author: profiles have the old rule (a
-    master goes with its last project, its sign-ins too); a Profiles tab in Settings would be their place outside
-    projects. Not discussed, so not to build unasked: tabs in a master's window, tasks in a
+    its last project (tasks.md, "Choosing the agent", Accounts). Then Settings → Profiles (the author, 2026-10-11): every profile and who it is there, kept until
+    deleted there, as an account; the task's profile editor gone ([profiles.md](profiles.md)). Not discussed, so not to build unasked: tabs in a master's window, tasks in a
     former folder getting copies.
     **The window as a desktop app, not a web page** (the author, 2026-10-11: the dialogs were hard to read and not
     plain; a mockup in JetBrains' Settings' style agreed; [ui.md](ui.md), Desktop, not a web page), on the branch
@@ -48,10 +47,7 @@ here; what is left of it stays.
     toolbar, `.titled`, "Label:" forms, a dialog's title strip) and (2) Settings as a tree with a project's page, New
     Project a dialog of its own, (3) Settings → Agents as a list and the chosen agent's details (its accounts a
     `.list`), (4) the other dialogs to the same rules where it is only their look ("Label:", `.titled`; Rename Task,
-    Profiles, Keyboard Shortcuts): built; the author looks. Open, for the author: the task's Profiles dialog
-    (`ProfileEditor.vue`) as a list of its profiles and the chosen one's fields (Picture, Name, About, Test login and
-    password), + making one, as Settings → Agents, instead of every profile's fields one under another and a New Profile
-    form under them; not built unasked (no mockup of it was agreed). Decided with the author: icon buttons square everywhere; no
+    Profiles, Keyboard Shortcuts): built; the author looks. Decided with the author: icon buttons square everywhere; no
     search field in Settings' tree; no × shown under the pointer in a dialog's lists (−, Delete, a right-click).
   - **Agents** (the CLIs and their accounts in Settings → Agents since 2026-10-11; chosen in a project since step 8,
     below): the human picks a CLI (Claude Code, Codex, …) and signs in with the CLI's own login (New Account…, in

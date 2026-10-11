@@ -145,9 +145,9 @@ module.exports = (test) => {
   test('screenshot of the whole window, profile views included', async ({ shell, ui }) => {
     const view = () => [...shell.profiles.values()][0].get().view.getVisible();
     await manageProfiles(ui);
-    await waitFor(async () => (await ui(`(document.getElementById('profiles')?.dataset.state === 'open')`)) && !view());
+    await waitFor(() => !view());
     await shell.screenshot(path.join(root, 'editor.png'));
-    await ui(`document.getElementById('closeProfiles').click()`);
+    await ui(`document.querySelector('#projects .x').click()`);
     await waitFor(view);
     const file = path.join(root, 'window.png');
     await shell.screenshot(file);
@@ -213,7 +213,6 @@ module.exports = (test) => {
     const isOpen = (id) => ui(`document.getElementById('${id}')?.dataset.state === 'open'`);
     const fromMenu = async (row, at) => { await (at ? rightClick(ui, at) : ui(`document.getElementById('windowMenu').click()`)); await menuRows(ui); await choose(ui, row); };
     const openers = {
-      profiles: () => manageProfiles(ui),
       projects: () => ui(`document.getElementById('manageProjects').click()`),
       taskrename: () => fromMenu('Rename…', '#tasklist .tasktab .name'),
       agentpick: () => fromMenu('Change agent…', '#term'),

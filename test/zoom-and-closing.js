@@ -1,7 +1,7 @@
 // Zoom, tabs on sign-in pages, closing profiles.
 const fs = require('fs');
 const path = require('path');
-const { assert, root, userData, project, pfile, savedTabs, panel, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, menuOpen, rightClick,
+const { assert, root, userData, project, pfile, savedTabs, panel, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, closeSettings, chooseProfile, setProfileField, menuOpen, rightClick,
   box, pageBox, viewOn, dock, ctrl, near, closeMenu, PORT } = require('./helpers');
 
 module.exports = (test) => {
@@ -77,7 +77,7 @@ module.exports = (test) => {
     await waitFor(() => JSON.stringify(savedTabs('elon-buyer')) === JSON.stringify(expected)).catch(() => {});
     assert.deepEqual(savedTabs('elon-buyer'), expected);
   });
-  test('close a profile (its × or the agent) and open it again (the editor or the agent): signed in, same tabs; the agent deletes only what the human confirms', async (ctx) => {
+  test('close a profile (its × or the agent) and open it again (👥 or the agent): signed in, same tabs; the agent removes it from the project only when the human confirms', async (ctx) => {
     const { shell, ui, call } = ctx;
     const saved = (f) => JSON.parse(fs.readFileSync(pfile(f), 'utf8'));
     await call('profile_create', { name: 'Cleo' });
@@ -100,15 +100,14 @@ module.exports = (test) => {
     await assert.rejects(call('browser_snapshot', { profile: 'cleo' }), /closed.*profile_open/);
     assert.match((await ui(`act('tab:new', { profile: 'cleo' })`)).error, /Profile "cleo" is closed/); // the window: the same check
 
-    // Open again in the editor.
-    await manageProfiles(ui);
-    const row = `document.querySelector('#plist .prow[data-profile="cleo"]')`;
-    await waitFor(() => ui(`!!${row}`));
-    assert.equal(await ui(`${row}.querySelector('.ntabs').textContent`), 'closed · 2 tabs');
-    await ui(`${row}.querySelector('.open').click()`);
-    await waitFor(() => shell.profiles.has('cleo'));
-    await waitFor(() => ui(`${row}.querySelector('.open').hidden`));
-    await ui(`document.getElementById('closeProfiles').click()`);
+    // Open again from the profiles' chip (👥): a closed one says so.
+    await ui(`document.getElementById('openProfiles').click()`);
+    await menuRows(ui);
+    assert.equal(await ui(`[...document.querySelectorAll('.menu[data-state="open"] .item')].find((b) => b.querySelector('.label').textContent === 'Cleo').querySelector('small').textContent`),
+      'closed · click to open');
+    await choose(ui, 'Cleo');
+    // Its tabs open, and the agent's connection comes, after it is in the task.
+    await waitFor(() => shell.profiles.get('cleo')?.tabs.length === 2 && shell.profiles.get('cleo').context);
     assert.deepEqual(shell.profiles.get('cleo').tabs.map((t) => t.url), [`${SITE}/app`, `${SITE}/app?second`]);
     assert.equal(await who(ctx, 'cleo'), 'Signed in as cleo');
     await waitFor(() => ui(`!!document.querySelector('${header}')`));
@@ -133,10 +132,11 @@ module.exports = (test) => {
     await call('profile_open', { profile: 'cleo' });
     assert.equal(await who(ctx, 'cleo'), 'Signed in as cleo');
 
-    // The agent deletes: the human is asked; no keeps it, yes deletes it (closed ones too).
+    // The agent removes it from the project: the human is asked; no keeps it, yes removes it (closed ones too); the
+    // profile stays in Settings → Profiles.
     ctx.answer = false;
     await assert.rejects(call('profile_delete', { profile: 'cleo' }), /said no/);
-    assert.equal(ctx.asked.pop().message, 'The agent asks to delete the profile Cleo.');
+    assert.equal(ctx.asked.pop().message, `The agent asks to remove the profile Cleo from ${shell.current.name}.`);
     assert.ok(shell.profiles.has('cleo'));
     await call('profile_close', { profile: 'cleo' });
     ctx.answer = true;
@@ -145,6 +145,7 @@ module.exports = (test) => {
     assert.ok(!shell.profiles.has('cleo') && !shell.closed.has('cleo'));
     assert.ok(!saved('profiles.json').some((p) => p.id === 'cleo'));
     assert.ok(JSON.parse(fs.readFileSync(path.join(userData, 'deleted-folders.json'), 'utf8')).includes(cleoDir));
+    assert.deepEqual(shell.profileStore.get('cleo').projects, [], 'kept, in no project');
 
     // Left closed for the restart phase.
     await call('profile_create', { name: 'Dora' });
@@ -215,16 +216,16 @@ module.exports = (test) => {
     // Not a local page: refused, nothing typed.
     await call('browser_navigate', { profile: 'tess', url: 'data:text/html,<input id="x">' });
     await assert.rejects(call('browser_type_login', { profile: 'tess', locator: "locator('#x')", field: 'password' }), /not the app under test on this computer/);
-    // The human: About this profile…'s login fields; the password saved encrypted, never shown back.
+    // The human: Settings → Profiles' login fields; the password saved encrypted, never shown back.
     await manageProfiles(ui);
-    const row = `document.querySelector('#plist .prow[data-profile="tess"]')`;
-    await waitFor(() => ui(`${row}.querySelector('.login').value === 'tester'`));
-    assert.equal(await ui(`${row}.querySelector('.password').placeholder`), 'Password kept (type to change it)');
-    await ui(`(() => { const f = ${row}.querySelector('.password'); f.value = 'secret-tess'; f.dispatchEvent(new Event('change')); })()`);
-    await waitFor(() => ui(`${row}.querySelector('.password').value === ''`));
-    await ui(`(() => { const f = ${row}.querySelector('.login'); f.value = 'tess'; f.dispatchEvent(new Event('input')); f.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); })()`);
+    await chooseProfile(ui, 'tess');
+    await waitFor(() => ui(`document.getElementById('profilelogin').value === 'tester'`));
+    assert.equal(await ui(`document.getElementById('profilepassword').placeholder`), 'Kept (type to change it)');
+    await setProfileField(ui, 'profilepassword', 'secret-tess');
+    await waitFor(() => ui(`document.getElementById('profilepassword').value === ''`));
+    await setProfileField(ui, 'profilelogin', 'tess');
     await waitFor(() => shell.profileStore.get('tess').login?.user === 'tess');
-    await ui(`document.getElementById('closeProfiles').click()`);
+    await closeSettings(ui);
     await call('browser_navigate', { profile: 'tess', url: `${SITE}/app/signin` });
     await call('browser_type_login', { profile: 'tess', locator: "locator('#user')", field: 'login' });
     await call('browser_type_login', { profile: 'tess', locator: "locator('#pass')", field: 'password', submit: true });

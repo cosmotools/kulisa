@@ -36,6 +36,8 @@ export interface ProjectsInfo {
 // The projects' manager (app.js, project:*): what a project may be, its code, its profiles, its configuration.
 // agents: every account (main/accounts.js); clis: the agents a new account can be made of.
 // An agent's account (Settings → Agents: main/app.js, accounts:list), with the names of the projects it is in.
+// A profile in Settings → Profiles (app.js, profiles:list): who it is, its test login (never its password), its projects.
+export interface SettingsProfile { id: string; name: string; avatar: string; description: string; login: string; hasPassword: boolean; projects: string[] }
 export interface Account { id: string; agent: string; name: string; email: string | null; projects: string[] }
 export interface AccountsInfo { accounts: Account[]; clis: string[] }
 // What a new account's sign-in answers (AccountSignIn.vue): the project's agents, made in one; else every account.

@@ -203,7 +203,7 @@ Every dialog is `Modal.vue`, Reka UI's Dialog (`reka-ui`) with the same parts:
 - A dialog that is browsed (Settings, `ProjectEditor.vue`) is a tree on the left (Reka's `Tree`, `#pjlist`: its rows
   `.item`, `data-project` or `data-tab`; a parent opens and closes, it is not chosen) and the chosen page on the right
   under its path (`.crumbs`: "Projects › shop", its actions at the end). A page of things with details (Settings →
-  Agents) is a `.list` on its left and the chosen one's fields on its right. A dialog of a few big choices and a form (New
+  Agents, → Profiles) is a `.list` on its left and the chosen one's fields on its right. A dialog of a few big choices and a form (New
   Project) has the choices as a list on its left (Reka's Listbox), the form on its right.
 - With `form` the content and the buttons are a form: Enter submits.
 - Its ref: `await open()` (shown, the keyboard in its `[autofocus]` field or on it; the profiles' pages hidden while it

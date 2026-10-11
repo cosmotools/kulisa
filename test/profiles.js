@@ -1,12 +1,13 @@
 // Renaming and deleting profiles; DevTools.
 const fs = require('fs');
 const path = require('path');
-const { assert, root, userData, project, pfile, savedTabs, panel, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, menuOpen, rightClick,
+const { assert, root, userData, project, pfile, savedTabs, panel, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, closeSettings,
+  chooseProfile, setProfileField, menuOpen, rightClick,
   box, pageBox, viewOn, dock, ctrl, near } = require('./helpers');
 
 module.exports = (test) => {
   test('rename keeps the profile and the sign-in', async (ctx) => {
-    const r = await ctx.ui(`act('profile:rename', { profile: 'sam-seller', name: 'Sam.admin' })`);
+    const r = await ctx.ui(`kulisa.invoke('profiles:rename', { profile: 'sam-seller', name: 'Sam.admin' })`);
     assert.equal(r.id, 'sam-admin');
     assert.equal(await who(ctx, 'sam-admin'), 'Signed in as sam');
     await waitFor(async () => JSON.stringify(await ctx.ui(`[...document.querySelectorAll('.pname')].map((e) => e.textContent)`)) === '["Sam.admin","Elon.buyer"]');
@@ -15,22 +16,23 @@ module.exports = (test) => {
     const { shell, ui, call } = ctx;
     // The field leaves other characters out, typed or pasted.
     await manageProfiles(ui);
-    await ui(`document.getElementById('newProfile').focus()`);
+    await ui(`document.getElementById('profilenew').click()`);
+    await waitFor(() => ui(`document.activeElement?.id === 'profilenewname'`));
     shell.win.webContents.insertText('ann admin·@shop.com');
-    await waitFor(async () => (await ui(`document.getElementById('newProfile').value`)) === 'annadmin@shop.com');
-    await ui(`document.getElementById('newProfile').value = ''; document.querySelector('#profiles .x').click()`);
+    await waitFor(async () => (await ui(`document.getElementById('profilenewname').value`)) === 'annadmin@shop.com');
+    await closeSettings(ui);
     // Checked again where names are made: the agent, a rename, a project, a task.
     await assert.rejects(call('profile_create', { name: 'Ann admin' }), /letters, digits and @ \. _ \+ - only/);
     await assert.rejects(call('profile_create', { name: '@' }), /starting with a letter or a digit/);
-    assert.match((await ui(`act('profile:rename', { profile: 'sam-admin', name: 'Sam admin' })`)).error, /only/);
+    assert.match((await ui(`kulisa.invoke('profiles:rename', { profile: 'sam-admin', name: 'Sam admin' })`)).error, /only/);
     assert.match((await ui(`kulisa.invoke('project:new', { name: '..' })`)).error, /starting with a letter or a digit/);
     assert.match((await ui(`kulisa.invoke('task:rename', { key: tasks.current, name: '@' })`)).error, /starting with a letter or a digit/);
     assert.match((await ui(`kulisa.invoke('task:rename', { key: tasks.current, name: 'a b' })`)).error, /only/);
     assert.ok(shell.profiles.has('sam-admin') && !shell.profiles.has('ann-admin-2'));
   });
-  test('delete a profile in the editor: sign-ins and data gone, a new one of the same name starts clean', async (ctx) => {
+  test('delete a profile in Settings → Profiles: sign-ins and data gone, everywhere; a new one of the same name starts clean', async (ctx) => {
     const { shell, ui, call } = ctx;
-    await ui(`act('profile:new', { name: 'Temp' })`);
+    await shell.task.createProfile('Temp'); // in the project, open in its task (the agent's profile_create; Settings: tested above)
     const temp = shell.profiles.get('temp');
     assert.equal(temp.folder, 'Profile 4'); // after Sam, Elon and Ann (the profile_create test)
     await call('browser_navigate', { profile: 'temp', url: `${SITE}/app/login?name=tim` });
@@ -39,20 +41,22 @@ module.exports = (test) => {
     assert.ok(fs.existsSync(shell.sessionCookies.file(temp)));
 
     await manageProfiles(ui);
-    await waitFor(async () => (await ui(`document.querySelectorAll('#plist .prow').length`)) === 3);
-    const row = `document.querySelector('#plist .prow[data-profile="temp"]')`;
+    await chooseProfile(ui, 'temp');
     ctx.answer = false; // Cancel
-    await ui(`${row}.querySelector('.del').click()`);
+    await ui(`document.getElementById('profiledel').click()`);
     await waitFor(() => ctx.asked.length);
-    assert.equal(ctx.asked.pop().message, 'Delete the profile Temp?');
+    const q = ctx.asked.pop();
+    assert.equal(q.message, 'Delete the profile Temp?');
+    assert.match(q.detail, /removed for good, here and in every task\. The projects .* let go of it\./);
     await sleep(100); // nothing to wait for: that nothing happens
     assert.ok(shell.profiles.has('temp'), 'nothing is deleted without the confirmation');
     ctx.answer = true;
     const deleted = new Promise((r) => temp.once('deleted', r));
-    await ui(`${row}.querySelector('.del').click()`);
+    await ui(`document.getElementById('profiledel').click()`);
     await deleted;
     ctx.asked.length = 0;
-    await ui(`document.getElementById('closeProfiles').click()`);
+    await waitFor(() => ui(`!document.querySelector('#profilestab [data-profile="temp"]')`));
+    await closeSettings(ui);
 
     assert.deepEqual([...shell.profiles.keys()], ['sam-admin', 'elon-buyer']);
     assert.equal(temp.tabs.length, 0);
@@ -60,40 +64,35 @@ module.exports = (test) => {
     assert.ok(!fs.existsSync(shell.sessionCookies.file(temp)));
     const savedIds = () => JSON.parse(fs.readFileSync(pfile('profiles.json'), 'utf8')).map((p) => p.id).join();
     await waitFor(() => savedIds() === 'sam-admin,elon-buyer');
-    // Profile 3: Ann, the profile_create test; each its task's copy and its master (in no other project).
+    assert.equal(shell.profileStore.get('temp'), null, 'gone from the store');
+    // Profile 3: Ann, the profile_create test; each its task's copy and its master.
     const master = (f) => path.join(userData, 'profiles', f);
     assert.deepEqual(JSON.parse(fs.readFileSync(path.join(userData, 'deleted-folders.json'), 'utf8')), [pfile('Profile 3'), master('Profile 3'), pfile('Profile 4'), master('Profile 4')]);
     await assert.rejects(call('browser_snapshot', { profile: 'temp' }), /No profile "temp"/);
     await waitFor(async () => (await ui(`document.querySelectorAll('.pane').length`)) === 2);
 
     // Same name again: a new folder (the old one goes at the next start), signed out.
-    await ui(`act('profile:new', { name: 'Temp' })`);
+    await shell.task.createProfile('Temp');
     assert.equal(shell.profiles.get('temp').folder, 'Profile 5');
     await call('browser_navigate', { profile: 'temp', url: `${SITE}/app` });
     assert.equal(await who(ctx, 'temp'), 'Signed out');
-    await ui(`act('profile:delete', { profile: 'temp' })`);
+    await ui(`kulisa.invoke('profiles:delete', { profile: 'temp' })`);
+    await waitFor(() => !shell.profileStore.get('temp'));
+    ctx.asked.length = 0;
   });
-  test('rename in the profile editor: the name is text until it is clicked; typed and Enter saves it, Esc puts it back', async ({ shell, ui }) => {
+  test('rename in Settings → Profiles: typed, and Enter or leaving the field saves it; the panes follow', async ({ shell, ui }) => {
     await manageProfiles(ui);
+    await chooseProfile(ui, 'elon-buyer');
     const wc = shell.win.webContents;
-    shell.win.focus(); wc.focus(); // the keyboard in the window, as the human's hands: focus events come then
-    const field = (id, part) => `document.querySelector('#plist .prow[data-profile="${id}"] ${part}')`;
-    const key = (keyCode, char) => { for (const type of ['keyDown', ...(char ? ['char'] : []), 'keyUp']) wc.sendInputEvent({ type, keyCode: type === 'char' ? char : keyCode }); };
-    const rename = async (id, name, keyCode, char) => {
-      await waitFor(() => ui(`!!${field(id, '.preview')}?.checkVisibility()`));
-      await ui(`${field(id, '.preview')}.focus()`); // a click or Tab: it is edited in place, all of it chosen
-      await waitFor(() => ui(`document.activeElement === ${field(id, '.name')}`));
-      await wc.insertText(name);
-      key(keyCode, char);
-    };
-    await rename('elon-buyer', 'Elon.shopper', 'Enter', '\r');
+    shell.win.focus(); wc.focus(); // the keyboard in the window, as the human's hands
+    await ui(`(() => { const f = document.getElementById('profilename'); f.focus(); f.select(); })()`);
+    await wc.insertText('Elon.shopper');
+    for (const type of ['keyDown', 'char', 'keyUp']) wc.sendInputEvent({ type, keyCode: type === 'char' ? '\r' : 'Enter' });
     await waitFor(() => shell.profiles.has('elon-shopper'));
-    await rename('elon-shopper', 'Elon.nobody', 'Escape');
-    await waitFor(() => ui(`${field('elon-shopper', '.preview')}?.textContent === 'Elon.shopper'`));
-    assert.ok(shell.profiles.has('elon-shopper'), 'Esc: not renamed');
-    await rename('elon-shopper', 'Elon.buyer', 'Enter', '\r');
+    await waitFor(async () => (await ui(`[...document.querySelectorAll('.pname')].map((e) => e.textContent).join()`)) === 'Sam.admin,Elon.shopper');
+    await setProfileField(ui, 'profilename', 'Elon.buyer');
     await waitFor(() => shell.profiles.has('elon-buyer'));
-    await ui(`document.getElementById('closeProfiles').click()`);
+    await closeSettings(ui);
   });
   test('a page never makes a region that drags the window (Teams declared one, and it took every click over the panes)', async ({ shell }) => {
     const wc = shell.profiles.get('sam-admin').get().wc;

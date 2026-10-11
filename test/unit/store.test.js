@@ -53,7 +53,7 @@ test('store: a write cut short leaves the file as it was', async () => {
   assert.deepEqual(task.profiles().map((p) => p.id), ['sam']);
   assert.deepEqual(fs.readdirSync(task.dir).filter((f) => f.endsWith('.tmp')), [], 'no half-written file left');
 });
-test('profiles: one store, a profile in several projects; its master goes with its last project', () => {
+test('profiles: one store, a profile in several projects or none; it lives until deleted, its master with it', () => {
   const { ProfileStore } = require('../../src/main/profile-store');
   const marked = [];
   const all = new ProfileStore(path.join(root, 'profiles-data'), (d) => marked.push(d));
@@ -65,11 +65,25 @@ test('profiles: one store, a profile in several projects; its master goes with i
   assert.deepEqual(all.of('blog').map((p) => p.id), ['ann', 'ann-2']);
   assert.equal(all.idFor('Ann', 'ann'), 'ann', 'its own id is free for it');
   assert.deepEqual(all.update('Profile 1', { id: 'anna', name: 'Anna', description: '' }), { id: 'anna', name: 'Anna', avatar: 'fox', folder: 'Profile 1', projects: ['shop', 'blog'] });
-  assert.equal(all.removeFrom('anna', 'shop').gone, false);
-  assert.ok(fs.existsSync(all.masterDir('Profile 1')), 'still in blog');
-  assert.equal(all.removeFrom('anna', 'blog').gone, true);
-  assert.ok(!fs.existsSync(all.masterDir('Profile 1')) && marked.includes(all.masterDir('Profile 1')), 'gone with its last project');
-  assert.equal(all.create('shop', { name: 'Bo', avatar: 'cat' }).folder, 'Profile 3', 'never a folder number used before');
+  all.removeFrom('anna', 'shop');
+  assert.deepEqual(all.removeFrom('anna', 'blog').profile.projects, [], 'in no project');
+  assert.ok(fs.existsSync(all.masterDir('Profile 1')) && all.get('anna'), 'kept with its sign-ins: let go is not deleted');
+  // Who it is, changed and checked in the store, for every handle (a task, Settings, the agent).
+  assert.deepEqual(all.rename('anna', 'Ann'), { id: 'ann' });
+  assert.match(all.rename('ann', '').error, /./);
+  assert.match(all.describe('ann', 'x'.repeat(501)).error, /at most 500/);
+  assert.match(all.setAvatar('ann', 'dragon').error, /no picture/);
+  assert.deepEqual(all.setLogin('ann', 'ann@shop.test', 'enc'), { id: 'ann' });
+  assert.deepEqual(all.get('ann').login, { user: 'ann@shop.test', secret: 'enc' });
+  all.setLogin('ann', 'ann@shop.test');
+  assert.equal(all.get('ann').login.secret, 'enc', 'the password kept when only the login is set again');
+  all.setLogin('ann', '');
+  assert.equal(all.get('ann').login, undefined, 'an empty login takes the pair away');
+  assert.deepEqual(all.create(null, { name: 'Free', avatar: 'cat' }).projects, [], 'made in no project (Settings → Profiles)');
+  // Deleted: gone with its master.
+  assert.equal(all.delete('ann').profile.folder, 'Profile 1');
+  assert.ok(!all.get('ann') && !fs.existsSync(all.masterDir('Profile 1')) && marked.includes(all.masterDir('Profile 1')), 'its master gone');
+  assert.equal(all.create('shop', { name: 'Bo', avatar: 'cat' }).folder, 'Profile 4', 'never a folder number used before');
 });
 
 test('project profiles: a task has its own copy of each, made at its first open; who a profile is, the same in every task', async () => {

@@ -321,8 +321,8 @@ class Task {
   openProfile(id) { return this.list.open(id); }
   // Always after the human says yes, whoever asks (by: 'human' or 'agent'): sign-ins are made by hand and cannot be
   // made again by code.
-  // Deleting is the project's letting go of it (projects.js, askDropProfile, dropProfile): in every task of the project,
-  // and, in no other project, its master too.
+  // It is the project's letting go of it (projects.js, askDropProfile, dropProfile): its copy in every task of the
+  // project goes; the profile stays, with its master (Settings → Profiles deletes it).
   async deleteProfile(id, by = 'human') {
     const p = this.profiles.get(id) || this.closed.get(id)?.cfg;
     if (!p) return { error: `No profile "${id}"` };
@@ -333,13 +333,12 @@ class Task {
   // A caption over a profile's pane (ghost.js, browser_highlight); sticky ones stay until the next caption.
   caption(profile, caption, sticky = false) { this.window?.send('agent', { task: this.key, profile, caption, sticky }); }
 
-  // A test user's pair (profiles.md, "Test users' sign-ins"): set by the human (About this profile…) or the agent
+  // A test user's pair (profiles.md, "Test users' sign-ins"): set by the human (Settings → Profiles) or the agent
   // (profile_set_login, e.g. after it signed that user up). The password is kept encrypted with the OS keyring, never
   // in the clear: without a keyring it is not kept. An empty login takes the pair away.
   setLogin(id, user, password) {
-    if (password && !this.shell.secrets.available()) return { error: 'this computer has no keyring to keep a password encrypted, so none is kept' };
-    if (password?.length > 500) return { error: 'a password is at most 500 characters' };
-    return this.list.setLogin(id, user, password ? this.shell.secrets.encrypt(password) : undefined);
+    const s = this.shell.loginSecret(password);
+    return s.error ? s : this.list.setLogin(id, user, s.secret);
   }
   // Its login or password, to type in a tab (the agent's browser_type_login; it never gets the password itself), only
   // on a local page or one the tab reached from a local page, never a big account provider's (local.js).
@@ -348,7 +347,7 @@ class Task {
     if (r.error) return r;
     const pair = this.shell.profileStore.byFolder(r.profile.folder)?.login;
     if (!pair?.user || (field === 'password' && !pair.secret)) {
-      return { error: `${r.profile.name} has no test login${pair?.user ? ' password' : ''} saved: ask the human to set one (About this profile…), or save the one you signed it up with (profile_set_login).` };
+      return { error: `${r.profile.name} has no test login${pair?.user ? ' password' : ''} saved: ask the human to set one (Settings → Profiles), or save the one you signed it up with (profile_set_login).` };
     }
     const h = r.tab.wc.navigationHistory, urls = h.getAllEntries().slice(0, h.getActiveIndex() + 1).map((e) => e.url);
     if (!loginAllowed(urls, this.project.entry.local || [])) {
