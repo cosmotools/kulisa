@@ -55,9 +55,11 @@ it), its tasks, and **+** for a new task. A project itself is not opened or clos
 (their agents and pages) until you close them (**×** on a task; **Close Group** in its name's right-click menu or the middle
 button on its name closes all its tasks, asking only when an agent works). The button after the islands (or Ctrl+Shift+A)
 searches every project's tasks, as Chrome's Search tabs: a click opens one, in its project's group (a new one in this
-window when it has none), and **New Task** under each project makes one. **Settings → Projects** has **New Project** (a name and where its
-folder goes, `~/Kulisa` by default; git on by default, with an empty first commit; then its
-configuration: its agents' accounts, code, profiles; **New Task** makes its first task; a folder there already, a repository or not, is taken as it is). **Project Settings…** on its name's right-click menu opens the manager at it. Closing the last group leaves the
+window when it has none), and **New Task** under each project makes one. **Settings → Projects** has **New Project**: its code first, a **New folder** (a name
+and where it goes, `~/Kulisa` by default; git on by default, with an empty first commit), **Folders on disk** (one or
+several, a frontend and a backend: taken as they are, nothing made) or **Clone from URL** (one or several: into
+`~/Kulisa/<name>` by default, several each in a folder of its own there); then its
+configuration: its agents' accounts, more code, profiles; **New Task** makes its first task. **Project Settings…** on its name's right-click menu opens the manager at it. Closing the last group leaves the
 window empty: Search Tasks and New Project… in it. A closed task keeps its tabs and
 sign-ins; when you open it again, its agent continues the conversation where it can (`claude --resume`,
 `codex resume`). The agent starts in your shell in its task's folder, as if you typed its command in a terminal

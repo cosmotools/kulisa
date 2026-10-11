@@ -75,16 +75,31 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   project is chosen with one typed. Decided with the author on 2026-10-10, when a project became the configuration its tasks are made
   from: the menu and the Welcome screen (JetBrains' way, 2026-10-07) showed no project's configuration without opening
   it. A dialog, not a window of the OS: no process more.
-- **New Project** (in the manager; New Project… in the empty window), as JetBrains': a name and a location, `~/Kulisa` (every new project's place, as JetBrains'
-  `~/PycharmProjects`) unless they type or browse to another; the dialog shows the folder it makes
-  (`<location>/<name>`), so the human knows where the agent's files are. Its color (the next free one) and icon (the
-  curtain, or its site's favicon) are not asked: one decision less to make a project, changed at its page's top.
-  **A folder that is there already is taken as it is**, its files kept, and the dialog says so as the name and the
-  location are typed ("… is there already", "… is a git repository"; refused: a file, or a folder a project has): the
-  one way to make a project of existing code (Open Folder… was until 2026-10-11: what it did was not clear, the
-  author). Create Git repository is on by default, not shown for a repository: `git init` and an empty first commit
-  ("Initial commit"; nothing of the folder is in it), as a worktree needs one, so the first task already has a copy of
-  its own. Without git's user name and email set there is no commit, and tasks work in the folder.
+- **New Project** (in the manager; New Project… in the empty window), as JetBrains': **its code first** (the author,
+  2026-10-11: a folder made in `~/Kulisa` first, git on, was in the way of code already on the disk or at a URL: with
+  a repository added after it, every task got a copy of the empty one too, or the empty folder stayed as a former one):
+  - **New folder**: a name and a location, `~/Kulisa` (every new project's place, as JetBrains' `~/PycharmProjects`)
+    unless they type or browse to another; the dialog shows the folder it makes (`<location>/<name>`), so the human
+    knows where the agent's files are. A folder there already is taken as it is, its files kept.
+  - **Folder on disk**: one folder or several (a frontend and a backend: typed and Add, or Browse…, each a row with
+    "git" or "no git" and ×), taken as they are, nothing made: their files and, for repositories, their history kept.
+    The first is the default repository and the project's folder (Open Folder… was until 2026-10-11, a command of its
+    own whose effect was not clear, the author; now a choice inside New Project). Create Git repository runs in those
+    without git. A folder that is not there, or a project's, is refused as it is added.
+  - **Clone from URL**: one URL or several, cloned with the user's own git (as Clone on a project's page). One is cloned
+    into `<location>/<name>`, and that clone is the project's folder; several into `<location>/<name>/<repo>` each, the
+    project's folder the one that holds them (no former folder: tasks never worked in it), the first the default.
+    Clone on its page puts the next one there too. Refused: a folder there with files. Create says Cloning…
+    meanwhile; a URL git cannot clone leaves nothing, the clones before it neither.
+
+  The name is the first folder's or repository's until the human types one. A folder or URL typed and not yet added
+  counts when Create is pressed. The dialog says what will happen as it is typed ("… is there already", "… is a git repository", "The repository
+  will be cloned into …"; refused: a file, or a folder a project has). Its color (the next free one)
+  and icon (the curtain, or its site's favicon) are not asked: one decision less to make a project, changed at its
+  page's top. Create Git repository is on by default, not shown for repositories or clones: `git init` and an empty
+  first commit ("Initial commit"; nothing of the folder is in it), as a worktree needs one, so the first task already
+  has a copy of its own. Without git's user name and email set there is no commit, and tasks work in the folder. More
+  repositories are added on its page (Code).
   **Create makes no task**: the manager goes on to its configuration (its agents' accounts: New
   Account…; its code, profiles), and **New Task** at its top makes its first task (`project:open` without a task: a
   new one).
@@ -410,7 +425,7 @@ Outside it:
 | The task's folder of copies | `~/Kulisa/<project>@task-<n>/<repo>/` (several repositories, or one added later) | creating a task; adding a repository |
 | The task's branch | each repository (`git branch`) | creating a task; renamed with the task |
 | git's worktree record | `<repo>/.git/worktrees/<copy>/` | creating a task |
-| A cloned repository | `~/Kulisa/<project>/<repo>/` or next to the project's folder | Clone in the projects' manager; stays, as the human's (removing it from the project leaves it) |
+| A cloned repository | `<location>/<name>/`, or `<location>/<name>/<repo>/` for several (New Project, Clone from URL); `~/Kulisa/<project>/<repo>/` or next to the project's folder (Clone on its page) | cloning; stays, as the human's (removing it from the project, or the project, leaves it) |
 | An empty first commit | the project's repository | New Project… with Create Git repository |
 | direnv's permission for the task's `.envrc` | direnv's data (`~/.local/share/direnv/allow/`) | creating a task, if the project's is allowed |
 | Claude Code's trust of the task's folder | Claude's config: `<CLAUDE_CONFIG_DIR>/.claude.json`, else `~/.claude.json`, `projects["<task folder>"]` | the task's Claude starts, if the project's folder is trusted |

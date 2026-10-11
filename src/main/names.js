@@ -19,5 +19,8 @@ function nameError(name) {
 const nameChar = (c) => CHAR.test(c);
 // A part of a folder, branch or id made from a name: lower case, other characters as -.
 const slugOf = (name, fallback) => name.trim().toLowerCase().replace(/[^\p{L}\p{M}\p{N}]+/gu, '-').replace(/^-|-$/g, '') || fallback;
+// The last part of a folder or repository URL, as git names a clone (git@github.com:me/shop.git, /srv/shop: shop):
+// a project's or a clone's name until the human gives one.
+const repoName = (url) => (url || '').trim().replace(/[\\/]+$/, '').split(/[\\/:]/).pop().replace(/\.git$/, '');
 
-module.exports = { nameError, nameChar, slugOf, MAX, RULE };
+module.exports = { nameError, nameChar, slugOf, repoName, MAX, RULE };

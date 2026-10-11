@@ -3,8 +3,8 @@
 import { computed, nextTick, ref, watch } from 'vue';
 import { TabsContent, TabsList, TabsRoot, TabsTrigger } from 'reka-ui';
 import { CheckboxIndicator, CheckboxRoot, ColorSwatchPickerItem, ColorSwatchPickerItemSwatch, ColorSwatchPickerRoot, DialogClose, FieldControl,
-  FieldDescription, FieldLabel, FieldRoot, ListboxContent, ListboxItem, ListboxRoot, PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger,
-  ToggleGroupItem, ToggleGroupRoot } from 'reka-ui';
+  FieldLabel, FieldRoot, ListboxContent, ListboxItem, ListboxRoot, PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger,
+  RadioGroupIndicator, RadioGroupItem, RadioGroupRoot, ToggleGroupItem, ToggleGroupRoot } from 'reka-ui';
 import Modal from './Modal.vue';
 import Icon from './Icon.vue';
 import ButtonMenu from './menu/ButtonMenu.vue';
@@ -48,22 +48,60 @@ const profiles = ref<ProjectProfile[]>([]), others = ref<ProjectProfile[]>([]), 
 // The default repository and agent are the first ones: the main process keeps them in that order.
 
 const isNew = computed(() => !editing.value);
-const target = computed(() => (editing.value ? folder.value : `${place.value.trim().replace(/[\\/]+$/, '')}${sep.value}${name.value.trim()}`));
-// What the folder at the location is (app.js, project:folder-state), asked again as the name or location is typed.
+// A new project's code, asked first (the author, 2026-10-11): a new folder, folders on the disk (nothing made), or
+// repositories cloned from URLs; several of them for a project of several (a frontend and a backend). Its name follows
+// the first folder's or repository's until the human types one.
+const from = ref<'new' | 'folder' | 'clone'>('new');
+const sources = ref<{ folder: string; state: string }[]>([]), urls = ref<string[]>([]), typedSource = ref('');
+let named = '';
+const nameOf = (s = '') => {
+  const n = [...kulisa.repoName(s)].filter((c) => kulisa.nameChar(c)).join('');
+  return n.replace(/^[^\p{L}\p{N}]+/u, '').slice(0, kulisa.nameMax);
+};
+watch([from, sources, urls], () => {
+  if (from.value === 'new' || (name.value.trim() && name.value !== named)) return;
+  name.value = named = nameOf(from.value === 'folder' ? sources.value[0]?.folder : urls.value[0]);
+}, { deep: true });
+// One more folder or URL (Enter in its field, Add, Browse…): a folder that is not there, or a project's, is refused.
+async function addSource(given?: string) {
+  const v = (given ?? typedSource.value).trim();
+  if (!v) return true;
+  error.value = '';
+  if (from.value === 'clone') { if (!urls.value.includes(v)) urls.value.push(v); typedSource.value = ''; return true; }
+  const r = await kulisa.invoke<{ folder: string; state: string; project?: string } | null>('project:folder-state', { from: 'folder', folder: v });
+  const why = !r ? `${v}: a full path, please` : ({ new: `${r.folder} is not there`, file: `${r.folder} is a file, not a folder`,
+    project: `${r.folder} is the project ${r.project}'s already` } as Record<string, string>)[r.state];
+  if (why) { error.value = why; return false; }
+  if (!sources.value.some((x) => x.folder === r!.folder)) sources.value.push({ folder: r!.folder, state: r!.state });
+  typedSource.value = '';
+  return true;
+}
+const sourceLine = (x: { state: string }) => (x.state === 'repo' ? 'git' : 'no git');
+// A new or cloned project's folder, and what it is (app.js, project:folder-state), asked again as it is typed.
+const target = computed(() => (editing.value ? folder.value : from.value === 'folder' ? ''
+  : `${place.value.trim().replace(/[\\/]+$/, '')}${sep.value}${name.value.trim()}`));
 const there = ref<{ state: string; project?: string } | null>(null);
-watch([name, place, editing], async () => {
+watch([name, place, editing, from], async () => {
   const asked = target.value;
-  const r = editing.value ? null : await kulisa.invoke<{ state: string; project?: string } | null>('project:folder-state', { location: place.value, name: name.value });
+  const r = editing.value || !asked ? null : await kulisa.invoke<{ state: string; project?: string } | null>('project:folder-state',
+    { location: place.value, name: name.value });
   if (asked === target.value) there.value = r;
 });
 const where = computed(() => {
-  if (editing.value || !name.value.trim() || !place.value.trim()) return '';
-  const t = target.value;
+  if (editing.value) return '';
+  if (from.value === 'folder') return sources.value.length > 1 ? 'The project takes these folders as they are; the first is the default' : '';
+  if (!name.value.trim() || !place.value.trim()) return '';
+  const t = target.value, state = there.value?.state ?? '';
+  const refused = ({ project: `${t} is the project ${there.value?.project}'s already`, file: `${t} is a file, not a folder` } as Record<string, string>)[state];
+  if (refused) return refused;
+  if (from.value === 'clone') return ['files', 'repo'].includes(state) ? `${t} is there already: choose another name or location`
+    : urls.value.length > 1 ? `The repositories will be cloned into ${t}, each in a folder of its own` : `The repository will be cloned into ${t}`;
   return ({ files: `${t} is there already: the project takes it as it is, its files kept`,
-    repo: `${t} is a git repository: the project takes it as it is`,
-    project: `${t} is the project ${there.value?.project}'s already`, file: `${t} is a file, not a folder` } as Record<string, string>)[there.value?.state ?? '']
-    ?? `The project will be created in ${t}`;
+    repo: `${t} is a git repository: the project takes it as it is` } as Record<string, string>)[state] ?? `The project will be created in ${t}`;
 });
+// Create Git repository: not for a repository or a clone; on the disk, in the folders that are none.
+const askGit = computed(() => (from.value === 'folder' ? sources.value.some((x) => x.state !== 'repo')
+  : from.value === 'new' && there.value?.state !== 'repo'));
 const iconValues = computed(() => [...(choices.value.favicon ? ['favicon'] : []), ...choices.value.icons]);
 const base = (f: string) => f.split(/[\\/]/).pop()!;
 
@@ -82,6 +120,7 @@ async function fresh() {
   const c = await kulisa.invoke<ProjectChoices & { location: string; sep: string; color: string }>('project:new-defaults');
   editing.value = null; sep.value = c.sep;
   name.value = ''; place.value = c.location; git.value = true; error.value = '';
+  from.value = 'new'; sources.value = []; urls.value = []; typedSource.value = ''; named = '';
   fill(c, { color: c.color, icon: 'logo' });
   await showList();
   focusName();
@@ -119,16 +158,17 @@ registerDialog('projects', {
   openAgents: () => openProjects(undefined, 'agents'),
 });
 
-async function browse() {
-  const picked = await kulisa.invoke<string | null>('project:pick-location', { location: place.value.trim() });
-  if (picked) place.value = picked;
+async function browse(existing = false) {
+  const picked = await kulisa.invoke<string | null>('project:pick-location', { location: place.value.trim(), existing });
+  if (picked && existing) await addSource(picked); else if (picked) place.value = picked;
 }
-// Create (a new project): made, then its page shown.
+// Create (a new project): made (a clone: cloned, which takes a while), then its page shown.
 async function create() {
+  if (from.value !== 'new' && !(await addSource())) return; // what is typed in its field counts
   if (!name.value.trim()) { focusName(); return; }
   saving.value = true;
-  const r = await kulisa.invoke<{ error?: string; id?: string } | null>('project:new', { name: name.value, color: color.value, icon: icon.value,
-    location: place.value, git: git.value });
+  const r = await kulisa.invoke<{ error?: string; id?: string } | null>('project:new', { from: from.value, name: name.value, color: color.value, icon: icon.value,
+    location: place.value, folders: sources.value.map((x) => x.folder), urls: [...urls.value], git: git.value && askGit.value });
   saving.value = false;
   if (r?.error) error.value = r.error; else await edit(r!.id!);
 }
@@ -240,15 +280,35 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
       </ListboxRoot>
     </nav>
     <div id="pjconfig" :style="{ '--color': color }">
-      <!-- A new project: its name, where its folder goes, git; Create -->
+      <!-- A new project: its code first, then its name, where its folder goes, git; Create -->
       <template v-if="isNew">
         <h3 id="pjtitle">New Project</h3>
+        <div class="field"><span id="npfromlabel">Code</span>
+          <RadioGroupRoot id="npfrom" v-model="from" aria-labelledby="npfromlabel" orientation="horizontal" @update:model-value="error = ''">
+            <label v-for="[v, l] in [['new', 'New folder'], ['folder', 'Folder on disk'], ['clone', 'Clone from URL']]" :key="v">
+              <RadioGroupItem class="radio" :value="v" :data-value="v"><RadioGroupIndicator /></RadioGroupItem>{{ l }}</label>
+          </RadioGroupRoot></div>
+        <!-- Folders or URLs, one or several (a frontend and a backend): Enter or Add puts the one typed in the list -->
+        <div v-if="from !== 'new'" id="npsources" class="field"><span>{{ from === 'folder' ? 'Folders' : 'URLs' }}</span>
+          <div class="list">
+            <div v-for="(x, i) in from === 'folder' ? sources : urls.map((u) => ({ folder: u, state: '' }))" :key="x.folder" class="removable" :data-source="x.folder">
+              <div class="item"><span class="text"><span class="label" :title="x.folder">{{ x.folder }}</span></span>
+                <kbd v-if="x.state">{{ sourceLine(x) }}</kbd><span v-if="!i && (sources.length > 1 || urls.length > 1)" class="badge">Default</span></div>
+              <button class="remove icon quiet" type="button" title="Leave it out" aria-label="Leave it out"
+                @click="from === 'folder' ? sources.splice(i, 1) : urls.splice(i, 1)"><Icon name="i-close" /></button>
+            </div>
+            <span class="pick"><input id="npsource" v-model="typedSource" spellcheck="false" :aria-label="from === 'folder' ? 'A folder' : 'A repository URL'"
+              :placeholder="from === 'folder' ? (sources.length ? 'Another folder' : '~/IdeaProjects/shop') : (urls.length ? 'Another URL' : 'git@github.com:me/shop.git')"
+              @input="error = ''" @keydown.enter.prevent="addSource()">
+              <button id="npaddsource" type="button" @click="addSource()">Add</button>
+              <button v-if="from === 'folder'" id="npbrowsesource" type="button" @click="browse(true)">Browse…</button></span>
+          </div></div>
         <FieldRoot class="field"><FieldLabel>Name</FieldLabel><FieldControl id="npname" ref="nameField" v-model="name" data-name maxlength="64"
           placeholder="e.g. tenant-audit" spellcheck="false" @input="error = ''" /></FieldRoot>
-        <FieldRoot id="nplocationrow" class="field"><FieldLabel>Location</FieldLabel><span class="pick"><FieldControl id="nplocation" v-model="place"
-          spellcheck="false" @input="error = ''" /><button id="npbrowse" type="button" @click="browse">Browse…</button></span>
-          <FieldDescription id="npwhere" class="hint">{{ where }}</FieldDescription></FieldRoot>
-        <label id="npgitrow" class="check" :hidden="there?.state === 'repo'"><CheckboxRoot id="npgit" v-model="git" class="checkbox"><CheckboxIndicator as-child><Icon name="i-done" /></CheckboxIndicator></CheckboxRoot>
+        <FieldRoot v-if="from !== 'folder'" id="nplocationrow" class="field"><FieldLabel>Location</FieldLabel><span class="pick"><FieldControl id="nplocation" v-model="place"
+          spellcheck="false" @input="error = ''" /><button id="npbrowse" type="button" @click="browse()">Browse…</button></span></FieldRoot>
+        <p id="npwhere" class="hint">{{ where }}</p>
+        <label id="npgitrow" class="check" :hidden="!askGit"><CheckboxRoot id="npgit" v-model="git" class="checkbox"><CheckboxIndicator as-child><Icon name="i-done" /></CheckboxIndicator></CheckboxRoot>
           Create Git repository <small>each task gets its own copy of the code</small></label>
         <p id="nperror" class="error">{{ error }}</p>
       </template>
@@ -355,7 +415,7 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
     <TabsContent class="agtab" value="agents"><AgentsTab :list="agentsList" :active="tab === 'agents'" /></TabsContent>
     </TabsRoot>
     <template v-if="isNew && tab === 'projects'" #footer>
-      <DialogClose>Cancel</DialogClose><button id="npcreate" class="primary" :disabled="saving">Create</button>
+      <DialogClose>Cancel</DialogClose><button id="npcreate" class="primary" :disabled="saving">{{ saving && from === 'clone' ? 'Cloning…' : 'Create' }}</button>
     </template>
   </Modal>
 </template>
@@ -380,6 +440,11 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
   #pjconfig { display: flex; flex-direction: column; gap: var(--inset); min-height: 0; overflow: hidden auto; padding: 0 var(--inset) 20px;
     > * { flex: none; } }
   #npformer button { margin-inline-start: var(--gap); }
+  #npfrom { display: flex; flex-wrap: wrap; gap: var(--inset) var(--pad); label { display: flex; align-items: center; gap: var(--inset); } }
+  #npwhere:empty { display: none; }
+  #npsources { align-items: start; > span { line-height: var(--control); }
+    .list { display: flex; flex-direction: column; gap: 2px; min-width: 0; } .text { min-width: 0; }
+    .label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } } /* its whole path in its tooltip */
   #pjtitle { margin: 0; font-size: 1em; font-weight: 600; color: var(--text-strong); }
   #pjhead { display: flex; align-items: center; gap: var(--gap); padding-block-end: var(--inset);
     #pjlook { --icon: 24px; width: 36px; height: 36px; .picon { width: 24px; height: 24px; color: var(--color); } }
