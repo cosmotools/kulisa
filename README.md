@@ -18,8 +18,8 @@ how the design was tested: [docs/REPORT.md](docs/REPORT.md).
 ## Run
 
 ```sh
-npm install          # Node 22.13+. Rebuilds node-pty for Electron.
-npm run build        # the window (src/renderer, Vue + TypeScript): type check, then Vite into dist/renderer
+npm install          # Node 24.12+. Rebuilds node-pty for Electron.
+npm run build        # type checks (tsc, vue-tsc), then the window (src/renderer, Vue) built by Vite into dist/renderer
 npm start            # builds the window, then opens the windows and groups open last; at first start the projects' manager on New Project
 KULISA_PROJECT=~/my-app npm start
 npm run knip         # no file, export or dependency that nothing uses (docs/testing.md, Dead code)
@@ -31,7 +31,7 @@ npm run icons        # after changing assets/icon.svg: icon.png, .ico, .icns nex
 ```
 
 Kulisa targets macOS, Windows and Linux; so far it is tested on Ubuntu only (see docs/ROADMAP.md). Installers are
-built with [Electron Forge](https://www.electronforge.io/) (`forge.config.js`), each on its own platform.
+built with [Electron Forge](https://www.electronforge.io/) (`forge.config.ts`), each on its own platform.
 
 `npm start` and `npm test` run Electron with `--no-sandbox`: on Linux `chrome-sandbox` in `node_modules` is not
 setuid on a plain install. The `.deb` installs it setuid, so the installed app runs sandboxed.
@@ -110,40 +110,40 @@ click to reset). Both are kept across restarts. **☰ → Theme**: Dark (the def
 
 ```
 src/main/        Electron main process
-  index.js         entry: reads the environment, calls app.start()
-  app.js           the app: windows, groups (a project's open tasks: open a task, close, move to a new window), agents, IPC, quit
-  window.js        a window: its groups and what it shows, its questions
-  keys.js          the keyboard shortcuts: one table, which key an input event is (app.js takes them before the pages)
-  projects.js      a project's group: its tasks (make, close, open again, delete); removing a project's data
-  names.js         the one rule for names of projects, tasks and profiles; slugs for ids and folders
-  tasks.js         a task: its profiles, agent (terminal, environment), folder and name; copies for a new task
-  agents.js        the agent CLIs to choose from: how to find, install, start and resume each
-  accounts.js      the agents' accounts, one store: each made with New Account… (Settings), a config folder of its own,
+  index.ts         entry: reads the environment, calls app.start()
+  app.ts           the app: windows, groups (a project's open tasks: open a task, close, move to a new window), agents, IPC, quit
+  window.ts        a window: its groups and what it shows, its questions
+  keys.ts          the keyboard shortcuts: one table, which key an input event is (app.ts takes them before the pages)
+  projects.ts      a project's group: its tasks (make, close, open again, delete); removing a project's data
+  names.ts         the one rule for names of projects, tasks and profiles; slugs for ids and folders
+  tasks.ts         a task: its profiles, agent (terminal, environment), folder and name; copies for a new task
+  agents.ts        the agent CLIs to choose from: how to find, install, start and resume each
+  accounts.ts      the agents' accounts, one store: each made with New Account… (Settings), a config folder of its own,
                    kept until deleted
-  worktrees.js     git for tasks: worktree and branch, files outside git copied, changes, renaming, removal
-  profile-store.js     the profiles, one store: who each is, its master, its projects
-  master.js        a profile's master in a window of its own, to sign in to once for every task
-  local.js         what is local: where a test user's login-password pair may be typed
-  cookie-sync.js   real accounts' cookies kept in step between a profile's master and its copies
-  project-profiles.js  a task's profiles (copies of their masters, made at their first open), open and closed
-  avatars.js       the profiles' pictures to choose from (Noto Emoji's, in src/renderer/public/avatars/)
-  profiles.js      a profile: a session on its own folder, tabs (WebContentsView), Playwright connection, sign-in mode
-  store.js         projects.json, settings.json (Kulisa zoom, theme, the windows and their tabs), profiles.json and
+  worktrees.ts     git for tasks: worktree and branch, files outside git copied, changes, renaming, removal
+  profile-store.ts     the profiles, one store: who each is, its master, its projects
+  master.ts        a profile's master in a window of its own, to sign in to once for every task
+  local.ts         what is local: where a test user's login-password pair may be typed
+  cookie-sync.ts   real accounts' cookies kept in step between a profile's master and its copies
+  project-profiles.ts  a task's profiles (copies of their masters, made at their first open), open and closed
+  avatars.ts       the profiles' pictures to choose from (Noto Emoji's, in src/renderer/public/avatars/)
+  profiles.ts      a profile: a session on its own folder, tabs (WebContentsView), Playwright connection, sign-in mode
+  store.ts         projects.json, settings.json (Kulisa zoom, theme, the windows and their tabs), profiles.json and
                    profiles/Profile <k>/ (the profiles' masters); per project in projects/<id>/: tasks.json, and per
                    task <n>/: profiles.json (with sites' zoom), layout.json (the window's grid), agent.json (the
                    session to resume), Profile <k>/ (its copy of a master: a Chromium profile, its tabs and session
                    cookies in it).
-  cdp-proxy.js     per-profile CDP endpoint over webContents.debugger (no --remote-debugging-port)
-  local-only.js    refuses requests from web pages to the MCP server and the proxy (Host, Origin)
-  mcp-server.js    MCP tools for the agent, each takes a profile; a URL per task (/task/<project>/<n>/mcp)
-  agent-hooks.js   answers for the plugin's hooks (/task/<project>/<n>/hooks/…: the open profiles, the session; the agent's state)
-  mimic-chrome.js  UA, UA-CH headers and userAgentData of Google Chrome
-  signin-pages.js  which pages are sign-in pages; what URL to restore instead of one
-  signin-pause.js  pauses the agent on sign-in pages (temporary implementation, see docs/REPORT.md)
-  session-cookies.js  keeps session cookies across restarts (encrypted with the OS keyring)
-  picker.js        point and tell: Playwright pickLocator → a reference (profile, tab, locator) typed into the agent's prompt
-  ghost.js         the agent's actions: Playwright's annotations in the page, a caption over the pane
-  terminal.js      node-pty: the agent CLI, one per task, and the task's other terminals
+  cdp-proxy.ts     per-profile CDP endpoint over webContents.debugger (no --remote-debugging-port)
+  local-only.ts    refuses requests from web pages to the MCP server and the proxy (Host, Origin)
+  mcp-server.ts    MCP tools for the agent, each takes a profile; a URL per task (/task/<project>/<n>/mcp)
+  agent-hooks.ts   answers for the plugin's hooks (/task/<project>/<n>/hooks/…: the open profiles, the session; the agent's state)
+  mimic-chrome.ts  UA, UA-CH headers and userAgentData of Google Chrome
+  signin-pages.ts  which pages are sign-in pages; what URL to restore instead of one
+  signin-pause.ts  pauses the agent on sign-in pages (temporary implementation, see docs/REPORT.md)
+  session-cookies.ts  keeps session cookies across restarts (encrypted with the OS keyring)
+  picker.ts        point and tell: Playwright pickLocator → a reference (profile, tab, locator) typed into the agent's prompt
+  ghost.ts         the agent's actions: Playwright's annotations in the page, a caption over the pane
+  terminal.ts      node-pty: the agent CLI, one per task, and the task's other terminals
 src/agent/claude-plugin/  the Kulisa plugin for Claude Code: MCP config, the profiles skill, hooks (claude --plugin-dir)
 src/preload/     the window's bridge to the main process
 src/renderer/    window UI: Vue 3 components in TypeScript, built by Vite into dist/renderer (vite.config.mts; docs/ui.md).
@@ -153,10 +153,10 @@ src/renderer/    window UI: Vue 3 components in TypeScript, built by Vite into d
                  grid.ts, terminals.ts, menu.ts, agents.ts, ask.ts, dialogs.ts, keys.ts, voice.ts). Styles: tokens.css,
                  components.css, each part's own in its file; the icons are Sprite.vue
 dist/            the window built (npm run build; not in git)
-assets/          the app icon: icon.svg (source) and what each OS needs, rendered by scripts/icons.js
-test/            start.js (npm test: the groups in parallel), run.js (one app, its files in order), helpers.js,
-                 setup.js, the tests by area (agent.js, profiles.js, window.js, grid.js, zoom-and-closing.js,
-                 tasks.js; restart-*.js after a restart), unit/ (plain Node), fixtures/site.js (docs/testing.md)
+assets/          the app icon: icon.svg (source) and what each OS needs, rendered by scripts/icons.ts
+test/            start.ts (npm test: the groups in parallel), run.ts (one app, its files in order), helpers.ts,
+                 setup.ts, the tests by area (agent.ts, profiles.ts, window.ts, grid.ts, zoom-and-closing.ts,
+                 tasks.ts; restart-*.ts after a restart), unit/ (plain Node), fixtures/site.ts (docs/testing.md)
 ```
 
 The experiments behind the design (SPEC section 6, E1–E8) were removed after they answered their questions.

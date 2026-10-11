@@ -82,7 +82,7 @@ unasked. This paragraph is removed when the rewrite is finished.
 - **Terminology: "plugin" vs "extension".** A plugin is always an agent's (Claude Code's, Codex's), the Kulisa plugin
   being one. Code that extends Kulisa itself (panels, features of the IDE) is an "extension", as in VS Code and
   Chrome. Not "module": that is a file of code.
-- **The agent is the human's choice, per task** (`agents.js`): never assume `claude` is installed. Kulisa
+- **The agent is the human's choice, per task** (`agents.ts`): never assume `claude` is installed. Kulisa
   installs a missing agent itself with its maker's installer when the human asks, without steps for them to type.
 - **Terminology: "group"**: a project's open tasks in a window, its island in the bar, as Chrome's tab group (it
   comes with the first task opened, goes with the last one closed: Close Group). A project is no thing to open (the
@@ -112,9 +112,14 @@ unasked. This paragraph is removed when the rewrite is finished.
   - What only some agents can do (Claude Code's `--resume`, `--fork-session`, plugin, hooks) is an optional extra
     per agent, kept in one place per agent, and the feature still works without it.
   - Claude Code is the default and the best supported today; that is fine as long as the others are not locked out.
-- **A module is required destructured** (`const { repoOf } = require('./worktrees')`), never through an object
-  (`worktrees.repoOf()`): knip sees no use of a CommonJS module's member that way (docs/testing.md, Dead code). Until
-  the main process moves to TypeScript.
+- **TypeScript everywhere, as ES modules** (since 2026-10-11): the main process, the preload (`.cts`), the tests and
+  the scripts run as they are by Node's type stripping (Electron's own Node 24, or Node 24.12+), so erasable syntax
+  only (no `enum`, `namespace`, parameter properties) and imports with their `.ts`. `tsc` only checks: `tsconfig.json`
+  (strict), `test/tsconfig.json` (the same without null checks: a test counts on what it checks being there). What
+  the main process sends the window is typed once, in `src/renderer/types.ts`; the app every module gets, `Shell`
+  (`src/main/shell.ts`); an action's `{ error }` answer, `Result` and `refused()` (`src/main/result.ts`). One way of
+  writing code, all at once: what was dropped on 2026-10-08 was a mix of `.mts`, `.js` and JSDoc. No build of the main
+  process (Vite, esbuild): runs from source and packaged were checked, the asar too.
 - **Keep the amount of own code minimal, so the project stays under control.** Prefer maintained open-source
   libraries to writing our own.
   - Before writing browser or CDP code, check whether playwright-core already does it: picker
@@ -135,13 +140,12 @@ unasked. This paragraph is removed when the rewrite is finished.
   - The same for Vue: before using a part of Vue new to the window, read its page in Vue's own documentation for
     agents (`https://vuejs.org/llms.txt`, each page as `.md`; it describes 3.5, the installed version), and name it in
     the plan. Official sources only, no community skills or MCP servers (the author, 2026-10-10).
-  - Hand-written protocol code is the exception: today only `cdp-proxy.js`, because nothing existing exposes
+  - Hand-written protocol code is the exception: today only `cdp-proxy.ts`, because nothing existing exposes
     `webContents.debugger` over CDP.
   - When adding a dependency, prefer one that is widely used and maintained, and say why in the commit message. Its
     license must allow being part of a GPL-3.0 program (MIT, ISC, BSD, Apache-2.0 do; `docs/LICENSING.md`).
 - **Window UI: Vue 3 components in TypeScript, built by Vite** (`src/renderer`, `vite.config.mts`; since 2026-10-10,
-  `docs/ui.md`). The main process stays plain JavaScript for now (the author: the whole project moves to TypeScript
-  later). Electron ships a recent Chromium; use what it has instead of code or workarounds:
+  `docs/ui.md`). Electron ships a recent Chromium; use what it has instead of code or workarounds:
   - A part of the window is one `.vue` file in `src/renderer/components/`: its markup, its behavior and its own look
     (`<style>`, rooted at its id or class) together. What several parts share, or what outlives a component (the
     store of what the main process sends, the grid, the terminals' xterms, the pages under menus and dialogs, the
@@ -169,8 +173,8 @@ unasked. This paragraph is removed when the rewrite is finished.
     or rules don't already do it.
   - No wrapper elements or rules without an effect; when touching a part, remove what it no longer needs.
   - The e2e tests find elements by their ids and classes: keep them when a part changes, or change the test with it.
-  - `npm run build` type checks (vue-tsc) and builds into `dist/renderer`, which the main process loads from disk
-    (`src/main/pages.js`); `npm start` and `npm test` build first. No dev server: no page of the app may load from an
+  - `npm run build` type checks (tsc, vue-tsc) and builds into `dist/renderer`, which the main process loads from disk
+    (`src/main/pages.ts`); `npm start` and `npm test` build first. No dev server: no page of the app may load from an
     HTTP server of its own (Hard-won facts).
 - **RAM matters.** Kulisa is Electron plus a Chromium process per tab, for several profiles at once, next to the
   user's own browser and IDE. When choosing how to build something, weigh how much memory it keeps and prefer the
@@ -199,7 +203,7 @@ unasked. This paragraph is removed when the rewrite is finished.
     focus.
 - **Kulisa runs on macOS, Windows and Linux.** Write code for all three: no shell commands, Unix-only paths or
   signals, or Linux-only flags without a branch for the others. Keep platform branches few and in one place per
-  concern (e.g. the shell fallback in `terminal.js`). What is untested on a platform goes into ROADMAP.
+  concern (e.g. the shell fallback in `terminal.ts`). What is untested on a platform goes into ROADMAP.
 - Ask before anything outward-facing: pushing, publishing, registering domains.
 - Commit only when asked. The repo is public on GitHub (`origin`, github.com/cosmotools/kulisa); push only when
   asked, and never print the remote URL (`git remote -v`): it carries the author's token.
@@ -213,7 +217,7 @@ unasked. This paragraph is removed when the rewrite is finished.
   - Commits go to the worktree's branch. Merging into `main` is done in a worktree with `main` checked out, never in
     the repository's folder.
   - `npm test` runs from several worktrees at once: each checkout has its own test folder and test site
-    (`test/start.js`). The author's Kulisa runs one checkout at a time: the `run-kulisa` skill, from the worktree.
+    (`test/start.ts`). The author's Kulisa runs one checkout at a time: the `run-kulisa` skill, from the worktree.
   - Once its branch is merged (or the author drops it), the worktree goes (`git worktree remove`), its branch
     (`git branch -d`) and its test folder (`/tmp/kulisa-test-<worktree>-…`).
 
@@ -225,13 +229,13 @@ npm test    # unit tests, knip, then the e2e groups in parallel, each the real a
 npm run test:unit     # the unit tests alone (plain Node, a second)
 npm run knip  # no file, export or dependency nothing uses: once a step, before showing it (docs/testing.md, Dead code)
 npm run test:visible  # e2e on your screen, to watch them (npm test uses Xvfb on Linux when installed)
-npm run make  # installers for this platform with Electron Forge (forge.config.js), in out/make/
+npm run make  # installers for this platform with Electron Forge (forge.config.ts), in out/make/
 npm run icons # renders assets/icon.svg to icon.png/.ico/.icns (committed; run after changing the SVG)
-npm run build # the window: type check (vue-tsc), then Vite into dist/renderer (npm start and npm test do it first)
+npm run build # type checks (tsc: the main process and the tests; vue-tsc: the window), then Vite into dist/renderer
 npm run watch # the window built again on every change; then reload it (Ctrl+R in its DevTools) or restart
 ```
 
-- **Node 22.13+ and npm 11.** npm 11 runs dependencies' install scripts only when listed in `allowScripts` in
+- **Node 24.12+ and npm 11** (type stripping is stable from 24.12). npm 11 runs dependencies' install scripts only when listed in `allowScripts` in
   package.json (`npm install-scripts approve <pkg>`). Approving `node-pty` builds it for Node, not Electron;
   run `npm run postinstall` after that.
 
@@ -253,19 +257,19 @@ npm run watch # the window built again on every change; then reload it (Ctrl+R i
 - **A human signs in to real accounts, never the agent or the code.** Never type their passwords, automate their
   logins, or print or log cookie values, tokens or passwords. The one exception, the author's design (2026-10-10;
   `docs/profiles.md`, "Test users' sign-ins"): a test user of the app under test on this computer, whose pair Kulisa
-  keeps encrypted and types itself (`browser_type_login`), only on a local address (`local.js`) or a page the tab
+  keeps encrypted and types itself (`browser_type_login`), only on a local address (`local.ts`) or a page the tab
   reached from one, never on an account provider's; the agent never sees the password.
 - **The author's data is in `~/.config/Kulisa`**: profiles with real sign-ins to work tenants.
   - Never delete or overwrite it.
-  - Tests use their own temp folder (`/tmp/kulisa-test-<checkout>-<hash>`, one per checkout: `test/start.js`).
+  - Tests use their own temp folder (`/tmp/kulisa-test-<checkout>-<hash>`, one per checkout: `test/start.ts`).
   - To restart the author's running app, or give them a fresh start: the `run-kulisa` skill
     (`.claude/skills/run-kulisa/`): SIGINT to the main `electron … .` process, so session cookies and tabs get
     saved; then `npm start` in the background.
-- **`src/main/signin-pause.js` is a deliberately temporary implementation** (the author's decision, see REPORT).
+- **`src/main/signin-pause.ts` is a deliberately temporary implementation** (the author's decision, see REPORT).
   Keep it isolated; the author will replace it. Claude declined to research hiding the agent from bot detection
   (Kasada); don't build that.
 - **The MCP server and the CDP proxy listen on 127.0.0.1 only.** Never bind them to 0.0.0.0 or another
-  interface: they control signed-in browser profiles. `local-only.js` also refuses requests from web pages (a
+  interface: they control signed-in browser profiles. `local-only.ts` also refuses requests from web pages (a
   foreign Host: DNS rebinding; any Origin: a page's fetch or WebSocket); keep every new endpoint behind it. Local
   processes are not authenticated yet (open issue in ROADMAP).
 - **Do not downgrade `playwright-core`.** It is pinned to `1.64.0-alpha-…` because Kulisa uses APIs that exist
@@ -283,27 +287,27 @@ change; keep it current. Here: the layers, the modules, and what must hold.
 
 Layers, each using only the ones below it:
 
-1. **Profiles** (`profiles.js`, `project-profiles.js`, `store.js`, `session-cookies.js`, `mimic-chrome.js`,
-   `signin-*.js`): browser profiles, their tabs and storage. Knows nothing about agents, MCP or the window UI.
-2. **Automation access** (`cdp-proxy.js`): the only way anything automated reaches a profile's pages, and where
+1. **Profiles** (`profiles.ts`, `project-profiles.ts`, `store.ts`, `session-cookies.ts`, `mimic-chrome.ts`,
+   `signin-*.ts`): browser profiles, their tabs and storage. Knows nothing about agents, MCP or the window UI.
+2. **Automation access** (`cdp-proxy.ts`): the only way anything automated reaches a profile's pages, and where
    sign-in mode is enforced.
 3. **Kulisa plugin** (formerly "agent bridge"): everything that lets an unchanged agent CLI understand and use
    profiles: tools, knowledge (skill) and hooks, as Claude Code and Codex plugins bundle them.
-   - `mcp-server.js` is the functional part and is agent-agnostic: any capability for the agent is an MCP tool
+   - `mcp-server.ts` is the functional part and is agent-agnostic: any capability for the agent is an MCP tool
      there, so Codex and other CLIs get it too. One URL per task (`/task/<project>/<n>/mcp`).
    - Claude Code's package is `src/agent/claude-plugin/` (`claude --plugin-dir`): `.mcp.json` (`KULISA_MCP_URL`),
      the `profiles` skill (change it when a tool or a rule changes), `hooks/hooks.json` (`curl` to
-     `$KULISA_URL/hooks/<event>`, answered by `agent-hooks.js`; outside Kulisa they do nothing). Packaged, it sits
+     `$KULISA_URL/hooks/<event>`, answered by `agent-hooks.ts`; outside Kulisa they do nothing). Packaged, it sits
      outside the asar (`extraResource`).
-   - Do not add agent-facing behavior elsewhere (e.g. in `profiles.js` or the renderer).
-4. **Window** (`app.js`, `window.js`, `keys.js`, `projects.js`, `tasks.js`, `worktrees.js`, `agents.js`, `renderer/`, `ghost.js`, `picker.js`,
-   `terminal.js`): what the human sees and does.
+   - Do not add agent-facing behavior elsewhere (e.g. in `profiles.ts` or the renderer).
+4. **Window** (`app.ts`, `window.ts`, `keys.ts`, `projects.ts`, `tasks.ts`, `worktrees.ts`, `agents.ts`, `renderer/`, `ghost.ts`, `picker.ts`,
+   `terminal.ts`): what the human sees and does.
 
 **One core, with handles for the human and for the agent.** The human (the window) and the agent (the Kulisa
 plugin) do the same things to profiles, tabs and tasks: open a tab, go to an address, close or delete a profile.
 Each such action is written once, in the core (`Task`: `find`, `findTab`, `createProfile`, `deleteProfile` …;
 `Profile`: `newTab`, `navigate`, `closeTab` …), with its checks, its questions to the human and its rules. The
-windows' IPC (`app.js`) and the agent's MCP tools (`mcp-server.js`) are handles on it: each finds what to act on
+windows' IPC (`app.ts`) and the agent's MCP tools (`mcp-server.ts`) are handles on it: each finds what to act on
 through the core, calls it, and translates the answer (`{ error }` for the window, an error the agent reads). A
 check, a rule or a way of doing an action is never written in a handle, nor twice.
 
@@ -318,39 +322,39 @@ check, a rule or a way of doing an action is never written in a handle, nor twic
 
 Modules (`src/main`):
 
-- `app.js`: the app: its windows, the groups (open projects in code: a task opened, closed, moved to a new window; one change after
+- `app.ts`: the app: its windows, the groups (open projects in code: a task opened, closed, moved to a new window; one change after
   another: `serial`), the agents, the windows' IPC (each message acts in the window it comes from: `event.sender`;
   one on profiles or tabs names its task too, refused when that window shows another by then: `act` in the
   renderer's `lib/store.ts`), quit. `shell.win`, `shell.task`, `shell.profiles`, `shell.closed`, `shell.pty` are the first window's (the tests').
-- `window.js`: a window: its groups and what it shows (show a group or a task, the grid's state, the
+- `window.ts`: a window: its groups and what it shows (show a group or a task, the grid's state, the
   views' places), the questions asked there (`shell.ask(q, window)`, in its dialog: `Ask.vue`), the theme's colors
   CSS does not paint.
-- `keys.js`: the keyboard shortcuts: one table (what each key does, and where: a page, everywhere, the terminal) and
-  which key an input event is; `app.js` takes them before any page does (`before-input-event`), the window runs them
+- `keys.ts`: the keyboard shortcuts: one table (what each key does, and where: a page, everywhere, the terminal) and
+  which key an input event is; `app.ts` takes them before any page does (`before-input-event`), the window runs them
   (`renderer/lib/keys.ts`). A new key goes into the table (`docs/window.md`, Keys).
-- `projects.js`: a project's group (an open project in code): its tasks (make, close, open again, delete; closing them all), removing a project's data.
-- `tasks.js`: a task: its profiles, its agent in its own terminal and environment, renaming, copies for a new task.
-- `worktrees.js`: git for tasks (the user's git, never a shell): worktree, branch, files outside git, direnv.
-- `accounts.js`: the agents' accounts, one store: each made with the agent's own sign-in (Settings → Agents, or a
+- `projects.ts`: a project's group (an open project in code): its tasks (make, close, open again, delete; closing them all), removing a project's data.
+- `tasks.ts`: a task: its profiles, its agent in its own terminal and environment, renaming, copies for a new task.
+- `worktrees.ts`: git for tasks (the user's git, never a shell): worktree, branch, files outside git, direnv.
+- `accounts.ts`: the agents' accounts, one store: each made with the agent's own sign-in (Settings → Agents, or a
   project), a config folder of its own (not the human's `~/.claude`), shown by its email, kept until the human deletes
   it (Settings → Agents), with no project too.
-- `agents.js`: the agents to choose from, one entry each: find, install, start, resume. Agent-specific code goes
+- `agents.ts`: the agents to choose from, one entry each: find, install, start, resume. Agent-specific code goes
   here.
-- `profile-store.js`: the profiles, one store: who each is, its master, its projects. `master.js`: a master's window,
+- `profile-store.ts`: the profiles, one store: who each is, its master, its projects. `master.ts`: a master's window,
   where the human signs in once for every task (nothing automated attached); the same window in memory is the clean
-  browser of an agent's own sign-in. `cookie-sync.js`: real accounts'
-  cookies kept in step between a master and its copies. `local.js`: what is local.
-- `project-profiles.js`: a task's profiles (its project's, each a copy of its master made at its first open), open
-  and closed: create, rename, describe, close, open, let go. `avatars.js`: their pictures.
-- `profiles.js`: a profile: `session.fromPath(<task>/Profile <k>)` plus a `WebContentsView` per tab.
-- `store.js`: Kulisa's data folder, laid out as Chrome's user data.
-- `names.js`: the one rule for names (projects, tasks, profiles: an email address's characters) and slugs.
-- `session-cookies.js`, `signin-pages.js`, `signin-pause.js`, `mimic-chrome.js`: sign-ins that last, the sign-in
+  browser of an agent's own sign-in. `cookie-sync.ts`: real accounts'
+  cookies kept in step between a master and its copies. `local.ts`: what is local.
+- `project-profiles.ts`: a task's profiles (its project's, each a copy of its master made at its first open), open
+  and closed: create, rename, describe, close, open, let go. `avatars.ts`: their pictures.
+- `profiles.ts`: a profile: `session.fromPath(<task>/Profile <k>)` plus a `WebContentsView` per tab.
+- `store.ts`: Kulisa's data folder, laid out as Chrome's user data.
+- `names.ts`: the one rule for names (projects, tasks, profiles: an email address's characters) and slugs.
+- `session-cookies.ts`, `signin-pages.ts`, `signin-pause.ts`, `mimic-chrome.ts`: sign-ins that last, the sign-in
   pause, presenting as Google Chrome.
-- `cdp-proxy.js`, `local-only.js`: the CDP endpoint per profile; refusing web pages.
-- `mcp-server.js`, `agent-hooks.js`, `ghost.js`, `picker.js`: the agent's tools and hooks, its actions shown, point
+- `cdp-proxy.ts`, `local-only.ts`: the CDP endpoint per profile; refusing web pages.
+- `mcp-server.ts`, `agent-hooks.ts`, `ghost.ts`, `picker.ts`: the agent's tools and hooks, its actions shown, point
   and tell.
-- `terminal.js`: a pty per task for its agent, and its other terminals (a dev server the agent runs, the
+- `terminal.ts`: a pty per task for its agent, and its other terminals (a dev server the agent runs, the
   human's shells); the agent typed into the user's shell in its folder (the project's own
   environment: direnv, nvm, mise). On Windows started directly (the other terminals in cmd).
 
@@ -362,8 +366,8 @@ What must hold in the window:
   (`views:hidden`): dialogs; while a panel is dragged or a menu is open, pictures of the pages stand in for them.
   Every menu and dialog opens through `covered()` (`lib/views.ts`), which puts the pages back however it closes.
 - **Sizes and zoom.** UI text and controls use `--font` and `--control` (tokens.css), not their own sizes. The Kulisa
-  zoom is Chromium's zoom of every window's page (`setUiZoom` in app.js); the renderer's boxes are CSS pixels and
-  `window.js` scales them for the native views. Pages get the Kulisa zoom times their site's own zoom.
+  zoom is Chromium's zoom of every window's page (`setUiZoom` in app.ts); the renderer's boxes are CSS pixels and
+  `window.ts` scales them for the native views. Pages get the Kulisa zoom times their site's own zoom.
 - Kulisa's own DevTools exist only when running from source (`appDevTools`, off when `app.isPackaged`). End users
   get DevTools for profiles' tabs only.
 
@@ -376,7 +380,7 @@ What must hold in the window:
   about 40% of test runs and in the author's running Kulisa. The empty tab after the last one closes is made on the
   next turn (`Profile._removed`). Found with gdb and Electron's breakpad symbols (2026-10-09).
 - **An uncaught exception in the main process** opens a modal GTK dialog that blocks everything, including the
-  proxy and MCP. `app.js` logs instead; keep it that way.
+  proxy and MCP. `app.ts` logs instead; keep it that way.
 - **No HTTP server in the Electron main process that the app's own pages load from.** A sync Electron call
   waiting on a renderer that waits on that server deadlocks. The test site runs in a child process.
 - **The proxy must report real Chrome target ids** (`Target.getTargetInfo`). Playwright assumes
@@ -386,10 +390,10 @@ What must hold in the window:
 - **Chromium holds CDP commands to a tab until its navigation commits.** A site that never answers hung
   `connectOverCDP` and with it opening the task; the proxy shows a tab only once its site has answered
   (`tab.answered`, test `/hang`).
-- **Electron sends no `Sec-CH-UA*` on navigation requests** (Chrome does). `mimic-chrome.js` adds them, and
+- **Electron sends no `Sec-CH-UA*` on navigation requests** (Chrome does). `mimic-chrome.ts` adds them, and
   high-entropy hints only after `Accept-CH`.
 - **Electron drops session cookies on exit.** Entra and federated sign-ins depend on them, hence
-  `session-cookies.js`. Tests must quit with `app.quit()`, not `app.exit()`, so `before-quit` runs.
+  `session-cookies.ts`. Tests must quit with `app.quit()`, not `app.exit()`, so `before-quit` runs.
 - **Pages with Trusted Types (Microsoft 365, Google) refuse HTML strings**, so Playwright's
   `screencast.showOverlay(html)` draws nothing there. `locator.highlight()` and `screencast.showActions()` work;
   use those (test page `/strict`).
@@ -402,4 +406,4 @@ What must hold in the window:
   before looking for a third.
 - **A test run used whatever test site listened on its port.** With the port fixed (:4417), a stale server from an
   earlier run, or another worktree's run, made tests lie. `npm test` now starts a site of its own on a free port
-  (`KULISA_TEST_SITE`); tests take the address from `SITE`/`PORT` in `helpers.js`, never a literal port.
+  (`KULISA_TEST_SITE`); tests take the address from `SITE`/`PORT` in `helpers.ts`, never a literal port.

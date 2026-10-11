@@ -178,7 +178,7 @@ build several features of one project at once.
   (`myshop@task-2`), else all in one folder of the task's (`~/Kulisa/<project>@task-<n>/<repo>/`, one place to see and
   delete). Its agent starts in the copy of the default repository and gets the others: Claude Code and Codex as
   `--add-dir` (Claude Code reading their `CLAUDE.md` too: `CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD`), every
-  agent in the MCP server's instructions and at its session's start (`agents.js`, `dirs`). With one repository: the project's folder stays the human's, and no agent works in it on its own. Its work
+  agent in the MCP server's instructions and at its session's start (`agents.ts`, `dirs`). With one repository: the project's folder stays the human's, and no agent works in it on its own. Its work
   goes back through git: the human asks the agent to merge into main (the agent first checks the project's folder for
   the human's uncommitted changes, and stops if there are any: the Kulisa plugin's skill and the MCP server's
   instructions), or to open a pull request.
@@ -229,25 +229,25 @@ Example: the project `~/IdeaProjects/myshop`, its second task, named "Checkout-r
 ## Actions: the human's and the agent's
 
 As for profiles ([profiles.md](profiles.md), "Actions"), each action is written once, in the core, with its question
-to the human; the window's IPC (`app.js`) and the MCP tools are handles on it:
+to the human; the window's IPC (`app.ts`) and the MCP tools are handles on it:
 
 | Action | The human | The agent | The core |
 |---|---|---|---|
-| Open a task (a group with it, when its project has none) | the bar's + (a closed one, or a new one), New Task in the manager | none: it works inside one task | `openProject` (`app.js`): the task opened again and shown, or a new one (`createTask`) |
-| Close a group | Close Group in its menu, the middle button on its label, × on its last open task | none: it would stop itself | `closeProjects` (`app.js`), `Project.closeAll`, asking only when an agent works |
-| Close a window, quit | the OS's ×, ☰ → Exit | none | `closeProjects` for the window's groups; `quit` (`app.js`), asking only when an agent works |
-| Move a group | Move to New Window, Move to Window, dragging its label | none: where the human sees it is the human's | `moveProject` (`app.js`) |
-| Delete a project | Delete Project… in the projects' manager | none: it deletes sign-ins, the human's to decide | `deleteProject` (`app.js`), `askDeleteProject`, `deleteProjectData` (`projects.js`) |
+| Open a task (a group with it, when its project has none) | the bar's + (a closed one, or a new one), New Task in the manager | none: it works inside one task | `openProject` (`app.ts`): the task opened again and shown, or a new one (`createTask`) |
+| Close a group | Close Group in its menu, the middle button on its label, × on its last open task | none: it would stop itself | `closeProjects` (`app.ts`), `Project.closeAll`, asking only when an agent works |
+| Close a window, quit | the OS's ×, ☰ → Exit | none | `closeProjects` for the window's groups; `quit` (`app.ts`), asking only when an agent works |
+| Move a group | Move to New Window, Move to Window, dragging its label | none: where the human sees it is the human's | `moveProject` (`app.ts`) |
+| Delete a project | Delete Project… in the projects' manager | none: it deletes sign-ins, the human's to decide | `deleteProject` (`app.ts`), `askDeleteProject`, `deleteProjectData` (`projects.ts`) |
 | Make a task | the bar's +, Ctrl+Shift+N, New Task in its group's menu and in the manager | not yet (ROADMAP, "Tasks, rest") | `Project.createTask` |
 | Close a task, open it again | ×; the bar's +, its group's menu | none: what runs is the human's to stop | `Project.closeTask`, `reopen` |
 | Rename a task | Rename… in its tab's menu | `task_rename` | `Task.rename` |
 | Delete a task | Delete Task… in its tab's menu | none: it deletes work and sign-ins, the human's to decide | `Project.askDeleteTask`, `deleteTask` |
-| Show a task | a click on its tab, of any group | none: what the human looks at is theirs | `AppWindow.showTask`, then `show` its project (`window.js`) |
+| Show a task | a click on its tab, of any group | none: what the human looks at is theirs | `AppWindow.showTask`, then `show` its project (`window.ts`) |
 | Fold a project's group | a click on its label | none: how the human sees the bar | `Project.collapse` |
-| Add, clone, make the default, remove a repository | the projects' manager | none: what the project is made of is the human's | `addRepo`, `cloneRepo`, `defaultRepo`, `removeRepo` (`projects.js`); `Task.reposChanged` |
-| Add, make the default, remove an agent of the project | the projects' manager | none: what the project is made of is the human's | `addAgent`, `defaultAgent`, `removeAgent` (`projects.js`) |
-| Make an account of an agent | New Account… in Settings → Agents or a project's page | none: signing in is the human's (Rules) | `account:signin` (`app.js`), `Accounts.prepare`, `create` |
-| Delete an account | × in Settings → Agents | none: it deletes a sign-in and conversations, the human's to decide | `deleteAccount` (`projects.js`), `shell.dropAccount` |
+| Add, clone, make the default, remove a repository | the projects' manager | none: what the project is made of is the human's | `addRepo`, `cloneRepo`, `defaultRepo`, `removeRepo` (`projects.ts`); `Task.reposChanged` |
+| Add, make the default, remove an agent of the project | the projects' manager | none: what the project is made of is the human's | `addAgent`, `defaultAgent`, `removeAgent` (`projects.ts`) |
+| Make an account of an agent | New Account… in Settings → Agents or a project's page | none: signing in is the human's (Rules) | `account:signin` (`app.ts`), `Accounts.prepare`, `create` |
+| Delete an account | × in Settings → Agents | none: it deletes a sign-in and conversations, the human's to decide | `deleteAccount` (`projects.ts`), `shell.dropAccount` |
 | Change the agent | Change agent… (the terminal's menu) | none: the human's choice | `Task.changeAgent` |
 
 ## Choosing the agent
@@ -267,7 +267,7 @@ are not programmers); its accounts are made there too, or in a project's page.
 - The installers are the makers' official native ones (no Node, no sudo, they update themselves; checked
   2026-10-06): Claude Code `curl -fsSL https://claude.ai/install.sh | bash`, Codex
   `curl -fsSL https://chatgpt.com/codex/install.sh | sh` (`install.ps1` on Windows).
-- Each agent is one entry in `agents.js`: how to find, install, start (Claude Code with the Kulisa plugin; Codex
+- Each agent is one entry in `agents.ts`: how to find, install, start (Claude Code with the Kulisa plugin; Codex
   with the MCP server and its hooks as config overrides, `-c mcp_servers.kulisa.url=…`, `-c hooks=…`), resume
   (`claude --resume` and `codex resume` with the session the `SessionStart` hook reported; else `codex resume
   --last`) and forget a deleted task's folder.
@@ -299,9 +299,9 @@ are not programmers); its accounts are made there too, or in a project's page.
   kept in the main process's memory (`agents:list`, `cached`; nothing on disk: it is the computer's state, which
   changes without Kulisa), and looks again behind it, its rows changed where it differs (an agent installed, updated or
   removed meanwhile). Only the first time after Kulisa starts does it wait for the look.
-- **Accounts** (`accounts.js`; decided with the author 2026-10-11): an agent with a sign-in of its own, so one human
+- **Accounts** (`accounts.ts`; decided with the author 2026-10-11): an agent with a sign-in of its own, so one human
   runs a work and a personal Claude side by side. Each is the agent with its own config folder, given to it by its
-  variable (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`: `config` in its `agents.js` entry); the agents without one (the terminal
+  variable (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`: `config` in its `agents.ts` entry); the agents without one (the terminal
   only) have no accounts and are chosen as themselves. The human's own folder (`~/.claude`, `~/.codex`) is no account:
   every account is made in Kulisa and starts as a clean agent (no global `CLAUDE.md`, settings, plugins, skills or MCP
   servers of the human's: set up again in each), the author's choice over copying them.
@@ -344,7 +344,7 @@ are not programmers); its accounts are made there too, or in a project's page.
   Settings → Agents (`AgentsTab.vue`, its state kept by Settings, so an install goes on behind a project's page and
   Settings stays open while it runs) share the state of one list of agents with Install (`lib/agents.ts`), each with
   its own; choosing draws it as radios (`AgentList.vue`), Settings as a list and the chosen one's details.
-- The agent's state on the tabs comes from its hooks. Kulisa has events of its own (`agent-hooks.js`): `prompt`
+- The agent's state on the tabs comes from its hooks. Kulisa has events of its own (`agent-hooks.ts`): `prompt`
   working, `waiting` for the human, `stop` done, `interrupt` and `session-end` unknown (but a session ending after a
   done turn keeps it). Which of an agent's hooks sends which is the agent's, in one place each:
   - Claude Code, its plugin's `hooks.json` (checked with 2.1.293, 2026-10-08): `UserPromptSubmit`, `Stop`, and
@@ -353,7 +353,7 @@ are not programmers); its accounts are made there too, or in a project's page.
     `/clear`). Not `idle_prompt`, sent a minute after an answer: the tab already says done. Esc ends a turn without
     any hook, so Kulisa itself takes an Esc typed into the agent's terminal for the interrupt: working or waiting
     become unknown (`Task.interrupted`; an Esc that only closed a menu does so too, until the next hook).
-  - Codex, its entry in `agents.js` as a config override (`-c hooks=…`; built from its documentation, not yet tried in
+  - Codex, its entry in `agents.ts` as a config override (`-c hooks=…`; built from its documentation, not yet tried in
     a session: ROADMAP): `UserPromptSubmit`, `PermissionRequest` waiting, `Stop`, `Interrupt` (Esc), `SessionEnd`
     (also after 30 minutes idle), and `SessionStart`, which gives it the open profiles as Claude Code gets them and
     the session to resume. Codex runs a hook only once the human has trusted it (`/hooks`, once: the command line is
@@ -366,7 +366,7 @@ are not programmers); its accounts are made there too, or in a project's page.
 
 ## Creating a task, step by step
 
-1. **Code** (`worktrees.js`), a copy of each of the project's repositories with a commit; a folder without git is
+1. **Code** (`worktrees.ts`), a copy of each of the project's repositories with a commit; a folder without git is
    used as it is (the task works right in it, and the next two steps skip it). Each branch starts as Claude Code's
    `--worktree` starts one: from the remote's default branch after `git fetch` (`origin/main`), else from `HEAD`.
    Uncommitted changes of the project's folders are not carried. The branch is `task-<n>`, one name free in every
@@ -388,13 +388,13 @@ are not programmers); its accounts are made there too, or in a project's page.
    stay signed in. The agent gets the offset as `KULISA_PORT_OFFSET`.
 6. **The agent.** A new conversation in the task's folder, with the project's default agent or the one chosen. When it is Claude
    Code and the project's folder is trusted in Claude's config, the task's folder is marked trusted too, so Claude
-   does not ask (`agents.js`).
+   does not ask (`agents.ts`).
 7. The task is shown.
 
 ## What is on the computer
 
 In Kulisa's data folder (`~/.config/Kulisa` on Linux, `~/Library/Application Support/Kulisa` on macOS,
-`%APPDATA%\Kulisa` on Windows), laid out as Chrome lays out its user data (`store.js`). Show Data Folder in a
+`%APPDATA%\Kulisa` on Windows), laid out as Chrome lays out its user data (`store.ts`). Show Data Folder in a
 project label's right-click menu opens its `projects/<id>` in the file manager (`shell.openPath`), for the human who
 asks where it is or what takes the disk; nothing in it is for editing by hand, so it is no button in sight:
 
@@ -402,7 +402,7 @@ asks where it is or what takes the disk; nothing in it is for editing by hand, s
 projects.json                     the projects: id, name, folder, repos, color, icon, agents (accounts, the default first)
 profiles.json                     the profiles, one store: who each is, its projects, a test user's pair (profiles.md)
 profiles/Profile <k>/             a profile's master, where the human signs in once for every task
-agents.json                       the agents' accounts (accounts.js): { next, list: [{ id, agent, email, folder, projects }] }
+agents.json                       the agents' accounts (accounts.ts): { next, list: [{ id, agent, email, folder, projects }] }
 agents/<agent>-<n>/               an account's config folder (CLAUDE_CONFIG_DIR, CODEX_HOME): its sign-in, settings,
                                   conversations; gone, signed out first, when the human deletes it (Settings →
                                   Agents); one a sign-in left
@@ -448,17 +448,17 @@ Nothing is written into the project's own folder (but the first commit of a proj
 
 ## Deleting a task: what goes
 
-One function deletes a task (`deleteTask` in `projects.js`), whether the human deletes it (Delete Task…) or its
+One function deletes a task (`deleteTask` in `projects.ts`), whether the human deletes it (Delete Task…) or its
 project is deleted. A deleted task leaves nothing on the computer that Kulisa or its agent made for it. Kulisa stops
 its agent and closes its profiles, then deletes:
 
 - each copy (`git worktree remove --force`) and its branch (`git branch -D`), and its folder of copies; a branch
   already pushed stays on the remote;
-- direnv's permission for its `.envrc`: the records in `<XDG data>/direnv/allow/` naming it (`worktrees.js`; not
+- direnv's permission for its `.envrc`: the records in `<XDG data>/direnv/allow/` naming it (`worktrees.ts`; not
   `direnv deny`, which newer direnv records too);
 - its data folder `projects/<id>/<n>/`, profiles with their sign-ins (also listed in `deleted-folders.json`,
   removed at the next start if a file was still open);
-- what its agent keeps of the task's folder (`agents.js`, each agent's `forget`; undocumented layouts, so what is
+- what its agent keeps of the task's folder (`agents.ts`, each agent's `forget`; undocumented layouts, so what is
   not found is skipped):
   - Claude Code, in the config dir its sessions used: its conversations in `projects/<folder>/` (those recorded in
     the task's folder: Claude names that folder with non-Latin letters as `-`, so other folders can share it),
@@ -477,7 +477,7 @@ What stays in any case: an agent Kulisa installed (it serves every project).
 
 **Delete Project…** in ⋯ at the top of a project's page in the projects' manager, open or not: there
 alone (the author, 2026-10-11: with everything else about a project; not in its group's menu, the Welcome screen or
-a menu). One function (`deleteProject` in `app.js`): Kulisa asks first, saying what goes and which tasks have
+a menu). One function (`deleteProject` in `app.ts`): Kulisa asks first, saying what goes and which tasks have
 work not in main and not pushed; closes its group if it has one; deletes each of its tasks as above; then removes it
 from `projects.json` with its data folder `projects/<id>/`. The project's own folder stays as it is, and so do its
 agents' accounts, let go of (Settings → Agents deletes one: "Choosing the agent", Accounts).
@@ -565,17 +565,17 @@ temporary forks), and again on 2026-10-10 (tasks; ROADMAP, "Projects and tasks")
 
 | File | What |
 |---|---|
-| `src/main/app.js` | the windows; open, close and move projects (one change at a time, `serial`); IPC |
-| `src/main/window.js` | a window: its groups (open projects in code), show a group or a task, the grid's state, its questions |
-| `src/main/projects.js` | a project's group (an open project in code): its tasks; making, closing, opening again, deleting one (with the question); deleting a project's data |
-| `src/main/tasks.js` | a task: its profiles, its agent (start, change, environment), renaming, copies of its profiles for a new task, ports |
-| `src/main/worktrees.js` | git: a task's worktree and branch, files outside git, direnv, changes, renaming the branch, removal |
-| `src/main/agents.js` | the agents to choose from: find, install, start, resume; Claude's folder trust |
-| `src/main/store.js` | the data folder above |
-| `src/main/terminal.js` | the task's terminals: its agent's and the others (window.md, The terminal) |
+| `src/main/app.ts` | the windows; open, close and move projects (one change at a time, `serial`); IPC |
+| `src/main/window.ts` | a window: its groups (open projects in code), show a group or a task, the grid's state, its questions |
+| `src/main/projects.ts` | a project's group (an open project in code): its tasks; making, closing, opening again, deleting one (with the question); deleting a project's data |
+| `src/main/tasks.ts` | a task: its profiles, its agent (start, change, environment), renaming, copies of its profiles for a new task, ports |
+| `src/main/worktrees.ts` | git: a task's worktree and branch, files outside git, direnv, changes, renaming the branch, removal |
+| `src/main/agents.ts` | the agents to choose from: find, install, start, resume; Claude's folder trust |
+| `src/main/store.ts` | the data folder above |
+| `src/main/terminal.ts` | the task's terminals: its agent's and the others (window.md, The terminal) |
 | `src/renderer/components/TaskBar.vue`, `NewTask.vue`, `Empty.vue`, `ProjectEditor.vue` | the tasks' bar (an island per project); its + (every project, their closed tasks); the empty window's island; the projects' manager |
 | `src/renderer/components/TaskTab.vue`, `TaskRename.vue` | a task's tab in the bar, its menu, the Rename Task dialog |
 | `src/renderer/components/AgentPicker.vue`, `AgentsTab.vue`, `AgentList.vue` | choosing a task's agent; Settings → Agents, the agents, the chosen one's details and accounts; the radios of agents with Install that choosing shows |
-| `src/main/accounts.js`, `src/renderer/components/AccountSignIn.vue` | the agents' accounts, one store; a new one's sign-in in Settings (a project's page, or Agents) |
+| `src/main/accounts.ts`, `src/renderer/components/AccountSignIn.vue` | the agents' accounts, one store; a new one's sign-in in Settings (a project's page, or Agents) |
 | `src/renderer/lib/grid.ts`, `components/Grid.vue` | building a task's grid; the slide (a view transition) |
-| `test/tasks.js` | the tests; `test/restart-tasks.js` after a restart; `test/unit/agents.test.js` |
+| `test/tasks.ts` | the tests; `test/restart-tasks.ts` after a restart; `test/unit/agents.test.ts` |

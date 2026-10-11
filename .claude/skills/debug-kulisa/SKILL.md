@@ -76,7 +76,7 @@ LD_LIBRARY_PATH=$PWD/root/usr/lib/x86_64-linux-gnu $PWD/root/usr/bin/xdotool ver
 When Kulisa has the bug and the cause is not in sight, write a minimal Electron script (a window, two
 `WebContentsView`s, `input-event` counters written to a file) in the scratch folder, run it with
 `npx electron --no-sandbox <script>`, and add Kulisa's differences one at a time: `BrowserWindow` vs `BaseWindow`,
-`titleBarStyle: 'hidden'`, `mimic-chrome.js`, the session, the Playwright connection. The one that brings the bug is
+`titleBarStyle: 'hidden'`, `mimic-chrome.ts`, the session, the Playwright connection. The one that brings the bug is
 the cause; that script is also the reproduction for an Electron issue.
 
 ## What does not work here
