@@ -49,7 +49,7 @@ Each icon is drawn once, as a `<symbol id="i-…">` in the sprite (`Sprite.vue`,
 | Icon | Where |
 |---|---|
 | `i-close` | × of dialogs, profiles, tabs, tasks; removing a row |
-| `i-plus` | new tab, new task |
+| `i-plus` | new tab, new task; adding to a section of a dialog |
 | `i-settings` | Settings in the title bar (Lucide's settings) |
 | `i-projects` | ☰'s Projects bar row (Lucide's folder-open) |
 | `i-search` | Search Tasks, after the islands of the projects' bar (Lucide's search) |
@@ -98,7 +98,9 @@ every other `<svg>` uses the sprite.
   the curtain; `.picon`, also on its label in the projects' bar) or `.avatar` (a profile's picture), `.text` with `.label` and a `small` line under it, a `kbd` key at the end. Lit under the
   pointer and on keyboard focus.
 - `.removable`: a row with a × (`button.remove.icon.quiet`) at its end, shown on hover or focus; the row is lit as
-  one. A project's repository, agent and profile in the projects' manager.
+  one. A project's repository, agent and profile in the projects' manager. `.action` before the ×: a small text
+  button shown with it (Make Default).
+- `.badge`: a word marking a row, framed and small, at its end (Default).
 - `.item[aria-selected="true"]`: the chosen row of a list (Reka's Listbox), lit (a project in the projects' manager).
 - `.dot`: a 10 px circle in `--color`, a project's.
 
@@ -107,14 +109,16 @@ every other `<svg>` uses the sprite.
 The window's controls are Reka UI's, in this look (CLAUDE.md, Window UI):
 
 - `.radio`: a radio (Reka's `RadioGroupItem`, its `RadioGroupIndicator` the dot), in a `RadioGroupRoot`: at a row's
-  start (the row a `<label>`), the default of a list, exactly one (a project's repositories and agents in the
-  manager), the agent to start (`AgentList.vue`). The arrows move between them.
+  start (the row a `<label>`), exactly one of a list: the agent to start (`AgentList.vue`). The arrows move between
+  them. Not for a list's default, whose rows are what the list is about: a radio there read as choosing the row (the
+  projects' manager until 2026-10-11); that is `.badge` and Make Default.
 - `.checkbox`: a checkbox (Reka's `CheckboxRoot`, its `CheckboxIndicator` the check, `i-done`): Create Git repository.
 - `SelectBox.vue`: one of a few (Reka's `Select`): a button (`.select`) with the chosen one and `i-down`; its list a
   menu's (`.menu`, rows `.item`, the chosen one checked). `v-model`, `options: [{ value, label }]`; `''` is a value too.
 - `.choices`: icon buttons (`.icon`) to choose one of, the chosen one ringed in `--accent`: a profile's pictures and
   a project's icons (Reka's `ToggleGroup`, one always chosen), a project's colors (its `ColorSwatchPicker`, a `.dot`
   each: the color's name for screen readers).
+- `.titlefield`: an `<input>` that reads as a title until pointed at or edited (a project's name at its page's top).
 - `.editable`: a value edited in place (Reka's `Editable`: a profile's name, who it is, its test login): text in a
   field's box (`.preview`), a click or Tab edits it; Enter or leaving saves, Shift+Enter is a new line where it has
   lines, Esc puts it back (and leaves the dialog open).
@@ -155,15 +159,17 @@ Every dialog is `Modal.vue`, Reka UI's Dialog (`reka-ui`) with the same parts:
   while something runs, an agent's install). Over a dimmed backdrop (`.backdrop`), in the middle of the window
   (`.dialog`).
 - `.body`: `.hint` (what it is about, muted), `.field` (a label and its input, the labels in one column; `.pick` in
-  it: the input with its button, Location and Browse…), `.row` (a line of controls under the fields: Add Folder…,
-  Add Agent…, New Account…), `.check` (a `.checkbox` in the fields' column), `.error` (hidden while empty; its text
+  it: the input with its button, Location and Browse…), `.row` (a line of controls: a field with its buttons,
+  a URL to clone, a new profile's name), `.check` (a `.checkbox` in the fields' column), `.error` (hidden while empty; its text
   selectable, to copy and search for, as a question's detail is); a field's
   `.hint` under it (its `FieldDescription`).
 - `footer`: the buttons at the right end, the main one last; `.start` puts a button at the left end. A button that
   only closes is Reka's `DialogClose`. A dialog whose parts are saved as they change (a project's page in the
   projects' manager) has none: × closes it.
-- `.card` in the body: one part of what it edits, framed (a project's Code, Agents, Profiles, Look, Local
-  addresses): an `h4`, a `.hint` saying what it is, its rows or fields, `.empty` when it has none, its `.row` to add.
+- `.section` in the body: one part of what it edits, under a line (a project's Code, Agents, Profiles, Local
+  addresses): `.head` (its `h4`, its + at the end: a `ButtonMenu`, the one way to add to it), its `.rows`, `.empty`
+  when it has none (where it says what the part is), a `.row` for what is being added in place. Not framed cards: a
+  frame in a dialog in a split was a frame in a frame in a frame (until 2026-10-11).
 - `.empty`: a list's line when it has none ("No accounts yet."), dim.
 - `.dialogtabs`: tabs at the top of a dialog's body (Reka's `TabsList`, `TabsTrigger`s): words, the chosen one
   underlined in `--accent`; chosen on the press, as every tab. Settings' Projects and Agents (`ProjectEditor.vue`).
@@ -210,9 +216,13 @@ and arrangements, `components/menu/`, built of Reka's menu items; − and + and 
 A panel is a menu's look with fields in it, where a menu cannot hold them (its rows take the keys typed and the
 focus under the pointer): Reka UI's Popover, `.menu` with its rows `.item` (buttons) under a top of its own, the pages
 pictures meanwhile (`covered('pictures')`), closed as a menu is (Esc, a press outside, a row chosen, the window left);
-a row's action runs once it has closed. One today: Search Tasks
+a row's action runs once it has closed. Search Tasks
 (`TaskSearch.vue`, `.tasksearch`, the button after the islands), its rows Reka's Listbox under its search field
-(`TaskList.vue`: `ListboxFilter`, a `.tlgroup` per project, `.tlproject`, `.tltask`).
+(`TaskList.vue`: `ListboxFilter`, a `.tlgroup` per project, `.tlproject`, `.tltask`); a project's color and icon
+(`.pjlookpanel` in `ProjectEditor.vue`, from its icon at its page's top: `.choices` under `.heading`s).
+
+A menu's row that opens a field (New Profile…) gives it the keyboard with `focusAfterMenu(el)` (`lib/menu.ts`): the
+menu, closing, would give it back to its button.
 
 ## Adding something
 

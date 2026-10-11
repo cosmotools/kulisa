@@ -44,7 +44,7 @@ here; what is left of it stays.
     Settings → Agents or a project's page); each account has its own config folder (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`)
     in Kulisa's data folder, kept until the human deletes it there (no longer gone with its last project). The human's own `~/.claude` / `~/.codex` is no account (never used, never deleted).
   - **Profiles** (one flat store, each listing the projects it belongs to; it goes, after a question, when its last
-    project does; seen on the project's page in the projects' manager: + New, + From Another Project…). A profile is a person with all their
+    project does; seen on the project's page in the projects' manager: Profiles' + → New Profile…, From Another Project). A profile is a person with all their
     sign-ins, in one or more forms:
     - sessions of real accounts: the human signs in by hand to the profile's **master**, which no one works in
       (opened in a window of its own for that);

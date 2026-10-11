@@ -18,8 +18,8 @@ that task (not all at once: a closed one costs nothing), its tabs the master's m
 has of a profile is its own: its copy (what is signed in there stays there), its tabs, open or closed, its sites'
 zoom. A new task opens none of them (the first one neither): the agent opens one when it needs it (`profile_open`),
 the human with 👥 ([tasks.md](tasks.md), What the human does).
-A project gets a profile when one is made in it (the editor, `profile_create`, the projects' manager → New) or taken
-from another project (the manager → From Another Project…); it lets go of one with Delete (the editor, the pane's
+A project gets a profile when one is made in it (the editor, `profile_create`, the projects' manager → + → New Profile…) or taken
+from another project (the manager → + → From Another Project); it lets go of one with Delete (the editor, the pane's
 menu, `profile_delete`, × in the manager, its tasks open or not), after a question: its copies in this project's tasks go; in no other
 project, its master goes too. Removing a project lets go of its profiles the same way.
 

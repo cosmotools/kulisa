@@ -116,7 +116,11 @@ svg:has(> use) { width: 16px; height: 16px; flex: none; fill: none; stroke: curr
   &:is(:hover, :focus-within) { background: var(--island-hi); }
   .item { flex: 1; min-width: 0; &:is(:hover, :focus-visible, [data-highlighted]) { background: none; } }
   .remove { margin-inline-end: 2px; visibility: hidden; }
-  &:is(:hover, :focus-within) .remove { visibility: visible; } }
+  /* .action: a small text button before the × (Make Default), shown with it */
+  .action { flex: none; height: 22px; padding: 0 8px; margin-inline-end: 4px; visibility: hidden; }
+  &:is(:hover, :focus-within) :is(.remove, .action) { visibility: visible; } }
+/* A word marking a row (the default repository or agent): small, framed, in the row's end */
+.badge { flex: none; padding: 1px 6px; border: 1px solid var(--line); border-radius: var(--radius); color: var(--text-muted); font-size: .85em; }
 
 /* An error is text to copy (to search for it), unlike the rest of the window's words: in a dialog */
 .error { margin: var(--inset) 0 0; color: var(--error); user-select: text; cursor: text; &:empty { display: none; } }
@@ -144,12 +148,18 @@ svg:has(> use) { width: 16px; height: 16px; flex: none; fill: none; stroke: curr
     small { color: var(--text-muted); } }
   /* A field's description under it, in the fields' column (Reka's FieldDescription) */
   .field > .hint { grid-column: 2; margin: 0; overflow-wrap: anywhere; &:empty { display: none; } }
-  /* A card: one part of what a dialog edits (a project's code, agents, profiles …), framed, so what belongs to it is
-     plain: its heading, a line saying what it is, its rows or fields, an .empty line when it has none, its add row */
-  .card { padding: var(--inset) var(--pad) var(--pad); border: 1px solid var(--island-hi); border-radius: var(--island-radius);
-    h4 { margin: var(--inset) 0 2px; font-size: 1em; font-weight: 600; color: var(--text-strong); }
-    > .hint { margin-block-end: var(--inset); }
-    .field { grid-template-columns: calc(var(--label) - var(--pad)) 1fr; } }
+  /* A section: one part of what a dialog edits (a project's code, agents, profiles …), under a line: its heading with
+     its + at the end (the one way to add to it), its rows (.rows: their text lined up with the heading), an .empty line
+     when it has none, what is being added in place (.row) */
+  .section { padding-block-start: var(--inset); border-top: 1px solid var(--island-hi);
+    > .head { display: flex; align-items: center; gap: var(--gap); min-height: var(--control); margin-block-end: 4px;
+      h4 { flex: 1; margin: 0; font-size: 1em; font-weight: 600; color: var(--text-strong); } }
+    > .rows { margin-inline: calc(-1 * var(--inset)); }
+    > .hint { margin-block: var(--inset) 0; } }
+  /* A value edited in place that reads as a title (a project's name at its page's top): no frame until pointed at or
+     edited */
+  .titlefield { height: calc(var(--control) + 6px); padding-inline: 6px; border-color: transparent; background: none;
+    &:hover { border-color: var(--line); } &:focus { border-color: var(--accent); background: var(--field); } }
   /* A list's line when it has none ("No accounts yet.") */
   .empty { margin: var(--inset) 0; color: var(--text-dim); }
   /* Tabs at a dialog's top (Settings: Projects, Agents; Reka's Tabs): words, the chosen one underlined in --accent */
