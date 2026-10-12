@@ -131,7 +131,9 @@ env -i PATH=$(dirname $(which node)):/usr/bin:/bin HOME=$H TMPDIR=$H XDG_CURRENT
 ```
 
 Found so (2026-10-12): a click on the chosen row of Settings' tree un-chose it (Reka's Tree toggles: a bug of the
-window, `selection-behavior="replace"` now); keys sent before the window's page had the keyboard (`focusWindow`).
+window, `selection-behavior="replace"` now); keys sent before the window's page had the keyboard (`focusWindow`); a
+window's focus from the window manager coming after its page's, its blur closing the next test's menu; a script that
+closes its own window never answering (a click deferred with `setTimeout`).
 
 | File | What |
 |---|---|
