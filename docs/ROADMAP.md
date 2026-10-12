@@ -352,8 +352,9 @@ here; what is left of it stays.
       win32-arm64, win32-x64; Linux's is built at install): left out of each OS's package (`forge.config.ts`,
       `packagerConfig.ignore` or a packaging hook).
     - The window's libraries, about 40 MB, which Vite already bundles into `dist/renderer` (2 MB): `reka-ui`,
-      `dockview`, `vue`, `@vue`, `@xterm`, the fonts, and with them `@babel`, `@swc`. In `dependencies`, so Forge
-      packs them again; moved to `devDependencies` (checked: nothing in the main process imports them).
+      `dockview`, `vue`, `@vue`, the `@xterm` addons and `@xterm/xterm`, the fonts, and with them `@babel`, `@swc`.
+      In `dependencies`, so Forge packs them again; moved to `devDependencies`, all but `@xterm/headless` (the main
+      process keeps each terminal's screen with it: `terminal.ts`). Each checked first: the main process imports none.
     - Expected: a `.deb` of about 80 MB, about 300 MB installed, and Windows' update lighter as much. Checked by
       the release's start of the installed `.deb`; a size limit there would tell when it grows again.
   - **Not now, and why:** AppImage (on Ubuntu 24.04 and later Electron in an AppImage starts only with
