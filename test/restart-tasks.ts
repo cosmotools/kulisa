@@ -53,7 +53,7 @@ export default (test: Test) => {
       const term = await box('.term:not([hidden])');
       return sam.width > 0 && sam.x < elon.x && term.x > elon.x + elon.width - 1;
     };
-    await waitFor(columns, 3000);
+    await waitFor(columns, 10000); // as long as the next test's after a restart: GitHub's runner took over 3 s
   });
   test("after a restart: a task's terminals come back in their tabs when it loads, the one in front too: its agent's conversation resumed, a shell with nothing running", async ({ shell, ui, call }) => {
     await showProject(ui, 'other');
