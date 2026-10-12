@@ -9,7 +9,6 @@ import os from 'os';
 import http from 'http';
 import { assert, root, userData, project, pfile, panel, SITE, sleep, waitFor, who, menuRows, choose, rightClick, viewOn, press, projectTabs, projectTab, showProject, savedWindows, closeMenu, click, plusMenu, PORT, hooksOf, MENU, menuOpen, noNode } from './helpers.ts';
 import { withOffset } from '../src/main/tasks.ts';
-import { PROJECT_COLORS } from '../src/main/store.ts';
 import { createWorktree } from '../src/main/worktrees.ts';
 import { sessionStart } from '../src/main/agent-hooks.ts';
 import { refused } from '../src/main/result.ts';
@@ -650,11 +649,6 @@ export default (test: Test) => {
     await waitFor(() => ui(`document.activeElement?.id === 'npnewprofile'`));
     await ui(`(() => { const n = document.getElementById('npnewprofile'); n.value = ${JSON.stringify(name)}; n.dispatchEvent(new Event('input')); document.getElementById('npprofilenew').click(); })()`);
   };
-  // The look's panel, from the icon at a project's page's top: its colors and icons.
-  const openLook = async (ui: UI) => {
-    await ui(`document.getElementById('pjlook').click()`);
-    await waitFor(() => ui(`!!document.querySelector('.pjlookpanel.ready #npicons')`));
-  };
   // A list's row selected (a click), then a button of its toolbar acting on it (− removes, ★ makes it the default).
   const onRow = async (ui: UI, row: string, button: string | null, buttonAt = `#${button}`) => {
     await ui(`document.querySelector(${JSON.stringify(row)}).click()`);
@@ -850,7 +844,7 @@ export default (test: Test) => {
     await ui(`document.getElementById('emptynewtask').click()`);
     const rows = await menuRows(ui);
     assert.deepEqual(await ui(`[...document.querySelectorAll('.menu[data-state="open"] .item:not(.inset) .picon')].map((i) => i.querySelector('use')?.getAttribute('href') ?? null)`),
-      shell.store.projects().map((p) => (/^[a-z]+$/.test(p.icon ?? '') && !['logo', 'favicon'].includes(p.icon) ? `#i-p-${p.icon}` : '#i-logo')));
+      shell.projects().map((p) => (p.favicon ? null : '#i-logo')), 'its favicon, else the curtain');
     const byClosing = tasksFile().list.filter((e) => e.closed).sort((a, b) => (b.closedAt ?? 0) - (a.closedAt ?? 0)).map((e) => `  ${e.name}`);
     assert.deepEqual(rows.slice(rows.indexOf('project') + 1, rows.indexOf('project') + 1 + byClosing.length), byClosing);
     assert.equal(byClosing[0], '  Feature-X');
@@ -917,8 +911,8 @@ export default (test: Test) => {
     await ui(`document.getElementById('emptynew').click()`);
     await waitFor(() => ui(`(document.getElementById('newproject')?.dataset.state === 'open')`));
     assert.equal(await ui(`document.getElementById('nplocation').value`), path.join(root, 'Kulisa'), "every new project's place (~/Kulisa; the tests' own here)");
-    // Not its color or icon (the next free color, the curtain; changed on its page), no agent: its accounts are made
-    // on its page, which Create goes on to.
+    // Not its color or icon (its site's favicon and its hue, else the curtain in the next free color: nothing to
+    // choose, the author, 2026-10-12), no agent: its accounts are made on its page, which Create goes on to.
     assert.equal(await ui(`!!document.getElementById('npcolors') || !!document.getElementById('npicons')`), false);
     const color = shell.store.nextColor();
     assert.equal(await ui(`!!document.getElementById('npagent')`), false);
@@ -957,23 +951,16 @@ export default (test: Test) => {
     assert.equal(await ui(`[...document.querySelectorAll('#projects button')].some((b) => b.textContent.trim() === 'New Task')`), false);
     assert.ok(!shell.current && !shell.open.has('shop'), 'made, no task');
     assert.equal(ctx.asked.length, 0, 'nothing asked');
-    // Its icon its site's favicon, none yet: the curtain shown, and chosen in its panel.
-    assert.deepEqual([shell.store.projects().find((p) => p.id === 'shop').color, shell.store.projects().find((p) => p.id === 'shop').icon], [color, 'favicon']);
-    // Another color and icon: the icon at its top opens them; each saved as it is chosen, the panel left open.
-    await openLook(ui);
-    assert.deepEqual(await ui(`[...document.querySelectorAll('#npcolors [aria-selected="true"], #npicons [aria-pressed="true"]')].map((b) => b.dataset.value)`), [color, 'logo']);
-    await ui(`document.querySelectorAll('#npcolors [role="option"]')[3].click(); document.querySelector('#npicons [data-value="rocket"]').click()`);
-    await waitFor(() => shell.store.projects().find((p) => p.id === 'shop').icon === 'rocket');
-    assert.equal(await ui(`document.querySelector('#pjlook use').getAttribute('href')`), '#i-p-rocket');
-    await closeMenu(ui);
-    await waitFor(() => ui(`!document.querySelector('.pjlookpanel') && document.getElementById('projects')?.dataset.state === 'open'`));
+    assert.equal(await ui(`!!document.getElementById('pjlook')`), false, 'nothing of its look to choose on its page either');
     await closeSettings(ui);
     await plusMenu(ui, 'Shop');
     await waitFor(() => shell.current?.folder === path.join(made, 'Shop') && shell.task?.loaded && shell.pty);
     assert.ok(fs.existsSync(path.join(made, 'Shop', '.git')), 'git init in it');
     const shop = shell.store.projects().find((p) => p.id === 'shop');
-    assert.deepEqual([shop.color, shop.icon, shop.agents], [PROJECT_COLORS[3], 'rocket', undefined]);
-    assert.equal(await ui(`${projectTab('shop')}.querySelector('.plabel use').getAttribute('href')`), '#i-p-rocket');
+    assert.deepEqual([shop.color, shop.agents], [color, undefined]);
+    // No favicon in its code: the curtain, in the next free color, the window's too.
+    assert.equal(await ui(`${projectTab('shop')}.querySelector('.plabel use').getAttribute('href')`), '#i-logo');
+    assert.equal(await ui(`document.documentElement.style.getPropertyValue('--project')`), color);
     assert.equal(git(path.join(made, 'Shop'), 'log', '--format=%s'), 'Initial commit', 'an empty first commit');
     assert.equal(shell.task.folder, path.join(made, 'Shop@task-1'), 'so its first task has a copy of its own');
     assert.equal(await ui(`(document.getElementById('projects')?.dataset.state === 'open')`), false);
@@ -1004,7 +991,7 @@ export default (test: Test) => {
     ctx.asked.length = 0;
   });
 
-  test('projects: the projects\' manager (Project Settings…) changes its name, color, icon (a file chosen too) and agents, the default one + runs, none the default: a new task starts nothing, the island\'s buttons instead; a folder with a favicon gets it as its icon', async (ctx) => {
+  test('projects: the projects\' manager (Project Settings…) changes its name and agents, the default one + runs, none the default: a new task starts nothing, the island\'s buttons instead; a folder with a favicon gets it as its icon, and its hue as its color', async (ctx) => {
     const { shell, ui, call } = ctx;
     const site = path.join(root, 'site');
     fs.mkdirSync(path.join(site, 'public'), { recursive: true });
@@ -1013,58 +1000,44 @@ export default (test: Test) => {
     await waitFor(() => shell.current?.id === 'site' && shell.task?.loaded && shell.pty);
     ctx.watchPty(shell.pty);
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
-    assert.equal(shell.store.projects().find((p) => p.id === 'site').icon, 'favicon');
     await waitFor(() => ui(`${projectTab('site')}.querySelector('.favicon').src.startsWith('data:image/svg+xml;base64,')`));
-    // Its settings: the favicon among the icons to choose from, the folder shown and not changed.
+    // Its color: its favicon's hue (red: 29°; a few degrees off where its edges blend) in the lightness and chroma of
+    // Kulisa's own colors; the window's and its island's. What projects.json keeps (the next free color) is for a
+    // project with none.
+    const shown = (hue: number | string) => ui(`(() => { const c = document.documentElement.style.getPropertyValue('--project'), h = /^oklch\\(0\\.61 0\\.12 (\\d+)\\)$/.exec(c)?.[1];
+      return ${projectTab('site')}.style.getPropertyValue('--color') === c && (${typeof hue === 'number'} ? Math.abs(h - ${JSON.stringify(hue)}) <= 4 : c === ${JSON.stringify(hue)}); })()`);
+    await waitFor(() => shown(29));
+    // Its settings: its favicon in the list, the folder shown and not changed.
     await rightClick(ui, `#projectTabs [data-project="site"] .name`);
     await menuRows(ui);
     await choose(ui, 'Project Settings…');
     await waitFor(() => ui(`(document.getElementById('projects')?.dataset.state === 'open') && ${pageOf('site')}`));
     // The manager lists every project, this one chosen (none marked open: a project is no thing to open).
     assert.ok(await ui(`document.querySelector('#pjlist [data-project="site"]').ariaSelected === 'true' && !document.querySelector('#pjlist kbd')`));
-    assert.equal(await ui(`document.querySelector('#pjlook .picon').matches('.favicon')`), true);
+    assert.equal(await ui(`document.querySelector('#pjlist [data-project="site"] .picon').matches('.favicon')`), true);
     assert.equal(await ui(`document.querySelector('#nprepos [data-folder] small').textContent`), site, 'its folder, as its code');
     assert.equal(await ui(`!!document.getElementById('nplocationrow')`), false);
     // A page, no Save: its top (New Task, ⋯), each part saved as it changes; the dialog stays open.
     assert.equal(await ui(`!!document.getElementById('npcreate') || !!document.querySelector('#projects footer')`), false, 'no Save, no Cancel');
     assert.equal(await ui(`[...document.querySelectorAll('#pjconfig .titled, #pjconfig .field > label')].map((h) => h.textContent).join(', ')`),
       'Name:, Code, Agents, Profiles, Local addresses:');
-    await openLook(ui);
-    assert.equal(await ui(`document.querySelector('#npicons [aria-pressed="true"]').dataset.value`), 'favicon');
     const entryOf = () => shell.store.projects().find((p) => p.id === 'site');
-    // Choose File…: a picture of the project's as its icon, kept by its path in the project; one it cannot show refused.
-    const logo = path.join(site, 'brand', 'logo.svg'), big = path.join(site, 'brand', 'big.svg');
-    fs.mkdirSync(path.dirname(logo), { recursive: true });
-    fs.writeFileSync(logo, '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><rect width="16" height="16" fill="blue"/></svg>');
-    fs.writeFileSync(big, `<svg xmlns="http://www.w3.org/2000/svg">${' '.repeat(200 * 1024)}</svg>`);
-    const showOpenDialog = electron.dialog.showOpenDialog;
-    try {
-      electron.dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [big] });
-      await ui(`document.getElementById('npiconfile').click()`);
-      await waitFor(() => ui(`document.getElementById('pjerror').textContent.startsWith('Not a picture Kulisa can show: big.svg')`));
-      assert.equal(entryOf().icon, 'favicon');
-      electron.dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [logo] });
-      await ui(`document.getElementById('npiconfile').click()`);
-      await waitFor(() => entryOf().icon === path.join('brand', 'logo.svg'));
-    } finally { electron.dialog.showOpenDialog = showOpenDialog; }
-    const blue = JSON.stringify(`data:image/svg+xml;base64,${fs.readFileSync(logo).toString('base64')}`);
-    await waitFor(() => ui(`${projectTab('site')}.querySelector('.favicon').src === ${blue} && document.querySelector('#npicons [aria-pressed="true"] img')?.src === ${blue}`));
-    // The file gone: its favicon shown again as its settings open, the choice kept should the file come back.
-    fs.rmSync(logo);
-    await closeMenu(ui);
-    await closeSettings(ui);
-    await rightClick(ui, `#projectTabs [data-project="site"] .name`);
-    await menuRows(ui);
-    await choose(ui, 'Project Settings…');
-    await waitFor(() => ui(`(document.getElementById('projects')?.dataset.state === 'open') && ${pageOf('site')}`));
-    const red = JSON.stringify(`data:image/svg+xml;base64,${fs.readFileSync(path.join(site, 'public', 'favicon.svg')).toString('base64')}`);
-    await waitFor(() => ui(`${projectTab('site')}.querySelector('.favicon').src === ${red}`));
-    await openLook(ui);
-    assert.equal(await ui(`document.querySelector('#npicons [aria-pressed="true"]').dataset.value`), 'favicon');
-    assert.equal(entryOf().icon, path.join('brand', 'logo.svg'));
-    await ui(`(() => { document.querySelectorAll('#npcolors [role="option"]')[5].click(); document.querySelector('#npicons [data-value="globe"]').click(); })()`);
-    await waitFor(() => entryOf().color === PROJECT_COLORS[5] && entryOf().icon === 'globe');
-    await closeMenu(ui);
+    // Its favicon changed: read again as its settings open. Mostly blue with a red dot: the hue of the most (264°).
+    const favicon = (svg: string) => fs.writeFileSync(path.join(site, 'public', 'favicon.svg'), `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">${svg}</svg>`);
+    const reopen = async () => {
+      await closeSettings(ui);
+      await rightClick(ui, `#projectTabs [data-project="site"] .name`);
+      await menuRows(ui);
+      await choose(ui, 'Project Settings…');
+      await waitFor(() => ui(`(document.getElementById('projects')?.dataset.state === 'open') && ${pageOf('site')}`));
+    };
+    favicon('<rect width="16" height="16" fill="#00f"/><circle cx="8" cy="8" r="2" fill="red"/>');
+    await reopen();
+    await waitFor(() => shown(264));
+    // A black mark (GitHub's, an SVG in currentColor) has no hue: the color it was given.
+    favicon('<path d="M2 2h12v12H2z" fill="#000"/>');
+    await reopen();
+    await waitFor(() => shown(entryOf().color));
     await ui(`(() => { const l = document.getElementById('nplocal'); l.value = 'abc.ngrok.app *.Shop.dev'; l.dispatchEvent(new Event('input')); l.dispatchEvent(new Event('change')); })()`);
     await waitFor(() => entryOf().local?.length === 2);
     // The name typed and the manager closed with ×: kept.
@@ -1073,10 +1046,9 @@ export default (test: Test) => {
     await closeSettings(ui);
     await waitFor(() => entryOf().name === 'Site-2');
     const entry = entryOf();
-    assert.deepEqual([entry.name, entry.color, entry.icon, entry.folder], ['Site-2', PROJECT_COLORS[5], 'globe', site]);
+    assert.deepEqual([entry.name, entry.folder], ['Site-2', site]);
     assert.deepEqual(entry.local, ['abc.ngrok.app', 'shop.dev'], "its own local addresses, where test users' pairs may be typed (local.ts)");
     await waitFor(async () => (await projectTabs(ui)).includes('Site-2 *') && shell.win.getTitle() === 'Site-2 — Kulisa');
-    assert.equal(await ui(`${projectTab('site')}.querySelector('.plabel use').getAttribute('href')`), '#i-p-globe');
     // Its profiles: a new one; one of another project, the same person (its master, its sign-ins); × lets go of one.
     await rightClick(ui, `#projectTabs [data-project="site"] .name`);
     await menuRows(ui);

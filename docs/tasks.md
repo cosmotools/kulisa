@@ -7,7 +7,7 @@ current when they change.
 
 ## Projects
 
-A **project** is one configuration its tasks are made from: a name, a color and an icon, its agents (one the
+A **project** is one configuration its tasks are made from: a name, its agents (one the
 default), its profiles (each a person in one store, [profiles.md](profiles.md)), and its code: one or more repositories
 (one the default), or a folder without git (`~/Kulisa/<project>` by default, or one the human picks). The work is done in its tasks (below), each in copies of the
 repositories (git worktrees), so the project's folders stay the human's. Kulisa keeps its data in its own data folder
@@ -35,7 +35,7 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   - **A right-click on the label opens the group's menu**, as Chrome's tab group's: New Task, its **closed
     tasks** under a heading (the one closed last first; a click opens one again; Delete Merged Tasks… when some are
     merged), Move to New Window, Move to Window, Project Settings… (what a group has not: its code, agents, profiles,
-    local addresses), Show Data Folder, Close Group. The project's name, color and icon are the projects' manager's
+    local addresses), Show Data Folder, Close Group. The project's name is the projects' manager's
     alone (the author, 2026-10-11: a panel with them at the menu's top, as Chrome's, was there for a day and was
     redundant). **Closing a group** (that menu, the middle button on its label,
     × on its last open task) closes its tasks as × on each would (`Project.closeAll`: agents stopped, profiles saved
@@ -72,8 +72,7 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   Projects button, until the agents' accounts needed a place outside projects; then tabs, Projects and Agents; then
   the tree with Agents and Profiles as pages of their own, each with its list on its left and New Project's + over the
   tree (2026-10-11), until the agents and the profiles went into the tree as the projects (2026-10-12). **A project's page** (the projects' manager, in earlier words): at its top
-  its path and **⋯** (Delete Project…; no New Task there since 2026-10-12, the author: tasks are made in the bar); then **Name:** with its color and
-  icon in a button beside it (a panel), and a group each under a titled line (`.titled`): **Code**, **Agents**,
+  its path and **⋯** (Delete Project…; no New Task there since 2026-10-12, the author: tasks are made in the bar); then **Name:**, and a group each under a titled line (`.titled`): **Code**, **Agents**,
   **Profiles** (what its tasks are made of), each a list (`.list`) with a toolbar over it: **+** adds (a menu), **−**
   removes the selected row (and Delete), **★** makes it the default (Code, Agents); a row's right-click has the same.
   Its Profiles are only which profiles its tasks have: + makes one in it or adds one of the others, − lets go of one
@@ -108,9 +107,8 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
 
   The name is the first folder's or repository's until the human types one. A folder or URL typed and not yet added
   counts when Create is pressed. The dialog says what will happen as it is typed ("… is there already", "… is a git repository", "The repository
-  will be cloned into …"; refused: a file, or a folder a project has). Its color (the next free one)
-  and icon (the curtain, or its site's favicon) are not asked: one decision less to make a project, changed at its
-  page's top. Create Git repository is on by default, not shown for repositories or clones: `git init` and an empty
+  will be cloned into …"; refused: a file, or a folder a project has). Its color and icon are not asked
+  (below). Create Git repository is on by default, not shown for repositories or clones: `git init` and an empty
   first commit ("Initial commit"; nothing of the folder is in it), as a worktree needs one, so the first task already
   has a copy of its own. Without git's user name and email set there is no commit, and tasks work in the folder. More
   repositories are added on its page (Code).
@@ -132,26 +130,31 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   is lost, so it asks only when that would stop a working agent ("Quit Kulisa?"). A window whose last group is
   closed closes too, unless it is the only one: then it is the empty window.
 - **Each project has a color and an icon**, to tell projects apart at a glance: the color is the shown one's glow from
-  the middle of the window and the title bar logo's curtain; the icon is on its label in the bar, in its color. The
-  icon is one of:
-  - **Its site's favicon**, every new project's (the curtain while it has none): `favicon.*` (svg, png, ico, webp, gif,
+  the middle of the window and the title bar logo's curtain; the icon is on its label in the bar, in its color. **Both
+  are Kulisa's, nothing to choose** (the author, 2026-10-12: a project is made to work in, not to be set up; until then
+  a panel at its page's top chose among eight colors, Kulisa's ten icons and a picture file, and the colors did not
+  go with the favicons, a red mark on a green project):
+  - **The icon: its site's favicon**, the curtain while it has none: `favicon.*` (svg, png, ico, webp, gif,
     jpg) anywhere in its code, `icon.*` only in an `app/` folder (Next's; elsewhere `icon.svg` is any component's).
     The files are those git lists in each of its repositories, the default first (new ones too, not those it ignores:
     no library's favicon from `node_modules`, no build's); a folder without git is read a few levels down, without
     hidden folders, `node_modules`, `dist`, `build`, `vendor`. Of several, the nearest to the top, then svg, png, ico,
-    then a favicon before an icon, then by name (a monorepo's `apps/admin` before `apps/shop`: Choose File… for
-    another). Looked for without holding the window up, once; again as its settings open, so a favicon added or
-    changed meanwhile shows there and in the bar.
-  - **A picture file the human chose** (Choose File… in the icon's panel, the OS's dialog in the project's folder):
-    its path kept (relative inside the project), so the picture follows the file as the code changes it; read again
-    as its settings open. While the file is gone, the project shows its favicon (or the curtain); the choice stays until its look is changed again.
-  - **One of Kulisa's set** (Lucide's cart, briefcase, globe, flask, rocket, code, building, people, book, heart), or
-    the app's curtain.
-
-  A picture up to 128 KB is shown as it is; a larger PNG or JPEG made 64 px wide (Electron's `nativeImage` reads only
-  those two on every OS); another larger one is refused when chosen ("Not a picture Kulisa can show").
-- **Its configuration** (a project's page in Settings, `ProjectEditor.vue`) changes its name (on Enter or leaving it),
-  color, icon (a panel from the button beside its name) and local addresses as they change; the folder is shown (in
+    then a favicon before an icon, then by name (a monorepo's `apps/admin` before `apps/shop`). Looked for without
+    holding the window up, once; again as its settings open, so a favicon added or changed meanwhile shows there and
+    in the bar. A picture up to 128 KB is shown as it is; a larger PNG or JPEG made 64 px wide (Electron's
+    `nativeImage` reads only those two on every OS); another larger one is not shown (the curtain).
+  - **The color: its favicon's hue** (`renderer/lib/project-color.ts`), read in the window, where Chromium draws any
+    favicon (svg, ico, png …) on a 32 px canvas, by colorthief (MIT, the most used and maintained of its kind; its
+    palette with each color's share, its filters of transparent, white and gray pixels): the hue of the largest
+    colored part, near-black left out too (HSV calls a dark red saturated). Only the hue is the site's: its lightness
+    and chroma are those of Kulisa's eight colors (OKLCH 0.61, 0.12), so it suits both themes as they do (a site's
+    navy was lost in the dark one, its yellow glared in the light one). A favicon with too little color (under a
+    tenth: a black or gray mark, an SVG in `currentColor`) has no hue, nor has a project without a favicon: then the
+    color `projects.json` keeps, the next free one of Kulisa's eight given when it was made. Two sites of one hue are
+    one color: their icons and names tell them apart. Nothing of it is stored: worked out again as the window gets
+    the favicon, so a favicon changed changes it.
+- **Its configuration** (a project's page in Settings, `ProjectEditor.vue`) changes its name (on Enter or leaving it)
+  and local addresses as they change; the folder is shown (in
   Code), not changed.
 - **Its agents**: a list of its agents' accounts and the terminal only ("Choosing the agent", Accounts). Its
   **+** adds the terminal only or any account (made in another project or in Settings → Agents), or, under New Account,
@@ -557,7 +560,7 @@ project label's right-click menu opens its `projects/<id>` in the file manager (
 asks where it is or what takes the disk; nothing in it is for editing by hand, so it is no button in sight:
 
 ```
-projects.json                     the projects: id, name, folder, repos, color, icon (a name or a picture's path), agents (accounts, the default first), noDefaultAgent
+projects.json                     the projects: id, name, folder, repos, color (the one it has while its favicon gives none), agents (accounts, the default first), noDefaultAgent
 profiles.json                     the profiles, one store: who each is, its projects, a test user's pair (profiles.md)
 profiles/Profile <k>/             a profile's master, where the human signs in once for every task
 agents.json                       the agents' accounts (accounts.ts): { next, list: [{ id, agent, email, folder, projects }] }

@@ -5,6 +5,7 @@ import { DropdownMenuItem, DropdownMenuItemIndicator, DropdownMenuRadioItem } fr
 import Icon from './Icon.vue';
 import ProjectIcon from './ProjectIcon.vue';
 import { avatarSrc } from '../lib/common';
+import { projectColor } from '../lib/project-color';
 import type { MenuRow } from '../lib/menu';
 
 const props = defineProps<{ it: MenuRow; value?: string }>();
@@ -20,7 +21,7 @@ const removeKey = (e: KeyboardEvent) => { if (props.it.remove) { removing = true
   <component :is="value === undefined ? DropdownMenuItem : DropdownMenuRadioItem" :class="['item', { inset: it.inset }]" v-bind="value === undefined ? {} : { value }" :disabled="it.enabled === false" :text-value="it.label" :title="it.title"
     @select="select" @pointerup="leftOnly" @pointerdown="removing = false" @keydown.delete="removeKey">
     <Icon v-if="it.icon" class="ico" :name="it.icon" /><span v-if="it.color" class="dot" :style="{ '--color': it.color }" />
-    <ProjectIcon v-if="it.project" :p="it.project" :style="{ '--color': it.project.color }" />
+    <ProjectIcon v-if="it.project" :p="it.project" :style="{ '--color': projectColor(it.project) }" />
     <img v-if="it.avatar" class="avatar" alt="" :src="avatarSrc(it.avatar)">
     <span class="text"><span class="label">{{ it.label }}</span><small>{{ it.sub }}</small></span><kbd>{{ it.keys }}</kbd>
     <button v-if="it.remove" class="remove icon quiet small" tabindex="-1" :aria-label="it.remove.label" :title="it.remove.label"

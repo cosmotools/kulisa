@@ -13,7 +13,6 @@ import { MAX, nameChar, repoName } from '../../main/names';
 const modal = ref<InstanceType<typeof Modal>>();
 const nameField = ref<HTMLInputElement>(), sourceField = ref<HTMLInputElement>();
 const name = ref(''), place = ref(''), sep = ref('/'), git = ref(true), saving = ref(false), error = ref('');
-const color = ref(''), icon = ref('logo');
 let fromSettings = false, created = false;
 
 // Its code, asked first (the author, 2026-10-11): a new folder, folders on the disk (nothing made), or repositories
@@ -86,10 +85,9 @@ const askGit = computed(() => (from.value === 'folder' ? sources.value.some((x) 
   : from.value === 'new' && there.value?.state !== 'repo'));
 
 async function open(opts: { fromSettings?: boolean } = {}) {
-  const c = await kulisa.invoke<ProjectChoices & { location: string; sep: string; color: string }>('project:new-defaults');
+  const c = await kulisa.invoke<ProjectChoices & { location: string; sep: string }>('project:new-defaults');
   sep.value = c.sep; name.value = ''; place.value = c.location; git.value = true; error.value = '';
   from.value = 'new'; sources.value = []; urls.value = []; typedSource.value = ''; named = ''; chosenSource.value = undefined;
-  color.value = c.color || c.colors[0]; icon.value = 'logo';
   fromSettings = !!opts.fromSettings; created = false;
   await modal.value!.open();
   nameField.value?.focus();
@@ -107,7 +105,7 @@ async function create() {
   if (from.value !== 'new' && !(await addSource())) return; // what is typed in its field counts
   if (!name.value.trim()) { nameField.value?.focus(); return; }
   saving.value = true;
-  const r = await kulisa.invoke<{ error?: string; id?: string } | null>('project:new', { from: from.value, name: name.value, color: color.value, icon: icon.value,
+  const r = await kulisa.invoke<{ error?: string; id?: string } | null>('project:new', { from: from.value, name: name.value,
     location: place.value, folders: sources.value.map((x) => x.folder), urls: [...urls.value], git: git.value && askGit.value });
   saving.value = false;
   if (r?.error) { error.value = r.error; return; }

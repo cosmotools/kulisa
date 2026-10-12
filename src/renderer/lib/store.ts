@@ -2,6 +2,7 @@
 import { reactive, watch } from 'vue';
 import type { ClosedProfile, Profile, ProjectsInfo, TaskInfo, Terminals } from '../types';
 import { initialProjects } from './common';
+import { projectColor } from './project-color';
 
 const root = document.documentElement;
 export const store = reactive({
@@ -54,7 +55,7 @@ kulisa.on<string>('bar', (bar) => { store.bar = bar; });
 watch(() => store.theme, (t) => { root.dataset.theme = t; });
 watch(() => store.bar, (b) => { root.dataset.bar = b; });
 watch(() => store.current === null, (none) => root.classList.toggle('noproject', none), { immediate: true });
-watch(() => store.projects.projects.find((p) => p.id === store.projects.current)?.color, (color) => {
+watch(() => { const p = store.projects.projects.find((x) => x.id === store.projects.current); return p && projectColor(p); }, (color) => {
   if (color) root.style.setProperty('--project', color); else root.style.removeProperty('--project');
 }, { immediate: true });
 

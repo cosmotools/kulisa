@@ -28,7 +28,7 @@ export interface TaskInfo {
   n: number; key: string; name: string; state: AgentState; folder: string; offset: number; branch: string | null;
   closed: boolean; merged: boolean; about?: string; // what it is about while it has no name: its first prompt
 }
-export interface ProjectEntry { id: string; name: string; folder: string; color: string; icon?: string; favicon?: string; tasks: ProjectTask[] }
+export interface ProjectEntry { id: string; name: string; folder: string; color: string; favicon?: string; tasks: ProjectTask[] }
 // A task of a project, open or not (app.ts, shell.projects): the bar's + lists the closed ones (NewTask.vue).
 export interface ProjectTask { n: number; name: string; branch?: string | null; closed: boolean; merged: boolean; about?: string }
 // The window's projects (AppWindow.info): every project, those open in it in the bar's order, the one shown.
@@ -48,7 +48,7 @@ export interface Account { id: string; agent: string; name: string; email: strin
 export interface AccountsInfo { accounts: Account[]; clis: string[] }
 // What a new account's sign-in answers (AccountSignIn.vue): the project's agents, made in one; else every account.
 export interface SignedIn extends Partial<AccountsInfo> { agents?: { id: string; name: string; default?: boolean }[] }
-export interface ProjectChoices { colors: string[]; icons: string[]; agents: { id: string; name: string }[]; clis: { id: string; name: string }[]; pictures?: Record<string, string>; color?: string; icon?: string }
+export interface ProjectChoices { agents: { id: string; name: string }[]; clis: { id: string; name: string }[] }
 export interface ProjectRepo { folder: string; git: 'ok' | 'none' | 'no-commit' }
 export interface ProjectProfile { id: string; name: string; avatar: string; description?: string; also: string[] }
 export interface ProjectSettings extends ProjectChoices {

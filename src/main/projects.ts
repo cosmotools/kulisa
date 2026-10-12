@@ -25,9 +25,9 @@ type Git = 'ok' | 'no-commit' | 'none';
 type Named = Pick<StoredProfile | ProfileConfig, 'name'>;
 
 class Project {
-  shell: Shell; store: Store; window: AppWindow | null; id: string; entry!: ProjectEntry; name!: string; color!: string; folder!: string;
+  shell: Shell; store: Store; window: AppWindow | null; id: string; entry!: ProjectEntry; name!: string; folder!: string;
   git: Git | null; tasks: Map<number, Task>; next: number; task: Task | null;
-  // entry: the project in projects.json (store.ts): { id, name, folder, repos, color, icon, agents }. shell: the app
+  // entry: the project in projects.json (store.ts): { id, name, folder, repos, color, agents }. shell: the app
   // (app.ts), as Task takes it. window: the window it is open in (window.ts, add).
   constructor(shell: Shell, entry: ProjectEntry) {
     this.shell = shell; this.store = shell.store; this.window = null;
@@ -39,9 +39,9 @@ class Project {
     for (const e of list) this.tasks.set(e.n, new Task(shell, this, e));
     this.task = this.open().find((t) => t.n === current) || this.open()[0] || null; // the one it shows
   }
-  // Its name, color, icon, agents and repositories, as the projects' manager left them (store.ts, updateProject).
+  // Its name, agents and repositories, as the projects' manager left them (store.ts, updateProject).
   // folder: its default repository (or folder), where its tasks' agents start.
-  update(entry: ProjectEntry) { this.entry = entry; this.name = entry.name; this.color = entry.color; this.folder = reposOf(entry)[0]; }
+  update(entry: ProjectEntry) { this.entry = entry; this.name = entry.name; this.folder = reposOf(entry)[0]; }
   repos() { return reposOf(this.entry); }
   // The agents' accounts its tasks run, the default first.
   agents() { return agentsOf(this.shell, this.entry); }
@@ -435,16 +435,6 @@ const deleteQuestion = ({ message, ok, goes, notInMain, stays }: { message: stri
 const changesText = ({ commits, dirty }: { commits: number; dirty: number }) => [commits && `${commits} commit${commits === 1 ? '' : 's'} of its own`,
   dirty && `${dirty} uncommitted file${dirty === 1 ? '' : 's'}`].filter(Boolean).join(' and ');
 
-// A project's icon (docs/tasks.md, Projects): favicon, its site's (found in its code: favicons.ts; the curtain while it
-// has none), a picture file the human chose (its path, relative inside the project), one of Kulisa's set
-// (PROJECT_ICONS, the sprite's i-p-<name>), or logo: the app's curtain in the project's color.
-const PROJECT_ICONS = ['logo', 'cart', 'briefcase', 'globe', 'flask', 'rocket', 'code', 'building', 'people', 'book', 'heart'];
-const iconFile = (p: ProjectEntry) => (p.icon && p.icon !== 'favicon' && !PROJECT_ICONS.includes(p.icon) ? path.resolve(p.folder, p.icon) : null);
-// A file as the project keeps it: relative when it is inside the project's folder.
-const iconOfFile = (p: ProjectEntry, file: string) => {
-  const rel = path.relative(p.folder, file);
-  return rel && !rel.startsWith('..') && !path.isAbsolute(rel) ? rel : file;
-};
 // A picture for the window, as a data URL; null when it is not there or not a picture. Up to 128 KB as it is; a larger
 // PNG or JPEG made 64 px wide (nativeImage reads only those two on every OS).
 const PICTURE_TYPES: Record<string, string> = { '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.png': 'image/png', '.webp': 'image/webp',
@@ -460,5 +450,5 @@ function pictureOf(file: string) {
   } catch { return null; }
 }
 
-export { Project, askDeleteProject, deleteClosedTask, deleteProjectData, iconFile, iconOfFile, pictureOf, PICTURE_TYPES, addRepo, cloneRepo, defaultRepo, removeRepo, reposInfo,
-  askDropProfile, dropProfile, deleteProfile, agentsInfo, addAgent, defaultAgent, removeAgent, deleteAccount, PROJECT_ICONS };
+export { Project, askDeleteProject, deleteClosedTask, deleteProjectData, pictureOf, addRepo, cloneRepo, defaultRepo, removeRepo, reposInfo,
+  askDropProfile, dropProfile, deleteProfile, agentsInfo, addAgent, defaultAgent, removeAgent, deleteAccount };
