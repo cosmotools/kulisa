@@ -267,7 +267,9 @@ unasked. This paragraph is removed when the rewrite is finished.
   `.github/workflows/release.yml` makes a draft `v<version>` at that commit, its notes the pull request's text;
   builds the installers on Ubuntu (`.deb`, `.rpm`) and Windows (Squirrel's `.exe`) into it; installs the `.deb` and
   starts it; then publishes it, the tag made then. update.electronjs.org serves it and installed copies update
-  (docs/window.md, "The app icon, installers and updates"). A failed build or start leaves the draft unpublished:
+  (docs/window.md, "The app icon, installers and updates"); kulisa.app is built again, its download buttons and
+  its guide then the release's (`SITE_DEPLOY_TOKEN`, a secret: a token that may only run `kulisa-site`'s workflows;
+  a site not built does not fail the release). A failed build or start leaves the draft unpublished:
   fixed by the next release, its version raised again; the failed draft deleted (`DELETE …/releases/<id>`).
 - **When the author says to release** (that is the ask to open the two pull requests, nothing more):
   1. In a worktree from `develop`: raise the version, commit (`Kulisa <version>`), and open its pull request into

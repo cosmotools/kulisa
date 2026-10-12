@@ -325,9 +325,9 @@ here; what is left of it stays.
     version is raised; `main` is protected, the author merges; the merge builds on Ubuntu and Windows (macOS once its
     secrets are there) into a draft release, published by the workflow once every OS built and the installed `.deb`
     started (the author, 2026-10-13: no users yet, no manual step; [window.md](window.md)). Windows not signed at
-    first (Squirrel works; SmartScreen warns): Azure Trusted Signing later. kulisa.app's download buttons take the
-    latest release's files from GitHub's API (the names carry the version), in `kulisa-site`, once there is one;
-    macOS's says "soon" until step 4.
+    first (Squirrel works; SmartScreen warns): Azure Trusted Signing later. kulisa.app's download buttons are the
+    latest release's files, taken at the site's build (`kulisa-site`), which the release starts (`SITE_DEPLOY_TOKEN`);
+    macOS's says "coming soon" until step 4.
   - **Steps:** 1. Kulisa's part (Forge's publisher and makers, the updater, Squirrel's events, docs): built
     ([window.md](window.md), "The app icon, installers and updates"). 2. The CI's
     workflows (`.github/workflows/`: `test.yml`, `release.yml`): built and run; `develop` and `main`'s ruleset
