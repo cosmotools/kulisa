@@ -112,10 +112,10 @@ pages are pictures of themselves meanwhile; afterwards the keyboard is back wher
 
 - the bar's + (every project, a new task of it; their closed tasks; New Project…), a task tab's right-click menu (the shown one's open
   and closed profiles, Manage Profiles…: Settings → Profiles; Rename…, Show Folder, Delete Task…), ☰ (as Chrome's ⋮, each row with its icon: the zoom row, the theme row, the
-  tasks' bar's row, Arrange panels, Agents… (Settings on its Agents tab), Keyboard Shortcuts, the links
+  tasks' bar's row, Arrange panels, Agents… (Settings at its agents), Keyboard Shortcuts, the links
   (Documentation, GitHub, Report an issue; one list in `lib/common.ts`), and Exit, which quits as the last window's × does; not on macOS, where
   Cmd+Q and the app's menu quit; under them all Kulisa's version, small and dim: words, not a row, as nothing happens on a click);
-- right-click on a pane's header (New tab, About this profile… (Settings → Profiles at it), Sign In to Master…, Refresh
+- right-click on a pane's header (New tab, About this profile… (Settings at it), Sign In to Master…, Refresh
   from Master…, Close profile, Remove from Project…), a tab (Reload, Duplicate, Close tab, Close other tabs) and a terminal (Copy, Paste, Select all, Clear;
   then Change agent… and New Conversation in the agent's, Close in the others).
 
