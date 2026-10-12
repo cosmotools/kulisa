@@ -89,7 +89,7 @@ Each icon is drawn once, as a `<symbol id="i-…">` in the sprite (`Sprite.vue`,
 | `i-trash` | a closed task's row in a menu: delete it (`remove`; Lucide's trash-2) |
 | `i-minus`, `i-star` | a list's toolbar (`.list`, after its `i-plus`): remove the selected row, make it the default (Lucide's star) |
 | `i-folder-plus`, `i-folder`, `i-git` | New Project's code: New Folder, Folders on Disk, Clone from URL (Lucide's folder-plus, folder, git-branch) |
-| `i-agent-claude`, `i-agent-codex`, `i-agent-shell` | an agent's row and its accounts' (`AgentList.vue`, `i-agent-<id>`, 20 px; `agentMark` in `lib/agents.ts`), a terminal's tab (`TerminalTabs.vue`), the island's + menu: the makers' own marks in their own colors (claude.ai's and developers.openai.com's favicons; not under the GPL: `docs/LICENSING.md`), and Lucide's square-terminal for the terminal only and a shell's tab; `i-agent` for an agent without a mark of its own |
+| `i-agent-claude`, `i-agent-codex`, `i-agent-shell` | an agent's row and its accounts' (`AgentList.vue`, `i-agent-<id>`, 20 px; `agentMark` in `lib/agents.ts`), a terminal's tab (`TerminalTabs.vue`), the island's + menu and its big buttons in an empty grid: the makers' own marks in their own colors (claude.ai's and developers.openai.com's favicons; not under the GPL: `docs/LICENSING.md`), and Lucide's square-terminal for the terminal only and a shell's tab; `i-agent` for an agent without a mark of its own |
 
 An icon is 16 px; × and + are 14 px, as in Chrome (`.icon`), and so is an agent's state. ☰'s and the agent's states are Lucide's (lucide.dev, ISC), drawn on 24 × 24 with
 their lines thickened to match; take a new one from there rather than drawing it. The sprite takes no room but is not

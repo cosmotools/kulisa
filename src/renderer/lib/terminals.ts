@@ -190,6 +190,14 @@ export function terminalMenu(key: string, more: MenuItem[]): MenuItem[] | null {
 // The island's menus (Terminals.vue). The shown project's agents (its accounts), the default first; the terminal only is
 // the Terminal row.
 const projectAgents = () => (store.projects.open.find((o) => o.id === store.projects.current)?.agents || []).filter((a) => a.cli !== 'shell');
+// The same as big buttons, the island alone in the grid: an account's name is its agent's · its email, on two lines.
+export const launchers = () => [
+  ...projectAgents().map((a) => {
+    const [name, sub = ''] = a.name.split(' · ');
+    return { id: a.id, name, sub, icon: agentMark(a.cli)!, title: a.name, run: () => act('terminal:open', { agent: a.id }) };
+  }),
+  { id: 'shell', name: 'Terminal', sub: '', icon: 'i-agent-shell', title: 'Terminal', run: () => act('terminal:open') },
+];
 // +: a new conversation of one of them, or a shell.
 export const newTerminalItems = (): MenuItem[] => [
   ...projectAgents().map((a) => ({ label: a.name, icon: agentMark(a.cli)!, run: () => act('terminal:open', { agent: a.id }) })),

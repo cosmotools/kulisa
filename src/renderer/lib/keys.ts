@@ -28,12 +28,19 @@ document.addEventListener('focusin', report);
 document.addEventListener('focusout', () => setTimeout(report)); // where it went is known after the event
 watch(dialogsOpen, report); // a dialog opened or closed
 
+// The folded island: the task's agent; a task with none (its project had no default) leaves the choice to the human,
+// the keyboard on the island's buttons (Terminals.vue), or its + opened.
+const openOwn = async () => {
+  if (!(await act<{ none?: boolean }>('terminal:open', { own: true }))?.none) return;
+  const first = document.querySelector<HTMLElement>('.launch .launcher');
+  if (first) first.focus(); else document.getElementById('termUnfold')?.click();
+};
 // A task's tab in the tasks' bar shown, as a click on it does (TaskTab.vue).
 const showTask = (tab?: Element) => { const key = (tab as HTMLElement | undefined)?.dataset.task; if (key && key !== store.current) kulisa.invoke('task:show', key); };
 interface Command { n?: number; page?: boolean; p?: Profile; tab?: string }
 // What each command does. page: the key was typed in the profile's page, so the keyboard stays in its pages.
 const run: Record<string, (c: Command) => unknown> = {
-  'terminal.focus': () => (!store.terminals.list.length ? act('terminal:open', { own: true }) : zone === 'terminal' && lastPane ? focusPage(lastPane) : shownTerm()?.focus()),
+  'terminal.focus': () => (!store.terminals.list.length ? openOwn() : zone === 'terminal' && lastPane ? focusPage(lastPane) : shownTerm()?.focus()),
   'terminal.new': () => act('terminal:open'),
   'task.n': ({ n }) => showTask(document.querySelectorAll('#tasklist .tasktab')[n! - 1]),
   'task.next': () => stepTask(1),

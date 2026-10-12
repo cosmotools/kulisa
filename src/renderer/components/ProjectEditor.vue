@@ -45,7 +45,7 @@ const name = ref(''), local = ref(''), error = ref('');
 const choices = ref<ProjectChoices>({ colors: [], icons: [], agents: [], clis: [] });
 const color = ref(''), icon = ref('logo');
 const repos = ref<ProjectRepo[]>([]), former = ref<string | null>(null), cloneUrl = ref(''), codeError = ref(''), cloning = ref(false);
-const mine = ref<{ id: string; name: string }[]>([]), agentError = ref('');
+const mine = ref<{ id: string; name: string; default?: boolean }[]>([]), agentError = ref('');
 const signing = ref<{ id: string; name: string } | null>(null); // New Account…: the agent it is of, while signing in
 const profiles = ref<ProjectProfile[]>([]), others = ref<ProjectProfile[]>([]), newName = ref(''), profileError = ref('');
 // The selected row of each list: what −, ★, Delete and its right-click act on. The default repository and agent are
@@ -274,12 +274,15 @@ async function agents(channel: string, args: Record<string, unknown>) {
 }
 const removeAgent = (agent = agentSel.value) => agent && agents('project:agent-remove', { agent })
   .then(() => { if (!mine.value.some((a) => a.id === agentSel.value)) agentSel.value = undefined; });
-const defaultAgent = (agent = agentSel.value) => agent && agents('project:agent-default', { agent });
+// agent null: none is the default (its tasks start with the island's buttons).
+const defaultAgent = (agent: string | null) => agents('project:agent-default', { agent });
+const isDefault = (agent?: string) => !!agent && !!mine.value.find((a) => a.id === agent)?.default;
+const starAgent = () => agentSel.value && defaultAgent(isDefault(agentSel.value) ? null : agentSel.value);
 const agentRowMenu = (e: MouseEvent): MenuItem[] | null => {
   const a = rowAt(e, 'data-agent');
   if (!a) return null;
   agentSel.value = a;
-  return [{ label: 'Make Default', enabled: mine.value[0]?.id !== a, run: () => defaultAgent(a) },
+  return [isDefault(a) ? { label: 'No Default', run: () => defaultAgent(null) } : { label: 'Make Default', run: () => defaultAgent(a) },
     { label: 'Remove from the Project', run: () => removeAgent(a) }];
 };
 const addable = computed(() => choices.value.agents.filter((x) => !mine.value.some((m) => m.id === x.id)));
@@ -430,15 +433,16 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
                 <ButtonMenu :items="agentMenu"><button id="npagentadd" class="icon small" type="button" title="Add an agent" aria-label="Add an agent"
                   :disabled="!!signing || (!addable.length && !choices.clis.length)"><Icon name="i-plus" /></button></ButtonMenu>
                 <button id="npagentdel" class="icon small" type="button" title="Remove from the project (its tasks keep it)" aria-label="Remove from the project" :disabled="!agentSel" @click="removeAgent()"><Icon name="i-minus" /></button>
-                <button id="npagentdefault" class="icon small" type="button" title="Make Default: + makes a task with it" aria-label="Make Default"
-                  :disabled="!agentSel || agentSel === mine[0]?.id" @click="defaultAgent()"><Icon name="i-star" /></button>
+                <button id="npagentdefault" class="icon small" type="button" :disabled="!agentSel" @click="starAgent()"
+                  :title="isDefault(agentSel) ? 'No Default: a new task starts with no agent, you choose one there' : 'Make Default: + makes a task with it'"
+                  :aria-label="isDefault(agentSel) ? 'No Default' : 'Make Default'"><Icon name="i-star" /></button>
               </div>
               <RightClickMenu :items="agentRowMenu">
                 <ListboxRoot selection-behavior="replace" v-if="mine.length" id="npagents" v-model="agentSel" aria-label="Agents" @keydown.delete="removeAgent()">
                   <ListboxContent>
-                    <ListboxItem v-for="(a, i) in mine" :key="a.id" :value="a.id" class="item" :data-agent="a.id">
+                    <ListboxItem v-for="a in mine" :key="a.id" :value="a.id" class="item" :data-agent="a.id">
                       <span class="text"><span class="label">{{ a.name }}</span></span>
-                      <kbd v-if="!i && mine.length > 1" class="default" title="+ makes a task with it; the others are in +'s right-click menu">default</kbd>
+                      <kbd v-if="a.default" class="default" title="+ makes a task with it; the others are in +'s right-click menu">default</kbd>
                     </ListboxItem>
                   </ListboxContent>
                 </ListboxRoot>

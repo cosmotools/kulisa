@@ -45,6 +45,8 @@ class Project {
   repos() { return reposOf(this.entry); }
   // The agents' accounts its tasks run, the default first.
   agents() { return agentsOf(this.shell, this.entry); }
+  // The one a new task starts; none: its tasks start with nothing open (the island's buttons, Terminals.vue).
+  defaultAgent() { return defaultOf(this.shell, this.entry); }
   // Its open tasks, in the order they were made (the bar's); the closed ones, the one closed last first.
   open() { return [...this.tasks.values()].filter((t) => !t.entry.closed); }
   closedTasks() { return [...this.tasks.values()].filter((t) => t.entry.closed).sort((a, b) => (b.entry.closedAt ?? 0) - (a.entry.closedAt ?? 0)); }
@@ -77,11 +79,10 @@ class Project {
   // project has one, else all in one folder, ~/Kulisa/<project>@task-<n>/<repo>/; with a port offset no other task
   // has (100, 200, …: the project's own folder keeps the usual ports). A folder without git is used as it is: the
   // task works right in it. Made from the project's configuration alone (the projects' manager), nothing from the
-  // task on screen: its agent the project's default one; none: the window asks
-  // as the task starts. No profile opens by itself: all its project's are listed closed, and the agent (profile_open)
+  // task on screen: its agent the project's default one; none: nothing starts, the island shows what can. No profile opens by itself: all its project's are listed closed, and the agent (profile_open)
   // or the human (a task tab's menu) opens one when it is needed, a copy of its master made then. The new Task, or { error }.
   async createTask(): Promise<Result<Task>> {
-    const agent = this.agents()[0];
+    const agent = this.defaultAgent();
     await this.checkGit();
     const n = this.next, name = `task-${n}`, repos = this.repos();
     const gits = (await Promise.all(repos.map(async (r) => ((await gitOf(r)) === 'ok' ? r : null)))).filter((r) => r !== null);
@@ -104,7 +105,8 @@ class Project {
     }
     const data = this.store.taskOf(this, n);
     data.saveProfiles(this.shell.profileStore.of(this.id).map((g) => ({ folder: g.folder, id: g.id, closed: true })));
-    if (agent) data.saveAgent({ agent });
+    // null: the project has agents and none is the default; a project with none leaves it out: a shell starts.
+    if (agent || this.agents().length) data.saveAgent({ agent });
     this.next = n + 1;
     const task = new Task(this.shell, this, entry);
     this.tasks.set(n, task);
@@ -334,17 +336,20 @@ async function deleteProfile(shell: Shell, id: string, w: AppWindow | null): Pro
 }
 
 // The agents' accounts a project's tasks run (the projects' manager), whether it is open or not: added, made the
-// default (+ runs it), removed. A task keeps the agent it started with. The accounts' store (accounts.ts) lists the
-// projects each is in. { agents } or { error }.
-function changeAgents(shell: Shell, id: string, list: string[]) {
-  const entry = shell.store.updateProject(id, { agents: list.length ? list : null })!;
+// default (+ runs it) or none the default (the author, 2026-10-12: its tasks start with the island's buttons), removed.
+// The default is the first, unless noDefaultAgent; with no agents left, the next one added is the default. A task keeps
+// the agent it started with. The accounts' store (accounts.ts) lists the projects each is in. { agents } or { error }.
+function changeAgents(shell: Shell, id: string, list: string[], noDefault?: boolean) {
+  const noDefaultAgent = !list.length ? null : noDefault === undefined ? undefined : noDefault || null;
+  const entry = shell.store.updateProject(id, { agents: list.length ? list : null, ...(noDefaultAgent !== undefined && { noDefaultAgent }) })!;
   shell.open.get(id)?.update(entry);
   shell.sendProjects(); // +'s right-click menu has them
   return { agents: agentsInfo(shell, entry) };
 }
 // One no longer known (an agent not offered any more) is left out.
 const agentsOf = (shell: Shell, p: ProjectEntry) => (p.agents || []).filter((a) => shell.agentFor(a));
-const agentsInfo = (shell: Shell, p: ProjectEntry) => agentsOf(shell, p).map((a) => ({ id: a, name: shell.agentFor(a)!.name }));
+const defaultOf = (shell: Shell, p: ProjectEntry) => (p.noDefaultAgent ? null : agentsOf(shell, p)[0] ?? null);
+const agentsInfo = (shell: Shell, p: ProjectEntry) => agentsOf(shell, p).map((a) => ({ id: a, name: shell.agentFor(a)!.name, default: a === defaultOf(shell, p) }));
 function addAgent(shell: Shell, id: string, agent: string): Result<{ agents: { id: string; name: string }[] }> {
   const p = shell.store.projects().find((x) => x.id === id);
   if (!p) return { error: `no project ${id}` };
@@ -353,10 +358,13 @@ function addAgent(shell: Shell, id: string, agent: string): Result<{ agents: { i
   shell.accounts.addTo(agent, id);
   return changeAgents(shell, id, [...(p.agents || []), agent]);
 }
-function defaultAgent(shell: Shell, id: string, agent: string): Result<{ agents: { id: string; name: string }[] }> {
+// agent null: none is the default.
+function defaultAgent(shell: Shell, id: string, agent: string | null): Result<{ agents: { id: string; name: string }[] }> {
   const p = shell.store.projects().find((x) => x.id === id);
-  if (!p?.agents?.includes(agent)) return { error: `${agent} is not in the project` };
-  return changeAgents(shell, id, [agent, ...p.agents.filter((a) => a !== agent)]);
+  if (!p) return { error: `no project ${id}` };
+  if (agent === null) return changeAgents(shell, id, p.agents || [], true);
+  if (!p.agents?.includes(agent)) return { error: `${agent} is not in the project` };
+  return changeAgents(shell, id, [agent, ...p.agents.filter((a) => a !== agent)], false);
 }
 // Let go by the project, at once, nothing asked: an account stays in the store (accounts.ts), and a task of the project
 // running it keeps it, as one running an agent without accounts does.

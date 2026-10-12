@@ -3,15 +3,15 @@
 // tabs in the header (TerminalTabs.vue). The xterms live as long as their terminals (lib/terminals.ts); the panel holds
 // the shown task's. With none, the island is folded to its + (by its height under or over the grid, by its width at a
 // side), and unfolds to the size it had when one opens. Alone in the grid (no profile open) its group fills the grid
-// whatever is asked of it, so there the group is not drawn and the strip is drawn at its bottom, as under profiles,
-// whatever the arrangement (folded there, the strip was at the grid's top or the island filled it, by the arrangement).
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+// whatever is asked of it, so there the group is not drawn and the +'s rows are big buttons in its middle instead
+// (docs/window.md, The terminal).
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { DockviewApi, DockviewPanelApi } from 'dockview-vue';
 import Icon from '../Icon.vue';
 import ButtonMenu from '../menu/ButtonMenu.vue';
 import RightClickMenu from '../menu/RightClickMenu.vue';
 import { store } from '../../lib/store';
-import { newTerminalItems, tabItems, termFocus, termHost, terminalMenu } from '../../lib/terminals';
+import { launchers, newTerminalItems, tabItems, termFocus, termHost, terminalMenu } from '../../lib/terminals';
 import { withKeys } from '../../lib/common';
 
 const props = defineProps<{ params: { api: DockviewPanelApi; containerApi: DockviewApi } }>();
@@ -68,6 +68,18 @@ watch(() => [store.terminals.task, store.terminals.front] as const, ([task, fron
 watch([folded, strip, alone], () => fold(strip.value), { flush: 'post' });
 onBeforeUnmount(() => { for (const s of subs) s.dispose(); for (const host of [...root.value!.children]) host.remove(); });
 
+// The buttons in an empty grid, each a Tab stop (Tab to the next, Enter opens it; the author, 2026-10-12): the first,
+// the project's default agent, gets the keyboard when the keyboard was in the terminal just closed or nowhere (not
+// taken from a field or a dialog). No keys on them: Ctrl+` opens the task's agent, which the window does not show.
+const launch = ref<HTMLElement>();
+watch(() => folded.value && alone.value, async (on) => {
+  if (!on) return;
+  await nextTick();
+  const a = document.activeElement;
+  if (a && a !== document.body && !root.value?.contains(a) && !launch.value?.contains(a)) return;
+  launch.value?.querySelector<HTMLElement>('.launcher')?.focus();
+}, { immediate: true, flush: 'post' });
+
 const menu = (e: MouseEvent) => {
   const host = (e.target as Element).closest('.term'), t = store.terminals.list.find((x) => host && termHost(keyOf(x.id)) === host);
   return t ? terminalMenu(keyOf(t.id), tabItems(t)) : null;
@@ -76,7 +88,12 @@ const menu = (e: MouseEvent) => {
 
 <template>
   <div class="terminals" :class="{ folded, alone: folded && alone }">
-    <div v-if="folded" class="strip"><ButtonMenu :items="newTerminalItems"><button id="termUnfold" class="add icon quiet"
+    <nav v-if="folded && alone" ref="launch" class="launch" aria-label="New terminal">
+      <button v-for="l in launchers()" :key="l.id" class="launcher" :title="l.title" @click="l.run()">
+        <Icon :name="l.icon" /><span class="name">{{ l.name }}</span><small v-if="l.sub">{{ l.sub }}</small>
+      </button>
+    </nav>
+    <div v-else-if="folded" class="strip"><ButtonMenu :items="newTerminalItems"><button id="termUnfold" class="add icon quiet"
       :title="withKeys('New conversation of an agent, or a terminal', 'terminal.new')" aria-label="New terminal"><Icon name="i-plus" /></button></ButtonMenu></div>
     <RightClickMenu :items="menu"><div ref="root" class="termpanel" :hidden="folded" /></RightClickMenu>
   </div>
@@ -86,8 +103,17 @@ const menu = (e: MouseEvent) => {
 .terminals { height: 100%;
   &.folded { display: flex; flex-direction: column; justify-content: center; }
   .strip { display: grid; place-items: center; height: 100%; }
-  &.alone { justify-content: end;
-    .strip { height: var(--dv-tabs-and-actions-container-height); background: var(--island); border-radius: var(--island-radius); } } }
+  .launch { display: flex; flex-wrap: wrap; justify-content: center; gap: calc(var(--gap) * 2); padding: var(--gap); }
+  /* Big, for the hand to find at once in an empty grid; the icon as large as two rows. */
+  .launcher { --icon: calc(var(--row) * 1.25); display: flex; flex-direction: column; align-items: center; justify-content: start;
+    gap: 4px; width: calc(var(--control) * 5); height: calc(var(--control) * 4.5); padding: calc(var(--inset) * 1.5) var(--inset) var(--inset);
+    border-radius: var(--island-radius); background: var(--island);
+    &:hover { background: var(--island-hi); }
+    &:active { background: color-mix(in srgb, var(--island-hi) 85%, var(--text)); }
+    &:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+    svg { width: var(--icon); height: var(--icon); flex: none; margin-block-end: 4px; }
+    :is(.name, small) { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    small { color: var(--text-muted); font-size: var(--font-small); } } }
 #dock .termalone { --dv-group-view-background-color: transparent; --dv-tabs-and-actions-container-background-color: transparent; }
 .termpanel { height: 100%; &[hidden] { display: none; } }
 .term { height: 100%; padding: 2px 4px 2px 8px; &[hidden] { display: none; } }
