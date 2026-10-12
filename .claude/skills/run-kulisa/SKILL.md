@@ -26,7 +26,9 @@ After each change, restart it without asking, so the author sees it (the author 
    `claude` inside would take itself for a child session.
 3. A few seconds later, read the background output: `[kulisa] MCP server: …` means it is up.
 
-Do not start a second one while one runs: stop first.
+Do not start a second one while one runs: stop first. `kulisa.sh start` refuses then and names the checkout it runs
+from (Kulisa itself lets one run per data folder: a second one shows the first one's window and quits); another
+session's: tell the author whose change they stop seeing.
 
 ## A fresh start, as if just installed
 

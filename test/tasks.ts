@@ -577,7 +577,7 @@ export default (test: Test) => {
     await ui(`document.querySelector(${JSON.stringify(buttonAt)}).click()`);
   };
   // The page shown: its name in place at its top.
-  const pageOf = (name: string) => `(document.getElementById('npname')?.value === ${JSON.stringify(name)} && !!document.getElementById('pjhead'))`;
+  const pageOf = (name: string) => `(document.getElementById('pjname')?.value === ${JSON.stringify(name)} && !!document.getElementById('pjhead'))`;
   const closeSettings = async (ui: UI) => {
     await ui(`document.querySelector('#projects .x').click()`);
     await waitFor(async () => !(await ui(`(document.getElementById('projects')?.dataset.state === 'open')`)));
@@ -954,7 +954,7 @@ export default (test: Test) => {
     try {
       electron.dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [big] });
       await ui(`document.getElementById('npiconfile').click()`);
-      await waitFor(() => ui(`document.getElementById('nperror').textContent.startsWith('Not a picture Kulisa can show: big.svg')`));
+      await waitFor(() => ui(`document.getElementById('pjerror').textContent.startsWith('Not a picture Kulisa can show: big.svg')`));
       assert.equal(entryOf().icon, 'favicon');
       electron.dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [logo] });
       await ui(`document.getElementById('npiconfile').click()`);
@@ -981,7 +981,7 @@ export default (test: Test) => {
     await ui(`(() => { const l = document.getElementById('nplocal'); l.value = 'abc.ngrok.app *.Shop.dev'; l.dispatchEvent(new Event('input')); l.dispatchEvent(new Event('change')); })()`);
     await waitFor(() => entryOf().local?.length === 2);
     // The name typed and the manager closed with ×: kept.
-    await ui(`(() => { const n = document.getElementById('npname'); n.value = 'Site-2'; n.dispatchEvent(new Event('input')); })()`);
+    await ui(`(() => { const n = document.getElementById('pjname'); n.value = 'Site-2'; n.dispatchEvent(new Event('input')); })()`);
     assert.equal(entryOf().name, 'site', 'not yet: on Enter or leaving it');
     await closeSettings(ui);
     await waitFor(() => entryOf().name === 'Site-2');
@@ -1269,6 +1269,9 @@ export default (test: Test) => {
       await waitFor(() => ui(`!!document.querySelector('#newproject #npfrom [data-value="${from}"]')`));
       await ui(`document.querySelector('#npfrom [data-value="${from}"]').click()`);
       await waitFor(() => ui(`document.querySelector('#npfrom [data-value="${from}"]').ariaSelected === 'true'`));
+      // Over Settings' project page: no id twice, or a field found by its id was the page's (its name was typed
+      // into the project's own, renaming it, 2026-10-12).
+      assert.deepEqual(await ui(`(() => { const ids = [...document.querySelectorAll('[id]')].map((e) => e.id); return ids.filter((id, i) => ids.indexOf(id) !== i); })()`), []);
     };
     await newProject('folder');
     assert.equal(await ui(`!!document.getElementById('nplocationrow')`), false, 'no location: nothing is made');

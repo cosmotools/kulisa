@@ -2,7 +2,8 @@
 # Run the author's Kulisa from the checkout this script is in (Linux; the author's machine). Used by SKILL.md.
 #   kulisa.sh stop     stop it gracefully (SIGINT to the main Electron process: session cookies and tabs get saved)
 #   kulisa.sh check    what a fresh start would find: no Kulisa running, its data, tasks' copies, worktrees, branches, ports
-#   kulisa.sh start    start it in the foreground (run this in the background from Claude Code), without the parent
+#   kulisa.sh start    start it in the foreground (run this in the background from Claude Code; refused while one runs,
+#                      saying from which checkout), without the parent
 #                      Claude session's CLAUDE_* variables except CLAUDE_CONFIG_DIR (CLAUDE.md, Commands)
 set -u
 repo="$(cd "$(dirname "$0")/../../.." && pwd)"
@@ -35,6 +36,8 @@ case "${1:-}" in
     git -C "$repo" branch --list | sed 's/^/branch: /'
     if ss -ltn | grep -qE ':4450 '; then echo "ports: 4450 in use"; else echo "ports: free"; fi ;;
   start)
+    pid="$(main_pid)"
+    if [ -n "$pid" ]; then echo "already running ($pid) from $(readlink "/proc/$pid/cwd"): stop it first" >&2; exit 1; fi
     cd "$repo" || exit 1
     exec env $(env | grep -o '^CLAUDE[A-Z_]*' | grep -v '^CLAUDE_CONFIG_DIR$' | sed 's/^/-u /') npm start ;;
   *) echo "usage: $0 stop|check|start" >&2; exit 2 ;;

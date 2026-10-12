@@ -259,8 +259,8 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
             <ButtonMenu :items="more" end><button id="pjmore" class="icon small" type="button" title="More" aria-label="More"><Icon name="i-more" /></button></ButtonMenu>
           </div>
           <!-- Enter saves it, not a form -->
-          <div class="field"><label for="npname">Name:</label><span class="pick">
-            <input id="npname" v-model="name" data-name maxlength="64" spellcheck="false" @input="error = ''" @change="saveLook" @keydown.enter.prevent="saveLook">
+          <div class="field"><label for="pjname">Name:</label><span class="pick">
+            <input id="pjname" v-model="name" data-name maxlength="64" spellcheck="false" @input="error = ''" @change="saveLook" @keydown.enter.prevent="saveLook">
             <PopoverRoot :open="lookOpen" @update:open="toggleLook">
               <PopoverTrigger as-child><button id="pjlook" class="select" type="button" title="Color and icon" aria-label="Color and icon">
                 <ProjectIcon :p="{ icon, favicon: choices.pictures?.[icon] }" /><Icon name="i-down" /></button></PopoverTrigger>
@@ -283,7 +283,7 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
                 </PopoverContent>
               </PopoverPortal>
             </PopoverRoot></span></div>
-          <p id="nperror" class="error">{{ error }}</p>
+          <p id="pjerror" class="error">{{ error }}</p>
 
           <section id="npreposrow" class="group">
             <h3 class="titled">Code</h3>

@@ -42,7 +42,7 @@ setuid on a plain install. The `.deb` installs it setuid, so the installed app r
 | `KULISA_AGENT` | One agent command for every task, without asking (e.g. a CLI Kulisa does not know). It gets no Claude Code plugin; its task's MCP URL is in its environment as `KULISA_MCP_URL`, with `KULISA_PORT_OFFSET` and `KULISA_TASK` |
 | `KULISA_MIMIC=0` | Do not present profiles as Google Chrome |
 | `KULISA_SIGNIN_HOSTS` | More sign-in hosts for the automatic sign-in pause, comma-separated |
-| `KULISA_DATA` | Data folder instead of `~/.config/Kulisa` (e.g. to try a build next to your real one) |
+| `KULISA_DATA` | Data folder instead of `~/.config/Kulisa` (e.g. to try a build next to your real one: one Kulisa runs per data folder, a second on the same one shows the first's window) |
 | `KULISA_MCP_PORT` | MCP server port (default 4450; `0` picks a free one) |
 | `KULISA_SHOT` | Save a screenshot of the whole window to this PNG file ~4 s after start (`KULISA_SHOT_DELAY`, ms) |
 

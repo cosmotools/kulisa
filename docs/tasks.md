@@ -497,6 +497,11 @@ agents' accounts, let go of (Settings → Agents deletes one: "Choosing the agen
 
 ## While Kulisa runs
 
+- **One Kulisa per data folder** (`app.requestSingleInstanceLock`, at the top of `start` in `app.ts`): a second one
+  started on the same data shows the first one's window and quits before it reads or writes anything. Until
+  2026-10-12 a second one ran beside the first, without its MCP server (the port taken), and the two wrote over each
+  other's saved tabs, session cookies and tasks. Electron's lock is the data folder's: Kulisa on another
+  (`KULISA_DATA`) runs next to it, as the tests' apps do, each on its own.
 - Each window shows one task of its shown group. The others keep running, the other groups' too: their
   pages and agent go on, their pages hidden.
 - A task loads (its profiles start, its agent starts) the first time it is shown, also after a restart.
