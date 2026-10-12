@@ -2,7 +2,7 @@
 import { session } from 'electron';
 import fs from 'fs';
 import path from 'path';
-import { assert, userData, pfile, savedTabs, panel, SITE, waitFor, who, menuRows, choose, manageProfiles, closeSettings, chooseProfile, setProfileField, menuOpen, viewOn, ctrl, near, closeMenu, PORT } from './helpers.ts';
+import { assert, userData, pfile, savedTabs, panel, SITE, waitFor, who, menuRows, choose, manageProfiles, closeSettings, chooseProfile, setProfileField, menuOpen, taskMenu, viewOn, ctrl, near, closeMenu, PORT } from './helpers.ts';
 import type { Test } from './run.ts';
 
 export default (test: Test) => {
@@ -100,9 +100,8 @@ export default (test: Test) => {
     await assert.rejects(call('browser_snapshot', { profile: 'cleo' }), /closed.*profile_open/);
     assert.match((await ui(`act('tab:new', { profile: 'cleo' })`)).error, /Profile "cleo" is closed/); // the window: the same check
 
-    // Open again from the profiles' chip (👥): a closed one says so.
-    await ui(`document.getElementById('openProfiles').click()`);
-    await menuRows(ui);
+    // Open again from the task's tab's menu: a closed one says so.
+    await taskMenu(ui);
     assert.equal(await ui(`[...document.querySelectorAll('.menu[data-state="open"] .item')].find((b) => b.querySelector('.label').textContent === 'Cleo').querySelector('small').textContent`),
       'closed · click to open');
     await choose(ui, 'Cleo');
@@ -112,11 +111,10 @@ export default (test: Test) => {
     assert.equal(await who(ctx, 'cleo'), 'Signed in as cleo');
     await waitFor(() => ui(`!!document.querySelector('${header}')`));
 
-    // The agent closes it; the profiles' chip lists it as closed and opens it.
+    // The agent closes it; the task's tab's menu lists it as closed and opens it.
     await call('profile_close', { profile: 'cleo' });
     assert.ok(!shell.profiles.has('cleo') && shell.closed.has('cleo'));
-    await ui(`document.getElementById('openProfiles').click()`);
-    assert.deepEqual(await menuRows(ui), ['Sam.admin', 'Elon.buyer', 'Cleo', '-', 'Manage Profiles…']);
+    assert.deepEqual((await taskMenu(ui)).slice(0, 6), ['# Profiles', 'Sam.admin', 'Elon.buyer', 'Cleo', '-', 'Manage Profiles…']);
     assert.deepEqual(await ui(`[...document.querySelectorAll('.menu[data-state="open"] .item small')].map((e) => e.textContent).slice(2, 3)`), ['closed · click to open']);
     await choose(ui, 'Cleo');
     await waitFor(() => shell.profiles.has('cleo'));

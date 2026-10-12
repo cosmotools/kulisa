@@ -79,10 +79,14 @@ async function plusMenu(ui: UI, project?: string, task?: string) {
     (${JSON.stringify(task ?? null)} === null ? items[at] : own.find((r) => label(r) === ${JSON.stringify(task)})).click(); })()`);
   await waitFor(async () => !(await menuOpen(ui)));
 }
-// Settings → Profiles: the profiles' chip (👥), then Manage Profiles…; once its list is there.
+// The shown task's tab's right-click menu, where its profiles are: its rows (menuRows).
+const taskMenu = async (ui: UI) => {
+  await rightClick(ui, '#taskbar .tasktab.active .name');
+  return menuRows(ui);
+};
+// Settings → Profiles: the shown task's tab's menu, then Manage Profiles…; once its list is there.
 const manageProfiles = async (ui: UI) => {
-  await ui(`document.getElementById('openProfiles').click()`);
-  await menuRows(ui);
+  await taskMenu(ui);
   await choose(ui, 'Manage Profiles…');
   await waitFor(() => ui(`document.getElementById('projects')?.dataset.state === 'open' && document.getElementById('profilestab')?.checkVisibility()`));
 };
@@ -136,6 +140,6 @@ const ctrl = (wc: WebContents, keyCode: string) => { wc.focus(); press(wc, keyCo
 const near = (a: number, b: number) => Math.abs(a - b) < 1e-6;
 
 export type { UI };
-export { plusMenu, assert, root, userData, project, pfile, savedTabs, savedWindows, panel, SITE, PORT, sleep, waitFor, who, menuRows, choose, projectTabs, projectTab, showProject, closeProject, manageProfiles, closeSettings, chooseProfile, setProfileField, menuOpen, closeMenu, rightClick,
+export { plusMenu, assert, root, userData, project, pfile, savedTabs, savedWindows, panel, SITE, PORT, sleep, waitFor, who, menuRows, choose, projectTabs, projectTab, showProject, closeProject, manageProfiles, closeSettings, chooseProfile, setProfileField, menuOpen, closeMenu, rightClick, taskMenu,
   click,
   box, pageBox, viewOn, dock, press, ctrl, near };

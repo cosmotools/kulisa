@@ -29,7 +29,6 @@
     <symbol id="i-waiting" viewBox="0 0 24 24"><g stroke-width="2.25"><path d="M10.268 21a2 2 0 0 0 3.464 0M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"/></g></symbol>
     <symbol id="i-done" viewBox="0 0 24 24"><g stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></g></symbol>
     <symbol id="i-mic" viewBox="0 0 24 24"><g stroke-width="2.25"><path d="M12 19v3M19 10v2a7 7 0 0 1-14 0v-2"/><rect x="9" y="2" width="6" height="13" rx="3"/></g></symbol>
-    <symbol id="i-users" viewBox="0 0 24 24"><g stroke-width="2.25"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/><circle cx="9" cy="7" r="4"/></g></symbol>
     <symbol id="i-exit" viewBox="0 0 24 24"><g stroke-width="2.25"><path d="M16 17l5-5-5-5M21 12H9M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/></g></symbol>
     <!-- The links in ☰ (Lucide's book-open, github, bug) -->
     <symbol id="i-docs" viewBox="0 0 24 24"><g stroke-width="2.25"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></g></symbol>

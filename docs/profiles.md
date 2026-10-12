@@ -17,7 +17,7 @@ seen everywhere. Its **master** is a folder in Kulisa's data (`profiles/Profile 
 that task (not all at once: a closed one costs nothing), its tabs the master's moved to the task's ports. What a task
 has of a profile is its own: its copy (what is signed in there stays there), its tabs, open or closed, its sites'
 zoom. A new task opens none of them (the first one neither): the agent opens one when it needs it (`profile_open`),
-the human with 👥 ([tasks.md](tasks.md), What the human does).
+the human from the task tab's right-click menu ([tasks.md](tasks.md), What the human does).
 **A profile lives until the human deletes it** (Settings → Profiles; the author, 2026-10-11, as the agents' accounts):
 a profile in no project is kept, with its master and sign-ins. A project gets a profile when one is made in it
 (`profile_create`, its page in Settings → Profiles' + → New Profile…) or taken from the others (its page's + → Other
@@ -30,8 +30,8 @@ A profile is an Electron session on a folder of its own (`session.fromPath`), la
 
 ## What the human does
 
-- **Settings → Profiles** (the gear's Settings, its tree; 👥 → Manage Profiles… and About this profile… in the pane's
-  menu open it, the latter at that profile; `ProfilesTab.vue`; it replaced the task's profile editor, 2026-10-11): every
+- **Settings → Profiles** (the gear's Settings, its tree; Manage Profiles… in a task tab's right-click menu and About this profile… in the
+  pane's menu open it, the latter at that profile; `ProfilesTab.vue`; it replaced the task's profile editor, 2026-10-11): every
   profile on the left ("no project" at a row's end), the chosen one's fields on the right, each saved on Enter or
   leaving it: **Picture**, **Name**, **About**, **Test login** and **Test password**, **Sign In…** (its master's
   window, below) and the projects it is in. It is the human's one place for who a profile is: a profile is the same
@@ -59,7 +59,7 @@ A profile is an Electron session on a folder of its own (`session.fromPath`), la
   ("seller in the Acme shop; can approve refunds"), Settings → Profiles' About. Agents
   choose profiles by it: a name says which account is signed in, not who that is in the tests. Optional, and the
   dialog says so, with what it is for: left empty, the agent asks the human when a task needs to know and saves the
-  answer (below). At most 500 characters; shown under the name in 👥's menu and when pointing at the pane's name.
+  answer (below). At most 500 characters; shown under the name in the task tab's right-click menu and when pointing at the pane's name.
   The human's own words: a button to have an AI rewrite them was proposed and not built (2026-10-08): the reader is
   an agent, which understands them as they are, and a rewrite would add what the human did not say.
 - **Picture**: an animal, as Chrome's profile avatars and Google's anonymous animals, each profile of a task its
@@ -68,7 +68,7 @@ A profile is an Electron session on a folder of its own (`session.fromPath`), la
   Apache-2.0), in `src/renderer/public/avatars/`, the list in `avatars.ts`; not the OS's emoji, which look different on each
   OS and are missing on some Linux.
 - **Close**: × on the pane (or its menu, or the agent). Its tabs go and free their memory; it stays signed in, and
-  👥 lists it as closed and opens it again with the same tabs. Closed profiles stay closed across restarts.
+  the task tab's right-click menu lists it as closed and opens it again with the same tabs. Closed profiles stay closed across restarts.
 - **Remove from Project…** (the pane's menu, − on the project's page), after a confirmation: the project lets go of it
   (above); the profile stays. **Delete** in Settings → Profiles (− , Delete, a row's right-click), after a
   confirmation: its copies in every project's tasks and its master, with its sign-ins, storage and tabs, go for good
@@ -184,7 +184,7 @@ methods; who a profile is changes and is checked in the store (`ProfileStore.ren
 | Say who a profile is | Settings → Profiles | `profile_describe`, `profile_create` (the human's words only) | `ProfileStore.describe`; `Task.describeProfile` |
 | Change its picture | Settings → Profiles | none: how the human tells panes apart | `ProfileStore.setAvatar` |
 | A test user's pair | Settings → Profiles | `profile_set_login` | `ProfileStore.setLogin` (`shell.loginSecret` encrypts) |
-| Close, open a profile | ×, 👥 | `profile_close`, `profile_open` | `Task.closeProfile`, `openProfile` |
+| Close, open a profile | ×, a task tab's menu | `profile_close`, `profile_open` | `Task.closeProfile`, `openProfile` |
 | Remove a profile from the project | Remove from Project…, − on its page | `profile_delete` | `Task.deleteProfile(id, by)`: asks the human either way |
 | Delete a profile | Settings → Profiles | none: its sign-ins are the human's | `deleteProfile` (`projects.ts`) |
 | Open a tab | +, Duplicate, New tab | `browser_tab_new` | `Profile.newTab` (the address read by `toUrl`) |
@@ -352,5 +352,5 @@ space (ROADMAP, "Profiles' caches").
 | `src/main/mimic-chrome.ts` | presenting as Google Chrome |
 | `src/main/cdp-proxy.ts` | the CDP endpoint per profile |
 | `src/main/mcp-server.ts`, `ghost.ts`, `picker.ts` | the agent's tools, its actions shown, point and tell |
-| `src/renderer/components/grid/ProfilePane.vue`, `ProfileHeader.vue`, `lib/profiles.ts`; `ProfilesTab.vue`, `Avatars.vue` | the panes and the profiles' button (👥); Settings → Profiles and its pictures |
+| `src/renderer/components/grid/ProfilePane.vue`, `ProfileHeader.vue`, `lib/profiles.ts`; `ProfilesTab.vue`, `Avatars.vue` | the panes and the profiles' menu (a task tab's right-click); Settings → Profiles and its pictures |
 | `test/agent.ts`, `profiles.ts`, `zoom-and-closing.ts`, `restart-profiles.ts`, `unit/store.test.ts` | the tests |

@@ -60,7 +60,7 @@ has none); under each project its closed tasks, a click opens one again. **Setti
 and where it goes, `~/Kulisa` by default; git on by default, with an empty first commit), **Folders on disk** (one or
 several, a frontend and a backend: taken as they are, nothing made) or **Clone from URL** (one or several: into
 `~/Kulisa/<name>` by default, several each in a folder of its own there); then its
-configuration: its agents' accounts, more code, profiles; **New Task** makes its first task. **Project Settings…** on its name's right-click menu opens the manager at it. Closing the last group leaves the
+configuration: its agents' accounts, more code, profiles; the bar's **+** makes its first task. **Project Settings…** on its name's right-click menu opens the manager at it. Closing the last group leaves the
 window empty: New Task (+'s menu) and New Project… in it. A closed task keeps its tabs and
 sign-ins; when you open it again, its agent continues the conversation where it can (`claude --resume`,
 `codex resume`). The agent starts in your shell in its task's folder, as if you typed its command in a terminal
@@ -80,7 +80,7 @@ right-click menu picks another of the project's (with a new conversation).
 its menu; Ctrl+Shift+N for the shown one's) makes one at once, `task-<n>` until its agent names it (or you do: **Rename…** in its tab's menu): a git worktree on a branch of
 its own next to the project (`~/IdeaProjects/myshop@task-2/`; `.env*` and files named in `.worktreeinclude` are
 copied), a new session of the project's default agent there (another one: **Make Default** on it in the project's
-page, or **Change agent…** after), and its profiles, all closed until the agent or you open one (👥): each a copy of its master, where you
+page, or **Change agent…** after), and its profiles, all closed until the agent or you open one (right-click the task's tab): each a copy of its master, where you
 signed in once, for every task. Your
 project's folder stays yours: agents merge into it only when you ask. The task's app runs on its own ports: the usual
 ones plus `KULISA_PORT_OFFSET` (100, 200, …), and its tabs on local addresses point there. Click a task to switch;
@@ -95,8 +95,8 @@ restarts, as in an IDE, each a fresh shell in its place; **×** or `exit` closes
 
 Panes and the terminal are panels: drag one by its header to another place (or onto another panel to stack them as
 tabs), drag the gaps between them to resize; **☰ → Arrange panels** offers ready-made arrangements, each drawn as a picture. The grid is
-kept across restarts. Profiles are made, renamed, described (who each one is in your app: the agent chooses profiles by it, and asks you when it is not said), given another picture, a test user's login, signed in to once for every task and deleted in **Settings → Profiles** (the gear at the top right; 👥 → Manage Profiles… on the shown task's tab, at the bottom, opens it too), and added to a project on its page there. **×** at the top right of a profile's pane closes it: its tabs
-go and free their memory, it stays signed in; **👥** lists it as closed and brings it back with the same tabs. Right-click a tab or the terminal for their menus. **Keys:** Chrome's keys in a profile's page (Ctrl+T, Ctrl+W,
+kept across restarts. Profiles are made, renamed, described (who each one is in your app: the agent chooses profiles by it, and asks you when it is not said), given another picture, a test user's login, signed in to once for every task and deleted in **Settings → Profiles** (the gear at the top right; Manage Profiles… in the shown task's tab's right-click menu opens it too), and added to a project on its page there. **×** at the top right of a profile's pane closes it: its tabs
+go and free their memory, it stays signed in; the task tab's right-click menu lists it as closed and brings it back with the same tabs. Right-click a tab or the terminal for their menus. **Keys:** Chrome's keys in a profile's page (Ctrl+T, Ctrl+W,
 Ctrl+Shift+T, Ctrl+L, Ctrl+Tab …), Kulisa's everywhere, the terminal too (Ctrl+` the agent's terminal and back, Ctrl+Shift+1…9
 a task); every other key in the terminal is the agent's. **☰ → Keyboard Shortcuts** (Ctrl+Shift+/) lists them all. **Zoom:**
 Ctrl + / Ctrl − / Ctrl 0 outside the pages, or ☰ in the title bar, zooms all of Kulisa, and the pages follow; when it

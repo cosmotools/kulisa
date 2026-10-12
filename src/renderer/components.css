@@ -55,22 +55,14 @@ button.danger { background: var(--danger); border-color: var(--danger); color: v
 /* A project's color (--color on it or above) */
 .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; background: var(--color); }
 /* A tab of a strip on an island, as a browser's (TaskTab.vue): the agent's .state, the .name, × at the end
-   (button.close.icon.quiet.small), shown under the pointer and on the shown tab, its room kept so nothing moves. A
+   (button.close.icon.quiet.small), always shown, as Chrome's (the author, 2026-10-12). A
    step taller than a button and never narrow: a target for a quick throw of the mouse. Lit under the pointer;
    .active: the shown one, in the panels' color on the dark island. */
 .striptab { display: flex; align-items: center; gap: 6px; flex: 0 1 auto; height: calc(var(--control) + 4px); min-width: 64px;
   padding: 0 4px 0 12px; border-radius: var(--radius); color: var(--text-muted); white-space: nowrap;
   .name { flex: 1; overflow: hidden; text-overflow: ellipsis; }
   &:hover { background: var(--hover); color: var(--text); }
-  &:not(:hover, .active) .close { visibility: hidden; }
   &.active { background: var(--island); color: var(--text-strong); } }
-/* A chip: an icon button inside a tab (the profiles' on the shown task's tab); on the other tabs only its room, so
-   the tabs keep their widths as another is shown */
-.chip { display: flex; align-items: center; flex: none; height: 22px; padding: 0 6px; border: none;
-  border-radius: 11px; background: none; color: var(--text-muted);
-  &:not(button) { visibility: hidden; }
-  svg { width: 14px; height: 14px; }
-  &:is(button):hover { background: var(--hover); color: var(--text-strong); } }
 /* An agent's state (data-state, from its hooks), an icon each, not told by color alone: working (sparkles, twinkling),
    waiting for you (a bell), done (a check) until seen; nothing otherwise. On a task's tab. */
 .state { display: grid; place-items: center; flex: none; color: var(--text-muted);

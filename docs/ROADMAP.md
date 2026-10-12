@@ -277,7 +277,7 @@ here; what is left of it stays.
   - More agents (Gemini CLI, …): an entry each in `agents.ts`.
   - Windows: the installers run in PowerShell, untested; macOS untested.
   - A hint in an empty grid: a new task opens no profile and its grid is the terminal alone, so a hint
-    would show in every new task; whether one is wanted (and what it says: the project's profiles in 👥, or "create
+    would show in every new task; whether one is wanted (and what it says: the project's profiles in the task tab's menu, or "create
     the first profile" when it has none) is the author's to decide.
 - **Tasks, rest** (how they work now, and why: [tasks.md](tasks.md)).
   - Helping the agent run the app ("Kulisa plugin: running the app", above). Today the agent gets
