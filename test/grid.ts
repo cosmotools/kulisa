@@ -436,7 +436,12 @@ export default (test: Test) => {
     assert.equal(await ui(`document.querySelectorAll('img.snapshot').length`), 0);
 
     await waitFor(() => ui(`document.querySelectorAll('.pane[data-profile="elon-buyer"] .tabs .tab').length === ${n + 1}`));
-    await rightClick(ui, '.pane[data-profile="elon-buyer"] .tabs .tab');
+    // Once more until it opens: on GitHub's slower runner this right-click, right after the menu before closed, opened
+    // nothing once (2026-10-12; not seen here, on two cores either: ROADMAP, "Tests that failed now and then").
+    for (let i = 0; i < 3 && !(await menuOpen(ui)); i++) {
+      await rightClick(ui, '.pane[data-profile="elon-buyer"] .tabs .tab');
+      await waitFor(() => menuOpen(ui), 1500).catch(() => {});
+    }
     assert.deepEqual(await menuRows(ui), ['Reload', 'Duplicate', '-', 'Close tab', 'Close other tabs']);
     const first = elon.tabs[0];
     await choose(ui, 'Close other tabs');

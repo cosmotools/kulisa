@@ -696,7 +696,9 @@ here; what is left of it stays.
   In… opens the same master window, once": `Object has been destroyed` in `master.ts`'s `place`) failed with two after
   them in one `npm test -- tasks` on 2026-10-12, load 13 from other sessions' runs, not in the run after. "Move to New
   Window" again on 2026-10-12 (load 5 to 9), timing out while the project moves back into the first window and the
-  second closes: 3 of 12 runs of the group with the windows sandboxed, 1 of 6 without. Slow but not flaky: deleting a task (a fork's closing took 11 s,
+  second closes: 3 of 12 runs of the group with the windows sandboxed, 1 of 6 without. On GitHub's runner (Ubuntu, 2026-10-12): "context menus …", a tab's right-click right after the
+  pane's menu closed opened no menu, once; not reproduced here (twice on two cores): the test right-clicks again until
+  it opens. Its cause, a real right-click lost so, not found. Slow but not flaky: deleting a task (a fork's closing took 11 s,
   git's work), a site that never answers (10 s: two 5 s waits by design).
 - **The test "after a restart: a task's other terminal comes back …" takes 5.6 s** (`restart-tasks.ts`;
   found 2026-10-09, to come back to). Most of it is showing the project `other` until its task has loaded and
