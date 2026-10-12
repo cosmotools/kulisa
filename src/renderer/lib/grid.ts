@@ -31,22 +31,25 @@ export const whenLeft = () => Promise.resolve(leaving);
 export function gridMounted(a: DockviewApi) {
   api = a;
   Object.assign(window, { __dock: a }); // for tests
-  let saveTimer = 0;
+  let saveTimer = 0, save: (() => void) | null = null;
   a.onDidLayoutChange(() => {
     scheduleLayout();
     clearTimeout(saveTimer);
     // Not a grid being taken down or built.
-    if (!store.loading) saveTimer = window.setTimeout(() => kulisa.send('layout:save', { task: store.current, layout: a.toJSON() }), 300);
+    if (store.loading) return;
+    const task = store.current;
+    save = () => { save = null; kulisa.send('layout:save', { task, layout: a.toJSON() }); };
+    saveTimer = window.setTimeout(save, 300);
   });
   a.onDidActivePanelChange(scheduleLayout);
-  clearSave = () => clearTimeout(saveTimer);
+  flushSave = () => { clearTimeout(saveTimer); save?.(); };
   // Dragging a panel (drop targets are HTML): the pages become pictures of themselves meanwhile.
   a.onWillDragPanel(freeze);
   a.onWillDragGroup(freeze);
   a.onDidDrop(unfreeze);
   gotApi(a);
 }
-let clearSave = () => {};
+let flushSave = () => {};
 document.addEventListener('dragend', unfreeze, true);
 document.addEventListener('drop', () => setTimeout(unfreeze), true);
 
@@ -155,7 +158,9 @@ Object.assign(window, { __layoutPreset: applyPreset }); // for tests
 // the tasks' bar stay.
 kulisa.on<{ dir: number; level: 'task' | 'project'; task: string; pics?: Record<string, string> }>('grid:closing', ({ dir, level, task, pics }) => {
   closeLayers(); // its dialogs and menus are for the grid that goes
-  clearSave();
+  // Its last change saved now, not dropped: a pane closed (its profile deleted) just before the task was left stayed in
+  // its saved grid, and a saved grid naming a profile no longer there is not restored at all (restoreGrid).
+  flushSave();
   if (pics) pictures.set(task, pics);
   const takeDown = () => {
     setLoading(true);

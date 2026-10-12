@@ -1559,7 +1559,7 @@ export default (test: Test) => {
     await waitFor(() => ui(`!document.documentElement.classList.contains('noproject') && !document.documentElement.classList.contains('loading')`));
     await waitFor(async () => (await viewOn(shell, ui, 'sam-admin')) && viewOn(shell, ui, 'elon-buyer'));
   });
-  test('the CDP proxy takes ids in any letters (percent-encoded in its URLs)', async ({ shell }) => {
+  test('the CDP proxy takes ids in any letters (percent-encoded in its URLs); the grid changed just before its task is left is saved so', async ({ shell, ui }) => {
     // Last: a profile made and deleted here would take a folder number the tests before count on.
     const { id } = await shell.task.createProfile('Анна') as { id: string };
     const p = shell.profiles.get(id);
@@ -1568,6 +1568,23 @@ export default (test: Test) => {
     await p.newTab('about:blank').ready;
     assert.equal((await p.page()).url(), 'about:blank', 'Playwright reached its tab');
     await shell.task.deleteProfile(id);
+    // The grid changed, and the task left at once: the change is in its saved grid (its save waits 300 ms, and leaving
+    // dropped it: a pane of a profile deleted just before stayed there, and a saved grid naming a profile no longer
+    // there is not restored at all). The grid's shape, its sizes aside.
+    const task = shell.task, other = [...shell.current.tasks.values()].find((t) => t !== task && !t.entry.closed);
+    const shape = (root: unknown) => JSON.stringify(root, (k, v) => (k === 'size' ? undefined : v));
+    const saved = () => shape((task.store.layout() as { grid: { root: unknown } }).grid.root);
+    // Left two frames after the change (dockview tells of it on a frame), well within the 300 ms.
+    const columns = await ui(`window.__layoutPreset('columns'); new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => {
+      r(JSON.stringify(window.__dock.toJSON().grid.root)); void kulisa.invoke('task:show', ${JSON.stringify(other.key)}); })))`);
+    await waitFor(() => shell.task === other && other.loaded);
+    await waitFor(() => saved() === shape(JSON.parse(columns))); // saved as it was left: it comes as the grid is taken down
+    // Back: built again as it was left; then as the grid presets test left it, for the restart phase.
+    await ui(`kulisa.invoke('task:show', ${JSON.stringify(task.key)})`);
+    await waitFor(async () => shell.task === task && (await ui(`!document.documentElement.classList.contains('loading') && JSON.stringify(window.__dock.toJSON().grid.root)`)) &&
+      shape(JSON.parse(await ui(`JSON.stringify(window.__dock.toJSON().grid.root)`))) === shape(JSON.parse(columns)));
+    await ui(`window.__layoutPreset('grid')`);
+    await waitFor(() => saved() !== shape(JSON.parse(columns)));
   });
   // Several agents in a task (tasks.ts; docs/tasks.md, "Several agents"): a tab and a conversation each; the task handed
   // from one to another. The test agent (custom) and the fake one (two accounts) are two CLIs, their transcripts both in
