@@ -1,5 +1,5 @@
 // `npm test`: the unit tests (test/unit, plain Node, a second), knip (npm run knip: no file, export or dependency
-// nothing uses; docs/testing.md, Dead code), the window built (npm run build: its types checked,
+// nothing uses; docs/testing.md, Dead code), actionlint on the CI's workflows when installed, the window built (npm run build: its types checked,
 // then Vite), then the groups of e2e files, in parallel. Each group
 // runs in an app of its own (run.ts), in its own folder, its files in order (later ones build on earlier ones), then
 // again after a restart. On Linux, with Xvfb and openbox installed, each on a screen of its own: the tests' windows
@@ -83,6 +83,12 @@ async function group(name: string) {
   if (unit.status !== 0) process.exit(unit.status ?? 1);
   const knip = spawnSync('npm', ['run', 'knip'], { cwd: path.join(import.meta.dirname, '..'), stdio: 'inherit', shell: process.platform === 'win32' });
   if (knip.status !== 0) process.exit(knip.status ?? 1);
+  // The CI's workflows: GitHub refuses a whole file for one wrong line, and says so only once it is pushed (run
+  // 38277005183). actionlint is a Go program with no maintained npm package: checked when installed, else said.
+  if (has('actionlint')) {
+    const lint = spawnSync('actionlint', [], { cwd: path.join(import.meta.dirname, '..'), stdio: 'inherit' });
+    if (lint.status !== 0) process.exit(lint.status ?? 1);
+  } else console.log('The CI\'s workflows are not checked: install actionlint (docs/testing.md, Workflows)');
   const build = spawnSync('npm', ['run', 'build'], { cwd: path.join(import.meta.dirname, '..'), stdio: 'inherit', shell: process.platform === 'win32' });
   if (build.status !== 0) process.exit(build.status ?? 1);
   const names = process.argv.slice(2).filter((a) => GROUPS[a]);

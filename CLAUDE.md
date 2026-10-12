@@ -240,7 +240,7 @@ unasked. This paragraph is removed when the rewrite is finished.
 
 ```sh
 npm start   # the app: the groups open last, plus $KULISA_PROJECT's (at first start none: New Project)
-npm test    # unit tests, knip, then the e2e groups in parallel, each the real app against a local test site, then restarted
+npm test    # unit tests, knip, actionlint (when installed), then the e2e groups in parallel, each the real app against a local test site, then restarted
 npm run test:unit     # the unit tests alone (plain Node, a second)
 npm run knip  # no file, export or dependency nothing uses: once a step, before showing it (docs/testing.md, Dead code)
 npm run test:visible  # e2e on your screen, to watch them (npm test uses Xvfb on Linux when installed)
