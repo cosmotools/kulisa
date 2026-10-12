@@ -1,6 +1,6 @@
-# A merge into main (a pull request from develop, its version raised: test.yml's version job): the installers built on
-# each OS and uploaded to one draft release, which the author publishes (CLAUDE.md, Releases; docs/window.md, "The app
-# icon, installers and updates"). macOS joins once the Apple secrets are set.
+# A merge into main (a pull request from develop, its version raised: test.yml's version job) is a release: the
+# installers built on each OS into one draft, the installed app started, then the draft published (CLAUDE.md,
+# Releases; docs/window.md, "The app icon, installers and updates"). macOS joins once the Apple secrets are set.
 name: release
 on:
   push:
@@ -17,13 +17,15 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       tag: ${{ steps.tag.outputs.tag }}
+      url: ${{ steps.make.outputs.url }}
     steps:
       - uses: actions/checkout@v7
       - id: tag
         run: echo "tag=v$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
       # A version released before (a merge with its number not raised) would upload over that release's installers.
       # Its notes are the merged pull request's text: what is new for the user (CLAUDE.md, Releases).
-      - env:
+      - id: make
+        env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ steps.tag.outputs.tag }}
         run: |
@@ -32,6 +34,7 @@ jobs:
           fi
           gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" --jq '.[0].body // ""' > notes.md
           gh release create "$TAG" --draft --target "$GITHUB_SHA" --title "$TAG" --notes-file notes.md
+          echo "url=$(gh release view "$TAG" --json apiUrl --jq .apiUrl)" >> "$GITHUB_OUTPUT"
   build:
     needs: draft
     strategy:
@@ -51,3 +54,28 @@ jobs:
       - run: npm run publish
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # The app as a user gets it, installed and started: the tests run it from source, and what breaks only when it is
+      # packaged (a path in the asar, a native module) would reach every installed copy by its updater; one that fails
+      # at start could not update itself again. Started: its MCP server listens, nothing uncaught, still running.
+      - if: runner.os == 'Linux'
+        run: |
+          sudo apt-get install -y ./out/make/deb/x64/*.deb xvfb
+          xvfb-run -a kulisa > start.log 2>&1 &
+          for _ in $(seq 60); do grep -q 'MCP server' start.log && break; sleep 1; done
+          sleep 5
+          cat start.log
+          if ! grep -q 'MCP server' start.log || grep -q 'uncaught' start.log || ! pgrep -x kulisa >/dev/null; then
+            echo "::error::The installed app did not start: the draft is not published"; exit 1
+          fi
+          pkill -INT -x kulisa
+  # Published once every OS has built and its app started: until then, and when one fails, a draft nobody is served.
+  # By its address: the tag's name is the draft's only until it is published. The tag made now, at the merged commit.
+  publish:
+    needs: [draft, build]
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          URL: ${{ needs.draft.outputs.url }}
+          TAG: ${{ needs.draft.outputs.tag }}
+        run: gh api -X PATCH "$URL" -f tag_name="$TAG" -f target_commitish="$GITHUB_SHA" -F draft=false -f make_latest=true >/dev/null

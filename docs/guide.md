@@ -21,9 +21,16 @@ You sign in to your accounts yourself, by hand; the agent never does. Everything
 
 ## Getting started
 
-Kulisa has no installers yet: it runs from its source code (see the
-[README](https://github.com/cosmotools/kulisa#readme)). It is tested on Linux (Ubuntu) so far; macOS and Windows are
-to come.
+Download Kulisa from its [latest release](https://github.com/cosmotools/kulisa/releases/latest):
+
+- **Windows:** `Kulisa-<version>.Setup.exe`. It is not signed yet, so Windows warns about it: More info → Run anyway.
+  It installs for you alone, with no questions, and starts. From then on it updates itself: a new version is
+  downloaded in the background and starts the next time you start Kulisa.
+- **Linux:** the `.deb` for Ubuntu and Debian (`sudo apt install ./kulisa_<version>_amd64.deb`), the `.rpm` for
+  Fedora. Kulisa is then in your apps. It does not update itself: install a new version the same way.
+- **macOS:** to come.
+
+Kulisa is tested on Linux (Ubuntu) so far; on Windows it is newer and less tried.
 
 1. **Make a project.** At the first start New Project opens by itself. Choose where its code comes from (below), give
    it a name, Create. Settings opens on the new project's page.

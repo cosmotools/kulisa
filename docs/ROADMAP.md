@@ -304,8 +304,8 @@ here; what is left of it stays.
   background, the new version starting next time. **Forge's way, its recommendations followed** (the author: rely
   on Forge first; electronforge.io, Auto Update; Electron 44.5.1's `tutorial/updates.md`, `api/auto-updater.md`).
   - **Windows and macOS:** Electron's `autoUpdater` (Squirrel) through `update-electron-app` and the free
-    update.electronjs.org (public GitHub repositories); `@electron-forge/publisher-github` uploads a draft release,
-    the author publishes it (the service takes only published releases with a semver tag). `notifyUser: false`: no
+    update.electronjs.org (public GitHub repositories); `@electron-forge/publisher-github` uploads into a draft release,
+    the workflow publishes it once built and started (the service takes only published releases with a semver tag). `notifyUser: false`: no
     dialog of the OS (Kulisa asks in its own, `Ask.vue`), and no restart from it: `quitAndInstall()` closes the
     windows before `before-quit`, where session cookies and tabs are saved (Hard-won facts); the update applies at
     the next start by itself. Checked every 6 hours (the module's default is 10 minutes: Kulisa stays open for
@@ -323,20 +323,19 @@ here; what is left of it stays.
   - **CI** (GitHub Actions; the flow decided with the author 2026-10-12: CLAUDE.md, Releases): work goes into
     `develop`, `npm test` on every push there; a pull request `develop` → `main` runs it again and checks that the
     version is raised; `main` is protected, the author merges; the merge builds on Ubuntu and Windows (macOS once its
-    secrets are there) into a draft release. Drafts, the author publishing them, until the first release is checked
-    on Windows (step 3); then published at once (`draft: false`, and the workflow's `--draft`). Windows not signed at
+    secrets are there) into a draft release, published by the workflow once every OS built and the installed `.deb`
+    started (the author, 2026-10-13: no users yet, no manual step; [window.md](window.md)). Windows not signed at
     first (Squirrel works; SmartScreen warns): Azure Trusted Signing later. kulisa.app's download buttons take the
     latest release's files from GitHub's API (the names carry the version), in `kulisa-site`, once there is one;
     macOS's says "soon" until step 4.
   - **Steps:** 1. Kulisa's part (Forge's publisher and makers, the updater, Squirrel's events, docs): built
     ([window.md](window.md), "The app icon, installers and updates"). 2. The CI's
-    workflows (`.github/workflows/`: `test.yml`, `release.yml`): the tests pass on Ubuntu; the release is not run
-    yet; `develop` and `main`'s ruleset (CLAUDE.md, Releases) set up by the author; the Apple secrets at step 4. 3. The
-    first release, `v0.1.0` (the first pull request into `main`), then
-    `v0.1.1`: the update checked by hand on the author's Windows machine, by a Claude session there (below); the user
-    guide's "Getting started" then says where the installers are (it says there are none until there is a release). 4.
+    workflows (`.github/workflows/`: `test.yml`, `release.yml`): built and run; `develop` and `main`'s ruleset
+    (CLAUDE.md, Releases) set up by the author; the Apple secrets at step 4. 3. The first release, `v0.1.0`: built and
+    published (2026-10-13); then
+    `v0.1.1`: the update checked by hand on the author's Windows machine, by a Claude session there (below). 4.
     macOS, once the account and its secrets exist.
-  - **Check on Windows** (step 3): install `Kulisa-0.1.0 Setup.exe` from the release: it installs to
+  - **Check on Windows** (step 3): install `Kulisa-0.1.0.Setup.exe` from the release: it installs to
     `%LocalAppData%\kulisa`, makes its shortcuts and starts once, not more (Squirrel's events); publish `v0.1.1`;
     within 6 hours, or at a restart of Kulisa, it downloads (Squirrel's log: `%LocalAppData%\kulisa\SquirrelSetup.log`);
     quit and start again: 0.1.1 (☰ shows the version), the data folder (`%APPDATA%\Kulisa`) as it was, the session
