@@ -21,16 +21,14 @@ jobs:
     # mark main red. Each comes off this once its first run passes.
     continue-on-error: ${{ matrix.os != 'ubuntu-latest' }}
     timeout-minutes: 30
-    # The test folders in one known place on every OS (os.tmpdir() reads these), for the artifact below.
-    env:
-      TMPDIR: ${{ runner.temp }}
-      TEMP: ${{ runner.temp }}
-      TMP: ${{ runner.temp }}
     defaults:
       run:
         shell: bash
     steps:
       - uses: actions/checkout@v4
+      # The test folders in one known place on every OS (os.tmpdir() reads these), for the artifact below. Through
+      # GITHUB_ENV: the job's env cannot read the runner context (GitHub refused the whole file).
+      - run: printf 'TMPDIR=%s\nTEMP=%s\nTMP=%s\n' "$RUNNER_TEMP" "$RUNNER_TEMP" "$RUNNER_TEMP" >> "$GITHUB_ENV"
       - uses: actions/setup-node@v4
         with:
           node-version: 24
