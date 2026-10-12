@@ -292,7 +292,9 @@ npm run watch # the window built again on every change; then reload it (Ctrl+R i
   `env $(env | grep -o '^CLAUDE[A-Z_]*' | grep -v '^CLAUDE_CONFIG_DIR$' | sed 's/^/-u /') npm start`.
 - **Code intelligence.** Claude Code's `LSP` tool (the `kulisa-dev` plugin; README, Developing with Claude Code):
   references, definitions and types through the language server, `.ts` and `.vue` together; prefer it to grep when
-  renaming or finding who uses a symbol (it misses the tests: grep `test/` too).
+  renaming or finding who uses a symbol (it misses the tests: grep `test/` too). No `LSP` tool in the session: the
+  plugin is not installed in this `CLAUDE_CONFIG_DIR`; say so, install it (`claude plugin install
+  kulisa-dev@kulisa-dev --scope project`) and ask the human for `/reload-plugins`.
 - **Looking at the window.** `KULISA_SHOT=/tmp/kulisa.png npm start` saves a screenshot of the whole window,
   profile views included, about 4 s after start (`KULISA_SHOT_DELAY` in ms). In tests: `shell.screenshot(file)`.
   Then read the PNG. Use it to check any UI change.
