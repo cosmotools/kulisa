@@ -73,8 +73,9 @@ Everything is saved as you change it; there is no Save button.
 - **Name**, and beside it its **color and icon**: one of Kulisa's, a picture file of yours, or its site's favicon.
 - **Code**: its repositories or folders. **+** adds one (Add Folder…, Clone from URL…), **−** removes the selected
   one from the project (its folder stays), **★** makes it the default: the agent starts there.
-- **Agents**: the accounts its tasks run. The first is the default, the one a new task runs; none: tasks start with a
-  terminal only, where you run any program yourself.
+- **Agents**: the accounts its tasks run. **★** makes one the default, the one a new task runs; **★** on the default
+  one again leaves the project with no default: a new task then starts with nothing running, and big buttons in the
+  middle let you open the agent you want, or a terminal. With no agents at all, a new task starts with a terminal.
 - **Profiles**: which profiles its tasks have. **+** makes a new one or adds one you have; **−** lets go of one (the
   profile stays in Settings → Profiles).
 - **Local addresses**: addresses of your app besides `localhost` (a tunnel, a dev domain), where the agent may type a
@@ -109,7 +110,8 @@ you to read and send. Its language is next to it.
 ## Tasks
 
 - **A new task**: **+** in the tasks' bar, then a project (or Ctrl+Shift+N for the shown project). It runs the
-  project's default agent with a new conversation; describe the task to it. Its profiles are all closed: the agent
+  project's default agent with a new conversation; describe the task to it. With no default agent, you choose one
+  with the buttons in the middle (Ctrl+` puts the keyboard on them). Its profiles are all closed: the agent
   opens those it needs, or you do (right-click the task's tab).
 - **Its own copy of the code.** In a project with git, every task works in a copy of its own (a git worktree) on a
   branch of its own, next to your project's folder (`myshop@task-2`). Your project's folder stays yours: the agent

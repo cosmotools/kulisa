@@ -657,7 +657,7 @@ function start(options: Options = {}) {
   ipcMain.handle('project:show-former', (_e, { id }: { id: string }) => { const p = store.projects().find((x) => x.id === id); return p && electronShell.openPath(p.folder); });
   // Its agents (projects.ts): one added, made the default (+ runs it), removed. At once, not on Save.
   ipcMain.handle('project:agent-add', (_e, { id, agent }: { id: string; agent: string }) => addAgent(shell, id, agent));
-  ipcMain.handle('project:agent-default', (_e, { id, agent }: { id: string; agent: string }) => defaultAgent(shell, id, agent));
+  ipcMain.handle('project:agent-default', (_e, { id, agent }: { id: string; agent: string | null }) => defaultAgent(shell, id, agent));
   ipcMain.handle('project:agent-remove', (_e, { id, agent }: { id: string; agent: string }) => removeAgent(shell, id, agent));
   // The accounts (Settings → Agents), each with the projects it is in; clis: the agents an account can be made of.
   const accountsInfo = (): Sent.AccountsInfo => {
@@ -950,7 +950,7 @@ function start(options: Options = {}) {
   // ×, an agent's tab handed over to another agent (Task.handOver).
   ipcMain.handle('terminal:open', (e, { task, agent, own }: { task: string; agent?: string; own?: boolean }) => {
     const w = onScreen(e, task);
-    return !w ? noTask : own ? w.openAgent(w.store.agent().agent) : agent ? w.openAgent(agent) : w.openTerminal();
+    return !w ? noTask : own ? w.openOwn() : agent ? w.openAgent(agent) : w.openTerminal();
   });
   ipcMain.handle('terminal:show', (e, { task, id }: { task: string; id: number }) => onScreen(e, task)?.show(id) || noTask);
   ipcMain.handle('terminal:close', (e, { task, id }: { task: string; id: number }) => onScreen(e, task)?.closeTab(id) || noTask);

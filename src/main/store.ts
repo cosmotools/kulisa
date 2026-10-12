@@ -35,7 +35,7 @@ const CACHES = new Set(['Cache', 'Code Cache', 'GPUCache', 'DawnGraphiteCache', 
 // A project in projects.json.
 interface ProjectEntry {
   id: string; name: string; folder: string; color: string; icon?: string; agents?: string[]; repos?: string[];
-  local?: string[];
+  local?: string[]; noDefaultAgent?: boolean;
 }
 // A task's copy of one repository (worktrees.ts, createWorktree).
 interface Copy { repo: string; worktree: string; branch: string; base: string | null; folder: string }
@@ -58,7 +58,7 @@ interface TaskProfile { folder: string; id: string; zoom?: Record<string, number
 interface Conversation {
   agent: string; sessionId?: string; transcript?: string; started?: boolean; from: number; to?: number; title?: string; terminal?: number;
 }
-interface AgentFile { agent?: string; conversations?: Conversation[] }
+interface AgentFile { agent?: string | null; conversations?: Conversation[] }
 // Its island's terminals, in their tabs' order, and the one in front (tasks.ts): a shell has its name; an agent's, its
 // conversation's index in agent.json.
 interface SavedTerminal { id: number; name?: string; by?: 'human' | 'agent'; conversation?: number }

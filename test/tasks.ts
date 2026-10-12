@@ -1005,8 +1005,8 @@ export default (test: Test) => {
     ctx.asked.length = 0;
   });
 
-  test('projects: the projects\' manager (Project Settings…) changes its name, color, icon (a file chosen too) and agents, the default one + runs; a folder with a favicon gets it as its icon', async (ctx) => {
-    const { shell, ui } = ctx;
+  test('projects: the projects\' manager (Project Settings…) changes its name, color, icon (a file chosen too) and agents, the default one + runs, none the default: a new task starts nothing, the island\'s buttons instead; a folder with a favicon gets it as its icon', async (ctx) => {
+    const { shell, ui, call } = ctx;
     const site = path.join(root, 'site');
     fs.mkdirSync(path.join(site, 'public'), { recursive: true });
     fs.writeFileSync(path.join(site, 'public', 'favicon.svg'), '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><circle cx="8" cy="8" r="8" fill="red"/></svg>');
@@ -1136,6 +1136,19 @@ export default (test: Test) => {
     assert.deepEqual(await menuRows(ui), ['Make Default', 'Remove from the Project']);
     await choose(ui, 'Make Default');
     await waitFor(async () => JSON.stringify(await agentRows()) === '["Terminal only true","Fake agent · ann@shop.com false"]');
+    // None the default: No Default on the default one's right-click, or its ★; ★ on it again makes it the default.
+    await rightClick(ui, '#npagents [data-agent="shell"] .label');
+    assert.deepEqual(await menuRows(ui), ['No Default', 'Remove from the Project']);
+    await choose(ui, 'No Default');
+    await waitFor(async () => JSON.stringify(await agentRows()) === '["Terminal only false","Fake agent · ann@shop.com false"]');
+    assert.equal(shell.store.projects().find((p) => p.id === 'site').noDefaultAgent, true);
+    await onRow(ui, `#npagents [data-agent="shell"]`, 'npagentdefault');
+    await waitFor(async () => JSON.stringify(await agentRows()) === '["Terminal only true","Fake agent · ann@shop.com false"]');
+    assert.equal(shell.store.projects().find((p) => p.id === 'site').noDefaultAgent, undefined);
+    await onRow(ui, `#npagents [data-agent="shell"]`, 'npagentdefault');
+    await waitFor(async () => JSON.stringify(await agentRows()) === '["Terminal only false","Fake agent · ann@shop.com false"]');
+    await onRow(ui, `#npagents [data-agent="shell"]`, 'npagentdefault');
+    await waitFor(async () => JSON.stringify(await agentRows()) === '["Terminal only true","Fake agent · ann@shop.com false"]');
     await ui(`document.querySelector('#projects .x').click()`);
     // + makes a task with the default one (the first kept the one it started with).
     ctx.answer = true; // no git: a second task in the folder, after the question
@@ -1149,12 +1162,39 @@ export default (test: Test) => {
     ctx.asked.length = 0;
     await waitFor(() => shell.task.promptTarget()?.agent.id === ann.id);
     assert.equal(shell.task.profiles.size, 0, 'no profile opens by itself');
+    const annTask = shell.task;
+    // None the default: a new task starts nothing, the island's buttons instead; Ctrl+` there gives them the keyboard.
+    await ui(`kulisa.invoke('project:agent-default', { id: 'site', agent: null })`);
+    await plusMenu(ui, shell.current.name);
+    await waitFor(() => shell.task !== annTask && shell.task.loaded);
+    const bare = shell.task;
+    ctx.asked.length = 0;
+    await waitFor(() => ui(`[...document.querySelectorAll('.launch .launcher .name')].map((n) => n.textContent).join()`).then((t) => t === 'Fake agent,Terminal'));
+    assert.equal(bare.terminals.size, 0);
+    assert.equal(JSON.parse(fs.readFileSync(path.join(userData, 'projects', 'site', String(bare.n), 'agent.json'), 'utf8')).agent, null);
+    await ui(`document.activeElement.blur()`);
+    shell.win.focus();
+    press(shell.win.webContents, '`', 'control');
+    await waitFor(() => ui(`document.activeElement === document.querySelector('.launcher')`));
+    assert.equal(bare.terminals.size, 0, 'nothing opened');
+    // With a profile open, the island is a strip: Ctrl+` opens its +.
+    await call('profile_create', { name: 'Bo.bare' }, bare);
+    await waitFor(() => ui(`!!document.getElementById('termUnfold') && !document.querySelector('.launch')`));
+    shell.win.focus();
+    press(shell.win.webContents, '`', 'control');
+    assert.deepEqual(await menuRows(ui), ['Fake agent · ann@shop.com', '-', 'Terminal']);
+    await closeMenu(ui);
+    assert.equal(bare.terminals.size, 0, 'nothing opened');
+    await ui(`act('profile:delete', { profile: 'bo-bare' })`);
+    await waitFor(() => !bare.profiles.has('bo-bare'));
+    shell.profileStore.delete(shell.profileStore.get('bo-bare').id);
+    ctx.asked.length = 0;
     // Let go of at once, an account as an agent without accounts: its tasks keep it, and the account stays in the store.
     await ui(`kulisa.invoke('project:agent-remove', { id: 'site', agent: '${ann.id}' })`);
     await ui(`kulisa.invoke('project:agent-remove', { id: 'site', agent: 'shell' })`);
     assert.equal(shell.store.projects().find((p) => p.id === 'site').agents, undefined, 'none left');
     assert.deepEqual(shell.accounts.find(ann.id).projects, ['project']);
-    assert.equal(shell.task.promptTarget().agent.id, ann.id);
+    assert.equal(annTask.promptTarget().agent.id, ann.id);
     assert.deepEqual([...before.terminals.values()].map((t) => [t.name, !!t.agent]), [['Terminal', false]], 'the terminal only: a shell');
     await ui(`kulisa.invoke('project:close', { id: 'site' })`);
     await waitFor(() => !shell.open.has('site'));

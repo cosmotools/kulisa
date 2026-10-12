@@ -186,13 +186,17 @@ class Task {
   // shell, which some agents cannot do and the human does not see. As in an IDE they are kept: when the task loads
   // again (a restart, its project opened again) each comes back in its tab, an agent's conversation resumed, a shell
   // with nothing running (the agent runs its command again). They go when closed (×, terminal_stop) or their shell exits.
-  // A task that never had one opens its agent; the last one closed leaves the island folded to its + (terminals.json
-  // says so).
+  // A task that never had one opens its agent (none: nothing, the island's buttons instead); the last one closed leaves
+  // the island folded to its + (terminals.json says so).
   async loadTerminals() {
     if (this.terminalsLoaded || !this.loaded) return;
     this.terminalsLoaded = true;
     const saved = this.store.terminals();
-    if (!saved) { await this.openAgent(this.store.agent().agent); return; }
+    if (!saved) {
+      const own = this.ownAgent();
+      if (own !== null) await this.openAgent(own); else this.saveTerminals();
+      return;
+    }
     this.front = saved.front ?? null;
     const conversations = this.conversations();
     await Promise.all(saved.list.map((t) => (t.conversation === undefined ? this.openTerminal({ id: t.id, name: t.name, by: t.by, front: false })
@@ -210,6 +214,15 @@ class Task {
     list[i] = { ...list[i], ...change };
     for (const k of Object.keys(change) as (keyof Conversation)[]) if (change[k] === undefined) delete list[i][k];
     this.store.saveAgent({ ...a, conversations: list });
+  }
+  // The task's agent: the one it was made with (its project's default then); null: none, its project had agents and no
+  // default (projects.ts, createTask); undefined: its project had none, openAgent opens a shell (or KULISA_AGENT's).
+  ownAgent() { return this.store.agent().agent; }
+  // Ctrl+` on the folded island: the task's agent, a new conversation; { none } when it has none (the window then gives
+  // the keyboard to the island's buttons or opens its +).
+  async openOwn(): Promise<Result<{ id: number } | { none: true }>> {
+    const own = this.ownAgent();
+    return own === null ? { none: true } : this.openAgent(own);
   }
   saveTerminals() {
     this.store.saveTerminals({ front: this.front, list: [...this.terminals.values()].map(({ id, name, by, conversation }) =>

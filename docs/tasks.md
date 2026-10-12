@@ -158,9 +158,11 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
 - **Its agents**: a list of its agents' accounts and the terminal only ("Choosing the agent", Accounts). Its
   **+** adds the terminal only or any account (made in another project or in Settings → Agents), or, under New Account,
   makes one of an agent, signed in right there; − lets go of the selected one at once (the account stays: Settings →
-  Agents deletes it); the first is the default, marked "default" when there are several (**★**, or Make Default in a
-  row's right-click, on another): the bar's + runs it; others in a task: the island's + ("Several agents in a task").
-  None: its tasks start with the terminal only.
+  Agents deletes it); the first is the default, marked "default" (**★**, or Make Default in a row's right-click, on another): the
+  bar's + runs it; others in a task: the island's + ("Several agents in a task"). **★** on the default one (No Default
+  in its right-click) leaves none the default (`noDefaultAgent` in `projects.json`; the author, 2026-10-12): its new
+  tasks start with nothing, the island's big buttons in the empty grid instead ([window.md](window.md), The terminal).
+  None: its tasks start with the terminal only; closed, the Terminal button alone (the author, 2026-10-12).
 - **Its code**: the repositories or folders its tasks work on, the default one first (marked when there are several,
   **★** or Make Default in a row's right-click on another: new tasks' agents start in its copy; every task gets a copy of each). Its **+**: **Add
   Folder…** adds one from the computer, **Clone from URL…** one from a URL with the user's own git (its credentials and keys; git asks for no password, so a
@@ -283,7 +285,7 @@ to the human; the window's IPC (`app.ts`) and the MCP tools are handles on it:
 | Show a task | a click on its tab, of any group | none: what the human looks at is theirs | `AppWindow.showTask`, then `show` its project (`window.ts`) |
 | Fold a project's group | a click on its label | none: how the human sees the bar | `Project.collapse` |
 | Add, clone, make the default, remove a repository | the projects' manager | none: what the project is made of is the human's | `addRepo`, `cloneRepo`, `defaultRepo`, `removeRepo` (`projects.ts`); `Task.reposChanged` |
-| Add, make the default, remove an agent of the project | the projects' manager | none: what the project is made of is the human's | `addAgent`, `defaultAgent`, `removeAgent` (`projects.ts`) |
+| Add, make the default (or none the default), remove an agent of the project | the projects' manager | none: what the project is made of is the human's | `addAgent`, `defaultAgent`, `removeAgent` (`projects.ts`) |
 | Make an account of an agent | New Account… in Settings → Agents or a project's page | none: signing in is the human's (Rules) | `account:signin` (`app.ts`), `Accounts.prepare`, `create` |
 | Delete an account | − in Settings → Agents | none: it deletes a sign-in and conversations, the human's to decide | `deleteAccount` (`projects.ts`), `shell.dropAccount` |
 | Open an agent in the task, a new conversation | the island's +, New Conversation (a tab's menu), Ctrl+` on the folded island | none: which agents work is the human's | `Task.openAgent`, `newConversation` |
@@ -297,8 +299,9 @@ A task's agents are the human's choice: its project's accounts of Claude Code (A
 (Accounts, below), any of them in a tab of its own ("Several agents in a task"), or the terminal only (the user's
 shell in the task's folder: an agent Kulisa does not know is run there by hand, `KULISA_MCP_URL` in its environment).
 Kulisa never assumes one is installed (it started `claude` without asking until 2026-10-06). A new task opens its
-project's default agent (the projects' manager), its own (`agent` in its `agent.json`); a project with none starts
-its tasks with the terminal only, without asking. An agent to open that is no longer there (an account let go, an
+project's default agent (the projects' manager), its own (`agent` in its `agent.json`); a project with no default
+(`agent: null` there) starts nothing, without asking: the island's buttons in the empty grid, and Ctrl+` gives them
+the keyboard (`Task.ownAgent`, `openOwn`); a project with no agents starts its tasks with the terminal only. An agent to open that is no longer there (an account let go, an
 agent not on the computer) asks, in a dialog, among the project's accounts and the terminal only, with Install and
 Cancel (none opens). `KULISA_AGENT` forces one command everywhere, without asking. An agent CLI itself is installed in ☰ → Agents… (**Install**: Kulisa runs its maker's own
 installer, the command shown before, its output while it runs, with no steps for the human to type, for people who
@@ -557,7 +560,7 @@ project label's right-click menu opens its `projects/<id>` in the file manager (
 asks where it is or what takes the disk; nothing in it is for editing by hand, so it is no button in sight:
 
 ```
-projects.json                     the projects: id, name, folder, repos, color, icon (a name or a picture's path), agents (accounts, the default first)
+projects.json                     the projects: id, name, folder, repos, color, icon (a name or a picture's path), agents (accounts, the default first), noDefaultAgent
 profiles.json                     the profiles, one store: who each is, its projects, a test user's pair (profiles.md)
 profiles/Profile <k>/             a profile's master, where the human signs in once for every task
 agents.json                       the agents' accounts (accounts.ts): { next, list: [{ id, agent, email, folder, projects }] }
