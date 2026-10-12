@@ -9,5 +9,18 @@
         "path": "./.claude/dev-plugins"
       }
     }
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/stop.ts\"",
+            "timeout": 180
+          }
+        ]
+      }
+    ]
   }
 }

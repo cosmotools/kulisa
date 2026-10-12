@@ -83,6 +83,14 @@ keeps its own server, about 700 MB with the main process and the window loaded. 
 the tests (`test/tsconfig.json` is loaded only once a test file is open); `tsc -p test` (npm run build) still checks
 them.
 
+A Stop hook (`.claude/hooks/stop.ts`, in `.claude/settings.json`, so every session in the repository has it, no
+install) runs `npm run lint` and `npm run test:unit` (about 14 s) before a session ends its turn, on the checkout it
+works in, when `.ts`, `.mts` or `.vue` files have changes not committed; a failure sends the session back with the
+output, and Claude Code shows "Stop hook error". Each state of those files is checked once (its record in the
+checkout's git folder), so a turn that changed no code costs nothing; sent back and changing nothing, the session is
+let stop. Not `npm run build` and the e2e groups: the language server shows type errors as they are made, and the
+whole suite runs when the work is done (CLAUDE.md, Conventions).
+
 ## Code
 
 ```

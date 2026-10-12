@@ -309,6 +309,8 @@ npm run watch # the window built again on every change; then reload it (Ctrl+R i
   renaming or finding who uses a symbol (it misses the tests: grep `test/` too). No `LSP` tool in the session: the
   plugin is not installed in this `CLAUDE_CONFIG_DIR`; say so, install it (`claude plugin install
   kulisa-dev@kulisa-dev --scope project`) and ask the human for `/reload-plugins`.
+- **The Stop hook** (README, Developing with Claude Code) runs `npm run lint` and `npm run test:unit` on uncommitted
+  code before a turn ends; when it sends you back, fix what it reports, or tell the human why it cannot be fixed now.
 - **Looking at the window.** `KULISA_SHOT=/tmp/kulisa.png npm start` saves a screenshot of the whole window,
   profile views included, about 4 s after start (`KULISA_SHOT_DELAY` in ms). In tests: `shell.screenshot(file)`.
   Then read the PNG. Use it to check any UI change.
