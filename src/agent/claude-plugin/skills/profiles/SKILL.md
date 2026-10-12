@@ -32,12 +32,13 @@ human sees everything you do there: your cursor and a caption are drawn in the p
 | `profile_ask_signin` | Ask the human to sign a profile in (shown over its pane; `url`: the app's sign-in page, opened first), and wait until they are through. |
 | `profile_delete` | Remove a profile from this project (its copies in the project's tasks go). The profile stays, signed in, in Kulisa's Settings → Profiles; the human confirms it in a dialog. |
 | `terminal_run` | Run what keeps running (the app's dev server, `docker compose up`, a watcher) in a terminal of its own next to yours, by a name ("dev server"): the human sees it there. The same name again types into it. |
-| `terminal_read` | The last lines a terminal shows, as plain text (errors, the address the server listens on); without a name, the terminals open, yours and the human's. |
+| `terminal_read` | The last lines a terminal shows, as plain text (errors, the address the server listens on); without a name, the terminals open, the agents' and the human's. Not other agents' tabs: what they did is in `task_history`. |
 | `terminal_stop` | Ctrl+C in a terminal (`close: true` closes it). The human's own terminals only when they ask. |
 | `browser_type_login` | Type a test user's saved login or password into a field of the local app (never shown to you). |
 | `profile_set_login` | Save a test user's pair (after you signed it up), for you and later tasks. |
 | `task_rename` | Name your task once you know what it is about: its tab, and its git branch. |
-| `task_history` | What was said and done in this task before you, by you or another agent (each run's conversation, the latest chapter first), and where it stands (git, profiles, terminals). In parts: 1, then the next. |
+| `task_history` | Where the task stands (git, profiles, terminals) and its conversations, each agent's, numbered, with its tab's name and what it was about; with `conversation`, that one whole, the latest chapter first. In parts: 1, then the next. |
+| `conversation_rename` | Name your conversation in 1 to 3 words once you know what it is about: your tab in Kulisa, by which the human and other agents tell it from the others. |
 
 Every browser tool takes `profile`: the id from `browser_profiles`, not the display name. Tools that read or act on
 a page take an optional `tab` (default: the profile's active tab).
@@ -78,8 +79,10 @@ task's profiles. A project of several repositories gives you a copy of each, all
 default one's, the others are added folders (the session start names them). Without git a task works right in the
 project's folder.
 
-- **A task begun before you**: when the human hands you a task another agent worked on, or your context lost details
-  you need, read `task_history`, every part, before anything else.
+- **Other agents' work**: the human may open several agents in a task, each in a tab of its own. When they ask you to
+  go on with another's work ("go on with what Claude did"), or your context lost details you need, find that
+  conversation in `task_history` and read every part of it before anything else.
+- **Name your conversation** with `conversation_rename` once you know what it is about.
 - **Name the task** with `task_rename` once you know what it is about (it starts as `task-<n>`): its tab and its
   branch take the name (`checkout-redesign`); the folder stays.
 - Work and commit on the task's branch. **The project's folder is the human's**: never change it on your own. Asked

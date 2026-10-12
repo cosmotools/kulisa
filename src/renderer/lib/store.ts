@@ -1,6 +1,6 @@
 // The window's state, as the main process sends it (window.ts), for the components to draw.
 import { reactive, watch } from 'vue';
-import type { ClosedProfile, OtherTerminal, Profile, ProjectsInfo, TaskInfo } from '../types';
+import type { ClosedProfile, Profile, ProjectsInfo, TaskInfo, Terminals } from '../types';
 import { initialProjects } from './common';
 
 const root = document.documentElement;
@@ -11,10 +11,10 @@ export const store = reactive({
   // group has them at once (not the last project's until the tasks' news), then from the tasks' news.
   taskTabs: { list: [] as TaskInfo[], active: null as string | null },
   projects: (initialProjects || { current: null, projects: [], open: [] }) as ProjectsInfo,
-  // The shown task's profiles, open (as Profile.info) and closed; its other terminals.
+  // The shown task's profiles, open (as Profile.info) and closed; its terminals' island.
   profiles: [] as Profile[],
   closedProfiles: [] as ClosedProfile[],
-  otherTerms: [] as OtherTerminal[],
+  terminals: { front: null, list: [] } as Terminals,
   zoom: 1, // the Kulisa zoom
   theme: root.dataset.theme || 'dark', // Dark, Light or System (index.html sets it from the URL before the first paint)
   bar: root.dataset.bar || 'bottom', // where the tasks' bar is

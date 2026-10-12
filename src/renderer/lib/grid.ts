@@ -2,14 +2,13 @@
 // gets where each pane's .content box is, or that it is not on screen (stacked behind another pane), as it lays the
 // native views over them.
 import type { AddPanelPositionOptions, DockviewApi } from 'dockview-vue';
-import type { OtherTerminal, Profile } from '../types';
+import type { Profile, Terminals } from '../types';
 import { act, setLoading, store } from './store';
 import { closeLayers, forgetFrozen, freeze, showViews, unfreeze } from './views';
 import { reducedMotion } from './common';
-import { forgetTerminals, otherTermKey, termFont, terminalOf } from './terminals';
+import { forgetTerminals } from './terminals';
 
 const panelId = (key: string) => `profile:${key}`;
-const isOtherTerm = (id: string) => id.startsWith('term:');
 // What the window does with a mounted pane (ProfilePane.vue), by its profile's key.
 export interface PaneHandle { content: HTMLElement; focusAddress(): void; newTab(): void }
 export const panes = new Map<string, PaneHandle>();
@@ -137,7 +136,6 @@ export function applyPreset(name: string) {
     return true;
   };
   if (!size()) { const ro = new ResizeObserver(() => size() && ro.disconnect()); ro.observe(dock); }
-  syncTerminals(); // the other terminals, next to the agent's again
   scheduleLayout();
 }
 Object.assign(window, { __layoutPreset: applyPreset }); // for tests
@@ -148,7 +146,7 @@ Object.assign(window, { __layoutPreset: applyPreset }); // for tests
 // process sends them; kept for when it comes back), and shows it while the next grid is built (reveal). Another
 // project's grid slides in as macOS desktops do, the one left out and the next one in at once; another task's replaces
 // it at once. Not with reduced motion: then the grid is hidden at once, so nothing half-built shows. The title bar and
-// the tasks' bar stay; the terminal panel too, showing the next task's terminal (terminals.ts).
+// the tasks' bar stay.
 kulisa.on<{ dir: number; level: 'task' | 'project'; task: string; pics?: Record<string, string> }>('grid:closing', ({ dir, level, task, pics }) => {
   closeLayers(); // its dialogs and menus are for the grid that goes
   clearSave();
@@ -158,7 +156,7 @@ kulisa.on<{ dir: number; level: 'task' | 'project'; task: string; pics?: Record<
     forgetFrozen();
     api?.clear();
     // The panes go with what was said over them: profile ids repeat across tasks.
-    Object.assign(store, { profiles: [], pictures: {}, captions: {}, picking: {} });
+    Object.assign(store, { profiles: [], pictures: {}, captions: {}, picking: {}, terminals: { front: null, list: [] } });
     gridReady = null;
   };
   sliding = null;
@@ -184,7 +182,7 @@ async function restoreGrid() {
   const a = await apiReady;
   const saved = await act<{ panels?: Record<string, unknown> } | null>('layout:load');
   // A saved grid may name profiles deleted since; dockview needs a component for every panel in it.
-  const known = (id: string) => id === 'terminal' || isOtherTerm(id) || store.profiles.some((p) => panelId(p.key) === id);
+  const known = (id: string) => id === 'terminal' || store.profiles.some((p) => panelId(p.key) === id);
   if (saved && Object.keys(saved.panels || {}).every(known)) {
     try { a.fromJSON(saved as Parameters<DockviewApi['fromJSON']>[0]); } catch (e) { console.warn('[layout] saved grid not restored:', (e as Error).message); a.clear(); }
   }
@@ -198,34 +196,17 @@ function syncGrid() {
   for (const panel of a.panels.filter((x) => x.id.startsWith('profile:') && !store.profiles.some((p) => panelId(p.key) === x.id))) a.removePanel(panel);
   for (const p of store.profiles) {
     if (a.getPanel(panelId(p.key))) continue;
-    const last = a.panels.filter((x) => x.id !== 'terminal' && !isOtherTerm(x.id)).at(-1);
+    const last = a.panels.filter((x) => x.id !== 'terminal').at(-1);
     addProfilePanel(p, last ? { referencePanel: last.id, direction: 'right' } : { referencePanel: 'terminal', direction: 'above' });
   }
-  syncTerminals();
 }
-// Other terminals follow the task's: a new one a tab in the agent's terminal's group, in front when the human opened
-// it (+), behind when the agent did (the human watches the agent); a closed one goes.
-function syncTerminals() {
-  const a = api!;
-  const termId = (t: OtherTerminal) => `term:${t.id}`;
-  for (const panel of a.panels.filter((x) => isOtherTerm(x.id) && !store.otherTerms.some((t) => termId(t) === x.id))) {
-    a.removePanel(panel);
-    forgetTerminals([otherTermKey(panel.id)]);
-  }
-  for (const t of store.otherTerms) {
-    const id = termId(t);
-    if (a.getPanel(id)) continue;
-    a.addPanel({ id, component: 'term', tabComponent: 'term', title: t.name, renderer: 'always',
-      position: { referencePanel: 'terminal', direction: 'within' }, inactive: t.by === 'agent' });
-    const { term } = terminalOf(otherTermKey(id));
-    if (t.by === 'human') termFont.then(() => term.focus());
-  }
-}
-kulisa.on<OtherTerminal[]>('terminals', async (list) => {
+// The shown task's island (Terminals.vue): its tabs, the one in front.
+kulisa.on<Terminals>('terminals', async (t) => {
   await leaving; // as the state: the next task's, once the grid on screen has gone
-  store.otherTerms = list;
-  if (gridReady) { await gridReady; syncTerminals(); }
+  if (t.task === store.current) store.terminals = t;
 });
+// A terminal closed, of any task: its xterm goes.
+kulisa.on<string[]>('terminals:gone', forgetTerminals);
 
 // Bring an open profile's pane to the front (it may be stacked behind another).
 export const showPane = (key: string) => api?.getPanel(panelId(key))?.api.setActive();

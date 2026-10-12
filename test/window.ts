@@ -3,7 +3,7 @@ import { nativeTheme } from 'electron';
 import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
-import { assert, root, userData, sleep, waitFor, menuRows, choose, manageProfiles, menuOpen, rightClick, box, viewOn, closeMenu } from './helpers.ts';
+import { assert, root, userData, sleep, waitFor, menuRows, choose, manageProfiles, menuOpen, rightClick, box, viewOn, closeMenu, click } from './helpers.ts';
 import forge from '../forge.config.ts';
 import type { Test } from './run.ts';
 import type { TaskTerminal } from '../src/main/tasks.ts';
@@ -24,8 +24,8 @@ export default (test: Test) => {
     assert.equal(await ui(`window.__term.options.fontFamily.startsWith('"JetBrains Mono"')`), true);
     assert.equal(await ui(`window.__termRenderer`), 'webgl');
     // What is left under a whole row is shared above and below the rows.
-    const { above, below } = await ui(`(() => { const h = document.querySelector('.xterm-host:not([hidden])').getBoundingClientRect(),
-      r = document.querySelector('.xterm-host:not([hidden]) .xterm-screen').getBoundingClientRect();
+    const { above, below } = await ui(`(() => { const h = document.querySelector('.term:not([hidden]) .xterm-host').getBoundingClientRect(),
+      r = document.querySelector('.term:not([hidden]) .xterm-screen').getBoundingClientRect();
       return { above: r.top - h.top, below: h.bottom - r.bottom }; })()`);
     assert.ok(Math.abs(above - below) <= 1, `the rows in the middle: ${above} above, ${below} below`);
   });
@@ -62,47 +62,66 @@ export default (test: Test) => {
     await choose(ui, 'русский');
     await waitFor(async () => (await ui(`document.querySelector('.dictation .lang').textContent`)) === 'RU');
   });
-  test("terminals next to the agent's: + opens the human's shell in front; the agent runs what keeps running in its own, behind, reads it, stops it, closes it; × and a shell's exit close one", async ({ shell, ui, call, instructions }) => {
-    const task = shell.task, group = (id: string) => ui(`window.__dock.getPanel(${JSON.stringify(id)})?.group.id === window.__dock.getPanel('terminal').group.id`);
-    const active = (id: string) => ui(`window.__dock.getPanel(${JSON.stringify(id)})?.api.isActive === true`);
+  test("the island: its terminals in tabs over them, one shown, the row apart; + opens the human's shell in front; the agent runs what keeps running in a shell of its own, behind, reads it, stops it, closes it, never in an agent's tab; × and a shell's exit close one", async ({ shell, ui, call, instructions }) => {
+    const task = shell.task;
+    const tabs = () => ui(`[...document.querySelectorAll('.termtab')].map((t) => t.querySelector('.name').textContent + (t.classList.contains('active') ? ' *' : ''))`);
+    const shown = () => ui(`[...document.querySelectorAll('.terminals .term')].filter((t) => !t.hidden).length`);
+    const color = (sel: string) => ui(`getComputedStyle(document.querySelector(${JSON.stringify(sel)})).backgroundColor`);
     assert.match(await instructions(), /terminal_run, not in your own shell.*This is the Kulisa task "task-1", working right in the project's folder .* the app under test runs on its usual ports\. Name the task with task_rename/s);
-    await ui(`document.querySelector('.ptab .add').click()`);
-    await waitFor(() => task.terminals.size === 1);
-    const [human] = task.terminalsInfo();
-    assert.deepEqual([human.name, human.by], ['Terminal 2', 'human']);
-    await waitFor(() => active(`term:${human.id}`));
-    assert.ok(await group(`term:${human.id}`), "a tab next to the agent's terminal");
+    assert.deepEqual(await tabs(), ['bash *'], "the agent's tab, named after its agent");
+    // The row is apart from the terminal: its own color, the tab in front in the terminal's.
+    const row = '.dv-groupview:has(.termtabs) .dv-tabs-and-actions-container';
+    assert.notEqual(await color(row), await color('.dv-groupview:has(.termtabs) .dv-content-container'));
+    assert.equal(await color('.termtab.active'), await color('.dv-groupview:has(.termtabs) .dv-content-container'));
+    // + is the island's, not a tab's: its menu has the project's agents (none here) and Terminal.
+    await ui(`document.getElementById('termAdd').click()`);
+    assert.deepEqual(await menuRows(ui), ['Terminal']);
+    await choose(ui, 'Terminal');
+    await waitFor(async () => JSON.stringify(await tabs()) === '["bash","Terminal *"]');
+    const human = task.terminal('Terminal') as TaskTerminal;
+    assert.equal(human.by, 'human');
+    // A shell in front: no dictation (it is the shown agent's); a pick still goes to the agent shown last.
+    await waitFor(() => ui(`document.querySelector('.dictation').hidden`));
+    assert.equal(task.promptTarget().agent.cli, 'bash');
+    await waitFor(async () => (await shown()) === 1 && ui(`window.__term === window.__term && document.activeElement.closest('.term') !== null`));
 
-    // The agent's: its environment (the port offset), behind (the human watches the agent), read back as plain text.
+    // The agent's: its environment (the port offset), behind (the human watches what is in front), read back as plain text.
     assert.match((await call('terminal_run', { name: 'dev server', command: 'echo "ready at offset $KULISA_PORT_OFFSET"; sleep 30' })).text, /^Started in terminal "dev server"/);
     const dev = task.terminal('dev server') as TaskTerminal;
     await waitFor(async () => (await call('terminal_read', { name: 'dev server' })).text.includes('ready at offset 0'));
-    assert.ok(await group(`term:${dev.id}`));
-    assert.equal(await active(`term:${dev.id}`), false, 'behind');
-    // Laid out below the grid while behind (dockview), it does not make the window scrollable: the agent's state on its
-    // tab (the tasks' bar brings its tab into view) had moved the grid up by a window's height.
+    assert.deepEqual(await tabs(), ['bash', 'Terminal *', 'dev server'], 'behind');
+    assert.equal(await shown(), 1);
+    // Laid out while behind, it does not make the window scrollable: the agent's state on its tab (the tasks' bar brings
+    // its tab into view) had moved the grid up by a window's height.
     await ui(`document.querySelector('#projectTabs > *').scrollIntoView()`);
     assert.deepEqual(await ui(`[document.documentElement.scrollTop, document.documentElement.scrollHeight <= innerHeight]`), [0, true]);
-    assert.equal(await active(`term:${human.id}`), true, "the human's stays in front");
-    assert.equal((await call('terminal_read', {})).text, `"Terminal 2" (the human's)\n"dev server" (yours): echo "ready at offset $KULISA_PORT_OFFSET"; sleep 30`);
-    await assert.rejects(call('terminal_stop', { name: 'nope' }), /no terminal "nope"; open now: "Terminal 2", "dev server"/);
+    assert.equal((await call('terminal_read', {})).text, `"Terminal" (the human's)\n"dev server" (an agent's): echo "ready at offset $KULISA_PORT_OFFSET"; sleep 30`);
+    await assert.rejects(call('terminal_stop', { name: 'nope' }), /no terminal "nope"; open now: "Terminal", "dev server"/);
+    // An agent's tab is no terminal to run in, read or stop: a command there would be a message to that agent.
+    for (const [tool, args] of [['terminal_run', { command: 'hi' }], ['terminal_read', {}], ['terminal_stop', { close: true }]] as const) {
+      await assert.rejects(call(tool, { name: 'bash', ...args }), /"bash" is an agent's tab, not a terminal to run in: read what it did in task_history/);
+    }
+    assert.deepEqual(await tabs(), ['bash', 'Terminal *', 'dev server']);
     // Stopped: Ctrl+C, the shell stays; the same name again types into it.
     await call('terminal_stop', { name: 'dev server' });
     await waitFor(async () => (await call('terminal_read', { name: 'dev server', lines: 3 })).text.includes('^C'));
     assert.match((await call('terminal_run', { name: 'Dev Server', command: 'echo again' })).text, /^Typed into terminal "dev server"/);
     await waitFor(async () => /^again$/m.test((await call('terminal_read', { name: 'dev server' })).text));
-    // Closed by the agent: its panel and its process go.
+    // A click on a tab brings it to the front.
+    await click(ui, `document.querySelector('.termtab[data-id="${dev.id}"]')`);
+    await waitFor(async () => JSON.stringify(await tabs()) === '["bash","Terminal","dev server *"]');
+    // Closed by the agent: its tab and its process go; the tab next to it comes to the front.
     const pid = dev.pty.pid;
     await call('terminal_stop', { name: 'dev server', close: true });
-    await waitFor(async () => !(await ui(`!!window.__dock.getPanel('term:${dev.id}')`)));
+    await waitFor(async () => JSON.stringify(await tabs()) === '["bash","Terminal *"]');
     await waitFor(() => { try { process.kill(pid, 0); return false; } catch { return true; } });
     // A shell that exits closes its terminal; × closes the human's.
     await call('terminal_run', { name: 'once', command: 'exit' });
-    await waitFor(() => !(task.terminal('once') as TaskTerminal).id && task.terminals.size === 1);
-    await ui(`[...document.querySelectorAll('.ptab')].find((t) => t.querySelector('b')?.textContent === 'Terminal 2').querySelector('.close').click()`);
-    await waitFor(() => task.terminals.size === 0);
-    await waitFor(async () => (await ui(`window.__dock.panels.filter((p) => p.id.startsWith('term:')).length`)) === 0);
-    assert.equal(await active('terminal'), true, "the agent's in front again");
+    await waitFor(() => !!task.terminal('once').error && task.terminals.size === 2);
+    await ui(`document.querySelector('.termtab[data-id="${human.id}"] .close').click()`);
+    await waitFor(async () => task.terminals.size === 1 && JSON.stringify(await tabs()) === '["bash *"]');
+    assert.equal(task.promptTarget().pty, shell.pty, "the agent's in front again, still running");
+    await waitFor(() => ui(`!document.querySelector('.dictation').hidden`));
   });
   test('one Kulisa per data folder: a second one started on the same data shows the first one\'s window and goes', async ({ shell }) => {
     // The groups' apps run side by side, each on a folder of its own: another folder is no second one.
@@ -233,7 +252,7 @@ export default (test: Test) => {
     const openers = {
       projects: () => ui(`document.getElementById('manageProjects').click()`),
       taskrename: () => fromMenu('Rename…', '#tasklist .tasktab .name'),
-      agentpick: () => fromMenu('Change agent…', '#term'),
+      agentpick: async () => { shell.chooseAgent(shell.task, null); }, // asked when a task's agent is not there
       shortcuts: () => fromMenu('Keyboard Shortcuts'),
     };
     assert.equal(await ui(`document.querySelectorAll('.dialog').length`), 0, 'none in the page while closed');

@@ -1,6 +1,5 @@
-// xterm.js in the renderer, node-pty here running the agent CLI unchanged. A task's agent has its terminal (the
-// task's key); the task's other terminals (tasks.ts, openTerminal) are "<key>#<id>". The window shows
-// the shown task's, the others keep running (and the window keeps their output).
+// xterm.js in the renderer, node-pty here running the agent CLI unchanged. A task's terminals (tasks.ts) are
+// "<task key>#<id>". The window shows the shown task's, the others keep running (and the window keeps their output).
 import { ipcMain } from 'electron';
 import { stripVTControlCharacters } from 'util';
 import os from 'os';
@@ -22,9 +21,10 @@ interface TerminalConfig {
 type Send = (channel: string, data: unknown) => void;
 interface Term { pty: Pty | null; size: Size | null; firstSize: Promise<void>; sized: () => void }
 
-// The terminal's size as the window measures it, per task. An agent starts only once its size is known: Claude
-// Code draws its prompt for the size it starts with and does not fully redraw on the first resize. Listening from
-// require time, so a size sent while the window loads is not missed.
+// The terminal's size as the window measures it, per terminal and per task (its island's, which all its terminals
+// share: one is shown at a time). An agent starts only once its size is known: Claude Code draws its prompt for the
+// size it starts with and does not fully redraw on the first resize. Listening from require time, so a size sent
+// while the window loads is not missed.
 const terms = new Map<string, Term>(); // key -> { pty, size, sized (resolves the first size) }
 const termOf = (key: string) => {
   if (!terms.has(key)) {
@@ -35,8 +35,8 @@ const termOf = (key: string) => {
   return terms.get(key)!;
 };
 ipcMain.on('pty:resize', (_e, { task, cols, rows }: { task: string } & Size) => {
-  const t = termOf(task);
-  t.size = { cols, rows }; t.sized();
+  const t = termOf(task), island = termOf(task.split('#')[0]);
+  t.size = island.size = { cols, rows }; t.sized(); island.sized();
   try { t.pty?.resize(cols, rows); } catch {}
 });
 ipcMain.on('pty:in', (_e, { task, data }: { task: string; data: string }) => terms.get(task)?.pty?.write(data));
@@ -53,11 +53,10 @@ const shQuote = (a: string) => (/^[\w@%+=:,./-]+$/.test(a) ? a : `'${a.replace(/
 // stays. shell: { command, args } instead of the user's, or false to start the agent directly (as on Windows).
 // pinned: variables of env the shell's startup must not change, typed before the command too (`VAR=… cmd`: bash, zsh,
 // fish 3.1+): the task's account, which a project's .envrc setting CLAUDE_CONFIG_DIR replaced (2026-10-12).
-// line: a command line typed into the shell as it is (a terminal's other than the agent's; none: the shell alone),
-// on Windows into cmd. size: start at it rather than wait for the window's (a terminal behind another panel has none);
-// sizeOf: or at that terminal's (the agent's, whose panel it sits behind after a restart), whichever comes first.
-// key: the task's; the window sends its input and size, and gets its output, under it. send(channel, data): to
-// the task's window, whichever it is then.
+// line: a command line typed into the shell as it is (a shell's; none: the shell alone), on Windows into cmd. size:
+// start at it rather than wait for the window's; sizeOf: or at that key's (the task's island: a terminal behind another
+// tab has none of its own), whichever comes first. key: the terminal's; the window sends its input and size, and gets
+// its output, under it. send(channel, data): to the task's window, whichever it is then.
 async function startTerminal(send: Send, cfg: TerminalConfig, key: string): Promise<Pty> {
   const t = termOf(key), like = cfg.sizeOf ? termOf(cfg.sizeOf) : null;
   if (!cfg.size) await Promise.race([t.firstSize, like?.firstSize, new Promise((r) => setTimeout(r, 5000))].filter(Boolean));
@@ -107,11 +106,9 @@ function stopTerminal(p: Pty) {
   try { p.kill(); } catch {}
 }
 
-// A task gone (its project closed, a task deleted), or a terminal closed: its size too. Opened again, the window
+// A terminal closed, or its task gone (its project closed, a task deleted): its size too. Opened again, the window
 // measures it anew.
 const forgetTerminal = (key: string) => terms.delete(key);
-// The size the window gave a terminal, if any.
-const terminalSize = (key: string) => terms.get(key)?.size || null;
 
 // The last lines of a terminal's output as plain text, as it shows them: colors and cursor moves left out, a line
 // rewritten in place (a progress bar, \r) as it was last written.
@@ -126,4 +123,4 @@ function typeIntoPrompt(p: IPty, text: string) {
 }
 
 export type { Pty };
-export { startTerminal, stopTerminal, forgetTerminal, terminalSize, terminalTail, typeIntoPrompt };
+export { startTerminal, stopTerminal, forgetTerminal, terminalTail, typeIntoPrompt };

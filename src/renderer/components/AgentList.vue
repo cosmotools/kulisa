@@ -8,7 +8,7 @@
 // RadioGroup.
 import { CollapsibleContent, CollapsibleRoot, CollapsibleTrigger, RadioGroupIndicator, RadioGroupItem, RadioGroupRoot } from 'reka-ui';
 import Icon from './Icon.vue';
-import type { Agent, AgentList } from '../lib/agents';
+import { agentMark, type Agent, type AgentList } from '../lib/agents';
 
 const props = defineProps<{ list: AgentList }>();
 const s = props.list.state;
@@ -18,8 +18,7 @@ const needs = (a: Agent) => (a.account ? '' : a.needs || '');
 const where = (a: Agent) => (!props.list.details ? '' : a.account ? `its own sign-in, in ${short(a.account)}`
   : a.path ? [a.version, short(a.path), a.onPath === false && 'not on your PATH: Kulisa runs it from here'].filter(Boolean).join(' · ') : '');
 const installLine = (a: Agent) => (a.install && !a.installed && !a.account ? `Install runs ${a.maker || 'its maker'}'s installer: ${a.install}` : '');
-// An agent new to Kulisa may have no mark in the sprite.
-const mark = (a: Agent) => { const name = `i-agent-${a.agent || a.id}`; return document.getElementById(name) ? name : null; };
+const mark = (a: Agent) => agentMark(a.agent || a.id, null);
 const status = (a: Agent) => (a.installed ? (a.install && !a.account ? 'Installed' : '') : 'Not installed');
 </script>
 

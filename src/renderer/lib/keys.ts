@@ -33,7 +33,7 @@ const showTask = (tab?: Element) => { const key = (tab as HTMLElement | undefine
 interface Command { n?: number; page?: boolean; p?: Profile; tab?: string }
 // What each command does. page: the key was typed in the profile's page, so the keyboard stays in its pages.
 const run: Record<string, (c: Command) => unknown> = {
-  'terminal.focus': () => (zone === 'terminal' && lastPane ? focusPage(lastPane) : shownTerm()?.focus()),
+  'terminal.focus': () => (!store.terminals.list.length ? act('terminal:open', { own: true }) : zone === 'terminal' && lastPane ? focusPage(lastPane) : shownTerm()?.focus()),
   'terminal.new': () => act('terminal:open'),
   'task.n': ({ n }) => showTask(document.querySelectorAll('#tasklist .tasktab')[n! - 1]),
   'task.next': () => stepTask(1),

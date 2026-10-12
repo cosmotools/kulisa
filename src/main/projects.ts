@@ -50,8 +50,8 @@ class Project {
   closedTasks() { return [...this.tasks.values()].filter((t) => t.entry.closed).sort((a, b) => (b.entry.closedAt ?? 0) - (a.entry.closedAt ?? 0)); }
   // Its task with this key ("<project id>/<n>", tasks.ts), or null.
   taskByKey(key: string) { return [...this.tasks.values()].find((t) => t.key === key) || null; }
-  // An agent.json of one of its tasks with a transcript: where its agents keep their data (agents.ts: Claude's config).
-  agentData() { return [...this.tasks.values()].map((t) => t.store.agent()).find((a) => a.transcript) || {}; }
+  // A conversation of one of its tasks with a transcript: where its agents keep their data (agents.ts: Claude's config).
+  agentData() { return [...this.tasks.values()].flatMap((t) => t.conversations()).find((c) => c.transcript) || {}; }
   async checkGit() { this.git = await gitOf(this.folder); }
   save() {
     this.store.saveTasksOf(this, { next: this.next, current: this.task?.n ?? null, ...(this.collapsed && { collapsed: true }),
@@ -225,10 +225,10 @@ async function deleteTask(shell: Shell, p: ProjectEntry, entry: TaskEntry) {
   for (const c of entry.copies || []) await removeWorktree(c);
   if (entry.home) fs.rmSync(entry.home, { recursive: true, force: true });
   if (entry.copies?.length) {
-    // Each of its runs: the agents that worked in it, each its account's (tasks.ts, switchTo).
-    const { runs = [], ...current } = data.agent();
-    const project = { folder: reposOf(p)[0], ...store.tasksOf(p).list.map((e) => store.taskOf(p, e.n).agent()).find((a) => a.transcript) };
-    for (const saved of [...runs, current]) {
+    // Each of its conversations: the agents that worked in it, each its account's (tasks.ts).
+    const conversations = (e: TaskEntry) => store.taskOf(p, e.n).agent().conversations || [];
+    const project = { folder: reposOf(p)[0], ...store.tasksOf(p).list.flatMap(conversations).find((c) => c.transcript) };
+    for (const saved of conversations(entry)) {
       try { const a = shell.agentFor(saved.agent, { any: true }); a?.forget?.({ folder: entry.folder!, saved, project, configDir: a.configDir }); } catch (e) { console.warn('[agents] forget:', (e as Error).message); }
     }
   }
@@ -362,8 +362,8 @@ async function deleteAccount(shell: Shell, agent: string, w: AppWindow | null): 
   const a = shell.accounts.find(agent);
   if (!a || a.own) return { error: `no account ${agent}` };
   const using = shell.store.projects().flatMap((p) => shell.store.tasksOf(p).list
-    .filter((e) => shell.store.taskOf(p, e.n).agent().agent === agent).map((e) => `${e.name} (${p.name})`));
-  if (using.length) return { error: `Tasks run it: ${using.join(', ')}. Delete them first (Delete Task… in a task's menu), or choose another agent there (Change agent…).` };
+    .filter((e) => shell.store.taskOf(p, e.n).agent().conversations?.some((c) => c.agent === agent && c.terminal !== undefined)).map((e) => `${e.name} (${p.name})`));
+  if (using.length) return { error: `Tasks run it: ${using.join(', ')}. Close its tabs there first, or delete the tasks (Delete Task… in a task's menu).` };
   const projects = shell.store.projects().filter((p) => p.agents?.includes(agent));
   if (!await shell.ask({ message: `Delete the account ${a.name}?`, ok: 'Delete', danger: true,
     detail: [`Its folder ${a.dir} goes, with its sign-in, settings and conversations.`,

@@ -6,17 +6,15 @@ import { DockviewVue, themeAbyssSpaced, type IDockviewVueProps } from 'dockview-
 import 'dockview-vue/dist/styles/dockview.css';
 import ProfilePane from './grid/ProfilePane.vue';
 import ProfileHeader from './grid/ProfileHeader.vue';
-import AgentTerminal from './grid/AgentTerminal.vue';
-import AgentTerminalHeader from './grid/AgentTerminalHeader.vue';
-import OtherTerminal from './grid/OtherTerminal.vue';
-import OtherTerminalHeader from './grid/OtherTerminalHeader.vue';
+import Terminals from './grid/Terminals.vue';
+import TerminalTabs from './grid/TerminalTabs.vue';
 import { gridMounted } from '../lib/grid';
 
 // dockview takes the gap between panels as a number: tokens.css's --gap, loaded before the window mounts (main.ts).
 const gap = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--gap'));
 const theme = { ...themeAbyssSpaced, name: 'kulisa', gap };
-const components = markRaw({ profile: ProfilePane, terminal: AgentTerminal, term: OtherTerminal }) as unknown as IDockviewVueProps['components']; // dockview-vue types its components as option objects
-const tabComponents = markRaw({ profile: ProfileHeader, terminal: AgentTerminalHeader, term: OtherTerminalHeader }) as unknown as IDockviewVueProps['tabComponents'];
+const components = markRaw({ profile: ProfilePane, terminal: Terminals }) as unknown as IDockviewVueProps['components']; // dockview-vue types its components as option objects
+const tabComponents = markRaw({ profile: ProfileHeader, terminal: TerminalTabs }) as unknown as IDockviewVueProps['tabComponents'];
 </script>
 
 <template>
@@ -71,7 +69,7 @@ const tabComponents = markRaw({ profile: ProfileHeader, terminal: AgentTerminalH
 @keyframes grid-to-right { to { translate: 100% 0; } }
 @keyframes grid-from-left { from { translate: -100% 0; } }
 
-/* A panel's header: a profile's picture, name, the agent's caption, ×; the terminals' name and buttons. Everything in a
+/* A panel's header: a profile's picture, name, the agent's caption, ×. Everything in a
    panel keeps --gap from the island's edges: the header's picture and ×, the tabs, the toolbar's first and last button,
    the page (dockview's tab has a margin of 2px, --dv-tab-margin). */
 .ptab { display: flex; align-items: center; gap: 6px; height: 100%; padding: 0 calc(var(--gap) - 2px); min-width: 0; }

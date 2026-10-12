@@ -9,7 +9,6 @@ export interface Dialogs {
   projects: { openProjects(id?: string): Promise<void>; newProject(): Promise<void>; openAgents(): Promise<void>; openProfiles(id?: string): Promise<void> };
   // New Project (NewProject.vue); fromSettings: Cancel goes back to Settings.
   newproject: { open(opts?: { fromSettings?: boolean }): Promise<void> };
-  agentpick: { chooseAgent(q: { task: string; selected?: string; cancel?: boolean }): Promise<void> };
   shortcuts: { showShortcuts(): void };
 }
 type Name = keyof Dialogs;

@@ -1,5 +1,5 @@
-// What agents' hooks tell Kulisa and ask it for, served next to the MCP server at /task/<project>/<n>/hooks/<event>
-// (KULISA_URL is the task's). The events are Kulisa's own; which of an agent's hooks sends which is the agent's
+// What agents' hooks tell Kulisa and ask it for, served next to the MCP server at /task/<project>/<n>/t/<id>/hooks/<event>
+// (KULISA_URL is the agent's terminal's: tasks.ts, env). The events are Kulisa's own; which of an agent's hooks sends which is the agent's
 // (Claude Code: src/agent/claude-plugin/hooks/hooks.json; Codex: its entry in agents.ts). The hook's input (the
 // agent's JSON: Codex's hooks take Claude Code's shape) comes as the request body; answers are hook output (JSON on
 // the hook's stdout).
@@ -8,8 +8,7 @@
 // names (browser_click …) and their own "profiles" at session start; this says which browser is the human's. Told to
 // every agent in the MCP server's instructions, and again next to the profiles at session start.
 import type { IncomingMessage, ServerResponse } from 'http';
-import { gist } from './history.ts';
-import type { Task } from './tasks.ts';
+import type { Task, TaskTerminal } from './tasks.ts';
 
 // A hook's input: the agent's JSON (Claude Code's shape; Codex's hooks take it too).
 type Input = { session_id?: string; transcript_path?: string } | null;
@@ -19,12 +18,11 @@ const ONLY_BROWSER = 'Kulisa profiles are the only browser here: drive them with
   'when their tools have the same names: that browser is not the one the human sees, and it is not signed in.';
 
 // SessionStart: the profiles as they are now, so the agent knows them before its first tool call. Also notes the
-// session, so that opening the project again resumes it (tasks.ts). An agent taking the task over (tasks.ts,
-// switchTo) also gets where the task stands, at the start of its context, before its first turn.
+// session, so that opening the project again resumes it (tasks.ts).
 // Each profile with who it is (its description, the human's words) or that it is not said: the agent then asks.
 const who = ({ id, name, description }: { id: string; name: string; description?: string }) => `- ${id} ("${name}"): ${description ? description.replace(/\s+/g, ' ') : 'who it is is not said'}`;
-async function sessionStart(task: Task, input: Input) {
-  if (input?.session_id) task.saveAgent({ sessionId: input.session_id, transcript: input.transcript_path });
+function sessionStart(task: Task, t: TaskTerminal | null, input: Input) {
+  if (input?.session_id && t) task.saveSession(t, { sessionId: input.session_id, transcript: input.transcript_path });
   const lines = [...task.profiles.values()].map((p) => {
     const tabs = p.tabs.filter((t) => !t.wc.isDestroyed()).map((t) =>
       `    - tab ${t.id}${t.id === p.active ? ' (active)' : ''}: "${t.wc.getTitle()}" ${t.wc.getURL()}`);
@@ -37,28 +35,28 @@ async function sessionStart(task: Task, input: Input) {
       : closed.length ? 'No Kulisa profile is open.' : "Kulisa has no profiles in this project yet. The human makes them in Settings (the gear at the top right) → Profiles and adds them on the project's page, or use profile_create when a task needs one.",
     closed.length && `Closed profiles (signed in, no pane; profile_open opens one when the task needs it):\n${closed.join('\n')}`,
     taskContext(task),
-    task.handedOver && await gist(task),
   ].filter(Boolean).join('\n\n');
-  task.handedOver = false;
   return { hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: context } };
 }
 
-// What the agent is doing, shown on its task's tab (tasks.md, "Choosing the agent"): working on a prompt
+// What the agent is doing, shown on its tab and its task's (tasks.md, "Choosing the agent"): working on a prompt
 // (prompt), waiting for the human (waiting: a permission, a question, a turn ended by an error), done (stop); unknown
 // once the human interrupted it (interrupt: they are there) or its session ended (session-end), but a done one keeps
 // "come and see" (Codex ends a session after 30 minutes idle).
-const state = (s: Task['state'], when: (task: Task) => boolean = () => true) => (task: Task) => { if (when(task)) task.setState(s); return {}; };
-const handlers: Record<string, (task: Task, input: Input) => object | Promise<object>> = {
+type State = TaskTerminal['state'];
+const state = (s: State, when: (t: TaskTerminal) => boolean = () => true) => (task: Task, t: TaskTerminal | null) => { if (t && when(t)) task.setState(t, s); return {}; };
+const handlers: Record<string, (task: Task, t: TaskTerminal | null, input: Input) => object | Promise<object>> = {
   'session-start': sessionStart,
   prompt: state('working'),
   waiting: state('waiting'),
   stop: state('done'),
   interrupt: state(null),
-  'session-end': state(null, (task) => task.state !== 'done'),
+  'session-end': state(null, (t) => t.state !== 'done'),
 };
 
-// Route /hooks/<event> of a task; returns false for other paths.
-function handleHookRequest(task: Task, url: string, req: IncomingMessage, res: ServerResponse) {
+// Route /hooks/<event> of a task's agent's terminal t (none: an agent of a Kulisa before tasks had several, or a shell:
+// nothing to note); returns false for other paths.
+function handleHookRequest(task: Task, t: TaskTerminal | null, url: string, req: IncomingMessage, res: ServerResponse) {
   const m = url.match(/^\/hooks\/([\w-]+)$/);
   if (!m) return false;
   const handler = Object.hasOwn(handlers, m[1]) ? handlers[m[1]] : null;
@@ -68,7 +66,7 @@ function handleHookRequest(task: Task, url: string, req: IncomingMessage, res: S
     let input: Input = null;
     try { input = body ? JSON.parse(body) : null; } catch {}
     let out: object = {};
-    try { out = handler ? await handler(task, input) : {}; } catch (e) { console.warn('[hooks]', (e as Error).message); }
+    try { out = handler ? await handler(task, t, input) : {}; } catch (e) { console.warn('[hooks]', (e as Error).message); }
     res.writeHead(handler ? 200 : 404, { 'content-type': 'application/json' });
     res.end(JSON.stringify(out));
   });

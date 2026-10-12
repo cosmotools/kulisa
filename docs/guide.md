@@ -92,14 +92,15 @@ Make one with the **+** beside Agents (then the agent), the **+** over its accou
 project's page. Each account starts clean: your own settings of the
 agent outside Kulisa are not used. It is shown by its email, and stays until you delete it here (**−**).
 
-A task keeps the agent it started with. **Change agent…** in the terminal's right-click menu picks another of the
-project's accounts, and the work goes on: when one runs out of its limit, continue with another. Another account of
-the same agent continues the same conversation; another agent (Codex after Claude Code) first reads what was said and
-done in the task, then tells you in a few lines where it stands. **New Conversation** in the same menu starts the
-agent over, from nothing.
+A task may have several agents at once, each in a tab of its own (Terminals, below): Claude Code next to Codex, two of
+your accounts, or one agent twice. Each starts a new conversation and names its tab in a few words once it knows what
+it works on. To pass the work on (when one runs out of its limit, or for a fresh start), click the agent's icon on its
+tab and choose **Hand the task to** an agent: it opens in a new tab, reads what was said and done in that
+conversation, and tells you in a few lines where it stands. The old tab stays until you close it. Or simply tell an
+agent "go on with what Claude did": every agent of the task can read the others' conversations.
 
-**Dictation**, where the agent has its own (Claude Code with a Claude.ai account): the microphone in the terminal's
-header. Hold it while you speak, or click to start and click again to stop. The text goes into the agent's input for
+**Dictation**, where the agent has its own (Claude Code with a Claude.ai account): the microphone at the end of the
+terminals' row of tabs, for the agent in front. Hold it while you speak, or click to start and click again to stop. The text goes into the agent's input for
 you to read and send. Its language is next to it.
 
 ## Tasks
@@ -193,19 +194,24 @@ A pane is a small Chrome: a tab strip, an address bar, back, forward and reload.
   you click or type there.
 - **Several users at once**: the agent acts as one profile and checks the effect as another ("Sam sends an invite,
   Ann receives it").
-- **Its other terminals.** What keeps running (your app's dev server, `docker compose up`) the agent starts in a
-  terminal of its own next to its own, so you see it, stop it and type into it.
+- **Its own terminals.** What keeps running (your app's dev server, `docker compose up`) the agent starts in a
+  terminal of its own, a tab behind the one you look at, so you see it, stop it and type into it.
 
 ## Terminals
 
-- The agent's terminal is your own shell in the task's folder, with the agent started in it, as if you had typed it:
-  your project's environment applies.
-- **+** in its header opens another shell there. Terminals come back after a restart, each a fresh shell in its place;
-  **×** or `exit` closes one.
+- A task's terminals are tabs of one island, one shown at a time, the tabs in a row over it. Each is your own shell in
+  the task's folder, an agent started in it or not, as if you had typed it: your project's environment applies. Its
+  tab shows the agent's icon, its name and what it is doing (working, waiting for you, done).
+- **+** at the row's end opens one of the project's agents, a new conversation, or **Terminal**, a shell. Closing an
+  agent's tab (**×**) asks first; its conversation stays in the task's history. A shell closes at once, or with `exit`.
+- Close the last one and the island folds to a thin strip with **+** in its middle, which opens one again (Ctrl+`
+  opens the task's agent). With no profile open, the strip is at the bottom of the window.
+- Terminals come back after a restart in their tabs: an agent continues its conversation, a shell starts fresh.
 - Copy and paste as in your OS's terminal: Ctrl+Shift+C / Ctrl+Shift+V on Linux, Ctrl+C / Ctrl+V on Windows, ⌘C / ⌘V
   on macOS.
 - Ctrl+click a link to open it: Kulisa asks where, in one of the task's profiles or in your own browser.
-- Right-click: Copy, Paste, Select all, Clear, and Change agent… and New Conversation in the agent's terminal.
+- Right-click: Copy, Paste, Select all, Clear; in an agent's, Change agent… (the same as its icon) and New
+  Conversation (the same agent, from nothing); Close.
 
 ## Look and zoom
 
@@ -220,7 +226,7 @@ A pane is a small Chrome: a tab strip, an address bar, back, forward and reload.
 
 | Keys | What |
 |---|---|
-| Ctrl+` | The agent's terminal, and back to the page |
+| Ctrl+` | The terminal in front, and back to the page |
 | Ctrl+Shift+` | A new terminal |
 | Ctrl+Shift+A | New task: of which project, or a closed one |
 | Ctrl+Shift+N | New task of the shown project |

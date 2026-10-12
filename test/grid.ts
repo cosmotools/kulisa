@@ -21,7 +21,7 @@ export default (test: Test) => {
     await dock(ui, `api.getPanel('profile:Profile 1').api.moveTo({ group: api.getPanel('terminal').group, position: 'right' })`);
     await waitFor(() => viewOn(shell, ui, 'sam-admin'));
     await waitFor(() => viewOn(shell, ui, 'elon-buyer'));
-    const sam = await pageBox(ui, 'sam-admin'), term = await box(ui, '#term');
+    const sam = await pageBox(ui, 'sam-admin'), term = await box(ui, '.term:not([hidden])');
     assert.ok(sam.x > term.x + term.width - 1 && sam.y + sam.height > term.y, 'Sam is right of the terminal');
   });
   test('grid: a pane stacked behind another as a tab hides its page until chosen', async ({ shell, ui }) => {
@@ -109,12 +109,16 @@ export default (test: Test) => {
     assert.equal(shown[0], path.join(userData, 'projects', 'other'));
 
     // A click on the label folds its group and shows no project: its tasks are what is clicked (tasks.ts tests the
-    // folding).
+    // folding). Folded, its island is narrower: the islands are watched again after it unfolds (a frame drawn while it
+    // was folded made this test fail now and then).
+    assert.deepEqual(await ui(`[...__islands]`), [JSON.stringify(before)], 'the islands keep their places while another project opens');
     await ui(`${projectTab('project')}.querySelector('.plabel').click()`);
     await waitFor(() => shell.open.get('project').collapsed);
     assert.equal(shell.current?.folder, other);
     await ui(`${projectTab('project')}.querySelector('.plabel').click()`);
     await waitFor(() => !shell.open.get('project').collapsed);
+    await waitFor(async () => JSON.stringify(await islands()) === JSON.stringify(before));
+    await ui('__islands.clear(); 0');
     // A click on the first project's task: it comes back as it was left, its agent the same; no page shows before
     // it has its place in the grid (nothing jumps).
     const jumps: string[] = [];
@@ -145,13 +149,13 @@ export default (test: Test) => {
     ctx.asked.length = 0;
     ctx.answer = false;
     const working = shell.task;
-    working.state = 'working';
+    working.promptTarget().state = 'working';
     await closeProject(ui, 'project');
     await waitFor(() => ctx.asked.length && ui(`!(document.getElementById('ask')?.dataset.state === 'open')`));
     assert.equal(ctx.asked.pop().message, 'Close the group project?');
     assert.ok(shell.open.has('project') && shell.current?.folder === project, 'still open when the human says no');
     ctx.answer = true;
-    working.state = null;
+    working.promptTarget().state = null;
     // Close: no agent works, no question; its tasks close (tabs and sign-ins kept), the group next to it is shown.
     await closeProject(ui, 'project');
     await waitFor(() => shell.current?.folder === other && !shell.open.has('project'));
@@ -292,7 +296,7 @@ export default (test: Test) => {
     assert.equal(await viewOn(shell, ui, 'sam-admin'), true);
 
     // The last window's × quits Kulisa (its projects come back at the next start): asked only when an agent works.
-    shell.task.state = 'working';
+    shell.task.promptTarget().state = 'working';
     ctx.answer = false;
     shell.win.close();
     await waitFor(() => ctx.asked.length && ui(`!(document.getElementById('ask')?.dataset.state === 'open')`));
@@ -300,7 +304,7 @@ export default (test: Test) => {
     assert.equal(quit.message, 'Quit Kulisa?');
     assert.match(quit.detail, /^An agent is still working \(task-1\): quitting stops it\./);
     assert.ok(!shell.win.isDestroyed() && shell.open.has('project'), 'Kulisa goes on when the human says no');
-    shell.task.state = null;
+    shell.task.promptTarget().state = null;
     ctx.answer = true;
   });
   test('projects: a tab dragged changes the order, goes out into a new window and back into the first', async (ctx) => {
@@ -368,7 +372,7 @@ export default (test: Test) => {
     ctx.asked.length = 0;
   });
   test('grid presets: columns, grid, focus; each fits the window, nothing cut off', async ({ shell, ui }) => {
-    const at = async () => ({ sam: await pageBox(ui, 'sam-admin'), elon: await pageBox(ui, 'elon-buyer'), term: await box(ui, '#term') });
+    const at = async () => ({ sam: await pageBox(ui, 'sam-admin'), elon: await pageBox(ui, 'elon-buyer'), term: await box(ui, '.term:not([hidden])') });
     // Every panel inside the grid's room (#dock less its padding): none cut off at the right or the bottom.
     const fits = async () => assert.deepEqual(await ui(`(() => { const d = document.getElementById('dock'), r = d.getBoundingClientRect(), s = getComputedStyle(d);
       const right = r.right - parseFloat(s.paddingRight), bottom = r.bottom - parseFloat(s.paddingBottom);
@@ -441,7 +445,7 @@ export default (test: Test) => {
     await ui(`window.__term.clearSelection()`);
     // A real right-click (press, release): the menu stays after the button is released. On Linux it opens on the
     // press, just below the pointer, so the release is outside it.
-    const t = await box(ui, '#term'), z = shell.win.webContents.getZoomFactor();
+    const t = await box(ui, '.term:not([hidden])'), z = shell.win.webContents.getZoomFactor();
     const x = Math.round((t.x + t.width / 2) * z), y = Math.round((t.y + t.height / 2) * z);
     shell.win.webContents.sendInputEvent({ type: 'mouseDown', x, y, button: 'right', clickCount: 1 });
     await waitFor(() => menuOpen(ui)); // once the pages' pictures are there (menuCover): slower under load
@@ -451,14 +455,14 @@ export default (test: Test) => {
     shell.win.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' }); shell.win.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
     await waitFor(async () => !(await menuOpen(ui)));
     // A press anywhere else closes it.
-    await rightClick(ui, '#term .xterm-screen');
+    await rightClick(ui, '.term:not([hidden]) .xterm-screen');
     await menuRows(ui);
     const bar = await box(ui, '#topbar');
     shell.win.webContents.sendInputEvent({ type: 'mouseDown', x: Math.round((bar.x + bar.width / 2) * z), y: Math.round((bar.y + bar.height / 2) * z), button: 'left', clickCount: 1 });
     shell.win.webContents.sendInputEvent({ type: 'mouseUp', x: Math.round((bar.x + bar.width / 2) * z), y: Math.round((bar.y + bar.height / 2) * z), button: 'left', clickCount: 1 });
     await waitFor(async () => !(await menuOpen(ui)));
-    await rightClick(ui, '#term .xterm-screen');
-    assert.deepEqual(await menuRows(ui), ['Copy (off)', 'Paste', 'Select all', '-', 'Clear', '-', 'Change agent…', 'New Conversation'], 'nothing selected to copy');
+    await rightClick(ui, '.term:not([hidden]) .xterm-screen');
+    assert.deepEqual(await menuRows(ui), ['Copy (off)', 'Paste', 'Select all', '-', 'Clear', '-', 'Change agent…', 'New Conversation', '-', 'Close'], 'nothing selected to copy');
     await ui(`document.querySelector('.menu[data-state="open"]').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))`);
     assert.equal(await ui(`document.activeElement.querySelector('.label')?.textContent`), 'Paste', 'arrows move over the enabled rows');
     await choose(ui, 'Select all');
@@ -512,6 +516,7 @@ export default (test: Test) => {
     electron.shell.openExternal = async (url) => { opened.push(url); };
     try {
       await click('https://example.com/docs', { ctrlKey: true });
+ console.log('DEBUG', await ui(`JSON.stringify([...document.querySelectorAll('.menu')].map((m) => m.dataset.state + ' ' + m.className)) + ' ' + document.activeElement?.className + ' ' + document.querySelectorAll('[data-state=open]').length + ' ' + [...document.querySelectorAll('[data-state=open]')].map((e) => e.id || e.className).join('|')`));
       await menuRows(ui);
       await choose(ui, 'Open in your browser');
       await waitFor(() => opened.length === 1);
@@ -544,7 +549,7 @@ export default (test: Test) => {
     assert.equal(opened[1], 'https://github.com/cosmotools/kulisa');
 
     // Exit quits as the last window's × does: asked only when an agent works.
-    shell.task.state = 'working';
+    shell.task.promptTarget().state = 'working';
     ctx.answer = false;
     await ui(`document.getElementById('windowMenu').click()`);
     await menuRows(ui);
@@ -552,7 +557,7 @@ export default (test: Test) => {
     await waitFor(() => ctx.asked.length && ui(`!(document.getElementById('ask')?.dataset.state === 'open')`));
     assert.equal(ctx.asked.pop().message, 'Quit Kulisa?');
     assert.ok(!shell.win.isDestroyed() && shell.open.size, 'Kulisa goes on when the human says no');
-    shell.task.state = null;
+    shell.task.promptTarget().state = null;
     ctx.answer = true;
   });
   test("menus with the mouse and the keyboard, as the OS's: a press on ☰, a drag to a row and the release there chooses it; a click opens, the next closes; a right-click's release over a row chooses nothing; Enter and the arrows; the keyboard back where it was; leaving the window closes it", async (ctx) => {
@@ -599,7 +604,7 @@ export default (test: Test) => {
     // A right-click in the terminal: on Linux the menu opens on the press, and letting go over a row chooses nothing.
     // Esc closes it, and the keyboard is back in the terminal.
     await ui(`window.__term.focus()`);
-    const at = await mid('#term .xterm-screen');
+    const at = await mid('.term:not([hidden]) .xterm-screen');
     mouse('mouseDown', at, 'right');
     await waitFor(() => menuOpen(ui));
     const paste = await rowAt('Paste'), before = ctx.ptyOutput().length;
@@ -610,7 +615,7 @@ export default (test: Test) => {
     assert.equal(ctx.ptyOutput().length, before, 'nothing pasted');
     press(wc, 'Escape');
     await waitFor(async () => !(await anyMenu()));
-    assert.ok(await ui(`!!document.activeElement.closest('#term')`), 'the keyboard back in the terminal');
+    assert.ok(await ui(`!!document.activeElement.closest('.term:not([hidden])')`), 'the keyboard back in the terminal');
 
     // Leaving the window (another one takes the focus) closes a menu, as the OS's own menus close.
     mouse('mouseDown', menuButton); mouse('mouseUp', menuButton);

@@ -5,6 +5,7 @@ import os from 'os';
 import assert from 'assert/strict';
 import type { WebContents } from 'electron';
 import type { Shell } from '../src/main/shell.ts';
+import type { Task } from '../src/main/tasks.ts';
 import type { Ctx } from './run.ts';
 
 // Script run in a window's page (webContents.executeJavaScript): what it gives back is the page's.
@@ -29,6 +30,8 @@ const SITE = process.env.KULISA_TEST_SITE || 'http://127.0.0.1:4417';
 const PORT = new URL(SITE).port;
 // The windows as settings.json keeps them for the next start: each one's tabs and the one shown.
 const savedWindows = () => JSON.parse(fs.readFileSync(path.join(userData, 'settings.json'), 'utf8')).windows.map(({ tabs, shown }: { tabs: string[]; shown: string | null }) => ({ tabs, shown }));
+// Where an agent's hooks report (tasks.ts, env): the agent's terminal of task, the one picks go to.
+const hooksOf = (task: Task) => `${task.env(task.promptTarget()!).KULISA_URL}/hooks`;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 // Kulisa's menus (Reka's, docs/ui.md, Menus): the open one, once it is shown (the pages under it are pictures);
@@ -140,6 +143,6 @@ const ctrl = (wc: WebContents, keyCode: string) => { wc.focus(); press(wc, keyCo
 const near = (a: number, b: number) => Math.abs(a - b) < 1e-6;
 
 export type { UI };
-export { plusMenu, assert, root, userData, project, pfile, savedTabs, savedWindows, panel, SITE, PORT, sleep, waitFor, who, menuRows, choose, projectTabs, projectTab, showProject, closeProject, manageProfiles, closeSettings, chooseProfile, setProfileField, menuOpen, closeMenu, rightClick, taskMenu,
+export { hooksOf, plusMenu, assert, root, userData, project, pfile, savedTabs, savedWindows, panel, SITE, PORT, sleep, waitFor, who, menuRows, choose, projectTabs, projectTab, showProject, closeProject, manageProfiles, closeSettings, chooseProfile, setProfileField, menuOpen, closeMenu, rightClick, taskMenu,
   click,
   box, pageBox, viewOn, dock, press, ctrl, near };

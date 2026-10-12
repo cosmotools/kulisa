@@ -17,7 +17,7 @@ import { avatarSrc, iconTitle, projectIcon } from '../lib/common';
 import { focusAfterMenu, focusBack, type MenuItem } from '../lib/menu';
 import { covered } from '../lib/views';
 import { dialog, registerDialog } from '../lib/dialogs';
-import { agentList, type Agent } from '../lib/agents';
+import { agentList, agentMark, type Agent } from '../lib/agents';
 import type { Account, AccountsInfo, ProjectChoices, ProjectEntry, ProjectProfile, ProjectRepo, ProjectSettings, SettingsProfile, SignedIn } from '../types';
 
 const modal = ref<InstanceType<typeof Modal>>();
@@ -88,8 +88,7 @@ function choose(e: { detail: { value?: Node }; preventDefault(): void }) {
   if (!n || n.section) return e.preventDefault();
   show(n);
 }
-// An agent new to Kulisa may have no mark in the sprite.
-const mark = (a: Agent) => { const name = `i-agent-${a.agent || a.id}`; return document.getElementById(name) ? name : null; };
+const mark = (a: Agent) => agentMark(a.agent || a.id, null);
 
 async function showList() {
   projects.value = (await kulisa.invoke<{ projects: ProjectEntry[] }>('projects:list')).projects;

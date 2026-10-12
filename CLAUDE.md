@@ -106,8 +106,8 @@ unasked. This paragraph is removed when the rewrite is finished.
   grid's place, an empty island: "No task is open", New Task (the bar's + menu), New Project…. `Empty.vue`. It replaced
   the Welcome screen (JetBrains' name; 2026-10-11), whose list of tasks is the bar's + now (the closed ones; Search
   Tasks for a few hours before it); earlier commits say Welcome screen.
-- **Terminology: "task"** for one line of work inside a project: an agent (its terminal and session, any agent
-  CLI), a branch of the code, profiles and a grid. It replaced "workspace" (the word of tools for parallel agents,
+- **Terminology: "task"** for one line of work inside a project: its agents (each in a terminal of its island,
+  with a conversation of its own; any agent CLI), a branch of the code, profiles and a grid. It replaced "workspace" (the word of tools for parallel agents,
   e.g. Conductor) on 2026-10-10; earlier commits say workspace. Each works in a git worktree of its own next to the
   project (`myshop@task-2`); the project's folder is the human's. Several tasks build several features at once. How
   they work and why: `docs/tasks.md`; what is left: ROADMAP, "Projects and tasks" and "Tasks, rest".
@@ -343,7 +343,8 @@ Modules (`src/main`):
   which key an input event is; `app.ts` takes them before any page does (`before-input-event`), the window runs them
   (`renderer/lib/keys.ts`). A new key goes into the table (`docs/window.md`, Keys).
 - `projects.ts`: a project's group (an open project in code): its tasks (make, close, open again, delete; closing them all), removing a project's data.
-- `tasks.ts`: a task: its profiles, its agent in its own terminal and environment, renaming, copies for a new task.
+- `tasks.ts`: a task: its profiles, its terminals (its island) with its agents and their conversations, their
+  environment, renaming, copies for a new task.
 - `worktrees.ts`: git for tasks (the user's git, never a shell): worktree, branch, files outside git, direnv.
 - `accounts.ts`: the agents' accounts, one store: each made with the agent's own sign-in (Settings → Agents, or a
   project), a config folder of its own (not the human's `~/.claude`), shown by its email, kept until the human deletes
