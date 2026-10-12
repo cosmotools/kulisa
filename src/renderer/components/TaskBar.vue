@@ -31,8 +31,8 @@ const manage = async (id?: string) => (await dialog('projects')).openProjects(id
 
 // A project's own events, not its tasks' (TaskTab.vue handles those).
 const projectOf = (e: Event) => (e.target as Element).closest<HTMLElement>('[data-project]')?.dataset.project;
-// The label folds the group to it and back, as Chrome's tab groups. The middle button on the label closes the group,
-// as a browser's tab. A new task is the bar's + (NewTask.vue), or New Task in the label's menu.
+// The label folds the group to it and back, as Chrome's tab groups (every group alike, the shown one too:
+// docs/tasks.md). The middle button on the label closes the group, as a browser's tab. A new task is the bar's + (NewTask.vue), or New Task in the label's menu.
 function click(e: MouseEvent) {
   const id = projectOf(e), target = e.target as Element;
   if (!id) return;
@@ -162,10 +162,10 @@ function dragend(e: DragEvent) {
   #newTask { margin-inline-start: var(--gap); }
   /* No project open: + alone, in the middle */
   .noproject & { #projectTabs { display: none; } #newTask { margin-inline-start: 0; } }
-  /* A project's island. Its tabs in the middle of the dark: no room on the grid's side (the grid's own gap is
-     there), as much on the other and on the sides. */
+  /* A project's island. No room on the grid's side (the grid's own gap is there), a gap on the other, 1.7 as
+     much on the sides (the author, 2026-10-12). */
   .pisland { display: flex; align-items: center; gap: 2px; flex: 0 1 auto; min-width: 0; position: relative;
-    padding: 0 var(--gap) var(--gap); border-radius: 0 0 var(--r) var(--r); background: var(--well);
+    padding: 0 calc(1.7 * var(--gap)) var(--gap); border-radius: 0 0 var(--r) var(--r); background: var(--well);
     &::before, &::after { content: ""; position: absolute; inset-block-start: 0; width: var(--r); aspect-ratio: 1;
       background: radial-gradient(circle at var(--x) var(--edge), transparent var(--r), var(--well) 0); }
     &::before { --x: 0%; inset-inline-end: 100%; }
@@ -175,10 +175,11 @@ function dragend(e: DragEvent) {
     /* Another project's: the task it comes back to a step brighter. */
     &:not(.active) .selected { color: var(--text-dim); }
     &.active > .plabel { color: var(--text-strong); }
-    /* Folded to its label, as a collapsed tab group: only the tab of the task it shows stays. */
-    &.collapsed .tasktab:not(.active, .selected) { display: none; } }
-  /* The label: the project's icon (the app's curtain, in its color) and its name. */
-  .plabel { display: flex; align-items: center; gap: 8px; padding-inline-end: 8px; color: var(--text-muted);
+    /* Folded: the label alone, as far from both ends (its own room is the tabs'). */
+    &.collapsed { .tasktab { display: none; } > .plabel { padding-inline-end: 0; } } }
+  /* The label: the project's icon (the app's curtain, in its color) and its name. A tab's height: with every group
+     folded the bar would shrink to the icons, and the grid jump. */
+  .plabel { display: flex; align-items: center; gap: 8px; height: var(--tab); padding-inline-end: 8px; color: var(--text-muted);
     font-weight: 600; white-space: nowrap; cursor: default;
     svg, .favicon { width: 20px; height: 20px; color: var(--color); } }
   /* An island being dragged; where a dropped one would go. */

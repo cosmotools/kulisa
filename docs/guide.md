@@ -126,7 +126,7 @@ you to read and send. Its language is next to it.
 
 ### Groups
 
-- A click on a group's name folds it to its shown task, and back.
+- A click on a group's name folds it to its name, and back.
 - Its right-click menu: New Task, its closed tasks, Move to New Window, Move to Window, Project Settings…, Show Data
   Folder, Close Group.
 - **Close Group** (or the middle button on its name, or × on its last task) closes all its tasks. It asks only when an
