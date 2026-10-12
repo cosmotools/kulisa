@@ -277,9 +277,11 @@ Installers are made with Electron Forge (`npm run make`, `forge.config.ts`), eac
 Linux (the `.deb` checked: it installs `chrome-sandbox` setuid root, a menu entry and the icon, and the app starts),
 Squirrel `.exe` on Windows, `.dmg` and `.zip` on macOS (signed and notarized when the Apple secrets are set). `npm run
 publish` makes them and uploads them to a **draft release** on GitHub (`@electron-forge/publisher-github`); the author
-publishes it. A tag `v*` (the version in `package.json`, `npm version`; the workflow refuses a tag that says
-another) builds them on GitHub Actions, on Ubuntu and then Windows, one after another so that both upload to one draft
-(`.github/workflows/release.yml`; macOS once its secrets are set). Releases are built and the updates checked as ROADMAP's "Releases and auto-update" plans them; what is
+publishes it. A merge into `main` (a pull request from `develop`, its version raised: CLAUDE.md, Releases) builds them
+on GitHub Actions (`.github/workflows/release.yml`; macOS once its secrets are set): the workflow first makes the
+draft `v<version>` at the merged commit, its notes the pull request's text (Forge's own would name no commit, and
+GitHub would tag whatever `main` is when the draft is published), then Ubuntu and Windows build and Forge uploads into
+it, finding it by its name. A version released before stops it. Releases are built and the updates checked as ROADMAP's "Releases and auto-update" plans them; what is
 left is there too.
 
 **Updates**, Forge's way (`updates.ts`, called by `index.ts`): Electron's `autoUpdater` (Squirrel) through the
