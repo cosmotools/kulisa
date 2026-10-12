@@ -44,7 +44,7 @@ import type { Result } from './result.ts';
 interface Options {
   userData?: string; project?: string; projectsHome?: string; mcpPort?: number; mimicChrome?: boolean; signinHosts?: string[];
   appDevTools?: boolean; agents?: Agent[];
-  agent?: { name?: string; command: string; args?: string[]; resume?: (sessionId: string) => string[]; shell?: Agent['shell']; voice?: Agent['voice'] };
+  agent?: { name?: string; command: string; args?: string[]; resume?: (sessionId: string) => string[]; shell?: Agent['shell']; voice?: Agent['voice']; conversation?: Agent['conversation'] };
 }
 type Event = IpcMainInvokeEvent | IpcMainEvent;
 // The terminals' contents the window sends when a project moves (window.ts: sent to the window it goes to).
@@ -860,7 +860,7 @@ function start(options: Options = {}) {
   shell.plugin = CLAUDE_PLUGIN;
   const own = options.agent;
   const custom: Agent | undefined = own && { id: 'custom', name: own.name || own.command, maker: '', needs: '', custom: true,
-    command: own.command, shell: own.shell, args: () => own.args || [], voice: own.voice,
+    command: own.command, shell: own.shell, args: () => own.args || [], voice: own.voice, conversation: own.conversation,
     resume: own.resume && (({ sessionId, transcript }) => sessionId && transcript && fs.existsSync(transcript) && own.resume!(sessionId)) };
   const known = [...(custom ? [custom] : []), ...(options.agents || AGENTS)];
   // The agents with their accounts (accounts.ts); an account is its agent with its config folder in its environment.

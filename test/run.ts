@@ -10,6 +10,7 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import path from 'path';
 import fs from 'fs';
 import { start } from '../src/main/app.ts';
+import { claudeConversation } from '../src/main/transcripts.ts';
 import { ensureSite } from './fixtures/site.ts';
 import { root, userData, project, SITE, PORT, sleep, waitFor } from './helpers.ts';
 import type { Shell } from '../src/main/shell.ts';
@@ -34,9 +35,10 @@ fs.mkdirSync(project, { recursive: true });
 // its startup file sets an environment of the project, as direnv's .envrc does.
 const bashrc = path.join(root, 'bashrc');
 fs.writeFileSync(bashrc, `PS1='$ '\nexport FROM_RC="rc of $PWD"\n`);
-// Its dictation (agents.ts, voice): cat shows the key the microphone holds (repeated); its language kept here.
+// Its dictation (agents.ts, voice): cat shows the key the microphone holds (repeated); its language kept here. Its
+// transcripts read as Claude Code's (task_history): a test writes one in that format.
 let dictation = 'en';
-const agent = { command: 'bash', args: ['-c', 'echo "agent: $FROM_RC"; exec cat -v'], resume: (): string[] => [], shell: { command: 'bash', args: ['--rcfile', bashrc, '-i'] },
+const agent = { command: 'bash', args: ['-c', 'echo "agent: $FROM_RC"; exec cat -v'], resume: (): string[] => [], shell: { command: 'bash', args: ['--rcfile', bashrc, '-i'] }, conversation: claudeConversation,
   voice: { key: '<v>', repeat: 50, note: 'it answers in it too', languages: ['en', 'ru', 'de'], language: () => dictation, setLanguage: (_saved: unknown, code: string) => { dictation = code; return { language: code }; } } };
 // Agents to choose from for a task (agents.ts): one that is not installed until its installer runs, into a
 // folder of the test.

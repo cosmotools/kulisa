@@ -1,0 +1,78 @@
+// Agents' transcripts read as a task's history (transcripts.ts): what is kept, cut and left out of Claude Code's.
+// Plain Node (npm run test:unit), on a transcript made here in its format (no real conversation in git).
+import { test, after } from 'node:test';
+import assert from 'assert/strict';
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
+import { claudeConversation, CUT } from '../../src/main/transcripts.ts';
+const root = fs.mkdtempSync(path.join(os.tmpdir(), 'kulisa-unit-'));
+after(() => fs.rmSync(root, { recursive: true, force: true }));
+
+// A record of each kind Claude Code 2.1.296 writes (ROADMAP, "Switching a task's agent": the reader's table).
+const user = (content: unknown, more = {}) => ({ type: 'user', message: { role: 'user', content }, ...more });
+const assistant = (...content: object[]) => ({ type: 'assistant', message: { role: 'assistant', content } });
+const use = (id: string, name: string, input: object) => ({ type: 'tool_use', id, name, input });
+const result = (id: string, content: unknown, is_error = false) => ({ type: 'tool_result', tool_use_id: id, content, is_error });
+const write = (name: string, records: object[]) => {
+  const dir = path.join(root, name);
+  fs.mkdirSync(dir, { recursive: true });
+  const file = path.join(dir, 's.jsonl');
+  fs.writeFileSync(file, `${records.map((r) => JSON.stringify(r)).join('\n')}\nnot json\n`);
+  return file;
+};
+
+test("history: a Claude Code transcript gives the human's words, the agent's answers and actions, their results cut, its summaries", () => {
+  const long = `${'a'.repeat(CUT)}${'m'.repeat(10_000)}${'z'.repeat(CUT)}`;
+  const file = write('claude', [
+    { type: 'permission-mode', permissionMode: 'default' },
+    user('Make the pay button green'),
+    user('<command-name>/x</command-name>', { isMeta: true }),
+    assistant({ type: 'thinking', thinking: 'secret', signature: 'sig' }, { type: 'text', text: 'Looking at the cart.' }, use('t1', 'Read', { file_path: '/p/cart.ts' })),
+    user([result('t1', 'export const PAY = "red";')]),
+    assistant(use('t2', 'Edit', { file_path: '/p/cart.ts', old_string: 'red', new_string: 'green' })),
+    user([result('t2', 'ok')]),
+    { type: 'attachment', attachment: { type: 'queued_command', origin: { kind: 'human' }, prompt: 'and the cancel one gray' } },
+    { type: 'attachment', attachment: { type: 'queued_command', origin: { kind: 'task-notification' }, prompt: 'a background task ended' } },
+    { type: 'attachment', attachment: { type: 'hook_success', hookEvent: 'SessionStart', content: 'Kulisa profiles open now' } },
+    assistant(use('t3', 'Bash', { command: 'npm test', description: 'tests' })),
+    user([result('t3', long)]),
+    assistant(use('t4', 'Bash', { command: 'npm run lint' })),
+    user([result('t4', [{ type: 'text', text: 'lint: 3 errors' }], true)]),
+    user('This session is being continued from a previous conversation. Summary: buttons recolored.', { isCompactSummary: true }),
+    assistant(use('t5', 'TodoWrite', { todos: [{ content: 'pay green', status: 'completed' }, { content: 'cancel gray', status: 'in_progress' }] })),
+    user([result('t5', 'Todos updated')]),
+    assistant(use('t6', 'mcp__kulisa__task_history', { part: 1 })),
+    user([result('t6', 'Part 1 of 1. The history …')]),
+    user([{ type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'xx' } }, { type: 'text', text: 'like this' }]),
+    assistant({ type: 'text', text: 'Done: both recolored.' }),
+    { type: 'file-history-snapshot', snapshot: {} },
+  ]);
+  fs.mkdirSync(path.join(root, 'claude', 'memory'));
+  fs.writeFileSync(path.join(root, 'claude', 'memory', 'MEMORY.md'), '- [Colors](colors.md)');
+  fs.writeFileSync(path.join(root, 'claude', 'memory', 'colors.md'), 'Buttons take their color from tokens.css.');
+  const c = claudeConversation(file);
+  assert.deepEqual(c.entries.map((e) => e.kind), ['human', 'agent', 'call', 'call', 'result', 'human', 'call', 'result', 'call', 'error', 'summary', 'result', 'human', 'agent']);
+  const t = c.entries.map((e) => e.text);
+  assert.equal(t[0], 'Make the pay button green');
+  assert.equal(t[2], 'Read /p/cart.ts', "a file read by its path: its content is left out, its result too");
+  assert.equal(t[3], 'Edit /p/cart.ts\n--- old\nred\n--- new\ngreen');
+  assert.equal(t[5], 'and the cancel one gray', 'typed while the agent worked: the human\'s; a task\'s notice is not');
+  assert.equal(t[6], 'Bash: npm test');
+  assert.match(t[7], /^a{2048}\n… \[10000 characters cut\] …\nz{2048}$/, 'a long output: its start and end');
+  assert.equal(t[9], 'lint: 3 errors', 'an error whole');
+  assert.match(t[10], /^This session is being continued/);
+  assert.equal(t[12], 'like this', 'the picture left out');
+  assert.ok(!t.some((x) => /secret|Kulisa profiles open now|task_history|Part 1 of 1|permission/.test(x)), 'reasoning, hooks, its own history and the CLI\'s records left out');
+  assert.equal(c.plan, '[completed] pay green\n[in_progress] cancel gray', 'the last plan');
+  assert.equal(c.stopped, null, 'the last turn ended');
+  assert.match(c.memory!, /^### MEMORY\.md\n- \[Colors\]\(colors\.md\)\n\n### colors\.md\nButtons take their color/, 'its memory, the index first');
+});
+
+test('history: where a Claude Code turn stopped: a call with no result, or the human unanswered', () => {
+  const cutOff = claudeConversation(write('cut', [user('run the tests'), assistant(use('t1', 'Bash', { command: 'npm test' }))]));
+  assert.equal(cutOff.stopped, 'its last turn was cut off while it ran Bash, with no result');
+  assert.equal(cutOff.memory, null, 'no memory folder');
+  const unanswered = claudeConversation(write('unanswered', [user('hi'), assistant({ type: 'text', text: 'hello' }), user('now the cart')]));
+  assert.equal(unanswered.stopped, "the human's last message got no answer");
+});

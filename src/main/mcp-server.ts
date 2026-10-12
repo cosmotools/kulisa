@@ -9,6 +9,7 @@ import http from 'http';
 import path from 'path';
 import vm from 'vm';
 import { handleHookRequest, taskContext, ONLY_BROWSER } from './agent-hooks.ts';
+import { historyPart } from './history.ts';
 import { fromLocalTool } from './local-only.ts';
 import { toUrl } from './profiles.ts';
 import { MARK } from './ghost.ts';
@@ -48,7 +49,9 @@ const INSTRUCTIONS = 'Kulisa profiles are the users of the app under test, each 
   'with profile_ask_signin. A test user of the app under test on this computer with a saved pair (testLogin in ' +
   'browser_profiles) you sign in to yourself, with browser_type_login (you never see its password). ' +
   'Run what keeps running (the app\'s dev server, docker compose up, a watcher) with terminal_run, not in your own ' +
-  'shell or its background: the human sees it in a terminal next to yours, and you read its output with terminal_read.';
+  'shell or its background: the human sees it in a terminal next to yours, and you read its output with terminal_read. ' +
+  'What was said and done in this task before you, by you or another agent, is in task_history: read it whole when ' +
+  'the human hands you a task begun with another agent, or when you need details your context lost.';
 // task: the task (tasks.ts) whose profiles the tools act on.
 function buildServer(task: Task) {
   const server = new McpServer({ name: 'kulisa', version: pkg.version }, { instructions: `${INSTRUCTIONS} ${taskContext(task)}` });
@@ -171,6 +174,15 @@ function buildServer(task: Task) {
     const r = await task.rename(name);
     if (refused(r)) throw new Error(r.error);
     return text(`The task is now "${r.name}"${r.branch ? `, on branch ${r.branch}` : ''}.`);
+  });
+
+  server.registerTool('task_history', {
+    description: "The history of this task: where it stands (its code in git, profiles, terminals, how the last turn stopped), then what the human asked and the agents did, each run's conversation read from its transcript, the latest chapter first. When the human hands you a task begun with another agent, read every part before anything else. Also when you need details your context lost. Call with part 1, then the next ones up to the total it says.",
+    inputSchema: { part: z.number().int().min(1).optional().describe('Which part, from 1 (the default)') },
+  }, async ({ part = 1 }) => {
+    const r = await historyPart(task, part);
+    if (refused(r)) throw new Error(r.error);
+    return text(r.text);
   });
 
   server.registerTool('profile_describe', {

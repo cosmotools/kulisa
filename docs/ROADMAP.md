@@ -68,54 +68,10 @@ here; what is left of it stays.
   - **The task's history** (another CLI, claude → codex): a conversation cannot move, their formats differ, and the
     old agent cannot write a handoff itself, its limit is reached (a `/compact` is a request to its model too). So
     the new agent reads the whole history and writes its own:
-    1. **`task_history(part)`, an MCP tool** (`mcp-server.ts`; the core's action with the agent's handle only: the
-       human saw it in the terminal): the task's runs, each read from its transcript on disk at the call (a reader
-       per CLI in its `agents.ts` entry, `conversation(saved)`, the same text out of each), as plain text in order,
-       in parts of a fixed size. Nothing is kept by Kulisa: the agent's transcript is the one record. Not a file given
-       to the agent: the task's data folder holds its profiles' cookies, and a file in the worktree is the human's
-       code; and any CLI reads a tool, Codex in its sandbox too. Its own results are left out of the next history.
-       Useful beyond a switch: an agent that compacted its context reads the details again.
-    2. **The reader, record by record** (Claude Code 2.1.296's transcript, checked 2026-10-12 on a session of the
-       author's: 56.7 MB, 14,529 records, 9 compaction summaries; a JSON object per line, `type` at its top, `user`
-       and `assistant` records with `message.content`, a string or an array of blocks each with its own `type`;
-       `uuid`, `parentUuid`, `timestamp` on each; a tool call's `id` (`toolu_…`) is its result's `tool_use_id`).
-       The same in `agents.ts` for each CLI (`conversation(saved)`), one text out of each; a record of a kind the
-       reader does not know is skipped, so a new kind in a new version loses nothing else (a unit test on a sample
-       transcript catches a renamed one). The result is one text in the order of the file, an entry per record kept:
-       | Record | Known by | Text from | Kept as |
-       |---|---|---|---|
-       | the human's message | `type: "user"`, `message.content` a string (or a `text` block), neither `isMeta` nor `isCompactSummary` | `message.content` | whole |
-       | the human's message typed while the agent worked (queued, sent at its next step) | `type: "attachment"`, `attachment.type: "queued_command"`, `attachment.origin.kind: "human"` | `attachment.prompt` | whole (118 such in the session checked: dropping attachments wholesale would lose them) |
-       | a hook's or skill's text, not the human's | `type: "user"`, `isMeta: true` | | left out |
-       | a compaction summary (the agent's own handoff to itself, written while it had budget: "This session is being continued from a previous conversation…", with what was asked, the decisions, the technical findings, the files) | `type: "user"`, `isCompactSummary: true` | `message.content` | whole; a chapter's start |
-       | the agent's answer | `type: "assistant"`, block `type: "text"` | `.text` | whole |
-       | a tool call | `type: "assistant"`, block `type: "tool_use"`: `name`, `input` | `Bash`: `input.command`; `Edit`: `file_path`, `old_string`, `new_string`; `Write`: `file_path`, `content`; `Read`: `file_path` alone; others, Kulisa's `mcp__kulisa__*` too: `name` and `input` as JSON | whole (the command run, the file edited and how) |
-       | a tool's result | `type: "user"`, block `type: "tool_result"`: `tool_use_id`, `is_error`, `content` (a string, or `text` blocks); beside it `toolUseResult` (Bash: `stdout`, `stderr`, `interrupted`) | `content` | its first and last 2 KB (`… [N chars cut] …` between); whole when `is_error`; a `Read`'s left out (the path is in the call: the file is in the task's folder, and may have changed); `task_history`'s own left out |
-       | the agent's plan | a `tool_use` named `TodoWrite`, `input.todos` (`content`, `status`) | the last one | at the end, when there is one (the session checked had none: not a sure source) |
-       | reasoning | block `type: "thinking"` (`thinking`, `signature`: signed, another model cannot take it) | | left out |
-       | an image | block `type: "image"` (`source.data`) | | left out |
-       | a hook's output (`SessionStart`'s context among them: so the gist below is not read twice at the next switch) | `type: "attachment"`, `attachment.type: "hook_success"` (`hookEvent`, `content`) | | left out |
-       | the CLI's own records | `type: "attachment"` of any other `attachment.type` (`total_tokens_reminder`, `deferred_tools_record`, `environment`, `edited_text_file`, `file`, …); `type` of `system`, `mode`, `permission-mode`, `last-prompt`, `atis-latch`, `ai-title`, `queue-operation`, `file-history-snapshot`, `file-history-delta`, `cost-state`, `continued-in` | | left out |
-       Measured on that session: 4,409 entries, 3.6 MB of text (397 of the human's, 675 answers, 1,727 calls, 1,569
-       results cut, 32 errors whole, 9 summaries, and the 118 queued messages of the human's to be added; left out: 1,498 reasoning blocks, 126 files read, 31 hooks' texts,
-       about 8,000 of the CLI's own). The cut's size (2 KB) is one constant, to be tuned on real handoffs.
-       **Chapters**: the text is cut at each summary, a chapter being a summary and what follows it to the next; the
-       first chapter what came before any (10 chapters in that session: 704, 498, 301, 326, 393, 185, 523, 328, 325
-       and 20 KB). The agent worked from the last summary and the tail after it alone (its compaction leaves the rest
-       out of its context), so that chapter is the state it was in when it stopped. Codex's summaries are encrypted
-       (claude-codex-bridge's finding; to check with an account): its history has chapters without summaries.
-       **Added by Kulisa**, what no transcript has: where the last turn stopped (a `tool_use` with no result of its
-       id: cut off by the limit; or the human's last message with no answer after it, as in the session checked);
-       what the agent remembered in that folder (Claude Code's `projects/<task folder>/memory/`, written by the model
-       while it had budget); the task's git state (each copy: its commits since its base, files not committed,
-       `diff --stat`); its open profiles; its terminals and what runs in them.
-       **The order of the parts**: Kulisa's part first, then the last chapter, then the earlier chapters from the
-       latest back; `task_history(part)` pages that text in parts of a fixed size, and the agent is told to read them
-       all: the order only puts first what the old agent saw last, and the earlier chapters are where a summary's
-       omission is found. Light rather than tight: the next agent, a model of the same class, finds what matters
-       better than rules do (the author, 2026-10-12: details that matter are spread through a long conversation, and a
-       summary loses them); the rules only take away what is no use to anyone.
-       **The gist before the first turn**: the `SessionStart` hook's `additionalContext` (`agent-hooks.ts`,
+    1. **`task_history(part)` and Claude Code's reader: built** (2026-10-12; [transcripts.md](transcripts.md)): the
+       task's history read from its runs' transcripts on disk, where it stands first, then the chapters from the
+       latest back, in parts. Left of it: Codex's reader, once there is an account.
+    2. **The gist before the first turn**: the `SessionStart` hook's `additionalContext` (`agent-hooks.ts`,
        `sessionStart`; built for the open profiles, for Claude Code's plugin and Codex's config alike) carries, when
        the task has runs before this one, Kulisa's part (where the last turn stopped, the git state, profiles and
        terminals: a few KB), so the new agent knows them before its first action and cannot skip them, at the start of

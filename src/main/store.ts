@@ -51,7 +51,10 @@ interface Settings { uiZoom?: number; theme?: 'dark' | 'light' | 'system'; bar?:
 // A profile as a task keeps it in profiles.json (project-profiles.ts).
 interface TaskProfile { folder: string; id: string; zoom?: Record<string, number>; closed?: boolean }
 // A task's agent: which it runs, and its conversation as its hooks reported it (agent-hooks.ts).
-interface AgentFile { agent?: string; sessionId?: string; transcript?: string; started?: boolean }
+// The current run in its fields; the task's earlier runs, oldest first, each an agent's conversation (switching the
+// agent: ROADMAP, "Switching a task's agent"; task_history reads them).
+interface Run { agent?: string; sessionId?: string; transcript?: string; from?: number; to?: number }
+interface AgentFile { agent?: string; sessionId?: string; transcript?: string; started?: boolean; from?: number; runs?: Run[] }
 // The terminals besides the agent's (tasks.ts).
 interface SavedTerminal { id: number; name: string; by: 'human' | 'agent'; command?: string }
 
@@ -212,4 +215,4 @@ function writeFileAtomic(file: string, data: string | Uint8Array, options?: { mo
 }
 
 export { Store, copyProfile, writeFileAtomic, SESSION_COOKIES_FILE, PROJECT_COLORS };
-export type { TaskStore, ProjectEntry, TaskEntry, Copy, WindowState, TaskProfile, TasksFile };
+export type { TaskStore, ProjectEntry, TaskEntry, Copy, WindowState, TaskProfile, TasksFile, Run };

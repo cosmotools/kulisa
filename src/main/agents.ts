@@ -15,6 +15,8 @@
 //                            it); without, a line saying so
 //   prepare(ctx)             before it starts in a task's copy (a worktree): ctx { folder, project: { folder (the
 //                            project's), and the task's agent.json } }
+//   conversation(transcript) its transcript read as the task's history (transcripts.ts; task_history): { entries,
+//                            plan, stopped, memory }; without, its runs give the history nothing but Kulisa's part
 //   forget(ctx)              a task's copy is deleted: everything the agent keeps of its folder goes (conversations,
 //                            the folder's trust, history); ctx { folder, saved (its agent.json), project (the
 //                            project's folder, and an agent.json of one of its tasks with a transcript) }
@@ -36,6 +38,8 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { writeFileAtomic } from './store.ts';
+import { claudeConversation } from './transcripts.ts';
+import type { Conversation } from './transcripts.ts';
 
 // The languages Claude Code's dictation understands (as of 2.1.294).
 const CLAUDE_LANGUAGES = ['en', 'es', 'fr', 'ja', 'de', 'pt', 'it', 'ko', 'hi', 'id', 'ru', 'pl', 'tr', 'nl', 'uk', 'el', 'cs', 'da', 'sv', 'no'];
@@ -57,6 +61,7 @@ interface Agent {
   addDir?: (folder: string) => string;
   prepare?: (ctx: { folder: string; project: { folder: string; transcript?: string }; configDir?: string | null }) => void;
   forget?: (ctx: ForgetContext) => boolean;
+  conversation?: (transcript: string) => Conversation;
   config?: { env: string; home: () => string; login: () => string[]; status: string[]; email: (out: string) => string | null; logout: string[] };
   voice?: {
     args?: string[]; key: string; repeat: number; note?: string; languages: string[];
@@ -87,6 +92,7 @@ const AGENTS: Agent[] = [
       if (file) trustLikeProject(file, project.folder, folder);
     },
     forget: (ctx) => forgetClaude(ctx),
+    conversation: claudeConversation,
     // Its voice mode (needs a Claude.ai account), on for Kulisa's sessions only (not the user's settings): space held
     // (its repeats coming) records, the text put where the cursor is, also after text already there, and left in the
     // input for the human to send. Its tap mode (a tap starts, another stops) was tried first: it records only with

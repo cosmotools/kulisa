@@ -136,6 +136,8 @@ src/main/        Electron main process
   cdp-proxy.ts     per-profile CDP endpoint over webContents.debugger (no --remote-debugging-port)
   local-only.ts    refuses requests from web pages to the MCP server and the proxy (Host, Origin)
   mcp-server.ts    MCP tools for the agent, each takes a profile; a URL per task (/task/<project>/<n>/mcp)
+  history.ts       the task's history for its agent (task_history), read from the agents' transcripts
+  transcripts.ts   an agent CLI's transcript read as entries: Claude Code's (docs/transcripts.md)
   agent-hooks.ts   answers for the plugin's hooks (/task/<project>/<n>/hooks/…: the open profiles, the session; the agent's state)
   mimic-chrome.ts  UA, UA-CH headers and userAgentData of Google Chrome
   signin-pages.ts  which pages are sign-in pages; what URL to restore instead of one

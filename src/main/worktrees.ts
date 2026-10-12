@@ -112,6 +112,18 @@ async function changes({ repo, worktree, branch, base }: Copy) {
   return { commits, dirty };
 }
 
+// Where a task's copy stands, for the next agent (task_history): its commits since it started, files not committed,
+// what changed against its start. Empty where git says nothing.
+async function progress({ worktree, branch, base }: Copy) {
+  const run = (args: string[]) => git(worktree, args).catch(() => '');
+  const [log, status, stat] = await Promise.all([
+    base ? run(['log', '--oneline', '--max-count=50', `${base}..${branch}`]) : '',
+    run(['status', '--porcelain']),
+    base ? run(['diff', '--stat', base]) : '',
+  ]);
+  return { log, status, stat };
+}
+
 // A task's copy merged on its remote (its PR merged): it has commits of its own, all of them in the remote's default
 // branch (origin/HEAD, fetched first), and no uncommitted files; deleting it then loses nothing. A squash merge makes
 // new commits, so it is not seen.
@@ -172,4 +184,4 @@ async function initRepo(folder: string) {
 }
 
 export type { GitError };
-export { git, repoOf, freeBranch, createWorktree, changes, merged, renameBranch, removeWorktree, clone, initRepo };
+export { git, repoOf, freeBranch, createWorktree, changes, progress, merged, renameBranch, removeWorktree, clone, initRepo };

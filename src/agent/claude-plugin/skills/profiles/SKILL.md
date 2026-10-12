@@ -37,6 +37,7 @@ human sees everything you do there: your cursor and a caption are drawn in the p
 | `browser_type_login` | Type a test user's saved login or password into a field of the local app (never shown to you). |
 | `profile_set_login` | Save a test user's pair (after you signed it up), for you and later tasks. |
 | `task_rename` | Name your task once you know what it is about: its tab, and its git branch. |
+| `task_history` | What was said and done in this task before you, by you or another agent (each run's conversation, the latest chapter first), and where it stands (git, profiles, terminals). In parts: 1, then the next. |
 
 Every browser tool takes `profile`: the id from `browser_profiles`, not the display name. Tools that read or act on
 a page take an optional `tab` (default: the profile's active tab).
@@ -77,6 +78,8 @@ task's profiles. A project of several repositories gives you a copy of each, all
 default one's, the others are added folders (the session start names them). Without git a task works right in the
 project's folder.
 
+- **A task begun before you**: when the human hands you a task another agent worked on, or your context lost details
+  you need, read `task_history`, every part, before anything else.
 - **Name the task** with `task_rename` once you know what it is about (it starts as `task-<n>`): its tab and its
   branch take the name (`checkout-redesign`); the folder stays.
 - Work and commit on the task's branch. **The project's folder is the human's**: never change it on your own. Asked
