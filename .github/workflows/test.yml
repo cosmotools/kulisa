@@ -1,12 +1,12 @@
-# npm test on every push to develop and every pull request into main, on each OS Kulisa targets (docs/testing.md, CI).
-# Linux as on the author's machine: Ubuntu, Xvfb and openbox. A pull request also needs its version raised: a merge
-# into main is a release (CLAUDE.md, Releases).
+# npm test on every pull request into develop or main and every push to develop, on each OS Kulisa targets
+# (docs/testing.md, CI). Linux as on the author's machine: Ubuntu, Xvfb and openbox. A pull request into main also
+# needs its version raised: a merge into main is a release (CLAUDE.md, Releases).
 name: test
 on:
   push:
     branches: [develop]
   pull_request:
-    branches: [main]
+    branches: [develop, main]
   workflow_dispatch:
 concurrency:
   group: test-${{ github.ref }}
@@ -16,7 +16,7 @@ permissions:
 jobs:
   # main's version and the pull request's: higher, or the same while that one was never released (the first release).
   version:
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
