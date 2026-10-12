@@ -51,7 +51,7 @@ pointer, read as a web page's and were hard to read). So:
   dialog: `.pagedialog`); `--page`, `--backdrop`, `--shadow`; `--hover` (under the
   pointer, on any background); `--project` (the shown group's project's color, set by `lib/store.ts`).
 - Sizes: `--font` (all text, the terminal too), `--font-small` (a group's title, a dialog's title), `--control` (the
-  height of buttons and fields), `--radius`,
+  height of buttons and fields), `--tab` (a tab's and a group's label's: a step taller), `--radius`,
   `--tab-radius`, `--island-radius`, `--gap` (the space between and inside islands; also dockview's `gap` in
   `Grid.vue`); room as Chrome's menus and dialogs have it: `--row` (a row of a menu or a list), `--inset` (inside
   a row, between its icon and text, between a dialog's fields), `--pad` (inside a dialog along its edges), `--label` (a form's labels' column, "Name:", `.field`, and what lines up
@@ -161,7 +161,7 @@ The window's controls are Reka UI's, in this look (CLAUDE.md, Window UI):
 - `.striptab`: a tab of a strip on an island, as a browser's: the agent's `.state`, `.name`, × at the end
   (`button.close.icon.quiet.small`), on every tab, always, as
   Chrome's (the author, 2026-10-12: until then only under the pointer and on the shown tab). A
-  step taller than a button (`--control` + 4 px) and at least 64 px wide: a target for a quick throw of the mouse.
+  step taller than a button (`--tab`, `--control` + 4 px) and at least 64 px wide: a target for a quick throw of the mouse.
   Lit under the pointer; `.active`: the shown one, in the panels' color (`--island`) on the dark island. A
   task's tab (`TaskTab.vue`); a terminal's (`TerminalTabs.vue`: the agent's icon before its name, its row in
   `--toolbar` over the terminal, the shown one in the terminal's color, as if part of it).
@@ -197,9 +197,10 @@ Every dialog is `Modal.vue`, Reka UI's Dialog (`reka-ui`) with the same parts:
   (until 2026-10-11: a frame in a dialog in a split was a frame in a frame in a frame, and it read as a web page).
 - `.empty`: a list's line when it has none ("No accounts yet."), dim.
 - A dialog that is browsed (Settings, `ProjectEditor.vue`) is a tree on the left (Reka's `Tree`, `#pjlist`: its rows
-  `.item`, `data-project` or `data-tab`; a parent opens and closes, it is not chosen) and the chosen page on the right
-  under its path (`.crumbs`: "Projects › shop", its actions at the end). A page of things with details (Settings →
-  Agents, → Profiles) is a `.list` on its left and the chosen one's fields on its right. A dialog of a few big choices and a form (New
+  `.item`, `data-section`, `data-project`, `data-agent` or `data-profile`; a section opens and closes, it is not
+  chosen, and makes one of its own with the `.icon` + at its end; a row's right-click has its page's ⋯) and the chosen
+  page on the right under its path (`.crumbs`: "Projects › shop", its ⋯ at the end). Each thing is a row of the tree
+  with a page of its own, not a list inside a page. A dialog of a few big choices and a form (New
   Project) has the choices as a list on its left (Reka's Listbox), the form on its right.
 - With `form` the content and the buttons are a form: Enter submits.
 - Its ref: `await open()` (shown, the keyboard in its `[autofocus]` field or on it; the profiles' pages hidden while it

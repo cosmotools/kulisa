@@ -25,7 +25,7 @@
   /* A desktop app's density, as JetBrains' (docs/ui.md, Desktop, not a web page): one text size and a smaller one for
      group titles and the window's titles; one height for controls and rows (the terminal uses the same text size,
      lib/terminals.ts). The Kulisa zoom scales all of it together. */
-  --font: 14px; --font-small: 13px; --control: 28px; --radius: 4px; --tab-radius: 8px; --gap: 8px; --island-radius: 10px;
+  --font: 14px; --font-small: 13px; --control: 28px; --tab: calc(var(--control) + 4px); --radius: 4px; --tab-radius: 8px; --gap: 8px; --island-radius: 10px;
   /* Room: a row of a menu or a list (its height, the space inside it and between its icon and text, between a
      dialog's fields), and the space inside a dialog along its edges. */
   --row: 28px; --inset: 12px; --pad: 16px;

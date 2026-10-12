@@ -84,11 +84,12 @@ Everything is saved as you change it; there is no Save button.
 
 ## Agents and their accounts
 
-**Settings → Agents** (or **☰ → Agents…**) lists the agents Kulisa knows (Claude Code, Codex): installed or not, their
-version, and **Install** for the others. Kulisa never removes or updates an agent: its maker's installer updates it.
+**Settings → Agents** (or **☰ → Agents…**) lists the agents Kulisa knows (Claude Code, Codex): installed or not. Click
+one to see its version, its accounts, and **Install** if it is not installed. Kulisa never removes or updates an agent: its maker's installer updates it.
 
 An **account** is an agent signed in to one of your subscriptions, so a work and a personal one can run side by side.
-Make one with **+** under its agent here, or on a project's page. Each account starts clean: your own settings of the
+Make one with the **+** beside Agents (then the agent), the **+** over its accounts on the agent's page, or on a
+project's page. Each account starts clean: your own settings of the
 agent outside Kulisa are not used. It is shown by its email, and stays until you delete it here (**−**).
 
 A task may have several agents at once, each in a tab of its own (Terminals, below): Claude Code next to Codex, two of
@@ -127,7 +128,7 @@ you to read and send. Its language is next to it.
 
 ### Groups
 
-- A click on a group's name folds it to its shown task, and back.
+- A click on a group's name folds it to its name, and back.
 - Its right-click menu: New Task, its closed tasks, Move to New Window, Move to Window, Project Settings…, Show Data
   Folder, Close Group.
 - **Close Group** (or the middle button on its name, or × on its last task) closes all its tasks. It asks only when an
@@ -138,14 +139,16 @@ you to read and send. Its language is next to it.
 
 ## Profiles
 
-**Settings → Profiles** is the one place for who a profile is: the same person in every project and task.
+**Settings → Profiles** is the one place for who a profile is: the same person in every project and task. Click a
+profile under Profiles to see its page.
 
-- **+** makes one (or + → New Profile… on a project's page, to make it in that project).
+- The **+** beside Profiles makes one: type its name, Enter (or + → New Profile… on a project's page, to make it in
+  that project).
 - **Name**: letters, digits and `@ . _ + -`, so it can be the account's email (`ann+test@shop.com`).
 - **About**: who it is in your app and what it can do. The agent picks profiles by it; if it is empty, the agent
   asks you and saves your answer.
 - **Picture**: an animal, to tell the panes apart at a glance.
-- **Delete** (**−**) removes the profile everywhere, with its sign-ins, for good.
+- **⋯ → Delete Profile…** (or right-click the profile) removes it everywhere, with its sign-ins, for good.
 
 ### Signing in
 

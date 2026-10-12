@@ -181,13 +181,12 @@ export default (test: Test) => {
     assert.equal(await who(ctx, 'sam-admin'), 'Signed in as master');
   });
 
-  test('profiles: About this profile… opens Settings → Profiles at it; its Sign In… opens the same master window, once', async (ctx) => {
+  test('profiles: About this profile… opens Settings at it; its Sign In… opens the same master window, once', async (ctx) => {
     const { shell, ui } = ctx;
     await rightClick(ui, `.ptab[data-panel="${panel(shell, 'sam-admin')}"] b`);
     await menuRows(ui);
     await choose(ui, 'About this profile…');
-    await waitFor(() => ui(`document.getElementById('projects')?.dataset.state === 'open' && document.querySelector('#pjlist [data-tab="profiles"]').ariaSelected === 'true'
-      && document.querySelector('#profilestab [data-profile="sam-admin"]')?.ariaSelected === 'true' && document.getElementById('profilename').value === 'Sam.admin'`));
+    await waitFor(() => ui(`document.getElementById('projects')?.dataset.state === 'open' && document.querySelector('#pjlist [data-profile="sam-admin"]')?.ariaSelected === 'true' && document.getElementById('profilename').value === 'Sam.admin'`));
     assert.ok(shell.profiles.has('sam-admin') && !shell.task.profiles.get('sam-admin').get().view.getVisible(), 'pages hidden under Settings');
     for (let i = 0; i < 2; i++) await ui(`document.getElementById('profilesignin').click()`);
     await waitFor(() => shell.masters.size === 1 && shell.masters.values().next().value.profile.get());
@@ -446,32 +445,40 @@ export default (test: Test) => {
     assert.deepEqual(tasksFile().list.map((e) => e.name), ['task-1', 'Feature-X']);
   });
 
-  // ☰ → Agents…: Settings on its Agents tab, nothing to choose; it closes as any dialog.
+  // ☰ → Agents…: Settings at an agent (the first, or the one shown last), the agents in its tree; it closes as any dialog.
   const openAgents = async (ui: UI, rows = 2) => {
     await ui(`document.getElementById('windowMenu').click()`);
     await menuRows(ui);
     await choose(ui, 'Agents…');
     // It opens with the agents in it, not with a line that flips to them.
-    await waitFor(() => ui(`(document.getElementById('projects')?.dataset.state === 'open') && document.querySelector('#projects [data-tab="agents"]').ariaSelected === 'true'
-      && document.querySelectorAll('#projects .agtab .agentrow').length === ${rows}`), 20000);
+    await waitFor(() => ui(`(document.getElementById('projects')?.dataset.state === 'open') && !!document.querySelector('#pjlist [data-agent][aria-selected="true"]')
+      && document.querySelectorAll('#pjlist [data-agent]').length === ${rows} && document.getElementById('agconfig').checkVisibility()`), 20000);
+  };
+  // An agent chosen in the tree, its page shown.
+  const showAgent = async (ui: UI, id: string) => {
+    await ui(`document.querySelector('#pjlist [data-agent="${id}"]').click()`);
+    await waitFor(() => ui(`document.querySelector('#pjlist [data-agent="${id}"]').ariaSelected === 'true' && document.getElementById('agconfig').checkVisibility()`));
   };
   const closeAgents = async (ui: UI) => {
     await ui(`document.querySelector('#projects header .x').click()`);
     await waitFor(async () => !(await ui(`(document.getElementById('projects')?.dataset.state === 'open')`)));
   };
-  const agentRow = (id: string, q: string) => `document.querySelector('#projects .agtab [data-agent="${id}"] ${q}')`;
-  test('agents: ☰ → Agents… is Settings → Agents: shows the agents (not the terminal only), what is installed and installs the others; nothing is chosen or started', async (ctx) => {
+  const agentRow = (id: string, q: string) => `document.querySelector('#agentpage [data-agent="${id}"] ${q}')`;
+  test('agents: ☰ → Agents… is Settings at the agents (not the terminal only): what is installed, installs the others; nothing is chosen or started', async (ctx) => {
     const { shell, ui } = ctx;
     const pty = shell.task.pty;
     await openAgents(ui);
+    assert.equal(await ui(`document.querySelector('#pjlist [data-agent="fake"] kbd').textContent`), 'not installed');
+    await showAgent(ui, 'fake');
+    assert.equal(await ui(`document.querySelector('#agconfig .crumbs b').textContent`), 'Fake agent');
     assert.equal(await ui(`document.querySelector('#projects h2').textContent`), 'Settings');
     assert.equal(await ui(`document.getElementById('pjconfig').checkVisibility()`), false, "a project's page behind it");
-    assert.equal(await ui(`document.querySelectorAll('#projects .agtab .agentrow [role="radio"]').length`), 0, 'no choice to make');
+    assert.equal(await ui(`document.querySelectorAll('#agentpage [role="radio"]').length`), 0, 'no choice to make');
     // The agents' marks (the terminal only's shown in choosing a task's agent).
     assert.ok(await ui(`!!document.querySelector('.sprite #i-agent-shell') && !!document.querySelector('.sprite #i-agent-claude') && !!document.querySelector('.sprite #i-agent-codex')`));
     assert.equal(await ui(`!!${agentRow('shell', '')}`), false, 'not the terminal only: nothing of it to set up');
-    assert.equal(await ui(`document.querySelector('#projects .agtab [data-accounts="fake"] .empty')?.textContent`), 'No accounts yet.');
-    assert.equal(await ui(`document.querySelector('#projects .agtab [data-accounts="fake"] .accountnew').disabled`), true, 'not installed: no account yet');
+    assert.equal(await ui(`document.querySelector('#agentpage [data-accounts="fake"] .empty')?.textContent`), 'No accounts yet.');
+    assert.equal(await ui(`document.querySelector('#agentpage [data-accounts="fake"] .accountnew').disabled`), true, 'not installed: no account yet');
     assert.equal(await ui(agentRow('fake', '.status') + '.textContent'), 'Not installed');
     assert.equal(await ui(agentRow('fake', '.install') + '.hidden'), false);
     assert.match(await ui(agentRow('fake', '.install-line') + '.textContent'), /^Install runs Kulisa tests's installer: echo "installing the fake agent"/);
@@ -479,11 +486,11 @@ export default (test: Test) => {
     // Installed with its maker's installer; what it said only under Details.
     await ui(agentRow('fake', '.install') + '.click()');
     await waitFor(async () => (await ui(agentRow('fake', '.status') + '.textContent')) === 'Installed', 10000);
-    assert.match(await ui(`document.querySelector('#projects .agtab .progress').textContent`), /^Fake agent is installed\. Make an account of it below/);
-    assert.equal(await ui(`document.querySelector('#projects .agtab .details .more').dataset.state`), 'closed', "the installer's own output only under Details");
-    assert.match(await ui(`document.querySelector('#projects .agtab pre').textContent`), /installing the fake agent\s+done/);
-    assert.doesNotMatch(await ui(`document.querySelector('#projects .agtab pre').textContent`), /\x1b/, 'no terminal codes: colors, links');
-    assert.equal(await ui(`document.querySelector('#projects .agtab [data-accounts="fake"] .accountnew').disabled`), false);
+    assert.match(await ui(`document.querySelector('#agentpage .progress').textContent`), /^Fake agent is installed\. Make an account of it below/);
+    assert.equal(await ui(`document.querySelector('#agentpage .details .more').dataset.state`), 'closed', "the installer's own output only under Details");
+    assert.match(await ui(`document.querySelector('#agentpage pre').textContent`), /installing the fake agent\s+done/);
+    assert.doesNotMatch(await ui(`document.querySelector('#agentpage pre').textContent`), /\x1b/, 'no terminal codes: colors, links');
+    assert.equal(await ui(`document.querySelector('#agentpage [data-accounts="fake"] .accountnew').disabled`), false);
     await closeAgents(ui);
     assert.equal(shell.task.pty, pty, 'the agent goes on');
   });
@@ -564,6 +571,7 @@ export default (test: Test) => {
     assert.equal(await ui(agentRow('fake', '.where') + '.textContent'),
       `1.2.3 · ${path.join(root, 'bin', 'kulisa-fake-agent')} · not on your PATH: Kulisa runs it from here`);
     assert.equal(await ui(agentRow('fake', '.install-line') + '.textContent'), '');
+    await showAgent(ui, 'fake');
     await ctx.shell.screenshot(path.join(root, 'agents.png'));
     await closeAgents(ui);
   });
@@ -695,9 +703,9 @@ export default (test: Test) => {
   test("agents: an account lives until deleted in Settings → Agents: let go by its project at once, kept; not deleted while a task runs it; deleted after a question, signed out, with its folder; one made there is in no project", async (ctx) => {
     const { shell, ui } = ctx;
     const task = shell.task, dir = accountDir('fake-1');
-    const row = (id: string) => `document.querySelector('#projects .agtab [data-account="${id}"]')`;
+    const row = (id: string) => `document.querySelector('#agentpage [data-account="${id}"]')`;
     // An account deleted: its row selected, then − over its list.
-    const deleteAccount = (id: string) => onRow(ui, `#projects .agtab [data-account="${id}"]`, null, `#projects .agtab .list:has([data-account="${id}"]) .accountdel`);
+    const deleteAccount = (id: string) => onRow(ui, `#agentpage [data-account="${id}"]`, null, `#agentpage .list:has([data-account="${id}"]) .accountdel`);
     // × in the project lets go of it at once, nothing asked; the account stays, and the task running it keeps it.
     await projectSettings(ui);
     await onRow(ui, '#npagents [data-agent="fake-1"]', 'npagentdel');
@@ -706,12 +714,12 @@ export default (test: Test) => {
     assert.deepEqual(shell.accounts.find('fake-1').projects, [], 'kept, in no project');
     assert.equal(task.promptTarget().agent.id, 'fake-1');
     assert.ok(fs.existsSync(dir));
-    // Its tab: the account in no project; Delete refused while a task runs it.
-    await click(ui, `document.querySelector('#projects [data-tab="agents"]')`);
+    // Its agent's page: the account in no project; Delete refused while a task runs it.
+    await showAgent(ui, 'fake');
     await waitFor(() => ui(`!!${row('fake-1')}`));
     assert.equal(await ui(`${row('fake-1')}.querySelector('small').textContent`), 'in no project');
     await deleteAccount('fake-1');
-    const said = () => ui(`document.getElementById('agentstaberror').textContent`);
+    const said = () => ui(`document.getElementById('agentpageerror').textContent`);
     await waitFor(async () => !!(await said()));
     assert.match(await said(), new RegExp(`^Tasks run it: ${task.entry.name} \\(project\\)`));
     assert.equal(ctx.asked.length, 0);
@@ -733,9 +741,14 @@ export default (test: Test) => {
     assert.ok(logouts().includes(dir), 'signed out first, with its agent\'s own command');
     assert.deepEqual(JSON.parse(fs.readFileSync(path.join(userData, 'agents.json'), 'utf8')), { next: 5, list: [] });
     ctx.asked.length = 0;
-    // New Account… there: signed in in the tab, in no project; a project's Add Agent… takes it.
+    // New Account… there (the + beside Agents in the tree, an agent): signed in on its page, in no project; a project's
+    // Add Agent… takes it.
     shell.signins.clear();
-    await ui(`document.querySelector('#projects .agtab [data-accounts="fake"] .accountnew').click()`);
+    await click(ui, `document.querySelector('#pjlist [data-agent]:not([data-agent="fake"])')`); // another agent's page shown first
+    await click(ui, `document.getElementById('agentnew')`);
+    await menuRows(ui);
+    await choose(ui, 'Fake agent…');
+    await waitFor(() => ui(`document.querySelector('#pjlist [data-agent="fake"]').ariaSelected === 'true'`));
     await waitFor(() => shell.signins.size);
     const p = [...shell.signins.values()][0];
     await waitFor(() => p.tail.includes('Sign in as?'));
@@ -753,7 +766,7 @@ export default (test: Test) => {
       return rows.includes('Fake agent · home@shop.com');
     });
     // In no project and no task: deleted at once after the question.
-    await click(ui, `document.querySelector('#projects [data-tab="agents"]')`);
+    await showAgent(ui, 'fake');
     await waitFor(() => ui(`!!${row('fake-5')}`));
     await deleteAccount('fake-5');
     await waitFor(() => !fs.existsSync(accountDir('fake-5')) && !shell.accounts.find('fake-5'));
@@ -813,11 +826,18 @@ export default (test: Test) => {
     await waitFor(async () => (await viewOn(shell, ui, 'sam-admin')) && viewOn(shell, ui, 'elon-buyer'));
   });
 
-  test('tasks: a click on a group\'s label folds it to the tab of the task it shows, as Chrome\'s tab groups; kept', async (ctx) => {
+  test('tasks: a click on a group\'s label folds it to its name, the shown group too, as Chrome\'s tab groups; kept', async (ctx) => {
     const { shell, ui } = ctx;
     const shown = () => ui(`[...document.querySelectorAll('#projectTabs .pisland.active .tasktab')].filter((t) => t.checkVisibility()).map((t) => t.querySelector('.name').textContent)`);
+    const height = () => ui(`document.querySelector('#taskbar').getBoundingClientRect().height`);
+    const unfolded = await height();
     await ui(`document.querySelector('#projectTabs .pisland.active .plabel').click()`);
-    await waitFor(async () => JSON.stringify(await shown()) === '["task-1"]');
+    await waitFor(async () => JSON.stringify(await shown()) === '[]');
+    assert.equal(await height(), unfolded, 'every group folded, the bar keeps its height: the grid does not jump');
+    const [before, after] = await ui(`(() => { const i = document.querySelector('#projectTabs .pisland.active').getBoundingClientRect(),
+      l = document.querySelector('#projectTabs .pisland.active .plabel'), r = document.createRange(); r.selectNodeContents(l);
+      const c = r.getBoundingClientRect(); return [c.left - i.left, i.right - c.right]; })()`);
+    assert.equal(before, after, 'a folded group: as much room before its label as after');
     assert.equal(tasksFile().collapsed, true);
     assert.equal(shell.current.collapsed, true);
     await ui(`document.querySelector('#projectTabs .pisland.active .plabel').click()`);

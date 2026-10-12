@@ -21,16 +21,18 @@ import type { StoredProfile } from '../src/main/profile-store.ts';
 type Action = { caption: string; x?: number; y?: number };
 
 export default (test: Test) => {
-  test('profiles are made in Settings → Profiles, each with its own picture and, if the human says, who it is; added to the project on its page, opened in its task; views are hidden while Settings is open', async ({ shell, ui }) => {
+  test('profiles are made in Settings (Profiles\' + in its tree), each with its own picture and, if the human says, who it is; added to the project on its page, opened in its task; views are hidden while Settings is open', async ({ shell, ui }) => {
     await manageProfiles(ui);
-    assert.equal(await ui(`document.querySelector('#profilestab .empty').textContent`), 'No profiles yet.');
-    // + : its name typed in place, Create; then its fields (the picture: the next free one, unless the human picks another).
+    assert.equal(await ui(`document.querySelector('#prconfig .empty').textContent`), 'No profiles yet.');
+    // + beside Profiles: its name typed in place under the tree, Enter; then it is chosen, its page shown (the picture:
+    // the next free one, unless the human picks another).
     const make = async (name: string) => {
       await ui(`document.getElementById('profilenew').click()`);
       await waitFor(() => ui(`document.activeElement?.id === 'profilenewname'`));
       await setProfileField(ui, 'profilenewname', name);
-      await ui(`document.getElementById('profilecreate').click()`);
-      await waitFor(() => ui(`document.getElementById('profilename')?.value === ${JSON.stringify(name)}`));
+      await ui(`document.getElementById('profilenewname').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))`);
+      await waitFor(() => ui(`document.getElementById('profilename')?.value === ${JSON.stringify(name)} && !document.getElementById('profilenewname')
+        && document.querySelector('#pjlist [aria-selected="true"] .label')?.textContent === ${JSON.stringify(name)}`));
     };
     await make('Sam.seller');
     await setProfileField(ui, 'profileabout', ' seller in the test shop ');
@@ -49,7 +51,7 @@ export default (test: Test) => {
     assert.deepEqual(shell.profileStore.all().map(({ id, avatar, description, projects, color }: StoredProfile & { color?: string }) => ({ id, avatar, description, projects, color })),
       [{ id: 'sam-seller', avatar: 'fox', description: 'seller in the test shop', projects: [], color: undefined },
         { id: 'elon-buyer', avatar: 'penguin', description: undefined, projects: [], color: undefined }], 'pictures, not colors; who it is when said');
-    assert.deepEqual(await ui(`[...document.querySelectorAll('#profilestab [data-profile] kbd')].map((k) => k.textContent)`), ['no project', 'no project']);
+    assert.equal(await ui(`document.querySelector('#profilepage .projects').textContent`), "none: add it on a project's page");
     // Added on the project's page (+ → its other profiles), closed in its task; opened there (👥).
     await click(ui, `document.querySelector('#pjlist [data-project="${shell.current.id}"]')`);
     for (const name of ['Sam.seller', 'Elon.buyer']) {

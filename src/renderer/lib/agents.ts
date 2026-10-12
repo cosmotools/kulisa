@@ -33,10 +33,11 @@ export function agentList(opts: { choose?: boolean; details?: boolean; installed
     state.agents = r.list; state.home = r.home;
     return true;
   };
-  // Choosing: the arrows choose, Tab goes on to Install or Start.
+  // Choosing: the arrows choose, Tab goes on to Install or Start. Settings' list keeps the keyboard in its tree.
   const focus = async () => {
+    if (!opts.choose) return;
     await nextTick();
-    state.el?.querySelector<HTMLElement>(opts.choose ? '[role="radio"][data-state="checked"]' : '.install:not([hidden])')?.focus();
+    state.el?.querySelector<HTMLElement>('[role="radio"][data-state="checked"]')?.focus();
   };
   // The dialog opens with the list in it, not with a line that flips to it at once: what was found last time, then
   // looked for again (an agent installed, updated or removed meanwhile), the rows changed where it differs. The first

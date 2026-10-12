@@ -30,7 +30,9 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
     of its ×), and the shown project's tabs come with the projects' news, not after it. Islands that moved under the mouse made
     the human miss (the author, 2026-10-08).
   - **A click on the label folds the group** to it, as Chrome's collapsed tab groups, and back (kept in
-    `tasks.json`); the tab of the task it shows stays, so the grid on screen keeps its tab. Showing a project is a
+    `tasks.json`), all its tabs, the shown group's too (its label stays the bright one). Until 2026-10-12 the tab of
+    the task it showed stayed, so the grid on screen kept its tab; the author found a fold that left one tab in one
+    group and another in the next unexpected: every group folds alike. Showing a project is a
     click on one of its tasks (two ways to the same thing confused, when the label showed it too).
   - **A right-click on the label opens the group's menu**, as Chrome's tab group's: New Task, its **closed
     tasks** under a heading (the one closed last first; a click opens one again; Delete Merged Tasks… when some are
@@ -59,13 +61,19 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
     field, from the morning of 2026-10-11 until its evening).
 - **Settings** (the button in the title bar, left of ☰; the author, 2026-10-11), as JetBrains' Settings (the author,
   2026-10-11: the dialogs read as a web page's, not a desktop app's; docs/ui.md, Desktop, not a web page): a tree on the
-  left, **Projects** with every project under it (its icon in its color, its name), **Agents** (the agents and their
-  accounts: "Choosing the agent") and **Profiles** (every profile and who it is: [profiles.md](profiles.md)), its **+** at
-  the top New Project; on the right the chosen one's page under its path ("Projects › shop"). Project Settings… in a
-  group's menu opens it at that project; ☰ → Agents… on Agents; a task tab's Manage Profiles… and About this profile… on
-  Profiles. It was the
-  projects' manager alone, under a Projects button, until the agents' accounts needed a place outside projects; then
-  tabs, Projects and Agents, until the tree. **A project's page** (the projects' manager, in earlier words): at its top
+  left of three sections, each with its own under it: **Projects** (every project, its icon in its color, its name),
+  **Agents** (each agent: "Choosing the agent") and **Profiles** (every profile, its picture: [profiles.md](profiles.md));
+  on the right the chosen one's page under its path ("Projects › shop", "Profiles › ann") with **⋯** at its end. All
+  three alike (the author, 2026-10-12): a section only opens and closes, its **+** beside it makes one of its own
+  (Projects: New Project; Profiles: New Profile…, its name typed in place under the tree, Enter makes it and shows its
+  page, Esc puts it away; Agents: a menu of the agents an account can be made of, New Account… on the agent's page,
+  as agents are installed, not made); a row's right-click has what its page's ⋯ has (a project's and a profile's
+  Delete…, asked first, as Delete on the chosen row; an agent's Install and New Account…), a section's what its +
+  does. Project Settings… in a group's menu opens it at that project; ☰ → Agents… at an agent (the one shown last);
+  a task tab's Manage Profiles… and About this profile… at a profile. It was the projects' manager alone, under a
+  Projects button, until the agents' accounts needed a place outside projects; then tabs, Projects and Agents; then
+  the tree with Agents and Profiles as pages of their own, each with its list on its left and New Project's + over the
+  tree (2026-10-11), until the agents and the profiles went into the tree as the projects (2026-10-12). **A project's page** (the projects' manager, in earlier words): at its top
   its path and **⋯** (Delete Project…; no New Task there since 2026-10-12, the author: tasks are made in the bar); then **Name:** with its color and
   icon in a button beside it (a panel), and a group each under a titled line (`.titled`): **Code**, **Agents**,
   **Profiles** (what its tasks are made of), each a list (`.list`) with a toolbar over it: **+** adds (a menu), **−**
@@ -304,9 +312,9 @@ are not programmers); its accounts are made there too, or in a project's page.
   the language's English name), the rest of the file kept, never into a file that is not JSON. Claude Code reads that
   file again when it changes and the language at each recording, so it holds from the next one, in every session
   of the human's, as if set in `/config`. A settings file of one launch would not do: it is read once.
-- **Settings → Agents** (☰ → Agents… opens it there; `AgentsTab.vue`), as JetBrains' list of SDKs: the agents on the
-  left (not the terminal only: nothing of it to set up there; the author, 2026-10-11; "not installed" at a row's end),
-  the chosen one on the right: its maker and website, what it needs, its status (its version, its `--version`, and its
+- **Settings → Agents** (☰ → Agents… opens it there; `AgentPage.vue`), as JetBrains' list of SDKs: the agents in
+  Settings' tree (not the terminal only: nothing of it to set up there; the author, 2026-10-11; "not installed" at a row's end),
+  the chosen one's page on the right: its maker and website, what it needs, its status (its version, its `--version`, and its
   folder, marked when it is not on the user's `PATH`: Kulisa runs it from there; Install for the others, with the
   command it runs), and its **Accounts** (below), a list with + (New Account…) and − (delete the selected one, asked
   first; also Delete and the right-click). Installing there starts nothing; the agent is chosen
@@ -324,7 +332,7 @@ are not programmers); its accounts are made there too, or in a project's page.
   only) have no accounts and are chosen as themselves. The human's own folder (`~/.claude`, `~/.codex`) is no account:
   every account is made in Kulisa and starts as a clean agent (no global `CLAUDE.md`, settings, plugins, skills or MCP
   servers of the human's: set up again in each), the author's choice over copying them.
-  - **Made in Settings → Agents** (+ over its agent's accounts: in no project yet) **or in a project** (its page,
+  - **Made in Settings → Agents** (+ over its agent's accounts, or the + beside Agents in the tree: in no project yet) **or in a project** (its page,
     Agents' + → New Account, an agent: in that project): the agent's own sign-in starts at once, as
     its `/login` does (Claude Code `auth login`, Codex `login`), in a terminal there (`AccountSignIn.vue`),
     and ends once signed in. The terminal is under Details, closed (the author, 2026-10-11: the address it prints, with
@@ -361,7 +369,7 @@ are not programmers); its accounts are made there too, or in a project's page.
   The task's account wins over the project's own environment (a `.envrc` setting `CLAUDE_CONFIG_DIR`): its variable
   is typed with the agent's command ("The agent", above).
 - The dialogs are part of the window, not windows of their own: no extra process. `AgentPicker.vue` (choosing) and
-  Settings → Agents (`AgentsTab.vue`, its state kept by Settings, so an install goes on behind a project's page and
+  Settings → Agents (`AgentPage.vue`, its state kept by Settings, so an install goes on behind a project's page and
   Settings stays open while it runs) share the state of one list of agents with Install (`lib/agents.ts`), each with
   its own; choosing draws it as radios (`AgentList.vue`), Settings as a list and the chosen one's details.
 - An agent's state on the tabs comes from its hooks, each agent's at its own terminal's URL ("Several agents in a task"). Kulisa has events of its own (`agent-hooks.ts`): `prompt`
@@ -672,7 +680,7 @@ temporary forks), and again on 2026-10-10 (tasks; ROADMAP, "Projects and tasks")
 | `src/main/terminal.ts` | the task's terminals' ptys (window.md, The terminal) |
 | `src/renderer/components/TaskBar.vue`, `NewTask.vue`, `Empty.vue`, `ProjectEditor.vue` | the tasks' bar (an island per project); its + (every project, their closed tasks); the empty window's island; the projects' manager |
 | `src/renderer/components/TaskTab.vue`, `TaskRename.vue` | a task's tab in the bar, its menu, the Rename Task dialog |
-| `src/renderer/components/AgentPicker.vue`, `AgentsTab.vue`, `AgentList.vue` | choosing an agent when the one to open is not there; Settings → Agents, the agents, the chosen one's details and accounts; the radios of agents with Install that choosing shows |
+| `src/renderer/components/AgentPicker.vue`, `AgentPage.vue`, `AgentList.vue` | choosing an agent when the one to open is not there; an agent's page in Settings, its details and accounts; the radios of agents with Install that choosing shows |
 | `src/main/accounts.ts`, `src/renderer/components/AccountSignIn.vue` | the agents' accounts, one store; a new one's sign-in in Settings (a project's page, or Agents) |
 | `src/renderer/lib/grid.ts`, `components/Grid.vue` | building a task's grid; the slide (a view transition) |
 | `test/tasks.ts` | the tests; `test/restart-tasks.ts` after a restart; `test/unit/agents.test.ts` |

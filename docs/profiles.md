@@ -31,12 +31,12 @@ A profile is an Electron session on a folder of its own (`session.fromPath`), la
 ## What the human does
 
 - **Settings → Profiles** (the gear's Settings, its tree; Manage Profiles… in a task tab's right-click menu and About this profile… in the
-  pane's menu open it, the latter at that profile; `ProfilesTab.vue`; it replaced the task's profile editor, 2026-10-11): every
-  profile on the left ("no project" at a row's end), the chosen one's fields on the right, each saved on Enter or
+  pane's menu open it, the latter at that profile; `ProfilePage.vue`; it replaced the task's profile editor, 2026-10-11): every
+  profile in Settings' tree, under Profiles, the chosen one's page on the right, each field saved on Enter or
   leaving it: **Picture**, **Name**, **About**, **Test login** and **Test password**, **Sign In…** (its master's
   window, below) and the projects it is in. It is the human's one place for who a profile is: a profile is the same
   in every project and task.
-- **Create** there: + , its name typed in place, Create: in no project yet, the next free picture, empty and signed
+- **Create** there: the + beside Profiles in the tree, its name typed in place under it, Enter: in no project yet, the next free picture, empty and signed
   out; a project's page adds it (+ → Other Profiles). Or on a project's page (+ → New Profile…: in that project).
   Names of profiles, projects and tasks take letters (any language), digits and `@ . _ + -`, as an email
   address does, starting with a letter or a digit (not `@` alone, `.x`, `..`, `-x`), at most 64, so a profile can be
@@ -70,7 +70,7 @@ A profile is an Electron session on a folder of its own (`session.fromPath`), la
 - **Close**: × on the pane (or its menu, or the agent). Its tabs go and free their memory; it stays signed in, and
   the task tab's right-click menu lists it as closed and opens it again with the same tabs. Closed profiles stay closed across restarts.
 - **Remove from Project…** (the pane's menu, − on the project's page), after a confirmation: the project lets go of it
-  (above); the profile stays. **Delete** in Settings → Profiles (− , Delete, a row's right-click), after a
+  (above); the profile stays. **Delete** in Settings (its page's ⋯ → Delete Profile…, its row's right-click, Delete), after a
   confirmation: its copies in every project's tasks and its master, with its sign-ins, storage and tabs, go for good
   (`projects.ts`, `deleteProfile`).
 - **Tabs**: a tab strip and an address bar per pane, drawn as Chrome's (the active tab of a piece with the toolbar;
@@ -356,5 +356,5 @@ space (ROADMAP, "Profiles' caches").
 | `src/main/signin-pages.ts`, `signin-pause.ts` | sign-in pages; the pause |
 | `src/main/cdp-proxy.ts` | the CDP endpoint per profile |
 | `src/main/mcp-server.ts`, `ghost.ts`, `picker.ts` | the agent's tools, its actions shown, point and tell |
-| `src/renderer/components/grid/ProfilePane.vue`, `ProfileHeader.vue`, `lib/profiles.ts`; `ProfilesTab.vue`, `Avatars.vue` | the panes and the profiles' menu (a task tab's right-click); Settings → Profiles and its pictures |
+| `src/renderer/components/grid/ProfilePane.vue`, `ProfileHeader.vue`, `lib/profiles.ts`; `ProfilePage.vue`, `Avatars.vue` | the panes and the profiles' menu (a task tab's right-click); a profile's page in Settings and its pictures |
 | `test/agent.ts`, `profiles.ts`, `zoom-and-closing.ts`, `restart-profiles.ts`, `unit/store.test.ts` | the tests |
