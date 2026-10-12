@@ -320,14 +320,19 @@ here; what is left of it stays.
     and arm64. The author has no Apple Developer account yet: an Individual one ($99 a year), then a Developer ID
     Application certificate (its CSR made with `openssl`, no Mac needed) and an App Store Connect API key for
     notarization, as CI secrets; `osxSign`, `osxNotarize` in `forge.config.ts`, on only when those are set.
-  - **CI** (GitHub Actions): `npm test` on Ubuntu (Xvfb) on every push to `main`; a tag `v*` builds on Ubuntu and
-    Windows (macOS once its secrets are there) and publishes the draft release. The author bumps the version
-    (`npm version patch`; `package.json` is the truth) and pushes the tag. Windows not signed at first (Squirrel
-    works; SmartScreen warns): Azure Trusted Signing later.
+  - **CI** (GitHub Actions; the flow decided with the author 2026-10-12: CLAUDE.md, Releases): work goes into
+    `develop`, `npm test` on every push there; a pull request `develop` → `main` runs it again and checks that the
+    version is raised; `main` is protected, the author merges; the merge builds on Ubuntu and Windows (macOS once its
+    secrets are there) into a draft release. Drafts, the author publishing them, until the first release is checked
+    on Windows (step 3); then published at once (`draft: false`, and the workflow's `--draft`). Windows not signed at
+    first (Squirrel works; SmartScreen warns): Azure Trusted Signing later. kulisa.app's download buttons take the
+    latest release's files from GitHub's API (the names carry the version), in `kulisa-site`, once there is one;
+    macOS's says "soon" until step 4.
   - **Steps:** 1. Kulisa's part (Forge's publisher and makers, the updater, Squirrel's events, docs): built
     ([window.md](window.md), "The app icon, installers and updates"). 2. The CI's
-    workflows (`.github/workflows/`: `test.yml`, `release.yml`): written, not run yet; the author pushes them (their
-    first runs show what a clean machine lacks), and adds the Apple secrets at step 4. 3. The first release, `v0.1.0`, then
+    workflows (`.github/workflows/`: `test.yml`, `release.yml`): the tests pass on Ubuntu; the release is not run
+    yet; `develop` and `main`'s ruleset (CLAUDE.md, Releases) set up by the author; the Apple secrets at step 4. 3. The
+    first release, `v0.1.0` (the first pull request into `main`), then
     `v0.1.1`: the update checked by hand on the author's Windows machine, by a Claude session there (below); the user
     guide's "Getting started" then says where the installers are (it says there are none until there is a release). 4.
     macOS, once the account and its secrets exist.
@@ -640,7 +645,7 @@ here; what is left of it stays.
     Linux/X11 (GNOME) by the tests only, not by changing the OS's setting by hand. macOS draws its own window
     buttons.
   - Tests run often on Linux only; on macOS and Windows before a release (the author's decision, 2026-10-09). The CI
-    runs them on all three at every push to `main` ([testing.md](testing.md), CI), macOS and Windows not failing the
+    runs them on all three at every push to `develop` and pull request into `main` ([testing.md](testing.md), CI), macOS and Windows not failing the
     workflow until the bench passes there: fixed by a Claude session on each OS. On a computer they run on the human's
     screen there (Xvfb is Linux's), taking its focus.
     The test bench assumes Linux; to adapt on each OS where it can be run (the author's decision, 2026-10-08), known so far:

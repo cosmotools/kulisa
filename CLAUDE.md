@@ -220,21 +220,50 @@ unasked. This paragraph is removed when the rewrite is finished.
   asked, and never print the remote URL (`git remote -v`): it carries the author's token.
 - **Each piece of work in a worktree of its own** (the author, 2026-10-11: several Claude sessions work on Kulisa
   at once, and one switching or editing the shared folder pulled the files out from under the others):
-  - Before the first change: `git worktree add .claude/worktrees/<name> -b <name> main` (from the local `main`, or
-    the branch the author names; not EnterWorktree's default, which starts from `origin`, behind the local one), and
-    work there.
-  - **The repository's own folder holds `main`, always** (the author, 2026-10-11: with `main` in a worktree, the
+  - Before the first change: `git worktree add .claude/worktrees/<name> -b <name> develop` (from the local
+    `develop`, or the branch the author names; not EnterWorktree's default, which starts from `origin`, behind the
+    local one), and work there. `develop` is where work goes; `main` is what is released (Releases, below).
+  - **The repository's own folder holds `develop`, always** (the author, 2026-10-11: with it in a worktree, the
     folder stayed on an old branch, and a session started there read an old CLAUDE.md and old docs). Nothing is
-    edited there and it is never switched to another branch; only merges into `main` are done in it.
+    edited there and it is never switched to another branch; only merges into `develop` are done in it.
   - `node_modules` is a link to the repository's (`ln -s ../../../node_modules node_modules`) while the work does
     not change the dependencies; work that does gets its own (`npm install`, then `npm run postinstall`).
-  - Commits go to the worktree's branch. Merging into `main` is done in the repository's folder (`git -C <repo>
-    merge --no-ff <name>`), with nothing else there; no worktree has `main` checked out.
+  - Commits go to the worktree's branch. Merging into `develop` is done in the repository's folder (`git -C <repo>
+    merge --no-ff <name>`), with nothing else there; no worktree has `develop` checked out. Nothing is merged into
+    `main` here: only on GitHub, by a pull request (Releases).
   - `npm test` runs from several worktrees at once: each checkout has its own test folder and test site
     (`test/start.ts`). The author's Kulisa runs one checkout at a time: the `run-kulisa` skill, from the worktree
-    while its work is shown, from the repository's folder (`main`) once it is merged.
+    while its work is shown, from the repository's folder (`develop`) once it is merged.
   - Once its branch is merged (or the author drops it), the worktree goes (`git worktree remove`), its branch
     (`git branch -d`) and its test folder (`/tmp/kulisa-test-<worktree>-…`).
+
+## Releases
+
+`main` is what users get; `develop` is where work goes. A merge into `main` is a release.
+
+- **`main` is protected on GitHub** (a ruleset, no one bypassing it): no push, no force push; only a pull request
+  from `develop`, merged with a merge commit (not squash or rebase: `develop` would part from `main`), by the author,
+  once its required checks pass: `test (ubuntu-latest)` and `version` (`.github/workflows/test.yml`). Never push to
+  `main`, merge into it, or merge `main` back into `develop`.
+- **The version** in `package.json` is the truth; the app shows it (☰) and the updater compares it. Each pull
+  request into `main` raises it (the `version` check refuses one that does not; once, the first release, the same
+  number passes while no release of it exists). `npm version <patch|minor> --no-git-tag-version`: no tag by hand,
+  the CI makes it. While 0.x: `patch` by default, `minor` when the author says so or for a large change (say which).
+- **A merge into `main`** runs `.github/workflows/release.yml`: a draft release `v<version>` at that commit, its
+  notes the pull request's text; the installers built on Ubuntu (`.deb`, `.rpm`) and Windows
+  (Squirrel's `.exe`) and uploaded into it. The author checks and publishes it; only then update.electronjs.org
+  serves it and installed copies update (docs/window.md, "The app icon, installers and updates"). Drafts until the
+  first release is checked by hand on Windows (ROADMAP, "Releases and auto-update"), published at once after that.
+- **When the author says to release** (that is the ask to push `develop` and open the pull request, nothing more):
+  1. In a worktree from `develop`: raise the version, commit (`Kulisa <version>`), merge into `develop`.
+  2. Push `develop`; the tests run on it.
+  3. Open the pull request: `gh pr create --base main --head develop --title "Kulisa <version>"`, its body what is
+     new for the user since the last release (from `git log main..develop`, in the guide's words). Without `gh`, give
+     the author the link `https://github.com/cosmotools/kulisa/compare/main...develop?expand=1` and the text.
+  4. Watch its checks; fix a red one in `develop` (a push there updates the pull request). Tell the author when it
+     is green: the merge is theirs.
+  5. After the merge, watch the release's run; tell the author when the draft has its installers, or what failed.
+     Publishing it is theirs.
 
 ## Commands
 
@@ -245,7 +274,7 @@ npm run test:unit     # the unit tests alone (plain Node, a second)
 npm run knip  # no file, export or dependency nothing uses: once a step, before showing it (docs/testing.md, Dead code)
 npm run test:visible  # e2e on your screen, to watch them (npm test uses Xvfb on Linux when installed)
 npm run make  # installers for this platform with Electron Forge (forge.config.ts), in out/make/
-npm run publish  # the same, to a draft release on GitHub: the CI's, on a tag v* (window.md, The app icon, installers and updates)
+npm run publish  # the same, to a draft release on GitHub: the CI's, on a merge into main (Releases below)
 npm run icons # renders assets/icon.svg to icon.png/.ico/.icns (committed; run after changing the SVG)
 npm run build # type checks (tsc: the main process and the tests; vue-tsc: the window), then Vite into dist/renderer
 npm run watch # the window built again on every change; then reload it (Ctrl+R in its DevTools) or restart
