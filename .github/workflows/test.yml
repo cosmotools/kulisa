@@ -25,23 +25,33 @@ jobs:
       run:
         shell: bash
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # The test folders in one known place on every OS (os.tmpdir() reads these), for the artifact below. Through
       # GITHUB_ENV: the job's env cannot read the runner context (GitHub refused the whole file).
       - run: printf 'TMPDIR=%s\nTEMP=%s\nTMP=%s\n' "$RUNNER_TEMP" "$RUNNER_TEMP" "$RUNNER_TEMP" >> "$GITHUB_ENV"
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
+      # gnome-keyring and D-Bus: a keyring, as a desktop has, or safeStorage encrypts nothing and Kulisa keeps no
+      # session cookies and no test password (they are never written in the clear).
       - if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y xvfb openbox
+        run: sudo apt-get update && sudo apt-get install -y xvfb openbox gnome-keyring dbus-x11 libsecret-1-0
       - run: npm ci
       # Tasks commit in their test repositories (worktrees.ts): git needs a name.
       - run: git config --global user.name "Kulisa tests" && git config --global user.email "tests@kulisa.app"
-      - run: npm test
+      - if: runner.os != 'Linux'
+        run: npm test
+      # On Linux in a D-Bus session with a keyring made and unlocked: its password is any but empty (an empty one makes
+      # none, and libsecret then waits on a prompt nobody answers); the runner is thrown away after. Chromium takes
+      # the keyring by the desktop's name, and a desktop it does not know gets none (basic_text: nothing encrypted).
+      - if: runner.os == 'Linux'
+        env:
+          XDG_CURRENT_DESKTOP: GNOME
+        run: dbus-run-session -- sh -c 'echo ci | gnome-keyring-daemon --unlock --components=secrets >/dev/null && npm test'
       # A failed group keeps its folder, its screenshots in it (docs/testing.md); a week, then GitHub removes it.
       - if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-folders-${{ matrix.os }}
           path: ${{ runner.temp }}/kulisa-test-*

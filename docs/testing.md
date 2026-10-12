@@ -111,6 +111,12 @@ commit). A failed run keeps the groups' folders (their screenshots) as an artifa
 Windows do not pass yet (ROADMAP, "macOS and Windows are untested"): their runs report but do not fail the workflow
 (`continue-on-error`), until each passes once; each is fixed by a Claude session on that OS.
 
+On Linux the runner has no desktop: `npm test` runs in a D-Bus session with gnome-keyring made and unlocked, and
+`XDG_CURRENT_DESKTOP=GNOME`, else `safeStorage` encrypts nothing and Kulisa keeps no session cookies nor test passwords
+(the first run, 2026-10-12: five tests failed so). Its test folders are in the runner's temp, inside the home folder:
+a test that reads a path as the window shows it shortens it to `~` as Kulisa does. Lines end in LF on every OS
+(`.gitattributes`): git on Windows checked out CRLF, and a test comparing a file failed.
+
 | File | What |
 |---|---|
 | `.github/workflows/test.yml` | the same on GitHub Actions at every push to `main`, on Linux, Windows and macOS |
