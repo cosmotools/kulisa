@@ -5,7 +5,7 @@ import fs from 'fs';
 import { progress } from './worktrees.ts';
 import type { Task } from './tasks.ts';
 import type { Run } from './store.ts';
-import type { Entry } from './transcripts.ts';
+import type { Conversation, Entry } from './transcripts.ts';
 import type { Result } from './result.ts';
 
 // A part's size in characters, about 10,000 tokens: under what agents take from one tool's result.
@@ -38,28 +38,33 @@ async function standing(task: Task, last: { name: string; stopped: string | null
   return lines.join('\n');
 }
 
+// A run read: its agent's name, and its conversation, or why there is none.
+function readRun(task: Task, run: Run): { name: string; conv?: Conversation; why?: string } {
+  const agent = run.agent ? task.shell.agentFor(run.agent, { any: true }) : null;
+  const name = agent?.name || run.agent || 'an agent';
+  if (!agent?.conversation) return { name, why: "Kulisa does not read this agent's transcripts yet" };
+  if (!run.transcript || !fs.existsSync(run.transcript)) return { name, why: 'its transcript is gone' };
+  try { return { name, conv: agent.conversation(run.transcript) }; } catch (e) {
+    console.warn('[history]', run.transcript, (e as Error).message);
+    return { name, why: 'its transcript could not be read' };
+  }
+}
+const runsOf = (task: Task): Run[] => {
+  const saved = task.store.agent();
+  return [...(saved.runs || []), { agent: saved.agent, sessionId: saved.sessionId, transcript: saved.transcript, from: saved.from }];
+};
+
 // The whole text: where the task stands, then each run's chapters (a chapter starts at a summary), the latest first.
 async function build(task: Task) {
-  const saved = task.store.agent();
-  const runs: Run[] = [...(saved.runs || []), { agent: saved.agent, sessionId: saved.sessionId, transcript: saved.transcript, from: saved.from }];
+  const runs = runsOf(task);
   const chapters: string[] = [];
   let last = { name: 'the agent', stopped: null as string | null };
   runs.forEach((run, i) => {
-    const agent = run.agent ? task.shell.agentFor(run.agent, { any: true }) : null;
-    const name = agent?.name || run.agent || 'an agent';
+    if (i === runs.length - 1 && !run.transcript) return; // the current one, begun just now: nothing said yet
+    const { name, conv, why } = readRun(task, run);
     const head = `Run ${i + 1} of ${runs.length}, ${name}${run.from ? `, from ${when(run.from)}` : ''}${run.to ? ` to ${when(run.to)}` : ''}`;
-    last = { name, stopped: null };
-    if (!run.transcript || !fs.existsSync(run.transcript) || !agent?.conversation) {
-      chapters.push(`# ${head}\n\nIts conversation cannot be read here (${!agent?.conversation ? 'Kulisa does not read this agent\'s transcripts yet' : 'its transcript is gone'}).`);
-      return;
-    }
-    let conv;
-    try { conv = agent.conversation(run.transcript); } catch (e) {
-      console.warn('[history]', run.transcript, (e as Error).message);
-      chapters.push(`# ${head}\n\nIts transcript could not be read.`);
-      return;
-    }
-    last.stopped = conv.stopped;
+    if (conv) last = { name, stopped: conv.stopped };
+    if (!conv) { chapters.push(`# ${head}\n\nIts conversation cannot be read here (${why}).`); return; }
     const parts: Entry[][] = [[]];
     for (const e of conv.entries) {
       if (e.kind === 'summary' && parts[parts.length - 1].length) parts.push([]);
@@ -97,4 +102,15 @@ async function historyPart(task: Task, part: number): Promise<Result<{ text: str
   return { text: `Part ${part} of ${parts.length}.${part < parts.length ? ` Then task_history with part ${part + 1}.` : ' The last one.'}\n\n${parts[part - 1]}` };
 }
 
-export { historyPart };
+// Where the task stands, for an agent taking it over, before its first turn (agent-hooks.ts, SessionStart): how the
+// run before it stopped, the code, the profiles, the terminals. Within Claude Code's cap on a hook's context (10,000
+// characters; beyond it Claude gets a file it is not asked to read), the profiles' list beside it.
+const GIST = 5000;
+async function gist(task: Task) {
+  const run = task.store.agent().runs?.at(-1);
+  const read = run ? readRun(task, run) : null;
+  const text = await standing(task, { name: read?.name || 'the agent', stopped: read?.conv?.stopped ?? null });
+  return `${text.length > GIST ? `${text.slice(0, GIST)}\n… (the rest in task_history)` : text}\n\nThe rest of the task's history: the kulisa task_history tool.`;
+}
+
+export { historyPart, gist };

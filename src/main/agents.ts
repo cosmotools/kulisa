@@ -15,6 +15,9 @@
 //                            it); without, a line saying so
 //   prepare(ctx)             before it starts in a task's copy (a worktree): ctx { folder, project: { folder (the
 //                            project's), and the task's agent.json } }
+//   prompt(text)             the arguments that start it with a first message (switching the agent: the handoff)
+//   move(ctx)                its conversation moved to another account's config folder, to resume it there:
+//                            ctx { transcript, sessionId, to }; returns the transcript's new path
 //   conversation(transcript) its transcript read as the task's history (transcripts.ts; task_history): { entries,
 //                            plan, stopped, memory }; without, its runs give the history nothing but Kulisa's part
 //   forget(ctx)              a task's copy is deleted: everything the agent keeps of its folder goes (conversations,
@@ -62,6 +65,8 @@ interface Agent {
   prepare?: (ctx: { folder: string; project: { folder: string; transcript?: string }; configDir?: string | null }) => void;
   forget?: (ctx: ForgetContext) => boolean;
   conversation?: (transcript: string) => Conversation;
+  prompt?: (text: string) => string[];
+  move?: (ctx: { transcript: string; sessionId: string; to: string }) => string;
   config?: { env: string; home: () => string; login: () => string[]; status: string[]; email: (out: string) => string | null; logout: string[] };
   voice?: {
     args?: string[]; key: string; repeat: number; note?: string; languages: string[];
@@ -93,6 +98,9 @@ const AGENTS: Agent[] = [
     },
     forget: (ctx) => forgetClaude(ctx),
     conversation: claudeConversation,
+    // `claude [prompt]`: its interactive mode, the prompt sent (its --help, 2.1.296).
+    prompt: (text) => [text],
+    move: (ctx) => moveClaude(ctx),
     // Its voice mode (needs a Claude.ai account), on for Kulisa's sessions only (not the user's settings): space held
     // (its repeats coming) records, the text put where the cursor is, also after text already there, and left in the
     // input for the human to send. Its tap mode (a tap starts, another stops) was tried first: it records only with
@@ -125,6 +133,9 @@ const AGENTS: Agent[] = [
     // The task's other repositories, writable as its own folder (checked with 0.160.1).
     dirs: (folders) => ({ args: folders.flatMap((f) => ['--add-dir', f]) }),
     forget: ({ folder, configDir }) => forgetCodex(folder, configDir ?? undefined),
+    // `codex [PROMPT]` (its --help, 0.160.1). Its conversations are not moved between accounts yet: not tried, no
+    // account (ROADMAP); a switch to another account of it starts a new one, with the task's history.
+    prompt: (text) => [text],
   },
   { id: 'shell', name: 'Terminal only', maker: '', command: null, needs: "No agent: your shell in the task's folder" },
 ];
@@ -161,6 +172,29 @@ function setClaudeLanguage(file: string, code: string) {
 // Claude Code's own config file, as the session it reported tells it (<config dir>/projects/<folder>/<id>.jsonl, the
 // config dir being CLAUDE_CONFIG_DIR or ~/.claude), so it is the one the project's environment chose (direnv …).
 function claudeConfigOf(transcript: string) { return claudeConfigFile(path.dirname(path.dirname(path.dirname(transcript)))); }
+// A conversation moved to another account's config folder, at the same places (checked with 2.1.296: --resume there
+// finds it, writes on in the same file, the same id): its transcript, its large outputs kept apart (<session>/), its
+// files before its edits (file-history/<session>/); and what it remembered of the folder (memory/), its files added
+// to the other account's, which keeps its own. Renamed, else copied and removed (another disk).
+function moveClaude({ transcript, sessionId, to }: { transcript: string; sessionId: string; to: string }) {
+  const from = path.dirname(path.dirname(path.dirname(transcript)));
+  if (path.resolve(from) === path.resolve(to)) return transcript;
+  const folder = path.basename(path.dirname(transcript)), there = path.join(to, 'projects', folder);
+  const move = (a: string, b: string) => {
+    if (!fs.existsSync(a)) return;
+    fs.mkdirSync(path.dirname(b), { recursive: true });
+    try { fs.renameSync(a, b); } catch { fs.cpSync(a, b, { recursive: true }); fs.rmSync(a, { recursive: true, force: true }); }
+  };
+  move(transcript, path.join(there, path.basename(transcript)));
+  move(path.join(path.dirname(transcript), sessionId), path.join(there, sessionId));
+  move(path.join(from, 'file-history', sessionId), path.join(to, 'file-history', sessionId));
+  const memory = path.join(path.dirname(transcript), 'memory');
+  for (const f of fs.existsSync(memory) ? fs.readdirSync(memory) : []) {
+    const b = path.join(there, 'memory', f);
+    if (!fs.existsSync(b)) { fs.mkdirSync(path.dirname(b), { recursive: true }); fs.copyFileSync(path.join(memory, f), b); }
+  }
+  return path.join(there, path.basename(transcript));
+}
 // The config file of a config dir: ~/.claude keeps it next to it (~/.claude.json), CLAUDE_CONFIG_DIR inside.
 function claudeConfigFile(dir: string) {
   return path.basename(dir) === '.claude' && path.dirname(dir) === os.homedir() ? path.join(os.homedir(), '.claude.json') : path.join(dir, '.claude.json');

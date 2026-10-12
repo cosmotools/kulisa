@@ -1,9 +1,8 @@
 # The task's history and the agents' transcripts
 
 How an agent reads what was said and done in its task before it, by itself or by another agent (`task_history`), and
-how Kulisa reads each agent CLI's transcript for it. Built 2026-10-12 as the first step of switching a task's agent
-([ROADMAP.md](ROADMAP.md), "Switching a task's agent and keeping its work": the rest is still there); the task and its
-agent: [tasks.md](tasks.md). Keep this file current when a reader changes, and check it when an agent CLI is updated:
+how Kulisa reads each agent CLI's transcript for it. Built 2026-10-12 for switching a task's agent
+([tasks.md](tasks.md), "Switching the agent"; what is left, Codex's reader: [ROADMAP.md](ROADMAP.md)). Keep this file current when a reader changes, and check it when an agent CLI is updated:
 the transcripts' formats are the agents' own and undocumented.
 
 ## What the agent gets
@@ -23,7 +22,7 @@ The text, in this order:
    agent's and what runs there.
 2. **The runs' conversations, the latest chapter first.** A task's runs are the agents that worked in it, each with
    its transcript (`agent.json`: the current one in its fields, the earlier ones in `runs`, oldest first; a switch of
-   the agent adds to them, ROADMAP). Each run's conversation is cut into **chapters** at its agent's compaction
+   the agent adds to them: tasks.md, "Switching the agent"). Each run's conversation is cut into **chapters** at its agent's compaction
    summaries: a chapter is a summary and what follows it up to the next. The chapters of all runs, in the order they
    happened, are given from the latest back. At the end of each run's last chapter: the agent's last plan
    (`TodoWrite`) and what it remembered in the task's folder (Claude Code's memory).

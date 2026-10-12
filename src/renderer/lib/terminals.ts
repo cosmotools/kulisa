@@ -207,7 +207,7 @@ export function terminalMenu(el: Element): MenuItem[] | null {
     '-',
     { label: 'Clear', run: () => t.clear() },
     '-',
-    key ? { label: 'Close', run: () => act('terminal:close', { id: Number(key.split('#')[1]) }) }
-      : { label: 'Change agent…', run: () => act('agent:change') },
+    ...(key ? [{ label: 'Close', run: () => act('terminal:close', { id: Number(key.split('#')[1]) }) }]
+      : [{ label: 'Change agent…', run: () => act('agent:change') }, { label: 'New Conversation', run: () => act('agent:new-conversation') }]),
   ];
 }

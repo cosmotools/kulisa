@@ -957,6 +957,7 @@ function start(options: Options = {}) {
   ipcMain.handle('profile:master', (e, { task, profile }: { task: string; profile: string }) => onScreen(e, task)?.openMaster(profile) || noTask);
   ipcMain.handle('profile:refresh', (e, { task, profile }: { task: string; profile: string }) => onScreen(e, task)?.refreshProfile(profile) || noTask);
   ipcMain.handle('agent:change', (e, { task }: { task: string }) => { const w = onScreen(e, task); return w ? w.changeAgent() : noTask; });
+  ipcMain.handle('agent:new-conversation', (e, { task }: { task: string }) => { const w = onScreen(e, task); return w ? w.newConversation() : noTask; });
   ipcMain.handle('terminal:open', (e, { task }: { task: string }) => { const w = onScreen(e, task); return w ? w.openTerminal() : noTask; });
   ipcMain.handle('terminal:close', (e, { task, id }: { task: string; id: number }) => onScreen(e, task)?.closeTerminal(id) || noTask);
   ipcMain.on('layout:save', (e, { task, layout }: { task: string; layout: unknown }) => at(e)?.saveLayout(task, layout));

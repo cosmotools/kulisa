@@ -11,6 +11,7 @@ import path from 'path';
 import fs from 'fs';
 import { start } from '../src/main/app.ts';
 import { claudeConversation } from '../src/main/transcripts.ts';
+import { AGENTS } from '../src/main/agents.ts';
 import { ensureSite } from './fixtures/site.ts';
 import { root, userData, project, SITE, PORT, sleep, waitFor } from './helpers.ts';
 import type { Shell } from '../src/main/shell.ts';
@@ -42,6 +43,10 @@ const agent = { command: 'bash', args: ['-c', 'echo "agent: $FROM_RC"; exec cat 
   voice: { key: '<v>', repeat: 50, note: 'it answers in it too', languages: ['en', 'ru', 'de'], language: () => dictation, setLanguage: (_saved: unknown, code: string) => { dictation = code; return { language: code }; } } };
 // Agents to choose from for a task (agents.ts): one that is not installed until its installer runs, into a
 // folder of the test.
+function claudeLike() {
+  const { resume, move, conversation, prompt, forget } = AGENTS.find((a) => a.id === 'claude')!;
+  return { resume, move, conversation, prompt, forget };
+}
 const bin = path.join(root, 'bin');
 process.env.FAKE_LOGOUTS = path.join(root, 'logouts'); // the accounts the fake agent signed out of
 // Kulisa started from a folder direnv had loaded, as from a terminal in the repository: its state in the environment.
@@ -49,12 +54,13 @@ Object.assign(process.env, { DIRENV_DIR: `-${root}`, DIRENV_FILE: path.join(root
 process.env.FAKE_SIGNIN_PAGE = `${SITE}/app?signin`; // the page its sign-in opens (the test site)
 const agents: Agent[] = [
   // With accounts (accounts.ts) as Claude Code's, its folder in FAKE_CONFIG_DIR, which it prints; signed in, out and
-  // asked who with its own commands (fixtures/fake-agent.sh).
+  // asked who with its own commands (fixtures/fake-agent.sh). Its conversations as Claude Code's: resumed, moved to
+  // another account, read, forgotten, a first message (switching the agent; the arguments it ignores).
   { id: 'fake', name: 'Fake agent', maker: 'Kulisa tests', needs: 'Nothing', command: 'kulisa-fake-agent', installDirs: [bin],
     config: { env: 'FAKE_CONFIG_DIR', home: () => path.join(root, 'fake-config'), login: () => ['auth', 'login'],
       status: ['auth', 'status'], email: (out) => JSON.parse(out).email, logout: ['auth', 'logout'] },
     install: { posix: `echo "installing the fake agent"; mkdir -p '${bin}' && cp '${path.join(import.meta.dirname, 'fixtures', 'fake-agent.sh')}' '${bin}/kulisa-fake-agent' && chmod +x '${bin}/kulisa-fake-agent' && printf '\\033[32mdone\\033]8;;https://kulisa.app\\007\\033]8;;\\007\\033[0m\\n'` }, // colored, a link: as installers print
-    args: () => [] },
+    args: () => [], ...claudeLike() },
   { id: 'shell', name: 'Terminal only', maker: '', command: null, needs: 'No agent' },
 ];
 

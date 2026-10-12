@@ -225,9 +225,12 @@ async function deleteTask(shell: Shell, p: ProjectEntry, entry: TaskEntry) {
   for (const c of entry.copies || []) await removeWorktree(c);
   if (entry.home) fs.rmSync(entry.home, { recursive: true, force: true });
   if (entry.copies?.length) {
-    const saved = data.agent();
+    // Each of its runs: the agents that worked in it, each its account's (tasks.ts, switchTo).
+    const { runs = [], ...current } = data.agent();
     const project = { folder: reposOf(p)[0], ...store.tasksOf(p).list.map((e) => store.taskOf(p, e.n).agent()).find((a) => a.transcript) };
-    try { const a = shell.agentFor(saved.agent, { any: true }); a?.forget?.({ folder: entry.folder!, saved, project, configDir: a.configDir }); } catch (e) { console.warn('[agents] forget:', (e as Error).message); }
+    for (const saved of [...runs, current]) {
+      try { const a = shell.agentFor(saved.agent, { any: true }); a?.forget?.({ folder: entry.folder!, saved, project, configDir: a.configDir }); } catch (e) { console.warn('[agents] forget:', (e as Error).message); }
+    }
   }
   // Its profiles' sessions stay open in Electron until Kulisa quits: whatever cannot go now goes at the next start.
   store.markDeleted(data.dir);

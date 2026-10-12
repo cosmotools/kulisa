@@ -74,7 +74,9 @@ of its own (several side by side: a work and a personal one). A project's tasks 
 (**Add Agent…**). An account stays until you delete it in Settings → Agents (×, after a question), also when no project
 has it any more. Each starts as a clean agent: your own `~/.claude` and `~/.codex` are not used. A project without
 one starts its tasks with the terminal only. Each task keeps its choice; **Change agent…** in the terminal's
-right-click menu picks another of the project's (with a new conversation).
+right-click menu picks another of the project's, which goes on with the work: another account of the same agent
+resumes the same conversation, another agent reads what was said and done in the task first (when one runs out of its
+limit, say). **New Conversation** there starts over.
 
 **Tasks:** several tasks of a project at once, each with its own agent, in its project's group. **+** (a project in
 its menu; Ctrl+Shift+N for the shown one's) makes one at once, `task-<n>` until its agent names it (or you do: **Rename…** in its tab's menu): a git worktree on a branch of

@@ -41,97 +41,21 @@ here; what is left of it stays.
     default); rights on profiles, when real accounts come (one flag, "view only": reading allowed, clicks and typing
     refused; today the agent's own modes cover test users).
 
-- **Switching a task's agent and keeping its work** (designed with the author 2026-10-11 and 2026-10-12; to build next,
-  a step at a time). A task's agent runs out of its limit or credits (Claude Code on email1), and the human goes on
-  with another one they have (Claude Code on email2, or Codex): the task goes on where it was, whatever agents and
-  accounts it went through before, in any order (claude1 → codex → claude1 …). Today Change agent… starts a new
-  conversation, and the work done so far is in the old agent's history only.
-  - **One rule: the conversation is the agent's, the work is the task's.** An agent goes on with its own conversation
-    when it has one in the task; else it reads the task's history and starts a new one. For the human one action,
-    **Change agent…** (the terminal's menu, `AgentPicker.vue`): any of the project's accounts, as today, and the chosen
-    one continues; no rule which way a switch may go. **New Conversation**, a row of its own in the same menu, starts
-    the same agent from nothing (today there is none but Claude's `/clear`).
-  - **The task keeps its runs**: `agent.json` keeps the current one in its fields as today (`agent`, `sessionId`,
-    `transcript`, `started`) and the earlier ones beside them, `runs: [{ agent, sessionId, transcript, from, to }]`,
-    oldest first: the tasks there are go on as they are, with nothing to migrate. Deleting the task deletes every run's conversation (`forget`); the
-    history below is derived from the runs, nothing copied or kept twice.
-  - **Its own conversation** (the same CLI; another account, claude1 → claude2): moved and resumed, exactly as it
-    was. Claude Code keeps a conversation as `<account folder>/projects/<task folder>/<session>.jsonl`, with
-    `<session>/tool-results/` (large outputs kept apart) and `file-history/<session>/` (files before its edits), and
-    `claude --resume <session>` looks for it in the folder of the account it runs with. Kulisa stops the agent, moves
-    those to the other account's folder at the same places, with what the agent remembered of the task's folder
-    (`projects/<task folder>/memory/`, its files added to the other account's, which Claude Code makes empty in every
-    account it runs in), and starts it there with `--resume`: the same session id, written on in the same file. Codex the same
-    (`sessions/` in its `CODEX_HOME`, `codex resume <id>`). The other account reads the whole context again at its
-    first request: prompt caching is per account. No rollback: a move is undone by the same action (choosing the
-    other account moves it back), so nothing special when the new account fails at its first request.
-  - **The task's history** (another CLI, claude → codex): a conversation cannot move, their formats differ, and the
-    old agent cannot write a handoff itself, its limit is reached (a `/compact` is a request to its model too). So
-    the new agent reads the whole history and writes its own:
-    1. **`task_history(part)` and Claude Code's reader: built** (2026-10-12; [transcripts.md](transcripts.md)): the
-       task's history read from its runs' transcripts on disk, where it stands first, then the chapters from the
-       latest back, in parts. Left of it: Codex's reader, once there is an account.
-    2. **The gist before the first turn**: the `SessionStart` hook's `additionalContext` (`agent-hooks.ts`,
-       `sessionStart`; built for the open profiles, for Claude Code's plugin and Codex's config alike) carries, when
-       the task has runs before this one, Kulisa's part (where the last turn stopped, the git state, profiles and
-       terminals: a few KB), so the new agent knows them before its first action and cannot skip them, at the start of
-       its context, where a model holds text best. Not the last summary: Claude Code caps `additionalContext` at
-       10,000 characters (its hooks' documentation, read 2026-10-12: beyond it Claude gets a file's path and the first
-       2,000 characters, and is not asked to read the file), and a summary is 15–22 KB; it is `task_history`'s first
-       page. The whole context the hook gives stays under the cap, the profiles' list included. Codex's cap: to check.
-    3. **The new agent starts with it**: a new conversation in the task's folder, its first message a command-line
-       argument (`claude "<prompt>"`, `codex "<prompt>"`; `agents.ts`, `prompt(text)`; a `SessionStart` hook's
-       `additionalContext` starts no turn, and its `initialUserMessage` does only with `-p`, in Claude Code alone): the human handed over the work of this task begun with another agent; its gist
-       is in the session's context, the rest in `task_history`: read it whole, before anything else; then tell the
-       human in a few lines what the task is, what is done, what is next, and go on. Its first answer is the handoff the human checks: what it missed shows at once.
-    4. **Back to a CLI that has a run in the task** (claude1 → codex → claude1): its run resumed, with the runs after
-       it read from `task_history`.
-  - **Whether the new account has tokens** is not checked before: no CLI says it to a program (`/usage`, `/status` are
-    the human's; Claude Code's `cachedUsageUtilization` in `.claude.json` is an undocumented cache). It shows at the
-    first answer (its hooks: `StopFailure`); the human then chooses another.
-  - **What does not move**, said in the docs: the agent's hidden reasoning, its permissions given in the session, its
-    own background processes (what runs in Kulisa's terminals, `terminal_run`, goes on: they are the task's), and
-    settings of one account (its MCP servers, skills).
-  - Not chosen, with the reason:
-    - A mechanical summary alone: the author's objection above.
-    - A history Kulisa writes as the work goes (after each turn, from the transcript), or notes the agent writes
-      through a tool (`task_note`): the transcript is on disk already, written by the agent; a copy adds nothing but
-      code, and notes cost tokens and depend on the model remembering to write them (Claude Code's own memory does it
-      where it exists, and the reader takes it).
-    - Converting a transcript into the other CLI's own format and resuming it there (txcript, Apache-2.0, has a
-      WASM npm package; baton; claude-codex-bridge): young tools over two undocumented formats that change with each
-      release, a failure exactly when the limit is reached; and a transcript longer than the other model's window.
-    - A small local model writing the handoff (LLMLingua-2, a model through llama.cpp): tens of minutes on a CPU for a
-      long conversation, gigabytes of memory, and it misses what a coding agent would find.
-    - A proxy giving the old CLI another vendor's model (`ANTHROPIC_BASE_URL` to a gateway such as LiteLLM, the
-      author's idea; the same conversation going on with the other model, the one truly seamless way): it needs that
-      vendor's API key (a subscription's sign-in is the CLI's own, and Kulisa reads no tokens), a gateway process of
-      another's, and drops signed reasoning. A candidate for an extension, for people with API keys of both.
-    - One config folder whose sign-in Kulisa swaps; one folder of conversations shared by a CLI's accounts (links):
-      tasks could not run two accounts side by side, or undocumented links, written to by several sessions.
-  - **Anthropic's terms** (Consumer Terms, read 2026-10-11): several accounts are not forbidden; sharing a sign-in
-    is; "bypassing any of our systems or protective measures" is. Going on with another vendor bypasses nothing; a
-    second subscription of the same vendor to get around a limit may count as bypassing: the human's choice, so
-    Kulisa never offers it on its own (Open, below).
-  - **Checked** (2026-10-12, Claude Code 2.1.296): a session keeps outside `projects/` only `file-history/<session>/`
-    (moved with it), an empty `session-env/<session>/` and its prompts' lines in the shared `history.jsonl` (the up
-    arrow's history: not moved); `claude [prompt]` takes the first prompt as an argument in its interactive mode (its
-    `--help`); `--resume` keeps the session's id unless `--fork-session` is given (its `--help`); the hooks' output is
-    a `hook_success` attachment in the transcript; `additionalContext` is capped at 10,000 characters. A conversation
-    moved to another signed-in account's folder (the same place under `projects/`) and resumed there with `-p
-    --resume <id>`: found, its content remembered, the same id, written on in the same file (23 lines, then 34), no
-    new file; `.claude.json` and `history.jsonl` untouched by it.
-  - **To check before the code**: with Codex 0.160.1, once there is an account: its
-    transcript, for its reader (until then a run of Codex gives the history Kulisa's part alone: git, profiles,
-    terminals), `codex resume` of a moved session, its first prompt as an argument, its `additionalContext`'s cap.
-  - Tests: the readers on small transcripts made for the test (`test/unit/`, no real conversation in git);
-    `task_history` and its parts (`test/agent.ts`); end to end with fake agents of two CLIs and of two accounts
-    (`test/tasks.ts`): the conversation moved, the runs along a chain, the new agent's first message, New
-    Conversation.
-  - **Open, for the author:** the old conversation after a switch to another CLI, kept (the task's record, read by
-    `task_history`; it goes with the task) or deleted at the new agent's first answer (the author's idea, 2026-10-12;
-    then its chapter is read once and kept by the task: to decide at the end); Kulisa offering the switch when an
-    agent stops on its limit (`StopFailure`), and to whom.
+- **Switching a task's agent, rest** (built 2026-10-12: [tasks.md](tasks.md), "Switching the agent";
+  [transcripts.md](transcripts.md)).
+  - **Codex**, once there is an account (Codex 0.160.1): its transcript, for its reader (until then a run of Codex
+    gives the task's history Kulisa's part alone: git, profiles, terminals); its conversation moved to another
+    account and resumed (`move`: `sessions/` in its `CODEX_HOME`, `codex resume <id>`; until then a switch to another
+    account of it starts a new conversation with the task's history); its first prompt as an argument; its cap on a
+    hook's context. Its compaction summaries are encrypted (claude-codex-bridge's finding): its history will have
+    chapters without summaries.
+  - To try with a real Claude Code: a switch end to end (the tests run fake agents); `claude --resume <id> "<prompt>"`
+    in its interactive mode, sending the prompt as `-p` does (checked with `-p` only).
+  - **Open, for the author:** the old conversation after a switch to another CLI: kept (today: the task's record, read
+    by `task_history`, gone with the task) or deleted at the new agent's first answer (the author's idea, 2026-10-12;
+    then its chapter is read once and kept by the task); Kulisa offering the switch when an agent stops on its limit
+    (`StopFailure`), and to whom (another vendor bypasses nothing; a second subscription of the same vendor may: tasks.md,
+    "Switching the agent").
 - **Kulisa plugin: more the agent can do in the browsers** (tools in `mcp-server.ts`, each described in the skill;
   what is built: [profiles.md](profiles.md), "What the agent does"). What else an agent needs comes from using it
   (the author moves to working in Kulisa, 2026-10-08): where the agent goes around the tools (its own Playwright
