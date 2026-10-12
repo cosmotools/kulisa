@@ -50,7 +50,6 @@ setuid on a plain install. The `.deb` installs it setuid, so the installed app r
 |---|---|
 | `KULISA_PROJECT` | The project in this folder (added if new): its task shown last opened, or a new one |
 | `KULISA_AGENT` | One agent command for every task, without asking (e.g. a CLI Kulisa does not know). It gets no Claude Code plugin; its task's MCP URL is in its environment as `KULISA_MCP_URL`, with `KULISA_PORT_OFFSET` and `KULISA_TASK` |
-| `KULISA_MIMIC=0` | Do not present profiles as Google Chrome |
 | `KULISA_SIGNIN_HOSTS` | More sign-in hosts for the automatic sign-in pause, comma-separated |
 | `KULISA_DATA` | Data folder instead of `~/.config/Kulisa` (e.g. to try a build next to your real one: one Kulisa runs per data folder, a second on the same one shows the first's window) |
 | `KULISA_MCP_PORT` | MCP server port (default 4450; `0` picks a free one) |
@@ -89,7 +88,6 @@ src/main/        Electron main process
   history.ts       the task's history for its agent (task_history), read from the agents' transcripts
   transcripts.ts   an agent CLI's transcript read as entries: Claude Code's (docs/transcripts.md)
   agent-hooks.ts   answers for the plugin's hooks (/task/<project>/<n>/hooks/…: the open profiles, the session; the agent's state)
-  mimic-chrome.ts  UA, UA-CH headers and userAgentData of Google Chrome
   signin-pages.ts  which pages are sign-in pages; what URL to restore instead of one
   signin-pause.ts  pauses the agent on sign-in pages (temporary implementation, see docs/REPORT.md)
   session-cookies.ts  keeps session cookies across restarts (encrypted with the OS keyring)

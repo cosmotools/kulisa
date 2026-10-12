@@ -8,7 +8,6 @@ import type { SessionCookies } from './session-cookies.ts';
 import type { CdpProxy } from './cdp-proxy.ts';
 import type { Accounts, Account } from './accounts.ts';
 import type { Agent, Found } from './agents.ts';
-import type { Identity } from './mimic-chrome.ts';
 import type { Profile } from './profiles.ts';
 import type { Project } from './projects.ts';
 import type { Task } from './tasks.ts';
@@ -53,7 +52,6 @@ interface Shell {
   pointer(): Point;
   windowClosing(w: AppWindow, e: Electron.Event): void;
   signins: Map<string, Pty>;
-  chromeIdentity: Identity | null;
   stopAutosave?: () => void;
   screenshot(file: string): Promise<void>;
   plugin: string;

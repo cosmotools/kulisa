@@ -22,7 +22,6 @@ import { AGENTS, findAgent, accountEmail, signOut, agentVersion, installLine, in
 import { nameError, repoName } from './names.ts';
 import { startTerminal, stopTerminal, forgetTerminal } from './terminal.ts';
 import { keymap, match } from './keys.ts';
-import { chromeIdentity, nativeIdentity } from './mimic-chrome.ts';
 import { startMcpServer } from './mcp-server.ts';
 import { installPicker } from './picker.ts';
 import { installGhost } from './ghost.ts';
@@ -42,7 +41,7 @@ import type { Result } from './result.ts';
 
 // What start takes (below).
 interface Options {
-  userData?: string; project?: string; projectsHome?: string; mcpPort?: number; mimicChrome?: boolean; signinHosts?: string[];
+  userData?: string; project?: string; projectsHome?: string; mcpPort?: number; signinHosts?: string[];
   appDevTools?: boolean; agents?: Agent[];
   agent?: { name?: string; command: string; args?: string[]; resume?: (sessionId: string) => string[]; shell?: Agent['shell']; voice?: Agent['voice']; conversation?: Agent['conversation'] };
 }
@@ -70,7 +69,6 @@ const CLAUDE_PLUGIN = app.isPackaged ? path.join(process.resourcesPath, 'claude-
 //              Default: the human chooses from agents (agents.ts) per task, in the window.
 //   agents     the agents to choose from, instead of agents.ts's (tests)
 //   mcpPort    port of the MCP server (default 4450)
-//   mimicChrome  present profiles as Google Chrome (default true)
 //   signinHosts  extra sign-in hosts (sign-in pause, tab restore)
 function start(options: Options = {}) {
   // direnv's state from where Kulisa was started (a terminal in a folder direnv had loaded) is not Kulisa's: a task's
@@ -148,7 +146,6 @@ function start(options: Options = {}) {
   // The window a page's message comes from (IPC: event.sender).
   shell.windowOf = (sender) => shell.windows.find((w) => !w.win.isDestroyed() && w.win.webContents === sender) || null;
   const at = (e: Event) => shell.windowOf(e.sender);
-  const mimic = options.mimicChrome !== false;
   const appDevTools = options.appDevTools ?? !app.isPackaged;
   let quitting = false; // from before-quit on (below): closing a window asks nothing, tabs closing save nothing
   Object.defineProperty(shell, 'quitting', { get: () => quitting });
@@ -812,9 +809,7 @@ function start(options: Options = {}) {
       for (const p of s.tabs) if (!shell.open.has(p.id)) addProject(p, w);
       return { w, shown: s.shown && shell.open.get(s.shown.id)?.window === w ? shell.open.get(s.shown.id)! : w.tabs[0] || null };
     });
-    // The first window's page tells how Chromium presents itself, before any profile is made.
     await windows[0].w.load(windows[0].shown?.entry ?? null);
-    shell.chromeIdentity = mimic ? chromeIdentity(await nativeIdentity(windows[0].w.win.webContents)) : null;
     shell.mcp = await startMcpServer(shell, { port: options.mcpPort ?? 4450 });
     installPicker(shell);
     installGhost(shell);

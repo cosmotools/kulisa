@@ -91,9 +91,10 @@ here; what is left of it stays.
     Safari (WebKit is not in Electron; a separate question).
   - A mobile UA and touch (CDP `Emulation.setUserAgentOverride` with `mobile: true`,
     `Emulation.setTouchEmulationEnabled`), else sites that choose by the UA on the server (`m.site`) send the desktop
-    one: a mobile variant of `mimic-chrome.ts`'s identity, put back after the pause where the identity is
-    (`Profile.setSigninMode`). During the pause only the desktop identity: a strict sign-in (GoDaddy's Kasada) may
-    not take an Android UA from a Linux machine.
+    one: an Android variant of the profile's own User-Agent, put back after the pause (`Profile.setSigninMode`), which
+    detaches the debugger and with it every CDP override; during the pause the desktop one: a strict sign-in
+    (GoDaddy's Kasada) may not take an Android UA from a Linux machine. Not Google Chrome's: presenting as Chrome got
+    a profile refused by Google (REPORT, "Chrome mimicry dropped").
   - Kept with the tab across restarts (a field in `Kulisa Tabs.json`). No RAM: no process, no buffers.
   - Next to it, small: `browser_emulate_media` (dark or light, print, reduced motion; Playwright's
     `page.emulateMedia`): the profiles' pages follow the OS's theme, so the agent cannot check the site's other one.
@@ -300,7 +301,6 @@ here; what is left of it stays.
     `timers`, `url` (Electron's `tutorial/sandbox.md`, "Preload scripts"), and ours takes the rule for names from
     `../main/names` and the profiles' pictures from `../main/avatars`; pass that another way (IPC, `additionalArguments`).
   - **Distribution:** code signing, notarization, auto-update channel, the `.deb`'s setuid `chrome-sandbox`.
-  - **Presenting as Google Chrome:** what users should know (sites' terms, bot detection).
 - **Accessibility** (a11y; before a public release, as security). Kulisa should work for people who see poorly, do
   not use a mouse, or use a screen reader, as the big IDEs do; for software bought by public bodies and large companies
   it is also a requirement (Section 508 in the US, EN 301 549 in the EU, both on WCAG). Start from Electron's guide
@@ -541,13 +541,6 @@ here; what is left of it stays.
 
 ## Open issues
 
-- **"Sign in with Google" in a profile is likely refused** (found 2026-10-12, with an agent's sign-in: Google answered
-  "This browser or app may not be secure" in an Electron window presenting as Chrome; tasks.md, Accounts). A
-  profile's master is the same kind of window, so a site's "Sign in with Google" (and Google's own sites) may be
-  refused there too; not tried with a real Google account yet. The system's browser does not help there: the sign-in
-  must end in the profile's cookies. Kulisa does not try to get past Google's check (CLAUDE.md, Rules). To try first,
-  then to decide with the author.
-
 - **The OS's window buttons are not dimmed under a dialog** (the author, 2026-10-11; put off). They are drawn by the
   OS over the window (`titleBarOverlay`, `window.ts`), so the dialog's backdrop, HTML, cannot cover them: under a
   dialog they stay bright. To look at: dim them with `setTitleBarOverlay` while a dialog is open (Windows and Linux;
@@ -590,9 +583,8 @@ here; what is left of it stays.
 - **macOS and Windows are untested** (only Linux so far; Kulisa targets all three, see SPEC section 4). Known gaps:
   - Drag regions left by a page (Workarounds of Electron bugs, above): seen on Linux; whether macOS and Windows
     have the bug, and whether the workaround is enough there, is not known. Open Teams in a pane and click its page.
-  - `mimic-chrome.ts` takes the machine part (OS, OS version, CPU, the UA's platform) from what Electron's
-    Chromium reports itself, so it should match Chrome everywhere. Compared with real Chrome on Linux only; check
-    on macOS and Windows against a real Chrome (`navigator.userAgentData.getHighEntropyValues`).
+  - Signing in to Google and GoDaddy (Kasada) in a profile: passed on Linux with Electron's own User-Agent
+    (2026-10-12); check on macOS and Windows.
   - `--no-sandbox` is needed only for `npm start`/`npm test` on Linux, where `chrome-sandbox` in `node_modules` is
     not setuid. It must be on the command line (Chromium's zygote starts before `main`; `appendSwitch` is too late),
     so the npm scripts pass it on every OS: dev runs on macOS and Windows are unsandboxed for no reason. Packaged

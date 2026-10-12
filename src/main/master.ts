@@ -2,8 +2,8 @@
 // menu opens a window of its own on the master (profile-store.ts), where the human signs in by hand, once for every
 // task of its projects: each task's copy is made from the master at the profile's first open there (Refresh from
 // Master… brings its cookies to a copy made before). Nothing automated is attached to it: no CDP proxy, no Playwright,
-// no agent's tool sees it, so no sign-in pause is needed. The page is a Profile as a task's (its tabs, presenting as
-// Chrome, its session cookies kept), under a small bar of its own (master.html): the address, back, forward, reload.
+// no agent's tool sees it, so no sign-in pause is needed. The page is a Profile as a task's (its tabs, its session
+// cookies kept), under a small bar of its own (master.html): the address, back, forward, reload.
 // One window per master; asked again, it comes to the front. Closed, its tabs and sign-ins are saved.
 import { BrowserWindow, ipcMain } from 'electron';
 import fs from 'fs';
@@ -32,7 +32,7 @@ function installMasters(shell: Shell, { preload, colors }: { preload: string; co
       autoHideMenuBar: true, webPreferences: { preload, sandbox: false } });
     win.removeMenu();
     const dir = shell.profileStore.masterDir(folder);
-    const profile = new Profile(win, { id: g.id, name: g.name, avatar: g.avatar, folder, dir }, { task: `master/${folder}`, mimic: shell.chromeIdentity });
+    const profile = new Profile(win, { id: g.id, name: g.name, avatar: g.avatar, folder, dir }, { task: `master/${folder}` });
     const m: Master = { win, profile, closing: null };
     shell.masters.set(folder, m);
     await win.loadFile(page('master.html'), { query: { name: g.name, theme: shell.shade() } });
@@ -41,8 +41,7 @@ function installMasters(shell: Shell, { preload, colors }: { preload: string; co
     profile.on('changed', () => { place(); tell(); });
     win.on('resize', place);
     win.on('close', (e) => { if (!m.closed && !shell.quitting) { e.preventDefault(); close(m); } });
-    // Its tabs open; the bar's controls wait for them (a tab goes about:blank, then presents as Chrome, then loads: an
-    // address typed meanwhile was overwritten).
+    // Its tabs open; the bar's controls wait for them (an address typed while a tab loads was overwritten).
     m.ready = (async () => {
       await shell.sessionCookies.restore(profile); // before the first request
       const urls = readTabs(dir);

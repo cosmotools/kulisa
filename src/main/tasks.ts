@@ -51,7 +51,7 @@ class Task {
   // project: its project (projects.ts); entry: { n, name, branch, worktree, folder, base, offset, closed, closedAt }
   // from its tasks.json; one without a worktree works in the project's folder. key: the task among all open ones
   // ("<project id>/<n>"): the windows, the terminals, the CDP proxy and the MCP server's URLs know it by that.
-  // shell: the app (app.ts): store, proxy, mcp, sessionCookies, chromeIdentity, signin, uiZoom, bus, ask; the agents
+  // shell: the app (app.ts): store, proxy, mcp, sessionCookies, signin, uiZoom, bus, ask; the agents
   // (agentFor, findAgent, chooseAgent, plugin); and taskChanged(task, now, agentState), called after any change of its
   // profiles or its agent's state. Its window is its project's (window.ts: win, viewsHidden, picking, send), which
   // changes when the project moves to another window.
@@ -94,7 +94,7 @@ class Task {
     const shell = this.shell;
     return {
       make: (cfg) => {
-        const profile = new Profile(this.window!.win, cfg, { task: this.key, mimic: shell.chromeIdentity });
+        const profile = new Profile(this.window!.win, cfg, { task: this.key });
         profile.hidden = !this.shown() || this.window!.viewsHidden;
         shell.proxy.addProfile(profile);
         profile.endpoint = shell.proxy.endpoint(profile);

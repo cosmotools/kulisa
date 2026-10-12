@@ -9,8 +9,6 @@ import type { Browser, BrowserContext, Page } from 'playwright-core';
 import type { BrowserWindow, Rectangle, Session, WebContents, WebContentsView as View } from 'electron';
 import fs from 'fs';
 import path from 'path';
-import { applyToSession, applyToWebContents } from './mimic-chrome.ts';
-import type { Identity } from './mimic-chrome.ts';
 import type * as Sent from '../renderer/types.ts'; // what the window gets: its one definition
 import { ensureTarget } from './cdp-proxy.ts';
 // Taken from the module, not imported by name: unit tests load this in plain Node, where 'electron' is only a path
@@ -65,14 +63,13 @@ const PAGE_RADIUS = 8; // a little less than the island's corners, which the pag
 class Profile extends EventEmitter {
   win: BrowserWindow; id: string; name: string; avatar: string; description: string; login: string; hasPassword: boolean;
   folder: string; dir: string; task: string; baseZoom: number; siteZoom: Record<string, number>; session: Session;
-  mimic: Identity | null; tabs: Tab[]; active: string | null; closedUrls: string[]; bounds: Bounds;
+  tabs: Tab[]; active: string | null; closedUrls: string[]; bounds: Bounds;
   browser: Browser | null; context: BrowserContext | null; endpoint: string | null; signinMode: boolean; resuming?: boolean;
   hidden: boolean; shown: boolean; deleted: boolean;
   // cfg: { id, name, avatar, description, folder, dir, session }. The folder (cookies, storage; dir is its absolute path) is fixed at
   // creation; a rename changes id and name only.
   // win: the window it shows in (moveTo). task: its task's key (profiles of different tasks share ids).
-  // mimic: a chromeIdentity() to present as Google Chrome, or null.
-  constructor(win: BrowserWindow, cfg: ProfileConfig, { task, mimic = null }: { task: string; mimic?: Identity | null }) {
+  constructor(win: BrowserWindow, cfg: ProfileConfig, { task }: { task: string }) {
     super();
     this.win = win;
     this.id = cfg.id; this.name = cfg.name; this.avatar = cfg.avatar; this.description = cfg.description || '';
@@ -83,7 +80,6 @@ class Profile extends EventEmitter {
     this.baseZoom = 1;
     this.siteZoom = { ...(cfg.zoom || {}) };
     this.session = cfg.session || session.fromPath(this.dir); // a session of its own: one in memory (master.ts)
-    this.mimic = mimic ? applyToSession(this.session, mimic) : null;
     this.tabs = []; this.active = null; this.closedUrls = []; this.bounds = { x: 0, y: 0, width: 0, height: 0 };
     this.browser = null; this.context = null; this.endpoint = null; this.signinMode = false;
     this.hidden = false; // views hidden while a window-wide dialog is open or a pane is dragged (they draw above the HTML)
@@ -129,11 +125,9 @@ class Profile extends EventEmitter {
     // The URL it is opening, until a page commits: a tab closed while it loads is saved as that (app.ts).
     tab.pendingUrl = url;
     wc.on('did-navigate', (_e, u) => { if (u !== 'about:blank') tab.pendingUrl = null; });
-    // The identity override must be in place before the first request. A fresh webContents has no renderer and
-    // CDP commands wait for one, so: about:blank (no network) → override → the real URL.
-    const ready = this.mimic
-      ? wc.loadURL('about:blank').catch(() => {}).then(() => applyToWebContents(wc, this.mimic!)).catch((e: Error) => console.error('[mimic]', e.message))
-      : Promise.resolve();
+    // A fresh webContents has no renderer, and CDP commands wait for one: about:blank (no network) gives it one, and a
+    // page Playwright sees even when the real URL never answers (test: a site that never answers).
+    const ready = wc.loadURL('about:blank').catch(() => {});
     // tab.answered (null once it has): the URL's first page, or its error page, is there. Until then Chromium holds
     // CDP commands to the tab, so the proxy shows it to clients only after: a site that never answers would hang
     // them, and opening the profile with them (cdp-proxy.ts).
@@ -153,7 +147,7 @@ class Profile extends EventEmitter {
       const failed = (_e: unknown, code: number, _d: string, _u: string, mainFrame: boolean) => { if (mainFrame && code !== -3) done(); };
       const done = () => { wc.off('did-navigate', done); wc.off('did-fail-load', failed); resolve(); };
       wc.on('did-navigate', done); wc.on('did-fail-load', failed); setTimeout(done, 5000);
-      wc.loadURL(url).then(() => { if (this.mimic) wc.navigationHistory.clear(); }).catch(() => {});
+      wc.loadURL(url).then(() => wc.navigationHistory.clear()).catch(() => {}); // Back never goes to the about:blank
     }) : undefined);
     if (activate) this.activate(tab.id);
     return tab;
@@ -197,8 +191,6 @@ class Profile extends EventEmitter {
         // Must adopt options.webContents (Chromium already created it); a fresh one freezes the main process.
         const v = new WebContentsView({ webPreferences: options.webPreferences, webContents: (options as { webContents?: WebContents }).webContents });
         const t = this._add(v); t.url = url; this.activate(t.id);
-        // A popup is already navigating; the session-level header hook covers its first request.
-        if (this.mimic) setImmediate(() => applyToWebContents(v.webContents, this.mimic!).catch(() => {}));
         return v.webContents;
       },
     }));
@@ -328,8 +320,8 @@ class Profile extends EventEmitter {
   reload(id?: string | null, { ignoreCache = false } = {}) { const wc = this.get(id)!.wc; if (ignoreCache) wc.reloadIgnoringCache(); else wc.reload(); }
 
   // Sign-in mode: nothing automated is attached while the human signs in. Playwright disconnects, every tab's
-  // debugger is detached (dropping Runtime/Network/Page domains, Playwright's init scripts and bindings), and
-  // only the Chrome identity override is put back. Turning it off reconnects the shell's Playwright.
+  // debugger is detached (dropping Runtime/Network/Page domains, Playwright's init scripts and bindings). Turning it
+  // off reconnects the shell's Playwright.
   // Who turns it on and off: signin-pause.ts.
   async setSigninMode(on: boolean) {
     if (on === this.signinMode || this.deleted) return;
@@ -339,7 +331,6 @@ class Profile extends EventEmitter {
       for (const t of this.tabs) {
         try { if (t.wc.debugger.isAttached()) t.wc.debugger.detach(); } catch {}
         t.targetId = null;
-        if (this.mimic) await applyToWebContents(t.wc, this.mimic).catch(() => {});
       }
     } else {
       // Reconnect first, then leave the mode: the agent sees the profile again only when it is usable.
