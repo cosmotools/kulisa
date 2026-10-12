@@ -554,27 +554,30 @@ export default (test: Test) => {
     await ui(`document.querySelector('.termtab .close').click()`);
     await waitFor(() => task.terminals.size === 0);
     ctx.asked.length = 0;
-    // Alone in the grid (no profile open): a strip at the bottom of the grid, as under profiles, the room above it empty,
-    // whatever the arrangement (it was a strip at the grid's top, or filled the grid, by the arrangement).
+    // Alone in the grid (no profile open): the +'s rows as big buttons in its middle, whatever the arrangement.
     await waitFor(folded);
     assert.deepEqual(saved(), { front: null, list: [] });
     assert.equal(conversations()[0].terminal, undefined);
     assert.ok(conversations()[0].to, 'its conversation closed, kept for the history');
-    // Its + from the middle of the island (x), and from where a strip's middle would be: its middle, or at the bottom.
+    // Its + from the middle of the island (x), and from where a strip's middle would be.
     const plus = () => ui(`(() => { const b = document.getElementById('termUnfold').getBoundingClientRect(), r = document.querySelector('.terminals').getBoundingClientRect();
-      return { x: Math.round(b.x + b.width / 2 - (r.x + r.width / 2)), middle: Math.round(b.y + b.height / 2 - (r.y + r.height / 2)), bottom: Math.round(r.bottom - (b.y + b.height / 2)) }; })()`);
+      return { x: Math.round(b.x + b.width / 2 - (r.x + r.width / 2)), middle: Math.round(b.y + b.height / 2 - (r.y + r.height / 2)) }; })()`);
     const middle = async () => { const p = await plus(); return Math.abs(p.x) <= 1 && Math.abs(p.middle) <= 1; };
-    const bottom = async () => {
-      const p = await plus(), { strip, empty } = await ui(`(() => { const s = document.querySelector('.terminals .strip').getBoundingClientRect(),
-        r = document.querySelector('.terminals').getBoundingClientRect();
-        return { strip: [Math.round(s.width - r.width), Math.round(s.height), Math.round(r.bottom - s.bottom)],
-          empty: getComputedStyle(document.querySelector('.termtabs').closest('.dv-groupview').querySelector('.dv-content-container')).backgroundColor }; })()`);
-      return Math.abs(p.x) <= 1 && Math.abs(p.bottom - 18) <= 1 && JSON.stringify(strip) === '[0,36,0]' && empty === 'rgba(0, 0, 0, 0)';
-    };
+    const launch = () => ui(`(() => { const l = document.querySelector('.terminals .launch'), r = document.querySelector('.terminals').getBoundingClientRect();
+      if (!l) return null; const b = l.getBoundingClientRect(), ys = [...l.querySelectorAll('.launcher')].map((x) => Math.round(x.getBoundingClientRect().y));
+      return { labels: [...l.querySelectorAll('.launcher .name')].map((x) => x.textContent), oneLine: new Set(ys).size === 1,
+        middle: Math.abs(b.y + b.height / 2 - (r.y + r.height / 2)) <= 1, strip: !!document.querySelector('.terminals .strip'),
+        empty: getComputedStyle(document.querySelector('.termtabs').closest('.dv-groupview').querySelector('.dv-content-container')).backgroundColor }; })()`);
     for (const preset of ['grid', 'focus', 'columns']) {
       await ui(`window.__layoutPreset('${preset}')`);
-      await waitFor(async () => JSON.stringify(await island()) === JSON.stringify(before) && (await bottom()), 3000);
+      await waitFor(async () => JSON.stringify(await island()) === JSON.stringify(before) && (await launch())?.middle, 3000);
+      assert.deepEqual(await launch(), { labels: ['Terminal'], oneLine: true, middle: true, strip: false, empty: 'rgba(0, 0, 0, 0)' });
     }
+    // One opens what its row in + does: a terminal; closed, the buttons are back.
+    await ui(`document.querySelector('.launcher').click()`);
+    await waitFor(async () => task.terminals.size === 1 && !(await folded()));
+    await ui(`document.querySelector('.termtab .close').click()`);
+    await waitFor(async () => task.terminals.size === 0 && !!(await launch()));
     // With a profile open: folded to a strip of its +, along the grid's height (the island is under the grid); kept so.
     await ctx.call('profile_open', { profile: 'sam-admin' });
     await waitFor(async () => (await island()).height <= 40 && (await middle()));
@@ -1665,6 +1668,19 @@ export default (test: Test) => {
     await choose(ui, 'New Conversation');
     await waitFor(async () => JSON.stringify(await tabs()) === '["bash","Pay with cards","Fake agent","bash 2 *"]' && newest().pty, 20000);
     assert.deepEqual(conversations().map((c: { agent: string }) => c.agent), ['custom', a.id, b.id, b.id, b.id, 'custom']);
+
+    // All closed, no profile open: the big buttons, an account's email under its agent's name, no keys; the first has
+    // the keyboard, Tab moves to the next, Enter opens it.
+    for (const t of [...task.terminals.values()]) await ui(`act('terminal:close', { id: ${t.id} })`);
+    await waitFor(() => ui(`document.querySelectorAll('.launch .launcher').length === 3`));
+    assert.deepEqual(await ui(`[...document.querySelectorAll('.launcher')].map((l) => [l.querySelector('.name').textContent, l.querySelector('small')?.textContent ?? '', l.title])`),
+      [['Fake agent', 'a@switch.test', 'Fake agent · a@switch.test'], ['Fake agent', 'b@switch.test', 'Fake agent · b@switch.test'], ['Terminal', '', 'Terminal']]);
+    await waitFor(() => ui(`document.activeElement === document.querySelector('.launcher')`));
+    shell.win.focus();
+    press(shell.win.webContents, 'Tab');
+    await waitFor(() => ui(`document.activeElement === document.querySelectorAll('.launcher')[1]`));
+    for (const type of ['keyDown', 'char', 'keyUp'] as const) shell.win.webContents.sendInputEvent({ type, keyCode: type === 'char' ? '\r' : 'Enter' });
+    await waitFor(() => task.terminals.size === 1 && newest().agent?.id === b.id, 20000);
 
     // Deleting the task forgets every conversation, each in its account's folder.
     ctx.answer = true;

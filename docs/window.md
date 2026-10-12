@@ -158,10 +158,13 @@ a shell) and the dictation of the agent in front (below). The agent's icon opens
 
 **The last terminal closed folds the island** to a strip of one button, + in its middle (the author's choice,
 2026-10-12, as JetBrains' tool windows go but with their button kept in place): by its height under or over the grid,
-by its width at a side (dockview's constraints hold it there; the row goes). Alone in the grid (no profile open) it is
-drawn as the same strip at the grid's bottom, the room above it empty, whatever the arrangement (its group fills the
-grid there, so it is not drawn and the strip is drawn at its bottom; folded as by the others, it was a strip at the
-grid's top, or filled it, by the arrangement). A terminal opened unfolds it to the size it had. Ctrl+` there opens a new conversation of the task's agent. A task that never had a terminal opens its agent.
+by its width at a side (dockview's constraints hold it there; the row goes). Alone in the grid (no profile open), the +'s rows are big
+buttons in a line in the grid's middle, whatever the arrangement (its group fills the grid there, so it is not drawn;
+until then the strip was drawn at the grid's bottom, the room above it empty; the author, 2026-10-12: quick to open an
+agent or a shell in an empty task): `.launch`, a `.launcher` each, the agent's icon over its name, an account's email
+under it, no keys (Ctrl+` opens the task's agent, which the window does not show: a key on one of them read as a
+mistake). Each is a Tab stop, Enter opens it; the first, the project's default agent, gets the keyboard when they come,
+unless the keyboard is in something else (a field, a dialog). A terminal opened unfolds it to the size it had. Ctrl+` there opens a new conversation of the task's agent. A task that never had a terminal opens its agent.
 
 Unicode 11 widths (the cursor stays put after an emoji), a bundled font, the GPU renderer. Copy and paste take the
 keys of the OS's own terminal, so hands need nothing new: Ctrl+Shift+C / V (GNOME Terminal, Konsole); on Windows also

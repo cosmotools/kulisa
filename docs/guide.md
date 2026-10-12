@@ -210,7 +210,8 @@ A pane is a small Chrome: a tab strip, an address bar, back, forward and reload.
 - **+** at the row's end opens one of the project's agents, a new conversation, or **Terminal**, a shell. Closing an
   agent's tab (**×**) asks first; its conversation stays in the task's history. A shell closes at once, or with `exit`.
 - Close the last one and the island folds to a thin strip with **+** in its middle, which opens one again (Ctrl+`
-  opens the task's agent). With no profile open, the strip is at the bottom of the window.
+  opens the task's agent). With no profile open either, big buttons in the middle of the window do what **+** does:
+  one for each of the project's agents, then **Terminal**. Tab moves between them and Enter opens one.
 - Terminals come back after a restart in their tabs: an agent continues its conversation, a shell starts fresh.
 - Copy and paste as in your OS's terminal: Ctrl+Shift+C / Ctrl+Shift+V on Linux, Ctrl+C / Ctrl+V on Windows, ⌘C / ⌘V
   on macOS.
