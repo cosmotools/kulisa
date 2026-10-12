@@ -1,0 +1,3 @@
+# One way of ending lines on every OS: git on Windows would check out CRLF, and files read as they are (the skill a
+# test compares, shell scripts) would differ there.
+* text=auto eol=lf

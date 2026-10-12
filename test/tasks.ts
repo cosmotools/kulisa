@@ -5,6 +5,7 @@ import { execFileSync } from 'child_process';
 import electron from 'electron';
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 import http from 'http';
 import { assert, root, userData, project, pfile, panel, SITE, sleep, waitFor, who, menuRows, choose, rightClick, viewOn, press, projectTabs, projectTab, showProject, savedWindows, closeMenu, click, plusMenu, PORT, hooksOf, MENU, menuOpen, noNode } from './helpers.ts';
 import { withOffset } from '../src/main/tasks.ts';
@@ -605,8 +606,10 @@ export default (test: Test) => {
     await openAgents(ui);
     assert.equal(await ui(agentRow('fake', '.status') + '.textContent'), 'Installed');
     assert.equal(await ui(agentRow('fake', '.install') + '.hidden'), true);
+    // Shown as the human's home folder shortened to ~, as a test folder inside it is (the CI's runner.temp).
+    const bin = path.join(root, 'bin', 'kulisa-fake-agent'), home = os.homedir() + path.sep;
     assert.equal(await ui(agentRow('fake', '.where') + '.textContent'),
-      `1.2.3 · ${path.join(root, 'bin', 'kulisa-fake-agent')} · not on your PATH: Kulisa runs it from here`);
+      `1.2.3 · ${bin.startsWith(home) ? '~' + bin.slice(home.length - 1) : bin} · not on your PATH: Kulisa runs it from here`);
     assert.equal(await ui(agentRow('fake', '.install-line') + '.textContent'), '');
     await showAgent(ui, 'fake');
     await ctx.shell.screenshot(path.join(root, 'agents.png'));
