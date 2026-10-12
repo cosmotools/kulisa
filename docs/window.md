@@ -51,7 +51,10 @@ arrangements, each drawn as a small picture of itself, as Windows' snap layouts 
 profiles in columns with the terminal below, two by two with the terminal on the right, one profile at a time.
 Each fits the window with nothing cut off, the terminal taking a third of it (`TERMINAL_SHARE`, `lib/grid.ts`): the
 pages are what is looked at. The first profile opened over the terminal alone keeps that share too (dockview halved
-the room, a terminal as tall as the pages and mostly empty; 2026-10-13). The grid is saved per task (`layout.json`) and restored.
+the room, a terminal as tall as the pages and mostly empty; 2026-10-13). The grid is saved per task (`layout.json`) and restored: 300 ms after
+its last change, and at once when the task is left (a change just before was lost, and a saved grid naming a profile
+deleted since is not restored at all: a profile deleted, then another task shown at once, came back to the default
+arrangement; 2026-10-13).
 The island is one panel however many terminals it holds ("The terminal").
 
 The window itself never scrolls, also not from a script (`overflow` on `html` and `body`, App.vue): a panel stacked
