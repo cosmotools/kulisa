@@ -27,10 +27,12 @@
     "@types/node": "^24.19.2",
     "@types/ws": "^8.18.2",
     "@vitejs/plugin-vue": "^6.0.10",
+    "@vue/typescript-plugin": "^3.3.13",
     "electron": "^44.5.1",
     "knip": "^6.41.0",
     "png2icons": "2.0.1",
     "typescript": "^6.0.3",
+    "typescript-language-server": "^6.0.2",
     "vite": "^8.3.4",
     "vue-tsc": "^3.3.13"
   },

@@ -1,0 +1,17 @@
+{
+  "name": "kulisa-dev",
+  "version": "1.0.0",
+  "description": "Code intelligence for developing Kulisa: TypeScript and Vue through the project's own language server",
+  "author": { "name": "Kulisa" },
+  "lspServers": {
+    "typescript": {
+      "command": "node",
+      "args": ["${CLAUDE_PROJECT_DIR}/node_modules/typescript-language-server/lib/cli.mjs", "--stdio"],
+      "extensionToLanguage": { ".ts": "typescript", ".mts": "typescript", ".cjs": "javascript", ".mjs": "javascript", ".vue": "vue" },
+      "initializationOptions": {
+        "plugins": [{ "name": "@vue/typescript-plugin", "location": ".", "languages": ["vue"] }],
+        "tsserver": { "useSyntaxServer": "never" }
+      }
+    }
+  }
+}
