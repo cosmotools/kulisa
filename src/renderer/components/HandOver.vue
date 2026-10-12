@@ -51,7 +51,7 @@ const waitIdle = () => { clearTimeout(idle); idle = window.setTimeout(show, IDLE
 // the human does not wait (Show now, ×).
 function show() {
   clearTimeout(idle);
-  if (handed.value !== null && store.current === inTask) act('terminal:show', { id: handed.value });
+  if (handed.value !== null && store.current === inTask) void act('terminal:show', { id: handed.value });
   handed.value = null; going.value = false;
   modal.value?.close();
 }

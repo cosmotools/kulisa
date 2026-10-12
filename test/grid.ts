@@ -512,7 +512,7 @@ export default (test: Test) => {
     const linked = shell.profiles.get(await ui(`state[0].id`)), had = linked.tabs.length;
     await choose(ui, `Open in ${names[0]}`);
     await waitFor(() => linked.tabs.length === had + 1 && linked.get().url.startsWith(`${SITE}/app`));
-    await linked.closeTab(linked.get().id);
+    linked.closeTab(linked.get().id);
     const openExternal = electron.shell.openExternal, opened: string[] = [];
     electron.shell.openExternal = async (url) => { opened.push(url); };
     try {

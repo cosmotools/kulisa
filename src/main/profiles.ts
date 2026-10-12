@@ -142,15 +142,16 @@ class Profile extends EventEmitter {
     // tab.ready: the first navigation has committed, or failed (its error page shows: a site refusing to connect,
     // e.g. a new task's dev server not started yet, held its profile 5 s). A client that attaches earlier sees a
     // never-loaded tab.
-    tab.ready = ready.then(() => url ? new Promise<void>((resolve) => {
+    const opened = ready.then(() => url ? new Promise<void>((resolve) => {
       if (wc.isDestroyed()) return resolve(); // closed before it loaded (its profile closed or deleted)
       const failed = (_e: unknown, code: number, _d: string, _u: string, mainFrame: boolean) => { if (mainFrame && code !== -3) done(); };
       const done = () => { wc.off('did-navigate', done); wc.off('did-fail-load', failed); resolve(); };
       wc.on('did-navigate', done); wc.on('did-fail-load', failed); setTimeout(done, 5000);
       wc.loadURL(url).then(() => wc.navigationHistory.clear()).catch(() => {}); // Back never goes to the about:blank
     }) : undefined);
-    if (activate) this.activate(tab.id);
-    return tab;
+    const t = Object.assign(tab, { ready: opened }); // every tab it opens has one, unlike a page's popup
+    if (activate) this.activate(t.id);
+    return t;
   }
 
   _add(view: View) {
@@ -350,7 +351,7 @@ class Profile extends EventEmitter {
   zoomSite(id: string | null | undefined, dir: number) {
     const tab = this.get(id); const host = tab && this._host(tab);
     if (!host) return;
-    const z = stepZoom(this.pageZoom(tab!), dir);
+    const z = stepZoom(this.pageZoom(tab), dir);
     if (z === 1) delete this.siteZoom[host]; else this.siteZoom[host] = z;
     for (const t of this.tabs) if (this._host(t) === host) this._applyZoom(t);
     this.emit('zoom'); this.emit('changed');

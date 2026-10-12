@@ -15,7 +15,7 @@ export async function record(task: string, on: boolean) {
   if (voices[task]) voices[task]!.recording = r.recording;
 }
 watch(() => store.current, async (task, before) => {
-  if (before && voices[before]?.recording) record(before, false);
+  if (before && voices[before]?.recording) void record(before, false);
   if (!task) return;
   const v = await kulisa.invoke<Voice | null>('voice:get', task);
   voices[task] = v;

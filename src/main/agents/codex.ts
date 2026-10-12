@@ -150,7 +150,7 @@ function codexConversation(transcript: string): Conversation {
     } else if (p.type === 'custom_tool_call_output' || p.type === 'function_call_output') {
       answered.add(p.call_id!);
       if (own.has(p.call_id!) || calls.get(p.call_id!) === 'update_plan') continue;
-      const out = p.output as unknown;
+      const out = p.output;
       entries.push({ kind: 'result', text: cut(typeof out === 'string' ? out : codexText(out) || JSON.stringify(out ?? '')) });
     }
   }

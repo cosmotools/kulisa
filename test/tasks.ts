@@ -384,7 +384,7 @@ export default (test: Test) => {
     const transcript = path.join(root, 'task-3-transcript.jsonl');
     fs.writeFileSync(transcript, '');
     await reportSession(task, 's-3', transcript);
-    assert.match((await sessionStart(task, task.promptTarget(), { session_id: 's-3', transcript_path: transcript })).hookSpecificOutput.additionalContext,
+    assert.match(sessionStart(task, task.promptTarget(), { session_id: 's-3', transcript_path: transcript }).hookSpecificOutput.additionalContext,
       /task "task-3".*branch task-3.*plus 200/s, 'where it works, at the session start too');
     // Working: the human is asked, and may keep it.
     await hook(task, 'prompt');
@@ -879,7 +879,7 @@ export default (test: Test) => {
     // The click on the label came before: by the time the dialog is open, it would have folded the group.
     await waitFor(() => ui(`(document.getElementById('taskrename')?.dataset.state === 'open') && document.getElementById('taskname').value === ${JSON.stringify(name)}`));
     assert.equal(JSON.stringify(await shown()), before, 'every tab stays');
-    await press(ctx.shell.win.webContents, 'Escape');
+    press(ctx.shell.win.webContents, 'Escape');
     await waitFor(async () => !(await ui(`document.getElementById('taskrename')?.dataset.state === 'open'`)));
   });
 
@@ -1587,7 +1587,7 @@ export default (test: Test) => {
     const tabState = (id: number) => ui(`document.querySelector('.termtab[data-id="${id}"] .state').dataset.state`);
     const taskState = () => ui(`${taskTab(task.n)}.querySelector('.state').dataset.state`);
     const conversations = () => JSON.parse(fs.readFileSync(pfile('agent.json', task.n), 'utf8')).conversations;
-    const newest = () => [...task.terminals.values()].at(-1)!;
+    const newest = () => [...task.terminals.values()].at(-1);
     await waitFor(async () => JSON.stringify(await tabs()) === '["bash *"]');
     const bash = task.promptTarget();
     // The human trusted the project's code in another task's copy (a's config, as Claude Code keeps it): an agent of

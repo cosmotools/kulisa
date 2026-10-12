@@ -319,7 +319,7 @@ function buildServer(task: Task, t: TaskTerminal | null) {
       const { tab } = tabOf(profile, tabId);
       const onInput = (_e: Electron.Event, input: Electron.InputEvent) => {
         if (!['mouseDown', 'keyDown', 'rawKeyDown'].includes(input.type)) return;
-        clearHighlights(hkey); task.caption(profile, '');
+        void clearHighlights(hkey); task.caption(profile, '');
       };
       tab.wc.on('input-event', onInput);
       highlights.set(hkey, { disposables: shown, tab, onInput });
@@ -486,7 +486,7 @@ function buildServer(task: Task, t: TaskTerminal | null) {
     // The function made in the page (no eval here; CDP's evaluation is not held to the page's CSP), called there.
     const f = await page.evaluateHandle(`(${fn})`);
     let result: unknown;
-    try { result = await f.evaluate((f, el) => (f as (el: unknown) => unknown)(el), el); } finally { f.dispose(); el?.dispose(); }
+    try { result = await f.evaluate((f, el) => (f as (el: unknown) => unknown)(el), el); } finally { void f.dispose(); void el?.dispose(); }
     return text(result === undefined ? 'undefined' : JSON.stringify(result, null, 1) ?? String(result));
   });
 
@@ -570,7 +570,7 @@ async function startMcpServer(shell: Shell, cfg: { port?: number }) {
     // The transport reads the body itself (with a size limit) and answers a malformed one.
     const server = buildServer(task, t);
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
-    res.on('close', () => { transport.close(); server.close(); });
+    res.on('close', () => { void transport.close(); void server.close(); });
     await server.connect(transport);
     await transport.handleRequest(req, res);
   });

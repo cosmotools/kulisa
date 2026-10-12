@@ -26,7 +26,7 @@ const islands = computed(() => {
 // The shown one in sight.
 watch(() => store.projects, () => nextTick(() => tabs.value?.querySelector('.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' })));
 
-const showTask = (key: string | number) => { if (key !== store.current) kulisa.invoke('task:show', String(key)); };
+const showTask = (key: string | number) => { if (key !== store.current) void kulisa.invoke('task:show', String(key)); };
 const close = (id: string) => kulisa.invoke('project:close', { id });
 const manage = async (id?: string) => (await dialog('projects')).openProjects(id);
 
@@ -37,7 +37,7 @@ const projectOf = (e: Event) => (e.target as Element).closest<HTMLElement>('[dat
 // way (the author, 2026-10-12).
 function auxclick(e: MouseEvent) {
   const id = e.button === 1 && projectOf(e);
-  if (id) close(id);
+  if (id) void close(id);
 }
 // The bar's right-click menu, for what it was on. A task's tab: the shown one's profiles, Rename…, Show Folder, Delete
 // Task…. A project's island: its group's menu. From what the window was last told (store.projects): it opens at once.
@@ -57,7 +57,7 @@ const rename = async (key: string, name: string) => (await dialog('taskrename'))
 // A double click on a task's tab: its Rename…, as a shortcut to the menu's item (ROADMAP: never the only way).
 function dblclick(e: MouseEvent) {
   const t = !(e.target as Element).closest('button') && taskAt(e);
-  if (t) rename(t.key, t.name);
+  if (t) void rename(t.key, t.name);
 }
 // A project's actions in its group's menu, in Chrome's order where Chrome has them (New tab in group … Close group,
 // Delete group last).
@@ -118,13 +118,13 @@ function drop(e: DragEvent) {
   if (!at || !data) return;
   e.preventDefault();
   const { id, terminals } = JSON.parse(data);
-  kulisa.invoke('project:drop', { id, index: at.index, terminals });
+  void kulisa.invoke('project:drop', { id, index: at.index, terminals });
 }
 // Let go where no Kulisa window took it: outside them all, it goes to a new window there (the main process checks).
 function dragend(e: DragEvent) {
   const id = dragged.value;
   dragged.value = null;
-  if (id && e.dataTransfer!.dropEffect === 'none') kulisa.invoke('project:drag-out', { id, terminals: terminalsOf(id) });
+  if (id && e.dataTransfer!.dropEffect === 'none') void kulisa.invoke('project:drag-out', { id, terminals: terminalsOf(id) });
 }
 
 </script>

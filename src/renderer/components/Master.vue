@@ -7,7 +7,7 @@ const query = new URLSearchParams(location.search);
 const what = `${query.get('name')}: signed in here, every new task's copy is too`;
 const address = ref<HTMLInputElement>();
 let typing = false;
-const go = () => { typing = false; const url = address.value!.value.trim(); if (url) kulisa.invoke('master:go', url); };
+const go = () => { typing = false; const url = address.value!.value.trim(); if (url) void kulisa.invoke('master:go', url); };
 kulisa.on<string>('master:url', (url) => { if (!typing && address.value) address.value.value = url === 'about:blank' ? '' : url; });
 onMounted(() => address.value?.focus());
 </script>

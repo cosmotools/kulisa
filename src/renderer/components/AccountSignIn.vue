@@ -32,7 +32,7 @@ async function stop() {
 }
 async function cancel() { await stop(); emit('close'); }
 onMounted(start);
-onBeforeUnmount(() => { stop(); forgetTerminals([shown]); });
+onBeforeUnmount(() => { void stop(); forgetTerminals([shown]); });
 </script>
 
 <template>

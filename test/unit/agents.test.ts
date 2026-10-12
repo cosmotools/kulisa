@@ -48,7 +48,7 @@ test("tasks: a task's copy is trusted as the human trusted the project's code, i
   const work = path.join(path.sep, 'home', 'u', '.claude-work'); // the OS's own separators: Windows' too
   assert.equal(claudeConfigOf(path.join(work, 'projects', '-x', '1.jsonl')), path.join(work, '.claude.json'));
   assert.equal(claudeConfigOf(path.join(os.homedir(), '.claude', 'projects', '-x', '1.jsonl')), path.join(os.homedir(), '.claude.json'));
-  const agent = (id: string) => AGENTS.find((a) => a.id === id)!;
+  const agent = (id: string) => AGENTS.find((a) => a.id === id);
   // Claude Code: projects[<folder>].hasTrustDialogAccepted in its config file, the rest kept.
   const claude = agent('claude'), cdir = path.join(root, 'claude-trust'), file = path.join(cdir, '.claude.json'), where = { configDir: cdir };
   fs.mkdirSync(cdir, { recursive: true });

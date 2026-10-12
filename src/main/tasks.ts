@@ -134,7 +134,7 @@ class Task {
       // Its sign-ins saved (session cookies too) for when it opens again; its tabs and automation gone.
       unload: async (p) => {
         const pick = this.window?.picking.get(p.id);
-        if (pick?.profile === p) pick!.cancel();
+        if (pick?.profile === p) pick.cancel();
         await clearHighlights(`${this.key}/${p.id}`);
         await shell.sessionCookies.persist(p);
         shell.cookieSync.detach(p.folder, p.session);
@@ -379,14 +379,14 @@ class Task {
     for (let n = 1; !name; n++) if (this.terminal(n > 1 ? `Terminal ${n}` : 'Terminal').error) name = n > 1 ? `Terminal ${n}` : 'Terminal';
     id ??= this.terminalSeq + 1;
     this.terminalSeq = Math.max(this.terminalSeq, id);
-    const t: TaskTerminal = { id, key: `${this.key}#${id}`, name: name!, command, by, state: null, seen: true };
+    const t: TaskTerminal = { id, key: `${this.key}#${id}`, name, command, by, state: null, seen: true };
     this.terminals.set(id, t);
     if (front || this.front === null) this.show(id); else { this.saveTerminals(); this.changedTerminals(); }
     t.pty = await startTerminal((channel, data) => this.window?.send(channel, data),
       { line: command, cwd: this.folder, env: this.env(), sizeOf: this.key, screen: true }, t.key);
     if (this.terminals.get(id) !== t) { stopTerminal(t.pty); return { error: 'the terminal was closed' }; }
     t.pty.onExit(() => { if (!t.pty!.stopped) this.dropTerminal(t); });
-    return { id, name: name! };
+    return { id, name };
   }
   // A command typed into a terminal already open (its last one stopped first: interruptTerminal), or into a new one.
   async runInTerminal(name: string, command: string): Promise<Result<{ id: number; name: string; again?: boolean }>> {
@@ -458,7 +458,7 @@ class Task {
   // human's only: the agent has no use for a microphone.
   voice() {
     const t = this.shownAgent(), v = t?.agent!.voice;
-    return v ? { languages: v.languages, language: v.language(this.savedOf(t!)), note: v.note || '', recording: this.dictating?.t === t } : null;
+    return v ? { languages: v.languages, language: v.language(this.savedOf(t)), note: v.note || '', recording: this.dictating?.t === t } : null;
   }
   sendVoice() { this.window?.send('voice', { task: this.key, voice: this.voice() }); }
   // An agent's conversation as agents/ reads its files, with its account's folder.
@@ -471,8 +471,8 @@ class Task {
     const t = this.shownAgent(), v = t?.agent!.voice, p = t?.pty;
     if (on && v && p) {
       const until = Date.now() + DICTATION_LIMIT;
-      this.dictating = { t: t!, timer: setInterval(() => {
-        if (t!.pty === p && Date.now() < until) return p.write(v.key);
+      this.dictating = { t, timer: setInterval(() => {
+        if (t.pty === p && Date.now() < until) return p.write(v.key);
         this.dictate(false);
         this.sendVoice();
       }, v.repeat) };
@@ -481,7 +481,7 @@ class Task {
   }
   setVoiceLanguage(code: string) {
     const t = this.shownAgent(), v = t?.agent!.voice;
-    return v ? v.setLanguage(this.savedOf(t!), code) : { error: 'this agent has no dictation' };
+    return v ? v.setLanguage(this.savedOf(t), code) : { error: 'this agent has no dictation' };
   }
 
   // What its terminals get in their environment: where Kulisa's MCP server and hooks are for this task (the Kulisa
@@ -547,8 +547,8 @@ class Task {
   findTab(id: string, tabId?: string | null): Result<{ profile: Profile; tab: Tab }> {
     const r = this.find(id);
     if (refused(r)) return r;
-    const tab = r.profile!.get(tabId);
-    return tab && !tab.wc.isDestroyed() ? { profile: r.profile!, tab } : { error: tabId ? `No tab ${tabId} in ${id}` : `Profile "${id}" has no tab` };
+    const tab = r.profile.get(tabId);
+    return tab && !tab.wc.isDestroyed() ? { profile: r.profile, tab } : { error: tabId ? `No tab ${tabId} in ${id}` : `Profile "${id}" has no tab` };
   }
   createProfile(name: string, description?: string, avatar?: string) { return this.list.create(name, description, avatar); }
   renameProfile(id: string, name: string | undefined) { return this.list.rename(id, name); }
@@ -582,15 +582,15 @@ class Task {
   loginFor(id: string, tabId: string | null | undefined, field: 'login' | 'password'): Result<{ profile: Profile; tab: Tab; value: string }> {
     const r = this.findTab(id, tabId);
     if (refused(r)) return r;
-    const pair = this.shell.profileStore.byFolder(r.profile!.folder)?.login;
+    const pair = this.shell.profileStore.byFolder(r.profile.folder)?.login;
     if (!pair?.user || (field === 'password' && !pair.secret)) {
-      return { error: `${r.profile!.name} has no test login${pair?.user ? ' password' : ''} saved: ask the human to set one (Settings → Profiles), or save the one you signed it up with (profile_set_login).` };
+      return { error: `${r.profile.name} has no test login${pair?.user ? ' password' : ''} saved: ask the human to set one (Settings → Profiles), or save the one you signed it up with (profile_set_login).` };
     }
-    const h = r.tab!.wc.navigationHistory, urls = h.getAllEntries().slice(0, h.getActiveIndex() + 1).map((e) => e.url);
+    const h = r.tab.wc.navigationHistory, urls = h.getAllEntries().slice(0, h.getActiveIndex() + 1).map((e) => e.url);
     if (!loginAllowed(urls, this.project.entry.local || [])) {
       return { error: `${urls.at(-1)} is not the app under test on this computer: a test user's pair is typed only on a local address (localhost, *.test, a private network, the project's own list in Project Settings…) or a page the tab reached from one, never on Google, Microsoft or another account provider. A real account is the human's to sign in to (profile_ask_signin).` };
     }
-    return { profile: r.profile!, tab: r.tab!, value: field === 'password' ? this.shell.secrets.decrypt(pair.secret!) : pair.user };
+    return { profile: r.profile, tab: r.tab, value: field === 'password' ? this.shell.secrets.decrypt(pair.secret!) : pair.user };
   }
   // Signing in to a profile's master (master.ts), for every task's copy made from it from then on. The human's only:
   // the agent never signs in (profile_ask_signin asks the human to, in this task's copy).

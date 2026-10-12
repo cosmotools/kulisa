@@ -86,7 +86,7 @@ class AppWindow {
     // Links in the window (☰'s: the documentation, GitHub; the terminal's, Open in your browser) open in the
     // user's browser; the window itself never leaves its page.
     win.webContents.setWindowOpenHandler(({ url }) => {
-      if (/^https?:\/\//.test(url)) electronShell.openExternal(url);
+      if (/^https?:\/\//.test(url)) void electronShell.openExternal(url);
       return { action: 'deny' };
     });
     win.webContents.on('will-navigate', (e) => e.preventDefault());
@@ -302,7 +302,7 @@ class AppWindow {
     const z = this.win.webContents.getZoomFactor();
     for (const [id, r] of Object.entries(rects)) this.profiles.get(id)?.layout(r.shown === false ? r : Object.fromEntries(Object.entries(r).map(([k, v]) => [k, Math.round((v as number) * z)])));
   }
-  saveLayout(key: string, layout: unknown) { if (!this.switching && key === this.task?.key) this.task!.store.saveLayout(layout); }
+  saveLayout(key: string, layout: unknown) { if (!this.switching && key === this.task?.key) this.task.store.saveLayout(layout); }
   // The Kulisa zoom (app.ts): Chromium's zoom of the page, the OS title bar overlay and the window's minimum with it
   // (a window now smaller grows to it; Electron leaves it as it is).
   setZoom(z: number) {

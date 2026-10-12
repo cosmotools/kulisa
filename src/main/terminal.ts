@@ -64,13 +64,13 @@ const shQuote = (a: string) => (/^[\w@%+=:,./-]+$/.test(a) ? a : `'${a.replace(/
 // its output, under it. send(channel, data): to the task's window, whichever it is then.
 async function startTerminal(send: Send, cfg: TerminalConfig, key: string): Promise<Pty> {
   const t = termOf(key), like = cfg.sizeOf ? termOf(cfg.sizeOf) : null;
-  if (!cfg.size) await Promise.race([t.firstSize, like?.firstSize, new Promise((r) => setTimeout(r, 5000))].filter(Boolean));
+  if (!cfg.size) await Promise.race([t.firstSize, ...(like ? [like.firstSize] : []), new Promise((r) => setTimeout(r, 5000))]);
   const { cols, rows } = t.size || cfg.size || like?.size || { cols: 120, rows: 30 };
   const sh: { command: string; args?: string[] } | null = cfg.shell === false ? null : cfg.shell || userShell() || (cfg.line !== undefined ? { command: process.env.COMSPEC || 'cmd.exe' } : null);
   const command = cfg.command || (process.platform === 'win32' ? process.env.COMSPEC || 'cmd.exe' : process.env.SHELL || 'bash');
   const p = pty.spawn(sh ? sh.command : command, sh ? sh.args || [] : cfg.args || [], {
     name: 'xterm-256color', cols, rows, cwd: cfg.cwd || process.cwd(),
-    env: { ...process.env, COLORTERM: 'truecolor', ...(cfg.env || {}) } as Record<string, string>,
+    env: { ...process.env, COLORTERM: 'truecolor', ...(cfg.env || {}) },
   }) as Pty;
   if (cfg.line) typeWhenReady(p, `${cfg.line}\r`);
   else if (sh && cfg.command) {
