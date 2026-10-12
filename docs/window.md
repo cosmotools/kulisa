@@ -289,7 +289,9 @@ would tag whatever `main` is when the draft is published); Ubuntu and Windows bu
 it by its name; the `.deb` is installed on Ubuntu and started under Xvfb (its MCP server listening, nothing uncaught,
 still running after 5 s: the tests run Kulisa from source, and what breaks only packaged would reach every installed
 copy, one failing at start never able to update again); then the draft is published, the tag made at that commit.
-Until then, and when a step fails, it is a draft nobody is served. A version released before stops it. Releases are built and the updates checked as ROADMAP's "Releases and auto-update" plans them; what is
+Until then, and when a step fails, it is a draft nobody is served. A version released before stops it. Once
+published, kulisa.app is built again (`kulisa-site`'s deploy, run with the secret `SITE_DEPLOY_TOKEN`): its
+download buttons lead to this release's files. Releases are built and the updates checked as ROADMAP's "Releases and auto-update" plans them; what is
 left is there too.
 
 **Updates**, Forge's way (`updates.ts`, called by `index.ts`): Electron's `autoUpdater` (Squirrel) through the
