@@ -39,8 +39,8 @@ function auxclick(e: MouseEvent) {
   const id = e.button === 1 && projectOf(e);
   if (id) void close(id);
 }
-// The bar's right-click menu, for what it was on. A task's tab: the shown one's profiles, Rename…, Show Folder, Delete
-// Task…. A project's island: its group's menu. From what the window was last told (store.projects): it opens at once.
+// The bar's right-click menu, for what it was on. A task's tab: the shown one's profiles, the repositories it may add,
+// Rename…, Show Folder, Delete Task…. A project's island: its group's menu. From what the window was last told (store.projects): it opens at once.
 function menu(e: MouseEvent): MenuItem[] | null {
   const id = projectOf(e);
   if (!id) return null;
@@ -78,8 +78,11 @@ function groupItems(id: string): MenuItem[] {
     { label: 'Show Data Folder', run: () => kulisa.invoke('project:show-data', { id }) },
     '-', { label: 'Close Group', run: () => close(id) }];
 }
-const taskMenu = ({ key, name }: TaskInfo): MenuItem[] => [
+const taskMenu = ({ key, name, repos }: TaskInfo): MenuItem[] => [
   ...(key === store.current ? [{ heading: 'Profiles' }, ...profilesMenu(), '-' as const] : []),
+  // The project's repositories it has no copy of, one added when its work needs it (tasks.md, Tasks).
+  ...(repos.length ? [{ heading: 'Add Repository' }, ...repos.map((r) => ({ label: r.split(/[\\/]/).pop()!, title: r,
+    run: () => kulisa.invoke('task:add-repo', { key, repo: r }) })), '-' as const] : []),
   { label: 'Rename…', run: () => rename(key, name) },
   { label: 'Show Folder', run: () => kulisa.invoke('task:show-folder', key) },
   '-', { label: 'Delete Task…', run: () => kulisa.invoke('task:delete', key) },

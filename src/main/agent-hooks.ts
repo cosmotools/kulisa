@@ -98,7 +98,10 @@ function taskContext(task: Task) {
   const shared = task.dirs().filter((d) => !copies.some((c) => c.folder === d));
   const others = [...copies.filter((c) => c.folder !== task.folder).map((c) => `${c.folder} (a worktree of ${c.repo}, branch ${c.branch})`),
     ...shared.map((d) => `${d} (the project's own folder: no git, no copy)`)];
-  const more = others.length ? ` The task's other folders: ${others.join('; ')}.` : '';
+  const addable = task.addable();
+  const more = (others.length ? ` The task's other folders: ${others.join('; ')}.` : '') + (addable.length ? ` The project's other ` +
+    `repositories, not in this task: ${addable.join(', ')}. Read them there freely; to change one, first ask the human, saying ` +
+    'why the task needs it, and once they agree add it with task_add_repository: a copy on your branch, where you change it.' : '');
   if (!copies.length) {
     return `This is the Kulisa task "${task.name}", working right in the project's folder ${task.folder} (no git, so no copy ` +
       `of its own); the app under test runs on its usual ports.${more} ${name}`;

@@ -98,7 +98,7 @@ Through Kulisa's MCP server (`mcp-server.ts`), every tool taking a profile id: `
 `browser_tab_new` / `_select` / `_close`, `browser_highlight`, `browser_screenshot`, `browser_console_messages`,
 `browser_network_requests`, `browser_type_login`; the tools reading or acting on a page take an optional `tab`.
 Profiles: `profile_create`, `profile_rename`, `profile_describe`, `profile_open`, `profile_close`, `profile_ask_signin`,
-`profile_set_login`, and `profile_delete`, which asks the human first. Tasks: `task_rename`, `task_history` (what was
+`profile_set_login`, and `profile_delete`, which asks the human first. Tasks: `task_rename`, `task_add_repository` (another of the project's repositories, once the human agreed: [tasks.md](tasks.md), Tasks), `task_history` (what was
 said and done in the task before: [transcripts.md](transcripts.md)), `conversation_rename` (its tab). Terminals:
 `terminal_run`, `terminal_read`, `terminal_stop` (shells only, [window.md](window.md), The terminal).
 

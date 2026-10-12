@@ -46,7 +46,8 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
     bar), and every tab a number of its open profiles until 2026-10-11 (profiles are the agent's hands: how many are
     open says nothing).
   - **A task tab's right-click menu**: the shown one's profiles, open (shown in the grid) and closed (opened in the
-    task), and Manage Profiles… (Settings → Profiles); Rename…; Show Folder, its folder (its
+    task), and Manage Profiles… (Settings → Profiles); Add Repository, the project's repositories it has no copy of
+    (Tasks, below); Rename…; Show Folder, its folder (its
     worktree, or the project's without git) in the OS's file manager (`shell.openPath`); Delete Task….
   - **The button after the islands is +**, a new task (Ctrl+Shift+A; `NewTask.vue`; the author, 2026-10-11): a task
     is made of a project (its profiles, agents and code), so its menu lists every project, with its icon in its
@@ -165,11 +166,11 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   tasks start with nothing, the island's big buttons in the empty grid instead ([window.md](window.md), The terminal).
   None: its tasks start with the terminal only; closed, the Terminal button alone (the author, 2026-10-12).
 - **Its code**: the repositories or folders its tasks work on, the default one first (marked when there are several,
-  **★** or Make Default in a row's right-click on another: new tasks' agents start in its copy; every task gets a copy of each). Its **+**: **Add
+  **★** or Make Default in a row's right-click on another: new tasks get a copy of it, their agents start there; the others
+  a task adds when it needs them: Tasks, below). Its **+**: **Add
   Folder…** adds one from the computer, **Clone from URL…** one from a URL with the user's own git (its credentials and keys; git asks for no password, so a
   private repository it cannot reach fails with git's own words; cloned into the project's own folder when that has no
-  git, `~/Kulisa/<project>/<repo>`, else next to it, never inside a repository). A repository added while tasks run is copied for each loaded one (the others when they load) and its agent is
-  told, typed into its prompt for the human to send: Claude Code `/add-dir <folder>`, others a line saying so. **−**
+  git, `~/Kulisa/<project>/<repo>`, else next to it, never inside a repository). A repository added is copied into no task: each adds it when it needs it. **−**
   (or Delete, or the right-click) removes the selected one from the project (its folder stays), only when no task has a copy of it or works in it: the refusal
   names those tasks (deleting a copy would delete their work). A project whose own folder has no git keeps it until a
   repository is added; then it is its **former folder**: new tasks no longer work in it, those that did go on there,
@@ -198,12 +199,28 @@ A **task** (the term: CLAUDE.md; "workspace" until 2026-10-10) is one line of wo
 code on a branch, browser profiles, a grid of panels and an agent in a terminal. Several tasks let several agents
 build several features of one project at once.
 
-- **Always a copy.** With git (and a first commit), every task is a git worktree of each of the project's
-  repositories, all on one branch of its own, the first task too: next to its repository when the project has one
-  (`myshop@task-2`), else all in one folder of the task's (`~/Kulisa/<project>@task-<n>/<repo>/`, one place to see and
-  delete). Its agent starts in the copy of the default repository and gets the others: Claude Code and Codex as
-  `--add-dir` (Claude Code reading their `CLAUDE.md` too: `CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD`), every
-  agent in the MCP server's instructions and at its session's start (`agents/`, `dirs`). With one repository: the project's folder stays the human's, and no agent works in it on its own. Its work
+- **Always a copy.** With git (and a first commit), every task is a git worktree of the project's default repository
+  on a branch of its own, the first task too: next to its repository when the project has one (`myshop@task-2`), else
+  in one folder of the task's (`~/Kulisa/<project>@task-<n>/<repo>/`, one place to see and delete), where the others'
+  copies go too. Its agent starts there.
+- **Another repository when the work needs it** (the author, 2026-10-13: a task on the backend may turn out to need
+  the frontend, and copies of every repository in every task were made for nothing). The project's other repositories
+  in git are added to a task one at a time: by the human, Add Repository in its tab's right-click menu; by the agent,
+  `task_add_repository`, once the human has agreed in the conversation (the profiles skill and the MCP server's
+  instructions say so; no question of Kulisa's: the author's choice, the agent asks). A copy on the task's branch in
+  its folder of copies (`Task.addRepository`, `Project.addCopy`), given to its running agents by Kulisa, typed and
+  sent as the human would (`giveDirs`, `sendToPrompt`; the author, 2026-10-13: the human sending a typed `/add-dir`
+  was a step easily missed), never while the agent waits for the human: Enter there answered Claude Code's permission
+  question with Yes, and the pasted line was lost (2.1.296). Claude Code gets `/add-dir <folder>` at once, in its turn
+  too: it runs then, its question (Add directory to workspace) over the turn, which goes on, answered with its first
+  choice, for this session. Others get a line saying so once their turn is over (Codex 0.160.1 has no way to add a
+  folder in a session: its changes there ask for approval until its next start). A draft the human is typing in
+  that terminal then gets the line too: Kulisa cannot see the prompt. At their next start they get it with the
+  others: Claude Code and Codex as `--add-dir` (Claude Code reading their `CLAUDE.md` too:
+  `CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD`), every agent in the MCP server's instructions and at its session's
+  start (`agents/`, `dirs`). The repositories it has no copy of are named there too, to read in the project's folders
+  without asking, changing nothing. A copy goes when the task is deleted, with the others; none is removed before.
+  The project's folders without git are given to the agent as they are (nothing to copy). With one repository: the project's folder stays the human's, and no agent works in it on its own. Its work
   goes back through git: the human asks the agent to merge into main (the agent first checks the project's folder for
   the human's uncommitted changes, and stops if there are any: the profiles skill and the MCP server's
   instructions), or to open a pull request.
@@ -284,7 +301,8 @@ to the human; the window's IPC (`app.ts`) and the MCP tools are handles on it:
 | Read what was said and done in the task before | its terminal, scrolled back | `task_history` ([transcripts.md](transcripts.md)) | `historyPart` (`history.ts`) |
 | Delete a task | Delete Task… in its tab's menu; a closed one's 🗑 in the bar's + and its group's menu | none: it deletes work and sign-ins, the human's to decide | `askDeleteTask`, `deleteTask`, `deleteClosedTask` (`projects.ts`) |
 | Show a task | a click on its tab, of any group | none: what the human looks at is theirs | `AppWindow.showTask`, then `show` its project (`window.ts`) |
-| Add, clone, make the default, remove a repository | the projects' manager | none: what the project is made of is the human's | `addRepo`, `cloneRepo`, `defaultRepo`, `removeRepo` (`projects.ts`); `Task.reposChanged` |
+| Add, clone, make the default, remove a repository | the projects' manager | none: what the project is made of is the human's | `addRepo`, `cloneRepo`, `defaultRepo`, `removeRepo` (`projects.ts`) |
+| Add a project's repository to a task | Add Repository in its tab's menu | `task_add_repository`, once the human agreed in the conversation | `Task.addRepository`, `Project.addCopy` |
 | Add, make the default (or none the default), remove an agent of the project | the projects' manager | none: what the project is made of is the human's | `addAgent`, `defaultAgent`, `removeAgent` (`projects.ts`) |
 | Make an account of an agent | New Account… in Settings → Agents or a project's page | none: signing in is the human's (Rules) | `account:signin` (`app.ts`), `Accounts.prepare`, `create` |
 | Delete an account | − in Settings → Agents | none: it deletes a sign-in and conversations, the human's to decide | `deleteAccount` (`projects.ts`), `shell.dropAccount` |
@@ -430,7 +448,7 @@ a unit test fails for an agent that leaves one out silently, so a new agent come
 | `resume` | a closed task, or a restart, goes on with the conversation | `--resume` | `resume` |
 | `prompt` | handing the task over: the new agent starts with what to read | an argument | an argument |
 | `dirs` | a project's other repositories in a task | `--add-dir` | `--add-dir` |
-| `addDir` | a repository added while the agent runs | `/add-dir`, typed for the human to send | none in 0.160.1: a line saying so |
+| `addDir` | a repository added to the task while the agent runs | `/add-dir`, sent at once (not while it waits for the human), its question answered | none in 0.160.1: a line saying so, sent after its turn |
 | `trust` | the agent asks once a project whether it may work there | `.claude.json` | `config.toml` |
 | `localFiles` | the project's own settings of the agent in a task's copy | `.claude/settings.local.json` | `.codex/config.toml` |
 | `conversation` | its conversation read by the next agent (`task_history`) | its transcript | its transcript (summaries encrypted) |

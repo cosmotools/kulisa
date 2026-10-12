@@ -27,6 +27,7 @@ export interface Terminals { task?: string; front: number | null; list: Terminal
 export interface TaskInfo {
   n: number; key: string; name: string; state: AgentState; folder: string; offset: number; branch: string | null;
   closed: boolean; merged: boolean; about?: string; // what it is about while it has no name: its first prompt
+  repos: string[]; // the project's repositories it may add (Add Repository)
 }
 export interface ProjectEntry { id: string; name: string; folder: string; color: string; favicon?: string; tasks: ProjectTask[] }
 // A task of a project, open or not (app.ts, shell.projects): the bar's + lists the closed ones (NewTask.vue).

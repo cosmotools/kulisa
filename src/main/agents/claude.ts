@@ -67,7 +67,8 @@ const claude: Agent = {
   resume: ({ sessionId, transcript }) => sessionId && transcript && fs.existsSync(transcript) && ['--resume', sessionId],
   // The task's other repositories, with their CLAUDE.md read as its own folder's (checked with 2.1.296).
   dirs: (folders) => ({ args: folders.flatMap((f) => ['--add-dir', f]), env: { CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD: '1' } }),
-  addDir: (folder) => `/add-dir ${folder}`,
+  // It asks then: "Add directory to workspace", 1. Yes, for this session (checked with 2.1.296).
+  addDir: { command: (folder) => `/add-dir ${folder}`, confirm: 'Add directory to workspace' },
   trust: {
     has: (where, folder) => { const f = claudeConfigWhere(where); return !!f && readJSON(f)?.projects?.[folder]?.hasTrustDialogAccepted === true; },
     set: (where, folder) => { const f = claudeConfigWhere(where); return !!f && claudeTrust(f, folder); },

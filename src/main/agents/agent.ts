@@ -17,8 +17,9 @@
 //   resume(saved)            arguments that continue a conversation (saved: as agent.json keeps it), or nothing
 //   dirs(folders)            the task's other folders (its copies of the project's other repositories): { args, env }
 //                            that give them to it; without, it learns of them from the MCP server's instructions
-//   addDir(folder)           what is typed into its prompt when the task gets a folder while it runs (the human sends
-//                            it); without, a line saying so
+//   addDir                   how it gets a folder the task gets while it runs, sent by Kulisa even in its turn (never
+//                            while it waits for the human): { command(folder), confirm: the words of the question it
+//                            asks then, answered with its first choice }; without, a line saying so after its turn
 //   trust                    its trust of a folder (it asks the human once per folder: may it run there), kept in its
 //                            config: has(where, folder), set(where, folder) (false: not set); where: { configDir, transcript (a
 //                            conversation's, to find its config without an account) }. The rule is Kulisa's, the same
@@ -74,7 +75,7 @@ interface Agent {
   args?: (ctx: ArgsContext) => string[];
   resume?: false | ((saved: Saved) => string[] | false | null | undefined | '');
   dirs?: (folders: string[]) => { args: string[]; env?: Record<string, string> };
-  addDir?: (folder: string) => string;
+  addDir?: { command: (folder: string) => string; confirm?: string };
   trust?: { has: (where: Where, folder: string) => boolean; set: (where: Where, folder: string) => boolean };
   forget?: (ctx: ForgetContext) => boolean;
   conversation?: (transcript: string) => Conversation;

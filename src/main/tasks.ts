@@ -9,7 +9,7 @@ import path from 'path';
 import { Profile, wipeSession } from './profiles.ts';
 import { ProjectProfiles } from './project-profiles.ts';
 import { installSigninPause } from './signin-pause.ts';
-import { startTerminal, stopTerminal, forgetTerminal, terminalTail, typeIntoPrompt } from './terminal.ts';
+import { startTerminal, stopTerminal, forgetTerminal, terminalTail, sendToPrompt } from './terminal.ts';
 import { clearHighlights } from './mcp-server.ts';
 import { copyProfile } from './store.ts';
 import { renameBranch } from './worktrees.ts';
@@ -20,7 +20,7 @@ import { loginAllowed } from './local.ts';
 import type { Tab } from './profiles.ts';
 import type { Entry, Hooks } from './project-profiles.ts';
 import type { Project } from './projects.ts';
-import type { Conversation, TaskEntry, TaskStore } from './store.ts';
+import type { Conversation, Copy, TaskEntry, TaskStore } from './store.ts';
 import type { Pty } from './terminal.ts';
 import type { GitError } from './worktrees.ts';
 import type { Shell, AgentChoice } from './shell.ts';
@@ -36,6 +36,7 @@ interface TaskTerminal {
   id: number; key: string; name: string; command: string; by: 'human' | 'agent'; pty?: Pty;
   agent?: AgentChoice; conversation?: number; state: AgentState; seen: boolean; error?: undefined;
   handedFrom?: number; // the conversation it was handed (handOver), its number from 1, while it reads it
+  newDirs?: Copy[]; giving?: boolean; // copies added to the task, given to the agent once its turn is over (giveDirs)
 }
 type Found = { profile: Profile; error?: undefined } | { error: string; closed?: boolean; profile?: undefined };
 
@@ -166,19 +167,51 @@ class Task {
   _urlOf(t: Tab) { return this.shell.signin.restoreUrl(t.wc) || t.pendingUrl || ''; }
 
   // The other folders its agent works in besides its own: its copies of the project's other repositories, and those
-  // of the project's folders without git, as they are (agents/, dirs; the MCP server's instructions name them).
+  // of the project's folders without git, as they are (agents/, dirs; the MCP server's instructions name them). Not
+  // the repositories it may add (addable): the agent reads those in the project's folders, changing nothing there.
   dirs() {
-    return [...new Set(this.project.repos().map((r) => this.entry.copies?.find((c) => c.repo === r)?.folder || r))].filter((d) => d !== this.folder);
+    const addable = this.addable();
+    return [...new Set(this.project.repos().filter((r) => !addable.includes(r)).map((r) => this.entry.copies?.find((c) => c.repo === r)?.folder || r))]
+      .filter((d) => d !== this.folder);
   }
-  // A repository added to its project while it runs (Project Settings…): copied for it, and its agent told, typed into
-  // its prompt for the human to send (agents/, addDir: Claude Code's /add-dir; else a line saying so).
-  async reposChanged() {
-    if (!this.loaded) return;
-    for (const c of await this.project.addCopies(this)) {
-      for (const t of this.agentTerminals()) if (t.pty) typeIntoPrompt(t.pty, t.agent!.addDir?.(c.folder) || `Kulisa added ${c.folder} to this task: a copy of the project's repository ${c.repo}, on branch ${c.branch}.`);
+  // The project's repositories in git it has no copy of yet; none for a task without git (it works in a folder).
+  addable() {
+    const { copies } = this.entry;
+    return copies ? this.project.repos().filter((r) => this.project.gits.get(r) === 'ok' && !copies.some((c) => c.repo === r)) : [];
+  }
+  // Another of the project's repositories added to it, when its work turns out to need it (the human's Add Repository
+  // on its tab, the agent's task_add_repository once the human agreed; the author, 2026-10-13): a copy on its branch,
+  // given to its running agents (giveDirs); at their next start they get it as the others (dirs). The copy's
+  // { folder, branch }.
+  async addRepository(repo: string): Promise<Result<{ folder: string; branch: string }>> {
+    if (!this.entry.copies) return { error: "this task works in the project's folder (no git): it has no copies to add to" };
+    const found = this.project.repos().find((r) => r === repo || path.basename(r) === repo);
+    if (!found) return { error: `${repo} is not one of the project's repositories: ${this.project.repos().join(', ')}` };
+    if (this.entry.copies.some((c) => c.repo === found)) return { error: `the task has ${found} already` };
+    if (!this.addable().includes(found)) return { error: `${found} has no git commit to copy` };
+    const c = await this.project.addCopy(this, found);
+    if (refused(c)) return c;
+    for (const t of this.agentTerminals()) if (t.pty) { (t.newDirs ??= []).push(c); void this.giveDirs(t); }
+    this.window?.sendTasks(); this.window?.sendProjects();
+    return { folder: c.folder, branch: c.branch };
+  }
+  // Copies added to the task, sent to a running agent by Kulisa as the human would type them (the author, 2026-10-13:
+  // the human sending a typed /add-dir was a step easily missed). Never while it waits for the human: Enter answered
+  // Claude Code's permission question with Yes, the pasted line lost (2.1.296). Claude Code's /add-dir goes into a
+  // turn too: it runs at once, its question over the turn, which goes on (2.1.296); others get a line saying so once
+  // the turn is over (agents/, addDir). A draft the human is typing there then gets the line too.
+  async giveDirs(t: TaskTerminal) {
+    if (t.giving) return;
+    t.giving = true;
+    const busy = () => t.state === 'waiting' || (t.state === 'working' && !t.agent!.addDir);
+    while (t.pty && this.terminals.get(t.id) === t && !busy() && t.newDirs?.length) {
+      const c = t.newDirs.shift()!, add = t.agent!.addDir;
+      await sendToPrompt(t.pty, add ? add.command(c.folder) : `Kulisa added ${c.folder} to this task: a copy of the project's repository ${c.repo}, on branch ${c.branch}. Nothing to do about it now.`, add?.confirm);
     }
+    t.giving = false;
   }
-  async loadProfiles() { await this.list.load(); this.loaded = true; }
+  // Its project's repositories checked too, for what it may add (addable) and its agents' folders (dirs).
+  async loadProfiles() { await Promise.all([this.list.load(), this.project.checkGit()]); this.loaded = true; }
 
   // Its island (docs/window.md, The terminal): the terminals in tabs, one shown at a time. Each the user's shell in the
   // task's folder, with an agent started in it or not. A shell is for what keeps running where the human sees it (the
@@ -283,7 +316,6 @@ class Task {
     const t: TaskTerminal = { id, key: `${this.key}#${id}`, name: '', command: '', by: 'human', agent: a, conversation, state: null, seen: true };
     this.terminals.set(id, t);
     if (front) this.show(id); else { if (this.front === id) this.lastAgent = id; this.saveTerminals(); this.changedTerminals(); }
-    await this.project.addCopies(this); // the project's repositories added since
     const saved = this.conversations()[conversation]!;
     const resume = (a.resume && a.resume(saved)) || null;
     this.resumedSession = resume ? saved.sessionId ?? null : null;
@@ -511,6 +543,7 @@ class Task {
     t.state = state;
     t.seen = state !== 'done' || (this.front === t.id && this.shown() && !!this.window?.win.isFocused());
     this.changedTerminals();
+    if (state !== 'working' && state !== 'waiting') void this.giveDirs(t);
   }
   // Esc in an agent's terminal: a turn stopped so reports nothing (Claude Code runs no Stop hook then), so working or
   // waiting is no longer known; the human is there. An Esc that only closed a menu clears it too, until the next hook.
@@ -621,7 +654,7 @@ class Task {
   info(): Sent.TaskInfo {
     const { n, key, name, tabState: state, folder, offset } = this;
     return { n, key, name, state, folder, offset, branch: this.entry.branch || null, closed: !!this.entry.closed, merged: !!this.entry.merged,
-      about: this.entry.about };
+      about: this.entry.about, repos: this.addable() };
   }
 }
 
