@@ -33,9 +33,10 @@ if (!FILES.length) { console.error('which test files: --files=agent,profiles (np
 if (!restart) fs.rmSync(root, { recursive: true, force: true });
 fs.mkdirSync(project, { recursive: true });
 // The agent: cat, typed into a bash started as a terminal would start the user's shell, in the project's folder;
-// its startup file sets an environment of the project, as direnv's .envrc does.
+// its startup file sets an environment of the project, as direnv's .envrc does, an agent's config folder too (a
+// project's .envrc with CLAUDE_CONFIG_DIR), which the task's account overrides.
 const bashrc = path.join(root, 'bashrc');
-fs.writeFileSync(bashrc, `PS1='$ '\nexport FROM_RC="rc of $PWD"\n`);
+fs.writeFileSync(bashrc, `PS1='$ '\nexport FROM_RC="rc of $PWD"\nexport FAKE_CONFIG_DIR="the project's"\n`);
 // Its dictation (agents.ts, voice): cat shows the key the microphone holds (repeated); its language kept here. Its
 // transcripts read as Claude Code's (task_history): a test writes one in that format.
 let dictation = 'en';
@@ -62,7 +63,7 @@ const agents: Agent[] = [
     config: { env: 'FAKE_CONFIG_DIR', home: () => path.join(root, 'fake-config'), login: () => ['auth', 'login'],
       status: ['auth', 'status'], email: (out) => JSON.parse(out).email, logout: ['auth', 'logout'] },
     install: { posix: `echo "installing the fake agent"; mkdir -p '${bin}' && cp '${path.join(import.meta.dirname, 'fixtures', 'fake-agent.sh')}' '${bin}/kulisa-fake-agent' && chmod +x '${bin}/kulisa-fake-agent' && printf '\\033[32mdone\\033]8;;https://kulisa.app\\007\\033]8;;\\007\\033[0m\\n'` }, // colored, a link: as installers print
-    args: () => [], ...claudeLike() },
+    args: () => [], shell: agent.shell, ...claudeLike() },
   { id: 'shell', name: 'Terminal only', maker: '', command: null, needs: 'No agent' },
 ];
 
