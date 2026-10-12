@@ -1,7 +1,7 @@
 // Renaming and deleting profiles; DevTools.
 import fs from 'fs';
 import path from 'path';
-import { assert, userData, pfile, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, closeSettings, chooseProfile, setProfileField } from './helpers.ts';
+import { assert, userData, pfile, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, closeSettings, chooseProfile, setProfileField, rightClick } from './helpers.ts';
 import type { Test } from './run.ts';
 
 export default (test: Test) => {
@@ -29,7 +29,7 @@ export default (test: Test) => {
     assert.match((await ui(`kulisa.invoke('task:rename', { key: tasks.current, name: 'a b' })`)).error, /only/);
     assert.ok(shell.profiles.has('sam-admin') && !shell.profiles.has('ann-admin-2'));
   });
-  test('delete a profile in Settings → Profiles: sign-ins and data gone, everywhere; a new one of the same name starts clean', async (ctx) => {
+  test("delete a profile in Settings (its page's ⋯, its row's right-click): sign-ins and data gone, everywhere; a new one of the same name starts clean", async (ctx) => {
     const { shell, ui, call } = ctx;
     await shell.task.createProfile('Temp'); // in the project, open in its task (the agent's profile_create; Settings: tested above)
     const temp = shell.profiles.get('temp');
@@ -42,7 +42,9 @@ export default (test: Test) => {
     await manageProfiles(ui);
     await chooseProfile(ui, 'temp');
     ctx.answer = false; // Cancel
-    await ui(`document.getElementById('profiledel').click()`);
+    await ui(`document.getElementById('profilemore').click()`); // ⋯ at its page's top
+    await menuRows(ui);
+    await choose(ui, 'Delete Profile…');
     await waitFor(() => ctx.asked.length);
     const q = ctx.asked.pop();
     assert.equal(q.message, 'Delete the profile Temp?');
@@ -51,10 +53,12 @@ export default (test: Test) => {
     assert.ok(shell.profiles.has('temp'), 'nothing is deleted without the confirmation');
     ctx.answer = true;
     const deleted = new Promise((r) => temp.once('deleted', r));
-    await ui(`document.getElementById('profiledel').click()`);
+    await rightClick(ui, '#pjlist [data-profile="temp"] .label');
+    await menuRows(ui);
+    await choose(ui, 'Delete Profile…');
     await deleted;
     ctx.asked.length = 0;
-    await waitFor(() => ui(`!document.querySelector('#profilestab [data-profile="temp"]')`));
+    await waitFor(() => ui(`!document.querySelector('#pjlist [data-profile="temp"]') && !!document.querySelector('#pjlist [data-profile][aria-selected="true"]')`));
     await closeSettings(ui);
 
     assert.deepEqual([...shell.profiles.keys()], ['sam-admin', 'elon-buyer']);

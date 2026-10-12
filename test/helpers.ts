@@ -84,21 +84,21 @@ const taskMenu = async (ui: UI) => {
   await rightClick(ui, '#taskbar .tasktab.active .name');
   return menuRows(ui);
 };
-// Settings → Profiles: the shown task's tab's menu, then Manage Profiles…; once its list is there.
+// Settings → Profiles: the shown task's tab's menu, then Manage Profiles…; once its page is there.
 const manageProfiles = async (ui: UI) => {
   await taskMenu(ui);
   await choose(ui, 'Manage Profiles…');
-  await waitFor(() => ui(`document.getElementById('projects')?.dataset.state === 'open' && document.getElementById('profilestab')?.checkVisibility()`));
+  await waitFor(() => ui(`document.getElementById('projects')?.dataset.state === 'open' && document.getElementById('prconfig')?.checkVisibility()`));
 };
 // Settings closed with its ×.
 const closeSettings = async (ui: UI) => {
   await ui(`document.querySelector('#projects .x').click()`);
   await waitFor(async () => !(await ui(`document.getElementById('projects')?.dataset.state === 'open'`)));
 };
-// A profile in Settings → Profiles chosen (a click), its fields there.
+// A profile in Settings' tree chosen (a click), its page shown.
 const chooseProfile = async (ui: UI, id: string) => {
-  await ui(`document.querySelector('#profilestab [data-profile="${id}"]').click()`);
-  await waitFor(() => ui(`document.querySelector('#profilestab [data-profile="${id}"]')?.ariaSelected === 'true'`));
+  await ui(`document.querySelector('#pjlist [data-profile="${id}"]').click()`);
+  await waitFor(() => ui(`document.querySelector('#pjlist [data-profile="${id}"]')?.ariaSelected === 'true' && document.getElementById('profilepage')?.checkVisibility()`));
 };
 // A field of Settings → Profiles typed and left (saved on change).
 const setProfileField = (ui: UI, id: string, value: string) => ui(`(() => { const f = document.getElementById('${id}'); f.value = ${JSON.stringify(value)};
