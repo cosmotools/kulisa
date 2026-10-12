@@ -37,7 +37,7 @@ npm test             # unit tests, knip, then the real app against a local test 
 npm run test:visible # the same on your screen (npm test uses its own screen on Linux: sudo apt install xvfb openbox)
 npm run package      # the app for this platform, in out/
 npm run make         # installers for this platform, in out/make/ (.deb, .rpm on Linux: sudo apt install rpm; .exe on Windows; .dmg/.zip on macOS)
-npm run publish      # the same, uploaded to a draft release on GitHub (GITHUB_TOKEN); the CI does it on a tag v*
+npm run publish      # the same, uploaded to a draft release on GitHub (GITHUB_TOKEN); the CI does it on a merge into main (CLAUDE.md, Releases)
 npm run icons        # after changing assets/icon.svg: icon.png, .ico, .icns next to it
 ```
 

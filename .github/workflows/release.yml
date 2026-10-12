@@ -1,30 +1,50 @@
-# A tag v* (the version in package.json, `npm version`): the installers built on each OS and uploaded to one draft
-# release, which the author publishes (docs/window.md, "The app icon, installers and updates"; ROADMAP, "Releases and
-# auto-update"). macOS joins once the Apple secrets are set.
+# A merge into main (a pull request from develop, its version raised: test.yml's version job): the installers built on
+# each OS and uploaded to one draft release, which the author publishes (CLAUDE.md, Releases; docs/window.md, "The app
+# icon, installers and updates"). macOS joins once the Apple secrets are set.
 name: release
 on:
   push:
-    tags: ['v*']
+    branches: [main]
+concurrency:
+  group: release
+  cancel-in-progress: false
 permissions:
   contents: write
 jobs:
-  release:
+  # The draft made here, not by Forge: Forge's names no commit, and GitHub would tag whatever main is when it is
+  # published. Forge then finds it by its tag's name and uploads into it.
+  draft:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: tag
+        run: echo "tag=v$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+      # A version released before (a merge with its number not raised) would upload over that release's installers.
+      # Its notes are the merged pull request's text: what is new for the user (CLAUDE.md, Releases).
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "::error::$TAG is released already: raise the version in package.json (CLAUDE.md, Releases)"; exit 1
+          fi
+          gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" --jq '.[0].body // ""' > notes.md
+          gh release create "$TAG" --draft --target "$GITHUB_SHA" --title "$TAG" --notes-file notes.md
+  build:
+    needs: draft
     strategy:
-      # One after another: each looks for the tag's draft and makes it when there is none, so two at once made two.
-      max-parallel: 1
       matrix:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
-      # Forge names the release after package.json's version: a tag that says another would publish under that one.
-      - shell: bash
-        run: test "${{ github.ref_name }}" = "v$(node -p "require('./package.json').version")"
       - if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y rpm
       - run: npm ci

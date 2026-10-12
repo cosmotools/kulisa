@@ -122,7 +122,7 @@ unasked. This paragraph is removed when the rewrite is finished.
 - **TypeScript everywhere, as ES modules** (since 2026-10-11): the main process, the tests and the scripts run as
   they are by Node's type stripping (Electron's own Node 24, or Node 24.12+), so erasable syntax
   only (no `enum`, `namespace`, parameter properties) and imports with their `.ts`. `tsc` only checks: `tsconfig.json`
-  (strict), `test/tsconfig.json` (the same without null checks: a test counts on what it checks being there). What
+  (strict, an element read by index may be missing: `noUncheckedIndexedAccess`), `test/tsconfig.json` (the same without null checks: a test counts on what it checks being there). What
   the main process sends the window is typed once, in `src/renderer/types.ts`; the app every module gets, `Shell`
   (`src/main/shell.ts`); an action's `{ error }` answer, `Result` and `refused()` (`src/main/result.ts`). One way of
   writing code, all at once: what was dropped on 2026-10-08 was a mix of `.mts`, `.js` and JSDoc. The one exception,
@@ -217,24 +217,66 @@ unasked. This paragraph is removed when the rewrite is finished.
   concern (e.g. the shell fallback in `terminal.ts`). What is untested on a platform goes into ROADMAP.
 - Ask before anything outward-facing: pushing, publishing, registering domains.
 - Commit only when asked. The repo is public on GitHub (`origin`, github.com/cosmotools/kulisa); push only when
-  asked, and never print the remote URL (`git remote -v`): it carries the author's token.
+  asked (a commit the author asks for goes up as a pull request: below), and never print the remote URL (`git remote
+  -v`): it carries the author's token.
 - **Each piece of work in a worktree of its own** (the author, 2026-10-11: several Claude sessions work on Kulisa
   at once, and one switching or editing the shared folder pulled the files out from under the others):
-  - Before the first change: `git worktree add .claude/worktrees/<name> -b <name> main` (from the local `main`, or
-    the branch the author names; not EnterWorktree's default, which starts from `origin`, behind the local one), and
-    work there.
-  - **The repository's own folder holds `main`, always** (the author, 2026-10-11: with `main` in a worktree, the
+  - Before the first change: `git worktree add .claude/worktrees/<name> -b <name> develop` (from the local
+    `develop`, or the branch the author names; not EnterWorktree's default, which starts from `origin`, behind the
+    local one), and work there. `develop` is where work goes; `main` is what is released (Releases, below).
+  - **The repository's own folder holds `develop`, always** (the author, 2026-10-11: with it in a worktree, the
     folder stayed on an old branch, and a session started there read an old CLAUDE.md and old docs). Nothing is
-    edited there and it is never switched to another branch; only merges into `main` are done in it.
+    edited, committed or merged there, and it is never switched to another branch: it only follows GitHub's
+    `develop` once a pull request is merged (`git -C <repo> pull --ff-only origin develop`).
   - `node_modules` is a link to the repository's (`ln -s ../../../node_modules node_modules`) while the work does
     not change the dependencies; work that does gets its own (`npm install`, then `npm run postinstall`).
-  - Commits go to the worktree's branch. Merging into `main` is done in the repository's folder (`git -C <repo>
-    merge --no-ff <name>`), with nothing else there; no worktree has `main` checked out.
+  - Commits go to the worktree's branch; no worktree has `develop` checked out. **Into `develop` only by a pull
+    request, merged by the author** (2026-10-12; Claude Code's auto mode refuses a local merge too, "Merge Without
+    Review"): when the author asks for the commit, push the branch (`git push -u origin <name>`) and open its pull
+    request into `develop` (GitHub's API, below), its body what the change does and its cost line (Working with the
+    author). Never merge into `develop` or `main` here, nor push them.
   - `npm test` runs from several worktrees at once: each checkout has its own test folder and test site
     (`test/start.ts`). The author's Kulisa runs one checkout at a time: the `run-kulisa` skill, from the worktree
-    while its work is shown, from the repository's folder (`main`) once it is merged.
-  - Once its branch is merged (or the author drops it), the worktree goes (`git worktree remove`), its branch
-    (`git branch -d`) and its test folder (`/tmp/kulisa-test-<worktree>-…`).
+    while its work is shown, from the repository's folder (`develop`) once it is merged.
+  - Once its pull request is merged (or the author drops it), the repository's folder follows `develop` (above),
+    and the worktree goes (`git worktree remove`), its branch here (`git branch -D`: merged by GitHub's merge commit,
+    git here may not know it) and on GitHub (the API, below), and its test folder (`/tmp/kulisa-test-<worktree>-…`).
+- **GitHub's API, not `gh`** (not installed; the author's choice, 2026-10-12): `curl` to `https://api.github.com`
+  with the token of the remote's URL, read into a shell variable and never printed:
+  `T=$(git config --get remote.origin.url | sed -E 's#^https://[^:@/]*:?([^@/]*)@.*#\1#')`, then
+  `curl -sf -H "Authorization: Bearer $T" …`. A pull request: `POST /repos/cosmotools/kulisa/pulls` (`title`, `head`
+  the branch, `base`, `body`); its checks: `GET /repos/cosmotools/kulisa/commits/<sha>/check-runs`; whether it is
+  merged: `GET …/pulls/<n>`; a branch removed: `DELETE /repos/cosmotools/kulisa/git/refs/heads/<branch>`; a job's
+  log: `GET …/actions/jobs/<id>/logs` answers with a redirect to a signed address, fetched without the token. The
+  token cannot re-run a workflow (no Actions write): the author does it on the run's page.
+
+## Releases
+
+`main` is what users get; `develop` is where work goes. A merge into `main` is a release.
+
+- **`main` is protected on GitHub** (a ruleset, no one bypassing it): no push, no force push; only a pull request
+  from `develop`, merged with a merge commit (not squash or rebase: `develop` would part from `main`), by the author,
+  once its required checks pass: `test (ubuntu-latest)` and `version` (`.github/workflows/test.yml`). Never push to
+  `main`, merge into it, or merge `main` back into `develop`.
+- **The version** in `package.json` is the truth; the app shows it (☰) and the updater compares it. Each pull
+  request into `main` raises it (the `version` check refuses one that does not; once, the first release, the same
+  number passes while no release of it exists). `npm version <patch|minor> --no-git-tag-version`: no tag by hand,
+  the CI makes it. While 0.x: `patch` by default, `minor` when the author says so or for a large change (say which).
+- **A merge into `main`** runs `.github/workflows/release.yml`: a draft release `v<version>` at that commit, its
+  notes the pull request's text; the installers built on Ubuntu (`.deb`, `.rpm`) and Windows
+  (Squirrel's `.exe`) and uploaded into it. The author checks and publishes it; only then update.electronjs.org
+  serves it and installed copies update (docs/window.md, "The app icon, installers and updates"). Drafts until the
+  first release is checked by hand on Windows (ROADMAP, "Releases and auto-update"), published at once after that.
+- **When the author says to release** (that is the ask to open the two pull requests, nothing more):
+  1. In a worktree from `develop`: raise the version, commit (`Kulisa <version>`), and open its pull request into
+     `develop` as any work's; the author merges it.
+  2. Open the pull request `develop` → `main` (GitHub's API, above): title `Kulisa <version>`, its body what is new
+     for the user since the last release (from `git log origin/main..origin/develop`, in the guide's words: it becomes
+     the release's notes).
+  3. Watch its checks; a red one is fixed by a pull request into `develop` (merged, it updates this one). Tell the
+     author when it is green: the merge is theirs.
+  4. After the merge, watch the release's run; tell the author when the draft has its installers, or what failed.
+     Publishing it is theirs.
 
 ## Commands
 
@@ -245,7 +287,7 @@ npm run test:unit     # the unit tests alone (plain Node, a second)
 npm run knip  # no file, export or dependency nothing uses: once a step, before showing it (docs/testing.md, Dead code)
 npm run test:visible  # e2e on your screen, to watch them (npm test uses Xvfb on Linux when installed)
 npm run make  # installers for this platform with Electron Forge (forge.config.ts), in out/make/
-npm run publish  # the same, to a draft release on GitHub: the CI's, on a tag v* (window.md, The app icon, installers and updates)
+npm run publish  # the same, to a draft release on GitHub: the CI's, on a merge into main (Releases below)
 npm run icons # renders assets/icon.svg to icon.png/.ico/.icns (committed; run after changing the SVG)
 npm run build # type checks (tsc: the main process and the tests; vue-tsc: the window), then Vite into dist/renderer
 npm run watch # the window built again on every change; then reload it (Ctrl+R in its DevTools) or restart
@@ -263,7 +305,9 @@ npm run watch # the window built again on every change; then reload it (Ctrl+R i
   `env $(env | grep -o '^CLAUDE[A-Z_]*' | grep -v '^CLAUDE_CONFIG_DIR$' | sed 's/^/-u /') npm start`.
 - **Code intelligence.** Claude Code's `LSP` tool (the `kulisa-dev` plugin; README, Developing with Claude Code):
   references, definitions and types through the language server, `.ts` and `.vue` together; prefer it to grep when
-  renaming or finding who uses a symbol (it misses the tests: grep `test/` too).
+  renaming or finding who uses a symbol (it misses the tests: grep `test/` too). No `LSP` tool in the session: the
+  plugin is not installed in this `CLAUDE_CONFIG_DIR`; say so, install it (`claude plugin install
+  kulisa-dev@kulisa-dev --scope project`) and ask the human for `/reload-plugins`.
 - **Looking at the window.** `KULISA_SHOT=/tmp/kulisa.png npm start` saves a screenshot of the whole window,
   profile views included, about 4 s after start (`KULISA_SHOT_DELAY` in ms). In tests: `shell.screenshot(file)`.
   Then read the PNG. Use it to check any UI change.

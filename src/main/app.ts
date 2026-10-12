@@ -94,7 +94,7 @@ function start(options: Options = {}) {
   if (!saved.length) saved.push({ tabs: [], shown: null });
   if (options.project) {
     const p = projectOfFolder(path.resolve(options.project));
-    const w = saved.find((x) => x.tabs.some((t) => t.id === p.id)) || saved[0];
+    const w = saved.find((x) => x.tabs.some((t) => t.id === p.id)) || saved[0]!;
     if (!w.tabs.some((t) => t.id === p.id)) w.tabs.push(p);
     w.shown = p;
   }
@@ -294,7 +294,7 @@ function start(options: Options = {}) {
         detail: `${busy}quitting stops ${it}. The windows, their tasks and conversations come back at the next start.` }, w);
     }
     if (!window) {
-      return !working.length || shell.ask({ message: `Close the group ${projects[0].name}?`, ok: 'Close',
+      return !working.length || shell.ask({ message: `Close the group ${projects[0]!.name}?`, ok: 'Close',
         detail: `${busy}closing stops ${it}. Its tasks' conversations, code and profiles stay: open them again from the bar's +.` }, w);
     }
     return shell.ask({ message: 'Close the window?', ok: 'Close',
@@ -394,10 +394,11 @@ function start(options: Options = {}) {
     await win.showTask(task);
     if (win.current !== task.project) await win.show(task.project);
   }
-  // Before a task of a project leaves its bar (closed or deleted): the project shows the open task next to it.
+  // Before a task of a project leaves its bar (closed or deleted): the project shows the open task next to it. There is
+  // one: the last open task closes its group instead (closeTask, deleteTask).
   async function leaveTask(task: Task) {
     const project = task.project, open = project.open(), i = open.indexOf(task);
-    if (project.task === task) await project.window!.showTask(open[i + 1] || open[i - 1]);
+    if (project.task === task) await project.window!.showTask((open[i + 1] || open[i - 1])!);
   }
   // × on a task's tab: its agent stops, its tabs close, all else stays (projects.ts, closeTask); asked first only when
   // its agent is working. The last open task closes its group, as Chrome's tab group goes with its last tab.
@@ -433,7 +434,7 @@ function start(options: Options = {}) {
   async function deleteMerged(project: Project) {
     const list = project.closedTasks().filter((t) => t.entry.merged);
     if (!list.length) return { error: 'no closed task of it is merged' };
-    if (!await shell.ask({ message: `Delete ${list.length === 1 ? `the task ${list[0].name}` : `${list.length} merged tasks`}?`, ok: 'Delete', danger: true,
+    if (!await shell.ask({ message: `Delete ${list.length === 1 ? `the task ${list[0]!.name}` : `${list.length} merged tasks`}?`, ok: 'Delete', danger: true,
       detail: `Merged on the remote, nothing uncommitted: ${list.map((t) => `${t.name} (${t.entry.branch})`).join(', ')}. Their folders, branches, profiles' copies and agents' conversations go.` }, project.window)) {
       return { error: 'the human said no' };
     }
@@ -522,11 +523,12 @@ function start(options: Options = {}) {
       if (!given.length || given.includes(null)) return { error: given.length ? 'each folder must be a full path' : 'no folder' };
       const states = await Promise.all(given.map((f) => folderState(f!)));
       for (const [i, f] of given.entries()) {
-        if (states[i].state === 'new') return { error: `${f} is not there` };
-        if (refusal(f!, states[i])) return { error: refusal(f!, states[i]) };
+        const s = states[i]!;
+        if (s.state === 'new') return { error: `${f} is not there` };
+        if (refusal(f!, s)) return { error: refusal(f!, s) };
       }
       for (const [i, f] of given.entries()) {
-        if (git && states[i].state !== 'repo') await initRepo(f!).catch((err: GitError) => console.error('[git]', err.stderr || err.message));
+        if (git && states[i]!.state !== 'repo') await initRepo(f!).catch((err: GitError) => console.error('[git]', err.stderr || err.message));
       }
       folder = given[0]!;
       if (given.length > 1) repos = given as string[];
@@ -544,7 +546,7 @@ function start(options: Options = {}) {
         if (intos.includes(folder) && urls.length > 1 || new Set(intos).size < intos.length) return { error: 'two repositories of the same name' };
         fs.mkdirSync(urls.length === 1 ? path.dirname(folder) : folder, { recursive: true }); // git runs there
         for (const [i, u] of urls.entries()) {
-          try { await clone(u, intos[i]); } catch (e) {
+          try { await clone(u, intos[i]!); } catch (e) {
             const err = e as GitError;
             // None of it kept: a project with half its code would look made.
             for (const f of intos.slice(0, i + 1)) if (f !== folder || there.state === 'new') fs.rmSync(f, { recursive: true, force: true });
@@ -761,7 +763,7 @@ function start(options: Options = {}) {
   ipcMain.handle('project:delete-merged', (_e, { id }: { id: string }) => serial(() => { const p = shell.open.get(id); return p ? deleteMerged(p) : { error: 'the project is not open' }; }));
   // The island's microphone and its language (Dictation.vue in the renderer; Task.voice, dictate).
   // Esc typed into an agent's terminal (its key: "<task>#<id>"): Task.interrupted.
-  ipcMain.on('pty:in', (_e, { task, data }: { task: string; data: string }) => { if (data === '\x1b') shell.taskByKey(task.split('#')[0])?.interrupted(task); });
+  ipcMain.on('pty:in', (_e, { task, data }: { task: string; data: string }) => { if (data === '\x1b') shell.taskByKey(task.split('#')[0]!)?.interrupted(task); });
   ipcMain.handle('voice:get', (_e, key: string) => shell.taskByKey(key)?.voice() ?? null);
   ipcMain.handle('voice:record', (_e, { task, on }: { task: string; on: boolean }) => shell.taskByKey(task)?.dictate(on) ?? { recording: false });
   ipcMain.handle('voice:language', (_e, { task, code }: { task: string; code: string }) => shell.taskByKey(task)?.setVoiceLanguage(code) ?? { error: `no task ${task}` });
@@ -782,7 +784,7 @@ function start(options: Options = {}) {
       for (const p of s.tabs) if (!shell.open.has(p.id)) addProject(p, w);
       return { w, shown: s.shown && shell.open.get(s.shown.id)?.window === w ? shell.open.get(s.shown.id)! : w.tabs[0] || null };
     });
-    await windows[0].w.load(windows[0].shown?.entry ?? null);
+    await windows[0]!.w.load(windows[0]!.shown?.entry ?? null);
     shell.mcp = await startMcpServer(shell, { port: options.mcpPort ?? 4450 });
     installPicker(shell);
     installGhost(shell);
@@ -793,7 +795,7 @@ function start(options: Options = {}) {
       if (shown) await serial(() => w.show(shown));
       else { w.sendProjects(); w.sendTasks(); }
     }
-    shell.firstStart(windows[0].w);
+    shell.firstStart(windows[0]!.w);
     shell.saveWindows();
     shell.stopAutosave = shell.sessionCookies.autosave(() => [...allProfiles(), ...shell.cookieSync.masters()]);
     shell.screenshot = async (file) => { await first()!.screenshot(file); };
@@ -979,7 +981,8 @@ function start(options: Options = {}) {
     if (!hit || (hit.id === 'devtools.app' && !appDevTools)) return;
     e.preventDefault();
     const win = w || (t as { w: AppWindow }).w;
-    if (hit.id in ZOOM) return hit.id.startsWith('zoom.') ? shell.setUiZoom(stepZoom(shell.uiZoom, ZOOM[hit.id])) : t && t.profile.zoomSite(t.tab.id, ZOOM[hit.id]);
+    const step = ZOOM[hit.id];
+    if (step !== undefined) return hit.id.startsWith('zoom.') ? shell.setUiZoom(stepZoom(shell.uiZoom, step)) : t && t.profile.zoomSite(t.tab.id, step);
     if (hit.id === 'devtools.app') return win.toggleDevTools();
     if (hit.id === 'devtools.tab') return t && t.profile.toggleDevTools(t.tab.id);
     if (hit.window) win.win.webContents.focus();

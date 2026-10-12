@@ -41,7 +41,7 @@ class Project {
   }
   // Its name, agents and repositories, as the projects' manager left them (store.ts, updateProject).
   // folder: its default repository (or folder), where its tasks' agents start.
-  update(entry: ProjectEntry) { this.entry = entry; this.name = entry.name; this.folder = reposOf(entry)[0]; }
+  update(entry: ProjectEntry) { this.entry = entry; this.name = entry.name; this.folder = reposOf(entry)[0]!; }
   repos() { return reposOf(this.entry); }
   // The agents' accounts its tasks run, the default first.
   agents() { return agentsOf(this.shell, this.entry); }

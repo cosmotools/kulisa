@@ -3,7 +3,7 @@ import electron, { clipboard } from 'electron';
 import fs from 'fs';
 import pkg from '../package.json' with { type: 'json' };
 import path from 'path';
-import { assert, root, userData, project, pfile, SITE, sleep, waitFor, who, menuRows, choose, menuOpen, rightClick, box, pageBox, viewOn, dock, press, projectTabs, projectTab, showProject, closeProject, savedWindows, closeMenu, plusMenu, focusWindow } from './helpers.ts';
+import { assert, root, userData, project, pfile, SITE, sleep, waitFor, who, menuRows, choose, MENU, menuOpen, rightClick, box, pageBox, viewOn, dock, press, projectTabs, projectTab, showProject, closeProject, savedWindows, closeMenu, plusMenu, focusWindow } from './helpers.ts';
 import type { Test } from './run.ts';
 import type { UI } from './helpers.ts';
 
@@ -244,7 +244,9 @@ export default (test: Test) => {
     // Back into the first window (Move to Window, as a browser moves a tab): the only tab of the second, so it closes.
     await rightClick(ui2, '#projectTabs [data-project="other"] .name');
     assert.deepEqual(await menuRows(ui2), ['New Task', '-', 'Move to New Window (off)', 'Move to Window: project', '-', 'Project Settings…', 'Show Data Folder', '-', 'Close Group']);
-    await choose(ui2, 'Move to Window: project');
+    // Chosen once the script has answered: the choice closes this window, and a script still running in a window that
+    // goes never answers (the test hung so on a loaded machine, 2026-10-12).
+    await ui2(`setTimeout(() => [...${MENU}.querySelectorAll('.item')].find((b) => b.querySelector('.label').textContent === 'Move to Window: project').click()); 0`);
     await waitFor(() => shell.windows.length === 1 && shell.current === moved && !first.switching);
     assert.ok(second.win.isDestroyed());
     assert.equal(task.pty, pty, 'the same agent');
@@ -624,7 +626,11 @@ export default (test: Test) => {
       other.show(); other.focus();
       await waitFor(async () => !(await anyMenu()));
     } finally { other.destroy(); }
-    // The window has the keyboard again before the tests after: a menu opened while it has not closes at once.
+    // The window has the keyboard again before the tests after: a menu opened while it has not closes at once. The
+    // OS's focus waited for too: the page had it at once and the window manager's came later, its blur closing the
+    // menu the next test had opened (the bar's +, on a loaded machine, 2026-10-12).
+    shell.win.focus();
+    await waitFor(() => shell.win.isFocused());
     await focusWindow(shell.win, ui);
   });
 };

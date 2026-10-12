@@ -61,7 +61,7 @@ async function overview(task: Task) {
   const list = task.conversations().map((c, i) => {
     const r = read(task, c, i), asked = r.conv?.entries.filter((e) => e.kind === 'human') || [];
     return [`${i + 1}. "${r.tab}": ${r.name}, ${r.open ? 'open in its tab' : 'closed'}, from ${when(c.from)}${c.to ? ` to ${when(c.to)}` : ''}.`,
-      r.conv ? [asked.length ? `   First request: ${quote(asked[0].text)}` : '   No request yet.',
+      r.conv ? [asked[0] ? `   First request: ${quote(asked[0].text)}` : '   No request yet.',
         asked.length > 1 && `   Last request: ${quote(asked.at(-1)!.text)}`,
         `   How its last turn ended: ${r.conv.stopped || 'as usual'}.`].filter(Boolean).join('\n') : `   Its conversation cannot be read here (${r.why}).`].join('\n');
   });
@@ -77,10 +77,11 @@ function whole(task: Task, n: number): Result<{ text: string }> {
   const { name, tab, conv, why } = read(task, c, n - 1);
   const head = `Conversation ${n}, "${tab}", ${name}, from ${when(c.from)}${c.to ? ` to ${when(c.to)}` : ''}`;
   if (!conv) return { text: `# ${head}\n\nIts conversation cannot be read here (${why}).` };
-  const parts: Entry[][] = [[]];
+  let part: Entry[] = [];
+  const parts = [part];
   for (const e of conv.entries) {
-    if (e.kind === 'summary' && parts[parts.length - 1].length) parts.push([]);
-    parts[parts.length - 1].push(e);
+    if (e.kind === 'summary' && part.length) parts.push(part = []);
+    part.push(e);
   }
   const chapters = parts.map((p, k) => {
     const end = k === parts.length - 1 ? [

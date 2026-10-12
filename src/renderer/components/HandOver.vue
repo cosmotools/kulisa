@@ -86,7 +86,7 @@ const progress = computed(() => {
           {{ plural(store.profiles.length, 'profile') }}, signed in
         </li>
         <li v-if="tabs" style="--i: 2"><Icon name="i-globe" />{{ plural(tabs, 'tab') }}</li>
-        <li v-if="shells.length" style="--i: 3"><Icon name="i-agent-shell" />{{ shells.length === 1 ? shells[0].name : plural(shells.length, 'terminal') }}, running</li>
+        <li v-if="shells.length" style="--i: 3"><Icon name="i-agent-shell" />{{ shells.length === 1 ? shells[0]!.name : plural(shells.length, 'terminal') }}, running</li>
         <li style="--i: 4"><Icon name="i-docs" />the whole conversation</li>
       </ul>
       <div class="side to">

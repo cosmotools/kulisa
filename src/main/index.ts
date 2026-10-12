@@ -10,7 +10,7 @@
 import { start } from './app.ts';
 import { squirrelEvent, updates } from './updates.ts';
 
-const agent = process.env.KULISA_AGENT ? (([command, ...args]) => ({ command, args }))(process.env.KULISA_AGENT.split(/\s+/)) : undefined;
+const agent = process.env.KULISA_AGENT ? (([command, ...args]) => ({ command: command!, args }))(process.env.KULISA_AGENT.split(/\s+/)) : undefined;
 
 if (!squirrelEvent) {
   updates();
