@@ -76,6 +76,9 @@ export default (test: Test) => {
     await closeSettings(ui);
     await waitFor(() => shell.profiles.get('elon-buyer').get().view.getVisible());
     assert.equal(await ui(`document.querySelectorAll('.pane').length`), 2);
+    // The first page over the terminal alone took half the grid (dockview's split); the terminal keeps its share.
+    const share = await ui(`__dock.getPanel('terminal').group.api.height / __dock.height`);
+    assert.ok(Math.abs(share - 0.35) < 0.03, `the terminal's share: ${share}`);
   });
 
   test('web pages cannot reach the MCP server, its hooks or the CDP proxy (Host and Origin checks)', async ({ shell }) => {
