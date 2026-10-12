@@ -1,0 +1,33 @@
+# A tag v* (the version in package.json, `npm version`): the installers built on each OS and uploaded to one draft
+# release, which the author publishes (docs/window.md, "The app icon, installers and updates"; ROADMAP, "Releases and
+# auto-update"). macOS joins once the Apple secrets are set.
+name: release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+jobs:
+  release:
+    strategy:
+      # One after another: each looks for the tag's draft and makes it when there is none, so two at once made two.
+      max-parallel: 1
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      # Forge names the release after package.json's version: a tag that says another would publish under that one.
+      - shell: bash
+        run: test "${{ github.ref_name }}" = "v$(node -p "require('./package.json').version")"
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y rpm
+      - run: npm ci
+      - run: npm run publish
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -5,6 +5,7 @@
 // restart does not start every one at once.
 import { session } from 'electron';
 import fs from 'fs';
+import path from 'path';
 import { Profile, wipeSession } from './profiles.ts';
 import { ProjectProfiles } from './project-profiles.ts';
 import { installSigninPause } from './signin-pause.ts';
@@ -12,6 +13,8 @@ import { startTerminal, stopTerminal, forgetTerminal, terminalTail, typeIntoProm
 import { clearHighlights } from './mcp-server.ts';
 import { copyProfile } from './store.ts';
 import { renameBranch } from './worktrees.ts';
+import { extendTrust } from './agents/index.ts';
+import { installSkill } from './agents/files.ts';
 import { nameError } from './names.ts';
 import { loginAllowed } from './local.ts';
 import type { Tab } from './profiles.ts';
@@ -32,6 +35,7 @@ type AgentState = 'working' | 'waiting' | 'done' | null;
 interface TaskTerminal {
   id: number; key: string; name: string; command: string; by: 'human' | 'agent'; pty?: Pty;
   agent?: AgentChoice; conversation?: number; state: AgentState; seen: boolean; error?: undefined;
+  handedFrom?: number; // the conversation it was handed (handOver), its number from 1, while it reads it
 }
 type Found = { profile: Profile; error?: undefined } | { error: string; closed?: boolean; profile?: undefined };
 
@@ -72,6 +76,8 @@ class Task {
   get window() { return this.project.window; }
   shown() { return this.window?.task === this; }
   get name() { return this.entry.name; }
+  // Still its first name (projects.ts): neither its agent nor the human has named it.
+  get unnamed() { return this.entry.name === `task-${this.n}`; }
   // A new name, the agent's (task_rename) or the human's (Rename… on its tab): the name in the bar and its branch
   // of each of its copies (git branch -m; -2, -3 when another branch has it). Its folders stay: its agent may be
   // working there.
@@ -84,9 +90,20 @@ class Task {
       try { entry.branch = await renameBranch(entry.copies, name!); } catch (e) { return { error: (e as GitError).stderr || (e as Error).message }; }
     }
     entry.name = name!;
+    delete entry.about;
     this.project.save();
     this.window?.sendTasks(); this.window?.sendProjects();
     return { name: name!, branch: entry.branch || null };
+  }
+
+  // An unnamed task's first prompt (its first line), shown with its name until it has one: what it is about when its
+  // agent did not name it.
+  noteAbout(prompt: string) {
+    const line = prompt.split('\n').map((l) => l.trim()).find(Boolean);
+    if (!this.unnamed || this.entry.about || !line) return;
+    this.entry.about = line.length > 120 ? `${line.slice(0, 119)}…` : line;
+    this.project.save();
+    this.window?.sendTasks(); this.window?.sendProjects();
   }
 
   // What it takes to run a profile of this task (project-profiles.ts).
@@ -149,12 +166,12 @@ class Task {
   _urlOf(t: Tab) { return this.shell.signin.restoreUrl(t.wc) || t.pendingUrl || ''; }
 
   // The other folders its agent works in besides its own: its copies of the project's other repositories, and those
-  // of the project's folders without git, as they are (agents.ts, dirs; the MCP server's instructions name them).
+  // of the project's folders without git, as they are (agents/, dirs; the MCP server's instructions name them).
   dirs() {
     return [...new Set(this.project.repos().map((r) => this.entry.copies?.find((c) => c.repo === r)?.folder || r))].filter((d) => d !== this.folder);
   }
   // A repository added to its project while it runs (Project Settings…): copied for it, and its agent told, typed into
-  // its prompt for the human to send (agents.ts, addDir: Claude Code's /add-dir; else a line saying so).
+  // its prompt for the human to send (agents/, addDir: Claude Code's /add-dir; else a line saying so).
   async reposChanged() {
     if (!this.loaded) return;
     for (const c of await this.project.addCopies(this)) {
@@ -258,13 +275,22 @@ class Task {
     const resume = (a.resume && a.resume(saved)) || null;
     this.resumedSession = resume ? saved.sessionId ?? null : null;
     const env = this.env(t), dirs = this.dirs(), more: { args?: string[]; env?: Record<string, string> } = (dirs.length && a.dirs?.(dirs)) || {};
-    for (const c of this.entry.copies || []) await a.prepare?.({ folder: c.folder, project: { folder: c.repo, ...this.project.agentData() }, configDir: a.configDir });
+    // Each copy trusted as the human trusted the project's code, in its folder or another task's copy (extendTrust).
+    const where = { configDir: a.configDir, transcript: (this.project.agentData() as { transcript?: string }).transcript };
+    const copies = this.shell.store.tasksOf(this.project.entry).list.flatMap((e) => e.copies || []);
+    for (const c of this.entry.copies || []) {
+      extendTrust(a, where, c.folder, [c.repo, ...copies.filter((o) => o.repo === c.repo && o.folder !== c.folder).map((o) => o.folder)]);
+    }
+    // Kulisa's profiles skill where the agent reads it, in its account's folder only (never the human's own).
+    if (a.configDir && Object.keys(a.env).length) {
+      try { if (a.skills) installSkill(shell.packages, path.join(a.configDir, a.skills)); } catch (e) { console.warn('[agents] skill:', (e as Error).message); }
+    }
     if (this.terminals.get(id) !== t) return { error: 'the terminal was closed' };
     // The program by name, as the human would type it, unless the shell does not find it yet (just installed).
     const command = found.onPath ? a.command : found.path;
     t.pty = await startTerminal((channel, data) => this.window?.send(channel, data), { command, shell: a.shell, cwd: this.folder,
       env: { ...env, ...more.env, ...a.env }, pinned: a.env, sizeOf: this.key,
-      args: [...(resume || []), ...(a.args?.({ env, plugin: shell.plugin }) || []), ...(more.args || []), ...(a.voice?.args || []), ...((!resume && first && a.prompt?.(first)) || [])] }, t.key);
+      args: [...(resume || []), ...(a.args?.({ env, packages: shell.packages, account: Object.keys(a.env).length ? a.configDir : null }) || []), ...(more.args || []), ...((!resume && first && a.prompt?.(first)) || [])] }, t.key);
     if (this.terminals.get(id) !== t) { stopTerminal(t.pty); return { error: 'the terminal was closed' }; }
     // Its shell exited by itself (exit), not stopped by Kulisa (closing, quitting: the terminal is kept then).
     t.pty.onExit(() => { if (!t.pty!.stopped) this.dropTerminal(t); });
@@ -278,11 +304,22 @@ class Task {
     return t?.agent ? this.openAgent(t.agent.id) : Promise.resolve({ error: `no agent's terminal ${id}` });
   }
   // The task handed to an agent (the agent's icon on its tab, Change agent…): it opens in a new tab, told to go on with
-  // that tab's conversation, which it reads in task_history. The tab it came from stays: the human closes it.
-  handOver(id: number, account: string) {
+  // that tab's conversation, which it reads in task_history while the window's dialog shows it (historyRead;
+  // HandOver.vue). In front from its start, under the dialog: a tab behind has no size, and its xterm laid out what the
+  // agent drew for the island's size in 80 columns. The tab it came from stays: the human closes it.
+  async handOver(id: number, account: string): Promise<Result<{ id: number }>> {
     const t = this.terminals.get(id);
-    if (!t?.agent) return Promise.resolve({ error: `no agent's terminal ${id}` });
-    return this.openAgent(account, { first: HANDOVER(t.conversation! + 1, this.label(t)) });
+    if (!t?.agent) return { error: `no agent's terminal ${id}` };
+    const n = t.conversation! + 1, r = await this.openAgent(account, { first: HANDOVER(n, this.label(t)) });
+    const handed = !refused(r) && this.terminals.get(r.id);
+    if (handed) handed.handedFrom = n;
+    return r;
+  }
+  // An agent read a part of a conversation in task_history: the one it was handed, shown as it goes (HandOver.vue).
+  historyRead(t: TaskTerminal, conversation: number, part: number, parts: number) {
+    if (t.handedFrom !== conversation) return;
+    if (part >= parts) t.handedFrom = undefined;
+    this.window?.send('handover:read', { task: this.key, id: t.id, part, parts });
   }
   // The name an agent gives its conversation (conversation_rename): its tab's, in 1–3 words.
   nameConversation(t: TaskTerminal, name: string | undefined): Result<{ name: string }> {
@@ -333,7 +370,7 @@ class Task {
     this.terminals.set(id, t);
     if (front || this.front === null) this.show(id); else { this.saveTerminals(); this.changedTerminals(); }
     t.pty = await startTerminal((channel, data) => this.window?.send(channel, data),
-      { line: command, cwd: this.folder, env: this.env(), sizeOf: this.key }, t.key);
+      { line: command, cwd: this.folder, env: this.env(), sizeOf: this.key, screen: true }, t.key);
     if (this.terminals.get(id) !== t) { stopTerminal(t.pty); return { error: 'the terminal was closed' }; }
     t.pty.onExit(() => { if (!t.pty!.stopped) this.dropTerminal(t); });
     return { id, name: name! };
@@ -403,7 +440,7 @@ class Task {
       state: t.state === 'done' && t.seen ? null : t.state })) };
   }
 
-  // Dictation, where the agent shown has its own (agents.ts, voice): what the window's microphone button shows
+  // Dictation, where the agent shown has its own (agents/, voice): what the window's microphone button shows
   // ({ languages, language, note, recording }, or null: no button), recording, and the language chosen there. The
   // human's only: the agent has no use for a microphone.
   voice() {
@@ -411,7 +448,7 @@ class Task {
     return v ? { languages: v.languages, language: v.language(this.savedOf(t!)), note: v.note || '', recording: this.dictating?.t === t } : null;
   }
   sendVoice() { this.window?.send('voice', { task: this.key, voice: this.voice() }); }
-  // An agent's conversation as agents.ts reads its files, with its account's folder.
+  // An agent's conversation as agents/ reads its files, with its account's folder.
   savedOf(t: TaskTerminal) { return { ...this.conversations()[t.conversation!], configDir: t.agent!.configDir }; }
   // Recording: the agent's key held, as a terminal shows a held key, its repeats. It stops when told, or after
   // DICTATION_LIMIT, or when that agent is gone or no longer shown.
@@ -570,7 +607,8 @@ class Task {
 
   info(): Sent.TaskInfo {
     const { n, key, name, tabState: state, folder, offset } = this;
-    return { n, key, name, state, folder, offset, branch: this.entry.branch || null, closed: !!this.entry.closed, merged: !!this.entry.merged };
+    return { n, key, name, state, folder, offset, branch: this.entry.branch || null, closed: !!this.entry.closed, merged: !!this.entry.merged,
+      about: this.entry.about };
   }
 }
 

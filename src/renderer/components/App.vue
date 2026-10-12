@@ -9,6 +9,7 @@ import ProjectEditor from './ProjectEditor.vue';
 import NewProject from './NewProject.vue';
 import TaskRename from './TaskRename.vue';
 import AgentPicker from './AgentPicker.vue';
+import HandOver from './HandOver.vue';
 import Shortcuts from './Shortcuts.vue';
 import Ask from './Ask.vue';
 import PointMenu from './menu/PointMenu.vue';
@@ -24,6 +25,7 @@ import PointMenu from './menu/PointMenu.vue';
   <NewProject />
   <TaskRename />
   <AgentPicker />
+  <HandOver />
   <Shortcuts />
   <Ask />
   <PointMenu />

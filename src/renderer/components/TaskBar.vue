@@ -60,7 +60,8 @@ function groupItems(id: string): MenuItem[] {
   const closed = (open.find((o) => o.id === id)?.tasks || []).filter((x) => x.closed);
   const move = (to: number | null) => kulisa.invoke('project:move', { id, to, terminals: terminalsOf(id) });
   return [{ label: 'New Task', keys: id === store.projects.current ? keyText('task.new') : undefined, run: () => kulisa.invoke('task:new', { project: id }) },
-    ...(closed.length ? ['-' as const, { heading: 'Closed tasks' }, ...closed.map((t) => ({ label: t.name, sub: [t.branch, t.merged && 'merged'].filter(Boolean).join(' · ') || undefined,
+    ...(closed.length ? ['-' as const, { heading: 'Closed tasks' }, ...closed.map((t) => ({ label: t.name, sub: [t.branch, t.merged && 'merged'].filter(Boolean).join(' · ') || undefined, title: t.about,
+      remove: { label: 'Delete Task…', run: () => kulisa.invoke('task:delete-closed', { project: id, n: t.n }) },
       run: () => kulisa.invoke('task:open', t.key) }))] : []),
     // Its PR merged, nothing uncommitted: deleting loses nothing (projects.ts, checkMerged).
     ...(closed.some((t) => t.merged) ? [{ label: 'Delete Merged Tasks…', run: () => kulisa.invoke('project:delete-merged', { id }) }] : []),

@@ -4,7 +4,11 @@
 // names kept for testing and local networks (*.test, *.local), loopback and private addresses, plus a project's own
 // list (a tunnel such as ngrok, its dev domains). An address left out is safe the other way: a pair is not typed there.
 // Plain Node: unit-tested.
-const PRIVATE = [/^127\./, /^10\./, /^192\.168\./, /^172\.(1[6-9]|2\d|3[01])\./, /^169\.254\./];
+import ipaddr from 'ipaddr.js';
+
+// ipaddr.js's names of the ranges, IPv4's and IPv6's; process() reads IPv4 written as IPv6 (::ffff:127.0.0.1) as IPv4.
+const LOCAL_RANGES = ['loopback', 'private', 'linkLocal', 'uniqueLocal'];
+const localIp = (host: string) => ipaddr.isValid(host) && LOCAL_RANGES.includes(ipaddr.process(host).range());
 // Account providers no pair is ever typed on, even reached from a local app (Sign in with Google): a test account there
 // is signed in to by the human, in the profile's master.
 const PROVIDERS = ['google.com', 'microsoft.com', 'microsoftonline.com', 'live.com', 'apple.com', 'github.com', 'facebook.com',
@@ -17,7 +21,7 @@ const under = (host: string, domain: string) => host === domain || host.endsWith
 function isLocal(url: string | undefined, extra: string[] = []) {
   const host = hostOf(url);
   if (!host) return false;
-  if (host === 'localhost' || host === '::1' || PRIVATE.some((r) => r.test(host))) return true;
+  if (host === 'localhost' || localIp(host)) return true;
   if (['localhost', 'test', 'local'].some((d) => host.endsWith(`.${d}`))) return true;
   return extra.some((d) => d && under(host, d.trim().toLowerCase()));
 }

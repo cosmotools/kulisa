@@ -3,6 +3,8 @@
 // the window's scripts were before Vite: the window's code is one bundle read from disk, a dialog's part of it a few
 // KB.
 
+import type { Terminal } from '../types';
+
 export interface Dialogs {
   taskrename: { rename(key: string, name: string): void };
   // Settings: its Projects tab (at a project, or New Project), its Agents tab.
@@ -10,6 +12,8 @@ export interface Dialogs {
   // New Project (NewProject.vue); fromSettings: Cancel goes back to Settings.
   newproject: { open(opts?: { fromSettings?: boolean }): Promise<void> };
   shortcuts: { showShortcuts(): void };
+  // Change Agent (HandOver.vue): an agent's tab handed over.
+  handover: { open(t: Terminal): Promise<void> };
 }
 type Name = keyof Dialogs;
 

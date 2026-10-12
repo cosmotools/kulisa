@@ -2,7 +2,7 @@
 
 How an agent reads what was said and done in its task, by itself or by other agents (`task_history`), and how Kulisa
 reads each agent CLI's transcript for it. Built 2026-10-12 for handing a task from one agent to another
-([tasks.md](tasks.md), "Several agents in a task"; what is left, Codex's reader: [ROADMAP.md](ROADMAP.md)). Keep this file current when a reader changes, and check it when an agent CLI is updated:
+([tasks.md](tasks.md), "Several agents in a task"). Keep this file current when a reader changes, and check it when an agent CLI is updated:
 the transcripts' formats are the agents' own and undocumented.
 
 ## What the agent gets
@@ -55,7 +55,7 @@ its own `type`; `uuid`, `parentUuid`, `timestamp` on each; a tool call's `id` (`
 `tool_use_id`. Large tool outputs are kept apart in `<session>/tool-results/`, with a reference in the transcript.
 Checked with Claude Code 2.1.296, on a session of the author's (56.7 MB, 14,529 records, 9 compaction summaries).
 
-The reader (`claudeConversation`, `transcripts.ts`; the agent's `conversation` in its `agents.ts` entry), record by
+The reader (`claudeConversation`, `agents/claude.ts`, its entry's `conversation`), record by
 record:
 
 | Record | Known by | Text from | Kept as |
@@ -89,17 +89,39 @@ index first.
 
 ## Codex's transcript
 
-Not read yet (no Codex account to check it with): a conversation of Codex is listed, its text cannot be read here. Known from
-others (claude-codex-bridge): its sessions are `sessions/…/rollout-*.jsonl` in its `CODEX_HOME`, and its compaction
-summaries are encrypted, so its chapters will have none.
+`<CODEX_HOME>/sessions/<yyyy>/<mm>/<dd>/rollout-<time>-<session>.jsonl`: a JSON record per line, `{ timestamp, type,
+payload }`. The model's own items are `response_item`s; `event_msg`s repeat them for its screen, with its turns'
+starts, ends and interruptions. Codex calls tools from scripts: `exec`, a custom tool whose `input` is JavaScript
+calling `tools.<name>(…)` (Kulisa's as `tools.mcp__kulisa__<name>`), its output what the script printed. Checked with
+Codex 0.160.1, on a session made for it in a scratch Kulisa (2026-10-12: browser tools, `terminal_run`, an Esc, a
+`/compact`).
+
+The reader (`codexConversation`, `agents/codex.ts`), record by record:
+
+| Record | Known by | Text from | Kept as |
+|---|---|---|---|
+| the human's message | `response_item`, `payload.type: "message"`, `role: "user"` | its `input_text` blocks | whole; queued ones (typed while it works) come the same way |
+| Codex's own context as the user's | a user message starting `<environment_context>`, `<user_instructions>`, `<turn_aborted>` or `# AGENTS.md instructions` | | left out |
+| its instructions (Kulisa's among them) | `role: "developer"` | | left out |
+| the agent's answer | `role: "assistant"` | its `output_text` blocks | whole |
+| a call | `payload.type: "custom_tool_call"` (`exec`, `apply_patch`: `name`, `input`) or `"function_call"` (`wait` …: `name`, `arguments`); `call_id` | `<name>: <input or arguments>` | whole: the script, the patch |
+| its result | `custom_tool_call_output` or `function_call_output` with the same `call_id`; `output` a string or `input_text` blocks | `output` | its first and last 2 KB (`CUT`); Codex marks no error apart |
+| `task_history`'s own calls | an `exec` whose `tools.` calls are all `task_history` (or that only looks it up), and its output | | left out |
+| the agent's plan | a `function_call` named `update_plan`, `arguments.plan` (`step`, `status`) | the last one | at its conversation's end (not seen in the session checked: from Codex's tool's shape) |
+| a compaction | `type: "compacted"`: `replacement_history`, the human's messages and a `compaction` item with `encrypted_content` | | a chapter starts there, its summary said to be unreadable: Codex encrypts it (claude-codex-bridge found it first) |
+| an interruption (Esc) | `event_msg`, `payload.type: "turn_aborted"` | | where its last turn ended, when after the human's last message |
+| reasoning | `payload.type: "reasoning"` (`encrypted_content`) | | left out |
+| the rest | `session_meta`, `turn_context`, `world_state`, `token_usage_record`, every other `event_msg` (`item_completed`, with `McpToolCall`s, repeats what the scripts printed) | | left out |
+
+No memory: Codex keeps its own in a database of its format (`memories_*.sqlite`).
 
 ## The code
 
 | File | What |
 |---|---|
 | `src/main/history.ts` | the history's text: Kulisa's part, the conversations listed, one's chapters, the parts |
-| `src/main/transcripts.ts` | the readers: an agent's transcript as entries (`human`, `agent`, `call`, `result`, `error`, `summary`), its plan, where it stopped, its memory |
-| `src/main/agents.ts` | each agent's `conversation`, its reader |
+| `src/main/transcripts.ts` | the entries a transcript is read as (`human`, `agent`, `call`, `result`, `error`, `summary`), its plan, where it stopped, its memory; what is cut |
+| `src/main/agents/claude.ts`, `codex.ts` | each agent's reader (`claudeConversation`, `codexConversation`), its entry's `conversation` |
 | `src/main/worktrees.ts` | `progress`: a copy's commits, files not committed, `diff --stat` |
 | `src/main/mcp-server.ts` | the `task_history` tool, and a sentence of the instructions |
 | `test/unit/transcripts.test.ts`, `test/agent.ts` | the tests: the reader record by record; the tool's order and parts |

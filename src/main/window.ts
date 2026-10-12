@@ -72,7 +72,7 @@ class AppWindow {
       // the window's own top bar (left on macOS). The page lays out around them (Window Controls Overlay).
       titleBarStyle: 'hidden', titleBarOverlay: { color: COLORS[shell.shade()].window, symbolColor: COLORS[shell.shade()].text, height: Math.round(TITLE_BAR_HEIGHT * shell.uiZoom) },
       // DevTools of Kulisa's own UI only while developing it; a packaged build has none (profiles' tabs still do).
-      webPreferences: { preload: path.join(import.meta.dirname, '..', 'preload', 'index.cts'), sandbox: false, devTools: appDevTools,
+      webPreferences: { preload: path.join(import.meta.dirname, '..', 'preload', 'index.cjs'), sandbox: true, devTools: appDevTools,
         zoomFactor: shell.uiZoom },
     }));
     if (maximized) win.maximize();
@@ -80,6 +80,9 @@ class AppWindow {
     // Electron's default File/Edit/View/Window menu adds a row on Linux and Windows and gives nothing (its Ctrl+R
     // reloads the shell). On macOS the menu lives in the system bar and stays (Cmd+C/V need its Edit roles).
     win.removeMenu();
+    // GNOME (X11) shows its window menu for a right-click on the title bar's drag region at a NaN place: invisible,
+    // it holds the pointer and keyboard of the whole desktop until the overview opens (docs/window.md, The title bar).
+    if (process.platform === 'linux') win.on('system-context-menu', (e) => e.preventDefault());
     // Links in the window (☰'s: the documentation, GitHub; the terminal's, Open in your browser) open in the
     // user's browser; the window itself never leaves its page.
     win.webContents.setWindowOpenHandler(({ url }) => {

@@ -29,18 +29,20 @@ function installMasters(shell: Shell, { preload, colors }: { preload: string; co
     const open = shell.masters.get(folder);
     if (open) { open.win.focus(); return { folder }; }
     const win = new BrowserWindow({ width: 1100, height: 800, title: `${g.name}: sign in once for every task — Kulisa`, backgroundColor: colors().window,
-      autoHideMenuBar: true, webPreferences: { preload, sandbox: false } });
+      autoHideMenuBar: true, webPreferences: { preload, sandbox: true } });
     win.removeMenu();
     const dir = shell.profileStore.masterDir(folder);
     const profile = new Profile(win, { id: g.id, name: g.name, avatar: g.avatar, folder, dir }, { task: `master/${folder}` });
     const m: Master = { win, profile, closing: null };
     shell.masters.set(folder, m);
-    await win.loadFile(page('master.html'), { query: { name: g.name, theme: shell.shade() } });
+    win.on('close', (e) => { if (!m.closed && !shell.quitting) { e.preventDefault(); close(m); } });
+    // Closed meanwhile (its page, or a slow sign-in page, still loading): nothing to lay out, the window is gone.
+    await win.loadFile(page('master.html'), { query: { name: g.name, theme: shell.shade() } }).catch((e) => { if (!m.closing) throw e; });
+    if (m.closing) return { folder };
     const place = () => { const [width, height] = win.getContentSize(); profile.layout({ x: 0, y: BAR, width, height: Math.max(0, height - BAR) }); };
     const tell = () => { const t = profile.get(); if (!win.isDestroyed() && t && !t.wc.isDestroyed()) win.webContents.send('master:url', t.wc.getURL()); };
     profile.on('changed', () => { place(); tell(); });
     win.on('resize', place);
-    win.on('close', (e) => { if (!m.closed && !shell.quitting) { e.preventDefault(); close(m); } });
     // Its tabs open; the bar's controls wait for them (an address typed while a tab loads was overwritten).
     m.ready = (async () => {
       await shell.sessionCookies.restore(profile); // before the first request
@@ -48,6 +50,7 @@ function installMasters(shell: Shell, { preload, colors }: { preload: string; co
       await Promise.all((urls.length ? urls : ['about:blank']).map((u, i) => profile.newTab(u, { activate: i === 0 }).ready));
     })();
     await m.ready;
+    if (m.closing) return { folder };
     place(); tell();
     return { folder };
   };

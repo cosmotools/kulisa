@@ -99,14 +99,25 @@ Through Kulisa's MCP server (`mcp-server.ts`), every tool taking a profile id: `
 `browser_network_requests`, `browser_type_login`; the tools reading or acting on a page take an optional `tab`.
 Profiles: `profile_create`, `profile_rename`, `profile_describe`, `profile_open`, `profile_close`, `profile_ask_signin`,
 `profile_set_login`, and `profile_delete`, which asks the human first. Tasks: `task_rename`, `task_history` (what was
-said and done in the task before: [transcripts.md](transcripts.md)).
+said and done in the task before: [transcripts.md](transcripts.md)), `conversation_rename` (its tab). Terminals:
+`terminal_run`, `terminal_read`, `terminal_stop` (shells only, [window.md](window.md), The terminal).
+
+**The agent does not ask the human before Kulisa's tools** (the author, 2026-10-12): it works in the profiles while the
+human watches or is away, and a question at every click undoes that; what acts on real accounts asks in Kulisa itself
+(`profile_delete`, the sign-in pause). But two keep the agent's own approval (`KULISA_ASKS`, `agents/`):
+`terminal_run`, any command in the human's shell, which would get around the agent's approval of commands (and
+Codex's sandbox: the command runs in Kulisa's terminal); `browser_file_upload`, a file of the disk sent to a site, what
+a prompt injection would use. A new tool runs without a question unless it is added there. Through the start's
+arguments, as the MCP server and the hooks are, not the agents' own config files: Claude Code's `permissions` in
+`--settings` (allow the plugin's server, `mcp__plugin_kulisa_kulisa`; ask the two: an ask rule wins), Codex's
+`mcp_servers.kulisa.default_tools_approval_mode="approve"` and `prompt` for the two.
 
 What the tools are for, beyond acting as one user:
 
 - **Choosing the profile** by who it is, as cast did: `browser_profiles` and the session's start give each profile's
   description, or say it is not said. The agent chooses by it, never guessing a role from a name; when none or several
   fit, it asks the human once and saves their answer (`profile_describe`), so no one asks again. The rule is in the
-  MCP server's `instructions` too, so agents without the Kulisa plugin's skill (Codex) get it.
+  MCP server's `instructions` too, so agents without the profiles skill (one run by hand in the terminal) get it.
 - **Several users at once.** `browser_wait_for` waits in any profile, so the agent acts as one user and waits for
   the effect as another (a message, an invite), up to 45 s a call (Codex gives an MCP tool 60 s).
   `browser_snapshot` with `also` reads several profiles' active tabs in one call, to compare what each user sees.
@@ -146,17 +157,18 @@ page gets the keys typing sends (suggestions, checks as one types). A text over 
 is filled at once (`TYPED_MAX`, `mcp-server.ts`). Letters not on a US keyboard come as typed text, without key codes
 (Playwright's way).
 
-The agent learns how to work with profiles from the Kulisa plugin (CLAUDE.md, Architecture). For Claude Code it is
-`src/agent/claude-plugin/`, started with `claude --plugin-dir`: the MCP config, the profiles skill
-(`skills/profiles/SKILL.md`; keep it in step with the tools) and hooks, among them `SessionStart`, which tells the
-agent which profiles are open and tells Kulisa its session (to resume it). The user's own MCP servers stay available
+The agent learns how to work with profiles from the Kulisa plugin (CLAUDE.md, Architecture):
+the profiles skill (`src/agent/skills/profiles/SKILL.md`; keep it in step with the tools), one text for every agent,
+written into each account's folder where its agent reads its skills (`kulisa-profiles`), and for Claude Code a plugin
+with the MCP config (`src/agent/claude-plugin/`, `claude --plugin-dir`). Every agent gets Kulisa's hooks at its start (a table in
+its file, `agents/`), among them `SessionStart`, which tells the agent which profiles are open and tells Kulisa its
+session (to resume it). The user's own MCP servers stay available
 (no `--strict-mcp-config`). Some of them may drive another browser with tools of the same names (cast's,
 Playwright MCP's `browser_click` …), and an agent has no priority among MCP servers: it chooses by names and
 descriptions. So every agent is told, in the MCP server's `instructions` and again at the session's start next to the
 profiles (`ONLY_BROWSER`, `agent-hooks.ts`), that the profiles are the only browser here, and why: another browser is
 not the one the human sees, and not signed in. Not blocked (`--disallowedTools` would need every such server's name,
-and would refuse it also when the human asks for it). Codex gets the MCP server and the hooks as config overrides (its `SessionStart` brings the open profiles), not the
-skill yet (ROADMAP).
+and would refuse it also when the human asks for it). Codex gets the MCP server and the hooks as config overrides (its `SessionStart` brings the open profiles).
 
 The human sees what the agent does (`ghost.ts`): Playwright's action annotations in the page, each shown 500 ms,
 which every action waits for (1.2 s until 2026-10-09 cost an agent a minute every 50 clicks): a mark at the action
@@ -241,8 +253,8 @@ author, 2026-10-10). How it is kept safe, each line with its reason:
   the page; `browser_profiles` shows the login and whether a password is kept, not the password; the pane's caption
   says `type ••••••` (`ghost.ts`, `shell.typingSecret`). So it is in no transcript, log or screen share. (A script the
   agent runs in the page could read a field back; the skill forbids reading secrets, as it forbids cookies.)
-- **Only on a local page** (`local.ts`, `Task.loginFor`): `localhost`, `*.localhost`, `*.test`, `*.local`, loopback and
-  private addresses, and the project's own list (its page in Settings → Projects, Local addresses: a tunnel, dev
+- **Only on a local page** (`local.ts`, `Task.loginFor`): `localhost`, `*.localhost`, `*.test`, `*.local`, loopback,
+  private and link-local addresses, IPv4's and IPv6's (ipaddr.js's ranges), and the project's own list (its page in Settings → Projects, Local addresses: a tunnel, dev
   domains, each with its subdomains); or a page the same tab reached from one (an Auth0 dev tenant, a local Keycloak on another name).
   Elsewhere it is refused, so a pair cannot be typed into a real site, a look-alike page, or a link the agent was sent
   to. An address left out is safe the other way: the pair is not typed there.

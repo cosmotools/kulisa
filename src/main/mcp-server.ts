@@ -9,7 +9,7 @@ import { z } from 'zod';
 import http from 'http';
 import path from 'path';
 import vm from 'vm';
-import { handleHookRequest, taskContext, ONLY_BROWSER } from './agent-hooks.ts';
+import { handleHookRequest, taskContext, unnamed, ONLY_BROWSER } from './agent-hooks.ts';
 import { historyPart } from './history.ts';
 import { fromLocalTool } from './local-only.ts';
 import { toUrl } from './profiles.ts';
@@ -17,10 +17,12 @@ import { MARK } from './ghost.ts';
 import pkg from '../../package.json' with { type: 'json' };
 import { refused } from './result.ts';
 import type { AddressInfo } from 'net';
+import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import type { Locator, Page } from 'playwright-core';
 import type { Shell } from './shell.ts';
 import type { Task, TaskTerminal } from './tasks.ts';
 import type { Tab } from './profiles.ts';
+import { READ_MAX } from './terminal.ts';
 
 type Element = { ref?: string; locator?: string };
 
@@ -39,7 +41,7 @@ async function clearHighlights(profile: string) {
 const signinAsks = new Map<string, { at: number; page: string; wentIn: boolean }>();
 const pageKey = (u: string) => { try { const x = new URL(u); return x.origin + x.pathname; } catch { return u; } };
 
-// For every agent, those without the Kulisa plugin's skill too (Codex): what it must know before the first call.
+// For every agent, those without the profiles skill too (one run by hand): what it must know before the first call.
 // browser_type: a text longer than this is filled at once, not typed key by key.
 const TYPED_MAX = 300;
 const INSTRUCTIONS = 'Kulisa profiles are the users of the app under test, each a browser profile the human signed in to by hand. ' +
@@ -55,6 +57,10 @@ const INSTRUCTIONS = 'Kulisa profiles are the users of the app under test, each 
   'task_history: read the one the human points you to ("go on with what Claude did") before anything else, and read ' +
   'yours when you need details your context lost. Name your conversation with conversation_rename once you know what ' +
   'it is about.';
+// The naming tools load with the session (Claude Code's alwaysLoad; other agents ignore _meta): deferred behind its
+// tool search, as every MCP tool is, the agent skipped the extra step and never named the task when the reply was text
+// only (a task of the author's, 2026-10-12, told at both prompts).
+const UPFRONT = { 'anthropic/alwaysLoad': true };
 // task: the task (tasks.ts) whose profiles the tools act on; t: the agent's terminal, when it came by its own URL.
 function buildServer(task: Task, t: TaskTerminal | null) {
   const server = new McpServer({ name: 'kulisa', version: pkg.version }, { instructions: `${INSTRUCTIONS} ${taskContext(task)}` });
@@ -62,6 +68,15 @@ function buildServer(task: Task, t: TaskTerminal | null) {
   const closed = [...task.closed.values()].map(({ cfg }) => `${cfg.id} (${cfg.name}, closed)`);
   const profileArg = z.string().describe(`Profile id. Current: ${[...[...task.profiles.values()].map((p) => `${p.id} (${p.name})`), ...closed].join(', ') || 'none yet'}; call browser_profiles for the live list`);
   const text = (t: string) => ({ content: [{ type: 'text' as const, text: t }] });
+  // Every tool's result in an unnamed task says so: the prompt hook does (agent-hooks.ts), but not for an agent without
+  // hooks or whose hooks the human has not trusted (Codex).
+  type Handler = (...a: unknown[]) => Promise<CallToolResult>;
+  const register = server.registerTool.bind(server) as unknown as (name: string, config: object, cb: Handler) => unknown;
+  server.registerTool = ((name: string, config: object, cb: Handler) => register(name, config, async (...a) => {
+    const r = await cb(...a);
+    if (task.unnamed && name !== 'task_rename') r.content.push({ type: 'text', text: unnamed(task) });
+    return r;
+  })) as unknown as typeof server.registerTool;
   // The agent's handles on the core: profiles and tabs found as the window finds them (tasks.ts), plus what only
   // automation keeps to: no agent while the human signs in.
   const profileOf = (id: string) => {
@@ -171,8 +186,9 @@ function buildServer(task: Task, t: TaskTerminal | null) {
   });
 
   server.registerTool('task_rename', {
-    description: 'Rename your Kulisa task once you know what it is about (it starts as task-<n>): its name on its tab, and its git branch, which takes the name. Its folder stays. Letters, digits and @ . _ + -, no spaces, e.g. checkout-redesign.',
+    description: 'Rename your Kulisa task once you know what it is about (it starts as task-<n>), silently: never ask the human for a name or mention it. Its name on its tab changes, and its git branch, which takes the name. Its folder stays. Letters, digits and @ . _ + -, no spaces, e.g. checkout-redesign.',
     inputSchema: { name: z.string().describe('The new name, e.g. checkout-redesign') },
+    _meta: UPFRONT,
   }, async ({ name }) => {
     const r = await task.rename(name);
     if (refused(r)) throw new Error(r.error);
@@ -188,6 +204,7 @@ function buildServer(task: Task, t: TaskTerminal | null) {
   }, async ({ conversation, part = 1 }) => {
     const r = await historyPart(task, part, conversation);
     if (refused(r)) throw new Error(r.error);
+    if (t && conversation) task.historyRead(t, conversation, part, r.parts);
     return text(r.text);
   });
 
@@ -195,6 +212,7 @@ function buildServer(task: Task, t: TaskTerminal | null) {
     server.registerTool('conversation_rename', {
       description: 'Name your conversation in 1 to 3 words once you know what it is about, e.g. "Checkout discounts": the name of your tab in Kulisa, by which the human and other agents tell it from the others (task_history lists it so). Name it again when the work turns to something else.',
       inputSchema: { name: z.string().describe('1 to 3 words') },
+      _meta: UPFRONT,
     }, async ({ name }) => {
       const r = task.nameConversation(t, name);
       if (refused(r)) throw new Error(r.error);
@@ -519,7 +537,7 @@ function buildServer(task: Task, t: TaskTerminal | null) {
   });
   server.registerTool('terminal_read', {
     description: 'The last lines a terminal next to yours shows, as plain text (a server\'s errors, the address it listens on). Without a name: the terminals open.',
-    inputSchema: { name: nameArg.optional(), lines: z.number().int().min(1).max(500).optional().describe('Default 50') },
+    inputSchema: { name: nameArg.optional(), lines: z.number().int().min(1).max(READ_MAX).optional().describe('Default 50') },
   }, async ({ name, lines }) => {
     if (!name) {
       const list = task.terminalsInfo().list.filter((x) => !x.agent);

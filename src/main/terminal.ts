@@ -1,22 +1,27 @@
 // xterm.js in the renderer, node-pty here running the agent CLI unchanged. A task's terminals (tasks.ts) are
 // "<task key>#<id>". The window shows the shown task's, the others keep running (and the window keeps their output).
 import { ipcMain } from 'electron';
-import { stripVTControlCharacters } from 'util';
 import os from 'os';
 import pty from 'node-pty';
 import type { IPty } from 'node-pty';
+import xterm from '@xterm/headless';
+import type { Terminal } from '@xterm/headless';
 
-// What an agent can read back of a terminal's output (terminalTail): its last characters, kept per terminal.
-const TAIL = 200_000;
+// What an agent can read back of a shell (terminalTail, terminal_read): its last lines as the screen shows them, kept
+// by a terminal without a window (xterm's own parser), so lines a program redraws in place (a progress, a container's
+// state) are what they became; the output with its codes left out had every frame. Its scrollback is what the agent
+// may ask for at most: the memory is lines × columns × 12 bytes (about 1 MB at 200 columns). Its buffer is a proposed
+// API in the headless build (allowProposedApi), the one xterm's serialize addon reads too.
+const READ_MAX = 500;
 
 interface Size { cols: number; rows: number }
 // A terminal's process, with what Kulisa keeps of it.
-type Pty = IPty & { spawnSize: Size; spawnArgs: string[]; key: string; tail: string; stopped?: boolean };
+type Pty = IPty & { spawnSize: Size; spawnArgs: string[]; key: string; screen?: Terminal; stopped?: boolean };
 // How a terminal starts (startTerminal).
 interface TerminalConfig {
   command?: string | null; args?: string[]; cwd?: string; env?: Record<string, string | undefined>;
   shell?: { command: string; args?: string[] } | false | null; line?: string; size?: Size | null; sizeOf?: string;
-  pinned?: Record<string, string>;
+  pinned?: Record<string, string>; screen?: boolean;
 }
 type Send = (channel: string, data: unknown) => void;
 interface Term { pty: Pty | null; size: Size | null; firstSize: Promise<void>; sized: () => void }
@@ -37,7 +42,7 @@ const termOf = (key: string) => {
 ipcMain.on('pty:resize', (_e, { task, cols, rows }: { task: string } & Size) => {
   const t = termOf(task), island = termOf(task.split('#')[0]);
   t.size = island.size = { cols, rows }; t.sized(); island.sized();
-  try { t.pty?.resize(cols, rows); } catch {}
+  try { t.pty?.resize(cols, rows); t.pty?.screen?.resize(cols, rows); } catch {}
 });
 ipcMain.on('pty:in', (_e, { task, data }: { task: string; data: string }) => terms.get(task)?.pty?.write(data));
 
@@ -55,7 +60,7 @@ const shQuote = (a: string) => (/^[\w@%+=:,./-]+$/.test(a) ? a : `'${a.replace(/
 // fish 3.1+): the task's account, which a project's .envrc setting CLAUDE_CONFIG_DIR replaced (2026-10-12).
 // line: a command line typed into the shell as it is (a shell's; none: the shell alone), on Windows into cmd. size:
 // start at it rather than wait for the window's; sizeOf: or at that key's (the task's island: a terminal behind another
-// tab has none of its own), whichever comes first. key: the terminal's; the window sends its input and size, and gets
+// tab has none of its own), whichever comes first. screen: kept for the agent to read (a shell's). key: the terminal's; the window sends its input and size, and gets
 // its output, under it. send(channel, data): to the task's window, whichever it is then.
 async function startTerminal(send: Send, cfg: TerminalConfig, key: string): Promise<Pty> {
   const t = termOf(key), like = cfg.sizeOf ? termOf(cfg.sizeOf) : null;
@@ -76,8 +81,8 @@ async function startTerminal(send: Send, cfg: TerminalConfig, key: string): Prom
   p.spawnArgs = cfg.args || [];
   p.key = key;
   // An agent that was replaced says nothing more in the window.
-  p.tail = '';
-  const out = (data: string) => { p.tail = (p.tail + data).slice(-TAIL); if (t.pty === p) send('pty:out', { task: key, data }); };
+  if (cfg.screen) p.screen = new xterm.Terminal({ cols: p.cols, rows: p.rows, scrollback: READ_MAX, allowProposedApi: true });
+  const out = (data: string) => { p.screen?.write(data); if (t.pty === p) send('pty:out', { task: key, data }); };
   p.onData(out);
   p.onExit(({ exitCode }) => out(`\r\n[process exited ${exitCode}]\r\n`));
   t.pty = p;
@@ -104,17 +109,21 @@ function stopTerminal(p: Pty) {
   const t = terms.get(p.key);
   if (t?.pty === p) t.pty = null;
   try { p.kill(); } catch {}
+  p.screen?.dispose(); p.screen = undefined;
 }
 
 // A terminal closed, or its task gone (its project closed, a task deleted): its size too. Opened again, the window
 // measures it anew.
 const forgetTerminal = (key: string) => terms.delete(key);
 
-// The last lines of a terminal's output as plain text, as it shows them: colors and cursor moves left out, a line
-// rewritten in place (a progress bar, \r) as it was last written.
+// The last lines of a shell as plain text, as its screen shows them; a line the screen wrapped at its width is one.
 function terminalTail(p: Pty, lines: number) {
-  return stripVTControlCharacters(p.tail).split('\n').map((l) => l.split('\r').filter(Boolean).at(-1) ?? '')
-    .map((l) => l.trimEnd()).join('\n').trimEnd().split('\n').slice(-lines).join('\n');
+  const buffer = p.screen?.buffer.active, rows: string[] = [];
+  for (let y = 0; buffer && y < buffer.length; y++) {
+    const line = buffer.getLine(y)!, text = line.translateToString();
+    if (line.isWrapped && rows.length) rows[rows.length - 1] += text; else rows.push(text);
+  }
+  return rows.map((l) => l.trimEnd()).join('\n').trimEnd().split('\n').slice(-lines).join('\n');
 }
 
 // Put text into the agent's prompt as a paste (bracketed: one block, nothing in it is taken as a key), not sent.
@@ -123,4 +132,4 @@ function typeIntoPrompt(p: IPty, text: string) {
 }
 
 export type { Pty };
-export { startTerminal, stopTerminal, forgetTerminal, terminalTail, typeIntoPrompt };
+export { READ_MAX, startTerminal, stopTerminal, forgetTerminal, terminalTail, typeIntoPrompt };

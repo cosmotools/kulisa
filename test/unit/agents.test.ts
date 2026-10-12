@@ -1,38 +1,96 @@
-// The agents (agents.ts): Claude Code's trust and dictation language, what a deleted task leaves in each agent's data, which hook sends which event.
+// The agents (agents/): Claude Code's trust and dictation language, what a deleted task leaves in each agent's data, which hook sends which event.
 // Plain Node (npm run test:unit), no Electron: logic that needs no window, in a temporary folder of its own.
 import { test, after } from 'node:test';
 import assert from 'assert/strict';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { trustLikeProject, claudeConfigOf, AGENTS, claudeLanguage, findAgent } from '../../src/main/agents.ts';
+import { extendTrust, AGENTS, findAgent } from '../../src/main/agents/index.ts';
+import { claudeConfigOf, claudeLanguage } from '../../src/main/agents/claude.ts';
+import { CAPABILITIES } from '../../src/main/agents/agent.ts';
+import { installSkill } from '../../src/main/agents/files.ts';
 import { Accounts } from '../../src/main/accounts.ts';
-import type { Agent } from '../../src/main/agents.ts';
+import type { Agent } from '../../src/main/agents/index.ts';
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'kulisa-unit-'));
 after(() => fs.rmSync(root, { recursive: true, force: true }));
 
-test("tasks: Claude Code trusts a task's folder as it trusts the project's; its config as the session tells it", async () => {
+// Every agent the same Kulisa: what it cannot do is said, with why, never left out silently (agents/agent.ts, lacks).
+// A new agent fails here until each of Kulisa's capabilities is either its own or a gap it names.
+test("agents: each can do every capability Kulisa has, or says why not", () => {
+  for (const a of AGENTS.filter((x) => x.command)) {
+    for (const c of CAPABILITIES) {
+      const has = a[c] !== undefined, why = a.lacks?.[c];
+      assert.ok(has !== !!why, `${a.name}: ${c} ${has ? 'is there and said to be lacking' : 'is missing and not said why'}`);
+      if (why) assert.match(why, /\w{3,} .{20,}/, `${a.name}: why it lacks ${c}, in words`);
+    }
+  }
+  assert.deepEqual(Object.keys(AGENTS.find((a) => a.id === 'codex').lacks).sort(), ['addDir', 'voice']);
+  assert.equal(AGENTS.find((a) => a.id === 'claude').lacks, undefined);
+});
+
+// Every agent gets Kulisa's profiles skill in its account's folder, where it reads its own skills: one text, written
+// again only when it changed.
+test("agents: Claude Code's and Codex's accounts get the profiles skill, one text", () => {
+  const packages = path.join(import.meta.dirname, '..', '..', 'src', 'agent');
+  const source = fs.readFileSync(path.join(packages, 'skills', 'profiles', 'SKILL.md'), 'utf8');
+  assert.match(source, /^---\nname: kulisa-profiles\n/, "a name of Kulisa's, apart from the human's own skills");
+  for (const id of ['claude', 'codex']) {
+    const skills = path.join(root, `${id}-skill`, AGENTS.find((a) => a.id === id).skills);
+    installSkill(packages, skills);
+    const file = path.join(skills, 'kulisa-profiles', 'SKILL.md');
+    assert.equal(fs.readFileSync(file, 'utf8'), source, id);
+    const at = fs.statSync(file).mtimeMs;
+    installSkill(packages, skills);
+    assert.equal(fs.statSync(file).mtimeMs, at, 'the same text: not written again');
+  }
+});
+test("tasks: a task's copy is trusted as the human trusted the project's code, in its folder or another task's copy, by Claude Code and Codex alike", async () => {
   assert.equal(claudeConfigOf('/home/u/.claude-work/projects/-x/1.jsonl'), '/home/u/.claude-work/.claude.json');
   assert.equal(claudeConfigOf(path.join(os.homedir(), '.claude', 'projects', '-x', '1.jsonl')), path.join(os.homedir(), '.claude.json'));
-  const file = path.join(root, 'claude.json');
+  const agent = (id: string) => AGENTS.find((a) => a.id === id)!;
+  // Claude Code: projects[<folder>].hasTrustDialogAccepted in its config file, the rest kept.
+  const claude = agent('claude'), cdir = path.join(root, 'claude-trust'), file = path.join(cdir, '.claude.json'), where = { configDir: cdir };
+  fs.mkdirSync(cdir, { recursive: true });
   const write = (projects: object) => fs.writeFileSync(file, JSON.stringify({ userID: 'u', projects }));
   const read = () => JSON.parse(fs.readFileSync(file, 'utf8'));
   write({ '/p': { hasTrustDialogAccepted: true, allowedTools: ['x'] } });
-  assert.equal(trustLikeProject(file, '/p', '/p@f'), true);
-  assert.deepEqual(read().projects['/p@f'], { allowedTools: [], mcpContextUris: [], mcpServers: {}, enabledMcpjsonServers: [], disabledMcpjsonServers: [],
+  assert.equal(extendTrust(claude, where, '/p@task-2', ['/p']), true);
+  assert.deepEqual(read().projects['/p@task-2'], { allowedTools: [], mcpContextUris: [], mcpServers: {}, enabledMcpjsonServers: [], disabledMcpjsonServers: [],
     hasClaudeMdExternalIncludesApproved: false, hasClaudeMdExternalIncludesWarningShown: false, hasTrustDialogAccepted: true });
   assert.equal(read().userID, 'u', 'the rest stays');
+  write({ '/p': { hasTrustDialogAccepted: false }, '/p@task-1': { hasTrustDialogAccepted: true } });
+  assert.equal(extendTrust(claude, where, '/p@task-2', ['/p', '/p@task-1']), true, "trusted in another task's copy: once a project");
   write({ '/p': { hasTrustDialogAccepted: false } });
-  assert.equal(trustLikeProject(file, '/p', '/p@f'), false, 'own not trusted: nothing');
-  assert.equal(read().projects['/p@f'], undefined);
+  assert.equal(extendTrust(claude, where, '/p@task-2', ['/p']), false, 'trusted nowhere: nothing, the agent asks');
+  assert.equal(read().projects['/p@task-2'], undefined);
   fs.writeFileSync(file, '{"projects": [');
-  assert.equal(trustLikeProject(file, '/p', '/p@f'), false, 'not as expected: nothing');
+  assert.equal(extendTrust(claude, where, '/p@task-2', ['/p']), false, 'not as expected: nothing');
   assert.equal(fs.readFileSync(file, 'utf8'), '{"projects": [');
+  // Codex: [projects."<folder>"] trust_level = "trusted" in its config.toml; the human's no is never carried or overwritten.
+  const codex = agent('codex'), home = path.join(root, 'codex-trust'), toml = path.join(home, 'config.toml'), at = { configDir: home };
+  fs.mkdirSync(home, { recursive: true });
+  fs.writeFileSync(toml, 'model = "x"\n\n[projects."/p"]\ntrust_level = "trusted"\n');
+  assert.equal(extendTrust(codex, at, '/p@task-2', ['/p']), true);
+  assert.equal(fs.readFileSync(toml, 'utf8'), 'model = "x"\n\n[projects."/p"]\ntrust_level = "trusted"\n\n[projects."/p@task-2"]\ntrust_level = "trusted"\n');
+  assert.equal(extendTrust(codex, at, '/p@task-2', ['/p']), false, 'trusted already: written once');
+  fs.writeFileSync(toml, '[projects."/p"]\ntrust_level = "untrusted"\n\n[projects."/p@task-1"]\ntrust_level = "trusted"\n\n[projects."/p@task-3"]\ntrust_level = "untrusted"\n');
+  assert.equal(extendTrust(codex, at, '/p@task-2', ['/p', '/p@task-1']), true, "trusted in another task's copy");
+  assert.equal(extendTrust(codex, at, '/p@task-3', ['/p', '/p@task-1']), false, 'its own no stays');
+  assert.equal(extendTrust(codex, at, '/q@task-1', ['/q']), false, 'trusted nowhere: nothing');
+  assert.equal(extendTrust(codex, { configDir: path.join(root, 'codex-none') }, '/p@task-2', ['/p']), false, 'no config yet: nothing');
 });
-test("agents: Claude Code's dictation is on in its sessions only; its language read and set in its settings, the rest kept", async () => {
+test("agents: Claude Code's dictation is on in its sessions only, Kulisa's tools allowed there but two; its language read and set in its settings, the rest kept", async () => {
   const claude = AGENTS.find((a) => a.id === 'claude');
-  assert.deepEqual(claude.args({ plugin: '/p', env: {} }), ['--plugin-dir', '/p'], 'dictation is its voice entry\'s');
-  assert.deepEqual(JSON.parse(claude.voice.args.at(-1)), { voice: { enabled: true, mode: 'hold', autoSubmit: false } });
+  const args = claude.args({ packages: '/k', env: {} });
+  assert.deepEqual(args.slice(0, 3), ['--plugin-dir', path.join('/k', 'claude-plugin'), '--settings']);
+  const { hooks, ...given } = JSON.parse(args[3]); // its hooks: below
+  // With an account, the same settings as a file in its folder: the command typed into the terminal stays short.
+  const account = path.join(root, 'claude-account'), withAccount = claude.args({ packages: '/k', env: {}, account });
+  assert.equal(withAccount[3], path.join(account, 'kulisa-settings.json'));
+  assert.deepEqual(JSON.parse(fs.readFileSync(withAccount[3], 'utf8')), JSON.parse(args[3]));
+  assert.ok(hooks);
+  assert.deepEqual(given, { voice: { enabled: true, mode: 'hold', autoSubmit: false }, permissions: {
+    allow: ['mcp__plugin_kulisa_kulisa'], ask: ['mcp__plugin_kulisa_kulisa__terminal_run', 'mcp__plugin_kulisa_kulisa__browser_file_upload'] } });
   assert.deepEqual(['ru', 'Russian', 'русский', 'pt-BR', 'Klingon', '', undefined].map(claudeLanguage), ['ru', 'ru', 'ru', 'pt', 'en', 'en', 'en'],
     'as Claude Code reads it: anything else is English');
   // The settings of the config dir its session reported (as claudeConfigOf).
@@ -81,29 +139,40 @@ test("tasks: a deleted task leaves nothing in Claude Code's and Codex's data; th
   assert.deepEqual(Object.keys(config.projects), [own]);
   assert.equal(config.userID, 'u');
 
-  // Which of each agent's hooks tells Kulisa which of its events (agent-hooks.ts). Claude Code: waiting only for what
-  // needs the human, not idle_prompt (a minute after an answer); a turn ended by an API error waits for them too.
-  const claudeHooks = JSON.parse(fs.readFileSync(path.join(import.meta.dirname, '..', '..', 'src', 'agent', 'claude-plugin', 'hooks', 'hooks.json'), 'utf8')).hooks;
+  // Which of each agent's hooks tells Kulisa which of its events (agent-hooks.ts), given at its start: for Claude Code
+  // in --settings with the plugin, for Codex as a config override; the same command line for every task (Codex asks to
+  // trust its hooks once). Claude Code: waiting only for what needs the human, not idle_prompt (a minute after an
+  // answer); a turn ended by an API error waits for them too.
   const sends = (h: { hooks: { command: string }[] }[]) => h[0].hooks[0].command.match(/hooks\/([\w-]+)/)[1];
+  const claudeArgs = (url: string) => agent('claude').args({ env: { KULISA_MCP_URL: url }, packages: '/k' });
+  const claudeHooks = JSON.parse(claudeArgs('http://x')[3]).hooks;
+  assert.deepEqual(claudeArgs('http://x').slice(0, 2), ['--plugin-dir', path.join('/k', 'claude-plugin')]);
   assert.deepEqual(Object.fromEntries(Object.entries(claudeHooks as Record<string, Parameters<typeof sends>[0]>).map(([e, h]) => [e, sends(h)])), { SessionStart: 'session-start',
-    UserPromptSubmit: 'prompt', Notification: 'waiting', Stop: 'stop', StopFailure: 'waiting', SessionEnd: 'session-end' });
+    UserPromptSubmit: 'prompt', Notification: 'waiting', PostToolUse: 'tool-done', Stop: 'stop', StopFailure: 'waiting', SessionEnd: 'session-end' });
   const needsYou = new RegExp(`^(${claudeHooks.Notification[0].matcher})$`);
   assert.deepEqual(['permission_prompt', 'elicitation_dialog', 'idle_prompt', 'auth_success'].map((t) => needsYou.test(t)), [true, true, false, false]);
-  // Codex: its hooks as a config override, the same command line for every task (trusted once); resuming the
-  // session its SessionStart reported.
-  const codexArgs = (url: string) => agent('codex').args({ env: { KULISA_MCP_URL: url }, plugin: '' });
+  assert.equal(claudeHooks.Stop[0].hooks[0].command, 'curl -sf --max-time 3 --data-binary @- "$KULISA_URL/hooks/stop" || true');
+  // Codex: its hooks as a config override; resuming the session its SessionStart reported.
+  const codexArgs = (url: string) => agent('codex').args({ env: { KULISA_MCP_URL: url }, packages: '/k' });
   const hooks = codexArgs('http://127.0.0.1:1/task/a/1/mcp')[3];
+  // Kulisa's tools approved, but the two that keep its own approval.
+  assert.deepEqual(codexArgs('http://x').slice(4), ['-c', 'mcp_servers.kulisa.default_tools_approval_mode="approve"',
+    '-c', 'mcp_servers.kulisa.tools.terminal_run.approval_mode="prompt"', '-c', 'mcp_servers.kulisa.tools.browser_file_upload.approval_mode="prompt"']);
   assert.equal(hooks, codexArgs('http://127.0.0.1:2/task/b/2/mcp')[3]);
   assert.deepEqual([...hooks.matchAll(/(\w+)=\[\{hooks=\[\{[^}]*hooks\/([\w-]+)/g)].map((m) => `${m[1]} ${m[2]}`),
-    ['SessionStart session-start', 'UserPromptSubmit prompt', 'PermissionRequest waiting', 'Stop stop', 'Interrupt interrupt', 'SessionEnd session-end']);
+    ['SessionStart session-start', 'UserPromptSubmit prompt', 'PermissionRequest waiting', 'PostToolUse tool-done', 'Stop stop', 'Interrupt interrupt', 'SessionEnd session-end']);
+  // Codex cuts an Interrupt or SessionEnd hook's timeout to 3 s, with a warning at every start.
+  assert.deepEqual([...hooks.matchAll(/(Interrupt|SessionEnd)=\[\{hooks=\[\{type="command",timeout=(\d+)/g)].map((m) => +m[2] <= 3), [true, true]);
   const resume = agent('codex').resume as (saved: object) => string[];
   assert.deepEqual(resume({ started: true, sessionId: 's9' }), ['resume', 's9']);
   assert.deepEqual(resume({ started: true }), ['resume', '--last']);
 
   // Codex: its sessions in the task's folder and its trust of the folder.
   const home = path.join(root, 'codex-home');
-  const session = (f: string, cwd: string) => put(path.join(home, f), `${JSON.stringify({ type: 'session_meta', payload: { id: 'x', cwd } })}\n{"more":1}\n`);
-  session('sessions/2026/10/06/rollout-a.jsonl', copy); session('archived_sessions/rollout-b.jsonl', copy); session('sessions/2026/10/06/rollout-c.jsonl', own);
+  const session = (f: string, cwd: string, id: string) => put(path.join(home, f), `${JSON.stringify({ type: 'session_meta', payload: { id, cwd } })}\n{"more":1}\n`);
+  session('sessions/2026/10/06/rollout-a.jsonl', copy, 'a'); session('archived_sessions/rollout-b.jsonl', copy, 'b'); session('sessions/2026/10/06/rollout-c.jsonl', own, 'c');
+  const typed = (id: string) => JSON.stringify({ session_id: id, ts: 1, text: `typed in ${id}` });
+  put(path.join(home, 'history.jsonl'), `${typed('a')}\n${typed('c')}\n${typed('b')}\n`);
   put(path.join(home, 'config.toml'), `model = "x"\n\n[projects."${copy}"]\ntrust_level = "trusted"\n\n[projects."${own}"]\ntrust_level = "trusted"\n`);
   const before = process.env.CODEX_HOME;
   process.env.CODEX_HOME = home;
@@ -112,6 +181,7 @@ test("tasks: a deleted task leaves nothing in Claude Code's and Codex's data; th
   }
   assert.ok(!fs.existsSync(path.join(home, 'sessions/2026/10/06/rollout-a.jsonl')) && !fs.existsSync(path.join(home, 'archived_sessions/rollout-b.jsonl')));
   assert.ok(fs.existsSync(path.join(home, 'sessions/2026/10/06/rollout-c.jsonl')), "the project folder's session stays");
+  assert.equal(fs.readFileSync(path.join(home, 'history.jsonl'), 'utf8'), `${typed('c')}\n`, "the prompts typed in the task's sessions go");
   assert.equal(fs.readFileSync(path.join(home, 'config.toml'), 'utf8'), `model = "x"\n\n[projects."${own}"]\ntrust_level = "trusted"\n`);
 });
 

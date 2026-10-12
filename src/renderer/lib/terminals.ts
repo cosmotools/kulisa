@@ -14,6 +14,7 @@ import { act, store } from './store';
 import { keyText } from './common';
 import { menuAt, type MenuItem } from './menu';
 import { agentMark } from './agents';
+import { dialog } from './dialogs';
 import type { Terminal as TerminalInfo } from '../types';
 
 interface Entry { term: Terminal; el: HTMLElement; fit: FitAddon; serialize: SerializeAddon; opened: boolean; renderer?: 'dom' | 'webgl' }
@@ -195,16 +196,10 @@ export const newTerminalItems = (): MenuItem[] => [
   ...(projectAgents().length ? ['-' as const] : []),
   { label: 'Terminal', icon: 'i-agent-shell', keys: keyText('terminal.new'), run: () => act('terminal:open') },
 ];
-// An agent's icon on its tab: the task handed to one of them, which goes on with this tab's conversation.
-export const handOverItems = (t: TerminalInfo): MenuItem[] => [{ heading: 'Hand the task to' },
-  ...projectAgents().map((a) => ({ label: a.name, icon: agentMark(a.cli)!, run: () => act('agent:hand-over', { id: t.id, agent: a.id }) }))];
 // What a tab's menu and its terminal's end with.
 export const tabItems = (t: TerminalInfo): MenuItem[] => [
   ...(t.agent ? [
-    { label: 'Change agent…', run: () => setTimeout(() => { // its icon's menu, where the icon is, once this menu has closed
-      const r = document.querySelector(`.termtab[data-id="${t.id}"] .handover`)?.getBoundingClientRect();
-      if (r) menuAt({ clientX: r.left, clientY: r.bottom + 4 } as MouseEvent, handOverItems(t));
-    }) },
+    { label: 'Change agent…', run: () => { dialog('handover').then((d) => d.open(t)); } },
     { label: 'New Conversation', run: () => act('agent:new-conversation', { id: t.id }) },
     '-' as const,
   ] : []),

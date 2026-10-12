@@ -43,6 +43,7 @@ interface Copy { repo: string; worktree: string; branch: string; base: string | 
 interface TaskEntry {
   n: number; name: string; branch?: string | null; offset: number; folder?: string; copies?: Copy[]; home?: string;
   closed?: boolean; closedAt?: number; merged?: boolean;
+  about?: string; // the human's first prompt's first line, until it is named (Task.noteAbout)
 }
 interface TasksFile { next: number; current: number | null; collapsed?: boolean; list: TaskEntry[] }
 // A window as settings.json keeps it, its projects by id; windows() gives them as projects.

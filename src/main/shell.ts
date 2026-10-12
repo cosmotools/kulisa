@@ -7,7 +7,7 @@ import type { CookieSync } from './cookie-sync.ts';
 import type { SessionCookies } from './session-cookies.ts';
 import type { CdpProxy } from './cdp-proxy.ts';
 import type { Accounts, Account } from './accounts.ts';
-import type { Agent, Found } from './agents.ts';
+import type { Agent, Found } from './agents/index.ts';
 import type { Profile } from './profiles.ts';
 import type { Project } from './projects.ts';
 import type { Task } from './tasks.ts';
@@ -55,7 +55,8 @@ interface Shell {
   signins: Map<string, Pty>;
   stopAutosave?: () => void;
   screenshot(file: string): Promise<void>;
-  plugin: string;
+  packages: string; // Kulisa's packages for the agents (app.ts, AGENT_PACKAGES)
+  agentFiles: string[]; // the agents' local settings a task's copy gets (each agent's localFiles)
   dropAccount(a: Account): Promise<void>;
   agentFor(id: string | null | undefined, opts?: { any?: boolean }): AgentChoice | null;
   findAgent(agent: Agent, cwd: string): Promise<Found | null>;

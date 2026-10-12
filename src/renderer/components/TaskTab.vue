@@ -9,7 +9,7 @@ import type { TaskInfo } from '../types';
 
 const props = defineProps<{ t: TaskInfo; active: boolean; selected: boolean }>();
 const STATES = { working: 'is working', waiting: 'waits for you', done: 'is done' };
-const title = computed(() => (props.t.branch ? `branch ${props.t.branch} in ${props.t.folder}; the app's ports + ${props.t.offset}`
+const title = computed(() => (props.t.about ? `“${props.t.about}”\n` : '') + (props.t.branch ? `branch ${props.t.branch} in ${props.t.folder}; the app's ports + ${props.t.offset}`
   : `in the project's folder ${props.t.folder} (no git: no copy of its own)`));
 
 </script>

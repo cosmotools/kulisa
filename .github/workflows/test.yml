@@ -1,0 +1,50 @@
+# npm test on every push to main, on each OS Kulisa targets (docs/testing.md, CI). Linux as on the author's machine:
+# Ubuntu, Xvfb and openbox.
+name: test
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    # macOS and Windows are not passing yet (ROADMAP, "macOS and Windows are untested"): their runs report, but do not
+    # mark main red. Each comes off this once its first run passes.
+    continue-on-error: ${{ matrix.os != 'ubuntu-latest' }}
+    timeout-minutes: 30
+    # The test folders in one known place on every OS (os.tmpdir() reads these), for the artifact below.
+    env:
+      TMPDIR: ${{ runner.temp }}
+      TEMP: ${{ runner.temp }}
+      TMP: ${{ runner.temp }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y xvfb openbox
+      - run: npm ci
+      # Tasks commit in their test repositories (worktrees.ts): git needs a name.
+      - run: git config --global user.name "Kulisa tests" && git config --global user.email "tests@kulisa.app"
+      - run: npm test
+      # A failed group keeps its folder, its screenshots in it (docs/testing.md); a week, then GitHub removes it.
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-folders-${{ matrix.os }}
+          path: ${{ runner.temp }}/kulisa-test-*
+          retention-days: 7

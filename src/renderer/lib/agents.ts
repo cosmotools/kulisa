@@ -1,4 +1,4 @@
-// The agents Kulisa knows (main/agents.ts), for a dialog that lists them with Install (AgentList.vue). The state lives
+// The agents Kulisa knows (main/agents/), for a dialog that lists them with Install (AgentList.vue). The state lives
 // with the dialog, not in the list: a closed dialog's content is unmounted (Modal.vue), and an install it started goes
 // on and shows when it opens again.
 //   const list = agentList({ choose, details, installed })   choose: a radio per row; details: each one's version, folder

@@ -141,8 +141,10 @@ const dock = (ui: UI, js: string) => ui(`(() => { const api = window.__dock; ${j
 const press = (wc: WebContents, keyCode: string, ...modifiers: ('control' | 'shift' | 'alt' | 'meta')[]) => { for (const type of ['keyDown', 'keyUp'] as const) wc.sendInputEvent({ type, keyCode, modifiers }); };
 const ctrl = (wc: WebContents, keyCode: string) => { wc.focus(); press(wc, keyCode, 'control'); };
 const near = (a: number, b: number) => Math.abs(a - b) < 1e-6;
+// A sandboxed page: its preload's world (999, contextIsolation's) has no Node's process (Electron's tutorial/sandbox.md).
+const noNode = async (wc: WebContents) => await wc.executeJavaScriptInIsolatedWorld(999, [{ code: 'typeof process' }]) === 'undefined';
 
 export type { UI };
-export { hooksOf, plusMenu, assert, root, userData, project, pfile, savedTabs, savedWindows, panel, SITE, PORT, sleep, waitFor, who, menuRows, choose, projectTabs, projectTab, showProject, closeProject, manageProfiles, closeSettings, chooseProfile, setProfileField, menuOpen, closeMenu, rightClick, taskMenu,
+export { MENU, noNode, hooksOf, plusMenu, assert, root, userData, project, pfile, savedTabs, savedWindows, panel, SITE, PORT, sleep, waitFor, who, menuRows, choose, projectTabs, projectTab, showProject, closeProject, manageProfiles, closeSettings, chooseProfile, setProfileField, menuOpen, closeMenu, rightClick, taskMenu,
   click,
   box, pageBox, viewOn, dock, press, ctrl, near };

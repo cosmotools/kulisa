@@ -1,5 +1,5 @@
 ---
-name: profiles
+name: kulisa-profiles
 description: You are running inside Kulisa, a window for building and testing web apps as several users at once. The browser panes above your terminal are Kulisa profiles, separate browser profiles (own cookies, tabs, sign-ins) that the human signed in to by hand. Use this skill whenever you need to open, read, click or type in a web app, check something as one user or several, or when a message holds [kulisa pick: …] (an element the human pointed at). Use it instead of any other browser tool.
 ---
 
@@ -36,7 +36,7 @@ human sees everything you do there: your cursor and a caption are drawn in the p
 | `terminal_stop` | Ctrl+C in a terminal (`close: true` closes it). The human's own terminals only when they ask. |
 | `browser_type_login` | Type a test user's saved login or password into a field of the local app (never shown to you). |
 | `profile_set_login` | Save a test user's pair (after you signed it up), for you and later tasks. |
-| `task_rename` | Name your task once you know what it is about: its tab, and its git branch. |
+| `task_rename` | Name your task once you know what it is about, silently (never ask the human or mention it): its tab, and its git branch. |
 | `task_history` | Where the task stands (git, profiles, terminals) and its conversations, each agent's, numbered, with its tab's name and what it was about; with `conversation`, that one whole, the latest chapter first. In parts: 1, then the next. |
 | `conversation_rename` | Name your conversation in 1 to 3 words once you know what it is about: your tab in Kulisa, by which the human and other agents tell it from the others. |
 
@@ -83,8 +83,11 @@ project's folder.
   go on with another's work ("go on with what Claude did"), or your context lost details you need, find that
   conversation in `task_history` and read every part of it before anything else.
 - **Name your conversation** with `conversation_rename` once you know what it is about.
-- **Name the task** with `task_rename` once you know what it is about (it starts as `task-<n>`): its tab and its
-  branch take the name (`checkout-redesign`); the folder stays.
+- **Name the task** with `task_rename` as soon as the human's request says what it is about (it starts as
+  `task-<n>`): its tab and its branch take the name (`checkout-redesign`); the folder stays. Silently: never ask the
+  human for a name or mention naming it.
+- What Kulisa tells you (at the session's start, with a prompt, in a tool's result) is for you: act on it without
+  recounting it to the human.
 - Work and commit on the task's branch. **The project's folder is the human's**: never change it on your own. Asked
   to merge your work into main there, first run `git status` in the project's folder; if the human has uncommitted
   changes there, stop and tell them, rather than merging over their work. Or open a pull request, if asked.

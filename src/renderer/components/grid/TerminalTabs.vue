@@ -8,7 +8,8 @@ import ButtonMenu from '../menu/ButtonMenu.vue';
 import RightClickMenu from '../menu/RightClickMenu.vue';
 import { act, store } from '../../lib/store';
 import { agentMark } from '../../lib/agents';
-import { handOverItems, newTerminalItems, tabItems } from '../../lib/terminals';
+import { newTerminalItems, tabItems } from '../../lib/terminals';
+import { dialog } from '../../lib/dialogs';
 import { withKeys } from '../../lib/common';
 import type { Terminal } from '../../types';
 
@@ -27,8 +28,9 @@ const show = (id: string | number) => act('terminal:show', { id: Number(id) });
       <nav aria-label="Terminals" @dragstart.prevent>
         <TabsTrigger v-for="t in store.terminals.list" :key="t.id" :value="String(t.id)" as-child>
           <div class="termtab striptab" :class="{ active: t.id === store.terminals.front }" :data-id="t.id" :title="title(t)">
-            <ButtonMenu v-if="t.agent" :items="() => handOverItems(t)"><button class="handover icon quiet small" :aria-label="`${t.agent.name}: hand the task to…`"
-              title="Hand the task to another agent, or this one afresh: it goes on with this conversation" @mousedown.stop><Icon :name="agentMark(t.agent.cli)!" /></button></ButtonMenu>
+            <button v-if="t.agent" class="handover icon quiet small" :aria-label="`${t.agent.name}: change agent…`"
+              title="Change agent: hand the task to another agent, or this one afresh; it goes on with this conversation" @mousedown.stop
+              @click.stop="dialog('handover').then((d) => d.open(t))"><Icon :name="agentMark(t.agent.cli)!" /></button>
             <Icon v-else class="shellmark" name="i-agent-shell" />
             <span class="name">{{ t.name }}</span>
             <span class="state" :data-state="t.state || ''"><Icon :name="`i-${t.state || 'done'}`" /></span>

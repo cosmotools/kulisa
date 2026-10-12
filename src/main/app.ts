@@ -14,11 +14,11 @@ import { CookieSync } from './cookie-sync.ts';
 import { nextAvatar } from './avatars.ts';
 import { signinPages } from './signin-pages.ts';
 import { SessionCookies } from './session-cookies.ts';
-import { Project, askDeleteProject, deleteProjectData, iconFile, iconOfFile, pictureOf, PICTURE_TYPES, addRepo, cloneRepo, defaultRepo, removeRepo, reposInfo, askDropProfile, dropProfile, agentsInfo, addAgent, defaultAgent, removeAgent, deleteAccount, deleteProfile, PROJECT_ICONS } from './projects.ts';
+import { Project, askDeleteProject, deleteClosedTask, deleteProjectData, iconFile, iconOfFile, pictureOf, PICTURE_TYPES, addRepo, cloneRepo, defaultRepo, removeRepo, reposInfo, askDropProfile, dropProfile, agentsInfo, addAgent, defaultAgent, removeAgent, deleteAccount, deleteProfile, PROJECT_ICONS } from './projects.ts';
 import { AppWindow, COLORS } from './window.ts';
 import { repoOf, initRepo, clone } from './worktrees.ts';
 import { findFavicon } from './favicons.ts';
-import { AGENTS, findAgent, accountEmail, signOut, agentVersion, installLine, installAgent } from './agents.ts';
+import { AGENTS, findAgent, accountEmail, signOut, agentVersion, installLine, installAgent } from './agents/index.ts';
 import { nameError, repoName } from './names.ts';
 import { startTerminal, stopTerminal, forgetTerminal } from './terminal.ts';
 import { keymap, match } from './keys.ts';
@@ -29,7 +29,7 @@ import { installMasters } from './master.ts';
 import { refused } from './result.ts';
 import type { IpcMainEvent, IpcMainInvokeEvent, WebContents } from 'electron';
 import type { Shell, AgentChoice } from './shell.ts';
-import type { Agent } from './agents.ts';
+import type { Agent } from './agents/index.ts';
 import type { ProjectEntry, WindowState } from './store.ts';
 import type { Profile, Tab } from './profiles.ts';
 import type { Task } from './tasks.ts';
@@ -56,9 +56,10 @@ process.on('unhandledRejection', (e) => console.error('[kulisa] unhandled reject
 
 const NONE = new Map<string, never>(); // the tasks and profiles when no project is open
 
-// The Kulisa plugin's package for Claude Code (CLAUDE.md, Architecture, layer 3): the MCP config, a skill, hooks.
-// Outside the asar archive when packaged (forge.config.ts, extraResource), because claude reads it from disk.
-const CLAUDE_PLUGIN = app.isPackaged ? path.join(process.resourcesPath, 'claude-plugin') : path.join(import.meta.dirname, '..', 'agent', 'claude-plugin');
+// Kulisa's packages for the agents (CLAUDE.md, Architecture, layer 3: Claude Code's plugin, claude-plugin/), each agent
+// finding its own there (agents/). Outside the asar archive when packaged (forge.config.ts, extraResource), because the
+// agents read them from disk.
+const AGENT_PACKAGES = app.isPackaged ? process.resourcesPath : path.join(import.meta.dirname, '..', 'agent');
 
 // options:
 //   userData   folder for Kulisa's data and browser profiles
@@ -66,8 +67,8 @@ const CLAUDE_PLUGIN = app.isPackaged ? path.join(process.resourcesPath, 'claude-
 //              open last, else none (the window offers to open one, as VS Code)
 //   agent      { name, command, args, resume, shell } to run in every task that has not chosen one, without
 //              asking (KULISA_AGENT, the tests); resume(sessionId) gives the arguments that continue a session.
-//              Default: the human chooses from agents (agents.ts) per task, in the window.
-//   agents     the agents to choose from, instead of agents.ts's (tests)
+//              Default: the human chooses from agents (agents/) per task, in the window.
+//   agents     the agents to choose from, instead of agents/index.ts's (tests)
 //   mcpPort    port of the MCP server (default 4450)
 //   signinHosts  extra sign-in hosts (sign-in pause, tab restore)
 function start(options: Options = {}) {
@@ -188,7 +189,7 @@ function start(options: Options = {}) {
   };
   // And its tasks (the bar's + lists the closed ones): those open, as made, then the closed ones, the one closed last first.
   const tasksOf = (p: ProjectEntry) => {
-    const list = store.tasksOf(p).list.map(({ n, name, branch, closed, closedAt, merged }) => ({ n, name, branch, closed: !!closed, closedAt, merged: !!merged }));
+    const list = store.tasksOf(p).list.map(({ n, name, branch, closed, closedAt, merged, about }) => ({ n, name, branch, closed: !!closed, closedAt, merged: !!merged, about }));
     return [...list.filter((t) => !t.closed), ...list.filter((t) => t.closed).sort((a, b) => (b.closedAt || 0) - (a.closedAt || 0))]
       .map(({ closedAt, ...t }) => t);
   };
@@ -782,6 +783,16 @@ function start(options: Options = {}) {
   ipcMain.handle('task:new', (e, { project }: { project?: string } = {}) => serial(() => createTask(project ? shell.open.get(project) : at(e)?.current)));
   ipcMain.handle('task:close', (_e, key: string) => taskAt(key, closeTask));
   ipcMain.handle('task:delete', (_e, key: string) => taskAt(key, deleteTask));
+  // 🗑 on a closed task's row (the bar's +, its group's menu): its project's group need not be open.
+  ipcMain.handle('task:delete-closed', (e, { project, n }: { project: string; n: number }) => serial(async () => {
+    const open = shell.open.get(project)?.tasks.get(n);
+    if (open) return open.entry.closed ? deleteTask(open) : { error: `task ${n} is open` };
+    const p = store.projects().find((x) => x.id === project);
+    if (!p) return { error: 'no such project' };
+    const r = await deleteClosedTask(shell, p, n, at(e)!);
+    if (!refused(r)) sendProjects();
+    return r;
+  }));
   ipcMain.handle('task:open', (_e, key: string) => taskAt(key, openTask));
   ipcMain.handle('task:rename', (_e, { key, name }: { key: string; name: string }) => taskAt(key, (task) => task.rename(name)));
   ipcMain.handle('project:delete-merged', (_e, { id }: { id: string }) => serial(() => { const p = shell.open.get(id); return p ? deleteMerged(p) : { error: 'the project is not open' }; }));
@@ -813,7 +824,7 @@ function start(options: Options = {}) {
     shell.mcp = await startMcpServer(shell, { port: options.mcpPort ?? 4450 });
     installPicker(shell);
     installGhost(shell);
-    installMasters(shell, { preload: path.join(import.meta.dirname, '..', 'preload', 'index.cts'), colors: () => COLORS[shell.shade()] });
+    installMasters(shell, { preload: path.join(import.meta.dirname, '..', 'preload', 'index.cjs'), colors: () => COLORS[shell.shade()] });
 
     for (const [i, { w, shown }] of windows.entries()) {
       if (i) await w.load(shown?.entry ?? null);
@@ -831,16 +842,17 @@ function start(options: Options = {}) {
   });
 
   // ---------- agents ----------
-  // A task's agents are the human's choice, each in a terminal of its own (agents.ts; tasks.ts). One not chosen yet or
+  // A task's agents are the human's choice, each in a terminal of its own (agents/; tasks.ts). One not chosen yet or
   // not installed: the window asks (AgentPicker.vue), installing it with its maker's installer if the human wants.
-  // The Kulisa plugin reads where Kulisa is from the environment, set per task (tasks.ts): .mcp.json from
-  // KULISA_MCP_URL, its hooks from KULISA_URL. Other agent CLIs get them too.
-  shell.plugin = CLAUDE_PLUGIN;
+  // Every agent learns where Kulisa is from the environment, set per task (tasks.ts): its MCP server from KULISA_MCP_URL
+  // (Claude Code's plugin's .mcp.json), its hooks from KULISA_URL.
+  shell.packages = AGENT_PACKAGES;
   const own = options.agent;
   const custom: Agent | undefined = own && { id: 'custom', name: own.name || own.command, maker: '', needs: '', custom: true,
     command: own.command, shell: own.shell, args: () => own.args || [], voice: own.voice, conversation: own.conversation,
     resume: own.resume && (({ sessionId, transcript }) => sessionId && transcript && fs.existsSync(transcript) && own.resume!(sessionId)) };
   const known = [...(custom ? [custom] : []), ...(options.agents || AGENTS)];
+  shell.agentFiles = [...new Set(known.flatMap((a) => a.localFiles || []))];
   // The agents with their accounts (accounts.ts); an account is its agent with its config folder in its environment.
   shell.accounts = new Accounts(userData, known, (dir) => store.markDeleted(dir));
   shell.accounts.clean();
@@ -873,7 +885,7 @@ function start(options: Options = {}) {
   // each agent's --version, tenths of a second or more (the author, 2026-10-11: the list should come at once): with
   // cached, what the last look in this folder found, kept in memory, or { list: null } before the first; the window
   // shows it and looks again.
-  const seen = new Map<string, { found: import('./agents.ts').Found | null; version?: string | null }>(); // `${agent id}\n${folder}` -> { found, version }
+  const seen = new Map<string, { found: import('./agents/index.ts').Found | null; version?: string | null }>(); // `${agent id}\n${folder}` -> { found, version }
   const look = async (a: Agent, cwd: string, details?: boolean) => {
     const found = await findAgent(a, cwd), old = seen.get(`${a.id}\n${cwd}`);
     const s = { found, version: details ? await agentVersion(found) : old?.version };
@@ -1038,4 +1050,4 @@ function start(options: Options = {}) {
   return ready;
 }
 
-export { start, CLAUDE_PLUGIN };
+export { start, AGENT_PACKAGES };

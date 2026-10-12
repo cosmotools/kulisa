@@ -1,19 +1,28 @@
-// Electron Forge: packages Kulisa and builds installers for macOS, Windows and Linux.
+// Electron Forge: packages Kulisa, builds installers for macOS, Windows and Linux, publishes a release.
 //   npm run package   the app folder for this platform, in out/
-//   npm run make      installers for this platform, in out/make/
-// Each platform's installers are built on that platform (CI matrix later, see docs/ROADMAP.md).
+//   npm run make      installers for this platform, in out/make/ (Linux: rpmbuild for the .rpm, `apt install rpm`)
+//   npm run publish   made and uploaded to a draft release on GitHub (GITHUB_TOKEN; the CI does it on a tag)
+// Each platform's installers are built on that platform. docs/window.md, "The app icon, installers and updates".
 import { execSync } from 'child_process';
 import type { ForgeConfig } from '@electron-forge/shared-types';
 
+// macOS signed and notarized only when its secrets are there: an unsigned app does not update (Squirrel.Mac).
+const apple = process.env.APPLE_API_KEY ? {
+  osxSign: {},
+  osxNotarize: { appleApiKey: process.env.APPLE_API_KEY, appleApiKeyId: process.env.APPLE_API_KEY_ID ?? '', appleApiIssuer: process.env.APPLE_API_ISSUER ?? '' },
+} : {};
+
 const config: ForgeConfig = {
   packagerConfig: {
+    ...apple,
     name: 'Kulisa',
     executableName: 'kulisa',
     asar: true,
     // The app icon, rendered from assets/icon.svg (npm run icons); Forge adds .icns on macOS, .ico on Windows.
     icon: 'assets/icon',
-    // The Claude Code plugin is read by `claude` from disk, so it sits next to the asar: resources/claude-plugin.
-    extraResource: ['src/agent/claude-plugin'],
+    // Kulisa's packages for the agents are read from disk (by `claude`, or copied into an account's folder), so they sit
+    // next to the asar: resources/claude-plugin, resources/skills (app.ts, AGENT_PACKAGES).
+    extraResource: ['src/agent/claude-plugin', 'src/agent/skills'],
     // macOS asks for the microphone on Kulisa's behalf when the agent in its terminal records (dictation).
     extendInfo: { NSMicrophoneUsageDescription: 'The agent in Kulisa\'s terminal listens when you dictate a task to it.' },
     // Only what the app runs; Forge also leaves out devDependencies. The window is its build (dist/renderer), not its
@@ -25,7 +34,10 @@ const config: ForgeConfig = {
     { name: '@electron-forge/maker-dmg', platforms: ['darwin'], config: { icon: 'assets/icon.icns' } },
     { name: '@electron-forge/maker-zip', platforms: ['darwin'], config: {} },
     { name: '@electron-forge/maker-deb', platforms: ['linux'], config: { options: { categories: ['Development'], icon: 'assets/icon.png' } } },
+    { name: '@electron-forge/maker-rpm', platforms: ['linux'], config: { options: { categories: ['Development'], icon: 'assets/icon.png' } } },
   ],
+  // A draft: the author publishes it, and update.electronjs.org takes only published releases (update-electron-app).
+  publishers: [{ name: '@electron-forge/publisher-github', config: { repository: { owner: 'cosmotools', name: 'kulisa' }, draft: true } }],
   // The window built (type checked, then Vite: vite.config.mts) before it is packaged.
   hooks: { generateAssets: async () => { execSync('npm run build', { stdio: 'inherit' }); } },
   // node-pty is native: keep its .node files outside the asar archive so they can be loaded.

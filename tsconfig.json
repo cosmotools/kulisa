@@ -1,4 +1,4 @@
-// The main process, the preload and the scripts: checked by tsc (npm run build), run by Node's type stripping as they
+// The main process and the scripts: checked by tsc (npm run build), run by Node's type stripping as they
 // are (Electron's own Node, or plain Node 24.12+ for the unit tests), so erasable syntax only. The tests have their own
 // (test/tsconfig.json), the window too (src/renderer/tsconfig.json, vue-tsc). DOM: for the functions the main process
 // runs in pages (executeJavaScript, Playwright's evaluate).
@@ -20,5 +20,5 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src/main", "src/preload", "scripts", "forge.config.ts"]
+  "include": ["src/main", "scripts", "forge.config.ts"]
 }

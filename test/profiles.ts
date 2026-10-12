@@ -1,7 +1,7 @@
 // Renaming and deleting profiles; DevTools.
 import fs from 'fs';
 import path from 'path';
-import { assert, userData, pfile, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, closeSettings, chooseProfile, setProfileField, rightClick } from './helpers.ts';
+import { assert, userData, pfile, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, closeSettings, chooseProfile, setProfileField, rightClick, menuOpen } from './helpers.ts';
 import type { Test } from './run.ts';
 
 export default (test: Test) => {
@@ -116,7 +116,11 @@ export default (test: Test) => {
   test("DevTools in a pane's ⋮ menu opens and closes the DevTools of its active tab", async ({ shell, ui }) => {
     const wc = shell.profiles.get('sam-admin').get().wc;
     const click = async () => {
-      await ui(`document.querySelector('.pane[data-profile="sam-admin"] .more').click()`);
+      // Opened again when Kulisa's window lost the focus meanwhile (below), as a human opens it again.
+      for (let i = 0; !(await menuOpen(ui)) && i < 5; i++) {
+        await ui(`document.querySelector('.pane[data-profile="sam-admin"] .more').click()`);
+        await waitFor(() => menuOpen(ui), 1500).catch(() => {});
+      }
       assert.deepEqual(await menuRows(ui), ['DevTools']);
       // As Chrome's ⋮: under the button, its right edge at the button's, so it stays over its own pane.
       const [m, b] = await ui(`[document.querySelector('.menu[data-state="open"]'), document.querySelector('.pane[data-profile="sam-admin"] .more')].map((e) => e.getBoundingClientRect().toJSON())`);
@@ -140,9 +144,9 @@ export default (test: Test) => {
     };
     await click();
     await waitFor(() => wc.isDevToolsOpened());
-    // Its window takes the focus a moment later, and Kulisa's window losing it closes a menu opened meanwhile (lib/menu.ts).
-    // A human comes to ⋮ again after that; the test too. (A window manager may leave the focus with Kulisa, and may not
-    // give it back when asked.)
+    // Its window takes the focus a moment later, and Kulisa's window losing it closes a menu opened meanwhile (lib/views.ts).
+    // A human comes to ⋮ again after that; the test too, and again when the focus went later still (under load). (A window
+    // manager may leave the focus with Kulisa, and may not give it back when asked.)
     await waitFor(() => !shell.win.isFocused(), 3000).catch(() => {});
     await click();
     await waitFor(() => !wc.isDevToolsOpened());

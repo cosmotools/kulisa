@@ -13,6 +13,11 @@ One row: the app's logo (the shown group's project's color on its curtain), Sett
 `titleBarOverlay`); no menu bar. Dragging the empty part moves the window. When the Kulisa zoom is not 100%, the bar
 shows it (a click resets it).
 
+A right-click on the title bar does nothing on Linux. There Chromium asks the window manager for its window menu, and
+GNOME 46 (X11) placed it at a NaN position: invisible, it kept the pointer and keyboard grab, and the whole desktop
+stopped taking clicks until the Win key opened the overview (gnome-shell logged an `StDrawingArea` allocated
+-2147483648 × -2147483648; 2026-10-12). The window cancels it (`system-context-menu`). Windows keeps its system menu.
+
 Pages never drag the window, as in Chrome. Without a system title bar Electron takes `app-region: drag` from every
 view in the window, the profiles' pages too, and keeps a region after its page has gone: Teams
 (`teams.cloud.microsoft`, whose code is shared with the Teams desktop app) declares one, and from then on every click
@@ -117,7 +122,7 @@ pages are pictures of themselves meanwhile; afterwards the keyboard is back wher
   Cmd+Q and the app's menu quit; under them all Kulisa's version, small and dim: words, not a row, as nothing happens on a click);
 - right-click on a pane's header (New tab, About this profile… (Settings at it), Sign In to Master…, Refresh
   from Master…, Close profile, Remove from Project…), a tab (Reload, Duplicate, Close tab, Close other tabs), a terminal (Copy, Paste, Select all, Clear;
-  then what its tab's has) and a terminal's tab (Change agent… and New Conversation in an agent's; Close).
+  then what its tab's has) and a terminal's tab (Change agent…, the Change Agent dialog as its icon opens, and New Conversation in an agent's; Close).
 
 A project label's right-click opens its group's menu, as Chrome's tab groups have it ([tasks.md](tasks.md), Projects).
 
@@ -147,8 +152,9 @@ not needed): a terminal is not split off into a panel of its own. Each is the us
 ([tasks.md](tasks.md), "Several agents in a task") or not. Each tab: the agent's icon (a shell's, for a shell), its
 name, its state (an agent's: working, waiting for you, done), ×. At the row's end, the island's own buttons, whatever
 tab is in front: **+** (a menu of the project's accounts, the default first, each a new conversation; then Terminal,
-a shell) and the dictation of the agent in front (below). The agent's icon opens **Hand the task to** (the project's
-accounts: a new tab, told to go on with this conversation). An agent's × asks first; a shell's closes it.
+a shell) and the dictation of the agent in front (below). The agent's icon opens **Change Agent**, a dialog
+(the project's accounts: the one chosen opens in a new tab, told to go on with this conversation; [tasks.md](tasks.md),
+"Several agents in a task"). An agent's × asks first; a shell's closes it.
 
 **The last terminal closed folds the island** to a strip of one button, + in its middle (the author's choice,
 2026-10-12, as JetBrains' tool windows go but with their button kept in place): by its height under or over the grid,
@@ -170,14 +176,17 @@ had wiped it); Shift held while dragging selects in xterm instead.
 see (`terminal_run`: the app's dev server, `docker compose up`), behind the tab in front so the human goes on
 watching the agent. Each is the user's shell in the task's folder with the agent's environment
 (`KULISA_PORT_OFFSET`), the command typed in, so the human can stop it, type into it and read it as in their own
-terminal; an agent reads its last lines (`terminal_read`, colors left out) and presses Ctrl+C (`terminal_stop`), in
+terminal; an agent reads its last lines as the screen shows them (`terminal_read`, colors left out) and presses Ctrl+C (`terminal_stop`), in
 shells only, never another agent's tab. Why not the agent's own background shell: some agents cannot keep a process
 running (Codex waits on it), and the human does not see what runs there. The task closing ends what runs in it. As
 in an IDE, the terminals are kept (`terminals.json`): when the task loads again (a restart, its task opened again)
 each comes back in its tab, the one in front too, an agent's conversation resumed, a shell with nothing running; the
 agent runs its command again. ×, the menu's Close, `terminal_stop` with close, or the shell's `exit` ends one for good
 (`Task.openTerminal`, `openAgent`, `runInTerminal`, `interruptTerminal`, `readTerminal`, `closeTab`). The main process
-keeps each one's last 200 KB of output for the agent, in memory.
+keeps each shell's screen for the agent, in memory: a terminal without a window (`@xterm/headless`, xterm's own
+parser), its last 500 lines, so what a program redraws in place (a progress, a container's state) is read as it
+became, not as every frame it went through (the output with its codes left out, until 2026-10-12). About 1 MB a shell
+at 200 columns; an agent's terminal keeps none (`terminal_read` does not read it).
 
 **Dictation**, where the agent in front has its own ([tasks.md](tasks.md), "Choosing the agent"): the row of tabs ends
 with the language it hears (EN, RU …) and a microphone (`Dictation.vue`); none with a shell in front. The
@@ -252,16 +261,38 @@ A pane's ⋮ menu (where more of a pane's actions will go, as in Chrome), or F12
 the active tab's DevTools in a window of their own. Kulisa's own DevTools (F12 outside the pages) exist only when
 running from source (`appDevTools`, off when `app.isPackaged`).
 
-## The app icon and installers
+## The app icon, installers and updates
 
 The icon is a stage curtain drawn apart with the agent's pointer (`assets/icon.svg`, rendered for each OS by `npm run
 icons`): in the title bar, the taskbar and the installers. Run from source, GNOME's dock shows a generic icon: it
 takes icons from installed `.desktop` files only (the `.deb` installs one matching the window class `kulisa`); left
 so on purpose.
 
-Installers are made with Electron Forge (`npm run make`, `forge.config.ts`): `.deb` on Linux (checked: it installs
-`chrome-sandbox` setuid root, a menu entry and the icon, and the app starts), Squirrel `.exe` on Windows,
-`.dmg`/`.zip` on macOS (those not built yet).
+Installers are made with Electron Forge (`npm run make`, `forge.config.ts`), each on its own OS: `.deb` and `.rpm` on
+Linux (the `.deb` checked: it installs `chrome-sandbox` setuid root, a menu entry and the icon, and the app starts),
+Squirrel `.exe` on Windows, `.dmg` and `.zip` on macOS (signed and notarized when the Apple secrets are set). `npm run
+publish` makes them and uploads them to a **draft release** on GitHub (`@electron-forge/publisher-github`); the author
+publishes it. A tag `v*` (the version in `package.json`, `npm version`; the workflow refuses a tag that says
+another) builds them on GitHub Actions, on Ubuntu and then Windows, one after another so that both upload to one draft
+(`.github/workflows/release.yml`; macOS once its secrets are set). Releases are built and the updates checked as ROADMAP's "Releases and auto-update" plans them; what is
+left is there too.
+
+**Updates**, Forge's way (`updates.ts`, called by `index.ts`): Electron's `autoUpdater` (Squirrel) through the
+Electron team's `update-electron-app`, from update.electronjs.org, which serves a public repository's published
+GitHub releases. A packaged Kulisa on Windows or macOS checks at start and every 6 hours (its 10 minutes by default:
+Kulisa stays open for days), downloads a newer release in the background, and starts it the next time it is started.
+It never restarts by itself nor asks with the OS's dialog (the module's, off: `notifyUser: false`): Kulisa asks in its
+own (Dialogs and questions), and that dialog's Restart (`quitAndInstall`) closes the windows before `before-quit`,
+where session cookies and tabs are saved. Not from source (`app.isPackaged`), nor on Linux, where Electron has no
+updater: a `.deb` or an `.rpm` is installed again by hand, or by the distribution's package manager once there is a
+repository (ROADMAP). Each format updates its own way only, never one put over another. A check sends
+update.electronjs.org the version, the OS and the IP; the download comes from GitHub.
+
+On Windows, Squirrel starts the app while installing, updating and removing it (`--squirrel-install` …), to make or
+remove its shortcuts: `electron-squirrel-startup` does that and Kulisa quits without starting (Forge's Squirrel.Windows
+maker). Its first run after installing checks nothing (Squirrel holds a lock then), and the app's id is the one its
+shortcuts carry (`com.squirrel.kulisa.kulisa`), or Windows would not pin it to the taskbar (Electron's
+`api/auto-updater.md`).
 
 ## The code
 
@@ -269,8 +300,10 @@ Installers are made with Electron Forge (`npm run make`, `forge.config.ts`): `.d
 |---|---|
 | `src/main/app.ts` | the windows, the Kulisa zoom, the theme, the IPC |
 | `src/main/window.ts` | a window: its BrowserWindow, the native views' places, its questions, screenshot |
+| `src/preload/index.cjs` | the window's bridge to the main process: the windows' pages are sandboxed (no Node: about 15 MB less a window, PSS; 2026-10-12), so it is a few lines of plain JavaScript; the window imports what it shares with the main process (`names.ts`, `avatars.ts`) |
 | `src/main/keys.ts` | the keyboard shortcuts: the table, which key an input event is; `app.ts` takes them (Keys) |
-| `src/main/terminal.ts` | the ptys of the tasks' terminals; their output's last 200 KB |
+| `src/main/updates.ts`, `forge.config.ts` | updates, Squirrel's events; the installers and the release |
+| `src/main/terminal.ts` | the ptys of the tasks' terminals; each shell's screen for `terminal_read` |
 | `src/renderer/components/Grid.vue`, `grid/*.vue`, `lib/grid.ts` | the grid (dockview), the panes and their headers, the island of terminals (`Terminals.vue`, its row of tabs `TerminalTabs.vue`), Arrange panels |
 | `src/renderer/components/TopBar.vue`, `menu/*.vue` | the title bar, ☰ and its own rows |
 | `src/renderer/components/menu/*.vue`, `Modal.vue`, `Ask.vue`, `lib/menu.ts`, `views.ts`, `ask.ts`, `terminals.ts`, `voice.ts` | the menus, the dialogs and questions (Reka UI's), the pages under them, the terminals, dictation |

@@ -1,6 +1,6 @@
 // The agents' accounts, one store as the profiles' (tasks.md, "Choosing the agent", Accounts): an account is an agent
 // CLI with a config folder of its own, where it keeps its sign-in, settings and conversations, given to it by its
-// variable (agents.ts, config: CLAUDE_CONFIG_DIR, CODEX_HOME), so one human can use a work and a personal Claude side
+// variable (agents/, config: CLAUDE_CONFIG_DIR, CODEX_HOME), so one human can use a work and a personal Claude side
 // by side. Each is made with the agent's own sign-in, as /login (app.ts), in Settings → Agents or in a project, and
 // listed in the projects that have it. It stays when its last project lets it go (a sign-in is the human's, made again
 // only by signing in again; the author, 2026-10-11): it goes only when the human deletes it (Settings → Agents, Delete
@@ -15,7 +15,7 @@
 import fs from 'fs';
 import path from 'path';
 import { writeFileAtomic } from './store.ts';
-import type { Agent } from './agents.ts';
+import type { Agent } from './agents/index.ts';
 
 interface Stored { id: string; agent: string; email: string | null; folder: string; projects: string[] }
 // An agent itself (own) or one of its accounts, as all() lists them.
@@ -26,7 +26,7 @@ interface Account {
 
 class Accounts {
   dir: string; agents: Agent[]; markDeleted: (dir: string) => void; file: string;
-  // dir: Kulisa's data folder; agents: the agent CLIs (agents.ts entries); markDeleted: a folder for the next start
+  // dir: Kulisa's data folder; agents: the agent CLIs (agents/ entries); markDeleted: a folder for the next start
   // to remove when it cannot go now (store.ts).
   constructor(dir: string, agents: Agent[], markDeleted: (dir: string) => void = () => {}) {
     this.dir = dir; this.agents = agents; this.markDeleted = markDeleted;

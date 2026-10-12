@@ -10,15 +10,15 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import path from 'path';
 import fs from 'fs';
 import { start } from '../src/main/app.ts';
-import { claudeConversation } from '../src/main/transcripts.ts';
-import { AGENTS } from '../src/main/agents.ts';
+import { claudeConversation } from '../src/main/agents/claude.ts';
+import { AGENTS } from '../src/main/agents/index.ts';
 import { ensureSite } from './fixtures/site.ts';
 import { root, userData, project, SITE, PORT, sleep, waitFor } from './helpers.ts';
 import type { Shell } from '../src/main/shell.ts';
 import type { AppWindow } from '../src/main/window.ts';
 import type { Question } from '../src/renderer/types.ts';
 import type { Task, TaskTerminal } from '../src/main/tasks.ts';
-import type { Agent } from '../src/main/agents.ts';
+import type { Agent } from '../src/main/agents/index.ts';
 import type { IPty } from 'node-pty';
 
 // A site that is not local (local.ts) for the tests of real accounts' sign-ins kept in step (cookie-sync.ts): the test
@@ -37,16 +37,16 @@ fs.mkdirSync(project, { recursive: true });
 // project's .envrc with CLAUDE_CONFIG_DIR), which the task's account overrides.
 const bashrc = path.join(root, 'bashrc');
 fs.writeFileSync(bashrc, `PS1='$ '\nexport FROM_RC="rc of $PWD"\nexport FAKE_CONFIG_DIR="the project's"\n`);
-// Its dictation (agents.ts, voice): cat shows the key the microphone holds (repeated); its language kept here. Its
+// Its dictation (agents/, voice): cat shows the key the microphone holds (repeated); its language kept here. Its
 // transcripts read as Claude Code's (task_history): a test writes one in that format.
 let dictation = 'en';
 const agent = { command: 'bash', args: ['-c', 'echo "agent: $FROM_RC"; exec cat -v'], resume: (): string[] => [], shell: { command: 'bash', args: ['--rcfile', bashrc, '-i'] }, conversation: claudeConversation,
   voice: { key: '<v>', repeat: 50, note: 'it answers in it too', languages: ['en', 'ru', 'de'], language: () => dictation, setLanguage: (_saved: unknown, code: string) => { dictation = code; return { language: code }; } } };
-// Agents to choose from for a task (agents.ts): one that is not installed until its installer runs, into a
+// Agents to choose from for a task (agents/): one that is not installed until its installer runs, into a
 // folder of the test.
 function claudeLike() {
-  const { resume, conversation, prompt, forget } = AGENTS.find((a) => a.id === 'claude')!;
-  return { resume, conversation, prompt, forget };
+  const { resume, conversation, prompt, forget, trust, localFiles, skills } = AGENTS.find((a) => a.id === 'claude')!;
+  return { resume, conversation, prompt, forget, trust, localFiles, skills };
 }
 const bin = path.join(root, 'bin');
 process.env.FAKE_LOGOUTS = path.join(root, 'logouts'); // the accounts the fake agent signed out of
@@ -58,7 +58,8 @@ Object.assign(process.env, { BROWSER: path.join(import.meta.dirname, 'fixtures',
 const agents: Agent[] = [
   // With accounts (accounts.ts) as Claude Code's, its folder in FAKE_CONFIG_DIR, which it prints; signed in, out and
   // asked who with its own commands (fixtures/fake-agent.sh). Its conversations as Claude Code's: resumed, read,
-  // forgotten, a first message (the task handed to it; the arguments it ignores).
+  // forgotten, a first message (the task handed to it; the arguments it ignores), its trust of a folder, its local
+// settings a task's copy gets, Kulisa's skill in its account.
   { id: 'fake', name: 'Fake agent', maker: 'Kulisa tests', needs: 'Nothing', command: 'kulisa-fake-agent', installDirs: [bin],
     config: { env: 'FAKE_CONFIG_DIR', home: () => path.join(root, 'fake-config'), login: () => ['auth', 'login'],
       status: ['auth', 'status'], email: (out) => JSON.parse(out).email, logout: ['auth', 'logout'] },
@@ -123,9 +124,11 @@ async function setup(shell: Shell) {
     const mcp = await mcpOf(task.env(terminal).KULISA_MCP_URL);
     const r = await mcp.callTool({ name, arguments: args });
     const content = r.content as { type: string; text?: string; data?: string }[];
-    const text = content.filter((c) => c.type === 'text').map((c) => c.text).join('\n');
+    // An unnamed task's note, a block of its own after the tool's (agent-hooks.ts, unnamed): note, not text.
+    const last = content.at(-1), note = last?.text?.startsWith('This Kulisa task has no name yet') ? last.text : undefined;
+    const text = (note ? content.slice(0, -1) : content).filter((c) => c.type === 'text').map((c) => c.text).join('\n');
     if (r.isError) throw new Error(`${name}: ${text}`);
-    return { ...r, content, text };
+    return { ...r, content, text, note };
   };
   // A script that throws says which it was (Electron's error names none).
   const ui = (js: string) => shell.win!.webContents.executeJavaScript(js).catch((e: Error) => { throw new Error(`${e.message}: ${js.slice(0, 300)}`); });
@@ -142,7 +145,9 @@ async function setup(shell: Shell) {
   const asked: Question[] = [];
   // What the MCP server tells the agent of task task at the start (its instructions).
   const instructions = async (task: Task = shell.task!) => (await mcpOf(task.env().KULISA_MCP_URL)).getInstructions();
-  const ctx = { shell, call, instructions, ui, ptyOutput: () => pty, watchPty, termText, asked, answer: true as boolean | 'other' | null };
+  // The tools the MCP server lists to the agent of task task, as its client gets them.
+  const tools = async (task: Task = shell.task!) => (await (await mcpOf(task.env().KULISA_MCP_URL)).listTools()).tools;
+  const ctx = { shell, call, instructions, tools, ui, ptyOutput: () => pty, watchPty, termText, asked, answer: true as boolean | 'other' | null };
   const ask = shell.askWhich;
   // Asked in the window w (window.ts), the first one when none is named; shell.ask asks through it.
   shell.askWhich = (q: Question, w: AppWindow | null = shell.windows[0]) => {

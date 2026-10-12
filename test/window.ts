@@ -3,7 +3,7 @@ import { nativeTheme } from 'electron';
 import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
-import { assert, root, userData, sleep, waitFor, menuRows, choose, manageProfiles, menuOpen, rightClick, box, viewOn, closeMenu, click } from './helpers.ts';
+import { assert, root, userData, sleep, waitFor, menuRows, choose, manageProfiles, menuOpen, rightClick, box, viewOn, closeMenu, click, noNode } from './helpers.ts';
 import forge from '../forge.config.ts';
 import type { Test } from './run.ts';
 import type { TaskTerminal } from '../src/main/tasks.ts';
@@ -67,7 +67,7 @@ export default (test: Test) => {
     const tabs = () => ui(`[...document.querySelectorAll('.termtab')].map((t) => t.querySelector('.name').textContent + (t.classList.contains('active') ? ' *' : ''))`);
     const shown = () => ui(`[...document.querySelectorAll('.terminals .term')].filter((t) => !t.hidden).length`);
     const color = (sel: string) => ui(`getComputedStyle(document.querySelector(${JSON.stringify(sel)})).backgroundColor`);
-    assert.match(await instructions(), /terminal_run, not in your own shell.*This is the Kulisa task "task-1", working right in the project's folder .* the app under test runs on its usual ports\. Name the task with task_rename/s);
+    assert.match(await instructions(), /terminal_run, not in your own shell.*This is the Kulisa task "task-1", working right in the project's folder .* the app under test runs on its usual ports\. Name the task with task_rename once you know what it is about, silently: never ask the human for a name or mention it\. These notes are for you/s);
     assert.deepEqual(await tabs(), ['bash *'], "the agent's tab, named after its agent");
     // The row is apart from the terminal: its own color, the tab in front in the terminal's.
     const row = '.dv-groupview:has(.termtabs) .dv-tabs-and-actions-container';
@@ -107,6 +107,11 @@ export default (test: Test) => {
     await waitFor(async () => (await call('terminal_read', { name: 'dev server', lines: 3 })).text.includes('^C'));
     assert.match((await call('terminal_run', { name: 'Dev Server', command: 'echo again' })).text, /^Typed into terminal "dev server"/);
     await waitFor(async () => /^again$/m.test((await call('terminal_read', { name: 'dev server' })).text));
+    // Read as the screen shows it: lines a program redraws in place (a progress, a container's state) are what they
+    // became. Read from the output with its codes left out, every frame was there, and filled the lines asked for.
+    await call('terminal_run', { name: 'dev server', command: String.raw`printf 'bundle 30%%\nwrite\n\033[2A\033[2Kbundle done\n\033[2Kwritten\n'` });
+    await waitFor(async () => /^written$/m.test((await call('terminal_read', { name: 'dev server' })).text));
+    assert.doesNotMatch((await call('terminal_read', { name: 'dev server' })).text, /^(bundle 30%|write)$/m);
     // A click on a tab brings it to the front.
     await click(ui, `document.querySelector('.termtab[data-id="${dev.id}"]')`);
     await waitFor(async () => JSON.stringify(await tabs()) === '["bash","Terminal","dev server *"]');
@@ -123,12 +128,16 @@ export default (test: Test) => {
     assert.equal(task.promptTarget().pty, shell.pty, "the agent's in front again, still running");
     await waitFor(() => ui(`!document.querySelector('.dictation').hidden`));
   });
+  test("the window's page is sandboxed (no Node in it), its bridge to the main process works", async ({ shell, ui }) => {
+    assert.equal(await noNode(shell.win.webContents), true);
+    assert.equal(await ui('kulisa.platform'), process.platform);
+  });
   test('one Kulisa per data folder: a second one started on the same data shows the first one\'s window and goes', async ({ shell }) => {
     // The groups' apps run side by side, each on a folder of its own: another folder is no second one.
     const win = shell.windows[0].win;
     win.minimize();
     await waitFor(() => win.isMinimized());
-    const second = spawn(process.execPath, ['--no-sandbox', path.join(import.meta.dirname, '..', 'src', 'main', 'index.ts')],
+    const second = spawn(process.execPath, [...(process.platform === 'linux' ? ['--no-sandbox'] : []), path.join(import.meta.dirname, '..', 'src', 'main', 'index.ts')],
       { env: { ...process.env, KULISA_DATA: userData, KULISA_MCP_PORT: '0' }, stdio: ['ignore', 'pipe', 'pipe'] });
     let out = '';
     second.stdout.on('data', (d) => (out += d));
@@ -161,7 +170,7 @@ export default (test: Test) => {
     const files = [forge.packagerConfig.icon + '.png', forge.packagerConfig.icon + '.ico', forge.packagerConfig.icon + '.icns',
       ...(forge.makers as { config?: { setupIcon?: string; icon?: string; options?: { icon?: string } } }[]).flatMap((m) => [m.config?.setupIcon, m.config?.icon, m.config?.options?.icon]).filter(Boolean)];
     for (const f of files) assert.ok(fs.statSync(path.join(import.meta.dirname, '..', f)).size > 1000, f);
-    assert.equal(files.length, 6);
+    assert.equal(files.length, 7); // the .rpm's too
   });
   test('one row on top: no menu bar, OS window buttons over the top bar', async ({ shell, ui }) => {
     assert.equal(shell.win.isMenuBarVisible(), false);
@@ -171,6 +180,12 @@ export default (test: Test) => {
     assert.equal(bar.top, 0);
     assert.equal(bar.height, 44);
     assert.ok(bar.right <= controls.x + controls.width, 'the bar ends where the window buttons begin');
+  });
+  test("a right-click on the title bar opens no window menu on Linux: GNOME's froze the desktop", async ({ shell }) => {
+    if (process.platform !== 'linux') return;
+    const e = { defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } };
+    shell.win.emit('system-context-menu', e, { x: 10, y: 10 });
+    assert.equal(e.defaultPrevented, true);
   });
   test('UI text is not selectable by dragging, as in a desktop app; fields are; the arrow over buttons', async ({ ui }) => {
     const sel = await ui(`(() => { const us = (q) => getComputedStyle(document.querySelector(q)).userSelect;

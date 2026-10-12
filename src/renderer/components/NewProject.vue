@@ -8,6 +8,7 @@ import Modal from './Modal.vue';
 import Icon from './Icon.vue';
 import { registerDialog, dialog } from '../lib/dialogs';
 import type { ProjectChoices } from '../types';
+import { MAX, nameChar, repoName } from '../../main/names';
 
 const modal = ref<InstanceType<typeof Modal>>();
 const nameField = ref<HTMLInputElement>(), sourceField = ref<HTMLInputElement>();
@@ -25,8 +26,8 @@ const sources = ref<{ folder: string; state: string }[]>([]), urls = ref<string[
 const chosenSource = ref<string>();
 let named = '';
 const nameOf = (s = '') => {
-  const n = [...kulisa.repoName(s)].filter((c) => kulisa.nameChar(c)).join('');
-  return n.replace(/^[^\p{L}\p{N}]+/u, '').slice(0, kulisa.nameMax);
+  const n = [...repoName(s)].filter(nameChar).join('');
+  return n.replace(/^[^\p{L}\p{N}]+/u, '').slice(0, MAX);
 };
 watch([from, sources, urls], () => {
   if (from.value === 'new' || (name.value.trim() && name.value !== named)) return;

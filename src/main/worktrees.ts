@@ -9,9 +9,9 @@ import path from 'path';
 import { slugOf } from './names.ts';
 import type { Copy } from './store.ts';
 
-// Files outside git that a task's copy needs and the project has: its environment and the agent's local settings. The
-// project's .worktreeinclude (gitignore syntax, as Claude Code reads it) adds more.
-const COPIED = ['/.env*', '/.claude/settings.local.json'];
+// Files outside git that a task's copy needs and the project has: its environment, and the agents' own local settings
+// (each agent's localFiles: agents/). The project's .worktreeinclude (gitignore syntax, as Claude Code reads it) adds more.
+const COPIED = ['/.env*'];
 
 // A failed git command: its error with what git said.
 type GitError = Error & { stderr?: string };
@@ -61,8 +61,8 @@ async function freeBranch(folders: string[], name: string, { beside = false, kee
 // A copy of a repository for a task: a new worktree on a new branch (free: freeBranch), at `at` or next to the
 // repository (<repo>@<branch>). { repo (the folder it copies), worktree, branch, base (the commit it starts from),
 // folder (that folder inside it) }. Uncommitted changes of the project are not carried; files outside git that it
-// needs are copied (COPIED, .worktreeinclude).
-async function createWorktree(folder: string, branch: string, at?: string | null): Promise<Copy> {
+// needs are copied (COPIED, the agents' local files, .worktreeinclude).
+async function createWorktree(folder: string, branch: string, at: string | null | undefined, agentFiles: string[]): Promise<Copy> {
   const repo = await repoOf(folder);
   if (!repo?.commit) throw new Error(repo ? `${folder}: the repository has no commit yet` : `${folder} is not in git`);
   const base = await git(repo.top, ['rev-parse', await startPoint(repo.top)]);
@@ -70,15 +70,15 @@ async function createWorktree(folder: string, branch: string, at?: string | null
   fs.mkdirSync(path.dirname(worktree), { recursive: true });
   // --no-track: the branch is the task's own; pushing it does not go to the default branch it started from.
   await git(repo.top, ['worktree', 'add', '--no-track', '-b', branch, worktree, base]);
-  const copied = await copyIgnored(repo.top, worktree);
+  const copied = await copyIgnored(repo.top, worktree, agentFiles);
   await allowEnvrc(repo.top, worktree, copied);
   return { repo: folder, worktree, branch, base, folder: path.join(worktree, repo.sub) };
 }
 
 // Untracked files that git ignores and the patterns name, copied from the repository into the worktree.
-async function copyIgnored(top: string, worktree: string) {
+async function copyIgnored(top: string, worktree: string, agentFiles: string[]) {
   const include = path.join(top, '.worktreeinclude');
-  const listed = await git(top, ['ls-files', '--others', '--ignored', '-z', ...COPIED.map((p) => `--exclude=${p}`),
+  const listed = await git(top, ['ls-files', '--others', '--ignored', '-z', ...[...COPIED, ...agentFiles].map((p) => `--exclude=${p}`),
     ...(fs.existsSync(include) ? [`--exclude-from=${include}`] : [])]).catch(() => '');
   const files = listed.split('\0').filter(Boolean);
   if (!files.length) return [];

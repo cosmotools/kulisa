@@ -3,6 +3,7 @@ import { shallowRef, type Component } from 'vue';
 
 export interface MenuRow {
   label: string; sub?: string; keys?: string;
+  title?: string; // its tooltip
   icon?: string; // the sprite's id, at the row's start
   color?: string; // a project's dot
   avatar?: string; // a profile's picture
@@ -10,6 +11,7 @@ export interface MenuRow {
   inset?: boolean; // set in under the row above, as its own (a project's closed task under it)
   enabled?: boolean;
   run?: () => unknown; // none: shown only
+  remove?: { label: string; run: () => unknown }; // a 🗑 at its end, on hover or Delete (a closed task)
 }
 export type MenuItem = '-' | MenuRow
   | { heading: string; icon?: string }

@@ -81,14 +81,15 @@ unasked. This paragraph is removed when the rewrite is finished.
   its pane. Not "persona", "user" or "account" (an account is what a profile signs in to). Early commits and
   experiments said "persona".
 - **Terminology: "Kulisa plugin"** for the layer between the agent and the profiles (Architecture, layer 3): the
-  MCP server with the browser tools (agent-agnostic, where new abilities go) plus a package per agent that brings
-  it in with a skill and hooks (for Claude Code `src/agent/claude-plugin/`; Codex plugins have the same parts).
+  MCP server with the browser tools (agent-agnostic, where new abilities go), the profiles skill (one text for every
+  agent, `src/agent/skills/profiles/`) and the hooks (each agent's table in `agents/`), brought to each agent its own
+  way (for Claude Code also a plugin with the MCP config, `src/agent/claude-plugin/`).
   Giving the agent more it can do in the browsers is one of Kulisa's features: extend the MCP server, then describe
   it in the skill.
 - **Terminology: "plugin" vs "extension".** A plugin is always an agent's (Claude Code's, Codex's), the Kulisa plugin
   being one. Code that extends Kulisa itself (panels, features of the IDE) is an "extension", as in VS Code and
   Chrome. Not "module": that is a file of code.
-- **The agent is the human's choice, per task** (`agents.ts`): never assume `claude` is installed. Kulisa
+- **The agent is the human's choice, per task** (`agents/`): never assume `claude` is installed. Kulisa
   installs a missing agent itself with its maker's installer when the human asks, without steps for them to type.
 - **Terminology: "group"**: a project's open tasks in a window, its island in the bar, as Chrome's tab group (it
   comes with the first task opened, goes with the last one closed: Close Group). A project is no thing to open (the
@@ -118,13 +119,17 @@ unasked. This paragraph is removed when the rewrite is finished.
   - What only some agents can do (Claude Code's `--resume`, `--fork-session`, plugin, hooks) is an optional extra
     per agent, kept in one place per agent, and the feature still works without it.
   - Claude Code is the default and the best supported today; that is fine as long as the others are not locked out.
-- **TypeScript everywhere, as ES modules** (since 2026-10-11): the main process, the preload (`.cts`), the tests and
-  the scripts run as they are by Node's type stripping (Electron's own Node 24, or Node 24.12+), so erasable syntax
+- **TypeScript everywhere, as ES modules** (since 2026-10-11): the main process, the tests and the scripts run as
+  they are by Node's type stripping (Electron's own Node 24, or Node 24.12+), so erasable syntax
   only (no `enum`, `namespace`, parameter properties) and imports with their `.ts`. `tsc` only checks: `tsconfig.json`
   (strict), `test/tsconfig.json` (the same without null checks: a test counts on what it checks being there). What
   the main process sends the window is typed once, in `src/renderer/types.ts`; the app every module gets, `Shell`
   (`src/main/shell.ts`); an action's `{ error }` answer, `Result` and `refused()` (`src/main/result.ts`). One way of
-  writing code, all at once: what was dropped on 2026-10-08 was a mix of `.mts`, `.js` and JSDoc. No build of the main
+  writing code, all at once: what was dropped on 2026-10-08 was a mix of `.mts`, `.js` and JSDoc. The one exception,
+  the windows' preload (`src/preload/index.cjs`, a few lines of plain JavaScript; the author, 2026-10-12): the windows
+  are sandboxed (no Node in their pages: about 15 MB less each, PSS), and Electron runs a sandboxed preload without Node,
+  so no type stripping and no `require` of Kulisa's modules. What the window shares with the main process (the rule
+  for names, the profiles' pictures) it imports itself. No build of the main
   process (Vite, esbuild): runs from source and packaged were checked, the asar too.
 - **Keep the amount of own code minimal, so the project stays under control.** Prefer maintained open-source
   libraries to writing our own.
@@ -234,12 +239,13 @@ unasked. This paragraph is removed when the rewrite is finished.
 ## Commands
 
 ```sh
-npm start   # the app: the groups open last, plus $KULISA_PROJECT's (at first start none: the manager on New Project)
+npm start   # the app: the groups open last, plus $KULISA_PROJECT's (at first start none: New Project)
 npm test    # unit tests, knip, then the e2e groups in parallel, each the real app against a local test site, then restarted
 npm run test:unit     # the unit tests alone (plain Node, a second)
 npm run knip  # no file, export or dependency nothing uses: once a step, before showing it (docs/testing.md, Dead code)
 npm run test:visible  # e2e on your screen, to watch them (npm test uses Xvfb on Linux when installed)
 npm run make  # installers for this platform with Electron Forge (forge.config.ts), in out/make/
+npm run publish  # the same, to a draft release on GitHub: the CI's, on a tag v* (window.md, The app icon, installers and updates)
 npm run icons # renders assets/icon.svg to icon.png/.ico/.icns (committed; run after changing the SVG)
 npm run build # type checks (tsc: the main process and the tests; vue-tsc: the window), then Vite into dist/renderer
 npm run watch # the window built again on every change; then reload it (Ctrl+R in its DevTools) or restart
@@ -249,8 +255,8 @@ npm run watch # the window built again on every change; then reload it (Ctrl+R i
   package.json (`npm install-scripts approve <pkg>`). Approving `node-pty` builds it for Node, not Electron;
   run `npm run postinstall` after that.
 
-- **Sandbox and native module.** Electron needs `--no-sandbox` here (`chrome-sandbox` is not setuid); the npm
-  scripts pass it. `npm install` rebuilds `node-pty` for Electron (postinstall).
+- **Sandbox and native module.** On Linux Electron needs `--no-sandbox` (`chrome-sandbox` in `node_modules` is
+  not setuid); `npm start` (`scripts/electron.ts`) and `npm test` pass it there only. `npm install` rebuilds `node-pty` for Electron (postinstall).
 - **Starting the app from a Claude Code session.** The app's terminal starts `claude`, which would inherit the
   parent session's `CLAUDE_*` variables, take itself for a child session and not save its history. Unset them all
   except `CLAUDE_CONFIG_DIR`, and run it in the background:
@@ -302,15 +308,18 @@ Layers, each using only the ones below it:
 2. **Automation access** (`cdp-proxy.ts`): the only way anything automated reaches a profile's pages, and where
    sign-in mode is enforced.
 3. **Kulisa plugin** (formerly "agent bridge"): everything that lets an unchanged agent CLI understand and use
-   profiles: tools, knowledge (skill) and hooks, as Claude Code and Codex plugins bundle them.
+   profiles: tools, knowledge (skill) and hooks, the same for every agent.
    - `mcp-server.ts` is the functional part and is agent-agnostic: any capability for the agent is an MCP tool
      there, so Codex and other CLIs get it too. One URL per task (`/task/<project>/<n>/mcp`).
-   - Claude Code's package is `src/agent/claude-plugin/` (`claude --plugin-dir`): `.mcp.json` (`KULISA_MCP_URL`),
-     the `profiles` skill (change it when a tool or a rule changes), `hooks/hooks.json` (`curl` to
-     `$KULISA_URL/hooks/<event>`, answered by `agent-hooks.ts`; outside Kulisa they do nothing). Packaged, it sits
-     outside the asar (`extraResource`).
+   - The profiles skill, `src/agent/skills/profiles/SKILL.md` (change it when a tool or a rule changes), is one text
+     for every agent, written as `kulisa-profiles` into each account's folder where its agent reads skills
+     (`installSkill`, an entry's `skills`). Claude Code's package is `src/agent/claude-plugin/` (`claude
+     --plugin-dir`): `.mcp.json` (`KULISA_MCP_URL`). Packaged, both sit outside the asar (`extraResource`).
+   - Each agent's hooks are a table in its file (`agents/claude.ts`, `codex.ts`: which of its events sends which of
+     Kulisa's), given at its start (Claude Code in `--settings`, Codex as `-c`), never written into its config; every
+     hook runs one command (`hookCommand`: `curl` to `$KULISA_URL/hooks/<event>`, answered by `agent-hooks.ts`).
    - Do not add agent-facing behavior elsewhere (e.g. in `profiles.ts` or the renderer).
-4. **Window** (`app.ts`, `window.ts`, `keys.ts`, `projects.ts`, `tasks.ts`, `worktrees.ts`, `agents.ts`, `renderer/`, `ghost.ts`, `picker.ts`,
+4. **Window** (`app.ts`, `window.ts`, `keys.ts`, `projects.ts`, `tasks.ts`, `worktrees.ts`, `agents/`, `renderer/`, `ghost.ts`, `picker.ts`,
    `terminal.ts`): what the human sees and does.
 
 **One core, with handles for the human and for the agent.** The human (the window) and the agent (the Kulisa
@@ -349,8 +358,10 @@ Modules (`src/main`):
 - `accounts.ts`: the agents' accounts, one store: each made with the agent's own sign-in (Settings → Agents, or a
   project), a config folder of its own (not the human's `~/.claude`), shown by its email, kept until the human deletes
   it (Settings → Agents), with no project too.
-- `agents.ts`: the agents to choose from, one entry each: find, install, start, resume. Agent-specific code goes
-  here.
+- `agents/`: the agents to choose from, a file each (`claude.ts`, `codex.ts`: everything Kulisa knows of that agent,
+  its transcript's reader too); `agent.ts` what an entry is, the contract every agent fills; `index.ts` the list and
+  what is done with any agent (find, install, version, accounts' sign-in, a folder's trust). Agent-specific code goes
+  into its agent's file, nowhere else; a new agent is a new file there.
 - `profile-store.ts`: the profiles, one store: who each is, its master, its projects. `master.ts`: a master's window,
   where the human signs in once for every task (nothing automated attached). `cookie-sync.ts`: real accounts'
   cookies kept in step between a master and its copies. `local.ts`: what is local.
@@ -364,6 +375,7 @@ Modules (`src/main`):
 - `history.ts`, `transcripts.ts`: the task's history for its agent, read from the agents' transcripts.
 - `mcp-server.ts`, `agent-hooks.ts`, `ghost.ts`, `picker.ts`: the agent's tools and hooks, its actions shown, point
   and tell.
+- `updates.ts`: a packaged Kulisa updating itself (Forge's way), Squirrel's events on Windows.
 - `terminal.ts`: a pty per task for its agent, and its other terminals (a dev server the agent runs, the
   human's shells); the agent typed into the user's shell in its folder (the project's own
   environment: direnv, nvm, mise). On Windows started directly (the other terminals in cmd).
@@ -412,6 +424,9 @@ What must hold in the window:
   sign-in (the sign-in pause).
 - **With the monitor off or the screen locked**, Chromium renders at 1–2 fps, and anything waiting for frames
   crawls. Don't trust timings taken then (`xset q` shows "Monitor is Off").
+- **A right-click on a drag region froze the whole Ubuntu desktop** (GNOME 46, X11): GNOME's window menu opened at a
+  NaN place, invisible, holding the pointer and keyboard grab until the overview opened. The window cancels
+  `system-context-menu` on Linux (`window.ts`; `docs/window.md`, The title bar).
 - **Profiles coming back on `about:blank`** (their saved tabs `[]`): fixed twice on 2026-10-08, by two different
   paths (a profile still opening; tabs closing as Kulisa quits). Read `docs/profiles.md`, "Tabs that come back",
   before looking for a third.

@@ -106,7 +106,7 @@ function split(text: string) {
   return parts;
 }
 // conversation: its number (from 1); none: the overview.
-async function historyPart(task: Task, part: number, conversation = 0): Promise<Result<{ text: string }>> {
+async function historyPart(task: Task, part: number, conversation = 0): Promise<Result<{ text: string; parts: number }>> {
   if (!made.has(task)) made.set(task, new Map());
   const kept = made.get(task)!;
   if (part === 1 || !kept.has(conversation)) {
@@ -117,7 +117,7 @@ async function historyPart(task: Task, part: number, conversation = 0): Promise<
   const parts = kept.get(conversation)!;
   if (part > parts.length) return { error: `There are ${parts.length} parts.` };
   const next = `task_history with${conversation ? ` conversation ${conversation} and` : ''} part ${part + 1}`;
-  return { text: `Part ${part} of ${parts.length}.${part < parts.length ? ` Then ${next}.` : ' The last one.'}\n\n${parts[part - 1]}` };
+  return { parts: parts.length, text: `Part ${part} of ${parts.length}.${part < parts.length ? ` Then ${next}.` : ' The last one.'}\n\n${parts[part - 1]}` };
 }
 
 export { historyPart };

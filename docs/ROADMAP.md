@@ -34,22 +34,22 @@ here; what is left of it stays.
     - "Sign in with Google" on a local app: the human signs in once to a test Google account in the profile's
       master, and the agent goes the whole way itself (account chooser, consent) with no sign-in pause on that path,
       never typing a Google password. The pause part goes into the author's replacement of `signin-pause.ts`.
-    - Agents' accounts: the sign-in tried with a real Claude account (the tests use a fake agent); Codex's (`codex
-      login status` may not say the email); whether Claude Code's Keychain entry on macOS goes with `auth logout`
-      (a macOS check).
+    - Agents' accounts: the sign-in tried with a real Claude account (the tests use a fake agent); whether Claude
+      Code's Keychain entry on macOS goes with `auth logout` (a macOS check). Codex's is shown by its id: `codex
+      login status` does not say the email (it is in `auth.json`'s token, which Kulisa does not read).
   - **Put off**: ongoing tasks ("watch the feedback for a month") with Kulisa kept in the tray (none in GNOME by
     default); rights on profiles, when real accounts come (one flag, "view only": reading allowed, clicks and typing
     refused; today the agent's own modes cover test users).
 
 - **Several agents in a task, rest** (built 2026-10-12: [tasks.md](tasks.md), "Several agents in a task";
   [window.md](window.md), The terminal; [transcripts.md](transcripts.md)).
-  - **Codex**, once there is an account (Codex 0.160.1): its transcript, for its reader (until then a conversation of
-    Codex is listed in the task's history, its text not read); its first prompt as an argument (handing over). Its
-    compaction summaries are encrypted (claude-codex-bridge's finding): its history will have chapters without
-    summaries. Two Codex conversations in one task: one without a session reported (no hooks trusted) resumes with
-    `codex resume --last` after a restart, which may be the other's.
+  - **Codex**: its transcript is read (2026-10-12, [transcripts.md](transcripts.md)); to try with a real Codex: a
+    task handed to Claude Code after a Codex conversation, and one to Codex (its first prompt as an argument is built;
+    tried by the author on 2026-10-12: it read the history). Two Codex conversations in one task: one without a
+    session reported (no hooks trusted) resumes with `codex resume --last` after a restart, which may be the other's.
   - To try with a real Claude Code: handing over end to end (the tests run fake agents); `conversation_rename` asked
-    for by the instructions and the skill: does it name its tab, and when.
+    for by the instructions and the skill: does it name its tab, and when (loaded with the session since 2026-10-12:
+    behind the tool search `task_rename` was not called).
   - The island folded at a side (by its width) is built, not tested; nor a terminal's tabs too many for the row (they
     scroll, without arrows).
   - **Open, for the author:** Kulisa offering to hand the task over when an agent stops on its limit (`StopFailure`),
@@ -164,9 +164,8 @@ here; what is left of it stays.
 - **Kulisa plugin: running the app, rest** (designed 2026-10-06 with the tasks; the terminals it runs in built
   2026-10-09: [window.md](window.md), "The terminal"). Any agent is told its task's ports in the MCP server's
   instructions and runs the app with `terminal_run`, where the human sees it.
-  - Claude Code does it (tried 2026-10-09: it read `$KULISA_PORT_OFFSET`, ran the app on its port with `terminal_run`
-    and opened it in a profile). To try: Codex (see "Choosing the agent, rest": once there is a Codex account), and
-    a project with docker compose.
+  - Claude Code and Codex do it (tried 2026-10-09 and 2026-10-12: read the task's ports, ran the app on its port with
+    `terminal_run` and opened it in a profile). To try: a project with docker compose.
   - Possibly tools: the app's address for this task, opening its profiles there once the server answers.
   - Besides the port, worktrees share the local database (migrations of different branches), Redis and queues,
     OAuth redirect URLs registered for one address. Common practice: a database per branch, docker compose per
@@ -203,26 +202,21 @@ here; what is left of it stays.
     profile first and reloads, as `profile_ask_signin` does); telling the human's keys from the agent's (Electron's
     `before-input-event`, or the proxy knowing its own `Input.*`).
 - **Choosing the agent, rest** (how it works: [tasks.md](tasks.md), "Choosing the agent").
-  - Codex (0.160.1, Linux, 2026-10-06): its installer puts it in `~/.local/bin`, as assumed; `codex mcp list` with
-    Kulisa's `-c mcp_servers.kulisa.url=…` lists the server, enabled; `codex resume` takes `--last` and `-c`. Not yet
-    tried: a whole session driving the profiles. It gets the MCP tools and the MCP server's `instructions` (the
-    essentials: profiles, sign-in, `terminal_run`, the task's ports), not the profiles skill: Codex has skills
-    and plugins, but none found that a session takes without writing into the user's `~/.codex` (2026-10-09).
-  - Codex's hooks (the agent's state, the session to resume, the open profiles at start; tasks.md, "Choosing the
-    agent"): built from its documentation (learn.chatgpt.com/docs/hooks) on 2026-10-08, not yet tried in a session:
-    no Codex account here then. Checked: Codex 0.160.1 takes the `-c hooks=…` override and checks a handler's fields,
-    but not the events' names (a wrong one passes silently). To try, signed in: how Codex asks to trust the hooks and
-    that trusting once is enough; that `$KULISA_URL` reaches the hook's command; that `SessionStart`'s answer
-    (Claude Code's shape, `hookSpecificOutput.additionalContext`) is taken; each event moving the tab (Esc:
-    `Interrupt`); `codex resume <session>`. Windows: the command is sh's (`commandWindows` for PowerShell).
-  - **Once there is a Codex account** (the author has none yet, 2026-10-09; made by the human in Settings
-    → Agents or a project's page, New Account…, which runs `codex login`), try in one go, in a task with git and in a project without, as Claude Code was tried ("running the app, rest"):
-    1. A session driving the profiles: `browser_profiles`, a snapshot, a click; the sign-in pause.
-    2. Running the app: does it read the instructions, move its ports, use `terminal_run` (Codex was expected to
-       wait on a server in its own shell) and open the app in a profile.
-    3. Its hooks, as in the item above: trusting them, `$KULISA_URL`, `SessionStart`'s answer, the tab's state,
-       `codex resume`.
-  - More agents (Gemini CLI, …): an entry each in `agents.ts`.
+  - **Codex, tried in a session** (0.160.1, 2026-10-12, a scratch Kulisa with the author's account): it drove a
+    profile (`browser_profiles`, `profile_open`, navigate, snapshot, click), ran the app with `terminal_run` on the
+    task's port, named its tab and the task, its hooks moved the tab (working, waiting on a permission, Esc), trusted
+    once for every task, and `codex resume` brought its conversation back after a restart. It gets the MCP tools, the
+    MCP server's `instructions` and, since 2026-10-12, the profiles skill in its account's folder (tasks.md, "What
+    each agent can do"; Claude Code was checked to read one there). Not tried: the sign-in pause, a project
+    without git, Windows (the hooks' command is sh's: `commandWindows` for PowerShell).
+  - What was seen there, not built:
+    - Kulisa's `-c` overrides make Codex run "without the shared background server" (embedded mode, a warning at
+      start); no harm seen.
+    - Text typed fast into Codex is taken for a paste, and an Enter in the same burst does not send it (no matter to
+      a human; the handover passes its prompt as an argument).
+    - Codex's sandbox (bubblewrap) needs unprivileged user namespaces, which Ubuntu's AppArmor refuses by default:
+      then it asks before every command. The machine's matter, as without Kulisa.
+  - More agents (Gemini CLI, …): an entry each in `agents/`.
   - Windows: the installers run in PowerShell, untested; macOS untested.
   - A hint in an empty grid: a new task opens no profile and its grid is the terminal alone, so a hint
     would show in every new task; whether one is wanted (and what it says: the project's profiles in the task tab's menu, or "create
@@ -230,9 +224,9 @@ here; what is left of it stays.
 - **Tasks, rest** (how they work now, and why: [tasks.md](tasks.md)).
   - Helping the agent run the app ("Kulisa plugin: running the app", above). Today the agent gets
     `KULISA_PORT_OFFSET` and a line about it at session start.
-  - The agent's state on the task tab for other agent CLIs: Claude Code's hooks report it, Codex's are built
-    and not yet tried ("Choosing the agent, rest"). For CLIs without hooks, e.g. from MCP calls and terminal output (working
-    while they come, idle after a quiet while).
+  - The agent's state on the task tab for CLIs without hooks (Claude Code's and Codex's report it), e.g. from MCP
+    calls and terminal output (working while they come, idle after a quiet while). After a permission answered, both
+    show waiting until a tool finishes (no hook says it was answered): a long command run after it shows waiting.
   - To check with Claude Code in a task's copy (the tests run `cat` as the agent): the hooks (session, state),
     `--resume` after a restart, `task_rename` called by Claude Code.
   - Unloading a background task's tabs while its agent is idle: it needs to know the agent is idle (Claude
@@ -255,11 +249,8 @@ here; what is left of it stays.
     issues; a per-launch token).
   - **Data at rest:** browser profiles in the user-data folder (Chromium's own cookie encryption), saved session
     cookies (`safeStorage`; what if the OS keyring is unavailable).
-  - **Electron hardening:** the shell window runs with `sandbox: false` and a preload that forwards any IPC
-    channel; profile pages are sandboxed and have no preload. Check against Electron's security checklist. To
-    sandbox the window, its preload must be one file: a sandboxed preload `require`s only `electron`, `events`,
-    `timers`, `url` (Electron's `tutorial/sandbox.md`, "Preload scripts"), and ours takes the rule for names from
-    `../main/names` and the profiles' pictures from `../main/avatars`; pass that another way (IPC, `additionalArguments`).
+  - **Electron hardening:** the windows are sandboxed (since 2026-10-12) with a preload that forwards any IPC
+    channel; profile pages are sandboxed and have no preload. Check against Electron's security checklist.
   - **Distribution:** code signing, notarization, auto-update channel, the `.deb`'s setuid `chrome-sandbox`.
 - **Accessibility** (a11y; before a public release, as security). Kulisa should work for people who see poorly, do
   not use a mouse, or use a screen reader, as the big IDEs do; for software bought by public bodies and large companies
@@ -308,22 +299,54 @@ here; what is left of it stays.
     profile's pane opens it in a tab there; a file onto the terminal types its path, as terminals do.
   - Not swipes (a phone's gesture; on a laptop's touchpad a sideways swipe is the OS's and the pages' back and
     forward), nor a double-click as the only way to anything (nobody sees it; only a shortcut to a menu's item).
-- **Auto-update** (not started; discuss with the author before building). The point: users never download a new
-  version by hand; installed copies update themselves in the background from the installers on GitHub Releases of
-  `cosmotools/kulisa` (where they are to be published anyway), the new version starting next time.
-  - Windows and macOS: Electron's own `autoUpdater` (Squirrel; Forge already makes the Squirrel `.exe`), most
-    simply through the Electron team's `update-electron-app` and the free update.electronjs.org service for public
-    GitHub repositories; Forge's GitHub publisher uploads the release. macOS needs the app signed (and notarized)
-    for updates to apply.
-  - Linux: Electron has no updater for the `.deb`. Without downloading by hand: an apt repository of our own
-    (Kulisa updates with the system's updates; the repository must be hosted and signed), Flathub or the Snap
-    Store (they update apps themselves, but their sandbox may get in the way of running the user's agent CLIs, git
-    and project folders), or AppImage with electron-updater (electron-builder's, not Forge's). Telling the user
-    that a newer release is out is only a stopgap.
-  - Size: Squirrel downloads the whole app (100+ MB) each time; delta updates if that matters.
-  - Needs first: releases on GitHub (versioning, the publisher in `forge.config.ts`), code signing (Distribution in
-    the security list above). Updating must not touch the user's data folder or interrupt running agents: apply
-    on the next start, not mid-session.
+- **Releases and auto-update** (decided with the author 2026-10-12; steps 1 and 2 built). Users never download a new version
+  by hand: installers on GitHub Releases of `cosmotools/kulisa`, and installed copies update themselves in the
+  background, the new version starting next time. **Forge's way, its recommendations followed** (the author: rely
+  on Forge first; electronforge.io, Auto Update; Electron 44.5.1's `tutorial/updates.md`, `api/auto-updater.md`).
+  - **Windows and macOS:** Electron's `autoUpdater` (Squirrel) through `update-electron-app` and the free
+    update.electronjs.org (public GitHub repositories); `@electron-forge/publisher-github` uploads a draft release,
+    the author publishes it (the service takes only published releases with a semver tag). `notifyUser: false`: no
+    dialog of the OS (Kulisa asks in its own, `Ask.vue`), and no restart from it: `quitAndInstall()` closes the
+    windows before `before-quit`, where session cookies and tabs are saved (Hard-won facts); the update applies at
+    the next start by itself. Checked every 6 hours (the module's default is 10 minutes: Kulisa stays open for
+    days), only when packaged. Squirrel.Windows starts the app with `--squirrel-*` while installing, updating and
+    removing it: `electron-squirrel-startup` first in `index.ts` (Forge's maker docs), and `setAppUserModelId` as
+    Squirrel names its shortcut. Update checks reach update.electronjs.org (the OpenJS Foundation's: the version,
+    the OS, the IP), downloads GitHub.
+  - **Linux:** `.deb` and `.rpm` (Forge's makers) on the release, installed by hand; no updater (Electron has none,
+    its docs point to the distribution's package manager). Each format updates its own way only: Kulisa never
+    puts another format over the installed one (Cursor's updater put AppImages over `.deb`s and broke them, 2026).
+  - **macOS** only once signed and notarized (Squirrel.Mac does not update an unsigned app): `.dmg` and `.zip`, x64
+    and arm64. The author has no Apple Developer account yet: an Individual one ($99 a year), then a Developer ID
+    Application certificate (its CSR made with `openssl`, no Mac needed) and an App Store Connect API key for
+    notarization, as CI secrets; `osxSign`, `osxNotarize` in `forge.config.ts`, on only when those are set.
+  - **CI** (GitHub Actions): `npm test` on Ubuntu (Xvfb) on every push to `main`; a tag `v*` builds on Ubuntu and
+    Windows (macOS once its secrets are there) and publishes the draft release. The author bumps the version
+    (`npm version patch`; `package.json` is the truth) and pushes the tag. Windows not signed at first (Squirrel
+    works; SmartScreen warns): Azure Trusted Signing later.
+  - **Steps:** 1. Kulisa's part (Forge's publisher and makers, the updater, Squirrel's events, docs): built
+    ([window.md](window.md), "The app icon, installers and updates"). 2. The CI's
+    workflows (`.github/workflows/`: `test.yml`, `release.yml`): written, not run yet; the author pushes them (their
+    first runs show what a clean machine lacks), and adds the Apple secrets at step 4. 3. The first release, `v0.1.0`, then
+    `v0.1.1`: the update checked by hand on the author's Windows machine, by a Claude session there (below); the user
+    guide's "Getting started" then says where the installers are (it says there are none until there is a release). 4.
+    macOS, once the account and its secrets exist.
+  - **Check on Windows** (step 3): install `Kulisa-0.1.0 Setup.exe` from the release: it installs to
+    `%LocalAppData%\kulisa`, makes its shortcuts and starts once, not more (Squirrel's events); publish `v0.1.1`;
+    within 6 hours, or at a restart of Kulisa, it downloads (Squirrel's log: `%LocalAppData%\kulisa\SquirrelSetup.log`);
+    quit and start again: 0.1.1 (☰ shows the version), the data folder (`%APPDATA%\Kulisa`) as it was, the session
+    cookies kept; uninstall leaves the data folder.
+  - **Later, each discussed apart:** apt and dnf repositories (static and signed; not GitHub Pages: no file over
+    100 MB in git, and an Electron `.deb` is about that; proposed Cloudflare R2 at `apt.kulisa.app`; the `.deb`
+    adding its source and key as Chrome and VS Code do, removed with `purge`); "Restart to update" in ☰ (through
+    Kulisa's own quit, asking when an agent works); a switch to turn the checks off; delta updates (Squirrel
+    downloads the whole app each time); winget.
+  - **Not now, and why:** AppImage (on Ubuntu 24.04 and later Electron in an AppImage starts only with
+    `--no-sandbox`: its FUSE mount is `nosuid` and AppArmor restricts unprivileged user namespaces; Kulisa's pages
+    hold real accounts; no maker of Forge's own); Snap and Flatpak (their sandbox is in the way of what Kulisa
+    does: the user's shell, agent CLIs, git, direnv, agents installed in `~/.local/bin`; Snap only with classic
+    confinement, reviewed by hand); Velopack and electron-updater (one leaves Forge's makers and has AppImage only on
+    Linux, the other needs electron-builder).
 - **Feature 7, rest.** Reset a profile to a clean state (keeping its name), seeded test users.
 - **Feature 4, timeline.** One feed of DOM (rrweb-like), network, console and agent actions across profiles; scrub
   back and pick in the past.
@@ -472,8 +495,9 @@ here; what is left of it stays.
   later). Tried with electron-context-menu (native GTK menu) on 2026-10-05 and removed:
   - On Ubuntu GNOME (X11) a right-click in a profile's page froze the whole desktop, twice: gnome-shell logged a
     menu window with a NaN position and a size of -2147483648 (the invisible menu kept the pointer and keyboard
-    grab). Cause not found; suspects: the frameless window with the title-bar overlay, the page in a
-    `WebContentsView`.
+    grab). Likely not the menu itself: the same log came on 2026-10-12 from a right-click on the title bar, GNOME's
+    own window menu for a drag region ([window.md](window.md), The title bar), and Teams' pages declared drag
+    regions then (before `no-drag` was forced on pages). Not checked again.
   - The menu also took the right button from sites that have their own context menu (Teams, Google Docs).
   - Before trying again: show it only where the page did not handle the right-click, and either find the cause of
     the freeze in a minimal window first or draw the menu in HTML (a small view above the page, as VS Code draws
@@ -499,6 +523,13 @@ here; what is left of it stays.
     connection. Copies only; `localStorage` tokens and Kasada-protected sessions may not carry over.
 
 ## Open issues
+
+- **The window jumps after it is restored, on Linux** (found 2026-10-12; left so, the author's decision). Restored
+  from minimized, it shows about 16 px right and 10 px down, then jumps back up and left. Chromium's frame around a
+  window without the system's (its shadow and resize border) is counted only after the window is shown again; bare
+  Electron 44.5.1 does it too (`titleBarStyle: 'hidden'` or `frame: false`, X11, GNOME), `hasShadow: false` only makes
+  the jump smaller. The system's title bar has no jump but is a second row over Kulisa's, and no app can put buttons
+  into it. Check at an Electron upgrade: minimize and restore a window made with `titleBarStyle: 'hidden'`.
 
 - **The OS's window buttons are not dimmed under a dialog** (the author, 2026-10-11; put off). They are drawn by the
   OS over the window (`titleBarOverlay`, `window.ts`), so the dialog's backdrop, HTML, cannot cover them: under a
@@ -544,10 +575,7 @@ here; what is left of it stays.
     have the bug, and whether the workaround is enough there, is not known. Open Teams in a pane and click its page.
   - Signing in to Google and GoDaddy (Kasada) in a profile: passed on Linux with Electron's own User-Agent
     (2026-10-12); check on macOS and Windows.
-  - `--no-sandbox` is needed only for `npm start`/`npm test` on Linux, where `chrome-sandbox` in `node_modules` is
-    not setuid. It must be on the command line (Chromium's zygote starts before `main`; `appendSwitch` is too late),
-    so the npm scripts pass it on every OS: dev runs on macOS and Windows are unsandboxed for no reason. Packaged
-    apps never use it. The `.deb` installs `chrome-sandbox` setuid root; the unpacked `out/` folder needs
+  - The sandbox on Linux, packaged: the `.deb` installs `chrome-sandbox` setuid root; the unpacked `out/` folder needs
     `--no-sandbox` to try it. Other Linux formats (AppImage, rpm, snap) are not set up.
   - Starting the agent (`terminal.ts`): on Linux and macOS it is typed into the user's shell started in the
     project's folder, so the project's environment applies (direnv's `.envrc`, nvm, mise) and `PATH` is the
@@ -573,11 +601,22 @@ here; what is left of it stays.
     microphone privacy setting for desktop apps.
   - macOS: the window screenshot (`KULISA_SHOT`) needs the screen-recording permission; distribution needs code
     signing and notarization (Apple Developer account). Windows: code signing certificate.
-  - The first start: a packaged app opens no task (the empty window, the projects' manager on New Project), later the groups open last
+  - The first start: a packaged app opens no task (the empty window, New Project open), later the groups open last
     (untested packaged).
   - The one-row title bar (`titleBarStyle: 'hidden'` + `titleBarOverlay`, Window Controls Overlay): checked on
     Linux/X11 only. Check the window buttons, dragging and double-click to maximize on macOS (traffic lights on the
-    left), Windows and Wayland.
+    left), Windows and Wayland (Electron 44 runs natively there by default; the author's GNOME is X11: "Ubuntu on
+    Wayland" at the login screen). macOS: the overlay's height is given once, when the window is made
+    (`setTitleBarOverlay` is Windows' and Linux's), so the traffic lights do not follow the Kulisa zoom, and whether
+    they sit centered in the bar at all is not known: `trafficLightPosition` when the window is made,
+    `setWindowButtonPosition` when the zoom changes.
+  - macOS: the last window closed quits Kulisa (`window-all-closed` in `app.ts`), where Mac apps usually stay in the
+    Dock and open a window again on `activate`. Recommended: keep quitting (the agents and terminals live with the
+    window, and session cookies and tabs are saved as Kulisa quits), written down in [window.md](window.md) as
+    decided; the author's to decide, with the macOS session.
+  - Windows at a display scale of 125% or 150%: the profiles' native views placed from the window's CSS boxes
+    (`window.ts` scales them): check that no page is a pixel off its pane or leaves a gap at its edge, and that the
+    scrollbars follow the dark theme (`color-scheme`).
   - Keyboard shortcuts ([window.md](window.md), Keys): checked on Linux only (with Latin and Russian layouts). macOS:
     ⌘ for Kulisa's and Chrome's keys, ⌘⌥1…9 for tasks, ⌘[ / ⌘] back and forward, its own menu bar (Quit, Edit,
     Window) instead of Electron's default; check that a page does not get ⌘-keys before Kulisa (on Linux
@@ -600,8 +639,10 @@ here; what is left of it stays.
     (`nativeTheme.shouldUseDarkColors`, `updated`; on Linux through GTK or the desktop portal): checked on
     Linux/X11 (GNOME) by the tests only, not by changing the OS's setting by hand. macOS draws its own window
     buttons.
-  - Tests run often on Linux only; on macOS and Windows before a release (the author's decision, 2026-10-09). CI with
-    a matrix (GitHub Actions) would do it. There they run on the human's screen (Xvfb is Linux's), taking its focus.
+  - Tests run often on Linux only; on macOS and Windows before a release (the author's decision, 2026-10-09). The CI
+    runs them on all three at every push to `main` ([testing.md](testing.md), CI), macOS and Windows not failing the
+    workflow until the bench passes there: fixed by a Claude session on each OS. On a computer they run on the human's
+    screen there (Xvfb is Linux's), taking its focus.
     The test bench assumes Linux; to adapt on each OS where it can be run (the author's decision, 2026-10-08), known so far:
     - Windows: the agent is `bash -c '… exec cat -v'` with a `bashrc` (`test/run.ts`), the fake agent's installer is
       `sh` only (`printf`, `chmod`; the real agents have a `win32` one), the hooks' test runs commands with `bash`
@@ -633,7 +674,11 @@ here; what is left of it stays.
     ready): every profile's HTTP cache at most that, open ones too; not the code and GPU caches.
   - Or both, or clearing when a task is closed as well. Cost of clearing: the first load of a
     reopened profile's sites is slower (no cache), which matters little for profiles set aside.
-- **Tests that failed now and then.** Not looked at: the address bar's click (seen 2026-10-07); the first point-and-tell test once timed out waiting for the pick (2026-10-10, right after the window moved to Vue; not in the runs after); "Move to New Window puts a project in a window
+- **Tests that failed now and then.** Fixed 2026-10-12: the first point-and-tell test (pick mode reaches the page a
+  moment after it starts and says nothing when: a click before went to the page; the test clicks again until the pick
+  comes), "DevTools in a pane's ⋮ menu" (DevTools' window took the focus after the test's 3 s wait, closing the menu
+  opened meanwhile; the test opens it again), "the islands keep their places" (a frame drawn while a group was folded).
+  Not looked at: the address bar's click (seen 2026-10-07); "Move to New Window puts a project in a window
   of its own" (a 30 s timeout) and "agents: ☰ → Agents… shows what is installed" failed together once in a full
   `npm test` (2026-10-11, after the move to Reka UI; the output not kept), not in the four runs after; the agents'
   tests failed together again once in a full `npm test` (2026-10-11, the projects' manager as a page: "☰ → Agents…"
@@ -645,7 +690,13 @@ here; what is left of it stays.
   the DevTools one again later that day (its ⋮ menu did not open: `menuOpen` timed out), not in the run after. Under the load of two full
   `npm test` at once (two worktrees, 2026-10-11) both agents' account tests failed (the account's sign-in menu did not
   open; 'custom' !== 'fake-1'), and "closing the last tab of a profile leaves an empty tab" (`browser_navigate` to the
-  site interrupted by the empty tab's `about:blank`), each in one run of the two; alone, all passed in two runs. Slow but not flaky: deleting a task (a fork's closing took 11 s,
+  site interrupted by the empty tab's `about:blank`), each in one run of the two; alone, all passed in two runs. "Move to
+  New Window" failed once more on 2026-10-12 in a full `npm test` with the machine loaded (load 11 on 16 cores, the
+  run 76 s instead of 57), not in the two after. The master window's tests ("About this profile… opens Settings at it; its Sign
+  In… opens the same master window, once": `Object has been destroyed` in `master.ts`'s `place`) failed with two after
+  them in one `npm test -- tasks` on 2026-10-12, load 13 from other sessions' runs, not in the run after. "Move to New
+  Window" again on 2026-10-12 (load 5 to 9), timing out while the project moves back into the first window and the
+  second closes: 3 of 12 runs of the group with the windows sandboxed, 1 of 6 without. Slow but not flaky: deleting a task (a fork's closing took 11 s,
   git's work), a site that never answers (10 s: two 5 s waits by design).
 - **The test "after a restart: a task's other terminal comes back …" takes 5.6 s** (`restart-tasks.ts`;
   found 2026-10-09, to come back to). Most of it is showing the project `other` until its task has loaded and
@@ -671,7 +722,8 @@ here; what is left of it stays.
     built: the switch's time and the video memory.
   - Not chosen: **one xterm for all terminals**, switched between tasks as YouTube reuses one player (the
     author's idea). A player keeps no state (the video is on the server); a terminal's state is its buffer, kept only
-    in xterm (the pty in the main process passes bytes on). It would have to live elsewhere anyway (`@xterm/headless`
+    in xterm (the pty in the main process passes bytes on; since 2026-10-12 a shell's screen is kept there too, its
+    last 500 lines for `terminal_read`, not an agent's: window.md, The terminal). It would have to live elsewhere anyway (`@xterm/headless`
     per pty: the same memory, plus serializing and writing it again at every switch, losing the scroll position and
     the selection; or the raw output replayed: a log that grows, slow for a long session), and several terminals are
     on screen at once (other windows). VS Code too keeps an xterm per terminal.

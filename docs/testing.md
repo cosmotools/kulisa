@@ -96,8 +96,15 @@ The full suite runs once, when the work is done, before the commit (CLAUDE.md); 
 and the group of the files changed, or a screenshot, and `npm run knip` once at the end of a step. A whole run stops by itself after 5 minutes (`run.ts`), a test
 after 30 s.
 
+**CI** (`.github/workflows/test.yml`): `npm test` on GitHub Actions at every push to `main`, on Ubuntu (with Xvfb
+and openbox, as on the author's machine), Windows and macOS (on the runner's own screen), git given a name (tasks
+commit). A failed run keeps the groups' folders (their screenshots) as an artifact per OS for a week. macOS and
+Windows do not pass yet (ROADMAP, "macOS and Windows are untested"): their runs report but do not fail the workflow
+(`continue-on-error`), until each passes once; each is fixed by a Claude session on that OS.
+
 | File | What |
 |---|---|
+| `.github/workflows/test.yml` | the same on GitHub Actions at every push to `main`, on Linux, Windows and macOS |
 | `test/start.ts` | `npm test`: the unit tests, knip, the window built, the groups in parallel, each on its own screen, then after a restart |
 | `test/run.ts` | one app: starts Kulisa (`app.start`) with a fake agent (`cat`), runs the files it is given |
 | `test/helpers.ts` | the group's folder, waiting, driving the window like the human |

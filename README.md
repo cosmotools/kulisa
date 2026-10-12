@@ -30,21 +30,23 @@ Website: [kulisa.app](https://kulisa.app).
 ```sh
 npm install          # Node 24.12+. Rebuilds node-pty for Electron.
 npm run build        # type checks (tsc, vue-tsc), then the window (src/renderer, Vue) built by Vite into dist/renderer
-npm start            # builds the window, then opens the windows and groups open last; at first start the projects' manager on New Project
+npm start            # builds the window, then opens the windows and groups open last; at first start New Project
 KULISA_PROJECT=~/my-app npm start
 npm run knip         # no file, export or dependency that nothing uses (docs/testing.md, Dead code)
 npm test             # unit tests, knip, then the real app against a local test site (groups in parallel), then restarted
 npm run test:visible # the same on your screen (npm test uses its own screen on Linux: sudo apt install xvfb openbox)
 npm run package      # the app for this platform, in out/
-npm run make         # installers for this platform, in out/make/ (.deb on Linux, .exe on Windows, .dmg/.zip on macOS)
+npm run make         # installers for this platform, in out/make/ (.deb, .rpm on Linux: sudo apt install rpm; .exe on Windows; .dmg/.zip on macOS)
+npm run publish      # the same, uploaded to a draft release on GitHub (GITHUB_TOKEN); the CI does it on a tag v*
 npm run icons        # after changing assets/icon.svg: icon.png, .ico, .icns next to it
 ```
 
 Kulisa targets macOS, Windows and Linux; so far it is tested on Ubuntu only (see docs/ROADMAP.md). Installers are
 built with [Electron Forge](https://www.electronforge.io/) (`forge.config.ts`), each on its own platform.
 
-`npm start` and `npm test` run Electron with `--no-sandbox`: on Linux `chrome-sandbox` in `node_modules` is not
-setuid on a plain install. The `.deb` installs it setuid, so the installed app runs sandboxed.
+On Linux `npm start` and `npm test` run Electron with `--no-sandbox`: `chrome-sandbox` in `node_modules` is not
+setuid on a plain install, and the flag must be on the command line (`scripts/electron.ts`). macOS and Windows need
+no such file, so they run sandboxed. The `.deb` installs it setuid, so the installed app runs sandboxed.
 
 | Variable | Effect |
 |---|---|
@@ -66,7 +68,8 @@ src/main/        Electron main process
   projects.ts      a project's group: its tasks (make, close, open again, delete); removing a project's data
   names.ts         the one rule for names of projects, tasks and profiles; slugs for ids and folders
   tasks.ts         a task: its profiles, terminals and agents (environment, handing over), folder and name; copies
-  agents.ts        the agent CLIs to choose from: how to find, install, start and resume each
+  agents/          the agent CLIs to choose from, a file each (claude.ts, codex.ts: how to start, resume, trust,
+                   forget, read its transcript); agent.ts what an entry is; index.ts the list, finding, installing
   accounts.ts      the agents' accounts, one store: each made with New Account… (Settings), a config folder of its own,
                    kept until deleted
   worktrees.ts     git for tasks: worktree and branch, files outside git copied, changes, renaming, removal
@@ -79,23 +82,25 @@ src/main/        Electron main process
   profiles.ts      a profile: a session on its own folder, tabs (WebContentsView), Playwright connection, sign-in mode
   store.ts         projects.json, settings.json (Kulisa zoom, theme, the windows and their tabs), profiles.json and
                    profiles/Profile <k>/ (the profiles' masters); per project in projects/<id>/: tasks.json, and per
-                   task <n>/: profiles.json (with sites' zoom), layout.json (the window's grid), agent.json (the
-                   session to resume), Profile <k>/ (its copy of a master: a Chromium profile, its tabs and session
+                   task <n>/: profiles.json (with sites' zoom), layout.json (the window's grid), agent.json (its agents'
+                   conversations), terminals.json (its island's tabs), Profile <k>/ (its copy of a master: a Chromium profile, its tabs and session
                    cookies in it).
   cdp-proxy.ts     per-profile CDP endpoint over webContents.debugger (no --remote-debugging-port)
   local-only.ts    refuses requests from web pages to the MCP server and the proxy (Host, Origin)
   mcp-server.ts    MCP tools for the agent, each takes a profile; a URL per task (/task/<project>/<n>/mcp)
   history.ts       the task's history for its agent (task_history), read from the agents' transcripts
-  transcripts.ts   an agent CLI's transcript read as entries: Claude Code's (docs/transcripts.md)
-  agent-hooks.ts   answers for the plugin's hooks (/task/<project>/<n>/hooks/…: the open profiles, the session; the agent's state)
+  transcripts.ts   the entries an agent's transcript is read as (each reader in its agent's file; docs/transcripts.md)
+  agent-hooks.ts   answers for the agents' hooks (/task/<project>/<n>/hooks/…: the open profiles, the session; the agent's state)
   signin-pages.ts  which pages are sign-in pages; what URL to restore instead of one
   signin-pause.ts  pauses the agent on sign-in pages (temporary implementation, see docs/REPORT.md)
   session-cookies.ts  keeps session cookies across restarts (encrypted with the OS keyring)
+  updates.ts       a packaged Kulisa updating itself (update.electronjs.org), Squirrel's events on Windows
   picker.ts        point and tell: Playwright pickLocator → a reference (profile, tab, locator) typed into the agent's prompt
   ghost.ts         the agent's actions: Playwright's annotations in the page, a caption over the pane
   terminal.ts      node-pty: a task's terminals, each a shell, an agent CLI started in some
-src/agent/claude-plugin/  the Kulisa plugin for Claude Code: MCP config, the profiles skill, hooks (claude --plugin-dir)
-src/preload/     the window's bridge to the main process
+src/agent/        what Kulisa gives the agents: skills/profiles (the profiles skill, every agent's), claude-plugin (Claude
+                 Code's MCP config, claude --plugin-dir)
+src/preload/     the window's bridge to the main process (plain JavaScript: the window is sandboxed)
 src/renderer/    window UI: Vue 3 components in TypeScript, built by Vite into dist/renderer (vite.config.mts; docs/ui.md).
                  components/: the window's parts (App.vue; TopBar, Grid and grid/ its panels, TaskBar, TaskTab, NewTask, Empty,
                  the dialogs on Modal.vue, menu/ the menus; menus and dialogs are Reka UI's); lib/: what they share
@@ -104,6 +109,7 @@ src/renderer/    window UI: Vue 3 components in TypeScript, built by Vite into d
                  components.css, each part's own in its file; the icons are Sprite.vue
 dist/            the window built (npm run build; not in git)
 assets/          the app icon: icon.svg (source) and what each OS needs, rendered by scripts/icons.ts
+scripts/         electron.ts (npm start: Electron, --no-sandbox on Linux only), icons.ts (npm run icons)
 test/            start.ts (npm test: the groups in parallel), run.ts (one app, its files in order), helpers.ts,
                  setup.ts, the tests by area (agent.ts, profiles.ts, window.ts, grid.ts, zoom-and-closing.ts,
                  tasks.ts; restart-*.ts after a restart), unit/ (plain Node), fixtures/site.ts (docs/testing.md)

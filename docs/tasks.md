@@ -200,15 +200,26 @@ build several features of one project at once.
   (`myshop@task-2`), else all in one folder of the task's (`~/Kulisa/<project>@task-<n>/<repo>/`, one place to see and
   delete). Its agent starts in the copy of the default repository and gets the others: Claude Code and Codex as
   `--add-dir` (Claude Code reading their `CLAUDE.md` too: `CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD`), every
-  agent in the MCP server's instructions and at its session's start (`agents.ts`, `dirs`). With one repository: the project's folder stays the human's, and no agent works in it on its own. Its work
+  agent in the MCP server's instructions and at its session's start (`agents/`, `dirs`). With one repository: the project's folder stays the human's, and no agent works in it on its own. Its work
   goes back through git: the human asks the agent to merge into main (the agent first checks the project's folder for
-  the human's uncommitted changes, and stops if there are any: the Kulisa plugin's skill and the MCP server's
+  the human's uncommitted changes, and stops if there are any: the profiles skill and the MCP server's
   instructions), or to open a pull request.
 - **Without git** (or before a first commit) a task works right in the project's folder: there is nothing to copy it
   with. A second open task there is made only after a question ("two agents may get in each other's way").
-- **Its name** is `task-<n>` until its agent names it (`task_rename`, once it knows what the task is about) or the
-  human does (Rename… in its tab's menu): the tab and the branch take the name (`git branch -m`, `-2` when the branch
-  is taken); the folder stays `<repo>@task-<n>`, not moved under a running agent.
+- **Its name** is `task-<n>` until its agent names it (`task_rename`) or the human does (Rename… in its tab's menu):
+  the tab and the branch take the name (`git branch -m`, `-2` when the branch is taken); the folder stays
+  `<repo>@task-<n>`, not moved under a running agent. Until it is named, its agent is told to name it once the human's
+  request says what it is about, before anything else and silently (never asking the human or mentioning it: Kulisa
+  is to be invisible in the agent's answers, the author, 2026-10-12; one said "I'll name the task once it is clear"
+  to a "how are you"), at every prompt the human sends (the `prompt` hook's answer) and in
+  every Kulisa tool's result (for an agent whose hooks do not run: Codex's not trusted yet). `task_rename` and
+  `conversation_rename` load with Claude Code's session (`_meta` `anthropic/alwaysLoad`; other agents ignore it): behind
+  its tool search, as every MCP tool is, the agent skipped the extra step and did not name the task when its answer
+  was text only, though told at both prompts (2026-10-12). Told only at the
+  session's start, before the agent knew what the task was about, it was forgotten: 7 of the author's 8 tasks stayed
+  `task-<n>` (2026-10-12); and asking the human would stop them for a name (the author). Until then the human's first
+  prompt in it (its first line, from the same hook) is over its tab and its row among the closed tasks (their
+  tooltips), what it is about when its agent did not name it; a name puts it away.
 
 Example: the project `~/IdeaProjects/myshop`, its second task, named "Checkout-redesign" by its agent:
 
@@ -241,7 +252,9 @@ Example: the project `~/IdeaProjects/myshop`, its second task, named "Checkout-r
 - **Delete Task…** in its tab's menu deletes it, after a question saying what goes for good: its folder, its branch,
   its profiles, its agent's conversations, and any work not in main and not pushed (commits of its own, uncommitted
   files). With git a task goes whole (worktree, branch, conversation); without, its files stay in the project's folder.
-  Deleting the last open task closes its group. Closed tasks stay on disk until the human deletes them; Kulisa
+  Deleting the last open task closes its group. A closed task is deleted from its row in the bar's + or its group's
+  menu: its 🗑 (on the row under the pointer) or Delete, the same question, its group open or not (the author,
+  2026-10-12: they piled up, and only an open one had Delete Task…). Closed tasks stay on disk until the human deletes them; Kulisa
   offers it once a closed task's PR is merged: each of its copies has commits of its own, all in its remote's default
   branch (`origin/HEAD`, fetched as the project is shown and as a task is closed, in the background), and nothing
   uncommitted, so deleting it loses nothing. Its group's menu marks it "merged" and has **Delete Merged Tasks…**, one
@@ -266,7 +279,7 @@ to the human; the window's IPC (`app.ts`) and the MCP tools are handles on it:
 | Close a task, open it again | ×; the bar's +, its group's menu | none: what runs is the human's to stop | `Project.closeTask`, `reopen` |
 | Rename a task | Rename… in its tab's menu | `task_rename` | `Task.rename` |
 | Read what was said and done in the task before | its terminal, scrolled back | `task_history` ([transcripts.md](transcripts.md)) | `historyPart` (`history.ts`) |
-| Delete a task | Delete Task… in its tab's menu | none: it deletes work and sign-ins, the human's to decide | `Project.askDeleteTask`, `deleteTask` |
+| Delete a task | Delete Task… in its tab's menu; a closed one's 🗑 in the bar's + and its group's menu | none: it deletes work and sign-ins, the human's to decide | `askDeleteTask`, `deleteTask`, `deleteClosedTask` (`projects.ts`) |
 | Show a task | a click on its tab, of any group | none: what the human looks at is theirs | `AppWindow.showTask`, then `show` its project (`window.ts`) |
 | Fold a project's group | a click on its label | none: how the human sees the bar | `Project.collapse` |
 | Add, clone, make the default, remove a repository | the projects' manager | none: what the project is made of is the human's | `addRepo`, `cloneRepo`, `defaultRepo`, `removeRepo` (`projects.ts`); `Task.reposChanged` |
@@ -294,7 +307,7 @@ are not programmers); its accounts are made there too, or in a project's page.
 - The installers are the makers' official native ones (no Node, no sudo, they update themselves; checked
   2026-10-06): Claude Code `curl -fsSL https://claude.ai/install.sh | bash`, Codex
   `curl -fsSL https://chatgpt.com/codex/install.sh | sh` (`install.ps1` on Windows).
-- Each agent is one entry in `agents.ts`: how to find, install, start (Claude Code with the Kulisa plugin; Codex
+- Each agent is one entry in `agents/`: how to find, install, start (Claude Code with the Kulisa plugin; Codex
   with the MCP server and its hooks as config overrides, `-c mcp_servers.kulisa.url=…`, `-c hooks=…`), resume
   (`claude --resume` and `codex resume` with the session the `SessionStart` hook reported; else `codex resume
   --last`) and forget a deleted task's folder.
@@ -328,7 +341,7 @@ are not programmers); its accounts are made there too, or in a project's page.
   removed meanwhile). Only the first time after Kulisa starts does it wait for the look.
 - **Accounts** (`accounts.ts`; decided with the author 2026-10-11): an agent with a sign-in of its own, so one human
   runs a work and a personal Claude side by side. Each is the agent with its own config folder, given to it by its
-  variable (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`: `config` in its `agents.ts` entry); the agents without one (the terminal
+  variable (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`: `config` in its entry (`agents/`)); the agents without one (the terminal
   only) have no accounts and are chosen as themselves. The human's own folder (`~/.claude`, `~/.codex`) is no account:
   every account is made in Kulisa and starts as a clean agent (no global `CLAUDE.md`, settings, plugins, skills or MCP
   servers of the human's: set up again in each), the author's choice over copying them.
@@ -341,7 +354,7 @@ are not programmers); its accounts are made there too, or in a project's page.
     before: a removed one's folder may wait for the next start), never renamed: Claude Code names its macOS Keychain
     entry after a hash of the config folder's path (checked in 2.1.296), so a folder renamed after the sign-in would
     lose it. The email it signed in to is read after it (`auth status`) and kept in `agents.json`: the account is
-    shown as "Claude Code · ann@shop.com"; Codex's status may not say it (not tried yet: no Codex account), then its id.
+    shown as "Claude Code · ann@shop.com"; Codex's status does not say it ("Logged in using ChatGPT"), so it is shown by its id.
     An email the store has already is that account: the new folder is signed out and removed, the existing one added
     to the project (made in Settings → Agents: said so). Cancel, Settings closed, or a sign-in ended without an account
     keeps nothing.
@@ -373,24 +386,53 @@ are not programmers); its accounts are made there too, or in a project's page.
   Settings stays open while it runs) share the state of one list of agents with Install (`lib/agents.ts`), each with
   its own; choosing draws it as radios (`AgentList.vue`), Settings as a list and the chosen one's details.
 - An agent's state on the tabs comes from its hooks, each agent's at its own terminal's URL ("Several agents in a task"). Kulisa has events of its own (`agent-hooks.ts`): `prompt`
-  working, `waiting` for the human, `stop` done, `interrupt` and `session-end` unknown (but a session ending after a
-  done turn keeps it). Which of an agent's hooks sends which is the agent's, in one place each:
-  - Claude Code, its plugin's `hooks.json` (checked with 2.1.293, 2026-10-08): `UserPromptSubmit`, `Stop`, and
+  working, `waiting` for the human, `tool-done` working again after waiting, `stop` done, `interrupt` and
+  `session-end` unknown (but a session ending after a done turn keeps it). No agent tells when the human answered a
+  permission, so the first tool to finish after it (`PostToolUse`, both agents) is the sign it works again; until
+  then the tab still says waiting (found 2026-10-12: it said so for a whole turn). Which of an agent's hooks sends
+  which is the agent's, a table in its file (`agents/claude.ts`, `codex.ts`: `hooks`), each running one command
+  (`hookCommand`, `agents/agent.ts`):
+  - Claude Code, in `--settings` with its plugin (checked with 2.1.293, 2026-10-08; with 2.1.296 that both are
+    taken): `UserPromptSubmit`, `Stop`, and
     waiting when it asks for a permission or a question (`Notification` matched to `permission_prompt`,
-    `elicitation_*`) or a turn ends with an API error (`StopFailure`: a limit, a sign-in); `SessionEnd` (`/exit`,
+    `elicitation_*`) or a turn ends with an API error (`StopFailure`: a limit, a sign-in); `PostToolUse`; `SessionEnd` (`/exit`,
     `/clear`). Not `idle_prompt`, sent a minute after an answer: the tab already says done. Esc ends a turn without
     any hook, so Kulisa itself takes an Esc typed into an agent's terminal for the interrupt: working or waiting
     become unknown (`Task.interrupted`; an Esc that only closed a menu does so too, until the next hook).
-  - Codex, its entry in `agents.ts` as a config override (`-c hooks=…`; built from its documentation, not yet tried in
-    a session: ROADMAP): `UserPromptSubmit`, `PermissionRequest` waiting, `Stop`, `Interrupt` (Esc), `SessionEnd`
-    (also after 30 minutes idle), and `SessionStart`, which gives it the open profiles as Claude Code gets them and
-    the session to resume. Codex runs a hook only once the human has trusted it (`/hooks`, once: the command line is
-    the same for every task); Kulisa never bypasses that, which would run any project's hooks unreviewed too.
+  - Codex, its entry (`agents/codex.ts`) as a config override (`-c hooks=…`; checked in a session with 0.160.1,
+    2026-10-12): `UserPromptSubmit`, `PermissionRequest` waiting (its MCP tools' questions too), `PostToolUse`,
+    `Stop`, `Interrupt` (Esc), `SessionEnd` (also after 30 minutes idle), and `SessionStart`, which gives it the open
+    profiles as Claude Code gets them and the session to resume. Codex runs a hook only once the human has trusted it
+    (`/hooks`): its trust is kept per event under one key for every task (`/<session-flags>/config.toml:<event>`), so
+    once is enough, and again only when Kulisa changes a hook. Kulisa never bypasses that, which would run any
+    project's hooks unreviewed too. Interrupt's and SessionEnd's timeouts are at most 3 s (Codex cuts a longer one and
+    warns at every start).
 
   Done means "come and see": once the human sees that agent's tab (in front of the task shown, with Kulisa's window in
   focus; at once when it was on screen) its tab and its task's show nothing (`seen`, `Task.tabState`), the agent still
   done for the rest of Kulisa.
   Other agents show none yet (ROADMAP).
+
+## What each agent can do
+
+The human gets the same Kulisa with every agent (the author, 2026-10-12). What Kulisa does with an agent is a field of
+its entry (`agents/agent.ts`, `CAPABILITIES`), and an agent either has it or says why not (`lacks`, with the reason):
+a unit test fails for an agent that leaves one out silently, so a new agent comes with its gaps named.
+
+| Capability | What the human gets | Claude Code | Codex |
+|---|---|---|---|
+| `config` | accounts: several sign-ins side by side, each its own folder | `CLAUDE_CONFIG_DIR` | `CODEX_HOME` |
+| `skills` | the profiles skill: how to work with the profiles | its account's `skills/kulisa-profiles/` | its account's `skills/kulisa-profiles/` |
+| `hooks` | the agent's state on its tab; its session to resume; the open profiles at its start | in `--settings` | `-c hooks=…` (trusted once) |
+| `resume` | a closed task, or a restart, goes on with the conversation | `--resume` | `resume` |
+| `prompt` | handing the task over: the new agent starts with what to read | an argument | an argument |
+| `dirs` | a project's other repositories in a task | `--add-dir` | `--add-dir` |
+| `addDir` | a repository added while the agent runs | `/add-dir`, typed for the human to send | none in 0.160.1: a line saying so |
+| `trust` | the agent asks once a project whether it may work there | `.claude.json` | `config.toml` |
+| `localFiles` | the project's own settings of the agent in a task's copy | `.claude/settings.local.json` | `.codex/config.toml` |
+| `conversation` | its conversation read by the next agent (`task_history`) | its transcript | its transcript (summaries encrypted) |
+| `forget` | a deleted task leaves nothing of it in the agent's data | yes | yes |
+| `voice` | dictation from the terminal's microphone | its voice mode | none in 0.160.1 |
 
 ## Several agents in a task
 
@@ -415,7 +457,15 @@ first): always a **new conversation**. Each sees the task's code and profiles, a
   stands, then its conversations, numbered, each with its tab's name, its agent, open or closed, when, and the human's
   first and last request in it; then the one asked for, whole ([transcripts.md](transcripts.md)).
 - **Handing the task over** is the human's click: the agent's icon on its tab (or **Change agent…** in its tab's or
-  its terminal's menu) lists the project's accounts, the same one too; the one chosen opens in a new tab, its first
+  its terminal's menu) opens **Change Agent** (`HandOver.vue`): the agent it comes from and the one chosen, between
+  them what goes along (the task's branch, its open profiles, their tabs, its shells, the conversation), under them
+  the project's accounts to choose from (the same one too, "afresh"; another agent's first: a limit is the usual
+  reason) and what stays behind. Hand over: the one chosen opens in a new tab, in front under the dialog (a tab behind
+  has no size: its terminal broke what the agent drew), which stays while it reads: what goes along flies to it again and again (not with reduced motion), over its real progress ("part 2
+  of 5": its `task_history` calls of that conversation, `Task.historyRead` → `handover:read`). The dialog goes once
+  it has read the last part, or at once when it waits for the human (its hooks: a permission, a sign-in,
+  a limit), its tab is gone, or 30 s pass with no part read (an agent without hooks waiting for the human); Show now
+  and × any time. Its first
   message as if the human typed it (a command-line argument, `prompt` in the agent's entry): go on with the work of
   conversation N ("its name"); read it whole in `task_history` first; then tell the human in a few lines what is done
   and what is next. Its first answer is the check: what it missed shows at once. The tab it came from stays: the
@@ -437,6 +487,12 @@ Whether an account has tokens is not asked first: no CLI says it to a program (`
 It shows at its first answer.
 
 Why so, and what was not chosen (2026-10-11, 2026-10-12):
+
+- **A dialog, not a menu** (the author, 2026-10-12; a menu of the accounts until then): the moment a task is handed
+  over is where Kulisa shows what no other tool keeps, the work around the agent (branch, signed-in profiles, running
+  terminals), and says what does not go. One click more than the menu. It waits for the reading itself (the
+  author's idea): the animation is the real handing over, not a show of 0.9 s; it never waits for an agent waiting for
+  the human (the timeout, the hooks, Show now).
 
 - **Several agents side by side, not one switched** (built so first, 2026-10-12, Change agent… stopping the agent and
   starting the next one in its place): a side task needed a task of its own, and an agent was stopped to take another
@@ -472,8 +528,8 @@ Why so, and what was not chosen (2026-10-11, 2026-10-12):
    with several: `git worktree add --no-track -b <branch> <copy> <start>`. `--no-track`: pushing the task's branch
    never goes to the default branch.
 2. **Files outside git** are copied from the project's folder when git ignores them and they are untracked: `.env*`
-   and `.claude/settings.local.json` at the top, and whatever the project's `.worktreeinclude` names (gitignore
-   syntax, as Claude Code reads it). Dependencies (`node_modules` …) are not copied: the agent installs them (the
+   at the top, each agent's own local settings (its `localFiles`: Claude Code's `.claude/settings.local.json`), and
+   whatever the project's `.worktreeinclude` names (gitignore syntax, as Claude Code reads it). Dependencies (`node_modules` …) are not copied: the agent installs them (the
    skill says so).
 3. **direnv.** When `.envrc` was copied and the project's `.envrc` is allowed, Kulisa runs `direnv allow` for the
    task's folder: same content. Without it the task would miss the project's environment (e.g. `CLAUDE_CONFIG_DIR`,
@@ -484,9 +540,13 @@ Why so, and what was not chosen (2026-10-11, 2026-10-12):
    project's folder's (the human's own dev server; a task without git works there). Copied tabs on local addresses
    move by the difference (`localhost:3000/cart` → `localhost:3100/cart`); cookies do not depend on the port, so they
    stay signed in. The agent gets the offset as `KULISA_PORT_OFFSET`.
-6. **The agent.** A new conversation in the task's folder, with the project's default agent or the one chosen. When it is Claude
-   Code and the project's folder is trusted in Claude's config, the task's folder is marked trusted too, so Claude
-   does not ask (`agents.ts`).
+6. **The agent.** A new conversation in the task's folder, with the project's default agent or the one chosen. Every
+   agent asks once per folder whether it may work there, and keeps the answer in its config. When the human said yes
+   for the project's folder or another task's copy of it, the task's copy is marked trusted too, so the agent asks
+   once a project, whichever agent it is (`extendTrust` in `agents/`; each agent's `trust` reads and writes its
+   own config). Codex 0.160.1 and Claude Code 2.1.296, asked in a worktree, keep the answer for the repository's root
+   themselves (seen 2026-10-12); Kulisa's rule holds it for an agent or a version that keeps it per folder. Each
+   agent's trust is its own: a yes given to Codex does not reach Claude Code, which asks once too.
 7. The task is shown.
 
 ## What is on the computer
@@ -502,7 +562,8 @@ profiles.json                     the profiles, one store: who each is, its proj
 profiles/Profile <k>/             a profile's master, where the human signs in once for every task
 agents.json                       the agents' accounts (accounts.ts): { next, list: [{ id, agent, email, folder, projects }] }
 agents/<agent>-<n>/               an account's config folder (CLAUDE_CONFIG_DIR, CODEX_HOME): its sign-in, settings,
-                                  conversations; gone, signed out first, when the human deletes it (Settings →
+                                  conversations; Kulisa's profiles skill (skills/kulisa-profiles/) and Claude Code's
+                                  settings for Kulisa (kulisa-settings.json), written at each start; gone, signed out first, when the human deletes it (Settings →
                                   Agents); one a sign-in left
                                   unfinished (Kulisa quit meanwhile) goes at the next start
 settings.json                     the Kulisa zoom, the theme, where the tasks' bar is; the windows: each one's
@@ -511,7 +572,8 @@ deleted-folders.json              folders to remove at the next start (a session
 projects/<project id>/
   tasks.json                      { next, current, collapsed, list: [{ n, name, branch, offset, folder (its agent's),
                                   copies: [{ repo, worktree, branch, base, folder }], home (its folder of copies),
-                                  closed, closedAt }] }; base: the commit a copy started from; no copies: it works in
+                                  closed, closedAt, about }] }; base: the commit a copy started from; about: its first
+                                  prompt's first line, until it is named; no copies: it works in
                                   a folder of the project
   1/, 2/ …                        a task
     profiles.json                 what it has of its project's profiles, in order: folder, id, sites' zoom, closed
@@ -539,10 +601,12 @@ Outside it:
 | A cloned repository | `<location>/<name>/`, or `<location>/<name>/<repo>/` for several (New Project, Clone from URL); `~/Kulisa/<project>/<repo>/` or next to the project's folder (Clone on its page) | cloning; stays, as the human's (removing it from the project, or the project, leaves it) |
 | An empty first commit | the project's repository | New Project… with Create Git repository |
 | direnv's permission for the task's `.envrc` | direnv's data (`~/.local/share/direnv/allow/`) | creating a task, if the project's is allowed |
-| Claude Code's trust of the task's folder | Claude's config: `<CLAUDE_CONFIG_DIR>/.claude.json`, else `~/.claude.json`, `projects["<task folder>"]` | the task's Claude starts, if the project's folder is trusted |
+| The agent's trust of the task's folder | Claude Code: `<CLAUDE_CONFIG_DIR>/.claude.json`, else `~/.claude.json`, `projects["<task folder>"]`; Codex: `<CODEX_HOME>/config.toml`, `[projects."<task folder>"]` | the task's agent starts, if the project's folder or another task's copy is trusted |
 | Claude Code's language, chosen for dictation | `<config dir>/settings.json`, `language` (as its `/config` sets it) | the human picks a language in the island's row of tabs; stays, as the human's setting |
 | An agent's conversation | the agent's own data (Claude: `<config dir>/projects/…/<session>.jsonl`; Codex: `<config dir>/sessions/`), in its account's folder (`agents/<agent>-<n>/`) | the agent runs |
 | The agent itself, when Kulisa installed it | its maker's place (`~/.local/bin/claude`, `~/.local/bin/codex`, …) | Install in Settings → Agents |
+| Kulisa itself, installed (Windows) | `%LocalAppData%\kulisa\`: `app-<version>\` (Squirrel keeps the one before too, removing older ones), `packages\` (the update downloaded), `Update.exe` | the installer; an update; gone when Kulisa is uninstalled (the data folder stays) |
+| An update downloaded (macOS) | Squirrel.Mac's cache, `~/Library/Caches/<app id>.ShipIt/` (untested: no signed build yet) | an update; replaced by the next |
 
 Nothing is written into the project's own folder (but the first commit of a project Kulisa made).
 
@@ -558,14 +622,15 @@ its agent and closes its profiles, then deletes:
   `direnv deny`, which newer direnv records too);
 - its data folder `projects/<id>/<n>/`, profiles with their sign-ins (also listed in `deleted-folders.json`,
   removed at the next start if a file was still open);
-- what its agent keeps of the task's folder (`agents.ts`, each agent's `forget`; undocumented layouts, so what is
+- what its agent keeps of the task's folder (`agents/`, each agent's `forget`; undocumented layouts, so what is
   not found is skipped):
   - Claude Code, in the config dir its sessions used: its conversations in `projects/<folder>/` (those recorded in
     the task's folder: Claude names that folder with non-Latin letters as `-`, so other folders can share it),
     `file-history/`, `session-env/`, `debug/`, `todos/` of those sessions, the folder's lines in `history.jsonl`,
     and `projects["<folder>"]` in `.claude.json` (the trust Kulisa gave it). Never the project's folder.
   - Codex, in the `CODEX_HOME` its sessions used (its account's folder): the session files whose folder is the task's (`sessions/`,
-    `archived_sessions/`) and `[projects."<folder>"]` in `config.toml`. Not its own databases (`state_*.sqlite`):
+    `archived_sessions/`), their lines in `history.jsonl` (the prompts typed, by `session_id`) and
+    `[projects."<folder>"]` in `config.toml`. Not its own databases (`state_*.sqlite`):
     their format is Codex's alone, so a record of the thread may stay there.
 
 A task without a worktree worked in the project's folder: only its data folder goes; the folder, and what its agent
@@ -662,9 +727,10 @@ temporary forks), and again on 2026-10-10 (tasks; ROADMAP, "Projects and tasks")
   its pages' native views (`Profile.moveTo`), not loaded again, and with what its terminals show (xterm's serialize
   addon, as VS Code keeps terminals), at their size, so its agent is never told a default one. A window is one more
   renderer process for Kulisa's own page, only while it is open.
-- **Claude's trust of a task's folder**: Claude's config is undocumented; when the file is not as expected, nothing
-  is changed and Claude asks as usual. Claude rewrites that file often; Kulisa writes it whole at once (a rename),
-  and a write of Claude's at the same moment may undo it (then Claude asks).
+- **The agent's trust of a task's folder**: the agents' configs are undocumented; when the file is not as expected,
+  nothing is changed and the agent asks as usual. Only a yes is carried, never the human's no (Codex's
+  `trust_level = "untrusted"`). Claude rewrites its file often; Kulisa writes it whole at once (a rename), and a
+  write of Claude's at the same moment may undo it (then Claude asks).
 
 ## The code
 
@@ -675,7 +741,7 @@ temporary forks), and again on 2026-10-10 (tasks; ROADMAP, "Projects and tasks")
 | `src/main/projects.ts` | a project's group (an open project in code): its tasks; making, closing, opening again, deleting one (with the question); deleting a project's data |
 | `src/main/tasks.ts` | a task: its profiles, its terminals and agents (open, hand over, close, environment), renaming, copies of its profiles for a new task, ports |
 | `src/main/worktrees.ts` | git: a task's worktree and branch, files outside git, direnv, changes, renaming the branch, removal |
-| `src/main/agents.ts` | the agents to choose from: find, install, start, resume; Claude's folder trust |
+| `src/main/agents/` | the agents to choose from: find, install, start, resume; a folder's trust carried to a task's copy |
 | `src/main/store.ts` | the data folder above |
 | `src/main/terminal.ts` | the task's terminals' ptys (window.md, The terminal) |
 | `src/renderer/components/TaskBar.vue`, `NewTask.vue`, `Empty.vue`, `ProjectEditor.vue` | the tasks' bar (an island per project); its + (every project, their closed tasks); the empty window's island; the projects' manager |

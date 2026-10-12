@@ -26,11 +26,11 @@ export interface Terminals { task?: string; front: number | null; list: Terminal
 // A task, for its tab (Task.info).
 export interface TaskInfo {
   n: number; key: string; name: string; state: AgentState; folder: string; offset: number; branch: string | null;
-  closed: boolean; merged: boolean;
+  closed: boolean; merged: boolean; about?: string; // what it is about while it has no name: its first prompt
 }
 export interface ProjectEntry { id: string; name: string; folder: string; color: string; icon?: string; favicon?: string; tasks: ProjectTask[] }
 // A task of a project, open or not (app.ts, shell.projects): the bar's + lists the closed ones (NewTask.vue).
-export interface ProjectTask { n: number; name: string; branch?: string | null; closed: boolean; merged: boolean }
+export interface ProjectTask { n: number; name: string; branch?: string | null; closed: boolean; merged: boolean; about?: string }
 // The window's projects (AppWindow.info): every project, those open in it in the bar's order, the one shown.
 export interface ProjectsInfo {
   current: string | null;

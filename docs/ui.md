@@ -86,6 +86,7 @@ Each icon is drawn once, as a `<symbol id="i-…">` in the sprite (`Sprite.vue`,
 | `i-p-cart`, `i-p-briefcase`, `i-p-globe`, `i-p-flask`, `i-p-rocket`, `i-p-code`, `i-p-building`, `i-p-people`, `i-p-book`, `i-p-heart` | a project's icon to choose (Lucide's shopping-cart, briefcase, globe, flask-conical, rocket, code, building-2, users-round, book-open-text, heart), drawn in its color (`projectIcon`, `lib/common.ts`) |
 | `i-working`, `i-waiting`, `i-done` | an agent's state on a tab (`.state`); `i-done` also checks the chosen row of a menu, and a checkbox |
 | `i-down` | what opens below it: a `.select`'s choices, an agent's details (`AgentList.vue`) |
+| `i-trash` | a closed task's row in a menu: delete it (`remove`; Lucide's trash-2) |
 | `i-minus`, `i-star` | a list's toolbar (`.list`, after its `i-plus`): remove the selected row, make it the default (Lucide's star) |
 | `i-folder-plus`, `i-folder`, `i-git` | New Project's code: New Folder, Folders on Disk, Clone from URL (Lucide's folder-plus, folder, git-branch) |
 | `i-agent-claude`, `i-agent-codex`, `i-agent-shell` | an agent's row and its accounts' (`AgentList.vue`, `i-agent-<id>`, 20 px; `agentMark` in `lib/agents.ts`), a terminal's tab (`TerminalTabs.vue`), the island's + menu: the makers' own marks in their own colors (claude.ai's and developers.openai.com's favicons; not under the GPL: `docs/LICENSING.md`), and Lucide's square-terminal for the terminal only and a shell's tab; `i-agent` for an agent without a mark of its own |
@@ -213,6 +214,9 @@ Every dialog is `Modal.vue`, Reka UI's Dialog (`reka-ui`) with the same parts:
 - A page's alert or confirm (`.pagedialog`, in `ProfilePane.vue`) is not a `Modal`: a Dialog that is not modal (the
   other panes go on), in its pane right under the address bar, over a picture of the page, in Chrome's size, shape and
   blue: the page's, not Kulisa's. Esc is Cancel; a click outside does nothing; OK has the keyboard.
+- Change Agent (`HandOver.vue`, `#handover`): the two agents with what goes along between them (`.baton`: pills on a
+  dashed line, a profile's `.avatar`s in one), which fly to the new one, again and again, while it reads (`handed`,
+  `received`; none with reduced motion), its progress under them; the accounts under them as `.radio` rows.
 - Questions before something that cannot be undone, before closing, or between two ways to go (a second button,
   `other`), are not new dialogs: `shell.ask` (main process) or `ask(q)` (`lib/ask.ts`) → `Ask.vue`, Reka's AlertDialog
   in the same look: Cancel has the keyboard, Esc is Cancel, a click outside does nothing (it waits for an answer);
@@ -230,13 +234,13 @@ choose a row). One menu at a time; Esc, a press outside, the same button, a chos
 it, and the keyboard goes back where it was. While one is open, the pages are pictures of themselves
 (`covered('pictures')`); it shows once they are.
 
-Items (`lib/menu.ts`, laid out by `menu/MenuRows.vue`) are `{ label, sub, keys, icon, color, avatar, project, inset,
-enabled, run }` (`MenuButton.vue`; `keys`: the row's key at its end, from the keys' table: `keyText(id)`, `lib/common.ts`), `'-'` (a divider), `{ heading, icon }`, `{ note }` (small dim words
+Items (`lib/menu.ts`, laid out by `menu/MenuRows.vue`) are `{ label, sub, keys, title, icon, color, avatar, project, inset,
+enabled, run, remove }` (`MenuButton.vue`; `keys`: the row's key at its end, from the keys' table: `keyText(id)`, `lib/common.ts`), `'-'` (a divider), `{ heading, icon }`, `{ note }` (small dim words
 under the rows, not one of them: ☰'s version, so nothing looks clickable that is not), `{ choose, chosen, rows }` (one
 of them checked: the dictation language) or `{ component, props }` (a row of its own: ☰'s zoom, theme, tasks' bar
 and arrangements, `components/menu/`, built of Reka's menu items; − and + and the choices leave the menu open);
-`icon` is the sprite's id, at the row's start; `project` a project's icon in its color there (`ProjectIcon.vue`,
-`.picon`); `inset` sets a row in under the one above, its text under that one's (a project's closed task under it, in
+`title` its tooltip (the native one, as every tooltip); `icon` is the sprite's id, at the row's start; `project` a project's icon in its color there (`ProjectIcon.vue`,
+`.picon`); `remove` puts a 🗑 at the row's end (`.remove`, on the row the pointer or the keyboard is on; Delete too) that runs it instead of `run`, the menu closing as for any row (a closed task's, deleted); `inset` sets a row in under the one above, its text under that one's (a project's closed task under it, in
 the bar's +); rows are `.item`, lit as Reka highlights them
 (`[data-highlighted]`).
 

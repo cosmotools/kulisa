@@ -45,12 +45,14 @@ let site: { url: string; child?: ChildProcess };
 function app(group: string, args: string[]) {
   const env = { ...process.env, KULISA_TEST_ROOT: folder(group), KULISA_TEST_SITE: site.url };
   // In plain Node the electron package is the path of Electron's binary.
-  let cmd = electron as unknown as string, argv = ['--no-sandbox', run, ...args];
+  // Linux only: chrome-sandbox in node_modules is not setuid there (README, Run).
+  const sandbox = process.platform === 'linux' ? ['--no-sandbox'] : [];
+  let cmd = electron as unknown as string, argv = [...sandbox, run, ...args];
   if (hidden) {
     // A screen as large as a monitor (tests open windows beside each other; -a: a free display), with a window
     // manager: without one, windows are not listed for capture (screenshots) and focus differs from a desktop.
     // No GPU there: WebGL on Chromium's software renderer, as the terminal uses it on a real one.
-    const line = [cmd, '--no-sandbox', '--ignore-gpu-blocklist', run, ...args].map((a) => `'${a}'`).join(' ');
+    const line = [cmd, ...sandbox, '--ignore-gpu-blocklist', run, ...args].map((a) => `'${a}'`).join(' ');
     cmd = 'xvfb-run'; argv = ['-a', '-s', '-screen 0 1920x1080x24', 'sh', '-c', `openbox >/dev/null 2>&1 & sleep 0.5; exec ${line}`];
   }
   return new Promise<{ code: number; out: string }>((resolve) => {

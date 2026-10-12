@@ -42,7 +42,7 @@ The agents' marks in `Sprite.vue` (`i-agent-claude`: Claude's, Anthropic's; `i-a
 makers' trademarks, not licensed under the GPL: they name the agent a row is of, as an IDE shows them, and nothing
 else.
 
-Its dependencies keep their own licenses, all of which allow being part of a GPL-3.0 program: MIT, ISC, BSD,
+Its dependencies keep their own licenses (`update-electron-app` MIT, `electron-squirrel-startup` Apache-2.0 …), all of which allow being part of a GPL-3.0 program: MIT, ISC, BSD,
 Apache-2.0 (npm packages), ISC (icons from Lucide, copied into `Sprite.vue`), Apache-2.0 (the profiles' pictures from
 Google's Noto Emoji, in `src/renderer/public/avatars/` with their license), the SIL Open Font License (JetBrains Mono, the terminal's font) and Chromium's licenses
 (in Electron; packaged builds carry `LICENSE` and `LICENSES.chromium.html`). A new dependency must have a license

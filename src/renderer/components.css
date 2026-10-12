@@ -105,6 +105,9 @@ svg:has(> use) { width: 16px; height: 16px; flex: none; fill: none; stroke: curr
   .picon { flex: none; width: var(--icon); height: var(--icon); color: var(--color); }
   &.inset { padding-inline-start: calc(2 * var(--inset) + var(--icon)); }
   :is(small, kbd):empty { display: none; }
+  /* Its 🗑 (a closed task's): on the row the pointer or the keyboard is on */
+  .remove { flex: none; visibility: hidden; margin-block: -4px; }
+  &:is(:hover, [data-highlighted]) .remove { visibility: visible; }
   /* The chosen row of a list (a project in the projects' manager: Reka's Listbox) */
   &[aria-selected="true"] { background: var(--island-hi); color: var(--text-strong); } }
 /* A list a dialog edits (a project's code, agents and profiles; an agent's accounts), as JetBrains' lists: framed, a

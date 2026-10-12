@@ -13,8 +13,9 @@ This is the record of how Kulisa's design was tested and decided: the experiment
 
 - **Embedded panes only.** External Chrome (E1, E5) worked but was dropped by the author's direction: everything
   happens inside Kulisa. Its E1/E2 per-site sign-in runs were never needed.
-- **Strict sign-in works embedded**: a GoDaddy-federated Microsoft 365 tenant behind Kasada signed in, with Chrome
-  mimicry and no automation attached during sign-in (automatic sign-in pause).
+- **Strict sign-in works embedded**: a GoDaddy-federated Microsoft 365 tenant behind Kasada signed in with no automation
+  attached during sign-in (automatic sign-in pause). Chrome mimicry was on then too, and credited; it turned out not
+  to be needed and was dropped ("Chrome mimicry dropped", below).
 - **Agent control:** Kulisa's own profile-aware MCP tools on playwright-core over a CDP proxy (E4a and E4b
   together), plus a Claude Code plugin. `@playwright/mcp` also works through the proxy.
 - **Not measured yet:** CPU and timings with the monitor on (ROADMAP, open issues).

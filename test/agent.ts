@@ -11,8 +11,10 @@ import { fileURLToPath } from 'url';
 import http from 'http';
 import WebSocket from 'ws';
 import { assert, root, project, pfile, panel, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, closeSettings, chooseProfile, setProfileField, closeMenu, taskMenu, box, pageBox, click, PORT } from './helpers.ts';
-import { CLAUDE_PLUGIN } from '../src/main/app.ts';
+import { AGENT_PACKAGES } from '../src/main/app.ts';
+const CLAUDE_PLUGIN = path.join(AGENT_PACKAGES, 'claude-plugin');
 import { MARK } from '../src/main/ghost.ts';
+import { hookCommand } from '../src/main/agents/agent.ts';
 import { highlights } from '../src/main/mcp-server.ts';
 import type { Test } from './run.ts';
 import type { StoredProfile } from '../src/main/profile-store.ts';
@@ -104,7 +106,7 @@ export default (test: Test) => {
   });
   test('agent bridge: the Claude Code plugin is valid and points at this MCP server', async ({ shell }) => {
     assert.ok(fs.existsSync(path.join(CLAUDE_PLUGIN, '.claude-plugin', 'plugin.json')));
-    assert.ok(fs.existsSync(path.join(CLAUDE_PLUGIN, 'skills', 'profiles', 'SKILL.md')));
+    assert.ok(fs.existsSync(path.join(AGENT_PACKAGES, 'skills', 'profiles', 'SKILL.md')), "the profiles skill, every agent's");
     const mcp = JSON.parse(fs.readFileSync(path.join(CLAUDE_PLUGIN, '.mcp.json'), 'utf8'));
     assert.equal(mcp.mcpServers.kulisa.url, '${KULISA_MCP_URL}');
     assert.equal(shell.task.env().KULISA_MCP_URL, `${shell.mcp.base}/task/project/1/mcp`);
@@ -149,8 +151,7 @@ export default (test: Test) => {
     assert.equal(sam.tabs.length, tabs);
   });
   test('agent bridge: at session start the plugin hook tells the agent which profiles are open, and Kulisa notes the session', async ({ shell, instructions }) => {
-    const hooks = JSON.parse(fs.readFileSync(path.join(CLAUDE_PLUGIN, 'hooks', 'hooks.json'), 'utf8'));
-    const command = hooks.hooks.SessionStart[0].hooks[0].command;
+    const command = hookCommand('session-start'); // what every agent's SessionStart hook runs (agents/agent.ts)
     // Run it the way Claude Code does (bash), in the background: Kulisa answers it from this process.
     // Claude Code passes the hook its input as JSON on stdin.
     const transcript = path.join(project, 'transcript.jsonl');
@@ -176,7 +177,7 @@ export default (test: Test) => {
     assert.match(context, only);
     assert.match(await instructions(), only);
     const outside = await run({});
-    assert.deepEqual(outside, { code: 0, out: '' }, 'outside Kulisa the hook does nothing');
+    assert.deepEqual(outside, { code: 0, out: '' }, 'without its URL the hook does nothing and fails nothing');
   });
   test('agent: highlight elements for the human (also on Trusted Types pages), then clear', async ({ shell, call }) => {
     const sam = shell.profiles.get('sam-seller');
@@ -569,10 +570,18 @@ export default (test: Test) => {
     const b = await page.locator('#pay').boundingBox();
     const x = Math.round(b.x + b.width / 2), y = Math.round(b.y + b.height / 2);
     const wc = elon.get().wc;
-    wc.sendInputEvent({ type: 'mouseMove', x, y });
-    wc.sendInputEvent({ type: 'mouseDown', x, y, button: 'left', clickCount: 1 });
-    wc.sendInputEvent({ type: 'mouseUp', x, y, button: 'left', clickCount: 1 });
-    const pick = await pending;
+    // Pick mode reaches the page a moment after it starts (Playwright's recorder in the page learns it by a message, or
+    // by polling once a second), and says nothing when: a click before goes to the page (Pay now again), so it clicks
+    // again, as the human would, until the pick comes (the test once waited 30 s for a click that came too early).
+    let pick: { locator: string; tab: string } | undefined;
+    pending.then((r: typeof pick) => { pick = r; });
+    for (let i = 0; !pick && i < 20; i++) {
+      wc.sendInputEvent({ type: 'mouseMove', x, y });
+      wc.sendInputEvent({ type: 'mouseDown', x, y, button: 'left', clickCount: 1 });
+      wc.sendInputEvent({ type: 'mouseUp', x, y, button: 'left', clickCount: 1 });
+      await Promise.race([pending, sleep(500)]);
+    }
+    assert.ok(pick, 'picked');
     assert.equal(pick.locator, "getByRole('button', { name: 'Pay now' })");
     assert.equal(pick.tab, elon.active);
     assert.ok(!fs.existsSync(path.join(project, '.kulisa')), 'nothing is written into the project');

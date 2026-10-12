@@ -50,7 +50,7 @@ class Project {
   closedTasks() { return [...this.tasks.values()].filter((t) => t.entry.closed).sort((a, b) => (b.entry.closedAt ?? 0) - (a.entry.closedAt ?? 0)); }
   // Its task with this key ("<project id>/<n>", tasks.ts), or null.
   taskByKey(key: string) { return [...this.tasks.values()].find((t) => t.key === key) || null; }
-  // A conversation of one of its tasks with a transcript: where its agents keep their data (agents.ts: Claude's config).
+  // A conversation of one of its tasks with a transcript: where its agents keep their data (agents/: Claude's config).
   agentData() { return [...this.tasks.values()].flatMap((t) => t.conversations()).find((c) => c.transcript) || {}; }
   async checkGit() { this.git = await gitOf(this.folder); }
   save() {
@@ -92,7 +92,7 @@ class Project {
       const home = beside ? null : freeFolder(path.join(this.shell.projectsHome, `${this.id}@${name}`));
       const copies: Copy[] = [];
       try {
-        for (const r of gits) copies.push(await createWorktree(r, branch, home && path.join(home, copyName(copies, r))));
+        for (const r of gits) copies.push(await createWorktree(r, branch, home && path.join(home, copyName(copies, r)), this.shell.agentFiles));
       } catch (e) {
         for (const c of copies) await removeWorktree(c);
         if (home) fs.rmSync(home, { recursive: true, force: true });
@@ -121,7 +121,7 @@ class Project {
       entry.home ??= freeFolder(path.join(this.shell.projectsHome, `${this.id}@task-${task.n}`));
       const branch = await freeBranch([r], entry.branch ?? `task-${task.n}`);
       try {
-        const c = await createWorktree(r, branch, path.join(entry.home!, copyName(entry.copies, r)));
+        const c = await createWorktree(r, branch, path.join(entry.home!, copyName(entry.copies, r)), this.shell.agentFiles);
         entry.copies.push(c); made.push(c);
       } catch (e) { console.warn('[tasks] copy:', (e as GitError).stderr || (e as Error).message); }
     }
@@ -158,16 +158,7 @@ class Project {
     delete task.entry.closed; delete task.entry.closedAt; delete task.entry.merged;
     this.save();
   }
-  // Deleting a task asks first, told what goes for good, with the work not in its repositories' main branches and not
-  // pushed that goes with it.
-  async askDeleteTask(task: Task) {
-    const copies = task.entry.copies || [];
-    const what = changesText(await changesOf(copies));
-    const goes = [...copies.map((c) => `its folder ${c.worktree}, its branch ${c.branch}`), 'its profiles with their sign-ins',
-      ...(copies.length ? ["its agent's conversations in its folder"] : [])];
-    return this.shell.ask(deleteQuestion({ message: `Delete the task ${task.name}?`, ok: 'Delete', goes, notInMain: what ? [what] : [],
-      stays: !copies.length && `It worked in ${task.folder}: its files stay, and so does its agent's conversation there.` }), this.window);
-  }
+  askDeleteTask(task: Task) { return askDeleteTask(this.shell, task.entry, task.folder, this.window); }
   // Once it is not shown.
   async deleteTask(task: Task) {
     await task.unload();
@@ -214,8 +205,29 @@ function freeFolder(f: string) {
 const changesOf = async (copies: Copy[]) => (await Promise.all(copies.map((c) => changes(c))))
   .reduce((a, b) => ({ commits: a.commits + b.commits, dirty: a.dirty + b.dirty }), { commits: 0, dirty: 0 });
 
+// Deleting a task asks first, told what goes for good, with the work not in its repositories' main branches and not
+// pushed that goes with it. folder: where it works (Task.folder).
+async function askDeleteTask(shell: Shell, entry: TaskEntry, folder: string, w: AppWindow | null) {
+  const copies = entry.copies || [];
+  const what = changesText(await changesOf(copies));
+  const goes = [...copies.map((c) => `its folder ${c.worktree}, its branch ${c.branch}`), 'its profiles with their sign-ins',
+    ...(copies.length ? ["its agent's conversations in its folder"] : [])];
+  return shell.ask(deleteQuestion({ message: `Delete the task ${entry.name}?`, ok: 'Delete', goes, notInMain: what ? [what] : [],
+    stays: !copies.length && `It worked in ${folder}: its files stay, and so does its agent's conversation there.` }), w);
+}
+// A closed task of a project with no group (the bar's + lists them): nothing of it is loaded, its entry is all there is.
+async function deleteClosedTask(shell: Shell, p: ProjectEntry, n: number, w: AppWindow): Promise<Result<{ n: number }>> {
+  const entry = shell.store.tasksOf(p).list.find((e) => e.n === n && e.closed);
+  if (!entry) return { error: `no closed task ${n}` };
+  if (!await askDeleteTask(shell, entry, entry.folder || p.folder, w)) return { error: 'the human said no' };
+  await deleteTask(shell, p, entry);
+  const file = shell.store.tasksOf(p);
+  shell.store.saveTasksOf(p, { ...file, list: file.list.filter((e) => e.n !== n) });
+  return { n };
+}
+
 // A task deleted for good, the one way it is done (Delete, removing a project), once it is not running: each copy's
-// worktree folder and branch (worktrees.ts), its folder of copies, and all its agent keeps of its folder (agents.ts,
+// worktree folder and branch (worktrees.ts), its folder of copies, and all its agent keeps of its folder (agents/,
 // forget); its data folder, profiles with their sign-ins included. A task without copies worked in a folder of the
 // project: its data only; the folder, and what its agent keeps of it, are the human's, as without Kulisa. p: the
 // project's entry (open or not).
@@ -442,5 +454,5 @@ function pictureOf(file: string) {
   } catch { return null; }
 }
 
-export { Project, askDeleteProject, deleteProjectData, iconFile, iconOfFile, pictureOf, PICTURE_TYPES, addRepo, cloneRepo, defaultRepo, removeRepo, reposInfo,
+export { Project, askDeleteProject, deleteClosedTask, deleteProjectData, iconFile, iconOfFile, pictureOf, PICTURE_TYPES, addRepo, cloneRepo, defaultRepo, removeRepo, reposInfo,
   askDropProfile, dropProfile, deleteProfile, agentsInfo, addAgent, defaultAgent, removeAgent, deleteAccount, PROJECT_ICONS };

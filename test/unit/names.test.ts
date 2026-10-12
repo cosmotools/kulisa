@@ -14,7 +14,12 @@ test('names: the characters of an email address, letters of any language', () =>
 test('local addresses: a pair is typed on the developer\'s own machine or network, or a page a local one led to, never on a big provider', () => {
   for (const u of ['http://localhost:3000/', 'http://shop.localhost/', 'http://127.0.0.1:4417/app', 'http://[::1]:8080/', 'http://192.168.1.20/',
     'http://10.0.0.5/', 'http://172.20.0.2/', 'https://shop.test/', 'http://printer.local/']) assert.ok(isLocal(u), u);
-  for (const u of ['https://shop.com/', 'http://172.32.0.1/', 'https://localhost.evil.com/', 'not a url', 'https://test.com/']) assert.ok(!isLocal(u), u);
+  // IPv6's private and link-local addresses, and IPv4 written as IPv6 (URL makes ::ffff:127.0.0.1 ::ffff:7f00:1): the
+  // regular expressions before ipaddr.js missed them.
+  for (const u of ['http://[::ffff:127.0.0.1]:3000/', 'http://[::ffff:192.168.1.20]/', 'http://[fd12:3456::1]/', 'http://[fe80::1]/',
+    'http://169.254.1.1/']) assert.ok(isLocal(u), u);
+  for (const u of ['https://shop.com/', 'http://172.32.0.1/', 'https://localhost.evil.com/', 'not a url', 'https://test.com/',
+    'http://8.8.8.8/', 'http://[2001:4860::8888]/', 'http://[::ffff:8.8.8.8]/', 'http://127.0.0.1.nip.io/']) assert.ok(!isLocal(u), u);
   assert.ok(isLocal('https://abc.ngrok.app/login', ['ngrok.app']), "the project's own list");
   assert.ok(loginAllowed(['http://localhost:3000/', 'https://dev-x.auth0.com/login']), 'reached from a local page in the same tab');
   assert.ok(!loginAllowed(['http://localhost:3000/', 'https://accounts.google.com/signin']), 'never a big provider');

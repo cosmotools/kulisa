@@ -95,8 +95,11 @@ agent outside Kulisa are not used. It is shown by its email, and stays until you
 A task may have several agents at once, each in a tab of its own (Terminals, below): Claude Code next to Codex, two of
 your accounts, or one agent twice. Each starts a new conversation and names its tab in a few words once it knows what
 it works on. To pass the work on (when one runs out of its limit, or for a fresh start), click the agent's icon on its
-tab and choose **Hand the task to** an agent: it opens in a new tab, reads what was said and done in that
-conversation, and tells you in a few lines where it stands. The old tab stays until you close it. Or simply tell an
+tab (or **Change agent…** in its right-click menu). **Change Agent** shows what goes along to the next one: the
+task's branch, its profiles still signed in, their tabs, the terminals running, the whole conversation; and what stays
+behind. Choose the agent and **Hand over**: it reads what was said and done in that conversation while you watch the work go
+over to it, then its tab opens and it tells you in a few lines where it stands. If it needs you first (a permission, a
+sign-in), its tab opens at once; **Show now** does not wait. The old tab stays until you close it. Or simply tell an
 agent "go on with what Claude did": every agent of the task can read the others' conversations.
 
 **Dictation**, where the agent has its own (Claude Code with a Claude.ai account): the microphone at the end of the
@@ -115,15 +118,17 @@ you to read and send. Its language is next to it.
   the project's folder.
 - **Its own ports.** Each task runs your app on its own ports, the usual ones plus 100, 200, …, so several tasks run
   the app at once. Its profiles' tabs on local addresses already point there, and stay signed in.
-- **Its name** is `task-1`, `task-2` … until the agent names it, once it knows what the task is about, or you do
-  (**Rename…** in its tab's right-click menu). The branch takes the name too.
+- **Its name** is `task-1`, `task-2` … until the agent names it, by itself and without a word about it, once your
+  message says what the task is about, or you do (**Rename…** in its tab's right-click menu). The branch takes the name too. Until it has a name,
+  holding the pointer over its tab (or its row among the closed tasks) shows your first message in it.
 - **Its state** on its tab: working (sparkles), waiting for you (a bell: a question, a permission, a limit), done (a
   check, until you look at the task).
 - **Switch** by clicking a tab, of any group. The other tasks keep running: their agents and pages go on.
 - **× closes a task**: its agent stops and its tabs close; its code, branch, profiles and conversation stay. Open it
   again from **+** (under its project) or its group's right-click menu: the agent continues the conversation.
 - **Delete Task…** (its tab's right-click menu) deletes it for good: its copy of the code, its branch, its profiles'
-  copies, its conversation. The question says what would be lost (work not merged and not pushed). Once a closed
+  copies, its conversation. The question says what would be lost (work not merged and not pushed). A closed task is
+  deleted from its row in **+** or its group's menu: the trash can at the row's end (or the Delete key). Once a closed
   task's work is merged, its group's menu marks it "merged" and offers **Delete Merged Tasks…**.
 
 ### Groups

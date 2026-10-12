@@ -15,7 +15,8 @@ const about = (t: ProjectTask) => [t.branch !== t.name && t.branch, 'closed', t.
 function items(): MenuItem[] {
   const rows = store.projects.projects.flatMap((p): MenuItem[] => [
     { label: p.name, project: p, run: () => kulisa.invoke('project:open', { id: p.id }) },
-    ...p.tasks.filter((t) => t.closed).map((t) => ({ label: t.name, sub: about(t), inset: true,
+    ...p.tasks.filter((t) => t.closed).map((t) => ({ label: t.name, sub: about(t), title: t.about, inset: true,
+      remove: { label: 'Delete Task…', run: () => kulisa.invoke('task:delete-closed', { project: p.id, n: t.n }) },
       run: () => kulisa.invoke('project:open', { id: p.id, task: t.n }) })),
   ]);
   return [...(rows.length ? [{ heading: 'New Task of' }, ...rows] : [{ note: 'No projects yet' }]),
