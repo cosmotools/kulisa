@@ -30,7 +30,9 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
     of its ×), and the shown project's tabs come with the projects' news, not after it. Islands that moved under the mouse made
     the human miss (the author, 2026-10-08).
   - **A click on the label folds the group** to it, as Chrome's collapsed tab groups, and back (kept in
-    `tasks.json`); the tab of the task it shows stays, so the grid on screen keeps its tab. Showing a project is a
+    `tasks.json`), all its tabs, the shown group's too (its label stays the bright one). Until 2026-10-12 the tab of
+    the task it showed stayed, so the grid on screen kept its tab; the author found a fold that left one tab in one
+    group and another in the next unexpected: every group folds alike. Showing a project is a
     click on one of its tasks (two ways to the same thing confused, when the label showed it too).
   - **A right-click on the label opens the group's menu**, as Chrome's tab group's: New Task, its **closed
     tasks** under a heading (the one closed last first; a click opens one again; Delete Merged Tasks… when some are
