@@ -602,7 +602,7 @@ export default (test: Test) => {
   const opened = () => { try { return fs.readFileSync(path.join(root, 'opened'), 'utf8').trim().split('\n'); } catch { return []; } };
   const accountDir = (id: string) => path.join(userData, 'agents', id);
   const logouts = () => { try { return fs.readFileSync(path.join(root, 'logouts'), 'utf8').trim().split('\n'); } catch { return []; } };
-  test("agents: a new account is made in the project's settings: the agent's own sign-in at once, in a terminal there (under Details), its page in the user's own browser (Google refuses an embedded one); named by the email it signed in to; a task runs it with its folder", async (ctx) => {
+  test("agents: a new account is made in the project's settings: the agent's own sign-in at once, in a terminal there (under Details), its page in the user's own browser (Google refuses an embedded one); named by the email it signed in to; a task runs it with its folder, over a folder the project's environment sets", async (ctx) => {
     const { ui } = ctx;
     await projectSettings(ui);
     const windows = electron.BrowserWindow.getAllWindows().length;
@@ -640,7 +640,8 @@ export default (test: Test) => {
     assert.ok(!fs.existsSync(accountDir('fake-4')));
     await ui(`document.getElementById('npsignincancel').click()`);
     await closeSettings(ui);
-    // A task runs it: the agent with its folder in its variable. Choosing a task's agent lists the project's accounts.
+    // A task runs it: the agent with its folder in its variable, though the project's environment set it to another
+    // (run.ts: its shell's startup, as a project's .envrc). Choosing a task's agent lists the project's accounts.
     const task = await newTask(ctx);
     await waitFor(() => task.agent?.id === 'fake-1', 20000); // the project's default: its one account
     ctx.watchPty(task.pty);

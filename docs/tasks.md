@@ -174,8 +174,10 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   open the windows that were open, each with its projects, showing the one shown last (`windows` in `settings.json`);
   `KULISA_PROJECT=<folder> npm start` adds that one to the first window and shows it.
 - **The agent** of each task starts in the user's own shell, in the task's folder, as if the human typed
-  it in a terminal there: the project's environment applies (direnv's `.envrc`, nvm, mise; e.g. a project's
-  `CLAUDE_CONFIG_DIR`, another Claude account), not the one Kulisa was started with. When it exits, the shell stays.
+  it in a terminal there: the project's environment applies (direnv's `.envrc`, nvm, mise), not the one Kulisa was
+  started with. When it exits, the shell stays. Its account's variable (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`) is typed
+  before the command (`CLAUDE_CONFIG_DIR=… claude …`), so the task's account wins over a project's `.envrc` that sets
+  it too (the author, 2026-10-12: one of them ran a task as another Claude account, silently).
   direnv's state in Kulisa's own environment (started from a terminal in a folder direnv had loaded) is dropped at
   start: a task's shell took it for that folder left and undid its `.envrc`, an account's `CLAUDE_CONFIG_DIR` with it.
   On Windows it starts directly, without a shell (ROADMAP, Open issues).
@@ -355,7 +357,8 @@ are not programmers); its accounts are made there too, or in a project's page.
     naming the projects that let go of it): signed out with its agent's own command (`auth logout`: what it keeps
     outside its folder goes too, the Keychain's entry on macOS), then its folder, with its sign-in, settings and
     conversations.
-  The project's own environment still comes last (direnv's `.envrc` may set `CLAUDE_CONFIG_DIR`), as without Kulisa.
+  The task's account wins over the project's own environment (a `.envrc` setting `CLAUDE_CONFIG_DIR`): its variable
+  is typed with the agent's command ("The agent", above).
 - The dialogs are part of the window, not windows of their own: no extra process. `AgentPicker.vue` (choosing) and
   Settings → Agents (`AgentsTab.vue`, its state kept by Settings, so an install goes on behind a project's page and
   Settings stays open while it runs) share the state of one list of agents with Install (`lib/agents.ts`), each with

@@ -17,6 +17,7 @@ type Pty = IPty & { spawnSize: Size; spawnArgs: string[]; key: string; tail: str
 interface TerminalConfig {
   command?: string | null; args?: string[]; cwd?: string; env?: Record<string, string | undefined>;
   shell?: { command: string; args?: string[] } | false | null; line?: string; size?: Size | null; sizeOf?: string;
+  pinned?: Record<string, string>;
 }
 type Send = (channel: string, data: unknown) => void;
 interface Term { pty: Pty | null; size: Size | null; firstSize: Promise<void>; sized: () => void }
@@ -50,6 +51,8 @@ const shQuote = (a: string) => (/^[\w@%+=:,./-]+$/.test(a) ? a : `'${a.replace(/
 // opened a terminal in the project and ran it: the shell's startup sets the project's environment (direnv's .envrc,
 // nvm, mise …), which Kulisa's own environment (where Kulisa was started) is not. When the agent exits, the shell
 // stays. shell: { command, args } instead of the user's, or false to start the agent directly (as on Windows).
+// pinned: variables of env the shell's startup must not change, typed before the command too (`VAR=… cmd`: bash, zsh,
+// fish 3.1+): the task's account, which a project's .envrc setting CLAUDE_CONFIG_DIR replaced (2026-10-12).
 // line: a command line typed into the shell as it is (a terminal's other than the agent's; none: the shell alone),
 // on Windows into cmd. size: start at it rather than wait for the window's (a terminal behind another panel has none);
 // sizeOf: or at that terminal's (the agent's, whose panel it sits behind after a restart), whichever comes first.
@@ -66,7 +69,10 @@ async function startTerminal(send: Send, cfg: TerminalConfig, key: string): Prom
     env: { ...process.env, COLORTERM: 'truecolor', ...(cfg.env || {}) } as Record<string, string>,
   }) as Pty;
   if (cfg.line) typeWhenReady(p, `${cfg.line}\r`);
-  else if (sh && cfg.command) typeWhenReady(p, ` ${[cfg.command, ...(cfg.args || [])].map(shQuote).join(' ')}\r`);
+  else if (sh && cfg.command) {
+    const vars = Object.entries(cfg.pinned || {}).map(([k, v]) => `${k}=${shQuote(v)}`);
+    typeWhenReady(p, ` ${[...vars, ...[cfg.command, ...(cfg.args || [])].map(shQuote)].join(' ')}\r`);
+  }
   p.spawnSize = { cols: p.cols, rows: p.rows };
   p.spawnArgs = cfg.args || [];
   p.key = key;

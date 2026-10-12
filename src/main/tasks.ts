@@ -193,7 +193,7 @@ class Task {
     for (const c of this.entry.copies || []) await agent!.prepare?.({ folder: c.folder, project: { folder: c.repo, ...this.project.agentData() }, configDir: agent!.configDir });
     // The program by name, as the human would type it, unless the shell does not find it yet (just installed).
     const a = agent!, command = found.onPath ? a.command : found.path;
-    this.pty = await startTerminal((channel, data) => this.window?.send(channel, data), { command, shell: a.shell, cwd: this.folder, env: { ...this.env(), ...more.env, ...a.env },
+    this.pty = await startTerminal((channel, data) => this.window?.send(channel, data), { command, shell: a.shell, cwd: this.folder, env: { ...this.env(), ...more.env, ...a.env }, pinned: a.env,
       args: [...(resume || []), ...(a.args?.({ env: this.env(), plugin: shell.plugin }) || []), ...(more.args || []), ...(a.voice?.args || []), ...first] }, this.key);
     // Read again: its session's start may have reported the session meanwhile. The handoff is said.
     const { handoff: said, ...now } = this.store.agent();
