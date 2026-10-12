@@ -35,7 +35,7 @@ export interface ProjectTask { n: number; name: string; branch?: string | null; 
 export interface ProjectsInfo {
   current: string | null;
   projects: ProjectEntry[];
-  open: { id: string; task?: string | null; collapsed?: boolean; tasks?: TaskInfo[]; agents?: { id: string; name: string; cli: string }[] }[];
+  open: { id: string; task?: string | null; tasks?: TaskInfo[]; agents?: { id: string; name: string; cli: string }[] }[];
   elsewhere?: string[];
   windows?: { id: number; names: string[] }[];
 }

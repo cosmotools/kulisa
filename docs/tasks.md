@@ -29,11 +29,9 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   - **Nothing in it moves** when another project or task is shown: every island keeps its width (every tab the room
     of its ×), and the shown project's tabs come with the projects' news, not after it. Islands that moved under the mouse made
     the human miss (the author, 2026-10-08).
-  - **A click on the label folds the group** to it, as Chrome's collapsed tab groups, and back (kept in
-    `tasks.json`), all its tabs, the shown group's too (its label stays the bright one). Until 2026-10-12 the tab of
-    the task it showed stayed, so the grid on screen kept its tab; the author found a fold that left one tab in one
-    group and another in the next unexpected: every group folds alike. Showing a project is a
-    click on one of its tasks (two ways to the same thing confused, when the label showed it too).
+  - **A click on the label does nothing.** Until 2026-10-12 it folded the group to it, as Chrome's collapsed tab
+    groups; the author found the tasks hidden by a click on the label annoying, and groups do not fold since. Showing a
+    project is a click on one of its tasks (two ways to the same thing confused, when the label showed it too).
   - **A right-click on the label opens the group's menu**, as Chrome's tab group's: New Task, its **closed
     tasks** under a heading (the one closed last first; a click opens one again; Delete Merged Tasks… when some are
     merged), Move to New Window, Move to Window, Project Settings… (what a group has not: its code, agents, profiles,
@@ -208,7 +206,7 @@ build several features of one project at once.
   instructions), or to open a pull request.
 - **Without git** (or before a first commit) a task works right in the project's folder: there is nothing to copy it
   with. A second open task there is made only after a question ("two agents may get in each other's way").
-- **Its name** is `task-<n>` until its agent names it (`task_rename`) or the human does (Rename… in its tab's menu):
+- **Its name** is `task-<n>` until its agent names it (`task_rename`) or the human does (Rename… in its tab's menu, or a double click on its tab):
   the tab and the branch take the name (`git branch -m`, `-2` when the branch is taken); the folder stays
   `<repo>@task-<n>`, not moved under a running agent. Until it is named, its agent is told to name it once the human's
   request says what it is about, before anything else and silently (never asking the human or mentioning it: Kulisa
@@ -279,11 +277,10 @@ to the human; the window's IPC (`app.ts`) and the MCP tools are handles on it:
 | Delete a project | Delete Project… in the projects' manager | none: it deletes sign-ins, the human's to decide | `deleteProject` (`app.ts`), `askDeleteProject`, `deleteProjectData` (`projects.ts`) |
 | Make a task | the bar's +, Ctrl+Shift+N, New Task in its group's menu | not yet (ROADMAP, "Tasks, rest") | `Project.createTask` |
 | Close a task, open it again | ×; the bar's +, its group's menu | none: what runs is the human's to stop | `Project.closeTask`, `reopen` |
-| Rename a task | Rename… in its tab's menu | `task_rename` | `Task.rename` |
+| Rename a task | Rename… in its tab's menu, or a double click on its tab | `task_rename` | `Task.rename` |
 | Read what was said and done in the task before | its terminal, scrolled back | `task_history` ([transcripts.md](transcripts.md)) | `historyPart` (`history.ts`) |
 | Delete a task | Delete Task… in its tab's menu; a closed one's 🗑 in the bar's + and its group's menu | none: it deletes work and sign-ins, the human's to decide | `askDeleteTask`, `deleteTask`, `deleteClosedTask` (`projects.ts`) |
 | Show a task | a click on its tab, of any group | none: what the human looks at is theirs | `AppWindow.showTask`, then `show` its project (`window.ts`) |
-| Fold a project's group | a click on its label | none: how the human sees the bar | `Project.collapse` |
 | Add, clone, make the default, remove a repository | the projects' manager | none: what the project is made of is the human's | `addRepo`, `cloneRepo`, `defaultRepo`, `removeRepo` (`projects.ts`); `Task.reposChanged` |
 | Add, make the default (or none the default), remove an agent of the project | the projects' manager | none: what the project is made of is the human's | `addAgent`, `defaultAgent`, `removeAgent` (`projects.ts`) |
 | Make an account of an agent | New Account… in Settings → Agents or a project's page | none: signing in is the human's (Rules) | `account:signin` (`app.ts`), `Accounts.prepare`, `create` |
@@ -573,7 +570,7 @@ settings.json                     the Kulisa zoom, the theme, where the tasks' b
                                   projects (in the bar's order), the one shown, where it was
 deleted-folders.json              folders to remove at the next start (a session keeps its files open)
 projects/<project id>/
-  tasks.json                      { next, current, collapsed, list: [{ n, name, branch, offset, folder (its agent's),
+  tasks.json                      { next, current, list: [{ n, name, branch, offset, folder (its agent's),
                                   copies: [{ repo, worktree, branch, base, folder }], home (its folder of copies),
                                   closed, closedAt, about }] }; base: the commit a copy started from; about: its first
                                   prompt's first line, until it is named; no copies: it works in

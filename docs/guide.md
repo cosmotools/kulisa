@@ -121,7 +121,7 @@ you to read and send. Its language is next to it.
 - **Its own ports.** Each task runs your app on its own ports, the usual ones plus 100, 200, …, so several tasks run
   the app at once. Its profiles' tabs on local addresses already point there, and stay signed in.
 - **Its name** is `task-1`, `task-2` … until the agent names it, by itself and without a word about it, once your
-  message says what the task is about, or you do (**Rename…** in its tab's right-click menu). The branch takes the name too. Until it has a name,
+  message says what the task is about, or you do (**Rename…** in its tab's right-click menu, or a double click on its tab). The branch takes the name too. Until it has a name,
   holding the pointer over its tab (or its row among the closed tasks) shows your first message in it.
 - **Its state** on its tab: working (sparkles), waiting for you (a bell: a question, a permission, a limit), done (a
   check, until you look at the task).
@@ -135,7 +135,6 @@ you to read and send. Its language is next to it.
 
 ### Groups
 
-- A click on a group's name folds it to its name, and back.
 - Its right-click menu: New Task, its closed tasks, Move to New Window, Move to Window, Project Settings…, Show Data
   Folder, Close Group.
 - **Close Group** (or the middle button on its name, or × on its last task) closes all its tasks. It asks only when an

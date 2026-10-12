@@ -26,7 +26,7 @@ type Named = Pick<StoredProfile | ProfileConfig, 'name'>;
 
 class Project {
   shell: Shell; store: Store; window: AppWindow | null; id: string; entry!: ProjectEntry; name!: string; color!: string; folder!: string;
-  git: Git | null; tasks: Map<number, Task>; next: number; collapsed: boolean; task: Task | null;
+  git: Git | null; tasks: Map<number, Task>; next: number; task: Task | null;
   // entry: the project in projects.json (store.ts): { id, name, folder, repos, color, icon, agents }. shell: the app
   // (app.ts), as Task takes it. window: the window it is open in (window.ts, add).
   constructor(shell: Shell, entry: ProjectEntry) {
@@ -34,8 +34,8 @@ class Project {
     this.id = entry.id; this.update(entry);
     this.git = null; // its default repository's: 'ok', 'no-commit' (no copies before a first commit), 'none'
     this.tasks = new Map(); // by number, open and closed
-    const { next, current, collapsed, list } = this.store.tasksOf(entry);
-    this.next = next; this.collapsed = !!collapsed;
+    const { next, current, list } = this.store.tasksOf(entry);
+    this.next = next;
     for (const e of list) this.tasks.set(e.n, new Task(shell, this, e));
     this.task = this.open().find((t) => t.n === current) || this.open()[0] || null; // the one it shows
   }
@@ -56,13 +56,11 @@ class Project {
   agentData() { return [...this.tasks.values()].flatMap((t) => t.conversations()).find((c) => c.transcript) || {}; }
   async checkGit() { this.git = await gitOf(this.folder); }
   save() {
-    this.store.saveTasksOf(this, { next: this.next, current: this.task?.n ?? null, ...(this.collapsed && { collapsed: true }),
+    this.store.saveTasksOf(this, { next: this.next, current: this.task?.n ?? null,
       list: [...this.tasks.values()].map((t) => t.entry) });
   }
   // The task it shows, kept for the next time it opens.
   select(task: Task | null) { this.task = task; this.save(); }
-  // Its group in the bar folded to its label (the shown task's tab stays), as Chrome's tab groups.
-  collapse(on: boolean) { this.collapsed = !!on; this.save(); }
 
   // Something to show as it opens: its open task, else the one closed last opened again, else a new one.
   async ensureTask(): Promise<Task> {

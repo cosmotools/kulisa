@@ -31,13 +31,9 @@ const manage = async (id?: string) => (await dialog('projects')).openProjects(id
 
 // A project's own events, not its tasks' (TaskTab.vue handles those).
 const projectOf = (e: Event) => (e.target as Element).closest<HTMLElement>('[data-project]')?.dataset.project;
-// The label folds the group to it and back, as Chrome's tab groups (every group alike, the shown one too:
-// docs/tasks.md). The middle button on the label closes the group, as a browser's tab. A new task is the bar's + (NewTask.vue), or New Task in the label's menu.
-function click(e: MouseEvent) {
-  const id = projectOf(e), target = e.target as Element;
-  if (!id) return;
-  if (target.closest('.plabel')) kulisa.invoke('project:collapse', { id, collapsed: !target.closest('.pisland')!.classList.contains('collapsed') });
-}
+// The middle button on the label closes the group, as a browser's tab. A new task is the bar's + (NewTask.vue), or
+// New Task in the label's menu. Groups do not fold: folding on a click hid the tasks when the label was clicked by the
+// way (the author, 2026-10-12).
 function auxclick(e: MouseEvent) {
   const id = e.button === 1 && projectOf(e);
   if (id) close(id);
@@ -45,13 +41,22 @@ function auxclick(e: MouseEvent) {
 // The bar's right-click menu, for what it was on. A task's tab: the shown one's profiles, Rename…, Show Folder, Delete
 // Task…. A project's island: its group's menu. From what the window was last told (store.projects): it opens at once.
 function menu(e: MouseEvent): MenuItem[] | null {
-  const id = projectOf(e), target = e.target as Element;
+  const id = projectOf(e);
   if (!id) return null;
-  const { open } = store.projects;
-  const key = target.closest<HTMLElement>('.tasktab')?.dataset.task;
-  const t = key && [...store.taskTabs.list, ...open.flatMap((o) => o.tasks || [])].find((x) => x.key === key);
+  const t = taskAt(e);
   if (t) return taskMenu(t);
   return groupItems(id);
+}
+// The task whose tab e was on, from what the window was last told.
+function taskAt(e: Event) {
+  const key = (e.target as Element).closest<HTMLElement>('.tasktab')?.dataset.task;
+  return key && [...store.taskTabs.list, ...store.projects.open.flatMap((o) => o.tasks || [])].find((x) => x.key === key) || null;
+}
+const rename = async (key: string, name: string) => (await dialog('taskrename')).rename(key, name);
+// A double click on a task's tab: its Rename…, as a shortcut to the menu's item (ROADMAP: never the only way).
+function dblclick(e: MouseEvent) {
+  const t = !(e.target as Element).closest('button') && taskAt(e);
+  if (t) rename(t.key, t.name);
 }
 // A project's actions in its group's menu, in Chrome's order where Chrome has them (New tab in group … Close group,
 // Delete group last).
@@ -74,7 +79,7 @@ function groupItems(id: string): MenuItem[] {
 }
 const taskMenu = ({ key, name }: TaskInfo): MenuItem[] => [
   ...(key === store.current ? [{ heading: 'Profiles' }, ...profilesMenu(), '-' as const] : []),
-  { label: 'Rename…', run: async () => (await dialog('taskrename')).rename(key, name) },
+  { label: 'Rename…', run: () => rename(key, name) },
   { label: 'Show Folder', run: () => kulisa.invoke('task:show-folder', key) },
   '-', { label: 'Delete Task…', run: () => kulisa.invoke('task:delete', key) },
 ];
@@ -128,10 +133,10 @@ function dragend(e: DragEvent) {
     <!-- Every open project's tasks one strip of tabs (Reka's Tabs): the shown task chosen; a press on another shows it. -->
     <RightClickMenu :items="menu"><TabsRoot as-child :model-value="store.current ?? undefined" activation-mode="manual"
       @update:model-value="showTask"><TabsList as-child :loop="false">
-      <nav id="projectTabs" ref="tabs" aria-label="Open projects" @click="click" @auxclick="auxclick"
+      <nav id="projectTabs" ref="tabs" aria-label="Open projects" @dblclick="dblclick" @auxclick="auxclick"
         @dragstart="dragstart" @dragover="dragover" @dragleave="dragleave" @drop="drop" @dragend="dragend">
       <div v-for="{ o, p, open } in islands" :key="p.id" class="pisland" :data-project="p.id" :title="p.folder || ''" :style="{ '--color': p.color }"
-        :class="{ active: p.id === store.projects.current, collapsed: !!o.collapsed, dragging: dragged === p.id,
+        :class="{ active: p.id === store.projects.current, dragging: dragged === p.id,
                   'drop-before': mark?.id === p.id && mark.side === 'before', 'drop-after': mark?.id === p.id && mark.side === 'after' }">
         <div class="plabel" draggable="true">
           <ProjectIcon :p />
@@ -175,11 +180,8 @@ function dragend(e: DragEvent) {
       &::before, &::after { inset-block: auto 0; } }
     /* Another project's: the task it comes back to a step brighter. */
     &:not(.active) .selected { color: var(--text-dim); }
-    &.active > .plabel { color: var(--text-strong); }
-    /* Folded: the label alone, as far from both ends (its own room is the tabs'). */
-    &.collapsed { .tasktab { display: none; } > .plabel { padding-inline-end: 0; } } }
-  /* The label: the project's icon (the app's curtain, in its color) and its name. A tab's height: with every group
-     folded the bar would shrink to the icons, and the grid jump. */
+    &.active > .plabel { color: var(--text-strong); } }
+  /* The label: the project's icon (the app's curtain, in its color) and its name. A tab's height. */
   .plabel { display: flex; align-items: center; gap: 8px; height: var(--tab); padding-inline-end: 8px; color: var(--text-muted);
     font-weight: 600; white-space: nowrap; cursor: default;
     svg, .favicon { width: 20px; height: 20px; color: var(--color); } }
