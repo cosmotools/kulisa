@@ -19,8 +19,6 @@ import type { StoredProfile } from '../src/main/profile-store.ts';
 
 // What the agent's ghost shows of an action (ghost.ts).
 type Action = { caption: string; x?: number; y?: number };
-// navigator.userAgentData: Chromium's, not in TypeScript's DOM types yet.
-type UAData = { brands: { brand: string }[]; getHighEntropyValues(hints: string[]): Promise<Record<string, unknown>> };
 
 export default (test: Test) => {
   test('profiles are made in Settings → Profiles, each with its own picture and, if the human says, who it is; added to the project on its page, opened in its task; views are hidden while Settings is open', async ({ shell, ui }) => {
@@ -519,32 +517,18 @@ export default (test: Test) => {
     await waitFor(() => sam.tabs.length === 1);
   });
 
-  test('profiles present themselves as Google Chrome (UA, UA-CH headers, userAgentData, popups)', async ({ shell }) => {
+  // Not presenting as Google Chrome: Google refused to sign in a browser that did and was not (REPORT, "Chrome mimicry
+  // dropped"), and let Electron's own Chromium in.
+  test('profiles present themselves as what they are, Electron\'s Chromium, in pages and popups alike', async ({ shell }) => {
     const elon = shell.profiles.get('elon-buyer');
     const page = await elon.page();
-    await page.goto(`${SITE}/headers`); await page.reload(); // second load: Accept-CH hints are known
-    const nav = JSON.parse(await page.locator('body').innerText());
-    assert.match(nav['user-agent'], /Chrome\/\d+\.0\.0\.0 Safari/);
-    assert.doesNotMatch(nav['user-agent'], /Electron/);
-    assert.match(nav['sec-ch-ua'], /"Google Chrome";v="\d+"/);
-    assert.match(nav['sec-ch-ua-full-version-list'], /"Google Chrome";v="[\d.]+"/);
-    // The machine part is what Chromium itself reports (the shell window has no override), as real Chrome would.
-    const hints = ['platform', 'platformVersion', 'architecture', 'bitness', 'wow64'];
-    const native = await shell.win.webContents.executeJavaScript(`navigator.userAgentData.getHighEntropyValues(${JSON.stringify(hints)})`);
-    const mimicked = await page.evaluate((h) => (navigator as Navigator & { userAgentData: UAData }).userAgentData.getHighEntropyValues(h), hints);
-    for (const h of hints) assert.deepEqual(mimicked[h], native[h], h);
-    assert.equal(nav['sec-ch-ua-platform'], `"${native.platform}"`);
-    assert.equal(nav['user-agent'].match(/\(([^)]+)\)/)[1], app.userAgentFallback.match(/\(([^)]+)\)/)[1]);
-    const js = await page.evaluate(async () => ({
-      brands: (navigator as Navigator & { userAgentData: UAData }).userAgentData.brands.map((b) => b.brand), webdriver: navigator.webdriver,
-      fetch: await fetch('/headers').then((r) => r.json()),
-    }));
-    assert.ok(js.brands.includes('Google Chrome'));
-    assert.equal(js.webdriver, false);
-    assert.match(js.fetch['sec-ch-ua'], /Google Chrome/);
+    await page.goto(`${SITE}/headers`);
+    assert.equal(JSON.parse(await page.locator('body').innerText())['user-agent'], app.userAgentFallback);
+    assert.match(app.userAgentFallback, /Electron\/\d/);
+    assert.equal(await page.evaluate(() => navigator.webdriver), false);
     const [popup] = await Promise.all([page.context().waitForEvent('page'), page.evaluate((u) => window.open(u), `${SITE}/headers`)]);
     await popup.waitForLoadState();
-    assert.match(JSON.parse(await popup.locator('body').innerText())['sec-ch-ua'], /Google Chrome/);
+    assert.equal(JSON.parse(await popup.locator('body').innerText())['user-agent'], app.userAgentFallback);
     await popup.close();
   });
 

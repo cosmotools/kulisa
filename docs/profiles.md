@@ -46,7 +46,7 @@ A profile is an Electron session on a folder of its own (`session.fromPath`), la
 - **Sign in by hand**, once for every task, in its master: **Sign In to Master…** in the pane's right-click menu, or
   **Sign In…** in Settings → Profiles (no task needed: right after making it), opens
   a window of its own on the master (`master.ts`): its page under a small bar (the address, Back, Forward, Reload),
-  presenting as Chrome, its session cookies kept, and nothing automated attached to it (no CDP proxy, so no agent's
+  its session cookies kept, and nothing automated attached to it (no CDP proxy, so no agent's
   tool, Playwright or picker reaches it, and no sign-in pause is needed). Closed, its tabs and sign-ins are saved;
   its cookies reach every task's copy of the profile (below, "Sign-ins kept in step"). **Refresh from Master…** (the
   same menu, asked first) replaces a copy's cookies with all of the master's, a local app's included, and reloads its
@@ -287,13 +287,16 @@ host (`signin-pages.ts`: Microsoft, Google, GoDaddy, Okta, OneLogin, Auth0, Duo,
 `KULISA_SIGNIN_HOSTS`). Some sign-ins (GoDaddy SSO behind Kasada) pass only so. `signin-pause.ts` is a deliberately
 temporary implementation; the author will replace it (CLAUDE.md, Rules).
 
-## Presenting as Google Chrome
+## What sites see
 
-Profiles present themselves as Google Chrome of the same engine version (the author's decision; `mimic-chrome.ts`):
-the User-Agent, the `Sec-CH-UA*` headers (Electron sends none on navigations; added, high-entropy ones only after
-`Accept-CH`) and `navigator.userAgentData`, through Chromium's own override, so headers and JavaScript agree. The
-machine part (OS, version, CPU) is what Chromium reports itself. A new tab goes `about:blank` → override → its URL, so
-the first request already carries it. `navigator.webdriver` stays false. `KULISA_MIMIC=0` turns it off.
+Profiles present themselves as what they are: Electron's Chromium, its own User-Agent (`… Chrome/<version>
+Electron/<version> …`) and brands, nothing changed; `navigator.webdriver` stays false, as no automation port is open.
+From 2026-10-05 to 2026-10-12 they presented as Google Chrome (`mimic-chrome.ts`: the User-Agent, `Sec-CH-UA*`
+headers, `navigator.userAgentData`), on reasons not tested one at a time: Google was said to block embedded browsers,
+and GoDaddy's Kasada passed once the sign-in pause and the mimicry were both in. Tried with the author on 2026-10-12:
+Google refused to sign in that profile ("This browser or app may not be secure") and let Electron's own Chromium in,
+with a debugger attached too; GoDaddy's sign-in passed without it (the pause is what it needs). Dropped then (REPORT,
+"Chrome mimicry dropped").
 
 ## How automation reaches the pages
 
@@ -350,7 +353,6 @@ space (ROADMAP, "Profiles' caches").
 | `src/main/store.ts` | `profiles.json`, the profile folders, their tabs |
 | `src/main/session-cookies.ts` | session cookies across restarts |
 | `src/main/signin-pages.ts`, `signin-pause.ts` | sign-in pages; the pause |
-| `src/main/mimic-chrome.ts` | presenting as Google Chrome |
 | `src/main/cdp-proxy.ts` | the CDP endpoint per profile |
 | `src/main/mcp-server.ts`, `ghost.ts`, `picker.ts` | the agent's tools, its actions shown, point and tell |
 | `src/renderer/components/grid/ProfilePane.vue`, `ProfileHeader.vue`, `lib/profiles.ts`; `ProfilesTab.vue`, `Avatars.vue` | the panes and the profiles' menu (a task tab's right-click); Settings → Profiles and its pictures |

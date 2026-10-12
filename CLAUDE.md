@@ -297,7 +297,7 @@ change; keep it current. Here: the layers, the modules, and what must hold.
 
 Layers, each using only the ones below it:
 
-1. **Profiles** (`profiles.ts`, `project-profiles.ts`, `store.ts`, `session-cookies.ts`, `mimic-chrome.ts`,
+1. **Profiles** (`profiles.ts`, `project-profiles.ts`, `store.ts`, `session-cookies.ts`,
    `signin-*.ts`): browser profiles, their tabs and storage. Knows nothing about agents, MCP or the window UI.
 2. **Automation access** (`cdp-proxy.ts`): the only way anything automated reaches a profile's pages, and where
    sign-in mode is enforced.
@@ -358,8 +358,7 @@ Modules (`src/main`):
 - `profiles.ts`: a profile: `session.fromPath(<task>/Profile <k>)` plus a `WebContentsView` per tab.
 - `store.ts`: Kulisa's data folder, laid out as Chrome's user data.
 - `names.ts`: the one rule for names (projects, tasks, profiles: an email address's characters) and slugs.
-- `session-cookies.ts`, `signin-pages.ts`, `signin-pause.ts`, `mimic-chrome.ts`: sign-ins that last, the sign-in
-  pause, presenting as Google Chrome.
+- `session-cookies.ts`, `signin-pages.ts`, `signin-pause.ts`: sign-ins that last, the sign-in pause.
 - `cdp-proxy.ts`, `local-only.ts`: the CDP endpoint per profile; refusing web pages.
 - `history.ts`, `transcripts.ts`: the task's history for its agent, read from the agents' transcripts.
 - `mcp-server.ts`, `agent-hooks.ts`, `ghost.ts`, `picker.ts`: the agent's tools and hooks, its actions shown, point
@@ -396,19 +395,20 @@ What must hold in the window:
 - **The proxy must report real Chrome target ids** (`Target.getTargetInfo`). Playwright assumes
   main frame id == target id. One debugger session per tab is shared by all clients; events fan out.
 - **A brand-new `webContents` has no renderer, and CDP commands wait for one.** Tabs go
-  `about:blank` → identity override → real URL; clients attach only after `tab.ready`.
+  `about:blank` → real URL; clients attach only after `tab.ready`.
 - **Chromium holds CDP commands to a tab until its navigation commits.** A site that never answers hung
   `connectOverCDP` and with it opening the task; the proxy shows a tab only once its site has answered
   (`tab.answered`, test `/hang`).
-- **Electron sends no `Sec-CH-UA*` on navigation requests** (Chrome does). `mimic-chrome.ts` adds them, and
-  high-entropy hints only after `Accept-CH`.
+- **Do not present profiles as Google Chrome.** Google refused to sign in a profile that did ("This browser or app
+  may not be secure") and lets Electron's own Chromium in; GoDaddy's Kasada did not need it either. Kulisa presented
+  as Chrome from 2026-10-05 to 2026-10-12 on reasons never tested one at a time (REPORT, "Chrome mimicry dropped").
 - **Electron drops session cookies on exit.** Entra and federated sign-ins depend on them, hence
   `session-cookies.ts`. Tests must quit with `app.quit()`, not `app.exit()`, so `before-quit` runs.
 - **Pages with Trusted Types (Microsoft 365, Google) refuse HTML strings**, so Playwright's
   `screencast.showOverlay(html)` draws nothing there. `locator.highlight()` and `screencast.showActions()` work;
   use those (test page `/strict`).
 - **GoDaddy SSO uses Kasada.** Sign-in passes in an embedded profile when no automation is attached during
-  sign-in, with mimicry on.
+  sign-in (the sign-in pause).
 - **With the monitor off or the screen locked**, Chromium renders at 1–2 fps, and anything waiting for frames
   crawls. Don't trust timings taken then (`xset q` shows "Monitor is Off").
 - **Profiles coming back on `about:blank`** (their saved tabs `[]`): fixed twice on 2026-10-08, by two different

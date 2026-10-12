@@ -69,6 +69,8 @@ As measured on 2026-10-05. Timings taken with the monitor off are meaningless (S
 
 ## Single-window app and Chrome mimicry (after the first review)
 
+The mimicry described here was dropped on 2026-10-12: see "Chrome mimicry dropped", below.
+
 The author's direction: everything happens inside Kulisa. Profiles are created in the app ("+ Profile", each an
 embedded profile), the human signs in inside the pane, and the built-in Claude Code uses them. External
 Chrome was later dropped entirely.
@@ -199,3 +201,32 @@ from xdotool.
 
 So Kulisa takes its keys in `before-input-event`, before any page, on every OS, with its own table; the application
 menu stays for macOS's menu bar. The scripts were removed after; what they showed is above.
+
+## Chrome mimicry dropped (2026-10-12)
+
+**Symptom.** A Codex account's sign-in in Kulisa's clean sign-in window (an Electron window presenting as Chrome) went
+to Google for an account made with Google, and Google answered "This browser or app may not be secure"; then the same
+in a task's profile. Claude first took it for Google refusing embedded browsers as such (its 2019 announcement), and
+the agents' sign-in was moved to the system's browser.
+
+**Test** (the author signing in by hand, bare Electron 44.5.1 in the session's scratch folder, a session in memory;
+only each page's origin and path logged, and whether a debugger was attached):
+
+| Window | User-Agent | Debugger | Google |
+|---|---|---|---|
+| bare Electron, no Kulisa code | Electron's own (`Electron/44.5.1`) | no | signed in (password, second factor, `myaccount.google.com`) |
+| + `mimic-chrome.ts`, as `profiles.ts` applied it | Google Chrome | yes | refused at once after the email (`/v3/signin/rejected`) |
+| + a debugger attached alone | Electron's own | yes | signed in |
+
+Then the author's Kulisa with `KULISA_MIMIC=0`: Google and GoDaddy (Kasada) both signed in in a profile.
+
+**Why the mimicry was there** (above, 2026-10-05), and what each reason turned out to be:
+- "Google sign-in blocks embedded browsers": never tried; Google let plain Electron in, and refused the mimicry.
+- Electron is told apart by its User-Agent and brands (E2): true, and no site tried refused it for that.
+- GoDaddy's Kasada passed once sign-in mode was built, with the mimicry already on, so both were credited; the run
+  without it was written down as not checked. It passed without it: the pause is what it needs.
+
+**Done:** `mimic-chrome.ts` removed with `KULISA_MIMIC`; profiles present as Electron's Chromium (profiles.md, "What
+sites see"). Kept: a new tab still goes `about:blank` → its URL, which gives it a renderer and a page Playwright sees
+when the site never answers (found when the step went with the override: the test `/hang` failed). The lesson: two
+changes credited together are tested apart before a decision rests on them.

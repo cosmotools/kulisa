@@ -5,7 +5,7 @@
 //   /form     controls for the agent's tools: dialogs, a select, a file input, a hover, keys, text shown later
 //   /drag     a header with app-region: drag, as Teams has (a page must never move Kulisa's window)
 //   /board    messages shared by every profile, polled (one profile posts, another waits to see it)
-//   /headers  echoes the User-Agent and Sec-CH-UA* request headers as JSON (asks for high-entropy hints with Accept-CH)
+//   /headers  echoes the User-Agent and Sec-CH-UA* request headers as JSON
 // It runs in its own process: inside Electron's main process it can deadlock, because a synchronous Electron call
 // waits for a renderer that waits for a response from this (then blocked) server.
 import { spawn } from 'child_process';
@@ -22,7 +22,7 @@ const board: string[] = [];
 function handler(req: IncomingMessage, res: ServerResponse) {
   const u = new URL(req.url!, 'http://x');
   const send = (code: number, body: string, type = 'text/html; charset=utf-8', headers = {}) => {
-    res.writeHead(code, { 'content-type': type, 'accept-ch': 'Sec-CH-UA-Full-Version-List, Sec-CH-UA-Platform-Version', ...headers });
+    res.writeHead(code, { 'content-type': type, ...headers });
     res.end(body);
   };
   const user = Object.fromEntries((req.headers.cookie || '').split(/;\s*/).filter(Boolean).map((c) => c.split('='))).user;
