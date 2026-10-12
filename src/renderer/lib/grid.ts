@@ -99,26 +99,26 @@ const addTerminal = (position: AddPanelPositionOptions) =>
   api!.addPanel({ id: 'terminal', component: 'terminal', tabComponent: 'terminal', title: 'Terminal', renderer: 'always', position });
 
 // Ready-made arrangements (☰); after one, panels move freely again. Each says the terminal's share of the window.
-const presets: Record<string, (s: Profile[]) => { height?: number; width?: number }> = {
+const presets: Record<'columns' | 'grid' | 'focus', (s: Profile[]) => { height?: number; width?: number }> = {
   columns(s) {
-    s.forEach((p, i) => addProfilePanel(p, i ? { referencePanel: panelId(s[i - 1].key), direction: 'right' } : undefined));
+    s.forEach((p, i) => addProfilePanel(p, i ? { referencePanel: panelId(s[i - 1]!.key), direction: 'right' } : undefined));
     addTerminal({ direction: 'below' });
     return { height: 0.35 };
   },
   grid(s) {
     s.forEach((p, i) => addProfilePanel(p, i === 0 ? undefined
-      : i === 1 ? { referencePanel: panelId(s[0].key), direction: 'right' }
-        : { referencePanel: panelId(s[i - 2].key), direction: 'below' }));
+      : i === 1 ? { referencePanel: panelId(s[0]!.key), direction: 'right' }
+        : { referencePanel: panelId(s[i - 2]!.key), direction: 'below' }));
     addTerminal({ direction: 'right' });
     return { width: 0.35 };
   },
   focus(s) {
-    s.forEach((p, i) => addProfilePanel(p, i ? { referencePanel: panelId(s[0].key), direction: 'within' } : undefined, { inactive: i > 0 }));
+    s.forEach((p, i) => addProfilePanel(p, i ? { referencePanel: panelId(s[0]!.key), direction: 'within' } : undefined, { inactive: i > 0 }));
     addTerminal({ direction: 'below' });
     return { height: 0.35 };
   },
 };
-export function applyPreset(name: string) {
+export function applyPreset(name: keyof typeof presets) {
   const a = api!;
   a.clear();
   const share = presets[name](store.profiles);

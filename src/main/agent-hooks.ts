@@ -75,7 +75,7 @@ const handlers: Record<HookEvent, (task: Task, t: TaskTerminal | null, input: In
 function handleHookRequest(task: Task, t: TaskTerminal | null, url: string, req: IncomingMessage, res: ServerResponse) {
   const m = url.match(/^\/hooks\/([\w-]+)$/);
   if (!m) return false;
-  const handler = Object.hasOwn(handlers, m[1]) ? handlers[m[1] as HookEvent] : null;
+  const handler = Object.hasOwn(handlers, m[1]!) ? handlers[m[1] as HookEvent] : null;
   let body = '';
   req.on('data', (d) => { if (body.length < 1e6) body += d; });
   req.on('end', async () => {

@@ -562,11 +562,11 @@ async function startMcpServer(shell: Shell, cfg: { port?: number }) {
     if (!fromLocalTool(req)) { res.writeHead(403); return res.end(); }
     // /task/<project>/<n>[/t/<terminal id>]/…: a task of an open project, loaded; an agent's terminal of it.
     const m = req.url!.match(/^\/task\/([^/]+)\/(\d+)(?:\/t\/(\d+))?(\/.*)$/);
-    const task = m && shell.taskOf(safeDecode(m[1]), Number(m[2]));
+    const task = m && shell.taskOf(safeDecode(m[1]!), Number(m[2]));
     if (!task?.loaded) { res.writeHead(404); return res.end(); }
     const t = (m![3] && task.terminals.get(Number(m![3]))) || null;
-    if (handleHookRequest(task, t, m![4], req, res)) return;
-    if (!m![4].startsWith('/mcp')) { res.writeHead(404); return res.end(); }
+    if (handleHookRequest(task, t, m![4]!, req, res)) return;
+    if (!m![4]!.startsWith('/mcp')) { res.writeHead(404); return res.end(); }
     // The transport reads the body itself (with a size limit) and answers a malformed one.
     const server = buildServer(task, t);
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
