@@ -13,7 +13,8 @@
     ".claude/skills/debug-kulisa/*.mjs"
   ],
   // direnv: the user's own, which tasks use when it is installed (worktrees.ts); the tests check it the same way.
-  "ignoreBinaries": ["direnv"],
+  // actionlint: the developer's own, npm test runs it when installed (docs/testing.md, Workflows).
+  "ignoreBinaries": ["direnv", "actionlint"],
   // Forge's makers, publisher and plugins, named by strings in forge.config.ts.
   "ignoreDependencies": ["@electron-forge/maker-.*", "@electron-forge/publisher-github", "@electron-forge/plugin-auto-unpack-natives"]
 }

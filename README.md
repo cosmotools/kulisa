@@ -115,8 +115,8 @@ test/            start.ts (npm test: the groups in parallel), run.ts (one app, i
                  tasks.ts; restart-*.ts after a restart), unit/ (plain Node), fixtures/site.ts (docs/testing.md)
 ```
 
-The experiments behind the design (SPEC section 6, E1–E8) were removed after they answered their questions.
-They are in git history at commit `9fe8661`; their results are in docs/REPORT.md.
+The experiments behind the design (E1–E8, docs/REPORT.md) were removed after they answered their questions.
+They are in git history at commit `9fe8661`.
 
 ## License
 

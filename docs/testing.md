@@ -18,7 +18,7 @@ electron from 'electron'; const { session } = electron;`): an ES module importin
 
 ## End to end: groups
 
-`npm test` runs the unit tests, knip (Dead code, below), builds the window (`npm run build`: its types checked, then Vite), then the groups of
+`npm test` runs the unit tests, knip (Dead code, below), actionlint (Workflows, below), builds the window (`npm run build`: its types checked, then Vite), then the groups of
 e2e files in parallel (`GROUPS` in `start.ts`):
 
 - **A group is one app, its files in order**: later files build on what earlier ones left (profiles, sign-ins,
@@ -89,6 +89,15 @@ dead.
   last resort, with its reason beside it.
 - What knip cannot see at all: names that join two sides as strings (IPC channels, CSS classes, the sprite's icons,
   tokens, the keys' table); when one side goes, the other is looked for by hand.
+
+## Workflows
+
+`npm test` checks the CI's workflows (`.github/workflows/`) with [actionlint](https://github.com/rhysd/actionlint)
+after knip, when it is installed; without it, it says so and goes on. GitHub refuses a whole workflow for one wrong
+line, and says so only once it is pushed, with no job run (2026-10-12: `runner.temp` in a job's `env`). actionlint is
+a Go program, not an npm package (the ones on npm are old wrappers), so it is the developer's to install: a binary of
+its releases into a folder on `PATH` (`~/.local/bin`), or `brew install actionlint`. With shellcheck installed it
+checks the workflows' `run:` scripts too. The CI's own runs do not have it: the check is before the push.
 
 ## Running them
 
