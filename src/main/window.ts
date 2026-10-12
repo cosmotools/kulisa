@@ -138,7 +138,7 @@ class AppWindow {
       // Each with its tasks, open and closed, the one it shows and whether its group is folded, for the tasks' bar
       // (the shown project's also come as 'tasks')
       open: this.tabs.map((p) => ({ id: p.id, task: p.task?.key ?? null, collapsed: p.collapsed, tasks: [...p.tasks.values()].map((t) => t.info()),
-        agents: p.agents().map((a) => ({ id: a, name: shell.agentFor(a)!.name })) })), // the default first: + runs it
+        agents: p.agents().map((a) => { const c = shell.agentFor(a)!; return { id: a, name: c.name, cli: c.agentId }; }) })), // the default first: + runs it
       elsewhere: [...shell.open.values()].filter((p) => p.window !== this).map((p) => p.id),
       windows: others.map((w) => ({ id: w.id, names: w.tabs.map((p) => p.name) })) };
   }
@@ -148,23 +148,25 @@ class AppWindow {
     const p = this.current;
     this.send('tasks', { current: this.task?.key ?? null, list: p ? p.open().map((t) => t.info()) : [] });
   }
-  // The shown task's profiles, open and closed, and its other terminals, for the page to build its grid from; their
-  // tabs saved.
+  // The shown task's profiles, open and closed, and its terminals, for the page to build its grid from; their tabs
+  // saved.
   pushState() {
     const task = this.task;
     if (!task || this.switching) return;
-    this.send('terminals', task.terminalsInfo()); // before the state, which builds the grid with their panels
+    this.sendTerminals();
     this.send('state', [...task.profiles.values()].map((p) => p.info()));
     this.send('closed-profiles', [...task.closed.values()].map(({ cfg, urls }): Sent.ClosedProfile =>
       ({ key: cfg.folder, id: cfg.id, name: cfg.name, avatar: cfg.avatar, description: cfg.description ?? '', tabs: urls.length })));
     task.list.saveTabs();
   }
+  sendTerminals() { if (this.task && !this.switching) this.send('terminals', { task: this.task.key, ...this.task.terminalsInfo() }); }
   scheduleState() { clearTimeout(this.stateTimer); this.stateTimer = setTimeout(() => this.pushState(), 30); }
   // A task of its projects changed: its profiles (now: right away), or its agent's state (shown on its tab and
   // its project's).
   changed(task: Task, now?: boolean, agentState?: boolean) {
     if (agentState) {
       if (task === this.task && this.win.isFocused()) task.see(); // done before the human's eyes: nothing to come and see
+      if (task === this.task) this.sendTerminals();
       this.sendTasks(); return this.sendProjects();
     }
     if (task !== this.task) return task.loaded && task.list.saveTabs(); // not one being unloaded
@@ -197,7 +199,7 @@ class AppWindow {
     await this.showLoaded();
   }
   // The shown task: its profiles loaded (the first time it is shown), the page's grid built from its state
-  // (terminal panel included, even with no profiles), then its agent started at the terminal's size.
+  // (the terminals' island included, even with no profiles), then its terminals started at the island's size.
   async showLoaded() {
     const task = this.task!;
     if (!task.loaded) await task.loadProfiles();
@@ -205,7 +207,7 @@ class AppWindow {
     this.pushState();
     this.seen();
     // Not waited for: the human may first have to choose the agent (or switch away meanwhile).
-    if (!task.pty && !task.starting) task.starting = task.startAgent().catch((e) => console.error('[agent]', e)).finally(() => { task.starting = null; });
+    task.loadTerminals().catch((e) => console.error('[agent]', e));
   }
   // The page takes the grid down; it gets the next task's state once its profiles are loaded. dir: where the
   // next one is (1 right, -1 left, in the tasks' bar; 0 none, the window is left with no project), for the page
@@ -247,7 +249,7 @@ class AppWindow {
     this.sendProjects();
   }
   // The human sees the shown task: an agent done there has nothing more to show (its ✓ says "come and see").
-  seen() { if (this.task?.see()) { this.sendTasks(); this.sendProjects(); } }
+  seen() { if (this.task?.see()) { this.sendTerminals(); this.sendTasks(); this.sendProjects(); } }
   // Whether a point on the screen is on it (a tab let go there: app.ts, dragOut).
   contains({ x, y }: Point) {
     if (this.win.isDestroyed() || this.win.isMinimized()) return false;

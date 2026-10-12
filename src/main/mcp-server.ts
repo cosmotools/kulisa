@@ -1,7 +1,8 @@
 // Kulisa's MCP server for the agent. Every tool takes `profile`; implemented with playwright-core through the
 // CDP proxy, so every action also reaches the pane's caption and action annotations (ghost.ts).
 // Streamable HTTP, one URL per task: http://127.0.0.1:<port>/task/<project>/<n>/mcp (the parts
-// percent-encoded); its agent sees that task's profiles only. Stateless (a new server per request).
+// percent-encoded); its agents see that task's profiles only. Each agent's terminal has its own under it
+// (/task/<project>/<n>/t/<id>/mcp), the same tools and its own tab to name. Stateless (a new server per request).
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { z } from 'zod';
@@ -18,7 +19,7 @@ import { refused } from './result.ts';
 import type { AddressInfo } from 'net';
 import type { Locator, Page } from 'playwright-core';
 import type { Shell } from './shell.ts';
-import type { Task } from './tasks.ts';
+import type { Task, TaskTerminal } from './tasks.ts';
 import type { Tab } from './profiles.ts';
 
 type Element = { ref?: string; locator?: string };
@@ -50,10 +51,12 @@ const INSTRUCTIONS = 'Kulisa profiles are the users of the app under test, each 
   'browser_profiles) you sign in to yourself, with browser_type_login (you never see its password). ' +
   'Run what keeps running (the app\'s dev server, docker compose up, a watcher) with terminal_run, not in your own ' +
   'shell or its background: the human sees it in a terminal next to yours, and you read its output with terminal_read. ' +
-  'What was said and done in this task before you, by you or another agent, is in task_history: read it whole when ' +
-  'the human hands you a task begun with another agent, or when you need details your context lost.';
-// task: the task (tasks.ts) whose profiles the tools act on.
-function buildServer(task: Task) {
+  'What was said and done in this task, by you or other agents (each conversation an agent had in it), is in ' +
+  'task_history: read the one the human points you to ("go on with what Claude did") before anything else, and read ' +
+  'yours when you need details your context lost. Name your conversation with conversation_rename once you know what ' +
+  'it is about.';
+// task: the task (tasks.ts) whose profiles the tools act on; t: the agent's terminal, when it came by its own URL.
+function buildServer(task: Task, t: TaskTerminal | null) {
   const server = new McpServer({ name: 'kulisa', version: pkg.version }, { instructions: `${INSTRUCTIONS} ${taskContext(task)}` });
   // Profiles can be created while the agent runs, so this is a string checked at call time, not an enum.
   const closed = [...task.closed.values()].map(({ cfg }) => `${cfg.id} (${cfg.name}, closed)`);
@@ -177,13 +180,27 @@ function buildServer(task: Task) {
   });
 
   server.registerTool('task_history', {
-    description: "The history of this task: where it stands (its code in git, profiles, terminals, how the last turn stopped), then what the human asked and the agents did, each run's conversation read from its transcript, the latest chapter first. When the human hands you a task begun with another agent, read every part before anything else. Also when you need details your context lost. Call with part 1, then the next ones up to the total it says.",
-    inputSchema: { part: z.number().int().min(1).optional().describe('Which part, from 1 (the default)') },
-  }, async ({ part = 1 }) => {
-    const r = await historyPart(task, part);
+    description: "The history of this task. Without a conversation: where it stands (its code in git, profiles, terminals) and its conversations, each an agent's, numbered, with its tab's name, open or closed, when, its first and last request. With a conversation's number: that conversation whole, what the human asked and the agent did, read from its transcript, the latest chapter first. When the human asks you to go on with another agent's work, find its conversation here and read every part of it before anything else. Also when you need details your context lost. Call with part 1, then the next ones up to the total it says.",
+    inputSchema: {
+      conversation: z.number().int().min(1).optional().describe('Which conversation, by its number in the list'),
+      part: z.number().int().min(1).optional().describe('Which part, from 1 (the default)'),
+    },
+  }, async ({ conversation, part = 1 }) => {
+    const r = await historyPart(task, part, conversation);
     if (refused(r)) throw new Error(r.error);
     return text(r.text);
   });
+
+  if (t?.agent) {
+    server.registerTool('conversation_rename', {
+      description: 'Name your conversation in 1 to 3 words once you know what it is about, e.g. "Checkout discounts": the name of your tab in Kulisa, by which the human and other agents tell it from the others (task_history lists it so). Name it again when the work turns to something else.',
+      inputSchema: { name: z.string().describe('1 to 3 words') },
+    }, async ({ name }) => {
+      const r = task.nameConversation(t, name);
+      if (refused(r)) throw new Error(r.error);
+      return text(`Your conversation is now "${r.name}".`);
+    });
+  }
 
   server.registerTool('profile_describe', {
     description: "Save who a profile is in the app under test (its role, what it can do), which agents choose profiles by. Only the human's words: when no description tells which profile a task means, ask the human, then save their answer. An empty description clears it.",
@@ -490,7 +507,7 @@ function buildServer(task: Task) {
     return text(lines.length ? lines.slice(-100).join('\n') : `No ${onlyFailed ? 'failed ' : ''}requests in ${profile}'s tab ${page.url()}`);
   });
 
-  // Terminals next to the agent's (Task.openTerminal): what keeps running, where the human sees it.
+  // Shells next to the agent's terminal (Task.openTerminal): what keeps running, where the human sees it.
   const done = <T extends object>(r: import('./result.ts').Result<T>) => { if (refused(r)) throw new Error(r.error); return r; };
   const nameArg = z.string().describe('The terminal\'s name, e.g. "dev server"');
   server.registerTool('terminal_run', {
@@ -505,8 +522,8 @@ function buildServer(task: Task) {
     inputSchema: { name: nameArg.optional(), lines: z.number().int().min(1).max(500).optional().describe('Default 50') },
   }, async ({ name, lines }) => {
     if (!name) {
-      const list = task.terminalsInfo();
-      return text(list.length ? list.map((t) => `"${t.name}" (${t.by === 'agent' ? 'yours' : "the human's"})${t.command ? `: ${t.command}` : ''}`).join('\n') : 'No terminals open besides yours.');
+      const list = task.terminalsInfo().list.filter((x) => !x.agent);
+      return text(list.length ? list.map((x) => `"${x.name}" (${x.by === 'agent' ? "an agent's" : "the human's"})${x.command ? `: ${x.command}` : ''}`).join('\n') : 'No terminals open besides the agents\'.');
     }
     return text(done(task.readTerminal(name, lines)).text || '(nothing yet)');
   });
@@ -525,14 +542,15 @@ const safeDecode = (s: string) => { try { return decodeURIComponent(s); } catch 
 async function startMcpServer(shell: Shell, cfg: { port?: number }) {
   const srv = http.createServer(async (req, res) => {
     if (!fromLocalTool(req)) { res.writeHead(403); return res.end(); }
-    // /task/<project>/<n>/…: a task of an open project, loaded.
-    const m = req.url!.match(/^\/task\/([^/]+)\/(\d+)(\/.*)$/);
+    // /task/<project>/<n>[/t/<terminal id>]/…: a task of an open project, loaded; an agent's terminal of it.
+    const m = req.url!.match(/^\/task\/([^/]+)\/(\d+)(?:\/t\/(\d+))?(\/.*)$/);
     const task = m && shell.taskOf(safeDecode(m[1]), Number(m[2]));
     if (!task?.loaded) { res.writeHead(404); return res.end(); }
-    if (handleHookRequest(task, m![3], req, res)) return;
-    if (!m![3].startsWith('/mcp')) { res.writeHead(404); return res.end(); }
+    const t = (m![3] && task.terminals.get(Number(m![3]))) || null;
+    if (handleHookRequest(task, t, m![4], req, res)) return;
+    if (!m![4].startsWith('/mcp')) { res.writeHead(404); return res.end(); }
     // The transport reads the body itself (with a size limit) and answers a malformed one.
-    const server = buildServer(task);
+    const server = buildServer(task, t);
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
     res.on('close', () => { transport.close(); server.close(); });
     await server.connect(transport);

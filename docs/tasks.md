@@ -55,7 +55,7 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
     (the one closed last first, its branch, merged): a click opens one again, the same way; for a project with no
     group it is the one way to them. New Project… last. One + for every project: the groups have none of their own
     (each had its + until 2026-10-11, its right-click New Task with another agent; another agent is the project's
-    default one, or Change agent… after), and it replaced Search Tasks (a panel of every project's tasks with a search
+    default one, or the island's + after), and it replaced Search Tasks (a panel of every project's tasks with a search
     field, from the morning of 2026-10-11 until its evening).
 - **Settings** (the button in the title bar, left of ☰; the author, 2026-10-11), as JetBrains' Settings (the author,
   2026-10-11: the dialogs read as a web page's, not a desktop app's; docs/ui.md, Desktop, not a web page): a tree on the
@@ -151,9 +151,8 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   **+** adds the terminal only or any account (made in another project or in Settings → Agents), or, under New Account,
   makes one of an agent, signed in right there; − lets go of the selected one at once (the account stays: Settings →
   Agents deletes it); the first is the default, marked "default" when there are several (**★**, or Make Default in a
-  row's right-click, on another): the bar's + runs it; another one for a task: Change agent… after.
-  None: its tasks start with the terminal only. A task keeps the agent it started with; Change agent… in its terminal
-  picks another of the project's, which goes on with the work ("Switching the agent").
+  row's right-click, on another): the bar's + runs it; others in a task: the island's + ("Several agents in a task").
+  None: its tasks start with the terminal only.
 - **Its code**: the repositories or folders its tasks work on, the default one first (marked when there are several,
   **★** or Make Default in a row's right-click on another: new tasks' agents start in its copy; every task gets a copy of each). Its **+**: **Add
   Folder…** adds one from the computer, **Clone from URL…** one from a URL with the user's own git (its credentials and keys; git asks for no password, so a
@@ -173,7 +172,7 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   + (the closed ones), the links and Kulisa's version are ☰'s, New Project the manager's. Later starts
   open the windows that were open, each with its projects, showing the one shown last (`windows` in `settings.json`);
   `KULISA_PROJECT=<folder> npm start` adds that one to the first window and shows it.
-- **The agent** of each task starts in the user's own shell, in the task's folder, as if the human typed
+- **An agent** of a task starts in the user's own shell, in the task's folder, as if the human typed
   it in a terminal there: the project's environment applies (direnv's `.envrc`, nvm, mise), not the one Kulisa was
   started with. When it exits, the shell stays. Its account's variable (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`) is typed
   before the command (`CLAUDE_CONFIG_DIR=… claude …`), so the task's account wins over a project's `.envrc` that sets
@@ -239,8 +238,9 @@ Example: the project `~/IdeaProjects/myshop`, its second task, named "Checkout-r
   branch (`origin/HEAD`, fetched as the project is shown and as a task is closed, in the background), and nothing
   uncommitted, so deleting it loses nothing. Its group's menu marks it "merged" and has **Delete Merged Tasks…**, one
   question naming them. A squash merge makes new commits, so it is not seen: Delete Task… as for any other.
-- **Change agent…** in the terminal's right-click menu picks another agent for the shown task, which goes on with the
-  work; **New Conversation** there starts the same agent from nothing ("Switching the agent").
+- **The island's +** opens another of the project's agents in the task, a new conversation in a tab of its own, or a
+  shell; **the agent's icon on its tab** hands the task to an agent of the project, which goes on with that
+  conversation ("Several agents in a task").
 
 ## Actions: the human's and the agent's
 
@@ -265,20 +265,21 @@ to the human; the window's IPC (`app.ts`) and the MCP tools are handles on it:
 | Add, make the default, remove an agent of the project | the projects' manager | none: what the project is made of is the human's | `addAgent`, `defaultAgent`, `removeAgent` (`projects.ts`) |
 | Make an account of an agent | New Account… in Settings → Agents or a project's page | none: signing in is the human's (Rules) | `account:signin` (`app.ts`), `Accounts.prepare`, `create` |
 | Delete an account | − in Settings → Agents | none: it deletes a sign-in and conversations, the human's to decide | `deleteAccount` (`projects.ts`), `shell.dropAccount` |
-| Change the agent, the work kept | Change agent… (the terminal's menu) | none: the human's choice | `Task.changeAgent`, `switchTo` |
-| Start the agent's conversation again | New Conversation (the terminal's menu) | none: the human's choice | `Task.newConversation`, `switchTo` |
+| Open an agent in the task, a new conversation | the island's +, New Conversation (a tab's menu), Ctrl+` on the folded island | none: which agents work is the human's | `Task.openAgent`, `newConversation` |
+| Hand the task to an agent, the work kept | the agent's icon on its tab, Change agent… (a tab's menu) | none: the human's choice | `Task.handOver` |
+| Close an agent's tab | × on it, Close in its menu (asked first) | none: it would stop another agent | `Task.closeTab` |
+| Name an agent's conversation (its tab) | none: the agent knows what it is about | `conversation_rename` | `Task.nameConversation` |
 
 ## Choosing the agent
 
-Each task runs the agent the human chose for it (its `agent.json`): one of its project's accounts of Claude Code
-(Anthropic) or Codex (OpenAI) (Accounts, below), or the terminal only (the user's shell in the task's folder: an agent
-Kulisa does not know is run there by hand, `KULISA_MCP_URL` in its environment). Kulisa never assumes one is
-installed (it started `claude` without asking until 2026-10-06). A new task runs its project's default agent (the
-projects' manager); a project with none starts its tasks with the terminal only,
-without asking. A task whose agent is no longer there (an account let go, an agent not on the computer) asks, in a
-dialog, among the project's accounts and the terminal only. **Change agent…** (the terminal's right-click menu) opens
-the same dialog, with Cancel, and the chosen one goes on with the task ("Switching the agent", below). `KULISA_AGENT` forces one command
-everywhere, without asking. An agent CLI itself is installed in ☰ → Agents… (**Install**: Kulisa runs its maker's own
+A task's agents are the human's choice: its project's accounts of Claude Code (Anthropic) or Codex (OpenAI)
+(Accounts, below), any of them in a tab of its own ("Several agents in a task"), or the terminal only (the user's
+shell in the task's folder: an agent Kulisa does not know is run there by hand, `KULISA_MCP_URL` in its environment).
+Kulisa never assumes one is installed (it started `claude` without asking until 2026-10-06). A new task opens its
+project's default agent (the projects' manager), its own (`agent` in its `agent.json`); a project with none starts
+its tasks with the terminal only, without asking. An agent to open that is no longer there (an account let go, an
+agent not on the computer) asks, in a dialog, among the project's accounts and the terminal only, with Install and
+Cancel (none opens). `KULISA_AGENT` forces one command everywhere, without asking. An agent CLI itself is installed in ☰ → Agents… (**Install**: Kulisa runs its maker's own
 installer, the command shown before, its output while it runs, with no steps for the human to type, for people who
 are not programmers); its accounts are made there too, or in a project's page.
 
@@ -291,8 +292,8 @@ are not programmers); its accounts are made there too, or in a project's page.
   --last`) and forget a deleted task's folder.
 - **Dictation**, where the agent has its own (its entry's `voice`: the arguments that turn it on, its key, its
   languages, how to read and set the one it uses, and a note shown with it; Claude Code's voice mode, which needs a Claude.ai
-  account; Codex 0.160 has none, only a realtime voice conversation): the terminal's header has its language and a
-  microphone ([window.md](window.md), The terminal). The human needs to know neither the agent's command nor its key:
+  account; Codex 0.160 has none, only a realtime voice conversation): the island's row of tabs ends with the language
+  and a microphone of the agent in front ([window.md](window.md), The terminal). The human needs to know neither the agent's command nor its key:
   Kulisa turns it on for its own sessions (Claude Code: `--settings` with `voice: { enabled, mode: "hold",
   autoSubmit: false }`, not the user's settings, checked with 2.1.294) and the button holds its key: space typed
   again and again at a keyboard's repeat rate, as a terminal shows a held key (it tells no release), and Claude Code
@@ -309,7 +310,7 @@ are not programmers); its accounts are made there too, or in a project's page.
   folder, marked when it is not on the user's `PATH`: Kulisa runs it from there; Install for the others, with the
   command it runs), and its **Accounts** (below), a list with + (New Account…) and − (delete the selected one, asked
   first; also Delete and the right-click). Installing there starts nothing; the agent is chosen
-  for a task when one is made, or with Change agent…. Kulisa does not remove or update agents: they are the
+  for a task when one is made, or with the island's +. Kulisa does not remove or update agents: they are the
   user's programs, and the makers' installers update them themselves.
 - **The list comes at once** (the author, 2026-10-11), here and in choosing a task's agent: finding the agents runs
   the user's login shell (`command -v`: Kulisa started from a menu has a shorter `PATH`) and each one's `--version`,
@@ -346,14 +347,14 @@ are not programmers); its accounts are made there too, or in a project's page.
     a browser presenting as Chrome without being it, and it lets Electron's own Chromium in ([profiles.md](profiles.md),
     "What sites see"). The system's browser was kept (the author, 2026-10-12): as desktop apps sign in, and less code.
   - **One store** (`agents.json`), as the profiles': each account lists the projects it is in; the Agents' **+** of another
-    project takes it there too. Choosing a task's agent (Change agent…, Choose the Agent) lists the project's accounts
+    project takes it there too. The island's + and choosing an agent that is not there (Choose the Agent) list the project's accounts
     and the agents themselves, never another project's: the project's page says who works in its tasks.
   - **An account lives until the human deletes it** (the author, 2026-10-11: with every project deleted, every account
     went, and the next project had none; a sign-in is made again only by signing in again). − on an account in a
     project lets go of it at once, nothing asked, as of the terminal only: a task running it keeps it. Deleting a
     project lets go of its accounts the same way. In Settings → Agents each account says the projects it is in ("in no
-    project"), and − deletes it: refused while any task of any project, open or closed, runs it (counted from their
-    `agent.json`; its conversation is in its folder), naming them; else after a question ("Delete the account …?",
+    project"), and − deletes it: refused while any task of any project, open or closed, has it open in a tab (counted
+    from their `agent.json`; its conversation is in its folder), naming them; else after a question ("Delete the account …?",
     naming the projects that let go of it): signed out with its agent's own command (`auth logout`: what it keeps
     outside its folder goes too, the Keychain's entry on macOS), then its folder, with its sign-in, settings and
     conversations.
@@ -363,14 +364,14 @@ are not programmers); its accounts are made there too, or in a project's page.
   Settings → Agents (`AgentsTab.vue`, its state kept by Settings, so an install goes on behind a project's page and
   Settings stays open while it runs) share the state of one list of agents with Install (`lib/agents.ts`), each with
   its own; choosing draws it as radios (`AgentList.vue`), Settings as a list and the chosen one's details.
-- The agent's state on the tabs comes from its hooks. Kulisa has events of its own (`agent-hooks.ts`): `prompt`
+- An agent's state on the tabs comes from its hooks, each agent's at its own terminal's URL ("Several agents in a task"). Kulisa has events of its own (`agent-hooks.ts`): `prompt`
   working, `waiting` for the human, `stop` done, `interrupt` and `session-end` unknown (but a session ending after a
   done turn keeps it). Which of an agent's hooks sends which is the agent's, in one place each:
   - Claude Code, its plugin's `hooks.json` (checked with 2.1.293, 2026-10-08): `UserPromptSubmit`, `Stop`, and
     waiting when it asks for a permission or a question (`Notification` matched to `permission_prompt`,
     `elicitation_*`) or a turn ends with an API error (`StopFailure`: a limit, a sign-in); `SessionEnd` (`/exit`,
     `/clear`). Not `idle_prompt`, sent a minute after an answer: the tab already says done. Esc ends a turn without
-    any hook, so Kulisa itself takes an Esc typed into the agent's terminal for the interrupt: working or waiting
+    any hook, so Kulisa itself takes an Esc typed into an agent's terminal for the interrupt: working or waiting
     become unknown (`Task.interrupted`; an Esc that only closed a menu does so too, until the next hook).
   - Codex, its entry in `agents.ts` as a config override (`-c hooks=…`; built from its documentation, not yet tried in
     a session: ROADMAP): `UserPromptSubmit`, `PermissionRequest` waiting, `Stop`, `Interrupt` (Esc), `SessionEnd`
@@ -378,56 +379,65 @@ are not programmers); its accounts are made there too, or in a project's page.
     the session to resume. Codex runs a hook only once the human has trusted it (`/hooks`, once: the command line is
     the same for every task); Kulisa never bypasses that, which would run any project's hooks unreviewed too.
 
-  Done means "come and see": once the human sees that task (shown with
-  Kulisa's window in focus; at once when it was on screen) its tab shows nothing (`Task.seen`, `tabState`), the
-  agent still done for the rest of Kulisa.
+  Done means "come and see": once the human sees that agent's tab (in front of the task shown, with Kulisa's window in
+  focus; at once when it was on screen) its tab and its task's show nothing (`seen`, `Task.tabState`), the agent still
+  done for the rest of Kulisa.
   Other agents show none yet (ROADMAP).
 
-## Switching the agent
+## Several agents in a task
 
-A task's agent runs out of its limit or credits (Claude Code on one account), and the human goes on with another one
-they have (Claude Code on another account, or Codex): the task goes on where it was, whatever agents and accounts it
-went through before, in any order (claude1 → codex → claude1 …). Built 2026-10-12 (`Task.switchTo`), designed with
-the author on 2026-10-11 and 2026-10-12.
+A task may hold several agents at once, each in a tab of its island with a conversation of its own: Claude Code next to
+Codex, or two accounts of one, or the same agent twice (decided with the author 2026-10-12; [window.md](window.md),
+The terminal, for the island). The human opens one with the island's **+** (the project's accounts, the default
+first): always a **new conversation**. Each sees the task's code and profiles, as the agent of a task always did.
 
-**One rule: the conversation is the agent's, the work is the task's.** The human chooses any of the project's
-accounts with **Change agent…** (the terminal's menu); Kulisa stops the agent, and the conversation it had becomes one
-of the task's **runs**. Then:
+- **One kind of terminal.** A task's terminals are one list (`Task.terminals`): each the user's shell in the task's
+  folder, an agent started in it or not. An agent's has its conversation (an index into the task's `agent.json`: its
+  account, its session as its hooks report it, when, the name it gave it, the terminal it is open in); a shell has
+  its name and the command typed in.
+- **Each agent reports for itself.** Its terminal has URLs of its own under the task's
+  (`/task/<project>/<n>/t/<id>/mcp`, `…/hooks/<event>`: `KULISA_MCP_URL`, `KULISA_URL` in its environment), so its
+  hooks give its own state, shown on its tab, and its session goes to its own conversation. The task's tab in the
+  tasks' bar shows the most urgent of its agents: waiting for the human, else working, else done and not seen.
+- **Each names its own tab**, in 1 to 3 words, with `conversation_rename` (as `task_rename` names the task); until then
+  its tab has its agent's name (`Claude Code`, `Claude Code 2` when two have it).
+- **No handoff by itself.** An agent opened with + is told nothing: a second agent is opened as often for a task of
+  its own (check the layout on a phone) as to take over, and Kulisa cannot tell which. The human says it in their own
+  words ("go on with what Claude did"), and the agent finds that conversation in `task_history`: where the task
+  stands, then its conversations, numbered, each with its tab's name, its agent, open or closed, when, and the human's
+  first and last request in it; then the one asked for, whole ([transcripts.md](transcripts.md)).
+- **Handing the task over** is the human's click: the agent's icon on its tab (or **Change agent…** in its tab's or
+  its terminal's menu) lists the project's accounts, the same one too; the one chosen opens in a new tab, its first
+  message as if the human typed it (a command-line argument, `prompt` in the agent's entry): go on with the work of
+  conversation N ("its name"); read it whole in `task_history` first; then tell the human in a few lines what is done
+  and what is next. Its first answer is the check: what it missed shows at once. The tab it came from stays: the
+  human closes it (they may copy from it first). **New Conversation** (the same menus) opens the same agent anew,
+  told nothing.
+- **Closing an agent's tab asks first, always**, whatever it is doing; its conversation stays in the task's history.
+  A shell closes without a question, as a terminal's tab does. The last one closed folds the island to its +.
+- **After a restart** each tab comes back where it was, the one in front too: an agent's conversation resumed
+  (`--resume`, `resume`), a shell with nothing running.
+- **Its terminal tools reach shells only**: `terminal_run`, `terminal_read`, `terminal_stop` refuse another agent's
+  tab (a command typed there would be a message to that agent, Ctrl+C would stop it); what an agent did is read in
+  `task_history`.
+- Deleting the task forgets each conversation in its own account's folder (`forget`).
 
-- **The chosen agent's CLI has a conversation in the task** (the same CLI on another account, claude1 → claude2; or
-  back to one, claude1 → codex → claude1): that conversation goes on, exactly as it was, with `--resume`. When it was
-  another account's, it is moved to the chosen account's folder first (`move` in the agent's `agents.ts` entry):
-  Claude Code's `projects/<task folder>/<session>.jsonl`, its `<session>/` (large outputs kept apart) and
-  `file-history/<session>/`, to the same places, and what it remembered of the folder (`memory/`) added to the other
-  account's. Checked with Claude Code 2.1.296: `--resume` there finds it, writes on in the same file, with the same id.
-  When other agents worked after it, its first message says so and to read what they did in `task_history`.
-- **Else** a new conversation starts, its first message the handoff (a command-line argument, `prompt` in the agent's
-  entry): the human handed this task over; read every part of `task_history` ([transcripts.md](transcripts.md))
-  before anything else; then tell the human in a few lines what the task is, what is done, what is next, and go on.
-  Its first answer is the handoff the human checks: what it missed shows at once.
-- In both, its session's start (`SessionStart`, `agent-hooks.ts`) carries where the task stands (`gist`, `history.ts`:
-  how the run before stopped, the code in git, the profiles, the terminals), at the start of its context, before its
-  first turn, where a model holds text best and cannot skip it. A few KB at most: Claude Code caps a hook's context at
-  10,000 characters (beyond it Claude gets a file it is not asked to read), the profiles' list beside it; the rest is
-  `task_history`'s.
+What does not move from one agent to another: its hidden reasoning, permissions given in its session, settings of one
+account (its MCP servers, skills). What runs in the task's shells (`terminal_run`) goes on: they are the task's.
 
-**New Conversation** (the terminal's menu) starts the same agent from nothing, nothing told; the conversation before
-is a run of the task, read by `task_history`.
-
-The runs are in the task's `agent.json`: the current one in its fields, the earlier ones in `runs`, oldest first.
-Deleting the task forgets each run's conversation in its own account's folder (`forget`).
-
-What does not move to another CLI: the agent's hidden reasoning, permissions given in its session, settings of one
-account (its MCP servers, skills). What runs in Kulisa's terminals (`terminal_run`) goes on: they are the task's.
-
-Whether the new account has tokens is not asked first: no CLI says it to a program (`/usage`, `/status` are the
-human's). It shows at its first answer; nothing is undone then, as a move is undone by the same action (choosing the
-other account moves the conversation back).
+Whether an account has tokens is not asked first: no CLI says it to a program (`/usage`, `/status` are the human's).
+It shows at its first answer.
 
 Why so, and what was not chosen (2026-10-11, 2026-10-12):
 
+- **Several agents side by side, not one switched** (built so first, 2026-10-12, Change agent… stopping the agent and
+  starting the next one in its place): a side task needed a task of its own, and an agent was stopped to take another
+  over. Each in a tab, the human keeps both, closes one when done.
 - **The new agent reads the whole conversation**, lightly cut ([transcripts.md](transcripts.md)), and writes its own
   handoff. The old agent cannot write one: its limit is reached, and `/compact` is a request to its model too.
+- A conversation moved to another account of the same CLI and resumed there (built first: Claude Code's files moved
+  between config folders): with a new conversation for every agent opened, the conversation before is read, not
+  continued.
 - A mechanical summary alone: details that matter are spread through a long conversation, and rules lose them (the
   author).
 - A history Kulisa writes as the work goes, or notes the agent writes through a tool: the transcript is on disk
@@ -440,8 +450,6 @@ Why so, and what was not chosen (2026-10-11, 2026-10-12):
 - A proxy giving the old CLI another vendor's model (`ANTHROPIC_BASE_URL` to a gateway such as LiteLLM; the author's
   idea, the one truly seamless way): it needs that vendor's API key (a subscription's sign-in is the CLI's own, and
   Kulisa reads no tokens), a gateway process of another's, and drops signed reasoning. A candidate for an extension.
-- One config folder whose sign-in Kulisa swaps, or one folder of conversations shared by a CLI's accounts (links): two
-  accounts could not run side by side, or undocumented links written to by several sessions.
 - Anthropic's Consumer Terms (read 2026-10-11): several accounts are not forbidden; "bypassing any of our systems or
   protective measures" is. Going on with another vendor bypasses nothing; a second subscription of the same vendor
   to get around a limit may count as bypassing: the human's choice, so Kulisa never offers a switch on its own.
@@ -500,10 +508,11 @@ projects/<project id>/
   1/, 2/ …                        a task
     profiles.json                 what it has of its project's profiles, in order: folder, id, sites' zoom, closed
     layout.json                   its grid (dockview)
-    agent.json                    { agent, started, sessionId, transcript, from, runs }: which agent, its
-                                  conversation; the task's earlier runs (Switching the agent)
-    terminals.json                its other terminals [{ id, name, by }], opened again when it loads; one goes when
-                                  closed
+    agent.json                    { agent, conversations: [{ agent, sessionId, transcript, started, from, to, title,
+                                  terminal }] }: the agent it was made with; every conversation an agent had in it
+                                  (Several agents in a task), kept with the task
+    terminals.json                { front, list: [{ id, name, by } | { id, conversation }] }: its island's tabs, opened
+                                  again when it loads; one goes when closed; an empty list: the island folded
     Profile 1/                    its copy of a master, made at its first open here: a Chromium profile
                                   (session.fromPath), with Kulisa's own files in it:
       Kulisa Tabs.json              the URLs of its tabs
@@ -523,8 +532,8 @@ Outside it:
 | An empty first commit | the project's repository | New Project… with Create Git repository |
 | direnv's permission for the task's `.envrc` | direnv's data (`~/.local/share/direnv/allow/`) | creating a task, if the project's is allowed |
 | Claude Code's trust of the task's folder | Claude's config: `<CLAUDE_CONFIG_DIR>/.claude.json`, else `~/.claude.json`, `projects["<task folder>"]` | the task's Claude starts, if the project's folder is trusted |
-| Claude Code's language, chosen for dictation | `<config dir>/settings.json`, `language` (as its `/config` sets it) | the human picks a language in the terminal's header; stays, as the human's setting |
-| The agent's conversation | the agent's own data (Claude: `<config dir>/projects/…/<session>.jsonl`; Codex: `<config dir>/sessions/`), in its account's folder (`agents/<agent>-<n>/`); moved to another account's when the human switches to it (Switching the agent) | the agent runs |
+| Claude Code's language, chosen for dictation | `<config dir>/settings.json`, `language` (as its `/config` sets it) | the human picks a language in the island's row of tabs; stays, as the human's setting |
+| An agent's conversation | the agent's own data (Claude: `<config dir>/projects/…/<session>.jsonl`; Codex: `<config dir>/sessions/`), in its account's folder (`agents/<agent>-<n>/`) | the agent runs |
 | The agent itself, when Kulisa installed it | its maker's place (`~/.local/bin/claude`, `~/.local/bin/codex`, …) | Install in Settings → Agents |
 
 Nothing is written into the project's own folder (but the first commit of a project Kulisa made).
@@ -656,14 +665,14 @@ temporary forks), and again on 2026-10-10 (tasks; ROADMAP, "Projects and tasks")
 | `src/main/app.ts` | the windows; open, close and move projects (one change at a time, `serial`); IPC |
 | `src/main/window.ts` | a window: its groups (open projects in code), show a group or a task, the grid's state, its questions |
 | `src/main/projects.ts` | a project's group (an open project in code): its tasks; making, closing, opening again, deleting one (with the question); deleting a project's data |
-| `src/main/tasks.ts` | a task: its profiles, its agent (start, change, environment), renaming, copies of its profiles for a new task, ports |
+| `src/main/tasks.ts` | a task: its profiles, its terminals and agents (open, hand over, close, environment), renaming, copies of its profiles for a new task, ports |
 | `src/main/worktrees.ts` | git: a task's worktree and branch, files outside git, direnv, changes, renaming the branch, removal |
 | `src/main/agents.ts` | the agents to choose from: find, install, start, resume; Claude's folder trust |
 | `src/main/store.ts` | the data folder above |
-| `src/main/terminal.ts` | the task's terminals: its agent's and the others (window.md, The terminal) |
+| `src/main/terminal.ts` | the task's terminals' ptys (window.md, The terminal) |
 | `src/renderer/components/TaskBar.vue`, `NewTask.vue`, `Empty.vue`, `ProjectEditor.vue` | the tasks' bar (an island per project); its + (every project, their closed tasks); the empty window's island; the projects' manager |
 | `src/renderer/components/TaskTab.vue`, `TaskRename.vue` | a task's tab in the bar, its menu, the Rename Task dialog |
-| `src/renderer/components/AgentPicker.vue`, `AgentsTab.vue`, `AgentList.vue` | choosing a task's agent; Settings → Agents, the agents, the chosen one's details and accounts; the radios of agents with Install that choosing shows |
+| `src/renderer/components/AgentPicker.vue`, `AgentsTab.vue`, `AgentList.vue` | choosing an agent when the one to open is not there; Settings → Agents, the agents, the chosen one's details and accounts; the radios of agents with Install that choosing shows |
 | `src/main/accounts.ts`, `src/renderer/components/AccountSignIn.vue` | the agents' accounts, one store; a new one's sign-in in Settings (a project's page, or Agents) |
 | `src/renderer/lib/grid.ts`, `components/Grid.vue` | building a task's grid; the slide (a view transition) |
 | `test/tasks.ts` | the tests; `test/restart-tasks.ts` after a restart; `test/unit/agents.test.ts` |

@@ -6,7 +6,7 @@ import electron from 'electron';
 import fs from 'fs';
 import path from 'path';
 import http from 'http';
-import { assert, root, userData, project, pfile, panel, SITE, sleep, waitFor, who, menuRows, choose, rightClick, viewOn, press, projectTabs, projectTab, showProject, savedWindows, closeMenu, click, plusMenu, PORT } from './helpers.ts';
+import { assert, root, userData, project, pfile, panel, SITE, sleep, waitFor, who, menuRows, choose, rightClick, viewOn, press, projectTabs, projectTab, showProject, savedWindows, closeMenu, click, plusMenu, PORT, hooksOf } from './helpers.ts';
 import { withOffset } from '../src/main/tasks.ts';
 import { PROJECT_COLORS } from '../src/main/store.ts';
 import { createWorktree } from '../src/main/worktrees.ts';
@@ -14,6 +14,7 @@ import { sessionStart } from '../src/main/agent-hooks.ts';
 import { refused } from '../src/main/result.ts';
 import type { Test, Ctx } from './run.ts';
 import type { UI } from './helpers.ts';
+import type { TaskTerminal } from '../src/main/tasks.ts';
 import type { Task } from '../src/main/tasks.ts';
 import type { TasksFile } from '../src/main/store.ts';
 const hasDirenv = (() => { try { execFileSync('direnv', ['version']); return true; } catch { return false; } })();
@@ -27,8 +28,8 @@ async function newTask(ctx: Ctx) {
   const { shell, ui } = ctx;
   const before = shell.task;
   await plusMenu(ui, shell.current.name);
-  await waitFor(() => shell.task !== before && shell.task.loaded && shell.pty, 20000);
-  ctx.watchPty(shell.pty);
+  await waitFor(() => shell.task !== before && shell.task.loaded && [...shell.task.terminals.values()].some((t) => t.pty), 20000);
+  if (shell.pty) ctx.watchPty(shell.pty);
   return shell.task;
 }
 // A row of the shown project's group menu (its label's right-click), chosen.
@@ -40,7 +41,7 @@ async function groupMenu(ui: UI, label?: string) {
   return rows;
 }
 // One of the agent's hooks, as its plugin sends it (agent-hooks.ts); its answer.
-const hook = (task: Task, event: string, input = {}) => new Promise<any>((resolve) => http.request(`${task.env().KULISA_URL}/hooks/${event}`, { method: 'POST' },
+const hook = (task: Task, event: string, input = {}) => new Promise<any>((resolve) => http.request(`${hooksOf(task)}/${event}`, { method: 'POST' },
   (res) => { let body = ''; res.on('data', (d) => (body += d)); res.on('end', () => resolve(JSON.parse(body || '{}'))); }).end(JSON.stringify(input)));
 // The session an agent reports at its start (its SessionStart hook, as Claude Code sends it): Kulisa resumes it.
 const reportSession = (task: Task, id: string, transcript: string) => hook(task, 'session-start', { hook_event_name: 'SessionStart', session_id: id, transcript_path: transcript, source: 'startup' });
@@ -135,7 +136,7 @@ export default (test: Test) => {
     assert.equal(firstSam.get().wc.getURL(), `${SITE}/app?task`, "the new task's agent acts in its own copy");
     assert.match((await call('browser_snapshot', { profile: 'sam-admin' }, first)).text, /URL: .*\/app\?task/);
     assert.ok(first.pty && first.pty !== shell.pty);
-    assert.equal(JSON.parse(fs.readFileSync(pfile('agent.json', 2), 'utf8')).agent, 'custom', "no agent in the project: the one there is (the tests' own)");
+    assert.equal(JSON.parse(fs.readFileSync(pfile('agent.json', 2), 'utf8')).conversations[0].agent, 'custom', "no agent in the project: the one there is (the tests' own)");
 
     // The window: the task's grid with its panes; the bar shows it.
     await waitFor(async () => JSON.stringify(await tabs(ui)) === '["task-1","task-2 *"]');
@@ -255,7 +256,7 @@ export default (test: Test) => {
     await waitFor(async () => (await ctx.termText()).includes(`agent: rc of ${project}\n`), 3000);
     assert.equal(JSON.parse(fs.readFileSync(path.join(userData, 'projects', 'project', 'tasks.json'), 'utf8')).current, 1);
     // What the second task's agent does reaches its tab (Claude Code's hooks); its captions do not show on the first's panes.
-    const post = (event: string, input = {}) => new Promise((r) => http.request(`${second.env().KULISA_URL}/hooks/${event}`, { method: 'POST' },
+    const post = (event: string, input = {}) => new Promise((r) => http.request(`${hooksOf(second)}/${event}`, { method: 'POST' },
       (res) => { res.resume(); res.on('end', r); }).end(JSON.stringify(input)));
     const state = () => ui(`(() => { const s = ${taskTab(2)}.querySelector('.state'); return s.dataset.state + ' ' + s.querySelector('use').getAttribute('href') + ' ' + s.checkVisibility(); })()`);
     assert.equal(await state(), ' #i-done false', 'unknown: no icon');
@@ -274,7 +275,7 @@ export default (test: Test) => {
     await waitFor(async () => (await state()) === ' #i-done false');
     // Esc in its terminal: Claude Code stops the turn and runs no hook, so working was shown on and on (found trying
     // voice commands, 2026-10-09). A done one stays done.
-    const esc = () => ui(`kulisa.send('pty:in', { task: '${second.key}', data: '\\x1b' })`);
+    const esc = () => ui(`kulisa.send('pty:in', { task: '${second.promptTarget().key}', data: '\\x1b' })`); // its agent's terminal
     for (const s of ['prompt', 'waiting']) {
       await post(s);
       await waitFor(async () => (await state()).startsWith(s === 'prompt' ? 'working' : 'waiting'));
@@ -300,7 +301,7 @@ export default (test: Test) => {
     await waitFor(async () => (await state()) === 'done #i-done true');
     await click(ui, taskTab(2));
     await waitFor(async () => shell.task === second && (await state()) === ' #i-done false');
-    assert.equal(second.state, 'done', 'the agent is still done: only its tab says nothing');
+    assert.equal(second.promptTarget().state, 'done', 'the agent is still done: only its tab says nothing');
     await click(ui, taskTab(1));
     await waitFor(async () => shell.task.n === 1 && (await viewOn(shell, ui, 'sam-admin')) && viewOn(shell, ui, 'elon-buyer')
       && ui(`!document.documentElement.matches(':active-view-transition')`)); // its slide over before the next test watches one
@@ -347,11 +348,11 @@ export default (test: Test) => {
     const transcript = path.join(root, 'task-3-transcript.jsonl');
     fs.writeFileSync(transcript, '');
     await reportSession(task, 's-3', transcript);
-    assert.match((await sessionStart(task, { session_id: 's-3', transcript_path: transcript })).hookSpecificOutput.additionalContext,
+    assert.match((await sessionStart(task, task.promptTarget(), { session_id: 's-3', transcript_path: transcript })).hookSpecificOutput.additionalContext,
       /task "task-3".*branch task-3.*plus 200/s, 'where it works, at the session start too');
     // Working: the human is asked, and may keep it.
     await hook(task, 'prompt');
-    await waitFor(() => task.state === 'working');
+    await waitFor(() => task.promptTarget()?.state === 'working');
     ctx.answer = false;
     await ui(`${taskTab(3)}.querySelector('.close').click()`);
     await waitFor(() => ctx.asked.length);
@@ -359,7 +360,7 @@ export default (test: Test) => {
     assert.ok(task.loaded && shell.task === task, 'kept open when the human says no');
     ctx.answer = true;
     await hook(task, 'stop'); // its turn over: closing asks nothing
-    await waitFor(() => task.state === 'done');
+    await waitFor(() => task.promptTarget()?.state === 'done');
     await call('profile_open', { profile: 'sam-admin' }); // a new task opens none by itself
     const sam = task.profiles.get('sam-admin');
     // A copy of the master made after it was signed in to: signed in.
@@ -487,37 +488,68 @@ export default (test: Test) => {
     assert.equal(shell.task.pty, pty, 'the agent goes on');
   });
 
-  test("tasks: another agent for a task (Change agent…): the project's accounts and the terminal alone; Cancel leaves it as it is", async (ctx) => {
+  test("tasks: an agent's tab closes after a question, always (Cancel keeps it); the last terminal closed folds the island to its +, which opens one again; Ctrl+` there opens the task's agent, a new conversation", async (ctx) => {
     const { shell, ui } = ctx;
-    // The new task runs the project's default agent (none here: the one there is); Change agent… (the terminal's menu)
-    // picks another: an agent itself only when it has no accounts (the terminal only), else one of the project's
-    // accounts (none here yet).
-    const task = await newTask(ctx);
-    await ctx.call('profile_open', { profile: 'sam-admin' });
-    const changeAgent = async () => {
-      await rightClick(ui, '#term');
-      await menuRows(ui);
-      await choose(ui, 'Change agent…');
-      await waitFor(() => ui(`(document.getElementById('agentpick')?.dataset.state === 'open') && document.querySelectorAll('#agentpick .agentrow').length === 2`), 20000);
+    const task = await newTask(ctx), agent = task.promptTarget();
+    const folded = () => ui(`!!document.querySelector('.terminals.folded') && document.querySelector('.termtabs').hidden`);
+    // The island's group (its content is laid over it: dockview's renderer 'always').
+    const island = () => ui(`(() => { const r = document.querySelector('.termtabs').closest('.dv-groupview').getBoundingClientRect(); return { width: Math.round(r.width), height: Math.round(r.height) }; })()`);
+    const saved = () => JSON.parse(fs.readFileSync(pfile('terminals.json', task.n), 'utf8'));
+    const conversations = () => JSON.parse(fs.readFileSync(pfile('agent.json', task.n), 'utf8')).conversations;
+    await waitFor(() => ui(`!!document.querySelector('.termtab')`));
+    const before = await island();
+    // × on an agent's tab asks, whatever it is doing; Cancel keeps it.
+    ctx.answer = false;
+    await ui(`document.querySelector('.termtab .close').click()`);
+    await waitFor(() => ctx.asked.length);
+    const q = ctx.asked.pop();
+    assert.equal(q.message, 'Close bash?');
+    assert.match(q.detail, /^bash stops\. Its conversation stays in the task's history, where any agent of the task can read it\.$/);
+    assert.equal(task.terminals.get(agent.id), agent, 'kept when the human says no');
+    ctx.answer = true;
+    await ui(`document.querySelector('.termtab .close').click()`);
+    await waitFor(() => task.terminals.size === 0);
+    ctx.asked.length = 0;
+    // Alone in the grid (no profile open): a strip at the bottom of the grid, as under profiles, the room above it empty,
+    // whatever the arrangement (it was a strip at the grid's top, or filled the grid, by the arrangement).
+    await waitFor(folded);
+    assert.deepEqual(saved(), { front: null, list: [] });
+    assert.equal(conversations()[0].terminal, undefined);
+    assert.ok(conversations()[0].to, 'its conversation closed, kept for the history');
+    // Its + from the middle of the island (x), and from where a strip's middle would be: its middle, or at the bottom.
+    const plus = () => ui(`(() => { const b = document.getElementById('termUnfold').getBoundingClientRect(), r = document.querySelector('.terminals').getBoundingClientRect();
+      return { x: Math.round(b.x + b.width / 2 - (r.x + r.width / 2)), middle: Math.round(b.y + b.height / 2 - (r.y + r.height / 2)), bottom: Math.round(r.bottom - (b.y + b.height / 2)) }; })()`);
+    const middle = async () => { const p = await plus(); return Math.abs(p.x) <= 1 && Math.abs(p.middle) <= 1; };
+    const bottom = async () => {
+      const p = await plus(), { strip, empty } = await ui(`(() => { const s = document.querySelector('.terminals .strip').getBoundingClientRect(),
+        r = document.querySelector('.terminals').getBoundingClientRect();
+        return { strip: [Math.round(s.width - r.width), Math.round(s.height), Math.round(r.bottom - s.bottom)],
+          empty: getComputedStyle(document.querySelector('.termtabs').closest('.dv-groupview').querySelector('.dv-content-container')).backgroundColor }; })()`);
+      return Math.abs(p.x) <= 1 && Math.abs(p.bottom - 18) <= 1 && JSON.stringify(strip) === '[0,36,0]' && empty === 'rgba(0, 0, 0, 0)';
     };
-    const customPty = task.pty;
-    await changeAgent();
-    assert.equal(await ui(`!!document.querySelector('#agentpick [role="radio"][value="fake"]')`), false, 'an agent with accounts: one of its accounts');
-    assert.equal(await ui(`document.querySelector('#agentpick [data-agent="shell"] .logo use').getAttribute('href')`), '#i-agent-shell');
-    assert.equal(task.profiles.get('sam-admin').get().view.getVisible(), false, 'pages hidden under the dialog');
-    // A wrong choice is not a trap: Cancel leaves it as it is.
-    assert.equal(await ui(`document.getElementById('agentcancel').hidden`), false);
-    await ui(`document.getElementById('agentcancel').click()`);
-    await waitFor(async () => !(await ui(`(document.getElementById('agentpick')?.dataset.state === 'open')`)));
-    await sleep(300); // nothing to wait for: that no other agent starts
-    assert.equal(task.pty, customPty, 'Cancel: the agent goes on');
-    await changeAgent();
-    await ui(`document.querySelector('#agentpick [role="radio"][value="shell"]').click()`);
-    await ui(`document.getElementById('agentstart').click()`);
-    await waitFor(() => task.pty && task.pty !== customPty);
-    const saved = JSON.parse(fs.readFileSync(pfile('agent.json', task.n), 'utf8'));
-    assert.deepEqual([saved.agent, saved.started, saved.sessionId, saved.runs], ['shell', true, undefined, undefined], 'a new conversation: the one before had none to keep');
-    assert.equal(task.agent.id, 'shell');
+    for (const preset of ['grid', 'focus', 'columns']) {
+      await ui(`window.__layoutPreset('${preset}')`);
+      await waitFor(async () => JSON.stringify(await island()) === JSON.stringify(before) && (await bottom()), 3000);
+    }
+    // With a profile open: folded to a strip of its +, along the grid's height (the island is under the grid); kept so.
+    await ctx.call('profile_open', { profile: 'sam-admin' });
+    await waitFor(async () => (await island()).height <= 40 && (await middle()));
+    assert.equal((await island()).width, before.width);
+    // Its + opens a terminal: the island unfolds.
+    await ui(`document.getElementById('termUnfold').click()`);
+    assert.deepEqual(await menuRows(ui), ['Terminal']);
+    await choose(ui, 'Terminal');
+    await waitFor(async () => task.terminals.size === 1 && !(await folded()) && (await island()).height >= 150);
+    // A shell closes without a question; folded again.
+    await ui(`document.querySelector('.termtab .close').click()`);
+    await waitFor(async () => task.terminals.size === 0 && (await folded()) && (await island()).height <= 40);
+    assert.equal(ctx.asked.length, 0);
+    // Ctrl+` there: the task's agent, a new conversation.
+    shell.win.focus();
+    press(shell.win.webContents, '`', 'control');
+    await waitFor(() => task.promptTarget()?.pty, 20000);
+    assert.equal(conversations().length, 2);
+    assert.deepEqual([conversations()[1].agent, conversations()[1].terminal], ['custom', task.promptTarget().id]);
     // Left closed for the restart phase (restart-tasks.ts).
     await ui(`${taskTab(task.n)}.querySelector('.close').click()`);
     await waitFor(() => task.entry.closed && !task.loaded && shell.task.n === 2);
@@ -643,7 +675,7 @@ export default (test: Test) => {
     // A task runs it: the agent with its folder in its variable, though the project's environment set it to another
     // (run.ts: its shell's startup, as a project's .envrc). Choosing a task's agent lists the project's accounts.
     const task = await newTask(ctx);
-    await waitFor(() => task.agent?.id === 'fake-1', 20000); // the project's default: its one account
+    await waitFor(() => task.promptTarget()?.agent.id === 'fake-1', 20000); // the project's default: its one account
     ctx.watchPty(task.pty);
     await waitFor(async () => (await ctx.termText()).includes(`config [${dir}]`));
     // Its shell gets none of direnv's state from where Kulisa was started: the user's direnv hook took the task's folder
@@ -652,12 +684,12 @@ export default (test: Test) => {
     if (process.platform === 'linux') {
       assert.deepEqual(fs.readFileSync(`/proc/${task.pty.pid}/environ`, 'utf8').split('\0').filter((v) => v.startsWith('DIRENV_')), []);
     }
-    await rightClick(ui, '#term');
+    // Change agent… (the terminal's menu) hands the task to one of the project's accounts.
+    await rightClick(ui, '.term:not([hidden])');
     await menuRows(ui);
     await choose(ui, 'Change agent…');
-    await waitFor(() => ui(`(document.getElementById('agentpick')?.dataset.state === 'open') && !!document.querySelector('#agentpick [role="radio"][value="fake-1"]')`), 20000);
-    await ui(`document.getElementById('agentcancel').click()`);
-    await waitFor(async () => !(await ui(`(document.getElementById('agentpick')?.dataset.state === 'open')`)));
+    await waitFor(async () => JSON.stringify(await menuRows(ui).catch((): string[] => [])) === '["# Hand the task to","Fake agent · work@shop.com"]');
+    await closeMenu(ui);
   });
 
   test("agents: an account lives until deleted in Settings → Agents: let go by its project at once, kept; not deleted while a task runs it; deleted after a question, signed out, with its folder; one made there is in no project", async (ctx) => {
@@ -672,7 +704,7 @@ export default (test: Test) => {
     await waitFor(() => ui(`!document.querySelector('#npagents [data-agent="fake-1"]')`));
     assert.equal(ctx.asked.length, 0);
     assert.deepEqual(shell.accounts.find('fake-1').projects, [], 'kept, in no project');
-    assert.equal(task.agent.id, 'fake-1');
+    assert.equal(task.promptTarget().agent.id, 'fake-1');
     assert.ok(fs.existsSync(dir));
     // Its tab: the account in no project; Delete refused while a task runs it.
     await click(ui, `document.querySelector('#projects [data-tab="agents"]')`);
@@ -1053,15 +1085,15 @@ export default (test: Test) => {
     const before = shell.task;
     await newTask(ctx);
     ctx.asked.length = 0;
-    await waitFor(() => shell.task.agent?.id === ann.id);
+    await waitFor(() => shell.task.promptTarget()?.agent.id === ann.id);
     assert.equal(shell.task.profiles.size, 0, 'no profile opens by itself');
     // Let go of at once, an account as an agent without accounts: its tasks keep it, and the account stays in the store.
     await ui(`kulisa.invoke('project:agent-remove', { id: 'site', agent: '${ann.id}' })`);
     await ui(`kulisa.invoke('project:agent-remove', { id: 'site', agent: 'shell' })`);
     assert.equal(shell.store.projects().find((p) => p.id === 'site').agents, undefined, 'none left');
     assert.deepEqual(shell.accounts.find(ann.id).projects, ['project']);
-    assert.equal(shell.task.agent.id, ann.id);
-    assert.equal(before.agent.id, 'shell');
+    assert.equal(shell.task.promptTarget().agent.id, ann.id);
+    assert.deepEqual([...before.terminals.values()].map((t) => [t.name, !!t.agent]), [['Terminal', false]], 'the terminal only: a shell');
     await ui(`kulisa.invoke('project:close', { id: 'site' })`);
     await waitFor(() => !shell.open.has('site'));
     ctx.asked.length = 0;
@@ -1405,11 +1437,11 @@ export default (test: Test) => {
     assert.equal((await p.page()).url(), 'about:blank', 'Playwright reached its tab');
     await shell.task.deleteProfile(id);
   });
-  // Switching the agent keeps the work (tasks.ts, switchTo; docs/tasks.md): the conversation is the agent's, the work
-  // the task's. The test agent (custom) and the fake one (two accounts) are two CLIs, their transcripts both in
+  // Several agents in a task (tasks.ts; docs/tasks.md, "Several agents"): a tab and a conversation each; the task handed
+  // from one to another. The test agent (custom) and the fake one (two accounts) are two CLIs, their transcripts both in
   // Claude Code's format (run.ts).
-  test("agents: switching the agent keeps the work: another CLI told to read the task's history; the same CLI's conversation moved to the other account and resumed; back to the first, its own resumed; New Conversation; deleting the task forgets every run", async (ctx) => {
-    const { shell, ui } = ctx;
+  test("agents: + opens any of the project's accounts, a new conversation in a tab of its own; each reports its own state, the task's tab the most urgent, and names its own tab; the task handed to another agent by its icon or Change agent…: a new tab told to go on with that conversation, the old one stays; New Conversation; deleting the task forgets every conversation", async (ctx) => {
+    const { shell, ui, call } = ctx;
     const shown = shell.task; // shown again at the end: the restart phase finds it so
     const task = await newTask(ctx);
     const [a, b] = ['a', 'b'].map((x) => {
@@ -1418,62 +1450,87 @@ export default (test: Test) => {
       shell.accounts.create('project', r.id, 'fake', `${x}@switch.test`);
       return { id: r.id, dir: r.dir };
     });
-    const agentFile = () => JSON.parse(fs.readFileSync(pfile('agent.json', task.n), 'utf8'));
-    const folder = task.folder.replace(/[^A-Za-z0-9]/g, '-');
-    // A conversation as Claude Code keeps it, in a config folder, reported at its session's start: what that answers.
-    const converse = async (dir: string, id: string, said: string) => {
-      const file = path.join(dir, 'projects', folder, `${id}.jsonl`);
-      fs.mkdirSync(path.dirname(file), { recursive: true });
-      fs.mkdirSync(path.join(dir, 'file-history', id), { recursive: true });
-      fs.writeFileSync(file, [{ type: 'user', message: { role: 'user', content: said } },
-        { type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: `On it: ${said}` }] } }].map((r) => JSON.stringify(r)).join('\n'));
-      return { file, context: (await reportSession(task, id, file)).hookSpecificOutput.additionalContext as string };
-    };
-    const switchTo = async (id: string, opts = {}) => {
-      const pty = task.pty;
-      await task.switchTo(shell.agentFor(id), opts);
-      await waitFor(() => task.pty && task.pty !== pty, 20000);
-    };
-    // The task's first conversation, with the test agent.
-    await switchTo('custom', { fresh: true });
-    const first = await converse(path.join(root, 'custom-config'), 'c-1', 'Build the checkout');
-    // Another CLI: a new conversation, its first message the handoff; its session's start says where the task stands.
-    await switchTo(a.id);
-    await waitFor(async () => (await ctx.termText()).includes('The human handed you this task'));
-    assert.deepEqual(agentFile().runs.map((r: { agent: string; sessionId: string }) => [r.agent, r.sessionId]), [['custom', 'c-1']]);
-    assert.equal(agentFile().handoff, undefined, 'said once');
-    const second = await converse(a.dir, 'f-1', 'Pay with cards');
-    assert.match(second.context, /# Where the task stands \(from Kulisa\).*The last run, [^:]+: its last turn ended as usual\..*The rest of the task's history: the kulisa task_history tool\./s);
-    // The same CLI, another account: the conversation moved there and resumed, nothing told.
-    await switchTo(b.id);
-    const moved = path.join(b.dir, 'projects', folder, 'f-1.jsonl');
-    assert.ok(fs.existsSync(moved) && !fs.existsSync(second.file), 'moved to the other account');
-    assert.ok(fs.existsSync(path.join(b.dir, 'file-history', 'f-1')) && !fs.existsSync(path.join(a.dir, 'file-history', 'f-1')));
-    assert.deepEqual([agentFile().agent, agentFile().sessionId, agentFile().transcript, agentFile().handoff], [b.id, 'f-1', moved, undefined]);
-    await waitFor(async () => (await ctx.termText()).includes('--resume f-1'));
-    assert.match((await reportSession(task, 'f-1', moved)).hookSpecificOutput.additionalContext, /^(?![\s\S]*Where the task stands)/, 'its own: no gist');
-    // Back to the first CLI: its own conversation resumed, told what came after it.
-    await switchTo('custom');
-    assert.deepEqual([agentFile().agent, agentFile().sessionId, agentFile().transcript], ['custom', 'c-1', first.file]);
-    assert.deepEqual(agentFile().runs.map((r: { agent: string; sessionId: string }) => [r.agent, r.sessionId]), [[b.id, 'f-1']]);
-    assert.match((await reportSession(task, 'c-1', first.file)).hookSpecificOutput.additionalContext, /The last run, Fake agent · b@switch\.test: /);
-    const history = (await ctx.call('task_history', {}, task)).text;
-    assert.ok(history.indexOf('Build the checkout') < history.indexOf('Pay with cards'), 'both runs, the current one first');
-    // New Conversation (the terminal's menu): the same agent from nothing; the conversation before is a run.
-    const pty = task.pty;
-    await rightClick(ui, '#term');
+    for (const x of [a, b]) await ui(`kulisa.invoke('project:agent-add', { id: 'project', agent: '${x.id}' })`);
+    const tabs = () => ui(`[...document.querySelectorAll('.termtab')].map((t) => t.querySelector('.name').textContent + (t.classList.contains('active') ? ' *' : ''))`);
+    const tabState = (id: number) => ui(`document.querySelector('.termtab[data-id="${id}"] .state').dataset.state`);
+    const taskState = () => ui(`${taskTab(task.n)}.querySelector('.state').dataset.state`);
+    const conversations = () => JSON.parse(fs.readFileSync(pfile('agent.json', task.n), 'utf8')).conversations;
+    const newest = () => [...task.terminals.values()].at(-1)!;
+    await waitFor(async () => JSON.stringify(await tabs()) === '["bash *"]');
+    const bash = task.promptTarget();
+
+    // +: the project's accounts, then Terminal; one chosen opens in a tab of its own, in front, a new conversation.
+    await ui(`document.getElementById('termAdd').click()`);
+    const rows = await menuRows(ui);
+    assert.deepEqual(rows.slice(-4), ['Fake agent · a@switch.test', 'Fake agent · b@switch.test', '-', 'Terminal']);
+    await choose(ui, 'Fake agent · a@switch.test');
+    await waitFor(async () => JSON.stringify(await tabs()) === '["bash","Fake agent *"]' && newest().pty, 20000);
+    const fake = newest();
+    assert.equal(await ui(`document.querySelector('.termtab[data-id="${fake.id}"] .handover use').getAttribute('href')`), '#i-agent', "an agent without a mark of its own: the generic one");
+    assert.deepEqual(conversations().map((c: { agent: string; terminal: number }) => [c.agent, c.terminal]), [['custom', bash.id], [a.id, fake.id]]);
+    assert.equal(task.promptTarget(), fake, 'a pick goes to the agent shown');
+
+    // Each its own state, from its own hooks; the task's tab shows the most urgent: waiting, then working.
+    const hook = (t: TaskTerminal, event: string) => new Promise((r) => http.request(`${task.env(t).KULISA_URL}/hooks/${event}`, { method: 'POST' }, (res) => { res.resume(); res.on('end', r); }).end('{}'));
+    await hook(fake, 'prompt');
+    await waitFor(async () => (await tabState(fake.id)) === 'working' && (await taskState()) === 'working');
+    assert.equal(await tabState(bash.id), '');
+    await hook(bash, 'waiting');
+    await waitFor(async () => (await tabState(bash.id)) === 'waiting' && (await taskState()) === 'waiting');
+    await hook(bash, 'stop'); await hook(fake, 'stop');
+    // Done in a tab behind: shown until the human brings it to the front.
+    await waitFor(async () => (await tabState(bash.id)) === 'done' && (await tabState(fake.id)) === '');
+    await click(ui, `document.querySelector('.termtab[data-id="${bash.id}"]')`);
+    await waitFor(async () => (await tabState(bash.id)) === '' && (await taskState()) === '');
+    assert.equal(task.promptTarget(), bash);
+
+    // Each names its own tab, in 1 to 3 words; at the task's own URL there is no tab to name.
+    assert.match((await call('conversation_rename', { name: ' Pay   with cards ' }, task, fake)).text, /^Your conversation is now "Pay with cards"\.$/);
+    await waitFor(async () => JSON.stringify(await tabs()) === '["bash *","Pay with cards"]');
+    await assert.rejects(call('conversation_rename', { name: 'one two three four' }, task, fake), /1 to 3 words/);
+    await assert.rejects(call('conversation_rename', { name: 'x' }, task), /conversation_rename/);
+    // Its conversation as Claude Code keeps it, reported at its session's start: read by the others in task_history.
+    const folder = task.folder.replace(/[^A-Za-z0-9]/g, '-'), file = path.join(a.dir, 'projects', folder, 'f-1.jsonl');
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, [{ type: 'user', message: { role: 'user', content: 'Pay with cards' } },
+      { type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: 'On it' }] } }].map((r) => JSON.stringify(r)).join('\n'));
+    await new Promise((r) => http.request(`${task.env(fake).KULISA_URL}/hooks/session-start`, { method: 'POST' }, (res) => { res.resume(); res.on('end', r); })
+      .end(JSON.stringify({ session_id: 'f-1', transcript_path: file })));
+    await waitFor(() => conversations()[1].sessionId === 'f-1');
+    assert.match((await call('task_history', {}, task, bash)).text, /2\. "Pay with cards": Fake agent · a@switch\.test, open in its tab, from [^\n]+\n {3}First request: "Pay with cards"/);
+
+    // Its icon hands the task to an agent of the project (this one too): a new tab, told to go on with this conversation.
+    await ui(`document.querySelector('.termtab[data-id="${fake.id}"] .handover').click()`);
+    assert.deepEqual(await menuRows(ui), ['# Hand the task to', ...rows.slice(0, -2)]);
+    await choose(ui, 'Fake agent · b@switch.test');
+    await waitFor(async () => JSON.stringify(await tabs()) === '["bash","Pay with cards","Fake agent *"]' && newest().pty, 20000);
+    const handed = newest();
+    assert.equal(handed.agent.id, b.id);
+    assert.equal(handed.pty.spawnArgs.at(-1), 'Go on with the work of conversation 2 of this task ("Pay with cards"). Read it whole with the kulisa task_history tool (conversation 2) before anything else. Then tell me in a few lines what is done and what is next, and go on with it.');
+    assert.ok(task.terminals.get(fake.id)?.pty, 'the tab it came from stays');
+    // Change agent… (a tab's or a terminal's menu) is the same menu, at the icon.
+    await rightClick(ui, `.termtab[data-id="${fake.id}"] .name`);
+    assert.deepEqual(await menuRows(ui), ['Change agent…', 'New Conversation', '-', 'Close']);
+    await choose(ui, 'Change agent…');
+    await waitFor(async () => (await menuRows(ui).catch((): string[] => []))[0] === '# Hand the task to');
+    await closeMenu(ui);
+    // New Conversation: the same agent from nothing, in a tab of its own.
+    await rightClick(ui, `.termtab[data-id="${bash.id}"] .name`);
     await menuRows(ui);
     await choose(ui, 'New Conversation');
-    await waitFor(() => task.pty !== pty && task.pty);
-    assert.deepEqual(agentFile().runs.map((r: { sessionId: string }) => r.sessionId), ['f-1', 'c-1']);
-    assert.deepEqual([agentFile().agent, agentFile().sessionId, agentFile().handoff], ['custom', undefined, undefined]);
-    // Deleting the task forgets every run's conversation, each in its account's folder.
+    await waitFor(async () => JSON.stringify(await tabs()) === '["bash","Pay with cards","Fake agent","bash 2 *"]' && newest().pty, 20000);
+    assert.deepEqual(conversations().map((c: { agent: string }) => c.agent), ['custom', a.id, b.id, 'custom']);
+
+    // Deleting the task forgets every conversation, each in its account's folder.
     ctx.answer = true;
     await ui(`kulisa.invoke('task:delete', '${task.key}')`);
     await waitFor(() => !shell.current.tasks.has(task.n));
-    assert.ok(!fs.existsSync(moved), "the fake agent's, in the other account");
+    assert.ok(!fs.existsSync(file), "the fake agent's, in its account");
     ctx.asked.length = 0;
-    for (const x of [a, b]) { shell.accounts.drop(x.id); fs.rmSync(x.dir, { recursive: true, force: true }); }
+    for (const x of [a, b]) {
+      await ui(`kulisa.invoke('project:agent-remove', { id: 'project', agent: '${x.id}' })`);
+      shell.accounts.drop(x.id); fs.rmSync(x.dir, { recursive: true, force: true });
+    }
     await waitFor(() => !shell.windows[0].switching && ui(`!document.documentElement.classList.contains('loading')`));
     await click(ui, `document.querySelector('#tasklist .tasktab[data-task="${shown.key}"]')`);
     await waitFor(() => shell.task === shown && shown.loaded);

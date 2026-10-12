@@ -15,7 +15,8 @@ here; what is left of it stays.
     the branch the stabilization goes on from, and so is what came after them: the window in Vue 3 and Reka UI, the
     groups and the tasks' bar as Chrome's tab groups with one + after the islands, the empty window, Settings as
     JetBrains' (a tree of Projects, Agents and Profiles; [ui.md](ui.md), Desktop, not a web page), the whole project
-    in TypeScript. The author tests it by hand. Next: fix what the author's testing finds; then what is left of the
+    in TypeScript; 2026-10-12, a task's island of terminals with several agents in it ("Several agents in a task, rest",
+    below). The author tests it by hand. Next: fix what the author's testing finds; then what is left of the
     steps (below), only once the author has decided it.
   - **Open, for the author to decide:** Refresh from Master… now matters only for a local app's cookies (keep or
     drop); a script the agent runs in a page (`browser_evaluate`) could read a test password back from its field
@@ -40,21 +41,20 @@ here; what is left of it stays.
     default); rights on profiles, when real accounts come (one flag, "view only": reading allowed, clicks and typing
     refused; today the agent's own modes cover test users).
 
-- **Switching a task's agent, rest** (built 2026-10-12: [tasks.md](tasks.md), "Switching the agent";
-  [transcripts.md](transcripts.md)).
-  - **Codex**, once there is an account (Codex 0.160.1): its transcript, for its reader (until then a run of Codex
-    gives the task's history Kulisa's part alone: git, profiles, terminals); its conversation moved to another
-    account and resumed (`move`: `sessions/` in its `CODEX_HOME`, `codex resume <id>`; until then a switch to another
-    account of it starts a new conversation with the task's history); its first prompt as an argument; its cap on a
-    hook's context. Its compaction summaries are encrypted (claude-codex-bridge's finding): its history will have
-    chapters without summaries.
-  - To try with a real Claude Code: a switch end to end (the tests run fake agents); `claude --resume <id> "<prompt>"`
-    in its interactive mode, sending the prompt as `-p` does (checked with `-p` only).
-  - **Open, for the author:** the old conversation after a switch to another CLI: kept (today: the task's record, read
-    by `task_history`, gone with the task) or deleted at the new agent's first answer (the author's idea, 2026-10-12;
-    then its chapter is read once and kept by the task); Kulisa offering the switch when an agent stops on its limit
-    (`StopFailure`), and to whom (another vendor bypasses nothing; a second subscription of the same vendor may: tasks.md,
-    "Switching the agent").
+- **Several agents in a task, rest** (built 2026-10-12: [tasks.md](tasks.md), "Several agents in a task";
+  [window.md](window.md), The terminal; [transcripts.md](transcripts.md)).
+  - **Codex**, once there is an account (Codex 0.160.1): its transcript, for its reader (until then a conversation of
+    Codex is listed in the task's history, its text not read); its first prompt as an argument (handing over). Its
+    compaction summaries are encrypted (claude-codex-bridge's finding): its history will have chapters without
+    summaries. Two Codex conversations in one task: one without a session reported (no hooks trusted) resumes with
+    `codex resume --last` after a restart, which may be the other's.
+  - To try with a real Claude Code: handing over end to end (the tests run fake agents); `conversation_rename` asked
+    for by the instructions and the skill: does it name its tab, and when.
+  - The island folded at a side (by its width) is built, not tested; nor a terminal's tabs too many for the row (they
+    scroll, without arrows).
+  - **Open, for the author:** Kulisa offering to hand the task over when an agent stops on its limit (`StopFailure`),
+    and to whom (another vendor bypasses nothing; a second subscription of the same vendor may: tasks.md, "Several
+    agents in a task").
 - **Kulisa plugin: more the agent can do in the browsers** (tools in `mcp-server.ts`, each described in the skill;
   what is built: [profiles.md](profiles.md), "What the agent does"). What else an agent needs comes from using it
   (the author moves to working in Kulisa, 2026-10-08): where the agent goes around the tools (its own Playwright
@@ -173,50 +173,10 @@ here; what is left of it stays.
     worktree (it names containers after the folder already), or one dev server at a time. The developer's matter;
     perhaps recipes in the skill. A project that cannot run twice: one shared dev server, the panes show whose
     branch it is.
-- **Other terminals: ▶ after a restart** (the author's idea, 2026-10-09). Today a task's other terminals come
-  back after a restart as shells with nothing running (the agent runs its command again). Then: the command they
-  ran is kept too, and ▶ in the header runs it again (starting by itself could run what the human did not expect,
+- **Shells: ▶ after a restart** (the author's idea, 2026-10-09). Today a task's shells come back after a restart with
+  nothing running (the agent runs its command again). Then: the command they ran is kept too, and ▶ on its tab runs
+  it again (starting by itself could run what the human did not expect,
   e.g. migrations).
-- **Closing and opening the agent's terminal** (the author's idea, 2026-10-09; being discussed, not decided). Today
-  the agent's terminal cannot be closed: its menu has Change agent… where the others have Close. The goal is the full
-  set of actions: close it when the human wants (more room on the screen, memory, no agent for a while), open an
-  agent again when they want (Claude Code, Codex, a plain shell).
-  - Processes stay as they are: Kulisa starts the user's shell in a pty and types the agent's command into it
-    (`terminal.ts`), as a human in GNOME Terminal would, so the project's environment applies (direnv, nvm, mise).
-    Closing kills that shell (`p.kill()`) and the agent with it (SIGHUP), and frees its memory (hundreds of MB).
-    Opening again starts a new shell and types the agent with `--resume`: the same conversation (`agents.ts`: Claude
-    `--resume <id>`, Codex `resume <id>|--last`). Starting the agent directly in the pty, without a shell, was
-    weighed and left: the project's environment is made by the shell's startup files and cannot be passed in `env`
-    without running a shell anyway.
-  - Proposed: × or Close ends it (agent.json keeps the agent and its session, and that it is closed: a restart does
-    not bring it back); + offers the installed agents and Shell; Ctrl+` opens the task's agent when closed. A new
-    task still starts with its agent open.
-  - In the code (Claude's recommendation): today the agent's terminal is a thing of its own (`Task.pty`, panel
-    id `terminal`, started by `startAgent`, closed only by `changeAgent` or `unload`) and the others another
-    (`Task.terminals`, `openTerminal`/`closeTerminal`, `terminals.json`). Make them one list, each terminal
-    saying whether Kulisa started an agent in it (`agent: 'claude' | null`): that one gets picks, dictation and the
-    hooks' state, and after a restart runs its agent again with resume; a shell comes back empty. Cheaper: give the
-    agent's terminal its own close and open and keep the two kinds (about half the code), but everything about
-    terminals stays written twice, and "Several agents in one task" (Deferred ideas) would need the merge
-    anyway. To change with it: the renderer assumes the panel `terminal` is always there (it anchors new profiles
-    and terminals, and the grid adds it back: `lib/grid.ts`, `restoreGrid`, `syncGrid`, `applyPreset`); saved grids name it: they are not migrated (a saved
-    grid of the old shape is dropped, the task's grid made anew).
-  - The author's direction (2026-10-11, with the agents' accounts): a task may start with the terminal only, and + in the island of
-    terminals opens any number of the project's agents (its accounts) next to it; to design with "Several agents in one
-    task" (Deferred ideas), next.
-  - Open questions for the author, each with Claude's proposal:
-    - A second agent in the same task (Codex next to Claude)? Proposed: not yet; + shows the open one.
-      Several agents is its own task (Deferred ideas), with each terminal's own hooks state, picks and dictation.
-    - Ask before closing? Proposed: only while the agent works (its hooks say so); agents without hooks: never,
-      as Ctrl+C in any terminal.
-    - Pick and dictation with the agent closed? Proposed: they open the agent and put the reference there.
-    - Where + lives once the agent's terminal can be gone (today it is in that terminal's header)? Proposed: the
-      title bar, always there. Change agent… then goes: close one, open another.
-    - The agent exits by itself (`/exit`, a crash)? Today the shell stays; proposed: still so, and Ctrl+` starts
-      the agent again in that shell, with resume.
-    - agent.json keeps one session: Claude → Codex → Claude loses Claude's conversation (`startAgent` resumes only
-      the same agent). Proposed: the last session of each agent.
-  - Cost, roughly: code +200–300 · tests +80 · docs +50.
 - **Sign-in: whoever holds the password signs in** (discussed with the author 2026-10-08; the best idea so far,
   not final: to think over again before building). Today the sign-in pause is tied to the page's address (a list of
   hosts), so the agent cannot test the developer's own sign-in, sign-up and password reset through Auth0 and the like
@@ -416,9 +376,8 @@ here; what is left of it stays.
   file in the project that Kulisa only reads (the developer's own description wins).
 - **A screenshot taken at a pick** (point and tell), if a transient element (a tooltip, an open menu, a toast) turns
   out to need it: today the pick is a locator only, and the agent looks at the live page.
-- **Several agents in one task, working as a team** (discussed 2026-10-06; after tasks, which do not
-  depend on it). A task may hold several terminals, each an agent (any CLI, Claude and Codex together; built on
-  the task's other terminals, [window.md](window.md), "The terminal"); all
+- **Several agents in one task, working as a team** (discussed 2026-10-06; several agents in a task, each in a tab,
+  are built: [tasks.md](tasks.md), "Several agents in a task"; what is left is their working together). All
   see the task's code and profiles. Covers a tester next to the developer, a side question (Claude: a forked
   conversation), browser-only research, and parallel agents in a project without git (its tasks share its folder). Cheaper than
   a task: one agent process, no profile copies. Agents
@@ -428,7 +387,7 @@ here; what is left of it stays.
     while it works; for Claude Code possibly through hooks.
   - A task list of the task, seen by the agents (MCP) and the human (a panel).
   - Own tabs: each agent works in tabs it opened (`browser_tab_new`); Kulisa knows whose tab is whose, the pane
-    shows which agent acts. A pick goes to the terminal active last.
+    shows which agent acts.
   - The skill: check who else is here, tell the one waiting when done, report a bug in another's part to its
     author instead of fixing it.
 
@@ -694,11 +653,12 @@ here; what is left of it stays.
   `profiles.ts`). To find: time the steps of loading `other` after a restart (its profiles' tabs, its terminals).
 - **The GPU renderer only on terminals in sight** (discussed with the author 2026-10-09; the author builds it later).
   Today every terminal loads xterm's WebGL addon when made (`makeTerminal` in `src/renderer/lib/terminals.ts`), hidden ones
-  too (other tasks and projects, terminals behind another panel): each keeps a WebGL context and its glyph atlas.
+  too (other tasks and projects, terminals behind another tab of their island): each keeps a WebGL context and its
+  glyph atlas. With several agents in a task (each a terminal) the limit below comes sooner.
   Chromium keeps at most 16 contexts per page; the 17th takes the oldest one's, and that terminal falls back to the DOM
   renderer for good (`onContextLoss`), drawing slower. Nothing breaks: at about 5 projects × 3 tasks it starts.
-  - The fix: a terminal gets the WebGL addon when it comes into sight and disposes of it when hidden (`showTerminal`;
-    the other terminals' panels: dockview's visibility of a panel), so only the terminals on screen hold a context.
+  - The fix: a terminal gets the WebGL addon when it comes into sight and disposes of it when hidden (its tab in front
+    of the shown task's island: `Terminals.vue`, `place`), so only the terminals on screen hold a context.
     The buffer (the text, scrollback) is untouched: it is xterm's, not the renderer's. About 15 lines. Test
     (`test/window.ts`, next to "GPU renderer"): the shown terminal is `webgl`, a hidden one has none and gets it back
     when shown; `window.__termRenderer` reports the shown one already.
@@ -714,6 +674,6 @@ here; what is left of it stays.
     in xterm (the pty in the main process passes bytes on). It would have to live elsewhere anyway (`@xterm/headless`
     per pty: the same memory, plus serializing and writing it again at every switch, losing the scroll position and
     the selection; or the raw output replayed: a log that grows, slow for a long session), and several terminals are
-    on screen at once (the other terminals' panels, other windows). VS Code too keeps an xterm per terminal.
+    on screen at once (other windows). VS Code too keeps an xterm per terminal.
 - **No performance numbers taken with the monitor on.** CPU, RAM, many profiles; see REPORT, E8.
 - **`playwright-core` is pinned to a 1.64 alpha.** Move to the stable release once it ships with the same APIs.

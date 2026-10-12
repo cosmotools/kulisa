@@ -65,7 +65,7 @@ src/main/        Electron main process
   keys.ts          the keyboard shortcuts: one table, which key an input event is (app.ts takes them before the pages)
   projects.ts      a project's group: its tasks (make, close, open again, delete); removing a project's data
   names.ts         the one rule for names of projects, tasks and profiles; slugs for ids and folders
-  tasks.ts         a task: its profiles, agent (terminal, environment), folder and name; copies for a new task
+  tasks.ts         a task: its profiles, terminals and agents (environment, handing over), folder and name; copies
   agents.ts        the agent CLIs to choose from: how to find, install, start and resume each
   accounts.ts      the agents' accounts, one store: each made with New Account… (Settings), a config folder of its own,
                    kept until deleted
@@ -93,7 +93,7 @@ src/main/        Electron main process
   session-cookies.ts  keeps session cookies across restarts (encrypted with the OS keyring)
   picker.ts        point and tell: Playwright pickLocator → a reference (profile, tab, locator) typed into the agent's prompt
   ghost.ts         the agent's actions: Playwright's annotations in the page, a caption over the pane
-  terminal.ts      node-pty: the agent CLI, one per task, and the task's other terminals
+  terminal.ts      node-pty: a task's terminals, each a shell, an agent CLI started in some
 src/agent/claude-plugin/  the Kulisa plugin for Claude Code: MCP config, the profiles skill, hooks (claude --plugin-dir)
 src/preload/     the window's bridge to the main process
 src/renderer/    window UI: Vue 3 components in TypeScript, built by Vite into dist/renderer (vite.config.mts; docs/ui.md).

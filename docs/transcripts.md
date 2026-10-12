@@ -1,31 +1,29 @@
 # The task's history and the agents' transcripts
 
-How an agent reads what was said and done in its task before it, by itself or by another agent (`task_history`), and
-how Kulisa reads each agent CLI's transcript for it. Built 2026-10-12 for switching a task's agent
-([tasks.md](tasks.md), "Switching the agent"; what is left, Codex's reader: [ROADMAP.md](ROADMAP.md)). Keep this file current when a reader changes, and check it when an agent CLI is updated:
+How an agent reads what was said and done in its task, by itself or by other agents (`task_history`), and how Kulisa
+reads each agent CLI's transcript for it. Built 2026-10-12 for handing a task from one agent to another
+([tasks.md](tasks.md), "Several agents in a task"; what is left, Codex's reader: [ROADMAP.md](ROADMAP.md)). Keep this file current when a reader changes, and check it when an agent CLI is updated:
 the transcripts' formats are the agents' own and undocumented.
 
 ## What the agent gets
 
-**`task_history(part)`**, a tool of Kulisa's MCP server (`mcp-server.ts`, `history.ts`), gives the task's history as
-one text in parts of about 40,000 characters (10,000 tokens: under what agents take from one tool's result). Part 1
-says how many there are; the agent calls the next ones in turn. The whole text is made at part 1 and kept (in memory,
-with the task) for the next parts, so they stay the same while the agent reads them: its own transcript grows
-meanwhile.
+**`task_history(conversation, part)`**, a tool of Kulisa's MCP server (`mcp-server.ts`, `history.ts`), gives a text
+in parts of about 40,000 characters (10,000 tokens: under what agents take from one tool's result). Part 1 says how
+many there are; the agent calls the next ones in turn. The whole text is made at part 1 and kept (in memory, with the
+task) for the next parts, so they stay the same while the agent reads them: its own transcript grows meanwhile.
 
-The text, in this order:
-
-1. **Where the task stands** (Kulisa's part, what no transcript says): the task, its folder and branch; how the last
-   run stopped (a tool call with no result: cut off, by a limit or the human; or the human's last message with no
-   answer); for each copy of the code, its commits since the task started, the files not committed and `diff --stat`
-   against its start (`progress` in `worktrees.ts`); the profiles open and closed; the terminals besides the
-   agent's and what runs there.
-2. **The runs' conversations, the latest chapter first.** A task's runs are the agents that worked in it, each with
-   its transcript (`agent.json`: the current one in its fields, the earlier ones in `runs`, oldest first; a switch of
-   the agent adds to them: tasks.md, "Switching the agent"). Each run's conversation is cut into **chapters** at its agent's compaction
-   summaries: a chapter is a summary and what follows it up to the next. The chapters of all runs, in the order they
-   happened, are given from the latest back. At the end of each run's last chapter: the agent's last plan
-   (`TodoWrite`) and what it remembered in the task's folder (Claude Code's memory).
+- **Without a conversation**: **where the task stands** (Kulisa's part, what no transcript says): the task, its
+  folder and branch; for each copy of the code, its commits since the task started, the files not committed and
+  `diff --stat` against its start (`progress` in `worktrees.ts`); the profiles open and closed; the shells and what
+  runs there. Then **its conversations**, oldest first, numbered from 1 (each an agent's, `agent.json`: tasks.md,
+  "Several agents in a task"): its tab's name (the one its agent gave it), its agent and account, open in its tab or
+  closed, from when to when, the human's first and last request in it (200 characters at most), and how its last turn
+  ended (a tool call with no result: cut off, by a limit or the human; or the human's last message with no answer).
+  The agent finds there the conversation the human points it to ("what Claude did", "the checkout").
+- **With a conversation's number**: that conversation whole, the latest chapter first. It is cut into **chapters**
+  at its agent's compaction summaries: a chapter is a summary and what follows it up to the next, given from the
+  latest back. At the end of its last chapter: how its last turn ended, the agent's last plan (`TodoWrite`) and what
+  it remembered in the task's folder (Claude Code's memory).
 
 Why so:
 
@@ -43,7 +41,9 @@ Why so:
   compaction the agent worked from that summary and what followed alone. So the latest chapter is the state the
   agent was in when it stopped; the earlier ones are where a summary's omission is found, and the agent is told to
   read every part.
-- **Useful beyond a switch**: an agent whose context was compacted reads the details again.
+- **A list first, then one conversation** (the author, 2026-10-12): with several agents in a task, the one asked for is
+  read, not all of them.
+- **Useful beyond a handoff**: an agent whose context was compacted reads the details again.
 
 The agent learns of it from the MCP server's instructions (every agent) and the Kulisa plugin's skill (Claude Code).
 
@@ -68,8 +68,8 @@ record:
 | the agent's answer | `type: "assistant"`, block `type: "text"` | `.text` | whole |
 | a tool call | `type: "assistant"`, block `type: "tool_use"`: `name`, `input` | `Bash`: `input.command`; `Edit`: `file_path`, `old_string`, `new_string`; `Write`: `file_path`, `content`; `Read`: `file_path` alone; any other (Kulisa's `mcp__kulisa__*` too): `name` and `input` as JSON | whole: the command run, the file edited and how |
 | a tool's result | `type: "user"`, block `type: "tool_result"`: `tool_use_id`, `is_error`, `content` (a string, or `text` blocks); beside it `toolUseResult` (Bash: `stdout`, `stderr`, `interrupted`), not read | `content` | its first and last 2 KB (`CUT`), `… [N characters cut] …` between; whole when `is_error`; a `Read`'s left out (its path is in the call: the file is in the task's folder, and may have changed) |
-| the agent's plan | a `tool_use` named `TodoWrite`, `input.todos` (`content`, `status`) | the last one | at its run's end (the session checked had none: not a sure source) |
-| `task_history`'s own calls and results | a `tool_use` named `mcp__kulisa__task_history`, its result | | left out: the runs it gave are read from their own transcripts |
+| the agent's plan | a `tool_use` named `TodoWrite`, `input.todos` (`content`, `status`) | the last one | at its conversation's end (the session checked had none: not a sure source) |
+| `task_history`'s own calls and results | a `tool_use` named `mcp__kulisa__task_history`, its result | | left out: the conversations it gave are read from their own transcripts |
 | reasoning | block `type: "thinking"` (`thinking`, `signature`: signed, another model cannot take it; empty in most records) | | left out |
 | an image | block `type: "image"` (`source.data`) | | left out |
 | a hook's output (`SessionStart`'s context among them) | `type: "attachment"`, `attachment.type: "hook_success"` | | left out |
@@ -89,7 +89,7 @@ index first.
 
 ## Codex's transcript
 
-Not read yet (no Codex account to check it with): a run of Codex gives the history Kulisa's part alone. Known from
+Not read yet (no Codex account to check it with): a conversation of Codex is listed, its text cannot be read here. Known from
 others (claude-codex-bridge): its sessions are `sessions/…/rollout-*.jsonl` in its `CODEX_HOME`, and its compaction
 summaries are encrypted, so its chapters will have none.
 
@@ -97,7 +97,7 @@ summaries are encrypted, so its chapters will have none.
 
 | File | What |
 |---|---|
-| `src/main/history.ts` | the history's text: Kulisa's part, the runs' chapters, the parts |
+| `src/main/history.ts` | the history's text: Kulisa's part, the conversations listed, one's chapters, the parts |
 | `src/main/transcripts.ts` | the readers: an agent's transcript as entries (`human`, `agent`, `call`, `result`, `error`, `summary`), its plan, where it stopped, its memory |
 | `src/main/agents.ts` | each agent's `conversation`, its reader |
 | `src/main/worktrees.ts` | `progress`: a copy's commits, files not committed, `diff --stat` |

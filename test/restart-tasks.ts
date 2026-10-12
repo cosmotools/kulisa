@@ -50,18 +50,21 @@ export default (test: Test) => {
     const columns = async () => {
       if (!(await ui(`document.querySelectorAll('.pane[data-profile="sam-admin"], .pane[data-profile="elon-buyer"]').length === 2`))) return false;
       const sam = await box('.pane[data-profile="sam-admin"] .content'), elon = await box('.pane[data-profile="elon-buyer"] .content');
-      const term = await box('#term');
+      const term = await box('.term:not([hidden])');
       return sam.width > 0 && sam.x < elon.x && term.x > elon.x + elon.width - 1;
     };
     await waitFor(columns, 3000);
   });
-  test("after a restart: a task's other terminal comes back in its place when it loads, a shell with nothing running", async ({ shell, ui, call }) => {
+  test("after a restart: a task's terminals come back in their tabs when it loads, the one in front too: its agent's conversation resumed, a shell with nothing running", async ({ shell, ui, call }) => {
     await showProject(ui, 'other');
     await waitFor(() => shell.current?.id === 'other' && shell.task.loaded);
-    assert.deepEqual(shell.task.terminalsInfo().map(({ name, by, command }) => ({ name, by, command })), [{ name: 'dev server', by: 'agent', command: '' }]);
-    const { id } = shell.task.terminal('dev server') as TaskTerminal;
-    await waitFor(() => ui(`window.__dock?.getPanel('term:${id}')?.group.id === window.__dock?.getPanel('terminal')?.group.id`));
-    await waitFor(() => (shell.task.terminal('dev server') as TaskTerminal).pty);
+    const task = shell.task;
+    const tabs = () => JSON.stringify(task.terminalsInfo().list.map(({ name, by, command, agent }) => ({ name, by, command, agent: agent?.account ?? null })));
+    await waitFor(() => tabs() === JSON.stringify([{ name: 'bash', by: 'human', command: '', agent: 'custom' }, { name: 'dev server', by: 'agent', command: '', agent: null }]), 10000);
+    const { id } = task.terminal('dev server') as TaskTerminal;
+    await waitFor(async () => JSON.stringify(await ui(`[...document.querySelectorAll('.termtab')].map((t) => t.querySelector('.name').textContent + (t.classList.contains('active') ? ' *' : ''))`)) === '["bash *","dev server"]');
+    await waitFor(() => (task.terminal('dev server') as TaskTerminal).pty && task.promptTarget()?.pty);
+    assert.equal(task.terminals.get(id).by, 'agent');
     await sleep(500); // nothing to wait for: that nothing runs
     assert.ok(!(await call('terminal_read', { name: 'dev server' })).text.includes('served before'), 'nothing runs there');
   });

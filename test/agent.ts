@@ -159,8 +159,10 @@ export default (test: Test) => {
       let out = ''; c.stdout.on('data', (d) => (out += d)); c.on('close', (code) => resolve({ code, out }));
       c.stdin.end(input);
     });
-    const inKulisa = await run(shell.task.env());
-    assert.deepEqual(JSON.parse(fs.readFileSync(pfile('agent.json'), 'utf8')), { agent: 'custom', started: true, sessionId: 'session-1', transcript });
+    const agent = shell.task.promptTarget();
+    const inKulisa = await run(shell.task.env(agent)); // the agent's terminal's own: its conversation's
+    assert.deepEqual(JSON.parse(fs.readFileSync(pfile('agent.json'), 'utf8')).conversations.map(({ from, ...c }: { from: number }) => c),
+      [{ agent: 'custom', started: true, terminal: agent.id, sessionId: 'session-1', transcript }]);
     assert.equal(inKulisa.code, 0);
     const context = JSON.parse(inKulisa.out).hookSpecificOutput.additionalContext;
     assert.match(context, /- sam-seller \("Sam.seller"\): seller in the test shop/);
@@ -632,8 +634,8 @@ export default (test: Test) => {
 
   // task_history (history.ts): the task's runs read from their transcripts, for an agent taking the task over or one
   // whose context lost the details. The test agent reads transcripts as Claude Code's (run.ts).
-  test("agent: task_history gives where the task stands, then its runs' conversations, the latest chapter first, in parts", async ({ shell, call }) => {
-    const task = shell.task!, saved = task.store.agent();
+  test("agent: task_history gives where the task stands and its conversations, each with its tab, when and what it was about; then one whole, the latest chapter first, in parts", async ({ shell, call }) => {
+    const task = shell.task!, saved = task.store.agent(), open = task.promptTarget()!;
     const transcript = (name: string, records: object[]) => {
       const file = path.join(root, 'transcripts', name, 's.jsonl');
       fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -642,7 +644,7 @@ export default (test: Test) => {
     };
     const said = (who: 'user' | 'assistant', text: string, more = {}) => ({ type: who, message: { role: who, content: who === 'user' ? text : [{ type: 'text', text }] }, ...more });
     const earlier = transcript('earlier', [said('user', 'Start the checkout feature'), said('assistant', 'Checkout started in cart.ts')]);
-    // The current run: compacted once, then a long tool output, then the human unanswered.
+    // The open one: compacted once, then a long tool output, then the human unanswered.
     const current = transcript('current', [
       said('user', 'Old request before the summary'),
       said('user', 'This session is being continued from a previous conversation. Summary: checkout half done.', { isCompactSummary: true }),
@@ -651,23 +653,29 @@ export default (test: Test) => {
       said('user', 'Finish the pay step'),
     ]);
     try {
-      task.store.saveAgent({ ...saved, transcript: current, sessionId: 'now', runs: [{ agent: saved.agent, transcript: earlier, sessionId: 'before', from: Date.UTC(2026, 9, 1, 9), to: Date.UTC(2026, 9, 1, 10) }] });
-      const first = (await call('task_history', {})).text;
-      const total = Number(first.match(/^Part 1 of (\d+)\. Then task_history with part 2\./)![1]);
+      // The closed one first, as it was had; the open one is the agent's tab's.
+      task.store.saveAgent({ ...saved, conversations: [
+        { agent: 'custom', transcript: earlier, sessionId: 'before', from: Date.UTC(2026, 9, 1, 9), to: Date.UTC(2026, 9, 1, 10), title: 'Checkout start' },
+        { ...saved.conversations![open.conversation!], transcript: current, sessionId: 'now' }] });
+      open.conversation = 1;
+      const list = (await call('task_history', {})).text;
+      assert.match(list, /^Part 1 of 1\. The last one\.\n\n# Where the task stands \(from Kulisa\)\n\nThe task "[^"]+", in /);
+      assert.match(list, /## Profiles\nOpen: .*Closed: /);
+      assert.match(list, /# Its conversations, oldest first\n\n1\. "Checkout start": bash, closed, from 2026-10-01 09:00 to 2026-10-01 10:00\.\n {3}First request: "Start the checkout feature"\n {3}How its last turn ended: as usual\.\n2\. "bash": bash, open in its tab, from [^\n]+\n {3}First request: "Old request before the summary"\n {3}Last request: "Finish the pay step"\n {3}How its last turn ended: the human's last message got no answer\./);
+      const first = (await call('task_history', { conversation: 2 })).text;
+      const total = Number(first.match(/^Part 1 of (\d+)\. Then task_history with conversation 2 and part 2\./)![1]);
       assert.ok(total > 2, 'a 200 KB error, kept whole, takes several parts');
-      assert.match(first, /# Where the task stands \(from Kulisa\)\n\nThe task "[^"]+", in /);
-      assert.match(first, /The last run, [^:]+: the human's last message got no answer\./);
-      assert.match(first, /## Profiles\nOpen: .*Closed: /);
-      const whole = [first, ...await Promise.all(Array.from({ length: total - 1 }, async (_, i) => (await call('task_history', { part: i + 2 })).text))].join('\n');
+      const whole = [first, ...await Promise.all(Array.from({ length: total - 1 }, async (_, i) => (await call('task_history', { conversation: 2, part: i + 2 })).text))].join('\n');
       const at = (s: string) => { const i = whole.indexOf(s); assert.ok(i >= 0, `has ${s}`); return i; };
-      // The order: the current run's last chapter (its summary on), its first, then the earlier run.
-      assert.ok(at('Run 2 of 2') < at('Summary: checkout half done') && at('Summary: checkout half done') < at('Finish the pay step'));
-      assert.ok(at('Finish the pay step') < at('Old request before the summary') && at('Old request before the summary') < at('Start the checkout feature'));
-      assert.match(whole, /# Run 1 of 2, .*, from 2026-10-01 09:00 to 2026-10-01 10:00, chapter 1 of 1/);
+      // The order: its last chapter (its summary on), then its first.
+      assert.ok(at('Summary: checkout half done') < at('Finish the pay step') && at('Finish the pay step') < at('Old request before the summary'));
+      assert.match(whole, /# Conversation 2, "bash", bash, from [^,]+, chapter 2 of 2/);
+      assert.ok(!whole.includes('Start the checkout feature'), 'that conversation alone');
       assert.ok(whole.split('').filter((ch) => ch === 'x').length >= 200_000, 'the error whole, across parts');
-      assert.match((await call('task_history', { part: total })).text, new RegExp(`^Part ${total} of ${total}\\. The last one\\.`));
-      await assert.rejects(call('task_history', { part: total + 1 }), new RegExp(`There are ${total} parts`));
-    } finally { task.store.saveAgent(saved); }
+      assert.match((await call('task_history', { conversation: 2, part: total })).text, new RegExp(`^Part ${total} of ${total}\\. The last one\\.`));
+      await assert.rejects(call('task_history', { conversation: 2, part: total + 1 }), new RegExp(`There are ${total} parts`));
+      await assert.rejects(call('task_history', { conversation: 3 }), /There are 2 conversations/);
+    } finally { task.store.saveAgent(saved); open.conversation = saved.conversations!.findIndex((c) => c.terminal === open.id); }
   });
 
   test('@playwright/mcp works through the CDP proxy', async ({ shell }) => {

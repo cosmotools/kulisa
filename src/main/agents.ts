@@ -1,28 +1,26 @@
 // The agent CLIs Kulisa knows (CLAUDE.md, "Not tied to one agent"; ROADMAP, "Choosing the agent"). Everything
 // Kulisa needs to know about one agent is its entry here: who makes it and what it needs, how to find it, how to
 // install it (its maker's own installer, run by Kulisa for the human), how to start it connected to Kulisa and how
-// to continue a task's conversation. Each task has its own (agent.json).
+// to continue a conversation. Each conversation in a task is kept in its agent.json (store.ts).
 //   id, name, maker, needs   shown in the window when the human chooses
 //   site                     the maker's page of it (the Agents window links to it)
 //   command                  the program; null: the user's shell only, no agent
 //   install                  the maker's installer, a command line for sh (posix) and PowerShell (win32)
 //   installDirs              where the installer puts the program (default ~/.local/bin, as the native installers)
 //   args(ctx)                arguments that connect it to Kulisa; ctx: { env (the task's, tasks.ts), plugin }
-//   resume(saved)            arguments that continue the conversation saved in agent.json, or nothing
+//   resume(saved)            arguments that continue a conversation (saved: as agent.json keeps it), or nothing
 //   dirs(folders)            the task's other folders (its copies of the project's other repositories): { args, env }
 //                            that give them to it; without, it learns of them from the MCP server's instructions
 //   addDir(folder)           what is typed into its prompt when the task gets a folder while it runs (the human sends
 //                            it); without, a line saying so
 //   prepare(ctx)             before it starts in a task's copy (a worktree): ctx { folder, project: { folder (the
-//                            project's), and the task's agent.json } }
-//   prompt(text)             the arguments that start it with a first message (switching the agent: the handoff)
-//   move(ctx)                its conversation moved to another account's config folder, to resume it there:
-//                            ctx { transcript, sessionId, to }; returns the transcript's new path
+//                            project's), and a conversation of one of its tasks } }
+//   prompt(text)             the arguments that start it with a first message (the task handed to it: tasks.ts, handOver)
 //   conversation(transcript) its transcript read as the task's history (transcripts.ts; task_history): { entries,
 //                            plan, stopped, memory }; without, its runs give the history nothing but Kulisa's part
 //   forget(ctx)              a task's copy is deleted: everything the agent keeps of its folder goes (conversations,
-//                            the folder's trust, history); ctx { folder, saved (its agent.json), project (the
-//                            project's folder, and an agent.json of one of its tasks with a transcript) }
+//                            the folder's trust, history); ctx { folder, saved (a conversation of it), project (the
+//                            project's folder, and a conversation of one of its tasks with a transcript) }
 //   config                   its accounts (accounts.ts): { env, home(), login(), status, email(out), logout }:
 //                            the variable naming its config folder; the human's own folder (where it keeps its sign-in
 //                            without that variable); the arguments of its own sign-in (run in a terminal, it ends when
@@ -33,7 +31,7 @@
 //                            key, repeat  what is typed into its terminal again and again while it records, every
 //                                  repeat ms, as a held key repeats (a terminal tells no key's release)
 //                            languages  the languages it understands (codes)
-//                            language(saved), setLanguage(saved, code)  the one it uses; saved: its agent.json
+//                            language(saved), setLanguage(saved, code)  the one it uses; saved: its conversation
 //                            note  what the human should know about the language, shown with it
 import { execFile, spawn } from 'child_process';
 import { stripVTControlCharacters } from 'util';
@@ -47,7 +45,8 @@ import type { Conversation } from './transcripts.ts';
 // The languages Claude Code's dictation understands (as of 2.1.294).
 const CLAUDE_LANGUAGES = ['en', 'es', 'fr', 'ja', 'de', 'pt', 'it', 'ko', 'hi', 'id', 'ru', 'pl', 'tr', 'nl', 'uk', 'el', 'cs', 'da', 'sv', 'no'];
 
-// A task's agent.json: its conversation as the agent's hooks reported it (agent-hooks.ts), and its account's folder.
+// A conversation as agent.json keeps it: its session as the agent's hooks reported it (agent-hooks.ts), and its
+// account's folder.
 interface Saved { sessionId?: string; transcript?: string; started?: boolean; configDir?: string | null }
 // Where an agent's program is (findAgent).
 interface Found { path: string | null; onPath: boolean }
@@ -66,7 +65,6 @@ interface Agent {
   forget?: (ctx: ForgetContext) => boolean;
   conversation?: (transcript: string) => Conversation;
   prompt?: (text: string) => string[];
-  move?: (ctx: { transcript: string; sessionId: string; to: string }) => string;
   config?: { env: string; home: () => string; login: () => string[]; status: string[]; email: (out: string) => string | null; logout: string[] };
   voice?: {
     args?: string[]; key: string; repeat: number; note?: string; languages: string[];
@@ -100,7 +98,6 @@ const AGENTS: Agent[] = [
     conversation: claudeConversation,
     // `claude [prompt]`: its interactive mode, the prompt sent (its --help, 2.1.296).
     prompt: (text) => [text],
-    move: (ctx) => moveClaude(ctx),
     // Its voice mode (needs a Claude.ai account), on for Kulisa's sessions only (not the user's settings): space held
     // (its repeats coming) records, the text put where the cursor is, also after text already there, and left in the
     // input for the human to send. Its tap mode (a tap starts, another stops) was tried first: it records only with
@@ -114,7 +111,7 @@ const AGENTS: Agent[] = [
       note: 'Claude Code answers in it too: it is its language setting',
       languages: CLAUDE_LANGUAGES,
       language: (saved) => claudeLanguage(readJSON(claudeSettingsOf(saved))?.language),
-      // saved: its agent.json, with the account's configDir (tasks.ts)
+      // saved: its conversation, with the account's configDir (tasks.ts, savedOf)
       setLanguage: (saved, code) => setClaudeLanguage(claudeSettingsOf(saved), code),
     },
   },
@@ -133,8 +130,7 @@ const AGENTS: Agent[] = [
     // The task's other repositories, writable as its own folder (checked with 0.160.1).
     dirs: (folders) => ({ args: folders.flatMap((f) => ['--add-dir', f]) }),
     forget: ({ folder, configDir }) => forgetCodex(folder, configDir ?? undefined),
-    // `codex [PROMPT]` (its --help, 0.160.1). Its conversations are not moved between accounts yet: not tried, no
-    // account (ROADMAP); a switch to another account of it starts a new one, with the task's history.
+    // `codex [PROMPT]` (its --help, 0.160.1).
     prompt: (text) => [text],
   },
   { id: 'shell', name: 'Terminal only', maker: '', command: null, needs: "No agent: your shell in the task's folder" },
@@ -172,29 +168,6 @@ function setClaudeLanguage(file: string, code: string) {
 // Claude Code's own config file, as the session it reported tells it (<config dir>/projects/<folder>/<id>.jsonl, the
 // config dir being CLAUDE_CONFIG_DIR or ~/.claude), so it is the one the project's environment chose (direnv …).
 function claudeConfigOf(transcript: string) { return claudeConfigFile(path.dirname(path.dirname(path.dirname(transcript)))); }
-// A conversation moved to another account's config folder, at the same places (checked with 2.1.296: --resume there
-// finds it, writes on in the same file, the same id): its transcript, its large outputs kept apart (<session>/), its
-// files before its edits (file-history/<session>/); and what it remembered of the folder (memory/), its files added
-// to the other account's, which keeps its own. Renamed, else copied and removed (another disk).
-function moveClaude({ transcript, sessionId, to }: { transcript: string; sessionId: string; to: string }) {
-  const from = path.dirname(path.dirname(path.dirname(transcript)));
-  if (path.resolve(from) === path.resolve(to)) return transcript;
-  const folder = path.basename(path.dirname(transcript)), there = path.join(to, 'projects', folder);
-  const move = (a: string, b: string) => {
-    if (!fs.existsSync(a)) return;
-    fs.mkdirSync(path.dirname(b), { recursive: true });
-    try { fs.renameSync(a, b); } catch { fs.cpSync(a, b, { recursive: true }); fs.rmSync(a, { recursive: true, force: true }); }
-  };
-  move(transcript, path.join(there, path.basename(transcript)));
-  move(path.join(path.dirname(transcript), sessionId), path.join(there, sessionId));
-  move(path.join(from, 'file-history', sessionId), path.join(to, 'file-history', sessionId));
-  const memory = path.join(path.dirname(transcript), 'memory');
-  for (const f of fs.existsSync(memory) ? fs.readdirSync(memory) : []) {
-    const b = path.join(there, 'memory', f);
-    if (!fs.existsSync(b)) { fs.mkdirSync(path.dirname(b), { recursive: true }); fs.copyFileSync(path.join(memory, f), b); }
-  }
-  return path.join(there, path.basename(transcript));
-}
 // The config file of a config dir: ~/.claude keeps it next to it (~/.claude.json), CLAUDE_CONFIG_DIR inside.
 function claudeConfigFile(dir: string) {
   return path.basename(dir) === '.claude' && path.dirname(dir) === os.homedir() ? path.join(os.homedir(), '.claude.json') : path.join(dir, '.claude.json');

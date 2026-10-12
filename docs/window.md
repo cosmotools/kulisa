@@ -39,13 +39,13 @@ narrow, targets for a quick throw of the mouse; nothing in the bar moves when an
 
 ## The grid
 
-A task's profiles' panes and its terminal are peer panels in a grid (dockview), in JetBrains' Islands look:
+A task's profiles' panes and its island of terminals are peer panels in a grid (dockview), in JetBrains' Islands look:
 drag one by its header to another place, onto another panel to stack them as tabs, drag the gaps to resize. A
 panel stacked behind another hides its page until it is chosen. **☰ → Arrange panels** offers ready-made
 arrangements, each drawn as a small picture of itself, as Windows' snap layouts (the words in its tooltip):
 profiles in columns with the terminal below, two by two with the terminal on the right, one profile at a time.
 Each fits the window with nothing cut off. The grid is saved per task (`layout.json`) and restored.
-The task's other terminals ("The terminal") are panels too, next to the agent's; an arrangement keeps them there.
+The island is one panel however many terminals it holds ("The terminal").
 
 The window itself never scrolls, also not from a script (`overflow` on `html` and `body`, App.vue): a panel stacked
 behind another is kept laid out below the grid (dockview), which made the page taller than the window, and the
@@ -116,8 +116,8 @@ pages are pictures of themselves meanwhile; afterwards the keyboard is back wher
   (Documentation, GitHub, Report an issue; one list in `lib/common.ts`), and Exit, which quits as the last window's × does; not on macOS, where
   Cmd+Q and the app's menu quit; under them all Kulisa's version, small and dim: words, not a row, as nothing happens on a click);
 - right-click on a pane's header (New tab, About this profile… (Settings → Profiles at it), Sign In to Master…, Refresh
-  from Master…, Close profile, Remove from Project…), a tab (Reload, Duplicate, Close tab, Close other tabs) and a terminal (Copy, Paste, Select all, Clear;
-  then Change agent… and New Conversation in the agent's, Close in the others).
+  from Master…, Close profile, Remove from Project…), a tab (Reload, Duplicate, Close tab, Close other tabs), a terminal (Copy, Paste, Select all, Clear;
+  then what its tab's has) and a terminal's tab (Change agent… and New Conversation in an agent's; Close).
 
 A project label's right-click opens its group's menu, as Chrome's tab groups have it ([tasks.md](tasks.md), Projects).
 
@@ -139,40 +139,57 @@ could not mark the deleting button or lay out what goes. The OS's own dialogs st
 
 ## The terminal
 
-A terminal per task for its agent (xterm.js in the window, node-pty in the main process: `terminal.ts`), running
-the agent the human chose ([tasks.md](tasks.md), "Choosing the agent") unchanged. Unicode 11 widths (the cursor stays
-put after an emoji), a bundled font, the GPU renderer. Copy and paste take the keys of the OS's own terminal, so hands
-need nothing new: Ctrl+Shift+C / V (GNOME Terminal, Konsole); on Windows also Ctrl+V, and Ctrl+C copies a selection,
-else interrupts (Windows Terminal); on macOS ⌘C / ⌘V (the app menu's). xterm leaves those keys to the app, as VS Code
-sets its own; otherwise Ctrl+C and Ctrl+V go to the agent (Claude Code pastes an image with Ctrl+V, with Alt+V on
-Windows). The paste itself is Chromium's, which xterm takes (pasting again from Kulisa had doubled it).
-With nothing selected in xterm, copying keeps the clipboard: Claude Code's fullscreen rendering selects with its own
-mouse and copies on release itself (code.claude.com/docs/en/fullscreen; an empty copy had wiped it); Shift held while
-dragging selects in xterm instead.
+A task's terminals are an **island** of the grid, one panel: the terminal in front, a **row of tabs** over it, apart
+from it as a browser's tabs (the row in the toolbar's color, the tab in front in the terminal's, as if part of it;
+`TerminalTabs.vue`, `Terminals.vue`). One terminal is shown at a time (the author, 2026-10-12: two side by side are
+not needed): a terminal is not split off into a panel of its own. Each is the user's shell in the task's folder
+(xterm.js in the window, node-pty in the main process: `terminal.ts`), an agent the human chose started in it
+([tasks.md](tasks.md), "Several agents in a task") or not. Each tab: the agent's icon (a shell's, for a shell), its
+name, its state (an agent's: working, waiting for you, done), ×. At the row's end, the island's own buttons, whatever
+tab is in front: **+** (a menu of the project's accounts, the default first, each a new conversation; then Terminal,
+a shell) and the dictation of the agent in front (below). The agent's icon opens **Hand the task to** (the project's
+accounts: a new tab, told to go on with this conversation). An agent's × asks first; a shell's closes it.
 
-**Other terminals** next to the agent's, each a tab in its panel's group (dockview's: moved, split off and saved as
-any panel): the human's shells (+ in the agent's terminal's header, `Terminal 2` …) and what the agent keeps
-running for the human to see (`terminal_run`: the app's dev server, `docker compose up`), behind the agent's tab
-so the human goes on watching the agent. Each is the user's shell in the task's folder with the agent's
-environment (`KULISA_PORT_OFFSET`), the command typed in, so the human can stop it, type into it and read it as
-in their own terminal; the agent reads its last lines (`terminal_read`, colors left out) and presses Ctrl+C
-(`terminal_stop`). Why not the agent's own background shell: some agents cannot keep a process running (Codex waits
-on it), and the human does not see what runs there. The task closing ends what runs in it. As in an IDE, the terminals are kept (`terminals.json`): when the task loads again
-(a restart, its task opened again) each comes back in its place in the grid, its shell with nothing running; the
-agent runs its command again. × or the menu's Close, or the shell's `exit`, ends one for good
-(`Task.openTerminal`, `runInTerminal`, `interruptTerminal`, `readTerminal`, `closeTerminal`). The main process
+**The last terminal closed folds the island** to a strip of one button, + in its middle (the author's choice,
+2026-10-12, as JetBrains' tool windows go but with their button kept in place): by its height under or over the grid,
+by its width at a side (dockview's constraints hold it there; the row goes). Alone in the grid (no profile open) it is
+drawn as the same strip at the grid's bottom, the room above it empty, whatever the arrangement (its group fills the
+grid there, so it is not drawn and the strip is drawn at its bottom; folded as by the others, it was a strip at the
+grid's top, or filled it, by the arrangement). A terminal opened unfolds it to the size it had. Ctrl+` there opens a new conversation of the task's agent. A task that never had a terminal opens its agent.
+
+Unicode 11 widths (the cursor stays put after an emoji), a bundled font, the GPU renderer. Copy and paste take the
+keys of the OS's own terminal, so hands need nothing new: Ctrl+Shift+C / V (GNOME Terminal, Konsole); on Windows also
+Ctrl+V, and Ctrl+C copies a selection, else interrupts (Windows Terminal); on macOS ⌘C / ⌘V (the app menu's). xterm
+leaves those keys to the app, as VS Code sets its own; otherwise Ctrl+C and Ctrl+V go to the agent (Claude Code
+pastes an image with Ctrl+V, with Alt+V on Windows). The paste itself is Chromium's, which xterm takes (pasting again
+from Kulisa had doubled it). With nothing selected in xterm, copying keeps the clipboard: Claude Code's fullscreen
+rendering selects with its own mouse and copies on release itself (code.claude.com/docs/en/fullscreen; an empty copy
+had wiped it); Shift held while dragging selects in xterm instead.
+
+**Shells**: the human's (+ → Terminal, `Terminal`, `Terminal 2` …) and what an agent keeps running for the human to
+see (`terminal_run`: the app's dev server, `docker compose up`), behind the tab in front so the human goes on
+watching the agent. Each is the user's shell in the task's folder with the agent's environment
+(`KULISA_PORT_OFFSET`), the command typed in, so the human can stop it, type into it and read it as in their own
+terminal; an agent reads its last lines (`terminal_read`, colors left out) and presses Ctrl+C (`terminal_stop`), in
+shells only, never another agent's tab. Why not the agent's own background shell: some agents cannot keep a process
+running (Codex waits on it), and the human does not see what runs there. The task closing ends what runs in it. As
+in an IDE, the terminals are kept (`terminals.json`): when the task loads again (a restart, its task opened again)
+each comes back in its tab, the one in front too, an agent's conversation resumed, a shell with nothing running; the
+agent runs its command again. ×, the menu's Close, `terminal_stop` with close, or the shell's `exit` ends one for good
+(`Task.openTerminal`, `openAgent`, `runInTerminal`, `interruptTerminal`, `readTerminal`, `closeTab`). The main process
 keeps each one's last 200 KB of output for the agent, in memory.
 
-**Dictation**, where the shown task's agent has its own ([tasks.md](tasks.md), "Choosing the
-agent"): the terminal's header ends with the language it hears (EN, RU …) and a microphone (`Dictation.vue`). The
+**Dictation**, where the agent in front has its own ([tasks.md](tasks.md), "Choosing the agent"): the row of tabs ends
+with the language it hears (EN, RU …) and a microphone (`Dictation.vue`); none with a shell in front. The
 microphone works as a voice message's button: held, the agent records until it is let go; a click starts and another
-click stops (or 5 minutes, a recording left on). The text goes where the cursor is in the agent's input, after what
-is there, so several sentences can be dictated one after another, and is left there to read and send (recognition
-makes mistakes, and a task misheard costs more than a key). Kulisa only holds the agent's key (`Task.dictate`);
-the agent records and recognizes. The button is lit while Kulisa holds it, which is when the agent records. The language opens a menu of those the agent
-understands, the system's first; it is the agent's own setting, so the agent answers in it too (said on hover).
-The agent hears through its own program (Claude Code: its audio module, or `arecord`/SoX on Linux); on macOS the
-system asks for the microphone on Kulisa's behalf (`NSMicrophoneUsageDescription`, `forge.config.ts`).
+click stops (or 5 minutes, a recording left on; another tab brought to the front stops it too). The text goes where
+the cursor is in the agent's input, after what is there, so several sentences can be dictated one after another, and
+is left there to read and send (recognition makes mistakes, and a task misheard costs more than a key). Kulisa only
+holds the agent's key (`Task.dictate`); the agent records and recognizes. The button is lit while Kulisa holds it,
+which is when the agent records. The language opens a menu of those the agent understands, the system's first; it is
+the agent's own setting, so the agent answers in it too (said on hover). The agent hears through its own program
+(Claude Code: its audio module, or `arecord`/SoX on Linux); on macOS the system asks for the microphone on Kulisa's
+behalf (`NSMicrophoneUsageDescription`, `forge.config.ts`).
 
 Links in the terminal, those an agent marks (OSC 8, as Claude Code does) and addresses in plain text (xterm's web-links
 addon), open with Ctrl+click (⌘ on macOS), and always ask where, in a menu at the pointer: a new tab in one of the
@@ -180,8 +197,8 @@ shown task's open profiles, or the user's browser. Asked every time, so a link n
 did not expect (the author's choice, 2026-10-08: which profile a link belongs to cannot be told, and a rule such as
 "where that site is open" was not obvious). Only `http` and `https`; the address shows on hover. xterm's own handler
 asked with the browser's `confirm()`, an OS dialog. Keys are known by `keyCode` too, as ibus with a Cyrillic layout leaves
-`code` out. The agent starts once the terminal is laid out, at its real
-size. The rows that fit sit in the middle of the panel, what is left under a whole row shared above and below them:
+`code` out. An agent starts once the island is laid out, at its real
+size (a terminal behind another tab takes the island's). The rows that fit sit in the middle of the panel, what is left under a whole row shared above and below them:
 at the bottom, it was a row's height under the agent's status line in one task and nothing in another, whose
 grids differed by a pixel (2026-10-08). When a group moves to another window, what its terminals show moves along (xterm's serialize addon, as VS
 Code keeps terminals), at the same size.
@@ -200,8 +217,8 @@ Who gets a key depends on where the keyboard is:
   memory, ten at most), Ctrl+L / Alt+D / F6, Ctrl+R / F5, Ctrl+Shift+R (not from the cache), Alt+← / →, Ctrl+Tab,
   Ctrl+PgDn / PgUp, Ctrl+1…8, Ctrl+9; and Ctrl+Shift+C for Pick (Chrome's Inspect). The site does not get them, as in
   Chrome. Closing or switching a tab from the page leaves the keyboard in the page shown next.
-- **Everywhere, the terminal too**: Ctrl+` to the agent's terminal and back to the page used last, Ctrl+Shift+` a new
-  terminal, Ctrl+Shift+1…9 a task of the shown group, Ctrl+Shift+PgDn / PgUp the next or previous one of every
+- **Everywhere, the terminal too**: Ctrl+` to the terminal in front and back to the page used last (on the folded
+  island, a new conversation of the task's agent), Ctrl+Shift+` a new terminal, Ctrl+Shift+1…9 a task of the shown group, Ctrl+Shift+PgDn / PgUp the next or previous one of every
   group (in the bar's order), Ctrl+Shift+N a new task of the shown group's project, Ctrl+Shift+A the bar's + (a task of which project),
   Ctrl+Shift+/ the list. Ctrl+Shift+… and Ctrl+` are
   what agents and sites leave alone; Alt+letters are Claude Code's (Alt+V, Alt+P, Alt+T), Ctrl+Alt+arrows GNOME's,
@@ -253,8 +270,8 @@ Installers are made with Electron Forge (`npm run make`, `forge.config.ts`): `.d
 | `src/main/app.ts` | the windows, the Kulisa zoom, the theme, the IPC |
 | `src/main/window.ts` | a window: its BrowserWindow, the native views' places, its questions, screenshot |
 | `src/main/keys.ts` | the keyboard shortcuts: the table, which key an input event is; `app.ts` takes them (Keys) |
-| `src/main/terminal.ts` | the ptys: the agent's per task, and its other terminals; their output's last 200 KB |
-| `src/renderer/components/Grid.vue`, `grid/*.vue`, `lib/grid.ts` | the grid (dockview), the panes and their headers, the terminals' panels, Arrange panels |
+| `src/main/terminal.ts` | the ptys of the tasks' terminals; their output's last 200 KB |
+| `src/renderer/components/Grid.vue`, `grid/*.vue`, `lib/grid.ts` | the grid (dockview), the panes and their headers, the island of terminals (`Terminals.vue`, its row of tabs `TerminalTabs.vue`), Arrange panels |
 | `src/renderer/components/TopBar.vue`, `menu/*.vue` | the title bar, ☰ and its own rows |
 | `src/renderer/components/menu/*.vue`, `Modal.vue`, `Ask.vue`, `lib/menu.ts`, `views.ts`, `ask.ts`, `terminals.ts`, `voice.ts` | the menus, the dialogs and questions (Reka UI's), the pages under them, the terminals, dictation |
 | `src/renderer/lib/keys.ts`, `components/Shortcuts.vue` | where the keyboard is, the commands the keys run; Keyboard Shortcuts |

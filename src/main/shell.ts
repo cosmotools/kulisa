@@ -19,8 +19,9 @@ import type { signinPages } from './signin-pages.ts';
 import type { Result } from './result.ts';
 
 
-// An agent or account a task runs (shell.agentFor): its agent's entry, with the account's id, name and folder.
-type AgentChoice = Agent & { agentId: string; configDir: string | null; env: Record<string, string> };
+// An agent or account a task runs (shell.agentFor): its agent's entry, with the account's id, name and folder; cli:
+// its agent's own name.
+type AgentChoice = Agent & { agentId: string; cli: string; configDir: string | null; env: Record<string, string> };
 
 // The app: what app.ts makes and every module is given. win, current, task, profiles, closed, pty, resumedSession are the
 // first window's (the tests').
@@ -58,7 +59,7 @@ interface Shell {
   dropAccount(a: Account): Promise<void>;
   agentFor(id: string | null | undefined, opts?: { any?: boolean }): AgentChoice | null;
   findAgent(agent: Agent, cwd: string): Promise<Found | null>;
-  chooseAgent: ((task: Task, agent: AgentChoice | null, opts?: { cancel?: boolean }) => Promise<AgentChoice | null>)
+  chooseAgent: ((task: Task, agent: AgentChoice | null) => Promise<AgentChoice | null>)
     & { cancel(task: Task): void };
   // master.ts
   masters: Map<string, Master>;

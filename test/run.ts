@@ -17,7 +17,7 @@ import { root, userData, project, SITE, PORT, sleep, waitFor } from './helpers.t
 import type { Shell } from '../src/main/shell.ts';
 import type { AppWindow } from '../src/main/window.ts';
 import type { Question } from '../src/renderer/types.ts';
-import type { Task } from '../src/main/tasks.ts';
+import type { Task, TaskTerminal } from '../src/main/tasks.ts';
 import type { Agent } from '../src/main/agents.ts';
 import type { IPty } from 'node-pty';
 
@@ -45,8 +45,8 @@ const agent = { command: 'bash', args: ['-c', 'echo "agent: $FROM_RC"; exec cat 
 // Agents to choose from for a task (agents.ts): one that is not installed until its installer runs, into a
 // folder of the test.
 function claudeLike() {
-  const { resume, move, conversation, prompt, forget } = AGENTS.find((a) => a.id === 'claude')!;
-  return { resume, move, conversation, prompt, forget };
+  const { resume, conversation, prompt, forget } = AGENTS.find((a) => a.id === 'claude')!;
+  return { resume, conversation, prompt, forget };
 }
 const bin = path.join(root, 'bin');
 process.env.FAKE_LOGOUTS = path.join(root, 'logouts'); // the accounts the fake agent signed out of
@@ -57,8 +57,8 @@ process.env.FAKE_SIGNIN_PAGE = `${SITE}/app?signin`; // the page its sign-in ope
 Object.assign(process.env, { BROWSER: path.join(import.meta.dirname, 'fixtures', 'browser.sh'), FAKE_OPENED: path.join(root, 'opened') });
 const agents: Agent[] = [
   // With accounts (accounts.ts) as Claude Code's, its folder in FAKE_CONFIG_DIR, which it prints; signed in, out and
-  // asked who with its own commands (fixtures/fake-agent.sh). Its conversations as Claude Code's: resumed, moved to
-  // another account, read, forgotten, a first message (switching the agent; the arguments it ignores).
+  // asked who with its own commands (fixtures/fake-agent.sh). Its conversations as Claude Code's: resumed, read,
+  // forgotten, a first message (the task handed to it; the arguments it ignores).
   { id: 'fake', name: 'Fake agent', maker: 'Kulisa tests', needs: 'Nothing', command: 'kulisa-fake-agent', installDirs: [bin],
     config: { env: 'FAKE_CONFIG_DIR', home: () => path.join(root, 'fake-config'), login: () => ['auth', 'login'],
       status: ['auth', 'status'], email: (out) => JSON.parse(out).email, logout: ['auth', 'logout'] },
@@ -118,15 +118,17 @@ async function setup(shell: Shell) {
     }
     return clients.get(url)!;
   };
-  const call = async (name: string, args: Record<string, unknown>, task: Task = shell.task!) => {
-    const mcp = await mcpOf(task.env().KULISA_MCP_URL);
+  // terminal: as the agent in that terminal of the task, by its own URL (tasks.ts, env).
+  const call = async (name: string, args: Record<string, unknown>, task: Task = shell.task!, terminal?: TaskTerminal) => {
+    const mcp = await mcpOf(task.env(terminal).KULISA_MCP_URL);
     const r = await mcp.callTool({ name, arguments: args });
     const content = r.content as { type: string; text?: string; data?: string }[];
     const text = content.filter((c) => c.type === 'text').map((c) => c.text).join('\n');
     if (r.isError) throw new Error(`${name}: ${text}`);
     return { ...r, content, text };
   };
-  const ui = (js: string) => shell.win!.webContents.executeJavaScript(js);
+  // A script that throws says which it was (Electron's error names none).
+  const ui = (js: string) => shell.win!.webContents.executeJavaScript(js).catch((e: Error) => { throw new Error(`${e.message}: ${js.slice(0, 300)}`); });
   let pty = '';
   const watchPty = (p: IPty) => p.onData((d) => (pty += d)); // again for the agent of another project
   await waitFor(() => shell.pty, 10000); // the agent starts once the window has laid out its terminal

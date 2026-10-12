@@ -1,6 +1,6 @@
 // The terminals' xterms (docs/window.md, The terminal), keyed "<task>#<id>" as in the main process. An xterm lives as
-// long as its task, not its panel: the panels come and go with the grid, and adopt the terminals' elements (termEl,
-// termHost).
+// long as its terminal, not the island's panel: the panel comes and goes with the grid, and adopts the terminals'
+// elements (termHost); the island shows the shown task's terminal in front (Terminals.vue).
 // Set up as VS Code does: Unicode 11 character widths (Claude Code draws ✅ ⏵ ✻ and the like; with the default Unicode 6
 // widths the cursor and the input line drift off the text), the WebGL renderer, and a bundled font so it looks and
 // measures the same on every OS.
@@ -13,23 +13,23 @@ import { WebLinksAddon } from '@xterm/addon-web-links';
 import { act, store } from './store';
 import { keyText } from './common';
 import { menuAt, type MenuItem } from './menu';
-import { whenLeft } from './grid';
+import { agentMark } from './agents';
+import type { Terminal as TerminalInfo } from '../types';
 
 interface Entry { term: Terminal; el: HTMLElement; fit: FitAddon; serialize: SerializeAddon; opened: boolean; renderer?: 'dom' | 'webgl' }
-// The agent's terminals' place: in the agent's panel, or waiting outside the grid (no project open).
-export const termEl = Object.assign(document.createElement('div'), { id: 'term' });
-document.body.append(termEl);
 const terminals = new Map<string, Entry>(); // terminal key -> its xterm
-const hosts = new Map<string, { el: HTMLElement; observer: ResizeObserver }>(); // another terminal's key -> its panel's element
-let term: Terminal | null = null, shownTerminal: string | null = null;
-export const shownTerm = () => term;
+const hosts = new Map<string, HTMLElement>(); // terminal key -> its element, which a panel or a dialog holds
+// The terminal in front of the shown task's island: where the keyboard goes (Ctrl+`), what the tests read.
+const frontKey = () => (store.current && store.terminals.front !== null ? `${store.current}#${store.terminals.front}` : null);
+export const shownTerm = () => { const k = frontKey(); return (k && terminals.get(k)?.term) || null; };
 const sizes: { cols: number; rows: number }[] = [];
-Object.defineProperty(window, '__term', { get: () => term }); // for tests
-Object.assign(window, { __ptySizes: sizes }); // for tests: the sizes sent for the shown task
+Object.defineProperty(window, '__term', { get: shownTerm }); // for tests
+Object.defineProperty(window, '__termRenderer', { get: () => { const k = frontKey(); return k && terminals.get(k)?.renderer; } }); // for tests
+Object.assign(window, { __ptySizes: sizes }); // for tests: the sizes sent for the shown task's terminals
 const css = (v: string) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 const termFontSize = parseFloat(css('--font')) || 14;
 // xterm measures the cell size when it opens: once the font is loaded. Output written before is kept.
-export const termFont = Promise.all([`${termFontSize}px`, `bold ${termFontSize}px`].map((f) => document.fonts.load(`${f} "JetBrains Mono"`))).catch(() => {});
+const termFont = Promise.all([`${termFontSize}px`, `bold ${termFontSize}px`].map((f) => document.fonts.load(`${f} "JetBrains Mono"`))).catch(() => {});
 
 // The panels' colors (tokens.css), set again when the theme changes. The programs' own colors (ANSI) stay xterm's: it
 // makes them readable on either background (minimumContrastRatio, WCAG AA; VS Code does the same). A token is
@@ -55,15 +55,14 @@ export const termLinks = {
       run: () => act('tab:new', { profile: p.id, url: uri }) })),
     '-', { label: 'Open in your browser', run: () => { window.open(uri); } }]);
   },
-  hover(_e: MouseEvent, uri: string) { termEl.title = uri; },
-  leave() { termEl.title = ''; },
+  hover(e: MouseEvent, uri: string) { (e.target as HTMLElement).title = uri; },
+  leave(e: MouseEvent) { (e.target as HTMLElement).title = ''; },
 };
 
 // size: { cols, rows } to start with (a terminal coming from another window: its contents are laid out for it).
-function makeTerminal(task: string, size?: { cols: number; rows: number }): Entry {
-  const other = task.includes('#');
-  const el = Object.assign(document.createElement('div'), { className: 'xterm-host', hidden: !other });
-  (other ? termHost(task) : termEl).append(el);
+function makeTerminal(key: string, size?: { cols: number; rows: number }): Entry {
+  const el = Object.assign(document.createElement('div'), { className: 'xterm-host' });
+  termHost(key).append(el);
   const t = new Terminal({ ...size, fontSize: termFontSize, fontFamily: '"JetBrains Mono", monospace', cursorBlink: true,
     allowProposedApi: true, theme: termTheme(), minimumContrastRatio: 4.5, linkHandler: termLinks });
   t.loadAddon(new Unicode11Addon());
@@ -74,9 +73,9 @@ function makeTerminal(task: string, size?: { cols: number; rows: number }): Entr
   const serialize = new SerializeAddon();
   t.loadAddon(serialize);
   const entry: Entry = { term: t, el, fit, serialize, opened: false };
-  terminals.set(task, entry);
+  terminals.set(key, entry);
   termFont.then(() => {
-    if (terminals.get(task) !== entry) return; // forgotten meanwhile
+    if (terminals.get(key) !== entry) return; // forgotten meanwhile
     t.open(el);
     entry.renderer = 'dom';
     try {
@@ -86,10 +85,9 @@ function makeTerminal(task: string, size?: { cols: number; rows: number }): Entr
       entry.renderer = 'webgl';
     } catch (e) { console.warn('[terminal] WebGL renderer unavailable:', (e as Error).message); }
     entry.opened = true;
-    if (shownTerminal === task) { Object.assign(window, { __termRenderer: entry.renderer }); fitTerminal(); }
-    if (other) fitOther(task);
+    fitTerminal(key);
   });
-  t.onData((data) => kulisa.send('pty:in', { task, data }));
+  t.onData((data) => kulisa.send('pty:in', { task: key, data }));
   t.attachCustomKeyEventHandler((e) => {
     const does = e.type === 'keydown' && clipboardKey(e, kulisa.platform, t.hasSelection());
     if (does === 'copy') { termCopy(t); if (kulisa.platform === 'win32') t.clearSelection(); }
@@ -97,52 +95,29 @@ function makeTerminal(task: string, size?: { cols: number; rows: number }): Entr
   });
   return entry;
 }
-export const terminalOf = (task: string) => terminals.get(task) || makeTerminal(task);
+const terminalOf = (key: string) => terminals.get(key) || makeTerminal(key);
 
-// A task's terminal in the agent's panel (made the first time).
-function showTerminal(task: string) {
-  shownTerminal = task;
-  const e = terminalOf(task);
-  for (const x of terminals.values()) if (!x.el.parentElement || x.el.parentElement === termEl) x.el.hidden = x !== e;
-  term = e.term;
-  if (e.opened) Object.assign(window, { __termRenderer: e.renderer });
-  fitTerminal();
+// A terminal's element, sized to where it is whenever that changes (behind another tab it has no size: fitted once it
+// comes to the front). Made with its xterm, or before it (a sign-in's terminal: AccountSignIn.vue).
+export function termHost(key: string) {
+  if (!hosts.has(key)) {
+    const el = Object.assign(document.createElement('div'), { className: 'term' });
+    new ResizeObserver(() => fitTerminal(key)).observe(el);
+    hosts.set(key, el);
+    if (!terminals.has(key)) makeTerminal(key);
+  }
+  return hosts.get(key)!;
 }
-// The shown task's terminal, once the grid on screen has gone.
-kulisa.on<{ current: string | null }>('tasks', ({ current }) => {
-  if (current !== null && (current !== shownTerminal || !term)) whenLeft().then(() => showTerminal(current));
-});
-// The terminals of tasks gone (their project closed or moved, a task deleted), with their other terminals, or other
-// terminals closed.
+// Terminals gone: of tasks gone (their project closed or moved, a task deleted: their keys), or closed (a terminal's
+// key).
 export function forgetTerminals(keys: string[]) {
   const all = new Set([...terminals.keys(), ...hosts.keys()].filter((k) => keys.some((key) => k === key || k.startsWith(`${key}#`))));
   for (const key of all) {
     const e = terminals.get(key);
-    if (e) { e.term.dispose(); e.el.remove(); terminals.delete(key); }
-    hosts.get(key)?.observer.disconnect();
+    if (e) { e.term.dispose(); terminals.delete(key); }
+    hosts.get(key)?.remove();
     hosts.delete(key);
-    if (shownTerminal === key) { term = null; shownTerminal = null; }
   }
-}
-
-// The task's other terminals: "term:<id>" panels, keyed "<task>#<id>".
-export const otherTermKey = (panel: string) => `${store.current}#${panel.slice('term:'.length)}`;
-// Another terminal's element, sized to its panel whenever that changes (behind another panel it has no size: fitted
-// once it comes to the front).
-export function termHost(key: string) {
-  if (!hosts.has(key)) {
-    const el = Object.assign(document.createElement('div'), { className: 'term' });
-    const observer = new ResizeObserver(() => fitOther(key));
-    observer.observe(el);
-    hosts.set(key, { el, observer });
-  }
-  return hosts.get(key)!.el;
-}
-function fitOther(key: string) {
-  const e = terminals.get(key);
-  if (!e?.opened || !e.el.isConnected || !e.fit.proposeDimensions()?.cols) return;
-  try { e.fit.fit(); } catch { return; }
-  kulisa.send('pty:resize', { task: key, cols: e.term.cols, rows: e.term.rows });
 }
 
 // Their contents as escape sequences (xterm's serialize addon, as VS Code keeps terminals across reloads), which
@@ -155,27 +130,27 @@ kulisa.on<Record<string, { data: string; cols: number; rows: number }>>('termina
   for (const [key, { data, cols, rows }] of Object.entries(list)) (terminals.get(key)?.term || makeTerminal(key, { cols, rows }).term).write(data);
 });
 
-// Only once the terminal is in its panel and the grid has settled: an agent starts at the first size sent for its
-// task (main/terminal.ts) and draws its prompt for it.
-let fitTimer = 0;
-export function fitTerminal(tries = 50) {
-  clearTimeout(fitTimer);
-  fitTimer = window.setTimeout(() => {
-    const task = shownTerminal, e = task && terminals.get(task);
-    if (!e || !e.opened || !termEl.closest('#dock')) return;
-    // No size yet (xterm has not measured its characters, or the panel is not laid out): again a moment later, so the
-    // agent gets its real size, never xterm's default.
-    if (!e.fit.proposeDimensions()?.cols) return tries && fitTerminal(tries - 1);
+// Its size sent once it is on screen, laid out: an agent starts at the first size sent for its task (main/terminal.ts)
+// and draws its prompt for it. Not yet measured (xterm has not measured its characters, or the panel is not laid
+// out): again a moment later, so the agent gets its real size, never xterm's default.
+const fitTimers = new Map<string, number>();
+function fitTerminal(key: string, tries = 50) {
+  clearTimeout(fitTimers.get(key));
+  fitTimers.set(key, window.setTimeout(() => {
+    fitTimers.delete(key);
+    const e = terminals.get(key);
+    if (!e?.opened || !e.el.offsetWidth) return; // not on screen: fitted when it comes
+    if (!e.fit.proposeDimensions()?.cols) return tries && fitTerminal(key, tries - 1);
     try { e.fit.fit(); } catch { return; }
     const size = { cols: e.term.cols, rows: e.term.rows };
-    sizes.push(size);
-    kulisa.send('pty:resize', { task, ...size });
-  }, 100);
+    if (key === frontKey()) sizes.push(size);
+    kulisa.send('pty:resize', { task: key, ...size });
+  }, 100));
 }
-new ResizeObserver(() => fitTerminal()).observe(termEl);
 kulisa.on<{ task: string; data: string }>('pty:out', ({ task, data }) => terminalOf(task).term.write(data));
-kulisa.on('terminal:focus', () => term?.focus());
-kulisa.on<{ task: string }>('terminal:reset', ({ task }) => terminals.get(task)?.term.reset()); // another agent starts there
+kulisa.on('terminal:focus', () => shownTerm()?.focus());
+// The keyboard to a terminal, once its xterm is open (a new one opens when its font is there).
+export const termFocus = (key: string) => termFont.then(() => terminals.get(key)?.term.focus());
 
 // Copy and paste as the OS's own terminal does, so hands need nothing new (xterm leaves the keys to the app, as VS Code
 // sets its own): Ctrl+Shift+C / V everywhere (GNOME Terminal, Konsole); on Windows also Ctrl+V, and Ctrl+C copies a
@@ -195,10 +170,10 @@ export function clipboardKey(e: KeyboardEvent, platform: string, selected: boole
 // Claude Code does, puts its text there itself), as GNOME Terminal does.
 function termCopy(t: Terminal) { if (t.hasSelection()) navigator.clipboard.writeText(t.getSelection()); }
 function termPaste(t: Terminal) { navigator.clipboard.readText().then((text) => t.paste(text)); }
-// The right-click menu of the terminal at el: the agent's ends with Change agent…, another with Close.
-export function terminalMenu(el: Element): MenuItem[] | null {
-  const host = el.closest('.term'), key = host && [...hosts].find(([, h]) => h.el === host)?.[0];
-  const t = key ? terminals.get(key)?.term : term;
+// The right-click menu of a terminal (its key): an agent's ends with what its tab's menu has (Terminals.vue), a
+// shell's with Close.
+export function terminalMenu(key: string, more: MenuItem[]): MenuItem[] | null {
+  const t = terminals.get(key)?.term;
   if (!t) return null;
   return [
     { label: 'Copy', keys: keyText('terminal.copy'), enabled: t.hasSelection(), run: () => termCopy(t) },
@@ -207,7 +182,31 @@ export function terminalMenu(el: Element): MenuItem[] | null {
     '-',
     { label: 'Clear', run: () => t.clear() },
     '-',
-    ...(key ? [{ label: 'Close', run: () => act('terminal:close', { id: Number(key.split('#')[1]) }) }]
-      : [{ label: 'Change agent…', run: () => act('agent:change') }, { label: 'New Conversation', run: () => act('agent:new-conversation') }]),
+    ...more,
   ];
 }
+
+// The island's menus (Terminals.vue). The shown project's agents (its accounts), the default first; the terminal only is
+// the Terminal row.
+const projectAgents = () => (store.projects.open.find((o) => o.id === store.projects.current)?.agents || []).filter((a) => a.cli !== 'shell');
+// +: a new conversation of one of them, or a shell.
+export const newTerminalItems = (): MenuItem[] => [
+  ...projectAgents().map((a) => ({ label: a.name, icon: agentMark(a.cli)!, run: () => act('terminal:open', { agent: a.id }) })),
+  ...(projectAgents().length ? ['-' as const] : []),
+  { label: 'Terminal', icon: 'i-agent-shell', keys: keyText('terminal.new'), run: () => act('terminal:open') },
+];
+// An agent's icon on its tab: the task handed to one of them, which goes on with this tab's conversation.
+export const handOverItems = (t: TerminalInfo): MenuItem[] => [{ heading: 'Hand the task to' },
+  ...projectAgents().map((a) => ({ label: a.name, icon: agentMark(a.cli)!, run: () => act('agent:hand-over', { id: t.id, agent: a.id }) }))];
+// What a tab's menu and its terminal's end with.
+export const tabItems = (t: TerminalInfo): MenuItem[] => [
+  ...(t.agent ? [
+    { label: 'Change agent…', run: () => setTimeout(() => { // its icon's menu, where the icon is, once this menu has closed
+      const r = document.querySelector(`.termtab[data-id="${t.id}"] .handover`)?.getBoundingClientRect();
+      if (r) menuAt({ clientX: r.left, clientY: r.bottom + 4 } as MouseEvent, handOverItems(t));
+    }) },
+    { label: 'New Conversation', run: () => act('agent:new-conversation', { id: t.id }) },
+    '-' as const,
+  ] : []),
+  { label: 'Close', run: () => act('terminal:close', { id: t.id }) },
+];

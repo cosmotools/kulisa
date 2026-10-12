@@ -166,8 +166,9 @@ draws it); and a caption over the pane for every command through the proxy. The 
 `browser_highlight`'s outlines are in Kulisa's accent in every profile (`MARK`): the pane says whose page it is.
 
 **Point and tell** (`picker.ts`): Pick, then a click on an element (Playwright's `page.pickLocator()`; Esc or Pick
-again cancels). `[kulisa pick: <profile> tab <tab> <locator>]` is typed into the agent's prompt without Enter, and
-the terminal gets the focus: the human writes the rest of the message around it. Nothing is saved; the agent looks
+again cancels). `[kulisa pick: <profile> tab <tab> <locator>]` is typed without Enter into the prompt of the agent in
+front of the task's island, else the one in front last (a shell in front: `Task.promptTarget`), whose tab comes to the
+front, and the terminal gets the focus: the human writes the rest of the message around it. Nothing is saved; the agent looks
 at the element on the live page with its tools.
 
 ## Actions: the human's and the agent's
@@ -204,7 +205,7 @@ methods; who a profile is changes and is checked in the store (`ProfileStore.ren
 | Save a test user's pair | Settings → Profiles' Test login and Test password | `profile_set_login` | `ProfileStore.setLogin`, `Task.setLogin` (encrypted: `shell.loginSecret`) |
 | Sign in as a test user | types it | `browser_type_login` (never sees the password) | `Task.loginFor`, `local.ts` |
 | Bring the master's sign-ins to a task's copy | Refresh from Master… | none: it replaces sign-ins, the human's to decide | `Task.refreshProfile`, `SessionCookies.copy` |
-| Open a terminal next to the agent's, run in it | + in the terminal's header, then types | `terminal_run` (a name and a command) | `Task.openTerminal`, `runInTerminal` |
+| Open a shell in the task's island, run in it | the island's + → Terminal, then types | `terminal_run` (a name and a command; never in another agent's tab) | `Task.openTerminal`, `runInTerminal` |
 | Read a terminal, stop what runs there | looks at it, Ctrl+C | `terminal_read`, `terminal_stop` | `Task.readTerminal`, `interruptTerminal` |
 | Close a terminal | ×, Close in its menu, `exit` | `terminal_stop` with `close` | `Task.closeTerminal`; a shell's exit too |
 

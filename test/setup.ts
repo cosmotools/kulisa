@@ -3,7 +3,7 @@
 import fs from 'fs';
 import path from 'path';
 import http from 'http';
-import { assert, project, pfile, SITE, waitFor, who } from './helpers.ts';
+import { assert, project, pfile, SITE, waitFor, who, hooksOf } from './helpers.ts';
 import type { Test } from './run.ts';
 
 export default (test: Test) => {
@@ -21,9 +21,9 @@ export default (test: Test) => {
     // Its SessionStart hook, as Claude Code sends it: Kulisa resumes this session when the project opens again.
     const transcript = path.join(project, 'transcript.jsonl');
     fs.writeFileSync(transcript, '');
-    await new Promise((resolve) => http.request(`${task.env().KULISA_URL}/hooks/session-start`, { method: 'POST' }, (res) => { res.resume(); res.on('end', resolve); })
+    await new Promise((resolve) => http.request(`${hooksOf(task)}/session-start`, { method: 'POST' }, (res) => { res.resume(); res.on('end', resolve); })
       .end(JSON.stringify({ hook_event_name: 'SessionStart', session_id: 'session-1', transcript_path: transcript, source: 'startup' })));
-    await waitFor(() => JSON.parse(fs.readFileSync(pfile('agent.json'), 'utf8')).sessionId === 'session-1');
+    await waitFor(() => JSON.parse(fs.readFileSync(pfile('agent.json'), 'utf8')).conversations[0].sessionId === 'session-1');
     await waitFor(async () => (await ui(`document.querySelectorAll('.pane').length`)) === 2);
   });
 };

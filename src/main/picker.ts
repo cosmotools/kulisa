@@ -10,7 +10,7 @@ import type { Shell } from './shell.ts';
 function installPicker(shell: Shell) {
   // Profiles in pick mode, each window's (window.ts: picking, of the task on screen, by id) -> { profile, page,
   // cancel }. Pick mode ends with a click on an element, or is cancelled by Esc in the page or by the Pick button again
-  // (pick:cancel). The reference goes to the agent of the profile's task.
+  // (pick:cancel). The reference goes to the agent shown in the profile's task, else the one shown last (tasks.ts).
   ipcMain.handle('pick:cancel', (e, { profile }: { profile: string }) => shell.windowOf(e.sender)?.picking.get(profile)?.cancel());
   ipcMain.handle('pick:start', async (e, { profile: pid }: { profile: string }) => {
     try {
@@ -39,7 +39,9 @@ function installPicker(shell: Shell) {
       // One line, short, so the agent CLI shows it in its prompt as typed text (not a collapsed paste). The tab: the
       // human may switch tabs before sending, and the agent's tools act on the active one unless told.
       const reference = `[kulisa pick: ${profile.id} tab ${tab.id} ${locator}] `;
-      if (task.pty) typeIntoPrompt(task.pty, reference);
+      const to = task.promptTarget();
+      if (to?.pty) typeIntoPrompt(to.pty, reference);
+      if (to && to.id !== task.front) task.show(to.id); // where the human goes on typing
       // The human goes on typing in the terminal: move the focus there from the page.
       if (!w!.win.isDestroyed()) w!.win.webContents.focus();
       w!.send('terminal:focus');

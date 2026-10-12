@@ -9,7 +9,7 @@ import Icon from './Icon.vue';
 import AccountSignIn from './AccountSignIn.vue';
 import RightClickMenu from './menu/RightClickMenu.vue';
 import type { MenuItem } from '../lib/menu';
-import type { Agent, AgentList as List } from '../lib/agents';
+import { agentMark, type Agent, type AgentList as List } from '../lib/agents';
 import type { Account, AccountsInfo, SignedIn } from '../types';
 
 const props = defineProps<{ list: List; active: boolean }>();
@@ -33,8 +33,7 @@ const short = (p: string) => (s.home && p.startsWith(s.home + '/') ? '~' + p.sli
 const where = (a: Agent) => (a.path ? [a.version, short(a.path), a.onPath === false && 'not on your PATH: Kulisa runs it from here'].filter(Boolean).join(' · ') : '');
 const installLine = (a: Agent) => (a.install && !a.installed ? `Install runs ${a.maker || 'its maker'}'s installer: ${a.install}` : '');
 const status = (a: Agent) => (a.installed ? 'Installed' : 'Not installed');
-// An agent new to Kulisa may have no mark in the sprite.
-const mark = (a: Agent) => { const name = `i-agent-${a.agent || a.id}`; return document.getElementById(name) ? name : null; };
+const mark = (a: Agent) => agentMark(a.agent || a.id, null);
 const of = (a: Agent) => accounts.value.filter((x) => x.agent === a.id);
 const projectsOf = (x: Account) => (x.projects.length ? `in ${x.projects.join(', ')}` : 'in no project');
 const canSign = (a: Agent) => clis.value.includes(a.id);

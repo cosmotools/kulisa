@@ -14,14 +14,19 @@ export interface Profile {
 }
 // A closed one (window.ts, pushState): tabs is how many it had.
 export interface ClosedProfile { key: string; id: string; name: string; avatar: string; description: string | null; tabs: number }
-// Another terminal of the task (Task.terminalsInfo): the human's shell or what the agent runs.
-export interface OtherTerminal { id: number; name: string; command: string; by: 'human' | 'agent' }
-
 type AgentState = 'working' | 'waiting' | 'done' | null;
+// A tab of the task's island (Task.terminalsInfo): a shell (the human's, or what the agent runs: by, its command) or an
+// agent (its account; cli: its agent, for its icon), with its state.
+export interface Terminal {
+  id: number; name: string; command: string; by: 'human' | 'agent'; state: AgentState;
+  agent: { account: string; cli: string; name: string } | null;
+}
+// The island: its tabs in order, the one in front (none: no terminal, the island folded to its +).
+export interface Terminals { task?: string; front: number | null; list: Terminal[] }
 // A task, for its tab (Task.info).
 export interface TaskInfo {
   n: number; key: string; name: string; state: AgentState; folder: string; offset: number; branch: string | null;
-  closed: boolean; merged: boolean; agent: string | null;
+  closed: boolean; merged: boolean;
 }
 export interface ProjectEntry { id: string; name: string; folder: string; color: string; icon?: string; favicon?: string; tasks: ProjectTask[] }
 // A task of a project, open or not (app.ts, shell.projects): the bar's + lists the closed ones (NewTask.vue).
@@ -30,7 +35,7 @@ export interface ProjectTask { n: number; name: string; branch?: string | null; 
 export interface ProjectsInfo {
   current: string | null;
   projects: ProjectEntry[];
-  open: { id: string; task?: string | null; collapsed?: boolean; tasks?: TaskInfo[]; agents?: { id: string; name: string }[] }[];
+  open: { id: string; task?: string | null; collapsed?: boolean; tasks?: TaskInfo[]; agents?: { id: string; name: string; cli: string }[] }[];
   elsewhere?: string[];
   windows?: { id: number; names: string[] }[];
 }

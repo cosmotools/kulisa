@@ -12,8 +12,9 @@
 //                            copies: [{ repo, worktree, branch, base, folder }], home, closed, closedAt }] }; one
 //                            without copies works in a folder of the project (tasks.md)
 //     <n>/                   a task (TaskStore): profiles.json (what it has of its project's profiles: folder,
-//                            sites' zoom, closed), layout.json (the window's grid), agent.json (the agent's session, to
-//                            resume it), and a copy of a profile's master per profile opened here:
+//                            sites' zoom, closed), layout.json (the window's grid), agent.json (its agents'
+//                            conversations, to resume and read them), terminals.json (its island's tabs), and a copy
+//                            of a profile's master per profile opened here:
 //       Profile <k>/         a Chromium profile (session.fromPath) with Kulisa's own files in it: Kulisa Tabs.json
 //                            (its tabs' URLs), Kulisa Session Cookies.bin (session-cookies.ts)
 //   profiles.json, profiles/ the profiles and their masters (profile-store.ts)
@@ -50,15 +51,17 @@ interface WindowState { tabs: ProjectEntry[]; shown: ProjectEntry | null; bounds
 interface Settings { uiZoom?: number; theme?: 'dark' | 'light' | 'system'; bar?: 'top' | 'bottom'; windows?: SavedWindow[] }
 // A profile as a task keeps it in profiles.json (project-profiles.ts).
 interface TaskProfile { folder: string; id: string; zoom?: Record<string, number>; closed?: boolean }
-// A task's agent: which it runs, and its conversation as its hooks reported it (agent-hooks.ts).
-// The current run in its fields; the task's earlier runs, oldest first, each an agent's conversation (switching the
-// agent: ROADMAP, "Switching a task's agent"; task_history reads them).
-interface Run { agent?: string; sessionId?: string; transcript?: string; from?: number; to?: number }
-// handoff: the agent starts with the handoff's first message (tasks.ts, switchTo): the whole history to read
-// ('all'), or what came after its own run ('after').
-interface AgentFile { agent?: string; sessionId?: string; transcript?: string; started?: boolean; from?: number; runs?: Run[]; handoff?: 'all' | 'after' }
-// The terminals besides the agent's (tasks.ts).
-interface SavedTerminal { id: number; name: string; by: 'human' | 'agent'; command?: string }
+// A task's agents (tasks.ts): the one it was made with (opened when its island has never had a terminal), and every
+// conversation an agent had in it, oldest first, numbered from 1 in task_history: its account, its session as its
+// hooks reported it (agent-hooks.ts), when, the name the agent gave it, and the terminal it is open in (none: closed).
+interface Conversation {
+  agent: string; sessionId?: string; transcript?: string; started?: boolean; from: number; to?: number; title?: string; terminal?: number;
+}
+interface AgentFile { agent?: string; conversations?: Conversation[] }
+// Its island's terminals, in their tabs' order, and the one in front (tasks.ts): a shell has its name; an agent's, its
+// conversation's index in agent.json.
+interface SavedTerminal { id: number; name?: string; by?: 'human' | 'agent'; conversation?: number }
+interface TerminalsFile { front?: number | null; list: SavedTerminal[] }
 
 class Store {
   dir: string; projectsFile: string; deletedFile: string; settingsFile: string;
@@ -173,12 +176,11 @@ class TaskStore {
   // The window's grid as dockview serializes it (the renderer's lib/grid.ts).
   layout(): unknown { return readJSON(this.file('layout.json')); }
   saveLayout(layout: unknown) { writeJSON(this.file('layout.json'), layout); }
-  // The task's agent session: { sessionId, transcript } as the agent's hooks report it (agent-hooks.ts).
   agent(): AgentFile { return readJSON(this.file('agent.json')) || {}; }
   saveAgent(a: AgentFile) { writeJSON(this.file('agent.json'), a); }
-  // Its terminals besides the agent's, opened again after a restart: [{ id, name, by }] (tasks.ts).
-  terminals(): SavedTerminal[] { return readJSON(this.file('terminals.json')) || []; }
-  saveTerminals(list: SavedTerminal[]) { writeJSON(this.file('terminals.json'), list); }
+  // null: the island never had a terminal (a new task: its agent opens).
+  terminals(): TerminalsFile | null { const t = readJSON(this.file('terminals.json')); return Array.isArray(t?.list) ? t : null; }
+  saveTerminals(t: TerminalsFile) { writeJSON(this.file('terminals.json'), t); }
 }
 
 // Copy a profile's folder without its caches. An open profile can be copied once its data is flushed
@@ -217,4 +219,4 @@ function writeFileAtomic(file: string, data: string | Uint8Array, options?: { mo
 }
 
 export { Store, copyProfile, writeFileAtomic, SESSION_COOKIES_FILE, PROJECT_COLORS };
-export type { TaskStore, ProjectEntry, TaskEntry, Copy, WindowState, TaskProfile, TasksFile, Run, AgentFile };
+export type { TaskStore, ProjectEntry, TaskEntry, Copy, WindowState, TaskProfile, TasksFile, Conversation };

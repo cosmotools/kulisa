@@ -11,6 +11,9 @@ export interface Agent {
   account?: string; agent?: string; path?: string; onPath?: boolean; version?: string;
 }
 
+// An agent's mark in the sprite, by its id (cli); an agent new to Kulisa may have none: the generic one, or none.
+export const agentMark = (cli: string, fallback: string | null = 'i-agent') => (document.getElementById(`i-agent-${cli}`) ? `i-agent-${cli}` : fallback);
+
 // The installer's output goes to the list that runs it.
 let logTo: ((data: string) => void) | null = null;
 kulisa.on<string>('agents:install-log', (data) => logTo?.(data));

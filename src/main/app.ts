@@ -101,7 +101,7 @@ function start(options: Options = {}) {
   const bus = new EventEmitter(); // profile-added, agent-command, agent-action
   // The app: the projects open in any window (projects.ts: Project, by id) and the windows (window.ts: AppWindow).
   // win, current, task, profiles, closed, pty are the first window's (the tests'): its shown project and task, that
-  // task's open and closed profiles by id, its agent's terminal.
+  // task's open and closed profiles by id, its agent a pick goes to (Task.promptTarget).
   const shell = { bus, store, proxy: null, mcp: null, open: new Map(), windows: [], signin: signinPages(options.signinHosts || []) } as unknown as Shell;
   const first = () => shell.windows[0] ?? null;
   app.on('second-instance', () => first()?.focus());
@@ -292,7 +292,7 @@ function start(options: Options = {}) {
   // still working; or before quitting (quit), when the groups come back at the next start: asked only when that would
   // stop a working agent. True: go on.
   function askClosing(w: AppWindow | null, projects: Project[], { quit = false, window = false } = {}) {
-    const working = projects.flatMap((p) => [...p.tasks.values()].filter((task) => task.state === 'working')
+    const working = projects.flatMap((p) => [...p.tasks.values()].filter((task) => task.working)
       .map((task) => (projects.length > 1 ? `${p.name}: ${task.name}` : task.name)));
     const busy = working.length ? `${working.length > 1 ? 'Agents are' : 'An agent is'} still working (${working.join(', ')}): ` : '';
     const it = working.length > 1 ? 'them' : 'it';
@@ -324,7 +324,7 @@ function start(options: Options = {}) {
     if (!from) return { error: 'the project is not open' };
     if (to === from) return { id: project.id };
     if (!to && from.tabs.length < 2) return { error: 'the project is the only one in its window' };
-    for (const task of project.tasks.values()) shell.chooseAgent.cancel(task); // asked again in the other window
+    for (const task of project.tasks.values()) shell.chooseAgent.cancel(task); // none opens: the island's + there
     await from.leave(project);
     from.drop(project);
     const target = to || newWindow({ near: from.win, at });
@@ -410,7 +410,7 @@ function start(options: Options = {}) {
   // its agent is working. The last open task closes its group, as Chrome's tab group goes with its last tab.
   async function closeTask(task: Task): Promise<Result<{ n: number } | { ids: string[] }>> {
     const project = task.project;
-    if (task.state === 'working' && !await shell.ask({ message: `Close the task ${task.name}?`, ok: 'Close',
+    if (task.working && !await shell.ask({ message: `Close the task ${task.name}?`, ok: 'Close',
       detail: 'Its agent is still working: closing stops it. Its conversation, code and profiles stay; open it again from the bar\'s +.' }, project.window)) {
       return { error: 'the human said no' };
     }
@@ -786,9 +786,9 @@ function start(options: Options = {}) {
   ipcMain.handle('task:rename', (_e, { key, name }: { key: string; name: string }) => taskAt(key, (task) => task.rename(name)));
   ipcMain.handle('project:delete-merged', (_e, { id }: { id: string }) => serial(() => { const p = shell.open.get(id); return p ? deleteMerged(p) : { error: 'the project is not open' }; }));
   ipcMain.handle('project:collapse', (_e, { id, collapsed }: { id: string; collapsed: boolean }) => { shell.open.get(id)?.collapse(collapsed); sendProjects(); });
-  // The terminal's microphone and its language (Dictation.vue in the renderer; Task.voice, dictate).
-  // Esc typed into an agent's terminal (its key is the task's): Task.interrupted.
-  ipcMain.on('pty:in', (_e, { task, data }: { task: string; data: string }) => { if (data === '\x1b') shell.taskByKey(task)?.interrupted(); });
+  // The island's microphone and its language (Dictation.vue in the renderer; Task.voice, dictate).
+  // Esc typed into an agent's terminal (its key: "<task>#<id>"): Task.interrupted.
+  ipcMain.on('pty:in', (_e, { task, data }: { task: string; data: string }) => { if (data === '\x1b') shell.taskByKey(task.split('#')[0])?.interrupted(task); });
   ipcMain.handle('voice:get', (_e, key: string) => shell.taskByKey(key)?.voice() ?? null);
   ipcMain.handle('voice:record', (_e, { task, on }: { task: string; on: boolean }) => shell.taskByKey(task)?.dictate(on) ?? { recording: false });
   ipcMain.handle('voice:language', (_e, { task, code }: { task: string; code: string }) => shell.taskByKey(task)?.setVoiceLanguage(code) ?? { error: `no task ${task}` });
@@ -831,7 +831,7 @@ function start(options: Options = {}) {
   });
 
   // ---------- agents ----------
-  // Each task runs the agent the human chose for it (agents.ts; saved in its agent.json). One not chosen yet or
+  // A task's agents are the human's choice, each in a terminal of its own (agents.ts; tasks.ts). One not chosen yet or
   // not installed: the window asks (AgentPicker.vue), installing it with its maker's installer if the human wants.
   // The Kulisa plugin reads where Kulisa is from the environment, set per task (tasks.ts): .mcp.json from
   // KULISA_MCP_URL, its hooks from KULISA_URL. Other agent CLIs get them too.
@@ -855,17 +855,16 @@ function start(options: Options = {}) {
   shell.agentFor = (id, { any = false } = {}) => {
     const a = shell.accounts.find(id ?? custom?.id);
     if (!a || (!a.choosable && !any)) return null;
-    return { ...a.agent, id: a.id, agentId: a.agent.id, name: a.name, configDir: a.own ? a.agent.config?.home() ?? null : a.dir,
+    return { ...a.agent, id: a.id, agentId: a.agent.id, cli: a.agent.name, name: a.name, configDir: a.own ? a.agent.config?.home() ?? null : a.dir,
       env: a.own ? {} : { [a.agent.config!.env]: a.dir! } };
   };
   shell.findAgent = findAgent;
   const choosing = new Map<string, (agent: AgentChoice | null) => void>(); // task key -> resolve(agent or null)
-  // Asked in the task's window. cancel: the human may leave it as it is (changing the agent; not when there is
-  // none yet).
-  shell.chooseAgent = ((task: Task, agent: AgentChoice | null, { cancel = false } = {}) => new Promise<AgentChoice | null>((resolve) => {
+  // Asked in the task's window; Cancel opens none.
+  shell.chooseAgent = ((task: Task, agent: AgentChoice | null) => new Promise<AgentChoice | null>((resolve) => {
     choosing.get(task.key)?.(null);
     choosing.set(task.key, resolve);
-    task.project.window?.send('agent:choose', { task: task.key, selected: agent?.id ?? null, cancel });
+    task.project.window?.send('agent:choose', { task: task.key, selected: agent?.id ?? null });
   })) as Shell['chooseAgent'];
   shell.chooseAgent.cancel = (task: Task) => { choosing.get(task.key)?.(null); choosing.delete(task.key); };
   ipcMain.on('agent:chosen', (_e, { task, id }: { task: string; id: string | null }) => { const r = choosing.get(task); choosing.delete(task); r?.(id ? shell.agentFor(id) : null); });
@@ -883,7 +882,7 @@ function start(options: Options = {}) {
   };
   ipcMain.handle('agents:list', async (e, { check, details, cached }: { check?: boolean; details?: boolean; cached?: boolean } = {}) => {
     const w = at(e), looks = new Map<string, ReturnType<typeof look>>(), cwd = w?.task?.folder || app.getPath('home'); // each agent looked for once, whatever its accounts
-    // The project's agents first (Change agent…, Choose the Agent), in its order.
+    // The project's agents first (Choose the Agent), in its order.
     const mine = w?.current?.agents() || [], rank = (id: string) => (mine.includes(id) ? mine.indexOf(id) : mine.length);
     // Choosing a task's: the project's accounts, and the agents without accounts (the terminal only); never another
     // project's account: it could go with that project while a task here runs it. The Agents window: the agents alone,
@@ -934,10 +933,17 @@ function start(options: Options = {}) {
   // A profile's master, to sign in to (master.ts), and its cookies brought to this task's copy (tasks.ts).
   ipcMain.handle('profile:master', (e, { task, profile }: { task: string; profile: string }) => onScreen(e, task)?.openMaster(profile) || noTask);
   ipcMain.handle('profile:refresh', (e, { task, profile }: { task: string; profile: string }) => onScreen(e, task)?.refreshProfile(profile) || noTask);
-  ipcMain.handle('agent:change', (e, { task }: { task: string }) => { const w = onScreen(e, task); return w ? w.changeAgent() : noTask; });
-  ipcMain.handle('agent:new-conversation', (e, { task }: { task: string }) => { const w = onScreen(e, task); return w ? w.newConversation() : noTask; });
-  ipcMain.handle('terminal:open', (e, { task }: { task: string }) => { const w = onScreen(e, task); return w ? w.openTerminal() : noTask; });
-  ipcMain.handle('terminal:close', (e, { task, id }: { task: string; id: number }) => onScreen(e, task)?.closeTerminal(id) || noTask);
+  // The island's tabs (Terminals.vue): + (an agent of the project, a new conversation; or a shell; own: the task's own
+  // agent, Ctrl+` on the folded island), the one in front,
+  // ×, an agent's tab handed over to another agent (Task.handOver).
+  ipcMain.handle('terminal:open', (e, { task, agent, own }: { task: string; agent?: string; own?: boolean }) => {
+    const w = onScreen(e, task);
+    return !w ? noTask : own ? w.openAgent(w.store.agent().agent) : agent ? w.openAgent(agent) : w.openTerminal();
+  });
+  ipcMain.handle('terminal:show', (e, { task, id }: { task: string; id: number }) => onScreen(e, task)?.show(id) || noTask);
+  ipcMain.handle('terminal:close', (e, { task, id }: { task: string; id: number }) => onScreen(e, task)?.closeTab(id) || noTask);
+  ipcMain.handle('agent:new-conversation', (e, { task, id }: { task: string; id: number }) => onScreen(e, task)?.newConversation(id) || noTask);
+  ipcMain.handle('agent:hand-over', (e, { task, id, agent }: { task: string; id: number; agent: string }) => onScreen(e, task)?.handOver(id, agent) || noTask);
   ipcMain.on('layout:save', (e, { task, layout }: { task: string; layout: unknown }) => at(e)?.saveLayout(task, layout));
   ipcMain.on('layout', (e, { task, rects }: { task: string; rects: Parameters<AppWindow['layout']>[1] }) => at(e)?.layout(task, rects));
 
@@ -1023,7 +1029,7 @@ function start(options: Options = {}) {
       await shell.sessionCookies?.persist(p);
       await p.disconnect();
     }
-    for (const task of allTasks()) for (const p of [task.pty, ...[...task.terminals.values()].map((t) => t.pty)]) if (p) stopTerminal(p);
+    for (const task of allTasks()) for (const t of task.terminals.values()) if (t.pty) stopTerminal(t.pty);
     app.quit();
   });
   process.on('SIGINT', () => app.quit());
