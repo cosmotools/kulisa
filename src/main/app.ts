@@ -82,6 +82,14 @@ function start(options: Options = {}) {
   for (const k of Object.keys(process.env)) if (k.startsWith('DIRENV_')) delete process.env[k];
   const userData = options.userData || path.join(app.getPath('appData'), 'Kulisa');
   app.setPath('userData', userData);
+  // One Kulisa per data folder (Electron's lock is the userData's; KULISA_DATA for another): a second one on the same
+  // data ran beside the first, without its MCP server, and the two wrote over each other's saved tabs, cookies and
+  // tasks (2026-10-12). It shows the first one's window and goes, before anything is read or written.
+  if (!app.requestSingleInstanceLock()) {
+    console.log(`[kulisa] already running with ${userData}: its window is shown`);
+    app.quit();
+    return new Promise<never>(() => {});
+  }
   const store = new Store(userData);
   // The windows open at the start, each with its tabs and the one it shows: those open last (or KULISA_PROJECT's,
   // added to the first); one with none at first start.
@@ -100,6 +108,7 @@ function start(options: Options = {}) {
   // task's open and closed profiles by id, its agent's terminal.
   const shell = { bus, store, proxy: null, mcp: null, open: new Map(), windows: [], signin: signinPages(options.signinHosts || []) } as unknown as Shell;
   const first = () => shell.windows[0] ?? null;
+  app.on('second-instance', () => first()?.focus());
   // The profiles and their masters (profile-store.ts); after who one is changed, or a project got or let go of one,
   // every loaded task shows it (project-profiles.ts, refresh), but the one it was changed in, which did.
   shell.profileStore = new ProfileStore(userData, (dir) => store.markDeleted(dir));

@@ -1,5 +1,6 @@
 // The window: the terminal, the app icon, the top bar, screenshots.
 import { nativeTheme } from 'electron';
+import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { assert, root, userData, sleep, waitFor, menuRows, choose, manageProfiles, menuOpen, rightClick, box, viewOn, closeMenu } from './helpers.ts';
@@ -102,6 +103,22 @@ export default (test: Test) => {
     await waitFor(() => task.terminals.size === 0);
     await waitFor(async () => (await ui(`window.__dock.panels.filter((p) => p.id.startsWith('term:')).length`)) === 0);
     assert.equal(await active('terminal'), true, "the agent's in front again");
+  });
+  test('one Kulisa per data folder: a second one started on the same data shows the first one\'s window and goes', async ({ shell }) => {
+    // The groups' apps run side by side, each on a folder of its own: another folder is no second one.
+    const win = shell.windows[0].win;
+    win.minimize();
+    await waitFor(() => win.isMinimized());
+    const second = spawn(process.execPath, ['--no-sandbox', path.join(import.meta.dirname, '..', 'src', 'main', 'index.ts')],
+      { env: { ...process.env, KULISA_DATA: userData, KULISA_MCP_PORT: '0' }, stdio: ['ignore', 'pipe', 'pipe'] });
+    let out = '';
+    second.stdout.on('data', (d) => (out += d));
+    const timer = setTimeout(() => second.kill('SIGINT'), 10000); // one that stays is stopped, not left behind
+    const code = await new Promise((r) => second.on('close', r));
+    clearTimeout(timer);
+    assert.equal(code, 0);
+    assert.match(out, /already running with .*: its window is shown/);
+    await waitFor(() => !win.isMinimized());
   });
   test('icons: each from the sprite (docs/ui.md), drawn there once and in lines of the text\'s color; icon buttons have a name', async ({ ui }) => {
     const r = await ui(`(() => {
