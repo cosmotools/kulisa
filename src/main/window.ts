@@ -140,7 +140,7 @@ class AppWindow {
     return { current: this.current?.id ?? null, projects: shell.projects(),
       // Each with its tasks, open and closed, the one it shows and whether its group is folded, for the tasks' bar
       // (the shown project's also come as 'tasks')
-      open: this.tabs.map((p) => ({ id: p.id, task: p.task?.key ?? null, collapsed: p.collapsed, tasks: [...p.tasks.values()].map((t) => t.info()),
+      open: this.tabs.map((p) => ({ id: p.id, task: p.task?.key ?? null, tasks: [...p.tasks.values()].map((t) => t.info()),
         agents: p.agents().map((a) => { const c = shell.agentFor(a)!; return { id: a, name: c.name, cli: c.agentId }; }) })), // the default first: + runs it
       elsewhere: [...shell.open.values()].filter((p) => p.window !== this).map((p) => p.id),
       windows: others.map((w) => ({ id: w.id, names: w.tabs.map((p) => p.name) })) };

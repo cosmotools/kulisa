@@ -796,7 +796,6 @@ function start(options: Options = {}) {
   ipcMain.handle('task:open', (_e, key: string) => taskAt(key, openTask));
   ipcMain.handle('task:rename', (_e, { key, name }: { key: string; name: string }) => taskAt(key, (task) => task.rename(name)));
   ipcMain.handle('project:delete-merged', (_e, { id }: { id: string }) => serial(() => { const p = shell.open.get(id); return p ? deleteMerged(p) : { error: 'the project is not open' }; }));
-  ipcMain.handle('project:collapse', (_e, { id, collapsed }: { id: string; collapsed: boolean }) => { shell.open.get(id)?.collapse(collapsed); sendProjects(); });
   // The island's microphone and its language (Dictation.vue in the renderer; Task.voice, dictate).
   // Esc typed into an agent's terminal (its key: "<task>#<id>"): Task.interrupted.
   ipcMain.on('pty:in', (_e, { task, data }: { task: string; data: string }) => { if (data === '\x1b') shell.taskByKey(task.split('#')[0])?.interrupted(task); });

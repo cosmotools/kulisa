@@ -871,23 +871,19 @@ export default (test: Test) => {
     await waitFor(async () => (await viewOn(shell, ui, 'sam-admin')) && viewOn(shell, ui, 'elon-buyer'));
   });
 
-  test('tasks: a click on a group\'s label folds it to its name, the shown group too, as Chrome\'s tab groups; kept', async (ctx) => {
-    const { shell, ui } = ctx;
+  test('tasks: a click on a group\'s label folds nothing; a double click on a task\'s tab is its Rename…', async (ctx) => {
+    const { ui } = ctx;
     const shown = () => ui(`[...document.querySelectorAll('#projectTabs .pisland.active .tasktab')].filter((t) => t.checkVisibility()).map((t) => t.querySelector('.name').textContent)`);
-    const height = () => ui(`document.querySelector('#taskbar').getBoundingClientRect().height`);
-    const unfolded = await height();
-    await ui(`document.querySelector('#projectTabs .pisland.active .plabel').click()`);
-    await waitFor(async () => JSON.stringify(await shown()) === '[]');
-    assert.equal(await height(), unfolded, 'every group folded, the bar keeps its height: the grid does not jump');
-    const [before, after] = await ui(`(() => { const i = document.querySelector('#projectTabs .pisland.active').getBoundingClientRect(),
-      l = document.querySelector('#projectTabs .pisland.active .plabel'), r = document.createRange(); r.selectNodeContents(l);
-      const c = r.getBoundingClientRect(); return [c.left - i.left, i.right - c.right]; })()`);
-    assert.equal(before, after, 'a folded group: as much room before its label as after');
-    assert.equal(tasksFile().collapsed, true);
-    assert.equal(shell.current.collapsed, true);
-    await ui(`document.querySelector('#projectTabs .pisland.active .plabel').click()`);
-    await waitFor(async () => JSON.stringify(await shown()) === '["task-1","Feature-X"]');
-    assert.equal(tasksFile().collapsed, undefined);
+    const before = JSON.stringify(await shown());
+    await click(ui, `document.querySelector('#projectTabs .pisland.active .plabel')`);
+    const tab = `document.querySelector('#tasklist .tasktab:not(.active) .name')`;
+    const name = await ui(`${tab}.textContent`);
+    await ui(`${tab}.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))`);
+    // The click on the label came before: by the time the dialog is open, it would have folded the group.
+    await waitFor(() => ui(`(document.getElementById('taskrename')?.dataset.state === 'open') && document.getElementById('taskname').value === ${JSON.stringify(name)}`));
+    assert.equal(JSON.stringify(await shown()), before, 'every tab stays');
+    await press(ctx.shell.win.webContents, 'Escape');
+    await waitFor(async () => !(await ui(`document.getElementById('taskrename')?.dataset.state === 'open'`)));
   });
 
   test('the empty window: Close Group in the group\'s panel; links in ☰ open in the browser; at the first start the manager on New Project; New Project… asks where its folder goes', async (ctx) => {

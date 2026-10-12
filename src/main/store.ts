@@ -8,7 +8,7 @@
 //                            to tell projects apart at a glance; agents: the agents' accounts its tasks run, the
 //                            default (+'s) first
 //   projects/<id>/
-//     tasks.json             the project's tasks: { next, current, collapsed, list: [{ n, name, branch, offset, folder,
+//     tasks.json             the project's tasks: { next, current, list: [{ n, name, branch, offset, folder,
 //                            copies: [{ repo, worktree, branch, base, folder }], home, closed, closedAt }] }; one
 //                            without copies works in a folder of the project (tasks.md)
 //     <n>/                   a task (TaskStore): profiles.json (what it has of its project's profiles: folder,
@@ -45,7 +45,7 @@ interface TaskEntry {
   closed?: boolean; closedAt?: number; merged?: boolean;
   about?: string; // the human's first prompt's first line, until it is named (Task.noteAbout)
 }
-interface TasksFile { next: number; current: number | null; collapsed?: boolean; list: TaskEntry[] }
+interface TasksFile { next: number; current: number | null; list: TaskEntry[] }
 // A window as settings.json keeps it, its projects by id; windows() gives them as projects.
 interface SavedWindow { tabs: string[]; shown: string | null; bounds?: Electron.Rectangle; maximized?: boolean }
 interface WindowState { tabs: ProjectEntry[]; shown: ProjectEntry | null; bounds?: Electron.Rectangle; maximized?: boolean }

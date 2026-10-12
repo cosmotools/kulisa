@@ -30,7 +30,7 @@ replace a region left by the page before.
 
 ## The tasks' bar
 
-Under the grid, in the middle: an island per group (a project's open tasks), drawn as Chrome's tab groups (its label, which folds it;
+Under the grid, in the middle: an island per group (a project's open tasks), drawn as Chrome's tab groups (its label;
 its open tasks' tabs), then +, a new task of any project or a closed one opened again ([tasks.md](tasks.md), Projects). ☰ → **Tasks bar: Top, Bottom** puts it over the grid instead, under the
 title bar (`settings.json`: `bar`; the page gets it in its URL, so it is drawn in its place at once). Bottom is the
 default: the hand goes to the terminal under the grid all the time, so the tabs are where it already is; at first
