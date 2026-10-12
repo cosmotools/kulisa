@@ -20,7 +20,7 @@ function page(title: string, body: string, color = '#4a7') {
 const board: string[] = [];
 
 function handler(req: IncomingMessage, res: ServerResponse) {
-  const u = new URL(req.url!, 'http://x');
+  const u = new URL(req.url, 'http://x');
   const send = (code: number, body: string, type = 'text/html; charset=utf-8', headers = {}) => {
     res.writeHead(code, { 'content-type': type, ...headers });
     res.end(body);

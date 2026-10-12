@@ -29,9 +29,9 @@ export function covered(how: 'hide' | 'pictures') {
       if (v && how === 'pictures') for (const other of [...menus]) if (other !== close) other(); // one menu at a time, as the OS's
       if (how === 'hide') {
         dialogsOpen.value += v ? 1 : -1;
-        if (v) kulisa.invoke('views:hidden', true); else showViews();
-      } else if (v) freeze().then(() => { ready.value = open.value; });
-      else { ready.value = false; if (!menus.size) unfreeze(); } // not when another menu has opened already
+        if (v) void kulisa.invoke('views:hidden', true); else void showViews();
+      } else if (v) void freeze().then(() => { ready.value = open.value; });
+      else { ready.value = false; if (!menus.size) void unfreeze(); } // not when another menu has opened already
     },
   });
   return { open: model, ready };

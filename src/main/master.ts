@@ -35,7 +35,7 @@ function installMasters(shell: Shell, { preload, colors }: { preload: string; co
     const profile = new Profile(win, { id: g.id, name: g.name, avatar: g.avatar, folder, dir }, { task: `master/${folder}` });
     const m: Master = { win, profile, closing: null };
     shell.masters.set(folder, m);
-    win.on('close', (e) => { if (!m.closed && !shell.quitting) { e.preventDefault(); close(m); } });
+    win.on('close', (e) => { if (!m.closed && !shell.quitting) { e.preventDefault(); void close(m); } });
     // Closed meanwhile (its page, or a slow sign-in page, still loading): nothing to lay out, the window is gone.
     await win.loadFile(page('master.html'), { query: { name: g.name, theme: shell.shade() } }).catch((e) => { if (!m.closing) throw e; });
     if (m.closing) return { folder };

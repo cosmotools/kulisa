@@ -18,4 +18,4 @@ declare module 'vue' {
   interface ComponentCustomProperties { kulisa: KulisaBridge }
 }
 app.mount('#app');
-kulisa.invoke('tasks:get'); // the shown task's tabs and terminal (window.ts, sendTasks)
+void kulisa.invoke('tasks:get'); // the shown task's tabs and terminal (window.ts, sendTasks)

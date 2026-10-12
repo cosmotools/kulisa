@@ -36,7 +36,7 @@ const openOwn = async () => {
   if (first) first.focus(); else document.getElementById('termUnfold')?.click();
 };
 // A task's tab in the tasks' bar shown, as a click on it does (TaskTab.vue).
-const showTask = (tab?: Element) => { const key = (tab as HTMLElement | undefined)?.dataset.task; if (key && key !== store.current) kulisa.invoke('task:show', key); };
+const showTask = (tab?: Element) => { const key = (tab as HTMLElement | undefined)?.dataset.task; if (key && key !== store.current) void kulisa.invoke('task:show', key); };
 interface Command { n?: number; page?: boolean; p?: Profile; tab?: string }
 // What each command does. page: the key was typed in the profile's page, so the keyboard stays in its pages.
 const run: Record<string, (c: Command) => unknown> = {
@@ -71,9 +71,9 @@ function stepTask(dir: number) {
 }
 function toTab({ p, tab, page }: Command, to: (i: number, n: number) => number) {
   const i = to(p!.tabs.findIndex((t) => t.id === tab), p!.tabs.length);
-  if (p!.tabs[i] && p!.tabs[i].id !== tab) act('tab:activate', { profile: p!.id, tab: p!.tabs[i].id, focus: page });
+  if (p!.tabs[i] && p!.tabs[i].id !== tab) void act('tab:activate', { profile: p!.id, tab: p!.tabs[i].id, focus: page });
 }
-const focusPage = (id: string) => { const p = store.profiles.find((x) => x.id === id); if (p) act('tab:focus', { profile: id, tab: p.active }); };
+const focusPage = (id: string) => { const p = store.profiles.find((x) => x.id === id); if (p) void act('tab:focus', { profile: id, tab: p.active }); };
 
 kulisa.on<{ id: string; n?: number; profile?: string; tab?: string; task: string; page?: boolean }>('command', ({ id, n, profile, tab, task, page }) => {
   if (task !== store.current || !run[id]) return; // a key typed as another task was coming

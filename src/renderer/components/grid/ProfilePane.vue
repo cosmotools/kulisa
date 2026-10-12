@@ -45,7 +45,7 @@ function addrUp(e: MouseEvent) {
   if (clickedIn && addr.value!.selectionStart === addr.value!.selectionEnd) { e.preventDefault(); addr.value!.select(); }
   clickedIn = false;
 }
-function go() { act('tab:navigate', { profile: id(), tab: tab(), url: addr.value!.value }); addr.value!.blur(); }
+function go() { void act('tab:navigate', { profile: id(), tab: tab(), url: addr.value!.value }); addr.value!.blur(); }
 
 // The tab strip, Reka's Tabs: a tab is chosen on the press, as in Chrome (not on its ×), the arrows move between them
 // and Enter chooses. A tab opened in a strip already shown grows in from the left, as Chrome's (.tab.opening); the
@@ -77,7 +77,7 @@ function tabMenu(e: MouseEvent): MenuItem[] | null {
     '-',
     { label: 'Close tab', keys: keyText('tab.close'), run: () => act('tab:close', { profile: profileId, tab: t }) },
     { label: 'Close other tabs', enabled: p.tabs.length > 1,
-      run: () => { for (const x of p.tabs) if (x.id !== t) act('tab:close', { profile: profileId, tab: x.id }); } },
+      run: () => { for (const x of p.tabs) if (x.id !== t) void act('tab:close', { profile: profileId, tab: x.id }); } },
   ];
 }
 // ⋮ at the end of the bar, as Chrome's: what a pane does less often.
@@ -97,7 +97,7 @@ function answer(ok: boolean) {
   const d = shownDialog.value;
   if (!d) return;
   answered.value = d.id;
-  act('tab:dialog', { profile: id(), tab: tab(), dialog: d.id, ok });
+  void act('tab:dialog', { profile: id(), tab: tab(), dialog: d.id, ok });
 }
 const focusOk = (e: Event) => { e.preventDefault(); (e.currentTarget as HTMLElement).querySelector<HTMLElement>('.primary')?.focus(); };
 

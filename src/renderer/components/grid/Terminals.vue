@@ -63,7 +63,7 @@ onMounted(() => { count(); place(); fold(strip.value); });
 watch(() => [store.terminals.task, store.terminals.front, store.terminals.list.map((t) => t.id).join()], place, { flush: 'post' });
 // Another tab in front of the same task (chosen, or opened by the human): the keyboard goes to it.
 watch(() => [store.terminals.task, store.terminals.front] as const, ([task, front], [before, was]) => {
-  if (task === before && front !== was && front !== null) termFocus(keyOf(front));
+  if (task === before && front !== was && front !== null) void termFocus(keyOf(front));
 }, { flush: 'post' });
 watch([folded, strip, alone], () => fold(strip.value), { flush: 'post' });
 onBeforeUnmount(() => { for (const s of subs) s.dispose(); for (const host of [...root.value!.children]) host.remove(); });

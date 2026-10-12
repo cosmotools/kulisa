@@ -68,7 +68,7 @@ test("history: a Claude Code transcript gives the human's words, the agent's ans
   assert.ok(!t.some((x) => /secret|Kulisa profiles open now|task_history|Part 1 of 1|permission/.test(x)), 'reasoning, hooks, its own history and the CLI\'s records left out');
   assert.equal(c.plan, '[completed] pay green\n[in_progress] cancel gray', 'the last plan');
   assert.equal(c.stopped, null, 'the last turn ended');
-  assert.match(c.memory!, /^### MEMORY\.md\n- \[Colors\]\(colors\.md\)\n\n### colors\.md\nButtons take their color/, 'its memory, the index first');
+  assert.match(c.memory, /^### MEMORY\.md\n- \[Colors\]\(colors\.md\)\n\n### colors\.md\nButtons take their color/, 'its memory, the index first');
 });
 
 test('history: where a Claude Code turn stopped: a call with no result, or the human unanswered', () => {

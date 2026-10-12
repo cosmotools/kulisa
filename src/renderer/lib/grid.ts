@@ -71,12 +71,12 @@ function reveal() {
     setLoading(false);
     store.pictures = pictures.get(store.current!) || {};
     built(); // the transition's new state: it slides in
-    transition.finished.then(() => { store.pictures = {}; sendLayout(); showViews(); });
+    void transition.finished.then(() => { store.pictures = {}; sendLayout(); void showViews(); });
     return;
   }
   requestAnimationFrame(() => requestAnimationFrame(() => { // after sendLayout's frame
     setLoading(false);
-    showViews();
+    void showViews();
   }));
 }
 

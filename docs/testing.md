@@ -18,7 +18,7 @@ electron from 'electron'; const { session } = electron;`): an ES module importin
 
 ## End to end: groups
 
-`npm test` runs the unit tests, knip (Dead code, below), actionlint (Workflows, below), builds the window (`npm run build`: its types checked, then Vite), then the groups of
+`npm test` runs the unit tests, knip (Dead code, below), ESLint (Lint, below), actionlint (Workflows, below), builds the window (`npm run build`: its types checked, then Vite), then the groups of
 e2e files in parallel (`GROUPS` in `start.ts`):
 
 - **A group is one app, its files in order**: later files build on what earlier ones left (profiles, sign-ins,
@@ -91,10 +91,27 @@ dead.
 - What knip cannot see at all: names that join two sides as strings (IPC channels, CSS classes, the sprite's icons,
   tokens, the keys' table); when one side goes, the other is looked for by hand.
 
+## Lint
+
+`npm run lint` ([ESLint](https://eslint.org) with [typescript-eslint](https://typescript-eslint.io) and
+[eslint-plugin-vue](https://eslint.vuejs.org), about 10 s: it reads the types) checks what `tsc` cannot see;
+`npm test` runs it after knip. A few rules, chosen one at a time (`eslint.config.ts`), not the presets: those flag
+every `any` from JSON and IPC and the templates' formatting, about 2400 places and no bug (measured 2026-10-13).
+
+- **A promise is awaited, or `void` says it is not** (`no-floating-promises`): a forgotten `await` in a test makes a
+  test that passes without checking. `void` is for what is meant to run on its own: an IPC message the window does
+  not wait for, a dialog answered while the test goes on.
+- `await` only on a promise (`await-thenable`); no `if (promise)` (`no-misused-promises`, not its void-return part:
+  an async callback nobody waits for is fine, its rejection is logged in `app.ts`).
+- A `switch` over a union names every case or has a `default` (`switch-exhaustiveness-check`).
+- No `as` or `!` TypeScript does not need (`no-unnecessary-type-assertion`; `npx eslint . --fix` removes them). Not in
+  the window: it took `{} as Record<…>` inside `reactive({ … })` for needless, the only type of a store's field.
+- Vue's `essential` rules for the templates, without multi-word component names (Kulisa's are one word: `Modal`).
+
 ## Workflows
 
 `npm test` checks the CI's workflows (`.github/workflows/`) with [actionlint](https://github.com/rhysd/actionlint)
-after knip, when it is installed; without it, it says so and goes on. GitHub refuses a whole workflow for one wrong
+after knip and ESLint, when it is installed; without it, it says so and goes on. GitHub refuses a whole workflow for one wrong
 line, and says so only once it is pushed, with no job run (2026-10-12: `runner.temp` in a job's `env`). actionlint is
 a Go program, not an npm package (the ones on npm are old wrappers), so it is the developer's to install: a binary of
 its releases into a folder on `PATH` (`~/.local/bin`), or `brew install actionlint`. With shellcheck installed it
