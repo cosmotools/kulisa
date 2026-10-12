@@ -4,7 +4,7 @@ import tseslint from 'typescript-eslint';
 import vue from 'eslint-plugin-vue';
 
 export default tseslint.config(
-  { ignores: ['dist', 'out', '.claude', 'src/preload'] },
+  { ignores: ['dist', 'out', '.claude/*', '!.claude/hooks', 'src/preload'] },
   ...vue.configs['flat/essential'],
   { files: ['**/*.ts', '**/*.mts'], languageOptions: { parser: tseslint.parser } },
   {
