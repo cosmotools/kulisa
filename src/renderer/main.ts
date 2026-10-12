@@ -1,5 +1,6 @@
 // The window's page (index.html): its styles, its parts (components/App.vue), and what listens to the main process
 // (lib/). The tokens and the shared components' look are global (docs/ui.md); each part's own look is in its file.
+import '@fontsource-variable/inter/wght.css';
 import '@fontsource/jetbrains-mono/400.css';
 import '@fontsource/jetbrains-mono/700.css';
 import '@xterm/xterm/css/xterm.css';
@@ -18,4 +19,4 @@ declare module 'vue' {
   interface ComponentCustomProperties { kulisa: KulisaBridge }
 }
 app.mount('#app');
-kulisa.invoke('tasks:get'); // the shown task's tabs and terminal (window.ts, sendTasks)
+void kulisa.invoke('tasks:get'); // the shown task's tabs and terminal (window.ts, sendTasks)

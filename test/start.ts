@@ -1,5 +1,5 @@
 // `npm test`: the unit tests (test/unit, plain Node, a second), knip (npm run knip: no file, export or dependency
-// nothing uses; docs/testing.md, Dead code), actionlint on the CI's workflows when installed, the window built (npm run build: its types checked,
+// nothing uses; docs/testing.md, Dead code), ESLint (npm run lint; docs/testing.md, Lint), actionlint on the CI's workflows when installed, the window built (npm run build: its types checked,
 // then Vite), then the groups of e2e files, in parallel. Each group
 // runs in an app of its own (run.ts), in its own folder, its files in order (later ones build on earlier ones), then
 // again after a restart. On Linux, with Xvfb and openbox installed, each on a screen of its own: the tests' windows
@@ -78,11 +78,13 @@ async function group(name: string) {
   return code;
 }
 
-(async () => {
+void (async () => {
   const unit = spawnSync(process.execPath, ['--test', 'test/unit/*.test.ts'], { cwd: path.join(import.meta.dirname, '..'), stdio: 'inherit' });
   if (unit.status !== 0) process.exit(unit.status ?? 1);
   const knip = spawnSync('npm', ['run', 'knip'], { cwd: path.join(import.meta.dirname, '..'), stdio: 'inherit', shell: process.platform === 'win32' });
   if (knip.status !== 0) process.exit(knip.status ?? 1);
+  const eslint = spawnSync('npm', ['run', 'lint'], { cwd: path.join(import.meta.dirname, '..'), stdio: 'inherit', shell: process.platform === 'win32' });
+  if (eslint.status !== 0) process.exit(eslint.status ?? 1);
   // The CI's workflows: GitHub refuses a whole file for one wrong line, and says so only once it is pushed (run
   // 38277005183). actionlint is a Go program with no maintained npm package: checked when installed, else said.
   if (has('actionlint')) {

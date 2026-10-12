@@ -31,22 +31,25 @@ export const whenLeft = () => Promise.resolve(leaving);
 export function gridMounted(a: DockviewApi) {
   api = a;
   Object.assign(window, { __dock: a }); // for tests
-  let saveTimer = 0;
+  let saveTimer = 0, save: (() => void) | null = null;
   a.onDidLayoutChange(() => {
     scheduleLayout();
     clearTimeout(saveTimer);
     // Not a grid being taken down or built.
-    if (!store.loading) saveTimer = window.setTimeout(() => kulisa.send('layout:save', { task: store.current, layout: a.toJSON() }), 300);
+    if (store.loading) return;
+    const task = store.current;
+    save = () => { save = null; kulisa.send('layout:save', { task, layout: a.toJSON() }); };
+    saveTimer = window.setTimeout(save, 300);
   });
   a.onDidActivePanelChange(scheduleLayout);
-  clearSave = () => clearTimeout(saveTimer);
+  flushSave = () => { clearTimeout(saveTimer); save?.(); };
   // Dragging a panel (drop targets are HTML): the pages become pictures of themselves meanwhile.
   a.onWillDragPanel(freeze);
   a.onWillDragGroup(freeze);
   a.onDidDrop(unfreeze);
   gotApi(a);
 }
-let clearSave = () => {};
+let flushSave = () => {};
 document.addEventListener('dragend', unfreeze, true);
 document.addEventListener('drop', () => setTimeout(unfreeze), true);
 
@@ -71,12 +74,12 @@ function reveal() {
     setLoading(false);
     store.pictures = pictures.get(store.current!) || {};
     built(); // the transition's new state: it slides in
-    transition.finished.then(() => { store.pictures = {}; sendLayout(); showViews(); });
+    void transition.finished.then(() => { store.pictures = {}; sendLayout(); void showViews(); });
     return;
   }
   requestAnimationFrame(() => requestAnimationFrame(() => { // after sendLayout's frame
     setLoading(false);
-    showViews();
+    void showViews();
   }));
 }
 
@@ -98,26 +101,34 @@ const addProfilePanel = (p: Profile, position?: AddPanelPositionOptions, extra: 
 const addTerminal = (position: AddPanelPositionOptions) =>
   api!.addPanel({ id: 'terminal', component: 'terminal', tabComponent: 'terminal', title: 'Terminal', renderer: 'always', position });
 
+// The terminal's share of the grid, beside the pages: the pages are what is looked at, the terminal mostly waits.
+const TERMINAL_SHARE = 0.35;
 // Ready-made arrangements (☰); after one, panels move freely again. Each says the terminal's share of the window.
 const presets: Record<'columns' | 'grid' | 'focus', (s: Profile[]) => { height?: number; width?: number }> = {
   columns(s) {
     s.forEach((p, i) => addProfilePanel(p, i ? { referencePanel: panelId(s[i - 1]!.key), direction: 'right' } : undefined));
     addTerminal({ direction: 'below' });
-    return { height: 0.35 };
+    return { height: TERMINAL_SHARE };
   },
   grid(s) {
     s.forEach((p, i) => addProfilePanel(p, i === 0 ? undefined
       : i === 1 ? { referencePanel: panelId(s[0]!.key), direction: 'right' }
         : { referencePanel: panelId(s[i - 2]!.key), direction: 'below' }));
     addTerminal({ direction: 'right' });
-    return { width: 0.35 };
+    return { width: TERMINAL_SHARE };
   },
   focus(s) {
     s.forEach((p, i) => addProfilePanel(p, i ? { referencePanel: panelId(s[0]!.key), direction: 'within' } : undefined, { inactive: i > 0 }));
     addTerminal({ direction: 'below' });
-    return { height: 0.35 };
+    return { height: TERMINAL_SHARE };
   },
 };
+// The grid's room: #dock less its padding (the gaps at the window's edges).
+function room() {
+  const dock = document.getElementById('dock')!, s = getComputedStyle(dock);
+  return { w: dock.clientWidth - parseFloat(s.paddingLeft) - parseFloat(s.paddingRight),
+    h: dock.clientHeight - parseFloat(s.paddingTop) - parseFloat(s.paddingBottom) };
+}
 export function applyPreset(name: keyof typeof presets) {
   const a = api!;
   a.clear();
@@ -127,9 +138,7 @@ export function applyPreset(name: keyof typeof presets) {
   // wider and taller than its room, the right and bottom cut off until the window was resized.
   const dock = document.getElementById('dock')!;
   const size = () => {
-    const s = getComputedStyle(dock);
-    const w = dock.clientWidth - parseFloat(s.paddingLeft) - parseFloat(s.paddingRight);
-    const h = dock.clientHeight - parseFloat(s.paddingTop) - parseFloat(s.paddingBottom);
+    const { w, h } = room();
     if (h < 100) return false;
     a.layout(w, h);
     a.getPanel('terminal')!.group.api.setSize(share.height ? { height: Math.round(h * share.height) } : { width: Math.round(w * share.width!) });
@@ -149,7 +158,9 @@ Object.assign(window, { __layoutPreset: applyPreset }); // for tests
 // the tasks' bar stay.
 kulisa.on<{ dir: number; level: 'task' | 'project'; task: string; pics?: Record<string, string> }>('grid:closing', ({ dir, level, task, pics }) => {
   closeLayers(); // its dialogs and menus are for the grid that goes
-  clearSave();
+  // Its last change saved now, not dropped: a pane closed (its profile deleted) just before the task was left stayed in
+  // its saved grid, and a saved grid naming a profile no longer there is not restored at all (restoreGrid).
+  flushSave();
   if (pics) pictures.set(task, pics);
   const takeDown = () => {
     setLoading(true);
@@ -198,6 +209,9 @@ function syncGrid() {
     if (a.getPanel(panelId(p.key))) continue;
     const last = a.panels.filter((x) => x.id !== 'terminal').at(-1);
     addProfilePanel(p, last ? { referencePanel: last.id, direction: 'right' } : { referencePanel: 'terminal', direction: 'above' });
+    // The first page over the terminal alone: dockview halves the room; the terminal keeps its share, as in the
+    // arrangements (a terminal as tall as the pages was mostly empty).
+    if (!last) a.getPanel('terminal')!.group.api.setSize({ height: Math.round(room().h * TERMINAL_SHARE) });
   }
 }
 // The shown task's island (Terminals.vue): its tabs, the one in front.

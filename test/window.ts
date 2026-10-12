@@ -267,7 +267,7 @@ export default (test: Test) => {
     const openers = {
       projects: () => ui(`document.getElementById('manageProjects').click()`),
       taskrename: () => fromMenu('Rename…', '#tasklist .tasktab .name'),
-      agentpick: async () => { shell.chooseAgent(shell.task, null); }, // asked when a task's agent is not there
+      agentpick: async () => { void shell.chooseAgent(shell.task, null); }, // asked when a task's agent is not there
       shortcuts: () => fromMenu('Keyboard Shortcuts'),
     };
     assert.equal(await ui(`document.querySelectorAll('.dialog').length`), 0, 'none in the page while closed');

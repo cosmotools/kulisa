@@ -49,7 +49,12 @@ drag one by its header to another place, onto another panel to stack them as tab
 panel stacked behind another hides its page until it is chosen. **☰ → Arrange panels** offers ready-made
 arrangements, each drawn as a small picture of itself, as Windows' snap layouts (the words in its tooltip):
 profiles in columns with the terminal below, two by two with the terminal on the right, one profile at a time.
-Each fits the window with nothing cut off. The grid is saved per task (`layout.json`) and restored.
+Each fits the window with nothing cut off, the terminal taking a third of it (`TERMINAL_SHARE`, `lib/grid.ts`): the
+pages are what is looked at. The first profile opened over the terminal alone keeps that share too (dockview halved
+the room, a terminal as tall as the pages and mostly empty; 2026-10-13). The grid is saved per task (`layout.json`) and restored: 300 ms after
+its last change, and at once when the task is left (a change just before was lost, and a saved grid naming a profile
+deleted since is not restored at all: a profile deleted, then another task shown at once, came back to the default
+arrangement; 2026-10-13).
 The island is one panel however many terminals it holds ("The terminal").
 
 The window itself never scrolls, also not from a script (`overflow` on `html` and `body`, App.vue): a panel stacked
@@ -276,12 +281,15 @@ so on purpose.
 Installers are made with Electron Forge (`npm run make`, `forge.config.ts`), each on its own OS: `.deb` and `.rpm` on
 Linux (the `.deb` checked: it installs `chrome-sandbox` setuid root, a menu entry and the icon, and the app starts),
 Squirrel `.exe` on Windows, `.dmg` and `.zip` on macOS (signed and notarized when the Apple secrets are set). `npm run
-publish` makes them and uploads them to a **draft release** on GitHub (`@electron-forge/publisher-github`); the author
-publishes it. A merge into `main` (a pull request from `develop`, its version raised: CLAUDE.md, Releases) builds them
-on GitHub Actions (`.github/workflows/release.yml`; macOS once its secrets are set): the workflow first makes the
-draft `v<version>` at the merged commit, its notes the pull request's text (Forge's own would name no commit, and
-GitHub would tag whatever `main` is when the draft is published), then Ubuntu and Windows build and Forge uploads into
-it, finding it by its name. A version released before stops it. Releases are built and the updates checked as ROADMAP's "Releases and auto-update" plans them; what is
+publish` makes them and uploads them to a **draft release** on GitHub (`@electron-forge/publisher-github`). A merge
+into `main` (a pull request from `develop`, its version raised: CLAUDE.md, Releases) releases them by itself, on GitHub
+Actions (`.github/workflows/release.yml`; macOS once its secrets are set): the workflow first makes the draft
+`v<version>` at the merged commit, its notes the pull request's text (Forge's own would name no commit, and GitHub
+would tag whatever `main` is when the draft is published); Ubuntu and Windows build and Forge uploads into it, finding
+it by its name; the `.deb` is installed on Ubuntu and started under Xvfb (its MCP server listening, nothing uncaught,
+still running after 5 s: the tests run Kulisa from source, and what breaks only packaged would reach every installed
+copy, one failing at start never able to update again); then the draft is published, the tag made at that commit.
+Until then, and when a step fails, it is a draft nobody is served. A version released before stops it. Releases are built and the updates checked as ROADMAP's "Releases and auto-update" plans them; what is
 left is there too.
 
 **Updates**, Forge's way (`updates.ts`, called by `index.ts`): Electron's `autoUpdater` (Squirrel) through the

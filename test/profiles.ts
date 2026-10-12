@@ -17,7 +17,7 @@ export default (test: Test) => {
     await manageProfiles(ui);
     await ui(`document.getElementById('profilenew').click()`);
     await waitFor(() => ui(`document.activeElement?.id === 'profilenewname'`));
-    shell.win.webContents.insertText('ann admin·@shop.com');
+    void shell.win.webContents.insertText('ann admin·@shop.com');
     await waitFor(async () => (await ui(`document.getElementById('profilenewname').value`)) === 'annadmin@shop.com');
     await closeSettings(ui);
     // Checked again where names are made: the agent, a rename, a project, a task.

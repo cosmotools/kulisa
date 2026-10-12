@@ -14,7 +14,7 @@ const agent = process.env.KULISA_AGENT ? (([command, ...args]) => ({ command: co
 
 if (!squirrelEvent) {
   updates();
-  start({
+  void start({
     userData: process.env.KULISA_DATA,
     mcpPort: process.env.KULISA_MCP_PORT ? Number(process.env.KULISA_MCP_PORT) : undefined,
     project: process.env.KULISA_PROJECT,

@@ -71,7 +71,7 @@ const shownProfile = computed(() => allProfiles.value.find((p) => p.id === profi
 watch(() => agentsList.state.agents.map((a) => a.id).join(), () => { if (!shownAgent.value) agentAt.value = agentsList.state.agents[0]?.id; });
 watch(allProfiles, () => { if (!shownProfile.value) profileAt.value = allProfiles.value[0]?.id; });
 function show(n: Node) {
-  if (n.project) { tab.value = 'projects'; if (n.project.id !== editing.value) edit(n.project.id); }
+  if (n.project) { tab.value = 'projects'; if (n.project.id !== editing.value) void edit(n.project.id); }
   else if (n.agent) { tab.value = 'agents'; agentAt.value = n.agent.id; }
   else if (n.profile) { tab.value = 'profiles'; profileAt.value = n.profile.id; }
 }
@@ -207,7 +207,7 @@ const nodeMenu = (e: MouseEvent): MenuItem[] | null => {
 // Delete on the chosen project or profile: deleted, asked first.
 function deleteChosen() {
   const n = chosenNode.value;
-  if (n?.project) deleteProject(n.project.id); else if (n?.profile) deleteProfile(n.profile.id);
+  if (n?.project) void deleteProject(n.project.id); else if (n?.profile) void deleteProfile(n.profile.id);
 }
 
 // A list's row a right-click was on: selected, and its actions.

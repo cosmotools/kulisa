@@ -210,7 +210,7 @@ class ProxyClient {
   }
   // The tabs a client sees: those whose site has answered; the others are shown when it does.
   _shown() {
-    for (const t of this.profile.tabs) if (t.answered) this._tabAdded(t);
+    for (const t of this.profile.tabs) if (t.answered) void this._tabAdded(t);
     return this.profile.tabs.filter((t) => !t.answered);
   }
   async _tabAdded(tab: Tab) {

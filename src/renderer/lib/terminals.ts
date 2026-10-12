@@ -75,7 +75,7 @@ function makeTerminal(key: string, size?: { cols: number; rows: number }): Entry
   t.loadAddon(serialize);
   const entry: Entry = { term: t, el, fit, serialize, opened: false };
   terminals.set(key, entry);
-  termFont.then(() => {
+  void termFont.then(() => {
     if (terminals.get(key) !== entry) return; // forgotten meanwhile
     t.open(el);
     entry.renderer = 'dom';
@@ -169,8 +169,8 @@ export function clipboardKey(e: KeyboardEvent, platform: string, selected: boole
 }
 // Nothing selected, nothing copied: the clipboard keeps what is there (an agent selecting with its own mouse, as
 // Claude Code does, puts its text there itself), as GNOME Terminal does.
-function termCopy(t: Terminal) { if (t.hasSelection()) navigator.clipboard.writeText(t.getSelection()); }
-function termPaste(t: Terminal) { navigator.clipboard.readText().then((text) => t.paste(text)); }
+function termCopy(t: Terminal) { if (t.hasSelection()) void navigator.clipboard.writeText(t.getSelection()); }
+function termPaste(t: Terminal) { void navigator.clipboard.readText().then((text) => t.paste(text)); }
 // The right-click menu of a terminal (its key): an agent's ends with what its tab's menu has (Terminals.vue), a
 // shell's with Close.
 export function terminalMenu(key: string, more: MenuItem[]): MenuItem[] | null {
@@ -207,7 +207,7 @@ export const newTerminalItems = (): MenuItem[] => [
 // What a tab's menu and its terminal's end with.
 export const tabItems = (t: TerminalInfo): MenuItem[] => [
   ...(t.agent ? [
-    { label: 'Change agent…', run: () => { dialog('handover').then((d) => d.open(t)); } },
+    { label: 'Change agent…', run: () => { void dialog('handover').then((d) => d.open(t)); } },
     { label: 'New Conversation', run: () => act('agent:new-conversation', { id: t.id }) },
     '-' as const,
   ] : []),

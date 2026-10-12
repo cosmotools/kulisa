@@ -44,7 +44,7 @@ else.
 
 Its dependencies keep their own licenses (`update-electron-app` MIT, `electron-squirrel-startup` Apache-2.0 …), all of which allow being part of a GPL-3.0 program: MIT, ISC, BSD,
 Apache-2.0 (npm packages), ISC (icons from Lucide, copied into `Sprite.vue`), Apache-2.0 (the profiles' pictures from
-Google's Noto Emoji, in `src/renderer/public/avatars/` with their license), the SIL Open Font License (JetBrains Mono, the terminal's font) and Chromium's licenses
+Google's Noto Emoji, in `src/renderer/public/avatars/` with their license), the SIL Open Font License (Inter, the window's font; JetBrains Mono, the terminal's) and Chromium's licenses
 (in Electron; packaged builds carry `LICENSE` and `LICENSES.chromium.html`). A new dependency must have a license
 compatible with GPL-3.0.
 

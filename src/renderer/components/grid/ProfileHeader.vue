@@ -44,5 +44,5 @@ function menu(): MenuItem[] | null {
 
 <style>
 .pname { white-space: nowrap; }
-.caption { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--note); font-weight: normal; }
+.caption { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--agent); font-weight: normal; }
 </style>

@@ -121,7 +121,7 @@ class Project {
       entry.home ??= freeFolder(path.join(this.shell.projectsHome, `${this.id}@task-${task.n}`));
       const branch = await freeBranch([r], entry.branch ?? `task-${task.n}`);
       try {
-        const c = await createWorktree(r, branch, path.join(entry.home!, copyName(entry.copies, r)), this.shell.agentFiles);
+        const c = await createWorktree(r, branch, path.join(entry.home, copyName(entry.copies, r)), this.shell.agentFiles);
         entry.copies.push(c); made.push(c);
       } catch (e) { console.warn('[tasks] copy:', (e as GitError).stderr || (e as Error).message); }
     }
@@ -369,7 +369,7 @@ function defaultAgent(shell: Shell, id: string, agent: string | null): Result<{ 
 function removeAgent(shell: Shell, id: string, agent: string): Result<{ agents: { id: string; name: string }[] }> {
   const p = shell.store.projects().find((x) => x.id === id);
   if (!p?.agents?.includes(agent)) return { error: `${agent} is not in the project` };
-  const r = changeAgents(shell, id, p.agents!.filter((x) => x !== agent));
+  const r = changeAgents(shell, id, p.agents.filter((x) => x !== agent));
   shell.accounts.removeFrom(agent, id);
   return r;
 }

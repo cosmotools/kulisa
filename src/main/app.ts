@@ -322,16 +322,16 @@ function start(options: Options = {}) {
     from.drop(project);
     const target = to || newWindow({ near: from.win, at });
     target.add(project, index);
-    project!.moveTo(target);
+    project.moveTo(target);
     if (!from.tabs.length) dropWindow(from); // after its pages have left it
     target.send('terminals:restore', terminals); // before any more output (window.ts: sent once the page has loaded)
     if (to) {
       to.focus();
-      await to.show(project!);
+      await to.show(project);
       shell.saveWindows();
       sendProjects();
-    } else await showInNew(target, project!);
-    return { id: project!.id };
+    } else await showInNew(target, project);
+    return { id: project.id };
   }
   async function showInNew(to: AppWindow, project: Project) {
     const loading = to.load(project.entry);
@@ -507,7 +507,7 @@ function start(options: Options = {}) {
   // the folders given, nothing made, the first the project's; 'clone', one repository cloned into <location>/<name>,
   // several into <location>/<name>/<repo> each.
   const newFolder = ({ from, location, name, folder }: { from?: string; location?: string; name?: string; folder?: string }) => (from === 'folder' ? full(folder)
-    : full(location) && name?.trim() ? path.join(full(location)!, name!.trim()) : null);
+    : full(location) && name?.trim() ? path.join(full(location)!, name.trim()) : null);
   ipcMain.handle('project:folder-state', async (_e, args: { from?: string; location?: string; name?: string; folder?: string }) => {
     const folder = newFolder(args);
     return folder ? { folder, ...await folderState(folder) } : null;
@@ -615,7 +615,7 @@ function start(options: Options = {}) {
       if (r.canceled || !r.filePaths[0]) return {};
       folder = r.filePaths[0];
     }
-    return serial(async () => settingsOf(id, await addRepo(shell, id, folder!)));
+    return serial(async () => settingsOf(id, await addRepo(shell, id, folder)));
   });
   ipcMain.handle('project:repo-clone', (_e, { id, url }: { id: string; url: string }) => serial(async () => settingsOf(id, await cloneRepo(shell, id, url))));
   ipcMain.handle('project:repo-default', (_e, { id, folder }: { id: string; folder: string }) => serial(async () => settingsOf(id, await defaultRepo(shell, id, folder))));
@@ -897,7 +897,7 @@ function start(options: Options = {}) {
   const noTask = { error: 'that task is not on screen' };
   const onScreen = (e: Event, key: string) => { const task = at(e)?.task; return task && task.key === key ? task : null; };
   type Args = Record<string, any>; // what a window's message about a profile or a tab carries besides naming it
-  const onProfile = (fn: (p: Profile, args: Args) => unknown) => (e: IpcMainInvokeEvent, { task, profile, ...args }: Args) => { const r = onScreen(e, task)?.find(profile) || noTask; return refused(r) ? r : fn(r.profile!, args); };
+  const onProfile = (fn: (p: Profile, args: Args) => unknown) => (e: IpcMainInvokeEvent, { task, profile, ...args }: Args) => { const r = onScreen(e, task)?.find(profile) || noTask; return refused(r) ? r : fn(r.profile, args); };
   const onTab = (fn: (p: Profile, t: Tab, args: Args) => unknown) => (e: IpcMainInvokeEvent, { task, profile, tab, ...args }: Args) => { const r = onScreen(e, task)?.findTab(profile, tab) || noTask; return refused(r) ? r : fn(r.profile, r.tab, args); };
   ipcMain.handle('profile:close', (e, { task, profile }: { task: string; profile: string }) => onScreen(e, task)?.closeProfile(profile) || noTask);
   ipcMain.handle('profile:open', (e, { task, profile }: { task: string; profile: string }) => onScreen(e, task)?.openProfile(profile) || noTask);
@@ -933,7 +933,7 @@ function start(options: Options = {}) {
     const went = (_e: Electron.Event, u: string, _inPage: boolean, mainFrame: boolean) => { if (mainFrame && u !== 'about:blank') off(); };
     const off = () => { if (wc.isDestroyed()) return; wc.off('focus', back); wc.off('before-mouse-event', clicked); wc.off('did-start-navigation', went); };
     wc.on('focus', back); wc.on('before-mouse-event', clicked); wc.on('did-start-navigation', went as never);
-    tab.ready!.then(back);
+    void tab.ready.then(back);
     return tab.id;
   }));
   // focus: the keyboard was in the tab's page (a key closed or switched it): it goes to the page shown next, as in Chrome.

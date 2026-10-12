@@ -23,13 +23,13 @@ function installPicker(shell: Shell) {
       const wc = tab.wc;
       let cancelled = false;
       const cancel = () => { cancelled = true; return page.cancelPickLocator().catch(() => {}); };
-      const onKey = (e: Electron.Event, input: Electron.Input) => { if (input.type === 'keyDown' && input.key === 'Escape') { e.preventDefault(); cancel(); } };
-      w!.picking.set(pid, { profile, page, cancel });
+      const onKey = (e: Electron.Event, input: Electron.Input) => { if (input.type === 'keyDown' && input.key === 'Escape') { e.preventDefault(); void cancel(); } };
+      w.picking.set(pid, { profile, page, cancel });
       wc.on('before-input-event', onKey);
       wc.focus();
       let picked: import('playwright-core').Locator | undefined;
       try { picked = await page.pickLocator(); } catch (e) { if (!cancelled) throw e; } finally {
-        w!.picking.delete(pid);
+        w.picking.delete(pid);
         if (!wc.isDestroyed()) wc.off('before-input-event', onKey);
       }
       if (cancelled || !picked) return { cancelled: true };
@@ -43,8 +43,8 @@ function installPicker(shell: Shell) {
       if (to?.pty) typeIntoPrompt(to.pty, reference);
       if (to && to.id !== task.front) task.show(to.id); // where the human goes on typing
       // The human goes on typing in the terminal: move the focus there from the page.
-      if (!w!.win.isDestroyed()) w!.win.webContents.focus();
-      w!.send('terminal:focus');
+      if (!w.win.isDestroyed()) w.win.webContents.focus();
+      w.send('terminal:focus');
       return { tab: tab.id, locator, reference };
     } catch (e) { return { error: (e as Error).message }; }
   });

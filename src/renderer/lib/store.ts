@@ -46,7 +46,7 @@ kulisa.on<{ current: string | null; list: TaskInfo[] }>('tasks', ({ current, lis
 });
 kulisa.on<ClosedProfile[]>('closed-profiles', (list) => { store.closedProfiles = list; });
 kulisa.on<number>('zoom', (z) => { store.zoom = z; });
-kulisa.invoke<number>('zoom:get').then((z) => { store.zoom = z; });
+void kulisa.invoke<number>('zoom:get').then((z) => { store.zoom = z; });
 kulisa.on<string>('theme', (theme) => { store.theme = theme; });
 kulisa.on<string>('bar', (bar) => { store.bar = bar; });
 

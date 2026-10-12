@@ -262,11 +262,12 @@ unasked. This paragraph is removed when the rewrite is finished.
   request into `main` raises it (the `version` check refuses one that does not; once, the first release, the same
   number passes while no release of it exists). `npm version <patch|minor> --no-git-tag-version`: no tag by hand,
   the CI makes it. While 0.x: `patch` by default, `minor` when the author says so or for a large change (say which).
-- **A merge into `main`** runs `.github/workflows/release.yml`: a draft release `v<version>` at that commit, its
-  notes the pull request's text; the installers built on Ubuntu (`.deb`, `.rpm`) and Windows
-  (Squirrel's `.exe`) and uploaded into it. The author checks and publishes it; only then update.electronjs.org
-  serves it and installed copies update (docs/window.md, "The app icon, installers and updates"). Drafts until the
-  first release is checked by hand on Windows (ROADMAP, "Releases and auto-update"), published at once after that.
+- **A merge into `main` is published by itself** (the author, 2026-10-13: no users yet, no manual step):
+  `.github/workflows/release.yml` makes a draft `v<version>` at that commit, its notes the pull request's text;
+  builds the installers on Ubuntu (`.deb`, `.rpm`) and Windows (Squirrel's `.exe`) into it; installs the `.deb` and
+  starts it; then publishes it, the tag made then. update.electronjs.org serves it and installed copies update
+  (docs/window.md, "The app icon, installers and updates"). A failed build or start leaves the draft unpublished:
+  fixed by the next release, its version raised again; the failed draft deleted (`DELETE …/releases/<id>`).
 - **When the author says to release** (that is the ask to open the two pull requests, nothing more):
   1. In a worktree from `develop`: raise the version, commit (`Kulisa <version>`), and open its pull request into
      `develop` as any work's; the author merges it.
@@ -275,19 +276,19 @@ unasked. This paragraph is removed when the rewrite is finished.
      the release's notes).
   3. Watch its checks; a red one is fixed by a pull request into `develop` (merged, it updates this one). Tell the
      author when it is green: the merge is theirs.
-  4. After the merge, watch the release's run; tell the author when the draft has its installers, or what failed.
-     Publishing it is theirs.
+  4. After the merge, watch the release's run; tell the author when it is published, or what failed.
 
 ## Commands
 
 ```sh
 npm start   # the app: the groups open last, plus $KULISA_PROJECT's (at first start none: New Project)
-npm test    # unit tests, knip, actionlint (when installed), then the e2e groups in parallel, each the real app against a local test site, then restarted
+npm test    # unit tests, knip, ESLint, actionlint (when installed), then the e2e groups in parallel, each the real app against a local test site, then restarted
 npm run test:unit     # the unit tests alone (plain Node, a second)
 npm run knip  # no file, export or dependency nothing uses: once a step, before showing it (docs/testing.md, Dead code)
+npm run lint  # ESLint: a promise awaited or `void`, no needless `as` or `!` (docs/testing.md, Lint); with knip
 npm run test:visible  # e2e on your screen, to watch them (npm test uses Xvfb on Linux when installed)
 npm run make  # installers for this platform with Electron Forge (forge.config.ts), in out/make/
-npm run publish  # the same, to a draft release on GitHub: the CI's, on a merge into main (Releases below)
+npm run publish  # the same, into a draft release on GitHub: the CI's, on a merge into main (Releases below)
 npm run icons # renders assets/icon.svg to icon.png/.ico/.icns (committed; run after changing the SVG)
 npm run build # type checks (tsc: the main process and the tests; vue-tsc: the window), then Vite into dist/renderer
 npm run watch # the window built again on every change; then reload it (Ctrl+R in its DevTools) or restart
@@ -308,6 +309,8 @@ npm run watch # the window built again on every change; then reload it (Ctrl+R i
   renaming or finding who uses a symbol (it misses the tests: grep `test/` too). No `LSP` tool in the session: the
   plugin is not installed in this `CLAUDE_CONFIG_DIR`; say so, install it (`claude plugin install
   kulisa-dev@kulisa-dev --scope project`) and ask the human for `/reload-plugins`.
+- **The Stop hook** (README, Developing with Claude Code) runs `npm run lint` and `npm run test:unit` on uncommitted
+  code before a turn ends; when it sends you back, fix what it reports, or tell the human why it cannot be fixed now.
 - **Looking at the window.** `KULISA_SHOT=/tmp/kulisa.png npm start` saves a screenshot of the whole window,
   profile views included, about 4 s after start (`KULISA_SHOT_DELAY` in ms). In tests: `shell.screenshot(file)`.
   Then read the PNG. Use it to check any UI change.

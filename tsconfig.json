@@ -23,5 +23,5 @@
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true
   },
-  "include": ["src/main", "scripts", "forge.config.ts"]
+  "include": ["src/main", "scripts", "forge.config.ts", ".claude/hooks"]
 }

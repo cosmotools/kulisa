@@ -24,14 +24,14 @@ const savedTabs = (id: string, task = 1): string[] => {
   return JSON.parse(fs.readFileSync(pfile(path.join(folder, 'Kulisa Tabs.json'), task), 'utf8'));
 };
 // The id of a profile's panel in the grid (its folder: stable across renames).
-const panel = (shell: Shell, id: string) => `profile:${(shell.profiles.get(id) || shell.closed.get(id)?.cfg)!.folder}`;
+const panel = (shell: Shell, id: string) => `profile:${(shell.profiles.get(id) || shell.closed.get(id)?.cfg).folder}`;
 // The test site: the run's own (start.ts gives each run a free port), else 4417.
 const SITE = process.env.KULISA_TEST_SITE || 'http://127.0.0.1:4417';
 const PORT = new URL(SITE).port;
 // The windows as settings.json keeps them for the next start: each one's tabs and the one shown.
 const savedWindows = () => JSON.parse(fs.readFileSync(path.join(userData, 'settings.json'), 'utf8')).windows.map(({ tabs, shown }: { tabs: string[]; shown: string | null }) => ({ tabs, shown }));
 // Where an agent's hooks report (tasks.ts, env): the agent's terminal of task, the one picks go to.
-const hooksOf = (task: Task) => `${task.env(task.promptTarget()!).KULISA_URL}/hooks`;
+const hooksOf = (task: Task) => `${task.env(task.promptTarget()).KULISA_URL}/hooks`;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 // Kulisa's menus (Reka's, docs/ui.md, Menus): the open one, once it is shown (the pages under it are pictures);
@@ -136,9 +136,9 @@ const box = (ui: UI, sel: string) => ui(`(() => { const e = document.querySelect
 const pageBox = (ui: UI, id: string) => box(ui, `.pane[data-profile="${id}"] .content`);
 // The box is in CSS pixels of the window's page; the view is placed in window pixels (times the Kulisa zoom).
 const viewOn = async (shell: Shell, ui: UI, id: string) => {
-  const t = shell.profiles.get(id)!.get()!;
+  const t = shell.profiles.get(id).get();
   const b = await pageBox(ui, id);
-  const z = shell.win!.webContents.getZoomFactor();
+  const z = shell.win.webContents.getZoomFactor();
   const scaled = b && Object.fromEntries(Object.entries(b).map(([k, v]) => [k, Math.round((v as number) * z)]));
   return !!b && t.view.getVisible() && JSON.stringify(t.view.getBounds()) === JSON.stringify(scaled);
 };

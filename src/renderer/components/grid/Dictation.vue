@@ -20,16 +20,16 @@ function press(e: PointerEvent) {
   e.preventDefault(); // the keyboard stays in the terminal
   try { (e.currentTarget as Element).setPointerCapture(e.pointerId); } catch { /* let go anywhere */ }
   const task = store.current!;
-  if (v.value?.recording) { down = 0; record(task, false); } // the second click
-  else { down = e.timeStamp; record(task, true); }
+  if (v.value?.recording) { down = 0; void record(task, false); } // the second click
+  else { down = e.timeStamp; void record(task, true); }
 }
 function release(e: PointerEvent) {
-  if (down && e.timeStamp - down > 400) record(store.current!, false); // held; a click leaves it on until the next
+  if (down && e.timeStamp - down > 400) void record(store.current!, false); // held; a click leaves it on until the next
   down = 0;
   shownTerm()?.focus();
 }
 // Enter or Space on it.
-const key = (e: MouseEvent) => { if (!e.detail) record(store.current!, !v.value?.recording); };
+const key = (e: MouseEvent) => { if (!e.detail) void record(store.current!, !v.value?.recording); };
 
 // The languages the agent understands: the system's first, then by name in each language itself.
 function languages(): MenuItem[] {

@@ -28,9 +28,9 @@ async function change(channel: string, args: Record<string, unknown>) {
   return !r.error;
 }
 const p = () => props.profile;
-const rename = () => { if (name.value.trim() !== p().name) change('profiles:rename', { name: name.value }); };
-const describe = () => { if (about.value.trim() !== p().description) change('profiles:describe', { description: about.value }); };
-const saveLogin = () => { if (login.value.trim() !== p().login) change('profiles:login', { user: login.value }); };
+const rename = () => { if (name.value.trim() !== p().name) void change('profiles:rename', { name: name.value }); };
+const describe = () => { if (about.value.trim() !== p().description) void change('profiles:describe', { description: about.value }); };
+const saveLogin = () => { if (login.value.trim() !== p().login) void change('profiles:login', { user: login.value }); };
 async function savePassword() {
   if (password.value && (await change('profiles:login', { user: login.value, password: password.value }))) password.value = '';
 }

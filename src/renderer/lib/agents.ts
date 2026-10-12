@@ -55,7 +55,7 @@ export function agentList(opts: { choose?: boolean; details?: boolean; installed
       if (state.selected === picked && !state.agents.some((a) => a.id === picked)) choose();
       return;
     }
-    const waiting = setTimeout(() => { state.looking = true; state.agents = []; show(); }, 500);
+    const waiting = setTimeout(() => { state.looking = true; state.agents = []; void show(); }, 500);
     await fetchAgents();
     clearTimeout(waiting);
     state.looking = false;
@@ -69,7 +69,7 @@ export function agentList(opts: { choose?: boolean; details?: boolean; installed
     state.installing = true;
     logTo = (data) => {
       state.log += data;
-      nextTick(() => { const pre = state.el?.querySelector('pre'); if (pre) pre.scrollTop = pre.scrollHeight; });
+      void nextTick(() => { const pre = state.el?.querySelector('pre'); if (pre) pre.scrollTop = pre.scrollHeight; });
     };
     Object.assign(state, { showDetails: true, detailsOpen: false, log: '', error: '', progress: `Installing ${a.name}…` });
     const r = await kulisa.invoke<{ installed?: boolean; error?: string; code?: number }>('agents:install', { id });
