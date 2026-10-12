@@ -342,7 +342,7 @@ are not programmers); its accounts are made there too, or in a project's page.
     there ("This browser or app may not be secure"), and OpenAI and Anthropic send an account made with Google to it.
     It was then moved to the system's browser, as desktop apps sign in (RFC 8252); found after: what Google refused was
     a browser presenting as Chrome without being it, and it lets Electron's own Chromium in ([profiles.md](profiles.md),
-    "What sites see").
+    "What sites see"). The system's browser was kept (the author, 2026-10-12): as desktop apps sign in, and less code.
   - **One store** (`agents.json`), as the profiles': each account lists the projects it is in; the Agents' **+** of another
     project takes it there too. Choosing a task's agent (Change agent…, Choose the Agent) lists the project's accounts
     and the agents themselves, never another project's: the project's page says who works in its tasks.
