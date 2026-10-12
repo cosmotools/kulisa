@@ -57,6 +57,28 @@ no such file, so they run sandboxed. The `.deb` installs it setuid, so the insta
 | `KULISA_MCP_PORT` | MCP server port (default 4450; `0` picks a free one) |
 | `KULISA_SHOT` | Save a screenshot of the whole window to this PNG file ~4 s after start (`KULISA_SHOT_DELAY`, ms) |
 
+### Developing with Claude Code
+
+The repository brings Claude Code a language server for TypeScript and Vue (`.claude/dev-plugins/kulisa-dev`, a
+plugin of Claude Code's: `lspServers`): Claude sees the type errors of its edits as it makes them, and finds
+definitions and references through the server (its `LSP` tool) instead of searching the text. `.claude/settings.json`
+registers the plugin's marketplace when you trust the folder; install the plugin once, from the repository's folder:
+
+```sh
+claude plugin install kulisa-dev@kulisa-dev --scope project
+```
+
+It runs the project's own `typescript-language-server` and `@vue/typescript-plugin` (devDependencies, the same
+versions as `vue-tsc`), so nothing is installed globally; from `${CLAUDE_PROJECT_DIR}`, the folder the session started
+in, so a session working in a worktree uses the repository's `node_modules` (the Vue plugin's `location` is not a
+path Claude Code fills in: `tsserver` finds the plugin next to itself, in the same `node_modules`). Not the official `typescript-lsp`
+plugin, for two reasons: it has no `.vue` (the window's components, so references from `lib/` missed every use in
+them), and it lets the server answer references from its syntax-only `tsserver`, which knows only the open files (a
+symbol used in 12 files had 1 reference); `useSyntaxServer: "never"` sends everything to the full one. Each session
+keeps its own server, about 700 MB with the main process and the window loaded. References from `src/` do not include
+the tests (`test/tsconfig.json` is loaded only once a test file is open); `tsc -p test` (npm run build) still checks
+them.
+
 ## Code
 
 ```

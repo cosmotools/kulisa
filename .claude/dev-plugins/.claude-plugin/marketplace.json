@@ -1,0 +1,6 @@
+{
+  "name": "kulisa-dev",
+  "owner": { "name": "Kulisa" },
+  "description": "Claude Code plugins for developing Kulisa itself (not the Kulisa plugin agents get)",
+  "plugins": [{ "name": "kulisa-dev", "source": "./kulisa-dev" }]
+}
