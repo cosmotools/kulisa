@@ -234,7 +234,8 @@ unasked. This paragraph is removed when the rewrite is finished.
     request, merged by the author** (2026-10-12; Claude Code's auto mode refuses a local merge too, "Merge Without
     Review"): when the author asks for the commit, push the branch (`git push -u origin <name>`) and open its pull
     request into `develop` (GitHub's API, below), its body what the change does and its cost line (Working with the
-    author). Never merge into `develop` or `main` here, nor push them.
+    author). `develop` is protected as `main` is (Releases), its required check `test (ubuntu-latest)`: tell the
+    author when it is green. Never merge into `develop` or `main` here, nor push them.
   - `npm test` runs from several worktrees at once: each checkout has its own test folder and test site
     (`test/start.ts`). The author's Kulisa runs one checkout at a time: the `run-kulisa` skill, from the worktree
     while its work is shown, from the repository's folder (`develop`) once it is merged.
