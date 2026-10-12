@@ -3,7 +3,7 @@ import electron, { clipboard } from 'electron';
 import fs from 'fs';
 import pkg from '../package.json' with { type: 'json' };
 import path from 'path';
-import { assert, root, userData, project, pfile, SITE, sleep, waitFor, who, menuRows, choose, menuOpen, rightClick, box, pageBox, viewOn, dock, press, projectTabs, projectTab, showProject, closeProject, savedWindows, closeMenu, plusMenu } from './helpers.ts';
+import { assert, root, userData, project, pfile, SITE, sleep, waitFor, who, menuRows, choose, menuOpen, rightClick, box, pageBox, viewOn, dock, press, projectTabs, projectTab, showProject, closeProject, savedWindows, closeMenu, plusMenu, focusWindow } from './helpers.ts';
 import type { Test } from './run.ts';
 import type { UI } from './helpers.ts';
 
@@ -471,7 +471,7 @@ export default (test: Test) => {
     // paste and Kulisa's both pasted it); Ctrl+V and Ctrl+C go to the agent. Windows' and macOS' keys, and the menu's.
     const keys = (keyCode: string, modifiers: Parameters<typeof press>[2][]) => press(shell.win.webContents, keyCode, ...modifiers);
     await clipboard.writeText('kulisa-paste');
-    shell.win.focus(); await ui(`window.__term.focus()`);
+    await focusWindow(shell.win, ui); await ui(`window.__term.focus()`);
     const before = ctx.ptyOutput().length;
     keys('V', ['control', 'shift']);
     await waitFor(() => ctx.ptyOutput().slice(before).includes('kulisa-paste'));
@@ -625,7 +625,6 @@ export default (test: Test) => {
       await waitFor(async () => !(await anyMenu()));
     } finally { other.destroy(); }
     // The window has the keyboard again before the tests after: a menu opened while it has not closes at once.
-    shell.win.focus();
-    await waitFor(() => ui(`document.hasFocus()`));
+    await focusWindow(shell.win, ui);
   });
 };

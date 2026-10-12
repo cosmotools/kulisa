@@ -60,7 +60,8 @@ not listed for screenshots and focus differs from a desktop), so they never take
   a dialog is open when its `data-state` is `open`, and closed with its ×. How they behave under the hand (press, drag
   and let go; a right-click's release; the keyboard) is tested with input events (`sendInputEvent`): a key that types
   needs its `char` event too (Enter sends a form on it), and `insertText` is awaited before the next key; the window
-  has the keyboard first (`shell.win.focus()`), or focus events do not come. Tabs are chosen on the press:
+  has the keyboard first (`focusWindow(shell.win, ui)`, which waits until its page has it: a key sent before goes
+  to no page, or its focus lands after the key's), or focus events do not come. Tabs are chosen on the press:
   `click(ui, el)` makes a mouse's whole click.
 - **Names say what the human sees or gets**, as a sentence ("deleting a task asks first, saying what goes"); the
   comments say why it matters (the bug it once was).
@@ -116,6 +117,20 @@ On Linux the runner has no desktop: `npm test` runs in a D-Bus session with gnom
 (the first run, 2026-10-12: five tests failed so). Its test folders are in the runner's temp, inside the home folder:
 a test that reads a path as the window shows it shortens it to `~` as Kulisa does. Lines end in LF on every OS
 (`.gitattributes`): git on Windows checked out CRLF, and a test comparing a file failed.
+
+**The runner's failures, reproduced here.** GitHub's runner is slower (4 cores) and clean (no agents installed, no
+desktop): tests that pass on the author's machine failed there now and then. Its conditions, locally, to fix them
+without a push each time (the keyring's socket needs a short path, so the home folder is a short temporary one, removed
+after; the script unlocks the keyring and runs `npm test`):
+
+```sh
+H=$(mktemp -d /tmp/kh.XXXX); printf '[user]\n\tname = t\n\temail = t@t\n' > $H/.gitconfig
+printf '#!/bin/sh\necho ci | gnome-keyring-daemon --unlock --components=secrets >/dev/null\ncd %s && exec npm test\n' "$PWD" > $H/run.sh; chmod +x $H/run.sh
+env -i PATH=$(dirname $(which node)):/usr/bin:/bin HOME=$H TMPDIR=$H XDG_CURRENT_DESKTOP=GNOME taskset -c 0-3 dbus-run-session -- $H/run.sh
+```
+
+Found so (2026-10-12): a click on the chosen row of Settings' tree un-chose it (Reka's Tree toggles: a bug of the
+window, `selection-behavior="replace"` now); keys sent before the window's page had the keyboard (`focusWindow`).
 
 | File | What |
 |---|---|
