@@ -28,7 +28,7 @@ to come.
 1. **Make a project.** At the first start New Project opens by itself. Choose where its code comes from (below), give
    it a name, Create. Settings opens on the new project's page.
 2. **Choose its agent.** On the project's page, under Agents, **+** → New Account → Claude Code (or Codex). Kulisa
-   starts the agent's own sign-in in a clean browser window of its own; sign in there. If the agent is not installed
+   starts the agent's own sign-in, which opens your browser; sign in there, with the account you mean. If the agent is not installed
    yet, install it first in **Settings → Agents** (Install: Kulisa runs its maker's installer for you).
 3. **Make a profile** for each user of your app: on the project's page, under Profiles, **+** → New Profile…, a name
    (`ann@shop.com`). Say in **Settings → Profiles** who it is ("seller; can approve refunds"): the agent chooses

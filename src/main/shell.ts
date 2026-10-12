@@ -53,7 +53,6 @@ interface Shell {
   pointer(): Point;
   windowClosing(w: AppWindow, e: Electron.Event): void;
   signins: Map<string, Pty>;
-  signinOpen(token: string, url: string): boolean;
   chromeIdentity: Identity | null;
   stopAutosave?: () => void;
   screenshot(file: string): Promise<void>;
@@ -65,11 +64,9 @@ interface Shell {
     & { cancel(task: Task): void };
   // master.ts
   masters: Map<string, Master>;
-  signinWindows: Set<Master>;
   flushMaster(folder: string): Promise<void>;
   closeMaster(folder: string): Promise<void>;
   openMaster(folder: string): Promise<Result<{ folder: string }>>;
-  openSigninWindow(url: string, what: string): Promise<{ closed: Promise<unknown>; close(): Promise<void> }>;
 }
 
 export type { Shell, AgentChoice };

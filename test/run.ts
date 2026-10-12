@@ -52,6 +52,8 @@ process.env.FAKE_LOGOUTS = path.join(root, 'logouts'); // the accounts the fake 
 // Kulisa started from a folder direnv had loaded, as from a terminal in the repository: its state in the environment.
 Object.assign(process.env, { DIRENV_DIR: `-${root}`, DIRENV_FILE: path.join(root, '.envrc'), DIRENV_DIFF: 'eJyrrgUAAXUA-Q', DIRENV_WATCHES: 'eJyLjgUAARUAuQ' });
 process.env.FAKE_SIGNIN_PAGE = `${SITE}/app?signin`; // the page its sign-in opens (the test site)
+// The user's browser, which an agent's own sign-in opens (tasks.md, Accounts): it notes the page, opens nothing.
+Object.assign(process.env, { BROWSER: path.join(import.meta.dirname, 'fixtures', 'browser.sh'), FAKE_OPENED: path.join(root, 'opened') });
 const agents: Agent[] = [
   // With accounts (accounts.ts) as Claude Code's, its folder in FAKE_CONFIG_DIR, which it prints; signed in, out and
   // asked who with its own commands (fixtures/fake-agent.sh). Its conversations as Claude Code's: resumed, moved to

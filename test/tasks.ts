@@ -585,7 +585,7 @@ export default (test: Test) => {
     await waitFor(async () => !(await ui(`(document.getElementById('projects')?.dataset.state === 'open')`)));
   };
   // New Account… of the fake agent: its own sign-in starts at once; resolves with its terminal's pty (the sign-in
-  // waiting for the human), once its page is open in Kulisa's clean browser.
+  // waiting for the human), once its page is open in the user's browser.
   const signIn = async (ctx: Ctx) => {
     const { shell, ui } = ctx;
     shell.signins.clear();
@@ -594,30 +594,27 @@ export default (test: Test) => {
     await choose(ui, 'Fake agent…');
     await waitFor(() => shell.signins.size);
     const p = [...shell.signins.values()][0];
-    await waitFor(() => p.tail.includes('Sign in as?') && [...shell.signinWindows][0]?.profile.get()?.wc.getURL() === `${SITE}/app?signin`);
+    await waitFor(() => p.tail.includes('Sign in as?') && opened().length === ++opens);
+    assert.equal(opened().at(-1), `${SITE}/app?signin`);
     return p;
   };
+  let opens = 0;
+  const opened = () => { try { return fs.readFileSync(path.join(root, 'opened'), 'utf8').trim().split('\n'); } catch { return []; } };
   const accountDir = (id: string) => path.join(userData, 'agents', id);
   const logouts = () => { try { return fs.readFileSync(path.join(root, 'logouts'), 'utf8').trim().split('\n'); } catch { return []; } };
-  test("agents: a new account is made in the project's settings: the agent's own sign-in at once, in a terminal there (under Details), its page in a clean browser of Kulisa's (its site alone over it); named by the email it signed in to; a task runs it with its folder", async (ctx) => {
-    const { shell, ui } = ctx;
+  test("agents: a new account is made in the project's settings: the agent's own sign-in at once, in a terminal there (under Details), its page in the user's own browser (Google refuses an embedded one); named by the email it signed in to; a task runs it with its folder", async (ctx) => {
+    const { ui } = ctx;
     await projectSettings(ui);
+    const windows = electron.BrowserWindow.getAllWindows().length;
     let p = await signIn(ctx);
     const dir = accountDir('fake-1');
     assert.ok(fs.existsSync(dir), 'its folder, a fixed id: never renamed');
     assert.ok(await ui(`!!document.querySelector('#npsigninterm .xterm') && !document.getElementById('npsigninterm').checkVisibility()`),
       'the sign-in in a terminal of the dialog, under Details: what it says the window shows');
-    // The page it opens is in a clean browser of Kulisa's, not the user's: a session in memory, no sign-in of theirs.
-    const clean = [...shell.signinWindows][0];
-    assert.equal(clean.profile.session.isPersistent(), false, 'nothing of it on disk');
-    // Its bar as an OAuth popup's: the site it is on, nothing to go elsewhere.
-    const bar = () => clean.win.webContents.executeJavaScript(`[document.getElementById('site')?.textContent.trim(), !!document.querySelector('#address, #back, #forward, #reload')]`);
-    await waitFor(async () => (await bar())[0] === `Not secure · ${new URL(SITE).host}`);
-    assert.equal((await bar())[1], false);
-    assert.deepEqual(await clean.profile.session.cookies.get({ url: SITE }), []);
+    // Its page in the user's browser (the BROWSER Kulisa was started with), not a window of Kulisa's.
+    assert.equal(electron.BrowserWindow.getAllWindows().length, windows, 'no window of its own');
     p.write('Work@Shop.com\r');
     await waitFor(() => ui(`!!document.querySelector('#npagents [data-agent="fake-1"]') && !document.getElementById('npsignin')`));
-    await waitFor(() => !shell.signinWindows.size && clean.win.isDestroyed(), 5000); // closed once the sign-in ended
     assert.equal(await ui(`document.querySelector('#npagents [data-agent="fake-1"] .label').textContent`), 'Fake agent · work@shop.com');
     assert.deepEqual(JSON.parse(fs.readFileSync(path.join(userData, 'agents.json'), 'utf8')),
       { next: 2, list: [{ id: 'fake-1', agent: 'fake', email: 'work@shop.com', folder: 'fake-1', projects: ['project'] }] });
@@ -628,17 +625,11 @@ export default (test: Test) => {
     assert.ok(!fs.existsSync(accountDir('fake-2')) && logouts().includes(accountDir('fake-2')));
     await ui(`document.getElementById('npsignincancel').click()`);
     await waitFor(() => ui(`!document.getElementById('npsignin')`));
-    // Its clean browser closed by the human: no sign-in, nothing kept.
-    p = await signIn(ctx);
-    [...shell.signinWindows][0].win.close();
-    await waitFor(async () => !shell.signins.size && !shell.signinWindows.size && !fs.existsSync(accountDir('fake-3')) && !(await ui(`document.getElementById('npsigninerror').textContent`)));
     // Cancelled: nothing kept; + adds again (not while a sign-in is shown).
+    p = await signIn(ctx);
     assert.equal(await ui(`document.getElementById('npagentadd').disabled`), true);
     await ui(`document.getElementById('npsignincancel').click()`);
-    await waitFor(() => ui(`!document.getElementById('npsignin') && !document.getElementById('npagentadd').disabled`));
-    p = await signIn(ctx);
-    await ui(`document.getElementById('npsignincancel').click()`);
-    await waitFor(async () => !fs.existsSync(accountDir('fake-4')) && !shell.signinWindows.size && !(await ui(`!!document.getElementById('npsignin')`)));
+    await waitFor(async () => !fs.existsSync(accountDir('fake-3')) && !(await ui(`!!document.getElementById('npsignin') || document.getElementById('npagentadd').disabled`)));
     // Not signed in (the agent's sign-in ended without it): said so, Try Again.
     p = await signIn(ctx);
     p.write('\r');
@@ -646,7 +637,7 @@ export default (test: Test) => {
     assert.equal(await ui(`document.getElementById('npsigninstart').hidden`), false);
     assert.ok(await ui(`document.getElementById('npsigninterm').checkVisibility() && !!document.querySelector('#npsigninterm .xterm')`),
       'its Details open by itself, with what the agent said');
-    assert.ok(!fs.existsSync(accountDir('fake-5')));
+    assert.ok(!fs.existsSync(accountDir('fake-4')));
     await ui(`document.getElementById('npsignincancel').click()`);
     await closeSettings(ui);
     // A task runs it: the agent with its folder in its variable. Choosing a task's agent lists the project's accounts.
@@ -707,7 +698,7 @@ export default (test: Test) => {
     await deleteAccount('fake-1');
     await waitFor(async () => !fs.existsSync(dir) && !(await ui(`!!${row('fake-1')}`)));
     assert.ok(logouts().includes(dir), 'signed out first, with its agent\'s own command');
-    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(userData, 'agents.json'), 'utf8')), { next: 6, list: [] });
+    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(userData, 'agents.json'), 'utf8')), { next: 5, list: [] });
     ctx.asked.length = 0;
     // New Account… there: signed in in the tab, in no project; a project's Add Agent… takes it.
     shell.signins.clear();
@@ -716,9 +707,9 @@ export default (test: Test) => {
     const p = [...shell.signins.values()][0];
     await waitFor(() => p.tail.includes('Sign in as?'));
     p.write('home@shop.com\r');
-    await waitFor(() => ui(`!!${row('fake-6')} && !document.getElementById('npsignin')`));
-    assert.equal(await ui(`${row('fake-6')}.querySelector('.label').textContent`), 'home@shop.com');
-    assert.deepEqual(shell.accounts.find('fake-6').projects, []);
+    await waitFor(() => ui(`!!${row('fake-5')} && !document.getElementById('npsignin')`));
+    assert.equal(await ui(`${row('fake-5')}.querySelector('.label').textContent`), 'home@shop.com');
+    assert.deepEqual(shell.accounts.find('fake-5').projects, []);
     await click(ui, `document.querySelector('#pjlist [data-project="project"]')`);
     await waitFor(() => ui(`document.getElementById('pjconfig').checkVisibility() && !document.getElementById('npagentadd').disabled`));
     // The accounts to add are asked for again as the tab is shown: the menu may open before they come.
@@ -730,9 +721,9 @@ export default (test: Test) => {
     });
     // In no project and no task: deleted at once after the question.
     await click(ui, `document.querySelector('#projects [data-tab="agents"]')`);
-    await waitFor(() => ui(`!!${row('fake-6')}`));
-    await deleteAccount('fake-6');
-    await waitFor(() => !fs.existsSync(accountDir('fake-6')) && !shell.accounts.find('fake-6'));
+    await waitFor(() => ui(`!!${row('fake-5')}`));
+    await deleteAccount('fake-5');
+    await waitFor(() => !fs.existsSync(accountDir('fake-5')) && !shell.accounts.find('fake-5'));
     ctx.asked.length = 0;
     await closeAgents(ui);
   });
