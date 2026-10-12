@@ -62,11 +62,15 @@ no such file, so they run sandboxed. The `.deb` installs it setuid, so the insta
 The repository brings Claude Code a language server for TypeScript and Vue (`.claude/dev-plugins/kulisa-dev`, a
 plugin of Claude Code's: `lspServers`): Claude sees the type errors of its edits as it makes them, and finds
 definitions and references through the server (its `LSP` tool) instead of searching the text. `.claude/settings.json`
-registers the plugin's marketplace when you trust the folder; install the plugin once, from the repository's folder:
+registers the plugin's marketplace when a session starts in the repository's folder (once you trust it; not
+`claude -p`, not the `claude plugin` commands). Then install the plugin once, in that session, and reload:
 
-```sh
-claude plugin install kulisa-dev@kulisa-dev --scope project
 ```
+/plugin install kulisa-dev@kulisa-dev   (project scope)
+/reload-plugins
+```
+
+`.claude/settings.json` is kept as Claude Code writes it, so the install leaves it unchanged.
 
 It runs the project's own `typescript-language-server` and `@vue/typescript-plugin` (devDependencies, the same
 versions as `vue-tsc`), so nothing is installed globally; from `${CLAUDE_PROJECT_DIR}`, the folder the session started

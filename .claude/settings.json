@@ -1,6 +1,13 @@
 {
-  "extraKnownMarketplaces": {
-    "kulisa-dev": { "source": { "source": "directory", "path": "./.claude/dev-plugins" } }
+  "enabledPlugins": {
+    "kulisa-dev@kulisa-dev": true
   },
-  "enabledPlugins": { "kulisa-dev@kulisa-dev": true }
+  "extraKnownMarketplaces": {
+    "kulisa-dev": {
+      "source": {
+        "source": "directory",
+        "path": "./.claude/dev-plugins"
+      }
+    }
+  }
 }
