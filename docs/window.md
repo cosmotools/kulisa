@@ -8,7 +8,7 @@ next: [ROADMAP.md](ROADMAP.md). Keep this file current when the window changes.
 
 ## The title bar
 
-One row: the app's logo (the shown group's project's color on its curtain), Settings (its tabs Projects and Agents:
+One row: the app's logo (the shown group's project's color on its curtain), Settings (a tree of Projects, Agents and Profiles:
 [tasks.md](tasks.md), Projects), ☰, and the OS's window buttons drawn over its right end (`titleBarStyle: 'hidden'` with
 `titleBarOverlay`); no menu bar. Dragging the empty part moves the window. When the Kulisa zoom is not 100%, the bar
 shows it (a click resets it).

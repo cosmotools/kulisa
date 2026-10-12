@@ -122,7 +122,7 @@ here; what is left of it stays.
     - Its own bugs: errors the tools throw on purpose (no such element, a closed profile) are the agent's; an
       unexpected exception inside a tool (`TypeError` …) is Kulisa's, and becomes a `bug` note by itself: the tool,
       the message, the stack without the user's paths.
-  - **Kept** (`ideas.js` in main: the core; `add` is the agent's only handle, sending and deleting the human's):
+  - **Kept** (`ideas.ts` in main: the core; `add` is the agent's only handle, sending and deleting the human's):
     `ideas.json` in the data folder, `[{ id, at, kind, project, agent, need, missing, instead, count }]`, at most 30
     (the oldest go), written whole. A note goes when sent, deleted, or with its project (Delete Project…). Listed in
     "What is on the computer" (tasks.md), its removal tested.
@@ -159,7 +159,7 @@ here; what is left of it stays.
     twice for a note, not twice a day, never after Don't ask; the list edits, deletes and sends (to the test's
     receiver), keeps the note when sending fails; the checkbox removes the tool.
   - Docs when built: profiles.md (the tool, the table of actions), tasks.md (`ideas.json`), window.md (☰, the
-    bar, the dialog), ui.md (the bar at the bottom, the dot on ☰), the skill, README, LICENSING (a service of
+    bar, the dialog), ui.md (the bar at the bottom, the dot on ☰), the skill, the user guide (guide.md), LICENSING (a service of
     Kulisa's: its own terms). Estimate: code +350, tests +100, docs +60; the Worker apart.
 - **Kulisa plugin: running the app, rest** (designed 2026-10-06 with the tasks; the terminals it runs in built
   2026-10-09: [window.md](window.md), "The terminal"). Any agent is told its task's ports in the MCP server's

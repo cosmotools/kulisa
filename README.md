@@ -11,9 +11,19 @@ by side. It is made for developing web apps with several users at once, and good
 pane, never the agent; the agent runs in the built-in terminal and drives the profiles through Kulisa's MCP server. Point at an element (Pick; Pick again or Esc cancels): a reference
 with a locator the agent can act on lands in its prompt, and you write the rest of the message around it.
 
-Website: [kulisa.app](https://kulisa.app). The product and its decisions: [docs/SPEC.md](docs/SPEC.md); how it works: [docs/profiles.md](docs/profiles.md),
-[docs/tasks.md](docs/tasks.md), [docs/window.md](docs/window.md); plans: [docs/ROADMAP.md](docs/ROADMAP.md);
-how the design was tested: [docs/REPORT.md](docs/REPORT.md).
+Website: [kulisa.app](https://kulisa.app).
+
+## Documentation
+
+- **Using Kulisa:** the [user guide](https://kulisa.app/docs) on the website, also here as
+  [docs/guide.md](docs/guide.md): projects, tasks, agents, profiles, signing in, the window, keys.
+- **For developers:**
+  - [docs/SPEC.md](docs/SPEC.md): the product, its features and the architecture's decisions;
+  - [docs/profiles.md](docs/profiles.md), [docs/tasks.md](docs/tasks.md), [docs/window.md](docs/window.md),
+    [docs/transcripts.md](docs/transcripts.md), [docs/ui.md](docs/ui.md): how it works and why it is built so;
+  - [docs/ROADMAP.md](docs/ROADMAP.md): what is planned, open issues;
+  - [docs/REPORT.md](docs/REPORT.md): how the design was tested;
+  - [docs/testing.md](docs/testing.md) and [CONTRIBUTING.md](CONTRIBUTING.md): the tests, contributing.
 
 ## Run
 
@@ -45,68 +55,6 @@ setuid on a plain install. The `.deb` installs it setuid, so the installed app r
 | `KULISA_DATA` | Data folder instead of `~/.config/Kulisa` (e.g. to try a build next to your real one: one Kulisa runs per data folder, a second on the same one shows the first's window) |
 | `KULISA_MCP_PORT` | MCP server port (default 4450; `0` picks a free one) |
 | `KULISA_SHOT` | Save a screenshot of the whole window to this PNG file ~4 s after start (`KULISA_SHOT_DELAY`, ms) |
-
-**Projects:** a project is the configuration its tasks are made from: a name, a color and an icon, its agents (one
-the default), its profiles, and its code: a folder, or one or more repositories (local, or cloned from a URL; one the
-default). **Settings** in the title bar (left of ☰, the gear) has two tabs, **Projects** and **Agents**. Projects is
-the projects' manager: every project on the left
-and **+ New Project**; on the right the chosen one's page: **New Task**, its code, agents, profiles and look, each saved as it changes, and **⋯ → Delete Project…** (Kulisa's data of it and its tasks' copies; its folder stays). The bar under the
-grid (or over it: **☰ → Tasks bar**) has a group per project with open tasks, as Chrome's tab groups: its name (a click folds
-it) and its tasks. A project itself is not opened or closed: its tasks are. A click on a task shows it, of any group, and the others keep running
-(their agents and pages) until you close them (**×** on a task; **Close Group** in its name's right-click menu or the middle
-button on its name closes all its tasks, asking only when an agent works). **+** after the islands (or Ctrl+Shift+A)
-lists every project: a click makes a task of it with its default agent, in its group (a new one in this window when it
-has none); under each project its closed tasks, a click opens one again. **Settings → Projects** has **New Project**: its code first, a **New folder** (a name
-and where it goes, `~/Kulisa` by default; git on by default, with an empty first commit), **Folders on disk** (one or
-several, a frontend and a backend: taken as they are, nothing made) or **Clone from URL** (one or several: into
-`~/Kulisa/<name>` by default, several each in a folder of its own there); then its
-configuration: its agents' accounts, more code, profiles; the bar's **+** makes its first task. **Project Settings…** on its name's right-click menu opens the manager at it. Closing the last group leaves the
-window empty: New Task (+'s menu) and New Project… in it. A closed task keeps its tabs and
-sign-ins; when you open it again, its agent continues the conversation where it can (`claude --resume`,
-`codex resume`). The agent starts in your shell in its task's folder, as if you typed its command in a terminal
-there, so the project's environment (direnv's `.envrc`, nvm, mise) applies; when it exits, the shell stays.
-
-**The agent:** **Settings → Agents** (or **☰ → Agents…**) shows which agent CLIs are installed (Claude Code, Codex),
-their versions and folders, installs the others (Kulisa runs its maker's installer), and lists each one's accounts.
-**New Account…** there, or New Account under a project's Agents' **+**, starts the agent's own sign-in right there, its page in a clean browser
-of Kulisa's (none of your other sign-ins there); the account is shown by the email you signed in to and has a folder
-of its own (several side by side: a work and a personal one). A project's tasks run the accounts its page lists
-(**Add Agent…**). An account stays until you delete it in Settings → Agents (×, after a question), also when no project
-has it any more. Each starts as a clean agent: your own `~/.claude` and `~/.codex` are not used. A project without
-one starts its tasks with the terminal only. Each task keeps its choice; **Change agent…** in the terminal's
-right-click menu picks another of the project's, which goes on with the work: another account of the same agent
-resumes the same conversation, another agent reads what was said and done in the task first (when one runs out of its
-limit, say). **New Conversation** there starts over.
-
-**Tasks:** several tasks of a project at once, each with its own agent, in its project's group. **+** (a project in
-its menu; Ctrl+Shift+N for the shown one's) makes one at once, `task-<n>` until its agent names it (or you do: **Rename…** in its tab's menu): a git worktree on a branch of
-its own next to the project (`~/IdeaProjects/myshop@task-2/`; `.env*` and files named in `.worktreeinclude` are
-copied), a new session of the project's default agent there (another one: **Make Default** on it in the project's
-page, or **Change agent…** after), and its profiles, all closed until the agent or you open one (right-click the task's tab): each a copy of its master, where you
-signed in once, for every task. Your
-project's folder stays yours: agents merge into it only when you ask. The task's app runs on its own ports: the usual
-ones plus `KULISA_PORT_OFFSET` (100, 200, …), and its tabs on local addresses point there. Click a task to switch;
-the others keep working. **×** closes a task (its agent stops; its code, profiles and conversation stay, and its
-group's menu or **+** opens it again); **Delete Task…** in its tab's menu deletes it, after a question that says what goes
-and any work not in main and not pushed. Without git, tasks work in the project's folder itself.
-
-**More terminals:** **+** in the terminal's header opens your shell in the task's folder next to the agent's.
-The agent runs what keeps running there too (the app's dev server, `docker compose up`), in a terminal of its own
-behind its tab, so you see it, stop it and type into it; it reads the output itself. Terminals are kept across
-restarts, as in an IDE, each a fresh shell in its place; **×** or `exit` closes one.
-
-Panes and the terminal are panels: drag one by its header to another place (or onto another panel to stack them as
-tabs), drag the gaps between them to resize; **☰ → Arrange panels** offers ready-made arrangements, each drawn as a picture. The grid is
-kept across restarts. Profiles are made, renamed, described (who each one is in your app: the agent chooses profiles by it, and asks you when it is not said), given another picture, a test user's login, signed in to once for every task and deleted in **Settings → Profiles** (the gear at the top right; Manage Profiles… in the shown task's tab's right-click menu opens it too), and added to a project on its page there. **×** at the top right of a profile's pane closes it: its tabs
-go and free their memory, it stays signed in; the task tab's right-click menu lists it as closed and brings it back with the same tabs. Right-click a tab or the terminal for their menus. **Keys:** Chrome's keys in a profile's page (Ctrl+T, Ctrl+W,
-Ctrl+Shift+T, Ctrl+L, Ctrl+Tab …), Kulisa's everywhere, the terminal too (Ctrl+` the agent's terminal and back, Ctrl+Shift+1…9
-a task); every other key in the terminal is the agent's. **☰ → Keyboard Shortcuts** (Ctrl+Shift+/) lists them all. **Zoom:**
-Ctrl + / Ctrl − / Ctrl 0 outside the pages, or ☰ in the title bar, zooms all of Kulisa, and the pages follow; when it
-is not 100%, the title bar shows it (click to reset). The same keys in a page zoom that site in that profile on top of it (shown in the address bar,
-click to reset). Both are kept across restarts. **☰ → Theme**: Dark (the default), Light, or System (as your OS); profiles' pages keep your OS's. **☰ → Exit** quits
-(on macOS Cmd+Q); the windows and their groups open again at the next start. **⋮ → DevTools** on a pane (or F12, Ctrl+Shift+I in its page) opens the DevTools of its active tab. Kulisa's own DevTools
-(F12 outside the pages) exist only when running from source (`npm start`), not in a packaged build. Data
-(profiles with your sign-ins) lives in `~/.config/Kulisa`.
 
 ## Code
 

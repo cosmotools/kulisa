@@ -10,7 +10,6 @@ export interface MenuRow {
   inset?: boolean; // set in under the row above, as its own (a project's closed task under it)
   enabled?: boolean;
   run?: () => unknown; // none: shown only
-  remove?: { title: string; run: () => unknown }; // a × after the row, shown on hover (as JetBrains' recent projects)
 }
 export type MenuItem = '-' | MenuRow
   | { heading: string; icon?: string }

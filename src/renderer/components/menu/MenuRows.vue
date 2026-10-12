@@ -1,6 +1,6 @@
 <script setup lang="ts">
-// The items of a menu (lib/menu.ts) as Reka's menu parts. A row's × is an item of its own, so the arrows reach it.
-import { DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuSeparator } from 'reka-ui';
+// The items of a menu (lib/menu.ts) as Reka's menu parts.
+import { DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuSeparator } from 'reka-ui';
 import Icon from '../Icon.vue';
 import MenuButton from '../MenuButton.vue';
 import type { MenuItem } from '../../lib/menu';
@@ -17,11 +17,6 @@ defineProps<{ items: MenuItem[] }>();
     <DropdownMenuRadioGroup v-else-if="'choose' in it" :model-value="it.chosen" @update:model-value="(v) => it.choose(String(v))">
       <MenuButton v-for="r in it.rows" :key="r.value" :it="r" :value="r.value" />
     </DropdownMenuRadioGroup>
-    <div v-else-if="it.remove" class="removable">
-      <MenuButton :it />
-      <DropdownMenuItem class="remove icon quiet" aria-label="Remove" :title="it.remove.title" @select="it.remove.run()"
-        @pointerup="(e: PointerEvent) => e.button && e.preventDefault()"><Icon name="i-close" /></DropdownMenuItem>
-    </div>
     <MenuButton v-else :it />
   </template>
 </template>

@@ -41,6 +41,10 @@ unasked. This paragraph is removed when the rewrite is finished.
   read for it, field by field. Check it when an agent CLI is updated: the formats are undocumented.
 - `docs/ui.md`: what the window's UI is built of: tokens, icons, components (buttons, rows, dialogs, menus). Look
   there before making a button, an icon, a row or a dialog; keep it current.
+- `docs/guide.md`: the user guide, for everyone who uses Kulisa, not only developers: what they do and see, in their
+  words (no file, function or protocol names). kulisa.app builds its documentation page from it (`kulisa-site`), so
+  pictures only from `docs/images/` by a relative path, and no links to the other docs. Keep it current: a change to
+  what the human does or sees changes it too, in the same commit.
 - `README.md`: how to run, environment variables, a map of `src/`.
 - `docs/testing.md`: how the tests are built and written. Read it before writing a test.
 - `docs/LICENSING.md`: Kulisa is GPL-3.0-or-later, the author's; what the license covers and what it does not.
