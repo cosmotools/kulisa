@@ -220,7 +220,7 @@ Example: the project `~/IdeaProjects/myshop`, its second task, named "Checkout-r
 - **The bar's +** (a project in its menu; Ctrl+Shift+N, or New Task in the label's menu, for the shown or that
   group's project) makes a task at once, no dialog,
   from the project's configuration alone, nothing taken from the task on screen: the human describes the task to its
-  agent in the terminal. It runs the project's default agent; with none, the window asks. **No profile opens by itself**, the first task's
+  agent in the terminal. It runs the project's default agent; with none, the terminal only, nothing asked ("Choosing the agent"). **No profile opens by itself**, the first task's
   neither: all the project's are listed closed, and the agent opens one when it needs it (`profile_open`), the human
   from the task's tab's right-click menu; each a copy of its master made then ([profiles.md](profiles.md)). Decided with the author on 2026-10-10:
   a task opened those open in the task on screen before (the first one all), each a browser's processes and memory
@@ -262,7 +262,7 @@ to the human; the window's IPC (`app.ts`) and the MCP tools are handles on it:
 | Add, clone, make the default, remove a repository | the projects' manager | none: what the project is made of is the human's | `addRepo`, `cloneRepo`, `defaultRepo`, `removeRepo` (`projects.ts`); `Task.reposChanged` |
 | Add, make the default, remove an agent of the project | the projects' manager | none: what the project is made of is the human's | `addAgent`, `defaultAgent`, `removeAgent` (`projects.ts`) |
 | Make an account of an agent | New Account… in Settings → Agents or a project's page | none: signing in is the human's (Rules) | `account:signin` (`app.ts`), `Accounts.prepare`, `create` |
-| Delete an account | × in Settings → Agents | none: it deletes a sign-in and conversations, the human's to decide | `deleteAccount` (`projects.ts`), `shell.dropAccount` |
+| Delete an account | − in Settings → Agents | none: it deletes a sign-in and conversations, the human's to decide | `deleteAccount` (`projects.ts`), `shell.dropAccount` |
 | Change the agent, the work kept | Change agent… (the terminal's menu) | none: the human's choice | `Task.changeAgent`, `switchTo` |
 | Start the agent's conversation again | New Conversation (the terminal's menu) | none: the human's choice | `Task.newConversation`, `switchTo` |
 

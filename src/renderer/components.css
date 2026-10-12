@@ -107,12 +107,6 @@ svg:has(> use) { width: 16px; height: 16px; flex: none; fill: none; stroke: curr
   :is(small, kbd):empty { display: none; }
   /* The chosen row of a list (a project in the projects' manager: Reka's Listbox) */
   &[aria-selected="true"] { background: var(--island-hi); color: var(--text-strong); } }
-/* A row with a × at its end, shown on hover or focus (a menu's: removing a recent project); the row lit as one */
-.removable { display: flex; align-items: center; border-radius: var(--radius);
-  &:is(:hover, :focus-within) { background: var(--island-hi); }
-  .item { flex: 1; min-width: 0; &:is(:hover, :focus-visible, [data-highlighted]) { background: none; } }
-  .remove { margin-inline-end: 2px; visibility: hidden; }
-  &:is(:hover, :focus-within) .remove { visibility: visible; } }
 /* A list a dialog edits (a project's code, agents and profiles; an agent's accounts), as JetBrains' lists: framed, a
    toolbar over it (.tools: .icon.small buttons, + adding, − removing the selected row, others acting on it), its rows
    Reka's Listbox items (.item on one line: the .label, its facts muted after it (small), a state at the end: kbd, .warn
@@ -177,7 +171,7 @@ svg:has(> use) { width: 16px; height: 16px; flex: none; fill: none; stroke: curr
 
 /* Menus (ButtonMenu.vue, RightClickMenu.vue, PointMenu.vue on Reka's menus): under their button (or its end edge at
    the button's) or at the pointer, flipped to stay in the window; shown once the pages under it are pictures (.ready).
-   Rows are .item and .removable; a menu's own rows are in their files. */
+   Rows are .item; a menu's own rows are in their files. */
 .menu {
   z-index: 30; min-width: 260px; max-width: 420px; padding: 6px; border: 1px solid var(--line); border-radius: var(--island-radius);
   background: var(--island); color: var(--text); box-shadow: 0 8px 24px var(--shadow); outline: none;
