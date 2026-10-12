@@ -24,7 +24,7 @@ onMounted(() => address.value?.focus());
 </template>
 
 <style>
-body { margin: 0; background: var(--window); color: var(--text); font: var(--font) system-ui, sans-serif; }
+body { margin: 0; background: var(--window); color: var(--text); font: var(--font) var(--sans); }
 #bar { display: flex; align-items: center; gap: var(--gap); height: 44px; box-sizing: border-box; padding: 0 var(--gap);
   #go { flex: 1; display: flex; } #address { flex: 1; } .hint { color: var(--text-muted); white-space: nowrap; } }
 </style>

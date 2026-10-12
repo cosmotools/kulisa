@@ -24,6 +24,9 @@ Kulisa is a desktop app, an IDE: its window looks like one, JetBrains' Settings 
 the dialogs, with big titles, framed cards, a paragraph each, pills and rows that showed their buttons under the
 pointer, read as a web page's and were hard to read). So:
 
+- **JetBrains' UI font and size**: Inter at 13 px (their UI Guidelines, Typography), bundled
+  (`@fontsource-variable/inter`, `main.ts`), so the window looks the same on every OS; until 2026-10-13 it was the OS's
+  own (`system-ui`: on Linux Noto Sans at 14 px, wide, read as a web page's). The terminal keeps JetBrains Mono.
 - **Two text sizes** (`--font`, `--font-small` for group titles and a dialog's title), two weights; nothing bigger.
   Weight and color carry what matters, not size.
 - **Dense**: rows and controls `--control` high (`--row` the same), toolbar buttons 24 px, corners `--radius` (4 px)
@@ -45,12 +48,13 @@ pointer, read as a web page's and were hard to read). So:
   task's panels and the projects' islands, a step from `--island`), `--island-hi`
   (a lit row, a divider), `--toolbar` (a pane's toolbar and active tab), `--field`, `--button`, `--line` (borders);
   text `--text`, `--text-strong`, `--text-dim`, `--text-muted`; `--accent` (main button, focus), `--danger`,
-  `--error`, `--note` (the agent's caption), `--done`; `--on-accent` (text on `--accent` and `--danger`),
+  `--error`, `--note` (what waits for the human), `--agent` (the agent's caption on a pane, in the accent's hue: until
+  2026-10-13 it was `--note`'s, the color of "waiting for you"), `--done`; `--on-accent` (text on `--accent` and `--danger`),
   `--selection` (the terminal's); `--chosen`, `--chosen-idle` (a list's selected row, while the list has the keyboard
   and when it has not: JetBrains'); `--page-button`, `--on-page-button`, `--page-pad` (Chrome's blue and room, a page's
   dialog: `.pagedialog`); `--page`, `--backdrop`, `--shadow`; `--hover` (under the
   pointer, on any background); `--project` (the shown group's project's color, set by `lib/store.ts`).
-- Sizes: `--font` (all text, the terminal too), `--font-small` (a group's title, a dialog's title), `--control` (the
+- Sizes: `--sans` (the window's font, Inter), `--font` (all text, the terminal too), `--font-small` (a group's title, a dialog's title), `--control` (the
   height of buttons and fields), `--tab` (a tab's and a group's label's: a step taller), `--radius`,
   `--tab-radius`, `--island-radius`, `--gap` (the space between and inside islands; also dockview's `gap` in
   `Grid.vue`); room as Chrome's menus and dialogs have it: `--row` (a row of a menu or a list), `--inset` (inside

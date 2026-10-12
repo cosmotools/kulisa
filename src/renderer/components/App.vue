@@ -40,7 +40,7 @@ html { height: 100%; overflow: hidden; }
    islands, fading towards the edges. */
 body {
   margin: 0; height: 100%; overflow: clip; display: flex; flex-direction: column;
-  font: var(--font) system-ui, sans-serif; color: var(--text);
+  font: var(--font) var(--sans); color: var(--text);
   user-select: none; cursor: default; /* a desktop app: labels and buttons are not text to select; fields are */
   background: radial-gradient(circle, color-mix(in srgb, var(--project) 60%, transparent), transparent 90%) var(--window);
 }
