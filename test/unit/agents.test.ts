@@ -45,7 +45,8 @@ test("agents: Claude Code's and Codex's accounts get the profiles skill, one tex
   }
 });
 test("tasks: a task's copy is trusted as the human trusted the project's code, in its folder or another task's copy, by Claude Code and Codex alike", async () => {
-  assert.equal(claudeConfigOf('/home/u/.claude-work/projects/-x/1.jsonl'), '/home/u/.claude-work/.claude.json');
+  const work = path.join(path.sep, 'home', 'u', '.claude-work'); // the OS's own separators: Windows' too
+  assert.equal(claudeConfigOf(path.join(work, 'projects', '-x', '1.jsonl')), path.join(work, '.claude.json'));
   assert.equal(claudeConfigOf(path.join(os.homedir(), '.claude', 'projects', '-x', '1.jsonl')), path.join(os.homedir(), '.claude.json'));
   const agent = (id: string) => AGENTS.find((a) => a.id === id)!;
   // Claude Code: projects[<folder>].hasTrustDialogAccepted in its config file, the rest kept.
