@@ -7,7 +7,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import http from 'http';
-import { assert, root, userData, project, pfile, panel, SITE, sleep, waitFor, who, menuRows, choose, rightClick, viewOn, press, projectTabs, projectTab, showProject, savedWindows, closeMenu, click, plusMenu, PORT, hooksOf, MENU, menuOpen, noNode } from './helpers.ts';
+import { assert, root, userData, project, pfile, panel, SITE, sleep, waitFor, who, menuRows, choose, rightClick, viewOn, press, projectTabs, projectTab, showProject, savedWindows, closeMenu, click, plusMenu, PORT, hooksOf, MENU, menuOpen, noNode, focusWindow } from './helpers.ts';
 import { withOffset } from '../src/main/tasks.ts';
 import { PROJECT_COLORS } from '../src/main/store.ts';
 import { createWorktree } from '../src/main/worktrees.ts';
@@ -593,7 +593,7 @@ export default (test: Test) => {
     await waitFor(async () => task.terminals.size === 0 && (await folded()) && (await island()).height <= 40);
     assert.equal(ctx.asked.length, 0);
     // Ctrl+` there: the task's agent, a new conversation.
-    shell.win.focus();
+    await focusWindow(shell.win, ui);
     press(shell.win.webContents, '`', 'control');
     await waitFor(() => task.promptTarget()?.pty, 20000);
     assert.equal(conversations().length, 2);
@@ -614,6 +614,9 @@ export default (test: Test) => {
     assert.equal(await ui(agentRow('fake', '.where') + '.textContent'),
       `1.2.3 · ${bin.startsWith(home) ? '~' + bin.slice(home.length - 1) : bin} · not on your PATH: Kulisa runs it from here`);
     assert.equal(await ui(agentRow('fake', '.install-line') + '.textContent'), '');
+    await showAgent(ui, 'fake');
+    // A click on the row already shown keeps it chosen: Reka's Tree toggled it off, its page still shown (seen on
+    // GitHub's runner, 2026-10-12, where the tests reach this row already chosen).
     await showAgent(ui, 'fake');
     await ctx.shell.screenshot(path.join(root, 'agents.png'));
     await closeAgents(ui);
@@ -1165,21 +1168,30 @@ export default (test: Test) => {
     // None the default: a new task starts nothing, the island's buttons instead; Ctrl+` there gives them the keyboard.
     await ui(`kulisa.invoke('project:agent-default', { id: 'site', agent: null })`);
     await plusMenu(ui, shell.current.name);
-    await waitFor(() => shell.task !== annTask && shell.task.loaded);
+    // Shown, not only loaded: a key while the window still switches acts for the task before (docs/testing.md; on a
+    // loaded machine, as GitHub's runner, Ctrl+` below did nothing now and then, 2026-10-12).
+    await waitFor(async () => shell.task !== annTask && shell.task.loaded && !shell.windows[0].switching
+      && (await ui(`!document.documentElement.classList.contains('loading')`)));
     const bare = shell.task;
     ctx.asked.length = 0;
     await waitFor(() => ui(`[...document.querySelectorAll('.launch .launcher .name')].map((n) => n.textContent).join()`).then((t) => t === 'Fake agent,Terminal'));
     assert.equal(bare.terminals.size, 0);
     assert.equal(JSON.parse(fs.readFileSync(path.join(userData, 'projects', 'site', String(bare.n), 'agent.json'), 'utf8')).agent, null);
     await ui(`document.activeElement.blur()`);
-    shell.win.focus();
-    press(shell.win.webContents, '`', 'control');
-    await waitFor(() => ui(`document.activeElement === document.querySelector('.launcher')`));
+    await focusWindow(shell.win, ui);
+    // Once more until the launcher has it: on GitHub's runner the + menu, closed just before, gave the keyboard back
+    // where it was after Ctrl+` had given it to the launcher, now and then (2026-10-12). Opens nothing: no agent.
+    const onLauncher = () => ui(`document.activeElement === document.querySelector('.launcher')`);
+    for (let i = 0; i < 3 && !(await onLauncher()); i++) {
+      press(shell.win.webContents, '`', 'control');
+      await waitFor(onLauncher, 1500).catch(() => {});
+    }
+    assert.ok(await onLauncher(), 'Ctrl+` gives the launcher the keyboard');
     assert.equal(bare.terminals.size, 0, 'nothing opened');
     // With a profile open, the island is a strip: Ctrl+` opens its +.
     await call('profile_create', { name: 'Bo.bare' }, bare);
     await waitFor(() => ui(`!!document.getElementById('termUnfold') && !document.querySelector('.launch')`));
-    shell.win.focus();
+    await focusWindow(shell.win, ui);
     press(shell.win.webContents, '`', 'control');
     assert.deepEqual(await menuRows(ui), ['Fake agent · ann@shop.com', '-', 'Terminal']);
     await closeMenu(ui);
@@ -1715,7 +1727,7 @@ export default (test: Test) => {
     assert.deepEqual(await ui(`[...document.querySelectorAll('.launcher')].map((l) => [l.querySelector('.name').textContent, l.querySelector('small')?.textContent ?? '', l.title])`),
       [['Fake agent', 'a@switch.test', 'Fake agent · a@switch.test'], ['Fake agent', 'b@switch.test', 'Fake agent · b@switch.test'], ['Terminal', '', 'Terminal']]);
     await waitFor(() => ui(`document.activeElement === document.querySelector('.launcher')`));
-    shell.win.focus();
+    await focusWindow(shell.win, ui);
     press(shell.win.webContents, 'Tab');
     await waitFor(() => ui(`document.activeElement === document.querySelectorAll('.launcher')[1]`));
     for (const type of ['keyDown', 'char', 'keyUp'] as const) shell.win.webContents.sendInputEvent({ type, keyCode: type === 'char' ? '\r' : 'Enter' });

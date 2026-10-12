@@ -113,6 +113,14 @@ const rightClick = (ui: UI, sel: string) => ui(`(() => { const e = document.quer
   e.dispatchEvent(new PointerEvent('pointerdown', { ...at, pointerType: 'mouse', isPrimary: true }));
   e.dispatchEvent(new MouseEvent('contextmenu', at)); })()`);
 
+// The window given the keyboard, as the human's click gives it, once its page has it. On a loaded machine (GitHub's
+// runner, 2026-10-12) the window manager focuses the window, and its page learns it later: a key sent then reached
+// Kulisa, but the page's focus, coming after, went back to where it had been, over what the key had focused.
+const focusWindow = async (win: { focus(): void; webContents: { focus(): void } }, ui: UI) => {
+  win.focus(); win.webContents.focus();
+  await waitFor(() => ui(`document.hasFocus()`));
+};
+
 async function waitFor(cond: () => unknown, ms = 5000) {
   for (const end = Date.now() + ms; Date.now() < end; await sleep(50)) if (await cond()) return;
   throw new Error(`waitFor timed out: ${cond}`);
@@ -145,6 +153,6 @@ const near = (a: number, b: number) => Math.abs(a - b) < 1e-6;
 const noNode = async (wc: WebContents) => await wc.executeJavaScriptInIsolatedWorld(999, [{ code: 'typeof process' }]) === 'undefined';
 
 export type { UI };
-export { MENU, noNode, hooksOf, plusMenu, assert, root, userData, project, pfile, savedTabs, savedWindows, panel, SITE, PORT, sleep, waitFor, who, menuRows, choose, projectTabs, projectTab, showProject, closeProject, manageProfiles, closeSettings, chooseProfile, setProfileField, menuOpen, closeMenu, rightClick, taskMenu,
+export { focusWindow, MENU, noNode, hooksOf, plusMenu, assert, root, userData, project, pfile, savedTabs, savedWindows, panel, SITE, PORT, sleep, waitFor, who, menuRows, choose, projectTabs, projectTab, showProject, closeProject, manageProfiles, closeSettings, chooseProfile, setProfileField, menuOpen, closeMenu, rightClick, taskMenu,
   click,
   box, pageBox, viewOn, dock, press, ctrl, near };

@@ -333,7 +333,9 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
     <div class="settings">
       <nav id="pjnav" aria-label="Settings">
         <RightClickMenu :items="nodeMenu">
+          <!-- selection-behavior replace: Reka's toggle un-chose the row shown when clicked again, its page still there -->
           <TreeRoot id="pjlist" v-slot="{ flattenItems }" v-model:expanded="expanded" :items="tree" :get-key="(n: Node) => n.key" :model-value="chosenNode"
+            selection-behavior="replace"
             aria-label="Settings" @keydown.delete="deleteChosen">
             <TreeItem v-for="it in flattenItems" :key="it._id" v-bind="it.bind" class="item" :data-key="it.value.key" :data-section="it.value.section"
               :data-project="it.value.project?.id" :data-agent="it.value.agent?.id" :data-profile="it.value.profile?.id"
