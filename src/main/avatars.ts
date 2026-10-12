@@ -5,6 +5,6 @@ const AVATARS = ['fox', 'frog', 'panda', 'owl', 'octopus', 'lion', 'penguin', 'u
   'rabbit', 'bear', 'hedgehog', 'dog'];
 
 // The first picture none of `used` has; after all of them, round again.
-const nextAvatar = (used: string[]) => AVATARS.find((a) => !used.includes(a)) || AVATARS[used.length % AVATARS.length];
+const nextAvatar = (used: string[]) => AVATARS.find((a) => !used.includes(a)) || AVATARS[used.length % AVATARS.length]!;
 
 export { AVATARS, nextAvatar };

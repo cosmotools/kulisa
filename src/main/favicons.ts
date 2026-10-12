@@ -16,7 +16,7 @@ function rankFavicons(files: string[]) {
   const key = (f: string) => [f.split('/').length, EXTS.indexOf(path.extname(f).slice(1).toLowerCase()), /(^|\/)favicon\./i.test(f) ? 0 : 1];
   return files.filter((f) => NAME.test(f)).sort((a, b) => {
     const ka = key(a), kb = key(b), i = ka.findIndex((v, j) => v !== kb[j]);
-    return i >= 0 ? ka[i] - kb[i] : a < b ? -1 : a > b ? 1 : 0;
+    return i >= 0 ? ka[i]! - kb[i]! : a < b ? -1 : a > b ? 1 : 0;
   });
 }
 

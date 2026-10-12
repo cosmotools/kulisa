@@ -29,7 +29,7 @@ function signinPages(extraHosts: string[] = []) {
     const history = wc.navigationHistory;
     const entries = history.getAllEntries();
     for (let i = history.getActiveIndex() - 1; i >= 0; i--) {
-      const u = entries[i].url;
+      const u = entries[i]!.url;
       if (u && u !== 'about:blank' && !isSigninUrl(u)) return u;
     }
     const params = new URL(url).searchParams;

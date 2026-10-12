@@ -278,13 +278,13 @@ class Task {
       conversations.push({ agent: a.id, from: Date.now() });
       conversation = conversations.length - 1;
     }
-    conversations[conversation].terminal = id;
+    conversations[conversation]!.terminal = id;
     this.store.saveAgent({ ...list, conversations });
     const t: TaskTerminal = { id, key: `${this.key}#${id}`, name: '', command: '', by: 'human', agent: a, conversation, state: null, seen: true };
     this.terminals.set(id, t);
     if (front) this.show(id); else { if (this.front === id) this.lastAgent = id; this.saveTerminals(); this.changedTerminals(); }
     await this.project.addCopies(this); // the project's repositories added since
-    const saved = this.conversations()[conversation];
+    const saved = this.conversations()[conversation]!;
     const resume = (a.resume && a.resume(saved)) || null;
     this.resumedSession = resume ? saved.sessionId ?? null : null;
     const env = this.env(t), dirs = this.dirs(), more: { args?: string[]; env?: Record<string, string> } = (dirs.length && a.dirs?.(dirs)) || {};

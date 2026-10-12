@@ -124,7 +124,7 @@ const codexText = (c: unknown): string => (typeof c === 'string' ? c
 // AGENTS.md, a note that a turn was interrupted.
 const notTyped = (text: string) => /^\s*(<(environment_context|user_instructions|turn_aborted)>|# AGENTS\.md instructions)/.test(text);
 // A script that only calls task_history (or only lists the tools to find it).
-const ownScript = (input: string) => /task_history/.test(input) && [...input.matchAll(/tools\.(\w+)\s*\(/g)].every((m) => ownTool(m[1]));
+const ownScript = (input: string) => /task_history/.test(input) && [...input.matchAll(/tools\.(\w+)\s*\(/g)].every((m) => ownTool(m[1]!));
 function codexConversation(transcript: string): Conversation {
   const entries: Entry[] = [], calls = new Map<string, string>(), answered = new Set<string>(), own = new Set<string>();
   let plan: string | null = null, seq = 0, lastHuman = -1, lastAnswer = -1, aborted = -1;

@@ -39,7 +39,7 @@ function installMasters(shell: Shell, { preload, colors }: { preload: string; co
     // Closed meanwhile (its page, or a slow sign-in page, still loading): nothing to lay out, the window is gone.
     await win.loadFile(page('master.html'), { query: { name: g.name, theme: shell.shade() } }).catch((e) => { if (!m.closing) throw e; });
     if (m.closing) return { folder };
-    const place = () => { const [width, height] = win.getContentSize(); profile.layout({ x: 0, y: BAR, width, height: Math.max(0, height - BAR) }); };
+    const place = () => { const [width = 0, height = 0] = win.getContentSize(); profile.layout({ x: 0, y: BAR, width, height: Math.max(0, height - BAR) }); };
     const tell = () => { const t = profile.get(); if (!win.isDestroyed() && t && !t.wc.isDestroyed()) win.webContents.send('master:url', t.wc.getURL()); };
     profile.on('changed', () => { place(); tell(); });
     win.on('resize', place);

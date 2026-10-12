@@ -2,6 +2,7 @@
 // are (Electron's own Node, or plain Node 24.12+ for the unit tests), so erasable syntax only. The tests have their own
 // (test/tsconfig.json), the window too (src/renderer/tsconfig.json, vue-tsc). DOM: for the functions the main process
 // runs in pages (executeJavaScript, Playwright's evaluate).
+// noUncheckedIndexedAccess: an element read by index may be missing; where the code knows it is there, `!` says so.
 {
   "compilerOptions": {
     "target": "ES2024",
@@ -18,7 +19,9 @@
     "resolveJsonModule": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true
   },
   "include": ["src/main", "scripts", "forge.config.ts"]
 }

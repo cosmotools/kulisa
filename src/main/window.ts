@@ -308,7 +308,7 @@ class AppWindow {
   setZoom(z: number) {
     if (this.win.isDestroyed()) return;
     this.win.webContents.setZoomFactor(z);
-    const min = minSize(z), [width, height] = this.win.getSize();
+    const min = minSize(z), [width = 0, height = 0] = this.win.getSize();
     this.win.setMinimumSize(min.width, min.height);
     if ((width < min.width || height < min.height) && !this.win.isMaximized() && !this.win.isFullScreen()) this.win.setSize(Math.max(width, min.width), Math.max(height, min.height));
     if (process.platform !== 'darwin') this.win.setTitleBarOverlay({ height: Math.round(TITLE_BAR_HEIGHT * z) }); // macOS: fixed buttons
@@ -339,7 +339,7 @@ class AppWindow {
   // The whole window, profile views included (BrowserWindow.capturePage misses WebContentsViews), captured like a
   // screen recorder would.
   async screenshot(file: string) {
-    const [width, height] = this.win.getContentSize();
+    const [width = 0, height = 0] = this.win.getContentSize();
     const sources = await desktopCapturer.getSources({ types: ['window'], thumbnailSize: { width, height } });
     const source = sources.find((s) => s.id === this.win.getMediaSourceId());
     if (!source) throw new Error('window not found among capture sources');

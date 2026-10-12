@@ -40,7 +40,7 @@ const termOf = (key: string) => {
   return terms.get(key)!;
 };
 ipcMain.on('pty:resize', (_e, { task, cols, rows }: { task: string } & Size) => {
-  const t = termOf(task), island = termOf(task.split('#')[0]);
+  const t = termOf(task), island = termOf(task.split('#')[0]!);
   t.size = island.size = { cols, rows }; t.sized(); island.sized();
   try { t.pty?.resize(cols, rows); t.pty?.screen?.resize(cols, rows); } catch {}
 });

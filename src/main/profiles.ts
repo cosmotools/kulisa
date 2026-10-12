@@ -91,7 +91,7 @@ class Profile extends EventEmitter {
   async connect(endpoint: string) {
     this.endpoint = endpoint;
     this.browser = await chromium.connectOverCDP(endpoint);
-    this.context = this.browser.contexts()[0];
+    this.context = this.browser.contexts()[0]!; // connectOverCDP's default context, always there
     // With no listener Playwright dismisses every dialog (alert, confirm), the human's too; with one they stay for
     // the human. The agent's tools answer those its own actions open (mcp-server.ts).
     this.context.on('dialog', () => {});
@@ -204,7 +204,7 @@ class Profile extends EventEmitter {
     const i = this.tabs.indexOf(tab); if (i < 0) return;
     this.tabs.splice(i, 1);
     try { this.win.contentView.removeChildView(tab.view); } catch {}
-    if (this.active === tab.id) { this.active = null; if (this.tabs.length) this.activate(this.tabs[Math.max(0, i - 1)].id); }
+    if (this.active === tab.id) { this.active = null; if (this.tabs.length) this.activate(this.tabs[Math.max(0, i - 1)]!.id); }
     this.emit('tab-closed', tab); this.emit('changed');
     // Its last tab closed (closeTab: the human's ×, the agent's browser_tab_close), the profile still open: an empty
     // tab takes its place, so the pane is never left without a page (its address and toolbar acting on nothing). Not
@@ -368,7 +368,7 @@ class Profile extends EventEmitter {
 // A page that did not load: Electron leaves it blank, Chrome says why. Its error page (chrome-error://, the address
 // still the one that failed) gets Kulisa's, for the human and for the agent's snapshot alike.
 const ERROR_PAGE = fs.readFileSync(path.join(import.meta.dirname, 'error-page.html'), 'utf8');
-function errorText(desc: string, host: string) {
+function errorText(desc: string, host: string): [string, string] {
   if (desc === 'ERR_NAME_NOT_RESOLVED') return ['This site can’t be reached', `${host}’s server IP address could not be found.`];
   if (desc === 'ERR_CONNECTION_REFUSED') return ['This site can’t be reached', `${host} refused to connect. A local app: is its server running?`];
   if (desc === 'ERR_INTERNET_DISCONNECTED') return ['No internet', 'The computer is not connected to the internet.'];
@@ -379,9 +379,9 @@ function errorText(desc: string, host: string) {
 function showError(wc: WebContents, desc: string, url: string) {
   let host: string; try { host = new URL(url).host || url; } catch { host = url; }
   const [title, reason] = errorText(desc, host);
-  const fill = ({ page, ...fields }: Record<string, string>) => {
+  const fill = ({ page, ...fields }: { page: string } & Record<string, string>) => {
     document.documentElement.innerHTML = page;
-    for (const el of document.querySelectorAll<HTMLElement>('[data-field]')) el.textContent = fields[el.dataset.field!];
+    for (const el of document.querySelectorAll<HTMLElement>('[data-field]')) el.textContent = fields[el.dataset.field!] ?? null;
   };
   wc.executeJavaScript(`(${fill})(${JSON.stringify({ page: ERROR_PAGE, title, reason, code: desc, host })})`).catch(() => {});
 }
