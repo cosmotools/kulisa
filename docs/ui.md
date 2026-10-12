@@ -83,7 +83,6 @@ Each icon is drawn once, as a `<symbol id="i-…">` in the sprite (`Sprite.vue`,
 | `i-globe` | a tab whose site has no icon |
 | `i-zoom`, `i-theme`, `i-arrange`, `i-agent`, `i-keyboard`, `i-exit` | ☰'s rows: Zoom, Theme, Arrange panels, Agents…, Keyboard Shortcuts, Exit |
 | `i-mic` | dictation's microphone at the end of the island's row of tabs (Lucide's mic) |
-| `i-p-cart`, `i-p-briefcase`, `i-p-globe`, `i-p-flask`, `i-p-rocket`, `i-p-code`, `i-p-building`, `i-p-people`, `i-p-book`, `i-p-heart` | a project's icon to choose (Lucide's shopping-cart, briefcase, globe, flask-conical, rocket, code, building-2, users-round, book-open-text, heart), drawn in its color (`projectIcon`, `lib/common.ts`) |
 | `i-working`, `i-waiting`, `i-done` | an agent's state on a tab (`.state`); `i-done` also checks the chosen row of a menu, and a checkbox |
 | `i-down` | what opens below it: a `.select`'s choices, an agent's details (`AgentList.vue`) |
 | `i-trash` | a closed task's row in a menu: delete it (`remove`; Lucide's trash-2) |
@@ -143,10 +142,9 @@ The window's controls are Reka UI's, in this look (CLAUDE.md, Window UI):
   (New Project's code: a list on the dialog's left, Reka's Listbox, as JetBrains' New Project).
 - `.checkbox`: a checkbox (Reka's `CheckboxRoot`, its `CheckboxIndicator` the check, `i-done`): Create Git repository.
 - `.select`: a button that opens what to choose from below it (Reka's `Popover`), as a field: the chosen one and
-  `i-down` (a project's color and icon, a profile's picture).
-- `.choices`: icon buttons (`.icon`) to choose one of, the chosen one ringed in `--accent`: a profile's pictures and
-  a project's icons (Reka's `ToggleGroup`, one always chosen), a project's colors (its `ColorSwatchPicker`, a `.dot`
-  each: the color's name for screen readers).
+  `i-down` (a profile's picture).
+- `.choices`: icon buttons (`.icon`) to choose one of, the chosen one ringed in `--accent`: a profile's pictures
+  (Reka's `ToggleGroup`, one always chosen).
 - `.editable`: a value edited in place (Reka's `Editable`: a profile's name, who it is, its test login): text in a
   field's box (`.preview`), a click or Tab edits it; Enter or leaving saves, Shift+Enter is a new line where it has
   lines, Esc puts it back (and leaves the dialog open).
@@ -249,8 +247,8 @@ the bar's +); rows are `.item`, lit as Reka highlights them
 A panel is a menu's look with fields in it, where a menu cannot hold them (its rows take the keys typed and the
 focus under the pointer): Reka UI's Popover, `.menu` with its rows `.item` (buttons) under a top of its own, the pages
 pictures meanwhile (`covered('pictures')`), closed as a menu is (Esc, a press outside, a row chosen, the window left);
-a row's action runs once it has closed. One today: a project's color and icon
-(`.pjlookpanel` in `ProjectEditor.vue`, from its icon at its page's top: `.choices` under `.heading`s).
+a row's action runs once it has closed. One today: a profile's picture
+(`.profilepics` in `ProfilePage.vue`, from its picture at its page's top: `.choices`).
 
 A menu's row that opens a field (New Profile…) gives it the keyboard with `focusAfterMenu(el)` (`lib/menu.ts`): the
 menu, closing, would give it back to its button.

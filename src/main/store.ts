@@ -2,11 +2,10 @@
 // profile), so what is known about Chrome's storage applies:
 //   settings.json            the Kulisa zoom, the theme, where the tasks' bar is; the windows: the projects open
 //                            in each (its tabs, in order), the one shown, where it was on screen
-//   projects.json            the projects: { id, name, folder, repos, color, icon, agents }; a project is a folder
+//   projects.json            the projects: { id, name, folder, repos, color, agents }; a project is a folder
 //                            (a repository, or one Kulisa made), and the repositories or folders added to it (repos,
-//                            the default first); its color tints the window and its icon marks its group,
-//                            to tell projects apart at a glance; agents: the agents' accounts its tasks run, the
-//                            default (+'s) first
+//                            the default first); color: the one it has while its favicon gives none (docs/tasks.md,
+//                            Projects); agents: the agents' accounts its tasks run, the default (+'s) first
 //   projects/<id>/
 //     tasks.json             the project's tasks: { next, current, list: [{ n, name, branch, offset, folder,
 //                            copies: [{ repo, worktree, branch, base, folder }], home, closed, closedAt }] }; one
@@ -25,7 +24,8 @@ import fs from 'fs';
 import path from 'path';
 import { slugOf } from './names.ts';
 
-// Muted, to sit on the dark window; a new project takes the first one no project has.
+// Muted, to sit on the dark window; a new project takes the first one no project has (its favicon's own hue, in their
+// lightness and chroma, replaces it in the window: renderer/lib/project-color.ts).
 const PROJECT_COLORS = ['#4a7bd0', '#3f9a7a', '#b4823a', '#9a5fc0', '#c0584f', '#3c9fb0', '#b0607f', '#7d9a3f'];
 const TABS_FILE = 'Kulisa Tabs.json';
 const SESSION_COOKIES_FILE = 'Kulisa Session Cookies.bin';
@@ -34,7 +34,7 @@ const CACHES = new Set(['Cache', 'Code Cache', 'GPUCache', 'DawnGraphiteCache', 
 
 // A project in projects.json.
 interface ProjectEntry {
-  id: string; name: string; folder: string; color: string; icon?: string; agents?: string[]; repos?: string[];
+  id: string; name: string; folder: string; color: string; agents?: string[]; repos?: string[];
   local?: string[]; noDefaultAgent?: boolean;
 }
 // A task's copy of one repository (worktrees.ts, createWorktree).
@@ -77,23 +77,22 @@ class Store {
 
   projects(): ProjectEntry[] { return readJSON(this.projectsFile) || []; }
   dirOf(p: { id: string }) { const d = path.join(this.dir, 'projects', p.id); fs.mkdirSync(d, { recursive: true }); return d; }
-  // The project of a folder; a new one if no project has it, with what the human chose for it (New Project…: color,
-  // icon, its first agent), else the next free color.
   // The project a folder is (its own or one of its repositories), or null.
   projectOf(folder: string): ProjectEntry | null { return this.projects().find((p) => [p.folder, ...(p.repos || [])].some((f) => samePath(f, folder))) || null; }
-  projectFor(folder: string, name = path.basename(folder) || folder, { color, icon, agent }: { color?: string; icon?: string; agent?: string } = {}): ProjectEntry {
+  // The project of a folder; a new one if no project has it, with the next free color (and its first agent, given).
+  projectFor(folder: string, name = path.basename(folder) || folder, { agent }: { agent?: string } = {}): ProjectEntry {
     const found = this.projectOf(folder);
     if (found) return found;
     const list = this.projects();
     const base = slugOf(name, 'project');
     let id = base, n = 2;
     while (list.some((p) => p.id === id)) id = `${base}-${n++}`;
-    const p: ProjectEntry = { id, name, folder, color: color || this.nextColor(), ...(icon && { icon }), ...(agent && { agents: [agent] }) };
+    const p: ProjectEntry = { id, name, folder, color: this.nextColor(), ...(agent && { agents: [agent] }) };
     writeJSON(this.projectsFile, [...list, p]);
     return p;
   }
   nextColor() { return nextColor(this.projects()); }
-  // A project's name, color, icon, agents or repositories changed (the projects' manager); its id and folder stay.
+  // A project's name, agents or repositories changed (the projects' manager); its id and folder stay.
   // null fields go.
   updateProject(id: string, fields: { [K in keyof ProjectEntry]?: ProjectEntry[K] | null }): ProjectEntry | null {
     const list = this.projects(), i = list.findIndex((p) => p.id === id);

@@ -14,11 +14,6 @@ export const withKeys = (title: string, id: string): string => (keyText(id) ? `$
 
 // A profile's picture (main/avatars.ts): its file, in public/avatars.
 export const avatarSrc = (a: string): string => `avatars/${a}.svg`;
-// A project's icon from the sprite (main/projects.ts, PROJECT_ICONS): one of Kulisa's set, or the app's curtain
-// (logo, the default; a favicon or a file whose picture is not there).
-export const projectIcon = (name?: string): string => (!name || name === 'logo' || name === 'favicon' || !/^[a-z]+$/.test(name) ? 'i-logo' : `i-p-${name}`);
-// What a project's icon to choose is called (its tooltip, for screen readers).
-export const iconTitle = (v: string) => (v === 'favicon' ? "The site's favicon" : v === 'logo' ? "Kulisa's curtain" : v);
 
 // The links in ☰; they open in the user's browser (window.ts).
 export const LINKS = [

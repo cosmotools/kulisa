@@ -7,14 +7,14 @@ import path from 'path';
 import fs from 'fs';
 import { stepZoom } from './profiles.ts';
 import { CdpProxy } from './cdp-proxy.ts';
-import { Store, PROJECT_COLORS } from './store.ts';
+import { Store } from './store.ts';
 import { Accounts } from './accounts.ts';
 import { ProfileStore } from './profile-store.ts';
 import { CookieSync } from './cookie-sync.ts';
 import { nextAvatar } from './avatars.ts';
 import { signinPages } from './signin-pages.ts';
 import { SessionCookies } from './session-cookies.ts';
-import { Project, askDeleteProject, deleteClosedTask, deleteProjectData, iconFile, iconOfFile, pictureOf, PICTURE_TYPES, addRepo, cloneRepo, defaultRepo, removeRepo, reposInfo, askDropProfile, dropProfile, agentsInfo, addAgent, defaultAgent, removeAgent, deleteAccount, deleteProfile, PROJECT_ICONS } from './projects.ts';
+import { Project, askDeleteProject, deleteClosedTask, deleteProjectData, pictureOf, addRepo, cloneRepo, defaultRepo, removeRepo, reposInfo, askDropProfile, dropProfile, agentsInfo, addAgent, defaultAgent, removeAgent, deleteAccount, deleteProfile } from './projects.ts';
 import { AppWindow, COLORS } from './window.ts';
 import { repoOf, initRepo, clone } from './worktrees.ts';
 import { findFavicon } from './favicons.ts';
@@ -154,15 +154,11 @@ function start(options: Options = {}) {
   // once quitting: the tabs are saved then, and each one closing as Kulisa quits saved its task's tabs again,
   // fewer each time, at last none (one in the background at once: 2026-10-08, the author's tabs all about:blank).
   shell.taskChanged = (task, now, agentState) => quitting || task.project.window?.changed(task, now, agentState);
-  // A project for a folder opened (KULISA_PROJECT, project:open with a folder): its site's favicon as its icon.
-  function projectOfFolder(folder: string) { return store.projectFor(folder, undefined, { icon: 'favicon' }); }
-  // A color, icon or agent the window sent for a project: one of those offered, or why not.
-  const lookError = ({ color, icon, agent }: { color?: string; icon?: string; agent?: string }) => (color && !PROJECT_COLORS.includes(color) ? `no color ${color}`
-    : icon && icon !== 'favicon' && !PROJECT_ICONS.includes(icon) ? `no icon ${icon}`
-      : agent && !shell.agentFor(agent) ? `no agent ${agent}` : null);
-  // The projects' icons as the windows show them: the picture of its favicon or of the file chosen (a file gone: its
-  // favicon), each read once, again when its settings are opened (a favicon changed meanwhile). A favicon is looked for
-  // without holding the window up: it comes when found.
+  // A project for a folder opened (KULISA_PROJECT, project:open with a folder).
+  function projectOfFolder(folder: string) { return store.projectFor(folder); }
+  // The projects' icons as the windows show them (docs/tasks.md, Projects: nothing to choose): the picture of its
+  // site's favicon, read once, again when its settings are opened (a favicon changed meanwhile). A favicon is looked for
+  // without holding the window up: it comes when found. The window takes its color from it (lib/project-color.ts).
   const favicons = new Map<string, string | null>(); // a project's id: its favicon's file
   const pictures = new Map<string, string | null>(); // a file: its picture
   const looking = new Set<string>();
@@ -183,10 +179,6 @@ function start(options: Options = {}) {
     const file = favicons.get(p.id);
     return file ? picture(file) : null;
   };
-  const iconPicture = (p: ProjectEntry) => {
-    const file = iconFile(p);
-    return (file && picture(file)) || (file || p.icon === 'favicon' ? faviconPicture(p) : null);
-  };
   // And its tasks (the bar's + lists the closed ones): those open, as made, then the closed ones, the one closed last first.
   const tasksOf = (p: ProjectEntry) => {
     const list = store.tasksOf(p).list.map(({ n, name, branch, closed, closedAt, merged, about }) => ({ n, name, branch, closed: !!closed, closedAt, merged: !!merged, about }));
@@ -194,7 +186,7 @@ function start(options: Options = {}) {
       .map(({ closedAt, ...t }) => t);
   };
   shell.projects = () => store.projects().map((p) => {
-    const favicon = iconPicture(p);
+    const favicon = faviconPicture(p);
     return { ...p, ...(favicon && { favicon }), tasks: tasksOf(p) };
   });
   // A question asked in a window (window.ts), the first one when none is named: askWhich gives the button clicked
@@ -486,11 +478,10 @@ function start(options: Options = {}) {
   // agents: every account, the agents' own first; clis: the agents a new account can be made of (New Account…).
   const choices = () => {
     const all = shell.accounts.all().filter((a) => !a.agent.custom);
-    return { colors: PROJECT_COLORS, icons: PROJECT_ICONS, agents: all.filter((a) => a.choosable).map(({ id, name }) => ({ id, name })),
+    return { agents: all.filter((a) => a.choosable).map(({ id, name }) => ({ id, name })),
       clis: all.filter((a) => a.own && a.agent.config?.login).map(({ id, name }) => ({ id, name })) };
   };
-  ipcMain.handle('project:new-defaults', () => ({ location: shell.projectsHome, sep: path.sep,
-    color: store.nextColor(), ...choices() }));
+  ipcMain.handle('project:new-defaults', () => ({ location: shell.projectsHome, sep: path.sep, ...choices() }));
   // Browse…: where a new or cloned project's folder goes, or (existing) the folder that is the project.
   ipcMain.handle('project:pick-location', async (e, { location, existing }: { location?: string; existing?: boolean }) => {
     const r = await dialog.showOpenDialog(at(e)!.win, { title: existing ? "The project's folder" : 'Where to create the project', defaultPath: location,
@@ -521,9 +512,9 @@ function start(options: Options = {}) {
     return folder ? { folder, ...await folderState(folder) } : null;
   });
   const refusal = (folder: string, there: { state: string; project?: string }) => ({ file: `${folder} is a file, not a folder`, project: `${folder} is the project ${there.project}'s already` } as Record<string, string>)[there.state];
-  ipcMain.handle('project:new', async (_e, { from = 'new', name, location, folders = [], urls = [], git, color, icon }: { from?: string; name?: string; location?: string; folders?: string[]; urls?: string[]; git?: boolean; color?: string; icon?: string }) => {
+  ipcMain.handle('project:new', async (_e, { from = 'new', name, location, folders = [], urls = [], git }: { from?: string; name?: string; location?: string; folders?: string[]; urls?: string[]; git?: boolean }) => {
     name = name?.trim();
-    const bad = nameError(name) || lookError({ color, icon });
+    const bad = nameError(name);
     if (bad) return { error: bad };
     let folder: string, repos: string[] | null = null;
     if (from === 'folder') {
@@ -567,47 +558,21 @@ function start(options: Options = {}) {
         if (git && there.state !== 'repo') await initRepo(folder).catch((err: GitError) => console.error('[git]', err.stderr || err.message));
       }
     }
-    // Its icon is not asked: its site's favicon, as a folder opened.
-    let entry = store.projectFor(folder, name, { color, icon: !icon || icon === 'logo' ? 'favicon' : icon });
+    let entry = store.projectFor(folder, name);
     if (repos) entry = store.updateProject(entry.id, { repos })!;
     sendProjects(); // the bar's + lists it
     return { id: entry.id };
   });
-  // A project's configuration in the projects' manager (ProjectEditor.vue): its name, color, icon, agents,
+  // A project's configuration in the projects' manager (ProjectEditor.vue): its name, agents,
   // repositories, profiles and local addresses; its folder is shown, not changed (its tasks' copies are made from it).
   // Open or not.
   ipcMain.handle('project:settings-get', async (_e, { id }: { id: string }): Promise<Sent.ProjectSettings | { error: string }> => {
     const p = store.projects().find((x) => x.id === id);
     if (!p) return { error: `no project ${id}` };
     const r = await reposInfo(p);
-    return { name: p.name, folder: p.folder, color: p.color, projectAgents: agentsInfo(shell, p), local: p.local || [],
-      ...(await iconChoices(p)), ...r, ...profilesOf(id), ...choices() };
-  });
-  // Its icons to choose from with their pictures: its favicon looked for again and the file chosen read again (changed
-  // meanwhile: the bar shows them too). One not there is not offered, and not shown chosen.
-  const iconChoices = async (p: ProjectEntry) => {
-    const file = iconFile(p);
-    if (file) pictures.delete(file);
     await lookForFavicon(p);
     sendProjects();
-    const pics: Record<string, string> = {};
-    const favicon = faviconPicture(p), chosen = file && picture(file);
-    if (favicon) pics.favicon = favicon;
-    if (chosen) pics[p.icon!] = chosen;
-    return { icon: pics[p.icon!] ? p.icon! : file && pics.favicon ? 'favicon' : file || p.icon === 'favicon' ? 'logo' : p.icon || 'logo', pictures: pics };
-  };
-  // Choose File…: a picture in the OS's dialog, in the project's folder, as its icon.
-  ipcMain.handle('project:icon-file', async (e, { id }: { id: string }) => {
-    const p = store.projects().find((x) => x.id === id);
-    if (!p) return { error: `no project ${id}` };
-    const r = await dialog.showOpenDialog(at(e)!.win, { title: "The project's icon", defaultPath: p.folder, properties: ['openFile'],
-      filters: [{ name: 'Pictures', extensions: Object.keys(PICTURE_TYPES).map((x) => x.slice(1)) }] });
-    const file = !r.canceled && r.filePaths[0];
-    if (!file) return {};
-    pictures.delete(file);
-    if (!picture(file)) return { error: `Not a picture Kulisa can show: ${path.basename(file)} (SVG, ICO, WebP or GIF up to 128 KB, or PNG or JPEG)` };
-    lookChanged(store.updateProject(id, { icon: iconOfFile(p, file) })!);
-    return iconChoices(store.projects().find((x) => x.id === id)!);
+    return { name: p.name, folder: p.folder, projectAgents: agentsInfo(shell, p), local: p.local || [], ...r, ...profilesOf(id), ...choices() };
   });
   // Its profiles (profile-store.ts): those it has, and those of other projects it can take. A new one comes closed in
   // its tasks (opened in a task, a copy of its master is made there); one let go asks first (projects.ts).
@@ -736,16 +701,14 @@ function start(options: Options = {}) {
     return id ? addAgent(shell, id, r.id) : accountsInfo();
   });
   ipcMain.handle('account:signin-cancel', (_e, { key }: { key: string }) => cancel(key));
-  // Its name, color and icon (its group's panel too, TaskBar.vue: local not sent, kept as it is).
-  ipcMain.handle('project:settings', (_e, { id, name, color, icon, local = store.projects().find((p) => p.id === id)?.local }: { id: string; name?: string; color?: string; icon?: string; local?: string[] }) => {
+  // Its name and local addresses.
+  ipcMain.handle('project:settings', (_e, { id, name, local = store.projects().find((p) => p.id === id)?.local }: { id: string; name?: string; local?: string[] }) => {
     name = name?.trim();
     // Its own local addresses (local.ts): hosts, each with its subdomains (a tunnel, its dev domains).
     local = [...new Set((local || []).map((h) => String(h).trim().toLowerCase().replace(/^\*\./, '')).filter(Boolean))];
-    const was = store.projects().find((p) => p.id === id);
-    // Its icon as it is (a file chosen) is no new choice to check.
-    const bad = nameError(name) || lookError({ color, icon: icon === was?.icon ? undefined : icon }) || local.find((h) => !/^[a-z0-9.-]+$/.test(h) || !h.includes('.')) && `not a host name: ${local.find((h) => !/^[a-z0-9.-]+$/.test(h) || !h.includes('.'))}`;
+    const bad = nameError(name) || local.find((h) => !/^[a-z0-9.-]+$/.test(h) || !h.includes('.')) && `not a host name: ${local.find((h) => !/^[a-z0-9.-]+$/.test(h) || !h.includes('.'))}`;
     if (bad) return { error: bad };
-    const entry = store.updateProject(id, { name: name!, color, icon: icon === 'logo' ? null : icon, local: local.length ? local : null });
+    const entry = store.updateProject(id, { name: name!, local: local.length ? local : null });
     if (!entry) return { error: `no project ${id}` };
     lookChanged(entry);
     return { id };

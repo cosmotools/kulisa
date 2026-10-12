@@ -62,15 +62,16 @@ Its code first, on the left:
   changed.
 - **Clone from URL**: one repository or several, cloned with your own git (its keys and credentials).
 
-The dialog says what will happen as you type. Its color and icon are chosen for you (its site's favicon, when its code
-has one); change them on its page.
+The dialog says what will happen as you type. Its color and icon are not asked: Kulisa finds its site's favicon in
+its code and takes the color from it, so a red logo makes a red project. A project whose code has no favicon gets the
+curtain and a color of its own.
 
 ### A project's page
 
 **Settings** (the gear) → **Projects** → the project, or **Project Settings…** in a group's right-click menu.
 Everything is saved as you change it; there is no Save button.
 
-- **Name**, and beside it its **color and icon**: one of Kulisa's, a picture file of yours, or its site's favicon.
+- **Name**.
 - **Code**: its repositories or folders. **+** adds one (Add Folder…, Clone from URL…), **−** removes the selected
   one from the project (its folder stays), **★** makes it the default: the agent starts there.
 - **Agents**: the accounts its tasks run. **★** makes one the default, the one a new task runs; **★** on the default

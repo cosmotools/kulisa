@@ -10,6 +10,7 @@ import NewTask from './NewTask.vue';
 import RightClickMenu from './menu/RightClickMenu.vue';
 import { store } from '../lib/store';
 import ProjectIcon from './ProjectIcon.vue';
+import { projectColor } from '../lib/project-color';
 import { keyText } from '../lib/common';
 import { dialog } from '../lib/dialogs';
 import { profilesMenu } from '../lib/profiles';
@@ -135,7 +136,7 @@ function dragend(e: DragEvent) {
       @update:model-value="showTask"><TabsList as-child :loop="false">
       <nav id="projectTabs" ref="tabs" aria-label="Open projects" @dblclick="dblclick" @auxclick="auxclick"
         @dragstart="dragstart" @dragover="dragover" @dragleave="dragleave" @drop="drop" @dragend="dragend">
-      <div v-for="{ o, p, open } in islands" :key="p.id" class="pisland" :data-project="p.id" :title="p.folder || ''" :style="{ '--color': p.color }"
+      <div v-for="{ o, p, open } in islands" :key="p.id" class="pisland" :data-project="p.id" :title="p.folder || ''" :style="{ '--color': projectColor(p) }"
         :class="{ active: p.id === store.projects.current, dragging: dragged === p.id,
                   'drop-before': mark?.id === p.id && mark.side === 'before', 'drop-after': mark?.id === p.id && mark.side === 'after' }">
         <div class="plabel" draggable="true">

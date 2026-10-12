@@ -3,8 +3,7 @@
 // with its own under it and its + beside it), the chosen one's page on the right under its path. Saved as it changes
 // (no OK, no Cancel). New Project is a dialog of its own (NewProject.vue).
 import { computed, nextTick, ref, watch } from 'vue';
-import { ColorSwatchPickerItem, ColorSwatchPickerItemSwatch, ColorSwatchPickerRoot, ListboxContent, ListboxItem, ListboxRoot,
-  PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger, ToggleGroupItem, ToggleGroupRoot, TreeItem, TreeRoot } from 'reka-ui';
+import { ListboxContent, ListboxItem, ListboxRoot, TreeItem, TreeRoot } from 'reka-ui';
 import Modal from './Modal.vue';
 import Icon from './Icon.vue';
 import ButtonMenu from './menu/ButtonMenu.vue';
@@ -13,9 +12,9 @@ import AccountSignIn from './AccountSignIn.vue';
 import AgentPage from './AgentPage.vue';
 import ProfilePage from './ProfilePage.vue';
 import ProjectIcon from './ProjectIcon.vue';
-import { avatarSrc, iconTitle, projectIcon } from '../lib/common';
-import { focusAfterMenu, focusBack, type MenuItem } from '../lib/menu';
-import { covered } from '../lib/views';
+import { avatarSrc } from '../lib/common';
+import { projectColor } from '../lib/project-color';
+import { focusAfterMenu, type MenuItem } from '../lib/menu';
 import { dialog, registerDialog } from '../lib/dialogs';
 import { agentList, agentMark, type Agent } from '../lib/agents';
 import type { Account, AccountsInfo, ProjectChoices, ProjectEntry, ProjectProfile, ProjectRepo, ProjectSettings, SettingsProfile, SignedIn } from '../types';
@@ -35,15 +34,10 @@ async function startAdding(what: 'clone' | 'profile') {
   await nextTick();
   focusAfterMenu((what === 'clone' ? url : newProfile).value);
 }
-// A panel over the dialog: the pages become pictures, as under a menu.
-const { open: lookOpen, ready: lookReady } = covered('pictures');
-let lookFocused: Element | null = null;
-const toggleLook = (v: boolean) => { if (v) lookFocused = document.activeElement; lookOpen.value = v; };
 const projects = ref<ProjectEntry[]>([]);
 const editing = ref<string | null>(null);
 const name = ref(''), local = ref(''), error = ref('');
-const choices = ref<ProjectChoices>({ colors: [], icons: [], agents: [], clis: [] });
-const color = ref(''), icon = ref('logo');
+const choices = ref<ProjectChoices>({ agents: [], clis: [] });
 const repos = ref<ProjectRepo[]>([]), former = ref<string | null>(null), cloneUrl = ref(''), codeError = ref(''), cloning = ref(false);
 const mine = ref<{ id: string; name: string; default?: boolean }[]>([]), agentError = ref('');
 const signing = ref<{ id: string; name: string } | null>(null); // New Account…: the agent it is of, while signing in
@@ -51,8 +45,6 @@ const profiles = ref<ProjectProfile[]>([]), others = ref<ProjectProfile[]>([]), 
 // The selected row of each list: what −, ★, Delete and its right-click act on. The default repository and agent are
 // the first ones: the main process keeps them in that order.
 const repoSel = ref<string>(), agentSel = ref<string>(), profileSel = ref<string>();
-// Its favicon and the file chosen, with their pictures, then Kulisa's set.
-const iconValues = computed(() => { const pics = Object.keys(choices.value.pictures || {}); return [...pics.filter((v) => v === 'favicon'), ...pics.filter((v) => v !== 'favicon'), ...choices.value.icons]; });
 const base = (f: string) => f.split(/[\\/]/).pop()!;
 
 // Every profile and every account, as Settings → Profiles and → Agents show them (who each is, its projects).
@@ -94,7 +86,6 @@ async function showList() {
   projects.value = (await kulisa.invoke<{ projects: ProjectEntry[] }>('projects:list')).projects;
 }
 async function edit(id: string) {
-  lookOpen.value = false;
   await saveLook();
   const c = await kulisa.invoke<ProjectSettings>('project:settings-get', { id });
   if (c.error) { editing.value = null; return showList(); }
@@ -104,8 +95,6 @@ async function edit(id: string) {
   cloneUrl.value = ''; newName.value = '';
   repoSel.value = agentSel.value = profileSel.value = undefined;
   choices.value = c;
-  color.value = c.color || c.colors[0];
-  icon.value = c.icon || 'logo';
   local.value = (c.local || []).join(' ');
   saved = lookNow();
   repos.value = c.repos; former.value = c.former || null;
@@ -139,10 +128,10 @@ registerDialog('projects', {
   openProfiles: (id?: string) => openProjects(undefined, 'profiles', id),
 });
 
-// A project's look and local addresses, saved as they change (its name on Enter or leaving it; Settings closed with a
+// A project's name and local addresses, saved as they change (its name on Enter or leaving it; Settings closed with a
 // name typed: saved too). Refused: why, under them, until changed again.
 let saved = '';
-const lookNow = () => JSON.stringify({ name: name.value.trim(), color: color.value, icon: icon.value, local: local.value.split(/[\s,]+/).filter(Boolean) });
+const lookNow = () => JSON.stringify({ name: name.value.trim(), local: local.value.split(/[\s,]+/).filter(Boolean) });
 async function saveLook() {
   const id = editing.value, now = lookNow();
   if (!id || now === saved || !name.value.trim()) return;
@@ -152,20 +141,7 @@ async function saveLook() {
   if (r?.error) saved = '';
   else if (editing.value === id) await Promise.all([showList(), lists()]);
 }
-// Choose File…: a picture as its icon, saved at once (the OS's dialog; refused: why, under the name).
-async function chooseIconFile() {
-  const id = editing.value;
-  const r = await kulisa.invoke<{ error?: string; icon?: string; pictures?: Record<string, string> }>('project:icon-file', { id });
-  if (editing.value !== id) return;
-  error.value = r.error || '';
-  if (!r.icon) return;
-  choices.value = { ...choices.value, pictures: r.pictures };
-  icon.value = r.icon;
-  saved = lookNow();
-  await showList();
-}
-// The look's panel outlives the dialog's content (its open state is here): closed with it, or the pages stayed pictures.
-function closed() { lookOpen.value = false; adding.value = ''; stopNewProfile(); return saveLook(); }
+function closed() { adding.value = ''; stopNewProfile(); return saveLook(); }
 // Delete Project…, here alone (the author, 2026-10-11): asked first (projects.ts, askDeleteProject), closed if open;
 // then Settings goes on to the one shown, or another project.
 async function deleteProject(id: string) {
@@ -337,7 +313,7 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
             aria-label="Settings" @keydown.delete="deleteChosen">
             <TreeItem v-for="it in flattenItems" :key="it._id" v-bind="it.bind" class="item" :data-key="it.value.key" :data-section="it.value.section"
               :data-project="it.value.project?.id" :data-agent="it.value.agent?.id" :data-profile="it.value.profile?.id"
-              :style="{ '--color': it.value.project?.color }" @select="choose">
+              :style="{ '--color': it.value.project && projectColor(it.value.project) }" @select="choose">
               <Icon v-if="it.value.section" class="twist" name="i-down" /><ProjectIcon v-if="it.value.project" :p="it.value.project" />
               <template v-if="it.value.agent"><Icon v-if="mark(it.value.agent)" class="logo" :name="mark(it.value.agent)!" /></template>
               <img v-if="it.value.profile" class="avatar" alt="" :src="avatarSrc(it.value.profile.avatar)">
@@ -359,37 +335,15 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
         <p id="profileserror" class="error">{{ profilesError }}</p>
       </nav>
 
-      <div v-show="tab === 'projects'" id="pjconfig" :style="{ '--color': color }">
+      <div v-show="tab === 'projects'" id="pjconfig">
         <template v-if="editing">
           <div id="pjhead" class="crumbs">
             <span>Projects</span><span aria-hidden="true">›</span><b id="pjtitle">{{ projects.find((p) => p.id === editing)?.name }}</b>
             <ButtonMenu :items="more" end><button id="pjmore" class="icon small" type="button" title="More" aria-label="More"><Icon name="i-more" /></button></ButtonMenu>
           </div>
           <!-- Enter saves it, not a form -->
-          <div class="field"><label for="pjname">Name:</label><span class="pick">
-            <input id="pjname" v-model="name" data-name maxlength="64" spellcheck="false" @input="error = ''" @change="saveLook" @keydown.enter.prevent="saveLook">
-            <PopoverRoot :open="lookOpen" @update:open="toggleLook">
-              <PopoverTrigger as-child><button id="pjlook" class="select" type="button" title="Color and icon" aria-label="Color and icon">
-                <ProjectIcon :p="{ icon, favicon: choices.pictures?.[icon] }" /><Icon name="i-down" /></button></PopoverTrigger>
-              <PopoverPortal>
-                <PopoverContent class="menu pjlookpanel" :class="{ ready: lookReady }" align="end" :side-offset="4" :collision-padding="4"
-                  :style="{ '--color': color }" @close-auto-focus="focusBack($event, lookFocused)">
-                  <div class="heading">Color</div>
-                  <ColorSwatchPickerRoot id="npcolors" class="choices" aria-label="Color" :model-value="color"
-                    @update:model-value="(c) => { if (c) { color = String(c); saveLook(); } }">
-                    <ColorSwatchPickerItem v-for="c in choices.colors" :key="c" :value="c" class="icon" :data-value="c" :title="c"><ColorSwatchPickerItemSwatch class="dot" /></ColorSwatchPickerItem>
-                  </ColorSwatchPickerRoot>
-                  <div class="heading">Icon</div>
-                  <ToggleGroupRoot id="npicons" class="choices" type="single" aria-label="Icon" :model-value="icon"
-                    @update:model-value="(v) => { if (v) { icon = String(v); saveLook(); } }">
-                    <ToggleGroupItem v-for="v in iconValues" :key="v" :value="v" class="icon" :data-value="v" :title="iconTitle(v)" :aria-label="iconTitle(v)"><img v-if="choices.pictures?.[v]"
-                      :src="choices.pictures[v]" alt=""><Icon v-else :name="projectIcon(v)" /></ToggleGroupItem>
-                  </ToggleGroupRoot>
-                  <div role="separator" />
-                  <button id="npiconfile" class="item" type="button" @click="chooseIconFile"><Icon class="ico" name="i-folder" /><span class="text"><span class="label">Choose File…</span></span></button>
-                </PopoverContent>
-              </PopoverPortal>
-            </PopoverRoot></span></div>
+          <div class="field"><label for="pjname">Name:</label>
+            <input id="pjname" v-model="name" data-name maxlength="64" spellcheck="false" @input="error = ''" @change="saveLook" @keydown.enter.prevent="saveLook"></div>
           <p id="pjerror" class="error">{{ error }}</p>
 
           <section id="npreposrow" class="group">
@@ -547,10 +501,6 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
   .list [role="listbox"] { max-height: calc(6 * var(--row)); overflow: auto; }
   .list .avatar { --avatar: 18px; }
   #npformer button { margin-inline-start: var(--gap); }
-  #pjlook { width: auto; gap: 4px; padding: 0 6px; .picon { width: 16px; height: 16px; color: var(--color); } }
   .none { display: flex; flex-direction: column; align-items: start; gap: var(--gap); padding-top: var(--pad); .empty { margin: 0; } }
 }
-/* The look's panel: a menu's look, the colors and icons under their headings */
-.pjlookpanel { min-width: 0; padding-block-end: var(--inset);
-  .choices { padding-inline: var(--inset); max-width: 300px; } }
 </style>
