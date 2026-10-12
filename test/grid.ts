@@ -473,10 +473,15 @@ export default (test: Test) => {
     // paste and Kulisa's both pasted it); Ctrl+V and Ctrl+C go to the agent. Windows' and macOS' keys, and the menu's.
     const keys = (keyCode: string, modifiers: Parameters<typeof press>[2][]) => press(shell.win.webContents, keyCode, ...modifiers);
     await clipboard.writeText('kulisa-paste');
-    await focusWindow(shell.win, ui); await ui(`window.__term.focus()`);
     const before = ctx.ptyOutput().length;
-    keys('V', ['control', 'shift']);
-    await waitFor(() => ctx.ptyOutput().slice(before).includes('kulisa-paste'));
+    // Pressed again while nothing is pasted: the page reads the clipboard only while it has the focus, and on a loaded
+    // machine the window manager's focus, coming late after another window went, took it away for a moment (GitHub's
+    // runner, 2026-10-13); a read refused pastes nothing, so a second press cannot paste twice.
+    for (let i = 0; ; i++) {
+      await focusWindow(shell.win, ui); await ui(`window.__term.focus()`);
+      keys('V', ['control', 'shift']);
+      try { await waitFor(() => ctx.ptyOutput().slice(before).includes('kulisa-paste'), 2000); break; } catch (e) { if (i === 4) throw e; }
+    }
     await sleep(300); // nothing to wait for: that it is not pasted twice
     assert.equal(ctx.ptyOutput().slice(before).split('kulisa-paste').length - 1, 1, 'pasted once');
     await clipboard.writeText('');
