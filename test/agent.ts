@@ -646,6 +646,46 @@ export default (test: Test) => {
     await waitFor(async () => !(await disabled()));
   });
 
+  // task_history (history.ts): the task's runs read from their transcripts, for an agent taking the task over or one
+  // whose context lost the details. The test agent reads transcripts as Claude Code's (run.ts).
+  test("agent: task_history gives where the task stands, then its runs' conversations, the latest chapter first, in parts", async ({ shell, call }) => {
+    const task = shell.task!, saved = task.store.agent();
+    const transcript = (name: string, records: object[]) => {
+      const file = path.join(root, 'transcripts', name, 's.jsonl');
+      fs.mkdirSync(path.dirname(file), { recursive: true });
+      fs.writeFileSync(file, records.map((r) => JSON.stringify(r)).join('\n'));
+      return file;
+    };
+    const said = (who: 'user' | 'assistant', text: string, more = {}) => ({ type: who, message: { role: who, content: who === 'user' ? text : [{ type: 'text', text }] }, ...more });
+    const earlier = transcript('earlier', [said('user', 'Start the checkout feature'), said('assistant', 'Checkout started in cart.ts')]);
+    // The current run: compacted once, then a long tool output, then the human unanswered.
+    const current = transcript('current', [
+      said('user', 'Old request before the summary'),
+      said('user', 'This session is being continued from a previous conversation. Summary: checkout half done.', { isCompactSummary: true }),
+      { type: 'assistant', message: { role: 'assistant', content: [{ type: 'tool_use', id: 't1', name: 'Bash', input: { command: 'npm test' } }] } },
+      { type: 'user', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 't1', content: 'x'.repeat(200_000), is_error: true }] } },
+      said('user', 'Finish the pay step'),
+    ]);
+    try {
+      task.store.saveAgent({ ...saved, transcript: current, sessionId: 'now', runs: [{ agent: saved.agent, transcript: earlier, sessionId: 'before', from: Date.UTC(2026, 9, 1, 9), to: Date.UTC(2026, 9, 1, 10) }] });
+      const first = (await call('task_history', {})).text;
+      const total = Number(first.match(/^Part 1 of (\d+)\. Then task_history with part 2\./)![1]);
+      assert.ok(total > 2, 'a 200 KB error, kept whole, takes several parts');
+      assert.match(first, /# Where the task stands \(from Kulisa\)\n\nThe task "[^"]+", in /);
+      assert.match(first, /The last run, [^:]+: the human's last message got no answer\./);
+      assert.match(first, /## Profiles\nOpen: .*Closed: /);
+      const whole = [first, ...await Promise.all(Array.from({ length: total - 1 }, async (_, i) => (await call('task_history', { part: i + 2 })).text))].join('\n');
+      const at = (s: string) => { const i = whole.indexOf(s); assert.ok(i >= 0, `has ${s}`); return i; };
+      // The order: the current run's last chapter (its summary on), its first, then the earlier run.
+      assert.ok(at('Run 2 of 2') < at('Summary: checkout half done') && at('Summary: checkout half done') < at('Finish the pay step'));
+      assert.ok(at('Finish the pay step') < at('Old request before the summary') && at('Old request before the summary') < at('Start the checkout feature'));
+      assert.match(whole, /# Run 1 of 2, .*, from 2026-10-01 09:00 to 2026-10-01 10:00, chapter 1 of 1/);
+      assert.ok(whole.split('').filter((ch) => ch === 'x').length >= 200_000, 'the error whole, across parts');
+      assert.match((await call('task_history', { part: total })).text, new RegExp(`^Part ${total} of ${total}\\. The last one\\.`));
+      await assert.rejects(call('task_history', { part: total + 1 }), new RegExp(`There are ${total} parts`));
+    } finally { task.store.saveAgent(saved); }
+  });
+
   test('@playwright/mcp works through the CDP proxy', async ({ shell }) => {
     const cli = path.join(path.dirname(fileURLToPath(import.meta.resolve('@playwright/mcp/package.json'))), 'cli.js');
     const c = new Client({ name: 'kulisa-test', version: '0' });

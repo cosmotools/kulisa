@@ -11,6 +11,7 @@ import { withOffset } from '../src/main/tasks.ts';
 import { PROJECT_COLORS } from '../src/main/store.ts';
 import { createWorktree } from '../src/main/worktrees.ts';
 import { sessionStart } from '../src/main/agent-hooks.ts';
+import { refused } from '../src/main/result.ts';
 import type { Test, Ctx } from './run.ts';
 import type { UI } from './helpers.ts';
 import type { Task } from '../src/main/tasks.ts';
@@ -38,9 +39,9 @@ async function groupMenu(ui: UI, label?: string) {
   else await closeMenu(ui);
   return rows;
 }
-// One of the agent's hooks, as its plugin sends it (agent-hooks.ts).
-const hook = (task: Task, event: string, input = {}) => new Promise<void>((resolve) => http.request(`${task.env().KULISA_URL}/hooks/${event}`, { method: 'POST' },
-  (res) => { res.resume(); res.on('end', resolve); }).end(JSON.stringify(input)));
+// One of the agent's hooks, as its plugin sends it (agent-hooks.ts); its answer.
+const hook = (task: Task, event: string, input = {}) => new Promise<any>((resolve) => http.request(`${task.env().KULISA_URL}/hooks/${event}`, { method: 'POST' },
+  (res) => { let body = ''; res.on('data', (d) => (body += d)); res.on('end', () => resolve(JSON.parse(body || '{}'))); }).end(JSON.stringify(input)));
 // The session an agent reports at its start (its SessionStart hook, as Claude Code sends it): Kulisa resumes it.
 const reportSession = (task: Task, id: string, transcript: string) => hook(task, 'session-start', { hook_event_name: 'SessionStart', session_id: id, transcript_path: transcript, source: 'startup' });
 
@@ -346,7 +347,7 @@ export default (test: Test) => {
     const transcript = path.join(root, 'task-3-transcript.jsonl');
     fs.writeFileSync(transcript, '');
     await reportSession(task, 's-3', transcript);
-    assert.match(sessionStart(task, { session_id: 's-3', transcript_path: transcript }).hookSpecificOutput.additionalContext,
+    assert.match((await sessionStart(task, { session_id: 's-3', transcript_path: transcript })).hookSpecificOutput.additionalContext,
       /task "task-3".*branch task-3.*plus 200/s, 'where it works, at the session start too');
     // Working: the human is asked, and may keep it.
     await hook(task, 'prompt');
@@ -514,7 +515,8 @@ export default (test: Test) => {
     await ui(`document.querySelector('#agentpick [role="radio"][value="shell"]').click()`);
     await ui(`document.getElementById('agentstart').click()`);
     await waitFor(() => task.pty && task.pty !== customPty);
-    assert.deepEqual(JSON.parse(fs.readFileSync(pfile('agent.json', task.n), 'utf8')), { agent: 'shell', started: true }, 'a new conversation');
+    const saved = JSON.parse(fs.readFileSync(pfile('agent.json', task.n), 'utf8'));
+    assert.deepEqual([saved.agent, saved.started, saved.sessionId, saved.runs], ['shell', true, undefined, undefined], 'a new conversation: the one before had none to keep');
     assert.equal(task.agent.id, 'shell');
     // Left closed for the restart phase (restart-tasks.ts).
     await ui(`${taskTab(task.n)}.querySelector('.close').click()`);
@@ -1411,6 +1413,80 @@ export default (test: Test) => {
     assert.equal((await p.page()).url(), 'about:blank', 'Playwright reached its tab');
     await shell.task.deleteProfile(id);
   });
+  // Switching the agent keeps the work (tasks.ts, switchTo; docs/tasks.md): the conversation is the agent's, the work
+  // the task's. The test agent (custom) and the fake one (two accounts) are two CLIs, their transcripts both in
+  // Claude Code's format (run.ts).
+  test("agents: switching the agent keeps the work: another CLI told to read the task's history; the same CLI's conversation moved to the other account and resumed; back to the first, its own resumed; New Conversation; deleting the task forgets every run", async (ctx) => {
+    const { shell, ui } = ctx;
+    const shown = shell.task; // shown again at the end: the restart phase finds it so
+    const task = await newTask(ctx);
+    const [a, b] = ['a', 'b'].map((x) => {
+      const r = shell.accounts.prepare('fake');
+      if (refused(r)) throw new Error(r.error);
+      shell.accounts.create('project', r.id, 'fake', `${x}@switch.test`);
+      return { id: r.id, dir: r.dir };
+    });
+    const agentFile = () => JSON.parse(fs.readFileSync(pfile('agent.json', task.n), 'utf8'));
+    const folder = task.folder.replace(/[^A-Za-z0-9]/g, '-');
+    // A conversation as Claude Code keeps it, in a config folder, reported at its session's start: what that answers.
+    const converse = async (dir: string, id: string, said: string) => {
+      const file = path.join(dir, 'projects', folder, `${id}.jsonl`);
+      fs.mkdirSync(path.dirname(file), { recursive: true });
+      fs.mkdirSync(path.join(dir, 'file-history', id), { recursive: true });
+      fs.writeFileSync(file, [{ type: 'user', message: { role: 'user', content: said } },
+        { type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: `On it: ${said}` }] } }].map((r) => JSON.stringify(r)).join('\n'));
+      return { file, context: (await reportSession(task, id, file)).hookSpecificOutput.additionalContext as string };
+    };
+    const switchTo = async (id: string, opts = {}) => {
+      const pty = task.pty;
+      await task.switchTo(shell.agentFor(id), opts);
+      await waitFor(() => task.pty && task.pty !== pty, 20000);
+    };
+    // The task's first conversation, with the test agent.
+    await switchTo('custom', { fresh: true });
+    const first = await converse(path.join(root, 'custom-config'), 'c-1', 'Build the checkout');
+    // Another CLI: a new conversation, its first message the handoff; its session's start says where the task stands.
+    await switchTo(a.id);
+    await waitFor(async () => (await ctx.termText()).includes('The human handed you this task'));
+    assert.deepEqual(agentFile().runs.map((r: { agent: string; sessionId: string }) => [r.agent, r.sessionId]), [['custom', 'c-1']]);
+    assert.equal(agentFile().handoff, undefined, 'said once');
+    const second = await converse(a.dir, 'f-1', 'Pay with cards');
+    assert.match(second.context, /# Where the task stands \(from Kulisa\).*The last run, [^:]+: its last turn ended as usual\..*The rest of the task's history: the kulisa task_history tool\./s);
+    // The same CLI, another account: the conversation moved there and resumed, nothing told.
+    await switchTo(b.id);
+    const moved = path.join(b.dir, 'projects', folder, 'f-1.jsonl');
+    assert.ok(fs.existsSync(moved) && !fs.existsSync(second.file), 'moved to the other account');
+    assert.ok(fs.existsSync(path.join(b.dir, 'file-history', 'f-1')) && !fs.existsSync(path.join(a.dir, 'file-history', 'f-1')));
+    assert.deepEqual([agentFile().agent, agentFile().sessionId, agentFile().transcript, agentFile().handoff], [b.id, 'f-1', moved, undefined]);
+    await waitFor(async () => (await ctx.termText()).includes('--resume f-1'));
+    assert.match((await reportSession(task, 'f-1', moved)).hookSpecificOutput.additionalContext, /^(?![\s\S]*Where the task stands)/, 'its own: no gist');
+    // Back to the first CLI: its own conversation resumed, told what came after it.
+    await switchTo('custom');
+    assert.deepEqual([agentFile().agent, agentFile().sessionId, agentFile().transcript], ['custom', 'c-1', first.file]);
+    assert.deepEqual(agentFile().runs.map((r: { agent: string; sessionId: string }) => [r.agent, r.sessionId]), [[b.id, 'f-1']]);
+    assert.match((await reportSession(task, 'c-1', first.file)).hookSpecificOutput.additionalContext, /The last run, Fake agent · b@switch\.test: /);
+    const history = (await ctx.call('task_history', {}, task)).text;
+    assert.ok(history.indexOf('Build the checkout') < history.indexOf('Pay with cards'), 'both runs, the current one first');
+    // New Conversation (the terminal's menu): the same agent from nothing; the conversation before is a run.
+    const pty = task.pty;
+    await rightClick(ui, '#term');
+    await menuRows(ui);
+    await choose(ui, 'New Conversation');
+    await waitFor(() => task.pty !== pty && task.pty);
+    assert.deepEqual(agentFile().runs.map((r: { sessionId: string }) => r.sessionId), ['f-1', 'c-1']);
+    assert.deepEqual([agentFile().agent, agentFile().sessionId, agentFile().handoff], ['custom', undefined, undefined]);
+    // Deleting the task forgets every run's conversation, each in its account's folder.
+    ctx.answer = true;
+    await ui(`kulisa.invoke('task:delete', '${task.key}')`);
+    await waitFor(() => !shell.current.tasks.has(task.n));
+    assert.ok(!fs.existsSync(moved), "the fake agent's, in the other account");
+    ctx.asked.length = 0;
+    for (const x of [a, b]) { shell.accounts.drop(x.id); fs.rmSync(x.dir, { recursive: true, force: true }); }
+    await waitFor(() => !shell.windows[0].switching && ui(`!document.documentElement.classList.contains('loading')`));
+    await click(ui, `document.querySelector('#tasklist .tasktab[data-task="${shown.key}"]')`);
+    await waitFor(() => shell.task === shown && shown.loaded);
+  });
+
   // Last in phase 1: the tabs the restart phase finds (restart-tasks.ts).
   test('projects: another tab left in the background, with a terminal its agent ran something in', async ({ shell, ui, call }) => {
     await ui(`kulisa.invoke('project:open', { folder: ${JSON.stringify(path.join(root, 'other'))}, task: 1 })`);

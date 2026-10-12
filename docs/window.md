@@ -117,7 +117,7 @@ pages are pictures of themselves meanwhile; afterwards the keyboard is back wher
   Cmd+Q and the app's menu quit; under them all Kulisa's version, small and dim: words, not a row, as nothing happens on a click);
 - right-click on a pane's header (New tab, About this profile… (Settings → Profiles at it), Sign In to Master…, Refresh
   from Master…, Close profile, Remove from Project…), a tab (Reload, Duplicate, Close tab, Close other tabs) and a terminal (Copy, Paste, Select all, Clear;
-  then Change agent… in the agent's, Close in the others).
+  then Change agent… and New Conversation in the agent's, Close in the others).
 
 A project label's right-click opens its group's menu, as Chrome's tab groups have it ([tasks.md](tasks.md), Projects).
 

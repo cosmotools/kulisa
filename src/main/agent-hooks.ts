@@ -8,6 +8,7 @@
 // names (browser_click …) and their own "profiles" at session start; this says which browser is the human's. Told to
 // every agent in the MCP server's instructions, and again next to the profiles at session start.
 import type { IncomingMessage, ServerResponse } from 'http';
+import { gist } from './history.ts';
 import type { Task } from './tasks.ts';
 
 // A hook's input: the agent's JSON (Claude Code's shape; Codex's hooks take it too).
@@ -18,10 +19,11 @@ const ONLY_BROWSER = 'Kulisa profiles are the only browser here: drive them with
   'when their tools have the same names: that browser is not the one the human sees, and it is not signed in.';
 
 // SessionStart: the profiles as they are now, so the agent knows them before its first tool call. Also notes the
-// session, so that opening the project again resumes it (tasks.ts).
+// session, so that opening the project again resumes it (tasks.ts). An agent taking the task over (tasks.ts,
+// switchTo) also gets where the task stands, at the start of its context, before its first turn.
 // Each profile with who it is (its description, the human's words) or that it is not said: the agent then asks.
 const who = ({ id, name, description }: { id: string; name: string; description?: string }) => `- ${id} ("${name}"): ${description ? description.replace(/\s+/g, ' ') : 'who it is is not said'}`;
-function sessionStart(task: Task, input: Input) {
+async function sessionStart(task: Task, input: Input) {
   if (input?.session_id) task.saveAgent({ sessionId: input.session_id, transcript: input.transcript_path });
   const lines = [...task.profiles.values()].map((p) => {
     const tabs = p.tabs.filter((t) => !t.wc.isDestroyed()).map((t) =>
@@ -35,7 +37,9 @@ function sessionStart(task: Task, input: Input) {
       : closed.length ? 'No Kulisa profile is open.' : "Kulisa has no profiles in this project yet. The human makes them in Settings (the gear at the top right) → Profiles and adds them on the project's page, or use profile_create when a task needs one.",
     closed.length && `Closed profiles (signed in, no pane; profile_open opens one when the task needs it):\n${closed.join('\n')}`,
     taskContext(task),
+    task.handedOver && await gist(task),
   ].filter(Boolean).join('\n\n');
+  task.handedOver = false;
   return { hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: context } };
 }
 
@@ -44,7 +48,7 @@ function sessionStart(task: Task, input: Input) {
 // once the human interrupted it (interrupt: they are there) or its session ended (session-end), but a done one keeps
 // "come and see" (Codex ends a session after 30 minutes idle).
 const state = (s: Task['state'], when: (task: Task) => boolean = () => true) => (task: Task) => { if (when(task)) task.setState(s); return {}; };
-const handlers: Record<string, (task: Task, input: Input) => object> = {
+const handlers: Record<string, (task: Task, input: Input) => object | Promise<object>> = {
   'session-start': sessionStart,
   prompt: state('working'),
   waiting: state('waiting'),
@@ -60,11 +64,13 @@ function handleHookRequest(task: Task, url: string, req: IncomingMessage, res: S
   const handler = Object.hasOwn(handlers, m[1]) ? handlers[m[1]] : null;
   let body = '';
   req.on('data', (d) => { if (body.length < 1e6) body += d; });
-  req.on('end', () => {
+  req.on('end', async () => {
     let input: Input = null;
     try { input = body ? JSON.parse(body) : null; } catch {}
+    let out: object = {};
+    try { out = handler ? await handler(task, input) : {}; } catch (e) { console.warn('[hooks]', (e as Error).message); }
     res.writeHead(handler ? 200 : 404, { 'content-type': 'application/json' });
-    res.end(handler ? JSON.stringify(handler(task, input)) : '{}');
+    res.end(JSON.stringify(out));
   });
   return true;
 }

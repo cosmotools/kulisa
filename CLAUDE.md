@@ -37,6 +37,8 @@ unasked. This paragraph is removed when the rewrite is finished.
 - `docs/profiles.md`, `docs/tasks.md`, `docs/window.md`: how profiles, projects with their tasks, and the
   window work now: what the human and the agent do, what Kulisa creates on the computer and removes, why it is built
   so, the code. Read the one for the part you change; keep it current.
+- `docs/transcripts.md`: the task's history for its agent (`task_history`) and how each agent CLI's transcript is
+  read for it, field by field. Check it when an agent CLI is updated: the formats are undocumented.
 - `docs/ui.md`: what the window's UI is built of: tokens, icons, components (buttons, rows, dialogs, menus). Look
   there before making a button, an icon, a row or a dialog; keep it current.
 - `README.md`: how to run, environment variables, a map of `src/`.
@@ -356,6 +358,7 @@ Modules (`src/main`):
 - `session-cookies.ts`, `signin-pages.ts`, `signin-pause.ts`, `mimic-chrome.ts`: sign-ins that last, the sign-in
   pause, presenting as Google Chrome.
 - `cdp-proxy.ts`, `local-only.ts`: the CDP endpoint per profile; refusing web pages.
+- `history.ts`, `transcripts.ts`: the task's history for its agent, read from the agents' transcripts.
 - `mcp-server.ts`, `agent-hooks.ts`, `ghost.ts`, `picker.ts`: the agent's tools and hooks, its actions shown, point
   and tell.
 - `terminal.ts`: a pty per task for its agent, and its other terminals (a dev server the agent runs, the

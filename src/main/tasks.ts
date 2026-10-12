@@ -17,7 +17,7 @@ import { loginAllowed } from './local.ts';
 import type { Tab } from './profiles.ts';
 import type { Entry, Hooks } from './project-profiles.ts';
 import type { Project } from './projects.ts';
-import type { TaskEntry, TaskStore } from './store.ts';
+import type { AgentFile, TaskEntry, TaskStore } from './store.ts';
 import type { Pty } from './terminal.ts';
 import type { GitError } from './worktrees.ts';
 import type { Shell, AgentChoice } from './shell.ts';
@@ -30,6 +30,16 @@ interface TaskTerminal { id: number; name: string; command: string; by: 'human' 
 type Found = { profile: Profile; error?: undefined } | { error: string; closed?: boolean; profile?: undefined };
 
 const DICTATION_LIMIT = 5 * 60_000; // a recording left on (a click and no second one)
+// The first message of an agent taking the task over (switchTo): the task's history to read, all or what came after
+// its own conversation, then what it understood, said to the human, who sees what it missed at once.
+const HANDOFF = {
+  all: 'The human handed you this task, begun with another agent: what was said and done in it is in the kulisa ' +
+    'task_history tool. Read every part of it before anything else. Then tell the human in a few lines what the task ' +
+    'is, what is done and what is next, and go on with it.',
+  after: 'You are back on this task: while you were away, another agent worked on it. Read what it did in the kulisa ' +
+    'task_history tool (the runs after yours: your own conversation you have) before anything else. Then tell the ' +
+    'human in a few lines what changed, and go on with the task.',
+};
 
 class Task {
   shell: Shell; project: Project; entry: TaskEntry; n: number; key: string; folder: string; offset: number; store: TaskStore;
@@ -37,6 +47,7 @@ class Task {
   terminals: Map<number, TaskTerminal>; terminalSeq: number; list: ProjectProfiles;
   profiles: ProjectProfiles['profiles']; closed: ProjectProfiles['closed'];
   agent?: AgentChoice; resumedSession?: string | null; dictating?: NodeJS.Timeout | null; starting?: Promise<unknown> | null;
+  handedOver?: boolean; // its agent was started with a handoff: its session's start gets where the task stands
   // project: its project (projects.ts); entry: { n, name, branch, worktree, folder, base, offset, closed, closedAt }
   // from its tasks.json; one without a worktree works in the project's folder. key: the task among all open ones
   // ("<project id>/<n>"): the windows, the terminals, the CDP proxy and the MCP server's URLs know it by that.
@@ -170,8 +181,11 @@ class Task {
       found = await shell.findAgent(agent, this.folder);
       if (!found) return;
     }
-    const saved = this.store.agent();
+    const { handoff, ...saved } = this.store.agent();
     const resume = (saved.agent === agent!.id && agent!.resume && agent!.resume(saved)) || null;
+    // A handoff (switchTo) is said once, as the first message, where the agent takes one.
+    const first = (handoff && agent!.prompt?.(HANDOFF[handoff])) || [];
+    this.handedOver = !!handoff;
     this.resumedSession = resume ? saved.sessionId ?? null : null;
     this.agent = agent!;
     await this.project.addCopies(this); // the project's repositories added since
@@ -180,8 +194,10 @@ class Task {
     // The program by name, as the human would type it, unless the shell does not find it yet (just installed).
     const a = agent!, command = found.onPath ? a.command : found.path;
     this.pty = await startTerminal((channel, data) => this.window?.send(channel, data), { command, shell: a.shell, cwd: this.folder, env: { ...this.env(), ...more.env, ...a.env },
-      args: [...(resume || []), ...(a.args?.({ env: this.env(), plugin: shell.plugin }) || []), ...(more.args || []), ...(a.voice?.args || [])] }, this.key);
-    this.store.saveAgent({ ...this.store.agent(), agent: a.id, started: true });
+      args: [...(resume || []), ...(a.args?.({ env: this.env(), plugin: shell.plugin }) || []), ...(more.args || []), ...(a.voice?.args || []), ...first] }, this.key);
+    // Read again: its session's start may have reported the session meanwhile. The handoff is said.
+    const { handoff: said, ...now } = this.store.agent();
+    this.store.saveAgent({ ...now, agent: a.id, started: true });
     this.window?.send('voice', { task: this.key, voice: this.voice() });
   }
   // Dictation, where the agent has its own (agents.ts, voice): what the window's microphone button shows ({ languages,
@@ -211,17 +227,50 @@ class Task {
     const v = this.agent?.voice;
     return v ? v.setLanguage({ ...this.store.agent(), configDir: this.agent!.configDir }, code) : { error: 'this agent has no dictation' };
   }
-  // Another agent for this task, chosen by the human (the terminal's menu): the running one stops, the chosen one
-  // starts with a new conversation (the old one stays in the old agent's own history).
+  // Another agent for this task, chosen by the human (the terminal's menu, Change agent…): it continues the work
+  // (switchTo).
   async changeAgent() {
     const agent = await this.shell.chooseAgent(this, this.agent ?? null, { cancel: true });
     if (!agent || !this.loaded || agent.id === this.agent?.id) return { changed: false };
+    await this.switchTo(agent);
+    return { changed: true, agent: agent.id };
+  }
+  // The same agent from nothing (the terminal's menu, New Conversation); the one before stays the task's history.
+  async newConversation() {
+    if (!this.loaded || !this.agent) return { changed: false };
+    await this.switchTo(this.agent, { fresh: true });
+    return { changed: true };
+  }
+  // The agent changed, the work kept (tasks.md, "Switching the agent"): the conversation is the agent's, the work
+  // the task's. The running conversation becomes one of the task's runs. The chosen agent goes on with its own
+  // conversation when the task has one of its CLI (moved to its account's folder when it was another's: move), told
+  // what came after it; else it starts a new one, told to read the task's history (task_history). fresh: a new
+  // conversation, nothing told. Not undone when the new account fails: choosing the other one again moves it back.
+  async switchTo(agent: AgentChoice, { fresh = false } = {}) {
     await this.starting;
     if (this.pty) { stopTerminal(this.pty); this.pty = null; }
-    this.store.saveAgent({ agent: agent.id });
+    const { runs: earlier = [], ...saved } = this.store.agent(), now = Date.now();
+    const runs = [...earlier];
+    if (saved.sessionId && saved.transcript) runs.push({ agent: saved.agent, sessionId: saved.sessionId, transcript: saved.transcript, from: saved.from, to: now });
+    const cli = (id?: string) => (id ? this.shell.agentFor(id, { any: true })?.agentId : undefined);
+    const i = fresh || !agent.resume ? -1 : runs.findLastIndex((r) => cli(r.agent) === agent.agentId && r.sessionId && r.transcript && fs.existsSync(r.transcript));
+    let next: AgentFile = { agent: agent.id, from: now, ...(!fresh && runs.length ? { handoff: 'all' as const } : {}) };
+    if (i >= 0) {
+      const own = runs[i];
+      let transcript: string | null = own.transcript!;
+      if (own.agent !== agent.id) {
+        try { transcript = agent.move && agent.configDir ? agent.move({ transcript, sessionId: own.sessionId!, to: agent.configDir }) : null; } catch (e) {
+          console.warn('[agents] move:', (e as Error).message); transcript = null;
+        }
+      }
+      if (transcript) {
+        runs.splice(i, 1);
+        next = { agent: agent.id, sessionId: own.sessionId, transcript, started: true, from: own.from, ...(runs.length > i ? { handoff: 'after' as const } : {}) };
+      }
+    }
+    this.store.saveAgent({ ...next, ...(runs.length ? { runs } : {}) });
     this.window?.send('terminal:reset', { task: this.key });
     await this.startAgent();
-    return { changed: true, agent: agent.id };
   }
   // Its terminals besides the agent's, each a panel next to the agent's: the human's shells (+ on the terminal's
   // header) and what the agent keeps running there for the human to see (terminal_run: the app's dev server, docker

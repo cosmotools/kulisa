@@ -44,7 +44,7 @@ import type { Result } from './result.ts';
 interface Options {
   userData?: string; project?: string; projectsHome?: string; mcpPort?: number; mimicChrome?: boolean; signinHosts?: string[];
   appDevTools?: boolean; agents?: Agent[];
-  agent?: { name?: string; command: string; args?: string[]; resume?: (sessionId: string) => string[]; shell?: Agent['shell']; voice?: Agent['voice'] };
+  agent?: { name?: string; command: string; args?: string[]; resume?: (sessionId: string) => string[]; shell?: Agent['shell']; voice?: Agent['voice']; conversation?: Agent['conversation'] };
 }
 type Event = IpcMainInvokeEvent | IpcMainEvent;
 // The terminals' contents the window sends when a project moves (window.ts: sent to the window it goes to).
@@ -860,7 +860,7 @@ function start(options: Options = {}) {
   shell.plugin = CLAUDE_PLUGIN;
   const own = options.agent;
   const custom: Agent | undefined = own && { id: 'custom', name: own.name || own.command, maker: '', needs: '', custom: true,
-    command: own.command, shell: own.shell, args: () => own.args || [], voice: own.voice,
+    command: own.command, shell: own.shell, args: () => own.args || [], voice: own.voice, conversation: own.conversation,
     resume: own.resume && (({ sessionId, transcript }) => sessionId && transcript && fs.existsSync(transcript) && own.resume!(sessionId)) };
   const known = [...(custom ? [custom] : []), ...(options.agents || AGENTS)];
   // The agents with their accounts (accounts.ts); an account is its agent with its config folder in its environment.
@@ -957,6 +957,7 @@ function start(options: Options = {}) {
   ipcMain.handle('profile:master', (e, { task, profile }: { task: string; profile: string }) => onScreen(e, task)?.openMaster(profile) || noTask);
   ipcMain.handle('profile:refresh', (e, { task, profile }: { task: string; profile: string }) => onScreen(e, task)?.refreshProfile(profile) || noTask);
   ipcMain.handle('agent:change', (e, { task }: { task: string }) => { const w = onScreen(e, task); return w ? w.changeAgent() : noTask; });
+  ipcMain.handle('agent:new-conversation', (e, { task }: { task: string }) => { const w = onScreen(e, task); return w ? w.newConversation() : noTask; });
   ipcMain.handle('terminal:open', (e, { task }: { task: string }) => { const w = onScreen(e, task); return w ? w.openTerminal() : noTask; });
   ipcMain.handle('terminal:close', (e, { task, id }: { task: string; id: number }) => onScreen(e, task)?.closeTerminal(id) || noTask);
   ipcMain.on('layout:save', (e, { task, layout }: { task: string; layout: unknown }) => at(e)?.saveLayout(task, layout));
