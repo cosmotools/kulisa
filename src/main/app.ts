@@ -60,8 +60,6 @@ const NONE = new Map<string, never>(); // the tasks and profiles when no project
 // The Kulisa plugin's package for Claude Code (CLAUDE.md, Architecture, layer 3): the MCP config, a skill, hooks.
 // Outside the asar archive when packaged (forge.config.ts, extraResource), because claude reads it from disk.
 const CLAUDE_PLUGIN = app.isPackaged ? path.join(process.resourcesPath, 'claude-plugin') : path.join(import.meta.dirname, '..', 'agent', 'claude-plugin');
-// The BROWSER of an agent's own sign-in (account:signin), there too: the agent runs it.
-const OPEN_URL = app.isPackaged ? path.join(process.resourcesPath, 'open-url') : path.join(import.meta.dirname, '..', 'agent', 'open-url');
 
 // options:
 //   userData   folder for Kulisa's data and browser profiles
@@ -704,16 +702,12 @@ function start(options: Options = {}) {
   }));
   // A new account of an agent, made in Settings → Agents or in a project (tasks.md, Accounts): a folder of its own
   // (accounts.ts), then the agent's own sign-in in it, as /login, in a terminal of the window (key), which ends once signed
-  // in; its status says the email it signed in to. The page it opens comes to Kulisa (its BROWSER: open-url, through the
-  // local server with a token of this sign-in) and is shown in a clean browser of Kulisa's (master.ts), not the user's
-  // browser, already signed in to other accounts; it closes when the sign-in ends, and closed by the human it ends the
-  // sign-in. Claude Code reads BROWSER on Linux (checked in 2.1.296); not set on Windows (a sh script). An email stored
-  // already is that account, added to the project. Not one change after another
+  // in; its status says the email it signed in to. Its page opens in the user's own browser, the agent's default: Google
+  // refuses its sign-in in an embedded browser (2026-10-12, tasks.md, Accounts). An email stored already is that
+  // account, added to the project. Not one change after another
   // (serial): a sign-in takes minutes. In a project (id): { agents } (the project's); in Settings → Agents (no id):
   // { accounts, clis }; or { error } (null: cancelled).
   const signins = shell.signins = new Map<string, Pty>(); // a sign-in terminal's key -> its pty
-  const openers = new Map<string, (url: string) => void>(); // a sign-in's token -> what opens its page
-  shell.signinOpen = (token, url) => { const open = openers.get(token); if (!open || !/^https?:\/\//.test(url)) return false; open(url); return true; };
   const cancel = (key: string) => { const p = signins.get(key); signins.delete(key); if (p) stopTerminal(p); };
   ipcMain.handle('account:signin', async (e, { id, agent: agentId, key }: { id?: string; agent: string; key: string }) => {
     const w = at(e), own = shell.accounts.find(agentId);
@@ -724,24 +718,13 @@ function start(options: Options = {}) {
     if (!found?.path) return { error: `${own.name} is not installed: install it in ☰ → Agents…` };
     const r = shell.accounts.prepare(agentId);
     if (refused(r)) return r;
-    const token = crypto.randomUUID();
-    let page = null as Promise<Awaited<ReturnType<Shell['openSigninWindow']>> | null> | null;
-    openers.set(token, async (url) => {
-      if (page) return;
-      page = shell.openSigninWindow(url, `Signing in to ${own.name}: a clean browser, closed when done`)
-        .catch((err: Error): null => { console.error('[accounts] sign-in window:', err.message); return null; });
-      (await page)?.closed.then(() => cancel(key)); // closed by the human: no sign-in (closed when done: it ended already)
-    });
-    const browser = process.platform === 'win32' ? {} : { BROWSER: OPEN_URL, KULISA_OPEN_URL: `${shell.mcp.base}/signin/${token}/open` };
     const p = await startTerminal((channel, data) => w?.send(channel, data), { command: found.path, args: config.login(),
-      cwd: app.getPath('home'), env: { [config.env]: r.dir, ...browser }, shell: false,
+      cwd: app.getPath('home'), env: { [config.env]: r.dir }, shell: false,
       size: { cols: 100, rows: 8 } }, key); // its terminal is folded away, so no size would come
     signins.set(key, p);
     const code = await new Promise<number>((resolve) => p.onExit(({ exitCode }) => resolve(exitCode)));
     const cancelled = !signins.delete(key);
-    openers.delete(token);
     forgetTerminal(key);
-    await (await page)?.close();
     const got = await accountEmail(own.agent, found, r.dir);
     // One it has already (the same email): that one; the new folder signed out and gone.
     const existing = got && shell.accounts.byEmail(agentId, got.email);

@@ -525,14 +525,6 @@ const safeDecode = (s: string) => { try { return decodeURIComponent(s); } catch 
 async function startMcpServer(shell: Shell, cfg: { port?: number }) {
   const srv = http.createServer(async (req, res) => {
     if (!fromLocalTool(req)) { res.writeHead(403); return res.end(); }
-    // /signin/<token>/open: the page an agent's own sign-in opens (its BROWSER: src/agent/open-url; app.ts).
-    const s = req.method === 'POST' && req.url!.match(/^\/signin\/([\w-]+)\/open$/);
-    if (s) {
-      let body = '';
-      for await (const chunk of req) { body += chunk; if (body.length > 8192) { res.writeHead(413); return res.end(); } }
-      res.writeHead(shell.signinOpen?.(s[1], body.trim()) ? 204 : 404);
-      return res.end();
-    }
     // /task/<project>/<n>/…: a task of an open project, loaded.
     const m = req.url!.match(/^\/task\/([^/]+)\/(\d+)(\/.*)$/);
     const task = m && shell.taskOf(safeDecode(m[1]), Number(m[2]));

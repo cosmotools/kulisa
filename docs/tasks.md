@@ -325,8 +325,8 @@ are not programmers); its accounts are made there too, or in a project's page.
     Agents' + → New Account, an agent: in that project): the agent's own sign-in starts at once, as
     its `/login` does (Claude Code `auth login`, Codex `login`), in a terminal there (`AccountSignIn.vue`),
     and ends once signed in. The terminal is under Details, closed (the author, 2026-10-11: the address it prints, with
-    the window open, only confused); it opens by itself when the sign-in fails, and is there for what the window does
-    not show (the address where the agent opened the user's browser instead, a code it asks for). Its folder in Kulisa's data has a fixed id (`agents/claude-<n>/`, never a number used
+    the browser open, only confused); it opens by itself when the sign-in fails, and is there for what the browser does
+    not show (the address, when no browser opened; a code the agent asks for). Its folder in Kulisa's data has a fixed id (`agents/claude-<n>/`, never a number used
     before: a removed one's folder may wait for the next start), never renamed: Claude Code names its macOS Keychain
     entry after a hash of the config folder's path (checked in 2.1.296), so a folder renamed after the sign-in would
     lose it. The email it signed in to is read after it (`auth status`) and kept in `agents.json`: the account is
@@ -334,15 +334,14 @@ are not programmers); its accounts are made there too, or in a project's page.
     An email the store has already is that account: the new folder is signed out and removed, the existing one added
     to the project (made in Settings → Agents: said so). Cancel, Settings closed, or a sign-in ended without an account
     keeps nothing.
-    **The page opens in a clean browser of Kulisa's**, not the user's (the author, 2026-10-11: theirs is signed in to
-    other accounts, which they would have to sign out of and back into): the agent's `BROWSER` is Kulisa's
-    `src/agent/open-url`, which sends the address to Kulisa (its local server, a token per sign-in), and Kulisa shows
-    it in a window of its own under a bar as an OAuth popup's in Chrome (the author, 2026-10-11): the site it is on
-    alone, which the page cannot fake (the human sees where they sign in), no address to type, no back, forward or
-    reload (a master's window has them: there the human goes to sites themselves), presenting as Chrome,
-    its session in memory only (nothing on disk); it closes when the sign-in ends, its session wiped, and closed by the
-    human it ends the sign-in. Claude Code reads `BROWSER` on Linux (checked in 2.1.296); on macOS and Windows not
-    checked (there it may still open the user's browser), and on Windows it is not set (a sh script).
+    **The page opens in the user's own browser**, as the agent opens it without Kulisa (Kulisa sets no `BROWSER`); the
+    agent's own server on `localhost` takes the answer, so the sign-in ends by itself. The page names the account it
+    signs in to: a browser signed in to another account of the same maker may offer that one, and the human chooses
+    there. From 2026-10-11 to 2026-10-12 it opened in a clean browser of Kulisa's (an Electron window, presenting as
+    Chrome, its session in memory), so that none of the human's other sign-ins was there; Google refused to sign in
+    there ("This browser or app may not be secure"), and OpenAI and Anthropic send an account made with Google to it.
+    Google refuses embedded browsers on purpose, by more than the User-Agent, and Kulisa does not try to get past
+    that; a desktop app's sign-in goes through the system's browser (RFC 8252), as VS Code's and JetBrains' do.
   - **One store** (`agents.json`), as the profiles': each account lists the projects it is in; the Agents' **+** of another
     project takes it there too. Choosing a task's agent (Change agent…, Choose the Agent) lists the project's accounts
     and the agents themselves, never another project's: the project's page says who works in its tasks.

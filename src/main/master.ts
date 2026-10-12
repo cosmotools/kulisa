@@ -5,19 +5,18 @@
 // no agent's tool sees it, so no sign-in pause is needed. The page is a Profile as a task's (its tabs, presenting as
 // Chrome, its session cookies kept), under a small bar of its own (master.html): the address, back, forward, reload.
 // One window per master; asked again, it comes to the front. Closed, its tabs and sign-ins are saved.
-// The same window, with a session in memory, is the clean browser of an agent's own sign-in (openSigninWindow).
-import { BrowserWindow, ipcMain, session } from 'electron';
+import { BrowserWindow, ipcMain } from 'electron';
 import fs from 'fs';
 import path from 'path';
-import { Profile, toUrl, wipeSession } from './profiles.ts';
+import { Profile, toUrl } from './profiles.ts';
 import { writeFileAtomic } from './store.ts';
 import { page } from './pages.ts';
 import type { Shell } from './shell.ts';
 
-// A master's window (or an agent's sign-in's: signin), with its profile.
-interface Master { win: BrowserWindow; profile: Profile; closing: Promise<void> | null; closed?: boolean; ready?: Promise<unknown>; signin?: boolean }
+// A master's window, with its profile.
+interface Master { win: BrowserWindow; profile: Profile; closing: Promise<void> | null; closed?: boolean; ready?: Promise<unknown> }
 
-const BAR = 44, SIGNIN_BAR = 32; // keep in sync with #bar in Master.vue
+const BAR = 44; // keep in sync with #bar in Master.vue
 
 function installMasters(shell: Shell, { preload, colors }: { preload: string; colors: () => { window: string } }) {
   shell.masters = new Map(); // folder -> { win, profile }
@@ -53,47 +52,8 @@ function installMasters(shell: Shell, { preload, colors }: { preload: string; co
     place(); tell();
     return { folder };
   };
-  // A clean browser for an agent's own sign-in (app.ts, account:signin; tasks.md, Accounts): the page the agent opens
-  // (its BROWSER is Kulisa's open-url), in a session in memory (a partition without persist:), so none of the human's
-  // sign-ins is there and nothing of it is written to disk; its bar the site alone, as an OAuth popup's (Master.vue).
-  // Presenting as Chrome, nothing automated attached. Closed by the sign-in when it ends (or by the human: the sign-in
-  // then gets nowhere), its session wiped with it. { closed (a promise), close() }.
-  shell.signinWindows = new Set();
-  let signins = 0;
-  shell.openSigninWindow = async (url, what) => {
-    const win = new BrowserWindow({ width: 1000, height: 760, title: `${what} — Kulisa`, backgroundColor: colors().window,
-      autoHideMenuBar: true, webPreferences: { preload, sandbox: false } });
-    win.removeMenu();
-    const profile = new Profile(win, { id: 'signin', name: what, avatar: '', folder: '', dir: '',
-      session: session.fromPartition(`kulisa-signin-${++signins}`) }, { task: 'signin', mimic: shell.chromeIdentity });
-    const m: Master = { win, profile, closing: null, signin: true };
-    shell.signinWindows.add(m);
-    const closed = new Promise<void>((resolve) => win.on('closed', () => resolve()));
-    win.on('close', (e) => { if (!m.closed && !shell.quitting) { e.preventDefault(); close(m); } });
-    const place = () => { if (win.isDestroyed()) return; const [width, height] = win.getContentSize(); profile.layout({ x: 0, y: SIGNIN_BAR, width, height: Math.max(0, height - SIGNIN_BAR) }); };
-    const tell = () => { const t = profile.get(); if (!win.isDestroyed() && t && !t.wc.isDestroyed()) win.webContents.send('master:url', t.wc.getURL()); };
-    try {
-      await win.loadFile(page('master.html'), { query: { signin: '', what, theme: shell.shade() } });
-      profile.on('changed', () => { place(); tell(); });
-      win.on('resize', place);
-      m.ready = profile.newTab(url).ready;
-      await m.ready;
-      place(); tell();
-    } catch (e) { if (!m.closing) throw e; } // closed by the human while it opened
-    return { closed, close: () => close(m) };
-  };
   async function close(m: Master): Promise<void> {
     if (m.closing) return m.closing;
-    if (m.signin) {
-      m.closing = (async () => {
-        await m.profile.close();
-        await wipeSession(m.profile.session).catch(() => {});
-        shell.signinWindows.delete(m);
-        m.closed = true;
-        if (!m.win.isDestroyed()) m.win.destroy();
-      })();
-      return m.closing;
-    }
     m.closing = (async () => {
       const urls = m.profile.tabs.filter((t) => !t.wc.isDestroyed()).map((t) => t.wc.getURL()).filter((u) => u && u !== 'about:blank');
       writeTabs(m.profile.dir, urls);

@@ -34,9 +34,8 @@ here; what is left of it stays.
       master, and the agent goes the whole way itself (account chooser, consent) with no sign-in pause on that path,
       never typing a Google password. The pause part goes into the author's replacement of `signin-pause.ts`.
     - Agents' accounts: the sign-in tried with a real Claude account (the tests use a fake agent); Codex's (`codex
-      login status` may not say the email); whether Claude Code's Keychain entry on macOS goes with `auth logout`,
-      and whether it reads `BROWSER` there and on Windows, so its page opens in Kulisa's clean browser (macOS and
-      Windows checks).
+      login status` may not say the email); whether Claude Code's Keychain entry on macOS goes with `auth logout`
+      (a macOS check).
   - **Put off**: ongoing tasks ("watch the feedback for a month") with Kulisa kept in the tray (none in GNOME by
     default); rights on profiles, when real accounts come (one flag, "view only": reading allowed, clicks and typing
     refused; today the agent's own modes cover test users).
@@ -541,6 +540,13 @@ here; what is left of it stays.
     connection. Copies only; `localStorage` tokens and Kasada-protected sessions may not carry over.
 
 ## Open issues
+
+- **"Sign in with Google" in a profile is likely refused** (found 2026-10-12, with an agent's sign-in: Google answered
+  "This browser or app may not be secure" in an Electron window presenting as Chrome; tasks.md, Accounts). A
+  profile's master is the same kind of window, so a site's "Sign in with Google" (and Google's own sites) may be
+  refused there too; not tried with a real Google account yet. The system's browser does not help there: the sign-in
+  must end in the profile's cookies. Kulisa does not try to get past Google's check (CLAUDE.md, Rules). To try first,
+  then to decide with the author.
 
 - **The OS's window buttons are not dimmed under a dialog** (the author, 2026-10-11; put off). They are drawn by the
   OS over the window (`titleBarOverlay`, `window.ts`), so the dialog's backdrop, HTML, cannot cover them: under a

@@ -351,8 +351,7 @@ Modules (`src/main`):
 - `agents.ts`: the agents to choose from, one entry each: find, install, start, resume. Agent-specific code goes
   here.
 - `profile-store.ts`: the profiles, one store: who each is, its master, its projects. `master.ts`: a master's window,
-  where the human signs in once for every task (nothing automated attached); the same window in memory is the clean
-  browser of an agent's own sign-in. `cookie-sync.ts`: real accounts'
+  where the human signs in once for every task (nothing automated attached). `cookie-sync.ts`: real accounts'
   cookies kept in step between a master and its copies. `local.ts`: what is local.
 - `project-profiles.ts`: a task's profiles (its project's, each a copy of its master made at its first open), open
   and closed: create, rename, describe, close, open, let go. `avatars.ts`: their pictures.
