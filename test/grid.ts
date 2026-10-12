@@ -109,12 +109,16 @@ export default (test: Test) => {
     assert.equal(shown[0], path.join(userData, 'projects', 'other'));
 
     // A click on the label folds its group and shows no project: its tasks are what is clicked (tasks.ts tests the
-    // folding).
+    // folding). Folded, its island is narrower: the islands are watched again after it unfolds (a frame drawn while it
+    // was folded made this test fail now and then).
+    assert.deepEqual(await ui(`[...__islands]`), [JSON.stringify(before)], 'the islands keep their places while another project opens');
     await ui(`${projectTab('project')}.querySelector('.plabel').click()`);
     await waitFor(() => shell.open.get('project').collapsed);
     assert.equal(shell.current?.folder, other);
     await ui(`${projectTab('project')}.querySelector('.plabel').click()`);
     await waitFor(() => !shell.open.get('project').collapsed);
+    await waitFor(async () => JSON.stringify(await islands()) === JSON.stringify(before));
+    await ui('__islands.clear(); 0');
     // A click on the first project's task: it comes back as it was left, its agent the same; no page shows before
     // it has its place in the grid (nothing jumps).
     const jumps: string[] = [];
