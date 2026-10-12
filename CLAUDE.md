@@ -217,7 +217,8 @@ unasked. This paragraph is removed when the rewrite is finished.
   concern (e.g. the shell fallback in `terminal.ts`). What is untested on a platform goes into ROADMAP.
 - Ask before anything outward-facing: pushing, publishing, registering domains.
 - Commit only when asked. The repo is public on GitHub (`origin`, github.com/cosmotools/kulisa); push only when
-  asked, and never print the remote URL (`git remote -v`): it carries the author's token.
+  asked (a commit the author asks for goes up as a pull request: below), and never print the remote URL (`git remote
+  -v`): it carries the author's token.
 - **Each piece of work in a worktree of its own** (the author, 2026-10-11: several Claude sessions work on Kulisa
   at once, and one switching or editing the shared folder pulled the files out from under the others):
   - Before the first change: `git worktree add .claude/worktrees/<name> -b <name> develop` (from the local
@@ -225,17 +226,29 @@ unasked. This paragraph is removed when the rewrite is finished.
     local one), and work there. `develop` is where work goes; `main` is what is released (Releases, below).
   - **The repository's own folder holds `develop`, always** (the author, 2026-10-11: with it in a worktree, the
     folder stayed on an old branch, and a session started there read an old CLAUDE.md and old docs). Nothing is
-    edited there and it is never switched to another branch; only merges into `develop` are done in it.
+    edited, committed or merged there, and it is never switched to another branch: it only follows GitHub's
+    `develop` once a pull request is merged (`git -C <repo> pull --ff-only origin develop`).
   - `node_modules` is a link to the repository's (`ln -s ../../../node_modules node_modules`) while the work does
     not change the dependencies; work that does gets its own (`npm install`, then `npm run postinstall`).
-  - Commits go to the worktree's branch. Merging into `develop` is done in the repository's folder (`git -C <repo>
-    merge --no-ff <name>`), with nothing else there; no worktree has `develop` checked out. Nothing is merged into
-    `main` here: only on GitHub, by a pull request (Releases).
+  - Commits go to the worktree's branch; no worktree has `develop` checked out. **Into `develop` only by a pull
+    request, merged by the author** (2026-10-12; Claude Code's auto mode refuses a local merge too, "Merge Without
+    Review"): when the author asks for the commit, push the branch (`git push -u origin <name>`) and open its pull
+    request into `develop` (GitHub's API, below), its body what the change does and its cost line (Working with the
+    author). Never merge into `develop` or `main` here, nor push them.
   - `npm test` runs from several worktrees at once: each checkout has its own test folder and test site
     (`test/start.ts`). The author's Kulisa runs one checkout at a time: the `run-kulisa` skill, from the worktree
     while its work is shown, from the repository's folder (`develop`) once it is merged.
-  - Once its branch is merged (or the author drops it), the worktree goes (`git worktree remove`), its branch
-    (`git branch -d`) and its test folder (`/tmp/kulisa-test-<worktree>-…`).
+  - Once its pull request is merged (or the author drops it), the repository's folder follows `develop` (above),
+    and the worktree goes (`git worktree remove`), its branch here (`git branch -D`: merged by GitHub's merge commit,
+    git here may not know it) and on GitHub (the API, below), and its test folder (`/tmp/kulisa-test-<worktree>-…`).
+- **GitHub's API, not `gh`** (not installed; the author's choice, 2026-10-12): `curl` to `https://api.github.com`
+  with the token of the remote's URL, read into a shell variable and never printed:
+  `T=$(git config --get remote.origin.url | sed -E 's#^https://[^:@/]*:?([^@/]*)@.*#\1#')`, then
+  `curl -sf -H "Authorization: Bearer $T" …`. A pull request: `POST /repos/cosmotools/kulisa/pulls` (`title`, `head`
+  the branch, `base`, `body`); its checks: `GET /repos/cosmotools/kulisa/commits/<sha>/check-runs`; whether it is
+  merged: `GET …/pulls/<n>`; a branch removed: `DELETE /repos/cosmotools/kulisa/git/refs/heads/<branch>`; a job's
+  log: `GET …/actions/jobs/<id>/logs` answers with a redirect to a signed address, fetched without the token. The
+  token cannot re-run a workflow (no Actions write): the author does it on the run's page.
 
 ## Releases
 
@@ -254,15 +267,15 @@ unasked. This paragraph is removed when the rewrite is finished.
   (Squirrel's `.exe`) and uploaded into it. The author checks and publishes it; only then update.electronjs.org
   serves it and installed copies update (docs/window.md, "The app icon, installers and updates"). Drafts until the
   first release is checked by hand on Windows (ROADMAP, "Releases and auto-update"), published at once after that.
-- **When the author says to release** (that is the ask to push `develop` and open the pull request, nothing more):
-  1. In a worktree from `develop`: raise the version, commit (`Kulisa <version>`), merge into `develop`.
-  2. Push `develop`; the tests run on it.
-  3. Open the pull request: `gh pr create --base main --head develop --title "Kulisa <version>"`, its body what is
-     new for the user since the last release (from `git log main..develop`, in the guide's words). Without `gh`, give
-     the author the link `https://github.com/cosmotools/kulisa/compare/main...develop?expand=1` and the text.
-  4. Watch its checks; fix a red one in `develop` (a push there updates the pull request). Tell the author when it
-     is green: the merge is theirs.
-  5. After the merge, watch the release's run; tell the author when the draft has its installers, or what failed.
+- **When the author says to release** (that is the ask to open the two pull requests, nothing more):
+  1. In a worktree from `develop`: raise the version, commit (`Kulisa <version>`), and open its pull request into
+     `develop` as any work's; the author merges it.
+  2. Open the pull request `develop` → `main` (GitHub's API, above): title `Kulisa <version>`, its body what is new
+     for the user since the last release (from `git log origin/main..origin/develop`, in the guide's words: it becomes
+     the release's notes).
+  3. Watch its checks; a red one is fixed by a pull request into `develop` (merged, it updates this one). Tell the
+     author when it is green: the merge is theirs.
+  4. After the merge, watch the release's run; tell the author when the draft has its installers, or what failed.
      Publishing it is theirs.
 
 ## Commands
