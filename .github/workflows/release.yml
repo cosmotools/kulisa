@@ -79,3 +79,16 @@ jobs:
           URL: ${{ needs.draft.outputs.url }}
           TAG: ${{ needs.draft.outputs.tag }}
         run: gh api -X PATCH "$URL" -f tag_name="$TAG" -f target_commitish="$GITHUB_SHA" -F draft=false -f make_latest=true >/dev/null
+  # kulisa.app built again: its download buttons and its user guide are the latest release's (kulisa-site's README,
+  # Deploy). With a token that may only run that repository's workflows (the author's, a secret); a site not built
+  # does not fail the release.
+  site:
+    needs: publish
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - env:
+          GH_TOKEN: ${{ secrets.SITE_DEPLOY_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then echo "::warning::No SITE_DEPLOY_TOKEN: kulisa.app is not built again"; exit 0; fi
+          gh workflow run deploy.yml --repo cosmotools/kulisa-site --ref main

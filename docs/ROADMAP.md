@@ -328,9 +328,9 @@ here; what is left of it stays.
     version is raised; `main` is protected, the author merges; the merge builds on Ubuntu and Windows (macOS once its
     secrets are there) into a draft release, published by the workflow once every OS built and the installed `.deb`
     started (the author, 2026-10-13: no users yet, no manual step; [window.md](window.md)). Windows not signed at
-    first (Squirrel works; SmartScreen warns): Azure Trusted Signing later. kulisa.app's download buttons take the
-    latest release's files from GitHub's API (the names carry the version), in `kulisa-site`, once there is one;
-    macOS's says "soon" until step 4.
+    first (Squirrel works; SmartScreen warns): Azure Trusted Signing later. kulisa.app's download buttons are the
+    latest release's files, taken at the site's build (`kulisa-site`), which the release starts (`SITE_DEPLOY_TOKEN`);
+    macOS's says "coming soon" until step 4.
   - **Steps:** 1. Kulisa's part (Forge's publisher and makers, the updater, Squirrel's events, docs): built
     ([window.md](window.md), "The app icon, installers and updates"). 2. The CI's
     workflows (`.github/workflows/`: `test.yml`, `release.yml`): built and run; `develop` and `main`'s ruleset
@@ -348,6 +348,18 @@ here; what is left of it stays.
     adding its source and key as Chrome and VS Code do, removed with `purge`); "Restart to update" in ☰ (through
     Kulisa's own quit, asking when an agent works); a switch to turn the checks off; delta updates (Squirrel
     downloads the whole app each time); winget.
+  - **The package's size** (measured on v0.1.1, 2026-10-13): the `.deb` is 109 MB, 413 MB installed. About 280 MB
+    of that is Electron itself (Chromium and Node; VS Code's, Slack's, Discord's `.deb`s are 90–110 MB too), which
+    stays. The app's own `app.asar` is 129 MB, mostly what it never loads:
+    - node-pty's prebuilt binaries for the other platforms, 58 MB (`prebuilds/`: darwin-arm64, darwin-x64,
+      win32-arm64, win32-x64; Linux's is built at install): left out of each OS's package (`forge.config.ts`,
+      `packagerConfig.ignore` or a packaging hook).
+    - The window's libraries, about 40 MB, which Vite already bundles into `dist/renderer` (2 MB): `reka-ui`,
+      `dockview`, `vue`, `@vue`, the `@xterm` addons and `@xterm/xterm`, the fonts, and with them `@babel`, `@swc`.
+      In `dependencies`, so Forge packs them again; moved to `devDependencies`, all but `@xterm/headless` (the main
+      process keeps each terminal's screen with it: `terminal.ts`). Each checked first: the main process imports none.
+    - Expected: a `.deb` of about 80 MB, about 300 MB installed, and Windows' update lighter as much. Checked by
+      the release's start of the installed `.deb`; a size limit there would tell when it grows again.
   - **Not now, and why:** AppImage (on Ubuntu 24.04 and later Electron in an AppImage starts only with
     `--no-sandbox`: its FUSE mount is `nosuid` and AppArmor restricts unprivileged user namespaces; Kulisa's pages
     hold real accounts; no maker of Forge's own); Snap and Flatpak (their sandbox is in the way of what Kulisa
@@ -647,7 +659,7 @@ here; what is left of it stays.
     Linux/X11 (GNOME) by the tests only, not by changing the OS's setting by hand. macOS draws its own window
     buttons.
   - Tests run often on Linux only; on macOS and Windows before a release (the author's decision, 2026-10-09). The CI
-    runs them on all three at every push to `develop` and pull request into `main` ([testing.md](testing.md), CI), macOS and Windows not failing the
+    runs them on all three at every pull request into `develop` or `main` ([testing.md](testing.md), CI), macOS and Windows not failing the
     workflow until the bench passes there: fixed by a Claude session on each OS. On a computer they run on the human's
     screen there (Xvfb is Linux's), taking its focus.
     The test bench assumes Linux; to adapt on each OS where it can be run (the author's decision, 2026-10-08), known so far:
@@ -685,7 +697,7 @@ here; what is left of it stays.
   moment after it starts and says nothing when: a click before went to the page; the test clicks again until the pick
   comes), "DevTools in a pane's ⋮ menu" (DevTools' window took the focus after the test's 3 s wait, closing the menu
   opened meanwhile; the test opens it again), "the islands keep their places" (a frame drawn while a group was folded).
-  Not looked at: the address bar's click (seen 2026-10-07); "Move to New Window puts a project in a window
+  Not looked at: "Move to New Window puts a project in a window
   of its own" (a 30 s timeout) and "agents: ☰ → Agents… shows what is installed" failed together once in a full
   `npm test` (2026-10-11, after the move to Reka UI; the output not kept), not in the four runs after; the agents'
   tests failed together again once in a full `npm test` (2026-10-11, the projects' manager as a page: "☰ → Agents…"
@@ -707,8 +719,20 @@ here; what is left of it stays.
   pane's menu closed opened no menu, once; not reproduced here (twice on two cores): the test right-clicks again until
   it opens. Its cause, a real right-click lost so, not found. Ctrl+` in an empty task (the island's buttons) given back to where the keyboard was by
   the + menu closed just before, on a loaded machine: the test presses again. "Move to New Window" still times out
-  (30 s) now and then under the runner's conditions, reproduced here ([testing.md](testing.md), CI), not looked into. Slow but not flaky: deleting a task (a fork's closing took 11 s,
+  (30 s) now and then under the runner's conditions, reproduced here ([testing.md](testing.md), CI), not looked into.
+  Found on the runner's logs and fixed on 2026-10-13 (#21), none of them reproduced here: the address bar's click (the
+  test before it clicks Back and ended as the buttons changed, with the navigation in flight: the pane still showed the
+  address before, the tab the new one; it waits for both now); "Move to New Window" (the agent's size compared the moment
+  the terminal showed its text, while the new window's page had fitted it at the whole window's height before its grid
+  was laid out: 46 rows for 17; the test waits for the last fit, and that passing size is an issue of its own, below);
+  "× on the last open task closes its group" (the close took over 5 s there, its profiles' sign-ins written out and
+  their tabs closed: 15 s). Ubuntu green 3 runs in a row after it. Slow but not flaky: deleting a task (a fork's closing took 11 s,
   git's work), a site that never answers (10 s: two 5 s waits by design).
+- **The agent gets a passing size when its project moves to a new window** (found 2026-10-13, on the runner: the
+  test above). The new window's page fits the terminal as soon as it opens, at the whole window's height (46 rows),
+  and again once its grid is laid out (17): both go to the agent (`pty:resize`, `renderer/lib/terminals.ts`), which
+  draws its prompt for each. A fix: fit only once the grid has laid out; the test then refuses a passing height as it
+  does a width (`__ptySizes`).
 - **The test "after a restart: a task's other terminal comes back …" takes 5.6 s** (`restart-tasks.ts`;
   found 2026-10-09, to come back to). Most of it is showing the project `other` until its task has loaded and
   the terminal's shell runs; it looks like another 5 s wait (as a tab's `ready` held a profile on a refused site:

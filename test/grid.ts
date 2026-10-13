@@ -224,7 +224,14 @@ export default (test: Test) => {
       return Array.from({ length: b.length }, (_, i) => b.getLine(i)).filter((l) => l.translateToString(true).includes('===')).map((l) => [l.translateToString(true).length, l.isWrapped]); })()`);
     assert.deepEqual(lines.filter(([n, wrapped]: [number, boolean]) => n !== 150 || wrapped), [], `whole lines: ${JSON.stringify(lines)}`);
     assert.deepEqual(await ui2('window.__ptySizes.filter((s) => s.cols < 100)'), [], 'no default size sent to the agent');
-    assert.deepEqual({ cols: pty.cols, rows: pty.rows }, size, 'the same size: the window is the same size');
+    // The window is the same size, so the agent ends up with the same one. The new window's page fits the terminal
+    // as soon as it opens, before its grid is laid out (at the window's whole height: 46 rows for 17 on the runner,
+    // now and then, 2026-10-12), then again in its panel: wait for the last fit; a size still different names both
+    // windows' sizes.
+    await waitFor(() => pty.cols === size.cols && pty.rows === size.rows, 5000).catch(() => {
+      throw new Error(`the same size: ${JSON.stringify({ cols: pty.cols, rows: pty.rows })}, expected ${JSON.stringify(size)}; `
+        + `windows ${JSON.stringify([first.win.getContentSize(), second.win.getContentSize()])}`);
+    });
     // The agent's output and its tools go on there.
     pty.write('moved along\r');
     await waitFor(async () => (await termText2()).includes('moved along'));
@@ -473,10 +480,15 @@ export default (test: Test) => {
     // paste and Kulisa's both pasted it); Ctrl+V and Ctrl+C go to the agent. Windows' and macOS' keys, and the menu's.
     const keys = (keyCode: string, modifiers: Parameters<typeof press>[2][]) => press(shell.win.webContents, keyCode, ...modifiers);
     await clipboard.writeText('kulisa-paste');
-    await focusWindow(shell.win, ui); await ui(`window.__term.focus()`);
     const before = ctx.ptyOutput().length;
-    keys('V', ['control', 'shift']);
-    await waitFor(() => ctx.ptyOutput().slice(before).includes('kulisa-paste'));
+    // Pressed again while nothing is pasted: the page reads the clipboard only while it has the focus, and on a loaded
+    // machine the window manager's focus, coming late after another window went, took it away for a moment (GitHub's
+    // runner, 2026-10-13); a read refused pastes nothing, so a second press cannot paste twice.
+    for (let i = 0; ; i++) {
+      await focusWindow(shell.win, ui); await ui(`window.__term.focus()`);
+      keys('V', ['control', 'shift']);
+      try { await waitFor(() => ctx.ptyOutput().slice(before).includes('kulisa-paste'), 2000); break; } catch (e) { if (i === 4) throw e; }
+    }
     await sleep(300); // nothing to wait for: that it is not pasted twice
     assert.equal(ctx.ptyOutput().slice(before).split('kulisa-paste').length - 1, 1, 'pasted once');
     await clipboard.writeText('');

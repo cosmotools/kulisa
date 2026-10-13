@@ -234,7 +234,8 @@ unasked. This paragraph is removed when the rewrite is finished.
     request, merged by the author** (2026-10-12; Claude Code's auto mode refuses a local merge too, "Merge Without
     Review"): when the author asks for the commit, push the branch (`git push -u origin <name>`) and open its pull
     request into `develop` (GitHub's API, below), its body what the change does and its cost line (Working with the
-    author). Never merge into `develop` or `main` here, nor push them.
+    author). `develop` is protected as `main` is (Releases), its required check `test (ubuntu-latest)`: tell the
+    author when it is green. Never merge into `develop` or `main` here, nor push them.
   - `npm test` runs from several worktrees at once: each checkout has its own test folder and test site
     (`test/start.ts`). The author's Kulisa runs one checkout at a time: the `run-kulisa` skill, from the worktree
     while its work is shown, from the repository's folder (`develop`) once it is merged.
@@ -266,7 +267,9 @@ unasked. This paragraph is removed when the rewrite is finished.
   `.github/workflows/release.yml` makes a draft `v<version>` at that commit, its notes the pull request's text;
   builds the installers on Ubuntu (`.deb`, `.rpm`) and Windows (Squirrel's `.exe`) into it; installs the `.deb` and
   starts it; then publishes it, the tag made then. update.electronjs.org serves it and installed copies update
-  (docs/window.md, "The app icon, installers and updates"). A failed build or start leaves the draft unpublished:
+  (docs/window.md, "The app icon, installers and updates"); kulisa.app is built again, its download buttons and
+  its guide then the release's (`SITE_DEPLOY_TOKEN`, a secret: a token that may only run `kulisa-site`'s workflows;
+  a site not built does not fail the release). A failed build or start leaves the draft unpublished:
   fixed by the next release, its version raised again; the failed draft deleted (`DELETE …/releases/<id>`).
 - **When the author says to release** (that is the ask to open the two pull requests, nothing more):
   1. In a worktree from `develop`: raise the version, commit (`Kulisa <version>`), and open its pull request into

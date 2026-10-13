@@ -51,7 +51,10 @@ arrangements, each drawn as a small picture of itself, as Windows' snap layouts 
 profiles in columns with the terminal below, two by two with the terminal on the right, one profile at a time.
 Each fits the window with nothing cut off, the terminal taking a third of it (`TERMINAL_SHARE`, `lib/grid.ts`): the
 pages are what is looked at. The first profile opened over the terminal alone keeps that share too (dockview halved
-the room, a terminal as tall as the pages and mostly empty; 2026-10-13). The grid is saved per task (`layout.json`) and restored.
+the room, a terminal as tall as the pages and mostly empty; 2026-10-13). The grid is saved per task (`layout.json`) and restored: 300 ms after
+its last change, and at once when the task is left (a change just before was lost, and a saved grid naming a profile
+deleted since is not restored at all: a profile deleted, then another task shown at once, came back to the default
+arrangement; 2026-10-13).
 The island is one panel however many terminals it holds ("The terminal").
 
 The window itself never scrolls, also not from a script (`overflow` on `html` and `body`, App.vue): a panel stacked
@@ -286,7 +289,9 @@ would tag whatever `main` is when the draft is published); Ubuntu and Windows bu
 it by its name; the `.deb` is installed on Ubuntu and started under Xvfb (its MCP server listening, nothing uncaught,
 still running after 5 s: the tests run Kulisa from source, and what breaks only packaged would reach every installed
 copy, one failing at start never able to update again); then the draft is published, the tag made at that commit.
-Until then, and when a step fails, it is a draft nobody is served. A version released before stops it. Releases are built and the updates checked as ROADMAP's "Releases and auto-update" plans them; what is
+Until then, and when a step fails, it is a draft nobody is served. A version released before stops it. Once
+published, kulisa.app is built again (`kulisa-site`'s deploy, run with the secret `SITE_DEPLOY_TOKEN`): its
+download buttons lead to this release's files. Releases are built and the updates checked as ROADMAP's "Releases and auto-update" plans them; what is
 left is there too.
 
 **Updates**, Forge's way (`updates.ts`, called by `index.ts`): Electron's `autoUpdater` (Squirrel) through the
