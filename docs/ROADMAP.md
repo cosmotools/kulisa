@@ -615,11 +615,13 @@ here; what is left of it stays.
     - Both: closing a task and opening it again (`claude --resume`) and the project folder dialog
       (New Project…'s Browse…, native) are untested.
   - `safeStorage` (Keychain, DPAPI) for session cookies: expected to work, untested.
-  - Dictation (the terminal's microphone): the agent records itself. macOS: the system asks for the microphone for
-    Kulisa (`NSMicrophoneUsageDescription` in `forge.config.ts`); check that it asks and that `claude`'s `/voice`
+  - Dictation (the right ⌘ held, or the terminals' microphone): the agent records itself. macOS: the system asks for the
+    microphone for Kulisa (`NSMicrophoneUsageDescription` in `forge.config.ts`); check that it asks and that `claude`'s `/voice`
     then records, packaged and from `npm start` (the Terminal app's permission may be the one asked then); signed
-    with the hardened runtime it also needs the `com.apple.security.device.audio-input` entitlement. Windows: the
-    microphone privacy setting for desktop apps.
+    with the hardened runtime it also needs the `com.apple.security.device.audio-input` entitlement; that the right ⌘ is
+    seen as one (`MetaRight`, `location` 2: tested with sent events only). Windows: the microphone privacy setting for
+    desktop apps; the right Ctrl of a keyboard with AltGr (it sends a Ctrl before AltGr on Windows: check that a typed
+    AltGr character does not start a recording).
   - macOS: the window screenshot (`KULISA_SHOT`) needs the screen-recording permission; distribution needs code
     signing and notarization (Apple Developer account). Windows: code signing certificate.
   - The first start: a packaged app opens no task (the empty window, New Project open), later the groups open last
