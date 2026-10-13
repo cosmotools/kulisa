@@ -88,7 +88,8 @@ git a task works right in the project's folder.
   human for a name or mention naming it.
 - **Another of the project's repositories**: read it freely in the project's folder, changing nothing there. When the
   task needs changes in it, ask the human first, saying why; once they agree, `task_add_repository` adds a copy on
-  your branch, where you make them.
+  your branch, where you make them. A copy the task no longer needs (added by mistake, or not needed after all) goes
+  the same way: ask, then `task_remove_repository`; its folder and branch are deleted.
 - What Kulisa tells you (at the session's start, with a prompt, in a tool's result) is for you: act on it without
   recounting it to the human.
 - Work and commit on the task's branch. **The project's folder is the human's**: never change it on your own. Asked

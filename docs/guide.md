@@ -131,8 +131,11 @@ chosen in **☰ → Language**. With a terminal or an agent without dictation in
 - **Several repositories.** In a project of several repositories (a frontend and a backend), a new task gets a copy
   of the default one only. When the work needs another, add it: right-click the task's tab and choose it under **Add
   Repository**. The agent may ask you for one too, and adds it once you agree; to only read another repository it
-  needs no copy. Kulisa gives the agent the new folder itself (Claude Code at once, unless it is waiting for your answer; other
-  agents once they have finished what they are doing).
+  needs no copy. The repositories the task has are named at the end of its terminals' row; one just added comes in
+  lit for a moment. Kulisa gives the agent the new folder itself (Claude Code at once, unless it is waiting for your
+  answer; other agents once they have finished what they are doing). One you no longer need goes the same way:
+  **Remove Repository** on the task's tab, or a right-click on its name in that row (the agent may ask to remove one
+  too). Its copy and branch are deleted; when they hold work not pushed, Kulisa asks you first.
 - **Its own ports.** Each task runs your app on its own ports, the usual ones plus 100, 200, …, so several tasks run
   the app at once. Its profiles' tabs on local addresses already point there, and stay signed in.
 - **Its name** is `task-1`, `task-2` … until the agent names it, by itself and without a word about it, once your

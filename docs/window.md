@@ -177,7 +177,12 @@ not needed): a terminal is not split off into a panel of its own. Each is the us
 ([tasks.md](tasks.md), "Several agents in a task") or not. Each tab: the agent's icon (a shell's, for a shell), its
 name, its state (an agent's: working, waiting for you, done), ×. After the tabs, the island's own **+**, whatever
 tab is in front (a menu of the project's accounts, the default first, each a new conversation; then Terminal, a
-shell). Under the terminal, a second island in the same panel, so it goes wherever the terminals go: the **voice
+shell). At the row's end, in a project of several repositories, the task's copies of them, a `.chip` each (its
+name; its folder and branch in its tooltip; `TaskRepos.vue`): which repositories it works in, seen without asking. One
+added (Add Repository, or its agent's `task_add_repository`) comes in from the right, lit in the accent color for a
+moment (`.fresh`; not with reduced motion), so the human sees it arrive; another task shown is no news. An added one's
+right-click menu: Remove Repository (the task's own folder has none). Under the
+terminal, a second island in the same panel, so it goes wherever the terminals go: the **voice
 bar**, the row of tabs' height, the dictation of the agent in front in its middle (below; the author, 2026-10-13). It
 is one panel of the grid drawn as two islands: the group's own color is taken off (`.termsplit`, set by
 `Terminals.vue`: the panel is rendered over the group, dockview's `renderer: 'always'`, so no rule of the group's can

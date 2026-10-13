@@ -129,6 +129,20 @@ class Project {
       return c;
     } catch (e) { return { error: (e as GitError).stderr || (e as Error).message }; }
   }
+  // A copy taken out of a task again (Task.removeRepository; the author, 2026-10-13: one added by mistake, or not needed
+  // after all): asked first only when it holds work not in main and not pushed, which goes with it. True when it may go.
+  async askRemoveCopy(task: Task, c: Copy) {
+    const what = changesText(await changes(c));
+    return !what || await this.shell.ask(deleteQuestion({ message: `Remove ${path.basename(c.repo)} from the task ${task.name}?`, ok: 'Remove',
+      goes: [`its folder ${c.worktree}, its branch ${c.branch}`], notInMain: [what], stays: `The repository ${c.repo} stays in the project.` }), this.window);
+  }
+  // Its folder and branch gone as a deleted task's are (removeWorktree), and what the task's agents keep of it.
+  async removeCopy(task: Task, c: Copy) {
+    await removeWorktree(c);
+    forgetFolder(this.shell, this.entry, task.entry, c.folder);
+    task.entry.copies = task.entry.copies!.filter((x) => x !== c);
+    this.save();
+  }
   // A profile let go by the project (the editor's Delete, the agent's profile_delete): asked first (askDropProfile).
   askDropProfile(p: Named, by: 'human' | 'agent' = 'human') { return askDropProfile(this.shell, this.entry, p, by, this.window); }
   dropProfile(folder: string) { return dropProfile(this.shell, this.entry, folder); }
@@ -227,6 +241,22 @@ async function deleteClosedTask(shell: Shell, p: ProjectEntry, n: number, w: App
   return { n };
 }
 
+// What the agents that worked in a task keep of a folder of its copies (agents/, forget): its conversations there, its
+// trust. In its own folder each conversation goes; in another copy's, nothing of a conversation (its session's files
+// are not that folder's), only what the agent keeps of the folder.
+function forgetFolder(shell: Shell, p: ProjectEntry, entry: TaskEntry, folder: string) {
+  const { store } = shell;
+  // Each of its conversations: the agents that worked in it, each its account's (tasks.ts).
+  const conversations = (e: TaskEntry) => store.taskOf(p, e.n).agent().conversations || [];
+  const project = { folder: reposOf(p)[0], ...store.tasksOf(p).list.flatMap(conversations).find((c) => c.transcript) };
+  for (const saved of conversations(entry)) {
+    try {
+      const a = shell.agentFor(saved.agent, { any: true });
+      a?.forget?.({ folder, saved: folder === entry.folder ? saved : { transcript: saved.transcript }, project, configDir: a.configDir });
+    } catch (e) { console.warn('[agents] forget:', (e as Error).message); }
+  }
+}
+
 // A task deleted for good, the one way it is done (Delete, removing a project), once it is not running: each copy's
 // worktree folder and branch (worktrees.ts), its folder of copies, and all its agent keeps of its folder (agents/,
 // forget); its data folder, profiles with their sign-ins included. A task without copies worked in a folder of the
@@ -237,14 +267,7 @@ async function deleteTask(shell: Shell, p: ProjectEntry, entry: TaskEntry) {
   const data = store.taskOf(p, entry.n);
   for (const c of entry.copies || []) await removeWorktree(c);
   if (entry.home) fs.rmSync(entry.home, { recursive: true, force: true });
-  if (entry.copies?.length) {
-    // Each of its conversations: the agents that worked in it, each its account's (tasks.ts).
-    const conversations = (e: TaskEntry) => store.taskOf(p, e.n).agent().conversations || [];
-    const project = { folder: reposOf(p)[0], ...store.tasksOf(p).list.flatMap(conversations).find((c) => c.transcript) };
-    for (const saved of conversations(entry)) {
-      try { const a = shell.agentFor(saved.agent, { any: true }); a?.forget?.({ folder: entry.folder!, saved, project, configDir: a.configDir }); } catch (e) { console.warn('[agents] forget:', (e as Error).message); }
-    }
-  }
+  for (const c of entry.copies || []) forgetFolder(shell, p, entry, c.folder);
   // Its profiles' sessions stay open in Electron until Kulisa quits: whatever cannot go now goes at the next start.
   store.markDeleted(data.dir);
   try { fs.rmSync(data.dir, { recursive: true, force: true }); } catch (e) { console.warn('[tasks]', (e as Error).message); }

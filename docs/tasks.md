@@ -204,7 +204,8 @@ build several features of one project at once.
   in one folder of the task's (`~/Kulisa/<project>@task-<n>/<repo>/`, one place to see and delete), where the others'
   copies go too. Its agent starts there.
 - **Another repository when the work needs it** (the author, 2026-10-13: a task on the backend may turn out to need
-  the frontend, and copies of every repository in every task were made for nothing). The project's other repositories
+  the frontend, and copies of every repository in every task were made for nothing; the ones a task has are named at the end of its
+  terminals' row: [window.md](window.md), The terminal). The project's other repositories
   in git are added to a task one at a time: by the human, Add Repository in its tab's right-click menu; by the agent,
   `task_add_repository`, once the human has agreed in the conversation (the profiles skill and the MCP server's
   instructions say so; no question of Kulisa's: the author's choice, the agent asks). A copy on the task's branch in
@@ -219,7 +220,14 @@ build several features of one project at once.
   others: Claude Code and Codex as `--add-dir` (Claude Code reading their `CLAUDE.md` too:
   `CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD`), every agent in the MCP server's instructions and at its session's
   start (`agents/`, `dirs`). The repositories it has no copy of are named there too, to read in the project's folders
-  without asking, changing nothing. A copy goes when the task is deleted, with the others; none is removed before.
+  without asking, changing nothing. One added and no longer needed (added by mistake, or not needed after all; the
+  author, 2026-10-13) is taken out again: by the human, Remove Repository in its tab's menu or on its chip; by the
+  agent, `task_remove_repository`, once the human agreed (`Task.removeRepository`, `Project.removeCopy`). Its folder
+  and branch go as a deleted task's do, and what the agents keep of its folder (below, "Deleting a task"); asked first
+  only when it holds commits not pushed or uncommitted files, named in the question (`askRemoveCopy`). Its running
+  agents get a line saying so once their turn is over (none has a command to drop a folder: Claude Code keeps it in
+  its session's list until its next start, harmless), unless they were not told of it yet. The task's own folder,
+  where its agents work, goes only with the task.
   The project's folders without git are given to the agent as they are (nothing to copy). With one repository: the project's folder stays the human's, and no agent works in it on its own. Its work
   goes back through git: the human asks the agent to merge into main (the agent first checks the project's folder for
   the human's uncommitted changes, and stops if there are any: the profiles skill and the MCP server's
@@ -303,6 +311,7 @@ to the human; the window's IPC (`app.ts`) and the MCP tools are handles on it:
 | Show a task | a click on its tab, of any group | none: what the human looks at is theirs | `AppWindow.showTask`, then `show` its project (`window.ts`) |
 | Add, clone, make the default, remove a repository | the projects' manager | none: what the project is made of is the human's | `addRepo`, `cloneRepo`, `defaultRepo`, `removeRepo` (`projects.ts`) |
 | Add a project's repository to a task | Add Repository in its tab's menu | `task_add_repository`, once the human agreed in the conversation | `Task.addRepository`, `Project.addCopy` |
+| Remove one added | Remove Repository in its tab's menu, or on its chip | `task_remove_repository`, once the human agreed | `Task.removeRepository`, `Project.askRemoveCopy`, `removeCopy` |
 | Add, make the default (or none the default), remove an agent of the project | the projects' manager | none: what the project is made of is the human's | `addAgent`, `defaultAgent`, `removeAgent` (`projects.ts`) |
 | Make an account of an agent | New Account… in Settings → Agents or a project's page | none: signing in is the human's (Rules) | `account:signin` (`app.ts`), `Accounts.prepare`, `create` |
 | Delete an account | − in Settings → Agents | none: it deletes a sign-in and conversations, the human's to decide | `deleteAccount` (`projects.ts`), `shell.dropAccount` |
@@ -647,8 +656,9 @@ its agent and closes its profiles, then deletes:
   `direnv deny`, which newer direnv records too);
 - its data folder `projects/<id>/<n>/`, profiles with their sign-ins (also listed in `deleted-folders.json`,
   removed at the next start if a file was still open);
-- what its agent keeps of the task's folder (`agents/`, each agent's `forget`; undocumented layouts, so what is
-  not found is skipped):
+- what its agent keeps of the task's folders (`agents/`, each agent's `forget`, `forgetFolder` in `projects.ts`;
+  undocumented layouts, so what is not found is skipped): its own folder's conversations and records, and the other
+  copies' records (their trust); a copy removed from a task alone (Remove Repository) loses the same:
   - Claude Code, in the config dir its sessions used: its conversations in `projects/<folder>/` (those recorded in
     the task's folder: Claude names that folder with non-Latin letters as `-`, so other folders can share it),
     `file-history/`, `session-env/`, `debug/`, `todos/` of those sessions, the folder's lines in `history.jsonl`,

@@ -36,7 +36,7 @@ interface TaskTerminal {
   id: number; key: string; name: string; command: string; by: 'human' | 'agent'; pty?: Pty;
   agent?: AgentChoice; conversation?: number; state: AgentState; seen: boolean; error?: undefined;
   handedFrom?: number; // the conversation it was handed (handOver), its number from 1, while it reads it
-  newDirs?: Copy[]; giving?: boolean; // copies added to the task, given to the agent once its turn is over (giveDirs)
+  newDirs?: { copy: Copy; removed?: true }[]; giving?: boolean; // copies added to the task or removed, told once its turn is over (giveDirs)
 }
 type Found = { profile: Profile; error?: undefined } | { error: string; closed?: boolean; profile?: undefined };
 
@@ -191,22 +191,43 @@ class Task {
     if (!this.addable().includes(found)) return { error: `${found} has no git commit to copy` };
     const c = await this.project.addCopy(this, found);
     if (refused(c)) return c;
-    for (const t of this.agentTerminals()) if (t.pty) { (t.newDirs ??= []).push(c); void this.giveDirs(t); }
+    for (const t of this.agentTerminals()) if (t.pty) { (t.newDirs ??= []).push({ copy: c }); void this.giveDirs(t); }
     this.window?.sendTasks(); this.window?.sendProjects();
     return { folder: c.folder, branch: c.branch };
+  }
+  // One of them taken out again (the human's Remove Repository, the agent's task_remove_repository once the human
+  // agreed; the author, 2026-10-13), by its repository's folder or name, or its copy's folder: asked first when it holds
+  // work not pushed (askRemoveCopy). Not its own folder, where its agents work: that goes with the task. Its running
+  // agents told; one not told yet of it being added is told nothing. The copy's folder.
+  async removeRepository(repo: string): Promise<Result<{ folder: string }>> {
+    const c = this.entry.copies?.find((x) => x.repo === repo || x.folder === repo || path.basename(x.repo) === repo);
+    if (!c) return { error: `the task has no copy of ${repo}; its copies: ${(this.entry.copies || []).map((x) => x.folder).join(', ') || 'none'}` };
+    if (c.folder === this.folder) return { error: `${c.folder} is the task's own folder, where its agents work: it goes only with the task` };
+    if (!await this.project.askRemoveCopy(this, c)) return { error: 'the human said no' };
+    await this.project.removeCopy(this, c);
+    for (const t of this.agentTerminals()) {
+      if (!t.pty) continue;
+      if (t.newDirs?.some((d) => d.copy === c)) { t.newDirs = t.newDirs.filter((d) => d.copy !== c); continue; }
+      (t.newDirs ??= []).push({ copy: c, removed: true });
+      void this.giveDirs(t);
+    }
+    this.window?.sendTasks(); this.window?.sendProjects();
+    return { folder: c.folder };
   }
   // Copies added to the task, sent to a running agent by Kulisa as the human would type them (the author, 2026-10-13:
   // the human sending a typed /add-dir was a step easily missed). Never while it waits for the human: Enter answered
   // Claude Code's permission question with Yes, the pasted line lost (2.1.296). Claude Code's /add-dir goes into a
   // turn too: it runs at once, its question over the turn, which goes on (2.1.296); others get a line saying so once
-  // the turn is over (agents/, addDir). A draft the human is typing there then gets the line too.
+  // the turn is over (agents/, addDir). A copy removed: a line for every agent, once its turn is over (no agent has a
+  // command to drop a folder). A draft the human is typing there then gets the line too.
   async giveDirs(t: TaskTerminal) {
     if (t.giving) return;
     t.giving = true;
-    const busy = () => t.state === 'waiting' || (t.state === 'working' && !t.agent!.addDir);
-    while (t.pty && this.terminals.get(t.id) === t && !busy() && t.newDirs?.length) {
-      const c = t.newDirs.shift()!, add = t.agent!.addDir;
-      await sendToPrompt(t.pty, add ? add.command(c.folder) : `Kulisa added ${c.folder} to this task: a copy of the project's repository ${c.repo}, on branch ${c.branch}. Nothing to do about it now.`, add?.confirm);
+    const busy = () => t.state === 'waiting' || (t.state === 'working' && (!t.agent!.addDir || !!t.newDirs?.[0]?.removed));
+    while (t.pty && this.terminals.get(t.id) === t && t.newDirs?.length && !busy()) {
+      const { copy: c, removed } = t.newDirs.shift()!, add = removed ? undefined : t.agent!.addDir;
+      await sendToPrompt(t.pty, removed ? `Kulisa removed ${c.folder} from this task, with its branch ${c.branch}: work no more there. Nothing to do about it now.`
+        : add ? add.command(c.folder) : `Kulisa added ${c.folder} to this task: a copy of the project's repository ${c.repo}, on branch ${c.branch}. Nothing to do about it now.`, add?.confirm);
     }
     t.giving = false;
   }
@@ -651,7 +672,8 @@ class Task {
   info(): Sent.TaskInfo {
     const { n, key, name, tabState: state, folder, offset } = this;
     return { n, key, name, state, folder, offset, branch: this.entry.branch || null, closed: !!this.entry.closed, merged: !!this.entry.merged,
-      about: this.entry.about, repos: this.addable() };
+      about: this.entry.about, repos: this.addable(),
+      copies: (this.entry.copies || []).map((c) => ({ name: path.basename(c.repo), folder: c.folder, branch: c.branch })) };
   }
 }
 

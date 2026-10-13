@@ -784,6 +784,7 @@ function start(options: Options = {}) {
   ipcMain.handle('task:open', (_e, key: string) => taskAt(key, openTask));
   ipcMain.handle('task:rename', (_e, { key, name }: { key: string; name: string }) => taskAt(key, (task) => task.rename(name)));
   ipcMain.handle('task:add-repo', (_e, { key, repo }: { key: string; repo: string }) => taskAt(key, (task) => task.addRepository(repo)));
+  ipcMain.handle('task:remove-repo', (_e, { key, repo }: { key: string; repo: string }) => taskAt(key, (task) => task.removeRepository(repo)));
   ipcMain.handle('project:delete-merged', (_e, { id }: { id: string }) => serial(() => { const p = shell.open.get(id); return p ? deleteMerged(p) : { error: 'the project is not open' }; }));
   // The voice bar's microphone (Dictation.vue in the renderer; Task.voice, dictate).
   // Esc typed into an agent's terminal (its key: "<task>#<id>"): Task.interrupted.

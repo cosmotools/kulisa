@@ -80,14 +80,14 @@ const progress = computed(() => {
         <small class="conv">“{{ from.name }}”</small>
       </div>
       <ul class="baton" aria-label="Goes along">
-        <li v-if="branch" style="--i: 0"><Icon name="i-git" />{{ branch }}</li>
-        <li v-if="store.profiles.length" style="--i: 1">
+        <li v-if="branch" class="chip" style="--i: 0"><Icon name="i-git" />{{ branch }}</li>
+        <li v-if="store.profiles.length" class="chip" style="--i: 1">
           <span class="faces"><img v-for="p in store.profiles" :key="p.key" class="avatar" alt="" :src="avatarSrc(p.avatar)" :title="p.name"></span>
           {{ plural(store.profiles.length, 'profile') }}, signed in
         </li>
-        <li v-if="tabs" style="--i: 2"><Icon name="i-globe" />{{ plural(tabs, 'tab') }}</li>
-        <li v-if="shells.length" style="--i: 3"><Icon name="i-agent-shell" />{{ shells.length === 1 ? shells[0]!.name : plural(shells.length, 'terminal') }}, running</li>
-        <li style="--i: 4"><Icon name="i-docs" />the whole conversation</li>
+        <li v-if="tabs" class="chip" style="--i: 2"><Icon name="i-globe" />{{ plural(tabs, 'tab') }}</li>
+        <li v-if="shells.length" class="chip" style="--i: 3"><Icon name="i-agent-shell" />{{ shells.length === 1 ? shells[0]!.name : plural(shells.length, 'terminal') }}, running</li>
+        <li class="chip" style="--i: 4"><Icon name="i-docs" />the whole conversation</li>
       </ul>
       <div class="side to">
         <Icon v-if="to" class="mark" :name="agentMark(to.cli)!" />
@@ -126,9 +126,7 @@ const progress = computed(() => {
   .baton { position: relative; display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0 var(--inset); list-style: none;
     /* the way they go: a line from one agent to the other, under them */
     &::before { content: ""; position: absolute; inset: 50% 0 auto; border-top: 1px dashed var(--line); z-index: 0; }
-    li { position: relative; z-index: 1; display: flex; align-items: center; gap: 6px; padding: 2px 8px; border: 1px solid var(--line);
-      border-radius: 999px; background: var(--island); white-space: nowrap; font-size: var(--font-small);
-      svg { --icon: 14px; width: var(--icon); height: var(--icon); color: var(--text-dim); } }
+    li { position: relative; z-index: 1; }
     .faces { display: flex; img + img { margin-inline-start: -5px; } } }
   /* While it reads: what goes along flies over again and again, the new agent taking it in */
   .going {

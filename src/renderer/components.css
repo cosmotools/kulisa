@@ -50,6 +50,10 @@ button.danger { background: var(--danger); border-color: var(--danger); color: v
   color: var(--text-strong); text-align: start; svg { color: var(--text-dim); } }
 /* A project's color (--color on it or above) */
 .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; background: var(--color); }
+/* A thing named in a pill, its icon first: what goes along to another agent (HandOver.vue), a task's repositories */
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border: 1px solid var(--line); border-radius: 999px;
+  background: var(--island); white-space: nowrap; font-size: var(--font-small);
+  > svg { --icon: 14px; width: var(--icon); height: var(--icon); color: var(--text-dim); } }
 /* A tab of a strip on an island, as a browser's (TaskTab.vue): the agent's .state, the .name, × at the end
    (button.close.icon.quiet.small), always shown, as Chrome's (the author, 2026-10-12). A
    step taller than a button and never narrow: a target for a quick throw of the mouse. Lit under the pointer;
