@@ -101,6 +101,6 @@ defineExpose({ newAccount, busy });
   :is(.progress, .error) { margin: 0; &:empty { display: none; } }
   .details[hidden] { display: none; }
   pre { max-height: 180px; overflow: auto; margin: 6px 0 0; padding: 8px; border-radius: var(--radius); background: var(--window);
-    font: 12px "JetBrains Mono", monospace; white-space: pre-wrap; user-select: text; }
+    font: var(--font) "JetBrains Mono", monospace; white-space: pre-wrap; user-select: text; }
 }
 </style>
