@@ -694,7 +694,7 @@ here; what is left of it stays.
   moment after it starts and says nothing when: a click before went to the page; the test clicks again until the pick
   comes), "DevTools in a pane's ⋮ menu" (DevTools' window took the focus after the test's 3 s wait, closing the menu
   opened meanwhile; the test opens it again), "the islands keep their places" (a frame drawn while a group was folded).
-  Not looked at: the address bar's click (seen 2026-10-07); "Move to New Window puts a project in a window
+  Not looked at: "Move to New Window puts a project in a window
   of its own" (a 30 s timeout) and "agents: ☰ → Agents… shows what is installed" failed together once in a full
   `npm test` (2026-10-11, after the move to Reka UI; the output not kept), not in the four runs after; the agents'
   tests failed together again once in a full `npm test` (2026-10-11, the projects' manager as a page: "☰ → Agents…"
@@ -716,8 +716,20 @@ here; what is left of it stays.
   pane's menu closed opened no menu, once; not reproduced here (twice on two cores): the test right-clicks again until
   it opens. Its cause, a real right-click lost so, not found. Ctrl+` in an empty task (the island's buttons) given back to where the keyboard was by
   the + menu closed just before, on a loaded machine: the test presses again. "Move to New Window" still times out
-  (30 s) now and then under the runner's conditions, reproduced here ([testing.md](testing.md), CI), not looked into. Slow but not flaky: deleting a task (a fork's closing took 11 s,
+  (30 s) now and then under the runner's conditions, reproduced here ([testing.md](testing.md), CI), not looked into.
+  Found on the runner's logs and fixed on 2026-10-13 (#21), none of them reproduced here: the address bar's click (the
+  test before it clicks Back and ended as the buttons changed, with the navigation in flight: the pane still showed the
+  address before, the tab the new one; it waits for both now); "Move to New Window" (the agent's size compared the moment
+  the terminal showed its text, while the new window's page had fitted it at the whole window's height before its grid
+  was laid out: 46 rows for 17; the test waits for the last fit, and that passing size is an issue of its own, below);
+  "× on the last open task closes its group" (the close took over 5 s there, its profiles' sign-ins written out and
+  their tabs closed: 15 s). Ubuntu green 3 runs in a row after it. Slow but not flaky: deleting a task (a fork's closing took 11 s,
   git's work), a site that never answers (10 s: two 5 s waits by design).
+- **The agent gets a passing size when its project moves to a new window** (found 2026-10-13, on the runner: the
+  test above). The new window's page fits the terminal as soon as it opens, at the whole window's height (46 rows),
+  and again once its grid is laid out (17): both go to the agent (`pty:resize`, `renderer/lib/terminals.ts`), which
+  draws its prompt for each. A fix: fit only once the grid has laid out; the test then refuses a passing height as it
+  does a width (`__ptySizes`).
 - **The test "after a restart: a task's other terminal comes back …" takes 5.6 s** (`restart-tasks.ts`;
   found 2026-10-09, to come back to). Most of it is showing the project `other` until its task has loaded and
   the terminal's shell runs; it looks like another 5 s wait (as a tab's `ready` held a profile on a refused site:

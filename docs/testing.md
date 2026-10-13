@@ -151,7 +151,10 @@ Found so (2026-10-12): a click on the chosen row of Settings' tree un-chose it (
 window, `selection-behavior="replace"` now); keys sent before the window's page had the keyboard (`focusWindow`); a
 window's focus from the window manager coming after its page's, its blur closing the next test's menu; a script that
 closes its own window never answering (a click deferred with `setTimeout`); a paste lost while that late focus took the
-page's away (the clipboard is read only with it: pressed again until it lands).
+page's away (the clipboard is read only with it: pressed again until it lands). From the runner's logs (2026-10-13,
+not reproduced here): a test ending with a back navigation in flight, the next one reading the address; a terminal
+fitted at the whole window's height before its new window's grid was laid out; a group's close taking over 5 s under
+two groups' load.
 
 | File | What |
 |---|---|
