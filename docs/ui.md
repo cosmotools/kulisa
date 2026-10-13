@@ -24,7 +24,7 @@ Kulisa is a desktop app, an IDE: its window looks like one, JetBrains' Settings 
 the dialogs, with big titles, framed cards, a paragraph each, pills and rows that showed their buttons under the
 pointer, read as a web page's and were hard to read). So:
 
-- **JetBrains' UI font and size**: Inter at 13 px (their UI Guidelines, Typography), bundled
+- **JetBrains' UI font and size**: Inter at 14 px (a step above their UI Guidelines' 13, Typography: the author found 13 small, 2026-10-13), bundled
   (`@fontsource-variable/inter`, `main.ts`), so the window looks the same on every OS; until 2026-10-13 it was the OS's
   own (`system-ui`: on Linux Noto Sans at 14 px, wide, read as a web page's). The terminal keeps JetBrains Mono.
 - **Two text sizes** (`--font`, `--font-small` for group titles and a dialog's title), two weights; nothing bigger.
