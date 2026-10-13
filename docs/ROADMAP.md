@@ -1,7 +1,6 @@
 # Roadmap
 
-What is planned: ideas and the details of features still to build, deferred ideas, open issues. Feature numbers
-refer to [SPEC.md](SPEC.md), section 2. When a feature is built, it is documented in `docs/` (how it works and why:
+What is planned: ideas and the details of features still to build, deferred ideas, open issues. When a feature is built, it is documented in `docs/` (how it works and why:
 [profiles.md](profiles.md), [tasks.md](tasks.md), [window.md](window.md), [ui.md](ui.md)) and removed from
 here; what is left of it stays.
 
@@ -99,7 +98,7 @@ here; what is left of it stays.
     one: an Android variant of the profile's own User-Agent, put back after the pause (`Profile.setSigninMode`), which
     detaches the debugger and with it every CDP override; during the pause the desktop one: a strict sign-in
     (GoDaddy's Kasada) may not take an Android UA from a Linux machine. Not Google Chrome's: presenting as Chrome got
-    a profile refused by Google (REPORT, "Chrome mimicry dropped").
+    a profile refused by Google ([profiles.md](profiles.md), What sites see).
   - Kept with the tab across restarts (a field in `Kulisa Tabs.json`). No RAM: no process, no buffers.
   - Next to it, small: `browser_emulate_media` (dark or light, print, reduced motion; Playwright's
     `page.emulateMedia`): the profiles' pages follow the OS's theme, so the agent cannot check the site's other one.
@@ -368,14 +367,15 @@ here; what is left of it stays.
     does: the user's shell, agent CLIs, git, direnv, agents installed in `~/.local/bin`; Snap only with classic
     confinement, reviewed by hand); Velopack and electron-updater (one leaves Forge's makers and has AppImage only on
     Linux, the other needs electron-builder).
-- **Feature 7, rest.** Reset a profile to a clean state (keeping its name), seeded test users.
-- **Feature 4, timeline.** One feed of DOM (rrweb-like), network, console and agent actions across profiles; scrub
-  back and pick in the past.
+- **Profile reset and creation, rest.** A clean profile for sign-up tests; reset a profile to a clean state (keeping its
+  name); seeded test users (the agent writes the seed for the project).
+- **Timeline.** One feed of DOM (rrweb-like), network, console and agent actions, recorded in step across all profiles;
+  scrub back to the moment a bug happened, pick an element in the past, tell the agent to fix it.
   - A Vue component as the rest of the window (CLAUDE.md, Window UI). Not Tailwind (styles are tiny); its generic parts
     Reka UI's (no look of its own: Kulisa keeps its IDE look), no kit with a look of its own.
-- **Feature 6, profile mail.** A local mail catcher with a mailbox per profile, shown next to the panes and
-  readable by the agent.
-- **Feature 5, run to test.** Save a multi-profile run as a Playwright test.
+- **Profile mail.** A local mail catcher (Mailpit-like) with a mailbox per profile, shown next to the panes and readable
+  by the agent.
+- **Run to test.** A multi-profile run the agent did by hand, saved as a Playwright test.
 
 ## Deferred ideas
 
@@ -591,7 +591,7 @@ here; what is left of it stays.
   per-launch token (passed to the agent through the environment, like `KULISA_MCP_URL`) at least.
 - **`signin-pause.ts` is a temporary implementation** to be replaced by the author. It recognizes sign-in pages
   only by host and pauses the whole profile.
-- **macOS and Windows are untested** (only Linux so far; Kulisa targets all three, see SPEC section 4). Known gaps:
+- **macOS and Windows are untested** (only Linux so far; Kulisa targets all three: CLAUDE.md, Conventions). Known gaps:
   - Drag regions left by a page (Workarounds of Electron bugs, above): seen on Linux; whether macOS and Windows
     have the bug, and whether the workaround is enough there, is not known. Open Teams in a pane and click its page.
   - Signing in to Google and GoDaddy (Kasada) in a profile: passed on Linux with Electron's own User-Agent
@@ -641,7 +641,7 @@ here; what is left of it stays.
   - Keyboard shortcuts ([window.md](window.md), Keys): checked on Linux only (with Latin and Russian layouts). macOS:
     ⌘ for Kulisa's and Chrome's keys, ⌘⌥1…9 for tasks, ⌘[ / ⌘] back and forward, its own menu bar (Quit, Edit,
     Window) instead of Electron's default; check that a page does not get ⌘-keys before Kulisa (on Linux
-    `before-input-event` comes first, and the app menu after the page: REPORT, "Keyboard shortcuts"), and that Ctrl
+    `before-input-event` comes first, and the app menu after the page: [window.md](window.md), Keys), and that Ctrl
     stays the terminal's. Windows: Alt+D and F6 to the address bar, Ctrl+F4; the keys with AltGr layouts (Polish,
     German), where AltGr is Ctrl+Alt.
   - The window's menus and dialogs (Reka UI, [ui.md](ui.md), Menus and Dialogs): checked on Linux only. A right-click
@@ -764,5 +764,6 @@ here; what is left of it stays.
     per pty: the same memory, plus serializing and writing it again at every switch, losing the scroll position and
     the selection; or the raw output replayed: a log that grows, slow for a long session), and several terminals are
     on screen at once (other windows). VS Code too keeps an xterm per terminal.
-- **No performance numbers taken with the monitor on.** CPU, RAM, many profiles; see REPORT, E8.
+- **No performance numbers taken with the monitor on** (CPU, RAM, many profiles): measured when a decision needs them,
+  on the version then current (`ps`, `app.getAppMetrics()`), not written down.
 - **`playwright-core` is pinned to a 1.64 alpha.** Move to the stable release once it ships with the same APIs.

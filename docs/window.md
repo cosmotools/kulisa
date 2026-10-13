@@ -288,8 +288,7 @@ the profile and tab). Letters are matched by what they type on a Latin layout (C
 and by their place on others (Ctrl+Е on a Russian one is Ctrl+T); digits and keys typed with Shift by their place. Keys
 are written as Electron's accelerators (`CommandOrControl+T`).
 
-Not Electron's application menu with accelerators, its own way of keys, tried first in bare Electron 44 (REPORT,
-"Keyboard shortcuts"): on Linux the page gets a key before the menu, and the menu none that the page handled itself,
+Not Electron's application menu with accelerators, its own way of keys, tried first in bare Electron 44 (2026-10-09): on Linux the page gets a key before the menu, and the menu none that the page handled itself,
 as xterm and many web apps do: Kulisa's keys would not work in the terminal nor in those apps, and others would act
 twice (the site's and Kulisa's). Nor `globalShortcut`: it takes keys from every app on the computer. macOS has its own
 menu bar with Quit, Hide, the Edit menu (⌘C, ⌘V) and the windows (Electron's default one reloaded Kulisa's own page with

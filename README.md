@@ -13,16 +13,30 @@ with a locator the agent can act on lands in its prompt, and you write the rest 
 
 Website: [kulisa.app](https://kulisa.app).
 
+## Why
+
+A web developer builds an app where several people interact: a shop (buyer, seller, admin), a chat (Sam sends, Elon
+receives), any SaaS with roles. A coding agent writes the code and checks it in browsers. Without Kulisa that is a
+terminal, several Chrome windows (one per person, each signed in, often through corporate SSO: Microsoft Entra, Okta,
+GoDaddy), a mailbox for invitation emails and DevTools; the developer keeps switching windows and holds the
+connections in their head.
+
+Kulisa grew out of [cast](https://github.com/cosmotools/claude-cast), the author's Claude Code plugin with a persistent
+Chrome profile per person, driven through Playwright MCP: it solved the sign-ins and the control, but every person was
+still a window of its own. Kulisa puts them side by side in one window, the agent under them. It is not a bot and not a
+tool for many accounts: the human's own accounts, signed in by hand, with no getting past bot detection.
+
+The name is the Russian *кулиса*, the wings of a theatre stage: the agent directs from the wings, the profiles are the
+actors, the panes the stage, and the developer watches from the audience and stops the scene when something is wrong.
+
 ## Documentation
 
 - **Using Kulisa:** the [user guide](https://kulisa.app/docs) on the website, also here as
   [docs/guide.md](docs/guide.md): projects, tasks, agents, profiles, signing in, the window, keys.
 - **For developers:**
-  - [docs/SPEC.md](docs/SPEC.md): the product, its features and the architecture's decisions;
   - [docs/profiles.md](docs/profiles.md), [docs/tasks.md](docs/tasks.md), [docs/window.md](docs/window.md),
     [docs/transcripts.md](docs/transcripts.md), [docs/ui.md](docs/ui.md): how it works and why it is built so;
   - [docs/ROADMAP.md](docs/ROADMAP.md): what is planned, open issues;
-  - [docs/REPORT.md](docs/REPORT.md): how the design was tested;
   - [docs/testing.md](docs/testing.md) and [CONTRIBUTING.md](CONTRIBUTING.md): the tests, contributing.
 
 ## Run
@@ -126,7 +140,7 @@ src/main/        Electron main process
   transcripts.ts   the entries an agent's transcript is read as (each reader in its agent's file; docs/transcripts.md)
   agent-hooks.ts   answers for the agents' hooks (/task/<project>/<n>/hooks/…: the open profiles, the session; the agent's state)
   signin-pages.ts  which pages are sign-in pages; what URL to restore instead of one
-  signin-pause.ts  pauses the agent on sign-in pages (temporary implementation, see docs/REPORT.md)
+  signin-pause.ts  pauses the agent on sign-in pages (temporary implementation: docs/profiles.md, Sign-in pause)
   session-cookies.ts  keeps session cookies across restarts (encrypted with the OS keyring)
   updates.ts       a packaged Kulisa updating itself (update.electronjs.org), Squirrel's events on Windows
   picker.ts        point and tell: Playwright pickLocator → a reference (profile, tab, locator) typed into the agent's prompt
@@ -149,8 +163,8 @@ test/            start.ts (npm test: the groups in parallel), run.ts (one app, i
                  tasks.ts; restart-*.ts after a restart), unit/ (plain Node), fixtures/site.ts (docs/testing.md)
 ```
 
-The experiments behind the design (E1–E8, docs/REPORT.md) were removed after they answered their questions.
-They are in git history at commit `9fe8661`.
+The experiments behind the design (E1–E8, 2026-10-05) and their report were removed once what they found was in the
+docs; the prototypes are in git history at commit `9fe8661`.
 
 ## License
 

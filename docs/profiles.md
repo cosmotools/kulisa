@@ -1,8 +1,7 @@
 # Profiles
 
 How profiles work today: what the human and the agent do with them, what is on the computer, how sign-ins are kept,
-how automation reaches the pages, and where the code is. Why it is built this way (tried and measured):
-[REPORT.md](REPORT.md); what is next: [ROADMAP.md](ROADMAP.md). Keep this file current when profiles change.
+how automation reaches the pages, and where the code is. What is next: [ROADMAP.md](ROADMAP.md). Keep this file current when profiles change.
 
 ## What a profile is
 
@@ -298,8 +297,14 @@ While any tab of a profile is on a sign-in page (or navigating to one), nothing 
 profile: Playwright disconnects, every tab's debugger is detached, the proxy refuses clients, the MCP tools answer
 that the human is signing in. When no tab is on one, the shell's connection comes back. Sign-in pages are known by
 host (`signin-pages.ts`: Microsoft, Google, GoDaddy, Okta, OneLogin, Auth0, Duo, PingOne, Salesforce; more with
-`KULISA_SIGNIN_HOSTS`). Some sign-ins (GoDaddy SSO behind Kasada) pass only so. `signin-pause.ts` is a deliberately
-temporary implementation; the author will replace it (CLAUDE.md, Rules).
+`KULISA_SIGNIN_HOSTS`). Some sign-ins (GoDaddy SSO behind Kasada) pass only so: Kasada judged the sign-in itself, with
+automation attached at that moment; once signed in, the agent reattached and worked in the session without being blocked
+(2026-10-05). `signin-pause.ts` is a deliberately temporary implementation; the author will replace it (CLAUDE.md, Rules).
+
+Why so, and why temporary (the author, 2026-10-05): the agent's presence in a profile is not automation of a sign-in
+(Kulisa is not a bot: [README](../README.md), Why); the pause exists only because such a service refuses a sign-in with
+automation attached at that moment, and goes once it is understood how the embedded browser passes it with the agent
+attached. Not by hiding the agent from bot detection: Kulisa does not get past it.
 
 ## What sites see
 
@@ -309,8 +314,7 @@ From 2026-10-05 to 2026-10-12 they presented as Google Chrome (`mimic-chrome.ts`
 headers, `navigator.userAgentData`), on reasons not tested one at a time: Google was said to block embedded browsers,
 and GoDaddy's Kasada passed once the sign-in pause and the mimicry were both in. Tried with the author on 2026-10-12:
 Google refused to sign in that profile ("This browser or app may not be secure") and let Electron's own Chromium in,
-with a debugger attached too; GoDaddy's sign-in passed without it (the pause is what it needs). Dropped then (REPORT,
-"Chrome mimicry dropped").
+with a debugger attached too; GoDaddy's sign-in passed without it (the pause is what it needs). Dropped then.
 
 ## How automation reaches the pages
 
@@ -346,7 +350,7 @@ open, and would pass for the new one's copy). A deleted profile's data is wiped 
 (`deleted-folders.json`), because the session keeps its files open while Kulisa runs. Copying a master (a profile's first open in a task)
 leaves the caches out (Cache, Code Cache, GPUCache, Dawn*).
 
-Memory: each tab is a Chromium process; 5 profiles × 3 tabs ≈ 4 GB (REPORT, E8). Closing a profile frees its tabs.
+Memory: each tab is a Chromium process (`ps` shows each); closing a profile frees its tabs.
 
 Disk: closing a profile clears its caches (HTTP, compiled code, shaders: `clearCaches` in `profiles.ts`); its
 sign-ins and the sites' storage stay. An open profile's HTTP cache has the limit Chromium sets from the free disk

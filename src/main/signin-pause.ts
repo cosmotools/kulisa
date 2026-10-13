@@ -1,5 +1,5 @@
-// LOW-QUALITY, TEMPORARY IMPLEMENTATION — the author's decision (docs/REPORT.md, "Author's position on sign-in
-// mode"); the author will replace it.
+// LOW-QUALITY, TEMPORARY IMPLEMENTATION — the author's decision (docs/profiles.md, Sign-in pause); the author will
+// replace it.
 // The agent is paused while any tab of a profile is on a sign-in page (signin-pages.ts) or navigating to one, and
 // resumes when none is. Only hosts are recognized: a sign-in form on another host is not.
 

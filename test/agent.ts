@@ -529,8 +529,8 @@ export default (test: Test) => {
     await waitFor(() => sam.tabs.length === 1);
   });
 
-  // Not presenting as Google Chrome: Google refused to sign in a browser that did and was not (REPORT, "Chrome mimicry
-  // dropped"), and let Electron's own Chromium in.
+  // Not presenting as Google Chrome: Google refused to sign in a browser that did and was not (docs/profiles.md, What
+  // sites see), and let Electron's own Chromium in.
   test('profiles present themselves as what they are, Electron\'s Chromium, in pages and popups alike', async ({ shell }) => {
     const elon = shell.profiles.get('elon-buyer');
     const page = await elon.page();
