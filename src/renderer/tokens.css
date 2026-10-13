@@ -25,10 +25,10 @@
   --hover: color-mix(in srgb, var(--text) 12%, transparent); /* under a control the pointer is on, on any background */
   --project: #c8333b; /* the open project's color (lib/store.ts); until then the app icon's own red */
   /* A desktop app's density, as JetBrains' (docs/ui.md, Desktop, not a web page): JetBrains' UI font and size (Inter,
-     13 px: their UI Guidelines, Typography; bundled, so every OS shows the same), one text size and a smaller one for
+     14 px, a step above their UI Guidelines' 13 (Typography), which read small; bundled, so every OS shows the same), one text size and a smaller one for
      group titles and the window's titles; one height for controls and rows (the terminal uses the same text size,
      lib/terminals.ts). The Kulisa zoom scales all of it together. */
-  --sans: "Inter Variable", system-ui, sans-serif; --font: 13px; --font-small: 12px; --control: 28px; --tab: calc(var(--control) + 4px); --radius: 4px; --tab-radius: 8px; --gap: 8px; --island-radius: 10px;
+  --sans: "Inter Variable", system-ui, sans-serif; --font: 14px; --font-small: 13px; --control: 28px; --tab: calc(var(--control) + 4px); --radius: 4px; --tab-radius: 8px; --gap: 8px; --island-radius: 10px;
   /* Room: a row of a menu or a list (its height, the space inside it and between its icon and text, between a
      dialog's fields), and the space inside a dialog along its edges. */
   --row: 28px; --inset: 12px; --pad: 16px;
