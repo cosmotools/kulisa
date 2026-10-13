@@ -476,7 +476,7 @@ here; what is left of it stays.
       removed with it ("Nothing piles up"). `utilityProcess.fork` of its own files, ended by Kulisa when it is
       turned off. Its own IPC channels (`ext:<id>:…`) between its two halves. A download with a SHA-256 check, for
       models. A log line prefix.
-    - Window: places to add to: the terminal's header (after dictation), ☰, a panel in the grid (Stripe); its icons
+    - Window: places to add to: the voice bar under the terminal (its sides, around the microphone), ☰, a panel in the grid (Stripe); its icons
       added to the sprite; the window's components (`.icon`, `ButtonMenu.vue`, `Modal.vue`, `ask`; [ui.md](ui.md)) rather than its own; its module
       loaded with `import()` when it is turned on. The microphone for the window only for an extension that asked
       for it (today the window's session grants media to all of its own pages).
