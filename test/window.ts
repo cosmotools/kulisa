@@ -29,17 +29,16 @@ export default (test: Test) => {
       return { above: r.top - h.top, below: h.bottom - r.bottom }; })()`);
     assert.ok(Math.abs(above - below) <= 1, `the rows in the middle: ${above} above, ${below} below`);
   });
-  test("terminal: dictation where the agent has its own: a microphone in the middle of the voice bar, an island under the terminal, its language after it; held, or from a click to the next, the agent's key is held; another language chosen there", async ({ ui, termText }) => {
-    await waitFor(() => ui(`!!document.querySelector('.dictation .lang')`));
+  test("terminal: dictation where the agent has its own: a microphone in the middle of the voice bar, an island under the terminal; held, or from a click to the next, the agent's key is held", async ({ ui, termText }) => {
+    await waitFor(() => ui(`!document.querySelector('.dictation .mic').disabled`));
     // Under the terminal, as wide, apart from it by the gap between islands; the microphone in its middle.
     const { term, bar, mic } = await ui(`(() => { const r = (s) => document.querySelector(s).getBoundingClientRect().toJSON();
       return { term: r('.termpanel'), bar: r('.voicebar'), mic: r('.dictation .mic') }; })()`);
     assert.ok(bar.top - term.bottom >= 4 && bar.top - term.bottom <= 12, `apart from the terminal: ${bar.top - term.bottom}px`);
     assert.deepEqual([bar.left, bar.right], [term.left, term.right]);
     assert.ok(Math.abs(mic.left + mic.width / 2 - (bar.left + bar.width / 2)) <= 1, 'the microphone in the middle');
-    assert.equal(await ui(`document.querySelector('.dictation .lang').textContent`), 'EN');
-    assert.equal(await ui(`document.querySelector('.dictation .lang').title`), 'Dictation in English: the language you speak. it answers in it too',
-      "what the agent's entry says of it");
+    assert.equal(await ui(`document.querySelector('.dictation .mic').title`), 'Speak to the agent in English: hold, or click to start and again to stop',
+      "in Kulisa's language (☰ → Language)");
     const keys = async () => ((await termText()).match(/<v>/g) || []).length;
     const press = (type: string) => ui(`document.querySelector('.dictation .mic').dispatchEvent(new PointerEvent('${type}', { bubbles: true, button: 0, pointerId: 1 }))`);
     const lit = () => ui(`document.querySelector('.dictation .mic').ariaPressed`);
@@ -62,11 +61,6 @@ export default (test: Test) => {
     await waitFor(still, 3000); // held, then let go
     assert.equal(await lit(), 'false');
     assert.equal(await ui(`document.activeElement.closest('.xterm') !== null`), true, 'the keyboard back in the terminal, to send it');
-    // The languages it understands; another one chosen is the agent's.
-    await ui(`document.querySelector('.dictation .lang').click()`);
-    assert.equal((await menuRows(ui))[0], '# Dictation language');
-    await choose(ui, 'русский');
-    await waitFor(async () => (await ui(`document.querySelector('.dictation .lang').textContent`)) === 'RU');
   });
   test("the island: its terminals in tabs over them, one shown, the row apart; + opens the human's shell in front; the agent runs what keeps running in a shell of its own, behind, reads it, stops it, closes it, never in an agent's tab; × and a shell's exit close one", async ({ shell, ui, call, instructions }) => {
     const task = shell.task;
@@ -88,7 +82,7 @@ export default (test: Test) => {
     assert.equal(human.by, 'human');
     // A shell in front: no dictation (it is the shown agent's), the bar kept, its microphone disabled saying why; a pick
     // still goes to the agent shown last.
-    await waitFor(() => ui(`document.querySelector('.dictation .mic').disabled && !document.querySelector('.dictation .lang')`));
+    await waitFor(() => ui(`document.querySelector('.dictation .mic').disabled`));
     assert.equal(await ui(`document.querySelector('.dictation .mic').title`), "Dictation is the agent's: a shell is in front");
     assert.equal(task.promptTarget().agent.cli, 'bash');
     await waitFor(async () => (await shown()) === 1 && ui(`window.__term === window.__term && document.activeElement.closest('.term') !== null`));

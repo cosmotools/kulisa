@@ -326,9 +326,12 @@ class Task {
     for (const c of this.entry.copies || []) {
       extendTrust(a, where, c.folder, [c.repo, ...copies.filter((o) => o.repo === c.repo && o.folder !== c.folder).map((o) => o.folder)]);
     }
-    // Kulisa's profiles skill where the agent reads it, in its account's folder only (never the human's own).
+    // Kulisa's profiles skill where the agent reads it, and Kulisa's language (☰ → Language: app.ts, setLanguage) in its
+    // own setting, in its account's folder only (never the human's own).
     if (a.configDir && Object.keys(a.env).length) {
       try { if (a.skills) installSkill(shell.packages, path.join(a.configDir, a.skills)); } catch (e) { console.warn('[agents] skill:', (e as Error).message); }
+      const r = a.language?.set(a.configDir, shell.language);
+      if (r?.error) console.warn('[agents] language:', r.error);
     }
     if (this.terminals.get(id) !== t) return { error: 'the terminal was closed' };
     // The program by name, as the human would type it, unless the shell does not find it yet (just installed).
@@ -486,15 +489,13 @@ class Task {
   }
 
   // Dictation, where the agent shown has its own (agents/, voice): what the window's microphone button shows
-  // ({ languages, language, note, recording }, or null: no button), recording, and the language chosen there. The
-  // human's only: the agent has no use for a microphone.
+  // ({ recording }, or null: disabled), and recording. The human's only: the agent has no use for a microphone. Its
+  // language is Kulisa's one (app.ts, setLanguage).
   voice() {
-    const t = this.shownAgent(), v = t?.agent!.voice;
-    return v ? { languages: v.languages, language: v.language(this.savedOf(t)), note: v.note || '', recording: this.dictating?.t === t } : null;
+    const t = this.shownAgent();
+    return t?.agent!.voice ? { recording: this.dictating?.t === t } : null;
   }
   sendVoice() { this.window?.send('voice', { task: this.key, voice: this.voice() }); }
-  // An agent's conversation as agents/ reads its files, with its account's folder.
-  savedOf(t: TaskTerminal) { return { ...this.conversations()[t.conversation!], configDir: t.agent!.configDir }; }
   // Recording: the agent's key held, as a terminal shows a held key, its repeats. It stops when told, or after
   // DICTATION_LIMIT, or when that agent is gone or no longer shown.
   dictate(on: boolean): { recording: boolean } {
@@ -510,10 +511,6 @@ class Task {
       }, v.repeat) };
     }
     return { recording: !!this.dictating };
-  }
-  setVoiceLanguage(code: string) {
-    const t = this.shownAgent(), v = t?.agent!.voice;
-    return v ? v.setLanguage(this.savedOf(t), code) : { error: 'this agent has no dictation' };
   }
 
   // What its terminals get in their environment: where Kulisa's MCP server and hooks are for this task (the Kulisa

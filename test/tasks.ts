@@ -742,6 +742,28 @@ export default (test: Test) => {
     await ui(`document.querySelector('#handover .x').click()`);
     await waitFor(() => ui(`!document.getElementById('handover')`));
   });
+  test("language: one for every agent (☰ → Language): written into the agents' own setting in each account's folder, at an agent's start and when chosen, never into the human's own", async ({ ui, shell }) => {
+    const own = (id: string) => path.join(accountDir(id), 'settings.json');
+    const read = (f: string) => JSON.parse(fs.readFileSync(f, 'utf8'));
+    assert.deepEqual(read(own('fake-1')), { language: 'English' }, 'at its start (the test before): English, the default');
+    await ui(`document.getElementById('windowMenu').click()`);
+    assert.ok((await menuRows(ui)).includes('Language'));
+    const row = `${MENU}.querySelector('.languagerow')`;
+    assert.equal(await ui(`${row}.querySelector('.value').textContent`), 'English');
+    assert.match(await ui(`${row}.title`), /^The language you speak with the agents\. Fake agent dictates and answers in it, and may write code comments in it too: your project's CLAUDE\.md or AGENTS\.md decides that\./);
+    await ui(`${row}.click()`);
+    await waitFor(() => ui(`!!document.querySelector('.menu.languages[data-state="open"]')`));
+    const system = await ui(`navigator.language.split('-')[0]`);
+    assert.equal(await ui(`document.querySelector('.menu.languages [data-language]').dataset.language`), system, "the system's first");
+    await ui(`document.querySelector('.menu.languages [data-language="ru"]').click()`);
+    await waitFor(() => read(path.join(userData, 'settings.json')).language === 'ru');
+    await waitFor(() => read(own('fake-1')).language === 'Russian');
+    assert.ok(!fs.existsSync(path.join(root, 'fake-config', 'settings.json')), "the human's own folder untouched");
+    await closeMenu(ui);
+    assert.ok(refused(shell.setLanguage('xx')), 'only one an agent takes');
+    shell.setLanguage('en');
+    assert.equal(read(own('fake-1')).language, 'English');
+  });
 
   test("agents: an account lives until deleted in Settings → Agents: let go by its project at once, kept; not deleted while a task runs it; deleted after a question, signed out, with its folder; one made there is in no project", async (ctx) => {
     const { shell, ui } = ctx;

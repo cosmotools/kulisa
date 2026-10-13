@@ -332,20 +332,23 @@ are not programmers); its accounts are made there too, or in a project's page.
   with the MCP server and its hooks as config overrides, `-c mcp_servers.kulisa.url=…`, `-c hooks=…`), resume
   (`claude --resume` and `codex resume` with the session the `SessionStart` hook reported; else `codex resume
   --last`) and forget a deleted task's folder.
-- **Dictation**, where the agent has its own (its entry's `voice`: the arguments that turn it on, its key, its
-  languages, how to read and set the one it uses, and a note shown with it; Claude Code's voice mode, which needs a Claude.ai
-  account; Codex 0.160 has none, only a realtime voice conversation): the island's row of tabs ends with the language
-  and a microphone of the agent in front ([window.md](window.md), The terminal). The human needs to know neither the agent's command nor its key:
+- **Dictation**, where the agent has its own (its entry's `voice`: its key and how often it is typed; Claude
+  Code's voice mode, which needs a Claude.ai account; Codex 0.160 has none, only a realtime voice conversation): a
+  microphone in the middle of the voice bar under the terminals, for the agent in front ([window.md](window.md), The
+  terminal). The human needs to know neither the agent's command nor its key:
   Kulisa turns it on for its own sessions (Claude Code: `--settings` with `voice: { enabled, mode: "hold",
   autoSubmit: false }`, not the user's settings, checked with 2.1.294) and the button holds its key: space typed
   again and again at a keyboard's repeat rate, as a terminal shows a held key (it tells no release), and Claude Code
   records while they come, putting the text where the cursor is, after any text there. Its `tap` mode (a tap
   starts, another stops) was tried first: it records only with the input empty, so a second sentence could not be
-  added (the author, 2026-10-08). The language is Claude Code's `language` setting, which is also the language it answers in; it has no
-  setting for dictation alone. The one chosen in Kulisa goes where its `/config` puts it (`<config dir>/settings.json`,
-  the language's English name), the rest of the file kept, never into a file that is not JSON. Claude Code reads that
-  file again when it changes and the language at each recording, so it holds from the next one, in every session
-  of the human's, as if set in `/config`. A settings file of one launch would not do: it is read once.
+  added (the author, 2026-10-08).
+- **Language**, where the agent has a setting of its own (its entry's `language`: the codes it takes, and how one is
+  written into an account's folder): Kulisa's one language (☰ → Language, [window.md](window.md), Language) goes
+  into every account of it. Claude Code's is its `language` setting, which it dictates and answers in (it has none for
+  dictation alone), written where its `/config` puts it (`<config dir>/settings.json`, the language's English name),
+  the rest of the file kept, not written when it says so already, never into a file that is not JSON. Claude Code
+  reads that file again when it changes and the language at each recording, so it holds at once in every session of
+  the account. A settings file of one launch (`--settings`) would not do: it is read once.
 - **Settings → Agents** (☰ → Agents… opens it there; `AgentPage.vue`), as JetBrains' list of SDKs: the agents in
   Settings' tree (not the terminal only: nothing of it to set up there; the author, 2026-10-11; "not installed" at a row's end),
   the chosen one's page on the right: its maker and website, what it needs, its status (its version, its `--version`, and its
@@ -453,7 +456,8 @@ a unit test fails for an agent that leaves one out silently, so a new agent come
 | `localFiles` | the project's own settings of the agent in a task's copy | `.claude/settings.local.json` | `.codex/config.toml` |
 | `conversation` | its conversation read by the next agent (`task_history`) | its transcript | its transcript (summaries encrypted) |
 | `forget` | a deleted task leaves nothing of it in the agent's data | yes | yes |
-| `voice` | dictation from the terminal's microphone | its voice mode | none in 0.160.1 |
+| `voice` | dictation from the voice bar's microphone | its voice mode | none in 0.160.1 |
+| `language` | ☰ → Language: the language it dictates and answers in | its `language` setting | none in 0.160.1 |
 
 ## Several agents in a task
 
@@ -587,7 +591,7 @@ agents/<agent>-<n>/               an account's config folder (CLAUDE_CONFIG_DIR,
                                   settings for Kulisa (kulisa-settings.json), written at each start; gone, signed out first, when the human deletes it (Settings →
                                   Agents); one a sign-in left
                                   unfinished (Kulisa quit meanwhile) goes at the next start
-settings.json                     the Kulisa zoom, the theme, where the tasks' bar is; the windows: each one's
+settings.json                     the Kulisa zoom, the theme, where the tasks' bar is, the language; the windows: each one's
                                   projects (in the bar's order), the one shown, where it was
 deleted-folders.json              folders to remove at the next start (a session keeps its files open)
 projects/<project id>/
@@ -623,7 +627,7 @@ Outside it:
 | An empty first commit | the project's repository | New Project… with Create Git repository |
 | direnv's permission for the task's `.envrc` | direnv's data (`~/.local/share/direnv/allow/`) | creating a task, if the project's is allowed |
 | The agent's trust of the task's folder | Claude Code: `<CLAUDE_CONFIG_DIR>/.claude.json`, else `~/.claude.json`, `projects["<task folder>"]`; Codex: `<CODEX_HOME>/config.toml`, `[projects."<task folder>"]` | the task's agent starts, if the project's folder or another task's copy is trusted |
-| Claude Code's language, chosen for dictation | `<config dir>/settings.json`, `language` (as its `/config` sets it) | the human picks a language in the island's row of tabs; stays, as the human's setting |
+| Claude Code's language, Kulisa's one | `<account folder>/settings.json`, `language` (as its `/config` sets it) | ☰ → Language, and an agent's start; goes with the account's folder |
 | An agent's conversation | the agent's own data (Claude: `<config dir>/projects/…/<session>.jsonl`; Codex: `<config dir>/sessions/`), in its account's folder (`agents/<agent>-<n>/`) | the agent runs |
 | The agent itself, when Kulisa installed it | its maker's place (`~/.local/bin/claude`, `~/.local/bin/codex`, …) | Install in Settings → Agents |
 | Kulisa itself, installed (Windows) | `%LocalAppData%\kulisa\`: `app-<version>\` (Squirrel keeps the one before too, removing older ones), `packages\` (the update downloaded), `Update.exe` | the installer; an update; gone when Kulisa is uninstalled (the data folder stays) |

@@ -538,10 +538,10 @@ export default (test: Test) => {
 
     await ui(`document.getElementById('windowMenu').click()`);
     // The arrangements as pictures, a short name under each, the full words in the tooltip.
-    assert.deepEqual((await menuRows(ui)).slice(4), ['# Arrange panels', 'arrange: Columns, Two by two, One at a time', '-', 'Agents…', 'Keyboard Shortcuts', '-',
+    assert.deepEqual((await menuRows(ui)).slice(3), ['Language', '-', '# Arrange panels', 'arrange: Columns, Two by two, One at a time', '-', 'Agents…', 'Keyboard Shortcuts', '-',
       'Documentation', 'GitHub', 'Report an issue', '-', 'Exit', `~ Kulisa ${pkg.version}`], "Kulisa's version a note under the rows, not one of them");
     assert.deepEqual(await ui(`[...document.querySelectorAll('.menu[data-state="open"] svg:not([hidden]) > use')].map((u) => u.getAttribute('href'))`),
-      ['#i-zoom', '#i-theme', '#i-projects', '#i-arrange', '#i-agent', '#i-keyboard', '#i-docs', '#i-github', '#i-bug', '#i-exit'], 'each row with its icon');
+      ['#i-zoom', '#i-theme', '#i-projects', '#i-language', '#i-chevron', '#i-arrange', '#i-agent', '#i-keyboard', '#i-docs', '#i-github', '#i-bug', '#i-exit'], 'each row with its icon');
     const pics = await ui(`[...document.querySelectorAll('.menu[data-state="open"] .arrange [role="menuitem"]')].map((b) => ({ title: b.title,
       panes: b.querySelectorAll('svg .a-page').length, term: b.querySelectorAll('svg .a-term').length, w: b.querySelector('svg').getBoundingClientRect().width }))`);
     type Pic = { title: string; panes: number; term: number; w: number };

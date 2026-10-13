@@ -48,7 +48,7 @@ Kulisa is tested on Linux (Ubuntu) so far; on Windows it is newer and less tried
 ## The window
 
 - **The title bar**: the Kulisa logo in the shown project's color, **Settings** (the gear), and **☰**, the window's
-  menu: zoom, theme, where the tasks' bar is, Arrange panels, Agents…, Keyboard Shortcuts, links, Exit.
+  menu: zoom, theme, where the tasks' bar is, language, Arrange panels, Agents…, Keyboard Shortcuts, links, Exit.
 - **The grid**: the shown task's panes (one per open profile) and its terminals. Drag a pane by its header to move it,
   onto another pane to stack them as tabs; drag the gaps to resize. **☰ → Arrange panels** offers ready-made
   arrangements. Each task keeps its own grid.
@@ -114,8 +114,8 @@ agent "go on with what Claude did": every agent of the task can read the others'
 
 **Dictation**, where the agent has its own (Claude Code with a Claude.ai account): the microphone in the middle of the
 bar under the terminals, which goes wherever the terminals go, for the agent in front. Hold it while you speak, or click
-to start and click again to stop. The text goes into the agent's input for you to read and send. Its language is next
-to it. With a terminal or an agent without dictation in front, the microphone is greyed out.
+to start and click again to stop. The text goes into the agent's input for you to read and send. It hears the language
+chosen in **☰ → Language**. With a terminal or an agent without dictation in front, the microphone is greyed out.
 
 ## Tasks
 
@@ -239,6 +239,9 @@ A pane is a small Chrome: a tab strip, an address bar, back, forward and reload.
 
 - **☰ → Theme**: Dark, Light, or System (as your OS). Profiles' pages keep your OS's theme, so your app looks as its
   users see it.
+- **☰ → Language**: the language you speak with the agents, one for all of them. Claude Code takes your speech in it
+  and answers in it, and may write code comments in it too: say in your project's CLAUDE.md which language its code
+  is written in. Codex has no language setting yet, so it is not changed.
 - **Kulisa's zoom**: Ctrl + / − / 0 outside the pages, or the zoom row in ☰. It scales all of Kulisa, pages included;
   when not 100%, the title bar shows it (a click resets it).
 

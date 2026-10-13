@@ -16,7 +16,9 @@ here; what is left of it stays.
     groups and the tasks' bar as Chrome's tab groups with one + after the islands, the empty window, Settings as
     JetBrains' (a tree of Projects, Agents and Profiles; [ui.md](ui.md), Desktop, not a web page), the whole project
     in TypeScript; 2026-10-12, a task's island of terminals with several agents in it ("Several agents in a task, rest",
-    below). The author tests it by hand. Next: fix what the author's testing finds; then what is left of the
+    below); 2026-10-13, a repository added to a task when its work needs it (the human's menu or the agent's tool,
+    [tasks.md](tasks.md), Tasks), the voice bar under the terminals ([window.md](window.md), The terminal) and one
+    language for every agent (☰ → Language, [window.md](window.md), Language). The author tests it by hand. Next: fix what the author's testing finds; then what is left of the
     steps (below), only once the author has decided it.
   - **Open, for the author to decide:** Refresh from Master… now matters only for a local app's cookies (keep or
     drop); a script the agent runs in a page (`browser_evaluate`) could read a test password back from its field

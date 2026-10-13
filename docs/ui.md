@@ -85,7 +85,8 @@ Each icon is drawn once, as a `<symbol id="i-…">` in the sprite (`Sprite.vue`,
 | `i-back`, `i-forward`, `i-reload` | a pane's toolbar (Chrome's) |
 | `i-pick` | Pick (DevTools' inspect icon) |
 | `i-globe` | a tab whose site has no icon |
-| `i-zoom`, `i-theme`, `i-arrange`, `i-agent`, `i-keyboard`, `i-exit` | ☰'s rows: Zoom, Theme, Arrange panels, Agents…, Keyboard Shortcuts, Exit |
+| `i-zoom`, `i-theme`, `i-language`, `i-arrange`, `i-agent`, `i-keyboard`, `i-exit` | ☰'s rows: Zoom, Theme, Language, Arrange panels, Agents…, Keyboard Shortcuts, Exit |
+| `i-chevron` | a row that opens a menu beside it (☰'s Language; Lucide's chevron-right) |
 | `i-mic` | dictation's microphone in the middle of the voice bar, under the terminals (Lucide's mic) |
 | `i-working`, `i-waiting`, `i-done` | an agent's state on a tab (`.state`); `i-done` also checks the chosen row of a menu, and a checkbox |
 | `i-down` | what opens below it: a `.select`'s choices, an agent's details (`AgentList.vue`) |
@@ -239,9 +240,9 @@ it, and the keyboard goes back where it was. While one is open, the pages are pi
 
 Items (`lib/menu.ts`, laid out by `menu/MenuRows.vue`) are `{ label, sub, keys, title, icon, color, avatar, project, inset,
 enabled, run, remove }` (`MenuButton.vue`; `keys`: the row's key at its end, from the keys' table: `keyText(id)`, `lib/common.ts`), `'-'` (a divider), `{ heading, icon }`, `{ note }` (small dim words
-under the rows, not one of them: ☰'s version, so nothing looks clickable that is not), `{ choose, chosen, rows }` (one
-of them checked: the dictation language) or `{ component, props }` (a row of its own: ☰'s zoom, theme, tasks' bar
-and arrangements, `components/menu/`, built of Reka's menu items; − and + and the choices leave the menu open);
+under the rows, not one of them: ☰'s version, so nothing looks clickable that is not) or `{ component, props }` (a row
+of its own: ☰'s zoom, theme, tasks' bar, language (a menu beside it: Reka's submenu, its rows `MenuButton`s, the
+chosen one checked) and arrangements, `components/menu/`, built of Reka's menu items; − and + and the choices leave the menu open);
 `title` its tooltip (the native one, as every tooltip); `icon` is the sprite's id, at the row's start; `project` a project's icon in its color there (`ProjectIcon.vue`,
 `.picon`); `remove` puts a 🗑 at the row's end (`.remove`, on the row the pointer or the keyboard is on; Delete too) that runs it instead of `run`, the menu closing as for any row (a closed task's, deleted); `inset` sets a row in under the one above, its text under that one's (a project's closed task under it, in
 the bar's +); rows are `.item`, lit as Reka highlights them

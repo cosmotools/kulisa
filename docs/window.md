@@ -110,6 +110,26 @@ when it changes, as JetBrains' Sync with OS). Saved (`settings.json`), the same 
   sets `color-scheme: dark` on the grid; `Grid.vue` gives it back the root's.
 - What CSS does not paint follows from the main process: the window's background and the OS buttons' strip
   (`window.ts`).
+
+## Language
+
+**☰ → Language**: the language the human speaks with the agents, one for all of them (the author, 2026-10-13: one
+setting, so what the agents do because of it is plain). A row with the language chosen at its end, opening a menu
+beside it (Reka's submenu: too many to show in the row, as Theme's are): the languages the agents' own settings take,
+the system's first, then by name in each language itself (`LanguageRow.vue`). English by default, as the agents are
+without it. Saved (`settings.json`), the same in every window.
+
+- Kulisa gives the agents' own language settings one place and keeps them in step; it tells the agents nothing
+  itself (the author, 2026-10-13). An agent with one (its entry's `language`: Claude Code's `language`, which it
+  dictates and answers in) gets it in every account's folder: when it is chosen, and at an agent's start (an account
+  made since, or the setting changed in the agent's own `/config`), never in the human's own folder. Claude Code
+  reads it again at once, in every running session. An agent without one (Codex 0.160.1) is not told otherwise:
+  the row's tooltip names it ("has no language setting yet").
+- Tried before it was decided (Claude Code 2.1.296, 2026-10-13): an instruction to answer in another language than
+  the setting's lost to it, given as Kulisa gives context (the SessionStart hook: 2 runs of 3) and in
+  `--append-system-prompt`; a project's CLAUDE.md won. So one setting for dictation and answers, not two. With it
+  set to Russian and no rule, Claude Code wrote a file's comments in Russian too: which language code and comments
+  are in is the project's to say, in its CLAUDE.md or AGENTS.md, which the tooltip says too.
 - The terminal takes the panels' colors (`term.options.theme`, set again on a change); the programs' own colors stay
   xterm's, made readable on either background by its `minimumContrastRatio` (as VS Code does), with no palette of
   Kulisa's own.
@@ -122,7 +142,7 @@ pages are pictures of themselves meanwhile; afterwards the keyboard is back wher
 
 - the bar's + (every project, a new task of it; their closed tasks; New Project…), a task tab's right-click menu (the shown one's open
   and closed profiles, Manage Profiles…: Settings → Profiles; Rename…, Show Folder, Delete Task…), ☰ (as Chrome's ⋮, each row with its icon: the zoom row, the theme row, the
-  tasks' bar's row, Arrange panels, Agents… (Settings at its agents), Keyboard Shortcuts, the links
+  tasks' bar's row, Language (a menu beside it), Arrange panels, Agents… (Settings at its agents), Keyboard Shortcuts, the links
   (Documentation, GitHub, Report an issue; one list in `lib/common.ts`), and Exit, which quits as the last window's × does; not on macOS, where
   Cmd+Q and the app's menu quit; under them all Kulisa's version, small and dim: words, not a row, as nothing happens on a click);
 - right-click on a pane's header (New tab, About this profile… (Settings at it), Sign In to Master…, Refresh
@@ -203,17 +223,15 @@ became, not as every frame it went through (the output with its codes left out, 
 at 200 columns; an agent's terminal keeps none (`terminal_read` does not read it).
 
 **Dictation**, where the agent in front has its own ([tasks.md](tasks.md), "Choosing the agent"): a round microphone
-in the middle of the voice bar, the language it hears (EN, RU …) just after it (`Dictation.vue`). With a shell in
+in the middle of the voice bar (`Dictation.vue`), its tooltip saying the language it hears (Language, above). With a shell in
 front, or an agent without dictation, the microphone is disabled, its tooltip saying why, and the bar stays: a bar
 that came and went would resize the terminal, and Claude Code redraws badly after a resize. Folded, the island has
-no bar. The
-microphone works as a voice message's button: held, the agent records until it is let go; a click starts and another
+no bar. The microphone works as a voice message's button: held, the agent records until it is let go; a click starts and another
 click stops (or 5 minutes, a recording left on; another tab brought to the front stops it too). The text goes where
 the cursor is in the agent's input, after what is there, so several sentences can be dictated one after another, and
 is left there to read and send (recognition makes mistakes, and a task misheard costs more than a key). Kulisa only
 holds the agent's key (`Task.dictate`); the agent records and recognizes. The button is lit while Kulisa holds it,
-which is when the agent records. The language opens a menu of those the agent understands, the system's first; it is
-the agent's own setting, so the agent answers in it too (said on hover). The agent hears through its own program
+which is when the agent records. The agent hears through its own program
 (Claude Code: its audio module, or `arecord`/SoX on Linux); on macOS the system asks for the microphone on Kulisa's
 behalf (`NSMicrophoneUsageDescription`, `forge.config.ts`).
 

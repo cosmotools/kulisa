@@ -217,6 +217,29 @@ function start(options: Options = {}) {
     for (const w of shell.windows) w.setTheme(shell.theme, shell.shade());
   };
   nativeTheme.on('updated', () => { if (shell.theme === 'system') shell.setTheme(); });
+  // The language the human speaks with the agents (☰ → Language; docs/window.md, Language): Kulisa's one, written into
+  // each agent's own language setting (agents/, language) in every account of it, here and at an agent's start
+  // (tasks.ts), never into the human's own folder. Agents without one are not told it otherwise (the author,
+  // 2026-10-13: Kulisa gives the agents' own settings a place and keeps them in step, it adds no behavior).
+  // English by default, as the agents are without it.
+  const agentKinds = () => shell.accounts.all().filter((a) => a.own).map((a) => a.agent);
+  shell.language = store.settings().language || 'en';
+  shell.languageInfo = () => {
+    const kinds = agentKinds().filter((a) => a.command);
+    return { language: shell.language, languages: [...new Set(kinds.flatMap((a) => a.language?.languages || []))],
+      agents: kinds.map((a) => ({ name: a.name, has: !!a.language })) };
+  };
+  shell.setLanguage = (code) => {
+    if (!shell.languageInfo().languages.includes(code)) return { error: `not a language any agent takes: ${code}` };
+    shell.language = code;
+    store.saveSettings({ ...store.settings(), language: code });
+    for (const a of shell.accounts.all()) {
+      const r = !a.own && a.dir ? a.agent.language?.set(a.dir, code) : null;
+      if (r?.error) console.warn('[agents] language:', r.error);
+    }
+    for (const w of shell.windows) w.send('language', shell.languageInfo());
+    return { language: code };
+  };
   // Where the bar of the open projects and their tasks is: 'bottom' (the default: by the terminal, where the hand
   // goes anyway) or 'top' (under the title bar, as browsers' tabs), chosen in ☰.
   shell.bar = store.settings().bar || 'bottom';
@@ -762,12 +785,11 @@ function start(options: Options = {}) {
   ipcMain.handle('task:rename', (_e, { key, name }: { key: string; name: string }) => taskAt(key, (task) => task.rename(name)));
   ipcMain.handle('task:add-repo', (_e, { key, repo }: { key: string; repo: string }) => taskAt(key, (task) => task.addRepository(repo)));
   ipcMain.handle('project:delete-merged', (_e, { id }: { id: string }) => serial(() => { const p = shell.open.get(id); return p ? deleteMerged(p) : { error: 'the project is not open' }; }));
-  // The island's microphone and its language (Dictation.vue in the renderer; Task.voice, dictate).
+  // The voice bar's microphone (Dictation.vue in the renderer; Task.voice, dictate).
   // Esc typed into an agent's terminal (its key: "<task>#<id>"): Task.interrupted.
   ipcMain.on('pty:in', (_e, { task, data }: { task: string; data: string }) => { if (data === '\x1b') shell.taskByKey(task.split('#')[0]!)?.interrupted(task); });
   ipcMain.handle('voice:get', (_e, key: string) => shell.taskByKey(key)?.voice() ?? null);
   ipcMain.handle('voice:record', (_e, { task, on }: { task: string; on: boolean }) => shell.taskByKey(task)?.dictate(on) ?? { recording: false });
-  ipcMain.handle('voice:language', (_e, { task, code }: { task: string; code: string }) => shell.taskByKey(task)?.setVoiceLanguage(code) ?? { error: `no task ${task}` });
   ipcMain.handle('task:show-folder', (_e, key: string) => { const task = shell.taskByKey(key); return task && electronShell.openPath(task.folder); });
   ipcMain.handle('tasks:get', (e) => at(e)?.sendTasks());
 
@@ -952,6 +974,8 @@ function start(options: Options = {}) {
   ipcMain.handle('tab:dialog', onTab((p, t, { dialog, ok }) => p.answerDialog(t.id, dialog, ok)));
   ipcMain.handle('tab:devtools', onTab((p, t) => p.toggleDevTools(t.id)));
   ipcMain.handle('zoom:get', () => shell.uiZoom);
+  ipcMain.handle('language:get', () => shell.languageInfo());
+  ipcMain.handle('language:set', (_e, code: string) => shell.setLanguage(code));
   ipcMain.handle('theme:set', (_e, theme: Shell['theme']) => ['dark', 'light', 'system'].includes(theme) && shell.setTheme(theme));
   ipcMain.handle('bar:set', (_e, bar: Shell['bar']) => ['top', 'bottom'].includes(bar) && shell.setBar(bar));
   ipcMain.handle('zoom:ui', (_e, dir: number) => shell.setUiZoom(stepZoom(shell.uiZoom, dir)));

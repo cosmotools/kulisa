@@ -22,6 +22,8 @@ export interface Terminal {
   agent: { account: string; cli: string; name: string } | null;
 }
 // The island: its tabs in order, the one in front (none: no terminal, the island folded to its +).
+// Kulisa's language (☰ → Language): the codes the agents' own settings take, and which agents have one.
+export interface LanguageInfo { language: string; languages: string[]; agents: { name: string; has: boolean }[] }
 export interface Terminals { task?: string; front: number | null; list: Terminal[] }
 // A task, for its tab (Task.info).
 export interface TaskInfo {
