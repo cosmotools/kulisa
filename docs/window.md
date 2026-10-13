@@ -155,9 +155,13 @@ from it as a browser's tabs (the row in the toolbar's color, the tab in front in
 not needed): a terminal is not split off into a panel of its own. Each is the user's shell in the task's folder
 (xterm.js in the window, node-pty in the main process: `terminal.ts`), an agent the human chose started in it
 ([tasks.md](tasks.md), "Several agents in a task") or not. Each tab: the agent's icon (a shell's, for a shell), its
-name, its state (an agent's: working, waiting for you, done), ×. At the row's end, the island's own buttons, whatever
-tab is in front: **+** (a menu of the project's accounts, the default first, each a new conversation; then Terminal,
-a shell) and the dictation of the agent in front (below). The agent's icon opens **Change Agent**, a dialog
+name, its state (an agent's: working, waiting for you, done), ×. After the tabs, the island's own **+**, whatever
+tab is in front (a menu of the project's accounts, the default first, each a new conversation; then Terminal, a
+shell). Under the terminal, a second island in the same panel, so it goes wherever the terminals go: the **voice
+bar**, the row of tabs' height, the dictation of the agent in front in its middle (below; the author, 2026-10-13). It
+is one panel of the grid drawn as two islands: the group's own color is taken off (`.termsplit`, set by
+`Terminals.vue`: the panel is rendered over the group, dockview's `renderer: 'always'`, so no rule of the group's can
+see what it holds), the row and the terminal one island, the bar the other. The agent's icon opens **Change Agent**, a dialog
 (the project's accounts: the one chosen opens in a new tab, told to go on with this conversation; [tasks.md](tasks.md),
 "Several agents in a task"). An agent's × asks first; a shell's closes it.
 
@@ -198,8 +202,11 @@ parser), its last 500 lines, so what a program redraws in place (a progress, a c
 became, not as every frame it went through (the output with its codes left out, until 2026-10-12). About 1 MB a shell
 at 200 columns; an agent's terminal keeps none (`terminal_read` does not read it).
 
-**Dictation**, where the agent in front has its own ([tasks.md](tasks.md), "Choosing the agent"): the row of tabs ends
-with the language it hears (EN, RU …) and a microphone (`Dictation.vue`); none with a shell in front. The
+**Dictation**, where the agent in front has its own ([tasks.md](tasks.md), "Choosing the agent"): a round microphone
+in the middle of the voice bar, the language it hears (EN, RU …) just after it (`Dictation.vue`). With a shell in
+front, or an agent without dictation, the microphone is disabled, its tooltip saying why, and the bar stays: a bar
+that came and went would resize the terminal, and Claude Code redraws badly after a resize. Folded, the island has
+no bar. The
 microphone works as a voice message's button: held, the agent records until it is let go; a click starts and another
 click stops (or 5 minutes, a recording left on; another tab brought to the front stops it too). The text goes where
 the cursor is in the agent's input, after what is there, so several sentences can be dictated one after another, and

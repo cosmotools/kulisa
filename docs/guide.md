@@ -111,9 +111,10 @@ over to it, then its tab opens and it tells you in a few lines where it stands. 
 sign-in), its tab opens at once; **Show now** does not wait. The old tab stays until you close it. Or simply tell an
 agent "go on with what Claude did": every agent of the task can read the others' conversations.
 
-**Dictation**, where the agent has its own (Claude Code with a Claude.ai account): the microphone at the end of the
-terminals' row of tabs, for the agent in front. Hold it while you speak, or click to start and click again to stop. The text goes into the agent's input for
-you to read and send. Its language is next to it.
+**Dictation**, where the agent has its own (Claude Code with a Claude.ai account): the microphone in the middle of the
+bar under the terminals, which goes wherever the terminals go, for the agent in front. Hold it while you speak, or click
+to start and click again to stop. The text goes into the agent's input for you to read and send. Its language is next
+to it. With a terminal or an agent without dictation in front, the microphone is greyed out.
 
 ## Tasks
 

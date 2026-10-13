@@ -29,8 +29,14 @@ export default (test: Test) => {
       return { above: r.top - h.top, below: h.bottom - r.bottom }; })()`);
     assert.ok(Math.abs(above - below) <= 1, `the rows in the middle: ${above} above, ${below} below`);
   });
-  test("terminal: dictation where the agent has its own: its language and a microphone in the header; held, or from a click to the next, the agent's key is held; another language chosen there", async ({ ui, termText }) => {
-    await waitFor(() => ui(`!document.querySelector('.dictation').hidden`));
+  test("terminal: dictation where the agent has its own: a microphone in the middle of the voice bar, an island under the terminal, its language after it; held, or from a click to the next, the agent's key is held; another language chosen there", async ({ ui, termText }) => {
+    await waitFor(() => ui(`!!document.querySelector('.dictation .lang')`));
+    // Under the terminal, as wide, apart from it by the gap between islands; the microphone in its middle.
+    const { term, bar, mic } = await ui(`(() => { const r = (s) => document.querySelector(s).getBoundingClientRect().toJSON();
+      return { term: r('.termpanel'), bar: r('.voicebar'), mic: r('.dictation .mic') }; })()`);
+    assert.ok(bar.top - term.bottom >= 4 && bar.top - term.bottom <= 12, `apart from the terminal: ${bar.top - term.bottom}px`);
+    assert.deepEqual([bar.left, bar.right], [term.left, term.right]);
+    assert.ok(Math.abs(mic.left + mic.width / 2 - (bar.left + bar.width / 2)) <= 1, 'the microphone in the middle');
     assert.equal(await ui(`document.querySelector('.dictation .lang').textContent`), 'EN');
     assert.equal(await ui(`document.querySelector('.dictation .lang').title`), 'Dictation in English: the language you speak. it answers in it too',
       "what the agent's entry says of it");
@@ -71,8 +77,8 @@ export default (test: Test) => {
     assert.deepEqual(await tabs(), ['bash *'], "the agent's tab, named after its agent");
     // The row is apart from the terminal: its own color, the tab in front in the terminal's.
     const row = '.dv-groupview:has(.termtabs) .dv-tabs-and-actions-container';
-    assert.notEqual(await color(row), await color('.dv-groupview:has(.termtabs) .dv-content-container'));
-    assert.equal(await color('.termtab.active'), await color('.dv-groupview:has(.termtabs) .dv-content-container'));
+    assert.notEqual(await color(row), await color('.termpanel'));
+    assert.equal(await color('.termtab.active'), await color('.termpanel'));
     // + is the island's, not a tab's: its menu has the project's agents (none here) and Terminal.
     await ui(`document.getElementById('termAdd').click()`);
     assert.deepEqual(await menuRows(ui), ['Terminal']);
@@ -80,8 +86,10 @@ export default (test: Test) => {
     await waitFor(async () => JSON.stringify(await tabs()) === '["bash","Terminal *"]');
     const human = task.terminal('Terminal') as TaskTerminal;
     assert.equal(human.by, 'human');
-    // A shell in front: no dictation (it is the shown agent's); a pick still goes to the agent shown last.
-    await waitFor(() => ui(`document.querySelector('.dictation').hidden`));
+    // A shell in front: no dictation (it is the shown agent's), the bar kept, its microphone disabled saying why; a pick
+    // still goes to the agent shown last.
+    await waitFor(() => ui(`document.querySelector('.dictation .mic').disabled && !document.querySelector('.dictation .lang')`));
+    assert.equal(await ui(`document.querySelector('.dictation .mic').title`), "Dictation is the agent's: a shell is in front");
     assert.equal(task.promptTarget().agent.cli, 'bash');
     await waitFor(async () => (await shown()) === 1 && ui(`window.__term === window.__term && document.activeElement.closest('.term') !== null`));
 
@@ -126,7 +134,7 @@ export default (test: Test) => {
     await ui(`document.querySelector('.termtab[data-id="${human.id}"] .close').click()`);
     await waitFor(async () => task.terminals.size === 1 && JSON.stringify(await tabs()) === '["bash *"]');
     assert.equal(task.promptTarget().pty, shell.pty, "the agent's in front again, still running");
-    await waitFor(() => ui(`!document.querySelector('.dictation').hidden`));
+    await waitFor(() => ui(`!document.querySelector('.dictation .mic').disabled`));
   });
   test("the window's page is sandboxed (no Node in it), its bridge to the main process works", async ({ shell, ui }) => {
     assert.equal(await noNode(shell.win.webContents), true);
