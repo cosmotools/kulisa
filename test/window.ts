@@ -36,7 +36,8 @@ export default (test: Test) => {
       return { row: r('.termtabs'), add: r('#termAdd'), mic: r('.dictation .mic') }; })()`);
     assert.ok(mic.left > add.right && row.right - mic.right <= 12, `at the row's end: ${JSON.stringify({ row, add, mic })}`);
     assert.ok(mic.top >= row.top && mic.bottom <= row.bottom, 'in the row');
-    assert.equal(await ui(`document.querySelector('.dictation .mic').title`), 'Speak to the agent in English: hold Right Ctrl anywhere, or press it once and again; or this button the same way',
+    const mac = process.platform === 'darwin', name = mac ? 'Right ⌘' : 'Right Ctrl'; // Apple keyboards have no right Ctrl
+    assert.equal(await ui(`document.querySelector('.dictation .mic').title`), `Speak to the agent in English: hold ${name} anywhere, or press it once and again; or this button the same way`,
       "in Kulisa's language (☰ → Language), with the key");
     const keys = async () => ((await termText()).match(/<v>/g) || []).length;
     const lit = () => ui(`document.querySelector('.dictation .mic').ariaPressed`);
@@ -46,7 +47,7 @@ export default (test: Test) => {
     // The key in a profile's page, where every other key is the site's: held, it records until let go, and the keyboard
     // stays in the page; its repeats while held are no presses.
     const page = shell.profiles.values().next().value.get().wc;
-    const ctrl = (wc: Electron.WebContents, type: 'keyDown' | 'keyUp', repeat = false) => wc.sendInputEvent({ type, keyCode: 'Control', modifiers: ['control', 'right', ...(repeat ? ['isautorepeat' as const] : [])] });
+    const ctrl = (wc: Electron.WebContents, type: 'keyDown' | 'keyUp', repeat = false) => wc.sendInputEvent({ type, keyCode: mac ? 'Meta' : 'Control', modifiers: [mac ? 'meta' : 'control', 'right', ...(repeat ? ['isautorepeat' as const] : [])] });
     page.focus();
     await waitFor(() => page.isFocused());
     let n = await keys();
@@ -60,7 +61,7 @@ export default (test: Test) => {
     assert.ok(page.isFocused(), 'the keyboard stays where it was');
     // Pressed once: until the next press. The left Ctrl is the usual Ctrl.
     n = await keys();
-    page.sendInputEvent({ type: 'keyDown', keyCode: 'Control', modifiers: ['control', 'left'] }); page.sendInputEvent({ type: 'keyUp', keyCode: 'Control', modifiers: ['control', 'left'] });
+    page.sendInputEvent({ type: 'keyDown', keyCode: mac ? 'Meta' : 'Control', modifiers: [mac ? 'meta' : 'control', 'left'] }); page.sendInputEvent({ type: 'keyUp', keyCode: mac ? 'Meta' : 'Control', modifiers: [mac ? 'meta' : 'control', 'left'] });
     await sleep(200);
     assert.equal(await keys(), n);
     ctrl(page, 'keyDown'); ctrl(page, 'keyUp');
@@ -82,7 +83,7 @@ export default (test: Test) => {
     n = await keys();
     await mouse('pointerdown'); await mouse('pointerup');
     await recording(n);
-    assert.equal(await ui(`document.querySelector('.dictation .mic').title`), 'Recording: let go of Right Ctrl, or click to stop');
+    assert.equal(await ui(`document.querySelector('.dictation .mic').title`), `Recording: let go of ${name}, or click to stop`);
     await mouse('pointerdown'); await mouse('pointerup');
     await stopped('click');
     n = await keys();
@@ -111,13 +112,13 @@ export default (test: Test) => {
     await waitFor(() => ui(`(document.getElementById('shortcuts')?.dataset.state === 'open')`));
     const hold = `[...document.querySelectorAll('#shortcuts dt')].find((d) => d.textContent === 'Speak to the agent: hold, or press once and again').nextElementSibling`;
     const shown = () => ui(`[...${hold}.querySelectorAll('kbd')].map((k) => k.textContent)`);
-    assert.deepEqual(await shown(), ['Right Ctrl']);
+    assert.deepEqual(await shown(), [name]);
     await ui(`${hold}.querySelector('.change').click()`);
     assert.deepEqual(await shown(), ['Press a key…']);
     press(win, 'A');
     await waitFor(() => ui(`!!document.querySelector('#shortcuts .error')`));
     assert.match(await ui(`document.querySelector('#shortcuts .error').textContent`), /^Press a key that types nothing/);
-    assert.deepEqual(await shown(), ['Right Ctrl']);
+    assert.deepEqual(await shown(), [name]);
     await ui(`${hold}.querySelector('.change').click()`);
     press(win, 'F9');
     await waitFor(async () => JSON.stringify(await shown()) === '["F9"]');
@@ -133,7 +134,7 @@ export default (test: Test) => {
     await stopped('F9');
     ctrl(page, 'keyDown'); ctrl(page, 'keyUp');
     await sleep(200);
-    assert.equal(await lit(), 'false', 'the right Ctrl is a Ctrl again');
+    assert.equal(await lit(), 'false', `the ${name} is a modifier again`);
   });
   test("the island: its terminals in tabs over them, one shown, the row apart; + opens the human's shell in front; the agent runs what keeps running in a shell of its own, behind, reads it, stops it, closes it, never in an agent's tab; × and a shell's exit close one", async ({ shell, ui, call, instructions }) => {
     const task = shell.task;
