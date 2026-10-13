@@ -49,7 +49,7 @@ interface TasksFile { next: number; current: number | null; list: TaskEntry[] }
 // A window as settings.json keeps it, its projects by id; windows() gives them as projects.
 interface SavedWindow { tabs: string[]; shown: string | null; bounds?: Electron.Rectangle; maximized?: boolean }
 interface WindowState { tabs: ProjectEntry[]; shown: ProjectEntry | null; bounds?: Electron.Rectangle; maximized?: boolean }
-interface Settings { uiZoom?: number; theme?: 'dark' | 'light' | 'system'; bar?: 'top' | 'bottom'; windows?: SavedWindow[] }
+interface Settings { uiZoom?: number; theme?: 'dark' | 'light' | 'system'; bar?: 'top' | 'bottom'; language?: string; keys?: Record<string, string>; windows?: SavedWindow[] }
 // A profile as a task keeps it in profiles.json (project-profiles.ts).
 interface TaskProfile { folder: string; id: string; zoom?: Record<string, number>; closed?: boolean }
 // A task's agents (tasks.ts): the one it was made with (opened when its island has never had a terminal), and every

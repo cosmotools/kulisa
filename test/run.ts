@@ -37,16 +37,15 @@ fs.mkdirSync(project, { recursive: true });
 // project's .envrc with CLAUDE_CONFIG_DIR), which the task's account overrides.
 const bashrc = path.join(root, 'bashrc');
 fs.writeFileSync(bashrc, `PS1='$ '\nexport FROM_RC="rc of $PWD"\nexport FAKE_CONFIG_DIR="the project's"\n`);
-// Its dictation (agents/, voice): cat shows the key the microphone holds (repeated); its language kept here. Its
-// transcripts read as Claude Code's (task_history): a test writes one in that format.
-let dictation = 'en';
+// Its dictation (agents/, voice): cat shows the key the microphone holds (repeated). Its transcripts read as Claude
+// Code's (task_history): a test writes one in that format.
 const agent = { command: 'bash', args: ['-c', 'echo "agent: $FROM_RC"; exec cat -v'], resume: (): string[] => [], shell: { command: 'bash', args: ['--rcfile', bashrc, '-i'] }, conversation: claudeConversation,
-  voice: { key: '<v>', repeat: 50, note: 'it answers in it too', languages: ['en', 'ru', 'de'], language: () => dictation, setLanguage: (_saved: unknown, code: string) => { dictation = code; return { language: code }; } } };
+  voice: { key: '<v>', repeat: 50 } };
 // Agents to choose from for a task (agents/): one that is not installed until its installer runs, into a
 // folder of the test.
 function claudeLike() {
-  const { resume, conversation, prompt, forget, trust, localFiles, skills } = AGENTS.find((a) => a.id === 'claude');
-  return { resume, conversation, prompt, forget, trust, localFiles, skills };
+  const { resume, conversation, prompt, forget, trust, localFiles, skills, language } = AGENTS.find((a) => a.id === 'claude');
+  return { resume, conversation, prompt, forget, trust, localFiles, skills, language };
 }
 const bin = path.join(root, 'bin');
 process.env.FAKE_LOGOUTS = path.join(root, 'logouts'); // the accounts the fake agent signed out of
@@ -59,7 +58,7 @@ const agents: Agent[] = [
   // With accounts (accounts.ts) as Claude Code's, its folder in FAKE_CONFIG_DIR, which it prints; signed in, out and
   // asked who with its own commands (fixtures/fake-agent.sh). Its conversations as Claude Code's: resumed, read,
   // forgotten, a first message (the task handed to it; the arguments it ignores), its trust of a folder, its local
-// settings a task's copy gets, Kulisa's skill in its account.
+// settings a task's copy gets, Kulisa's skill in its account, its language setting.
   { id: 'fake', name: 'Fake agent', maker: 'Kulisa tests', needs: 'Nothing', command: 'kulisa-fake-agent', installDirs: [bin],
     config: { env: 'FAKE_CONFIG_DIR', home: () => path.join(root, 'fake-config'), login: () => ['auth', 'login'],
       status: ['auth', 'status'], email: (out) => JSON.parse(out).email, logout: ['auth', 'logout'] },

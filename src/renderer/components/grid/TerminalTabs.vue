@@ -1,8 +1,10 @@
 <script setup lang="ts">
 // The island's row of tabs, its panel's header in the grid (docs/window.md, The terminal; Terminals.vue its terminals):
-// each terminal's tab, then +.
+// each terminal's tab, then +; at its end the task's repositories and the dictation's microphone (Dictation.vue).
 import { TabsList, TabsRoot, TabsTrigger } from 'reka-ui';
 import Icon from '../Icon.vue';
+import TaskRepos from './TaskRepos.vue';
+import Dictation from './Dictation.vue';
 import ButtonMenu from '../menu/ButtonMenu.vue';
 import RightClickMenu from '../menu/RightClickMenu.vue';
 import { act, store } from '../../lib/store';
@@ -41,6 +43,8 @@ const show = (id: string | number) => act('terminal:show', { id: Number(id) });
     </TabsList></TabsRoot></RightClickMenu>
     <ButtonMenu :items="newTerminalItems"><button id="termAdd" class="add icon quiet small" :title="withKeys('New conversation of an agent, or a terminal', 'terminal.new')"
       aria-label="New terminal" @dragstart.prevent><Icon name="i-plus" /></button></ButtonMenu>
+    <TaskRepos />
+    <Dictation />
   </div>
 </template>
 

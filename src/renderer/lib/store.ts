@@ -1,6 +1,6 @@
 // The window's state, as the main process sends it (window.ts), for the components to draw.
 import { reactive, watch } from 'vue';
-import type { ClosedProfile, Profile, ProjectsInfo, TaskInfo, Terminals } from '../types';
+import type { ClosedProfile, LanguageInfo, Profile, ProjectsInfo, TaskInfo, Terminals } from '../types';
 import { initialProjects } from './common';
 import { projectColor } from './project-color';
 
@@ -19,6 +19,7 @@ export const store = reactive({
   zoom: 1, // the Kulisa zoom
   theme: root.dataset.theme || 'dark', // Dark, Light or System (index.html sets it from the URL before the first paint)
   bar: root.dataset.bar || 'bottom', // where the tasks' bar is
+  language: null as LanguageInfo | null, // Kulisa's language (☰ → Language)
   loading: true, // the grid not laid out yet: no grid shown, the pages kept hidden (grid.ts, reveal)
   // Over each pane (by profile id): what the agent does (its caption), Pick's words; whose Pick is on.
   captions: {} as Record<string, string>,
@@ -49,6 +50,8 @@ kulisa.on<number>('zoom', (z) => { store.zoom = z; });
 void kulisa.invoke<number>('zoom:get').then((z) => { store.zoom = z; });
 kulisa.on<string>('theme', (theme) => { store.theme = theme; });
 kulisa.on<string>('bar', (bar) => { store.bar = bar; });
+kulisa.on<LanguageInfo>('language', (info) => { store.language = info; });
+void kulisa.invoke<LanguageInfo>('language:get').then((info) => { store.language = info; });
 
 // The theme of Kulisa's own UI (app.ts): CSS does the rest (tokens.css: color-scheme, light-dark()). The tasks' bar
 // over the grid or under it. The open project's color for the whole window (--project); none: Kulisa's own colors.

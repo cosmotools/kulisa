@@ -46,7 +46,8 @@ narrow, targets for a quick throw of the mouse; nothing in the bar moves when an
 
 A task's profiles' panes and its island of terminals are peer panels in a grid (dockview), in JetBrains' Islands look:
 drag one by its header to another place, onto another panel to stack them as tabs, drag the gaps to resize. A
-panel stacked behind another hides its page until it is chosen. **☰ → Arrange panels** offers ready-made
+panel stacked behind another hides its page until it is chosen (and after a while unloads it: [profiles.md](profiles.md),
+"Tabs unloaded"). **☰ → Arrange panels** offers ready-made
 arrangements, each drawn as a small picture of itself, as Windows' snap layouts (the words in its tooltip):
 profiles in columns with the terminal below, two by two with the terminal on the right, one profile at a time.
 Each fits the window with nothing cut off, the terminal taking a third of it (`TERMINAL_SHARE`, `lib/grid.ts`): the
@@ -110,6 +111,26 @@ when it changes, as JetBrains' Sync with OS). Saved (`settings.json`), the same 
   sets `color-scheme: dark` on the grid; `Grid.vue` gives it back the root's.
 - What CSS does not paint follows from the main process: the window's background and the OS buttons' strip
   (`window.ts`).
+
+## Language
+
+**☰ → Language**: the language the human speaks with the agents, one for all of them (the author, 2026-10-13: one
+setting, so what the agents do because of it is plain). A row with the language chosen at its end, opening a menu
+beside it (Reka's submenu: too many to show in the row, as Theme's are): the languages the agents' own settings take,
+the system's first, then by name in each language itself (`LanguageRow.vue`). English by default, as the agents are
+without it. Saved (`settings.json`), the same in every window.
+
+- Kulisa gives the agents' own language settings one place and keeps them in step; it tells the agents nothing
+  itself (the author, 2026-10-13). An agent with one (its entry's `language`: Claude Code's `language`, which it
+  dictates and answers in) gets it in every account's folder: when it is chosen, and at an agent's start (an account
+  made since, or the setting changed in the agent's own `/config`), never in the human's own folder. Claude Code
+  reads it again at once, in every running session. An agent without one (Codex 0.160.1) is not told otherwise:
+  the row's tooltip names it ("has no language setting yet").
+- Tried before it was decided (Claude Code 2.1.296, 2026-10-13): an instruction to answer in another language than
+  the setting's lost to it, given as Kulisa gives context (the SessionStart hook: 2 runs of 3) and in
+  `--append-system-prompt`; a project's CLAUDE.md won. So one setting for dictation and answers, not two. With it
+  set to Russian and no rule, Claude Code wrote a file's comments in Russian too: which language code and comments
+  are in is the project's to say, in its CLAUDE.md or AGENTS.md, which the tooltip says too.
 - The terminal takes the panels' colors (`term.options.theme`, set again on a change); the programs' own colors stay
   xterm's, made readable on either background by its `minimumContrastRatio` (as VS Code does), with no palette of
   Kulisa's own.
@@ -122,7 +143,7 @@ pages are pictures of themselves meanwhile; afterwards the keyboard is back wher
 
 - the bar's + (every project, a new task of it; their closed tasks; New Project…), a task tab's right-click menu (the shown one's open
   and closed profiles, Manage Profiles…: Settings → Profiles; Rename…, Show Folder, Delete Task…), ☰ (as Chrome's ⋮, each row with its icon: the zoom row, the theme row, the
-  tasks' bar's row, Arrange panels, Agents… (Settings at its agents), Keyboard Shortcuts, the links
+  tasks' bar's row, Language (a menu beside it), Arrange panels, Agents… (Settings at its agents), Keyboard Shortcuts, the links
   (Documentation, GitHub, Report an issue; one list in `lib/common.ts`), and Exit, which quits as the last window's × does; not on macOS, where
   Cmd+Q and the app's menu quit; under them all Kulisa's version, small and dim: words, not a row, as nothing happens on a click);
 - right-click on a pane's header (New tab, About this profile… (Settings at it), Sign In to Master…, Refresh
@@ -157,11 +178,12 @@ not needed): a terminal is not split off into a panel of its own. Each is the us
 ([tasks.md](tasks.md), "Several agents in a task") or not. Each tab: the agent's icon (a shell's, for a shell), its
 name, its state (an agent's: working, waiting for you, done), ×. After the tabs, the island's own **+**, whatever
 tab is in front (a menu of the project's accounts, the default first, each a new conversation; then Terminal, a
-shell). Under the terminal, a second island in the same panel, so it goes wherever the terminals go: the **voice
-bar**, the row of tabs' height, the dictation of the agent in front in its middle (below; the author, 2026-10-13). It
-is one panel of the grid drawn as two islands: the group's own color is taken off (`.termsplit`, set by
-`Terminals.vue`: the panel is rendered over the group, dockview's `renderer: 'always'`, so no rule of the group's can
-see what it holds), the row and the terminal one island, the bar the other. The agent's icon opens **Change Agent**, a dialog
+shell). At the row's end, in a project of several repositories, the task's copies of them, a `.chip` each (its
+name; its folder and branch in its tooltip; `TaskRepos.vue`): which repositories it works in, seen without asking. One
+added (Add Repository, or its agent's `task_add_repository`) comes in from the right, lit in the accent color for a
+moment (`.fresh`; not with reduced motion), so the human sees it arrive; another task shown is no news. An added one's
+right-click menu: Remove Repository (the task's own folder has none). Last in the row, the dictation's microphone
+(Dictation, below). The agent's icon opens **Change Agent**, a dialog
 (the project's accounts: the one chosen opens in a new tab, told to go on with this conversation; [tasks.md](tasks.md),
 "Several agents in a task"). An agent's × asks first; a shell's closes it.
 
@@ -202,20 +224,32 @@ parser), its last 500 lines, so what a program redraws in place (a progress, a c
 became, not as every frame it went through (the output with its codes left out, until 2026-10-12). About 1 MB a shell
 at 200 columns; an agent's terminal keeps none (`terminal_read` does not read it).
 
-**Dictation**, where the agent in front has its own ([tasks.md](tasks.md), "Choosing the agent"): a round microphone
-in the middle of the voice bar, the language it hears (EN, RU …) just after it (`Dictation.vue`). With a shell in
-front, or an agent without dictation, the microphone is disabled, its tooltip saying why, and the bar stays: a bar
-that came and went would resize the terminal, and Claude Code redraws badly after a resize. Folded, the island has
-no bar. The
-microphone works as a voice message's button: held, the agent records until it is let go; a click starts and another
-click stops (or 5 minutes, a recording left on; another tab brought to the front stops it too). The text goes where
-the cursor is in the agent's input, after what is there, so several sentences can be dictated one after another, and
-is left there to read and send (recognition makes mistakes, and a task misheard costs more than a key). Kulisa only
-holds the agent's key (`Task.dictate`); the agent records and recognizes. The button is lit while Kulisa holds it,
-which is when the agent records. The language opens a menu of those the agent understands, the system's first; it is
-the agent's own setting, so the agent answers in it too (said on hover). The agent hears through its own program
-(Claude Code: its audio module, or `arecord`/SoX on Linux); on macOS the system asks for the microphone on Kulisa's
-behalf (`NSMicrophoneUsageDescription`, `forge.config.ts`).
+**Dictation**, where the agent in front has its own ([tasks.md](tasks.md), "Choosing the agent"), is a key held:
+the **right Ctrl** (the right ⌘ on macOS: Apple keyboards have no right Ctrl), anywhere in the window: in a profile's
+page, its address bar, the terminal, the bar. Held, the agent records until it is let go; pressed once, it records
+until the next press (or 5 minutes, a recording left on; another tab brought to the front, or the window losing the
+keyboard with the key down, stops it too). Why a key and not a button (the author, 2026-10-13): speaking to the agent
+happens hundreds of times a day, and nobody aims at a button that often; why one key held alone and no chord: users
+are not pianists; why that one: a modifier alone types nothing and does nothing in any page or terminal, so it is
+taken from no one and left to the page (its chords still work), and it sits at the right hand's edge, where
+push-to-talk keys go; the space bar, Claude Code's own key, is the page's in a page. The human may hold another key
+instead: Keyboard Shortcuts, Change on its row, then the key pressed (a modifier by its side, an F key not Kulisa's,
+Insert, Pause or Scroll Lock; a key that types is refused, saying so); kept in `settings.json` (`keys`), every
+window told (`keys:set`, `shell.keys()`; `Shortcuts.vue`). With a shell in front, the key brings the agent the prompt
+goes to in front first (`Task.holdKey`, `promptTarget`), so it always means "speak to the agent".
+
+The key's indicator, and the way by the mouse, is the round microphone at the end of the terminals' row of tabs
+(`Dictation.vue`, after the task's repositories): its tooltip names the key and the language it hears (Language,
+above); while the agent records it is red and breathes with a ring (`mic-breathe`; not with reduced motion), so the
+eye catches from across the window that the agent is listening. It works as a voice message's button too: held, or
+a click to start and another to stop. With a shell in front, or an agent without dictation, it is disabled, its
+tooltip saying why (a button that came and went would move the row). The text goes where the cursor is in the agent's
+input, after what is there, so several sentences can be dictated one after another, and is left there to read and
+send (recognition makes mistakes, and a task misheard costs more than a key). Kulisa only holds the agent's key
+(`Task.dictate`); the agent records and recognizes. The agent hears through its own program (Claude Code: its audio
+module, or `arecord`/SoX on Linux); on macOS the system asks for the microphone on Kulisa's behalf
+(`NSMicrophoneUsageDescription`, `forge.config.ts`). The voice bar, an island of its own under the terminals with
+the microphone in its middle (2026-10-13, for a day): a whole row for one button.
 
 Links in the terminal, those an agent marks (OSC 8, as Claude Code does) and addresses in plain text (xterm's web-links
 addon), open with Ctrl+click (⌘ on macOS), and always ask where, in a menu at the pointer: a new tab in one of the
@@ -246,7 +280,8 @@ Who gets a key depends on where the keyboard is:
 - **Everywhere, the terminal too**: Ctrl+` to the terminal in front and back to the page used last (on the folded
   island, a new conversation of the task's agent), Ctrl+Shift+` a new terminal, Ctrl+Shift+1…9 a task of the shown group, Ctrl+Shift+PgDn / PgUp the next or previous one of every
   group (in the bar's order), Ctrl+Shift+N a new task of the shown group's project, Ctrl+Shift+A the bar's + (a task of which project),
-  Ctrl+Shift+/ the list. Ctrl+Shift+… and Ctrl+` are
+  Ctrl+Shift+/ the list; the right Ctrl (right ⌘ on macOS) held alone, speak to the agent (The terminal, Dictation:
+  the one key the human may change, in the list). Ctrl+Shift+… and Ctrl+` are
   what agents and sites leave alone; Alt+letters are Claude Code's (Alt+V, Alt+P, Alt+T), Ctrl+Alt+arrows GNOME's,
   Ctrl+Shift+U and E ibus's, so Kulisa takes none of them.
 - **In the terminal** every other key is the agent's (Ctrl+R, Ctrl+T, Ctrl+O …), with the copy and paste of the OS's
@@ -254,7 +289,7 @@ Who gets a key depends on where the keyboard is:
 - **In a dialog** its keys are its own; only the zoom works there.
 
 The zoom and DevTools keys mean the nearest: in a page that site's zoom and that tab's DevTools, elsewhere Kulisa's.
-No key without a modifier but F keys (WCAG 2.1.4). On macOS the keys are ⌘'s and Ctrl stays the terminal's;
+No key without a modifier but F keys (WCAG 2.1.4); the key held alone is a modifier itself. On macOS the keys are ⌘'s and Ctrl stays the terminal's;
 tasks are ⌘⌥1…9 (⌘⇧3, 4, 5 are macOS's screenshots), back and forward ⌘[ and ⌘] as in Chrome.
 
 How: the main process sees every key of the window and of every tab before the page does (`before-input-event`, on
@@ -263,10 +298,10 @@ leaves it, untouched. Where the keyboard is in the window's own page, the page t
 dialog, a pane; `src/renderer/lib/keys.ts`), which also runs the commands the main process sends back (`command`, with
 the profile and tab). Letters are matched by what they type on a Latin layout (Ctrl+W on an AZERTY keyboard is its W)
 and by their place on others (Ctrl+Е on a Russian one is Ctrl+T); digits and keys typed with Shift by their place. Keys
-are written as Electron's accelerators (`CommandOrControl+T`).
+are written as Electron's accelerators (`CommandOrControl+T`); a key held alone by its code (`ControlRight`, `F9`:
+`hold` bindings, matched on the press and the release, a modifier by its side), its repeats while held no presses.
 
-Not Electron's application menu with accelerators, its own way of keys, tried first in bare Electron 44 (REPORT,
-"Keyboard shortcuts"): on Linux the page gets a key before the menu, and the menu none that the page handled itself,
+Not Electron's application menu with accelerators, its own way of keys, tried first in bare Electron 44 (2026-10-09): on Linux the page gets a key before the menu, and the menu none that the page handled itself,
 as xterm and many web apps do: Kulisa's keys would not work in the terminal nor in those apps, and others would act
 twice (the site's and Kulisa's). Nor `globalShortcut`: it takes keys from every app on the computer. macOS has its own
 menu bar with Quit, Hide, the Edit menu (⌘C, ⌘V) and the windows (Electron's default one reloaded Kulisa's own page with

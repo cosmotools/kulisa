@@ -131,7 +131,7 @@ function buildServer(task: Task, t: TaskTerminal | null) {
     async () => text(JSON.stringify([
       ...[...task.profiles.values()].map(({ id, name, description, avatar, login, hasPassword, signinMode, active, tabs }) =>
         ({ id, name, description: description || null, avatar, ...(login && { testLogin: login, testPassword: hasPassword }), signinMode, active,
-          tabs: tabs.filter((t) => !t.wc.isDestroyed()).map((t) => ({ id: t.id, title: t.wc.getTitle(), url: t.wc.getURL() })) })),
+          tabs: tabs.filter((t) => t.discarded || !t.wc.isDestroyed()).map((t) => ({ id: t.id, title: t.title, url: t.url })) })),
       ...[...task.closed.values()].map(({ cfg, urls }) => ({ id: cfg.id, name: cfg.name, description: cfg.description || null, avatar: cfg.avatar,
         ...(cfg.login && { testLogin: cfg.login, testPassword: cfg.hasPassword }),
         closed: true, tabs: urls.length })),
@@ -204,6 +204,15 @@ function buildServer(task: Task, t: TaskTerminal | null) {
     return text(`Added: ${r.folder}, on branch ${r.branch}; make your changes there. Kulisa gives you the folder as a working one (at once for some agents, once your turn is over for others); until then your changes there may ask for the human's permission.`);
   });
 
+  server.registerTool('task_remove_repository', {
+    description: "Remove a repository added to this task (task_add_repository) that it no longer needs: its copy's folder and branch are deleted. Only after the human has agreed in the conversation: ask them first. Not the task's own folder, where you work. When the copy holds commits not pushed or uncommitted files, Kulisa asks the human too.",
+    inputSchema: { repository: z.string().describe("The repository's folder or name, or its copy's folder, as the instructions list the task's folders") },
+  }, async ({ repository }) => {
+    const r = await task.removeRepository(repository);
+    if (refused(r)) throw new Error(r.error);
+    return text(`Removed: ${r.folder} and its branch are gone; work no more there.`);
+  });
+
   server.registerTool('task_history', {
     description: "The history of this task. Without a conversation: where it stands (its code in git, profiles, terminals) and its conversations, each an agent's, numbered, with its tab's name, open or closed, when, its first and last request. With a conversation's number: that conversation whole, what the human asked and the agent did, read from its transcript, the latest chapter first. When the human asks you to go on with another agent's work, find its conversation here and read every part of it before anything else. Also when you need details your context lost. Call with part 1, then the next ones up to the total it says.",
     inputSchema: {
@@ -256,7 +265,7 @@ function buildServer(task: Task, t: TaskTerminal | null) {
     async ({ profile, tab }) => {
       const { profile: p, tab: t } = tabOf(profile, tab);
       p.activate(t.id);
-      return text(`Active tab of ${profile}: ${t.id} ${t.wc.getURL()}`);
+      return text(`Active tab of ${profile}: ${t.id} ${t.url}`);
     });
   server.registerTool('browser_tab_close', { description: 'Close a tab of the profile. Close only tabs you opened, unless the human asked.', inputSchema: { profile: profileArg, tab: tabArg } },
     async ({ profile, tab }) => {

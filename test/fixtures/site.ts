@@ -6,6 +6,7 @@
 //   /drag     a header with app-region: drag, as Teams has (a page must never move Kulisa's window)
 //   /board    messages shared by every profile, polled (one profile posts, another waits to see it)
 //   /headers  echoes the User-Agent and Sec-CH-UA* request headers as JSON
+//   /draft    a page that holds its unload (beforeunload), as a form with unsaved changes does: never discarded
 // It runs in its own process: inside Electron's main process it can deadlock, because a synchronous Electron call
 // waits for a renderer that waits for a response from this (then blocked) server.
 import { spawn } from 'child_process';
@@ -78,6 +79,7 @@ function pay() { console.error('PaymentError: card declined by stub'); fetch('/a
 <button onclick="setTimeout(() => out.textContent = 'done later', 1500)">Later</button>
 <script>addEventListener('keydown', (e) => { if (e.key === 'Escape') out.textContent = 'Escape pressed'; });</script>`));
   }
+  if (u.pathname === '/draft') return send(200, page('draft', `<h3>Draft</h3><button>Draft</button><script>onbeforeunload = (e) => { e.preventDefault(); e.returnValue = 'unsaved'; };</script>`));
   if (u.pathname === '/drag') return send(200, page('drag', `<header id="bar" style="app-region: drag; height: 60px">Title bar</header><p>page</p>`));
   if (u.pathname === '/board/post') { board.push(u.searchParams.get('text') || ''); return send(302, '', 'text/plain', { location: '/board' }); }
   if (u.pathname === '/board/messages') return send(200, JSON.stringify(board), 'application/json');

@@ -12,11 +12,12 @@ import type { Profile } from './profiles.ts';
 import type { Project } from './projects.ts';
 import type { Task } from './tasks.ts';
 import type { AppWindow } from './window.ts';
-import type { Question, ProjectEntry as SentProject } from '../renderer/types.ts';
+import type { Question, ProjectEntry as SentProject, LanguageInfo, Shortcut } from '../renderer/types.ts';
 import type { Master } from './master.ts';
 import type { Pty } from './terminal.ts';
 import type { signinPages } from './signin-pages.ts';
 import type { Result } from './result.ts';
+import type { Discarder } from './discard.ts';
 
 
 // An agent or account a task runs (shell.agentFor): its agent's entry, with the account's id, name and folder; cli:
@@ -49,11 +50,14 @@ interface Shell {
   uiZoom: number; setUiZoom(z: number): void;
   theme: 'dark' | 'light' | 'system'; shade(): 'dark' | 'light'; setTheme(theme?: 'dark' | 'light' | 'system'): void;
   bar: 'top' | 'bottom'; setBar(bar: 'top' | 'bottom'): void;
+  language: string; languageInfo(): LanguageInfo; setLanguage(code: string): Result<{ language: string }>;
+  keys(): Shortcut[]; // the keyboard shortcuts as shown, the human's hold keys in (keys.ts)
   firstStart(w: AppWindow): void;
   pointer(): Point;
   windowClosing(w: AppWindow, e: Electron.Event): void;
   signins: Map<string, Pty>;
   stopAutosave?: () => void;
+  discard: Discarder; // tabs no one looks at losing their process (discard.ts)
   screenshot(file: string): Promise<void>;
   packages: string; // Kulisa's packages for the agents (app.ts, AGENT_PACKAGES)
   agentFiles: string[]; // the agents' local settings a task's copy gets (each agent's localFiles)

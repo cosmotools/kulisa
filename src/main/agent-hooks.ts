@@ -34,8 +34,8 @@ const who = ({ id, name, description }: { id: string; name: string; description?
 function sessionStart(task: Task, t: TaskTerminal | null, input: Input) {
   if (input?.session_id && t) task.saveSession(t, { sessionId: input.session_id, transcript: input.transcript_path });
   const lines = [...task.profiles.values()].map((p) => {
-    const tabs = p.tabs.filter((t) => !t.wc.isDestroyed()).map((t) =>
-      `    - tab ${t.id}${t.id === p.active ? ' (active)' : ''}: "${t.wc.getTitle()}" ${t.wc.getURL()}`);
+    const tabs = p.tabs.filter((t) => t.discarded || !t.wc.isDestroyed()).map((t) =>
+      `    - tab ${t.id}${t.id === p.active ? ' (active)' : ''}: "${t.title}" ${t.url}`);
     return [`${who(p)}${p.signinMode ? '; the human is signing in right now' : ''}`, ...tabs].join('\n');
   });
   const closed = [...task.closed.values()].map(({ cfg }) => who(cfg));
@@ -99,7 +99,8 @@ function taskContext(task: Task) {
   const others = [...copies.filter((c) => c.folder !== task.folder).map((c) => `${c.folder} (a worktree of ${c.repo}, branch ${c.branch})`),
     ...shared.map((d) => `${d} (the project's own folder: no git, no copy)`)];
   const addable = task.addable();
-  const more = (others.length ? ` The task's other folders: ${others.join('; ')}.` : '') + (addable.length ? ` The project's other ` +
+  const removable = copies.some((c) => c.folder !== task.folder) ? ' A copy the task no longer needs goes with task_remove_repository, once the human agreed.' : '';
+  const more = (others.length ? ` The task's other folders: ${others.join('; ')}.${removable}` : '') + (addable.length ? ` The project's other ` +
     `repositories, not in this task: ${addable.join(', ')}. Read them there freely; to change one, first ask the human, saying ` +
     'why the task needs it, and once they agree add it with task_add_repository: a copy on your branch, where you change it.' : '');
   if (!copies.length) {

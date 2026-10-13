@@ -48,7 +48,7 @@ Kulisa is tested on Linux (Ubuntu) so far; on Windows it is newer and less tried
 ## The window
 
 - **The title bar**: the Kulisa logo in the shown project's color, **Settings** (the gear), and **☰**, the window's
-  menu: zoom, theme, where the tasks' bar is, Arrange panels, Agents…, Keyboard Shortcuts, links, Exit.
+  menu: zoom, theme, where the tasks' bar is, language, Arrange panels, Agents…, Keyboard Shortcuts, links, Exit.
 - **The grid**: the shown task's panes (one per open profile) and its terminals. Drag a pane by its header to move it,
   onto another pane to stack them as tabs; drag the gaps to resize. **☰ → Arrange panels** offers ready-made
   arrangements. Each task keeps its own grid.
@@ -112,10 +112,13 @@ over to it, then its tab opens and it tells you in a few lines where it stands. 
 sign-in), its tab opens at once; **Show now** does not wait. The old tab stays until you close it. Or simply tell an
 agent "go on with what Claude did": every agent of the task can read the others' conversations.
 
-**Dictation**, where the agent has its own (Claude Code with a Claude.ai account): the microphone in the middle of the
-bar under the terminals, which goes wherever the terminals go, for the agent in front. Hold it while you speak, or click
-to start and click again to stop. The text goes into the agent's input for you to read and send. Its language is next
-to it. With a terminal or an agent without dictation in front, the microphone is greyed out.
+**Dictation**, where the agent has its own (Claude Code with a Claude.ai account): hold the **right Ctrl** key (the
+right ⌘ on a Mac) while you speak, wherever you are in Kulisa, a page or the terminal, and let go; or press it once to
+start and once more to stop. The text goes into the agent's input for you to read and send. It hears the language
+chosen in **☰ → Language**. The microphone at the end of the terminals' row shows that the agent is listening, and
+works the same way by the mouse: hold it, or click to start and again to stop. With a terminal or an agent without
+dictation in front, the key brings the agent back in front; the microphone is greyed out then. Another key instead of
+the right Ctrl: **☰ → Keyboard Shortcuts**, Change on its row, then press the key.
 
 ## Tasks
 
@@ -131,8 +134,11 @@ to it. With a terminal or an agent without dictation in front, the microphone is
 - **Several repositories.** In a project of several repositories (a frontend and a backend), a new task gets a copy
   of the default one only. When the work needs another, add it: right-click the task's tab and choose it under **Add
   Repository**. The agent may ask you for one too, and adds it once you agree; to only read another repository it
-  needs no copy. Kulisa gives the agent the new folder itself (Claude Code at once, unless it is waiting for your answer; other
-  agents once they have finished what they are doing).
+  needs no copy. The repositories the task has are named at the end of its terminals' row; one just added comes in
+  lit for a moment. Kulisa gives the agent the new folder itself (Claude Code at once, unless it is waiting for your
+  answer; other agents once they have finished what they are doing). One you no longer need goes the same way:
+  **Remove Repository** on the task's tab, or a right-click on its name in that row (the agent may ask to remove one
+  too). Its copy and branch are deleted; when they hold work not pushed, Kulisa asks you first.
 - **Its own ports.** Each task runs your app on its own ports, the usual ones plus 100, 200, …, so several tasks run
   the app at once. Its profiles' tabs on local addresses already point there, and stay signed in.
 - **Its name** is `task-1`, `task-2` … until the agent names it, by itself and without a word about it, once your
@@ -203,6 +209,10 @@ A pane is a small Chrome: a tab strip, an address bar, back, forward and reload.
 - **DevTools** of a tab: the pane's ⋮ menu, or F12.
 - A page's alert or confirm shows in its pane, as in Chrome. A page that does not load says why, as Chrome's error
   page does.
+- **Pages no one looks at are unloaded** after five minutes, as Chrome's Memory Saver does, to give the memory back:
+  a tab behind the active one, a pane behind another, the tabs of a task you are not looking at, once its agent has
+  stopped working in them. The tab stays in its strip as it was and loads again when you click it or come back to
+  the task; the agent gets it back the same way. A page with unsaved changes stays, as in Chrome.
 
 ## Working with the agent
 
@@ -239,6 +249,9 @@ A pane is a small Chrome: a tab strip, an address bar, back, forward and reload.
 
 - **☰ → Theme**: Dark, Light, or System (as your OS). Profiles' pages keep your OS's theme, so your app looks as its
   users see it.
+- **☰ → Language**: the language you speak with the agents, one for all of them. Claude Code takes your speech in it
+  and answers in it, and may write code comments in it too: say in your project's CLAUDE.md which language its code
+  is written in. Codex has no language setting yet, so it is not changed.
 - **Kulisa's zoom**: Ctrl + / − / 0 outside the pages, or the zoom row in ☰. It scales all of Kulisa, pages included;
   when not 100%, the title bar shows it (a click resets it).
 

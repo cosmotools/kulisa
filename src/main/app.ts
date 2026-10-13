@@ -21,10 +21,11 @@ import { findFavicon } from './favicons.ts';
 import { AGENTS, findAgent, accountEmail, signOut, agentVersion, installLine, installAgent } from './agents/index.ts';
 import { nameError, repoName } from './names.ts';
 import { startTerminal, stopTerminal, forgetTerminal } from './terminal.ts';
-import { keymap, match } from './keys.ts';
+import { held, holdable, keymap, list as keyList, match } from './keys.ts';
 import { startMcpServer } from './mcp-server.ts';
 import { installPicker } from './picker.ts';
 import { installGhost } from './ghost.ts';
+import { startDiscarding } from './discard.ts';
 import { installMasters } from './master.ts';
 import { refused } from './result.ts';
 import type { IpcMainEvent, IpcMainInvokeEvent, WebContents } from 'electron';
@@ -217,6 +218,29 @@ function start(options: Options = {}) {
     for (const w of shell.windows) w.setTheme(shell.theme, shell.shade());
   };
   nativeTheme.on('updated', () => { if (shell.theme === 'system') shell.setTheme(); });
+  // The language the human speaks with the agents (☰ → Language; docs/window.md, Language): Kulisa's one, written into
+  // each agent's own language setting (agents/, language) in every account of it, here and at an agent's start
+  // (tasks.ts), never into the human's own folder. Agents without one are not told it otherwise (the author,
+  // 2026-10-13: Kulisa gives the agents' own settings a place and keeps them in step, it adds no behavior).
+  // English by default, as the agents are without it.
+  const agentKinds = () => shell.accounts.all().filter((a) => a.own).map((a) => a.agent);
+  shell.language = store.settings().language || 'en';
+  shell.languageInfo = () => {
+    const kinds = agentKinds().filter((a) => a.command);
+    return { language: shell.language, languages: [...new Set(kinds.flatMap((a) => a.language?.languages || []))],
+      agents: kinds.map((a) => ({ name: a.name, has: !!a.language })) };
+  };
+  shell.setLanguage = (code) => {
+    if (!shell.languageInfo().languages.includes(code)) return { error: `not a language any agent takes: ${code}` };
+    shell.language = code;
+    store.saveSettings({ ...store.settings(), language: code });
+    for (const a of shell.accounts.all()) {
+      const r = !a.own && a.dir ? a.agent.language?.set(a.dir, code) : null;
+      if (r?.error) console.warn('[agents] language:', r.error);
+    }
+    for (const w of shell.windows) w.send('language', shell.languageInfo());
+    return { language: code };
+  };
   // Where the bar of the open projects and their tasks is: 'bottom' (the default: by the terminal, where the hand
   // goes anyway) or 'top' (under the title bar, as browsers' tabs), chosen in ☰.
   shell.bar = store.settings().bar || 'bottom';
@@ -761,13 +785,13 @@ function start(options: Options = {}) {
   ipcMain.handle('task:open', (_e, key: string) => taskAt(key, openTask));
   ipcMain.handle('task:rename', (_e, { key, name }: { key: string; name: string }) => taskAt(key, (task) => task.rename(name)));
   ipcMain.handle('task:add-repo', (_e, { key, repo }: { key: string; repo: string }) => taskAt(key, (task) => task.addRepository(repo)));
+  ipcMain.handle('task:remove-repo', (_e, { key, repo }: { key: string; repo: string }) => taskAt(key, (task) => task.removeRepository(repo)));
   ipcMain.handle('project:delete-merged', (_e, { id }: { id: string }) => serial(() => { const p = shell.open.get(id); return p ? deleteMerged(p) : { error: 'the project is not open' }; }));
-  // The island's microphone and its language (Dictation.vue in the renderer; Task.voice, dictate).
+  // The dictation: its key held (holdKey, above in onKey) and the microphone (Dictation.vue; Task.voice, dictate).
   // Esc typed into an agent's terminal (its key: "<task>#<id>"): Task.interrupted.
   ipcMain.on('pty:in', (_e, { task, data }: { task: string; data: string }) => { if (data === '\x1b') shell.taskByKey(task.split('#')[0]!)?.interrupted(task); });
   ipcMain.handle('voice:get', (_e, key: string) => shell.taskByKey(key)?.voice() ?? null);
   ipcMain.handle('voice:record', (_e, { task, on }: { task: string; on: boolean }) => shell.taskByKey(task)?.dictate(on) ?? { recording: false });
-  ipcMain.handle('voice:language', (_e, { task, code }: { task: string; code: string }) => shell.taskByKey(task)?.setVoiceLanguage(code) ?? { error: `no task ${task}` });
   ipcMain.handle('task:show-folder', (_e, key: string) => { const task = shell.taskByKey(key); return task && electronShell.openPath(task.folder); });
   ipcMain.handle('tasks:get', (e) => at(e)?.sendTasks());
 
@@ -799,6 +823,7 @@ function start(options: Options = {}) {
     shell.firstStart(windows[0]!.w);
     shell.saveWindows();
     shell.stopAutosave = shell.sessionCookies.autosave(() => [...allProfiles(), ...shell.cookieSync.masters()]);
+    shell.discard = startDiscarding(shell);
     shell.screenshot = async (file) => { await first()!.screenshot(file); };
     // KULISA_SHOT=<file.png>: save a screenshot of the window a few seconds after start (for checking UI changes).
     if (process.env.KULISA_SHOT) setTimeout(() => shell.screenshot(process.env.KULISA_SHOT!).catch((e: Error) => console.error('[shot]', e.message)), Number(process.env.KULISA_SHOT_DELAY || 4000));
@@ -952,6 +977,8 @@ function start(options: Options = {}) {
   ipcMain.handle('tab:dialog', onTab((p, t, { dialog, ok }) => p.answerDialog(t.id, dialog, ok)));
   ipcMain.handle('tab:devtools', onTab((p, t) => p.toggleDevTools(t.id)));
   ipcMain.handle('zoom:get', () => shell.uiZoom);
+  ipcMain.handle('language:get', () => shell.languageInfo());
+  ipcMain.handle('language:set', (_e, code: string) => shell.setLanguage(code));
   ipcMain.handle('theme:set', (_e, theme: Shell['theme']) => ['dark', 'light', 'system'].includes(theme) && shell.setTheme(theme));
   ipcMain.handle('bar:set', (_e, bar: Shell['bar']) => ['top', 'bottom'].includes(bar) && shell.setBar(bar));
   ipcMain.handle('zoom:ui', (_e, dir: number) => shell.setUiZoom(stepZoom(shell.uiZoom, dir)));
@@ -961,7 +988,8 @@ function start(options: Options = {}) {
   // Every key typed in the window or in a profile's page comes here first (before-input-event), before the page
   // gets it: one of Kulisa's is taken (the page never sees it) and done, here or by the window; any other goes on
   // to the page, the terminal's agent or the site.
-  const table = keymap();
+  let table = keymap(undefined, store.settings().keys);
+  shell.keys = () => keyList(undefined, store.settings().keys);
   const ZOOM: Record<string, number> = { 'zoom.in': 1, 'zoom.out': -1, 'zoom.reset': 0, 'site.zoomIn': 1, 'site.zoomOut': -1, 'site.zoomReset': 0 };
   // A profile's tab by its webContents, of a task shown in a window.
   const tabOf = (wc: WebContents) => {
@@ -972,10 +1000,18 @@ function start(options: Options = {}) {
     return null;
   };
   function onKey(wc: WebContents, e: Electron.Event, input: Electron.Input) {
-    if (input.type !== 'keyDown') return;
     const w = shell.windowOf(wc), t = !w && tabOf(wc);
     if (!w && !t) return; // DevTools, a tab of a task not on screen
     const zone = w ? w.keyZone : 'page';
+    // A key held alone (the dictation's): its press and its release, wherever the keyboard is but a dialog (the
+    // shortcuts' dialog takes a key there to make it the one). Left to the page too (no preventDefault: a press
+    // taken had its release withheld by Chromium, and the key types nothing).
+    const h = held(table, input);
+    if (h) {
+      if (zone !== 'dialog' && h.id === 'voice.hold') (w || (t as { w: AppWindow }).w).task?.holdKey(h.down);
+      return;
+    }
+    if (input.type !== 'keyDown') return;
     const pane = zone.startsWith('pane:') ? zone.slice('pane:'.length) : null;
     // The nearest group first: in a page, the page's keys (its zoom, its DevTools); in the window, Kulisa's.
     const hit = match(table, input, zone === 'page' ? ['page', 'global'] : pane ? ['global', 'page'] : ['global'], { always: zone === 'dialog' });
@@ -991,6 +1027,17 @@ function start(options: Options = {}) {
   }
   app.on('web-contents-created', (_e, wc) => wc.on('before-input-event', (e, input) => onKey(wc, e, input)));
   ipcMain.on('keys:zone', (e, zone: string) => { const w = at(e); if (w) w.keyZone = String(zone); });
+  // A hold key changed by the human (Keyboard Shortcuts): kept in settings.json, every window told.
+  ipcMain.handle('keys:set', (_e, { id, code }: { id: string; code: string }): Result<{ keys: Sent.Shortcut[] }> => {
+    if (!table.some((b) => b.hold && b.id === id)) return { error: `not a key to change: ${id}` };
+    const why = holdable(table, code);
+    if (why) return { error: why };
+    const keys = { ...store.settings().keys, [id]: code };
+    store.saveSettings({ ...store.settings(), keys });
+    table = keymap(undefined, keys);
+    for (const w of shell.windows) w.send('keys', shell.keys());
+    return { keys: shell.keys() };
+  });
 
   // Save session cookies and flush persistent ones before quitting, so sign-ins survive a restart; the windows and
   // their tabs open again at the next start.
@@ -1001,6 +1048,7 @@ function start(options: Options = {}) {
     for (const task of allTasks()) if (task !== task.project.window?.task && task.loaded) task.list.saveTabs();
     shell.saveWindows();
     shell.stopAutosave?.();
+    shell.discard?.stop();
     for (const folder of [...(shell.masters?.keys() || [])]) await shell.closeMaster(folder); // their tabs and sign-ins saved
     for (const m of shell.cookieSync.masters()) await shell.sessionCookies?.persist(m); // kept in step, not open in a window
     for (const p of allProfiles()) {

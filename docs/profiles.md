@@ -1,8 +1,7 @@
 # Profiles
 
 How profiles work today: what the human and the agent do with them, what is on the computer, how sign-ins are kept,
-how automation reaches the pages, and where the code is. Why it is built this way (tried and measured):
-[REPORT.md](REPORT.md); what is next: [ROADMAP.md](ROADMAP.md). Keep this file current when profiles change.
+how automation reaches the pages, and where the code is. What is next: [ROADMAP.md](ROADMAP.md). Keep this file current when profiles change.
 
 ## What a profile is
 
@@ -98,7 +97,8 @@ Through Kulisa's MCP server (`mcp-server.ts`), every tool taking a profile id: `
 `browser_tab_new` / `_select` / `_close`, `browser_highlight`, `browser_screenshot`, `browser_console_messages`,
 `browser_network_requests`, `browser_type_login`; the tools reading or acting on a page take an optional `tab`.
 Profiles: `profile_create`, `profile_rename`, `profile_describe`, `profile_open`, `profile_close`, `profile_ask_signin`,
-`profile_set_login`, and `profile_delete`, which asks the human first. Tasks: `task_rename`, `task_add_repository` (another of the project's repositories, once the human agreed: [tasks.md](tasks.md), Tasks), `task_history` (what was
+`profile_set_login`, and `profile_delete`, which asks the human first. Tasks: `task_rename`, `task_add_repository` (another of the project's repositories, once the human agreed: [tasks.md](tasks.md), Tasks),
+`task_remove_repository` (one added, no longer needed, once the human agreed), `task_history` (what was
 said and done in the task before: [transcripts.md](transcripts.md)), `conversation_rename` (its tab). Terminals:
 `terminal_run`, `terminal_read`, `terminal_stop` (shells only, [window.md](window.md), The terminal).
 
@@ -291,14 +291,53 @@ again, look for a third such moment first (which file went `[]`, and when: log a
 What is lost cannot be recovered from Kulisa's files; Chromium's own history in the profile's folder still has the
 pages.
 
+## Tabs unloaded
+
+A tab no one looks at loses its process after a while, as Chrome's Memory Saver discards tabs (built 2026-10-13: the
+author's RAM went with several projects open, each with several profiles, every tab of them a Chromium process whether
+anyone looked at it or not). What stays is the tab's entry in the strip: its address, title and icon, as before, nothing
+marks it (Chrome marks none either). Looked at or used again, its page loads again at that address.
+
+- **Off screen** is a tab that is not the active tab of a pane on screen in the task shown in some window: a tab behind
+  the active one, a pane stacked behind another, every tab of a task not shown (a group in the background too).
+- **Unused** is a task whose agents are neither working nor waiting for the human (their hooks: an agent waiting on a
+  permission goes on in its tabs, with their state, once answered), and a profile that no automation sent a command
+  for that long (every command passes the CDP proxy, `Profile.busyAt`: agents without hooks, the agent's own scripts).
+- **The time**: 5 minutes for both (`DISCARD_AFTER`, `discard.ts`; the author, 2026-10-13), so switching tasks back and
+  forth reloads nothing; a task left to a working agent keeps every page as long as it works. A sweep every 30 s dates
+  what it sees off screen and discards what has been so, and unused, for the time.
+- **Never**: a page loading, one showing a dialog, one with its DevTools open, one playing sound, a profile the human is
+  signing in to (sign-in mode), an empty tab. A page that holds its unload (`beforeunload`, as a form with unsaved changes
+  does) stays, as in Chrome: Electron says so (`will-prevent-unload`) and keeps it.
+- **Back** when the human shows its task or pane, clicks its tab, or types an address into it; when the agent names
+  it in a tool (`browser_snapshot` with its `tab`, `browser_tab_select`: the tool loads it first, the agent notices
+  nothing; `browser_profiles` lists it as any tab). Only the active tab of each pane comes back when a task is shown; the
+  others stay unloaded until clicked, as Chrome's. Closed while unloaded (× or `browser_tab_close`): gone, nothing to
+  close. Its address is saved with the others (`Kulisa Tabs.json`), so it comes back after a restart too.
+- **Lost with its process**, as in Chrome: the page's state (its scroll, what was typed without `beforeunload`) and, as
+  Electron keeps no history outside the process, the tab's Back and Forward (a closed tab's go the same way).
+- **How**: the tab's `webContents` is closed (`Profile.discard`; the view goes from the window), the tab kept in the list
+  as `discarded`; the proxy is told as of a tab closed (its target is gone) and, at `load`, of a tab added with a new
+  one: a new `WebContentsView` bound as a new tab's, opened as a new tab is (`about:blank`, then the address), so
+  Playwright's page for it is new as well (`Profile.page` loads first). Not Chromium's own discarding (Electron does
+  not expose it) and not freezing (`Page.setWebLifecycleState`: the process and its memory stay; it needs the debugger,
+  which the sign-in pause detaches). A discarded tab is never loaded from inside a `webContents`' `destroyed` event
+  (Hard-won facts): the active one to be drawn is loaded on the next turn (`_show`).
+
 ## Sign-in pause
 
 While any tab of a profile is on a sign-in page (or navigating to one), nothing automated is attached to the
 profile: Playwright disconnects, every tab's debugger is detached, the proxy refuses clients, the MCP tools answer
 that the human is signing in. When no tab is on one, the shell's connection comes back. Sign-in pages are known by
 host (`signin-pages.ts`: Microsoft, Google, GoDaddy, Okta, OneLogin, Auth0, Duo, PingOne, Salesforce; more with
-`KULISA_SIGNIN_HOSTS`). Some sign-ins (GoDaddy SSO behind Kasada) pass only so. `signin-pause.ts` is a deliberately
-temporary implementation; the author will replace it (CLAUDE.md, Rules).
+`KULISA_SIGNIN_HOSTS`). Some sign-ins (GoDaddy SSO behind Kasada) pass only so: Kasada judged the sign-in itself, with
+automation attached at that moment; once signed in, the agent reattached and worked in the session without being blocked
+(2026-10-05). `signin-pause.ts` is a deliberately temporary implementation; the author will replace it (CLAUDE.md, Rules).
+
+Why so, and why temporary (the author, 2026-10-05): the agent's presence in a profile is not automation of a sign-in
+(Kulisa is not a bot: [README](../README.md), Why); the pause exists only because such a service refuses a sign-in with
+automation attached at that moment, and goes once it is understood how the embedded browser passes it with the agent
+attached. Not by hiding the agent from bot detection: Kulisa does not get past it.
 
 ## What sites see
 
@@ -308,8 +347,7 @@ From 2026-10-05 to 2026-10-12 they presented as Google Chrome (`mimic-chrome.ts`
 headers, `navigator.userAgentData`), on reasons not tested one at a time: Google was said to block embedded browsers,
 and GoDaddy's Kasada passed once the sign-in pause and the mimicry were both in. Tried with the author on 2026-10-12:
 Google refused to sign in that profile ("This browser or app may not be secure") and let Electron's own Chromium in,
-with a debugger attached too; GoDaddy's sign-in passed without it (the pause is what it needs). Dropped then (REPORT,
-"Chrome mimicry dropped").
+with a debugger attached too; GoDaddy's sign-in passed without it (the pause is what it needs). Dropped then.
 
 ## How automation reaches the pages
 
@@ -345,7 +383,8 @@ open, and would pass for the new one's copy). A deleted profile's data is wiped 
 (`deleted-folders.json`), because the session keeps its files open while Kulisa runs. Copying a master (a profile's first open in a task)
 leaves the caches out (Cache, Code Cache, GPUCache, Dawn*).
 
-Memory: each tab is a Chromium process; 5 profiles × 3 tabs ≈ 4 GB (REPORT, E8). Closing a profile frees its tabs.
+Memory: each tab is a Chromium process (`ps` shows each); closing a profile frees its tabs, and a tab no one looks at
+frees its own after a while ("Tabs unloaded").
 
 Disk: closing a profile clears its caches (HTTP, compiled code, shaders: `clearCaches` in `profiles.ts`); its
 sign-ins and the sites' storage stay. An open profile's HTTP cache has the limit Chromium sets from the free disk
@@ -367,6 +406,7 @@ space (ROADMAP, "Profiles' caches").
 | `src/main/session-cookies.ts` | session cookies across restarts |
 | `src/main/signin-pages.ts`, `signin-pause.ts` | sign-in pages; the pause |
 | `src/main/cdp-proxy.ts` | the CDP endpoint per profile |
+| `src/main/discard.ts` | tabs no one looks at losing their process: the rule, the sweep (`Profile.discard`, `load` in `profiles.ts`) |
 | `src/main/mcp-server.ts`, `ghost.ts`, `picker.ts` | the agent's tools, its actions shown, point and tell |
 | `src/renderer/components/grid/ProfilePane.vue`, `ProfileHeader.vue`, `lib/profiles.ts`; `ProfilePage.vue`, `Avatars.vue` | the panes and the profiles' menu (a task tab's right-click); a profile's page in Settings and its pictures |
-| `test/agent.ts`, `profiles.ts`, `zoom-and-closing.ts`, `restart-profiles.ts`, `unit/store.test.ts` | the tests |
+| `test/agent.ts`, `profiles.ts`, `discard.ts`, `zoom-and-closing.ts`, `restart-profiles.ts`, `unit/store.test.ts`, `unit/discard.test.ts` | the tests |

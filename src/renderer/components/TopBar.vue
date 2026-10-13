@@ -6,6 +6,7 @@ import Icon from './Icon.vue';
 import ButtonMenu from './menu/ButtonMenu.vue';
 import ZoomRow from './menu/ZoomRow.vue';
 import ChoiceRow from './menu/ChoiceRow.vue';
+import LanguageRow from './menu/LanguageRow.vue';
 import ArrangeRow from './menu/ArrangeRow.vue';
 import { store } from '../lib/store';
 import { keyText, LINKS, version } from '../lib/common';
@@ -20,6 +21,7 @@ const windowMenu = (): MenuItem[] => [
       choose: (t: string) => kulisa.invoke('theme:set', t) } },
     { component: ChoiceRow, props: { kind: 'bar', icon: 'i-projects', label: 'Tasks bar', choices: BARS, chosen: () => store.bar,
       choose: (b: string) => kulisa.invoke('bar:set', b) } },
+    { component: LanguageRow },
     '-', { heading: 'Arrange panels', icon: 'i-arrange' }, { component: ArrangeRow }, '-',
     { label: 'Agents…', icon: 'i-agent', run: async () => (await dialog('projects')).openAgents() },
     { label: 'Keyboard Shortcuts', icon: 'i-keyboard', keys: keyText('shortcuts'), run: async () => (await dialog('shortcuts')).showShortcuts() },

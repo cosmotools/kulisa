@@ -107,6 +107,7 @@ class ProxyClient {
     const reply = (result: Json) => this._send({ id, result, ...(sessionId ? { sessionId } : {}) });
     const fail = (message: string) => this._send({ id, error: { code: -32000, message }, ...(sessionId ? { sessionId } : {}) });
     this.proxy.emit('command', { profile: this.profile.id, task: this.profile.task, method, params, sessionId } satisfies Command);
+    this.profile.busyAt = Date.now(); // its tabs are in use: none is discarded meanwhile (discard.ts)
 
     if (sessionId && this.sessions.get(sessionId)?.browser) return this._browserCommand(method, params, sessionId, reply, fail);
     if (sessionId) {
@@ -208,10 +209,11 @@ class ProxyClient {
     this.sessions.delete(sid);
     if (sess.tab && this.attached.get(sess.tab.id) === sid) this.attached.delete(sess.tab.id);
   }
-  // The tabs a client sees: those whose site has answered; the others are shown when it does.
+  // The tabs a client sees: those whose site has answered; the others are shown when it does. A discarded tab has no
+  // target until it is loaded again (profiles.ts).
   _shown() {
-    for (const t of this.profile.tabs) if (t.answered) void this._tabAdded(t);
-    return this.profile.tabs.filter((t) => !t.answered);
+    for (const t of this.profile.tabs) if (t.answered && !t.discarded) void this._tabAdded(t);
+    return this.profile.tabs.filter((t) => !t.answered && !t.discarded);
   }
   async _tabAdded(tab: Tab) {
     if (tab.answered) {
@@ -236,7 +238,7 @@ class ProxyClient {
   }
   _infoChanged() {
     if (!this.discover) return;
-    for (const t of this.profile.tabs) this._event('Target.targetInfoChanged', { targetInfo: this._targetInfo(t) });
+    for (const t of this.profile.tabs) if (!t.discarded && t.targetId) this._event('Target.targetInfoChanged', { targetInfo: this._targetInfo(t) });
   }
 }
 

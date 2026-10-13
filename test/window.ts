@@ -3,7 +3,7 @@ import { nativeTheme } from 'electron';
 import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
-import { assert, root, userData, sleep, waitFor, menuRows, choose, manageProfiles, menuOpen, rightClick, box, viewOn, closeMenu, click, noNode } from './helpers.ts';
+import { assert, root, userData, sleep, waitFor, menuRows, choose, manageProfiles, menuOpen, rightClick, box, viewOn, closeMenu, click, noNode, press } from './helpers.ts';
 import forge from '../forge.config.ts';
 import type { Test } from './run.ts';
 import type { TaskTerminal } from '../src/main/tasks.ts';
@@ -29,44 +29,112 @@ export default (test: Test) => {
       return { above: r.top - h.top, below: h.bottom - r.bottom }; })()`);
     assert.ok(Math.abs(above - below) <= 1, `the rows in the middle: ${above} above, ${below} below`);
   });
-  test("terminal: dictation where the agent has its own: a microphone in the middle of the voice bar, an island under the terminal, its language after it; held, or from a click to the next, the agent's key is held; another language chosen there", async ({ ui, termText }) => {
-    await waitFor(() => ui(`!!document.querySelector('.dictation .lang')`));
-    // Under the terminal, as wide, apart from it by the gap between islands; the microphone in its middle.
-    const { term, bar, mic } = await ui(`(() => { const r = (s) => document.querySelector(s).getBoundingClientRect().toJSON();
-      return { term: r('.termpanel'), bar: r('.voicebar'), mic: r('.dictation .mic') }; })()`);
-    assert.ok(bar.top - term.bottom >= 4 && bar.top - term.bottom <= 12, `apart from the terminal: ${bar.top - term.bottom}px`);
-    assert.deepEqual([bar.left, bar.right], [term.left, term.right]);
-    assert.ok(Math.abs(mic.left + mic.width / 2 - (bar.left + bar.width / 2)) <= 1, 'the microphone in the middle');
-    assert.equal(await ui(`document.querySelector('.dictation .lang').textContent`), 'EN');
-    assert.equal(await ui(`document.querySelector('.dictation .lang').title`), 'Dictation in English: the language you speak. it answers in it too',
-      "what the agent's entry says of it");
+  test("terminal: dictation where the agent has its own: the right Ctrl held anywhere records, let go stops, pressed once it records until the next; the microphone at the end of the terminals' row shows it and does the same by the mouse; with a shell in front the agent comes to the front; the key is the human's to change in Keyboard Shortcuts", async ({ shell, ui, termText }) => {
+    await waitFor(() => ui(`!document.querySelector('.dictation .mic').disabled`));
+    // At the row's end, after + and the task's repositories, inside the row: no row of its own.
+    const { row, add, mic } = await ui(`(() => { const r = (s) => document.querySelector(s).getBoundingClientRect().toJSON();
+      return { row: r('.termtabs'), add: r('#termAdd'), mic: r('.dictation .mic') }; })()`);
+    assert.ok(mic.left > add.right && row.right - mic.right <= 12, `at the row's end: ${JSON.stringify({ row, add, mic })}`);
+    assert.ok(mic.top >= row.top && mic.bottom <= row.bottom, 'in the row');
+    const mac = process.platform === 'darwin', name = mac ? 'Right ⌘' : 'Right Ctrl'; // Apple keyboards have no right Ctrl
+    assert.equal(await ui(`document.querySelector('.dictation .mic').title`), `Speak to the agent in English: hold ${name} anywhere, or press it once and again; or this button the same way`,
+      "in Kulisa's language (☰ → Language), with the key");
     const keys = async () => ((await termText()).match(/<v>/g) || []).length;
-    const press = (type: string) => ui(`document.querySelector('.dictation .mic').dispatchEvent(new PointerEvent('${type}', { bubbles: true, button: 0, pointerId: 1 }))`);
     const lit = () => ui(`document.querySelector('.dictation .mic').ariaPressed`);
     const still = async () => { const n = await keys(); await sleep(300); return n === await keys(); }; // that no more come
-    // A click starts: the key repeats, as a held one does, and the button is lit until the next click.
+    const recording = async (n: number, what = '') => { try { await waitFor(async () => (await keys()) >= n + 5); } catch (e) { throw new Error(`not recording: ${what}`, { cause: e }); } assert.equal(await lit(), 'true', what); }; // repeated while it records
+    const stopped = async (what = '') => { try { await waitFor(still, 3000); } catch (e) { throw new Error(`not stopped: ${what}`, { cause: e }); } assert.equal(await lit(), 'false', what); }; // the keys sent before still echo a moment
+    // The key in a profile's page, where every other key is the site's: held, it records until let go, and the keyboard
+    // stays in the page; its repeats while held are no presses.
+    const page = shell.profiles.values().next().value.get().wc;
+    const ctrl = (wc: Electron.WebContents, type: 'keyDown' | 'keyUp', repeat = false) => wc.sendInputEvent({ type, keyCode: mac ? 'Meta' : 'Control', modifiers: [mac ? 'meta' : 'control', 'right', ...(repeat ? ['isautorepeat' as const] : [])] });
+    page.focus();
+    await waitFor(() => page.isFocused());
     let n = await keys();
-    await press('pointerdown'); await press('pointerup');
-    await waitFor(async () => (await keys()) >= n + 5); // repeated while it records
+    ctrl(page, 'keyDown');
+    await recording(n);
+    ctrl(page, 'keyDown', true);
+    await sleep(600); // held longer than a press (400 ms, HOLD in tasks.ts): that is what makes it a hold
     assert.equal(await lit(), 'true');
-    await press('pointerdown'); await press('pointerup');
-    await waitFor(still, 3000); // stopped by the second click (the keys sent before it still echo a moment)
-    assert.equal(await lit(), 'false');
-    // Held: it records until let go.
+    ctrl(page, 'keyUp');
+    await stopped('held in the page');
+    assert.ok(page.isFocused(), 'the keyboard stays where it was');
+    // Pressed once: until the next press. The left Ctrl is the usual Ctrl.
     n = await keys();
-    await press('pointerdown');
-    await sleep(600); // held longer than a click (400 ms, lib/voice.ts): that is what makes it a hold
+    page.sendInputEvent({ type: 'keyDown', keyCode: mac ? 'Meta' : 'Control', modifiers: [mac ? 'meta' : 'control', 'left'] }); page.sendInputEvent({ type: 'keyUp', keyCode: mac ? 'Meta' : 'Control', modifiers: [mac ? 'meta' : 'control', 'left'] });
+    await sleep(200);
+    assert.equal(await keys(), n);
+    ctrl(page, 'keyDown'); ctrl(page, 'keyUp');
+    await recording(n);
+    await sleep(500);
+    assert.equal(await lit(), 'true', 'still on');
+    ctrl(page, 'keyDown'); ctrl(page, 'keyUp');
+    await stopped('tap in the page');
+    // In the window too (the terminal has the keyboard); the window losing the keyboard lets go.
+    const win = shell.win.webContents;
+    await ui(`document.querySelector('.term:not([hidden]) .xterm-helper-textarea').focus()`);
+    n = await keys();
+    ctrl(win, 'keyDown');
+    await recording(n);
+    shell.win.emit('blur');
+    await stopped('blur');
+    // The button does the same by the mouse: a click starts, the next stops; held, until let go.
+    const mouse = (type: string) => ui(`document.querySelector('.dictation .mic').dispatchEvent(new PointerEvent('${type}', { bubbles: true, button: 0, pointerId: 1 }))`);
+    n = await keys();
+    await mouse('pointerdown'); await mouse('pointerup');
+    await recording(n);
+    assert.equal(await ui(`document.querySelector('.dictation .mic').title`), `Recording: let go of ${name}, or click to stop`);
+    await mouse('pointerdown'); await mouse('pointerup');
+    await stopped('click');
+    n = await keys();
+    await mouse('pointerdown');
+    await sleep(600);
     assert.ok((await keys()) >= n + 5, 'repeated while held');
-    assert.equal(await lit(), 'true');
-    await press('pointerup');
-    await waitFor(still, 3000); // held, then let go
-    assert.equal(await lit(), 'false');
+    await mouse('pointerup');
+    await stopped('button held');
     assert.equal(await ui(`document.activeElement.closest('.xterm') !== null`), true, 'the keyboard back in the terminal, to send it');
-    // The languages it understands; another one chosen is the agent's.
-    await ui(`document.querySelector('.dictation .lang').click()`);
-    assert.equal((await menuRows(ui))[0], '# Dictation language');
-    await choose(ui, 'русский');
-    await waitFor(async () => (await ui(`document.querySelector('.dictation .lang').textContent`)) === 'RU');
+    // With a shell in front (the button disabled: the dictation is the agent's), the key brings the agent the prompt
+    // goes to in front, and records.
+    await ui(`document.getElementById('termAdd').click()`); await choose(ui, 'Terminal');
+    await waitFor(() => ui(`document.querySelector('.dictation .mic').disabled`));
+    n = await keys();
+    ctrl(page, 'keyDown'); ctrl(page, 'keyUp');
+    await recording(n);
+    assert.equal(await ui(`document.querySelector('.termtab.active .name').textContent`), 'bash');
+    ctrl(page, 'keyDown'); ctrl(page, 'keyUp');
+    await stopped('shell in front');
+    const human = shell.task.terminal('Terminal') as TaskTerminal;
+    await ui(`document.querySelector('.termtab[data-id="${human.id}"] .close').click()`);
+    await waitFor(() => shell.task.terminals.size === 1);
+    // The human's own key instead (Keyboard Shortcuts: Change, then the key): one that types is refused, saying so; the
+    // row, the tooltip and settings.json have the new one, which works at once; the old one is the usual key again.
+    await ui(`document.getElementById('windowMenu').click()`); await choose(ui, 'Keyboard Shortcuts');
+    await waitFor(() => ui(`(document.getElementById('shortcuts')?.dataset.state === 'open')`));
+    const hold = `[...document.querySelectorAll('#shortcuts dt')].find((d) => d.textContent === 'Speak to the agent: hold, or press once and again').nextElementSibling`;
+    const shown = () => ui(`[...${hold}.querySelectorAll('kbd')].map((k) => k.textContent)`);
+    assert.deepEqual(await shown(), [name]);
+    await ui(`${hold}.querySelector('.change').click()`);
+    assert.deepEqual(await shown(), ['Press a key…']);
+    press(win, 'A');
+    await waitFor(() => ui(`!!document.querySelector('#shortcuts .error')`));
+    assert.match(await ui(`document.querySelector('#shortcuts .error').textContent`), /^Press a key that types nothing/);
+    assert.deepEqual(await shown(), [name]);
+    await ui(`${hold}.querySelector('.change').click()`);
+    press(win, 'F9');
+    await waitFor(async () => JSON.stringify(await shown()) === '["F9"]');
+    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(userData, 'settings.json'), 'utf8')).keys, { 'voice.hold': 'F9' });
+    await ui(`document.querySelector('#shortcuts .x').click()`);
+    await waitFor(() => ui(`document.querySelector('.dictation .mic').title.includes('hold F9 anywhere')`));
+    n = await keys();
+    page.focus();
+    await waitFor(() => page.isFocused());
+    press(page, 'F9');
+    await recording(n);
+    press(page, 'F9');
+    await stopped('F9');
+    ctrl(page, 'keyDown'); ctrl(page, 'keyUp');
+    await sleep(200);
+    assert.equal(await lit(), 'false', `the ${name} is a modifier again`);
   });
   test("the island: its terminals in tabs over them, one shown, the row apart; + opens the human's shell in front; the agent runs what keeps running in a shell of its own, behind, reads it, stops it, closes it, never in an agent's tab; × and a shell's exit close one", async ({ shell, ui, call, instructions }) => {
     const task = shell.task;
@@ -77,8 +145,8 @@ export default (test: Test) => {
     assert.deepEqual(await tabs(), ['bash *'], "the agent's tab, named after its agent");
     // The row is apart from the terminal: its own color, the tab in front in the terminal's.
     const row = '.dv-groupview:has(.termtabs) .dv-tabs-and-actions-container';
-    assert.notEqual(await color(row), await color('.termpanel'));
-    assert.equal(await color('.termtab.active'), await color('.termpanel'));
+    assert.notEqual(await color(row), await color('.dv-groupview:has(.termtabs) .dv-content-container'));
+    assert.equal(await color('.termtab.active'), await color('.dv-groupview:has(.termtabs) .dv-content-container'));
     // + is the island's, not a tab's: its menu has the project's agents (none here) and Terminal.
     await ui(`document.getElementById('termAdd').click()`);
     assert.deepEqual(await menuRows(ui), ['Terminal']);
@@ -88,7 +156,7 @@ export default (test: Test) => {
     assert.equal(human.by, 'human');
     // A shell in front: no dictation (it is the shown agent's), the bar kept, its microphone disabled saying why; a pick
     // still goes to the agent shown last.
-    await waitFor(() => ui(`document.querySelector('.dictation .mic').disabled && !document.querySelector('.dictation .lang')`));
+    await waitFor(() => ui(`document.querySelector('.dictation .mic').disabled`));
     assert.equal(await ui(`document.querySelector('.dictation .mic').title`), "Dictation is the agent's: a shell is in front");
     assert.equal(task.promptTarget().agent.cli, 'bash');
     await waitFor(async () => (await shown()) === 1 && ui(`window.__term === window.__term && document.activeElement.closest('.term') !== null`));

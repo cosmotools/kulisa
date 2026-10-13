@@ -22,12 +22,15 @@ export interface Terminal {
   agent: { account: string; cli: string; name: string } | null;
 }
 // The island: its tabs in order, the one in front (none: no terminal, the island folded to its +).
+// Kulisa's language (☰ → Language): the codes the agents' own settings take, and which agents have one.
+export interface LanguageInfo { language: string; languages: string[]; agents: { name: string; has: boolean }[] }
 export interface Terminals { task?: string; front: number | null; list: Terminal[] }
 // A task, for its tab (Task.info).
 export interface TaskInfo {
   n: number; key: string; name: string; state: AgentState; folder: string; offset: number; branch: string | null;
   closed: boolean; merged: boolean; about?: string; // what it is about while it has no name: its first prompt
   repos: string[]; // the project's repositories it may add (Add Repository)
+  copies: { name: string; folder: string; branch: string }[]; // its copies of the project's repositories (TaskRepos.vue)
 }
 export interface ProjectEntry { id: string; name: string; folder: string; color: string; favicon?: string; tasks: ProjectTask[] }
 // A task of a project, open or not (app.ts, shell.projects): the bar's + lists the closed ones (NewTask.vue).
@@ -57,6 +60,6 @@ export interface ProjectSettings extends ProjectChoices {
   projectAgents: { id: string; name: string; default?: boolean }[]; profiles: ProjectProfile[]; others: ProjectProfile[];
 }
 // Kulisa's keyboard shortcuts (main/keys.ts), as this OS shows them.
-export interface Shortcut { id: string; group: string; label: string; keys: string[] }
+export interface Shortcut { id: string; group: string; label: string; keys: string[]; hold?: boolean } // hold: a key held alone, the human may change it
 // A question from the main process (shell.ask) or the window.
 export interface Question { message: string; detail?: string; ok?: string; other?: string; danger?: boolean }

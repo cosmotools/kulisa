@@ -1,7 +1,6 @@
 # Roadmap
 
-What is planned: ideas and the details of features still to build, deferred ideas, open issues. Feature numbers
-refer to [SPEC.md](SPEC.md), section 2. When a feature is built, it is documented in `docs/` (how it works and why:
+What is planned: ideas and the details of features still to build, deferred ideas, open issues. When a feature is built, it is documented in `docs/` (how it works and why:
 [profiles.md](profiles.md), [tasks.md](tasks.md), [window.md](window.md), [ui.md](ui.md)) and removed from
 here; what is left of it stays.
 
@@ -16,7 +15,9 @@ here; what is left of it stays.
     groups and the tasks' bar as Chrome's tab groups with one + after the islands, the empty window, Settings as
     JetBrains' (a tree of Projects, Agents and Profiles; [ui.md](ui.md), Desktop, not a web page), the whole project
     in TypeScript; 2026-10-12, a task's island of terminals with several agents in it ("Several agents in a task, rest",
-    below). The author tests it by hand. Next: fix what the author's testing finds; then what is left of the
+    below); 2026-10-13, a repository added to a task when its work needs it (the human's menu or the agent's tool,
+    [tasks.md](tasks.md), Tasks), dictation by a key held anywhere, the right Ctrl ([window.md](window.md), The terminal) and one
+    language for every agent (☰ → Language, [window.md](window.md), Language). The author tests it by hand. Next: fix what the author's testing finds; then what is left of the
     steps (below), only once the author has decided it.
   - **Open, for the author to decide:** Refresh from Master… now matters only for a local app's cookies (keep or
     drop); a script the agent runs in a page (`browser_evaluate`) could read a test password back from its field
@@ -97,7 +98,7 @@ here; what is left of it stays.
     one: an Android variant of the profile's own User-Agent, put back after the pause (`Profile.setSigninMode`), which
     detaches the debugger and with it every CDP override; during the pause the desktop one: a strict sign-in
     (GoDaddy's Kasada) may not take an Android UA from a Linux machine. Not Google Chrome's: presenting as Chrome got
-    a profile refused by Google (REPORT, "Chrome mimicry dropped").
+    a profile refused by Google ([profiles.md](profiles.md), What sites see).
   - Kept with the tab across restarts (a field in `Kulisa Tabs.json`). No RAM: no process, no buffers.
   - Next to it, small: `browser_emulate_media` (dark or light, print, reduced motion; Playwright's
     `page.emulateMedia`): the profiles' pages follow the OS's theme, so the agent cannot check the site's other one.
@@ -232,8 +233,6 @@ here; what is left of it stays.
     show waiting until a tool finishes (no hook says it was answered): a long command run after it shows waiting.
   - To check with Claude Code in a task's copy (the tests run `cat` as the agent): the hooks (session, state),
     `--resume` after a restart, `task_rename` called by Claude Code.
-  - Unloading a background task's tabs while its agent is idle: it needs to know the agent is idle (Claude
-    Code's hooks tell it; for other CLIs, no MCP calls and no terminal output for a while).
   - Other tools that, like direnv, want a folder allowed before they apply (mise's `trust`): not handled yet.
   - Windows: copying an open profile (locked files are skipped and logged), removing a deleted task's profile
     folders while their sessions are open (left for the next start). macOS and Windows untested.
@@ -366,14 +365,15 @@ here; what is left of it stays.
     does: the user's shell, agent CLIs, git, direnv, agents installed in `~/.local/bin`; Snap only with classic
     confinement, reviewed by hand); Velopack and electron-updater (one leaves Forge's makers and has AppImage only on
     Linux, the other needs electron-builder).
-- **Feature 7, rest.** Reset a profile to a clean state (keeping its name), seeded test users.
-- **Feature 4, timeline.** One feed of DOM (rrweb-like), network, console and agent actions across profiles; scrub
-  back and pick in the past.
+- **Profile reset and creation, rest.** A clean profile for sign-up tests; reset a profile to a clean state (keeping its
+  name); seeded test users (the agent writes the seed for the project).
+- **Timeline.** One feed of DOM (rrweb-like), network, console and agent actions, recorded in step across all profiles;
+  scrub back to the moment a bug happened, pick an element in the past, tell the agent to fix it.
   - A Vue component as the rest of the window (CLAUDE.md, Window UI). Not Tailwind (styles are tiny); its generic parts
     Reka UI's (no look of its own: Kulisa keeps its IDE look), no kit with a look of its own.
-- **Feature 6, profile mail.** A local mail catcher with a mailbox per profile, shown next to the panes and
-  readable by the agent.
-- **Feature 5, run to test.** Save a multi-profile run as a Playwright test.
+- **Profile mail.** A local mail catcher (Mailpit-like) with a mailbox per profile, shown next to the panes and readable
+  by the agent.
+- **Run to test.** A multi-profile run the agent did by hand, saved as a Playwright test.
 
 ## Deferred ideas
 
@@ -479,7 +479,7 @@ here; what is left of it stays.
       removed with it ("Nothing piles up"). `utilityProcess.fork` of its own files, ended by Kulisa when it is
       turned off. Its own IPC channels (`ext:<id>:…`) between its two halves. A download with a SHA-256 check, for
       models. A log line prefix.
-    - Window: places to add to: the voice bar under the terminal (its sides, around the microphone), ☰, a panel in the grid (Stripe); its icons
+    - Window: places to add to: the terminals' row (by the dictation's microphone), ☰, a panel in the grid (Stripe); its icons
       added to the sprite; the window's components (`.icon`, `ButtonMenu.vue`, `Modal.vue`, `ask`; [ui.md](ui.md)) rather than its own; its module
       loaded with `import()` when it is turned on. The microphone for the window only for an extension that asked
       for it (today the window's session grants media to all of its own pages).
@@ -523,8 +523,10 @@ here; what is left of it stays.
     its menus on Linux).
   - The window's menus are HTML now, Reka UI's ([window.md](window.md), Menus); a page menu could be one too
     (`RightClickMenu.vue`), over a picture of the page.
-- **Memory of panes off screen.** A pane stacked behind another keeps its tabs alive (and their memory). Unloading
-  them while hidden would save RAM at the cost of reloading; not done.
+- **Tabs unloaded, rest** (built 2026-10-13: [profiles.md](profiles.md), "Tabs unloaded"). A pane whose tab loads
+  again is empty meanwhile: a picture of the page taken at the unload could stand there (a JPEG per tab in memory, as
+  the pictures under menus); a tab's history (Back, Forward) goes with its process, as a closed tab's does (no Electron
+  API for it). To watch in use: whether 5 minutes is the right time, and a tab loading again at a bad moment.
 - **A Kulisa profile as a real Chrome profile.** Wanted: the profile's folder in Chrome's own format, so one button
   opens the same profile in the installed Google Chrome with the same tabs and sign-ins, and the storage layout
   is simply Chrome's. Wanted natively, without workarounds, so deferred until there is a clean way. Why it does
@@ -589,7 +591,7 @@ here; what is left of it stays.
   per-launch token (passed to the agent through the environment, like `KULISA_MCP_URL`) at least.
 - **`signin-pause.ts` is a temporary implementation** to be replaced by the author. It recognizes sign-in pages
   only by host and pauses the whole profile.
-- **macOS and Windows are untested** (only Linux so far; Kulisa targets all three, see SPEC section 4). Known gaps:
+- **macOS and Windows are untested** (only Linux so far; Kulisa targets all three: CLAUDE.md, Conventions). Known gaps:
   - Drag regions left by a page (Workarounds of Electron bugs, above): seen on Linux; whether macOS and Windows
     have the bug, and whether the workaround is enough there, is not known. Open Teams in a pane and click its page.
   - Signing in to Google and GoDaddy (Kasada) in a profile: passed on Linux with Electron's own User-Agent
@@ -639,7 +641,7 @@ here; what is left of it stays.
   - Keyboard shortcuts ([window.md](window.md), Keys): checked on Linux only (with Latin and Russian layouts). macOS:
     ⌘ for Kulisa's and Chrome's keys, ⌘⌥1…9 for tasks, ⌘[ / ⌘] back and forward, its own menu bar (Quit, Edit,
     Window) instead of Electron's default; check that a page does not get ⌘-keys before Kulisa (on Linux
-    `before-input-event` comes first, and the app menu after the page: REPORT, "Keyboard shortcuts"), and that Ctrl
+    `before-input-event` comes first, and the app menu after the page: [window.md](window.md), Keys), and that Ctrl
     stays the terminal's. Windows: Alt+D and F6 to the address bar, Ctrl+F4; the keys with AltGr layouts (Polish,
     German), where AltGr is Ctrl+Alt.
   - The window's menus and dialogs (Reka UI, [ui.md](ui.md), Menus and Dialogs): checked on Linux only. A right-click
@@ -762,5 +764,6 @@ here; what is left of it stays.
     per pty: the same memory, plus serializing and writing it again at every switch, losing the scroll position and
     the selection; or the raw output replayed: a log that grows, slow for a long session), and several terminals are
     on screen at once (other windows). VS Code too keeps an xterm per terminal.
-- **No performance numbers taken with the monitor on.** CPU, RAM, many profiles; see REPORT, E8.
+- **No performance numbers taken with the monitor on** (CPU, RAM, many profiles): measured when a decision needs them,
+  on the version then current (`ps`, `app.getAppMetrics()`), not written down.
 - **`playwright-core` is pinned to a 1.64 alpha.** Move to the stable release once it ships with the same APIs.

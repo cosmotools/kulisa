@@ -17,7 +17,7 @@ export default (test: Test) => {
     assert.equal(await ui(`document.getElementById('zoomReset').textContent`), '110%');
     assert.equal(await ui(`document.getElementById('zoomReset').hidden`), false);
     await ui(`document.getElementById('windowMenu').click()`);
-    assert.deepEqual((await menuRows(ui)).slice(0, 5), ['zoom', 'theme', 'bar', '-', '# Arrange panels']);
+    assert.deepEqual((await menuRows(ui)).slice(0, 6), ['zoom', 'theme', 'bar', 'Language', '-', '# Arrange panels']);
     assert.equal(await ui(`document.querySelector('.menu[data-state="open"] .zoomrow output').textContent`), '110%');
     await ui(`document.querySelector('.menu[data-state="open"] .zoomrow .in').click()`); // − 110% + in the menu, as in Chrome
     await waitFor(() => near(win.getZoomFactor(), 1.25));

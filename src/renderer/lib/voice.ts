@@ -1,9 +1,8 @@
-// Dictation's state per task (Dictation.vue): whether its agent has its own, the languages it understands, the one it
-// uses, whether it records. Asked for as a task is shown; a recording is not left on in a task out of sight.
+// Dictation's state per task (Dictation.vue): whether its agent has its own, whether it records. Asked for as a task is shown; a recording is not left on in a task out of sight.
 import { reactive, watch } from 'vue';
 import { store } from './store';
 
-export interface Voice { languages: string[]; language: string; note?: string; recording: boolean }
+export interface Voice { recording: boolean }
 export const voices = reactive<Record<string, Voice | null>>({}); // task key -> its agent's dictation, null: none
 
 kulisa.on<{ task: string; voice: Voice | null }>('voice', ({ task, voice }) => { voices[task] = voice; });

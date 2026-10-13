@@ -26,9 +26,8 @@ code with its tests and docs, a commit per step (the author asked for them), the
 only what was discussed and written down as decided, no open questions built over and no ideas of one's own added
 unasked. This paragraph is removed when the rewrite is finished.
 
-- `docs/SPEC.md`: the product: problem, features and phases, architecture decisions.
-- `docs/REPORT.md`: how the design was tested and decided. Read its later sections (sign-in, Kasada, session
-  cookies) before changing sign-in, identity or persistence code.
+- Before changing sign-in, identity or persistence code, read in `docs/profiles.md`: Sign-in pause (what it is and is
+  not), Sign-ins that last, What sites see.
 - `docs/ROADMAP.md`: only what is planned: ideas and details of features to build, deferred ideas, open issues.
   When a feature is built, document it in the docs below (how it works, and why it is built so) and remove it from
   the ROADMAP, keeping only what is left of it. **Before
@@ -73,7 +72,7 @@ unasked. This paragraph is removed when the rewrite is finished.
 - Everything in the repository is written in English: code, comments, documentation, commit messages.
 - **Comments say why, not what** (the author, 2026-10-11: comments that retold the UI went out of date again and
   again). A comment holds what the code cannot say: why it is so, a workaround and what it works around, a pointer
-  to REPORT or a doc. It does not retell what a part shows, what its buttons are or what things are called: that is
+  to a doc. It does not retell what a part shows, what its buttons are or what things are called: that is
   the docs' (`docs/`) and the code's own; a file's header is a line saying what it is, and the doc to read. Types are
   TypeScript's, not a comment's. When a term or a part is renamed, look for the old word in the code's comments too,
   not only in the docs.
@@ -190,8 +189,8 @@ unasked. This paragraph is removed when the rewrite is finished.
 - **RAM matters.** Kulisa is Electron plus a Chromium process per tab, for several profiles at once, next to the
   user's own browser and IDE. When choosing how to build something, weigh how much memory it keeps and prefer the
   cheaper way. If a feature would noticeably raise RAM use (a process per tab or profile, keeping hidden things
-  alive, large buffers), discuss it with the author before building it. Reference: 5 profiles × 3 tabs ≈ 4 GB,
-  almost all in tab processes (REPORT, E8).
+  alive, large buffers), discuss it with the author before building it. Measure rather than guess: `ps -eo pid,rss,args`
+  on a running Kulisa shows each tab's process.
 - **Nothing piles up on the user's computer.** Everything Kulisa writes has an owner and an end:
   - It goes when its owner goes (a profile, a task, a project: their data, the copies, git's and the agent's
     records of a task's copy), at once or at the next start when a file is still open (`deleted-folders.json`).
@@ -334,7 +333,7 @@ npm run watch # the window built again on every change; then reload it (Ctrl+R i
   - To restart the author's running app, or give them a fresh start: the `run-kulisa` skill
     (`.claude/skills/run-kulisa/`): SIGINT to the main `electron … .` process, so session cookies and tabs get
     saved; then `npm start` in the background.
-- **`src/main/signin-pause.ts` is a deliberately temporary implementation** (the author's decision, see REPORT).
+- **`src/main/signin-pause.ts` is a deliberately temporary implementation** (the author's decision: `docs/profiles.md`, Sign-in pause).
   Keep it isolated; the author will replace it. Claude declined to research hiding the agent from bot detection
   (Kasada); don't build that.
 - **The MCP server and the CDP proxy listen on 127.0.0.1 only.** Never bind them to 0.0.0.0 or another
@@ -421,6 +420,7 @@ Modules (`src/main`):
 - `project-profiles.ts`: a task's profiles (its project's, each a copy of its master made at its first open), open
   and closed: create, rename, describe, close, open, let go. `avatars.ts`: their pictures.
 - `profiles.ts`: a profile: `session.fromPath(<task>/Profile <k>)` plus a `WebContentsView` per tab.
+- `discard.ts`: tabs no one looks at losing their process after a while, as Chrome's Memory Saver: the rule and the sweep.
 - `store.ts`: Kulisa's data folder, laid out as Chrome's user data.
 - `names.ts`: the one rule for names (projects, tasks, profiles: an email address's characters) and slugs.
 - `session-cookies.ts`, `signin-pages.ts`, `signin-pause.ts`: sign-ins that last, the sign-in pause.
@@ -446,7 +446,7 @@ What must hold in the window:
 - Kulisa's own DevTools exist only when running from source (`appDevTools`, off when `app.isPackaged`). End users
   get DevTools for profiles' tabs only.
 
-## Hard-won facts (each cost hours; details in docs/REPORT.md)
+## Hard-won facts (each cost hours; details in the doc of the part)
 
 - **`setWindowOpenHandler` → `createWindow`:** pass `options.webContents` into the new `WebContentsView`.
   A fresh one freezes the main process.
@@ -467,7 +467,7 @@ What must hold in the window:
   (`tab.answered`, test `/hang`).
 - **Do not present profiles as Google Chrome.** Google refused to sign in a profile that did ("This browser or app
   may not be secure") and lets Electron's own Chromium in; GoDaddy's Kasada did not need it either. Kulisa presented
-  as Chrome from 2026-10-05 to 2026-10-12 on reasons never tested one at a time (REPORT, "Chrome mimicry dropped").
+  as Chrome from 2026-10-05 to 2026-10-12 on reasons never tested one at a time (`docs/profiles.md`, What sites see).
 - **Electron drops session cookies on exit.** Entra and federated sign-ins depend on them, hence
   `session-cookies.ts`. Tests must quit with `app.quit()`, not `app.exit()`, so `before-quit` runs.
 - **Pages with Trusted Types (Microsoft 365, Google) refuse HTML strings**, so Playwright's

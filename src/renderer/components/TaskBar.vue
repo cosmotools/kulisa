@@ -78,11 +78,14 @@ function groupItems(id: string): MenuItem[] {
     { label: 'Show Data Folder', run: () => kulisa.invoke('project:show-data', { id }) },
     '-', { label: 'Close Group', run: () => close(id) }];
 }
-const taskMenu = ({ key, name, repos }: TaskInfo): MenuItem[] => [
+const taskMenu = ({ key, name, repos, copies, folder }: TaskInfo): MenuItem[] => [
   ...(key === store.current ? [{ heading: 'Profiles' }, ...profilesMenu(), '-' as const] : []),
   // The project's repositories it has no copy of, one added when its work needs it (tasks.md, Tasks).
   ...(repos.length ? [{ heading: 'Add Repository' }, ...repos.map((r) => ({ label: r.split(/[\\/]/).pop()!, title: r,
     run: () => kulisa.invoke('task:add-repo', { key, repo: r }) })), '-' as const] : []),
+  // Those added, not its own folder: that goes with the task.
+  ...(copies.some((c) => c.folder !== folder) ? [{ heading: 'Remove Repository' }, ...copies.filter((c) => c.folder !== folder)
+    .map((c) => ({ label: c.name, title: c.folder, run: () => kulisa.invoke('task:remove-repo', { key, repo: c.folder }) })), '-' as const] : []),
   { label: 'Rename…', run: () => rename(key, name) },
   { label: 'Show Folder', run: () => kulisa.invoke('task:show-folder', key) },
   '-', { label: 'Delete Task…', run: () => kulisa.invoke('task:delete', key) },

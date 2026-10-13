@@ -535,7 +535,7 @@ export default (test: Test) => {
   test("tasks: an agent's tab closes after a question, always (Cancel keeps it); the last terminal closed folds the island to its +, which opens one again; Ctrl+` there opens the task's agent, a new conversation", async (ctx) => {
     const { shell, ui } = ctx;
     const task = await newTask(ctx), agent = task.promptTarget();
-    const folded = () => ui(`!!document.querySelector('.terminals.folded') && document.querySelector('.termtabs').hidden && !document.querySelector('.voicebar')`);
+    const folded = () => ui(`!!document.querySelector('.terminals.folded') && document.querySelector('.termtabs').hidden`);
     // The island's group (its content is laid over it: dockview's renderer 'always').
     const island = () => ui(`(() => { const r = document.querySelector('.termtabs').closest('.dv-groupview').getBoundingClientRect(); return { width: Math.round(r.width), height: Math.round(r.height) }; })()`);
     const saved = () => JSON.parse(fs.readFileSync(pfile('terminals.json', task.n), 'utf8'));
@@ -741,6 +741,28 @@ export default (test: Test) => {
     await waitFor(async () => JSON.stringify(await ui(`[...document.querySelectorAll('#handover .choose .label')].map((e) => e.textContent)`)) === '["Fake agent · work@shop.com"]');
     await ui(`document.querySelector('#handover .x').click()`);
     await waitFor(() => ui(`!document.getElementById('handover')`));
+  });
+  test("language: one for every agent (☰ → Language): written into the agents' own setting in each account's folder, at an agent's start and when chosen, never into the human's own", async ({ ui, shell }) => {
+    const own = (id: string) => path.join(accountDir(id), 'settings.json');
+    const read = (f: string) => JSON.parse(fs.readFileSync(f, 'utf8'));
+    assert.deepEqual(read(own('fake-1')), { language: 'English' }, 'at its start (the test before): English, the default');
+    await ui(`document.getElementById('windowMenu').click()`);
+    assert.ok((await menuRows(ui)).includes('Language'));
+    const row = `${MENU}.querySelector('.languagerow')`;
+    assert.equal(await ui(`${row}.querySelector('.value').textContent`), 'English');
+    assert.match(await ui(`${row}.title`), /^The language you speak with the agents\. Fake agent dictates and answers in it, and may write code comments in it too: your project's CLAUDE\.md or AGENTS\.md decides that\./);
+    await ui(`${row}.click()`);
+    await waitFor(() => ui(`!!document.querySelector('.menu.languages[data-state="open"]')`));
+    const system = await ui(`navigator.language.split('-')[0]`);
+    assert.equal(await ui(`document.querySelector('.menu.languages [data-language]').dataset.language`), system, "the system's first");
+    await ui(`document.querySelector('.menu.languages [data-language="ru"]').click()`);
+    await waitFor(() => read(path.join(userData, 'settings.json')).language === 'ru');
+    await waitFor(() => read(own('fake-1')).language === 'Russian');
+    assert.ok(!fs.existsSync(path.join(root, 'fake-config', 'settings.json')), "the human's own folder untouched");
+    await closeMenu(ui);
+    assert.ok(refused(shell.setLanguage('xx')), 'only one an agent takes');
+    shell.setLanguage('en');
+    assert.equal(read(own('fake-1')).language, 'English');
   });
 
   test("agents: an account lives until deleted in Settings → Agents: let go by its project at once, kept; not deleted while a task runs it; deleted after a question, signed out, with its folder; one made there is in no project", async (ctx) => {
@@ -1200,11 +1222,16 @@ export default (test: Test) => {
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
     const first = shell.task;
     assert.equal(first.folder, `${api}@task-1`, 'one repository: its copy next to it');
+    const chips = () => ui(`[...document.querySelectorAll('.taskrepos .chip')].map((c) => c.textContent + (c.classList.contains('fresh') ? ' fresh' : ''))`);
+    assert.deepEqual(await chips(), [], 'one repository: nothing to tell');
     // Added in Project Settings… while task-1 runs: no copy, only offered on its tab.
     const added = await ui(`kulisa.invoke('project:repo-add', { id: 'api', folder: ${JSON.stringify(web)} })`);
     assert.deepEqual(added.repos.map((r: { folder: string }) => r.folder), [api, web]);
     assert.equal(first.entry.copies.length, 1);
     assert.deepEqual([first.dirs(), first.addable()], [[], [web]]);
+    // The terminals' row names its repositories once the project has several; one added comes in lit.
+    await waitFor(async () => (await chips()).length === 1);
+    assert.deepEqual(await chips(), ['api']);
     // Add Repository on its tab: a copy into its folder of copies, on its branch; its agent given it (an agent without
     // /add-dir: a line saying so, sent; Claude Code's question after /add-dir: checked by hand), not while it waits for
     // the human (Enter would answer the question), once it no longer does.
@@ -1216,6 +1243,8 @@ export default (test: Test) => {
     await choose(ui, 'web');
     const webCopy = path.join(root, 'Kulisa', 'api@task-1', 'web');
     await waitFor(() => first.entry.copies.length === 2);
+    await waitFor(async () => (await chips()).length === 2);
+    assert.deepEqual(await chips(), ['api', 'web fresh']);
     assert.equal(git(webCopy, 'rev-parse', '--abbrev-ref', 'HEAD'), 'task-1');
     assert.ok(!(await ctx.termText()).includes('Kulisa added'), 'not while it waits for the human');
     first.setState(firstAgent, 'done');
@@ -1252,6 +1281,26 @@ export default (test: Test) => {
     await onRow(ui, `#nprepos [data-folder="${web}"]`, 'nprepodel');
     await waitFor(async () => /Tasks work in it: task-1, Checkout/.test(await ui(`document.getElementById('npcodeerror').textContent`)));
     await ui(`document.querySelector('#projects .x').click()`);
+    // Removed again by its agent once the human agreed: nothing of its own in it, so not asked; its folder and branch
+    // gone, the agent told once its turn is over. Its own folder is refused.
+    await assert.rejects(call('task_remove_repository', { repository: 'api' }), /task's own folder/);
+    task.setState(agent, 'working');
+    assert.match((await call('task_remove_repository', { repository: 'web' })).text, new RegExp(`Removed: ${path.join(home, 'web')}`));
+    assert.deepEqual([fs.existsSync(path.join(home, 'web')), git(web, 'branch', '--list', 'checkout'), task.dirs(), task.addable()], [false, '', [], [web]]);
+    assert.ok(!(await ctx.termText()).includes('Kulisa removed'), 'not while it works');
+    task.setState(agent, 'done');
+    await waitFor(async () => (await ctx.termText()).split(`Kulisa removed ${path.join(home, 'web')}`).length === 3);
+    await waitFor(async () => (await chips()).length === 1);
+    // Added again, it comes in lit; the human removes it by its chip's menu.
+    await call('task_add_repository', { repository: 'web' });
+    await waitFor(async () => (await chips()).length === 2);
+    assert.deepEqual(await chips(), ['api', 'web fresh']);
+    await rightClick(ui, `.taskrepos .chip[data-folder="${path.join(home, 'web')}"]`);
+    assert.deepEqual(await menuRows(ui), ['Remove Repository']);
+    await choose(ui, 'Remove Repository');
+    await waitFor(() => !fs.existsSync(path.join(home, 'web')));
+    await waitFor(async () => (await chips()).length === 1);
+    assert.equal(ctx.asked.length, 0, 'nothing of its own: not asked');
     // Deleting the task: both copies, both branches and its folder go.
     await ui(`kulisa.invoke('task:delete', '${task.key}')`);
     await waitFor(() => !fs.existsSync(home));
@@ -1264,6 +1313,24 @@ export default (test: Test) => {
     assert.deepEqual(cloned.repos.map((r: { folder: string }) => r.folder), [api, web, path.join(root, 'docs')]);
     assert.deepEqual(first.addable(), [path.join(root, 'docs')]);
     assert.equal((await ui(`kulisa.invoke('project:repo-default', { id: 'api', folder: ${JSON.stringify(web)} })`)).repos[0].folder, web);
+    // The human removes task-1's web on its tab, a file not committed there: asked first, told what goes with it.
+    fs.writeFileSync(path.join(webCopy, 'b.txt'), 'work');
+    const removeWeb = async () => {
+      await rightClick(ui, `#projectTabs .tasktab[data-task="${first.key}"] .name`);
+      const rows = await menuRows(ui);
+      assert.deepEqual(rows.slice(rows.indexOf('# Remove Repository'), rows.indexOf('Rename…')), ['# Remove Repository', 'web', '-']);
+      await choose(ui, 'web');
+      await waitFor(() => ctx.asked.length);
+      return ctx.asked.pop();
+    };
+    ctx.answer = false;
+    const q = await removeWeb();
+    assert.equal(q.message, 'Remove web from the task task-1?');
+    assert.match(q.detail, new RegExp(`its folder ${webCopy}, its branch task-1.*1 uncommitted file`, 's'));
+    assert.ok(fs.existsSync(webCopy), 'kept when the human says no');
+    ctx.answer = true;
+    await removeWeb();
+    await waitFor(() => !fs.existsSync(webCopy) && git(web, 'branch', '--list', 'task-1') === ''); // the folder goes first, then the branch
     await ui(`kulisa.invoke('project:close', { id: 'api' })`);
     await waitFor(() => !shell.open.has('api'));
     ctx.asked.length = 0;

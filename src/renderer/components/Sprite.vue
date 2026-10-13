@@ -18,10 +18,12 @@
     <symbol id="i-pick" viewBox="0 0 16 16"><path d="M13.5 7V3.5a1 1 0 0 0-1-1h-9a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1H7"/><path fill="currentColor" d="M9 9l5.5 2-2.4.9-.9 2.4z"/></symbol>
     <!-- A site without an icon of its own, as Chrome's globe -->
     <symbol id="i-globe" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M2 8h12M8 2c-2.2 2.6-2.2 9.4 0 12M8 2c2.2 2.6 2.2 9.4 0 12"/></symbol>
-    <!-- ☰'s rows, from Lucide (lucide.dev, ISC; zoom-in, sun-moon, layout-panel-left, bot, log-out): drawn on 24 × 24,
+    <!-- ☰'s rows, from Lucide (lucide.dev, ISC; zoom-in, sun-moon, languages, chevron-right, layout-panel-left, bot, log-out): drawn on 24 × 24,
          their lines as thick as the others' at 16 px -->
     <symbol id="i-zoom" viewBox="0 0 24 24"><g stroke-width="2.25"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35M11 8v6M8 11h6"/></g></symbol>
     <symbol id="i-theme" viewBox="0 0 24 24"><g stroke-width="2.25"><path d="M12 2v2M16 12a4 4 0 0 0-4-4M19 5l-1.256 1.256M20 12h2"/><path d="M14.837 16.385a6 6 0 1 1-7.223-7.222c.624-.147.97.66.715 1.248a4 4 0 0 0 5.26 5.259c.589-.255 1.396.09 1.248.715"/></g></symbol>
+    <symbol id="i-language" viewBox="0 0 24 24"><g stroke-width="2.25"><path d="m5 8 6 6M4 14l6-6 2-3M2 5h12M7 2h1M22 22l-5-10-5 10M14 18h6"/></g></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><g stroke-width="2.25"><path d="m9 18 6-6-6-6"/></g></symbol>
     <symbol id="i-arrange" viewBox="0 0 24 24"><g stroke-width="2.25"><rect width="7" height="18" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/></g></symbol>
     <symbol id="i-agent" viewBox="0 0 24 24"><g stroke-width="2.25"><path d="M12 8V4H8M2 14h2M20 14h2M15 13v2M9 13v2"/><rect width="16" height="12" x="4" y="8" rx="2"/></g></symbol>
     <!-- An agent's state on a tab (components.css .state), from Lucide too (sparkles, bell, check) -->

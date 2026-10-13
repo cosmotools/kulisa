@@ -16,7 +16,6 @@ export interface MenuRow {
 export type MenuItem = '-' | MenuRow
   | { heading: string; icon?: string }
   | { note: string } // small dim words under the rows, not a row (☰'s version)
-  | { choose: (value: string) => unknown; chosen: string; rows: (MenuRow & { value: string })[] } // one of them, checked
   | { component: Component; props?: Record<string, unknown> }; // a row of its own (☰'s zoom, theme …)
 
 // A menu at a point with no button or area of its own: a link in the terminal (Ctrl+click). PointMenu.vue shows it.
