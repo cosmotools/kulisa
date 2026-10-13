@@ -224,7 +224,14 @@ export default (test: Test) => {
       return Array.from({ length: b.length }, (_, i) => b.getLine(i)).filter((l) => l.translateToString(true).includes('===')).map((l) => [l.translateToString(true).length, l.isWrapped]); })()`);
     assert.deepEqual(lines.filter(([n, wrapped]: [number, boolean]) => n !== 150 || wrapped), [], `whole lines: ${JSON.stringify(lines)}`);
     assert.deepEqual(await ui2('window.__ptySizes.filter((s) => s.cols < 100)'), [], 'no default size sent to the agent');
-    assert.deepEqual({ cols: pty.cols, rows: pty.rows }, size, 'the same size: the window is the same size');
+    // The window is the same size, so the agent ends up with the same one. The new window's page fits the terminal
+    // as soon as it opens, before its grid is laid out (at the window's whole height: 46 rows for 17 on the runner,
+    // now and then, 2026-10-12), then again in its panel: wait for the last fit; a size still different names both
+    // windows' sizes.
+    await waitFor(() => pty.cols === size.cols && pty.rows === size.rows, 5000).catch(() => {
+      throw new Error(`the same size: ${JSON.stringify({ cols: pty.cols, rows: pty.rows })}, expected ${JSON.stringify(size)}; `
+        + `windows ${JSON.stringify([first.win.getContentSize(), second.win.getContentSize()])}`);
+    });
     // The agent's output and its tools go on there.
     pty.write('moved along\r');
     await waitFor(async () => (await termText2()).includes('moved along'));
