@@ -1330,8 +1330,7 @@ export default (test: Test) => {
     assert.ok(fs.existsSync(webCopy), 'kept when the human says no');
     ctx.answer = true;
     await removeWeb();
-    await waitFor(() => !fs.existsSync(webCopy));
-    assert.equal(git(web, 'branch', '--list', 'task-1'), '');
+    await waitFor(() => !fs.existsSync(webCopy) && git(web, 'branch', '--list', 'task-1') === ''); // the folder goes first, then the branch
     await ui(`kulisa.invoke('project:close', { id: 'api' })`);
     await waitFor(() => !shell.open.has('api'));
     ctx.asked.length = 0;
