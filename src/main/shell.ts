@@ -17,6 +17,7 @@ import type { Master } from './master.ts';
 import type { Pty } from './terminal.ts';
 import type { signinPages } from './signin-pages.ts';
 import type { Result } from './result.ts';
+import type { Discarder } from './discard.ts';
 
 
 // An agent or account a task runs (shell.agentFor): its agent's entry, with the account's id, name and folder; cli:
@@ -55,6 +56,7 @@ interface Shell {
   windowClosing(w: AppWindow, e: Electron.Event): void;
   signins: Map<string, Pty>;
   stopAutosave?: () => void;
+  discard: Discarder; // tabs no one looks at losing their process (discard.ts)
   screenshot(file: string): Promise<void>;
   packages: string; // Kulisa's packages for the agents (app.ts, AGENT_PACKAGES)
   agentFiles: string[]; // the agents' local settings a task's copy gets (each agent's localFiles)

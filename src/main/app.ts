@@ -25,6 +25,7 @@ import { keymap, match } from './keys.ts';
 import { startMcpServer } from './mcp-server.ts';
 import { installPicker } from './picker.ts';
 import { installGhost } from './ghost.ts';
+import { startDiscarding } from './discard.ts';
 import { installMasters } from './master.ts';
 import { refused } from './result.ts';
 import type { IpcMainEvent, IpcMainInvokeEvent, WebContents } from 'electron';
@@ -822,6 +823,7 @@ function start(options: Options = {}) {
     shell.firstStart(windows[0]!.w);
     shell.saveWindows();
     shell.stopAutosave = shell.sessionCookies.autosave(() => [...allProfiles(), ...shell.cookieSync.masters()]);
+    shell.discard = startDiscarding(shell);
     shell.screenshot = async (file) => { await first()!.screenshot(file); };
     // KULISA_SHOT=<file.png>: save a screenshot of the window a few seconds after start (for checking UI changes).
     if (process.env.KULISA_SHOT) setTimeout(() => shell.screenshot(process.env.KULISA_SHOT!).catch((e: Error) => console.error('[shot]', e.message)), Number(process.env.KULISA_SHOT_DELAY || 4000));
@@ -1026,6 +1028,7 @@ function start(options: Options = {}) {
     for (const task of allTasks()) if (task !== task.project.window?.task && task.loaded) task.list.saveTabs();
     shell.saveWindows();
     shell.stopAutosave?.();
+    shell.discard?.stop();
     for (const folder of [...(shell.masters?.keys() || [])]) await shell.closeMaster(folder); // their tabs and sign-ins saved
     for (const m of shell.cookieSync.masters()) await shell.sessionCookies?.persist(m); // kept in step, not open in a window
     for (const p of allProfiles()) {

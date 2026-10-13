@@ -206,6 +206,10 @@ A pane is a small Chrome: a tab strip, an address bar, back, forward and reload.
 - **DevTools** of a tab: the pane's ⋮ menu, or F12.
 - A page's alert or confirm shows in its pane, as in Chrome. A page that does not load says why, as Chrome's error
   page does.
+- **Pages no one looks at are unloaded** after five minutes, as Chrome's Memory Saver does, to give the memory back:
+  a tab behind the active one, a pane behind another, the tabs of a task you are not looking at, once its agent has
+  stopped working in them. The tab stays in its strip as it was and loads again when you click it or come back to
+  the task; the agent gets it back the same way. A page with unsaved changes stays, as in Chrome.
 
 ## Working with the agent
 

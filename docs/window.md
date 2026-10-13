@@ -46,7 +46,8 @@ narrow, targets for a quick throw of the mouse; nothing in the bar moves when an
 
 A task's profiles' panes and its island of terminals are peer panels in a grid (dockview), in JetBrains' Islands look:
 drag one by its header to another place, onto another panel to stack them as tabs, drag the gaps to resize. A
-panel stacked behind another hides its page until it is chosen. **☰ → Arrange panels** offers ready-made
+panel stacked behind another hides its page until it is chosen (and after a while unloads it: [profiles.md](profiles.md),
+"Tabs unloaded"). **☰ → Arrange panels** offers ready-made
 arrangements, each drawn as a small picture of itself, as Windows' snap layouts (the words in its tooltip):
 profiles in columns with the terminal below, two by two with the terminal on the right, one profile at a time.
 Each fits the window with nothing cut off, the terminal taking a third of it (`TERMINAL_SHARE`, `lib/grid.ts`): the

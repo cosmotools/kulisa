@@ -34,8 +34,8 @@ const who = ({ id, name, description }: { id: string; name: string; description?
 function sessionStart(task: Task, t: TaskTerminal | null, input: Input) {
   if (input?.session_id && t) task.saveSession(t, { sessionId: input.session_id, transcript: input.transcript_path });
   const lines = [...task.profiles.values()].map((p) => {
-    const tabs = p.tabs.filter((t) => !t.wc.isDestroyed()).map((t) =>
-      `    - tab ${t.id}${t.id === p.active ? ' (active)' : ''}: "${t.wc.getTitle()}" ${t.wc.getURL()}`);
+    const tabs = p.tabs.filter((t) => t.discarded || !t.wc.isDestroyed()).map((t) =>
+      `    - tab ${t.id}${t.id === p.active ? ' (active)' : ''}: "${t.title}" ${t.url}`);
     return [`${who(p)}${p.signinMode ? '; the human is signing in right now' : ''}`, ...tabs].join('\n');
   });
   const closed = [...task.closed.values()].map(({ cfg }) => who(cfg));

@@ -288,7 +288,7 @@ class AppWindow {
   async pictures() {
     const pics: Record<string, string> = {};
     const later = (ms: number) => new Promise<null>((ok) => setTimeout(ok, ms, null));
-    await Promise.all([...this.profiles.values()].filter((p) => p.visible() && p.get()).map(async (p) => {
+    await Promise.all([...this.profiles.values()].filter((p) => p.visible() && p.get() && !p.get()!.discarded && !p.get()!.wc.isDestroyed()).map(async (p) => {
       const img = await Promise.race([p.get()!.wc.capturePage(), later(500)]).catch((): null => null);
       if (!img) return;
       pics[p.id] = `data:image/jpeg;base64,${img.toJPEG(90).toString('base64')}`;

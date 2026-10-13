@@ -420,6 +420,7 @@ Modules (`src/main`):
 - `project-profiles.ts`: a task's profiles (its project's, each a copy of its master made at its first open), open
   and closed: create, rename, describe, close, open, let go. `avatars.ts`: their pictures.
 - `profiles.ts`: a profile: `session.fromPath(<task>/Profile <k>)` plus a `WebContentsView` per tab.
+- `discard.ts`: tabs no one looks at losing their process after a while, as Chrome's Memory Saver: the rule and the sweep.
 - `store.ts`: Kulisa's data folder, laid out as Chrome's user data.
 - `names.ts`: the one rule for names (projects, tasks, profiles: an email address's characters) and slugs.
 - `session-cookies.ts`, `signin-pages.ts`, `signin-pause.ts`: sign-ins that last, the sign-in pause.

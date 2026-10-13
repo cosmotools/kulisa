@@ -233,8 +233,6 @@ here; what is left of it stays.
     show waiting until a tool finishes (no hook says it was answered): a long command run after it shows waiting.
   - To check with Claude Code in a task's copy (the tests run `cat` as the agent): the hooks (session, state),
     `--resume` after a restart, `task_rename` called by Claude Code.
-  - Unloading a background task's tabs while its agent is idle: it needs to know the agent is idle (Claude
-    Code's hooks tell it; for other CLIs, no MCP calls and no terminal output for a while).
   - Other tools that, like direnv, want a folder allowed before they apply (mise's `trust`): not handled yet.
   - Windows: copying an open profile (locked files are skipped and logged), removing a deleted task's profile
     folders while their sessions are open (left for the next start). macOS and Windows untested.
@@ -525,8 +523,10 @@ here; what is left of it stays.
     its menus on Linux).
   - The window's menus are HTML now, Reka UI's ([window.md](window.md), Menus); a page menu could be one too
     (`RightClickMenu.vue`), over a picture of the page.
-- **Memory of panes off screen.** A pane stacked behind another keeps its tabs alive (and their memory). Unloading
-  them while hidden would save RAM at the cost of reloading; not done.
+- **Tabs unloaded, rest** (built 2026-10-13: [profiles.md](profiles.md), "Tabs unloaded"). A pane whose tab loads
+  again is empty meanwhile: a picture of the page taken at the unload could stand there (a JPEG per tab in memory, as
+  the pictures under menus); a tab's history (Back, Forward) goes with its process, as a closed tab's does (no Electron
+  API for it). To watch in use: whether 5 minutes is the right time, and a tab loading again at a bad moment.
 - **A Kulisa profile as a real Chrome profile.** Wanted: the profile's folder in Chrome's own format, so one button
   opens the same profile in the installed Google Chrome with the same tabs and sign-ins, and the storage layout
   is simply Chrome's. Wanted natively, without workarounds, so deferred until there is a clean way. Why it does

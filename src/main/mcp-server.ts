@@ -131,7 +131,7 @@ function buildServer(task: Task, t: TaskTerminal | null) {
     async () => text(JSON.stringify([
       ...[...task.profiles.values()].map(({ id, name, description, avatar, login, hasPassword, signinMode, active, tabs }) =>
         ({ id, name, description: description || null, avatar, ...(login && { testLogin: login, testPassword: hasPassword }), signinMode, active,
-          tabs: tabs.filter((t) => !t.wc.isDestroyed()).map((t) => ({ id: t.id, title: t.wc.getTitle(), url: t.wc.getURL() })) })),
+          tabs: tabs.filter((t) => t.discarded || !t.wc.isDestroyed()).map((t) => ({ id: t.id, title: t.title, url: t.url })) })),
       ...[...task.closed.values()].map(({ cfg, urls }) => ({ id: cfg.id, name: cfg.name, description: cfg.description || null, avatar: cfg.avatar,
         ...(cfg.login && { testLogin: cfg.login, testPassword: cfg.hasPassword }),
         closed: true, tabs: urls.length })),
@@ -265,7 +265,7 @@ function buildServer(task: Task, t: TaskTerminal | null) {
     async ({ profile, tab }) => {
       const { profile: p, tab: t } = tabOf(profile, tab);
       p.activate(t.id);
-      return text(`Active tab of ${profile}: ${t.id} ${t.wc.getURL()}`);
+      return text(`Active tab of ${profile}: ${t.id} ${t.url}`);
     });
   server.registerTool('browser_tab_close', { description: 'Close a tab of the profile. Close only tabs you opened, unless the human asked.', inputSchema: { profile: profileArg, tab: tabArg } },
     async ({ profile, tab }) => {

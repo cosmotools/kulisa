@@ -150,7 +150,7 @@ class Task {
         e.urls = this.store.tabs(e.cfg.folder).filter((u) => u && u !== 'about:blank').map((u) => withOffset(u, this.offset));
         this.store.saveTabs(e.cfg.folder, e.urls);
       },
-      urlsOf: (p) => p.tabs.filter((t) => !t.wc.isDestroyed()).map((t) => this._urlOf(t)).filter((u) => u && u !== 'about:blank'),
+      urlsOf: (p) => p.tabs.map((t) => this.urlOf(t)).filter((u) => u && u !== 'about:blank'),
       renamed: (p, oldId) => { shell.proxy.renamed(p, oldId); p.endpoint = shell.proxy.endpoint(p); },
       remove: async ({ cfg, profile }: Entry) => {
         shell.sessionCookies.forget(cfg);
@@ -163,8 +163,8 @@ class Task {
     };
   }
   // Where a tab is, to open it again: sign-in pages are one-time URLs, so where the sign-in started instead
-  // (signin-pages.ts); a tab still loading, the URL it is opening.
-  _urlOf(t: Tab) { return this.shell.signin.restoreUrl(t.wc) || t.pendingUrl || ''; }
+  // (signin-pages.ts); a tab still loading, the URL it is opening; a discarded one, the address it was kept at.
+  urlOf(t: Tab) { return t.discarded ? t.url : t.wc.isDestroyed() ? '' : this.shell.signin.restoreUrl(t.wc) || t.pendingUrl || ''; }
 
   // The other folders its agent works in besides its own: its copies of the project's other repositories, and those
   // of the project's folders without git, as they are (agents/, dirs; the MCP server's instructions name them). Not
@@ -599,7 +599,7 @@ class Task {
     const r = this.find(id);
     if (refused(r)) return r;
     const tab = r.profile.get(tabId);
-    return tab && !tab.wc.isDestroyed() ? { profile: r.profile, tab } : { error: tabId ? `No tab ${tabId} in ${id}` : `Profile "${id}" has no tab` };
+    return tab && (tab.discarded || !tab.wc.isDestroyed()) ? { profile: r.profile, tab } : { error: tabId ? `No tab ${tabId} in ${id}` : `Profile "${id}" has no tab` };
   }
   createProfile(name: string, description?: string, avatar?: string) { return this.list.create(name, description, avatar); }
   renameProfile(id: string, name: string | undefined) { return this.list.rename(id, name); }

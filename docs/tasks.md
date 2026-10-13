@@ -754,7 +754,8 @@ temporary forks), and again on 2026-10-10 (tasks; ROADMAP, "Projects and tasks")
 - **A task loads when first shown**, not at the start: after a restart nothing works in the background anyway,
   and the agent starts at its terminal's real size.
 - **Tasks and groups in the background keep running**, their pages and agents. Memory: each agent is a
-  process of its own (Claude Code about 200–400 MB) plus its profiles' tabs.
+  process of its own (Claude Code about 200–400 MB) plus its profiles' tabs; those its agents stop using lose their
+  process after a while and load again when the task is shown ([profiles.md](profiles.md), "Tabs unloaded").
 - **Another project's task opens beside the shown one** (its group, an island in the bar), as a browser opens a tab.
   At first opening a project closed the shown one and stopped its agents; now the human closes a group (Close Group)
   when it is safe.
