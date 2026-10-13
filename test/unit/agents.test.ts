@@ -186,11 +186,11 @@ test("tasks: a deleted task leaves nothing in Claude Code's and Codex's data; th
   assert.equal(fs.readFileSync(path.join(home, 'config.toml'), 'utf8'), `model = "x"\n\n[projects."${own}"]\ntrust_level = "trusted"\n`);
 });
 
-test("agents: a task's other folders go to Claude Code and Codex as --add-dir (Claude reads their CLAUDE.md too); one added later is typed as /add-dir", () => {
+test("agents: a task's other folders go to Claude Code and Codex as --add-dir (Claude reads their CLAUDE.md too); one added later is sent as /add-dir, its question answered", () => {
   const agent = (id: string) => AGENTS.find((a) => a.id === id);
   assert.deepEqual(agent('claude').dirs(['/k/a@task-2/web', '/k/docs']), { args: ['--add-dir', '/k/a@task-2/web', '--add-dir', '/k/docs'], env: { CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD: '1' } });
   assert.deepEqual(agent('codex').dirs(['/k/web']), { args: ['--add-dir', '/k/web'] });
-  assert.equal(agent('claude').addDir('/k/web'), '/add-dir /k/web');
+  assert.equal(agent('claude').addDir.command('/k/web'), '/add-dir /k/web');
   assert.equal(agent('codex').addDir, undefined, 'others: a line saying so (tasks.ts)');
 });
 

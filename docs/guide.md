@@ -80,7 +80,8 @@ Everything is saved as you change it; there is no Save button.
 
 - **Name**.
 - **Code**: its repositories or folders. **+** adds one (Add Folder…, Clone from URL…), **−** removes the selected
-  one from the project (its folder stays), **★** makes it the default: the agent starts there.
+  one from the project (its folder stays), **★** makes it the default: a new task gets a copy of it, and the agent
+  starts there; a task adds the others when it needs them (Tasks, below).
 - **Agents**: the accounts its tasks run. **★** makes one the default, the one a new task runs; **★** on the default
   one again leaves the project with no default: a new task then starts with nothing running, and big buttons in the
   middle let you open the agent you want, or a terminal. With no agents at all, a new task starts with a terminal.
@@ -127,6 +128,11 @@ to it. With a terminal or an agent without dictation in front, the microphone is
   merges its work into it only when you ask (and checks first that you have no unsaved changes there), or opens a pull
   request. Files git ignores, such as `.env`, are copied into the task's copy too. Without git, tasks work right in
   the project's folder.
+- **Several repositories.** In a project of several repositories (a frontend and a backend), a new task gets a copy
+  of the default one only. When the work needs another, add it: right-click the task's tab and choose it under **Add
+  Repository**. The agent may ask you for one too, and adds it once you agree; to only read another repository it
+  needs no copy. Kulisa gives the agent the new folder itself (Claude Code at once, unless it is waiting for your answer; other
+  agents once they have finished what they are doing).
 - **Its own ports.** Each task runs your app on its own ports, the usual ones plus 100, 200, …, so several tasks run
   the app at once. Its profiles' tabs on local addresses already point there, and stay signed in.
 - **Its name** is `task-1`, `task-2` … until the agent names it, by itself and without a word about it, once your

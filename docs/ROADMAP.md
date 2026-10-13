@@ -27,6 +27,9 @@ here; what is left of it stays.
     - Tasks: a squash merge is not seen as merged (Kulisa offers to delete a closed task only once its commits are
       in the remote's default branch).
     - Projects: a task in the former folder (no git) is not moved when a repository comes.
+    - A repository added to a task (2026-10-13, [tasks.md](tasks.md), Tasks), to try in a real task: whether Claude
+      Code reads the project's other repositories without asking; `/add-dir` sent in a turn and held while it waits
+      for the human (checked with 2.1.296 alone, not through Kulisa's hooks); Codex given a line in its turn.
     - Profiles: the master's window has one tab shown at a time (a sign-in's popup takes it, the tab before comes
       back when it closes); Refresh from Master… brings cookies only, not the sites' storage.
     - Sign-ins kept in step: device-bound session cookies (DBSC) to check with a real Google account in this

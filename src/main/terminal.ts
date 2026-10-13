@@ -131,5 +131,27 @@ function typeIntoPrompt(p: IPty, text: string) {
   p.write(`\x1b[200~${text}\x1b[201~`);
 }
 
+// What a terminal shows, without its escape codes and spaces: the words an agent's UI draws are split by moves of the
+// cursor, which take the spaces' place.
+const plain = (s: string) => s.replace(/\x1b\[[0-9;?<>=]*[a-zA-Z~]|\x1b\][^\x07]*\x07/g, '').replace(/\s+/g, '');
+// Whether the output shows what test looks for within ms.
+const outputShows = (p: IPty, test: (seen: string) => boolean, ms: number) => new Promise<boolean>((resolve) => {
+  let seen = '';
+  const sub = p.onData((d) => { seen += d; if (test(plain(seen))) end(true); });
+  const limit = setTimeout(() => end(false), ms);
+  function end(ok: boolean) { sub.dispose(); clearTimeout(limit); resolve(ok); }
+});
+// A line sent to the agent as the human would: pasted, then Enter once the agent has drawn it. confirm: the words of the
+// question the agent asks then (Claude Code's /add-dir: whether to add the folder), answered with Enter, its first
+// choice; nothing when it does not come.
+async function sendToPrompt(p: IPty, text: string, confirm?: string) {
+  const drawn = outputShows(p, (s) => s.length > 0, 1000);
+  typeIntoPrompt(p, text);
+  await drawn;
+  const asked = confirm ? outputShows(p, (s) => s.includes(plain(confirm)), 10_000) : null;
+  p.write('\r');
+  if (asked && await asked) p.write('\r');
+}
+
 export type { Pty };
-export { READ_MAX, startTerminal, stopTerminal, forgetTerminal, terminalTail, typeIntoPrompt };
+export { READ_MAX, startTerminal, stopTerminal, forgetTerminal, terminalTail, typeIntoPrompt, sendToPrompt };

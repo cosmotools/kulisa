@@ -1186,7 +1186,7 @@ export default (test: Test) => {
     ctx.asked.length = 0;
   });
 
-  test('projects: several repositories: a task gets a copy of each on one branch, in one folder; one added while a task runs is copied and its agent told; one with copies is not removed', async (ctx) => {
+  test('projects: several repositories: a task gets a copy of the default one, another added when it needs it (the human on its tab, the agent with task_add_repository), on its branch, its agent told; one with copies is not removed', async (ctx) => {
     const { shell, ui, call } = ctx;
     const repo = (name: string) => {
       const d = path.join(root, name);
@@ -1200,21 +1200,46 @@ export default (test: Test) => {
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
     const first = shell.task;
     assert.equal(first.folder, `${api}@task-1`, 'one repository: its copy next to it');
-    // Added in Project Settings… while task-1 runs: copied for it into its folder of copies, its agent told.
+    // Added in Project Settings… while task-1 runs: no copy, only offered on its tab.
     const added = await ui(`kulisa.invoke('project:repo-add', { id: 'api', folder: ${JSON.stringify(web)} })`);
     assert.deepEqual(added.repos.map((r: { folder: string }) => r.folder), [api, web]);
+    assert.equal(first.entry.copies.length, 1);
+    assert.deepEqual([first.dirs(), first.addable()], [[], [web]]);
+    // Add Repository on its tab: a copy into its folder of copies, on its branch; its agent given it (an agent without
+    // /add-dir: a line saying so, sent; Claude Code's question after /add-dir: checked by hand), not while it waits for
+    // the human (Enter would answer the question), once it no longer does.
+    const firstAgent = first.agentTerminals()[0];
+    first.setState(firstAgent, 'waiting');
+    await rightClick(ui, `#projectTabs .tasktab[data-task="${first.key}"] .name`);
+    const rows = await menuRows(ui);
+    assert.deepEqual(rows.slice(rows.indexOf('# Add Repository'), rows.indexOf('Rename…')), ['# Add Repository', 'web', '-']);
+    await choose(ui, 'web');
     const webCopy = path.join(root, 'Kulisa', 'api@task-1', 'web');
     await waitFor(() => first.entry.copies.length === 2);
     assert.equal(git(webCopy, 'rev-parse', '--abbrev-ref', 'HEAD'), 'task-1');
-    await waitFor(async () => (await ctx.termText()).includes(`Kulisa added ${webCopy} to this task`));
-    assert.deepEqual(first.dirs(), [webCopy]);
-    // A new task: a copy of each in one folder, on one branch; its agent told of the other.
+    assert.ok(!(await ctx.termText()).includes('Kulisa added'), 'not while it waits for the human');
+    first.setState(firstAgent, 'done');
+    // Sent, not left in its prompt: shown as typed, then again as the agent (cat) read the line on Enter.
+    await waitFor(async () => (await ctx.termText()).split(`Kulisa added ${webCopy} to this task`).length === 3);
+    assert.deepEqual([first.dirs(), first.addable()], [[webCopy], []]);
+    // A new task: a copy of the default one alone, in a folder for them all; the agent told of the other, to read it
+    // there and ask before adding it.
     const task = await newTask(ctx);
     const home = path.join(root, 'Kulisa', 'api@task-2');
     assert.equal(task.folder, path.join(home, 'api'));
+    assert.deepEqual([task.dirs(), fs.existsSync(path.join(home, 'web'))], [[], false]);
+    assert.match(await ctx.instructions(task), new RegExp(`repositories, not in this task: ${web}\\. .*first ask the human.*task_add_repository`));
+    // The agent adds it in its turn, once the human agreed: a copy on its branch, given to it in the turn by an agent's
+    // own command (Claude Code's /add-dir: it runs at once); the same refused again.
+    const agent = task.agentTerminals()[0];
+    agent.agent.addDir = { command: (f: string) => `/add-dir ${f}` };
+    task.setState(agent, 'working');
+    assert.match((await call('task_add_repository', { repository: 'web' })).text, /Added: .*api@task-2\/web, on branch task-2/);
     assert.deepEqual(task.dirs(), [path.join(home, 'web')]);
-    for (const r of ['api', 'web']) assert.equal(git(path.join(home, r), 'rev-parse', '--abbrev-ref', 'HEAD'), 'task-2');
-    assert.match(await ctx.instructions(task), /The task's other folders: .*api@task-2\/web \(a worktree of .*\/web, branch task-2\)/);
+    await waitFor(async () => (await ctx.termText()).split(`/add-dir ${path.join(home, 'web')}`).length === 3);
+    delete agent.agent.addDir;
+    task.setState(agent, 'done');
+    await assert.rejects(call('task_add_repository', { repository: 'web' }), /has .*web already/);
     // Its agent names it: the branch of each copy.
     await call('task_rename', { name: 'Checkout' });
     for (const r of ['api', 'web']) assert.equal(git(path.join(home, r), 'rev-parse', '--abbrev-ref', 'HEAD'), 'checkout');
@@ -1232,12 +1257,12 @@ export default (test: Test) => {
     await waitFor(() => !fs.existsSync(home));
     assert.equal(git(web, 'branch', '--list', 'checkout') + git(api, 'branch', '--list', 'checkout'), '');
     ctx.asked.length = 0;
-    // Cloned from a URL (a local one here) next to the project's folder, and copied for task-1; made the default.
+    // Cloned from a URL (a local one here) next to the project's folder, offered to task-1; made the default.
     const bare = path.join(root, 'docs.git');
     git(root, 'clone', '-q', '--bare', web, bare);
     const cloned = await ui(`kulisa.invoke('project:repo-clone', { id: 'api', url: ${JSON.stringify(bare)} })`);
     assert.deepEqual(cloned.repos.map((r: { folder: string }) => r.folder), [api, web, path.join(root, 'docs')]);
-    await waitFor(() => first.entry.copies.length === 3);
+    assert.deepEqual(first.addable(), [path.join(root, 'docs')]);
     assert.equal((await ui(`kulisa.invoke('project:repo-default', { id: 'api', folder: ${JSON.stringify(web)} })`)).repos[0].folder, web);
     await ui(`kulisa.invoke('project:close', { id: 'api' })`);
     await waitFor(() => !shell.open.has('api'));

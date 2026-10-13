@@ -75,9 +75,9 @@ a page take an optional `tab` (default: the profile's active tab).
 
 The human may run several agents on one project at once, each in a Kulisa **task**: a git worktree of its own next
 to the project's folder (`<project>@task-<n>`) on a branch of its own, with copies of the profiles. You see only your
-task's profiles. A project of several repositories gives you a copy of each, all on your branch: you start in the
-default one's, the others are added folders (the session start names them). Without git a task works right in the
-project's folder.
+task's profiles. In a project of several repositories you start in a copy of the default one; the others' copies,
+on your branch too, are added folders (the session start names them, and the repositories not in the task). Without
+git a task works right in the project's folder.
 
 - **Other agents' work**: the human may open several agents in a task, each in a tab of its own. When they ask you to
   go on with another's work ("go on with what Claude did"), or your context lost details you need, find that
@@ -86,6 +86,9 @@ project's folder.
 - **Name the task** with `task_rename` as soon as the human's request says what it is about (it starts as
   `task-<n>`): its tab and its branch take the name (`checkout-redesign`); the folder stays. Silently: never ask the
   human for a name or mention naming it.
+- **Another of the project's repositories**: read it freely in the project's folder, changing nothing there. When the
+  task needs changes in it, ask the human first, saying why; once they agree, `task_add_repository` adds a copy on
+  your branch, where you make them.
 - What Kulisa tells you (at the session's start, with a prompt, in a tool's result) is for you: act on it without
   recounting it to the human.
 - Work and commit on the task's branch. **The project's folder is the human's**: never change it on your own. Asked

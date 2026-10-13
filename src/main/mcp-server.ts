@@ -195,6 +195,15 @@ function buildServer(task: Task, t: TaskTerminal | null) {
     return text(`The task is now "${r.name}"${r.branch ? `, on branch ${r.branch}` : ''}.`);
   });
 
+  server.registerTool('task_add_repository', {
+    description: "Add another of the project's repositories to this task, to change it: a copy (git worktree) on the task's branch. Only after the human has agreed in the conversation: ask them first, saying why the task needs it. To read a repository you need no copy: read it in the project's folder, changing nothing there.",
+    inputSchema: { repository: z.string().describe("The repository's folder or name, as the instructions list the ones the task may add") },
+  }, async ({ repository }) => {
+    const r = await task.addRepository(repository);
+    if (refused(r)) throw new Error(r.error);
+    return text(`Added: ${r.folder}, on branch ${r.branch}; make your changes there. Kulisa gives you the folder as a working one (at once for some agents, once your turn is over for others); until then your changes there may ask for the human's permission.`);
+  });
+
   server.registerTool('task_history', {
     description: "The history of this task. Without a conversation: where it stands (its code in git, profiles, terminals) and its conversations, each an agent's, numbered, with its tab's name, open or closed, when, its first and last request. With a conversation's number: that conversation whole, what the human asked and the agent did, read from its transcript, the latest chapter first. When the human asks you to go on with another agent's work, find its conversation here and read every part of it before anything else. Also when you need details your context lost. Call with part 1, then the next ones up to the total it says.",
     inputSchema: {

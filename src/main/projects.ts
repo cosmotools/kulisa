@@ -26,13 +26,14 @@ type Named = Pick<StoredProfile | ProfileConfig, 'name'>;
 
 class Project {
   shell: Shell; store: Store; window: AppWindow | null; id: string; entry!: ProjectEntry; name!: string; folder!: string;
-  git: Git | null; tasks: Map<number, Task>; next: number; task: Task | null;
+  git: Git | null; gits: Map<string, Git>; tasks: Map<number, Task>; next: number; task: Task | null;
   // entry: the project in projects.json (store.ts): { id, name, folder, repos, color, agents }. shell: the app
   // (app.ts), as Task takes it. window: the window it is open in (window.ts, add).
   constructor(shell: Shell, entry: ProjectEntry) {
     this.shell = shell; this.store = shell.store; this.window = null;
     this.id = entry.id; this.update(entry);
     this.git = null; // its default repository's: 'ok', 'no-commit' (no copies before a first commit), 'none'
+    this.gits = new Map(); // each of its repositories', for what a task may add (Task.addable)
     this.tasks = new Map(); // by number, open and closed
     const { next, current, list } = this.store.tasksOf(entry);
     this.next = next;
@@ -54,7 +55,10 @@ class Project {
   taskByKey(key: string) { return [...this.tasks.values()].find((t) => t.key === key) || null; }
   // A conversation of one of its tasks with a transcript: where its agents keep their data (agents/: Claude's config).
   agentData() { return [...this.tasks.values()].flatMap((t) => t.conversations()).find((c) => c.transcript) || {}; }
-  async checkGit() { this.git = await gitOf(this.folder); }
+  async checkGit() {
+    this.gits = new Map(await Promise.all(this.repos().map(async (r) => [r, await gitOf(r)] as const)));
+    this.git = this.gits.get(this.folder)!;
+  }
   save() {
     this.store.saveTasksOf(this, { next: this.next, current: this.task?.n ?? null,
       list: [...this.tasks.values()].map((t) => t.entry) });
@@ -72,9 +76,10 @@ class Project {
     this.select(task);
     return task;
   }
-  // A new task, named task-<n> until the agent or the human renames it. Its code: a worktree of each of the project's
-  // repositories with a commit, all on one branch of the task's name (worktrees.ts): next to its repository when the
-  // project has one, else all in one folder, ~/Kulisa/<project>@task-<n>/<repo>/; with a port offset no other task
+  // A new task, named task-<n> until the agent or the human renames it. Its code: a worktree of the default repository
+  // on a branch of the task's name (worktrees.ts), the others added when its work needs them (addCopy; the author,
+  // 2026-10-13): next to its repository when the project has one, else in one folder for them all,
+  // ~/Kulisa/<project>@task-<n>/<repo>/, so that one added later goes beside it; with a port offset no other task
   // has (100, 200, …: the project's own folder keeps the usual ports). A folder without git is used as it is: the
   // task works right in it. Made from the project's configuration alone (the projects' manager), nothing from the
   // task on screen: its agent the project's default one; none: nothing starts, the island shows what can. No profile opens by itself: all its project's are listed closed, and the agent (profile_open)
@@ -83,7 +88,7 @@ class Project {
     const agent = this.defaultAgent();
     await this.checkGit();
     const n = this.next, name = `task-${n}`, repos = this.repos();
-    const gits = (await Promise.all(repos.map(async (r) => ((await gitOf(r)) === 'ok' ? r : null)))).filter((r) => r !== null);
+    const gits = this.git === 'ok' ? [this.folder] : [];
     let entry: TaskEntry = { n, name, offset: 0, folder: this.folder };
     if (gits.length) {
       const beside = repos.length === 1;
@@ -111,22 +116,18 @@ class Project {
     this.save();
     return task;
   }
-  // A repository the project got after the task was made (Project Settings…), copied for it on the task's branch (or
-  // the next free name there) into its folder of copies, ~/Kulisa/<project>@task-<n>/. The copies made.
-  async addCopies(task: Task) {
-    const { entry } = task, made: Copy[] = [];
-    if (!entry.copies) return made; // a task in a folder without git stays as it is
-    for (const r of this.repos()) {
-      if (entry.copies.some((c) => c.repo === r) || (await gitOf(r)) !== 'ok') continue;
-      entry.home ??= freeFolder(path.join(this.shell.projectsHome, `${this.id}@task-${task.n}`));
-      const branch = await freeBranch([r], entry.branch ?? `task-${task.n}`);
-      try {
-        const c = await createWorktree(r, branch, path.join(entry.home, copyName(entry.copies, r)), this.shell.agentFiles);
-        entry.copies.push(c); made.push(c);
-      } catch (e) { console.warn('[tasks] copy:', (e as GitError).stderr || (e as Error).message); }
-    }
-    if (made.length) this.save();
-    return made;
+  // Another of its repositories added to a task (Task.addRepository): copied on the task's branch (or the next free
+  // name there) into its folder of copies, ~/Kulisa/<project>@task-<n>/. The copy, or { error }.
+  async addCopy(task: Task, repo: string): Promise<Result<Copy>> {
+    const { entry } = task;
+    entry.home ??= freeFolder(path.join(this.shell.projectsHome, `${this.id}@task-${task.n}`));
+    const branch = await freeBranch([repo], entry.branch ?? `task-${task.n}`);
+    try {
+      const c = await createWorktree(repo, branch, path.join(entry.home, copyName(entry.copies!, repo)), this.shell.agentFiles);
+      entry.copies!.push(c);
+      this.save();
+      return c;
+    } catch (e) { return { error: (e as GitError).stderr || (e as Error).message }; }
   }
   // A profile let go by the project (the editor's Delete, the agent's profile_delete): asked first (askDropProfile).
   askDropProfile(p: Named, by: 'human' | 'agent' = 'human') { return askDropProfile(this.shell, this.entry, p, by, this.window); }
@@ -251,8 +252,8 @@ async function deleteTask(shell: Shell, p: ProjectEntry, entry: TaskEntry) {
 
 // A project's repositories or folders (Project Settings…), whether it is open or not: added, cloned, made the
 // default, removed. Its own folder stays one of them while it is in git; one without git becomes its former folder
-// once a repository is added: new tasks work in copies of the repositories, those working in it go on there. Open
-// tasks get a copy of a repository added while they run (Task.reposChanged). { repos } or { error }.
+// once a repository is added: new tasks work in copies of the repositories, those working in it go on there. A task
+// gets a copy of one added only when it adds it (Task.addRepository). { repos } or { error }.
 async function addRepo(shell: Shell, id: string, folder: string): Promise<Result<{ repos: string[] }>> {
   const p = shell.store.projects().find((x) => x.id === id);
   if (!p) return { error: `no project ${id}` };
@@ -267,7 +268,8 @@ async function changeRepos(shell: Shell, id: string, repos: string[]) {
   const open = shell.open.get(id);
   if (open) {
     open.update(entry);
-    for (const t of open.tasks.values()) await t.reposChanged();
+    await open.checkGit();
+    open.window?.sendTasks(); open.window?.sendProjects(); // what its tasks may add
   }
   return { repos: reposOf(entry) };
 }
