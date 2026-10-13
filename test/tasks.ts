@@ -825,7 +825,9 @@ export default (test: Test) => {
     await waitFor(async () => JSON.stringify(await tabs(ui)) === '["Feature-X *"]');
     assert.equal(ctx.asked.length, 0);
     await ui(`${taskTab(2)}.querySelector('.close').click()`);
-    await waitFor(() => shell.task === null && !shell.current);
+    // The group closes once its task is unloaded: its agent stopped, each profile's sign-ins written out and its
+    // tabs closed. On the runner, with the other group running beside it, that took over 5 s now and then (2026-10-12).
+    await waitFor(() => shell.task === null && !shell.current, 15000);
     assert.equal(ctx.asked.length, 0, 'no agent works: nothing asked');
     assert.ok(second.profiles.size === 0 && !second.pty, 'every task of the project stopped');
     assert.deepEqual(tasksFile().list.map((e) => [e.n, !!e.closed]), [[1, true], [2, true], [5, true]]);

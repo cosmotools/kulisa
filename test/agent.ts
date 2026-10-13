@@ -472,13 +472,17 @@ export default (test: Test) => {
     for (const t of elon.tabs.slice(n)) elon.closeTab(t.id);
     await waitFor(() => elon.tabs.length === n);
   });
-  test('back and forward buttons are enabled only when there is somewhere to go', async ({ call, ui }) => {
+  test('back and forward buttons are enabled only when there is somewhere to go', async ({ call, ui, shell }) => {
     const buttons = () => ui(`[...document.querySelectorAll('.pane')][0].querySelectorAll('.back, .fwd').values().map((b) => b.disabled).toArray()`);
     await call('browser_navigate', { profile: 'sam-seller', url: `${SITE}/app?n=1` });
     await call('browser_navigate', { profile: 'sam-seller', url: `${SITE}/app?n=2` });
     await waitFor(async () => JSON.stringify(await buttons()) === '[false,true]');
     await ui(`[...document.querySelectorAll('.pane')][0].querySelector('.back').click()`);
     await waitFor(async () => JSON.stringify(await buttons()) === '[false,false]');
+    // The buttons change as the back navigation starts; the next test reads the address, so wait until it has
+    // landed, in the tab and in the pane (on a slow runner the pane showed n=2 while the tab was on n=1).
+    await waitFor(async () => shell.profiles.get('sam-seller').get().url.endsWith('n=1')
+      && (await ui(`document.querySelector('.pane[data-profile="sam-seller"] .addr').value`)).endsWith('n=1'));
   });
   test('the address as in Chrome: shown without http(s)://, a click shows all of it selected; a second click places the caret', async ({ shell, ui }) => {
     const addr = '.pane[data-profile="sam-seller"] .addr';
