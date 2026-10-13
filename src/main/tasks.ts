@@ -41,6 +41,7 @@ interface TaskTerminal {
 type Found = { profile: Profile; error?: undefined } | { error: string; closed?: boolean; profile?: undefined };
 
 const DICTATION_LIMIT = 5 * 60_000; // a recording left on (a click and no second one)
+const HOLD = 400; // the key down longer is held (records until let go), shorter is a press (until the next)
 // The message an agent handed the task starts with (handOver), as the human would type it: what to read, and that
 // it tells the human what it understood, who sees at once what it missed.
 const HANDOVER = (n: number, name: string) => `Go on with the work of conversation ${n} of this task ("${name}"). Read it ` +
@@ -53,7 +54,7 @@ class Task {
   terminals: Map<number, TaskTerminal>; terminalSeq: number; list: ProjectProfiles;
   profiles: ProjectProfiles['profiles']; closed: ProjectProfiles['closed'];
   front: number | null; lastAgent: number | null; // the island's tab in front; the agent's tab in front last
-  resumedSession?: string | null; dictating?: { t: TaskTerminal; timer: NodeJS.Timeout } | null;
+  resumedSession?: string | null; dictating?: { t: TaskTerminal; timer: NodeJS.Timeout } | null; held?: number;
   // project: its project (projects.ts); entry: { n, name, branch, worktree, folder, base, offset, closed, closedAt }
   // from its tasks.json; one without a worktree works in the project's folder. key: the task among all open ones
   // ("<project id>/<n>"): the windows, the terminals, the CDP proxy and the MCP server's URLs know it by that.
@@ -517,6 +518,26 @@ class Task {
     return t?.agent!.voice ? { recording: this.dictating?.t === t } : null;
   }
   sendVoice() { this.window?.send('voice', { task: this.key, voice: this.voice() }); }
+  // The dictation key (keys.ts, voice.hold), as the microphone button: held, it records until let go; pressed once,
+  // until the next press, or a press while it records stops it. Pressed with a shell in front, the agent the prompt
+  // goes to comes to the front first: the key means "speak to the agent", wherever the keyboard is.
+  holdKey(down: boolean) {
+    if (down) {
+      if (this.dictating && !this.held) this.dictate(false);
+      else {
+        const t = this.promptTarget();
+        if (t && this.front !== t.id) this.show(t.id);
+        this.held = Date.now();
+        this.dictate(true);
+      }
+    } else {
+      if (this.held && Date.now() - this.held > HOLD) this.dictate(false);
+      this.held = 0;
+    }
+    this.sendVoice();
+  }
+  // The window lost the keyboard while the key is down: its release will never be seen, so the recording ends here.
+  letGo() { if (this.held) { this.held = 0; this.dictate(false); this.sendVoice(); } }
   // Recording: the agent's key held, as a terminal shows a held key, its repeats. It stops when told, or after
   // DICTATION_LIMIT, or when that agent is gone or no longer shown.
   dictate(on: boolean): { recording: boolean } {

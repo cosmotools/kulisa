@@ -16,7 +16,7 @@ here; what is left of it stays.
     JetBrains' (a tree of Projects, Agents and Profiles; [ui.md](ui.md), Desktop, not a web page), the whole project
     in TypeScript; 2026-10-12, a task's island of terminals with several agents in it ("Several agents in a task, rest",
     below); 2026-10-13, a repository added to a task when its work needs it (the human's menu or the agent's tool,
-    [tasks.md](tasks.md), Tasks), the voice bar under the terminals ([window.md](window.md), The terminal) and one
+    [tasks.md](tasks.md), Tasks), dictation by a key held anywhere, the right Ctrl ([window.md](window.md), The terminal) and one
     language for every agent (☰ → Language, [window.md](window.md), Language). The author tests it by hand. Next: fix what the author's testing finds; then what is left of the
     steps (below), only once the author has decided it.
   - **Open, for the author to decide:** Refresh from Master… now matters only for a local app's cookies (keep or
@@ -479,7 +479,7 @@ here; what is left of it stays.
       removed with it ("Nothing piles up"). `utilityProcess.fork` of its own files, ended by Kulisa when it is
       turned off. Its own IPC channels (`ext:<id>:…`) between its two halves. A download with a SHA-256 check, for
       models. A log line prefix.
-    - Window: places to add to: the voice bar under the terminal (its sides, around the microphone), ☰, a panel in the grid (Stripe); its icons
+    - Window: places to add to: the terminals' row (by the dictation's microphone), ☰, a panel in the grid (Stripe); its icons
       added to the sprite; the window's components (`.icon`, `ButtonMenu.vue`, `Modal.vue`, `ask`; [ui.md](ui.md)) rather than its own; its module
       loaded with `import()` when it is turned on. The microphone for the window only for an extension that asked
       for it (today the window's session grants media to all of its own pages).

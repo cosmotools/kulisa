@@ -21,7 +21,7 @@ import { findFavicon } from './favicons.ts';
 import { AGENTS, findAgent, accountEmail, signOut, agentVersion, installLine, installAgent } from './agents/index.ts';
 import { nameError, repoName } from './names.ts';
 import { startTerminal, stopTerminal, forgetTerminal } from './terminal.ts';
-import { keymap, match } from './keys.ts';
+import { held, holdable, keymap, list as keyList, match } from './keys.ts';
 import { startMcpServer } from './mcp-server.ts';
 import { installPicker } from './picker.ts';
 import { installGhost } from './ghost.ts';
@@ -787,7 +787,7 @@ function start(options: Options = {}) {
   ipcMain.handle('task:add-repo', (_e, { key, repo }: { key: string; repo: string }) => taskAt(key, (task) => task.addRepository(repo)));
   ipcMain.handle('task:remove-repo', (_e, { key, repo }: { key: string; repo: string }) => taskAt(key, (task) => task.removeRepository(repo)));
   ipcMain.handle('project:delete-merged', (_e, { id }: { id: string }) => serial(() => { const p = shell.open.get(id); return p ? deleteMerged(p) : { error: 'the project is not open' }; }));
-  // The voice bar's microphone (Dictation.vue in the renderer; Task.voice, dictate).
+  // The dictation: its key held (holdKey, above in onKey) and the microphone (Dictation.vue; Task.voice, dictate).
   // Esc typed into an agent's terminal (its key: "<task>#<id>"): Task.interrupted.
   ipcMain.on('pty:in', (_e, { task, data }: { task: string; data: string }) => { if (data === '\x1b') shell.taskByKey(task.split('#')[0]!)?.interrupted(task); });
   ipcMain.handle('voice:get', (_e, key: string) => shell.taskByKey(key)?.voice() ?? null);
@@ -988,7 +988,8 @@ function start(options: Options = {}) {
   // Every key typed in the window or in a profile's page comes here first (before-input-event), before the page
   // gets it: one of Kulisa's is taken (the page never sees it) and done, here or by the window; any other goes on
   // to the page, the terminal's agent or the site.
-  const table = keymap();
+  let table = keymap(undefined, store.settings().keys);
+  shell.keys = () => keyList(undefined, store.settings().keys);
   const ZOOM: Record<string, number> = { 'zoom.in': 1, 'zoom.out': -1, 'zoom.reset': 0, 'site.zoomIn': 1, 'site.zoomOut': -1, 'site.zoomReset': 0 };
   // A profile's tab by its webContents, of a task shown in a window.
   const tabOf = (wc: WebContents) => {
@@ -999,10 +1000,18 @@ function start(options: Options = {}) {
     return null;
   };
   function onKey(wc: WebContents, e: Electron.Event, input: Electron.Input) {
-    if (input.type !== 'keyDown') return;
     const w = shell.windowOf(wc), t = !w && tabOf(wc);
     if (!w && !t) return; // DevTools, a tab of a task not on screen
     const zone = w ? w.keyZone : 'page';
+    // A key held alone (the dictation's): its press and its release, wherever the keyboard is but a dialog (the
+    // shortcuts' dialog takes a key there to make it the one). Left to the page too (no preventDefault: a press
+    // taken had its release withheld by Chromium, and the key types nothing).
+    const h = held(table, input);
+    if (h) {
+      if (zone !== 'dialog' && h.id === 'voice.hold') (w || (t as { w: AppWindow }).w).task?.holdKey(h.down);
+      return;
+    }
+    if (input.type !== 'keyDown') return;
     const pane = zone.startsWith('pane:') ? zone.slice('pane:'.length) : null;
     // The nearest group first: in a page, the page's keys (its zoom, its DevTools); in the window, Kulisa's.
     const hit = match(table, input, zone === 'page' ? ['page', 'global'] : pane ? ['global', 'page'] : ['global'], { always: zone === 'dialog' });
@@ -1018,6 +1027,17 @@ function start(options: Options = {}) {
   }
   app.on('web-contents-created', (_e, wc) => wc.on('before-input-event', (e, input) => onKey(wc, e, input)));
   ipcMain.on('keys:zone', (e, zone: string) => { const w = at(e); if (w) w.keyZone = String(zone); });
+  // A hold key changed by the human (Keyboard Shortcuts): kept in settings.json, every window told.
+  ipcMain.handle('keys:set', (_e, { id, code }: { id: string; code: string }): Result<{ keys: Sent.Shortcut[] }> => {
+    if (!table.some((b) => b.hold && b.id === id)) return { error: `not a key to change: ${id}` };
+    const why = holdable(table, code);
+    if (why) return { error: why };
+    const keys = { ...store.settings().keys, [id]: code };
+    store.saveSettings({ ...store.settings(), keys });
+    table = keymap(undefined, keys);
+    for (const w of shell.windows) w.send('keys', shell.keys());
+    return { keys: shell.keys() };
+  });
 
   // Save session cookies and flush persistent ones before quitting, so sign-ins survive a restart; the windows and
   // their tabs open again at the next start.

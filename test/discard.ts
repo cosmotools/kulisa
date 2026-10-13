@@ -17,7 +17,8 @@ export default (test: Test) => {
     const sam = shell.profiles.get('sam-admin'), before = sam.tabs.map((t) => t.id);
     const board = sam.newTab(`${SITE}/board`), form = sam.newTab(`${SITE}/form`); // form is the active one, on screen
     await Promise.all([board.ready, form.ready]);
-    await waitFor(() => board.title === 'board');
+    await waitFor(() => board.title === 'board' && !board.loading && !board.pendingUrl); // a page still loading is kept
+    await waitFor(() => !shell.task.agentTerminals().some((t) => t.state === 'working' || t.state === 'waiting')); // the tests before may leave the agent's last hook on its way
     const strip = () => ui(`[...document.querySelectorAll('.pane[data-profile="sam-admin"] .tabs .tab .title')].map((t) => t.textContent)`);
     const wcs = () => webContents.getAllWebContents().length;
     const n = wcs();
@@ -73,6 +74,7 @@ export default (test: Test) => {
     await post('waiting');
     assert.equal(shell.discard.sweep(), 0, 'waiting for the human: it goes on in them after');
     await post('stop');
+    await waitFor(() => !task.agentTerminals().some((t) => t.state === 'working' || t.state === 'waiting'));
     sam.busyAt = Date.now();
     assert.equal(shell.discard.sweep(), 0, 'a command through the proxy a moment ago: an agent without hooks, or a script');
     sam.busyAt = Date.now() - LONG_AGO;

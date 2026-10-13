@@ -84,7 +84,7 @@ svg:has(> use) { width: 16px; height: 16px; flex: none; fill: none; stroke: curr
   stroke-linecap: round; stroke-linejoin: round; }
 /* An icon button: the icon alone, square with rounded corners as JetBrains' toolbars, lit under the pointer. --icon:
    the icon's size. .quiet: muted until pointed at (× and removing); .small: in a row or a list's toolbar (a tab's ×, a
-   task's ×, .list's + and −); .round: a circle filled as a raised button, the one action of its bar (the microphone). */
+   task's ×, .list's + and −); .round: a circle filled as a raised button, one that stands out in a row (the microphone). */
 .icon { --icon: 16px; display: grid; place-items: center; flex: none; width: var(--control); height: var(--control);
   padding: 0; border: none; border-radius: var(--radius); background: none; color: var(--text-dim);
   svg { width: var(--icon); height: var(--icon); }

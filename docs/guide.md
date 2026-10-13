@@ -112,10 +112,13 @@ over to it, then its tab opens and it tells you in a few lines where it stands. 
 sign-in), its tab opens at once; **Show now** does not wait. The old tab stays until you close it. Or simply tell an
 agent "go on with what Claude did": every agent of the task can read the others' conversations.
 
-**Dictation**, where the agent has its own (Claude Code with a Claude.ai account): the microphone in the middle of the
-bar under the terminals, which goes wherever the terminals go, for the agent in front. Hold it while you speak, or click
-to start and click again to stop. The text goes into the agent's input for you to read and send. It hears the language
-chosen in **☰ → Language**. With a terminal or an agent without dictation in front, the microphone is greyed out.
+**Dictation**, where the agent has its own (Claude Code with a Claude.ai account): hold the **right Ctrl** key (the
+right ⌘ on a Mac) while you speak, wherever you are in Kulisa, a page or the terminal, and let go; or press it once to
+start and once more to stop. The text goes into the agent's input for you to read and send. It hears the language
+chosen in **☰ → Language**. The microphone at the end of the terminals' row shows that the agent is listening, and
+works the same way by the mouse: hold it, or click to start and again to stop. With a terminal or an agent without
+dictation in front, the key brings the agent back in front; the microphone is greyed out then. Another key instead of
+the right Ctrl: **☰ → Keyboard Shortcuts**, Change on its row, then press the key.
 
 ## Tasks
 

@@ -4,11 +4,10 @@
 // the shown task's. With none, the island is folded to its + (by its height under or over the grid, by its width at a
 // side), and unfolds to the size it had when one opens. Alone in the grid (no profile open) its group fills the grid
 // whatever is asked of it, so there the group is not drawn and the +'s rows are big buttons in its middle instead
-// (docs/window.md, The terminal). Under the terminals, an island of its own going with them: the voice bar (Dictation.vue).
+// (docs/window.md, The terminal).
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { DockviewApi, DockviewPanelApi } from 'dockview-vue';
 import Icon from '../Icon.vue';
-import Dictation from './Dictation.vue';
 import ButtonMenu from '../menu/ButtonMenu.vue';
 import RightClickMenu from '../menu/RightClickMenu.vue';
 import { store } from '../../lib/store';
@@ -44,7 +43,6 @@ function fold(on: boolean) {
   if (!group) return;
   group.header.hidden = folded.value;
   group.element.classList.toggle('termalone', folded.value && alone.value);
-  group.element.classList.toggle('termsplit', !folded.value);
   if (on) {
     if (before) return;
     const box = group.api.boundingBox, dock = document.querySelector('#dock .dv-dockview')?.getBoundingClientRect();
@@ -98,14 +96,11 @@ const menu = (e: MouseEvent) => {
     <div v-else-if="folded" class="strip"><ButtonMenu :items="newTerminalItems"><button id="termUnfold" class="add icon quiet"
       :title="withKeys('New conversation of an agent, or a terminal', 'terminal.new')" aria-label="New terminal"><Icon name="i-plus" /></button></ButtonMenu></div>
     <RightClickMenu :items="menu"><div ref="root" class="termpanel" :hidden="folded" /></RightClickMenu>
-    <footer v-if="!folded" class="voicebar"><Dictation /></footer>
   </div>
 </template>
 
 <style>
-/* Unfolded, two islands in the one panel, the gap between them: the group's own color gone, the tabs and the terminal
-   one island (the group's corners round its top), the voice bar the other, its height the tabs' row's (STRIP). */
-.terminals { display: flex; flex-direction: column; gap: var(--gap); height: 100%;
+.terminals { height: 100%;
   &.folded { display: flex; flex-direction: column; justify-content: center; }
   .strip { display: grid; place-items: center; height: 100%; }
   .launch { display: flex; flex-wrap: wrap; justify-content: center; gap: calc(var(--gap) * 2); padding: var(--gap); }
@@ -120,10 +115,7 @@ const menu = (e: MouseEvent) => {
     :is(.name, small) { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     small { color: var(--text-muted); font-size: var(--font-small); } } }
 #dock .termalone { --dv-group-view-background-color: transparent; --dv-tabs-and-actions-container-background-color: transparent; }
-.termpanel { flex: 1; min-height: 0; background: var(--island); border-end-start-radius: var(--island-radius);
-  border-end-end-radius: var(--island-radius); &[hidden] { display: none; } }
-.voicebar { flex: none; display: flex; height: var(--dv-tabs-and-actions-container-height); border-radius: var(--island-radius); background: var(--island); }
-#dock .termsplit { --dv-group-view-background-color: transparent; & > .dv-content-container { background: transparent; } }
+.termpanel { height: 100%; &[hidden] { display: none; } }
 .term { height: 100%; padding: 2px 4px 2px 8px; &[hidden] { display: none; } }
 /* The rows that fit, in the middle: what is left under a whole row (the panel's height is any) shared above and
    below, so no edge gets a row's height of it and a pixel more or less never costs a row (2026-10-08). */

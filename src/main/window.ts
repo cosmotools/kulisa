@@ -8,7 +8,6 @@ import { BrowserWindow, desktopCapturer, screen, shell as electronShell } from '
 import path from 'path';
 import fs from 'fs';
 import pkg from '../../package.json' with { type: 'json' };
-import { list as keyList } from './keys.ts';
 import { page } from './pages.ts';
 import type { Rectangle, Point } from 'electron';
 import type { Shell } from './shell.ts';
@@ -99,6 +98,7 @@ class AppWindow {
     win.on('close', (e) => { this.place = this.where(); shell.windowClosing(this, e); });
     win.on('closed', () => this.unanswered());
     win.on('focus', () => this.seen());
+    win.on('blur', () => this.task?.letGo());
   }
   get task() { return this.current?.task ?? null; }
   get profiles(): Map<string, Profile> { return this.task?.profiles || NONE; }
@@ -121,7 +121,7 @@ class AppWindow {
   // the keyboard shortcuts (keys.ts: for menus and tooltips) come along in the URL, so the window is drawn right at once. The profiles' views stay hidden until the renderer has the grid laid out (views:hidden).
   async load(shown: { id: string } | null) {
     await this.win.loadFile(page('index.html'), { query: {
-      version: pkg.version, theme: this.shell.theme, bar: this.shell.bar, keys: JSON.stringify(keyList()),
+      version: pkg.version, theme: this.shell.theme, bar: this.shell.bar, keys: JSON.stringify(this.shell.keys()),
       projects: JSON.stringify({ current: shown?.id ?? null, projects: this.shell.projects().filter((p) => this.tabs.some((t) => t.id === p.id)),
         open: this.tabs.map(({ id }) => ({ id })) }) } });
     this.loaded = true;

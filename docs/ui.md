@@ -87,7 +87,7 @@ Each icon is drawn once, as a `<symbol id="i-…">` in the sprite (`Sprite.vue`,
 | `i-globe` | a tab whose site has no icon |
 | `i-zoom`, `i-theme`, `i-language`, `i-arrange`, `i-agent`, `i-keyboard`, `i-exit` | ☰'s rows: Zoom, Theme, Language, Arrange panels, Agents…, Keyboard Shortcuts, Exit |
 | `i-chevron` | a row that opens a menu beside it (☰'s Language; Lucide's chevron-right) |
-| `i-mic` | dictation's microphone in the middle of the voice bar, under the terminals (Lucide's mic) |
+| `i-mic` | dictation's microphone at the end of the terminals' row of tabs (Lucide's mic) |
 | `i-working`, `i-waiting`, `i-done` | an agent's state on a tab (`.state`); `i-done` also checks the chosen row of a menu, and a checkbox |
 | `i-down` | what opens below it: a `.select`'s choices, an agent's details (`AgentList.vue`) |
 | `i-trash` | a closed task's row in a menu: delete it (`remove`; Lucide's trash-2) |
@@ -113,7 +113,7 @@ every other `<svg>` uses the sprite.
   always with `aria-label` (or `title`).
   - `.quiet`: muted until pointed at, for × and removing.
   - `.small`: 24 px, inside a row or a list's toolbar (a tab's ×, a task's ×, `.list`'s + − ★).
-  - `.round`: a circle filled `--island-hi`, an 18 px icon: the one action of its bar (the voice bar's microphone).
+  - `.round`: a circle filled `--island-hi`, an 18 px icon: a button that stands out in a row (the dictation's microphone).
   - `--icon`: the icon's size, when a place needs another (☰ is 18 px).
   - A `<span class="icon">` where a button cannot be (a tab's ×, inside the tab).
 - In a menu or the title bar, a button is still one of these.

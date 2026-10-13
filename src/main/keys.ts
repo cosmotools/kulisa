@@ -26,12 +26,12 @@ type Platform = NodeJS.Platform;
 type Group = 'global' | 'page' | 'terminal';
 interface Keys { keys: string[]; also?: string[]; mac?: string[]; win32?: string[]; main?: boolean }
 interface Binding extends Keys {
-  id: string; group: Group; label: string | null; range?: boolean; window?: boolean; always?: boolean; display?: boolean;
+  id: string; group: Group; label: string | null; range?: boolean; window?: boolean; always?: boolean; display?: boolean; hold?: boolean;
 }
 // An accelerator as the input it stands for.
 interface Key { control: boolean; alt: boolean; shift: boolean; meta: boolean; key: string }
 // What an input event is (Electron's Input, or as the tests give it).
-interface Typed { type?: string; key?: string; code?: string; control?: boolean; alt?: boolean; shift?: boolean; meta?: boolean }
+interface Typed { type?: string; key?: string; code?: string; control?: boolean; alt?: boolean; shift?: boolean; meta?: boolean; isAutoRepeat?: boolean; location?: number }
 const ZOOM_IN: Keys = { keys: ['CommandOrControl+='], also: ['CommandOrControl+Shift+=', 'CommandOrControl+Plus', 'CommandOrControl+numadd'], main: true };
 const ZOOM_OUT: Keys = { keys: ['CommandOrControl+-'], also: ['CommandOrControl+numsub'], main: true };
 const ZOOM_RESET: Keys = { keys: ['CommandOrControl+0'], also: ['CommandOrControl+num0'], main: true };
@@ -50,6 +50,9 @@ const KEYS: Binding[] = [
   { id: 'zoom.out', group: 'global', label: 'Zoom Kulisa out', ...ZOOM_OUT, always: true },
   { id: 'zoom.reset', group: 'global', label: 'Kulisa\'s zoom back to 100%', ...ZOOM_RESET, always: true },
   { id: 'devtools.app', group: 'global', label: null, ...DEVTOOLS, always: true }, // Kulisa's own, from source only
+  // The right Ctrl (⌘ on macOS: Apple keyboards have no right Ctrl): a modifier alone types nothing and does nothing
+  // anywhere, so it is held in a page, the terminal or the bar alike, at the right hand's edge, as push-to-talk keys are.
+  { id: 'voice.hold', group: 'global', label: 'Speak to the agent: hold, or press once and again', keys: ['ControlRight'], mac: ['MetaRight'], hold: true },
 
   { id: 'tab.new', group: 'page', label: 'New tab', keys: ['CommandOrControl+T'], window: true },
   { id: 'tab.close', group: 'page', label: 'Close the tab', keys: ['CommandOrControl+W'], also: ['CommandOrControl+F4'], mac: ['Command+W'] },
@@ -119,10 +122,30 @@ function keysOf(b: Binding, platform: Platform) {
   return { shown, matched: platform === 'darwin' && b.mac ? b.mac : [...shown, ...(b.also || [])] };
 }
 
-// The bindings of a platform, each key parsed once.
-function keymap(platform = process.platform) {
-  return KEYS.map((b) => ({ ...b, chords: keysOf(b, platform).matched.map((a, i) => ({ a, i, k: parse(a, platform) }))
-    .filter((c): c is { a: string; i: number; k: Key } => !!c.k) }));
+// The bindings of a platform, each key parsed once; a hold binding's key the human's choice (custom: id -> code) or its own.
+function keymap(platform = process.platform, custom: Record<string, string> = {}) {
+  return KEYS.map((b) => ({ ...b, code: b.hold ? custom[b.id] || keysOf(b, platform).shown[0]! : null,
+    chords: b.hold ? [] : keysOf(b, platform).matched.map((a, i) => ({ a, i, k: parse(a, platform) }))
+      .filter((c): c is { a: string; i: number; k: Key } => !!c.k) }));
+}
+// A key's code by itself: a modifier by its side, an F key, or a key that types nothing (hold bindings, keys:set).
+const MODIFIER = /^(Control|Shift|Alt|Meta)(Left|Right)$/;
+const HOLDABLE = /^(Control|Shift|Alt|Meta)(Left|Right)$|^F\d{1,2}$|^(Insert|Pause|ScrollLock|ContextMenu)$/;
+function holdable(map: ReturnType<typeof keymap>, code: string): string | null {
+  if (!HOLDABLE.test(code)) return 'Press a key that types nothing: a Ctrl, Shift, Alt or ⌘ by its side, an F key, Insert, Pause or Scroll Lock';
+  const taken = map.filter((b) => b.chords.some(({ k }) => k.key === code.toLowerCase() && !k.control && !k.alt && !k.shift && !k.meta));
+  return taken.length ? `${codeName(code)} is already ${taken.find((b) => b.label)?.label || 'a key of Kulisa'}` : null;
+}
+// A hold binding's press or release: { id, down }; a key's repeats while held are not presses.
+function held(map: ReturnType<typeof keymap>, input: Typed) {
+  if (input.isAutoRepeat || (input.type !== 'keyDown' && input.type !== 'keyUp')) return null;
+  // A modifier's side from where it says it is (KeyboardEvent.location: 1 left, 2 right): a sent event (the tests')
+  // has a side but no code.
+  const side = { 1: 'Left', 2: 'Right' }[input.location ?? 0];
+  const code = side && /^(Control|Shift|Alt|Meta)$/.test(input.key ?? '') ? `${input.key}${side}` : input.code;
+  if (!code) return null;
+  const b = map.find((x) => x.code === code);
+  return b ? { id: b.id, down: input.type === 'keyDown' } : null;
 }
 
 // What an input event does in a zone: { id, n (range: 1, 2, …), main, window } or null. groups: the groups that apply,
@@ -144,6 +167,13 @@ function match(map: ReturnType<typeof keymap>, input: Typed, groups: Group[], { 
 // A key as the OS shows it: Ctrl+Shift+T; ⇧⌘T on macOS.
 const MAC: Record<string, string> = { control: '⌃', alt: '⌥', shift: '⇧', meta: '⌘' };
 const NAMES: Record<string, string> = { left: '←', right: '→', up: '↑', down: '↓', pageup: 'PgUp', pagedown: 'PgDn', escape: 'Esc', tab: 'Tab', space: 'Space', enter: 'Enter' };
+// A key's code as the OS names the key: Right Ctrl; Right ⌘ on macOS; Scroll Lock.
+const MOD_NAMES: Record<string, string> = { Control: 'Ctrl', Shift: 'Shift', Alt: 'Alt', Meta: 'Win' };
+function codeName(code: string, platform = process.platform) {
+  const m = MODIFIER.exec(code);
+  if (m) return `${m[2]} ${platform === 'darwin' ? MAC[m[1]!.toLowerCase()] : m[1] === 'Meta' && platform !== 'win32' ? 'Super' : MOD_NAMES[m[1]!]}`;
+  return code.replace(/([a-z])([A-Z\d])/g, '$1 $2');
+}
 function display(accelerator: string, platform = process.platform) {
   const k = parse(accelerator, platform)!;
   const key = NAMES[k.key] || (/^f\d+$/.test(k.key) ? k.key.toUpperCase() : k.key.length === 1 ? k.key.toUpperCase() : k.key);
@@ -152,12 +182,12 @@ function display(accelerator: string, platform = process.platform) {
 }
 
 // The table for the window: each binding with a label, its keys as shown (a range as its first and last: Ctrl+1…8).
-function list(platform = process.platform): Shortcut[] {
-  return KEYS.filter((b): b is Binding & { label: string } => !!b.label).map((b) => {
-    const shown = keysOf(b, platform).shown.map((a) => display(a, platform));
-    return { id: b.id, group: b.group, label: b.label, keys: b.range ? [`${shown[0]}…${shown.at(-1)!.slice(-1)}`] : shown };
+function list(platform = process.platform, custom: Record<string, string> = {}): Shortcut[] {
+  return keymap(platform, custom).filter((b): b is typeof b & { label: string } => !!b.label).map((b) => {
+    const shown = b.code ? [codeName(b.code, platform)] : keysOf(b, platform).shown.map((a) => display(a, platform));
+    return { id: b.id, group: b.group, label: b.label, keys: b.range ? [`${shown[0]}…${shown.at(-1)!.slice(-1)}`] : shown, hold: b.hold };
   });
 }
 
 export type { Group, Key };
-export { KEYS, keymap, match, parse, display, list };
+export { KEYS, keymap, match, held, holdable, parse, display, codeName, list };

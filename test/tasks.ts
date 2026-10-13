@@ -535,7 +535,7 @@ export default (test: Test) => {
   test("tasks: an agent's tab closes after a question, always (Cancel keeps it); the last terminal closed folds the island to its +, which opens one again; Ctrl+` there opens the task's agent, a new conversation", async (ctx) => {
     const { shell, ui } = ctx;
     const task = await newTask(ctx), agent = task.promptTarget();
-    const folded = () => ui(`!!document.querySelector('.terminals.folded') && document.querySelector('.termtabs').hidden && !document.querySelector('.voicebar')`);
+    const folded = () => ui(`!!document.querySelector('.terminals.folded') && document.querySelector('.termtabs').hidden`);
     // The island's group (its content is laid over it: dockview's renderer 'always').
     const island = () => ui(`(() => { const r = document.querySelector('.termtabs').closest('.dv-groupview').getBoundingClientRect(); return { width: Math.round(r.width), height: Math.round(r.height) }; })()`);
     const saved = () => JSON.parse(fs.readFileSync(pfile('terminals.json', task.n), 'utf8'));

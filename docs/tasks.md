@@ -343,8 +343,8 @@ are not programmers); its accounts are made there too, or in a project's page.
   --last`) and forget a deleted task's folder.
 - **Dictation**, where the agent has its own (its entry's `voice`: its key and how often it is typed; Claude
   Code's voice mode, which needs a Claude.ai account; Codex 0.160 has none, only a realtime voice conversation): a
-  microphone in the middle of the voice bar under the terminals, for the agent in front ([window.md](window.md), The
-  terminal). The human needs to know neither the agent's command nor its key:
+  key held anywhere in the window (the right Ctrl), and a microphone at the end of the terminals' row, for the agent in
+  front ([window.md](window.md), The terminal). The human needs to know neither the agent's command nor its key:
   Kulisa turns it on for its own sessions (Claude Code: `--settings` with `voice: { enabled, mode: "hold",
   autoSubmit: false }`, not the user's settings, checked with 2.1.294) and the button holds its key: space typed
   again and again at a keyboard's repeat rate, as a terminal shows a held key (it tells no release), and Claude Code
@@ -465,7 +465,7 @@ a unit test fails for an agent that leaves one out silently, so a new agent come
 | `localFiles` | the project's own settings of the agent in a task's copy | `.claude/settings.local.json` | `.codex/config.toml` |
 | `conversation` | its conversation read by the next agent (`task_history`) | its transcript | its transcript (summaries encrypted) |
 | `forget` | a deleted task leaves nothing of it in the agent's data | yes | yes |
-| `voice` | dictation from the voice bar's microphone | its voice mode | none in 0.160.1 |
+| `voice` | dictation by the key held, or the microphone | its voice mode | none in 0.160.1 |
 | `language` | ☰ → Language: the language it dictates and answers in | its `language` setting | none in 0.160.1 |
 
 ## Several agents in a task

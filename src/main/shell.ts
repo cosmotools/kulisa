@@ -12,7 +12,7 @@ import type { Profile } from './profiles.ts';
 import type { Project } from './projects.ts';
 import type { Task } from './tasks.ts';
 import type { AppWindow } from './window.ts';
-import type { Question, ProjectEntry as SentProject, LanguageInfo } from '../renderer/types.ts';
+import type { Question, ProjectEntry as SentProject, LanguageInfo, Shortcut } from '../renderer/types.ts';
 import type { Master } from './master.ts';
 import type { Pty } from './terminal.ts';
 import type { signinPages } from './signin-pages.ts';
@@ -51,6 +51,7 @@ interface Shell {
   theme: 'dark' | 'light' | 'system'; shade(): 'dark' | 'light'; setTheme(theme?: 'dark' | 'light' | 'system'): void;
   bar: 'top' | 'bottom'; setBar(bar: 'top' | 'bottom'): void;
   language: string; languageInfo(): LanguageInfo; setLanguage(code: string): Result<{ language: string }>;
+  keys(): Shortcut[]; // the keyboard shortcuts as shown, the human's hold keys in (keys.ts)
   firstStart(w: AppWindow): void;
   pointer(): Point;
   windowClosing(w: AppWindow, e: Electron.Event): void;
