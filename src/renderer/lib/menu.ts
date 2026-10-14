@@ -14,6 +14,7 @@ export interface MenuRow {
   remove?: { label: string; run: () => unknown }; // a 🗑 at its end, on hover or Delete (a closed task)
 }
 export type MenuItem = '-' | MenuRow
+  | { submenu: string; items: MenuItem[]; project?: { favicon?: string; color: string } } // a row opening a menu of its own at its side
   | { heading: string; icon?: string }
   | { note: string } // small dim words under the rows, not a row (☰'s version)
   | { component: Component; props?: Record<string, unknown> }; // a row of its own (☰'s zoom, theme …)

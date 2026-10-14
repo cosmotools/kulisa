@@ -1,16 +1,15 @@
-// A project open in a window (a group of tabs there; window.ts shows it): its repositories or folders, and its tasks
-// (tasks.ts), each with its code (a worktree of each repository, or a folder itself without git), profiles, grid and
-// agent. What happens to
-// a project's tasks whatever the window shows: making one, closing and opening it again, renaming, deleting, moving
-// to another window, and removing a project's data for good. Nothing runs when it opens: a task loads when it is first
-// shown.
+// A project loaded while a task of it is open in some window (app.ts, shell.open): its repositories or folders, and
+// its tasks (tasks.ts), each with its code (a worktree of each repository, or a folder itself without git), profiles,
+// grid and agent; each open task is a tab of a window (window.ts), of its own, since 2026-10-14 (until then a
+// project's open tasks were a group in one window). What happens to a project's tasks whatever the windows show:
+// making one, closing and opening it again, renaming, deleting, and removing a project's data for good. Nothing runs
+// when it loads: a task loads when it is first shown.
 import { nativeImage } from 'electron';
 import fs from 'fs';
 import path from 'path';
 import { Task } from './tasks.ts';
 import { freeBranch, createWorktree, removeWorktree, merged, repoOf, changes, clone } from './worktrees.ts';
 import { repoName } from './names.ts';
-import { refused } from './result.ts';
 import type { Result } from './result.ts';
 import type { Shell } from './shell.ts';
 import type { ProjectEntry, TaskEntry, Copy, Store } from './store.ts';
@@ -25,21 +24,22 @@ type Git = 'ok' | 'no-commit' | 'none';
 type Named = Pick<StoredProfile | ProfileConfig, 'name'>;
 
 class Project {
-  shell: Shell; store: Store; window: AppWindow | null; id: string; entry!: ProjectEntry; name!: string; folder!: string;
-  git: Git | null; gits: Map<string, Git>; tasks: Map<number, Task>; next: number; task: Task | null;
+  shell: Shell; store: Store; id: string; entry!: ProjectEntry; name!: string; folder!: string;
+  git: Git | null; gits: Map<string, Git>; tasks: Map<number, Task>; next: number;
   // entry: the project in projects.json (store.ts): { id, name, folder, repos, color, agents }. shell: the app
-  // (app.ts), as Task takes it. window: the window it is open in (window.ts, add).
+  // (app.ts), as Task takes it.
   constructor(shell: Shell, entry: ProjectEntry) {
-    this.shell = shell; this.store = shell.store; this.window = null;
+    this.shell = shell; this.store = shell.store;
     this.id = entry.id; this.update(entry);
     this.git = null; // its default repository's: 'ok', 'no-commit' (no copies before a first commit), 'none'
     this.gits = new Map(); // each of its repositories', for what a task may add (Task.addable)
     this.tasks = new Map(); // by number, open and closed
-    const { next, current, list } = this.store.tasksOf(entry);
+    const { next, list } = this.store.tasksOf(entry);
     this.next = next;
     for (const e of list) this.tasks.set(e.n, new Task(shell, this, e));
-    this.task = this.open().find((t) => t.n === current) || this.open()[0] || null; // the one it shows
   }
+  // A window of one of its open tasks, for a question about the project (none: the app's first).
+  get window(): AppWindow | null { return this.open().find((t) => t.window)?.window ?? null; }
   // Its name, agents and repositories, as the projects' manager left them (store.ts, updateProject).
   // folder: its default repository (or folder), where its tasks' agents start.
   update(entry: ProjectEntry) { this.entry = entry; this.name = entry.name; this.folder = reposOf(entry)[0]!; }
@@ -60,21 +60,7 @@ class Project {
     this.git = this.gits.get(this.folder)!;
   }
   save() {
-    this.store.saveTasksOf(this, { next: this.next, current: this.task?.n ?? null,
-      list: [...this.tasks.values()].map((t) => t.entry) });
-  }
-  // The task it shows, kept for the next time it opens.
-  select(task: Task | null) { this.task = task; this.save(); }
-
-  // Something to show as it opens: its open task, else the one closed last opened again, else a new one.
-  async ensureTask(): Promise<Task> {
-    if (this.task) return this.task;
-    const last = this.closedTasks()[0];
-    if (last) { this.reopen(last); this.select(last); return last; }
-    const task = await this.createTask();
-    if (refused(task)) throw new Error(task.error);
-    this.select(task);
-    return task;
+    this.store.saveTasksOf(this, { next: this.next, list: [...this.tasks.values()].map((t) => t.entry) });
   }
   // A new task, named task-<n> until the agent or the human renames it. Its code: a worktree of the default repository
   // on a branch of the task's name (worktrees.ts), the others added when its work needs them (addCopy; the author,
@@ -152,13 +138,12 @@ class Project {
   // not shown.
   async closeTask(task: Task) {
     task.entry.closed = true; task.entry.closedAt = Date.now();
-    if (this.task === task) this.task = this.open()[0] || null;
     this.save();
     await task.unload();
   }
   // Its closed tasks whose PR is merged (worktrees.ts, merged: each copy's commits all in its remote's default branch,
-  // nothing uncommitted): marked, for its group's menu to offer deleting them (nothing is lost). Checked as the
-  // project is shown and a task is closed, in the background (a fetch takes a moment). True when one was found.
+  // nothing uncommitted): marked, for its menu to offer deleting them (nothing is lost). Checked as a task of it is
+  // shown and as one is closed, in the background (a fetch takes a moment). True when one was found.
   async checkMerged() {
     let found = false;
     for (const t of this.closedTasks()) {
@@ -168,36 +153,18 @@ class Project {
     if (found) this.save();
     return found;
   }
-  // A closed task listed again in the bar (its project's menu), to be shown: it loads then, its agent resumed.
+  // A closed task opened again (the bar's +), to be shown: it loads then, its agent resumed.
   reopen(task: Task) {
     delete task.entry.closed; delete task.entry.closedAt; delete task.entry.merged;
     this.save();
   }
-  askDeleteTask(task: Task) { return askDeleteTask(this.shell, task.entry, task.folder, this.window); }
+  askDeleteTask(task: Task) { return askDeleteTask(this.shell, task.entry, task.folder, task.window || this.window); }
   // Once it is not shown.
   async deleteTask(task: Task) {
     await task.unload();
     this.tasks.delete(task.n);
-    if (this.task === task) this.task = this.open()[0] || null;
     this.save();
     await deleteTask(this.shell, this.entry, task.entry);
-  }
-  // Its group closed (Close Group, a window's ×): its open tasks closed as × on each would, the shown one last (the one
-  // closed last is listed first). Then unload.
-  closeAll() {
-    const now = Date.now(), open = this.open();
-    for (const t of [...open.filter((t) => t !== this.task), ...open.filter((t) => t === this.task)]) {
-      t.entry.closed = true; t.entry.closedAt = now + (t === this.task ? 1 : 0);
-    }
-    this.task = null;
-    this.save();
-  }
-  // Its agents stopped, its profiles saved and closed (its tab closes).
-  async unload() { for (const task of this.tasks.values()) await task.unload(); }
-  // Into another window (app.ts, Move to New Window), running: its profiles' pages go there, hidden until that window
-  // lays them out; its agents' output goes there (tasks.ts).
-  moveTo(w: AppWindow) {
-    for (const task of this.tasks.values()) for (const p of task.profiles.values()) p.moveTo(w.win);
   }
 }
 
@@ -230,7 +197,7 @@ async function askDeleteTask(shell: Shell, entry: TaskEntry, folder: string, w: 
   return shell.ask(deleteQuestion({ message: `Delete the task ${entry.name}?`, ok: 'Delete', goes, notInMain: what ? [what] : [],
     stays: !copies.length && `It worked in ${folder}: its files stay, and so does its agent's conversation there.` }), w);
 }
-// A closed task of a project with no group (the bar's + lists them): nothing of it is loaded, its entry is all there is.
+// A closed task of a project not loaded (the bar's + lists them): nothing of it is loaded, its entry is all there is.
 async function deleteClosedTask(shell: Shell, p: ProjectEntry, n: number, w: AppWindow): Promise<Result<{ n: number }>> {
   const entry = shell.store.tasksOf(p).list.find((e) => e.n === n && e.closed);
   if (!entry) return { error: `no closed task ${n}` };
@@ -292,7 +259,7 @@ async function changeRepos(shell: Shell, id: string, repos: string[]) {
   if (open) {
     open.update(entry);
     await open.checkGit();
-    open.window?.sendTasks(); open.window?.sendProjects(); // what its tasks may add
+    shell.sendProjects(); // what its tasks may add
   }
   return { repos: reposOf(entry) };
 }

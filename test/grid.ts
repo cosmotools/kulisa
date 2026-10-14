@@ -3,19 +3,28 @@ import electron, { clipboard } from 'electron';
 import fs from 'fs';
 import pkg from '../package.json' with { type: 'json' };
 import path from 'path';
-import { assert, root, userData, project, pfile, SITE, sleep, waitFor, who, menuRows, choose, MENU, menuOpen, rightClick, box, pageBox, viewOn, dock, press, projectTabs, projectTab, showProject, closeProject, savedWindows, closeMenu, plusMenu, focusWindow } from './helpers.ts';
+import { assert, root, userData, project, pfile, SITE, sleep, waitFor, who, menuRows, choose, MENU, SUBMENU, menuOpen, rightClick, box, pageBox, viewOn, dock, press, projectTabs, projectTab, showProject, closeProject, savedWindows, closeMenu, plusMenu, focusWindow } from './helpers.ts';
 import type { Test } from './run.ts';
 import type { UI } from './helpers.ts';
 
 export default (test: Test) => {
-  test("tasks' bar: an island's label and tabs from its sides 1.7 times as far as its tabs from its bottom", async ({ ui }) => {
-    const [island, icon, tab] = await ui(`(() => { const g = document.querySelector('#projectTabs .pisland.active');
-      return [g, g.querySelector('.plabel > :first-child'), [...g.querySelectorAll('.tasktab')].at(-1)].map((e) => e.getBoundingClientRect().toJSON()); })()`);
-    const bottom = island.bottom - tab.bottom;
-    assert.ok(bottom > 0);
-    const side = Math.round(1.7 * bottom * 100) / 100, near = (x: number) => Math.abs(x - side) < 0.5;
-    assert.ok(near(icon.left - island.left), `the icon from the left side: ${icon.left - island.left}, not ${side}`);
-    assert.ok(near(island.right - tab.right), `the last tab from the right side: ${island.right - tab.right}, not ${side}`);
+  test("tasks' bar: a tab is a rounded rectangle apart from the grid, as Firefox's, the shown one filled; its project's icon first", async ({ ui }) => {
+    const [grid, tab, icon, look] = await ui(`(() => { const t = document.querySelector('#projectTabs .tasktab.active'), c = (q) => getComputedStyle(document.querySelector(q));
+      const island = (() => { const i = document.body.appendChild(document.createElement('i')); i.style.background = 'var(--island)'; const v = getComputedStyle(i).backgroundColor; i.remove(); return v; })();
+      const other = document.querySelector('#projectTabs .tasktab:not(.active)');
+      const dock = document.getElementById('dock').getBoundingClientRect().toJSON();
+      return [dock, t.getBoundingClientRect().toJSON(), t.querySelector('.picon').getBoundingClientRect().toJSON(),
+        { radius: c('#projectTabs .tasktab.active').borderRadius, active: c('#projectTabs .tasktab.active').backgroundColor,
+          other: other ? getComputedStyle(other).backgroundColor : null, grid: c('#dock').backgroundColor, island,
+          apart: other ? Math.abs(other.getBoundingClientRect().left - t.getBoundingClientRect().right) : null }]; })()`);
+    assert.equal(Math.round(tab.top - grid.bottom), 8, 'apart from the grid by the one gap');
+    if (look.other) assert.equal(Math.round(look.apart), 8, 'the tabs apart by it too');
+    assert.ok(parseFloat(look.radius) >= 4, `rounded: ${look.radius}`);
+    assert.ok(tab.height >= 36 && tab.width >= 120, `as big as a browser's: ${tab.width} × ${tab.height}`);
+    assert.equal(look.active, look.island, "the shown one in the panels' color");
+    if (look.other) assert.equal(look.other, 'rgba(0, 0, 0, 0)', 'the others on the window');
+    assert.equal(look.grid, 'rgba(0, 0, 0, 0)', 'no dark well under the grid');
+    assert.ok(icon.width === 20 && icon.left > tab.left && icon.left <= tab.left + 12, 'the icon, 20 px, at the tab\'s start');
   });
   test('grid: a pane moved next to the terminal takes its page along', async ({ shell, ui }) => {
     await dock(ui, `api.getPanel('profile:Profile 1').api.moveTo({ group: api.getPanel('terminal').group, position: 'right' })`);
@@ -58,17 +67,17 @@ export default (test: Test) => {
     assert.equal(shell.profiles.size, 0);
     assert.ok(sam.tabs.every((t) => !t.wc.isDestroyed()) && !sam.get().view.getVisible(), "the first project's pages keep running, hidden");
     assert.equal(shell.open.get('project').tasks.get(1).pty, firstPty, "and its agent");
-    assert.equal(shell.win.getTitle(), 'other — Kulisa');
+    assert.equal(shell.win.getTitle(), 'task-1 · other — Kulisa');
     assert.equal(shell.resumedSession, null, 'a new project has no conversation to resume');
     await waitFor(async () => JSON.stringify(await projectTabs(ui)) === '["project","other *"]' && ui(`!!window.__dock.getPanel('terminal')`));
     assert.equal(await ui(`document.querySelectorAll('.pane').length`), 0);
-    // Each project's island with its tasks, the one each shows marked.
-    assert.deepEqual(await ui(`[...document.querySelectorAll('#projectTabs .pisland')].map((g) => [...g.querySelectorAll('.tasktab')]
-      .map((t) => t.querySelector('.name').textContent + (t.classList.contains('selected') ? ' *' : '')))`), [['task-1 *'], ['task-1 *']]);
-    // Every island keeps its place and width whichever project is shown, also while it switches: nothing jumps.
-    const islands = () => ui(`[...document.querySelectorAll('#projectTabs .pisland')].map((t) => { const r = t.getBoundingClientRect(); return [r.x, r.width]; })`);
+    // A tab per task, its project's icon on it, its name in its tooltip.
+    assert.deepEqual(await ui(`[...document.querySelectorAll('#projectTabs .tasktab')].map((g) => [g.querySelector('.picon use')?.getAttribute('href'), g.querySelector('.name').textContent, g.title.split('\\n')[0]])`),
+      [['#i-logo', 'task-1', 'project'], ['#i-logo', 'task-1', 'other']]);
+    // Every island keeps its place and width whichever task is shown, also while it switches: nothing jumps.
+    const islands = () => ui(`[...document.querySelectorAll('#projectTabs .tasktab')].map((t) => { const r = t.getBoundingClientRect(); return [r.x, r.width]; })`);
     const before = await islands();
-    await ui(`window.__islands = new Set(); { const tick = () => { __islands.add(JSON.stringify([...document.querySelectorAll('#projectTabs .pisland')]
+    await ui(`window.__islands = new Set(); { const tick = () => { __islands.add(JSON.stringify([...document.querySelectorAll('#projectTabs .tasktab')]
       .map((t) => { const r = t.getBoundingClientRect(); return [r.x, r.width]; }))); if (window.__islands) requestAnimationFrame(tick); }; tick(); }`);
     await shell.task.createProfile('Sam.seller'); // the same name as in the first project (the agent's profile_create)
     const seller = shell.profiles.get('sam-seller');
@@ -81,7 +90,7 @@ export default (test: Test) => {
     assert.equal(await who(ctx, 'sam-seller'), 'Signed out', "the first project's sign-ins stay there");
 
     // The button after the islands: +, a task of which project: every project, open or not (a task is made of one),
-    // its closed tasks under it (none here: both open), New Project… last. No + in the groups.
+    // its closed tasks under it (none here: both open), New Project… last.
     const names = shell.store.projects().map((p) => p.name);
     assert.deepEqual(await plusMenu(ui), ['# New Task of', ...names, '-', 'New Project…']);
     const over = await ui(`(() => { const b = document.getElementById('newTask').getBoundingClientRect(), m = document.querySelector('.menu[data-state="open"]').getBoundingClientRect();
@@ -96,22 +105,22 @@ export default (test: Test) => {
     await waitFor(async () => !(await menuOpen(ui)));
     await showProject(ui, 'other');
     await waitFor(() => shell.current?.folder === other && !shell.windows[0].switching);
-    // The label's right-click: its group's menu, as Chrome's.
+    // The tab's right-click: the task's rows, then its project's in a submenu of its name (the project has no tab of
+    // its own).
     await rightClick(ui, '#projectTabs [data-project="other"] .name');
-    assert.deepEqual(await menuRows(ui), ['New Task', '-', 'Move to New Window', '-', 'Project Settings…', 'Show Data Folder', '-', 'Close Group']);
+    assert.deepEqual(await menuRows(ui), ['# Profiles', 'Sam.seller', '-', 'Manage Profiles…', '-', 'Rename…', 'Show Folder', '-', 'Move to New Window', '-', 'Close', 'Delete Task…', '-', 'other']);
+    await choose(ui, 'other');
+    await waitFor(async () => (await ui(`document.querySelectorAll('.menu[data-state="open"]').length`)) === 2);
+    assert.deepEqual(await menuRows(ui, SUBMENU), ['New Task', '-', 'Move All Tasks to New Window', '-', 'Project Settings…', 'Show Data Folder', '-', 'Close All Tasks']);
     // Show Data Folder: Kulisa's folder of that project, in the file manager.
     const openPath = electron.shell.openPath, shown: string[] = [];
     electron.shell.openPath = async (dir) => { shown.push(dir); return ''; };
     try {
-      await choose(ui, 'Show Data Folder');
+      await choose(ui, 'Show Data Folder', SUBMENU);
       await waitFor(() => shown.length === 1);
     } finally { electron.shell.openPath = openPath; }
     assert.equal(shown[0], path.join(userData, 'projects', 'other'));
-
-    // A click on the label shows no project: its tasks are what is clicked.
     assert.deepEqual(await ui(`[...__islands]`), [JSON.stringify(before)], 'the islands keep their places while another project opens');
-    await ui(`${projectTab('project')}.querySelector('.plabel').click()`);
-    assert.equal(shell.current?.folder, other);
     await ui('__islands.clear(); 0');
     // A click on the first project's task: it comes back as it was left, its agent the same; no page shows before
     // it has its place in the grid (nothing jumps).
@@ -133,24 +142,25 @@ export default (test: Test) => {
     assert.deepEqual(await projectTabs(ui), ['project *', 'other']);
     const seen = await ui(`(() => { const s = [...__islands]; window.__islands = null; return s; })()`);
     assert.deepEqual(seen, [JSON.stringify(before)], 'the islands keep their places, also while switching');
-    // The label's right-click: its group's menu, rows only (its name, color and icon are the projects' manager's).
+    // The tab's right-click: rows only (its name, color and icon are the projects' manager's).
     await rightClick(ui, '#projectTabs [data-project="other"] .name');
     await menuRows(ui);
     assert.equal(await ui(`document.querySelectorAll('.menu[data-state="open"] input').length`), 0, 'no fields');
     await closeMenu(ui);
 
-    // Closing the group (the middle button on its label) asks first when an agent works; Cancel keeps it open.
+    // Closing the task (the middle button on its tab) asks first when an agent works; Cancel keeps it open.
     ctx.asked.length = 0;
     ctx.answer = false;
     const working = shell.task;
     working.promptTarget().state = 'working';
     await closeProject(ui, 'project');
     await waitFor(() => ctx.asked.length && ui(`!(document.getElementById('ask')?.dataset.state === 'open')`));
-    assert.equal(ctx.asked.pop().message, 'Close the group project?');
+    assert.equal(ctx.asked.pop().message, 'Close the task task-1?');
     assert.ok(shell.open.has('project') && shell.current?.folder === project, 'still open when the human says no');
     ctx.answer = true;
     working.promptTarget().state = null;
-    // Close: no agent works, no question; its tasks close (tabs and sign-ins kept), the group next to it is shown.
+    // Close: no agent works, no question; the task closes (tabs and sign-ins kept), the project let go, the tab next to
+    // it shown.
     await closeProject(ui, 'project');
     await waitFor(() => shell.current?.folder === other && !shell.open.has('project'));
     assert.equal(ctx.asked.length, 0, 'nothing asked');
@@ -176,15 +186,15 @@ export default (test: Test) => {
     assert.deepEqual(await projectTabs(ui), ['project *']);
     assert.equal(await viewOn(shell, ui, 'sam-admin'), true);
     assert.deepEqual(JSON.parse(fs.readFileSync(path.join(userData, 'projects.json'), 'utf8')).map((p: { folder: string }) => p.folder), [project, other]);
-    assert.deepEqual(savedWindows(), [{ tabs: ['project'], shown: 'project' }]);
+    assert.deepEqual(savedWindows(), [{ tabs: ['project/1'], shown: 'project/1' }]);
   });
-  test('projects: Move to New Window puts a project in a window of its own, still running; closing that window closes it', async (ctx) => {
+  test('tasks: Move to New Window puts a task in a window of its own, still running; closing that window closes it', async (ctx) => {
     const { shell, ui } = ctx;
     const other = path.join(root, 'other');
     await ui(`kulisa.invoke('project:open', { folder: ${JSON.stringify(other)}, task: 1 })`);
     await waitFor(() => shell.current?.id === 'other' && shell.task.loaded && shell.pty);
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
-    const moved = shell.current, task = moved.task, pty = task.pty, seller = task.profiles.get('sam-seller');
+    const task = shell.task, moved = task, pty = task.pty, seller = task.profiles.get('sam-seller');
     await waitFor(async () => (await ctx.termText()).includes(`agent: rc of ${other}`));
     const first = shell.windows[0];
     // A line as wide as an agent's prompt box (Claude Code's), and the size the agent has.
@@ -200,13 +210,13 @@ export default (test: Test) => {
     const second = shell.windows[1];
     const ui2 = (js: string) => second.win.webContents.executeJavaScript(js);
 
-    // The first window keeps its other tab; the new one has the project, as it was: the same agent, the same pages
+    // The first window keeps its other tab; the new one has the task, as it was: the same agent, the same pages
     // (moved into it, not loaded again), what the terminal showed.
     await waitFor(() => shell.current?.id === 'project' && shell.task.loaded);
     assert.deepEqual(await projectTabs(ui), ['project *']);
     assert.equal(moved.window, second);
     await waitFor(async () => JSON.stringify(await projectTabs(ui2)) === '["other *"]');
-    assert.equal(second.win.getTitle(), 'other — Kulisa');
+    assert.equal(second.win.getTitle(), 'task-1 · other — Kulisa');
     assert.equal(task.pty, pty, 'the same agent');
     assert.equal(task.profiles.get('sam-seller'), seller, 'the same profile');
     const view = seller.get().view;
@@ -246,26 +256,26 @@ export default (test: Test) => {
     await ui2(`act('profile:delete', { profile: 'sam-seller' })`);
     ctx.answer = true;
     assert.ok(task.profiles.has('sam-seller'), 'kept: the human said no');
-    assert.deepEqual(savedWindows(), [{ tabs: ['project'], shown: 'project' }, { tabs: ['other'], shown: 'other' }]);
+    assert.deepEqual(savedWindows(), [{ tabs: ['project/1'], shown: 'project/1' }, { tabs: ['other/1'], shown: 'other/1' }]);
 
-    // Back into the first window (Move to Window, as a browser moves a tab): the only tab of the second, so it closes.
+    // Back into the first window (Move to Window, as a browser moves a tab; the other window named by its shown
+    // task): the only tab of the second, so it closes.
     await rightClick(ui2, '#projectTabs [data-project="other"] .name');
-    assert.deepEqual(await menuRows(ui2), ['New Task', '-', 'Move to New Window (off)', 'Move to Window: project', '-', 'Project Settings…', 'Show Data Folder', '-', 'Close Group']);
+    assert.deepEqual(await menuRows(ui2), ['# Profiles', 'Sam.seller', '-', 'Manage Profiles…', '-', 'Rename…', 'Show Folder', '-', 'Move to New Window (off)', 'Move to Window: task-1', '-', 'Close', 'Delete Task…', '-', 'other']);
     // Chosen once the script has answered: the choice closes this window, and a script still running in a window that
     // goes never answers (the test hung so on a loaded machine, 2026-10-12).
-    await ui2(`setTimeout(() => [...${MENU}.querySelectorAll('.item')].find((b) => b.querySelector('.label').textContent === 'Move to Window: project').click()); 0`);
-    await waitFor(() => shell.windows.length === 1 && shell.current === moved && !first.switching);
+    await ui2(`setTimeout(() => [...${MENU}.querySelectorAll('.item')].find((b) => b.querySelector('.label').textContent === 'Move to Window: task-1').click()); 0`);
+    await waitFor(() => shell.windows.length === 1 && shell.task === moved && !first.switching);
     assert.ok(second.win.isDestroyed());
     assert.equal(task.pty, pty, 'the same agent');
     assert.ok(first.win.contentView.children.includes(view), 'its page back');
     await waitFor(async () => (await viewOn(shell, ui, 'sam-seller')) && (await ctx.termText()).includes('moved along'));
     assert.deepEqual(await projectTabs(ui), ['project', 'other *']);
-    assert.deepEqual(savedWindows(), [{ tabs: ['project', 'other'], shown: 'other' }]);
+    assert.deepEqual(savedWindows(), [{ tabs: ['project/1', 'other/1'], shown: 'other/1' }]);
     await closeProject(ui, 'other');
     await waitFor(() => !shell.open.has('other') && shell.current?.id === 'project' && !first.switching);
 
-    // A task of a project with no group: a group of its own in this window, nothing asked where; Move to New Window
-    // takes it away.
+    // A closed task opened again: a tab in this window, nothing asked where; Move to New Window takes it away.
     ctx.asked.length = 0;
     await plusMenu(ui, 'other', 'task-1');
     await waitFor(() => shell.current?.id === 'other' && shell.task?.n === 1 && shell.task.pty && !first.switching);
@@ -274,13 +284,12 @@ export default (test: Test) => {
     await rightClick(ui, '#projectTabs [data-project="other"] .name');
     await menuRows(ui);
     await choose(ui, 'Move to New Window');
-    await waitFor(() => shell.windows.length === 2 && shell.windows[1].current?.id === 'other' && !shell.windows[1].switching);
-    const third = shell.windows[1], reopened = third.current;
-    await waitFor(() => reopened.task.pty);
-    const reopenedTask = reopened.task;
+    await waitFor(() => shell.windows.length === 2 && shell.windows[1].current?.project.id === 'other' && !shell.windows[1].switching);
+    const third = shell.windows[1], reopenedTask = third.current;
+    await waitFor(() => reopenedTask.pty);
     assert.deepEqual(await projectTabs(ui), ['project *'], 'nothing else in the first window');
 
-    // Closing the window (the OS's ×) closes its group, as Close Group would, after one question in that window
+    // Closing the window (the OS's ×) closes its tasks, as × on each would, after one question in that window
     // (the function that closes a tab); Kulisa goes on in the first.
     ctx.asked.length = 0;
     ctx.answer = false;
@@ -288,14 +297,14 @@ export default (test: Test) => {
     await waitFor(() => ctx.asked.length && third.win.webContents.executeJavaScript(`!(document.getElementById('ask')?.dataset.state === 'open')`));
     const q = ctx.asked.pop();
     assert.equal(q.message, 'Close the window?');
-    assert.match(q.detail, /Its tasks close: other\./);
+    assert.match(q.detail, /Its tasks close: task-1\./);
     assert.ok(!third.win.isDestroyed() && shell.open.has('other'), 'still open when the human says no');
     ctx.answer = true;
     third.win.close();
     await waitFor(() => shell.windows.length === 1 && !shell.open.has('other'));
     ctx.asked.length = 0;
     assert.ok(third.win.isDestroyed() && reopenedTask.profiles.size === 0 && reopenedTask.pty === null);
-    assert.deepEqual(savedWindows(), [{ tabs: ['project'], shown: 'project' }]);
+    assert.deepEqual(savedWindows(), [{ tabs: ['project/1'], shown: 'project/1' }]);
     assert.equal(await viewOn(shell, ui, 'sam-admin'), true);
 
     // The last window's × quits Kulisa (its projects come back at the next start): asked only when an agent works.
@@ -310,13 +319,13 @@ export default (test: Test) => {
     shell.task.promptTarget().state = null;
     ctx.answer = true;
   });
-  test('projects: a tab dragged changes the order, goes out into a new window and back into the first', async (ctx) => {
+  test('tasks: a tab dragged changes the order, goes out into a new window and back into the first', async (ctx) => {
     const { shell, ui } = ctx;
-    const other = path.join(root, 'other'), DRAG = 'application/x-kulisa-project';
+    const other = path.join(root, 'other'), DRAG = 'application/x-kulisa-task';
     await ui(`kulisa.invoke('project:open', { folder: ${JSON.stringify(other)}, task: 1 })`);
     await waitFor(() => shell.current?.id === 'other' && shell.task.loaded && shell.pty && !shell.windows[0].switching);
     ctx.asked.length = 0;
-    const moved = shell.current, pty = moved.task.pty;
+    const moved = shell.task, pty = moved.pty;
     // Synthetic drag events, as the human's mouse would send them; a drop gets what the drag carried.
     const dragStart = (u: UI, id: string) => u(`(() => { window.__dt = new DataTransfer();
       ${projectTab(id)}.dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: window.__dt })); return window.__dt.getData('${DRAG}'); })()`);
@@ -335,12 +344,12 @@ export default (test: Test) => {
 
     // Within the tabs: another order, kept.
     let data = await dragStart(ui, 'other');
-    assert.equal(JSON.parse(data).id, 'other');
+    assert.equal(JSON.parse(data).key, 'other/1');
     assert.ok(await ui(`${projectTab('other')}.classList.contains('dragging')`));
     assert.ok(await dropOn(ui, 'project', 'before', data), 'where it would go is marked');
     await dragEnd(ui, 'other', 'move');
     await waitFor(async () => JSON.stringify(await projectTabs(ui)) === '["other *","project"]');
-    assert.deepEqual(savedWindows(), [{ tabs: ['other', 'project'], shown: 'other' }]);
+    assert.deepEqual(savedWindows(), [{ tabs: ['other/1', 'project/1'], shown: 'other/1' }]);
 
     // Let go outside every window: a new window there. Inside one (or cancelled): nothing.
     await dragStart(ui, 'other');
@@ -360,16 +369,16 @@ export default (test: Test) => {
     const nb = second.win.getBounds();
     assert.ok(right ? nb.x > b.x + 32 : nb.x < b.x - 32, `towards the pointer, not next to the first window: ${JSON.stringify({ b, nb, right })}`);
     assert.deepEqual(await projectTabs(ui), ['project *']);
-    assert.equal(moved.task.pty, pty, 'the same agent');
+    assert.equal(moved.pty, pty, 'the same agent');
 
     // Onto the first window's tabs: back there, where it was let go; the second window, left empty, closes.
     data = await dragStart(ui2, 'other');
     assert.ok(await dropOn(ui, 'project', 'after', data));
     shell.pointer = pointer; // its window closes with it: no dragend there
-    await waitFor(() => shell.windows.length === 1 && shell.current === moved && !shell.windows[0].switching);
+    await waitFor(() => shell.windows.length === 1 && shell.task === moved && !shell.windows[0].switching);
     assert.ok(second.win.isDestroyed());
     assert.deepEqual(await projectTabs(ui), ['project', 'other *']);
-    assert.equal(moved.task.pty, pty);
+    assert.equal(moved.pty, pty);
     await closeProject(ui, 'other');
     await waitFor(() => !shell.open.has('other') && shell.current?.id === 'project' && !shell.windows[0].switching);
     ctx.asked.length = 0;
@@ -538,10 +547,10 @@ export default (test: Test) => {
 
     await ui(`document.getElementById('windowMenu').click()`);
     // The arrangements as pictures, a short name under each, the full words in the tooltip.
-    assert.deepEqual((await menuRows(ui)).slice(3), ['Language', '-', '# Arrange panels', 'arrange: Columns, Two by two, One at a time', '-', 'Agents…', 'Keyboard Shortcuts', '-',
+    assert.deepEqual((await menuRows(ui)).slice(3), ['Language', '-', '# Arrange panels', 'arrange: Columns, Two by two, One at a time', '-', 'Keyboard Shortcuts', '-',
       'Documentation', 'GitHub', 'Report an issue', '-', 'Exit', `~ Kulisa ${pkg.version}`], "Kulisa's version a note under the rows, not one of them");
     assert.deepEqual(await ui(`[...document.querySelectorAll('.menu[data-state="open"] svg:not([hidden]) > use')].map((u) => u.getAttribute('href'))`),
-      ['#i-zoom', '#i-theme', '#i-projects', '#i-language', '#i-chevron', '#i-arrange', '#i-agent', '#i-keyboard', '#i-docs', '#i-github', '#i-bug', '#i-exit'], 'each row with its icon');
+      ['#i-zoom', '#i-theme', '#i-projects', '#i-language', '#i-chevron', '#i-arrange', '#i-keyboard', '#i-docs', '#i-github', '#i-bug', '#i-exit'], 'each row with its icon');
     const pics = await ui(`[...document.querySelectorAll('.menu[data-state="open"] .arrange [role="menuitem"]')].map((b) => ({ title: b.title,
       panes: b.querySelectorAll('svg .a-page').length, term: b.querySelectorAll('svg .a-term').length, w: b.querySelector('svg').getBoundingClientRect().width }))`);
     type Pic = { title: string; panes: number; term: number; w: number };

@@ -14,49 +14,45 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
 (`projects/<id>/`), never in the project's folder, so sign-ins stay out of its git.
 
 - **A project is no thing to open; its tasks are** (the author, 2026-10-11: a project is what its tasks are made of:
-  profiles, agents, repositories). Its island in a window's bar is the **group** of its open tasks there, as Chrome's
-  tab group: it comes with the first task opened (the bar's +) and goes with the last one
-  closed. There is no Open Project or Close Project, and no question where to open one: a task of a project with no
-  group opens in a new group in this window, one with a group goes into it, in its window (one group per project, as
-  Chrome's per window; Move to New Window takes a group away whole). In code the group is still an open project
-  (`Project` in `shell.open`, a tab of its window).
-- **The tasks' bar**, drawn as Chrome's tab groups: each group an island of its own: its label
-  (its icon, the app's logo with the curtain in the project's color, and its name), a tab per open task with its
-  agent's state (below). Every group's tasks are there, so a click on any of them shows that group with it; the
+  profiles, agents, repositories). An open task is a **tab** of a window, of its own, as a browser's (the author,
+  2026-10-14; until then a project's open tasks were a **group**, its island in the bar as Chrome's tab group, with
+  a label and a menu of its own, one group per project per window: earlier commits and docs say so). There is no Open
+  Project or Close Project, and no question where to open one: a task opens in the window it is asked for, at the end
+  of its bar. In code a project is **loaded** (`Project` in `shell.open`) while a task of it is open in any window:
+  its git, its agents' accounts; let go when its last open task closes (`unloadIdle` in `app.ts`).
+- **The tasks' bar**: a tab per open task, in the bar's order, tasks of any projects side by side: its project's
+  icon (its site's favicon, or the app's curtain in the project's color, as a browser's tab shows its site's), its
+  agent's state (below), its name, ×; the project's name in its tooltip. A click on any shows it; the
   others keep running, their agents and pages. The bar is in the middle under the grid, where the hand goes for the
-  terminal anyway, or over it (☰ → Tasks bar: Top, Bottom; saved). Each island looks like a tab of the grid: square
-  where it meets the grid and merging into it with curves, rounded towards the window's edge.
-  - **Nothing in it moves** when another project or task is shown: every island keeps its width (every tab the room
-    of its ×), and the shown project's tabs come with the projects' news, not after it. Islands that moved under the mouse made
-    the human miss (the author, 2026-10-08).
-  - **A click on the label does nothing.** Until 2026-10-12 it folded the group to it, as Chrome's collapsed tab
-    groups; the author found the tasks hidden by a click on the label annoying, and groups do not fold since. Showing a
-    project is a click on one of its tasks (two ways to the same thing confused, when the label showed it too).
-  - **A right-click on the label opens the group's menu**, as Chrome's tab group's: New Task, its **closed
-    tasks** under a heading (the one closed last first; a click opens one again; Delete Merged Tasks… when some are
-    merged), Move to New Window, Move to Window, Project Settings… (what a group has not: its code, agents, profiles,
-    local addresses), Show Data Folder, Close Group. The project's name is the projects' manager's
-    alone (the author, 2026-10-11: a panel with them at the menu's top, as Chrome's, was there for a day and was
-    redundant). **Closing a group** (that menu, the middle button on its label,
-    × on its last open task) closes its tasks as × on each would (`Project.closeAll`: agents stopped, profiles saved
-    and closed, everything kept; the shown one listed as closed last), its island goes; it asks only when an agent
-    works (the author, 2026-10-11, with groups; before, a project's closing always asked).
+  terminal anyway, or in the title bar after the logo, as a browser's tabs (☰ → Tasks bar: Top, Bottom; saved). The
+  tabs are Firefox's: rounded rectangles apart from the grid, the shown one filled, as big as a browser's
+  ([window.md](window.md), The tasks' bar).
+  - **Nothing in it moves** when another task is shown: every tab keeps its width (the room of its ×).
+    Tabs that moved under the mouse made the human miss (the author, 2026-10-08).
+  - **The middle button on a tab closes the task**, as a browser's tab.
+  - **A tab's right-click menu**: the shown one's profiles, open (shown in the grid) and closed (opened in the
+    task), and Manage Profiles… (Settings → Profiles); Add Repository, the project's repositories it has no copy of
+    (Tasks, below); Rename…; Show Folder, its folder (its worktree, or the project's without git) in the OS's file
+    manager (`shell.openPath`); **Move to New Window**, **Move to Window: …** (one row per other window, named by the
+    task it shows and how many more it holds: "task-3 (+2)"); Close; Delete Task…; then **the project's submenu**,
+    a row of its icon and name opening at its side (`{ submenu }`, [ui.md](ui.md), Menus; the project has no tab of
+    its own to open a menu on): New Task, **Move All Tasks to New Window / to Window: …** (its open tasks of this
+    window, together), Project Settings… (what a task has not: the project's code, agents, profiles, local
+    addresses), Show Data Folder, Delete Merged Tasks… (when a closed task's PR is merged: Tasks, below), **Close
+    All Tasks** (its open tasks in every window, asked once when an agent works). The project's name is the
+    projects' manager's alone to change.
   - **No profiles' button on a task's tab** (the author, 2026-10-12: the bar is no place to edit profiles, Settings is
     for that). A 👥 on the shown task's tab had their menu until then (before it, a Profiles ▾ button in the title
     bar), and every tab a number of its open profiles until 2026-10-11 (profiles are the agent's hands: how many are
     open says nothing).
-  - **A task tab's right-click menu**: the shown one's profiles, open (shown in the grid) and closed (opened in the
-    task), and Manage Profiles… (Settings → Profiles); Add Repository, the project's repositories it has no copy of
-    (Tasks, below); Rename…; Show Folder, its folder (its
-    worktree, or the project's without git) in the OS's file manager (`shell.openPath`); Delete Task….
   - **The button after the islands is +**, a new task (Ctrl+Shift+A; `NewTask.vue`; the author, 2026-10-11): a task
     is made of a project (its profiles, agents and code), so its menu lists every project, with its icon in its
-    color; a click makes a task of it with its default agent ("Choosing the agent") and shows it in its group, in
-    its group's window (a new group in this window when it has none). Under each project its **closed tasks**, set in
-    (the one closed last first, its branch, merged): a click opens one again, the same way; for a project with no
-    group it is the one way to them. New Project… last. One + for every project: the groups have none of their own
-    (each had its + until 2026-10-11, its right-click New Task with another agent; another agent is the project's
-    default one, or the island's + after), and it replaced Search Tasks (a panel of every project's tasks with a search
+    color; a click makes a task of it with its default agent ("Choosing the agent") and shows it, a tab at the end
+    of this window's bar. Under each project its **closed tasks**, set in
+    (the one closed last first, its branch, merged): a click opens one again, the same way; it is the one place
+    they are listed (until 2026-10-14 a group's menu listed them too). New Project… last. One + for every project (each group had
+    its own until 2026-10-11, its right-click New Task with another agent; another agent is the project's default
+    one, or the island's + after), and it replaced Search Tasks (a panel of every project's tasks with a search
     field, from the morning of 2026-10-11 until its evening).
 - **Settings** (the button in the title bar, left of ☰; the author, 2026-10-11), as JetBrains' Settings (the author,
   2026-10-11: the dialogs read as a web page's, not a desktop app's; docs/ui.md, Desktop, not a web page): a tree on the
@@ -68,7 +64,7 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   page, Esc puts it away; Agents: a menu of the agents an account can be made of, New Account… on the agent's page,
   as agents are installed, not made); a row's right-click has what its page's ⋯ has (a project's and a profile's
   Delete…, asked first, as Delete on the chosen row; an agent's Install and New Account…), a section's what its +
-  does. Project Settings… in a group's menu opens it at that project; ☰ → Agents… at an agent (the one shown last);
+  does. Project Settings… in a project's submenu (a task tab's menu) opens it at that project;
   a task tab's Manage Profiles… and About this profile… at a profile. It was the projects' manager alone, under a
   Projects button, until the agents' accounts needed a place outside projects; then tabs, Projects and Agents; then
   the tree with Agents and Profiles as pages of their own, each with its list on its left and New Project's + over the
@@ -115,23 +111,25 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   repositories are added on its page (Code).
   **Create makes no task**: Settings opens on its page (its agents' accounts: New
   Account…; its code, profiles); its first task is made from the bar's + (the project is in its menu).
-- **Showing another group** slides the grid towards its island, as macOS desktops do (a view transition on the compositor, the
+- **Showing another task** slides the grid towards its tab, as macOS desktops do (a view transition on the compositor, the
   pages as pictures meanwhile; not with reduced motion); the window builds the other grid in place, so nothing jumps.
-  When a group closes, the one next to it is shown, or the empty window when it was the last.
-- **Move to New Window** (the group's menu) puts the group into a window of its own, next to this one, e.g.
-  to drag it to a second monitor; **Move to Window: …** (one item per other window, named by its projects) puts it
+  (Until 2026-10-14 only another project's slid; a project's own tasks were swapped at once: one rule now, every
+  tab a tab.) When a task closes, the one next to it is shown, or the empty window when it was the last.
+- **Move to New Window** (its tab's menu) puts the task into a window of its own, next to this one, e.g.
+  to drag it to a second monitor; **Move to Window: …** (one row per other window) puts it
   into that window, as a browser moves a tab. It keeps running: its agents, its pages (the same ones, moved, not
   loaded again), what its terminals showed. The only tab of a window does not go to a new window; moved into another
-  one, its window closes. **Dragging a label** does the same with the mouse: within the bar it changes the order
-  (kept); let go on another window's bar, the group moves there, where it was let go; let go outside every Kulisa
+  one, its window closes. **Move All Tasks to …** in the project's submenu moves its open tasks of this window the
+  same way, one after another. **Dragging a tab** does the same with the mouse: within the bar it changes the order
+  (kept); let go on another window's bar, the task moves there, where it was let go; let go outside every Kulisa
   window, it opens in a new window there (the window appears when the mouse is let go, as in VS Code). Each window has
-  its bar and its + (every project; a task of one with a group in another window goes there, that window brought to
-  the front). The OS's × on a window closes its groups, as Close Group on each would, after one question ("Close the window?"); on the last
-  window it quits Kulisa, and the windows with their groups and open tasks come again at the next start, where they were: nothing
-  is lost, so it asks only when that would stop a working agent ("Quit Kulisa?"). A window whose last group is
+  its bar and its + (every project; a task opens in the window whose + was pressed). The OS's × on a window closes
+  its tasks, as × on each would, after one question ("Close the window?", naming them); on the last
+  window it quits Kulisa, and the windows with their tasks come again at the next start, where they were: nothing
+  is lost, so it asks only when that would stop a working agent ("Quit Kulisa?"). A window whose last tab is
   closed closes too, unless it is the only one: then it is the empty window.
 - **Each project has a color and an icon**, to tell projects apart at a glance: the color is the shown one's glow from
-  the middle of the window and the title bar logo's curtain; the icon is on its label in the bar, in its color. **Both
+  the middle of the window and the title bar logo's curtain; the icon is on its tasks' tabs in the bar, in its color. **Both
   are Kulisa's, nothing to choose** (the author, 2026-10-12: a project is made to work in, not to be set up; until then
   a panel at its page's top chose among eight colors, Kulisa's ten icons and a picture file, and the colors did not
   go with the favicons, a red mark on a green project):
@@ -176,14 +174,16 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   repository is added; then it is its **former folder**: new tasks no longer work in it, those that did go on there,
   and the settings say so, with Show, while it exists (the human moves its files, or asks an agent).
 - **The empty window** (the term: CLAUDE.md) is what a window is with no task open: at the first start, and after
-  the last group is closed (Close Group, the middle button on its label, × on its last task, deleting the project). The title bar and
-  the tasks' bar as always (no islands; + there) and, in the grid's place, an
+  the last task is closed (×, Close All Tasks, deleting the project). The title bar and
+  the tasks' bar as always (no tabs; + there) and, in the grid's place, an
   empty island: "No task is open", New Task (+'s menu), New Project…. At the first start (no project at all: nothing to do in Kulisa
   without one) New Project opens by itself (`shell.firstStart`). It replaced the Welcome
   screen (the author, 2026-10-11: once the bar listed the tasks, it was not needed): its list of tasks is the bar's
   + (the closed ones), the links and Kulisa's version are ☰'s, New Project the manager's. Later starts
-  open the windows that were open, each with its projects, showing the one shown last (`windows` in `settings.json`);
-  `KULISA_PROJECT=<folder> npm start` adds that one to the first window and shows it.
+  open the windows that were open, each with its tasks' tabs in their order, showing the one shown last (`windows` in
+  `settings.json`, the tasks by key); an open task no window names (a crash; windows saved before 2026-10-14 named
+  projects) goes into the first window's bar, so none is lost. `KULISA_PROJECT=<folder> npm start` shows a task of that
+  project in the first window: its first open one, else the one closed last, else a new one.
 - **An agent** of a task starts in the user's own shell, in the task's folder, as if the human typed
   it in a terminal there: the project's environment applies (direnv's `.envrc`, nvm, mise), not the one Kulisa was
   started with. When it exits, the shell stays. Its account's variable (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`) is typed
@@ -258,35 +258,33 @@ Example: the project `~/IdeaProjects/myshop`, its second task, named "Checkout-r
 
 ## What the human does
 
-- **Its tabs** in its project's group in the tasks' bar: a tab per open task, with the agent's state as an icon
-  (working, waiting for you, done; from its hooks: "Choosing the agent"). A click shows that task, at once, as
-  Chrome switches tabs: no slide or fade (a flash over the whole grid at every switch; a slide made the tasks
-  and the projects look alike). The pages come in the same frames as the terminal: the view transition that holds
-  the old grid's picture while the next one is built runs no animation at all, Chromium's own for its groups
-  included (it kept the pages, shown when it ends, 250 ms behind the terminal). The one left keeps running. Another
-  project's group marks the task it shows (a step brighter): where that project is when shown again.
-- **The bar's +** (a project in its menu; Ctrl+Shift+N, or New Task in the label's menu, for the shown or that
-  group's project) makes a task at once, no dialog,
+- **Its tab** in the tasks' bar: its project's icon, the agent's state as an icon
+  (working, waiting for you, done; from its hooks: "Choosing the agent"), its name. A click shows that task: the grid
+  slides towards its tab, the pages as pictures meanwhile, live again once the new grid is laid out (Projects,
+  above). The one left keeps running.
+- **The bar's +** (a project in its menu; Ctrl+Shift+N, or New Task in the project's submenu, for the shown task's or
+  that project) makes a task at once, no dialog,
   from the project's configuration alone, nothing taken from the task on screen: the human describes the task to its
   agent in the terminal. It runs the project's default agent; with none, the terminal only, nothing asked ("Choosing the agent"). **No profile opens by itself**, the first task's
   neither: all the project's are listed closed, and the agent opens one when it needs it (`profile_open`), the human
-  from the task's tab's right-click menu; each a copy of its master made then ([profiles.md](profiles.md)). Decided with the author on 2026-10-10:
+  from a tile over the terminal while none is open ([window.md](window.md), The grid) or the task's tab's right-click
+  menu; each a copy of its master made then ([profiles.md](profiles.md)). Decided with the author on 2026-10-10:
   a task opened those open in the task on screen before (the first one all), each a browser's processes and memory
   whether the task needed it or not.
 - **×** on a task's tab closes it: its agent stops, its tabs close; its code, branch, profiles and conversation stay,
-  and the bar's + and its group's menu list it as closed. Opening it there shows it again and resumes its agent's
-  conversation. It asks only when the agent is working (closing would stop it); nothing else is lost. × on a group's
-  last open task closes the group, as Chrome's tab group goes with its last tab.
+  and the bar's + lists it as closed under its project. Opening it there shows it again and resumes its agent's
+  conversation. It asks only when the agent is working (closing would stop it); nothing else is lost. The last open
+  task of a project closed lets the project go (nothing of it runs), nothing asked.
 - **Delete Task…** in its tab's menu deletes it, after a question saying what goes for good: its folder, its branch,
   its profiles, its agent's conversations, and any work not in main and not pushed (commits of its own, uncommitted
   files). With git a task goes whole (worktree, branch, conversation); without, its files stay in the project's folder.
-  Deleting the last open task closes its group. A closed task is deleted from its row in the bar's + or its group's
-  menu: its 🗑 (on the row under the pointer) or Delete, the same question, its group open or not (the author,
+  A closed task is deleted from its row in the bar's +: its 🗑 (on the row under the pointer) or Delete, the same
+  question, its project loaded or not (the author,
   2026-10-12: they piled up, and only an open one had Delete Task…). Closed tasks stay on disk until the human deletes them; Kulisa
   offers it once a closed task's PR is merged: each of its copies has commits of its own, all in its remote's default
   branch (`origin/HEAD`, fetched as the project is shown and as a task is closed, in the background), and nothing
-  uncommitted, so deleting it loses nothing. Its group's menu marks it "merged" and has **Delete Merged Tasks…**, one
-  question naming them. A squash merge makes new commits, so it is not seen: Delete Task… as for any other.
+  uncommitted, so deleting it loses nothing. The bar's + marks it "merged", and the project's submenu has **Delete
+  Merged Tasks…**, one question naming them. A squash merge makes new commits, so it is not seen: Delete Task… as for any other.
 - **The island's +** opens another of the project's agents in the task, a new conversation in a tab of its own, or a
   shell; **the agent's icon on its tab** hands the task to an agent of the project, which goes on with that
   conversation ("Several agents in a task").
@@ -298,17 +296,17 @@ to the human; the window's IPC (`app.ts`) and the MCP tools are handles on it:
 
 | Action | The human | The agent | The core |
 |---|---|---|---|
-| Open a task (a group with it, when its project has none) | the bar's + (a closed one, or a new one) | none: it works inside one task | `openProject` (`app.ts`): the task opened again and shown, or a new one (`createTask`) |
-| Close a group | Close Group in its menu, the middle button on its label, × on its last open task | none: it would stop itself | `closeProjects` (`app.ts`), `Project.closeAll`, asking only when an agent works |
-| Close a window, quit | the OS's ×, ☰ → Exit | none | `closeProjects` for the window's groups; `quit` (`app.ts`), asking only when an agent works |
-| Move a group | Move to New Window, Move to Window, dragging its label | none: where the human sees it is the human's | `moveProject` (`app.ts`) |
+| Open a task (its project loaded with it, when it was not) | the bar's + (a closed one, or a new one) | none: it works inside one task | `openProject` (`app.ts`): the task opened again and shown, or a new one (`createTask`) |
+| Close a project's tasks | Close All Tasks in its submenu | none: it would stop itself | `closeTasks` (`app.ts`) in every window, asking once when an agent works |
+| Close a window, quit | the OS's ×, ☰ → Exit | none | `closeTasks` for the window's tabs; `quit` (`app.ts`), asking only when an agent works |
+| Move a task | Move to New Window, Move to Window, dragging its tab; Move All Tasks to … for a project's | none: where the human sees it is the human's | `moveTask`, `moveAll` (`app.ts`) |
 | Delete a project | Delete Project… in the projects' manager | none: it deletes sign-ins, the human's to decide | `deleteProject` (`app.ts`), `askDeleteProject`, `deleteProjectData` (`projects.ts`) |
-| Make a task | the bar's +, Ctrl+Shift+N, New Task in its group's menu | not yet (ROADMAP, "Tasks, rest") | `Project.createTask` |
-| Close a task, open it again | ×; the bar's +, its group's menu | none: what runs is the human's to stop | `Project.closeTask`, `reopen` |
+| Make a task | the bar's +, Ctrl+Shift+N, New Task in its project's submenu | not yet (ROADMAP, "Tasks, rest") | `Project.createTask` |
+| Close a task, open it again | ×, the middle button on its tab, Close in its menu; the bar's + | none: what runs is the human's to stop | `closeTask` (`app.ts`), `Project.closeTask`, `reopen` |
 | Rename a task | Rename… in its tab's menu, or a double click on its tab | `task_rename` | `Task.rename` |
 | Read what was said and done in the task before | its terminal, scrolled back | `task_history` ([transcripts.md](transcripts.md)) | `historyPart` (`history.ts`) |
-| Delete a task | Delete Task… in its tab's menu; a closed one's 🗑 in the bar's + and its group's menu | none: it deletes work and sign-ins, the human's to decide | `askDeleteTask`, `deleteTask`, `deleteClosedTask` (`projects.ts`) |
-| Show a task | a click on its tab, of any group | none: what the human looks at is theirs | `AppWindow.showTask`, then `show` its project (`window.ts`) |
+| Delete a task | Delete Task… in its tab's menu; a closed one's 🗑 in the bar's + | none: it deletes work and sign-ins, the human's to decide | `askDeleteTask`, `deleteTask`, `deleteClosedTask` (`projects.ts`) |
+| Show a task | a click on its tab, of any project | none: what the human looks at is theirs | `AppWindow.show` (`window.ts`) |
 | Add, clone, make the default, remove a repository | the projects' manager | none: what the project is made of is the human's | `addRepo`, `cloneRepo`, `defaultRepo`, `removeRepo` (`projects.ts`) |
 | Add a project's repository to a task | Add Repository in its tab's menu | `task_add_repository`, once the human agreed in the conversation | `Task.addRepository`, `Project.addCopy` |
 | Remove one added | Remove Repository in its tab's menu, or on its chip | `task_remove_repository`, once the human agreed | `Task.removeRepository`, `Project.askRemoveCopy`, `removeCopy` |
@@ -330,7 +328,7 @@ project's default agent (the projects' manager), its own (`agent` in its `agent.
 (`agent: null` there) starts nothing, without asking: the island's buttons in the empty grid, and Ctrl+` gives them
 the keyboard (`Task.ownAgent`, `openOwn`); a project with no agents starts its tasks with the terminal only. An agent to open that is no longer there (an account let go, an
 agent not on the computer) asks, in a dialog, among the project's accounts and the terminal only, with Install and
-Cancel (none opens). `KULISA_AGENT` forces one command everywhere, without asking. An agent CLI itself is installed in ☰ → Agents… (**Install**: Kulisa runs its maker's own
+Cancel (none opens). `KULISA_AGENT` forces one command everywhere, without asking. An agent CLI itself is installed in Settings → Agents (**Install**: Kulisa runs its maker's own
 installer, the command shown before, its output while it runs, with no steps for the human to type, for people who
 are not programmers); its accounts are made there too, or in a project's page.
 
@@ -358,7 +356,7 @@ are not programmers); its accounts are made there too, or in a project's page.
   the rest of the file kept, not written when it says so already, never into a file that is not JSON. Claude Code
   reads that file again when it changes and the language at each recording, so it holds at once in every session of
   the account. A settings file of one launch (`--settings`) would not do: it is read once.
-- **Settings → Agents** (☰ → Agents… opens it there; `AgentPage.vue`), as JetBrains' list of SDKs: the agents in
+- **Settings → Agents** (`AgentPage.vue`; ☰ had an Agents… row to it until 2026-10-14: the author, agents are set up in Settings), as JetBrains' list of SDKs: the agents in
   Settings' tree (not the terminal only: nothing of it to set up there; the author, 2026-10-11; "not installed" at a row's end),
   the chosen one's page on the right: its maker and website, what it needs, its status (its version, its `--version`, and its
   folder, marked when it is not on the user's `PATH`: Kulisa runs it from there; Install for the others, with the
@@ -587,7 +585,7 @@ Why so, and what was not chosen (2026-10-11, 2026-10-12):
 
 In Kulisa's data folder (`~/.config/Kulisa` on Linux, `~/Library/Application Support/Kulisa` on macOS,
 `%APPDATA%\Kulisa` on Windows), laid out as Chrome lays out its user data (`store.ts`). Show Data Folder in a
-project label's right-click menu opens its `projects/<id>` in the file manager (`shell.openPath`), for the human who
+project's submenu (a task tab's right-click menu) opens its `projects/<id>` in the file manager (`shell.openPath`), for the human who
 asks where it is or what takes the disk; nothing in it is for editing by hand, so it is no button in sight:
 
 ```
@@ -601,7 +599,7 @@ agents/<agent>-<n>/               an account's config folder (CLAUDE_CONFIG_DIR,
                                   Agents); one a sign-in left
                                   unfinished (Kulisa quit meanwhile) goes at the next start
 settings.json                     the Kulisa zoom, the theme, where the tasks' bar is, the language; the windows: each one's
-                                  projects (in the bar's order), the one shown, where it was
+                                  tasks by key (in the bar's order), the one shown, where it was
 deleted-folders.json              folders to remove at the next start (a session keeps its files open)
 projects/<project id>/
   tasks.json                      { next, current, list: [{ n, name, branch, offset, folder (its agent's),
@@ -676,9 +674,9 @@ What stays in any case: an agent Kulisa installed (it serves every project).
 ## Deleting a project
 
 **Delete Project…** in ⋯ at the top of a project's page in the projects' manager, open or not: there
-alone (the author, 2026-10-11: with everything else about a project; not in its group's menu, the Welcome screen or
+alone (the author, 2026-10-11: with everything else about a project; not in a tab's menu, the Welcome screen or
 a menu). One function (`deleteProject` in `app.ts`): Kulisa asks first, saying what goes and which tasks have
-work not in main and not pushed; closes its group if it has one; deletes each of its tasks as above; then removes it
+work not in main and not pushed; closes its open tasks in every window; deletes each of its tasks as above; then removes it
 from `projects.json` with its data folder `projects/<id>/`. The project's own folder stays as it is, and so do its
 agents' accounts, let go of (Settings → Agents deletes one: "Choosing the agent", Accounts).
 
@@ -689,7 +687,7 @@ agents' accounts, let go of (Settings → Agents deletes one: "Choosing the agen
   2026-10-12 a second one ran beside the first, without its MCP server (the port taken), and the two wrote over each
   other's saved tabs, session cookies and tasks. Electron's lock is the data folder's: Kulisa on another
   (`KULISA_DATA`) runs next to it, as the tests' apps do, each on its own.
-- Each window shows one task of its shown group. The others keep running, the other groups' too: their
+- Each window shows one of its tasks. The others keep running, the other windows' too: their
   pages and agent go on, their pages hidden.
 - A task loads (its profiles start, its agent starts) the first time it is shown, also after a restart.
 - A task is known among all open ones by its key, `<project id>/<n>` (the window, the terminals). Each has its own
@@ -697,8 +695,8 @@ agents' accounts, let go of (Settings → Agents deletes one: "Choosing the agen
   percent-encoded: ids have letters of any language); its agent gets them in its environment (`KULISA_MCP_URL`,
   `KULISA_URL`) and sees only its task's profiles. Profile ids repeat across tasks; inside Kulisa a profile
   is `<project id>/<n>/<id>` (CDP proxy, highlights).
-- Closing a group closes all its tasks; opening one again resumes its agent where the agent can (Claude `--resume`,
-  Codex `resume`). Restarting brings back every window's groups with their open tasks.
+- Closing a task stops its agent; opening it again resumes its agent where the agent can (Claude `--resume`,
+  Codex `resume`). Restarting brings back every window's tasks, in their order.
 
 ## Removing everything by hand
 
@@ -753,13 +751,13 @@ temporary forks), and again on 2026-10-10 (tasks; ROADMAP, "Projects and tasks")
   question, as with Claude Code's `--worktree`): its conversation and profile copies go too.
 - **A task loads when first shown**, not at the start: after a restart nothing works in the background anyway,
   and the agent starts at its terminal's real size.
-- **Tasks and groups in the background keep running**, their pages and agents. Memory: each agent is a
+- **Tasks in the background keep running**, their pages and agents. Memory: each agent is a
   process of its own (Claude Code about 200–400 MB) plus its profiles' tabs; those its agents stop using lose their
   process after a while and load again when the task is shown ([profiles.md](profiles.md), "Tabs unloaded").
-- **Another project's task opens beside the shown one** (its group, an island in the bar), as a browser opens a tab.
-  At first opening a project closed the shown one and stopped its agents; now the human closes a group (Close Group)
-  when it is safe.
-- **Several windows are one Kulisa**, not a second instance: two cannot share the data folder. A group moves with
+- **Another project's task opens beside the shown one** (a tab in the bar), as a browser opens a tab.
+  At first opening a project closed the shown one and stopped its agents; now the human closes a task (×, Close All
+  Tasks) when it is safe.
+- **Several windows are one Kulisa**, not a second instance: two cannot share the data folder. A task moves with
   its pages' native views (`Profile.moveTo`), not loaded again, and with what its terminals show (xterm's serialize
   addon, as VS Code keeps terminals), at their size, so its agent is never told a default one. A window is one more
   renderer process for Kulisa's own page, only while it is open.
@@ -772,17 +770,19 @@ temporary forks), and again on 2026-10-10 (tasks; ROADMAP, "Projects and tasks")
 
 | File | What |
 |---|---|
-| `src/main/app.ts` | the windows; open, close and move projects (one change at a time, `serial`); IPC |
-| `src/main/window.ts` | a window: its groups (open projects in code), show a group or a task, the grid's state, its questions |
-| `src/main/projects.ts` | a project's group (an open project in code): its tasks; making, closing, opening again, deleting one (with the question); deleting a project's data |
+| `src/main/app.ts` | the windows; open, close and move tasks, load and let go projects (one change at a time, `serial`); IPC |
+| `src/main/window.ts` | a window: its tabs (tasks), show one, the grid's state, its questions |
+| `src/main/projects.ts` | a loaded project: its tasks; making, closing, opening again, deleting one (with the question); deleting a project's data |
 | `src/main/tasks.ts` | a task: its profiles, its terminals and agents (open, hand over, close, environment), renaming, copies of its profiles for a new task, ports |
 | `src/main/worktrees.ts` | git: a task's worktree and branch, files outside git, direnv, changes, renaming the branch, removal |
 | `src/main/agents/` | the agents to choose from: find, install, start, resume; a folder's trust carried to a task's copy |
 | `src/main/store.ts` | the data folder above |
 | `src/main/terminal.ts` | the task's terminals' ptys (window.md, The terminal) |
-| `src/renderer/components/TaskBar.vue`, `NewTask.vue`, `Empty.vue`, `ProjectEditor.vue` | the tasks' bar (an island per project); its + (every project, their closed tasks); the empty window's island; the projects' manager |
+| `src/renderer/components/TaskBar.vue`, `NewTask.vue`, `Empty.vue`, `ProjectEditor.vue` | the tasks' bar (a tab per open task); its + (every project, their closed tasks); the empty window's island; the projects' manager |
 | `src/renderer/components/TaskTab.vue`, `TaskRename.vue` | a task's tab in the bar, its menu, the Rename Task dialog |
 | `src/renderer/components/AgentPicker.vue`, `AgentPage.vue`, `AgentList.vue` | choosing an agent when the one to open is not there; an agent's page in Settings, its details and accounts; the radios of agents with Install that choosing shows |
+| `src/main/favicons.ts` | a project's icon: its site's favicon in its code (Projects, "Each project has a color and an icon") |
+| `src/main/names.ts` | the one rule for names (projects, tasks, profiles) and slugs |
 | `src/main/accounts.ts`, `src/renderer/components/AccountSignIn.vue` | the agents' accounts, one store; a new one's sign-in in Settings (a project's page, or Agents) |
 | `src/renderer/lib/grid.ts`, `components/Grid.vue` | building a task's grid; the slide (a view transition) |
 | `test/tasks.ts` | the tests; `test/restart-tasks.ts` after a restart; `test/unit/agents.test.ts` |

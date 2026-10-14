@@ -1,6 +1,7 @@
 // The grid of the shown task (dockview, drawn by Grid.vue; docs/window.md, The grid). After any change the main process
 // gets where each pane's .content box is, or that it is not on screen (stacked behind another pane), as it lays the
 // native views over them.
+import { nextTick } from 'vue';
 import type { AddPanelPositionOptions, DockviewApi } from 'dockview-vue';
 import type { Profile, Terminals } from '../types';
 import { act, setLoading, store } from './store';
@@ -123,19 +124,18 @@ const presets: Record<'columns' | 'grid' | 'focus', (s: Profile[]) => { height?:
     return { height: TERMINAL_SHARE };
   },
 };
-// The grid's room: #dock less its padding (the gaps at the window's edges).
+// The grid's room: dockview's own element, under the closed profiles' tiles when they show (ClosedProfiles.vue).
 function room() {
-  const dock = document.getElementById('dock')!, s = getComputedStyle(dock);
-  return { w: dock.clientWidth - parseFloat(s.paddingLeft) - parseFloat(s.paddingRight),
-    h: dock.clientHeight - parseFloat(s.paddingTop) - parseFloat(s.paddingBottom) };
+  const grid = document.getElementById('grid')!;
+  return { w: grid.clientWidth, h: grid.clientHeight };
 }
 export function applyPreset(name: keyof typeof presets) {
   const a = api!;
   a.clear();
   const share = presets[name](store.profiles);
-  // The terminal's share of the window, once the grid has a size (at first start the window may have none yet). The
-  // grid's room is #dock less its padding (the gaps at the window's edges): laid out to clientWidth, it was that much
-  // wider and taller than its room, the right and bottom cut off until the window was resized.
+  // The terminal's share of the window, once the grid has a size (at first start the window may have none yet). Its
+  // room (room()), not #dock's: laid out to a box larger than its room, the right and bottom were cut off until the
+  // window was resized.
   const dock = document.getElementById('dock')!;
   const size = () => {
     const { w, h } = room();
@@ -156,7 +156,7 @@ Object.assign(window, { __layoutPreset: applyPreset }); // for tests
 // project's grid slides in as macOS desktops do, the one left out and the next one in at once; another task's replaces
 // it at once. Not with reduced motion: then the grid is hidden at once, so nothing half-built shows. The title bar and
 // the tasks' bar stay.
-kulisa.on<{ dir: number; level: 'task' | 'project'; task: string; pics?: Record<string, string> }>('grid:closing', ({ dir, level, task, pics }) => {
+kulisa.on<{ dir: number; task: string; pics?: Record<string, string> }>('grid:closing', ({ dir, task, pics }) => {
   closeLayers(); // its dialogs and menus are for the grid that goes
   // Its last change saved now, not dropped: a pane closed (its profile deleted) just before the task was left stayed in
   // its saved grid, and a saved grid naming a profile no longer there is not restored at all (restoreGrid).
@@ -178,12 +178,12 @@ kulisa.on<{ dir: number; level: 'task' | 'project'; task: string; pics?: Record<
   const next = new Promise<void>((r) => (built = r));
   // While the next grid is built (the callback), Chromium shows the picture of this one and draws no frames: the
   // building must not wait for one (reveal).
-  const transition = document.startViewTransition({ update: () => { takeDown(); cleared(); return next; }, types: [level, dir > 0 ? 'next' : 'previous'] });
+  const transition = document.startViewTransition({ update: () => { takeDown(); cleared(); return next; }, types: [dir > 0 ? 'next' : 'previous'] });
   sliding = { transition, built };
 });
 
-// Tasks gone (their project closed, a task deleted): their terminals and pictures too; a task opened again later
-// starts afresh.
+// Tasks gone (closed, deleted, moved to another window): their terminals and pictures too; a task opened again
+// later starts afresh.
 kulisa.on<string[]>('tasks:closed', (keys) => {
   for (const key of keys) pictures.delete(key);
   forgetTerminals(keys);
@@ -210,8 +210,13 @@ function syncGrid() {
     const last = a.panels.filter((x) => x.id !== 'terminal').at(-1);
     addProfilePanel(p, last ? { referencePanel: last.id, direction: 'right' } : { referencePanel: 'terminal', direction: 'above' });
     // The first page over the terminal alone: dockview halves the room; the terminal keeps its share, as in the
-    // arrangements (a terminal as tall as the pages was mostly empty).
-    if (!last) a.getPanel('terminal')!.group.api.setSize({ height: Math.round(room().h * TERMINAL_SHARE) });
+    // arrangements (a terminal as tall as the pages was mostly empty). Once the closed profiles' tiles have gone: the
+    // room they leave went to the terminal (dockview resizing after its share was set), 45% of the grid.
+    if (!last) void nextTick(() => {
+      const { w, h } = room();
+      a.layout(w, h);
+      a.getPanel('terminal')?.group.api.setSize({ height: Math.round(h * TERMINAL_SHARE) });
+    });
   }
 }
 // The shown task's island (Terminals.vue): its tabs, the one in front.

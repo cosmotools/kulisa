@@ -8,6 +8,7 @@ import ProfilePane from './grid/ProfilePane.vue';
 import ProfileHeader from './grid/ProfileHeader.vue';
 import Terminals from './grid/Terminals.vue';
 import TerminalTabs from './grid/TerminalTabs.vue';
+import ClosedProfiles from './grid/ClosedProfiles.vue';
 import { gridMounted } from '../lib/grid';
 
 // dockview takes the gap between panels as a number: tokens.css's --gap, loaded before the window mounts (main.ts).
@@ -19,17 +20,17 @@ const tabComponents = markRaw({ profile: ProfileHeader, terminal: TerminalTabs }
 
 <template>
   <main id="dock">
-    <DockviewVue style="height: 100%" :theme :disable-floating-groups="true" single-tab-mode="fullwidth" :components :tab-components="tabComponents"
+    <ClosedProfiles />
+    <DockviewVue id="grid" :theme :disable-floating-groups="true" single-tab-mode="fullwidth" :components :tab-components="tabComponents"
       @ready="(e) => gridMounted(e.api)" />
   </main>
 </template>
 
 <style>
 #dock {
-  flex: 1; min-height: 0; padding: var(--gap); transition: opacity .15s;
-  background: var(--well);
+  display: flex; flex-direction: column; margin-inline: var(--gap); transition: opacity .15s;
+  #grid { flex: 1; min-height: 0; }
   .loading & { opacity: 0; transition: none; } /* until the grid is laid out (lib/grid.ts, reveal) */
-  [data-bar="top"] & { order: 1; } /* under the tasks' bar */
   .noproject & { display: none; }
   .dockview-theme-abyss-spaced {
     color-scheme: inherit; /* the theme's own is dark; Kulisa's is the root's (tokens.css: light-dark()) */
@@ -50,20 +51,16 @@ const tabComponents = markRaw({ profile: ProfileHeader, terminal: TerminalTabs }
   view-transition-name: grid;
   :active-view-transition & { transition: none; } /* the next grid comes in sliding, not fading */
 }
-/* Switching (lib/grid.ts, grid:closing). Another project: the grid slides towards its island, as macOS desktops do
-   (types next and previous say which way). Another task of the same project: the grid is replaced at once, as Chrome
-   switches tabs (no fade: a flash over the whole grid). Pictures, so the compositor moves them. */
+/* Switching (lib/grid.ts, grid:closing): the grid slides towards the next task's tab, as macOS desktops do (types
+   next and previous say which way; until 2026-10-14 only between projects, replaced at once between a project's own
+   tasks). Pictures, so the compositor moves them. */
 ::view-transition-old(grid), ::view-transition-new(grid) { animation: .3s cubic-bezier(.2, .8, .2, 1) both; mix-blend-mode: normal; }
-:active-view-transition-type(project):active-view-transition-type(next) {
+:active-view-transition-type(next) {
   &::view-transition-old(grid) { animation-name: grid-to-left; }
   &::view-transition-new(grid) { animation-name: grid-from-right; } }
-:active-view-transition-type(project):active-view-transition-type(previous) {
+:active-view-transition-type(previous) {
   &::view-transition-old(grid) { animation-name: grid-to-right; }
   &::view-transition-new(grid) { animation-name: grid-from-left; } }
-:active-view-transition-type(task) {
-  /* The groups too: their own animation (Chromium's, .25 s) held the transition's end, and with it the pages (the
-     native views, shown when it ends), while the terminal was already in its new place. */
-  &::view-transition-group(*), &::view-transition-old(*), &::view-transition-new(*) { animation: none; } }
 @keyframes grid-to-left { to { translate: -100% 0; } }
 @keyframes grid-from-right { from { translate: 100% 0; } }
 @keyframes grid-to-right { to { translate: 100% 0; } }

@@ -44,7 +44,7 @@ actors, the panes the stage, and the developer watches from the audience and sto
 ```sh
 npm install          # Node 24.12+. Rebuilds node-pty for Electron.
 npm run build        # type checks (tsc, vue-tsc), then the window (src/renderer, Vue) built by Vite into dist/renderer
-npm start            # builds the window, then opens the windows and groups open last; at first start New Project
+npm start            # builds the window, then opens the windows and tasks open last; at first start New Project
 KULISA_PROJECT=~/my-app npm start
 npm run knip         # no file, export or dependency that nothing uses (docs/testing.md, Dead code)
 npm test             # unit tests, knip, then the real app against a local test site (groups in parallel), then restarted
@@ -108,61 +108,20 @@ whole suite runs when the work is done (CLAUDE.md, Conventions).
 ## Code
 
 ```
-src/main/        Electron main process
-  index.ts         entry: reads the environment, calls app.start()
-  app.ts           the app: windows, groups (a project's open tasks: open a task, close, move to a new window), agents, IPC, quit
-  window.ts        a window: its groups and what it shows, its questions
-  keys.ts          the keyboard shortcuts: one table, which key an input event is (app.ts takes them before the pages)
-  projects.ts      a project's group: its tasks (make, close, open again, delete); removing a project's data
-  names.ts         the one rule for names of projects, tasks and profiles; slugs for ids and folders
-  tasks.ts         a task: its profiles, terminals and agents (environment, handing over), folder and name; copies
-  agents/          the agent CLIs to choose from, a file each (claude.ts, codex.ts: how to start, resume, trust,
-                   forget, read its transcript); agent.ts what an entry is; index.ts the list, finding, installing
-  accounts.ts      the agents' accounts, one store: each made with New Account… (Settings), a config folder of its own,
-                   kept until deleted
-  worktrees.ts     git for tasks: worktree and branch, files outside git copied, changes, renaming, removal
-  profile-store.ts     the profiles, one store: who each is, its master, its projects
-  master.ts        a profile's master in a window of its own, to sign in to once for every task
-  local.ts         what is local: where a test user's login-password pair may be typed
-  cookie-sync.ts   real accounts' cookies kept in step between a profile's master and its copies
-  project-profiles.ts  a task's profiles (copies of their masters, made at their first open), open and closed
-  avatars.ts       the profiles' pictures to choose from (Noto Emoji's, in src/renderer/public/avatars/)
-  profiles.ts      a profile: a session on its own folder, tabs (WebContentsView), Playwright connection, sign-in mode
-  discard.ts       tabs no one looks at losing their process after a while, as Chrome's Memory Saver (docs/profiles.md)
-  store.ts         projects.json, settings.json (Kulisa zoom, theme, the windows and their tabs), profiles.json and
-                   profiles/Profile <k>/ (the profiles' masters); per project in projects/<id>/: tasks.json, and per
-                   task <n>/: profiles.json (with sites' zoom), layout.json (the window's grid), agent.json (its agents'
-                   conversations), terminals.json (its island's tabs), Profile <k>/ (its copy of a master: a Chromium profile, its tabs and session
-                   cookies in it).
-  cdp-proxy.ts     per-profile CDP endpoint over webContents.debugger (no --remote-debugging-port)
-  local-only.ts    refuses requests from web pages to the MCP server and the proxy (Host, Origin)
-  mcp-server.ts    MCP tools for the agent, each takes a profile; a URL per task (/task/<project>/<n>/mcp)
-  history.ts       the task's history for its agent (task_history), read from the agents' transcripts
-  transcripts.ts   the entries an agent's transcript is read as (each reader in its agent's file; docs/transcripts.md)
-  agent-hooks.ts   answers for the agents' hooks (/task/<project>/<n>/hooks/…: the open profiles, the session; the agent's state)
-  signin-pages.ts  which pages are sign-in pages; what URL to restore instead of one
-  signin-pause.ts  pauses the agent on sign-in pages (temporary implementation: docs/profiles.md, Sign-in pause)
-  session-cookies.ts  keeps session cookies across restarts (encrypted with the OS keyring)
-  updates.ts       a packaged Kulisa updating itself (update.electronjs.org), Squirrel's events on Windows
-  picker.ts        point and tell: Playwright pickLocator → a reference (profile, tab, locator) typed into the agent's prompt
-  ghost.ts         the agent's actions: Playwright's annotations in the page, a caption over the pane
-  terminal.ts      node-pty: a task's terminals, each a shell, an agent CLI started in some
-src/agent/        what Kulisa gives the agents: skills/profiles (the profiles skill, every agent's), claude-plugin (Claude
-                 Code's MCP config, claude --plugin-dir)
-src/preload/     the window's bridge to the main process (plain JavaScript: the window is sandboxed)
-src/renderer/    window UI: Vue 3 components in TypeScript, built by Vite into dist/renderer (vite.config.mts; docs/ui.md).
-                 components/: the window's parts (App.vue; TopBar, Grid and grid/ its panels, TaskBar, TaskTab, NewTask, Empty,
-                 the dialogs on Modal.vue, menu/ the menus; menus and dialogs are Reka UI's); lib/: what they share
-                 (store.ts: what the main process sends;
-                 grid.ts, terminals.ts, menu.ts, agents.ts, ask.ts, dialogs.ts, keys.ts, voice.ts). Styles: tokens.css,
-                 components.css, each part's own in its file; the icons are Sprite.vue
-dist/            the window built (npm run build; not in git)
-assets/          the app icon: icon.svg (source) and what each OS needs, rendered by scripts/icons.ts
-scripts/         electron.ts (npm start: Electron, --no-sandbox on Linux only), icons.ts (npm run icons)
-test/            start.ts (npm test: the groups in parallel), run.ts (one app, its files in order), helpers.ts,
-                 setup.ts, the tests by area (agent.ts, profiles.ts, window.ts, grid.ts, zoom-and-closing.ts,
-                 tasks.ts; restart-*.ts after a restart), unit/ (plain Node), fixtures/site.ts (docs/testing.md)
+src/main/       the Electron main process: profiles, tasks, agents, the MCP server, the windows
+src/renderer/   the window's UI: Vue 3 and TypeScript, built by Vite into dist/renderer
+src/preload/    the window's bridge to the main process
+src/agent/      what Kulisa gives the agents: the profiles skill, Claude Code's plugin
+test/           unit tests and the e2e groups (docs/testing.md)
+scripts/        npm start, npm run icons
+assets/         the app icon
+docs/           how it works and why (Documentation, above)
 ```
+
+Each part's files, with what each does, are in its document, next to how the part works: in the last section,
+"The code", of docs/profiles.md (profiles, the agent's tools), docs/tasks.md (projects, tasks, agents),
+docs/window.md (the window) and docs/transcripts.md (the task's history); the UI's files at the top of docs/ui.md,
+the tests' in docs/testing.md.
 
 The experiments behind the design (E1–E8, 2026-10-05) and their report were removed once what they found was in the
 docs; the prototypes are in git history at commit `9fe8661`.

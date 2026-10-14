@@ -18,10 +18,9 @@ kulisa.on('project:new', () => dialog('projects').then((d) => d.newProject()));
 </template>
 
 <style>
-#empty { display: none; flex: 1; place-content: center; justify-items: center; gap: calc(var(--gap) * 2);
-  margin: var(--gap); border-radius: var(--island-radius); background: var(--island);
+#empty { display: none; place-content: center; justify-items: center; gap: calc(var(--gap) * 2);
+  margin-inline: var(--gap); border-radius: var(--island-radius); background: var(--island);
   .noproject & { display: grid; }
-  [data-bar="top"] & { order: 1; } /* under the tasks' bar, as the grid */
   h2 { margin: 0; font-size: 1.3em; color: var(--text-dim); }
   .start { display: flex; gap: var(--gap); }
 }

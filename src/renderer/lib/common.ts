@@ -19,7 +19,7 @@ export const avatarSrc = (a: string): string => `avatars/${a}.svg`;
 
 // The links in ☰; they open in the user's browser (window.ts).
 export const LINKS = [
-  { label: 'Documentation', href: 'https://github.com/cosmotools/kulisa#readme', icon: 'i-docs' },
+  { label: 'Documentation', href: 'https://kulisa.app/docs', icon: 'i-docs' },
   { label: 'GitHub', href: 'https://github.com/cosmotools/kulisa', icon: 'i-github' },
   { label: 'Report an issue', href: 'https://github.com/cosmotools/kulisa/issues', icon: 'i-bug' },
 ];

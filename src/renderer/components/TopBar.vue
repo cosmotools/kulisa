@@ -1,5 +1,6 @@
 <script setup lang="ts">
-// The window's title bar and ☰ (docs/window.md, The title bar, Menus). env(titlebar-area-*) leaves room for the OS
+// The window's title bar (the logo, the tasks' bar when it is there, Settings, ☰) and ☰'s menu (docs/window.md, The
+// title bar, Menus). env(titlebar-area-*) leaves room for the OS
 // window buttons on every platform (titleBarOverlay in window.ts). Exit only where the OS has no menu bar
 // with Quit (not macOS: Cmd+Q there).
 import Icon from './Icon.vue';
@@ -23,7 +24,6 @@ const windowMenu = (): MenuItem[] => [
       choose: (b: string) => kulisa.invoke('bar:set', b) } },
     { component: LanguageRow },
     '-', { heading: 'Arrange panels', icon: 'i-arrange' }, { component: ArrangeRow }, '-',
-    { label: 'Agents…', icon: 'i-agent', run: async () => (await dialog('projects')).openAgents() },
     { label: 'Keyboard Shortcuts', icon: 'i-keyboard', keys: keyText('shortcuts'), run: async () => (await dialog('shortcuts')).showShortcuts() },
     '-', ...LINKS.map((l) => ({ label: l.label, icon: l.icon, run: () => open(l.href) })),
     ...(kulisa.platform === 'darwin' ? [] : ['-' as const, { label: 'Exit', icon: 'i-exit', run: () => kulisa.invoke('app:quit') }]),
@@ -33,6 +33,7 @@ const windowMenu = (): MenuItem[] => [
 <template>
   <header id="topbar">
     <Icon class="logo" name="i-logo" />
+    <slot /><!-- the tasks' bar, when it is here (App.vue) -->
     <button id="zoomReset" :hidden="store.zoom === 1" title="Kulisa's zoom. Click to reset (Ctrl 0)" @click="kulisa.invoke('zoom:ui', 0)">{{ Math.round(store.zoom * 100) }}%</button>
     <button id="manageProjects" class="icon" title="Settings: projects, agents" aria-label="Settings"
       @click="dialog('projects').then((d) => d.openProjects())"><Icon name="i-settings" /></button>
@@ -42,7 +43,7 @@ const windowMenu = (): MenuItem[] => [
 
 <style>
 #topbar {
-  display: flex; gap: var(--gap); align-items: center; flex: none; height: 44px;
+  display: flex; gap: var(--gap); align-items: center; height: var(--title);
   padding-left: calc(env(titlebar-area-x, 0px) + var(--gap)); width: env(titlebar-area-width, 100%);
   -webkit-app-region: drag;
   & button { -webkit-app-region: no-drag; &:not(.icon) { padding: 0 14px; } }

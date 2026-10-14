@@ -35,7 +35,7 @@ interface Shell {
   typingSecret: Set<string>; // '<task key>/<profile id>'
   profilesChanged(from?: Task): void;
   projectsHome: string;
-  readonly win: BrowserWindow | null; readonly current: Project | null; readonly task: Task | null;
+  readonly win: BrowserWindow | null; readonly current: Project | null; readonly task: Task | null; // current: the shown task's project
   readonly profiles: Map<string, Profile>; readonly closed: Task['closed']; readonly pty: Pty | null;
   readonly resumedSession: string | null; readonly quitting: boolean;
   taskOf(id: string, n: number): Task | null;

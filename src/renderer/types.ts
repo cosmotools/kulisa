@@ -27,7 +27,7 @@ export interface LanguageInfo { language: string; languages: string[]; agents: {
 export interface Terminals { task?: string; front: number | null; list: Terminal[] }
 // A task, for its tab (Task.info).
 export interface TaskInfo {
-  n: number; key: string; name: string; state: AgentState; folder: string; offset: number; branch: string | null;
+  n: number; key: string; project: string; name: string; state: AgentState; folder: string; offset: number; branch: string | null;
   closed: boolean; merged: boolean; about?: string; // what it is about while it has no name: its first prompt
   repos: string[]; // the project's repositories it may add (Add Repository)
   copies: { name: string; folder: string; branch: string }[]; // its copies of the project's repositories (TaskRepos.vue)
@@ -35,13 +35,15 @@ export interface TaskInfo {
 export interface ProjectEntry { id: string; name: string; folder: string; color: string; favicon?: string; tasks: ProjectTask[] }
 // A task of a project, open or not (app.ts, shell.projects): the bar's + lists the closed ones (NewTask.vue).
 export interface ProjectTask { n: number; name: string; branch?: string | null; closed: boolean; merged: boolean; about?: string }
-// The window's projects (AppWindow.info): every project, those open in it in the bar's order, the one shown.
+// The window's tasks' bar (AppWindow.info): every project, the window's tabs in the bar's order, the shown task (its
+// key) and its project (its id), the loaded projects' agents (the island's +), the other windows (Move to Window).
 export interface ProjectsInfo {
   current: string | null;
+  project: string | null;
   projects: ProjectEntry[];
-  open: { id: string; task?: string | null; tasks?: TaskInfo[]; agents?: { id: string; name: string; cli: string }[] }[];
-  elsewhere?: string[];
-  windows?: { id: number; names: string[] }[];
+  tabs: TaskInfo[];
+  open: { id: string; agents: { id: string; name: string; cli: string }[] }[];
+  windows?: { id: number; name: string }[];
 }
 // The projects' manager (app.ts, project:*): what a project may be, its code, its profiles, its configuration.
 // agents: every account (main/accounts.ts); clis: the agents a new account can be made of.

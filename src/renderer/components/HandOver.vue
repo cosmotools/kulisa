@@ -7,7 +7,7 @@ import { computed, ref, watch } from 'vue';
 import { DialogClose, RadioGroupIndicator, RadioGroupItem, RadioGroupRoot } from 'reka-ui';
 import Modal from './Modal.vue';
 import Icon from './Icon.vue';
-import { act, store } from '../lib/store';
+import { act, store, shownTask } from '../lib/store';
 import { agentMark } from '../lib/agents';
 import { avatarSrc } from '../lib/common';
 import { registerDialog } from '../lib/dialogs';
@@ -19,11 +19,11 @@ const from = ref<Terminal | null>(null), chosen = ref<string>(), going = ref(fal
 const handed = ref<number | null>(null), read = ref<{ part: number; parts: number } | null>(null), error = ref('');
 let inTask: string | null = null, idle = 0;
 const IDLE = 30_000; // no part read for this long: an agent that thinks before it reads, or never does
-const agents = computed(() => (store.projects.open.find((o) => o.id === store.projects.current)?.agents || []).filter((a) => a.cli !== 'shell'));
+const agents = computed(() => (store.projects.open.find((o) => o.id === store.projects.project)?.agents || []).filter((a) => a.cli !== 'shell'));
 const to = computed(() => agents.value.find((a) => a.id === chosen.value));
 // "Claude Code · me@x.com": the agent, then its account.
 const parts = (name: string) => { const [agent, ...account] = name.split(' · '); return { agent, account: account.join(' · ') }; };
-const branch = computed(() => store.taskTabs.list.find((t) => t.key === store.current)?.branch);
+const branch = computed(() => shownTask()?.branch);
 const tabs = computed(() => store.profiles.reduce((n, p) => n + p.tabs.length, 0));
 const shells = computed(() => store.terminals.list.filter((t) => !t.agent));
 const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? '' : 's'}`;

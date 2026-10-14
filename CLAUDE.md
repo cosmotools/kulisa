@@ -44,7 +44,9 @@ unasked. This paragraph is removed when the rewrite is finished.
   words (no file, function or protocol names). kulisa.app builds its documentation page from it (`kulisa-site`), so
   pictures only from `docs/images/` by a relative path, and no links to the other docs. Keep it current: a change to
   what the human does or sees changes it too, in the same commit.
-- `README.md`: how to run, environment variables, a map of `src/`.
+- `README.md`: how to run, environment variables, the top-level folders. Not a list of files: those are in each
+  part's doc ("The code"; `docs/ui.md` at its top), kept with what they do (the author, 2026-10-14: a map of every
+  file went out of date, and does not scale).
 - `docs/testing.md`: how the tests are built and written. Read it before writing a test.
 - `docs/LICENSING.md`: Kulisa is GPL-3.0-or-later, the author's; what the license covers and what it does not.
 
@@ -90,19 +92,21 @@ unasked. This paragraph is removed when the rewrite is finished.
   Chrome. Not "module": that is a file of code.
 - **The agent is the human's choice, per task** (`agents/`): never assume `claude` is installed. Kulisa
   installs a missing agent itself with its maker's installer when the human asks, without steps for them to type.
-- **Terminology: "group"**: a project's open tasks in a window, its island in the bar, as Chrome's tab group (it
-  comes with the first task opened, goes with the last one closed: Close Group). A project is no thing to open (the
-  author, 2026-10-11: it is what its tasks are made of: profiles, agents, repositories); not "open project" or "Close
-  Project" (earlier commits say so). In code a group is still an open project (`Project` in `shell.open`).
-- **Terminology: "the tasks' bar"**: the bar of the groups' islands with their tasks' tabs, under the grid or over it
-  (☰ → Tasks bar; `TaskBar.vue`, `#taskbar`). Not "taskbar", the OS's. It was "the projects' bar" (`ProjectBar.vue`)
+- **Terminology: "tab"**: an open task in a window's tasks' bar, as a browser's tab (since 2026-10-14: its project's
+  icon on it, moved and ordered alone, its project's rows in a submenu of its menu). A project is no thing to open
+  (the author, 2026-10-11: it is what its tasks are made of: profiles, agents, repositories); not "open project" or
+  "Close Project". In code a project is loaded (`Project` in `shell.open`) while a task of it is open in any window.
+  Until 2026-10-14 a project's open tasks were a **group**, its island in the bar as Chrome's tab group, with a label
+  and a menu (Close Group): earlier commits and docs say so.
+- **Terminology: "the tasks' bar"**: the bar of the tasks' tabs, under the grid or in the title bar after the logo,
+  as a browser's tabs (☰ → Tasks bar; `TaskBar.vue`, `#taskbar`). Not "taskbar", the OS's. It was "the projects' bar" (`ProjectBar.vue`)
   until 2026-10-11: its tabs are tasks; earlier commits say so.
 - **Terminology: "Settings"**: the dialog behind the title bar's gear, as JetBrains' Settings: a tree of Projects (every
   project, each its page), Agents (the agents, their accounts) and Profiles (every profile, who it is). It was "the projects' manager" alone until 2026-10-11,
   then tabs; a project's page is still the manager in code (`ProjectEditor.vue`, `dialog('projects')`). New Project is a
   dialog of its own (`NewProject.vue`).
 - **Terminology: "the empty window"**: what a window is with no task open (at first start, after its last
-  group is closed): the title bar and the tasks' bar as always (no islands, its + there) and, in the
+  tab is closed): the title bar and the tasks' bar as always (no tabs, its + there) and, in the
   grid's place, an empty island: "No task is open", New Task (the bar's + menu), New Project…. `Empty.vue`. It replaced
   the Welcome screen (JetBrains' name; 2026-10-11), whose list of tasks is the bar's + now (the closed ones; Search
   Tasks for a few hours before it); earlier commits say Welcome screen.
@@ -283,7 +287,7 @@ unasked. This paragraph is removed when the rewrite is finished.
 ## Commands
 
 ```sh
-npm start   # the app: the groups open last, plus $KULISA_PROJECT's (at first start none: New Project)
+npm start   # the app: the tasks open last, plus one of $KULISA_PROJECT's (at first start none: New Project)
 npm test    # unit tests, knip, ESLint, actionlint (when installed), then the e2e groups in parallel, each the real app against a local test site, then restarted
 npm run test:unit     # the unit tests alone (plain Node, a second)
 npm run knip  # no file, export or dependency nothing uses: once a step, before showing it (docs/testing.md, Dead code)
@@ -351,7 +355,7 @@ npm run watch # the window built again on every change; then reload it (Ctrl+R i
 How the parts work, in detail: `docs/profiles.md` (profiles, sign-ins, the CDP proxy, the agent's tools, point and
 tell), `docs/tasks.md` (projects, tasks, agents, windows, what is on the computer) and `docs/window.md`
 (the title bar, the grid, zoom, menus, dialogs, the terminal). Read the one for the part you
-change; keep it current. Here: the layers, the modules, and what must hold.
+change; keep it current. Here: the layers, where a kind of code goes, and what must hold.
 
 Layers, each using only the ones below it:
 
@@ -391,47 +395,18 @@ check, a rule or a way of doing an action is never written in a handle, nor twic
 - What only the window needs (where the keyboard focus goes, pictures of the pages under a menu) stays in the
   window.
 
-Modules (`src/main`):
+Modules: each part's doc lists its files ("The code", its last section; `docs/ui.md` at its top); the code's own
+names (LSP, grep) find the rest. Where a kind of code goes:
 
-- `app.ts`: the app: its windows, the groups (open projects in code: a task opened, closed, moved to a new window; one change after
-  another: `serial`), the agents, the windows' IPC (each message acts in the window it comes from: `event.sender`;
-  one on profiles or tabs names its task too, refused when that window shows another by then: `act` in the
-  renderer's `lib/store.ts`), quit. `shell.win`, `shell.task`, `shell.profiles`, `shell.closed`, `shell.pty` are the first window's (the tests').
-- `window.ts`: a window: its groups and what it shows (show a group or a task, the grid's state, the
-  views' places), the questions asked there (`shell.ask(q, window)`, in its dialog: `Ask.vue`), the theme's colors
-  CSS does not paint.
-- `keys.ts`: the keyboard shortcuts: one table (what each key does, and where: a page, everywhere, the terminal) and
-  which key an input event is; `app.ts` takes them before any page does (`before-input-event`), the window runs them
-  (`renderer/lib/keys.ts`). A new key goes into the table (`docs/window.md`, Keys).
-- `projects.ts`: a project's group (an open project in code): its tasks (make, close, open again, delete; closing them all), removing a project's data.
-- `tasks.ts`: a task: its profiles, its terminals (its island) with its agents and their conversations, their
-  environment, renaming, copies for a new task.
-- `worktrees.ts`: git for tasks (the user's git, never a shell): worktree, branch, files outside git, direnv.
-- `accounts.ts`: the agents' accounts, one store: each made with the agent's own sign-in (Settings → Agents, or a
-  project), a config folder of its own (not the human's `~/.claude`), shown by its email, kept until the human deletes
-  it (Settings → Agents), with no project too.
-- `agents/`: the agents to choose from, a file each (`claude.ts`, `codex.ts`: everything Kulisa knows of that agent,
-  its transcript's reader too); `agent.ts` what an entry is, the contract every agent fills; `index.ts` the list and
-  what is done with any agent (find, install, version, accounts' sign-in, a folder's trust). Agent-specific code goes
-  into its agent's file, nowhere else; a new agent is a new file there.
-- `profile-store.ts`: the profiles, one store: who each is, its master, its projects. `master.ts`: a master's window,
-  where the human signs in once for every task (nothing automated attached). `cookie-sync.ts`: real accounts'
-  cookies kept in step between a master and its copies. `local.ts`: what is local.
-- `project-profiles.ts`: a task's profiles (its project's, each a copy of its master made at its first open), open
-  and closed: create, rename, describe, close, open, let go. `avatars.ts`: their pictures.
-- `profiles.ts`: a profile: `session.fromPath(<task>/Profile <k>)` plus a `WebContentsView` per tab.
-- `discard.ts`: tabs no one looks at losing their process after a while, as Chrome's Memory Saver: the rule and the sweep.
-- `store.ts`: Kulisa's data folder, laid out as Chrome's user data.
-- `names.ts`: the one rule for names (projects, tasks, profiles: an email address's characters) and slugs.
-- `session-cookies.ts`, `signin-pages.ts`, `signin-pause.ts`: sign-ins that last, the sign-in pause.
-- `cdp-proxy.ts`, `local-only.ts`: the CDP endpoint per profile; refusing web pages.
-- `history.ts`, `transcripts.ts`: the task's history for its agent, read from the agents' transcripts.
-- `mcp-server.ts`, `agent-hooks.ts`, `ghost.ts`, `picker.ts`: the agent's tools and hooks, its actions shown, point
-  and tell.
-- `updates.ts`: a packaged Kulisa updating itself (Forge's way), Squirrel's events on Windows.
-- `terminal.ts`: a pty per task for its agent, and its other terminals (a dev server the agent runs, the
-  human's shells); the agent typed into the user's shell in its folder (the project's own
-  environment: direnv, nvm, mise). On Windows started directly (the other terminals in cmd).
+- Agent-specific code goes into its agent's file in `agents/` (`claude.ts`, `codex.ts`: everything Kulisa knows of
+  that agent, its transcript's reader too), nowhere else; a new agent is a new file there.
+- A new keyboard shortcut goes into the table in `keys.ts` (`docs/window.md`, Keys).
+- The windows' IPC (`app.ts`) acts in the window a message comes from (`event.sender`); one on profiles or tabs
+  names its task too, refused when that window shows another by then (`act` in the renderer's `lib/store.ts`). One
+  change to the open tasks after another (`serial`). `shell.win`, `shell.task`, `shell.profiles`, `shell.closed`,
+  `shell.pty` are the first window's (the tests').
+- Git for tasks is the user's git, never a shell (`worktrees.ts`); an agent is typed into the user's shell in its
+  folder, so the project's own environment applies (direnv, nvm, mise; `terminal.ts`).
 
 What must hold in the window:
 

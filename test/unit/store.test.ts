@@ -29,12 +29,15 @@ test('projects: at first start none is opened; each gets its own color', async (
   assert.deepEqual([store.projectOf('/work/shop/')?.id, store.projectOf('/work/shop-api')?.id, store.projectOf('/work/other')], ['shop', 'shop', null]);
   store.updateProject(shop.id, { repos: null });
   const bounds = { x: 10, y: 20, width: 900, height: 700 };
-  store.saveWindows([{ tabs: [blog.id, shop.id], shown: shop.id, bounds }, { tabs: ['gone'], shown: 'gone' }]);
+  store.saveWindows([{ tabs: ['blog/1', 'shop/2'], shown: 'shop/2', bounds }, { tabs: ['gone/1'], shown: 'gone/1' }]);
   const later = new Store(path.join(root, 'fresh-data'));
   const [w, gone] = later.windows();
-  assert.deepEqual(w.tabs.map((p) => p.id), ['blog', 'shop'], 'later: the tabs open last');
-  assert.deepEqual([w.shown.id, w.bounds], ['shop', bounds], 'the one shown, where the window was');
-  assert.deepEqual([gone.tabs, gone.shown], [[], null], 'projects no longer there are left out');
+  assert.deepEqual(w.tabs, ['blog/1', 'shop/2'], 'later: the tabs open last, tasks by key');
+  assert.deepEqual([w.shown, w.bounds], ['shop/2', bounds], 'the one shown, where the window was');
+  assert.deepEqual([gone.tabs, gone.shown], [['gone/1'], 'gone/1'], 'as saved: a task no longer there is left out when the windows open (app.ts)');
+  // A project deleted: its tasks out of every window.
+  later.removeProject(blog);
+  assert.deepEqual(later.windows()[0].tabs, ['shop/2']);
   later.saveSettings({ ...later.settings(), uiZoom: 1 });
   later.saveWindows([]);
   assert.deepEqual(later.settings(), { uiZoom: 1, windows: [] }, 'the other settings kept');

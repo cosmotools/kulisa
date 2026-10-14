@@ -17,7 +17,9 @@ here; what is left of it stays.
     in TypeScript; 2026-10-12, a task's island of terminals with several agents in it ("Several agents in a task, rest",
     below); 2026-10-13, a repository added to a task when its work needs it (the human's menu or the agent's tool,
     [tasks.md](tasks.md), Tasks), dictation by a key held anywhere, the right Ctrl ([window.md](window.md), The terminal) and one
-    language for every agent (☰ → Language, [window.md](window.md), Language). The author tests it by hand. Next: fix what the author's testing finds; then what is left of the
+    language for every agent (☰ → Language, [window.md](window.md), Language); 2026-10-14, the tasks' bar a tab per
+    task, of its own (no groups: each tab its project's icon, moved and ordered alone, its project's rows in a
+    submenu of its menu; [tasks.md](tasks.md), Projects), the grid sliding between any two tabs. The author tests it by hand. Next: fix what the author's testing finds; then what is left of the
     steps (below), only once the author has decided it.
   - **Open, for the author to decide:** Refresh from Master… now matters only for a local app's cookies (keep or
     drop); a script the agent runs in a page (`browser_evaluate`) could read a test password back from its field
@@ -222,9 +224,6 @@ here; what is left of it stays.
       then it asks before every command. The machine's matter, as without Kulisa.
   - More agents (Gemini CLI, …): an entry each in `agents/`.
   - Windows: the installers run in PowerShell, untested; macOS untested.
-  - A hint in an empty grid: a new task opens no profile and its grid is the terminal alone (its agent's, or the
-    big buttons that open one when it is closed: docs/window.md, The terminal), so a hint would show in every new task; whether one is wanted (and what it says: the project's profiles in the task tab's menu, or "create
-    the first profile" when it has none) is the author's to decide.
 - **Tasks, rest** (how they work now, and why: [tasks.md](tasks.md)).
   - Helping the agent run the app ("Kulisa plugin: running the app", above). Today the agent gets
     `KULISA_PORT_OFFSET` and a line about it at session start.
@@ -285,8 +284,8 @@ here; what is left of it stays.
   - A closed tab comes back with its address only, not its history (Chrome's keeps it): Electron has no API for that.
 - **A desktop app's ways, not only buttons** (talked over with the author 2026-10-08, who liked them all). A web page
   puts a button on every action; a desktop app gives an action several ways in: a visible one for a newcomer, quick
-  ones for daily use (keys above, a right-click, dragging). Kulisa has some, here and there (the menus of a group,
-  a task's tab and a pane; a middle click closes a group; groups and
+  ones for daily use (keys above, a right-click, dragging). Kulisa has some, here and there (the menus of a task's
+  tab, its project's submenu and a pane; a middle click closes a task; tabs and
   panels are dragged). To build:
   - **The system's notifications: first** (small: Electron's `Notification`, `app.setBadgeCount`, `win.flashFrame`).
     The human is in their browser or IDE while agents work; today only the icon on a task's tab says one waits
@@ -506,7 +505,7 @@ here; what is left of it stays.
   known issues there (resizing, maximizing, the title bar overlay, profile views above the HTML). Faking the blur
   (a picture of the wallpaper, blurred) was rejected: a workaround, and it lags when the window moves.
 - **One panel in its own OS window** (e.g. the buyer's profile on a second monitor, the terminal and the other
-  profiles staying in the main window). Today only a whole group moves to another window (Move to New Window).
+  profiles staying in the main window). Today a task moves to another window whole (Move to New Window).
   dockview has popout windows, and a profile's native views can move between windows (`Profile.moveTo`), but a
   window shows one task's grid today: a window holding a part of another window's task is a new model
   (the views' bounds, closing, restoring after a restart). Medium work; to discuss.
@@ -525,8 +524,12 @@ here; what is left of it stays.
     (`RightClickMenu.vue`), over a picture of the page.
 - **Tabs unloaded, rest** (built 2026-10-13: [profiles.md](profiles.md), "Tabs unloaded"). A pane whose tab loads
   again is empty meanwhile: a picture of the page taken at the unload could stand there (a JPEG per tab in memory, as
-  the pictures under menus); a tab's history (Back, Forward) goes with its process, as a closed tab's does (no Electron
-  API for it). To watch in use: whether 5 minutes is the right time, and a tab loading again at a bad moment.
+  the pictures under menus); a tab's history (Back, Forward), its scroll position and its forms go with its process, as
+  a closed tab's do. Electron 44 can keep them: `navigationHistory.getAllEntries()` gives the entries with their
+  `pageState`, and `restore()` takes them (`electron.d.ts`; checked 2026-10-13), so the tab could come back as Chrome's
+  does, with Back and its place in the page. To watch in use: whether 5 minutes is the right time, and a tab loading
+  again at a bad moment. The two steps Chrome takes before unloading (throttling, freezing) wait on Electron: Open
+  issues, "Hidden tabs are not hidden to their pages".
 - **A Kulisa profile as a real Chrome profile.** Wanted: the profile's folder in Chrome's own format, so one button
   opens the same profile in the installed Google Chrome with the same tabs and sign-ins, and the storage layout
   is simply Chrome's. Wanted natively, without workarounds, so deferred until there is a clean way. Why it does
@@ -586,6 +589,25 @@ here; what is left of it stays.
     too). Check: that file at the new version's tag; the test of dialogs in `test/agent.ts` fails when the event is
     gone (Electron's message box comes back instead of the pane's dialog). Ask Electron for a public event
     (`webContents` 'dialog', as `select-bluetooth-device` takes a callback), then use it.
+- **Hidden tabs are not hidden to their pages (Electron): check at every Electron upgrade.** Chrome treats a tab
+  in the background in three steps, each cheaper for the computer: its page gets `document.visibilityState: "hidden"`
+  at once (no animation frames, timers at most once a second, once a minute after 5 minutes); after 5 minutes it is
+  frozen (no JS at all, its memory kept, back in an instant); under memory pressure it is unloaded. Kulisa has only
+  the third (profiles.md, "Tabs unloaded"), because the first two need the page to know it is hidden, and Electron
+  44.5.1 tells it only when the whole window is hidden: a `WebContentsView` after `setVisible(false)` keeps
+  `visibilityState: "visible"`, its `requestAnimationFrame` runs at the screen's rate and its timers unthrottled;
+  removed from the window (`removeChildView`) its frames stop, but it still says "visible" and its timers run; and
+  freezing it over CDP (`Page.setWebLifecycleState` frozen) is ignored, since Chromium freezes only a hidden page
+  (measured 2026-10-13, Linux, the author's Teams tabs and a scratch Kulisa; `debug-kulisa` skill). What it costs
+  today: nearly no CPU (a hidden Teams tab 0–0.1 % against 4.4 % shown: without frames to draw, pages go quiet by
+  themselves) and no memory; what it would give: the freeze as a step between a live tab and an unloaded one (no
+  CPU, back without a reload), and pages that behave as in Chrome's background (`visibilitychange`). Electron has no
+  API for it and no issue of ours yet; related: [electron/electron#41233](https://github.com/electron/electron/issues/41233)
+  (a page always "visible" with `backgroundThrottling` off; ours is on), [#50250](https://github.com/electron/electron/issues/50250).
+  On macOS a third party saw `setVisible(false)` stop the frames (Electron 41): may differ by platform. Check at an
+  upgrade: two tabs in a profile, `executeJavaScript('document.visibilityState')` in the one behind, and a counter of
+  `requestAnimationFrame` over a second; when it says "hidden", the throttling comes for free, and freezing before
+  unloading (`discard.ts`) can be built over the proxy's debugger. Not worth a workaround for the CPU alone.
 - **The MCP server and the CDP proxy do not authenticate local processes.** Web pages are refused
   (`local-only.ts`: Host and Origin checks), but any local process can drive the signed-in profiles. Needs a
   per-launch token (passed to the agent through the environment, like `KULISA_MCP_URL`) at least.

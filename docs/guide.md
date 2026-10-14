@@ -17,7 +17,7 @@ You sign in to your accounts yourself, by hand; the agent never does. Everything
   and its profiles. A project is not opened or closed itself; its tasks are.
 - **Task**: one piece of work in a project: an agent in a terminal, its own copy of the code, the project's profiles,
   and a grid of panes. Several tasks of one project run at once, each building something else.
-- **Group**: a project's open tasks in the bar at the bottom of the window, as a tab group in Chrome.
+- **Tab**: an open task in the tasks' bar (under the grid, or in the title bar), as a browser's tab; its project's icon is on it.
 
 ## Getting started
 
@@ -48,13 +48,13 @@ Kulisa is tested on Linux (Ubuntu) so far; on Windows it is newer and less tried
 ## The window
 
 - **The title bar**: the Kulisa logo in the shown project's color, **Settings** (the gear), and **☰**, the window's
-  menu: zoom, theme, where the tasks' bar is, language, Arrange panels, Agents…, Keyboard Shortcuts, links, Exit.
+  menu: zoom, theme, where the tasks' bar is, language, Arrange panels, Keyboard Shortcuts, links, Exit.
 - **The grid**: the shown task's panes (one per open profile) and its terminals. Drag a pane by its header to move it,
   onto another pane to stack them as tabs; drag the gaps to resize. **☰ → Arrange panels** offers ready-made
   arrangements. Each task keeps its own grid.
-- **The tasks' bar**, under the grid (or over it: **☰ → Tasks bar**): a group per project with open tasks, each task a
-  tab with its agent's state, and **+** after them.
-- **No task open** (at the first start, or after you close the last group): the window shows New Task and New
+- **The tasks' bar**, under the grid (or in the title bar, as a browser's tabs: **☰ → Tasks bar**): a tab per open task,
+  of any project, with its project's icon and its agent's state, and **+** after them.
+- **No task open** (at the first start, or after you close the last task): the window shows New Task and New
   Project….
 
 ## Projects
@@ -75,7 +75,7 @@ curtain and a color of its own.
 
 ### A project's page
 
-**Settings** (the gear) → **Projects** → the project, or **Project Settings…** in a group's right-click menu.
+**Settings** (the gear) → **Projects** → the project, or **Project Settings…** in a task tab's right-click menu, under the project's name.
 Everything is saved as you change it; there is no Save button.
 
 - **Name**.
@@ -94,7 +94,7 @@ Everything is saved as you change it; there is no Save button.
 
 ## Agents and their accounts
 
-**Settings → Agents** (or **☰ → Agents…**) lists the agents Kulisa knows (Claude Code, Codex): installed or not. Click
+**Settings → Agents** lists the agents Kulisa knows (Claude Code, Codex): installed or not. Click
 one to see its version, its accounts, and **Install** if it is not installed. Kulisa never removes or updates an agent: its maker's installer updates it.
 
 An **account** is an agent signed in to one of your subscriptions, so a work and a personal one can run side by side.
@@ -125,7 +125,8 @@ the right Ctrl: **☰ → Keyboard Shortcuts**, Change on its row, then press th
 - **A new task**: **+** in the tasks' bar, then a project (or Ctrl+Shift+N for the shown project). It runs the
   project's default agent with a new conversation; describe the task to it. With no default agent, you choose one
   with the buttons in the middle (Ctrl+` puts the keyboard on them). Its profiles are all closed: the agent
-  opens those it needs, or you do (right-click the task's tab).
+  opens those it needs, or you do: while none is open, each has a tile over the terminal (click it), and the task's
+  tab lists them on a right-click. A project with no profiles has one tile there, **Add Profile…**.
 - **Its own copy of the code.** In a project with git, every task works in a copy of its own (a git worktree) on a
   branch of its own, next to your project's folder (`myshop@task-2`). Your project's folder stays yours: the agent
   merges its work into it only when you ask (and checks first that you have no unsaved changes there), or opens a pull
@@ -146,23 +147,25 @@ the right Ctrl: **☰ → Keyboard Shortcuts**, Change on its row, then press th
   holding the pointer over its tab (or its row among the closed tasks) shows your first message in it.
 - **Its state** on its tab: working (sparkles), waiting for you (a bell: a question, a permission, a limit), done (a
   check, until you look at the task).
-- **Switch** by clicking a tab, of any group. The other tasks keep running: their agents and pages go on.
-- **× closes a task**: its agent stops and its tabs close; its code, branch, profiles and conversation stay. Open it
-  again from **+** (under its project) or its group's right-click menu: the agent continues the conversation.
+- **Switch** by clicking a tab, of any project. The other tasks keep running: their agents and pages go on.
+- **× closes a task** (or the middle button on its tab, or **Close** in its menu): its agent stops and its tabs close;
+  its code, branch, profiles and conversation stay. Open it again from **+** (under its project): the agent continues
+  the conversation.
 - **Delete Task…** (its tab's right-click menu) deletes it for good: its copy of the code, its branch, its profiles'
   copies, its conversation. The question says what would be lost (work not merged and not pushed). A closed task is
-  deleted from its row in **+** or its group's menu: the trash can at the row's end (or the Delete key). Once a closed
-  task's work is merged, its group's menu marks it "merged" and offers **Delete Merged Tasks…**.
+  deleted from its row in **+**: the trash can at the row's end (or the Delete key). Once a closed
+  task's work is merged, **+** marks it "merged", and the project's submenu offers **Delete Merged Tasks…**.
+- **The project's submenu**, at the end of a tab's right-click menu under the project's name: New Task, Move All
+  Tasks to New Window or to another window, Project Settings…, Show Data Folder, Delete Merged Tasks…, Close All
+  Tasks (asks only when an agent is working).
 
-### Groups
+### Several windows
 
-- Its right-click menu: New Task, its closed tasks, Move to New Window, Move to Window, Project Settings…, Show Data
-  Folder, Close Group.
-- **Close Group** (or the middle button on its name, or × on its last task) closes all its tasks. It asks only when an
-  agent is working.
-- **Several windows**: Move to New Window, or drag a group's name out of the window, e.g. to a second monitor. Its
-  agents and pages move along, still running.
-- Closing Kulisa keeps everything: the windows, their groups and tasks come back at the next start.
+- **Move to New Window** in a tab's right-click menu, or drag the tab out of the window, e.g. to a second monitor.
+  Its agent and pages move along, still running. **Move to Window: …** puts it into another window; dragging a tab
+  within the bar changes the order.
+- **Move All Tasks to …** in the project's submenu moves every open task of that project in this window together.
+- Closing Kulisa keeps everything: the windows and their tasks come back at the next start.
 
 ## Profiles
 
@@ -237,7 +240,8 @@ A pane is a small Chrome: a tab strip, an address bar, back, forward and reload.
   agent's tab (**×**) asks first; its conversation stays in the task's history. A shell closes at once, or with `exit`.
 - Close the last one and the island folds to a thin strip with **+** in its middle, which opens one again (Ctrl+`
   opens the task's agent). With no profile open either, big buttons in the middle of the window do what **+** does:
-  one for each of the project's agents, then **Terminal**. Tab moves between them and Enter opens one.
+  one for each of the project's agents, then **Terminal**. Tab moves between them and Enter opens one. Under them, a
+  tile for each of the project's profiles opens it.
 - Terminals come back after a restart in their tabs: an agent continues its conversation, a shell starts fresh.
 - Copy and paste as in your OS's terminal: Ctrl+Shift+C / Ctrl+Shift+V on Linux, Ctrl+C / Ctrl+V on Windows, ⌘C / ⌘V
   on macOS.
@@ -264,8 +268,8 @@ A pane is a small Chrome: a tab strip, an address bar, back, forward and reload.
 | Ctrl+` | The terminal in front, and back to the page |
 | Ctrl+Shift+` | A new terminal |
 | Ctrl+Shift+A | New task: of which project, or a closed one |
-| Ctrl+Shift+N | New task of the shown project |
-| Ctrl+Shift+1…9 | A task of the shown group |
+| Ctrl+Shift+N | New task of the same project |
+| Ctrl+Shift+1…9 | The first to ninth tab |
 | Ctrl+Shift+PgDn / PgUp | The next or previous task |
 | Ctrl+Shift+C (in a page) | Pick an element for the agent |
 | Ctrl+T, Ctrl+W, Ctrl+Shift+T (in a page) | New tab, close the tab, open the tab closed last |
@@ -281,5 +285,5 @@ In the terminal every other key is the agent's.
   for a project of several repositories. They go when the task is deleted.
 - Profiles, sign-ins, accounts and settings are in Kulisa's data folder: `~/.config/Kulisa` on Linux,
   `~/Library/Application Support/Kulisa` on macOS, `%APPDATA%\Kulisa` on Windows. Session cookies and test passwords
-  are encrypted with your OS's keyring. **Show Data Folder** in a group's right-click menu opens a project's.
+  are encrypted with your OS's keyring. **Show Data Folder** in a task tab's right-click menu, under the project's name, opens that project's.
 - Deleting a task, a profile or a project removes what Kulisa made for it.

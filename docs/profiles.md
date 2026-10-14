@@ -16,7 +16,8 @@ seen everywhere. Its **master** is a folder in Kulisa's data (`profiles/Profile 
 that task (not all at once: a closed one costs nothing), its tabs the master's moved to the task's ports. What a task
 has of a profile is its own: its copy (what is signed in there stays there), its tabs, open or closed, its sites'
 zoom. A new task opens none of them (the first one neither): the agent opens one when it needs it (`profile_open`),
-the human from the task tab's right-click menu ([tasks.md](tasks.md), What the human does).
+the human from a tile over the terminal while none is open, or the task tab's right-click menu ([tasks.md](tasks.md),
+What the human does).
 **A profile lives until the human deletes it** (Settings → Profiles; the author, 2026-10-11, as the agents' accounts):
 a profile in no project is kept, with its master and sign-ins. A project gets a profile when one is made in it
 (`profile_create`, its page in Settings → Profiles' + → New Profile…) or taken from the others (its page's + → Other
@@ -198,7 +199,7 @@ methods; who a profile is changes and is checked in the store (`ProfileStore.ren
 | Say who a profile is | Settings → Profiles | `profile_describe`, `profile_create` (the human's words only) | `ProfileStore.describe`; `Task.describeProfile` |
 | Change its picture | Settings → Profiles | none: how the human tells panes apart | `ProfileStore.setAvatar` |
 | A test user's pair | Settings → Profiles | `profile_set_login` | `ProfileStore.setLogin` (`shell.loginSecret` encrypts) |
-| Close, open a profile | ×, a task tab's menu | `profile_close`, `profile_open` | `Task.closeProfile`, `openProfile` |
+| Close, open a profile | ×; a tile while none is open, a task tab's menu | `profile_close`, `profile_open` | `Task.closeProfile`, `openProfile` |
 | Remove a profile from the project | Remove from Project…, − on its page | `profile_delete` | `Task.deleteProfile(id, by)`: asks the human either way |
 | Delete a profile | Settings → Profiles | none: its sign-ins are the human's | `deleteProfile` (`projects.ts`) |
 | Open a tab | +, Duplicate, New tab | `browser_tab_new` | `Profile.newTab` (the address read by `toUrl`) |
@@ -406,6 +407,8 @@ space (ROADMAP, "Profiles' caches").
 | `src/main/session-cookies.ts` | session cookies across restarts |
 | `src/main/signin-pages.ts`, `signin-pause.ts` | sign-in pages; the pause |
 | `src/main/cdp-proxy.ts` | the CDP endpoint per profile |
+| `src/main/local-only.ts` | refusing web pages' requests to the MCP server, the hooks and the proxy (Host, Origin) |
+| `src/main/agent-hooks.ts` | the answers to the agents' hooks: the open profiles, the session, the agent's state |
 | `src/main/discard.ts` | tabs no one looks at losing their process: the rule, the sweep (`Profile.discard`, `load` in `profiles.ts`) |
 | `src/main/mcp-server.ts`, `ghost.ts`, `picker.ts` | the agent's tools, its actions shown, point and tell |
 | `src/renderer/components/grid/ProfilePane.vue`, `ProfileHeader.vue`, `lib/profiles.ts`; `ProfilePage.vue`, `Avatars.vue` | the panes and the profiles' menu (a task tab's right-click); a profile's page in Settings and its pictures |

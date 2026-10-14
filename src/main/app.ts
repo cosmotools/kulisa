@@ -31,7 +31,7 @@ import { refused } from './result.ts';
 import type { IpcMainEvent, IpcMainInvokeEvent, WebContents } from 'electron';
 import type { Shell, AgentChoice } from './shell.ts';
 import type { Agent } from './agents/index.ts';
-import type { ProjectEntry, WindowState } from './store.ts';
+import type { ProjectEntry } from './store.ts';
 import type { Profile, Tab } from './profiles.ts';
 import type { Task } from './tasks.ts';
 import type { Pty } from './terminal.ts';
@@ -89,21 +89,14 @@ function start(options: Options = {}) {
     return new Promise<never>(() => {});
   }
   const store = new Store(userData);
-  // The windows open at the start, each with its tabs and the one it shows: those open last (or KULISA_PROJECT's,
-  // added to the first); one with none at first start.
+  // The windows open at the start, each with its tasks' tabs and the one it shows: those open last (KULISA_PROJECT's
+  // task in the first: ready, below); one with none at first start.
   const saved = store.windows().filter((w, i) => i === 0 || w.tabs.length);
   if (!saved.length) saved.push({ tabs: [], shown: null });
-  if (options.project) {
-    const p = projectOfFolder(path.resolve(options.project));
-    const w = saved.find((x) => x.tabs.some((t) => t.id === p.id)) || saved[0]!;
-    if (!w.tabs.some((t) => t.id === p.id)) w.tabs.push(p);
-    w.shown = p;
-  }
-  for (const w of saved) if (!w.tabs.some((t) => t.id === w.shown?.id)) w.shown = w.tabs[0] || null;
   const bus = new EventEmitter(); // profile-added, agent-command, agent-action
-  // The app: the projects open in any window (projects.ts: Project, by id) and the windows (window.ts: AppWindow).
-  // win, current, task, profiles, closed, pty are the first window's (the tests'): its shown project and task, that
-  // task's open and closed profiles by id, its agent a pick goes to (Task.promptTarget).
+  // The app: the loaded projects (projects.ts: Project, by id: those with a task open in any window) and the windows
+  // (window.ts: AppWindow). win, current, task, profiles, closed, pty are the first window's (the tests'): its shown
+  // task's project, that task, its open and closed profiles by id, its agent a pick goes to (Task.promptTarget).
   const shell = { bus, store, proxy: null, mcp: null, open: new Map(), windows: [], signin: signinPages(options.signinHosts || []) } as unknown as Shell;
   const first = () => shell.windows[0] ?? null;
   app.on('second-instance', () => first()?.focus());
@@ -134,7 +127,7 @@ function start(options: Options = {}) {
   shell.projectsHome = options.projectsHome || path.join(app.getPath('home'), 'Kulisa');
   Object.defineProperties(shell, {
     win: { get: () => first()?.win ?? null },
-    current: { get: () => first()?.current ?? null },
+    current: { get: () => first()?.task?.project ?? null },
     task: { get: () => first()?.task ?? null },
     profiles: { get: () => first()?.profiles || NONE },
     closed: { get: () => first()?.closed || NONE },
@@ -154,7 +147,7 @@ function start(options: Options = {}) {
   // A task's profiles changed (now: right away), or its agent's state (tasks.ts): its window shows it. Not
   // once quitting: the tabs are saved then, and each one closing as Kulisa quits saved its task's tabs again,
   // fewer each time, at last none (one in the background at once: 2026-10-08, the author's tabs all about:blank).
-  shell.taskChanged = (task, now, agentState) => quitting || task.project.window?.changed(task, now, agentState);
+  shell.taskChanged = (task, now, agentState) => quitting || task.window?.changed(task, now, agentState);
   // A project for a folder opened (KULISA_PROJECT, project:open with a folder).
   function projectOfFolder(folder: string) { return store.projectFor(folder); }
   // The projects' icons as the windows show them (docs/tasks.md, Projects: nothing to choose): the picture of its
@@ -253,64 +246,64 @@ function start(options: Options = {}) {
   const allProfiles = () => [...allTasks().flatMap((task) => [...task.profiles.values()]), ...[...(shell.masters?.values() || [])].map((m) => m.profile)];
 
   // ---------- windows, projects and tasks ----------
-  // A project is a folder with its tasks (store.ts). Each window has a tab per project open in it, as a browser
-  // has; it shows one, the others keep running (their agents and pages), until the human closes their tab. Each
-  // task has its profiles, grid and agent (tasks.ts); a window shows one of its shown project's, the others
-  // keep running. Showing another project or task hides this one's pages, and the window builds the next grid in
-  // place (the page is not loaded again). A task loads (profiles, agent) the first time it is shown.
+  // A project is a folder with its tasks (store.ts); a task is open as a tab of a window, as a browser's (since
+  // 2026-10-14: until then a window had a tab per project, its open tasks a group in it). Each task has its profiles,
+  // grid and agent (tasks.ts); a window shows one, the others keep running (their agents and pages), until the human
+  // closes their tab. Showing another task hides this one's pages, and the window builds the next grid in place
+  // (the page is not loaded again). A task loads (profiles, agent) the first time it is shown. A project is loaded
+  // (shell.open) while a task of it is open in any window: its git, its agents' accounts.
   // Opening, showing, creating, moving and closing run one after another, in all windows.
   let queue: Promise<unknown> = Promise.resolve();
   const serial = <T>(fn: () => T | Promise<T>): Promise<T> => { const r = queue.then(fn); queue = r.catch(() => {}); return r; };
   const newWindow = (place: Place) => { const w = new AppWindow(shell, place, { appDevTools }); shell.windows.push(w); return w; };
-  const addProject = (p: ProjectEntry, w: AppWindow) => { const project = new Project(shell, p); shell.open.set(p.id, project); w.add(project); return project; };
-  // A project is no thing to open (the author, 2026-10-11: it is what its tasks are made of: profiles, agents,
-  // repositories); its tasks are. Its island in a window's bar is the group of its open tasks there, as Chrome's tab
-  // group: it comes with the first one opened and goes with the last one closed. In code an open project (Project in
-  // shell.open, a tab of its window) is that group.
-  // Task n of project p shown (the bar's +), opened again if it was closed; none: a new task of it. In its group's
-  // window, brought to the front; with no group yet, a new one at the end of window w's bar.
+  const loadProject = (p: ProjectEntry) => shell.open.get(p.id) || shell.open.set(p.id, new Project(shell, p)).get(p.id)!;
+  // A project with no open task left is let go: nothing of it runs.
+  const unloadIdle = () => { for (const [id, p] of shell.open) if (!p.open().length) shell.open.delete(id); };
+  const openTasksOf = (project: Project, w: AppWindow) => w.tabs.filter((t) => t.project === project);
+  // Task n of project p shown (the bar's +), opened again if it was closed; none: a new task of it. In the window it
+  // is open in, brought to the front; a closed or new one at the end of window w's bar.
   async function openProject(p: ProjectEntry, w: AppWindow, n?: number | null): Promise<Result<{ n: number; key: string }>> {
-    const had = shell.open.get(p.id), project = had || addProject(p, w);
+    const project = loadProject(p);
     const task = n != null && project.tasks.get(n);
-    if (project.window !== w) project.window!.focus();
     if (!task) {
-      const r = await createTask(project);
-      if (r.error && !had && !project.open().length) { await unload(project); sendProjects(); } // no group without a task
+      const r = await createTask(project, w);
+      unloadIdle();
       return r;
     }
     if (task.entry.closed) project.reopen(task);
+    if (!task.window) w.add(task);
     await showTask(task);
     sendProjects();
     return { n: task.n, key: task.key };
   }
-  // Closing groups, wherever it starts (Close Group, the middle button on a label, × on a group's last task, deleting a
-  // project, a window's ×): one function, so one rule. The human is asked first in their window w, only when an agent
-  // works (a window's ×: always; asked: already). Each group's tasks close as × on each would (projects.ts, closeAll:
-  // agents stopped, profiles saved and closed, all kept to open again), its island goes; the one on screen goes last,
-  // so the one next to it is shown, or none is left: an empty island in the grid's place, or the window closes when
-  // there is another (as a browser's).
-  async function closeProjects(w: AppWindow, projects: Project[], { asked = false, window = false } = {}): Promise<Result<{ ids: string[] }>> {
-    if (!asked && !await askClosing(w, projects, { window })) return { error: 'the human said no' };
-    for (const p of [...projects.filter((p) => p !== w.current), ...projects.filter((p) => p === w.current)]) {
-      await w.leave(p);
-      p.closeAll();
-      await unload(p);
+  // Closing tasks, wherever it starts (× on a tab, the middle button on it, Close All Tasks, deleting a project, a
+  // window's ×): one function, so one rule. The human is asked first in their window w, only when an agent works (a
+  // window's ×: always; asked: already). Each closes as × on it would (projects.ts, closeTask: its agent stopped,
+  // its profiles saved and closed, all kept to open again), its tab goes; the one on screen goes last, so the one
+  // next to it is shown, or none is left: an empty island in the grid's place, or the window closes when there is
+  // another (as a browser's). A project with no open task left is let go.
+  async function closeTasks(w: AppWindow, tasks: Task[], { asked = false, window = false } = {}): Promise<Result<{ keys: string[] }>> {
+    if (!asked && !await askClosing(w, tasks, { window })) return { error: 'the human said no' };
+    for (const task of [...tasks.filter((t) => t !== w.current), ...tasks.filter((t) => t === w.current)]) {
+      const win = task.window;
+      if (!win) continue;
+      await win.leave(task);
+      await task.project.closeTask(task);
+      win.drop(task);
     }
+    unloadIdle();
     if (!w.tabs.length && shell.windows.length > 1) dropWindow(w);
     shell.saveWindows();
     sendProjects();
-    return { ids: projects.map((p) => p.id) };
+    return { keys: tasks.map((t) => t.key) };
   }
-  async function closeProject(project: Project | null | undefined, options?: { asked?: boolean }): Promise<Result<{ ids: string[] }>> {
-    if (!project || !shell.open.has(project.id)) return { error: 'the project is not open' };
-    return closeProjects(project.window!, [project], options);
-  }
-  // The question before closing groups (one: only when an agent works; a window's: window), saying which agents are
-  // still working; or before quitting (quit), when the groups come back at the next start: asked only when that would
-  // stop a working agent. True: go on.
-  function askClosing(w: AppWindow | null, projects: Project[], { quit = false, window = false } = {}) {
-    const working = projects.flatMap((p) => [...p.tasks.values()].filter((task) => task.working)
-      .map((task) => (projects.length > 1 ? `${p.name}: ${task.name}` : task.name)));
+  // The question before closing tasks (one, or a project's: only when an agent works; a window's: window), saying which
+  // agents are still working; or before quitting (quit), when the tasks come back at the next start: asked only
+  // when that would stop a working agent. True: go on.
+  function askClosing(w: AppWindow | null, tasks: Task[], { quit = false, window = false } = {}) {
+    const projects = new Set(tasks.map((t) => t.project));
+    const named = (task: Task) => (projects.size > 1 ? `${task.project.name}: ${task.name}` : task.name);
+    const working = tasks.filter((task) => task.working).map(named);
     const busy = working.length ? `${working.length > 1 ? 'Agents are' : 'An agent is'} still working (${working.join(', ')}): ` : '';
     const it = working.length > 1 ? 'them' : 'it';
     if (quit) {
@@ -318,59 +311,70 @@ function start(options: Options = {}) {
         detail: `${busy}quitting stops ${it}. The windows, their tasks and conversations come back at the next start.` }, w);
     }
     if (!window) {
-      return !working.length || shell.ask({ message: `Close the group ${projects[0]!.name}?`, ok: 'Close',
-        detail: `${busy}closing stops ${it}. Its tasks' conversations, code and profiles stay: open them again from the bar's +.` }, w);
+      const what = tasks.length === 1 ? `the task ${tasks[0]!.name}` : `the ${tasks.length} tasks of ${[...projects].map((p) => p.name).join(', ')}`;
+      return !working.length || shell.ask({ message: `Close ${what}?`, ok: 'Close',
+        detail: `${busy}closing stops ${it}. ${tasks.length === 1 ? 'Its conversation, code and profiles stay' : 'Their conversations, code and profiles stay'}: open ${tasks.length === 1 ? 'it' : 'them'} again from the bar's +.` }, w);
     }
     return shell.ask({ message: 'Close the window?', ok: 'Close',
-      detail: `Its tasks close: ${projects.map((p) => p.name).join(', ')}. ${busy ? `${busy}closing stops ${it}. ` : ''}`
+      detail: `Its tasks close: ${tasks.map(named).join(', ')}. ${busy ? `${busy}closing stops ${it}. ` : ''}`
         + 'Their conversations, code and profiles stay: open them again from the bar\'s +.' }, w);
   }
-  // A group no longer: its agents stopped, its profiles closed, its island gone (not on screen any more).
-  async function unload(project: Project) {
-    await project.unload();
-    shell.open.delete(project.id);
-    project.window!.drop(project);
-  }
-  // A project into another window (to, its tab at index; none: a window of its own next to its window, or at the
-  // point at), as a browser moves a tab; it keeps running: its agents, its pages (the same views, moved, not loaded
-  // again), what its terminals showed (terminals: { task key: their contents }, from the window it leaves). The
+  // A task into another window (to, its tab at index; none: a window of its own next to its window, or at the
+  // point at), as a browser moves a tab; it keeps running: its agent, its pages (the same views, moved, not loaded
+  // again), what its terminals showed (terminals: { terminal key: its contents }, from the window it leaves). The
   // only tab of a window goes to a new one never (nothing would change); into another window, its window closes after
   // it.
-  async function moveProject(project: Project | undefined, terminals: Terminals = {}, to: AppWindow | null = null, { index, at }: { index?: number; at?: Electron.Point } = {}): Promise<Result<{ id: string }>> {
-    const from = project?.window;
-    if (!from) return { error: 'the project is not open' };
-    if (to === from) return { id: project.id };
-    if (!to && from.tabs.length < 2) return { error: 'the project is the only one in its window' };
-    for (const task of project.tasks.values()) shell.chooseAgent.cancel(task); // none opens: the island's + there
-    await from.leave(project);
-    from.drop(project);
+  async function moveTask(task: Task | null | undefined, terminals: Terminals = {}, to: AppWindow | null = null, { index, at }: { index?: number; at?: Electron.Point } = {}): Promise<Result<{ key: string }>> {
+    const from = task?.window;
+    if (!task || !from) return { error: 'the task is not open' };
+    if (to === from) return { key: task.key };
+    if (!to && from.tabs.length < 2) return { error: 'the task is the only one in its window' };
+    shell.chooseAgent.cancel(task); // none opens: the island's + there
+    await from.leave(task);
+    from.drop(task);
     const target = to || newWindow({ near: from.win, at });
-    target.add(project, index);
-    project.moveTo(target);
+    target.add(task, index);
+    task.moveTo(target);
     if (!from.tabs.length) dropWindow(from); // after its pages have left it
-    target.send('terminals:restore', terminals); // before any more output (window.ts: sent once the page has loaded)
+    target.send('terminals:restore', ownTerminals(terminals, task)); // before any more output (window.ts: sent once the page has loaded)
     if (to) {
       to.focus();
-      await to.show(project);
+      await to.show(task);
       shell.saveWindows();
       sendProjects();
-    } else await showInNew(target, project);
-    return { id: project.id };
+    } else await showInNew(target, task);
+    return { key: task.key };
   }
-  async function showInNew(to: AppWindow, project: Project) {
-    const loading = to.load(project.entry);
-    await to.show(project);
+  // A task's terminals among those a window sent ("<task key>#<id>": renderer/lib/terminals.ts).
+  const ownTerminals = (terminals: Terminals, task: Task) => Object.fromEntries(Object.entries(terminals).filter(([key]) => key.startsWith(`${task.key}#`)));
+  // Move All Tasks to …: a project's open tasks of window w, one after another, into window to (none: a new window,
+  // made for the first, the others following it).
+  async function moveAll(project: Project | undefined, w: AppWindow | null, terminals: Terminals, to: AppWindow | null): Promise<Result<{ keys: string[] }>> {
+    if (!project || !w) return { error: 'the project is not open' };
+    const tasks = openTasksOf(project, w);
+    if (to === w) return { keys: tasks.map((t) => t.key) };
+    let target = to;
+    for (const task of tasks) {
+      const r = await moveTask(task, terminals, target);
+      if (refused(r)) return r;
+      target = task.window;
+    }
+    return { keys: tasks.map((t) => t.key) };
+  }
+  async function showInNew(to: AppWindow, task: Task) {
+    const loading = to.load(task);
+    await to.show(task);
     await loading;
     shell.saveWindows();
     sendProjects();
   }
-  // A project's tab dragged and let go on window w's tabs (index: where): from w, it changes their order; from another
-  // window, the project moves to w.
-  function dropProject(project: Project | undefined, w: AppWindow | null, index: number, terminals: Terminals) {
-    if (!project || !w) return { error: 'the project is not open' };
-    if (project.window !== w) return moveProject(project, terminals, w, { index });
-    w.reorder(project, index);
-    return { id: project.id };
+  // A task's tab dragged and let go on window w's tabs (index: where): from w, it changes their order; from another
+  // window, the task moves to w.
+  function dropTask(task: Task | null, w: AppWindow | null, index: number, terminals: Terminals) {
+    if (!task?.window || !w) return { error: 'the task is not open' };
+    if (task.window !== w) return moveTask(task, terminals, w, { index });
+    w.reorder(task, index);
+    return { key: task.key };
   }
   // A tab let go where no Kulisa window took it: outside them all, a new window there; on one (cancelled, or let go
   // elsewhere in a window), nothing.
@@ -378,12 +382,12 @@ function start(options: Options = {}) {
   // Project, over the empty window (Empty.vue).
   shell.firstStart = (w) => { if (!store.projects().length) w.send('project:new'); };
   shell.pointer = () => screen.getCursorScreenPoint(); // where the pointer is on the screen (the tests set it)
-  async function dragOut(project: Project | undefined, terminals: Terminals): Promise<Result<{ id?: string }>> {
+  async function dragOut(task: Task | null, terminals: Terminals): Promise<Result<{ key?: string }>> {
     const at = shell.pointer();
-    return shell.windows.some((w) => w.contains(at)) ? { id: project?.id } : moveProject(project, terminals, null, { at });
+    return shell.windows.some((w) => w.contains(at)) ? { key: task?.key } : moveTask(task, terminals, null, { at });
   }
   // The OS's × of a window. The last one closes and Kulisa quits: its tabs open again at the next start (asked first
-  // only when an agent works). Another one closes its projects, as closing their tabs would.
+  // only when an agent works). Another one closes its tasks, as closing their tabs would.
   shell.windowClosing = (w, e) => {
     if (quitting) return;
     e.preventDefault();
@@ -391,101 +395,87 @@ function start(options: Options = {}) {
   };
   async function closeWindow(w: AppWindow) {
     if (!shell.windows.includes(w)) return;
-    if (shell.windows.length > 1) return w.tabs.length ? closeProjects(w, [...w.tabs], { window: true }) : dropWindow(w);
+    if (shell.windows.length > 1) return w.tabs.length ? closeTasks(w, [...w.tabs], { window: true }) : dropWindow(w);
     return quit(w);
   }
-  // Quitting Kulisa (the last window's ×, ☰ → Exit): every window and project comes back at the next start, so it asks
+  // Quitting Kulisa (the last window's ×, ☰ → Exit): every window and task comes back at the next start, so it asks
   // only when an agent works; w: the window to ask in.
-  async function quit(w: AppWindow | null) { if (await askClosing(w, [...shell.open.values()], { quit: true })) app.quit(); }
+  async function quit(w: AppWindow | null) { if (await askClosing(w, allTasks().filter((t) => t.window), { quit: true })) app.quit(); }
   function dropWindow(w: AppWindow) { shell.windows.splice(shell.windows.indexOf(w), 1); w.destroy(); }
-  // A new task of a project (the bar's +, New Task: projects.ts), with its default agent, then shown. Without git it
-  // would work in the folder another open task works in: the human is told first.
-  async function createTask(project: Project | null | undefined): Promise<Result<{ n: number; key: string }>> {
-    if (!project) return { error: 'the project is not open' };
+  // A new task of a project (the bar's +, New Task: projects.ts), with its default agent, at the end of window w's
+  // bar, then shown. Without git it would work in the folder another open task works in: the human is told first.
+  async function createTask(project: Project | null | undefined, w: AppWindow | null): Promise<Result<{ n: number; key: string }>> {
+    if (!project || !w) return { error: 'the project is not open' };
     await project.checkGit();
     if (project.sharesFolder() && !await shell.ask({ message: `Another task of ${project.name} works in its folder`, ok: 'Create Anyway',
-      detail: `Without git, tasks have no copies of their own: both agents would work in ${project.folder}, and may get in each other's way.` }, project.window)) {
+      detail: `Without git, tasks have no copies of their own: both agents would work in ${project.folder}, and may get in each other's way.` }, w)) {
       return { error: 'the human said no' };
     }
     const task = await project.createTask();
     if (refused(task)) return task;
+    w.add(task);
     await showTask(task);
     return { n: task.n, key: task.key };
   }
-  // A task of any open project shown: it becomes that project's, then the project is shown.
+  // A task shown, in its window (brought to the front when the ask came from another).
   async function showTask(task: Task) {
-    const win = task.project.window!;
-    await win.showTask(task);
-    if (win.current !== task.project) await win.show(task.project);
-  }
-  // Before a task of a project leaves its bar (closed or deleted): the project shows the open task next to it. There is
-  // one: the last open task closes its group instead (closeTask, deleteTask).
-  async function leaveTask(task: Task) {
-    const project = task.project, open = project.open(), i = open.indexOf(task);
-    if (project.task === task) await project.window!.showTask((open[i + 1] || open[i - 1])!);
+    const win = task.window!;
+    win.focus();
+    await win.show(task);
   }
   // × on a task's tab: its agent stops, its tabs close, all else stays (projects.ts, closeTask); asked first only when
-  // its agent is working. The last open task closes its group, as Chrome's tab group goes with its last tab.
-  async function closeTask(task: Task): Promise<Result<{ n: number } | { ids: string[] }>> {
-    const project = task.project;
-    if (task.working && !await shell.ask({ message: `Close the task ${task.name}?`, ok: 'Close',
-      detail: 'Its agent is still working: closing stops it. Its conversation, code and profiles stay; open it again from the bar\'s +.' }, project.window)) {
-      return { error: 'the human said no' };
-    }
-    if (project.open().length === 1) return closeProject(project, { asked: true });
-    await leaveTask(task);
-    await project.closeTask(task);
-    project.window!.taskGone(task);
-    project.checkMerged().then((found) => found && sendProjects()).catch(() => {});
-    return { n: task.n };
+  // its agent is working.
+  async function closeTask(task: Task): Promise<Result<{ keys: string[] }>> {
+    const w = task.window;
+    if (!w) return { error: 'the task is not open' };
+    const r = await closeTasks(w, [task]);
+    task.project.checkMerged().then((found) => found && sendProjects()).catch(() => {});
+    return r;
   }
-  // Delete in a task's menu (open or closed), after the human says yes: everything of it goes (projects.ts). The last
-  // open one closes its project first.
+  // Delete in a task's menu (open or closed), after the human says yes: everything of it goes (projects.ts). An open
+  // one leaves its window first.
   async function deleteTask(task: Task): Promise<Result<{ n: number }>> {
-    const project = task.project;
+    const project = task.project, w = task.window;
     if (!await project.askDeleteTask(task)) return { error: 'the human said no' };
-    if (!task.entry.closed && project.open().length === 1) {
-      const r = await closeProject(project, { asked: true });
-      if (refused(r)) return r;
-    } else if (!task.entry.closed) await leaveTask(task);
+    if (w) await w.leave(task);
     await project.deleteTask(task);
-    project.window?.taskGone(task);
-    if (!project.window) sendProjects();
+    if (w) {
+      w.drop(task);
+      if (!w.tabs.length && shell.windows.length > 1) dropWindow(w);
+    }
+    unloadIdle();
+    shell.saveWindows();
+    sendProjects();
     return { n: task.n };
   }
-  // Delete Merged Tasks… (its group's menu): its closed tasks whose PR is merged, after one question naming them;
+  // Delete Merged Tasks… (a project's menu, from window w): its closed tasks whose PR is merged, after one question naming them;
   // nothing of them is lost (projects.ts, checkMerged).
-  async function deleteMerged(project: Project) {
+  async function deleteMerged(project: Project, w: AppWindow | null) {
     const list = project.closedTasks().filter((t) => t.entry.merged);
     if (!list.length) return { error: 'no closed task of it is merged' };
     if (!await shell.ask({ message: `Delete ${list.length === 1 ? `the task ${list[0]!.name}` : `${list.length} merged tasks`}?`, ok: 'Delete', danger: true,
-      detail: `Merged on the remote, nothing uncommitted: ${list.map((t) => `${t.name} (${t.entry.branch})`).join(', ')}. Their folders, branches, profiles' copies and agents' conversations go.` }, project.window)) {
+      detail: `Merged on the remote, nothing uncommitted: ${list.map((t) => `${t.name} (${t.entry.branch})`).join(', ')}. Their folders, branches, profiles' copies and agents' conversations go.` }, w)) {
       return { error: 'the human said no' };
     }
     for (const t of list) await project.deleteTask(t);
     sendProjects();
     return { deleted: list.map((t) => t.n) };
   }
-  // A closed task listed in its project's group menu, opened again: shown, its agent resumed.
-  async function openTask(task: Task) {
-    task.project.reopen(task);
-    await showTask(task);
-    return { n: task.n };
-  }
-  // Removing a project, from wherever a window asks for it (w): the human confirms, then it is closed if it is open,
-  // and its data deleted (projects.ts).
+  // Removing a project, from wherever a window asks for it (w): the human confirms, then its open tasks are closed
+  // in every window, and its data deleted (projects.ts).
   async function deleteProject(id: string, w: AppWindow | null) {
     const p = store.projects().find((x) => x.id === id);
     if (!p) return { error: `no project ${id}` };
-    if (!await askDeleteProject(shell, p, shell.open.get(id)?.window || w)) return { error: 'the human said no' };
-    if (shell.open.has(id)) await closeProject(shell.open.get(id), { asked: true });
+    const open = shell.open.get(id);
+    if (!await askDeleteProject(shell, p, open?.window || w)) return { error: 'the human said no' };
+    if (open) for (const win of [...shell.windows]) await closeTasks(win, openTasksOf(open, win), { asked: true });
     await deleteProjectData(shell, p);
     sendProjects();
     return { id };
   }
   ipcMain.handle('projects:list', (e) => at(e)?.info());
-  // The switch runs on its own; the window hears about it through grid:closing, projects, tasks and state. No
-  // question where (the author, 2026-10-11): a group of its own in this window, which Move to New Window takes away.
+  // The switch runs on its own; the window hears about it through grid:closing, projects and state. No question
+  // where (the author, 2026-10-11): a tab in this window, which Move to New Window takes away.
   const openLater = (p: ProjectEntry, w: AppWindow, n?: number) => {
     setImmediate(() => serial(() => (shell.windows.includes(w) ? openProject(p, w, n) : null)).catch((err) => console.error('[project:open]', err)));
     return w.info();
@@ -704,7 +694,7 @@ function start(options: Options = {}) {
     const config = own?.agent.config;
     if (!own?.own || !config?.login) return { error: `${own?.name || agentId} has no accounts` };
     const found = await findAgent(own.agent, app.getPath('home'));
-    if (!found?.path) return { error: `${own.name} is not installed: install it in ☰ → Agents…` };
+    if (!found?.path) return { error: `${own.name} is not installed: install it in Settings → Agents` };
     const r = shell.accounts.prepare(agentId);
     if (refused(r)) return r;
     const p = await startTerminal((channel, data) => w?.send(channel, data), { command: found.path, args: config.login(),
@@ -739,24 +729,37 @@ function start(options: Options = {}) {
     lookChanged(entry);
     return { id };
   });
-  // A project's look changed: its group and its window's title, the bars.
+  // A project's look changed: its tasks' tabs and the windows' titles, the bars.
   function lookChanged(entry: ProjectEntry) {
     const open = shell.open.get(entry.id);
     if (open) {
       open.update(entry);
-      if (open.window?.current === open) open.window.win.setTitle(`${entry.name} — Kulisa`);
+      for (const w of shell.windows) if (w.current?.project === open) w.win.setTitle(`${w.current.name} · ${entry.name} — Kulisa`);
     }
     sendProjects();
   }
-  ipcMain.handle('project:close', (e, { id }: { id?: string } = {}) => serial(() => closeProject(id ? shell.open.get(id) : at(e)?.current)));
-  // to: the id of the window it goes to (window.ts), none for a new one.
-  ipcMain.handle('project:move', (_e, { id, to, terminals }: { id: string; to?: number; terminals: Terminals }) => serial(() => {
-    const target = to ? shell.windows.find((w) => w.id === to) : null;
-    return to && !target ? { error: 'that window is closed' } : moveProject(shell.open.get(id), terminals, target);
+  // Close All Tasks (a project's menu): its open tasks in every window, asked once in the window it came from.
+  ipcMain.handle('project:close-tasks', (e, { id }: { id: string }) => serial(async () => {
+    const p = shell.open.get(id), w = at(e);
+    if (!p || !w) return { error: 'the project is not open' };
+    const tasks = p.open().filter((t) => t.window);
+    if (!await askClosing(w, tasks)) return { error: 'the human said no' };
+    for (const win of [...shell.windows]) await closeTasks(win, openTasksOf(p, win), { asked: true });
+    return { keys: tasks.map((t) => t.key) };
   }));
-  // A project's tab dragged (projects.ts): let go on this window's tabs, or where no window took it.
-  ipcMain.handle('project:drop', (e, { id, index, terminals }: { id: string; index: number; terminals: Terminals }) => serial(() => dropProject(shell.open.get(id), at(e), index, terminals)));
-  ipcMain.handle('project:drag-out', (_e, { id, terminals }: { id: string; terminals: Terminals }) => serial(() => dragOut(shell.open.get(id), terminals)));
+  // to: the id of the window it goes to (window.ts), none for a new one.
+  const windowById = (to?: number) => (to ? shell.windows.find((w) => w.id === to) : null);
+  ipcMain.handle('task:move', (_e, { key, to, terminals }: { key: string; to?: number; terminals: Terminals }) => serial(() => {
+    const target = windowById(to);
+    return to && !target ? { error: 'that window is closed' } : moveTask(shell.taskByKey(key), terminals, target);
+  }));
+  ipcMain.handle('project:move-all', (e, { id, to, terminals }: { id: string; to?: number; terminals: Terminals }) => serial(() => {
+    const target = windowById(to);
+    return to && !target ? { error: 'that window is closed' } : moveAll(shell.open.get(id), at(e), terminals, target ?? null);
+  }));
+  // A task's tab dragged (TaskBar.vue): let go on this window's tabs, or where no window took it.
+  ipcMain.handle('task:drop', (e, { key, index, terminals }: { key: string; index: number; terminals: Terminals }) => serial(() => dropTask(shell.taskByKey(key), at(e), index, terminals)));
+  ipcMain.handle('task:drag-out', (_e, { key, terminals }: { key: string; terminals: Terminals }) => serial(() => dragOut(shell.taskByKey(key), terminals)));
   ipcMain.handle('app:quit', (e) => serial(() => quit(at(e))));
   // Kulisa's data of an open project (its profiles, tasks), in the OS's file manager: for the human who wants to
   // know where it is or what takes the disk. Opened, not changed.
@@ -765,14 +768,13 @@ function start(options: Options = {}) {
     return p && electronShell.openPath(store.dirOf(p.entry));
   });
   ipcMain.handle('project:delete', (e, { id }: { id: string }) => serial(() => deleteProject(id, at(e))));
-  // A task of another project too (the bar shows every open project's): it becomes that project's, then the
-  // project is shown.
+  // A task of any project (the bar shows every open task).
   const taskAt = <T>(key: string, fn: (task: Task) => T) => serial(() => { const task = shell.taskByKey(key); return task ? fn(task) : { error: `no task ${key}` }; });
   ipcMain.handle('task:show', (_e, key: string) => taskAt(key, showTask));
-  ipcMain.handle('task:new', (e, { project }: { project?: string } = {}) => serial(() => createTask(project ? shell.open.get(project) : at(e)?.current)));
+  ipcMain.handle('task:new', (e, { project }: { project?: string } = {}) => serial(() => createTask(project ? shell.open.get(project) : at(e)?.task?.project, at(e) ?? null)));
   ipcMain.handle('task:close', (_e, key: string) => taskAt(key, closeTask));
   ipcMain.handle('task:delete', (_e, key: string) => taskAt(key, deleteTask));
-  // 🗑 on a closed task's row (the bar's +, its group's menu): its project's group need not be open.
+  // 🗑 on a closed task's row (the bar's +): its project need not be loaded.
   ipcMain.handle('task:delete-closed', (e, { project, n }: { project: string; n: number }) => serial(async () => {
     const open = shell.open.get(project)?.tasks.get(n);
     if (open) return open.entry.closed ? deleteTask(open) : { error: `task ${n} is open` };
@@ -782,18 +784,17 @@ function start(options: Options = {}) {
     if (!refused(r)) sendProjects();
     return r;
   }));
-  ipcMain.handle('task:open', (_e, key: string) => taskAt(key, openTask));
   ipcMain.handle('task:rename', (_e, { key, name }: { key: string; name: string }) => taskAt(key, (task) => task.rename(name)));
   ipcMain.handle('task:add-repo', (_e, { key, repo }: { key: string; repo: string }) => taskAt(key, (task) => task.addRepository(repo)));
   ipcMain.handle('task:remove-repo', (_e, { key, repo }: { key: string; repo: string }) => taskAt(key, (task) => task.removeRepository(repo)));
-  ipcMain.handle('project:delete-merged', (_e, { id }: { id: string }) => serial(() => { const p = shell.open.get(id); return p ? deleteMerged(p) : { error: 'the project is not open' }; }));
+  ipcMain.handle('project:delete-merged', (e, { id }: { id: string }) => serial(() => { const p = shell.open.get(id); return p ? deleteMerged(p, at(e)) : { error: 'the project is not open' }; }));
   // The dictation: its key held (holdKey, above in onKey) and the microphone (Dictation.vue; Task.voice, dictate).
   // Esc typed into an agent's terminal (its key: "<task>#<id>"): Task.interrupted.
   ipcMain.on('pty:in', (_e, { task, data }: { task: string; data: string }) => { if (data === '\x1b') shell.taskByKey(task.split('#')[0]!)?.interrupted(task); });
   ipcMain.handle('voice:get', (_e, key: string) => shell.taskByKey(key)?.voice() ?? null);
   ipcMain.handle('voice:record', (_e, { task, on }: { task: string; on: boolean }) => shell.taskByKey(task)?.dictate(on) ?? { recording: false });
   ipcMain.handle('task:show-folder', (_e, key: string) => { const task = shell.taskByKey(key); return task && electronShell.openPath(task.folder); });
-  ipcMain.handle('tasks:get', (e) => at(e)?.sendTasks());
+  ipcMain.handle('tasks:get', (e) => at(e)?.sendProjects());
 
   const ready = app.whenReady().then(async () => {
     // macOS keeps a menu bar for the app: Electron's default one would reload Kulisa's own page with ⌘R. Its own
@@ -804,21 +805,38 @@ function start(options: Options = {}) {
     shell.proxy = new CdpProxy();
     await shell.proxy.listen(0);
     shell.proxy.on('command', (c: import('./cdp-proxy.ts').Command) => bus.emit('agent-command', c));
-    const windows = saved.map((s: WindowState) => {
+    // Each window's tasks as saved, by key; then every project's open tasks no window has (tasks.json says open:
+    // a crash, or windows saved by an older Kulisa) into the first window's bar, so none is lost.
+    const projectOf = (key: string) => { const p = store.projects().find((x) => key.startsWith(`${x.id}/`)); return p && loadProject(p); };
+    const windows = saved.map((s) => {
       const w = newWindow(s);
-      for (const p of s.tabs) if (!shell.open.has(p.id)) addProject(p, w);
-      return { w, shown: s.shown && shell.open.get(s.shown.id)?.window === w ? shell.open.get(s.shown.id)! : w.tabs[0] || null };
+      for (const key of s.tabs) { const task = projectOf(key)?.taskByKey(key); if (task && !task.entry.closed && !task.window) w.add(task); }
+      return { w, shown: (s.shown && w.tabs.find((t) => t.key === s.shown)) || w.tabs[0] || null };
     });
-    await windows[0]!.w.load(windows[0]!.shown?.entry ?? null);
+    if (!windows.length) windows.push({ w: newWindow({}), shown: null });
+    for (const p of store.projects()) {
+      const open = store.tasksOf(p).list.filter((t) => !t.closed);
+      if (open.length) for (const task of loadProject(p).open()) if (!task.window) windows[0]!.w.add(task);
+    }
+    unloadIdle();
+    for (const win of windows) win.shown ||= win.w.tabs[0] || null;
+    await windows[0]!.w.load(windows[0]!.shown);
     shell.mcp = await startMcpServer(shell, { port: options.mcpPort ?? 4450 });
     installPicker(shell);
     installGhost(shell);
     installMasters(shell, { preload: path.join(import.meta.dirname, '..', 'preload', 'index.cjs'), colors: () => COLORS[shell.shade()] });
 
     for (const [i, { w, shown }] of windows.entries()) {
-      if (i) await w.load(shown?.entry ?? null);
+      if (i) await w.load(shown);
       if (shown) await serial(() => w.show(shown));
-      else { w.sendProjects(); w.sendTasks(); }
+      else w.sendProjects();
+    }
+    // KULISA_PROJECT (npm start, the tests): that project's task shown in the first window: its first open one, else
+    // the one closed last opened again, else a new one.
+    if (options.project) {
+      const p = projectOfFolder(path.resolve(options.project)), project = loadProject(p), w = windows[0]!.w;
+      const task = project.open()[0] || project.closedTasks()[0];
+      await serial(() => openProject(p, w, task?.n ?? null));
     }
     shell.firstStart(windows[0]!.w);
     shell.saveWindows();
@@ -866,7 +884,7 @@ function start(options: Options = {}) {
   shell.chooseAgent = ((task: Task, agent: AgentChoice | null) => new Promise<AgentChoice | null>((resolve) => {
     choosing.get(task.key)?.(null);
     choosing.set(task.key, resolve);
-    task.project.window?.send('agent:choose', { task: task.key, selected: agent?.id ?? null });
+    task.window?.send('agent:choose', { task: task.key, selected: agent?.id ?? null });
   })) as Shell['chooseAgent'];
   shell.chooseAgent.cancel = (task: Task) => { choosing.get(task.key)?.(null); choosing.delete(task.key); };
   ipcMain.on('agent:chosen', (_e, { task, id }: { task: string; id: string | null }) => { const r = choosing.get(task); choosing.delete(task); r?.(id ? shell.agentFor(id) : null); });
@@ -885,7 +903,7 @@ function start(options: Options = {}) {
   ipcMain.handle('agents:list', async (e, { check, details, cached }: { check?: boolean; details?: boolean; cached?: boolean } = {}) => {
     const w = at(e), looks = new Map<string, ReturnType<typeof look>>(), cwd = w?.task?.folder || app.getPath('home'); // each agent looked for once, whatever its accounts
     // The project's agents first (Choose the Agent), in its order.
-    const mine = w?.current?.agents() || [], rank = (id: string) => (mine.includes(id) ? mine.indexOf(id) : mine.length);
+    const mine = w?.task?.project.agents() || [], rank = (id: string) => (mine.includes(id) ? mine.indexOf(id) : mine.length);
     // Choosing a task's: the project's accounts, and the agents without accounts (the terminal only); never another
     // project's account: it could go with that project while a task here runs it. The Agents window: the agents alone,
     // not the terminal only: nothing of it to set up there (the author, 2026-10-11).
@@ -1045,7 +1063,7 @@ function start(options: Options = {}) {
     if (quitting) return;
     e.preventDefault(); quitting = true;
     for (const w of shell.windows) w.pushState();
-    for (const task of allTasks()) if (task !== task.project.window?.task && task.loaded) task.list.saveTabs();
+    for (const task of allTasks()) if (task !== task.window?.task && task.loaded) task.list.saveTabs();
     shell.saveWindows();
     shell.stopAutosave?.();
     shell.discard?.stop();

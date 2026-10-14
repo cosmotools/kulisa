@@ -8,7 +8,7 @@ import type { Terminal } from '../types';
 export interface Dialogs {
   taskrename: { rename(key: string, name: string): void };
   // Settings: its Projects tab (at a project, or New Project), its Agents tab.
-  projects: { openProjects(id?: string): Promise<void>; newProject(): Promise<void>; openAgents(): Promise<void>; openProfiles(id?: string): Promise<void> };
+  projects: { openProjects(id?: string): Promise<void>; newProject(): Promise<void>; openProfiles(id?: string): Promise<void> };
   // New Project (NewProject.vue); fromSettings: Cancel goes back to Settings.
   newproject: { open(opts?: { fromSettings?: boolean }): Promise<void> };
   shortcuts: { showShortcuts(): void };
