@@ -42,7 +42,7 @@ interface Command { n?: number; page?: boolean; p?: Profile; tab?: string }
 const run: Record<string, (c: Command) => unknown> = {
   'terminal.focus': () => (!store.terminals.list.length ? openOwn() : zone === 'terminal' && lastPane ? focusPage(lastPane) : shownTerm()?.focus()),
   'terminal.new': () => act('terminal:open'),
-  'task.n': ({ n }) => showTask(document.querySelectorAll('#tasklist .tasktab')[n! - 1]),
+  'task.n': ({ n }) => showTask(document.querySelectorAll('#projectTabs .tasktab')[n! - 1]),
   'task.next': () => stepTask(1),
   'task.previous': () => stepTask(-1),
   'task.new': () => kulisa.invoke('task:new'),
@@ -63,7 +63,7 @@ const run: Record<string, (c: Command) => unknown> = {
   // As a click on Pick: off on an empty tab; again cancels.
   pick: ({ p }) => document.querySelector<HTMLButtonElement>(`.pane[data-profile="${CSS.escape(p!.id)}"] .pick`)?.click(),
 };
-// Every open project's tasks, in the bar's order.
+// The bar's tasks, in its order.
 function stepTask(dir: number) {
   const all = [...document.querySelectorAll<HTMLElement>('#projectTabs .tasktab')];
   const i = all.findIndex((t) => t.dataset.task === store.current);

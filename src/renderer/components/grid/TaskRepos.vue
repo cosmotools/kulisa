@@ -3,9 +3,9 @@
 import { computed, reactive, watch } from 'vue';
 import Icon from '../Icon.vue';
 import RightClickMenu from '../menu/RightClickMenu.vue';
-import { store } from '../../lib/store';
+import { shownTask } from '../../lib/store';
 
-const task = computed(() => store.taskTabs.list.find((t) => t.key === store.current));
+const task = computed(shownTask);
 // Shown in a project of several repositories only: with one there is nothing to tell.
 const shown = computed(() => !!task.value && task.value.copies.length + task.value.repos.length > 1);
 const fresh = reactive(new Set<string>());

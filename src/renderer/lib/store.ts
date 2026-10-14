@@ -1,17 +1,15 @@
 // The window's state, as the main process sends it (window.ts), for the components to draw.
 import { reactive, watch } from 'vue';
-import type { ClosedProfile, LanguageInfo, Profile, ProjectsInfo, TaskInfo, Terminals } from '../types';
+import type { ClosedProfile, LanguageInfo, Profile, ProjectsInfo, Terminals } from '../types';
 import { initialProjects } from './common';
 import { projectColor } from './project-color';
 
 const root = document.documentElement;
 export const store = reactive({
-  // The shown task's key ("<project id>/<n>"); null with no project open (Empty.vue).
+  // The shown task's key ("<project id>/<n>"); null with no task open (Empty.vue).
   current: null as string | null,
-  // The shown project's open tasks and the one its group shows: from the projects' news as a project is shown, so its
-  // group has them at once (not the last project's until the tasks' news), then from the tasks' news.
-  taskTabs: { list: [] as TaskInfo[], active: null as string | null },
-  projects: (initialProjects || { current: null, projects: [], open: [] }) as ProjectsInfo,
+  // The projects and the window's tabs (the open tasks, each with its agent's state), from the projects' news.
+  projects: (initialProjects || { current: null, project: null, projects: [], tabs: [], open: [] }) as ProjectsInfo,
   // The shown task's profiles, open (as Profile.info) and closed; its terminals' island.
   profiles: [] as Profile[],
   closedProfiles: [] as ClosedProfile[],
@@ -33,17 +31,15 @@ export const store = reactive({
 export function setLoading(on: boolean) { store.loading = on; root.classList.toggle('loading', on); }
 
 // The window's actions on the shown task's profiles and tabs name it, as the grid's layout does: one sent just as the
-// human switches tasks or projects is refused, not done in the other one (app.ts, onScreen).
+// human switches tasks is refused, not done in the other one (app.ts, onScreen).
+// The shown task (TaskInfo) and its project, from the window's tabs.
+export const shownTask = () => store.projects.tabs.find((t) => t.key === store.current);
+const shownProject = () => store.projects.projects.find((p) => p.id === store.projects.project);
 export const act = <T = any>(channel: string, args: Record<string, unknown> = {}) => kulisa.invoke<T>(channel, { ...args, task: store.current });
 
 kulisa.on<ProjectsInfo>('projects', (info) => {
   store.projects = info;
-  const shown = info.open.find((o) => o.id === info.current);
-  if (shown) store.taskTabs = { list: (shown.tasks || []).filter((t) => !t.closed), active: shown.task ?? null };
-});
-kulisa.on<{ current: string | null; list: TaskInfo[] }>('tasks', ({ current, list }) => {
-  store.current = current;
-  store.taskTabs = { list, active: current };
+  store.current = info.current;
 });
 kulisa.on<ClosedProfile[]>('closed-profiles', (list) => { store.closedProfiles = list; });
 kulisa.on<number>('zoom', (z) => { store.zoom = z; });
@@ -54,11 +50,11 @@ kulisa.on<LanguageInfo>('language', (info) => { store.language = info; });
 void kulisa.invoke<LanguageInfo>('language:get').then((info) => { store.language = info; });
 
 // The theme of Kulisa's own UI (app.ts): CSS does the rest (tokens.css: color-scheme, light-dark()). The tasks' bar
-// over the grid or under it. The open project's color for the whole window (--project); none: Kulisa's own colors.
+// over the grid or under it. The shown task's project's color for the whole window (--project); none: Kulisa's own colors.
 watch(() => store.theme, (t) => { root.dataset.theme = t; });
 watch(() => store.bar, (b) => { root.dataset.bar = b; });
 watch(() => store.current === null, (none) => root.classList.toggle('noproject', none), { immediate: true });
-watch(() => { const p = store.projects.projects.find((x) => x.id === store.projects.current); return p && projectColor(p); }, (color) => {
+watch(() => { const p = shownProject(); return p && projectColor(p); }, (color) => {
   if (color) root.style.setProperty('--project', color); else root.style.removeProperty('--project');
 }, { immediate: true });
 

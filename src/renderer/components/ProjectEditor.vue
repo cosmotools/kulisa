@@ -108,7 +108,7 @@ async function edit(id: string) {
 async function openProjects(id?: string, on: Section = 'projects', at?: string) {
   void agentsList.load(undefined, async () => {});
   await lists();
-  const { current, projects: all } = await kulisa.invoke<{ current: string | null; projects: ProjectEntry[] }>('projects:list');
+  const { project: current, projects: all } = await kulisa.invoke<{ project: string | null; projects: ProjectEntry[] }>('projects:list');
   const pick = id || current || all[0]?.id;
   if (pick) await edit(pick); else { editing.value = null; await showList(); }
   if (on === 'profiles') profileAt.value = allProfiles.value.some((p) => p.id === at) ? at : allProfiles.value[0]?.id;
@@ -124,7 +124,6 @@ async function newProject() {
 registerDialog('projects', {
   openProjects,
   newProject: async () => (await dialog('newproject')).open(),
-  openAgents: () => openProjects(undefined, 'agents'),
   openProfiles: (id?: string) => openProjects(undefined, 'profiles', id),
 });
 

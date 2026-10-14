@@ -20,6 +20,7 @@ import { loginAllowed } from './local.ts';
 import type { Tab } from './profiles.ts';
 import type { Entry, Hooks } from './project-profiles.ts';
 import type { Project } from './projects.ts';
+import type { AppWindow } from './window.ts';
 import type { Conversation, Copy, TaskEntry, TaskStore } from './store.ts';
 import type { Pty } from './terminal.ts';
 import type { GitError } from './worktrees.ts';
@@ -50,6 +51,7 @@ const HANDOVER = (n: number, name: string) => `Go on with the work of conversati
 
 class Task {
   shell: Shell; project: Project; entry: TaskEntry; n: number; key: string; folder: string; offset: number; store: TaskStore;
+  window: AppWindow | null; // the one whose tab it is (window.ts)
   loaded: boolean; terminalsLoaded: boolean;
   terminals: Map<number, TaskTerminal>; terminalSeq: number; list: ProjectProfiles;
   profiles: ProjectProfiles['profiles']; closed: ProjectProfiles['closed'];
@@ -60,10 +62,10 @@ class Task {
   // ("<project id>/<n>"): the windows, the terminals, the CDP proxy and the MCP server's URLs know it by that.
   // shell: the app (app.ts): store, proxy, mcp, sessionCookies, signin, uiZoom, bus, ask; the agents
   // (agentFor, findAgent, chooseAgent, plugin); and taskChanged(task, now, agentState), called after any change of its
-  // profiles or its agent's state. Its window is its project's (window.ts: win, viewsHidden, picking, send), which
-  // changes when the project moves to another window.
+  // profiles or its agent's state. Its window is the one whose tab it is (window.ts: add, drop; win, viewsHidden,
+  // picking, send), none while it is closed; it changes when the task moves to another window (moveTo).
   constructor(shell: Shell, project: Project, entry: TaskEntry) {
-    this.shell = shell; this.project = project; this.entry = entry;
+    this.shell = shell; this.project = project; this.entry = entry; this.window = null;
     this.n = entry.n;
     this.key = `${project.id}/${this.n}`;
     this.folder = entry.folder || project.folder; // its agent's: the copy of the default repository
@@ -75,8 +77,10 @@ class Task {
     this.list = new ProjectProfiles(this.store, shell.profileStore, project.id, this._profileHooks());
     this.profiles = this.list.profiles; this.closed = this.list.closed;
   }
-  get window() { return this.project.window; }
   shown() { return this.window?.task === this; }
+  // Into another window (app.ts, Move to New Window), running: its profiles' pages go there, hidden until that window
+  // lays them out; its agents' output goes there (window: send).
+  moveTo(w: AppWindow) { for (const p of this.profiles.values()) p.moveTo(w.win); }
   get name() { return this.entry.name; }
   // Still its first name (projects.ts): neither its agent nor the human has named it.
   get unnamed() { return this.entry.name === `task-${this.n}`; }
@@ -94,7 +98,7 @@ class Task {
     entry.name = name!;
     delete entry.about;
     this.project.save();
-    this.window?.sendTasks(); this.window?.sendProjects();
+    this.window?.sendProjects();
     return { name: name!, branch: entry.branch || null };
   }
 
@@ -105,7 +109,7 @@ class Task {
     if (!this.unnamed || this.entry.about || !line) return;
     this.entry.about = line.length > 120 ? `${line.slice(0, 119)}…` : line;
     this.project.save();
-    this.window?.sendTasks(); this.window?.sendProjects();
+    this.window?.sendProjects();
   }
 
   // What it takes to run a profile of this task (project-profiles.ts).
@@ -193,7 +197,7 @@ class Task {
     const c = await this.project.addCopy(this, found);
     if (refused(c)) return c;
     for (const t of this.agentTerminals()) if (t.pty) { (t.newDirs ??= []).push({ copy: c }); void this.giveDirs(t); }
-    this.window?.sendTasks(); this.window?.sendProjects();
+    this.window?.sendProjects();
     return { folder: c.folder, branch: c.branch };
   }
   // One of them taken out again (the human's Remove Repository, the agent's task_remove_repository once the human
@@ -212,7 +216,7 @@ class Task {
       (t.newDirs ??= []).push({ copy: c, removed: true });
       void this.giveDirs(t);
     }
-    this.window?.sendTasks(); this.window?.sendProjects();
+    this.window?.sendProjects();
     return { folder: c.folder };
   }
   // Copies added to the task, sent to a running agent by Kulisa as the human would type them (the author, 2026-10-13:
@@ -692,7 +696,7 @@ class Task {
 
   info(): Sent.TaskInfo {
     const { n, key, name, tabState: state, folder, offset } = this;
-    return { n, key, name, state, folder, offset, branch: this.entry.branch || null, closed: !!this.entry.closed, merged: !!this.entry.merged,
+    return { n, key, project: this.project.id, name, state, folder, offset, branch: this.entry.branch || null, closed: !!this.entry.closed, merged: !!this.entry.merged,
       about: this.entry.about, repos: this.addable(),
       copies: (this.entry.copies || []).map((c) => ({ name: path.basename(c.repo), folder: c.folder, branch: c.branch })) };
   }

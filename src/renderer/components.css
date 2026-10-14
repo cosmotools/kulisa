@@ -106,6 +106,9 @@ svg:has(> use) { width: 16px; height: 16px; flex: none; fill: none; stroke: curr
   .picon { flex: none; width: var(--icon); height: var(--icon); color: var(--color); }
   &.inset { padding-inline-start: calc(2 * var(--inset) + var(--icon)); }
   :is(small, kbd):empty { display: none; }
+  /* A submenu's row (MenuRows.vue): the chevron at its end, muted; lit while its menu is open, as under the pointer */
+  .chevron { flex: none; color: var(--text-muted); }
+  &[data-state="open"] { background: var(--island-hi); }
   /* Its 🗑 (a closed task's): on the row the pointer or the keyboard is on */
   .remove { flex: none; visibility: hidden; margin-block: -4px; }
   &:is(:hover, [data-highlighted]) .remove { visibility: visible; }

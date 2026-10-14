@@ -125,7 +125,7 @@ export function forgetTerminals(keys: string[]) {
 // another window writes into new terminals: a project moving there keeps what its agents showed. Each with its size:
 // written into a terminal of another size (xterm's default before it fits its panel), the lines of an agent's screen
 // would be cut and its prompt drawn in pieces.
-export const terminalsOf = (project: string) => Object.fromEntries([...terminals].filter(([key]) => key.startsWith(`${project}/`))
+export const terminalsOf = (task: string) => Object.fromEntries([...terminals].filter(([key]) => key.startsWith(`${task}#`))
   .map(([key, e]) => [key, { data: e.serialize.serialize(), cols: e.term.cols, rows: e.term.rows }]));
 kulisa.on<Record<string, { data: string; cols: number; rows: number }>>('terminals:restore', (list) => {
   for (const [key, { data, cols, rows }] of Object.entries(list)) (terminals.get(key)?.term || makeTerminal(key, { cols, rows }).term).write(data);
@@ -187,9 +187,9 @@ export function terminalMenu(key: string, more: MenuItem[]): MenuItem[] | null {
   ];
 }
 
-// The island's menus (Terminals.vue). The shown project's agents (its accounts), the default first; the terminal only is
-// the Terminal row.
-const projectAgents = () => (store.projects.open.find((o) => o.id === store.projects.current)?.agents || []).filter((a) => a.cli !== 'shell');
+// The island's menus (Terminals.vue). The shown task's project's agents (its accounts), the default first; the terminal
+// only is the Terminal row.
+const projectAgents = () => (store.projects.open.find((o) => o.id === store.projects.project)?.agents || []).filter((a) => a.cli !== 'shell');
 // The same as big buttons, the island alone in the grid: an account's name is its agent's · its email, on two lines.
 export const launchers = () => [
   ...projectAgents().map((a) => {

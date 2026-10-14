@@ -39,11 +39,11 @@ const DEVTOOLS: Keys = { keys: ['F12', 'CommandOrControl+Shift+I'], mac: ['F12',
 const KEYS: Binding[] = [
   { id: 'terminal.focus', group: 'global', label: 'The agent\'s terminal, and back to the page', keys: ['Control+`'], window: true },
   { id: 'terminal.new', group: 'global', label: 'New terminal', keys: ['Control+Shift+`'], window: true },
-  { id: 'task.n', group: 'global', label: 'Task 1 to 9 of the project', range: true,
+  { id: 'task.n', group: 'global', label: "Tab 1 to 9 of the tasks' bar", range: true,
     keys: digits('CommandOrControl+Shift+', 1, 9), mac: digits('Command+Alt+', 1, 9) }, // ⌘⇧3, 4, 5: macOS's screenshots
-  { id: 'task.next', group: 'global', label: 'Next task (of every open project)', keys: ['CommandOrControl+Shift+PageDown'] },
+  { id: 'task.next', group: 'global', label: 'Next task in the bar', keys: ['CommandOrControl+Shift+PageDown'] },
   { id: 'task.previous', group: 'global', label: 'Previous task', keys: ['CommandOrControl+Shift+PageUp'] },
-  { id: 'task.new', group: 'global', label: 'New task of the shown project', keys: ['CommandOrControl+Shift+N'], window: true },
+  { id: 'task.new', group: 'global', label: 'New task of the same project', keys: ['CommandOrControl+Shift+N'], window: true },
   { id: 'task.menu', group: 'global', label: 'New task: of which project, or a closed one', keys: ['CommandOrControl+Shift+A'], window: true }, // the bar's +
   { id: 'shortcuts', group: 'global', label: 'Keyboard shortcuts', keys: ['CommandOrControl+Shift+/'], window: true },
   { id: 'zoom.in', group: 'global', label: 'Zoom Kulisa in', ...ZOOM_IN, always: true },

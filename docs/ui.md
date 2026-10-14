@@ -44,8 +44,7 @@ pointer, read as a web page's and were hard to read). So:
 
 - Colors for both themes ([window.md](window.md), Theme): each is `light-dark(light, dark)`, so a new color gets
   both values. JS reads a color as shown through an element that uses it (`lib/terminals.ts`), not the token's text.
-  JetBrains' themes: `--window` (gaps, title bar), `--island` (panels, dialogs, menus), `--well` (under a
-  task's panels and the projects' islands, a step from `--island`), `--island-hi`
+  JetBrains' themes: `--window` (the title bar, under the grid and the tasks' bar), `--island` (panels, dialogs, menus), `--island-hi`
   (a lit row, a divider), `--toolbar` (a pane's toolbar and active tab), `--field`, `--button`, `--line` (borders);
   text `--text`, `--text-strong`, `--text-dim`, `--text-muted`; `--accent` (main button, focus), `--danger`,
   `--error`, `--note` (what waits for the human), `--agent` (the agent's caption on a pane, in the accent's hue: until
@@ -53,11 +52,12 @@ pointer, read as a web page's and were hard to read). So:
   `--selection` (the terminal's); `--chosen`, `--chosen-idle` (a list's selected row, while the list has the keyboard
   and when it has not: JetBrains'); `--page-button`, `--on-page-button`, `--page-pad` (Chrome's blue and room, a page's
   dialog: `.pagedialog`); `--page`, `--backdrop`, `--shadow`; `--hover` (under the
-  pointer, on any background); `--project` (the shown group's project's color, set by `lib/store.ts`).
+  pointer, on any background); `--project` (the shown task's project's color, set by `lib/store.ts`).
 - Sizes: `--sans` (the window's font, Inter), `--font` (all text, the terminal too), `--font-small` (a group's title, a dialog's title), `--control` (the
-  height of buttons and fields), `--tab` (a tab's and a group's label's: a step taller), `--radius`,
-  `--tab-radius`, `--island-radius`, `--gap` (the space between and inside islands; also dockview's `gap` in
-  `Grid.vue`); room as Chrome's menus and dialogs have it: `--row` (a row of a menu or a list), `--inset` (inside
+  height of buttons and fields), `--tab` (a tab's: a step taller), `--radius`,
+  `--tab-radius` (a pane's tab's and a task's), `--island-radius`, `--gap` (the space between and inside islands, between the
+  window's rows, between the tasks' tabs; also dockview's `gap` in `Grid.vue`), `--bartab` (a task's tab's height), `--title` (the title bar's: `--gap`,
+  `--control`, `--gap`; the OS buttons' strip is as tall, `window.ts`); room as Chrome's menus and dialogs have it: `--row` (a row of a menu or a list), `--inset` (inside
   a row, between its icon and text, between a dialog's fields), `--pad` (inside a dialog along its edges), `--label` (a form's labels' column, "Name:", `.field`, and what lines up
   with its fields). Things
   set close together were the author's complaint (2026-10-07): space comes from these, not from new numbers. The
@@ -85,7 +85,8 @@ Each icon is drawn once, as a `<symbol id="i-…">` in the sprite (`Sprite.vue`,
 | `i-back`, `i-forward`, `i-reload` | a pane's toolbar (Chrome's) |
 | `i-pick` | Pick (DevTools' inspect icon) |
 | `i-globe` | a tab whose site has no icon |
-| `i-zoom`, `i-theme`, `i-language`, `i-arrange`, `i-agent`, `i-keyboard`, `i-exit` | ☰'s rows: Zoom, Theme, Language, Arrange panels, Agents…, Keyboard Shortcuts, Exit |
+| `i-zoom`, `i-theme`, `i-language`, `i-arrange`, `i-keyboard`, `i-exit` | ☰'s rows: Zoom, Theme, Language, Arrange panels, Keyboard Shortcuts, Exit |
+| `i-agent` | an agent without a mark of its own (`agentMark`, `lib/agents.ts`; until 2026-10-14 also ☰'s Agents… row) |
 | `i-chevron` | a row that opens a menu beside it (☰'s Language; Lucide's chevron-right) |
 | `i-mic` | dictation's microphone at the end of the terminals' row of tabs (Lucide's mic) |
 | `i-working`, `i-waiting`, `i-done` | an agent's state on a tab (`.state`); `i-done` also checks the chosen row of a menu, and a checkbox |
@@ -124,7 +125,7 @@ every other `<svg>` uses the sprite.
 
 - `.item`: a row of a menu or a list (`MenuButton.vue`, the projects' manager's rows), `--row` high: an optional icon (`.ico`), `.dot`
   (a project's color, `--color`), `ProjectIcon.vue` (a project's icon in its color: its favicon, one of Kulisa's set or
-  the curtain; `.picon`, also on its label in the tasks' bar) or `.avatar` (a profile's picture), `.text` with `.label` and a `small` line under it, a `kbd` key at the end. Lit under the
+  the curtain; `.picon`, also on a task's tab in the tasks' bar, 20 px there) or `.avatar` (a profile's picture), `.text` with `.label` and a `small` line under it, a `kbd` key at the end. Lit under the
   pointer and on keyboard focus.
 - `.list`: a list a dialog edits (a project's Code, Agents and Profiles; New Project's folders; an agent's accounts),
   or chooses from (Settings → Agents' agents, no toolbar), as JetBrains': framed,
@@ -242,7 +243,9 @@ it, and the keyboard goes back where it was. While one is open, the pages are pi
 
 Items (`lib/menu.ts`, laid out by `menu/MenuRows.vue`) are `{ label, sub, keys, title, icon, color, avatar, project, inset,
 enabled, run, remove }` (`MenuButton.vue`; `keys`: the row's key at its end, from the keys' table: `keyText(id)`, `lib/common.ts`), `'-'` (a divider), `{ heading, icon }`, `{ note }` (small dim words
-under the rows, not one of them: ☰'s version, so nothing looks clickable that is not) or `{ component, props }` (a row
+under the rows, not one of them: ☰'s version, so nothing looks clickable that is not), `{ submenu, items, project }` (a row with a chevron at its end
+opening a menu of its own at its side, Reka's Sub parts, its rows the same items: a task tab's menu holds its project's
+rows so, under the project's icon and name) or `{ component, props }` (a row
 of its own: ☰'s zoom, theme, tasks' bar, language (a menu beside it: Reka's submenu, its rows `MenuButton`s, the
 chosen one checked) and arrangements, `components/menu/`, built of Reka's menu items; − and + and the choices leave the menu open);
 `title` its tooltip (the native one, as every tooltip); `icon` is the sprite's id, at the row's start; `project` a project's icon in its color there (`ProjectIcon.vue`,

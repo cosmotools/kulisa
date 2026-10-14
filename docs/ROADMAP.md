@@ -17,7 +17,9 @@ here; what is left of it stays.
     in TypeScript; 2026-10-12, a task's island of terminals with several agents in it ("Several agents in a task, rest",
     below); 2026-10-13, a repository added to a task when its work needs it (the human's menu or the agent's tool,
     [tasks.md](tasks.md), Tasks), dictation by a key held anywhere, the right Ctrl ([window.md](window.md), The terminal) and one
-    language for every agent (☰ → Language, [window.md](window.md), Language). The author tests it by hand. Next: fix what the author's testing finds; then what is left of the
+    language for every agent (☰ → Language, [window.md](window.md), Language); 2026-10-14, the tasks' bar a tab per
+    task, of its own (no groups: each tab its project's icon, moved and ordered alone, its project's rows in a
+    submenu of its menu; [tasks.md](tasks.md), Projects), the grid sliding between any two tabs. The author tests it by hand. Next: fix what the author's testing finds; then what is left of the
     steps (below), only once the author has decided it.
   - **Open, for the author to decide:** Refresh from Master… now matters only for a local app's cookies (keep or
     drop); a script the agent runs in a page (`browser_evaluate`) could read a test password back from its field
@@ -285,8 +287,8 @@ here; what is left of it stays.
   - A closed tab comes back with its address only, not its history (Chrome's keeps it): Electron has no API for that.
 - **A desktop app's ways, not only buttons** (talked over with the author 2026-10-08, who liked them all). A web page
   puts a button on every action; a desktop app gives an action several ways in: a visible one for a newcomer, quick
-  ones for daily use (keys above, a right-click, dragging). Kulisa has some, here and there (the menus of a group,
-  a task's tab and a pane; a middle click closes a group; groups and
+  ones for daily use (keys above, a right-click, dragging). Kulisa has some, here and there (the menus of a task's
+  tab, its project's submenu and a pane; a middle click closes a task; tabs and
   panels are dragged). To build:
   - **The system's notifications: first** (small: Electron's `Notification`, `app.setBadgeCount`, `win.flashFrame`).
     The human is in their browser or IDE while agents work; today only the icon on a task's tab says one waits
@@ -506,7 +508,7 @@ here; what is left of it stays.
   known issues there (resizing, maximizing, the title bar overlay, profile views above the HTML). Faking the blur
   (a picture of the wallpaper, blurred) was rejected: a workaround, and it lags when the window moves.
 - **One panel in its own OS window** (e.g. the buyer's profile on a second monitor, the terminal and the other
-  profiles staying in the main window). Today only a whole group moves to another window (Move to New Window).
+  profiles staying in the main window). Today a task moves to another window whole (Move to New Window).
   dockview has popout windows, and a profile's native views can move between windows (`Profile.moveTo`), but a
   window shows one task's grid today: a window holding a part of another window's task is a new model
   (the views' bounds, closing, restoring after a restart). Medium work; to discuss.

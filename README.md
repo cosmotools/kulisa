@@ -44,7 +44,7 @@ actors, the panes the stage, and the developer watches from the audience and sto
 ```sh
 npm install          # Node 24.12+. Rebuilds node-pty for Electron.
 npm run build        # type checks (tsc, vue-tsc), then the window (src/renderer, Vue) built by Vite into dist/renderer
-npm start            # builds the window, then opens the windows and groups open last; at first start New Project
+npm start            # builds the window, then opens the windows and tasks open last; at first start New Project
 KULISA_PROJECT=~/my-app npm start
 npm run knip         # no file, export or dependency that nothing uses (docs/testing.md, Dead code)
 npm test             # unit tests, knip, then the real app against a local test site (groups in parallel), then restarted
@@ -110,8 +110,8 @@ whole suite runs when the work is done (CLAUDE.md, Conventions).
 ```
 src/main/        Electron main process
   index.ts         entry: reads the environment, calls app.start()
-  app.ts           the app: windows, groups (a project's open tasks: open a task, close, move to a new window), agents, IPC, quit
-  window.ts        a window: its groups and what it shows, its questions
+  app.ts           the app: windows, tasks (open, close, move to a new window) and the projects loaded for them, agents, IPC, quit
+  window.ts        a window: its tabs (tasks) and what it shows, its questions
   keys.ts          the keyboard shortcuts: one table, which key an input event is (app.ts takes them before the pages)
   projects.ts      a project's group: its tasks (make, close, open again, delete); removing a project's data
   names.ts         the one rule for names of projects, tasks and profiles; slugs for ids and folders

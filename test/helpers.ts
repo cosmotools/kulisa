@@ -38,37 +38,41 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 // its rows ('-' a line, '# …' a heading, '~ …' a note, 'zoom' the zoom row; an item: its label, '(off)' when
 // disabled, '  ' before it when it is set in under the row above); choose one by its label; close it as Esc does.
 const MENU = `document.querySelector('.menu[data-state="open"]')`;
+const SUBMENU = `[...document.querySelectorAll('.menu[data-state="open"]')].at(-1)`; // the submenu open (MenuRows.vue): the last one
 const menuOpen = (ui: UI) => ui(`!!document.querySelector('.menu[data-state="open"].ready')`);
-const menuRows = async (ui: UI) => {
+// The rows of the open menu (menu: SUBMENU for a submenu's), each as its words.
+const menuRows = async (ui: UI, menu = MENU) => {
   await waitFor(() => menuOpen(ui));
   return ui(`(() => { const row = (r) => r.matches('[role="separator"]') ? '-' : r.matches('.heading') ? '# ' + r.textContent : r.matches('.note') ? '~ ' + r.textContent
     : r.matches('.zoomrow') ? 'zoom' : r.matches('.themerow') ? 'theme' : r.matches('.barrow') ? 'bar' : r.matches('.arrange') ? 'arrange: ' + [...r.querySelectorAll('span')].map((s) => s.textContent).join(', ')
     : r.matches('[role="group"]') ? [...r.children].map(row)
     : (r.matches('.inset') ? '  ' : '') + r.querySelector('.label').textContent + ((r.matches('.item') ? r : r.querySelector('.item')).matches('[data-disabled]') ? ' (off)' : '');
-  return [...${MENU}.children].flatMap(row); })()`);
+  return [...${menu}.children].flatMap(row); })()`);
 };
 const closeMenu = async (ui: UI) => {
   await ui(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); 0`);
   await waitFor(async () => !(await ui(`!!document.querySelector('[data-state="open"]:is(.menu, [role="listbox"])')`)));
 };
-// The open projects in the tasks' bar (their islands): their names, the shown one with ' *'.
-const projectTabs = (ui: UI) => ui(`[...document.querySelectorAll('#projectTabs .pisland')].map((t) => t.querySelector('.plabel .name').textContent + (t.classList.contains('active') ? ' *' : ''))`);
-const projectTab = (id: string) => `document.querySelector('#projectTabs [data-project="${id}"]')`;
+// The tasks' bar's tabs (one per open task): each its project's id, the shown one with ' *'.
+const projectTabs = (ui: UI) => ui(`[...document.querySelectorAll('#projectTabs .tasktab')].map((t) => t.dataset.project + (t.classList.contains('active') ? ' *' : ''))`);
+// A project's first tab in the bar.
+const projectTab = (id: string) => `document.querySelector('#projectTabs .tasktab[data-project="${id}"]')`;
 // A click as the mouse makes it (the press, the release, the click) on an element: tabs are chosen on the press
 // (Reka's Tabs, as a browser's).
 const click = (ui: UI, el: string) => ui(`(() => { const e = ${el}, r = e.getBoundingClientRect();
   const at = { bubbles: true, cancelable: true, composed: true, button: 0, clientX: r.x + r.width / 2, clientY: r.y + r.height / 2 };
   for (const t of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click']) e.dispatchEvent(new (t.startsWith('pointer') ? PointerEvent : MouseEvent)(t, { ...at, pointerType: 'mouse', isPrimary: true, buttons: /down/.test(t) ? 1 : 0 })); })()`);
-// A project shown again as the human does it: a click on the task it shows, in its island.
-// Once its island is drawn: the bar is drawn again as projects load (seen after a restart, on a slow screen).
+// A project shown again as the human does it: a click on its first tab in the bar.
+// Once its tab is drawn: the bar is drawn again as projects load (seen after a restart, on a slow screen).
 const showProject = async (ui: UI, id: string) => {
-  const tab = `${projectTab(id)}?.querySelector('.tasktab.selected')`;
+  const tab = projectTab(id);
   await waitFor(() => ui(`!!${tab}`));
   return click(ui, tab);
 };
-// A group closed as the human does it: the middle button on its label (its menu has Close Group too).
-const closeProject = (ui: UI, id: string) => ui(`${projectTab(id)}.querySelector('.plabel').dispatchEvent(new MouseEvent('auxclick', { button: 1, bubbles: true }))`);
-const choose = (ui: UI, label: string) => ui(`[...${MENU}.querySelectorAll('.item')].find((b) => b.querySelector('.label').textContent === ${JSON.stringify(label)}).click()`);
+// A project's open tasks closed as the human does it: the middle button on each tab (its menu has Close and Close
+// All Tasks too).
+const closeProject = (ui: UI, id: string) => ui(`for (const t of document.querySelectorAll('#projectTabs .tasktab[data-project="${id}"]')) t.dispatchEvent(new MouseEvent('auxclick', { button: 1, bubbles: true })); 0`);
+const choose = (ui: UI, label: string, menu = MENU) => ui(`[...${menu}.querySelectorAll('.item')].find((b) => b.querySelector('.label').textContent === ${JSON.stringify(label)}).click()`);
 // The bar's + (NewTask.vue), its menu opened with a click: plusMenu(ui) its rows (menuRows: a project by its name, its
 // closed tasks under it as '  name'); plusMenu(ui, project) a new task of that project (by its name); plusMenu(ui,
 // project, task) its closed task of that name opened again.
@@ -153,6 +157,6 @@ const near = (a: number, b: number) => Math.abs(a - b) < 1e-6;
 const noNode = async (wc: WebContents) => await wc.executeJavaScriptInIsolatedWorld(999, [{ code: 'typeof process' }]) === 'undefined';
 
 export type { UI };
-export { focusWindow, MENU, noNode, hooksOf, plusMenu, assert, root, userData, project, pfile, savedTabs, savedWindows, panel, SITE, PORT, sleep, waitFor, who, menuRows, choose, projectTabs, projectTab, showProject, closeProject, manageProfiles, closeSettings, chooseProfile, setProfileField, menuOpen, closeMenu, rightClick, taskMenu,
+export { focusWindow, MENU, SUBMENU, noNode, hooksOf, plusMenu, assert, root, userData, project, pfile, savedTabs, savedWindows, panel, SITE, PORT, sleep, waitFor, who, menuRows, choose, projectTabs, projectTab, showProject, closeProject, manageProfiles, closeSettings, chooseProfile, setProfileField, menuOpen, closeMenu, rightClick, taskMenu,
   click,
   box, pageBox, viewOn, dock, press, ctrl, near };

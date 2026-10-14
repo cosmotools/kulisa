@@ -7,7 +7,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import http from 'http';
-import { assert, root, userData, project, pfile, panel, SITE, sleep, waitFor, who, menuRows, choose, rightClick, viewOn, press, projectTabs, projectTab, showProject, savedWindows, closeMenu, click, plusMenu, PORT, hooksOf, MENU, menuOpen, noNode, focusWindow } from './helpers.ts';
+import { assert, root, userData, project, pfile, panel, SITE, sleep, waitFor, who, menuRows, choose, rightClick, viewOn, press, projectTabs, projectTab, showProject, savedWindows, closeMenu, click, plusMenu, PORT, hooksOf, MENU, SUBMENU, menuOpen, noNode, focusWindow } from './helpers.ts';
 import { withOffset } from '../src/main/tasks.ts';
 import { createWorktree } from '../src/main/worktrees.ts';
 import { sessionStart } from '../src/main/agent-hooks.ts';
@@ -20,8 +20,10 @@ import type { TasksFile } from '../src/main/store.ts';
 const hasDirenv = (() => { try { execFileSync('direnv', ['version']); return true; } catch { return false; } })();
 
 const git = (cwd: string, ...args: string[]) => execFileSync('git', ['-c', 'user.name=Kulisa test', '-c', 'user.email=test@example.invalid', ...args], { cwd, encoding: 'utf8' }).trim();
-const tabs = (ui: UI) => ui(`[...document.querySelectorAll('#tasklist .tasktab')].map((t) => t.querySelector('.name').textContent + (t.classList.contains('active') ? ' *' : ''))`);
-const taskTab = (n: number) => `document.querySelector('#tasklist .tasktab[data-task$="/${n}"]')`;
+// The shown task's project's tabs in the bar, the shown one with ' *'; its task n's tab.
+const ACTIVE_PROJECT = `document.querySelector('#projectTabs .tasktab.active').dataset.project`;
+const tabs = (ui: UI) => ui(`[...document.querySelectorAll('#projectTabs .tasktab[data-project="' + ${ACTIVE_PROJECT} + '"]')].map((t) => t.querySelector('.name').textContent + (t.classList.contains('active') ? ' *' : ''))`);
+const taskTab = (n: number) => `document.querySelector('#projectTabs .tasktab[data-task="' + ${ACTIVE_PROJECT} + '/${n}"]')`;
 const tasksFile = (): TasksFile => JSON.parse(fs.readFileSync(path.join(userData, 'projects', 'project', 'tasks.json'), 'utf8'));
 // The bar's +, the shown project in its menu; resolves once the new task is shown, its agent started.
 async function newTask(ctx: Ctx) {
@@ -32,14 +34,19 @@ async function newTask(ctx: Ctx) {
   if (shell.pty) ctx.watchPty(shell.pty);
   return shell.task;
 }
-// A row of the shown project's group menu (its label's right-click), chosen.
-async function groupMenu(ui: UI, label?: string) {
-  await rightClick(ui, '#projectTabs .pisland.active .plabel');
-  const rows = await menuRows(ui);
-  if (label) await choose(ui, label);
+// A project's submenu (a tab's right-click, then the row of the project's name, the one row opening a menu): its
+// rows, a row of it chosen. tab: the tab to open it on (the shown task's).
+async function projectMenu(ui: UI, label?: string, tab = '#projectTabs .tasktab.active .name') {
+  await rightClick(ui, tab);
+  await menuRows(ui);
+  await ui(`${MENU}.querySelector('.item[aria-haspopup]').click()`);
+  await waitFor(async () => (await ui(`document.querySelectorAll('.menu[data-state="open"]').length`)) === 2);
+  const rows = await menuRows(ui, SUBMENU);
+  if (label) await choose(ui, label, SUBMENU);
   else await closeMenu(ui);
   return rows;
 }
+const groupMenu = (ui: UI, label?: string) => projectMenu(ui, label);
 // One of the agent's hooks, as its plugin sends it (agent-hooks.ts); its answer.
 const hook = (task: Task, event: string, input = {}) => new Promise<any>((resolve) => http.request(`${hooksOf(task)}/${event}`, { method: 'POST' },
   (res) => { let body = ''; res.on('data', (d) => (body += d)); res.on('end', () => resolve(JSON.parse(body || '{}'))); }).end(JSON.stringify(input)));
@@ -160,7 +167,7 @@ export default (test: Test) => {
     // Until then its first prompt's first line says what it is about, over its tab.
     await prompt('\n  Sellers see their payouts  \nwith dates');
     await prompt('Another request');
-    await waitFor(async () => (await ui(`${taskTab(2)}.title`)).startsWith('“Sellers see their payouts”\nbranch task-2 in '));
+    await waitFor(async () => (await ui(`${taskTab(2)}.title`)).startsWith('project\n“Sellers see their payouts”\nbranch task-2 in '));
     // Its agent names it: the tab and the branch; the folder stays.
     await assert.rejects(call('task_rename', { name: 'a b' }), /only/);
     assert.match((await call('task_rename', { name: 'Feature-X' })).text, /now "Feature-X", on branch feature-x/);
@@ -169,7 +176,7 @@ export default (test: Test) => {
     assert.equal(task.folder, wt);
     assert.deepEqual(tasksFile().list.map((e) => [e.name, e.branch]), [['task-1', undefined], ['Feature-X', 'feature-x']]);
     assert.equal(await prompt(), '{}', 'named: not told again');
-    await waitFor(async () => (await ui(`${taskTab(2)}.title`)).startsWith('branch feature-x'));
+    await waitFor(async () => (await ui(`${taskTab(2)}.title`)).startsWith('project\nbranch feature-x'));
     assert.equal(tasksFile().list[1].about, undefined, 'its name says what it is about now');
     assert.equal((await call('browser_profiles', {})).note, undefined);
     await shell.screenshot(path.join(root, 'task.png'));
@@ -262,22 +269,22 @@ export default (test: Test) => {
     const second = shell.task, sam = second.profiles.get('sam-admin');
     // No profiles' button on a task's tab, its right-click menu has them; the × on every tab, as Chrome's, not only
     // the shown one's (the author, 2026-10-12).
-    assert.deepEqual(await ui(`[...document.querySelectorAll('#tasklist .tasktab')].map((t) => [...t.querySelectorAll('button')].map((b) => b.ariaLabel + ' ' + getComputedStyle(b).visibility))`),
+    assert.deepEqual(await ui(`[...document.querySelectorAll('#projectTabs .tasktab')].map((t) => [...t.querySelectorAll('button')].map((b) => b.ariaLabel + ' ' + getComputedStyle(b).visibility))`),
       [['Close visible'], ['Close visible']]);
-    const widths = () => ui(`[...document.querySelectorAll('#tasklist .tasktab')].map((t) => t.getBoundingClientRect().width)`);
+    const widths = () => ui(`[...document.querySelectorAll('#projectTabs .tasktab')].map((t) => t.getBoundingClientRect().width)`);
     const before = await widths();
-    // A tab's right-click menu: the shown one's has its profiles; then renaming, its folder, deleting. Show Folder
-    // opens the task's worktree in the file manager.
-    await rightClick(ui, `#tasklist .tasktab[data-task$="/1"] .name`);
-    assert.deepEqual(await menuRows(ui), ['Rename…', 'Show Folder', '-', 'Delete Task…']);
+    // A tab's right-click menu: the shown one's has its profiles; then renaming, its folder, moving to another window,
+    // closing, deleting, and its project's submenu. Show Folder opens the task's worktree in the file manager.
+    await rightClick(ui, `#projectTabs .tasktab[data-task$="/1"] .name`);
+    assert.deepEqual(await menuRows(ui), ['Rename…', 'Show Folder', '-', 'Move to New Window', '-', 'Close', 'Delete Task…', '-', 'project']);
     await closeMenu(ui);
     const openPath = electron.shell.openPath, shown: string[] = [];
     electron.shell.openPath = async (dir) => { shown.push(dir); return ''; };
     try {
       await rightClick(ui, `#projectTabs .tasktab[data-task="${second.key}"] .name`);
       const rows = await menuRows(ui);
-      assert.deepEqual([rows[0], ...rows.slice(-7)], ['# Profiles', '-', 'Manage Profiles…', '-', 'Rename…', 'Show Folder', '-', 'Delete Task…']);
-      assert.deepEqual(rows.slice(1, -7).toSorted(), ['Dora', 'Elon.buyer', 'Sam.admin'], 'its open and closed profiles');
+      assert.deepEqual([rows[0], ...rows.slice(-12)], ['# Profiles', '-', 'Manage Profiles…', '-', 'Rename…', 'Show Folder', '-', 'Move to New Window', '-', 'Close', 'Delete Task…', '-', 'project']);
+      assert.deepEqual(rows.slice(1, -12).toSorted(), ['Dora', 'Elon.buyer', 'Sam.admin'], 'its open and closed profiles');
       await choose(ui, 'Show Folder');
       await waitFor(() => shown.length === 1);
     } finally { electron.shell.openPath = openPath; }
@@ -290,7 +297,7 @@ export default (test: Test) => {
     assert.equal(sam.get().view.getVisible(), false, "the second task's pages are hidden");
     assert.ok(sam.tabs.every((t) => !t.wc.isDestroyed()) && second.pty, 'and alive, its agent too');
     await waitFor(async () => (await ctx.termText()).includes(`agent: rc of ${project}\n`), 3000);
-    assert.equal(JSON.parse(fs.readFileSync(path.join(userData, 'projects', 'project', 'tasks.json'), 'utf8')).current, 1);
+    assert.equal(savedWindows()[0].shown, 'project/1', 'the shown task kept for the next start');
     // What the second task's agent does reaches its tab (Claude Code's hooks); its captions do not show on the first's panes.
     const post = (event: string, input = {}) => new Promise((r) => http.request(`${hooksOf(second)}/${event}`, { method: 'POST' },
       (res) => { res.resume(); res.on('end', r); }).end(JSON.stringify(input)));
@@ -343,9 +350,8 @@ export default (test: Test) => {
       && ui(`!document.documentElement.matches(':active-view-transition')`)); // its slide over before the next test watches one
   });
 
-  test('tasks: switching replaces the grid at once (a view transition with no animation: the pages come with the terminal); then the pages are live again', async ({ shell, ui }) => {
-    // The transition's types, and its animations once it runs: none, Chromium's own for its groups included (they
-    // kept the pages, shown when it ends, 250 ms behind the terminal, in its place at once).
+  test('tasks: switching slides the grid towards the other tab (a view transition); then the pages are live again', async ({ shell, ui }) => {
+    // The transition's types (which way), and that it animates once it runs.
     const swap = (n: number) => ui(`(async () => {
       const start = document.startViewTransition.bind(document); let seen;
       document.startViewTransition = (o) => { const t = start(o); t.ready.then(() => { seen = { types: [...t.types],
@@ -356,9 +362,11 @@ export default (test: Test) => {
       return seen;
     })()`);
     const live = async () => (await ui(`document.querySelectorAll('img.snapshot').length`)) === 0 && viewOn(shell, ui, 'sam-admin');
-    assert.deepEqual(await swap(2), { types: ['task', 'next'], animations: 0 });
+    let seen = await swap(2);
+    assert.deepEqual(seen.types, ['next']); assert.ok(seen.animations > 0, 'it slides');
     await waitFor(live);
-    assert.deepEqual(await swap(1), { types: ['task', 'previous'], animations: 0 });
+    seen = await swap(1);
+    assert.deepEqual(seen.types, ['previous']); assert.ok(seen.animations > 0);
     await waitFor(live);
   });
   test('tasks: Ctrl+Shift+2 shows the second, Ctrl+Shift+PgUp and PgDn the one before and after, from the terminal too', async ({ shell, ui }) => {
@@ -409,10 +417,11 @@ export default (test: Test) => {
     assert.ok(fs.existsSync(task.folder) && git(project, 'branch', '--list', 'task-3') && fs.existsSync(path.join(userData, 'projects', 'project', '3')), 'its code and data stay');
     assert.equal(tasksFile().list.find((e) => e.n === 3).closed, true);
     await waitFor(async () => JSON.stringify(await tabs(ui)) === '["task-1","Feature-X *"]');
-    // Its project's group menu lists it; opening it shows it again, its agent resuming the conversation.
-    const rows = await groupMenu(ui);
-    assert.deepEqual(rows.slice(0, 4), ['New Task', '-', '# Closed tasks', 'task-3']);
-    await groupMenu(ui, 'task-3');
+    // The bar's + lists it under its project; opening it shows it again, its agent resuming the conversation.
+    const rows = await plusMenu(ui);
+    assert.deepEqual(rows.slice(rows.indexOf('project'), rows.indexOf('project') + 2), ['project', '  task-3']);
+    await closeMenu(ui);
+    await plusMenu(ui, 'project', 'task-3');
     await waitFor(() => shell.task === task && task.loaded && shell.pty);
     ctx.watchPty(shell.pty);
     assert.equal(shell.resumedSession, 's-3');
@@ -424,7 +433,7 @@ export default (test: Test) => {
     const { shell, ui } = ctx;
     const empty = shell.task;
     const dir = path.join(userData, 'projects', 'project', '3');
-    await rightClick(ui, `#tasklist .tasktab[data-task="${empty.key}"] .name`);
+    await rightClick(ui, `#projectTabs .tasktab[data-task="${empty.key}"] .name`);
     await menuRows(ui);
     await choose(ui, 'Delete Task…');
     await waitFor(() => !shell.current.tasks.has(3) && shell.task?.n === 2);
@@ -442,7 +451,7 @@ export default (test: Test) => {
 
     // Renamed by the human (Rename… in its tab's menu), with a commit of its own and a file not committed.
     const spike = await newTask(ctx);
-    await rightClick(ui, `#tasklist .tasktab[data-task="${spike.key}"] .name`);
+    await rightClick(ui, `#projectTabs .tasktab[data-task="${spike.key}"] .name`);
     await menuRows(ui);
     await choose(ui, 'Rename…');
     await waitFor(() => ui(`(document.getElementById('taskrename')?.dataset.state === 'open') && document.getElementById('taskname').value === '${spike.name}'
@@ -482,14 +491,13 @@ export default (test: Test) => {
     assert.deepEqual(tasksFile().list.map((e) => e.name), ['task-1', 'Feature-X']);
   });
 
-  // ☰ → Agents…: Settings at an agent (the first, or the one shown last), the agents in its tree; it closes as any dialog.
+  // Settings (the title bar's gear) at the first agent: the agents in its tree (☰ had an Agents… row to them until
+  // 2026-10-14: the author, agents are set up in Settings); it closes as any dialog.
   const openAgents = async (ui: UI, rows = 2) => {
-    await ui(`document.getElementById('windowMenu').click()`);
-    await menuRows(ui);
-    await choose(ui, 'Agents…');
-    // It opens with the agents in it, not with a line that flips to them.
-    await waitFor(() => ui(`(document.getElementById('projects')?.dataset.state === 'open') && !!document.querySelector('#pjlist [data-agent][aria-selected="true"]')
-      && document.querySelectorAll('#pjlist [data-agent]').length === ${rows} && document.getElementById('agconfig').checkVisibility()`), 20000);
+    await ui(`document.getElementById('manageProjects').click()`);
+    await waitFor(() => ui(`(document.getElementById('projects')?.dataset.state === 'open') && document.querySelectorAll('#pjlist [data-agent]').length === ${rows}`), 20000);
+    await ui(`document.querySelector('#pjlist [data-agent]').click()`);
+    await waitFor(() => ui(`!!document.querySelector('#pjlist [data-agent][aria-selected="true"]') && document.getElementById('agconfig').checkVisibility()`));
   };
   // An agent chosen in the tree, its page shown.
   const showAgent = async (ui: UI, id: string) => {
@@ -501,7 +509,7 @@ export default (test: Test) => {
     await waitFor(async () => !(await ui(`(document.getElementById('projects')?.dataset.state === 'open')`)));
   };
   const agentRow = (id: string, q: string) => `document.querySelector('#agentpage [data-agent="${id}"] ${q}')`;
-  test('agents: ☰ → Agents… is Settings at the agents (not the terminal only): what is installed, installs the others; nothing is chosen or started', async (ctx) => {
+  test('agents: Settings → Agents (not the terminal only): what is installed, installs the others; nothing is chosen or started', async (ctx) => {
     const { shell, ui } = ctx;
     const pty = shell.task.pty;
     await openAgents(ui);
@@ -638,11 +646,9 @@ export default (test: Test) => {
     }
   });
 
-  // The project's settings (Project Settings… in its label's menu), with its agents.
+  // The project's settings (Project Settings… in its submenu), with its agents.
   const projectSettings = async (ui: UI, id = 'project') => {
-    await rightClick(ui, `#projectTabs [data-project="${id}"] .name`);
-    await menuRows(ui);
-    await choose(ui, 'Project Settings…');
+    await projectMenu(ui, 'Project Settings…', `#projectTabs [data-project="${id}"] .name`);
     await waitFor(() => ui(`(document.getElementById('projects')?.dataset.state === 'open') && !!document.getElementById('npagentsrow')`));
   };
   // A new profile on a project's page: + → New Profile…, its name typed in place, Create.
@@ -839,7 +845,7 @@ export default (test: Test) => {
   });
 
   // Last in phase 1: task-1 is shown, Feature-X waits in the bar and task-5 is closed, for the restart phase.
-  test('tasks: × on the last open task closes its group, as Chrome\'s tab group goes with its last tab, nothing asked; a task opens it again', async (ctx) => {
+  test('tasks: × on the last open task of a project lets the project go, nothing asked: the empty window; a task of it opens it again', async (ctx) => {
     const { shell, ui } = ctx;
     const first = shell.current.tasks.get(1), second = shell.current.tasks.get(2);
     await ui(`${taskTab(1)}.querySelector('.close').click()`);
@@ -847,9 +853,9 @@ export default (test: Test) => {
     await waitFor(async () => JSON.stringify(await tabs(ui)) === '["Feature-X *"]');
     assert.equal(ctx.asked.length, 0);
     await ui(`${taskTab(2)}.querySelector('.close').click()`);
-    // The group closes once its task is unloaded: its agent stopped, each profile's sign-ins written out and its
-    // tabs closed. On the runner, with the other group running beside it, that took over 5 s now and then (2026-10-12).
-    await waitFor(() => shell.task === null && !shell.current, 15000);
+    // The project goes once its task is unloaded: its agent stopped, each profile's sign-ins written out and its
+    // tabs closed. On the runner, with the other project running beside it, that took over 5 s now and then (2026-10-12).
+    await waitFor(() => shell.task === null && !shell.current && !shell.open.has('project'), 15000);
     assert.equal(ctx.asked.length, 0, 'no agent works: nothing asked');
     assert.ok(second.profiles.size === 0 && !second.pty, 'every task of the project stopped');
     assert.deepEqual(tasksFile().list.map((e) => [e.n, !!e.closed]), [[1, true], [2, true], [5, true]]);
@@ -861,13 +867,12 @@ export default (test: Test) => {
       return w.getBoundingClientRect().height > innerHeight * 0.7 && s.backgroundColor === (() => { const i = document.body.appendChild(document.createElement('i')); i.style.background = 'var(--island)';
         const c = getComputedStyle(i).backgroundColor; i.remove(); return c; })(); })() // an island's, as the dialogs'`));
     assert.equal(await ui(`document.getElementById('newTask').checkVisibility()`), true, '+ there');
-    assert.equal(await ui(`document.getElementById('tasks')?.checkVisibility() ?? false`), false, 'no tasks shown');
-    assert.deepEqual(await projectTabs(ui), [], 'no project tab');
+    assert.deepEqual(await projectTabs(ui), [], 'no tab');
     assert.equal(await ui(`document.documentElement.style.getPropertyValue('--project')`), '', "no project's color");
     assert.equal(shell.win.getTitle(), 'Kulisa');
     assert.deepEqual(savedWindows(), [{ tabs: [], shown: null }], 'the window opens so next time');
-    // The empty window's New Task opens the bar's + menu: every project with its icon in its color, as on its label in
-    // the bar, and its closed tasks set in under it, the one closed last first (all are closed here); New Project… last.
+    // The empty window's New Task opens the bar's + menu: every project with its icon in its color, as on its tasks'
+    // tabs in the bar, and its closed tasks set in under it, the one closed last first (all are closed here); New Project… last.
     await ui(`document.getElementById('emptynewtask').click()`);
     const rows = await menuRows(ui);
     assert.deepEqual(await ui(`[...document.querySelectorAll('.menu[data-state="open"] .item:not(.inset) .picon')].map((i) => i.querySelector('use')?.getAttribute('href') ?? null)`),
@@ -877,39 +882,36 @@ export default (test: Test) => {
     assert.equal(byClosing[0], '  Feature-X');
     assert.deepEqual(rows.slice(0, 1).concat(rows.slice(-2)), ['# New Task of', '-', 'New Project…']);
     await closeMenu(ui);
-    // A closed task of it opens its group again, on that task; the others wait in its group's menu.
+    // A closed task of it opens it again, as that task's tab; the others wait in the +, the one closed last first.
     await plusMenu(ui, 'project', 'Feature-X');
     await waitFor(() => shell.task?.n === 2 && shell.task.loaded && shell.pty);
     ctx.watchPty(shell.pty);
     await waitFor(() => ui(`!document.documentElement.classList.contains('noproject') && !document.documentElement.classList.contains('loading')`));
     await waitFor(async () => JSON.stringify(await tabs(ui)) === '["Feature-X *"]');
-    assert.deepEqual((await groupMenu(ui)).slice(0, 5), ['New Task', '-', '# Closed tasks', 'task-1', 'task-5'], 'the one closed last first');
-    await groupMenu(ui, 'task-1');
+    const plus = await plusMenu(ui);
+    assert.deepEqual(plus.slice(plus.indexOf('project'), plus.indexOf('project') + 3), ['project', '  task-1', '  task-5'], 'the one closed last first');
+    await closeMenu(ui);
+    await plusMenu(ui, 'project', 'task-1');
     await waitFor(() => shell.task?.n === 1 && shell.task.loaded && shell.pty);
     ctx.watchPty(shell.pty);
-    await waitFor(async () => JSON.stringify(await tabs(ui)) === '["task-1 *","Feature-X"]');
+    await waitFor(async () => JSON.stringify(await tabs(ui)) === '["Feature-X","task-1 *"]'); // a tab opens at the end
     assert.equal(shell.current.tasks.get(2).loaded, true, 'the other open one stays loaded');
     await waitFor(async () => (await viewOn(shell, ui, 'sam-admin')) && viewOn(shell, ui, 'elon-buyer'));
   });
 
-  test('tasks: a click on a group\'s label folds nothing; a double click on a task\'s tab is its Rename…', async (ctx) => {
+  test('tasks: a double click on a task\'s tab is its Rename…', async (ctx) => {
     const { ui } = ctx;
-    const shown = () => ui(`[...document.querySelectorAll('#projectTabs .pisland.active .tasktab')].filter((t) => t.checkVisibility()).map((t) => t.querySelector('.name').textContent)`);
-    const before = JSON.stringify(await shown());
-    await click(ui, `document.querySelector('#projectTabs .pisland.active .plabel')`);
-    const tab = `document.querySelector('#tasklist .tasktab:not(.active) .name')`;
+    const tab = `document.querySelector('#projectTabs .tasktab:not(.active) .name')`;
     const name = await ui(`${tab}.textContent`);
     await ui(`${tab}.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))`);
-    // The click on the label came before: by the time the dialog is open, it would have folded the group.
     await waitFor(() => ui(`(document.getElementById('taskrename')?.dataset.state === 'open') && document.getElementById('taskname').value === ${JSON.stringify(name)}`));
-    assert.equal(JSON.stringify(await shown()), before, 'every tab stays');
     press(ctx.shell.win.webContents, 'Escape');
     await waitFor(async () => !(await ui(`document.getElementById('taskrename')?.dataset.state === 'open'`)));
   });
 
-  test('the empty window: Close Group in the group\'s panel; links in ☰ open in the browser; at the first start the manager on New Project; New Project… asks where its folder goes', async (ctx) => {
+  test('the empty window: Close All Tasks in the project\'s submenu; links in ☰ open in the browser; at the first start the manager on New Project; New Project… asks where its folder goes', async (ctx) => {
     const { shell, ui } = ctx;
-    assert.deepEqual((await groupMenu(ui, 'Close Group')).slice(-2), ['-', 'Close Group']);
+    assert.deepEqual((await groupMenu(ui, 'Close All Tasks')).slice(-2), ['-', 'Close All Tasks']);
     await waitFor(() => shell.task === null && !shell.current);
     await waitFor(() => ui(`document.documentElement.classList.contains('noproject')`));
     await ui(`document.getElementById('windowMenu').click()`);
@@ -921,7 +923,7 @@ export default (test: Test) => {
       await choose(ui, 'Documentation');
       await waitFor(() => opened.length === 1);
     } finally { electron.shell.openExternal = openExternal; }
-    assert.equal(opened[0], 'https://github.com/cosmotools/kulisa#readme');
+    assert.equal(opened[0], 'https://kulisa.app/docs', 'the user guide on the website');
     assert.ok(await ui(`location.protocol === 'file:' && !!document.getElementById('empty')`), 'the window stays on its page');
     // The first start (no project yet): New Project opens by itself; not with projects there.
     shell.firstStart(shell.windows[0]);
@@ -986,7 +988,7 @@ export default (test: Test) => {
     const shop = shell.store.projects().find((p) => p.id === 'shop');
     assert.deepEqual([shop.color, shop.agents], [color, undefined]);
     // No favicon in its code: the curtain, in the next free color, the window's too.
-    assert.equal(await ui(`${projectTab('shop')}.querySelector('.plabel use').getAttribute('href')`), '#i-logo');
+    assert.equal(await ui(`${projectTab('shop')}.querySelector('.picon use').getAttribute('href')`), '#i-logo');
     assert.equal(await ui(`document.documentElement.style.getPropertyValue('--project')`), color);
     assert.equal(git(path.join(made, 'Shop'), 'log', '--format=%s'), 'Initial commit', 'an empty first commit');
     assert.equal(shell.task.folder, path.join(made, 'Shop@task-1'), 'so its first task has a copy of its own');
@@ -997,22 +999,22 @@ export default (test: Test) => {
     ctx.watchPty(shell.pty);
     await waitFor(() => ui(`!document.documentElement.classList.contains('noproject') && !document.documentElement.classList.contains('loading')`));
     await waitFor(async () => (await viewOn(shell, ui, 'sam-admin')) && viewOn(shell, ui, 'elon-buyer'));
-    // Feature-X, closed with its group, opened again from the group's menu (the tests after and the restart expect it).
-    await groupMenu(ui, 'Feature-X');
+    // Feature-X, closed with the others, opened again from the + (the tests after and the restart expect it).
+    await plusMenu(ui, 'project', 'Feature-X');
     await waitFor(() => shell.task?.n === 2 && shell.task.loaded && !shell.windows[0].switching);
     await click(ui, taskTab(1));
     await waitFor(() => shell.task?.n === 1 && shell.task.loaded && !shell.windows[0].switching);
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
-    assert.deepEqual(await projectTabs(ui), ['Shop', 'project *']);
-    // Another project's task, in its island: a click shows that project with it.
-    await click(ui, `${projectTab('shop')}.querySelector('.tasktab[data-task="shop/1"]')`);
+    assert.deepEqual(await projectTabs(ui), ['shop', 'project *', 'project']);
+    // Another project's task: a click shows it.
+    await click(ui, `document.querySelector('#projectTabs .tasktab[data-task="shop/1"]')`);
     await waitFor(() => shell.current?.id === 'shop' && shell.task?.key === 'shop/1' && shell.task.loaded && !shell.windows[0].switching);
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
-    assert.deepEqual(await projectTabs(ui), ['Shop *', 'project']);
+    assert.deepEqual(await projectTabs(ui), ['shop *', 'project', 'project']);
     await showProject(ui, 'project');
     await waitFor(() => shell.current?.id === 'project' && shell.task.loaded);
-    // Its tabs have their × too, in its group while another project is shown: its last one closes it.
-    await ui(`${projectTab('shop')}.querySelector('.tasktab[data-task="shop/1"] .close').click()`);
+    // A tab in the background has its × too: the last one of its project lets the project go.
+    await ui(`document.querySelector('#projectTabs .tasktab[data-task="shop/1"] .close').click()`);
     await waitFor(() => !shell.open.has('shop'));
     assert.equal(shell.current?.id, 'project', 'the shown project stays');
     ctx.asked.length = 0;
@@ -1035,9 +1037,7 @@ export default (test: Test) => {
       return ${projectTab('site')}.style.getPropertyValue('--color') === c && (${typeof hue === 'number'} ? Math.abs(h - ${JSON.stringify(hue)}) <= 4 : c === ${JSON.stringify(hue)}); })()`);
     await waitFor(() => shown(29));
     // Its settings: its favicon in the list, the folder shown and not changed.
-    await rightClick(ui, `#projectTabs [data-project="site"] .name`);
-    await menuRows(ui);
-    await choose(ui, 'Project Settings…');
+    await projectMenu(ui, 'Project Settings…', `#projectTabs [data-project="site"] .name`);
     await waitFor(() => ui(`(document.getElementById('projects')?.dataset.state === 'open') && ${pageOf('site')}`));
     // The manager lists every project, this one chosen (none marked open: a project is no thing to open).
     assert.ok(await ui(`document.querySelector('#pjlist [data-project="site"]').ariaSelected === 'true' && !document.querySelector('#pjlist kbd')`));
@@ -1053,9 +1053,7 @@ export default (test: Test) => {
     const favicon = (svg: string) => fs.writeFileSync(path.join(site, 'public', 'favicon.svg'), `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">${svg}</svg>`);
     const reopen = async () => {
       await closeSettings(ui);
-      await rightClick(ui, `#projectTabs [data-project="site"] .name`);
-      await menuRows(ui);
-      await choose(ui, 'Project Settings…');
+      await projectMenu(ui, 'Project Settings…', `#projectTabs [data-project="site"] .name`);
       await waitFor(() => ui(`(document.getElementById('projects')?.dataset.state === 'open') && ${pageOf('site')}`));
     };
     favicon('<rect width="16" height="16" fill="#00f"/><circle cx="8" cy="8" r="2" fill="red"/>');
@@ -1075,11 +1073,9 @@ export default (test: Test) => {
     const entry = entryOf();
     assert.deepEqual([entry.name, entry.folder], ['Site-2', site]);
     assert.deepEqual(entry.local, ['abc.ngrok.app', 'shop.dev'], "its own local addresses, where test users' pairs may be typed (local.ts)");
-    await waitFor(async () => (await projectTabs(ui)).includes('Site-2 *') && shell.win.getTitle() === 'Site-2 — Kulisa');
+    await waitFor(async () => (await projectTabs(ui)).includes('site *') && shell.win.getTitle() === `${shell.task.name} · Site-2 — Kulisa`);
     // Its profiles: a new one; one of another project, the same person (its master, its sign-ins); × lets go of one.
-    await rightClick(ui, `#projectTabs [data-project="site"] .name`);
-    await menuRows(ui);
-    await choose(ui, 'Project Settings…');
+    await projectMenu(ui, 'Project Settings…', `#projectTabs [data-project="site"] .name`);
     await waitFor(() => ui(`(document.getElementById('projects')?.dataset.state === 'open')`));
     assert.equal(await ui(`document.querySelectorAll('#npprofiles .item').length`), 0);
     await newProfileHere(ui, 'Site-user');
@@ -1109,9 +1105,7 @@ export default (test: Test) => {
     // Its agents: a list, added from the agents without accounts and the accounts other projects have (one made in
     // project, as New Account… makes it), one the default (a radio); at once, not on Save.
     const ann = shell.accounts.create('project', (shell.accounts.prepare('fake') as { id: string }).id, 'fake', 'ann@shop.com');
-    await rightClick(ui, `#projectTabs [data-project="site"] .name`);
-    await menuRows(ui);
-    await choose(ui, 'Project Settings…');
+    await projectMenu(ui, 'Project Settings…', `#projectTabs [data-project="site"] .name`);
     await waitFor(() => ui(`(document.getElementById('projects')?.dataset.state === 'open') && !!document.getElementById('npagentsrow')`));
     await ui(`document.getElementById('npagentadd').click()`);
     assert.ok(!(await menuRows(ui)).includes('Fake agent'), 'an agent with accounts: one of its accounts');
@@ -1203,7 +1197,7 @@ export default (test: Test) => {
     assert.deepEqual(shell.accounts.find(ann.id).projects, ['project']);
     assert.equal(annTask.promptTarget().agent.id, ann.id);
     assert.deepEqual([...before.terminals.values()].map((t) => [t.name, !!t.agent]), [['Terminal', false]], 'the terminal only: a shell');
-    await ui(`kulisa.invoke('project:close', { id: 'site' })`);
+    await ui(`kulisa.invoke('project:close-tasks', { id: 'site' })`);
     await waitFor(() => !shell.open.has('site'));
     ctx.asked.length = 0;
   });
@@ -1273,9 +1267,7 @@ export default (test: Test) => {
     await call('task_rename', { name: 'Checkout' });
     for (const r of ['api', 'web']) assert.equal(git(path.join(home, r), 'rev-parse', '--abbrev-ref', 'HEAD'), 'checkout');
     // Project Settings… shows them, the default first; × on one tasks have copies of is refused, naming them.
-    await rightClick(ui, `#projectTabs [data-project="api"] .name`);
-    await menuRows(ui);
-    await choose(ui, 'Project Settings…');
+    await projectMenu(ui, 'Project Settings…', `#projectTabs [data-project="api"] .name`);
     await waitFor(() => ui(`document.querySelectorAll('#nprepos .item').length === 2`));
     assert.deepEqual(await ui(`[...document.querySelectorAll('#nprepos .item')].map((r) => r.querySelector('.label').textContent + ' ' + !!r.querySelector('.default'))`), ['api true', 'web false']);
     await onRow(ui, `#nprepos [data-folder="${web}"]`, 'nprepodel');
@@ -1331,7 +1323,7 @@ export default (test: Test) => {
     ctx.answer = true;
     await removeWeb();
     await waitFor(() => !fs.existsSync(webCopy) && git(web, 'branch', '--list', 'task-1') === ''); // the folder goes first, then the branch
-    await ui(`kulisa.invoke('project:close', { id: 'api' })`);
+    await ui(`kulisa.invoke('project:close-tasks', { id: 'api' })`);
     await waitFor(() => !shell.open.has('api'));
     ctx.asked.length = 0;
     // A project without git (Site-2, closed) getting a repository: its folder is a former one, shown in its settings.
@@ -1399,12 +1391,12 @@ export default (test: Test) => {
     assert.equal(ctx.asked.pop().message, 'Delete the task task-1?');
     await waitFor(() => !shell.current.tasks.has(1) && !fs.existsSync(first.folder));
     assert.ok(shell.current.tasks.has(second.n) && !second.entry.merged, 'one not merged stays');
-    await ui(`kulisa.invoke('project:close', { id: 'merge' })`);
+    await ui(`kulisa.invoke('project:close-tasks', { id: 'merge' })`);
     await waitFor(() => !shell.open.has('merge'));
     ctx.asked.length = 0;
   });
 
-  test("tasks: a closed task is deleted from its row, 🗑 or Delete, in the bar's + (its group not open) and its group's menu, after the question Delete Task… asks", async (ctx) => {
+  test("tasks: a closed task is deleted from its row, 🗑 or Delete, in the bar's +, its project loaded or not, after the question Delete Task… asks", async (ctx) => {
     // About 2 s: git's work (worktrees made and removed).
     const { shell, ui } = ctx;
     const p = shell.store.projects().find((x) => x.id === 'merge');
@@ -1412,7 +1404,7 @@ export default (test: Test) => {
     // The open menu's closed task of that name, after the row of its project in the bar's +: its row.
     const row = (name: string, after = '') => `(() => { const items = [...${MENU}.querySelectorAll('.item')], label = (r) => r.querySelector('.label').textContent;
       return items.slice(items.findIndex((r) => !${JSON.stringify(after)} || label(r) === ${JSON.stringify(after)})).find((r) => label(r) === ${JSON.stringify(name)}); })()`;
-    // merge (above) has no group now; its task-2 is closed, with a commit not merged.
+    // merge (above) is not loaded now; its task-2 is closed, with a commit not merged.
     const folder = entry(2).folder;
     await plusMenu(ui);
     assert.equal(await ui(`getComputedStyle(${row('task-2', 'merge')}.querySelector('.remove')).visibility`), 'hidden', 'shown on the row the pointer or the keyboard is on');
@@ -1433,20 +1425,19 @@ export default (test: Test) => {
     assert.ok(!after[0].startsWith('  '), 'merge has no closed task left');
     await closeMenu(ui);
 
-    // Its group open: its closed task's row in the group's menu.
+    // A task of it open: the same row in the +.
     await ui(`kulisa.invoke('project:open', { id: 'merge' })`);
     await waitFor(() => shell.current?.id === 'merge' && shell.task?.loaded && shell.pty);
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
     const closing = shell.task;
     await newTask(ctx);
-    await ui(`${taskTab(closing.n)}.querySelector('.close').click()`);
+    await ui(`document.querySelector('#projectTabs .tasktab[data-task="${closing.key}"] .close').click()`);
     await waitFor(() => closing.entry.closed);
-    await rightClick(ui, '#projectTabs .pisland.active .plabel');
-    await menuRows(ui);
-    await click(ui, `${row(closing.name)}.querySelector('.remove')`);
+    await plusMenu(ui);
+    await click(ui, `${row(closing.name, 'merge')}.querySelector('.remove')`);
     await waitFor(() => !entry(closing.n) && !fs.existsSync(closing.folder));
     assert.ok(!shell.current.tasks.has(closing.n) && shell.task.loaded, 'the open one stays');
-    await ui(`kulisa.invoke('project:close', { id: 'merge' })`);
+    await ui(`kulisa.invoke('project:close-tasks', { id: 'merge' })`);
     await waitFor(() => !shell.open.has('merge'));
     ctx.asked.length = 0;
   });
@@ -1504,7 +1495,7 @@ export default (test: Test) => {
     assert.deepEqual(shell.accounts.find(account.id).projects, []);
     assert.equal(git(spare, 'branch', '--list', wt.branch), '', "the task's branch");
     assert.equal(fs.readFileSync(path.join(spare, 'a.txt'), 'utf8'), 'a', "the project's own folder stays");
-    assert.equal(shell.task?.n, 1, 'another project: the open one stays open');
+    assert.ok(shell.task?.loaded && shell.current?.id === 'project', 'another project: the open one stays open');
     await waitFor(() => ui(`!document.querySelector('#pjlist [data-project="spare"]')`));
     await closeSettings(ui);
 
@@ -1560,9 +1551,9 @@ export default (test: Test) => {
     if (await ui(`document.getElementById('projects')?.dataset.state === 'open'`)) await closeSettings(ui);
     ctx.asked.length = 0;
     await waitFor(() => shell.current?.folder === project && shell.task?.loaded);
-    assert.deepEqual(await projectTabs(ui), ['project *'], 'the tab next to it shown');
+    assert.deepEqual(await projectTabs(ui), ['project', 'project *'], 'the tab next to it shown');
     assert.ok(fs.existsSync(gone) && !fs.existsSync(path.join(userData, 'projects', 'gone')));
-    assert.deepEqual(savedWindows(), [{ tabs: ['project'], shown: 'project' }]);
+    assert.deepEqual(savedWindows(), [{ tabs: ['project/1', 'project/2'], shown: 'project/2' }]);
 
     // Folder on disk, several (a frontend and a backend): taken as they are, the first the default and the project's
     // folder; Create Git repository in the one without git only.
@@ -1629,25 +1620,25 @@ export default (test: Test) => {
     assert.ok((await ui(`kulisa.invoke('project:new', { from: 'clone', name: 'bad', location: ${JSON.stringify(root)}, urls: [${JSON.stringify(bare)}, ${JSON.stringify(path.join(root, 'none.git'))}] })`)).error);
     assert.ok(!fs.existsSync(path.join(root, 'bad')) && !projects().includes('bad'));
 
-    // Close Group in its menu: the last group, so the empty window; its tasks closed.
+    // Close All Tasks in its submenu: the last tasks, so the empty window; its tasks closed.
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
-    await rightClick(ui, '#projectTabs [data-project="project"] .name');
-    await menuRows(ui); // it opens once the window has the list of windows
-    await choose(ui, 'Close Group');
+    await projectMenu(ui, 'Close All Tasks', '#projectTabs [data-project="project"] .name');
     await waitFor(() => shell.task === null && shell.open.size === 0);
     ctx.asked.length = 0;
     await waitFor(() => ui(`document.documentElement.classList.contains('noproject')`));
     assert.ok(shell.store.tasksOf({ id: 'project' }).list.every((e) => e.closed), 'its tasks closed');
 
-    // A closed task in the bar's +: its group again, on that task, opened again; another one of it goes into that
-    // group. Back on task-1 with Feature-X, as the tests after and the restart phase expect.
-    await plusMenu(ui, 'project', 'Feature-X');
-    await waitFor(() => shell.task?.n === 2 && shell.task.loaded && shell.pty && !shell.windows[0].switching);
-    assert.ok(!shell.task.entry.closed, 'open again');
-    await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
+    // A closed task in the bar's +: opened again, a tab at the end; another one of it after it. Back on task-1 with
+    // Feature-X, as the tests after and the restart phase expect.
     await plusMenu(ui, 'project', 'task-1');
     await waitFor(() => shell.task?.n === 1 && shell.task.loaded && shell.pty && !shell.windows[0].switching);
-    assert.deepEqual(await projectTabs(ui), ['project *'], 'one group');
+    assert.ok(!shell.task.entry.closed, 'open again');
+    await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
+    await plusMenu(ui, 'project', 'Feature-X');
+    await waitFor(() => shell.task?.n === 2 && shell.task.loaded && shell.pty && !shell.windows[0].switching);
+    await click(ui, taskTab(1));
+    await waitFor(() => shell.task?.n === 1 && shell.task.loaded && !shell.windows[0].switching);
+    assert.deepEqual(await projectTabs(ui), ['project *', 'project'], 'a tab each');
     assert.deepEqual(await tabs(ui), ['task-1 *', 'Feature-X']);
     ctx.watchPty(shell.pty);
     await waitFor(() => ui(`!document.documentElement.classList.contains('noproject') && !document.documentElement.classList.contains('loading')`));
@@ -1658,7 +1649,7 @@ export default (test: Test) => {
     const { id } = await shell.task.createProfile('Анна') as { id: string };
     const p = shell.profiles.get(id);
     await waitFor(() => p.browser);
-    assert.ok(p.endpoint.endsWith(`/project/1/${encodeURIComponent(id)}`));
+    assert.ok(p.endpoint.endsWith(`/${shell.task.key}/${encodeURIComponent(id)}`));
     await p.newTab('about:blank').ready;
     assert.equal((await p.page()).url(), 'about:blank', 'Playwright reached its tab');
     await shell.task.deleteProfile(id);
@@ -1827,7 +1818,7 @@ export default (test: Test) => {
       shell.accounts.drop(x.id); fs.rmSync(x.dir, { recursive: true, force: true });
     }
     await waitFor(() => !shell.windows[0].switching && ui(`!document.documentElement.classList.contains('loading')`));
-    await click(ui, `document.querySelector('#tasklist .tasktab[data-task="${shown.key}"]')`);
+    await click(ui, `document.querySelector('#projectTabs .tasktab[data-task="${shown.key}"]')`);
     await waitFor(() => shell.task === shown && shown.loaded);
   });
 
@@ -1840,7 +1831,7 @@ export default (test: Test) => {
     await waitFor(async () => /^served before$/m.test((await call('terminal_read', { name: 'dev server' })).text));
     await showProject(ui, 'project');
     await waitFor(() => shell.current?.id === 'project' && shell.task.loaded);
-    assert.deepEqual(await projectTabs(ui), ['project *', 'other']);
+    assert.deepEqual(await projectTabs(ui), ['project *', 'project', 'other']);
   });
   test('projects: one left in a window of its own (restart-tasks.ts: the windows come back)', async ({ shell, ui }) => {
     const third = path.join(root, 'third');
@@ -1848,12 +1839,12 @@ export default (test: Test) => {
     await ui(`kulisa.invoke('project:open', { folder: ${JSON.stringify(third)} })`);
     await waitFor(() => shell.current?.id === 'third' && shell.task.loaded);
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
-    await ui(`kulisa.invoke('project:move', { id: 'third', terminals: {} })`);
-    await waitFor(() => shell.windows[1]?.current?.id === 'third' && !shell.windows[1].switching);
+    await ui(`kulisa.invoke('task:move', { key: 'third/1', terminals: {} })`);
+    await waitFor(() => shell.windows[1]?.current?.key === 'third/1' && !shell.windows[1].switching);
     // Smaller than the window's minimum (setBounds passes below it, the human's drag does not): it comes back at it.
     shell.windows[1].win.setBounds({ x: 40, y: 50, width: 10, height: 10 });
     await showProject(ui, 'project');
     await waitFor(() => shell.current?.id === 'project' && shell.task.loaded);
-    assert.deepEqual(await projectTabs(ui), ['project *', 'other']);
+    assert.deepEqual(await projectTabs(ui), ['project *', 'project', 'other']);
   });
 };

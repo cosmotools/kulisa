@@ -156,7 +156,7 @@ Object.assign(window, { __layoutPreset: applyPreset }); // for tests
 // project's grid slides in as macOS desktops do, the one left out and the next one in at once; another task's replaces
 // it at once. Not with reduced motion: then the grid is hidden at once, so nothing half-built shows. The title bar and
 // the tasks' bar stay.
-kulisa.on<{ dir: number; level: 'task' | 'project'; task: string; pics?: Record<string, string> }>('grid:closing', ({ dir, level, task, pics }) => {
+kulisa.on<{ dir: number; task: string; pics?: Record<string, string> }>('grid:closing', ({ dir, task, pics }) => {
   closeLayers(); // its dialogs and menus are for the grid that goes
   // Its last change saved now, not dropped: a pane closed (its profile deleted) just before the task was left stayed in
   // its saved grid, and a saved grid naming a profile no longer there is not restored at all (restoreGrid).
@@ -178,12 +178,12 @@ kulisa.on<{ dir: number; level: 'task' | 'project'; task: string; pics?: Record<
   const next = new Promise<void>((r) => (built = r));
   // While the next grid is built (the callback), Chromium shows the picture of this one and draws no frames: the
   // building must not wait for one (reveal).
-  const transition = document.startViewTransition({ update: () => { takeDown(); cleared(); return next; }, types: [level, dir > 0 ? 'next' : 'previous'] });
+  const transition = document.startViewTransition({ update: () => { takeDown(); cleared(); return next; }, types: [dir > 0 ? 'next' : 'previous'] });
   sliding = { transition, built };
 });
 
-// Tasks gone (their project closed, a task deleted): their terminals and pictures too; a task opened again later
-// starts afresh.
+// Tasks gone (closed, deleted, moved to another window): their terminals and pictures too; a task opened again
+// later starts afresh.
 kulisa.on<string[]>('tasks:closed', (keys) => {
   for (const key of keys) pictures.delete(key);
   forgetTerminals(keys);

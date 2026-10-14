@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // The bar's +, after the islands (tasks.md, Projects): a task is made of a project (its profiles, agents and code), so
-// its menu lists the projects: a click makes a task of one with its default agent, in its group. Under each, its
-// closed tasks, opened again with a click: the one way to a project's task when it has no group. Ctrl+Shift+A, and
+// its menu lists the projects: a click makes a task of one with its default agent, a tab at the end of the bar. Under
+// each, its closed tasks, opened again with a click: the one place they are listed. Ctrl+Shift+A, and
 // New Task in the empty window, open it too (open below).
 import Icon from './Icon.vue';
 import ButtonMenu from './menu/ButtonMenu.vue';
