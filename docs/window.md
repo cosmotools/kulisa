@@ -68,6 +68,17 @@ deleted since is not restored at all: a profile deleted, then another task shown
 arrangement; 2026-10-13).
 The island is one panel however many terminals it holds ("The terminal").
 
+**No profile open, a terminal open**: the profiles' room is folded to a row of tiles over the grid, where the first
+one opens (`ClosedProfiles.vue`, `#closedprofiles`; the author, 2026-10-14: until then a profile was opened from the
+task tab's right-click menu alone, which no one found). A `.launcher.small` per closed profile, from the left: its
+picture over its name, who it is under it; a click opens it, its pane over the terminal, and the row goes. A project
+with no profiles has one tile, Add Profile…, its page in Settings. The tiles are outside dockview: the grid's room is
+what is left under them (`room()`, `lib/grid.ts`). With no terminal either, they are the second row of the big buttons
+("The terminal"). As the folded island, the row is a part of the window, nothing opens by itself: the agent opens a
+profile when it needs it (`profile_open`). Not on the task's tab (the author, 2026-10-12: the tasks' bar is no place
+for profiles), nor in the terminals' row (it folds with the island). A row of tabs was tried first and turned into
+tiles (the author, 2026-10-14).
+
 The window itself never scrolls, also not from a script (`overflow` on `html` and `body`, App.vue): a panel stacked
 behind another is kept laid out below the grid (dockview), which made the page taller than the window, and the
 tasks' bar bringing its tab into view (`scrollIntoView`) moved the whole grid up by a window's height
@@ -206,7 +217,8 @@ until then the strip was drawn at the grid's bottom, the room above it empty; th
 agent or a shell in an empty task): `.launch`, a `.launcher` each, the agent's icon over its name, an account's email
 under it, no keys (Ctrl+` opens the task's agent, which the window does not show: a key on one of them read as a
 mistake). Each is a Tab stop, Enter opens it; the first, the project's default agent, gets the keyboard when they come,
-unless the keyboard is in something else (a field, a dialog). A terminal opened unfolds it to the size it had. Ctrl+` there opens a new conversation of the task's agent; a task with none (its project had no default agent:
+unless the keyboard is in something else (a field, a dialog). Under them, a second row: the task's closed profiles,
+a `.launcher` each, its picture over its name ("The grid": No profile open). A terminal opened unfolds it to the size it had. Ctrl+` there opens a new conversation of the task's agent; a task with none (its project had no default agent:
 [tasks.md](tasks.md), "Choosing the agent") gives the keyboard to the buttons, or opens the +. A task that never had a
 terminal opens its agent, or nothing (the buttons).
 
@@ -374,7 +386,7 @@ shortcuts carry (`com.squirrel.kulisa.kulisa`), or Windows would not pin it to t
 | `src/main/keys.ts` | the keyboard shortcuts: the table, which key an input event is; `app.ts` takes them (Keys) |
 | `src/main/updates.ts`, `forge.config.ts` | updates, Squirrel's events; the installers and the release |
 | `src/main/terminal.ts` | the ptys of the tasks' terminals; each shell's screen for `terminal_read` |
-| `src/renderer/components/Grid.vue`, `grid/*.vue`, `lib/grid.ts` | the grid (dockview), the panes and their headers, the island of terminals (`Terminals.vue`, its row of tabs `TerminalTabs.vue`), Arrange panels |
+| `src/renderer/components/Grid.vue`, `grid/*.vue`, `lib/grid.ts` | the grid (dockview), the panes and their headers, the island of terminals (`Terminals.vue`, its row of tabs `TerminalTabs.vue`), the closed profiles' tiles over it (`ClosedProfiles.vue`), Arrange panels |
 | `src/renderer/components/TopBar.vue`, `menu/*.vue` | the title bar, ☰ and its own rows |
 | `src/renderer/components/menu/*.vue`, `Modal.vue`, `Ask.vue`, `lib/menu.ts`, `views.ts`, `ask.ts`, `terminals.ts`, `voice.ts` | the menus, the dialogs and questions (Reka UI's), the pages under them, the terminals, dictation |
 | `src/renderer/lib/keys.ts`, `components/Shortcuts.vue` | where the keyboard is, the commands the keys run; Keyboard Shortcuts |

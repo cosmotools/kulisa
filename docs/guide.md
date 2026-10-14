@@ -125,7 +125,8 @@ the right Ctrl: **☰ → Keyboard Shortcuts**, Change on its row, then press th
 - **A new task**: **+** in the tasks' bar, then a project (or Ctrl+Shift+N for the shown project). It runs the
   project's default agent with a new conversation; describe the task to it. With no default agent, you choose one
   with the buttons in the middle (Ctrl+` puts the keyboard on them). Its profiles are all closed: the agent
-  opens those it needs, or you do (right-click the task's tab).
+  opens those it needs, or you do: while none is open, each has a tile over the terminal (click it), and the task's
+  tab lists them on a right-click. A project with no profiles has one tile there, **Add Profile…**.
 - **Its own copy of the code.** In a project with git, every task works in a copy of its own (a git worktree) on a
   branch of its own, next to your project's folder (`myshop@task-2`). Your project's folder stays yours: the agent
   merges its work into it only when you ask (and checks first that you have no unsaved changes there), or opens a pull
@@ -239,7 +240,8 @@ A pane is a small Chrome: a tab strip, an address bar, back, forward and reload.
   agent's tab (**×**) asks first; its conversation stays in the task's history. A shell closes at once, or with `exit`.
 - Close the last one and the island folds to a thin strip with **+** in its middle, which opens one again (Ctrl+`
   opens the task's agent). With no profile open either, big buttons in the middle of the window do what **+** does:
-  one for each of the project's agents, then **Terminal**. Tab moves between them and Enter opens one.
+  one for each of the project's agents, then **Terminal**. Tab moves between them and Enter opens one. Under them, a
+  tile for each of the project's profiles opens it.
 - Terminals come back after a restart in their tabs: an agent continues its conversation, a shell starts fresh.
 - Copy and paste as in your OS's terminal: Ctrl+Shift+C / Ctrl+Shift+V on Linux, Ctrl+C / Ctrl+V on Windows, ⌘C / ⌘V
   on macOS.

@@ -571,23 +571,39 @@ export default (test: Test) => {
     const plus = () => ui(`(() => { const b = document.getElementById('termUnfold').getBoundingClientRect(), r = document.querySelector('.terminals').getBoundingClientRect();
       return { x: Math.round(b.x + b.width / 2 - (r.x + r.width / 2)), middle: Math.round(b.y + b.height / 2 - (r.y + r.height / 2)) }; })()`);
     const middle = async () => { const p = await plus(); return Math.abs(p.x) <= 1 && Math.abs(p.middle) <= 1; };
+    const PROFILES = ['Sam.admin', 'Elon.buyer', 'Dora']; // the project's, all closed
+    // The island alone fills the grid: dockview's room, the closed profiles' tiles no longer over it.
+    const room = () => ui(`(() => { const r = document.getElementById('grid').getBoundingClientRect(); return { width: Math.round(r.width), height: Math.round(r.height) }; })()`);
     const launch = () => ui(`(() => { const l = document.querySelector('.terminals .launch'), r = document.querySelector('.terminals').getBoundingClientRect();
-      if (!l) return null; const b = l.getBoundingClientRect(), ys = [...l.querySelectorAll('.launcher')].map((x) => Math.round(x.getBoundingClientRect().y));
-      return { labels: [...l.querySelectorAll('.launcher .name')].map((x) => x.textContent), oneLine: new Set(ys).size === 1,
+      if (!l) return null; const b = l.getBoundingClientRect(), ys = [...l.querySelectorAll('.agents .launcher')].map((x) => Math.round(x.getBoundingClientRect().y));
+      return { labels: [...l.querySelectorAll('.agents .name')].map((x) => x.textContent), oneLine: new Set(ys).size === 1,
+        profiles: [...l.querySelectorAll('.profiles .name')].map((x) => x.textContent),
         middle: Math.abs(b.y + b.height / 2 - (r.y + r.height / 2)) <= 1, strip: !!document.querySelector('.terminals .strip'),
         empty: getComputedStyle(document.querySelector('.termtabs').closest('.dv-groupview').querySelector('.dv-content-container')).backgroundColor }; })()`);
     for (const preset of ['grid', 'focus', 'columns']) {
       await ui(`window.__layoutPreset('${preset}')`);
-      await waitFor(async () => JSON.stringify(await island()) === JSON.stringify(before) && (await launch())?.middle, 3000);
-      assert.deepEqual(await launch(), { labels: ['Terminal'], oneLine: true, middle: true, strip: false, empty: 'rgba(0, 0, 0, 0)' });
+      await waitFor(async () => JSON.stringify(await island()) === JSON.stringify(await room()) && (await launch())?.middle, 3000);
+      assert.deepEqual(await launch(), { labels: ['Terminal'], oneLine: true, profiles: PROFILES, middle: true, strip: false, empty: 'rgba(0, 0, 0, 0)' });
     }
     // One opens what its row in + does: a terminal; closed, the buttons are back.
     await ui(`document.querySelector('.launcher').click()`);
     await waitFor(async () => task.terminals.size === 1 && !(await folded()));
+    // A terminal and no profile: the profiles' room a row of tiles over it, one for each; one opens its profile, and
+    // the row goes.
+    const tiles = () => ui(`(() => { const s = document.getElementById('closedprofiles');
+      return s && { names: [...s.querySelectorAll('.name')].map((x) => x.textContent),
+        above: s.getBoundingClientRect().bottom <= document.querySelector('.terminals').getBoundingClientRect().top }; })()`);
+    await waitFor(tiles);
+    assert.deepEqual(await tiles(), { names: PROFILES, above: true });
+    await ui(`document.querySelector('#closedprofiles [data-profile="sam-admin"]').click()`);
+    await waitFor(async () => task.profiles.has('sam-admin') && !(await tiles()));
+    await ctx.call('profile_close', { profile: 'sam-admin' });
+    await waitFor(tiles);
     await ui(`document.querySelector('.termtab .close').click()`);
-    await waitFor(async () => task.terminals.size === 0 && !!(await launch()));
-    // With a profile open: folded to a strip of its +, along the grid's height (the island is under the grid); kept so.
-    await ctx.call('profile_open', { profile: 'sam-admin' });
+    await waitFor(async () => task.terminals.size === 0 && !!(await launch()) && !(await tiles()));
+    // With a profile open (its tile among the big buttons): folded to a strip of its +, along the grid's height (the
+    // island is under the grid); kept so.
+    await ui(`document.querySelector('.launch .profiles [data-profile="sam-admin"]').click()`);
     await waitFor(async () => (await island()).height <= 40 && (await middle()));
     assert.equal((await island()).width, before.width);
     // Its + opens a terminal: the island unfolds.
@@ -1164,7 +1180,13 @@ export default (test: Test) => {
       && (await ui(`!document.documentElement.classList.contains('loading')`)));
     const bare = shell.task;
     ctx.asked.length = 0;
-    await waitFor(() => ui(`[...document.querySelectorAll('.launch .launcher .name')].map((n) => n.textContent).join()`).then((t) => t === 'Fake agent,Terminal'));
+    await waitFor(() => ui(`[...document.querySelectorAll('.launch .agents .name')].map((n) => n.textContent).join()`).then((t) => t === 'Fake agent,Terminal'));
+    // A project with no profiles: one tile, Add Profile…, its page in Settings.
+    assert.deepEqual(await ui(`[...document.querySelectorAll('.launch .profiles .name')].map((n) => n.textContent)`), ['Add Profile…']);
+    await ui(`document.querySelector('.launch .profiles .launcher').click()`);
+    await waitFor(() => ui(`document.getElementById('projects')?.dataset.state === 'open' && document.querySelector('#pjlist [data-project="site"]')?.ariaSelected === 'true'`));
+    await ui(`document.querySelector('#projects header .x').click()`);
+    await waitFor(async () => !(await ui(`document.getElementById('projects')?.dataset.state === 'open'`)));
     assert.equal(bare.terminals.size, 0);
     assert.equal(JSON.parse(fs.readFileSync(path.join(userData, 'projects', 'site', String(bare.n), 'agent.json'), 'utf8')).agent, null);
     await ui(`document.activeElement.blur()`);
@@ -1797,9 +1819,11 @@ export default (test: Test) => {
     // All closed, no profile open: the big buttons, an account's email under its agent's name, no keys; the first has
     // the keyboard, Tab moves to the next, Enter opens it.
     for (const t of [...task.terminals.values()]) await ui(`act('terminal:close', { id: ${t.id} })`);
-    await waitFor(() => ui(`document.querySelectorAll('.launch .launcher').length === 3`));
-    assert.deepEqual(await ui(`[...document.querySelectorAll('.launcher')].map((l) => [l.querySelector('.name').textContent, l.querySelector('small')?.textContent ?? '', l.title])`),
+    await waitFor(() => ui(`document.querySelectorAll('.launch .agents .launcher').length === 3`));
+    assert.deepEqual(await ui(`[...document.querySelectorAll('.launch .agents .launcher')].map((l) => [l.querySelector('.name').textContent, l.querySelector('small')?.textContent ?? '', l.title])`),
       [['Fake agent', 'a@switch.test', 'Fake agent · a@switch.test'], ['Fake agent', 'b@switch.test', 'Fake agent · b@switch.test'], ['Terminal', '', 'Terminal']]);
+    // Under them the project's profiles, a tile each.
+    assert.deepEqual(await ui(`[...document.querySelectorAll('.launch .profiles .name')].map((n) => n.textContent)`), ['Sam.admin', 'Elon.buyer', 'Dora']);
     await waitFor(() => ui(`document.activeElement === document.querySelector('.launcher')`));
     await focusWindow(shell.win, ui);
     press(shell.win.webContents, 'Tab');

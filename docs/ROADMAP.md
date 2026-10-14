@@ -224,9 +224,6 @@ here; what is left of it stays.
       then it asks before every command. The machine's matter, as without Kulisa.
   - More agents (Gemini CLI, …): an entry each in `agents/`.
   - Windows: the installers run in PowerShell, untested; macOS untested.
-  - A hint in an empty grid: a new task opens no profile and its grid is the terminal alone (its agent's, or the
-    big buttons that open one when it is closed: docs/window.md, The terminal), so a hint would show in every new task; whether one is wanted (and what it says: the project's profiles in the task tab's menu, or "create
-    the first profile" when it has none) is the author's to decide.
 - **Tasks, rest** (how they work now, and why: [tasks.md](tasks.md)).
   - Helping the agent run the app ("Kulisa plugin: running the app", above). Today the agent gets
     `KULISA_PORT_OFFSET` and a line about it at session start.

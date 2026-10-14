@@ -267,7 +267,8 @@ Example: the project `~/IdeaProjects/myshop`, its second task, named "Checkout-r
   from the project's configuration alone, nothing taken from the task on screen: the human describes the task to its
   agent in the terminal. It runs the project's default agent; with none, the terminal only, nothing asked ("Choosing the agent"). **No profile opens by itself**, the first task's
   neither: all the project's are listed closed, and the agent opens one when it needs it (`profile_open`), the human
-  from the task's tab's right-click menu; each a copy of its master made then ([profiles.md](profiles.md)). Decided with the author on 2026-10-10:
+  from a tile over the terminal while none is open ([window.md](window.md), The grid) or the task's tab's right-click
+  menu; each a copy of its master made then ([profiles.md](profiles.md)). Decided with the author on 2026-10-10:
   a task opened those open in the task on screen before (the first one all), each a browser's processes and memory
   whether the task needed it or not.
 - **×** on a task's tab closes it: its agent stops, its tabs close; its code, branch, profiles and conversation stay,

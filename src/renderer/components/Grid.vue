@@ -8,6 +8,7 @@ import ProfilePane from './grid/ProfilePane.vue';
 import ProfileHeader from './grid/ProfileHeader.vue';
 import Terminals from './grid/Terminals.vue';
 import TerminalTabs from './grid/TerminalTabs.vue';
+import ClosedProfiles from './grid/ClosedProfiles.vue';
 import { gridMounted } from '../lib/grid';
 
 // dockview takes the gap between panels as a number: tokens.css's --gap, loaded before the window mounts (main.ts).
@@ -19,14 +20,16 @@ const tabComponents = markRaw({ profile: ProfileHeader, terminal: TerminalTabs }
 
 <template>
   <main id="dock">
-    <DockviewVue style="height: 100%" :theme :disable-floating-groups="true" single-tab-mode="fullwidth" :components :tab-components="tabComponents"
+    <ClosedProfiles />
+    <DockviewVue id="grid" :theme :disable-floating-groups="true" single-tab-mode="fullwidth" :components :tab-components="tabComponents"
       @ready="(e) => gridMounted(e.api)" />
   </main>
 </template>
 
 <style>
 #dock {
-  margin-inline: var(--gap); transition: opacity .15s;
+  display: flex; flex-direction: column; margin-inline: var(--gap); transition: opacity .15s;
+  #grid { flex: 1; min-height: 0; }
   .loading & { opacity: 0; transition: none; } /* until the grid is laid out (lib/grid.ts, reveal) */
   .noproject & { display: none; }
   .dockview-theme-abyss-spaced {

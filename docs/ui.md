@@ -137,6 +137,10 @@ every other `<svg>` uses the sprite.
 - `.titled`: a group's title, its name and a line to the end (JetBrains' titled separator), over a `.list` or fields.
 - `.item[aria-selected="true"]`: the chosen row of a list (Reka's Listbox, Tree), lit.
 - `.dot`: a 10 px circle in `--color`, a project's.
+- `.launcher`: a tile, big, for the hand to find at once where nothing else is: an icon or a profile's picture as
+  large as two rows, its `.name`, a `small` line under it (an account's email, who a profile is), on an island's color,
+  lit under the pointer. The empty grid's agents and profiles (`Terminals.vue`); `.small`, beside what is looked at:
+  the closed profiles over the terminal (`ClosedProfiles.vue`).
 - `.chip`: a thing named in a pill, its icon first (14 px, muted), `--font-small`: what goes along to another agent
   (Change Agent), a task's repositories at the end of its terminals' row (`TaskRepos.vue`).
 
