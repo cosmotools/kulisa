@@ -54,7 +54,9 @@ const tabComponents = markRaw({ profile: ProfileHeader, terminal: TerminalTabs }
 /* Switching (lib/grid.ts, grid:closing): the grid slides towards the next task's tab, as macOS desktops do (types
    next and previous say which way; until 2026-10-14 only between projects, replaced at once between a project's own
    tasks). Pictures, so the compositor moves them. */
-::view-transition-old(grid), ::view-transition-new(grid) { animation: .3s cubic-bezier(.2, .8, .2, 1) both; mix-blend-mode: normal; }
+/* Longhands: Vite's CSS minifier (Lightning CSS) made the shorthand with no name `animation: none`, and nothing slid. */
+::view-transition-old(grid), ::view-transition-new(grid) {
+  animation-duration: .3s; animation-timing-function: cubic-bezier(.2, .8, .2, 1); animation-fill-mode: both; mix-blend-mode: normal; }
 :active-view-transition-type(next) {
   &::view-transition-old(grid) { animation-name: grid-to-left; }
   &::view-transition-new(grid) { animation-name: grid-from-right; } }
