@@ -1,6 +1,7 @@
 // xterm.js in the renderer, node-pty here running the agent CLI unchanged. A task's terminals (tasks.ts) are
 // "<task key>#<id>". The window shows the shown task's, the others keep running (and the window keeps their output).
-import { ipcMain } from 'electron';
+import { on } from './ipc.ts';
+import type { Events } from '../shared/ipc.ts';
 import os from 'os';
 import pty from 'node-pty';
 import type { IPty } from 'node-pty';
@@ -18,7 +19,7 @@ interface TerminalConfig {
   shell?: { command: string; args?: string[] } | false | null; line?: string; size?: Size | null; sizeOf?: string;
   pinned?: Record<string, string>; screen?: boolean;
 }
-type Send = (channel: string, data: unknown) => void;
+type Send = (channel: 'pty:out', data: Events['pty:out']) => void;
 interface Term { pty: Pty | null; size: Size | null; firstSize: Promise<void>; sized: () => void }
 
 // The terminal's size as the window measures it, per terminal and per task (its island's, which all its terminals
@@ -34,12 +35,12 @@ const termOf = (key: string) => {
   }
   return terms.get(key)!;
 };
-ipcMain.on('pty:resize', (_e, { task, cols, rows }: { task: string } & Size) => {
+on('pty:resize', (_e, { task, cols, rows }) => {
   const t = termOf(task), island = termOf(task.split('#')[0]!);
   t.size = island.size = { cols, rows }; t.sized(); island.sized();
   try { t.pty?.resize(cols, rows); t.pty?.screen?.resize(cols, rows); } catch {}
 });
-ipcMain.on('pty:in', (_e, { task, data }: { task: string; data: string }) => terms.get(task)?.pty?.write(data));
+on('pty:in', (_e, { task, data }) => terms.get(task)?.pty?.write(data));
 
 // The user's shell as a terminal app starts it (login shell on macOS, as Terminal and VS Code do). An app started
 // from the Dock or a menu may have no SHELL; the account's shell is the same then.

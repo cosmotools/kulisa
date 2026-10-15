@@ -8,7 +8,7 @@ import { computed } from 'vue';
 import { TabsTrigger } from 'reka-ui';
 import Icon from './Icon.vue';
 import ProjectIcon from './ProjectIcon.vue';
-import type { ProjectEntry, TaskInfo } from '../types';
+import type { ProjectEntry, TaskInfo } from '../../shared/types';
 
 const props = defineProps<{ t: TaskInfo; p: Pick<ProjectEntry, 'name' | 'favicon'>; active: boolean }>();
 const STATES = { working: 'is working', waiting: 'waits for you', done: 'is done' };

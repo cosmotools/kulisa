@@ -7,8 +7,8 @@ import { CheckboxIndicator, CheckboxRoot, DialogClose, ListboxContent, ListboxIt
 import Modal from './Modal.vue';
 import Icon from './Icon.vue';
 import { registerDialog, dialog } from '../lib/dialogs';
-import type { ProjectChoices } from '../types';
 import { MAX, nameChar, repoName } from '../../shared/names';
+import { refused } from '../../shared/result';
 
 const modal = ref<InstanceType<typeof Modal>>();
 const nameField = ref<HTMLInputElement>(), sourceField = ref<HTMLInputElement>();
@@ -45,7 +45,7 @@ async function addOne(v: string) {
   if (!v) return true;
   error.value = '';
   if (from.value === 'clone') { if (!urls.value.includes(v)) urls.value.push(v); return true; }
-  const r = await kulisa.invoke<{ folder: string; state: string; project?: string } | null>('project:folder-state', { from: 'folder', folder: v });
+  const r = await kulisa.invoke('project:folder-state', { from: 'folder', folder: v });
   const why = !r ? `${v}: a full path, please` : ({ new: `${r.folder} is not there`, file: `${r.folder} is a file, not a folder`,
     project: `${r.folder} is the project ${r.project}'s already` } as Record<string, string>)[r.state];
   if (why) { error.value = why; if (!typedSource.value) typedSource.value = v; return false; } // left to correct
@@ -66,7 +66,7 @@ const target = computed(() => (from.value === 'folder' ? '' : `${place.value.tri
 const there = ref<{ state: string; project?: string } | null>(null);
 watch([name, place, from], async () => {
   const asked = target.value;
-  const r = !asked ? null : await kulisa.invoke<{ state: string; project?: string } | null>('project:folder-state', { location: place.value, name: name.value });
+  const r = !asked ? null : await kulisa.invoke('project:folder-state', { location: place.value, name: name.value });
   if (asked === target.value) there.value = r;
 });
 const where = computed(() => {
@@ -85,7 +85,7 @@ const askGit = computed(() => (from.value === 'folder' ? sources.value.some((x) 
   : from.value === 'new' && there.value?.state !== 'repo'));
 
 async function open(opts: { fromSettings?: boolean } = {}) {
-  const c = await kulisa.invoke<ProjectChoices & { location: string; sep: string }>('project:new-defaults');
+  const c = await kulisa.invoke('project:new-defaults');
   sep.value = c.sep; name.value = ''; place.value = c.location; git.value = true; error.value = '';
   from.value = 'new'; sources.value = []; urls.value = []; typedSource.value = ''; named = ''; chosenSource.value = undefined;
   fromSettings = !!opts.fromSettings; created = false;
@@ -95,7 +95,7 @@ async function open(opts: { fromSettings?: boolean } = {}) {
 registerDialog('newproject', { open });
 
 async function browse(existing = false) {
-  const picked = await kulisa.invoke<string | null>('project:pick-location', { location: place.value.trim(), existing });
+  const picked = await kulisa.invoke('project:pick-location', { location: place.value.trim(), existing });
   if (picked && existing) await addSource(picked); else if (picked) place.value = picked;
 }
 // + in the folders' or URLs' toolbar: Browse… for a folder; a URL is typed in the field under the list.
@@ -105,13 +105,13 @@ async function create() {
   if (from.value !== 'new' && !(await addSource())) return; // what is typed in its field counts
   if (!name.value.trim()) { nameField.value?.focus(); return; }
   saving.value = true;
-  const r = await kulisa.invoke<{ error?: string; id?: string } | null>('project:new', { from: from.value, name: name.value,
+  const r = await kulisa.invoke('project:new', { from: from.value, name: name.value,
     location: place.value, folders: sources.value.map((x) => x.folder), urls: [...urls.value], git: git.value && askGit.value });
   saving.value = false;
-  if (r?.error) { error.value = r.error; return; }
+  if (refused(r)) { error.value = r.error; return; }
   created = true;
   modal.value!.close();
-  await (await dialog('projects')).openProjects(r!.id!);
+  await (await dialog('projects')).openProjects(r.id);
 }
 // Cancelled after Settings' +: back there.
 async function closed() { if (fromSettings && !created) await (await dialog('projects')).openProjects(); }

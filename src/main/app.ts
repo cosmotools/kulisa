@@ -1,7 +1,7 @@
 // Kulisa, the app: its windows (window.ts) with their project tabs, the open projects, the agents, the CDP proxy and
 // the MCP server, the windows' IPC (each message acts in the window it comes from), quitting. start(options) is used by
 // the entry point (index.ts) and by the tests.
-import { app, ipcMain, dialog, screen, nativeTheme, Menu, safeStorage, shell as electronShell } from 'electron';
+import { app, dialog, screen, nativeTheme, Menu, safeStorage, shell as electronShell } from 'electron';
 import { EventEmitter } from 'events';
 import path from 'path';
 import fs from 'fs';
@@ -28,6 +28,7 @@ import { installGhost } from './ghost.ts';
 import { startDiscarding } from './discard.ts';
 import { installMasters } from './master.ts';
 import { refused } from '../shared/result.ts';
+import { handle, on } from './ipc.ts';
 import type { IpcMainEvent, IpcMainInvokeEvent, WebContents } from 'electron';
 import type { Shell, AgentChoice } from './shell.ts';
 import type { Agent } from './agents/index.ts';
@@ -37,8 +38,9 @@ import type { Task } from './tasks.ts';
 import type { Pty } from './terminal.ts';
 import type { GitError } from './worktrees.ts';
 import type { Place } from './window.ts';
-import type * as Sent from '../renderer/types.ts'; // what the window gets: its one definition
+import type * as Sent from '../shared/types.ts'; // what the window gets: its one definition
 import type { Result } from '../shared/result.ts';
+import type { OnProfile, OnTab, TerminalContents } from '../shared/ipc.ts';
 
 // What start takes (below).
 interface Options {
@@ -47,8 +49,6 @@ interface Options {
   agent?: { name?: string; command: string; args?: string[]; resume?: (sessionId: string) => string[]; shell?: Agent['shell']; voice?: Agent['voice']; conversation?: Agent['conversation'] };
 }
 type Event = IpcMainInvokeEvent | IpcMainEvent;
-// The terminals' contents the window sends when a project moves (window.ts: sent to the window it goes to).
-type Terminals = Record<string, string>;
 
 // Electron shows a blocking modal dialog on an uncaught main-process exception, which also stops the proxy and
 // the MCP server; log instead.
@@ -324,7 +324,7 @@ function start(options: Options = {}) {
   // again), what its terminals showed (terminals: { terminal key: its contents }, from the window it leaves). The
   // only tab of a window goes to a new one never (nothing would change); into another window, its window closes after
   // it.
-  async function moveTask(task: Task | null | undefined, terminals: Terminals = {}, to: AppWindow | null = null, { index, at }: { index?: number; at?: Electron.Point } = {}): Promise<Result<{ key: string }>> {
+  async function moveTask(task: Task | null | undefined, terminals: TerminalContents = {}, to: AppWindow | null = null, { index, at }: { index?: number; at?: Electron.Point } = {}): Promise<Result<{ key: string }>> {
     const from = task?.window;
     if (!task || !from) return { error: 'the task is not open' };
     if (to === from) return { key: task.key };
@@ -346,10 +346,10 @@ function start(options: Options = {}) {
     return { key: task.key };
   }
   // A task's terminals among those a window sent ("<task key>#<id>": renderer/lib/terminals.ts).
-  const ownTerminals = (terminals: Terminals, task: Task) => Object.fromEntries(Object.entries(terminals).filter(([key]) => key.startsWith(`${task.key}#`)));
+  const ownTerminals = (terminals: TerminalContents, task: Task) => Object.fromEntries(Object.entries(terminals).filter(([key]) => key.startsWith(`${task.key}#`)));
   // Move All Tasks to …: a project's open tasks of window w, one after another, into window to (none: a new window,
   // made for the first, the others following it).
-  async function moveAll(project: Project | undefined, w: AppWindow | null, terminals: Terminals, to: AppWindow | null): Promise<Result<{ keys: string[] }>> {
+  async function moveAll(project: Project | undefined, w: AppWindow | null, terminals: TerminalContents, to: AppWindow | null): Promise<Result<{ keys: string[] }>> {
     if (!project || !w) return { error: 'the project is not open' };
     const tasks = openTasksOf(project, w);
     if (to === w) return { keys: tasks.map((t) => t.key) };
@@ -370,7 +370,7 @@ function start(options: Options = {}) {
   }
   // A task's tab dragged and let go on window w's tabs (index: where): from w, it changes their order; from another
   // window, the task moves to w.
-  function dropTask(task: Task | null, w: AppWindow | null, index: number, terminals: Terminals) {
+  function dropTask(task: Task | null, w: AppWindow | null, index: number, terminals: TerminalContents) {
     if (!task?.window || !w) return { error: 'the task is not open' };
     if (task.window !== w) return moveTask(task, terminals, w, { index });
     w.reorder(task, index);
@@ -382,7 +382,7 @@ function start(options: Options = {}) {
   // Project, over the empty window (Empty.vue).
   shell.firstStart = (w) => { if (!store.projects().length) w.send('project:new'); };
   shell.pointer = () => screen.getCursorScreenPoint(); // where the pointer is on the screen (the tests set it)
-  async function dragOut(task: Task | null, terminals: Terminals): Promise<Result<{ key?: string }>> {
+  async function dragOut(task: Task | null, terminals: TerminalContents): Promise<Result<{ key?: string }>> {
     const at = shell.pointer();
     return shell.windows.some((w) => w.contains(at)) ? { key: task?.key } : moveTask(task, terminals, null, { at });
   }
@@ -473,14 +473,14 @@ function start(options: Options = {}) {
     sendProjects();
     return { id };
   }
-  ipcMain.handle('projects:list', (e) => at(e)?.info());
+  handle('projects:list', (e) => at(e)?.info());
   // The switch runs on its own; the window hears about it through grid:closing, projects and state. No question
   // where (the author, 2026-10-11): a tab in this window, which Move to New Window takes away.
   const openLater = (p: ProjectEntry, w: AppWindow, n?: number) => {
     setImmediate(() => serial(() => (shell.windows.includes(w) ? openProject(p, w, n) : null)).catch((err) => console.error('[project:open]', err)));
     return w.info();
   };
-  ipcMain.handle('project:open', (e, { id, folder, task }: { id?: string; folder?: string; task?: number }) => {
+  handle('project:open', (e, { id, folder, task }) => {
     const p = id ? store.projects().find((x) => x.id === id) : folder && fs.existsSync(folder) ? projectOfFolder(path.resolve(folder)) : null;
     return p ? openLater(p, at(e)!, task) : { error: 'no such project' };
   });
@@ -496,9 +496,9 @@ function start(options: Options = {}) {
     return { agents: all.filter((a) => a.choosable).map(({ id, name }) => ({ id, name })),
       clis: all.filter((a) => a.own && a.agent.config?.login).map(({ id, name }) => ({ id, name })) };
   };
-  ipcMain.handle('project:new-defaults', () => ({ location: shell.projectsHome, sep: path.sep, ...choices() }));
+  handle('project:new-defaults', () => ({ location: shell.projectsHome, sep: path.sep, ...choices() }));
   // Browse…: where a new or cloned project's folder goes, or (existing) the folder that is the project.
-  ipcMain.handle('project:pick-location', async (e, { location, existing }: { location?: string; existing?: boolean }) => {
+  handle('project:pick-location', async (e, { location, existing }) => {
     const r = await dialog.showOpenDialog(at(e)!.win, { title: existing ? "The project's folder" : 'Where to create the project', defaultPath: location,
       properties: existing ? ['openDirectory'] : ['openDirectory', 'createDirectory'] });
     return r.canceled ? null : r.filePaths[0] || null;
@@ -522,12 +522,12 @@ function start(options: Options = {}) {
   // several into <location>/<name>/<repo> each.
   const newFolder = ({ from, location, name, folder }: { from?: string; location?: string; name?: string; folder?: string }) => (from === 'folder' ? full(folder)
     : full(location) && name?.trim() ? path.join(full(location)!, name.trim()) : null);
-  ipcMain.handle('project:folder-state', async (_e, args: { from?: string; location?: string; name?: string; folder?: string }) => {
+  handle('project:folder-state', async (_e, args) => {
     const folder = newFolder(args);
     return folder ? { folder, ...await folderState(folder) } : null;
   });
   const refusal = (folder: string, there: { state: string; project?: string }) => ({ file: `${folder} is a file, not a folder`, project: `${folder} is the project ${there.project}'s already` } as Record<string, string>)[there.state];
-  ipcMain.handle('project:new', async (_e, { from = 'new', name, location, folders = [], urls = [], git }: { from?: string; name?: string; location?: string; folders?: string[]; urls?: string[]; git?: boolean }) => {
+  handle('project:new', async (_e, { from = 'new', name, location, folders = [], urls = [], git }) => {
     name = name?.trim();
     const bad = nameError(name);
     if (bad) return { error: bad };
@@ -539,7 +539,8 @@ function start(options: Options = {}) {
       for (const [i, f] of given.entries()) {
         const s = states[i]!;
         if (s.state === 'new') return { error: `${f} is not there` };
-        if (refusal(f!, s)) return { error: refusal(f!, s) };
+        const no = refusal(f!, s);
+        if (no) return { error: no };
       }
       for (const [i, f] of given.entries()) {
         if (git && states[i]!.state !== 'repo') await initRepo(f!).catch((err: GitError) => console.error('[git]', err.stderr || err.message));
@@ -551,7 +552,8 @@ function start(options: Options = {}) {
       if (!made) return { error: 'the location must be the full path of a folder' };
       folder = made;
       const there = await folderState(folder);
-      if (refusal(folder, there)) return { error: refusal(folder, there) };
+      const no = refusal(folder, there);
+      if (no) return { error: no };
       if (from === 'clone') {
         urls = [...new Set(urls.map((u) => u?.trim()).filter((u) => !!u))];
         if (!urls.length) return { error: 'no repository URL' };
@@ -582,7 +584,7 @@ function start(options: Options = {}) {
   // A project's configuration in the projects' manager (ProjectEditor.vue): its name, agents,
   // repositories, profiles and local addresses; its folder is shown, not changed (its tasks' copies are made from it).
   // Open or not.
-  ipcMain.handle('project:settings-get', async (_e, { id }: { id: string }): Promise<Sent.ProjectSettings | { error: string }> => {
+  handle('project:settings-get', async (_e, { id }) => {
     const p = store.projects().find((x) => x.id === id);
     if (!p) return { error: `no project ${id}` };
     const r = await reposInfo(p);
@@ -598,7 +600,7 @@ function start(options: Options = {}) {
     const all = shell.profileStore.all();
     return { profiles: all.filter((g) => g.projects.includes(id)).map(view), others: all.filter((g) => !g.projects.includes(id)).map(view) };
   };
-  ipcMain.handle('project:profile-new', (_e, { id, name }: { id: string; name?: string }) => {
+  handle('project:profile-new', (_e, { id, name }) => {
     name = name?.trim();
     const bad = nameError(name);
     if (bad) return { error: bad };
@@ -606,14 +608,14 @@ function start(options: Options = {}) {
     shell.profilesChanged();
     return profilesOf(id);
   });
-  ipcMain.handle('project:profile-add', (_e, { id, profile }: { id: string; profile: string }) => {
+  handle('project:profile-add', (_e, { id, profile }) => {
     const r = shell.profileStore.addTo(profile, id);
     if (refused(r)) return r;
     shell.profilesChanged();
     return profilesOf(id);
   });
   // The project open or not (projects.ts, dropProfile); asked in the manager's window.
-  ipcMain.handle('project:profile-remove', (e, { id, profile }: { id: string; profile: string }) => serial(async () => {
+  handle('project:profile-remove', (e, { id, profile }) => serial(async () => {
     const entry = store.projects().find((x) => x.id === id), g = shell.profileStore.get(profile);
     if (!entry || !g) return { error: entry ? `no profile ${profile}` : `no project ${id}` };
     if (!await askDropProfile(shell, entry, g, 'human', at(e))) return { error: 'the human said no' };
@@ -623,7 +625,7 @@ function start(options: Options = {}) {
   // Its repositories or folders (projects.ts): one picked in the OS's dialog (or given: the tests), cloned from a URL,
   // made the default, removed. Each answers with the project's settings as they are then.
   const settingsOf = async (id: string, r: Result) => (refused(r) ? r : { ...(await reposInfo(store.projects().find((x) => x.id === id)!)) });
-  ipcMain.handle('project:repo-add', async (e, { id, folder }: { id: string; folder?: string }) => {
+  handle('project:repo-add', async (e, { id, folder }) => {
     if (!folder) {
       const r = await dialog.showOpenDialog(at(e)!.win, { title: 'Add a repository or folder to the project', properties: ['openDirectory'] });
       if (r.canceled || !r.filePaths[0]) return {};
@@ -631,15 +633,15 @@ function start(options: Options = {}) {
     }
     return serial(async () => settingsOf(id, await addRepo(shell, id, folder)));
   });
-  ipcMain.handle('project:repo-clone', (_e, { id, url }: { id: string; url: string }) => serial(async () => settingsOf(id, await cloneRepo(shell, id, url))));
-  ipcMain.handle('project:repo-default', (_e, { id, folder }: { id: string; folder: string }) => serial(async () => settingsOf(id, await defaultRepo(shell, id, folder))));
-  ipcMain.handle('project:repo-remove', (_e, { id, folder }: { id: string; folder: string }) => serial(async () => settingsOf(id, await removeRepo(shell, id, folder))));
+  handle('project:repo-clone', (_e, { id, url }) => serial(async () => settingsOf(id, await cloneRepo(shell, id, url))));
+  handle('project:repo-default', (_e, { id, folder }) => serial(async () => settingsOf(id, await defaultRepo(shell, id, folder))));
+  handle('project:repo-remove', (_e, { id, folder }) => serial(async () => settingsOf(id, await removeRepo(shell, id, folder))));
   // Its former folder (no git; tasks no longer work in it), in the OS's file manager: the human moves its files.
-  ipcMain.handle('project:show-former', (_e, { id }: { id: string }) => { const p = store.projects().find((x) => x.id === id); return p && electronShell.openPath(p.folder); });
+  handle('project:show-former', (_e, { id }) => { const p = store.projects().find((x) => x.id === id); return p && electronShell.openPath(p.folder); });
   // Its agents (projects.ts): one added, made the default (+ runs it), removed. At once, not on Save.
-  ipcMain.handle('project:agent-add', (_e, { id, agent }: { id: string; agent: string }) => addAgent(shell, id, agent));
-  ipcMain.handle('project:agent-default', (_e, { id, agent }: { id: string; agent: string | null }) => defaultAgent(shell, id, agent));
-  ipcMain.handle('project:agent-remove', (_e, { id, agent }: { id: string; agent: string }) => removeAgent(shell, id, agent));
+  handle('project:agent-add', (_e, { id, agent }) => addAgent(shell, id, agent));
+  handle('project:agent-default', (_e, { id, agent }) => defaultAgent(shell, id, agent));
+  handle('project:agent-remove', (_e, { id, agent }) => removeAgent(shell, id, agent));
   // The accounts (Settings → Agents), each with the projects it is in; clis: the agents an account can be made of.
   const accountsInfo = (): Sent.AccountsInfo => {
     const names = new Map(store.projects().map((p) => [p.id, p.name]));
@@ -647,7 +649,7 @@ function start(options: Options = {}) {
       projects: projects!.map((p) => names.get(p)).filter((n) => n !== undefined) })),
     clis: shell.accounts.all().filter((a) => a.own && a.agent.config?.login).map((a) => a.id) };
   };
-  ipcMain.handle('accounts:list', () => accountsInfo());
+  handle('accounts:list', () => accountsInfo());
   // Settings → Profiles (profile-store.ts): every profile, each with the projects it is in; who one is changed (checked
   // in the store), then every loaded task shows it; made in no project; its master to sign in to; deleted after a
   // question (projects.ts, deleteProfile). Each answers with the list as it is then, or { error }.
@@ -657,27 +659,28 @@ function start(options: Options = {}) {
       login: g.login?.user || '', hasPassword: !!g.login?.secret, projects: g.projects.map((p) => names.get(p)).filter((n) => n !== undefined) })) };
   };
   const profileChange = (r: Result<{ id: string }>) => { if (refused(r)) return r; shell.profilesChanged(); return { ...profilesInfo(), id: r.id }; };
-  ipcMain.handle('profiles:list', () => profilesInfo());
-  ipcMain.handle('profiles:new', (_e, { name }: { name: string }) => {
+  handle('profiles:list', () => profilesInfo());
+  handle('profiles:new', (_e, { name }) => {
     const bad = shell.profileStore.check({ name });
     if (bad) return { error: bad };
     const g = shell.profileStore.create(null, { name: name.trim(), avatar: nextAvatar(shell.profileStore.all().map((x) => x.avatar)) });
     return { ...profilesInfo(), id: g.id };
   });
-  ipcMain.handle('profiles:rename', (_e, { profile, name }: { profile: string; name: string }) => profileChange(shell.profileStore.rename(profile, name)));
-  ipcMain.handle('profiles:describe', (_e, { profile, description }: { profile: string; description: string }) => profileChange(shell.profileStore.describe(profile, description)));
-  ipcMain.handle('profiles:avatar', (_e, { profile, avatar }: { profile: string; avatar: string }) => profileChange(shell.profileStore.setAvatar(profile, avatar)));
-  ipcMain.handle('profiles:login', (_e, { profile, user, password }: { profile: string; user?: string; password?: string }) => {
+  handle('profiles:rename', (_e, { profile, name }) => profileChange(shell.profileStore.rename(profile, name)));
+  handle('profiles:describe', (_e, { profile, description }) => profileChange(shell.profileStore.describe(profile, description)));
+  handle('profiles:avatar', (_e, { profile, avatar }) => profileChange(shell.profileStore.setAvatar(profile, avatar)));
+  handle('profiles:login', (_e, { profile, user, password }) => {
     const s = shell.loginSecret(password);
     return refused(s) ? s : profileChange(shell.profileStore.setLogin(profile, user, s.secret));
   });
-  ipcMain.handle('profiles:master', (_e, { profile }: { profile: string }) => { const g = shell.profileStore.get(profile); return g ? shell.openMaster(g.folder) : { error: `no profile ${profile}` }; });
-  ipcMain.handle('profiles:delete', (e, { profile }: { profile: string }) => serial(async () => { const r = await deleteProfile(shell, profile, at(e)); return r.ok ? profilesInfo() : r; }));
+  handle('profiles:master', (_e, { profile }) => { const g = shell.profileStore.get(profile); return g ? shell.openMaster(g.folder) : { error: `no profile ${profile}` }; });
+  handle('profiles:delete', (e, { profile }) => serial(async () => { const r = await deleteProfile(shell, profile, at(e)); return refused(r) ? r : profilesInfo(); }));
   // Delete Account… (projects.ts: refused while a task runs it, asked first). { accounts, clis } or { error }.
-  ipcMain.handle('account:delete', (e, { id }: { id: string }) => serial(async () => {
+  handle('account:delete', (e, { id }) => serial(async () => {
     const r = await deleteAccount(shell, id, at(e));
-    if (r.ok) shell.sendProjects(); // +'s right-click menu of the projects that had it
-    return r.ok ? accountsInfo() : r;
+    if (refused(r)) return r;
+    shell.sendProjects(); // +'s right-click menu of the projects that had it
+    return accountsInfo();
   }));
   // A new account of an agent, made in Settings → Agents or in a project (tasks.md, Accounts): a folder of its own
   // (accounts.ts), then the agent's own sign-in in it, as /login, in a terminal of the window (key), which ends once signed
@@ -688,7 +691,7 @@ function start(options: Options = {}) {
   // { accounts, clis }; or { error } (null: cancelled).
   const signins = shell.signins = new Map<string, Pty>(); // a sign-in terminal's key -> its pty
   const cancel = (key: string) => { const p = signins.get(key); signins.delete(key); if (p) stopTerminal(p); };
-  ipcMain.handle('account:signin', async (e, { id, agent: agentId, key }: { id?: string; agent: string; key: string }) => {
+  handle('account:signin', async (e, { id, agent: agentId, key }) => {
     const w = at(e), own = shell.accounts.find(agentId);
     if (id && !store.projects().some((x) => x.id === id)) return { error: `no project ${id}` };
     const config = own?.agent.config;
@@ -716,9 +719,9 @@ function start(options: Options = {}) {
     shell.accounts.create(id, r.id, agentId, got.email);
     return id ? addAgent(shell, id, r.id) : accountsInfo();
   });
-  ipcMain.handle('account:signin-cancel', (_e, { key }: { key: string }) => cancel(key));
+  handle('account:signin-cancel', (_e, { key }) => cancel(key));
   // Its name and local addresses.
-  ipcMain.handle('project:settings', (_e, { id, name, local = store.projects().find((p) => p.id === id)?.local }: { id: string; name?: string; local?: string[] }) => {
+  handle('project:settings', (_e, { id, name, local = store.projects().find((p) => p.id === id)?.local }) => {
     name = name?.trim();
     // Its own local addresses (local.ts): hosts, each with its subdomains (a tunnel, its dev domains).
     local = [...new Set((local || []).map((h) => String(h).trim().toLowerCase().replace(/^\*\./, '')).filter(Boolean))];
@@ -739,7 +742,7 @@ function start(options: Options = {}) {
     sendProjects();
   }
   // Close All Tasks (a project's menu): its open tasks in every window, asked once in the window it came from.
-  ipcMain.handle('project:close-tasks', (e, { id }: { id: string }) => serial(async () => {
+  handle('project:close-tasks', (e, { id }) => serial(async () => {
     const p = shell.open.get(id), w = at(e);
     if (!p || !w) return { error: 'the project is not open' };
     const tasks = p.open().filter((t) => t.window);
@@ -748,34 +751,34 @@ function start(options: Options = {}) {
     return { keys: tasks.map((t) => t.key) };
   }));
   // to: the id of the window it goes to (window.ts), none for a new one.
-  const windowById = (to?: number) => (to ? shell.windows.find((w) => w.id === to) : null);
-  ipcMain.handle('task:move', (_e, { key, to, terminals }: { key: string; to?: number; terminals: Terminals }) => serial(() => {
+  const windowById = (to?: number | null) => (to ? shell.windows.find((w) => w.id === to) : null);
+  handle('task:move', (_e, { key, to, terminals }) => serial(() => {
     const target = windowById(to);
     return to && !target ? { error: 'that window is closed' } : moveTask(shell.taskByKey(key), terminals, target);
   }));
-  ipcMain.handle('project:move-all', (e, { id, to, terminals }: { id: string; to?: number; terminals: Terminals }) => serial(() => {
+  handle('project:move-all', (e, { id, to, terminals }) => serial(() => {
     const target = windowById(to);
     return to && !target ? { error: 'that window is closed' } : moveAll(shell.open.get(id), at(e), terminals, target ?? null);
   }));
   // A task's tab dragged (TaskBar.vue): let go on this window's tabs, or where no window took it.
-  ipcMain.handle('task:drop', (e, { key, index, terminals }: { key: string; index: number; terminals: Terminals }) => serial(() => dropTask(shell.taskByKey(key), at(e), index, terminals)));
-  ipcMain.handle('task:drag-out', (_e, { key, terminals }: { key: string; terminals: Terminals }) => serial(() => dragOut(shell.taskByKey(key), terminals)));
-  ipcMain.handle('app:quit', (e) => serial(() => quit(at(e))));
+  handle('task:drop', (e, { key, index, terminals }) => serial(() => dropTask(shell.taskByKey(key), at(e), index, terminals)));
+  handle('task:drag-out', (_e, { key, terminals }) => serial(() => dragOut(shell.taskByKey(key), terminals)));
+  handle('app:quit', (e) => serial(() => quit(at(e))));
   // Kulisa's data of an open project (its profiles, tasks), in the OS's file manager: for the human who wants to
   // know where it is or what takes the disk. Opened, not changed.
-  ipcMain.handle('project:show-data', (_e, { id }: { id: string }) => {
+  handle('project:show-data', (_e, { id }) => {
     const p = shell.open.get(id);
     return p && electronShell.openPath(store.dirOf(p.entry));
   });
-  ipcMain.handle('project:delete', (e, { id }: { id: string }) => serial(() => deleteProject(id, at(e))));
+  handle('project:delete', (e, { id }) => serial(() => deleteProject(id, at(e))));
   // A task of any project (the bar shows every open task).
-  const taskAt = <T>(key: string, fn: (task: Task) => T) => serial(() => { const task = shell.taskByKey(key); return task ? fn(task) : { error: `no task ${key}` }; });
-  ipcMain.handle('task:show', (_e, key: string) => taskAt(key, showTask));
-  ipcMain.handle('task:new', (e, { project }: { project?: string } = {}) => serial(() => createTask(project ? shell.open.get(project) : at(e)?.task?.project, at(e) ?? null)));
-  ipcMain.handle('task:close', (_e, key: string) => taskAt(key, closeTask));
-  ipcMain.handle('task:delete', (_e, key: string) => taskAt(key, deleteTask));
+  const taskAt = <T>(key: string, fn: (task: Task) => T | Promise<T>) => serial(() => { const task = shell.taskByKey(key); return task ? fn(task) : { error: `no task ${key}` }; });
+  handle('task:show', (_e, key) => taskAt(key, showTask));
+  handle('task:new', (e, { project } = {}) => serial(() => createTask(project ? shell.open.get(project) : at(e)?.task?.project, at(e) ?? null)));
+  handle('task:close', (_e, key) => taskAt(key, closeTask));
+  handle('task:delete', (_e, key) => taskAt(key, deleteTask));
   // 🗑 on a closed task's row (the bar's +): its project need not be loaded.
-  ipcMain.handle('task:delete-closed', (e, { project, n }: { project: string; n: number }) => serial(async () => {
+  handle('task:delete-closed', (e, { project, n }) => serial(async () => {
     const open = shell.open.get(project)?.tasks.get(n);
     if (open) return open.entry.closed ? deleteTask(open) : { error: `task ${n} is open` };
     const p = store.projects().find((x) => x.id === project);
@@ -784,17 +787,17 @@ function start(options: Options = {}) {
     if (!refused(r)) sendProjects();
     return r;
   }));
-  ipcMain.handle('task:rename', (_e, { key, name }: { key: string; name: string }) => taskAt(key, (task) => task.rename(name)));
-  ipcMain.handle('task:add-repo', (_e, { key, repo }: { key: string; repo: string }) => taskAt(key, (task) => task.addRepository(repo)));
-  ipcMain.handle('task:remove-repo', (_e, { key, repo }: { key: string; repo: string }) => taskAt(key, (task) => task.removeRepository(repo)));
-  ipcMain.handle('project:delete-merged', (e, { id }: { id: string }) => serial(() => { const p = shell.open.get(id); return p ? deleteMerged(p, at(e)) : { error: 'the project is not open' }; }));
+  handle('task:rename', (_e, { key, name }) => taskAt(key, (task) => task.rename(name)));
+  handle('task:add-repo', (_e, { key, repo }) => taskAt(key, (task) => task.addRepository(repo)));
+  handle('task:remove-repo', (_e, { key, repo }) => taskAt(key, (task) => task.removeRepository(repo)));
+  handle('project:delete-merged', (e, { id }) => serial(() => { const p = shell.open.get(id); return p ? deleteMerged(p, at(e)) : { error: 'the project is not open' }; }));
   // The dictation: its key held (holdKey, above in onKey) and the microphone (Dictation.vue; Task.voice, dictate).
   // Esc typed into an agent's terminal (its key: "<task>#<id>"): Task.interrupted.
-  ipcMain.on('pty:in', (_e, { task, data }: { task: string; data: string }) => { if (data === '\x1b') shell.taskByKey(task.split('#')[0]!)?.interrupted(task); });
-  ipcMain.handle('voice:get', (_e, key: string) => shell.taskByKey(key)?.voice() ?? null);
-  ipcMain.handle('voice:record', (_e, { task, on }: { task: string; on: boolean }) => shell.taskByKey(task)?.dictate(on) ?? { recording: false });
-  ipcMain.handle('task:show-folder', (_e, key: string) => { const task = shell.taskByKey(key); return task && electronShell.openPath(task.folder); });
-  ipcMain.handle('tasks:get', (e) => at(e)?.sendProjects());
+  on('pty:in', (_e, { task, data }) => { if (data === '\x1b') shell.taskByKey(task.split('#')[0]!)?.interrupted(task); });
+  handle('voice:get', (_e, key) => shell.taskByKey(key)?.voice() ?? null);
+  handle('voice:record', (_e, { task, on }) => shell.taskByKey(task)?.dictate(on) ?? { recording: false });
+  handle('task:show-folder', (_e, key) => { const task = shell.taskByKey(key); return task && electronShell.openPath(task.folder); });
+  handle('tasks:get', (e) => at(e)?.sendProjects());
 
   const ready = app.whenReady().then(async () => {
     // macOS keeps a menu bar for the app: Electron's default one would reload Kulisa's own page with ⌘R. Its own
@@ -887,7 +890,7 @@ function start(options: Options = {}) {
     task.window?.send('agent:choose', { task: task.key, selected: agent?.id ?? null });
   })) as Shell['chooseAgent'];
   shell.chooseAgent.cancel = (task: Task) => { choosing.get(task.key)?.(null); choosing.delete(task.key); };
-  ipcMain.on('agent:chosen', (_e, { task, id }: { task: string; id: string | null }) => { const r = choosing.get(task); choosing.delete(task); r?.(id ? shell.agentFor(id) : null); });
+  on('agent:chosen', (_e, { task, id }) => { if (!task) return; const r = choosing.get(task); choosing.delete(task); r?.(id ? shell.agentFor(id) : null); });
   // The agents to choose from; with check, whether each is installed (for the task's folder: its environment);
   // with details (the Agents window), also where it is and its version. Finding them runs the user's login shell and
   // each agent's --version, tenths of a second or more (the author, 2026-10-11: the list should come at once): with
@@ -900,7 +903,8 @@ function start(options: Options = {}) {
     seen.set(`${a.id}\n${cwd}`, s);
     return s;
   };
-  ipcMain.handle('agents:list', async (e, { check, details, cached }: { check?: boolean; details?: boolean; cached?: boolean } = {}) => {
+  const notYet: { list: null } = { list: null }; // not looked for in this folder yet
+  handle('agents:list', async (e, { check, details, cached } = {}) => {
     const w = at(e), looks = new Map<string, ReturnType<typeof look>>(), cwd = w?.task?.folder || app.getPath('home'); // each agent looked for once, whatever its accounts
     // The project's agents first (Choose the Agent), in its order.
     const mine = w?.task?.project.agents() || [], rank = (id: string) => (mine.includes(id) ? mine.indexOf(id) : mine.length);
@@ -914,7 +918,7 @@ function start(options: Options = {}) {
       if (!looks.has(a.id)) looks.set(a.id, look(a, cwd, details));
       return looks.get(a.id);
     };
-    if (cached && (check || details) && accounts.some(({ agent: a }) => !of(a) || (details && (of(a) as { version?: string | null }).version === undefined))) return { list: null };
+    if (cached && (check || details) && accounts.some(({ agent: a }) => !of(a) || (details && (of(a) as { version?: string | null }).version === undefined))) return notYet;
     const list = await Promise.all(accounts.map(async ({ id, agent: a, name, dir, own }) => {
       const f = check || details ? (await of(a))!.found : null;
       return {
@@ -927,7 +931,7 @@ function start(options: Options = {}) {
     return { list, home: app.getPath('home') };
   });
   // The maker's installer, run when the human clicks Install (that is their go-ahead); its output goes to the window.
-  ipcMain.handle('agents:install', async (e, { id }: { id: string }) => {
+  handle('agents:install', async (e, { id }) => {
     const w = at(e), a = shell.agentFor(id, { any: true });
     if (!a?.install) return { error: `nothing to install for ${id}` };
     const code = await installAgent(a, (data) => w?.send('agents:install-log', data));
@@ -939,37 +943,37 @@ function start(options: Options = {}) {
   // Each names its task (renderer, tasks.ts: act): one sent just as the human switches tasks or
   // projects is refused, not done in the task shown by then.
   const noTask = { error: 'that task is not on screen' };
-  const onScreen = (e: Event, key: string) => { const task = at(e)?.task; return task && task.key === key ? task : null; };
-  type Args = Record<string, any>; // what a window's message about a profile or a tab carries besides naming it
-  const onProfile = (fn: (p: Profile, args: Args) => unknown) => (e: IpcMainInvokeEvent, { task, profile, ...args }: Args) => { const r = onScreen(e, task)?.find(profile) || noTask; return refused(r) ? r : fn(r.profile, args); };
-  const onTab = (fn: (p: Profile, t: Tab, args: Args) => unknown) => (e: IpcMainInvokeEvent, { task, profile, tab, ...args }: Args) => { const r = onScreen(e, task)?.findTab(profile, tab) || noTask; return refused(r) ? r : fn(r.profile, r.tab, args); };
-  ipcMain.handle('profile:close', (e, { task, profile }: { task: string; profile: string }) => onScreen(e, task)?.closeProfile(profile) || noTask);
-  ipcMain.handle('profile:open', (e, { task, profile }: { task: string; profile: string }) => onScreen(e, task)?.openProfile(profile) || noTask);
+  const onScreen = (e: Event, key: string | null) => { const task = at(e)?.task; return task && task.key === key ? task : null; };
+  // What a message carries besides naming its profile or tab (A: its arguments, from the channel's in shared/ipc.ts).
+  const onProfile = <A extends OnProfile, R>(fn: (p: Profile, args: Omit<A, keyof OnProfile>) => R) => (e: IpcMainInvokeEvent, { task, profile, ...args }: A) => { const r = onScreen(e, task)?.find(profile) || noTask; return refused(r) ? r : fn(r.profile, args); };
+  const onTab = <A extends OnTab, R>(fn: (p: Profile, t: Tab, args: Omit<A, keyof OnTab>) => R) => (e: IpcMainInvokeEvent, { task, profile, tab, ...args }: A) => { const r = onScreen(e, task)?.findTab(profile, tab) || noTask; return refused(r) ? r : fn(r.profile, r.tab, args); };
+  handle('profile:close', (e, { task, profile }) => onScreen(e, task)?.closeProfile(profile) || noTask);
+  handle('profile:open', (e, { task, profile }) => onScreen(e, task)?.openProfile(profile) || noTask);
   // Let go by the task's project (projects.ts, askDropProfile): Remove from Project… in its pane's menu.
-  ipcMain.handle('profile:delete', (e, { task, profile }: { task: string; profile: string }) => onScreen(e, task)?.deleteProfile(profile, 'human') || noTask);
-  ipcMain.handle('views:hidden', (e, hidden: boolean, opts?: { snapshots?: boolean }) => at(e)?.hideViews(hidden, opts));
-  ipcMain.on('ask:answer', (e, { id, answer }: { id: number; answer: string }) => at(e)?.answer(id, answer));
-  ipcMain.handle('layout:load', (e, { task }: { task: string }) => onScreen(e, task)?.store.layout());
+  handle('profile:delete', (e, { task, profile }) => onScreen(e, task)?.deleteProfile(profile, 'human') || noTask);
+  handle('views:hidden', (e, hidden, opts?) => at(e)?.hideViews(hidden, opts));
+  on('ask:answer', (e, { id, answer }) => at(e)?.answer(id, answer));
+  handle('layout:load', (e, { task }) => onScreen(e, task)?.store.layout());
   // A profile's master, to sign in to (master.ts), and its cookies brought to this task's copy (tasks.ts).
-  ipcMain.handle('profile:master', (e, { task, profile }: { task: string; profile: string }) => onScreen(e, task)?.openMaster(profile) || noTask);
-  ipcMain.handle('profile:refresh', (e, { task, profile }: { task: string; profile: string }) => onScreen(e, task)?.refreshProfile(profile) || noTask);
+  handle('profile:master', (e, { task, profile }) => onScreen(e, task)?.openMaster(profile) || noTask);
+  handle('profile:refresh', (e, { task, profile }) => onScreen(e, task)?.refreshProfile(profile) || noTask);
   // The island's tabs (Terminals.vue): + (an agent of the project, a new conversation; or a shell; own: the task's own
   // agent, Ctrl+` on the folded island), the one in front,
   // ×, an agent's tab handed over to another agent (Task.handOver).
-  ipcMain.handle('terminal:open', (e, { task, agent, own }: { task: string; agent?: string; own?: boolean }) => {
+  handle('terminal:open', (e, { task, agent, own }) => {
     const w = onScreen(e, task);
     return !w ? noTask : own ? w.openOwn() : agent ? w.openAgent(agent) : w.openTerminal();
   });
-  ipcMain.handle('terminal:show', (e, { task, id }: { task: string; id: number }) => onScreen(e, task)?.show(id) || noTask);
-  ipcMain.handle('terminal:close', (e, { task, id }: { task: string; id: number }) => onScreen(e, task)?.closeTab(id) || noTask);
-  ipcMain.handle('agent:new-conversation', (e, { task, id }: { task: string; id: number }) => onScreen(e, task)?.newConversation(id) || noTask);
-  ipcMain.handle('agent:hand-over', (e, { task, id, agent }: { task: string; id: number; agent: string }) => onScreen(e, task)?.handOver(id, agent) || noTask);
-  ipcMain.on('layout:save', (e, { task, layout }: { task: string; layout: unknown }) => at(e)?.saveLayout(task, layout));
-  ipcMain.on('layout', (e, { task, rects }: { task: string; rects: Parameters<AppWindow['layout']>[1] }) => at(e)?.layout(task, rects));
+  handle('terminal:show', (e, { task, id }) => onScreen(e, task)?.show(id) || noTask);
+  handle('terminal:close', (e, { task, id }) => onScreen(e, task)?.closeTab(id) || noTask);
+  handle('agent:new-conversation', (e, { task, id }) => onScreen(e, task)?.newConversation(id) || noTask);
+  handle('agent:hand-over', (e, { task, id, agent }) => onScreen(e, task)?.handOver(id, agent) || noTask);
+  on('layout:save', (e, { task, layout }) => at(e)?.saveLayout(task, layout));
+  on('layout', (e, { task, rects }) => at(e)?.layout(task, rects));
 
   // A tab the human opens (+): the window keeps the keys for its address (ProfilePane.vue). Its page, a native view, takes
   // them as it loads (when, varies), so they go back each time, until the human clicks the page or it goes somewhere.
-  ipcMain.handle('tab:new', onProfile((p, { url }) => {
+  handle('tab:new', onProfile((p, { url }) => {
     const tab = p.newTab(url || 'about:blank');
     const wc = tab.wc;
     const back = () => { if (!p.win.isDestroyed()) p.win.webContents.focus(); };
@@ -981,26 +985,26 @@ function start(options: Options = {}) {
     return tab.id;
   }));
   // focus: the keyboard was in the tab's page (a key closed or switched it): it goes to the page shown next, as in Chrome.
-  ipcMain.handle('tab:close', onTab((p, t, { focus }) => {
+  handle('tab:close', onTab((p, t, { focus }) => {
     if (focus) p.once('tab-closed', () => setImmediate(() => p.get()?.wc.focus()));
     p.closeTab(t.id);
   }));
-  ipcMain.handle('tab:activate', onTab((p, t, { focus }) => { p.activate(t.id); if (focus) t.wc.focus(); }));
-  ipcMain.handle('tab:focus', onTab((_p, t) => t.wc.focus()));
-  ipcMain.handle('tab:reopen', onProfile((p) => p.reopenTab()?.id ?? null));
-  ipcMain.handle('tab:navigate', onTab((p, t, { url }) => p.navigate(t.id, url)));
-  ipcMain.handle('tab:back', onTab((p, t) => p.back(t.id)));
-  ipcMain.handle('tab:forward', onTab((p, t) => p.forward(t.id)));
-  ipcMain.handle('tab:reload', onTab((p, t, { ignoreCache }) => p.reload(t.id, { ignoreCache })));
-  ipcMain.handle('tab:dialog', onTab((p, t, { dialog, ok }) => p.answerDialog(t.id, dialog, ok)));
-  ipcMain.handle('tab:devtools', onTab((p, t) => p.toggleDevTools(t.id)));
-  ipcMain.handle('zoom:get', () => shell.uiZoom);
-  ipcMain.handle('language:get', () => shell.languageInfo());
-  ipcMain.handle('language:set', (_e, code: string) => shell.setLanguage(code));
-  ipcMain.handle('theme:set', (_e, theme: Shell['theme']) => ['dark', 'light', 'system'].includes(theme) && shell.setTheme(theme));
-  ipcMain.handle('bar:set', (_e, bar: Shell['bar']) => ['top', 'bottom'].includes(bar) && shell.setBar(bar));
-  ipcMain.handle('zoom:ui', (_e, dir: number) => shell.setUiZoom(stepZoom(shell.uiZoom, dir)));
-  ipcMain.handle('tab:zoom', onTab((p, t, { dir }) => p.zoomSite(t.id, dir)));
+  handle('tab:activate', onTab((p, t, { focus }) => { p.activate(t.id); if (focus) t.wc.focus(); }));
+  handle('tab:focus', onTab((_p, t) => t.wc.focus()));
+  handle('tab:reopen', onProfile((p) => p.reopenTab()?.id ?? null));
+  handle('tab:navigate', onTab((p, t, { url }) => p.navigate(t.id, url)));
+  handle('tab:back', onTab((p, t) => p.back(t.id)));
+  handle('tab:forward', onTab((p, t) => p.forward(t.id)));
+  handle('tab:reload', onTab((p, t, { ignoreCache }) => p.reload(t.id, { ignoreCache })));
+  handle('tab:dialog', onTab((p, t, { dialog, ok }) => p.answerDialog(t.id, dialog, ok)));
+  handle('tab:devtools', onTab((p, t) => p.toggleDevTools(t.id)));
+  handle('zoom:get', () => shell.uiZoom);
+  handle('language:get', () => shell.languageInfo());
+  handle('language:set', (_e, code) => shell.setLanguage(code));
+  handle('theme:set', (_e, theme) => ['dark', 'light', 'system'].includes(theme) && shell.setTheme(theme));
+  handle('bar:set', (_e, bar) => ['top', 'bottom'].includes(bar) && shell.setBar(bar));
+  handle('zoom:ui', (_e, dir) => shell.setUiZoom(stepZoom(shell.uiZoom, dir)));
+  handle('tab:zoom', onTab((p, t, { dir }) => p.zoomSite(t.id, dir)));
 
   // ---------- keyboard shortcuts (keys.ts) ----------
   // Every key typed in the window or in a profile's page comes here first (before-input-event), before the page
@@ -1044,9 +1048,9 @@ function start(options: Options = {}) {
     win.send('command', { id: hit.id, n: hit.n, profile: t ? t.profile.id : pane, tab: t ? t.tab.id : null, task: win.task?.key ?? null, page: !!t });
   }
   app.on('web-contents-created', (_e, wc) => wc.on('before-input-event', (e, input) => onKey(wc, e, input)));
-  ipcMain.on('keys:zone', (e, zone: string) => { const w = at(e); if (w) w.keyZone = String(zone); });
+  on('keys:zone', (e, zone) => { const w = at(e); if (w) w.keyZone = String(zone); });
   // A hold key changed by the human (Keyboard Shortcuts): kept in settings.json, every window told.
-  ipcMain.handle('keys:set', (_e, { id, code }: { id: string; code: string }): Result<{ keys: Sent.Shortcut[] }> => {
+  handle('keys:set', (_e, { id, code }): Result<{ keys: Sent.Shortcut[] }> => {
     if (!table.some((b) => b.hold && b.id === id)) return { error: `not a key to change: ${id}` };
     const why = holdable(table, code);
     if (why) return { error: why };

@@ -9,7 +9,9 @@ import Avatars from './Avatars.vue';
 import { avatarSrc } from '../lib/common';
 import { covered } from '../lib/views';
 import { focusBack } from '../lib/menu';
-import type { SettingsProfile } from '../types';
+import { refused } from '../../shared/result';
+import type { Result } from '../../shared/result';
+import type { SettingsProfile } from '../../shared/types';
 
 const props = defineProps<{ profile: SettingsProfile }>();
 // changed: the profiles as they are now, and its id (renamed: a new one).
@@ -21,25 +23,27 @@ const name = ref(''), about = ref(''), login = ref(''), password = ref('');
 watch(() => props.profile, (p) => {
   name.value = p.name; about.value = p.description; login.value = p.login; password.value = ''; error.value = '';
 }, { immediate: true });
-async function change(channel: string, args: Record<string, unknown>) {
-  const r = await kulisa.invoke<{ profiles: SettingsProfile[]; id?: string; error?: string | null }>(channel, { profile: props.profile.id, ...args });
-  error.value = r.error || '';
-  if (!r.error) emit('changed', r);
-  return !r.error;
+// A change to who it is, what Settings answers (main/app.ts, profiles:*).
+async function change(answer: Promise<Result<{ profiles: SettingsProfile[]; id: string }>>) {
+  const r = await answer;
+  error.value = refused(r) ? r.error : '';
+  if (!refused(r)) emit('changed', r);
+  return !refused(r);
 }
 const p = () => props.profile;
-const rename = () => { if (name.value.trim() !== p().name) void change('profiles:rename', { name: name.value }); };
-const describe = () => { if (about.value.trim() !== p().description) void change('profiles:describe', { description: about.value }); };
-const saveLogin = () => { if (login.value.trim() !== p().login) void change('profiles:login', { user: login.value }); };
+const pid = () => p().id;
+const rename = () => { if (name.value.trim() !== p().name) void change(kulisa.invoke('profiles:rename', { profile: pid(), name: name.value })); };
+const describe = () => { if (about.value.trim() !== p().description) void change(kulisa.invoke('profiles:describe', { profile: pid(), description: about.value })); };
+const saveLogin = () => { if (login.value.trim() !== p().login) void change(kulisa.invoke('profiles:login', { profile: pid(), user: login.value })); };
 async function savePassword() {
-  if (password.value && (await change('profiles:login', { user: login.value, password: password.value }))) password.value = '';
+  if (password.value && (await change(kulisa.invoke('profiles:login', { profile: pid(), user: login.value, password: password.value })))) password.value = '';
 }
 // Its picture: a panel of them from the button beside it (a menu's look, the pages pictures meanwhile).
 const { open: picking, ready: pickReady } = covered('pictures');
 let pickFocused: Element | null = null;
 const togglePick = (v: boolean) => { if (v) pickFocused = document.activeElement; picking.value = v; };
-async function pick(avatar: string) { picking.value = false; await change('profiles:avatar', { avatar }); }
-async function signIn() { error.value = (await kulisa.invoke<{ error?: string } | null>('profiles:master', { profile: props.profile.id }))?.error || ''; }
+async function pick(avatar: string) { picking.value = false; await change(kulisa.invoke('profiles:avatar', { profile: pid(), avatar })); }
+async function signIn() { error.value = (await kulisa.invoke('profiles:master', { profile: props.profile.id }))?.error || ''; }
 </script>
 
 <template>

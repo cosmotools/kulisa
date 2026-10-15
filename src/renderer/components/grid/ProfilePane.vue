@@ -27,7 +27,7 @@ const url = () => { const u = active.value?.url || ''; return u === 'about:blank
 
 // A tab the human opened (+, New tab, Ctrl+T): the address gets the focus once the tab is the active one, as in Chrome.
 let typeInto: string | null = null;
-async function newTab() { typeInto = await act<string>('tab:new', { profile: id() }); focusTyped(); }
+async function newTab() { const r = await act('tab:new', { profile: id() }); typeInto = typeof r === 'string' ? r : null; focusTyped(); }
 function focusTyped() { if (typeInto && typeInto === profile.value?.active) { typeInto = null; addr.value!.focus(); } }
 function focusAddress() { addr.value!.focus(); addr.value!.select(); }
 

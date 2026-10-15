@@ -46,7 +46,7 @@ addEventListener('blur', closeMenus);
 // Pictures of the pages for a menu or a drag; live again after.
 let frozen: Promise<void> | null = null;
 export function freeze() {
-  return (frozen ??= kulisa.invoke<Record<string, string>>('views:hidden', true, { snapshots: true }).then((pics) => { store.pictures = pics || {}; }));
+  return (frozen ??= kulisa.invoke('views:hidden', true, { snapshots: true }).then((pics) => { store.pictures = pics || {}; }));
 }
 export async function unfreeze() {
   if (!frozen) return;

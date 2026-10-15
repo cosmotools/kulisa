@@ -24,7 +24,7 @@ import type { Conversation, Copy, TaskEntry, TaskStore } from './store.ts';
 import type { Pty } from './terminal.ts';
 import type { GitError } from './worktrees.ts';
 import type { Shell, AgentChoice } from './shell.ts';
-import type * as Sent from '../renderer/types.ts'; // what the window gets: its one definition
+import type * as Sent from '../shared/types.ts'; // what the window gets: its one definition
 import { refused } from '../shared/result.ts';
 import type { Result } from '../shared/result.ts';
 

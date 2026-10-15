@@ -22,7 +22,7 @@ const title = computed(() => {
     + (not.length ? ` ${not.join(', ')} ${not.length > 1 ? 'have' : 'has'} no language setting yet.` : '');
 });
 async function choose(code: string) {
-  const r = await kulisa.invoke<{ error?: string }>('language:set', code);
+  const r = await kulisa.invoke('language:set', code);
   if (r?.error) await ask({ message: 'The language was not changed', detail: r.error });
 }
 </script>

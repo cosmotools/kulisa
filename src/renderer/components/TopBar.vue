@@ -12,6 +12,7 @@ import ArrangeRow from './menu/ArrangeRow.vue';
 import { store } from '../lib/store';
 import { keyText, LINKS, version } from '../lib/common';
 import type { MenuItem } from '../lib/menu';
+import type { Bar, Theme } from '../../shared/ipc';
 import { dialog } from '../lib/dialogs';
 
 const THEMES = [{ value: 'dark', label: 'Dark' }, { value: 'light', label: 'Light' }, { value: 'system', label: 'System', title: 'As the operating system' }];
@@ -19,9 +20,9 @@ const BARS = [{ value: 'top', label: 'Top' }, { value: 'bottom', label: 'Bottom'
 const windowMenu = (): MenuItem[] => [
     { component: ZoomRow },
     { component: ChoiceRow, props: { kind: 'theme', icon: 'i-theme', label: 'Theme', choices: THEMES, chosen: () => store.theme,
-      choose: (t: string) => kulisa.invoke('theme:set', t) } },
+      choose: (t: string) => kulisa.invoke('theme:set', t as Theme) } }, // one of THEMES
     { component: ChoiceRow, props: { kind: 'bar', icon: 'i-projects', label: 'Tasks bar', choices: BARS, chosen: () => store.bar,
-      choose: (b: string) => kulisa.invoke('bar:set', b) } },
+      choose: (b: string) => kulisa.invoke('bar:set', b as Bar) } }, // one of BARS
     { component: LanguageRow },
     '-', { heading: 'Arrange panels', icon: 'i-arrange' }, { component: ArrangeRow }, '-',
     { label: 'Keyboard Shortcuts', icon: 'i-keyboard', keys: keyText('shortcuts'), run: async () => (await dialog('shortcuts')).showShortcuts() },

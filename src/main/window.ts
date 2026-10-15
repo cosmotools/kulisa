@@ -13,7 +13,8 @@ import type { Rectangle, Point } from 'electron';
 import type { Shell } from './shell.ts';
 import type { Task } from './tasks.ts';
 import type { Profile, Bounds } from './profiles.ts';
-import type * as Sent from '../renderer/types.ts'; // what the window gets: its one definition
+import type * as Sent from '../shared/types.ts'; // what the window gets: its one definition
+import type { Arg, Events } from '../shared/ipc.ts';
 type Question = Sent.Question;
 
 // Where a window was ({ bounds, maximized }), or where a new one goes: next to a window (near), under a point (at).
@@ -35,7 +36,7 @@ let questions = 0, windows = 0;
 class AppWindow {
   shell: Shell; id: number; tabs: Task[]; current: Task | null; viewsHidden: boolean; switching: boolean;
   stateTimer: NodeJS.Timeout | undefined; picking: Map<string, { profile: Profile; page: import('playwright-core').Page; cancel: () => unknown }>;
-  answers: Map<number, (answer: string | null) => void>; loaded: boolean; pending: [string, unknown][]; keyZone: string;
+  answers: Map<number, (answer: string | null) => void>; loaded: boolean; pending: [string, unknown[]][]; keyZone: string;
   win: Electron.BrowserWindow; place: { bounds: Rectangle; maximized: boolean };
   // shell: the app (app.ts). place: where it was ({ bounds, maximized }, settings.json), or { near: a window } for a
   // new one of its size next to it, or under the pointer (at: a point on the screen, where a tab was let go).
@@ -128,11 +129,11 @@ class AppWindow {
       version: pkg.version, theme: this.shell.theme, bar: this.shell.bar, keys: JSON.stringify(this.shell.keys()),
       projects: JSON.stringify(this.info(shown)) } });
     this.loaded = true;
-    for (const [channel, data] of this.pending.splice(0)) this.send(channel, data);
+    for (const [channel, data] of this.pending.splice(0)) this.win.webContents.send(channel, ...data);
   }
-  send(channel: string, data?: unknown) {
+  send<C extends keyof Events>(channel: C, ...data: Arg<Events[C]>) {
     if (this.win.isDestroyed()) return;
-    if (this.loaded) this.win.webContents.send(channel, data); else this.pending.push([channel, data]);
+    if (this.loaded) this.win.webContents.send(channel, ...data); else this.pending.push([channel, data]);
   }
 
   // The projects (store.ts), its tabs in order (each task with what its agent does), the one shown (shown: the one
@@ -278,14 +279,14 @@ class AppWindow {
   }
   // Where the grid puts each pane's page (key: the task the page laid out), in CSS pixels; the views are placed
   // in window pixels.
-  layout(key: string, rects: Record<string, Partial<Bounds> & { shown?: boolean }>) {
+  layout(key: string | null, rects: Record<string, Partial<Bounds> & { shown?: boolean }>) {
     if (key !== this.task?.key) return; // a task no longer on screen
     const z = this.win.webContents.getZoomFactor();
     for (const [id, r] of Object.entries(rects)) this.profiles.get(id)?.layout(r.shown === false ? r : Object.fromEntries(Object.entries(r).map(([k, v]) => [k, Math.round((v as number) * z)])));
   }
   // Any loaded task of this window: the grid's last change comes as it is taken down, and reaches here once the window
   // shows the next task.
-  saveLayout(key: string, layout: unknown) {
+  saveLayout(key: string | null, layout: unknown) {
     const task = this.tabs.find((t) => t.key === key);
     if (task?.loaded) task.store.saveLayout(layout);
   }

@@ -346,6 +346,22 @@ A pane's ⋮ menu (where more of a pane's actions will go, as in Chrome), or F12
 the active tab's DevTools in a window of their own. Kulisa's own DevTools (F12 outside the pages) exist only when
 running from source (`appDevTools`, off when `app.isPackaged`).
 
+## IPC
+
+A window's page and the main process talk by named channels: `invoke` (an answer comes back), `send` (none), and the
+main process's messages to a page. Each channel is declared once, in `src/shared/ipc.ts`: what it takes and what it
+answers (`Invoke`, `Send`, `Events`); `npm run build` checks both ends against it. The main process's end goes through
+`handle` and `on` (`src/main/ipc.ts`) and `AppWindow.send`; the page's through the bridge's types (`env.d.ts`) and
+`act`, which adds the task shown (a message about the shown task's profiles and tabs is refused once another is shown).
+A new channel is declared there first, then its two ends.
+
+- An answer the page does not read is `void`: the main process may answer anything there (the tests read some).
+- An answer that may be a refusal is a `Result` (`src/shared/result.ts`), read with `refused()`: a page that read
+  `r.accounts` after a no (`{ error: null }`) threw, unseen, until the types said so (2026-10-15).
+- What crosses comes from the page and is checked again where it matters (a theme, a name); the types say what a
+  well-behaved page sends, not what any page may.
+- The tests call channels by their names in pages (`kulisa.invoke('…')`, in `executeJavaScript`): those are not checked.
+
 ## The app icon, installers and updates
 
 The icon is a stage curtain drawn apart with the agent's pointer (`assets/icon.svg`, rendered for each OS by `npm run
@@ -390,9 +406,10 @@ shortcuts carry (`com.squirrel.kulisa.kulisa`), or Windows would not pin it to t
 
 | File | What |
 |---|---|
-| `src/main/app.ts` | the windows, the Kulisa zoom, the theme, the IPC |
+| `src/main/app.ts` | the windows, the Kulisa zoom, the theme, the IPC's handlers |
+| `src/shared/ipc.ts`, `src/main/ipc.ts` | the channels between a page and the main process; `handle` and `on`, checked against them (IPC) |
 | `src/main/window.ts` | a window: its BrowserWindow, the native views' places, its questions, screenshot |
-| `src/preload/index.cjs` | the window's bridge to the main process: the windows' pages are sandboxed (no Node: about 15 MB less a window, PSS; 2026-10-12), so it is a few lines of plain JavaScript; the window imports what it shares with the main process (`names.ts`, `avatars.ts`) |
+| `src/preload/index.cjs` | the window's bridge to the main process: the windows' pages are sandboxed (no Node: about 15 MB less a window, PSS; 2026-10-12), so it is a few lines of plain JavaScript; the window imports what it shares with the main process from `src/shared/` (`names.ts`, `avatars.ts`, `result.ts`) |
 | `src/main/keys.ts` | the keyboard shortcuts: the table, which key an input event is; `app.ts` takes them (Keys) |
 | `src/main/updates.ts`, `forge.config.ts` | updates, Squirrel's events; the installers and the release |
 | `src/main/terminal.ts` | the ptys of the tasks' terminals; each shell's screen for `terminal_read` |

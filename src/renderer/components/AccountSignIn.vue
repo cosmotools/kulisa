@@ -6,7 +6,7 @@ import { CollapsibleContent, CollapsibleRoot, CollapsibleTrigger } from 'reka-ui
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 import Icon from './Icon.vue';
 import { forgetTerminals, termHost } from '../lib/terminals';
-import type { SignedIn } from '../types';
+import type { SignedIn } from '../../shared/types';
 
 const props = defineProps<{ project?: string | null; agent: { id: string; name: string } }>();
 const emit = defineEmits<{ done: [r: SignedIn]; close: [] }>();
@@ -20,7 +20,7 @@ async function start() {
   if (shown) forgetTerminals([shown]);
   const key = running.value = shown = `signin#${Date.now()}-${++n}`;
   host.value!.replaceChildren(termHost(key));
-  const r = await kulisa.invoke<SignedIn & { error?: string | null }>('account:signin', { id: props.project ?? null, agent: props.agent.id, key });
+  const r = await kulisa.invoke('account:signin', { id: props.project ?? null, agent: props.agent.id, key });
   if (running.value === key) running.value = '';
   if (r.error) { error.value = r.error; details.value = true; }
   else if (r.error === undefined) emit('done', r);

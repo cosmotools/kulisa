@@ -1,6 +1,7 @@
 // The window's state, as the main process sends it (window.ts), for the components to draw.
 import { reactive, watch } from 'vue';
-import type { ClosedProfile, LanguageInfo, Profile, ProjectsInfo, Terminals } from '../types';
+import type { ClosedProfile, LanguageInfo, Profile, ProjectsInfo, Terminals } from '../../shared/types';
+import type { Invoke, OnTask } from '../../shared/ipc';
 import { initialProjects } from './common';
 import { projectColor } from './project-color';
 
@@ -35,19 +36,22 @@ export function setLoading(on: boolean) { store.loading = on; root.classList.tog
 // The shown task (TaskInfo) and its project, from the window's tabs.
 export const shownTask = () => store.projects.tabs.find((t) => t.key === store.current);
 const shownProject = () => store.projects.projects.find((p) => p.id === store.projects.project);
-export const act = <T = any>(channel: string, args: Record<string, unknown> = {}) => kulisa.invoke<T>(channel, { ...args, task: store.current });
+type OnTaskChannel = { [C in keyof Invoke]: Invoke[C]['args'] extends [OnTask] ? C : never }[keyof Invoke];
+type Rest<C extends OnTaskChannel> = Omit<Invoke[C]['args'][0], 'task'>;
+export const act = <C extends OnTaskChannel>(channel: C, ...args: {} extends Rest<C> ? [Rest<C>?] : [Rest<C>]) =>
+  kulisa.invoke(channel, ...([{ ...args[0], task: store.current }] as Invoke[C]['args']));
 
-kulisa.on<ProjectsInfo>('projects', (info) => {
+kulisa.on('projects', (info) => {
   store.projects = info;
   store.current = info.current;
 });
-kulisa.on<ClosedProfile[]>('closed-profiles', (list) => { store.closedProfiles = list; });
-kulisa.on<number>('zoom', (z) => { store.zoom = z; });
-void kulisa.invoke<number>('zoom:get').then((z) => { store.zoom = z; });
-kulisa.on<string>('theme', (theme) => { store.theme = theme; });
-kulisa.on<string>('bar', (bar) => { store.bar = bar; });
-kulisa.on<LanguageInfo>('language', (info) => { store.language = info; });
-void kulisa.invoke<LanguageInfo>('language:get').then((info) => { store.language = info; });
+kulisa.on('closed-profiles', (list) => { store.closedProfiles = list; });
+kulisa.on('zoom', (z) => { store.zoom = z; });
+void kulisa.invoke('zoom:get').then((z) => { store.zoom = z; });
+kulisa.on('theme', (theme) => { store.theme = theme; });
+kulisa.on('bar', (bar) => { store.bar = bar; });
+kulisa.on('language', (info) => { store.language = info; });
+void kulisa.invoke('language:get').then((info) => { store.language = info; });
 
 // The theme of Kulisa's own UI (app.ts): CSS does the rest (tokens.css: color-scheme, light-dark()). The tasks' bar
 // over the grid or under it. The shown task's project's color for the whole window (--project); none: Kulisa's own colors.
@@ -62,7 +66,7 @@ watch(() => { const p = shownProject(); return p && projectColor(p); }, (color) 
 // (what highlighted elements are) stays until the next one; the others go after 4 s. Not over a sign-in page, which
 // says the agent is paused.
 const captionTimers = new Map<string, number>();
-kulisa.on<{ task: string; profile: string; caption: string; sticky?: boolean }>('agent', (a) => {
+kulisa.on('agent', (a) => {
   if (a.task !== store.current) return; // a task in the background
   const p = store.profiles.find((x) => x.id === a.profile);
   if (!p || p.signinMode) return;
@@ -78,7 +82,7 @@ export async function togglePick(profile: string) {
   if (store.picking[profile]) return kulisa.invoke('pick:cancel', { profile });
   store.captions[profile] = 'Click an element on the page · Esc to cancel';
   store.picking[profile] = true;
-  const res = await kulisa.invoke<{ error?: string } | null>('pick:start', { profile });
+  const res = await kulisa.invoke('pick:start', { profile });
   store.picking[profile] = false;
   store.captions[profile] = res && res.error ? `Pick failed: ${res.error}` : '';
 }

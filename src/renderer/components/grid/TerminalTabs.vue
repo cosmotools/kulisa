@@ -12,7 +12,7 @@ import { agentMark } from '../../lib/agents';
 import { newTerminalItems, tabItems } from '../../lib/terminals';
 import { dialog } from '../../lib/dialogs';
 import { withKeys } from '../../lib/common';
-import type { Terminal } from '../../types';
+import type { Terminal } from '../../../shared/types';
 
 const STATES = { working: 'is working', waiting: 'waits for you', done: 'is done' };
 const tabOf = (e: MouseEvent) => store.terminals.list.find((t) => String(t.id) === (e.target as Element).closest<HTMLElement>('.termtab')?.dataset.id);

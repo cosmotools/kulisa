@@ -12,10 +12,10 @@ const list = agentList({ choose: true, installed: (a) => `${a.name} is installed
 let asking: string | null = null; // the task asked for
 const startable = computed(() => !list.state.installing && !!list.chosen.value?.installed);
 
-kulisa.on<{ task: string; selected?: string }>('agent:choose', async ({ task, selected }) => {
+kulisa.on('agent:choose', async ({ task, selected }) => {
   await whenLeft();
   asking = task;
-  await list.load(selected, () => modal.value!.open());
+  await list.load(selected ?? undefined, () => modal.value!.open());
 });
 
 const answer = (id: string | null) => { const task = asking; asking = null; kulisa.send('agent:chosen', { task, id }); };

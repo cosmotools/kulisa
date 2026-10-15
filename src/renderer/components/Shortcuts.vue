@@ -26,7 +26,7 @@ function change(id: string) {
     if (['Control', 'Shift', 'Alt', 'Meta'].includes(e.key) && !e.code) return;
     document.removeEventListener('keydown', take, true);
     listening.value = null;
-    const r = await kulisa.invoke<{ error?: string }>('keys:set', { id, code: e.code });
+    const r = await kulisa.invoke('keys:set', { id, code: e.code });
     message.value = r.error || '';
   }, true);
 }

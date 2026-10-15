@@ -16,7 +16,7 @@ import { ensureSite } from './fixtures/site.ts';
 import { root, userData, project, SITE, PORT, sleep, waitFor } from './helpers.ts';
 import type { Shell } from '../src/main/shell.ts';
 import type { AppWindow } from '../src/main/window.ts';
-import type { Question } from '../src/renderer/types.ts';
+import type { Question } from '../src/shared/types.ts';
 import type { Task, TaskTerminal } from '../src/main/tasks.ts';
 import type { Agent } from '../src/main/agents/index.ts';
 import type { IPty } from 'node-pty';

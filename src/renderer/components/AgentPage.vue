@@ -10,7 +10,8 @@ import AccountSignIn from './AccountSignIn.vue';
 import RightClickMenu from './menu/RightClickMenu.vue';
 import type { MenuItem } from '../lib/menu';
 import type { Agent, AgentList as List } from '../lib/agents';
-import type { Account, AccountsInfo, SignedIn } from '../types';
+import type { Account, AccountsInfo, SignedIn } from '../../shared/types';
+import { refused } from '../../shared/result';
 
 const props = defineProps<{ list: List; chosen?: string; accounts: Account[]; clis: string[] }>();
 const emit = defineEmits<{ accounts: [r: Partial<AccountsInfo>] }>();
@@ -32,9 +33,10 @@ const canSign = (a: Agent) => props.clis.includes(a.id);
 async function remove(id = accountSel.value) {
   if (!id) return;
   error.value = '';
-  const r = await kulisa.invoke<AccountsInfo & { error?: string | null }>('account:delete', { id });
-  if (r.error) error.value = r.error; else emit('accounts', r);
-  if (!r.error && !r.accounts.some((x) => x.id === accountSel.value)) accountSel.value = undefined; // deleted, not kept after a no
+  const r = await kulisa.invoke('account:delete', { id });
+  if (refused(r)) { error.value = r.error ?? ''; return; } // null: the human said no
+  emit('accounts', r);
+  if (!r.accounts.some((x) => x.id === accountSel.value)) accountSel.value = undefined; // deleted, not kept after a no
 }
 const accountMenu = (e: MouseEvent): MenuItem[] | null => {
   const id = (e.target as Element).closest<HTMLElement>('[data-account]')?.dataset.account;

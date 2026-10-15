@@ -16,7 +16,7 @@ import type { ProjectEntry, TaskEntry, Copy, Store } from './store.ts';
 import type { StoredProfile } from './profile-store.ts';
 import type { ProfileConfig } from './profiles.ts';
 import type { AppWindow } from './window.ts';
-import type { Question, ProjectRepo } from '../renderer/types.ts';
+import type { Question, ProjectRepo } from '../shared/types.ts';
 import type { GitError } from './worktrees.ts';
 
 type Git = 'ok' | 'no-commit' | 'none';

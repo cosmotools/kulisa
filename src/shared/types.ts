@@ -1,5 +1,5 @@
 // What the main process sends the window (window.ts, profiles.ts, tasks.ts), as the window uses it: the one
-// definition, which the main process's answers are typed with too.
+// definition, which the main process's answers are typed with too; the channels it comes by: ipc.ts.
 
 // A page's alert or confirm (profiles.ts, Profile._dialog), shown in its pane.
 interface PageDialog { id: number; type: 'alert' | 'confirm'; message: string; from: string; picture: string | null }
@@ -59,10 +59,17 @@ export interface ProjectChoices { agents: { id: string; name: string }[]; clis: 
 export interface ProjectRepo { folder: string; git: 'ok' | 'none' | 'no-commit' }
 export interface ProjectProfile { id: string; name: string; avatar: string; description?: string; also: string[] }
 export interface ProjectSettings extends ProjectChoices {
-  error?: string; name: string; folder: string; local?: string[]; repos: ProjectRepo[]; former?: string | null;
+  name: string; folder: string; local?: string[]; repos: ProjectRepo[]; former?: string | null;
   projectAgents: { id: string; name: string; default?: boolean }[]; profiles: ProjectProfile[]; others: ProjectProfile[];
 }
 // Kulisa's keyboard shortcuts (main/keys.ts), as this OS shows them.
 export interface Shortcut { id: string; group: string; label: string; keys: string[]; hold?: boolean } // hold: a key held alone, the human may change it
 // A question from the main process (shell.ask) or the window.
 export interface Question { message: string; detail?: string; ok?: string; other?: string; danger?: boolean }
+// An agent or account in a list to choose from or install (app.ts, agents:list; renderer's lib/agents.ts).
+export interface AgentInfo {
+  id: string; name: string; maker?: string; needs?: string; site?: string; install?: string | null; installed?: boolean;
+  account?: string | null; agent?: string; path?: string | null; onPath?: boolean | null; version?: string | null;
+}
+// A task's dictation (Task.voice): its agent has one, and whether it records; null: none.
+export interface Voice { recording: boolean }

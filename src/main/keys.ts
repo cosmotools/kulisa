@@ -20,7 +20,7 @@
 // command puts it in the window's HTML). always: also while a dialog is open. main: done in the main process.
 // display: only shown, the window does it (the terminal's copy and paste: terminal.ts).
 // The zoom's and DevTools' keys mean the nearest: a page's own in a page, Kulisa's elsewhere.
-import type { Shortcut } from '../renderer/types.ts';
+import type { Shortcut } from '../shared/types.ts';
 
 type Platform = NodeJS.Platform;
 type Group = 'global' | 'page' | 'terminal';

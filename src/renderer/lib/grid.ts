@@ -3,7 +3,7 @@
 // native views over them.
 import { nextTick } from 'vue';
 import type { AddPanelPositionOptions, DockviewApi } from 'dockview-vue';
-import type { Profile, Terminals } from '../types';
+import type { Profile } from '../../shared/types';
 import { act, setLoading, store } from './store';
 import { closeLayers, forgetFrozen, freeze, livePages, showViews, unfreeze } from './views';
 import { reducedMotion } from './common';
@@ -54,7 +54,7 @@ let flushSave = () => {};
 document.addEventListener('dragend', unfreeze, true);
 document.addEventListener('drop', () => setTimeout(unfreeze), true);
 
-kulisa.on<Profile[]>('state', async (s) => {
+kulisa.on('state', async (s) => {
   await leaving;
   // A profile leaving sign-in mode: the words over its pane go.
   for (const p of s) if (!p.signinMode && store.profiles.find((x) => x.key === p.key)?.signinMode) store.captions[p.id] = '';
@@ -156,12 +156,12 @@ Object.assign(window, { __layoutPreset: applyPreset }); // for tests
 // project's grid slides in as macOS desktops do, the one left out and the next one in at once; another task's replaces
 // it at once. Not with reduced motion: then the grid is hidden at once, so nothing half-built shows. The title bar and
 // the tasks' bar stay.
-kulisa.on<{ dir: number; task: string; pics?: Record<string, string> }>('grid:closing', ({ dir, task, pics }) => {
+kulisa.on('grid:closing', ({ dir, task, pics }) => {
   closeLayers(); // its dialogs and menus are for the grid that goes
   // Its last change saved now, not dropped: a pane closed (its profile deleted) just before the task was left stayed in
   // its saved grid, and a saved grid naming a profile no longer there is not restored at all (restoreGrid).
   flushSave();
-  if (pics) pictures.set(task, pics);
+  if (pics && task) pictures.set(task, pics);
   const takeDown = () => {
     setLoading(true);
     forgetFrozen();
@@ -184,14 +184,14 @@ kulisa.on<{ dir: number; task: string; pics?: Record<string, string> }>('grid:cl
 
 // Tasks gone (closed, deleted, moved to another window): their terminals and pictures too; a task opened again
 // later starts afresh.
-kulisa.on<string[]>('tasks:closed', (keys) => {
+kulisa.on('tasks:closed', (keys) => {
   for (const key of keys) pictures.delete(key);
   forgetTerminals(keys);
 });
 
 async function restoreGrid() {
   const a = await apiReady;
-  const saved = await act<{ panels?: Record<string, unknown> } | null>('layout:load');
+  const saved = await act('layout:load') as { panels?: Record<string, unknown> } | null | undefined; // as the window saved it
   // A saved grid may name profiles deleted since; dockview needs a component for every panel in it.
   const known = (id: string) => id === 'terminal' || store.profiles.some((p) => panelId(p.key) === id);
   if (saved && Object.keys(saved.panels || {}).every(known)) {
@@ -220,12 +220,12 @@ function syncGrid() {
   }
 }
 // The shown task's island (Terminals.vue): its tabs, the one in front.
-kulisa.on<Terminals>('terminals', async (t) => {
+kulisa.on('terminals', async (t) => {
   await leaving; // as the state: the next task's, once the grid on screen has gone
   if (t.task === store.current) store.terminals = t;
 });
 // A terminal closed, of any task: its xterm goes.
-kulisa.on<string[]>('terminals:gone', forgetTerminals);
+kulisa.on('terminals:gone', forgetTerminals);
 
 // Bring an open profile's pane to the front (it may be stacked behind another).
 export const showPane = (key: string) => api?.getPanel(panelId(key))?.api.setActive();

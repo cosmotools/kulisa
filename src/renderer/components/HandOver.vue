@@ -11,7 +11,8 @@ import { act, store, shownTask } from '../lib/store';
 import { agentMark } from '../lib/agents';
 import { avatarSrc } from '../lib/common';
 import { registerDialog } from '../lib/dialogs';
-import type { Terminal } from '../types';
+import type { Terminal } from '../../shared/types';
+import { refused } from '../../shared/result';
 
 const modal = ref<InstanceType<typeof Modal>>();
 const from = ref<Terminal | null>(null), chosen = ref<string>(), going = ref(false);
@@ -40,9 +41,9 @@ registerDialog('handover', {
 async function hand() {
   if (!from.value || !chosen.value || going.value) return;
   going.value = true; inTask = store.current;
-  const r = await act<{ id?: number; error?: string }>('agent:hand-over', { id: from.value.id, agent: chosen.value });
+  const r = await act('agent:hand-over', { id: from.value.id, agent: chosen.value });
   if (!going.value) return; // closed meanwhile: the tab is there, behind
-  if (r.id === undefined) { going.value = false; error.value = r.error || 'The agent did not start.'; return; }
+  if (refused(r)) { going.value = false; error.value = r.error || 'The agent did not start.'; return; }
   handed.value = r.id;
   waitIdle();
 }
@@ -55,7 +56,7 @@ function show() {
   handed.value = null; going.value = false;
   modal.value?.close();
 }
-kulisa.on<{ task: string; id: number; part: number; parts: number }>('handover:read', ({ task, id, part, parts }) => {
+kulisa.on('handover:read', ({ task, id, part, parts }) => {
   if (task !== inTask || id !== handed.value) return;
   read.value = { part, parts };
   if (part >= parts) show(); else waitIdle();

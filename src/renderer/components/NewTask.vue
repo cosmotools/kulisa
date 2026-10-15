@@ -9,7 +9,7 @@ import { store } from '../lib/store';
 import { dialog } from '../lib/dialogs';
 import { withKeys } from '../lib/common';
 import type { MenuItem } from '../lib/menu';
-import type { ProjectTask } from '../types';
+import type { ProjectTask } from '../../shared/types';
 
 const about = (t: ProjectTask) => [t.branch !== t.name && t.branch, 'closed', t.merged && 'merged'].filter(Boolean).join(' · ');
 function items(): MenuItem[] {

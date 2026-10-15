@@ -17,7 +17,7 @@ import { dialog } from '../lib/dialogs';
 import { profilesMenu } from '../lib/profiles';
 import { terminalsOf } from '../lib/terminals';
 import type { MenuItem } from '../lib/menu';
-import type { ProjectEntry, TaskInfo } from '../types';
+import type { ProjectEntry, TaskInfo } from '../../shared/types';
 
 const strip = ref<HTMLElement>();
 const tabs = computed(() => {

@@ -126,7 +126,8 @@ unasked. This paragraph is removed when the rewrite is finished.
   they are by Node's type stripping (Electron's own Node 24, or Node 24.12+), so erasable syntax
   only (no `enum`, `namespace`, parameter properties) and imports with their `.ts`. `tsc` only checks: `tsconfig.json`
   (strict, an element read by index may be missing: `noUncheckedIndexedAccess`), `test/tsconfig.json` (the same without null checks: a test counts on what it checks being there). What
-  the main process sends the window is typed once, in `src/renderer/types.ts`; the app every module gets, `Shell`
+  the main process sends the window is typed once, in `src/shared/`: `types.ts` the data, `ipc.ts` the channels
+  (docs/window.md, IPC); the app every module gets, `Shell`
   (`src/main/shell.ts`); an action's `{ error }` answer, `Result` and `refused()` (`src/shared/result.ts`). One way of
   writing code, all at once: what was dropped on 2026-10-08 was a mix of `.mts`, `.js` and JSDoc. The one exception,
   the windows' preload (`src/preload/index.cjs`, a few lines of plain JavaScript; the author, 2026-10-12): the windows
