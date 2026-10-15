@@ -80,7 +80,8 @@ function installSettings(shell: Shell, { preload, appDevTools }: { preload: stri
       s.questions.unanswered();
       if (shell.settings === s) shell.settings = null;
       for (const w of held) if (!w.win.isDestroyed()) { w.win.removeListener('focus', raise); w.win.setEnabled(true); }
-      if (!parent.win.isDestroyed()) { parent.focus(); parent.win.webContents.focus(); } // the keyboard back where it was
+      // The keyboard back where it was; not as Kulisa quits, its windows going too (one gone meanwhile threw).
+      if (!shell.quitting && !parent.win.isDestroyed() && !parent.win.webContents.isDestroyed()) { parent.focus(); parent.win.webContents.focus(); }
     });
     s.send('settings:show', at);
     // Its page stuck or gone: shown all the same, as the tasks' windows are held meanwhile.

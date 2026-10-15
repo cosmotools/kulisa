@@ -98,11 +98,12 @@ const manageProfiles = async ({ ui, sui }: Pick<Ctx, 'ui' | 'sui'>) => {
   await waitFor(() => sui(`!!document.getElementById('prconfig')?.checkVisibility()`));
 };
 // Settings closed as the human does it with Esc (its window: settings-window.ts), what was typed saved; its window gone,
-// the keyboard back in the task's window (a menu opened there before it came closed as the window got it).
+// the keyboard back in the task's window, the window's and its page's (a menu opened there before it came closed as the
+// window got it; on GitHub's runner the window manager's focus came after the page's, 2026-10-16).
 const closeSettings = async ({ shell, ui, sui }: Pick<Ctx, 'shell' | 'ui' | 'sui'>) => {
   await sui(`dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); 0`);
   await waitFor(() => !shell.settings);
-  await waitFor(() => ui(`document.hasFocus()`));
+  await waitFor(async () => shell.win.isFocused() && await ui(`document.hasFocus()`));
 };
 // A profile in Settings' tree chosen (a click), its page shown.
 const chooseProfile = async (sui: UI, id: string) => {
