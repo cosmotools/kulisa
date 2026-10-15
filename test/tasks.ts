@@ -1531,6 +1531,14 @@ export default (test: Test) => {
     ctx.asked.length = 0;
   });
 
+  test("menus: one longer than the window has stays in it and scrolls, as the bar's + with thirty closed tasks", async ({ ui }) => {
+    // It ran past the window's edge: under the grid its project's row, the new task, out of reach above (2026-10-15).
+    await plusMenu(ui);
+    await ui(`(() => { const m = ${MENU}, row = m.querySelector('.item'); for (let i = 0; i < 60; i++) m.append(row.cloneNode(true)); })()`); // as many rows as thirty closed tasks and more
+    assert.deepEqual(await ui(`new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => { const m = ${MENU}, b = m.getBoundingClientRect();
+      r([b.top >= 0, b.bottom <= innerHeight, m.scrollHeight > m.clientHeight]); })))`), [true, true, true]);
+    await closeMenu(ui);
+  });
   test("tasks: a closed task is deleted from its row, 🗑 or Delete, in the bar's +, its project loaded or not, after the question Delete Task… asks", async (ctx) => {
     // About 2 s: git's work (worktrees made and removed).
     const { shell, ui } = ctx;

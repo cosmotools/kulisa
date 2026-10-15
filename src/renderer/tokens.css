@@ -22,6 +22,7 @@
   --page-button: light-dark(#0b57d0, #a8c7fa); --on-page-button: light-dark(#ffffff, #062e6f); /* Chrome's, a page's dialog */
   --page-pad: 24px; /* inside a page's dialog, as Chrome's */
   --hover: color-mix(in srgb, var(--text) 12%, transparent); /* under a control the pointer is on, on any background */
+  --scrollbar: color-mix(in srgb, var(--text-muted) 55%, transparent); /* a scrollbar's thumb, on no track */
   --project: #c8333b; /* the open project's color (lib/store.ts); until then the app icon's own red */
   /* A desktop app's density, as JetBrains' (docs/ui.md, Desktop, not a web page): JetBrains' UI font and size (Inter,
      14 px, a step above their UI Guidelines' 13 (Typography), which read small; bundled, so every OS shows the same), one text size and a smaller one for

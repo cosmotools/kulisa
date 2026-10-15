@@ -1,6 +1,14 @@
 /* Components: the parts the window is built of, each defined once (docs/ui.md). A part's own <style> places them and
    lays it out; it does not make its own buttons, icons, rows or dialogs. */
 *, *::before, *::after { box-sizing: border-box; }
+/* Scrollbars: one for every part (the author, 2026-10-15: the OS's, with arrows, in menus, Settings and dialogs), a
+   rounded thumb on no track, as JetBrains'. Chromium's own pseudo-elements: the standard scrollbar-color and
+   scrollbar-width (which turn them off) left arrows at the ends. Where a part has none (a tabs' strip), its own
+   scrollbar-width: none says so. */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
+::-webkit-scrollbar-thumb { border: 2px solid transparent; border-radius: 5px; background: var(--scrollbar) padding-box;
+  &:hover { background-color: var(--text-muted); } }
 
 /* Controls */
 button, input, select, textarea {
@@ -191,9 +199,11 @@ svg:has(> use) { width: 16px; height: 16px; flex: none; fill: none; stroke: curr
 
 /* Menus (ButtonMenu.vue, RightClickMenu.vue, PointMenu.vue on Reka's menus): under their button (or its end edge at
    the button's) or at the pointer, flipped to stay in the window; shown once the pages under it are pictures (.ready).
-   Rows are .item; a menu's own rows are in their files. */
+   Rows are .item; a menu's own rows are in their files. One longer than the window has, as far as to its edge (Reka's
+   room for it), scrolls: the bar's + with thirty closed tasks ran past the window's edge, its first rows or its last
+   out of reach (2026-10-15). */
 .menu {
-  z-index: 30; min-width: 260px; max-width: 420px; padding: 6px; border: 1px solid var(--line); border-radius: var(--island-radius);
+  z-index: 30; min-width: 260px; max-width: 420px; max-height: var(--reka-popper-available-height); overflow-y: auto; padding: 6px; border: 1px solid var(--line); border-radius: var(--island-radius);
   background: var(--island); color: var(--text); box-shadow: 0 8px 24px var(--shadow); outline: none;
   -webkit-app-region: no-drag;
   &:not(.ready) { opacity: 0; }

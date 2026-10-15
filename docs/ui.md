@@ -31,6 +31,10 @@ pointer, read as a web page's and were hard to read). So:
   Weight and color carry what matters, not size.
 - **Dense**: rows and controls `--control` high (`--row` the same), toolbar buttons 24 px, corners `--radius` (4 px)
   on controls and `--island-radius` on windows and dialogs.
+- **One scrollbar everywhere** (`components.css`, `--scrollbar`): a rounded thumb on no track, no arrows, as JetBrains'
+  (the author, 2026-10-15: the OS's, with arrows, in menus, Settings and dialogs). Chromium's `::-webkit-scrollbar`:
+  the standard `scrollbar-color` and `scrollbar-width: thin` left the arrows. A tabs' strip has none
+  (`scrollbar-width: none`): it scrolls by the wheel.
 - **Forms are "Label: field"**, the labels in one column (`.field`); a comment under a field only when needed.
 - **Groups under a titled line** (`.titled`), not framed cards: no frame in a frame.
 - **A list has a toolbar over it** (`.list`: + adds, − removes the selected row, ★ makes it the default), and
@@ -242,7 +246,8 @@ Reka UI's menus, the rows built as one opens: a button's (`ButtonMenu.vue`: ☰,
 (`menuAt(e, items)` in `lib/menu.ts`, `PointMenu.vue`: a link in the terminal). `ButtonMenu` opens on the press, so a
 press, a drag to a row and the release there chooses it, as the OS's menus; Enter, Space or ↓ on the button open it.
 Rows are chosen with the left button only (on Linux a right-click menu opens on the press, and the release must not
-choose a row). One menu at a time; Esc, a press outside, the same button, a chosen row or leaving the window closes
+choose a row). A menu taller than the window has scrolls, reaching as far as its edge (Reka's room for it,
+`--reka-popper-available-height`; the bar's + with thirty closed tasks ran past the window, 2026-10-15). One menu at a time; Esc, a press outside, the same button, a chosen row or leaving the window closes
 it, and the keyboard goes back where it was. While one is open, the pages are pictures of themselves
 (`covered('pictures')`); it shows once they are.
 
