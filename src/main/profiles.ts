@@ -10,7 +10,6 @@ import type { BrowserWindow, Rectangle, Session, WebContents, WebContentsView as
 import fs from 'fs';
 import path from 'path';
 import type * as Sent from '../renderer/types.ts'; // what the window gets: its one definition
-import { ensureTarget } from './cdp-proxy.ts';
 // Taken from the module, not imported by name: unit tests load this in plain Node, where 'electron' is only a path
 // (docs/testing.md, Two layers).
 const { session, WebContentsView } = electron;
@@ -480,6 +479,14 @@ async function wipeSession(sess: Session) {
   await sess.clearAuthCache();
 }
 
+// Attach the tab's debugger once and learn its real Chrome target id (the proxy reports it: CLAUDE.md, Hard-won facts).
+async function ensureTarget(tab: Tab): Promise<string> {
+  if (tab.targetId) return tab.targetId;
+  if (!tab.wc.debugger.isAttached()) tab.wc.debugger.attach('1.3');
+  const { targetInfo } = await tab.wc.debugger.sendCommand('Target.getTargetInfo');
+  return (tab.targetId = targetInfo.targetId);
+}
+
 // The CDP target id of a Playwright page (the proxy reports real Chrome target ids).
 const targetIds = new WeakMap<Page, string>();
 async function targetIdOf(page: Page) {
@@ -493,4 +500,4 @@ async function targetIdOf(page: Page) {
 }
 
 export type { Tab, ProfileConfig, Bounds };
-export { Profile, stepZoom, wipeSession, clearCaches, toUrl };
+export { Profile, stepZoom, wipeSession, clearCaches, toUrl, ensureTarget };

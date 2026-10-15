@@ -6,13 +6,8 @@ import pty from 'node-pty';
 import type { IPty } from 'node-pty';
 import xterm from '@xterm/headless';
 import type { Terminal } from '@xterm/headless';
+import { READ_MAX } from './mcp-server.ts';
 
-// What an agent can read back of a shell (terminalTail, terminal_read): its last lines as the screen shows them, kept
-// by a terminal without a window (xterm's own parser), so lines a program redraws in place (a progress, a container's
-// state) are what they became; the output with its codes left out had every frame. Its scrollback is what the agent
-// may ask for at most: the memory is lines × columns × 12 bytes (about 1 MB at 200 columns). Its buffer is a proposed
-// API in the headless build (allowProposedApi), the one xterm's serialize addon reads too.
-const READ_MAX = 500;
 
 interface Size { cols: number; rows: number }
 // A terminal's process, with what Kulisa keeps of it.
@@ -154,4 +149,4 @@ async function sendToPrompt(p: IPty, text: string, confirm?: string) {
 }
 
 export type { Pty };
-export { READ_MAX, startTerminal, stopTerminal, forgetTerminal, terminalTail, typeIntoPrompt, sendToPrompt };
+export { startTerminal, stopTerminal, forgetTerminal, terminalTail, typeIntoPrompt, sendToPrompt };

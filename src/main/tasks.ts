@@ -10,7 +10,6 @@ import { Profile, wipeSession } from './profiles.ts';
 import { ProjectProfiles } from './project-profiles.ts';
 import { installSigninPause } from './signin-pause.ts';
 import { startTerminal, stopTerminal, forgetTerminal, terminalTail, sendToPrompt } from './terminal.ts';
-import { clearHighlights } from './mcp-server.ts';
 import { copyProfile } from './store.ts';
 import { renameBranch } from './worktrees.ts';
 import { extendTrust } from './agents/index.ts';
@@ -142,7 +141,7 @@ class Task {
       unload: async (p) => {
         const pick = this.window?.picking.get(p.id);
         if (pick?.profile === p) pick.cancel();
-        await clearHighlights(`${this.key}/${p.id}`);
+        shell.bus.emit('profile-unloading', `${this.key}/${p.id}`);
         await shell.sessionCookies.persist(p);
         shell.cookieSync.detach(p.folder, p.session);
         shell.proxy.removeProfile(p);

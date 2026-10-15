@@ -22,9 +22,15 @@ import type { Locator, Page } from 'playwright-core';
 import type { Shell } from './shell.ts';
 import type { Task, TaskTerminal } from './tasks.ts';
 import type { Tab } from './profiles.ts';
-import { READ_MAX } from './terminal.ts';
 
 type Element = { ref?: string; locator?: string };
+
+// What an agent can read back of a shell (terminal_read; terminalTail in terminal.ts): its last lines as the screen shows them, kept
+// by a terminal without a window (xterm's own parser), so lines a program redraws in place (a progress, a container's
+// state) are what they became; the output with its codes left out had every frame. Its scrollback is what the agent
+// may ask for at most: the memory is lines × columns × 12 bytes (about 1 MB at 200 columns). Its buffer is a proposed
+// API in the headless build (allowProposedApi), the one xterm's serialize addon reads too.
+const READ_MAX = 500;
 
 // The agent's highlights per profile (by '<task>/<profile id>'): { disposables, tab, onInput }; kept across MCP
 // requests (a server is built per request). They go when replaced, cleared, or on the first click or key press in
@@ -576,6 +582,8 @@ function buildServer(task: Task, t: TaskTerminal | null) {
 const safeDecode = (s: string) => { try { return decodeURIComponent(s); } catch { return ''; } };
 
 async function startMcpServer(shell: Shell, cfg: { port?: number }) {
+  // The core says when a profile is unloaded (tasks.ts) and does not reach into its agent's handle.
+  shell.bus.on('profile-unloading', (key: string) => void clearHighlights(key));
   const srv = http.createServer(async (req, res) => {
     if (!fromLocalTool(req)) { res.writeHead(403); return res.end(); }
     // /task/<project>/<n>[/t/<terminal id>]/…: a task of an open project, loaded; an agent's terminal of it.
@@ -598,4 +606,4 @@ async function startMcpServer(shell: Shell, cfg: { port?: number }) {
   return { base, srv };
 }
 
-export { startMcpServer, highlights, clearHighlights };
+export { startMcpServer, highlights, READ_MAX };

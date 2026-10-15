@@ -11,6 +11,7 @@ import http from 'http';
 import type { WebSocket } from 'ws';
 import type { AddressInfo } from 'net';
 import { fromLocalTool } from './local-only.ts';
+import { ensureTarget } from './profiles.ts';
 import type { Profile, Tab } from './profiles.ts';
 
 // CDP's params and results: JSON the proxy passes on as it is.
@@ -61,14 +62,6 @@ const key = (profile: Profile) => `${profile.task}/${profile.id}`;
 // The key a request's path names (its first three parts); '' when it is not one.
 function keyOf(url: string) {
   try { return url.split(/[/?]/).slice(1, 4).map(decodeURIComponent).join('/'); } catch { return ''; }
-}
-
-// Attach the tab's debugger once and learn its real Chrome target id.
-async function ensureTarget(tab: Tab): Promise<string> {
-  if (tab.targetId) return tab.targetId;
-  if (!tab.wc.debugger.isAttached()) tab.wc.debugger.attach('1.3');
-  const { targetInfo } = await tab.wc.debugger.sendCommand('Target.getTargetInfo');
-  return (tab.targetId = targetInfo.targetId);
 }
 
 class ProxyClient {
@@ -243,4 +236,4 @@ class ProxyClient {
 }
 
 export type { Command };
-export { CdpProxy, ensureTarget };
+export { CdpProxy };
