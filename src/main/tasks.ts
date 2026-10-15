@@ -53,6 +53,7 @@ class Task {
   shell: Shell; project: Project; entry: TaskEntry; n: number; key: string; folder: string; offset: number; store: TaskStore;
   window: AppWindow | null; // the one whose tab it is (window.ts)
   loaded: boolean; terminalsLoaded: boolean;
+  gitChecked: Promise<void>; // its project's repositories looked at as it loads (Project.checkGit), awaited by its agents
   terminals: Map<number, TaskTerminal>; terminalSeq: number; list: ProjectProfiles;
   profiles: ProjectProfiles['profiles']; closed: ProjectProfiles['closed'];
   front: number | null; lastAgent: number | null; // the island's tab in front; the agent's tab in front last
@@ -71,7 +72,7 @@ class Task {
     this.folder = entry.folder || project.folder; // its agent's: the copy of the default repository
     this.offset = entry.offset || 0;
     this.store = shell.store.taskOf(project, this.n);
-    this.loaded = false; this.terminalsLoaded = false;
+    this.loaded = false; this.terminalsLoaded = false; this.gitChecked = Promise.resolve();
     this.terminals = new Map(); this.terminalSeq = 0; // its island's terminals, by id, in their tabs' order
     this.front = null; this.lastAgent = null;
     this.list = new ProjectProfiles(this.store, shell.profileStore, project.id, this._profileHooks());
@@ -236,8 +237,14 @@ class Task {
     }
     t.giving = false;
   }
-  // Its project's repositories checked too, for what it may add (addable) and its agents' folders (dirs).
-  async loadProfiles() { await Promise.all([this.list.load(), this.project.checkGit()]); this.loaded = true; }
+  // Its profiles made (they start behind: ProjectProfiles.load), and its project's repositories looked at meanwhile
+  // (git, for what it may add: addable): the grid waits for no program to run, nor a site; its agents wait for both
+  // (openAgent), finding its profiles ready and told at their start what the task may add.
+  loadProfiles() {
+    this.gitChecked = this.project.checkGit().then(() => this.shell.sendProjects(), (e: Error) => console.error('[git]', e));
+    this.list.load();
+    this.loaded = true;
+  }
 
   // Its island (docs/window.md, The terminal): the terminals in tabs, one shown at a time. Each the user's shell in the
   // task's folder, with an agent started in it or not. A shell is for what keeps running where the human sees it (the
@@ -284,7 +291,8 @@ class Task {
     return own === null ? { none: true } : this.openAgent(own);
   }
   saveTerminals() {
-    this.store.saveTerminals({ front: this.front, list: [...this.terminals.values()].map(({ id, name, by, conversation }) =>
+    // An agent's tab still looking for its program, a new conversation not made yet: not a shell to bring back.
+    this.store.saveTerminals({ front: this.front, list: [...this.terminals.values()].filter((t) => !t.agent || t.conversation !== undefined).map(({ id, name, by, conversation }) =>
       (conversation === undefined ? { id, name, by } : { id, conversation })) });
   }
   agentTerminals() { return [...this.terminals.values()].filter((t) => t.agent); }
@@ -316,12 +324,23 @@ class Task {
     const { shell } = this;
     let agent: AgentChoice | null = shell.agentFor(account);
     if (!agent && !account && !this.project.agents().length) agent = shell.agentFor('shell');
+    const place = (agent: AgentChoice) => {
+      const tab: TaskTerminal = { id: id = this.terminalId(id), key: `${this.key}#${id}`, name: '', command: '', by: 'human', agent, conversation, state: null, seen: true };
+      this.terminals.set(tab.id, tab);
+      if (front) this.show(tab.id); else { if (this.front === tab.id) this.lastAgent = tab.id; this.saveTerminals(); this.changedTerminals(); }
+      return tab;
+    };
+    // Its tab at once, starting (terminalsInfo), while its program is looked for in the user's login shell: a task
+    // opening showed the island's buttons for that second (docs/window.md, A tab comes before its program).
+    let t = agent?.command ? place(agent) : null;
     let found = agent && await shell.findAgent(agent, this.folder);
+    if (t && this.terminals.get(t.id) !== t) return { error: 'the terminal was closed' };
     if (!found) {
       const chosen = await shell.chooseAgent(this, agent);
       found = chosen && this.loaded ? await shell.findAgent(chosen, this.folder) : null;
       if (!found) {
-        if (conversation !== undefined) this.updateConversation(conversation, { terminal: undefined, to: Date.now() });
+        if (t) this.dropTerminal(t); // its tab goes: the island as it was before
+        else if (conversation !== undefined) this.updateConversation(conversation, { terminal: undefined, to: Date.now() });
         return { error: 'no agent was chosen' };
       }
       if (chosen!.id !== agent?.id) conversation = undefined;
@@ -329,19 +348,19 @@ class Task {
     }
     const a = agent!;
     if (!a.command) return this.openTerminal({ id, front });
-    id ??= this.terminalSeq + 1;
-    this.terminalSeq = Math.max(this.terminalSeq, id);
+    if (t && this.terminals.get(t.id) !== t) return { error: 'the terminal was closed' };
+    t ??= place(a);
     const list = this.store.agent();
     const conversations = list.conversations || [];
     if (conversation === undefined || conversations[conversation]?.agent !== a.id) {
       conversations.push({ agent: a.id, from: Date.now() });
       conversation = conversations.length - 1;
     }
-    conversations[conversation]!.terminal = id;
+    conversations[conversation]!.terminal = t.id;
     this.store.saveAgent({ ...list, conversations });
-    const t: TaskTerminal = { id, key: `${this.key}#${id}`, name: '', command: '', by: 'human', agent: a, conversation, state: null, seen: true };
-    this.terminals.set(id, t);
-    if (front) this.show(id); else { if (this.front === id) this.lastAgent = id; this.saveTerminals(); this.changedTerminals(); }
+    Object.assign(t, { agent: a, conversation }); // the one chosen in its place, if another
+    this.saveTerminals();
+    this.changedTerminals();
     const saved = this.conversations()[conversation]!;
     const resume = (a.resume && a.resume(saved)) || null;
     this.resumedSession = resume ? saved.sessionId ?? null : null;
@@ -359,18 +378,20 @@ class Task {
       const r = a.language?.set(a.configDir, shell.language);
       if (r?.error) console.warn('[agents] language:', r.error);
     }
-    if (this.terminals.get(id) !== t) return { error: 'the terminal was closed' };
+    await Promise.all([this.gitChecked, this.list.started]); // its profiles ready, told at its start what it may add (agent-hooks.ts)
+    if (this.terminals.get(t.id) !== t) return { error: 'the terminal was closed' };
     // The program by name, as the human would type it, unless the shell does not find it yet (just installed).
     const command = found.onPath ? a.command : found.path;
     t.pty = await startTerminal((channel, data) => this.window?.send(channel, data), { command, shell: a.shell, cwd: this.folder,
       env: { ...env, ...more.env, ...a.env }, pinned: a.env, sizeOf: this.key,
       args: [...(resume || []), ...(a.args?.({ env, packages: shell.packages, account: Object.keys(a.env).length ? a.configDir : null }) || []), ...(more.args || []), ...((!resume && first && a.prompt?.(first)) || [])] }, t.key);
-    if (this.terminals.get(id) !== t) { stopTerminal(t.pty); return { error: 'the terminal was closed' }; }
+    if (this.terminals.get(t.id) !== t) { stopTerminal(t.pty); return { error: 'the terminal was closed' }; }
     // Its shell exited by itself (exit), not stopped by Kulisa (closing, quitting: the terminal is kept then).
     t.pty.onExit(() => { if (!t.pty!.stopped) this.dropTerminal(t); });
+    this.changedTerminals(); // started
     this.updateConversation(conversation, { started: true });
     this.sendVoice();
-    return { id };
+    return { id: t.id };
   }
   // The same agent from nothing (New Conversation, or + with it): a new tab; the one before stays.
   newConversation(id: number) {
@@ -438,8 +459,7 @@ class Task {
     name = name?.trim();
     if (name && !this.terminal(name).error) return { error: `there is a terminal "${name}" already` };
     for (let n = 1; !name; n++) if (this.terminal(n > 1 ? `Terminal ${n}` : 'Terminal').error) name = n > 1 ? `Terminal ${n}` : 'Terminal';
-    id ??= this.terminalSeq + 1;
-    this.terminalSeq = Math.max(this.terminalSeq, id);
+    id = this.terminalId(id);
     const t: TaskTerminal = { id, key: `${this.key}#${id}`, name, command, by, state: null, seen: true };
     this.terminals.set(id, t);
     if (front || this.front === null) this.show(id); else { this.saveTerminals(); this.changedTerminals(); }
@@ -447,8 +467,11 @@ class Task {
       { line: command, cwd: this.folder, env: this.env(), sizeOf: this.key, screen: true }, t.key);
     if (this.terminals.get(id) !== t) { stopTerminal(t.pty); return { error: 'the terminal was closed' }; }
     t.pty.onExit(() => { if (!t.pty!.stopped) this.dropTerminal(t); });
+    this.changedTerminals(); // started
     return { id, name };
   }
+  // A terminal's id: the one it had (coming back after a restart), else the next.
+  terminalId(id?: number) { id ??= this.terminalSeq + 1; this.terminalSeq = Math.max(this.terminalSeq, id); return id; }
   // A command typed into a terminal already open (its last one stopped first: interruptTerminal), or into a new one.
   async runInTerminal(name: string, command: string): Promise<Result<{ id: number; name: string; again?: boolean }>> {
     const t = this.terminal(name);
@@ -510,7 +533,7 @@ class Task {
   // The island's tabs, for the window.
   terminalsInfo(): Sent.Terminals {
     return { front: this.front, list: [...this.terminals.values()].map((t) => ({ id: t.id, name: this.label(t), command: t.command, by: t.by,
-      agent: t.agent ? { account: t.agent.id, cli: t.agent.agentId, name: t.agent.name } : null,
+      agent: t.agent ? { account: t.agent.id, cli: t.agent.agentId, name: t.agent.name } : null, starting: !t.pty,
       state: t.state === 'done' && t.seen ? null : t.state })) };
   }
 

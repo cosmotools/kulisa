@@ -224,6 +224,14 @@ a `.launcher` each, its picture over its name ("The grid": No profile open). A t
 [tasks.md](tasks.md), "Choosing the agent") gives the keyboard to the buttons, or opens the +. A task that never had a
 terminal opens its agent, or nothing (the buttons).
 
+**A tab comes before its program.** An agent's tab is there at once, before its program is looked for (the user's
+login shell, its `--version`: a second or so): until it starts, `.starting` over its terminal, the agent's working
+`.state` and "Starting Claude Code…" (`starting` in `Sent.Terminals`, the tab without its `pty`). Its terminal stays laid
+out under it: the program starts at its size. Not found and none chosen in its place (Choose the Agent, Cancel), the
+tab goes. A task opening sends its tabs with its first state, each starting (`Window.showLoaded`, then
+`Task.loadTerminals`): until 2026-10-15 the window got none until each agent was found, and showed the folded island's
+buttons for that second. A pick or a dictation meanwhile goes nowhere: the human gives it again.
+
 Unicode 11 widths (the cursor stays put after an emoji), a bundled font, the GPU renderer. Copy and paste take the
 keys of the OS's own terminal, so hands need nothing new: Ctrl+Shift+C / V (GNOME Terminal, Konsole); on Windows also
 Ctrl+V, and Ctrl+C copies a selection, else interrupts (Windows Terminal); on macOS ⌘C / ⌘V (the app menu's). xterm

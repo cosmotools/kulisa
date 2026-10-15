@@ -20,6 +20,7 @@ type AgentState = 'working' | 'waiting' | 'done' | null;
 export interface Terminal {
   id: number; name: string; command: string; by: 'human' | 'agent'; state: AgentState;
   agent: { account: string; cli: string; name: string } | null;
+  starting: boolean; // its program not started yet (an agent's looked for): a loader in its place
 }
 // The island: its tabs in order, the one in front (none: no terminal, the island folded to its +).
 // Kulisa's language (☰ → Language): the codes the agents' own settings take, and which agents have one.

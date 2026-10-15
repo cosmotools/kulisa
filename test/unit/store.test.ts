@@ -113,7 +113,7 @@ test('project profiles: a task has its own copy of each, made at its first open;
   // A task with nothing saved opens none (a new task has them all closed: projects.ts, createTask); opened, each
   // is a copy of its master made then.
   const a = task(1);
-  await a.list.load();
+  a.list.load(); await a.list.started;
   assert.deepEqual([...a.list.profiles.keys()], []);
   assert.deepEqual([...a.list.closed.keys()], ['ann', 'bob']);
   assert.deepEqual(a.copied, [], 'nothing copied before it is opened');
@@ -127,7 +127,7 @@ test('project profiles: a task has its own copy of each, made at its first open;
   // A task with its own state: closed ones stay closed, and copied only when opened.
   const b = task(2);
   b.list.store.saveProfiles([{ folder: 'Profile 1', id: 'ann' }, { folder: 'Profile 2', id: 'bob', closed: true }]);
-  await b.list.load();
+  b.list.load(); await b.list.started; // its copy made, then opened
   assert.deepEqual([[...b.list.profiles.keys()], [...b.list.closed.keys()], b.copied], [['ann'], ['bob'], ['Profile 1']]);
   // Made in one task: closed in the other once it reads the store again; renamed, described, its picture: everywhere.
   assert.equal((await a.list.create('Cid', 'admin') as { id: string }).id, 'cid');
@@ -153,11 +153,11 @@ test('project profiles: a task has its own copy of each, made at its first open;
     profileDir: () => root, markDeleted() {} } as unknown as TaskStore, one, 'p', {
     make: (cfg: ProfileConfig) => ({ ...cfg, urls: [] }) as unknown as Profile, start: (p, urls) => new Promise<void>((r) => { opened = () => { (p as Fake).urls = urls; r(); }; }), unload: async () => {},
     copy: async () => {}, urlsOf: (p) => (p as Fake).urls, renamed() {}, remove: async () => {}, changed() {}, everywhere() {} });
-  const loading = slow.load();
+  slow.load();
   await new Promise((r) => setImmediate(r));
   slow.saveTabs();
   assert.deepEqual(tabsSaved['Profile 1'], ['https://d/'], 'while it opens');
-  opened(); await loading;
+  opened(); await slow.started;
   slow.saveTabs();
   assert.deepEqual(tabsSaved['Profile 1'], ['https://d/'], 'once open');
   // More profiles than pictures: round again, nothing breaks.

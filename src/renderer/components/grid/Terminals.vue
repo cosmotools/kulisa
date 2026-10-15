@@ -60,6 +60,9 @@ function fold(on: boolean) {
 }
 
 const strip = computed(() => folded.value && !alone.value);
+// The tab in front before its program has started (an agent's is looked for first): a loader over its terminal, which
+// stays laid out meanwhile (the program starts at its size).
+const starting = computed(() => store.terminals.list.find((t) => t.id === store.terminals.front && t.starting));
 onMounted(() => { count(); place(); fold(strip.value); });
 watch(() => [store.terminals.task, store.terminals.front, store.terminals.list.map((t) => t.id).join()], place, { flush: 'post' });
 // Another tab in front of the same task (chosen, or opened by the human): the keyboard goes to it.
@@ -105,11 +108,14 @@ const menu = (e: MouseEvent) => {
     <div v-else-if="folded" class="strip"><ButtonMenu :items="newTerminalItems"><button id="termUnfold" class="add icon quiet"
       :title="withKeys('New conversation of an agent, or a terminal', 'terminal.new')" aria-label="New terminal"><Icon name="i-plus" /></button></ButtonMenu></div>
     <RightClickMenu :items="menu"><div ref="root" class="termpanel" :hidden="folded" /></RightClickMenu>
+    <p v-if="starting" class="starting"><span class="state" data-state="working"><Icon name="i-working" /></span>Starting {{ starting.name }}…</p>
   </div>
 </template>
 
 <style>
-.terminals { height: 100%;
+.terminals { height: 100%; position: relative;
+  .starting { position: absolute; inset: 0; margin: 0; display: flex; align-items: center; justify-content: center; gap: 6px;
+    background: var(--island); color: var(--text-muted); }
   &.folded { display: flex; flex-direction: column; justify-content: center; }
   .strip { display: grid; place-items: center; height: 100%; }
   .launch { display: flex; flex-direction: column; gap: calc(var(--gap) * 2); padding: var(--gap);

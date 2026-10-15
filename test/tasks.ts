@@ -100,7 +100,18 @@ export default (test: Test) => {
     const first = shell.task;
     await call('browser_navigate', { profile: 'sam-admin', url: `${SITE}/app?task` });
     const firstSam = first.profiles.get('sam-admin');
+    // The island's buttons are for a task with nothing open: a task opening shows its agent's tab at once, starting,
+    // not them for the second its agent is looked for (they did, 2026-10-15).
+    await ui(`window.__launch = false; window.__starting = ''; new MutationObserver(() => { window.__launch ||= !!document.querySelector('#dock .launch');
+      window.__starting ||= document.querySelector('#dock .starting')?.textContent; })
+      .observe(document.body, { childList: true, subtree: true })`);
+    const find = shell.findAgent; // looking for it takes the user's login shell, slower on the human's computer than here
+    shell.findAgent = async (...a) => { await sleep(1000); return find(...a); };
     const task = await newTask(ctx);
+    shell.findAgent = find;
+    assert.equal(await ui('window.__launch'), false, "no island's buttons while its agent starts");
+    assert.match(await ui('window.__starting'), /^Starting .+…$/, 'its tab, starting');
+    await waitFor(async () => !(await ui(`!!document.querySelector('.terminals .starting')`))); // then its terminal
     const wt = `${project}@task-2`;
     assert.equal(task.n, 2);
     assert.equal(task.name, 'task-2');
@@ -445,8 +456,19 @@ export default (test: Test) => {
     const rows = await plusMenu(ui);
     assert.deepEqual(rows.slice(rows.indexOf('project'), rows.indexOf('project') + 2), ['project', '  task-3']);
     await closeMenu(ui);
-    await plusMenu(ui, 'project', 'task-3');
-    await waitFor(() => shell.task === task && task.loaded && shell.pty);
+    // Its grid comes before its profiles have started (their cookies, tabs, automation: a site's answer away), its agent
+    // after them, as it finds them ready; the window waited for them all, one after another (2026-10-15).
+    const restore = shell.sessionCookies.restore;
+    let started = false;
+    shell.sessionCookies.restore = async (p) => { await sleep(1500); const n = await restore.call(shell.sessionCookies, p); started = true; return n; };
+    try {
+      await plusMenu(ui, 'project', 'task-3');
+      await waitFor(() => shell.task === task && !shell.windows[0].switching); // its state sent to the window
+      assert.equal(started, false, 'the grid before its profiles started');
+      await waitFor(() => ui(`!!document.querySelector('.pane[data-profile="sam-admin"]') && !document.documentElement.classList.contains('loading')`));
+      await waitFor(() => task.loaded && shell.pty, 10000);
+      assert.equal(started, true, 'its agent after them');
+    } finally { shell.sessionCookies.restore = restore; }
     ctx.watchPty(shell.pty);
     assert.equal(shell.resumedSession, 's-3');
     await waitFor(async () => JSON.stringify(await tabs(ui)) === '["task-1","Feature-X","task-3 *"]');
@@ -1839,6 +1861,16 @@ export default (test: Test) => {
     await choose(ui, 'New Conversation');
     await waitFor(async () => JSON.stringify(await tabs()) === '["bash","Pay with cards","Fake agent","bash 2 *"]' && newest().pty, 20000);
     assert.deepEqual(conversations().map((c: { agent: string }) => c.agent), ['custom', a.id, b.id, b.id, b.id, 'custom']);
+    // Its program not found: its tab came at once, starting, and the human is asked for another; none chosen, it goes.
+    const bin = path.join(root, 'bin', 'kulisa-fake-agent');
+    fs.renameSync(bin, `${bin}.away`);
+    try {
+      await ui(`void act('terminal:open', { agent: '${a.id}' })`); // it answers once the human has chosen
+      await waitFor(() => ui(`document.querySelector('.terminals .starting')?.textContent === 'Starting Fake agent 2…'`)); // numbered: a's other tab is open
+      await waitFor(() => ui(`!!document.getElementById('agentcancel')?.checkVisibility()`));
+      await ui(`document.getElementById('agentcancel').click()`);
+      await waitFor(async () => JSON.stringify(await tabs()) === '["bash","Pay with cards","Fake agent","bash 2 *"]' && !(await ui(`!!document.querySelector('.terminals .starting')`)));
+    } finally { fs.renameSync(`${bin}.away`, bin); }
 
     // All closed, no profile open: the big buttons, an account's email under its agent's name, no keys; the first has
     // the keyboard, Tab moves to the next, Enter opens it.

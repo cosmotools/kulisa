@@ -752,7 +752,12 @@ temporary forks), and again on 2026-10-10 (tasks; ROADMAP, "Projects and tasks")
 - **Every task asks before it is deleted**, also one without changes (at first a fork without changes went without a
   question, as with Claude Code's `--worktree`): its conversation and profile copies go too.
 - **A task loads when first shown**, not at the start: after a restart nothing works in the background anyway,
-  and the agent starts at its terminal's real size.
+  and the agent starts at its terminal's real size. Its grid comes from what is saved, without waiting for a program
+  to run or a site to answer: its open profiles are made at once and start behind it, together (their cookies, tabs,
+  automation: `ProjectProfiles.load`, `started`; until 2026-10-15 each in turn, the grid after them all, a second or
+  more), its terminals' tabs come starting, before their agents are found ([window.md](window.md), "A tab comes before
+  its program"), and its project's repositories are looked at (git) meanwhile (`Task.gitChecked`). Its agents start
+  after both: they find its profiles ready, and are told at their start what the task may add.
 - **Tasks in the background keep running**, their pages and agents. Memory: each agent is a
   process of its own (Claude Code about 200–400 MB) plus its profiles' tabs; those its agents stop using lose their
   process after a while and load again when the task is shown ([profiles.md](profiles.md), "Tabs unloaded").

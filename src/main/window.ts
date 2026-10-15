@@ -196,15 +196,18 @@ class AppWindow {
     await this.showLoaded();
   }
   // The shown task: its profiles loaded (the first time it is shown), the page's grid built from its state
-  // (the terminals' island included, even with no profiles), then its terminals started at the island's size.
+  // (the terminals' island included, even with no profiles; its tabs too, each starting), then its terminals started at
+  // the island's size.
   async showLoaded() {
     const task = this.task!;
-    if (!task.loaded) await task.loadProfiles();
+    if (!task.loaded) task.loadProfiles();
     this.switching = false;
+    // Not waited for: the human may first have to choose the agent (or switch away meanwhile). Its tabs come at once,
+    // each starting, so the grid comes with them, not with the island's buttons.
+    const terminals = task.loadTerminals();
     this.pushState();
     this.seen();
-    // Not waited for: the human may first have to choose the agent (or switch away meanwhile).
-    task.loadTerminals().catch((e) => console.error('[agent]', e));
+    terminals.catch((e) => console.error('[agent]', e));
   }
   // The page takes the grid down; it gets the next task's state once its profiles are loaded. dir: where the
   // next one is (1 right, -1 left, in the tasks' bar; 0 none, the window is left with no task), for the page

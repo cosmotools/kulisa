@@ -243,7 +243,8 @@ A pane is a small Chrome: a tab strip, an address bar, back, forward and reload.
   opens the task's agent). With no profile open either, big buttons in the middle of the window do what **+** does:
   one for each of the project's agents, then **Terminal**. Tab moves between them and Enter opens one. Under them, a
   tile for each of the project's profiles opens it.
-- Terminals come back after a restart in their tabs: an agent continues its conversation, a shell starts fresh.
+- Terminals come back after a restart in their tabs: an agent continues its conversation, a shell starts fresh. An
+  agent's tab shows "Starting…" for a moment while its agent starts.
 - Copy and paste as in your OS's terminal: Ctrl+Shift+C / Ctrl+Shift+V on Linux, Ctrl+C / Ctrl+V on Windows, ⌘C / ⌘V
   on macOS.
 - Ctrl+click a link to open it: Kulisa asks where, in one of the task's profiles or in your own browser.
