@@ -33,8 +33,9 @@ const windowMenu = (): MenuItem[] => [
 
 <template>
   <header id="topbar">
-    <Icon class="logo" name="i-logo" />
     <slot /><!-- the tasks' bar, when it is here (App.vue) -->
+    <Icon class="logo" name="i-logo" />
+    <span class="drag" />
     <button id="zoomReset" :hidden="store.zoom === 1" title="Kulisa's zoom. Click to reset (Ctrl 0)" @click="kulisa.invoke('zoom:ui', 0)">{{ Math.round(store.zoom * 100) }}%</button>
     <button id="manageProjects" class="icon" title="Settings: projects, agents" aria-label="Settings"
       @click="dialog('projects').then((d) => d.openProjects())"><Icon name="i-settings" /></button>
@@ -48,13 +49,18 @@ const windowMenu = (): MenuItem[] => [
   padding-left: calc(env(titlebar-area-x, 0px) + var(--gap)); width: env(titlebar-area-width, 100%);
   -webkit-app-region: drag;
   & button { -webkit-app-region: no-drag; &:not(.icon) { padding: 0 14px; } }
-  .logo { width: 26px; height: 26px; color: var(--project); }
+  /* The logo and the space after the tasks' bar are where the window is dragged by, however many tabs. Chromium takes
+     the tabs scrolled past the bar's edges as no-drag too, over them (not clipped by the bar), and the regions in the
+     page's order, the last one winning: so both come after the tasks' bar in the page, the logo put back first by
+     order (the author, 2026-10-15: neither dragged the window with the bar full). The space is at least --drag, as
+     Chrome's after its +, and takes what the tabs leave. */
+  .logo { order: -1; width: 26px; height: 26px; color: var(--project); }
+  .drag { flex: 1 0 var(--drag); align-self: stretch; }
+  :is(.logo, .drag) { -webkit-app-region: drag; }
   /* At the right end: the Kulisa zoom, only when not 100%, and ☰, the window's menu, as far from the end of the title
      bar's area (the OS window buttons, or the window's edge on macOS) as the logo from its start. Before it, the
      projects' manager. */
-  #zoomReset { margin-inline-start: auto; }
-  #manageProjects { --icon: 18px; margin-inline-start: auto;
-    #zoomReset:not([hidden]) + & { margin-inline-start: 0; } }
+  #manageProjects { --icon: 18px; }
   #windowMenu { --icon: 18px; margin-inline-end: var(--gap); }
 }
 /* The rows of ☰'s own (menu/*.vue) as the menu's .item: as high, the icon at the start */

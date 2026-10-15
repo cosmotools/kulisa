@@ -419,6 +419,73 @@ export default (test: Test) => {
     await click(ui, taskTab(1));
     await shown(1);
   });
+  test("tasks: more tabs than the bar holds: each keeps its name readable, a mouse's wheel scrolls them, a faded edge says some are past it, the shown one stays in sight; in the title bar the window is still dragged after +", async ({ shell, ui }) => {
+    // Two tabs, the bar narrowed to less than they take: as thirty tabs in a window (found with 30 tasks, 2026-10-15:
+    // every tab read "task…", the wheel did nothing, nothing said 17 were out of sight).
+    const strip = `document.querySelector('#projectTabs')`;
+    const bar = () => ui(`(() => { const s = ${strip}, a = s.querySelector('.active').getBoundingClientRect(), b = s.getBoundingClientRect();
+      return { left: Math.round(s.scrollLeft), max: s.scrollWidth - s.clientWidth, fade: ['past-start', 'past-end'].filter((e) => s.classList.contains(e)).join(' '), inSight: a.left >= b.left && a.right <= b.right }; })()`);
+    const frame = () => ui(`new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))`);
+    assert.equal((await bar()).fade, '', 'all fit: no edge fades');
+    await click(ui, taskTab(2));
+    await waitFor(() => shell.task.n === 2 && !shell.windows[0].switching);
+    await ui(`document.querySelector('#taskbar').style.maxWidth = '300px'`);
+    await waitFor(async () => (await bar()).max > 0 && (await bar()).inSight);
+    assert.deepEqual(await ui(`[...document.querySelectorAll('#projectTabs .tasktab')].map((t) => { const n = t.querySelector('.name'); return [t.getBoundingClientRect().width, n.scrollWidth <= n.clientWidth]; })`),
+      [[160, true], [160, true]], 'at their narrowest, the names whole');
+    let now = await bar();
+    assert.deepEqual([now.left, now.fade], [now.max, 'past-start'], 'brought into view when the bar narrowed; only the edge with a tab past it fades');
+    // The wheel turns up and down; the bar scrolls sideways.
+    await waitFor(() => ui(`!document.documentElement.matches(':active-view-transition')`)); // the slide's pictures over the window take every event
+    const b = await ui(`${strip}.getBoundingClientRect().toJSON()`), z = shell.win.webContents.getZoomFactor();
+    const at = { x: Math.round((b.x + b.width / 2) * z), y: Math.round((b.y + b.height / 2) * z) };
+    shell.win.webContents.sendInputEvent({ type: 'mouseWheel', ...at, deltaX: 0, deltaY: 400 }); // up: towards the start
+    await waitFor(async () => (await bar()).left === 0);
+    await waitFor(async () => (await bar()).fade === 'past-end'); // scrolled to the start: the other edge fades
+    assert.equal((await bar()).inSight, false, 'the bar stays where the wheel took it');
+    // In the title bar: the tabs give way before the space after + that drags the window (Chrome's), however many. The
+    // tabs scrolled past the bar's edges are no-drag over the logo and that space too (Chromium does not clip them to
+    // the bar) and the last region in the page wins: so both come after the bar, the logo shown first all the same (a
+    // window not dragged by either, 2026-10-15: a real drag of the window is the OS's, out of a test's reach).
+    await ui(`kulisa.invoke('bar:set', 'top')`);
+    await waitFor(() => ui(`!!document.querySelector('#topbar #projectTabs')`));
+    await ui(`document.querySelectorAll('#projectTabs .tasktab').forEach((t) => { t.style.minWidth = t.style.maxWidth = '1000px'; })`); // the bar drawn anew: tabs as wide as many
+    await frame();
+    assert.deepEqual(await ui(`(() => { const q = (s) => document.querySelector(s), r = (s) => q(s).getBoundingClientRect(), s = ${strip};
+      const after = (s) => !!(q('#taskbar').compareDocumentPosition(q(s)) & Node.DOCUMENT_POSITION_FOLLOWING) && getComputedStyle(q(s)).appRegion;
+      return [s.scrollWidth > s.clientWidth, r('#topbar .drag').width >= 40, r('#manageProjects').left - r('#newTask').right >= 40, after('#topbar .logo'), after('#topbar .drag'), r('.logo').right <= r('#taskbar').left]; })()`),
+      [true, true, true, 'drag', 'drag', true], 'the tabs overflow, 40 px left to drag by; it and the logo after the bar in the page, the logo before it on screen');
+    assert.ok((await bar()).inSight, 'the shown one in sight, the bar drawn anew there');
+    await ui(`kulisa.invoke('bar:set', 'bottom')`);
+    await waitFor(() => ui(`!document.querySelector('#topbar #projectTabs') && !!document.querySelector('#projectTabs')`));
+    await click(ui, taskTab(1));
+    await waitFor(() => shell.task.n === 1 && !shell.windows[0].switching);
+  });
+  test("tasks: a press on a tab not shown chooses it at once, as Chrome's; its task is shown when the button is let go or the tab starts being dragged, so it can be dragged", async ({ shell, ui }) => {
+    // The slide that showing a task starts made Chromium drop a drag about to begin: a tab not shown could not be
+    // dragged, its press only showed it (2026-10-15). One begun goes on through the slide.
+    const wc = shell.win.webContents, z = wc.getZoomFactor();
+    const press = async (type: 'mouseDown' | 'mouseUp', n: number) => {
+      const b = await ui(`${taskTab(n)}.querySelector('.name').getBoundingClientRect().toJSON()`);
+      wc.sendInputEvent({ type, x: Math.round((b.x + b.width / 2) * z), y: Math.round((b.y + b.height / 2) * z), button: 'left', clickCount: 1 });
+    };
+    const chosen = () => ui(`document.querySelector('#projectTabs .tasktab.active').dataset.task.split('/').pop()`);
+    await waitFor(() => ui(`!document.documentElement.matches(':active-view-transition')`)); // the slide's pictures over the window take every event
+    await press('mouseDown', 2);
+    await waitFor(async () => (await chosen()) === '2');
+    await sleep(200); // nothing to wait for: that it is not shown yet
+    assert.equal(shell.task.n, 1, 'not shown while the button is down');
+    await press('mouseUp', 2);
+    await waitFor(() => shell.task.n === 2 && !shell.windows[0].switching);
+    await waitFor(() => ui(`!document.documentElement.matches(':active-view-transition')`));
+    // A drag begins: Chromium cancels the pointer (a real drag of a tab is the OS's, out of a test's reach).
+    await press('mouseDown', 1);
+    await waitFor(async () => (await chosen()) === '1');
+    await ui(`dispatchEvent(new PointerEvent('pointercancel', { pointerType: 'mouse' }))`);
+    await waitFor(() => shell.task.n === 1 && !shell.windows[0].switching);
+    await press('mouseUp', 1);
+    await ui(`document.activeElement.blur()`); // a real press leaves the keyboard on the tab (Reka's); the next tests' dialogs take it from nothing
+  });
   test('tasks: × closes a task: its agent stops and its tabs close, all else stays; asked first only while its agent works; its group\'s menu opens it again, its conversation resumed', async (ctx) => {
     const { shell, ui, call } = ctx;
     const task = await newTask(ctx);

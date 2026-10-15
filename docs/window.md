@@ -41,7 +41,8 @@ slide, which mixed them up (2026-10-08). The tabs are Firefox's: rounded rectang
 shown one filled in the panels' color, the others plain, lit under the pointer; a gap between them and the grid, whose
 panels sit on the window's background too (the author, 2026-10-14; from 2026-10-08 until then the grid was a dark well
 from edge to edge, and each tab an island merging into it with curves). A tab is as big as a browser's (36 px tall,
-at least 120 px wide, the tabs 8 px apart; in the title bar a tab keeps its 36 px and the title bar its 44, so a tab
+at least 160 px wide, so its name keeps about ten letters (at 120 px thirty tabs all read "task…"; the author,
+2026-10-15: wider, × kept on every tab, as Chrome's), the tabs 8 px apart; in the title bar a tab keeps its 36 px and the title bar its 44, so a tab
 sits in the middle with 4 px above and below, the grid right under, as a browser's tabs sit over its content (the
 author, 2026-10-14: the grid's own gap under those 4 px added up and showed; a title bar grown to 52 px around the tab
 was not wanted, nor a tab as low as the bar's buttons). The window is a grid of rows (App.vue: the title bar, the grid, the bar when it is below) with one
@@ -51,6 +52,23 @@ the bar from the grid, the window's bottom edge from the last row; nothing else 
 tabs, a step taller than a button, were out of scale), a target for a quick throw of the mouse; in the title bar the
 tabs are not a handle to drag the window by (`app-region: no-drag`). Nothing in the bar moves when another task is
 shown.
+
+More tabs than the bar holds scroll, without a scrollbar (the author, 2026-10-15, found with thirty tasks): a mouse's
+wheel scrolls them sideways, as Firefox's and VS Code's (on its own a vertical wheel scrolled nothing, only Shift or a
+touchpad did); an edge with tabs past it fades out, so the bar says some are out of sight; the shown tab is brought
+into sight, clear of the fade, when another is shown, the bar moves (☰ → Tasks bar) or the window is resized, and only
+then: on every word from the main process (an agent's state) it took the bar back from where the human had scrolled
+it. The fade is two classes set from the scroll, not CSS's scroll-driven animations, which left an edge faded when
+little was out of sight. In the title bar the tabs give way before at least 40 px after + (`--drag`), where the
+window is dragged however many tabs there are, as Chrome's space after its +; by the logo too. Chromium takes the tabs
+scrolled past the bar's edges as no-drag over both (it does not clip them to the bar, `overflow`, `contain` or
+`clip-path` alike) and the page's regions in order, the last one winning: so the logo and that space come after the
+bar in the page (TopBar.vue), the logo put back first by `order`.
+
+A press on a tab not shown chooses it at once, as Chrome's, and its task is shown when the button is let go or the
+tab starts being dragged, whichever is first (the author, 2026-10-15: such a tab could not be dragged). Showing a task
+starts the grid's slide (a view transition), and Chromium drops a drag about to begin when one starts; a drag already
+begun goes on through it. So the grid changes on the release, not on the press as in Chrome, which has no slide.
 
 ## The grid
 

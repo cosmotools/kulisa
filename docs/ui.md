@@ -164,7 +164,8 @@ The window's controls are Reka UI's, in this look (CLAUDE.md, Window UI):
 - Fields (Reka's `FieldRoot`, `FieldLabel`, `FieldControl`, `FieldDescription`, `FieldError`) in `.field`; a
   dialog's form is its `FormRoot` (`Modal.vue`, `errors`: the main process's refusal at its field).
 - Tabs: a pane's tabs and the tasks' tabs are Reka's `Tabs` (`activationMode` manual): chosen on the press, as a
-  browser's (not on their ×), one Tab stop for the strip, the arrows move and Enter chooses.
+  browser's (not on their ×), one Tab stop for the strip, the arrows move and Enter chooses. A task's is shown on
+  the release, or as its drag begins ([window.md](window.md), The tasks' bar).
 - `Toggle`: a button that stays on (Pick, `[data-state="on"]`).
 - `Collapsible`: something shown on demand (a profile's pictures to choose from; Details: `button.more` its trigger, an
   installer's output, an agent's sign-in's terminal).

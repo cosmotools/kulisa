@@ -33,8 +33,9 @@
   --row: 28px; --inset: 12px; --pad: 16px;
   /* The title bar's height, the OS buttons' strip too (window.ts, TITLE_BAR_HEIGHT: keep in step): --gap, its buttons
      (--control), --gap; the grid starts at its edge (App.vue). A task's tab (--bartab) is taller than its buttons: in
-     the title bar 4 px are left above and below it (TaskBar.vue). */
-  --title: calc(var(--control) + 2 * var(--gap)); --bartab: 36px;
+     the title bar 4 px are left above and below it (TaskBar.vue). --drag: in it, what the tabs leave free to drag the
+     window by, however many they are. */
+  --title: calc(var(--control) + 2 * var(--gap)); --bartab: 36px; --drag: 40px;
   /* A form's labels ("Name:"), in one column before their fields (.field), and what lines up with the fields under them */
   --label: 120px;
   color-scheme: dark;

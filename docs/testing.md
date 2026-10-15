@@ -62,7 +62,8 @@ not listed for screenshots and focus differs from a desktop), so they never take
   needs its `char` event too (Enter sends a form on it), and `insertText` is awaited before the next key; the window
   has the keyboard first (`focusWindow(shell.win, ui)`, which waits until its page has it: a key sent before goes
   to no page, or its focus lands after the key's), or focus events do not come. Tabs are chosen on the press:
-  `click(ui, el)` makes a mouse's whole click.
+  `click(ui, el)` makes a mouse's whole click. An input event's press on a tab leaves the keyboard on it (Reka's): blur
+  it at the test's end, or a later dialog under Xvfb does not get it.
 - **Names say what the human sees or gets**, as a sentence ("deleting a task asks first, saying what goes"); the
   comments say why it matters (the bug it once was).
 - **Leave what later files need, say so** ("left closed for the restart phase"), and clean up the rest (a

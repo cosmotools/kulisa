@@ -5,7 +5,7 @@
 // none (the author, 2026-10-08: tabs that moved under the mouse made the human miss). Where a dragged tab is let
 // go outside every Kulisa window, the main process says (the page does not know where the pointer is then).
 // Under the grid, or in the title bar: App.vue puts it in one place or the other (☰ → Tasks bar).
-import { computed, nextTick, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import TaskTab from './TaskTab.vue';
 import { TabsList, TabsRoot } from 'reka-ui';
 import NewTask from './NewTask.vue';
@@ -24,10 +24,44 @@ const tabs = computed(() => {
   const byId = new Map(store.projects.projects.map((p) => [p.id, p]));
   return store.projects.tabs.flatMap((t) => { const p = byId.get(t.project); return p ? [{ t, p }] : []; });
 });
-// The shown one in sight.
-watch(() => store.projects, () => nextTick(() => strip.value?.querySelector('.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' })));
+// The shown one in sight when another is shown, the bar is drawn anew in its other place (☰ → Tasks bar) or the
+// window is resized, which left it out of sight past the edge (a ResizeObserver also reports once when it starts). Not
+// on every word from the main process (an agent's state): that took the bar back from where the human scrolled it.
+const reveal = () => strip.value?.querySelector('.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+watch(() => store.current, () => nextTick(reveal));
+// Which edges have tabs past them, to fade (CSS's scroll-driven animations did it wrong when little was out of sight).
+const past = ref({ start: false, end: false });
+function edges() {
+  const s = strip.value;
+  if (s) past.value = { start: s.scrollLeft > 1, end: s.scrollLeft < s.scrollWidth - s.clientWidth - 1 };
+}
+watch(tabs, () => nextTick(edges)); // a tab added, closed or renamed changes how far the tabs reach
+const resized = new ResizeObserver(() => { reveal(); edges(); });
+onMounted(() => resized.observe(strip.value!));
+onUnmounted(() => resized.disconnect());
+// A mouse's wheel turns up and down, and the bar scrolls only sideways: without this only Shift+wheel or a touchpad
+// scrolled it (the author, 2026-10-15). Those two are left to the browser: with Shift it scrolled twice as far.
+function wheel(e: WheelEvent) {
+  if (!e.shiftKey && Math.abs(e.deltaY) > Math.abs(e.deltaX)) strip.value!.scrollLeft += e.deltaY;
+}
 
-const showTask = (key: string | number) => { if (key !== store.current) void kulisa.invoke('task:show', String(key)); };
+// A press on another tab makes it the chosen one at once, as Chrome's; its task is shown when the button is let go or
+// the tab starts being dragged (pointercancel), whichever comes first: the grid's slide that showing it starts made
+// Chromium drop the drag about to begin, so a tab not shown could not be dragged (2026-10-15); one begun goes on
+// through the slide. Not on its ×, which closes it (TaskTab.vue), nor the keyboard's, shown at once.
+const pressed = ref<string | null>(null);
+function pointerdown(e: PointerEvent) {
+  const at = e.button === 0 && !e.ctrlKey && e.pointerType === 'mouse' && !(e.target as Element).closest('button') && tabAt(e);
+  if (!at || at.t.key === store.current) return;
+  pressed.value = at.t.key;
+  const done = new AbortController(), show = () => {
+    done.abort();
+    pressed.value = null;
+    void kulisa.invoke('task:show', at.t.key);
+  };
+  for (const type of ['pointerup', 'pointercancel']) addEventListener(type, show, { signal: done.signal });
+}
+const showTask = (key: string | number) => { if (key !== store.current && key !== pressed.value) void kulisa.invoke('task:show', String(key)); };
 const manage = async (id?: string) => (await dialog('projects')).openProjects(id);
 
 // The task whose tab an event was on (TaskTab.vue handles a tab's own clicks).
@@ -135,9 +169,9 @@ function dragend(e: DragEvent) {
     <!-- Every open task a tab (Reka's Tabs): the shown one chosen; a press on another shows it. -->
     <RightClickMenu :items="menu"><TabsRoot as-child :model-value="store.current ?? undefined" activation-mode="manual"
       @update:model-value="showTask"><TabsList as-child :loop="false">
-      <div id="projectTabs" ref="strip" @dblclick="dblclick" @auxclick="auxclick"
+      <div id="projectTabs" ref="strip" @dblclick="dblclick" @auxclick="auxclick" @pointerdown="pointerdown" @wheel.passive="wheel" @scroll.passive="edges" :class="{ 'past-start': past.start, 'past-end': past.end }"
         @dragstart="dragstart" @dragover="dragover" @dragleave="dragleave" @drop="drop" @dragend="dragend">
-        <TaskTab v-for="{ p, t } in tabs" :key="t.key" :t :p :active="t.key === store.current" :data-project="p.id" :style="{ '--color': projectColor(p) }"
+        <TaskTab v-for="{ p, t } in tabs" :key="t.key" :t :p :active="t.key === (pressed ?? store.current)" :data-project="p.id" :style="{ '--color': projectColor(p) }"
           draggable="true" :class="{ dragging: dragged === t.key, 'drop-before': mark?.key === t.key && mark.side === 'before', 'drop-after': mark?.key === t.key && mark.side === 'after' }" />
       </div>
     </TabsList></TabsRoot></RightClickMenu>
@@ -157,13 +191,18 @@ function dragend(e: DragEvent) {
      and below it, the grid right under them, as a browser's tabs sit over its content. The tabs are not a handle to
      drag the window by. */
   #app > & { justify-self: center; max-width: calc(100% - 2 * var(--gap)); margin-block-start: var(--gap); }
-  #topbar & { -webkit-app-region: no-drag; }
-  #projectTabs { display: flex; gap: var(--gap); min-width: 0; overflow-x: auto; scrollbar-width: none; }
+  #topbar & { -webkit-app-region: no-drag; } /* the window is dragged after it (TopBar.vue) */
+  /* More tabs than fit scroll, with no scrollbar; an edge with tabs past it fades out (a mask takes alpha alone, hence
+     the literal color). A tab brought into view clears the fade. */
+  #projectTabs { --fade: 32px; display: flex; gap: var(--gap); min-width: 0; overflow-x: auto; scrollbar-width: none; scroll-padding-inline: var(--fade);
+    mask-image: linear-gradient(to right, transparent, #000 var(--fade-start, 0px), #000 calc(100% - var(--fade-end, 0px)), transparent);
+    &.past-start { --fade-start: var(--fade); } &.past-end { --fade-end: var(--fade); } }
   .noproject & #projectTabs { display: none; } /* no task open: + alone */
   /* A tab: as tall as a browser's (Firefox's 36 px), wide enough to hit in passing, rounded as the panels' tabs are,
      --gap from the next. Its project's icon (the app's curtain, in its color): as a browser's tab shows its site's
-     favicon. Where a dropped one would go, a line at its side. */
-  .tasktab { --tab: var(--bartab); gap: 8px; min-width: 120px; max-width: 240px; padding-inline: 12px 6px; border-radius: var(--tab-radius);
+     favicon. Where a dropped one would go, a line at its side. At its narrowest its name keeps about ten letters:
+     at 120 px every tab read "task…" (the author, 2026-10-15: wider, × kept on every tab). */
+  .tasktab { --tab: var(--bartab); gap: 8px; min-width: 160px; max-width: 240px; padding-inline: 12px 6px; border-radius: var(--tab-radius);
     .picon { width: 20px; height: 20px; color: var(--color); } } /* as an agent's mark in a row (docs/ui.md): a tab's face */
   .dragging { opacity: .5; }
   .drop-before { box-shadow: inset 2px 0 var(--accent); }
