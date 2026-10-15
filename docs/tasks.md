@@ -113,6 +113,8 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   Account…; its code, profiles); its first task is made from the bar's + (the project is in its menu).
 - **Showing another task** slides the grid towards its tab, as macOS desktops do (a view transition on the compositor, the
   pages as pictures meanwhile; not with reduced motion); the window builds the other grid in place, so nothing jumps.
+  Out past the window's edge, with Material's standard easing: until 2026-10-15 the grid going out stopped at the
+  window's margin and crept over its last few percent, a strip of its page lingering at the edge.
   (Until 2026-10-14 only another project's slid; a project's own tasks were swapped at once: one rule now, every
   tab a tab.) When a task closes, the one next to it is shown, or the empty window when it was the last.
 - **Move to New Window** (its tab's menu) puts the task into a window of its own, next to this one, e.g.

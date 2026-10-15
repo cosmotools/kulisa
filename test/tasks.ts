@@ -352,12 +352,13 @@ export default (test: Test) => {
 
   test('tasks: switching slides the grid towards the other tab (a view transition); then the pages are live again', async ({ shell, ui }) => {
     // The transition's types (which way), and the grid's own slide as it runs: an animation of 0 s, as the CSS minifier
-    // once made it, left the two grids' pictures one over the other (Grid.vue).
+    // once made it, left the two grids' pictures one over the other; out past the window's margin, not lingering at its
+    // edge (Grid.vue).
     const swap = (n: number) => ui(`(async () => {
       const start = document.startViewTransition.bind(document); let seen;
       document.startViewTransition = (o) => { const t = start(o); t.ready.then(() => { seen = { types: [...t.types],
         animations: document.getAnimations().filter((a) => ['::view-transition-old(grid)', '::view-transition-new(grid)'].includes(a.effect?.pseudoElement) && a.effect.getTiming().duration > 0)
-          .map((a) => a.animationName).sort() }; }); return t; };
+          .map((a) => { const [from, to] = a.effect.getKeyframes(); return [a.animationName, from.translate === 'none' ? to.translate : from.translate, from.easing].join(' '); }).sort() }; }); return t; };
       await kulisa.invoke('task:show', 'project/${n}');
       await new Promise((r) => setTimeout(r, 800));
       delete document.startViewTransition; // the document's own again
@@ -365,10 +366,10 @@ export default (test: Test) => {
     })()`);
     const live = async () => (await ui(`document.querySelectorAll('img.snapshot').length`)) === 0 && viewOn(shell, ui, 'sam-admin');
     let seen = await swap(2);
-    assert.deepEqual(seen.types, ['next']); assert.deepEqual(seen.animations, ['grid-from-right', 'grid-to-left'], 'it slides');
+    assert.deepEqual(seen.types, ['next']); assert.deepEqual(seen.animations, ['grid-from-right calc(100% + 8px) cubic-bezier(0.4, 0, 0.2, 1)', 'grid-to-left calc(-100% - 8px) cubic-bezier(0.4, 0, 0.2, 1)'], 'it slides');
     await waitFor(live);
     seen = await swap(1);
-    assert.deepEqual(seen.types, ['previous']); assert.deepEqual(seen.animations, ['grid-from-left', 'grid-to-right']);
+    assert.deepEqual(seen.types, ['previous']); assert.deepEqual(seen.animations, ['grid-from-left calc(-100% - 8px) cubic-bezier(0.4, 0, 0.2, 1)', 'grid-to-right calc(100% + 8px) cubic-bezier(0.4, 0, 0.2, 1)']);
     await waitFor(live);
   });
   test('tasks: Ctrl+Shift+2 shows the second, Ctrl+Shift+PgUp and PgDn the one before and after, from the terminal too', async ({ shell, ui }) => {
