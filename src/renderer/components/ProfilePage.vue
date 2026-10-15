@@ -7,7 +7,7 @@ import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka
 import Icon from './Icon.vue';
 import Avatars from './Avatars.vue';
 import { avatarSrc } from '../lib/common';
-import { covered } from '../lib/views';
+import { covered } from '../lib/cover';
 import { focusBack } from '../lib/menu';
 import { refused } from '../../shared/result';
 import type { Result } from '../../shared/result';

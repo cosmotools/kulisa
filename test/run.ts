@@ -131,6 +131,11 @@ async function setup(shell: Shell) {
   };
   // A script that throws says which it was (Electron's error names none).
   const ui = (js: string) => shell.win.webContents.executeJavaScript(js).catch((e: Error) => { throw new Error(`${e.message}: ${js.slice(0, 300)}`); });
+  // The same in Settings' window (settings-window.ts), once it is open and its page loaded.
+  const sui = async (js: string) => {
+    await waitFor(() => { const w = shell.settings?.win; return w && !w.isDestroyed() && w.webContents.getURL().includes('settings.html') && !w.webContents.isLoading(); });
+    return shell.settings.win.webContents.executeJavaScript(js).catch((e: Error) => { throw new Error(`${e.message}: ${js.slice(0, 300)}`); });
+  };
   let pty = '';
   const watchPty = (p: IPty) => p.onData((d) => (pty += d)); // again for the agent of another project
   await waitFor(() => shell.pty, 10000); // the agent starts once the window has laid out its terminal
@@ -146,12 +151,13 @@ async function setup(shell: Shell) {
   const instructions = async (task: Task = shell.task) => (await mcpOf(task.env().KULISA_MCP_URL)).getInstructions();
   // The tools the MCP server lists to the agent of task task, as its client gets them.
   const tools = async (task: Task = shell.task) => (await (await mcpOf(task.env().KULISA_MCP_URL)).listTools()).tools;
-  const ctx = { shell, call, instructions, tools, ui, ptyOutput: () => pty, watchPty, termText, asked, answer: true as boolean | 'other' | null };
+  const ctx = { shell, call, instructions, tools, ui, sui, ptyOutput: () => pty, watchPty, termText, asked, answer: true as boolean | 'other' | null };
   const ask = shell.askWhich;
   // Asked in the window w (window.ts), the first one when none is named; shell.ask asks through it.
   shell.askWhich = (q: Question, w: AppWindow | null = shell.windows[0]) => {
     asked.push(q);
-    const answer = ask(q, w), yes = ctx.answer, there = (js: string) => w.win.webContents.executeJavaScript(js);
+    // In Settings' window while it is open (app.ts, askWhich).
+    const answer = ask(q, w), yes = ctx.answer, page = (shell.settings?.win ?? w.win).webContents, there = (js: string) => page.executeJavaScript(js);
     if (yes !== null) void waitFor(() => there(`(document.getElementById('ask')?.dataset.state === 'open') && document.querySelector('#ask h2').textContent === ${JSON.stringify(q.message)}`))
       .then(() => there(`document.querySelector('#ask ${yes === 'other' ? '.other' : yes ? '.ok' : '.cancel'}').click()`));
     return answer;

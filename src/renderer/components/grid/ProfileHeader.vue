@@ -8,7 +8,7 @@ import { act, store } from '../../lib/store';
 import { avatarSrc, keyText } from '../../lib/common';
 import type { MenuItem } from '../../lib/menu';
 import { panes } from '../../lib/grid';
-import { dialog } from '../../lib/dialogs';
+import { openSettings } from '../../lib/dialogs';
 import { deleteProfile } from '../../lib/profiles';
 
 const props = defineProps<{ params: { api: DockviewPanelApi } }>();
@@ -21,7 +21,7 @@ function menu(): MenuItem[] | null {
   if (!p) return null;
   return [
     { label: 'New tab', keys: keyText('tab.new'), run: () => panes.get(key)?.newTab() },
-    { label: 'About this profile…', run: async () => (await dialog('projects')).openProfiles(p.id) },
+    { label: 'About this profile…', run: () => openSettings('profiles', p.id) },
     { label: 'Sign In to Master…', run: () => act('profile:master', { profile: p.id }) },
     { label: 'Refresh from Master…', run: () => act('profile:refresh', { profile: p.id }) },
     { label: 'Close profile', run: () => act('profile:close', { profile: p.id }) },

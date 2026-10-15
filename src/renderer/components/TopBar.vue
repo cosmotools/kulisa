@@ -13,7 +13,7 @@ import { store } from '../lib/store';
 import { keyText, LINKS, version } from '../lib/common';
 import type { MenuItem } from '../lib/menu';
 import type { Bar, Theme } from '../../shared/ipc';
-import { dialog } from '../lib/dialogs';
+import { dialog, openSettings } from '../lib/dialogs';
 
 const THEMES = [{ value: 'dark', label: 'Dark' }, { value: 'light', label: 'Light' }, { value: 'system', label: 'System', title: 'As the operating system' }];
 const BARS = [{ value: 'top', label: 'Top' }, { value: 'bottom', label: 'Bottom' }];
@@ -38,7 +38,7 @@ const windowMenu = (): MenuItem[] => [
     <span class="drag" />
     <button id="zoomReset" :hidden="store.zoom === 1" title="Kulisa's zoom. Click to reset (Ctrl 0)" @click="kulisa.invoke('zoom:ui', 0)">{{ Math.round(store.zoom * 100) }}%</button>
     <button id="manageProjects" class="icon" title="Settings: projects, agents" aria-label="Settings"
-      @click="dialog('projects').then((d) => d.openProjects())"><Icon name="i-settings" /></button>
+      @click="openSettings()"><Icon name="i-settings" /></button>
     <ButtonMenu :items="windowMenu" end><button id="windowMenu" class="icon" title="Menu: zoom, layout" aria-label="Menu"><Icon name="i-menu" /></button></ButtonMenu>
   </header>
 </template>

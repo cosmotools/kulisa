@@ -5,9 +5,10 @@ import { nextTick } from 'vue';
 import type { AddPanelPositionOptions, DockviewApi } from 'dockview-vue';
 import type { Profile } from '../../shared/types';
 import { act, setLoading, store } from './store';
-import { closeLayers, forgetFrozen, freeze, livePages, showViews, unfreeze } from './views';
+import { forgetFrozen, freeze, livePages, showViews, unfreeze } from './views';
+import { closeLayers } from './cover';
 import { reducedMotion } from './common';
-import { forgetTerminals } from './terminals';
+import { forgetTerminals } from './xterm';
 
 const panelId = (key: string) => `profile:${key}`;
 // What the window does with a mounted pane (ProfilePane.vue), by its profile's key.

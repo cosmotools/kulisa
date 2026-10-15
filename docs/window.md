@@ -8,8 +8,7 @@ next: [ROADMAP.md](ROADMAP.md). Keep this file current when the window changes.
 
 ## The title bar
 
-One row: the app's logo (the shown task's project's color on its curtain), Settings (a tree of Projects, Agents and Profiles:
-[tasks.md](tasks.md), Projects), ☰, and the OS's window buttons drawn over its right end (`titleBarStyle: 'hidden'` with
+One row: the app's logo (the shown task's project's color on its curtain), Settings (a window of its own: below), ☰, and the OS's window buttons drawn over its right end (`titleBarStyle: 'hidden'` with
 `titleBarOverlay`); no menu bar. Dragging the empty part moves the window. When the Kulisa zoom is not 100%, the bar
 shows it (a click resets it).
 
@@ -221,9 +220,44 @@ the main one last (blue; red when it deletes) ([ui.md](ui.md), Dialogs). Questio
 undone (deleting a profile, a task, a project), before closing (a task while an agent works, a window,
 quitting while an agent works: [tasks.md](tasks.md)) or between two ways to go (a second button, `other`) are asked
 in that dialog too (`shell.ask` → `lib/ask.ts`, `Ask.vue`, queued, Cancel focused; Esc is Cancel, a click outside
-does nothing: it waits for an answer), in the window the action is in. While a dialog is open the profiles' pages are
+does nothing: it waits for an answer), in the window the action is in; while Settings is open, in its window (below),
+whichever asks: the tasks' windows take no input then. While a dialog is open the profiles' pages are
 hidden (they are native views above the HTML), and the keys are the dialog's (Keys). Not the OS's own question (`dialog.showMessageBox`): it looked different on each OS and plain on Linux, and
 could not mark the deleting button or lay out what goes. The OS's own dialogs stay for choosing a folder.
+
+## Settings
+
+Settings (a tree of Projects, Agents and Profiles: [tasks.md](tasks.md), Projects) is a window of its own, as a desktop
+app's settings are (JetBrains', macOS apps'; the author, 2026-10-16: what users of desktop apps expect, and settings
+apart from the work): the OS's title bar ("Settings — Kulisa"), its own size and place, kept (`settings.json`:
+`settingsWindow`), at least 640 × 420 times the Kulisa zoom. Open it, set things, close it:
+
+- **One for the whole app.** The gear, a task tab's Manage Profiles… and Project Settings…, a pane's About this
+  profile…, a project's Add Profile… tile and New Project's Create open it at that page (a project's: none named, the
+  shown task's); open already, it comes to the front at that page.
+- **The tasks' windows take no input while it is open** (`setEnabled(false)`), as JetBrains' Settings holds its IDE;
+  their profiles' pages and terminals stay on screen and live (as a dialog, it had hidden the pages, and the agent's
+  work with them). Every question is asked in its window then (`shell.askWhich`), whichever part of Kulisa asks: one in
+  a held window could not be answered. A click on a held window brings Settings back to the front: on Linux (X11) a child
+  window is not kept above its parent (no transient hint on Electron's window; seen 2026-10-16).
+- **Not Electron's modal window**: on macOS that is a sheet, attached to its parent's title bar, with no title bar
+  of its own and not movable ([Electron's docs](https://github.com/electron/electron/blob/v44.5.1/docs/api/browser-window.md#platform-notices));
+  GNOME (X11) gave a plain window for it as well (2026-10-16). A child window (`parent`: the window it was opened
+  from) with the tasks' windows held is the same on the three OSes.
+- **Esc closes it**, as a dialog's: unless a menu, a question or a popover is open (Esc closes that first), or a field
+  takes it. Esc and the OS's × alike, its page saves what is typed first (a project's name), then closes it; while an
+  agent installs, it stays.
+- **Settings only**: a project is made in a tasks' window (New Project…: the bar's +, the empty window), which then
+  opens Settings at it (the author, 2026-10-16: one way to open each, not New Project inside Settings too).
+- **Shown once its page is filled** (the projects, the profiles, the agents as last found, its fonts: `settings:ready`),
+  as Electron's docs advise for a window (`show: false`): shown at once, its tree and page jumped as they came (the
+  author, 2026-10-16). A page that never says so is shown after 2 s all the same: the tasks' windows are held meanwhile.
+- Its page is the app's third (`settings.html`, `Settings.vue`): nothing of a tasks' window (no grid, no profiles'
+  views, no keys of its own). Its process lives while it is open: about 40 MB of its own (PSS; 2026-10-16).
+- What it asks the main process about a project or a task goes to its parent (`owner` in `ipc/`): the shown task's
+  project, the folder agents are looked for in. A new account's sign-in and an installer answer the page that asked.
+- Not tried on Wayland: there an app may not place, move or focus its windows itself (Electron's docs, the same
+  Platform notices), so where it opens and bringing it to the front are the compositor's.
 
 ## The terminal
 
@@ -448,12 +482,13 @@ shortcuts carry (`com.squirrel.kulisa.kulisa`), or Windows would not pin it to t
 | `src/main/shortcuts.ts` | the keys as they are typed (Keys), the hold keys changed |
 | `src/shared/ipc.ts`, `src/main/ipc.ts` | the channels between a page and the main process; `handle` and `on`, checked against them (IPC) |
 | `src/main/window.ts` | a window: its BrowserWindow, the native views' places, its questions, screenshot |
+| `src/main/settings-window.ts`, `src/renderer/settings.html`, `components/Settings.vue` | Settings' window (Settings); its page is `ProjectEditor.vue` |
 | `src/preload/index.cjs` | the window's bridge to the main process: the windows' pages are sandboxed (no Node: about 15 MB less a window, PSS; 2026-10-12), so it is a few lines of plain JavaScript; the window imports what it shares with the main process from `src/shared/` (`names.ts`, `avatars.ts`, `result.ts`) |
 | `src/main/keys.ts` | the keyboard shortcuts: the table, which key an input event is; `shortcuts.ts` takes them (Keys) |
 | `src/main/updates.ts`, `forge.config.ts` | updates, Squirrel's events; the installers and the release |
 | `src/main/terminal.ts` | the ptys of the tasks' terminals; each shell's screen for `terminal_read` |
 | `src/renderer/components/Grid.vue`, `grid/*.vue`, `lib/grid.ts` | the grid (dockview), the panes and their headers, the island of terminals (`Terminals.vue`, its row of tabs `TerminalTabs.vue`), the closed profiles' tiles over it (`ClosedProfiles.vue`), Arrange panels |
 | `src/renderer/components/TopBar.vue`, `menu/*.vue` | the title bar, ☰ and its own rows |
-| `src/renderer/components/menu/*.vue`, `Modal.vue`, `Ask.vue`, `lib/menu.ts`, `views.ts`, `ask.ts`, `terminals.ts`, `voice.ts` | the menus, the dialogs and questions (Reka UI's), the pages under them, the terminals, dictation |
+| `src/renderer/components/menu/*.vue`, `Modal.vue`, `Ask.vue`, `lib/menu.ts`, `cover.ts`, `views.ts`, `ask.ts`, `xterm.ts`, `terminals.ts`, `voice.ts` | the menus, the dialogs and questions (Reka UI's: `cover.ts`), the pages under them in a tasks' window (`views.ts`), a terminal in any window (`xterm.ts`), a tasks' window's terminals, dictation |
 | `src/renderer/lib/keys.ts`, `components/Shortcuts.vue` | where the keyboard is, the commands the keys run; Keyboard Shortcuts |
 | `test/window.ts`, `grid.ts`, `keys.ts`, `zoom-and-closing.ts`, `unit/keys.test.ts` | the tests |

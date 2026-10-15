@@ -20,7 +20,7 @@ function items(): MenuItem[] {
       run: () => kulisa.invoke('project:open', { id: p.id, task: t.n }) })),
   ]);
   return [...(rows.length ? [{ heading: 'New Task of' }, ...rows] : [{ note: 'No projects yet' }]),
-    '-', { label: 'New Project…', run: () => dialog('projects').then((d) => d.newProject()) }];
+    '-', { label: 'New Project…', run: () => dialog('newproject').then((d) => d.open()) }];
 }
 </script>
 

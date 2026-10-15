@@ -9,7 +9,7 @@ import type * as Sent from '../../shared/types.ts'; // what the window gets: its
 import type { Result } from '../../shared/result.ts';
 
 export function registerProfiles(ipc: Ipc) {
-  const { shell, at, serial } = ipc;
+  const { shell, owner, serial } = ipc;
   const store = shell.store;
   // Settings → Profiles (profile-store.ts): every profile, each with the projects it is in; who one is changed (checked
   // in the store), then every loaded task shows it; made in no project; its master to sign in to; deleted after a
@@ -35,5 +35,5 @@ export function registerProfiles(ipc: Ipc) {
     return refused(s) ? s : profileChange(shell.profileStore.setLogin(profile, user, s.secret));
   });
   handle('profiles:master', (_e, { profile }) => { const g = shell.profileStore.get(profile); return g ? shell.openMaster(g.folder) : { error: `no profile ${profile}` }; });
-  handle('profiles:delete', (e, { profile }) => serial(async () => { const r = await deleteProfile(shell, profile, at(e)); return refused(r) ? r : profilesInfo(); }));
+  handle('profiles:delete', (e, { profile }) => serial(async () => { const r = await deleteProfile(shell, profile, owner(e)); return refused(r) ? r : profilesInfo(); }));
 }

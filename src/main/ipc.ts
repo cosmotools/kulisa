@@ -20,11 +20,12 @@ export function on<C extends keyof Send>(channel: C, fn: (e: IpcMainEvent, arg: 
 
 export type IpcEvent = IpcMainEvent | IpcMainInvokeEvent;
 
-// What the windows' handles (ipc/) get: the app, the window a message comes from, the open tasks (open-tasks.ts) and
-// their one-after-another.
+// What the windows' handles (ipc/) get: the app, the tasks' window a message comes from (at) or is about (owner: also
+// Settings' parent, settings-window.ts), the open tasks (open-tasks.ts) and their one-after-another.
 export interface Ipc {
   shell: Shell;
   at: (e: IpcEvent) => AppWindow | null;
+  owner: (e: IpcEvent) => AppWindow | null;
   tasks: OpenTasks;
   serial: OpenTasks['serial'];
 }

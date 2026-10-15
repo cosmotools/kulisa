@@ -18,6 +18,8 @@ export type TerminalContents = Record<string, { data: string; cols: number; rows
 type Grid = Record<string, Partial<{ x: number; y: number; width: number; height: number }> & { shown?: boolean }>;
 export type Theme = 'dark' | 'light' | 'system';
 export type Bar = 'top' | 'bottom';
+// Where Settings opens (its window: main/settings-window.ts): a project's page (none: the shown task's), a profile's.
+export type SettingsAt = { section: 'projects' | 'profiles'; id?: string | null };
 // A project's code as its manager shows it (projects.ts, reposInfo).
 type Repos = { repos: ProjectRepo[]; former?: string | null };
 type ProjectAgents = { agents: { id: string; name: string; default?: boolean }[] };
@@ -130,6 +132,9 @@ export interface Send {
   'ask:answer': { id: number; answer: string };
   'agent:chosen': { task: string | null; id: string | null };
   'keys:zone': string;
+  'settings:open': SettingsAt;
+  'settings:close': void; // its page has saved what was typed
+  'settings:ready': void; // its page is filled: the window is shown
 }
 
 // webContents.send (AppWindow.send) / the window's kulisa.on: what the main process tells a window.
@@ -158,6 +163,8 @@ export interface Events {
   'voice': { task: string; voice: Voice | null };
   'project:new': void;
   'master:url': string;
+  'settings:show': SettingsAt;
+  'settings:closing': void; // asked to close (its ×): its page saves, then closes it
 }
 
 // A message's argument after its channel: none for a `void` one.

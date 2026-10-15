@@ -91,21 +91,24 @@ const taskMenu = async (ui: UI) => {
   await rightClick(ui, '#taskbar .tasktab.active .name');
   return menuRows(ui);
 };
-// Settings → Profiles: the shown task's tab's menu, then Manage Profiles…; once its page is there.
-const manageProfiles = async (ui: UI) => {
+// Settings → Profiles: the shown task's tab's menu, then Manage Profiles…; once its window shows the page.
+const manageProfiles = async ({ ui, sui }: Pick<Ctx, 'ui' | 'sui'>) => {
   await taskMenu(ui);
   await choose(ui, 'Manage Profiles…');
-  await waitFor(() => ui(`document.getElementById('projects')?.dataset.state === 'open' && document.getElementById('prconfig')?.checkVisibility()`));
+  await waitFor(() => sui(`!!document.getElementById('prconfig')?.checkVisibility()`));
 };
-// Settings closed with its ×.
-const closeSettings = async (ui: UI) => {
-  await ui(`document.querySelector('#projects .x').click()`);
-  await waitFor(async () => !(await ui(`document.getElementById('projects')?.dataset.state === 'open'`)));
+// Settings closed as the human does it with Esc (its window: settings-window.ts), what was typed saved; its window gone,
+// the keyboard back in the task's window (a menu opened there before it came closed as the window got it).
+const closeSettings = async ({ shell, ui, sui }: Pick<Ctx, 'shell' | 'ui' | 'sui'>) => {
+  await sui(`dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); 0`);
+  await waitFor(() => !shell.settings);
+  await waitFor(() => ui(`document.hasFocus()`));
 };
 // A profile in Settings' tree chosen (a click), its page shown.
-const chooseProfile = async (ui: UI, id: string) => {
-  await ui(`document.querySelector('#pjlist [data-profile="${id}"]').click()`);
-  await waitFor(() => ui(`document.querySelector('#pjlist [data-profile="${id}"]')?.ariaSelected === 'true' && document.getElementById('profilepage')?.checkVisibility()`));
+const chooseProfile = async (sui: UI, id: string) => {
+  await waitFor(() => sui(`!!document.querySelector('#pjlist [data-profile="${id}"]')`)); // the profiles come as it opens
+  await sui(`document.querySelector('#pjlist [data-profile="${id}"]').click()`);
+  await waitFor(() => sui(`document.querySelector('#pjlist [data-profile="${id}"]')?.ariaSelected === 'true' && document.getElementById('profilepage')?.checkVisibility()`));
 };
 // A field of Settings → Profiles typed and left (saved on change).
 const setProfileField = (ui: UI, id: string, value: string) => ui(`(() => { const f = document.getElementById('${id}'); f.value = ${JSON.stringify(value)};

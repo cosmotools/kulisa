@@ -1,6 +1,6 @@
 // The windows' handles on projects (docs/tasks.md, Projects): New Project, and a project's page in Settings: its
 // name, local addresses, code, agents and profiles (projects.ts).
-import { app, dialog, shell as electronShell } from 'electron';
+import { app, BrowserWindow, dialog, shell as electronShell } from 'electron';
 import path from 'path';
 import fs from 'fs';
 import { nextAvatar } from '../../shared/avatars.ts';
@@ -15,7 +15,7 @@ import type { GitError } from '../worktrees.ts';
 import type { Result } from '../../shared/result.ts';
 
 export function registerProjects(ipc: Ipc, { lookForFavicon }: { lookForFavicon: (p: ProjectEntry) => Promise<void> }) {
-  const { shell, at, serial } = ipc;
+  const { shell, at, owner, serial } = ipc;
   const store = shell.store;
   const sendProjects = () => shell.sendProjects();
   // New Project…, as JetBrains': its code first (below), then a new or cloned one's folder <location>/<name>, the
@@ -152,7 +152,7 @@ export function registerProjects(ipc: Ipc, { lookForFavicon }: { lookForFavicon:
   handle('project:profile-remove', (e, { id, profile }) => serial(async () => {
     const entry = store.projects().find((x) => x.id === id), g = shell.profileStore.get(profile);
     if (!entry || !g) return { error: entry ? `no profile ${profile}` : `no project ${id}` };
-    if (!await askDropProfile(shell, entry, g, 'human', at(e))) return { error: 'the human said no' };
+    if (!await askDropProfile(shell, entry, g, 'human', owner(e))) return { error: 'the human said no' };
     await dropProfile(shell, entry, g.folder);
     return profilesOf(id);
   }));
@@ -161,7 +161,7 @@ export function registerProjects(ipc: Ipc, { lookForFavicon }: { lookForFavicon:
   const settingsOf = async (id: string, r: Result) => (refused(r) ? r : { ...(await reposInfo(store.projects().find((x) => x.id === id)!)) });
   handle('project:repo-add', async (e, { id, folder }) => {
     if (!folder) {
-      const r = await dialog.showOpenDialog(at(e)!.win, { title: 'Add a repository or folder to the project', properties: ['openDirectory'] });
+      const r = await dialog.showOpenDialog(BrowserWindow.fromWebContents(e.sender)!, { title: 'Add a repository or folder to the project', properties: ['openDirectory'] });
       if (r.canceled || !r.filePaths[0]) return {};
       folder = r.filePaths[0];
     }

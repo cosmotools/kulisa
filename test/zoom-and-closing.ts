@@ -202,7 +202,7 @@ export default (test: Test) => {
   });
 
   test("test users' sign-ins: the agent saves a pair and signs in with it on a local page, never seeing the password; refused elsewhere; the human sets one in the editor", async (ctx) => {
-    const { shell, ui, call } = ctx;
+    const { shell, sui, call } = ctx;
     await call('profile_create', { name: 'Tess' });
     const actions: string[] = [];
     const watch = (a: { caption: string }) => { actions.push(a.caption); };
@@ -222,15 +222,15 @@ export default (test: Test) => {
     await call('browser_navigate', { profile: 'tess', url: 'data:text/html,<input id="x">' });
     await assert.rejects(call('browser_type_login', { profile: 'tess', locator: "locator('#x')", field: 'password' }), /not the app under test on this computer/);
     // The human: Settings → Profiles' login fields; the password saved encrypted, never shown back.
-    await manageProfiles(ui);
-    await chooseProfile(ui, 'tess');
-    await waitFor(() => ui(`document.getElementById('profilelogin').value === 'tester'`));
-    assert.equal(await ui(`document.getElementById('profilepassword').placeholder`), 'Kept (type to change it)');
-    await setProfileField(ui, 'profilepassword', 'secret-tess');
-    await waitFor(() => ui(`document.getElementById('profilepassword').value === ''`));
-    await setProfileField(ui, 'profilelogin', 'tess');
+    await manageProfiles(ctx);
+    await chooseProfile(sui, 'tess');
+    await waitFor(() => sui(`document.getElementById('profilelogin').value === 'tester'`));
+    assert.equal(await sui(`document.getElementById('profilepassword').placeholder`), 'Kept (type to change it)');
+    await setProfileField(sui, 'profilepassword', 'secret-tess');
+    await waitFor(() => sui(`document.getElementById('profilepassword').value === ''`));
+    await setProfileField(sui, 'profilelogin', 'tess');
     await waitFor(() => shell.profileStore.get('tess').login?.user === 'tess');
-    await closeSettings(ui);
+    await closeSettings(ctx);
     await call('browser_navigate', { profile: 'tess', url: `${SITE}/app/signin` });
     await call('browser_type_login', { profile: 'tess', locator: "locator('#user')", field: 'login' });
     await call('browser_type_login', { profile: 'tess', locator: "locator('#pass')", field: 'password', submit: true });

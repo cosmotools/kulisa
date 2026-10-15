@@ -12,7 +12,8 @@ import ButtonMenu from '../menu/ButtonMenu.vue';
 import RightClickMenu from '../menu/RightClickMenu.vue';
 import { store } from '../../lib/store';
 import { profileLaunchers } from '../../lib/profiles';
-import { launchers, newTerminalItems, tabItems, termFocus, termHost, terminalMenu } from '../../lib/terminals';
+import { launchers, newTerminalItems, tabItems, terminalMenu } from '../../lib/terminals';
+import { termFocus, termHost } from '../../lib/xterm';
 import { avatarSrc, withKeys } from '../../lib/common';
 
 const props = defineProps<{ params: { api: DockviewPanelApi; containerApi: DockviewApi } }>();
