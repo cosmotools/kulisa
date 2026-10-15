@@ -7,7 +7,8 @@ side by side. It builds, checks the result as every user of your app, fixes, and
 watch every step or take a break. It is made first for developing web apps with several users at once (a buyer, a
 seller, an admin), and is good for any work in web apps: several clients' accounts, admin and support work.
 
-You sign in to your accounts yourself, by hand; the agent never does. Everything stays on your computer.
+You sign in to your accounts yourself, by hand; the agent never does, except as test users of your own app on this
+computer. Everything stays on your computer.
 
 ## Words used here
 
