@@ -266,15 +266,26 @@ class AppWindow {
   // JPEG: a picture shown for a moment, encoded three times faster than PNG (measured 2026-10-07). A page that draws no
   // frame (covered, the monitor off, busy) gives none: its pane is empty meanwhile. Waiting for it held every menu
   // after it closed (the menus' tests failed now and then, 2026-10-07), and half a second it held a task's slide after
-  // the click: a page gives its picture in a few milliseconds (2–7 ms measured, 2026-10-15).
+  // the click. How long a picture takes is the computer's (2–7 ms on the author's, over a hundred on GitHub's runner,
+  // where a fixed tenth of a second left every pane empty, 2026-10-15), so the pages set the pace: once the first has
+  // answered, the rest get three times as long, a tenth of a second at least; none answering, half a second.
   async pictures() {
-    const pics: Record<string, string> = {};
-    const later = (ms: number) => new Promise<null>((ok) => setTimeout(ok, ms, null));
+    const pics: Record<string, string> = {}, t0 = Date.now();
+    let giveUp = () => {}, paced = false;
+    const gaveUp = new Promise<null>((ok) => { giveUp = () => ok(null); });
+    let timer = setTimeout(() => giveUp(), 500);
+    const pace = () => {
+      if (paced) return;
+      paced = true; clearTimeout(timer);
+      const took = Date.now() - t0;
+      timer = setTimeout(() => giveUp(), Math.max(100, 3 * took) - took);
+    };
     await Promise.all([...this.profiles.values()].filter((p) => p.visible() && p.get() && !p.get()!.discarded && !p.get()!.wc.isDestroyed()).map(async (p) => {
-      const img = await Promise.race([p.get()!.wc.capturePage(), later(100)]).catch((): null => null);
+      const img = await Promise.race([p.get()!.wc.capturePage().then((i) => { pace(); return i; }), gaveUp]).catch((): null => null);
       if (!img) return;
       pics[p.id] = `data:image/jpeg;base64,${img.toJPEG(90).toString('base64')}`;
     }));
+    paced = true; clearTimeout(timer); // a picture given up on may still come
     return pics;
   }
   // Where the grid puts each pane's page (key: the task the page laid out), in CSS pixels; the views are placed

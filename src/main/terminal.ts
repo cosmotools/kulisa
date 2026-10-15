@@ -24,8 +24,10 @@ interface Term { pty: Pty | null; size: Size | null; firstSize: Promise<void>; s
 
 // The terminal's size as the window measures it, per terminal and per task (its island's, which all its terminals
 // share: one is shown at a time). An agent starts only once its size is known: Claude Code draws its prompt for the
-// size it starts with and does not fully redraw on the first resize. Listening from require time, so a size sent
-// while the window loads is not missed.
+// size it starts with and does not fully redraw on the first resize. However long the window takes to lay the island
+// out: a default size after 5 s (120×30, until 2026-10-15) is what GitHub's runner got, its window slower than that.
+// The size comes: a task loads its terminals when it is first shown (docs/tasks.md). Listening from require time, so
+// a size sent while the window loads is not missed.
 const terms = new Map<string, Term>(); // key -> { pty, size, sized (resolves the first size) }
 const termOf = (key: string) => {
   if (!terms.has(key)) {
@@ -60,8 +62,8 @@ const shQuote = (a: string) => (/^[\w@%+=:,./-]+$/.test(a) ? a : `'${a.replace(/
 // its output, under it. send(channel, data): to the task's window, whichever it is then.
 async function startTerminal(send: Send, cfg: TerminalConfig, key: string): Promise<Pty> {
   const t = termOf(key), like = cfg.sizeOf ? termOf(cfg.sizeOf) : null;
-  if (!cfg.size) await Promise.race([t.firstSize, ...(like ? [like.firstSize] : []), new Promise((r) => setTimeout(r, 5000))]);
-  const { cols, rows } = t.size || cfg.size || like?.size || { cols: 120, rows: 30 };
+  if (!cfg.size) await Promise.race([t.firstSize, ...(like ? [like.firstSize] : [])]);
+  const { cols, rows } = (t.size || cfg.size || like?.size)!; // one of them: given, or waited for
   const sh: { command: string; args?: string[] } | null = cfg.shell === false ? null : cfg.shell || userShell() || (cfg.line !== undefined ? { command: process.env.COMSPEC || 'cmd.exe' } : null);
   const command = cfg.command || (process.platform === 'win32' ? process.env.COMSPEC || 'cmd.exe' : process.env.SHELL || 'bash');
   const p = pty.spawn(sh ? sh.command : command, sh ? sh.args || [] : cfg.args || [], {

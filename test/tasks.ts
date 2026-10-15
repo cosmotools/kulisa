@@ -106,9 +106,19 @@ export default (test: Test) => {
       window.__starting ||= document.querySelector('#dock .starting')?.textContent; })
       .observe(document.body, { childList: true, subtree: true })`);
     const find = shell.findAgent; // looking for it takes the user's login shell, slower on the human's computer than here
-    shell.findAgent = async (...a) => { await sleep(1000); return find(...a); };
+    let found = false;
+    shell.findAgent = async (...a) => { await sleep(1000); const r = await find(...a); found = true; return r; };
+    // Its agent waits for its terminal's size however late the window lays the island out: it started at a default one
+    // after 5 s, which GitHub's runner reached (2026-10-15). The island hidden for 6 s after the agent is found: what is
+    // tested is that it waits longer than it used to, which only time shows.
+    await ui(`document.head.append(Object.assign(document.createElement('style'), { id: 'lateIsland', textContent: '.term { display: none !important; }' }))`);
+    const sent = await ui('window.__ptySizes.length');
+    const late = (async () => { await waitFor(() => found, 10000); await sleep(6000); await ui(`document.getElementById('lateIsland').remove()`); })();
     const task = await newTask(ctx);
+    await late;
     shell.findAgent = find;
+    await waitFor(async () => (await ui('window.__ptySizes.length')) > sent);
+    assert.deepEqual(task.pty.spawnSize, await ui(`window.__ptySizes[${sent}]`), 'at its real size');
     assert.equal(await ui('window.__launch'), false, "no island's buttons while its agent starts");
     assert.match(await ui('window.__starting'), /^Starting .+…$/, 'its tab, starting');
     await waitFor(async () => !(await ui(`!!document.querySelector('.terminals .starting')`))); // then its terminal
@@ -379,13 +389,16 @@ export default (test: Test) => {
     let seen = await swap(2);
     assert.deepEqual(seen.types, ['next']); assert.deepEqual(seen.animations, ['grid-from-right calc(100% + 8px) cubic-bezier(0.4, 0, 0.2, 1)', 'grid-to-left calc(-100% - 8px) cubic-bezier(0.4, 0, 0.2, 1)'], 'it slides');
     await waitFor(live);
-    // A page that draws no frame (busy, covered) holds the slide's start for a tenth of a second at most, its pane then
-    // empty: half a second was felt after each click (2026-10-15).
-    const tab = shell.profiles.get('sam-admin').get(), capture = tab.wc.capturePage;
+    // A page that draws no frame (busy, covered) holds the slide's start no longer than three times what the others
+    // take (a tenth of a second at least), its pane then empty: half a second was felt after each click (2026-10-15).
+    // Their pace, not a fixed time: GitHub's runner took over a tenth of a second for a picture, and no pane had one.
+    const tab = shell.profiles.get('sam-admin').get(), elon = shell.profiles.get('elon-buyer').get().wc, its = elon.capturePage;
+    let took = 0;
     tab.wc.capturePage = () => new Promise(() => {});
-    const t0 = Date.now(), pics = await shell.windows[0].pictures();
-    tab.wc.capturePage = capture;
-    assert.ok(Date.now() - t0 < 300, `pictures in ${Date.now() - t0} ms`);
+    elon.capturePage = (...a) => its.apply(elon, a).then((img) => { took = Date.now() - t0; return img; });
+    const t0 = Date.now(), pics = await shell.windows[0].pictures(), all = Date.now() - t0;
+    delete tab.wc.capturePage; delete elon.capturePage; // their prototypes' again
+    assert.ok(took && all < Math.max(100, 3 * took) + 150, `pictures in ${all} ms, the other's in ${took} ms`);
     assert.ok(!pics['sam-admin'] && pics['elon-buyer'], 'the others taken');
     seen = await swap(1);
     assert.deepEqual(seen.types, ['previous']); assert.deepEqual(seen.animations, ['grid-from-left calc(-100% - 8px) cubic-bezier(0.4, 0, 0.2, 1)', 'grid-to-right calc(100% + 8px) cubic-bezier(0.4, 0, 0.2, 1)']);

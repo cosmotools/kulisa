@@ -105,8 +105,11 @@ The profiles' pages are native views above the window's HTML (CLAUDE.md, "What m
 panel is dragged, a menu is open or a dialog is shown, the pages are pictures of themselves (or hidden), so the
 HTML can be on top; they are live again after, once nothing covers them: a task's slide ending under a menu leaves
 them pictures until the menu closes (`livePages`; until 2026-10-15 they came back over it). A page that gives no
-picture within 100 ms (covered, the monitor off, busy; a live one gives it in a few) leaves its pane empty meanwhile:
-waiting for it held the menu, and every one after it, and a task's slide after the click (500 ms until 2026-10-15).
+picture (covered, the monitor off, busy) leaves its pane empty meanwhile: waiting for it held the menu, and every one
+after it, and a task's slide after the click (500 ms until 2026-10-15). How long is the pages' own pace, not a fixed
+time: once the first has answered, the rest get three times as long, a tenth of a second at least (a live page
+answers in a few milliseconds on the author's computer, in over a hundred on GitHub's runner, where a fixed tenth of
+a second left every pane empty); none answering, half a second (`AppWindow.pictures`).
 
 A pane's tab strip and toolbar move as Chrome's: a tab opened grows in from the left (`.tab.opening`; the strip keeps
 its tabs' elements by id, so only a new one animates), the address's hover fades in. Not with reduced motion.
@@ -310,7 +313,8 @@ did not expect (the author's choice, 2026-10-08: which profile a link belongs to
 "where that site is open" was not obvious). Only `http` and `https`; the address shows on hover. xterm's own handler
 asked with the browser's `confirm()`, an OS dialog. Keys are known by `keyCode` too, as ibus with a Cyrillic layout leaves
 `code` out. An agent starts once the island is laid out, at its real
-size (a terminal behind another tab takes the island's). The rows that fit sit in the middle of the panel, what is left under a whole row shared above and below them:
+size (a terminal behind another tab takes the island's), however long that takes: until 2026-10-15 it started at a
+default size after 5 s, which GitHub's runner reached. The rows that fit sit in the middle of the panel, what is left under a whole row shared above and below them:
 at the bottom, it was a row's height under the agent's status line in one task and nothing in another, whose
 grids differed by a pixel (2026-10-08). When a task moves to another window, what its terminals show moves along (xterm's serialize addon, as VS
 Code keeps terminals), at the same size.
