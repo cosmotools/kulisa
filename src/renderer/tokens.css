@@ -37,6 +37,7 @@
      the title bar 4 px are left above and below it (TaskBar.vue). --drag: in it, what the tabs leave free to drag the
      window by, however many they are. */
   --title: calc(var(--control) + 2 * var(--gap)); --bartab: 36px; --drag: 40px;
+  --fade: 32px; /* the faded edge of a strip of tabs with tabs past it (.tabstrip) */
   /* A form's labels ("Name:"), in one column before their fields (.field), and what lines up with the fields under them */
   --label: 120px;
   color-scheme: dark;

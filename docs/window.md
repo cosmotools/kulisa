@@ -53,13 +53,9 @@ tabs, a step taller than a button, were out of scale), a target for a quick thro
 tabs are not a handle to drag the window by (`app-region: no-drag`). Nothing in the bar moves when another task is
 shown.
 
-More tabs than the bar holds scroll, without a scrollbar (the author, 2026-10-15, found with thirty tasks): a mouse's
-wheel scrolls them sideways, as Firefox's and VS Code's (on its own a vertical wheel scrolled nothing, only Shift or a
-touchpad did); an edge with tabs past it fades out, so the bar says some are out of sight; the shown tab is brought
-into sight, clear of the fade, when another is shown, the bar moves (☰ → Tasks bar) or the window is resized, and only
-then: on every word from the main process (an agent's state) it took the bar back from where the human had scrolled
-it. The fade is two classes set from the scroll, not CSS's scroll-driven animations, which left an edge faded when
-little was out of sight. In the title bar the tabs give way before at least 40 px after + (`--drag`), where the
+More tabs than the bar holds scroll, as every strip of tabs does ([ui.md](ui.md), Controls: `.tabstrip`): by a
+mouse's wheel, an edge with tabs past it faded, the shown tab in sight (the author, 2026-10-15, found with thirty
+tasks: the wheel scrolled nothing, nothing said 17 were out of sight). In the title bar the tabs give way before at least 40 px after + (`--drag`), where the
 window is dragged however many tabs there are, as Chrome's space after its +; by the logo too. Chromium takes the tabs
 scrolled past the bar's edges as no-drag over both (it does not clip them to the bar, `overflow`, `contain` or
 `clip-path` alike) and the page's regions in order, the last one winning: so the logo and that space come after the

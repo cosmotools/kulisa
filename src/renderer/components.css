@@ -75,6 +75,12 @@ button.danger { background: var(--danger); border-color: var(--danger); color: v
   small { color: var(--text-muted); font-size: var(--font-small); }
   /* Smaller, beside what is looked at (the closed profiles over the terminal) */
   &.small { --icon: var(--row); width: calc(var(--control) * 4); height: calc(var(--control) * 3.25); padding-block-start: var(--inset); } }
+/* A strip of tabs that scrolls when they do not fit (lib/strip.ts: the wheel, the edges, the active one in sight): no
+   scrollbar; an edge with tabs past it fades out (.past-start, .past-end; a mask takes alpha alone, hence the literal
+   color), and a tab brought into view clears the fade. */
+.tabstrip { overflow-x: auto; scrollbar-width: none; scroll-padding-inline: var(--fade);
+  mask-image: linear-gradient(to right, transparent, #000 var(--fade-start, 0px), #000 calc(100% - var(--fade-end, 0px)), transparent);
+  &.past-start { --fade-start: var(--fade); } &.past-end { --fade-end: var(--fade); } }
 /* A tab of a strip on an island, as a browser's (TaskTab.vue): the agent's .state, the .name, × at the end
    (button.close.icon.quiet.small), always shown, as Chrome's (the author, 2026-10-12). A
    step taller than a button and never narrow: a target for a quick throw of the mouse. Lit under the pointer;
@@ -215,6 +221,7 @@ svg:has(> use) { width: 16px; height: 16px; flex: none; fill: none; stroke: curr
   .check { margin-inline-start: auto; color: var(--accent); }
 }
 
-/* Details' trigger (Reka's Collapsible) */
-button.more { display: flex; align-items: center; gap: 4px; height: auto; padding: 0; border: none; background: none; color: var(--text-muted);
+/* Details' trigger (Reka's Collapsible). Its own name: as .more it took a pane's ⋮ (More) too, its height gone and its
+   dots turned, lying until its menu opened (2026-10-15). */
+button.disclose { display: flex; align-items: center; gap: 4px; height: auto; padding: 0; border: none; background: none; color: var(--text-muted);
   &:hover { color: var(--text); } svg { rotate: -90deg; } &[data-state="open"] svg { rotate: none; } }

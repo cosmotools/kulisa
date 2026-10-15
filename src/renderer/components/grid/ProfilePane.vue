@@ -2,7 +2,7 @@
 // A profile's pane, as a Chrome window (docs/profiles.md; docs/window.md, The grid). The page itself is a native view
 // the main process lays over .content (lib/grid.ts tells it where); while a panel is dragged or a menu is open, a
 // picture of the page stands in for it.
-import { computed, onBeforeUnmount, onMounted, onUpdated, reactive, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import type { DockviewPanelApi } from 'dockview-vue';
 import { DialogContent, DialogDescription, DialogRoot, DialogTitle, TabsList, TabsRoot, TabsTrigger, Toggle } from 'reka-ui';
 import Icon from '../Icon.vue';
@@ -12,6 +12,7 @@ import { act, store, togglePick } from '../../lib/store';
 import { keyText, withKeys } from '../../lib/common';
 import type { MenuItem } from '../../lib/menu';
 import { panes, scheduleLayout, type PaneHandle } from '../../lib/grid';
+import { useStrip } from '../../lib/strip';
 
 const props = defineProps<{ params: { api: DockviewPanelApi } }>();
 const key = props.params.api.id.slice('profile:'.length);
@@ -49,22 +50,16 @@ function go() { void act('tab:navigate', { profile: id(), tab: tab(), url: addr.
 
 // The tab strip, Reka's Tabs: a tab is chosen on the press, as in Chrome (not on its ×), the arrows move between them
 // and Enter chooses. A tab opened in a strip already shown grows in from the left, as Chrome's (.tab.opening); the
-// active tab in sight, as Chrome scrolls to it. Tabs are kept by id: an element stays as its tab does.
+// active tab in sight, as Chrome scrolls to it (lib/strip.ts, with the wheel and the faded edges). Tabs are kept by
+// id: an element stays as its tab does.
 const opening = reactive(new Set<string>());
 let known: Set<string> | null = null;
 watch(() => profile.value?.tabs.map((t) => t.id) || [], (ids) => {
   if (known?.size) for (const t of ids) if (!known.has(t)) opening.add(t);
   known = new Set(ids);
 }, { immediate: true });
-function activeInSight() {
-  const a = strip.value?.querySelector('.tab.active')?.getBoundingClientRect();
-  if (!a) return;
-  const { left: start, right: end } = strip.value!.getBoundingClientRect();
-  if (a.left < start) strip.value!.scrollLeft -= start - a.left;
-  else if (a.right > end) strip.value!.scrollLeft += a.right - end;
-}
-onUpdated(activeInSight);
-const grown = (t: string) => { opening.delete(t); activeInSight(); };
+const { reveal } = useStrip(strip, () => profile.value?.active);
+const grown = (t: string) => { opening.delete(t); reveal(); };
 const activate = (t: string | number) => act('tab:activate', { profile: id(), tab: String(t) });
 // A tab's right-click menu (the strip's: for the tab it was on).
 function tabMenu(e: MouseEvent): MenuItem[] | null {
@@ -108,7 +103,6 @@ onMounted(() => {
   observer = new ResizeObserver(scheduleLayout);
   if (content.value) observer.observe(content.value);
   if (addr.value) addr.value.value = shortUrl(active.value?.url || '');
-  activeInSight();
 });
 onBeforeUnmount(() => { observer.disconnect(); if (panes.get(key) === handle) panes.delete(key); });
 </script>
@@ -117,7 +111,7 @@ onBeforeUnmount(() => { observer.disconnect(); if (panes.get(key) === handle) pa
   <div v-if="profile" class="pane" :data-profile="profile.id">
     <!-- The tabs scroll in .strip; + is next to it, never over a tab, as in Chrome -->
     <TabsRoot as-child :model-value="profile.active ?? undefined" activation-mode="manual" @update:model-value="activate"><nav class="tabs">
-      <RightClickMenu :items="tabMenu"><TabsList as-child :loop="false"><div ref="strip" class="strip" @wheel="(e) => { if (!e.deltaX) strip!.scrollLeft += e.deltaY; }">
+      <RightClickMenu :items="tabMenu"><TabsList as-child :loop="false"><div ref="strip" class="strip tabstrip">
         <TabsTrigger v-for="t in profile.tabs" :key="t.id" :value="t.id" as-child>
           <div class="tab" :class="{ active: t.id === profile.active, opening: opening.has(t.id) }" :data-tab="t.id" :title="t.url" @animationend="grown(t.id)">
             <img alt="" :hidden="!t.favicon" :src="t.favicon || undefined"><Icon class="globe" name="i-globe" />
@@ -161,16 +155,16 @@ onBeforeUnmount(() => { observer.disconnect(); if (panes.get(key) === handle) pa
 .pane { height: 100%; display: flex; flex-direction: column; min-width: 0; background: var(--toolbar);
   border-radius: 0 0 var(--island-radius) var(--island-radius); }
 .tabs { display: flex; align-items: end; padding: 0 var(--gap); flex: none; background: var(--island);
-  .strip { display: flex; align-items: end; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+  .strip { display: flex; align-items: end; min-width: 0; }
   .add { align-self: center; margin-inline-start: 4px; }
 }
-/* Many tabs shrink as Chrome's: narrow ones show their icon alone; the active one keeps its ×; past that the strip
-   scrolls (the wheel too). */
-.tab { position: relative; display: flex; align-items: center; gap: 6px; width: 220px; flex: 0 1 auto; min-width: 40px; /* a width, not a basis: size containment leaves it no other */ height: 32px; padding: 0 8px 0 12px;
+/* Many tabs shrink as Chrome's, to their icon and × (64 px): every tab keeps its ×, not the active one alone as
+   Chrome's (the author, 2026-10-15, as in the tasks' bar); past that the strip scrolls (.tabstrip). */
+.tab { position: relative; display: flex; align-items: center; gap: 6px; width: 220px; flex: 0 1 auto; min-width: 64px; /* a width, not a basis: size containment leaves it no other */ height: 32px; padding: 0 8px 0 12px;
   container-type: inline-size;
   border-radius: var(--tab-radius) var(--tab-radius) 0 0; color: var(--text-dim);
   &:hover:not(.active) { background: color-mix(in srgb, var(--toolbar) 50%, var(--island)); }
-  &.active { background: var(--toolbar); color: var(--text-strong); min-width: 64px; } /* its icon and × */
+  &.active { background: var(--toolbar); color: var(--text-strong); }
   /* a short line between two tabs, as Chrome's, where neither is lit */
   &:not(.active, :hover) + &:not(.active, :hover)::before { content: ''; position: absolute; inset-inline-start: 0; inset-block: 9px;
     border-inline-start: 1px solid var(--line); }
@@ -183,10 +177,7 @@ onBeforeUnmount(() => { observer.disconnect(); if (panes.get(key) === handle) pa
   .title { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 }
 @keyframes tab-open { from { width: 0; min-width: 0; padding-inline: 0; } }
-@container (max-width: 80px) {
-  .tab:not(.active) :is(.title, .x), .tab.active .title { display: none; }
-  .tab:not(.active) :is(img, .globe) { margin-inline: auto; }
-}
+@container (max-width: 80px) { .tab .title { display: none; } }
 .bar { display: flex; align-items: center; gap: 2px; padding: 4px var(--gap); flex: none;
   /* the site's zoom, when not 100% */
   .tool { padding: 0 8px; background: none; color: var(--text-dim); &:hover { background: var(--hover); } }

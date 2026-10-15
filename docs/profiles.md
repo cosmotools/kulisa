@@ -75,8 +75,9 @@ A profile is an Electron session on a folder of its own (`session.fromPath`), la
   (`projects.ts`, `deleteProfile`).
 - **Tabs**: a tab strip and an address bar per pane, drawn as Chrome's (the active tab of a piece with the toolbar;
   back, forward, reload as Chrome's icons; the address without `https://` and `www.` until it is clicked, then all
-  of it, selected; a tab opened with + gets the focus in its empty address; many tabs shrink to their icon, the strip
-  scrolls, the active tab stays in sight); `target=_blank` and `window.open` open tabs of the same
+  of it, selected; a tab opened with + gets the focus in its empty address; many tabs shrink to their icon and × (each keeps its ×), then the
+  strip scrolls, by the wheel too, its edges faded where tabs are past them, the active tab in sight: [ui.md](ui.md),
+  `.tabstrip`); `target=_blank` and `window.open` open tabs of the same
   profile. Right-click a tab: reload, duplicate, close, close others. DevTools of a tab: the pane's ⋮ menu (where more of a pane's actions will go, as in Chrome) or F12.
   Chrome's keys work in a page for its pane: Ctrl+T, Ctrl+W, Ctrl+Shift+T, Ctrl+L, Ctrl+Tab, Ctrl+1…9 and the rest
   ([window.md](window.md), Keys).

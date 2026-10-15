@@ -459,16 +459,32 @@ export default (test: Test) => {
       return { pane: p.scrollWidth <= p.clientWidth, tabs: r('.tabs').right <= pr.right, add: r('.tabs .add').right <= pr.right, more: r('.more').right <= pr.right,
         group: p.closest('.dv-groupview').scrollWidth <= p.closest('.dv-groupview').clientWidth }; })()`);
     assert.deepEqual(fit, { pane: true, tabs: true, add: true, more: true, group: true });
-    // The active one (the last opened) in sight, with its ×; the others their icon alone.
+    // The active one (the last opened) in sight; every one its icon and × (not the active one alone, as Chrome's: the
+    // author, 2026-10-15).
     const strip = await ui(`(() => { const s = document.querySelector('${pane} .tabs'), r = s.getBoundingClientRect(), a = s.querySelector('.tab.active').getBoundingClientRect();
       const other = s.querySelector('.tab:not(.active)'), shown = (e) => getComputedStyle(e).display !== 'none';
       return { activeInSight: a.left >= r.left && a.right <= s.querySelector('.add').getBoundingClientRect().left,
         nothingUnderAdd: s.querySelector('.strip').getBoundingClientRect().right <= s.querySelector('.add').getBoundingClientRect().left,
-        activeX: shown(s.querySelector('.tab.active .x')), otherIcon: shown(other.querySelector('.globe')) || shown(other.querySelector('img')), otherTitle: shown(other.querySelector('.title')) }; })()`);
+        activeX: shown(s.querySelector('.tab.active .x')), otherIcon: shown(other.querySelector('.globe')) || shown(other.querySelector('img')), otherTitle: shown(other.querySelector('.title')),
+        otherX: shown(other.querySelector('.x')) }; })()`);
     // + and a tab's × are the same icon size.
     assert.deepEqual(await ui(`['.tab.active .x svg', '.add svg'].map((q) => document.querySelector('${pane} .tabs ' + q).getBoundingClientRect().width)`), [14, 14]);
-    assert.deepEqual(strip, { activeInSight: true, nothingUnderAdd: true, activeX: true, otherIcon: true, otherTitle: false });
+    assert.deepEqual(strip, { activeInSight: true, nothingUnderAdd: true, activeX: true, otherIcon: true, otherTitle: false, otherX: true });
     assert.deepEqual(await pageBox(ui, 'elon-buyer'), before, 'the page keeps its place and size');
+    // Past that the strip scrolls (lib/strip.ts): the edge with tabs past it fades; a mouse's wheel scrolls it; a tab
+    // not shown that changes (its page loads, its title) leaves it where the human scrolled it: on every update it went
+    // back to the active one, 2026-10-15.
+    const s = `document.querySelector('${pane} .strip')`;
+    const at = () => ui(`(() => { const e = ${s}; return [Math.round(e.scrollLeft), e.scrollWidth - e.clientWidth, ['past-start', 'past-end'].filter((c) => e.classList.contains(c)).join(' ')]; })()`);
+    await waitFor(async () => { const [left, max, faded] = await at(); return max > 0 && left === max && faded === 'past-start'; }); // scrolled to the active one at the end, the start faded
+    const b = await ui(`${s}.getBoundingClientRect().toJSON()`), z = shell.win.webContents.getZoomFactor();
+    shell.win.webContents.sendInputEvent({ type: 'mouseWheel', x: Math.round((b.x + b.width / 2) * z), y: Math.round((b.y + b.height / 2) * z), deltaX: 0, deltaY: 100000 }); // up: to the start
+    await waitFor(async () => (await at())[0] === 0);
+    await waitFor(async () => (await at())[2] === 'past-end');
+    elon.navigate(elon.tabs[n].id, `${SITE}/app?n=strip`);
+    await waitFor(() => ui(`${s}.querySelector('.tab[data-tab="${elon.tabs[n].id}"]').title.includes('n=strip')`));
+    await sleep(200); // nothing to wait for: that it stays
+    assert.equal((await at())[0], 0, 'stays where the wheel took it');
     for (const t of elon.tabs.slice(n)) elon.closeTab(t.id);
     await waitFor(() => elon.tabs.length === n);
   });

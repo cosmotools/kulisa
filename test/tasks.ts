@@ -645,7 +645,7 @@ export default (test: Test) => {
     await ui(agentRow('fake', '.install') + '.click()');
     await waitFor(async () => (await ui(agentRow('fake', '.status') + '.textContent')) === 'Installed', 10000);
     assert.match(await ui(`document.querySelector('#agentpage .progress').textContent`), /^Fake agent is installed\. Make an account of it below/);
-    assert.equal(await ui(`document.querySelector('#agentpage .details .more').dataset.state`), 'closed', "the installer's own output only under Details");
+    assert.equal(await ui(`document.querySelector('#agentpage .details .disclose').dataset.state`), 'closed', "the installer's own output only under Details");
     assert.match(await ui(`document.querySelector('#agentpage pre').textContent`), /installing the fake agent\s+done/);
     assert.doesNotMatch(await ui(`document.querySelector('#agentpage pre').textContent`), /\x1b/, 'no terminal codes: colors, links');
     assert.equal(await ui(`document.querySelector('#agentpage [data-accounts="fake"] .accountnew').disabled`), false);
