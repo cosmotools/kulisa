@@ -55,16 +55,19 @@ function agentVersion(found: Found | null): Promise<string | null> {
 }
 
 // Run the maker's installer; its output goes to onData as it comes (without terminal colors). Resolves to the exit
-// code.
-function installAgent(agent: Agent, onData: (data: string) => void) {
+// code with the whole output: what the window shows once it is over, since the pieces sent while it ran and the
+// answer travel on different IPC channels, and Electron keeps no order between them (the last line came after the
+// answer on the CI, 2026-10-15).
+function installAgent(agent: Agent, onData: (data: string) => void): Promise<{ code: number; log: string }> {
   const line = installLine(agent);
-  if (!line) return Promise.resolve(1);
+  if (!line) return Promise.resolve({ code: 1, log: '' });
   const p = process.platform === 'win32'
     ? spawn('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', line], { windowsHide: true })
     : spawn('/bin/sh', ['-c', line]);
-  const out = (d: unknown) => onData(stripVTControlCharacters(String(d)));
+  let log = '';
+  const out = (d: unknown) => { const s = stripVTControlCharacters(String(d)); log += s; onData(s); };
   p.stdout.on('data', out); p.stderr.on('data', out);
-  return new Promise<number>((resolve) => { p.on('error', (e) => { out(`${e.message}\n`); resolve(1); }); p.on('close', (code) => resolve(code ?? 1)); });
+  return new Promise((resolve) => { p.on('error', (e) => { out(`${e.message}\n`); resolve({ code: 1, log }); }); p.on('close', (code) => resolve({ code: code ?? 1, log })); });
 }
 
 // An account's sign-in, as its agent's own status says it, its config folder dir: { email } (null: signed in, the email

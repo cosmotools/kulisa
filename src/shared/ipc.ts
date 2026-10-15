@@ -80,7 +80,7 @@ export interface Invoke {
   'voice:get': I<[key: string], Voice | null>;
   'voice:record': I<[{ task: string; on: boolean }], Voice>;
   'agents:list': I<[{ check?: boolean; details?: boolean; cached?: boolean }?], { list: AgentInfo[]; home: string } | { list: null }>; // null: not looked for yet (cached)
-  'agents:install': I<[{ id: string }], Result<{ code: number | null; installed: boolean }>>;
+  'agents:install': I<[{ id: string }], Result<{ code: number; installed: boolean; log: string }>>; // log: the whole output (the pieces streamed may still be on their way)
   'profile:close': I<[OnProfile]>;
   'profile:open': I<[OnProfile]>;
   'profile:delete': I<[OnProfile]>;
