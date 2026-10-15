@@ -326,7 +326,7 @@ No key without a modifier but F keys (WCAG 2.1.4); the key held alone is a modif
 tasks are ⌘⌥1…9 (⌘⇧3, 4, 5 are macOS's screenshots), back and forward ⌘[ and ⌘] as in Chrome.
 
 How: the main process sees every key of the window and of every tab before the page does (`before-input-event`, on
-every webContents as it is made: `app.ts`), and takes one of Kulisa's (`preventDefault`: the page never gets it) or
+every webContents as it is made: `shortcuts.ts`), and takes one of Kulisa's (`preventDefault`: the page never gets it) or
 leaves it, untouched. Where the keyboard is in the window's own page, the page tells it (`keys:zone`: the terminal, a
 dialog, a pane; `src/renderer/lib/keys.ts`), which also runs the commands the main process sends back (`command`, with
 the profile and tab). Letters are matched by what they type on a Latin layout (Ctrl+W on an AZERTY keyboard is its W)
@@ -351,7 +351,7 @@ running from source (`appDevTools`, off when `app.isPackaged`).
 A window's page and the main process talk by named channels: `invoke` (an answer comes back), `send` (none), and the
 main process's messages to a page. Each channel is declared once, in `src/shared/ipc.ts`: what it takes and what it
 answers (`Invoke`, `Send`, `Events`); `npm run build` checks both ends against it. The main process's end goes through
-`handle` and `on` (`src/main/ipc.ts`) and `AppWindow.send`; the page's through the bridge's types (`env.d.ts`) and
+`handle` and `on` (`src/main/ipc.ts`), in a file a domain (`src/main/ipc/`), and `AppWindow.send`; the page's through the bridge's types (`env.d.ts`) and
 `act`, which adds the task shown (a message about the shown task's profiles and tabs is refused once another is shown).
 A new channel is declared there first, then its two ends.
 
@@ -406,11 +406,14 @@ shortcuts carry (`com.squirrel.kulisa.kulisa`), or Windows would not pin it to t
 
 | File | What |
 |---|---|
-| `src/main/app.ts` | the windows, the Kulisa zoom, the theme, the IPC's handlers |
+| `src/main/app.ts` | the app put together: the shell, the Kulisa zoom, the theme, the language, the agents; start and quit |
+| `src/main/open-tasks.ts` | the windows' open tasks: open, show, create, move, close, delete (one change after another, `serial`) |
+| `src/main/ipc/*.ts` | the windows' handles, a file a domain: `tasks`, `projects`, `profiles` (Settings → Profiles), `agents`, `panes` (the shown task's profiles, tabs, terminals), `window` (its zoom, theme, bar, language) |
+| `src/main/shortcuts.ts` | the keys as they are typed (Keys), the hold keys changed |
 | `src/shared/ipc.ts`, `src/main/ipc.ts` | the channels between a page and the main process; `handle` and `on`, checked against them (IPC) |
 | `src/main/window.ts` | a window: its BrowserWindow, the native views' places, its questions, screenshot |
 | `src/preload/index.cjs` | the window's bridge to the main process: the windows' pages are sandboxed (no Node: about 15 MB less a window, PSS; 2026-10-12), so it is a few lines of plain JavaScript; the window imports what it shares with the main process from `src/shared/` (`names.ts`, `avatars.ts`, `result.ts`) |
-| `src/main/keys.ts` | the keyboard shortcuts: the table, which key an input event is; `app.ts` takes them (Keys) |
+| `src/main/keys.ts` | the keyboard shortcuts: the table, which key an input event is; `shortcuts.ts` takes them (Keys) |
 | `src/main/updates.ts`, `forge.config.ts` | updates, Squirrel's events; the installers and the release |
 | `src/main/terminal.ts` | the ptys of the tasks' terminals; each shell's screen for `terminal_read` |
 | `src/renderer/components/Grid.vue`, `grid/*.vue`, `lib/grid.ts` | the grid (dockview), the panes and their headers, the island of terminals (`Terminals.vue`, its row of tabs `TerminalTabs.vue`), the closed profiles' tiles over it (`ClosedProfiles.vue`), Arrange panels |

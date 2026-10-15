@@ -631,7 +631,7 @@ class Task {
     return (['waiting', 'working', 'done'] as const).find((s) => states.includes(s)) ?? null;
   }
 
-  // Profiles and their tabs: the one core the human (the window, app.ts) and the agent (mcp-server.ts) both act on.
+  // Profiles and their tabs: the one core the human (the window, ipc/) and the agent (mcp-server.ts) both act on.
   // Each side only translates (CLAUDE.md, Architecture): the checks, the questions and what an action does are here
   // and in Profile, so both get the same. A refusal is { error } saying why. Closed profiles stay closed across
   // restarts.

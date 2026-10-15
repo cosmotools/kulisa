@@ -214,7 +214,7 @@ function deleteChosen() {
 // A list's row a right-click was on: selected, and its actions.
 const rowAt = (e: MouseEvent, attr: string) => (e.target as Element).closest<HTMLElement>(`[${attr}]`)?.getAttribute(attr) ?? null;
 
-// A change to its code, what the manager answers (main/app.ts, project:repo-*).
+// A change to its code, what the manager answers (main/ipc/projects.ts, project:repo-*).
 async function code(answer: Promise<Result<{ repos?: ProjectRepo[]; former?: string | null }>>) {
   codeError.value = '';
   const r = await answer;

@@ -3,6 +3,9 @@
 import { ipcMain } from 'electron';
 import type { IpcMainEvent, IpcMainInvokeEvent } from 'electron';
 import type { Invoke, Send } from '../shared/ipc.ts';
+import type { Shell } from './shell.ts';
+import type { AppWindow } from './window.ts';
+import type { OpenTasks } from './open-tasks.ts';
 
 // An answer the window does not read (`void`) may be anything; one it reads is the table's.
 type Answer<R> = [R] extends [void] ? unknown : R | Promise<R>;
@@ -13,4 +16,15 @@ export function handle<C extends keyof Invoke>(channel: C, fn: (e: IpcMainInvoke
 
 export function on<C extends keyof Send>(channel: C, fn: (e: IpcMainEvent, arg: Send[C]) => void) {
   ipcMain.on(channel, fn);
+}
+
+export type IpcEvent = IpcMainEvent | IpcMainInvokeEvent;
+
+// What the windows' handles (ipc/) get: the app, the window a message comes from, the open tasks (open-tasks.ts) and
+// their one-after-another.
+export interface Ipc {
+  shell: Shell;
+  at: (e: IpcEvent) => AppWindow | null;
+  tasks: OpenTasks;
+  serial: OpenTasks['serial'];
 }

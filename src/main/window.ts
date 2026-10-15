@@ -2,7 +2,7 @@
 // monitor). Each window has a tab per task open in it (an island in its tasks' bar, in the bar's order, of any
 // projects), shows one of them (its grid and terminal), and asks its questions in its own dialog; the tasks behind its
 // other tabs keep running. What a window shows and asks is here. What the app has once (the store, the CDP proxy, the MCP server, the
-// agents, the windows, one change after another: serial) is app.ts's; what happens to projects and tasks,
+// agents, the windows) is app.ts's, the open tasks with their one change after another (serial) open-tasks.ts's; what happens to projects and tasks,
 // whichever window shows them, is the core's (projects.ts, tasks.ts).
 import { BrowserWindow, desktopCapturer, screen, shell as electronShell } from 'electron';
 import path from 'path';
@@ -55,7 +55,7 @@ class AppWindow {
     this.picking = new Map(); // profiles in pick mode (picker.ts), of the task on screen, by id
     this.answers = new Map(); // questions asked in it (ask), by id -> resolve
     this.loaded = false; this.pending = []; // what is sent before its page has loaded goes once it has
-    // Where the keyboard is in its page, for the keys (app.ts, keys.ts): 'window', 'terminal', 'dialog', or
+    // Where the keyboard is in its page, for the keys (shortcuts.ts, keys.ts): 'window', 'terminal', 'dialog', or
     // 'pane:<profile id>' (an address bar, a pane's toolbar), as the page tells.
     this.keyZone = 'window';
     if (near) {

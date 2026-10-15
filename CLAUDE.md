@@ -381,14 +381,14 @@ what the main process and the window both import (the rule for names, the profil
    - The task's history for its agent (`history.ts`, `transcripts.ts`) and the agent's actions drawn in the pages
      (`ghost.ts`) are here too.
    - Do not add agent-facing behavior elsewhere (e.g. in `profiles.ts` or the renderer).
-4. **Window** (`app.ts`, `window.ts`, `keys.ts`, `projects.ts`, `tasks.ts`, `agents/`, `renderer/`, `picker.ts`,
+4. **Window** (`app.ts`, `open-tasks.ts`, `ipc/`, `window.ts`, `keys.ts`, `projects.ts`, `tasks.ts`, `agents/`, `renderer/`, `picker.ts`,
    `terminal.ts`, every other file of `src/main`): what the human sees and does.
 
 **One core, with handles for the human and for the agent.** The human (the window) and the agent (the Kulisa
 plugin) do the same things to profiles, tabs and tasks: open a tab, go to an address, close or delete a profile.
 Each such action is written once, in the core (`Task`: `find`, `findTab`, `createProfile`, `deleteProfile` …;
 `Profile`: `newTab`, `navigate`, `closeTab` …), with its checks, its questions to the human and its rules. The
-windows' IPC (`app.ts`) and the agent's MCP tools (`mcp-server.ts`) are handles on it: each finds what to act on
+windows' IPC (`ipc/`) and the agent's MCP tools (`mcp-server.ts`) are handles on it: each finds what to act on
 through the core, calls it, and translates the answer (`{ error }` for the window, an error the agent reads). A
 check, a rule or a way of doing an action is never written in a handle, nor twice.
 
@@ -407,7 +407,7 @@ names (LSP, grep) find the rest. Where a kind of code goes:
 - Agent-specific code goes into its agent's file in `agents/` (`claude.ts`, `codex.ts`: everything Kulisa knows of
   that agent, its transcript's reader too), nowhere else; a new agent is a new file there.
 - A new keyboard shortcut goes into the table in `keys.ts` (`docs/window.md`, Keys).
-- The windows' IPC (`app.ts`) acts in the window a message comes from (`event.sender`); one on profiles or tabs
+- The windows' IPC (`ipc/`, a file a domain; the channels: `src/shared/ipc.ts`) acts in the window a message comes from (`event.sender`); one on profiles or tabs
   names its task too, refused when that window shows another by then (`act` in the renderer's `lib/store.ts`). One
   change to the open tasks after another (`serial`). `shell.win`, `shell.task`, `shell.profiles`, `shell.closed`,
   `shell.pty` are the first window's (the tests').

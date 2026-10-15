@@ -61,7 +61,7 @@ function removeSource() {
   chosenSource.value = undefined;
 }
 const sourceLine = (x: { state: string }) => (x.state === 'repo' ? 'git' : 'no git');
-// A new or cloned project's folder, and what it is (app.ts, project:folder-state), asked again as it is typed.
+// A new or cloned project's folder, and what it is (main/ipc/projects.ts, project:folder-state), asked again as it is typed.
 const target = computed(() => (from.value === 'folder' ? '' : `${place.value.trim().replace(/[\\/]+$/, '')}${sep.value}${name.value.trim()}`));
 const there = ref<{ state: string; project?: string } | null>(null);
 watch([name, place, from], async () => {

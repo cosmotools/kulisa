@@ -46,10 +46,10 @@ export interface ProjectsInfo {
   open: { id: string; agents: { id: string; name: string; cli: string }[] }[];
   windows?: { id: number; name: string }[];
 }
-// The projects' manager (app.ts, project:*): what a project may be, its code, its profiles, its configuration.
+// The projects' manager (main/ipc/projects.ts): what a project may be, its code, its profiles, its configuration.
 // agents: every account (main/accounts.ts); clis: the agents a new account can be made of.
 // An agent's account (Settings → Agents: main/app.ts, accounts:list), with the names of the projects it is in.
-// A profile in Settings → Profiles (app.ts, profiles:list): who it is, its test login (never its password), its projects.
+// A profile in Settings → Profiles (main/ipc/profiles.ts): who it is, its test login (never its password), its projects.
 export interface SettingsProfile { id: string; name: string; avatar: string; description: string; login: string; hasPassword: boolean; projects: string[] }
 export interface Account { id: string; agent: string; name: string; email: string | null; projects: string[] }
 export interface AccountsInfo { accounts: Account[]; clis: string[] }
@@ -66,7 +66,7 @@ export interface ProjectSettings extends ProjectChoices {
 export interface Shortcut { id: string; group: string; label: string; keys: string[]; hold?: boolean } // hold: a key held alone, the human may change it
 // A question from the main process (shell.ask) or the window.
 export interface Question { message: string; detail?: string; ok?: string; other?: string; danger?: boolean }
-// An agent or account in a list to choose from or install (app.ts, agents:list; renderer's lib/agents.ts).
+// An agent or account in a list to choose from or install (main/ipc/agents.ts; renderer's lib/agents.ts).
 export interface AgentInfo {
   id: string; name: string; maker?: string; needs?: string; site?: string; install?: string | null; installed?: boolean;
   account?: string | null; agent?: string; path?: string | null; onPath?: boolean | null; version?: string | null;

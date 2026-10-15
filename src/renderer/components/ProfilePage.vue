@@ -23,7 +23,7 @@ const name = ref(''), about = ref(''), login = ref(''), password = ref('');
 watch(() => props.profile, (p) => {
   name.value = p.name; about.value = p.description; login.value = p.login; password.value = ''; error.value = '';
 }, { immediate: true });
-// A change to who it is, what Settings answers (main/app.ts, profiles:*).
+// A change to who it is, what Settings answers (main/ipc/profiles.ts).
 async function change(answer: Promise<Result<{ profiles: SettingsProfile[]; id: string }>>) {
   const r = await answer;
   error.value = refused(r) ? r.error : '';

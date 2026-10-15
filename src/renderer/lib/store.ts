@@ -32,7 +32,7 @@ export const store = reactive({
 export function setLoading(on: boolean) { store.loading = on; root.classList.toggle('loading', on); }
 
 // The window's actions on the shown task's profiles and tabs name it, as the grid's layout does: one sent just as the
-// human switches tasks is refused, not done in the other one (app.ts, onScreen).
+// human switches tasks is refused, not done in the other one (main/ipc/panes.ts, onScreen).
 // The shown task (TaskInfo) and its project, from the window's tabs.
 export const shownTask = () => store.projects.tabs.find((t) => t.key === store.current);
 const shownProject = () => store.projects.projects.find((p) => p.id === store.projects.project);

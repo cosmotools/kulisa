@@ -24,7 +24,7 @@ export function agentList(opts: { choose?: boolean; details?: boolean; installed
     el: null as HTMLElement | null, // the list's element, while its dialog is open
   });
   const chosen = computed(() => state.agents.find((a) => a.id === state.selected));
-  // cached: what the main process found last time, if it has looked yet (main/app.ts, agents:list).
+  // cached: what the main process found last time, if it has looked yet (main/ipc/agents.ts, agents:list).
   // again: a look behind a list already shown, dropped when an install began meanwhile (it marks its own row).
   const fetchAgents = async (cached = false, again = false) => {
     const r = await kulisa.invoke('agents:list', { ...(opts.details ? { details: true } : { check: true }), cached });
