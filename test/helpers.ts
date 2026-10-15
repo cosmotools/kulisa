@@ -100,8 +100,12 @@ const manageProfiles = async ({ ui, sui }: Pick<Ctx, 'ui' | 'sui'>) => {
 // Settings closed as the human does it with Esc (its window: settings-window.ts), what was typed saved; its window gone,
 // the keyboard back in the task's window, the window's and its page's (a menu opened there before it came closed as the
 // window got it; on GitHub's runner the window manager's focus came after the page's, 2026-10-16).
-const closeSettings = async ({ shell, ui, sui }: Pick<Ctx, 'shell' | 'ui' | 'sui'>) => {
-  await sui(`dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); 0`);
+const closeSettings = async (ctx: Pick<Ctx, 'shell' | 'ui' | 'sui'>) => {
+  await ctx.sui(`dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); 0`);
+  await settingsClosed(ctx);
+};
+// However it closed (Esc, the OS's ×).
+const settingsClosed = async ({ shell, ui }: Pick<Ctx, 'shell' | 'ui'>) => {
   await waitFor(() => !shell.settings);
   await waitFor(async () => shell.win.isFocused() && await ui(`document.hasFocus()`));
 };
@@ -161,6 +165,6 @@ const near = (a: number, b: number) => Math.abs(a - b) < 1e-6;
 const noNode = async (wc: WebContents) => await wc.executeJavaScriptInIsolatedWorld(999, [{ code: 'typeof process' }]) === 'undefined';
 
 export type { UI };
-export { focusWindow, MENU, SUBMENU, noNode, hooksOf, plusMenu, assert, root, userData, project, pfile, savedTabs, savedWindows, panel, SITE, PORT, sleep, waitFor, who, menuRows, choose, projectTabs, projectTab, showProject, closeProject, manageProfiles, closeSettings, chooseProfile, setProfileField, menuOpen, closeMenu, rightClick, taskMenu,
+export { focusWindow, MENU, SUBMENU, noNode, hooksOf, plusMenu, assert, root, userData, project, pfile, savedTabs, savedWindows, panel, SITE, PORT, sleep, waitFor, who, menuRows, choose, projectTabs, projectTab, showProject, closeProject, manageProfiles, closeSettings, settingsClosed, chooseProfile, setProfileField, menuOpen, closeMenu, rightClick, taskMenu,
   click,
   box, pageBox, viewOn, dock, press, ctrl, near };

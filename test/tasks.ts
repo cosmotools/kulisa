@@ -7,7 +7,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import http from 'http';
-import { assert, root, userData, project, pfile, panel, SITE, sleep, waitFor, who, menuRows, choose, rightClick, viewOn, press, projectTabs, projectTab, showProject, savedWindows, closeMenu, click, plusMenu, PORT, hooksOf, MENU, SUBMENU, menuOpen, noNode, focusWindow, chooseProfile, closeSettings } from './helpers.ts';
+import { assert, root, userData, project, pfile, panel, SITE, sleep, waitFor, who, menuRows, choose, rightClick, viewOn, press, projectTabs, projectTab, showProject, savedWindows, closeMenu, click, plusMenu, PORT, hooksOf, MENU, SUBMENU, menuOpen, noNode, focusWindow, chooseProfile, closeSettings, settingsClosed } from './helpers.ts';
 import { withOffset } from '../src/main/tasks.ts';
 import { createWorktree } from '../src/main/worktrees.ts';
 import { sessionStart } from '../src/main/agent-hooks.ts';
@@ -1223,7 +1223,7 @@ export default (test: Test) => {
     await sui(`(() => { const n = document.getElementById('pjname'); n.value = 'Site-2'; n.dispatchEvent(new Event('input')); })()`);
     assert.equal(entryOf().name, 'site', 'not yet: on Enter or leaving it');
     shell.settings.win.close();
-    await waitFor(() => !shell.settings);
+    await settingsClosed(ctx);
     await waitFor(() => entryOf().name === 'Site-2');
     const entry = entryOf();
     assert.deepEqual([entry.name, entry.folder], ['Site-2', site]);
