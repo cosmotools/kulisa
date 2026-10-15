@@ -1518,7 +1518,8 @@ export default (test: Test) => {
     assert.deepEqual(await filled, [true, true, true]);
     await waitFor(() => sui(pageOf(shell.current.name)));
     assert.equal(await sui(`document.querySelector('#pjlist [aria-selected="true"]').dataset.project`), shell.current.id);
-    assert.equal(shell.task.profiles.get('sam-admin').get().view.getVisible(), true, "pages on screen under Settings' window");
+    // Pages on screen under Settings' window (once live again after the last menu's pictures: on GitHub's runner later).
+    await waitFor(() => shell.task.profiles.get('sam-admin').get().view.getVisible());
     // Site-2 is closed: its configuration all the same; a profile made and let go there (asked first, in Settings' window:
     // the task's takes no input meanwhile).
     await sui(`document.querySelector('#pjlist [data-project="site"]').click()`);
