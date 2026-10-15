@@ -1,7 +1,7 @@
 // The one rule for names (names.ts): the characters of an email address, letters of any language; slugs for ids.
 import { test } from 'node:test';
 import assert from 'assert/strict';
-import { nameError, slugOf } from '../../src/main/names.ts';
+import { nameError, slugOf } from '../../src/shared/names.ts';
 import { isLocal, loginAllowed } from '../../src/main/local.ts';
 import { takes, details } from '../../src/main/cookie-sync.ts';
 

@@ -14,7 +14,7 @@ import { copyProfile } from './store.ts';
 import { renameBranch } from './worktrees.ts';
 import { extendTrust } from './agents/index.ts';
 import { installSkill } from './agents/files.ts';
-import { nameError } from './names.ts';
+import { nameError } from '../shared/names.ts';
 import { loginAllowed } from './local.ts';
 import type { Tab } from './profiles.ts';
 import type { Entry, Hooks } from './project-profiles.ts';
@@ -25,8 +25,8 @@ import type { Pty } from './terminal.ts';
 import type { GitError } from './worktrees.ts';
 import type { Shell, AgentChoice } from './shell.ts';
 import type * as Sent from '../renderer/types.ts'; // what the window gets: its one definition
-import { refused } from './result.ts';
-import type { Result } from './result.ts';
+import { refused } from '../shared/result.ts';
+import type { Result } from '../shared/result.ts';
 
 type AgentState = 'working' | 'waiting' | 'done' | null;
 // A terminal of the task, a tab of its island: the user's shell in its folder, with an agent started in it (agent,

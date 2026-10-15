@@ -11,7 +11,7 @@ import { assert, root, userData, project, pfile, panel, SITE, sleep, waitFor, wh
 import { withOffset } from '../src/main/tasks.ts';
 import { createWorktree } from '../src/main/worktrees.ts';
 import { sessionStart } from '../src/main/agent-hooks.ts';
-import { refused } from '../src/main/result.ts';
+import { refused } from '../src/shared/result.ts';
 import type { Test, Ctx } from './run.ts';
 import type { UI } from './helpers.ts';
 import type { TaskTerminal } from '../src/main/tasks.ts';

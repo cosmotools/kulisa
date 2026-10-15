@@ -402,7 +402,7 @@ space (ROADMAP, "Profiles' caches").
 | `src/main/cookie-sync.ts` | real accounts' cookies kept in step between a master and its copies |
 | `src/main/master.ts`, `src/renderer/master.html`, `master.ts`, `components/Master.vue` | a master's window, to sign in to it |
 | `src/main/project-profiles.ts` | a task's profiles: copies of their masters made at their first open, open and closed; create, rename, describe, close, open, let go |
-| `src/main/avatars.ts`, `src/renderer/public/avatars/` | the profiles' pictures (Noto Emoji) |
+| `src/shared/avatars.ts`, `src/renderer/public/avatars/` | the profiles' pictures (Noto Emoji) |
 | `src/main/store.ts` | `profiles.json`, the profile folders, their tabs |
 | `src/main/session-cookies.ts` | session cookies across restarts |
 | `src/main/signin-pages.ts`, `signin-pause.ts` | sign-in pages; the pause |

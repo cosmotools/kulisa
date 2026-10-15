@@ -16,12 +16,12 @@
 //   everywhere()                who a profile is changed in the store: every task shows it
 import fs from 'fs';
 import { clearCaches } from './profiles.ts';
-import { nextAvatar } from './avatars.ts';
+import { nextAvatar } from '../shared/avatars.ts';
 import type { Profile, ProfileConfig } from './profiles.ts';
 import type { TaskStore, TaskProfile } from './store.ts';
 import type { ProfileStore, StoredProfile } from './profile-store.ts';
-import type { Result } from './result.ts';
-import { refused } from './result.ts';
+import type { Result } from '../shared/result.ts';
+import { refused } from '../shared/result.ts';
 
 // A profile of the task: who it is (cfg), its tabs' addresses while closed, its Profile while open.
 interface Entry { cfg: ProfileConfig; urls: string[]; profile: Profile | null; closed?: boolean; starting?: Promise<unknown> | null }

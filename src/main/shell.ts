@@ -16,7 +16,7 @@ import type { Question, ProjectEntry as SentProject, LanguageInfo, Shortcut } fr
 import type { Master } from './master.ts';
 import type { Pty } from './terminal.ts';
 import type { signinPages } from './signin-pages.ts';
-import type { Result } from './result.ts';
+import type { Result } from '../shared/result.ts';
 import type { Discarder } from './discard.ts';
 
 

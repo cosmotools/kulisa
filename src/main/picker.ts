@@ -4,7 +4,7 @@
 // tools (snapshot, screenshot, console, requests of that tab), so Kulisa writes nothing into the project.
 import { ipcMain } from 'electron';
 import { typeIntoPrompt } from './terminal.ts';
-import { refused } from './result.ts';
+import { refused } from '../shared/result.ts';
 import type { Shell } from './shell.ts';
 
 function installPicker(shell: Shell) {

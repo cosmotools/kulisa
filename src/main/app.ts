@@ -11,7 +11,7 @@ import { Store } from './store.ts';
 import { Accounts } from './accounts.ts';
 import { ProfileStore } from './profile-store.ts';
 import { CookieSync } from './cookie-sync.ts';
-import { nextAvatar } from './avatars.ts';
+import { nextAvatar } from '../shared/avatars.ts';
 import { signinPages } from './signin-pages.ts';
 import { SessionCookies } from './session-cookies.ts';
 import { Project, askDeleteProject, deleteClosedTask, deleteProjectData, pictureOf, addRepo, cloneRepo, defaultRepo, removeRepo, reposInfo, askDropProfile, dropProfile, agentsInfo, addAgent, defaultAgent, removeAgent, deleteAccount, deleteProfile } from './projects.ts';
@@ -19,7 +19,7 @@ import { AppWindow, COLORS } from './window.ts';
 import { repoOf, initRepo, clone } from './worktrees.ts';
 import { findFavicon } from './favicons.ts';
 import { AGENTS, findAgent, accountEmail, signOut, agentVersion, installLine, installAgent } from './agents/index.ts';
-import { nameError, repoName } from './names.ts';
+import { nameError, repoName } from '../shared/names.ts';
 import { startTerminal, stopTerminal, forgetTerminal } from './terminal.ts';
 import { held, holdable, keymap, list as keyList, match } from './keys.ts';
 import { startMcpServer } from './mcp-server.ts';
@@ -27,7 +27,7 @@ import { installPicker } from './picker.ts';
 import { installGhost } from './ghost.ts';
 import { startDiscarding } from './discard.ts';
 import { installMasters } from './master.ts';
-import { refused } from './result.ts';
+import { refused } from '../shared/result.ts';
 import type { IpcMainEvent, IpcMainInvokeEvent, WebContents } from 'electron';
 import type { Shell, AgentChoice } from './shell.ts';
 import type { Agent } from './agents/index.ts';
@@ -38,7 +38,7 @@ import type { Pty } from './terminal.ts';
 import type { GitError } from './worktrees.ts';
 import type { Place } from './window.ts';
 import type * as Sent from '../renderer/types.ts'; // what the window gets: its one definition
-import type { Result } from './result.ts';
+import type { Result } from '../shared/result.ts';
 
 // What start takes (below).
 interface Options {

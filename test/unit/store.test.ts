@@ -8,7 +8,7 @@ import os from 'os';
 import { Store, PROJECT_COLORS } from '../../src/main/store.ts';
 import { ProfileStore } from '../../src/main/profile-store.ts';
 import { ProjectProfiles } from '../../src/main/project-profiles.ts';
-import { AVATARS, nextAvatar } from '../../src/main/avatars.ts';
+import { AVATARS, nextAvatar } from '../../src/shared/avatars.ts';
 import type { StoredProfile } from '../../src/main/profile-store.ts';
 import type { Profile, ProfileConfig } from '../../src/main/profiles.ts';
 import type { TaskProfile, TaskStore } from '../../src/main/store.ts';

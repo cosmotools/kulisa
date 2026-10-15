@@ -27,7 +27,7 @@ const config: ForgeConfig = {
     extendInfo: { NSMicrophoneUsageDescription: 'The agent in Kulisa\'s terminal listens when you dictate a task to it.' },
     // Only what the app runs; Forge also leaves out devDependencies. The window is its build (dist/renderer), not its
     // sources (src/renderer), without source maps.
-    ignore: [/^\/(test|docs|out|scripts)(\/|$)/, /^\/\.kulisa(\/|$)/, /^\/src\/renderer(\/|$)/, /^\/(forge\.config\.ts|vite\.config\.mts|tsconfig\.json|knip\.jsonc)$/, /\.map$/],
+    ignore: [/^\/(test|docs|out|scripts)(\/|$)/, /^\/\.kulisa(\/|$)/, /^\/src\/renderer(\/|$)/, /^\/(forge\.config\.ts|vite\.config\.mts|tsconfig\.json|knip\.jsonc|\.dependency-cruiser\.ts)$/, /\.map$/],
   },
   makers: [
     { name: '@electron-forge/maker-squirrel', platforms: ['win32'], config: { setupIcon: 'assets/icon.ico' } },

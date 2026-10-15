@@ -8,7 +8,7 @@ import Modal from './Modal.vue';
 import Icon from './Icon.vue';
 import { registerDialog, dialog } from '../lib/dialogs';
 import type { ProjectChoices } from '../types';
-import { MAX, nameChar, repoName } from '../../main/names';
+import { MAX, nameChar, repoName } from '../../shared/names';
 
 const modal = ref<InstanceType<typeof Modal>>();
 const nameField = ref<HTMLInputElement>(), sourceField = ref<HTMLInputElement>();

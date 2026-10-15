@@ -15,7 +15,7 @@ import { fromLocalTool } from './local-only.ts';
 import { toUrl } from './profiles.ts';
 import { MARK } from './ghost.ts';
 import pkg from '../../package.json' with { type: 'json' };
-import { refused } from './result.ts';
+import { refused } from '../shared/result.ts';
 import type { AddressInfo } from 'net';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import type { Locator, Page } from 'playwright-core';
@@ -550,7 +550,7 @@ function buildServer(task: Task, t: TaskTerminal | null) {
   });
 
   // Shells next to the agent's terminal (Task.openTerminal): what keeps running, where the human sees it.
-  const done = <T extends object>(r: import('./result.ts').Result<T>) => { if (refused(r)) throw new Error(r.error); return r; };
+  const done = <T extends object>(r: import('../shared/result.ts').Result<T>) => { if (refused(r)) throw new Error(r.error); return r; };
   const nameArg = z.string().describe('The terminal\'s name, e.g. "dev server"');
   server.registerTool('terminal_run', {
     description: "Run a command that keeps running (the app's dev server, docker compose up, a watcher) in a terminal of its own next to yours, where the human sees it: the user's shell in the task's folder, with your environment. A terminal of that name already open gets the command typed in: stop what runs there first (terminal_stop). Then read its output with terminal_read.",

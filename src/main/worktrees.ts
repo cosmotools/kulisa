@@ -6,7 +6,7 @@ import { execFile } from 'child_process';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { slugOf } from './names.ts';
+import { slugOf } from '../shared/names.ts';
 import type { Copy } from './store.ts';
 
 // Files outside git that a task's copy needs and the project has: its environment, and the agents' own local settings

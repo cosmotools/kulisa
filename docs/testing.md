@@ -91,6 +91,23 @@ dead.
 - What knip cannot see at all: names that join two sides as strings (IPC channels, CSS classes, the sprite's icons,
   tokens, the keys' table); when one side goes, the other is looked for by hand.
 
+## Layers
+
+`npm run deps` ([dependency-cruiser](https://github.com/sverweij/dependency-cruiser), about a second; `npm run lint`
+runs it after ESLint) fails on an import against the layers (CLAUDE.md, Architecture) or a cycle. The rules are
+`.dependency-cruiser.ts`, each with why.
+
+- Runtime imports only: an `import type` crosses the layers freely, as it is gone once the types are stripped.
+- The layers are lists of `src/main`'s files (there are no folders per layer); a file in none of them is the window's
+  (layer 4), which may import anything. Below layer 1, the base (`worktrees.ts`, `local.ts`): used by every layer, using
+  none of them. `src/shared/` is what the main process and the window both import (`names.ts`, `avatars.ts`,
+  `result.ts`); it imports nothing else of `src/`. The window's page never imports `src/main`.
+- A new file of a lower layer goes into its list. An import the rules refuse is moved, not allowed: what the lower
+  file needs belongs below (the tab's target id went into `profiles.ts`), or the core says it on `shell.bus` and the
+  handle listens (a profile unloaded: the MCP server clears its highlights).
+- No cycles, but one: `src/renderer/lib/grid.ts` and `views.ts` call each other's functions only after both have
+  loaded.
+
 ## Lint
 
 `npm run lint` ([ESLint](https://eslint.org) with [typescript-eslint](https://typescript-eslint.io) and

@@ -14,7 +14,7 @@ kulisa.on<Shortcut[]>('keys', (keys) => shortcuts.splice(0, shortcuts.length, ..
 export const keyText = (id: string): string => shortcuts.find((s) => s.id === id)?.keys[0] || '';
 export const withKeys = (title: string, id: string): string => (keyText(id) ? `${title} (${keyText(id)})` : title);
 
-// A profile's picture (main/avatars.ts): its file, in public/avatars.
+// A profile's picture (shared/avatars.ts): its file, in public/avatars.
 export const avatarSrc = (a: string): string => `avatars/${a}.svg`;
 
 // The links in ☰; they open in the user's browser (window.ts).

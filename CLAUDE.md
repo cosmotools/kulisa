@@ -127,7 +127,7 @@ unasked. This paragraph is removed when the rewrite is finished.
   only (no `enum`, `namespace`, parameter properties) and imports with their `.ts`. `tsc` only checks: `tsconfig.json`
   (strict, an element read by index may be missing: `noUncheckedIndexedAccess`), `test/tsconfig.json` (the same without null checks: a test counts on what it checks being there). What
   the main process sends the window is typed once, in `src/renderer/types.ts`; the app every module gets, `Shell`
-  (`src/main/shell.ts`); an action's `{ error }` answer, `Result` and `refused()` (`src/main/result.ts`). One way of
+  (`src/main/shell.ts`); an action's `{ error }` answer, `Result` and `refused()` (`src/shared/result.ts`). One way of
   writing code, all at once: what was dropped on 2026-10-08 was a mix of `.mts`, `.js` and JSDoc. The one exception,
   the windows' preload (`src/preload/index.cjs`, a few lines of plain JavaScript; the author, 2026-10-12): the windows
   are sandboxed (no Node in their pages: about 15 MB less each, PSS), and Electron runs a sandboxed preload without Node,
@@ -291,7 +291,8 @@ npm start   # the app: the tasks open last, plus one of $KULISA_PROJECT's (at fi
 npm test    # unit tests, knip, ESLint, actionlint (when installed), then the e2e groups in parallel, each the real app against a local test site, then restarted
 npm run test:unit     # the unit tests alone (plain Node, a second)
 npm run knip  # no file, export or dependency nothing uses: once a step, before showing it (docs/testing.md, Dead code)
-npm run lint  # ESLint: a promise awaited or `void`, no needless `as` or `!` (docs/testing.md, Lint); with knip
+npm run lint  # ESLint: a promise awaited or `void`, no needless `as` or `!` (docs/testing.md, Lint); with knip; then deps
+npm run deps  # dependency-cruiser: no import against the layers, no cycle (docs/testing.md, Layers)
 npm run test:visible  # e2e on your screen, to watch them (npm test uses Xvfb on Linux when installed)
 npm run make  # installers for this platform with Electron Forge (forge.config.ts), in out/make/
 npm run publish  # the same, into a draft release on GitHub: the CI's, on a merge into main (Releases below)
@@ -357,11 +358,13 @@ tell), `docs/tasks.md` (projects, tasks, agents, windows, what is on the compute
 (the title bar, the grid, zoom, menus, dialogs, the terminal). Read the one for the part you
 change; keep it current. Here: the layers, where a kind of code goes, and what must hold.
 
-Layers, each using only the ones below it:
+Layers, each using only the ones below it (`npm run deps`, in `npm run lint`, refuses an import against them:
+`.dependency-cruiser.ts`; docs/testing.md, Layers). Under them all, `worktrees.ts` and `local.ts`; `src/shared/`
+what the main process and the window both import (the rule for names, the profiles' pictures, `Result`).
 
-1. **Profiles** (`profiles.ts`, `project-profiles.ts`, `store.ts`, `session-cookies.ts`,
-   `signin-*.ts`): browser profiles, their tabs and storage. Knows nothing about agents, MCP or the window UI.
-2. **Automation access** (`cdp-proxy.ts`): the only way anything automated reaches a profile's pages, and where
+1. **Profiles** (`profiles.ts`, `project-profiles.ts`, `profile-store.ts`, `store.ts`, `session-cookies.ts`,
+   `cookie-sync.ts`, `signin-*.ts`): browser profiles, their tabs and storage. Knows nothing about agents, MCP or the window UI.
+2. **Automation access** (`cdp-proxy.ts`, `local-only.ts`): the only way anything automated reaches a profile's pages, and where
    sign-in mode is enforced.
 3. **Kulisa plugin** (formerly "agent bridge"): everything that lets an unchanged agent CLI understand and use
    profiles: tools, knowledge (skill) and hooks, the same for every agent.
@@ -374,9 +377,11 @@ Layers, each using only the ones below it:
    - Each agent's hooks are a table in its file (`agents/claude.ts`, `codex.ts`: which of its events sends which of
      Kulisa's), given at its start (Claude Code in `--settings`, Codex as `-c`), never written into its config; every
      hook runs one command (`hookCommand`: `curl` to `$KULISA_URL/hooks/<event>`, answered by `agent-hooks.ts`).
+   - The task's history for its agent (`history.ts`, `transcripts.ts`) and the agent's actions drawn in the pages
+     (`ghost.ts`) are here too.
    - Do not add agent-facing behavior elsewhere (e.g. in `profiles.ts` or the renderer).
-4. **Window** (`app.ts`, `window.ts`, `keys.ts`, `projects.ts`, `tasks.ts`, `worktrees.ts`, `agents/`, `renderer/`, `ghost.ts`, `picker.ts`,
-   `terminal.ts`): what the human sees and does.
+4. **Window** (`app.ts`, `window.ts`, `keys.ts`, `projects.ts`, `tasks.ts`, `agents/`, `renderer/`, `picker.ts`,
+   `terminal.ts`, every other file of `src/main`): what the human sees and does.
 
 **One core, with handles for the human and for the agent.** The human (the window) and the agent (the Kulisa
 plugin) do the same things to profiles, tabs and tasks: open a tab, go to an address, close or delete a profile.
