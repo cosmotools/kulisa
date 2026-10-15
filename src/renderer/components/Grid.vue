@@ -28,7 +28,9 @@ const tabComponents = markRaw({ profile: ProfileHeader, terminal: TerminalTabs }
 
 <style>
 #dock {
-  display: flex; flex-direction: column; margin-inline: var(--gap); transition: opacity .15s;
+  /* min-width: a row wider than the window (19 closed profiles over the terminal) stretched the window's column, the
+     terminal and the tasks' bar past its edge (2026-10-15) */
+  display: flex; flex-direction: column; min-width: 0; margin-inline: var(--gap); transition: opacity .15s;
   #grid { flex: 1; min-height: 0; }
   .loading & { opacity: 0; transition: none; } /* until the grid is laid out (lib/grid.ts, reveal) */
   .noproject & { display: none; }

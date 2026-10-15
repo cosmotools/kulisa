@@ -170,7 +170,7 @@ The window's controls are Reka UI's, in this look (CLAUDE.md, Window UI):
 - Tabs: a pane's tabs and the tasks' tabs are Reka's `Tabs` (`activationMode` manual): chosen on the press, as a
   browser's (not on their ×), one Tab stop for the strip, the arrows move and Enter chooses. A task's is shown on
   the release, or as its drag begins ([window.md](window.md), The tasks' bar).
-- A strip of tabs that do not all fit (the tasks' bar, a pane's tabs) is `.tabstrip` (`components.css`) with
+- A strip of tabs that do not all fit (the tasks' bar, a pane's tabs, the closed profiles' tiles, the terminals' tabs) is `.tabstrip` (`components.css`) with
   `useStrip` (`lib/strip.ts`), one for every strip (2026-10-15: each scrolled its own way, two with the same bugs):
   no scrollbar; a mouse's wheel scrolls it sideways (Shift and a touchpad's swipe are the browser's: with Shift both
   scrolled, twice as far); an edge with tabs past it fades (`--fade`; two classes from the scroll: CSS's

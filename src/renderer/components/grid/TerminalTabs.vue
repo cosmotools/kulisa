@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // The island's row of tabs, its panel's header in the grid (docs/window.md, The terminal; Terminals.vue its terminals):
 // each terminal's tab, then +; at its end the task's repositories and the dictation's microphone (Dictation.vue).
+import { ref } from 'vue';
 import { TabsList, TabsRoot, TabsTrigger } from 'reka-ui';
 import Icon from '../Icon.vue';
 import TaskRepos from './TaskRepos.vue';
@@ -12,6 +13,7 @@ import { agentMark } from '../../lib/agents';
 import { newTerminalItems, tabItems } from '../../lib/terminals';
 import { dialog } from '../../lib/dialogs';
 import { withKeys } from '../../lib/common';
+import { useStrip } from '../../lib/strip';
 import type { Terminal } from '../../../shared/types';
 
 const STATES = { working: 'is working', waiting: 'waits for you', done: 'is done' };
@@ -19,6 +21,9 @@ const tabOf = (e: MouseEvent) => store.terminals.list.find((t) => String(t.id) =
 const menu = (e: MouseEvent) => { const t = tabOf(e); return t ? tabItems(t) : null; };
 const title = (t: Terminal) => (t.agent ? `${t.agent.name}${t.state ? `: it ${STATES[t.state]}` : ''}` : t.command || 'Your shell in the task\'s folder');
 const show = (id: string | number) => act('terminal:show', { id: Number(id) });
+// More tabs than fit scroll (lib/strip.ts): they were cut off at the island's edge, its + and microphone with them.
+const strip = ref<HTMLElement>();
+useStrip(strip, () => store.terminals.front);
 </script>
 
 <template>
@@ -26,7 +31,7 @@ const show = (id: string | number) => act('terminal:show', { id: Number(id) });
   <div class="termtabs" :hidden="!store.terminals.list.length">
     <RightClickMenu :items="menu"><TabsRoot as-child :model-value="store.terminals.front === null ? undefined : String(store.terminals.front)"
       activation-mode="manual" @update:model-value="(v) => v !== undefined && show(v)"><TabsList as-child :loop="false">
-      <nav aria-label="Terminals" @dragstart.prevent>
+      <nav ref="strip" class="tabstrip" aria-label="Terminals" @dragstart.prevent>
         <TabsTrigger v-for="t in store.terminals.list" :key="t.id" :value="String(t.id)" as-child>
           <div class="termtab striptab" :class="{ active: t.id === store.terminals.front }" :data-id="t.id" :title="title(t)">
             <button v-if="t.agent" class="handover icon quiet small" :aria-label="`${t.agent.name}: change agent…`"
@@ -53,8 +58,11 @@ const show = (id: string | number) => act('terminal:show', { id: Number(id) });
    in the terminal's (.striptab.active), as if part of it. */
 .termtabs { display: flex; align-items: center; gap: 4px; height: 100%; min-width: 0; padding-inline: calc(var(--gap) - 2px);
   &[hidden] { display: none; }
-  nav { display: flex; align-items: center; gap: 2px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
-  .termtab { padding-inline-start: 4px; max-width: 220px; }
+  nav { display: flex; align-items: center; gap: 2px; min-width: 0; } /* .tabstrip: more tabs than fit scroll */
+  .termtab { flex: none; padding-inline-start: 4px; max-width: 220px; } /* its name whole, the row scrolls: shrunk to 64 px, 36 tabs showed no name (the author, 2026-10-15, for the tasks' bar too) */
   .shellmark { margin-inline: 6px; color: var(--text-dim); } }
 #dock .dv-groupview:has(.termtabs) .dv-tabs-and-actions-container { background: var(--toolbar); }
+/* The row is as wide as the island, not as its tabs: dockview's tab grows to its content (min-width: auto), and the row
+   of 36 terminals ran past the island, cut off there, its + and microphone with it (2026-10-15). */
+#dock .dv-tab:has(.termtabs) { min-width: 0; flex-shrink: 1; }
 </style>

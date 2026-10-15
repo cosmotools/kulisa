@@ -1,4 +1,5 @@
-// A strip of tabs that scrolls sideways when they do not fit (docs/ui.md, Tab strips): the tasks' bar, a pane's tabs.
+// A strip of tabs that scrolls sideways when they do not fit (docs/ui.md, Controls): the tasks' bar, a pane's tabs, the
+// closed profiles over the terminal, the terminals' tabs.
 // The element has .tabstrip (components.css: no scrollbar, its edges faded); this module scrolls it by the wheel,
 // says which edges have tabs past them, and keeps its .active tab in sight.
 import { nextTick, onUnmounted, watch } from 'vue';

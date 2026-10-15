@@ -708,6 +708,14 @@ export default (test: Test) => {
         above: s.getBoundingClientRect().bottom <= document.querySelector('.terminals').getBoundingClientRect().top }; })()`);
     await waitFor(tiles);
     assert.deepEqual(await tiles(), { names: PROFILES, above: true });
+    // More than fit (19 profiles): the row scrolls, its end faded, the window as wide as before: the row stretched the
+    // window's column, the terminal and the tasks' bar past its edge, the last profiles out of reach (2026-10-15).
+    await ui(`(() => { const s = document.getElementById('closedprofiles'); for (let i = 0; i < 20; i++) s.append(s.querySelector('.launcher').cloneNode(true)); })()`);
+    await waitFor(() => ui(`document.getElementById('closedprofiles').classList.contains('past-end')`));
+    assert.deepEqual(await ui(`(() => { const s = document.getElementById('closedprofiles'), r = (e) => e.getBoundingClientRect();
+      return [s.scrollWidth > s.clientWidth, r(s).right <= innerWidth, r(document.querySelector('.terminals')).right <= innerWidth, document.documentElement.scrollWidth <= innerWidth]; })()`),
+      [true, true, true, true]);
+    await ui(`document.querySelectorAll('#closedprofiles .launcher').forEach((t, i) => { if (i >= ${PROFILES.length}) t.remove(); })`);
     await ui(`document.querySelector('#closedprofiles [data-profile="sam-admin"]').click()`);
     await waitFor(async () => task.profiles.has('sam-admin') && !(await tiles()));
     await ctx.call('profile_close', { profile: 'sam-admin' });

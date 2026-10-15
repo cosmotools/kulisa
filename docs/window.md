@@ -87,7 +87,10 @@ one opens (`ClosedProfiles.vue`, `#closedprofiles`; the author, 2026-10-14: unti
 task tab's right-click menu alone, which no one found). A `.launcher.small` per closed profile, from the left: its
 picture over its name, who it is under it; a click opens it, its pane over the terminal, and the row goes. A project
 with no profiles has one tile, Add Profile…, its page in Settings. The tiles are outside dockview: the grid's room is
-what is left under them (`room()`, `lib/grid.ts`). With no terminal either, they are the second row of the big buttons
+what is left under them (`room()`, `lib/grid.ts`). More than fit scroll, as a strip of tabs does (`.tabstrip`,
+[ui.md](ui.md)): by the wheel, the edge with tiles past it faded (2026-10-15: 19 profiles stretched the window's column,
+the terminal and the tasks' bar past its edge, the last ones out of reach; `#dock` keeps `min-width: 0` for it). With
+no terminal either, they are the second row of the big buttons
 ("The terminal"). As the folded island, the row is a part of the window, nothing opens by itself: the agent opens a
 profile when it needs it (`profile_open`). Not on the task's tab (the author, 2026-10-12: the tasks' bar is no place
 for profiles), nor in the terminals' row (it folds with the island). A row of tabs was tried first and turned into
@@ -214,7 +217,9 @@ from it as a browser's tabs (the row in the toolbar's color, the tab in front in
 not needed): a terminal is not split off into a panel of its own. Each is the user's shell in the task's folder
 (xterm.js in the window, node-pty in the main process: `terminal.ts`), an agent the human chose started in it
 ([tasks.md](tasks.md), "Several agents in a task") or not. Each tab: the agent's icon (a shell's, for a shell), its
-name, its state (an agent's: working, waiting for you, done), ×. After the tabs, the island's own **+**, whatever
+name, its state (an agent's: working, waiting for you, done), ×; each its name whole (not shrunk), more than fit
+scroll, as a strip of tabs does (`.tabstrip`, [ui.md](ui.md); 2026-10-15: 36 terminals ran past the island, cut off
+there with + and the microphone, dockview's tab growing to its content until `min-width: 0`). After the tabs, the island's own **+**, whatever
 tab is in front (a menu of the project's accounts, the default first, each a new conversation; then Terminal, a
 shell). At the row's end, in a project of several repositories, the task's copies of them, a `.chip` each (its
 name; its folder and branch in its tooltip; `TaskRepos.vue`): which repositories it works in, seen without asking. One

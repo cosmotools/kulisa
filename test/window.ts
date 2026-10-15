@@ -178,6 +178,15 @@ export default (test: Test) => {
       await assert.rejects(call(tool, { name: 'bash', ...args }), /"bash" is an agent's tab, not a terminal to run in: read what it did in task_history/);
     }
     assert.deepEqual(await tabs(), ['bash', 'Terminal *', 'dev server']);
+    // More than fit (36 terminals): the row scrolls, its end faded; each tab its name whole; + and the microphone at its
+    // end stay in the island: the row ran past the island, cut off there with them, then its tabs shrank to no name
+    // (2026-10-15).
+    await ui(`(() => { const n = document.querySelector('.termtabs nav'); for (let i = 0; i < 40; i++) n.append(n.querySelector('.termtab').cloneNode(true)); })()`);
+    await waitFor(() => ui(`document.querySelector('.termtabs nav').matches('.past-start, .past-end')`));
+    assert.deepEqual(await ui(`(() => { const n = document.querySelector('.termtabs nav'), island = n.closest('.dv-groupview').getBoundingClientRect(), r = (q) => document.querySelector(q).getBoundingClientRect();
+      return [n.scrollWidth > n.clientWidth, [...n.querySelectorAll('.name')].every((x) => x.scrollWidth <= x.clientWidth), r('#termAdd').right <= island.right, r('.termtabs .dictation').right <= island.right]; })()`),
+      [true, true, true, true]);
+    await ui(`document.querySelectorAll('.termtabs .termtab').forEach((t, i) => { if (i >= 3) t.remove(); })`);
     // Stopped: Ctrl+C, the shell stays; the same name again types into it.
     await call('terminal_stop', { name: 'dev server' });
     await waitFor(async () => (await call('terminal_read', { name: 'dev server', lines: 3 })).text.includes('^C'));
