@@ -121,8 +121,8 @@ export function registerAgents(ipc: Ipc) {
   handle('agents:install', async (e, { id }) => {
     const w = at(e), a = shell.agentFor(id, { any: true });
     if (!a?.install) return { error: `nothing to install for ${id}` };
-    const code = await installAgent(a, (data) => w?.send('agents:install-log', data));
-    return { code, installed: !!(await look(a, w?.task?.folder || app.getPath('home'), true)).found };
+    const { code, log } = await installAgent(a, (data) => w?.send('agents:install-log', data));
+    return { code, log, installed: !!(await look(a, w?.task?.folder || app.getPath('home'), true)).found };
   });
 
 }

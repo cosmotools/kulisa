@@ -74,6 +74,7 @@ export function agentList(opts: { choose?: boolean; details?: boolean; installed
     const r = await kulisa.invoke('agents:install', { id });
     state.installing = false;
     logTo = null;
+    if (!refused(r)) state.log = r.log; // the whole of it: a piece streamed may arrive after the answer
     a.installed = !refused(r) && r.installed;
     state.progress = a.installed ? opts.installed(a) : '';
     if (!a.installed) {

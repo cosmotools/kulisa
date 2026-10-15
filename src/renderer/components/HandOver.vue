@@ -81,7 +81,7 @@ const progress = computed(() => {
         <small class="conv">“{{ from.name }}”</small>
       </div>
       <ul class="baton" aria-label="Goes along">
-        <li v-if="branch" class="chip" style="--i: 0"><Icon name="i-git" />{{ branch }}</li>
+        <li v-if="branch" class="chip" style="--i: 0" :title="`branch ${branch}`"><Icon name="i-git" /><span class="name">{{ branch }}</span></li>
         <li v-if="store.profiles.length" class="chip" style="--i: 1">
           <span class="faces"><img v-for="p in store.profiles" :key="p.key" class="avatar" alt="" :src="avatarSrc(p.avatar)" :title="p.name"></span>
           {{ plural(store.profiles.length, 'profile') }}, signed in

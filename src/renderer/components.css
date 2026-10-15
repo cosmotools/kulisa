@@ -58,10 +58,13 @@ button.danger { background: var(--danger); border-color: var(--danger); color: v
   color: var(--text-strong); text-align: start; svg { color: var(--text-dim); } }
 /* A project's color (--color on it or above) */
 .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; background: var(--color); }
-/* A thing named in a pill, its icon first: what goes along to another agent (HandOver.vue), a task's repositories */
-.chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border: 1px solid var(--line); border-radius: 999px;
+/* A thing named in a pill, its icon first: what goes along to another agent (HandOver.vue), a task's repositories.
+   A name the human gave (.name: a folder, a branch) is cut with … past 14em, the whole in the chip's tooltip: three
+   repositories' whole names pushed the terminals' tabs out of the row. */
+.chip { display: inline-flex; align-items: center; gap: 6px; min-width: 0; padding: 2px 8px; border: 1px solid var(--line); border-radius: 999px;
   background: var(--island); white-space: nowrap; font-size: var(--font-small);
-  > svg { --icon: 14px; width: var(--icon); height: var(--icon); color: var(--text-dim); } }
+  > svg { --icon: 14px; width: var(--icon); height: var(--icon); flex: none; color: var(--text-dim); }
+  > .name { min-width: 0; max-width: 14em; overflow: hidden; text-overflow: ellipsis; } }
 /* A tile: big, for the hand to find at once where nothing else is (an empty grid's agents and profiles), its icon or
    a profile's picture as large as two rows, a .name, a small line under it */
 .launcher { --icon: calc(var(--row) * 1.25); display: flex; flex-direction: column; align-items: center; justify-content: start;

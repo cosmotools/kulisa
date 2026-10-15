@@ -66,6 +66,8 @@ export default (test: Test) => {
       });
       await choose(ui, name);
       await waitFor(async () => (await ui(`[...document.querySelectorAll('#npprofiles .label')].map((l) => l.textContent)`)).includes(name));
+      // A row cuts its name and description: the whole in its tooltip.
+      assert.equal((await ui(`[...document.querySelectorAll('#npprofiles .item')].find((r) => r.querySelector('.label').textContent === ${JSON.stringify(name)}).title`)).split('\n')[0], name);
     }
     await waitFor(() => shell.closed.has('sam-seller') && shell.closed.has('elon-buyer'));
     await ui(`act('profile:open', { profile: 'sam-seller' })`);
@@ -254,9 +256,10 @@ export default (test: Test) => {
     assert.match((await call('profile_describe', { profile: 'elon-buyer', description: 'buyer; pays by card' })).text, /Saved/);
     assert.equal(elon.description, 'buyer; pays by card');
     await assert.rejects(call('profile_describe', { profile: 'elon-buyer', description: 'x'.repeat(501) }), /at most 500/);
-    // The editor shows it and the human changes it there; the pane's name tells it on hover, the task's tab's menu under the name.
+    // The editor shows it and the human changes it there; the pane's name tells it on hover (under the whole name, which a
+    // narrow pane cuts), the task's tab's menu under the name.
     const header = `[...document.querySelectorAll('.ptab')].find((t) => t.querySelector('.pname')?.textContent === 'Elon.buyer')`;
-    await waitFor(async () => (await ui(`${header}.querySelector('.pname').title`)).startsWith('buyer; pays by card'));
+    await waitFor(async () => (await ui(`${header}.querySelector('.pname').title`)).startsWith('Elon.buyer\nbuyer; pays by card'));
     await waitFor(() => ui(`(() => { const i = ${header}.querySelector('.avatar'); return i.complete && i.naturalWidth > 0; })()`)); // the picture is drawn
     await taskMenu(ui);
     assert.deepEqual(await ui(`[...document.querySelectorAll('.menu[data-state="open"] .item')].slice(0, 2).map((b) => [b.querySelector('small').textContent,

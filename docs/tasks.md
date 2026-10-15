@@ -331,7 +331,9 @@ project's default agent (the projects' manager), its own (`agent` in its `agent.
 the keyboard (`Task.ownAgent`, `openOwn`); a project with no agents starts its tasks with the terminal only. An agent to open that is no longer there (an account let go, an
 agent not on the computer) asks, in a dialog, among the project's accounts and the terminal only, with Install and
 Cancel (none opens). `KULISA_AGENT` forces one command everywhere, without asking. An agent CLI itself is installed in Settings → Agents (**Install**: Kulisa runs its maker's own
-installer, the command shown before, its output while it runs, with no steps for the human to type, for people who
+installer, the command shown before, its output while it runs (streamed as it comes; once it is over, the answer
+brings the whole of it, since Electron keeps no order between the stream's channel and the answer's: the last line
+arrived after "Installed" on the CI, 2026-10-15), with no steps for the human to type, for people who
 are not programmers); its accounts are made there too, or in a project's page.
 
 - The installers are the makers' official native ones (no Node, no sudo, they update themselves; checked

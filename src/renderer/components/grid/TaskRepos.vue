@@ -24,12 +24,13 @@ const menu = (e: MouseEvent) => {
 <template>
   <RightClickMenu v-if="shown" :items="menu"><div class="taskrepos" aria-label="The task's repositories">
     <span v-for="c in task!.copies" :key="c.folder" class="chip" :class="{ fresh: fresh.has(c.folder) }" :data-folder="c.folder"
-      :title="`${c.folder}, branch ${c.branch}`"><Icon name="i-git" />{{ c.name }}</span>
+      :title="`${c.folder}, branch ${c.branch}`"><Icon name="i-git" /><span class="name">{{ c.name }}</span></span>
   </div></RightClickMenu>
 </template>
 
 <style>
-.taskrepos { display: flex; align-items: center; gap: 4px; margin-inline-start: auto; flex: none;
+/* It gives way before the terminals' tabs do: its chips' names are cut, the whole in their tooltips. */
+.taskrepos { display: flex; align-items: center; gap: 4px; margin-inline-start: auto; min-width: 0;
   .chip.fresh { animation: repo-in 1.8s ease-out; } }
 /* It comes in from the right, grows past its size and settles, lit in the accent color, which fades. */
 @keyframes repo-in {

@@ -146,7 +146,9 @@ every other `<svg>` uses the sprite.
   lit under the pointer. The empty grid's agents and profiles (`Terminals.vue`); `.small`, beside what is looked at:
   the closed profiles over the terminal (`ClosedProfiles.vue`).
 - `.chip`: a thing named in a pill, its icon first (14 px, muted), `--font-small`: what goes along to another agent
-  (Change Agent), a task's repositories at the end of its terminals' row (`TaskRepos.vue`).
+  (Change Agent), a task's repositories at the end of its terminals' row (`TaskRepos.vue`). A name the human gave (a
+  folder, a branch) goes in a `.name` inside it: cut with … past 14em, the whole in the chip's tooltip; a row of chips
+  gives way before what is beside it (2026-10-15: three repositories' whole names pushed the terminals' tabs out).
 
 ### Controls
 
@@ -224,7 +226,9 @@ Every dialog is `Modal.vue`, Reka UI's Dialog (`reka-ui`) with the same parts:
   `.item`, `data-section`, `data-project`, `data-agent` or `data-profile`; a section opens and closes, it is not
   chosen, and makes one of its own with the `.icon` + at its end; a row's right-click has its page's ⋯) and the chosen
   page on the right under its path (`.crumbs`: "Projects › shop", its ⋯ at the end). Each thing is a row of the tree
-  with a page of its own, not a list inside a page. A dialog of a few big choices and a form (New
+  with a page of its own, not a list inside a page. A row the column cuts (…) has its whole name in its tooltip, and
+  so has a list's row in a page (a project's profiles: the name, its description); not a wider or resizable column,
+  as names past any width still come (2026-10-15: two profiles alike to their 20th letter looked the same). A dialog of a few big choices and a form (New
   Project) has the choices as a list on its left (Reka's Listbox), the form on its right.
 - With `form` the content and the buttons are a form: Enter submits.
 - Its ref: `await open()` (shown, the keyboard in its `[autofocus]` field or on it; the profiles' pages hidden while it
