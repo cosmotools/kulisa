@@ -36,7 +36,8 @@ export function gridMounted(a: DockviewApi) {
   // A narrower window takes from every panel in its share (Grid.vue's proportional-layout), but in dockview (8.4, 8.5)
   // a row with a panel below it, built again after the grid was cleared (an arrangement; a saved grid restored clears
   // it too), keeps no shares, and the window took from its last panel alone. The shares are taken again on the next
-  // frame after a change of its panels (the grid built by then), by turning the option off and on.
+  // frame after a change of its panels (the grid built by then), by turning the option off and on; gone once
+  // github.com/dockview/dockview/issues/1692 is fixed.
   let unshared = false, shareFrame = 0;
   const share = () => {
     if (!room().w) return; // not laid out yet: again on its next layout
