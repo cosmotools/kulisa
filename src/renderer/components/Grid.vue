@@ -28,7 +28,9 @@ const tabComponents = markRaw({ profile: ProfileHeader, terminal: TerminalTabs }
 
 <style>
 #dock {
-  display: flex; flex-direction: column; margin-inline: var(--gap); transition: opacity .15s;
+  /* min-width: a row wider than the window (19 closed profiles over the terminal) stretched the window's column, the
+     terminal and the tasks' bar past its edge (2026-10-15) */
+  display: flex; flex-direction: column; min-width: 0; margin-inline: var(--gap); transition: opacity .15s;
   #grid { flex: 1; min-height: 0; }
   .loading & { opacity: 0; transition: none; } /* until the grid is laid out (lib/grid.ts, reveal) */
   .noproject & { display: none; }
@@ -54,19 +56,22 @@ const tabComponents = markRaw({ profile: ProfileHeader, terminal: TerminalTabs }
 /* Switching (lib/grid.ts, grid:closing): the grid slides towards the next task's tab, as macOS desktops do (types
    next and previous say which way; until 2026-10-14 only between projects, replaced at once between a project's own
    tasks). Pictures, so the compositor moves them. */
-/* Longhands: Vite's CSS minifier (Lightning CSS) made the shorthand with no name `animation: none`, and nothing slid. */
+/* Longhands: Vite's CSS minifier (Lightning CSS) made the shorthand with no name `animation: none`, and nothing slid.
+   Material's standard easing: an ease-out (.2, .8, .2, 1) crept over its last few percent, the grid going out lingering
+   at the window's edge. */
 ::view-transition-old(grid), ::view-transition-new(grid) {
-  animation-duration: .3s; animation-timing-function: cubic-bezier(.2, .8, .2, 1); animation-fill-mode: both; mix-blend-mode: normal; }
+  animation-duration: .3s; animation-timing-function: cubic-bezier(.4, 0, .2, 1); animation-fill-mode: both; mix-blend-mode: normal; }
 :active-view-transition-type(next) {
   &::view-transition-old(grid) { animation-name: grid-to-left; }
   &::view-transition-new(grid) { animation-name: grid-from-right; } }
 :active-view-transition-type(previous) {
   &::view-transition-old(grid) { animation-name: grid-to-right; }
   &::view-transition-new(grid) { animation-name: grid-from-left; } }
-@keyframes grid-to-left { to { translate: -100% 0; } }
-@keyframes grid-from-right { from { translate: 100% 0; } }
-@keyframes grid-to-right { to { translate: 100% 0; } }
-@keyframes grid-from-left { from { translate: -100% 0; } }
+/* Its width and the window's margin (#dock's): by its width alone, its edge stayed in the margin, a strip of the page. */
+@keyframes grid-to-left { to { translate: calc(-100% - var(--gap)) 0; } }
+@keyframes grid-from-right { from { translate: calc(100% + var(--gap)) 0; } }
+@keyframes grid-to-right { to { translate: calc(100% + var(--gap)) 0; } }
+@keyframes grid-from-left { from { translate: calc(-100% - var(--gap)) 0; } }
 
 /* A panel's header: a profile's picture, name, the agent's caption, ×. Everything in a
    panel keeps --gap from the island's edges: the header's picture and ×, the tabs, the toolbar's first and last button,

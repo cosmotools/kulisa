@@ -41,7 +41,8 @@ slide, which mixed them up (2026-10-08). The tabs are Firefox's: rounded rectang
 shown one filled in the panels' color, the others plain, lit under the pointer; a gap between them and the grid, whose
 panels sit on the window's background too (the author, 2026-10-14; from 2026-10-08 until then the grid was a dark well
 from edge to edge, and each tab an island merging into it with curves). A tab is as big as a browser's (36 px tall,
-at least 120 px wide, the tabs 8 px apart; in the title bar a tab keeps its 36 px and the title bar its 44, so a tab
+at least 160 px wide, so its name keeps about ten letters (at 120 px thirty tabs all read "task…"; the author,
+2026-10-15: wider, × kept on every tab, as Chrome's), the tabs 8 px apart; in the title bar a tab keeps its 36 px and the title bar its 44, so a tab
 sits in the middle with 4 px above and below, the grid right under, as a browser's tabs sit over its content (the
 author, 2026-10-14: the grid's own gap under those 4 px added up and showed; a title bar grown to 52 px around the tab
 was not wanted, nor a tab as low as the bar's buttons). The window is a grid of rows (App.vue: the title bar, the grid, the bar when it is below) with one
@@ -51,6 +52,19 @@ the bar from the grid, the window's bottom edge from the last row; nothing else 
 tabs, a step taller than a button, were out of scale), a target for a quick throw of the mouse; in the title bar the
 tabs are not a handle to drag the window by (`app-region: no-drag`). Nothing in the bar moves when another task is
 shown.
+
+More tabs than the bar holds scroll, as every strip of tabs does ([ui.md](ui.md), Controls: `.tabstrip`): by a
+mouse's wheel, an edge with tabs past it faded, the shown tab in sight (the author, 2026-10-15, found with thirty
+tasks: the wheel scrolled nothing, nothing said 17 were out of sight). In the title bar the tabs give way before at least 40 px after + (`--drag`), where the
+window is dragged however many tabs there are, as Chrome's space after its +; by the logo too. Chromium takes the tabs
+scrolled past the bar's edges as no-drag over both (it does not clip them to the bar, `overflow`, `contain` or
+`clip-path` alike) and the page's regions in order, the last one winning: so the logo and that space come after the
+bar in the page (TopBar.vue), the logo put back first by `order`.
+
+A press on a tab not shown chooses it at once, as Chrome's, and its task is shown when the button is let go or the
+tab starts being dragged, whichever is first (the author, 2026-10-15: such a tab could not be dragged). Showing a task
+starts the grid's slide (a view transition), and Chromium drops a drag about to begin when one starts; a drag already
+begun goes on through it. So the grid changes on the release, not on the press as in Chrome, which has no slide.
 
 ## The grid
 
@@ -73,7 +87,10 @@ one opens (`ClosedProfiles.vue`, `#closedprofiles`; the author, 2026-10-14: unti
 task tab's right-click menu alone, which no one found). A `.launcher.small` per closed profile, from the left: its
 picture over its name, who it is under it; a click opens it, its pane over the terminal, and the row goes. A project
 with no profiles has one tile, Add Profile…, its page in Settings. The tiles are outside dockview: the grid's room is
-what is left under them (`room()`, `lib/grid.ts`). With no terminal either, they are the second row of the big buttons
+what is left under them (`room()`, `lib/grid.ts`). More than fit scroll, as a strip of tabs does (`.tabstrip`,
+[ui.md](ui.md)): by the wheel, the edge with tiles past it faded (2026-10-15: 19 profiles stretched the window's column,
+the terminal and the tasks' bar past its edge, the last ones out of reach; `#dock` keeps `min-width: 0` for it). With
+no terminal either, they are the second row of the big buttons
 ("The terminal"). As the folded island, the row is a part of the window, nothing opens by itself: the agent opens a
 profile when it needs it (`profile_open`). Not on the task's tab (the author, 2026-10-12: the tasks' bar is no place
 for profiles), nor in the terminals' row (it folds with the island). A row of tabs was tried first and turned into
@@ -86,8 +103,13 @@ tasks' bar bringing its tab into view (`scrollIntoView`) moved the whole grid up
 
 The profiles' pages are native views above the window's HTML (CLAUDE.md, "What must hold in the window"). While a
 panel is dragged, a menu is open or a dialog is shown, the pages are pictures of themselves (or hidden), so the
-HTML can be on top; they are live again after. A page that gives no picture within 500 ms (covered, the monitor off,
-busy) leaves its pane empty meanwhile: waiting for it held the menu, and every one after it.
+HTML can be on top; they are live again after, once nothing covers them: a task's slide ending under a menu leaves
+them pictures until the menu closes (`livePages`; until 2026-10-15 they came back over it). A page that gives no
+picture (covered, the monitor off, busy) leaves its pane empty meanwhile: waiting for it held the menu, and every one
+after it, and a task's slide after the click (500 ms until 2026-10-15). How long is the pages' own pace, not a fixed
+time: once the first has answered, the rest get three times as long, a tenth of a second at least (a live page
+answers in a few milliseconds on the author's computer, in over a hundred on GitHub's runner, where a fixed tenth of
+a second left every pane empty); none answering, half a second (`AppWindow.pictures`).
 
 A pane's tab strip and toolbar move as Chrome's: a tab opened grows in from the left (`.tab.opening`; the strip keeps
 its tabs' elements by id, so only a new one animates), the address's hover fades in. Not with reduced motion.
@@ -198,7 +220,9 @@ from it as a browser's tabs (the row in the toolbar's color, the tab in front in
 not needed): a terminal is not split off into a panel of its own. Each is the user's shell in the task's folder
 (xterm.js in the window, node-pty in the main process: `terminal.ts`), an agent the human chose started in it
 ([tasks.md](tasks.md), "Several agents in a task") or not. Each tab: the agent's icon (a shell's, for a shell), its
-name, its state (an agent's: working, waiting for you, done), ×. After the tabs, the island's own **+**, whatever
+name, its state (an agent's: working, waiting for you, done), ×; each its name whole (not shrunk), more than fit
+scroll, as a strip of tabs does (`.tabstrip`, [ui.md](ui.md); 2026-10-15: 36 terminals ran past the island, cut off
+there with + and the microphone, dockview's tab growing to its content until `min-width: 0`). After the tabs, the island's own **+**, whatever
 tab is in front (a menu of the project's accounts, the default first, each a new conversation; then Terminal, a
 shell). At the row's end, in a project of several repositories, the task's copies of them, a `.chip` each (its
 name; its folder and branch in its tooltip; `TaskRepos.vue`): which repositories it works in, seen without asking. One
@@ -221,6 +245,14 @@ unless the keyboard is in something else (a field, a dialog). Under them, a seco
 a `.launcher` each, its picture over its name ("The grid": No profile open). A terminal opened unfolds it to the size it had. Ctrl+` there opens a new conversation of the task's agent; a task with none (its project had no default agent:
 [tasks.md](tasks.md), "Choosing the agent") gives the keyboard to the buttons, or opens the +. A task that never had a
 terminal opens its agent, or nothing (the buttons).
+
+**A tab comes before its program.** An agent's tab is there at once, before its program is looked for (the user's
+login shell, its `--version`: a second or so): until it starts, `.starting` over its terminal, the agent's working
+`.state` and "Starting Claude Code…" (`starting` in `Sent.Terminals`, the tab without its `pty`). Its terminal stays laid
+out under it: the program starts at its size. Not found and none chosen in its place (Choose the Agent, Cancel), the
+tab goes. A task opening sends its tabs with its first state, each starting (`Window.showLoaded`, then
+`Task.loadTerminals`): until 2026-10-15 the window got none until each agent was found, and showed the folded island's
+buttons for that second. A pick or a dictation meanwhile goes nowhere: the human gives it again.
 
 Unicode 11 widths (the cursor stays put after an emoji), a bundled font, the GPU renderer. Copy and paste take the
 keys of the OS's own terminal, so hands need nothing new: Ctrl+Shift+C / V (GNOME Terminal, Konsole); on Windows also
@@ -281,7 +313,8 @@ did not expect (the author's choice, 2026-10-08: which profile a link belongs to
 "where that site is open" was not obvious). Only `http` and `https`; the address shows on hover. xterm's own handler
 asked with the browser's `confirm()`, an OS dialog. Keys are known by `keyCode` too, as ibus with a Cyrillic layout leaves
 `code` out. An agent starts once the island is laid out, at its real
-size (a terminal behind another tab takes the island's). The rows that fit sit in the middle of the panel, what is left under a whole row shared above and below them:
+size (a terminal behind another tab takes the island's), however long that takes: until 2026-10-15 it started at a
+default size after 5 s, which GitHub's runner reached. The rows that fit sit in the middle of the panel, what is left under a whole row shared above and below them:
 at the bottom, it was a row's height under the agent's status line in one task and nothing in another, whose
 grids differed by a pixel (2026-10-08). When a task moves to another window, what its terminals show moves along (xterm's serialize addon, as VS
 Code keeps terminals), at the same size.
@@ -316,7 +349,7 @@ No key without a modifier but F keys (WCAG 2.1.4); the key held alone is a modif
 tasks are ⌘⌥1…9 (⌘⇧3, 4, 5 are macOS's screenshots), back and forward ⌘[ and ⌘] as in Chrome.
 
 How: the main process sees every key of the window and of every tab before the page does (`before-input-event`, on
-every webContents as it is made: `app.ts`), and takes one of Kulisa's (`preventDefault`: the page never gets it) or
+every webContents as it is made: `shortcuts.ts`), and takes one of Kulisa's (`preventDefault`: the page never gets it) or
 leaves it, untouched. Where the keyboard is in the window's own page, the page tells it (`keys:zone`: the terminal, a
 dialog, a pane; `src/renderer/lib/keys.ts`), which also runs the commands the main process sends back (`command`, with
 the profile and tab). Letters are matched by what they type on a Latin layout (Ctrl+W on an AZERTY keyboard is its W)
@@ -335,6 +368,22 @@ menu bar with Quit, Hide, the Edit menu (⌘C, ⌘V) and the windows (Electron's
 A pane's ⋮ menu (where more of a pane's actions will go, as in Chrome), or F12 or Ctrl+Shift+I in its page, opens
 the active tab's DevTools in a window of their own. Kulisa's own DevTools (F12 outside the pages) exist only when
 running from source (`appDevTools`, off when `app.isPackaged`).
+
+## IPC
+
+A window's page and the main process talk by named channels: `invoke` (an answer comes back), `send` (none), and the
+main process's messages to a page. Each channel is declared once, in `src/shared/ipc.ts`: what it takes and what it
+answers (`Invoke`, `Send`, `Events`); `npm run build` checks both ends against it. The main process's end goes through
+`handle` and `on` (`src/main/ipc.ts`), in a file a domain (`src/main/ipc/`), and `AppWindow.send`; the page's through the bridge's types (`env.d.ts`) and
+`act`, which adds the task shown (a message about the shown task's profiles and tabs is refused once another is shown).
+A new channel is declared there first, then its two ends.
+
+- An answer the page does not read is `void`: the main process may answer anything there (the tests read some).
+- An answer that may be a refusal is a `Result` (`src/shared/result.ts`), read with `refused()`: a page that read
+  `r.accounts` after a no (`{ error: null }`) threw, unseen, until the types said so (2026-10-15).
+- What crosses comes from the page and is checked again where it matters (a theme, a name); the types say what a
+  well-behaved page sends, not what any page may.
+- The tests call channels by their names in pages (`kulisa.invoke('…')`, in `executeJavaScript`): those are not checked.
 
 ## The app icon, installers and updates
 
@@ -380,10 +429,14 @@ shortcuts carry (`com.squirrel.kulisa.kulisa`), or Windows would not pin it to t
 
 | File | What |
 |---|---|
-| `src/main/app.ts` | the windows, the Kulisa zoom, the theme, the IPC |
+| `src/main/app.ts` | the app put together: the shell, the Kulisa zoom, the theme, the language, the agents; start and quit |
+| `src/main/open-tasks.ts` | the windows' open tasks: open, show, create, move, close, delete (one change after another, `serial`) |
+| `src/main/ipc/*.ts` | the windows' handles, a file a domain: `tasks`, `projects`, `profiles` (Settings → Profiles), `agents`, `panes` (the shown task's profiles, tabs, terminals), `window` (its zoom, theme, bar, language) |
+| `src/main/shortcuts.ts` | the keys as they are typed (Keys), the hold keys changed |
+| `src/shared/ipc.ts`, `src/main/ipc.ts` | the channels between a page and the main process; `handle` and `on`, checked against them (IPC) |
 | `src/main/window.ts` | a window: its BrowserWindow, the native views' places, its questions, screenshot |
-| `src/preload/index.cjs` | the window's bridge to the main process: the windows' pages are sandboxed (no Node: about 15 MB less a window, PSS; 2026-10-12), so it is a few lines of plain JavaScript; the window imports what it shares with the main process (`names.ts`, `avatars.ts`) |
-| `src/main/keys.ts` | the keyboard shortcuts: the table, which key an input event is; `app.ts` takes them (Keys) |
+| `src/preload/index.cjs` | the window's bridge to the main process: the windows' pages are sandboxed (no Node: about 15 MB less a window, PSS; 2026-10-12), so it is a few lines of plain JavaScript; the window imports what it shares with the main process from `src/shared/` (`names.ts`, `avatars.ts`, `result.ts`) |
+| `src/main/keys.ts` | the keyboard shortcuts: the table, which key an input event is; `shortcuts.ts` takes them (Keys) |
 | `src/main/updates.ts`, `forge.config.ts` | updates, Squirrel's events; the installers and the release |
 | `src/main/terminal.ts` | the ptys of the tasks' terminals; each shell's screen for `terminal_read` |
 | `src/renderer/components/Grid.vue`, `grid/*.vue`, `lib/grid.ts` | the grid (dockview), the panes and their headers, the island of terminals (`Terminals.vue`, its row of tabs `TerminalTabs.vue`), the closed profiles' tiles over it (`ClosedProfiles.vue`), Arrange panels |

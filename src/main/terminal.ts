@@ -1,18 +1,14 @@
 // xterm.js in the renderer, node-pty here running the agent CLI unchanged. A task's terminals (tasks.ts) are
 // "<task key>#<id>". The window shows the shown task's, the others keep running (and the window keeps their output).
-import { ipcMain } from 'electron';
+import { on } from './ipc.ts';
+import type { Events } from '../shared/ipc.ts';
 import os from 'os';
 import pty from 'node-pty';
 import type { IPty } from 'node-pty';
 import xterm from '@xterm/headless';
 import type { Terminal } from '@xterm/headless';
+import { READ_MAX } from './mcp-server.ts';
 
-// What an agent can read back of a shell (terminalTail, terminal_read): its last lines as the screen shows them, kept
-// by a terminal without a window (xterm's own parser), so lines a program redraws in place (a progress, a container's
-// state) are what they became; the output with its codes left out had every frame. Its scrollback is what the agent
-// may ask for at most: the memory is lines × columns × 12 bytes (about 1 MB at 200 columns). Its buffer is a proposed
-// API in the headless build (allowProposedApi), the one xterm's serialize addon reads too.
-const READ_MAX = 500;
 
 interface Size { cols: number; rows: number }
 // A terminal's process, with what Kulisa keeps of it.
@@ -23,13 +19,15 @@ interface TerminalConfig {
   shell?: { command: string; args?: string[] } | false | null; line?: string; size?: Size | null; sizeOf?: string;
   pinned?: Record<string, string>; screen?: boolean;
 }
-type Send = (channel: string, data: unknown) => void;
+type Send = (channel: 'pty:out', data: Events['pty:out']) => void;
 interface Term { pty: Pty | null; size: Size | null; firstSize: Promise<void>; sized: () => void }
 
 // The terminal's size as the window measures it, per terminal and per task (its island's, which all its terminals
 // share: one is shown at a time). An agent starts only once its size is known: Claude Code draws its prompt for the
-// size it starts with and does not fully redraw on the first resize. Listening from require time, so a size sent
-// while the window loads is not missed.
+// size it starts with and does not fully redraw on the first resize. However long the window takes to lay the island
+// out: a default size after 5 s (120×30, until 2026-10-15) is what GitHub's runner got, its window slower than that.
+// The size comes: a task loads its terminals when it is first shown (docs/tasks.md). Listening from require time, so
+// a size sent while the window loads is not missed.
 const terms = new Map<string, Term>(); // key -> { pty, size, sized (resolves the first size) }
 const termOf = (key: string) => {
   if (!terms.has(key)) {
@@ -39,12 +37,12 @@ const termOf = (key: string) => {
   }
   return terms.get(key)!;
 };
-ipcMain.on('pty:resize', (_e, { task, cols, rows }: { task: string } & Size) => {
+on('pty:resize', (_e, { task, cols, rows }) => {
   const t = termOf(task), island = termOf(task.split('#')[0]!);
   t.size = island.size = { cols, rows }; t.sized(); island.sized();
   try { t.pty?.resize(cols, rows); t.pty?.screen?.resize(cols, rows); } catch {}
 });
-ipcMain.on('pty:in', (_e, { task, data }: { task: string; data: string }) => terms.get(task)?.pty?.write(data));
+on('pty:in', (_e, { task, data }) => terms.get(task)?.pty?.write(data));
 
 // The user's shell as a terminal app starts it (login shell on macOS, as Terminal and VS Code do). An app started
 // from the Dock or a menu may have no SHELL; the account's shell is the same then.
@@ -64,8 +62,8 @@ const shQuote = (a: string) => (/^[\w@%+=:,./-]+$/.test(a) ? a : `'${a.replace(/
 // its output, under it. send(channel, data): to the task's window, whichever it is then.
 async function startTerminal(send: Send, cfg: TerminalConfig, key: string): Promise<Pty> {
   const t = termOf(key), like = cfg.sizeOf ? termOf(cfg.sizeOf) : null;
-  if (!cfg.size) await Promise.race([t.firstSize, ...(like ? [like.firstSize] : []), new Promise((r) => setTimeout(r, 5000))]);
-  const { cols, rows } = t.size || cfg.size || like?.size || { cols: 120, rows: 30 };
+  if (!cfg.size) await Promise.race([t.firstSize, ...(like ? [like.firstSize] : [])]);
+  const { cols, rows } = (t.size || cfg.size || like?.size)!; // one of them: given, or waited for
   const sh: { command: string; args?: string[] } | null = cfg.shell === false ? null : cfg.shell || userShell() || (cfg.line !== undefined ? { command: process.env.COMSPEC || 'cmd.exe' } : null);
   const command = cfg.command || (process.platform === 'win32' ? process.env.COMSPEC || 'cmd.exe' : process.env.SHELL || 'bash');
   const p = pty.spawn(sh ? sh.command : command, sh ? sh.args || [] : cfg.args || [], {
@@ -154,4 +152,4 @@ async function sendToPrompt(p: IPty, text: string, confirm?: string) {
 }
 
 export type { Pty };
-export { READ_MAX, startTerminal, stopTerminal, forgetTerminal, terminalTail, typeIntoPrompt, sendToPrompt };
+export { startTerminal, stopTerminal, forgetTerminal, terminalTail, typeIntoPrompt, sendToPrompt };

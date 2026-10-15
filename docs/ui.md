@@ -11,8 +11,8 @@ the look below:
 | Where | What |
 |---|---|
 | `src/renderer/components/*.vue` | the window's parts, each its markup, behavior and own look (`<style>`, rooted at its id or class): `App.vue` puts them together; `grid/` the grid's panels and headers, `menu/` the menus (`ButtonMenu`, `RightClickMenu`, `PointMenu`, `MenuRows`) and ☰'s own rows; `Modal.vue` the dialogs |
-| `src/renderer/lib/*.ts` | what parts share or what outlives a component: `store.ts` (what the main process sends, `act`), `grid.ts`, `terminals.ts`, `menu.ts` (what a menu holds), `agents.ts` (the agents' list of a dialog, and an install under way), `ask.ts`, `dialogs.ts`, `keys.ts`, `voice.ts`, `views.ts` (the pages under HTML: `covered()` for every menu and dialog), `profiles.ts` (the profiles' menu), `names.ts` (name fields), `common.ts`, `test-hooks.ts` (what the tests reach by name) |
-| `src/renderer/types.ts`, `env.d.ts` | the shapes the main process sends; the bridge to it (`src/preload`) and Vite's types |
+| `src/renderer/lib/*.ts` | what parts share or what outlives a component: `store.ts` (what the main process sends, `act`), `grid.ts`, `terminals.ts`, `menu.ts` (what a menu holds), `agents.ts` (the agents' list of a dialog, and an install under way), `ask.ts`, `dialogs.ts`, `keys.ts`, `voice.ts`, `views.ts` (the pages under HTML: `covered()` for every menu and dialog), `profiles.ts` (the profiles' menu), `names.ts` (name fields), `strip.ts` (a strip of tabs that scrolls), `common.ts`, `test-hooks.ts` (what the tests reach by name) |
+| `src/shared/types.ts`, `ipc.ts`; `env.d.ts` | the shapes the main process sends, the channels they come by (docs/window.md, IPC); the bridge to it (`src/preload`) typed by them, and Vite's types |
 | `src/renderer/tokens.css` | every color and size (`:root`); no literal color anywhere else |
 | `src/renderer/components.css` | the shared components below, global |
 | `src/renderer/index.html`, `main.ts`; `master.html`, `master.ts` | the window's page and a master's window's: the theme before the first paint, then the app |
@@ -31,6 +31,10 @@ pointer, read as a web page's and were hard to read). So:
   Weight and color carry what matters, not size.
 - **Dense**: rows and controls `--control` high (`--row` the same), toolbar buttons 24 px, corners `--radius` (4 px)
   on controls and `--island-radius` on windows and dialogs.
+- **One scrollbar everywhere** (`components.css`, `--scrollbar`): a rounded thumb on no track, no arrows, as JetBrains'
+  (the author, 2026-10-15: the OS's, with arrows, in menus, Settings and dialogs). Chromium's `::-webkit-scrollbar`:
+  the standard `scrollbar-color` and `scrollbar-width: thin` left the arrows. A tabs' strip has none
+  (`scrollbar-width: none`): it scrolls by the wheel.
 - **Forms are "Label: field"**, the labels in one column (`.field`); a comment under a field only when needed.
 - **Groups under a titled line** (`.titled`), not framed cards: no frame in a frame.
 - **A list has a toolbar over it** (`.list`: + adds, − removes the selected row, ★ makes it the default), and
@@ -164,9 +168,17 @@ The window's controls are Reka UI's, in this look (CLAUDE.md, Window UI):
 - Fields (Reka's `FieldRoot`, `FieldLabel`, `FieldControl`, `FieldDescription`, `FieldError`) in `.field`; a
   dialog's form is its `FormRoot` (`Modal.vue`, `errors`: the main process's refusal at its field).
 - Tabs: a pane's tabs and the tasks' tabs are Reka's `Tabs` (`activationMode` manual): chosen on the press, as a
-  browser's (not on their ×), one Tab stop for the strip, the arrows move and Enter chooses.
+  browser's (not on their ×), one Tab stop for the strip, the arrows move and Enter chooses. A task's is shown on
+  the release, or as its drag begins ([window.md](window.md), The tasks' bar).
+- A strip of tabs that do not all fit (the tasks' bar, a pane's tabs, the closed profiles' tiles, the terminals' tabs) is `.tabstrip` (`components.css`) with
+  `useStrip` (`lib/strip.ts`), one for every strip (2026-10-15: each scrolled its own way, two with the same bugs):
+  no scrollbar; a mouse's wheel scrolls it sideways (Shift and a touchpad's swipe are the browser's: with Shift both
+  scrolled, twice as far); an edge with tabs past it fades (`--fade`; two classes from the scroll: CSS's
+  scroll-driven animations left an edge faded when little was out of sight); the active tab is brought into sight,
+  clear of the fade, when another is chosen, a tab grows in or the strip is resized, and only then: on every update
+  (a title, a page loading, an agent's state) it took the strip back from where the human had scrolled it.
 - `Toggle`: a button that stays on (Pick, `[data-state="on"]`).
-- `Collapsible`: something shown on demand (a profile's pictures to choose from; Details: `button.more` its trigger, an
+- `Collapsible`: something shown on demand (a profile's pictures to choose from; Details: `button.disclose` its trigger, an
   installer's output, an agent's sign-in's terminal).
 - `.avatar`: a profile's picture (`<img>`, `avatarSrc(name)` in `lib/common.ts`; `Avatars.vue` the ones to choose from), 16 px; `--avatar` where a place needs
   another size (22 px in a profile's row, `ProfileRow.vue`).
@@ -241,7 +253,8 @@ Reka UI's menus, the rows built as one opens: a button's (`ButtonMenu.vue`: ☰,
 (`menuAt(e, items)` in `lib/menu.ts`, `PointMenu.vue`: a link in the terminal). `ButtonMenu` opens on the press, so a
 press, a drag to a row and the release there chooses it, as the OS's menus; Enter, Space or ↓ on the button open it.
 Rows are chosen with the left button only (on Linux a right-click menu opens on the press, and the release must not
-choose a row). One menu at a time; Esc, a press outside, the same button, a chosen row or leaving the window closes
+choose a row). A menu taller than the window has scrolls, reaching as far as its edge (Reka's room for it,
+`--reka-popper-available-height`; the bar's + with thirty closed tasks ran past the window, 2026-10-15). One menu at a time; Esc, a press outside, the same button, a chosen row or leaving the window closes
 it, and the keyboard goes back where it was. While one is open, the pages are pictures of themselves
 (`covered('pictures')`); it shows once they are.
 

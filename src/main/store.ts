@@ -22,7 +22,7 @@
 // Nothing goes into the project's own folder: sign-ins must not end up in its git.
 import fs from 'fs';
 import path from 'path';
-import { slugOf } from './names.ts';
+import { slugOf } from '../shared/names.ts';
 
 // Muted, to sit on the dark window; a new project takes the first one no project has (its favicon's own hue, in their
 // lightness and chroma, replaces it in the window: renderer/lib/project-color.ts).

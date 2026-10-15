@@ -7,7 +7,8 @@ side by side. It builds, checks the result as every user of your app, fixes, and
 watch every step or take a break. It is made first for developing web apps with several users at once (a buyer, a
 seller, an admin), and is good for any work in web apps: several clients' accounts, admin and support work.
 
-You sign in to your accounts yourself, by hand; the agent never does. Everything stays on your computer.
+You sign in to your accounts yourself, by hand; the agent never does, except as test users of your own app on this
+computer. Everything stays on your computer.
 
 ## Words used here
 
@@ -53,7 +54,8 @@ Kulisa is tested on Linux (Ubuntu) so far; on Windows it is newer and less tried
   onto another pane to stack them as tabs; drag the gaps to resize. **☰ → Arrange panels** offers ready-made
   arrangements. Each task keeps its own grid.
 - **The tasks' bar**, under the grid (or in the title bar, as a browser's tabs: **☰ → Tasks bar**): a tab per open task,
-  of any project, with its project's icon and its agent's state, and **+** after them.
+  of any project, with its project's icon and its agent's state, and **+** after them. When there are more tabs than
+  fit, the mouse wheel over the bar scrolls them, and a faded edge shows that more are past it.
 - **No task open** (at the first start, or after you close the last task): the window shows New Task and New
   Project….
 
@@ -242,7 +244,8 @@ A pane is a small Chrome: a tab strip, an address bar, back, forward and reload.
   opens the task's agent). With no profile open either, big buttons in the middle of the window do what **+** does:
   one for each of the project's agents, then **Terminal**. Tab moves between them and Enter opens one. Under them, a
   tile for each of the project's profiles opens it.
-- Terminals come back after a restart in their tabs: an agent continues its conversation, a shell starts fresh.
+- Terminals come back after a restart in their tabs: an agent continues its conversation, a shell starts fresh. An
+  agent's tab shows "Starting…" for a moment while its agent starts.
 - Copy and paste as in your OS's terminal: Ctrl+Shift+C / Ctrl+Shift+V on Linux, Ctrl+C / Ctrl+V on Windows, ⌘C / ⌘V
   on macOS.
 - Ctrl+click a link to open it: Kulisa asks where, in one of the task's profiles or in your own browser.

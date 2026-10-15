@@ -5,18 +5,17 @@
 //   and website; installed(agent): what to say once it is installed.
 //   list.load(selected, show) the agents, then await show() (opens the dialog); reload(); chosen; state.installing …
 import { computed, nextTick, reactive } from 'vue';
+import { refused } from '../../shared/result';
+import type { AgentInfo } from '../../shared/types';
 
-export interface Agent {
-  id: string; name: string; maker?: string; needs?: string; site?: string; install?: string; installed?: boolean;
-  account?: string; agent?: string; path?: string; onPath?: boolean; version?: string;
-}
+export type Agent = AgentInfo;
 
 // An agent's mark in the sprite, by its id (cli); an agent new to Kulisa may have none: the generic one, or none.
 export const agentMark = (cli: string, fallback: string | null = 'i-agent') => (document.getElementById(`i-agent-${cli}`) ? `i-agent-${cli}` : fallback);
 
 // The installer's output goes to the list that runs it.
 let logTo: ((data: string) => void) | null = null;
-kulisa.on<string>('agents:install-log', (data) => logTo?.(data));
+kulisa.on('agents:install-log', (data) => logTo?.(data));
 
 export function agentList(opts: { choose?: boolean; details?: boolean; installed: (a: Agent) => string }) {
   const state = reactive({
@@ -25,10 +24,10 @@ export function agentList(opts: { choose?: boolean; details?: boolean; installed
     el: null as HTMLElement | null, // the list's element, while its dialog is open
   });
   const chosen = computed(() => state.agents.find((a) => a.id === state.selected));
-  // cached: what the main process found last time, if it has looked yet (main/app.ts, agents:list).
+  // cached: what the main process found last time, if it has looked yet (main/ipc/agents.ts, agents:list).
   // again: a look behind a list already shown, dropped when an install began meanwhile (it marks its own row).
   const fetchAgents = async (cached = false, again = false) => {
-    const r = await kulisa.invoke<{ list: Agent[] | null; home: string }>('agents:list', { ...(opts.details ? { details: true } : { check: true }), cached });
+    const r = await kulisa.invoke('agents:list', { ...(opts.details ? { details: true } : { check: true }), cached });
     if (!r.list || (again && state.installing)) return false;
     state.agents = r.list; state.home = r.home;
     return true;
@@ -72,13 +71,13 @@ export function agentList(opts: { choose?: boolean; details?: boolean; installed
       void nextTick(() => { const pre = state.el?.querySelector('pre'); if (pre) pre.scrollTop = pre.scrollHeight; });
     };
     Object.assign(state, { showDetails: true, detailsOpen: false, log: '', error: '', progress: `Installing ${a.name}…` });
-    const r = await kulisa.invoke<{ installed?: boolean; error?: string; code?: number }>('agents:install', { id });
+    const r = await kulisa.invoke('agents:install', { id });
     state.installing = false;
     logTo = null;
-    a.installed = !!r.installed;
+    a.installed = !refused(r) && r.installed;
     state.progress = a.installed ? opts.installed(a) : '';
     if (!a.installed) {
-      state.error = `${a.name} was not installed (${r.error || `the installer ended with code ${r.code}`}). What the installer said is under Details: try again, or choose another agent.`;
+      state.error = `${a.name} was not installed (${refused(r) ? r.error : `the installer ended with code ${r.code}`}). What the installer said is under Details: try again, or choose another agent.`;
       state.detailsOpen = true;
     }
     // Where it went and its version.

@@ -22,7 +22,7 @@ const title = computed(() => {
     + (not.length ? ` ${not.join(', ')} ${not.length > 1 ? 'have' : 'has'} no language setting yet.` : '');
 });
 async function choose(code: string) {
-  const r = await kulisa.invoke<{ error?: string }>('language:set', code);
+  const r = await kulisa.invoke('language:set', code);
   if (r?.error) await ask({ message: 'The language was not changed', detail: r.error });
 }
 </script>
@@ -45,7 +45,7 @@ async function choose(code: string) {
 </template>
 
 <style>
-/* The language chosen at the row's end, as a select shows it; the menu beside it scrolls when the window is low. */
+/* The language chosen at the row's end, as a select shows it; the menu beside it no taller than about 18 rows. */
 .menu .languagerow { .value { color: var(--text-dim); } .more { --icon: 14px; color: var(--text-dim); } }
-.menu.languages { max-height: min(60vh, 520px); overflow-y: auto; }
+.menu.languages { max-height: min(60vh, 520px, var(--reka-popper-available-height)); }
 </style>

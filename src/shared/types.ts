@@ -1,5 +1,5 @@
 // What the main process sends the window (window.ts, profiles.ts, tasks.ts), as the window uses it: the one
-// definition, which the main process's answers are typed with too.
+// definition, which the main process's answers are typed with too; the channels it comes by: ipc.ts.
 
 // A page's alert or confirm (profiles.ts, Profile._dialog), shown in its pane.
 interface PageDialog { id: number; type: 'alert' | 'confirm'; message: string; from: string; picture: string | null }
@@ -20,6 +20,7 @@ type AgentState = 'working' | 'waiting' | 'done' | null;
 export interface Terminal {
   id: number; name: string; command: string; by: 'human' | 'agent'; state: AgentState;
   agent: { account: string; cli: string; name: string } | null;
+  starting: boolean; // its program not started yet (an agent's looked for): a loader in its place
 }
 // The island: its tabs in order, the one in front (none: no terminal, the island folded to its +).
 // Kulisa's language (☰ → Language): the codes the agents' own settings take, and which agents have one.
@@ -45,10 +46,10 @@ export interface ProjectsInfo {
   open: { id: string; agents: { id: string; name: string; cli: string }[] }[];
   windows?: { id: number; name: string }[];
 }
-// The projects' manager (app.ts, project:*): what a project may be, its code, its profiles, its configuration.
+// The projects' manager (main/ipc/projects.ts): what a project may be, its code, its profiles, its configuration.
 // agents: every account (main/accounts.ts); clis: the agents a new account can be made of.
 // An agent's account (Settings → Agents: main/app.ts, accounts:list), with the names of the projects it is in.
-// A profile in Settings → Profiles (app.ts, profiles:list): who it is, its test login (never its password), its projects.
+// A profile in Settings → Profiles (main/ipc/profiles.ts): who it is, its test login (never its password), its projects.
 export interface SettingsProfile { id: string; name: string; avatar: string; description: string; login: string; hasPassword: boolean; projects: string[] }
 export interface Account { id: string; agent: string; name: string; email: string | null; projects: string[] }
 export interface AccountsInfo { accounts: Account[]; clis: string[] }
@@ -58,10 +59,17 @@ export interface ProjectChoices { agents: { id: string; name: string }[]; clis: 
 export interface ProjectRepo { folder: string; git: 'ok' | 'none' | 'no-commit' }
 export interface ProjectProfile { id: string; name: string; avatar: string; description?: string; also: string[] }
 export interface ProjectSettings extends ProjectChoices {
-  error?: string; name: string; folder: string; local?: string[]; repos: ProjectRepo[]; former?: string | null;
+  name: string; folder: string; local?: string[]; repos: ProjectRepo[]; former?: string | null;
   projectAgents: { id: string; name: string; default?: boolean }[]; profiles: ProjectProfile[]; others: ProjectProfile[];
 }
 // Kulisa's keyboard shortcuts (main/keys.ts), as this OS shows them.
 export interface Shortcut { id: string; group: string; label: string; keys: string[]; hold?: boolean } // hold: a key held alone, the human may change it
 // A question from the main process (shell.ask) or the window.
 export interface Question { message: string; detail?: string; ok?: string; other?: string; danger?: boolean }
+// An agent or account in a list to choose from or install (main/ipc/agents.ts; renderer's lib/agents.ts).
+export interface AgentInfo {
+  id: string; name: string; maker?: string; needs?: string; site?: string; install?: string | null; installed?: boolean;
+  account?: string | null; agent?: string; path?: string | null; onPath?: boolean | null; version?: string | null;
+}
+// A task's dictation (Task.voice): its agent has one, and whether it records; null: none.
+export interface Voice { recording: boolean }

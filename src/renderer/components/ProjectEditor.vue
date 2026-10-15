@@ -17,7 +17,9 @@ import { projectColor } from '../lib/project-color';
 import { focusAfterMenu, type MenuItem } from '../lib/menu';
 import { dialog, registerDialog } from '../lib/dialogs';
 import { agentList, agentMark, type Agent } from '../lib/agents';
-import type { Account, AccountsInfo, ProjectChoices, ProjectEntry, ProjectProfile, ProjectRepo, ProjectSettings, SettingsProfile, SignedIn } from '../types';
+import { refused } from '../../shared/result';
+import type { Result } from '../../shared/result';
+import type { Account, AccountsInfo, ProjectChoices, ProjectEntry, ProjectProfile, ProjectRepo, SettingsProfile, SignedIn } from '../../shared/types';
 
 const modal = ref<InstanceType<typeof Modal>>();
 // The page shown, of the tree's section; the agents' list lives here, so an install goes on while a project is shown,
@@ -52,7 +54,7 @@ const allProfiles = ref<SettingsProfile[]>([]), accounts = ref<Account[]>([]), c
 const showAccounts = (r: Partial<AccountsInfo>) => { if (r.accounts) accounts.value = r.accounts; if (r.clis) clis.value = r.clis; };
 // Again after a change on a project's page (a profile or an account made there, a project renamed).
 async function lists() {
-  const [p, a] = await Promise.all([kulisa.invoke<{ profiles: SettingsProfile[] }>('profiles:list'), kulisa.invoke<AccountsInfo>('accounts:list')]);
+  const [p, a] = await Promise.all([kulisa.invoke('profiles:list'), kulisa.invoke('accounts:list')]);
   allProfiles.value = p.profiles; showAccounts(a);
 }
 
@@ -83,12 +85,12 @@ function choose(e: { detail: { value?: Node }; preventDefault(): void }) {
 const mark = (a: Agent) => agentMark(a.agent || a.id, null);
 
 async function showList() {
-  projects.value = (await kulisa.invoke<{ projects: ProjectEntry[] }>('projects:list')).projects;
+  projects.value = (await kulisa.invoke('projects:list'))!.projects;
 }
 async function edit(id: string) {
   await saveLook();
-  const c = await kulisa.invoke<ProjectSettings>('project:settings-get', { id });
-  if (c.error) { editing.value = null; return showList(); }
+  const c = await kulisa.invoke('project:settings-get', { id });
+  if (refused(c)) { editing.value = null; return showList(); }
   editing.value = id;
   name.value = c.name; error.value = '';
   codeError.value = ''; agentError.value = ''; profileError.value = ''; signing.value = null; adding.value = '';
@@ -108,7 +110,7 @@ async function edit(id: string) {
 async function openProjects(id?: string, on: Section = 'projects', at?: string) {
   void agentsList.load(undefined, async () => {});
   await lists();
-  const { project: current, projects: all } = await kulisa.invoke<{ project: string | null; projects: ProjectEntry[] }>('projects:list');
+  const { project: current, projects: all } = (await kulisa.invoke('projects:list'))!;
   const pick = id || current || all[0]?.id;
   if (pick) await edit(pick); else { editing.value = null; await showList(); }
   if (on === 'profiles') profileAt.value = allProfiles.value.some((p) => p.id === at) ? at : allProfiles.value[0]?.id;
@@ -135,7 +137,7 @@ async function saveLook() {
   const id = editing.value, now = lookNow();
   if (!id || now === saved || !name.value.trim()) return;
   saved = now;
-  const r = await kulisa.invoke<{ error?: string } | null>('project:settings', { id, ...JSON.parse(now) });
+  const r = await kulisa.invoke('project:settings', { id, ...JSON.parse(now) });
   error.value = r?.error || '';
   if (r?.error) saved = '';
   else if (editing.value === id) await Promise.all([showList(), lists()]);
@@ -144,7 +146,7 @@ function closed() { adding.value = ''; stopNewProfile(); return saveLook(); }
 // Delete Project…, here alone (the author, 2026-10-11): asked first (projects.ts, askDeleteProject), closed if open;
 // then Settings goes on to the one shown, or another project.
 async function deleteProject(id: string) {
-  const r = await kulisa.invoke<{ error?: string } | null>('project:delete', { id });
+  const r = await kulisa.invoke('project:delete', { id });
   if (!r?.error) await openProjects(editing.value !== id ? editing.value! : undefined, tab.value);
 }
 
@@ -160,9 +162,9 @@ async function startNewProfile() {
 function stopNewProfile() { makingProfile.value = false; newProfileName.value = ''; profilesError.value = ''; }
 async function createProfile() {
   if (!newProfileName.value.trim()) return newProfileField.value!.focus();
-  const r = await kulisa.invoke<{ profiles?: SettingsProfile[]; id?: string; error?: string }>('profiles:new', { name: newProfileName.value });
-  if (r.error) { profilesError.value = r.error; return; }
-  allProfiles.value = r.profiles!;
+  const r = await kulisa.invoke('profiles:new', { name: newProfileName.value });
+  if (refused(r)) { profilesError.value = r.error; return; }
+  allProfiles.value = r.profiles;
   stopNewProfile();
   tab.value = 'profiles'; profileAt.value = r.id;
 }
@@ -172,8 +174,8 @@ function profileChanged(r: { profiles: SettingsProfile[]; id?: string }) {
 }
 async function deleteProfile(id: string) {
   profilesError.value = '';
-  const r = await kulisa.invoke<{ profiles?: SettingsProfile[]; error?: string }>('profiles:delete', { profile: id });
-  if (r.error) profilesError.value = r.error; else if (r.profiles) allProfiles.value = r.profiles;
+  const r = await kulisa.invoke('profiles:delete', { profile: id });
+  if (refused(r)) profilesError.value = r.error ?? ''; else allProfiles.value = r.profiles;
 }
 
 // Agents' +: a new account of one of them, signed in on its page.
@@ -212,17 +214,19 @@ function deleteChosen() {
 // A list's row a right-click was on: selected, and its actions.
 const rowAt = (e: MouseEvent, attr: string) => (e.target as Element).closest<HTMLElement>(`[${attr}]`)?.getAttribute(attr) ?? null;
 
-async function code(channel: string, args: Record<string, unknown>) {
+// A change to its code, what the manager answers (main/ipc/projects.ts, project:repo-*).
+async function code(answer: Promise<Result<{ repos?: ProjectRepo[]; former?: string | null }>>) {
   codeError.value = '';
-  const r = await kulisa.invoke<{ error?: string; repos?: ProjectRepo[]; former?: string | null } | null>(channel, { id: editing.value, ...args });
-  if (r?.error) codeError.value = r.error;
-  else if (r?.repos) { repos.value = r.repos; if ('former' in r) former.value = r.former || null; }
+  const r = await answer;
+  if (refused(r)) codeError.value = r.error;
+  else if (r.repos) { repos.value = r.repos; if ('former' in r) former.value = r.former || null; }
   return r;
 }
+const id = () => editing.value!; // the project shown: every change is made on its page
 // The selection goes with its row, not when the row stays (refused, or a no to the question).
-const removeRepo = (folder = repoSel.value) => folder && code('project:repo-remove', { folder })
+const removeRepo = (folder = repoSel.value) => folder && code(kulisa.invoke('project:repo-remove', { id: id(), folder }))
   .then(() => { if (!repos.value.some((r) => r.folder === repoSel.value)) repoSel.value = undefined; });
-const defaultRepo = (folder = repoSel.value) => folder && code('project:repo-default', { folder });
+const defaultRepo = (folder = repoSel.value) => folder && code(kulisa.invoke('project:repo-default', { id: id(), folder }));
 const repoMenu = (e: MouseEvent): MenuItem[] | null => {
   const f = rowAt(e, 'data-folder');
   if (!f) return null;
@@ -234,23 +238,22 @@ const repoMenu = (e: MouseEvent): MenuItem[] | null => {
 async function clone() {
   if (!cloneUrl.value.trim()) return url.value!.focus();
   cloning.value = true;
-  if (!(await code('project:repo-clone', { url: cloneUrl.value }))?.error) { cloneUrl.value = ''; adding.value = ''; }
+  if (!(await code(kulisa.invoke('project:repo-clone', { id: id(), url: cloneUrl.value })))?.error) { cloneUrl.value = ''; adding.value = ''; }
   cloning.value = false;
 }
-const codeMenu = (): MenuItem[] => [{ label: 'Add Folder…', run: () => code('project:repo-add', {}) },
+const codeMenu = (): MenuItem[] => [{ label: 'Add Folder…', run: () => code(kulisa.invoke('project:repo-add', { id: id() })) },
   { label: 'Clone from URL…', run: () => startAdding('clone') }];
 
 // Its agents (the agents and their accounts: main/accounts.ts), the default first: + runs it.
-async function agents(channel: string, args: Record<string, unknown>) {
+async function agents(answer: Promise<Result<{ agents: { id: string; name: string; default?: boolean }[] }>>) {
   agentError.value = '';
-  const r = await kulisa.invoke<{ error?: string; agents?: { id: string; name: string }[] } | null>(channel, { id: editing.value, ...args });
-  if (r?.agents) mine.value = r.agents;
-  if (r?.error) agentError.value = r.error;
+  const r = await answer;
+  if (refused(r)) agentError.value = r.error; else mine.value = r.agents;
 }
-const removeAgent = (agent = agentSel.value) => agent && agents('project:agent-remove', { agent })
+const removeAgent = (agent = agentSel.value) => agent && agents(kulisa.invoke('project:agent-remove', { id: id(), agent }))
   .then(() => { if (!mine.value.some((a) => a.id === agentSel.value)) agentSel.value = undefined; });
 // agent null: none is the default (its tasks start with the island's buttons).
-const defaultAgent = (agent: string | null) => agents('project:agent-default', { agent });
+const defaultAgent = (agent: string | null) => agents(kulisa.invoke('project:agent-default', { id: id(), agent }));
 const isDefault = (agent?: string) => !!agent && !!mine.value.find((a) => a.id === agent)?.default;
 const starAgent = () => agentSel.value && defaultAgent(isDefault(agentSel.value) ? null : agentSel.value);
 const agentRowMenu = (e: MouseEvent): MenuItem[] | null => {
@@ -262,7 +265,7 @@ const agentRowMenu = (e: MouseEvent): MenuItem[] | null => {
 };
 const addable = computed(() => choices.value.agents.filter((x) => !mine.value.some((m) => m.id === x.id)));
 const agentMenu = (): MenuItem[] => [
-  ...addable.value.map((x) => ({ label: x.name, run: () => agents('project:agent-add', { agent: x.id }) })),
+  ...addable.value.map((x) => ({ label: x.name, run: () => agents(kulisa.invoke('project:agent-add', { id: id(), agent: x.id })) })),
   ...(choices.value.clis.length ? [...(addable.value.length ? ['-' as const] : []), { heading: 'New Account' },
     ...choices.value.clis.map((c) => ({ label: `${c.name}…`, run: () => { agentError.value = ''; signing.value = c; } }))] : [])];
 // Signed in: the project's agents with it, and it among the accounts to add to other projects.
@@ -274,18 +277,18 @@ async function signedIn(r: SignedIn) {
 // Agents, → Profiles) meanwhile.
 async function agentsNow() {
   if (!editing.value) return;
-  const c = await kulisa.invoke<ProjectSettings>('project:settings-get', { id: editing.value });
-  if (!c.error) { choices.value = { ...choices.value, agents: c.agents }; mine.value = c.projectAgents; profiles.value = c.profiles; others.value = c.others; }
+  const c = await kulisa.invoke('project:settings-get', { id: editing.value });
+  if (!refused(c)) { choices.value = { ...choices.value, agents: c.agents }; mine.value = c.projectAgents; profiles.value = c.profiles; others.value = c.others; }
 }
 watch(tab, (t) => (t === 'projects' ? agentsNow() : lists()));
 
-async function profileChange(channel: string, args: Record<string, unknown>) {
+async function profileChange(answer: Promise<Result<{ profiles: ProjectProfile[]; others: ProjectProfile[] }>>) {
   profileError.value = '';
-  const r = await kulisa.invoke<{ error?: string; profiles?: ProjectProfile[]; others?: ProjectProfile[] } | null>(channel, { id: editing.value, ...args });
-  if (r?.error) profileError.value = r.error; else if (r?.profiles) { profiles.value = r.profiles; others.value = r.others || []; await lists(); }
+  const r = await answer;
+  if (refused(r)) profileError.value = r.error; else { profiles.value = r.profiles; others.value = r.others; await lists(); }
   return r;
 }
-const removeProfile = (profile = profileSel.value) => profile && profileChange('project:profile-remove', { profile })
+const removeProfile = (profile = profileSel.value) => profile && profileChange(kulisa.invoke('project:profile-remove', { id: id(), profile }))
   .then(() => { if (!profiles.value.some((p) => p.id === profileSel.value)) profileSel.value = undefined; });
 const profileRowMenu = (e: MouseEvent): MenuItem[] | null => {
   const p = rowAt(e, 'data-profile');
@@ -295,11 +298,11 @@ const profileRowMenu = (e: MouseEvent): MenuItem[] | null => {
 };
 async function addProfile() {
   if (!newName.value.trim()) return newProfile.value!.focus();
-  if (!(await profileChange('project:profile-new', { name: newName.value }))?.error) { newName.value = ''; adding.value = ''; }
+  if (!(await profileChange(kulisa.invoke('project:profile-new', { id: id(), name: newName.value })))?.error) { newName.value = ''; adding.value = ''; }
 }
 const profileMenu = (): MenuItem[] => [{ label: 'New Profile…', run: () => startAdding('profile') },
   ...(others.value.length ? ['-' as const, { heading: 'Other Profiles' }, ...others.value.map((p) => ({ label: p.name, sub: p.also.join(', ') || 'in no project',
-    avatar: p.avatar, run: () => profileChange('project:profile-add', { profile: p.id }) }))] : [])];
+    avatar: p.avatar, run: () => profileChange(kulisa.invoke('project:profile-add', { id: id(), profile: p.id })) }))] : [])];
 const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value = ''; };
 </script>
 

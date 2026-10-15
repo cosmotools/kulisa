@@ -11,7 +11,7 @@ import { assert, root, userData, project, pfile, panel, SITE, sleep, waitFor, wh
 import { withOffset } from '../src/main/tasks.ts';
 import { createWorktree } from '../src/main/worktrees.ts';
 import { sessionStart } from '../src/main/agent-hooks.ts';
-import { refused } from '../src/main/result.ts';
+import { refused } from '../src/shared/result.ts';
 import type { Test, Ctx } from './run.ts';
 import type { UI } from './helpers.ts';
 import type { TaskTerminal } from '../src/main/tasks.ts';
@@ -100,7 +100,28 @@ export default (test: Test) => {
     const first = shell.task;
     await call('browser_navigate', { profile: 'sam-admin', url: `${SITE}/app?task` });
     const firstSam = first.profiles.get('sam-admin');
+    // The island's buttons are for a task with nothing open: a task opening shows its agent's tab at once, starting,
+    // not them for the second its agent is looked for (they did, 2026-10-15).
+    await ui(`window.__launch = false; window.__starting = ''; new MutationObserver(() => { window.__launch ||= !!document.querySelector('#dock .launch');
+      window.__starting ||= document.querySelector('#dock .starting')?.textContent; })
+      .observe(document.body, { childList: true, subtree: true })`);
+    const find = shell.findAgent; // looking for it takes the user's login shell, slower on the human's computer than here
+    let found = false;
+    shell.findAgent = async (...a) => { await sleep(1000); const r = await find(...a); found = true; return r; };
+    // Its agent waits for its terminal's size however late the window lays the island out: it started at a default one
+    // after 5 s, which GitHub's runner reached (2026-10-15). The island hidden for 6 s after the agent is found: what is
+    // tested is that it waits longer than it used to, which only time shows.
+    await ui(`document.head.append(Object.assign(document.createElement('style'), { id: 'lateIsland', textContent: '.term { display: none !important; }' }))`);
+    const sent = await ui('window.__ptySizes.length');
+    const late = (async () => { await waitFor(() => found, 10000); await sleep(6000); await ui(`document.getElementById('lateIsland').remove()`); })();
     const task = await newTask(ctx);
+    await late;
+    shell.findAgent = find;
+    await waitFor(async () => (await ui('window.__ptySizes.length')) > sent);
+    assert.deepEqual(task.pty.spawnSize, await ui(`window.__ptySizes[${sent}]`), 'at its real size');
+    assert.equal(await ui('window.__launch'), false, "no island's buttons while its agent starts");
+    assert.match(await ui('window.__starting'), /^Starting .+…$/, 'its tab, starting');
+    await waitFor(async () => !(await ui(`!!document.querySelector('.terminals .starting')`))); // then its terminal
     const wt = `${project}@task-2`;
     assert.equal(task.n, 2);
     assert.equal(task.name, 'task-2');
@@ -352,12 +373,13 @@ export default (test: Test) => {
 
   test('tasks: switching slides the grid towards the other tab (a view transition); then the pages are live again', async ({ shell, ui }) => {
     // The transition's types (which way), and the grid's own slide as it runs: an animation of 0 s, as the CSS minifier
-    // once made it, left the two grids' pictures one over the other (Grid.vue).
+    // once made it, left the two grids' pictures one over the other; out past the window's margin, not lingering at its
+    // edge (Grid.vue).
     const swap = (n: number) => ui(`(async () => {
       const start = document.startViewTransition.bind(document); let seen;
       document.startViewTransition = (o) => { const t = start(o); t.ready.then(() => { seen = { types: [...t.types],
         animations: document.getAnimations().filter((a) => ['::view-transition-old(grid)', '::view-transition-new(grid)'].includes(a.effect?.pseudoElement) && a.effect.getTiming().duration > 0)
-          .map((a) => a.animationName).sort() }; }); return t; };
+          .map((a) => { const [from, to] = a.effect.getKeyframes(); return [a.animationName, from.translate === 'none' ? to.translate : from.translate, from.easing].join(' '); }).sort() }; }); return t; };
       await kulisa.invoke('task:show', 'project/${n}');
       await new Promise((r) => setTimeout(r, 800));
       delete document.startViewTransition; // the document's own again
@@ -365,10 +387,34 @@ export default (test: Test) => {
     })()`);
     const live = async () => (await ui(`document.querySelectorAll('img.snapshot').length`)) === 0 && viewOn(shell, ui, 'sam-admin');
     let seen = await swap(2);
-    assert.deepEqual(seen.types, ['next']); assert.deepEqual(seen.animations, ['grid-from-right', 'grid-to-left'], 'it slides');
+    assert.deepEqual(seen.types, ['next']); assert.deepEqual(seen.animations, ['grid-from-right calc(100% + 8px) cubic-bezier(0.4, 0, 0.2, 1)', 'grid-to-left calc(-100% - 8px) cubic-bezier(0.4, 0, 0.2, 1)'], 'it slides');
     await waitFor(live);
+    // A page that draws no frame (busy, covered) holds the slide's start no longer than three times what the others
+    // take (a tenth of a second at least), its pane then empty: half a second was felt after each click (2026-10-15).
+    // Their pace, not a fixed time: GitHub's runner took over a tenth of a second for a picture, and no pane had one.
+    const tab = shell.profiles.get('sam-admin').get(), elon = shell.profiles.get('elon-buyer').get().wc, its = elon.capturePage;
+    let took = 0;
+    tab.wc.capturePage = () => new Promise(() => {});
+    elon.capturePage = (...a) => its.apply(elon, a).then((img) => { took = Date.now() - t0; return img; });
+    const t0 = Date.now(), pics = await shell.windows[0].pictures(), all = Date.now() - t0;
+    delete tab.wc.capturePage; delete elon.capturePage; // their prototypes' again
+    assert.ok(took && all < Math.max(100, 3 * took) + 150, `pictures in ${all} ms, the other's in ${took} ms`);
+    assert.ok(!pics['sam-admin'] && pics['elon-buyer'], 'the others taken');
     seen = await swap(1);
-    assert.deepEqual(seen.types, ['previous']); assert.deepEqual(seen.animations, ['grid-from-left', 'grid-to-right']);
+    assert.deepEqual(seen.types, ['previous']); assert.deepEqual(seen.animations, ['grid-from-left calc(-100% - 8px) cubic-bezier(0.4, 0, 0.2, 1)', 'grid-to-right calc(100% + 8px) cubic-bezier(0.4, 0, 0.2, 1)']);
+    await waitFor(live);
+    // A menu opened while the grid still slides keeps the pages under it pictures: the slide's end showed them over it.
+    const sliding = () => ui(`document.documentElement.matches(':active-view-transition')`);
+    await ui(`void kulisa.invoke('task:show', 'project/2')`);
+    await waitFor(sliding);
+    await ui(`document.getElementById('windowMenu').click()`);
+    await waitFor(() => menuOpen(ui));
+    await waitFor(async () => !(await sliding()));
+    await sleep(100); // what the slide's end did, which must not show them
+    assert.ok([...shell.profiles.values()].every((p) => !p.get().view.getVisible()), 'the pages stay under the menu');
+    await closeMenu(ui);
+    await waitFor(live);
+    await swap(1);
     await waitFor(live);
   });
   test('tasks: Ctrl+Shift+2 shows the second, Ctrl+Shift+PgUp and PgDn the one before and after, from the terminal too', async ({ shell, ui }) => {
@@ -385,6 +431,73 @@ export default (test: Test) => {
     await shown(2);
     await click(ui, taskTab(1));
     await shown(1);
+  });
+  test("tasks: more tabs than the bar holds: each keeps its name readable, a mouse's wheel scrolls them, a faded edge says some are past it, the shown one stays in sight; in the title bar the window is still dragged after +", async ({ shell, ui }) => {
+    // Two tabs, the bar narrowed to less than they take: as thirty tabs in a window (found with 30 tasks, 2026-10-15:
+    // every tab read "task…", the wheel did nothing, nothing said 17 were out of sight).
+    const strip = `document.querySelector('#projectTabs')`;
+    const bar = () => ui(`(() => { const s = ${strip}, a = s.querySelector('.active').getBoundingClientRect(), b = s.getBoundingClientRect();
+      return { left: Math.round(s.scrollLeft), max: s.scrollWidth - s.clientWidth, fade: ['past-start', 'past-end'].filter((e) => s.classList.contains(e)).join(' '), inSight: a.left >= b.left && a.right <= b.right }; })()`);
+    const frame = () => ui(`new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))`);
+    assert.equal((await bar()).fade, '', 'all fit: no edge fades');
+    await click(ui, taskTab(2));
+    await waitFor(() => shell.task.n === 2 && !shell.windows[0].switching);
+    await ui(`document.querySelector('#taskbar').style.maxWidth = '300px'`);
+    await waitFor(async () => (await bar()).max > 0 && (await bar()).inSight);
+    assert.deepEqual(await ui(`[...document.querySelectorAll('#projectTabs .tasktab')].map((t) => { const n = t.querySelector('.name'); return [t.getBoundingClientRect().width, n.scrollWidth <= n.clientWidth]; })`),
+      [[160, true], [160, true]], 'at their narrowest, the names whole');
+    let now = await bar();
+    assert.deepEqual([now.left, now.fade], [now.max, 'past-start'], 'brought into view when the bar narrowed; only the edge with a tab past it fades');
+    // The wheel turns up and down; the bar scrolls sideways.
+    await waitFor(() => ui(`!document.documentElement.matches(':active-view-transition')`)); // the slide's pictures over the window take every event
+    const b = await ui(`${strip}.getBoundingClientRect().toJSON()`), z = shell.win.webContents.getZoomFactor();
+    const at = { x: Math.round((b.x + b.width / 2) * z), y: Math.round((b.y + b.height / 2) * z) };
+    shell.win.webContents.sendInputEvent({ type: 'mouseWheel', ...at, deltaX: 0, deltaY: 400 }); // up: towards the start
+    await waitFor(async () => (await bar()).left === 0);
+    await waitFor(async () => (await bar()).fade === 'past-end'); // scrolled to the start: the other edge fades
+    assert.equal((await bar()).inSight, false, 'the bar stays where the wheel took it');
+    // In the title bar: the tabs give way before the space after + that drags the window (Chrome's), however many. The
+    // tabs scrolled past the bar's edges are no-drag over the logo and that space too (Chromium does not clip them to
+    // the bar) and the last region in the page wins: so both come after the bar, the logo shown first all the same (a
+    // window not dragged by either, 2026-10-15: a real drag of the window is the OS's, out of a test's reach).
+    await ui(`kulisa.invoke('bar:set', 'top')`);
+    await waitFor(() => ui(`!!document.querySelector('#topbar #projectTabs')`));
+    await ui(`document.querySelectorAll('#projectTabs .tasktab').forEach((t) => { t.style.minWidth = t.style.maxWidth = '1000px'; })`); // the bar drawn anew: tabs as wide as many
+    await frame();
+    assert.deepEqual(await ui(`(() => { const q = (s) => document.querySelector(s), r = (s) => q(s).getBoundingClientRect(), s = ${strip};
+      const after = (s) => !!(q('#taskbar').compareDocumentPosition(q(s)) & Node.DOCUMENT_POSITION_FOLLOWING) && getComputedStyle(q(s)).appRegion;
+      return [s.scrollWidth > s.clientWidth, r('#topbar .drag').width >= 40, r('#manageProjects').left - r('#newTask').right >= 40, after('#topbar .logo'), after('#topbar .drag'), r('.logo').right <= r('#taskbar').left]; })()`),
+      [true, true, true, 'drag', 'drag', true], 'the tabs overflow, 40 px left to drag by; it and the logo after the bar in the page, the logo before it on screen');
+    assert.ok((await bar()).inSight, 'the shown one in sight, the bar drawn anew there');
+    await ui(`kulisa.invoke('bar:set', 'bottom')`);
+    await waitFor(() => ui(`!document.querySelector('#topbar #projectTabs') && !!document.querySelector('#projectTabs')`));
+    await click(ui, taskTab(1));
+    await waitFor(() => shell.task.n === 1 && !shell.windows[0].switching);
+  });
+  test("tasks: a press on a tab not shown chooses it at once, as Chrome's; its task is shown when the button is let go or the tab starts being dragged, so it can be dragged", async ({ shell, ui }) => {
+    // The slide that showing a task starts made Chromium drop a drag about to begin: a tab not shown could not be
+    // dragged, its press only showed it (2026-10-15). One begun goes on through the slide.
+    const wc = shell.win.webContents, z = wc.getZoomFactor();
+    const press = async (type: 'mouseDown' | 'mouseUp', n: number) => {
+      const b = await ui(`${taskTab(n)}.querySelector('.name').getBoundingClientRect().toJSON()`);
+      wc.sendInputEvent({ type, x: Math.round((b.x + b.width / 2) * z), y: Math.round((b.y + b.height / 2) * z), button: 'left', clickCount: 1 });
+    };
+    const chosen = () => ui(`document.querySelector('#projectTabs .tasktab.active').dataset.task.split('/').pop()`);
+    await waitFor(() => ui(`!document.documentElement.matches(':active-view-transition')`)); // the slide's pictures over the window take every event
+    await press('mouseDown', 2);
+    await waitFor(async () => (await chosen()) === '2');
+    await sleep(200); // nothing to wait for: that it is not shown yet
+    assert.equal(shell.task.n, 1, 'not shown while the button is down');
+    await press('mouseUp', 2);
+    await waitFor(() => shell.task.n === 2 && !shell.windows[0].switching);
+    await waitFor(() => ui(`!document.documentElement.matches(':active-view-transition')`));
+    // A drag begins: Chromium cancels the pointer (a real drag of a tab is the OS's, out of a test's reach).
+    await press('mouseDown', 1);
+    await waitFor(async () => (await chosen()) === '1');
+    await ui(`dispatchEvent(new PointerEvent('pointercancel', { pointerType: 'mouse' }))`);
+    await waitFor(() => shell.task.n === 1 && !shell.windows[0].switching);
+    await press('mouseUp', 1);
+    await ui(`document.activeElement.blur()`); // a real press leaves the keyboard on the tab (Reka's); the next tests' dialogs take it from nothing
   });
   test('tasks: × closes a task: its agent stops and its tabs close, all else stays; asked first only while its agent works; its group\'s menu opens it again, its conversation resumed', async (ctx) => {
     const { shell, ui, call } = ctx;
@@ -423,8 +536,19 @@ export default (test: Test) => {
     const rows = await plusMenu(ui);
     assert.deepEqual(rows.slice(rows.indexOf('project'), rows.indexOf('project') + 2), ['project', '  task-3']);
     await closeMenu(ui);
-    await plusMenu(ui, 'project', 'task-3');
-    await waitFor(() => shell.task === task && task.loaded && shell.pty);
+    // Its grid comes before its profiles have started (their cookies, tabs, automation: a site's answer away), its agent
+    // after them, as it finds them ready; the window waited for them all, one after another (2026-10-15).
+    const restore = shell.sessionCookies.restore;
+    let started = false;
+    shell.sessionCookies.restore = async (p) => { await sleep(1500); const n = await restore.call(shell.sessionCookies, p); started = true; return n; };
+    try {
+      await plusMenu(ui, 'project', 'task-3');
+      await waitFor(() => shell.task === task && !shell.windows[0].switching); // its state sent to the window
+      assert.equal(started, false, 'the grid before its profiles started');
+      await waitFor(() => ui(`!!document.querySelector('.pane[data-profile="sam-admin"]') && !document.documentElement.classList.contains('loading')`));
+      await waitFor(() => task.loaded && shell.pty, 10000);
+      assert.equal(started, true, 'its agent after them');
+    } finally { shell.sessionCookies.restore = restore; }
     ctx.watchPty(shell.pty);
     assert.equal(shell.resumedSession, 's-3');
     await waitFor(async () => JSON.stringify(await tabs(ui)) === '["task-1","Feature-X","task-3 *"]');
@@ -534,7 +658,7 @@ export default (test: Test) => {
     await ui(agentRow('fake', '.install') + '.click()');
     await waitFor(async () => (await ui(agentRow('fake', '.status') + '.textContent')) === 'Installed', 10000);
     assert.match(await ui(`document.querySelector('#agentpage .progress').textContent`), /^Fake agent is installed\. Make an account of it below/);
-    assert.equal(await ui(`document.querySelector('#agentpage .details .more').dataset.state`), 'closed', "the installer's own output only under Details");
+    assert.equal(await ui(`document.querySelector('#agentpage .details .disclose').dataset.state`), 'closed', "the installer's own output only under Details");
     assert.match(await ui(`document.querySelector('#agentpage pre').textContent`), /installing the fake agent\s+done/);
     assert.doesNotMatch(await ui(`document.querySelector('#agentpage pre').textContent`), /\x1b/, 'no terminal codes: colors, links');
     assert.equal(await ui(`document.querySelector('#agentpage [data-accounts="fake"] .accountnew').disabled`), false);
@@ -597,6 +721,14 @@ export default (test: Test) => {
         above: s.getBoundingClientRect().bottom <= document.querySelector('.terminals').getBoundingClientRect().top }; })()`);
     await waitFor(tiles);
     assert.deepEqual(await tiles(), { names: PROFILES, above: true });
+    // More than fit (19 profiles): the row scrolls, its end faded, the window as wide as before: the row stretched the
+    // window's column, the terminal and the tasks' bar past its edge, the last profiles out of reach (2026-10-15).
+    await ui(`(() => { const s = document.getElementById('closedprofiles'); for (let i = 0; i < 20; i++) s.append(s.querySelector('.launcher').cloneNode(true)); })()`);
+    await waitFor(() => ui(`document.getElementById('closedprofiles').classList.contains('past-end')`));
+    assert.deepEqual(await ui(`(() => { const s = document.getElementById('closedprofiles'), r = (e) => e.getBoundingClientRect();
+      return [s.scrollWidth > s.clientWidth, r(s).right <= innerWidth, r(document.querySelector('.terminals')).right <= innerWidth, document.documentElement.scrollWidth <= innerWidth]; })()`),
+      [true, true, true, true]);
+    await ui(`document.querySelectorAll('#closedprofiles .launcher').forEach((t, i) => { if (i >= ${PROFILES.length}) t.remove(); })`);
     await ui(`document.querySelector('#closedprofiles [data-profile="sam-admin"]').click()`);
     await waitFor(async () => task.profiles.has('sam-admin') && !(await tiles()));
     await ctx.call('profile_close', { profile: 'sam-admin' });
@@ -1420,6 +1552,14 @@ export default (test: Test) => {
     ctx.asked.length = 0;
   });
 
+  test("menus: one longer than the window has stays in it and scrolls, as the bar's + with thirty closed tasks", async ({ ui }) => {
+    // It ran past the window's edge: under the grid its project's row, the new task, out of reach above (2026-10-15).
+    await plusMenu(ui);
+    await ui(`(() => { const m = ${MENU}, row = m.querySelector('.item'); for (let i = 0; i < 60; i++) m.append(row.cloneNode(true)); })()`); // as many rows as thirty closed tasks and more
+    assert.deepEqual(await ui(`new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => { const m = ${MENU}, b = m.getBoundingClientRect();
+      r([b.top >= 0, b.bottom <= innerHeight, m.scrollHeight > m.clientHeight]); })))`), [true, true, true]);
+    await closeMenu(ui);
+  });
   test("tasks: a closed task is deleted from its row, 🗑 or Delete, in the bar's +, its project loaded or not, after the question Delete Task… asks", async (ctx) => {
     // About 2 s: git's work (worktrees made and removed).
     const { shell, ui } = ctx;
@@ -1817,6 +1957,16 @@ export default (test: Test) => {
     await choose(ui, 'New Conversation');
     await waitFor(async () => JSON.stringify(await tabs()) === '["bash","Pay with cards","Fake agent","bash 2 *"]' && newest().pty, 20000);
     assert.deepEqual(conversations().map((c: { agent: string }) => c.agent), ['custom', a.id, b.id, b.id, b.id, 'custom']);
+    // Its program not found: its tab came at once, starting, and the human is asked for another; none chosen, it goes.
+    const bin = path.join(root, 'bin', 'kulisa-fake-agent');
+    fs.renameSync(bin, `${bin}.away`);
+    try {
+      await ui(`void act('terminal:open', { agent: '${a.id}' })`); // it answers once the human has chosen
+      await waitFor(() => ui(`document.querySelector('.terminals .starting')?.textContent === 'Starting Fake agent 2…'`)); // numbered: a's other tab is open
+      await waitFor(() => ui(`!!document.getElementById('agentcancel')?.checkVisibility()`));
+      await ui(`document.getElementById('agentcancel').click()`);
+      await waitFor(async () => JSON.stringify(await tabs()) === '["bash","Pay with cards","Fake agent","bash 2 *"]' && !(await ui(`!!document.querySelector('.terminals .starting')`)));
+    } finally { fs.renameSync(`${bin}.away`, bin); }
 
     // All closed, no profile open: the big buttons, an account's email under its agent's name, no keys; the first has
     // the keyboard, Tab moves to the next, Enter opens it.

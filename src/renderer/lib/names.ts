@@ -1,6 +1,6 @@
-// Name fields (data-name: projects, tasks, profiles) take only the characters names may have (main/names.ts, which
+// Name fields (data-name: projects, tasks, profiles) take only the characters names may have (shared/names.ts, which
 // checks them again): others are left out as they are typed or pasted.
-import { nameChar } from '../../main/names';
+import { nameChar } from '../../shared/names';
 
 document.addEventListener('beforeinput', (e) => {
   const input = e.target as HTMLInputElement;

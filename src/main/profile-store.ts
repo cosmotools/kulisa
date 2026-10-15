@@ -14,10 +14,10 @@
 //   profiles/Profile <k>/ its master
 import fs from 'fs';
 import path from 'path';
-import { slugOf, nameError } from './names.ts';
+import { slugOf, nameError } from '../shared/names.ts';
 import { writeFileAtomic } from './store.ts';
-import { AVATARS } from './avatars.ts';
-import type { Result } from './result.ts';
+import { AVATARS } from '../shared/avatars.ts';
+import type { Result } from '../shared/result.ts';
 
 // A profile as the store keeps it.
 interface StoredProfile {

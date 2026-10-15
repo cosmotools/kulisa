@@ -11,7 +11,9 @@ import { scheduleLayout } from './grid';
 // window left).
 export const dialogsOpen = shallowRef(0);
 const dialogs = new Set<() => void>(), menus = new Set<() => void>();
-const viewsCovered = () => dialogsOpen.value > 0 || store.loading;
+// A menu or a drag too (frozen): the pages stay pictures until it ends (unfreeze); a task's slide ending under a menu
+// showed them over it.
+const viewsCovered = () => dialogsOpen.value > 0 || store.loading || !!frozen;
 export const showViews = () => kulisa.invoke('views:hidden', viewsCovered());
 
 // Opened at once, as Reka expects (a right-click menu takes the pointer's place in the same turn); the pages follow.
@@ -44,13 +46,18 @@ addEventListener('blur', closeMenus);
 // Pictures of the pages for a menu or a drag; live again after.
 let frozen: Promise<void> | null = null;
 export function freeze() {
-  return (frozen ??= kulisa.invoke<Record<string, string>>('views:hidden', true, { snapshots: true }).then((pics) => { store.pictures = pics || {}; }));
+  return (frozen ??= kulisa.invoke('views:hidden', true, { snapshots: true }).then((pics) => { store.pictures = pics || {}; }));
 }
 export async function unfreeze() {
   if (!frozen) return;
   const f = frozen; frozen = null;
   await f;
   if (frozen) return; // a new drag or menu began meanwhile
+  await livePages();
+}
+// The pages live again in place of their pictures, unless a menu or a drag has them (it does so when it ends).
+export async function livePages() {
+  if (frozen) return;
   store.pictures = {};
   await showViews();
   scheduleLayout();

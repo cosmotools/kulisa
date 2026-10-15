@@ -3,7 +3,7 @@
 // the window's scripts were before Vite: the window's code is one bundle read from disk, a dialog's part of it a few
 // KB.
 
-import type { Terminal } from '../types';
+import type { Terminal } from '../../shared/types';
 
 export interface Dialogs {
   taskrename: { rename(key: string, name: string): void };

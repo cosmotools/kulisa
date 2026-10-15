@@ -2,7 +2,7 @@
 // monitor). Each window has a tab per task open in it (an island in its tasks' bar, in the bar's order, of any
 // projects), shows one of them (its grid and terminal), and asks its questions in its own dialog; the tasks behind its
 // other tabs keep running. What a window shows and asks is here. What the app has once (the store, the CDP proxy, the MCP server, the
-// agents, the windows, one change after another: serial) is app.ts's; what happens to projects and tasks,
+// agents, the windows) is app.ts's, the open tasks with their one change after another (serial) open-tasks.ts's; what happens to projects and tasks,
 // whichever window shows them, is the core's (projects.ts, tasks.ts).
 import { BrowserWindow, desktopCapturer, screen, shell as electronShell } from 'electron';
 import path from 'path';
@@ -13,7 +13,8 @@ import type { Rectangle, Point } from 'electron';
 import type { Shell } from './shell.ts';
 import type { Task } from './tasks.ts';
 import type { Profile, Bounds } from './profiles.ts';
-import type * as Sent from '../renderer/types.ts'; // what the window gets: its one definition
+import type * as Sent from '../shared/types.ts'; // what the window gets: its one definition
+import type { Arg, Events } from '../shared/ipc.ts';
 type Question = Sent.Question;
 
 // Where a window was ({ bounds, maximized }), or where a new one goes: next to a window (near), under a point (at).
@@ -35,7 +36,7 @@ let questions = 0, windows = 0;
 class AppWindow {
   shell: Shell; id: number; tabs: Task[]; current: Task | null; viewsHidden: boolean; switching: boolean;
   stateTimer: NodeJS.Timeout | undefined; picking: Map<string, { profile: Profile; page: import('playwright-core').Page; cancel: () => unknown }>;
-  answers: Map<number, (answer: string | null) => void>; loaded: boolean; pending: [string, unknown][]; keyZone: string;
+  answers: Map<number, (answer: string | null) => void>; loaded: boolean; pending: [string, unknown[]][]; keyZone: string;
   win: Electron.BrowserWindow; place: { bounds: Rectangle; maximized: boolean };
   // shell: the app (app.ts). place: where it was ({ bounds, maximized }, settings.json), or { near: a window } for a
   // new one of its size next to it, or under the pointer (at: a point on the screen, where a tab was let go).
@@ -54,7 +55,7 @@ class AppWindow {
     this.picking = new Map(); // profiles in pick mode (picker.ts), of the task on screen, by id
     this.answers = new Map(); // questions asked in it (ask), by id -> resolve
     this.loaded = false; this.pending = []; // what is sent before its page has loaded goes once it has
-    // Where the keyboard is in its page, for the keys (app.ts, keys.ts): 'window', 'terminal', 'dialog', or
+    // Where the keyboard is in its page, for the keys (shortcuts.ts, keys.ts): 'window', 'terminal', 'dialog', or
     // 'pane:<profile id>' (an address bar, a pane's toolbar), as the page tells.
     this.keyZone = 'window';
     if (near) {
@@ -128,11 +129,11 @@ class AppWindow {
       version: pkg.version, theme: this.shell.theme, bar: this.shell.bar, keys: JSON.stringify(this.shell.keys()),
       projects: JSON.stringify(this.info(shown)) } });
     this.loaded = true;
-    for (const [channel, data] of this.pending.splice(0)) this.send(channel, data);
+    for (const [channel, data] of this.pending.splice(0)) this.win.webContents.send(channel, ...data);
   }
-  send(channel: string, data?: unknown) {
+  send<C extends keyof Events>(channel: C, ...data: Arg<Events[C]>) {
     if (this.win.isDestroyed()) return;
-    if (this.loaded) this.win.webContents.send(channel, data); else this.pending.push([channel, data]);
+    if (this.loaded) this.win.webContents.send(channel, ...data); else this.pending.push([channel, data]);
   }
 
   // The projects (store.ts), its tabs in order (each task with what its agent does), the one shown (shown: the one
@@ -196,15 +197,18 @@ class AppWindow {
     await this.showLoaded();
   }
   // The shown task: its profiles loaded (the first time it is shown), the page's grid built from its state
-  // (the terminals' island included, even with no profiles), then its terminals started at the island's size.
+  // (the terminals' island included, even with no profiles; its tabs too, each starting), then its terminals started at
+  // the island's size.
   async showLoaded() {
     const task = this.task!;
-    if (!task.loaded) await task.loadProfiles();
+    if (!task.loaded) task.loadProfiles();
     this.switching = false;
+    // Not waited for: the human may first have to choose the agent (or switch away meanwhile). Its tabs come at once,
+    // each starting, so the grid comes with them, not with the island's buttons.
+    const terminals = task.loadTerminals();
     this.pushState();
     this.seen();
-    // Not waited for: the human may first have to choose the agent (or switch away meanwhile).
-    task.loadTerminals().catch((e) => console.error('[agent]', e));
+    terminals.catch((e) => console.error('[agent]', e));
   }
   // The page takes the grid down; it gets the next task's state once its profiles are loaded. dir: where the
   // next one is (1 right, -1 left, in the tasks' bar; 0 none, the window is left with no task), for the page
@@ -261,27 +265,39 @@ class AppWindow {
   }
   // JPEG: a picture shown for a moment, encoded three times faster than PNG (measured 2026-10-07). A page that draws no
   // frame (covered, the monitor off, busy) gives none: its pane is empty meanwhile. Waiting for it held every menu
-  // after it closed (the menus' tests failed now and then, 2026-10-07).
+  // after it closed (the menus' tests failed now and then, 2026-10-07), and half a second it held a task's slide after
+  // the click. How long a picture takes is the computer's (2–7 ms on the author's, over a hundred on GitHub's runner,
+  // where a fixed tenth of a second left every pane empty, 2026-10-15), so the pages set the pace: once the first has
+  // answered, the rest get three times as long, a tenth of a second at least; none answering, half a second.
   async pictures() {
-    const pics: Record<string, string> = {};
-    const later = (ms: number) => new Promise<null>((ok) => setTimeout(ok, ms, null));
+    const pics: Record<string, string> = {}, t0 = Date.now();
+    let giveUp = () => {}, paced = false;
+    const gaveUp = new Promise<null>((ok) => { giveUp = () => ok(null); });
+    let timer = setTimeout(() => giveUp(), 500);
+    const pace = () => {
+      if (paced) return;
+      paced = true; clearTimeout(timer);
+      const took = Date.now() - t0;
+      timer = setTimeout(() => giveUp(), Math.max(100, 3 * took) - took);
+    };
     await Promise.all([...this.profiles.values()].filter((p) => p.visible() && p.get() && !p.get()!.discarded && !p.get()!.wc.isDestroyed()).map(async (p) => {
-      const img = await Promise.race([p.get()!.wc.capturePage(), later(500)]).catch((): null => null);
+      const img = await Promise.race([p.get()!.wc.capturePage().then((i) => { pace(); return i; }), gaveUp]).catch((): null => null);
       if (!img) return;
       pics[p.id] = `data:image/jpeg;base64,${img.toJPEG(90).toString('base64')}`;
     }));
+    paced = true; clearTimeout(timer); // a picture given up on may still come
     return pics;
   }
   // Where the grid puts each pane's page (key: the task the page laid out), in CSS pixels; the views are placed
   // in window pixels.
-  layout(key: string, rects: Record<string, Partial<Bounds> & { shown?: boolean }>) {
+  layout(key: string | null, rects: Record<string, Partial<Bounds> & { shown?: boolean }>) {
     if (key !== this.task?.key) return; // a task no longer on screen
     const z = this.win.webContents.getZoomFactor();
     for (const [id, r] of Object.entries(rects)) this.profiles.get(id)?.layout(r.shown === false ? r : Object.fromEntries(Object.entries(r).map(([k, v]) => [k, Math.round((v as number) * z)])));
   }
   // Any loaded task of this window: the grid's last change comes as it is taken down, and reaches here once the window
   // shows the next task.
-  saveLayout(key: string, layout: unknown) {
+  saveLayout(key: string | null, layout: unknown) {
     const task = this.tabs.find((t) => t.key === key);
     if (task?.loaded) task.store.saveLayout(layout);
   }

@@ -15,7 +15,7 @@ import { keyText } from './common';
 import { menuAt, type MenuItem } from './menu';
 import { agentMark } from './agents';
 import { dialog } from './dialogs';
-import type { Terminal as TerminalInfo } from '../types';
+import type { Terminal as TerminalInfo } from '../../shared/types';
 
 interface Entry { term: Terminal; el: HTMLElement; fit: FitAddon; serialize: SerializeAddon; opened: boolean; renderer?: 'dom' | 'webgl' }
 const terminals = new Map<string, Entry>(); // terminal key -> its xterm
@@ -127,7 +127,7 @@ export function forgetTerminals(keys: string[]) {
 // would be cut and its prompt drawn in pieces.
 export const terminalsOf = (task: string) => Object.fromEntries([...terminals].filter(([key]) => key.startsWith(`${task}#`))
   .map(([key, e]) => [key, { data: e.serialize.serialize(), cols: e.term.cols, rows: e.term.rows }]));
-kulisa.on<Record<string, { data: string; cols: number; rows: number }>>('terminals:restore', (list) => {
+kulisa.on('terminals:restore', (list) => {
   for (const [key, { data, cols, rows }] of Object.entries(list)) (terminals.get(key)?.term || makeTerminal(key, { cols, rows }).term).write(data);
 });
 
@@ -148,7 +148,7 @@ function fitTerminal(key: string, tries = 50) {
     kulisa.send('pty:resize', { task: key, ...size });
   }, 100));
 }
-kulisa.on<{ task: string; data: string }>('pty:out', ({ task, data }) => terminalOf(task).term.write(data));
+kulisa.on('pty:out', ({ task, data }) => terminalOf(task).term.write(data));
 kulisa.on('terminal:focus', () => shownTerm()?.focus());
 // The keyboard to a terminal, once its xterm is open (a new one opens when its font is there).
 export const termFocus = (key: string) => termFont.then(() => terminals.get(key)?.term.focus());

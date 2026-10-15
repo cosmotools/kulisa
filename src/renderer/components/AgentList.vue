@@ -39,7 +39,7 @@ const status = (a: Agent) => (a.installed ? (a.install && !a.account ? 'Installe
     </RadioGroupRoot>
     <p class="progress hint">{{ s.progress }}</p>
     <CollapsibleRoot v-model:open="s.detailsOpen" class="details" :hidden="!s.showDetails" :unmount-on-hide="false">
-      <CollapsibleTrigger class="more"><Icon name="i-down" />Details</CollapsibleTrigger><CollapsibleContent><pre>{{ s.log }}</pre></CollapsibleContent>
+      <CollapsibleTrigger class="disclose"><Icon name="i-down" />Details</CollapsibleTrigger><CollapsibleContent><pre>{{ s.log }}</pre></CollapsibleContent>
     </CollapsibleRoot>
     <p class="error">{{ s.error }}</p>
   </div>

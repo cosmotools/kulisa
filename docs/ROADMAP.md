@@ -417,6 +417,11 @@ here; what is left of it stays.
   file in the project that Kulisa only reads (the developer's own description wins).
 - **A screenshot taken at a pick** (point and tell), if a transient element (a tooltip, an open menu, a toast) turns
   out to need it: today the pick is a locator only, and the agent looks at the live page.
+- **The agent's label in the page, by its outline** (found 2026-10-15 taking the site's pictures; left so, the
+  author's decision). `browser_highlight`'s outline is Playwright's `locator.highlight()`, which writes the locator
+  next to it (`locator('aria-ref=f2e20')`); its only option is the style (1.64), and the label is in a closed shadow
+  root. The agent's label shows over the pane meanwhile. When Playwright lets the text be set, put the label there; not
+  an outline of our own.
 - **Several agents in one task, working as a team** (discussed 2026-10-06; several agents in a task, each in a tab,
   are built: [tasks.md](tasks.md), "Several agents in a task"; what is left is their working together). All
   see the task's code and profiles. Covers a tester next to the developer, a side question (Claude: a forked

@@ -5,7 +5,7 @@
 // none (the author, 2026-10-08: tabs that moved under the mouse made the human miss). Where a dragged tab is let
 // go outside every Kulisa window, the main process says (the page does not know where the pointer is then).
 // Under the grid, or in the title bar: App.vue puts it in one place or the other (☰ → Tasks bar).
-import { computed, nextTick, ref, watch } from 'vue';
+import { computed, ref } from 'vue';
 import TaskTab from './TaskTab.vue';
 import { TabsList, TabsRoot } from 'reka-ui';
 import NewTask from './NewTask.vue';
@@ -16,18 +16,36 @@ import { keyText } from '../lib/common';
 import { dialog } from '../lib/dialogs';
 import { profilesMenu } from '../lib/profiles';
 import { terminalsOf } from '../lib/terminals';
+import { useStrip } from '../lib/strip';
 import type { MenuItem } from '../lib/menu';
-import type { ProjectEntry, TaskInfo } from '../types';
+import type { ProjectEntry, TaskInfo } from '../../shared/types';
 
 const strip = ref<HTMLElement>();
 const tabs = computed(() => {
   const byId = new Map(store.projects.projects.map((p) => [p.id, p]));
   return store.projects.tabs.flatMap((t) => { const p = byId.get(t.project); return p ? [{ t, p }] : []; });
 });
-// The shown one in sight.
-watch(() => store.projects, () => nextTick(() => strip.value?.querySelector('.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' })));
+// More tabs than fit: the wheel scrolls them, the edges with tabs past them fade, the shown one stays in sight
+// (lib/strip.ts; found with thirty tasks, 2026-10-15).
+useStrip(strip, () => store.current);
 
-const showTask = (key: string | number) => { if (key !== store.current) void kulisa.invoke('task:show', String(key)); };
+// A press on another tab makes it the chosen one at once, as Chrome's; its task is shown when the button is let go or
+// the tab starts being dragged (pointercancel), whichever comes first: the grid's slide that showing it starts made
+// Chromium drop the drag about to begin, so a tab not shown could not be dragged (2026-10-15); one begun goes on
+// through the slide. Not on its ×, which closes it (TaskTab.vue), nor the keyboard's, shown at once.
+const pressed = ref<string | null>(null);
+function pointerdown(e: PointerEvent) {
+  const at = e.button === 0 && !e.ctrlKey && e.pointerType === 'mouse' && !(e.target as Element).closest('button') && tabAt(e);
+  if (!at || at.t.key === store.current) return;
+  pressed.value = at.t.key;
+  const done = new AbortController(), show = () => {
+    done.abort();
+    pressed.value = null;
+    void kulisa.invoke('task:show', at.t.key);
+  };
+  for (const type of ['pointerup', 'pointercancel']) addEventListener(type, show, { signal: done.signal });
+}
+const showTask = (key: string | number) => { if (key !== store.current && key !== pressed.value) void kulisa.invoke('task:show', String(key)); };
 const manage = async (id?: string) => (await dialog('projects')).openProjects(id);
 
 // The task whose tab an event was on (TaskTab.vue handles a tab's own clicks).
@@ -135,9 +153,9 @@ function dragend(e: DragEvent) {
     <!-- Every open task a tab (Reka's Tabs): the shown one chosen; a press on another shows it. -->
     <RightClickMenu :items="menu"><TabsRoot as-child :model-value="store.current ?? undefined" activation-mode="manual"
       @update:model-value="showTask"><TabsList as-child :loop="false">
-      <div id="projectTabs" ref="strip" @dblclick="dblclick" @auxclick="auxclick"
+      <div id="projectTabs" ref="strip" class="tabstrip" @dblclick="dblclick" @auxclick="auxclick" @pointerdown="pointerdown"
         @dragstart="dragstart" @dragover="dragover" @dragleave="dragleave" @drop="drop" @dragend="dragend">
-        <TaskTab v-for="{ p, t } in tabs" :key="t.key" :t :p :active="t.key === store.current" :data-project="p.id" :style="{ '--color': projectColor(p) }"
+        <TaskTab v-for="{ p, t } in tabs" :key="t.key" :t :p :active="t.key === (pressed ?? store.current)" :data-project="p.id" :style="{ '--color': projectColor(p) }"
           draggable="true" :class="{ dragging: dragged === t.key, 'drop-before': mark?.key === t.key && mark.side === 'before', 'drop-after': mark?.key === t.key && mark.side === 'after' }" />
       </div>
     </TabsList></TabsRoot></RightClickMenu>
@@ -157,13 +175,14 @@ function dragend(e: DragEvent) {
      and below it, the grid right under them, as a browser's tabs sit over its content. The tabs are not a handle to
      drag the window by. */
   #app > & { justify-self: center; max-width: calc(100% - 2 * var(--gap)); margin-block-start: var(--gap); }
-  #topbar & { -webkit-app-region: no-drag; }
-  #projectTabs { display: flex; gap: var(--gap); min-width: 0; overflow-x: auto; scrollbar-width: none; }
+  #topbar & { -webkit-app-region: no-drag; } /* the window is dragged after it (TopBar.vue) */
+  #projectTabs { display: flex; gap: var(--gap); min-width: 0; } /* .tabstrip: more tabs than fit scroll */
   .noproject & #projectTabs { display: none; } /* no task open: + alone */
   /* A tab: as tall as a browser's (Firefox's 36 px), wide enough to hit in passing, rounded as the panels' tabs are,
      --gap from the next. Its project's icon (the app's curtain, in its color): as a browser's tab shows its site's
-     favicon. Where a dropped one would go, a line at its side. */
-  .tasktab { --tab: var(--bartab); gap: 8px; min-width: 120px; max-width: 240px; padding-inline: 12px 6px; border-radius: var(--tab-radius);
+     favicon. Where a dropped one would go, a line at its side. At its narrowest its name keeps about ten letters:
+     at 120 px every tab read "task…" (the author, 2026-10-15: wider, × kept on every tab). */
+  .tasktab { --tab: var(--bartab); gap: 8px; min-width: 160px; max-width: 240px; padding-inline: 12px 6px; border-radius: var(--tab-radius);
     .picon { width: 20px; height: 20px; color: var(--color); } } /* as an agent's mark in a row (docs/ui.md): a tab's face */
   .dragging { opacity: .5; }
   .drop-before { box-shadow: inset 2px 0 var(--accent); }

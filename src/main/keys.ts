@@ -1,5 +1,5 @@
 // Kulisa's keyboard shortcuts: one table of what each key does, and which key an input event is. The main process
-// takes every key before the page it was typed in (before-input-event on the window and on every tab: app.ts), so a
+// takes every key before the page it was typed in (before-input-event on the window and on every tab: shortcuts.ts), so a
 // site or the terminal never gets a key that is Kulisa's, and a key that is not Kulisa's is left to them, untouched.
 // Electron's application menu was tried for it and left (docs/window.md, Keys): on Linux it gets a key only after the
 // page, and not at all when the page handled it, as xterm and many web apps do.
@@ -20,7 +20,7 @@
 // command puts it in the window's HTML). always: also while a dialog is open. main: done in the main process.
 // display: only shown, the window does it (the terminal's copy and paste: terminal.ts).
 // The zoom's and DevTools' keys mean the nearest: a page's own in a page, Kulisa's elsewhere.
-import type { Shortcut } from '../renderer/types.ts';
+import type { Shortcut } from '../shared/types.ts';
 
 type Platform = NodeJS.Platform;
 type Group = 'global' | 'page' | 'terminal';
