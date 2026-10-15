@@ -34,7 +34,8 @@ function menu(): MenuItem[] | null {
 <template>
   <RightClickMenu :items="menu"><div class="ptab" :data-panel="params.api.id">
     <template v-if="profile">
-      <img class="avatar" alt="" :src="avatarSrc(profile.avatar)"><b class="pname" :title="profile.description || ''">{{ profile.name }}</b>
+      <img class="avatar" alt="" :src="avatarSrc(profile.avatar)"><b class="pname"
+        :title="[profile.name, profile.description].filter(Boolean).join('\n')">{{ profile.name }}</b>
       <span class="caption">{{ caption }}</span>
       <button class="close icon quiet" title="Close profile: its tabs go, its sign-ins stay (open it again in Profiles)" aria-label="Close profile"
         @click="act('profile:close', { profile: profile.id })"><Icon name="i-close" /></button>
@@ -43,6 +44,9 @@ function menu(): MenuItem[] | null {
 </template>
 
 <style>
-.pname { white-space: nowrap; }
-.caption { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--agent); font-weight: normal; }
+/* A pane narrower than its name: the header shrinks with it (else it ran past the pane, its × out of sight and
+   dockview's list of hidden tabs shown for it), the name cut with …, the × kept. */
+#dock .dv-tab:has(.ptab) { min-width: 0; flex-shrink: 1; }
+.pname { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.caption { flex: 1 1 0; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--agent); font-weight: normal; }
 </style>

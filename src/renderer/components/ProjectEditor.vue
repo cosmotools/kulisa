@@ -321,7 +321,7 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
               <Icon v-if="it.value.section" class="twist" name="i-down" /><ProjectIcon v-if="it.value.project" :p="it.value.project" />
               <template v-if="it.value.agent"><Icon v-if="mark(it.value.agent)" class="logo" :name="mark(it.value.agent)!" /></template>
               <img v-if="it.value.profile" class="avatar" alt="" :src="avatarSrc(it.value.profile.avatar)">
-              <span class="text"><span class="label">{{ it.value.label }}</span></span>
+              <span class="text"><span class="label" :title="it.value.section ? undefined : it.value.label">{{ it.value.label }}</span></span>
               <kbd v-if="it.value.agent && !it.value.agent.installed">not installed</kbd>
               <!-- The same as the section's right-click, which the keyboard has -->
               <button v-if="it.value.section === 'projects'" id="pjnew" class="icon small add" type="button" tabindex="-1" title="New Project…" aria-label="New Project"
@@ -422,7 +422,8 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
               <RightClickMenu :items="profileRowMenu">
                 <ListboxRoot selection-behavior="replace" v-if="profiles.length" id="npprofiles" v-model="profileSel" aria-label="Profiles" @keydown.delete="removeProfile()">
                   <ListboxContent>
-                    <ListboxItem v-for="p in profiles" :key="p.id" :value="p.id" class="item" :data-profile="p.id">
+                    <ListboxItem v-for="p in profiles" :key="p.id" :value="p.id" class="item" :data-profile="p.id"
+                      :title="[p.name, p.description, p.also.length && `also in ${p.also.join(', ')}`].filter(Boolean).join('\n')">
                       <img class="avatar" alt="" :src="avatarSrc(p.avatar)"><span class="text"><span class="label">{{ p.name }}</span>
                         <small>{{ [p.description, p.also.length && `also in ${p.also.join(', ')}`].filter(Boolean).join(' · ') }}</small></span>
                     </ListboxItem>

@@ -237,6 +237,7 @@ export default (test: Test) => {
     await menuRows(ui);
     await choose(ui, 'About this profile…');
     await waitFor(() => ui(`document.getElementById('projects')?.dataset.state === 'open' && document.querySelector('#pjlist [data-profile="sam-admin"]')?.ariaSelected === 'true' && document.getElementById('profilename').value === 'Sam.admin'`));
+    assert.equal(await ui(`document.querySelector('#pjlist [data-profile="sam-admin"] .label').title`), 'Sam.admin', "the tree's narrow column cuts a name: the whole in its tooltip");
     assert.ok(shell.profiles.has('sam-admin') && !shell.task.profiles.get('sam-admin').get().view.getVisible(), 'pages hidden under Settings');
     for (let i = 0; i < 2; i++) await ui(`document.getElementById('profilesignin').click()`);
     await waitFor(() => shell.masters.size === 1 && shell.masters.values().next().value.profile.get());
@@ -1395,6 +1396,14 @@ export default (test: Test) => {
     await waitFor(() => first.entry.copies.length === 2);
     await waitFor(async () => (await chips()).length === 2);
     assert.deepEqual(await chips(), ['api', 'web fresh']);
+    // Long names are cut, the whole in the tooltip; the terminals' tabs and the microphone stay in the panel.
+    assert.deepEqual(await ui(`(() => { const names = [...document.querySelectorAll('.taskrepos .chip .name')], was = names.map((n) => n.textContent);
+      for (const n of names) n.textContent = 'customer-notifications-delivery-pipeline-with-templates'.repeat(3);
+      const row = document.querySelector('.termtabs').closest('.dv-groupview').getBoundingClientRect(), inRow = (e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.left >= row.left && r.right <= row.right; };
+      const r = { cut: names.every((n) => n.scrollWidth > n.clientWidth), tab: inRow(document.querySelector('.termtab')), mic: inRow(document.querySelector('.termtabs .dictation')),
+        tooltip: document.querySelector('.taskrepos .chip').title.startsWith(${JSON.stringify(first.folder)}) };
+      names.forEach((n, i) => n.textContent = was[i]);
+      return r; })()`), { cut: true, tab: true, mic: true, tooltip: true });
     assert.equal(git(webCopy, 'rev-parse', '--abbrev-ref', 'HEAD'), 'task-1');
     assert.ok(!(await ctx.termText()).includes('Kulisa added'), 'not while it waits for the human');
     first.setState(firstAgent, 'done');

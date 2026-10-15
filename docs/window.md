@@ -82,6 +82,18 @@ deleted since is not restored at all: a profile deleted, then another task shown
 arrangement; 2026-10-13).
 The island is one panel however many terminals it holds ("The terminal").
 
+A window made narrower or wider changes every panel in its share, as VS Code's and JetBrains' do. Until 2026-10-15
+the last panel of a row took it all, down to a sliver while the first kept its size, for two reasons:
+dockview-vue declares dockview's `proportionalLayout` (on by default) a Boolean prop, which Vue makes false when left
+out (`Grid.vue` sets it); and dockview (8.4, 8.5) keeps a row's shares only when the row had a size as it was made, so
+a row made while the grid is built (an arrangement, a saved grid) had none. After a change of its panels the grid
+takes its shares again on the next frame (`lib/grid.ts`, turning the option off and on).
+
+A pane's header (its profile's picture, name and ×) shrinks with the pane: a name longer than the pane is wide is cut
+with …, the whole of it and the profile's description in its tooltip, and the × stays, as on every tab
+(`ProfileHeader.vue`). Until 2026-10-15 the header ran past a narrow pane, the name cut mid-letter, the × out of sight
+and dockview's list of hidden tabs (˅ 1) shown for the header alone.
+
 **No profile open, a terminal open**: the profiles' room is folded to a row of tiles over the grid, where the first
 one opens (`ClosedProfiles.vue`, `#closedprofiles`; the author, 2026-10-14: until then a profile was opened from the
 task tab's right-click menu alone, which no one found). A `.launcher.small` per closed profile, from the left: its

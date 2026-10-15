@@ -26,6 +26,17 @@ export default (test: Test) => {
     assert.equal(look.grid, 'rgba(0, 0, 0, 0)', 'no dark well under the grid');
     assert.ok(icon.width === 20 && icon.left > tab.left && icon.left <= tab.left + 12, 'the icon, 20 px, at the tab\'s start');
   });
+  test("grid: a pane narrower than its profile's name: the name cut with …, its × in the pane, no list of hidden tabs", async ({ ui }) => {
+    // A name longer than any pane is wide (names have no spaces to wrap at), put in place of Sam's.
+    const was = await ui(`(() => { const n = document.querySelector('.ptab[data-panel="profile:Profile 1"] .pname'), was = n.textContent;
+      n.textContent = 'administrator.international-tenant@enterprise-customers.example'.repeat(3); return was; })()`);
+    const fits = () => ui(`(() => { const t = document.querySelector('.ptab[data-panel="profile:Profile 1"]'), g = t.closest('.dv-groupview').getBoundingClientRect();
+      const n = t.querySelector('.pname'), x = t.querySelector('.close').getBoundingClientRect(), more = t.closest('.dv-groupview').querySelector('.dv-tabs-overflow-dropdown-root');
+      return n.scrollWidth > n.clientWidth && getComputedStyle(n).textOverflow === 'ellipsis' && x.width > 0 && x.right <= g.right && x.left >= g.left
+        && !(more && more.checkVisibility()); })()`);
+    await waitFor(fits, 3000);
+    await ui(`document.querySelector('.ptab[data-panel="profile:Profile 1"] .pname').textContent = ${JSON.stringify(was)}`);
+  });
   test('grid: a pane moved next to the terminal takes its page along', async ({ shell, ui }) => {
     await dock(ui, `api.getPanel('profile:Profile 1').api.moveTo({ group: api.getPanel('terminal').group, position: 'right' })`);
     await waitFor(() => viewOn(shell, ui, 'sam-admin'));
@@ -395,6 +406,14 @@ export default (test: Test) => {
     await fits();
     let b = await at();
     assert.ok(b.sam.x < b.elon.x && b.sam.y === b.elon.y && b.term.y > b.sam.y + b.sam.height - 1, 'profiles side by side, terminal below');
+    // A narrower window takes from every panel in its share, not from the last one alone; wider gives back the same way.
+    const size = shell.win.getSize(), both = (x: typeof b) => x.sam.width + x.elon.width, share = (x: typeof b) => x.sam.width / both(x);
+    const was = share(b), wide = both(b);
+    shell.win.setSize(size[0] - 300, size[1]);
+    await waitFor(async () => { b = await at(); return b.sam && b.elon && both(b) < wide - 200; });
+    assert.ok(Math.abs(share(b) - was) < 0.02, `shares kept: ${share(b)} vs ${was}`);
+    shell.win.setSize(size[0], size[1]);
+    await waitFor(async () => { b = await at(); return b.sam && b.elon && Math.abs(share(b) - was) < 0.02 && viewOn(shell, ui, 'elon-buyer'); });
     await ui(`window.__layoutPreset('focus')`);
     await waitFor(() => viewOn(shell, ui, 'sam-admin'));
     await fits();
