@@ -5,6 +5,9 @@ import path from 'path';
 import { assert, userData, pfile, savedTabs, panel, SITE, waitFor, who, menuRows, choose, manageProfiles, closeSettings, chooseProfile, setProfileField, menuOpen, taskMenu, viewOn, ctrl, near, closeMenu, PORT } from './helpers.ts';
 import type { Test } from './run.ts';
 
+// Files of the sites' Cache API in a profile's folder, wherever Chromium's layout puts them (`WebStorage/<bucket>/CacheStorage/`).
+const cacheStorageFiles = (dir: string) => fs.readdirSync(dir, { recursive: true, withFileTypes: true }).filter((f) => f.isFile() && f.parentPath.includes('CacheStorage')).length;
+
 export default (test: Test) => {
   test('Kulisa zoom: Ctrl+= outside the pages scales the whole UI, pages follow, panes still fit; saved', async ({ shell, ui }) => {
     const win = shell.win.webContents;
@@ -89,9 +92,13 @@ export default (test: Test) => {
     await waitFor(() => ui(`!!document.querySelector('${header} .close')`));
 
     assert.ok(await session.fromPath(cleoDir).getCacheSize() > 0, 'pages were cached');
+    // A site's Cache API (its service worker's copies of its bundles) was the largest part of a closed copy: 200 MB for Teams.
+    await tabs[1].executeJavaScript(`caches.open('bundles').then((c) => c.put('/bundle.js', new Response('x'.repeat(100000))))`);
+    await waitFor(() => cacheStorageFiles(cleoDir) > 0);
     await ui(`document.querySelector('${header} .close').click()`);
     await waitFor(() => !shell.profiles.has('cleo') && tabs.every((wc) => wc.isDestroyed()));
     await waitFor(async () => (await session.fromPath(cleoDir).getCacheSize()) === 0); // a closed profile keeps no cache
+    await waitFor(() => cacheStorageFiles(cleoDir) === 0);
     await waitFor(() => ui(`!document.querySelector('${header}')`));
     assert.equal(saved('profiles.json').find((p) => p.id === 'cleo').closed, true);
     await waitFor(() => savedTabs('cleo').length === 2);

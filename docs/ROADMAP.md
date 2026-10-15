@@ -717,8 +717,8 @@ here; what is left of it stays.
     echo "$f"; done; done` (one `grep` over several files, one of them missing, fails here: `grep` is ugrep).
     When one shows up, ask the author what they did just before.
 - **Profiles' caches** (2026-10-08: a closed profile's caches are cleared, [profiles.md](profiles.md), "What is on
-  the computer"; to decide for good, the author). Chromium's HTTP cache, Code Cache and GPU caches per profile (on
-  the author's main profiles 47 and 78 MB after a few days); Chromium sets the HTTP cache's limit itself from the
+  the computer"; to decide for good, the author; since 2026-10-16 the sites' Cache API too). Chromium's HTTP cache, Code Cache and GPU caches per profile (on
+  the author's main profiles 47 and 78 MB after a few days; a task's copy used in Teams 430 MB, half of it the Cache API); Chromium sets the HTTP cache's limit itself from the
   free disk space, and open profiles still grow to it. Several profiles in several projects add up.
   - Alternative: a limit for the whole app, `--disk-cache-size=<bytes>` (`app.commandLine.appendSwitch` before
     ready): every profile's HTTP cache at most that, open ones too; not the code and GPU caches.

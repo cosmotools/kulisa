@@ -463,13 +463,14 @@ function showError(wc: WebContents, desc: string, url: string) {
   wc.executeJavaScript(`(${fill})(${JSON.stringify({ page: ERROR_PAGE, title, reason, code: desc, host })})`).catch(() => {});
 }
 
-// A closed profile's caches gone: HTTP, compiled code, shaders. Sign-ins and sites' storage stay. Chromium sets the HTTP
-// cache's limit itself from the free disk space; profiles set aside should not keep theirs (ROADMAP, "Profiles'
-// caches").
+// A closed profile's caches gone: HTTP, compiled code, shaders, and the sites' Cache API (their service workers' copies
+// of their own bundles: Chromium counts it as storage, and it was the largest part of a copy, 200 MB for Teams). Sign-ins
+// and the sites' other storage stay. Chromium sets the HTTP cache's limit itself from the free disk space; profiles set
+// aside should not keep theirs (ROADMAP, "Profiles' caches").
 async function clearCaches(sess: Session) {
   await sess.clearCache();
   await sess.clearCodeCaches({});
-  await sess.clearStorageData({ storages: ['shadercache'] });
+  await sess.clearStorageData({ storages: ['shadercache', 'cachestorage'] });
 }
 
 // A profile's data gone: cookies, storage, cache. Also for a closed profile (no Profile object, only its folder).
