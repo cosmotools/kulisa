@@ -2,16 +2,18 @@
 
 ![Kulisa: three profiles of a shop (buyer, seller, admin) side by side, the agent outlining the new orders in two of them, and Claude Code in the terminal below](docs/images/kulisa.png)
 
-**Your AI agent builds, checks the result as every user, fixes, and goes again until it works. Watch every step, or
-take a break.**
+**Kulisa is the home where your AI agent works on the web: in every role and account it needs, until everything
+works. Watch every step, or take a break.**
 
-Kulisa is a desktop app where the agent you choose (Claude Code, Codex) works in your signed-in browser profiles, side
-by side. It is made for developing web apps with several users at once, and good for any work in web apps. Each
-**profile** is an embedded browser profile, as in Chrome (cookies, storage, tabs). You sign in by hand in a profile's
-pane, never the agent; the agent runs in the built-in terminal and drives the profiles through Kulisa's MCP server. Point at an element (Pick; Pick again or Esc cancels): a reference
-with a locator the agent can act on lands in its prompt, and you write the rest of the message around it.
+Kulisa is a free desktop app for Windows and Linux (macOS coming) where the AI agent you choose (Claude Code, Codex)
+works in several signed-in browser profiles side by side: a buyer and a seller, an admin and a user, several accounts
+of one site. Each **profile** is an embedded browser profile, as in Chrome (cookies, storage, tabs). You sign in by
+hand in a profile's pane, never the agent; the agent runs in the built-in terminal and drives the profiles through
+Kulisa's MCP server. Point at an element on a page (Pick; Pick again or Esc cancels): a reference with a locator the
+agent can act on lands in its prompt, and you write the rest of the message around it.
 
-Website: [kulisa.app](https://kulisa.app).
+**[Download](https://github.com/cosmotools/kulisa/releases/latest)** · **[Website](https://kulisa.app)** ·
+**[User guide](https://kulisa.app/docs)**
 
 ## Why
 
