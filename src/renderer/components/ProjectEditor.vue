@@ -18,7 +18,7 @@ import { focusAfterMenu, type MenuItem } from '../lib/menu';
 import { agentList, agentMark, type Agent } from '../lib/agents';
 import { refused } from '../../shared/result';
 import type { Result } from '../../shared/result';
-import type { Account, AccountsInfo, ProjectChoices, ProjectEntry, ProjectProfile, ProjectRepo, SettingsProfile, SignedIn } from '../../shared/types';
+import type { Account, AccountsInfo, ProjectAgent, ProjectChoices, ProjectEntry, ProjectProfile, ProjectRepo, SettingsProfile, SignedIn } from '../../shared/types';
 
 // The page shown, of the tree's section; the agents' list lives here, so an install goes on while a project is shown,
 // and the window stays open while it runs (close).
@@ -39,7 +39,7 @@ const editing = ref<string | null>(null);
 const name = ref(''), local = ref(''), error = ref('');
 const choices = ref<ProjectChoices>({ agents: [], clis: [] });
 const repos = ref<ProjectRepo[]>([]), former = ref<string | null>(null), cloneUrl = ref(''), codeError = ref(''), cloning = ref(false);
-const mine = ref<{ id: string; name: string; default?: boolean }[]>([]), agentError = ref('');
+const mine = ref<ProjectAgent[]>([]), agentError = ref('');
 const signing = ref<{ id: string; name: string } | null>(null); // New Account…: the agent it is of, while signing in
 const profiles = ref<ProjectProfile[]>([]), others = ref<ProjectProfile[]>([]), newName = ref(''), profileError = ref('');
 // The selected row of each list: what −, ★, Delete and its right-click act on. The default repository and agent are
@@ -249,7 +249,7 @@ const codeMenu = (): MenuItem[] => [{ label: 'Add Folder…', run: () => code(ku
   { label: 'Clone from URL…', run: () => startAdding('clone') }];
 
 // Its agents (the agents and their accounts: main/accounts.ts), the default first: + runs it.
-async function agents(answer: Promise<Result<{ agents: { id: string; name: string; default?: boolean }[] }>>) {
+async function agents(answer: Promise<Result<{ agents: ProjectAgent[] }>>) {
   agentError.value = '';
   const r = await answer;
   if (refused(r)) agentError.value = r.error; else mine.value = r.agents;
@@ -361,12 +361,13 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
                 <button id="nprepodefault" class="icon small" type="button" title="Make Default: new tasks' agents start in its copy" aria-label="Make Default"
                   :disabled="!repoSel || repoSel === repos[0]?.folder" @click="defaultRepo()"><Icon name="i-star" /></button>
               </div>
+              <div v-if="repos.length" class="head" aria-hidden="true"><span>Name</span><span>Folder</span><span /></div>
               <ListboxRoot selection-behavior="replace" v-if="repos.length" id="nprepos" v-model="repoSel" aria-label="Code" @keydown.delete="removeRepo()">
                 <ListboxContent>
                   <ListboxItem v-for="(r, i) in repos" :key="r.folder" :value="r.folder" class="item" :data-folder="r.folder">
-                    <span class="text"><span class="label">{{ base(r.folder) }}</span><small :title="r.folder">{{ r.folder }}</small></span>
-                    <kbd v-if="r.git !== 'ok'" class="warn">{{ r.git === 'none' ? 'no git' : 'no commit yet' }}</kbd>
-                    <kbd v-if="!i && repos.length > 1" class="default" title="New tasks' agents start in its copy">default</kbd>
+                    <span class="cell label" :title="base(r.folder)">{{ base(r.folder) }}</span><small class="cell" :title="r.folder">{{ r.folder }}</small>
+                    <span class="cell end"><kbd v-if="r.git !== 'ok'" class="warn">{{ r.git === 'none' ? 'no git' : 'no commit yet' }}</kbd>
+                      <kbd v-if="!i && repos.length > 1" class="default" title="New tasks' agents start in its copy">default</kbd></span>
                   </ListboxItem>
                 </ListboxContent>
               </ListboxRoot>
@@ -397,11 +398,13 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
                   :title="isDefault(agentSel) ? 'No Default: a new task starts with no agent, you choose one there' : 'Make Default: + makes a task with it'"
                   :aria-label="isDefault(agentSel) ? 'No Default' : 'Make Default'"><Icon name="i-star" /></button>
               </div>
+              <div v-if="mine.length" class="head" aria-hidden="true"><span>Agent</span><span>Account</span><span /></div>
               <ListboxRoot selection-behavior="replace" v-if="mine.length" id="npagents" v-model="agentSel" aria-label="Agents" @keydown.delete="removeAgent()">
                 <ListboxContent>
-                  <ListboxItem v-for="a in mine" :key="a.id" :value="a.id" class="item" :data-agent="a.id">
-                    <span class="text"><span class="label">{{ a.name }}</span></span>
-                    <kbd v-if="a.default" class="default" title="+ makes a task with it; the others are in +'s right-click menu">default</kbd>
+                  <ListboxItem v-for="a in mine" :key="a.id" :value="a.id" class="item" :data-agent="a.id" :title="a.name">
+                    <span class="cell label"><Icon v-if="agentMark(a.cli, null)" :name="agentMark(a.cli, null)!" />{{ a.agent }}</span>
+                    <small class="cell account">{{ a.email ?? '—' }}</small>
+                    <span class="cell end"><kbd v-if="a.default" class="default" title="+ makes a task with it; the others are in +'s right-click menu">default</kbd></span>
                   </ListboxItem>
                 </ListboxContent>
               </ListboxRoot>
@@ -421,12 +424,13 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
                   title="Add a profile: the browser profiles its tasks test as, each task with its own copy" aria-label="Add a profile"><Icon name="i-plus" /></button></ButtonMenu>
                 <button id="npprofiledel" class="icon small" type="button" title="Remove from the project (asks first)" aria-label="Remove from the project" :disabled="!profileSel" @click="removeProfile()"><Icon name="i-minus" /></button>
               </div>
+              <div v-if="profiles.length" class="head" aria-hidden="true"><span>Name</span><span>About</span><span>Also in</span></div>
               <ListboxRoot selection-behavior="replace" v-if="profiles.length" id="npprofiles" v-model="profileSel" aria-label="Profiles" @keydown.delete="removeProfile()">
                 <ListboxContent>
                   <ListboxItem v-for="p in profiles" :key="p.id" :value="p.id" class="item" :data-profile="p.id"
                     :title="[p.name, p.description, p.also.length && `also in ${p.also.join(', ')}`].filter(Boolean).join('\n')">
-                    <img class="avatar" alt="" :src="avatarSrc(p.avatar)"><span class="text"><span class="label">{{ p.name }}</span>
-                      <small>{{ [p.description, p.also.length && `also in ${p.also.join(', ')}`].filter(Boolean).join(' · ') }}</small></span>
+                    <span class="cell label"><img class="avatar" alt="" :src="avatarSrc(p.avatar)">{{ p.name }}</span>
+                    <small class="cell about">{{ p.description }}</small><small class="cell also">{{ p.also.join(', ') }}</small>
                   </ListboxItem>
                 </ListboxContent>
               </ListboxRoot>
@@ -491,17 +495,22 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
     .label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } kbd { flex: none; }
     [aria-selected="true"] { background: var(--chosen-idle); color: var(--text-strong); }
     &:focus-within [aria-selected="true"] { background: var(--chosen); } }
-  :is(#pjconfig, #agconfig, #prconfig) { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--inset); overflow: hidden auto; padding: 0 var(--pad) var(--pad);
+  /* More room than a dialog's, as JetBrains' Settings: along the sides, and between the groups, whose lists ran into
+     the next one's title (the author, 2026-10-16) */
+  :is(#pjconfig, #agconfig, #prconfig) { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--inset); overflow: hidden auto;
+    padding: 0 calc(1.5 * var(--pad)) var(--pad);
     > * { flex: none; } }
   /* Where the page is in the tree, and what acts on it at its end */
   .crumbs { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: var(--gap); min-height: calc(var(--control) + 12px);
     background: var(--island); color: var(--text-muted);
     b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; color: var(--text-strong); } }
   .field { margin-top: 0; }
-  .group { display: flex; flex-direction: column; gap: var(--gap); margin-top: 4px;
+  .group { display: flex; flex-direction: column; gap: var(--gap); margin-top: var(--pad);
     > .error, > .hint { margin: 0; } > .hint:not([hidden]) { margin-inline-start: calc(var(--label) + var(--inset)); } }
   .list [role="listbox"] { max-height: calc(6 * var(--row)); overflow: auto; }
-  .list .avatar { --avatar: 18px; }
+  /* The columns: the name as wide as it needs (at most about half), what it is in the rest, its state at the end */
+  #npreposrow .list, #npagentsrow .list { --cols: fit-content(45%) minmax(0, 1fr) auto; }
+  #npprofilesrow .list { --cols: fit-content(45%) minmax(0, 1fr) fit-content(30%); }
   #npformer button { margin-inline-start: var(--gap); }
   .none { display: flex; flex-direction: column; align-items: start; gap: var(--gap); padding-top: var(--pad); .empty { margin: 0; } }
 }

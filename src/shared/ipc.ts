@@ -4,7 +4,7 @@
 // (the tests read some).
 import type { Result } from './result.ts';
 import type {
-  AccountsInfo, AgentInfo, ClosedProfile, LanguageInfo, Profile, ProjectChoices, ProjectProfile, ProjectRepo,
+  AccountsInfo, AgentInfo, ClosedProfile, LanguageInfo, Profile, ProjectAgent, ProjectChoices, ProjectProfile, ProjectRepo,
   ProjectSettings, ProjectsInfo, Question, SettingsProfile, Shortcut, SignedIn, Terminals, Voice,
 } from './types.ts';
 
@@ -22,7 +22,7 @@ export type Bar = 'top' | 'bottom';
 export type SettingsAt = { section: 'projects' | 'profiles'; id?: string | null };
 // A project's code as its manager shows it (projects.ts, reposInfo).
 type Repos = { repos: ProjectRepo[]; former?: string | null };
-type ProjectAgents = { agents: { id: string; name: string; default?: boolean }[] };
+type ProjectAgents = { agents: ProjectAgent[] };
 type ProjectProfiles = { profiles: ProjectProfile[]; others: ProjectProfile[] };
 type Profiles = { profiles: SettingsProfile[] };
 

@@ -54,13 +54,15 @@ export interface SettingsProfile { id: string; name: string; avatar: string; des
 export interface Account { id: string; agent: string; name: string; email: string | null; projects: string[] }
 export interface AccountsInfo { accounts: Account[]; clis: string[] }
 // What a new account's sign-in answers (AccountSignIn.vue): the project's agents, made in one; else every account.
-export interface SignedIn extends Partial<AccountsInfo> { agents?: { id: string; name: string; default?: boolean }[] }
+// One of a project's agents (Settings, a project's page): an account (its agent, its email) or the terminal only.
+export interface ProjectAgent { id: string; name: string; agent: string; cli: string; email: string | null; default?: boolean }
+export interface SignedIn extends Partial<AccountsInfo> { agents?: ProjectAgent[] }
 export interface ProjectChoices { agents: { id: string; name: string }[]; clis: { id: string; name: string }[] }
 export interface ProjectRepo { folder: string; git: 'ok' | 'none' | 'no-commit' }
 export interface ProjectProfile { id: string; name: string; avatar: string; description?: string; also: string[] }
 export interface ProjectSettings extends ProjectChoices {
   name: string; folder: string; local?: string[]; repos: ProjectRepo[]; former?: string | null;
-  projectAgents: { id: string; name: string; default?: boolean }[]; profiles: ProjectProfile[]; others: ProjectProfile[];
+  projectAgents: ProjectAgent[]; profiles: ProjectProfile[]; others: ProjectProfile[];
 }
 // Kulisa's keyboard shortcuts (main/keys.ts), as this OS shows them.
 export interface Shortcut { id: string; group: string; label: string; keys: string[]; hold?: boolean } // hold: a key held alone, the human may change it

@@ -38,9 +38,10 @@ pointer, read as a web page's and were hard to read). So:
 - **Forms are "Label: field"**, the labels in one column (`.field`); a comment under a field only when needed.
 - **Groups under a titled line** (`.titled`), not framed cards: no frame in a frame.
 - **A list has a toolbar over it** (`.list`: + adds, − removes the selected row, ★ makes it the default), and
-  its actions act on the selected row (also Delete, and its right-click). A row shows facts: what it is, its path or
-  email muted after it, a state at its end in words ("default", "no commit yet"); no buttons that show under the
-  pointer, no pills.
+  its actions act on the selected row (also Delete, and its right-click). It is a table: the names of its columns,
+  then rows of facts, each in its column (what it is, its path or email muted, a state at its end in words: "default",
+  "no commit yet"), the columns at the same places in every row (the author, 2026-10-16: values one after another read
+  as chaos); no buttons that show under the pointer, no pills.
 - **A dialog asks one thing and ends with its buttons** (`Modal.vue`); what is browsed (Settings, a window of its own:
   [window.md](window.md), Settings) is a tree on the left and a page on the right, under its path. No search field over the tree (the author, 2026-10-11).
 
@@ -134,10 +135,14 @@ every other `<svg>` uses the sprite.
 - `.list`: a list a dialog edits (a project's Code, Agents and Profiles; New Project's folders; an agent's accounts),
   or chooses from (Settings → Agents' agents, no toolbar), as JetBrains': framed,
   `.tools` over it (`.icon.small` buttons: + adds, often a `ButtonMenu`; − removes the selected row; ★ makes it the
-  default), its rows Reka's Listbox items (`.item` on one line: `.label`, its facts in a `small` after it, muted; a
-  state at the end, `kbd`: "default" (`.default`), `.warn` in `--note` when it needs the human), the selected one in
-  `--chosen` (`--chosen-idle` when the list has not the keyboard). Delete removes the selected one; a
-  `RightClickMenu` around the Listbox has the row's actions (it selects the row). `.empty` in it when it has none.
+  default), then `.head` (its columns' names, small and dim; shown with rows), then its rows, Reka's Listbox items
+  (`.item`, a `.cell` a value: the `.label` first with its icon or picture, its facts in `small.cell`, muted; a state in
+  the last, `.cell.end`, `kbd`: "default" (`.default`), `.warn` in `--note` when it needs the human), each cut with …
+  and whole in its title. The list sets its columns, `--cols` (e.g. `fit-content(45%) minmax(0, 1fr) auto`: the name as
+  wide as it needs up to about half, what it is in the rest, the state); the head and the rows take them by `subgrid`,
+  so they line up. The selected row in `--chosen` (`--chosen-idle` when the list has not the keyboard). Delete removes
+  the selected one; a `RightClickMenu` around the whole `.list` has the row's actions (it selects the row): around the
+  Listbox, which is there only with rows, its menu did not open on a row added after. `.empty` in it when it has none.
 - `.titled`: a group's title, its name and a line to the end (JetBrains' titled separator), over a `.list` or fields.
 - `.item[aria-selected="true"]`: the chosen row of a list (Reka's Listbox, Tree), lit.
 - `.dot`: a 10 px circle in `--color`, a project's.

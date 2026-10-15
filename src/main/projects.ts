@@ -16,7 +16,7 @@ import type { ProjectEntry, TaskEntry, Copy, Store } from './store.ts';
 import type { StoredProfile } from './profile-store.ts';
 import type { ProfileConfig } from './profiles.ts';
 import type { AppWindow } from './window.ts';
-import type { Question, ProjectRepo } from '../shared/types.ts';
+import type { Question, ProjectAgent, ProjectRepo } from '../shared/types.ts';
 import type { GitError } from './worktrees.ts';
 
 type Git = 'ok' | 'no-commit' | 'none';
@@ -339,8 +339,12 @@ function changeAgents(shell: Shell, id: string, list: string[], noDefault?: bool
 // One no longer known (an agent not offered any more) is left out.
 const agentsOf = (shell: Shell, p: ProjectEntry) => (p.agents || []).filter((a) => shell.agentFor(a));
 const defaultOf = (shell: Shell, p: ProjectEntry) => (p.noDefaultAgent ? null : agentsOf(shell, p)[0] ?? null);
-const agentsInfo = (shell: Shell, p: ProjectEntry) => agentsOf(shell, p).map((a) => ({ id: a, name: shell.agentFor(a)!.name, default: a === defaultOf(shell, p) }));
-function addAgent(shell: Shell, id: string, agent: string): Result<{ agents: { id: string; name: string }[] }> {
+// Each with its agent and email apart, for their columns (Settings' tables).
+const agentsInfo = (shell: Shell, p: ProjectEntry): ProjectAgent[] => agentsOf(shell, p).map((a) => {
+  const acc = shell.accounts.find(a)!;
+  return { id: a, name: acc.name, agent: acc.agent.name, cli: acc.agent.id, email: acc.email ?? null, default: a === defaultOf(shell, p) };
+});
+function addAgent(shell: Shell, id: string, agent: string): Result<{ agents: ProjectAgent[] }> {
   const p = shell.store.projects().find((x) => x.id === id);
   if (!p) return { error: `no project ${id}` };
   if (!shell.agentFor(agent) || shell.agentFor(agent)!.custom) return { error: `no agent ${agent}` };
@@ -349,7 +353,7 @@ function addAgent(shell: Shell, id: string, agent: string): Result<{ agents: { i
   return changeAgents(shell, id, [...(p.agents || []), agent]);
 }
 // agent null: none is the default.
-function defaultAgent(shell: Shell, id: string, agent: string | null): Result<{ agents: { id: string; name: string }[] }> {
+function defaultAgent(shell: Shell, id: string, agent: string | null): Result<{ agents: ProjectAgent[] }> {
   const p = shell.store.projects().find((x) => x.id === id);
   if (!p) return { error: `no project ${id}` };
   if (agent === null) return changeAgents(shell, id, p.agents || [], true);
@@ -358,7 +362,7 @@ function defaultAgent(shell: Shell, id: string, agent: string | null): Result<{ 
 }
 // Let go by the project, at once, nothing asked: an account stays in the store (accounts.ts), and a task of the project
 // running it keeps it, as one running an agent without accounts does.
-function removeAgent(shell: Shell, id: string, agent: string): Result<{ agents: { id: string; name: string }[] }> {
+function removeAgent(shell: Shell, id: string, agent: string): Result<{ agents: ProjectAgent[] }> {
   const p = shell.store.projects().find((x) => x.id === id);
   if (!p?.agents?.includes(agent)) return { error: `${agent} is not in the project` };
   const r = changeAgents(shell, id, p.agents.filter((x) => x !== agent));

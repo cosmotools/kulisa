@@ -854,7 +854,8 @@ export default (test: Test) => {
     assert.equal(electron.BrowserWindow.getAllWindows().length, windows, 'no window of its own');
     p.write('Work@Shop.com\r');
     await waitFor(() => sui(`!!document.querySelector('#npagents [data-agent="fake-1"]') && !document.getElementById('npsignin')`));
-    assert.equal(await sui(`document.querySelector('#npagents [data-agent="fake-1"] .label').textContent`), 'Fake agent · work@shop.com');
+    // Its agent and its email, each in its column (a table, the author, 2026-10-16).
+    assert.deepEqual(await sui(`[...document.querySelectorAll('#npagents [data-agent="fake-1"] .cell')].slice(0, 2).map((c) => c.textContent.trim())`), ['Fake agent', 'work@shop.com']);
     assert.deepEqual(JSON.parse(fs.readFileSync(path.join(userData, 'agents.json'), 'utf8')),
       { next: 2, list: [{ id: 'fake-1', agent: 'fake', email: 'work@shop.com', folder: 'fake-1', projects: ['project'] }] });
     // Signed in to an email it has already: that account, the new folder signed out and gone.
@@ -1237,7 +1238,7 @@ export default (test: Test) => {
     await sui(`document.getElementById('npprofileadd').click()`);
     assert.ok((await menuRows(sui)).join('|').includes('# Other Profiles|Sam.admin'));
     await choose(sui, 'Sam.admin');
-    await waitFor(async () => (await sui(`document.querySelector('#npprofiles [data-profile="sam-admin"] small')?.textContent`)) === 'seller in the test shop · also in project');
+    await waitFor(async () => JSON.stringify(await sui(`[...document.querySelectorAll('#npprofiles [data-profile="sam-admin"] .cell')].map((c) => c.textContent)`)) === '["Sam.admin","seller in the test shop","project"]');
     await waitFor(() => shell.closed.has('sam-admin') && shell.closed.has('site-user')); // its task lists them, closed
     await onRow(sui, '#npprofiles [data-profile="site-user"]', 'npprofiledel');
     await waitFor(() => ctx.asked.length);
@@ -1268,11 +1269,16 @@ export default (test: Test) => {
       await sui(`document.getElementById('npagentadd').click()`);
       await menuRows(sui);
       await choose(sui, name);
-      await waitFor(async () => (await sui(`[...document.querySelectorAll('#npagents .label')].map((l) => l.textContent)`)).includes(name));
+      await waitFor(async () => (await sui(`[...document.querySelectorAll('#npagents .item')].map((r) => r.title)`)).includes(name));
     }
     // The default marked, Make Default on the others.
-    const agentRows = () => sui(`[...document.querySelectorAll('#npagents .item')].map((r) => r.querySelector('.label').textContent + ' ' + !!r.querySelector('.default'))`);
+    const agentRows = () => sui(`[...document.querySelectorAll('#npagents .item')].map((r) => r.title + ' ' + !!r.querySelector('.default'))`);
     assert.deepEqual(await agentRows(), ['Terminal only true', 'Fake agent · ann@shop.com false'], 'the first added, the default');
+    // A table: each value in its column, under its name, the columns at the same places in every row (the author,
+    // 2026-10-16: values one after another, each row its own rhythm, read as chaos).
+    assert.deepEqual(await sui(`(() => { const list = document.querySelector('#npagentsrow .list'), x = (e) => Math.round(e.getBoundingClientRect().left);
+      const rows = [list.querySelector('.head'), ...list.querySelectorAll('.item')].map((r) => [...r.children].map(x).join());
+      return [[...list.querySelector('.head').children].map((h) => h.textContent), rows.every((r) => r === rows[0])]; })()`), [['Agent', 'Account', ''], true]);
     assert.deepEqual(shell.store.projects().find((p) => p.id === 'site').agents, ['shell', ann.id]);
     assert.deepEqual(shell.accounts.find(ann.id).projects, ['project', 'site'], 'the account lists the projects it is in');
     await onRow(sui, `#npagents [data-agent="${ann.id}"]`, 'npagentdefault');

@@ -129,11 +129,12 @@ async function create() {
                 <button :id="from === 'folder' ? 'npbrowsesource' : 'npurladd'" class="icon small" type="button" :title="from === 'folder' ? 'Add Folder…' : 'Add a URL'" :aria-label="from === 'folder' ? 'Add Folder' : 'Add a URL'" @click="plus"><Icon name="i-plus" /></button>
                 <button class="icon small" type="button" title="Leave Out" aria-label="Leave Out" :disabled="!chosenSource" @click="removeSource"><Icon name="i-minus" /></button>
               </div>
+              <div v-if="rows.length" class="head" aria-hidden="true"><span>{{ from === 'folder' ? 'Folder' : 'URL' }}</span><span /></div>
               <ListboxRoot selection-behavior="replace" v-if="rows.length" v-model="chosenSource" :aria-label="from === 'folder' ? 'Folders' : 'URLs'" @keydown.delete="removeSource">
                 <ListboxContent>
                   <ListboxItem v-for="(x, i) in rows" :key="x.folder" :value="x.folder" class="item" :data-source="x.folder">
-                    <span class="text"><span class="label" :title="x.folder">{{ x.folder }}</span></span>
-                    <kbd v-if="x.state">{{ sourceLine(x) }}</kbd><kbd v-if="!i && rows.length > 1" class="default">default</kbd>
+                    <span class="cell label" :title="x.folder">{{ x.folder }}</span>
+                    <span class="cell end"><kbd v-if="x.state">{{ sourceLine(x) }}</kbd><kbd v-if="!i && rows.length > 1" class="default">default</kbd></span>
                   </ListboxItem>
                 </ListboxContent>
               </ListboxRoot>
@@ -162,6 +163,7 @@ async function create() {
 <style>
 /* What its code comes from on the left, the form on the right (JetBrains' New Project) */
 #newproject { width: min(760px, 92vw);
+  --label: 72px; /* its labels are short (Location: the longest): the forms' column, Settings' Local addresses:, left a gap */
   .body { display: flex; padding: 0; min-height: 320px; }
   .npsplit { flex: 1; display: flex; min-width: 0; }
   .npkinds { flex: none; width: 200px; padding: var(--gap); border-inline-end: 1px solid var(--island-hi); background: var(--window); outline: none;
@@ -169,6 +171,7 @@ async function create() {
   .npform { flex: 1; min-width: 0; padding: var(--pad); overflow: auto; > .field:first-child { margin-top: 0; } }
   .field.top { align-items: start; > span { line-height: var(--control); } }
   .npsourcelist { display: flex; flex-direction: column; gap: var(--gap); min-width: 0;
+    .list { --cols: minmax(0, 1fr) auto; } /* the folder or URL, its state */
     .list [role="listbox"] { min-height: calc(2 * var(--row)); max-height: calc(5 * var(--row)); overflow: auto; }
     .label { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; } }
   #npwhere:empty { display: none; }

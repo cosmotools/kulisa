@@ -68,11 +68,12 @@ defineExpose({ newAccount, busy });
             <button class="accountdel icon small" type="button" title="Delete the account (asks first)" aria-label="Delete the account"
               :disabled="!accountSel || !of(a).some((x) => x.id === accountSel)" @click="remove()"><Icon name="i-minus" /></button>
           </div>
+          <div v-if="of(a).length" class="head" aria-hidden="true"><span>Account</span><span>Projects</span></div>
           <RightClickMenu :items="accountMenu">
             <ListboxRoot selection-behavior="replace" v-if="of(a).length" v-model="accountSel" aria-label="Accounts" @keydown.delete="remove()">
               <ListboxContent>
                 <ListboxItem v-for="x in of(a)" :key="x.id" :value="x.id" class="item" :data-account="x.id">
-                  <span class="text"><span class="label">{{ x.email || x.id }}</span><small>{{ projectsOf(x) }}</small></span>
+                  <span class="cell label" :title="x.email || x.id">{{ x.email || x.id }}</span><small class="cell" :title="projectsOf(x)">{{ projectsOf(x) }}</small>
                 </ListboxItem>
               </ListboxContent>
             </ListboxRoot>
@@ -99,7 +100,8 @@ defineExpose({ newAccount, busy });
     .installed { display: flex; align-items: center; gap: var(--gap); flex-wrap: wrap; small { color: var(--text-muted); } }
     .where { font-family: "JetBrains Mono", monospace; overflow-wrap: anywhere; &:empty { display: none; } }
     .install-line { margin: 0 0 0 calc(var(--label) + var(--inset)); font-family: "JetBrains Mono", monospace; overflow-wrap: anywhere; &:empty { display: none; } }
-    .site { color: var(--text-muted); &:hover { color: var(--text); } } }
+    .site { color: var(--text-muted); &:hover { color: var(--text); } }
+    .list { --cols: fit-content(50%) minmax(0, 1fr); } } /* an account's email, its projects */
   :is(.progress, .error) { margin: 0; &:empty { display: none; } }
   .details[hidden] { display: none; }
   pre { max-height: 180px; overflow: auto; margin: 6px 0 0; padding: 8px; border-radius: var(--radius); background: var(--window);
