@@ -368,8 +368,29 @@ export default (test: Test) => {
     let seen = await swap(2);
     assert.deepEqual(seen.types, ['next']); assert.deepEqual(seen.animations, ['grid-from-right calc(100% + 8px) cubic-bezier(0.4, 0, 0.2, 1)', 'grid-to-left calc(-100% - 8px) cubic-bezier(0.4, 0, 0.2, 1)'], 'it slides');
     await waitFor(live);
+    // A page that draws no frame (busy, covered) holds the slide's start for a tenth of a second at most, its pane then
+    // empty: half a second was felt after each click (2026-10-15).
+    const tab = shell.profiles.get('sam-admin').get(), capture = tab.wc.capturePage;
+    tab.wc.capturePage = () => new Promise(() => {});
+    const t0 = Date.now(), pics = await shell.windows[0].pictures();
+    tab.wc.capturePage = capture;
+    assert.ok(Date.now() - t0 < 300, `pictures in ${Date.now() - t0} ms`);
+    assert.ok(!pics['sam-admin'] && pics['elon-buyer'], 'the others taken');
     seen = await swap(1);
     assert.deepEqual(seen.types, ['previous']); assert.deepEqual(seen.animations, ['grid-from-left calc(-100% - 8px) cubic-bezier(0.4, 0, 0.2, 1)', 'grid-to-right calc(100% + 8px) cubic-bezier(0.4, 0, 0.2, 1)']);
+    await waitFor(live);
+    // A menu opened while the grid still slides keeps the pages under it pictures: the slide's end showed them over it.
+    const sliding = () => ui(`document.documentElement.matches(':active-view-transition')`);
+    await ui(`void kulisa.invoke('task:show', 'project/2')`);
+    await waitFor(sliding);
+    await ui(`document.getElementById('windowMenu').click()`);
+    await waitFor(() => menuOpen(ui));
+    await waitFor(async () => !(await sliding()));
+    await sleep(100); // what the slide's end did, which must not show them
+    assert.ok([...shell.profiles.values()].every((p) => !p.get().view.getVisible()), 'the pages stay under the menu');
+    await closeMenu(ui);
+    await waitFor(live);
+    await swap(1);
     await waitFor(live);
   });
   test('tasks: Ctrl+Shift+2 shows the second, Ctrl+Shift+PgUp and PgDn the one before and after, from the terminal too', async ({ shell, ui }) => {

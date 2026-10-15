@@ -86,8 +86,10 @@ tasks' bar bringing its tab into view (`scrollIntoView`) moved the whole grid up
 
 The profiles' pages are native views above the window's HTML (CLAUDE.md, "What must hold in the window"). While a
 panel is dragged, a menu is open or a dialog is shown, the pages are pictures of themselves (or hidden), so the
-HTML can be on top; they are live again after. A page that gives no picture within 500 ms (covered, the monitor off,
-busy) leaves its pane empty meanwhile: waiting for it held the menu, and every one after it.
+HTML can be on top; they are live again after, once nothing covers them: a task's slide ending under a menu leaves
+them pictures until the menu closes (`livePages`; until 2026-10-15 they came back over it). A page that gives no
+picture within 100 ms (covered, the monitor off, busy; a live one gives it in a few) leaves its pane empty meanwhile:
+waiting for it held the menu, and every one after it, and a task's slide after the click (500 ms until 2026-10-15).
 
 A pane's tab strip and toolbar move as Chrome's: a tab opened grows in from the left (`.tab.opening`; the strip keeps
 its tabs' elements by id, so only a new one animates), the address's hover fades in. Not with reduced motion.

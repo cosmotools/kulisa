@@ -5,7 +5,7 @@ import { nextTick } from 'vue';
 import type { AddPanelPositionOptions, DockviewApi } from 'dockview-vue';
 import type { Profile, Terminals } from '../types';
 import { act, setLoading, store } from './store';
-import { closeLayers, forgetFrozen, freeze, showViews, unfreeze } from './views';
+import { closeLayers, forgetFrozen, freeze, livePages, showViews, unfreeze } from './views';
 import { reducedMotion } from './common';
 import { forgetTerminals } from './terminals';
 
@@ -75,7 +75,7 @@ function reveal() {
     setLoading(false);
     store.pictures = pictures.get(store.current!) || {};
     built(); // the transition's new state: it slides in
-    void transition.finished.then(() => { store.pictures = {}; sendLayout(); void showViews(); });
+    void transition.finished.then(() => { sendLayout(); void livePages(); });
     return;
   }
   requestAnimationFrame(() => requestAnimationFrame(() => { // after sendLayout's frame

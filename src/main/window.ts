@@ -261,12 +261,13 @@ class AppWindow {
   }
   // JPEG: a picture shown for a moment, encoded three times faster than PNG (measured 2026-10-07). A page that draws no
   // frame (covered, the monitor off, busy) gives none: its pane is empty meanwhile. Waiting for it held every menu
-  // after it closed (the menus' tests failed now and then, 2026-10-07).
+  // after it closed (the menus' tests failed now and then, 2026-10-07), and half a second it held a task's slide after
+  // the click: a page gives its picture in a few milliseconds (2–7 ms measured, 2026-10-15).
   async pictures() {
     const pics: Record<string, string> = {};
     const later = (ms: number) => new Promise<null>((ok) => setTimeout(ok, ms, null));
     await Promise.all([...this.profiles.values()].filter((p) => p.visible() && p.get() && !p.get()!.discarded && !p.get()!.wc.isDestroyed()).map(async (p) => {
-      const img = await Promise.race([p.get()!.wc.capturePage(), later(500)]).catch((): null => null);
+      const img = await Promise.race([p.get()!.wc.capturePage(), later(100)]).catch((): null => null);
       if (!img) return;
       pics[p.id] = `data:image/jpeg;base64,${img.toJPEG(90).toString('base64')}`;
     }));
