@@ -315,7 +315,13 @@ class AppWindow {
     this.send('theme', theme);
   }
 
-  ask(q: Question) { return this.questions.ask(q); }
+  // Brought to the front with it while another of Kulisa's windows has the focus (Settings, another tasks' window): left
+  // behind, it looked as if nothing happened (the OS's × behind Settings on macOS, 2026-10-16). Never from another app.
+  ask(q: Question) {
+    const focused = BrowserWindow.getFocusedWindow();
+    if (focused && focused !== this.win) this.focus();
+    return this.questions.ask(q);
+  }
   answer(id: number, answer: string) { this.questions.answer(id, answer); }
   unanswered() { this.questions.unanswered(); }
 
@@ -336,6 +342,8 @@ class AppWindow {
 // it (ok), maybe a second way (other, as New Window next to This Window), and Cancel. The button clicked: 'ok' or
 // 'other'; null for Cancel, or no answer (the page gone). A tasks' window's, Settings' (settings-window.ts).
 let asked = 0;
+// Where a question is asked: a tasks' window, or Settings' (settings-window.ts).
+interface Asker { ask(q: Question): Promise<string | null> }
 class Questions {
   send: (q: Question & { id: number }) => void; answers = new Map<number, (answer: string | null) => void>();
   constructor(send: (q: Question & { id: number }) => void) { this.send = send; }
@@ -365,5 +373,5 @@ function onScreen(b: Rectangle) {
   return screen.getAllDisplays().some(({ workArea: a }) => b.x < a.x + a.width && b.x + b.width > a.x && b.y < a.y + a.height && b.y + b.height > a.y);
 }
 
-export type { Place };
+export type { Asker, Place };
 export { AppWindow, COLORS, Questions, keepPage, onScreen };

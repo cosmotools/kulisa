@@ -12,7 +12,7 @@ import type { ProjectEntry } from '../store.ts';
 import type { Task } from '../tasks.ts';
 
 export function registerTasks(ipc: Ipc) {
-  const { shell, at, owner, serial, tasks } = ipc;
+  const { shell, at, owner, asker, serial, tasks } = ipc;
   const store = shell.store;
   const { openProject, closeTasks, askClosing, moveTask, moveAll, dropTask, dragOut, quit, createTask, showTask, closeTask, deleteTask, deleteMerged, deleteProject, openTasksOf } = tasks;
   const sendProjects = () => shell.sendProjects();
@@ -50,7 +50,7 @@ export function registerTasks(ipc: Ipc) {
   handle('task:drop', (e, { key, index, terminals }) => serial(() => dropTask(shell.taskByKey(key), at(e), index, terminals)));
   handle('task:drag-out', (_e, { key, terminals }) => serial(() => dragOut(shell.taskByKey(key), terminals)));
   handle('app:quit', (e) => serial(() => quit(at(e))));
-  handle('project:delete', (e, { id }) => serial(() => deleteProject(id, owner(e))));
+  handle('project:delete', (e, { id }) => serial(() => deleteProject(id, asker(e))));
   // A task of any project (the bar shows every open task).
   const taskAt = <T>(key: string, fn: (task: Task) => T | Promise<T>) => serial(() => { const task = shell.taskByKey(key); return task ? fn(task) : { error: `no task ${key}` }; });
   handle('task:show', (_e, key) => taskAt(key, showTask));

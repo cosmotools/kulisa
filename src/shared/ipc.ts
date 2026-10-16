@@ -165,6 +165,7 @@ export interface Events {
   'master:url': string;
   'settings:show': SettingsAt;
   'settings:closing': void; // asked to close (its ×): its page saves, then closes it
+  'settings:changed': void; // the profiles changed elsewhere (a tasks' window, the agent): its lists read again
 }
 
 // A message's argument after its channel: none for a `void` one.

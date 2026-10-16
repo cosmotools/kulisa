@@ -221,8 +221,11 @@ the main one last (blue; red when it deletes) ([ui.md](ui.md), Dialogs). Questio
 undone (deleting a profile, a task, a project), before closing (a task while an agent works, a window,
 quitting while an agent works: [tasks.md](tasks.md)) or between two ways to go (a second button, `other`) are asked
 in that dialog too (`shell.ask` → `lib/ask.ts`, `Ask.vue`, queued, Cancel focused; Esc is Cancel, a click outside
-does nothing: it waits for an answer), in the window the action is in; while Settings is open, in its window (below),
-whichever asks: the tasks' windows take no input then. While a dialog is open the profiles' pages are
+does nothing: it waits for an answer), in the window the action is in: Settings' for what is done in Settings, a tasks'
+window's for what is done there, the agent's in its task's window (`asker` in `ipc/`; `Asker` in `window.ts`). A tasks'
+window asked in comes to the front with its question, restored when minimized, while another of Kulisa's windows has
+the focus (Settings, another tasks' window): left behind, it looked as if nothing happened (on macOS a window's × works
+behind Settings); never from another app. While a dialog is open the profiles' pages are
 hidden (they are native views above the HTML), and the keys are the dialog's (Keys). Not the OS's own question (`dialog.showMessageBox`): it looked different on each OS and plain on Linux, and
 could not mark the deleting button or lay out what goes. The OS's own dialogs stay for choosing a folder.
 
@@ -231,23 +234,32 @@ could not mark the deleting button or lay out what goes. The OS's own dialogs st
 Settings (a tree of Projects, Agents and Profiles: [tasks.md](tasks.md), Projects) is a window of its own, as a desktop
 app's settings are (JetBrains', macOS apps'; the author, 2026-10-16: what users of desktop apps expect, and settings
 apart from the work): the OS's title bar ("Settings — Kulisa"), its own size and place, kept (`settings.json`:
-`settingsWindow`), at least 640 × 420 times the Kulisa zoom. Open it, set things, close it:
+`settingsWindow`), at least 640 × 420 times the Kulisa zoom. Open it, set things, close it; or leave it open beside
+the work:
 
 - **One for the whole app.** The gear (on macOS also Kulisa → Settings… in the menu bar, ⌘,, where Mac apps have it), a task tab's Manage Profiles… and Project Settings…, a pane's About this
   profile…, a project's Add Profile… tile and New Project's Create open it at that page (a project's: none named, the
   shown task's); open already, it comes to the front at that page.
-- **The tasks' windows take no input while it is open** (`setEnabled(false)`; not on macOS, below), as JetBrains' Settings holds its IDE;
-  their profiles' pages and terminals stay on screen and live (as a dialog, it had hidden the pages, and the agent's
-  work with them). Every question is asked in its window then (`shell.askWhich`), whichever part of Kulisa asks: one in
-  a held window could not be answered. A click on a held window brings Settings back to the front: on Linux (X11) a child
-  window is not kept above its parent (no transient hint on Electron's window; seen 2026-10-16). On macOS Electron
-  disables a window by putting a half-black sheet over it, drawn over Settings too (2026-10-16); there they are not
-  disabled: a click on an inactive window only activates it (`acceptFirstMouse`, off by default), and that brings
-  Settings back.
-- **Not Electron's modal window**: on macOS that is a sheet, attached to its parent's title bar, with no title bar
-  of its own and not movable ([Electron's docs](https://github.com/electron/electron/blob/v44.5.1/docs/api/browser-window.md#platform-notices));
-  GNOME (X11) gave a plain window for it as well (2026-10-16). A child window (`parent`: the window it was opened
-  from) with the tasks' windows held is the same on the three OSes.
+- **Not modal** (the author, 2026-10-16), as macOS apps' settings, VS Code's and Chrome's are: the tasks' windows go on
+  taking clicks and keys beside it, and either comes in front of the other. Until then it held them, as JetBrains'
+  Settings holds its IDE (`setEnabled(false)`); on macOS Electron disables a window by putting a half-black sheet over
+  it (`NativeWindowMac::SetEnabled`, the same in 44.8.0 and 45's beta; electron#9272 `wontfix`), and a window not
+  disabled there let quick clicks and its own buttons through. Its page saves what is typed as it goes, so nothing
+  waits for it to close. Not Electron's modal window either (on macOS a sheet, attached to its parent's title bar,
+  not movable: [Electron's docs](https://github.com/electron/electron/blob/v44.8.0/docs/api/browser-window.md#platform-notices)),
+  nor a child of a tasks' window (on macOS a child stays above its parent, which then never comes in front of it).
+- **It acts for the tasks' window last in front** (`shell.front`: clicked, or brought up by the keyboard or the OS):
+  what it asks the main process about a project or a task goes there (`owner` in `ipc/`): the shown task's project
+  (where it opens when none is named, also on macOS's Kulisa → Settings…), the folder agents are looked for in. That
+  window closed, the next one; the last one closed, Kulisa quits as always, Settings with it. Closed, Settings gives
+  the keyboard back to that window. A new account's sign-in and an installer answer the page that asked.
+- **Its lists follow** what changes elsewhere while it is open: the profiles made and let go in a tasks' window or by
+  the agent (`settings:changed`, sent on `profilesChanged`), its tree's and the shown project's; nothing typed on its
+  page is touched.
+- **Never full screen** (`fullscreenable: false`), as Mac apps' settings: opened from a task's window in full screen,
+  macOS made it a full-screen window of its own, in a Space of its own (2026-10-16). Not full-screenable, it opens at
+  its size over that window, in its Space; nothing more is needed (`FullScreenAuxiliary` was tried: the same). As a
+  window of its own, macOS's Window menu lists it too.
 - **Esc closes it**, as a dialog's: unless a menu, a question or a popover is open (Esc closes that first), or a field
   takes it. Esc and the OS's × alike, its page saves what is typed first (a project's name), then closes it; while an
   agent installs, it stays.
@@ -255,11 +267,9 @@ apart from the work): the OS's title bar ("Settings — Kulisa"), its own size a
   opens Settings at it (the author, 2026-10-16: one way to open each, not New Project inside Settings too).
 - **Shown once its page is filled** (the projects, the profiles, the agents as last found, its fonts: `settings:ready`),
   as Electron's docs advise for a window (`show: false`): shown at once, its tree and page jumped as they came (the
-  author, 2026-10-16). A page that never says so is shown after 2 s all the same: the tasks' windows are held meanwhile.
+  author, 2026-10-16). A page that never says so is shown after 2 s all the same.
 - Its page is the app's third (`settings.html`, `Settings.vue`): nothing of a tasks' window (no grid, no profiles'
   views, no keys of its own). Its process lives while it is open: about 40 MB of its own (PSS; 2026-10-16).
-- What it asks the main process about a project or a task goes to its parent (`owner` in `ipc/`): the shown task's
-  project, the folder agents are looked for in. A new account's sign-in and an installer answer the page that asked.
 - Not tried on Wayland: there an app may not place, move or focus its windows itself (Electron's docs, the same
   Platform notices), so where it opens and bringing it to the front are the compositor's.
 

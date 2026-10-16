@@ -14,7 +14,7 @@ import type { Pty } from '../terminal.ts';
 import type * as Sent from '../../shared/types.ts'; // what the window gets: its one definition
 
 export function registerAgents(ipc: Ipc) {
-  const { shell, owner, serial } = ipc;
+  const { shell, owner, asker, serial } = ipc;
   const store = shell.store;
   // The accounts (Settings → Agents), each with the projects it is in; clis: the agents an account can be made of.
   const accountsInfo = (): Sent.AccountsInfo => {
@@ -26,7 +26,7 @@ export function registerAgents(ipc: Ipc) {
   handle('accounts:list', () => accountsInfo());
   // Delete Account… (projects.ts: refused while a task runs it, asked first). { accounts, clis } or { error }.
   handle('account:delete', (e, { id }) => serial(async () => {
-    const r = await deleteAccount(shell, id, owner(e));
+    const r = await deleteAccount(shell, id, asker(e));
     if (refused(r)) return r;
     shell.sendProjects(); // +'s right-click menu of the projects that had it
     return accountsInfo();

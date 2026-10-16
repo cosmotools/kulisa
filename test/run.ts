@@ -16,6 +16,7 @@ import { ensureSite } from './fixtures/site.ts';
 import { root, userData, project, SITE, PORT, sleep, waitFor } from './helpers.ts';
 import type { Shell } from '../src/main/shell.ts';
 import type { AppWindow } from '../src/main/window.ts';
+import type { SettingsWindow } from '../src/main/settings-window.ts';
 import type { Question } from '../src/shared/types.ts';
 import type { Task, TaskTerminal } from '../src/main/tasks.ts';
 import type { Agent } from '../src/main/agents/index.ts';
@@ -163,11 +164,11 @@ async function setup(shell: Shell) {
   const tools = async (task: Task = shell.task) => (await (await mcpOf(task.env().KULISA_MCP_URL)).listTools()).tools;
   const ctx = { shell, call, instructions, tools, ui, sui, ptyOutput: () => pty, watchPty, termText, asked, answer: true as boolean | 'other' | null, get step() { return step; } };
   const ask = shell.askWhich;
-  // Asked in the window w (window.ts), the first one when none is named; shell.ask asks through it.
-  shell.askWhich = (q: Question, w: AppWindow | null = shell.windows[0]) => {
+  // Asked where w is (a tasks' window, Settings': app.ts, askWhich), the first window when none is named; shell.ask
+  // asks through it.
+  shell.askWhich = (q: Question, w: AppWindow | SettingsWindow | null = shell.windows[0]) => {
     asked.push(q);
-    // In Settings' window while it is open (app.ts, askWhich).
-    const answer = ask(q, w), yes = ctx.answer, page = (shell.settings?.win ?? w.win).webContents, there = (js: string) => page.executeJavaScript(js);
+    const answer = ask(q, w), yes = ctx.answer, page = w.win.webContents, there = (js: string) => page.executeJavaScript(js);
     if (yes !== null) void waitFor(() => there(`(document.getElementById('ask')?.dataset.state === 'open') && document.querySelector('#ask h2').textContent === ${JSON.stringify(q.message)}`))
       .then(() => there(`document.querySelector('#ask ${yes === 'other' ? '.other' : yes ? '.ok' : '.cancel'}').click()`));
     return answer;

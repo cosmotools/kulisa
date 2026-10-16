@@ -4,7 +4,7 @@ import { ipcMain } from 'electron';
 import type { IpcMainEvent, IpcMainInvokeEvent } from 'electron';
 import type { Invoke, Send } from '../shared/ipc.ts';
 import type { Shell } from './shell.ts';
-import type { AppWindow } from './window.ts';
+import type { AppWindow, Asker } from './window.ts';
 import type { OpenTasks } from './open-tasks.ts';
 
 // An answer the window does not read (`void`) may be anything; one it reads is the table's.
@@ -20,12 +20,14 @@ export function on<C extends keyof Send>(channel: C, fn: (e: IpcMainEvent, arg: 
 
 export type IpcEvent = IpcMainEvent | IpcMainInvokeEvent;
 
-// What the windows' handles (ipc/) get: the app, the tasks' window a message comes from (at) or is about (owner: also
-// Settings' parent, settings-window.ts), the open tasks (open-tasks.ts) and their one-after-another.
+// What the windows' handles (ipc/) get: the app, the tasks' window a message comes from (at) or is about (owner: for
+// Settings, the tasks' window last in front), where its questions are asked (asker: its own window, Settings' too),
+// the open tasks (open-tasks.ts) and their one-after-another.
 export interface Ipc {
   shell: Shell;
   at: (e: IpcEvent) => AppWindow | null;
   owner: (e: IpcEvent) => AppWindow | null;
+  asker: (e: IpcEvent) => Asker | null;
   tasks: OpenTasks;
   serial: OpenTasks['serial'];
 }

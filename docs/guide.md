@@ -53,8 +53,8 @@ newer and less tried.
   **Settings** (the gear), and **☰**, the window's menu: zoom, theme, where the tasks' bar is, language, Arrange
   panels, Keyboard Shortcuts, links, Exit.
 - **Settings** (on a Mac also ⌘, or Kulisa → Settings… in the menu bar) opens in a window of its own, as in other desktop apps: set what you need and close it (**Esc** or its
-  ×; what you typed is saved). While it is open, the task windows wait for it, but you still see your pages and
-  terminals working; a click on a task window brings Settings back to the front.
+  ×; what you typed is saved as you go). You can also leave it open and go on working in your task windows: it stays
+  open beside them, and shows the project of the task window you were in last.
 - **The grid**: the shown task's panes (one per open profile) and its terminals. Drag a pane by its header to move it,
   onto another pane to stack them as tabs; drag the gaps to resize. **☰ → Arrange panels** offers ready-made
   arrangements. Each task keeps its own grid.

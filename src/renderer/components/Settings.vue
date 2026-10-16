@@ -1,6 +1,6 @@
 <script setup lang="ts">
-// Settings' window (docs/window.md, Settings): its page (ProjectEditor.vue), and the questions asked meanwhile (Ask.vue):
-// every question while it is open, as the tasks' windows take no input then. Esc closes it, as a dialog's; the OS's ×
+// Settings' window (docs/window.md, Settings): its page (ProjectEditor.vue), and the questions about what is done in it
+// (Ask.vue). Esc closes it, as a dialog's; the OS's ×
 // asks first (settings:closing): either way the page saves what is typed, then closes it.
 import { ref } from 'vue';
 import Sprite from './Sprite.vue';

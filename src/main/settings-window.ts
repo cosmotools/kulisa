@@ -1,16 +1,15 @@
 // Settings in a window of its own (docs/window.md, Settings), as a desktop app's: one for the whole app, with the OS's
-// title bar, opened from a tasks' window (its parent) at a page. While it is open the tasks' windows take no input, as
-// JetBrains' Settings holds its IDE: open it, set things, close it; their pages and terminals stay on screen and live.
-// Not Electron's modal: on macOS that is a sheet without a title bar (browser-window.md, Platform notices). Its page:
-// settings.html (components/Settings.vue).
+// title bar, at a page. Not modal (the author, 2026-10-16): the tasks' windows go on taking input beside it, as macOS
+// apps', VS Code's and Chrome's settings do; on macOS a window could not be held without Electron's half-black sheet
+// over it. Its page: settings.html (components/Settings.vue).
 import { BrowserWindow } from 'electron';
 import path from 'path';
 import { on } from './ipc.ts';
 import { page } from './pages.ts';
 import { COLORS, Questions, keepPage, onScreen } from './window.ts';
 import type { Shell } from './shell.ts';
-import type { AppWindow } from './window.ts';
 import type { Arg, Events } from '../shared/ipc.ts';
+import type { Question } from '../shared/types.ts';
 
 // Its size at first, and the smallest one whose tree and page still fit, in CSS pixels: times the Kulisa zoom.
 const SIZE = { width: 1000, height: 680 }, MIN = { width: 640, height: 420 };
@@ -18,8 +17,8 @@ const scaled = (s: { width: number; height: number }, z: number) => ({ width: Ma
 
 interface SettingsWindow {
   win: BrowserWindow;
-  parent: AppWindow; // the tasks' window it was opened from: the shown task's project and folder are its
-  questions: Questions; // while it is open every question is asked here: the tasks' windows take no input (app.ts, askWhich)
+  questions: Questions; // what is done in it is asked in it (app.ts, asker)
+  ask(q: Question): Promise<string | null>;
   send<C extends keyof Events>(channel: C, ...data: Arg<Events[C]>): void;
   setZoom(z: number): void;
   setTheme(theme: string, shade: 'dark' | 'light'): void;
@@ -28,12 +27,16 @@ interface SettingsWindow {
 
 function installSettings(shell: Shell, { preload, appDevTools }: { preload: string; appDevTools: boolean }) {
   shell.settings = null;
-  shell.openSettings = (parent, at) => {
+  shell.openSettings = (at) => {
     const open = shell.settings;
     if (open) { open.send('settings:show', at); open.win.focus(); return; }
     const z = shell.uiZoom, saved = shell.store.settings().settingsWindow;
     const win = new BrowserWindow({ ...scaled(SIZE, z), ...(saved && onScreen(saved) ? saved : {}), useContentSize: !saved,
-      minWidth: scaled(MIN, z).width, minHeight: scaled(MIN, z).height, parent: parent.win, title: 'Settings — Kulisa',
+      // Not a child of a tasks' window: on macOS a child stays above its parent, which then never came in front of it.
+      minWidth: scaled(MIN, z).width, minHeight: scaled(MIN, z).height, title: 'Settings — Kulisa',
+      // Never full screen itself: opened from a full-screen tasks' window, macOS made it a full-screen window in a Space
+      // of its own (2026-10-16); not full-screenable, it opens over that window, in its Space, as Mac apps' settings do.
+      fullscreenable: false,
       show: false, // until its page is filled (settings:ready): shown empty, its tree and page jumped as they came
       backgroundColor: COLORS[shell.shade()].window, icon: path.join(import.meta.dirname, '..', '..', 'assets', 'icon.png'),
       webPreferences: { preload, sandbox: true, devTools: appDevTools, zoomFactor: z } });
@@ -42,8 +45,9 @@ function installSettings(shell: Shell, { preload, appDevTools }: { preload: stri
     let loaded = false, closing = false;
     const pending: [string, unknown[]][] = [];
     const s: SettingsWindow = {
-      win, parent,
+      win,
       questions: new Questions((q) => s.send('ask', q)),
+      ask: (q) => s.questions.ask(q),
       send(channel, ...data) {
         if (win.isDestroyed()) return;
         if (loaded) win.webContents.send(channel, ...data); else pending.push([channel, data]);
@@ -63,15 +67,6 @@ function installSettings(shell: Shell, { preload, appDevTools }: { preload: stri
       },
     };
     shell.settings = s;
-    // The tasks' windows held, as long as it is open; a click on one brings it back to the front (on Linux a child
-    // window is not kept above its parent: no transient hint, seen 2026-10-16). Not disabled on macOS: Electron
-    // disables a window there with a half-black sheet over it (NativeWindowMac::SetEnabled, 44.5.1), drawn over this
-    // child window too; a click on an inactive window only activates it there (acceptFirstMouse, off), so the focus
-    // bringing this one back holds it.
-    const raise = () => { if (!win.isDestroyed()) win.focus(); };
-    const held = shell.windows.filter((w) => !w.win.isDestroyed());
-    const disable = process.platform !== 'darwin';
-    for (const w of held) { if (disable) w.win.setEnabled(false); w.win.on('focus', raise); }
     // Its ×: the page first saves what is typed (a project's name) and then closes it (settings:close); while an agent
     // installs, it stays (AgentPage.vue). Quitting, or its page gone, it just closes.
     win.on('close', (e) => {
@@ -83,12 +78,20 @@ function installSettings(shell: Shell, { preload, appDevTools }: { preload: stri
     win.on('closed', () => {
       s.questions.unanswered();
       if (shell.settings === s) shell.settings = null;
-      for (const w of held) if (!w.win.isDestroyed()) { w.win.removeListener('focus', raise); if (disable) w.win.setEnabled(true); }
-      // The keyboard back where it was; not as Kulisa quits, its windows going too (one gone meanwhile threw).
-      if (!shell.quitting && !parent.win.isDestroyed() && !parent.win.webContents.isDestroyed()) { parent.focus(); parent.win.webContents.focus(); }
+      // The keyboard to the tasks' window last in front, its own page; not as Kulisa quits, its windows going too (one gone
+      // meanwhile threw). macOS makes that window key a moment later and then gives the keyboard back to the view that had
+      // it there (a profile's page), over ours: given again once it is key ('focus' comes after; GitHub's runner,
+      // 2026-10-16, about one run in three).
+      const w = shell.front();
+      if (!shell.quitting && w && !w.win.webContents.isDestroyed()) {
+        const page = () => { if (!w.win.webContents.isDestroyed()) w.win.webContents.focus(); };
+        const key = w.win.isFocused();
+        w.focus(); page();
+        if (!key) { w.win.once('focus', page); setTimeout(() => { if (!w.win.isDestroyed()) w.win.removeListener('focus', page); }, 1000); }
+      }
     });
     s.send('settings:show', at);
-    // Its page stuck or gone: shown all the same, as the tasks' windows are held meanwhile.
+    // Its page stuck or gone: shown all the same.
     setTimeout(() => { if (!win.isDestroyed() && !win.isVisible()) win.show(); }, 2000);
     void win.loadFile(page('settings.html'), { query: { theme: shell.theme } }).then(() => {
       loaded = true;
@@ -100,7 +103,7 @@ function installSettings(shell: Shell, { preload, appDevTools }: { preload: stri
   on('settings:close', (e) => of(e)?.close());
   on('settings:ready', (e) => { const s = of(e); if (s && !s.win.isVisible()) s.win.show(); });
   on('ask:answer', (e, { id, answer }) => of(e)?.questions.answer(id, answer));
-  on('settings:open', (e, at) => { const w = shell.windowOf(e.sender); if (w) shell.openSettings(w, at); });
+  on('settings:open', (e, at) => { if (shell.windowOf(e.sender)) shell.openSettings(at); });
 }
 
 export type { SettingsWindow };

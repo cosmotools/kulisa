@@ -15,7 +15,7 @@ import type { Shell } from './shell.ts';
 import type { ProjectEntry, TaskEntry, Copy, Store } from './store.ts';
 import type { StoredProfile } from './profile-store.ts';
 import type { ProfileConfig } from './profiles.ts';
-import type { AppWindow } from './window.ts';
+import type { AppWindow, Asker } from './window.ts';
 import type { Question, ProjectAgent, ProjectRepo } from '../shared/types.ts';
 import type { GitError } from './worktrees.ts';
 
@@ -189,7 +189,7 @@ const changesOf = async (copies: Copy[]) => (await Promise.all(copies.map((c) =>
 
 // Deleting a task asks first, told what goes for good, with the work not in its repositories' main branches and not
 // pushed that goes with it. folder: where it works (Task.folder).
-async function askDeleteTask(shell: Shell, entry: TaskEntry, folder: string, w: AppWindow | null) {
+async function askDeleteTask(shell: Shell, entry: TaskEntry, folder: string, w: Asker | null) {
   const copies = entry.copies || [];
   const what = changesText(await changesOf(copies));
   const goes = [...copies.map((c) => `its folder ${c.worktree}, its branch ${c.branch}`), 'its profiles with their sign-ins',
@@ -295,7 +295,7 @@ async function removeRepo(shell: Shell, id: string, repo: string): Promise<Resul
 // A profile a project lets go (− on its page, the agent's profile_delete), whether it is open or not: asked first,
 // saying what goes: its copies in the project's tasks. The profile stays, with its master (its sign-ins): Settings →
 // Profiles deletes it (deleteProfile). w: the window that asks.
-function askDropProfile(shell: Shell, entry: ProjectEntry, p: Named, by: 'human' | 'agent', w?: AppWindow | null) {
+function askDropProfile(shell: Shell, entry: ProjectEntry, p: Named, by: 'human' | 'agent', w?: Asker | null) {
   const agent = by === 'agent';
   return shell.ask({ ok: 'Remove', danger: true, message: `${agent ? 'The agent asks to remove' : 'Remove'} the profile ${p.name} from ${entry.name}${agent ? '.' : '?'}`,
     detail: "Its copies in this project's tasks go, with their tabs and what was signed in only there. The profile stays, with its sign-ins: Settings → Profiles deletes it." }, w);
@@ -310,7 +310,7 @@ async function dropProfile(shell: Shell, entry: ProjectEntry, folder: string) {
 }
 // Deleting a profile (Settings → Profiles), after a question: its copies in every project's tasks, then its master
 // (its window first) with its sign-ins, for good. { ok }, or { error: null } when the human says no.
-async function deleteProfile(shell: Shell, id: string, w: AppWindow | null): Promise<{ ok: true; error?: undefined } | { error: string | null; ok?: undefined }> {
+async function deleteProfile(shell: Shell, id: string, w: Asker | null): Promise<{ ok: true; error?: undefined } | { error: string | null; ok?: undefined }> {
   const g = shell.profileStore.get(id);
   if (!g) return { error: `no profile ${id}` };
   const projects = shell.store.projects().filter((p) => g.projects.includes(p.id));
@@ -372,7 +372,7 @@ function removeAgent(shell: Shell, id: string, agent: string): Result<{ agents: 
 // Delete Account… (Settings → Agents): only while no task, of any project, open or closed, runs it (its conversation is
 // in its folder); asked first, naming the projects it is in; let go by them, signed out with its agent's own command,
 // its folder gone. w: the window that asks. { ok } or { error }.
-async function deleteAccount(shell: Shell, agent: string, w: AppWindow | null): Promise<{ ok: true; error?: undefined } | { error: string | null; ok?: undefined }> {
+async function deleteAccount(shell: Shell, agent: string, w: Asker | null): Promise<{ ok: true; error?: undefined } | { error: string | null; ok?: undefined }> {
   const a = shell.accounts.find(agent);
   if (!a || a.own) return { error: `no account ${agent}` };
   const using = shell.store.projects().flatMap((p) => shell.store.tasksOf(p).list
@@ -400,7 +400,7 @@ async function reposInfo(p: ProjectEntry): Promise<{ repos: ProjectRepo[]; forme
 // Removing a project: the question first, told what goes and which tasks have work not in main (the window closes the
 // project if it is open in between), then each of its tasks deleted and what is the project's as a whole (store.ts:
 // its entry, its data folder). Never the project's own folder. p: its entry; w: the window that asks.
-async function askDeleteProject(shell: Shell, p: ProjectEntry, w: AppWindow | null) {
+async function askDeleteProject(shell: Shell, p: ProjectEntry, w: Asker | null) {
   const withCopies = shell.store.tasksOf(p).list.filter((e) => e.copies?.length);
   const changed = [];
   for (const e of withCopies) {

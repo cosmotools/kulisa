@@ -7,7 +7,7 @@ import { refused } from '../shared/result.ts';
 import type { Shell } from './shell.ts';
 import type { ProjectEntry } from './store.ts';
 import type { Task } from './tasks.ts';
-import type { Place } from './window.ts';
+import type { Asker, Place } from './window.ts';
 import type { Result } from '../shared/result.ts';
 import type { TerminalContents } from '../shared/ipc.ts';
 
@@ -233,11 +233,11 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
   }
   // Removing a project, from wherever a window asks for it (w): the human confirms, then its open tasks are closed
   // in every window, and its data deleted (projects.ts).
-  async function deleteProject(id: string, w: AppWindow | null) {
+  async function deleteProject(id: string, w: Asker | null) {
     const p = store.projects().find((x) => x.id === id);
     if (!p) return { error: `no project ${id}` };
     const open = shell.open.get(id);
-    if (!await askDeleteProject(shell, p, open?.window || w)) return { error: 'the human said no' };
+    if (!await askDeleteProject(shell, p, w || open?.window || null)) return { error: 'the human said no' };
     if (open) for (const win of [...shell.windows]) await closeTasks(win, openTasksOf(open, win), { asked: true });
     await deleteProjectData(shell, p);
     sendProjects();

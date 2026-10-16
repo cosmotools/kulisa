@@ -56,7 +56,7 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
     field, from the morning of 2026-10-11 until its evening).
 - **Settings** (the button in the title bar, left of ☰; the author, 2026-10-11), as JetBrains' Settings (the author,
   2026-10-11: the dialogs read as a web page's, not a desktop app's; docs/ui.md, Desktop, not a web page), a window of
-  its own since 2026-10-16 (a dialog until then; how it opens and closes, the tasks' windows held meanwhile:
+  its own since 2026-10-16, not modal (a dialog until then; how it opens and closes, and which window it acts for:
   [window.md](window.md), Settings): a tree on the
   left of three sections, each with its own under it: **Projects** (every project, its icon in its color, its name),
   **Agents** (each agent: "Choosing the agent") and **Profiles** (every profile, its picture: [profiles.md](profiles.md));

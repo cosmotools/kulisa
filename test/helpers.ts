@@ -120,9 +120,11 @@ const closeSettings = async (ctx: Pick<Ctx, 'shell' | 'ui' | 'sui'>) => {
 const settingsClosed = async ({ shell, ui }: Pick<Ctx, 'shell' | 'ui'>) => {
   await waitFor(() => !shell.settings);
   // Not focused in time: which window is, and the windows there are, said (a run on GitHub's macOS runner, 2026-10-16).
-  await waitFor(async () => shell.win.isFocused() && await ui(`document.hasFocus()`)).catch((e: Error) => {
-    const all = electron.BaseWindow.getAllWindows().map((w) => `${w.getTitle()}${w.isVisible() ? '' : ' (hidden)'}${w.isFocused() ? ' (focused)' : ''}${w.isEnabled() ? '' : ' (disabled)'}`);
-    throw new Error(`${e.message}; windows: ${all.join(', ')}`);
+  await waitFor(async () => shell.win.isFocused() && await ui(`document.hasFocus()`)).catch(async (e: Error) => {
+    const all = electron.BaseWindow.getAllWindows().map((w) => `${w.getTitle()}${w.isVisible() ? '' : ' (hidden)'}${w.isFocused() ? ' (focused)' : ''}`);
+    const keys = electron.webContents.getFocusedWebContents(), page = shell.win.webContents;
+    throw new Error(`${e.message}; windows: ${all.join(', ')}; the keyboard in: ${keys === page ? "the window's page" : keys?.getURL() ?? 'none'};`
+      + ` page focused ${page.isFocused()}, its active element ${await ui(`document.activeElement?.tagName + '.' + document.activeElement?.className`)}`);
   });
 };
 // A profile in Settings' tree chosen (a click), its page shown.
@@ -148,7 +150,9 @@ const focusWindow = async (win: { focus(): void; webContents: { focus(): void } 
   // On macOS a click also brings the app to the front, and only the front app's windows take the keyboard.
   if (MAC) electron.app.focus({ steal: true });
   win.focus(); win.webContents.focus();
-  await waitFor(() => ui(`document.hasFocus()`));
+  // macOS makes the window key a moment later and gives the keyboard back to the view that had it (a profile's page),
+  // over this: given again until the page has it, as the click into it would (GitHub's macOS runner, 2026-10-16).
+  await waitFor(async () => { if (await ui(`document.hasFocus()`)) return true; win.webContents.focus(); return false; });
 };
 
 async function waitFor(cond: () => unknown, ms = 5000) {
