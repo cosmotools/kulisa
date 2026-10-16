@@ -506,15 +506,19 @@ export default (test: Test) => {
       const b = await ui(`${taskTab(n)}.querySelector('.name').getBoundingClientRect().toJSON()`);
       wc.sendInputEvent({ type, x: Math.round((b.x + b.width / 2) * z), y: Math.round((b.y + b.height / 2) * z), button: 'left', clickCount: 1 });
     };
-    const chosen = () => ui(`document.querySelector('#projectTabs .tasktab.active').dataset.task.split('/').pop()`);
+    const chosenJs = `document.querySelector('#projectTabs .tasktab.active')?.dataset.task.split('/').pop() ?? ''`, chosen = () => ui(chosenJs);
     await waitFor(() => ui(`!document.documentElement.matches(':active-view-transition')`)); // the slide's pictures over the window take every event
     await press('mouseDown', 2);
     await waitFor(async () => (await chosen()) === '2');
     await sleep(200); // nothing to wait for: that it is not shown yet
     assert.equal(shell.task.n, 1, 'not shown while the button is down');
+    // Lit on the press, it stays lit: let go of, it went dark while the main process took the pictures for the slide
+    // and lit again with the new state, the tab left going on and off with it (the author, 2026-10-16: the tabs blinked).
+    await ui(`window.__lit = [${chosenJs}]; window.__litObs = new MutationObserver(() => window.__lit.push(${chosenJs})); window.__litObs.observe(document.getElementById('projectTabs'), { attributes: true, attributeFilter: ['class'], subtree: true })`);
     await press('mouseUp', 2);
     await waitFor(() => shell.task.n === 2 && !shell.windows[0].switching);
     await waitFor(() => ui(`!document.documentElement.matches(':active-view-transition')`));
+    assert.deepEqual([...new Set(await ui(`window.__litObs.disconnect(), window.__lit`))], ['2'], 'the tab lit from the press to the task shown, no other');
     // A drag begins: Chromium cancels the pointer (a real drag of a tab is the OS's, out of a test's reach).
     await press('mouseDown', 1);
     await waitFor(async () => (await chosen()) === '1');

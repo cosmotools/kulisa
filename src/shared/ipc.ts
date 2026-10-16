@@ -69,7 +69,7 @@ export interface Invoke {
   'task:move': I<[{ key: string; to?: number | null; terminals: TerminalContents }]>;
   'task:drop': I<[{ key: string; index: number; terminals: TerminalContents }]>;
   'task:drag-out': I<[{ key: string; terminals: TerminalContents }]>;
-  'task:show': I<[key: string]>;
+  'task:show': I<[key: string], { error: string } | void>; // { error }: no such task (ipc/tasks.ts, taskAt)
   'task:new': I<[{ project?: string }?]>;
   'task:close': I<[key: string]>;
   'task:delete': I<[key: string]>;

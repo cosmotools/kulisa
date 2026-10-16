@@ -5,7 +5,7 @@
 // none (the author, 2026-10-08: tabs that moved under the mouse made the human miss). Where a dragged tab is let
 // go outside every Kulisa window, the main process says (the page does not know where the pointer is then).
 // Under the grid, or in the title bar: App.vue puts it in one place or the other (☰ → Tasks bar).
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import TaskTab from './TaskTab.vue';
 import { TabsList, TabsRoot } from 'reka-ui';
 import NewTask from './NewTask.vue';
@@ -33,15 +33,19 @@ useStrip(strip, () => store.current);
 // the tab starts being dragged (pointercancel), whichever comes first: the grid's slide that showing it starts made
 // Chromium drop the drag about to begin, so a tab not shown could not be dragged (2026-10-15); one begun goes on
 // through the slide. Not on its ×, which closes it (TaskTab.vue), nor the keyboard's, shown at once.
+// The pressed tab stays lit until the window is told its task is shown (or it was refused): let go of, it went dark
+// while the main process took the pictures for the slide and lit again with the new state, the one left blinking
+// with it (the author, 2026-10-16).
 const pressed = ref<string | null>(null);
+watch(() => store.current, (current) => { if (current === pressed.value) pressed.value = null; });
 function pointerdown(e: PointerEvent) {
   const at = e.button === 0 && !e.ctrlKey && e.pointerType === 'mouse' && !(e.target as Element).closest('button') && tabAt(e);
   if (!at || at.t.key === store.current) return;
   pressed.value = at.t.key;
-  const done = new AbortController(), show = () => {
+  const done = new AbortController(), show = async () => {
     done.abort();
-    pressed.value = null;
-    void kulisa.invoke('task:show', at.t.key);
+    const r = await kulisa.invoke('task:show', at.t.key);
+    if (r?.error && pressed.value === at.t.key) pressed.value = null;
   };
   for (const type of ['pointerup', 'pointercancel']) addEventListener(type, show, { signal: done.signal });
 }

@@ -61,6 +61,74 @@ here; what is left of it stays.
   - **Open, for the author:** Kulisa offering to hand the task over when an agent stops on its limit (`StopFailure`),
     and to whom (another vendor bypasses nothing; a second subscription of the same vendor may: tasks.md, "Several
     agents in a task").
+- **Ensemble: agents working as a team on one task, in one Kulisa or from several computers, talking** (the idea's
+  first shoots 2026-10-06 as "several agents in one task, working as a team", whose first layer, several agents in a
+  task each in a tab, is built: [tasks.md](tasks.md), "Several agents in a task"; framed whole with the author
+  2026-10-16, from two Claude Code sessions, Ubuntu and macOS, stabilizing #36–#38 by comments on the pull request,
+  each told to read the new ones every 30 s; the author thinks it over, then it is designed in full. The name is
+  proposed, not decided: Ensemble, a theater word as Kulisa is; the fallback Shared task. Marketing first, then the
+  design.) The frame: **as two developers in different countries work on one task on GitHub, agents instead of
+  people.** What the two share is what people share, three things: the repository, the pull request, notifications.
+  Nothing people do not have (a protocol or server of Kulisa's, a chat outside the pull request, a connection
+  between the computers: the MCP server and the proxy stay on 127.0.0.1) is built. Two reaches of one mechanism:
+  agents in one Kulisa (one task, or two tasks of one project) talk directly; agents on two computers through the
+  task's pull request. Who is reachable, `agents` says: who is in the task, their role, what they are doing, which
+  tabs and profiles they use; and the other computers of the task.
+  - **The code goes through git**, as now: each agent pushes its branch, `pull --rebase` before a push, the one who
+    pushes second fixes the conflict (the skill says so; CLAUDE.md says it for the sessions today). Work is divided by
+    role first (one builds, the other checks on its OS and fixes only what it can reproduce there: today's mode, few
+    conflicts), by parts of the code second, said in the thread.
+  - **The talk goes through the pull request**: `agent_message` posts a comment, or a comment on a line (half of
+    #38's comments are "in this file set `fullscreenable: false`"; a line comment is how people say it). Its first
+    line says who it is (the agent, the computer), because the comments go up under the human's account; a separate
+    account or a GitHub App per agent only if that comes to matter. The room is the pull request, not the branch: a
+    branch without one is "not ready to talk", as with people. The human reads the thread on GitHub, from a phone too,
+    and their own comment there reaches every agent of the task, without a prefix.
+  - **Notifications, not polling.** People do not refresh the page; the agent does not poll (the 30 s loop burns a
+    turn with the whole context each time). Kulisa watches the pull request (conditional requests: an unchanged thread
+    costs nothing of the API's limit) and wakes the agent once per message, by what every agent has: the message typed
+    into its terminal as a prompt, with who it is from ("From Claude Code on macOS: …"), so the human sees the talk in
+    both terminals too. Only when the agent is done (at its prompt); queued while it works (to its `stop` hook); never
+    while it waits for the human (a permission, a question: Enter there would answer it; tasks.md). Optional per
+    agent, built later if at all: Claude Code's `Stop` hook answering with the message (`decision: block`) instead of
+    typing. Plus `agent_wait(seconds)`: one blocking tool call until a message comes, instead of turns of polling (the
+    MCP tool timeouts of Claude Code and Codex to read first). A task's tab gets one state more: waiting for the other
+    computer.
+  - **How the other computer learns of the task**: no cloud, but the remote is shared, and it is enough. Kulisa keeps a
+    **card of the task** next to its branch, a ref of its own (`refs/kulisa/tasks/<branch>`, one small file: the task's
+    name, the computer and OS that leads it, the agent, when), pushed when the branch goes up, rewritten not added to,
+    deleted with the task; GitHub does not show such refs and every git host takes them. The other Kulisa fetches them
+    with the project (it fetches `origin/HEAD` in the background already) and shows them in the bar's + menu, **On
+    other computers** ("Settings modeless · Ubuntu · Claude Code · 2 h ago"); **Join Task…** fetches the branch, makes
+    its worktree, opens the task on it, and leaves a card of its own, so the first computer sees who joined. The card
+    carries no agent state (a push per state change is noise): the other side's state is read from its messages. The
+    alternative, tasks = the repository's open pull requests (GitHub's API; a day's less work, but a task without a
+    pull request invisible, and one more tie to GitHub) was weighed and not chosen.
+  - **A task on an existing branch** (Join Task) does not exist yet: today every new task makes a branch of its own.
+    It is the first step, and wanted on its own (pick up a colleague's branch).
+  - **What stays the computer's**: the joined task's profiles are copies of that computer's masters, its conversation
+    its own, its history (`task_history`) its own; the two sides share the branch and the pull request only
+    (proposed; the author to confirm).
+  - **This transport is GitHub's**, said plainly in the docs, not hidden behind an abstraction: releases, pull requests
+    and the token in the remote are GitHub's already. A team on another host gets the talk only with a second
+    transport (a mailbox ref in git, rewritten, any host; but then the human cannot read or join it on a site). The
+    talk is public on a public repository, under the human's account: it is today.
+  - **In one Kulisa** (from the 2026-10-06 idea): the same `agent_message` and the same waking, no pull request: the
+    message goes straight to the other agent's terminal. Covers a tester next to the developer, a side question
+    (Claude: a forked conversation), browser-only research, and parallel agents in a project without git (its tasks
+    share its folder); cheaper than a second task: no profile copies. Each agent works in tabs it opened
+    (`browser_tab_new`): Kulisa knows whose tab is whose, the pane shows which agent acts. The skill: check who else
+    is here, tell the one waiting when done, report a bug in another's part to its author instead of fixing it.
+  - **Not in it**: a chat window or panel, roles in Settings, a lead agent that splits the task and hands it out (as
+    Claude Code's agent teams): the human coordinates, agents equal, their roles set by the human in their own words,
+    talking directly (to start with; a lead agent later if the thread shows the need); agent state in the card. A
+    panel only if the thread in the terminals turns out hard to read with three agents. A task list of the task, seen
+    by the agents (MCP) and the human (a panel), was in the 2026-10-06 idea: not before the talk works.
+  - **Open, for the author**: the name; core or an extension (`src/extensions/`; proposed core: several agents on one
+    project is what Kulisa is for, and MCP tools live in `mcp-server.ts`); an agent acting in another agent's tab:
+    only a hint ("agent 1's tab"), or refused; whether the agents' questions to the human and the other computer's
+    messages should notify the human (the system's notifications, "A desktop app's ways", below) when they are in
+    another app.
 - **Kulisa plugin: more the agent can do in the browsers** (tools in `mcp-server.ts`, each described in the skill;
   what is built: [profiles.md](profiles.md), "What the agent does"). What else an agent needs comes from using it
   (the author moves to working in Kulisa, 2026-10-08): where the agent goes around the tools (its own Playwright
@@ -424,25 +492,6 @@ here; what is left of it stays.
   next to it (`locator('aria-ref=f2e20')`); its only option is the style (1.64), and the label is in a closed shadow
   root. The agent's label shows over the pane meanwhile. When Playwright lets the text be set, put the label there; not
   an outline of our own.
-- **Several agents in one task, working as a team** (discussed 2026-10-06; several agents in a task, each in a tab,
-  are built: [tasks.md](tasks.md), "Several agents in a task"; what is left is their working together). All
-  see the task's code and profiles. Covers a tester next to the developer, a side question (Claude: a forked
-  conversation), browser-only research, and parallel agents in a project without git (its tasks share its folder). Cheaper than
-  a task: one agent process, no profile copies. Agents
-  coordinate through the Kulisa plugin, for any agent:
-  - `agents`: who is in the task, their role, what they are doing, which tabs and profiles they use.
-  - `agent_message(to, text)`: typed into the other agent's prompt when it waits for input (as a pick), queued
-    while it works; for Claude Code possibly through hooks.
-  - A task list of the task, seen by the agents (MCP) and the human (a panel).
-  - Own tabs: each agent works in tabs it opened (`browser_tab_new`); Kulisa knows whose tab is whose, the pane
-    shows which agent acts.
-  - The skill: check who else is here, tell the one waiting when done, report a bug in another's part to its
-    author instead of fixing it.
-
-  Open questions:
-  - An agent acting in another agent's tab: only a hint ("agent 1's tab"), or refused?
-  - Who coordinates: the human (agents equal, roles set by the human, talking directly; proposed to start with),
-    a lead agent that splits the task and hands it out (as Claude Code's agent teams), or both.
 - **A store of extensions** (the author's idea, 2026-10-06; on 2026-10-09 the author decided to design it next, with
   voice commands as its first extension). Installs four kinds of things: agent plugins (Claude Code, Codex),
   MCP servers, skills, and Kulisa extensions (code that extends the IDE: a panel and its tools).
