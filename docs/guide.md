@@ -311,11 +311,13 @@ To remove everything, do it before uninstalling, in Kulisa, so that it cleans up
 every profile (Settings → Profiles) and every agent's account (Settings → Agents: − on the account, which signs it
 out). Then uninstall the program and delete the data folder (above). What remains and is yours to keep or remove:
 
-- Agents Kulisa installed for you (Claude Code, Codex): programs of your own, in `~/.local/bin`, updated by
-  their makers; remove them their way.
+- Agents Kulisa installed for you (Claude Code, Codex): programs of your own, updated by their makers. Settings →
+  Agents shows where each one is; remove them their way.
 - A project's repository that Kulisa cloned for you: your code.
-- Kulisa's key in your OS's keyring ("Kulisa Safe Storage", in the keyring app on Linux, Keychain Access on macOS;
-  none on Windows), and direnv's permissions for tasks' folders.
+- Kulisa's key in your OS's keyring, "Kulisa Safe Storage": on Windows nothing to remove; on macOS in Keychain
+  Access; on Linux in your keyring app (Passwords and Keys). On Linux and macOS also direnv's permissions for
+  tasks' folders, if you use direnv.
 
 If you uninstall first, the tasks' copies of the code stay next to your repositories, each still a worktree and a
-branch of its repository: `git worktree prune` and `git branch -D <branch>` in the repository remove them.
+branch of its repository: in a terminal, in the repository, `git worktree prune` and `git branch -D <branch>`
+remove them (the same on every OS).
