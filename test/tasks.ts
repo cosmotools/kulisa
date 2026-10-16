@@ -2089,19 +2089,20 @@ export default (test: Test) => {
     await focusWindow(second.win, there);
     await there(`kulisa.send('settings:open', { section: 'projects', id: null })`);
     await waitFor(() => sui(pageOf(second.current.project.name)));
-    // The first one in front: Settings acts for it now, without being opened again.
-    await focusWindow(shell.win, ui);
-    assert.equal((await sui(`kulisa.invoke('projects:list')`)).project, 'project');
-    await ui(`kulisa.send('settings:open', { section: 'projects', id: 'project' })`);
-    await waitFor(() => sui(pageOf(shell.current.name)));
-    // Made and let go by the agent (asked in its task's window): the project's page shows it, then not.
-    await call('profile_create', { name: 'Fay' });
+    // Made and let go by that task's agent (asked in its window): the project's page shows it, then not. Not in the first
+    // window's task: its grid is checked after the restart, and a pane come and gone could leave it saved otherwise.
+    await call('profile_create', { name: 'Fay' }, second.current);
     await waitFor(() => sui(`!!document.querySelector('#npprofiles [data-profile="fay"]') && !!document.querySelector('#pjlist [data-profile="fay"]')`));
     ctx.answer = true;
-    await call('profile_delete', { profile: 'fay' });
-    assert.equal(ctx.asked.pop().message, 'The agent asks to remove the profile Fay from project.');
+    await call('profile_delete', { profile: 'fay' }, second.current);
+    assert.equal(ctx.asked.pop().message, `The agent asks to remove the profile Fay from ${second.current.project.name}.`);
     await waitFor(() => sui(`!document.querySelector('#npprofiles [data-profile="fay"]')`));
     shell.profileStore.delete('fay'); // not needed by the restart
+    // The first one in front (the question's dialog in the second gone first): Settings acts for it now, without being
+    // opened again.
+    await waitFor(() => there(`document.getElementById('ask')?.dataset.state !== 'open'`));
+    await focusWindow(shell.win, ui);
+    await waitFor(async () => (await sui(`kulisa.invoke('projects:list')`)).project === 'project');
     await closeSettings(ctx);
   });
 };
