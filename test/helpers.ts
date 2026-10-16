@@ -150,7 +150,9 @@ const focusWindow = async (win: { focus(): void; webContents: { focus(): void } 
   // On macOS a click also brings the app to the front, and only the front app's windows take the keyboard.
   if (MAC) electron.app.focus({ steal: true });
   win.focus(); win.webContents.focus();
-  await waitFor(() => ui(`document.hasFocus()`));
+  // macOS makes the window key a moment later and gives the keyboard back to the view that had it (a profile's page),
+  // over this: given again until the page has it, as the click into it would (GitHub's macOS runner, 2026-10-16).
+  await waitFor(async () => { if (await ui(`document.hasFocus()`)) return true; win.webContents.focus(); return false; });
 };
 
 async function waitFor(cond: () => unknown, ms = 5000) {
