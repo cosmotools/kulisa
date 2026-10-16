@@ -26,10 +26,14 @@ function git(cwd: string, args: string[], { timeout = 30000, input }: { timeout?
 const ok = (p: Promise<unknown>) => p.then(() => true, () => false);
 
 // The repository the folder is in: { top (its root), sub (the folder inside it), commit (has one) }; null without git.
+// git answers with the real path, and the folder may be named through a symlink (macOS's /var and /tmp are
+// /private's): the sub is the real folder's, and the top named as the folder is, so a task's copy goes next to it under
+// the name the human knows (with the two mixed, a task got the project's own folder: 2026-10-16).
 async function repoOf(folder: string) {
   const top = await git(folder, ['rev-parse', '--show-toplevel']).catch((): null => null);
   if (!top) return null;
-  return { top: path.resolve(top), sub: path.relative(path.resolve(top), path.resolve(folder)), commit: await ok(git(folder, ['rev-parse', '--verify', 'HEAD^{commit}'])) };
+  const real = await fs.promises.realpath(folder).catch(() => path.resolve(folder)), up = path.relative(real, path.resolve(top));
+  return { top: path.resolve(folder, up), sub: path.relative(path.resolve(top), real), commit: await ok(git(folder, ['rev-parse', '--verify', 'HEAD^{commit}'])) };
 }
 
 // A name for the branch and the folder: lower case, letters (any language), digits and dashes.

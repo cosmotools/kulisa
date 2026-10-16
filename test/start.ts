@@ -1,6 +1,6 @@
 // `npm test`: the unit tests (test/unit, plain Node, a second), knip (npm run knip: no file, export or dependency
 // nothing uses; docs/testing.md, Dead code), ESLint (npm run lint; docs/testing.md, Lint), actionlint on the CI's workflows when installed, the window built (npm run build: its types checked,
-// then Vite), then the groups of e2e files, in parallel. Each group
+// then Vite), then the groups of e2e files, in parallel where each has a screen of its own (below). Each group
 // runs in an app of its own (run.ts), in its own folder, its files in order (later ones build on earlier ones), then
 // again after a restart. On Linux, with Xvfb and openbox installed, each on a screen of its own: the tests' windows
 // never take the human's focus or clipboard (`npm run test:visible`: on the human's screen, to watch them; one group
@@ -97,7 +97,9 @@ void (async () => {
   const chosen = names.length ? names : Object.keys(GROUPS);
   site = await ensureSite(await freePort()); // one for every group: a group's own would go with it while others still use it
   const codes = [];
-  if (visible) for (const n of chosen) codes.push(await group(n));
+  // In parallel only on screens of their own: on one screen (macOS, Windows, --visible) the groups' windows took each
+  // other's focus, and tests waiting for it failed (2026-10-16, macOS).
+  if (!hidden) for (const n of chosen) codes.push(await group(n));
   else codes.push(...await Promise.all(chosen.map(group)));
   site.child?.kill();
   try { fs.rmdirSync(base); } catch {} // empty once every group passed

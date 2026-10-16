@@ -696,12 +696,11 @@ here; what is left of it stays.
     runs them on all three at every pull request into `develop` or `main` ([testing.md](testing.md), CI), macOS and Windows not failing the
     workflow until the bench passes there: fixed by a Claude session on each OS. On a computer they run on the human's
     screen there (Xvfb is Linux's), taking its focus.
-    The test bench assumes Linux; to adapt on each OS where it can be run (the author's decision, 2026-10-08), known so far:
+    The test bench was made on Linux; adapted on each OS where it can be run (the author's decision, 2026-10-08). macOS:
+    passes since 2026-10-16 (on the author's Mac, twice in a row; [testing.md](testing.md), "On macOS"). Known for Windows:
     - Windows: the agent is `bash -c '… exec cat -v'` with a `bashrc` (`test/run.ts`), the fake agent's installer is
       `sh` only (`printf`, `chmod`; the real agents have a `win32` one), the hooks' test runs commands with `bash`
       (`test/agent.ts`). A Node script as the agent would run everywhere.
-    - macOS: keys are Ctrl's (`ctrl` in `helpers.ts`, the zoom tests, `keys` in the terminal's copy and paste test,
-      `test/grid.ts`), where macOS has ⌘; Ctrl+Shift+V pastes nothing there.
     - What one OS alone has: skipped with the reason, not left to fail.
 - **A profile dropped from its list, its folder left behind** (found 2026-10-07; to come back to). The author's
   data held a `Profile 2` in a main workspace (the model before tasks), in no `profiles.json` and not in `deleted-folders.json`.

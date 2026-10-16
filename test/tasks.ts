@@ -7,7 +7,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import http from 'http';
-import { assert, root, userData, project, pfile, panel, SITE, sleep, waitFor, who, menuRows, choose, rightClick, viewOn, press, projectTabs, projectTab, showProject, savedWindows, closeMenu, click, plusMenu, PORT, hooksOf, MENU, SUBMENU, menuOpen, noNode, focusWindow, chooseProfile, closeSettings, settingsClosed } from './helpers.ts';
+import { MAC, CMD, shot, assert, root, userData, project, pfile, panel, SITE, sleep, waitFor, who, menuRows, choose, rightClick, viewOn, press, projectTabs, projectTab, showProject, savedWindows, closeMenu, click, plusMenu, PORT, hooksOf, MENU, SUBMENU, menuOpen, noNode, focusWindow, chooseProfile, closeSettings, settingsClosed } from './helpers.ts';
 import { withOffset } from '../src/main/tasks.ts';
 import { createWorktree } from '../src/main/worktrees.ts';
 import { sessionStart } from '../src/main/agent-hooks.ts';
@@ -200,7 +200,7 @@ export default (test: Test) => {
     await waitFor(async () => (await ui(`${taskTab(2)}.title`)).startsWith('project\nbranch feature-x'));
     assert.equal(tasksFile().list[1].about, undefined, 'its name says what it is about now');
     assert.equal((await call('browser_profiles', {})).note, undefined);
-    await shell.screenshot(path.join(root, 'task.png'));
+    await shot(shell, path.join(root, 'task.png'));
   });
 
   test("profiles: Sign In to Master… opens its master in a window of its own, nothing automated on it; Refresh from Master… brings its sign-ins to this task's copy", async (ctx) => {
@@ -438,11 +438,11 @@ export default (test: Test) => {
     win.focus();
     await ui(`window.__term.focus()`);
     await waitFor(() => shell.windows[0].keyZone === 'terminal');
-    press(win, '2', 'control', 'shift');
+    press(win, '2', ...(MAC ? ['meta', 'alt'] as const : ['control', 'shift'] as const)); // ⌘⌥2 on macOS: ⌘⇧3…5 are its screenshots
     await shown(2);
-    press(win, 'PageUp', 'control', 'shift');
+    press(win, 'PageUp', CMD, 'shift');
     await shown(1);
-    press(win, 'PageDown', 'control', 'shift');
+    press(win, 'PageDown', CMD, 'shift');
     await shown(2);
     await click(ui, taskTab(1));
     await shown(1);
@@ -786,7 +786,7 @@ export default (test: Test) => {
     // A click on the row already shown keeps it chosen: Reka's Tree toggled it off, its page still shown (seen on
     // GitHub's runner, 2026-10-12, where the tests reach this row already chosen).
     await showAgent(sui, 'fake');
-    await ctx.shell.screenshot(path.join(root, 'agents.png'));
+    await shot(ctx.shell, path.join(root, 'agents.png'));
     await closeSettings(ctx);
   });
   test('agents: the list comes at once with what the last look found, then looks again: an agent removed meanwhile shows so', async (ctx) => {
@@ -1543,7 +1543,7 @@ export default (test: Test) => {
     assert.equal(await sui(`document.getElementById('npprofileerror').textContent`), '');
     // Settings only: a project is made in a tasks' window (New Project…), its section has no +.
     assert.equal(await sui(`!!document.getElementById('pjnew') || !!document.querySelector('[data-section="projects"] .add')`), false);
-    await shell.screenshot(path.join(root, 'projects.png'));
+    await shot(shell, path.join(root, 'projects.png'));
     // The task's window clicked (on Linux a child window is not kept above it): Settings comes to the front.
     shell.settings.win.blur();
     shell.win.emit('focus');

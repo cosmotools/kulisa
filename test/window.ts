@@ -1,9 +1,9 @@
 // The window: the terminal, the app icon, the top bar, screenshots.
-import { nativeTheme } from 'electron';
+import { Menu, nativeTheme } from 'electron';
 import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
-import { assert, root, userData, sleep, waitFor, menuRows, choose, menuOpen, rightClick, box, viewOn, closeMenu, click, noNode, press } from './helpers.ts';
+import { canShoot, NO_SHOT, shot, assert, root, userData, sleep, waitFor, menuRows, choose, menuOpen, rightClick, box, viewOn, closeMenu, click, noNode, press } from './helpers.ts';
 import forge from '../forge.config.ts';
 import type { Test } from './run.ts';
 import type { TaskTerminal } from '../src/main/tasks.ts';
@@ -261,7 +261,9 @@ export default (test: Test) => {
     assert.equal(files.length, 7); // the .rpm's too
   });
   test('one row on top: no menu bar, OS window buttons over the top bar', async ({ shell, ui }) => {
-    assert.equal(shell.win.isMenuBarVisible(), false);
+    // macOS: the menu bar is the system's, at the screen's top, always there: Kulisa's own there (app.ts).
+    if (process.platform === 'darwin') assert.deepEqual(Menu.getApplicationMenu().items.map((i) => i.role), ['appmenu', 'editmenu', 'windowmenu']);
+    else assert.equal(shell.win.isMenuBarVisible(), false);
     assert.equal(await ui(`navigator.windowControlsOverlay.visible`), true);
     const bar = await ui(`(() => { const r = document.getElementById('topbar').getBoundingClientRect(); return { top: r.top, height: r.height, right: r.right }; })()`);
     const controls = await ui(`(() => { const r = navigator.windowControlsOverlay.getTitlebarAreaRect(); return { x: r.x, width: r.width }; })()`);
@@ -284,6 +286,7 @@ export default (test: Test) => {
       ['default', 'default', 'default', 'default', 'default', 'default', 'default']);
   });
   test('screenshot of the whole window, profile views included', async ({ shell }) => {
+    if (!canShoot()) return console.log(`      (skipped: ${NO_SHOT})`);
     await waitFor(() => [...shell.profiles.values()][0].get().view.getVisible());
     const file = path.join(root, 'window.png');
     await shell.screenshot(file);
@@ -316,11 +319,11 @@ export default (test: Test) => {
     await choose('light', 'light');
     assert.deepEqual(await look(), { shade: 'light', term: LIGHT, scheme: 'light', chosen: ['light'], onAccent: LIGHT });
     assert.equal(await pageDark(), osDark, "a site under test keeps the OS's scheme");
-    await shell.screenshot(path.join(root, 'light.png'));
+    await shot(shell, path.join(root, 'light.png'));
     await choose('system', nativeTheme.shouldUseDarkColors ? 'dark' : 'light'); // the OS's, as the pages'
     assert.equal((await look()).scheme, 'light dark');
     await choose('dark', 'dark');
-    await shell.screenshot(path.join(root, 'dark.png'));
+    await shot(shell, path.join(root, 'dark.png'));
     assert.equal(await pageDark(), osDark);
     await closeMenu(ui);
   });

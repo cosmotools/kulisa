@@ -84,6 +84,9 @@ const sitePromise = ensureSite(Number(PORT));
 start({ userData, project: restart ? undefined : project, projectsHome: path.join(root, 'Kulisa'), agent, agents, mcpPort: 0, signinHosts: ['localhost'], appDevTools: !restart })
   .then(async (shell) => {
     await sitePromise;
+    // macOS gives the keyboard only to the active app's windows, and the run starts from another (a terminal): the
+    // tests' focus would be the human's last click's. It takes the screen's focus, as docs/testing.md says.
+    if (process.platform === 'darwin') app.focus({ steal: true });
     const ctx = await setup(shell);
     let failed = 0;
     for (const t of tests) {

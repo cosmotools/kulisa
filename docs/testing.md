@@ -37,8 +37,27 @@ e2e files in parallel (`GROUPS` in `start.ts`):
 
 **On Linux the tests run on a screen of their own** (Xvfb, with the openbox window manager: without one windows are
 not listed for screenshots and focus differs from a desktop), so they never take the human's focus or clipboard.
-`npm run test:visible` runs them on the human's screen, one group after another. No GPU there:
+`npm run test:visible` runs them on the human's screen, one group after another; so do macOS and Windows, where
+there is no screen of their own (in parallel, the groups' windows took each other's focus: 2026-10-16). No GPU there:
 `--ignore-gpu-blocklist` lets WebGL run on Chromium's software renderer. macOS and Windows run them on the screen.
+
+### On macOS
+
+Run from a terminal, as anywhere; what differs there (2026-10-16):
+
+- **The keyboard is the active app's.** macOS gives the keys and the focus only to the windows of the app in front,
+  and the run starts from another (the terminal): `run.ts` brings the tests' app to the front (`app.focus({ steal:
+  true })`). A click elsewhere during the run takes it back, and tests waiting for the focus fail: let it run.
+- **⌘ for Kulisa's keys** (CommandOrControl in `keys.ts`): `CMD` in `helpers.ts` is ⌘ there, Ctrl elsewhere; Ctrl+`,
+  Ctrl+Tab and the agent's keys stay Ctrl. ⌘C and ⌘V in the terminal are the Edit menu's, which a key sent into a
+  page does not reach, nor `MenuItem.click` (the system runs those roles): the test checks the row is there and does
+  what it does (`webContents.paste()`). Ctrl+T in a terminal is the tty's status key (SIGINFO) before it is the agent's.
+- **No screenshots without the screen recording permission**, which macOS checks on the app that started the run
+  (the terminal), not on Electron: `shot` in `helpers.ts` says so instead and goes on; the test of the screenshot itself
+  is skipped with the reason. Granted to the terminal, they are taken.
+- **Its temporary folders are named through a symlink** (`/var` is `/private/var`), where git answers with the real
+  path: what the tests found in `repoOf` (`worktrees.ts`).
+- A laptop's screen is narrower than Xvfb's 1920 px: a test needing room beside the window makes it narrower.
 
 ## Writing an e2e test
 
