@@ -263,8 +263,8 @@ unasked. This paragraph is removed when the rewrite is finished.
   from `develop`, merged with a merge commit (not squash or rebase: `develop` would part from `main`), by the author,
   once its required checks pass: `test (ubuntu-latest)` and `version` (`.github/workflows/test.yml`). Never push to
   `main`, merge into it, or merge `main` back into `develop`. Supporting an OS makes its tests required: macOS's
-  (`test (macos-latest)`) once the macOS support is reached (the author, 2026-10-16; ROADMAP, "macOS and Windows are
-  untested"), on `develop` and `main`; the author adds it to the rulesets, the session says when it is time.
+  (`test (macos-latest)`) once the macOS support for development is reached (the author, 2026-10-16; ROADMAP, "macOS
+  and Windows are untested"), on `develop` and `main`; the author adds it to the rulesets, the session says when it is time.
 - **The version** in `package.json` is the truth; the app shows it (☰) and the updater compares it. Each pull
   request into `main` raises it (the `version` check refuses one that does not; once, the first release, the same
   number passes while no release of it exists). `npm version <patch|minor> --no-git-tag-version`: no tag by hand,

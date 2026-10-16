@@ -320,7 +320,9 @@ here; what is left of it stays.
   - **macOS** only once signed and notarized (Squirrel.Mac does not update an unsigned app): `.dmg` and `.zip`, x64
     and arm64. The author has no Apple Developer account yet: an Individual one ($99 a year), then a Developer ID
     Application certificate (its CSR made with `openssl`, no Mac needed) and an App Store Connect API key for
-    notarization, as CI secrets; `osxSign`, `osxNotarize` in `forge.config.ts`, on only when those are set.
+    notarization, as CI secrets; `osxSign`, `osxNotarize` in `forge.config.ts`, on only when those are set. Not before
+    there are users of macOS (the author, 2026-10-16: alone, on their own Macs, an unsigned build does; "macOS and
+    Windows are untested", below).
   - **CI** (GitHub Actions; the flow decided with the author 2026-10-12: CLAUDE.md, Releases): work goes into
     `develop`, `npm test` on every push there; a pull request `develop` → `main` runs it again and checks that the
     version is raised; `main` is protected, the author merges; the merge builds on Ubuntu and Windows (macOS once its
@@ -622,9 +624,16 @@ here; what is left of it stays.
 - **`signin-pause.ts` is a temporary implementation** to be replaced by the author. It recognizes sign-in pages
   only by host and pauses the whole profile.
 - **macOS and Windows are untested** (only Linux so far; Kulisa targets all three: CLAUDE.md, Conventions). **The macOS
-  support is the goal** (the author, 2026-10-16): once the macOS gaps below are closed, `test (macos-latest)` becomes a
-  required check of `develop` and `main` (CLAUDE.md, Releases); its CI job passes and fails the workflow since that
-  day, not required yet. Known gaps:
+  support is the goal**, in two (the author, 2026-10-16):
+  1. **For development**, the goal now: Kulisa works on a Mac from source and from a build made there, unsigned (one's
+     own machines need no Apple Developer account; a build made on the Mac is not quarantined, so Gatekeeper lets it
+     run), its tests pass, and the gaps below are checked. Then `test (macos-latest)` becomes a required check of
+     `develop` and `main` (CLAUDE.md, Releases); its CI job passes and fails the workflow since that day, not required yet.
+  2. **For users**, later, once there are some: signed and notarized, `.dmg` and `.zip`, updates ("Releases and
+     auto-update", macOS), with the Apple Developer account. Until then an unsigned build downloaded on another Mac
+     is refused by Gatekeeper and does not update, and kulisa.app says "coming soon" for macOS.
+
+  Known gaps:
   - Drag regions left by a page (Workarounds of Electron bugs, above): seen on Linux; whether macOS and Windows
     have the bug, and whether the workaround is enough there, is not known. Open Teams in a pane and click its page.
   - Signing in to Google and GoDaddy (Kasada) in a profile: passed on Linux with Electron's own User-Agent

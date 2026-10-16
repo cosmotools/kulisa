@@ -446,7 +446,12 @@ so on purpose. The macOS Dock shows Electron's own icon for a bundle run from so
 
 Installers are made with Electron Forge (`npm run make`, `forge.config.ts`), each on its own OS: `.deb` and `.rpm` on
 Linux (the `.deb` checked: it installs `chrome-sandbox` setuid root, a menu entry and the icon, and the app starts),
-Squirrel `.exe` on Windows, `.dmg` and `.zip` on macOS (signed and notarized when the Apple secrets are set). `npm run
+Squirrel `.exe` on Windows, `.dmg` and `.zip` on macOS (signed and notarized when the Apple secrets are set; without
+them unsigned, which runs on the Mac it was built on: ROADMAP, "macOS and Windows are untested"). On macOS node-pty is
+not built again: its own prebuilt binary is packaged (N-API, the one `npm start` loads), so no compiler is needed, and
+its `spawn-helper`, the program it starts a shell with, is kept outside the archive, where it runs it from (in it, a
+packaged Kulisa's terminal failed). The `.dmg` needs `appdmg`, whose native parts npm builds at install with the Command
+Line Tools: without a working compiler it is left out, and `npm run package` (the app in `out/`) or the `.zip` do. `npm run
 publish` makes them and uploads them to a **draft release** on GitHub (`@electron-forge/publisher-github`). A merge
 into `main` (a pull request from `develop`, its version raised: CLAUDE.md, Releases) releases them by itself, on GitHub
 Actions (`.github/workflows/release.yml`; macOS once its secrets are set): the workflow first makes the draft

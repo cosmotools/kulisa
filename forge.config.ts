@@ -17,7 +17,9 @@ const config: ForgeConfig = {
     ...apple,
     name: 'Kulisa',
     executableName: 'kulisa',
-    asar: true,
+    // node-pty starts a shell through its spawn-helper, a program run from outside the archive (unixTerminal.js:
+    // app.asar.unpacked); in it, the terminal failed (posix_spawnp failed). The plugin below adds the .node files.
+    asar: { unpack: '**/node_modules/node-pty/prebuilds/*/spawn-helper' },
     // The app icon, rendered from assets/icon.svg (npm run icons); Forge adds .icns on macOS, .ico on Windows.
     icon: 'assets/icon',
     // Kulisa's packages for the agents are read from disk (by `claude`, or copied into an account's folder), so they sit
@@ -42,6 +44,9 @@ const config: ForgeConfig = {
   hooks: { generateAssets: async () => { execSync('npm run build', { stdio: 'inherit' }); } },
   // node-pty is native: keep its .node files outside the asar archive so they can be loaded.
   plugins: [{ name: '@electron-forge/plugin-auto-unpack-natives', config: {} }],
+  // macOS: node-pty's own prebuilt binary (N-API, for any Electron; npm start loads it too), not built again: building
+  // needs a working compiler, and a Mac's Command Line Tools may have none (the author's, 2026-10-16).
+  rebuildConfig: process.platform === 'darwin' ? { ignoreModules: ['node-pty'] } : {},
 };
 
 export default config;
