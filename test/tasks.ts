@@ -1554,12 +1554,17 @@ export default (test: Test) => {
     // Settings only: a project is made in a tasks' window (New Project…), its section has no +.
     assert.equal(await sui(`!!document.getElementById('pjnew') || !!document.querySelector('[data-section="projects"] .add')`), false);
     await shot(shell, path.join(root, 'projects.png'));
-    // Done in the task's window with Settings open (Refresh from Master…): asked in the task's window, not in Settings'.
-    await focusWindow(shell.win, ui);
+    // Done in the task's window with Settings in front, that window minimized (Refresh from Master…; on macOS the OS's ×
+    // of a window behind): asked in the task's window, not in Settings', and that window comes back to the front with it.
+    shell.win.minimize();
+    await waitFor(() => shell.win.isMinimized());
+    shell.settings.win.focus();
+    await waitFor(() => shell.settings.win.isFocused());
     ctx.answer = false;
     const said = await ui(`kulisa.invoke('profile:refresh', { task: ${JSON.stringify(shell.task.key)}, profile: 'sam-admin' })`);
     assert.deepEqual([said, ctx.asked.pop().message], [{ error: 'the human said no' }, "Bring the sign-ins of Sam.admin's master to this task?"]);
     assert.equal(await sui(`!!document.getElementById('ask')`), false, "not in Settings' window");
+    assert.ok(!shell.win.isMinimized() && shell.win.isFocused(), "the task's window in front with its question");
     ctx.answer = true;
     // The theme and the Kulisa zoom are every window's: its too.
     const theme = shell.theme, zoom = () => shell.settings.win.webContents.getZoomFactor();

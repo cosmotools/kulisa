@@ -222,7 +222,10 @@ undone (deleting a profile, a task, a project), before closing (a task while an 
 quitting while an agent works: [tasks.md](tasks.md)) or between two ways to go (a second button, `other`) are asked
 in that dialog too (`shell.ask` → `lib/ask.ts`, `Ask.vue`, queued, Cancel focused; Esc is Cancel, a click outside
 does nothing: it waits for an answer), in the window the action is in: Settings' for what is done in Settings, a tasks'
-window's for what is done there, the agent's in its task's window (`asker` in `ipc/`; `Asker` in `window.ts`). While a dialog is open the profiles' pages are
+window's for what is done there, the agent's in its task's window (`asker` in `ipc/`; `Asker` in `window.ts`). A tasks'
+window asked in comes to the front with its question, restored when minimized, while another of Kulisa's windows has
+the focus (Settings, another tasks' window): left behind, it looked as if nothing happened (on macOS a window's × works
+behind Settings); never from another app. While a dialog is open the profiles' pages are
 hidden (they are native views above the HTML), and the keys are the dialog's (Keys). Not the OS's own question (`dialog.showMessageBox`): it looked different on each OS and plain on Linux, and
 could not mark the deleting button or lay out what goes. The OS's own dialogs stay for choosing a folder.
 

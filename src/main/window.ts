@@ -315,7 +315,13 @@ class AppWindow {
     this.send('theme', theme);
   }
 
-  ask(q: Question) { return this.questions.ask(q); }
+  // Brought to the front with it while another of Kulisa's windows has the focus (Settings, another tasks' window): left
+  // behind, it looked as if nothing happened (the OS's × behind Settings on macOS, 2026-10-16). Never from another app.
+  ask(q: Question) {
+    const focused = BrowserWindow.getFocusedWindow();
+    if (focused && focused !== this.win) this.focus();
+    return this.questions.ask(q);
+  }
   answer(id: number, answer: string) { this.questions.answer(id, answer); }
   unanswered() { this.questions.unanswered(); }
 
