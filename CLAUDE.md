@@ -211,7 +211,8 @@ unasked. This paragraph is removed when the rewrite is finished.
   - Fix a bug by first reproducing it as a failing test, then making it pass (the session-cookie bug was done
     this way).
   - **The full suite (`npm test`, about a minute) runs once, when the author says the work is done** ("всё ок",
-    "commit"), before the commit; fix what fails and run it again. `npm run knip` once a step, when its code is
+    "commit"), before the commit; fix what fails and run it again. Not for a change to documentation alone (`docs/`,
+    `CLAUDE.md`, `README.md`; the author, 2026-10-16): the pull request's CI runs it anyway. `npm run knip` once a step, when its code is
     written, before it is shown to the author (not after every change). While building: `npm run test:unit` (a second),
     one group (`npm test -- <group>`), a screenshot (`KULISA_SHOT`) or the author's running Kulisa, restarted with
     the change. On Linux the tests run on a screen of their own (Xvfb, openbox): they never take the author's
