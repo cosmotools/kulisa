@@ -741,12 +741,10 @@ here; what is left of it stays.
   - The one-row title bar (`titleBarStyle: 'hidden'` + `titleBarOverlay`, Window Controls Overlay): checked on
     Linux/X11 only. Check the window buttons, dragging and double-click to maximize on macOS (traffic lights on the
     left), Windows and Wayland (Electron 44 runs natively there by default; the author's GNOME is X11: "Ubuntu on
-    Wayland" at the login screen). macOS: the overlay's height is given once, when the window is made
-    (`setTitleBarOverlay` is Windows' and Linux's), so the traffic lights do not follow the Kulisa zoom, and whether
-    they sit centered in the bar at all is not known: `trafficLightPosition` when the window is made,
-    `setWindowButtonPosition` when the zoom changes. Seen on the author's Mac (2026-10-16, at 100%): the traffic lights
-    in the bar's middle, level with the tabs, Settings and ☰ at its end; not checked: other zooms, dragging,
-    double-click to maximize.
+    Wayland" at the login screen). macOS: the traffic lights centered in the bar at 80%, 100% and 150% when the window
+    is made at them, and moved to the middle as the zoom changes ([window.md](window.md), The title bar; screenshots,
+    2026-10-16); not checked by hand: a click on them after a zoom change (150%, 300%), dragging, double-click to
+    maximize. Ask Electron for `setTitleBarOverlay` on macOS: with it they would follow any zoom.
   - macOS: the last window closed quits Kulisa (`window-all-closed` in `app.ts`), where Mac apps usually stay in the
     Dock and open a window again on `activate`. Recommended: keep quitting (the agents and terminals live with the
     window, and session cookies and tabs are saved as Kulisa quits), written down in [window.md](window.md) as

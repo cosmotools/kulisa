@@ -22,6 +22,8 @@ interface Place { bounds?: Rectangle | null; maximized?: boolean; near?: Electro
 type Shade = 'dark' | 'light';
 
 const TITLE_BAR_HEIGHT = 44; // --title in tokens.css: keep in step
+// macOS's window buttons: their height and Electron's place for them from the left, in pt (measured, Electron 44.8.0).
+const MAC_BUTTONS = { height: 14, x: 7 };
 // The window's background and the OS buttons' strip, in each theme: --window and --text in tokens.css.
 const COLORS: Record<Shade, { window: string; text: string }> = { dark: { window: '#2b2d30', text: '#dfe1e5' }, light: { window: '#ebecf0', text: '#1e1f22' } };
 // The smallest window whose UI still works (the top bar with the OS buttons, ☰ and a task's tab, something under
@@ -37,7 +39,7 @@ class AppWindow {
   shell: Shell; id: number; tabs: Task[]; current: Task | null; viewsHidden: boolean; switching: boolean;
   stateTimer: NodeJS.Timeout | undefined; picking: Map<string, { profile: Profile; page: import('playwright-core').Page; cancel: () => unknown }>;
   questions: Questions; loaded: boolean; pending: [string, unknown[]][]; keyZone: string;
-  win: Electron.BrowserWindow; place: { bounds: Rectangle; maximized: boolean };
+  win: Electron.BrowserWindow; place: { bounds: Rectangle; maximized: boolean }; barHeight: number; // the title bar's, as the window was made
   // shell: the app (app.ts). place: where it was ({ bounds, maximized }, settings.json), or { near: a window } for a
   // new one of its size next to it, or under the pointer (at: a point on the screen, where a tab was let go).
   // appDevTools: Kulisa's own DevTools (only when running from source).
@@ -63,13 +65,14 @@ class AppWindow {
       bounds = at ? { ...b, x: at.x - 120, y: at.y - 20 } : { ...b, x: b.x + 32, y: b.y + 32 };
     } else if (bounds && !onScreen(bounds)) bounds = null;
     const min = minSize(shell.uiZoom);
+    this.barHeight = Math.round(TITLE_BAR_HEIGHT * shell.uiZoom);
     if (bounds) bounds = { ...bounds, width: Math.max(bounds.width, min.width), height: Math.max(bounds.height, min.height) };
     const win = (this.win = new BrowserWindow({
       width: 1700, height: 1050, ...(bounds || {}), minWidth: min.width, minHeight: min.height, title: 'Kulisa', backgroundColor: COLORS[shell.shade()].window,
       icon: path.join(import.meta.dirname, '..', '..', 'assets', 'icon.png'), // taskbar and window switcher on Linux and Windows
       // One row on top, as in VS Code: no system title bar; the OS window buttons are drawn over the right end of
       // the window's own top bar (left on macOS). The page lays out around them (Window Controls Overlay).
-      titleBarStyle: 'hidden', titleBarOverlay: { color: COLORS[shell.shade()].window, symbolColor: COLORS[shell.shade()].text, height: Math.round(TITLE_BAR_HEIGHT * shell.uiZoom) },
+      titleBarStyle: 'hidden', titleBarOverlay: { color: COLORS[shell.shade()].window, symbolColor: COLORS[shell.shade()].text, height: this.barHeight },
       // DevTools of Kulisa's own UI only while developing it; a packaged build has none (profiles' tabs still do).
       webPreferences: { preload: path.join(import.meta.dirname, '..', 'preload', 'index.cjs'), sandbox: true, devTools: appDevTools,
         zoomFactor: shell.uiZoom },
@@ -303,7 +306,11 @@ class AppWindow {
     const min = minSize(z), [width = 0, height = 0] = this.win.getSize();
     this.win.setMinimumSize(min.width, min.height);
     if ((width < min.width || height < min.height) && !this.win.isMaximized() && !this.win.isFullScreen()) this.win.setSize(Math.max(width, min.width), Math.max(height, min.height));
-    if (process.platform !== 'darwin') this.win.setTitleBarOverlay({ height: Math.round(TITLE_BAR_HEIGHT * z) }); // macOS: fixed buttons
+    const bar = Math.round(TITLE_BAR_HEIGHT * z);
+    if (process.platform !== 'darwin') this.win.setTitleBarOverlay({ height: bar });
+    // macOS has no setTitleBarOverlay: the buttons' strip keeps the height the window was made with, and the buttons
+    // stayed at its top as the bar grew. Moved to the bar's middle, but not below that strip: there they took no click.
+    else this.win.setWindowButtonPosition({ x: MAC_BUTTONS.x, y: Math.max(0, Math.min(Math.round((bar - MAC_BUTTONS.height) / 2), this.barHeight - MAC_BUTTONS.height)) });
     this.send('zoom', z);
   }
   // The theme (app.ts): the page's colors (tokens.css: theme, as chosen), the window's background and the OS buttons'

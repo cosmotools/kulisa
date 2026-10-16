@@ -10,7 +10,12 @@ next: [ROADMAP.md](ROADMAP.md). Keep this file current when the window changes.
 
 One row: the app's logo (the shown task's project's color on its curtain), Settings (a window of its own: below), ☰, and the OS's window buttons drawn over its right end (`titleBarStyle: 'hidden'` with
 `titleBarOverlay`); no menu bar. On macOS the window buttons are at the left end, and there is no logo: Mac apps
-show their icon in the Dock, not by the window's buttons (the author, 2026-10-16). Dragging the empty part moves the window. When the Kulisa zoom is not 100%, the bar
+show their icon in the Dock, not by the window's buttons (the author, 2026-10-16). macOS centers them in the bar
+the window is made with (its zoom then); Electron there cannot change that strip's height later (`setTitleBarOverlay`
+is Windows' and Linux's), so when the zoom changes `setZoom` moves them to the new bar's middle
+(`setWindowButtonPosition`), but not below the strip they were made in: they stayed at the bar's top, and below the
+strip they would take no click (Electron's `window_buttons_proxy.mm`). Zoomed past about 175% from 100%, they sit a
+little above the middle until the next start. Dragging the empty part moves the window. When the Kulisa zoom is not 100%, the bar
 shows it (a click resets it).
 
 A right-click on the title bar does nothing on Linux. There Chromium asks the window manager for its window menu, and

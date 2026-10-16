@@ -2,7 +2,7 @@
 import { session } from 'electron';
 import fs from 'fs';
 import path from 'path';
-import { assert, userData, pfile, savedTabs, panel, SITE, waitFor, who, menuRows, choose, manageProfiles, closeSettings, chooseProfile, setProfileField, menuOpen, taskMenu, viewOn, ctrl, near, closeMenu, PORT } from './helpers.ts';
+import { assert, userData, pfile, savedTabs, panel, SITE, waitFor, who, menuRows, choose, manageProfiles, closeSettings, chooseProfile, setProfileField, menuOpen, taskMenu, viewOn, ctrl, near, closeMenu, PORT, MAC } from './helpers.ts';
 import type { Test } from './run.ts';
 
 // Files of the sites' Cache API in a profile's folder, wherever Chromium's layout puts them (`WebStorage/<bucket>/CacheStorage/`).
@@ -34,6 +34,14 @@ export default (test: Test) => {
     await waitFor(() => viewOn(shell, ui, 'sam-admin'));
     await waitFor(async () => (await ui(`({ cols: window.__term.cols })`)).cols < 200, 3000); // the terminal refits
     await waitFor(() => JSON.parse(fs.readFileSync(path.join(userData, 'settings.json'), 'utf8')).uiZoom === 1.25);
+    // macOS: the window's buttons centered in the bar as it grows (made at 100%: a 44 pt bar), never below the height
+    // the window was made with, where they would not take a click (docs/window.md, The title bar).
+    if (MAC) {
+      assert.deepEqual(shell.win.getWindowButtonPosition(), { x: 7, y: 21 }, '125%: a 55 pt bar');
+      shell.setUiZoom(3);
+      assert.deepEqual(shell.win.getWindowButtonPosition(), { x: 7, y: 30 }, '300%: at the bottom of the 44 pt it was made with');
+      shell.setUiZoom(1.25);
+    }
   });
   test('the window\'s minimum follows the Kulisa zoom; a window at the minimum grows with it, and keeps its size back; New Project fits the smallest', async ({ shell, ui }) => {
     const win = shell.win, size = win.getSize();
