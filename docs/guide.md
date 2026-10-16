@@ -70,7 +70,7 @@ newer and less tried.
 
 **New Project…** in the bar's **+** (or in an empty window). Its code first, on the left:
 
-- **New folder**: a new, empty project. Kulisa makes the folder (in `~/Kulisa` unless you choose another place) and,
+- **New folder**: a new, empty project. Kulisa makes the folder (in the Kulisa folder in your home folder unless you choose another place) and,
   with Create Git repository on, a git repository in it, so tasks can have copies of their own.
 - **Folders on disk**: code you already have, one folder or several (a frontend and a backend). Nothing in them is
   changed.
@@ -293,8 +293,10 @@ In the terminal every other key is the agent's.
 
 - Your projects' folders hold only your code: Kulisa writes nothing there (except the first commit of a project it
   made).
-- Tasks' copies of the code are next to the project's folder (`myshop@task-2`), or in `~/Kulisa/<project>@task-<n>`
-  for a project of several repositories. They go when the task is deleted.
+- Tasks' copies of the code are next to the project's folder (`myshop@task-2`), or in the Kulisa folder in your
+  home folder (`C:\Users\<you>\Kulisa` on Windows, `/Users/<you>/Kulisa` on macOS, `/home/<you>/Kulisa` on Linux) for a
+  project of several repositories, as `<project>@task-<n>`. They go when the task is deleted. New projects' folders
+  are made there too.
 - Profiles, sign-ins, accounts and settings are in Kulisa's data folder: `~/.config/Kulisa` on Linux,
   `~/Library/Application Support/Kulisa` on macOS, `%APPDATA%\Kulisa` on Windows. Session cookies and test passwords
   are encrypted with your OS's keyring. **Show Data Folder** in a task tab's right-click menu, under the project's name, opens that project's.
