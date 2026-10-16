@@ -51,7 +51,7 @@ Kulisa is tested on Linux (Ubuntu) so far; on Windows it is newer and less tried
 - **The title bar**: the Kulisa logo in the shown project's color (not on a Mac, where Kulisa's icon is in the Dock),
   **Settings** (the gear), and **☰**, the window's menu: zoom, theme, where the tasks' bar is, language, Arrange
   panels, Keyboard Shortcuts, links, Exit.
-- **Settings** opens in a window of its own, as in other desktop apps: set what you need and close it (**Esc** or its
+- **Settings** (on a Mac also ⌘, or Kulisa → Settings… in the menu bar) opens in a window of its own, as in other desktop apps: set what you need and close it (**Esc** or its
   ×; what you typed is saved). While it is open, the task windows wait for it, but you still see your pages and
   terminals working; a click on a task window brings Settings back to the front.
 - **The grid**: the shown task's panes (one per open profile) and its terminals. Drag a pane by its header to move it,

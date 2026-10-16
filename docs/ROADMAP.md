@@ -621,7 +621,10 @@ here; what is left of it stays.
   per-launch token (passed to the agent through the environment, like `KULISA_MCP_URL`) at least.
 - **`signin-pause.ts` is a temporary implementation** to be replaced by the author. It recognizes sign-in pages
   only by host and pauses the whole profile.
-- **macOS and Windows are untested** (only Linux so far; Kulisa targets all three: CLAUDE.md, Conventions). Known gaps:
+- **macOS and Windows are untested** (only Linux so far; Kulisa targets all three: CLAUDE.md, Conventions). **The macOS
+  support is the goal** (the author, 2026-10-16): once the macOS gaps below are closed, `test (macos-latest)` becomes a
+  required check of `develop` and `main` (CLAUDE.md, Releases); its CI job passes and fails the workflow since that
+  day, not required yet. Known gaps:
   - Drag regions left by a page (Workarounds of Electron bugs, above): seen on Linux; whether macOS and Windows
     have the bug, and whether the workaround is enough there, is not known. Open Teams in a pane and click its page.
   - Signing in to Google and GoDaddy (Kasada) in a profile: passed on Linux with Electron's own User-Agent

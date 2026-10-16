@@ -233,7 +233,7 @@ app's settings are (JetBrains', macOS apps'; the author, 2026-10-16: what users 
 apart from the work): the OS's title bar ("Settings — Kulisa"), its own size and place, kept (`settings.json`:
 `settingsWindow`), at least 640 × 420 times the Kulisa zoom. Open it, set things, close it:
 
-- **One for the whole app.** The gear, a task tab's Manage Profiles… and Project Settings…, a pane's About this
+- **One for the whole app.** The gear (on macOS also Kulisa → Settings… in the menu bar, ⌘,, where Mac apps have it), a task tab's Manage Profiles… and Project Settings…, a pane's About this
   profile…, a project's Add Profile… tile and New Project's Create open it at that page (a project's: none named, the
   shown task's); open already, it comes to the front at that page.
 - **The tasks' windows take no input while it is open** (`setEnabled(false)`; not on macOS, below), as JetBrains' Settings holds its IDE;
@@ -411,7 +411,7 @@ are written as Electron's accelerators (`CommandOrControl+T`); a key held alone 
 Not Electron's application menu with accelerators, its own way of keys, tried first in bare Electron 44 (2026-10-09): on Linux the page gets a key before the menu, and the menu none that the page handled itself,
 as xterm and many web apps do: Kulisa's keys would not work in the terminal nor in those apps, and others would act
 twice (the site's and Kulisa's). Nor `globalShortcut`: it takes keys from every app on the computer. macOS has its own
-menu bar with Quit, Hide, the Edit menu (⌘C, ⌘V) and the windows (Electron's default one reloaded Kulisa's own page with
+menu bar with Settings… (⌘,), Quit, Hide, the Edit menu (⌘C, ⌘V) and the windows (Electron's default one reloaded Kulisa's own page with
 ⌘R); Linux and Windows windows have no menu.
 
 ## DevTools

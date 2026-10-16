@@ -3,7 +3,7 @@ import { Menu, nativeTheme } from 'electron';
 import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
-import { canShoot, NO_SHOT, shot, assert, root, userData, sleep, waitFor, menuRows, choose, menuOpen, rightClick, box, viewOn, closeMenu, click, noNode, press } from './helpers.ts';
+import { closeSettings, canShoot, NO_SHOT, shot, assert, root, userData, sleep, waitFor, menuRows, choose, menuOpen, rightClick, box, viewOn, closeMenu, click, noNode, press } from './helpers.ts';
 import forge from '../forge.config.ts';
 import type { Test } from './run.ts';
 import type { TaskTerminal } from '../src/main/tasks.ts';
@@ -260,10 +260,19 @@ export default (test: Test) => {
     for (const f of files) assert.ok(fs.statSync(path.join(import.meta.dirname, '..', f)).size > 1000, f);
     assert.equal(files.length, 7); // the .rpm's too
   });
-  test('one row on top: no menu bar, OS window buttons over the top bar', async ({ shell, ui }) => {
-    // macOS: the menu bar is the system's, at the screen's top, always there: Kulisa's own there (app.ts).
-    if (process.platform === 'darwin') assert.deepEqual(Menu.getApplicationMenu().items.map((i) => i.role), ['appmenu', 'editmenu', 'windowmenu']);
-    else assert.equal(shell.win.isMenuBarVisible(), false);
+  test('one row on top: no menu bar, OS window buttons over the top bar; on macOS the system\'s, Settings… (⌘,) in it', async (ctx) => {
+    const { shell, ui } = ctx;
+    // macOS: the menu bar is the system's, at the screen's top, always there: Kulisa's own there (app.ts), Settings… in
+    // its app menu as Mac apps have it.
+    if (process.platform === 'darwin') {
+      const menu = Menu.getApplicationMenu();
+      assert.deepEqual(menu.items.map((i) => i.role), ['appmenu', 'editmenu', 'windowmenu']);
+      const item = menu.items[0].submenu.items.find((i) => i.label === 'Settings…');
+      assert.equal(item?.accelerator, 'Command+,');
+      item.click(undefined, shell.win);
+      await waitFor(() => ctx.sui(`!!document.getElementById('pjlist')`));
+      await closeSettings(ctx);
+    } else assert.equal(shell.win.isMenuBarVisible(), false);
     assert.equal(await ui(`navigator.windowControlsOverlay.visible`), true);
     const bar = await ui(`(() => { const r = document.getElementById('topbar').getBoundingClientRect(); return { top: r.top, height: r.height, right: r.right }; })()`);
     const controls = await ui(`(() => { const r = navigator.windowControlsOverlay.getTitlebarAreaRect(); return { x: r.x, width: r.width }; })()`);
