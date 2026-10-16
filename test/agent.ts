@@ -580,13 +580,17 @@ export default (test: Test) => {
   });
 
   // Not presenting as Google Chrome: Google refused to sign in a browser that did and was not (docs/profiles.md, What
-  // sites see), and let Electron's own Chromium in.
-  test('profiles present themselves as what they are, Electron\'s Chromium, in pages and popups alike', async ({ shell }) => {
+  // sites see), and let Electron's own Chromium in. Without Electron's word: Teams took a Mac's or Windows' Electron
+  // for its own retired app and showed "Classic Teams is no longer available" (2026-10-16).
+  test('profiles present themselves as what they are, Kulisa on Chromium, in pages and popups alike', async ({ shell }) => {
     const elon = shell.profiles.get('elon-buyer');
     const page = await elon.page();
     await page.goto(`${SITE}/headers`);
     assert.equal(JSON.parse(await page.locator('body').innerText())['user-agent'], app.userAgentFallback);
-    assert.match(app.userAgentFallback, /Electron\/\d/);
+    assert.match(app.userAgentFallback, / Chrome\/\d/);
+    assert.doesNotMatch(app.userAgentFallback, /Electron/);
+    assert.equal(await page.evaluate(() => navigator.userAgent), app.userAgentFallback);
+    assert.ok(!(await page.evaluate(() => (navigator as unknown as { userAgentData: { brands: { brand: string }[] } }).userAgentData.brands.map((b) => b.brand))).includes('Google Chrome'));
     assert.equal(await page.evaluate(() => navigator.webdriver), false);
     const [popup] = await Promise.all([page.context().waitForEvent('page'), page.evaluate((u) => window.open(u), `${SITE}/headers`)]);
     await popup.waitForLoadState();
