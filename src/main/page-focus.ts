@@ -17,6 +17,10 @@ const watched = new WeakSet<WebContents>();
 // Kulisa gives a page the keyboard for the human: its next focus is theirs.
 export function allowFocus(wc: WebContents) { allowed.add(wc); }
 
+// Kulisa gives the window's own page the keyboard for the human (the address of a tab they open, ProfilePane.vue): a
+// page taking it next gives it back there, not to the page the human was in (Ctrl+T from it, Linux).
+export function focusWindow(page: WebContents) { watchWindow(page); held.set(page, page); page.focus(); }
+
 // A profile's page, in the window win() is (a profile moves between windows).
 export function guardFocus(wc: WebContents, win: () => BrowserWindow) {
   const own = () => { const w = win(); if (!w.isDestroyed()) watchWindow(w.webContents); return w.isDestroyed() ? null : w.webContents; };

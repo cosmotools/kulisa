@@ -587,6 +587,10 @@ export default (test: Test) => {
     const names = await ui(`state.map((p) => p.name)`);
     await click(`${SITE}/app`, ctrlKey);
     assert.deepEqual(await menuRows(ui), [`# ${SITE}/app`, ...names.map((n: string) => `Open in ${n}`), '-', 'Open in your browser']);
+    // The keyboard moving within the window (its page getting it back puts it on the terminal) leaves the menu open.
+    await ui(`window.__term.focus()`);
+    await sleep(200); // nothing to wait for: that it stays open
+    assert.equal(await menuOpen(ui), true, 'the keyboard moved within the window: the menu stays');
     const linked = shell.profiles.get(await ui(`state[0].id`)), had = linked.tabs.length;
     await choose(ui, `Open in ${names[0]}`);
     await waitFor(() => linked.tabs.length === had + 1 && linked.get().url.startsWith(`${SITE}/app`));

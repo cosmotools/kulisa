@@ -269,7 +269,9 @@ choose a row). A menu taller than the window has scrolls, reaching as far as its
 `--reka-popper-available-height`; the bar's + with thirty closed tasks ran past the window, 2026-10-15). One menu at a time; Esc, a press outside, the same button, a chosen row or leaving the window closes
 it, and the keyboard goes back where it was. Leaving is the window's blur (`window:blur`, from the main process), not
 its page's: a profile's page in the window taking the keyboard as it loads (macOS) closed a menu under the hand
-(2026-10-16); Settings' window, with no pages in it, goes by its page's (`lib/cover.ts`). While one is open, the pages are pictures of themselves
+(2026-10-16); Settings' window, with no pages in it, goes by its page's (`lib/cover.ts`). Nor does the keyboard moving
+within the window close one (Reka's focus outside, prevented): the window's page getting the keyboard back after a
+menu opened puts it on what had it before, the terminal (2026-10-16). While one is open, the pages are pictures of themselves
 (`covered('pictures')`); it shows once they are.
 
 Items (`lib/menu.ts`, laid out by `menu/MenuRows.vue`) are `{ label, sub, keys, title, icon, color, avatar, project, inset,

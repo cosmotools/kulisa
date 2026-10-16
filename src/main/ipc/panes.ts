@@ -2,6 +2,7 @@
 // the grid's layout. Each only translates to the task's own (tasks.ts), as the agent's tools do (mcp-server.ts).
 import { refused } from '../../shared/result.ts';
 import { handle, on } from '../ipc.ts';
+import { focusWindow } from '../page-focus.ts';
 import type { Ipc, IpcEvent } from '../ipc.ts';
 import type { IpcMainInvokeEvent } from 'electron';
 import type { Profile, Tab } from '../profiles.ts';
@@ -42,7 +43,7 @@ export function registerPanes(ipc: Ipc) {
 
   // A tab the human opens (+): the window keeps the keys for its address (ProfilePane.vue); its page taking them as it
   // loads gives them back (page-focus.ts).
-  handle('tab:new', onProfile((p, { url }) => p.newTab(url || 'about:blank').id));
+  handle('tab:new', onProfile((p, { url }) => { focusWindow(p.win.webContents); return p.newTab(url || 'about:blank').id; }));
   // focus: the keyboard was in the tab's page (a key closed or switched it): it goes to the page shown next, as in Chrome.
   handle('tab:close', onTab((p, t, { focus }) => {
     if (focus) p.once('tab-closed', () => setImmediate(() => { const next = p.get(); if (next) p.focusTab(next); }));
