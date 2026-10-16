@@ -211,7 +211,8 @@ unasked. This paragraph is removed when the rewrite is finished.
   - Fix a bug by first reproducing it as a failing test, then making it pass (the session-cookie bug was done
     this way).
   - **The full suite (`npm test`, about a minute) runs once, when the author says the work is done** ("всё ок",
-    "commit"), before the commit; fix what fails and run it again. `npm run knip` once a step, when its code is
+    "commit"), before the commit; fix what fails and run it again. Not for a change to documentation alone (`docs/`,
+    `CLAUDE.md`, `README.md`; the author, 2026-10-16): the pull request's CI runs it anyway. `npm run knip` once a step, when its code is
     written, before it is shown to the author (not after every change). While building: `npm run test:unit` (a second),
     one group (`npm test -- <group>`), a screenshot (`KULISA_SHOT`) or the author's running Kulisa, restarted with
     the change. On Linux the tests run on a screen of their own (Xvfb, openbox): they never take the author's
@@ -478,3 +479,7 @@ What must hold in the window:
 - **A test run used whatever test site listened on its port.** With the port fixed (:4417), a stale server from an
   earlier run, or another worktree's run, made tests lie. `npm test` now starts a site of its own on a free port
   (`KULISA_TEST_SITE`); tests take the address from `SITE`/`PORT` in `helpers.ts`, never a literal port.
+- **Playwright keeps every page it attaches to "visible".** Its first command to a page,
+  `Emulation.setFocusEmulationEnabled`, is a capture to Chromium: the page stays visible, unthrottled and unfreezable
+  behind other tabs and in a hidden window. Electron's `setVisible(false)` does hide a page. Days went to Electron
+  before the command was found, with bare Electron and one difference at a time (ROADMAP, "Tabs never sleep").
