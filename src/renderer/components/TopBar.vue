@@ -2,7 +2,8 @@
 // The window's title bar (the logo, the tasks' bar when it is there, Settings, ☰) and ☰'s menu (docs/window.md, The
 // title bar, Menus). env(titlebar-area-*) leaves room for the OS
 // window buttons on every platform (titleBarOverlay in window.ts). Exit only where the OS has no menu bar
-// with Quit (not macOS: Cmd+Q there).
+// with Quit (not macOS: Cmd+Q there). No logo on macOS: its apps show their icon in the Dock, not by the window's
+// buttons (the author, 2026-10-16).
 import Icon from './Icon.vue';
 import ButtonMenu from './menu/ButtonMenu.vue';
 import ZoomRow from './menu/ZoomRow.vue';
@@ -15,6 +16,7 @@ import type { MenuItem } from '../lib/menu';
 import type { Bar, Theme } from '../../shared/ipc';
 import { dialog, openSettings } from '../lib/dialogs';
 
+const mac = kulisa.platform === 'darwin';
 const THEMES = [{ value: 'dark', label: 'Dark' }, { value: 'light', label: 'Light' }, { value: 'system', label: 'System', title: 'As the operating system' }];
 const BARS = [{ value: 'top', label: 'Top' }, { value: 'bottom', label: 'Bottom' }];
 const windowMenu = (): MenuItem[] => [
@@ -27,14 +29,14 @@ const windowMenu = (): MenuItem[] => [
     '-', { heading: 'Arrange panels', icon: 'i-arrange' }, { component: ArrangeRow }, '-',
     { label: 'Keyboard Shortcuts', icon: 'i-keyboard', keys: keyText('shortcuts'), run: async () => (await dialog('shortcuts')).showShortcuts() },
     '-', ...LINKS.map((l) => ({ label: l.label, icon: l.icon, run: () => open(l.href) })),
-    ...(kulisa.platform === 'darwin' ? [] : ['-' as const, { label: 'Exit', icon: 'i-exit', run: () => kulisa.invoke('app:quit') }]),
+    ...(mac ? [] : ['-' as const, { label: 'Exit', icon: 'i-exit', run: () => kulisa.invoke('app:quit') }]),
     { note: `Kulisa ${version}` }];
 </script>
 
 <template>
   <header id="topbar">
     <slot /><!-- the tasks' bar, when it is here (App.vue) -->
-    <Icon class="logo" name="i-logo" />
+    <Icon v-if="!mac" class="logo" name="i-logo" />
     <span class="drag" />
     <button id="zoomReset" :hidden="store.zoom === 1" title="Kulisa's zoom. Click to reset (Ctrl 0)" @click="kulisa.invoke('zoom:ui', 0)">{{ Math.round(store.zoom * 100) }}%</button>
     <button id="manageProjects" class="icon" title="Settings: projects, agents" aria-label="Settings"
@@ -46,7 +48,9 @@ const windowMenu = (): MenuItem[] => [
 <style>
 #topbar {
   display: flex; gap: var(--gap); align-items: center; height: var(--title);
-  padding-left: calc(env(titlebar-area-x, 0px) + var(--gap)); width: env(titlebar-area-width, 100%);
+  /* The area starts after the OS buttons on macOS (at their x) and ends before them elsewhere: the bar is as wide as
+     its end, or ☰ stood the buttons' width short of the window's edge on macOS. */
+  padding-left: calc(env(titlebar-area-x, 0px) + var(--gap)); width: calc(env(titlebar-area-x, 0px) + env(titlebar-area-width, 100%));
   -webkit-app-region: drag;
   & button { -webkit-app-region: no-drag; &:not(.icon) { padding: 0 14px; } }
   /* The logo and the space after the tasks' bar are where the window is dragged by, however many tabs. Chromium takes

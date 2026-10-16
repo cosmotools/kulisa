@@ -10,7 +10,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import http from 'http';
 import WebSocket from 'ws';
-import { assert, root, project, pfile, panel, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, closeSettings, chooseProfile, setProfileField, closeMenu, taskMenu, box, pageBox, click, PORT } from './helpers.ts';
+import { shot, assert, root, project, pfile, panel, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, closeSettings, chooseProfile, setProfileField, closeMenu, taskMenu, box, pageBox, click, PORT } from './helpers.ts';
 import { AGENT_PACKAGES } from '../src/main/app.ts';
 const CLAUDE_PLUGIN = path.join(AGENT_PACKAGES, 'claude-plugin');
 import { MARK } from '../src/main/ghost.ts';
@@ -56,6 +56,7 @@ export default (test: Test) => {
         { id: 'elon-buyer', avatar: 'penguin', description: undefined, projects: [], color: undefined }], 'pictures, not colors; who it is when said');
     assert.equal(await sui(`document.querySelector('#profilepage .projects').textContent`), "none: add it on a project's page");
     // Added on the project's page (+ → its other profiles), closed in its task; opened there (👥).
+    await waitFor(() => sui(`!!document.querySelector('#pjlist [data-project="${shell.current.id}"]')`)); // the projects come as it opens
     await click(sui, `document.querySelector('#pjlist [data-project="${shell.current.id}"]')`);
     for (const name of ['Sam.seller', 'Elon.buyer']) {
       // The profiles to add are asked for again as the page is shown: the menu may open before they come.
@@ -202,7 +203,7 @@ export default (test: Test) => {
       assert.match(r.text, /Highlighted 2 element/);
       await waitFor(async () => (await colored()) > 300).catch(() => {});
       assert.ok(await colored() > 300, `${url}: outline and label visible (${await colored()} px)`);
-      if (url.endsWith('/app')) await shell.screenshot(path.join(root, 'highlight.png'));
+      if (url.endsWith('/app')) await shot(shell, path.join(root, 'highlight.png'));
       await call('browser_highlight', { profile: 'sam-seller', elements: [] });
       await waitFor(async () => (await colored()) < 50).catch(() => {});
       assert.ok(await colored() < 50, `${url}: cleared (${await colored()} px)`);
@@ -450,6 +451,20 @@ export default (test: Test) => {
     await waitFor(() => elon.active === first);
     await ui(`${strip}.querySelector('.tab:last-of-type .x').click()`);
     await waitFor(() => elon.tabs.length === n);
+    // With reduced motion (the OS's setting, emulated) it does not grow, and is not left growing: no animation ends
+    // there, and the tab stayed .opening (GitHub's macOS runner, 2026-10-16).
+    const dbg = shell.win.webContents.debugger;
+    dbg.attach();
+    try {
+      await dbg.sendCommand('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
+      await ui(`${strip}.querySelector('.add').click()`);
+      await waitFor(() => elon.tabs.length === n + 1);
+      await waitFor(() => ui(`!!${strip}.querySelector('.tab[data-tab="${elon.active}"]')`));
+      await sleep(300); // nothing to wait for: that it is not left growing
+      assert.equal(await ui(`!!${strip}.querySelector('.tab.opening')`), false);
+      elon.closeTab(elon.active);
+      await waitFor(() => elon.tabs.length === n);
+    } finally { dbg.detach(); }
   });
   test('many tabs: they shrink as in Chrome; the strip, the toolbar and the page stay inside the pane', async ({ shell, ui }) => {
     const elon = shell.profiles.get('elon-buyer'), n = elon.tabs.length;

@@ -61,12 +61,15 @@ function removeSource() {
 }
 const sourceLine = (x: { state: string }) => (x.state === 'repo' ? 'git' : 'no git');
 // A new or cloned project's folder, and what it is (main/ipc/projects.ts, project:folder-state), asked again as it is typed.
+// What it is is kept with the folder it was asked for: until the answer for the folder typed comes, the one before is
+// not said of it (Shop "is a file, not a folder" for a moment, after a file named note: GitHub's runner, 2026-10-16).
 const target = computed(() => (from.value === 'folder' ? '' : `${place.value.trim().replace(/[\\/]+$/, '')}${sep.value}${name.value.trim()}`));
-const there = ref<{ state: string; project?: string } | null>(null);
+const asked = ref<{ folder: string; state: string; project?: string } | null>(null);
+const there = computed(() => (asked.value?.folder === target.value ? asked.value : null));
 watch([name, place, from], async () => {
-  const asked = target.value;
-  const r = !asked ? null : await kulisa.invoke('project:folder-state', { location: place.value, name: name.value });
-  if (asked === target.value) there.value = r;
+  const folder = target.value;
+  const r = !folder ? null : await kulisa.invoke('project:folder-state', { location: place.value, name: name.value });
+  if (folder === target.value) asked.value = r && { ...r, folder };
 });
 const where = computed(() => {
   if (from.value === 'folder') return sources.value.length > 1 ? 'The project takes these folders as they are; the first is the default' : '';

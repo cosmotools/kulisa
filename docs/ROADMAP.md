@@ -320,7 +320,9 @@ here; what is left of it stays.
   - **macOS** only once signed and notarized (Squirrel.Mac does not update an unsigned app): `.dmg` and `.zip`, x64
     and arm64. The author has no Apple Developer account yet: an Individual one ($99 a year), then a Developer ID
     Application certificate (its CSR made with `openssl`, no Mac needed) and an App Store Connect API key for
-    notarization, as CI secrets; `osxSign`, `osxNotarize` in `forge.config.ts`, on only when those are set.
+    notarization, as CI secrets; `osxSign`, `osxNotarize` in `forge.config.ts`, on only when those are set. Not before
+    there are users of macOS (the author, 2026-10-16: alone, on their own Macs, an unsigned build does; "macOS and
+    Windows are untested", below).
   - **CI** (GitHub Actions; the flow decided with the author 2026-10-12: CLAUDE.md, Releases): work goes into
     `develop`, `npm test` on every push there; a pull request `develop` → `main` runs it again and checks that the
     version is raised; `main` is protected, the author merges; the merge builds on Ubuntu and Windows (macOS once its
@@ -594,6 +596,9 @@ here; what is left of it stays.
     too). Check: that file at the new version's tag; the test of dialogs in `test/agent.ts` fails when the event is
     gone (Electron's message box comes back instead of the pane's dialog). Ask Electron for a public event
     (`webContents` 'dialog', as `select-bluetooth-device` takes a callback), then use it.
+  - Settings' window does not disable the tasks' windows on macOS (`settings-window.ts`): Electron 44.5.1 disables a
+    window there by attaching a half-transparent sheet to it (`NativeWindowMac::SetEnabled`), which covered Settings,
+    its child window, too. Check: `setEnabled(false)` on a window with a child window over it, on macOS.
 - **Hidden tabs are not hidden to their pages (Electron): check at every Electron upgrade.** Chrome treats a tab
   in the background in three steps, each cheaper for the computer: its page gets `document.visibilityState: "hidden"`
   at once (no animation frames, timers at most once a second, once a minute after 5 minutes); after 5 minutes it is
@@ -618,7 +623,17 @@ here; what is left of it stays.
   per-launch token (passed to the agent through the environment, like `KULISA_MCP_URL`) at least.
 - **`signin-pause.ts` is a temporary implementation** to be replaced by the author. It recognizes sign-in pages
   only by host and pauses the whole profile.
-- **macOS and Windows are untested** (only Linux so far; Kulisa targets all three: CLAUDE.md, Conventions). Known gaps:
+- **macOS and Windows are untested** (only Linux so far; Kulisa targets all three: CLAUDE.md, Conventions). **The macOS
+  support is the goal**, in two (the author, 2026-10-16):
+  1. **For development**, the goal now: Kulisa works on a Mac from source and from a build made there, unsigned (one's
+     own machines need no Apple Developer account; a build made on the Mac is not quarantined, so Gatekeeper lets it
+     run), its tests pass, and the gaps below are checked. Then `test (macos-latest)` becomes a required check of
+     `develop` and `main` (CLAUDE.md, Releases); its CI job passes and fails the workflow since that day, not required yet.
+  2. **For users**, later, once there are some: signed and notarized, `.dmg` and `.zip`, updates ("Releases and
+     auto-update", macOS), with the Apple Developer account. Until then an unsigned build downloaded on another Mac
+     is refused by Gatekeeper and does not update, and kulisa.app says "coming soon" for macOS.
+
+  Known gaps:
   - Drag regions left by a page (Workarounds of Electron bugs, above): seen on Linux; whether macOS and Windows
     have the bug, and whether the workaround is enough there, is not known. Open Teams in a pane and click its page.
   - Signing in to Google and GoDaddy (Kasada) in a profile: passed on Linux with Electron's own User-Agent
@@ -649,8 +664,13 @@ here; what is left of it stays.
     seen as one (`MetaRight`, `location` 2: tested with sent events only). Windows: the microphone privacy setting for
     desktop apps; the right Ctrl of a keyboard with AltGr (it sends a Ctrl before AltGr on Windows: check that a typed
     AltGr character does not start a recording).
-  - macOS: the window screenshot (`KULISA_SHOT`) needs the screen-recording permission; distribution needs code
-    signing and notarization (Apple Developer account). Windows: code signing certificate.
+  - macOS: the window screenshot (`KULISA_SHOT`) needs the screen-recording permission, which macOS checks on the app
+    that started Kulisa (a terminal: [testing.md](testing.md), "On macOS"); distribution to users needs code signing and
+    notarization (the second macOS goal, above). Windows: code signing certificate.
+  - Developing on macOS: the `run-kulisa` skill's `kulisa.sh` is Linux's (it finds Electron by `ps`'s `comm`, a full
+    path on macOS; `ss`; `/proc`; the data in `~/.config/Kulisa`); `npm install`'s postinstall rebuilds node-pty and
+    fails without a working compiler, the prebuilt one loaded all the same (a packaged build does not rebuild it on
+    macOS: [window.md](window.md), installers).
   - The first start: a packaged app opens no task (the empty window, New Project open), later the groups open last
     (untested packaged).
   - The one-row title bar (`titleBarStyle: 'hidden'` + `titleBarOverlay`, Window Controls Overlay): checked on
@@ -659,7 +679,9 @@ here; what is left of it stays.
     Wayland" at the login screen). macOS: the overlay's height is given once, when the window is made
     (`setTitleBarOverlay` is Windows' and Linux's), so the traffic lights do not follow the Kulisa zoom, and whether
     they sit centered in the bar at all is not known: `trafficLightPosition` when the window is made,
-    `setWindowButtonPosition` when the zoom changes.
+    `setWindowButtonPosition` when the zoom changes. Seen on the author's Mac (2026-10-16, at 100%): the traffic lights
+    in the bar's middle, level with the tabs, Settings and ☰ at its end; not checked: other zooms, dragging,
+    double-click to maximize.
   - macOS: the last window closed quits Kulisa (`window-all-closed` in `app.ts`), where Mac apps usually stay in the
     Dock and open a window again on `activate`. Recommended: keep quitting (the agents and terminals live with the
     window, and session cookies and tabs are saved as Kulisa quits), written down in [window.md](window.md) as
@@ -668,8 +690,9 @@ here; what is left of it stays.
     (`window.ts` scales them): check that no page is a pixel off its pane or leaves a gap at its edge, and that the
     scrollbars follow the dark theme (`color-scheme`).
   - Keyboard shortcuts ([window.md](window.md), Keys): checked on Linux only (with Latin and Russian layouts). macOS:
-    ⌘ for Kulisa's and Chrome's keys, ⌘⌥1…9 for tasks, ⌘[ / ⌘] back and forward, its own menu bar (Quit, Edit,
-    Window) instead of Electron's default; check that a page does not get ⌘-keys before Kulisa (on Linux
+    ⌘ for Kulisa's and Chrome's keys, ⌘⌥1…9 for tasks, ⌘[ / ⌘] back and forward (the tests pass there with sent
+    events, 2026-10-16), its own menu bar (built: Settings… ⌘,, Quit, Edit, Window); by hand: check that a page does
+    not get ⌘-keys before Kulisa (on Linux
     `before-input-event` comes first, and the app menu after the page: [window.md](window.md), Keys), and that Ctrl
     stays the terminal's. Windows: Alt+D and F6 to the address bar, Ctrl+F4; the keys with AltGr layouts (Polish,
     German), where AltGr is Ctrl+Alt.
@@ -679,8 +702,9 @@ here; what is left of it stays.
     the press, and press, drag and let go on a row (macOS menus do it too); a window's blur closing a menu; Esc in a
     field edited in place (a profile's name) not closing its dialog; Select's list over a dialog.
   - Copy and paste in the terminal (`clipboardKey` in `terminal.ts`): checked on Linux only. Windows: Ctrl+V pastes
-    once, Ctrl+C copies a selection and interrupts without one. macOS: ⌘C / ⌘V through Electron's default app menu
-    (Kulisa sets none), and Ctrl+V reaching the agent.
+    once, Ctrl+C copies a selection and interrupts without one. macOS: ⌘C / ⌘V through the app menu's Edit roles
+    (`app.ts`; tested by what they do, not by the keys: [testing.md](testing.md), "On macOS"); by hand: the keys, and
+    Ctrl+V reaching the agent.
   - Several windows (Move to New Window): a profile's native views moved from one window to another, and a window's
     place restored (`getNormalBounds`, maximized); checked on Linux/X11 only. Dragging a project's label: tested with
     synthetic events only, not yet by hand; a project let go outside the windows is told from a cancelled drag by where the
@@ -690,15 +714,14 @@ here; what is left of it stays.
     Linux/X11 (GNOME) by the tests only, not by changing the OS's setting by hand. macOS draws its own window
     buttons.
   - Tests run often on Linux only; on macOS and Windows before a release (the author's decision, 2026-10-09). The CI
-    runs them on all three at every pull request into `develop` or `main` ([testing.md](testing.md), CI), macOS and Windows not failing the
-    workflow until the bench passes there: fixed by a Claude session on each OS. On a computer they run on the human's
+    runs them on all three at every pull request into `develop` or `main` ([testing.md](testing.md), CI); Windows not failing the
+    workflow until the bench passes there (macOS does since 2026-10-16): fixed by a Claude session on Windows. On a computer they run on the human's
     screen there (Xvfb is Linux's), taking its focus.
-    The test bench assumes Linux; to adapt on each OS where it can be run (the author's decision, 2026-10-08), known so far:
+    The test bench was made on Linux; adapted on each OS where it can be run (the author's decision, 2026-10-08). macOS:
+    passes since 2026-10-16 (on the author's Mac, twice in a row; [testing.md](testing.md), "On macOS"). Known for Windows:
     - Windows: the agent is `bash -c '… exec cat -v'` with a `bashrc` (`test/run.ts`), the fake agent's installer is
       `sh` only (`printf`, `chmod`; the real agents have a `win32` one), the hooks' test runs commands with `bash`
       (`test/agent.ts`). A Node script as the agent would run everywhere.
-    - macOS: keys are Ctrl's (`ctrl` in `helpers.ts`, the zoom tests, `keys` in the terminal's copy and paste test,
-      `test/grid.ts`), where macOS has ⌘; Ctrl+Shift+V pastes nothing there.
     - What one OS alone has: skipped with the reason, not left to fail.
 - **A profile dropped from its list, its folder left behind** (found 2026-10-07; to come back to). The author's
   data held a `Profile 2` in a main workspace (the model before tasks), in no `profiles.json` and not in `deleted-folders.json`.

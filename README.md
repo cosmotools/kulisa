@@ -44,7 +44,7 @@ actors, the panes the stage, and the developer watches from the audience and sto
 ## Run
 
 ```sh
-npm install          # Node 24.12+. Rebuilds node-pty for Electron.
+npm install          # Node 24.12+. Rebuilds node-pty for Electron (on macOS its prebuilt binary is loaded: without a working compiler the rebuild fails, the app runs all the same)
 npm run build        # type checks (tsc, vue-tsc), then the window (src/renderer, Vue) built by Vite into dist/renderer
 npm start            # builds the window, then opens the windows and tasks open last; at first start New Project
 KULISA_PROJECT=~/my-app npm start
@@ -57,7 +57,8 @@ npm run publish      # the same, uploaded to a draft release on GitHub (GITHUB_T
 npm run icons        # after changing assets/icon.svg: icon.png, .ico, .icns next to it
 ```
 
-Kulisa targets macOS, Windows and Linux; so far it is tested on Ubuntu only (see docs/ROADMAP.md). Installers are
+Kulisa targets macOS, Windows and Linux; its tests pass on Ubuntu and macOS, at every pull request (docs/testing.md); macOS
+is for development so far, run from source or built on one's own Mac, unsigned; Windows is less tried (see docs/ROADMAP.md). Installers are
 built with [Electron Forge](https://www.electronforge.io/) (`forge.config.ts`), each on its own platform.
 
 On Linux `npm start` and `npm test` run Electron with `--no-sandbox`: `chrome-sandbox` in `node_modules` is not

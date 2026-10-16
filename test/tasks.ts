@@ -7,7 +7,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import http from 'http';
-import { assert, root, userData, project, pfile, panel, SITE, sleep, waitFor, who, menuRows, choose, rightClick, viewOn, press, projectTabs, projectTab, showProject, savedWindows, closeMenu, click, plusMenu, PORT, hooksOf, MENU, SUBMENU, menuOpen, noNode, focusWindow, chooseProfile, closeSettings, settingsClosed } from './helpers.ts';
+import { MAC, CMD, shot, assert, root, userData, project, pfile, panel, SITE, sleep, waitFor, who, menuRows, choose, rightClick, viewOn, press, projectTabs, projectTab, showProject, savedWindows, closeMenu, click, plusMenu, PORT, hooksOf, MENU, SUBMENU, menuOpen, noNode, focusWindow, chooseProfile, closeSettings, settingsClosed } from './helpers.ts';
 import { withOffset } from '../src/main/tasks.ts';
 import { createWorktree } from '../src/main/worktrees.ts';
 import { sessionStart } from '../src/main/agent-hooks.ts';
@@ -37,7 +37,12 @@ async function newTask(ctx: Ctx) {
 // A project's submenu (a tab's right-click, then the row of the project's name, the one row opening a menu): its
 // rows, a row of it chosen. tab: the tab to open it on (the shown task's).
 async function projectMenu(ui: UI, label?: string, tab = '#projectTabs .tasktab.active .name') {
-  await rightClick(ui, tab);
+  // Right-clicked again until its menu opens: one right after Settings or another menu closed opened none now and
+  // then (GitHub's runner, 2026-10-16), as the window's focus came back.
+  await waitFor(async () => {
+    if (!(await menuOpen(ui))) await rightClick(ui, tab);
+    return waitFor(() => menuOpen(ui), 1000).then(() => true, () => false);
+  }, 10000);
   await menuRows(ui);
   await ui(`${MENU}.querySelector('.item[aria-haspopup]').click()`);
   await waitFor(async () => (await ui(`document.querySelectorAll('.menu[data-state="open"]').length`)) === 2);
@@ -200,7 +205,7 @@ export default (test: Test) => {
     await waitFor(async () => (await ui(`${taskTab(2)}.title`)).startsWith('project\nbranch feature-x'));
     assert.equal(tasksFile().list[1].about, undefined, 'its name says what it is about now');
     assert.equal((await call('browser_profiles', {})).note, undefined);
-    await shell.screenshot(path.join(root, 'task.png'));
+    await shot(shell, path.join(root, 'task.png'));
   });
 
   test("profiles: Sign In to Master… opens its master in a window of its own, nothing automated on it; Refresh from Master… brings its sign-ins to this task's copy", async (ctx) => {
@@ -239,8 +244,14 @@ export default (test: Test) => {
     await waitFor(() => sui(`document.querySelector('#pjlist [data-profile="sam-admin"]')?.ariaSelected === 'true' && document.getElementById('profilename').value === 'Sam.admin'`));
     assert.equal(await sui(`document.querySelector('#pjlist [data-profile="sam-admin"] .label').title`), 'Sam.admin', "the tree's narrow column cuts a name: the whole in its tooltip");
     // A window of its own over the task's (its child), which takes no input meanwhile; the task's pages stay on screen.
-    const win = shell.settings.win;
-    assert.deepEqual([win.getTitle(), win.getParentWindow() === shell.win, shell.win.isEnabled()], ['Settings — Kulisa', true, false]);
+    // Not disabled on macOS, where Electron dims a disabled window with a sheet over Settings too (settings-window.ts):
+    // a click there only activates the window, and its focus brings Settings back.
+    const win = shell.settings.win, mac = process.platform === 'darwin';
+    assert.deepEqual([win.getTitle(), win.getParentWindow() === shell.win, shell.win.isEnabled()], ['Settings — Kulisa', true, mac]);
+    if (mac) {
+      shell.win.focus();
+      await waitFor(() => win.isFocused());
+    }
     assert.ok(shell.task.profiles.get('sam-admin').get().view.getVisible(), 'pages on screen');
     // Asked again (another profile's About…): the same window, at that page.
     await ui(`kulisa.send('settings:open', { section: 'profiles', id: 'elon-buyer' })`);
@@ -432,11 +443,11 @@ export default (test: Test) => {
     win.focus();
     await ui(`window.__term.focus()`);
     await waitFor(() => shell.windows[0].keyZone === 'terminal');
-    press(win, '2', 'control', 'shift');
+    press(win, '2', ...(MAC ? ['meta', 'alt'] as const : ['control', 'shift'] as const)); // ⌘⌥2 on macOS: ⌘⇧3…5 are its screenshots
     await shown(2);
-    press(win, 'PageUp', 'control', 'shift');
+    press(win, 'PageUp', CMD, 'shift');
     await shown(1);
-    press(win, 'PageDown', 'control', 'shift');
+    press(win, 'PageDown', CMD, 'shift');
     await shown(2);
     await click(ui, taskTab(1));
     await shown(1);
@@ -475,8 +486,8 @@ export default (test: Test) => {
     await frame();
     assert.deepEqual(await ui(`(() => { const q = (s) => document.querySelector(s), r = (s) => q(s).getBoundingClientRect(), s = ${strip};
       const after = (s) => !!(q('#taskbar').compareDocumentPosition(q(s)) & Node.DOCUMENT_POSITION_FOLLOWING) && getComputedStyle(q(s)).appRegion;
-      return [s.scrollWidth > s.clientWidth, r('#topbar .drag').width >= 40, r('#manageProjects').left - r('#newTask').right >= 40, after('#topbar .logo'), after('#topbar .drag'), r('.logo').right <= r('#taskbar').left]; })()`),
-      [true, true, true, 'drag', 'drag', true], 'the tabs overflow, 40 px left to drag by; it and the logo after the bar in the page, the logo before it on screen');
+      return [s.scrollWidth > s.clientWidth, r('#topbar .drag').width >= 40, r('#manageProjects').left - r('#newTask').right >= 40, q('#topbar .logo') ? after('#topbar .logo') : 'drag', after('#topbar .drag'), !q('.logo') || r('.logo').right <= r('#taskbar').left]; })()`),
+      [true, true, true, 'drag', 'drag', true], 'the tabs overflow, 40 px left to drag by; it and the logo (none on macOS) after the bar in the page, the logo before it on screen');
     assert.ok((await bar()).inSight, 'the shown one in sight, the bar drawn anew there');
     await ui(`kulisa.invoke('bar:set', 'bottom')`);
     await waitFor(() => ui(`!document.querySelector('#topbar #projectTabs') && !!document.querySelector('#projectTabs')`));
@@ -780,7 +791,7 @@ export default (test: Test) => {
     // A click on the row already shown keeps it chosen: Reka's Tree toggled it off, its page still shown (seen on
     // GitHub's runner, 2026-10-12, where the tests reach this row already chosen).
     await showAgent(sui, 'fake');
-    await ctx.shell.screenshot(path.join(root, 'agents.png'));
+    await shot(ctx.shell, path.join(root, 'agents.png'));
     await closeSettings(ctx);
   });
   test('agents: the list comes at once with what the last look found, then looks again: an agent removed meanwhile shows so', async (ctx) => {
@@ -1383,7 +1394,13 @@ export default (test: Test) => {
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
     const first = shell.task;
     assert.equal(first.folder, `${api}@task-1`, 'one repository: its copy next to it');
-    const chips = () => ui(`[...document.querySelectorAll('.taskrepos .chip')].map((c) => c.textContent + (c.classList.contains('fresh') ? ' fresh' : ''))`);
+    const chips = () => ui(`[...document.querySelectorAll('.taskrepos .chip')].map((c) => c.textContent)`);
+    // The chips lit as they came (.fresh, for 1.8 s), seen as it happens: read after, a loaded runner missed it
+    // (GitHub's macOS runner, 2026-10-16).
+    const watchFresh = () => ui(`(() => { window.__fresh = new Set(); window.__freshSeen?.disconnect();
+      const seen = () => document.querySelectorAll('.taskrepos .chip.fresh').forEach((c) => __fresh.add(c.textContent));
+      window.__freshSeen = new MutationObserver(seen); __freshSeen.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] }); })()`);
+    const lit = () => ui(`[...window.__fresh]`);
     assert.deepEqual(await chips(), [], 'one repository: nothing to tell');
     // Added in Project Settings… while task-1 runs: no copy, only offered on its tab.
     const added = await ui(`kulisa.invoke('project:repo-add', { id: 'api', folder: ${JSON.stringify(web)} })`);
@@ -1401,11 +1418,12 @@ export default (test: Test) => {
     await rightClick(ui, `#projectTabs .tasktab[data-task="${first.key}"] .name`);
     const rows = await menuRows(ui);
     assert.deepEqual(rows.slice(rows.indexOf('# Add Repository'), rows.indexOf('Rename…')), ['# Add Repository', 'web', '-']);
+    await watchFresh();
     await choose(ui, 'web');
     const webCopy = path.join(root, 'Kulisa', 'api@task-1', 'web');
     await waitFor(() => first.entry.copies.length === 2);
     await waitFor(async () => (await chips()).length === 2);
-    assert.deepEqual(await chips(), ['api', 'web fresh']);
+    assert.deepEqual([await chips(), await lit()], [['api', 'web'], ['web']], 'it comes in lit');
     // Long names are cut, the whole in the tooltip; the terminals' tabs and the microphone stay in the panel.
     assert.deepEqual(await ui(`(() => { const names = [...document.querySelectorAll('.taskrepos .chip .name')], was = names.map((n) => n.textContent);
       for (const n of names) n.textContent = 'customer-notifications-delivery-pipeline-with-templates'.repeat(3);
@@ -1459,9 +1477,10 @@ export default (test: Test) => {
     await waitFor(async () => (await ctx.termText()).split(`Kulisa removed ${path.join(home, 'web')}`).length === 3);
     await waitFor(async () => (await chips()).length === 1);
     // Added again, it comes in lit; the human removes it by its chip's menu.
+    await watchFresh();
     await call('task_add_repository', { repository: 'web' });
     await waitFor(async () => (await chips()).length === 2);
-    assert.deepEqual(await chips(), ['api', 'web fresh']);
+    assert.deepEqual([await chips(), await lit()], [['api', 'web'], ['web']], 'it comes in lit');
     await rightClick(ui, `.taskrepos .chip[data-folder="${path.join(home, 'web')}"]`);
     assert.deepEqual(await menuRows(ui), ['Remove Repository']);
     await choose(ui, 'Remove Repository');
@@ -1537,7 +1556,7 @@ export default (test: Test) => {
     assert.equal(await sui(`document.getElementById('npprofileerror').textContent`), '');
     // Settings only: a project is made in a tasks' window (New Project…), its section has no +.
     assert.equal(await sui(`!!document.getElementById('pjnew') || !!document.querySelector('[data-section="projects"] .add')`), false);
-    await shell.screenshot(path.join(root, 'projects.png'));
+    await shot(shell, path.join(root, 'projects.png'));
     // The task's window clicked (on Linux a child window is not kept above it): Settings comes to the front.
     shell.settings.win.blur();
     shell.win.emit('focus');
@@ -1708,7 +1727,12 @@ export default (test: Test) => {
     // In a tasks' window (the bar's +), Settings closed first: it opens on the project made.
     const newProject = async (from: string) => {
       if (shell.settings) await closeSettings(ctx);
-      await ui(`document.getElementById('newTask').click()`);
+      // Clicked again until its menu opens: one right after Settings closed opened none now and then (GitHub's runner,
+      // 2026-10-16), as the window's focus came back.
+      await waitFor(async () => {
+        if (!(await menuOpen(ui))) await ui(`document.getElementById('newTask').click()`);
+        return waitFor(() => menuOpen(ui), 1000).then(() => true, () => false);
+      }, 10000);
       await menuRows(ui);
       await choose(ui, 'New Project…');
       await waitFor(() => ui(`!!document.querySelector('#newproject #npfrom [data-value="${from}"]')`));

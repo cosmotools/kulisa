@@ -2,14 +2,14 @@
 // A profile's pane, as a Chrome window (docs/profiles.md; docs/window.md, The grid). The page itself is a native view
 // the main process lays over .content (lib/grid.ts tells it where); while a panel is dragged or a menu is open, a
 // picture of the page stands in for it.
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import type { DockviewPanelApi } from 'dockview-vue';
 import { DialogContent, DialogDescription, DialogRoot, DialogTitle, TabsList, TabsRoot, TabsTrigger, Toggle } from 'reka-ui';
 import Icon from '../Icon.vue';
 import ButtonMenu from '../menu/ButtonMenu.vue';
 import RightClickMenu from '../menu/RightClickMenu.vue';
 import { act, store, togglePick } from '../../lib/store';
-import { keyText, withKeys } from '../../lib/common';
+import { keyText, reducedMotion, withKeys } from '../../lib/common';
 import type { MenuItem } from '../../lib/menu';
 import { panes, scheduleLayout, type PaneHandle } from '../../lib/grid';
 import { useStrip } from '../../lib/strip';
@@ -51,11 +51,12 @@ function go() { void act('tab:navigate', { profile: id(), tab: tab(), url: addr.
 // The tab strip, Reka's Tabs: a tab is chosen on the press, as in Chrome (not on its ×), the arrows move between them
 // and Enter chooses. A tab opened in a strip already shown grows in from the left, as Chrome's (.tab.opening); the
 // active tab in sight, as Chrome scrolls to it (lib/strip.ts, with the wheel and the faded edges). Tabs are kept by
-// id: an element stays as its tab does.
+// id: an element stays as its tab does. With reduced motion it does not grow, so no animation ends: brought into sight
+// at once (it stayed .opening, and out of sight, 2026-10-16).
 const opening = reactive(new Set<string>());
 let known: Set<string> | null = null;
 watch(() => profile.value?.tabs.map((t) => t.id) || [], (ids) => {
-  if (known?.size) for (const t of ids) if (!known.has(t)) opening.add(t);
+  if (known?.size) for (const t of ids) if (!known.has(t)) { if (reducedMotion.matches) void nextTick(() => reveal()); else opening.add(t); }
   known = new Set(ids);
 }, { immediate: true });
 const { reveal } = useStrip(strip, () => profile.value?.active);

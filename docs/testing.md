@@ -37,8 +37,31 @@ e2e files in parallel (`GROUPS` in `start.ts`):
 
 **On Linux the tests run on a screen of their own** (Xvfb, with the openbox window manager: without one windows are
 not listed for screenshots and focus differs from a desktop), so they never take the human's focus or clipboard.
-`npm run test:visible` runs them on the human's screen, one group after another. No GPU there:
+`npm run test:visible` runs them on the human's screen, one group after another; so do macOS and Windows, where
+there is no screen of their own (in parallel, the groups' windows took each other's focus: 2026-10-16). No GPU there:
 `--ignore-gpu-blocklist` lets WebGL run on Chromium's software renderer. macOS and Windows run them on the screen.
+
+### On macOS
+
+Run from a terminal, as anywhere; what differs there (2026-10-16):
+
+- **The keyboard is the active app's.** macOS gives the keys and the focus only to the windows of the app in front,
+  and the run starts from another (the terminal): `run.ts` brings the tests' app to the front (`app.focus({ steal:
+  true })`). A click elsewhere during the run takes it back, and tests waiting for the focus fail: let it run.
+- **⌘ for Kulisa's keys** (CommandOrControl in `keys.ts`): `CMD` in `helpers.ts` is ⌘ there, Ctrl elsewhere; Ctrl+`,
+  Ctrl+Tab and the agent's keys stay Ctrl. ⌘C and ⌘V in the terminal are the Edit menu's, which a key sent into a
+  page does not reach, nor `MenuItem.click` (the system runs those roles): the test checks the row is there and does
+  what it does (`webContents.paste()`). Ctrl+T in a terminal is the tty's status key (SIGINFO) before it is the agent's.
+- **No screenshots without the screen recording permission**, which macOS checks on the app that started the run
+  (the terminal), not on Electron: `shot` in `helpers.ts` says so instead and goes on; the test of the screenshot itself
+  is skipped with the reason. Granted to the terminal, they are taken.
+- **Its temporary folders are named through a symlink** (`/var` is `/private/var`), where git answers with the real
+  path: what the tests found in `repoOf` (`worktrees.ts`).
+- A laptop's screen is narrower than Xvfb's 1920 px: a test needing room beside the window makes it narrower. GitHub's
+  runner has 1024×768, too small for the tests' windows: the CI sets its virtual screen to 1920×1080 (displayplacer).
+- **Motion is on whatever the OS says** (`force-prefers-no-reduced-motion` in `run.ts`): GitHub's macOS runner reduces
+  motion, and the tests of a tab growing in and the grid's slide waited for what never moved there. Reduced motion is
+  checked where Kulisa does something else for it, emulated (`Emulation.setEmulatedMedia`).
 
 ## Writing an e2e test
 
@@ -146,9 +169,9 @@ closes a window without waiting for the script that closes it (`closeSettings`).
 **CI** (`.github/workflows/test.yml`): `npm test` on GitHub Actions at every pull request into `develop` or `main` and
 every push to `develop` (CLAUDE.md, Releases; into `main` its `version` job checks the version raised), on Ubuntu (with Xvfb
 and openbox, as on the author's machine), Windows and macOS (on the runner's own screen), git given a name (tasks
-commit). A failed run keeps the groups' folders (their screenshots) as an artifact per OS for a week. macOS and
-Windows do not pass yet (ROADMAP, "macOS and Windows are untested"): their runs report but do not fail the workflow
-(`continue-on-error`), until each passes once; each is fixed by a Claude session on that OS.
+commit). A failed run keeps the groups' folders (their screenshots) as an artifact per OS for a week. Ubuntu and macOS
+pass (macOS since 2026-10-16: "On macOS", above); Windows does not yet (ROADMAP, "macOS and Windows are untested"):
+its runs report but do not fail the workflow (`continue-on-error`) until it passes once, fixed by a Claude session there.
 
 On Linux the runner has no desktop: `npm test` runs in a D-Bus session with gnome-keyring made and unlocked, and
 `XDG_CURRENT_DESKTOP=GNOME`, else `safeStorage` encrypts nothing and Kulisa keeps no session cookies nor test passwords

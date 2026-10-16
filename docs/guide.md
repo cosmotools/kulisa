@@ -31,7 +31,8 @@ Download Kulisa from its [latest release](https://github.com/cosmotools/kulisa/r
   Fedora. Kulisa is then in your apps. It does not update itself: install a new version the same way.
 - **macOS:** to come.
 
-Kulisa is tested on Linux (Ubuntu) so far; on Windows it is newer and less tried.
+Kulisa is tested on Linux (Ubuntu) and on macOS (by its developers, there is no installer for it yet); on Windows it is
+newer and less tried.
 
 1. **Make a project.** At the first start New Project opens by itself. Choose where its code comes from (below), give
    it a name, Create. Settings opens on the new project's page.
@@ -48,9 +49,10 @@ Kulisa is tested on Linux (Ubuntu) so far; on Windows it is newer and less tried
 
 ## The window
 
-- **The title bar**: the Kulisa logo in the shown project's color, **Settings** (the gear), and **☰**, the window's
-  menu: zoom, theme, where the tasks' bar is, language, Arrange panels, Keyboard Shortcuts, links, Exit.
-- **Settings** opens in a window of its own, as in other desktop apps: set what you need and close it (**Esc** or its
+- **The title bar**: the Kulisa logo in the shown project's color (not on a Mac, where Kulisa's icon is in the Dock),
+  **Settings** (the gear), and **☰**, the window's menu: zoom, theme, where the tasks' bar is, language, Arrange
+  panels, Keyboard Shortcuts, links, Exit.
+- **Settings** (on a Mac also ⌘, or Kulisa → Settings… in the menu bar) opens in a window of its own, as in other desktop apps: set what you need and close it (**Esc** or its
   ×; what you typed is saved). While it is open, the task windows wait for it, but you still see your pages and
   terminals working; a click on a task window brings Settings back to the front.
 - **The grid**: the shown task's panes (one per open profile) and its terminals. Drag a pane by its header to move it,

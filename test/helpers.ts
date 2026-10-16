@@ -3,6 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import os from 'os';
 import assert from 'assert/strict';
+import electron from 'electron';
 import type { WebContents } from 'electron';
 import type { Shell } from '../src/main/shell.ts';
 import type { Task } from '../src/main/tasks.ts';
@@ -33,6 +34,14 @@ const savedWindows = () => JSON.parse(fs.readFileSync(path.join(userData, 'setti
 // Where an agent's hooks report (tasks.ts, env): the agent's terminal of task, the one picks go to.
 const hooksOf = (task: Task) => `${task.env(task.promptTarget()).KULISA_URL}/hooks`;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+// A window's screenshot (window.ts: the screen recorded, its profiles' views included), kept in the group's folder to
+// look at. On macOS only with the screen recording permission, which is the app's that started the run (the terminal
+// running npm test, not Electron): without it, said and not taken.
+const canShoot = () => process.platform !== 'darwin' || electron.systemPreferences.getMediaAccessStatus('screen') === 'granted';
+const NO_SHOT = 'macOS: the app that started the tests (the terminal) may not record the screen';
+const shot = async (w: { screenshot(file: string): Promise<unknown> }, file: string) => {
+  if (canShoot()) await w.screenshot(file); else console.log(`      (no ${path.basename(file)}: ${NO_SHOT})`);
+};
 
 // Kulisa's menus (Reka's, docs/ui.md, Menus): the open one, once it is shown (the pages under it are pictures);
 // its rows ('-' a line, '# …' a heading, '~ …' a note, 'zoom' the zoom row; an item: its label, '(off)' when
@@ -110,7 +119,11 @@ const closeSettings = async (ctx: Pick<Ctx, 'shell' | 'ui' | 'sui'>) => {
 // However it closed (Esc, the OS's ×).
 const settingsClosed = async ({ shell, ui }: Pick<Ctx, 'shell' | 'ui'>) => {
   await waitFor(() => !shell.settings);
-  await waitFor(async () => shell.win.isFocused() && await ui(`document.hasFocus()`));
+  // Not focused in time: which window is, and the windows there are, said (a run on GitHub's macOS runner, 2026-10-16).
+  await waitFor(async () => shell.win.isFocused() && await ui(`document.hasFocus()`)).catch((e: Error) => {
+    const all = electron.BaseWindow.getAllWindows().map((w) => `${w.getTitle()}${w.isVisible() ? '' : ' (hidden)'}${w.isFocused() ? ' (focused)' : ''}${w.isEnabled() ? '' : ' (disabled)'}`);
+    throw new Error(`${e.message}; windows: ${all.join(', ')}`);
+  });
 };
 // A profile in Settings' tree chosen (a click), its page shown.
 const chooseProfile = async (sui: UI, id: string) => {
@@ -132,6 +145,8 @@ const rightClick = (ui: UI, sel: string) => ui(`(() => { const e = document.quer
 // runner, 2026-10-12) the window manager focuses the window, and its page learns it later: a key sent then reached
 // Kulisa, but the page's focus, coming after, went back to where it had been, over what the key had focused.
 const focusWindow = async (win: { focus(): void; webContents: { focus(): void } }, ui: UI) => {
+  // On macOS a click also brings the app to the front, and only the front app's windows take the keyboard.
+  if (MAC) electron.app.focus({ steal: true });
   win.focus(); win.webContents.focus();
   await waitFor(() => ui(`document.hasFocus()`));
 };
@@ -162,12 +177,16 @@ const dock = (ui: UI, js: string) => ui(`(() => { const api = window.__dock; ${j
 // A key with modifiers ('control', 'shift', 'alt') into a webContents, as the keyboard sends it there; Ctrl + a key
 // with the keyboard put there first (zoom keys).
 const press = (wc: WebContents, keyCode: string, ...modifiers: ('control' | 'shift' | 'alt' | 'meta')[]) => { for (const type of ['keyDown', 'keyUp'] as const) wc.sendInputEvent({ type, keyCode, modifiers }); };
-const ctrl = (wc: WebContents, keyCode: string) => { wc.focus(); press(wc, keyCode, 'control'); };
+// Kulisa's keys that are ⌘ on macOS and Ctrl elsewhere (CommandOrControl in keys.ts); Ctrl+` and Ctrl+Tab are Ctrl's
+// everywhere, and in the terminal Ctrl is the agent's.
+const MAC = process.platform === 'darwin';
+const CMD = MAC ? 'meta' : 'control';
+const ctrl = (wc: WebContents, keyCode: string) => { wc.focus(); press(wc, keyCode, CMD); };
 const near = (a: number, b: number) => Math.abs(a - b) < 1e-6;
 // A sandboxed page: its preload's world (999, contextIsolation's) has no Node's process (Electron's tutorial/sandbox.md).
 const noNode = async (wc: WebContents) => await wc.executeJavaScriptInIsolatedWorld(999, [{ code: 'typeof process' }]) === 'undefined';
 
 export type { UI };
-export { focusWindow, MENU, SUBMENU, noNode, hooksOf, plusMenu, assert, root, userData, project, pfile, savedTabs, savedWindows, panel, SITE, PORT, sleep, waitFor, who, menuRows, choose, projectTabs, projectTab, showProject, closeProject, manageProfiles, closeSettings, settingsClosed, chooseProfile, setProfileField, menuOpen, closeMenu, rightClick, taskMenu,
+export { MAC, CMD, canShoot, NO_SHOT, shot, focusWindow, MENU, SUBMENU, noNode, hooksOf, plusMenu, assert, root, userData, project, pfile, savedTabs, savedWindows, panel, SITE, PORT, sleep, waitFor, who, menuRows, choose, projectTabs, projectTab, showProject, closeProject, manageProfiles, closeSettings, settingsClosed, chooseProfile, setProfileField, menuOpen, closeMenu, rightClick, taskMenu,
   click,
   box, pageBox, viewOn, dock, press, ctrl, near };

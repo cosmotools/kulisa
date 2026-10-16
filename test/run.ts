@@ -24,6 +24,9 @@ import type { IPty } from 'node-pty';
 // A site that is not local (local.ts) for the tests of real accounts' sign-ins kept in step (cookie-sync.ts): the test
 // site under a name of its own.
 app.commandLine.appendSwitch('host-resolver-rules', 'MAP shop.example 127.0.0.1');
+// The motion the tests check (a tab growing in, the grid's slide) whatever the OS's setting: GitHub's macOS runner
+// reduces motion, and nothing moved there (2026-10-16). Reduced motion is checked where it matters, emulated.
+app.commandLine.appendSwitch('force-prefers-no-reduced-motion');
 
 const restart = process.argv.includes('--restart');
 // direnv's list of allowed .envrc files (tasks copy and allow them): the test's own, not the user's.
@@ -84,6 +87,9 @@ const sitePromise = ensureSite(Number(PORT));
 start({ userData, project: restart ? undefined : project, projectsHome: path.join(root, 'Kulisa'), agent, agents, mcpPort: 0, signinHosts: ['localhost'], appDevTools: !restart })
   .then(async (shell) => {
     await sitePromise;
+    // macOS gives the keyboard only to the active app's windows, and the run starts from another (a terminal): the
+    // tests' focus would be the human's last click's. It takes the screen's focus, as docs/testing.md says.
+    if (process.platform === 'darwin') app.focus({ steal: true });
     const ctx = await setup(shell);
     let failed = 0;
     for (const t of tests) {

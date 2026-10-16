@@ -246,6 +246,13 @@ unasked. This paragraph is removed when the rewrite is finished.
   - Once its pull request is merged (or the author drops it), the repository's folder follows `develop` (above),
     and the worktree goes (`git worktree remove`), its branch here (`git branch -D`: merged by GitHub's merge commit,
     git here may not know it) and on GitHub (the API, below), and its test folder (`/tmp/kulisa-test-<worktree>-…`).
+- **Sessions on different OSes share a pull request** (the author, 2026-10-16). A session fixes what it can reproduce
+  and test on its own OS, shared code too: what decides is where the bug can be checked, not which OS the code is for.
+  What only another OS shows, or what it cannot check there, it does not fix blind: it writes it in a comment on the
+  pull request, for the session on that OS, which fixes it on its side. The pull request is where they talk. Each
+  comment starts with who wrote it ("Claude (the Linux session), not the author"): the comments go up under the
+  author's account. Before pushing to a branch another session works on, take its new commits (`git pull --rebase`).
+  A session learns of new comments only when the author tells it to read them (`GET …/issues/<n>/comments`).
 - **GitHub's API, not `gh`** (not installed; the author's choice, 2026-10-12): `curl` to `https://api.github.com`
   with the token of the remote's URL, read into a shell variable and never printed:
   `T=$(git config --get remote.origin.url | sed -E 's#^https://[^:@/]*:?([^@/]*)@.*#\1#')`, then
@@ -262,7 +269,9 @@ unasked. This paragraph is removed when the rewrite is finished.
 - **`main` is protected on GitHub** (a ruleset, no one bypassing it): no push, no force push; only a pull request
   from `develop`, merged with a merge commit (not squash or rebase: `develop` would part from `main`), by the author,
   once its required checks pass: `test (ubuntu-latest)` and `version` (`.github/workflows/test.yml`). Never push to
-  `main`, merge into it, or merge `main` back into `develop`.
+  `main`, merge into it, or merge `main` back into `develop`. Supporting an OS makes its tests required: macOS's
+  (`test (macos-latest)`) once the macOS support for development is reached (the author, 2026-10-16; ROADMAP, "macOS
+  and Windows are untested"), on `develop` and `main`; the author adds it to the rulesets, the session says when it is time.
 - **The version** in `package.json` is the truth; the app shows it (☰) and the updater compares it. Each pull
   request into `main` raises it (the `version` check refuses one that does not; once, the first release, the same
   number passes while no release of it exists). `npm version <patch|minor> --no-git-tag-version`: no tag by hand,
@@ -321,7 +330,8 @@ npm run watch # the window built again on every change; then reload it (Ctrl+R i
   code before a turn ends; when it sends you back, fix what it reports, or tell the human why it cannot be fixed now.
 - **Looking at the window.** `KULISA_SHOT=/tmp/kulisa.png npm start` saves a screenshot of the whole window,
   profile views included, about 4 s after start (`KULISA_SHOT_DELAY` in ms). In tests: `shell.screenshot(file)`.
-  Then read the PNG. Use it to check any UI change.
+  Then read the PNG. Use it to check any UI change. On macOS the screen recording permission is the app's that started
+  Kulisa (the terminal running Claude Code): `docs/testing.md`, "On macOS".
 - **A bug the tests and screenshots do not show** (input going nowhere, a native view misbehaving): the
   `debug-kulisa` skill (`.claude/skills/debug-kulisa/`): look inside the running app, a scratch Kulisa, real clicks,
   bare Electron. Read it before guessing at causes.

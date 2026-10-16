@@ -12,7 +12,7 @@ import { READ_MAX } from './mcp-server.ts';
 
 interface Size { cols: number; rows: number }
 // A terminal's process, with what Kulisa keeps of it.
-type Pty = IPty & { spawnSize: Size; spawnArgs: string[]; key: string; screen?: Terminal; stopped?: boolean };
+type Pty = IPty & { spawnSize: Size; spawnArgs: string[]; key: string; screen?: Terminal; stopped?: boolean; typed: Promise<void> };
 // How a terminal starts (startTerminal).
 interface TerminalConfig {
   command?: string | null; args?: string[]; cwd?: string; env?: Record<string, string | undefined>;
@@ -70,10 +70,11 @@ async function startTerminal(send: Send, cfg: TerminalConfig, key: string): Prom
     name: 'xterm-256color', cols, rows, cwd: cfg.cwd || process.cwd(),
     env: { ...process.env, COLORTERM: 'truecolor', ...(cfg.env || {}) },
   }) as Pty;
-  if (cfg.line) typeWhenReady(p, `${cfg.line}\r`);
+  p.typed = Promise.resolve();
+  if (cfg.line) p.typed = typeWhenReady(p, `${cfg.line}\r`);
   else if (sh && cfg.command) {
     const vars = Object.entries(cfg.pinned || {}).map(([k, v]) => `${k}=${shQuote(v)}`);
-    typeWhenReady(p, ` ${[...vars, ...[cfg.command, ...(cfg.args || [])].map(shQuote)].join(' ')}\r`);
+    p.typed = typeWhenReady(p, ` ${[...vars, ...[cfg.command, ...(cfg.args || [])].map(shQuote)].join(' ')}\r`);
   }
   p.spawnSize = { cols: p.cols, rows: p.rows };
   p.spawnArgs = cfg.args || [];
@@ -90,15 +91,17 @@ async function startTerminal(send: Send, cfg: TerminalConfig, key: string): Prom
 // Type the agent's command once the shell reads its input line, or it shows twice (the terminal echoes what comes
 // before, then the shell shows it again). A shell reading a line turns bracketed paste on (bash, zsh, fish); for
 // other shells, once the output has been quiet for a moment. A leading space keeps it out of the shell's history
-// (bash's default ignorespace).
+// (bash's default ignorespace). Once typed, the promise: what is sent to the agent comes after it (sendToPrompt).
 function typeWhenReady(p: IPty, line: string) {
-  let done = false, quiet: NodeJS.Timeout | undefined;
-  const type = () => { if (done) return; done = true; sub.dispose(); clearTimeout(quiet); clearTimeout(limit); p.write(line); };
-  const sub = p.onData((d) => {
-    if (d.includes('\x1b[?2004h')) return type();
-    clearTimeout(quiet); quiet = setTimeout(type, 500);
+  return new Promise<void>((resolve) => {
+    let done = false, quiet: NodeJS.Timeout | undefined;
+    const type = () => { if (done) return; done = true; sub.dispose(); clearTimeout(quiet); clearTimeout(limit); p.write(line); resolve(); };
+    const sub = p.onData((d) => {
+      if (d.includes('\x1b[?2004h')) return type();
+      clearTimeout(quiet); quiet = setTimeout(type, 500);
+    });
+    const limit = setTimeout(type, 5000);
   });
-  const limit = setTimeout(type, 5000);
 }
 
 // Stop the agent; its output no longer reaches the window. The terminal's size is kept for the next agent there.
@@ -141,8 +144,10 @@ const outputShows = (p: IPty, test: (seen: string) => boolean, ms: number) => ne
 });
 // A line sent to the agent as the human would: pasted, then Enter once the agent has drawn it. confirm: the words of the
 // question the agent asks then (Claude Code's /add-dir: whether to add the folder), answered with Enter, its first
-// choice; nothing when it does not come.
-async function sendToPrompt(p: IPty, text: string, confirm?: string) {
+// choice; nothing when it does not come. Not before the agent's command is typed into its shell: sent before, the line
+// went to the shell (a repository added as the task opened; macOS's bash 3.2, without bracketed paste, waits for quiet).
+async function sendToPrompt(p: Pty, text: string, confirm?: string) {
+  await p.typed;
   const drawn = outputShows(p, (s) => s.length > 0, 1000);
   typeIntoPrompt(p, text);
   await drawn;

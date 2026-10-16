@@ -3,7 +3,7 @@ import electron, { clipboard } from 'electron';
 import fs from 'fs';
 import pkg from '../package.json' with { type: 'json' };
 import path from 'path';
-import { assert, root, userData, project, pfile, SITE, sleep, waitFor, who, menuRows, choose, MENU, SUBMENU, menuOpen, rightClick, box, pageBox, viewOn, dock, press, projectTabs, projectTab, showProject, closeProject, savedWindows, closeMenu, plusMenu, focusWindow } from './helpers.ts';
+import { MAC, CMD, shot, assert, root, userData, project, pfile, SITE, sleep, waitFor, who, menuRows, choose, MENU, SUBMENU, menuOpen, rightClick, box, pageBox, viewOn, dock, press, projectTabs, projectTab, showProject, closeProject, savedWindows, closeMenu, plusMenu, focusWindow } from './helpers.ts';
 import type { Test } from './run.ts';
 import type { UI } from './helpers.ts';
 
@@ -132,9 +132,9 @@ export default (test: Test) => {
     assert.equal(await ui(`document.querySelectorAll('#projectTabs .add').length`), 0);
     await closeMenu(ui);
     // Ctrl+Shift+A opens it too, from anywhere; again closes it.
-    press(shell.win.webContents, 'A', 'control', 'shift');
+    press(shell.win.webContents, 'A', CMD, 'shift');
     await waitFor(() => menuOpen(ui));
-    press(shell.win.webContents, 'A', 'control', 'shift');
+    press(shell.win.webContents, 'A', CMD, 'shift');
     await waitFor(async () => !(await menuOpen(ui)));
     await showProject(ui, 'other');
     await waitFor(() => shell.current?.folder === other && !shell.windows[0].switching);
@@ -278,7 +278,7 @@ export default (test: Test) => {
     // The agent's output and its tools go on there.
     pty.write('moved along\r');
     await waitFor(async () => (await termText2()).includes('moved along'));
-    await second.screenshot(path.join(root, 'second-window.png'));
+    await shot(second, path.join(root, 'second-window.png'));
     await ctx.call('browser_navigate', { profile: 'sam-seller', url: `${SITE}/app?moved` }, task);
     assert.match(seller.get().wc.getURL(), /\?moved$/);
     // The bar's + in either window lists every project.
@@ -390,17 +390,24 @@ export default (test: Test) => {
     await sleep(300); // nothing to wait for: that no window comes
     assert.equal(shell.windows.length, 1);
     // Let go beside the window, on the side with more room on the screen: where the window manager put the test's
-    // window varies, and a point off the screen gives a window the OS pulls back next to the first one.
+    // window varies, and a point off the screen gives a window the OS pulls back next to the first one. A window as
+    // wide as the screen (a laptop's: 1680 px on the author's Mac) is made narrower meanwhile, or no point is beside it.
     const area = electron.screen.getDisplayMatching(b).workArea;
-    const right = area.x + area.width - (b.x + b.width) >= b.x - area.x;
-    shell.pointer = () => ({ x: right ? Math.min(b.x + b.width + 300, area.x + area.width - 10) : Math.max(b.x - 300, area.x + 10), y: b.y + 200 });
+    const narrowed = Math.max(area.x + area.width - (b.x + b.width), b.x - area.x) < 400;
+    if (narrowed) {
+      shell.win.setBounds({ x: area.x, y: b.y, width: area.width - 400, height: b.height });
+      await waitFor(() => shell.win.getBounds().width === area.width - 400);
+    }
+    const nw = shell.win.getBounds(), right = area.x + area.width - (nw.x + nw.width) >= nw.x - area.x;
+    shell.pointer = () => ({ x: right ? Math.min(nw.x + nw.width + 300, area.x + area.width - 10) : Math.max(nw.x - 300, area.x + 10), y: nw.y + 200 });
     await dragStart(ui, 'other');
     await dragEnd(ui, 'other', 'none');
     await waitFor(() => shell.windows.length === 2 && shell.windows[1].current === moved && !shell.windows[1].switching);
     shell.pointer = pointer;
+    if (narrowed) shell.win.setBounds(b);
     const second = shell.windows[1], ui2 = (js: string) => second.win.webContents.executeJavaScript(js);
     const nb = second.win.getBounds();
-    assert.ok(right ? nb.x > b.x + 32 : nb.x < b.x - 32, `towards the pointer, not next to the first window: ${JSON.stringify({ b, nb, right })}`);
+    assert.ok(right ? nb.x > nw.x + 32 : nb.x < nw.x - 32, `towards the pointer, not next to the first window: ${JSON.stringify({ nw, nb, right })}`);
     assert.deepEqual(await projectTabs(ui), ['project *']);
     assert.equal(moved.pty, pty, 'the same agent');
 
@@ -529,6 +536,14 @@ export default (test: Test) => {
     // Copy and paste as the OS's own terminal: here Linux's Ctrl+Shift+C / V; a paste lands once (Chromium's own
     // paste and Kulisa's both pasted it); Ctrl+V and Ctrl+C go to the agent. Windows' and macOS' keys, and the menu's.
     const keys = (keyCode: string, modifiers: Parameters<typeof press>[2][]) => press(shell.win.webContents, keyCode, ...modifiers);
+    // macOS: ⌘V and ⌘C are the Edit menu's (its roles' keys, app.ts), which a key sent into the page does not reach.
+    // The system runs those roles itself (Electron's MenuItem.click does not there): its row is there, and what it does
+    // to the focused page is done.
+    const edit = (role: 'copy' | 'paste') => {
+      assert.ok(electron.Menu.getApplicationMenu().items.flatMap((i) => i.submenu?.items ?? []).some((i) => i.role === role), `the Edit menu's ${role}`);
+      shell.win.webContents[role]();
+    };
+    const paste = () => (MAC ? edit('paste') : keys('V', ['control', 'shift'])), copy = () => (MAC ? edit('copy') : keys('C', ['control', 'shift']));
     await clipboard.writeText('kulisa-paste');
     const before = ctx.ptyOutput().length;
     // Pressed again while nothing is pasted: the page reads the clipboard only while it has the focus, and on a loaded
@@ -536,17 +551,17 @@ export default (test: Test) => {
     // runner, 2026-10-13); a read refused pastes nothing, so a second press cannot paste twice.
     for (let i = 0; ; i++) {
       await focusWindow(shell.win, ui); await ui(`window.__term.focus()`);
-      keys('V', ['control', 'shift']);
+      paste();
       try { await waitFor(() => ctx.ptyOutput().slice(before).includes('kulisa-paste'), 2000); break; } catch (e) { if (i === 4) throw e; }
     }
     await sleep(300); // nothing to wait for: that it is not pasted twice
     assert.equal(ctx.ptyOutput().slice(before).split('kulisa-paste').length - 1, 1, 'pasted once');
     await clipboard.writeText('');
     await ui(`window.__term.selectAll()`);
-    keys('C', ['control', 'shift']);
+    copy();
     await waitFor(async () => (await clipboard.readText()).includes('kulisa-paste'));
     await ui(`window.__term.clearSelection()`);
-    keys('C', ['control', 'shift']);
+    copy();
     await sleep(300); // nothing to wait for: that the clipboard is not emptied
     assert.ok((await clipboard.readText()).includes('kulisa-paste'), 'nothing selected: the clipboard is kept');
     keys('U', ['control']); // the agent's line emptied
@@ -557,19 +572,20 @@ export default (test: Test) => {
       ['darwin', ${key('KeyV')}], ['darwin', ${key('KeyV', { ctrlKey: false, metaKey: true })}],
       ['linux', ${JSON.stringify({ code: '', keyCode: 86, ctrlKey: true, shiftKey: true })}]].map(([os, e, selected]) => clipboardKey(e, os, selected))`),
     ['paste', 'copy', null, null, 'paste', 'copy', null, 'paste', null, null, 'paste'], 'the keys of each OS; by keyCode when code is left out (ibus, Cyrillic)');
-    assert.deepEqual(await ui(`[keyText('terminal.copy'), keyText('terminal.paste')]`), ['Ctrl+Shift+C', 'Ctrl+Shift+V'], "the menu's keys for Linux (main/keys.ts)");
+    assert.deepEqual(await ui(`[keyText('terminal.copy'), keyText('terminal.paste')]`), MAC ? ['⌘C', '⌘V'] : ['Ctrl+Shift+C', 'Ctrl+Shift+V'], "the menu's keys for this OS (main/keys.ts)");
 
     // Links in the terminal, marked by the agent (OSC 8) or in plain text: Ctrl+click asks where, at the pointer: a tab of
     // one of the open profiles, or the user's browser. A plain click, or an address that is not http(s), does nothing.
     await ui(`new Promise((r) => window.__term.write('\\r\\n\\x1b]8;;${SITE}/app\\x07the app\\x1b]8;;\\x07 and https://example.com/docs\\r\\n', r))`);
     assert.equal(await ui(`window.__term.options.linkHandler === termLinks`), true, "the agent's links (OSC 8) are Kulisa's");
     const click = (uri: string, mods: object) => ui(`termLinks.activate(new MouseEvent('click', { clientX: 120, clientY: 600, ...${JSON.stringify(mods)} }), ${JSON.stringify(uri)})`);
+    const ctrlKey = MAC ? { metaKey: true } : { ctrlKey: true }; // ⌘+click on macOS
     await click(`${SITE}/app`, {});
-    await click('javascript:alert(1)', { ctrlKey: true });
+    await click('javascript:alert(1)', ctrlKey);
     await sleep(200); // nothing to wait for: that no menu opens
     assert.equal(await menuOpen(ui), false, 'a plain click, or not http(s): nothing');
     const names = await ui(`state.map((p) => p.name)`);
-    await click(`${SITE}/app`, { ctrlKey: true });
+    await click(`${SITE}/app`, ctrlKey);
     assert.deepEqual(await menuRows(ui), [`# ${SITE}/app`, ...names.map((n: string) => `Open in ${n}`), '-', 'Open in your browser']);
     const linked = shell.profiles.get(await ui(`state[0].id`)), had = linked.tabs.length;
     await choose(ui, `Open in ${names[0]}`);
@@ -578,8 +594,7 @@ export default (test: Test) => {
     const openExternal = electron.shell.openExternal, opened: string[] = [];
     electron.shell.openExternal = async (url) => { opened.push(url); };
     try {
-      await click('https://example.com/docs', { ctrlKey: true });
- console.log('DEBUG', await ui(`JSON.stringify([...document.querySelectorAll('.menu')].map((m) => m.dataset.state + ' ' + m.className)) + ' ' + document.activeElement?.className + ' ' + document.querySelectorAll('[data-state=open]').length + ' ' + [...document.querySelectorAll('[data-state=open]')].map((e) => e.id || e.className).join('|')`));
+      await click('https://example.com/docs', ctrlKey);
       await menuRows(ui);
       await choose(ui, 'Open in your browser');
       await waitFor(() => opened.length === 1);
@@ -588,10 +603,12 @@ export default (test: Test) => {
 
     await ui(`document.getElementById('windowMenu').click()`);
     // The arrangements as pictures, a short name under each, the full words in the tooltip.
+    // No Exit on macOS: ⌘Q and the app menu's Quit there (TopBar.vue).
+    const exit = MAC ? [] : ['-', 'Exit'];
     assert.deepEqual((await menuRows(ui)).slice(3), ['Language', '-', '# Arrange panels', 'arrange: Columns, Two by two, One at a time', '-', 'Keyboard Shortcuts', '-',
-      'Documentation', 'GitHub', 'Report an issue', '-', 'Exit', `~ Kulisa ${pkg.version}`], "Kulisa's version a note under the rows, not one of them");
+      'Documentation', 'GitHub', 'Report an issue', ...exit, `~ Kulisa ${pkg.version}`], "Kulisa's version a note under the rows, not one of them");
     assert.deepEqual(await ui(`[...document.querySelectorAll('.menu[data-state="open"] svg:not([hidden]) > use')].map((u) => u.getAttribute('href'))`),
-      ['#i-zoom', '#i-theme', '#i-projects', '#i-language', '#i-chevron', '#i-arrange', '#i-keyboard', '#i-docs', '#i-github', '#i-bug', '#i-exit'], 'each row with its icon');
+      ['#i-zoom', '#i-theme', '#i-projects', '#i-language', '#i-chevron', '#i-arrange', '#i-keyboard', '#i-docs', '#i-github', '#i-bug', ...(MAC ? [] : ['#i-exit'])], 'each row with its icon');
     const pics = await ui(`[...document.querySelectorAll('.menu[data-state="open"] .arrange [role="menuitem"]')].map((b) => ({ title: b.title,
       panes: b.querySelectorAll('svg .a-page').length, term: b.querySelectorAll('svg .a-term').length, w: b.querySelector('svg').getBoundingClientRect().width }))`);
     type Pic = { title: string; panes: number; term: number; w: number };
@@ -611,7 +628,8 @@ export default (test: Test) => {
     } finally { electron.shell.openExternal = openExternal; }
     assert.equal(opened[1], 'https://github.com/cosmotools/kulisa');
 
-    // Exit quits as the last window's × does: asked only when an agent works.
+    // Exit quits as the last window's × does: asked only when an agent works. Not on macOS (above).
+    if (MAC) return;
     shell.task.promptTarget().state = 'working';
     ctx.answer = false;
     await ui(`document.getElementById('windowMenu').click()`);
@@ -685,6 +703,8 @@ export default (test: Test) => {
     await waitFor(() => menuOpen(ui));
     const other = new (electron.BrowserWindow)({ width: 300, height: 200, show: false });
     try {
+      // macOS makes a window key only in the active app, and the tests run while another one (the terminal) may be.
+      if (MAC) electron.app.focus({ steal: true });
       other.show(); other.focus();
       await waitFor(async () => !(await anyMenu()));
     } finally { other.destroy(); }

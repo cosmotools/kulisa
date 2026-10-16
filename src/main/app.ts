@@ -257,9 +257,23 @@ function start(options: Options = {}) {
   registerWindow(ipc);
   const ready = app.whenReady().then(async () => {
     // macOS keeps a menu bar for the app: Electron's default one would reload Kulisa's own page with ⌘R. Its own
-    // menu: Quit, Hide (the app's), Copy and Paste (the Edit menu's roles: ⌘C, ⌘V in fields and the terminal), the
-    // windows. Kulisa's keys are taken before it (onKey). Elsewhere the windows have no menu (window.ts).
-    if (process.platform === 'darwin') Menu.setApplicationMenu(Menu.buildFromTemplate([{ role: 'appMenu' }, { role: 'editMenu' }, { role: 'windowMenu' }]));
+    // menu: Settings… (⌘,, where Mac apps have it: the author, 2026-10-16), Quit, Hide (the app's), Copy and Paste
+    // (the Edit menu's roles: ⌘C, ⌘V in fields and the terminal), the windows. Kulisa's keys are taken before it
+    // (onKey). Elsewhere the windows have no menu (window.ts). Its app menu as Electron's own, Settings… added
+    // (tutorial/application-menu.md, 44.5.1).
+    if (process.platform === 'darwin') {
+      const settings = (_item: Electron.MenuItem, win?: Electron.BaseWindow) => {
+        const w = shell.windows.find((x) => x.win === win) ?? shell.windows[0]; // Settings' own in front: the first
+        if (w) shell.openSettings(w, { section: 'projects', id: null });
+      };
+      Menu.setApplicationMenu(Menu.buildFromTemplate([
+        { role: 'appMenu', submenu: [{ role: 'about' }, { type: 'separator' }, { label: 'Settings…', accelerator: 'Command+,', click: settings },
+          { type: 'separator' }, { role: 'services' }, { type: 'separator' }, { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' },
+          { type: 'separator' }, { role: 'quit' }] },
+        { role: 'editMenu' }, { role: 'windowMenu' }]));
+    }
+    // Run from source, the Dock shows Electron's own icon (its bundle's); a packaged Kulisa has its own (forge.config.ts).
+    if (!app.isPackaged) app.dock?.setIcon(path.join(import.meta.dirname, '..', '..', 'assets', 'icon.png'));
     shell.sessionCookies = new SessionCookies();
     shell.proxy = new CdpProxy();
     await shell.proxy.listen(0);
