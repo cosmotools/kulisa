@@ -37,7 +37,12 @@ async function newTask(ctx: Ctx) {
 // A project's submenu (a tab's right-click, then the row of the project's name, the one row opening a menu): its
 // rows, a row of it chosen. tab: the tab to open it on (the shown task's).
 async function projectMenu(ui: UI, label?: string, tab = '#projectTabs .tasktab.active .name') {
-  await rightClick(ui, tab);
+  // Right-clicked again until its menu opens: one right after Settings or another menu closed opened none now and
+  // then (GitHub's runner, 2026-10-16), as the window's focus came back.
+  await waitFor(async () => {
+    if (!(await menuOpen(ui))) await rightClick(ui, tab);
+    return waitFor(() => menuOpen(ui), 1000).then(() => true, () => false);
+  }, 10000);
   await menuRows(ui);
   await ui(`${MENU}.querySelector('.item[aria-haspopup]').click()`);
   await waitFor(async () => (await ui(`document.querySelectorAll('.menu[data-state="open"]').length`)) === 2);
