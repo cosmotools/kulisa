@@ -110,7 +110,7 @@ class AppWindow {
     const more = this.tabs.length - 1;
     return this.current ? `${this.current.name}${more > 0 ? ` (+${more})` : ''}` : 'empty';
   }
-  focus() { if (this.win.isMinimized()) this.win.restore(); this.win.focus(); }
+  focus() { if (this.win.isMinimized()) this.win.restore(); if (!this.win.isVisible()) this.win.show(); this.win.focus(); }
   // Kulisa's own DevTools (only when running from source: appDevTools), detached like the profiles' DevTools: docked
   // ones would sit under the profile views.
   toggleDevTools() {

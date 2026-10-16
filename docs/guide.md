@@ -51,7 +51,8 @@ newer and less tried.
 
 - **The title bar**: the Kulisa logo in the shown project's color (not on a Mac, where Kulisa's icon is in the Dock),
   **Settings** (the gear), and **☰**, the window's menu: zoom, theme, where the tasks' bar is, language, Arrange
-  panels, Keyboard Shortcuts, links, Exit.
+  panels, Keyboard Shortcuts, links, Exit. On a Mac there is no Exit: **⌘Q** quits Kulisa, and closing the last
+  window only hides it, while your agents go on working; click Kulisa's icon in the Dock to bring it back.
 - **Settings** (on a Mac also ⌘, or Kulisa → Settings… in the menu bar) opens in a window of its own, as in other desktop apps: set what you need and close it (**Esc** or its
   ×; what you typed is saved as you go). You can also leave it open and go on working in your task windows: it stays
   open beside them, and shows the project of the task window you were in last.
