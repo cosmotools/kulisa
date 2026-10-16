@@ -34,6 +34,9 @@ function installSettings(shell: Shell, { preload, appDevTools }: { preload: stri
     const win = new BrowserWindow({ ...scaled(SIZE, z), ...(saved && onScreen(saved) ? saved : {}), useContentSize: !saved,
       // Not a child of a tasks' window: on macOS a child stays above its parent, which then never came in front of it.
       minWidth: scaled(MIN, z).width, minHeight: scaled(MIN, z).height, title: 'Settings — Kulisa',
+      // Never full screen itself: opened from a full-screen tasks' window, macOS made it a full-screen window in a Space
+      // of its own (2026-10-16); not full-screenable, it opens over that window, in its Space, as Mac apps' settings do.
+      fullscreenable: false,
       show: false, // until its page is filled (settings:ready): shown empty, its tree and page jumped as they came
       backgroundColor: COLORS[shell.shade()].window, icon: path.join(import.meta.dirname, '..', '..', 'assets', 'icon.png'),
       webPreferences: { preload, sandbox: true, devTools: appDevTools, zoomFactor: z } });

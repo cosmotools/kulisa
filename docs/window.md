@@ -256,10 +256,10 @@ the work:
 - **Its lists follow** what changes elsewhere while it is open: the profiles made and let go in a tasks' window or by
   the agent (`settings:changed`, sent on `profilesChanged`), its tree's and the shown project's; nothing typed on its
   page is touched.
-- **Full screen on macOS**: opened from a task's window in full screen, it should open over it, in its Space; not
-  checked yet (a window of its own may open on the desktop's Space instead: then `FullScreenAuxiliary`,
-  `setVisibleOnAllWorkspaces(false, { visibleOnFullScreen: true, skipTransformProcessType: true })`). As a window of
-  its own, macOS's Window menu lists it too.
+- **Never full screen** (`fullscreenable: false`), as Mac apps' settings: opened from a task's window in full screen,
+  macOS made it a full-screen window of its own, in a Space of its own (2026-10-16). Not full-screenable, it opens at
+  its size over that window, in its Space; nothing more is needed (`FullScreenAuxiliary` was tried: the same). As a
+  window of its own, macOS's Window menu lists it too.
 - **Esc closes it**, as a dialog's: unless a menu, a question or a popover is open (Esc closes that first), or a field
   takes it. Esc and the OS's × alike, its page saves what is typed first (a project's name), then closes it; while an
   agent installs, it stays.

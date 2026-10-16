@@ -247,6 +247,8 @@ export default (test: Test) => {
     // and comes in front of it, Settings left as it is; the task's pages stay on screen.
     const win = shell.settings.win;
     assert.deepEqual([win.getTitle(), win.getParentWindow(), shell.win.isEnabled()], ['Settings — Kulisa', null, true]);
+    // Never full screen: macOS made it a full-screen window of its own when opened from one (settings-window.ts).
+    assert.equal(win.isFullScreenable(), false);
     await focusWindow(shell.win, ui);
     assert.ok(shell.settings?.win === win && !win.isFocused(), 'Settings stays open behind it');
     assert.ok(shell.task.profiles.get('sam-admin').get().view.getVisible(), 'pages on screen');
