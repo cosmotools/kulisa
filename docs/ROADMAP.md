@@ -693,8 +693,8 @@ here; what is left of it stays.
     Linux/X11 (GNOME) by the tests only, not by changing the OS's setting by hand. macOS draws its own window
     buttons.
   - Tests run often on Linux only; on macOS and Windows before a release (the author's decision, 2026-10-09). The CI
-    runs them on all three at every pull request into `develop` or `main` ([testing.md](testing.md), CI), macOS and Windows not failing the
-    workflow until the bench passes there: fixed by a Claude session on each OS. On a computer they run on the human's
+    runs them on all three at every pull request into `develop` or `main` ([testing.md](testing.md), CI); Windows not failing the
+    workflow until the bench passes there (macOS does since 2026-10-16): fixed by a Claude session on Windows. On a computer they run on the human's
     screen there (Xvfb is Linux's), taking its focus.
     The test bench was made on Linux; adapted on each OS where it can be run (the author's decision, 2026-10-08). macOS:
     passes since 2026-10-16 (on the author's Mac, twice in a row; [testing.md](testing.md), "On macOS"). Known for Windows:

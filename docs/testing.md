@@ -169,9 +169,9 @@ closes a window without waiting for the script that closes it (`closeSettings`).
 **CI** (`.github/workflows/test.yml`): `npm test` on GitHub Actions at every pull request into `develop` or `main` and
 every push to `develop` (CLAUDE.md, Releases; into `main` its `version` job checks the version raised), on Ubuntu (with Xvfb
 and openbox, as on the author's machine), Windows and macOS (on the runner's own screen), git given a name (tasks
-commit). A failed run keeps the groups' folders (their screenshots) as an artifact per OS for a week. macOS and
-Windows do not pass yet (ROADMAP, "macOS and Windows are untested"): their runs report but do not fail the workflow
-(`continue-on-error`), until each passes once; each is fixed by a Claude session on that OS.
+commit). A failed run keeps the groups' folders (their screenshots) as an artifact per OS for a week. Ubuntu and macOS
+pass (macOS since 2026-10-16: "On macOS", above); Windows does not yet (ROADMAP, "macOS and Windows are untested"):
+its runs report but do not fail the workflow (`continue-on-error`) until it passes once, fixed by a Claude session there.
 
 On Linux the runner has no desktop: `npm test` runs in a D-Bus session with gnome-keyring made and unlocked, and
 `XDG_CURRENT_DESKTOP=GNOME`, else `safeStorage` encrypts nothing and Kulisa keeps no session cookies nor test passwords
