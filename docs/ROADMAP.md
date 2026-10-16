@@ -696,7 +696,8 @@ here; what is left of it stays.
   - Drag regions left by a page (Workarounds of Electron bugs, above): seen on Linux; whether macOS and Windows
     have the bug, and whether the workaround is enough there, is not known. Open Teams in a pane and click its page.
   - Signing in to Google and GoDaddy (Kasada) in a profile: passed on Linux with Electron's own User-Agent
-    (2026-10-12); check on macOS and Windows.
+    (2026-10-12); without its `Electron/<version>` (2026-10-16, [profiles.md](profiles.md), What sites see) Google, GoDaddy and
+    Microsoft passed on macOS (the author, 2026-10-16); check again on Linux, and on Windows.
   - The sandbox on Linux, packaged: the `.deb` installs `chrome-sandbox` setuid root; the unpacked `out/` folder needs
     `--no-sandbox` to try it. Other Linux formats (AppImage, rpm, snap) are not set up.
   - Starting the agent (`terminal.ts`): on Linux and macOS it is typed into the user's shell started in the

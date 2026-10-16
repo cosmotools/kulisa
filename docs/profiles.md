@@ -345,8 +345,12 @@ attached. Not by hiding the agent from bot detection: Kulisa does not get past i
 
 ## What sites see
 
-Profiles present themselves as what they are: Electron's Chromium, its own User-Agent (`… Chrome/<version>
-Electron/<version> …`) and brands, nothing changed; `navigator.webdriver` stays false, as no automation port is open.
+Profiles present themselves as what they are: Kulisa on Chromium, Electron's User-Agent without its `Electron/<version>`
+(`… kulisa/<version> Chrome/<version> Safari/537.36`; `app.userAgentFallback`, `app.ts`) and Electron's brands
+(Chromium, not Google Chrome); `navigator.webdriver` stays false, as no automation port is open. Electron's word went on
+2026-10-16: Teams took a Mac's or Windows' User-Agent with it for its own retired desktop app (built on Electron) and
+showed "Classic Teams is no longer available" (`/error/eoa`) instead of its sign-in; Linux's, and a Mac's without
+it, got the sign-in (tried in a bare Electron, one change at a time).
 From 2026-10-05 to 2026-10-12 they presented as Google Chrome (`mimic-chrome.ts`: the User-Agent, `Sec-CH-UA*`
 headers, `navigator.userAgentData`), on reasons not tested one at a time: Google was said to block embedded browsers,
 and GoDaddy's Kasada passed once the sign-in pause and the mimicry were both in. Tried with the author on 2026-10-12:

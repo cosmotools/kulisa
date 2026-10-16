@@ -72,6 +72,9 @@ function start(options: Options = {}) {
   // with them (its CLAUDE_CONFIG_DIR gone: the agent ran with the user's own sign-in, 2026-10-11). Without it, direnv
   // in each terminal starts clean and loads the task's own .envrc; git and direnv run by Kulisa too.
   for (const k of Object.keys(process.env)) if (k.startsWith('DIRENV_')) delete process.env[k];
+  // What sites see (docs/profiles.md): Kulisa on Chromium, without Electron's word. Teams took a Mac's or Windows'
+  // Electron for its own retired desktop app and showed "Classic Teams is no longer available" (2026-10-16).
+  app.userAgentFallback = app.userAgentFallback.replace(/ Electron\/\S+/, '');
   const userData = options.userData || path.join(app.getPath('appData'), 'Kulisa');
   app.setPath('userData', userData);
   // One Kulisa per data folder (Electron's lock is the userData's; KULISA_DATA for another): a second one on the same
