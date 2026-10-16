@@ -666,10 +666,6 @@ here; what is left of it stays.
   - macOS: the window screenshot (`KULISA_SHOT`) needs the screen-recording permission, which macOS checks on the app
     that started Kulisa (a terminal: [testing.md](testing.md), "On macOS"); distribution to users needs code signing and
     notarization (the second macOS goal, above). Windows: code signing certificate.
-  - Developing on macOS: the `run-kulisa` skill's `kulisa.sh` is Linux's (it finds Electron by `ps`'s `comm`, a full
-    path on macOS; `ss`; `/proc`; the data in `~/.config/Kulisa`); `npm install`'s postinstall rebuilds node-pty and
-    fails without a working compiler, the prebuilt one loaded all the same (a packaged build does not rebuild it on
-    macOS: [window.md](window.md), installers).
   - The first start: a packaged app opens no task (the empty window, New Project open), later the groups open last
     (untested packaged).
   - The one-row title bar (`titleBarStyle: 'hidden'` + `titleBarOverlay`, Window Controls Overlay): checked on

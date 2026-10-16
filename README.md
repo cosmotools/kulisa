@@ -44,7 +44,7 @@ actors, the panes the stage, and the developer watches from the audience and sto
 ## Run
 
 ```sh
-npm install          # Node 24.12+. Rebuilds node-pty for Electron (on macOS its prebuilt binary is loaded: without a working compiler the rebuild fails, the app runs all the same)
+npm install          # Node 24.12+. Rebuilds node-pty for Electron (not on macOS: its prebuilt binary is loaded there)
 npm run build        # type checks (tsc, vue-tsc), then the window (src/renderer, Vue) built by Vite into dist/renderer
 npm start            # builds the window, then opens the windows and tasks open last; at first start New Project
 KULISA_PROJECT=~/my-app npm start

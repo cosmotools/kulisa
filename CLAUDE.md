@@ -316,7 +316,7 @@ npm run watch # the window built again on every change; then reload it (Ctrl+R i
   run `npm run postinstall` after that.
 
 - **Sandbox and native module.** On Linux Electron needs `--no-sandbox` (`chrome-sandbox` in `node_modules` is
-  not setuid); `npm start` (`scripts/electron.ts`) and `npm test` pass it there only. `npm install` rebuilds `node-pty` for Electron (postinstall).
+  not setuid); `npm start` (`scripts/electron.ts`) and `npm test` pass it there only. `npm install` rebuilds `node-pty` for Electron (postinstall, `scripts/postinstall.ts`; not on macOS, where its prebuilt binary is loaded).
 - **Starting the app from a Claude Code session.** The app's terminal starts `claude`, which would inherit the
   parent session's `CLAUDE_*` variables, take itself for a child session and not save its history. Unset them all
   except `CLAUDE_CONFIG_DIR`, and run it in the background:

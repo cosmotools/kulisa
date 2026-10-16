@@ -73,7 +73,7 @@
     "knip": "knip",
     "lint": "eslint . && npm run deps",
     "deps": "depcruise src",
-    "postinstall": "electron-rebuild -f -w node-pty",
+    "postinstall": "node scripts/postinstall.ts",
     "package": "electron-forge package",
     "make": "electron-forge make",
     "publish": "electron-forge publish",
