@@ -99,9 +99,12 @@ const manageProfiles = async ({ ui, sui }: Pick<Ctx, 'ui' | 'sui'>) => {
 };
 // Settings closed as the human does it with Esc (its window: settings-window.ts), what was typed saved; its window gone,
 // the keyboard back in the task's window, the window's and its page's (a menu opened there before it came closed as the
-// window got it; on GitHub's runner the window manager's focus came after the page's, 2026-10-16).
+// window got it; on GitHub's runner the window manager's focus came after the page's, 2026-10-16). The Esc's script is
+// not waited for: its page asks for the window to close before its result is back, and a script whose window closes
+// first never answers (Electron drops the reply: a test hung for its 30 s on GitHub's runner, 2026-10-16).
 const closeSettings = async (ctx: Pick<Ctx, 'shell' | 'ui' | 'sui'>) => {
-  await ctx.sui(`dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); 0`);
+  await ctx.sui('0'); // its window open and its page loaded
+  void ctx.shell.settings.win.webContents.executeJavaScript(`dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); 0`).catch(() => {});
   await settingsClosed(ctx);
 };
 // However it closed (Esc, the OS's ×).

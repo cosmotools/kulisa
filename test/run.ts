@@ -89,7 +89,7 @@ start({ userData, project: restart ? undefined : project, projectsHome: path.joi
     for (const t of tests) {
       const t0 = Date.now();
       try {
-        await Promise.race([t.fn(ctx), sleep(30000).then(() => { throw new Error('timeout 30 s'); })]);
+        await Promise.race([t.fn(ctx), sleep(30000).then(() => { throw new Error(`timeout 30 s, in ${ctx.step}`); })]);
         console.log(`  ✓ ${t.name} (${Date.now() - t0} ms)`);
       } catch (e) {
         failed++;
@@ -119,7 +119,10 @@ async function setup(shell: Shell) {
     return clients.get(url);
   };
   // terminal: as the agent in that terminal of the task, by its own URL (tasks.ts, env).
+  // The last call or script a test began, named when the test's 30 s are up (a hang has no stack to read).
+  let step = '';
   const call = async (name: string, args: Record<string, unknown>, task: Task = shell.task, terminal?: TaskTerminal) => {
+    step = `call ${name} ${JSON.stringify(args).slice(0, 120)}`;
     const mcp = await mcpOf(task.env(terminal).KULISA_MCP_URL);
     const r = await mcp.callTool({ name, arguments: args });
     const content = r.content as { type: string; text?: string; data?: string }[];
@@ -130,9 +133,10 @@ async function setup(shell: Shell) {
     return { ...r, content, text, note };
   };
   // A script that throws says which it was (Electron's error names none).
-  const ui = (js: string) => shell.win.webContents.executeJavaScript(js).catch((e: Error) => { throw new Error(`${e.message}: ${js.slice(0, 300)}`); });
+  const ui = (js: string) => { step = `ui ${js.slice(0, 120)}`; return shell.win.webContents.executeJavaScript(js).catch((e: Error) => { throw new Error(`${e.message}: ${js.slice(0, 300)}`); }); };
   // The same in Settings' window (settings-window.ts), once it is open and its page loaded.
   const sui = async (js: string) => {
+    step = `sui ${js.slice(0, 120)}`;
     await waitFor(() => { const w = shell.settings?.win; return w && !w.isDestroyed() && w.webContents.getURL().includes('settings.html') && !w.webContents.isLoading(); });
     return shell.settings.win.webContents.executeJavaScript(js).catch((e: Error) => { throw new Error(`${e.message}: ${js.slice(0, 300)}`); });
   };
@@ -151,7 +155,7 @@ async function setup(shell: Shell) {
   const instructions = async (task: Task = shell.task) => (await mcpOf(task.env().KULISA_MCP_URL)).getInstructions();
   // The tools the MCP server lists to the agent of task task, as its client gets them.
   const tools = async (task: Task = shell.task) => (await (await mcpOf(task.env().KULISA_MCP_URL)).listTools()).tools;
-  const ctx = { shell, call, instructions, tools, ui, sui, ptyOutput: () => pty, watchPty, termText, asked, answer: true as boolean | 'other' | null };
+  const ctx = { shell, call, instructions, tools, ui, sui, ptyOutput: () => pty, watchPty, termText, asked, answer: true as boolean | 'other' | null, get step() { return step; } };
   const ask = shell.askWhich;
   // Asked in the window w (window.ts), the first one when none is named; shell.ask asks through it.
   shell.askWhich = (q: Question, w: AppWindow | null = shell.windows[0]) => {
