@@ -57,7 +57,11 @@ Run from a terminal, as anywhere; what differs there (2026-10-16):
   is skipped with the reason. Granted to the terminal, they are taken.
 - **Its temporary folders are named through a symlink** (`/var` is `/private/var`), where git answers with the real
   path: what the tests found in `repoOf` (`worktrees.ts`).
-- A laptop's screen is narrower than Xvfb's 1920 px: a test needing room beside the window makes it narrower.
+- A laptop's screen is narrower than Xvfb's 1920 px: a test needing room beside the window makes it narrower. GitHub's
+  runner has 1024×768, too small for the tests' windows: the CI sets its virtual screen to 1920×1080 (displayplacer).
+- **Motion is on whatever the OS says** (`force-prefers-no-reduced-motion` in `run.ts`): GitHub's macOS runner reduces
+  motion, and the tests of a tab growing in and the grid's slide waited for what never moved there. Reduced motion is
+  checked where Kulisa does something else for it, emulated (`Emulation.setEmulatedMedia`).
 
 ## Writing an e2e test
 

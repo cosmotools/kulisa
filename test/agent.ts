@@ -451,6 +451,20 @@ export default (test: Test) => {
     await waitFor(() => elon.active === first);
     await ui(`${strip}.querySelector('.tab:last-of-type .x').click()`);
     await waitFor(() => elon.tabs.length === n);
+    // With reduced motion (the OS's setting, emulated) it does not grow, and is not left growing: no animation ends
+    // there, and the tab stayed .opening (GitHub's macOS runner, 2026-10-16).
+    const dbg = shell.win.webContents.debugger;
+    dbg.attach();
+    try {
+      await dbg.sendCommand('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'reduce' }] });
+      await ui(`${strip}.querySelector('.add').click()`);
+      await waitFor(() => elon.tabs.length === n + 1);
+      await waitFor(() => ui(`!!${strip}.querySelector('.tab[data-tab="${elon.active}"]')`));
+      await sleep(300); // nothing to wait for: that it is not left growing
+      assert.equal(await ui(`!!${strip}.querySelector('.tab.opening')`), false);
+      elon.closeTab(elon.active);
+      await waitFor(() => elon.tabs.length === n);
+    } finally { dbg.detach(); }
   });
   test('many tabs: they shrink as in Chrome; the strip, the toolbar and the page stay inside the pane', async ({ shell, ui }) => {
     const elon = shell.profiles.get('elon-buyer'), n = elon.tabs.length;
