@@ -121,7 +121,7 @@ const settingsClosed = async ({ shell, ui }: Pick<Ctx, 'shell' | 'ui'>) => {
   await waitFor(() => !shell.settings);
   // Not focused in time: which window is, and the windows there are, said (a run on GitHub's macOS runner, 2026-10-16).
   await waitFor(async () => shell.win.isFocused() && await ui(`document.hasFocus()`)).catch((e: Error) => {
-    const all = electron.BaseWindow.getAllWindows().map((w) => `${w.getTitle()}${w.isVisible() ? '' : ' (hidden)'}${w.isFocused() ? ' (focused)' : ''}${w.isEnabled() ? '' : ' (disabled)'}`);
+    const all = electron.BaseWindow.getAllWindows().map((w) => `${w.getTitle()}${w.isVisible() ? '' : ' (hidden)'}${w.isFocused() ? ' (focused)' : ''}`);
     throw new Error(`${e.message}; windows: ${all.join(', ')}`);
   });
 };

@@ -15,7 +15,7 @@ import type { GitError } from '../worktrees.ts';
 import type { Result } from '../../shared/result.ts';
 
 export function registerProjects(ipc: Ipc, { lookForFavicon }: { lookForFavicon: (p: ProjectEntry) => Promise<void> }) {
-  const { shell, at, owner, serial } = ipc;
+  const { shell, at, asker, serial } = ipc;
   const store = shell.store;
   const sendProjects = () => shell.sendProjects();
   // New Project…, as JetBrains': its code first (below), then a new or cloned one's folder <location>/<name>, the
@@ -152,7 +152,7 @@ export function registerProjects(ipc: Ipc, { lookForFavicon }: { lookForFavicon:
   handle('project:profile-remove', (e, { id, profile }) => serial(async () => {
     const entry = store.projects().find((x) => x.id === id), g = shell.profileStore.get(profile);
     if (!entry || !g) return { error: entry ? `no profile ${profile}` : `no project ${id}` };
-    if (!await askDropProfile(shell, entry, g, 'human', owner(e))) return { error: 'the human said no' };
+    if (!await askDropProfile(shell, entry, g, 'human', asker(e))) return { error: 'the human said no' };
     await dropProfile(shell, entry, g.folder);
     return profilesOf(id);
   }));

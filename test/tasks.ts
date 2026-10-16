@@ -236,22 +236,19 @@ export default (test: Test) => {
     assert.equal(await who(ctx, 'sam-admin'), 'Signed in as master');
   });
 
-  test("profiles: About this profile… opens Settings' window at it (one, the task's window held meanwhile, its pages on screen); its Sign In… opens the same master window, once", async (ctx) => {
+  test("profiles: About this profile… opens Settings' window at it (one, not modal: the task's window takes input and comes in front of it, its pages on screen); its Sign In… opens the same master window, once", async (ctx) => {
     const { shell, ui, sui } = ctx;
     await rightClick(ui, `.ptab[data-panel="${panel(shell, 'sam-admin')}"] b`);
     await menuRows(ui);
     await choose(ui, 'About this profile…');
     await waitFor(() => sui(`document.querySelector('#pjlist [data-profile="sam-admin"]')?.ariaSelected === 'true' && document.getElementById('profilename').value === 'Sam.admin'`));
     assert.equal(await sui(`document.querySelector('#pjlist [data-profile="sam-admin"] .label').title`), 'Sam.admin', "the tree's narrow column cuts a name: the whole in its tooltip");
-    // A window of its own over the task's (its child), which takes no input meanwhile; the task's pages stay on screen.
-    // Not disabled on macOS, where Electron dims a disabled window with a sheet over Settings too (settings-window.ts):
-    // a click there only activates the window, and its focus brings Settings back.
-    const win = shell.settings.win, mac = process.platform === 'darwin';
-    assert.deepEqual([win.getTitle(), win.getParentWindow() === shell.win, shell.win.isEnabled()], ['Settings — Kulisa', true, mac]);
-    if (mac) {
-      shell.win.focus();
-      await waitFor(() => win.isFocused());
-    }
+    // A window of its own, not a child of the task's (on macOS a child stays above its parent), which goes on taking input
+    // and comes in front of it, Settings left as it is; the task's pages stay on screen.
+    const win = shell.settings.win;
+    assert.deepEqual([win.getTitle(), win.getParentWindow(), shell.win.isEnabled()], ['Settings — Kulisa', null, true]);
+    await focusWindow(shell.win, ui);
+    assert.ok(shell.settings?.win === win && !win.isFocused(), 'Settings stays open behind it');
     assert.ok(shell.task.profiles.get('sam-admin').get().view.getVisible(), 'pages on screen');
     // Asked again (another profile's About…): the same window, at that page.
     await ui(`kulisa.send('settings:open', { section: 'profiles', id: 'elon-buyer' })`);
@@ -264,7 +261,7 @@ export default (test: Test) => {
     shell.masters.values().next().value.win.close();
     await waitFor(() => !shell.masters.size);
     await closeSettings(ctx);
-    assert.ok(win.isDestroyed() && shell.win.isEnabled(), "its window gone, with its process; the task's takes input again");
+    assert.ok(win.isDestroyed(), 'its window gone, with its process');
   });
 
   // About 5 s: its tab waits for a site that never answers, by design (profiles.ts).
@@ -1526,7 +1523,7 @@ export default (test: Test) => {
     assert.deepEqual([site.repos.map((r: { folder: string }) => r.folder), site.former], [[path.join(root, 'docs')], path.join(root, 'site')]);
   });
 
-  test("projects: the title bar's gear opens Settings' window at the shown project; another one, not open, is configured there too, asked there; a click on the task's window brings Settings back to the front; no New Project in it", async (ctx) => {
+  test("projects: the title bar's gear opens Settings' window at the shown project; another one, not open, is configured there too, asked there; what is done in the task's window meanwhile is asked there; no New Project in it", async (ctx) => {
     const { shell, ui, sui } = ctx;
     // Shown once it is filled (its tree's three sections, the agents found, the project's page): as it came, it jumped.
     let filled: Promise<unknown>;
@@ -1539,8 +1536,8 @@ export default (test: Test) => {
     assert.equal(await sui(`document.querySelector('#pjlist [aria-selected="true"]').dataset.project`), shell.current.id);
     // Pages on screen under Settings' window (once live again after the last menu's pictures: on GitHub's runner later).
     await waitFor(() => shell.task.profiles.get('sam-admin').get().view.getVisible());
-    // Site-2 is closed: its configuration all the same; a profile made and let go there (asked first, in Settings' window:
-    // the task's takes no input meanwhile).
+    // Site-2 is closed: its configuration all the same; a profile made and let go there (asked first, in Settings' window,
+    // where it was done).
     await sui(`document.querySelector('#pjlist [data-project="site"]').click()`);
     await waitFor(() => sui(pageOf('Site-2')));
     assert.ok(!shell.open.has('site'));
@@ -1557,10 +1554,13 @@ export default (test: Test) => {
     // Settings only: a project is made in a tasks' window (New Project…), its section has no +.
     assert.equal(await sui(`!!document.getElementById('pjnew') || !!document.querySelector('[data-section="projects"] .add')`), false);
     await shot(shell, path.join(root, 'projects.png'));
-    // The task's window clicked (on Linux a child window is not kept above it): Settings comes to the front.
-    shell.settings.win.blur();
-    shell.win.emit('focus');
-    await waitFor(() => shell.settings.win.isFocused());
+    // Done in the task's window with Settings open (Refresh from Master…): asked in the task's window, not in Settings'.
+    await focusWindow(shell.win, ui);
+    ctx.answer = false;
+    const said = await ui(`kulisa.invoke('profile:refresh', { task: ${JSON.stringify(shell.task.key)}, profile: 'sam-admin' })`);
+    assert.deepEqual([said, ctx.asked.pop().message], [{ error: 'the human said no' }, "Bring the sign-ins of Sam.admin's master to this task?"]);
+    assert.equal(await sui(`!!document.getElementById('ask')`), false, "not in Settings' window");
+    ctx.answer = true;
     // The theme and the Kulisa zoom are every window's: its too.
     const theme = shell.theme, zoom = () => shell.settings.win.webContents.getZoomFactor();
     shell.setTheme(theme === 'light' ? 'dark' : 'light');
@@ -2081,5 +2081,27 @@ export default (test: Test) => {
     await showProject(ui, 'project');
     await waitFor(() => shell.current?.id === 'project' && shell.task.loaded);
     assert.deepEqual(await projectTabs(ui), ['project *', 'project', 'other']);
+  });
+  test("projects: Settings, not modal, acts for the tasks' window last in front; its lists follow the profiles the agent makes and lets go meanwhile", async (ctx) => {
+    const { shell, ui, sui, call } = ctx;
+    const second = shell.windows[1], there = (js: string) => second.win.webContents.executeJavaScript(js);
+    // Opened from the second window: at its shown task's project.
+    await focusWindow(second.win, there);
+    await there(`kulisa.send('settings:open', { section: 'projects', id: null })`);
+    await waitFor(() => sui(pageOf(second.current.project.name)));
+    // The first one in front: Settings acts for it now, without being opened again.
+    await focusWindow(shell.win, ui);
+    assert.equal((await sui(`kulisa.invoke('projects:list')`)).project, 'project');
+    await ui(`kulisa.send('settings:open', { section: 'projects', id: 'project' })`);
+    await waitFor(() => sui(pageOf(shell.current.name)));
+    // Made and let go by the agent (asked in its task's window): the project's page shows it, then not.
+    await call('profile_create', { name: 'Fay' });
+    await waitFor(() => sui(`!!document.querySelector('#npprofiles [data-profile="fay"]') && !!document.querySelector('#pjlist [data-profile="fay"]')`));
+    ctx.answer = true;
+    await call('profile_delete', { profile: 'fay' });
+    assert.equal(ctx.asked.pop().message, 'The agent asks to remove the profile Fay from project.');
+    await waitFor(() => sui(`!document.querySelector('#npprofiles [data-profile="fay"]')`));
+    shell.profileStore.delete('fay'); // not needed by the restart
+    await closeSettings(ctx);
   });
 };

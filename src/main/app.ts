@@ -14,6 +14,7 @@ import { signinPages } from './signin-pages.ts';
 import { SessionCookies } from './session-cookies.ts';
 import { pictureOf } from './projects.ts';
 import { COLORS } from './window.ts';
+import type { AppWindow } from './window.ts';
 import { findFavicon } from './favicons.ts';
 import { AGENTS, findAgent, signOut } from './agents/index.ts';
 import { stopTerminal } from './terminal.ts';
@@ -113,8 +114,10 @@ function start(options: Options = {}) {
   };
   // Profiles whose test password is being typed (mcp-server.ts, browser_type_login): ghost.ts shows no text for them.
   shell.typingSecret = new Set<string>();
+  // Settings too: not modal, it is open beside the windows where profiles are made and let go (settings-window.ts).
   shell.profilesChanged = (from) => {
     for (const p of shell.open.values()) for (const t of p.tasks.values()) if (t.loaded && t !== from) { t.list.refresh(); shell.taskChanged(t, true); }
+    shell.settings?.send('settings:changed');
   };
   // Where new projects go, and the folders of copies of tasks with several repositories (projects.ts).
   shell.projectsHome = options.projectsHome || path.join(app.getPath('home'), 'Kulisa');
@@ -134,9 +137,15 @@ function start(options: Options = {}) {
   // The window a page's message comes from (IPC: event.sender).
   shell.windowOf = (sender) => shell.windows.find((w) => !w.win.isDestroyed() && w.win.webContents === sender) || null;
   const at = (e: IpcEvent) => shell.windowOf(e.sender);
-  // The tasks' window a message is about: its own, or Settings' parent (settings-window.ts): its shown task's project
-  // and folder.
-  const owner = (e: IpcEvent) => at(e) ?? (shell.settings && shell.settings.win.webContents === e.sender ? shell.settings.parent : null);
+  // The tasks' window a message is about: its own, or for Settings (settings-window.ts) the tasks' window last in front:
+  // its shown task's project and folder. Where a question about it is asked: in the window it came from, Settings' too.
+  const fromSettings = (e: IpcEvent) => !!shell.settings && shell.settings.win.webContents === e.sender;
+  const owner = (e: IpcEvent) => at(e) ?? (fromSettings(e) ? shell.front() : null);
+  const asker = (e: IpcEvent) => at(e) ?? (fromSettings(e) ? shell.settings : null);
+  // Clicked, or brought up by the keyboard or the OS: the window Settings acts for and the macOS menu's Settings… opens for.
+  let front: AppWindow | null = null;
+  app.on('browser-window-focus', (_e, win) => { front = shell.windows.find((w) => w.win === win) ?? front; });
+  shell.front = () => (front && shell.windows.includes(front) && !front.win.isDestroyed() ? front : first());
   const appDevTools = options.appDevTools ?? !app.isPackaged;
   let quitting = false; // from before-quit on (below): closing a window asks nothing, tabs closing save nothing
   Object.defineProperty(shell, 'quitting', { get: () => quitting });
@@ -179,10 +188,10 @@ function start(options: Options = {}) {
     const favicon = faviconPicture(p);
     return { ...p, ...(favicon && { favicon }), tasks: tasksOf(p) };
   });
-  // A question asked in a window (window.ts), the first one when none is named; in Settings' while it is open, as the
-  // tasks' windows take no input then (settings-window.ts): askWhich gives the button clicked
-  // ('ok', 'other') or null; ask whether it was ok. Through shell: the tests answer it.
-  shell.askWhich = (q, w = first()) => (shell.settings ? shell.settings.questions.ask(q) : w!.ask(q));
+  // A question asked where its action was done (a tasks' window, Settings: window.ts, Asker), the first window when none
+  // is named: askWhich gives the button clicked ('ok', 'other') or null; ask whether it was ok. Through shell: the
+  // tests answer it.
+  shell.askWhich = (q, w) => (w ?? first())?.ask(q) ?? Promise.resolve(null);
   shell.ask = async (q, w) => (await shell.askWhich(q, w)) === 'ok';
   shell.saveWindows = () => store.saveWindows(shell.windows.map((w) => w.saved()));
   // Every window's tabs and menus: which projects there are, where they are open, their agents (+'s menu).
@@ -248,7 +257,7 @@ function start(options: Options = {}) {
   const tasks = openTasks(shell, { appDevTools });
   const { serial, newWindow, loadProject, unloadIdle, openProject } = tasks;
   // The windows' handles (ipc/): each message acts in the window it comes from.
-  const ipc: Ipc = { shell, at, owner, serial, tasks };
+  const ipc: Ipc = { shell, at, owner, asker, serial, tasks };
   registerTasks(ipc);
   registerProjects(ipc, { lookForFavicon });
   registerProfiles(ipc);
@@ -262,10 +271,8 @@ function start(options: Options = {}) {
     // (onKey). Elsewhere the windows have no menu (window.ts). Its app menu as Electron's own, Settings… added
     // (tutorial/application-menu.md, 44.5.1).
     if (process.platform === 'darwin') {
-      const settings = (_item: Electron.MenuItem, win?: Electron.BaseWindow) => {
-        const w = shell.windows.find((x) => x.win === win) ?? shell.windows[0]; // Settings' own in front: the first
-        if (w) shell.openSettings(w, { section: 'projects', id: null });
-      };
+      // At the project of the tasks' window last in front (shell.front), Settings' own in front too.
+      const settings = () => shell.openSettings({ section: 'projects', id: null });
       Menu.setApplicationMenu(Menu.buildFromTemplate([
         { role: 'appMenu', submenu: [{ role: 'about' }, { type: 'separator' }, { label: 'Settings…', accelerator: 'Command+,', click: settings },
           { type: 'separator' }, { role: 'services' }, { type: 'separator' }, { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' },

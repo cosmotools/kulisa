@@ -598,9 +598,6 @@ here; what is left of it stays.
     gone (Electron's message box comes back instead of the pane's dialog). Ask Electron for a public event
     (`webContents` 'dialog', as `select-bluetooth-device` takes a callback), then use it. The file is the same in
     44.5.1 and 44.8.0 (2026-10-16).
-  - Settings' window does not disable the tasks' windows on macOS (`settings-window.ts`): Electron 44.5.1 disables a
-    window there by attaching a half-transparent sheet to it (`NativeWindowMac::SetEnabled`), which covered Settings,
-    its child window, too. Check: `setEnabled(false)` on a window with a child window over it, on macOS.
 - **Hidden tabs are not hidden to their pages (Electron): check at every Electron upgrade.** Chrome treats a tab
   in the background in three steps, each cheaper for the computer: its page gets `document.visibilityState: "hidden"`
   at once (no animation frames, timers at most once a second, once a minute after 5 minutes); after 5 minutes it is

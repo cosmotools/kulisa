@@ -11,7 +11,7 @@ import type { Agent, Found } from './agents/index.ts';
 import type { Profile } from './profiles.ts';
 import type { Project } from './projects.ts';
 import type { Task } from './tasks.ts';
-import type { AppWindow } from './window.ts';
+import type { AppWindow, Asker } from './window.ts';
 import type { Question, ProjectEntry as SentProject, LanguageInfo, Shortcut } from '../shared/types.ts';
 import type { Master } from './master.ts';
 import type { SettingsWindow } from './settings-window.ts';
@@ -45,8 +45,9 @@ interface Shell {
   windowOf(sender: WebContents): AppWindow | null;
   taskChanged(task: Task, now?: boolean, agentState?: boolean): void;
   projects(): SentProject[];
-  askWhich(q: Question, w?: AppWindow | null): Promise<string | null>;
-  ask(q: Question, w?: AppWindow | null): Promise<boolean>;
+  askWhich(q: Question, w?: Asker | null): Promise<string | null>;
+  ask(q: Question, w?: Asker | null): Promise<boolean>;
+  front(): AppWindow | null; // the tasks' window last in front: the one Settings acts for (settings-window.ts)
   saveWindows(): void;
   sendProjects(): void;
   uiZoom: number; setUiZoom(z: number): void;
@@ -68,9 +69,9 @@ interface Shell {
   findAgent(agent: Agent, cwd: string): Promise<Found | null>;
   chooseAgent: ((task: Task, agent: AgentChoice | null) => Promise<AgentChoice | null>)
     & { cancel(task: Task): void };
-  // settings-window.ts: Settings' window while it is open; opened from a tasks' window, at a page.
+  // settings-window.ts: Settings' window while it is open, at a page.
   settings: SettingsWindow | null;
-  openSettings(parent: AppWindow, at: SettingsAt): void;
+  openSettings(at: SettingsAt): void;
   // master.ts
   masters: Map<string, Master>;
   flushMaster(folder: string): Promise<void>;

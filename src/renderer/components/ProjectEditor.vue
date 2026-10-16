@@ -118,6 +118,13 @@ async function openProjects(id?: string, on: Section = 'projects', at?: string) 
   if (pick) await edit(pick); else { editing.value = null; await showList(); }
   await agentsShown;
 }
+// The profiles changed elsewhere (a tasks' window, the agent): the lists and the shown project's profiles read again,
+// nothing typed on its page touched.
+kulisa.on('settings:changed', async () => {
+  await lists();
+  const id = editing.value, c = id && await kulisa.invoke('project:settings-get', { id });
+  if (c && !refused(c) && editing.value === id) { profiles.value = c.profiles; others.value = c.others; }
+});
 // Opened, or brought to the front, at a page (settings-window.ts).
 // Its window is shown once all of it is there, its fonts too (settings:ready).
 kulisa.on('settings:show', async ({ section, id }) => {
