@@ -299,3 +299,23 @@ In the terminal every other key is the agent's.
   `~/Library/Application Support/Kulisa` on macOS, `%APPDATA%\Kulisa` on Windows. Session cookies and test passwords
   are encrypted with your OS's keyring. **Show Data Folder** in a task tab's right-click menu, under the project's name, opens that project's.
 - Deleting a task, a profile or a project removes what Kulisa made for it.
+
+### Reinstalling and removing Kulisa
+
+Uninstalling Kulisa (your OS's way: Apps on Windows, `apt remove kulisa` or `dnf remove kulisa` on Linux, the Trash
+on macOS) removes the program only. Everything you made stays where it is listed above, so installing Kulisa again
+brings it all back: your projects, tasks, profiles with their sign-ins, agents' accounts and settings.
+
+To remove everything, do it before uninstalling, in Kulisa, so that it cleans up after itself: delete every project
+(**⋯ → Delete Project…** on its page: its tasks go with it, with their copies of the code and their branches),
+every profile (Settings → Profiles) and every agent's account (Settings → Agents: − on the account, which signs it
+out). Then uninstall the program and delete the data folder (above). What remains and is yours to keep or remove:
+
+- Agents Kulisa installed for you (Claude Code, Codex): programs of your own, in `~/.local/bin`, updated by
+  their makers; remove them their way.
+- A project's repository that Kulisa cloned for you: your code.
+- Kulisa's key in your OS's keyring ("Kulisa Safe Storage", in the keyring app on Linux, Keychain Access on macOS;
+  none on Windows), and direnv's permissions for tasks' folders.
+
+If you uninstall first, the tasks' copies of the code stay next to your repositories, each still a worktree and a
+branch of its repository: `git worktree prune` and `git branch -D <branch>` in the repository remove them.
