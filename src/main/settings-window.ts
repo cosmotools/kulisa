@@ -78,9 +78,17 @@ function installSettings(shell: Shell, { preload, appDevTools }: { preload: stri
     win.on('closed', () => {
       s.questions.unanswered();
       if (shell.settings === s) shell.settings = null;
-      // The keyboard to the tasks' window last in front; not as Kulisa quits, its windows going too (one gone meanwhile threw).
+      // The keyboard to the tasks' window last in front, its own page; not as Kulisa quits, its windows going too (one gone
+      // meanwhile threw). macOS makes that window key a moment later and then gives the keyboard back to the view that had
+      // it there (a profile's page), over ours: given again once it is key ('focus' comes after; GitHub's runner,
+      // 2026-10-16, about one run in three).
       const w = shell.front();
-      if (!shell.quitting && w && !w.win.webContents.isDestroyed()) { w.focus(); w.win.webContents.focus(); }
+      if (!shell.quitting && w && !w.win.webContents.isDestroyed()) {
+        const page = () => { if (!w.win.webContents.isDestroyed()) w.win.webContents.focus(); };
+        const key = w.win.isFocused();
+        w.focus(); page();
+        if (!key) { w.win.once('focus', page); setTimeout(() => { if (!w.win.isDestroyed()) w.win.removeListener('focus', page); }, 1000); }
+      }
     });
     s.send('settings:show', at);
     // Its page stuck or gone: shown all the same.
