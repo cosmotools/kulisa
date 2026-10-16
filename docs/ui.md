@@ -216,6 +216,8 @@ Every dialog is `Modal.vue`, Reka UI's Dialog (`reka-ui`) with the same parts:
   closed (`closable`; Esc and a click outside close it too; `stay`: not while something runs, an agent's install).
   Over a dimmed backdrop (`.backdrop`), in the middle of the window (`.dialog`; its corners clip what is in it, a side
   panel's color). A question (`.dialog.question`, `Ask.vue`) has no strip: its question is the first words, bold.
+  At most 85% of the window's height, the `.body` scrolling: a dialog that keeps one height (New Project) sets it on
+  itself, `min(…, 85vh)`, never on its body, or its footer goes out of a short window (640×400, or any at 200%).
 - `.body`: (in Settings' window, `.page`, the same) `.hint` (what it is about, muted), `.field` (a label, "Name:", and its input, the labels in one column; `.pick` in
   it: the input with its button, Location and Browse…), `.row` (a line of controls: a field with its buttons,
   a URL to clone, a new profile's name), `.check` (a `.checkbox` in the fields' column), `.error` (hidden while empty; its text

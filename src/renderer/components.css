@@ -204,8 +204,9 @@ svg:has(> use) { width: 16px; height: 16px; flex: none; fill: none; stroke: curr
   .hint { margin: 0 0 var(--inset); color: var(--text-muted); line-height: 1.45; }
   /* A field and its button in one row (adding a profile, a project) */
   .row { display: flex; gap: var(--gap); margin-top: var(--inset); input { flex: 1; } }
-  /* A labelled field, the labels in one column */
-  .field { display: grid; grid-template-columns: var(--label) 1fr; align-items: center; gap: var(--inset); margin-top: var(--inset);
+  /* A labelled field, the labels in one column; the field's column narrower than its input's own width when the
+     window is (Browse… was cut off in a narrow one) */
+  .field { display: grid; grid-template-columns: var(--label) minmax(0, 1fr); align-items: center; gap: var(--inset); margin-top: var(--inset);
     .pick { display: flex; gap: var(--gap); input { flex: 1; min-width: 0; } } }
   /* Under the fields, in the fields' column */
   .field ~ .hint { margin: 8px 0 0 calc(var(--label) + var(--inset)); overflow-wrap: anywhere; }

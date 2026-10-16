@@ -31,7 +31,7 @@ export default (test: Test) => {
     await waitFor(async () => (await ui(`({ cols: window.__term.cols })`)).cols < 200, 3000); // the terminal refits
     await waitFor(() => JSON.parse(fs.readFileSync(path.join(userData, 'settings.json'), 'utf8')).uiZoom === 1.25);
   });
-  test('the window\'s minimum follows the Kulisa zoom; a window at the minimum grows with it, and keeps its size back', async ({ shell, ui }) => {
+  test('the window\'s minimum follows the Kulisa zoom; a window at the minimum grows with it, and keeps its size back; New Project fits the smallest', async ({ shell, ui }) => {
     const win = shell.win, size = win.getSize();
     assert.deepEqual(win.getMinimumSize(), [800, 500], '640×400 at 125%');
     win.setSize(800, 500);
@@ -44,6 +44,21 @@ export default (test: Test) => {
     await waitFor(() => near(win.webContents.getZoomFactor(), 1.25));
     assert.deepEqual(win.getMinimumSize(), [800, 500]);
     assert.deepEqual(win.getSize(), [960, 600], 'not made smaller');
+    // The smallest window has 640×400 for the UI at any zoom: New Project keeps its buttons and Browse… in it, each kind.
+    win.setSize(800, 500);
+    await waitFor(async () => (await ui(`innerHeight`)) === 400);
+    shell.win.webContents.send('project:new');
+    await waitFor(() => ui(`document.getElementById('newproject')?.dataset.state === 'open'`));
+    for (const from of ['new', 'folder', 'clone']) {
+      await ui(`document.querySelector('#npfrom [data-value="${from}"]').click()`);
+      await waitFor(() => ui(`document.querySelector('#npfrom [data-value="${from}"]').ariaSelected === 'true'`));
+      const fits = await ui(`(() => { const d = document.getElementById('newproject').getBoundingClientRect(), inside = (id) => { const e = document.getElementById(id);
+        if (!e) return null; const r = e.getBoundingClientRect(); return r.right <= d.right && r.bottom <= d.bottom && d.bottom <= innerHeight; };
+        return { create: inside('npcreate'), browse: inside('npbrowse') }; })()`);
+      assert.deepEqual(fits, { create: true, browse: from === 'folder' ? null : true }, from);
+    }
+    await ui(`document.querySelector('#newproject .x').click()`);
+    await waitFor(async () => !(await ui(`document.getElementById('newproject')?.dataset.state === 'open'`)));
     win.setSize(size[0], size[1]);
     await waitFor(() => win.getSize()[0] === size[0] && viewOn(shell, ui, 'sam-admin'));
   });
