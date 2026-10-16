@@ -692,9 +692,11 @@ here; what is left of it stays.
     project's folder, so the project's environment applies (direnv's `.envrc`, nvm, mise) and `PATH` is the
     user's even when Kulisa was started from a menu. Checked on Linux with bash only.
     - macOS: a login shell (`$SHELL -l`, zsh by default; `os.userInfo().shell` when started from the Dock without
-      `SHELL`). Check: started from the Dock, `claude` is found; a project with an `.envrc` (direnv hook in
-      `.zshrc`) gets its variables, e.g. `CLAUDE_CONFIG_DIR` (`/status` in Claude shows the account); quoting of the
-      typed command in zsh and fish; the shell stays after the agent exits.
+      `SHELL`). Checked on the author's Mac (2026-10-16, `startTerminal` run alone in Electron, their own `.zshrc`):
+      with no `SHELL` and the system's `PATH`, as from the Dock, the login zsh finds `claude`; direnv's hook in
+      `.zshrc` loads the project's `.envrc`, and the account's `CLAUDE_CONFIG_DIR` typed before the command wins
+      over the one it sets; arguments with spaces, `'`, `$`, `*`, `!` and JSON reach the agent as they were; the shell
+      stays after the agent exits. Not checked: fish (not installed there).
     - Windows: the agent starts directly, without a shell, so no project environment; `claude` from npm is a
       `.cmd` that node-pty may not find. Proposed: type it into PowerShell (`pwsh -NoExit`, falling back to
       `powershell.exe`) in the project's folder, as on the other systems: the PowerShell profile applies, `.cmd`
@@ -704,7 +706,9 @@ here; what is left of it stays.
       serve them too, and `terminal_stop`'s Ctrl+C in cmd asks "Terminate batch job?".
     - Both: closing a task and opening it again (`claude --resume`) and the project folder dialog
       (New Project…'s Browse…, native) are untested.
-  - `safeStorage` (Keychain, DPAPI) for session cookies: expected to work, untested.
+  - `safeStorage` (Keychain, DPAPI) for session cookies: works on macOS (2026-10-16: the author's profiles' files
+    encrypted, Chromium's `v10`; the key in the Keychain as "kulisa Safe Storage"; the tests of sign-ins after a
+    restart pass on the Mac and the CI's). Windows: untested.
   - Dictation (the right ⌘ held, or the terminals' microphone): the agent records itself. macOS: the system asks for the
     microphone for Kulisa (`NSMicrophoneUsageDescription` in `forge.config.ts`); check that it asks and that `claude`'s `/voice`
     then records, packaged and from `npm start` (the Terminal app's permission may be the one asked then); signed
@@ -713,10 +717,15 @@ here; what is left of it stays.
     desktop apps; the right Ctrl of a keyboard with AltGr (it sends a Ctrl before AltGr on Windows: check that a typed
     AltGr character does not start a recording).
   - macOS: the window screenshot (`KULISA_SHOT`) needs the screen-recording permission, which macOS checks on the app
-    that started Kulisa (a terminal: [testing.md](testing.md), "On macOS"); distribution to users needs code signing and
+    that started Kulisa (a terminal: [testing.md](testing.md), "On macOS"; started by `open`, Electron.app itself, which
+    had it before Electron's upgrade to 44.8.0 and was refused after it, 2026-10-16: probably because ad hoc signed, a
+    new binary is a new app to macOS); distribution to users needs code signing and
     notarization (the second macOS goal, above). Windows: code signing certificate.
-  - The first start: a packaged app opens no task (the empty window, New Project open), later the groups open last
-    (untested packaged).
+  - The first start: a packaged app opens no task (the empty window, New Project open), later the groups open last.
+    macOS (2026-10-16, `npm run package`, unsigned, ad hoc): it starts from Finder's way (`open`), the first start as
+    above; the Kulisa plugin and the skill sit outside the asar, node-pty's `spawn-helper` is executable, the icon is
+    Kulisa's. Its update check fails ("The server sent an invalid response": no macOS release to serve) and is only
+    logged. Not checked packaged: the later starts, an agent started in a task.
   - The one-row title bar (`titleBarStyle: 'hidden'` + `titleBarOverlay`, Window Controls Overlay): checked on
     Linux/X11 only. Check the window buttons, dragging and double-click to maximize on macOS (traffic lights on the
     left), Windows and Wayland (Electron 44 runs natively there by default; the author's GNOME is X11: "Ubuntu on
