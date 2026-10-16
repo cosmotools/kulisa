@@ -23,60 +23,61 @@ import type { StoredProfile } from '../src/main/profile-store.ts';
 type Action = { caption: string; x?: number; y?: number };
 
 export default (test: Test) => {
-  test('profiles are made in Settings (Profiles\' + in its tree), each with its own picture and, if the human says, who it is; added to the project on its page, opened in its task; views are hidden while Settings is open', async ({ shell, ui }) => {
-    await manageProfiles(ui);
-    assert.equal(await ui(`document.querySelector('#prconfig .empty').textContent`), 'No profiles yet.');
+  test('profiles are made in Settings (Profiles\' + in its tree), each with its own picture and, if the human says, who it is; added to the project on its page, opened in its task; the pages stay on screen under Settings\' window', async (ctx) => {
+    const { shell, ui, sui } = ctx;
+    await manageProfiles(ctx);
+    assert.equal(await sui(`document.querySelector('#prconfig .empty').textContent`), 'No profiles yet.');
     // + beside Profiles: its name typed in place under the tree, Enter; then it is chosen, its page shown (the picture:
     // the next free one, unless the human picks another).
     const make = async (name: string) => {
-      await ui(`document.getElementById('profilenew').click()`);
-      await waitFor(() => ui(`document.activeElement?.id === 'profilenewname'`));
-      await setProfileField(ui, 'profilenewname', name);
-      await ui(`document.getElementById('profilenewname').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))`);
-      await waitFor(() => ui(`document.getElementById('profilename')?.value === ${JSON.stringify(name)} && !document.getElementById('profilenewname')
+      await sui(`document.getElementById('profilenew').click()`);
+      await waitFor(() => sui(`document.activeElement?.id === 'profilenewname'`));
+      await setProfileField(sui, 'profilenewname', name);
+      await sui(`document.getElementById('profilenewname').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))`);
+      await waitFor(() => sui(`document.getElementById('profilename')?.value === ${JSON.stringify(name)} && !document.getElementById('profilenewname')
         && document.querySelector('#pjlist [aria-selected="true"] .label')?.textContent === ${JSON.stringify(name)}`));
     };
     await make('Sam.seller');
-    await setProfileField(ui, 'profileabout', ' seller in the test shop ');
+    await setProfileField(sui, 'profileabout', ' seller in the test shop ');
     await waitFor(() => shell.profileStore.get('sam-seller')?.description === 'seller in the test shop');
     await make('Elon.buyer');
     assert.equal(shell.profileStore.get('elon-buyer').avatar, 'frog', 'the next picture free');
     // Its picture's button looks as a field to choose from (.select): the chosen one, a chevron, the fields' background.
-    assert.deepEqual(await ui(`(() => { const b = getComputedStyle(document.getElementById('profilepic')), f = document.body.appendChild(document.createElement('i'));
+    assert.deepEqual(await sui(`(() => { const b = getComputedStyle(document.getElementById('profilepic')), f = document.body.appendChild(document.createElement('i'));
       f.style.background = 'var(--field)'; const field = getComputedStyle(f).backgroundColor; f.remove(); return [b.display, b.backgroundColor === field]; })()`), ['flex', true]);
-    await ui(`document.getElementById('profilepic').click()`);
-    await waitFor(() => ui(`!!document.querySelector('.profilepics.ready')`));
-    assert.equal(await ui(`document.querySelectorAll('.profilepics [data-avatar]').length`), 16, 'all of them to choose from, at once');
-    await ui(`document.querySelector('.profilepics [data-avatar="penguin"]').click()`);
+    await sui(`document.getElementById('profilepic').click()`);
+    await waitFor(() => sui(`!!document.querySelector('.profilepics.ready')`));
+    assert.equal(await sui(`document.querySelectorAll('.profilepics [data-avatar]').length`), 16, 'all of them to choose from, at once');
+    await sui(`document.querySelector('.profilepics [data-avatar="penguin"]').click()`);
     await waitFor(() => shell.profileStore.get('elon-buyer').avatar === 'penguin');
     // Who they are: in the store of profiles (profile-store.ts), the same in every task; in no project yet.
     assert.deepEqual(shell.profileStore.all().map(({ id, avatar, description, projects, color }: StoredProfile & { color?: string }) => ({ id, avatar, description, projects, color })),
       [{ id: 'sam-seller', avatar: 'fox', description: 'seller in the test shop', projects: [], color: undefined },
         { id: 'elon-buyer', avatar: 'penguin', description: undefined, projects: [], color: undefined }], 'pictures, not colors; who it is when said');
-    assert.equal(await ui(`document.querySelector('#profilepage .projects').textContent`), "none: add it on a project's page");
+    assert.equal(await sui(`document.querySelector('#profilepage .projects').textContent`), "none: add it on a project's page");
     // Added on the project's page (+ → its other profiles), closed in its task; opened there (👥).
-    await click(ui, `document.querySelector('#pjlist [data-project="${shell.current.id}"]')`);
+    await click(sui, `document.querySelector('#pjlist [data-project="${shell.current.id}"]')`);
     for (const name of ['Sam.seller', 'Elon.buyer']) {
       // The profiles to add are asked for again as the page is shown: the menu may open before they come.
       await waitFor(async () => {
-        await ui(`document.getElementById('npprofileadd').click()`);
-        if ((await menuRows(ui)).includes(name)) return true;
-        await closeMenu(ui);
+        await sui(`document.getElementById('npprofileadd').click()`);
+        if ((await menuRows(sui)).includes(name)) return true;
+        await closeMenu(sui);
         return false;
       });
-      await choose(ui, name);
-      await waitFor(async () => (await ui(`[...document.querySelectorAll('#npprofiles .label')].map((l) => l.textContent)`)).includes(name));
+      await choose(sui, name);
+      await waitFor(async () => (await sui(`[...document.querySelectorAll('#npprofiles .label')].map((l) => l.textContent)`)).includes(name));
       // A row cuts its name and description: the whole in its tooltip.
-      assert.equal((await ui(`[...document.querySelectorAll('#npprofiles .item')].find((r) => r.querySelector('.label').textContent === ${JSON.stringify(name)}).title`)).split('\n')[0], name);
+      assert.equal((await sui(`[...document.querySelectorAll('#npprofiles .item')].find((r) => r.querySelector('.label').textContent === ${JSON.stringify(name)}).title`)).split('\n')[0], name);
     }
     await waitFor(() => shell.closed.has('sam-seller') && shell.closed.has('elon-buyer'));
     await ui(`act('profile:open', { profile: 'sam-seller' })`);
     await ui(`act('profile:open', { profile: 'elon-buyer' })`);
     assert.deepEqual([...shell.profiles.keys()], ['sam-seller', 'elon-buyer']);
     await waitFor(() => shell.profiles.get('elon-buyer').get()); // its first tab comes after it is opened
-    assert.equal(shell.profiles.get('elon-buyer').get().view.getVisible(), false, 'hidden under Settings');
-    await closeSettings(ui);
+    // Settings is a window of its own: the task's pages stay on screen and live (a dialog had hidden them).
     await waitFor(() => shell.profiles.get('elon-buyer').get().view.getVisible());
+    await closeSettings(ctx);
     assert.equal(await ui(`document.querySelectorAll('.pane').length`), 2);
     // The first page over the terminal alone took half the grid (dockview's split); the terminal keeps its share.
     const share = await ui(`__dock.getPanel('terminal').group.api.height / __dock.height`);
@@ -247,7 +248,8 @@ export default (test: Test) => {
     assert.equal(ctx.asked.pop().message, 'Delete the profile Ann.admin?');
     await waitFor(() => !shell.profileStore.get('ann-admin'));
   });
-  test('who a profile is: the agent is told to choose by it and to ask; it saves the human\'s answer, Settings → Profiles shows it', async ({ shell, call, ui }) => {
+  test('who a profile is: the agent is told to choose by it and to ask; it saves the human\'s answer, Settings → Profiles shows it', async (ctx) => {
+    const { shell, call, ui, sui } = ctx;
     const c = new Client({ name: 'kulisa-test', version: '0' });
     await c.connect(new StreamableHTTPClientTransport(new URL(shell.task.env().KULISA_MCP_URL)));
     assert.match(c.getInstructions(), /by its description .* ask the human once .* profile_describe/s, 'every agent, also without the skill');
@@ -267,22 +269,22 @@ export default (test: Test) => {
     [['seller in the test shop', 'avatars/fox.svg'], ['buyer; pays by card', 'avatars/penguin.svg']]);
     await closeMenu(ui);
     // Settings → Profiles shows it and the human changes it there.
-    await manageProfiles(ui);
-    await chooseProfile(ui, 'elon-buyer');
-    await waitFor(async () => (await ui(`document.getElementById('profileabout').value`)) === 'buyer; pays by card');
-    assert.deepEqual(await ui(`(() => { const a = document.getElementById('profileabout'); return [a.localName, a.rows, getComputedStyle(a).resize]; })()`),
+    await manageProfiles(ctx);
+    await chooseProfile(sui, 'elon-buyer');
+    await waitFor(async () => (await sui(`document.getElementById('profileabout').value`)) === 'buyer; pays by card');
+    assert.deepEqual(await sui(`(() => { const a = document.getElementById('profileabout'); return [a.localName, a.rows, getComputedStyle(a).resize]; })()`),
       ['textarea', 2, 'vertical'], 'two lines, made taller by hand');
-    await setProfileField(ui, 'profileabout', '');
+    await setProfileField(sui, 'profileabout', '');
     await waitFor(() => elon.description === '');
     // The picture: a panel of them from the button beside it; one chosen, it goes.
-    await ui(`document.getElementById('profilepic').click()`);
-    await waitFor(() => ui(`!!document.querySelector('.profilepics.ready')`));
-    await ui(`document.querySelector('.profilepics [data-avatar="owl"]').click()`);
+    await sui(`document.getElementById('profilepic').click()`);
+    await waitFor(() => sui(`!!document.querySelector('.profilepics.ready')`));
+    await sui(`document.querySelector('.profilepics [data-avatar="owl"]').click()`);
     await waitFor(() => elon.avatar === 'owl');
-    await waitFor(() => ui(`!document.querySelector('.profilepics')`));
-    await waitFor(async () => (await ui(`document.querySelector('#profilepic .avatar').getAttribute('src')`)) === 'avatars/owl.svg');
-    assert.match((await ui(`kulisa.invoke('profiles:avatar', { profile: 'elon-buyer', avatar: 'dragon' })`)).error, /no picture/);
-    await closeSettings(ui);
+    await waitFor(() => sui(`!document.querySelector('.profilepics')`));
+    await waitFor(async () => (await sui(`document.querySelector('#profilepic .avatar').getAttribute('src')`)) === 'avatars/owl.svg');
+    assert.match((await sui(`kulisa.invoke('profiles:avatar', { profile: 'elon-buyer', avatar: 'dragon' })`)).error, /no picture/);
+    await closeSettings(ctx);
   });
   // Each action of the agent waits while it is shown in the page (0.5 s, ghost.ts): the agent's tests take seconds.
   test('agent: navigate, snapshot, type by ref, click by locator, screenshot', async ({ call }) => {

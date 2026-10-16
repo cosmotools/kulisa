@@ -13,7 +13,7 @@ import RightClickMenu from './menu/RightClickMenu.vue';
 import { store } from '../lib/store';
 import { projectColor } from '../lib/project-color';
 import { keyText } from '../lib/common';
-import { dialog } from '../lib/dialogs';
+import { dialog, openSettings } from '../lib/dialogs';
 import { profilesMenu } from '../lib/profiles';
 import { terminalsOf } from '../lib/terminals';
 import { useStrip } from '../lib/strip';
@@ -46,7 +46,7 @@ function pointerdown(e: PointerEvent) {
   for (const type of ['pointerup', 'pointercancel']) addEventListener(type, show, { signal: done.signal });
 }
 const showTask = (key: string | number) => { if (key !== store.current && key !== pressed.value) void kulisa.invoke('task:show', String(key)); };
-const manage = async (id?: string) => (await dialog('projects')).openProjects(id);
+const manage = (id?: string) => openSettings('projects', id);
 
 // The task whose tab an event was on (TaskTab.vue handles a tab's own clicks).
 const tabAt = (e: Event) => { const el = (e.target as Element).closest<HTMLElement>('[data-task]'); return el && tabs.value.find(({ t }) => t.key === el.dataset.task) || null; };

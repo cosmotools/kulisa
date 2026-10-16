@@ -4,7 +4,7 @@
 import { computed, watch } from 'vue';
 import { DropdownMenuContent, DropdownMenuPortal, DropdownMenuRoot } from 'reka-ui';
 import MenuRows from './MenuRows.vue';
-import { covered } from '../../lib/views';
+import { covered } from '../../lib/cover';
 import { focusBack, pointMenu } from '../../lib/menu';
 
 const { open, ready } = covered('pictures');

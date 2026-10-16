@@ -14,6 +14,8 @@ import type { Task } from './tasks.ts';
 import type { AppWindow } from './window.ts';
 import type { Question, ProjectEntry as SentProject, LanguageInfo, Shortcut } from '../shared/types.ts';
 import type { Master } from './master.ts';
+import type { SettingsWindow } from './settings-window.ts';
+import type { SettingsAt } from '../shared/ipc.ts';
 import type { Pty } from './terminal.ts';
 import type { signinPages } from './signin-pages.ts';
 import type { Result } from '../shared/result.ts';
@@ -66,6 +68,9 @@ interface Shell {
   findAgent(agent: Agent, cwd: string): Promise<Found | null>;
   chooseAgent: ((task: Task, agent: AgentChoice | null) => Promise<AgentChoice | null>)
     & { cancel(task: Task): void };
+  // settings-window.ts: Settings' window while it is open; opened from a tasks' window, at a page.
+  settings: SettingsWindow | null;
+  openSettings(parent: AppWindow, at: SettingsAt): void;
   // master.ts
   masters: Map<string, Master>;
   flushMaster(folder: string): Promise<void>;

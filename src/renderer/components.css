@@ -144,19 +144,29 @@ svg:has(> use) { width: 16px; height: 16px; flex: none; fill: none; stroke: curr
   &:is(:hover, [data-highlighted]) .remove { visibility: visible; }
   /* The chosen row of a list (a project in the projects' manager: Reka's Listbox) */
   &[aria-selected="true"] { background: var(--island-hi); color: var(--text-strong); } }
-/* A list a dialog edits (a project's code, agents and profiles; an agent's accounts), as JetBrains' lists: framed, a
-   toolbar over it (.tools: .icon.small buttons, + adding, − removing the selected row, others acting on it), its rows
-   Reka's Listbox items (.item on one line: the .label, its facts muted after it (small), a state at the end: kbd, .warn
-   when it needs the human), the selected one lit (--chosen while the list has the keyboard, else --chosen-idle);
-   Delete removes it, a right-click has its actions. .empty when it has none. */
-.list { display: flex; flex-direction: column; min-width: 0; border: 1px solid var(--island-hi); border-radius: var(--radius);
+/* A list a dialog edits (a project's code, agents and profiles; an agent's accounts; New Project's folders), as
+   JetBrains' tables: framed, a toolbar over it (.tools: .icon.small buttons, + adding, − removing the selected row,
+   others acting on it), then its columns' names (.head), then its rows, Reka's Listbox items: each value in a cell of
+   its column (.cell: the .label first, with its icon or picture; its facts muted, small; a state at the end, .end: kbd,
+   .warn when it needs the human), cut with … (the whole in its title), the columns the same in every row and the head
+   (the author, 2026-10-16: values one after another, each row its own rhythm, read as chaos). The list sets its
+   columns (--cols: e.g. fit-content(45%) minmax(0, 1fr) auto); the head and the rows take them (subgrid). The selected
+   row lit (--chosen while the list has the keyboard, else --chosen-idle); Delete removes it, a right-click has its
+   actions. .empty when it has none. */
+.list { display: grid; grid-template-columns: var(--cols, minmax(0, 1fr)); column-gap: var(--inset); min-width: 0;
+  border: 1px solid var(--island-hi); border-radius: var(--radius);
+  > * { grid-column: 1 / -1; }
+  > :is(.head, :has(> [role="listbox"])), [role="listbox"], .item { display: grid; grid-template-columns: subgrid; grid-column: 1 / -1; }
   .tools { display: flex; gap: 2px; padding: 2px 4px; border-bottom: 1px solid var(--island-hi); }
+  .head { align-items: center; min-height: calc(var(--row) - 4px); padding: 0 8px; border-bottom: 1px solid var(--island-hi);
+    font-size: var(--font-small); color: var(--text-dim); > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } }
   [role="listbox"] { outline: none; }
-  .item { min-height: var(--row); padding: 0 8px; gap: var(--gap); border-radius: 0; white-space: nowrap;
-    .text { flex-direction: row; align-items: baseline; gap: var(--gap); overflow: hidden; }
-    .label { flex: none; } small { min-width: 0; font-size: inherit; }
+  .item { align-items: center; min-height: var(--row); padding: 0 8px; border-radius: 0;
     .warn { color: var(--note); }
     &[aria-selected="true"] { background: var(--chosen-idle); color: var(--text-strong); } }
+  .cell { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: inherit;
+    > :is(svg, .avatar) { width: var(--icon); height: var(--icon); vertical-align: -3px; margin-inline-end: var(--gap); }
+    &.end { display: flex; justify-content: end; gap: var(--gap); } }
   &:focus-within .item[aria-selected="true"] { background: var(--chosen); }
   .empty { margin: 0; padding: 4px 8px; line-height: calc(var(--row) - 8px); } }
 /* A group's title: its name and a line to the end (JetBrains' titled separator), over a group of a form or a .list */
@@ -184,6 +194,13 @@ svg:has(> use) { width: 16px; height: 16px; flex: none; fill: none; stroke: curr
   &.question header { justify-content: flex-start; min-height: 0; padding: var(--pad) var(--pad) 0; border-bottom: none;
     h2 { font-size: var(--font); font-weight: 600; color: var(--text-strong); white-space: normal; } }
   .body { flex: 1; min-height: 0; overflow: auto; padding: var(--pad); }
+  footer { display: flex; justify-content: flex-end; gap: var(--gap); padding: 10px var(--pad); border-top: 1px solid var(--island-hi);
+    .start { margin-inline-end: auto; } /* it and the buttons before it at the left end */
+    button { min-width: 80px; } }
+}
+/* What a dialog and Settings' window (.page: Settings.vue) hold: hints, fields with their labels in one column, checks,
+   a field with its button, a list's empty line. */
+:is(.dialog, .page) {
   .hint { margin: 0 0 var(--inset); color: var(--text-muted); line-height: 1.45; }
   /* A field and its button in one row (adding a profile, a project) */
   .row { display: flex; gap: var(--gap); margin-top: var(--inset); input { flex: 1; } }
@@ -200,9 +217,6 @@ svg:has(> use) { width: 16px; height: 16px; flex: none; fill: none; stroke: curr
   .empty { margin: var(--inset) 0; color: var(--text-dim); }
   /* A field, a check or a row a dialog leaves out in one of its uses (hidden) */
   :is(.field, .check, .row)[hidden] { display: none; }
-  footer { display: flex; justify-content: flex-end; gap: var(--gap); padding: 10px var(--pad); border-top: 1px solid var(--island-hi);
-    .start { margin-inline-end: auto; } /* it and the buttons before it at the left end */
-    button { min-width: 80px; } }
   button:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 70%, transparent); outline-offset: 1px; }
 }
 

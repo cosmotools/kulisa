@@ -55,14 +55,17 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
     one, or the island's + after), and it replaced Search Tasks (a panel of every project's tasks with a search
     field, from the morning of 2026-10-11 until its evening).
 - **Settings** (the button in the title bar, left of ☰; the author, 2026-10-11), as JetBrains' Settings (the author,
-  2026-10-11: the dialogs read as a web page's, not a desktop app's; docs/ui.md, Desktop, not a web page): a tree on the
+  2026-10-11: the dialogs read as a web page's, not a desktop app's; docs/ui.md, Desktop, not a web page), a window of
+  its own since 2026-10-16 (a dialog until then; how it opens and closes, the tasks' windows held meanwhile:
+  [window.md](window.md), Settings): a tree on the
   left of three sections, each with its own under it: **Projects** (every project, its icon in its color, its name),
   **Agents** (each agent: "Choosing the agent") and **Profiles** (every profile, its picture: [profiles.md](profiles.md));
   on the right the chosen one's page under its path ("Projects › shop", "Profiles › ann") with **⋯** at its end. All
   three alike (the author, 2026-10-12): a section only opens and closes, its **+** beside it makes one of its own
-  (Projects: New Project; Profiles: New Profile…, its name typed in place under the tree, Enter makes it and shows its
+  (Profiles: New Profile…, its name typed in place under the tree, Enter makes it and shows its
   page, Esc puts it away; Agents: a menu of the agents an account can be made of, New Account… on the agent's page,
-  as agents are installed, not made); a row's right-click has what its page's ⋯ has (a project's and a profile's
+  as agents are installed, not made; Projects has none since 2026-10-16: Settings only sets things, a project is made
+  in a tasks' window, New Project…); a row's right-click has what its page's ⋯ has (a project's and a profile's
   Delete…, asked first, as Delete on the chosen row; an agent's Install and New Account…), a section's what its +
   does. Project Settings… in a project's submenu (a task tab's menu) opens it at that project;
   a task tab's Manage Profiles… and About this profile… at a profile. It was the projects' manager alone, under a
@@ -82,9 +85,10 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   what Save and Cancel were for); the name on Enter or leaving its field, also when the manager closes or another
   project is chosen with one typed. Decided with the author on 2026-10-10, when a project became the configuration its tasks are made
   from: the menu and the Welcome screen (JetBrains' way, 2026-10-07) showed no project's configuration without opening
-  it. A dialog, not a window of the OS: no process more.
-- **New Project** (a dialog of its own, `NewProject.vue`: Settings' +, which it takes the place of until Create or
-  Cancel; New Project… in the empty window; by itself at the first start, no project yet), as JetBrains': on the left
+  it. A dialog, not a window of the OS, no process more, until 2026-10-16: a window of its own then (the author: as a
+  desktop app's, the pages not hidden under it), its process only while it is open.
+- **New Project** (a dialog of a tasks' window, `NewProject.vue`: New Project… in the bar's + and in the empty window;
+  by itself at the first start, no project yet; Create opens Settings at it; Settings' + until 2026-10-16), as JetBrains': on the left
   what its code comes from, on the right the form (**Name:**, **Location:**). **Its code first** (the author,
   2026-10-11: a folder made in `~/Kulisa` first, git on, was in the way of code already on the disk or at a URL: with
   a repository added after it, every task got a copy of the empty one too, or the empty folder stayed as a former one):

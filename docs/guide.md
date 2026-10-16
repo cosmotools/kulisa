@@ -50,6 +50,9 @@ Kulisa is tested on Linux (Ubuntu) so far; on Windows it is newer and less tried
 
 - **The title bar**: the Kulisa logo in the shown project's color, **Settings** (the gear), and **☰**, the window's
   menu: zoom, theme, where the tasks' bar is, language, Arrange panels, Keyboard Shortcuts, links, Exit.
+- **Settings** opens in a window of its own, as in other desktop apps: set what you need and close it (**Esc** or its
+  ×; what you typed is saved). While it is open, the task windows wait for it, but you still see your pages and
+  terminals working; a click on a task window brings Settings back to the front.
 - **The grid**: the shown task's panes (one per open profile) and its terminals. Drag a pane by its header to move it,
   onto another pane to stack them as tabs; drag the gaps to resize. **☰ → Arrange panels** offers ready-made
   arrangements. Each task keeps its own grid.
@@ -63,7 +66,7 @@ Kulisa is tested on Linux (Ubuntu) so far; on Windows it is newer and less tried
 
 ### New Project
 
-Its code first, on the left:
+**New Project…** in the bar's **+** (or in an empty window). Its code first, on the left:
 
 - **New folder**: a new, empty project. Kulisa makes the folder (in `~/Kulisa` unless you choose another place) and,
   with Create Git repository on, a git repository in it, so tasks can have copies of their own.

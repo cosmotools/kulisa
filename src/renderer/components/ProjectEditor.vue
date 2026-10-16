@@ -1,10 +1,10 @@
 <script setup lang="ts">
-// Settings, as JetBrains' (docs/tasks.md, Projects; docs/ui.md): a tree on the left (Projects, Agents, Profiles, each
-// with its own under it and its + beside it), the chosen one's page on the right under its path. Saved as it changes
-// (no OK, no Cancel). New Project is a dialog of its own (NewProject.vue).
+// Settings, as JetBrains' (docs/tasks.md, Projects; docs/ui.md), the whole of its window (Settings.vue): a tree on the
+// left (Projects, Agents, Profiles, each with its own under it, Agents and Profiles with a + beside them), the chosen
+// one's page on the right under its path. Saved as it changes (no OK, no Cancel). Settings only: a project is made in a
+// tasks' window (New Project…), which then opens it here.
 import { computed, nextTick, ref, watch } from 'vue';
 import { ListboxContent, ListboxItem, ListboxRoot, TreeItem, TreeRoot } from 'reka-ui';
-import Modal from './Modal.vue';
 import Icon from './Icon.vue';
 import ButtonMenu from './menu/ButtonMenu.vue';
 import RightClickMenu from './menu/RightClickMenu.vue';
@@ -15,15 +15,13 @@ import ProjectIcon from './ProjectIcon.vue';
 import { avatarSrc } from '../lib/common';
 import { projectColor } from '../lib/project-color';
 import { focusAfterMenu, type MenuItem } from '../lib/menu';
-import { dialog, registerDialog } from '../lib/dialogs';
 import { agentList, agentMark, type Agent } from '../lib/agents';
 import { refused } from '../../shared/result';
 import type { Result } from '../../shared/result';
-import type { Account, AccountsInfo, ProjectChoices, ProjectEntry, ProjectProfile, ProjectRepo, SettingsProfile, SignedIn } from '../../shared/types';
+import type { Account, AccountsInfo, ProjectAgent, ProjectChoices, ProjectEntry, ProjectProfile, ProjectRepo, SettingsProfile, SignedIn } from '../../shared/types';
 
-const modal = ref<InstanceType<typeof Modal>>();
 // The page shown, of the tree's section; the agents' list lives here, so an install goes on while a project is shown,
-// and Settings stays open while it runs.
+// and the window stays open while it runs (close).
 type Section = 'projects' | 'agents' | 'profiles';
 const tab = ref<Section>('projects');
 const agentAt = ref<string>(), profileAt = ref<string>(); // the agent, the profile shown
@@ -41,7 +39,7 @@ const editing = ref<string | null>(null);
 const name = ref(''), local = ref(''), error = ref('');
 const choices = ref<ProjectChoices>({ agents: [], clis: [] });
 const repos = ref<ProjectRepo[]>([]), former = ref<string | null>(null), cloneUrl = ref(''), codeError = ref(''), cloning = ref(false);
-const mine = ref<{ id: string; name: string; default?: boolean }[]>([]), agentError = ref('');
+const mine = ref<ProjectAgent[]>([]), agentError = ref('');
 const signing = ref<{ id: string; name: string } | null>(null); // New Account…: the agent it is of, while signing in
 const profiles = ref<ProjectProfile[]>([]), others = ref<ProjectProfile[]>([]), newName = ref(''), profileError = ref('');
 // The selected row of each list: what −, ★, Delete and its right-click act on. The default repository and agent are
@@ -106,27 +104,26 @@ async function edit(id: string) {
   document.getElementById('pjconfig')?.scrollTo(0, 0); // at its top, not where the last one was scrolled
 }
 // Opened at a project, or on Agents or Profiles (at one: About this profile…). The agents are looked for behind it: the
-// user's shell, their --version (lib/agents.ts).
+// user's shell, their --version (lib/agents.ts). The section first: the window is on screen while the rest loads, and
+// a row clicked meanwhile stays chosen.
 async function openProjects(id?: string, on: Section = 'projects', at?: string) {
-  void agentsList.load(undefined, async () => {});
-  await lists();
+  tab.value = on;
+  if (on === 'profiles') profileAt.value = at ?? profileAt.value;
+  if (!expanded.value.includes(on)) expanded.value = [...expanded.value, on];
+  // The agents as last found (or, the first time, after a moment saying so), then looked for again behind them.
+  const agentsShown = new Promise<void>((shown) => { void agentsList.load(undefined, async () => shown()); });
+  await lists(); // a profile gone: the first one shown instead (watch, above)
   const { project: current, projects: all } = (await kulisa.invoke('projects:list'))!;
   const pick = id || current || all[0]?.id;
   if (pick) await edit(pick); else { editing.value = null; await showList(); }
-  if (on === 'profiles') profileAt.value = allProfiles.value.some((p) => p.id === at) ? at : allProfiles.value[0]?.id;
-  if (!expanded.value.includes(on)) expanded.value = [...expanded.value, on];
-  tab.value = on;
-  if (!modal.value!.isOpen()) await modal.value!.open();
+  await agentsShown;
 }
-// New Project: its own dialog; Settings closes meanwhile, and comes back if it is cancelled.
-async function newProject() {
-  if (modal.value!.isOpen()) { await saveLook(); modal.value!.close(); }
-  await (await dialog('newproject')).open({ fromSettings: true });
-}
-registerDialog('projects', {
-  openProjects,
-  newProject: async () => (await dialog('newproject')).open(),
-  openProfiles: (id?: string) => openProjects(undefined, 'profiles', id),
+// Opened, or brought to the front, at a page (settings-window.ts).
+// Its window is shown once all of it is there, its fonts too (settings:ready).
+kulisa.on('settings:show', async ({ section, id }) => {
+  await (section === 'profiles' ? openProjects(undefined, 'profiles', id ?? undefined) : openProjects(id ?? undefined));
+  await document.fonts.ready;
+  kulisa.send('settings:ready');
 });
 
 // A project's name and local addresses, saved as they change (its name on Enter or leaving it; Settings closed with a
@@ -142,7 +139,13 @@ async function saveLook() {
   if (r?.error) saved = '';
   else if (editing.value === id) await Promise.all([showList(), lists()]);
 }
-function closed() { adding.value = ''; stopNewProfile(); return saveLook(); }
+// Closing (Esc, its ×: Settings.vue): what is typed saved first; not while an agent installs.
+async function close() {
+  if (agentsList.state.installing) return;
+  await saveLook();
+  kulisa.send('settings:close');
+}
+defineExpose({ close });
 // Delete Project…, here alone (the author, 2026-10-11): asked first (projects.ts, askDeleteProject), closed if open;
 // then Settings goes on to the one shown, or another project.
 async function deleteProject(id: string) {
@@ -189,7 +192,7 @@ const newAccountMenu = (): MenuItem[] => [{ heading: 'New Account' }, ...agentsL
 
 // What acts on a node: its page's ⋯, its right-click, and a section's +.
 const actions = (n: Node): MenuItem[] => {
-  if (n.section === 'projects') return [{ label: 'New Project…', run: newProject }];
+  if (n.section === 'projects') return [];
   if (n.section === 'agents') return newAccountMenu();
   if (n.section === 'profiles') return [{ label: 'New Profile…', run: startNewProfile }];
   if (n.project) return [{ label: 'Delete Project…', run: () => deleteProject(n.project!.id) }];
@@ -203,7 +206,8 @@ const nodeMenu = (e: MouseEvent): MenuItem[] | null => {
   const key = rowAt(e, 'data-key'), n = tree.value.flatMap((x) => [x, ...x.children!]).find((x) => x.key === key);
   if (!n) return null;
   if (!n.section) show(n);
-  return actions(n);
+  const items = actions(n);
+  return items.length ? items : null;
 };
 // Delete on the chosen project or profile: deleted, asked first.
 function deleteChosen() {
@@ -245,7 +249,7 @@ const codeMenu = (): MenuItem[] => [{ label: 'Add Folder…', run: () => code(ku
   { label: 'Clone from URL…', run: () => startAdding('clone') }];
 
 // Its agents (the agents and their accounts: main/accounts.ts), the default first: + runs it.
-async function agents(answer: Promise<Result<{ agents: { id: string; name: string; default?: boolean }[] }>>) {
+async function agents(answer: Promise<Result<{ agents: ProjectAgent[] }>>) {
   agentError.value = '';
   const r = await answer;
   if (refused(r)) agentError.value = r.error; else mine.value = r.agents;
@@ -307,51 +311,49 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
 </script>
 
 <template>
-  <Modal id="projects" ref="modal" title="Settings" :stay="agentsList.state.installing" @close="closed">
-    <div class="settings">
-      <nav id="pjnav" aria-label="Settings">
-        <RightClickMenu :items="nodeMenu">
-          <!-- selection-behavior replace: Reka's toggle un-chose the row shown when clicked again, its page still there -->
-          <TreeRoot id="pjlist" v-slot="{ flattenItems }" v-model:expanded="expanded" :items="tree" :get-key="(n: Node) => n.key" :model-value="chosenNode"
-            selection-behavior="replace"
-            aria-label="Settings" @keydown.delete="deleteChosen">
-            <TreeItem v-for="it in flattenItems" :key="it._id" v-bind="it.bind" class="item" :data-key="it.value.key" :data-section="it.value.section"
-              :data-project="it.value.project?.id" :data-agent="it.value.agent?.id" :data-profile="it.value.profile?.id"
-              :style="{ '--color': it.value.project && projectColor(it.value.project) }" @select="choose">
-              <Icon v-if="it.value.section" class="twist" name="i-down" /><ProjectIcon v-if="it.value.project" :p="it.value.project" />
-              <template v-if="it.value.agent"><Icon v-if="mark(it.value.agent)" class="logo" :name="mark(it.value.agent)!" /></template>
-              <img v-if="it.value.profile" class="avatar" alt="" :src="avatarSrc(it.value.profile.avatar)">
-              <span class="text"><span class="label" :title="it.value.section ? undefined : it.value.label">{{ it.value.label }}</span></span>
-              <kbd v-if="it.value.agent && !it.value.agent.installed">not installed</kbd>
-              <!-- The same as the section's right-click, which the keyboard has -->
-              <button v-if="it.value.section === 'projects'" id="pjnew" class="icon small add" type="button" tabindex="-1" title="New Project…" aria-label="New Project"
-                @click.stop="newProject"><Icon name="i-plus" /></button>
-              <ButtonMenu v-else-if="it.value.section === 'agents'" :items="newAccountMenu"><button id="agentnew" class="icon small add" type="button" tabindex="-1"
-                title="New Account…: of an agent, signed in with its own sign-in" aria-label="New Account" :disabled="!clis.length" @click.stop><Icon name="i-plus" /></button></ButtonMenu>
-              <button v-else-if="it.value.section === 'profiles'" id="profilenew" class="icon small add" type="button" tabindex="-1" title="New Profile…" aria-label="New Profile"
-                @click.stop="startNewProfile"><Icon name="i-plus" /></button>
-            </TreeItem>
-          </TreeRoot>
-        </RightClickMenu>
-        <!-- Enter makes it; Esc puts it away -->
-        <input v-if="makingProfile" id="profilenewname" ref="newProfileField" v-model="newProfileName" data-name maxlength="64" placeholder="Its name, e.g. ann@shop.com"
-          spellcheck="false" aria-label="New profile" @input="profilesError = ''" @keydown.enter.prevent="createProfile" @keydown.esc.stop.prevent="stopNewProfile">
-        <p id="profileserror" class="error">{{ profilesError }}</p>
-      </nav>
+  <main id="projects" class="page">
+    <nav id="pjnav" aria-label="Settings">
+      <RightClickMenu :items="nodeMenu">
+        <!-- selection-behavior replace: Reka's toggle un-chose the row shown when clicked again, its page still there -->
+        <TreeRoot id="pjlist" v-slot="{ flattenItems }" v-model:expanded="expanded" :items="tree" :get-key="(n: Node) => n.key" :model-value="chosenNode"
+          selection-behavior="replace"
+          aria-label="Settings" @keydown.delete="deleteChosen">
+          <TreeItem v-for="it in flattenItems" :key="it._id" v-bind="it.bind" class="item" :data-key="it.value.key" :data-section="it.value.section"
+            :data-project="it.value.project?.id" :data-agent="it.value.agent?.id" :data-profile="it.value.profile?.id"
+            :style="{ '--color': it.value.project && projectColor(it.value.project) }" @select="choose">
+            <Icon v-if="it.value.section" class="twist" name="i-down" /><ProjectIcon v-if="it.value.project" :p="it.value.project" />
+            <template v-if="it.value.agent"><Icon v-if="mark(it.value.agent)" class="logo" :name="mark(it.value.agent)!" /></template>
+            <img v-if="it.value.profile" class="avatar" alt="" :src="avatarSrc(it.value.profile.avatar)">
+            <span class="text"><span class="label" :title="it.value.section ? undefined : it.value.label">{{ it.value.label }}</span></span>
+            <kbd v-if="it.value.agent && !it.value.agent.installed">not installed</kbd>
+            <!-- The same as the section's right-click, which the keyboard has -->
+            <ButtonMenu v-if="it.value.section === 'agents'" :items="newAccountMenu"><button id="agentnew" class="icon small add" type="button" tabindex="-1"
+              title="New Account…: of an agent, signed in with its own sign-in" aria-label="New Account" :disabled="!clis.length" @click.stop><Icon name="i-plus" /></button></ButtonMenu>
+            <button v-else-if="it.value.section === 'profiles'" id="profilenew" class="icon small add" type="button" tabindex="-1" title="New Profile…" aria-label="New Profile"
+              @click.stop="startNewProfile"><Icon name="i-plus" /></button>
+          </TreeItem>
+        </TreeRoot>
+      </RightClickMenu>
+      <!-- Enter makes it; Esc puts it away -->
+      <input v-if="makingProfile" id="profilenewname" ref="newProfileField" v-model="newProfileName" data-name maxlength="64" placeholder="Its name, e.g. ann@shop.com"
+        spellcheck="false" aria-label="New profile" @input="profilesError = ''" @keydown.enter.prevent="createProfile" @keydown.esc.stop.prevent="stopNewProfile">
+      <p id="profileserror" class="error">{{ profilesError }}</p>
+    </nav>
 
-      <div v-show="tab === 'projects'" id="pjconfig">
-        <template v-if="editing">
-          <div id="pjhead" class="crumbs">
-            <span>Projects</span><span aria-hidden="true">›</span><b id="pjtitle">{{ projects.find((p) => p.id === editing)?.name }}</b>
-            <ButtonMenu :items="more" end><button id="pjmore" class="icon small" type="button" title="More" aria-label="More"><Icon name="i-more" /></button></ButtonMenu>
-          </div>
-          <!-- Enter saves it, not a form -->
-          <div class="field"><label for="pjname">Name:</label>
-            <input id="pjname" v-model="name" data-name maxlength="64" spellcheck="false" @input="error = ''" @change="saveLook" @keydown.enter.prevent="saveLook"></div>
-          <p id="pjerror" class="error">{{ error }}</p>
+    <div v-show="tab === 'projects'" id="pjconfig">
+      <template v-if="editing">
+        <div id="pjhead" class="crumbs">
+          <span>Projects</span><span aria-hidden="true">›</span><b id="pjtitle">{{ projects.find((p) => p.id === editing)?.name }}</b>
+          <ButtonMenu :items="more" end><button id="pjmore" class="icon small" type="button" title="More" aria-label="More"><Icon name="i-more" /></button></ButtonMenu>
+        </div>
+        <!-- Enter saves it, not a form -->
+        <div class="field"><label for="pjname">Name:</label>
+          <input id="pjname" v-model="name" data-name maxlength="64" spellcheck="false" @input="error = ''" @change="saveLook" @keydown.enter.prevent="saveLook"></div>
+        <p id="pjerror" class="error">{{ error }}</p>
 
-          <section id="npreposrow" class="group">
-            <h3 class="titled">Code</h3>
+        <section id="npreposrow" class="group">
+          <h3 class="titled">Code</h3>
+          <RightClickMenu :items="repoMenu">
             <div class="list">
               <div class="tools">
                 <ButtonMenu :items="codeMenu"><button id="npreposadd" class="icon small" type="button" title="Add a repository or folder" aria-label="Add code"><Icon name="i-plus" /></button></ButtonMenu>
@@ -359,33 +361,34 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
                 <button id="nprepodefault" class="icon small" type="button" title="Make Default: new tasks' agents start in its copy" aria-label="Make Default"
                   :disabled="!repoSel || repoSel === repos[0]?.folder" @click="defaultRepo()"><Icon name="i-star" /></button>
               </div>
-              <RightClickMenu :items="repoMenu">
-                <ListboxRoot selection-behavior="replace" v-if="repos.length" id="nprepos" v-model="repoSel" aria-label="Code" @keydown.delete="removeRepo()">
-                  <ListboxContent>
-                    <ListboxItem v-for="(r, i) in repos" :key="r.folder" :value="r.folder" class="item" :data-folder="r.folder">
-                      <span class="text"><span class="label">{{ base(r.folder) }}</span><small :title="r.folder">{{ r.folder }}</small></span>
-                      <kbd v-if="r.git !== 'ok'" class="warn">{{ r.git === 'none' ? 'no git' : 'no commit yet' }}</kbd>
-                      <kbd v-if="!i && repos.length > 1" class="default" title="New tasks' agents start in its copy">default</kbd>
-                    </ListboxItem>
-                  </ListboxContent>
-                </ListboxRoot>
-              </RightClickMenu>
+              <div v-if="repos.length" class="head" aria-hidden="true"><span>Name</span><span>Folder</span><span /></div>
+              <ListboxRoot selection-behavior="replace" v-if="repos.length" id="nprepos" v-model="repoSel" aria-label="Code" @keydown.delete="removeRepo()">
+                <ListboxContent>
+                  <ListboxItem v-for="(r, i) in repos" :key="r.folder" :value="r.folder" class="item" :data-folder="r.folder">
+                    <span class="cell label" :title="base(r.folder)">{{ base(r.folder) }}</span><small class="cell" :title="r.folder">{{ r.folder }}</small>
+                    <span class="cell end"><kbd v-if="r.git !== 'ok'" class="warn">{{ r.git === 'none' ? 'no git' : 'no commit yet' }}</kbd>
+                      <kbd v-if="!i && repos.length > 1" class="default" title="New tasks' agents start in its copy">default</kbd></span>
+                  </ListboxItem>
+                </ListboxContent>
+              </ListboxRoot>
               <p v-if="!repos.length" class="empty">No code yet: its tasks work in an empty folder.</p>
             </div>
-            <!-- Enter in the URL clones; Esc puts it away -->
-            <div v-if="adding === 'clone'" id="npcloneline" class="row">
-              <input id="npurl" ref="url" v-model="cloneUrl" placeholder="git@github.com:me/shop.git" aria-label="Repository URL" spellcheck="false"
-                @keydown.enter.prevent="clone" @keydown.esc.stop.prevent="stopAdding">
-              <button type="button" @click="stopAdding">Cancel</button>
-              <button id="npclone" class="primary" type="button" :disabled="cloning" @click="clone">{{ cloning ? 'Cloning…' : 'Clone' }}</button>
-            </div>
-            <p id="npformer" class="hint" :hidden="!former"><span>{{ former ? `Former folder ${former}: tasks no longer work in it; move its files into a repository.` : '' }}</span>
-              <button id="npshowformer" type="button" @click="kulisa.invoke('project:show-former', { id: editing })">Show</button></p>
-            <p id="npcodeerror" class="error">{{ codeError }}</p>
-          </section>
+          </RightClickMenu>
+          <!-- Enter in the URL clones; Esc puts it away -->
+          <div v-if="adding === 'clone'" id="npcloneline" class="row">
+            <input id="npurl" ref="url" v-model="cloneUrl" placeholder="git@github.com:me/shop.git" aria-label="Repository URL" spellcheck="false"
+              @keydown.enter.prevent="clone" @keydown.esc.stop.prevent="stopAdding">
+            <button type="button" @click="stopAdding">Cancel</button>
+            <button id="npclone" class="primary" type="button" :disabled="cloning" @click="clone">{{ cloning ? 'Cloning…' : 'Clone' }}</button>
+          </div>
+          <p id="npformer" class="hint" :hidden="!former"><span>{{ former ? `Former folder ${former}: tasks no longer work in it; move its files into a repository.` : '' }}</span>
+            <button id="npshowformer" type="button" @click="kulisa.invoke('project:show-former', { id: editing })">Show</button></p>
+          <p id="npcodeerror" class="error">{{ codeError }}</p>
+        </section>
 
-          <section id="npagentsrow" class="group">
-            <h3 class="titled">Agents</h3>
+        <section id="npagentsrow" class="group">
+          <h3 class="titled">Agents</h3>
+          <RightClickMenu :items="agentRowMenu">
             <div class="list">
               <div class="tools">
                 <ButtonMenu :items="agentMenu"><button id="npagentadd" class="icon small" type="button" title="Add an agent" aria-label="Add an agent"
@@ -395,93 +398,91 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
                   :title="isDefault(agentSel) ? 'No Default: a new task starts with no agent, you choose one there' : 'Make Default: + makes a task with it'"
                   :aria-label="isDefault(agentSel) ? 'No Default' : 'Make Default'"><Icon name="i-star" /></button>
               </div>
-              <RightClickMenu :items="agentRowMenu">
-                <ListboxRoot selection-behavior="replace" v-if="mine.length" id="npagents" v-model="agentSel" aria-label="Agents" @keydown.delete="removeAgent()">
-                  <ListboxContent>
-                    <ListboxItem v-for="a in mine" :key="a.id" :value="a.id" class="item" :data-agent="a.id">
-                      <span class="text"><span class="label">{{ a.name }}</span></span>
-                      <kbd v-if="a.default" class="default" title="+ makes a task with it; the others are in +'s right-click menu">default</kbd>
-                    </ListboxItem>
-                  </ListboxContent>
-                </ListboxRoot>
-              </RightClickMenu>
+              <div v-if="mine.length" class="head" aria-hidden="true"><span>Agent</span><span>Account</span><span /></div>
+              <ListboxRoot selection-behavior="replace" v-if="mine.length" id="npagents" v-model="agentSel" aria-label="Agents" @keydown.delete="removeAgent()">
+                <ListboxContent>
+                  <ListboxItem v-for="a in mine" :key="a.id" :value="a.id" class="item" :data-agent="a.id" :title="a.name">
+                    <span class="cell label"><Icon v-if="agentMark(a.cli, null)" :name="agentMark(a.cli, null)!" />{{ a.agent }}</span>
+                    <small class="cell account">{{ a.email ?? '—' }}</small>
+                    <span class="cell end"><kbd v-if="a.default" class="default" title="+ makes a task with it; the others are in +'s right-click menu">default</kbd></span>
+                  </ListboxItem>
+                </ListboxContent>
+              </ListboxRoot>
               <p v-if="!mine.length && !signing" class="empty">No agents yet: its tasks get the terminal only.</p>
             </div>
-            <AccountSignIn v-if="signing && editing" :project="editing" :agent="signing" @done="signedIn" @close="signing = null" />
-            <p id="npagenterror" class="error">{{ agentError }}</p>
-          </section>
+          </RightClickMenu>
+          <AccountSignIn v-if="signing && editing" :project="editing" :agent="signing" @done="signedIn" @close="signing = null" />
+          <p id="npagenterror" class="error">{{ agentError }}</p>
+        </section>
 
-          <section id="npprofilesrow" class="group">
-            <h3 class="titled">Profiles</h3>
+        <section id="npprofilesrow" class="group">
+          <h3 class="titled">Profiles</h3>
+          <RightClickMenu :items="profileRowMenu">
             <div class="list">
               <div class="tools">
                 <ButtonMenu :items="profileMenu"><button id="npprofileadd" class="icon small" type="button"
                   title="Add a profile: the browser profiles its tasks test as, each task with its own copy" aria-label="Add a profile"><Icon name="i-plus" /></button></ButtonMenu>
                 <button id="npprofiledel" class="icon small" type="button" title="Remove from the project (asks first)" aria-label="Remove from the project" :disabled="!profileSel" @click="removeProfile()"><Icon name="i-minus" /></button>
               </div>
-              <RightClickMenu :items="profileRowMenu">
-                <ListboxRoot selection-behavior="replace" v-if="profiles.length" id="npprofiles" v-model="profileSel" aria-label="Profiles" @keydown.delete="removeProfile()">
-                  <ListboxContent>
-                    <ListboxItem v-for="p in profiles" :key="p.id" :value="p.id" class="item" :data-profile="p.id"
-                      :title="[p.name, p.description, p.also.length && `also in ${p.also.join(', ')}`].filter(Boolean).join('\n')">
-                      <img class="avatar" alt="" :src="avatarSrc(p.avatar)"><span class="text"><span class="label">{{ p.name }}</span>
-                        <small>{{ [p.description, p.also.length && `also in ${p.also.join(', ')}`].filter(Boolean).join(' · ') }}</small></span>
-                    </ListboxItem>
-                  </ListboxContent>
-                </ListboxRoot>
-              </RightClickMenu>
+              <div v-if="profiles.length" class="head" aria-hidden="true"><span>Name</span><span>About</span><span>Also in</span></div>
+              <ListboxRoot selection-behavior="replace" v-if="profiles.length" id="npprofiles" v-model="profileSel" aria-label="Profiles" @keydown.delete="removeProfile()">
+                <ListboxContent>
+                  <ListboxItem v-for="p in profiles" :key="p.id" :value="p.id" class="item" :data-profile="p.id"
+                    :title="[p.name, p.description, p.also.length && `also in ${p.also.join(', ')}`].filter(Boolean).join('\n')">
+                    <span class="cell label"><img class="avatar" alt="" :src="avatarSrc(p.avatar)">{{ p.name }}</span>
+                    <small class="cell about">{{ p.description }}</small><small class="cell also">{{ p.also.join(', ') }}</small>
+                  </ListboxItem>
+                </ListboxContent>
+              </ListboxRoot>
               <p v-if="!profiles.length && adding !== 'profile'" class="empty">No profiles yet: the browser profiles its tasks test as, signed in once.</p>
             </div>
-            <!-- Enter makes it; Esc puts it away -->
-            <div v-if="adding === 'profile'" id="npprofilesadd" class="row">
-              <input id="npnewprofile" ref="newProfile" v-model="newName" data-name maxlength="64" placeholder="Its name, e.g. ann@shop.com" spellcheck="false"
-                aria-label="New profile" @keydown.enter.prevent="addProfile" @keydown.esc.stop.prevent="stopAdding">
-              <button type="button" @click="stopAdding">Cancel</button>
-              <button id="npprofilenew" class="primary" type="button" @click="addProfile">Create</button>
-            </div>
-            <p id="npprofileerror" class="error">{{ profileError }}</p>
-          </section>
-
-          <section id="nplocalrow" class="group">
-            <div class="field"><label for="nplocal">Local addresses:</label><input id="nplocal" v-model="local" spellcheck="false" placeholder="abc.ngrok.app shop.dev"
-              @input="error = ''" @change="saveLook"></div>
-            <p class="hint">Where Kulisa may type saved test users' passwords besides localhost and your network: a tunnel, dev domains.</p>
-          </section>
-        </template>
-        <div v-else id="pjnone" class="none">
-          <p class="empty">No projects yet.</p>
-          <button type="button" @click="newProject">New Project…</button>
-        </div>
-      </div>
-      <div v-show="tab === 'profiles'" id="prconfig">
-        <template v-if="shownProfile">
-          <div class="crumbs">
-            <span>Profiles</span><span aria-hidden="true">›</span><b>{{ shownProfile.name }}</b>
-            <ButtonMenu :items="more" end><button id="profilemore" class="icon small" type="button" title="More" aria-label="More"><Icon name="i-more" /></button></ButtonMenu>
+          </RightClickMenu>
+          <!-- Enter makes it; Esc puts it away -->
+          <div v-if="adding === 'profile'" id="npprofilesadd" class="row">
+            <input id="npnewprofile" ref="newProfile" v-model="newName" data-name maxlength="64" placeholder="Its name, e.g. ann@shop.com" spellcheck="false"
+              aria-label="New profile" @keydown.enter.prevent="addProfile" @keydown.esc.stop.prevent="stopAdding">
+            <button type="button" @click="stopAdding">Cancel</button>
+            <button id="npprofilenew" class="primary" type="button" @click="addProfile">Create</button>
           </div>
-          <ProfilePage :profile="shownProfile" @changed="profileChanged" />
-        </template>
-        <div v-else class="none">
-          <p class="empty">No profiles yet.</p>
-          <button type="button" @click="startNewProfile">New Profile…</button>
-        </div>
-      </div>
-      <div v-show="tab === 'agents'" id="agconfig">
-        <div v-if="shownAgent" class="crumbs">
-          <span>Agents</span><span aria-hidden="true">›</span><b>{{ shownAgent.name }}</b>
-          <ButtonMenu :items="more" end><button id="agentmore" class="icon small" type="button" title="More" aria-label="More"><Icon name="i-more" /></button></ButtonMenu>
-        </div>
-        <AgentPage ref="agentPage" :list="agentsList" :chosen="agentAt" :accounts :clis @accounts="showAccounts" />
+          <p id="npprofileerror" class="error">{{ profileError }}</p>
+        </section>
+
+        <section id="nplocalrow" class="group">
+          <div class="field"><label for="nplocal">Local addresses:</label><input id="nplocal" v-model="local" spellcheck="false" placeholder="abc.ngrok.app shop.dev"
+            @input="error = ''" @change="saveLook"></div>
+          <p class="hint">Where Kulisa may type saved test users' passwords besides localhost and your network: a tunnel, dev domains.</p>
+        </section>
+      </template>
+      <div v-else id="pjnone" class="none">
+        <p class="empty">No projects yet: New Project… is in a window's + of tasks.</p>
       </div>
     </div>
-  </Modal>
+    <div v-show="tab === 'profiles'" id="prconfig">
+      <template v-if="shownProfile">
+        <div class="crumbs">
+          <span>Profiles</span><span aria-hidden="true">›</span><b>{{ shownProfile.name }}</b>
+          <ButtonMenu :items="more" end><button id="profilemore" class="icon small" type="button" title="More" aria-label="More"><Icon name="i-more" /></button></ButtonMenu>
+        </div>
+        <ProfilePage :profile="shownProfile" @changed="profileChanged" />
+      </template>
+      <div v-else class="none">
+        <p class="empty">No profiles yet.</p>
+        <button type="button" @click="startNewProfile">New Profile…</button>
+      </div>
+    </div>
+    <div v-show="tab === 'agents'" id="agconfig">
+      <div v-if="shownAgent" class="crumbs">
+        <span>Agents</span><span aria-hidden="true">›</span><b>{{ shownAgent.name }}</b>
+        <ButtonMenu :items="more" end><button id="agentmore" class="icon small" type="button" title="More" aria-label="More"><Icon name="i-more" /></button></ButtonMenu>
+      </div>
+      <AgentPage ref="agentPage" :list="agentsList" :chosen="agentAt" :accounts :clis @accounts="showAccounts" />
+    </div>
+  </main>
 </template>
 
 <style>
 /* The tree on the left, the chosen page on the right, each scrolling on its own (JetBrains' Settings) */
-#projects { width: min(1000px, 94vw); height: min(680px, 88vh);
-  .body { display: flex; padding: 0; overflow: hidden; }
-  .settings { flex: 1; min-width: 0; display: flex; }
+#projects { flex: 1; min-width: 0; min-height: 0; display: flex; background: var(--island);
   #pjnav { flex: none; width: 230px; display: flex; flex-direction: column; gap: 4px; overflow: hidden auto; padding: 4px; border-inline-end: 1px solid var(--island-hi);
     background: var(--window);
     #profilenewname { margin-inline-start: 26px; } .error { margin: 0 0 0 26px; &:empty { display: none; } } }
@@ -494,17 +495,22 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
     .label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } kbd { flex: none; }
     [aria-selected="true"] { background: var(--chosen-idle); color: var(--text-strong); }
     &:focus-within [aria-selected="true"] { background: var(--chosen); } }
-  :is(#pjconfig, #agconfig, #prconfig) { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--inset); overflow: hidden auto; padding: 0 var(--pad) var(--pad);
+  /* More room than a dialog's, as JetBrains' Settings: along the sides, and between the groups, whose lists ran into
+     the next one's title (the author, 2026-10-16) */
+  :is(#pjconfig, #agconfig, #prconfig) { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--inset); overflow: hidden auto;
+    padding: 0 calc(1.5 * var(--pad)) var(--pad);
     > * { flex: none; } }
   /* Where the page is in the tree, and what acts on it at its end */
   .crumbs { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: var(--gap); min-height: calc(var(--control) + 12px);
     background: var(--island); color: var(--text-muted);
     b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; color: var(--text-strong); } }
   .field { margin-top: 0; }
-  .group { display: flex; flex-direction: column; gap: var(--gap); margin-top: 4px;
+  .group { display: flex; flex-direction: column; gap: var(--gap); margin-top: var(--pad);
     > .error, > .hint { margin: 0; } > .hint:not([hidden]) { margin-inline-start: calc(var(--label) + var(--inset)); } }
   .list [role="listbox"] { max-height: calc(6 * var(--row)); overflow: auto; }
-  .list .avatar { --avatar: 18px; }
+  /* The columns: the name as wide as it needs (at most about half), what it is in the rest, its state at the end */
+  #npreposrow .list, #npagentsrow .list { --cols: fit-content(45%) minmax(0, 1fr) auto; }
+  #npprofilesrow .list { --cols: fit-content(45%) minmax(0, 1fr) fit-content(30%); }
   #npformer button { margin-inline-start: var(--gap); }
   .none { display: flex; flex-direction: column; align-items: start; gap: var(--gap); padding-top: var(--pad); .empty { margin: 0; } }
 }

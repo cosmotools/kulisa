@@ -139,7 +139,9 @@ checks the workflows' `run:` scripts too. The CI's own runs do not have it: the 
 
 The full suite runs once, when the work is done, before the commit (CLAUDE.md); while building, the unit tests
 and the group of the files changed, or a screenshot, and `npm run knip` once at the end of a step. A whole run stops by itself after 5 minutes (`run.ts`), a test
-after 30 s.
+after 30 s, naming the call or script it began last (`ctx.step`): a step that hangs has no stack to read, and a
+script run in a window that closes before its result is back never answers (Electron drops the reply), so a test
+closes a window without waiting for the script that closes it (`closeSettings`).
 
 **CI** (`.github/workflows/test.yml`): `npm test` on GitHub Actions at every pull request into `develop` or `main` and
 every push to `develop` (CLAUDE.md, Releases; into `main` its `version` job checks the version raised), on Ubuntu (with Xvfb

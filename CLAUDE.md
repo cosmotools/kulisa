@@ -101,10 +101,10 @@ unasked. This paragraph is removed when the rewrite is finished.
 - **Terminology: "the tasks' bar"**: the bar of the tasks' tabs, under the grid or in the title bar after the logo,
   as a browser's tabs (☰ → Tasks bar; `TaskBar.vue`, `#taskbar`). Not "taskbar", the OS's. It was "the projects' bar" (`ProjectBar.vue`)
   until 2026-10-11: its tabs are tasks; earlier commits say so.
-- **Terminology: "Settings"**: the dialog behind the title bar's gear, as JetBrains' Settings: a tree of Projects (every
+- **Terminology: "Settings"**: the window behind the title bar's gear (a dialog until 2026-10-16), as JetBrains' Settings: a tree of Projects (every
   project, each its page), Agents (the agents, their accounts) and Profiles (every profile, who it is). It was "the projects' manager" alone until 2026-10-11,
-  then tabs; a project's page is still the manager in code (`ProjectEditor.vue`, `dialog('projects')`). New Project is a
-  dialog of its own (`NewProject.vue`).
+  then tabs; a project's page is still the manager in code (`ProjectEditor.vue`; its window `settings-window.ts`,
+  `openSettings()`). New Project is a dialog of a tasks' window (`NewProject.vue`).
 - **Terminology: "the empty window"**: what a window is with no task open (at first start, after its last
   tab is closed): the title bar and the tasks' bar as always (no tabs, its + there) and, in the
   grid's place, an empty island: "No task is open", New Task (the bar's + menu), New Project…. `Empty.vue`. It replaced
@@ -420,7 +420,8 @@ What must hold in the window:
   project moves them: `Profile.moveTo`). The renderer sends each pane's `.content` box (or
   that it is off screen) to the main process after every grid change. Anything HTML over the panes must hide them
   (`views:hidden`): dialogs; while a panel is dragged or a menu is open, pictures of the pages stand in for them.
-  Every menu and dialog opens through `covered()` (`lib/views.ts`), which puts the pages back however it closes.
+  Every menu and dialog opens through `covered()` (`lib/cover.ts`; a tasks' window's pages under it: `lib/views.ts`),
+  which puts the pages back however it closes.
 - **Sizes and zoom.** UI text and controls use `--font` and `--control` (tokens.css), not their own sizes. The Kulisa
   zoom is Chromium's zoom of every window's page (`setUiZoom` in app.ts); the renderer's boxes are CSS pixels and
   `window.ts` scales them for the native views. Pages get the Kulisa zoom times their site's own zoom.

@@ -761,7 +761,7 @@ here; what is left of it stays.
   git's work), a site that never answers (10 s: two 5 s waits by design).
 - **The agent gets a passing size when its project moves to a new window** (found 2026-10-13, on the runner: the
   test above). The new window's page fits the terminal as soon as it opens, at the whole window's height (46 rows),
-  and again once its grid is laid out (17): both go to the agent (`pty:resize`, `renderer/lib/terminals.ts`), which
+  and again once its grid is laid out (17): both go to the agent (`pty:resize`, `renderer/lib/xterm.ts`), which
   draws its prompt for each. A fix: fit only once the grid has laid out; the test then refuses a passing height as it
   does a width (`__ptySizes`).
 - **The test "after a restart: a task's other terminal comes back …" takes 5.6 s** (`restart-tasks.ts`;
@@ -769,7 +769,7 @@ here; what is left of it stays.
   the terminal's shell runs; it looks like another 5 s wait (as a tab's `ready` held a profile on a refused site:
   `profiles.ts`). To find: time the steps of loading `other` after a restart (its profiles' tabs, its terminals).
 - **The GPU renderer only on terminals in sight** (discussed with the author 2026-10-09; the author builds it later).
-  Today every terminal loads xterm's WebGL addon when made (`makeTerminal` in `src/renderer/lib/terminals.ts`), hidden ones
+  Today every terminal loads xterm's WebGL addon when made (`makeTerminal` in `src/renderer/lib/xterm.ts`), hidden ones
   too (other tasks and projects, terminals behind another tab of their island): each keeps a WebGL context and its
   glyph atlas. With several agents in a task (each a terminal) the limit below comes sooner.
   Chromium keeps at most 16 contexts per page; the 17th takes the oldest one's, and that terminal falls back to the DOM

@@ -22,6 +22,7 @@ import { installPicker } from './picker.ts';
 import { installGhost } from './ghost.ts';
 import { startDiscarding } from './discard.ts';
 import { installMasters } from './master.ts';
+import { installSettings } from './settings-window.ts';
 import { openTasks } from './open-tasks.ts';
 import { installShortcuts } from './shortcuts.ts';
 import { registerTasks } from './ipc/tasks.ts';
@@ -133,6 +134,9 @@ function start(options: Options = {}) {
   // The window a page's message comes from (IPC: event.sender).
   shell.windowOf = (sender) => shell.windows.find((w) => !w.win.isDestroyed() && w.win.webContents === sender) || null;
   const at = (e: IpcEvent) => shell.windowOf(e.sender);
+  // The tasks' window a message is about: its own, or Settings' parent (settings-window.ts): its shown task's project
+  // and folder.
+  const owner = (e: IpcEvent) => at(e) ?? (shell.settings && shell.settings.win.webContents === e.sender ? shell.settings.parent : null);
   const appDevTools = options.appDevTools ?? !app.isPackaged;
   let quitting = false; // from before-quit on (below): closing a window asks nothing, tabs closing save nothing
   Object.defineProperty(shell, 'quitting', { get: () => quitting });
@@ -175,9 +179,10 @@ function start(options: Options = {}) {
     const favicon = faviconPicture(p);
     return { ...p, ...(favicon && { favicon }), tasks: tasksOf(p) };
   });
-  // A question asked in a window (window.ts), the first one when none is named: askWhich gives the button clicked
+  // A question asked in a window (window.ts), the first one when none is named; in Settings' while it is open, as the
+  // tasks' windows take no input then (settings-window.ts): askWhich gives the button clicked
   // ('ok', 'other') or null; ask whether it was ok. Through shell: the tests answer it.
-  shell.askWhich = (q, w = first()) => w!.ask(q);
+  shell.askWhich = (q, w = first()) => (shell.settings ? shell.settings.questions.ask(q) : w!.ask(q));
   shell.ask = async (q, w) => (await shell.askWhich(q, w)) === 'ok';
   shell.saveWindows = () => store.saveWindows(shell.windows.map((w) => w.saved()));
   // Every window's tabs and menus: which projects there are, where they are open, their agents (+'s menu).
@@ -189,6 +194,7 @@ function start(options: Options = {}) {
   shell.setUiZoom = (z) => {
     shell.uiZoom = z;
     for (const w of shell.windows) w.setZoom(z);
+    shell.settings?.setZoom(z);
     for (const p of allProfiles()) p.setBaseZoom(z);
     store.saveSettings({ ...store.settings(), uiZoom: z });
   };
@@ -201,6 +207,7 @@ function start(options: Options = {}) {
   shell.setTheme = (theme) => {
     if (theme) { shell.theme = theme; store.saveSettings({ ...store.settings(), theme }); }
     for (const w of shell.windows) w.setTheme(shell.theme, shell.shade());
+    shell.settings?.setTheme(shell.theme, shell.shade());
   };
   nativeTheme.on('updated', () => { if (shell.theme === 'system') shell.setTheme(); });
   // The language the human speaks with the agents (☰ → Language; docs/window.md, Language): Kulisa's one, written into
@@ -241,7 +248,7 @@ function start(options: Options = {}) {
   const tasks = openTasks(shell, { appDevTools });
   const { serial, newWindow, loadProject, unloadIdle, openProject } = tasks;
   // The windows' handles (ipc/): each message acts in the window it comes from.
-  const ipc: Ipc = { shell, at, serial, tasks };
+  const ipc: Ipc = { shell, at, owner, serial, tasks };
   registerTasks(ipc);
   registerProjects(ipc, { lookForFavicon });
   registerProfiles(ipc);
@@ -277,6 +284,7 @@ function start(options: Options = {}) {
     installPicker(shell);
     installGhost(shell);
     installMasters(shell, { preload: path.join(import.meta.dirname, '..', 'preload', 'index.cjs'), colors: () => COLORS[shell.shade()] });
+    installSettings(shell, { preload: path.join(import.meta.dirname, '..', 'preload', 'index.cjs'), appDevTools });
 
     for (const [i, { w, shown }] of windows.entries()) {
       if (i) await w.load(shown);

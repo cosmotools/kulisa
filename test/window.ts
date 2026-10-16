@@ -3,7 +3,7 @@ import { nativeTheme } from 'electron';
 import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
-import { assert, root, userData, sleep, waitFor, menuRows, choose, manageProfiles, menuOpen, rightClick, box, viewOn, closeMenu, click, noNode, press } from './helpers.ts';
+import { assert, root, userData, sleep, waitFor, menuRows, choose, menuOpen, rightClick, box, viewOn, closeMenu, click, noNode, press } from './helpers.ts';
 import forge from '../forge.config.ts';
 import type { Test } from './run.ts';
 import type { TaskTerminal } from '../src/main/tasks.ts';
@@ -280,13 +280,8 @@ export default (test: Test) => {
     assert.deepEqual(await ui(`['#newTask', '.tasktab', '.tab', '.tabs .add', '.bar .back', '.ptab .close', '#windowMenu'].map((q) => getComputedStyle(document.querySelector(q)).cursor)`),
       ['default', 'default', 'default', 'default', 'default', 'default', 'default']);
   });
-  test('screenshot of the whole window, profile views included', async ({ shell, ui }) => {
-    const view = () => [...shell.profiles.values()][0].get().view.getVisible();
-    await manageProfiles(ui);
-    await waitFor(() => !view());
-    await shell.screenshot(path.join(root, 'editor.png'));
-    await ui(`document.querySelector('#projects .x').click()`);
-    await waitFor(view);
+  test('screenshot of the whole window, profile views included', async ({ shell }) => {
+    await waitFor(() => [...shell.profiles.values()][0].get().view.getVisible());
     const file = path.join(root, 'window.png');
     await shell.screenshot(file);
     const png = fs.readFileSync(file);
@@ -360,7 +355,6 @@ export default (test: Test) => {
     const isOpen = (id: string) => ui(`document.getElementById('${id}')?.dataset.state === 'open'`);
     const fromMenu = async (row: string, at?: string) => { await (at ? rightClick(ui, at) : ui(`document.getElementById('windowMenu').click()`)); await menuRows(ui); await choose(ui, row); };
     const openers = {
-      projects: () => ui(`document.getElementById('manageProjects').click()`),
       taskrename: () => fromMenu('Rename…', '#projectTabs .tasktab .name'),
       agentpick: async () => { void shell.chooseAgent(shell.task, null); }, // asked when a task's agent is not there
       shortcuts: () => fromMenu('Keyboard Shortcuts'),
@@ -371,8 +365,7 @@ export default (test: Test) => {
       await waitFor(() => isOpen(id), 20000);
       const l = await ui(`(() => { const d = document.getElementById('${id}'); return { id: '${id}', title: !!d.querySelector('header h2'),
         body: !!d.querySelector('.body'), footer: !!d.querySelector('footer'), last: d.querySelector('footer > button:last-child')?.className }; })()`);
-      // A dialog whose parts are saved as they change (a project's page) has no buttons at the bottom.
-      assert.ok(l.title && l.body && (id === 'projects' ? !l.footer : /primary|ok/.test(l.last)), JSON.stringify(l));
+      assert.ok(l.title && l.body && /primary|ok/.test(l.last), JSON.stringify(l));
       await ui(`document.querySelector('${id === 'agentpick' ? '#agentcancel' : `#${id} .x`}').click()`); // the agent's choice: Cancel, no ×
       await waitFor(async () => !(await isOpen(id)));
     }

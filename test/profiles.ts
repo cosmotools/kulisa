@@ -12,14 +12,14 @@ export default (test: Test) => {
     await waitFor(async () => JSON.stringify(await ctx.ui(`[...document.querySelectorAll('.pname')].map((e) => e.textContent)`)) === '["Sam.admin","Elon.buyer"]');
   });
   test('names: typed, pasted, from the agent, checked where they are made (the rule itself: unit/names.test.ts)', async (ctx) => {
-    const { shell, ui, call } = ctx;
+    const { shell, ui, sui, call } = ctx;
     // The field leaves other characters out, typed or pasted.
-    await manageProfiles(ui);
-    await ui(`document.getElementById('profilenew').click()`);
-    await waitFor(() => ui(`document.activeElement?.id === 'profilenewname'`));
-    void shell.win.webContents.insertText('ann admin·@shop.com');
-    await waitFor(async () => (await ui(`document.getElementById('profilenewname').value`)) === 'annadmin@shop.com');
-    await closeSettings(ui);
+    await manageProfiles(ctx);
+    await sui(`document.getElementById('profilenew').click()`);
+    await waitFor(() => sui(`document.activeElement?.id === 'profilenewname'`));
+    void shell.settings.win.webContents.insertText('ann admin·@shop.com');
+    await waitFor(async () => (await sui(`document.getElementById('profilenewname').value`)) === 'annadmin@shop.com');
+    await closeSettings(ctx);
     // Checked again where names are made: the agent, a rename, a project, a task.
     await assert.rejects(call('profile_create', { name: 'Ann admin' }), /letters, digits and @ \. _ \+ - only/);
     await assert.rejects(call('profile_create', { name: '@' }), /starting with a letter or a digit/);
@@ -30,7 +30,7 @@ export default (test: Test) => {
     assert.ok(shell.profiles.has('sam-admin') && !shell.profiles.has('ann-admin-2'));
   });
   test("delete a profile in Settings (its page's ⋯, its row's right-click): sign-ins and data gone, everywhere; a new one of the same name starts clean", async (ctx) => {
-    const { shell, ui, call } = ctx;
+    const { shell, ui, sui, call } = ctx;
     await shell.task.createProfile('Temp'); // in the project, open in its task (the agent's profile_create; Settings: tested above)
     const temp = shell.profiles.get('temp');
     assert.equal(temp.folder, 'Profile 4'); // after Sam, Elon and Ann (the profile_create test)
@@ -39,12 +39,12 @@ export default (test: Test) => {
     await shell.sessionCookies.save(temp);
     assert.ok(fs.existsSync(shell.sessionCookies.file(temp)));
 
-    await manageProfiles(ui);
-    await chooseProfile(ui, 'temp');
+    await manageProfiles(ctx);
+    await chooseProfile(sui, 'temp');
     ctx.answer = false; // Cancel
-    await ui(`document.getElementById('profilemore').click()`); // ⋯ at its page's top
-    await menuRows(ui);
-    await choose(ui, 'Delete Profile…');
+    await sui(`document.getElementById('profilemore').click()`); // ⋯ at its page's top
+    await menuRows(sui);
+    await choose(sui, 'Delete Profile…');
     await waitFor(() => ctx.asked.length);
     const q = ctx.asked.pop();
     assert.equal(q.message, 'Delete the profile Temp?');
@@ -53,13 +53,13 @@ export default (test: Test) => {
     assert.ok(shell.profiles.has('temp'), 'nothing is deleted without the confirmation');
     ctx.answer = true;
     const deleted = new Promise((r) => temp.once('deleted', r));
-    await rightClick(ui, '#pjlist [data-profile="temp"] .label');
-    await menuRows(ui);
-    await choose(ui, 'Delete Profile…');
+    await rightClick(sui, '#pjlist [data-profile="temp"] .label');
+    await menuRows(sui);
+    await choose(sui, 'Delete Profile…');
     await deleted;
     ctx.asked.length = 0;
-    await waitFor(() => ui(`!document.querySelector('#pjlist [data-profile="temp"]') && !!document.querySelector('#pjlist [data-profile][aria-selected="true"]')`));
-    await closeSettings(ui);
+    await waitFor(() => sui(`!document.querySelector('#pjlist [data-profile="temp"]') && !!document.querySelector('#pjlist [data-profile][aria-selected="true"]')`));
+    await closeSettings(ctx);
 
     assert.deepEqual([...shell.profiles.keys()], ['sam-admin', 'elon-buyer']);
     assert.equal(temp.tabs.length, 0);
@@ -83,19 +83,20 @@ export default (test: Test) => {
     await waitFor(() => !shell.profileStore.get('temp'));
     ctx.asked.length = 0;
   });
-  test('rename in Settings → Profiles: typed, and Enter or leaving the field saves it; the panes follow', async ({ shell, ui }) => {
-    await manageProfiles(ui);
-    await chooseProfile(ui, 'elon-buyer');
-    const wc = shell.win.webContents;
-    shell.win.focus(); wc.focus(); // the keyboard in the window, as the human's hands
-    await ui(`(() => { const f = document.getElementById('profilename'); f.focus(); f.select(); })()`);
+  test('rename in Settings → Profiles: typed, and Enter or leaving the field saves it; the panes follow', async (ctx) => {
+    const { shell, ui, sui } = ctx;
+    await manageProfiles(ctx);
+    await chooseProfile(sui, 'elon-buyer');
+    const wc = shell.settings.win.webContents;
+    shell.settings.win.focus(); wc.focus(); // the keyboard in Settings' window, as the human's hands
+    await sui(`(() => { const f = document.getElementById('profilename'); f.focus(); f.select(); })()`);
     await wc.insertText('Elon.shopper');
     for (const type of ['keyDown', 'char', 'keyUp'] as const) wc.sendInputEvent({ type, keyCode: type === 'char' ? '\r' : 'Enter' });
     await waitFor(() => shell.profiles.has('elon-shopper'));
     await waitFor(async () => (await ui(`[...document.querySelectorAll('.pname')].map((e) => e.textContent).join()`)) === 'Sam.admin,Elon.shopper');
-    await setProfileField(ui, 'profilename', 'Elon.buyer');
+    await setProfileField(sui, 'profilename', 'Elon.buyer');
     await waitFor(() => shell.profiles.has('elon-buyer'));
-    await closeSettings(ui);
+    await closeSettings(ctx);
   });
   test('a page never makes a region that drags the window (Teams declared one, and it took every click over the panes)', async ({ shell }) => {
     const wc = shell.profiles.get('sam-admin').get().wc;

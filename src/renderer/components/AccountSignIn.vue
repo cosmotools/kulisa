@@ -5,7 +5,7 @@
 import { CollapsibleContent, CollapsibleRoot, CollapsibleTrigger } from 'reka-ui';
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 import Icon from './Icon.vue';
-import { forgetTerminals, termHost } from '../lib/terminals';
+import { forgetTerminals, termHost } from '../lib/xterm';
 import type { SignedIn } from '../../shared/types';
 
 const props = defineProps<{ project?: string | null; agent: { id: string; name: string } }>();

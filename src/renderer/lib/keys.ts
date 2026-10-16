@@ -6,7 +6,7 @@ import { act, store } from './store';
 import { paneOfProfile } from './grid';
 import { shownTerm } from './terminals';
 import { dialog } from './dialogs';
-import { dialogsOpen } from './views';
+import { dialogsOpen } from './cover';
 import { toggleNewTask } from './menu';
 import type { Profile } from '../../shared/types';
 import { refused } from '../../shared/result';

@@ -6,14 +6,13 @@ import { computed, ref, watch } from 'vue';
 import { CheckboxIndicator, CheckboxRoot, DialogClose, ListboxContent, ListboxItem, ListboxRoot } from 'reka-ui';
 import Modal from './Modal.vue';
 import Icon from './Icon.vue';
-import { registerDialog, dialog } from '../lib/dialogs';
+import { openSettings, registerDialog } from '../lib/dialogs';
 import { MAX, nameChar, repoName } from '../../shared/names';
 import { refused } from '../../shared/result';
 
 const modal = ref<InstanceType<typeof Modal>>();
 const nameField = ref<HTMLInputElement>(), sourceField = ref<HTMLInputElement>();
 const name = ref(''), place = ref(''), sep = ref('/'), git = ref(true), saving = ref(false), error = ref('');
-let fromSettings = false, created = false;
 
 // Its code, asked first (the author, 2026-10-11): a new folder, folders on the disk (nothing made), or repositories
 // cloned from URLs; several of them for a project of several (a frontend and a backend). Its name follows the first
@@ -84,11 +83,10 @@ const where = computed(() => {
 const askGit = computed(() => (from.value === 'folder' ? sources.value.some((x) => x.state !== 'repo')
   : from.value === 'new' && there.value?.state !== 'repo'));
 
-async function open(opts: { fromSettings?: boolean } = {}) {
+async function open() {
   const c = await kulisa.invoke('project:new-defaults');
   sep.value = c.sep; name.value = ''; place.value = c.location; git.value = true; error.value = '';
   from.value = 'new'; sources.value = []; urls.value = []; typedSource.value = ''; named = ''; chosenSource.value = undefined;
-  fromSettings = !!opts.fromSettings; created = false;
   await modal.value!.open();
   nameField.value?.focus();
 }
@@ -100,7 +98,7 @@ async function browse(existing = false) {
 }
 // + in the folders' or URLs' toolbar: Browse… for a folder; a URL is typed in the field under the list.
 const plus = () => (from.value === 'folder' ? browse(true) : sourceField.value?.focus());
-// Create: made (a clone: cloned, which takes a while), then its page shown in Settings.
+// Create: made (a clone: cloned, which takes a while), then its page shown in Settings' window.
 async function create() {
   if (from.value !== 'new' && !(await addSource())) return; // what is typed in its field counts
   if (!name.value.trim()) { nameField.value?.focus(); return; }
@@ -109,16 +107,13 @@ async function create() {
     location: place.value, folders: sources.value.map((x) => x.folder), urls: [...urls.value], git: git.value && askGit.value });
   saving.value = false;
   if (refused(r)) { error.value = r.error; return; }
-  created = true;
   modal.value!.close();
-  await (await dialog('projects')).openProjects(r.id);
+  openSettings('projects', r.id);
 }
-// Cancelled after Settings' +: back there.
-async function closed() { if (fromSettings && !created) await (await dialog('projects')).openProjects(); }
 </script>
 
 <template>
-  <Modal id="newproject" ref="modal" title="New Project" form form-id="npform" @submit="create" @close="closed">
+  <Modal id="newproject" ref="modal" title="New Project" form form-id="npform" @submit="create">
     <div class="npsplit">
       <ListboxRoot selection-behavior="replace" id="npfrom" v-model="from" class="npkinds" aria-label="Start from" @update:model-value="error = ''">
         <ListboxContent>
@@ -134,11 +129,12 @@ async function closed() { if (fromSettings && !created) await (await dialog('pro
                 <button :id="from === 'folder' ? 'npbrowsesource' : 'npurladd'" class="icon small" type="button" :title="from === 'folder' ? 'Add Folder…' : 'Add a URL'" :aria-label="from === 'folder' ? 'Add Folder' : 'Add a URL'" @click="plus"><Icon name="i-plus" /></button>
                 <button class="icon small" type="button" title="Leave Out" aria-label="Leave Out" :disabled="!chosenSource" @click="removeSource"><Icon name="i-minus" /></button>
               </div>
+              <div v-if="rows.length" class="head" aria-hidden="true"><span>{{ from === 'folder' ? 'Folder' : 'URL' }}</span><span /></div>
               <ListboxRoot selection-behavior="replace" v-if="rows.length" v-model="chosenSource" :aria-label="from === 'folder' ? 'Folders' : 'URLs'" @keydown.delete="removeSource">
                 <ListboxContent>
                   <ListboxItem v-for="(x, i) in rows" :key="x.folder" :value="x.folder" class="item" :data-source="x.folder">
-                    <span class="text"><span class="label" :title="x.folder">{{ x.folder }}</span></span>
-                    <kbd v-if="x.state">{{ sourceLine(x) }}</kbd><kbd v-if="!i && rows.length > 1" class="default">default</kbd>
+                    <span class="cell label" :title="x.folder">{{ x.folder }}</span>
+                    <span class="cell end"><kbd v-if="x.state">{{ sourceLine(x) }}</kbd><kbd v-if="!i && rows.length > 1" class="default">default</kbd></span>
                   </ListboxItem>
                 </ListboxContent>
               </ListboxRoot>
@@ -167,6 +163,7 @@ async function closed() { if (fromSettings && !created) await (await dialog('pro
 <style>
 /* What its code comes from on the left, the form on the right (JetBrains' New Project) */
 #newproject { width: min(760px, 92vw);
+  --label: 72px; /* its labels are short (Location: the longest): the forms' column, Settings' Local addresses:, left a gap */
   .body { display: flex; padding: 0; min-height: 320px; }
   .npsplit { flex: 1; display: flex; min-width: 0; }
   .npkinds { flex: none; width: 200px; padding: var(--gap); border-inline-end: 1px solid var(--island-hi); background: var(--window); outline: none;
@@ -174,6 +171,7 @@ async function closed() { if (fromSettings && !created) await (await dialog('pro
   .npform { flex: 1; min-width: 0; padding: var(--pad); overflow: auto; > .field:first-child { margin-top: 0; } }
   .field.top { align-items: start; > span { line-height: var(--control); } }
   .npsourcelist { display: flex; flex-direction: column; gap: var(--gap); min-width: 0;
+    .list { --cols: minmax(0, 1fr) auto; } /* the folder or URL, its state */
     .list [role="listbox"] { min-height: calc(2 * var(--row)); max-height: calc(5 * var(--row)); overflow: auto; }
     .label { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; } }
   #npwhere:empty { display: none; }

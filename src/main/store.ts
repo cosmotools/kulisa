@@ -49,7 +49,8 @@ interface TasksFile { next: number; list: TaskEntry[] }
 // A window as settings.json keeps it: its tasks by key ("<project id>/<n>", tasks.ts) in the bar's order, the shown
 // one (until 2026-10-14 its projects by id, each with every open task of it: such a saved window names no task).
 interface SavedWindow { tabs: string[]; shown: string | null; bounds?: Electron.Rectangle; maximized?: boolean }
-interface Settings { uiZoom?: number; theme?: 'dark' | 'light' | 'system'; bar?: 'top' | 'bottom'; language?: string; keys?: Record<string, string>; windows?: SavedWindow[] }
+interface Settings { uiZoom?: number; theme?: 'dark' | 'light' | 'system'; bar?: 'top' | 'bottom'; language?: string; keys?: Record<string, string>; windows?: SavedWindow[];
+  settingsWindow?: Electron.Rectangle } // where Settings' window was (settings-window.ts)
 // A profile as a task keeps it in profiles.json (project-profiles.ts).
 interface TaskProfile { folder: string; id: string; zoom?: Record<string, number>; closed?: boolean }
 // A task's agents (tasks.ts): the one it was made with (opened when its island has never had a terminal), and every

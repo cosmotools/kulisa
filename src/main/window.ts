@@ -31,12 +31,12 @@ const COLORS: Record<Shade, { window: string; text: string }> = { dark: { window
 const MIN_SIZE = { width: 640, height: 400 };
 const minSize = (z: number) => ({ width: Math.round(MIN_SIZE.width * z), height: Math.round(MIN_SIZE.height * z) });
 const NONE = new Map<string, never>(); // the profiles when no task is open
-let questions = 0, windows = 0;
+let windows = 0;
 
 class AppWindow {
   shell: Shell; id: number; tabs: Task[]; current: Task | null; viewsHidden: boolean; switching: boolean;
   stateTimer: NodeJS.Timeout | undefined; picking: Map<string, { profile: Profile; page: import('playwright-core').Page; cancel: () => unknown }>;
-  answers: Map<number, (answer: string | null) => void>; loaded: boolean; pending: [string, unknown[]][]; keyZone: string;
+  questions: Questions; loaded: boolean; pending: [string, unknown[]][]; keyZone: string;
   win: Electron.BrowserWindow; place: { bounds: Rectangle; maximized: boolean };
   // shell: the app (app.ts). place: where it was ({ bounds, maximized }, settings.json), or { near: a window } for a
   // new one of its size next to it, or under the pointer (at: a point on the screen, where a tab was let go).
@@ -53,7 +53,7 @@ class AppWindow {
     this.switching = true;
     this.stateTimer = undefined;
     this.picking = new Map(); // profiles in pick mode (picker.ts), of the task on screen, by id
-    this.answers = new Map(); // questions asked in it (ask), by id -> resolve
+    this.questions = new Questions((q) => this.send('ask', q));
     this.loaded = false; this.pending = []; // what is sent before its page has loaded goes once it has
     // Where the keyboard is in its page, for the keys (shortcuts.ts, keys.ts): 'window', 'terminal', 'dialog', or
     // 'pane:<profile id>' (an address bar, a pane's toolbar), as the page tells.
@@ -82,13 +82,7 @@ class AppWindow {
     // GNOME (X11) shows its window menu for a right-click on the title bar's drag region at a NaN place: invisible,
     // it holds the pointer and keyboard of the whole desktop until the overview opens (docs/window.md, The title bar).
     if (process.platform === 'linux') win.on('system-context-menu', (e) => e.preventDefault());
-    // Links in the window (☰'s: the documentation, GitHub; the terminal's, Open in your browser) open in the
-    // user's browser; the window itself never leaves its page.
-    win.webContents.setWindowOpenHandler(({ url }) => {
-      if (/^https?:\/\//.test(url)) void electronShell.openExternal(url);
-      return { action: 'deny' };
-    });
-    win.webContents.on('will-navigate', (e) => e.preventDefault());
+    keepPage(win);
     // Its title names the shown task (show), not the page's <title>, which may load after.
     win.on('page-title-updated', (e) => e.preventDefault());
     // Questions the page was asking go unanswered once it is gone or loaded again (ask).
@@ -321,18 +315,9 @@ class AppWindow {
     this.send('theme', theme);
   }
 
-  // A question in the window's own dialog (the renderer's lib/ask.ts), as all of Kulisa's dialogs look: a button that does it (ok),
-  // maybe a second way (other, as New Window next to This Window), and Cancel. The button clicked: 'ok' or 'other';
-  // null for Cancel, or no answer (the page gone).
-  ask({ message, detail, ok, other, danger }: Question) {
-    return new Promise<string | null>((resolve) => {
-      const id = ++questions;
-      this.answers.set(id, resolve);
-      this.send('ask', { id, message, detail, ok, other, danger });
-    });
-  }
-  answer(id: number, answer: string) { this.answers.get(id)?.(answer === 'ok' || answer === 'other' ? answer : null); this.answers.delete(id); }
-  unanswered() { for (const resolve of this.answers.values()) resolve(null); this.answers.clear(); }
+  ask(q: Question) { return this.questions.ask(q); }
+  answer(id: number, answer: string) { this.questions.answer(id, answer); }
+  unanswered() { this.questions.unanswered(); }
 
   // The whole window, profile views included (BrowserWindow.capturePage misses WebContentsViews), captured like a
   // screen recorder would.
@@ -347,10 +332,38 @@ class AppWindow {
   }
 }
 
+// A question in a window's own dialog (the renderer's lib/ask.ts), as all of Kulisa's dialogs look: a button that does
+// it (ok), maybe a second way (other, as New Window next to This Window), and Cancel. The button clicked: 'ok' or
+// 'other'; null for Cancel, or no answer (the page gone). A tasks' window's, Settings' (settings-window.ts).
+let asked = 0;
+class Questions {
+  send: (q: Question & { id: number }) => void; answers = new Map<number, (answer: string | null) => void>();
+  constructor(send: (q: Question & { id: number }) => void) { this.send = send; }
+  ask({ message, detail, ok, other, danger }: Question) {
+    return new Promise<string | null>((resolve) => {
+      const id = ++asked;
+      this.answers.set(id, resolve);
+      this.send({ id, message, detail, ok, other, danger });
+    });
+  }
+  answer(id: number, answer: string) { this.answers.get(id)?.(answer === 'ok' || answer === 'other' ? answer : null); this.answers.delete(id); }
+  unanswered() { for (const resolve of this.answers.values()) resolve(null); this.answers.clear(); }
+}
+
+// Links in a window of Kulisa's (☰'s: the documentation, GitHub; a terminal's, Open in your browser) open in the user's
+// browser; the window itself never leaves its page.
+function keepPage(win: Electron.BrowserWindow) {
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^https?:\/\//.test(url)) void electronShell.openExternal(url);
+    return { action: 'deny' };
+  });
+  win.webContents.on('will-navigate', (e) => e.preventDefault());
+}
+
 // A place saved on a monitor that is gone (unplugged since): the window opens where the OS puts it instead.
 function onScreen(b: Rectangle) {
   return screen.getAllDisplays().some(({ workArea: a }) => b.x < a.x + a.width && b.x + b.width > a.x && b.y < a.y + a.height && b.y + b.height > a.y);
 }
 
 export type { Place };
-export { AppWindow, COLORS };
+export { AppWindow, COLORS, Questions, keepPage, onScreen };

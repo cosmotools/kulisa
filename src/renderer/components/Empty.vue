@@ -4,7 +4,7 @@ import { dialog } from '../lib/dialogs';
 import { withKeys } from '../lib/common';
 import { toggleNewTask } from '../lib/menu';
 
-kulisa.on('project:new', () => dialog('projects').then((d) => d.newProject()));
+kulisa.on('project:new', () => dialog('newproject').then((d) => d.open()));
 </script>
 
 <template>
@@ -12,7 +12,7 @@ kulisa.on('project:new', () => dialog('projects').then((d) => d.newProject()));
     <h2>No task is open</h2>
     <div class="start">
       <button id="emptynewtask" class="primary" :title="withKeys('Of which project, or a closed one', 'task.menu')" @click.stop="toggleNewTask">New Task</button>
-      <button id="emptynew" @click="dialog('projects').then((d) => d.newProject())">New Project…</button>
+      <button id="emptynew" @click="dialog('newproject').then((d) => d.open())">New Project…</button>
     </div>
   </section>
 </template>

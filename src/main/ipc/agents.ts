@@ -14,7 +14,7 @@ import type { Pty } from '../terminal.ts';
 import type * as Sent from '../../shared/types.ts'; // what the window gets: its one definition
 
 export function registerAgents(ipc: Ipc) {
-  const { shell, at, serial } = ipc;
+  const { shell, owner, serial } = ipc;
   const store = shell.store;
   // The accounts (Settings → Agents), each with the projects it is in; clis: the agents an account can be made of.
   const accountsInfo = (): Sent.AccountsInfo => {
@@ -26,7 +26,7 @@ export function registerAgents(ipc: Ipc) {
   handle('accounts:list', () => accountsInfo());
   // Delete Account… (projects.ts: refused while a task runs it, asked first). { accounts, clis } or { error }.
   handle('account:delete', (e, { id }) => serial(async () => {
-    const r = await deleteAccount(shell, id, at(e));
+    const r = await deleteAccount(shell, id, owner(e));
     if (refused(r)) return r;
     shell.sendProjects(); // +'s right-click menu of the projects that had it
     return accountsInfo();
@@ -41,7 +41,7 @@ export function registerAgents(ipc: Ipc) {
   const signins = shell.signins = new Map<string, Pty>(); // a sign-in terminal's key -> its pty
   const cancel = (key: string) => { const p = signins.get(key); signins.delete(key); if (p) stopTerminal(p); };
   handle('account:signin', async (e, { id, agent: agentId, key }) => {
-    const w = at(e), own = shell.accounts.find(agentId);
+    const own = shell.accounts.find(agentId);
     if (id && !store.projects().some((x) => x.id === id)) return { error: `no project ${id}` };
     const config = own?.agent.config;
     if (!own?.own || !config?.login) return { error: `${own?.name || agentId} has no accounts` };
@@ -49,7 +49,7 @@ export function registerAgents(ipc: Ipc) {
     if (!found?.path) return { error: `${own.name} is not installed: install it in Settings → Agents` };
     const r = shell.accounts.prepare(agentId);
     if (refused(r)) return r;
-    const p = await startTerminal((channel, data) => w?.send(channel, data), { command: found.path, args: config.login(),
+    const p = await startTerminal((channel, data) => { if (!e.sender.isDestroyed()) e.sender.send(channel, data); }, { command: found.path, args: config.login(),
       cwd: app.getPath('home'), env: { [config.env]: r.dir }, shell: false,
       size: { cols: 100, rows: 8 } }, key); // its terminal is folded away, so no size would come
     signins.set(key, p);
@@ -92,7 +92,7 @@ export function registerAgents(ipc: Ipc) {
   };
   const notYet: { list: null } = { list: null }; // not looked for in this folder yet
   handle('agents:list', async (e, { check, details, cached } = {}) => {
-    const w = at(e), looks = new Map<string, ReturnType<typeof look>>(), cwd = w?.task?.folder || app.getPath('home'); // each agent looked for once, whatever its accounts
+    const w = owner(e), looks = new Map<string, ReturnType<typeof look>>(), cwd = w?.task?.folder || app.getPath('home'); // each agent looked for once, whatever its accounts
     // The project's agents first (Choose the Agent), in its order.
     const mine = w?.task?.project.agents() || [], rank = (id: string) => (mine.includes(id) ? mine.indexOf(id) : mine.length);
     // Choosing a task's: the project's accounts, and the agents without accounts (the terminal only); never another
@@ -119,9 +119,9 @@ export function registerAgents(ipc: Ipc) {
   });
   // The maker's installer, run when the human clicks Install (that is their go-ahead); its output goes to the window.
   handle('agents:install', async (e, { id }) => {
-    const w = at(e), a = shell.agentFor(id, { any: true });
+    const w = owner(e), a = shell.agentFor(id, { any: true });
     if (!a?.install) return { error: `nothing to install for ${id}` };
-    const { code, log } = await installAgent(a, (data) => w?.send('agents:install-log', data));
+    const { code, log } = await installAgent(a, (data) => { if (!e.sender.isDestroyed()) e.sender.send('agents:install-log', data); });
     return { code, log, installed: !!(await look(a, w?.task?.folder || app.getPath('home'), true)).found };
   });
 

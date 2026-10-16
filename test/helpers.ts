@@ -91,21 +91,32 @@ const taskMenu = async (ui: UI) => {
   await rightClick(ui, '#taskbar .tasktab.active .name');
   return menuRows(ui);
 };
-// Settings → Profiles: the shown task's tab's menu, then Manage Profiles…; once its page is there.
-const manageProfiles = async (ui: UI) => {
+// Settings → Profiles: the shown task's tab's menu, then Manage Profiles…; once its window shows the page.
+const manageProfiles = async ({ ui, sui }: Pick<Ctx, 'ui' | 'sui'>) => {
   await taskMenu(ui);
   await choose(ui, 'Manage Profiles…');
-  await waitFor(() => ui(`document.getElementById('projects')?.dataset.state === 'open' && document.getElementById('prconfig')?.checkVisibility()`));
+  await waitFor(() => sui(`!!document.getElementById('prconfig')?.checkVisibility()`));
 };
-// Settings closed with its ×.
-const closeSettings = async (ui: UI) => {
-  await ui(`document.querySelector('#projects .x').click()`);
-  await waitFor(async () => !(await ui(`document.getElementById('projects')?.dataset.state === 'open'`)));
+// Settings closed as the human does it with Esc (its window: settings-window.ts), what was typed saved; its window gone,
+// the keyboard back in the task's window, the window's and its page's (a menu opened there before it came closed as the
+// window got it; on GitHub's runner the window manager's focus came after the page's, 2026-10-16). The Esc's script is
+// not waited for: its page asks for the window to close before its result is back, and a script whose window closes
+// first never answers (Electron drops the reply: a test hung for its 30 s on GitHub's runner, 2026-10-16).
+const closeSettings = async (ctx: Pick<Ctx, 'shell' | 'ui' | 'sui'>) => {
+  await ctx.sui('0'); // its window open and its page loaded
+  void ctx.shell.settings.win.webContents.executeJavaScript(`dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); 0`).catch(() => {});
+  await settingsClosed(ctx);
+};
+// However it closed (Esc, the OS's ×).
+const settingsClosed = async ({ shell, ui }: Pick<Ctx, 'shell' | 'ui'>) => {
+  await waitFor(() => !shell.settings);
+  await waitFor(async () => shell.win.isFocused() && await ui(`document.hasFocus()`));
 };
 // A profile in Settings' tree chosen (a click), its page shown.
-const chooseProfile = async (ui: UI, id: string) => {
-  await ui(`document.querySelector('#pjlist [data-profile="${id}"]').click()`);
-  await waitFor(() => ui(`document.querySelector('#pjlist [data-profile="${id}"]')?.ariaSelected === 'true' && document.getElementById('profilepage')?.checkVisibility()`));
+const chooseProfile = async (sui: UI, id: string) => {
+  await waitFor(() => sui(`!!document.querySelector('#pjlist [data-profile="${id}"]')`)); // the profiles come as it opens
+  await sui(`document.querySelector('#pjlist [data-profile="${id}"]').click()`);
+  await waitFor(() => sui(`document.querySelector('#pjlist [data-profile="${id}"]')?.ariaSelected === 'true' && document.getElementById('profilepage')?.checkVisibility()`));
 };
 // A field of Settings → Profiles typed and left (saved on change).
 const setProfileField = (ui: UI, id: string, value: string) => ui(`(() => { const f = document.getElementById('${id}'); f.value = ${JSON.stringify(value)};
@@ -157,6 +168,6 @@ const near = (a: number, b: number) => Math.abs(a - b) < 1e-6;
 const noNode = async (wc: WebContents) => await wc.executeJavaScriptInIsolatedWorld(999, [{ code: 'typeof process' }]) === 'undefined';
 
 export type { UI };
-export { focusWindow, MENU, SUBMENU, noNode, hooksOf, plusMenu, assert, root, userData, project, pfile, savedTabs, savedWindows, panel, SITE, PORT, sleep, waitFor, who, menuRows, choose, projectTabs, projectTab, showProject, closeProject, manageProfiles, closeSettings, chooseProfile, setProfileField, menuOpen, closeMenu, rightClick, taskMenu,
+export { focusWindow, MENU, SUBMENU, noNode, hooksOf, plusMenu, assert, root, userData, project, pfile, savedTabs, savedWindows, panel, SITE, PORT, sleep, waitFor, who, menuRows, choose, projectTabs, projectTab, showProject, closeProject, manageProfiles, closeSettings, settingsClosed, chooseProfile, setProfileField, menuOpen, closeMenu, rightClick, taskMenu,
   click,
   box, pageBox, viewOn, dock, press, ctrl, near };

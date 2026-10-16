@@ -5,7 +5,6 @@ import TopBar from './TopBar.vue';
 import Grid from './Grid.vue';
 import TaskBar from './TaskBar.vue';
 import Empty from './Empty.vue';
-import ProjectEditor from './ProjectEditor.vue';
 import NewProject from './NewProject.vue';
 import TaskRename from './TaskRename.vue';
 import AgentPicker from './AgentPicker.vue';
@@ -23,7 +22,6 @@ import { store } from '../lib/store';
   <Grid />
   <Empty />
   <TaskBar v-if="store.bar !== 'top'" />
-  <ProjectEditor />
   <NewProject />
   <TaskRename />
   <AgentPicker />

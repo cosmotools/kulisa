@@ -10,12 +10,12 @@ the look below:
 
 | Where | What |
 |---|---|
-| `src/renderer/components/*.vue` | the window's parts, each its markup, behavior and own look (`<style>`, rooted at its id or class): `App.vue` puts them together; `grid/` the grid's panels and headers, `menu/` the menus (`ButtonMenu`, `RightClickMenu`, `PointMenu`, `MenuRows`) and ☰'s own rows; `Modal.vue` the dialogs |
-| `src/renderer/lib/*.ts` | what parts share or what outlives a component: `store.ts` (what the main process sends, `act`), `grid.ts`, `terminals.ts`, `menu.ts` (what a menu holds), `agents.ts` (the agents' list of a dialog, and an install under way), `ask.ts`, `dialogs.ts`, `keys.ts`, `voice.ts`, `views.ts` (the pages under HTML: `covered()` for every menu and dialog), `profiles.ts` (the profiles' menu), `names.ts` (name fields), `strip.ts` (a strip of tabs that scrolls), `common.ts`, `test-hooks.ts` (what the tests reach by name) |
+| `src/renderer/components/*.vue` | the window's parts, each its markup, behavior and own look (`<style>`, rooted at its id or class): `App.vue` puts a tasks' window together, `Settings.vue` Settings' window (its page `ProjectEditor.vue`); `grid/` the grid's panels and headers, `menu/` the menus (`ButtonMenu`, `RightClickMenu`, `PointMenu`, `MenuRows`) and ☰'s own rows; `Modal.vue` the dialogs |
+| `src/renderer/lib/*.ts` | what parts share or what outlives a component: `store.ts` (what the main process sends, `act`), `grid.ts`, `xterm.ts` (a terminal, in any window), `terminals.ts` (a tasks' window's), `menu.ts` (what a menu holds), `agents.ts` (the agents' list of a dialog, and an install under way), `ask.ts`, `dialogs.ts`, `keys.ts`, `voice.ts`, `cover.ts` (`covered()` for every menu and dialog: one menu at a time, all closed at once), `views.ts` (a tasks' window's profiles' pages under them: hidden, or pictures), `profiles.ts` (the profiles' menu), `names.ts` (name fields), `strip.ts` (a strip of tabs that scrolls), `common.ts`, `test-hooks.ts` (what the tests reach by name) |
 | `src/shared/types.ts`, `ipc.ts`; `env.d.ts` | the shapes the main process sends, the channels they come by (docs/window.md, IPC); the bridge to it (`src/preload`) typed by them, and Vite's types |
 | `src/renderer/tokens.css` | every color and size (`:root`); no literal color anywhere else |
 | `src/renderer/components.css` | the shared components below, global |
-| `src/renderer/index.html`, `main.ts`; `master.html`, `master.ts` | the window's page and a master's window's: the theme before the first paint, then the app |
+| `src/renderer/index.html`, `main.ts`; `settings.html`, `settings.ts`; `master.html`, `master.ts` | a tasks' window's page, Settings' window's and a master's window's: the theme before the first paint, then the app. Settings' loads nothing of a tasks' window (no grid, no store of its tasks): `cover.ts` and `xterm.ts` are what the two share of `views.ts` and `terminals.ts` |
 | `src/renderer/public/avatars/` | the profiles' pictures, copied as they are |
 
 ## Desktop, not a web page
@@ -38,16 +38,17 @@ pointer, read as a web page's and were hard to read). So:
 - **Forms are "Label: field"**, the labels in one column (`.field`); a comment under a field only when needed.
 - **Groups under a titled line** (`.titled`), not framed cards: no frame in a frame.
 - **A list has a toolbar over it** (`.list`: + adds, − removes the selected row, ★ makes it the default), and
-  its actions act on the selected row (also Delete, and its right-click). A row shows facts: what it is, its path or
-  email muted after it, a state at its end in words ("default", "no commit yet"); no buttons that show under the
-  pointer, no pills.
-- **A dialog asks one thing and ends with its buttons** (`Modal.vue`); what is browsed (Settings) is a tree on the
-  left and a page on the right, under its path. No search field over the tree (the author, 2026-10-11).
+  its actions act on the selected row (also Delete, and its right-click). It is a table: the names of its columns,
+  then rows of facts, each in its column (what it is, its path or email muted, a state at its end in words: "default",
+  "no commit yet"), the columns at the same places in every row (the author, 2026-10-16: values one after another read
+  as chaos); no buttons that show under the pointer, no pills.
+- **A dialog asks one thing and ends with its buttons** (`Modal.vue`); what is browsed (Settings, a window of its own:
+  [window.md](window.md), Settings) is a tree on the left and a page on the right, under its path. No search field over the tree (the author, 2026-10-11).
 
 ## Tokens (`tokens.css`)
 
 - Colors for both themes ([window.md](window.md), Theme): each is `light-dark(light, dark)`, so a new color gets
-  both values. JS reads a color as shown through an element that uses it (`lib/terminals.ts`), not the token's text.
+  both values. JS reads a color as shown through an element that uses it (`lib/xterm.ts`), not the token's text.
   JetBrains' themes: `--window` (the title bar, under the grid and the tasks' bar), `--island` (panels, dialogs, menus), `--island-hi`
   (a lit row, a divider), `--toolbar` (a pane's toolbar and active tab), `--field`, `--button`, `--line` (borders);
   text `--text`, `--text-strong`, `--text-dim`, `--text-muted`; `--accent` (main button, focus), `--danger`,
@@ -134,10 +135,14 @@ every other `<svg>` uses the sprite.
 - `.list`: a list a dialog edits (a project's Code, Agents and Profiles; New Project's folders; an agent's accounts),
   or chooses from (Settings → Agents' agents, no toolbar), as JetBrains': framed,
   `.tools` over it (`.icon.small` buttons: + adds, often a `ButtonMenu`; − removes the selected row; ★ makes it the
-  default), its rows Reka's Listbox items (`.item` on one line: `.label`, its facts in a `small` after it, muted; a
-  state at the end, `kbd`: "default" (`.default`), `.warn` in `--note` when it needs the human), the selected one in
-  `--chosen` (`--chosen-idle` when the list has not the keyboard). Delete removes the selected one; a
-  `RightClickMenu` around the Listbox has the row's actions (it selects the row). `.empty` in it when it has none.
+  default), then `.head` (its columns' names, small and dim; shown with rows), then its rows, Reka's Listbox items
+  (`.item`, a `.cell` a value: the `.label` first with its icon or picture, its facts in `small.cell`, muted; a state in
+  the last, `.cell.end`, `kbd`: "default" (`.default`), `.warn` in `--note` when it needs the human), each cut with …
+  and whole in its title. The list sets its columns, `--cols` (e.g. `fit-content(45%) minmax(0, 1fr) auto`: the name as
+  wide as it needs up to about half, what it is in the rest, the state); the head and the rows take them by `subgrid`,
+  so they line up. The selected row in `--chosen` (`--chosen-idle` when the list has not the keyboard). Delete removes
+  the selected one; a `RightClickMenu` around the whole `.list` has the row's actions (it selects the row): around the
+  Listbox, which is there only with rows, its menu did not open on a row added after. `.empty` in it when it has none.
 - `.titled`: a group's title, its name and a line to the end (JetBrains' titled separator), over a `.list` or fields.
 - `.item[aria-selected="true"]`: the chosen row of a list (Reka's Listbox, Tree), lit.
 - `.dot`: a 10 px circle in `--color`, a project's.
@@ -211,20 +216,20 @@ Every dialog is `Modal.vue`, Reka UI's Dialog (`reka-ui`) with the same parts:
   closed (`closable`; Esc and a click outside close it too; `stay`: not while something runs, an agent's install).
   Over a dimmed backdrop (`.backdrop`), in the middle of the window (`.dialog`; its corners clip what is in it, a side
   panel's color). A question (`.dialog.question`, `Ask.vue`) has no strip: its question is the first words, bold.
-- `.body`: `.hint` (what it is about, muted), `.field` (a label, "Name:", and its input, the labels in one column; `.pick` in
+- `.body`: (in Settings' window, `.page`, the same) `.hint` (what it is about, muted), `.field` (a label, "Name:", and its input, the labels in one column; `.pick` in
   it: the input with its button, Location and Browse…), `.row` (a line of controls: a field with its buttons,
   a URL to clone, a new profile's name), `.check` (a `.checkbox` in the fields' column), `.error` (hidden while empty; its text
   selectable, to copy and search for, as a question's detail is); a field's
   `.hint` under it (its `FieldDescription`).
 - `footer`: the buttons at the right end, the main one last; `.start` puts a button at the left end. A button that
-  only closes is Reka's `DialogClose`. A dialog whose parts are saved as they change (Settings) has none: × closes it.
+  only closes is Reka's `DialogClose`. What is saved as it changes (Settings' window) has none: Esc or × closes it.
 - A part of what it edits: a `.titled` line, then its `.list` or fields, a `.row` under the list for what is being
   added in place (a URL to clone, a new profile's name). Not framed cards or sections with a + in their heading
   (until 2026-10-11: a frame in a dialog in a split was a frame in a frame in a frame, and it read as a web page).
 - `.empty`: a list's line when it has none ("No accounts yet."), dim.
-- A dialog that is browsed (Settings, `ProjectEditor.vue`) is a tree on the left (Reka's `Tree`, `#pjlist`: its rows
+- What is browsed (Settings' window, `ProjectEditor.vue`) is a tree on the left (Reka's `Tree`, `#pjlist`: its rows
   `.item`, `data-section`, `data-project`, `data-agent` or `data-profile`; a section opens and closes, it is not
-  chosen, and makes one of its own with the `.icon` + at its end; a row's right-click has its page's ⋯) and the chosen
+  chosen, and makes one of its own with the `.icon` + at its end (Agents, Profiles; a project is made in a tasks' window); a row's right-click has its page's ⋯) and the chosen
   page on the right under its path (`.crumbs`: "Projects › shop", its ⋯ at the end). Each thing is a row of the tree
   with a page of its own, not a list inside a page. A row the column cuts (…) has its whole name in its tooltip, and
   so has a list's row in a page (a project's profiles: the name, its description); not a wider or resizable column,
@@ -232,12 +237,13 @@ Every dialog is `Modal.vue`, Reka UI's Dialog (`reka-ui`) with the same parts:
   Project) has the choices as a list on its left (Reka's Listbox), the form on its right.
 - With `form` the content and the buttons are a form: Enter submits.
 - Its ref: `await open()` (shown, the keyboard in its `[autofocus]` field or on it; the profiles' pages hidden while it
-  is open: `covered('hide')`, `lib/views.ts`), `close()`, `isOpen()`. Its content is in the page only while it is open
+  is open: `covered('hide')`, `lib/cover.ts`, `views.ts`), `close()`, `isOpen()`. Its content is in the page only while it is open
   (Reka's default; kept closed, the dialogs' parts took about 2.5 MB of the window's memory), so it opens first and
   is filled after; what must outlive it lives in the dialog's component or in `lib/` (the agents' list and an install
   under way: `lib/agents.ts`). When it closes, the keyboard goes back where it was.
 - Every dialog is in `App.vue` from the start and registers what it does (`registerDialog`); anything opens one by
-  name: `(await dialog('projects')).openProjects(id)` (`lib/dialogs.ts`).
+  name: `(await dialog('newproject')).open()` (`lib/dialogs.ts`). Settings is no dialog: `openSettings(section, id)`
+  there opens its window.
 - A page's alert or confirm (`.pagedialog`, in `ProfilePane.vue`) is not a `Modal`: a Dialog that is not modal (the
   other panes go on), in its pane right under the address bar, over a picture of the page, in Chrome's size, shape and
   blue: the page's, not Kulisa's. Esc is Cancel; a click outside does nothing; OK has the keyboard.
