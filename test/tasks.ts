@@ -1566,7 +1566,8 @@ export default (test: Test) => {
     const said = await ui(`kulisa.invoke('profile:refresh', { task: ${JSON.stringify(shell.task.key)}, profile: 'sam-admin' })`);
     assert.deepEqual([said, ctx.asked.pop().message], [{ error: 'the human said no' }, "Bring the sign-ins of Sam.admin's master to this task?"]);
     assert.equal(await sui(`!!document.getElementById('ask')`), false, "not in Settings' window");
-    assert.ok(!shell.win.isMinimized() && shell.win.isFocused(), "the task's window in front with its question");
+    // Waited for: macOS restores a minimized window with its animation, and makes it key at its end (GitHub's runner).
+    await waitFor(() => !shell.win.isMinimized() && shell.win.isFocused()); // the task's window in front with its question
     ctx.answer = true;
     // The theme and the Kulisa zoom are every window's: its too.
     const theme = shell.theme, zoom = () => shell.settings.win.webContents.getZoomFactor();

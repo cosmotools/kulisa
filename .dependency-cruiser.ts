@@ -6,7 +6,7 @@ import type { IConfiguration } from 'dependency-cruiser';
 // There are no folders per layer: each is a list of src/main's files. A file in none of them is the window's (layer 4).
 // Base: git and what is local, used by every layer; nothing of src/main above them.
 const base = '^src/main/(worktrees|local)\\.ts$';
-const layer1 = '^src/main/(profiles|project-profiles|profile-store|store|session-cookies|cookie-sync|signin-[a-z]+)\\.ts$';
+const layer1 = '^src/main/(profiles|page-focus|project-profiles|profile-store|store|session-cookies|cookie-sync|signin-[a-z]+)\\.ts$';
 const layer2 = '^src/main/(cdp-proxy|local-only)\\.ts$';
 const layer3 = '^src/main/(mcp-server|agent-hooks|history|transcripts|ghost)\\.ts$';
 const main = '^src/main/';

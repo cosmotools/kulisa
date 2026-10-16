@@ -2,6 +2,7 @@
 // the grid's layout. Each only translates to the task's own (tasks.ts), as the agent's tools do (mcp-server.ts).
 import { refused } from '../../shared/result.ts';
 import { handle, on } from '../ipc.ts';
+import { focusWindow } from '../page-focus.ts';
 import type { Ipc, IpcEvent } from '../ipc.ts';
 import type { IpcMainInvokeEvent } from 'electron';
 import type { Profile, Tab } from '../profiles.ts';
@@ -40,28 +41,19 @@ export function registerPanes(ipc: Ipc) {
   on('layout:save', (e, { task, layout }) => at(e)?.saveLayout(task, layout));
   on('layout', (e, { task, rects }) => at(e)?.layout(task, rects));
 
-  // A tab the human opens (+): the window keeps the keys for its address (ProfilePane.vue). Its page, a native view, takes
-  // them as it loads (when, varies), so they go back each time, until the human clicks the page or it goes somewhere.
-  handle('tab:new', onProfile((p, { url }) => {
-    const tab = p.newTab(url || 'about:blank');
-    const wc = tab.wc;
-    const back = () => { if (!p.win.isDestroyed()) p.win.webContents.focus(); };
-    const clicked = (_e: Electron.Event, i: Electron.MouseInputEvent) => { if (i.type === 'mouseDown') off(); };
-    const went = (_e: Electron.Event, u: string, _inPage: boolean, mainFrame: boolean) => { if (mainFrame && u !== 'about:blank') off(); };
-    const off = () => { if (wc.isDestroyed()) return; wc.off('focus', back); wc.off('before-mouse-event', clicked); wc.off('did-start-navigation', went); };
-    wc.on('focus', back); wc.on('before-mouse-event', clicked); wc.on('did-start-navigation', went as never);
-    void tab.ready.then(back);
-    return tab.id;
-  }));
+  // A tab the human opens (+): the window keeps the keys for its address (ProfilePane.vue); its page taking them as it
+  // loads gives them back (page-focus.ts).
+  handle('tab:new', onProfile((p, { url }) => { focusWindow(p.win.webContents); return p.newTab(url || 'about:blank').id; }));
   // focus: the keyboard was in the tab's page (a key closed or switched it): it goes to the page shown next, as in Chrome.
   handle('tab:close', onTab((p, t, { focus }) => {
-    if (focus) p.once('tab-closed', () => setImmediate(() => p.get()?.wc.focus()));
+    if (focus) p.once('tab-closed', () => setImmediate(() => { const next = p.get(); if (next) p.focusTab(next); }));
     p.closeTab(t.id);
   }));
-  handle('tab:activate', onTab((p, t, { focus }) => { p.activate(t.id); if (focus) t.wc.focus(); }));
-  handle('tab:focus', onTab((_p, t) => t.wc.focus()));
+  handle('tab:activate', onTab((p, t, { focus }) => { p.activate(t.id); if (focus) p.focusTab(t); }));
+  handle('tab:focus', onTab((p, t) => p.focusTab(t)));
   handle('tab:reopen', onProfile((p) => p.reopenTab()?.id ?? null));
-  handle('tab:navigate', onTab((p, t, { url }) => p.navigate(t.id, url)));
+  // An address from its pane's bar: the keyboard goes on into the page, as Chrome's.
+  handle('tab:navigate', onTab((p, t, { url }) => { const r = p.navigate(t.id, url); p.focusTab(t); return r; }));
   handle('tab:back', onTab((p, t) => p.back(t.id)));
   handle('tab:forward', onTab((p, t) => p.forward(t.id)));
   handle('tab:reload', onTab((p, t, { ignoreCache }) => p.reload(t.id, { ignoreCache })));

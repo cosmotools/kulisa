@@ -10,6 +10,7 @@ import type { BrowserWindow, Rectangle, Session, WebContents, WebContentsView as
 import fs from 'fs';
 import path from 'path';
 import type * as Sent from '../shared/types.ts'; // what the window gets: its one definition
+import { allowFocus, guardFocus } from './page-focus.ts';
 // Taken from the module, not imported by name: unit tests load this in plain Node, where 'electron' is only a path
 // (docs/testing.md, Two layers).
 const { session, WebContentsView } = electron;
@@ -175,6 +176,8 @@ class Profile extends EventEmitter {
   _bind(tab: Tab) {
     const { view, wc } = tab;
     view.setBorderRadius(PAGE_RADIUS);
+    // The keyboard stays where the human put it in the window: the page takes it only from them (page-focus.ts).
+    guardFocus(wc, () => this.win);
     const update = () => {
       if (wc.isDestroyed()) return;
       // Still on the about:blank its page comes after (_open): the strip keeps the address and title it has.
@@ -287,7 +290,7 @@ class Profile extends EventEmitter {
     const tab = this.get(id);
     if (!tab?.dialog || tab.dialog.id !== dialog) return;
     this._dialogDone(tab, ok);
-    tab.wc.focus();
+    this.focusTab(tab);
   }
   // Answered (ok: true or false) or gone (cancelled, answered over CDP).
   _dialogDone(tab: Tab, ok?: boolean) {
@@ -358,6 +361,9 @@ class Profile extends EventEmitter {
     await wipeSession(this.session);
     this.emit('deleted');
   }
+
+  // The keyboard into a tab's page for the human (a key chose it, a dialog of theirs answered, Pick): theirs, so it stays.
+  focusTab(tab: Tab) { if (tab.wc.isDestroyed()) return; allowFocus(tab.wc); tab.wc.focus(); }
 
   // Its pages into another window (its project moved there), hidden until that window lays them out.
   moveTo(win: BrowserWindow) {

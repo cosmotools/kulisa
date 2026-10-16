@@ -26,7 +26,7 @@ function installPicker(shell: Shell) {
       const onKey = (e: Electron.Event, input: Electron.Input) => { if (input.type === 'keyDown' && input.key === 'Escape') { e.preventDefault(); void cancel(); } };
       w.picking.set(pid, { profile, page, cancel });
       wc.on('before-input-event', onKey);
-      wc.focus();
+      profile.focusTab(tab);
       let picked: import('playwright-core').Locator | undefined;
       try { picked = await page.pickLocator(); } catch (e) { if (!cancelled) throw e; } finally {
         w.picking.delete(pid);
