@@ -1394,7 +1394,13 @@ export default (test: Test) => {
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
     const first = shell.task;
     assert.equal(first.folder, `${api}@task-1`, 'one repository: its copy next to it');
-    const chips = () => ui(`[...document.querySelectorAll('.taskrepos .chip')].map((c) => c.textContent + (c.classList.contains('fresh') ? ' fresh' : ''))`);
+    const chips = () => ui(`[...document.querySelectorAll('.taskrepos .chip')].map((c) => c.textContent)`);
+    // The chips lit as they came (.fresh, for 1.8 s), seen as it happens: read after, a loaded runner missed it
+    // (GitHub's macOS runner, 2026-10-16).
+    const watchFresh = () => ui(`(() => { window.__fresh = new Set(); window.__freshSeen?.disconnect();
+      const seen = () => document.querySelectorAll('.taskrepos .chip.fresh').forEach((c) => __fresh.add(c.textContent));
+      window.__freshSeen = new MutationObserver(seen); __freshSeen.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] }); })()`);
+    const lit = () => ui(`[...window.__fresh]`);
     assert.deepEqual(await chips(), [], 'one repository: nothing to tell');
     // Added in Project Settings… while task-1 runs: no copy, only offered on its tab.
     const added = await ui(`kulisa.invoke('project:repo-add', { id: 'api', folder: ${JSON.stringify(web)} })`);
@@ -1412,11 +1418,12 @@ export default (test: Test) => {
     await rightClick(ui, `#projectTabs .tasktab[data-task="${first.key}"] .name`);
     const rows = await menuRows(ui);
     assert.deepEqual(rows.slice(rows.indexOf('# Add Repository'), rows.indexOf('Rename…')), ['# Add Repository', 'web', '-']);
+    await watchFresh();
     await choose(ui, 'web');
     const webCopy = path.join(root, 'Kulisa', 'api@task-1', 'web');
     await waitFor(() => first.entry.copies.length === 2);
     await waitFor(async () => (await chips()).length === 2);
-    assert.deepEqual(await chips(), ['api', 'web fresh']);
+    assert.deepEqual([await chips(), await lit()], [['api', 'web'], ['web']], 'it comes in lit');
     // Long names are cut, the whole in the tooltip; the terminals' tabs and the microphone stay in the panel.
     assert.deepEqual(await ui(`(() => { const names = [...document.querySelectorAll('.taskrepos .chip .name')], was = names.map((n) => n.textContent);
       for (const n of names) n.textContent = 'customer-notifications-delivery-pipeline-with-templates'.repeat(3);
@@ -1470,9 +1477,10 @@ export default (test: Test) => {
     await waitFor(async () => (await ctx.termText()).split(`Kulisa removed ${path.join(home, 'web')}`).length === 3);
     await waitFor(async () => (await chips()).length === 1);
     // Added again, it comes in lit; the human removes it by its chip's menu.
+    await watchFresh();
     await call('task_add_repository', { repository: 'web' });
     await waitFor(async () => (await chips()).length === 2);
-    assert.deepEqual(await chips(), ['api', 'web fresh']);
+    assert.deepEqual([await chips(), await lit()], [['api', 'web'], ['web']], 'it comes in lit');
     await rightClick(ui, `.taskrepos .chip[data-folder="${path.join(home, 'web')}"]`);
     assert.deepEqual(await menuRows(ui), ['Remove Repository']);
     await choose(ui, 'Remove Repository');
