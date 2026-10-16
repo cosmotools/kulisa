@@ -65,6 +65,8 @@ A press on a tab not shown chooses it at once, as Chrome's, and its task is show
 tab starts being dragged, whichever is first (the author, 2026-10-15: such a tab could not be dragged). Showing a task
 starts the grid's slide (a view transition), and Chromium drops a drag about to begin when one starts; a drag already
 begun goes on through it. So the grid changes on the release, not on the press as in Chrome, which has no slide.
+The pressed tab stays lit from the press until the task is shown: between the release and the new state (the
+pictures for the slide are taken meanwhile) the tab left lit again for a moment, and the two blinked (2026-10-16).
 
 ## The grid
 
