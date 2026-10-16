@@ -29,7 +29,7 @@ export async function livePages() {
   await showViews();
   scheduleLayout();
 }
-// A grid taken down: a freeze under way no longer matters.
+// A grid leaving: a freeze under way no longer matters (grid.ts, grid:closing).
 export const forgetFrozen = () => { frozen = null; };
 
 coverUnder({ hide: (hidden) => void (hidden ? kulisa.invoke('views:hidden', true) : showViews()), freeze, unfreeze });

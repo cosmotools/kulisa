@@ -423,10 +423,15 @@ export default (test: Test) => {
     assert.deepEqual(seen.types, ['previous']); assert.deepEqual(seen.animations, ['grid-from-left calc(-100% - 8px) cubic-bezier(0.4, 0, 0.2, 1)', 'grid-to-right calc(100% + 8px) cubic-bezier(0.4, 0, 0.2, 1)']);
     await waitFor(live);
     // A menu opened while the grid still slides keeps the pages under it pictures: the slide's end showed them over it.
+    // Opened as soon as the slide starts, before the grid left is taken down (the transition's update, a frame later,
+    // later still on a loaded runner): taking it down forgot the menu's pictures (GitHub's runners, 2026-10-16).
     const sliding = () => ui(`document.documentElement.matches(':active-view-transition')`);
-    await ui(`void kulisa.invoke('task:show', 'project/2')`);
+    await ui(`(() => {
+      const start = document.startViewTransition.bind(document);
+      document.startViewTransition = (o) => { const t = start(o); delete document.startViewTransition; document.getElementById('windowMenu').click(); return t; };
+      void kulisa.invoke('task:show', 'project/2');
+    })()`);
     await waitFor(sliding);
-    await ui(`document.getElementById('windowMenu').click()`);
     await waitFor(() => menuOpen(ui));
     await waitFor(async () => !(await sliding()));
     await sleep(100); // what the slide's end did, which must not show them
