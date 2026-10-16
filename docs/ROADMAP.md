@@ -784,9 +784,9 @@ here; what is left of it stays.
   (a probe of six runners each, before and after #38), never on the author's Mac. macOS makes a window key a moment
   after Kulisa focuses its page and then gives the keyboard back to the window's last first responder, over Kulisa's
   focus. Fixed where it was seen: Settings closed (`settings-window.ts`: the page focused again on the window's `focus`)
-  and the tests' `focusWindow` (focused again until the page has it). Seen once since, not fixed: a project's submenu
-  closing while read, after Settings closed (the page's blur closes a menu). The general fix, in `AppWindow.focus` for
-  every way a window is given the keyboard, is to decide. `settingsClosed` says where the keyboard is when it times out. Slow but not flaky: deleting a task (a fork's closing took 11 s,
+  and the tests' `focusWindow` (focused again until the page has it). Seen since: a menu closing while read, as a profile's page
+  in the window took the keyboard (a new tab's, loading): menus now close on the window's blur, not its page's
+  (`lib/cover.ts`, the author's choice). `settingsClosed` says where the keyboard is when it times out. Slow but not flaky: deleting a task (a fork's closing took 11 s,
   git's work), a site that never answers (10 s: two 5 s waits by design).
 - **The agent gets a passing size when its project moves to a new window** (found 2026-10-13, on the runner: the
   test above). The new window's page fits the terminal as soon as it opens, at the whole window's height (46 rows),

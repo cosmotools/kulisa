@@ -698,6 +698,18 @@ export default (test: Test) => {
     await waitFor(async () => !(await anyMenu()));
     assert.ok(await ui(`!!document.activeElement.closest('.term:not([hidden])')`), 'the keyboard back in the terminal');
 
+    // A profile's page in the window taking the keyboard (as one loading did on macOS) leaves a menu open: the window is
+    // not left, and the page's blur closed the menu under the hand (GitHub's macOS runner, 2026-10-16).
+    mouse('mouseDown', menuButton); mouse('mouseUp', menuButton);
+    await waitFor(() => menuOpen(ui));
+    const pageOf = shell.profiles.values().next().value.get().wc;
+    pageOf.focus();
+    await waitFor(() => ui(`!document.hasFocus()`));
+    await sleep(300); // nothing to wait for: that it stays open
+    assert.equal(await menuOpen(ui), true, "the menu stays: the window's keyboard went to a page of its own");
+    await closeMenu(ui);
+    await focusWindow(shell.win, ui);
+
     // Leaving the window (another one takes the focus) closes a menu, as the OS's own menus close.
     mouse('mouseDown', menuButton); mouse('mouseUp', menuButton);
     await waitFor(() => menuOpen(ui));

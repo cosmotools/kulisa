@@ -39,5 +39,9 @@ export function covered(how: 'hide' | 'pictures') {
 }
 const closeMenus = () => { for (const close of [...menus]) close(); };
 export const closeLayers = () => { closeMenus(); for (const close of [...dialogs]) close(); };
-// Leaving the window closes a menu, as the OS's own menus close.
-addEventListener('blur', closeMenus);
+// Leaving the window closes a menu, as the OS's own menus close. A tasks' window (with what is under: views.ts) says so
+// from the main process: its page's own blur came also when a profile's page in it took the keyboard as it loaded
+// (macOS), a menu gone under the human's hand; nothing else takes it while a menu is open (the pages under it are
+// pictures). Settings' window has nothing under it: its page's blur is the window's.
+addEventListener('blur', () => { if (!under) closeMenus(); });
+kulisa.on('window:blur', closeMenus);
