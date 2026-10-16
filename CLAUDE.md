@@ -246,6 +246,13 @@ unasked. This paragraph is removed when the rewrite is finished.
   - Once its pull request is merged (or the author drops it), the repository's folder follows `develop` (above),
     and the worktree goes (`git worktree remove`), its branch here (`git branch -D`: merged by GitHub's merge commit,
     git here may not know it) and on GitHub (the API, below), and its test folder (`/tmp/kulisa-test-<worktree>-…`).
+- **Sessions on different OSes share a pull request** (the author, 2026-10-16). A session fixes what it can reproduce
+  and test on its own OS, shared code too: what decides is where the bug can be checked, not which OS the code is for.
+  What only another OS shows, or what it cannot check there, it does not fix blind: it writes it in a comment on the
+  pull request, for the session on that OS, which fixes it on its side. The pull request is where they talk. Each
+  comment starts with who wrote it ("Claude (the Linux session), not the author"): the comments go up under the
+  author's account. Before pushing to a branch another session works on, take its new commits (`git pull --rebase`).
+  A session learns of new comments only when the author tells it to read them (`GET …/issues/<n>/comments`).
 - **GitHub's API, not `gh`** (not installed; the author's choice, 2026-10-12): `curl` to `https://api.github.com`
   with the token of the remote's URL, read into a shell variable and never printed:
   `T=$(git config --get remote.origin.url | sed -E 's#^https://[^:@/]*:?([^@/]*)@.*#\1#')`, then
