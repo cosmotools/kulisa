@@ -58,6 +58,13 @@ jobs:
       - if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y xvfb openbox gnome-keyring dbus-x11 libsecret-1-0
       - run: npm ci
+      # The macOS runner's screen is 1024×768, smaller than a laptop's: the tests' windows did not fit as they lay them
+      # out (2026-10-16). Its virtual screen has 1920×1080, as Linux's Xvfb (displayplacer, MIT: the runner's only).
+      - if: runner.os == 'macOS'
+        run: |
+          brew tap jakehilborn/jakehilborn && brew install displayplacer
+          displayplacer "id:$(displayplacer list | awk '/^Persistent screen id:/ { print $4; exit }') res:1920x1080"
+          displayplacer list | grep -m1 '^Resolution:'
       # Tasks commit in their test repositories (worktrees.ts): git needs a name.
       - run: git config --global user.name "Kulisa tests" && git config --global user.email "tests@kulisa.app"
       - if: runner.os != 'Linux'
