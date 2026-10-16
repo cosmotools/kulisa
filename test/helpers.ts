@@ -120,9 +120,11 @@ const closeSettings = async (ctx: Pick<Ctx, 'shell' | 'ui' | 'sui'>) => {
 const settingsClosed = async ({ shell, ui }: Pick<Ctx, 'shell' | 'ui'>) => {
   await waitFor(() => !shell.settings);
   // Not focused in time: which window is, and the windows there are, said (a run on GitHub's macOS runner, 2026-10-16).
-  await waitFor(async () => shell.win.isFocused() && await ui(`document.hasFocus()`)).catch((e: Error) => {
+  await waitFor(async () => shell.win.isFocused() && await ui(`document.hasFocus()`)).catch(async (e: Error) => {
     const all = electron.BaseWindow.getAllWindows().map((w) => `${w.getTitle()}${w.isVisible() ? '' : ' (hidden)'}${w.isFocused() ? ' (focused)' : ''}`);
-    throw new Error(`${e.message}; windows: ${all.join(', ')}`);
+    const keys = electron.webContents.getFocusedWebContents(), page = shell.win.webContents;
+    throw new Error(`${e.message}; windows: ${all.join(', ')}; the keyboard in: ${keys === page ? "the window's page" : keys?.getURL() ?? 'none'};`
+      + ` page focused ${page.isFocused()}, its active element ${await ui(`document.activeElement?.tagName + '.' + document.activeElement?.className`)}`);
   });
 };
 // A profile in Settings' tree chosen (a click), its page shown.
