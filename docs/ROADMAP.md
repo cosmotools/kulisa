@@ -590,12 +590,14 @@ here; what is left of it stays.
     `app-region: no-drag` in every profile page (`profiles.ts`, `_add`). Electron issue: [electron/electron#54743](https://github.com/electron/electron/issues/54743) (2026-10-08).
     Check: remove the workaround, open Teams (or a page with `app-region: drag`, then another page) in a pane, and
     click the page with a real mouse (`debug-kulisa` skill). Linux only so far; macOS and Windows draw frameless
-    windows their own way (see "macOS and Windows are untested").
+    windows their own way (see "macOS and Windows are untested"). Still needed in 44.8.0 (2026-10-16: a click where
+    the page before had its drag region did not reach the page; the issue open).
   - A page's alert and confirm in its pane (profiles.md, "Dialogs"): Electron has no API for them, so Kulisa replaces
     the listener of its internal `-run-dialog` event (`lib/browser/api/web-contents.ts`, Electron 44; `-cancel-dialogs`
     too). Check: that file at the new version's tag; the test of dialogs in `test/agent.ts` fails when the event is
     gone (Electron's message box comes back instead of the pane's dialog). Ask Electron for a public event
-    (`webContents` 'dialog', as `select-bluetooth-device` takes a callback), then use it.
+    (`webContents` 'dialog', as `select-bluetooth-device` takes a callback), then use it. The file is the same in
+    44.5.1 and 44.8.0 (2026-10-16).
   - Settings' window does not disable the tasks' windows on macOS (`settings-window.ts`): Electron 44.5.1 disables a
     window there by attaching a half-transparent sheet to it (`NativeWindowMac::SetEnabled`), which covered Settings,
     its child window, too. Check: `setEnabled(false)` on a window with a child window over it, on macOS.
@@ -604,7 +606,7 @@ here; what is left of it stays.
   at once (no animation frames, timers at most once a second, once a minute after 5 minutes); after 5 minutes it is
   frozen (no JS at all, its memory kept, back in an instant); under memory pressure it is unloaded. Kulisa has only
   the third (profiles.md, "Tabs unloaded"), because the first two need the page to know it is hidden, and Electron
-  44.5.1 tells it only when the whole window is hidden: a `WebContentsView` after `setVisible(false)` keeps
+  (44.5.1, 44.8.0 again on 2026-10-16) tells it only when the whole window is hidden: a `WebContentsView` after `setVisible(false)` keeps
   `visibilityState: "visible"`, its `requestAnimationFrame` runs at the screen's rate and its timers unthrottled;
   removed from the window (`removeChildView`) its frames stop, but it still says "visible" and its timers run; and
   freezing it over CDP (`Page.setWebLifecycleState` frozen) is ignored, since Chromium freezes only a hidden page
