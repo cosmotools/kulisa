@@ -11,3 +11,9 @@ test("node-pty's spawn-helper is kept outside the archive, on both of macOS's ar
   for (const arch of ['darwin-arm64', 'darwin-x64']) assert.ok(path.matchesGlob(`node_modules/node-pty/prebuilds/${arch}/spawn-helper`, unpack), arch);
   assert.ok(!path.matchesGlob('node_modules/node-pty/lib/index.js', unpack), 'nothing else');
 });
+
+// The id macOS keeps the app's preferences, caches and permissions by: Kulisa's own, not Packager's default
+// (com.electron.kulisa, the first builds').
+test("macOS's id of the app is Kulisa's own", () => {
+  assert.equal(forge.packagerConfig.appBundleId, 'app.kulisa');
+});
