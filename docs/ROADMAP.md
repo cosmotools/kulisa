@@ -664,8 +664,13 @@ here; what is left of it stays.
     seen as one (`MetaRight`, `location` 2: tested with sent events only). Windows: the microphone privacy setting for
     desktop apps; the right Ctrl of a keyboard with AltGr (it sends a Ctrl before AltGr on Windows: check that a typed
     AltGr character does not start a recording).
-  - macOS: the window screenshot (`KULISA_SHOT`) needs the screen-recording permission; distribution needs code
-    signing and notarization (Apple Developer account). Windows: code signing certificate.
+  - macOS: the window screenshot (`KULISA_SHOT`) needs the screen-recording permission, which macOS checks on the app
+    that started Kulisa (a terminal: [testing.md](testing.md), "On macOS"); distribution to users needs code signing and
+    notarization (the second macOS goal, above). Windows: code signing certificate.
+  - Developing on macOS: the `run-kulisa` skill's `kulisa.sh` is Linux's (it finds Electron by `ps`'s `comm`, a full
+    path on macOS; `ss`; `/proc`; the data in `~/.config/Kulisa`); `npm install`'s postinstall rebuilds node-pty and
+    fails without a working compiler, the prebuilt one loaded all the same (a packaged build does not rebuild it on
+    macOS: [window.md](window.md), installers).
   - The first start: a packaged app opens no task (the empty window, New Project open), later the groups open last
     (untested packaged).
   - The one-row title bar (`titleBarStyle: 'hidden'` + `titleBarOverlay`, Window Controls Overlay): checked on
@@ -674,7 +679,9 @@ here; what is left of it stays.
     Wayland" at the login screen). macOS: the overlay's height is given once, when the window is made
     (`setTitleBarOverlay` is Windows' and Linux's), so the traffic lights do not follow the Kulisa zoom, and whether
     they sit centered in the bar at all is not known: `trafficLightPosition` when the window is made,
-    `setWindowButtonPosition` when the zoom changes.
+    `setWindowButtonPosition` when the zoom changes. Seen on the author's Mac (2026-10-16, at 100%): the traffic lights
+    in the bar's middle, level with the tabs, Settings and ☰ at its end; not checked: other zooms, dragging,
+    double-click to maximize.
   - macOS: the last window closed quits Kulisa (`window-all-closed` in `app.ts`), where Mac apps usually stay in the
     Dock and open a window again on `activate`. Recommended: keep quitting (the agents and terminals live with the
     window, and session cookies and tabs are saved as Kulisa quits), written down in [window.md](window.md) as
@@ -683,8 +690,9 @@ here; what is left of it stays.
     (`window.ts` scales them): check that no page is a pixel off its pane or leaves a gap at its edge, and that the
     scrollbars follow the dark theme (`color-scheme`).
   - Keyboard shortcuts ([window.md](window.md), Keys): checked on Linux only (with Latin and Russian layouts). macOS:
-    ⌘ for Kulisa's and Chrome's keys, ⌘⌥1…9 for tasks, ⌘[ / ⌘] back and forward, its own menu bar (Quit, Edit,
-    Window) instead of Electron's default; check that a page does not get ⌘-keys before Kulisa (on Linux
+    ⌘ for Kulisa's and Chrome's keys, ⌘⌥1…9 for tasks, ⌘[ / ⌘] back and forward (the tests pass there with sent
+    events, 2026-10-16), its own menu bar (built: Settings… ⌘,, Quit, Edit, Window); by hand: check that a page does
+    not get ⌘-keys before Kulisa (on Linux
     `before-input-event` comes first, and the app menu after the page: [window.md](window.md), Keys), and that Ctrl
     stays the terminal's. Windows: Alt+D and F6 to the address bar, Ctrl+F4; the keys with AltGr layouts (Polish,
     German), where AltGr is Ctrl+Alt.
@@ -694,8 +702,9 @@ here; what is left of it stays.
     the press, and press, drag and let go on a row (macOS menus do it too); a window's blur closing a menu; Esc in a
     field edited in place (a profile's name) not closing its dialog; Select's list over a dialog.
   - Copy and paste in the terminal (`clipboardKey` in `terminal.ts`): checked on Linux only. Windows: Ctrl+V pastes
-    once, Ctrl+C copies a selection and interrupts without one. macOS: ⌘C / ⌘V through Electron's default app menu
-    (Kulisa sets none), and Ctrl+V reaching the agent.
+    once, Ctrl+C copies a selection and interrupts without one. macOS: ⌘C / ⌘V through the app menu's Edit roles
+    (`app.ts`; tested by what they do, not by the keys: [testing.md](testing.md), "On macOS"); by hand: the keys, and
+    Ctrl+V reaching the agent.
   - Several windows (Move to New Window): a profile's native views moved from one window to another, and a window's
     place restored (`getNormalBounds`, maximized); checked on Linux/X11 only. Dragging a project's label: tested with
     synthetic events only, not yet by hand; a project let go outside the windows is told from a cancelled drag by where the

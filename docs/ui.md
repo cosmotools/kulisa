@@ -83,7 +83,7 @@ Each icon is drawn once, as a `<symbol id="i-…">` in the sprite (`Sprite.vue`,
 | `i-plus` | new tab, new task (the bar's +, after the islands), a new terminal (the island's +); adding to a section of a dialog |
 | `i-settings` | Settings in the title bar (Lucide's settings) |
 | `i-projects` | ☰'s Tasks bar row (Lucide's folder-open) |
-| `i-logo` | the app icon with its curtain in `currentColor`: the title bar's (`--project`), and a project's label in the tasks' bar (its `--color`). The folds are a shadow over the color, one for every color: a `<use>` takes the sprite's gradient, not one of its own |
+| `i-logo` | the app icon with its curtain in `currentColor`: the title bar's (`--project`; not on macOS, whose apps show their icon in the Dock), and a project's label in the tasks' bar (its `--color`). The folds are a shadow over the color, one for every color: a `<use>` takes the sprite's gradient, not one of its own |
 | `i-docs`, `i-github`, `i-bug` | the links (Documentation, GitHub, Report an issue), rows of ☰ (`data-icon` on each link; Lucide's book-open, github, bug) |
 | `i-menu` | ☰, the window's menu |
 | `i-more` | ⋮, a pane's menu |

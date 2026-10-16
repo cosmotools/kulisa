@@ -31,7 +31,8 @@ Download Kulisa from its [latest release](https://github.com/cosmotools/kulisa/r
   Fedora. Kulisa is then in your apps. It does not update itself: install a new version the same way.
 - **macOS:** to come.
 
-Kulisa is tested on Linux (Ubuntu) so far; on Windows it is newer and less tried.
+Kulisa is tested on Linux (Ubuntu) and on macOS (by its developers, there is no installer for it yet); on Windows it is
+newer and less tried.
 
 1. **Make a project.** At the first start New Project opens by itself. Choose where its code comes from (below), give
    it a name, Create. Settings opens on the new project's page.

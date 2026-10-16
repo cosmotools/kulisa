@@ -323,7 +323,8 @@ npm run watch # the window built again on every change; then reload it (Ctrl+R i
   code before a turn ends; when it sends you back, fix what it reports, or tell the human why it cannot be fixed now.
 - **Looking at the window.** `KULISA_SHOT=/tmp/kulisa.png npm start` saves a screenshot of the whole window,
   profile views included, about 4 s after start (`KULISA_SHOT_DELAY` in ms). In tests: `shell.screenshot(file)`.
-  Then read the PNG. Use it to check any UI change.
+  Then read the PNG. Use it to check any UI change. On macOS the screen recording permission is the app's that started
+  Kulisa (the terminal running Claude Code): `docs/testing.md`, "On macOS".
 - **A bug the tests and screenshots do not show** (input going nowhere, a native view misbehaving): the
   `debug-kulisa` skill (`.claude/skills/debug-kulisa/`): look inside the running app, a scratch Kulisa, real clicks,
   bare Electron. Read it before guessing at causes.
