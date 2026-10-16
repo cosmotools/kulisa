@@ -228,6 +228,8 @@ A pane is a small Chrome: a tab strip, an address bar, back, forward and reload.
 
 ## Working with the agent
 
+- **Your typing stays where you put it.** A tab the agent opens, or a page that loads by itself, does not take your
+  keyboard: what you type to the agent in the terminal stays there. A click in a page gives it the keyboard, as always.
 - **You see what it does.** Each of its actions is marked in the page (where it clicks, the element outlined, its own
   pointer), and a caption over the pane says what it is doing.
 - **Point and tell.** Click **Pick** (the arrow icon at the end of the address bar, or Ctrl+Shift+C), then an element

@@ -10,7 +10,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import http from 'http';
 import WebSocket from 'ws';
-import { shot, assert, root, project, pfile, panel, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, closeSettings, chooseProfile, setProfileField, closeMenu, taskMenu, box, pageBox, click, PORT } from './helpers.ts';
+import { focusWindow, shot, assert, root, project, pfile, panel, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, closeSettings, chooseProfile, setProfileField, closeMenu, taskMenu, box, pageBox, click, PORT } from './helpers.ts';
 import { AGENT_PACKAGES } from '../src/main/app.ts';
 const CLAUDE_PLUGIN = path.join(AGENT_PACKAGES, 'claude-plugin');
 import { MARK } from '../src/main/ghost.ts';
@@ -131,6 +131,20 @@ export default (test: Test) => {
     assert.match((await call('browser_snapshot', { profile: 'elon-buyer' })).text, /Signed/);
     await call('browser_tab_select', { profile: 'elon-buyer', tab: first });
     assert.equal(elon.active, first);
+    await call('browser_tab_close', { profile: 'elon-buyer', tab: id });
+    await waitFor(() => elon.tabs.length === 1);
+  });
+  test('the keyboard stays where the human put it: a tab the agent opens, its page loading, does not take it', async ({ shell, ui, call }) => {
+    // The human typing to the agent in the terminal: on macOS each tab the agent opened took the keyboard as its page
+    // loaded, and the next keys went to the site (2026-10-16; page-focus.ts).
+    const elon = shell.profiles.get('elon-buyer');
+    await focusWindow(shell.win, ui);
+    await ui(`window.__term.focus()`);
+    await waitFor(() => shell.windows[0].keyZone === 'terminal');
+    const id = (await call('browser_tab_new', { profile: 'elon-buyer', url: 'data:text/html,<input autofocus>' })).text.match(/Opened tab (\w+)/)[1];
+    await elon.get(id).ready;
+    await sleep(500); // nothing to wait for: that the keyboard is not taken (page-focus.ts gives it back after 150 ms)
+    assert.deepEqual([await ui(`document.hasFocus()`), await ui(`!!document.activeElement.closest('.term')`)], [true, true], 'still in the terminal');
     await call('browser_tab_close', { profile: 'elon-buyer', tab: id });
     await waitFor(() => elon.tabs.length === 1);
   });

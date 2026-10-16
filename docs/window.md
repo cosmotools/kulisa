@@ -387,7 +387,13 @@ does, and where; the window's menus, the buttons' tooltips ("Reload (Ctrl+R)", `
 **Keyboard Shortcuts** (☰, or Ctrl+Shift+/: `Shortcuts.vue`) show them from it, as this OS writes them (⇧⌘T on macOS),
 so they are never out of date.
 
-Who gets a key depends on where the keyboard is:
+Who gets a key depends on where the keyboard is, and **the keyboard stays where the human put it** (the author,
+2026-10-16): a profile's page takes it only from the human, a click or a key in it, or from Kulisa for them (a tab chosen
+by a key, Ctrl+`, their dialog answered, Pick, an address from its pane's bar). A page taking it by itself, as one
+loading does (a tab the agent opened, a redirect: on macOS every one took it, and the next keys typed to the agent went
+to the site), gives it back to where it was in its window (`page-focus.ts`). A real click's own order on macOS is the
+page's focus, then the click 2 ms later: a page's focus is the human's when their input in it comes within 150 ms of
+it, before or after.
 
 - **In a profile's page, or its pane** (its address bar, its toolbar): Chrome's keys, for that pane, as the hands know
   them: Ctrl+T a new tab with the address to type in, Ctrl+W, Ctrl+Shift+T (the tab closed last: its address, kept in
