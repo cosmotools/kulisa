@@ -779,10 +779,14 @@ here; what is left of it stays.
   the terminal showed its text, while the new window's page had fitted it at the whole window's height before its grid
   was laid out: 46 rows for 17; the test waits for the last fit, and that passing size is an issue of its own, below);
   "× on the last open task closes its group" (the close took over 5 s there, its profiles' sign-ins written out and
-  their tabs closed: 15 s). Ubuntu green 3 runs in a row after it. On GitHub's macOS runner (2026-10-16, Settings not
-  modal, #38): after Settings closed, the task's window was the key window but its page never got the keyboard
-  (`settingsClosed`, then a cascade), once in about six runs, not on the author's Mac; `settingsClosed` now says where the
-  keyboard is when it happens. Slow but not flaky: deleting a task (a fork's closing took 11 s,
+  their tabs closed: 15 s). Ubuntu green 3 runs in a row after it. On GitHub's macOS runner (2026-10-16, #38): the window's
+  page losing the keyboard to a profile's page that had it, about one run in six of the `tasks` group, on `develop` too
+  (a probe of six runners each, before and after #38), never on the author's Mac. macOS makes a window key a moment
+  after Kulisa focuses its page and then gives the keyboard back to the window's last first responder, over Kulisa's
+  focus. Fixed where it was seen: Settings closed (`settings-window.ts`: the page focused again on the window's `focus`)
+  and the tests' `focusWindow` (focused again until the page has it). Seen once since, not fixed: a project's submenu
+  closing while read, after Settings closed (the page's blur closes a menu). The general fix, in `AppWindow.focus` for
+  every way a window is given the keyboard, is to decide. `settingsClosed` says where the keyboard is when it times out. Slow but not flaky: deleting a task (a fork's closing took 11 s,
   git's work), a site that never answers (10 s: two 5 s waits by design).
 - **The agent gets a passing size when its project moves to a new window** (found 2026-10-13, on the runner: the
   test above). The new window's page fits the terminal as soon as it opens, at the whole window's height (46 rows),
