@@ -110,6 +110,10 @@ class ProxyClient {
       // The debugger session is never paused on start, so there is nothing to resume.
       if (method === 'Runtime.runIfWaitingForDebugger' && !child) return reply({});
       if (method === 'Page.close' && !child) { this.profile.closeTab(tab.id); return reply({}); }
+      // Playwright's "the page is looked at" (a capture to Chromium, sent once on attaching): not forwarded, or the
+      // page would never be hidden; the tab is told so only while in use (Profile.wake; docs/profiles.md, "Tabs asleep").
+      if (method === 'Emulation.setFocusEmulationEnabled' && !child) return reply({});
+      this.profile.wake(tab);
       if (method === 'Target.detachFromTarget' && this.sessions.has(params.sessionId)) { this._detach(params.sessionId); return reply({}); }
       try { reply(await tab.wc.debugger.sendCommand(method, params, child)); }
       catch (e) { fail((e as Error).message); }

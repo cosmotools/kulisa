@@ -295,6 +295,32 @@ again, look for a third such moment first (which file went `[]`, and when: log a
 What is lost cannot be recovered from Kulisa's files; Chromium's own history in the profile's folder still has the
 pages.
 
+## Tabs asleep
+
+A tab no automation is using knows when it is hidden, as Chrome's background tabs do: behind the active tab, in a pane
+stacked behind another, in a task not shown, its page gets `document.visibilityState: "hidden"`, draws no frames, and
+Chromium throttles its timers (once a second, once a minute after a few minutes); shown again, it is `"visible"` at
+once (built 2026-10-17). Until then every page believed it was looked at, always, and ran as if on screen.
+
+- **Why they did not sleep**: Playwright's first command to a page it attaches to, `Emulation.setFocusEmulationEnabled`,
+  is a capture to Chromium (as sharing the tab's screen is), and a captured page is visible always, even in a hidden
+  window. Playwright sends it so that a page it drives behaves as a focused one; it also kept every pane's page
+  running at full speed (the measurements, and what is left: ROADMAP, Open issues, "Freezing hidden tabs").
+- **Awake while in use**: the proxy answers that command itself, without forwarding it, and sends it to a tab with
+  `enabled: true` at the first command any automation sends that tab (`Profile.wake`): the agent's tools, the shell's
+  own Playwright (the picker, the annotations), `@playwright/mcp`. Awake, a page behind the active one is "visible"
+  to itself and draws, which Playwright's actions need (a highlight scrolls its element into view and waits for it
+  to be stable: on a hidden page, forever). So the agent works behind the human's tab, and in the panes of tasks not
+  shown, as before; the human's active tab does not change.
+- **Asleep again** once no automation has sent its profile a command for a minute (`AWAKE_FOR`, `discard.ts`: the sweep
+  that unloads tabs applies this rule too, `shouldSleep`; `Profile.sleep` sends `enabled: false`). The next command
+  wakes it again, one round trip. A tab just opened, or loaded again after an unload, is awake for a minute:
+  Playwright's first commands to it count.
+- **The sign-in pause** detaches the debugger, and the capture goes with its session: the tab is asleep until
+  automation is back on it. A visible tab looks the same awake or asleep: only hidden pages differ.
+- **Not yet**: freezing a hidden page (no JS at all, its memory kept) before unloading it: ROADMAP, Open issues,
+  "Freezing hidden tabs".
+
 ## Tabs unloaded
 
 A tab no one looks at loses its process after a while, as Chrome's Memory Saver discards tabs (built 2026-10-13: the
@@ -325,8 +351,8 @@ marks it (Chrome marks none either). Looked at or used again, its page loads aga
   one: a new `WebContentsView` bound as a new tab's, opened as a new tab is (`about:blank`, then the address), so
   Playwright's page for it is new as well (`Profile.page` loads first). Not Chromium's own discarding (Electron does
   not expose it) and not freezing (`Page.setWebLifecycleState`: the process and its memory stay; it freezes only a hidden page,
-  which Kulisa's are not yet: ROADMAP, Open issues, "Tabs never sleep"; and it needs the debugger, which the sign-in
-  pause detaches). A discarded tab is never loaded from inside a `webContents`' `destroyed` event
+  which Kulisa's tabs are now when asleep (above), planned: ROADMAP, Open issues, "Freezing hidden tabs"; and it needs
+  the debugger, which the sign-in pause detaches). A discarded tab is never loaded from inside a `webContents`' `destroyed` event
   (Hard-won facts): the active one to be drawn is loaded on the next turn (`_show`).
 
 ## Sign-in pause
@@ -365,8 +391,8 @@ Only through the CDP proxy (`cdp-proxy.ts`): a fake CDP "browser" endpoint per p
 `--remote-debugging-port`, so Kulisa's own window is never exposed. Clients: the shell's own playwright-core
 connection (the MCP tools, the picker, the annotations) and `@playwright/mcp`. The proxy reports Chrome's real target
 ids (Playwright needs them) and fans out a tab's events to all clients. Playwright's first command to a page,
-`Emulation.setFocusEmulationEnabled`, is a capture to Chromium: the page stays visible, unthrottled and unfrozen
-behind the active tab and under another task (ROADMAP, Open issues, "Tabs never sleep"). A tab opening a URL is shown to clients only
+`Emulation.setFocusEmulationEnabled`, is a capture to Chromium that would keep the page visible always: the proxy
+answers it itself and sends it to a tab only while automation uses it (Tabs asleep). A tab opening a URL is shown to clients only
 once the site has answered (its page or an error page, `tab.answered`): until then Chromium holds CDP commands to it,
 and a site that never answers made Playwright's connection, and opening the task, hang. It and the MCP server listen on 127.0.0.1
 only and refuse requests from web pages (`local-only.ts`).
@@ -421,7 +447,7 @@ space (ROADMAP, "Profiles' caches").
 | `src/main/local-only.ts` | refusing web pages' requests to the MCP server, the hooks and the proxy (Host, Origin) |
 | `src/main/agent-hooks.ts` | the answers to the agents' hooks: the open profiles, the session, the agent's state |
 | `src/main/page-focus.ts` | the keyboard stays where the human put it: a page taking it by itself gives it back ([window.md](window.md), Keys) |
-| `src/main/discard.ts` | tabs no one looks at losing their process: the rule, the sweep (`Profile.discard`, `load` in `profiles.ts`) |
+| `src/main/discard.ts` | tabs no one looks at: asleep after a minute, their process gone after five: the rules, the sweep (`Profile.wake`, `sleep`, `discard`, `load` in `profiles.ts`) |
 | `src/main/mcp-server.ts`, `ghost.ts`, `picker.ts` | the agent's tools, its actions shown, point and tell |
 | `src/renderer/components/grid/ProfilePane.vue`, `ProfileHeader.vue`, `lib/profiles.ts`; `ProfilePage.vue`, `Avatars.vue` | the panes and the profiles' menu (a task tab's right-click); a profile's page in Settings and its pictures |
-| `test/agent.ts`, `profiles.ts`, `discard.ts`, `zoom-and-closing.ts`, `restart-profiles.ts`, `unit/store.test.ts`, `unit/discard.test.ts` | the tests |
+| `test/agent.ts`, `profiles.ts`, `asleep.ts`, `discard.ts`, `zoom-and-closing.ts`, `restart-profiles.ts`, `unit/store.test.ts`, `unit/discard.test.ts` | the tests |

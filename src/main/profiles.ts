@@ -27,6 +27,9 @@ interface Tab {
   // the address it comes back to, while its page may still hold its unload; offScreenSince: since when no one sees it
   // (discard.ts).
   discarded?: boolean; discarding?: string; offScreenSince?: number;
+  // Awake: told it is looked at (Emulation.setFocusEmulationEnabled, a capture to Chromium) while automation uses it;
+  // asleep otherwise, so a page behind another knows it is hidden (wake, sleep; docs/profiles.md, "Tabs asleep").
+  awake?: boolean;
   // The agent's own action answers the dialogs it opens (mcp-server.ts).
   agentDialogs?: { asked: string[]; accept: boolean };
 }
@@ -239,6 +242,24 @@ class Profile extends EventEmitter {
     if (this.active === tab.id) { this.active = null; if (this.tabs.length) this.activate(this.tabs[Math.max(0, i - 1)]!.id); }
   }
 
+  // Automation is about to use the tab: its page is told it is looked at, through the debugger (the same command
+  // Playwright sends once on attaching, which the proxy answers itself: a page under it would never be hidden). A
+  // hidden page draws no frames, and Playwright's actions wait for one. Nothing without the debugger (the sign-in
+  // pause): no automation then either. Not awaited: the debugger sends commands in the order they are given, so the
+  // caller's next command finds the page awake, and waiting here would let later commands overtake it (Playwright's
+  // first commands to a page are in an order it counts on). docs/profiles.md, "Tabs asleep"; back to sleep: discard.ts.
+  wake(tab: Tab) {
+    if (tab.awake || tab.wc.isDestroyed() || !tab.wc.debugger.isAttached()) return;
+    tab.awake = true;
+    tab.wc.debugger.sendCommand('Emulation.setFocusEmulationEnabled', { enabled: true }).catch(() => { tab.awake = false; });
+  }
+  sleep(tab: Tab) {
+    if (!tab.awake) return;
+    tab.awake = false;
+    if (tab.wc.isDestroyed() || !tab.wc.debugger.isAttached()) return;
+    tab.wc.debugger.sendCommand('Emulation.setFocusEmulationEnabled', { enabled: false }).catch(() => {});
+  }
+
   // A tab no one looks at loses its process, as Chrome's Memory Saver discards tabs (docs/profiles.md, "Tabs unloaded";
   // the rule and when: discard.ts). url: where it comes back (a sign-in page's: the page before it); its title and
   // icon stay as they were. A page holding its unload (beforeunload: an unsaved form) stays, as in Chrome: Electron
@@ -413,7 +434,7 @@ class Profile extends EventEmitter {
       await this.disconnect();
       for (const t of this.tabs) {
         try { if (t.wc.debugger.isAttached()) t.wc.debugger.detach(); } catch {}
-        t.targetId = null;
+        t.targetId = null; t.awake = false; // the capture went with the debugger's session
       }
     } else {
       // Reconnect first, then leave the mode: the agent sees the profile again only when it is usable.

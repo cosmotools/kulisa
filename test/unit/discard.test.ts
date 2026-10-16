@@ -1,11 +1,11 @@
 // The rule for unloading a tab (discard.ts): off screen and unused long enough, and nothing that keeps a tab.
 import { test } from 'node:test';
 import assert from 'assert/strict';
-import { shouldDiscard, DISCARD_AFTER } from '../../src/main/discard.ts';
+import { shouldSleep, shouldDiscard, DISCARD_AFTER, AWAKE_FOR } from '../../src/main/discard.ts';
 import type { Facts } from '../../src/main/discard.ts';
 
 const idle: Facts = { url: 'http://localhost:3000/cart', offScreenFor: DISCARD_AFTER, quietFor: DISCARD_AFTER, agentBusy: false,
-  loading: false, dialog: false, devtools: false, audible: false, signinMode: false };
+  loading: false, dialog: false, devtools: false, audible: false, signinMode: false, awake: false };
 
 test('a tab is discarded once off screen and unused for the time, and never before', () => {
   assert.ok(shouldDiscard(idle));
@@ -24,4 +24,13 @@ test("what keeps a tab: the agent working or waiting, a page loading, its dialog
   assert.ok(!shouldDiscard({ ...idle, signinMode: true }));
   assert.ok(!shouldDiscard({ ...idle, url: '' }));
   assert.ok(!shouldDiscard({ ...idle, url: 'about:blank' }));
+});
+
+test('an awake tab goes to sleep once automation has left its profile alone for the time; on screen or not, nothing else counts', () => {
+  const awake = { ...idle, awake: true, quietFor: AWAKE_FOR };
+  assert.ok(shouldSleep(awake));
+  assert.ok(!shouldSleep({ ...awake, quietFor: AWAKE_FOR - 1 }), 'a command a moment ago');
+  assert.ok(!shouldSleep({ ...awake, awake: false }), 'already asleep');
+  assert.ok(shouldSleep({ ...awake, offScreenFor: 0, agentBusy: true, loading: true }), 'the next command wakes it again');
+  assert.ok(shouldSleep({ ...awake, quietFor: 1000 }, 1000), 'the time is a parameter (the tests)');
 });

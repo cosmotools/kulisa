@@ -482,4 +482,5 @@ What must hold in the window:
 - **Playwright keeps every page it attaches to "visible".** Its first command to a page,
   `Emulation.setFocusEmulationEnabled`, is a capture to Chromium: the page stays visible, unthrottled and unfreezable
   behind other tabs and in a hidden window. Electron's `setVisible(false)` does hide a page. Days went to Electron
-  before the command was found, with bare Electron and one difference at a time (ROADMAP, "Tabs never sleep").
+  before the command was found, with bare Electron and one difference at a time. The proxy answers it itself now and
+  sends it only while a tab is in use (`docs/profiles.md`, Tabs asleep).
