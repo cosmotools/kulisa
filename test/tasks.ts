@@ -239,8 +239,14 @@ export default (test: Test) => {
     await waitFor(() => sui(`document.querySelector('#pjlist [data-profile="sam-admin"]')?.ariaSelected === 'true' && document.getElementById('profilename').value === 'Sam.admin'`));
     assert.equal(await sui(`document.querySelector('#pjlist [data-profile="sam-admin"] .label').title`), 'Sam.admin', "the tree's narrow column cuts a name: the whole in its tooltip");
     // A window of its own over the task's (its child), which takes no input meanwhile; the task's pages stay on screen.
-    const win = shell.settings.win;
-    assert.deepEqual([win.getTitle(), win.getParentWindow() === shell.win, shell.win.isEnabled()], ['Settings — Kulisa', true, false]);
+    // Not disabled on macOS, where Electron dims a disabled window with a sheet over Settings too (settings-window.ts):
+    // a click there only activates the window, and its focus brings Settings back.
+    const win = shell.settings.win, mac = process.platform === 'darwin';
+    assert.deepEqual([win.getTitle(), win.getParentWindow() === shell.win, shell.win.isEnabled()], ['Settings — Kulisa', true, mac]);
+    if (mac) {
+      shell.win.focus();
+      await waitFor(() => win.isFocused());
+    }
     assert.ok(shell.task.profiles.get('sam-admin').get().view.getVisible(), 'pages on screen');
     // Asked again (another profile's About…): the same window, at that page.
     await ui(`kulisa.send('settings:open', { section: 'profiles', id: 'elon-buyer' })`);
@@ -475,8 +481,8 @@ export default (test: Test) => {
     await frame();
     assert.deepEqual(await ui(`(() => { const q = (s) => document.querySelector(s), r = (s) => q(s).getBoundingClientRect(), s = ${strip};
       const after = (s) => !!(q('#taskbar').compareDocumentPosition(q(s)) & Node.DOCUMENT_POSITION_FOLLOWING) && getComputedStyle(q(s)).appRegion;
-      return [s.scrollWidth > s.clientWidth, r('#topbar .drag').width >= 40, r('#manageProjects').left - r('#newTask').right >= 40, after('#topbar .logo'), after('#topbar .drag'), r('.logo').right <= r('#taskbar').left]; })()`),
-      [true, true, true, 'drag', 'drag', true], 'the tabs overflow, 40 px left to drag by; it and the logo after the bar in the page, the logo before it on screen');
+      return [s.scrollWidth > s.clientWidth, r('#topbar .drag').width >= 40, r('#manageProjects').left - r('#newTask').right >= 40, q('#topbar .logo') ? after('#topbar .logo') : 'drag', after('#topbar .drag'), !q('.logo') || r('.logo').right <= r('#taskbar').left]; })()`),
+      [true, true, true, 'drag', 'drag', true], 'the tabs overflow, 40 px left to drag by; it and the logo (none on macOS) after the bar in the page, the logo before it on screen');
     assert.ok((await bar()).inSight, 'the shown one in sight, the bar drawn anew there');
     await ui(`kulisa.invoke('bar:set', 'bottom')`);
     await waitFor(() => ui(`!document.querySelector('#topbar #projectTabs') && !!document.querySelector('#projectTabs')`));

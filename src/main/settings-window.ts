@@ -64,10 +64,14 @@ function installSettings(shell: Shell, { preload, appDevTools }: { preload: stri
     };
     shell.settings = s;
     // The tasks' windows held, as long as it is open; a click on one brings it back to the front (on Linux a child
-    // window is not kept above its parent: no transient hint, seen 2026-10-16).
+    // window is not kept above its parent: no transient hint, seen 2026-10-16). Not disabled on macOS: Electron
+    // disables a window there with a half-black sheet over it (NativeWindowMac::SetEnabled, 44.5.1), drawn over this
+    // child window too; a click on an inactive window only activates it there (acceptFirstMouse, off), so the focus
+    // bringing this one back holds it.
     const raise = () => { if (!win.isDestroyed()) win.focus(); };
     const held = shell.windows.filter((w) => !w.win.isDestroyed());
-    for (const w of held) { w.win.setEnabled(false); w.win.on('focus', raise); }
+    const disable = process.platform !== 'darwin';
+    for (const w of held) { if (disable) w.win.setEnabled(false); w.win.on('focus', raise); }
     // Its ×: the page first saves what is typed (a project's name) and then closes it (settings:close); while an agent
     // installs, it stays (AgentPage.vue). Quitting, or its page gone, it just closes.
     win.on('close', (e) => {
@@ -79,7 +83,7 @@ function installSettings(shell: Shell, { preload, appDevTools }: { preload: stri
     win.on('closed', () => {
       s.questions.unanswered();
       if (shell.settings === s) shell.settings = null;
-      for (const w of held) if (!w.win.isDestroyed()) { w.win.removeListener('focus', raise); w.win.setEnabled(true); }
+      for (const w of held) if (!w.win.isDestroyed()) { w.win.removeListener('focus', raise); if (disable) w.win.setEnabled(true); }
       // The keyboard back where it was; not as Kulisa quits, its windows going too (one gone meanwhile threw).
       if (!shell.quitting && !parent.win.isDestroyed() && !parent.win.webContents.isDestroyed()) { parent.focus(); parent.win.webContents.focus(); }
     });

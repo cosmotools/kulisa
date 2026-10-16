@@ -9,7 +9,8 @@ next: [ROADMAP.md](ROADMAP.md). Keep this file current when the window changes.
 ## The title bar
 
 One row: the app's logo (the shown task's project's color on its curtain), Settings (a window of its own: below), ☰, and the OS's window buttons drawn over its right end (`titleBarStyle: 'hidden'` with
-`titleBarOverlay`); no menu bar. Dragging the empty part moves the window. When the Kulisa zoom is not 100%, the bar
+`titleBarOverlay`); no menu bar. On macOS the window buttons are at the left end, and there is no logo: Mac apps
+show their icon in the Dock, not by the window's buttons (the author, 2026-10-16). Dragging the empty part moves the window. When the Kulisa zoom is not 100%, the bar
 shows it (a click resets it).
 
 A right-click on the title bar does nothing on Linux. There Chromium asks the window manager for its window menu, and
@@ -34,7 +35,7 @@ its own since 2026-10-14, until then a project's tasks in one island under its l
 title bar instead, after the logo, as a browser's tabs are (the author, 2026-10-14; until then over the grid in a row
 of its own, which cost a row; `settings.json`: `bar`; the page gets it in its URL, so it is drawn in its place at once;
 `App.vue` puts `TaskBar.vue` in `TopBar.vue`'s slot or under the grid). Bottom is the
-default: the hand goes to the terminal under the grid all the time, so the tabs are where it already is; at first
+default, on macOS too (the author, 2026-10-16): the hand goes to the terminal under the grid all the time, so the tabs are where it already is; at first
 the bar was on top, as a browser's tabs, and the tabs of the grid's panels were right under it in the same
 slide, which mixed them up (2026-10-08). The tabs are Firefox's: rounded rectangles on the window's background, the
 shown one filled in the panels' color, the others plain, lit under the pointer; a gap between them and the grid, whose
@@ -235,11 +236,14 @@ apart from the work): the OS's title bar ("Settings — Kulisa"), its own size a
 - **One for the whole app.** The gear, a task tab's Manage Profiles… and Project Settings…, a pane's About this
   profile…, a project's Add Profile… tile and New Project's Create open it at that page (a project's: none named, the
   shown task's); open already, it comes to the front at that page.
-- **The tasks' windows take no input while it is open** (`setEnabled(false)`), as JetBrains' Settings holds its IDE;
+- **The tasks' windows take no input while it is open** (`setEnabled(false)`; not on macOS, below), as JetBrains' Settings holds its IDE;
   their profiles' pages and terminals stay on screen and live (as a dialog, it had hidden the pages, and the agent's
   work with them). Every question is asked in its window then (`shell.askWhich`), whichever part of Kulisa asks: one in
   a held window could not be answered. A click on a held window brings Settings back to the front: on Linux (X11) a child
-  window is not kept above its parent (no transient hint on Electron's window; seen 2026-10-16).
+  window is not kept above its parent (no transient hint on Electron's window; seen 2026-10-16). On macOS Electron
+  disables a window by putting a half-black sheet over it, drawn over Settings too (2026-10-16); there they are not
+  disabled: a click on an inactive window only activates it (`acceptFirstMouse`, off by default), and that brings
+  Settings back.
 - **Not Electron's modal window**: on macOS that is a sheet, attached to its parent's title bar, with no title bar
   of its own and not movable ([Electron's docs](https://github.com/electron/electron/blob/v44.5.1/docs/api/browser-window.md#platform-notices));
   GNOME (X11) gave a plain window for it as well (2026-10-16). A child window (`parent`: the window it was opened
@@ -437,7 +441,8 @@ A new channel is declared there first, then its two ends.
 The icon is a stage curtain drawn apart with the agent's pointer (`assets/icon.svg`, rendered for each OS by `npm run
 icons`): in the title bar, the taskbar and the installers. Run from source, GNOME's dock shows a generic icon: it
 takes icons from installed `.desktop` files only (the `.deb` installs one matching the window class `kulisa`); left
-so on purpose.
+so on purpose. The macOS Dock shows Electron's own icon for a bundle run from source, so Kulisa sets its own there
+(`app.dock.setIcon`); a packaged one has it in its bundle.
 
 Installers are made with Electron Forge (`npm run make`, `forge.config.ts`), each on its own OS: `.deb` and `.rpm` on
 Linux (the `.deb` checked: it installs `chrome-sandbox` setuid root, a menu entry and the icon, and the app starts),

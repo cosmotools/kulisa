@@ -260,6 +260,8 @@ function start(options: Options = {}) {
     // menu: Quit, Hide (the app's), Copy and Paste (the Edit menu's roles: ⌘C, ⌘V in fields and the terminal), the
     // windows. Kulisa's keys are taken before it (onKey). Elsewhere the windows have no menu (window.ts).
     if (process.platform === 'darwin') Menu.setApplicationMenu(Menu.buildFromTemplate([{ role: 'appMenu' }, { role: 'editMenu' }, { role: 'windowMenu' }]));
+    // Run from source, the Dock shows Electron's own icon (its bundle's); a packaged Kulisa has its own (forge.config.ts).
+    if (!app.isPackaged) app.dock?.setIcon(path.join(import.meta.dirname, '..', '..', 'assets', 'icon.png'));
     shell.sessionCookies = new SessionCookies();
     shell.proxy = new CdpProxy();
     await shell.proxy.listen(0);
