@@ -446,6 +446,17 @@ here; what is left of it stays.
 
 ## Deferred ideas
 
+- **Delete all data** (the author, 2026-10-16: put off; the guide tells the human what stays and how to remove it,
+  "Reinstalling and removing Kulisa"). An action in Settings, "Delete All Data…", asked first with what goes: every
+  project with its tasks (their copies, branches and git records, by `deleteTask`), every profile, every account (signed
+  out), then the data folder; then Kulisa quits and the human uninstalls the program. Only while no agent runs. Its
+  question must say that the tasks' branches go with their copies: the agents' work not merged. Not in the
+  uninstaller: a checkbox there, as Chrome's "Also delete your browsing data", was wanted first, but no OS allows it.
+  Squirrel.Windows starts the app with `--squirrel-uninstall` and cancels after 10 seconds (`FullUninstall` in
+  `UpdateManager.ApplyReleases.cs`, "failed to run cleanup hook, continuing"): a dialog the human reads and gigabytes
+  of profiles, a `git worktree remove` per task and the agents' sign-outs do not fit; a process spawned to outlive
+  it would run from the `app-<version>` folder Squirrel is deleting. `apt remove` runs the package's scripts as
+  root without a window, and Debian's policy forbids them to touch home folders. macOS has no uninstaller.
 - **The agent tests calls and voice: a profile's microphone and what it hears** (the author's idea, 2026-10-08,
   after dictation was tried with a virtual microphone). Calls need several people at once, which is what profiles
   are: the buyer calls, the seller hears; mute silences; the sound comes back after a reconnect; voice messages

@@ -70,7 +70,7 @@ newer and less tried.
 
 **New Project…** in the bar's **+** (or in an empty window). Its code first, on the left:
 
-- **New folder**: a new, empty project. Kulisa makes the folder (in `~/Kulisa` unless you choose another place) and,
+- **New folder**: a new, empty project. Kulisa makes the folder (in the Kulisa folder in your home folder unless you choose another place) and,
   with Create Git repository on, a git repository in it, so tasks can have copies of their own.
 - **Folders on disk**: code you already have, one folder or several (a frontend and a backend). Nothing in them is
   changed.
@@ -293,9 +293,33 @@ In the terminal every other key is the agent's.
 
 - Your projects' folders hold only your code: Kulisa writes nothing there (except the first commit of a project it
   made).
-- Tasks' copies of the code are next to the project's folder (`myshop@task-2`), or in `~/Kulisa/<project>@task-<n>`
-  for a project of several repositories. They go when the task is deleted.
+- Tasks' copies of the code are next to the project's folder (`myshop@task-2`), or in the Kulisa folder in your
+  home folder (`C:\Users\<you>\Kulisa` on Windows, `/Users/<you>/Kulisa` on macOS, `/home/<you>/Kulisa` on Linux) for a
+  project of several repositories, as `<project>@task-<n>`. They go when the task is deleted. New projects' folders
+  are made there too.
 - Profiles, sign-ins, accounts and settings are in Kulisa's data folder: `~/.config/Kulisa` on Linux,
   `~/Library/Application Support/Kulisa` on macOS, `%APPDATA%\Kulisa` on Windows. Session cookies and test passwords
   are encrypted with your OS's keyring. **Show Data Folder** in a task tab's right-click menu, under the project's name, opens that project's.
 - Deleting a task, a profile or a project removes what Kulisa made for it.
+
+### Reinstalling and removing Kulisa
+
+Uninstalling Kulisa (your OS's way: Apps on Windows, `apt remove kulisa` or `dnf remove kulisa` on Linux, the Trash
+on macOS) removes the program only. Everything you made stays where it is listed above, so installing Kulisa again
+brings it all back: your projects, tasks, profiles with their sign-ins, agents' accounts and settings.
+
+To remove everything, do it before uninstalling, in Kulisa, so that it cleans up after itself: delete every project
+(**⋯ → Delete Project…** on its page: its tasks go with it, with their copies of the code and their branches),
+every profile (Settings → Profiles) and every agent's account (Settings → Agents: − on the account, which signs it
+out). Then uninstall the program and delete the data folder (above). What remains and is yours to keep or remove:
+
+- Agents Kulisa installed for you (Claude Code, Codex): programs of your own, updated by their makers. Settings →
+  Agents shows where each one is; remove them their way.
+- A project's repository that Kulisa cloned for you: your code.
+- Kulisa's key in your OS's keyring, "Kulisa Safe Storage": on Windows nothing to remove; on macOS in Keychain
+  Access; on Linux in your keyring app (Passwords and Keys). On Linux and macOS also direnv's permissions for
+  tasks' folders, if you use direnv.
+
+If you uninstall first, the tasks' copies of the code stay next to your repositories, each still a worktree and a
+branch of its repository: in a terminal, in the repository, `git worktree prune` and `git branch -D <branch>`
+remove them (the same on every OS).

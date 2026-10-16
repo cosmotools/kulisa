@@ -646,10 +646,21 @@ Outside it:
 | An agent's conversation | the agent's own data (Claude: `<config dir>/projects/…/<session>.jsonl`; Codex: `<config dir>/sessions/`), in its account's folder (`agents/<agent>-<n>/`) | the agent runs |
 | The agent itself, when Kulisa installed it | its maker's place (`~/.local/bin/claude`, `~/.local/bin/codex`, …) | Install in Settings → Agents |
 | Kulisa itself, installed (Windows) | `%LocalAppData%\kulisa\`: `app-<version>\` (Squirrel keeps the one before too, removing older ones), `packages\` (the update downloaded), `Update.exe` | the installer; an update; gone when Kulisa is uninstalled (the data folder stays) |
+| Kulisa itself, installed (Linux) | `/usr/lib/kulisa/` (the app, `chrome-sandbox` setuid root), `/usr/bin/kulisa` (a link), `/usr/share/applications/kulisa.desktop`, its icon under `/usr/share/icons/`, `/usr/share/doc/kulisa/` (Forge's deb and rpm makers) | the package; gone with `apt remove` or `dnf remove` (the data folder stays: a package may not touch a home folder) |
+| Kulisa itself, installed (macOS) | `/Applications/Kulisa.app` | the `.dmg` or `.zip`; the human drags it to the Trash (the data folder stays) |
+| The key the data folder's secrets are encrypted with | the OS keyring: "Kulisa Safe Storage" (Chromium's `safeStorage`; Linux's secret service, macOS's Keychain; Windows uses DPAPI, nothing stored) | the first secret saved; never removed by Kulisa: the human's, as Chrome's |
 | An update downloaded (macOS) | Squirrel.Mac's cache, `~/Library/Caches/app.kulisa.ShipIt/` (no update downloaded yet: no signed build) | the packaged app's update check; an update replaced by the next |
 | macOS's own for the app (packaged) | `~/Library/Preferences/app.kulisa.plist` (the system's defaults for it), `~/Library/Caches/app.kulisa/` and `~/Library/HTTPStorages/app.kulisa/` (the update check's requests), under its id (`appBundleId`, `forge.config.ts`) | the packaged app's first start; macOS's, as every app's: they stay when the app is moved to the Trash |
 
 Nothing is written into the project's own folder (but the first commit of a project Kulisa made).
+
+**Uninstalling removes the program only** (the author, 2026-10-16): the data folder, the tasks' copies and
+branches, the agents Kulisa installed and the keyring key stay, so that installing Kulisa again brings everything back,
+as with Chrome or VS Code. No installer can ask whether to remove the data too: Debian's policy forbids a package to
+touch a home folder, macOS has no uninstaller, and Squirrel.Windows gives the `--squirrel-uninstall` hook 10 seconds
+before it goes on without it (ROADMAP, Deferred ideas, "Delete all data"). The guide says what stays and how the human
+removes it ("Reinstalling and removing Kulisa"): deleting the projects, profiles and accounts in Kulisa first, then
+the program and the data folder.
 
 ## Deleting a task: what goes
 
