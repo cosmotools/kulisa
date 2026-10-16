@@ -39,9 +39,13 @@ export function guardFocus(wc: WebContents, win: () => BrowserWindow) {
   });
 }
 
-// The window's own page: the human (or Kulisa) put the keyboard there whenever it has it.
+// The window's own page: the human (or Kulisa) put the keyboard there whenever it has it, or the human's input goes
+// there (a click into the terminal or a menu: input sent to the page, as the tests do, moves no OS focus).
 function watchWindow(page: WebContents) {
   if (watched.has(page)) return;
   watched.add(page);
-  page.on('focus', () => held.set(page, page));
+  const mine = () => held.set(page, page);
+  page.on('focus', mine);
+  page.on('before-mouse-event', (_e, i) => { if (i.type === 'mouseDown') mine(); });
+  page.on('before-input-event', (_e, i) => { if (i.type === 'keyDown') mine(); });
 }
