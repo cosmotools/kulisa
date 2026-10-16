@@ -211,6 +211,8 @@ A pane is a small Chrome: a tab strip, an address bar, back, forward and reload.
 
 - `target=_blank` links and pop-ups open as tabs of the same profile. Right-click a tab: Reload, Duplicate, Close tab,
   Close other tabs.
+- In a narrow pane, back, forward and then reload move into the pane's ⋮ menu, so Pick and ⋮ stay in reach; their
+  keys work as always (Alt+←, Alt+→, Ctrl+R).
 - Chrome's keys work in a page: Ctrl+T, Ctrl+W, Ctrl+Shift+T, Ctrl+L, Ctrl+Tab, Ctrl+1…9 (Keyboard shortcuts, below).
 - **Zoom** a site with Ctrl + / − / 0 in its page; it is kept for that site in that profile and shown in the address
   bar (a click resets it).

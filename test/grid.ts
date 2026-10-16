@@ -44,6 +44,28 @@ export default (test: Test) => {
     const sam = await pageBox(ui, 'sam-admin'), term = await box(ui, '.term:not([hidden])');
     assert.ok(sam.x > term.x + term.width - 1 && sam.y + sam.height > term.y, 'Sam is right of the terminal');
   });
+  test("grid: a narrow pane's bar gives up Back and Forward, then Reload, into ⋮; Pick and ⋮ stay in it down to dockview's narrowest", async ({ ui }) => {
+    const pane = '.pane[data-profile="sam-admin"]', width = await dock(ui, `return api.getPanel('profile:Profile 1').group.api.width`);
+    const bar = () => ui(`(() => { const p = document.querySelector('${pane}').getBoundingClientRect();
+      return [...document.querySelectorAll('${pane} .bar > :is(button, input):not([hidden])')].filter((e) => e.checkVisibility()).map((e) => {
+        const r = e.getBoundingClientRect(); return e.classList[0] + (r.left >= p.left && r.right <= p.right ? '' : ' out'); }); })()`);
+    const more = async () => {
+      await ui(`document.querySelector('${pane} .more').click()`);
+      const rows = await menuRows(ui);
+      await closeMenu(ui);
+      return rows;
+    };
+    const at = async (w: number, shown: string[]) => {
+      await dock(ui, `api.getPanel('profile:Profile 1').group.api.setSize({ width: ${w} })`);
+      await waitFor(async () => JSON.stringify(await bar()) === JSON.stringify(shown), 3000).catch(async () => assert.deepEqual(await bar(), shown, `${w} px`));
+    };
+    await at(400, ['back', 'fwd', 'reload', 'addr', 'pick', 'more']);
+    assert.deepEqual(await more(), ['DevTools']);
+    await at(240, ['reload', 'addr', 'pick', 'more']);
+    await at(100, ['addr', 'pick', 'more']);
+    assert.deepEqual((await more()).map((r: string) => r.replace(' (off)', '')), ['Back', 'Forward', 'Reload', '-', 'DevTools']);
+    await dock(ui, `api.getPanel('profile:Profile 1').group.api.setSize({ width: ${width} })`);
+  });
   test('grid: a pane stacked behind another as a tab hides its page until chosen', async ({ shell, ui }) => {
     const sam = shell.profiles.get('sam-admin'), elon = shell.profiles.get('elon-buyer');
     await dock(ui, `api.getPanel('profile:Profile 1').api.moveTo({ group: api.getPanel('profile:Profile 2').group, position: 'center' })`);

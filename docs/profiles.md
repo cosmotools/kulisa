@@ -79,6 +79,8 @@ A profile is an Electron session on a folder of its own (`session.fromPath`), la
   strip scrolls, by the wheel too, its edges faded where tabs are past them, the active tab in sight: [ui.md](ui.md),
   `.tabstrip`); `target=_blank` and `window.open` open tabs of the same
   profile. Right-click a tab: reload, duplicate, close, close others. DevTools of a tab: the pane's ⋮ menu (where more of a pane's actions will go, as in Chrome) or F12.
+  A narrow pane gives up back and forward (under 260 px), then reload (under 200), into ⋮, their keys staying; never
+  Pick or ⋮, which went out of reach first when the buttons kept their order (2026-10-16; `.bar`'s container queries).
   Chrome's keys work in a page for its pane: Ctrl+T, Ctrl+W, Ctrl+Shift+T, Ctrl+L, Ctrl+Tab, Ctrl+1…9 and the rest
   ([window.md](window.md), Keys).
 - **Zoom**: Ctrl + / − / 0 in a page zooms that site in that profile, on top of the Kulisa zoom (saved per profile,

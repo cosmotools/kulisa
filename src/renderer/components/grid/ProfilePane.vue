@@ -75,10 +75,18 @@ function tabMenu(e: MouseEvent): MenuItem[] | null {
       run: () => { for (const x of p.tabs) if (x.id !== t) void act('tab:close', { profile: profileId, tab: x.id }); } },
   ];
 }
-// ⋮ at the end of the bar, as Chrome's: what a pane does less often.
-const more = (): MenuItem[] => [
-  { label: 'DevTools', keys: keyText('devtools.tab'), run: () => act('tab:devtools', { profile: id(), tab: tab() }) },
-];
+// ⋮ at the end of the bar, as Chrome's: what a pane does less often; and the buttons a narrow pane hides (the bar's CSS).
+const bar = ref<HTMLElement>();
+const hidden = (cls: string) => !bar.value?.querySelector<HTMLElement>(`.${cls}`)?.checkVisibility();
+const more = (): MenuItem[] => {
+  const nav: MenuItem[] = [
+    ...hidden('back') ? [{ label: 'Back', keys: keyText('tab.back'), enabled: !!active.value?.canBack, run: () => act('tab:back', { profile: id(), tab: tab() }) },
+      { label: 'Forward', keys: keyText('tab.forward'), enabled: !!active.value?.canFwd, run: () => act('tab:forward', { profile: id(), tab: tab() }) }] : [],
+    ...hidden('reload') ? [{ label: 'Reload', keys: keyText('tab.reload'), run: () => act('tab:reload', { profile: id(), tab: tab() }) }] : [],
+  ];
+  return [...nav, ...nav.length ? ['-' as const] : [],
+    { label: 'DevTools', keys: keyText('devtools.tab'), run: () => act('tab:devtools', { profile: id(), tab: tab() }) }];
+};
 const picking = computed(() => !!profile.value && !!store.picking[profile.value.id]);
 
 // The active tab's alert or confirm (profiles.ts), over a picture of its page, as Chrome shows it: Reka's Dialog, not
@@ -123,7 +131,7 @@ onBeforeUnmount(() => { observer.disconnect(); if (panes.get(key) === handle) pa
       </div></TabsList></RightClickMenu>
       <button class="add icon" :title="withKeys('New tab', 'tab.new')" aria-label="New tab" @click="newTab"><Icon name="i-plus" /></button>
     </nav></TabsRoot>
-    <div class="bar">
+    <div ref="bar" class="bar">
       <button class="back icon" :title="withKeys('Back', 'tab.back')" aria-label="Back" :disabled="!active?.canBack"
         @click="act('tab:back', { profile: id(), tab: tab() })"><Icon name="i-back" /></button>
       <button class="fwd icon" :title="withKeys('Forward', 'tab.forward')" aria-label="Forward" :disabled="!active?.canFwd"
@@ -178,7 +186,9 @@ onBeforeUnmount(() => { observer.disconnect(); if (panes.get(key) === handle) pa
 }
 @keyframes tab-open { from { width: 0; min-width: 0; padding-inline: 0; } }
 @container (max-width: 80px) { .tab .title { display: none; } }
-.bar { display: flex; align-items: center; gap: 2px; padding: 4px var(--gap); flex: none;
+/* A narrow pane gives up Back and Forward, then Reload (into ⋮; their keys stay), never Pick or ⋮: in order, the
+   buttons at the end went out of reach first (2026-10-16). The widths are the pane's less the bar's padding. */
+.bar { display: flex; align-items: center; gap: 2px; padding: 4px var(--gap); flex: none; container: bar / inline-size;
   /* the site's zoom, when not 100% */
   .tool { padding: 0 8px; background: none; color: var(--text-dim); &:hover { background: var(--hover); } }
   .more svg { stroke-width: 2.5; }
@@ -188,6 +198,9 @@ onBeforeUnmount(() => { observer.disconnect(); if (panes.get(key) === handle) pa
     background: var(--island); color: var(--text); transition: background-color .15s; /* a hover fades in, as Chrome's */
     &:hover { background: color-mix(in srgb, var(--island) 80%, var(--text)); }
     &:focus { outline: 2px solid var(--accent); outline-offset: -2px; background: var(--island); color: var(--text-strong); } }
+  @container bar (width < 244px) { .back, .fwd { display: none; } }
+  @container bar (width < 184px) { .reload { display: none; } }
+  @container bar (width < 100px) { .addr { padding-inline: 6px; } } /* dockview's narrowest (a group of 100 px) */
 }
 .content { flex: 1; position: relative; overflow: hidden; border-radius: calc(var(--island-radius) - 2px); background: var(--page);
   .snapshot { position: absolute; inset: 0; width: 100%; height: 100%; }

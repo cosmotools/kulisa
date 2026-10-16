@@ -162,9 +162,11 @@ async function create() {
 
 <style>
 /* What its code comes from on the left, the form on the right (JetBrains' New Project) */
-#newproject { width: min(760px, 92vw);
+/* Its height the dialog's, not the body's: the same for every kind while the window has room; in a shorter one the form
+   scrolls and the buttons stay (a body's 320px pushed them out of a 640×400 window, 2026-10-16). */
+#newproject { width: min(760px, 92vw); min-height: min(440px, 85vh);
   --label: 72px; /* its labels are short (Location: the longest): the forms' column, Settings' Local addresses:, left a gap */
-  .body { display: flex; padding: 0; min-height: 320px; }
+  .body { display: flex; padding: 0; }
   .npsplit { flex: 1; display: flex; min-width: 0; }
   .npkinds { flex: none; width: 200px; padding: var(--gap); border-inline-end: 1px solid var(--island-hi); background: var(--window); outline: none;
     .item { border-radius: var(--radius); } }
