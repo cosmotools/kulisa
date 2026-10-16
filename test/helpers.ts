@@ -145,6 +145,8 @@ const rightClick = (ui: UI, sel: string) => ui(`(() => { const e = document.quer
 // runner, 2026-10-12) the window manager focuses the window, and its page learns it later: a key sent then reached
 // Kulisa, but the page's focus, coming after, went back to where it had been, over what the key had focused.
 const focusWindow = async (win: { focus(): void; webContents: { focus(): void } }, ui: UI) => {
+  // On macOS a click also brings the app to the front, and only the front app's windows take the keyboard.
+  if (MAC) electron.app.focus({ steal: true });
   win.focus(); win.webContents.focus();
   await waitFor(() => ui(`document.hasFocus()`));
 };
