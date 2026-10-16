@@ -132,7 +132,10 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   its bar and its + (every project; a task opens in the window whose + was pressed). The OS's × on a window closes
   its tasks, as × on each would, after one question ("Close the window?", naming them); on the last
   window it quits Kulisa, and the windows with their tasks come again at the next start, where they were: nothing
-  is lost, so it asks only when that would stop a working agent ("Quit Kulisa?"). A window whose last tab is
+  is lost, so it asks only when that would stop a working agent ("Quit Kulisa?"). On macOS the last window's × hides
+  it, as Mac apps' windows (the author, 2026-10-17: simpler than closing the window with its agents going on, which can
+  come later): its agents, terminals and pages go on, the Dock's icon shows it again as it was; ⌘Q (Kulisa → Quit
+  Kulisa) quits, asking as above, the hidden window shown for the question. A window whose last tab is
   closed closes too, unless it is the only one: then it is the empty window.
 - **Each project has a color and an icon**, to tell projects apart at a glance: the color is the shown one's glow from
   the middle of the window and the title bar logo's curtain; the icon is on its tasks' tabs in the bar, in its color. **Both

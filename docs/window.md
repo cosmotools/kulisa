@@ -434,7 +434,8 @@ are written as Electron's accelerators (`CommandOrControl+T`); a key held alone 
 Not Electron's application menu with accelerators, its own way of keys, tried first in bare Electron 44 (2026-10-09): on Linux the page gets a key before the menu, and the menu none that the page handled itself,
 as xterm and many web apps do: Kulisa's keys would not work in the terminal nor in those apps, and others would act
 twice (the site's and Kulisa's). Nor `globalShortcut`: it takes keys from every app on the computer. macOS has its own
-menu bar with Settings… (⌘,), Quit, Hide, the Edit menu (⌘C, ⌘V) and the windows (Electron's default one reloaded Kulisa's own page with
+menu bar with Settings… (⌘,), Quit Kulisa (⌘Q: Kulisa's quit, asking when an agent works, not Electron's role, which
+quit at once), Hide, the Edit menu (⌘C, ⌘V) and the windows (Electron's default one reloaded Kulisa's own page with
 ⌘R); Linux and Windows windows have no menu.
 
 ## DevTools

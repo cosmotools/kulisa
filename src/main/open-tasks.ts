@@ -166,11 +166,17 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
   async function closeWindow(w: AppWindow) {
     if (!shell.windows.includes(w)) return;
     if (shell.windows.length > 1) return w.tabs.length ? closeTasks(w, [...w.tabs], { window: true }) : dropWindow(w);
+    // macOS: hidden, as Mac apps' last window, its agents going on; the Dock shows it again (app.ts, activate). ⌘Q quits.
+    if (process.platform === 'darwin') return w.win.hide();
     return quit(w);
   }
-  // Quitting Kulisa (the last window's ×, ☰ → Exit): every window and task comes back at the next start, so it asks
-  // only when an agent works; w: the window to ask in.
-  async function quit(w: AppWindow | null) { if (await askClosing(w, allTasks().filter((t) => t.window), { quit: true })) app.quit(); }
+  // Quitting Kulisa (the last window's ×, ☰ → Exit, ⌘Q on macOS): every window and task comes back at the next start,
+  // so it asks only when an agent works; w: the window to ask in, shown first when hidden (macOS).
+  async function quit(w: AppWindow | null) {
+    const tasks = allTasks().filter((t) => t.window);
+    if (w && !w.win.isVisible() && tasks.some((t) => t.working)) w.focus();
+    if (await askClosing(w, tasks, { quit: true })) app.quit();
+  }
   function dropWindow(w: AppWindow) { shell.windows.splice(shell.windows.indexOf(w), 1); w.destroy(); }
   // A new task of a project (the bar's +, New Task: projects.ts), with its default agent, at the end of window w's
   // bar, then shown. Without git it would work in the folder another open task works in: the human is told first.

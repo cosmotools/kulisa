@@ -97,6 +97,7 @@ function start(options: Options = {}) {
   const shell = { bus, store, proxy: null, mcp: null, open: new Map(), windows: [], signin: signinPages(options.signinHosts || []) } as unknown as Shell;
   const first = () => shell.windows[0] ?? null;
   app.on('second-instance', () => first()?.focus());
+  app.on('activate', () => first()?.focus()); // macOS: the Dock clicked, the last window hidden by its × (open-tasks.ts)
   // The profiles and their masters (profile-store.ts); after who one is changed, or a project got or let go of one,
   // every loaded task shows it (project-profiles.ts, refresh), but the one it was changed in, which did.
   shell.profileStore = new ProfileStore(userData, (dir) => store.markDeleted(dir));
@@ -279,7 +280,7 @@ function start(options: Options = {}) {
       Menu.setApplicationMenu(Menu.buildFromTemplate([
         { role: 'appMenu', submenu: [{ role: 'about' }, { type: 'separator' }, { label: 'Settings…', accelerator: 'Command+,', click: settings },
           { type: 'separator' }, { role: 'services' }, { type: 'separator' }, { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' },
-          { type: 'separator' }, { role: 'quit' }] },
+          { type: 'separator' }, { label: 'Quit Kulisa', accelerator: 'Command+Q', click: () => void tasks.serial(() => tasks.quit(shell.front() ?? first())) }] },
         { role: 'editMenu' }, { role: 'windowMenu' }]));
     }
     // Run from source, the Dock shows Electron's own icon (its bundle's); a packaged Kulisa has its own (forge.config.ts).

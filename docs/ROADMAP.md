@@ -745,10 +745,6 @@ here; what is left of it stays.
     is made at them, and moved to the middle as the zoom changes ([window.md](window.md), The title bar; screenshots,
     2026-10-16); not checked by hand: a click on them after a zoom change (150%, 300%), dragging, double-click to
     maximize. Ask Electron for `setTitleBarOverlay` on macOS: with it they would follow any zoom.
-  - macOS: the last window closed quits Kulisa (`window-all-closed` in `app.ts`), where Mac apps usually stay in the
-    Dock and open a window again on `activate`. Recommended: keep quitting (the agents and terminals live with the
-    window, and session cookies and tabs are saved as Kulisa quits), written down in [window.md](window.md) as
-    decided; the author's to decide, with the macOS session.
   - Windows at a display scale of 125% or 150%: the profiles' native views placed from the window's CSS boxes
     (`window.ts` scales them): check that no page is a pixel off its pane or leaves a gap at its edge, and that the
     scrollbars follow the dark theme (`color-scheme`).

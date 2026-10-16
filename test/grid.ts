@@ -340,6 +340,19 @@ export default (test: Test) => {
     assert.deepEqual(savedWindows(), [{ tabs: ['project/1'], shown: 'project/1' }]);
     assert.equal(await viewOn(shell, ui, 'sam-admin'), true);
 
+    // macOS: the last window's × hides it, as Mac apps' windows (the author, 2026-10-17): Kulisa stays in the Dock, its
+    // agents go on; a click on the Dock (activate) shows it again as it was. ⌘Q quits (below).
+    if (MAC) {
+      shell.task.promptTarget().state = 'working';
+      const pty = shell.task.pty;
+      shell.win.close();
+      await waitFor(() => !shell.win.isVisible());
+      assert.ok(!shell.win.isDestroyed() && shell.open.has('project') && shell.task.pty === pty && !ctx.asked.length, 'hidden, asked nothing, its agent goes on');
+      electron.app.emit('activate');
+      await waitFor(() => shell.win.isVisible());
+      shell.task.promptTarget().state = null;
+      return;
+    }
     // The last window's × quits Kulisa (its projects come back at the next start): asked only when an agent works.
     shell.task.promptTarget().state = 'working';
     ctx.answer = false;
@@ -632,13 +645,20 @@ export default (test: Test) => {
     } finally { electron.shell.openExternal = openExternal; }
     assert.equal(opened[1], 'https://github.com/cosmotools/kulisa');
 
-    // Exit quits as the last window's × does: asked only when an agent works. Not on macOS (above).
-    if (MAC) return;
+    // Exit quits as the last window's × does: asked only when an agent works. On macOS the app menu's Quit (⌘Q) does
+    // (no Exit there: above), its hidden window shown for the question.
     shell.task.promptTarget().state = 'working';
     ctx.answer = false;
-    await ui(`document.getElementById('windowMenu').click()`);
-    await menuRows(ui);
-    await choose(ui, 'Exit');
+    if (MAC) {
+      shell.win.hide();
+      const quit = electron.Menu.getApplicationMenu().items[0].submenu.items.find((i) => i.accelerator === 'Command+Q');
+      quit.click();
+      await waitFor(() => shell.win.isVisible());
+    } else {
+      await ui(`document.getElementById('windowMenu').click()`);
+      await menuRows(ui);
+      await choose(ui, 'Exit');
+    }
     await waitFor(() => ctx.asked.length && ui(`!(document.getElementById('ask')?.dataset.state === 'open')`));
     assert.equal(ctx.asked.pop().message, 'Quit Kulisa?');
     assert.ok(!shell.win.isDestroyed() && shell.open.size, 'Kulisa goes on when the human says no');
