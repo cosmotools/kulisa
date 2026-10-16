@@ -324,8 +324,9 @@ marks it (Chrome marks none either). Looked at or used again, its page loads aga
   as `discarded`; the proxy is told as of a tab closed (its target is gone) and, at `load`, of a tab added with a new
   one: a new `WebContentsView` bound as a new tab's, opened as a new tab is (`about:blank`, then the address), so
   Playwright's page for it is new as well (`Profile.page` loads first). Not Chromium's own discarding (Electron does
-  not expose it) and not freezing (`Page.setWebLifecycleState`: the process and its memory stay; it needs the debugger,
-  which the sign-in pause detaches). A discarded tab is never loaded from inside a `webContents`' `destroyed` event
+  not expose it) and not freezing (`Page.setWebLifecycleState`: the process and its memory stay; it freezes only a hidden page,
+  which Kulisa's are not yet: ROADMAP, Open issues, "Tabs never sleep"; and it needs the debugger, which the sign-in
+  pause detaches). A discarded tab is never loaded from inside a `webContents`' `destroyed` event
   (Hard-won facts): the active one to be drawn is loaded on the next turn (`_show`).
 
 ## Sign-in pause
@@ -359,7 +360,9 @@ Only through the CDP proxy (`cdp-proxy.ts`): a fake CDP "browser" endpoint per p
 `http://127.0.0.1:<port>/<project>/<task>/<profile>` (each part percent-encoded), over each tab's `webContents.debugger`. There is no
 `--remote-debugging-port`, so Kulisa's own window is never exposed. Clients: the shell's own playwright-core
 connection (the MCP tools, the picker, the annotations) and `@playwright/mcp`. The proxy reports Chrome's real target
-ids (Playwright needs them) and fans out a tab's events to all clients. A tab opening a URL is shown to clients only
+ids (Playwright needs them) and fans out a tab's events to all clients. Playwright's first command to a page,
+`Emulation.setFocusEmulationEnabled`, is a capture to Chromium: the page stays visible, unthrottled and unfrozen
+behind the active tab and under another task (ROADMAP, Open issues, "Tabs never sleep"). A tab opening a URL is shown to clients only
 once the site has answered (its page or an error page, `tab.answered`): until then Chromium holds CDP commands to it,
 and a site that never answers made Playwright's connection, and opening the task, hang. It and the MCP server listen on 127.0.0.1
 only and refuse requests from web pages (`local-only.ts`).

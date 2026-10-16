@@ -478,3 +478,7 @@ What must hold in the window:
 - **A test run used whatever test site listened on its port.** With the port fixed (:4417), a stale server from an
   earlier run, or another worktree's run, made tests lie. `npm test` now starts a site of its own on a free port
   (`KULISA_TEST_SITE`); tests take the address from `SITE`/`PORT` in `helpers.ts`, never a literal port.
+- **Playwright keeps every page it attaches to "visible".** Its first command to a page,
+  `Emulation.setFocusEmulationEnabled`, is a capture to Chromium: the page stays visible, unthrottled and unfreezable
+  behind other tabs and in a hidden window. Electron's `setVisible(false)` does hide a page. Days went to Electron
+  before the command was found, with bare Electron and one difference at a time (ROADMAP, "Tabs never sleep").

@@ -595,8 +595,8 @@ here; what is left of it stays.
   a closed tab's do. Electron 44 can keep them: `navigationHistory.getAllEntries()` gives the entries with their
   `pageState`, and `restore()` takes them (`electron.d.ts`; checked 2026-10-13), so the tab could come back as Chrome's
   does, with Back and its place in the page. To watch in use: whether 5 minutes is the right time, and a tab loading
-  again at a bad moment. The two steps Chrome takes before unloading (throttling, freezing) wait on Electron: Open
-  issues, "Hidden tabs are not hidden to their pages".
+  again at a bad moment. The two steps Chrome takes before unloading (throttling, freezing) wait on the tabs sleeping: Open
+  issues, "Tabs never sleep".
 - **A Kulisa profile as a real Chrome profile.** Wanted: the profile's folder in Chrome's own format, so one button
   opens the same profile in the installed Google Chrome with the same tabs and sign-ins, and the storage layout
   is simply Chrome's. Wanted natively, without workarounds, so deferred until there is a clean way. Why it does
@@ -658,25 +658,37 @@ here; what is left of it stays.
     gone (Electron's message box comes back instead of the pane's dialog). Ask Electron for a public event
     (`webContents` 'dialog', as `select-bluetooth-device` takes a callback), then use it. The file is the same in
     44.5.1 and 44.8.0 (2026-10-16).
-- **Hidden tabs are not hidden to their pages (Electron): check at every Electron upgrade.** Chrome treats a tab
-  in the background in three steps, each cheaper for the computer: its page gets `document.visibilityState: "hidden"`
-  at once (no animation frames, timers at most once a second, once a minute after 5 minutes); after 5 minutes it is
-  frozen (no JS at all, its memory kept, back in an instant); under memory pressure it is unloaded. Kulisa has only
-  the third (profiles.md, "Tabs unloaded"), because the first two need the page to know it is hidden, and Electron
-  (44.5.1, 44.8.0 again on 2026-10-16) tells it only when the whole window is hidden: a `WebContentsView` after `setVisible(false)` keeps
-  `visibilityState: "visible"`, its `requestAnimationFrame` runs at the screen's rate and its timers unthrottled;
-  removed from the window (`removeChildView`) its frames stop, but it still says "visible" and its timers run; and
-  freezing it over CDP (`Page.setWebLifecycleState` frozen) is ignored, since Chromium freezes only a hidden page
-  (measured 2026-10-13, Linux, the author's Teams tabs and a scratch Kulisa; `debug-kulisa` skill). What it costs
-  today: nearly no CPU (a hidden Teams tab 0–0.1 % against 4.4 % shown: without frames to draw, pages go quiet by
-  themselves) and no memory; what it would give: the freeze as a step between a live tab and an unloaded one (no
-  CPU, back without a reload), and pages that behave as in Chrome's background (`visibilitychange`). Electron has no
-  API for it and no issue of ours yet; related: [electron/electron#41233](https://github.com/electron/electron/issues/41233)
-  (a page always "visible" with `backgroundThrottling` off; ours is on), [#50250](https://github.com/electron/electron/issues/50250).
-  On macOS a third party saw `setVisible(false)` stop the frames (Electron 41): may differ by platform. Check at an
-  upgrade: two tabs in a profile, `executeJavaScript('document.visibilityState')` in the one behind, and a counter of
-  `requestAnimationFrame` over a second; when it says "hidden", the throttling comes for free, and freezing before
-  unloading (`discard.ts`) can be built over the proxy's debugger. Not worth a workaround for the CPU alone.
+- **Tabs never sleep: Playwright keeps every page "visible".** Chrome treats a tab in the background in three
+  steps, each cheaper for the computer: its page gets `document.visibilityState: "hidden"` at once (no animation
+  frames, timers at most once a second, once a minute after 5 minutes); after 5 minutes it is frozen (no JS at all,
+  its memory kept, back in an instant); under memory pressure it is unloaded. Kulisa has only the third
+  (profiles.md, "Tabs unloaded"). The first Electron does by itself: a `WebContentsView` after `setVisible(false)`,
+  or removed from the window, tells its page it is hidden, and Chromium throttles it (bare Electron 44.8.0, Linux,
+  2026-10-16: `hidden`, no frames, timers once a second, after 4–5 minutes once a minute). What keeps Kulisa's pages
+  awake is Playwright: on attaching to a page it sends `Emulation.setFocusEmulationEnabled` once (`crPage.ts`,
+  `FrameSession._initialize`; skipped only with `connectOverCDP`'s `noDefaults`), which Chromium implements as a
+  capture of the page (`EmulationHandler::SetFocusEmulationEnabled` → `IncrementCapturerCount`), and a captured page
+  is visible always, even in a hidden window. Bare Electron with that one command behaves as Kulisa does; in Kulisa
+  a tab behind the active one, or under another task, says `visible` and draws 60 frames a second (measured in the
+  app, 2026-10-16). With the command dropped in the proxy the tabs sleep, but the agent's tools on a tab behind the
+  active one hang: a hidden page draws no frames and Playwright waits for the element to be stable
+  (`browser_highlight`, `scrollIntoViewIfNeeded`; test "tools on a tab other than the active one"). Freezing Electron
+  does not do by itself (no `freeze` in 6 minutes: Chrome's rule is its performance manager's), but
+  `Page.setWebLifecycleState: frozen` over the debugger freezes a hidden page at once (same measurement; a page kept
+  visible ignored it). Planned (2026-10-16, with the author):
+  1. **A tab is awake only while the agent works in it.** The proxy answers Playwright's command itself, without
+     forwarding it, and sends it to a tab with `enabled: true` at the agent's first command to that tab, with
+     `false` once its profile has had no command for a minute (`busyAt`, the clock of `discard.ts`). The active tab
+     and the visibility are not touched: the agent keeps working behind the human's tab, and in the panes of tasks
+     not shown (their agents cannot switch tasks, so a hidden pane must wake for them). The sign-in pause detaches
+     the debugger, which drops the capture by itself. Tests in the profiles group: a tab behind the active one says
+     `hidden` and draws no frames; the agent's tool on it works; after the idle time it is `hidden` again.
+  2. **Freezing before unloading**: a step in `discard.ts` (`Page.setWebLifecycleState: frozen` over the debugger,
+     `active` when shown or used), possible once the page is hidden.
+  Open for the author, apart: whether the agent brings the tab it acts in to the front in the task the human is
+  looking at (as a human at a browser would, and the human sees what it does): a rule over step 1. Related in
+  Electron: [#41233](https://github.com/electron/electron/issues/41233) (a page always "visible" with
+  `backgroundThrottling` off; ours is on), [#50250](https://github.com/electron/electron/issues/50250).
 - **The MCP server and the CDP proxy do not authenticate local processes.** Web pages are refused
   (`local-only.ts`: Host and Origin checks), but any local process can drive the signed-in profiles. Needs a
   per-launch token (passed to the agent through the environment, like `KULISA_MCP_URL`) at least.
