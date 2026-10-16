@@ -24,6 +24,9 @@ import type { IPty } from 'node-pty';
 // A site that is not local (local.ts) for the tests of real accounts' sign-ins kept in step (cookie-sync.ts): the test
 // site under a name of its own.
 app.commandLine.appendSwitch('host-resolver-rules', 'MAP shop.example 127.0.0.1');
+// macOS: a window Chromium takes for covered draws no frames, and animations, view transitions and pictures of the
+// pages wait for them (GitHub's runner, 2026-10-16): the tests' windows are taken for shown, as on a screen of their own.
+if (process.platform === 'darwin') app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
 
 const restart = process.argv.includes('--restart');
 // direnv's list of allowed .envrc files (tasks copy and allow them): the test's own, not the user's.

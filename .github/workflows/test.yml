@@ -65,6 +65,7 @@ jobs:
           brew tap jakehilborn/jakehilborn && brew install displayplacer
           displayplacer "id:$(displayplacer list | awk '/^Persistent screen id:/ { print $4; exit }') res:1920x1080"
           displayplacer list | grep -m1 '^Resolution:'
+          caffeinate -d -t 3600 & # the display kept awake: asleep, Chromium draws no frames
       # Tasks commit in their test repositories (worktrees.ts): git needs a name.
       - run: git config --global user.name "Kulisa tests" && git config --global user.email "tests@kulisa.app"
       - if: runner.os != 'Linux'

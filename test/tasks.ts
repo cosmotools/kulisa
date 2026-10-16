@@ -1714,7 +1714,12 @@ export default (test: Test) => {
     // In a tasks' window (the bar's +), Settings closed first: it opens on the project made.
     const newProject = async (from: string) => {
       if (shell.settings) await closeSettings(ctx);
-      await ui(`document.getElementById('newTask').click()`);
+      // Clicked again until its menu opens: one right after Settings closed opened none now and then (GitHub's runner,
+      // 2026-10-16), as the window's focus came back.
+      await waitFor(async () => {
+        if (!(await menuOpen(ui))) await ui(`document.getElementById('newTask').click()`);
+        return waitFor(() => menuOpen(ui), 1000).then(() => true, () => false);
+      }, 10000);
       await menuRows(ui);
       await choose(ui, 'New Project…');
       await waitFor(() => ui(`!!document.querySelector('#newproject #npfrom [data-value="${from}"]')`));
