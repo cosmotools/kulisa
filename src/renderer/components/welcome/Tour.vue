@@ -61,7 +61,10 @@ defineExpose({ focus: () => next.value?.focus() });
   h1 { margin: 0; font-size: var(--font-hero); line-height: 1.15; font-weight: 600; letter-spacing: -.02em; color: var(--text-strong); text-wrap: balance; }
   .lead { margin: 0; font-size: var(--font-lead); line-height: 1.5; color: var(--text-dim); max-width: 42ch; }
   .picture { position: relative; display: grid; grid-template-columns: 1.1fr 1fr 1fr; gap: 6px; aspect-ratio: 16 / 10; padding: 6px;
-    border-radius: var(--island-radius); background: var(--window); border: 1px solid var(--line); box-shadow: 0 12px 40px var(--shadow); min-width: 0; }
+    border-radius: var(--island-radius); background: var(--window); border: 1px solid var(--line); box-shadow: 0 12px 40px var(--shadow); min-width: 0;
+    /* no taller than the window leaves it (its title bar, the welcome's padding, the buttons): in a low window the
+       slide fits, smaller, rather than scrolls */
+    justify-self: center; width: min(100%, (100vh - 200px) * 1.6); }
   .term { display: grid; align-content: start; gap: 4px; padding: var(--gap); border-radius: 6px; background: var(--island); min-width: 0; overflow: hidden;
     font: var(--font-small) / 1.4 ui-monospace, monospace; color: var(--text-dim);
     svg { width: 12px; height: 12px; vertical-align: -1px; }
@@ -81,7 +84,9 @@ defineExpose({ focus: () => next.value?.focus() });
   .pointer { position: absolute; right: 18%; top: 44%; width: 22px; height: 22px; color: var(--note); }
   footer { display: flex; align-items: center; gap: var(--gap); button { min-width: 80px; } .dots { margin-inline-end: auto; } }
   .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  /* Narrow: the picture under the words; narrow and low as well: the words alone, the picture would not fit */
   @media (max-width: 720px) { .slide { grid-template-columns: minmax(0, 1fr); } }
+  @media (max-width: 720px) and (max-height: 640px) { .picture { display: none; } }
   @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 }
 </style>

@@ -461,7 +461,7 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
         </section>
       </template>
       <div v-else id="pjnone" class="none">
-        <p class="empty">No projects yet: New Project… is in a window's + of tasks.</p>
+        <p class="empty">No projects yet.</p>
       </div>
     </div>
     <div v-show="tab === 'profiles'" id="prconfig">

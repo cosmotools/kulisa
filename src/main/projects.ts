@@ -323,6 +323,7 @@ async function deleteProfile(shell: Shell, id: string, w: Asker | null): Promise
   shell.cookieSync.forget(g.folder);
   shell.profileStore.delete(id);
   shell.profilesChanged();
+  shell.sendProjects(); // the last of all: nothing left for Settings
   return { ok: true };
 }
 

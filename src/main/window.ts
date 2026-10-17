@@ -143,7 +143,8 @@ class AppWindow {
       tabs: this.tabs.map((t) => t.info()),
       open: [...shell.open.values()].map((p) => ({ id: p.id,
         agents: p.agents().map((a) => { const c = shell.agentFor(a)!; return { id: a, name: c.name, cli: c.agentId }; }) })), // the default first: + runs it
-      windows: others.map((w) => ({ id: w.id, name: w.label() })) };
+      windows: others.map((w) => ({ id: w.id, name: w.label() })),
+      settings: shell.projects().length > 0 || shell.accounts.all().some((a) => !a.own) || shell.profileStore.all().length > 0 };
   }
   sendProjects() { this.send('projects', this.info()); }
   // The shown task's profiles, open and closed, and its terminals, for the page to build its grid from; their tabs

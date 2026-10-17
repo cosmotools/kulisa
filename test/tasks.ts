@@ -747,6 +747,14 @@ export default (test: Test) => {
         above: s.getBoundingClientRect().bottom <= document.querySelector('.terminals').getBoundingClientRect().top }; })()`);
     await waitFor(tiles);
     assert.deepEqual(await tiles(), { names: PROFILES, above: true });
+    // A tile: the profile's picture and name, a long name in one line ending in …, who it is only in the tooltip: under
+    // the name it was cut off by the tile's edge (2026-10-17).
+    assert.deepEqual(await ui(`(() => { const t = document.querySelector('#closedprofiles .launcher'), n = t.querySelector('.name'), was = n.textContent;
+      n.textContent = 'orudzhali@insvgna.org';
+      const s = getComputedStyle(n), r = [s.whiteSpace, s.textOverflow, !!t.querySelector('small'),
+        [...t.children].every((c) => c.getBoundingClientRect().bottom <= t.getBoundingClientRect().bottom)];
+      n.textContent = was; return r; })()`), ['nowrap', 'ellipsis', false, true]);
+    assert.match(await ui(`document.querySelector('#closedprofiles [data-profile="sam-admin"]').title`), /^Open Sam\.admin: ./);
     // More than fit (19 profiles): the row scrolls, its end faded, the window as wide as before: the row stretched the
     // window's column, the terminal and the tasks' bar past its edge, the last profiles out of reach (2026-10-15).
     await ui(`(() => { const s = document.getElementById('closedprofiles'); for (let i = 0; i < 20; i++) s.append(s.querySelector('.launcher').cloneNode(true)); })()`);
@@ -1115,13 +1123,20 @@ export default (test: Test) => {
     shell.firstStart(shell.windows[0]);
     await sleep(100); // that nothing happens
     assert.equal(await ui(`document.documentElement.dataset.page`), 'board', 'projects there: nothing');
-    const projectsOf = shell.store.projects, sent = shell.projects;
+    const projectsOf = shell.store.projects, sent = shell.projects, accountsOf = shell.accounts.all, profilesOf = shell.profileStore.all;
+    assert.equal(await ui(`document.getElementById('manageProjects').hidden`), false);
     shell.store.projects = () => []; shell.projects = () => [];
     try {
       shell.sendProjects();
       shell.firstStart(shell.windows[0]);
       await waitFor(async () => (await ui(`document.activeElement?.id`)) === 'tournext');
       assert.equal(await ui(`document.documentElement.dataset.page`), 'welcome');
+      // Settings' gear: there while it has anything to show (an account, a profile left after their projects), none
+      // at the first start.
+      assert.equal(await ui(`document.getElementById('manageProjects').hidden`), false, 'accounts and profiles there');
+      shell.accounts.all = () => accountsOf.call(shell.accounts).filter((a) => a.own); shell.profileStore.all = () => [];
+      shell.sendProjects();
+      await waitFor(() => ui(`document.getElementById('manageProjects').hidden`));
       await waitFor(() => ui(`getComputedStyle(document.getElementById('glow')).opacity === '1'`));
       const slide = () => ui(`[document.querySelector('#tour h1').textContent, document.getElementById('tournext').textContent]`);
       assert.deepEqual(await slide(), ['Your agent, in your browsers', 'Next']);
@@ -1130,16 +1145,53 @@ export default (test: Test) => {
       assert.deepEqual(await slide(), ['Point at it, and say what is wrong', 'Set Up a Project']);
       await ui(`document.getElementById('tourback').click()`);
       assert.deepEqual(await slide(), ['It checks the result as every user', 'Next']);
+      // A low window, wide or at the least size: the slide fits, nothing to scroll to (its top was cut off above the
+      // window's edge, out of scrolling's reach, 2026-10-17).
+      const size = shell.win.getContentSize();
+      for (const [w, h] of [[1100, 400], [640, 400]]) {
+        shell.win.setContentSize(w, h);
+        await waitFor(() => ui(`innerWidth === ${w} && innerHeight === ${h}`));
+        assert.ok(await ui(`(() => { const e = document.getElementById('empty');
+          return e.scrollHeight <= e.clientHeight && document.getElementById('tour').getBoundingClientRect().top >= e.getBoundingClientRect().top; })()`), `${w}×${h}: the slide fits`);
+      }
+      shell.win.setContentSize(size[0], size[1]);
       await ui(`document.getElementById('tourskip').click()`);
       await waitFor(async () => (await ui(`document.activeElement?.id`)) === 'npname');
       assert.deepEqual(await ui(`[document.querySelector('#welcome h1').textContent, document.querySelectorAll('#welcome .dots .on').length,
         !!document.querySelector('#welcome .steps')]`), ['Where is the code?', 1, false], 'a question, not the steps\' names');
       assert.ok(await ui(`document.getElementById('npcreate').textContent === 'Next' && getComputedStyle(document.querySelector('#welcome .box')).backgroundColor === (() => {
         const i = document.body.appendChild(document.createElement('i')); i.style.background = 'var(--island)'; const c = getComputedStyle(i).backgroundColor; i.remove(); return c; })()`), "an island's, as a dialog's");
+      // Code from the disk or a URL: one folder or one URL, in a field, not a list (the others later, in Settings); its
+      // name the folder's or the repository's, no field for it unless it will not do. A new folder's is asked.
+      assert.equal(await ui(`document.querySelector('label[for="npname"]').textContent`), 'Project name:');
+      const kind = async (from: string) => {
+        await ui(`document.querySelector('#npfrom [data-value="${from}"]').click()`);
+        await waitFor(() => ui(`document.querySelector('#npfrom [data-value="${from}"]').ariaSelected === 'true'`));
+      };
+      const single = path.join(root, 'single', 'Shop');
+      fs.mkdirSync(single, { recursive: true });
+      await kind('folder');
+      assert.deepEqual(await ui(`[!!document.getElementById('npsources'), document.querySelector('#npsingle label').textContent, !!document.getElementById('npmore')]`),
+        [false, 'Folder:', true]);
+      await ui(`(() => { const i = document.getElementById('npsource'); i.value = ${JSON.stringify(single)}; i.dispatchEvent(new Event('input')); i.dispatchEvent(new Event('change')); })()`);
+      await waitFor(async () => (await ui(`document.getElementById('npwhere').textContent`)) === `The project Shop takes ${single} as it is`);
+      assert.equal(await ui(`!!document.getElementById('npname')`), false, 'its name: the folder\'s');
+      assert.equal(await ui(`document.getElementById('npgitrow').hidden`), false, 'Create Git repository: it is none');
+      await kind('clone');
+      assert.equal(await ui(`document.querySelector('#npsingle label').textContent`), 'URL:');
+      // A clone whose folder is there already, with files: its name to change, in its field.
+      fs.mkdirSync(path.join(shell.projectsHome, 'taken'), { recursive: true });
+      fs.writeFileSync(path.join(shell.projectsHome, 'taken', 'notes.txt'), '');
+      await ui(`(() => { const i = document.getElementById('npsource'); i.value = 'https://example.com/me/taken.git'; i.dispatchEvent(new Event('input')); i.dispatchEvent(new Event('change')); })()`);
+      await waitFor(async () => (await ui(`document.getElementById('npname')?.value`)) === 'taken');
+      assert.match(await ui(`document.getElementById('npwhere').textContent`), /is there already: choose another name or location/);
+      await kind('new');
+      assert.equal(await ui(`!!document.getElementById('npname')`), true);
+      fs.rmSync(path.join(shell.projectsHome, 'taken'), { recursive: true });
       // Back on the first step: the slides again, on the one left.
       await ui(`document.getElementById('npback').click()`);
       await waitFor(async () => (await ui(`document.querySelector('#tour h1')?.textContent`)) === 'It checks the result as every user');
-    } finally { shell.store.projects = projectsOf; shell.projects = sent; }
+    } finally { shell.store.projects = projectsOf; shell.projects = sent; shell.accounts.all = accountsOf; shell.profileStore.all = profilesOf; }
     shell.sendProjects();
     await waitFor(async () => (await ui(`document.documentElement.dataset.page`)) === 'board');
 

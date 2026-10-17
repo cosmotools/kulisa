@@ -15,7 +15,9 @@ import { page } from '../lib/store';
 </template>
 
 <style>
-#empty { display: none; place-items: center; overflow: auto; margin-inline: var(--gap);
+/* safe: what is taller than the window starts at its top, where scrolling reaches it (centered, its top was cut off
+   above the window's edge: the welcome in a window 400 px high, 2026-10-17) */
+#empty { display: none; place-items: safe center; overflow: auto; margin-inline: var(--gap);
   :is([data-page="welcome"], [data-page="board"], [data-page="newtab"]) & { display: grid; }
 }
 </style>

@@ -149,7 +149,7 @@ every other `<svg>` uses the sprite.
 - `.item[aria-selected="true"]`: the chosen row of a list (Reka's Listbox, Tree), lit.
 - `.dot`: a 10 px circle in `--color`, a project's.
 - `.launcher`: a tile, big, for the hand to find at once where nothing else is: an icon or a profile's picture as
-  large as two rows, its `.name`, a `small` line under it (an account's email, who a profile is), on an island's color,
+  large as two rows, its `.name`, a `small` line under it (an account's email; none under a profile's: who it is is in its tooltip, under the name it was cut off by the tile's edge, 2026-10-17), on an island's color,
   lit under the pointer. The empty grid's agents and profiles (`Terminals.vue`); `.small`, beside what is looked at:
   the closed profiles over the terminal (`ClosedProfiles.vue`).
 - `.dots`: where one is in a few slides or steps, a short bar each, lit up to the one shown (an `ol`, `li.on`): the

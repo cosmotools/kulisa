@@ -28,8 +28,12 @@ defineExpose({ focus: () => nameField.value?.focus() });
       </ListboxContent>
     </ListboxRoot>
     <div class="npform">
+      <!-- One folder or URL (the welcome's): taken as it is left, or at Next -->
+      <div v-if="c.from !== 'new' && w.single" id="npsingle" class="field"><label for="npsource">{{ c.from === 'folder' ? 'Folder:' : 'URL:' }}</label>
+        <span class="pick"><input id="npsource" v-model="c.typed" spellcheck="false" :placeholder="c.from === 'folder' ? '~/IdeaProjects/shop' : 'git@github.com:me/shop.git'"
+          @input="w.error.value = ''" @change="w.addSource()"><button v-if="c.from === 'folder'" id="npbrowsesource" type="button" @click="w.browse(true)">Browse…</button></span></div>
       <!-- Folders or URLs, one or several (a frontend and a backend): Enter or Add puts the one typed in the list -->
-      <div v-if="c.from !== 'new'" id="npsources" class="field top"><span>{{ c.from === 'folder' ? 'Folders:' : 'URLs:' }}</span>
+      <div v-else-if="c.from !== 'new'" id="npsources" class="field top"><span>{{ c.from === 'folder' ? 'Folders:' : 'URLs:' }}</span>
         <div class="npsourcelist">
           <div class="list">
             <div class="tools">
@@ -51,11 +55,12 @@ defineExpose({ focus: () => nameField.value?.focus() });
             :placeholder="c.from === 'folder' ? '~/IdeaProjects/shop' : 'git@github.com:me/shop.git'" @input="w.error.value = ''" @keydown.enter.prevent="w.addSource()">
             <button id="npaddsource" type="button" @click="w.addSource()">Add</button></span>
         </div></div>
-      <div class="field"><label for="npname">Name:</label><input id="npname" ref="nameField" v-model="c.name" data-name maxlength="64"
+      <div v-if="w.askName.value" class="field"><label for="npname">{{ w.single ? 'Project name:' : 'Name:' }}</label><input id="npname" ref="nameField" v-model="c.name" data-name maxlength="64"
         placeholder="e.g. tenant-audit" spellcheck="false" @input="w.error.value = ''"></div>
       <div v-if="c.from !== 'folder'" id="nplocationrow" class="field"><label for="nplocation">Location:</label><span class="pick"><input id="nplocation" v-model="c.place"
         spellcheck="false" @input="w.error.value = ''"><button id="npbrowse" type="button" title="Browse…" @click="w.browse()">Browse…</button></span></div>
       <p id="npwhere" class="hint">{{ w.where.value }}</p>
+      <p v-if="w.single && c.from !== 'new'" id="npmore" class="hint">A frontend and a backend? Add the other {{ c.from === 'folder' ? 'folder' : 'repository' }} later in Settings.</p>
       <label id="npgitrow" class="check" :hidden="!w.askGit.value"><CheckboxRoot id="npgit" v-model="c.git" class="checkbox"><CheckboxIndicator as-child><Icon name="i-done" /></CheckboxIndicator></CheckboxRoot>
         Create Git repository</label>
     </div>

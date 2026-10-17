@@ -359,6 +359,7 @@ function start(options: Options = {}) {
   shell.dropAccount = async (a) => {
     await signOut(a.agent, await findAgent(a.agent, app.getPath('home')), a.dir!);
     shell.accounts.remove(a.dir!);
+    shell.sendProjects(); // the last of all: nothing left for Settings
   };
   // An agent or account a task may run (any: also an agent itself that has accounts, as for installing it, or a task
   // that ran it before accounts were Kulisa's: its configDir the human's own folder).

@@ -39,7 +39,7 @@ const windowMenu = (): MenuItem[] => [
     <Icon v-if="!mac" class="logo" name="i-logo" />
     <span class="drag" />
     <button id="zoomReset" :hidden="store.zoom === 1" title="Kulisa's zoom. Click to reset (Ctrl 0)" @click="kulisa.invoke('zoom:ui', 0)">{{ Math.round(store.zoom * 100) }}%</button>
-    <button id="manageProjects" class="icon" title="Settings: projects, agents" aria-label="Settings"
+    <button id="manageProjects" class="icon" :hidden="!store.projects.settings" title="Settings: projects, agents" aria-label="Settings"
       @click="openSettings()"><Icon name="i-settings" /></button>
     <ButtonMenu :items="windowMenu" end><button id="windowMenu" class="icon" title="Menu: zoom, layout" aria-label="Menu"><Icon name="i-menu" /></button></ButtonMenu>
   </header>

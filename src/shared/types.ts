@@ -45,6 +45,8 @@ export interface ProjectsInfo {
   tabs: TaskInfo[];
   open: { id: string; agents: { id: string; name: string; cli: string }[] }[];
   windows?: { id: number; name: string }[];
+  // Anything for Settings to show: a project, an account or a profile. None at the first start: no gear (TopBar.vue).
+  settings: boolean;
 }
 // The projects' manager (main/ipc/projects.ts): what a project may be, its code, its profiles, its configuration.
 // agents: every account (main/accounts.ts); clis: the agents a new account can be made of.
