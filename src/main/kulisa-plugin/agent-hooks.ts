@@ -9,6 +9,7 @@
 // every agent in the MCP server's instructions, and again next to the profiles at session start.
 import type { IncomingMessage, ServerResponse } from 'http';
 import type { Task, TaskTerminal } from '../tasks.ts';
+import { log } from '../log.ts';
 import type { HookEvent } from '../agents/agent.ts';
 
 // A hook's input: the agent's JSON (Claude Code's shape; Codex's hooks take it too).
@@ -81,6 +82,7 @@ function handleHookRequest(task: Task, t: TaskTerminal | null, url: string, req:
   req.on('end', async () => {
     let input: Input = null;
     try { input = body ? JSON.parse(body) : null; } catch {}
+    log.info(`[hook] ${m[1]} ${task.key}${t ? `#${t.id}` : ''}`);
     let out: object = {};
     try { out = handler ? await handler(task, t, input) : {}; } catch (e) { console.warn('[hooks]', (e as Error).message); }
     res.writeHead(handler ? 200 : 404, { 'content-type': 'application/json' });

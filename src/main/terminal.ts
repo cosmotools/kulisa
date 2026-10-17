@@ -1,6 +1,7 @@
 // xterm.js in the renderer, node-pty here running the agent CLI unchanged. A task's terminals (tasks.ts) are
 // "<task key>#<id>". The window shows the shown task's, the others keep running (and the window keeps their output).
 import { on } from './ipc.ts';
+import { log } from './log.ts';
 import type { Events } from '../shared/ipc.ts';
 import os from 'os';
 import pty from 'node-pty';
@@ -83,7 +84,7 @@ async function startTerminal(send: Send, cfg: TerminalConfig, key: string): Prom
   if (cfg.screen) p.screen = new xterm.Terminal({ cols: p.cols, rows: p.rows, scrollback: READ_MAX, allowProposedApi: true });
   const out = (data: string) => { p.screen?.write(data); if (t.pty === p) send('pty:out', { task: key, data }); };
   p.onData(out);
-  p.onExit(({ exitCode }) => out(`\r\n[process exited ${exitCode}]\r\n`));
+  p.onExit(({ exitCode }) => { log.info(`[terminal] ${key} exited ${exitCode}`); out(`\r\n[process exited ${exitCode}]\r\n`); });
   t.pty = p;
   return p;
 }

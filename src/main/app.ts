@@ -4,6 +4,7 @@
 import { app, nativeTheme, Menu, safeStorage } from 'electron';
 import { EventEmitter } from 'events';
 import path from 'path';
+import os from 'os';
 import fs from 'fs';
 import { CdpProxy } from './cdp-proxy.ts';
 import { Store } from './store.ts';
@@ -25,6 +26,8 @@ import { startDiscarding } from './discard.ts';
 import { installMasters } from './master.ts';
 import { installSettings } from './settings-window.ts';
 import { openTasks } from './open-tasks.ts';
+import { log, startLog } from './log.ts';
+import pkg from '../../package.json' with { type: 'json' };
 import { updateNotices } from './updates.ts';
 import { installShortcuts } from './shortcuts.ts';
 import { registerTasks } from './ipc/tasks.ts';
@@ -80,6 +83,8 @@ function start(options: Options = {}) {
   app.userAgentFallback = app.userAgentFallback.replace(/ Electron\/\S+/, '');
   const userData = options.userData || path.join(app.getPath('appData'), 'Kulisa');
   app.setPath('userData', userData);
+  startLog(userData);
+  log.info(`[kulisa] start ${pkg.version}, electron ${process.versions.electron}, ${process.platform} ${os.release()}${process.env.XDG_SESSION_TYPE ? ` (${process.env.XDG_SESSION_TYPE})` : ''}, ${app.isPackaged ? 'packaged' : 'from source'}, data ${userData}`);
   // One Kulisa per data folder (Electron's lock is the userData's; KULISA_DATA for another): a second one on the same
   // data ran beside the first, without its MCP server, and the two wrote over each other's saved tabs, cookies and
   // tasks (2026-10-12). It shows the first one's window and goes, before anything is read or written.
@@ -380,6 +385,7 @@ function start(options: Options = {}) {
   // their tabs open again at the next start.
   app.on('before-quit', async (e) => {
     if (quitting) return;
+    log.info('[kulisa] quitting');
     e.preventDefault();
     await shutdown();
     app.quit();

@@ -5,6 +5,7 @@ import { stepZoom } from './profiles.ts';
 import type { AppWindow } from './window.ts';
 import { held, holdable, keymap, list as keyList, match } from './keys.ts';
 import { handle, on } from './ipc.ts';
+import { log } from './log.ts';
 import type { IpcMainEvent, WebContents } from 'electron';
 import type { Shell } from './shell.ts';
 import type * as Sent from '../shared/types.ts'; // what the window gets: its one definition
@@ -46,6 +47,7 @@ export function installShortcuts(shell: Shell, { appDevTools }: { appDevTools: b
     const hit = match(table, input, zone === 'page' ? ['page', 'global'] : pane ? ['global', 'page'] : ['global'], { always: zone === 'dialog' });
     if (!hit || (hit.id === 'devtools.app' && !appDevTools)) return;
     e.preventDefault();
+    log.info(`[key] ${hit.id} zone=${zone} wc=${wc.id}`);
     const win = w || (t as { w: AppWindow }).w;
     const step = ZOOM[hit.id];
     if (step !== undefined) return hit.id.startsWith('zoom.') ? shell.setUiZoom(stepZoom(shell.uiZoom, step)) : t && t.profile.zoomSite(t.tab.id, step);
