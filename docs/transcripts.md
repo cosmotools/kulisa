@@ -119,9 +119,9 @@ No memory: Codex keeps its own in a database of its format (`memories_*.sqlite`)
 
 | File | What |
 |---|---|
-| `src/main/history.ts` | the history's text: Kulisa's part, the conversations listed, one's chapters, the parts |
-| `src/main/transcripts.ts` | the entries a transcript is read as (`human`, `agent`, `call`, `result`, `error`, `summary`), its plan, where it stopped, its memory; what is cut |
+| `src/main/kulisa-plugin/history.ts` | the history's text: Kulisa's part, the conversations listed, one's chapters, the parts |
+| `src/main/kulisa-plugin/transcripts.ts` | the entries a transcript is read as (`human`, `agent`, `call`, `result`, `error`, `summary`), its plan, where it stopped, its memory; what is cut |
 | `src/main/agents/claude.ts`, `codex.ts` | each agent's reader (`claudeConversation`, `codexConversation`), its entry's `conversation` |
 | `src/main/worktrees.ts` | `progress`: a copy's commits, files not committed, `diff --stat` |
-| `src/main/mcp-server.ts` | the `task_history` tool, and a sentence of the instructions |
+| `src/main/kulisa-plugin/mcp-server.ts` | the `task_history` tool, and a sentence of the instructions |
 | `test/unit/transcripts.test.ts`, `test/agent.ts` | the tests: the reader record by record; the tool's order and parts |

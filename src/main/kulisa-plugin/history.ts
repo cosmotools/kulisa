@@ -2,12 +2,12 @@
 // conversations, each agent's, with what each was about; then one conversation, read from its transcript on disk
 // (transcripts.ts), the latest chapter first, in parts. Kulisa keeps no copy: the agents' transcripts are the one record.
 import fs from 'fs';
-import { progress } from './worktrees.ts';
-import type { Task } from './tasks.ts';
-import type { Conversation as Saved } from './store.ts';
+import { progress } from '../worktrees.ts';
+import type { Task } from '../tasks.ts';
+import type { Conversation as Saved } from '../store.ts';
 import type { Conversation, Entry } from './transcripts.ts';
-import { refused } from '../shared/result.ts';
-import type { Result } from '../shared/result.ts';
+import { refused } from '../../shared/result.ts';
+import type { Result } from '../../shared/result.ts';
 
 // A part's size in characters, about 10,000 tokens: under what agents take from one tool's result.
 const PART = 40_000;

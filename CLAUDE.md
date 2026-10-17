@@ -373,8 +373,9 @@ what the main process and the window both import (the rule for names, the profil
    `cookie-sync.ts`, `signin-*.ts`): browser profiles, their tabs and storage. Knows nothing about agents, MCP or the window UI.
 2. **Automation access** (`cdp-proxy.ts`, `local-only.ts`): the only way anything automated reaches a profile's pages, and where
    sign-in mode is enforced.
-3. **Kulisa plugin** (formerly "agent bridge"): everything that lets an unchanged agent CLI understand and use
-   profiles: tools, knowledge (skill) and hooks, the same for every agent.
+3. **Kulisa plugin** (formerly "agent bridge"; its code one folder, `src/main/kulisa-plugin/`, since 2026-10-17):
+   everything that lets an unchanged agent CLI understand and use profiles: tools, knowledge (skill) and hooks, the
+   same for every agent.
    - `mcp-server.ts` is the functional part and is agent-agnostic: any capability for the agent is an MCP tool
      there, so Codex and other CLIs get it too. One URL per task (`/task/<project>/<n>/mcp`).
    - The profiles skill, `src/agent/skills/profiles/SKILL.md` (change it when a tool or a rule changes), is one text
@@ -386,7 +387,8 @@ what the main process and the window both import (the rule for names, the profil
      hook runs one command (`hookCommand`: `curl` to `$KULISA_URL/hooks/<event>`, answered by `agent-hooks.ts`).
    - The task's history for its agent (`history.ts`, `transcripts.ts`) and the agent's actions drawn in the pages
      (`ghost.ts`) are here too.
-   - Do not add agent-facing behavior elsewhere (e.g. in `profiles.ts` or the renderer).
+   - Do not add agent-facing behavior elsewhere (e.g. in `profiles.ts` or the renderer); what the agent sees of
+     Kulisa lives in `src/agent/` (the skill, Claude Code's plugin: packaged as resources), its code in this folder.
 4. **Window** (`app.ts`, `open-tasks.ts`, `ipc/`, `window.ts`, `keys.ts`, `projects.ts`, `tasks.ts`, `agents/`, `renderer/`, `picker.ts`,
    `terminal.ts`, every other file of `src/main`): what the human sees and does.
 

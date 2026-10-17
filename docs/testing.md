@@ -150,7 +150,7 @@ runs it after ESLint) fails on an import against the layers (CLAUDE.md, Architec
 `.dependency-cruiser.ts`, each with why.
 
 - Runtime imports only: an `import type` crosses the layers freely, as it is gone once the types are stripped.
-- The layers are lists of `src/main`'s files (there are no folders per layer); a file in none of them is the window's
+- Layers 1 and 2 are lists of `src/main`'s files, layer 3 its folder `kulisa-plugin/`; a file in none of them is the window's
   (layer 4), which may import anything. Below layer 1, the base (`worktrees.ts`, `local.ts`): used by every layer, using
   none of them. `src/shared/` is what the main process and the window both import (`names.ts`, `avatars.ts`,
   `result.ts`); it imports nothing else of `src/`. The window's page never imports `src/main`.

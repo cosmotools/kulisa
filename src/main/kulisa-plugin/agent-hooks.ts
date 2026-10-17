@@ -8,8 +8,8 @@
 // names (browser_click …) and their own "profiles" at session start; this says which browser is the human's. Told to
 // every agent in the MCP server's instructions, and again next to the profiles at session start.
 import type { IncomingMessage, ServerResponse } from 'http';
-import type { Task, TaskTerminal } from './tasks.ts';
-import type { HookEvent } from './agents/agent.ts';
+import type { Task, TaskTerminal } from '../tasks.ts';
+import type { HookEvent } from '../agents/agent.ts';
 
 // A hook's input: the agent's JSON (Claude Code's shape; Codex's hooks take it too).
 type Input = { session_id?: string; transcript_path?: string; prompt?: string } | null;
@@ -41,7 +41,7 @@ function sessionStart(task: Task, t: TaskTerminal | null, input: Input) {
   const closed = [...task.closed.values()].map(({ cfg }) => who(cfg));
   const context = [
     ONLY_BROWSER,
-    lines.length ? `Kulisa profiles open now (the panes above your terminal; call browser_profiles for the live state):\n${lines.join('\n')}`
+    lines.length ? `Kulisa profiles open now (the panes above your terminal; call profile_list for the live state):\n${lines.join('\n')}`
       : closed.length ? 'No Kulisa profile is open.' : "Kulisa has no profiles in this project yet. The human makes them in Settings (the gear at the top right) → Profiles and adds them on the project's page, or use profile_create when a task needs one.",
     closed.length && `Closed profiles (signed in, no pane; profile_open opens one when the task needs it):\n${closed.join('\n')}`,
     taskContext(task),

@@ -13,9 +13,9 @@ import WebSocket from 'ws';
 import { focusWindow, shot, assert, root, project, pfile, panel, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, closeSettings, chooseProfile, setProfileField, closeMenu, taskMenu, box, pageBox, click, PORT } from './helpers.ts';
 import { AGENT_PACKAGES } from '../src/main/app.ts';
 const CLAUDE_PLUGIN = path.join(AGENT_PACKAGES, 'claude-plugin');
-import { MARK } from '../src/main/ghost.ts';
+import { MARK } from '../src/main/kulisa-plugin/ghost.ts';
 import { hookCommand } from '../src/main/agents/agent.ts';
-import { highlights } from '../src/main/mcp-server.ts';
+import { highlights } from '../src/main/kulisa-plugin/mcp-server.ts';
 import type { Test } from './run.ts';
 import type { StoredProfile } from '../src/main/profile-store.ts';
 
@@ -250,7 +250,7 @@ export default (test: Test) => {
     const r = await call('profile_create', { name: 'Ann.admin', description: 'the shop\'s admin' });
     assert.match(r.text, /Created profile ann-admin/);
     assert.ok(shell.profiles.has('ann-admin'));
-    const list: { id: string; avatar: string; description: string | null }[] = JSON.parse((await call('browser_profiles', {})).text);
+    const list: { id: string; avatar: string; description: string | null }[] = JSON.parse((await call('profile_list', {})).text);
     assert.deepEqual(list.map((p) => p.id), ['sam-seller', 'elon-buyer', 'ann-admin']);
     assert.deepEqual(list.map((p) => [p.avatar, p.description]), [['fox', 'seller in the test shop'], ['penguin', null], ['frog', 'the shop\'s admin']]);
     await waitFor(async () => (await ui(`document.querySelectorAll('.pane').length`)) === 3);

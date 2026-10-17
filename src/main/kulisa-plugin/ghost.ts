@@ -8,9 +8,9 @@
 // whose page it is.
 const MARK = '#3574f0';
 import type { Page } from 'playwright-core';
-import type { Shell } from './shell.ts';
-import type { Command } from './cdp-proxy.ts';
-import type { Profile } from './profiles.ts';
+import type { Shell } from '../shell.ts';
+import type { Command } from '../cdp-proxy.ts';
+import type { Profile } from '../profiles.ts';
 
 // What the window shows of an action over the pane: its caption, where it was.
 interface Action { caption: string; x?: number; y?: number }

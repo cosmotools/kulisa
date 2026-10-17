@@ -50,7 +50,7 @@
 //   language                 its own language setting, which Kulisa's one language (☰ → Language) is written into,
 //                            in every account of it (app.ts, setLanguage; tasks.ts, at its start): languages, the
 //                            codes it takes; set(dir, code), into an account's config folder
-import type { Conversation } from '../transcripts.ts';
+import type { Conversation } from '../kulisa-plugin/transcripts.ts';
 
 // Kulisa's MCP tools that keep the agent's own approval (the author, 2026-10-12; docs/profiles.md, The agent's tools):
 // terminal_run runs any command in the human's shell, around the agent's approval of commands (and Codex's sandbox);
