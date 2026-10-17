@@ -156,8 +156,10 @@ function wizard() {
     named = ''; step.value = 0; error.value = '';
     accounts.value = a.accounts; clis.value = a.clis; chosen.value = []; main.value = ''; signing.value = null;
     others.value = p.profiles; taken.clear(); fresh.value = [];
-    await installs.load(undefined, async () => {});
     ready.value = true;
+    // The agents behind it: looking for them runs the user's login shell and each one's --version (seconds with a heavy
+    // .bashrc), and only the second step needs them; the first start's window was empty meanwhile.
+    void installs.load(undefined, async () => {});
   }
 
   return { step, last, saving, error, ready, next, back, reset,

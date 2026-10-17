@@ -1172,7 +1172,7 @@ export default (test: Test) => {
     await waitFor(async () => (await step()) === 'Agents');
     assert.deepEqual(await ui(`[...document.querySelectorAll('#npagents > [data-account]')].map((r) => r.dataset.account)`),
       (await ui(`kulisa.invoke('accounts:list')`)).accounts.map((a: { id: string }) => a.id));
-    assert.ok((await ui(`document.querySelectorAll('#npagentstep [data-add]').length`)) > 0, 'Add account: an agent to make one of');
+    await waitFor(async () => (await ui(`document.querySelectorAll('#npagentstep [data-add]').length`)) > 0); // Add account: an agent to make one of, once they are found (behind the steps)
     await ui(`document.getElementById('npback').click()`);
     await waitFor(async () => (await step()) === 'Code' && (await ui(`document.getElementById('npname').value`)) === 'Shop'); // Back: as it was
     await ui(`document.getElementById('npform').requestSubmit()`);

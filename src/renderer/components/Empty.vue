@@ -26,7 +26,7 @@ kulisa.on('project:new', () => void wizard.value?.focus()); // the first start: 
   :is([data-page="wizard"], [data-page="board"], [data-page="newtab"]) & { display: grid; }
   /* New Project: a dialog's look in the grid's place, no backdrop: nothing else is in the window to cover */
   .box { display: flex; flex-direction: column; width: min(760px, 100%); min-height: min(480px, 100%); border-radius: var(--island-radius);
-    background: var(--island); box-shadow: var(--shadow); overflow: hidden; }
+    background: var(--island); border: 1px solid var(--line); box-shadow: 0 12px 40px var(--shadow); overflow: hidden; } /* a dialog's frame: its side list is the window's color */
   header { padding: var(--inset) var(--pad); border-bottom: 1px solid var(--island-hi); h2 { margin: 0; font-size: var(--font); font-weight: 600; } }
 }
 </style>
