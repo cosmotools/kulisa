@@ -10,7 +10,7 @@ import http from 'http';
 import { MAC, CMD, shot, assert, root, userData, project, pfile, panel, SITE, sleep, waitFor, who, menuRows, choose, rightClick, viewOn, press, projectTabs, projectTab, showProject, savedWindows, closeMenu, click, plusMenu, closeBoard, PORT, hooksOf, MENU, SUBMENU, menuOpen, noNode, focusWindow, chooseProfile, closeSettings, settingsClosed } from './helpers.ts';
 import { withOffset } from '../src/main/tasks.ts';
 import { createWorktree } from '../src/main/worktrees.ts';
-import { sessionStart } from '../src/main/agent-hooks.ts';
+import { sessionStart } from '../src/main/kulisa-plugin/agent-hooks.ts';
 import { refused } from '../src/shared/result.ts';
 import type { Test, Ctx } from './run.ts';
 import type { UI } from './helpers.ts';

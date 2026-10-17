@@ -8,8 +8,8 @@
 // names (browser_click …) and their own "profiles" at session start; this says which browser is the human's. Told to
 // every agent in the MCP server's instructions, and again next to the profiles at session start.
 import type { IncomingMessage, ServerResponse } from 'http';
-import type { Task, TaskTerminal } from './tasks.ts';
-import type { HookEvent } from './agents/agent.ts';
+import type { Task, TaskTerminal } from '../tasks.ts';
+import type { HookEvent } from '../agents/agent.ts';
 
 // A hook's input: the agent's JSON (Claude Code's shape; Codex's hooks take it too).
 type Input = { session_id?: string; transcript_path?: string; prompt?: string } | null;

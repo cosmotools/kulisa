@@ -7,7 +7,7 @@ import pty from 'node-pty';
 import type { IPty } from 'node-pty';
 import xterm from '@xterm/headless';
 import type { Terminal } from '@xterm/headless';
-import { READ_MAX } from './mcp-server.ts';
+import { READ_MAX } from './kulisa-plugin/mcp-server.ts';
 
 
 interface Size { cols: number; rows: number }

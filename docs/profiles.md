@@ -419,10 +419,10 @@ space (ROADMAP, "Profiles' caches").
 | `src/main/signin-pages.ts`, `signin-pause.ts` | sign-in pages; the pause |
 | `src/main/cdp-proxy.ts` | the CDP endpoint per profile |
 | `src/main/local-only.ts` | refusing web pages' requests to the MCP server, the hooks and the proxy (Host, Origin) |
-| `src/main/agent-hooks.ts` | the answers to the agents' hooks: the open profiles, the session, the agent's state |
+| `src/main/kulisa-plugin/agent-hooks.ts` | the answers to the agents' hooks: the open profiles, the session, the agent's state |
 | `src/main/page-focus.ts` | the keyboard stays where the human put it: a page taking it by itself gives it back ([window.md](window.md), Keys) |
 | `src/main/discard.ts` | tabs no one looks at losing their process: the rule, the sweep (`Profile.discard`, `load` in `profiles.ts`) |
-| `src/main/mcp-server.ts`, `ghost.ts`, `picker.ts` | the agent's tools, its actions shown, point and tell |
+| `src/main/kulisa-plugin/mcp-server.ts`, `ghost.ts`; `src/main/picker.ts` | the agent's tools, its actions shown; point and tell |
 | `src/agent/skills/profiles/SKILL.md`, `src/agent/claude-plugin/` | the profiles skill, every agent's; Claude Code's plugin (`.mcp.json`: the task's MCP URL) |
 | `src/renderer/components/grid/ProfilePane.vue`, `ProfileHeader.vue`, `lib/profiles.ts`; `settings/ProfilePage.vue`, `settings/Avatars.vue` | the panes and the profiles' menu (a task tab's right-click); a profile's page in Settings and its pictures |
 | `test/agent.ts`, `profiles.ts`, `discard.ts`, `zoom-and-closing.ts`, `restart-profiles.ts`, `unit/store.test.ts`, `unit/discard.test.ts` | the tests |
