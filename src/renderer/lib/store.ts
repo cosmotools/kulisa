@@ -51,10 +51,11 @@ kulisa.on('projects', (info) => {
 });
 
 // What the window shows in the grid's place, one page at a time (docs/window.md, The window's pages): the shown task's
-// grid; a new tab over it; with no task open, every project's tasks; with no project at all, New Project's steps. Its
+// grid; a new tab over it; with no task open, every project's tasks; with no project at all, the welcome (what Kulisa
+// does, then New Project's steps). Its
 // own switch, not a router's: what is shown is the main process's (current), and the grid under a new tab must stay
 // as it is (its terminals, the pages' places).
-export const page = computed(() => (store.current === null ? (store.projects.projects.length ? 'board' : 'wizard')
+export const page = computed(() => (store.current === null ? (store.projects.projects.length ? 'board' : 'welcome')
   : store.newTab ? 'newtab' : 'task'));
 // The bar's + (and Ctrl+Shift+A): a new tab, or away from it; the empty window has no bar, the board is there already.
 export const toggleNewTab = () => { if (store.current !== null) store.newTab = !store.newTab; };

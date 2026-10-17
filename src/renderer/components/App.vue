@@ -57,11 +57,13 @@ body {
    a circle again), so their sum keeps changing shape. Only their transform moves (the compositor's work, no paint, no
    blur), five times a second: at the screen's rate the window with a task's grid over it cost 11 % of a core (the GPU's
    process 9, the window's 2), all the time a task is shown; ten times a second 7 %; five times 2.3 % (2026-10-17), a
-   step a few pixels of a soft edge. Still with reduced motion. */
+   step a few pixels of a soft edge. Still with reduced motion. At the first start (the welcome) it is Kulisa's own
+   red, until the first task's project's color takes its place. */
 @property --glow { syntax: '<color>'; inherits: true; initial-value: transparent; }
 :root { transition: --glow .8s ease; }
 #glow { position: fixed; inset: 0; z-index: -1; pointer-events: none; opacity: 0; transition: opacity .8s ease;
-  :root:is([data-page="task"], [data-page="newtab"]) & { opacity: 1; }
+  :root:is([data-page="task"], [data-page="newtab"], [data-page="welcome"]) & { opacity: 1; }
+  :root[data-page="welcome"] & { --glow: var(--project); }
   /* steps(n): a fifth of a second each, n = a quarter of its cycle (its keyframes' spans) × 5 */
   i { position: absolute; left: 50%; top: 50%; width: 90vmax; height: 90vmax; will-change: transform;
     background: radial-gradient(closest-side, color-mix(in srgb, var(--glow) 38%, transparent), transparent);

@@ -62,8 +62,8 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
     them (from 2026-10-11, one + for every project; each group had its own before), and it replaced Search Tasks (a
     panel of every project's tasks with a search field, from the morning of 2026-10-11 until its evening).
   - **The window's pages** (`page` in `lib/store.ts`): what the window shows in the grid's place, one at a time: the
-    shown task's grid (`task`), a new tab over it (`newtab`), the board with no task open (`board`), New Project's steps
-    with no project at all (`wizard`). One switch, not a router: what is shown is the main process's (its current
+    shown task's grid (`task`), a new tab over it (`newtab`), the board with no task open (`board`), the welcome
+    with no project at all (`welcome`). One switch, not a router: what is shown is the main process's (its current
     task), and the grid under a new tab must stay as it is.
 - **Settings** (the button in the title bar, left of ☰; the author, 2026-10-11), as JetBrains' Settings (the author,
   2026-10-11: the dialogs read as a web page's, not a desktop app's; docs/ui.md, Desktop, not a web page), a window of
@@ -102,7 +102,7 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   Project, Settings' agents and profiles, the bar's +, with nothing saying what came next): **Code**, **Agents**,
   **Profiles**, then Create, which makes the project with them and opens its first task. Next checks a step as Create
   would, nothing made before Create (but an agent's account signed in to on the way: accounts live on their own); Back
-  keeps what was typed. It is the empty window with no project at all, in the grid's place (below), and else a dialog
+  keeps what was typed. It is the welcome's with no project at all, in the grid's place (below), and else a dialog
   (New Project… after the board's columns; Settings' + until 2026-10-16), the same steps (`newproject/`). The first step, as
   JetBrains' New Project: on the left what its code comes from, on the right the form (**Name:**, **Location:**). **Its code first** (the author,
   2026-10-11: a folder made in `~/Kulisa` first, git on, was in the way of code already on the disk or at a URL: with
@@ -219,10 +219,15 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   the last task is closed (×, Close All Tasks, deleting the project). The title bar, no tasks' bar (no tab, and its +
   would show the board the window shows already: the author, 2026-10-17), and in the grid's place (`Empty.vue`) the
   board, as a new tab shows it
-  (above); with no project at all, New Project's steps instead, as a dialog without its backdrop: the first start,
-  where what to do is plain (the author, 2026-10-17; until then an island with "No task is open", New Task and New
-  Project…, two clicks from anything to do). The steps are made each time they are shown, anew, and are not there
-  otherwise (their fields' ids are the dialog's too). At the first start they get the keyboard (`shell.firstStart`).
+  (above); with no project at all, the **welcome** instead (`welcome/`), the first thing a new user meets (the author,
+  2026-10-17): what Kulisa does in three slides (its agent in your browsers; checking as every user; Pick), with Skip,
+  then New Project's steps, a question each ("Where is the code?"), as a dialog without its backdrop, Kulisa's red glow
+  behind them until the first task's project's color takes its place. Back on the first step goes back to the slides.
+  New Project's own steps, not a second wizard: the dialog's, under another head (docs/ui.md, Clusters). Until then
+  (2026-10-17, the morning) the steps alone, as a dialog without its backdrop; before, an island with "No task is
+  open", New Task and New Project…, two clicks from anything to do. The steps are made each time they are shown, anew,
+  and are not there otherwise (their fields' ids are the dialog's too). At the first start the keyboard is on Next
+  (`shell.firstStart`).
   It replaced the Welcome screen (the author, 2026-10-11: once the bar listed the tasks, it was not needed); the
   board brought its list of tasks back (2026-10-17); the links and Kulisa's version are ☰'s. Later starts
   open the windows that were open, each with its tasks' tabs in their order, showing the one shown last (`windows` in
@@ -847,7 +852,8 @@ temporary forks), and again on 2026-10-10 (tasks; ROADMAP, "Projects and tasks")
 | `src/main/terminal.ts` | the task's terminals' ptys (window.md, The terminal) |
 | `src/renderer/components/TaskBar.vue`, `NewTask.vue`, `Empty.vue`, `settings/ProjectEditor.vue` | the tasks' bar (a tab per open task, a new tab); its + (a new tab); the grid's place when no task's grid is shown (the window's pages); the projects' manager |
 | `src/renderer/components/newtab/` | the board, a new tab's and the empty window's: `Board.vue` (the columns, New Project…), `ProjectColumn.vue` (a project and its tasks) |
-| `src/renderer/components/newproject/` | New Project's steps: `Wizard.vue` (the steps, the buttons; the empty window's and the dialog's), `wizard.ts` (their state and rules, one per wizard), `CodeStep.vue`, `AgentStep.vue`, `ProfilesStep.vue`, `NewProject.vue` (the dialog) |
+| `src/renderer/components/welcome/` | the first start's welcome: `Welcome.vue` (the slides, then New Project's steps under a question each), `Tour.vue` (the slides, their pictures drawn in HTML) |
+| `src/renderer/components/newproject/` | New Project's steps: `Wizard.vue` (the steps, the buttons; the welcome's and the dialog's), `wizard.ts` (their state and rules, one per wizard), `CodeStep.vue`, `AgentStep.vue`, `ProfilesStep.vue`, `NewProject.vue` (the dialog) |
 | `src/renderer/components/TaskTab.vue`, `TaskRename.vue` | a task's tab in the bar, its menu, the Rename Task dialog |
 | `src/renderer/components/AgentPicker.vue`, `settings/AgentPage.vue`, `AgentList.vue`, `InstallProgress.vue` | choosing an agent when the one to open is not there; an agent's page in Settings, its details and accounts; the radios of agents with Install that choosing shows; an install's line and its Details |
 | `src/main/favicons.ts` | a project's icon: its site's favicon in its code (Projects, "Each project has a color and an icon") |

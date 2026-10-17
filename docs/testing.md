@@ -85,7 +85,7 @@ and is not checked again until something it depends on changes (an OS, an Electr
 - **The window**: the traffic lights centered in the bar at the zoom it is made at, moved as it changes, and taking a
   click (window.md, The title bar); the bar's empty part drags the window and a double click zooms it; New Project's Browse… is the system's folder dialog.
 - **A build made there** (`npm run package`, unsigned, ad hoc): it starts by `open`; the first start is the empty
-  window with New Project; the Kulisa plugin and the skill sit outside the asar, node-pty's `spawn-helper` is
+  window with the welcome; the Kulisa plugin and the skill sit outside the asar, node-pty's `spawn-helper` is
   executable, the icon is Kulisa's.
 - Screenshots of a Kulisa started by `open` need the permission on Electron.app itself: macOS took it back when
   Electron was upgraded (ad hoc signed, a new binary is a new app to it), and it was granted again.

@@ -1,15 +1,13 @@
 <script setup lang="ts">
-// New Project as a dialog (New Project… of a new tab or the empty window). With no project at all the wizard is there
-// already, in the grid's place (Empty.vue): it gets the keyboard instead.
+// New Project as a dialog (New Project… of the board: a new tab's, the empty window's). With no project at all the
+// welcome has the same steps (welcome/).
 import { ref } from 'vue';
 import Modal from '../Modal.vue';
 import Wizard from './Wizard.vue';
 import { registerDialog } from '../../lib/dialogs';
-import { page } from '../../lib/store';
 
 const modal = ref<InstanceType<typeof Modal>>(), wizard = ref<InstanceType<typeof Wizard>>();
 async function open() {
-  if (page.value === 'wizard') { document.getElementById('npname')?.focus(); return; }
   await modal.value!.open();
   await wizard.value!.focus();
 }

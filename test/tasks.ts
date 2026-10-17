@@ -1108,8 +1108,9 @@ export default (test: Test) => {
     } finally { electron.shell.openExternal = openExternal; }
     assert.equal(opened[0], 'https://kulisa.app/docs', 'the user guide on the website');
     assert.ok(await ui(`location.protocol === 'file:' && !!document.getElementById('empty')`), 'the window stays on its page');
-    // With no project at all, the empty window is New Project, step by step, on its first step (an island, as a
-    // dialog), and at the first start it gets the keyboard; with projects, the board, and nothing happens.
+    // With no project at all, the empty window is the welcome: what Kulisa does in three slides, the keyboard on Next
+    // at the first start, the window's glow behind (Kulisa's own red); then New Project's steps, a question each, in an
+    // island as a dialog. With projects, the board, and nothing happens.
     await ui(`document.activeElement?.blur()`);
     shell.firstStart(shell.windows[0]);
     await sleep(100); // that nothing happens
@@ -1119,11 +1120,25 @@ export default (test: Test) => {
     try {
       shell.sendProjects();
       shell.firstStart(shell.windows[0]);
+      await waitFor(async () => (await ui(`document.activeElement?.id`)) === 'tournext');
+      assert.equal(await ui(`document.documentElement.dataset.page`), 'welcome');
+      await waitFor(() => ui(`getComputedStyle(document.getElementById('glow')).opacity === '1'`));
+      const slide = () => ui(`[document.querySelector('#tour h1').textContent, document.getElementById('tournext').textContent]`);
+      assert.deepEqual(await slide(), ['Your agent, in your browsers', 'Next']);
+      await ui(`document.getElementById('tournext').click()`);
+      await ui(`document.getElementById('tournext').click()`);
+      assert.deepEqual(await slide(), ['Point at it, and say what is wrong', 'Set Up a Project']);
+      await ui(`document.getElementById('tourback').click()`);
+      assert.deepEqual(await slide(), ['It checks the result as every user', 'Next']);
+      await ui(`document.getElementById('tourskip').click()`);
       await waitFor(async () => (await ui(`document.activeElement?.id`)) === 'npname');
-      assert.deepEqual(await ui(`[...document.querySelectorAll('#empty .steps li')].map((l) => [l.textContent.slice(1), l.ariaCurrent])`),
-        [['Code', 'step'], ['Agents', null], ['Profiles', null]]);
-      assert.ok(await ui(`document.getElementById('npcreate').textContent === 'Next' && getComputedStyle(document.querySelector('#empty .box')).backgroundColor === (() => {
+      assert.deepEqual(await ui(`[document.querySelector('#welcome h1').textContent, document.querySelectorAll('#welcome .dots .on').length,
+        !!document.querySelector('#welcome .steps')]`), ['Where is the code?', 1, false], 'a question, not the steps\' names');
+      assert.ok(await ui(`document.getElementById('npcreate').textContent === 'Next' && getComputedStyle(document.querySelector('#welcome .box')).backgroundColor === (() => {
         const i = document.body.appendChild(document.createElement('i')); i.style.background = 'var(--island)'; const c = getComputedStyle(i).backgroundColor; i.remove(); return c; })()`), "an island's, as a dialog's");
+      // Back on the first step: the slides again, on the one left.
+      await ui(`document.getElementById('npback').click()`);
+      await waitFor(async () => (await ui(`document.querySelector('#tour h1')?.textContent`)) === 'It checks the result as every user');
     } finally { shell.store.projects = projectsOf; shell.projects = sent; }
     shell.sendProjects();
     await waitFor(async () => (await ui(`document.documentElement.dataset.page`)) === 'board');

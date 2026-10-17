@@ -104,13 +104,15 @@ unasked. This paragraph is removed when the rewrite is finished.
 - **Terminology: "Settings"**: the window behind the title bar's gear (a dialog until 2026-10-16), as JetBrains' Settings: a tree of Projects (every
   project, each its page), Agents (the agents, their accounts) and Profiles (every profile, who it is). It was "the projects' manager" alone until 2026-10-11,
   then tabs; a project's page is still the manager in code (`settings/ProjectEditor.vue`; its window `settings-window.ts`,
-  `openSettings()`). New Project is steps (Code, Agents, Profiles; `newproject/`): the empty window, and a dialog of a
+  `openSettings()`). New Project is steps (Code, Agents, Profiles; `newproject/`): the welcome's, and a dialog of a
   tasks' window.
 - **Terminology: "the empty window"**: what a window is with no task open (at first start, after its last
   tab is closed): the title bar, no tasks' bar (nothing to show in it, since 2026-10-17), and in the
-  grid's place, the board (every project a column with its tasks, as the bar's + shows it in a new tab), or New
-  Project's steps with no project at all (since 2026-10-17; an island with New Task and New Project… before).
-  `Empty.vue`. It replaced the Welcome screen (JetBrains' name; 2026-10-11); earlier commits say Welcome screen.
+  grid's place, the board (every project a column with its tasks, as the bar's + shows it in a new tab), or the
+  welcome with no project at all (since 2026-10-17; an island with New Task and New Project… before). `Empty.vue`.
+- **Terminology: "the welcome"**: the first start's (`welcome/`, since 2026-10-17): what Kulisa does in three slides,
+  then New Project's steps under a question each. Not the Welcome screen, JetBrains' name for what the empty window
+  replaced on 2026-10-11 (a list of projects): earlier commits say Welcome screen for that.
 - **Terminology: "a new tab"**: the bar's + (since 2026-10-17; a menu of the projects before), as a browser's: a tab
   "New Tab" showing the board (`newtab/`) over the shown task, until a task is chosen or made there, or it is closed.
   Not a task, and not saved. The window's pages: `page` in `lib/store.ts`.

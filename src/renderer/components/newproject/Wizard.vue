@@ -1,6 +1,7 @@
 <script setup lang="ts">
-// New Project, step by step (docs/tasks.md, Projects): the steps, the buttons; their state in wizard.ts. In the empty
-// window in the grid's place (Empty.vue), elsewhere a dialog (NewProject.vue, cancelable).
+// New Project, step by step (docs/tasks.md, Projects): the steps, the buttons; their state in wizard.ts. At the first
+// start under a question each (welcome/: its head, and Back on the first step leaves for the slides before it),
+// elsewhere a dialog (NewProject.vue, cancelable).
 import CodeStep from './CodeStep.vue';
 import AgentStep from './AgentStep.vue';
 import ProfilesStep from './ProfilesStep.vue';
@@ -8,12 +9,13 @@ import { DialogClose } from 'reka-ui';
 import { nextTick, ref } from 'vue';
 import { STEPS, provideWizard } from './wizard';
 
-defineProps<{ cancelable?: boolean }>();
-const emit = defineEmits<{ done: [] }>();
+defineProps<{ cancelable?: boolean; leavable?: boolean }>();
+const emit = defineEmits<{ done: []; leave: [] }>();
 const w = provideWizard();
 const loaded = w.reset(); // anew each time it is shown: its component is made then
 const code = ref<InstanceType<typeof CodeStep>>();
 const next = async () => { if (await w.next()) emit('done'); };
+const back = () => { if (w.step.value) w.back(); else emit('leave'); };
 // The keyboard in its name.
 const focus = async () => { await loaded; await nextTick(); code.value?.focus(); }; // drawn the tick after its defaults came
 defineExpose({ focus, saving: w.saving });
@@ -21,16 +23,18 @@ defineExpose({ focus, saving: w.saving });
 
 <template>
   <form v-if="w.ready.value" id="npform" class="wizard" @submit.prevent="next">
-    <ol class="steps" aria-label="Steps">
-      <li v-for="(s, i) in STEPS" :key="s" :class="{ now: i === w.step.value, done: i < w.step.value }" :aria-current="i === w.step.value ? 'step' : undefined">
-        <span class="n">{{ i + 1 }}</span>{{ s }}</li>
-    </ol>
+    <slot name="head" :step="w.step.value" :count="STEPS.length">
+      <ol class="steps" aria-label="Steps">
+        <li v-for="(s, i) in STEPS" :key="s" :class="{ now: i === w.step.value, done: i < w.step.value }" :aria-current="i === w.step.value ? 'step' : undefined">
+          <span class="n">{{ i + 1 }}</span>{{ s }}</li>
+      </ol>
+    </slot>
     <CodeStep v-show="w.step.value === 0" ref="code" />
     <AgentStep v-show="w.step.value === 1" />
     <ProfilesStep v-show="w.step.value === 2" />
     <p id="nperror" class="error">{{ w.error.value }}</p>
     <footer>
-      <button v-if="w.step.value" id="npback" type="button" class="start" @click="w.back">Back</button>
+      <button v-if="w.step.value || leavable" id="npback" type="button" class="start" @click="back">Back</button>
       <DialogClose v-if="cancelable" type="button">Cancel</DialogClose>
       <button id="npcreate" class="primary" :disabled="w.saving.value">{{ w.saving.value ? (w.code.from === 'clone' ? 'Cloning…' : 'Creating…') : w.last.value ? 'Create' : 'Next' }}</button>
     </footer>

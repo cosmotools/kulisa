@@ -18,9 +18,10 @@ const only = (name: string, from: string, allowed: string[], comment: string) =>
 // The window's clusters: a part of several files with a state of its own, in a folder of src/renderer/components,
 // reached from outside only through its entries (docs/ui.md, Clusters). A new cluster is a line here.
 const clusters: Record<string, string[]> = {
-  newproject: ['NewProject', 'Wizard'], // New Project's steps: a dialog, and the empty window's
+  newproject: ['NewProject', 'Wizard'], // New Project's steps: a dialog, and the welcome's
   settings: ['Settings'], // Settings' window
   newtab: ['Board'], // every project with its tasks: a new tab's, the empty window's
+  welcome: ['Welcome'], // the first start: what Kulisa does, then New Project's steps
 };
 const cluster = (name: string, entries: string[]) => {
   const dir = `^src/renderer/components/${name}/`;

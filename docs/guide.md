@@ -34,8 +34,9 @@ Download Kulisa from its [latest release](https://github.com/cosmotools/kulisa/r
 Kulisa is tested on Linux (Ubuntu) and on macOS (by its developers, there is no installer for it yet); on Windows it is
 newer and less tried.
 
-1. **Make a project.** At the first start the window is New Project, in three steps (below): its code, its agents,
-   the users of your app. **Create** makes it and opens its first task.
+1. **Make a project.** At the first start Kulisa shows in three short slides what it does (**Skip** passes them),
+   then New Project, in three steps (below): its code, its agents, the users of your app. **Create** makes it and
+   opens its first task.
 2. **Tell the agent what to do** in the terminal. It opens the profiles it needs itself.
 3. **Sign in** where your app needs a real account: when the agent asks, or ahead of time with **Sign In…** in
    Settings → Profiles. You sign in once, for every task.
@@ -58,13 +59,14 @@ More tasks: **+** in the bar at the bottom, then **+** in your project's column.
   of any project, with its project's icon and its agent's state, and **+** after them. When there are more tabs than
   fit, the mouse wheel over the bar scrolls them, and a faded edge shows that more are past it.
 - **No task open** (after you close the last task): the window shows every project with its tasks, as **+** does
-  (Tasks, below). At the very first start, with no project yet, it shows New Project.
+  (Tasks, below). At the very first start, with no project yet, it shows what Kulisa does, then New Project.
 
 ## Projects
 
 ### New Project
 
-At the first start, with no project yet, the window is New Project; later, **New Project…** after the projects'
+At the first start, with no project yet, the window is New Project after three slides of what Kulisa does (**Back**
+on the first step shows them again); later, **New Project…** after the projects'
 columns (the bar's **+**, or a window with no task open). Three steps; **Next** goes on, **Back** goes
 back with what you typed kept, and nothing is made before **Create**.
 

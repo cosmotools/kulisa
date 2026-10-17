@@ -199,6 +199,9 @@ svg:has(> use) { width: 16px; height: 16px; flex: none; fill: none; stroke: curr
 :is(.dialog, .wizard) footer { display: flex; justify-content: flex-end; gap: var(--gap); padding: 10px var(--pad); border-top: 1px solid var(--island-hi);
   .start { margin-inline-end: auto; } /* it and the buttons before it at the left end */
   button { min-width: 80px; } }
+/* Where one is in a few slides or steps: a short bar each, lit up to the one shown (the welcome's, welcome/) */
+.dots { display: flex; gap: 6px; margin: 0; padding: 0; list-style: none;
+  li { width: 28px; height: 4px; border-radius: 2px; background: var(--island-hi); transition: background .3s ease; &.on { background: var(--accent); } } }
 /* What a dialog, Settings' window (.page: Settings.vue) and New Project's steps (.wizard) hold: hints, fields with their labels in one column, checks,
    a field with its button, a list's empty line. */
 :is(.dialog, .page, .wizard) {
