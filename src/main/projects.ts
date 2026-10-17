@@ -66,7 +66,7 @@ class Project {
   // A new task, named task-<n> until the agent or the human renames it. Its code: a worktree of the default repository
   // on a branch of the task's name (worktrees.ts), the others added when its work needs them (addCopy; the author,
   // 2026-10-13): next to its repository when the project has one, else in one folder for them all,
-  // ~/Kulisa/<project>@task-<n>/<repo>/, so that one added later goes beside it; with a port offset no other task
+  // <projects' home>/<project>@task-<n>/<repo>/ (shell.projectsHome), so that one added later goes beside it; with a port offset no other task
   // has (100, 200, …: the project's own folder keeps the usual ports). A folder without git is used as it is: the
   // task works right in it. Made from the project's configuration alone (the projects' manager), nothing from the
   // task on screen: its agent the project's default one; none: nothing starts, the island shows what can. No profile opens by itself: all its project's are listed closed, and the agent (profile_open)
@@ -104,7 +104,7 @@ class Project {
     return task;
   }
   // Another of its repositories added to a task (Task.addRepository): copied on the task's branch (or the next free
-  // name there) into its folder of copies, ~/Kulisa/<project>@task-<n>/. The copy, or { error }.
+  // name there) into its folder of copies, <projects' home>/<project>@task-<n>/. The copy, or { error }.
   async addCopy(task: Task, repo: string): Promise<Result<Copy>> {
     const { entry } = task;
     entry.home ??= freeFolder(path.join(this.shell.projectsHome, `${this.id}@task-${task.n}`));
@@ -265,7 +265,7 @@ async function changeRepos(shell: Shell, id: string, repos: string[]) {
   return { repos: reposOf(entry) };
 }
 // Cloned from a URL with the user's git (worktrees.ts, clone): into the project's own folder when it has no git
-// (~/Kulisa/<project>/<repo>), else next to it, never inside a repository.
+// (<projects' home>/<project>/<repo>), else next to it, never inside a repository.
 async function cloneRepo(shell: Shell, id: string, url: string): Promise<Result<{ repos: string[] }>> {
   const p = shell.store.projects().find((x) => x.id === id);
   if (!p) return { error: `no project ${id}` };
@@ -363,7 +363,7 @@ function defaultAgent(shell: Shell, id: string, agent: string | null): Result<{ 
 }
 // New Project (docs/tasks.md, Projects), as JetBrains': its code first (the author, 2026-10-11: a folder made in ~/Kulisa
 // was in the way of code already on the disk or at a URL), one repository or several (a frontend and a backend): from
-// 'new', <location>/<name>, the location ~/Kulisa unless the human picks another, so they know where the agent's files
+// 'new', <location>/<name>, the location the projects' home (shell.projectsHome) unless the human picks another, so they know where the agent's files
 // are; 'folder', the folders given, nothing made, the first the project's; 'clone', one repository cloned into
 // <location>/<name>, several into <location>/<name>/<repo> each. git init when asked, with an empty first commit:
 // tasks get copies of their own (worktrees) from it. Then its agents (accounts, the first the default) and profiles

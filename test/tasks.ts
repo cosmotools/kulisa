@@ -1133,7 +1133,7 @@ export default (test: Test) => {
     await waitFor(() => ui(`document.getElementById('newproject')?.dataset.state === 'open' && !!document.getElementById('npname')`));
 
     // Its code: a name and where its folder goes, the home folder unless another is chosen; git on by default.
-    assert.equal(await ui(`document.getElementById('nplocation').value`), path.join(root, 'Kulisa'), "every new project's place (~/Kulisa; the tests' own here)");
+    assert.equal(await ui(`document.getElementById('nplocation').value`), shell.projectsHome, "every new project's place (~/KulisaProjects; the tests' own here)");
     // Not its color or icon (its site's favicon and its hue, else the curtain in the next free color: nothing to
     // choose, the author, 2026-10-12).
     assert.equal(await ui(`!!document.getElementById('npcolors') || !!document.getElementById('npicons')`), false);
@@ -1464,7 +1464,7 @@ export default (test: Test) => {
     assert.deepEqual(rows.slice(rows.indexOf('# Add Repository'), rows.indexOf('Rename…')), ['# Add Repository', 'web', '-']);
     await watchFresh();
     await choose(ui, 'web');
-    const webCopy = path.join(root, 'Kulisa', 'api@task-1', 'web');
+    const webCopy = path.join(shell.projectsHome, 'api@task-1', 'web');
     await waitFor(() => first.entry.copies.length === 2);
     await waitFor(async () => (await chips()).length === 2);
     assert.deepEqual([await chips(), await lit()], [['api', 'web'], ['web']], 'it comes in lit');
@@ -1485,7 +1485,7 @@ export default (test: Test) => {
     // A new task: a copy of the default one alone, in a folder for them all; the agent told of the other, to read it
     // there and ask before adding it.
     const task = await newTask(ctx);
-    const home = path.join(root, 'Kulisa', 'api@task-2');
+    const home = path.join(shell.projectsHome, 'api@task-2');
     assert.equal(task.folder, path.join(home, 'api'));
     assert.deepEqual([task.dirs(), fs.existsSync(path.join(home, 'web'))], [[], false]);
     assert.match(await ctx.instructions(task), new RegExp(`repositories, not in this task: ${web}\\. .*first ask the human.*task_add_repository`));
@@ -1865,12 +1865,12 @@ export default (test: Test) => {
     await fill('npsource', bare);
     await ui(`document.getElementById('npaddsource').click()`);
     await waitFor(async () => (await ui(`document.getElementById('npname').value`)) === 'cloned');
-    const into = path.join(root, 'Kulisa', 'cloned');
+    const into = path.join(shell.projectsHome, 'cloned');
     await waitFor(async () => (await ui(`document.getElementById('npwhere').textContent`)) === `The repository will be cloned into ${into}`);
     await fill('nplocation', root);
     await fill('npname', 'gone');
     await waitFor(async () => (await ui(`document.getElementById('npwhere').textContent`)) === `${gone} is there already: choose another name or location`);
-    await fill('nplocation', path.join(root, 'Kulisa'));
+    await fill('nplocation', shell.projectsHome);
     await fill('npname', 'cloned');
     await create('cloned');
     const cloned = shell.store.projects().find((x) => x.id === 'cloned');
@@ -1885,7 +1885,7 @@ export default (test: Test) => {
     await ui(`document.getElementById('npaddsource').click()`);
     await fill('npname', 'fullstack');
     await fill('npsource', backBare);
-    const stack = path.join(root, 'Kulisa', 'fullstack');
+    const stack = path.join(shell.projectsHome, 'fullstack');
     await create('fullstack');
     const full = shell.store.projects().find((x) => x.id === 'fullstack');
     assert.deepEqual([full.folder, full.repos], [stack, [path.join(stack, 'cloned'), path.join(stack, 'back')]]);

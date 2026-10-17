@@ -124,7 +124,9 @@ function start(options: Options = {}) {
     shell.settings?.send('settings:changed');
   };
   // Where new projects go, and the folders of copies of tasks with several repositories (projects.ts).
-  shell.projectsHome = options.projectsHome || path.join(app.getPath('home'), 'Kulisa');
+  // New projects' place, and the folders of copies of tasks of several repositories: KulisaProjects, as JetBrains'
+  // IdeaProjects (the author, 2026-10-17; ~/Kulisa until then, easily taken for Kulisa's data folder: %APPDATA%\Kulisa).
+  shell.projectsHome = options.projectsHome || path.join(app.getPath('home'), 'KulisaProjects');
   Object.defineProperties(shell, {
     win: { get: () => first()?.win ?? null },
     current: { get: () => first()?.task?.project ?? null },
