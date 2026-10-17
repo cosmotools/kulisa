@@ -73,6 +73,7 @@ npm run package       # the app for this platform, in out/
 npm run make          # installers for this platform, in out/make/ (.deb and .rpm, .exe, .dmg and .zip)
 npm run publish       # the same, into a draft release on GitHub (GITHUB_TOKEN); the CI does it on a merge into main
 npm run icons         # after changing assets/icon.svg: icon.png, .ico, .icns next to it (committed)
+npm version <patch|minor> --no-git-tag-version   # a release's version (CLAUDE.md, Releases); the plugin manifest's follows (scripts/version.ts)
 ```
 
 Kulisa targets macOS, Windows and Linux. Its tests pass on Ubuntu and macOS at every pull request; macOS is for
@@ -112,7 +113,7 @@ Code's checks.
 | `src/shared/` | what the main process and the window both import: the shapes and channels they send, names, `Result` |
 | `src/agent/` | what Kulisa gives the agents: the profiles skill, Claude Code's plugin |
 | `test/` | unit tests and the e2e groups, the test site (docs/testing.md) |
-| `scripts/` | `electron.ts` (npm start: Electron, `--no-sandbox` on Linux only), `postinstall.ts` (node-pty for Electron), `icons.ts` (npm run icons) |
+| `scripts/` | `electron.ts` (npm start: Electron, `--no-sandbox` on Linux only), `postinstall.ts` (node-pty for Electron), `icons.ts` (npm run icons), `version.ts` (Claude Code's plugin manifest's version from package.json's, at npm version) |
 | `assets/` | the app icon: `icon.svg` and what each OS needs, rendered from it |
 | `docs/` | how it works and why (Documentation, above) |
 | `.claude/` | for Claude Code sessions on Kulisa: their skills (running and debugging the author's Kulisa), the Stop hook, the `kulisa-dev` plugin |
