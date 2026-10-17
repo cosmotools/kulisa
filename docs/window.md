@@ -89,13 +89,13 @@ deleted since is not restored at all: a profile deleted, then another task shown
 arrangement; 2026-10-13).
 The island is one panel however many terminals it holds ("The terminal").
 
-A window made narrower or wider changes every panel in its share, as VS Code's and JetBrains' do. Until 2026-10-15
-the last panel of a row took it all, down to a sliver while the first kept its size, for two reasons:
-dockview-vue declares dockview's `proportionalLayout` (on by default) a Boolean prop, which Vue makes false when left
-out (`Grid.vue` sets it; dockview issue [1691](https://github.com/dockview/dockview/issues/1691)); and in dockview (8.4, 8.5) a row with a panel below it, built again after the grid was
-cleared (an arrangement; a saved grid restored clears it too), keeps no shares. After a change of its panels the grid
-takes its shares again on the next frame (`lib/grid.ts`, turning the option off and on), until dockview fixes it
-([1692](https://github.com/dockview/dockview/issues/1692)).
+A window made narrower or wider changes every panel in its share, as VS Code's and JetBrains' do (dockview's
+`proportionalLayout`, on by default). Until 2026-10-15 the last panel of a row took it all, down to a sliver while
+the first kept its size, for two bugs of dockview's, reported and fixed in 8.6.0 (2026-10-16): dockview-vue made
+the option false when left out ([1691](https://github.com/dockview/dockview/issues/1691)), and a row with a panel
+below it, built again after the grid was cleared (an arrangement; a saved grid restored clears it too), kept no
+shares ([1692](https://github.com/dockview/dockview/issues/1692)). Until 8.6.0 Kulisa set the option itself and
+took the shares again after every change of the panels, by turning it off and on.
 
 A pane's header (its profile's picture, name and ×) shrinks with the pane: a name longer than the pane is wide is cut
 with …, the whole of it and the profile's description in its tooltip, and the × stays, as on every tab
