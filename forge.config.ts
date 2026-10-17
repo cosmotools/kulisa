@@ -12,6 +12,10 @@ const apple = process.env.APPLE_API_KEY ? {
   osxNotarize: { appleApiKey: process.env.APPLE_API_KEY, appleApiKeyId: process.env.APPLE_API_KEY_ID ?? '', appleApiIssuer: process.env.APPLE_API_ISSUER ?? '' },
 } : {};
 
+// Linux's menu entry: named Kulisa, not by the package (kulisa), the makers' default; the makers' own template would
+// make its window class Kulisa too, and the window's is kulisa (GNOME's dock matches them).
+const linux = { productName: 'Kulisa', desktopTemplate: 'assets/linux.desktop.ejs', categories: ['Development'], icon: 'assets/icon.png' };
+
 const config: ForgeConfig = {
   packagerConfig: {
     ...apple,
@@ -39,8 +43,8 @@ const config: ForgeConfig = {
     { name: '@electron-forge/maker-dmg', platforms: ['darwin'], config: { icon: 'assets/icon.icns' } },
     { name: '@electron-forge/maker-zip', platforms: ['darwin'], config: {} },
     // The .deb adds Kulisa's apt repository, which updates it (assets/deb).
-    { name: '@electron-forge/maker-deb', platforms: ['linux'], config: { options: { categories: ['Development'], icon: 'assets/icon.png', scripts: { postinst: 'assets/deb/postinst', postrm: 'assets/deb/postrm' } } } },
-    { name: '@electron-forge/maker-rpm', platforms: ['linux'], config: { options: { categories: ['Development'], icon: 'assets/icon.png' } } },
+    { name: '@electron-forge/maker-deb', platforms: ['linux'], config: { options: { ...linux, scripts: { postinst: 'assets/deb/postinst', postrm: 'assets/deb/postrm' } } } },
+    { name: '@electron-forge/maker-rpm', platforms: ['linux'], config: { options: linux } },
   ],
   // A draft: the author publishes it, and update.electronjs.org takes only published releases (update-electron-app).
   publishers: [{ name: '@electron-forge/publisher-github', config: { repository: { owner: 'cosmotools', name: 'kulisa' }, draft: true } }],

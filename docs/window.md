@@ -469,7 +469,7 @@ A new channel is declared there first, then its two ends.
 
 The icon is a stage curtain drawn apart with the agent's pointer (`assets/icon.svg`, rendered for each OS by `npm run
 icons`): in the title bar, the taskbar and the installers. Run from source, GNOME's dock shows a generic icon: it
-takes icons from installed `.desktop` files only (the `.deb` installs one matching the window class `kulisa`); left
+takes icons from installed `.desktop` files only (the `.deb` installs one matching the window class `kulisa`, named Kulisa by its own template, `assets/linux.desktop.ejs`: the makers' would name it after the package and give it the class `Kulisa`); left
 so on purpose. The macOS Dock shows Electron's own icon for a bundle run from source, so Kulisa sets its own there
 (`app.dock.setIcon`); a packaged one has it in its bundle.
 
