@@ -474,11 +474,18 @@ tag:
   whether its session is resumed, or a shell), gone, its exit code.
 - `[page wc=…]`: an error or a warning in one of Kulisa's own pages (its console: an uncaught error is one); never a
   profile's page.
-- electron-log's own: a renderer or the GPU gone, a page that failed to load.
+- electron-log's own events, named one by one in `startLog`: a renderer gone (with the page's address, bare: where it
+  crashed is worth knowing), a child process (the GPU) gone, a page unresponsive, a preload error. Not its defaults,
+  which listen on every webContents, the profiles' pages too, and log their failed loads and certificate errors with
+  the address (every cancelled navigation, an OAuth callback's `?code=`), and their console.
 
-Never there: what is typed into a terminal or a page, passwords, tokens, cookies. `summary` writes an action's
-arguments in one short line, a value left out by its key (password, secret, token, cookie, credential) or by what
-the text says of itself (a command with a token in it), long strings and the whole cut. What the code says with
+Never there: what is typed into a terminal or a page, passwords, tokens, cookies, an address's user and query.
+`summary` writes an action's arguments in one short line: a value left out by its key (password, secret, token,
+cookie, credential; `text` and `values`, what the agent types into a page) or by what the text says of itself
+(`token=…`, `Bearer …`), an address without its user and password (`https://…@github.com/…`) and without its query
+and fragment (`?…`: an OAuth code, a magic link; the addresses in a refusal's or a failed tool's message too, `bare`), long
+strings and the whole cut. A second Kulisa started on the same
+data writes its start line and "already running" into the same file: two starts in a row are not a restart. What the code says with
 `console.*` goes to the file too (`startLog`). A new action of the core goes through `handle()` or the MCP server's
 `registerTool`, so it is logged by itself; a line elsewhere says what happened and who asked, never what was typed.
 

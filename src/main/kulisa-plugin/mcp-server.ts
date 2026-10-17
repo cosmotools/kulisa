@@ -21,7 +21,7 @@ import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import type { Locator, Page } from 'playwright-core';
 import type { Shell } from '../shell.ts';
 import type { Task, TaskTerminal } from '../tasks.ts';
-import { log, summary } from '../log.ts';
+import { bare, log, summary } from '../log.ts';
 import type { Tab } from '../profiles.ts';
 
 type Element = { ref?: string; locator?: string };
@@ -82,7 +82,7 @@ function buildServer(task: Task, t: TaskTerminal | null) {
   server.registerTool = ((name: string, config: object, cb: Handler) => register(name, config, async (...a) => {
     log.info(`[mcp] ${name} ${task.key}${t ? `#${t.id}` : ''} ${summary(a[0])}`);
     let r: CallToolResult;
-    try { r = await cb(...a); } catch (e) { log.info(`[mcp] ${name} failed: ${(e as Error).message}`); throw e; }
+    try { r = await cb(...a); } catch (e) { log.info(`[mcp] ${name} failed: ${bare((e as Error).message)}`); throw e; }
     if (task.unnamed && name !== 'task_rename') r.content.push({ type: 'text', text: unnamed(task) });
     return r;
   })) as unknown as typeof server.registerTool;
