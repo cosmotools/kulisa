@@ -4,6 +4,7 @@ import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { closeSettings, canShoot, NO_SHOT, shot, assert, root, userData, sleep, waitFor, menuRows, choose, menuOpen, rightClick, box, viewOn, closeMenu, click, noNode, press } from './helpers.ts';
+import { createPackage } from '@electron/asar';
 import forge from '../forge.config.ts';
 import type { Test } from './run.ts';
 import type { TaskTerminal } from '../src/main/tasks.ts';
@@ -433,5 +434,40 @@ export default (test: Test) => {
     await ui(`document.querySelector('#ask .cancel').click()`);
     assert.equal(await second, false, 'Cancel says no');
     ctx.answer = true;
+  });
+  // The app archive the test's Kulisa watches (run.ts, installed) replaced as apt does: a new one written beside and
+  // renamed over. The archive made as Forge packs it (@electron/asar).
+  test('a new version installed while Kulisa runs is offered once, in its own dialog: Later leaves it to the next start, Restart saves everything and starts it', async (ctx) => {
+    const { shell, ui } = ctx;
+    const asar = path.join(root, 'installed', 'app.asar'), src = path.join(root, 'installed-src');
+    const install = async (version: string) => {
+      fs.mkdirSync(src, { recursive: true }); fs.mkdirSync(path.dirname(asar), { recursive: true });
+      fs.writeFileSync(path.join(src, 'package.json'), JSON.stringify({ name: 'kulisa', version }));
+      await createPackage(src, `${asar}.dpkg-new`);
+      fs.renameSync(`${asar}.dpkg-new`, asar);
+    };
+    const open = () => ui(`document.getElementById('ask')?.dataset.state === 'open'`);
+    const restart = shell.restart;
+    let restarted: string | null = null;
+    shell.restart = async (apply) => { restarted = apply ? 'squirrel' : 'relaunch'; };
+    try {
+      ctx.answer = false; // Later
+      await install('9.9.9');
+      await waitFor(() => ctx.asked.some((q) => q.message === 'Kulisa 9.9.9 is ready'), 10000);
+      const q = ctx.asked.pop();
+      assert.equal(q.ok, 'Restart'); assert.equal(q.cancel, 'Later');
+      assert.match(q.detail, /Restart to use it: the windows, their tasks and conversations come back\. Later: the next start is 9\.9\.9\.$/);
+      await waitFor(async () => !(await open()));
+      assert.equal(restarted, null, 'Later: nothing');
+      // Restart: the way to quit that keeps everything, then the new version (the test's Kulisa stays: a stub).
+      ctx.answer = true;
+      await install('9.9.10');
+      await waitFor(() => restarted, 10000);
+      assert.equal(restarted, 'relaunch');
+      assert.equal(ctx.asked.pop().message, 'Kulisa 9.9.10 is ready');
+    } finally {
+      shell.restart = restart; ctx.answer = true;
+      fs.rmSync(src, { recursive: true, force: true });
+    }
   });
 };

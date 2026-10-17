@@ -26,10 +26,11 @@ Download Kulisa from its [latest release](https://github.com/cosmotools/kulisa/r
 
 - **Windows:** `Kulisa-<version>.Setup.exe`. It is not signed yet, so Windows warns about it: More info → Run anyway.
   It installs for you alone, with no questions, and starts. From then on it updates itself: a new version is
-  downloaded in the background and starts the next time you start Kulisa.
+  downloaded in the background; Kulisa offers to restart into it, or it starts the next time you start Kulisa.
 - **Linux:** the `.deb` for Ubuntu and Debian (`sudo apt install ./kulisa_<version>_amd64.deb`), the `.rpm` for
   Fedora. Kulisa is then in your apps. On Ubuntu and Debian it then updates with the system: a new version comes in
-  Software Updater, or with `sudo apt update && sudo apt upgrade`. The `.rpm` does not update itself: install a new
+  Software Updater, or with `sudo apt update && sudo apt upgrade`; installed while Kulisa is open, it offers to restart
+  (everything comes back as it was), or starts next time. The `.rpm` does not update itself: install a new
   version the same way.
 - **macOS:** to come.
 

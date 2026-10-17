@@ -26,7 +26,7 @@ watch(open, (o) => {
         <header><AlertDialogTitle>{{ q?.message }}</AlertDialogTitle></header>
         <div class="body"><AlertDialogDescription class="detail">{{ q?.detail }}</AlertDialogDescription></div>
         <footer>
-          <AlertDialogCancel class="cancel">Cancel</AlertDialogCancel>
+          <AlertDialogCancel class="cancel">{{ q?.cancel || 'Cancel' }}</AlertDialogCancel>
           <AlertDialogAction v-if="q?.other" class="other" @click="answer = 'other'">{{ q.other }}</AlertDialogAction>
           <AlertDialogAction :class="['ok', q?.danger ? 'danger' : 'primary']" @click="answer = 'ok'">{{ q?.ok || 'OK' }}</AlertDialogAction>
         </footer>

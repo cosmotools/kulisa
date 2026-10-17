@@ -25,6 +25,7 @@ import { startDiscarding } from './discard.ts';
 import { installMasters } from './master.ts';
 import { installSettings } from './settings-window.ts';
 import { openTasks } from './open-tasks.ts';
+import { updateNotices } from './updates.ts';
 import { installShortcuts } from './shortcuts.ts';
 import { registerTasks } from './ipc/tasks.ts';
 import { registerProjects } from './ipc/projects.ts';
@@ -40,7 +41,7 @@ import type { ProjectEntry } from './store.ts';
 // What start takes (below).
 interface Options {
   userData?: string; project?: string; projectsHome?: string; mcpPort?: number; signinHosts?: string[];
-  appDevTools?: boolean; agents?: Agent[];
+  appDevTools?: boolean; agents?: Agent[]; installed?: string;
   agent?: { name?: string; command: string; args?: string[]; resume?: (sessionId: string) => string[]; shell?: Agent['shell']; voice?: Agent['voice']; conversation?: Agent['conversation'] };
 }
 
@@ -64,6 +65,8 @@ const AGENT_PACKAGES = app.isPackaged ? process.resourcesPath : path.join(import
 //              asking (KULISA_AGENT, the tests); resume(sessionId) gives the arguments that continue a session.
 //              Default: the human chooses from agents (agents/) per task, in the window.
 //   agents     the agents to choose from, instead of agents/index.ts's (tests)
+//   installed  the app archive to watch for a new version installed on disk (updates.ts); default: a packaged
+//              Kulisa's own on Linux, none otherwise (tests)
 //   mcpPort    port of the MCP server (default 4450)
 //   signinHosts  extra sign-in hosts (sign-in pause, tab restore)
 function start(options: Options = {}) {
@@ -265,6 +268,7 @@ function start(options: Options = {}) {
   // The windows' open tasks (open-tasks.ts): one change to them after another, in all windows.
   const tasks = openTasks(shell, { appDevTools });
   const { serial, newWindow, loadProject, unloadIdle, openProject } = tasks;
+  updateNotices(shell, options.installed);
   // The windows' handles (ipc/): each message acts in the window it comes from.
   const ipc: Ipc = { shell, at, owner, asker, serial, tasks };
   registerTasks(ipc);
@@ -376,7 +380,20 @@ function start(options: Options = {}) {
   // their tabs open again at the next start.
   app.on('before-quit', async (e) => {
     if (quitting) return;
-    e.preventDefault(); quitting = true;
+    e.preventDefault();
+    await shutdown();
+    app.quit();
+  });
+  // Into a new version (updates.ts): saved as at quitting, then Squirrel's apply (quitAndInstall, which closes the
+  // windows before before-quit: Electron's api/auto-updater.md; quitting is set already, so they close without a
+  // question) or the one on disk (relaunch: the same path, its files replaced).
+  shell.restart = async (apply) => {
+    await shutdown();
+    if (apply) apply();
+    else { app.relaunch(); app.quit(); }
+  };
+  async function shutdown() {
+    quitting = true;
     for (const w of shell.windows) w.pushState();
     for (const task of allTasks()) if (task !== task.window?.task && task.loaded) task.list.saveTabs();
     shell.saveWindows();
@@ -389,8 +406,7 @@ function start(options: Options = {}) {
       await p.disconnect();
     }
     for (const task of allTasks()) for (const t of task.terminals.values()) if (t.pty) stopTerminal(t.pty);
-    app.quit();
-  });
+  }
   process.on('SIGINT', () => app.quit());
   process.on('SIGTERM', () => app.quit());
   app.on('window-all-closed', () => app.quit());

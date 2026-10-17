@@ -498,10 +498,21 @@ left is there too.
 Electron team's `update-electron-app`, from update.electronjs.org, which serves a public repository's published
 GitHub releases. A packaged Kulisa on Windows or macOS checks at start and every 6 hours (its 10 minutes by default:
 Kulisa stays open for days), downloads a newer release in the background, and starts it the next time it is started.
-It never restarts by itself nor asks with the OS's dialog (the module's, off: `notifyUser: false`): Kulisa asks in its
-own (Dialogs and questions), and that dialog's Restart (`quitAndInstall`) closes the windows before `before-quit`,
-where session cookies and tabs are saved. Not from source (`app.isPackaged`), nor on Linux, where Electron has no
-updater: there the distribution's package manager updates it, as Electron's docs advise. The `.deb` adds Kulisa's apt
+It never restarts by itself nor asks with the OS's dialog (the module's, off: `notifyUser: false`). Not from source
+(`app.isPackaged`), nor on Linux, where Electron has no updater: there the distribution's package manager updates it,
+as Electron's docs advise, under the running Kulisa, which goes on from the old files (dpkg and rpm write each file
+beside and rename it over).
+
+**A new version ready while Kulisa runs** (`updateNotices` in `updates.ts`, since 2026-10-17): downloaded by the updater
+(`update-downloaded`), or installed on disk (Linux: the app archive's folder watched, `installed.ts`: the version read
+from the archive as it is on disk, `process.noAsar` for that read, since Electron's own reads go to the file it opened
+at start) is asked about once per version, in Kulisa's own dialog (Dialogs and questions), in the tasks' window in
+front: "Kulisa 0.1.4 is ready", Restart or Later, saying which agents it would stop, as quitting does. Restart
+(`shell.restart`) saves everything as `before-quit` does (session cookies, tabs, the windows), then Squirrel's
+`quitAndInstall` (which closes the windows before `before-quit`, Electron's `api/auto-updater.md`: `quitting` is set
+already, so they close without a question) or, on disk, `app.relaunch` (the same path, its files replaced) and quit;
+the windows and their tasks come back in the new version. Later: nothing more; the next start is the new version
+anyway. The `.deb` adds Kulisa's apt
 repository and its key as Chrome's and VS Code's do (`assets/deb/postinst`; gone with `purge`, `postrm`), so a new
 release comes with the system's updates. The repository is a flat one on GitHub Releases, nothing else to host
 (GitHub Pages takes no file over 100 MB, and the `.deb` is about that): its index, signed with the key in the secret
@@ -533,7 +544,7 @@ shortcuts carry (`com.squirrel.kulisa.kulisa`), or Windows would not pin it to t
 | `src/main/settings-window.ts`, `src/renderer/settings.html`, `components/settings/` | Settings' window (Settings); its page is `ProjectEditor.vue` |
 | `src/preload/index.cjs` | the window's bridge to the main process: the windows' pages are sandboxed (no Node: about 15 MB less a window, PSS; 2026-10-12), so it is a few lines of plain JavaScript; the window imports what it shares with the main process from `src/shared/` (`names.ts`, `avatars.ts`, `result.ts`) |
 | `src/main/keys.ts` | the keyboard shortcuts: the table, which key an input event is; `shortcuts.ts` takes them (Keys) |
-| `src/main/updates.ts`, `forge.config.ts` | updates, Squirrel's events; the installers and the release |
+| `src/main/updates.ts`, `installed.ts`, `forge.config.ts` | updates, Squirrel's events, a new version ready while Kulisa runs (the version installed on disk); the installers and the release |
 | `src/main/terminal.ts` | the ptys of the tasks' terminals; each shell's screen for `terminal_read` |
 | `src/renderer/components/Grid.vue`, `grid/*.vue`, `lib/grid.ts` | the grid (dockview), the panes and their headers, the island of terminals (`Terminals.vue`, its row of tabs `TerminalTabs.vue`), the closed profiles' tiles over it (`ClosedProfiles.vue`), Arrange panels |
 | `src/renderer/components/TopBar.vue`, `menu/*.vue` | the title bar, ☰ and its own rows |

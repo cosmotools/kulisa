@@ -71,22 +71,19 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
   // agents are still working; or before quitting (quit), when the tasks come back at the next start: asked only
   // when that would stop a working agent. True: go on.
   function askClosing(w: AppWindow | null, tasks: Task[], { quit = false, window = false } = {}) {
-    const projects = new Set(tasks.map((t) => t.project));
-    const named = (task: Task) => (projects.size > 1 ? `${task.project.name}: ${task.name}` : task.name);
-    const working = tasks.filter((task) => task.working).map(named);
-    const busy = working.length ? `${working.length > 1 ? 'Agents are' : 'An agent is'} still working (${working.join(', ')}): ` : '';
-    const it = working.length > 1 ? 'them' : 'it';
+    const projects = new Set(tasks.map((t) => t.project)), named = nameAmong(tasks);
+    const working = tasks.some((task) => task.working);
     if (quit) {
-      return !working.length || shell.ask({ message: 'Quit Kulisa?', ok: 'Quit',
-        detail: `${busy}quitting stops ${it}. The windows, their tasks and conversations come back at the next start.` }, w);
+      return !working || shell.ask({ message: 'Quit Kulisa?', ok: 'Quit',
+        detail: `${stillWorking(tasks, 'quitting')}The windows, their tasks and conversations come back at the next start.` }, w);
     }
     if (!window) {
       const what = tasks.length === 1 ? `the task ${tasks[0]!.name}` : `the ${tasks.length} tasks of ${[...projects].map((p) => p.name).join(', ')}`;
-      return !working.length || shell.ask({ message: `Close ${what}?`, ok: 'Close',
-        detail: `${busy}closing stops ${it}. ${tasks.length === 1 ? 'Its conversation, code and profiles stay' : 'Their conversations, code and profiles stay'}: open ${tasks.length === 1 ? 'it' : 'them'} again from the bar's +.` }, w);
+      return !working || shell.ask({ message: `Close ${what}?`, ok: 'Close',
+        detail: `${stillWorking(tasks, 'closing')}${tasks.length === 1 ? 'Its conversation, code and profiles stay' : 'Their conversations, code and profiles stay'}: open ${tasks.length === 1 ? 'it' : 'them'} again from the bar's +.` }, w);
     }
     return shell.ask({ message: 'Close the window?', ok: 'Close',
-      detail: `Its tasks close: ${tasks.map(named).join(', ')}. ${busy ? `${busy}closing stops ${it}. ` : ''}`
+      detail: `Its tasks close: ${tasks.map(named).join(', ')}. ${stillWorking(tasks, 'closing')}`
         + 'Their conversations, code and profiles stay: open them again from the bar\'s +.' }, w);
   }
   // A task into another window (to, its tab at index; none: a window of its own next to its window, or at the
@@ -252,3 +249,16 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
   return { serial, newWindow, loadProject, unloadIdle, openTasksOf, openProject, closeTasks, askClosing, moveTask, moveAll, dropTask, dragOut, quit, createTask, showTask, closeTask, deleteTask, deleteMerged, deleteProject };
 }
 export type OpenTasks = ReturnType<typeof openTasks>;
+
+// A task's name among tasks: with its project's when they are of several.
+const nameAmong = (tasks: Task[]) => {
+  const several = new Set(tasks.map((t) => t.project)).size > 1;
+  return (task: Task) => (several ? `${task.project.name}: ${task.name}` : task.name);
+};
+// The sentence of a question before doing (closing, quitting, restarting) what stops the agents still working among
+// tasks, ending in a space; nothing when none works.
+export function stillWorking(tasks: Task[], doing: string) {
+  const working = tasks.filter((task) => task.working).map(nameAmong(tasks));
+  if (!working.length) return '';
+  return `${working.length > 1 ? 'Agents are' : 'An agent is'} still working (${working.join(', ')}): ${doing} stops ${working.length > 1 ? 'them' : 'it'}. `;
+}
