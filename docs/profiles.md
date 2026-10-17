@@ -95,12 +95,12 @@ A profile is an Electron session on a folder of its own (`session.fromPath`), la
 
 ## What the agent does
 
-Through Kulisa's MCP server (`mcp-server.ts`), every tool taking a profile id: `browser_profiles`,
-`browser_snapshot`, `browser_click`, `browser_type`, `browser_press_key`, `browser_hover`, `browser_select_option`,
+Through Kulisa's MCP server (`mcp-server.ts`). `profile_list` lists the profiles, their ids and tabs; the `browser_*`
+tools act in one, each taking a profile id: `browser_snapshot`, `browser_click`, `browser_type`, `browser_press_key`, `browser_hover`, `browser_select_option`,
 `browser_file_upload`, `browser_wait_for`, `browser_evaluate`, `browser_navigate` (also back, forward, reload),
 `browser_tab_new` / `_select` / `_close`, `browser_highlight`, `browser_screenshot`, `browser_console_messages`,
 `browser_network_requests`, `browser_type_login`; the tools reading or acting on a page take an optional `tab`.
-Profiles: `profile_create`, `profile_rename`, `profile_describe`, `profile_open`, `profile_close`, `profile_ask_signin`,
+Profiles (`profile_*`, the profile as a thing): `profile_create`, `profile_rename`, `profile_describe`, `profile_open`, `profile_close`, `profile_ask_signin`,
 `profile_set_login`, and `profile_delete`, which asks the human first. Tasks: `task_rename`, `task_add_repository` (another of the project's repositories, once the human agreed: [tasks.md](tasks.md), Tasks),
 `task_remove_repository` (one added, no longer needed, once the human agreed), `task_history` (what was
 said and done in the task before: [transcripts.md](transcripts.md)), `conversation_rename` (its tab). Terminals:
@@ -118,7 +118,7 @@ arguments, as the MCP server and the hooks are, not the agents' own config files
 
 What the tools are for, beyond acting as one user:
 
-- **Choosing the profile** by who it is, as cast did: `browser_profiles` and the session's start give each profile's
+- **Choosing the profile** by who it is, as cast did: `profile_list` and the session's start give each profile's
   description, or say it is not said. The agent chooses by it, never guessing a role from a name; when none or several
   fit, it asks the human once and saves their answer (`profile_describe`), so no one asks again. The rule is in the
   MCP server's `instructions` too, so agents without the profiles skill (one run by hand in the terminal) get it.
@@ -254,7 +254,7 @@ author, 2026-10-10). How it is kept safe, each line with its reason:
   encrypted with the OS keyring (`safeStorage`), as session cookies are; without a keyring none is kept: never in the
   clear on disk.
 - **The agent never gets the password.** `browser_type_login` (a field, `login` or `password`) has Kulisa type it into
-  the page; `browser_profiles` shows the login and whether a password is kept, not the password; the pane's caption
+  the page; `profile_list` shows the login and whether a password is kept, not the password; the pane's caption
   says `type ••••••` (`ghost.ts`, `shell.typingSecret`). So it is in no transcript, log or screen share. (A script the
   agent runs in the page could read a field back; the skill forbids reading secrets, as it forbids cookies.)
 - **Only on a local page** (`local.ts`, `Task.loginFor`): `localhost`, `*.localhost`, `*.test`, `*.local`, loopback,
@@ -315,7 +315,7 @@ marks it (Chrome marks none either). Looked at or used again, its page loads aga
   does) stays, as in Chrome: Electron says so (`will-prevent-unload`) and keeps it.
 - **Back** when the human shows its task or pane, clicks its tab, or types an address into it; when the agent names
   it in a tool (`browser_snapshot` with its `tab`, `browser_tab_select`: the tool loads it first, the agent notices
-  nothing; `browser_profiles` lists it as any tab). Only the active tab of each pane comes back when a task is shown; the
+  nothing; `profile_list` lists it as any tab). Only the active tab of each pane comes back when a task is shown; the
   others stay unloaded until clicked, as Chrome's. Closed while unloaded (× or `browser_tab_close`): gone, nothing to
   close. Its address is saved with the others (`Kulisa Tabs.json`), so it comes back after a restart too.
 - **Lost with its process**, as in Chrome: the page's state (its scroll, what was typed without `beforeunload`) and, as
@@ -419,10 +419,10 @@ space (ROADMAP, "Profiles' caches").
 | `src/main/signin-pages.ts`, `signin-pause.ts` | sign-in pages; the pause |
 | `src/main/cdp-proxy.ts` | the CDP endpoint per profile |
 | `src/main/local-only.ts` | refusing web pages' requests to the MCP server, the hooks and the proxy (Host, Origin) |
-| `src/main/agent-hooks.ts` | the answers to the agents' hooks: the open profiles, the session, the agent's state |
+| `src/main/kulisa-plugin/agent-hooks.ts` | the answers to the agents' hooks: the open profiles, the session, the agent's state |
 | `src/main/page-focus.ts` | the keyboard stays where the human put it: a page taking it by itself gives it back ([window.md](window.md), Keys) |
 | `src/main/discard.ts` | tabs no one looks at losing their process: the rule, the sweep (`Profile.discard`, `load` in `profiles.ts`) |
-| `src/main/mcp-server.ts`, `ghost.ts`, `picker.ts` | the agent's tools, its actions shown, point and tell |
+| `src/main/kulisa-plugin/mcp-server.ts`, `ghost.ts`; `src/main/picker.ts` | the agent's tools, its actions shown; point and tell |
 | `src/agent/skills/profiles/SKILL.md`, `src/agent/claude-plugin/` | the profiles skill, every agent's; Claude Code's plugin (`.mcp.json`: the task's MCP URL) |
 | `src/renderer/components/grid/ProfilePane.vue`, `ProfileHeader.vue`, `lib/profiles.ts`; `settings/ProfilePage.vue`, `settings/Avatars.vue` | the panes and the profiles' menu (a task tab's right-click); a profile's page in Settings and its pictures |
 | `test/agent.ts`, `profiles.ts`, `discard.ts`, `zoom-and-closing.ts`, `restart-profiles.ts`, `unit/store.test.ts`, `unit/discard.test.ts` | the tests |

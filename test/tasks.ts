@@ -10,7 +10,7 @@ import http from 'http';
 import { MAC, CMD, shot, assert, root, userData, project, pfile, panel, SITE, sleep, waitFor, who, menuRows, choose, rightClick, viewOn, press, projectTabs, projectTab, showProject, savedWindows, closeMenu, click, plusMenu, closeBoard, PORT, hooksOf, MENU, SUBMENU, menuOpen, noNode, focusWindow, chooseProfile, closeSettings, settingsClosed } from './helpers.ts';
 import { withOffset } from '../src/main/tasks.ts';
 import { createWorktree } from '../src/main/worktrees.ts';
-import { sessionStart } from '../src/main/agent-hooks.ts';
+import { sessionStart } from '../src/main/kulisa-plugin/agent-hooks.ts';
 import { refused } from '../src/shared/result.ts';
 import type { Test, Ctx } from './run.ts';
 import type { UI } from './helpers.ts';
@@ -188,7 +188,7 @@ export default (test: Test) => {
     }).end(JSON.stringify({ prompt: text })));
     const nameIt = /no name yet \(task-2\)\. When the human's request says what the task is about, name it with task_rename .* Silently: never ask the human for a name or mention naming it\./;
     assert.match(JSON.parse(await prompt()).hookSpecificOutput.additionalContext, nameIt);
-    assert.match((await call('browser_profiles', {})).note, nameIt);
+    assert.match((await call('profile_list', {})).note, nameIt);
     // The naming tools load with Claude Code's session, not behind its tool search: there the agent never named it.
     assert.deepEqual((await ctx.tools(task)).filter((t) => t._meta?.['anthropic/alwaysLoad']).map((t) => t.name), ['task_rename']);
     // Until then its first prompt's first line says what it is about, over its tab.
@@ -205,7 +205,7 @@ export default (test: Test) => {
     assert.equal(await prompt(), '{}', 'named: not told again');
     await waitFor(async () => (await ui(`${taskTab(2)}.title`)).startsWith('project\nbranch feature-x'));
     assert.equal(tasksFile().list[1].about, undefined, 'its name says what it is about now');
-    assert.equal((await call('browser_profiles', {})).note, undefined);
+    assert.equal((await call('profile_list', {})).note, undefined);
     await shot(shell, path.join(root, 'task.png'));
   });
 

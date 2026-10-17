@@ -215,7 +215,7 @@ here; what is left of it stays.
     `before-input-event`, or the proxy knowing its own `Input.*`).
 - **Choosing the agent, rest** (how it works: [tasks.md](tasks.md), "Choosing the agent").
   - **Codex, tried in a session** (0.160.1, 2026-10-12, a scratch Kulisa with the author's account): it drove a
-    profile (`browser_profiles`, `profile_open`, navigate, snapshot, click), ran the app with `terminal_run` on the
+    profile (`profile_list`, `profile_open`, navigate, snapshot, click), ran the app with `terminal_run` on the
     task's port, named its tab and the task, its hooks moved the tab (working, waiting on a permission, Esc), trusted
     once for every task, and `codex resume` brought its conversation back after a restart. It gets the MCP tools, the
     MCP server's `instructions` and, since 2026-10-12, the profiles skill in its account's folder (tasks.md, "What

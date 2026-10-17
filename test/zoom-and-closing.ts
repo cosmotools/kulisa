@@ -140,7 +140,7 @@ export default (test: Test) => {
     await waitFor(() => ui(`!document.querySelector('${header}')`));
     assert.equal(saved('profiles.json').find((p) => p.id === 'cleo').closed, true);
     await waitFor(() => savedTabs('cleo').length === 2);
-    const listed = JSON.parse((await call('browser_profiles', {})).text).find((p: { id: string }) => p.id === 'cleo');
+    const listed = JSON.parse((await call('profile_list', {})).text).find((p: { id: string }) => p.id === 'cleo');
     assert.deepEqual(listed, { id: 'cleo', name: 'Cleo', description: null, avatar: 'frog', closed: true, tabs: 2 });
     await assert.rejects(call('browser_snapshot', { profile: 'cleo' }), /closed.*profile_open/);
     assert.match((await ui(`act('tab:new', { profile: 'cleo' })`)).error, /Profile "cleo" is closed/); // the window: the same check
@@ -247,7 +247,7 @@ export default (test: Test) => {
     shell.bus.on('agent-action', watch);
     try {
       assert.match((await call('profile_set_login', { profile: 'tess', login: 'tester', password: 'secret-tester' })).text, /kept encrypted/);
-      const listed = JSON.parse((await call('browser_profiles', {})).text).find((p: { id: string }) => p.id === 'tess');
+      const listed = JSON.parse((await call('profile_list', {})).text).find((p: { id: string }) => p.id === 'tess');
       assert.deepEqual([listed.testLogin, listed.testPassword], ['tester', true]);
       assert.ok(!fs.readFileSync(path.join(userData, 'profiles.json'), 'utf8').includes('secret-tester'), 'never in the clear');
       await call('browser_navigate', { profile: 'tess', url: `${SITE}/app/signin` });

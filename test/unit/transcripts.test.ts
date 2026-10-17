@@ -5,7 +5,7 @@ import assert from 'assert/strict';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { CUT } from '../../src/main/transcripts.ts';
+import { CUT } from '../../src/main/kulisa-plugin/transcripts.ts';
 import { claudeConversation } from '../../src/main/agents/claude.ts';
 import { codexConversation } from '../../src/main/agents/codex.ts';
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'kulisa-unit-'));

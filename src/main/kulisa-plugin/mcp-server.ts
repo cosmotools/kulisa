@@ -11,17 +11,17 @@ import path from 'path';
 import vm from 'vm';
 import { handleHookRequest, taskContext, unnamed, ONLY_BROWSER } from './agent-hooks.ts';
 import { historyPart } from './history.ts';
-import { fromLocalTool } from './local-only.ts';
-import { toUrl } from './profiles.ts';
+import { fromLocalTool } from '../local-only.ts';
+import { toUrl } from '../profiles.ts';
 import { MARK } from './ghost.ts';
-import pkg from '../../package.json' with { type: 'json' };
-import { refused } from '../shared/result.ts';
+import pkg from '../../../package.json' with { type: 'json' };
+import { refused } from '../../shared/result.ts';
 import type { AddressInfo } from 'net';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import type { Locator, Page } from 'playwright-core';
-import type { Shell } from './shell.ts';
-import type { Task, TaskTerminal } from './tasks.ts';
-import type { Tab } from './profiles.ts';
+import type { Shell } from '../shell.ts';
+import type { Task, TaskTerminal } from '../tasks.ts';
+import type { Tab } from '../profiles.ts';
 
 type Element = { ref?: string; locator?: string };
 
@@ -52,11 +52,11 @@ const pageKey = (u: string) => { try { const x = new URL(u); return x.origin + x
 const TYPED_MAX = 300;
 const INSTRUCTIONS = 'Kulisa profiles are the users of the app under test, each a browser profile the human signed in to by hand. ' +
   ONLY_BROWSER + ' ' +
-  'Choose a profile by its description (browser_profiles), not by guessing from its name: when no description tells ' +
+  'Choose a profile by its description (profile_list), not by guessing from its name: when no description tells ' +
   'which profile a task means, or several do, ask the human once and save their answer with profile_describe. ' +
   'Never sign in to a real account, type its password or a one-time code, or read cookies or tokens: ask the human ' +
   'with profile_ask_signin. A test user of the app under test on this computer with a saved pair (testLogin in ' +
-  'browser_profiles) you sign in to yourself, with browser_type_login (you never see its password). ' +
+  'profile_list) you sign in to yourself, with browser_type_login (you never see its password). ' +
   'Run what keeps running (the app\'s dev server, docker compose up, a watcher) with terminal_run, not in your own ' +
   'shell or its background: the human sees it in a terminal next to yours, and you read its output with terminal_read. ' +
   'What was said and done in this task, by you or other agents (each conversation an agent had in it), is in ' +
@@ -72,7 +72,7 @@ function buildServer(task: Task, t: TaskTerminal | null) {
   const server = new McpServer({ name: 'kulisa', version: pkg.version }, { instructions: `${INSTRUCTIONS} ${taskContext(task)}` });
   // Profiles can be created while the agent runs, so this is a string checked at call time, not an enum.
   const closed = [...task.closed.values()].map(({ cfg }) => `${cfg.id} (${cfg.name}, closed)`);
-  const profileArg = z.string().describe(`Profile id. Current: ${[...[...task.profiles.values()].map((p) => `${p.id} (${p.name})`), ...closed].join(', ') || 'none yet'}; call browser_profiles for the live list`);
+  const profileArg = z.string().describe(`Profile id. Current: ${[...[...task.profiles.values()].map((p) => `${p.id} (${p.name})`), ...closed].join(', ') || 'none yet'}; call profile_list for the live list`);
   const text = (t: string) => ({ content: [{ type: 'text' as const, text: t }] });
   // Every tool's result in an unnamed task says so: the prompt hook does (agent-hooks.ts), but not for an agent without
   // hooks or whose hooks the human has not trusted (Codex).
@@ -133,7 +133,7 @@ function buildServer(task: Task, t: TaskTerminal | null) {
 
   // description: who the profile is (the human's words), or not said; avatar: its picture, which the human knows the
   // pane by ("the fox").
-  server.registerTool('browser_profiles', { description: 'List profiles: id, name, description (who it is in the app; null: not said, ask the human), picture (avatar), whether the human is signing in (signinMode), tabs; closed ones (closed: true) need profile_open first.', inputSchema: {} },
+  server.registerTool('profile_list', { description: 'List profiles: id, name, description (who it is in the app; null: not said, ask the human), picture (avatar), whether the human is signing in (signinMode), tabs; closed ones (closed: true) need profile_open first.', inputSchema: {} },
     async () => text(JSON.stringify([
       ...[...task.profiles.values()].map(({ id, name, description, avatar, login, hasPassword, signinMode, active, tabs }) =>
         ({ id, name, description: description || null, avatar, ...(login && { testLogin: login, testPassword: hasPassword }), signinMode, active,
@@ -145,7 +145,7 @@ function buildServer(task: Task, t: TaskTerminal | null) {
 
   server.registerTool('profile_open', {
     description: 'Open a closed profile: its pane comes back with its tabs, still signed in. Costs memory: open one only when the task needs it.',
-    inputSchema: { profile: z.string().describe('Id of a closed profile (browser_profiles)') },
+    inputSchema: { profile: z.string().describe('Id of a closed profile (profile_list)') },
   }, async ({ profile }) => {
     const r = await task.openProfile(profile);
     if (refused(r)) throw new Error(`${r.error}. Profiles: ${[...task.profiles.keys(), ...task.closed.keys()].join(', ')}`);
@@ -254,8 +254,8 @@ function buildServer(task: Task, t: TaskTerminal | null) {
   });
 
   // Tabs. Other tools act on the profile's active tab, or on the tab they are given; these open, switch and close tabs.
-  const tabArg = z.string().describe('Tab id from browser_profiles');
-  const onTab = z.string().optional().describe('Tab id (from browser_profiles or a [kulisa pick: …] reference); default: the active tab');
+  const tabArg = z.string().describe('Tab id from profile_list');
+  const onTab = z.string().optional().describe('Tab id (from profile_list or a [kulisa pick: …] reference); default: the active tab');
   server.registerTool('browser_tab_new', {
     description: "Open a URL in a new tab of the profile and make it the active tab. Use it instead of browser_navigate to keep the page the human has open.",
     inputSchema: { profile: profileArg, url: z.string() },
@@ -550,7 +550,7 @@ function buildServer(task: Task, t: TaskTerminal | null) {
   });
 
   // Shells next to the agent's terminal (Task.openTerminal): what keeps running, where the human sees it.
-  const done = <T extends object>(r: import('../shared/result.ts').Result<T>) => { if (refused(r)) throw new Error(r.error); return r; };
+  const done = <T extends object>(r: import('../../shared/result.ts').Result<T>) => { if (refused(r)) throw new Error(r.error); return r; };
   const nameArg = z.string().describe('The terminal\'s name, e.g. "dev server"');
   server.registerTool('terminal_run', {
     description: "Run a command that keeps running (the app's dev server, docker compose up, a watcher) in a terminal of its own next to yours, where the human sees it: the user's shell in the task's folder, with your environment. A terminal of that name already open gets the command typed in: stop what runs there first (terminal_stop). Then read its output with terminal_read.",
