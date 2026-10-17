@@ -9,7 +9,7 @@ current when they change.
 
 A **project** is one configuration its tasks are made from: a name, its agents (one the
 default), its profiles (each a person in one store, [profiles.md](profiles.md)), and its code: one or more repositories
-(one the default), or a folder without git (`~/Kulisa/<project>` by default, or one the human picks). The work is done in its tasks (below), each in copies of the
+(one the default), or a folder without git (`~/KulisaProjects/<project>` by default, or one the human picks). The work is done in its tasks (below), each in copies of the
 repositories (git worktrees), so the project's folders stay the human's. Kulisa keeps its data in its own data folder
 (`projects/<id>/`), never in the project's folder, so sign-ins stay out of its git.
 
@@ -107,7 +107,7 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   JetBrains' New Project: on the left what its code comes from, on the right the form (**Name:**, **Location:**). **Its code first** (the author,
   2026-10-11: a folder made in `~/Kulisa` first, git on, was in the way of code already on the disk or at a URL: with
   a repository added after it, every task got a copy of the empty one too, or the empty folder stayed as a former one):
-  - **New folder**: a name and a location, `~/Kulisa` (every new project's place, as JetBrains' `~/PycharmProjects`)
+  - **New folder**: a name and a location, `~/KulisaProjects` (every new project's place, as JetBrains' `~/PycharmProjects`; `~/Kulisa` until 2026-10-17, easily taken for Kulisa's data folder)
     unless they type or browse to another; the step shows the folder it makes (`<location>/<name>`), so the human
     knows where the agent's files are. A folder there already is taken as it is, its files kept.
   - **Folders on disk**: one folder or several (a frontend and a backend: typed and Add, or + over the list, which
@@ -210,7 +210,7 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   a task adds when it needs them: Tasks, below). Its **+**: **Add
   Folder…** adds one from the computer, **Clone from URL…** one from a URL with the user's own git (its credentials and keys; git asks for no password, so a
   private repository it cannot reach fails with git's own words; cloned into the project's own folder when that has no
-  git, `~/Kulisa/<project>/<repo>`, else next to it, never inside a repository). A repository added is copied into no task: each adds it when it needs it. **−**
+  git, `~/KulisaProjects/<project>/<repo>`, else next to it, never inside a repository). A repository added is copied into no task: each adds it when it needs it. **−**
   (or Delete, or the right-click) removes the selected one from the project (its folder stays), only when no task has a copy of it or works in it: the refusal
   names those tasks (deleting a copy would delete their work). A project whose own folder has no git keeps it until a
   repository is added; then it is its **former folder**: new tasks no longer work in it, those that did go on there,
@@ -246,7 +246,7 @@ build several features of one project at once.
 
 - **Always a copy.** With git (and a first commit), every task is a git worktree of the project's default repository
   on a branch of its own, the first task too: next to its repository when the project has one (`myshop@task-2`), else
-  in one folder of the task's (`~/Kulisa/<project>@task-<n>/<repo>/`, one place to see and delete), where the others'
+  in one folder of the task's (`~/KulisaProjects/<project>@task-<n>/<repo>/`, one place to see and delete), where the others'
   copies go too. Its agent starts there.
 - **Another repository when the work needs it** (the author, 2026-10-13: a task on the backend may turn out to need
   the frontend, and copies of every repository in every task were made for nothing; the ones a task has are named at the end of its
@@ -604,7 +604,7 @@ Why so, and what was not chosen (2026-10-11, 2026-10-12):
    used as it is (the task works right in it, and the next two steps skip it). Each branch starts as Claude Code's
    `--worktree` starts one: from the remote's default branch after `git fetch` (`origin/main`), else from `HEAD`.
    Uncommitted changes of the project's folders are not carried. The branch is `task-<n>`, one name free in every
-   repository (`-2`, `-3` if taken), the copies next to their repository with one, in `~/Kulisa/<project>@task-<n>/`
+   repository (`-2`, `-3` if taken), the copies next to their repository with one, in `~/KulisaProjects/<project>@task-<n>/`
    with several: `git worktree add --no-track -b <branch> <copy> <start>`. `--no-track`: pushing the task's branch
    never goes to the default branch.
 2. **Files outside git** are copied from the project's folder when git ignores them and they are untracked: `.env*`
@@ -675,10 +675,10 @@ Outside it:
 | What | Where | Made when |
 |---|---|---|
 | The task's copy | `<repo>@task-<n>/`, next to the repository (one repository) | creating a task |
-| The task's folder of copies | `~/Kulisa/<project>@task-<n>/<repo>/` (several repositories, or one added later) | creating a task; adding a repository |
+| The task's folder of copies | `~/KulisaProjects/<project>@task-<n>/<repo>/` (several repositories, or one added later) | creating a task; adding a repository |
 | The task's branch | each repository (`git branch`) | creating a task; renamed with the task |
 | git's worktree record | `<repo>/.git/worktrees/<copy>/` | creating a task |
-| A cloned repository | `<location>/<name>/`, or `<location>/<name>/<repo>/` for several (New Project, Clone from URL); `~/Kulisa/<project>/<repo>/` or next to the project's folder (Clone on its page) | cloning; stays, as the human's (removing it from the project, or the project, leaves it) |
+| A cloned repository | `<location>/<name>/`, or `<location>/<name>/<repo>/` for several (New Project, Clone from URL); `~/KulisaProjects/<project>/<repo>/` or next to the project's folder (Clone on its page) | cloning; stays, as the human's (removing it from the project, or the project, leaves it) |
 | An empty first commit | the project's repository | New Project… with Create Git repository |
 | direnv's permission for the task's `.envrc` | direnv's data (`~/.local/share/direnv/allow/`) | creating a task, if the project's is allowed |
 | The agent's trust of the task's folder | Claude Code: `<CLAUDE_CONFIG_DIR>/.claude.json`, else `~/.claude.json`, `projects["<task folder>"]`; Codex: `<CODEX_HOME>/config.toml`, `[projects."<task folder>"]` | the task's agent starts, if the project's folder or another task's copy is trusted |
