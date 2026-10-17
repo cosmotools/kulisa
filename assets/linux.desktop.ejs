@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=<%= productName %>
+StartupWMClass=<%= name %>
+<% if (description) { %>Comment=<%= description %>
+<% } %>Exec=<%= name %> %U
+Icon=<%= name %>
+Type=Application
+Terminal=false
+StartupNotify=true
+Categories=<%= categories.join(';') %>;
