@@ -43,8 +43,8 @@ Only when the author asks for it in their message: it deletes their profiles and
    `~/Kulisa/<project>@task-<n>/`), worktrees, branches. Remove a task's copy (`git worktree remove --force <folder>`,
    `git branch -D <branch>`) only if they say so; a task may hold their work. Deleting the data does not remove them.
 3. `rm -rf` the data folder (`~/.config/Kulisa`; macOS: `~/Library/Application Support/Kulisa`; what they asked for), then `kulisa.sh check` again: no data, ports free.
-4. `kulisa.sh start` in the background, as above. At first start it opens no task: the empty window, with New
-   Project open by itself.
+4. `kulisa.sh start` in the background, as above. At first start it opens no task: the empty window, New Project's
+   steps, the keyboard in its name.
 
 Leave alone what is not Kulisa's: installed agents (`~/.local/bin/claude`, `codex`), their own data (`~/.codex`,
 Claude's config), unless the author asks.

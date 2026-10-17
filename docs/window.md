@@ -270,7 +270,7 @@ the work:
 - **Esc closes it**, as a dialog's: unless a menu, a question or a popover is open (Esc closes that first), or a field
   takes it. Esc and the OS's × alike, its page saves what is typed first (a project's name), then closes it; while an
   agent installs, it stays.
-- **Settings only**: a project is made in a tasks' window (New Project: the empty window, New Project… in the bar's +),
+- **Settings only**: a project is made in a tasks' window (New Project: the empty window with no project, New Project… on the board),
   which opens its first task (the author, 2026-10-16: one way to open each, not New Project inside Settings too).
 - **Shown once its page is filled** (the projects, the profiles, the agents as last found, its fonts: `settings:ready`),
   as Electron's docs advise for a window (`show: false`): shown at once, its tree and page jumped as they came (the

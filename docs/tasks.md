@@ -102,13 +102,13 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   Project, Settings' agents and profiles, the bar's +, with nothing saying what came next): **Code**, **Agents**,
   **Profiles**, then Create, which makes the project with them and opens its first task. Next checks a step as Create
   would, nothing made before Create (but an agent's account signed in to on the way: accounts live on their own); Back
-  keeps what was typed. It is the empty window, in the grid's place (below), and a dialog of a tasks' window (New
-  Project… in the bar's +; Settings' + until 2026-10-16), the same steps (`newproject/`). The first step, as
+  keeps what was typed. It is the empty window with no project at all, in the grid's place (below), and else a dialog
+  (New Project… after the board's columns; Settings' + until 2026-10-16), the same steps (`newproject/`). The first step, as
   JetBrains' New Project: on the left what its code comes from, on the right the form (**Name:**, **Location:**). **Its code first** (the author,
   2026-10-11: a folder made in `~/Kulisa` first, git on, was in the way of code already on the disk or at a URL: with
   a repository added after it, every task got a copy of the empty one too, or the empty folder stayed as a former one):
   - **New folder**: a name and a location, `~/Kulisa` (every new project's place, as JetBrains' `~/PycharmProjects`)
-    unless they type or browse to another; the dialog shows the folder it makes (`<location>/<name>`), so the human
+    unless they type or browse to another; the step shows the folder it makes (`<location>/<name>`), so the human
     knows where the agent's files are. A folder there already is taken as it is, its files kept.
   - **Folders on disk**: one folder or several (a frontend and a backend: typed and Add, or + over the list, which
     browses; each a row with "git" or "no git", − leaves the selected one out), taken as they are, nothing made: their files and, for repositories, their history kept.
@@ -158,7 +158,7 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   same way, one after another. **Dragging a tab** does the same with the mouse: within the bar it changes the order
   (kept); let go on another window's bar, the task moves there, where it was let go; let go outside every Kulisa
   window, it opens in a new window there (the window appears when the mouse is let go, as in VS Code). Each window has
-  its bar and its + (every project; a task opens in the window whose + was pressed). The OS's × on a window closes
+  its bar and its + (the board; a task opens in the window whose + was pressed). The OS's × on a window closes
   its tasks, as × on each would, after one question ("Close the window?", naming them); on the last
   window it quits Kulisa, and the windows with their tasks come again at the next start, where they were: nothing
   is lost, so it asks only when that would stop a working agent ("Quit Kulisa?"). On macOS the last window's × hides
@@ -200,8 +200,8 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
 - **Its agents**: a list of its agents' accounts and the terminal only ("Choosing the agent", Accounts). Its
   **+** adds the terminal only or any account (made in another project or in Settings → Agents), or, under New Account,
   makes one of an agent, signed in right there; − lets go of the selected one at once (the account stays: Settings →
-  Agents deletes it); the first is the default, marked "default" (**★**, or Make Default in a row's right-click, on another): the
-  bar's + runs it; others in a task: the island's + ("Several agents in a task"). **★** on the default one (No Default
+  Agents deletes it); the first is the default, marked "default" (**★**, or Make Default in a row's right-click, on another): a
+  new task runs it; others in a task: the island's + ("Several agents in a task"). **★** on the default one (No Default
   in its right-click) leaves none the default (`noDefaultAgent` in `projects.json`; the author, 2026-10-12): its new
   tasks start with nothing, the island's big buttons in the empty grid instead ([window.md](window.md), The terminal).
   None: its tasks start with the terminal only; closed, the Terminal button alone (the author, 2026-10-12).
@@ -328,7 +328,7 @@ Example: the project `~/IdeaProjects/myshop`, its second task, named "Checkout-r
   2026-10-12: they piled up, and only an open one had Delete Task…). Closed tasks stay on disk until the human deletes them; Kulisa
   offers it once a closed task's PR is merged: each of its copies has commits of its own, all in its remote's default
   branch (`origin/HEAD`, fetched as the project is shown and as a task is closed, in the background), and nothing
-  uncommitted, so deleting it loses nothing. The bar's + marks it "merged", and the project's submenu has **Delete
+  uncommitted, so deleting it loses nothing. Its row in the board says "merged", and the project's submenu has **Delete
   Merged Tasks…**, one question naming them. A squash merge makes new commits, so it is not seen: Delete Task… as for any other.
 - **The island's +** opens another of the project's agents in the task, a new conversation in a tab of its own, or a
   shell; **the agent's icon on its tab** hands the task to an agent of the project, which goes on with that
@@ -345,7 +345,7 @@ to the human; the window's IPC (`ipc/`) and the MCP tools are handles on it:
 | Close a project's tasks | Close All Tasks in its submenu | none: it would stop itself | `closeTasks` (`open-tasks.ts`) in every window, asking once when an agent works |
 | Close a window, quit | the OS's ×, ☰ → Exit | none | `closeTasks` for the window's tabs; `quit` (`open-tasks.ts`), asking only when an agent works |
 | Move a task | Move to New Window, Move to Window, dragging its tab; Move All Tasks to … for a project's | none: where the human sees it is the human's | `moveTask`, `moveAll` (`open-tasks.ts`) |
-| Make a project, with its agents and profiles | New Project (the empty window; New Project… in the bar's +) | none: what a project is made of is the human's | `createProject` (`projects.ts`); its first task: `openProject` |
+| Make a project, with its agents and profiles | New Project (the empty window with no project; New Project… on the board) | none: what a project is made of is the human's | `createProject` (`projects.ts`); its first task: `openProject` |
 | Delete a project | Delete Project… in the projects' manager | none: it deletes sign-ins, the human's to decide | `deleteProject` (`open-tasks.ts`), `askDeleteProject`, `deleteProjectData` (`projects.ts`) |
 | Make a task | the bar's +, Ctrl+Shift+N, New Task in its project's submenu | not yet (ROADMAP, "Tasks, rest") | `Project.createTask` |
 | Close a task, open it again | ×, the middle button on its tab, Close in its menu; the bar's + | none: what runs is the human's to stop | `closeTask` (`open-tasks.ts`), `Project.closeTask`, `reopen` |

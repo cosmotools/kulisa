@@ -19,7 +19,10 @@ here; what is left of it stays.
     [tasks.md](tasks.md), Tasks), dictation by a key held anywhere, the right Ctrl ([window.md](window.md), The terminal) and one
     language for every agent (☰ → Language, [window.md](window.md), Language); 2026-10-14, the tasks' bar a tab per
     task, of its own (no groups: each tab its project's icon, moved and ordered alone, its project's rows in a
-    submenu of its menu; [tasks.md](tasks.md), Projects), the grid sliding between any two tabs. The author tests it by hand. Next: fix what the author's testing finds; then what is left of the
+    submenu of its menu; [tasks.md](tasks.md), Projects), the grid sliding between any two tabs; 2026-10-17, New
+    Project in three steps (code, agents, profiles) opening the project's first task, the bar's + a new tab with every
+    project's tasks in columns (the empty window shows them too), the project's glow only while a task is shown, and
+    the window's clusters ([ui.md](ui.md), Clusters). The author tests it by hand. Next: fix what the author's testing finds; then what is left of the
     steps (below), only once the author has decided it.
   - **Open, for the author to decide:** Refresh from Master… now matters only for a local app's cookies (keep or
     drop); a script the agent runs in a page (`browser_evaluate`) could read a test password back from its field
@@ -680,7 +683,7 @@ here; what is left of it stays.
     had it before Electron's upgrade to 44.8.0 and was refused after it, 2026-10-16: probably because ad hoc signed, a
     new binary is a new app to macOS); distribution to users needs code signing and
     notarization (the second macOS goal, above). Windows: code signing certificate.
-  - The first start: a packaged app opens no task (the empty window, New Project open), later the groups open last.
+  - The first start: a packaged app opens no task (the empty window: New Project's steps), later the windows' tasks open as they were left.
     macOS (2026-10-16, `npm run package`, unsigned, ad hoc): it starts from Finder's way (`open`), the first start as
     above; the Kulisa plugin and the skill sit outside the asar, node-pty's `spawn-helper` is executable, the icon is
     Kulisa's. Its update check fails ("The server sent an invalid response": no macOS release to serve) and is only
