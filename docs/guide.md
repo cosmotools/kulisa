@@ -269,8 +269,8 @@ A pane is a small Chrome: a tab strip, an address bar, back, forward and reload.
 - **☰ → Language**: the language you speak with the agents, one for all of them. Claude Code takes your speech in it
   and answers in it, and may write code comments in it too: say in your project's CLAUDE.md which language its code
   is written in. Codex has no language setting yet, so it is not changed.
-- **Kulisa's zoom**: Ctrl + / − / 0 outside the pages, or the zoom row in ☰. It scales all of Kulisa, pages included;
-  when not 100%, the title bar shows it (a click resets it).
+- **Kulisa's zoom**: Ctrl + / − / 0 outside the pages, or the zoom row in ☰, from 50% to 200%. It scales all of
+  Kulisa, pages included; when not 100%, the title bar shows it (a click resets it).
 
 ## Keyboard shortcuts
 

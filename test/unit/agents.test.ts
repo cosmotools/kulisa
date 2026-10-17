@@ -90,7 +90,7 @@ test("agents: Claude Code's dictation is on in its sessions only, Kulisa's tools
   assert.equal(withAccount[3], path.join(account, 'kulisa-settings.json'));
   assert.deepEqual(JSON.parse(fs.readFileSync(withAccount[3], 'utf8')), JSON.parse(args[3]));
   assert.ok(hooks);
-  assert.deepEqual(given, { voice: { enabled: true, mode: 'hold', autoSubmit: false }, permissions: {
+  assert.deepEqual(given, { voiceEnabled: true, voice: { enabled: true, mode: 'hold', autoSubmit: false }, permissions: {
     allow: ['mcp__plugin_kulisa_kulisa'], ask: ['mcp__plugin_kulisa_kulisa__terminal_run', 'mcp__plugin_kulisa_kulisa__browser_file_upload'] } });
   // Its language setting in an account's folder, as its /config writes it; the rest of the file kept.
   const dir = path.join(root, 'claude-language'), settings = path.join(dir, 'settings.json');

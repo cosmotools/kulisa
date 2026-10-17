@@ -51,7 +51,9 @@ const claude: Agent = {
     const settings = JSON.stringify({
       permissions: { allow: [CLAUDE_KULISA], ask: KULISA_ASKS.map((t) => `${CLAUDE_KULISA}__${t}`) },
       hooks: claudeHooks(),
-      voice: { enabled: true, mode: 'hold', autoSubmit: false } }, null, 2);
+      // voiceEnabled too: 2.1.302 took dictation for off without it (its /voice writes both; the object alone, as
+      // before, left the space typing spaces, 2026-10-17).
+      voiceEnabled: true, voice: { enabled: true, mode: 'hold', autoSubmit: false } }, null, 2);
     const file = account && path.join(account, 'kulisa-settings.json');
     if (file) writeChanged(file, `${settings}\n`);
     return ['--plugin-dir', path.join(packages, 'claude-plugin'), '--settings', file || settings];
