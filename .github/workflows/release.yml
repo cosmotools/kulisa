@@ -79,3 +79,56 @@ jobs:
           URL: ${{ needs.draft.outputs.url }}
           TAG: ${{ needs.draft.outputs.tag }}
         run: gh api -X PATCH "$URL" -f tag_name="$TAG" -f target_commitish="$GITHUB_SHA" -F draft=false -f make_latest=true >/dev/null
+  # Kulisa's apt repository, which the .deb adds (assets/deb/postinst): a flat one, its signed index in the release
+  # `apt`, naming the newest .deb where it is, in its own release (apt follows GitHub's redirect to it). Then the .deb
+  # installed, Kulisa installed again from the repository and purged, as a user's apt would: a repository broken here
+  # would leave every installed copy behind without a word.
+  apt:
+    needs: [draft, publish]
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+      TAG: ${{ needs.draft.outputs.tag }}
+    steps:
+      - env:
+          KEY: ${{ secrets.APT_SIGNING_KEY }}
+        run: |
+          if [ -z "$KEY" ]; then echo "::error::No APT_SIGNING_KEY: Linux's installed copies are not updated"; exit 1; fi
+          sudo apt-get install -y dpkg-dev apt-utils
+          gh release download "$TAG" --pattern '*.deb' --dir "$TAG"
+          mkdir apt
+          dpkg-scanpackages -m "$TAG" /dev/null > apt/Packages
+          cd apt
+          # Its codename the source's suite, or apt warns at each update ("Conflicting distribution").
+          apt-ftparchive -o APT::FTPArchive::Release::Codename=apt/ release . > Release
+          echo "$KEY" | gpg --batch --import
+          gpg --batch --clearsign -o InRelease Release
+          # Never the latest release, whose files kulisa.app's buttons and the guide's link are; a prerelease without
+          # a version, which update.electronjs.org passes by.
+          gh release view apt >/dev/null 2>&1 || gh release create apt --prerelease --latest=false --title 'apt repository' \
+            --notes "Kulisa's apt repository, which its .deb adds: the index of the newest release."
+          gh release upload apt Packages Release InRelease --clobber
+      - run: |
+          sudo apt-get install -y ./"$TAG"/*.deb
+          sudo apt-get update
+          apt-cache policy kulisa
+          apt-cache policy kulisa | grep -q "Candidate: ${TAG#v}$"
+          sudo apt-get install -y --reinstall kulisa
+          sudo apt-get purge -y kulisa
+          if [ -e /etc/apt/sources.list.d/kulisa.sources ] || [ -e /etc/apt/keyrings/kulisa.asc ]; then
+            echo "::error::purge left Kulisa's repository"; exit 1
+          fi
+  # kulisa.app built again: its download buttons and its user guide are the latest release's (kulisa-site's README,
+  # Deploy). With a token that may only run that repository's workflows (the author's, a secret); a site not built
+  # does not fail the release.
+  site:
+    needs: publish
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - env:
+          GH_TOKEN: ${{ secrets.SITE_DEPLOY_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then echo "::warning::No SITE_DEPLOY_TOKEN: kulisa.app is not built again"; exit 0; fi
+          gh workflow run deploy.yml --repo cosmotools/kulisa-site --ref main

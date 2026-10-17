@@ -4,7 +4,7 @@ import { shallowRef, watch } from 'vue';
 import { AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogOverlay, AlertDialogPortal,
   AlertDialogRoot, AlertDialogTitle } from 'reka-ui';
 import { asking } from '../lib/ask';
-import { covered } from '../lib/views';
+import { covered } from '../lib/cover';
 
 const { open } = covered('hide');
 const q = shallowRef(asking.value?.q);

@@ -1,0 +1,25 @@
+#!/bin/sh
+# The .deb's: Kulisa's apt repository and its key, as Chrome's and VS Code's do, so apt updates Kulisa (docs/window.md,
+# "The app icon, installers and updates"). Written again at each upgrade; removed with purge (postrm).
+set -e
+if [ "$1" = configure ]; then
+  install -d -m 755 /etc/apt/keyrings
+  cat > /etc/apt/keyrings/kulisa.asc <<'KEY'
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+
+mDMEatPBTRYJKwYBBAHaRw8BAQdAVEonH2Q11AY3OZNUjcaL2JnRRurH5ChdrOtW
+G0sfvT+0FUt1bGlzYSBhcHQgcmVwb3NpdG9yeYiTBBMWCgA7FiEEeDI/zF99YIEo
+z7/Hn6V0cvIWi8YFAmrTwU0CGwMFCwkIBwICIgIGFQoJCAsCBBYCAwECHgcCF4AA
+CgkQn6V0cvIWi8aLDAEAn9AynYUsUJ8qTkaTf4pWlaDyC6U/k+FJjtXw7MKYZfsB
+AKgjnafhY+HKs6BjBF8xWzRJ4uRPSGuL1kkCEFR8YhwJ
+=QIe6
+-----END PGP PUBLIC KEY BLOCK-----
+KEY
+  # A flat repository: its index in the release `apt`, each version's .deb in its own release (release.yml).
+  cat > /etc/apt/sources.list.d/kulisa.sources <<'SOURCE'
+Types: deb
+URIs: https://github.com/cosmotools/kulisa/releases/download/
+Suites: apt/
+Signed-By: /etc/apt/keyrings/kulisa.asc
+SOURCE
+fi

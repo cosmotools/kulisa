@@ -1,28 +1,23 @@
 <script setup lang="ts">
-// The empty window's island (CLAUDE.md, Terminology; tasks.md, Projects).
-import { dialog } from '../lib/dialogs';
-import { withKeys } from '../lib/common';
-import { toggleNewTask } from '../lib/menu';
-
-kulisa.on('project:new', () => dialog('projects').then((d) => d.newProject()));
+// What the window shows in the grid's place when it is not a task's grid (lib/store.ts, page): with no project at all,
+// the welcome (welcome/: what Kulisa does, then the first project's steps); else every project with its tasks
+// (newtab/), the empty window's and a new tab's (the bar's +).
+import Welcome from './welcome/Welcome.vue';
+import Board from './newtab/Board.vue';
+import { page } from '../lib/store';
 </script>
 
 <template>
   <section id="empty">
-    <h2>No task is open</h2>
-    <div class="start">
-      <button id="emptynewtask" class="primary" :title="withKeys('Of which project, or a closed one', 'task.menu')" @click.stop="toggleNewTask">New Task</button>
-      <button id="emptynew" @click="dialog('projects').then((d) => d.newProject())">New Project…</button>
-    </div>
+    <Welcome v-if="page === 'welcome'" />
+    <Board v-else-if="page !== 'task'" />
   </section>
 </template>
 
 <style>
-#empty { display: none; flex: 1; place-content: center; justify-items: center; gap: calc(var(--gap) * 2);
-  margin: var(--gap); border-radius: var(--island-radius); background: var(--island);
-  .noproject & { display: grid; }
-  [data-bar="top"] & { order: 1; } /* under the tasks' bar, as the grid */
-  h2 { margin: 0; font-size: 1.3em; color: var(--text-dim); }
-  .start { display: flex; gap: var(--gap); }
+/* safe: what is taller than the window starts at its top, where scrolling reaches it (centered, its top was cut off
+   above the window's edge: the welcome in a window 400 px high, 2026-10-17) */
+#empty { display: none; place-items: safe center; overflow: auto; margin-inline: var(--gap);
+  :is([data-page="welcome"], [data-page="board"], [data-page="newtab"]) & { display: grid; }
 }
 </style>

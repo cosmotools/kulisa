@@ -5,7 +5,8 @@
 // no agent's tool sees it, so no sign-in pause is needed. The page is a Profile as a task's (its tabs, its session
 // cookies kept), under a small bar of its own (master.html): the address, back, forward, reload.
 // One window per master; asked again, it comes to the front. Closed, its tabs and sign-ins are saved.
-import { BrowserWindow, ipcMain } from 'electron';
+import { BrowserWindow } from 'electron';
+import { handle } from './ipc.ts';
 import fs from 'fs';
 import path from 'path';
 import { Profile, toUrl } from './profiles.ts';
@@ -73,10 +74,10 @@ function installMasters(shell: Shell, { preload, colors }: { preload: string; co
     await m?.ready;
     return m?.profile.get() ? m : null;
   };
-  ipcMain.handle('master:go', async (e, url: string) => (await of(e))?.profile.navigate(null, toUrl(url)));
-  ipcMain.handle('master:back', async (e) => { const m = await of(e); if (m?.profile.get()!.wc.navigationHistory.canGoBack()) m.profile.back(); });
-  ipcMain.handle('master:forward', async (e) => { const m = await of(e); if (m?.profile.get()!.wc.navigationHistory.canGoForward()) m.profile.forward(); });
-  ipcMain.handle('master:reload', async (e) => (await of(e))?.profile.reload());
+  handle('master:go', async (e, url) => (await of(e))?.profile.navigate(null, toUrl(url)));
+  handle('master:back', async (e) => { const m = await of(e); if (m?.profile.get()!.wc.navigationHistory.canGoBack()) m.profile.back(); });
+  handle('master:forward', async (e) => { const m = await of(e); if (m?.profile.get()!.wc.navigationHistory.canGoForward()) m.profile.forward(); });
+  handle('master:reload', async (e) => (await of(e))?.profile.reload());
 }
 
 // A master's tabs, in its folder as a copy's are (store.ts, Kulisa Tabs.json): a task's copy starts with them.

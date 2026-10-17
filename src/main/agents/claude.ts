@@ -8,7 +8,7 @@ import { cut, ownTool, lines } from '../transcripts.ts';
 import type { Conversation, Entry } from '../transcripts.ts';
 import { readJSON, headLines, rewriteLines, writeChanged } from './files.ts';
 import { KULISA_ASKS, hookCommand, hookSeconds } from './agent.ts';
-import type { Agent, Hook, Saved, Where, ForgetContext } from './agent.ts';
+import type { Agent, Hook, Where, ForgetContext } from './agent.ts';
 
 const CLAUDE_KULISA = 'mcp__plugin_kulisa_kulisa'; // the plugin's server, as Claude Code names its tools (2.1.296)
 
@@ -51,7 +51,9 @@ const claude: Agent = {
     const settings = JSON.stringify({
       permissions: { allow: [CLAUDE_KULISA], ask: KULISA_ASKS.map((t) => `${CLAUDE_KULISA}__${t}`) },
       hooks: claudeHooks(),
-      voice: { enabled: true, mode: 'hold', autoSubmit: false } }, null, 2);
+      // voiceEnabled too: 2.1.302 took dictation for off without it (its /voice writes both; the object alone, as
+      // before, left the space typing spaces, 2026-10-17).
+      voiceEnabled: true, voice: { enabled: true, mode: 'hold', autoSubmit: false } }, null, 2);
     const file = account && path.join(account, 'kulisa-settings.json');
     if (file) writeChanged(file, `${settings}\n`);
     return ['--plugin-dir', path.join(packages, 'claude-plugin'), '--settings', file || settings];
@@ -67,7 +69,8 @@ const claude: Agent = {
   resume: ({ sessionId, transcript }) => sessionId && transcript && fs.existsSync(transcript) && ['--resume', sessionId],
   // The task's other repositories, with their CLAUDE.md read as its own folder's (checked with 2.1.296).
   dirs: (folders) => ({ args: folders.flatMap((f) => ['--add-dir', f]), env: { CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD: '1' } }),
-  addDir: (folder) => `/add-dir ${folder}`,
+  // It asks then: "Add directory to workspace", 1. Yes, for this session (checked with 2.1.296).
+  addDir: { command: (folder) => `/add-dir ${folder}`, confirm: 'Add directory to workspace' },
   trust: {
     has: (where, folder) => { const f = claudeConfigWhere(where); return !!f && readJSON(f)?.projects?.[folder]?.hasTrustDialogAccepted === true; },
     set: (where, folder) => { const f = claudeConfigWhere(where); return !!f && claudeTrust(f, folder); },
@@ -79,46 +82,29 @@ const claude: Agent = {
   // Its voice mode (needs a Claude.ai account), on for Kulisa's sessions only (not the user's settings): space held
   // (its repeats coming) records, the text put where the cursor is, also after text already there, and left in the
   // input for the human to send. Its tap mode (a tap starts, another stops) was tried first: it records only with
-  // the input empty (checked in 2.1.294's code), so a second sentence could not be added. The language is its
-  // `language` setting, which is also the one it answers in; read again at each recording, and the settings file is
-  // read again when it changes, so a language set here holds from the next recording, in every session of the
-  // human's.
-  voice: {
-    key: ' ', repeat: 33, // a keyboard's repeat rate; Claude Code takes it for held after a few, and let go after a pause
-    note: 'Claude Code answers in it too: it is its language setting',
-    languages: CLAUDE_LANGUAGES,
-    language: (saved) => claudeLanguage(readJSON(claudeSettingsOf(saved))?.language),
-    // saved: its conversation, with the account's configDir (tasks.ts, savedOf)
-    setLanguage: (saved, code) => setClaudeLanguage(claudeSettingsOf(saved), code),
-  },
+  // the input empty (checked in 2.1.294's code), so a second sentence could not be added.
+  voice: { key: ' ', repeat: 33 }, // a keyboard's repeat rate; Claude Code takes it for held after a few, and let go after a pause
+  // Its `language` setting: the language it dictates in and answers in (and may write comments in: the project's
+  // CLAUDE.md decides that). Read again at each recording, and the settings file is read again when it changes, so a
+  // language set holds at once in every session of the account (checked with 2.1.294). Kulisa's instruction to answer
+  // in another language than it lost to it (2.1.296, 2026-10-13): one setting for both.
+  language: { languages: CLAUDE_LANGUAGES, set: (dir, code) => setClaudeLanguage(path.join(dir, 'settings.json'), code) },
 };
 
-// How Claude Code reads its `language` setting (as of 2.1.294): a code, or a language's name in English or in itself, or
-// a code with a region (pt-BR); anything else, and none, is English.
 const english = new Intl.DisplayNames(['en'], { type: 'language' });
-function claudeLanguage(value: unknown) {
-  const v = typeof value === 'string' ? value.trim().toLowerCase() : '';
-  return CLAUDE_LANGUAGES.find((c) => v === c || v === english.of(c)!.toLowerCase()
-    || v === new Intl.DisplayNames([c], { type: 'language' }).of(c)!.toLowerCase()) || CLAUDE_LANGUAGES.find((c) => v.split('-')[0] === c) || 'en';
-}
-// Claude Code's settings file: in the config dir its sessions use (as claudeConfigOf), else its account's
-// (configDir), else CLAUDE_CONFIG_DIR or ~/.claude, where a first session will look.
-function claudeSettingsOf({ transcript, configDir }: Saved = {}) {
-  const dir = transcript ? path.dirname(path.dirname(path.dirname(transcript))) : configDir || process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
-  return path.join(dir, 'settings.json');
-}
 // Its `language`, as its /config sets it (the language's name in English, which it answers in too); the rest of the file
-// kept. A file that is there but not JSON is not touched.
+// kept; not written again when it already says it. A file that is there but not JSON is not touched.
 function setClaudeLanguage(file: string, code: string) {
   if (!CLAUDE_LANGUAGES.includes(code)) return { error: `not a language it understands: ${code}` };
   let settings: Record<string, unknown> = {};
   if (fs.existsSync(file)) {
     settings = readJSON(file);
     if (!settings || typeof settings !== 'object' || Array.isArray(settings)) return { error: `${file} is not JSON: fix or remove it first` };
+    if (settings.language === english.of(code)) return {};
   } else fs.mkdirSync(path.dirname(file), { recursive: true });
   settings.language = english.of(code);
   writeFileAtomic(file, `${JSON.stringify(settings, null, 2)}\n`, fs.existsSync(file) ? { mode: fs.statSync(file).mode } : {});
-  return { language: code };
+  return {};
 }
 
 // Claude Code's own config file, as the session it reported tells it (<config dir>/projects/<folder>/<id>.jsonl, the
@@ -263,4 +249,4 @@ function claudeMemory(dir: string) {
   return text || null;
 }
 
-export { claude, claudeConfigOf, claudeLanguage, claudeConversation };
+export { claude, claudeConfigOf, claudeConversation };

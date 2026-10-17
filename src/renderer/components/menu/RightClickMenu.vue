@@ -5,7 +5,7 @@
 import { shallowRef } from 'vue';
 import { ContextMenuContent, ContextMenuPortal, ContextMenuRoot, ContextMenuTrigger } from 'reka-ui';
 import MenuRows from './MenuRows.vue';
-import { covered } from '../../lib/views';
+import { covered } from '../../lib/cover';
 import { focusBack, type MenuItem } from '../../lib/menu';
 
 const props = defineProps<{ items: (e: MouseEvent) => MenuItem[] | null }>();
@@ -25,7 +25,9 @@ function opening(e: MouseEvent) {
   <ContextMenuRoot v-model:open="open" :modal="false">
     <ContextMenuTrigger as-child @contextmenu="opening"><slot /></ContextMenuTrigger>
     <ContextMenuPortal>
-      <ContextMenuContent class="menu" :class="{ ready }" :collision-padding="4" @close-auto-focus="focusBack($event, focused)">
+      <!-- Not closed when the keyboard leaves it: a list's row right-clicked takes the keyboard just after the menu opens
+           (Reka's Listbox, on the press), which closed it at once; a press outside, Esc or the window left close it -->
+      <ContextMenuContent class="menu" :class="{ ready }" :collision-padding="4" @close-auto-focus="focusBack($event, focused)" @focus-outside.prevent>
         <MenuRows :items="rows" />
       </ContextMenuContent>
     </ContextMenuPortal>

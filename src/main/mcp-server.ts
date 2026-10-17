@@ -15,16 +15,22 @@ import { fromLocalTool } from './local-only.ts';
 import { toUrl } from './profiles.ts';
 import { MARK } from './ghost.ts';
 import pkg from '../../package.json' with { type: 'json' };
-import { refused } from './result.ts';
+import { refused } from '../shared/result.ts';
 import type { AddressInfo } from 'net';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import type { Locator, Page } from 'playwright-core';
 import type { Shell } from './shell.ts';
 import type { Task, TaskTerminal } from './tasks.ts';
 import type { Tab } from './profiles.ts';
-import { READ_MAX } from './terminal.ts';
 
 type Element = { ref?: string; locator?: string };
+
+// What an agent can read back of a shell (terminal_read; terminalTail in terminal.ts): its last lines as the screen shows them, kept
+// by a terminal without a window (xterm's own parser), so lines a program redraws in place (a progress, a container's
+// state) are what they became; the output with its codes left out had every frame. Its scrollback is what the agent
+// may ask for at most: the memory is lines × columns × 12 bytes (about 1 MB at 200 columns). Its buffer is a proposed
+// API in the headless build (allowProposedApi), the one xterm's serialize addon reads too.
+const READ_MAX = 500;
 
 // The agent's highlights per profile (by '<task>/<profile id>'): { disposables, tab, onInput }; kept across MCP
 // requests (a server is built per request). They go when replaced, cleared, or on the first click or key press in
@@ -131,7 +137,7 @@ function buildServer(task: Task, t: TaskTerminal | null) {
     async () => text(JSON.stringify([
       ...[...task.profiles.values()].map(({ id, name, description, avatar, login, hasPassword, signinMode, active, tabs }) =>
         ({ id, name, description: description || null, avatar, ...(login && { testLogin: login, testPassword: hasPassword }), signinMode, active,
-          tabs: tabs.filter((t) => !t.wc.isDestroyed()).map((t) => ({ id: t.id, title: t.wc.getTitle(), url: t.wc.getURL() })) })),
+          tabs: tabs.filter((t) => t.discarded || !t.wc.isDestroyed()).map((t) => ({ id: t.id, title: t.title, url: t.url })) })),
       ...[...task.closed.values()].map(({ cfg, urls }) => ({ id: cfg.id, name: cfg.name, description: cfg.description || null, avatar: cfg.avatar,
         ...(cfg.login && { testLogin: cfg.login, testPassword: cfg.hasPassword }),
         closed: true, tabs: urls.length })),
@@ -195,6 +201,24 @@ function buildServer(task: Task, t: TaskTerminal | null) {
     return text(`The task is now "${r.name}"${r.branch ? `, on branch ${r.branch}` : ''}.`);
   });
 
+  server.registerTool('task_add_repository', {
+    description: "Add another of the project's repositories to this task, to change it: a copy (git worktree) on the task's branch. Only after the human has agreed in the conversation: ask them first, saying why the task needs it. To read a repository you need no copy: read it in the project's folder, changing nothing there.",
+    inputSchema: { repository: z.string().describe("The repository's folder or name, as the instructions list the ones the task may add") },
+  }, async ({ repository }) => {
+    const r = await task.addRepository(repository);
+    if (refused(r)) throw new Error(r.error);
+    return text(`Added: ${r.folder}, on branch ${r.branch}; make your changes there. Kulisa gives you the folder as a working one (at once for some agents, once your turn is over for others); until then your changes there may ask for the human's permission.`);
+  });
+
+  server.registerTool('task_remove_repository', {
+    description: "Remove a repository added to this task (task_add_repository) that it no longer needs: its copy's folder and branch are deleted. Only after the human has agreed in the conversation: ask them first. Not the task's own folder, where you work. When the copy holds commits not pushed or uncommitted files, Kulisa asks the human too.",
+    inputSchema: { repository: z.string().describe("The repository's folder or name, or its copy's folder, as the instructions list the task's folders") },
+  }, async ({ repository }) => {
+    const r = await task.removeRepository(repository);
+    if (refused(r)) throw new Error(r.error);
+    return text(`Removed: ${r.folder} and its branch are gone; work no more there.`);
+  });
+
   server.registerTool('task_history', {
     description: "The history of this task. Without a conversation: where it stands (its code in git, profiles, terminals) and its conversations, each an agent's, numbered, with its tab's name, open or closed, when, its first and last request. With a conversation's number: that conversation whole, what the human asked and the agent did, read from its transcript, the latest chapter first. When the human asks you to go on with another agent's work, find its conversation here and read every part of it before anything else. Also when you need details your context lost. Call with part 1, then the next ones up to the total it says.",
     inputSchema: {
@@ -247,7 +271,7 @@ function buildServer(task: Task, t: TaskTerminal | null) {
     async ({ profile, tab }) => {
       const { profile: p, tab: t } = tabOf(profile, tab);
       p.activate(t.id);
-      return text(`Active tab of ${profile}: ${t.id} ${t.wc.getURL()}`);
+      return text(`Active tab of ${profile}: ${t.id} ${t.url}`);
     });
   server.registerTool('browser_tab_close', { description: 'Close a tab of the profile. Close only tabs you opened, unless the human asked.', inputSchema: { profile: profileArg, tab: tabArg } },
     async ({ profile, tab }) => {
@@ -526,7 +550,7 @@ function buildServer(task: Task, t: TaskTerminal | null) {
   });
 
   // Shells next to the agent's terminal (Task.openTerminal): what keeps running, where the human sees it.
-  const done = <T extends object>(r: import('./result.ts').Result<T>) => { if (refused(r)) throw new Error(r.error); return r; };
+  const done = <T extends object>(r: import('../shared/result.ts').Result<T>) => { if (refused(r)) throw new Error(r.error); return r; };
   const nameArg = z.string().describe('The terminal\'s name, e.g. "dev server"');
   server.registerTool('terminal_run', {
     description: "Run a command that keeps running (the app's dev server, docker compose up, a watcher) in a terminal of its own next to yours, where the human sees it: the user's shell in the task's folder, with your environment. A terminal of that name already open gets the command typed in: stop what runs there first (terminal_stop). Then read its output with terminal_read.",
@@ -558,6 +582,8 @@ function buildServer(task: Task, t: TaskTerminal | null) {
 const safeDecode = (s: string) => { try { return decodeURIComponent(s); } catch { return ''; } };
 
 async function startMcpServer(shell: Shell, cfg: { port?: number }) {
+  // The core says when a profile is unloaded (tasks.ts) and does not reach into its agent's handle.
+  shell.bus.on('profile-unloading', (key: string) => void clearHighlights(key));
   const srv = http.createServer(async (req, res) => {
     if (!fromLocalTool(req)) { res.writeHead(403); return res.end(); }
     // /task/<project>/<n>[/t/<terminal id>]/…: a task of an open project, loaded; an agent's terminal of it.
@@ -580,4 +606,4 @@ async function startMcpServer(shell: Shell, cfg: { port?: number }) {
   return { base, srv };
 }
 
-export { startMcpServer, highlights, clearHighlights };
+export { startMcpServer, highlights, READ_MAX };

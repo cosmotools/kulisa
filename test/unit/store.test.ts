@@ -8,7 +8,7 @@ import os from 'os';
 import { Store, PROJECT_COLORS } from '../../src/main/store.ts';
 import { ProfileStore } from '../../src/main/profile-store.ts';
 import { ProjectProfiles } from '../../src/main/project-profiles.ts';
-import { AVATARS, nextAvatar } from '../../src/main/avatars.ts';
+import { AVATARS, nextAvatar } from '../../src/shared/avatars.ts';
 import type { StoredProfile } from '../../src/main/profile-store.ts';
 import type { Profile, ProfileConfig } from '../../src/main/profiles.ts';
 import type { TaskProfile, TaskStore } from '../../src/main/store.ts';
@@ -29,12 +29,15 @@ test('projects: at first start none is opened; each gets its own color', async (
   assert.deepEqual([store.projectOf('/work/shop/')?.id, store.projectOf('/work/shop-api')?.id, store.projectOf('/work/other')], ['shop', 'shop', null]);
   store.updateProject(shop.id, { repos: null });
   const bounds = { x: 10, y: 20, width: 900, height: 700 };
-  store.saveWindows([{ tabs: [blog.id, shop.id], shown: shop.id, bounds }, { tabs: ['gone'], shown: 'gone' }]);
+  store.saveWindows([{ tabs: ['blog/1', 'shop/2'], shown: 'shop/2', bounds }, { tabs: ['gone/1'], shown: 'gone/1' }]);
   const later = new Store(path.join(root, 'fresh-data'));
   const [w, gone] = later.windows();
-  assert.deepEqual(w.tabs.map((p) => p.id), ['blog', 'shop'], 'later: the tabs open last');
-  assert.deepEqual([w.shown.id, w.bounds], ['shop', bounds], 'the one shown, where the window was');
-  assert.deepEqual([gone.tabs, gone.shown], [[], null], 'projects no longer there are left out');
+  assert.deepEqual(w.tabs, ['blog/1', 'shop/2'], 'later: the tabs open last, tasks by key');
+  assert.deepEqual([w.shown, w.bounds], ['shop/2', bounds], 'the one shown, where the window was');
+  assert.deepEqual([gone.tabs, gone.shown], [['gone/1'], 'gone/1'], 'as saved: a task no longer there is left out when the windows open (app.ts)');
+  // A project deleted: its tasks out of every window.
+  later.removeProject(blog);
+  assert.deepEqual(later.windows()[0].tabs, ['shop/2']);
   later.saveSettings({ ...later.settings(), uiZoom: 1 });
   later.saveWindows([]);
   assert.deepEqual(later.settings(), { uiZoom: 1, windows: [] }, 'the other settings kept');
@@ -66,7 +69,7 @@ test('profiles: one store, a profile in several projects or none; it lives until
   const ann = all.create('shop', { name: 'Ann', avatar: 'fox', description: 'seller' });
   assert.deepEqual(ann, { id: 'ann', name: 'Ann', avatar: 'fox', description: 'seller', folder: 'Profile 1', projects: ['shop'] });
   assert.ok(fs.existsSync(all.masterDir('Profile 1')), 'its master, empty');
-  assert.equal(all.create('blog', { name: 'Ann', avatar: 'owl' }).id, 'ann-2', 'ids unique across projects');
+  assert.equal((all.create('blog', { name: 'Ann', avatar: 'owl' }) as StoredProfile).id, 'ann-2', 'ids unique across projects');
   assert.deepEqual((all.addTo('ann', 'blog') as StoredProfile).projects, ['shop', 'blog']);
   assert.deepEqual(all.of('blog').map((p) => p.id), ['ann', 'ann-2']);
   assert.equal(all.idFor('Ann', 'ann'), 'ann', 'its own id is free for it');
@@ -85,11 +88,16 @@ test('profiles: one store, a profile in several projects or none; it lives until
   assert.equal(all.get('ann').login.secret, 'enc', 'the password kept when only the login is set again');
   all.setLogin('ann', '', undefined);
   assert.equal(all.get('ann').login, undefined, 'an empty login takes the pair away');
-  assert.deepEqual(all.create(null, { name: 'Free', avatar: 'cat' }).projects, [], 'made in no project (Settings → Profiles)');
+  assert.deepEqual((all.create(null, { name: 'Free', avatar: 'cat' }) as StoredProfile).projects, [], 'made in no project (Settings → Profiles)');
   // Deleted: gone with its master.
   assert.equal((all.delete('ann') as { profile: StoredProfile }).profile.folder, 'Profile 1');
   assert.ok(!all.get('ann') && !fs.existsSync(all.masterDir('Profile 1')) && marked.includes(all.masterDir('Profile 1')), 'its master gone');
-  assert.equal(all.create('shop', { name: 'Bo', avatar: 'cat' }).folder, 'Profile 4', 'never a folder number used before');
+  assert.equal((all.create('shop', { name: 'Bo', avatar: 'cat' }) as StoredProfile).folder, 'Profile 4', 'never a folder number used before');
+  // Checked where it is made, whoever makes it; its picture the next free one of its project's unless given.
+  assert.match((all.create('shop', { name: 'Ann admin' }) as { error: string }).error, /only/);
+  assert.match((all.create('shop', { name: 'Cy', description: 'x'.repeat(501) }) as { error: string }).error, /at most 500/);
+  assert.notEqual((all.create('shop', { name: ' Cy ' }) as StoredProfile).avatar, 'cat', "not the project's taken one (Bo's)");
+  assert.equal(all.get('cy').name, 'Cy', 'trimmed');
 });
 
 test('project profiles: a task has its own copy of each, made at its first open; who a profile is, the same in every task', async () => {
@@ -110,7 +118,7 @@ test('project profiles: a task has its own copy of each, made at its first open;
   // A task with nothing saved opens none (a new task has them all closed: projects.ts, createTask); opened, each
   // is a copy of its master made then.
   const a = task(1);
-  await a.list.load();
+  a.list.load(); await a.list.started;
   assert.deepEqual([...a.list.profiles.keys()], []);
   assert.deepEqual([...a.list.closed.keys()], ['ann', 'bob']);
   assert.deepEqual(a.copied, [], 'nothing copied before it is opened');
@@ -124,7 +132,7 @@ test('project profiles: a task has its own copy of each, made at its first open;
   // A task with its own state: closed ones stay closed, and copied only when opened.
   const b = task(2);
   b.list.store.saveProfiles([{ folder: 'Profile 1', id: 'ann' }, { folder: 'Profile 2', id: 'bob', closed: true }]);
-  await b.list.load();
+  b.list.load(); await b.list.started; // its copy made, then opened
   assert.deepEqual([[...b.list.profiles.keys()], [...b.list.closed.keys()], b.copied], [['ann'], ['bob'], ['Profile 1']]);
   // Made in one task: closed in the other once it reads the store again; renamed, described, its picture: everywhere.
   assert.equal((await a.list.create('Cid', 'admin') as { id: string }).id, 'cid');
@@ -150,11 +158,11 @@ test('project profiles: a task has its own copy of each, made at its first open;
     profileDir: () => root, markDeleted() {} } as unknown as TaskStore, one, 'p', {
     make: (cfg: ProfileConfig) => ({ ...cfg, urls: [] }) as unknown as Profile, start: (p, urls) => new Promise<void>((r) => { opened = () => { (p as Fake).urls = urls; r(); }; }), unload: async () => {},
     copy: async () => {}, urlsOf: (p) => (p as Fake).urls, renamed() {}, remove: async () => {}, changed() {}, everywhere() {} });
-  const loading = slow.load();
+  slow.load();
   await new Promise((r) => setImmediate(r));
   slow.saveTabs();
   assert.deepEqual(tabsSaved['Profile 1'], ['https://d/'], 'while it opens');
-  opened(); await loading;
+  opened(); await slow.started;
   slow.saveTabs();
   assert.deepEqual(tabsSaved['Profile 1'], ['https://d/'], 'once open');
   // More profiles than pictures: round again, nothing breaks.

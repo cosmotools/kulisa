@@ -2,17 +2,17 @@
 // profile, the tab, a Playwright locator) is typed into the agent's prompt without Enter: the human writes the rest of
 // the message around it and sends it. Nothing is saved: the agent looks at the element on the live page with its
 // tools (snapshot, screenshot, console, requests of that tab), so Kulisa writes nothing into the project.
-import { ipcMain } from 'electron';
+import { handle } from './ipc.ts';
 import { typeIntoPrompt } from './terminal.ts';
-import { refused } from './result.ts';
+import { refused } from '../shared/result.ts';
 import type { Shell } from './shell.ts';
 
 function installPicker(shell: Shell) {
   // Profiles in pick mode, each window's (window.ts: picking, of the task on screen, by id) -> { profile, page,
   // cancel }. Pick mode ends with a click on an element, or is cancelled by Esc in the page or by the Pick button again
   // (pick:cancel). The reference goes to the agent shown in the profile's task, else the one shown last (tasks.ts).
-  ipcMain.handle('pick:cancel', (e, { profile }: { profile: string }) => shell.windowOf(e.sender)?.picking.get(profile)?.cancel());
-  ipcMain.handle('pick:start', async (e, { profile: pid }: { profile: string }) => {
+  handle('pick:cancel', (e, { profile }) => shell.windowOf(e.sender)?.picking.get(profile)?.cancel());
+  handle('pick:start', async (e, { profile: pid }) => {
     try {
       const w = shell.windowOf(e.sender), task = w?.task;
       if (!task) return { error: 'no task is open' };
@@ -26,7 +26,7 @@ function installPicker(shell: Shell) {
       const onKey = (e: Electron.Event, input: Electron.Input) => { if (input.type === 'keyDown' && input.key === 'Escape') { e.preventDefault(); void cancel(); } };
       w.picking.set(pid, { profile, page, cancel });
       wc.on('before-input-event', onKey);
-      wc.focus();
+      profile.focusTab(tab);
       let picked: import('playwright-core').Locator | undefined;
       try { picked = await page.pickLocator(); } catch (e) { if (!cancelled) throw e; } finally {
         w.picking.delete(pid);

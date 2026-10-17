@@ -16,12 +16,11 @@
 //   everywhere()                who a profile is changed in the store: every task shows it
 import fs from 'fs';
 import { clearCaches } from './profiles.ts';
-import { nextAvatar } from './avatars.ts';
 import type { Profile, ProfileConfig } from './profiles.ts';
 import type { TaskStore, TaskProfile } from './store.ts';
 import type { ProfileStore, StoredProfile } from './profile-store.ts';
-import type { Result } from './result.ts';
-import { refused } from './result.ts';
+import type { Result } from '../shared/result.ts';
+import { refused } from '../shared/result.ts';
 
 // A profile of the task: who it is (cfg), its tabs' addresses while closed, its Profile while open.
 interface Entry { cfg: ProfileConfig; urls: string[]; profile: Profile | null; closed?: boolean; starting?: Promise<unknown> | null }
@@ -41,24 +40,28 @@ class ProjectProfiles {
   store: TaskStore; all: ProfileStore; project: string; hooks: Hooks;
   entries: Entry[] = []; // { cfg: { id, name, avatar, description, folder, dir, zoom }, urls, profile }
   profiles = new Map<string, Profile>(); closed = new Map<string, Entry>();
+  started: Promise<void> = Promise.resolve(); // the open ones' starts as the task loaded (load), awaited by its agents
   // store: the task's (TaskStore); profiles: the store of profiles (ProfileStore); project: its project's id.
   constructor(store: TaskStore, profiles: ProfileStore, project: string, hooks: Hooks) {
     this.store = store; this.all = profiles; this.project = project; this.hooks = hooks;
   }
 
   // The project's profiles, with what this task has of each; the closed ones stay closed. A new task has them all
-  // closed (projects.ts, createTask); one the project got later comes closed.
-  async load() {
+  // closed (projects.ts, createTask); one the project got later comes closed. The open ones are made at once (in the
+  // maps) and started behind, together (their cookies, tabs, automation: a site's answer away): the task's grid waits
+  // for none of them, as it waited for each in turn until 2026-10-15. Saved once they have started.
+  load() {
     const state = new Map((this.store.profiles() || []).map((x) => [x.folder, x]));
     this.entries = this.all.of(this.project).map((g) => ({ cfg: this._cfg(g, state.get(g.folder)), urls: this.store.tabs(g.folder),
       profile: null as Profile | null, closed: !state.has(g.folder) || !!state.get(g.folder)!.closed }));
     this._sync();
-    for (const e of this.entries) if (!e.closed) await this._start(e);
-    for (const e of this.entries) delete e.closed;
-    this.save();
+    this.started = Promise.all(this.entries.filter((e) => !e.closed).map((e) => this._start(e)
+      .catch((err: Error) => console.error(`[profiles] ${e.cfg.id} did not open: ${err.message}`))))
+      .then(() => { for (const e of this.entries) delete e.closed; this.save(); });
   }
   // The task closes (another project opens, it is deleted): the open profiles are unloaded and the list goes.
   async unloadAll() {
+    await this.started; // a profile still opening, once it is open
     for (const e of this.entries) if (e.profile) await this.hooks.unload(e.profile);
     this.entries = []; this._sync();
   }
@@ -83,9 +86,8 @@ class ProjectProfiles {
   // A new, empty profile of the project, open here; from the editor and from the agent (profile_create).
   // avatar: the human's pick (the editor), else the next one free.
   async create(name: string, description = '', avatar?: string): Promise<Result<{ id: string }>> {
-    const bad = this.all.check({ name, description, avatar });
-    if (bad) return { error: bad };
-    const g = this.all.create(this.project, { name: name.trim(), avatar: avatar || this._nextAvatar(), description: description.trim() });
+    const g = this.all.create(this.project, { name, description, avatar });
+    if (refused(g)) return g;
     const e: Entry = { cfg: this._cfg(g), urls: [], profile: null };
     this.entries.push(e);
     await this._start(e);
@@ -183,7 +185,6 @@ class ProjectProfiles {
       else this.closed.set(e.cfg.id, e);
     }
   }
-  _nextAvatar() { return nextAvatar(this.entries.map((e) => e.profile?.avatar ?? e.cfg.avatar)); }
 }
 // What a task shows of a profile's pair: its login, and whether it has a password (never the password).
 const loginOf = (g: StoredProfile) => ({ login: g.login?.user || '', hasPassword: !!g.login?.secret });

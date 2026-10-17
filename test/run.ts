@@ -16,7 +16,8 @@ import { ensureSite } from './fixtures/site.ts';
 import { root, userData, project, SITE, PORT, sleep, waitFor } from './helpers.ts';
 import type { Shell } from '../src/main/shell.ts';
 import type { AppWindow } from '../src/main/window.ts';
-import type { Question } from '../src/renderer/types.ts';
+import type { SettingsWindow } from '../src/main/settings-window.ts';
+import type { Question } from '../src/shared/types.ts';
 import type { Task, TaskTerminal } from '../src/main/tasks.ts';
 import type { Agent } from '../src/main/agents/index.ts';
 import type { IPty } from 'node-pty';
@@ -24,6 +25,9 @@ import type { IPty } from 'node-pty';
 // A site that is not local (local.ts) for the tests of real accounts' sign-ins kept in step (cookie-sync.ts): the test
 // site under a name of its own.
 app.commandLine.appendSwitch('host-resolver-rules', 'MAP shop.example 127.0.0.1');
+// The motion the tests check (a tab growing in, the grid's slide) whatever the OS's setting: GitHub's macOS runner
+// reduces motion, and nothing moved there (2026-10-16). Reduced motion is checked where it matters, emulated.
+app.commandLine.appendSwitch('force-prefers-no-reduced-motion');
 
 const restart = process.argv.includes('--restart');
 // direnv's list of allowed .envrc files (tasks copy and allow them): the test's own, not the user's.
@@ -37,16 +41,15 @@ fs.mkdirSync(project, { recursive: true });
 // project's .envrc with CLAUDE_CONFIG_DIR), which the task's account overrides.
 const bashrc = path.join(root, 'bashrc');
 fs.writeFileSync(bashrc, `PS1='$ '\nexport FROM_RC="rc of $PWD"\nexport FAKE_CONFIG_DIR="the project's"\n`);
-// Its dictation (agents/, voice): cat shows the key the microphone holds (repeated); its language kept here. Its
-// transcripts read as Claude Code's (task_history): a test writes one in that format.
-let dictation = 'en';
+// Its dictation (agents/, voice): cat shows the key the microphone holds (repeated). Its transcripts read as Claude
+// Code's (task_history): a test writes one in that format.
 const agent = { command: 'bash', args: ['-c', 'echo "agent: $FROM_RC"; exec cat -v'], resume: (): string[] => [], shell: { command: 'bash', args: ['--rcfile', bashrc, '-i'] }, conversation: claudeConversation,
-  voice: { key: '<v>', repeat: 50, note: 'it answers in it too', languages: ['en', 'ru', 'de'], language: () => dictation, setLanguage: (_saved: unknown, code: string) => { dictation = code; return { language: code }; } } };
+  voice: { key: '<v>', repeat: 50 } };
 // Agents to choose from for a task (agents/): one that is not installed until its installer runs, into a
 // folder of the test.
 function claudeLike() {
-  const { resume, conversation, prompt, forget, trust, localFiles, skills } = AGENTS.find((a) => a.id === 'claude');
-  return { resume, conversation, prompt, forget, trust, localFiles, skills };
+  const { resume, conversation, prompt, forget, trust, localFiles, skills, language } = AGENTS.find((a) => a.id === 'claude');
+  return { resume, conversation, prompt, forget, trust, localFiles, skills, language };
 }
 const bin = path.join(root, 'bin');
 process.env.FAKE_LOGOUTS = path.join(root, 'logouts'); // the accounts the fake agent signed out of
@@ -59,7 +62,7 @@ const agents: Agent[] = [
   // With accounts (accounts.ts) as Claude Code's, its folder in FAKE_CONFIG_DIR, which it prints; signed in, out and
   // asked who with its own commands (fixtures/fake-agent.sh). Its conversations as Claude Code's: resumed, read,
   // forgotten, a first message (the task handed to it; the arguments it ignores), its trust of a folder, its local
-// settings a task's copy gets, Kulisa's skill in its account.
+// settings a task's copy gets, Kulisa's skill in its account, its language setting.
   { id: 'fake', name: 'Fake agent', maker: 'Kulisa tests', needs: 'Nothing', command: 'kulisa-fake-agent', installDirs: [bin],
     config: { env: 'FAKE_CONFIG_DIR', home: () => path.join(root, 'fake-config'), login: () => ['auth', 'login'],
       status: ['auth', 'status'], email: (out) => JSON.parse(out).email, logout: ['auth', 'logout'] },
@@ -82,15 +85,18 @@ setTimeout(() => { console.error('the whole run took over 5 minutes: stopped'); 
 const sitePromise = ensureSite(Number(PORT));
 // The restart phase runs as a packaged build would as to DevTools: Kulisa's own are off (appDevTools).
 // After the restart no project is named: the one opened last opens.
-start({ userData, project: restart ? undefined : project, projectsHome: path.join(root, 'Kulisa'), agent, agents, mcpPort: 0, signinHosts: ['localhost'], appDevTools: !restart })
+start({ userData, project: restart ? undefined : project, projectsHome: path.join(root, 'KulisaProjects'), agent, agents, mcpPort: 0, signinHosts: ['localhost'], appDevTools: !restart })
   .then(async (shell) => {
     await sitePromise;
+    // macOS gives the keyboard only to the active app's windows, and the run starts from another (a terminal): the
+    // tests' focus would be the human's last click's. It takes the screen's focus, as docs/testing.md says.
+    if (process.platform === 'darwin') app.focus({ steal: true });
     const ctx = await setup(shell);
     let failed = 0;
     for (const t of tests) {
       const t0 = Date.now();
       try {
-        await Promise.race([t.fn(ctx), sleep(30000).then(() => { throw new Error('timeout 30 s'); })]);
+        await Promise.race([t.fn(ctx), sleep(30000).then(() => { throw new Error(`timeout 30 s, in ${ctx.step}`); })]);
         console.log(`  ✓ ${t.name} (${Date.now() - t0} ms)`);
       } catch (e) {
         failed++;
@@ -120,7 +126,10 @@ async function setup(shell: Shell) {
     return clients.get(url);
   };
   // terminal: as the agent in that terminal of the task, by its own URL (tasks.ts, env).
+  // The last call or script a test began, named when the test's 30 s are up (a hang has no stack to read).
+  let step = '';
   const call = async (name: string, args: Record<string, unknown>, task: Task = shell.task, terminal?: TaskTerminal) => {
+    step = `call ${name} ${JSON.stringify(args).slice(0, 120)}`;
     const mcp = await mcpOf(task.env(terminal).KULISA_MCP_URL);
     const r = await mcp.callTool({ name, arguments: args });
     const content = r.content as { type: string; text?: string; data?: string }[];
@@ -131,7 +140,13 @@ async function setup(shell: Shell) {
     return { ...r, content, text, note };
   };
   // A script that throws says which it was (Electron's error names none).
-  const ui = (js: string) => shell.win.webContents.executeJavaScript(js).catch((e: Error) => { throw new Error(`${e.message}: ${js.slice(0, 300)}`); });
+  const ui = (js: string) => { step = `ui ${js.slice(0, 120)}`; return shell.win.webContents.executeJavaScript(js).catch((e: Error) => { throw new Error(`${e.message}: ${js.slice(0, 300)}`); }); };
+  // The same in Settings' window (settings-window.ts), once it is open and its page loaded.
+  const sui = async (js: string) => {
+    step = `sui ${js.slice(0, 120)}`;
+    await waitFor(() => { const w = shell.settings?.win; return w && !w.isDestroyed() && w.webContents.getURL().includes('settings.html') && !w.webContents.isLoading(); });
+    return shell.settings.win.webContents.executeJavaScript(js).catch((e: Error) => { throw new Error(`${e.message}: ${js.slice(0, 300)}`); });
+  };
   let pty = '';
   const watchPty = (p: IPty) => p.onData((d) => (pty += d)); // again for the agent of another project
   await waitFor(() => shell.pty, 10000); // the agent starts once the window has laid out its terminal
@@ -147,12 +162,13 @@ async function setup(shell: Shell) {
   const instructions = async (task: Task = shell.task) => (await mcpOf(task.env().KULISA_MCP_URL)).getInstructions();
   // The tools the MCP server lists to the agent of task task, as its client gets them.
   const tools = async (task: Task = shell.task) => (await (await mcpOf(task.env().KULISA_MCP_URL)).listTools()).tools;
-  const ctx = { shell, call, instructions, tools, ui, ptyOutput: () => pty, watchPty, termText, asked, answer: true as boolean | 'other' | null };
+  const ctx = { shell, call, instructions, tools, ui, sui, ptyOutput: () => pty, watchPty, termText, asked, answer: true as boolean | 'other' | null, get step() { return step; } };
   const ask = shell.askWhich;
-  // Asked in the window w (window.ts), the first one when none is named; shell.ask asks through it.
-  shell.askWhich = (q: Question, w: AppWindow | null = shell.windows[0]) => {
+  // Asked where w is (a tasks' window, Settings': app.ts, askWhich), the first window when none is named; shell.ask
+  // asks through it.
+  shell.askWhich = (q: Question, w: AppWindow | SettingsWindow | null = shell.windows[0]) => {
     asked.push(q);
-    const answer = ask(q, w), yes = ctx.answer, there = (js: string) => w.win.webContents.executeJavaScript(js);
+    const answer = ask(q, w), yes = ctx.answer, page = w.win.webContents, there = (js: string) => page.executeJavaScript(js);
     if (yes !== null) void waitFor(() => there(`(document.getElementById('ask')?.dataset.state === 'open') && document.querySelector('#ask h2').textContent === ${JSON.stringify(q.message)}`))
       .then(() => there(`document.querySelector('#ask ${yes === 'other' ? '.other' : yes ? '.ok' : '.cancel'}').click()`));
     return answer;

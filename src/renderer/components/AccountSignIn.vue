@@ -5,8 +5,8 @@
 import { CollapsibleContent, CollapsibleRoot, CollapsibleTrigger } from 'reka-ui';
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 import Icon from './Icon.vue';
-import { forgetTerminals, termHost } from '../lib/terminals';
-import type { SignedIn } from '../types';
+import { forgetTerminals, termHost } from '../lib/xterm';
+import type { SignedIn } from '../../shared/types';
 
 const props = defineProps<{ project?: string | null; agent: { id: string; name: string } }>();
 const emit = defineEmits<{ done: [r: SignedIn]; close: [] }>();
@@ -20,7 +20,7 @@ async function start() {
   if (shown) forgetTerminals([shown]);
   const key = running.value = shown = `signin#${Date.now()}-${++n}`;
   host.value!.replaceChildren(termHost(key));
-  const r = await kulisa.invoke<SignedIn & { error?: string | null }>('account:signin', { id: props.project ?? null, agent: props.agent.id, key });
+  const r = await kulisa.invoke('account:signin', { id: props.project ?? null, agent: props.agent.id, key });
   if (running.value === key) running.value = '';
   if (r.error) { error.value = r.error; details.value = true; }
   else if (r.error === undefined) emit('done', r);
@@ -40,7 +40,7 @@ onBeforeUnmount(() => { void stop(); forgetTerminals([shown]); });
     <p class="hint">Signing in to a new account of {{ agent.name }}: sign in in your browser, which opens (check the account
       it signs in to there; its address is under Details if it did not open). The account is {{ project ? 'added' : 'kept' }} once you are signed in.</p>
     <CollapsibleRoot v-model:open="details" :unmount-on-hide="false">
-      <CollapsibleTrigger class="more"><Icon name="i-down" />Details</CollapsibleTrigger>
+      <CollapsibleTrigger class="disclose"><Icon name="i-down" />Details</CollapsibleTrigger>
       <CollapsibleContent><div id="npsigninterm" ref="host" /></CollapsibleContent>
     </CollapsibleRoot>
     <p id="npsigninerror" class="error">{{ error }}</p>

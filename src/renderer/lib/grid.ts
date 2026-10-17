@@ -1,12 +1,14 @@
 // The grid of the shown task (dockview, drawn by Grid.vue; docs/window.md, The grid). After any change the main process
 // gets where each pane's .content box is, or that it is not on screen (stacked behind another pane), as it lays the
 // native views over them.
+import { nextTick } from 'vue';
 import type { AddPanelPositionOptions, DockviewApi } from 'dockview-vue';
-import type { Profile, Terminals } from '../types';
+import type { Profile } from '../../shared/types';
 import { act, setLoading, store } from './store';
-import { closeLayers, forgetFrozen, freeze, showViews, unfreeze } from './views';
+import { forgetFrozen, freeze, livePages, showViews, unfreeze } from './views';
+import { closeLayers } from './cover';
 import { reducedMotion } from './common';
-import { forgetTerminals } from './terminals';
+import { forgetTerminals } from './xterm';
 
 const panelId = (key: string) => `profile:${key}`;
 // What the window does with a mounted pane (ProfilePane.vue), by its profile's key.
@@ -32,7 +34,25 @@ export function gridMounted(a: DockviewApi) {
   api = a;
   Object.assign(window, { __dock: a }); // for tests
   let saveTimer = 0, save: (() => void) | null = null;
+  // A narrower window takes from every panel in its share (Grid.vue's proportional-layout), but in dockview (8.4, 8.5)
+  // a row with a panel below it, built again after the grid was cleared (an arrangement; a saved grid restored clears
+  // it too), keeps no shares, and the window took from its last panel alone. The shares are taken again on the next
+  // frame after a change of its panels (the grid built by then), by turning the option off and on; gone once
+  // github.com/dockview/dockview/issues/1692 is fixed.
+  let unshared = false, shareFrame = 0;
+  const share = () => {
+    if (!room().w) return; // not laid out yet: again on its next layout
+    unshared = false;
+    a.updateOptions({ proportionalLayout: false });
+    a.updateOptions({ proportionalLayout: true });
+  };
+  const changed = () => { unshared = true; cancelAnimationFrame(shareFrame); shareFrame = requestAnimationFrame(share); };
+  a.onDidAddGroup(changed);
+  a.onDidRemoveGroup(changed);
+  a.onDidMovePanel(changed);
+  a.onDidLayoutFromJSON(changed);
   a.onDidLayoutChange(() => {
+    if (unshared) { cancelAnimationFrame(shareFrame); shareFrame = requestAnimationFrame(share); }
     scheduleLayout();
     clearTimeout(saveTimer);
     // Not a grid being taken down or built.
@@ -53,7 +73,7 @@ let flushSave = () => {};
 document.addEventListener('dragend', unfreeze, true);
 document.addEventListener('drop', () => setTimeout(unfreeze), true);
 
-kulisa.on<Profile[]>('state', async (s) => {
+kulisa.on('state', async (s) => {
   await leaving;
   // A profile leaving sign-in mode: the words over its pane go.
   for (const p of s) if (!p.signinMode && store.profiles.find((x) => x.key === p.key)?.signinMode) store.captions[p.id] = '';
@@ -74,7 +94,7 @@ function reveal() {
     setLoading(false);
     store.pictures = pictures.get(store.current!) || {};
     built(); // the transition's new state: it slides in
-    void transition.finished.then(() => { store.pictures = {}; sendLayout(); void showViews(); });
+    void transition.finished.then(() => { sendLayout(); void livePages(); });
     return;
   }
   requestAnimationFrame(() => requestAnimationFrame(() => { // after sendLayout's frame
@@ -123,19 +143,18 @@ const presets: Record<'columns' | 'grid' | 'focus', (s: Profile[]) => { height?:
     return { height: TERMINAL_SHARE };
   },
 };
-// The grid's room: #dock less its padding (the gaps at the window's edges).
+// The grid's room: dockview's own element, under the closed profiles' tiles when they show (ClosedProfiles.vue).
 function room() {
-  const dock = document.getElementById('dock')!, s = getComputedStyle(dock);
-  return { w: dock.clientWidth - parseFloat(s.paddingLeft) - parseFloat(s.paddingRight),
-    h: dock.clientHeight - parseFloat(s.paddingTop) - parseFloat(s.paddingBottom) };
+  const grid = document.getElementById('grid')!;
+  return { w: grid.clientWidth, h: grid.clientHeight };
 }
 export function applyPreset(name: keyof typeof presets) {
   const a = api!;
   a.clear();
   const share = presets[name](store.profiles);
-  // The terminal's share of the window, once the grid has a size (at first start the window may have none yet). The
-  // grid's room is #dock less its padding (the gaps at the window's edges): laid out to clientWidth, it was that much
-  // wider and taller than its room, the right and bottom cut off until the window was resized.
+  // The terminal's share of the window, once the grid has a size (at first start the window may have none yet). Its
+  // room (room()), not #dock's: laid out to a box larger than its room, the right and bottom were cut off until the
+  // window was resized.
   const dock = document.getElementById('dock')!;
   const size = () => {
     const { w, h } = room();
@@ -156,15 +175,18 @@ Object.assign(window, { __layoutPreset: applyPreset }); // for tests
 // project's grid slides in as macOS desktops do, the one left out and the next one in at once; another task's replaces
 // it at once. Not with reduced motion: then the grid is hidden at once, so nothing half-built shows. The title bar and
 // the tasks' bar stay.
-kulisa.on<{ dir: number; level: 'task' | 'project'; task: string; pics?: Record<string, string> }>('grid:closing', ({ dir, level, task, pics }) => {
+kulisa.on('grid:closing', ({ dir, task, pics }) => {
   closeLayers(); // its dialogs and menus are for the grid that goes
+  // A freeze under way (a drag) no longer matters; now, not when the grid is taken down (the slide's update, a frame or
+  // more later): a menu opened in between, for the next grid, lost its pictures, and the slide's end showed the pages
+  // over it (2026-10-16).
+  forgetFrozen();
   // Its last change saved now, not dropped: a pane closed (its profile deleted) just before the task was left stayed in
   // its saved grid, and a saved grid naming a profile no longer there is not restored at all (restoreGrid).
   flushSave();
-  if (pics) pictures.set(task, pics);
+  if (pics && task) pictures.set(task, pics);
   const takeDown = () => {
     setLoading(true);
-    forgetFrozen();
     api?.clear();
     // The panes go with what was said over them: profile ids repeat across tasks.
     Object.assign(store, { profiles: [], pictures: {}, captions: {}, picking: {}, terminals: { front: null, list: [] } });
@@ -178,20 +200,20 @@ kulisa.on<{ dir: number; level: 'task' | 'project'; task: string; pics?: Record<
   const next = new Promise<void>((r) => (built = r));
   // While the next grid is built (the callback), Chromium shows the picture of this one and draws no frames: the
   // building must not wait for one (reveal).
-  const transition = document.startViewTransition({ update: () => { takeDown(); cleared(); return next; }, types: [level, dir > 0 ? 'next' : 'previous'] });
+  const transition = document.startViewTransition({ update: () => { takeDown(); cleared(); return next; }, types: [dir > 0 ? 'next' : 'previous'] });
   sliding = { transition, built };
 });
 
-// Tasks gone (their project closed, a task deleted): their terminals and pictures too; a task opened again later
-// starts afresh.
-kulisa.on<string[]>('tasks:closed', (keys) => {
+// Tasks gone (closed, deleted, moved to another window): their terminals and pictures too; a task opened again
+// later starts afresh.
+kulisa.on('tasks:closed', (keys) => {
   for (const key of keys) pictures.delete(key);
   forgetTerminals(keys);
 });
 
 async function restoreGrid() {
   const a = await apiReady;
-  const saved = await act<{ panels?: Record<string, unknown> } | null>('layout:load');
+  const saved = await act('layout:load') as { panels?: Record<string, unknown> } | null | undefined; // as the window saved it
   // A saved grid may name profiles deleted since; dockview needs a component for every panel in it.
   const known = (id: string) => id === 'terminal' || store.profiles.some((p) => panelId(p.key) === id);
   if (saved && Object.keys(saved.panels || {}).every(known)) {
@@ -210,17 +232,22 @@ function syncGrid() {
     const last = a.panels.filter((x) => x.id !== 'terminal').at(-1);
     addProfilePanel(p, last ? { referencePanel: last.id, direction: 'right' } : { referencePanel: 'terminal', direction: 'above' });
     // The first page over the terminal alone: dockview halves the room; the terminal keeps its share, as in the
-    // arrangements (a terminal as tall as the pages was mostly empty).
-    if (!last) a.getPanel('terminal')!.group.api.setSize({ height: Math.round(room().h * TERMINAL_SHARE) });
+    // arrangements (a terminal as tall as the pages was mostly empty). Once the closed profiles' tiles have gone: the
+    // room they leave went to the terminal (dockview resizing after its share was set), 45% of the grid.
+    if (!last) void nextTick(() => {
+      const { w, h } = room();
+      a.layout(w, h);
+      a.getPanel('terminal')?.group.api.setSize({ height: Math.round(h * TERMINAL_SHARE) });
+    });
   }
 }
 // The shown task's island (Terminals.vue): its tabs, the one in front.
-kulisa.on<Terminals>('terminals', async (t) => {
+kulisa.on('terminals', async (t) => {
   await leaving; // as the state: the next task's, once the grid on screen has gone
   if (t.task === store.current) store.terminals = t;
 });
 // A terminal closed, of any task: its xterm goes.
-kulisa.on<string[]>('terminals:gone', forgetTerminals);
+kulisa.on('terminals:gone', forgetTerminals);
 
 // Bring an open profile's pane to the front (it may be stacked behind another).
 export const showPane = (key: string) => api?.getPanel(panelId(key))?.api.setActive();

@@ -10,7 +10,7 @@
 import { watch } from 'vue';
 import { DialogClose, DialogContent, DialogOverlay, DialogPortal, DialogRoot, DialogTitle, FormRoot } from 'reka-ui';
 import Icon from './Icon.vue';
-import { covered } from '../lib/views';
+import { covered } from '../lib/cover';
 
 const props = withDefaults(defineProps<{ id: string; title?: string; closable?: boolean; stay?: boolean; form?: boolean; formId?: string;
   errors?: Record<string, string> }>(),

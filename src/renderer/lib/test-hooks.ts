@@ -2,7 +2,7 @@
 // task's profiles and key, its actions, the terminal's copy and paste keys and its links, the keys as shown. Others are set where
 // they live (window.__dock, __term, __termRenderer, __ptySizes, __layoutPreset).
 import { act, store } from './store';
-import { clipboardKey, termLinks } from './terminals';
+import { clipboardKey, termLinks } from './xterm';
 import { keyText } from './common';
 
 Object.assign(window, { act, clipboardKey, termLinks, keyText });

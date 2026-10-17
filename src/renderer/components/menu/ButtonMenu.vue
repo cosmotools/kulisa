@@ -6,7 +6,7 @@
 import { shallowRef } from 'vue';
 import { DropdownMenuContent, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui';
 import MenuRows from './MenuRows.vue';
-import { covered } from '../../lib/views';
+import { covered } from '../../lib/cover';
 import { focusBack, type MenuItem } from '../../lib/menu';
 
 const props = defineProps<{ items: () => MenuItem[]; end?: boolean }>();
@@ -27,7 +27,7 @@ function click(e: MouseEvent) { if (pressed) { pressed = false; e.preventDefault
   <DropdownMenuRoot :open :modal="false" @update:open="toggle">
     <DropdownMenuTrigger as-child @pointerdown="press" @click.capture="click"><slot /></DropdownMenuTrigger>
     <DropdownMenuPortal>
-      <DropdownMenuContent class="menu" :class="{ ready }" :align="end ? 'end' : 'start'" :side-offset="4" :collision-padding="4" @close-auto-focus="focusBack($event, focused)">
+      <DropdownMenuContent class="menu" :class="{ ready }" :align="end ? 'end' : 'start'" :side-offset="4" :collision-padding="4" @close-auto-focus="focusBack($event, focused)" @focus-outside.prevent>
         <MenuRows :items="rows" />
       </DropdownMenuContent>
     </DropdownMenuPortal>

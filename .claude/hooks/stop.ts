@@ -1,5 +1,5 @@
 // Claude Code's Stop hook (.claude/settings.json): before a session ends its turn, ESLint and the unit tests on what
-// it changed and has not committed; a failure sends it back with the output. README, Developing with Claude Code.
+// it changed and has not committed; a failure sends it back with the output. docs/testing.md, Claude Code's checks.
 import { execFileSync, spawnSync } from 'node:child_process';
 import crypto from 'node:crypto';
 import fs from 'node:fs';

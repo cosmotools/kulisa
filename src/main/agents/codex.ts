@@ -41,8 +41,9 @@ const codex: Agent = {
   // Its skills: <CODEX_HOME>/skills/<name>/SKILL.md, the same format as Claude Code's (0.160.1).
   skills: 'skills',
   lacks: {
-    addDir: 'Codex 0.160.1 has no command to add a folder in a session: told in a line instead',
+    addDir: 'Codex 0.160.1 has no command to add a folder in a session (only --add-dir at its start): told in a line instead, its changes there asking for approval until its next start',
     voice: 'Codex 0.160.1 has no dictation of its own, only a realtime voice conversation',
+    language: 'Codex 0.160.1 has no language setting',
   },
   // Its own sign-in (0.160.1): `login`, `login status`, `logout`. Its status does not say the email ("Logged in
   // using ChatGPT", checked 2026-10-12): the account is shown by its id.

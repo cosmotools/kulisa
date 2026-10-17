@@ -19,7 +19,7 @@ registerDialog('taskrename', {
 async function save() {
   const name = input.value!.value;
   if (!name.trim()) return input.value!.focus();
-  const r = await kulisa.invoke<{ error?: string } | null>('task:rename', { key: renaming, name });
+  const r = await kulisa.invoke('task:rename', { key: renaming, name });
   if (r?.error) error.value = r.error; else modal.value!.close();
 }
 </script>

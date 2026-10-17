@@ -2,8 +2,15 @@
 import { session } from 'electron';
 import fs from 'fs';
 import path from 'path';
-import { assert, userData, pfile, savedTabs, panel, SITE, waitFor, who, menuRows, choose, manageProfiles, closeSettings, chooseProfile, setProfileField, menuOpen, taskMenu, viewOn, ctrl, near, closeMenu, PORT } from './helpers.ts';
+import { assert, userData, pfile, savedTabs, panel, SITE, waitFor, who, menuRows, choose, manageProfiles, closeSettings, chooseProfile, setProfileField, menuOpen, taskMenu, viewOn, ctrl, near, closeMenu, plusMenu, closeBoard, PORT, MAC, sleep } from './helpers.ts';
 import type { Test } from './run.ts';
+
+// Files of the sites' Cache API in a profile's folder, wherever Chromium's layout puts them (`WebStorage/<bucket>/CacheStorage/`).
+// A folder Chromium removes while it is read is not counted yet (NaN): asked again (GitHub's macOS runner, 2026-10-16).
+const cacheStorageFiles = (dir: string) => {
+  try { return fs.readdirSync(dir, { recursive: true, withFileTypes: true }).filter((f) => f.isFile() && f.parentPath.includes('CacheStorage')).length; }
+  catch (e) { if ((e as NodeJS.ErrnoException).code === 'ENOENT') return NaN; throw e; }
+};
 
 export default (test: Test) => {
   test('Kulisa zoom: Ctrl+= outside the pages scales the whole UI, pages follow, panes still fit; saved', async ({ shell, ui }) => {
@@ -17,7 +24,7 @@ export default (test: Test) => {
     assert.equal(await ui(`document.getElementById('zoomReset').textContent`), '110%');
     assert.equal(await ui(`document.getElementById('zoomReset').hidden`), false);
     await ui(`document.getElementById('windowMenu').click()`);
-    assert.deepEqual((await menuRows(ui)).slice(0, 5), ['zoom', 'theme', 'bar', '-', '# Arrange panels']);
+    assert.deepEqual((await menuRows(ui)).slice(0, 6), ['zoom', 'theme', 'bar', 'Language', '-', '# Arrange panels']);
     assert.equal(await ui(`document.querySelector('.menu[data-state="open"] .zoomrow output').textContent`), '110%');
     await ui(`document.querySelector('.menu[data-state="open"] .zoomrow .in').click()`); // − 110% + in the menu, as in Chrome
     await waitFor(() => near(win.getZoomFactor(), 1.25));
@@ -27,8 +34,25 @@ export default (test: Test) => {
     await waitFor(() => viewOn(shell, ui, 'sam-admin'));
     await waitFor(async () => (await ui(`({ cols: window.__term.cols })`)).cols < 200, 3000); // the terminal refits
     await waitFor(() => JSON.parse(fs.readFileSync(path.join(userData, 'settings.json'), 'utf8')).uiZoom === 1.25);
+    // macOS: the window's buttons centered in the bar as it grows (made at 100%: a 44 pt bar), never below the height
+    // the window was made with, where they would not take a click (docs/window.md, The title bar).
+    if (MAC) {
+      assert.deepEqual(shell.win.getWindowButtonPosition(), { x: 7, y: 21 }, '125%: a 55 pt bar');
+      shell.setUiZoom(2);
+      assert.deepEqual(shell.win.getWindowButtonPosition(), { x: 7, y: 30 }, '200%: at the bottom of the 44 pt it was made with');
+      shell.setUiZoom(1.25);
+    }
+    // At most 200% (docs/window.md, Zoom): the window's minimum grows with it, and at 300% passed a laptop's screen.
+    shell.setUiZoom(2);
+    ctrl(win, '=');
+    await sleep(300); // nothing to wait for: that it stays
+    assert.ok(near(win.getZoomFactor(), 2) && shell.uiZoom === 2, 'Ctrl+= at 200% leaves it there');
+    shell.setUiZoom(3);
+    assert.equal(shell.uiZoom, 2, 'nor anything else takes it further');
+    shell.setUiZoom(1.25);
+    await waitFor(() => near(win.getZoomFactor(), 1.25));
   });
-  test('the window\'s minimum follows the Kulisa zoom; a window at the minimum grows with it, and keeps its size back', async ({ shell, ui }) => {
+  test('the window\'s minimum follows the Kulisa zoom; a window at the minimum grows with it, and keeps its size back; New Project fits the smallest', async ({ shell, ui }) => {
     const win = shell.win, size = win.getSize();
     assert.deepEqual(win.getMinimumSize(), [800, 500], '640×400 at 125%');
     win.setSize(800, 500);
@@ -41,6 +65,23 @@ export default (test: Test) => {
     await waitFor(() => near(win.webContents.getZoomFactor(), 1.25));
     assert.deepEqual(win.getMinimumSize(), [800, 500]);
     assert.deepEqual(win.getSize(), [960, 600], 'not made smaller');
+    // The smallest window has 640×400 for the UI at any zoom: New Project keeps its buttons and Browse… in it, each kind.
+    win.setSize(800, 500);
+    await waitFor(async () => (await ui(`innerHeight`)) === 400);
+    await plusMenu(ui);
+    await ui(`document.getElementById('boardnewproject').click()`);
+    await waitFor(() => ui(`document.getElementById('newproject')?.dataset.state === 'open' && !!document.getElementById('npname')`));
+    for (const from of ['new', 'folder', 'clone']) {
+      await ui(`document.querySelector('#npfrom [data-value="${from}"]').click()`);
+      await waitFor(() => ui(`document.querySelector('#npfrom [data-value="${from}"]').ariaSelected === 'true'`));
+      const fits = await ui(`(() => { const d = document.getElementById('newproject').getBoundingClientRect(), inside = (id) => { const e = document.getElementById(id);
+        if (!e) return null; const r = e.getBoundingClientRect(); return r.right <= d.right && r.bottom <= d.bottom && d.bottom <= innerHeight; };
+        return { create: inside('npcreate'), browse: inside('npbrowse') }; })()`);
+      assert.deepEqual(fits, { create: true, browse: from === 'folder' ? null : true }, from);
+    }
+    await ui(`document.querySelector('#newproject .x').click()`);
+    await waitFor(async () => !(await ui(`document.getElementById('newproject')?.dataset.state === 'open'`)));
+    await closeBoard(ui);
     win.setSize(size[0], size[1]);
     await waitFor(() => win.getSize()[0] === size[0] && viewOn(shell, ui, 'sam-admin'));
   });
@@ -89,9 +130,13 @@ export default (test: Test) => {
     await waitFor(() => ui(`!!document.querySelector('${header} .close')`));
 
     assert.ok(await session.fromPath(cleoDir).getCacheSize() > 0, 'pages were cached');
+    // A site's Cache API (its service worker's copies of its bundles) was the largest part of a closed copy: 200 MB for Teams.
+    await tabs[1].executeJavaScript(`caches.open('bundles').then((c) => c.put('/bundle.js', new Response('x'.repeat(100000))))`);
+    await waitFor(() => cacheStorageFiles(cleoDir) > 0);
     await ui(`document.querySelector('${header} .close').click()`);
     await waitFor(() => !shell.profiles.has('cleo') && tabs.every((wc) => wc.isDestroyed()));
     await waitFor(async () => (await session.fromPath(cleoDir).getCacheSize()) === 0); // a closed profile keeps no cache
+    await waitFor(() => cacheStorageFiles(cleoDir) === 0);
     await waitFor(() => ui(`!document.querySelector('${header}')`));
     assert.equal(saved('profiles.json').find((p) => p.id === 'cleo').closed, true);
     await waitFor(() => savedTabs('cleo').length === 2);
@@ -195,7 +240,7 @@ export default (test: Test) => {
   });
 
   test("test users' sign-ins: the agent saves a pair and signs in with it on a local page, never seeing the password; refused elsewhere; the human sets one in the editor", async (ctx) => {
-    const { shell, ui, call } = ctx;
+    const { shell, sui, call } = ctx;
     await call('profile_create', { name: 'Tess' });
     const actions: string[] = [];
     const watch = (a: { caption: string }) => { actions.push(a.caption); };
@@ -215,15 +260,15 @@ export default (test: Test) => {
     await call('browser_navigate', { profile: 'tess', url: 'data:text/html,<input id="x">' });
     await assert.rejects(call('browser_type_login', { profile: 'tess', locator: "locator('#x')", field: 'password' }), /not the app under test on this computer/);
     // The human: Settings → Profiles' login fields; the password saved encrypted, never shown back.
-    await manageProfiles(ui);
-    await chooseProfile(ui, 'tess');
-    await waitFor(() => ui(`document.getElementById('profilelogin').value === 'tester'`));
-    assert.equal(await ui(`document.getElementById('profilepassword').placeholder`), 'Kept (type to change it)');
-    await setProfileField(ui, 'profilepassword', 'secret-tess');
-    await waitFor(() => ui(`document.getElementById('profilepassword').value === ''`));
-    await setProfileField(ui, 'profilelogin', 'tess');
+    await manageProfiles(ctx);
+    await chooseProfile(sui, 'tess');
+    await waitFor(() => sui(`document.getElementById('profilelogin').value === 'tester'`));
+    assert.equal(await sui(`document.getElementById('profilepassword').placeholder`), 'Kept (type to change it)');
+    await setProfileField(sui, 'profilepassword', 'secret-tess');
+    await waitFor(() => sui(`document.getElementById('profilepassword').value === ''`));
+    await setProfileField(sui, 'profilelogin', 'tess');
     await waitFor(() => shell.profileStore.get('tess').login?.user === 'tess');
-    await closeSettings(ui);
+    await closeSettings(ctx);
     await call('browser_navigate', { profile: 'tess', url: `${SITE}/app/signin` });
     await call('browser_type_login', { profile: 'tess', locator: "locator('#user')", field: 'login' });
     await call('browser_type_login', { profile: 'tess', locator: "locator('#pass')", field: 'password', submit: true });

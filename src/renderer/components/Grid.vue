@@ -8,6 +8,7 @@ import ProfilePane from './grid/ProfilePane.vue';
 import ProfileHeader from './grid/ProfileHeader.vue';
 import Terminals from './grid/Terminals.vue';
 import TerminalTabs from './grid/TerminalTabs.vue';
+import ClosedProfiles from './grid/ClosedProfiles.vue';
 import { gridMounted } from '../lib/grid';
 
 // dockview takes the gap between panels as a number: tokens.css's --gap, loaded before the window mounts (main.ts).
@@ -19,18 +20,24 @@ const tabComponents = markRaw({ profile: ProfileHeader, terminal: TerminalTabs }
 
 <template>
   <main id="dock">
-    <DockviewVue style="height: 100%" :theme :disable-floating-groups="true" single-tab-mode="fullwidth" :components :tab-components="tabComponents"
+    <ClosedProfiles />
+    <!-- proportional-layout is dockview's default, but dockview-vue declares it a Boolean prop, which Vue makes false
+         when left out: a narrower window then took from the last panel alone (github.com/dockview/dockview/issues/1691). -->
+    <DockviewVue id="grid" :theme :disable-floating-groups="true" :proportional-layout="true" single-tab-mode="fullwidth" :components :tab-components="tabComponents"
       @ready="(e) => gridMounted(e.api)" />
   </main>
 </template>
 
 <style>
 #dock {
-  flex: 1; min-height: 0; padding: var(--gap); transition: opacity .15s;
-  background: var(--well);
+  /* min-width: a row wider than the window (19 closed profiles over the terminal) stretched the window's column, the
+     terminal and the tasks' bar past its edge (2026-10-15) */
+  display: flex; flex-direction: column; min-width: 0; margin-inline: var(--gap); transition: opacity .15s;
+  #grid { flex: 1; min-height: 0; }
   .loading & { opacity: 0; transition: none; } /* until the grid is laid out (lib/grid.ts, reveal) */
-  [data-bar="top"] & { order: 1; } /* under the tasks' bar */
   .noproject & { display: none; }
+  /* Under a new tab the task's grid stays laid out (its terminals' sizes, its pages' places), unseen (App.vue) */
+  [data-page="newtab"] & { visibility: hidden; }
   .dockview-theme-abyss-spaced {
     color-scheme: inherit; /* the theme's own is dark; Kulisa's is the root's (tokens.css: light-dark()) */
     --dv-group-view-background-color: var(--island);
@@ -50,24 +57,25 @@ const tabComponents = markRaw({ profile: ProfileHeader, terminal: TerminalTabs }
   view-transition-name: grid;
   :active-view-transition & { transition: none; } /* the next grid comes in sliding, not fading */
 }
-/* Switching (lib/grid.ts, grid:closing). Another project: the grid slides towards its island, as macOS desktops do
-   (types next and previous say which way). Another task of the same project: the grid is replaced at once, as Chrome
-   switches tabs (no fade: a flash over the whole grid). Pictures, so the compositor moves them. */
-::view-transition-old(grid), ::view-transition-new(grid) { animation: .3s cubic-bezier(.2, .8, .2, 1) both; mix-blend-mode: normal; }
-:active-view-transition-type(project):active-view-transition-type(next) {
+/* Switching (lib/grid.ts, grid:closing): the grid slides towards the next task's tab, as macOS desktops do (types
+   next and previous say which way; until 2026-10-14 only between projects, replaced at once between a project's own
+   tasks). Pictures, so the compositor moves them. */
+/* Longhands: Vite's CSS minifier (Lightning CSS) made the shorthand with no name `animation: none`, and nothing slid.
+   Material's standard easing: an ease-out (.2, .8, .2, 1) crept over its last few percent, the grid going out lingering
+   at the window's edge. */
+::view-transition-old(grid), ::view-transition-new(grid) {
+  animation-duration: .3s; animation-timing-function: cubic-bezier(.4, 0, .2, 1); animation-fill-mode: both; mix-blend-mode: normal; }
+:active-view-transition-type(next) {
   &::view-transition-old(grid) { animation-name: grid-to-left; }
   &::view-transition-new(grid) { animation-name: grid-from-right; } }
-:active-view-transition-type(project):active-view-transition-type(previous) {
+:active-view-transition-type(previous) {
   &::view-transition-old(grid) { animation-name: grid-to-right; }
   &::view-transition-new(grid) { animation-name: grid-from-left; } }
-:active-view-transition-type(task) {
-  /* The groups too: their own animation (Chromium's, .25 s) held the transition's end, and with it the pages (the
-     native views, shown when it ends), while the terminal was already in its new place. */
-  &::view-transition-group(*), &::view-transition-old(*), &::view-transition-new(*) { animation: none; } }
-@keyframes grid-to-left { to { translate: -100% 0; } }
-@keyframes grid-from-right { from { translate: 100% 0; } }
-@keyframes grid-to-right { to { translate: 100% 0; } }
-@keyframes grid-from-left { from { translate: -100% 0; } }
+/* Its width and the window's margin (#dock's): by its width alone, its edge stayed in the margin, a strip of the page. */
+@keyframes grid-to-left { to { translate: calc(-100% - var(--gap)) 0; } }
+@keyframes grid-from-right { from { translate: calc(100% + var(--gap)) 0; } }
+@keyframes grid-to-right { to { translate: calc(100% + var(--gap)) 0; } }
+@keyframes grid-from-left { from { translate: calc(-100% - var(--gap)) 0; } }
 
 /* A panel's header: a profile's picture, name, the agent's caption, ×. Everything in a
    panel keeps --gap from the island's edges: the header's picture and ×, the tabs, the toolbar's first and last button,

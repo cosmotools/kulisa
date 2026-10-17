@@ -4,7 +4,7 @@
 import { computed, watch } from 'vue';
 import { DropdownMenuContent, DropdownMenuPortal, DropdownMenuRoot } from 'reka-ui';
 import MenuRows from './MenuRows.vue';
-import { covered } from '../../lib/views';
+import { covered } from '../../lib/cover';
 import { focusBack, pointMenu } from '../../lib/menu';
 
 const { open, ready } = covered('pictures');
@@ -17,7 +17,7 @@ const at = computed(() => ({ getBoundingClientRect: () => DOMRect.fromRect({ x: 
 <template>
   <DropdownMenuRoot v-model:open="open" :modal="false">
     <DropdownMenuPortal>
-      <DropdownMenuContent class="menu" :class="{ ready }" :reference="at" align="start" :collision-padding="4" @close-auto-focus="focusBack($event, focused)">
+      <DropdownMenuContent class="menu" :class="{ ready }" :reference="at" align="start" :collision-padding="4" @close-auto-focus="focusBack($event, focused)" @focus-outside.prevent>
         <MenuRows :items="pointMenu?.items || []" />
       </DropdownMenuContent>
     </DropdownMenuPortal>

@@ -7,11 +7,12 @@ import { computed, ref, watch } from 'vue';
 import { DialogClose, RadioGroupIndicator, RadioGroupItem, RadioGroupRoot } from 'reka-ui';
 import Modal from './Modal.vue';
 import Icon from './Icon.vue';
-import { act, store } from '../lib/store';
+import { act, store, shownTask } from '../lib/store';
 import { agentMark } from '../lib/agents';
 import { avatarSrc } from '../lib/common';
 import { registerDialog } from '../lib/dialogs';
-import type { Terminal } from '../types';
+import type { Terminal } from '../../shared/types';
+import { refused } from '../../shared/result';
 
 const modal = ref<InstanceType<typeof Modal>>();
 const from = ref<Terminal | null>(null), chosen = ref<string>(), going = ref(false);
@@ -19,11 +20,11 @@ const from = ref<Terminal | null>(null), chosen = ref<string>(), going = ref(fal
 const handed = ref<number | null>(null), read = ref<{ part: number; parts: number } | null>(null), error = ref('');
 let inTask: string | null = null, idle = 0;
 const IDLE = 30_000; // no part read for this long: an agent that thinks before it reads, or never does
-const agents = computed(() => (store.projects.open.find((o) => o.id === store.projects.current)?.agents || []).filter((a) => a.cli !== 'shell'));
+const agents = computed(() => (store.projects.open.find((o) => o.id === store.projects.project)?.agents || []).filter((a) => a.cli !== 'shell'));
 const to = computed(() => agents.value.find((a) => a.id === chosen.value));
 // "Claude Code · me@x.com": the agent, then its account.
 const parts = (name: string) => { const [agent, ...account] = name.split(' · '); return { agent, account: account.join(' · ') }; };
-const branch = computed(() => store.taskTabs.list.find((t) => t.key === store.current)?.branch);
+const branch = computed(() => shownTask()?.branch);
 const tabs = computed(() => store.profiles.reduce((n, p) => n + p.tabs.length, 0));
 const shells = computed(() => store.terminals.list.filter((t) => !t.agent));
 const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? '' : 's'}`;
@@ -40,9 +41,9 @@ registerDialog('handover', {
 async function hand() {
   if (!from.value || !chosen.value || going.value) return;
   going.value = true; inTask = store.current;
-  const r = await act<{ id?: number; error?: string }>('agent:hand-over', { id: from.value.id, agent: chosen.value });
+  const r = await act('agent:hand-over', { id: from.value.id, agent: chosen.value });
   if (!going.value) return; // closed meanwhile: the tab is there, behind
-  if (r.id === undefined) { going.value = false; error.value = r.error || 'The agent did not start.'; return; }
+  if (refused(r)) { going.value = false; error.value = r.error || 'The agent did not start.'; return; }
   handed.value = r.id;
   waitIdle();
 }
@@ -55,7 +56,7 @@ function show() {
   handed.value = null; going.value = false;
   modal.value?.close();
 }
-kulisa.on<{ task: string; id: number; part: number; parts: number }>('handover:read', ({ task, id, part, parts }) => {
+kulisa.on('handover:read', ({ task, id, part, parts }) => {
   if (task !== inTask || id !== handed.value) return;
   read.value = { part, parts };
   if (part >= parts) show(); else waitIdle();
@@ -80,14 +81,14 @@ const progress = computed(() => {
         <small class="conv">“{{ from.name }}”</small>
       </div>
       <ul class="baton" aria-label="Goes along">
-        <li v-if="branch" style="--i: 0"><Icon name="i-git" />{{ branch }}</li>
-        <li v-if="store.profiles.length" style="--i: 1">
+        <li v-if="branch" class="chip" style="--i: 0" :title="`branch ${branch}`"><Icon name="i-git" /><span class="name">{{ branch }}</span></li>
+        <li v-if="store.profiles.length" class="chip" style="--i: 1">
           <span class="faces"><img v-for="p in store.profiles" :key="p.key" class="avatar" alt="" :src="avatarSrc(p.avatar)" :title="p.name"></span>
           {{ plural(store.profiles.length, 'profile') }}, signed in
         </li>
-        <li v-if="tabs" style="--i: 2"><Icon name="i-globe" />{{ plural(tabs, 'tab') }}</li>
-        <li v-if="shells.length" style="--i: 3"><Icon name="i-agent-shell" />{{ shells.length === 1 ? shells[0]!.name : plural(shells.length, 'terminal') }}, running</li>
-        <li style="--i: 4"><Icon name="i-docs" />the whole conversation</li>
+        <li v-if="tabs" class="chip" style="--i: 2"><Icon name="i-globe" />{{ plural(tabs, 'tab') }}</li>
+        <li v-if="shells.length" class="chip" style="--i: 3"><Icon name="i-agent-shell" />{{ shells.length === 1 ? shells[0]!.name : plural(shells.length, 'terminal') }}, running</li>
+        <li class="chip" style="--i: 4"><Icon name="i-docs" />the whole conversation</li>
       </ul>
       <div class="side to">
         <Icon v-if="to" class="mark" :name="agentMark(to.cli)!" />
@@ -126,9 +127,7 @@ const progress = computed(() => {
   .baton { position: relative; display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0 var(--inset); list-style: none;
     /* the way they go: a line from one agent to the other, under them */
     &::before { content: ""; position: absolute; inset: 50% 0 auto; border-top: 1px dashed var(--line); z-index: 0; }
-    li { position: relative; z-index: 1; display: flex; align-items: center; gap: 6px; padding: 2px 8px; border: 1px solid var(--line);
-      border-radius: 999px; background: var(--island); white-space: nowrap; font-size: var(--font-small);
-      svg { --icon: 14px; width: var(--icon); height: var(--icon); color: var(--text-dim); } }
+    li { position: relative; z-index: 1; }
     .faces { display: flex; img + img { margin-inline-start: -5px; } } }
   /* While it reads: what goes along flies over again and again, the new agent taking it in */
   .going {

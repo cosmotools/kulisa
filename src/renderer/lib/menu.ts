@@ -14,9 +14,9 @@ export interface MenuRow {
   remove?: { label: string; run: () => unknown }; // a 🗑 at its end, on hover or Delete (a closed task)
 }
 export type MenuItem = '-' | MenuRow
+  | { submenu: string; items: MenuItem[]; project?: { favicon?: string; color: string } } // a row opening a menu of its own at its side
   | { heading: string; icon?: string }
   | { note: string } // small dim words under the rows, not a row (☰'s version)
-  | { choose: (value: string) => unknown; chosen: string; rows: (MenuRow & { value: string })[] } // one of them, checked
   | { component: Component; props?: Record<string, unknown> }; // a row of its own (☰'s zoom, theme …)
 
 // A menu at a point with no button or area of its own: a link in the terminal (Ctrl+click). PointMenu.vue shows it.
@@ -39,4 +39,3 @@ export function focusBack(e: Event, el: Element | null) {
   if (!document.querySelector('.menu[data-state="open"]') && el instanceof HTMLElement && el.isConnected) el.focus();
 }
 // The bar's + menu (NewTask.vue) opened or closed as a click on it does: Ctrl+Shift+A, the empty window's New Task.
-export const toggleNewTask = () => document.getElementById('newTask')?.click();

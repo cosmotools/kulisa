@@ -4,10 +4,11 @@
 // what it needs, whether it is on this computer; choosing, the project's accounts (main/accounts.ts). One that is not
 // installed has an Install button: Kulisa runs its maker's installer (the command line is shown before). Meanwhile the
 // list says only that it is installing: the installer's own output (written for programmers: "open a new terminal and
-// run …") is under Details, opened by itself when it fails (Reka's Collapsible). Choosing, the rows are Reka's
+// run …") is under Details, opened by itself when it fails (InstallProgress.vue). Choosing, the rows are Reka's
 // RadioGroup.
-import { CollapsibleContent, CollapsibleRoot, CollapsibleTrigger, RadioGroupIndicator, RadioGroupItem, RadioGroupRoot } from 'reka-ui';
+import { RadioGroupIndicator, RadioGroupItem, RadioGroupRoot } from 'reka-ui';
 import Icon from './Icon.vue';
+import InstallProgress from './InstallProgress.vue';
 import { agentMark, type Agent, type AgentList } from '../lib/agents';
 
 const props = defineProps<{ list: AgentList }>();
@@ -37,11 +38,7 @@ const status = (a: Agent) => (a.installed ? (a.install && !a.account ? 'Installe
           @click.prevent="list.install(a.id)">Install</button>
       </label><slot name="after" :agent="a" /></template>
     </RadioGroupRoot>
-    <p class="progress hint">{{ s.progress }}</p>
-    <CollapsibleRoot v-model:open="s.detailsOpen" class="details" :hidden="!s.showDetails" :unmount-on-hide="false">
-      <CollapsibleTrigger class="more"><Icon name="i-down" />Details</CollapsibleTrigger><CollapsibleContent><pre>{{ s.log }}</pre></CollapsibleContent>
-    </CollapsibleRoot>
-    <p class="error">{{ s.error }}</p>
+    <InstallProgress :list />
   </div>
 </template>
 
@@ -56,9 +53,5 @@ const status = (a: Agent) => (a.installed ? (a.install && !a.account ? 'Installe
     &:has([role="radio"][data-state="unchecked"]) .install-line { display: none; }
     .site { color: var(--text-muted); white-space: nowrap; &:hover { color: var(--text); } &:not([href]) { display: none; } }
     .status { color: var(--text-muted); white-space: nowrap; } }
-  .progress { margin: 10px 0 0; &:empty { display: none; } }
-  .details { margin-top: 6px; &[hidden] { display: none; } }
-  pre { max-height: 180px; overflow: auto; margin: 6px 0 0; padding: 8px; border-radius: var(--radius); background: var(--window);
-    font: 12px "JetBrains Mono", monospace; white-space: pre-wrap; user-select: text; }
 }
 </style>

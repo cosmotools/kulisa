@@ -6,7 +6,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { extendTrust, AGENTS, findAgent } from '../../src/main/agents/index.ts';
-import { claudeConfigOf, claudeLanguage } from '../../src/main/agents/claude.ts';
+import { claudeConfigOf } from '../../src/main/agents/claude.ts';
 import { CAPABILITIES } from '../../src/main/agents/agent.ts';
 import { installSkill } from '../../src/main/agents/files.ts';
 import { Accounts } from '../../src/main/accounts.ts';
@@ -24,7 +24,7 @@ test("agents: each can do every capability Kulisa has, or says why not", () => {
       if (why) assert.match(why, /\w{3,} .{20,}/, `${a.name}: why it lacks ${c}, in words`);
     }
   }
-  assert.deepEqual(Object.keys(AGENTS.find((a) => a.id === 'codex').lacks).sort(), ['addDir', 'voice']);
+  assert.deepEqual(Object.keys(AGENTS.find((a) => a.id === 'codex').lacks).sort(), ['addDir', 'language', 'voice']);
   assert.equal(AGENTS.find((a) => a.id === 'claude').lacks, undefined);
 });
 
@@ -90,22 +90,21 @@ test("agents: Claude Code's dictation is on in its sessions only, Kulisa's tools
   assert.equal(withAccount[3], path.join(account, 'kulisa-settings.json'));
   assert.deepEqual(JSON.parse(fs.readFileSync(withAccount[3], 'utf8')), JSON.parse(args[3]));
   assert.ok(hooks);
-  assert.deepEqual(given, { voice: { enabled: true, mode: 'hold', autoSubmit: false }, permissions: {
+  assert.deepEqual(given, { voiceEnabled: true, voice: { enabled: true, mode: 'hold', autoSubmit: false }, permissions: {
     allow: ['mcp__plugin_kulisa_kulisa'], ask: ['mcp__plugin_kulisa_kulisa__terminal_run', 'mcp__plugin_kulisa_kulisa__browser_file_upload'] } });
-  assert.deepEqual(['ru', 'Russian', 'русский', 'pt-BR', 'Klingon', '', undefined].map(claudeLanguage), ['ru', 'ru', 'ru', 'pt', 'en', 'en', 'en'],
-    'as Claude Code reads it: anything else is English');
-  // The settings of the config dir its session reported (as claudeConfigOf).
-  const dir = path.join(root, 'claude-voice'), settings = path.join(dir, 'settings.json');
-  const saved = { transcript: path.join(dir, 'projects', '-x', '1.jsonl') };
-  fs.mkdirSync(dir, { recursive: true });
+  // Its language setting in an account's folder, as its /config writes it; the rest of the file kept.
+  const dir = path.join(root, 'claude-language'), settings = path.join(dir, 'settings.json');
+  assert.deepEqual(claude.language.set(dir, 'de'), {});
+  assert.deepEqual(JSON.parse(fs.readFileSync(settings, 'utf8')), { language: 'German' }, 'made when there is none');
   fs.writeFileSync(settings, JSON.stringify({ model: 'opus', language: 'German' }));
-  assert.equal(claude.voice.language(saved), 'de');
-  assert.deepEqual(claude.voice.setLanguage(saved, 'ru'), { language: 'ru' });
-  assert.deepEqual(JSON.parse(fs.readFileSync(settings, 'utf8')), { model: 'opus', language: 'Russian' }, 'as its /config writes it');
-  assert.equal(claude.voice.language(saved), 'ru');
-  assert.ok(claude.voice.setLanguage(saved, 'xx').error, 'only one it understands');
+  assert.deepEqual(claude.language.set(dir, 'ru'), {});
+  assert.deepEqual(JSON.parse(fs.readFileSync(settings, 'utf8')), { model: 'opus', language: 'Russian' });
+  fs.utimesSync(settings, new Date(0), new Date(0));
+  assert.deepEqual(claude.language.set(dir, 'ru'), {});
+  assert.equal(fs.statSync(settings).mtimeMs, 0, 'already so: not written again');
+  assert.ok(claude.language.set(dir, 'xx').error, 'only one it takes');
   fs.writeFileSync(settings, '{ "model": ');
-  assert.ok(claude.voice.setLanguage(saved, 'en').error, 'not JSON: not touched');
+  assert.ok(claude.language.set(dir, 'en').error, 'not JSON: not touched');
   assert.equal(fs.readFileSync(settings, 'utf8'), '{ "model": ');
   fs.rmSync(dir, { recursive: true });
 });
@@ -186,11 +185,11 @@ test("tasks: a deleted task leaves nothing in Claude Code's and Codex's data; th
   assert.equal(fs.readFileSync(path.join(home, 'config.toml'), 'utf8'), `model = "x"\n\n[projects."${own}"]\ntrust_level = "trusted"\n`);
 });
 
-test("agents: a task's other folders go to Claude Code and Codex as --add-dir (Claude reads their CLAUDE.md too); one added later is typed as /add-dir", () => {
+test("agents: a task's other folders go to Claude Code and Codex as --add-dir (Claude reads their CLAUDE.md too); one added later is sent as /add-dir, its question answered", () => {
   const agent = (id: string) => AGENTS.find((a) => a.id === id);
   assert.deepEqual(agent('claude').dirs(['/k/a@task-2/web', '/k/docs']), { args: ['--add-dir', '/k/a@task-2/web', '--add-dir', '/k/docs'], env: { CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD: '1' } });
   assert.deepEqual(agent('codex').dirs(['/k/web']), { args: ['--add-dir', '/k/web'] });
-  assert.equal(agent('claude').addDir('/k/web'), '/add-dir /k/web');
+  assert.equal(agent('claude').addDir.command('/k/web'), '/add-dir /k/web');
   assert.equal(agent('codex').addDir, undefined, 'others: a line saying so (tasks.ts)');
 });
 

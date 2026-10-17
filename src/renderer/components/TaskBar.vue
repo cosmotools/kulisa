@@ -1,196 +1,205 @@
 <script setup lang="ts">
-// The tasks' bar: an island per group (tasks.md, Projects; docs/window.md, The tasks' bar).
-// Every island keeps its width whichever task is shown, so showing one moves none (the author, 2026-10-08: islands that
-// moved under the mouse made the human miss). Where a dragged label is let go outside every Kulisa window, the main
-// process says (the page does not know where the pointer is then).
-import { computed, nextTick, ref, watch } from 'vue';
+// The tasks' bar: a tab per open task, in the bar's order (tasks.md, Tasks in the bar; docs/window.md, The tasks'
+// bar). A tab stands for itself: its project is its icon (the author, 2026-10-14; until then an island per project,
+// its label and its tasks' tabs in it). Every tab keeps its width whichever task is shown, so showing one moves
+// none (the author, 2026-10-08: tabs that moved under the mouse made the human miss). Where a dragged tab is let
+// go outside every Kulisa window, the main process says (the page does not know where the pointer is then).
+// Under the grid, or in the title bar: App.vue puts it in one place or the other (☰ → Tasks bar).
+import { computed, ref, watch } from 'vue';
 import TaskTab from './TaskTab.vue';
-import { TabsList, TabsRoot } from 'reka-ui';
+import { TabsList, TabsRoot, TabsTrigger } from 'reka-ui';
+import Icon from './Icon.vue';
 import NewTask from './NewTask.vue';
 import RightClickMenu from './menu/RightClickMenu.vue';
 import { store } from '../lib/store';
-import ProjectIcon from './ProjectIcon.vue';
 import { projectColor } from '../lib/project-color';
 import { keyText } from '../lib/common';
-import { dialog } from '../lib/dialogs';
+import { dialog, openSettings } from '../lib/dialogs';
 import { profilesMenu } from '../lib/profiles';
 import { terminalsOf } from '../lib/terminals';
+import { useStrip } from '../lib/strip';
 import type { MenuItem } from '../lib/menu';
-import type { TaskInfo } from '../types';
+import type { ProjectEntry, TaskInfo } from '../../shared/types';
 
-const tabs = ref<HTMLElement>();
-const islands = computed(() => {
+const strip = ref<HTMLElement>();
+const tabs = computed(() => {
   const byId = new Map(store.projects.projects.map((p) => [p.id, p]));
-  return store.projects.open.filter((o) => byId.has(o.id)).map((o) => ({ o, p: byId.get(o.id)!, open: (o.tasks || []).filter((t) => !t.closed) }));
+  return store.projects.tabs.flatMap((t) => { const p = byId.get(t.project); return p ? [{ t, p }] : []; });
 });
-// The shown one in sight.
-watch(() => store.projects, () => nextTick(() => tabs.value?.querySelector('.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' })));
+// More tabs than fit: the wheel scrolls them, the edges with tabs past them fade, the shown one stays in sight
+// (lib/strip.ts; found with thirty tasks, 2026-10-15).
+useStrip(strip, () => (store.newTab ? 'newtab' : store.current));
 
-const showTask = (key: string | number) => { if (key !== store.current) void kulisa.invoke('task:show', String(key)); };
-const close = (id: string) => kulisa.invoke('project:close', { id });
-const manage = async (id?: string) => (await dialog('projects')).openProjects(id);
+// A press on another tab makes it the chosen one at once, as Chrome's; its task is shown when the button is let go or
+// the tab starts being dragged (pointercancel), whichever comes first: the grid's slide that showing it starts made
+// Chromium drop the drag about to begin, so a tab not shown could not be dragged (2026-10-15); one begun goes on
+// through the slide. Not on its ×, which closes it (TaskTab.vue), nor the keyboard's, shown at once.
+// The pressed tab stays lit until the window is told its task is shown (or it was refused): let go of, it went dark
+// while the main process took the pictures for the slide and lit again with the new state, the one left blinking
+// with it (the author, 2026-10-16).
+const pressed = ref<string | null>(null);
+watch(() => store.current, (current) => { if (current === pressed.value) pressed.value = null; });
+function pointerdown(e: PointerEvent) {
+  const at = e.button === 0 && !e.ctrlKey && e.pointerType === 'mouse' && !(e.target as Element).closest('button') && tabAt(e);
+  if (at && at.t.key === store.current) store.newTab = false; // back to it from a new tab
+  if (!at || at.t.key === store.current) return;
+  pressed.value = at.t.key;
+  const done = new AbortController(), show = async () => {
+    done.abort();
+    const r = await kulisa.invoke('task:show', at.t.key);
+    if (r?.error && pressed.value === at.t.key) pressed.value = null;
+  };
+  for (const type of ['pointerup', 'pointercancel']) addEventListener(type, show, { signal: done.signal });
+}
+const showTask = (key: string | number) => {
+  if (key === NEW) return;
+  if (key === store.current) store.newTab = false;
+  else if (key !== pressed.value) void kulisa.invoke('task:show', String(key));
+};
+const NEW = 'newtab'; // the new tab's value among the tabs
+const manage = (id?: string) => openSettings('projects', id);
 
-// A project's own events, not its tasks' (TaskTab.vue handles those).
-const projectOf = (e: Event) => (e.target as Element).closest<HTMLElement>('[data-project]')?.dataset.project;
-// The middle button on the label closes the group, as a browser's tab. A new task is the bar's + (NewTask.vue), or
-// New Task in the label's menu. Groups do not fold: folding on a click hid the tasks when the label was clicked by the
-// way (the author, 2026-10-12).
+// The task whose tab an event was on (TaskTab.vue handles a tab's own clicks).
+const tabAt = (e: Event) => { const el = (e.target as Element).closest<HTMLElement>('[data-task]'); return el && tabs.value.find(({ t }) => t.key === el.dataset.task) || null; };
+// The middle button on a tab closes the task, as a browser's tab (until 2026-10-14 on the group's label it closed the
+// group: Close All Tasks is in the menu). A new task is the bar's + (NewTask.vue), or New Task in the menu.
 function auxclick(e: MouseEvent) {
-  const id = e.button === 1 && projectOf(e);
-  if (id) void close(id);
+  const at = e.button === 1 && tabAt(e);
+  if (at) void kulisa.invoke('task:close', at.t.key);
 }
-// The bar's right-click menu, for what it was on. A task's tab: the shown one's profiles, Rename…, Show Folder, Delete
-// Task…. A project's island: its group's menu. From what the window was last told (store.projects): it opens at once.
+// A tab's right-click menu: the shown one's profiles, the repositories it may add, Rename…, Show Folder, Move to
+// Window, Close, Delete Task…; then its project's, in a submenu of its name (the project has no label to open it on).
+// From what the window was last told (store.projects): it opens at once.
 function menu(e: MouseEvent): MenuItem[] | null {
-  const id = projectOf(e);
-  if (!id) return null;
-  const t = taskAt(e);
-  if (t) return taskMenu(t);
-  return groupItems(id);
-}
-// The task whose tab e was on, from what the window was last told.
-function taskAt(e: Event) {
-  const key = (e.target as Element).closest<HTMLElement>('.tasktab')?.dataset.task;
-  return key && [...store.taskTabs.list, ...store.projects.open.flatMap((o) => o.tasks || [])].find((x) => x.key === key) || null;
+  const at = tabAt(e);
+  return at && [...taskMenu(at.t), '-', { submenu: at.p.name, project: at.p, items: projectItems(at.p) }];
 }
 const rename = async (key: string, name: string) => (await dialog('taskrename')).rename(key, name);
 // A double click on a task's tab: its Rename…, as a shortcut to the menu's item (ROADMAP: never the only way).
 function dblclick(e: MouseEvent) {
-  const t = !(e.target as Element).closest('button') && taskAt(e);
-  if (t) void rename(t.key, t.name);
+  const at = !(e.target as Element).closest('button') && tabAt(e);
+  if (at) void rename(at.t.key, at.t.name);
 }
-// A project's actions in its group's menu, in Chrome's order where Chrome has them (New tab in group … Close group,
-// Delete group last).
-function groupItems(id: string): MenuItem[] {
-  const { open, windows = [] } = store.projects;
-  const closed = (open.find((o) => o.id === id)?.tasks || []).filter((x) => x.closed);
-  const move = (to: number | null) => kulisa.invoke('project:move', { id, to, terminals: terminalsOf(id) });
-  return [{ label: 'New Task', keys: id === store.projects.current ? keyText('task.new') : undefined, run: () => kulisa.invoke('task:new', { project: id }) },
-    ...(closed.length ? ['-' as const, { heading: 'Closed tasks' }, ...closed.map((t) => ({ label: t.name, sub: [t.branch, t.merged && 'merged'].filter(Boolean).join(' · ') || undefined, title: t.about,
-      remove: { label: 'Delete Task…', run: () => kulisa.invoke('task:delete-closed', { project: id, n: t.n }) },
-      run: () => kulisa.invoke('task:open', t.key) }))] : []),
-    // Its PR merged, nothing uncommitted: deleting loses nothing (projects.ts, checkMerged).
-    ...(closed.some((t) => t.merged) ? [{ label: 'Delete Merged Tasks…', run: () => kulisa.invoke('project:delete-merged', { id }) }] : []),
-    // The only tab stays: a new window would be the same as this one.
-    '-', { label: 'Move to New Window', enabled: open.length > 1, run: () => move(null) },
-    ...windows.map((w) => ({ label: `Move to Window: ${w.names.join(', ')}`, run: () => move(w.id) })),
-    '-', { label: 'Project Settings…', run: () => manage(id) },
-    { label: 'Show Data Folder', run: () => kulisa.invoke('project:show-data', { id }) },
-    '-', { label: 'Close Group', run: () => close(id) }];
-}
-const taskMenu = ({ key, name }: TaskInfo): MenuItem[] => [
+// Move to New Window, Move to Window: … (one row per other window, named as it names itself: window.ts, label):
+// to(null) for a new one. The only tab stays: a new window would be the same as this one.
+const moveRows = (to: (id: number | null) => unknown, { enabled = true } = {}): MenuItem[] => [
+  { label: 'Move to New Window', enabled: enabled && store.projects.tabs.length > 1, run: () => to(null) },
+  ...(store.projects.windows || []).map((w) => ({ label: `Move to Window: ${w.name}`, enabled, run: () => to(w.id) })),
+];
+const taskMenu = ({ key, name, repos, copies, folder }: TaskInfo): MenuItem[] => [
   ...(key === store.current ? [{ heading: 'Profiles' }, ...profilesMenu(), '-' as const] : []),
+  // The project's repositories it has no copy of, one added when its work needs it (tasks.md, Tasks).
+  ...(repos.length ? [{ heading: 'Add Repository' }, ...repos.map((r) => ({ label: r.split(/[\\/]/).pop()!, title: r,
+    run: () => kulisa.invoke('task:add-repo', { key, repo: r }) })), '-' as const] : []),
+  // Those added, not its own folder: that goes with the task.
+  ...(copies.some((c) => c.folder !== folder) ? [{ heading: 'Remove Repository' }, ...copies.filter((c) => c.folder !== folder)
+    .map((c) => ({ label: c.name, title: c.folder, run: () => kulisa.invoke('task:remove-repo', { key, repo: c.folder }) })), '-' as const] : []),
   { label: 'Rename…', run: () => rename(key, name) },
   { label: 'Show Folder', run: () => kulisa.invoke('task:show-folder', key) },
-  '-', { label: 'Delete Task…', run: () => kulisa.invoke('task:delete', key) },
+  '-', ...moveRows((to) => kulisa.invoke('task:move', { key, to, terminals: terminalsOf(key) })),
+  '-', { label: 'Close', run: () => kulisa.invoke('task:close', key) },
+  { label: 'Delete Task…', run: () => kulisa.invoke('task:delete', key) },
 ];
+// A project's rows (its submenu): what is not one task's. Its closed tasks are the bar's +'s. Move All Tasks: its
+// open tasks of this window, together.
+function projectItems(p: ProjectEntry): MenuItem[] {
+  const id = p.id, mine = store.projects.tabs.filter((t) => t.project === id);
+  const merged = p.tasks.some((t) => t.closed && t.merged); // its PR merged, nothing uncommitted: deleting loses nothing (projects.ts, checkMerged)
+  const terminals = () => Object.assign({}, ...mine.map((t) => terminalsOf(t.key)));
+  return [{ label: 'New Task', keys: id === store.projects.project ? keyText('task.new') : undefined, run: () => kulisa.invoke('task:new', { project: id }) },
+    '-', ...moveRows((to) => kulisa.invoke('project:move-all', { id, to, terminals: terminals() }), { enabled: mine.length < store.projects.tabs.length })
+      .map((r) => (typeof r === 'object' && 'label' in r ? { ...r, label: r.label.replace('Move to', 'Move All Tasks to') } : r)),
+    '-', { label: 'Project Settings…', run: () => manage(id) },
+    { label: 'Show Data Folder', run: () => kulisa.invoke('project:show-data', { id }) },
+    ...(merged ? [{ label: 'Delete Merged Tasks…', run: () => kulisa.invoke('project:delete-merged', { id }) }] : []),
+    '-', { label: 'Close All Tasks', run: () => kulisa.invoke('project:close-tasks', { id }) }];
+}
 
-// HTML drag and drop, which also crosses windows. The island carries its project and what its terminals show (the
-// window it goes to has neither), as a type of Kulisa's own: a page under the pointer takes nothing from it.
-const DRAG = 'application/x-kulisa-project';
-const dragged = ref<string | null>(null); // the project dragged from this window
-const mark = ref<{ id: string; side: 'before' | 'after' } | null>(null); // where a dropped one would go
-// Where an island let go at e goes: before or after the island under the pointer; the index among this window's.
+// HTML drag and drop, which also crosses windows. The tab carries its task and what its terminals show (the window it
+// goes to has neither), as a type of Kulisa's own: a page under the pointer takes nothing from it.
+const DRAG = 'application/x-kulisa-task';
+const dragged = ref<string | null>(null); // the task dragged from this window
+const mark = ref<{ key: string; side: 'before' | 'after' } | null>(null); // where a dropped one would go
+// Where a tab let go at e goes: before or after the tab under the pointer; the index among this window's.
 function dropAt(e: DragEvent) {
-  const tab = (e.target as Element).closest?.<HTMLElement>('[data-project]');
+  const tab = (e.target as Element).closest?.<HTMLElement>('[data-task]');
   if (!tab) return null;
   const r = tab.getBoundingClientRect(), side = e.clientX < r.x + r.width / 2 ? 'before' as const : 'after' as const;
-  return { id: tab.dataset.project!, side, index: [...tabs.value!.children].indexOf(tab) + Number(side === 'after') };
+  return { key: tab.dataset.task!, side, index: [...strip.value!.children].indexOf(tab) + Number(side === 'after') };
 }
 function dragstart(e: DragEvent) {
-  const id = projectOf(e);
-  if (!id) return;
-  dragged.value = id;
+  const at = tabAt(e);
+  if (!at) return;
+  dragged.value = at.t.key;
   e.dataTransfer!.effectAllowed = 'move';
-  e.dataTransfer!.setData(DRAG, JSON.stringify({ id, terminals: terminalsOf(id) }));
+  e.dataTransfer!.setData(DRAG, JSON.stringify({ key: at.t.key, terminals: terminalsOf(at.t.key) }));
 }
 function dragover(e: DragEvent) {
   const at = e.dataTransfer!.types.includes(DRAG) && dropAt(e);
   if (!at) { mark.value = null; return; }
   e.preventDefault();
   e.dataTransfer!.dropEffect = 'move';
-  mark.value = { id: at.id, side: at.side };
+  mark.value = { key: at.key, side: at.side };
 }
-const dragleave = (e: DragEvent) => { if (!tabs.value!.contains(e.relatedTarget as Node)) mark.value = null; };
+const dragleave = (e: DragEvent) => { if (!strip.value!.contains(e.relatedTarget as Node)) mark.value = null; };
 function drop(e: DragEvent) {
   const at = dropAt(e), data = e.dataTransfer!.getData(DRAG);
   mark.value = null;
   if (!at || !data) return;
   e.preventDefault();
-  const { id, terminals } = JSON.parse(data);
-  void kulisa.invoke('project:drop', { id, index: at.index, terminals });
+  const { key, terminals } = JSON.parse(data);
+  void kulisa.invoke('task:drop', { key, index: at.index, terminals });
 }
 // Let go where no Kulisa window took it: outside them all, it goes to a new window there (the main process checks).
 function dragend(e: DragEvent) {
-  const id = dragged.value;
+  const key = dragged.value;
   dragged.value = null;
-  if (id && e.dataTransfer!.dropEffect === 'none') void kulisa.invoke('project:drag-out', { id, terminals: terminalsOf(id) });
+  if (key && e.dataTransfer!.dropEffect === 'none') void kulisa.invoke('task:drag-out', { key, terminals: terminalsOf(key) });
 }
 
 </script>
 
 <template>
-  <footer id="taskbar">
-    <!-- Every open project's tasks one strip of tabs (Reka's Tabs): the shown task chosen; a press on another shows it. -->
-    <RightClickMenu :items="menu"><TabsRoot as-child :model-value="store.current ?? undefined" activation-mode="manual"
+  <nav id="taskbar" aria-label="Open tasks">
+    <!-- Every open task a tab (Reka's Tabs): the shown one chosen; a press on another shows it. -->
+    <RightClickMenu :items="menu"><TabsRoot as-child :model-value="store.newTab ? NEW : store.current ?? undefined" activation-mode="manual"
       @update:model-value="showTask"><TabsList as-child :loop="false">
-      <nav id="projectTabs" ref="tabs" aria-label="Open projects" @dblclick="dblclick" @auxclick="auxclick"
+      <div id="projectTabs" ref="strip" class="tabstrip" @dblclick="dblclick" @auxclick="auxclick" @pointerdown="pointerdown"
         @dragstart="dragstart" @dragover="dragover" @dragleave="dragleave" @drop="drop" @dragend="dragend">
-      <div v-for="{ o, p, open } in islands" :key="p.id" class="pisland" :data-project="p.id" :title="p.folder || ''" :style="{ '--color': projectColor(p) }"
-        :class="{ active: p.id === store.projects.current, dragging: dragged === p.id,
-                  'drop-before': mark?.id === p.id && mark.side === 'before', 'drop-after': mark?.id === p.id && mark.side === 'after' }">
-        <div class="plabel" draggable="true">
-          <ProjectIcon :p />
-          <span class="name">{{ p.name }}</span>
-        </div>
-        <!-- The shown project's tasks live, the others' as tabs to show them with; closed ones are in its label's menu. -->
-        <nav v-if="p.id === store.projects.current" id="tasks" aria-label="Tasks of the project">
-          <div id="tasklist"><TaskTab v-for="t in store.taskTabs.list" :key="t.key" :t :active="t.key === store.taskTabs.active" :selected="t.key === store.taskTabs.active" /></div>
-        </nav>
-        <TaskTab v-for="t in open" v-else :key="t.key" :t :active="false" :selected="t.key === o.task" />
+        <TaskTab v-for="{ p, t } in tabs" :key="t.key" :t :p :active="t.key === (pressed ?? (store.newTab ? null : store.current))" :data-project="p.id" :style="{ '--color': projectColor(p) }"
+          draggable="true" :class="{ dragging: dragged === t.key, 'drop-before': mark?.key === t.key && mark.side === 'before', 'drop-after': mark?.key === t.key && mark.side === 'after' }" />
+        <TabsTrigger v-if="store.newTab" :value="NEW" as-child><div id="newtabtab" class="tasktab striptab active">
+          <Icon class="picon" name="i-plus" /><span class="name">New Tab</span>
+          <button class="close icon quiet small" aria-label="Close" title="Close: back to the task" @mousedown.prevent @click="store.newTab = false"><Icon name="i-close" /></button>
+        </div></TabsTrigger>
       </div>
-      </nav>
     </TabsList></TabsRoot></RightClickMenu>
     <NewTask />
-  </footer>
+  </nav>
 </template>
 
 <style>
+/* The bar: the tabs as Firefox's, rounded rectangles on the window's background, the shown one filled in the panels'
+   color, apart from the grid (the author, 2026-10-14; until then islands merging into the grid's dark well with
+   curves). Nothing moves when another is shown: every tab keeps its width. */
 #taskbar {
-  --r: var(--island-radius);
-  --edge: 100%; /* the islands' side away from the grid: the curves' centers */
-  display: flex; align-items: center; flex: none; align-self: center; max-width: calc(100% - 2 * var(--gap));
-  margin-block-end: var(--gap);
-  [data-bar="top"] & { --edge: 0%; margin-block-end: 0; }
-  #projectTabs { display: flex; gap: calc(2 * var(--r) + var(--gap)); min-width: 0;
-    padding-inline: var(--r); /* room for the outer islands' curves */
-    overflow-x: auto; scrollbar-width: none; }
-  /* As far from the last island's curve as the islands' curves from each other */
-  #newTask { margin-inline-start: var(--gap); }
-  /* No project open: + alone, in the middle */
-  .noproject & { #projectTabs { display: none; } #newTask { margin-inline-start: 0; } }
-  /* A project's island. No room on the grid's side (the grid's own gap is there), a gap on the other, 1.7 as
-     much on the sides (the author, 2026-10-12). */
-  .pisland { display: flex; align-items: center; gap: 2px; flex: 0 1 auto; min-width: 0; position: relative;
-    padding: 0 calc(1.7 * var(--gap)) var(--gap); border-radius: 0 0 var(--r) var(--r); background: var(--well);
-    &::before, &::after { content: ""; position: absolute; inset-block-start: 0; width: var(--r); aspect-ratio: 1;
-      background: radial-gradient(circle at var(--x) var(--edge), transparent var(--r), var(--well) 0); }
-    &::before { --x: 0%; inset-inline-end: 100%; }
-    &::after { --x: 100%; inset-inline-start: 100%; }
-    [data-bar="top"] & { padding-block: var(--gap) 0; border-radius: var(--r) var(--r) 0 0;
-      &::before, &::after { inset-block: auto 0; } }
-    /* Another project's: the task it comes back to a step brighter. */
-    &:not(.active) .selected { color: var(--text-dim); }
-    &.active > .plabel { color: var(--text-strong); } }
-  /* The label: the project's icon (the app's curtain, in its color) and its name. A tab's height. */
-  .plabel { display: flex; align-items: center; gap: 8px; height: var(--tab); padding-inline-end: 8px; color: var(--text-muted);
-    font-weight: 600; white-space: nowrap; cursor: default;
-    svg, .favicon { width: 20px; height: 20px; color: var(--color); } }
-  /* An island being dragged; where a dropped one would go. */
+  display: flex; align-items: center; gap: var(--gap); min-width: 0;
+  /* Under the grid: a row of the window (App.vue), in the middle, --gap from the grid. In the title bar (#topbar):
+     after the logo, where a browser's tabs are, in the middle of its height; the title bar keeps its 44 px and a tab
+     its 36 (the author, 2026-10-14: neither a taller bar nor a tab as low as its buttons), so 4 px are left above
+     and below it, the grid right under them, as a browser's tabs sit over its content. The tabs are not a handle to
+     drag the window by. */
+  #app > & { justify-self: center; max-width: calc(100% - 2 * var(--gap)); margin-block-start: var(--gap); }
+  #topbar & { -webkit-app-region: no-drag; } /* the window is dragged after it (TopBar.vue) */
+  #projectTabs { display: flex; gap: var(--gap); min-width: 0; } /* .tabstrip: more tabs than fit scroll */
+  /* A tab: as tall as a browser's (Firefox's 36 px), wide enough to hit in passing, rounded as the panels' tabs are,
+     --gap from the next. Its project's icon (the app's curtain, in its color): as a browser's tab shows its site's
+     favicon. Where a dropped one would go, a line at its side. At its narrowest its name keeps about ten letters:
+     at 120 px every tab read "task…" (the author, 2026-10-15: wider, × kept on every tab). */
+  .tasktab { --tab: var(--bartab); gap: 8px; min-width: 160px; max-width: 240px; padding-inline: 12px 6px; border-radius: var(--tab-radius);
+    .picon { width: 20px; height: 20px; color: var(--color); } } /* as an agent's mark in a row (docs/ui.md): a tab's face */
   .dragging { opacity: .5; }
   .drop-before { box-shadow: inset 2px 0 var(--accent); }
   .drop-after { box-shadow: inset -2px 0 var(--accent); }
 }
-/* The shown project's tasks: in its island, their tabs laid out as the other islands' tabs. */
-#tasks, #tasklist { display: contents; }
 </style>

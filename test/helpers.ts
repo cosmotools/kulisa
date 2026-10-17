@@ -3,6 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import os from 'os';
 import assert from 'assert/strict';
+import electron from 'electron';
 import type { WebContents } from 'electron';
 import type { Shell } from '../src/main/shell.ts';
 import type { Task } from '../src/main/tasks.ts';
@@ -33,75 +34,109 @@ const savedWindows = () => JSON.parse(fs.readFileSync(path.join(userData, 'setti
 // Where an agent's hooks report (tasks.ts, env): the agent's terminal of task, the one picks go to.
 const hooksOf = (task: Task) => `${task.env(task.promptTarget()).KULISA_URL}/hooks`;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+// A window's screenshot (window.ts: the screen recorded, its profiles' views included), kept in the group's folder to
+// look at. On macOS only with the screen recording permission, which is the app's that started the run (the terminal
+// running npm test, not Electron): without it, said and not taken.
+const canShoot = () => process.platform !== 'darwin' || electron.systemPreferences.getMediaAccessStatus('screen') === 'granted';
+const NO_SHOT = 'macOS: the app that started the tests (the terminal) may not record the screen';
+const shot = async (w: { screenshot(file: string): Promise<unknown> }, file: string) => {
+  if (canShoot()) await w.screenshot(file); else console.log(`      (no ${path.basename(file)}: ${NO_SHOT})`);
+};
 
 // Kulisa's menus (Reka's, docs/ui.md, Menus): the open one, once it is shown (the pages under it are pictures);
 // its rows ('-' a line, '# …' a heading, '~ …' a note, 'zoom' the zoom row; an item: its label, '(off)' when
 // disabled, '  ' before it when it is set in under the row above); choose one by its label; close it as Esc does.
 const MENU = `document.querySelector('.menu[data-state="open"]')`;
+const SUBMENU = `[...document.querySelectorAll('.menu[data-state="open"]')].at(-1)`; // the submenu open (MenuRows.vue): the last one
 const menuOpen = (ui: UI) => ui(`!!document.querySelector('.menu[data-state="open"].ready')`);
-const menuRows = async (ui: UI) => {
+// The rows of the open menu (menu: SUBMENU for a submenu's), each as its words.
+const menuRows = async (ui: UI, menu = MENU) => {
   await waitFor(() => menuOpen(ui));
   return ui(`(() => { const row = (r) => r.matches('[role="separator"]') ? '-' : r.matches('.heading') ? '# ' + r.textContent : r.matches('.note') ? '~ ' + r.textContent
     : r.matches('.zoomrow') ? 'zoom' : r.matches('.themerow') ? 'theme' : r.matches('.barrow') ? 'bar' : r.matches('.arrange') ? 'arrange: ' + [...r.querySelectorAll('span')].map((s) => s.textContent).join(', ')
     : r.matches('[role="group"]') ? [...r.children].map(row)
     : (r.matches('.inset') ? '  ' : '') + r.querySelector('.label').textContent + ((r.matches('.item') ? r : r.querySelector('.item')).matches('[data-disabled]') ? ' (off)' : '');
-  return [...${MENU}.children].flatMap(row); })()`);
+  return [...${menu}.children].flatMap(row); })()`);
 };
 const closeMenu = async (ui: UI) => {
   await ui(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); 0`);
   await waitFor(async () => !(await ui(`!!document.querySelector('[data-state="open"]:is(.menu, [role="listbox"])')`)));
 };
-// The open projects in the tasks' bar (their islands): their names, the shown one with ' *'.
-const projectTabs = (ui: UI) => ui(`[...document.querySelectorAll('#projectTabs .pisland')].map((t) => t.querySelector('.plabel .name').textContent + (t.classList.contains('active') ? ' *' : ''))`);
-const projectTab = (id: string) => `document.querySelector('#projectTabs [data-project="${id}"]')`;
+// The tasks' bar's tabs (one per open task): each its project's id, the shown one with ' *'.
+const projectTabs = (ui: UI) => ui(`[...document.querySelectorAll('#projectTabs .tasktab')].map((t) => t.dataset.project + (t.classList.contains('active') ? ' *' : ''))`);
+// A project's first tab in the bar.
+const projectTab = (id: string) => `document.querySelector('#projectTabs .tasktab[data-project="${id}"]')`;
 // A click as the mouse makes it (the press, the release, the click) on an element: tabs are chosen on the press
 // (Reka's Tabs, as a browser's).
 const click = (ui: UI, el: string) => ui(`(() => { const e = ${el}, r = e.getBoundingClientRect();
   const at = { bubbles: true, cancelable: true, composed: true, button: 0, clientX: r.x + r.width / 2, clientY: r.y + r.height / 2 };
   for (const t of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click']) e.dispatchEvent(new (t.startsWith('pointer') ? PointerEvent : MouseEvent)(t, { ...at, pointerType: 'mouse', isPrimary: true, buttons: /down/.test(t) ? 1 : 0 })); })()`);
-// A project shown again as the human does it: a click on the task it shows, in its island.
-// Once its island is drawn: the bar is drawn again as projects load (seen after a restart, on a slow screen).
+// A project shown again as the human does it: a click on its first tab in the bar.
+// Once its tab is drawn: the bar is drawn again as projects load (seen after a restart, on a slow screen).
 const showProject = async (ui: UI, id: string) => {
-  const tab = `${projectTab(id)}?.querySelector('.tasktab.selected')`;
+  const tab = projectTab(id);
   await waitFor(() => ui(`!!${tab}`));
   return click(ui, tab);
 };
-// A group closed as the human does it: the middle button on its label (its menu has Close Group too).
-const closeProject = (ui: UI, id: string) => ui(`${projectTab(id)}.querySelector('.plabel').dispatchEvent(new MouseEvent('auxclick', { button: 1, bubbles: true }))`);
-const choose = (ui: UI, label: string) => ui(`[...${MENU}.querySelectorAll('.item')].find((b) => b.querySelector('.label').textContent === ${JSON.stringify(label)}).click()`);
-// The bar's + (NewTask.vue), its menu opened with a click: plusMenu(ui) its rows (menuRows: a project by its name, its
-// closed tasks under it as '  name'); plusMenu(ui, project) a new task of that project (by its name); plusMenu(ui,
-// project, task) its closed task of that name opened again.
+// A project's open tasks closed as the human does it: the middle button on each tab (its menu has Close and Close
+// All Tasks too).
+const closeProject = (ui: UI, id: string) => ui(`for (const t of document.querySelectorAll('#projectTabs .tasktab[data-project="${id}"]')) t.dispatchEvent(new MouseEvent('auxclick', { button: 1, bubbles: true })); 0`);
+const choose = (ui: UI, label: string, menu = MENU) => ui(`[...${menu}.querySelectorAll('.item')].find((b) => b.querySelector('.label').textContent === ${JSON.stringify(label)}).click()`);
+// The bar's + (NewTask.vue): a new tab of every project with its tasks (newtab/Board.vue); the empty window shows it.
+// plusMenu(ui) its rows: each column's project by its name, its tasks under it as '  name', those open as
+// '  name (open)', New Project… last; plusMenu(ui, project) a new task of that project (its column's +, by its name);
+// plusMenu(ui, project, task) its closed task of that name opened again.
 async function plusMenu(ui: UI, project?: string, task?: string) {
-  await ui(`document.getElementById('newTask').click()`);
-  const rows = await menuRows(ui);
-  if (project === undefined) return rows;
-  await ui(`(() => { const items = [...${MENU}.querySelectorAll('.item')], label = (r) => r.querySelector('.label').textContent;
-    const at = items.findIndex((r) => !r.matches('.inset') && label(r) === ${JSON.stringify(project)}), own = [];
-    for (const r of items.slice(at + 1)) { if (!r.matches('.inset')) break; own.push(r); }
-    (${JSON.stringify(task ?? null)} === null ? items[at] : own.find((r) => label(r) === ${JSON.stringify(task)})).click(); })()`);
-  await waitFor(async () => !(await menuOpen(ui)));
+  if (!(await ui(`!!document.getElementById('board')`))) await ui(`document.getElementById('newTask').click()`);
+  await waitFor(() => ui(`!!document.getElementById('board')`));
+  if (project === undefined) return ui(`[...document.querySelectorAll('#board .column')].flatMap((c) => [c.querySelector('header .name').textContent,
+    ...[...c.querySelectorAll('li .item')].map((r) => '  ' + r.querySelector('.label').textContent + (r.ariaDisabled === 'true' ? ' (open)' : ''))]).concat('New Project…')`);
+  const column = `[...document.querySelectorAll('#board .column')].find((c) => c.querySelector('header .name').textContent === ${JSON.stringify(project)})`;
+  await ui(task === undefined ? `${column}.querySelector('header button').click()`
+    : `[...${column}.querySelectorAll('li .item')].find((r) => r.querySelector('.label').textContent === ${JSON.stringify(task)}).click()`);
 }
+// Back from a new tab to the task under it (its ×); the empty window's board stays.
+const closeBoard = async (ui: UI) => {
+  if (await ui(`!!document.getElementById('newtabtab')`)) await ui(`document.querySelector('#newtabtab .close').click()`);
+  await waitFor(async () => (await ui(`document.documentElement.dataset.page`)) !== 'newtab');
+};
 // The shown task's tab's right-click menu, where its profiles are: its rows (menuRows).
 const taskMenu = async (ui: UI) => {
   await rightClick(ui, '#taskbar .tasktab.active .name');
   return menuRows(ui);
 };
-// Settings → Profiles: the shown task's tab's menu, then Manage Profiles…; once its page is there.
-const manageProfiles = async (ui: UI) => {
+// Settings → Profiles: the shown task's tab's menu, then Manage Profiles…; once its window shows the page.
+const manageProfiles = async ({ ui, sui }: Pick<Ctx, 'ui' | 'sui'>) => {
   await taskMenu(ui);
   await choose(ui, 'Manage Profiles…');
-  await waitFor(() => ui(`document.getElementById('projects')?.dataset.state === 'open' && document.getElementById('prconfig')?.checkVisibility()`));
+  await waitFor(() => sui(`!!document.getElementById('prconfig')?.checkVisibility()`));
 };
-// Settings closed with its ×.
-const closeSettings = async (ui: UI) => {
-  await ui(`document.querySelector('#projects .x').click()`);
-  await waitFor(async () => !(await ui(`document.getElementById('projects')?.dataset.state === 'open'`)));
+// Settings closed as the human does it with Esc (its window: settings-window.ts), what was typed saved; its window gone,
+// the keyboard back in the task's window, the window's and its page's (a menu opened there before it came closed as the
+// window got it; on GitHub's runner the window manager's focus came after the page's, 2026-10-16). The Esc's script is
+// not waited for: its page asks for the window to close before its result is back, and a script whose window closes
+// first never answers (Electron drops the reply: a test hung for its 30 s on GitHub's runner, 2026-10-16).
+const closeSettings = async (ctx: Pick<Ctx, 'shell' | 'ui' | 'sui'>) => {
+  await ctx.sui('0'); // its window open and its page loaded
+  void ctx.shell.settings.win.webContents.executeJavaScript(`dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); 0`).catch(() => {});
+  await settingsClosed(ctx);
+};
+// However it closed (Esc, the OS's ×).
+const settingsClosed = async ({ shell, ui }: Pick<Ctx, 'shell' | 'ui'>) => {
+  await waitFor(() => !shell.settings);
+  // Not focused in time: which window is, and the windows there are, said (a run on GitHub's macOS runner, 2026-10-16).
+  await waitFor(async () => shell.win.isFocused() && await ui(`document.hasFocus()`)).catch(async (e: Error) => {
+    const all = electron.BaseWindow.getAllWindows().map((w) => `${w.getTitle()}${w.isVisible() ? '' : ' (hidden)'}${w.isFocused() ? ' (focused)' : ''}`);
+    const keys = electron.webContents.getFocusedWebContents(), page = shell.win.webContents;
+    throw new Error(`${e.message}; windows: ${all.join(', ')}; the keyboard in: ${keys === page ? "the window's page" : keys?.getURL() ?? 'none'};`
+      + ` page focused ${page.isFocused()}, its active element ${await ui(`document.activeElement?.tagName + '.' + document.activeElement?.className`)}`);
+  });
 };
 // A profile in Settings' tree chosen (a click), its page shown.
-const chooseProfile = async (ui: UI, id: string) => {
-  await ui(`document.querySelector('#pjlist [data-profile="${id}"]').click()`);
-  await waitFor(() => ui(`document.querySelector('#pjlist [data-profile="${id}"]')?.ariaSelected === 'true' && document.getElementById('profilepage')?.checkVisibility()`));
+const chooseProfile = async (sui: UI, id: string) => {
+  await waitFor(() => sui(`!!document.querySelector('#pjlist [data-profile="${id}"]')`)); // the profiles come as it opens
+  await sui(`document.querySelector('#pjlist [data-profile="${id}"]').click()`);
+  await waitFor(() => sui(`document.querySelector('#pjlist [data-profile="${id}"]')?.ariaSelected === 'true' && document.getElementById('profilepage')?.checkVisibility()`));
 };
 // A field of Settings → Profiles typed and left (saved on change).
 const setProfileField = (ui: UI, id: string, value: string) => ui(`(() => { const f = document.getElementById('${id}'); f.value = ${JSON.stringify(value)};
@@ -117,8 +152,12 @@ const rightClick = (ui: UI, sel: string) => ui(`(() => { const e = document.quer
 // runner, 2026-10-12) the window manager focuses the window, and its page learns it later: a key sent then reached
 // Kulisa, but the page's focus, coming after, went back to where it had been, over what the key had focused.
 const focusWindow = async (win: { focus(): void; webContents: { focus(): void } }, ui: UI) => {
+  // On macOS a click also brings the app to the front, and only the front app's windows take the keyboard.
+  if (MAC) electron.app.focus({ steal: true });
   win.focus(); win.webContents.focus();
-  await waitFor(() => ui(`document.hasFocus()`));
+  // macOS makes the window key a moment later and gives the keyboard back to the view that had it (a profile's page),
+  // over this: given again until the page has it, as the click into it would (GitHub's macOS runner, 2026-10-16).
+  await waitFor(async () => { if (await ui(`document.hasFocus()`)) return true; win.webContents.focus(); return false; });
 };
 
 async function waitFor(cond: () => unknown, ms = 5000) {
@@ -147,12 +186,16 @@ const dock = (ui: UI, js: string) => ui(`(() => { const api = window.__dock; ${j
 // A key with modifiers ('control', 'shift', 'alt') into a webContents, as the keyboard sends it there; Ctrl + a key
 // with the keyboard put there first (zoom keys).
 const press = (wc: WebContents, keyCode: string, ...modifiers: ('control' | 'shift' | 'alt' | 'meta')[]) => { for (const type of ['keyDown', 'keyUp'] as const) wc.sendInputEvent({ type, keyCode, modifiers }); };
-const ctrl = (wc: WebContents, keyCode: string) => { wc.focus(); press(wc, keyCode, 'control'); };
+// Kulisa's keys that are ⌘ on macOS and Ctrl elsewhere (CommandOrControl in keys.ts); Ctrl+` and Ctrl+Tab are Ctrl's
+// everywhere, and in the terminal Ctrl is the agent's.
+const MAC = process.platform === 'darwin';
+const CMD = MAC ? 'meta' : 'control';
+const ctrl = (wc: WebContents, keyCode: string) => { wc.focus(); press(wc, keyCode, CMD); };
 const near = (a: number, b: number) => Math.abs(a - b) < 1e-6;
 // A sandboxed page: its preload's world (999, contextIsolation's) has no Node's process (Electron's tutorial/sandbox.md).
 const noNode = async (wc: WebContents) => await wc.executeJavaScriptInIsolatedWorld(999, [{ code: 'typeof process' }]) === 'undefined';
 
 export type { UI };
-export { focusWindow, MENU, noNode, hooksOf, plusMenu, assert, root, userData, project, pfile, savedTabs, savedWindows, panel, SITE, PORT, sleep, waitFor, who, menuRows, choose, projectTabs, projectTab, showProject, closeProject, manageProfiles, closeSettings, chooseProfile, setProfileField, menuOpen, closeMenu, rightClick, taskMenu,
+export { MAC, CMD, canShoot, NO_SHOT, shot, focusWindow, MENU, SUBMENU, noNode, hooksOf, plusMenu, closeBoard, assert, root, userData, project, pfile, savedTabs, savedWindows, panel, SITE, PORT, sleep, waitFor, who, menuRows, choose, projectTabs, projectTab, showProject, closeProject, manageProfiles, closeSettings, settingsClosed, chooseProfile, setProfileField, menuOpen, closeMenu, rightClick, taskMenu,
   click,
   box, pageBox, viewOn, dock, press, ctrl, near };

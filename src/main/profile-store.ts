@@ -14,10 +14,10 @@
 //   profiles/Profile <k>/ its master
 import fs from 'fs';
 import path from 'path';
-import { slugOf, nameError } from './names.ts';
+import { slugOf, nameError } from '../shared/names.ts';
 import { writeFileAtomic } from './store.ts';
-import { AVATARS } from './avatars.ts';
-import type { Result } from './result.ts';
+import { AVATARS, nextAvatar } from '../shared/avatars.ts';
+import type { Result } from '../shared/result.ts';
 
 // A profile as the store keeps it.
 interface StoredProfile {
@@ -46,9 +46,14 @@ class ProfileStore {
   // A project's profiles, in the order they were made.
   of(project: string) { return this.all().filter((p) => p.projects.includes(project)); }
   masterDir(folder: string) { return path.join(this.dir, 'profiles', folder); }
-  // A new profile, in a project or in none (Settings → Profiles): its master folder, empty, numbered as Chrome numbers
-  // its profiles, never a number used before. The fields are checked by the caller (check).
-  create(project: string | null, { name, avatar, description = '' }: { name: string; avatar: string; description?: string }) {
+  // A new profile, in a project or in none (Settings → Profiles), whoever makes it (a task, the agent, Settings, New
+  // Project): its fields checked, its picture the next one free among its project's (among all, in none) unless one is
+  // given; its master folder, empty, numbered as Chrome numbers its profiles, never a number used before.
+  create(project: string | null, { name, avatar, description = '' }: { name: string; avatar?: string; description?: string }): Result<StoredProfile> {
+    const bad = this.check({ name, description, avatar });
+    if (bad) return { error: bad };
+    name = name.trim(); description = description.trim();
+    avatar ||= nextAvatar((project ? this.of(project) : this.all()).map((p) => p.avatar));
     const { next, list } = this.read();
     let n = next;
     while (fs.existsSync(this.masterDir(`Profile ${n}`))) n++;
@@ -66,7 +71,7 @@ class ProfileStore {
     return id;
   }
   // A new profile's fields, or why not.
-  check({ name, description = '', avatar }: { name?: string; description?: unknown; avatar?: string }) {
+  private check({ name, description = '', avatar }: { name?: string; description?: unknown; avatar?: string }) {
     return nameError(name?.trim()) || aboutError(description) || (avatar && !AVATARS.includes(avatar) && `no picture ${avatar}`) || null;
   }
   // Who it is changed, for every project and task at once: its name (and id, from it), what it is in the app, its

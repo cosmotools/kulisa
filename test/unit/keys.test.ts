@@ -2,7 +2,7 @@
 // keyboard is; the table itself kept free of clashes and of keys that are the agent's or the OS's.
 import { test } from 'node:test';
 import assert from 'assert/strict';
-import { KEYS, keymap, match, display, list, parse } from '../../src/main/keys.ts';
+import { KEYS, keymap, match, held, holdable, display, codeName, list, parse } from '../../src/main/keys.ts';
 import type { Group, Key } from '../../src/main/keys.ts';
 
 // An input event as Electron's before-input-event gives it.
@@ -82,4 +82,37 @@ test('keys: shown as the OS shows them; a range as its first and last', () => {
   assert.deepEqual(shown['terminal.copy'], ['Ctrl+Shift+C']);
   assert.deepEqual(Object.fromEntries(list('win32').map((s) => [s.id, s.keys]))['terminal.copy'], ['Ctrl+C']);
   assert.equal(shown['devtools.app'], undefined, 'Kulisa\'s own DevTools are not listed');
+});
+
+test('keys: a key held alone (the dictation\'s): the right Ctrl, ⌘ on macOS, its press and its release by its code, not its repeats', () => {
+  const ctrl = (type: string, code = 'ControlRight', isAutoRepeat = false) => ({ type, key: 'Control', code, control: true, isAutoRepeat });
+  assert.deepEqual(held(linux, ctrl('keyDown')), { id: 'voice.hold', down: true });
+  assert.deepEqual(held(linux, ctrl('keyUp')), { id: 'voice.hold', down: false });
+  assert.equal(held(linux, ctrl('keyDown', 'ControlRight', true)), null, 'a repeat while held is no press');
+  assert.equal(held(linux, ctrl('keyDown', 'ControlLeft')), null, 'the left one is the usual Ctrl');
+  assert.deepEqual(held(linux, { ...ctrl('keyDown', 'ControlLeft'), location: 2 }), { id: 'voice.hold', down: true }, 'by its side when the code has none (a sent event)');
+  assert.equal(held(linux, { ...ctrl('keyDown'), type: 'rawKeyDown' }), null);
+  assert.equal(match(linux, ctrl('keyDown'), ['global']), null, 'not a chord');
+  assert.equal(held(mac, ctrl('keyDown')), null);
+  assert.deepEqual(held(mac, { type: 'keyDown', key: 'Meta', code: 'MetaRight', meta: true }), { id: 'voice.hold', down: true });
+  // The human's own key instead (settings.json, keys): one that types nothing and is no key of Kulisa's.
+  const own = keymap('linux', { 'voice.hold': 'F9' });
+  assert.deepEqual(held(own, { type: 'keyDown', key: 'F9', code: 'F9' }), { id: 'voice.hold', down: true });
+  assert.equal(held(own, ctrl('keyDown')), null);
+  assert.equal(holdable(linux, 'F9'), null);
+  assert.equal(holdable(linux, 'ShiftRight'), null);
+  assert.match(holdable(linux, 'KeyA'), /^Press a key that types nothing/);
+  assert.match(holdable(linux, 'Space'), /^Press a key that types nothing/);
+  assert.match(holdable(linux, 'CapsLock'), /^Press a key that types nothing/, 'the OS toggles it');
+  assert.equal(holdable(linux, 'F5'), 'F5 is already Reload');
+  assert.equal(holdable(linux, 'F12'), 'F12 is already DevTools of the tab');
+  // Shown as the OS names the key.
+  assert.equal(codeName('ControlRight', 'linux'), 'Right Ctrl');
+  assert.equal(codeName('MetaRight', 'darwin'), 'Right ⌘');
+  assert.equal(codeName('MetaRight', 'win32'), 'Right Win');
+  assert.equal(codeName('ScrollLock', 'linux'), 'Scroll Lock');
+  const shown = (platform: 'linux' | 'darwin', custom = {}) => list(platform, custom).find((s) => s.id === 'voice.hold');
+  assert.deepEqual(shown('linux'), { id: 'voice.hold', group: 'global', label: 'Speak to the agent: hold, or press once and again', keys: ['Right Ctrl'], hold: true });
+  assert.deepEqual(shown('darwin').keys, ['Right ⌘']);
+  assert.deepEqual(shown('linux', { 'voice.hold': 'F9' }).keys, ['F9']);
 });

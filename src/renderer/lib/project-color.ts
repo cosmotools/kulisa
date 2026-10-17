@@ -1,7 +1,7 @@
 // A project's color as the window shows it (docs/tasks.md, Projects: its color and icon, nothing to choose).
 import { reactive } from 'vue';
 import { getPaletteSync } from 'colorthief';
-import type { ProjectEntry } from '../types';
+import type { ProjectEntry } from '../../shared/types';
 
 // A favicon's hue in the lightness and chroma of Kulisa's own colors (store.ts, PROJECT_COLORS: about 0.61, 0.12), so
 // it suits both themes as they do: a site's own navy or yellow, as it is, was lost in one of them.

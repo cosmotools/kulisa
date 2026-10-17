@@ -9,8 +9,8 @@ import type { Browser, BrowserContext, Page } from 'playwright-core';
 import type { BrowserWindow, Rectangle, Session, WebContents, WebContentsView as View } from 'electron';
 import fs from 'fs';
 import path from 'path';
-import type * as Sent from '../renderer/types.ts'; // what the window gets: its one definition
-import { ensureTarget } from './cdp-proxy.ts';
+import type * as Sent from '../shared/types.ts'; // what the window gets: its one definition
+import { allowFocus, guardFocus } from './page-focus.ts';
 // Taken from the module, not imported by name: unit tests load this in plain Node, where 'electron' is only a path
 // (docs/testing.md, Two layers).
 const { session, WebContentsView } = electron;
@@ -23,6 +23,10 @@ interface Tab {
   // tab.answered: until its site has answered (newTab); tab.ready: its first navigation done.
   answered: Promise<void> | null; ready?: Promise<unknown>;
   pendingUrl?: string | null; targetId?: string | null; closing?: boolean; dialog?: Dialog | null;
+  // Discarded: without its process, its address kept (discard, load; docs/profiles.md, "Tabs unloaded"); discarding:
+  // the address it comes back to, while its page may still hold its unload; offScreenSince: since when no one sees it
+  // (discard.ts).
+  discarded?: boolean; discarding?: string; offScreenSince?: number;
   // The agent's own action answers the dialogs it opens (mcp-server.ts).
   agentDialogs?: { asked: string[]; accept: boolean };
 }
@@ -66,6 +70,7 @@ class Profile extends EventEmitter {
   tabs: Tab[]; active: string | null; closedUrls: string[]; bounds: Bounds;
   browser: Browser | null; context: BrowserContext | null; endpoint: string | null; signinMode: boolean; resuming?: boolean;
   hidden: boolean; shown: boolean; deleted: boolean;
+  busyAt: number; // when automation last sent this profile a command (cdp-proxy.ts): its tabs are in use (discard.ts)
   // cfg: { id, name, avatar, description, folder, dir, session }. The folder (cookies, storage; dir is its absolute path) is fixed at
   // creation; a rename changes id and name only.
   // win: the window it shows in (moveTo). task: its task's key (profiles of different tasks share ids).
@@ -85,6 +90,7 @@ class Profile extends EventEmitter {
     this.hidden = false; // views hidden while a window-wide dialog is open or a pane is dragged (they draw above the HTML)
     this.shown = true; // false while the pane is not on screen in the grid (stacked behind another pane)
     this.deleted = false;
+    this.busyAt = 0;
   }
 
   // The shell's Playwright connection through the proxy (picker, MCP tools).
@@ -107,6 +113,7 @@ class Profile extends EventEmitter {
     const tab = this.get(tabId);
     if (!tab) throw new Error(`no tab ${tabId}`);
     if (!this.context) throw new Error(`profile ${this.id} is not connected`);
+    if (tab.discarded) await this.load(tab);
     const id = await ensureTarget(tab);
     for (let i = 0; i < 50; i++) {
       for (const p of this.context.pages()) if ((await targetIdOf(p)) === id) return p;
@@ -118,10 +125,16 @@ class Profile extends EventEmitter {
   get(id?: string | null) { id = id || this.active; return this.tabs.find((t) => t.id === id || t.targetId === id); }
 
   newTab(url?: string | null, { activate = true } = {}) {
-    url = url && toUrl(url);
     const view = new WebContentsView({ webPreferences: { session: this.session, sandbox: true } });
     const tab = this._add(view);
-    const wc = view.webContents;
+    const ready = this._open(tab, url && toUrl(url));
+    if (activate) this.activate(tab.id);
+    return Object.assign(tab, { ready }); // every tab it opens has one, unlike a page's popup
+  }
+
+  // A tab's page opened in its fresh webContents (newTab; load, a discarded tab's new one): its ready.
+  _open(tab: Tab, url: string | null | undefined) {
+    const wc = tab.wc;
     // The URL it is opening, until a page commits: a tab closed while it loads is saved as that (app.ts).
     tab.pendingUrl = url;
     wc.on('did-navigate', (_e, u) => { if (u !== 'about:blank') tab.pendingUrl = null; });
@@ -142,24 +155,33 @@ class Profile extends EventEmitter {
     // tab.ready: the first navigation has committed, or failed (its error page shows: a site refusing to connect,
     // e.g. a new task's dev server not started yet, held its profile 5 s). A client that attaches earlier sees a
     // never-loaded tab.
-    const opened = ready.then(() => url ? new Promise<void>((resolve) => {
+    return tab.ready = ready.then(() => url ? new Promise<void>((resolve) => {
       if (wc.isDestroyed()) return resolve(); // closed before it loaded (its profile closed or deleted)
       const failed = (_e: unknown, code: number, _d: string, _u: string, mainFrame: boolean) => { if (mainFrame && code !== -3) done(); };
       const done = () => { wc.off('did-navigate', done); wc.off('did-fail-load', failed); resolve(); };
       wc.on('did-navigate', done); wc.on('did-fail-load', failed); setTimeout(done, 5000);
       wc.loadURL(url).then(() => wc.navigationHistory.clear()).catch(() => {}); // Back never goes to the about:blank
     }) : undefined);
-    const t = Object.assign(tab, { ready: opened }); // every tab it opens has one, unlike a page's popup
-    if (activate) this.activate(t.id);
-    return t;
   }
 
   _add(view: View) {
     const tab: Tab = { id: `k${nextTab++}`, view, wc: view.webContents, title: '', url: '', favicon: '', loading: false, answered: null };
-    const wc = tab.wc;
+    this._bind(tab);
+    this.tabs.push(tab);
+    this.emit('tab-added', tab); this.emit('changed');
+    return tab;
+  }
+
+  // The tab's webContents as Kulisa watches it: a new tab's, or the new one of a discarded tab (load).
+  _bind(tab: Tab) {
+    const { view, wc } = tab;
     view.setBorderRadius(PAGE_RADIUS);
+    // The keyboard stays where the human put it in the window: the page takes it only from them (page-focus.ts).
+    guardFocus(wc, () => this.win);
     const update = () => {
       if (wc.isDestroyed()) return;
+      // Still on the about:blank its page comes after (_open): the strip keeps the address and title it has.
+      if (tab.pendingUrl && wc.getURL() === 'about:blank') { tab.loading = true; this.emit('changed'); return; }
       tab.title = wc.getTitle(); tab.url = wc.getURL(); tab.loading = wc.isLoading();
       tab.canBack = wc.navigationHistory.canGoBack(); tab.canFwd = wc.navigationHistory.canGoForward();
       this.emit('changed');
@@ -196,16 +218,13 @@ class Profile extends EventEmitter {
       },
     }));
     wc.on('destroyed', () => this._removed(tab));
-    this.tabs.push(tab);
-    this.emit('tab-added', tab); this.emit('changed');
-    return tab;
   }
 
   _removed(tab: Tab) {
+    if (tab.discarding !== undefined) return this._discarded(tab);
     const i = this.tabs.indexOf(tab); if (i < 0) return;
-    this.tabs.splice(i, 1);
     try { this.win.contentView.removeChildView(tab.view); } catch {}
-    if (this.active === tab.id) { this.active = null; if (this.tabs.length) this.activate(this.tabs[Math.max(0, i - 1)]!.id); }
+    this._dropped(tab, i);
     this.emit('tab-closed', tab); this.emit('changed');
     // Its last tab closed (closeTab: the human's ×, the agent's browser_tab_close), the profile still open: an empty
     // tab takes its place, so the pane is never left without a page (its address and toolbar acting on nothing). Not
@@ -213,6 +232,43 @@ class Profile extends EventEmitter {
     // within this 'destroyed' event either: Chromium is still taking the old tab down, and a new one made meanwhile
     // crashed the main process now and then (CHECK(!frame_tree_->IsBeingDestroyed()) in RenderFrameCreated, 2026-10-09).
     if (!this.tabs.length && !this.deleted && tab.closing) setImmediate(() => { if (!this.tabs.length && !this.deleted) this.newTab('about:blank'); });
+  }
+  // Out of the list (i: its place); the one before it active in its place.
+  _dropped(tab: Tab, i: number) {
+    this.tabs.splice(i, 1);
+    if (this.active === tab.id) { this.active = null; if (this.tabs.length) this.activate(this.tabs[Math.max(0, i - 1)]!.id); }
+  }
+
+  // A tab no one looks at loses its process, as Chrome's Memory Saver discards tabs (docs/profiles.md, "Tabs unloaded";
+  // the rule and when: discard.ts). url: where it comes back (a sign-in page's: the page before it); its title and
+  // icon stay as they were. A page holding its unload (beforeunload: an unsaved form) stays, as in Chrome: Electron
+  // says so (will-prevent-unload) and keeps it.
+  discard(tab: Tab, url: string) {
+    if (tab.discarded || tab.discarding !== undefined || tab.wc.isDestroyed() || !url) return;
+    tab.discarding = url;
+    tab.wc.once('will-prevent-unload', () => { tab.discarding = undefined; });
+    tab.wc.close({ waitForBeforeUnload: true });
+  }
+  _discarded(tab: Tab) {
+    const url = tab.discarding!;
+    tab.discarding = undefined;
+    this.emit('tab-closed', tab); // the proxy: its target is gone
+    Object.assign(tab, { discarded: true, url, targetId: null, pendingUrl: null, dialog: null, loading: false, canBack: false, canFwd: false });
+    try { this.win.contentView.removeChildView(tab.view); } catch {}
+    this.emit('changed');
+  }
+  // Its page back, its process with it: a new view bound as a new tab's, opened at the address kept, the proxy told
+  // of a tab added (its target is new). Its place in the strip and the active tab do not change. Resolves as a new
+  // tab's ready does.
+  load(tab: Tab) {
+    if (!tab.discarded || this.deleted) return Promise.resolve();
+    const view = new WebContentsView({ webPreferences: { session: this.session, sandbox: true } });
+    Object.assign(tab, { discarded: false, view, wc: view.webContents });
+    this._bind(tab);
+    const ready = this._open(tab, tab.url);
+    this.emit('tab-added', tab); this.emit('changed');
+    if (this.active === tab.id) this.activate(tab.id);
+    return ready;
   }
 
   // A page's dialog, over a picture of the page (a page is still while its dialog is open). The agent's own actions
@@ -234,7 +290,7 @@ class Profile extends EventEmitter {
     const tab = this.get(id);
     if (!tab?.dialog || tab.dialog.id !== dialog) return;
     this._dialogDone(tab, ok);
-    tab.wc.focus();
+    this.focusTab(tab);
   }
   // Answered (ok: true or false) or gone (cancelled, answered over CDP).
   _dialogDone(tab: Tab, ok?: boolean) {
@@ -249,8 +305,14 @@ class Profile extends EventEmitter {
   closeTab(id?: string | null) {
     const t = this.get(id);
     if (!t) return;
-    const url = t.wc.getURL();
+    const url = t.discarded ? t.url : t.wc.getURL();
     if (url && url !== 'about:blank') { this.closedUrls.push(url); this.closedUrls.splice(0, this.closedUrls.length - CLOSED_KEPT); }
+    if (t.discarded) { // no process to close; the proxy was told at the discard
+      this._dropped(t, this.tabs.indexOf(t));
+      this.emit('changed');
+      if (!this.tabs.length && !this.deleted) this.newTab('about:blank');
+      return;
+    }
     t.closing = true; t.wc.close();
   }
   // The tab closed last, again (Ctrl+Shift+T); null when none was.
@@ -265,13 +327,19 @@ class Profile extends EventEmitter {
         t.view.setBounds(this.bounds); t.view.setVisible(this.visible(t));
       } else t.view.setVisible(false);
     }
-    this.active = id; this.emit('changed');
+    this.active = id; this._show(); this.emit('changed');
   }
 
   // The page is drawn: its pane on screen, nothing over it, not asking (its dialog is HTML, over a picture of it).
   visible(tab: Tab | undefined = this.get()) { return this.shown && !this.hidden && !tab?.dialog; }
   setHidden(hidden: boolean) { this.hidden = hidden; this._show(); }
-  _show() { const t = this.get(); if (t && !t.wc.isDestroyed()) t.view.setVisible(this.visible(t)); }
+  // A discarded active tab to be drawn is loaded again, on the next turn: never from inside a webContents' 'destroyed'
+  // event, where the tab before it may have gone (Hard-won facts).
+  _show() {
+    const t = this.get(); if (!t) return;
+    if (t.discarded) { if (this.visible(t)) setImmediate(() => { if (t.discarded && this.get() === t && this.visible(t)) void this.load(t); }); return; }
+    if (!t.wc.isDestroyed()) t.view.setVisible(this.visible(t));
+  }
 
   // Close (the human closed the profile, or another project is opened): stop automation and close the tabs; the
   // profile's data stays.
@@ -294,6 +362,9 @@ class Profile extends EventEmitter {
     this.emit('deleted');
   }
 
+  // The keyboard into a tab's page for the human (a key chose it, a dialog of theirs answered, Pick): theirs, so it stays.
+  focusTab(tab: Tab) { if (tab.wc.isDestroyed()) return; allowFocus(tab.wc); tab.wc.focus(); }
+
   // Its pages into another window (its project moved there), hidden until that window lays them out.
   moveTo(win: BrowserWindow) {
     for (const t of this.tabs) try { this.win.contentView.removeChildView(t.view); } catch {}
@@ -301,11 +372,12 @@ class Profile extends EventEmitter {
     if (this.active) this.activate(this.active);
   }
 
-  // The tab's DevTools, in their own window (a WebContentsView cannot dock them).
+  // The tab's DevTools, in their own window (a WebContentsView cannot dock them); none for a discarded tab.
   toggleDevTools(id?: string | null) {
-    const wc = this.get(id)!.wc;
-    if (wc.isDevToolsOpened()) wc.closeDevTools();
-    else wc.openDevTools({ mode: 'detach', title: `${this.name} · DevTools` });
+    const t = this.get(id);
+    if (!t || t.discarded) return;
+    if (t.wc.isDevToolsOpened()) t.wc.closeDevTools();
+    else t.wc.openDevTools({ mode: 'detach', title: `${this.name} · DevTools` });
   }
 
   // Where the window's grid puts the pane's page; { shown: false } when the pane is not on screen.
@@ -314,11 +386,21 @@ class Profile extends EventEmitter {
     if (shown) { this.bounds = bounds as Bounds; const t = this.get(); if (t) t.view.setBounds(this.bounds); }
     this._show();
   }
-  navigate(id: string | null | undefined, url: string) { this.get(id)!.wc.loadURL(toUrl(url)).catch(() => {}); }
-  back(id?: string | null) { this.get(id)!.wc.navigationHistory.goBack(); }
-  forward(id?: string | null) { this.get(id)!.wc.navigationHistory.goForward(); }
+  // On a discarded tab: loaded again at the address (navigate, reload); its history is gone with its process (back,
+  // forward: nothing), as a closed tab's is.
+  navigate(id: string | null | undefined, url: string) {
+    const t = this.get(id)!;
+    if (t.discarded) { t.url = toUrl(url); void this.load(t); return; }
+    t.wc.loadURL(toUrl(url)).catch(() => {});
+  }
+  back(id?: string | null) { const t = this.get(id)!; if (!t.discarded) t.wc.navigationHistory.goBack(); }
+  forward(id?: string | null) { const t = this.get(id)!; if (!t.discarded) t.wc.navigationHistory.goForward(); }
   // ignoreCache: as Ctrl+Shift+R, every file loaded again.
-  reload(id?: string | null, { ignoreCache = false } = {}) { const wc = this.get(id)!.wc; if (ignoreCache) wc.reloadIgnoringCache(); else wc.reload(); }
+  reload(id?: string | null, { ignoreCache = false } = {}) {
+    const t = this.get(id)!;
+    if (t.discarded) { void this.load(t); return; }
+    if (ignoreCache) t.wc.reloadIgnoringCache(); else t.wc.reload();
+  }
 
   // Sign-in mode: nothing automated is attached while the human signs in. Playwright disconnects, every tab's
   // debugger is detached (dropping Runtime/Network/Page domains, Playwright's init scripts and bindings). Turning it
@@ -343,7 +425,7 @@ class Profile extends EventEmitter {
     this.emit('signin-mode', on);
   }
 
-  _host(tab: Tab) { try { return new URL(tab.wc.getURL()).host; } catch { return ''; } }
+  _host(tab: Tab) { try { return new URL(tab.discarded ? tab.url : tab.wc.getURL()).host; } catch { return ''; } }
   pageZoom(tab: Tab) { return this.siteZoom[this._host(tab)] ?? 1; }
   _applyZoom(tab: Tab) { if (!tab.wc.isDestroyed()) tab.wc.setZoomFactor(this.baseZoom * this.pageZoom(tab)); }
   setBaseZoom(z: number) { this.baseZoom = z; for (const t of this.tabs) this._applyZoom(t); }
@@ -387,13 +469,14 @@ function showError(wc: WebContents, desc: string, url: string) {
   wc.executeJavaScript(`(${fill})(${JSON.stringify({ page: ERROR_PAGE, title, reason, code: desc, host })})`).catch(() => {});
 }
 
-// A closed profile's caches gone: HTTP, compiled code, shaders. Sign-ins and sites' storage stay. Chromium sets the HTTP
-// cache's limit itself from the free disk space; profiles set aside should not keep theirs (ROADMAP, "Profiles'
-// caches").
+// A closed profile's caches gone: HTTP, compiled code, shaders, and the sites' Cache API (their service workers' copies
+// of their own bundles: Chromium counts it as storage, and it was the largest part of a copy, 200 MB for Teams). Sign-ins
+// and the sites' other storage stay. Chromium sets the HTTP cache's limit itself from the free disk space; profiles set
+// aside should not keep theirs (ROADMAP, "Profiles' caches").
 async function clearCaches(sess: Session) {
   await sess.clearCache();
   await sess.clearCodeCaches({});
-  await sess.clearStorageData({ storages: ['shadercache'] });
+  await sess.clearStorageData({ storages: ['shadercache', 'cachestorage'] });
 }
 
 // A profile's data gone: cookies, storage, cache. Also for a closed profile (no Profile object, only its folder).
@@ -401,6 +484,14 @@ async function wipeSession(sess: Session) {
   await sess.clearStorageData();
   await sess.clearCache();
   await sess.clearAuthCache();
+}
+
+// Attach the tab's debugger once and learn its real Chrome target id (the proxy reports it: CLAUDE.md, Hard-won facts).
+async function ensureTarget(tab: Tab): Promise<string> {
+  if (tab.targetId) return tab.targetId;
+  if (!tab.wc.debugger.isAttached()) tab.wc.debugger.attach('1.3');
+  const { targetInfo } = await tab.wc.debugger.sendCommand('Target.getTargetInfo');
+  return (tab.targetId = targetInfo.targetId);
 }
 
 // The CDP target id of a Playwright page (the proxy reports real Chrome target ids).
@@ -416,4 +507,4 @@ async function targetIdOf(page: Page) {
 }
 
 export type { Tab, ProfileConfig, Bounds };
-export { Profile, stepZoom, wipeSession, clearCaches, toUrl };
+export { Profile, stepZoom, wipeSession, clearCaches, toUrl, ensureTarget };

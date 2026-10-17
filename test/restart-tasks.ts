@@ -9,7 +9,7 @@ import type { TaskTerminal } from '../src/main/tasks.ts';
 export default (test: Test) => {
   test('after a restart: the other task waits in the bar with its tabs, loads when shown, still signed in; a closed one stays closed', async (ctx) => {
     const { shell, ui } = ctx;
-    await waitFor(async () => (await ui(`[...document.querySelectorAll('#tasklist .tasktab')].map((t) => t.querySelector('.name').textContent).join()`)) === 'task-1,Feature-X');
+    await waitFor(async () => (await ui(`[...document.querySelectorAll('#projectTabs .tasktab[data-project="project"]')].map((t) => t.querySelector('.name').textContent).join()`)) === 'task-1,Feature-X');
     assert.equal(shell.current.tasks.get(5).entry.closed, true);
     const second = shell.current.tasks.get(2);
     assert.equal(second.loaded, false);
@@ -21,24 +21,24 @@ export default (test: Test) => {
     // Once the first has loaded: a click while the window still builds it is not taken.
     await waitFor(() => shell.task?.loaded && !shell.windows[0].switching);
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
-    await click(ui, `document.querySelector('#tasklist .tasktab[data-task="project/2"]')`);
+    await click(ui, `document.querySelector('#projectTabs .tasktab[data-task="project/2"]')`);
     await waitFor(() => shell.task === second && second.loaded && second.pty);
     assert.equal(second.folder, `${project}@task-2`);
     assert.deepEqual([...shell.profiles.keys()], ['sam-admin', 'elon-buyer']);
     await ctx.call('browser_navigate', { profile: 'sam-admin', url: `${SITE}/app` });
     assert.equal(await who(ctx, 'sam-admin'), 'Signed in as master'); // its master's, brought by Refresh from Master…
-    await click(ui, `document.querySelector('#tasklist .tasktab[data-task="project/1"]')`);
+    await click(ui, `document.querySelector('#projectTabs .tasktab[data-task="project/1"]')`);
     await waitFor(() => shell.task.n === 1);
     await waitFor(async () => (await viewOn(shell, ui, 'sam-admin')) && viewOn(shell, ui, 'elon-buyer'));
   });
-  test('after a restart: the open projects are as they were left; one in the background loads when shown', async ({ shell, ui }) => {
-    await waitFor(async () => JSON.stringify(await projectTabs(ui)) === '["project *","other"]');
-    assert.equal(shell.open.get('other').task.loaded, false);
+  test('after a restart: the open tasks are as they were left; one in the background loads when shown', async ({ shell, ui }) => {
+    await waitFor(async () => JSON.stringify(await projectTabs(ui)) === '["project *","project","other"]');
+    assert.equal(shell.open.get('other').tasks.get(1).loaded, false);
   });
   test('after a restart: a window of its own comes back where it was, with its project shown; saved smaller than the minimum, at the minimum', async ({ shell }) => {
-    await waitFor(() => shell.windows.length === 2 && shell.windows[1].current?.id === 'third' && shell.windows[1].task.loaded);
+    await waitFor(() => shell.windows.length === 2 && shell.windows[1].current?.project.id === 'third' && shell.windows[1].task.loaded);
     const second = shell.windows[1];
-    assert.deepEqual(second.tabs.map((p) => p.id), ['third']);
+    assert.deepEqual(second.tabs.map((t) => t.key), ['third/1']);
     const { width, height } = second.win.getNormalBounds();
     assert.deepEqual({ width, height }, { width: 640, height: 400 });
     assert.deepEqual(second.win.getMinimumSize(), [640, 400]);

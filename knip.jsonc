@@ -6,15 +6,18 @@
   "entry": [
     // The windows' preload, loaded by its path (window.js, master.js).
     "src/preload/index.cjs",
-    // The master window's page, vite.config.mts's second input: knip finds it there on Linux, not on Windows (the CI's
-    // first runs, 2026-10-12). On Linux knip hints it is redundant: keep it, Windows needs it.
+    // The master window's and Settings' pages, vite.config.mts's other inputs: knip finds them there on Linux, not on
+    // Windows (the CI's first runs, 2026-10-12). On Linux knip hints they are redundant: keep them, Windows needs them.
     "src/renderer/master.ts",
+    "src/renderer/settings.ts",
     // The e2e groups, which run.js requires by name (start.js → run.js --files=…).
     "test/*.ts",
     "!test/helpers.ts",
     // The debug-kulisa skill's script, run by its path; Claude Code's hooks (.claude/settings.json).
     ".claude/skills/debug-kulisa/*.mjs",
-    ".claude/hooks/*.ts"
+    ".claude/hooks/*.ts",
+    // dependency-cruiser's rules, which it finds by their name (npm run deps).
+    ".dependency-cruiser.ts"
   ],
   // direnv: the user's own, which tasks use when it is installed (worktrees.ts); the tests check it the same way.
   // actionlint: the developer's own, npm test runs it when installed (docs/testing.md, Workflows).

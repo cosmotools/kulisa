@@ -1,0 +1,173 @@
+// The channels between a window's page and the main process, each declared once: what it takes and what it answers.
+// Both ends are checked against it (main/ipc.ts: handle, on, AppWindow.send; the window's bridge: renderer/env.d.ts,
+// act). docs/window.md, IPC. An answer the window does not read is `void`: the main process may answer anything there
+// (the tests read some).
+import type { Result } from './result.ts';
+import type {
+  AccountsInfo, AgentInfo, ClosedProfile, LanguageInfo, NewProjectSetup, Profile, ProjectAgent, ProjectChoices, ProjectProfile, ProjectRepo,
+  ProjectSettings, ProjectsInfo, Question, SettingsProfile, Shortcut, SignedIn, Terminals, Voice,
+} from './types.ts';
+
+// What a message about the shown task's profiles and tabs names (renderer's act: refused when that task is no longer
+// shown).
+export interface OnTask { task: string | null }
+export type OnProfile = OnTask & { profile: string };
+export type OnTab = OnProfile & { tab?: string | null }; // none: the active one
+// The terminals' contents a window sends when a task moves, by key ("<task key>#<id>"), to the window it goes to.
+export type TerminalContents = Record<string, { data: string; cols: number; rows: number }>;
+type Grid = Record<string, Partial<{ x: number; y: number; width: number; height: number }> & { shown?: boolean }>;
+export type Theme = 'dark' | 'light' | 'system';
+export type Bar = 'top' | 'bottom';
+// Where Settings opens (its window: main/settings-window.ts): a project's page (none: the shown task's), a profile's.
+export type SettingsAt = { section: 'projects' | 'profiles'; id?: string | null };
+// A project's code as its manager shows it (projects.ts, reposInfo).
+type Repos = { repos: ProjectRepo[]; former?: string | null };
+type ProjectAgents = { agents: ProjectAgent[] };
+type ProjectProfiles = { profiles: ProjectProfile[]; others: ProjectProfile[] };
+type Profiles = { profiles: SettingsProfile[] };
+
+// ipcRenderer.invoke / ipcMain.handle: args, the answer.
+type I<A extends unknown[], R = void> = { args: A; result: R };
+export interface Invoke {
+  'projects:list': I<[], ProjectsInfo | undefined>;
+  'tasks:get': I<[]>;
+  'project:open': I<[{ id?: string; folder?: string; task?: number }]>;
+  'project:new-defaults': I<[], ProjectChoices & { location: string; sep: string }>;
+  'project:pick-location': I<[{ location?: string; existing?: boolean }], string | null>;
+  'project:folder-state': I<[{ from?: string; location?: string; name?: string; folder?: string }], { folder: string; state: string; project?: string } | null>;
+  'project:new': I<[{ from?: string; name?: string; location?: string; folders?: string[]; urls?: string[]; git?: boolean } & NewProjectSetup], Result<{ id: string; problems?: string[] }>>;
+  'project:settings-get': I<[{ id: string }], Result<ProjectSettings>>;
+  'project:settings': I<[{ id: string; name?: string; local?: string[] }], Result<{ id: string }>>;
+  'project:profile-new': I<[{ id: string; name?: string }], Result<ProjectProfiles>>;
+  'project:profile-add': I<[{ id: string; profile: string }], Result<ProjectProfiles>>;
+  'project:profile-remove': I<[{ id: string; profile: string }], Result<ProjectProfiles>>;
+  'project:repo-add': I<[{ id: string; folder?: string }], Result<Partial<Repos>>>;
+  'project:repo-clone': I<[{ id: string; url: string }], Result<Repos>>;
+  'project:repo-default': I<[{ id: string; folder: string }], Result<Repos>>;
+  'project:repo-remove': I<[{ id: string; folder: string }], Result<Repos>>;
+  'project:show-former': I<[{ id: string }]>;
+  'project:agent-add': I<[{ id: string; agent: string }], Result<ProjectAgents>>;
+  'project:agent-default': I<[{ id: string; agent: string | null }], Result<ProjectAgents>>;
+  'project:agent-remove': I<[{ id: string; agent: string }], Result<ProjectAgents>>;
+  'project:close-tasks': I<[{ id: string }]>;
+  'project:move-all': I<[{ id: string; to?: number | null; terminals: TerminalContents }]>;
+  'project:show-data': I<[{ id: string }]>;
+  'project:delete': I<[{ id: string }], Result<{ id: string }>>;
+  'project:delete-merged': I<[{ id: string }]>;
+  'accounts:list': I<[], AccountsInfo>;
+  'account:delete': I<[{ id: string }], Result<AccountsInfo, string | null>>;
+  'account:signin': I<[{ id?: string | null; agent: string; key: string }], Result<SignedIn, string | null>>; // null: cancelled
+  'account:signin-cancel': I<[{ key: string }]>;
+  'profiles:list': I<[], Profiles>;
+  'profiles:new': I<[{ name: string }], Result<Profiles & { id: string }>>;
+  'profiles:rename': I<[{ profile: string; name: string }], Result<Profiles & { id: string }>>;
+  'profiles:describe': I<[{ profile: string; description: string }], Result<Profiles & { id: string }>>;
+  'profiles:avatar': I<[{ profile: string; avatar: string }], Result<Profiles & { id: string }>>;
+  'profiles:login': I<[{ profile: string; user?: string; password?: string }], Result<Profiles & { id: string }>>;
+  'profiles:master': I<[{ profile: string }], Result | undefined>;
+  'profiles:delete': I<[{ profile: string }], Result<Profiles, string | null>>;
+  'task:move': I<[{ key: string; to?: number | null; terminals: TerminalContents }]>;
+  'task:drop': I<[{ key: string; index: number; terminals: TerminalContents }]>;
+  'task:drag-out': I<[{ key: string; terminals: TerminalContents }]>;
+  'task:show': I<[key: string], { error: string } | void>; // { error }: no such task (ipc/tasks.ts, taskAt)
+  'task:new': I<[{ project?: string }?]>;
+  'task:close': I<[key: string]>;
+  'task:delete': I<[key: string]>;
+  'task:delete-closed': I<[{ project: string; n: number }]>;
+  'task:rename': I<[{ key: string; name: string }], Result<{ name: string; branch: string | null }>>;
+  'task:add-repo': I<[{ key: string; repo: string }]>;
+  'task:remove-repo': I<[{ key: string; repo: string }]>;
+  'task:show-folder': I<[key: string]>;
+  'app:quit': I<[]>;
+  'voice:get': I<[key: string], Voice | null>;
+  'voice:record': I<[{ task: string; on: boolean }], Voice>;
+  'agents:list': I<[{ check?: boolean; details?: boolean; cached?: boolean }?], { list: AgentInfo[]; home: string } | { list: null }>; // null: not looked for yet (cached)
+  'agents:install': I<[{ id: string }], Result<{ code: number; installed: boolean; log: string }>>; // log: the whole output (the pieces streamed may still be on their way)
+  'profile:close': I<[OnProfile]>;
+  'profile:open': I<[OnProfile]>;
+  'profile:delete': I<[OnProfile]>;
+  'profile:master': I<[OnProfile]>;
+  'profile:refresh': I<[OnProfile]>;
+  'views:hidden': I<[hidden: boolean, opts?: { snapshots?: boolean }], Record<string, string> | undefined>;
+  'layout:load': I<[OnTask], unknown>; // the grid as the window saved it (layout:save)
+  'terminal:open': I<[OnTask & { agent?: string; own?: boolean }], Result<{ id: number } | { none: true }>>;
+  'terminal:show': I<[OnTask & { id: number }]>;
+  'terminal:close': I<[OnTask & { id: number }]>;
+  'agent:new-conversation': I<[OnTask & { id: number }]>;
+  'agent:hand-over': I<[OnTask & { id: number; agent: string }], Result<{ id: number }>>;
+  'tab:new': I<[OnProfile & { url?: string }], string | { error: string }>; // the new tab's id
+  'tab:close': I<[OnTab & { focus?: boolean }]>;
+  'tab:activate': I<[OnTab & { focus?: boolean }]>;
+  'tab:focus': I<[OnTab]>;
+  'tab:reopen': I<[OnProfile]>;
+  'tab:navigate': I<[OnTab & { url: string }]>;
+  'tab:back': I<[OnTab]>;
+  'tab:forward': I<[OnTab]>;
+  'tab:reload': I<[OnTab & { ignoreCache?: boolean }]>;
+  'tab:dialog': I<[OnTab & { dialog: number; ok: boolean }]>;
+  'tab:devtools': I<[OnTab]>;
+  'tab:zoom': I<[OnTab & { dir: number }]>;
+  'zoom:get': I<[], number>;
+  'zoom:ui': I<[dir: number]>;
+  'language:get': I<[], LanguageInfo>;
+  'language:set': I<[code: string], Result<{ language: string }>>;
+  'theme:set': I<[theme: Theme]>;
+  'bar:set': I<[bar: Bar]>;
+  'keys:set': I<[{ id: string; code: string }], Result<{ keys: Shortcut[] }>>;
+  'pick:start': I<[{ profile: string }], Result | undefined>;
+  'pick:cancel': I<[{ profile: string }]>;
+  // A master's window (master.ts).
+  'master:go': I<[url: string]>;
+  'master:back': I<[]>;
+  'master:forward': I<[]>;
+  'master:reload': I<[]>;
+}
+
+// ipcRenderer.send / ipcMain.on: what is sent, no answer.
+export interface Send {
+  'pty:in': { task: string; data: string };
+  'pty:resize': { task: string; cols: number; rows: number };
+  'layout': { task: string | null; rects: Grid };
+  'layout:save': { task: string | null; layout: unknown };
+  'ask:answer': { id: number; answer: string };
+  'agent:chosen': { task: string | null; id: string | null };
+  'keys:zone': string;
+  'settings:open': SettingsAt;
+  'settings:close': void; // its page has saved what was typed
+  'settings:ready': void; // its page is filled: the window is shown
+}
+
+// webContents.send (AppWindow.send) / the window's kulisa.on: what the main process tells a window.
+export interface Events {
+  'projects': ProjectsInfo;
+  'state': Profile[];
+  'closed-profiles': ClosedProfile[];
+  'terminals': Terminals;
+  'terminals:restore': TerminalContents;
+  'terminals:gone': string[];
+  'terminal:focus': void;
+  'pty:out': { task: string; data: string };
+  'grid:closing': { dir: number; task?: string; pics: Record<string, string> | null };
+  'tasks:closed': string[];
+  'zoom': number;
+  'theme': string;
+  'bar': Bar;
+  'language': LanguageInfo;
+  'keys': Shortcut[];
+  'ask': Question & { id: number };
+  'command': { id: string; n?: number; profile: string | null; tab: string | null; task: string | null; page: boolean };
+  'agent': { task: string; profile: string; caption: string | null; sticky?: boolean };
+  'agent:choose': { task: string; selected: string | null };
+  'agents:install-log': string;
+  'handover:read': { task: string; id: number; part: number; parts: number };
+  'voice': { task: string; voice: Voice | null };
+  'project:new': void;
+  'master:url': string;
+  'settings:show': SettingsAt;
+  'settings:closing': void; // asked to close (its ×): its page saves, then closes it
+  'settings:changed': void; // the profiles changed elsewhere (a tasks' window, the agent): its lists read again
+  'window:blur': void; // a tasks' window left (another window, another app): its menus close (lib/cover.ts)
+}
+
+// A message's argument after its channel: none for a `void` one.
+export type Arg<T> = [T] extends [void] ? [] : [T];

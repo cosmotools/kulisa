@@ -7,7 +7,7 @@
 //                            the default first); color: the one it has while its favicon gives none (docs/tasks.md,
 //                            Projects); agents: the agents' accounts its tasks run, the default (+'s) first
 //   projects/<id>/
-//     tasks.json             the project's tasks: { next, current, list: [{ n, name, branch, offset, folder,
+//     tasks.json             the project's tasks: { next, list: [{ n, name, branch, offset, folder,
 //                            copies: [{ repo, worktree, branch, base, folder }], home, closed, closedAt }] }; one
 //                            without copies works in a folder of the project (tasks.md)
 //     <n>/                   a task (TaskStore): profiles.json (what it has of its project's profiles: folder,
@@ -22,7 +22,7 @@
 // Nothing goes into the project's own folder: sign-ins must not end up in its git.
 import fs from 'fs';
 import path from 'path';
-import { slugOf } from './names.ts';
+import { slugOf } from '../shared/names.ts';
 
 // Muted, to sit on the dark window; a new project takes the first one no project has (its favicon's own hue, in their
 // lightness and chroma, replaces it in the window: renderer/lib/project-color.ts).
@@ -45,11 +45,12 @@ interface TaskEntry {
   closed?: boolean; closedAt?: number; merged?: boolean;
   about?: string; // the human's first prompt's first line, until it is named (Task.noteAbout)
 }
-interface TasksFile { next: number; current: number | null; list: TaskEntry[] }
-// A window as settings.json keeps it, its projects by id; windows() gives them as projects.
+interface TasksFile { next: number; list: TaskEntry[] }
+// A window as settings.json keeps it: its tasks by key ("<project id>/<n>", tasks.ts) in the bar's order, the shown
+// one (until 2026-10-14 its projects by id, each with every open task of it: such a saved window names no task).
 interface SavedWindow { tabs: string[]; shown: string | null; bounds?: Electron.Rectangle; maximized?: boolean }
-interface WindowState { tabs: ProjectEntry[]; shown: ProjectEntry | null; bounds?: Electron.Rectangle; maximized?: boolean }
-interface Settings { uiZoom?: number; theme?: 'dark' | 'light' | 'system'; bar?: 'top' | 'bottom'; windows?: SavedWindow[] }
+interface Settings { uiZoom?: number; theme?: 'dark' | 'light' | 'system'; bar?: 'top' | 'bottom'; language?: string; keys?: Record<string, string>; windows?: SavedWindow[];
+  settingsWindow?: Electron.Rectangle } // where Settings' window was (settings-window.ts)
 // A profile as a task keeps it in profiles.json (project-profiles.ts).
 interface TaskProfile { folder: string; id: string; zoom?: Record<string, number>; closed?: boolean }
 // A task's agents (tasks.ts): the one it was made with (opened when its island has never had a terminal), and every
@@ -101,18 +102,13 @@ class Store {
     writeJSON(this.projectsFile, list);
     return list[i];
   }
-  // The windows open last: [{ tabs: [project], shown: project or null, bounds, maximized }], each with its project
-  // tabs in order; none at first start.
-  windows(): WindowState[] {
-    const list = this.projects(), byId = (id: string | null) => list.find((p) => p.id === id) || null;
-    return (this.settings().windows || []).map((w) => ({ ...w, tabs: w.tabs.map(byId).filter((p) => !!p), shown: byId(w.shown) }));
-  }
-  // windows: [{ tabs: [id], shown: id or null, bounds, maximized }].
+  // The windows open last, each with its tasks' keys in order; none at first start.
+  windows(): SavedWindow[] { return this.settings().windows || []; }
   saveWindows(windows: SavedWindow[]) { this.saveSettings({ ...this.settings(), windows }); }
 
   // A project's tasks (tasks.json) and each one's data.
   tasksOf(p: { id: string }): TasksFile {
-    return readJSON(path.join(this.dir, 'projects', p.id, 'tasks.json')) || { next: 1, current: null, list: [] };
+    return readJSON(path.join(this.dir, 'projects', p.id, 'tasks.json')) || { next: 1, list: [] };
   }
   saveTasksOf(p: { id: string }, w: TasksFile) { writeJSON(path.join(this.dirOf(p), 'tasks.json'), w); }
   taskOf(p: { id: string }, n: number) { return new TaskStore(path.join(this.dir, 'projects', p.id, String(n)), this); }
@@ -120,8 +116,8 @@ class Store {
   // folder. Its profiles' sessions may still be open: what cannot go now goes at the next start.
   removeProject(p: ProjectEntry) {
     writeJSON(this.projectsFile, this.projects().filter((x) => x.id !== p.id));
-    this.saveWindows(this.windows().map((w) => ({ ...w, tabs: w.tabs.map((x) => x.id).filter((id) => id !== p.id),
-      shown: w.shown && w.shown.id !== p.id ? w.shown.id : null })));
+    const its = (key: string) => key.startsWith(`${p.id}/`);
+    this.saveWindows(this.windows().map((w) => ({ ...w, tabs: w.tabs.filter((key) => !its(key)), shown: w.shown && !its(w.shown) ? w.shown : null })));
     const dir = path.join(this.dir, 'projects', p.id);
     this.markDeleted(dir);
     try { fs.rmSync(dir, { recursive: true, force: true }); } catch (e) { console.warn('[store]', (e as Error).message); }
@@ -219,4 +215,4 @@ function writeFileAtomic(file: string, data: string | Uint8Array, options?: { mo
 }
 
 export { Store, copyProfile, writeFileAtomic, SESSION_COOKIES_FILE, PROJECT_COLORS };
-export type { TaskStore, ProjectEntry, TaskEntry, Copy, WindowState, TaskProfile, TasksFile, Conversation };
+export type { TaskStore, ProjectEntry, TaskEntry, Copy, TaskProfile, TasksFile, Conversation };

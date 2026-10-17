@@ -17,8 +17,9 @@
 //   resume(saved)            arguments that continue a conversation (saved: as agent.json keeps it), or nothing
 //   dirs(folders)            the task's other folders (its copies of the project's other repositories): { args, env }
 //                            that give them to it; without, it learns of them from the MCP server's instructions
-//   addDir(folder)           what is typed into its prompt when the task gets a folder while it runs (the human sends
-//                            it); without, a line saying so
+//   addDir                   how it gets a folder the task gets while it runs, sent by Kulisa even in its turn (never
+//                            while it waits for the human): { command(folder), confirm: the words of the question it
+//                            asks then, answered with its first choice }; without, a line saying so after its turn
 //   trust                    its trust of a folder (it asks the human once per folder: may it run there), kept in its
 //                            config: has(where, folder), set(where, folder) (false: not set); where: { configDir, transcript (a
 //                            conversation's, to find its config without an account) }. The rule is Kulisa's, the same
@@ -46,8 +47,9 @@
 //   voice                    dictation, when the agent has its own (the window's microphone button; none without):
 //                            key, repeat  what is typed into its terminal again and again while it records, every
 //                                  repeat ms, as a held key repeats (a terminal tells no key's release)
-//                            languages  the languages it understands (codes)
-//                            language(saved), setLanguage(saved, code)  the one it uses; saved: its conversation
+//   language                 its own language setting, which Kulisa's one language (☰ → Language) is written into,
+//                            in every account of it (app.ts, setLanguage; tasks.ts, at its start): languages, the
+//                            codes it takes; set(dir, code), into an account's config folder
 import type { Conversation } from '../transcripts.ts';
 
 // Kulisa's MCP tools that keep the agent's own approval (the author, 2026-10-12; docs/profiles.md, The agent's tools):
@@ -74,7 +76,7 @@ interface Agent {
   args?: (ctx: ArgsContext) => string[];
   resume?: false | ((saved: Saved) => string[] | false | null | undefined | '');
   dirs?: (folders: string[]) => { args: string[]; env?: Record<string, string> };
-  addDir?: (folder: string) => string;
+  addDir?: { command: (folder: string) => string; confirm?: string };
   trust?: { has: (where: Where, folder: string) => boolean; set: (where: Where, folder: string) => boolean };
   forget?: (ctx: ForgetContext) => boolean;
   conversation?: (transcript: string) => Conversation;
@@ -83,10 +85,8 @@ interface Agent {
   prompt?: (text: string) => string[];
   skills?: string;
   config?: { env: string; home: () => string; login: () => string[]; status: string[]; email: (out: string) => string | null; logout: string[] };
-  voice?: {
-    key: string; repeat: number; note?: string; languages: string[];
-    language: (saved: Saved) => string; setLanguage: (saved: Saved, code: string) => { language?: string; error?: string };
-  };
+  voice?: { key: string; repeat: number };
+  language?: { languages: string[]; set: (dir: string, code: string) => { error?: string } };
   shell?: { command: string; args?: string[] };
 }
 
@@ -103,8 +103,8 @@ const hookSeconds = (e: HookEvent) => (e === 'session-end' ? 1 : e === 'interrup
 const hookCommand = (e: HookEvent) => `curl -sf --max-time ${hookSeconds(e)} --data-binary @- "$KULISA_URL/hooks/${e}" || true`;
 
 // What Kulisa does with an agent beyond starting it, each an entry's field: an agent has it or says why not (lacks).
-const CAPABILITIES = ['config', 'hooks', 'skills', 'resume', 'prompt', 'dirs', 'addDir', 'trust', 'localFiles', 'conversation', 'forget', 'voice'] as const;
+const CAPABILITIES = ['config', 'hooks', 'skills', 'resume', 'prompt', 'dirs', 'addDir', 'trust', 'localFiles', 'conversation', 'forget', 'voice', 'language'] as const;
 type Capability = typeof CAPABILITIES[number];
 
-export type { Agent, Found, Saved, Where, ForgetContext, Hook, HookEvent };
+export type { Agent, Found, Where, ForgetContext, Hook, HookEvent };
 export { KULISA_ASKS, CAPABILITIES, hookSeconds, hookCommand };

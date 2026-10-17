@@ -1,9 +1,9 @@
 // The window: the terminal, the app icon, the top bar, screenshots.
-import { nativeTheme } from 'electron';
+import { Menu, nativeTheme } from 'electron';
 import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
-import { assert, root, userData, sleep, waitFor, menuRows, choose, manageProfiles, menuOpen, rightClick, box, viewOn, closeMenu, click, noNode } from './helpers.ts';
+import { closeSettings, canShoot, NO_SHOT, shot, assert, root, userData, sleep, waitFor, menuRows, choose, menuOpen, rightClick, box, viewOn, closeMenu, click, noNode, press } from './helpers.ts';
 import forge from '../forge.config.ts';
 import type { Test } from './run.ts';
 import type { TaskTerminal } from '../src/main/tasks.ts';
@@ -29,38 +29,112 @@ export default (test: Test) => {
       return { above: r.top - h.top, below: h.bottom - r.bottom }; })()`);
     assert.ok(Math.abs(above - below) <= 1, `the rows in the middle: ${above} above, ${below} below`);
   });
-  test("terminal: dictation where the agent has its own: its language and a microphone in the header; held, or from a click to the next, the agent's key is held; another language chosen there", async ({ ui, termText }) => {
-    await waitFor(() => ui(`!document.querySelector('.dictation').hidden`));
-    assert.equal(await ui(`document.querySelector('.dictation .lang').textContent`), 'EN');
-    assert.equal(await ui(`document.querySelector('.dictation .lang').title`), 'Dictation in English: the language you speak. it answers in it too',
-      "what the agent's entry says of it");
+  test("terminal: dictation where the agent has its own: the right Ctrl held anywhere records, let go stops, pressed once it records until the next; the microphone at the end of the terminals' row shows it and does the same by the mouse; with a shell in front the agent comes to the front; the key is the human's to change in Keyboard Shortcuts", async ({ shell, ui, termText }) => {
+    await waitFor(() => ui(`!document.querySelector('.dictation .mic').disabled`));
+    // At the row's end, after + and the task's repositories, inside the row: no row of its own.
+    const { row, add, mic } = await ui(`(() => { const r = (s) => document.querySelector(s).getBoundingClientRect().toJSON();
+      return { row: r('.termtabs'), add: r('#termAdd'), mic: r('.dictation .mic') }; })()`);
+    assert.ok(mic.left > add.right && row.right - mic.right <= 12, `at the row's end: ${JSON.stringify({ row, add, mic })}`);
+    assert.ok(mic.top >= row.top && mic.bottom <= row.bottom, 'in the row');
+    const mac = process.platform === 'darwin', name = mac ? 'Right ⌘' : 'Right Ctrl'; // Apple keyboards have no right Ctrl
+    assert.equal(await ui(`document.querySelector('.dictation .mic').title`), `Speak to the agent in English: hold ${name} anywhere, or press it once and again; or this button the same way`,
+      "in Kulisa's language (☰ → Language), with the key");
     const keys = async () => ((await termText()).match(/<v>/g) || []).length;
-    const press = (type: string) => ui(`document.querySelector('.dictation .mic').dispatchEvent(new PointerEvent('${type}', { bubbles: true, button: 0, pointerId: 1 }))`);
     const lit = () => ui(`document.querySelector('.dictation .mic').ariaPressed`);
     const still = async () => { const n = await keys(); await sleep(300); return n === await keys(); }; // that no more come
-    // A click starts: the key repeats, as a held one does, and the button is lit until the next click.
+    const recording = async (n: number, what = '') => { try { await waitFor(async () => (await keys()) >= n + 5); } catch (e) { throw new Error(`not recording: ${what}`, { cause: e }); } assert.equal(await lit(), 'true', what); }; // repeated while it records
+    const stopped = async (what = '') => { try { await waitFor(still, 3000); } catch (e) { throw new Error(`not stopped: ${what}`, { cause: e }); } assert.equal(await lit(), 'false', what); }; // the keys sent before still echo a moment
+    // The key in a profile's page, where every other key is the site's: held, it records until let go, and the keyboard
+    // stays in the page; its repeats while held are no presses.
+    const page = shell.profiles.values().next().value.get().wc;
+    const ctrl = (wc: Electron.WebContents, type: 'keyDown' | 'keyUp', repeat = false) => wc.sendInputEvent({ type, keyCode: mac ? 'Meta' : 'Control', modifiers: [mac ? 'meta' : 'control', 'right', ...(repeat ? ['isautorepeat' as const] : [])] });
+    page.focus();
+    await waitFor(() => page.isFocused());
     let n = await keys();
-    await press('pointerdown'); await press('pointerup');
-    await waitFor(async () => (await keys()) >= n + 5); // repeated while it records
+    ctrl(page, 'keyDown');
+    await recording(n);
+    ctrl(page, 'keyDown', true);
+    await sleep(600); // held longer than a press (400 ms, HOLD in tasks.ts): that is what makes it a hold
     assert.equal(await lit(), 'true');
-    await press('pointerdown'); await press('pointerup');
-    await waitFor(still, 3000); // stopped by the second click (the keys sent before it still echo a moment)
-    assert.equal(await lit(), 'false');
-    // Held: it records until let go.
+    ctrl(page, 'keyUp');
+    await stopped('held in the page');
+    assert.ok(page.isFocused(), 'the keyboard stays where it was');
+    // Pressed once: until the next press. The left Ctrl is the usual Ctrl.
     n = await keys();
-    await press('pointerdown');
-    await sleep(600); // held longer than a click (400 ms, lib/voice.ts): that is what makes it a hold
+    page.sendInputEvent({ type: 'keyDown', keyCode: mac ? 'Meta' : 'Control', modifiers: [mac ? 'meta' : 'control', 'left'] }); page.sendInputEvent({ type: 'keyUp', keyCode: mac ? 'Meta' : 'Control', modifiers: [mac ? 'meta' : 'control', 'left'] });
+    await sleep(200);
+    assert.equal(await keys(), n);
+    ctrl(page, 'keyDown'); ctrl(page, 'keyUp');
+    await recording(n);
+    await sleep(500);
+    assert.equal(await lit(), 'true', 'still on');
+    ctrl(page, 'keyDown'); ctrl(page, 'keyUp');
+    await stopped('tap in the page');
+    // In the window too (the terminal has the keyboard); the window losing the keyboard lets go.
+    const win = shell.win.webContents;
+    await ui(`document.querySelector('.term:not([hidden]) .xterm-helper-textarea').focus()`);
+    n = await keys();
+    ctrl(win, 'keyDown');
+    await recording(n);
+    shell.win.emit('blur');
+    await stopped('blur');
+    // The button does the same by the mouse: a click starts, the next stops; held, until let go.
+    const mouse = (type: string) => ui(`document.querySelector('.dictation .mic').dispatchEvent(new PointerEvent('${type}', { bubbles: true, button: 0, pointerId: 1 }))`);
+    n = await keys();
+    await mouse('pointerdown'); await mouse('pointerup');
+    await recording(n);
+    assert.equal(await ui(`document.querySelector('.dictation .mic').title`), `Recording: let go of ${name}, or click to stop`);
+    await mouse('pointerdown'); await mouse('pointerup');
+    await stopped('click');
+    n = await keys();
+    await mouse('pointerdown');
+    await sleep(600);
     assert.ok((await keys()) >= n + 5, 'repeated while held');
-    assert.equal(await lit(), 'true');
-    await press('pointerup');
-    await waitFor(still, 3000); // held, then let go
-    assert.equal(await lit(), 'false');
+    await mouse('pointerup');
+    await stopped('button held');
     assert.equal(await ui(`document.activeElement.closest('.xterm') !== null`), true, 'the keyboard back in the terminal, to send it');
-    // The languages it understands; another one chosen is the agent's.
-    await ui(`document.querySelector('.dictation .lang').click()`);
-    assert.equal((await menuRows(ui))[0], '# Dictation language');
-    await choose(ui, 'русский');
-    await waitFor(async () => (await ui(`document.querySelector('.dictation .lang').textContent`)) === 'RU');
+    // With a shell in front (the button disabled: the dictation is the agent's), the key brings the agent the prompt
+    // goes to in front, and records.
+    await ui(`document.getElementById('termAdd').click()`); await choose(ui, 'Terminal');
+    await waitFor(() => ui(`document.querySelector('.dictation .mic').disabled`));
+    n = await keys();
+    ctrl(page, 'keyDown'); ctrl(page, 'keyUp');
+    await recording(n);
+    assert.equal(await ui(`document.querySelector('.termtab.active .name').textContent`), 'bash');
+    ctrl(page, 'keyDown'); ctrl(page, 'keyUp');
+    await stopped('shell in front');
+    const human = shell.task.terminal('Terminal') as TaskTerminal;
+    await ui(`document.querySelector('.termtab[data-id="${human.id}"] .close').click()`);
+    await waitFor(() => shell.task.terminals.size === 1);
+    // The human's own key instead (Keyboard Shortcuts: Change, then the key): one that types is refused, saying so; the
+    // row, the tooltip and settings.json have the new one, which works at once; the old one is the usual key again.
+    await ui(`document.getElementById('windowMenu').click()`); await choose(ui, 'Keyboard Shortcuts');
+    await waitFor(() => ui(`(document.getElementById('shortcuts')?.dataset.state === 'open')`));
+    const hold = `[...document.querySelectorAll('#shortcuts dt')].find((d) => d.textContent === 'Speak to the agent: hold, or press once and again').nextElementSibling`;
+    const shown = () => ui(`[...${hold}.querySelectorAll('kbd')].map((k) => k.textContent)`);
+    assert.deepEqual(await shown(), [name]);
+    await ui(`${hold}.querySelector('.change').click()`);
+    assert.deepEqual(await shown(), ['Press a key…']);
+    press(win, 'A');
+    await waitFor(() => ui(`!!document.querySelector('#shortcuts .error')`));
+    assert.match(await ui(`document.querySelector('#shortcuts .error').textContent`), /^Press a key that types nothing/);
+    assert.deepEqual(await shown(), [name]);
+    await ui(`${hold}.querySelector('.change').click()`);
+    press(win, 'F9');
+    await waitFor(async () => JSON.stringify(await shown()) === '["F9"]');
+    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(userData, 'settings.json'), 'utf8')).keys, { 'voice.hold': 'F9' });
+    await ui(`document.querySelector('#shortcuts .x').click()`);
+    await waitFor(() => ui(`document.querySelector('.dictation .mic').title.includes('hold F9 anywhere')`));
+    n = await keys();
+    page.focus();
+    await waitFor(() => page.isFocused());
+    press(page, 'F9');
+    await recording(n);
+    press(page, 'F9');
+    await stopped('F9');
+    ctrl(page, 'keyDown'); ctrl(page, 'keyUp');
+    await sleep(200);
+    assert.equal(await lit(), 'false', `the ${name} is a modifier again`);
   });
   test("the island: its terminals in tabs over them, one shown, the row apart; + opens the human's shell in front; the agent runs what keeps running in a shell of its own, behind, reads it, stops it, closes it, never in an agent's tab; × and a shell's exit close one", async ({ shell, ui, call, instructions }) => {
     const task = shell.task;
@@ -80,8 +154,10 @@ export default (test: Test) => {
     await waitFor(async () => JSON.stringify(await tabs()) === '["bash","Terminal *"]');
     const human = task.terminal('Terminal') as TaskTerminal;
     assert.equal(human.by, 'human');
-    // A shell in front: no dictation (it is the shown agent's); a pick still goes to the agent shown last.
-    await waitFor(() => ui(`document.querySelector('.dictation').hidden`));
+    // A shell in front: no dictation (it is the shown agent's), the bar kept, its microphone disabled saying why; a pick
+    // still goes to the agent shown last.
+    await waitFor(() => ui(`document.querySelector('.dictation .mic').disabled`));
+    assert.equal(await ui(`document.querySelector('.dictation .mic').title`), "Dictation is the agent's: a shell is in front");
     assert.equal(task.promptTarget().agent.cli, 'bash');
     await waitFor(async () => (await shown()) === 1 && ui(`window.__term === window.__term && document.activeElement.closest('.term') !== null`));
 
@@ -102,6 +178,15 @@ export default (test: Test) => {
       await assert.rejects(call(tool, { name: 'bash', ...args }), /"bash" is an agent's tab, not a terminal to run in: read what it did in task_history/);
     }
     assert.deepEqual(await tabs(), ['bash', 'Terminal *', 'dev server']);
+    // More than fit (36 terminals): the row scrolls, its end faded; each tab its name whole; + and the microphone at its
+    // end stay in the island: the row ran past the island, cut off there with them, then its tabs shrank to no name
+    // (2026-10-15).
+    await ui(`(() => { const n = document.querySelector('.termtabs nav'); for (let i = 0; i < 40; i++) n.append(n.querySelector('.termtab').cloneNode(true)); })()`);
+    await waitFor(() => ui(`document.querySelector('.termtabs nav').matches('.past-start, .past-end')`));
+    assert.deepEqual(await ui(`(() => { const n = document.querySelector('.termtabs nav'), island = n.closest('.dv-groupview').getBoundingClientRect(), r = (q) => document.querySelector(q).getBoundingClientRect();
+      return [n.scrollWidth > n.clientWidth, [...n.querySelectorAll('.name')].every((x) => x.scrollWidth <= x.clientWidth), r('#termAdd').right <= island.right, r('.termtabs .dictation').right <= island.right]; })()`),
+      [true, true, true, true]);
+    await ui(`document.querySelectorAll('.termtabs .termtab').forEach((t, i) => { if (i >= 3) t.remove(); })`);
     // Stopped: Ctrl+C, the shell stays; the same name again types into it.
     await call('terminal_stop', { name: 'dev server' });
     await waitFor(async () => (await call('terminal_read', { name: 'dev server', lines: 3 })).text.includes('^C'));
@@ -126,7 +211,7 @@ export default (test: Test) => {
     await ui(`document.querySelector('.termtab[data-id="${human.id}"] .close').click()`);
     await waitFor(async () => task.terminals.size === 1 && JSON.stringify(await tabs()) === '["bash *"]');
     assert.equal(task.promptTarget().pty, shell.pty, "the agent's in front again, still running");
-    await waitFor(() => ui(`!document.querySelector('.dictation').hidden`));
+    await waitFor(() => ui(`!document.querySelector('.dictation .mic').disabled`));
   });
   test("the window's page is sandboxed (no Node in it), its bridge to the main process works", async ({ shell, ui }) => {
     assert.equal(await noNode(shell.win.webContents), true);
@@ -162,18 +247,32 @@ export default (test: Test) => {
     })()`);
     assert.deepEqual(r, { ids: true, drawnInPlace: 0, unknown: [], unnamed: [], lines: ['none', true], sprite: 0 });
   });
-  test('the app icon: in the top bar, and every file the window and the installers use', async ({ ui }) => {
+  test('the app icon: in the top bar (not on macOS: the Dock\'s), and every file the window and the installers use', async ({ ui }) => {
     const img = await ui(`(() => { const i = document.querySelector('#topbar svg.logo'); const r = i?.getBoundingClientRect(); return i && { w: r.width, h: r.height, drawn: !!i.querySelector('use[href="#i-logo"]'),
       drape: getComputedStyle(i).color, project: getComputedStyle(document.documentElement).getPropertyValue('--project') }; })()`);
-    assert.ok(img && img.drawn && img.w >= 16 && img.h >= 16, JSON.stringify(img));
-    assert.equal(img.drape, 'rgb(74, 123, 208)', "the curtain is in the project's color (#4a7bd0, the first one)");
+    if (process.platform === 'darwin') assert.equal(img, null, 'macOS apps show their icon in the Dock, not by the window buttons');
+    else {
+      assert.ok(img && img.drawn && img.w >= 16 && img.h >= 16, JSON.stringify(img));
+      assert.equal(img.drape, 'rgb(74, 123, 208)', "the curtain is in the project's color (#4a7bd0, the first one)");
+    }
     const files = [forge.packagerConfig.icon + '.png', forge.packagerConfig.icon + '.ico', forge.packagerConfig.icon + '.icns',
       ...(forge.makers as { config?: { setupIcon?: string; icon?: string; options?: { icon?: string } } }[]).flatMap((m) => [m.config?.setupIcon, m.config?.icon, m.config?.options?.icon]).filter(Boolean)];
     for (const f of files) assert.ok(fs.statSync(path.join(import.meta.dirname, '..', f)).size > 1000, f);
     assert.equal(files.length, 7); // the .rpm's too
   });
-  test('one row on top: no menu bar, OS window buttons over the top bar', async ({ shell, ui }) => {
-    assert.equal(shell.win.isMenuBarVisible(), false);
+  test('one row on top: no menu bar, OS window buttons over the top bar; on macOS the system\'s, Settings… (⌘,) in it', async (ctx) => {
+    const { shell, ui } = ctx;
+    // macOS: the menu bar is the system's, at the screen's top, always there: Kulisa's own there (app.ts), Settings… in
+    // its app menu as Mac apps have it.
+    if (process.platform === 'darwin') {
+      const menu = Menu.getApplicationMenu();
+      assert.deepEqual(menu.items.map((i) => i.role), ['appmenu', 'editmenu', 'windowmenu']);
+      const item = menu.items[0].submenu.items.find((i) => i.label === 'Settings…');
+      assert.equal(item?.accelerator, 'Command+,');
+      item.click(undefined, shell.win);
+      await waitFor(() => ctx.sui(`!!document.getElementById('pjlist')`));
+      await closeSettings(ctx);
+    } else assert.equal(shell.win.isMenuBarVisible(), false);
     assert.equal(await ui(`navigator.windowControlsOverlay.visible`), true);
     const bar = await ui(`(() => { const r = document.getElementById('topbar').getBoundingClientRect(); return { top: r.top, height: r.height, right: r.right }; })()`);
     const controls = await ui(`(() => { const r = navigator.windowControlsOverlay.getTitlebarAreaRect(); return { x: r.x, width: r.width }; })()`);
@@ -189,19 +288,15 @@ export default (test: Test) => {
   });
   test('UI text is not selectable by dragging, as in a desktop app; fields are; the arrow over buttons', async ({ ui }) => {
     const sel = await ui(`(() => { const us = (q) => getComputedStyle(document.querySelector(q)).userSelect;
-      return { button: us('#newTask'), name: us('.plabel .name'), tab: us('.tab .title'), header: us('.ptab'), field: us('.addr') }; })()`);
+      return { button: us('#newTask'), name: us('.tasktab .name'), tab: us('.tab .title'), header: us('.ptab'), field: us('.addr') }; })()`);
     assert.deepEqual(sel, { button: 'none', name: 'none', tab: 'none', header: 'none', field: 'text' });
     // The arrow over buttons and tabs, as in Chrome, not a web page's hand.
-    assert.deepEqual(await ui(`['#newTask', '.plabel', '.tab', '.tabs .add', '.bar .back', '.ptab .close', '#windowMenu'].map((q) => getComputedStyle(document.querySelector(q)).cursor)`),
+    assert.deepEqual(await ui(`['#newTask', '.tasktab', '.tab', '.tabs .add', '.bar .back', '.ptab .close', '#windowMenu'].map((q) => getComputedStyle(document.querySelector(q)).cursor)`),
       ['default', 'default', 'default', 'default', 'default', 'default', 'default']);
   });
-  test('screenshot of the whole window, profile views included', async ({ shell, ui }) => {
-    const view = () => [...shell.profiles.values()][0].get().view.getVisible();
-    await manageProfiles(ui);
-    await waitFor(() => !view());
-    await shell.screenshot(path.join(root, 'editor.png'));
-    await ui(`document.querySelector('#projects .x').click()`);
-    await waitFor(view);
+  test('screenshot of the whole window, profile views included', async ({ shell }) => {
+    if (!canShoot()) return console.log(`      (skipped: ${NO_SHOT})`);
+    await waitFor(() => [...shell.profiles.values()][0].get().view.getVisible());
     const file = path.join(root, 'window.png');
     await shell.screenshot(file);
     const png = fs.readFileSync(file);
@@ -233,18 +328,30 @@ export default (test: Test) => {
     await choose('light', 'light');
     assert.deepEqual(await look(), { shade: 'light', term: LIGHT, scheme: 'light', chosen: ['light'], onAccent: LIGHT });
     assert.equal(await pageDark(), osDark, "a site under test keeps the OS's scheme");
-    await shell.screenshot(path.join(root, 'light.png'));
+    await shot(shell, path.join(root, 'light.png'));
     await choose('system', nativeTheme.shouldUseDarkColors ? 'dark' : 'light'); // the OS's, as the pages'
     assert.equal((await look()).scheme, 'light dark');
     await choose('dark', 'dark');
-    await shell.screenshot(path.join(root, 'dark.png'));
+    await shot(shell, path.join(root, 'dark.png'));
     assert.equal(await pageDark(), osDark);
     await closeMenu(ui);
   });
-  test('the projects\' bar: under the grid by default, over it when chosen in ☰; the grid and its pages take the room left; saved', async ({ shell, ui }) => {
+  test('the tasks\' bar: under the grid by default; in the title bar, after the logo, when Top is chosen in ☰; the grid and its pages take the room left; saved', async ({ shell, ui }) => {
     const id = shell.profiles.keys().next().value;
-    const where = () => ui(`(() => { const r = (id) => document.getElementById(id).getBoundingClientRect(), bar = r('taskbar'), grid = r('dock');
-      return { bar: bar.bottom <= grid.top ? 'top' : bar.top >= grid.bottom ? 'bottom' : 'over the grid', under: bar.top >= r('topbar').bottom,
+    // Where the bar is: in the title bar's row between the logo and Settings (top), or under the grid (bottom).
+    const where = () => ui(`(() => { const r = (q) => document.querySelector(q).getBoundingClientRect(), bar = r('#taskbar'), grid = r('#dock'), top = r('#topbar');
+      const inTitle = bar.top >= top.top && bar.bottom <= top.bottom && bar.left >= (document.querySelector('#topbar .logo') ? r('#topbar .logo').right : top.left) && bar.right <= r('#manageProjects').left;
+      return { bar: inTitle ? 'top' : bar.top >= grid.bottom ? 'bottom' : 'elsewhere', drag: getComputedStyle(document.querySelector('#taskbar .tasktab')).appRegion,
+        above: Math.round(r('.dv-groupview').top - (inTitle ? r('#taskbar .tasktab') : r('#manageProjects')).bottom), // from the title bar's buttons to the panels; from a tab in it, what the bar's 44 px leave under a 36 px tab
+        edge: Math.round(grid.top - top.bottom), // the grid starts at the title bar's edge: it holds the gap itself
+        over: inTitle ? Math.round(r('#taskbar .tasktab').top - top.top) : 8, // from the window's top to a tab: as under it
+        // ☰ a gap from the title bar area's end (the OS buttons, or the window's edge on macOS, where the area starts after them)
+        end: (({ x, width }) => Math.round(x + width - r('#windowMenu').right))(navigator.windowControlsOverlay.getTitlebarAreaRect()),
+        title: Math.round(top.height), tall: Math.round(r('#taskbar .tasktab').height), // the title bar keeps its height, a tab its own
+        below: Math.round(innerHeight - (inTitle ? grid : bar).bottom), between: inTitle ? 8 : Math.round(bar.top - grid.bottom), // the window's rows --gap apart (App.vue)
+        rows: getComputedStyle(document.body).gridTemplateRows.split(' ').map((px, i) => (i === 1 ? 'grid' : Math.round(parseFloat(px)))), // no row but the title bar, the grid and the bar (a tab and its gap from the grid)
+        // The logo, the buttons and the tabs in the middle of its height
+        level: !inTitle || !document.querySelector('#topbar .logo') || Math.abs((r('#topbar .logo').top + r('#topbar .logo').bottom) - (r('#taskbar .tasktab').top + r('#taskbar .tasktab').bottom)) < 2,
         chosen: [...document.querySelectorAll('.menu[data-state="open"] .barrow [data-state="checked"]')].map((b) => b.dataset.bar) }; })()`);
     const saved = () => JSON.parse(fs.readFileSync(path.join(userData, 'settings.json'), 'utf8')).bar;
     assert.equal((await where()).bar, 'bottom');
@@ -253,7 +360,7 @@ export default (test: Test) => {
       await menuRows(ui);
       await ui(`document.querySelector('.menu[data-state="open"] .barrow [data-bar="${bar}"]').click()`);
       await waitFor(async () => (await where()).bar === bar && saved() === bar);
-      assert.deepEqual(await where(), { bar, under: true, chosen: [bar] }, 'under the title bar either way');
+      assert.deepEqual(await where(), { bar, drag: bar === 'top' ? 'no-drag' : 'none', above: bar === 'top' ? 4 : 8, over: bar === 'top' ? 4 : 8, end: 8, title: 44, below: 8, between: 8, edge: 0, rows: bar === 'top' ? [44, 'grid', 0] : [44, 'grid', 36 + 8], level: true, tall: 36, chosen: [bar] }, 'one gap: over what is in the title bar and from it to the panels, from the grid to the bar and under it; in the title bar the tabs do not drag the window');
       assert.equal(await menuOpen(ui), true, 'the menu stays open: the other one can be tried');
       await closeMenu(ui);
       await waitFor(() => viewOn(shell, ui, id), 3000); // the pages follow the grid
@@ -265,8 +372,7 @@ export default (test: Test) => {
     const isOpen = (id: string) => ui(`document.getElementById('${id}')?.dataset.state === 'open'`);
     const fromMenu = async (row: string, at?: string) => { await (at ? rightClick(ui, at) : ui(`document.getElementById('windowMenu').click()`)); await menuRows(ui); await choose(ui, row); };
     const openers = {
-      projects: () => ui(`document.getElementById('manageProjects').click()`),
-      taskrename: () => fromMenu('Rename…', '#tasklist .tasktab .name'),
+      taskrename: () => fromMenu('Rename…', '#projectTabs .tasktab .name'),
       agentpick: async () => { void shell.chooseAgent(shell.task, null); }, // asked when a task's agent is not there
       shortcuts: () => fromMenu('Keyboard Shortcuts'),
     };
@@ -276,8 +382,7 @@ export default (test: Test) => {
       await waitFor(() => isOpen(id), 20000);
       const l = await ui(`(() => { const d = document.getElementById('${id}'); return { id: '${id}', title: !!d.querySelector('header h2'),
         body: !!d.querySelector('.body'), footer: !!d.querySelector('footer'), last: d.querySelector('footer > button:last-child')?.className }; })()`);
-      // A dialog whose parts are saved as they change (a project's page) has no buttons at the bottom.
-      assert.ok(l.title && l.body && (id === 'projects' ? !l.footer : /primary|ok/.test(l.last)), JSON.stringify(l));
+      assert.ok(l.title && l.body && /primary|ok/.test(l.last), JSON.stringify(l));
       await ui(`document.querySelector('${id === 'agentpick' ? '#agentcancel' : `#${id} .x`}').click()`); // the agent's choice: Cancel, no ×
       await waitFor(async () => !(await isOpen(id)));
     }

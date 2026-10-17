@@ -2,13 +2,13 @@
 // process has to know where the keyboard is in this page to know whose a key is; it sends the commands back here, with
 // the profile and tab they act on.
 import { watch } from 'vue';
-import { act, store } from './store';
+import { act, store, toggleNewTab } from './store';
 import { paneOfProfile } from './grid';
 import { shownTerm } from './terminals';
 import { dialog } from './dialogs';
-import { dialogsOpen } from './views';
-import { toggleNewTask } from './menu';
-import type { Profile } from '../types';
+import { dialogsOpen } from './cover';
+import type { Profile } from '../../shared/types';
+import { refused } from '../../shared/result';
 
 let zone = 'window';
 let lastPane: string | null = null; // the profile whose page or pane had the keyboard last: where Ctrl+` goes back to
@@ -31,7 +31,8 @@ watch(dialogsOpen, report); // a dialog opened or closed
 // The folded island: the task's agent; a task with none (its project had no default) leaves the choice to the human,
 // the keyboard on the island's buttons (Terminals.vue), or its + opened.
 const openOwn = async () => {
-  if (!(await act<{ none?: boolean }>('terminal:open', { own: true }))?.none) return;
+  const r = await act('terminal:open', { own: true });
+  if (refused(r) || !('none' in r)) return;
   const first = document.querySelector<HTMLElement>('.launch .launcher');
   if (first) first.focus(); else document.getElementById('termUnfold')?.click();
 };
@@ -42,11 +43,11 @@ interface Command { n?: number; page?: boolean; p?: Profile; tab?: string }
 const run: Record<string, (c: Command) => unknown> = {
   'terminal.focus': () => (!store.terminals.list.length ? openOwn() : zone === 'terminal' && lastPane ? focusPage(lastPane) : shownTerm()?.focus()),
   'terminal.new': () => act('terminal:open'),
-  'task.n': ({ n }) => showTask(document.querySelectorAll('#tasklist .tasktab')[n! - 1]),
+  'task.n': ({ n }) => showTask(document.querySelectorAll('#projectTabs .tasktab')[n! - 1]),
   'task.next': () => stepTask(1),
   'task.previous': () => stepTask(-1),
   'task.new': () => kulisa.invoke('task:new'),
-  'task.menu': () => toggleNewTask(), // as a press on +: again closes it
+  'task.menu': () => toggleNewTab(), // as a press on +: again closes it
   shortcuts: async () => (await dialog('shortcuts')).showShortcuts(),
   'tab.new': ({ p }) => paneOfProfile(p!.id)?.newTab(),
   'tab.close': ({ p, tab, page }) => act('tab:close', { profile: p!.id, tab, focus: page }),
@@ -63,7 +64,7 @@ const run: Record<string, (c: Command) => unknown> = {
   // As a click on Pick: off on an empty tab; again cancels.
   pick: ({ p }) => document.querySelector<HTMLButtonElement>(`.pane[data-profile="${CSS.escape(p!.id)}"] .pick`)?.click(),
 };
-// Every open project's tasks, in the bar's order.
+// The bar's tasks, in its order.
 function stepTask(dir: number) {
   const all = [...document.querySelectorAll<HTMLElement>('#projectTabs .tasktab')];
   const i = all.findIndex((t) => t.dataset.task === store.current);
@@ -75,7 +76,7 @@ function toTab({ p, tab, page }: Command, to: (i: number, n: number) => number) 
 }
 const focusPage = (id: string) => { const p = store.profiles.find((x) => x.id === id); if (p) void act('tab:focus', { profile: id, tab: p.active }); };
 
-kulisa.on<{ id: string; n?: number; profile?: string; tab?: string; task: string; page?: boolean }>('command', ({ id, n, profile, tab, task, page }) => {
+kulisa.on('command', ({ id, n, profile, tab, task, page }) => {
   if (task !== store.current || !run[id]) return; // a key typed as another task was coming
   const p = profile ? store.profiles.find((x) => x.id === profile) : undefined;
   if (profile && (!p || !paneOfProfile(profile))) return;

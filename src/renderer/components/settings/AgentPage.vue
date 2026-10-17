@@ -4,13 +4,15 @@
 // a project is shown. Every agent's details are in the page, the chosen one's shown: a few agents, and an install's
 // row keeps its state as another is looked at.
 import { computed, ref, watch } from 'vue';
-import { CollapsibleContent, CollapsibleRoot, CollapsibleTrigger, ListboxContent, ListboxItem, ListboxRoot } from 'reka-ui';
-import Icon from './Icon.vue';
-import AccountSignIn from './AccountSignIn.vue';
-import RightClickMenu from './menu/RightClickMenu.vue';
-import type { MenuItem } from '../lib/menu';
-import type { Agent, AgentList as List } from '../lib/agents';
-import type { Account, AccountsInfo, SignedIn } from '../types';
+import { ListboxContent, ListboxItem, ListboxRoot } from 'reka-ui';
+import Icon from '../Icon.vue';
+import AccountSignIn from '../AccountSignIn.vue';
+import InstallProgress from '../InstallProgress.vue';
+import RightClickMenu from '../menu/RightClickMenu.vue';
+import type { MenuItem } from '../../lib/menu';
+import type { Agent, AgentList as List } from '../../lib/agents';
+import type { Account, AccountsInfo, SignedIn } from '../../../shared/types';
+import { refused } from '../../../shared/result';
 
 const props = defineProps<{ list: List; chosen?: string; accounts: Account[]; clis: string[] }>();
 const emit = defineEmits<{ accounts: [r: Partial<AccountsInfo>] }>();
@@ -32,9 +34,10 @@ const canSign = (a: Agent) => props.clis.includes(a.id);
 async function remove(id = accountSel.value) {
   if (!id) return;
   error.value = '';
-  const r = await kulisa.invoke<AccountsInfo & { error?: string | null }>('account:delete', { id });
-  if (r.error) error.value = r.error; else emit('accounts', r);
-  if (!r.error && !r.accounts.some((x) => x.id === accountSel.value)) accountSel.value = undefined; // deleted, not kept after a no
+  const r = await kulisa.invoke('account:delete', { id });
+  if (refused(r)) { error.value = r.error ?? ''; return; } // null: the human said no
+  emit('accounts', r);
+  if (!r.accounts.some((x) => x.id === accountSel.value)) accountSel.value = undefined; // deleted, not kept after a no
 }
 const accountMenu = (e: MouseEvent): MenuItem[] | null => {
   const id = (e.target as Element).closest<HTMLElement>('[data-account]')?.dataset.account;
@@ -66,11 +69,12 @@ defineExpose({ newAccount, busy });
             <button class="accountdel icon small" type="button" title="Delete the account (asks first)" aria-label="Delete the account"
               :disabled="!accountSel || !of(a).some((x) => x.id === accountSel)" @click="remove()"><Icon name="i-minus" /></button>
           </div>
+          <div v-if="of(a).length" class="head" aria-hidden="true"><span>Account</span><span>Projects</span></div>
           <RightClickMenu :items="accountMenu">
             <ListboxRoot selection-behavior="replace" v-if="of(a).length" v-model="accountSel" aria-label="Accounts" @keydown.delete="remove()">
               <ListboxContent>
                 <ListboxItem v-for="x in of(a)" :key="x.id" :value="x.id" class="item" :data-account="x.id">
-                  <span class="text"><span class="label">{{ x.email || x.id }}</span><small>{{ projectsOf(x) }}</small></span>
+                  <span class="cell label" :title="x.email || x.id">{{ x.email || x.id }}</span><small class="cell" :title="projectsOf(x)">{{ projectsOf(x) }}</small>
                 </ListboxItem>
               </ListboxContent>
             </ListboxRoot>
@@ -81,11 +85,7 @@ defineExpose({ newAccount, busy });
       </template>
     </section>
     <p v-if="s.looking" class="empty">Looking for agents on this computer…</p>
-    <p class="progress hint">{{ s.progress }}</p>
-    <CollapsibleRoot v-model:open="s.detailsOpen" class="details" :hidden="!s.showDetails" :unmount-on-hide="false">
-      <CollapsibleTrigger class="more"><Icon name="i-down" />Details</CollapsibleTrigger><CollapsibleContent><pre>{{ s.log }}</pre></CollapsibleContent>
-    </CollapsibleRoot>
-    <p class="error">{{ s.error }}</p>
+    <InstallProgress :list />
     <p id="agentpageerror" class="error">{{ error }}</p>
   </div>
 </template>
@@ -97,10 +97,8 @@ defineExpose({ newAccount, busy });
     .installed { display: flex; align-items: center; gap: var(--gap); flex-wrap: wrap; small { color: var(--text-muted); } }
     .where { font-family: "JetBrains Mono", monospace; overflow-wrap: anywhere; &:empty { display: none; } }
     .install-line { margin: 0 0 0 calc(var(--label) + var(--inset)); font-family: "JetBrains Mono", monospace; overflow-wrap: anywhere; &:empty { display: none; } }
-    .site { color: var(--text-muted); &:hover { color: var(--text); } } }
-  :is(.progress, .error) { margin: 0; &:empty { display: none; } }
-  .details[hidden] { display: none; }
-  pre { max-height: 180px; overflow: auto; margin: 6px 0 0; padding: 8px; border-radius: var(--radius); background: var(--window);
-    font: 12px "JetBrains Mono", monospace; white-space: pre-wrap; user-select: text; }
+    .site { color: var(--text-muted); &:hover { color: var(--text); } }
+    .list { --cols: fit-content(50%) minmax(0, 1fr); } } /* an account's email, its projects */
+  :is(.progress, .error) { margin: 0; }
 }
 </style>

@@ -1,17 +1,39 @@
 #!/usr/bin/env bash
-# Run the author's Kulisa from the checkout this script is in (Linux; the author's machine). Used by SKILL.md.
+# Run the author's Kulisa from the checkout this script is in (Linux and macOS). Used by SKILL.md.
 #   kulisa.sh stop     stop it gracefully (SIGINT to the main Electron process: session cookies and tabs get saved)
 #   kulisa.sh check    what a fresh start would find: no Kulisa running, its data, tasks' copies, worktrees, branches, ports
-#   kulisa.sh start    start it in the foreground (run this in the background from Claude Code; refused while one runs,
-#                      saying from which checkout), without the parent
-#                      Claude session's CLAUDE_* variables except CLAUDE_CONFIG_DIR (CLAUDE.md, Commands)
+#   kulisa.sh start    start it (refused while one runs, saying from which checkout), without the parent Claude session's
+#                      CLAUDE_* variables except CLAUDE_CONFIG_DIR (CLAUDE.md, Commands). Linux: in the foreground (run
+#                      this in the background from Claude Code). macOS: through LaunchServices (`open`), so the app is
+#                      its own, not the terminal's (the screen recording permission is the responsible app's:
+#                      docs/testing.md, "On macOS"), without the terminal's variables either; it returns once the app
+#                      is up, its output in dist/kulisa.log (the checkout's, ignored by git, gone with a worktree;
+#                      rewritten at each start).
 set -u
 repo="$(cd "$(dirname "$0")/../../.." && pwd)"
-data="${KULISA_DATA:-$HOME/.config/Kulisa}"
+mac=false; [ "$(uname)" = Darwin ] && mac=true
+if $mac; then data="${KULISA_DATA:-$HOME/Library/Application Support/Kulisa}"; else data="${KULISA_DATA:-$HOME/.config/Kulisa}"; fi
 
-# The app's main process: `electron … .` (npm start). Not its children (--type=), not the tests' site server
-# (`electron test/fixtures/site.ts`, which outlives a test run).
-main_pid() { ps -eo pid,comm,args | awk '$2 == "electron" && $0 !~ /--type=/ && $NF == "." { print $1; exit }'; }
+# The app's main process: `electron … .` (npm start) or, on macOS, `…/MacOS/Electron <checkout>` (open). Not its
+# children (--type=), not the tests' site server (`electron test/fixtures/site.ts`, which outlives a test run), not a
+# scratch or test Kulisa (KULISA_DATA in its environment, on macOS where ps shows it).
+main_pid() {
+  if $mac; then
+    ps -eo pid,args | awk '/\/MacOS\/Electron( |$)/ && !/--type=/ && !/fixtures\/site/ { print $1 }' | while read -r p; do
+      ps eww -o command= -p "$p" | grep -q 'KULISA_DATA=' || { echo "$p"; break; }
+    done
+  else
+    ps -eo pid,comm,args | awk '$2 == "electron" && $0 !~ /--type=/ && $NF == "." { print $1; exit }'
+  fi
+}
+# The checkout it runs from: its working folder (npm start) or the folder it was given (open).
+checkout_of() {
+  local last; last="$(ps -o args= -p "$1" | awk '{ print $NF }')"
+  if [ "$last" != "." ] && [ -d "$last" ]; then echo "$last"
+  elif $mac; then lsof -a -p "$1" -d cwd -Fn 2>/dev/null | sed -n 's/^n//p'
+  else readlink "/proc/$1/cwd"; fi
+}
+listening() { if $mac; then lsof -nP -iTCP:4450 -sTCP:LISTEN >/dev/null 2>&1; else ss -ltn | grep -qE ':4450 '; fi; }
 
 case "${1:-}" in
   stop)
@@ -21,7 +43,7 @@ case "${1:-}" in
     for _ in $(seq 1 60); do kill -0 "$pid" 2>/dev/null || { echo "stopped ($pid)"; exit 0; }; sleep 0.5; done
     echo "still running after 30 s: $pid" >&2; exit 1 ;;
   check)
-    echo "electron processes: $(ps -eo comm | grep -c '^electron$')"
+    if [ -n "$(main_pid)" ]; then echo "kulisa: running ($(main_pid))"; else echo "kulisa: not running"; fi
     if [ -e "$data" ]; then echo "data: $data exists"; else echo "data: none"; fi
     # Tasks' copies: those the data names (next to a repository, or in ~/Kulisa/<project>@task-<n>/), then any
     # <folder>@<name> in the usual places, left by data already gone
@@ -34,11 +56,17 @@ case "${1:-}" in
       ls -d "$HOME"/IdeaProjects/*@* "$HOME"/Kulisa/*@* 2>/dev/null; } | sort -u | sed 's/^/task copy: /'
     git -C "$repo" worktree list | sed 's/^/worktree: /'
     git -C "$repo" branch --list | sed 's/^/branch: /'
-    if ss -ltn | grep -qE ':4450 '; then echo "ports: 4450 in use"; else echo "ports: free"; fi ;;
+    if listening; then echo "ports: 4450 in use"; else echo "ports: free"; fi ;;
   start)
     pid="$(main_pid)"
-    if [ -n "$pid" ]; then echo "already running ($pid) from $(readlink "/proc/$pid/cwd"): stop it first" >&2; exit 1; fi
+    if [ -n "$pid" ]; then echo "already running ($pid) from $(checkout_of "$pid"): stop it first" >&2; exit 1; fi
     cd "$repo" || exit 1
-    exec env $(env | grep -o '^CLAUDE[A-Z_]*' | grep -v '^CLAUDE_CONFIG_DIR$' | sed 's/^/-u /') npm start ;;
+    if ! $mac; then exec env $(env | grep -o '^CLAUDE[A-Z_]*' | grep -v '^CLAUDE_CONFIG_DIR$' | sed 's/^/-u /') npm start; fi
+    npx vite build --logLevel warn || exit 1 # what npm start builds first
+    log="$repo/dist/kulisa.log"; : > "$log"
+    env $(env | grep -oE '^(CLAUDE[A-Z_]*|TERM_PROGRAM[A-Z_]*|TERM_SESSION_ID)' | grep -v '^CLAUDE_CONFIG_DIR$' | sed 's/^/-u /') \
+      open -n -a "$repo/node_modules/electron/dist/Electron.app" --stdout "$log" --stderr "$log" --args "$repo"
+    for _ in $(seq 1 120); do grep -q 'MCP server' "$log" && { grep 'MCP server' "$log"; echo "log: $log"; exit 0; }; sleep 0.5; done
+    cat "$log"; echo "not up after 60 s (log: $log)" >&2; exit 1 ;;
   *) echo "usage: $0 stop|check|start" >&2; exit 2 ;;
 esac

@@ -1,35 +1,33 @@
 // xterm.js in the renderer, node-pty here running the agent CLI unchanged. A task's terminals (tasks.ts) are
 // "<task key>#<id>". The window shows the shown task's, the others keep running (and the window keeps their output).
-import { ipcMain } from 'electron';
+import { on } from './ipc.ts';
+import type { Events } from '../shared/ipc.ts';
 import os from 'os';
 import pty from 'node-pty';
 import type { IPty } from 'node-pty';
 import xterm from '@xterm/headless';
 import type { Terminal } from '@xterm/headless';
+import { READ_MAX } from './mcp-server.ts';
 
-// What an agent can read back of a shell (terminalTail, terminal_read): its last lines as the screen shows them, kept
-// by a terminal without a window (xterm's own parser), so lines a program redraws in place (a progress, a container's
-// state) are what they became; the output with its codes left out had every frame. Its scrollback is what the agent
-// may ask for at most: the memory is lines × columns × 12 bytes (about 1 MB at 200 columns). Its buffer is a proposed
-// API in the headless build (allowProposedApi), the one xterm's serialize addon reads too.
-const READ_MAX = 500;
 
 interface Size { cols: number; rows: number }
 // A terminal's process, with what Kulisa keeps of it.
-type Pty = IPty & { spawnSize: Size; spawnArgs: string[]; key: string; screen?: Terminal; stopped?: boolean };
+type Pty = IPty & { spawnSize: Size; spawnArgs: string[]; key: string; screen?: Terminal; stopped?: boolean; typed: Promise<void> };
 // How a terminal starts (startTerminal).
 interface TerminalConfig {
   command?: string | null; args?: string[]; cwd?: string; env?: Record<string, string | undefined>;
   shell?: { command: string; args?: string[] } | false | null; line?: string; size?: Size | null; sizeOf?: string;
   pinned?: Record<string, string>; screen?: boolean;
 }
-type Send = (channel: string, data: unknown) => void;
+type Send = (channel: 'pty:out', data: Events['pty:out']) => void;
 interface Term { pty: Pty | null; size: Size | null; firstSize: Promise<void>; sized: () => void }
 
 // The terminal's size as the window measures it, per terminal and per task (its island's, which all its terminals
 // share: one is shown at a time). An agent starts only once its size is known: Claude Code draws its prompt for the
-// size it starts with and does not fully redraw on the first resize. Listening from require time, so a size sent
-// while the window loads is not missed.
+// size it starts with and does not fully redraw on the first resize. However long the window takes to lay the island
+// out: a default size after 5 s (120×30, until 2026-10-15) is what GitHub's runner got, its window slower than that.
+// The size comes: a task loads its terminals when it is first shown (docs/tasks.md). Listening from require time, so
+// a size sent while the window loads is not missed.
 const terms = new Map<string, Term>(); // key -> { pty, size, sized (resolves the first size) }
 const termOf = (key: string) => {
   if (!terms.has(key)) {
@@ -39,12 +37,12 @@ const termOf = (key: string) => {
   }
   return terms.get(key)!;
 };
-ipcMain.on('pty:resize', (_e, { task, cols, rows }: { task: string } & Size) => {
+on('pty:resize', (_e, { task, cols, rows }) => {
   const t = termOf(task), island = termOf(task.split('#')[0]!);
   t.size = island.size = { cols, rows }; t.sized(); island.sized();
   try { t.pty?.resize(cols, rows); t.pty?.screen?.resize(cols, rows); } catch {}
 });
-ipcMain.on('pty:in', (_e, { task, data }: { task: string; data: string }) => terms.get(task)?.pty?.write(data));
+on('pty:in', (_e, { task, data }) => terms.get(task)?.pty?.write(data));
 
 // The user's shell as a terminal app starts it (login shell on macOS, as Terminal and VS Code do). An app started
 // from the Dock or a menu may have no SHELL; the account's shell is the same then.
@@ -64,18 +62,19 @@ const shQuote = (a: string) => (/^[\w@%+=:,./-]+$/.test(a) ? a : `'${a.replace(/
 // its output, under it. send(channel, data): to the task's window, whichever it is then.
 async function startTerminal(send: Send, cfg: TerminalConfig, key: string): Promise<Pty> {
   const t = termOf(key), like = cfg.sizeOf ? termOf(cfg.sizeOf) : null;
-  if (!cfg.size) await Promise.race([t.firstSize, ...(like ? [like.firstSize] : []), new Promise((r) => setTimeout(r, 5000))]);
-  const { cols, rows } = t.size || cfg.size || like?.size || { cols: 120, rows: 30 };
+  if (!cfg.size) await Promise.race([t.firstSize, ...(like ? [like.firstSize] : [])]);
+  const { cols, rows } = (t.size || cfg.size || like?.size)!; // one of them: given, or waited for
   const sh: { command: string; args?: string[] } | null = cfg.shell === false ? null : cfg.shell || userShell() || (cfg.line !== undefined ? { command: process.env.COMSPEC || 'cmd.exe' } : null);
   const command = cfg.command || (process.platform === 'win32' ? process.env.COMSPEC || 'cmd.exe' : process.env.SHELL || 'bash');
   const p = pty.spawn(sh ? sh.command : command, sh ? sh.args || [] : cfg.args || [], {
     name: 'xterm-256color', cols, rows, cwd: cfg.cwd || process.cwd(),
     env: { ...process.env, COLORTERM: 'truecolor', ...(cfg.env || {}) },
   }) as Pty;
-  if (cfg.line) typeWhenReady(p, `${cfg.line}\r`);
+  p.typed = Promise.resolve();
+  if (cfg.line) p.typed = typeWhenReady(p, `${cfg.line}\r`);
   else if (sh && cfg.command) {
     const vars = Object.entries(cfg.pinned || {}).map(([k, v]) => `${k}=${shQuote(v)}`);
-    typeWhenReady(p, ` ${[...vars, ...[cfg.command, ...(cfg.args || [])].map(shQuote)].join(' ')}\r`);
+    p.typed = typeWhenReady(p, ` ${[...vars, ...[cfg.command, ...(cfg.args || [])].map(shQuote)].join(' ')}\r`);
   }
   p.spawnSize = { cols: p.cols, rows: p.rows };
   p.spawnArgs = cfg.args || [];
@@ -92,15 +91,17 @@ async function startTerminal(send: Send, cfg: TerminalConfig, key: string): Prom
 // Type the agent's command once the shell reads its input line, or it shows twice (the terminal echoes what comes
 // before, then the shell shows it again). A shell reading a line turns bracketed paste on (bash, zsh, fish); for
 // other shells, once the output has been quiet for a moment. A leading space keeps it out of the shell's history
-// (bash's default ignorespace).
+// (bash's default ignorespace). Once typed, the promise: what is sent to the agent comes after it (sendToPrompt).
 function typeWhenReady(p: IPty, line: string) {
-  let done = false, quiet: NodeJS.Timeout | undefined;
-  const type = () => { if (done) return; done = true; sub.dispose(); clearTimeout(quiet); clearTimeout(limit); p.write(line); };
-  const sub = p.onData((d) => {
-    if (d.includes('\x1b[?2004h')) return type();
-    clearTimeout(quiet); quiet = setTimeout(type, 500);
+  return new Promise<void>((resolve) => {
+    let done = false, quiet: NodeJS.Timeout | undefined;
+    const type = () => { if (done) return; done = true; sub.dispose(); clearTimeout(quiet); clearTimeout(limit); p.write(line); resolve(); };
+    const sub = p.onData((d) => {
+      if (d.includes('\x1b[?2004h')) return type();
+      clearTimeout(quiet); quiet = setTimeout(type, 500);
+    });
+    const limit = setTimeout(type, 5000);
   });
-  const limit = setTimeout(type, 5000);
 }
 
 // Stop the agent; its output no longer reaches the window. The terminal's size is kept for the next agent there.
@@ -131,5 +132,29 @@ function typeIntoPrompt(p: IPty, text: string) {
   p.write(`\x1b[200~${text}\x1b[201~`);
 }
 
+// What a terminal shows, without its escape codes and spaces: the words an agent's UI draws are split by moves of the
+// cursor, which take the spaces' place.
+const plain = (s: string) => s.replace(/\x1b\[[0-9;?<>=]*[a-zA-Z~]|\x1b\][^\x07]*\x07/g, '').replace(/\s+/g, '');
+// Whether the output shows what test looks for within ms.
+const outputShows = (p: IPty, test: (seen: string) => boolean, ms: number) => new Promise<boolean>((resolve) => {
+  let seen = '';
+  const sub = p.onData((d) => { seen += d; if (test(plain(seen))) end(true); });
+  const limit = setTimeout(() => end(false), ms);
+  function end(ok: boolean) { sub.dispose(); clearTimeout(limit); resolve(ok); }
+});
+// A line sent to the agent as the human would: pasted, then Enter once the agent has drawn it. confirm: the words of the
+// question the agent asks then (Claude Code's /add-dir: whether to add the folder), answered with Enter, its first
+// choice; nothing when it does not come. Not before the agent's command is typed into its shell: sent before, the line
+// went to the shell (a repository added as the task opened; macOS's bash 3.2, without bracketed paste, waits for quiet).
+async function sendToPrompt(p: Pty, text: string, confirm?: string) {
+  await p.typed;
+  const drawn = outputShows(p, (s) => s.length > 0, 1000);
+  typeIntoPrompt(p, text);
+  await drawn;
+  const asked = confirm ? outputShows(p, (s) => s.includes(plain(confirm)), 10_000) : null;
+  p.write('\r');
+  if (asked && await asked) p.write('\r');
+}
+
 export type { Pty };
-export { READ_MAX, startTerminal, stopTerminal, forgetTerminal, terminalTail, typeIntoPrompt };
+export { startTerminal, stopTerminal, forgetTerminal, terminalTail, typeIntoPrompt, sendToPrompt };

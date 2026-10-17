@@ -7,21 +7,24 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import http from 'http';
-import { assert, root, userData, project, pfile, panel, SITE, sleep, waitFor, who, menuRows, choose, rightClick, viewOn, press, projectTabs, projectTab, showProject, savedWindows, closeMenu, click, plusMenu, PORT, hooksOf, MENU, menuOpen, noNode, focusWindow } from './helpers.ts';
+import { MAC, CMD, shot, assert, root, userData, project, pfile, panel, SITE, sleep, waitFor, who, menuRows, choose, rightClick, viewOn, press, projectTabs, projectTab, showProject, savedWindows, closeMenu, click, plusMenu, closeBoard, PORT, hooksOf, MENU, SUBMENU, menuOpen, noNode, focusWindow, chooseProfile, closeSettings, settingsClosed } from './helpers.ts';
 import { withOffset } from '../src/main/tasks.ts';
 import { createWorktree } from '../src/main/worktrees.ts';
 import { sessionStart } from '../src/main/agent-hooks.ts';
-import { refused } from '../src/main/result.ts';
+import { refused } from '../src/shared/result.ts';
 import type { Test, Ctx } from './run.ts';
 import type { UI } from './helpers.ts';
 import type { TaskTerminal } from '../src/main/tasks.ts';
 import type { Task } from '../src/main/tasks.ts';
 import type { TasksFile } from '../src/main/store.ts';
+import type { StoredProfile } from '../src/main/profile-store.ts';
 const hasDirenv = (() => { try { execFileSync('direnv', ['version']); return true; } catch { return false; } })();
 
 const git = (cwd: string, ...args: string[]) => execFileSync('git', ['-c', 'user.name=Kulisa test', '-c', 'user.email=test@example.invalid', ...args], { cwd, encoding: 'utf8' }).trim();
-const tabs = (ui: UI) => ui(`[...document.querySelectorAll('#tasklist .tasktab')].map((t) => t.querySelector('.name').textContent + (t.classList.contains('active') ? ' *' : ''))`);
-const taskTab = (n: number) => `document.querySelector('#tasklist .tasktab[data-task$="/${n}"]')`;
+// The shown task's project's tabs in the bar, the shown one with ' *'; its task n's tab.
+const ACTIVE_PROJECT = `document.querySelector('#projectTabs .tasktab.active').dataset.project`;
+const tabs = (ui: UI) => ui(`[...document.querySelectorAll('#projectTabs .tasktab[data-project="' + ${ACTIVE_PROJECT} + '"]')].map((t) => t.querySelector('.name').textContent + (t.classList.contains('active') ? ' *' : ''))`);
+const taskTab = (n: number) => `document.querySelector('#projectTabs .tasktab[data-task="' + ${ACTIVE_PROJECT} + '/${n}"]')`;
 const tasksFile = (): TasksFile => JSON.parse(fs.readFileSync(path.join(userData, 'projects', 'project', 'tasks.json'), 'utf8'));
 // The bar's +, the shown project in its menu; resolves once the new task is shown, its agent started.
 async function newTask(ctx: Ctx) {
@@ -32,14 +35,24 @@ async function newTask(ctx: Ctx) {
   if (shell.pty) ctx.watchPty(shell.pty);
   return shell.task;
 }
-// A row of the shown project's group menu (its label's right-click), chosen.
-async function groupMenu(ui: UI, label?: string) {
-  await rightClick(ui, '#projectTabs .pisland.active .plabel');
-  const rows = await menuRows(ui);
-  if (label) await choose(ui, label);
+// A project's submenu (a tab's right-click, then the row of the project's name, the one row opening a menu): its
+// rows, a row of it chosen. tab: the tab to open it on (the shown task's).
+async function projectMenu(ui: UI, label?: string, tab = '#projectTabs .tasktab.active .name') {
+  // Right-clicked again until its menu opens: one right after Settings or another menu closed opened none now and
+  // then (GitHub's runner, 2026-10-16), as the window's focus came back.
+  await waitFor(async () => {
+    if (!(await menuOpen(ui))) await rightClick(ui, tab);
+    return waitFor(() => menuOpen(ui), 1000).then(() => true, () => false);
+  }, 10000);
+  await menuRows(ui);
+  await ui(`${MENU}.querySelector('.item[aria-haspopup]').click()`);
+  await waitFor(async () => (await ui(`document.querySelectorAll('.menu[data-state="open"]').length`)) === 2);
+  const rows = await menuRows(ui, SUBMENU);
+  if (label) await choose(ui, label, SUBMENU);
   else await closeMenu(ui);
   return rows;
 }
+const groupMenu = (ui: UI, label?: string) => projectMenu(ui, label);
 // One of the agent's hooks, as its plugin sends it (agent-hooks.ts); its answer.
 const hook = (task: Task, event: string, input = {}) => new Promise<any>((resolve) => http.request(`${hooksOf(task)}/${event}`, { method: 'POST' },
   (res) => { let body = ''; res.on('data', (d) => (body += d)); res.on('end', () => resolve(JSON.parse(body || '{}'))); }).end(JSON.stringify(input)));
@@ -93,7 +106,28 @@ export default (test: Test) => {
     const first = shell.task;
     await call('browser_navigate', { profile: 'sam-admin', url: `${SITE}/app?task` });
     const firstSam = first.profiles.get('sam-admin');
+    // The island's buttons are for a task with nothing open: a task opening shows its agent's tab at once, starting,
+    // not them for the second its agent is looked for (they did, 2026-10-15).
+    await ui(`window.__launch = false; window.__starting = ''; new MutationObserver(() => { window.__launch ||= !!document.querySelector('#dock .launch');
+      window.__starting ||= document.querySelector('#dock .starting')?.textContent; })
+      .observe(document.body, { childList: true, subtree: true })`);
+    const find = shell.findAgent; // looking for it takes the user's login shell, slower on the human's computer than here
+    let found = false;
+    shell.findAgent = async (...a) => { await sleep(1000); const r = await find(...a); found = true; return r; };
+    // Its agent waits for its terminal's size however late the window lays the island out: it started at a default one
+    // after 5 s, which GitHub's runner reached (2026-10-15). The island hidden for 6 s after the agent is found: what is
+    // tested is that it waits longer than it used to, which only time shows.
+    await ui(`document.head.append(Object.assign(document.createElement('style'), { id: 'lateIsland', textContent: '.term { display: none !important; }' }))`);
+    const sent = await ui('window.__ptySizes.length');
+    const late = (async () => { await waitFor(() => found, 10000); await sleep(6000); await ui(`document.getElementById('lateIsland').remove()`); })();
     const task = await newTask(ctx);
+    await late;
+    shell.findAgent = find;
+    await waitFor(async () => (await ui('window.__ptySizes.length')) > sent);
+    assert.deepEqual(task.pty.spawnSize, await ui(`window.__ptySizes[${sent}]`), 'at its real size');
+    assert.equal(await ui('window.__launch'), false, "no island's buttons while its agent starts");
+    assert.match(await ui('window.__starting'), /^Starting .+…$/, 'its tab, starting');
+    await waitFor(async () => !(await ui(`!!document.querySelector('.terminals .starting')`))); // then its terminal
     const wt = `${project}@task-2`;
     assert.equal(task.n, 2);
     assert.equal(task.name, 'task-2');
@@ -160,7 +194,7 @@ export default (test: Test) => {
     // Until then its first prompt's first line says what it is about, over its tab.
     await prompt('\n  Sellers see their payouts  \nwith dates');
     await prompt('Another request');
-    await waitFor(async () => (await ui(`${taskTab(2)}.title`)).startsWith('“Sellers see their payouts”\nbranch task-2 in '));
+    await waitFor(async () => (await ui(`${taskTab(2)}.title`)).startsWith('project\n“Sellers see their payouts”\nbranch task-2 in '));
     // Its agent names it: the tab and the branch; the folder stays.
     await assert.rejects(call('task_rename', { name: 'a b' }), /only/);
     assert.match((await call('task_rename', { name: 'Feature-X' })).text, /now "Feature-X", on branch feature-x/);
@@ -169,10 +203,10 @@ export default (test: Test) => {
     assert.equal(task.folder, wt);
     assert.deepEqual(tasksFile().list.map((e) => [e.name, e.branch]), [['task-1', undefined], ['Feature-X', 'feature-x']]);
     assert.equal(await prompt(), '{}', 'named: not told again');
-    await waitFor(async () => (await ui(`${taskTab(2)}.title`)).startsWith('branch feature-x'));
+    await waitFor(async () => (await ui(`${taskTab(2)}.title`)).startsWith('project\nbranch feature-x'));
     assert.equal(tasksFile().list[1].about, undefined, 'its name says what it is about now');
     assert.equal((await call('browser_profiles', {})).note, undefined);
-    await shell.screenshot(path.join(root, 'task.png'));
+    await shot(shell, path.join(root, 'task.png'));
   });
 
   test("profiles: Sign In to Master… opens its master in a window of its own, nothing automated on it; Refresh from Master… brings its sign-ins to this task's copy", async (ctx) => {
@@ -203,20 +237,34 @@ export default (test: Test) => {
     assert.equal(await who(ctx, 'sam-admin'), 'Signed in as master');
   });
 
-  test('profiles: About this profile… opens Settings at it; its Sign In… opens the same master window, once', async (ctx) => {
-    const { shell, ui } = ctx;
+  test("profiles: About this profile… opens Settings' window at it (one, not modal: the task's window takes input and comes in front of it, its pages on screen); its Sign In… opens the same master window, once", async (ctx) => {
+    const { shell, ui, sui } = ctx;
     await rightClick(ui, `.ptab[data-panel="${panel(shell, 'sam-admin')}"] b`);
     await menuRows(ui);
     await choose(ui, 'About this profile…');
-    await waitFor(() => ui(`document.getElementById('projects')?.dataset.state === 'open' && document.querySelector('#pjlist [data-profile="sam-admin"]')?.ariaSelected === 'true' && document.getElementById('profilename').value === 'Sam.admin'`));
-    assert.ok(shell.profiles.has('sam-admin') && !shell.task.profiles.get('sam-admin').get().view.getVisible(), 'pages hidden under Settings');
-    for (let i = 0; i < 2; i++) await ui(`document.getElementById('profilesignin').click()`);
+    await waitFor(() => sui(`document.querySelector('#pjlist [data-profile="sam-admin"]')?.ariaSelected === 'true' && document.getElementById('profilename').value === 'Sam.admin'`));
+    assert.equal(await sui(`document.querySelector('#pjlist [data-profile="sam-admin"] .label').title`), 'Sam.admin', "the tree's narrow column cuts a name: the whole in its tooltip");
+    // A window of its own, not a child of the task's (on macOS a child stays above its parent), which goes on taking input
+    // and comes in front of it, Settings left as it is; the task's pages stay on screen.
+    const win = shell.settings.win;
+    assert.deepEqual([win.getTitle(), win.getParentWindow(), shell.win.isEnabled()], ['Settings — Kulisa', null, true]);
+    // Never full screen: macOS made it a full-screen window of its own when opened from one (settings-window.ts).
+    assert.equal(win.isFullScreenable(), false);
+    await focusWindow(shell.win, ui);
+    assert.ok(shell.settings?.win === win && !win.isFocused(), 'Settings stays open behind it');
+    assert.ok(shell.task.profiles.get('sam-admin').get().view.getVisible(), 'pages on screen');
+    // Asked again (another profile's About…): the same window, at that page.
+    await ui(`kulisa.send('settings:open', { section: 'profiles', id: 'elon-buyer' })`);
+    await waitFor(() => sui(`document.getElementById('profilename')?.value === 'Elon.buyer'`));
+    assert.equal(shell.settings.win, win);
+    await chooseProfile(sui, 'sam-admin');
+    for (let i = 0; i < 2; i++) await sui(`document.getElementById('profilesignin').click()`);
     await waitFor(() => shell.masters.size === 1 && shell.masters.values().next().value.profile.get());
     assert.equal(shell.masters.values().next().value.profile.dir, path.join(userData, 'profiles', shell.profileStore.get('sam-admin').folder));
     shell.masters.values().next().value.win.close();
     await waitFor(() => !shell.masters.size);
-    await ui(`document.querySelector('#projects .x').click()`);
-    await waitFor(async () => !(await ui(`document.getElementById('projects')?.dataset.state === 'open'`)));
+    await closeSettings(ctx);
+    assert.ok(win.isDestroyed(), 'its window gone, with its process');
   });
 
   // About 5 s: its tab waits for a site that never answers, by design (profiles.ts).
@@ -262,22 +310,22 @@ export default (test: Test) => {
     const second = shell.task, sam = second.profiles.get('sam-admin');
     // No profiles' button on a task's tab, its right-click menu has them; the × on every tab, as Chrome's, not only
     // the shown one's (the author, 2026-10-12).
-    assert.deepEqual(await ui(`[...document.querySelectorAll('#tasklist .tasktab')].map((t) => [...t.querySelectorAll('button')].map((b) => b.ariaLabel + ' ' + getComputedStyle(b).visibility))`),
+    assert.deepEqual(await ui(`[...document.querySelectorAll('#projectTabs .tasktab')].map((t) => [...t.querySelectorAll('button')].map((b) => b.ariaLabel + ' ' + getComputedStyle(b).visibility))`),
       [['Close visible'], ['Close visible']]);
-    const widths = () => ui(`[...document.querySelectorAll('#tasklist .tasktab')].map((t) => t.getBoundingClientRect().width)`);
+    const widths = () => ui(`[...document.querySelectorAll('#projectTabs .tasktab')].map((t) => t.getBoundingClientRect().width)`);
     const before = await widths();
-    // A tab's right-click menu: the shown one's has its profiles; then renaming, its folder, deleting. Show Folder
-    // opens the task's worktree in the file manager.
-    await rightClick(ui, `#tasklist .tasktab[data-task$="/1"] .name`);
-    assert.deepEqual(await menuRows(ui), ['Rename…', 'Show Folder', '-', 'Delete Task…']);
+    // A tab's right-click menu: the shown one's has its profiles; then renaming, its folder, moving to another window,
+    // closing, deleting, and its project's submenu. Show Folder opens the task's worktree in the file manager.
+    await rightClick(ui, `#projectTabs .tasktab[data-task$="/1"] .name`);
+    assert.deepEqual(await menuRows(ui), ['Rename…', 'Show Folder', '-', 'Move to New Window', '-', 'Close', 'Delete Task…', '-', 'project']);
     await closeMenu(ui);
     const openPath = electron.shell.openPath, shown: string[] = [];
     electron.shell.openPath = async (dir) => { shown.push(dir); return ''; };
     try {
       await rightClick(ui, `#projectTabs .tasktab[data-task="${second.key}"] .name`);
       const rows = await menuRows(ui);
-      assert.deepEqual([rows[0], ...rows.slice(-7)], ['# Profiles', '-', 'Manage Profiles…', '-', 'Rename…', 'Show Folder', '-', 'Delete Task…']);
-      assert.deepEqual(rows.slice(1, -7).toSorted(), ['Dora', 'Elon.buyer', 'Sam.admin'], 'its open and closed profiles');
+      assert.deepEqual([rows[0], ...rows.slice(-12)], ['# Profiles', '-', 'Manage Profiles…', '-', 'Rename…', 'Show Folder', '-', 'Move to New Window', '-', 'Close', 'Delete Task…', '-', 'project']);
+      assert.deepEqual(rows.slice(1, -12).toSorted(), ['Dora', 'Elon.buyer', 'Sam.admin'], 'its open and closed profiles');
       await choose(ui, 'Show Folder');
       await waitFor(() => shown.length === 1);
     } finally { electron.shell.openPath = openPath; }
@@ -290,7 +338,7 @@ export default (test: Test) => {
     assert.equal(sam.get().view.getVisible(), false, "the second task's pages are hidden");
     assert.ok(sam.tabs.every((t) => !t.wc.isDestroyed()) && second.pty, 'and alive, its agent too');
     await waitFor(async () => (await ctx.termText()).includes(`agent: rc of ${project}\n`), 3000);
-    assert.equal(JSON.parse(fs.readFileSync(path.join(userData, 'projects', 'project', 'tasks.json'), 'utf8')).current, 1);
+    assert.equal(savedWindows()[0].shown, 'project/1', 'the shown task kept for the next start');
     // What the second task's agent does reaches its tab (Claude Code's hooks); its captions do not show on the first's panes.
     const post = (event: string, input = {}) => new Promise((r) => http.request(`${hooksOf(second)}/${event}`, { method: 'POST' },
       (res) => { res.resume(); res.on('end', r); }).end(JSON.stringify(input)));
@@ -343,22 +391,55 @@ export default (test: Test) => {
       && ui(`!document.documentElement.matches(':active-view-transition')`)); // its slide over before the next test watches one
   });
 
-  test('tasks: switching replaces the grid at once (a view transition with no animation: the pages come with the terminal); then the pages are live again', async ({ shell, ui }) => {
-    // The transition's types, and its animations once it runs: none, Chromium's own for its groups included (they
-    // kept the pages, shown when it ends, 250 ms behind the terminal, in its place at once).
+  test('tasks: switching slides the grid towards the other tab (a view transition); then the pages are live again', async ({ shell, ui }) => {
+    // The transition's types (which way), and the grid's own slide as it runs: an animation of 0 s, as the CSS minifier
+    // once made it, left the two grids' pictures one over the other; out past the window's margin, not lingering at its
+    // edge (Grid.vue).
     const swap = (n: number) => ui(`(async () => {
       const start = document.startViewTransition.bind(document); let seen;
       document.startViewTransition = (o) => { const t = start(o); t.ready.then(() => { seen = { types: [...t.types],
-        animations: document.getAnimations().filter((a) => a.effect?.pseudoElement?.startsWith('::view-transition')).length }; }); return t; };
+        animations: document.getAnimations().filter((a) => ['::view-transition-old(grid)', '::view-transition-new(grid)'].includes(a.effect?.pseudoElement) && a.effect.getTiming().duration > 0)
+          .map((a) => { const [from, to] = a.effect.getKeyframes(); return [a.animationName, from.translate === 'none' ? to.translate : from.translate, from.easing].join(' '); }).sort() }; }); return t; };
       await kulisa.invoke('task:show', 'project/${n}');
       await new Promise((r) => setTimeout(r, 800));
       delete document.startViewTransition; // the document's own again
       return seen;
     })()`);
     const live = async () => (await ui(`document.querySelectorAll('img.snapshot').length`)) === 0 && viewOn(shell, ui, 'sam-admin');
-    assert.deepEqual(await swap(2), { types: ['task', 'next'], animations: 0 });
+    let seen = await swap(2);
+    assert.deepEqual(seen.types, ['next']); assert.deepEqual(seen.animations, ['grid-from-right calc(100% + 8px) cubic-bezier(0.4, 0, 0.2, 1)', 'grid-to-left calc(-100% - 8px) cubic-bezier(0.4, 0, 0.2, 1)'], 'it slides');
     await waitFor(live);
-    assert.deepEqual(await swap(1), { types: ['task', 'previous'], animations: 0 });
+    // A page that draws no frame (busy, covered) holds the slide's start no longer than three times what the others
+    // take (a tenth of a second at least), its pane then empty: half a second was felt after each click (2026-10-15).
+    // Their pace, not a fixed time: GitHub's runner took over a tenth of a second for a picture, and no pane had one.
+    const tab = shell.profiles.get('sam-admin').get(), elon = shell.profiles.get('elon-buyer').get().wc, its = elon.capturePage;
+    let took = 0;
+    tab.wc.capturePage = () => new Promise(() => {});
+    elon.capturePage = (...a) => its.apply(elon, a).then((img) => { took = Date.now() - t0; return img; });
+    const t0 = Date.now(), pics = await shell.windows[0].pictures(), all = Date.now() - t0;
+    delete tab.wc.capturePage; delete elon.capturePage; // their prototypes' again
+    assert.ok(took && all < Math.max(100, 3 * took) + 150, `pictures in ${all} ms, the other's in ${took} ms`);
+    assert.ok(!pics['sam-admin'] && pics['elon-buyer'], 'the others taken');
+    seen = await swap(1);
+    assert.deepEqual(seen.types, ['previous']); assert.deepEqual(seen.animations, ['grid-from-left calc(-100% - 8px) cubic-bezier(0.4, 0, 0.2, 1)', 'grid-to-right calc(100% + 8px) cubic-bezier(0.4, 0, 0.2, 1)']);
+    await waitFor(live);
+    // A menu opened while the grid still slides keeps the pages under it pictures: the slide's end showed them over it.
+    // Opened as soon as the slide starts, before the grid left is taken down (the transition's update, a frame later,
+    // later still on a loaded runner): taking it down forgot the menu's pictures (GitHub's runners, 2026-10-16).
+    const sliding = () => ui(`document.documentElement.matches(':active-view-transition')`);
+    await ui(`(() => {
+      const start = document.startViewTransition.bind(document);
+      document.startViewTransition = (o) => { const t = start(o); delete document.startViewTransition; document.getElementById('windowMenu').click(); return t; };
+      void kulisa.invoke('task:show', 'project/2');
+    })()`);
+    await waitFor(sliding);
+    await waitFor(() => menuOpen(ui));
+    await waitFor(async () => !(await sliding()));
+    await sleep(100); // what the slide's end did, which must not show them
+    assert.ok([...shell.profiles.values()].every((p) => !p.get().view.getVisible()), 'the pages stay under the menu');
+    await closeMenu(ui);
+    await waitFor(live);
+    await swap(1);
     await waitFor(live);
   });
   test('tasks: Ctrl+Shift+2 shows the second, Ctrl+Shift+PgUp and PgDn the one before and after, from the terminal too', async ({ shell, ui }) => {
@@ -367,14 +448,85 @@ export default (test: Test) => {
     win.focus();
     await ui(`window.__term.focus()`);
     await waitFor(() => shell.windows[0].keyZone === 'terminal');
-    press(win, '2', 'control', 'shift');
+    press(win, '2', ...(MAC ? ['meta', 'alt'] as const : ['control', 'shift'] as const)); // ⌘⌥2 on macOS: ⌘⇧3…5 are its screenshots
     await shown(2);
-    press(win, 'PageUp', 'control', 'shift');
+    press(win, 'PageUp', CMD, 'shift');
     await shown(1);
-    press(win, 'PageDown', 'control', 'shift');
+    press(win, 'PageDown', CMD, 'shift');
     await shown(2);
     await click(ui, taskTab(1));
     await shown(1);
+  });
+  test("tasks: more tabs than the bar holds: each keeps its name readable, a mouse's wheel scrolls them, a faded edge says some are past it, the shown one stays in sight; in the title bar the window is still dragged after +", async ({ shell, ui }) => {
+    // Two tabs, the bar narrowed to less than they take: as thirty tabs in a window (found with 30 tasks, 2026-10-15:
+    // every tab read "task…", the wheel did nothing, nothing said 17 were out of sight).
+    const strip = `document.querySelector('#projectTabs')`;
+    const bar = () => ui(`(() => { const s = ${strip}, a = s.querySelector('.active').getBoundingClientRect(), b = s.getBoundingClientRect();
+      return { left: Math.round(s.scrollLeft), max: s.scrollWidth - s.clientWidth, fade: ['past-start', 'past-end'].filter((e) => s.classList.contains(e)).join(' '), inSight: a.left >= b.left && a.right <= b.right }; })()`);
+    const frame = () => ui(`new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))`);
+    assert.equal((await bar()).fade, '', 'all fit: no edge fades');
+    await click(ui, taskTab(2));
+    await waitFor(() => shell.task.n === 2 && !shell.windows[0].switching);
+    await ui(`document.querySelector('#taskbar').style.maxWidth = '300px'`);
+    await waitFor(async () => (await bar()).max > 0 && (await bar()).inSight);
+    assert.deepEqual(await ui(`[...document.querySelectorAll('#projectTabs .tasktab')].map((t) => { const n = t.querySelector('.name'); return [t.getBoundingClientRect().width, n.scrollWidth <= n.clientWidth]; })`),
+      [[160, true], [160, true]], 'at their narrowest, the names whole');
+    let now = await bar();
+    assert.deepEqual([now.left, now.fade], [now.max, 'past-start'], 'brought into view when the bar narrowed; only the edge with a tab past it fades');
+    // The wheel turns up and down; the bar scrolls sideways.
+    await waitFor(() => ui(`!document.documentElement.matches(':active-view-transition')`)); // the slide's pictures over the window take every event
+    const b = await ui(`${strip}.getBoundingClientRect().toJSON()`), z = shell.win.webContents.getZoomFactor();
+    const at = { x: Math.round((b.x + b.width / 2) * z), y: Math.round((b.y + b.height / 2) * z) };
+    shell.win.webContents.sendInputEvent({ type: 'mouseWheel', ...at, deltaX: 0, deltaY: 400 }); // up: towards the start
+    await waitFor(async () => (await bar()).left === 0);
+    await waitFor(async () => (await bar()).fade === 'past-end'); // scrolled to the start: the other edge fades
+    assert.equal((await bar()).inSight, false, 'the bar stays where the wheel took it');
+    // In the title bar: the tabs give way before the space after + that drags the window (Chrome's), however many. The
+    // tabs scrolled past the bar's edges are no-drag over the logo and that space too (Chromium does not clip them to
+    // the bar) and the last region in the page wins: so both come after the bar, the logo shown first all the same (a
+    // window not dragged by either, 2026-10-15: a real drag of the window is the OS's, out of a test's reach).
+    await ui(`kulisa.invoke('bar:set', 'top')`);
+    await waitFor(() => ui(`!!document.querySelector('#topbar #projectTabs')`));
+    await ui(`document.querySelectorAll('#projectTabs .tasktab').forEach((t) => { t.style.minWidth = t.style.maxWidth = '1000px'; })`); // the bar drawn anew: tabs as wide as many
+    await frame();
+    assert.deepEqual(await ui(`(() => { const q = (s) => document.querySelector(s), r = (s) => q(s).getBoundingClientRect(), s = ${strip};
+      const after = (s) => !!(q('#taskbar').compareDocumentPosition(q(s)) & Node.DOCUMENT_POSITION_FOLLOWING) && getComputedStyle(q(s)).appRegion;
+      return [s.scrollWidth > s.clientWidth, r('#topbar .drag').width >= 40, r('#manageProjects').left - r('#newTask').right >= 40, q('#topbar .logo') ? after('#topbar .logo') : 'drag', after('#topbar .drag'), !q('.logo') || r('.logo').right <= r('#taskbar').left]; })()`),
+      [true, true, true, 'drag', 'drag', true], 'the tabs overflow, 40 px left to drag by; it and the logo (none on macOS) after the bar in the page, the logo before it on screen');
+    assert.ok((await bar()).inSight, 'the shown one in sight, the bar drawn anew there');
+    await ui(`kulisa.invoke('bar:set', 'bottom')`);
+    await waitFor(() => ui(`!document.querySelector('#topbar #projectTabs') && !!document.querySelector('#projectTabs')`));
+    await click(ui, taskTab(1));
+    await waitFor(() => shell.task.n === 1 && !shell.windows[0].switching);
+  });
+  test("tasks: a press on a tab not shown chooses it at once, as Chrome's; its task is shown when the button is let go or the tab starts being dragged, so it can be dragged", async ({ shell, ui }) => {
+    // The slide that showing a task starts made Chromium drop a drag about to begin: a tab not shown could not be
+    // dragged, its press only showed it (2026-10-15). One begun goes on through the slide.
+    const wc = shell.win.webContents, z = wc.getZoomFactor();
+    const press = async (type: 'mouseDown' | 'mouseUp', n: number) => {
+      const b = await ui(`${taskTab(n)}.querySelector('.name').getBoundingClientRect().toJSON()`);
+      wc.sendInputEvent({ type, x: Math.round((b.x + b.width / 2) * z), y: Math.round((b.y + b.height / 2) * z), button: 'left', clickCount: 1 });
+    };
+    const chosenJs = `document.querySelector('#projectTabs .tasktab.active')?.dataset.task.split('/').pop() ?? ''`, chosen = () => ui(chosenJs);
+    await waitFor(() => ui(`!document.documentElement.matches(':active-view-transition')`)); // the slide's pictures over the window take every event
+    await press('mouseDown', 2);
+    await waitFor(async () => (await chosen()) === '2');
+    await sleep(200); // nothing to wait for: that it is not shown yet
+    assert.equal(shell.task.n, 1, 'not shown while the button is down');
+    // Lit on the press, it stays lit: let go of, it went dark while the main process took the pictures for the slide
+    // and lit again with the new state, the tab left going on and off with it (the author, 2026-10-16: the tabs blinked).
+    await ui(`window.__lit = [${chosenJs}]; window.__litObs = new MutationObserver(() => window.__lit.push(${chosenJs})); window.__litObs.observe(document.getElementById('projectTabs'), { attributes: true, attributeFilter: ['class'], subtree: true })`);
+    await press('mouseUp', 2);
+    await waitFor(() => shell.task.n === 2 && !shell.windows[0].switching);
+    await waitFor(() => ui(`!document.documentElement.matches(':active-view-transition')`));
+    assert.deepEqual([...new Set(await ui(`window.__litObs.disconnect(), window.__lit`))], ['2'], 'the tab lit from the press to the task shown, no other');
+    // A drag begins: Chromium cancels the pointer (a real drag of a tab is the OS's, out of a test's reach).
+    await press('mouseDown', 1);
+    await waitFor(async () => (await chosen()) === '1');
+    await ui(`dispatchEvent(new PointerEvent('pointercancel', { pointerType: 'mouse' }))`);
+    await waitFor(() => shell.task.n === 1 && !shell.windows[0].switching);
+    await press('mouseUp', 1);
+    await ui(`document.activeElement.blur()`); // a real press leaves the keyboard on the tab (Reka's); the next tests' dialogs take it from nothing
   });
   test('tasks: × closes a task: its agent stops and its tabs close, all else stays; asked first only while its agent works; its group\'s menu opens it again, its conversation resumed', async (ctx) => {
     const { shell, ui, call } = ctx;
@@ -409,11 +561,24 @@ export default (test: Test) => {
     assert.ok(fs.existsSync(task.folder) && git(project, 'branch', '--list', 'task-3') && fs.existsSync(path.join(userData, 'projects', 'project', '3')), 'its code and data stay');
     assert.equal(tasksFile().list.find((e) => e.n === 3).closed, true);
     await waitFor(async () => JSON.stringify(await tabs(ui)) === '["task-1","Feature-X *"]');
-    // Its project's group menu lists it; opening it shows it again, its agent resuming the conversation.
-    const rows = await groupMenu(ui);
-    assert.deepEqual(rows.slice(0, 4), ['New Task', '-', '# Closed tasks', 'task-3']);
-    await groupMenu(ui, 'task-3');
-    await waitFor(() => shell.task === task && task.loaded && shell.pty);
+    // The bar's + (a new tab) lists it in its project's column, after the open ones; opening it shows it again, its
+    // agent resuming the conversation.
+    const rows: string[] = await plusMenu(ui);
+    assert.deepEqual(rows.slice(rows.indexOf('project'), rows.indexOf('project') + 4), ['project', '  task-1 (open)', '  Feature-X (open)', '  task-3']);
+    await closeBoard(ui);
+    // Its grid comes before its profiles have started (their cookies, tabs, automation: a site's answer away), its agent
+    // after them, as it finds them ready; the window waited for them all, one after another (2026-10-15).
+    const restore = shell.sessionCookies.restore;
+    let started = false;
+    shell.sessionCookies.restore = async (p) => { await sleep(1500); const n = await restore.call(shell.sessionCookies, p); started = true; return n; };
+    try {
+      await plusMenu(ui, 'project', 'task-3');
+      await waitFor(() => shell.task === task && !shell.windows[0].switching); // its state sent to the window
+      assert.equal(started, false, 'the grid before its profiles started');
+      await waitFor(() => ui(`!!document.querySelector('.pane[data-profile="sam-admin"]') && !document.documentElement.classList.contains('loading')`));
+      await waitFor(() => task.loaded && shell.pty, 10000);
+      assert.equal(started, true, 'its agent after them');
+    } finally { shell.sessionCookies.restore = restore; }
     ctx.watchPty(shell.pty);
     assert.equal(shell.resumedSession, 's-3');
     await waitFor(async () => JSON.stringify(await tabs(ui)) === '["task-1","Feature-X","task-3 *"]');
@@ -424,7 +589,7 @@ export default (test: Test) => {
     const { shell, ui } = ctx;
     const empty = shell.task;
     const dir = path.join(userData, 'projects', 'project', '3');
-    await rightClick(ui, `#tasklist .tasktab[data-task="${empty.key}"] .name`);
+    await rightClick(ui, `#projectTabs .tasktab[data-task="${empty.key}"] .name`);
     await menuRows(ui);
     await choose(ui, 'Delete Task…');
     await waitFor(() => !shell.current.tasks.has(3) && shell.task?.n === 2);
@@ -442,7 +607,7 @@ export default (test: Test) => {
 
     // Renamed by the human (Rename… in its tab's menu), with a commit of its own and a file not committed.
     const spike = await newTask(ctx);
-    await rightClick(ui, `#tasklist .tasktab[data-task="${spike.key}"] .name`);
+    await rightClick(ui, `#projectTabs .tasktab[data-task="${spike.key}"] .name`);
     await menuRows(ui);
     await choose(ui, 'Rename…');
     await waitFor(() => ui(`(document.getElementById('taskrename')?.dataset.state === 'open') && document.getElementById('taskname').value === '${spike.name}'
@@ -482,53 +647,48 @@ export default (test: Test) => {
     assert.deepEqual(tasksFile().list.map((e) => e.name), ['task-1', 'Feature-X']);
   });
 
-  // ☰ → Agents…: Settings at an agent (the first, or the one shown last), the agents in its tree; it closes as any dialog.
-  const openAgents = async (ui: UI, rows = 2) => {
-    await ui(`document.getElementById('windowMenu').click()`);
-    await menuRows(ui);
-    await choose(ui, 'Agents…');
-    // It opens with the agents in it, not with a line that flips to them.
-    await waitFor(() => ui(`(document.getElementById('projects')?.dataset.state === 'open') && !!document.querySelector('#pjlist [data-agent][aria-selected="true"]')
-      && document.querySelectorAll('#pjlist [data-agent]').length === ${rows} && document.getElementById('agconfig').checkVisibility()`), 20000);
+  // Settings (the title bar's gear) at the first agent: the agents in its tree (☰ had an Agents… row to them until
+  // 2026-10-14: the author, agents are set up in Settings); it closes as the human closes it (closeSettings).
+  const openAgents = async ({ ui, sui }: Pick<Ctx, 'ui' | 'sui'>, rows = 2) => {
+    await ui(`document.getElementById('manageProjects').click()`);
+    await waitFor(() => sui(`document.querySelectorAll('#pjlist [data-agent]').length === ${rows}`), 20000);
+    await sui(`document.querySelector('#pjlist [data-agent]').click()`);
+    await waitFor(() => sui(`!!document.querySelector('#pjlist [data-agent][aria-selected="true"]') && document.getElementById('agconfig').checkVisibility()`));
   };
-  // An agent chosen in the tree, its page shown.
-  const showAgent = async (ui: UI, id: string) => {
-    await ui(`document.querySelector('#pjlist [data-agent="${id}"]').click()`);
-    await waitFor(() => ui(`document.querySelector('#pjlist [data-agent="${id}"]').ariaSelected === 'true' && document.getElementById('agconfig').checkVisibility()`));
-  };
-  const closeAgents = async (ui: UI) => {
-    await ui(`document.querySelector('#projects header .x').click()`);
-    await waitFor(async () => !(await ui(`(document.getElementById('projects')?.dataset.state === 'open')`)));
+  // An agent chosen in the tree (once the agents are there: looked for as Settings opens), its page shown.
+  const showAgent = async (sui: UI, id: string) => {
+    await waitFor(() => sui(`!!document.querySelector('#pjlist [data-agent="${id}"]')`));
+    await sui(`document.querySelector('#pjlist [data-agent="${id}"]').click()`);
+    await waitFor(() => sui(`document.querySelector('#pjlist [data-agent="${id}"]').ariaSelected === 'true' && document.getElementById('agconfig').checkVisibility()`));
   };
   const agentRow = (id: string, q: string) => `document.querySelector('#agentpage [data-agent="${id}"] ${q}')`;
-  test('agents: ☰ → Agents… is Settings at the agents (not the terminal only): what is installed, installs the others; nothing is chosen or started', async (ctx) => {
-    const { shell, ui } = ctx;
+  test('agents: Settings → Agents (not the terminal only): what is installed, installs the others; nothing is chosen or started', async (ctx) => {
+    const { shell, sui } = ctx;
     const pty = shell.task.pty;
-    await openAgents(ui);
-    assert.equal(await ui(`document.querySelector('#pjlist [data-agent="fake"] kbd').textContent`), 'not installed');
-    await showAgent(ui, 'fake');
-    assert.equal(await ui(`document.querySelector('#agconfig .crumbs b').textContent`), 'Fake agent');
-    assert.equal(await ui(`document.querySelector('#projects h2').textContent`), 'Settings');
-    assert.equal(await ui(`document.getElementById('pjconfig').checkVisibility()`), false, "a project's page behind it");
-    assert.equal(await ui(`document.querySelectorAll('#agentpage [role="radio"]').length`), 0, 'no choice to make');
+    await openAgents(ctx);
+    assert.equal(await sui(`document.querySelector('#pjlist [data-agent="fake"] kbd').textContent`), 'not installed');
+    await showAgent(sui, 'fake');
+    assert.equal(await sui(`document.querySelector('#agconfig .crumbs b').textContent`), 'Fake agent');
+    assert.equal(shell.settings.win.getTitle(), 'Settings — Kulisa');
+    assert.equal(await sui(`document.getElementById('pjconfig').checkVisibility()`), false, "a project's page behind it");
+    assert.equal(await sui(`document.querySelectorAll('#agentpage [role="radio"]').length`), 0, 'no choice to make');
     // The agents' marks (the terminal only's shown in choosing a task's agent).
-    assert.ok(await ui(`!!document.querySelector('.sprite #i-agent-shell') && !!document.querySelector('.sprite #i-agent-claude') && !!document.querySelector('.sprite #i-agent-codex')`));
-    assert.equal(await ui(`!!${agentRow('shell', '')}`), false, 'not the terminal only: nothing of it to set up');
-    assert.equal(await ui(`document.querySelector('#agentpage [data-accounts="fake"] .empty')?.textContent`), 'No accounts yet.');
-    assert.equal(await ui(`document.querySelector('#agentpage [data-accounts="fake"] .accountnew').disabled`), true, 'not installed: no account yet');
-    assert.equal(await ui(agentRow('fake', '.status') + '.textContent'), 'Not installed');
-    assert.equal(await ui(agentRow('fake', '.install') + '.hidden'), false);
-    assert.match(await ui(agentRow('fake', '.install-line') + '.textContent'), /^Install runs Kulisa tests's installer: echo "installing the fake agent"/);
-    assert.equal(shell.task.profiles.values().next().value.get().view.getVisible(), false, 'pages hidden under the dialog');
+    assert.ok(await sui(`!!document.querySelector('.sprite #i-agent-shell') && !!document.querySelector('.sprite #i-agent-claude') && !!document.querySelector('.sprite #i-agent-codex')`));
+    assert.equal(await sui(`!!${agentRow('shell', '')}`), false, 'not the terminal only: nothing of it to set up');
+    assert.equal(await sui(`document.querySelector('#agentpage [data-accounts="fake"] .empty')?.textContent`), 'No accounts yet.');
+    assert.equal(await sui(`document.querySelector('#agentpage [data-accounts="fake"] .accountnew').disabled`), true, 'not installed: no account yet');
+    assert.equal(await sui(agentRow('fake', '.status') + '.textContent'), 'Not installed');
+    assert.equal(await sui(agentRow('fake', '.install') + '.hidden'), false);
+    assert.match(await sui(agentRow('fake', '.install-line') + '.textContent'), /^Install runs Kulisa tests's installer: echo "installing the fake agent"/);
     // Installed with its maker's installer; what it said only under Details.
-    await ui(agentRow('fake', '.install') + '.click()');
-    await waitFor(async () => (await ui(agentRow('fake', '.status') + '.textContent')) === 'Installed', 10000);
-    assert.match(await ui(`document.querySelector('#agentpage .progress').textContent`), /^Fake agent is installed\. Make an account of it below/);
-    assert.equal(await ui(`document.querySelector('#agentpage .details .more').dataset.state`), 'closed', "the installer's own output only under Details");
-    assert.match(await ui(`document.querySelector('#agentpage pre').textContent`), /installing the fake agent\s+done/);
-    assert.doesNotMatch(await ui(`document.querySelector('#agentpage pre').textContent`), /\x1b/, 'no terminal codes: colors, links');
-    assert.equal(await ui(`document.querySelector('#agentpage [data-accounts="fake"] .accountnew').disabled`), false);
-    await closeAgents(ui);
+    await sui(agentRow('fake', '.install') + '.click()');
+    await waitFor(async () => (await sui(agentRow('fake', '.status') + '.textContent')) === 'Installed', 10000);
+    assert.match(await sui(`document.querySelector('#agentpage .progress').textContent`), /^Fake agent is installed\. Make an account of it below/);
+    assert.equal(await sui(`document.querySelector('#agentpage .details .disclose').dataset.state`), 'closed', "the installer's own output only under Details");
+    assert.match(await sui(`document.querySelector('#agentpage pre').textContent`), /installing the fake agent\s+done/);
+    assert.doesNotMatch(await sui(`document.querySelector('#agentpage pre').textContent`), /\x1b/, 'no terminal codes: colors, links');
+    assert.equal(await sui(`document.querySelector('#agentpage [data-accounts="fake"] .accountnew').disabled`), false);
+    await closeSettings(ctx);
     assert.equal(shell.task.pty, pty, 'the agent goes on');
   });
 
@@ -563,23 +723,55 @@ export default (test: Test) => {
     const plus = () => ui(`(() => { const b = document.getElementById('termUnfold').getBoundingClientRect(), r = document.querySelector('.terminals').getBoundingClientRect();
       return { x: Math.round(b.x + b.width / 2 - (r.x + r.width / 2)), middle: Math.round(b.y + b.height / 2 - (r.y + r.height / 2)) }; })()`);
     const middle = async () => { const p = await plus(); return Math.abs(p.x) <= 1 && Math.abs(p.middle) <= 1; };
+    const PROFILES = ['Sam.admin', 'Elon.buyer', 'Dora']; // the project's, all closed
+    // The island alone fills the grid: dockview's room, the closed profiles' tiles no longer over it.
+    const room = () => ui(`(() => { const r = document.getElementById('grid').getBoundingClientRect(); return { width: Math.round(r.width), height: Math.round(r.height) }; })()`);
     const launch = () => ui(`(() => { const l = document.querySelector('.terminals .launch'), r = document.querySelector('.terminals').getBoundingClientRect();
-      if (!l) return null; const b = l.getBoundingClientRect(), ys = [...l.querySelectorAll('.launcher')].map((x) => Math.round(x.getBoundingClientRect().y));
-      return { labels: [...l.querySelectorAll('.launcher .name')].map((x) => x.textContent), oneLine: new Set(ys).size === 1,
+      if (!l) return null; const b = l.getBoundingClientRect(), ys = [...l.querySelectorAll('.agents .launcher')].map((x) => Math.round(x.getBoundingClientRect().y));
+      return { labels: [...l.querySelectorAll('.agents .name')].map((x) => x.textContent), oneLine: new Set(ys).size === 1,
+        profiles: [...l.querySelectorAll('.profiles .name')].map((x) => x.textContent),
         middle: Math.abs(b.y + b.height / 2 - (r.y + r.height / 2)) <= 1, strip: !!document.querySelector('.terminals .strip'),
         empty: getComputedStyle(document.querySelector('.termtabs').closest('.dv-groupview').querySelector('.dv-content-container')).backgroundColor }; })()`);
     for (const preset of ['grid', 'focus', 'columns']) {
       await ui(`window.__layoutPreset('${preset}')`);
-      await waitFor(async () => JSON.stringify(await island()) === JSON.stringify(before) && (await launch())?.middle, 3000);
-      assert.deepEqual(await launch(), { labels: ['Terminal'], oneLine: true, middle: true, strip: false, empty: 'rgba(0, 0, 0, 0)' });
+      await waitFor(async () => JSON.stringify(await island()) === JSON.stringify(await room()) && (await launch())?.middle, 3000);
+      assert.deepEqual(await launch(), { labels: ['Terminal'], oneLine: true, profiles: PROFILES, middle: true, strip: false, empty: 'rgba(0, 0, 0, 0)' });
     }
     // One opens what its row in + does: a terminal; closed, the buttons are back.
     await ui(`document.querySelector('.launcher').click()`);
     await waitFor(async () => task.terminals.size === 1 && !(await folded()));
+    // A terminal and no profile: the profiles' room a row of tiles over it, one for each; one opens its profile, and
+    // the row goes.
+    const tiles = () => ui(`(() => { const s = document.getElementById('closedprofiles');
+      return s && { names: [...s.querySelectorAll('.name')].map((x) => x.textContent),
+        above: s.getBoundingClientRect().bottom <= document.querySelector('.terminals').getBoundingClientRect().top }; })()`);
+    await waitFor(tiles);
+    assert.deepEqual(await tiles(), { names: PROFILES, above: true });
+    // A tile: the profile's picture and name, a long name in one line ending in …, who it is only in the tooltip: under
+    // the name it was cut off by the tile's edge (2026-10-17).
+    assert.deepEqual(await ui(`(() => { const t = document.querySelector('#closedprofiles .launcher'), n = t.querySelector('.name'), was = n.textContent;
+      n.textContent = 'orudzhali@insvgna.org';
+      const s = getComputedStyle(n), r = [s.whiteSpace, s.textOverflow, !!t.querySelector('small'),
+        [...t.children].every((c) => c.getBoundingClientRect().bottom <= t.getBoundingClientRect().bottom)];
+      n.textContent = was; return r; })()`), ['nowrap', 'ellipsis', false, true]);
+    assert.match(await ui(`document.querySelector('#closedprofiles [data-profile="sam-admin"]').title`), /^Open Sam\.admin: ./);
+    // More than fit (19 profiles): the row scrolls, its end faded, the window as wide as before: the row stretched the
+    // window's column, the terminal and the tasks' bar past its edge, the last profiles out of reach (2026-10-15).
+    await ui(`(() => { const s = document.getElementById('closedprofiles'); for (let i = 0; i < 20; i++) s.append(s.querySelector('.launcher').cloneNode(true)); })()`);
+    await waitFor(() => ui(`document.getElementById('closedprofiles').classList.contains('past-end')`));
+    assert.deepEqual(await ui(`(() => { const s = document.getElementById('closedprofiles'), r = (e) => e.getBoundingClientRect();
+      return [s.scrollWidth > s.clientWidth, r(s).right <= innerWidth, r(document.querySelector('.terminals')).right <= innerWidth, document.documentElement.scrollWidth <= innerWidth]; })()`),
+      [true, true, true, true]);
+    await ui(`document.querySelectorAll('#closedprofiles .launcher').forEach((t, i) => { if (i >= ${PROFILES.length}) t.remove(); })`);
+    await ui(`document.querySelector('#closedprofiles [data-profile="sam-admin"]').click()`);
+    await waitFor(async () => task.profiles.has('sam-admin') && !(await tiles()));
+    await ctx.call('profile_close', { profile: 'sam-admin' });
+    await waitFor(tiles);
     await ui(`document.querySelector('.termtab .close').click()`);
-    await waitFor(async () => task.terminals.size === 0 && !!(await launch()));
-    // With a profile open: folded to a strip of its +, along the grid's height (the island is under the grid); kept so.
-    await ctx.call('profile_open', { profile: 'sam-admin' });
+    await waitFor(async () => task.terminals.size === 0 && !!(await launch()) && !(await tiles()));
+    // With a profile open (its tile among the big buttons): folded to a strip of its +, along the grid's height (the
+    // island is under the grid); kept so.
+    await ui(`document.querySelector('.launch .profiles [data-profile="sam-admin"]').click()`);
     await waitFor(async () => (await island()).height <= 40 && (await middle()));
     assert.equal((await island()).width, before.width);
     // Its + opens a terminal: the island unfolds.
@@ -604,46 +796,44 @@ export default (test: Test) => {
   });
 
   test('agents: once installed, the Agents window shows its version and where it is', async (ctx) => {
-    const { ui } = ctx;
-    await openAgents(ui);
-    assert.equal(await ui(agentRow('fake', '.status') + '.textContent'), 'Installed');
-    assert.equal(await ui(agentRow('fake', '.install') + '.hidden'), true);
+    const { sui } = ctx;
+    await openAgents(ctx);
+    assert.equal(await sui(agentRow('fake', '.status') + '.textContent'), 'Installed');
+    assert.equal(await sui(agentRow('fake', '.install') + '.hidden'), true);
     // Shown as the human's home folder shortened to ~, as a test folder inside it is (the CI's runner.temp).
     const bin = path.join(root, 'bin', 'kulisa-fake-agent'), home = os.homedir() + path.sep;
-    assert.equal(await ui(agentRow('fake', '.where') + '.textContent'),
+    assert.equal(await sui(agentRow('fake', '.where') + '.textContent'),
       `1.2.3 · ${bin.startsWith(home) ? '~' + bin.slice(home.length - 1) : bin} · not on your PATH: Kulisa runs it from here`);
-    assert.equal(await ui(agentRow('fake', '.install-line') + '.textContent'), '');
-    await showAgent(ui, 'fake');
+    assert.equal(await sui(agentRow('fake', '.install-line') + '.textContent'), '');
+    await showAgent(sui, 'fake');
     // A click on the row already shown keeps it chosen: Reka's Tree toggled it off, its page still shown (seen on
     // GitHub's runner, 2026-10-12, where the tests reach this row already chosen).
-    await showAgent(ui, 'fake');
-    await ctx.shell.screenshot(path.join(root, 'agents.png'));
-    await closeAgents(ui);
+    await showAgent(sui, 'fake');
+    await shot(ctx.shell, path.join(root, 'agents.png'));
+    await closeSettings(ctx);
   });
   test('agents: the list comes at once with what the last look found, then looks again: an agent removed meanwhile shows so', async (ctx) => {
-    const { ui } = ctx;
+    const { ui, sui } = ctx;
     const bin = path.join(root, 'bin', 'kulisa-fake-agent'), away = `${bin}.away`;
     const fake = (cached: boolean) => ui(`kulisa.invoke('agents:list', { details: true, cached: ${cached} }).then((r) => r.list?.find((a) => a.id === 'fake'))`);
     assert.equal((await fake(true)).version, '1.2.3', "the last look's, nothing run");
     fs.renameSync(bin, away);
     try {
       assert.equal((await fake(true)).installed, true, 'not looked for again yet');
-      await openAgents(ui);
-      await waitFor(() => ui(agentRow('fake', '.status') + `.textContent === 'Not installed'`));
+      await openAgents(ctx);
+      await waitFor(() => sui(agentRow('fake', '.status') + `.textContent === 'Not installed'`));
       assert.equal((await fake(true)).installed, false, 'what the window looked for again is kept');
-      await closeAgents(ui);
+      await closeSettings(ctx);
     } finally {
       fs.renameSync(away, bin);
       await fake(false);
     }
   });
 
-  // The project's settings (Project Settings… in its label's menu), with its agents.
-  const projectSettings = async (ui: UI, id = 'project') => {
-    await rightClick(ui, `#projectTabs [data-project="${id}"] .name`);
-    await menuRows(ui);
-    await choose(ui, 'Project Settings…');
-    await waitFor(() => ui(`(document.getElementById('projects')?.dataset.state === 'open') && !!document.getElementById('npagentsrow')`));
+  // The project's settings (Project Settings… in its submenu), with its agents.
+  const projectSettings = async ({ ui, sui }: Pick<Ctx, 'ui' | 'sui'>, id = 'project') => {
+    await projectMenu(ui, 'Project Settings…', `#projectTabs [data-project="${id}"] .name`);
+    await waitFor(() => sui(`!!document.getElementById('npagentsrow')`));
   };
   // A new profile on a project's page: + → New Profile…, its name typed in place, Create.
   const newProfileHere = async (ui: UI, name: string) => {
@@ -660,18 +850,14 @@ export default (test: Test) => {
   };
   // The page shown: its name in place at its top.
   const pageOf = (name: string) => `(document.getElementById('pjname')?.value === ${JSON.stringify(name)} && !!document.getElementById('pjhead'))`;
-  const closeSettings = async (ui: UI) => {
-    await ui(`document.querySelector('#projects .x').click()`);
-    await waitFor(async () => !(await ui(`(document.getElementById('projects')?.dataset.state === 'open')`)));
-  };
   // New Account… of the fake agent: its own sign-in starts at once; resolves with its terminal's pty (the sign-in
   // waiting for the human), once its page is open in the user's browser.
   const signIn = async (ctx: Ctx) => {
-    const { shell, ui } = ctx;
+    const { shell, sui } = ctx;
     shell.signins.clear();
-    await ui(`document.getElementById('npagentadd').click()`);
-    assert.deepEqual((await menuRows(ui)).slice(-2), ['# New Account', 'Fake agent…'], 'the agents that have accounts, after the ones to add');
-    await choose(ui, 'Fake agent…');
+    await sui(`document.getElementById('npagentadd').click()`);
+    assert.deepEqual((await menuRows(sui)).slice(-2), ['# New Account', 'Fake agent…'], 'the agents that have accounts, after the ones to add');
+    await choose(sui, 'Fake agent…');
     await waitFor(() => shell.signins.size);
     const p = [...shell.signins.values()][0];
     // Its page opened: it waits for the email (a pty keeps what is typed until the agent reads it).
@@ -685,43 +871,44 @@ export default (test: Test) => {
   const accountDir = (id: string) => path.join(userData, 'agents', id);
   const logouts = () => { try { return fs.readFileSync(path.join(root, 'logouts'), 'utf8').trim().split('\n'); } catch { return []; } };
   test("agents: a new account is made in the project's settings: the agent's own sign-in at once, in a terminal there (under Details), its page in the user's own browser (Google refuses an embedded one); named by the email it signed in to; a task runs it with its folder, over a folder the project's environment sets", async (ctx) => {
-    const { ui } = ctx;
-    await projectSettings(ui);
+    const { ui, sui } = ctx;
+    await projectSettings(ctx);
     const windows = electron.BrowserWindow.getAllWindows().length;
     let p = await signIn(ctx);
     const dir = accountDir('fake-1');
     assert.ok(fs.existsSync(dir), 'its folder, a fixed id: never renamed');
-    assert.ok(await ui(`!!document.querySelector('#npsigninterm .xterm') && !document.getElementById('npsigninterm').checkVisibility()`),
+    assert.ok(await sui(`!!document.querySelector('#npsigninterm .xterm') && !document.getElementById('npsigninterm').checkVisibility()`),
       'the sign-in in a terminal of the dialog, under Details: what it says the window shows');
     // Its page in the user's browser (the BROWSER Kulisa was started with), not a window of Kulisa's.
     assert.equal(electron.BrowserWindow.getAllWindows().length, windows, 'no window of its own');
     p.write('Work@Shop.com\r');
-    await waitFor(() => ui(`!!document.querySelector('#npagents [data-agent="fake-1"]') && !document.getElementById('npsignin')`));
-    assert.equal(await ui(`document.querySelector('#npagents [data-agent="fake-1"] .label').textContent`), 'Fake agent · work@shop.com');
+    await waitFor(() => sui(`!!document.querySelector('#npagents [data-agent="fake-1"]') && !document.getElementById('npsignin')`));
+    // Its agent and its email, each in its column (a table, the author, 2026-10-16).
+    assert.deepEqual(await sui(`[...document.querySelectorAll('#npagents [data-agent="fake-1"] .cell')].slice(0, 2).map((c) => c.textContent.trim())`), ['Fake agent', 'work@shop.com']);
     assert.deepEqual(JSON.parse(fs.readFileSync(path.join(userData, 'agents.json'), 'utf8')),
       { next: 2, list: [{ id: 'fake-1', agent: 'fake', email: 'work@shop.com', folder: 'fake-1', projects: ['project'] }] });
     // Signed in to an email it has already: that account, the new folder signed out and gone.
     p = await signIn(ctx);
     p.write('work@shop.com\r');
-    await waitFor(async () => /is in the project already/.test(await ui(`document.getElementById('npsigninerror').textContent`)));
+    await waitFor(async () => /is in the project already/.test(await sui(`document.getElementById('npsigninerror').textContent`)));
     assert.ok(!fs.existsSync(accountDir('fake-2')) && logouts().includes(accountDir('fake-2')));
-    await ui(`document.getElementById('npsignincancel').click()`);
-    await waitFor(() => ui(`!document.getElementById('npsignin')`));
+    await sui(`document.getElementById('npsignincancel').click()`);
+    await waitFor(() => sui(`!document.getElementById('npsignin')`));
     // Cancelled: nothing kept; + adds again (not while a sign-in is shown).
     p = await signIn(ctx);
-    assert.equal(await ui(`document.getElementById('npagentadd').disabled`), true);
-    await ui(`document.getElementById('npsignincancel').click()`);
-    await waitFor(async () => !fs.existsSync(accountDir('fake-3')) && !(await ui(`!!document.getElementById('npsignin') || document.getElementById('npagentadd').disabled`)));
+    assert.equal(await sui(`document.getElementById('npagentadd').disabled`), true);
+    await sui(`document.getElementById('npsignincancel').click()`);
+    await waitFor(async () => !fs.existsSync(accountDir('fake-3')) && !(await sui(`!!document.getElementById('npsignin') || document.getElementById('npagentadd').disabled`)));
     // Not signed in (the agent's sign-in ended without it): said so, Try Again.
     p = await signIn(ctx);
     p.write('\r');
-    await waitFor(async () => /Not signed in/.test(await ui(`document.getElementById('npsigninerror').textContent`)));
-    assert.equal(await ui(`document.getElementById('npsigninstart').hidden`), false);
-    assert.ok(await ui(`document.getElementById('npsigninterm').checkVisibility() && !!document.querySelector('#npsigninterm .xterm')`),
+    await waitFor(async () => /Not signed in/.test(await sui(`document.getElementById('npsigninerror').textContent`)));
+    assert.equal(await sui(`document.getElementById('npsigninstart').hidden`), false);
+    assert.ok(await sui(`document.getElementById('npsigninterm').checkVisibility() && !!document.querySelector('#npsigninterm .xterm')`),
       'its Details open by itself, with what the agent said');
     assert.ok(!fs.existsSync(accountDir('fake-4')));
-    await ui(`document.getElementById('npsignincancel').click()`);
-    await closeSettings(ui);
+    await sui(`document.getElementById('npsignincancel').click()`);
+    await closeSettings(ctx);
     // A task runs it: the agent with its folder in its variable, though the project's environment set it to another
     // (run.ts: its shell's startup, as a project's .envrc). Choosing a task's agent lists the project's accounts.
     const task = await newTask(ctx);
@@ -742,37 +929,59 @@ export default (test: Test) => {
     await ui(`document.querySelector('#handover .x').click()`);
     await waitFor(() => ui(`!document.getElementById('handover')`));
   });
+  test("language: one for every agent (☰ → Language): written into the agents' own setting in each account's folder, at an agent's start and when chosen, never into the human's own", async ({ ui, shell }) => {
+    const own = (id: string) => path.join(accountDir(id), 'settings.json');
+    const read = (f: string) => JSON.parse(fs.readFileSync(f, 'utf8'));
+    assert.deepEqual(read(own('fake-1')), { language: 'English' }, 'at its start (the test before): English, the default');
+    await ui(`document.getElementById('windowMenu').click()`);
+    assert.ok((await menuRows(ui)).includes('Language'));
+    const row = `${MENU}.querySelector('.languagerow')`;
+    assert.equal(await ui(`${row}.querySelector('.value').textContent`), 'English');
+    assert.match(await ui(`${row}.title`), /^The language you speak with the agents\. Fake agent dictates and answers in it, and may write code comments in it too: your project's CLAUDE\.md or AGENTS\.md decides that\./);
+    await ui(`${row}.click()`);
+    await waitFor(() => ui(`!!document.querySelector('.menu.languages[data-state="open"]')`));
+    const system = await ui(`navigator.language.split('-')[0]`);
+    assert.equal(await ui(`document.querySelector('.menu.languages [data-language]').dataset.language`), system, "the system's first");
+    await ui(`document.querySelector('.menu.languages [data-language="ru"]').click()`);
+    await waitFor(() => read(path.join(userData, 'settings.json')).language === 'ru');
+    await waitFor(() => read(own('fake-1')).language === 'Russian');
+    assert.ok(!fs.existsSync(path.join(root, 'fake-config', 'settings.json')), "the human's own folder untouched");
+    await closeMenu(ui);
+    assert.ok(refused(shell.setLanguage('xx')), 'only one an agent takes');
+    shell.setLanguage('en');
+    assert.equal(read(own('fake-1')).language, 'English');
+  });
 
   test("agents: an account lives until deleted in Settings → Agents: let go by its project at once, kept; not deleted while a task runs it; deleted after a question, signed out, with its folder; one made there is in no project", async (ctx) => {
-    const { shell, ui } = ctx;
+    const { shell, ui, sui } = ctx;
     const task = shell.task, dir = accountDir('fake-1');
     const row = (id: string) => `document.querySelector('#agentpage [data-account="${id}"]')`;
     // An account deleted: its row selected, then − over its list.
-    const deleteAccount = (id: string) => onRow(ui, `#agentpage [data-account="${id}"]`, null, `#agentpage .list:has([data-account="${id}"]) .accountdel`);
+    const deleteAccount = (id: string) => onRow(sui, `#agentpage [data-account="${id}"]`, null, `#agentpage .list:has([data-account="${id}"]) .accountdel`);
     // × in the project lets go of it at once, nothing asked; the account stays, and the task running it keeps it.
-    await projectSettings(ui);
-    await onRow(ui, '#npagents [data-agent="fake-1"]', 'npagentdel');
-    await waitFor(() => ui(`!document.querySelector('#npagents [data-agent="fake-1"]')`));
+    await projectSettings(ctx);
+    await onRow(sui, '#npagents [data-agent="fake-1"]', 'npagentdel');
+    await waitFor(() => sui(`!document.querySelector('#npagents [data-agent="fake-1"]')`));
     assert.equal(ctx.asked.length, 0);
     assert.deepEqual(shell.accounts.find('fake-1').projects, [], 'kept, in no project');
     assert.equal(task.promptTarget().agent.id, 'fake-1');
     assert.ok(fs.existsSync(dir));
     // Its agent's page: the account in no project; Delete refused while a task runs it.
-    await showAgent(ui, 'fake');
-    await waitFor(() => ui(`!!${row('fake-1')}`));
-    assert.equal(await ui(`${row('fake-1')}.querySelector('small').textContent`), 'in no project');
+    await showAgent(sui, 'fake');
+    await waitFor(() => sui(`!!${row('fake-1')}`));
+    assert.equal(await sui(`${row('fake-1')}.querySelector('small').textContent`), 'in no project');
     await deleteAccount('fake-1');
-    const said = () => ui(`document.getElementById('agentpageerror').textContent`);
+    const said = () => sui(`document.getElementById('agentpageerror').textContent`);
     await waitFor(async () => !!(await said()));
     assert.match(await said(), new RegExp(`^Tasks run it: ${task.entry.name} \\(project\\)`));
     assert.equal(ctx.asked.length, 0);
-    await closeSettings(ui);
+    await closeSettings(ctx);
     await ui(`kulisa.invoke('task:delete', '${task.key}')`);
     await waitFor(() => !shell.current.tasks.has(task.n) && shell.task?.n === 2);
     ctx.asked.length = 0;
     // Deleted after a question; no: kept.
-    await openAgents(ui);
-    await waitFor(() => ui(`!!${row('fake-1')}`));
+    await openAgents(ctx);
+    await waitFor(() => sui(`!!${row('fake-1')}`));
     ctx.answer = false;
     await deleteAccount('fake-1');
     await waitFor(() => ctx.asked.length);
@@ -780,44 +989,44 @@ export default (test: Test) => {
     assert.ok(fs.existsSync(dir), 'kept when the human says no');
     ctx.answer = true;
     await deleteAccount('fake-1');
-    await waitFor(async () => !fs.existsSync(dir) && !(await ui(`!!${row('fake-1')}`)));
+    await waitFor(async () => !fs.existsSync(dir) && !(await sui(`!!${row('fake-1')}`)));
     assert.ok(logouts().includes(dir), 'signed out first, with its agent\'s own command');
     assert.deepEqual(JSON.parse(fs.readFileSync(path.join(userData, 'agents.json'), 'utf8')), { next: 5, list: [] });
     ctx.asked.length = 0;
     // New Account… there (the + beside Agents in the tree, an agent): signed in on its page, in no project; a project's
     // Add Agent… takes it.
     shell.signins.clear();
-    await click(ui, `document.querySelector('#pjlist [data-agent]:not([data-agent="fake"])')`); // another agent's page shown first
-    await click(ui, `document.getElementById('agentnew')`);
-    await menuRows(ui);
-    await choose(ui, 'Fake agent…');
-    await waitFor(() => ui(`document.querySelector('#pjlist [data-agent="fake"]').ariaSelected === 'true'`));
+    await click(sui, `document.querySelector('#pjlist [data-agent]:not([data-agent="fake"])')`); // another agent's page shown first
+    await click(sui, `document.getElementById('agentnew')`);
+    await menuRows(sui);
+    await choose(sui, 'Fake agent…');
+    await waitFor(() => sui(`document.querySelector('#pjlist [data-agent="fake"]').ariaSelected === 'true'`));
     await waitFor(() => shell.signins.size);
     const p = [...shell.signins.values()][0];
     p.write('home@shop.com\r'); // kept by the pty until the agent reads it
-    await waitFor(() => ui(`!!${row('fake-5')} && !document.getElementById('npsignin')`));
-    assert.equal(await ui(`${row('fake-5')}.querySelector('.label').textContent`), 'home@shop.com');
+    await waitFor(() => sui(`!!${row('fake-5')} && !document.getElementById('npsignin')`));
+    assert.equal(await sui(`${row('fake-5')}.querySelector('.label').textContent`), 'home@shop.com');
     assert.deepEqual(shell.accounts.find('fake-5').projects, []);
-    await click(ui, `document.querySelector('#pjlist [data-project="project"]')`);
-    await waitFor(() => ui(`document.getElementById('pjconfig').checkVisibility() && !document.getElementById('npagentadd').disabled`));
+    await click(sui, `document.querySelector('#pjlist [data-project="project"]')`);
+    await waitFor(() => sui(`document.getElementById('pjconfig').checkVisibility() && !document.getElementById('npagentadd').disabled`));
     // The accounts to add are asked for again as the tab is shown: the menu may open before they come.
     await waitFor(async () => {
-      await ui(`document.getElementById('npagentadd').click()`);
-      const rows = await menuRows(ui);
-      await closeMenu(ui);
+      await sui(`document.getElementById('npagentadd').click()`);
+      const rows = await menuRows(sui);
+      await closeMenu(sui);
       return rows.includes('Fake agent · home@shop.com');
     });
     // In no project and no task: deleted at once after the question.
-    await showAgent(ui, 'fake');
-    await waitFor(() => ui(`!!${row('fake-5')}`));
+    await showAgent(sui, 'fake');
+    await waitFor(() => sui(`!!${row('fake-5')}`));
     await deleteAccount('fake-5');
     await waitFor(() => !fs.existsSync(accountDir('fake-5')) && !shell.accounts.find('fake-5'));
     ctx.asked.length = 0;
-    await closeAgents(ui);
+    await closeSettings(ctx);
   });
 
   // Last in phase 1: task-1 is shown, Feature-X waits in the bar and task-5 is closed, for the restart phase.
-  test('tasks: × on the last open task closes its group, as Chrome\'s tab group goes with its last tab, nothing asked; a task opens it again', async (ctx) => {
+  test('tasks: × on the last open task of a project lets the project go, nothing asked: the empty window; a task of it opens it again', async (ctx) => {
     const { shell, ui } = ctx;
     const first = shell.current.tasks.get(1), second = shell.current.tasks.get(2);
     await ui(`${taskTab(1)}.querySelector('.close').click()`);
@@ -825,67 +1034,75 @@ export default (test: Test) => {
     await waitFor(async () => JSON.stringify(await tabs(ui)) === '["Feature-X *"]');
     assert.equal(ctx.asked.length, 0);
     await ui(`${taskTab(2)}.querySelector('.close').click()`);
-    await waitFor(() => shell.task === null && !shell.current);
+    // The project goes once its task is unloaded: its agent stopped, each profile's sign-ins written out and its
+    // tabs closed. On the runner, with the other project running beside it, that took over 5 s now and then (2026-10-12).
+    await waitFor(() => shell.task === null && !shell.current && !shell.open.has('project'), 15000);
     assert.equal(ctx.asked.length, 0, 'no agent works: nothing asked');
     assert.ok(second.profiles.size === 0 && !second.pty, 'every task of the project stopped');
     assert.deepEqual(tasksFile().list.map((e) => [e.n, !!e.closed]), [[1, true], [2, true], [5, true]]);
     await waitFor(() => ui(`document.documentElement.classList.contains('noproject')`));
-    // The empty window: an empty island in the grid's place with New Task and New Project…; the bar with no islands but +.
+    // The empty window, projects there: every project with its tasks, a column each (newtab/), as a new tab shows
+    // them; no tasks' bar.
+    assert.equal(await ui(`document.documentElement.dataset.page`), 'board');
     assert.equal(await ui(`getComputedStyle(document.getElementById('empty')).display`), 'grid');
-    assert.equal(await ui(`document.querySelector('#empty h2').textContent`), 'No task is open');
-    assert.ok(await ui(`(() => { const w = document.getElementById('empty'), s = getComputedStyle(w);
-      return w.getBoundingClientRect().height > innerHeight * 0.7 && s.backgroundColor === (() => { const i = document.body.appendChild(document.createElement('i')); i.style.background = 'var(--island)';
-        const c = getComputedStyle(i).backgroundColor; i.remove(); return c; })(); })() // an island's, as the dialogs'`));
-    assert.equal(await ui(`document.getElementById('newTask').checkVisibility()`), true, '+ there');
-    assert.equal(await ui(`document.getElementById('tasks')?.checkVisibility() ?? false`), false, 'no tasks shown');
-    assert.deepEqual(await projectTabs(ui), [], 'no project tab');
+    assert.equal(await ui(`!!document.getElementById('newtabtab')`), false, 'no new tab: the window is it');
+    assert.equal(await ui(`!!document.getElementById('taskbar')`), false, 'no tasks\' bar: no tab, and + would show the board it shows');
     assert.equal(await ui(`document.documentElement.style.getPropertyValue('--project')`), '', "no project's color");
+    // Its glow goes softly (App.vue): faded out, not cut.
+    await waitFor(() => ui(`getComputedStyle(document.getElementById('glow')).opacity === '0'`));
     assert.equal(shell.win.getTitle(), 'Kulisa');
     assert.deepEqual(savedWindows(), [{ tabs: [], shown: null }], 'the window opens so next time');
-    // The empty window's New Task opens the bar's + menu: every project with its icon in its color, as on its label in
-    // the bar, and its closed tasks set in under it, the one closed last first (all are closed here); New Project… last.
-    await ui(`document.getElementById('emptynewtask').click()`);
-    const rows = await menuRows(ui);
-    assert.deepEqual(await ui(`[...document.querySelectorAll('.menu[data-state="open"] .item:not(.inset) .picon')].map((i) => i.querySelector('use')?.getAttribute('href') ?? null)`),
-      shell.projects().map((p) => (p.favicon ? null : '#i-logo')), 'its favicon, else the curtain');
+    // Each column: its project's icon in its color, as on its tasks' tabs, its name, + (a new task of it); its tasks,
+    // the one closed last first (all are closed here), each when it was closed; New Project… after the columns. The
+    // project worked in last first.
+    const rows: string[] = await plusMenu(ui);
     const byClosing = tasksFile().list.filter((e) => e.closed).sort((a, b) => (b.closedAt ?? 0) - (a.closedAt ?? 0)).map((e) => `  ${e.name}`);
     assert.deepEqual(rows.slice(rows.indexOf('project') + 1, rows.indexOf('project') + 1 + byClosing.length), byClosing);
     assert.equal(byClosing[0], '  Feature-X');
-    assert.deepEqual(rows.slice(0, 1).concat(rows.slice(-2)), ['# New Task of', '-', 'New Project…']);
-    await closeMenu(ui);
-    // A closed task of it opens its group again, on that task; the others wait in its group's menu.
+    assert.equal(rows.at(-1), 'New Project…');
+    assert.equal(rows[0], 'project', 'worked in last');
+    assert.deepEqual(await ui(`[...document.querySelectorAll('#board .column header .picon')].map((i) => [i.closest('.column').dataset.project, i.querySelector('use')?.getAttribute('href') ?? null])`),
+      await ui(`[...document.querySelectorAll('#board .column')].map((c) => c.dataset.project)`).then((ids: string[]) => ids.map((id) => [id, shell.projects().find((p) => p.id === id).favicon ? null : '#i-logo'])), 'its favicon, else the curtain');
+    assert.match(await ui(`document.querySelector('#board .column[data-project="project"] li .item small').textContent`), /ago|just now/);
+    // A closed task's 🗑 asks as Delete Task… does (Cancel here: the tests after need it).
+    ctx.answer = false;
+    await ui(`document.querySelector('#board [data-task="project/5"] .remove').click()`);
+    await waitFor(() => ctx.asked.length);
+    assert.equal(ctx.asked.pop().message, 'Delete the task task-5?');
+    await waitFor(async () => !(await ui(`document.getElementById('ask')?.dataset.state === 'open'`)));
+    ctx.answer = true;
+    assert.ok(tasksFile().list.some((e) => e.n === 5), 'Cancel keeps it');
+    // A closed task of it opens it again, as that task's tab; the others wait in the +, the one closed last first.
     await plusMenu(ui, 'project', 'Feature-X');
     await waitFor(() => shell.task?.n === 2 && shell.task.loaded && shell.pty);
     ctx.watchPty(shell.pty);
     await waitFor(() => ui(`!document.documentElement.classList.contains('noproject') && !document.documentElement.classList.contains('loading')`));
     await waitFor(async () => JSON.stringify(await tabs(ui)) === '["Feature-X *"]');
-    assert.deepEqual((await groupMenu(ui)).slice(0, 5), ['New Task', '-', '# Closed tasks', 'task-1', 'task-5'], 'the one closed last first');
-    await groupMenu(ui, 'task-1');
+    // In a new tab now (the bar's +): the open one shown, not to choose; the others, the one closed last first.
+    const plus: string[] = await plusMenu(ui);
+    assert.deepEqual(plus.slice(plus.indexOf('project'), plus.indexOf('project') + 4), ['project', '  Feature-X (open)', '  task-1', '  task-5']);
+    assert.equal(await ui(`document.querySelector('#board [data-task="project/2"]').ariaDisabled`), 'true');
+    await plusMenu(ui, 'project', 'task-1');
     await waitFor(() => shell.task?.n === 1 && shell.task.loaded && shell.pty);
     ctx.watchPty(shell.pty);
-    await waitFor(async () => JSON.stringify(await tabs(ui)) === '["task-1 *","Feature-X"]');
+    await waitFor(async () => JSON.stringify(await tabs(ui)) === '["Feature-X","task-1 *"]'); // a tab opens at the end
     assert.equal(shell.current.tasks.get(2).loaded, true, 'the other open one stays loaded');
     await waitFor(async () => (await viewOn(shell, ui, 'sam-admin')) && viewOn(shell, ui, 'elon-buyer'));
   });
 
-  test('tasks: a click on a group\'s label folds nothing; a double click on a task\'s tab is its Rename…', async (ctx) => {
+  test('tasks: a double click on a task\'s tab is its Rename…', async (ctx) => {
     const { ui } = ctx;
-    const shown = () => ui(`[...document.querySelectorAll('#projectTabs .pisland.active .tasktab')].filter((t) => t.checkVisibility()).map((t) => t.querySelector('.name').textContent)`);
-    const before = JSON.stringify(await shown());
-    await click(ui, `document.querySelector('#projectTabs .pisland.active .plabel')`);
-    const tab = `document.querySelector('#tasklist .tasktab:not(.active) .name')`;
+    const tab = `document.querySelector('#projectTabs .tasktab:not(.active) .name')`;
     const name = await ui(`${tab}.textContent`);
     await ui(`${tab}.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }))`);
-    // The click on the label came before: by the time the dialog is open, it would have folded the group.
     await waitFor(() => ui(`(document.getElementById('taskrename')?.dataset.state === 'open') && document.getElementById('taskname').value === ${JSON.stringify(name)}`));
-    assert.equal(JSON.stringify(await shown()), before, 'every tab stays');
     press(ctx.shell.win.webContents, 'Escape');
     await waitFor(async () => !(await ui(`document.getElementById('taskrename')?.dataset.state === 'open'`)));
   });
 
-  test('the empty window: Close Group in the group\'s panel; links in ☰ open in the browser; at the first start the manager on New Project; New Project… asks where its folder goes', async (ctx) => {
+  test('the empty window: Close All Tasks in the project\'s submenu; links in ☰ open in the browser; at the first start the manager on New Project; New Project… asks where its folder goes', async (ctx) => {
     const { shell, ui } = ctx;
-    assert.deepEqual((await groupMenu(ui, 'Close Group')).slice(-2), ['-', 'Close Group']);
+    assert.deepEqual((await groupMenu(ui, 'Close All Tasks')).slice(-2), ['-', 'Close All Tasks']);
     await waitFor(() => shell.task === null && !shell.current);
     await waitFor(() => ui(`document.documentElement.classList.contains('noproject')`));
     await ui(`document.getElementById('windowMenu').click()`);
@@ -897,28 +1114,97 @@ export default (test: Test) => {
       await choose(ui, 'Documentation');
       await waitFor(() => opened.length === 1);
     } finally { electron.shell.openExternal = openExternal; }
-    assert.equal(opened[0], 'https://github.com/cosmotools/kulisa#readme');
+    assert.equal(opened[0], 'https://kulisa.app/docs', 'the user guide on the website');
     assert.ok(await ui(`location.protocol === 'file:' && !!document.getElementById('empty')`), 'the window stays on its page');
-    // The first start (no project yet): New Project opens by itself; not with projects there.
+    // With no project at all, the empty window is the welcome: what Kulisa does in three slides, the keyboard on Next
+    // at the first start, the window's glow behind (Kulisa's own red); then New Project's steps, a question each, in an
+    // island as a dialog. With projects, the board, and nothing happens.
+    await ui(`document.activeElement?.blur()`);
     shell.firstStart(shell.windows[0]);
-    assert.equal(await ui(`document.getElementById('newproject')?.dataset.state === 'open'`), false, 'projects there: nothing opens');
-    const projectsOf = shell.store.projects;
-    shell.store.projects = () => [];
-    try { shell.firstStart(shell.windows[0]); } finally { shell.store.projects = projectsOf; }
-    await waitFor(() => ui(`document.getElementById('newproject')?.dataset.state === 'open' && !!document.getElementById('nplocationrow')`));
-    await ui(`document.querySelector('#newproject .x').click()`);
-    await waitFor(async () => !(await ui(`(document.getElementById('newproject')?.dataset.state === 'open')`)));
-    assert.equal(await ui(`document.getElementById('projects')?.dataset.state === 'open'`), false, 'not from Settings: nothing after it');
+    await sleep(100); // that nothing happens
+    assert.equal(await ui(`document.documentElement.dataset.page`), 'board', 'projects there: nothing');
+    const projectsOf = shell.store.projects, sent = shell.projects, accountsOf = shell.accounts.all, profilesOf = shell.profileStore.all;
+    assert.equal(await ui(`document.getElementById('manageProjects').hidden`), false);
+    shell.store.projects = () => []; shell.projects = () => [];
+    try {
+      shell.sendProjects();
+      shell.firstStart(shell.windows[0]);
+      await waitFor(async () => (await ui(`document.activeElement?.id`)) === 'tournext');
+      assert.equal(await ui(`document.documentElement.dataset.page`), 'welcome');
+      // Settings' gear: there while it has anything to show (an account, a profile left after their projects), none
+      // at the first start.
+      assert.equal(await ui(`document.getElementById('manageProjects').hidden`), false, 'accounts and profiles there');
+      shell.accounts.all = () => accountsOf.call(shell.accounts).filter((a) => a.own); shell.profileStore.all = () => [];
+      shell.sendProjects();
+      await waitFor(() => ui(`document.getElementById('manageProjects').hidden`));
+      await waitFor(() => ui(`getComputedStyle(document.getElementById('glow')).opacity === '1'`));
+      const slide = () => ui(`[document.querySelector('#tour h1').textContent, document.getElementById('tournext').textContent]`);
+      assert.deepEqual(await slide(), ['Your agent, in your browsers', 'Next']);
+      await ui(`document.getElementById('tournext').click()`);
+      await ui(`document.getElementById('tournext').click()`);
+      assert.deepEqual(await slide(), ['Point at it, and say what is wrong', 'Set Up a Project']);
+      await ui(`document.getElementById('tourback').click()`);
+      assert.deepEqual(await slide(), ['It checks the result as every user', 'Next']);
+      // A low window, wide or at the least size: the slide fits, nothing to scroll to (its top was cut off above the
+      // window's edge, out of scrolling's reach, 2026-10-17).
+      const size = shell.win.getContentSize();
+      for (const [w, h] of [[1100, 400], [640, 400]]) {
+        shell.win.setContentSize(w, h);
+        await waitFor(() => ui(`innerWidth === ${w} && innerHeight === ${h}`));
+        assert.ok(await ui(`(() => { const e = document.getElementById('empty');
+          return e.scrollHeight <= e.clientHeight && document.getElementById('tour').getBoundingClientRect().top >= e.getBoundingClientRect().top; })()`), `${w}×${h}: the slide fits`);
+      }
+      shell.win.setContentSize(size[0], size[1]);
+      await ui(`document.getElementById('tourskip').click()`);
+      await waitFor(async () => (await ui(`document.activeElement?.id`)) === 'npname');
+      assert.deepEqual(await ui(`[document.querySelector('#welcome h1').textContent, document.querySelectorAll('#welcome .dots .on').length,
+        !!document.querySelector('#welcome .steps')]`), ['Where is the code?', 1, false], 'a question, not the steps\' names');
+      assert.ok(await ui(`document.getElementById('npcreate').textContent === 'Next' && getComputedStyle(document.querySelector('#welcome .box')).backgroundColor === (() => {
+        const i = document.body.appendChild(document.createElement('i')); i.style.background = 'var(--island)'; const c = getComputedStyle(i).backgroundColor; i.remove(); return c; })()`), "an island's, as a dialog's");
+      // Code from the disk or a URL: one folder or one URL, in a field, not a list (the others later, in Settings); its
+      // name the folder's or the repository's, no field for it unless it will not do. A new folder's is asked.
+      assert.equal(await ui(`document.querySelector('label[for="npname"]').textContent`), 'Project name:');
+      const kind = async (from: string) => {
+        await ui(`document.querySelector('#npfrom [data-value="${from}"]').click()`);
+        await waitFor(() => ui(`document.querySelector('#npfrom [data-value="${from}"]').ariaSelected === 'true'`));
+      };
+      const single = path.join(root, 'single', 'Shop');
+      fs.mkdirSync(single, { recursive: true });
+      await kind('folder');
+      assert.deepEqual(await ui(`[!!document.getElementById('npsources'), document.querySelector('#npsingle label').textContent, !!document.getElementById('npmore')]`),
+        [false, 'Folder:', true]);
+      await ui(`(() => { const i = document.getElementById('npsource'); i.value = ${JSON.stringify(single)}; i.dispatchEvent(new Event('input')); i.dispatchEvent(new Event('change')); })()`);
+      await waitFor(async () => (await ui(`document.getElementById('npwhere').textContent`)) === `The project Shop takes ${single} as it is`);
+      assert.equal(await ui(`!!document.getElementById('npname')`), false, 'its name: the folder\'s');
+      assert.equal(await ui(`document.getElementById('npgitrow').hidden`), false, 'Create Git repository: it is none');
+      await kind('clone');
+      assert.equal(await ui(`document.querySelector('#npsingle label').textContent`), 'URL:');
+      // A clone whose folder is there already, with files: its name to change, in its field.
+      fs.mkdirSync(path.join(shell.projectsHome, 'taken'), { recursive: true });
+      fs.writeFileSync(path.join(shell.projectsHome, 'taken', 'notes.txt'), '');
+      await ui(`(() => { const i = document.getElementById('npsource'); i.value = 'https://example.com/me/taken.git'; i.dispatchEvent(new Event('input')); i.dispatchEvent(new Event('change')); })()`);
+      await waitFor(async () => (await ui(`document.getElementById('npname')?.value`)) === 'taken');
+      assert.match(await ui(`document.getElementById('npwhere').textContent`), /is there already: choose another name or location/);
+      await kind('new');
+      assert.equal(await ui(`!!document.getElementById('npname')`), true);
+      fs.rmSync(path.join(shell.projectsHome, 'taken'), { recursive: true });
+      // Back on the first step: the slides again, on the one left.
+      await ui(`document.getElementById('npback').click()`);
+      await waitFor(async () => (await ui(`document.querySelector('#tour h1')?.textContent`)) === 'It checks the result as every user');
+    } finally { shell.store.projects = projectsOf; shell.projects = sent; shell.accounts.all = accountsOf; shell.profileStore.all = profilesOf; }
+    shell.sendProjects();
+    await waitFor(async () => (await ui(`document.documentElement.dataset.page`)) === 'board');
 
-    // New Project…: a name and where its folder goes, the home folder unless another is chosen; git on by default.
-    await ui(`document.getElementById('emptynew').click()`);
-    await waitFor(() => ui(`(document.getElementById('newproject')?.dataset.state === 'open')`));
-    assert.equal(await ui(`document.getElementById('nplocation').value`), path.join(root, 'Kulisa'), "every new project's place (~/Kulisa; the tests' own here)");
+    // New Project… after the columns: the same steps in a dialog.
+    await ui(`document.getElementById('boardnewproject').click()`);
+    await waitFor(() => ui(`document.getElementById('newproject')?.dataset.state === 'open' && !!document.getElementById('npname')`));
+
+    // Its code: a name and where its folder goes, the home folder unless another is chosen; git on by default.
+    assert.equal(await ui(`document.getElementById('nplocation').value`), shell.projectsHome, "every new project's place (~/KulisaProjects; the tests' own here)");
     // Not its color or icon (its site's favicon and its hue, else the curtain in the next free color: nothing to
-    // choose, the author, 2026-10-12), no agent: its accounts are made on its page, which Create goes on to.
+    // choose, the author, 2026-10-12).
     assert.equal(await ui(`!!document.getElementById('npcolors') || !!document.getElementById('npicons')`), false);
     const color = shell.store.nextColor();
-    assert.equal(await ui(`!!document.getElementById('npagent')`), false);
     assert.equal(await ui(`document.getElementById('npgit').getAttribute('aria-checked')`), 'true');
     const made = path.join(root, 'made');
     fs.mkdirSync(path.join(made, 'Taken'), { recursive: true });
@@ -930,72 +1216,88 @@ export default (test: Test) => {
       await waitFor(async () => (await ui(`document.getElementById('nplocation').value`)) === made);
     } finally { electron.dialog.showOpenDialog = showOpenDialog; }
     const named = (n: string) => ui(`(() => { const i = document.getElementById('npname'); i.value = ${JSON.stringify(n)}; i.dispatchEvent(new Event('input')); })()`);
-    // A folder there already would be taken as it is (the form says so as it is typed); a file is refused.
+    const step = () => ui(`document.querySelector('#newproject .steps [aria-current="step"]')?.textContent.slice(1)`);
+    // A folder there already would be taken as it is (the form says so as it is typed); a file is refused at Next.
     await named('Taken');
     await waitFor(async () => (await ui(`document.getElementById('npwhere').textContent`)) === `${path.join(made, 'Taken')} is there already: the project takes it as it is, its files kept`);
     assert.equal(await ui(`document.getElementById('npgitrow').hidden`), false, 'Create Git repository: it is none');
     fs.writeFileSync(path.join(made, 'note'), '');
     await named('note');
+    await waitFor(async () => /is a file, not a folder/.test(await ui(`document.getElementById('npwhere').textContent`)));
     await ui(`document.getElementById('npform').requestSubmit()`);
     await waitFor(async () => /is a file, not a folder/.test(await ui(`document.getElementById('nperror').textContent`)));
+    assert.equal(await step(), 'Code', 'not on');
     // An error is text to copy and search for: it can be selected (the window's other words cannot).
     assert.deepEqual(await ui(`(() => { const e = document.getElementById('nperror'); getSelection().selectAllChildren(e);
       return [getComputedStyle(e).userSelect, getSelection().toString() === e.textContent, getComputedStyle(document.querySelector('#newproject header h2')).userSelect]; })()`),
       ['text', true, 'none']);
-    assert.ok(!shell.store.projects().some((p) => p.id === 'note'), 'a file is not taken');
     await named('Shop');
-    // Created, no task is made: Settings shows its page; the bar's + makes one (no question where), Settings has no
-    // New Task (the author, 2026-10-12).
     assert.equal(await ui(`document.getElementById('npwhere').textContent`), `The project will be created in ${path.join(made, 'Shop')}`);
+    await ui(`document.getElementById('npform').requestSubmit()`);
+    // Its agents: the accounts there are, to tick (none here: its tasks start with a terminal), and a new one of each
+    // agent an account can be made of (its sign-in: the agents' tests).
+    await waitFor(async () => (await step()) === 'Agents');
+    assert.deepEqual(await ui(`[...document.querySelectorAll('#npagents > [data-account]')].map((r) => r.dataset.account)`),
+      (await ui(`kulisa.invoke('accounts:list')`)).accounts.map((a: { id: string }) => a.id));
+    await waitFor(async () => (await ui(`document.querySelectorAll('#npagentstep [data-add]').length`)) > 0); // Add account: an agent to make one of, once they are found (behind the steps)
+    await ui(`document.getElementById('npback').click()`);
+    await waitFor(async () => (await step()) === 'Code' && (await ui(`document.getElementById('npname').value`)) === 'Shop'); // Back: as it was
+    await ui(`document.getElementById('npform').requestSubmit()`);
+    await waitFor(async () => (await step()) === 'Agents');
+    await ui(`document.getElementById('npform').requestSubmit()`);
+    // Its profiles: a new one, named and said who it is; Create makes the project with it and opens its first task,
+    // nothing asked, no Settings (the author, 2026-10-17).
+    await waitFor(async () => (await step()) === 'Profiles' && (await ui(`document.getElementById('npcreate').textContent`)) === 'Create');
+    await ui(`document.getElementById('npprofileadd').click()`);
+    await ui(`(() => { const [n, d] = document.querySelectorAll('.npprofile input'); n.value = 'Shop-buyer'; n.dispatchEvent(new Event('input'));
+      d.value = 'buys things'; d.dispatchEvent(new Event('input')); })()`);
     ctx.asked.length = 0;
     await ui(`document.getElementById('npform').requestSubmit()`);
-    await waitFor(() => ui(`${pageOf('Shop')} && !!document.getElementById('npagentsrow')
-      && document.querySelector('#pjlist [data-project="shop"]')?.ariaSelected === 'true'`));
-    assert.equal(await ui(`[...document.querySelectorAll('#projects button')].some((b) => b.textContent.trim() === 'New Task')`), false);
-    assert.ok(!shell.current && !shell.open.has('shop'), 'made, no task');
-    assert.equal(ctx.asked.length, 0, 'nothing asked');
-    assert.equal(await ui(`!!document.getElementById('pjlook')`), false, 'nothing of its look to choose on its page either');
-    await closeSettings(ui);
-    await plusMenu(ui, 'Shop');
     await waitFor(() => shell.current?.folder === path.join(made, 'Shop') && shell.task?.loaded && shell.pty);
+    assert.equal(ctx.asked.length, 0, 'nothing asked');
+    assert.deepEqual(shell.profileStore.of('shop').map((p) => [p.name, p.description]), [['Shop-buyer', 'buys things']]);
     assert.ok(fs.existsSync(path.join(made, 'Shop', '.git')), 'git init in it');
     const shop = shell.store.projects().find((p) => p.id === 'shop');
     assert.deepEqual([shop.color, shop.agents], [color, undefined]);
     // No favicon in its code: the curtain, in the next free color, the window's too.
-    assert.equal(await ui(`${projectTab('shop')}.querySelector('.plabel use').getAttribute('href')`), '#i-logo');
+    assert.equal(await ui(`${projectTab('shop')}.querySelector('.picon use').getAttribute('href')`), '#i-logo');
     assert.equal(await ui(`document.documentElement.style.getPropertyValue('--project')`), color);
+    // Its glow comes softly, in its color, a blot changing its shape (three soft spots, each its own pace: App.vue).
+    await waitFor(() => ui(`getComputedStyle(document.getElementById('glow')).opacity === '1'`));
+    assert.equal(await ui(`document.documentElement.style.getPropertyValue('--glow')`), color);
+    assert.deepEqual(await ui(`[...document.querySelectorAll('#glow i')].map((i) => getComputedStyle(i).animationName)`), ['blot-a', 'blot-b', 'blot-c']);
     assert.equal(git(path.join(made, 'Shop'), 'log', '--format=%s'), 'Initial commit', 'an empty first commit');
     assert.equal(shell.task.folder, path.join(made, 'Shop@task-1'), 'so its first task has a copy of its own');
-    assert.equal(await ui(`(document.getElementById('projects')?.dataset.state === 'open')`), false);
+    assert.equal(shell.settings, null);
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
     await plusMenu(ui, 'project', 'task-1'); // a closed task in the bar's +: its group opens again on it
     await waitFor(() => shell.current?.folder === project && shell.task?.n === 1 && shell.task.loaded && shell.pty);
     ctx.watchPty(shell.pty);
     await waitFor(() => ui(`!document.documentElement.classList.contains('noproject') && !document.documentElement.classList.contains('loading')`));
     await waitFor(async () => (await viewOn(shell, ui, 'sam-admin')) && viewOn(shell, ui, 'elon-buyer'));
-    // Feature-X, closed with its group, opened again from the group's menu (the tests after and the restart expect it).
-    await groupMenu(ui, 'Feature-X');
+    // Feature-X, closed with the others, opened again from the + (the tests after and the restart expect it).
+    await plusMenu(ui, 'project', 'Feature-X');
     await waitFor(() => shell.task?.n === 2 && shell.task.loaded && !shell.windows[0].switching);
     await click(ui, taskTab(1));
     await waitFor(() => shell.task?.n === 1 && shell.task.loaded && !shell.windows[0].switching);
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
-    assert.deepEqual(await projectTabs(ui), ['Shop', 'project *']);
-    // Another project's task, in its island: a click shows that project with it.
-    await click(ui, `${projectTab('shop')}.querySelector('.tasktab[data-task="shop/1"]')`);
+    assert.deepEqual(await projectTabs(ui), ['shop', 'project *', 'project']);
+    // Another project's task: a click shows it.
+    await click(ui, `document.querySelector('#projectTabs .tasktab[data-task="shop/1"]')`);
     await waitFor(() => shell.current?.id === 'shop' && shell.task?.key === 'shop/1' && shell.task.loaded && !shell.windows[0].switching);
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
-    assert.deepEqual(await projectTabs(ui), ['Shop *', 'project']);
+    assert.deepEqual(await projectTabs(ui), ['shop *', 'project', 'project']);
     await showProject(ui, 'project');
     await waitFor(() => shell.current?.id === 'project' && shell.task.loaded);
-    // Its tabs have their × too, in its group while another project is shown: its last one closes it.
-    await ui(`${projectTab('shop')}.querySelector('.tasktab[data-task="shop/1"] .close').click()`);
+    // A tab in the background has its × too: the last one of its project lets the project go.
+    await ui(`document.querySelector('#projectTabs .tasktab[data-task="shop/1"] .close').click()`);
     await waitFor(() => !shell.open.has('shop'));
     assert.equal(shell.current?.id, 'project', 'the shown project stays');
     ctx.asked.length = 0;
   });
 
   test('projects: the projects\' manager (Project Settings…) changes its name and agents, the default one + runs, none the default: a new task starts nothing, the island\'s buttons instead; a folder with a favicon gets it as its icon, and its hue as its color', async (ctx) => {
-    const { shell, ui, call } = ctx;
+    const { shell, ui, sui, call } = ctx;
     const site = path.join(root, 'site');
     fs.mkdirSync(path.join(site, 'public'), { recursive: true });
     fs.writeFileSync(path.join(site, 'public', 'favicon.svg'), '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><circle cx="8" cy="8" r="8" fill="red"/></svg>');
@@ -1011,28 +1313,24 @@ export default (test: Test) => {
       return ${projectTab('site')}.style.getPropertyValue('--color') === c && (${typeof hue === 'number'} ? Math.abs(h - ${JSON.stringify(hue)}) <= 4 : c === ${JSON.stringify(hue)}); })()`);
     await waitFor(() => shown(29));
     // Its settings: its favicon in the list, the folder shown and not changed.
-    await rightClick(ui, `#projectTabs [data-project="site"] .name`);
-    await menuRows(ui);
-    await choose(ui, 'Project Settings…');
-    await waitFor(() => ui(`(document.getElementById('projects')?.dataset.state === 'open') && ${pageOf('site')}`));
+    await projectMenu(ui, 'Project Settings…', `#projectTabs [data-project="site"] .name`);
+    await waitFor(() => sui(`${pageOf('site')}`));
     // The manager lists every project, this one chosen (none marked open: a project is no thing to open).
-    assert.ok(await ui(`document.querySelector('#pjlist [data-project="site"]').ariaSelected === 'true' && !document.querySelector('#pjlist kbd')`));
-    assert.equal(await ui(`document.querySelector('#pjlist [data-project="site"] .picon').matches('.favicon')`), true);
-    assert.equal(await ui(`document.querySelector('#nprepos [data-folder] small').textContent`), site, 'its folder, as its code');
-    assert.equal(await ui(`!!document.getElementById('nplocationrow')`), false);
+    assert.ok(await sui(`document.querySelector('#pjlist [data-project="site"]').ariaSelected === 'true' && !document.querySelector('#pjlist kbd')`));
+    assert.equal(await sui(`document.querySelector('#pjlist [data-project="site"] .picon').matches('.favicon')`), true);
+    assert.equal(await sui(`document.querySelector('#nprepos [data-folder] small').textContent`), site, 'its folder, as its code');
+    assert.equal(await sui(`!!document.getElementById('nplocationrow')`), false);
     // A page, no Save: its top (New Task, ⋯), each part saved as it changes; the dialog stays open.
-    assert.equal(await ui(`!!document.getElementById('npcreate') || !!document.querySelector('#projects footer')`), false, 'no Save, no Cancel');
-    assert.equal(await ui(`[...document.querySelectorAll('#pjconfig .titled, #pjconfig .field > label')].map((h) => h.textContent).join(', ')`),
+    assert.equal(await sui(`!!document.getElementById('npcreate') || !!document.querySelector('#projects footer')`), false, 'no Save, no Cancel');
+    assert.equal(await sui(`[...document.querySelectorAll('#pjconfig .titled, #pjconfig .field > label')].map((h) => h.textContent).join(', ')`),
       'Name:, Code, Agents, Profiles, Local addresses:');
     const entryOf = () => shell.store.projects().find((p) => p.id === 'site');
     // Its favicon changed: read again as its settings open. Mostly blue with a red dot: the hue of the most (264°).
     const favicon = (svg: string) => fs.writeFileSync(path.join(site, 'public', 'favicon.svg'), `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">${svg}</svg>`);
     const reopen = async () => {
-      await closeSettings(ui);
-      await rightClick(ui, `#projectTabs [data-project="site"] .name`);
-      await menuRows(ui);
-      await choose(ui, 'Project Settings…');
-      await waitFor(() => ui(`(document.getElementById('projects')?.dataset.state === 'open') && ${pageOf('site')}`));
+      await closeSettings(ctx);
+      await projectMenu(ui, 'Project Settings…', `#projectTabs [data-project="site"] .name`);
+      await waitFor(() => sui(`${pageOf('site')}`));
     };
     favicon('<rect width="16" height="16" fill="#00f"/><circle cx="8" cy="8" r="2" fill="red"/>');
     await reopen();
@@ -1041,37 +1339,36 @@ export default (test: Test) => {
     favicon('<path d="M2 2h12v12H2z" fill="#000"/>');
     await reopen();
     await waitFor(() => shown(entryOf().color));
-    await ui(`(() => { const l = document.getElementById('nplocal'); l.value = 'abc.ngrok.app *.Shop.dev'; l.dispatchEvent(new Event('input')); l.dispatchEvent(new Event('change')); })()`);
+    await sui(`(() => { const l = document.getElementById('nplocal'); l.value = 'abc.ngrok.app *.Shop.dev'; l.dispatchEvent(new Event('input')); l.dispatchEvent(new Event('change')); })()`);
     await waitFor(() => entryOf().local?.length === 2);
-    // The name typed and the manager closed with ×: kept.
-    await ui(`(() => { const n = document.getElementById('pjname'); n.value = 'Site-2'; n.dispatchEvent(new Event('input')); })()`);
+    // The name typed and the window closed with the OS's ×: kept (its page saves it, then closes it).
+    await sui(`(() => { const n = document.getElementById('pjname'); n.value = 'Site-2'; n.dispatchEvent(new Event('input')); })()`);
     assert.equal(entryOf().name, 'site', 'not yet: on Enter or leaving it');
-    await closeSettings(ui);
+    shell.settings.win.close();
+    await settingsClosed(ctx);
     await waitFor(() => entryOf().name === 'Site-2');
     const entry = entryOf();
     assert.deepEqual([entry.name, entry.folder], ['Site-2', site]);
     assert.deepEqual(entry.local, ['abc.ngrok.app', 'shop.dev'], "its own local addresses, where test users' pairs may be typed (local.ts)");
-    await waitFor(async () => (await projectTabs(ui)).includes('Site-2 *') && shell.win.getTitle() === 'Site-2 — Kulisa');
+    await waitFor(async () => (await projectTabs(ui)).includes('site *') && shell.win.getTitle() === `${shell.task.name} · Site-2 — Kulisa`);
     // Its profiles: a new one; one of another project, the same person (its master, its sign-ins); × lets go of one.
-    await rightClick(ui, `#projectTabs [data-project="site"] .name`);
-    await menuRows(ui);
-    await choose(ui, 'Project Settings…');
-    await waitFor(() => ui(`(document.getElementById('projects')?.dataset.state === 'open')`));
-    assert.equal(await ui(`document.querySelectorAll('#npprofiles .item').length`), 0);
-    await newProfileHere(ui, 'Site-user');
-    await waitFor(() => ui(`!!document.querySelector('#npprofiles [data-profile="site-user"]')`));
-    await ui(`document.getElementById('npprofileadd').click()`);
-    assert.ok((await menuRows(ui)).join('|').includes('# Other Profiles|Sam.admin'));
-    await choose(ui, 'Sam.admin');
-    await waitFor(async () => (await ui(`document.querySelector('#npprofiles [data-profile="sam-admin"] small')?.textContent`)) === 'seller in the test shop · also in project');
+    await projectMenu(ui, 'Project Settings…', `#projectTabs [data-project="site"] .name`);
+    await waitFor(() => sui(`!!document.getElementById('npprofilesrow')`));
+    assert.equal(await sui(`document.querySelectorAll('#npprofiles .item').length`), 0);
+    await newProfileHere(sui, 'Site-user');
+    await waitFor(() => sui(`!!document.querySelector('#npprofiles [data-profile="site-user"]')`));
+    await sui(`document.getElementById('npprofileadd').click()`);
+    assert.ok((await menuRows(sui)).join('|').includes('# Other Profiles|Sam.admin'));
+    await choose(sui, 'Sam.admin');
+    await waitFor(async () => JSON.stringify(await sui(`[...document.querySelectorAll('#npprofiles [data-profile="sam-admin"] .cell')].map((c) => c.textContent)`)) === '["Sam.admin","seller in the test shop","project"]');
     await waitFor(() => shell.closed.has('sam-admin') && shell.closed.has('site-user')); // its task lists them, closed
-    await onRow(ui, '#npprofiles [data-profile="site-user"]', 'npprofiledel');
+    await onRow(sui, '#npprofiles [data-profile="site-user"]', 'npprofiledel');
     await waitFor(() => ctx.asked.length);
     assert.equal(ctx.asked.pop().message, 'Remove the profile Site-user from Site-2?');
     await waitFor(() => !shell.closed.has('site-user'));
     assert.deepEqual(shell.profileStore.get('site-user').projects, [], 'in no other project: kept all the same, until deleted in Settings → Profiles');
     shell.profileStore.delete('site-user'); // not needed by later tests
-    await ui(`document.querySelector('#projects .x').click()`);
+    await closeSettings(ctx);
     // Opened in this task: a copy of its master, here.
     await ui(`act('profile:open', { profile: 'sam-admin' })`);
     await waitFor(() => shell.profiles.has('sam-admin'));
@@ -1085,45 +1382,50 @@ export default (test: Test) => {
     // Its agents: a list, added from the agents without accounts and the accounts other projects have (one made in
     // project, as New Account… makes it), one the default (a radio); at once, not on Save.
     const ann = shell.accounts.create('project', (shell.accounts.prepare('fake') as { id: string }).id, 'fake', 'ann@shop.com');
-    await rightClick(ui, `#projectTabs [data-project="site"] .name`);
-    await menuRows(ui);
-    await choose(ui, 'Project Settings…');
-    await waitFor(() => ui(`(document.getElementById('projects')?.dataset.state === 'open') && !!document.getElementById('npagentsrow')`));
-    await ui(`document.getElementById('npagentadd').click()`);
-    assert.ok(!(await menuRows(ui)).includes('Fake agent'), 'an agent with accounts: one of its accounts');
-    await closeMenu(ui);
+    await projectMenu(ui, 'Project Settings…', `#projectTabs [data-project="site"] .name`);
+    await waitFor(() => sui(`!!document.getElementById('npagentsrow')`));
+    await sui(`document.getElementById('npagentadd').click()`);
+    assert.ok(!(await menuRows(sui)).includes('Fake agent'), 'an agent with accounts: one of its accounts');
+    await closeMenu(sui);
     for (const name of ['Terminal only', 'Fake agent · ann@shop.com']) {
-      await ui(`document.getElementById('npagentadd').click()`);
-      await menuRows(ui);
-      await choose(ui, name);
-      await waitFor(async () => (await ui(`[...document.querySelectorAll('#npagents .label')].map((l) => l.textContent)`)).includes(name));
+      await sui(`document.getElementById('npagentadd').click()`);
+      await menuRows(sui);
+      await choose(sui, name);
+      await waitFor(async () => (await sui(`[...document.querySelectorAll('#npagents .item')].map((r) => r.title)`)).includes(name));
     }
     // The default marked, Make Default on the others.
-    const agentRows = () => ui(`[...document.querySelectorAll('#npagents .item')].map((r) => r.querySelector('.label').textContent + ' ' + !!r.querySelector('.default'))`);
+    const agentRows = () => sui(`[...document.querySelectorAll('#npagents .item')].map((r) => r.title + ' ' + !!r.querySelector('.default'))`);
     assert.deepEqual(await agentRows(), ['Terminal only true', 'Fake agent · ann@shop.com false'], 'the first added, the default');
+    // A table: each value in its column, under its name, the columns at the same places in every row (the author,
+    // 2026-10-16: values one after another, each row its own rhythm, read as chaos).
+    assert.deepEqual(await sui(`(() => { const list = document.querySelector('#npagentsrow .list'), x = (e) => Math.round(e.getBoundingClientRect().left);
+      const rows = [list.querySelector('.head'), ...list.querySelectorAll('.item')].map((r) => [...r.children].map(x).join());
+      return [[...list.querySelector('.head').children].map((h) => h.textContent), rows.every((r) => r === rows[0])]; })()`), [['Agent', 'Account', ''], true]);
     assert.deepEqual(shell.store.projects().find((p) => p.id === 'site').agents, ['shell', ann.id]);
     assert.deepEqual(shell.accounts.find(ann.id).projects, ['project', 'site'], 'the account lists the projects it is in');
-    await onRow(ui, `#npagents [data-agent="${ann.id}"]`, 'npagentdefault');
+    await onRow(sui, `#npagents [data-agent="${ann.id}"]`, 'npagentdefault');
     await waitFor(async () => JSON.stringify(await agentRows()) === '["Fake agent · ann@shop.com true","Terminal only false"]');
     // Its right-click has the same: Make Default.
-    await rightClick(ui, '#npagents [data-agent="shell"] .label');
-    assert.deepEqual(await menuRows(ui), ['Make Default', 'Remove from the Project']);
-    await choose(ui, 'Make Default');
+    // The row not chosen yet: Reka's list takes the keyboard to it just after the menu opens, which closed the menu
+    // (RightClickMenu.vue; first seen in Settings' window, 2026-10-16).
+    await rightClick(sui, '#npagents [data-agent="shell"] .label');
+    assert.deepEqual(await menuRows(sui), ['Make Default', 'Remove from the Project']);
+    await choose(sui, 'Make Default');
     await waitFor(async () => JSON.stringify(await agentRows()) === '["Terminal only true","Fake agent · ann@shop.com false"]');
     // None the default: No Default on the default one's right-click, or its ★; ★ on it again makes it the default.
-    await rightClick(ui, '#npagents [data-agent="shell"] .label');
-    assert.deepEqual(await menuRows(ui), ['No Default', 'Remove from the Project']);
-    await choose(ui, 'No Default');
+    await rightClick(sui, '#npagents [data-agent="shell"] .label');
+    assert.deepEqual(await menuRows(sui), ['No Default', 'Remove from the Project']);
+    await choose(sui, 'No Default');
     await waitFor(async () => JSON.stringify(await agentRows()) === '["Terminal only false","Fake agent · ann@shop.com false"]');
     assert.equal(shell.store.projects().find((p) => p.id === 'site').noDefaultAgent, true);
-    await onRow(ui, `#npagents [data-agent="shell"]`, 'npagentdefault');
+    await onRow(sui, `#npagents [data-agent="shell"]`, 'npagentdefault');
     await waitFor(async () => JSON.stringify(await agentRows()) === '["Terminal only true","Fake agent · ann@shop.com false"]');
     assert.equal(shell.store.projects().find((p) => p.id === 'site').noDefaultAgent, undefined);
-    await onRow(ui, `#npagents [data-agent="shell"]`, 'npagentdefault');
+    await onRow(sui, `#npagents [data-agent="shell"]`, 'npagentdefault');
     await waitFor(async () => JSON.stringify(await agentRows()) === '["Terminal only false","Fake agent · ann@shop.com false"]');
-    await onRow(ui, `#npagents [data-agent="shell"]`, 'npagentdefault');
+    await onRow(sui, `#npagents [data-agent="shell"]`, 'npagentdefault');
     await waitFor(async () => JSON.stringify(await agentRows()) === '["Terminal only true","Fake agent · ann@shop.com false"]');
-    await ui(`document.querySelector('#projects .x').click()`);
+    await closeSettings(ctx);
     // + makes a task with the default one (the first kept the one it started with).
     ctx.answer = true; // no git: a second task in the folder, after the question
     const task = await newTask(ctx);
@@ -1146,7 +1448,12 @@ export default (test: Test) => {
       && (await ui(`!document.documentElement.classList.contains('loading')`)));
     const bare = shell.task;
     ctx.asked.length = 0;
-    await waitFor(() => ui(`[...document.querySelectorAll('.launch .launcher .name')].map((n) => n.textContent).join()`).then((t) => t === 'Fake agent,Terminal'));
+    await waitFor(() => ui(`[...document.querySelectorAll('.launch .agents .name')].map((n) => n.textContent).join()`).then((t) => t === 'Fake agent,Terminal'));
+    // A project with no profiles: one tile, Add Profile…, its page in Settings.
+    assert.deepEqual(await ui(`[...document.querySelectorAll('.launch .profiles .name')].map((n) => n.textContent)`), ['Add Profile…']);
+    await ui(`document.querySelector('.launch .profiles .launcher').click()`);
+    await waitFor(() => sui(`document.querySelector('#pjlist [data-project="site"]')?.ariaSelected === 'true'`));
+    await closeSettings(ctx);
     assert.equal(bare.terminals.size, 0);
     assert.equal(JSON.parse(fs.readFileSync(path.join(userData, 'projects', 'site', String(bare.n), 'agent.json'), 'utf8')).agent, null);
     await ui(`document.activeElement.blur()`);
@@ -1179,13 +1486,13 @@ export default (test: Test) => {
     assert.deepEqual(shell.accounts.find(ann.id).projects, ['project']);
     assert.equal(annTask.promptTarget().agent.id, ann.id);
     assert.deepEqual([...before.terminals.values()].map((t) => [t.name, !!t.agent]), [['Terminal', false]], 'the terminal only: a shell');
-    await ui(`kulisa.invoke('project:close', { id: 'site' })`);
+    await ui(`kulisa.invoke('project:close-tasks', { id: 'site' })`);
     await waitFor(() => !shell.open.has('site'));
     ctx.asked.length = 0;
   });
 
-  test('projects: several repositories: a task gets a copy of each on one branch, in one folder; one added while a task runs is copied and its agent told; one with copies is not removed', async (ctx) => {
-    const { shell, ui, call } = ctx;
+  test('projects: several repositories: a task gets a copy of the default one, another added when it needs it (the human on its tab, the agent with task_add_repository), on its branch, its agent told; one with copies is not removed', async (ctx) => {
+    const { shell, ui, sui, call } = ctx;
     const repo = (name: string) => {
       const d = path.join(root, name);
       fs.mkdirSync(d); git(d, 'init', '-q'); fs.writeFileSync(path.join(d, 'a.txt'), name); git(d, 'add', '-A'); git(d, 'commit', '-qm', name);
@@ -1198,46 +1505,130 @@ export default (test: Test) => {
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
     const first = shell.task;
     assert.equal(first.folder, `${api}@task-1`, 'one repository: its copy next to it');
-    // Added in Project Settings… while task-1 runs: copied for it into its folder of copies, its agent told.
+    const chips = () => ui(`[...document.querySelectorAll('.taskrepos .chip')].map((c) => c.textContent)`);
+    // The chips lit as they came (.fresh, for 1.8 s), seen as it happens: read after, a loaded runner missed it
+    // (GitHub's macOS runner, 2026-10-16).
+    const watchFresh = () => ui(`(() => { window.__fresh = new Set(); window.__freshSeen?.disconnect();
+      const seen = () => document.querySelectorAll('.taskrepos .chip.fresh').forEach((c) => __fresh.add(c.textContent));
+      window.__freshSeen = new MutationObserver(seen); __freshSeen.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] }); })()`);
+    const lit = () => ui(`[...window.__fresh]`);
+    assert.deepEqual(await chips(), [], 'one repository: nothing to tell');
+    // Added in Project Settings… while task-1 runs: no copy, only offered on its tab.
     const added = await ui(`kulisa.invoke('project:repo-add', { id: 'api', folder: ${JSON.stringify(web)} })`);
     assert.deepEqual(added.repos.map((r: { folder: string }) => r.folder), [api, web]);
-    const webCopy = path.join(root, 'Kulisa', 'api@task-1', 'web');
+    assert.equal(first.entry.copies.length, 1);
+    assert.deepEqual([first.dirs(), first.addable()], [[], [web]]);
+    // The terminals' row names its repositories once the project has several; one added comes in lit.
+    await waitFor(async () => (await chips()).length === 1);
+    assert.deepEqual(await chips(), ['api']);
+    // Add Repository on its tab: a copy into its folder of copies, on its branch; its agent given it (an agent without
+    // /add-dir: a line saying so, sent; Claude Code's question after /add-dir: checked by hand), not while it waits for
+    // the human (Enter would answer the question), once it no longer does.
+    const firstAgent = first.agentTerminals()[0];
+    first.setState(firstAgent, 'waiting');
+    await rightClick(ui, `#projectTabs .tasktab[data-task="${first.key}"] .name`);
+    const rows = await menuRows(ui);
+    assert.deepEqual(rows.slice(rows.indexOf('# Add Repository'), rows.indexOf('Rename…')), ['# Add Repository', 'web', '-']);
+    await watchFresh();
+    await choose(ui, 'web');
+    const webCopy = path.join(shell.projectsHome, 'api@task-1', 'web');
     await waitFor(() => first.entry.copies.length === 2);
+    await waitFor(async () => (await chips()).length === 2);
+    assert.deepEqual([await chips(), await lit()], [['api', 'web'], ['web']], 'it comes in lit');
+    // Long names are cut, the whole in the tooltip; the terminals' tabs and the microphone stay in the panel.
+    assert.deepEqual(await ui(`(() => { const names = [...document.querySelectorAll('.taskrepos .chip .name')], was = names.map((n) => n.textContent);
+      for (const n of names) n.textContent = 'customer-notifications-delivery-pipeline-with-templates'.repeat(3);
+      const row = document.querySelector('.termtabs').closest('.dv-groupview').getBoundingClientRect(), inRow = (e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.left >= row.left && r.right <= row.right; };
+      const r = { cut: names.every((n) => n.scrollWidth > n.clientWidth), tab: inRow(document.querySelector('.termtab')), mic: inRow(document.querySelector('.termtabs .dictation')),
+        tooltip: document.querySelector('.taskrepos .chip').title.startsWith(${JSON.stringify(first.folder)}) };
+      names.forEach((n, i) => n.textContent = was[i]);
+      return r; })()`), { cut: true, tab: true, mic: true, tooltip: true });
     assert.equal(git(webCopy, 'rev-parse', '--abbrev-ref', 'HEAD'), 'task-1');
-    await waitFor(async () => (await ctx.termText()).includes(`Kulisa added ${webCopy} to this task`));
-    assert.deepEqual(first.dirs(), [webCopy]);
-    // A new task: a copy of each in one folder, on one branch; its agent told of the other.
+    assert.ok(!(await ctx.termText()).includes('Kulisa added'), 'not while it waits for the human');
+    first.setState(firstAgent, 'done');
+    // Sent, not left in its prompt: shown as typed, then again as the agent (cat) read the line on Enter.
+    await waitFor(async () => (await ctx.termText()).split(`Kulisa added ${webCopy} to this task`).length === 3);
+    assert.deepEqual([first.dirs(), first.addable()], [[webCopy], []]);
+    // A new task: a copy of the default one alone, in a folder for them all; the agent told of the other, to read it
+    // there and ask before adding it.
     const task = await newTask(ctx);
-    const home = path.join(root, 'Kulisa', 'api@task-2');
+    const home = path.join(shell.projectsHome, 'api@task-2');
     assert.equal(task.folder, path.join(home, 'api'));
+    assert.deepEqual([task.dirs(), fs.existsSync(path.join(home, 'web'))], [[], false]);
+    assert.match(await ctx.instructions(task), new RegExp(`repositories, not in this task: ${web}\\. .*first ask the human.*task_add_repository`));
+    // The agent adds it in its turn, once the human agreed: a copy on its branch, given to it in the turn by an agent's
+    // own command (Claude Code's /add-dir: it runs at once); the same refused again.
+    const agent = task.agentTerminals()[0];
+    agent.agent.addDir = { command: (f: string) => `/add-dir ${f}` };
+    task.setState(agent, 'working');
+    assert.match((await call('task_add_repository', { repository: 'web' })).text, /Added: .*api@task-2\/web, on branch task-2/);
     assert.deepEqual(task.dirs(), [path.join(home, 'web')]);
-    for (const r of ['api', 'web']) assert.equal(git(path.join(home, r), 'rev-parse', '--abbrev-ref', 'HEAD'), 'task-2');
-    assert.match(await ctx.instructions(task), /The task's other folders: .*api@task-2\/web \(a worktree of .*\/web, branch task-2\)/);
+    await waitFor(async () => (await ctx.termText()).split(`/add-dir ${path.join(home, 'web')}`).length === 3);
+    delete agent.agent.addDir;
+    task.setState(agent, 'done');
+    await assert.rejects(call('task_add_repository', { repository: 'web' }), /has .*web already/);
     // Its agent names it: the branch of each copy.
     await call('task_rename', { name: 'Checkout' });
     for (const r of ['api', 'web']) assert.equal(git(path.join(home, r), 'rev-parse', '--abbrev-ref', 'HEAD'), 'checkout');
     // Project Settings… shows them, the default first; × on one tasks have copies of is refused, naming them.
-    await rightClick(ui, `#projectTabs [data-project="api"] .name`);
-    await menuRows(ui);
-    await choose(ui, 'Project Settings…');
-    await waitFor(() => ui(`document.querySelectorAll('#nprepos .item').length === 2`));
-    assert.deepEqual(await ui(`[...document.querySelectorAll('#nprepos .item')].map((r) => r.querySelector('.label').textContent + ' ' + !!r.querySelector('.default'))`), ['api true', 'web false']);
-    await onRow(ui, `#nprepos [data-folder="${web}"]`, 'nprepodel');
-    await waitFor(async () => /Tasks work in it: task-1, Checkout/.test(await ui(`document.getElementById('npcodeerror').textContent`)));
-    await ui(`document.querySelector('#projects .x').click()`);
+    await projectMenu(ui, 'Project Settings…', `#projectTabs [data-project="api"] .name`);
+    await waitFor(() => sui(`document.querySelectorAll('#nprepos .item').length === 2`));
+    assert.deepEqual(await sui(`[...document.querySelectorAll('#nprepos .item')].map((r) => r.querySelector('.label').textContent + ' ' + !!r.querySelector('.default'))`), ['api true', 'web false']);
+    await onRow(sui, `#nprepos [data-folder="${web}"]`, 'nprepodel');
+    await waitFor(async () => /Tasks work in it: task-1, Checkout/.test(await sui(`document.getElementById('npcodeerror').textContent`)));
+    await closeSettings(ctx);
+    // Removed again by its agent once the human agreed: nothing of its own in it, so not asked; its folder and branch
+    // gone, the agent told once its turn is over. Its own folder is refused.
+    await assert.rejects(call('task_remove_repository', { repository: 'api' }), /task's own folder/);
+    task.setState(agent, 'working');
+    assert.match((await call('task_remove_repository', { repository: 'web' })).text, new RegExp(`Removed: ${path.join(home, 'web')}`));
+    assert.deepEqual([fs.existsSync(path.join(home, 'web')), git(web, 'branch', '--list', 'checkout'), task.dirs(), task.addable()], [false, '', [], [web]]);
+    assert.ok(!(await ctx.termText()).includes('Kulisa removed'), 'not while it works');
+    task.setState(agent, 'done');
+    await waitFor(async () => (await ctx.termText()).split(`Kulisa removed ${path.join(home, 'web')}`).length === 3);
+    await waitFor(async () => (await chips()).length === 1);
+    // Added again, it comes in lit; the human removes it by its chip's menu.
+    await watchFresh();
+    await call('task_add_repository', { repository: 'web' });
+    await waitFor(async () => (await chips()).length === 2);
+    assert.deepEqual([await chips(), await lit()], [['api', 'web'], ['web']], 'it comes in lit');
+    await rightClick(ui, `.taskrepos .chip[data-folder="${path.join(home, 'web')}"]`);
+    assert.deepEqual(await menuRows(ui), ['Remove Repository']);
+    await choose(ui, 'Remove Repository');
+    await waitFor(() => !fs.existsSync(path.join(home, 'web')));
+    await waitFor(async () => (await chips()).length === 1);
+    assert.equal(ctx.asked.length, 0, 'nothing of its own: not asked');
     // Deleting the task: both copies, both branches and its folder go.
     await ui(`kulisa.invoke('task:delete', '${task.key}')`);
     await waitFor(() => !fs.existsSync(home));
     assert.equal(git(web, 'branch', '--list', 'checkout') + git(api, 'branch', '--list', 'checkout'), '');
     ctx.asked.length = 0;
-    // Cloned from a URL (a local one here) next to the project's folder, and copied for task-1; made the default.
+    // Cloned from a URL (a local one here) next to the project's folder, offered to task-1; made the default.
     const bare = path.join(root, 'docs.git');
     git(root, 'clone', '-q', '--bare', web, bare);
     const cloned = await ui(`kulisa.invoke('project:repo-clone', { id: 'api', url: ${JSON.stringify(bare)} })`);
     assert.deepEqual(cloned.repos.map((r: { folder: string }) => r.folder), [api, web, path.join(root, 'docs')]);
-    await waitFor(() => first.entry.copies.length === 3);
+    assert.deepEqual(first.addable(), [path.join(root, 'docs')]);
     assert.equal((await ui(`kulisa.invoke('project:repo-default', { id: 'api', folder: ${JSON.stringify(web)} })`)).repos[0].folder, web);
-    await ui(`kulisa.invoke('project:close', { id: 'api' })`);
+    // The human removes task-1's web on its tab, a file not committed there: asked first, told what goes with it.
+    fs.writeFileSync(path.join(webCopy, 'b.txt'), 'work');
+    const removeWeb = async () => {
+      await rightClick(ui, `#projectTabs .tasktab[data-task="${first.key}"] .name`);
+      const rows = await menuRows(ui);
+      assert.deepEqual(rows.slice(rows.indexOf('# Remove Repository'), rows.indexOf('Rename…')), ['# Remove Repository', 'web', '-']);
+      await choose(ui, 'web');
+      await waitFor(() => ctx.asked.length);
+      return ctx.asked.pop();
+    };
+    ctx.answer = false;
+    const q = await removeWeb();
+    assert.equal(q.message, 'Remove web from the task task-1?');
+    assert.match(q.detail, new RegExp(`its folder ${webCopy}, its branch task-1.*1 uncommitted file`, 's'));
+    assert.ok(fs.existsSync(webCopy), 'kept when the human says no');
+    ctx.answer = true;
+    await removeWeb();
+    await waitFor(() => !fs.existsSync(webCopy) && git(web, 'branch', '--list', 'task-1') === ''); // the folder goes first, then the branch
+    await ui(`kulisa.invoke('project:close-tasks', { id: 'api' })`);
     await waitFor(() => !shell.open.has('api'));
     ctx.asked.length = 0;
     // A project without git (Site-2, closed) getting a repository: its folder is a former one, shown in its settings.
@@ -1246,34 +1637,60 @@ export default (test: Test) => {
     assert.deepEqual([site.repos.map((r: { folder: string }) => r.folder), site.former], [[path.join(root, 'docs')], path.join(root, 'site')]);
   });
 
-  test("projects: the title bar's Projects opens the manager at the shown project; another one, not open, is configured there too; + New Project", async (ctx) => {
-    const { shell, ui } = ctx;
+  test("projects: the title bar's gear opens Settings' window at the shown project; another one, not open, is configured there too, asked there; what is done in the task's window meanwhile is asked there; no New Project in it", async (ctx) => {
+    const { shell, ui, sui } = ctx;
+    // Shown once it is filled (its tree's three sections, the agents found, the project's page): as it came, it jumped.
+    let filled: Promise<unknown>;
+    electron.app.once('browser-window-created', (_e, w) => w.once('show', () => { filled = w.webContents.executeJavaScript(
+      `[document.querySelectorAll('#pjlist [data-agent]').length > 0, document.querySelectorAll('#pjlist [data-profile]').length > 0, !!document.getElementById('pjhead')]`); }));
     await ui(`document.getElementById('manageProjects').click()`);
-    await waitFor(() => ui(`(document.getElementById('projects')?.dataset.state === 'open') && ${pageOf(shell.current.name)}`));
-    assert.equal(await ui(`document.querySelector('#pjlist [aria-selected="true"]').dataset.project`), shell.current.id);
-    assert.equal(shell.task.profiles.get('sam-admin').get().view.getVisible(), false, 'pages hidden under the dialog');
-    // Site-2 is closed: its configuration all the same; a profile made and let go there (asked first).
-    await ui(`document.querySelector('#pjlist [data-project="site"]').click()`);
-    await waitFor(() => ui(pageOf('Site-2')));
+    await waitFor(() => filled);
+    assert.deepEqual(await filled, [true, true, true]);
+    await waitFor(() => sui(pageOf(shell.current.name)));
+    assert.equal(await sui(`document.querySelector('#pjlist [aria-selected="true"]').dataset.project`), shell.current.id);
+    // Pages on screen under Settings' window (once live again after the last menu's pictures: on GitHub's runner later).
+    await waitFor(() => shell.task.profiles.get('sam-admin').get().view.getVisible());
+    // Site-2 is closed: its configuration all the same; a profile made and let go there (asked first, in Settings' window,
+    // where it was done).
+    await sui(`document.querySelector('#pjlist [data-project="site"]').click()`);
+    await waitFor(() => sui(pageOf('Site-2')));
     assert.ok(!shell.open.has('site'));
-    await newProfileHere(ui, 'Closed-one');
-    await waitFor(() => ui(`!!document.querySelector('#npprofiles [data-profile="closed-one"]')`));
+    await newProfileHere(sui, 'Closed-one');
+    await waitFor(() => sui(`!!document.querySelector('#npprofiles [data-profile="closed-one"]')`));
     ctx.answer = true;
-    await onRow(ui, '#npprofiles [data-profile="closed-one"]', 'npprofiledel');
+    await onRow(sui, '#npprofiles [data-profile="closed-one"]', 'npprofiledel');
     await waitFor(() => ctx.asked.length && !shell.profileStore.get('closed-one')?.projects.length);
     assert.equal(ctx.asked.pop().message, 'Remove the profile Closed-one from Site-2?');
+    assert.equal(await ui(`!!document.getElementById('ask')`), false, "not in the task's window");
     shell.profileStore.delete('closed-one'); // not needed by later tests
-    await waitFor(() => ui(`!document.querySelector('#npprofiles [data-profile="closed-one"]')`));
-    assert.equal(await ui(`document.getElementById('npprofileerror').textContent`), '');
-    await shell.screenshot(path.join(root, 'projects.png'));
-    // + New Project: a dialog of its own in Settings' place; cancelled, Settings again.
-    await ui(`document.getElementById('pjnew').click()`);
-    await waitFor(() => ui(`document.getElementById('newproject')?.dataset.state === 'open' && !!document.getElementById('nplocationrow')
-      && document.getElementById('projects')?.dataset.state !== 'open'`));
-    await shell.screenshot(path.join(root, 'newproject.png'));
-    await ui(`document.querySelector('#newproject .x').click()`);
-    await waitFor(() => ui(`document.getElementById('projects')?.dataset.state === 'open' && document.getElementById('newproject')?.dataset.state !== 'open'`));
-    await ui(`document.querySelector('#projects .x').click()`);
+    await waitFor(() => sui(`!document.querySelector('#npprofiles [data-profile="closed-one"]')`));
+    assert.equal(await sui(`document.getElementById('npprofileerror').textContent`), '');
+    // Settings only: a project is made in a tasks' window (New Project…), its section has no +.
+    assert.equal(await sui(`!!document.getElementById('pjnew') || !!document.querySelector('[data-section="projects"] .add')`), false);
+    await shot(shell, path.join(root, 'projects.png'));
+    // Done in the task's window with Settings in front, that window minimized (Refresh from Master…; on macOS the OS's ×
+    // of a window behind): asked in the task's window, not in Settings', and that window comes back to the front with it.
+    shell.win.minimize();
+    await waitFor(() => shell.win.isMinimized());
+    shell.settings.win.focus();
+    await waitFor(() => shell.settings.win.isFocused());
+    ctx.answer = false;
+    const said = await ui(`kulisa.invoke('profile:refresh', { task: ${JSON.stringify(shell.task.key)}, profile: 'sam-admin' })`);
+    assert.deepEqual([said, ctx.asked.pop().message], [{ error: 'the human said no' }, "Bring the sign-ins of Sam.admin's master to this task?"]);
+    assert.equal(await sui(`!!document.getElementById('ask')`), false, "not in Settings' window");
+    // Waited for: macOS restores a minimized window with its animation, and makes it key at its end (GitHub's runner).
+    await waitFor(() => !shell.win.isMinimized() && shell.win.isFocused()); // the task's window in front with its question
+    ctx.answer = true;
+    // The theme and the Kulisa zoom are every window's: its too.
+    const theme = shell.theme, zoom = () => shell.settings.win.webContents.getZoomFactor();
+    shell.setTheme(theme === 'light' ? 'dark' : 'light');
+    await waitFor(async () => (await sui(`document.documentElement.dataset.theme`)) === shell.theme);
+    shell.setTheme(theme);
+    shell.setUiZoom(1.25);
+    await waitFor(() => Math.abs(zoom() - 1.25) < 1e-6);
+    shell.setUiZoom(1);
+    await waitFor(() => Math.abs(zoom() - 1) < 1e-6);
+    await closeSettings(ctx);
     ctx.asked.length = 0;
   });
 
@@ -1305,61 +1722,75 @@ export default (test: Test) => {
     assert.equal(ctx.asked.pop().message, 'Delete the task task-1?');
     await waitFor(() => !shell.current.tasks.has(1) && !fs.existsSync(first.folder));
     assert.ok(shell.current.tasks.has(second.n) && !second.entry.merged, 'one not merged stays');
-    await ui(`kulisa.invoke('project:close', { id: 'merge' })`);
+    await ui(`kulisa.invoke('project:close-tasks', { id: 'merge' })`);
     await waitFor(() => !shell.open.has('merge'));
     ctx.asked.length = 0;
   });
 
-  test("tasks: a closed task is deleted from its row, 🗑 or Delete, in the bar's + (its group not open) and its group's menu, after the question Delete Task… asks", async (ctx) => {
+  test("menus: one longer than the window has stays in it and scrolls; the board's column with more tasks than fit scrolls in itself, more columns than fit sideways", async ({ ui }) => {
+    // The bar's + with thirty closed tasks, a menu until 2026-10-17, ran past the window's edge: under the grid its
+    // project's row, the new task, out of reach above (2026-10-15). Any menu: ☰'s here.
+    await ui(`document.getElementById('windowMenu').click()`);
+    await menuRows(ui);
+    await ui(`(() => { const m = ${MENU}, row = m.querySelector('.item'); for (let i = 0; i < 60; i++) m.append(row.cloneNode(true)); })()`); // as many rows as thirty closed tasks and more
+    assert.deepEqual(await ui(`new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => { const m = ${MENU}, b = m.getBoundingClientRect();
+      r([b.top >= 0, b.bottom <= innerHeight, m.scrollHeight > m.clientHeight]); })))`), [true, true, true]);
+    await closeMenu(ui);
+    await plusMenu(ui);
+    await ui(`(() => { const c = document.querySelector('#board .column'), ul = c.querySelector('ul'), li = ul.querySelector('li');
+      for (let i = 0; i < 60; i++) ul.append(li.cloneNode(true)); const b = document.getElementById('board'); for (let i = 0; i < 10; i++) b.prepend(c.cloneNode(true)); })()`);
+    assert.deepEqual(await ui(`new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => { const b = document.getElementById('board'), c = b.querySelector('.column'),
+      ul = c.querySelector('ul'), at = c.getBoundingClientRect(), e = document.getElementById('empty').getBoundingClientRect();
+      r([at.bottom <= e.bottom + 1, ul.scrollHeight > ul.clientHeight, b.scrollWidth > b.clientWidth, document.body.scrollWidth <= innerWidth]); })))`), [true, true, true, true]);
+    await closeBoard(ui);
+  });
+  test("tasks: a closed task is deleted from its row, 🗑 or Delete, in the board (the bar's +), its project loaded or not, after the question Delete Task… asks", async (ctx) => {
     // About 2 s: git's work (worktrees made and removed).
     const { shell, ui } = ctx;
     const p = shell.store.projects().find((x) => x.id === 'merge');
     const entry = (n: number) => shell.store.tasksOf(p).list.find((e) => e.n === n);
-    // The open menu's closed task of that name, after the row of its project in the bar's +: its row.
-    const row = (name: string, after = '') => `(() => { const items = [...${MENU}.querySelectorAll('.item')], label = (r) => r.querySelector('.label').textContent;
-      return items.slice(items.findIndex((r) => !${JSON.stringify(after)} || label(r) === ${JSON.stringify(after)})).find((r) => label(r) === ${JSON.stringify(name)}); })()`;
-    // merge (above) has no group now; its task-2 is closed, with a commit not merged.
+    // A task's row in its project's column of the board (a new tab, the bar's +; the empty window).
+    const row = (name: string, project = 'merge') => `[...document.querySelectorAll('#board .column[data-project="${project}"] li .item')].find((r) => r.querySelector('.label').textContent === ${JSON.stringify(name)})`;
+    // merge (above) is not loaded now; its task-2 is closed, with a commit not merged.
     const folder = entry(2).folder;
     await plusMenu(ui);
-    assert.equal(await ui(`getComputedStyle(${row('task-2', 'merge')}.querySelector('.remove')).visibility`), 'hidden', 'shown on the row the pointer or the keyboard is on');
+    assert.equal(await ui(`getComputedStyle(${row('task-2')}.querySelector('.remove')).visibility`), 'hidden', 'shown on the row the pointer or the keyboard is on');
     ctx.answer = false;
-    await ui(`${row('task-2', 'merge')}.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true }))`);
+    await ui(`${row('task-2')}.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true }))`);
     await waitFor(() => ctx.asked.length);
     const q = ctx.asked.pop();
     assert.equal(q.message, 'Delete the task task-2?');
     assert.match(q.detail, /1 commit of its own/, 'its work not in main, as Delete Task… says');
-    await waitFor(async () => !(await menuOpen(ui)) && !(await ui(`document.getElementById('ask')?.dataset.state === 'open'`)));
+    await waitFor(async () => !(await ui(`document.getElementById('ask')?.dataset.state === 'open'`)));
     assert.ok(entry(2) && fs.existsSync(folder), 'Cancel keeps it');
     ctx.answer = true;
-    await plusMenu(ui);
-    await click(ui, `${row('task-2', 'merge')}.querySelector('.remove')`);
+    await click(ui, `${row('task-2')}.querySelector('.remove')`);
     await waitFor(() => !entry(2) && !fs.existsSync(folder));
     assert.ok(!shell.open.has('merge'), 'not opened for it');
     const rows: string[] = await plusMenu(ui), after = rows.slice(rows.indexOf('merge') + 1);
     assert.ok(!after[0].startsWith('  '), 'merge has no closed task left');
-    await closeMenu(ui);
+    await closeBoard(ui);
 
-    // Its group open: its closed task's row in the group's menu.
+    // A task of it open: the same row in the +.
     await ui(`kulisa.invoke('project:open', { id: 'merge' })`);
     await waitFor(() => shell.current?.id === 'merge' && shell.task?.loaded && shell.pty);
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
     const closing = shell.task;
     await newTask(ctx);
-    await ui(`${taskTab(closing.n)}.querySelector('.close').click()`);
+    await ui(`document.querySelector('#projectTabs .tasktab[data-task="${closing.key}"] .close').click()`);
     await waitFor(() => closing.entry.closed);
-    await rightClick(ui, '#projectTabs .pisland.active .plabel');
-    await menuRows(ui);
+    await plusMenu(ui);
     await click(ui, `${row(closing.name)}.querySelector('.remove')`);
     await waitFor(() => !entry(closing.n) && !fs.existsSync(closing.folder));
     assert.ok(!shell.current.tasks.has(closing.n) && shell.task.loaded, 'the open one stays');
-    await ui(`kulisa.invoke('project:close', { id: 'merge' })`);
+    await ui(`kulisa.invoke('project:close-tasks', { id: 'merge' })`);
     await waitFor(() => !shell.open.has('merge'));
     ctx.asked.length = 0;
   });
 
   test("projects: Delete Project… (the projects' manager alone) asks, closes the project when open, deletes its data and its tasks' copies, never its folder; New Project takes its code from folders on the disk or clones it from URLs, one or several, making no other folder", async (ctx) => {
     // About 3 s: git's work (a worktree, a clone) and closing an open project.
-    const { shell, ui } = ctx;
+    const { shell, ui, sui } = ctx;
     const projects = () => shell.store.projects().map((p) => p.id);
     // A project that is not open, with a task that has a commit of its own, as Kulisa lays them out.
     const spare = path.join(root, 'spare');
@@ -1370,7 +1801,7 @@ export default (test: Test) => {
     fs.writeFileSync(path.join(wt.folder, 'b.txt'), 'b'); git(wt.folder, 'add', '-A'); git(wt.folder, 'commit', '-qm', 'b');
     const data = path.join(userData, 'projects', p.id);
     // A profile of its own (in no other project): its master goes with it.
-    const own = shell.profileStore.create(p.id, { name: 'Spare-user', avatar: 'fox' });
+    const own = shell.profileStore.create(p.id, { name: 'Spare-user', avatar: 'fox' }) as StoredProfile;
     fs.mkdirSync(path.join(data, '1', own.folder), { recursive: true });
     // An agent's account in no other project: it stays, let go of (Settings → Agents deletes one).
     const account = shell.accounts.create(p.id, (shell.accounts.prepare('fake') as { id: string }).id, 'fake', 'spare@shop.com');
@@ -1380,13 +1811,13 @@ export default (test: Test) => {
 
     // In the projects' manager, its Delete Project…: the human is told what goes, says no, then yes.
     const removeRow = async (id = 'spare') => {
-      if (!await ui(`document.getElementById('projects')?.dataset.state === 'open'`)) await ui(`document.getElementById('manageProjects').click()`);
-      await waitFor(() => ui(`!!document.querySelector('#pjlist [data-project="${id}"]')`));
-      await ui(`document.querySelector('#pjlist [data-project="${id}"]').click()`);
-      await waitFor(() => ui(`${pageOf(id)} && !!document.getElementById('pjmore')`));
-      await ui(`document.getElementById('pjmore').click()`); // ⋯ at its top
-      await menuRows(ui);
-      await choose(ui, 'Delete Project…');
+      if (!shell.settings) await ui(`document.getElementById('manageProjects').click()`);
+      await waitFor(() => sui(`!!document.querySelector('#pjlist [data-project="${id}"]')`));
+      await sui(`document.querySelector('#pjlist [data-project="${id}"]').click()`);
+      await waitFor(() => sui(`${pageOf(id)} && !!document.getElementById('pjmore')`));
+      await sui(`document.getElementById('pjmore').click()`); // ⋯ at its top
+      await menuRows(sui);
+      await choose(sui, 'Delete Project…');
     };
     ctx.answer = false;
     await removeRow();
@@ -1410,26 +1841,34 @@ export default (test: Test) => {
     assert.deepEqual(shell.accounts.find(account.id).projects, []);
     assert.equal(git(spare, 'branch', '--list', wt.branch), '', "the task's branch");
     assert.equal(fs.readFileSync(path.join(spare, 'a.txt'), 'utf8'), 'a', "the project's own folder stays");
-    assert.equal(shell.task?.n, 1, 'another project: the open one stays open');
-    await waitFor(() => ui(`!document.querySelector('#pjlist [data-project="spare"]')`));
-    await closeSettings(ui);
+    assert.ok(shell.task?.loaded && shell.current?.id === 'project', 'another project: the open one stays open');
+    await waitFor(() => sui(`!document.querySelector('#pjlist [data-project="spare"]')`));
+    await closeSettings(ctx);
 
     // New Project… asks for its code first (the author, 2026-10-11: a folder made in ~/Kulisa was in the way of code
     // already on the disk). Folder on disk, a repository: taken as it is, its files and its history kept, no git init,
-    // nothing made; named after its folder; made, not opened, as any new project; New Task opens it.
+    // nothing made; named after its folder; Create opens its first task, as for any new project.
     const gone = path.join(root, 'gone');
     fs.mkdirSync(gone); git(gone, 'init', '-q'); fs.writeFileSync(path.join(gone, 'a.txt'), 'a'); git(gone, 'add', '-A'); git(gone, 'commit', '-qm', 'mine');
     const fill = (id: string, v: string) => ui(`(() => { const i = document.getElementById('${id}'); i.value = ${JSON.stringify(v)}; i.dispatchEvent(new Event('input')); })()`);
+    // In a tasks' window (the bar's +, a dialog), Settings closed first.
     const newProject = async (from: string) => {
-      if (!await ui(`document.getElementById('projects')?.dataset.state === 'open'`)) await ui(`document.getElementById('manageProjects').click()`);
-      await waitFor(() => ui(`document.getElementById('projects')?.dataset.state === 'open'`));
-      await ui(`document.getElementById('pjnew').click()`);
+      if (shell.settings) await closeSettings(ctx);
+      await plusMenu(ui);
+      await ui(`document.getElementById('boardnewproject').click()`);
       await waitFor(() => ui(`!!document.querySelector('#newproject #npfrom [data-value="${from}"]')`));
       await ui(`document.querySelector('#npfrom [data-value="${from}"]').click()`);
       await waitFor(() => ui(`document.querySelector('#npfrom [data-value="${from}"]').ariaSelected === 'true'`));
-      // Over Settings' project page: no id twice, or a field found by its id was the page's (its name was typed
-      // into the project's own, renaming it, 2026-10-12).
-      assert.deepEqual(await ui(`(() => { const ids = [...document.querySelectorAll('[id]')].map((e) => e.id); return ids.filter((id, i) => ids.indexOf(id) !== i); })()`), []);
+    };
+    // Its steps gone through (no agent, no profile chosen), then Create: made, its first task opened in this window.
+    const create = async (id: string) => {
+      for (const s of ['Agents', 'Profiles']) {
+        await ui(`document.getElementById('npform').requestSubmit()`);
+        await waitFor(() => ui(`document.querySelector('#newproject .steps [aria-current="step"]')?.textContent.slice(1) === '${s}'`));
+      }
+      await ui(`document.getElementById('npform').requestSubmit()`);
+      await waitFor(() => shell.current?.id === id && shell.task?.loaded && shell.pty && !shell.windows[0].switching, 10000); // a clone takes a while
+      await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
     };
     await newProject('folder');
     assert.equal(await ui(`!!document.getElementById('nplocationrow')`), false, 'no location: nothing is made');
@@ -1448,27 +1887,22 @@ export default (test: Test) => {
     } finally { electron.dialog.showOpenDialog = showOpenDialog; }
     assert.equal(await ui(`document.querySelector('#npsources .item kbd').textContent`), 'git');
     assert.equal(await ui(`document.getElementById('npgitrow').hidden`), true, 'no Create Git repository: it is one');
-    await ui(`document.getElementById('npform').requestSubmit()`);
-    await waitFor(() => ui(pageOf('gone')));
-    assert.ok(projects().includes('gone') && !shell.open.has('gone'), 'made, no task');
+    ctx.asked.length = 0;
+    await create('gone');
+    assert.equal(shell.current.folder, gone);
     assert.equal(git(gone, 'log', '--format=%s'), 'mine', 'its history as it was');
     assert.equal(fs.readFileSync(path.join(gone, 'a.txt'), 'utf8'), 'a');
-    ctx.asked.length = 0;
-    await closeSettings(ui);
-    await plusMenu(ui, 'gone');
-    await waitFor(() => shell.current?.folder === gone && shell.task?.loaded && shell.pty);
-    assert.equal(ctx.asked.length, 0, 'its group in this window, nothing asked where');
-    await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
+    assert.equal(ctx.asked.length, 0, 'its task in this window, nothing asked where');
     // The open one: closed, then deleted; the tab next to it shown.
     await removeRow('gone');
     await waitFor(() => !projects().includes('gone'));
     // Its grid taken down closes the window's dialogs, the manager too (lib/views.ts, closeLayers).
-    if (await ui(`document.getElementById('projects')?.dataset.state === 'open'`)) await closeSettings(ui);
+    if (shell.settings) await closeSettings(ctx);
     ctx.asked.length = 0;
     await waitFor(() => shell.current?.folder === project && shell.task?.loaded);
-    assert.deepEqual(await projectTabs(ui), ['project *'], 'the tab next to it shown');
+    assert.deepEqual(await projectTabs(ui), ['project', 'project *'], 'the tab next to it shown');
     assert.ok(fs.existsSync(gone) && !fs.existsSync(path.join(userData, 'projects', 'gone')));
-    assert.deepEqual(savedWindows(), [{ tabs: ['project'], shown: 'project' }]);
+    assert.deepEqual(savedWindows(), [{ tabs: ['project/1', 'project/2'], shown: 'project/2' }]);
 
     // Folder on disk, several (a frontend and a backend): taken as they are, the first the default and the project's
     // folder; Create Git repository in the one without git only.
@@ -1480,8 +1914,7 @@ export default (test: Test) => {
     await waitFor(async () => (await ui(`[...document.querySelectorAll('#npsources .item')].map((r) => r.dataset.source + ' ' + r.querySelector('kbd').textContent + ' ' + !!r.querySelector('.default')).join()`))
       === `${gone} git true,${back} no git false`);
     assert.equal(await ui(`document.getElementById('npgitrow').hidden`), false, 'Create Git repository: for the one without');
-    await ui(`document.getElementById('npform').requestSubmit()`);
-    await waitFor(() => ui(`${pageOf('gone')} && document.querySelectorAll('#nprepos .item').length === 2`));
+    await create('gone');
     const both = shell.store.projects().find((x) => x.id === 'gone');
     assert.deepEqual([both.folder, both.repos], [gone, [gone, back]]);
     assert.equal(git(back, 'log', '--format=%s'), 'Initial commit', 'git init in the one without');
@@ -1499,15 +1932,14 @@ export default (test: Test) => {
     await fill('npsource', bare);
     await ui(`document.getElementById('npaddsource').click()`);
     await waitFor(async () => (await ui(`document.getElementById('npname').value`)) === 'cloned');
-    const into = path.join(root, 'Kulisa', 'cloned');
+    const into = path.join(shell.projectsHome, 'cloned');
     await waitFor(async () => (await ui(`document.getElementById('npwhere').textContent`)) === `The repository will be cloned into ${into}`);
     await fill('nplocation', root);
     await fill('npname', 'gone');
     await waitFor(async () => (await ui(`document.getElementById('npwhere').textContent`)) === `${gone} is there already: choose another name or location`);
-    await fill('nplocation', path.join(root, 'Kulisa'));
+    await fill('nplocation', shell.projectsHome);
     await fill('npname', 'cloned');
-    await ui(`document.getElementById('npform').requestSubmit()`);
-    await waitFor(() => ui(`${pageOf('cloned')} && document.querySelectorAll('#nprepos .item').length === 1`));
+    await create('cloned');
     const cloned = shell.store.projects().find((x) => x.id === 'cloned');
     assert.equal(cloned.folder, into);
     assert.equal(git(into, 'log', '--format=%s'), 'mine', 'its history');
@@ -1520,40 +1952,38 @@ export default (test: Test) => {
     await ui(`document.getElementById('npaddsource').click()`);
     await fill('npname', 'fullstack');
     await fill('npsource', backBare);
-    const stack = path.join(root, 'Kulisa', 'fullstack');
-    await ui(`document.getElementById('npform').requestSubmit()`);
-    await waitFor(() => ui(`${pageOf('fullstack')} && document.querySelectorAll('#nprepos .item').length === 2`));
+    const stack = path.join(shell.projectsHome, 'fullstack');
+    await create('fullstack');
     const full = shell.store.projects().find((x) => x.id === 'fullstack');
     assert.deepEqual([full.folder, full.repos], [stack, [path.join(stack, 'cloned'), path.join(stack, 'back')]]);
     assert.equal((await ui(`kulisa.invoke('project:settings-get', { id: 'fullstack' })`)).former, null, 'it holds them: no former folder');
-    assert.equal(await ui(`document.getElementById('npformer').hidden`), true);
     await removeRow('fullstack');
     await waitFor(() => !projects().includes('fullstack'));
-    if (await ui(`document.getElementById('projects')?.dataset.state === 'open'`)) await closeSettings(ui);
+    if (shell.settings) await closeSettings(ctx);
     ctx.asked.length = 0;
     // A URL git cannot clone: git's own words, nothing left behind, the clones before it neither.
     assert.ok((await ui(`kulisa.invoke('project:new', { from: 'clone', name: 'bad', location: ${JSON.stringify(root)}, urls: [${JSON.stringify(bare)}, ${JSON.stringify(path.join(root, 'none.git'))}] })`)).error);
     assert.ok(!fs.existsSync(path.join(root, 'bad')) && !projects().includes('bad'));
 
-    // Close Group in its menu: the last group, so the empty window; its tasks closed.
+    // Close All Tasks in its submenu: the last tasks, so the empty window; its tasks closed.
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
-    await rightClick(ui, '#projectTabs [data-project="project"] .name');
-    await menuRows(ui); // it opens once the window has the list of windows
-    await choose(ui, 'Close Group');
+    await projectMenu(ui, 'Close All Tasks', '#projectTabs [data-project="project"] .name');
     await waitFor(() => shell.task === null && shell.open.size === 0);
     ctx.asked.length = 0;
     await waitFor(() => ui(`document.documentElement.classList.contains('noproject')`));
     assert.ok(shell.store.tasksOf({ id: 'project' }).list.every((e) => e.closed), 'its tasks closed');
 
-    // A closed task in the bar's +: its group again, on that task, opened again; another one of it goes into that
-    // group. Back on task-1 with Feature-X, as the tests after and the restart phase expect.
-    await plusMenu(ui, 'project', 'Feature-X');
-    await waitFor(() => shell.task?.n === 2 && shell.task.loaded && shell.pty && !shell.windows[0].switching);
-    assert.ok(!shell.task.entry.closed, 'open again');
-    await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
+    // A closed task in the bar's +: opened again, a tab at the end; another one of it after it. Back on task-1 with
+    // Feature-X, as the tests after and the restart phase expect.
     await plusMenu(ui, 'project', 'task-1');
     await waitFor(() => shell.task?.n === 1 && shell.task.loaded && shell.pty && !shell.windows[0].switching);
-    assert.deepEqual(await projectTabs(ui), ['project *'], 'one group');
+    assert.ok(!shell.task.entry.closed, 'open again');
+    await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
+    await plusMenu(ui, 'project', 'Feature-X');
+    await waitFor(() => shell.task?.n === 2 && shell.task.loaded && shell.pty && !shell.windows[0].switching);
+    await click(ui, taskTab(1));
+    await waitFor(() => shell.task?.n === 1 && shell.task.loaded && !shell.windows[0].switching);
+    assert.deepEqual(await projectTabs(ui), ['project *', 'project'], 'a tab each');
     assert.deepEqual(await tabs(ui), ['task-1 *', 'Feature-X']);
     ctx.watchPty(shell.pty);
     await waitFor(() => ui(`!document.documentElement.classList.contains('noproject') && !document.documentElement.classList.contains('loading')`));
@@ -1564,7 +1994,7 @@ export default (test: Test) => {
     const { id } = await shell.task.createProfile('Анна') as { id: string };
     const p = shell.profiles.get(id);
     await waitFor(() => p.browser);
-    assert.ok(p.endpoint.endsWith(`/project/1/${encodeURIComponent(id)}`));
+    assert.ok(p.endpoint.endsWith(`/${shell.task.key}/${encodeURIComponent(id)}`));
     await p.newTab('about:blank').ready;
     assert.equal((await p.page()).url(), 'about:blank', 'Playwright reached its tab');
     await shell.task.deleteProfile(id);
@@ -1708,13 +2138,25 @@ export default (test: Test) => {
     await choose(ui, 'New Conversation');
     await waitFor(async () => JSON.stringify(await tabs()) === '["bash","Pay with cards","Fake agent","bash 2 *"]' && newest().pty, 20000);
     assert.deepEqual(conversations().map((c: { agent: string }) => c.agent), ['custom', a.id, b.id, b.id, b.id, 'custom']);
+    // Its program not found: its tab came at once, starting, and the human is asked for another; none chosen, it goes.
+    const bin = path.join(root, 'bin', 'kulisa-fake-agent');
+    fs.renameSync(bin, `${bin}.away`);
+    try {
+      await ui(`void act('terminal:open', { agent: '${a.id}' })`); // it answers once the human has chosen
+      await waitFor(() => ui(`document.querySelector('.terminals .starting')?.textContent === 'Starting Fake agent 2…'`)); // numbered: a's other tab is open
+      await waitFor(() => ui(`!!document.getElementById('agentcancel')?.checkVisibility()`));
+      await ui(`document.getElementById('agentcancel').click()`);
+      await waitFor(async () => JSON.stringify(await tabs()) === '["bash","Pay with cards","Fake agent","bash 2 *"]' && !(await ui(`!!document.querySelector('.terminals .starting')`)));
+    } finally { fs.renameSync(`${bin}.away`, bin); }
 
     // All closed, no profile open: the big buttons, an account's email under its agent's name, no keys; the first has
     // the keyboard, Tab moves to the next, Enter opens it.
     for (const t of [...task.terminals.values()]) await ui(`act('terminal:close', { id: ${t.id} })`);
-    await waitFor(() => ui(`document.querySelectorAll('.launch .launcher').length === 3`));
-    assert.deepEqual(await ui(`[...document.querySelectorAll('.launcher')].map((l) => [l.querySelector('.name').textContent, l.querySelector('small')?.textContent ?? '', l.title])`),
+    await waitFor(() => ui(`document.querySelectorAll('.launch .agents .launcher').length === 3`));
+    assert.deepEqual(await ui(`[...document.querySelectorAll('.launch .agents .launcher')].map((l) => [l.querySelector('.name').textContent, l.querySelector('small')?.textContent ?? '', l.title])`),
       [['Fake agent', 'a@switch.test', 'Fake agent · a@switch.test'], ['Fake agent', 'b@switch.test', 'Fake agent · b@switch.test'], ['Terminal', '', 'Terminal']]);
+    // Under them the project's profiles, a tile each.
+    assert.deepEqual(await ui(`[...document.querySelectorAll('.launch .profiles .name')].map((n) => n.textContent)`), ['Sam.admin', 'Elon.buyer', 'Dora']);
     await waitFor(() => ui(`document.activeElement === document.querySelector('.launcher')`));
     await focusWindow(shell.win, ui);
     press(shell.win.webContents, 'Tab');
@@ -1733,7 +2175,7 @@ export default (test: Test) => {
       shell.accounts.drop(x.id); fs.rmSync(x.dir, { recursive: true, force: true });
     }
     await waitFor(() => !shell.windows[0].switching && ui(`!document.documentElement.classList.contains('loading')`));
-    await click(ui, `document.querySelector('#tasklist .tasktab[data-task="${shown.key}"]')`);
+    await click(ui, `document.querySelector('#projectTabs .tasktab[data-task="${shown.key}"]')`);
     await waitFor(() => shell.task === shown && shown.loaded);
   });
 
@@ -1746,7 +2188,7 @@ export default (test: Test) => {
     await waitFor(async () => /^served before$/m.test((await call('terminal_read', { name: 'dev server' })).text));
     await showProject(ui, 'project');
     await waitFor(() => shell.current?.id === 'project' && shell.task.loaded);
-    assert.deepEqual(await projectTabs(ui), ['project *', 'other']);
+    assert.deepEqual(await projectTabs(ui), ['project *', 'project', 'other']);
   });
   test('projects: one left in a window of its own (restart-tasks.ts: the windows come back)', async ({ shell, ui }) => {
     const third = path.join(root, 'third');
@@ -1754,12 +2196,35 @@ export default (test: Test) => {
     await ui(`kulisa.invoke('project:open', { folder: ${JSON.stringify(third)} })`);
     await waitFor(() => shell.current?.id === 'third' && shell.task.loaded);
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
-    await ui(`kulisa.invoke('project:move', { id: 'third', terminals: {} })`);
-    await waitFor(() => shell.windows[1]?.current?.id === 'third' && !shell.windows[1].switching);
+    await ui(`kulisa.invoke('task:move', { key: 'third/1', terminals: {} })`);
+    await waitFor(() => shell.windows[1]?.current?.key === 'third/1' && !shell.windows[1].switching);
     // Smaller than the window's minimum (setBounds passes below it, the human's drag does not): it comes back at it.
     shell.windows[1].win.setBounds({ x: 40, y: 50, width: 10, height: 10 });
     await showProject(ui, 'project');
     await waitFor(() => shell.current?.id === 'project' && shell.task.loaded);
-    assert.deepEqual(await projectTabs(ui), ['project *', 'other']);
+    assert.deepEqual(await projectTabs(ui), ['project *', 'project', 'other']);
+  });
+  test("projects: Settings, not modal, acts for the tasks' window last in front; its lists follow the profiles the agent makes and lets go meanwhile", async (ctx) => {
+    const { shell, ui, sui, call } = ctx;
+    const second = shell.windows[1], there = (js: string) => second.win.webContents.executeJavaScript(js);
+    // Opened from the second window: at its shown task's project.
+    await focusWindow(second.win, there);
+    await there(`kulisa.send('settings:open', { section: 'projects', id: null })`);
+    await waitFor(() => sui(pageOf(second.current.project.name)));
+    // Made and let go by that task's agent (asked in its window): the project's page shows it, then not. Not in the first
+    // window's task: its grid is checked after the restart, and a pane come and gone could leave it saved otherwise.
+    await call('profile_create', { name: 'Fay' }, second.current);
+    await waitFor(() => sui(`!!document.querySelector('#npprofiles [data-profile="fay"]') && !!document.querySelector('#pjlist [data-profile="fay"]')`));
+    ctx.answer = true;
+    await call('profile_delete', { profile: 'fay' }, second.current);
+    assert.equal(ctx.asked.pop().message, `The agent asks to remove the profile Fay from ${second.current.project.name}.`);
+    await waitFor(() => sui(`!document.querySelector('#npprofiles [data-profile="fay"]')`));
+    shell.profileStore.delete('fay'); // not needed by the restart
+    // The first one in front (the question's dialog in the second gone first): Settings acts for it now, without being
+    // opened again.
+    await waitFor(() => there(`document.getElementById('ask')?.dataset.state !== 'open'`));
+    await focusWindow(shell.win, ui);
+    await waitFor(async () => (await sui(`kulisa.invoke('projects:list')`)).project === 'project');
+    await closeSettings(ctx);
   });
 };
