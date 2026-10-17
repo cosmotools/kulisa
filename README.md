@@ -2,15 +2,23 @@
 
 ![Kulisa: three profiles of a shop (buyer, seller, admin) side by side, the agent outlining the buyer's new order in the seller's and the admin's, and Claude Code in the terminal below](docs/images/kulisa.png)
 
-**Kulisa is the home where your AI agent works on the web: in every role and account it needs, until everything
+**Kulisa is the home where your AI agent works on the web. In every role and account it needs, until everything
 works. Watch every step, or take a break.**
 
-Kulisa is a free desktop app for Windows and Linux (macOS coming) where the AI agent you choose (Claude Code, Codex)
-works in several signed-in browser profiles side by side: a buyer and a seller, an admin and a user, several accounts
-of one site. Each **profile** is an embedded browser profile, as in Chrome (cookies, storage, tabs). You sign in by
-hand in a profile's pane, never the agent; the agent runs in the built-in terminal and drives the profiles through
-Kulisa's MCP server. Point at an element on a page (Pick): a reference with a locator the
-agent can act on lands in its prompt, and you write the rest of the message around it.
+A free desktop app for Windows and Linux (macOS is coming). The AI agent you choose (Claude Code or Codex) works in
+your signed-in browser profiles side by side, as every user of your app: it builds, checks the result as the buyer,
+the seller and the admin, fixes, and goes again until it works. Made first for developing web apps with several users
+at once, and good for any work in web apps: several clients' accounts, admin and support work.
+
+- **A profile for each person.** Each profile is a browser of its own, as in Chrome: its sign-ins, cookies and tabs.
+  You sign in once, by hand, never the agent; every task has that sign-in, and it lasts across restarts.
+- **An agent you can watch.** It runs in a terminal inside the window and drives the profiles through Kulisa's MCP
+  server. Every click and keystroke it makes is marked on the page.
+- **Point and tell.** Click Pick, then the thing on the page: an exact reference to it lands in the agent's prompt,
+  and you write the rest.
+- **Several tasks at once.** Each task is one piece of work: its own agent, its own branch of the code, and the
+  project's profiles, still signed in.
+- **Yours, on your computer.** No account and no cloud of Kulisa's own.
 
 **[Download](https://github.com/cosmotools/kulisa/releases/latest)** · **[Website](https://kulisa.app)** ·
 **[User guide](https://kulisa.app/docs)**

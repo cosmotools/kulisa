@@ -162,33 +162,25 @@ checks the workflows' `run:` scripts too. The CI's own runs do not have it: the 
 
 For Claude Code sessions working on Kulisa (README, Developing with Claude Code).
 
-**A language server for TypeScript and Vue** (`.claude/dev-plugins/kulisa-dev`, a plugin of Claude Code's:
-`lspServers`): Claude sees the type errors of its edits as it makes them, and finds definitions and references
-through the server (its `LSP` tool) instead of searching the text. `.claude/settings.json` registers the plugin's
-marketplace and enables it when a session starts in the repository's folder (once the folder is trusted; not
-`claude -p`, not the `claude plugin` commands), but Claude Code does not install it by itself: a session without the
-`LSP` tool installs it (`claude plugin install kulisa-dev@kulisa-dev --scope project`, once per `CLAUDE_CONFIG_DIR`)
-and asks the human for `/reload-plugins` (CLAUDE.md, Commands). `.claude/settings.json` is kept as Claude Code writes
-it, so the install leaves it unchanged.
+**A language server for TypeScript and Vue** (the `kulisa-dev` plugin, `.claude/dev-plugins/`): Claude sees the type
+errors of its edits as it makes them, and finds definitions and references through its `LSP` tool instead of searching
+the text. `.claude/settings.json` registers and enables it, but Claude Code does not install a project's plugin by
+itself: a session without the `LSP` tool installs it, once per `CLAUDE_CONFIG_DIR`, and asks for `/reload-plugins`
+(CLAUDE.md, Commands). Why it is built so (its config is JSON, so here):
 
-It runs the project's own `typescript-language-server` and `@vue/typescript-plugin` (devDependencies, the same
-versions as `vue-tsc`), so nothing is installed globally; from `${CLAUDE_PROJECT_DIR}`, the folder the session started
-in, so a session working in a worktree uses the repository's `node_modules` (the Vue plugin's `location` is not a
-path Claude Code fills in: `tsserver` finds the plugin next to itself, in the same `node_modules`). Not the official
-`typescript-lsp` plugin, for two reasons: it has no `.vue` (the window's components, so references from `lib/` missed
-every use in them), and it lets the server answer references from its syntax-only `tsserver`, which knows only the
-open files (a symbol used in 12 files had 1 reference); `useSyntaxServer: "never"` sends everything to the full one.
-Each session keeps its own server, about 700 MB with the main process and the window loaded. References from `src/`
-do not include the tests (`test/tsconfig.json` is loaded only once a test file is open); `tsc -p test` (npm run build)
-still checks them.
+- Not the official `typescript-lsp`: it has no `.vue` (references from `lib/` missed every use in the components),
+  and it answers references from the syntax-only `tsserver`, which knows only the open files (a symbol used in 12
+  files had 1 reference); `useSyntaxServer: "never"` sends everything to the full one.
+- It runs the project's own `typescript-language-server` and `@vue/typescript-plugin` (devDependencies, the versions of
+  `vue-tsc`) from `${CLAUDE_PROJECT_DIR}`, so nothing is installed globally and a worktree uses the repository's
+  `node_modules`. The Vue plugin's `location` is not a path Claude Code fills in: `tsserver` finds it next to itself.
+- About 700 MB a session. References from `src/` miss the tests (`test/tsconfig.json` loads only once a test file is
+  open); `tsc -p test` still checks them.
 
-**A Stop hook** (`.claude/hooks/stop.ts`, in `.claude/settings.json`, so every session in the repository has it, no
-install) runs `npm run lint` and `npm run test:unit` (about 14 s) before a session ends its turn, on the checkout it
-works in, when `.ts`, `.mts` or `.vue` files have changes not committed; a failure sends the session back with the
-output, and Claude Code shows "Stop hook error". Each state of those files is checked once (its record in the
-checkout's git folder), so a turn that changed no code costs nothing; sent back and changing nothing, the session is
-let stop. Not `npm run build` and the e2e groups: the language server shows type errors as they are made, and the
-whole suite runs when the work is done (CLAUDE.md, Conventions).
+**A Stop hook** (`.claude/hooks/stop.ts`; how it works, in its comments) runs `npm run lint` and `npm run test:unit`
+(about 14 s) before a session ends its turn, when `.ts`, `.mts` or `.vue` files have changes not committed, and sends
+the session back with what failed. Not `npm run build` and the e2e groups: the language server shows type errors as
+they are made, and the whole suite runs when the work is done (CLAUDE.md, Conventions).
 
 ## Running them
 
