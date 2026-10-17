@@ -474,8 +474,9 @@ tag:
   whether its session is resumed, or a shell), gone, its exit code.
 - `[page wc=…]`: an error or a warning in one of Kulisa's own pages (its console: an uncaught error is one); never a
   profile's page.
-- electron-log's own events, named one by one in `startLog`: a renderer gone (with the page's address, bare: where it
-  crashed is worth knowing), a child process (the GPU) gone, a page unresponsive, a preload error. Not its defaults,
+- `[electron]`: Electron's own events, named one by one in `startLog` and written by `electronEvent` (electron-log's own
+  line appends the page's address in full): a renderer gone (its page's address, bare: where it crashed is worth
+  knowing), a child process (the GPU) gone, a page unresponsive, a preload error. Not its defaults,
   which listen on every webContents, the profiles' pages too, and log their failed loads and certificate errors with
   the address (every cancelled navigation, an OAuth callback's `?code=`), and their console.
 

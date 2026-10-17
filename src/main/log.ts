@@ -29,10 +29,19 @@ export function startLog(userData: string) {
   elog.transports.console.format = '{text}'; // stdout as it was (the tests' output): the time is the file's
   Object.assign(console, elog.functions); // what the code says on stdout goes to the file too
   // Electron's own events, named one by one: electron-log's defaults listen on every webContents, the profiles' pages
-  // too, and would log their failed loads and certificate errors with their addresses, and their console. A gone page's
-  // address stays, bare (where it crashed is worth knowing).
-  elog.eventLogger.startLogging({
-    events: { app: { 'child-process-gone': true, 'render-process-gone': true }, webContents: { unresponsive: true, 'preload-error': true } },
-    formatters: { app: { 'render-process-gone': ({ args: [wc, details] }) => ({ ...(details as object), url: bare((wc as Electron.WebContents).getURL()) }) }, webContents: {} },
-  });
+  // too, and would log their failed loads and certificate errors with their addresses, and their console. The line is
+  // ours (electronEvent): electron-log's own appends the page's address in full to every webContents event.
+  elog.eventLogger.startLogging({ events: { app: { 'child-process-gone': true, 'render-process-gone': true }, webContents: { unresponsive: true, 'preload-error': true } },
+    format: electronEvent });
+}
+
+// One of Electron's events as a log line: which, where (the page's webContents and its address, bare), its details.
+// render-process-gone is the app's, (event, webContents, details); the others the webContents' own, event.sender.
+type Wc = Pick<Electron.WebContents, 'id' | 'getURL' | 'isDestroyed'>;
+export function electronEvent({ eventName, event, args }: { eventName: string; event: object; args: unknown[] }): unknown[] {
+  const wc = (eventName === 'render-process-gone' ? args[0] : (event as { sender?: Wc } | null)?.sender) as Wc | undefined;
+  const where = wc && !wc.isDestroyed() ? ` wc=${wc.id} ${bare(wc.getURL())}` : '';
+  const details = eventName === 'render-process-gone' ? args[1] : eventName === 'child-process-gone' ? args[0]
+    : eventName === 'preload-error' ? { preload: args[0], error: String(args[1]) } : undefined;
+  return [`[electron] ${eventName}${where}`, ...(details ? [details] : [])];
 }
