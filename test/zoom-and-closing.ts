@@ -273,6 +273,11 @@ export default (test: Test) => {
     await call('browser_type_login', { profile: 'tess', locator: "locator('#user')", field: 'login' });
     await call('browser_type_login', { profile: 'tess', locator: "locator('#pass')", field: 'password', submit: true });
     assert.equal(await who(ctx, 'tess'), 'Signed in as tess', "the human's pair");
+    // The log (window.md, The log): the agent's tool and the human's field are there, their passwords not.
+    const logged = fs.readFileSync(path.join(userData, 'logs', 'kulisa.log'), 'utf8');
+    assert.match(logged, /\[mcp\] profile_set_login project\/1 \{"profile":"tess","login":"tester","password":"…"\}/, 'the tool call, its password left out');
+    assert.match(logged, /\[ipc\] profiles:login wc=\d+ \{"profile":"tess","user":"tester","password":"…"\}/, "the human's field, the same");
+    assert.ok(!/secret-tes/.test(logged), 'no password in the log');
     ctx.answer = true;
     await call('profile_delete', { profile: 'tess' });
     ctx.asked.length = 0;

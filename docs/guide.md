@@ -327,6 +327,9 @@ In the terminal every other key is the agent's.
   `~/Library/Application Support/Kulisa` on macOS, `%APPDATA%\Kulisa` on Windows. Session cookies and test passwords
   are encrypted with your OS's keyring. **Show Data Folder** in a task tab's right-click menu, under the project's name, opens that project's.
 - Deleting a task, a profile or a project removes what Kulisa made for it.
+- Kulisa keeps a log of what it did (the buttons and tools used, tasks opened and closed, errors), never what you
+  typed or your passwords: the `logs` folder in the data folder, two files of 1 MB at most. When something goes wrong,
+  send `kulisa.log` with your report.
 
 ### Reinstalling and removing Kulisa
 

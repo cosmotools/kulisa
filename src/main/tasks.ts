@@ -16,6 +16,7 @@ import { extendTrust } from './agents/index.ts';
 import { installSkill } from './agents/files.ts';
 import { nameError } from '../shared/names.ts';
 import { loginAllowed } from './local.ts';
+import { log } from './log.ts';
 import type { Tab } from './profiles.ts';
 import type { Entry, Hooks } from './project-profiles.ts';
 import type { Project } from './projects.ts';
@@ -387,6 +388,7 @@ class Task {
     if (this.terminals.get(t.id) !== t) { stopTerminal(t.pty); return { error: 'the terminal was closed' }; }
     // Its shell exited by itself (exit), not stopped by Kulisa (closing, quitting: the terminal is kept then).
     t.pty.onExit(() => { if (!t.pty!.stopped) this.dropTerminal(t); });
+    log.info(`[terminal] ${t.key} started ${a.id}${resume ? ' (resumed)' : ''}: ${command}`);
     this.changedTerminals(); // started
     this.updateConversation(conversation, { started: true });
     this.sendVoice();
@@ -466,6 +468,7 @@ class Task {
       { line: command, cwd: this.folder, env: this.env(), sizeOf: this.key, screen: true }, t.key);
     if (this.terminals.get(id) !== t) { stopTerminal(t.pty); return { error: 'the terminal was closed' }; }
     t.pty.onExit(() => { if (!t.pty!.stopped) this.dropTerminal(t); });
+    log.info(`[terminal] ${t.key} started: a shell${by === 'agent' ? " (the agent's)" : ''}`);
     this.changedTerminals(); // started
     return { id, name };
   }
@@ -514,6 +517,7 @@ class Task {
     if (this.terminals.get(t.id) !== t) return;
     const order = [...this.terminals.keys()], i = order.indexOf(t.id);
     this.terminals.delete(t.id);
+    log.info(`[terminal] ${t.key} gone`);
     if (this.dictating?.t === t) this.dictate(false);
     if (t.pty) stopTerminal(t.pty);
     forgetTerminal(t.key);

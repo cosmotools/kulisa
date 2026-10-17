@@ -449,6 +449,39 @@ A pane's ⋮ menu (where more of a pane's actions will go, as in Chrome), or F12
 the active tab's DevTools in a window of their own. Kulisa's own DevTools (F12 outside the pages) exist only when
 running from source (`appDevTools`, off when `app.isPackaged`).
 
+## The log
+
+What happened and who asked, for a bug the author cannot watch (a user's, another OS's; the first: a task that opened by
+itself at a click, 2026-10-17, three times, with nothing to read): `logs/kulisa.log` in the data folder
+([tasks.md](tasks.md), "What is on the computer"), written by electron-log (MIT, the most used: the file and its
+turnover, Electron's own events) with lines of Kulisa's own (`log.ts`). At 1 MB it becomes `kulisa.old.log` and a new
+one starts: 2 MB at most, nothing piling up. The same place on every OS (electron-log would put macOS's in
+`~/Library/Logs`): one path to name in the guide, and the tests' log in their own folder. Each line has the time and a
+tag:
+
+- `[kulisa]`: the start (the version, Electron's, the OS and its session, X11 or Wayland, packaged or from source,
+  the data folder), quitting.
+- `[ipc]`: every channel a window sends (`ipc.ts`, `handle` and `on`), the sender's webContents id (`wc=`: a window's,
+  Settings', a master's; `[window] new wc=` says which) and its arguments; an answer refused, with its reason. Not the
+  terminal's keystrokes and size (never: what is typed), nor what comes at every change or draw (`QUIET`: the grid's
+  boxes, layouts, lists read again), and a question's answer without the answer.
+- `[mcp]`: every tool the agent calls (`mcp-server.ts`), its task and terminal, its arguments; one that failed, with
+  its error.
+- `[key]`: a key of Kulisa's taken (`shortcuts.ts`), where the keyboard was.
+- `[hook]`: an agent's hook event (`agent-hooks.ts`), its task and terminal.
+- `[task]`, `[window]`, `[settings]`, `[terminal]`: a project's task opened, a task created (where), closed, deleted;
+  a window made, showing a task, dropped; Settings opened (at what) and closed; a terminal started (the agent and
+  whether its session is resumed, or a shell), gone, its exit code.
+- `[page wc=…]`: an error or a warning in one of Kulisa's own pages (its console: an uncaught error is one); never a
+  profile's page.
+- electron-log's own: a renderer or the GPU gone, a page that failed to load.
+
+Never there: what is typed into a terminal or a page, passwords, tokens, cookies. `summary` writes an action's
+arguments in one short line, a value left out by its key (password, secret, token, cookie, credential) or by what
+the text says of itself (a command with a token in it), long strings and the whole cut. What the code says with
+`console.*` goes to the file too (`startLog`). A new action of the core goes through `handle()` or the MCP server's
+`registerTool`, so it is logged by itself; a line elsewhere says what happened and who asked, never what was typed.
+
 ## IPC
 
 A window's page and the main process talk by named channels: `invoke` (an answer comes back), `send` (none), and the
@@ -543,6 +576,7 @@ shortcuts carry (`com.squirrel.kulisa.kulisa`), or Windows would not pin it to t
 | `src/main/window.ts` | a window: its BrowserWindow, the native views' places, its questions, screenshot |
 | `src/main/settings-window.ts`, `src/renderer/settings.html`, `components/settings/` | Settings' window (Settings); its page is `ProjectEditor.vue` |
 | `src/preload/index.cjs` | the window's bridge to the main process: the windows' pages are sandboxed (no Node: about 15 MB less a window, PSS; 2026-10-12), so it is a few lines of plain JavaScript; the window imports what it shares with the main process from `src/shared/` (`names.ts`, `avatars.ts`, `result.ts`) |
+| `src/main/log.ts` | the log: the file (electron-log), `summary` of an action's arguments (The log) |
 | `src/main/keys.ts` | the keyboard shortcuts: the table, which key an input event is; `shortcuts.ts` takes them (Keys) |
 | `src/main/updates.ts`, `installed.ts`, `forge.config.ts` | updates, Squirrel's events, a new version ready while Kulisa runs (the version installed on disk); the installers and the release |
 | `src/main/terminal.ts` | the ptys of the tasks' terminals; each shell's screen for `terminal_read` |

@@ -9,6 +9,7 @@ import path from 'path';
 import fs from 'fs';
 import pkg from '../../package.json' with { type: 'json' };
 import { page } from './pages.ts';
+import { log } from './log.ts';
 import type { Rectangle, Point } from 'electron';
 import type { Shell } from './shell.ts';
 import type { Task } from './tasks.ts';
@@ -185,6 +186,7 @@ class AppWindow {
   // Another task on screen: the grid slides towards its tab (none: the window showed no task), then its profiles
   // and terminals come.
   async show(task: Task) {
+    log.info(`[window] wc=${this.win.webContents.id} shows ${task.key}`);
     if (task === this.current) return;
     if (this.current) await this.leaveGrid(Math.sign(this.tabs.indexOf(task) - this.tabs.indexOf(this.current)));
     this.current = task;
@@ -374,6 +376,10 @@ function keepPage(win: Electron.BrowserWindow) {
     return { action: 'deny' };
   });
   win.webContents.on('will-navigate', (e) => e.preventDefault());
+  // What the page says is wrong (an uncaught error, a warning of its own), in the log with the main process's lines.
+  win.webContents.on('console-message', (d) => {
+    if (d.level === 'error' || d.level === 'warning') log.warn(`[page wc=${win.webContents.id}] ${d.message} (${d.sourceId}:${d.lineNumber})`);
+  });
 }
 
 // A place saved on a monitor that is gone (unplugged since): the window opens where the OS puts it instead.

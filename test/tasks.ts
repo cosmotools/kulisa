@@ -1258,6 +1258,14 @@ export default (test: Test) => {
     assert.equal(ctx.asked.length, 0, 'nothing asked');
     assert.deepEqual(shell.profileStore.of('shop').map((p) => [p.name, p.description]), [['Shop-buyer', 'buys things']]);
     assert.ok(fs.existsSync(path.join(made, 'Shop', '.git')), 'git init in it');
+    // The log (window.md, The log): the start, the task and the channel that made it, a key taken; nothing typed into a
+    // terminal (the keys' tests did).
+    const logged = fs.readFileSync(path.join(userData, 'logs', 'kulisa.log'), 'utf8');
+    assert.match(logged, /\[kulisa\] start \d+\.\d+\.\d+, electron \d+\./);
+    assert.match(logged, /\[ipc\] project:open wc=\d+ \{"id":"shop"\}/);
+    assert.match(logged, /\[task\] created shop\/1 in \S*Shop@task-1 wc=\d+/);
+    assert.match(logged, /\[key\] tab\.new zone=/);
+    assert.ok(!/pty:in/.test(logged), 'what is typed into a terminal is never logged');
     const shop = shell.store.projects().find((p) => p.id === 'shop');
     assert.deepEqual([shop.color, shop.agents], [color, undefined]);
     // No favicon in its code: the curtain, in the next free color, the window's too.

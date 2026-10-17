@@ -6,6 +6,7 @@ import { BrowserWindow } from 'electron';
 import path from 'path';
 import { on } from './ipc.ts';
 import { page } from './pages.ts';
+import { log } from './log.ts';
 import { COLORS, Questions, keepPage, onScreen } from './window.ts';
 import type { Shell } from './shell.ts';
 import type { Arg, Events } from '../shared/ipc.ts';
@@ -29,6 +30,7 @@ function installSettings(shell: Shell, { preload, appDevTools }: { preload: stri
   shell.settings = null;
   shell.openSettings = (at) => {
     const open = shell.settings;
+    log.info(`[settings] ${open ? 'shown' : 'opened'} at ${at.section}${at.id ? ` ${at.id}` : ''}`);
     if (open) { open.send('settings:show', at); open.win.focus(); return; }
     const z = shell.uiZoom, saved = shell.store.settings().settingsWindow;
     const win = new BrowserWindow({ ...scaled(SIZE, z), ...(saved && onScreen(saved) ? saved : {}), useContentSize: !saved,
@@ -76,6 +78,7 @@ function installSettings(shell: Shell, { preload, appDevTools }: { preload: stri
     });
     win.webContents.on('render-process-gone', () => { closing = true; win.close(); });
     win.on('closed', () => {
+      log.info('[settings] closed');
       s.questions.unanswered();
       if (shell.settings === s) shell.settings = null;
       // The keyboard to the tasks' window last in front, its own page; not as Kulisa quits, its windows going too (one gone
