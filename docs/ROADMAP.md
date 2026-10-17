@@ -320,8 +320,9 @@ here; what is left of it stays.
     removing it: `electron-squirrel-startup` first in `index.ts` (Forge's maker docs), and `setAppUserModelId` as
     Squirrel names its shortcut. Update checks reach update.electronjs.org (the OpenJS Foundation's: the version,
     the OS, the IP), downloads GitHub.
-  - **Linux:** `.deb` and `.rpm` (Forge's makers) on the release, installed by hand; no updater (Electron has none,
-    its docs point to the distribution's package manager). Each format updates its own way only: Kulisa never
+  - **Linux:** `.deb` and `.rpm` (Forge's makers) on the release; no updater (Electron has none, its docs point to
+    the distribution's package manager): the `.deb` adds Kulisa's apt repository, a flat one on GitHub Releases
+    (built 2026-10-17: [window.md](window.md)); the `.rpm` is installed again by hand. Each format updates its own way only: Kulisa never
     puts another format over the installed one (Cursor's updater put AppImages over `.deb`s and broke them, 2026).
   - **macOS** only once signed and notarized (Squirrel.Mac does not update an unsigned app): `.dmg` and `.zip`, x64
     and arm64. The author has no Apple Developer account yet: an Individual one ($99 a year), then a Developer ID
@@ -349,9 +350,8 @@ here; what is left of it stays.
     within 6 hours, or at a restart of Kulisa, it downloads (Squirrel's log: `%LocalAppData%\kulisa\SquirrelSetup.log`);
     quit and start again: 0.1.1 (☰ shows the version), the data folder (`%APPDATA%\Kulisa`) as it was, the session
     cookies kept; uninstall leaves the data folder.
-  - **Later, each discussed apart:** apt and dnf repositories (static and signed; not GitHub Pages: no file over
-    100 MB in git, and an Electron `.deb` is about that; proposed Cloudflare R2 at `apt.kulisa.app`; the `.deb`
-    adding its source and key as Chrome and VS Code do, removed with `purge`); "Restart to update" in ☰ (through
+  - **Later, each discussed apart:** a dnf repository for the `.rpm`, as the apt one; Kulisa
+    noticing that apt replaced it while it runs, and asking to restart in its own dialog; "Restart to update" in ☰ (through
     Kulisa's own quit, asking when an agent works); a switch to turn the checks off; delta updates (Squirrel
     downloads the whole app each time); winget.
   - **The package's size** (measured on v0.1.1, 2026-10-13): the `.deb` is 109 MB, 413 MB installed. About 280 MB

@@ -38,7 +38,8 @@ const config: ForgeConfig = {
     { name: '@electron-forge/maker-squirrel', platforms: ['win32'], config: { setupIcon: 'assets/icon.ico' } },
     { name: '@electron-forge/maker-dmg', platforms: ['darwin'], config: { icon: 'assets/icon.icns' } },
     { name: '@electron-forge/maker-zip', platforms: ['darwin'], config: {} },
-    { name: '@electron-forge/maker-deb', platforms: ['linux'], config: { options: { categories: ['Development'], icon: 'assets/icon.png' } } },
+    // The .deb adds Kulisa's apt repository, which updates it (assets/deb).
+    { name: '@electron-forge/maker-deb', platforms: ['linux'], config: { options: { categories: ['Development'], icon: 'assets/icon.png', scripts: { postinst: 'assets/deb/postinst', postrm: 'assets/deb/postrm' } } } },
     { name: '@electron-forge/maker-rpm', platforms: ['linux'], config: { options: { categories: ['Development'], icon: 'assets/icon.png' } } },
   ],
   // A draft: the author publishes it, and update.electronjs.org takes only published releases (update-electron-app).

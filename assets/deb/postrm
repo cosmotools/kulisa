@@ -1,0 +1,6 @@
+#!/bin/sh
+# Kulisa's apt repository goes with purge, as Chrome's does: remove keeps it, for an install again (postinst).
+set -e
+if [ "$1" = purge ]; then
+  rm -f /etc/apt/sources.list.d/kulisa.sources /etc/apt/keyrings/kulisa.asc
+fi
