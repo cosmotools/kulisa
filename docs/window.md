@@ -152,7 +152,9 @@ grows (`setZoom`; it is not made smaller again when the zoom goes down).
 
 - **The Kulisa zoom**: Ctrl + / − / 0 outside the pages, or the zoom row in ☰. It scales the whole UI of every
   window, the terminal and the pages together (Chromium's zoom of the window's page; `setUiZoom` in `app.ts`). All
-  text and controls take their size from `--font` and `--control` (tokens.css), so one zoom scales them all.
+  text and controls take their size from `--font` and `--control` (tokens.css), so one zoom scales them all. From 50%
+  to 200% (the author, 2026-10-17): the window's minimum grows with it, and at 300% it passed a laptop's screen; the OS's
+  own magnification is there for more. A site's zoom goes on to 300%.
 - **A site's zoom**: the same keys in a page zoom that site in that profile on top of the Kulisa zoom, as in
   Chrome; shown in the address bar (a click resets it).
 
