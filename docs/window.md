@@ -36,7 +36,7 @@ replace a region left by the page before.
 ## The tasks' bar
 
 Under the grid, in the middle: a tab per open task (its project's icon, its agent's state, its name, ×; a tab of
-its own since 2026-10-14, until then a project's tasks in one island under its label: [tasks.md](tasks.md), Projects), then +, a new task of any project or a closed one opened again. ☰ → **Tasks bar: Top, Bottom** puts it in the
+its own since 2026-10-14, until then a project's tasks in one island under its label: [tasks.md](tasks.md), Projects), then +, a new tab: the board, every project's tasks, where one is made or opened again (tasks.md, Projects; a menu until 2026-10-17). ☰ → **Tasks bar: Top, Bottom** puts it in the
 title bar instead, after the logo, as a browser's tabs are (the author, 2026-10-14; until then over the grid in a row
 of its own, which cost a row; `settings.json`: `bar`; the page gets it in its URL, so it is drawn in its place at once;
 `App.vue` puts `TaskBar.vue` in `TopBar.vue`'s slot or under the grid). Bottom is the
@@ -206,7 +206,7 @@ Kulisa draws its menus in HTML, as Chrome does (Reka UI's menus: `components/men
 button's opens on the press (press, drag to a row, let go there), a right-click's at the pointer, one at a time; the
 pages are pictures of themselves meanwhile; afterwards the keyboard is back where it was:
 
-- the bar's + (every project, a new task of it; their closed tasks; New Project…), a task tab's right-click menu (the shown one's open
+- a task tab's right-click menu (the shown one's open
   and closed profiles, Manage Profiles…: Settings → Profiles; Rename…, Show Folder, Delete Task…), ☰ (as Chrome's ⋮, each row with its icon: the zoom row, the theme row, the
   tasks' bar's row, Language (a menu beside it), Arrange panels, Keyboard Shortcuts, the links
   (Documentation, the user guide on kulisa.app; GitHub; Report an issue; one list in `lib/common.ts`; until 2026-10-14 also
@@ -247,7 +247,7 @@ apart from the work): the OS's title bar ("Settings — Kulisa"), its own size a
 the work:
 
 - **One for the whole app.** The gear (on macOS also Kulisa → Settings… in the menu bar, ⌘,, where Mac apps have it), a task tab's Manage Profiles… and Project Settings…, a pane's About this
-  profile…, a project's Add Profile… tile and New Project's Create open it at that page (a project's: none named, the
+  profile… and a project's Add Profile… tile open it at that page (a project's: none named, the
   shown task's); open already, it comes to the front at that page.
 - **Not modal** (the author, 2026-10-16), as macOS apps' settings, VS Code's and Chrome's are: the tasks' windows go on
   taking clicks and keys beside it, and either comes in front of the other. Until then it held them, as JetBrains'
@@ -272,12 +272,12 @@ the work:
 - **Esc closes it**, as a dialog's: unless a menu, a question or a popover is open (Esc closes that first), or a field
   takes it. Esc and the OS's × alike, its page saves what is typed first (a project's name), then closes it; while an
   agent installs, it stays.
-- **Settings only**: a project is made in a tasks' window (New Project…: the bar's +, the empty window), which then
-  opens Settings at it (the author, 2026-10-16: one way to open each, not New Project inside Settings too).
+- **Settings only**: a project is made in a tasks' window (New Project: the empty window with no project, New Project… on the board),
+  which opens its first task (the author, 2026-10-16: one way to open each, not New Project inside Settings too).
 - **Shown once its page is filled** (the projects, the profiles, the agents as last found, its fonts: `settings:ready`),
   as Electron's docs advise for a window (`show: false`): shown at once, its tree and page jumped as they came (the
   author, 2026-10-16). A page that never says so is shown after 2 s all the same.
-- Its page is the app's third (`settings.html`, `Settings.vue`): nothing of a tasks' window (no grid, no profiles'
+- Its page is the app's third (`settings.html`, `settings/Settings.vue`): nothing of a tasks' window (no grid, no profiles'
   views, no keys of its own). Its process lives while it is open: about 40 MB of its own (PSS; 2026-10-16).
 - Not tried on Wayland: there an app may not place, move or focus its windows itself (Electron's docs, the same
   Platform notices), so where it opens and bringing it to the front are the compositor's.
@@ -411,7 +411,7 @@ it, before or after.
   Chrome. Closing or switching a tab from the page leaves the keyboard in the page shown next.
 - **Everywhere, the terminal too**: Ctrl+` to the terminal in front and back to the page used last (on the folded
   island, a new conversation of the task's agent), Ctrl+Shift+` a new terminal, Ctrl+Shift+1…9 the bar's first to ninth tab, Ctrl+Shift+PgDn / PgUp the next or previous
-  one (in the bar's order), Ctrl+Shift+N a new task of the shown task's project, Ctrl+Shift+A the bar's + (a task of which project),
+  one (in the bar's order), Ctrl+Shift+N a new task of the shown task's project, Ctrl+Shift+A the bar's + (a new tab: the board; again, back),
   Ctrl+Shift+/ the list; the right Ctrl (right ⌘ on macOS) held alone, speak to the agent (The terminal, Dictation:
   the one key the human may change, in the list). Ctrl+Shift+… and Ctrl+` are
   what agents and sites leave alone; Alt+letters are Claude Code's (Alt+V, Alt+P, Alt+T), Ctrl+Alt+arrows GNOME's,
@@ -520,7 +520,7 @@ shortcuts carry (`com.squirrel.kulisa.kulisa`), or Windows would not pin it to t
 | `src/main/shortcuts.ts` | the keys as they are typed (Keys), the hold keys changed |
 | `src/shared/ipc.ts`, `src/main/ipc.ts` | the channels between a page and the main process; `handle` and `on`, checked against them (IPC) |
 | `src/main/window.ts` | a window: its BrowserWindow, the native views' places, its questions, screenshot |
-| `src/main/settings-window.ts`, `src/renderer/settings.html`, `components/Settings.vue` | Settings' window (Settings); its page is `ProjectEditor.vue` |
+| `src/main/settings-window.ts`, `src/renderer/settings.html`, `components/settings/` | Settings' window (Settings); its page is `ProjectEditor.vue` |
 | `src/preload/index.cjs` | the window's bridge to the main process: the windows' pages are sandboxed (no Node: about 15 MB less a window, PSS; 2026-10-12), so it is a few lines of plain JavaScript; the window imports what it shares with the main process from `src/shared/` (`names.ts`, `avatars.ts`, `result.ts`) |
 | `src/main/keys.ts` | the keyboard shortcuts: the table, which key an input event is; `shortcuts.ts` takes them (Keys) |
 | `src/main/updates.ts`, `forge.config.ts` | updates, Squirrel's events; the installers and the release |

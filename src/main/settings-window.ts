@@ -1,7 +1,7 @@
 // Settings in a window of its own (docs/window.md, Settings), as a desktop app's: one for the whole app, with the OS's
 // title bar, at a page. Not modal (the author, 2026-10-16): the tasks' windows go on taking input beside it, as macOS
 // apps', VS Code's and Chrome's settings do; on macOS a window could not be held without Electron's half-black sheet
-// over it. Its page: settings.html (components/Settings.vue).
+// over it. Its page: settings.html (components/settings/Settings.vue).
 import { BrowserWindow } from 'electron';
 import path from 'path';
 import { on } from './ipc.ts';

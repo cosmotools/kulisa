@@ -16,7 +16,6 @@
 //   everywhere()                who a profile is changed in the store: every task shows it
 import fs from 'fs';
 import { clearCaches } from './profiles.ts';
-import { nextAvatar } from '../shared/avatars.ts';
 import type { Profile, ProfileConfig } from './profiles.ts';
 import type { TaskStore, TaskProfile } from './store.ts';
 import type { ProfileStore, StoredProfile } from './profile-store.ts';
@@ -87,9 +86,8 @@ class ProjectProfiles {
   // A new, empty profile of the project, open here; from the editor and from the agent (profile_create).
   // avatar: the human's pick (the editor), else the next one free.
   async create(name: string, description = '', avatar?: string): Promise<Result<{ id: string }>> {
-    const bad = this.all.check({ name, description, avatar });
-    if (bad) return { error: bad };
-    const g = this.all.create(this.project, { name: name.trim(), avatar: avatar || this._nextAvatar(), description: description.trim() });
+    const g = this.all.create(this.project, { name, description, avatar });
+    if (refused(g)) return g;
     const e: Entry = { cfg: this._cfg(g), urls: [], profile: null };
     this.entries.push(e);
     await this._start(e);
@@ -187,7 +185,6 @@ class ProjectProfiles {
       else this.closed.set(e.cfg.id, e);
     }
   }
-  _nextAvatar() { return nextAvatar(this.entries.map((e) => e.profile?.avatar ?? e.cfg.avatar)); }
 }
 // What a task shows of a profile's pair: its login, and whether it has a password (never the password).
 const loginOf = (g: StoredProfile) => ({ login: g.login?.user || '', hasPassword: !!g.login?.secret });

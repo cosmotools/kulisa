@@ -69,7 +69,7 @@ test('profiles: one store, a profile in several projects or none; it lives until
   const ann = all.create('shop', { name: 'Ann', avatar: 'fox', description: 'seller' });
   assert.deepEqual(ann, { id: 'ann', name: 'Ann', avatar: 'fox', description: 'seller', folder: 'Profile 1', projects: ['shop'] });
   assert.ok(fs.existsSync(all.masterDir('Profile 1')), 'its master, empty');
-  assert.equal(all.create('blog', { name: 'Ann', avatar: 'owl' }).id, 'ann-2', 'ids unique across projects');
+  assert.equal((all.create('blog', { name: 'Ann', avatar: 'owl' }) as StoredProfile).id, 'ann-2', 'ids unique across projects');
   assert.deepEqual((all.addTo('ann', 'blog') as StoredProfile).projects, ['shop', 'blog']);
   assert.deepEqual(all.of('blog').map((p) => p.id), ['ann', 'ann-2']);
   assert.equal(all.idFor('Ann', 'ann'), 'ann', 'its own id is free for it');
@@ -88,11 +88,16 @@ test('profiles: one store, a profile in several projects or none; it lives until
   assert.equal(all.get('ann').login.secret, 'enc', 'the password kept when only the login is set again');
   all.setLogin('ann', '', undefined);
   assert.equal(all.get('ann').login, undefined, 'an empty login takes the pair away');
-  assert.deepEqual(all.create(null, { name: 'Free', avatar: 'cat' }).projects, [], 'made in no project (Settings → Profiles)');
+  assert.deepEqual((all.create(null, { name: 'Free', avatar: 'cat' }) as StoredProfile).projects, [], 'made in no project (Settings → Profiles)');
   // Deleted: gone with its master.
   assert.equal((all.delete('ann') as { profile: StoredProfile }).profile.folder, 'Profile 1');
   assert.ok(!all.get('ann') && !fs.existsSync(all.masterDir('Profile 1')) && marked.includes(all.masterDir('Profile 1')), 'its master gone');
-  assert.equal(all.create('shop', { name: 'Bo', avatar: 'cat' }).folder, 'Profile 4', 'never a folder number used before');
+  assert.equal((all.create('shop', { name: 'Bo', avatar: 'cat' }) as StoredProfile).folder, 'Profile 4', 'never a folder number used before');
+  // Checked where it is made, whoever makes it; its picture the next free one of its project's unless given.
+  assert.match((all.create('shop', { name: 'Ann admin' }) as { error: string }).error, /only/);
+  assert.match((all.create('shop', { name: 'Cy', description: 'x'.repeat(501) }) as { error: string }).error, /at most 500/);
+  assert.notEqual((all.create('shop', { name: ' Cy ' }) as StoredProfile).avatar, 'cat', "not the project's taken one (Bo's)");
+  assert.equal(all.get('cy').name, 'Cy', 'trimmed');
 });
 
 test('project profiles: a task has its own copy of each, made at its first open; who a profile is, the same in every task', async () => {

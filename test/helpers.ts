@@ -82,19 +82,24 @@ const showProject = async (ui: UI, id: string) => {
 // All Tasks too).
 const closeProject = (ui: UI, id: string) => ui(`for (const t of document.querySelectorAll('#projectTabs .tasktab[data-project="${id}"]')) t.dispatchEvent(new MouseEvent('auxclick', { button: 1, bubbles: true })); 0`);
 const choose = (ui: UI, label: string, menu = MENU) => ui(`[...${menu}.querySelectorAll('.item')].find((b) => b.querySelector('.label').textContent === ${JSON.stringify(label)}).click()`);
-// The bar's + (NewTask.vue), its menu opened with a click: plusMenu(ui) its rows (menuRows: a project by its name, its
-// closed tasks under it as '  name'); plusMenu(ui, project) a new task of that project (by its name); plusMenu(ui,
-// project, task) its closed task of that name opened again.
+// The bar's + (NewTask.vue): a new tab of every project with its tasks (newtab/Board.vue); the empty window shows it.
+// plusMenu(ui) its rows: each column's project by its name, its tasks under it as '  name', those open as
+// '  name (open)', New Project… last; plusMenu(ui, project) a new task of that project (its column's +, by its name);
+// plusMenu(ui, project, task) its closed task of that name opened again.
 async function plusMenu(ui: UI, project?: string, task?: string) {
-  await ui(`document.getElementById('newTask').click()`);
-  const rows = await menuRows(ui);
-  if (project === undefined) return rows;
-  await ui(`(() => { const items = [...${MENU}.querySelectorAll('.item')], label = (r) => r.querySelector('.label').textContent;
-    const at = items.findIndex((r) => !r.matches('.inset') && label(r) === ${JSON.stringify(project)}), own = [];
-    for (const r of items.slice(at + 1)) { if (!r.matches('.inset')) break; own.push(r); }
-    (${JSON.stringify(task ?? null)} === null ? items[at] : own.find((r) => label(r) === ${JSON.stringify(task)})).click(); })()`);
-  await waitFor(async () => !(await menuOpen(ui)));
+  if (!(await ui(`!!document.getElementById('board')`))) await ui(`document.getElementById('newTask').click()`);
+  await waitFor(() => ui(`!!document.getElementById('board')`));
+  if (project === undefined) return ui(`[...document.querySelectorAll('#board .column')].flatMap((c) => [c.querySelector('header .name').textContent,
+    ...[...c.querySelectorAll('li .item')].map((r) => '  ' + r.querySelector('.label').textContent + (r.ariaDisabled === 'true' ? ' (open)' : ''))]).concat('New Project…')`);
+  const column = `[...document.querySelectorAll('#board .column')].find((c) => c.querySelector('header .name').textContent === ${JSON.stringify(project)})`;
+  await ui(task === undefined ? `${column}.querySelector('header button').click()`
+    : `[...${column}.querySelectorAll('li .item')].find((r) => r.querySelector('.label').textContent === ${JSON.stringify(task)}).click()`);
 }
+// Back from a new tab to the task under it (its ×); the empty window's board stays.
+const closeBoard = async (ui: UI) => {
+  if (await ui(`!!document.getElementById('newtabtab')`)) await ui(`document.querySelector('#newtabtab .close').click()`);
+  await waitFor(async () => (await ui(`document.documentElement.dataset.page`)) !== 'newtab');
+};
 // The shown task's tab's right-click menu, where its profiles are: its rows (menuRows).
 const taskMenu = async (ui: UI) => {
   await rightClick(ui, '#taskbar .tasktab.active .name');
@@ -191,6 +196,6 @@ const near = (a: number, b: number) => Math.abs(a - b) < 1e-6;
 const noNode = async (wc: WebContents) => await wc.executeJavaScriptInIsolatedWorld(999, [{ code: 'typeof process' }]) === 'undefined';
 
 export type { UI };
-export { MAC, CMD, canShoot, NO_SHOT, shot, focusWindow, MENU, SUBMENU, noNode, hooksOf, plusMenu, assert, root, userData, project, pfile, savedTabs, savedWindows, panel, SITE, PORT, sleep, waitFor, who, menuRows, choose, projectTabs, projectTab, showProject, closeProject, manageProfiles, closeSettings, settingsClosed, chooseProfile, setProfileField, menuOpen, closeMenu, rightClick, taskMenu,
+export { MAC, CMD, canShoot, NO_SHOT, shot, focusWindow, MENU, SUBMENU, noNode, hooksOf, plusMenu, closeBoard, assert, root, userData, project, pfile, savedTabs, savedWindows, panel, SITE, PORT, sleep, waitFor, who, menuRows, choose, projectTabs, projectTab, showProject, closeProject, manageProfiles, closeSettings, settingsClosed, chooseProfile, setProfileField, menuOpen, closeMenu, rightClick, taskMenu,
   click,
   box, pageBox, viewOn, dock, press, ctrl, near };

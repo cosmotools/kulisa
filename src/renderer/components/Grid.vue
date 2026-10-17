@@ -36,6 +36,8 @@ const tabComponents = markRaw({ profile: ProfileHeader, terminal: TerminalTabs }
   #grid { flex: 1; min-height: 0; }
   .loading & { opacity: 0; transition: none; } /* until the grid is laid out (lib/grid.ts, reveal) */
   .noproject & { display: none; }
+  /* Under a new tab the task's grid stays laid out (its terminals' sizes, its pages' places), unseen (App.vue) */
+  [data-page="newtab"] & { visibility: hidden; }
   .dockview-theme-abyss-spaced {
     color-scheme: inherit; /* the theme's own is dark; Kulisa's is the root's (tokens.css: light-dark()) */
     --dv-group-view-background-color: var(--island);

@@ -8,7 +8,7 @@ import type { SettingsAt } from '../../shared/ipc';
 
 export interface Dialogs {
   taskrename: { rename(key: string, name: string): void };
-  // New Project (NewProject.vue).
+  // New Project (newproject/NewProject.vue).
   newproject: { open(): Promise<void> };
   shortcuts: { showShortcuts(): void };
   // Change Agent (HandOver.vue): an agent's tab handed over.

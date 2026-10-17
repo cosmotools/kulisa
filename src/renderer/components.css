@@ -141,7 +141,7 @@ svg:has(> use) { width: 16px; height: 16px; flex: none; fill: none; stroke: curr
   &[data-state="open"] { background: var(--island-hi); }
   /* Its 🗑 (a closed task's): on the row the pointer or the keyboard is on */
   .remove { flex: none; visibility: hidden; margin-block: -4px; }
-  &:is(:hover, [data-highlighted]) .remove { visibility: visible; }
+  &:is(:hover, :focus-visible, [data-highlighted]) .remove { visibility: visible; }
   /* The chosen row of a list (a project in the projects' manager: Reka's Listbox) */
   &[aria-selected="true"] { background: var(--island-hi); color: var(--text-strong); } }
 /* A list a dialog edits (a project's code, agents and profiles; an agent's accounts; New Project's folders), as
@@ -194,13 +194,14 @@ svg:has(> use) { width: 16px; height: 16px; flex: none; fill: none; stroke: curr
   &.question header { justify-content: flex-start; min-height: 0; padding: var(--pad) var(--pad) 0; border-bottom: none;
     h2 { font-size: var(--font); font-weight: 600; color: var(--text-strong); white-space: normal; } }
   .body { flex: 1; min-height: 0; overflow: auto; padding: var(--pad); }
-  footer { display: flex; justify-content: flex-end; gap: var(--gap); padding: 10px var(--pad); border-top: 1px solid var(--island-hi);
-    .start { margin-inline-end: auto; } /* it and the buttons before it at the left end */
-    button { min-width: 80px; } }
 }
-/* What a dialog and Settings' window (.page: Settings.vue) hold: hints, fields with their labels in one column, checks,
+/* A dialog's buttons, and New Project's (its steps: newproject/Wizard.vue, in a dialog or the empty window) */
+:is(.dialog, .wizard) footer { display: flex; justify-content: flex-end; gap: var(--gap); padding: 10px var(--pad); border-top: 1px solid var(--island-hi);
+  .start { margin-inline-end: auto; } /* it and the buttons before it at the left end */
+  button { min-width: 80px; } }
+/* What a dialog, Settings' window (.page: Settings.vue) and New Project's steps (.wizard) hold: hints, fields with their labels in one column, checks,
    a field with its button, a list's empty line. */
-:is(.dialog, .page) {
+:is(.dialog, .page, .wizard) {
   .hint { margin: 0 0 var(--inset); color: var(--text-muted); line-height: 1.45; }
   /* A field and its button in one row (adding a profile, a project) */
   .row { display: flex; gap: var(--gap); margin-top: var(--inset); input { flex: 1; } }

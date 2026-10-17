@@ -2,12 +2,11 @@
 // process has to know where the keyboard is in this page to know whose a key is; it sends the commands back here, with
 // the profile and tab they act on.
 import { watch } from 'vue';
-import { act, store } from './store';
+import { act, store, toggleNewTab } from './store';
 import { paneOfProfile } from './grid';
 import { shownTerm } from './terminals';
 import { dialog } from './dialogs';
 import { dialogsOpen } from './cover';
-import { toggleNewTask } from './menu';
 import type { Profile } from '../../shared/types';
 import { refused } from '../../shared/result';
 
@@ -48,7 +47,7 @@ const run: Record<string, (c: Command) => unknown> = {
   'task.next': () => stepTask(1),
   'task.previous': () => stepTask(-1),
   'task.new': () => kulisa.invoke('task:new'),
-  'task.menu': () => toggleNewTask(), // as a press on +: again closes it
+  'task.menu': () => toggleNewTab(), // as a press on +: again closes it
   shortcuts: async () => (await dialog('shortcuts')).showShortcuts(),
   'tab.new': ({ p }) => paneOfProfile(p!.id)?.newTab(),
   'tab.close': ({ p, tab, page }) => act('tab:close', { profile: p!.id, tab, focus: page }),

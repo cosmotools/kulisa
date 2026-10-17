@@ -15,6 +15,19 @@ const main = '^src/main/';
 const only = (name: string, from: string, allowed: string[], comment: string) =>
   ({ name, comment, severity: 'error' as const, from: { path: from }, to: { path: main, pathNot: allowed } });
 
+// The window's clusters: a part of several files with a state of its own, in a folder of src/renderer/components,
+// reached from outside only through its entries (docs/ui.md, Clusters). A new cluster is a line here.
+const clusters: Record<string, string[]> = {
+  newproject: ['NewProject', 'Wizard'], // New Project's steps: a dialog, and the empty window's
+  settings: ['Settings'], // Settings' window
+  newtab: ['Board'], // every project with its tasks: a new tab's, the empty window's
+};
+const cluster = (name: string, entries: string[]) => {
+  const dir = `^src/renderer/components/${name}/`;
+  return { name: `cluster-${name}`, severity: 'error' as const, comment: `${name}/ is reached through ${entries.join(', ')} only: its other files are its own.`,
+    from: { pathNot: dir }, to: { path: dir, pathNot: `${dir}(${entries.join('|')})\\.vue$` } };
+};
+
 const config: IConfiguration = {
   forbidden: [
     only('base', base, [base], 'Git and what is local are used by every layer and use none of them.'),
@@ -27,6 +40,7 @@ const config: IConfiguration = {
       from: { path: '^src/renderer/' }, to: { path: '^src/(main|preload)/' } },
     { name: 'main-not-page', severity: 'error', comment: 'The main process takes only types of the window\'s page.',
       from: { path: '^src/main/' }, to: { path: '^src/renderer/' } },
+    ...Object.entries(clusters).map(([name, entries]) => cluster(name, entries)),
     { name: 'no-circular', severity: 'error', comment: 'A cycle at run time: one of its modules is loaded half done.',
       // grid.ts and views.ts call each other's functions only after both have loaded (the pages live again, then
       // the grid's boxes sent): a cycle without that danger, and passing one of them in would be code for the tool.

@@ -10,7 +10,7 @@ the look below:
 
 | Where | What |
 |---|---|
-| `src/renderer/components/*.vue` | the window's parts, each its markup, behavior and own look (`<style>`, rooted at its id or class): `App.vue` puts a tasks' window together, `Settings.vue` Settings' window (its page `ProjectEditor.vue`); `grid/` the grid's panels and headers, `menu/` the menus (`ButtonMenu`, `RightClickMenu`, `PointMenu`, `MenuRows`) and ☰'s own rows; `Modal.vue` the dialogs |
+| `src/renderer/components/*.vue` | the window's parts, each its markup, behavior and own look (`<style>`, rooted at its id or class): `App.vue` puts a tasks' window together; `grid/` the grid's panels and headers, `menu/` the menus (`ButtonMenu`, `RightClickMenu`, `PointMenu`, `MenuRows`) and ☰'s own rows; `Modal.vue` the dialogs; the clusters (below): `settings/` Settings' window (`Settings.vue`, its pages `ProjectEditor.vue`, `AgentPage.vue`, `ProfilePage.vue`), `newproject/` New Project's steps |
 | `src/renderer/lib/*.ts` | what parts share or what outlives a component: `store.ts` (what the main process sends, `act`), `grid.ts`, `xterm.ts` (a terminal, in any window), `terminals.ts` (a tasks' window's), `menu.ts` (what a menu holds), `agents.ts` (the agents' list of a dialog, and an install under way), `ask.ts`, `dialogs.ts`, `keys.ts`, `voice.ts`, `cover.ts` (`covered()` for every menu and dialog: one menu at a time, all closed at once), `views.ts` (a tasks' window's profiles' pages under them: hidden, or pictures), `profiles.ts` (the profiles' menu), `names.ts` (name fields), `strip.ts` (a strip of tabs that scrolls), `common.ts`, `test-hooks.ts` (what the tests reach by name) |
 | `src/shared/types.ts`, `ipc.ts`; `env.d.ts` | the shapes the main process sends, the channels they come by (docs/window.md, IPC); the bridge to it (`src/preload`) typed by them, and Vite's types |
 | `src/renderer/tokens.css` | every color and size (`:root`); no literal color anywhere else |
@@ -57,7 +57,7 @@ pointer, read as a web page's and were hard to read). So:
   `--selection` (the terminal's); `--chosen`, `--chosen-idle` (a list's selected row, while the list has the keyboard
   and when it has not: JetBrains'); `--page-button`, `--on-page-button`, `--page-pad` (Chrome's blue and room, a page's
   dialog: `.pagedialog`); `--page`, `--backdrop`, `--shadow`; `--hover` (under the
-  pointer, on any background); `--project` (the shown task's project's color, set by `lib/store.ts`).
+  pointer, on any background); `--project` (the shown task's project's color, set by `lib/store.ts`), `--glow` (the window's glow, the same color, kept as the last task closes so the glow fades in it; registered as a color, `@property`, so it changes softly: `App.vue`).
 - Sizes: `--sans` (the window's font, Inter), `--font` (all text, the terminal too), `--font-small` (a group's title, a dialog's title), `--control` (the
   height of buttons and fields), `--tab` (a tab's: a step taller), `--radius`,
   `--tab-radius` (a pane's tab's and a task's), `--island-radius`, `--gap` (the space between and inside islands, between the
@@ -80,7 +80,7 @@ Each icon is drawn once, as a `<symbol id="i-…">` in the sprite (`Sprite.vue`,
 | Icon | Where |
 |---|---|
 | `i-close` | × of dialogs, profiles, tabs, tasks |
-| `i-plus` | new tab, new task (the bar's +, after the islands), a new terminal (the island's +); adding to a section of a dialog |
+| `i-plus` | a pane's new tab, the bar's + (a new tab: the board) and the New Tab's own icon, a project's new task (its column's +), a new terminal (the island's +); adding to a section of a dialog |
 | `i-settings` | Settings in the title bar (Lucide's settings) |
 | `i-projects` | ☰'s Tasks bar row (Lucide's folder-open) |
 | `i-logo` | the app icon with its curtain in `currentColor`: the title bar's (`--project`; not on macOS, whose apps show their icon in the Dock), and a project's label in the tasks' bar (its `--color`). The folds are a shadow over the color, one for every color: a `<use>` takes the sprite's gradient, not one of its own |
@@ -187,7 +187,7 @@ The window's controls are Reka UI's, in this look (CLAUDE.md, Window UI):
 - `Toggle`: a button that stays on (Pick, `[data-state="on"]`).
 - `Collapsible`: something shown on demand (a profile's pictures to choose from; Details: `button.disclose` its trigger, an
   installer's output, an agent's sign-in's terminal).
-- `.avatar`: a profile's picture (`<img>`, `avatarSrc(name)` in `lib/common.ts`; `Avatars.vue` the ones to choose from), 16 px; `--avatar` where a place needs
+- `.avatar`: a profile's picture (`<img>`, `avatarSrc(name)` in `lib/common.ts`; `settings/Avatars.vue` the ones to choose from), 16 px; `--avatar` where a place needs
   another size (22 px in a profile's row, `ProfileRow.vue`).
 - `.striptab`: a tab of a strip on an island, as a browser's: the agent's `.state`, `.name`, × at the end
   (`button.close.icon.quiet.small`), on every tab, always, as
@@ -216,7 +216,7 @@ Every dialog is `Modal.vue`, Reka UI's Dialog (`reka-ui`) with the same parts:
   closed (`closable`; Esc and a click outside close it too; `stay`: not while something runs, an agent's install).
   Over a dimmed backdrop (`.backdrop`), in the middle of the window (`.dialog`; its corners clip what is in it, a side
   panel's color). A question (`.dialog.question`, `Ask.vue`) has no strip: its question is the first words, bold.
-  At most 85% of the window's height, the `.body` scrolling: a dialog that keeps one height (New Project) sets it on
+  At most 85% of the window's height, the `.body` scrolling: a dialog that keeps one height (New Project's) sets it on
   itself, `min(…, 85vh)`, never on its body, or its footer goes out of a short window (640×400, or any at 200%).
 - `.body`: (in Settings' window, `.page`, the same) `.hint` (what it is about, muted), `.field` (a label, "Name:", and its input, the labels in one column; `.pick` in
   it: the input with its button, Location and Browse…), `.row` (a line of controls: a field with its buttons,
@@ -229,7 +229,7 @@ Every dialog is `Modal.vue`, Reka UI's Dialog (`reka-ui`) with the same parts:
   added in place (a URL to clone, a new profile's name). Not framed cards or sections with a + in their heading
   (until 2026-10-11: a frame in a dialog in a split was a frame in a frame in a frame, and it read as a web page).
 - `.empty`: a list's line when it has none ("No accounts yet."), dim.
-- What is browsed (Settings' window, `ProjectEditor.vue`) is a tree on the left (Reka's `Tree`, `#pjlist`: its rows
+- What is browsed (Settings' window, `settings/ProjectEditor.vue`) is a tree on the left (Reka's `Tree`, `#pjlist`: its rows
   `.item`, `data-section`, `data-project`, `data-agent` or `data-profile`; a section opens and closes, it is not
   chosen, and makes one of its own with the `.icon` + at its end (Agents, Profiles; a project is made in a tasks' window); a row's right-click has its page's ⋯) and the chosen
   page on the right under its path (`.crumbs`: "Projects › shop", its ⋯ at the end). Each thing is a row of the tree
@@ -259,7 +259,7 @@ Every dialog is `Modal.vue`, Reka UI's Dialog (`reka-ui`) with the same parts:
 
 ### Menus
 
-Reka UI's menus, the rows built as one opens: a button's (`ButtonMenu.vue`: ☰, ⋮, a project's ⋯, the bar's +
+Reka UI's menus, the rows built as one opens: a button's (`ButtonMenu.vue`: ☰, ⋮, a project's ⋯
 …; `end`: its end edge at the button's, at a bar's end), an area's right-click menu at the pointer
 (`RightClickMenu.vue`: `items(e)` builds the rows for what was right-clicked, or `null`: none), one at a point
 (`menuAt(e, items)` in `lib/menu.ts`, `PointMenu.vue`: a link in the terminal). `ButtonMenu` opens on the press, so a
@@ -282,8 +282,7 @@ rows so, under the project's icon and name) or `{ component, props }` (a row
 of its own: ☰'s zoom, theme, tasks' bar, language (a menu beside it: Reka's submenu, its rows `MenuButton`s, the
 chosen one checked) and arrangements, `components/menu/`, built of Reka's menu items; − and + and the choices leave the menu open);
 `title` its tooltip (the native one, as every tooltip); `icon` is the sprite's id, at the row's start; `project` a project's icon in its color there (`ProjectIcon.vue`,
-`.picon`); `remove` puts a 🗑 at the row's end (`.remove`, on the row the pointer or the keyboard is on; Delete too) that runs it instead of `run`, the menu closing as for any row (a closed task's, deleted); `inset` sets a row in under the one above, its text under that one's (a project's closed task under it, in
-the bar's +); rows are `.item`, lit as Reka highlights them
+`.picon`); `remove` puts a 🗑 at the row's end (`.remove`, on the row the pointer or the keyboard is on, `:focus-visible` too; Delete too) that runs it instead of `run`, the menu closing as for any row (a closed task's, deleted); `inset` sets a row in under the one above, its text under that one's; rows are `.item`, lit as Reka highlights them
 (`[data-highlighted]`).
 
 ### Panels
@@ -292,10 +291,29 @@ A panel is a menu's look with fields in it, where a menu cannot hold them (its r
 focus under the pointer): Reka UI's Popover, `.menu` with its rows `.item` (buttons) under a top of its own, the pages
 pictures meanwhile (`covered('pictures')`), closed as a menu is (Esc, a press outside, a row chosen, the window left);
 a row's action runs once it has closed. One today: a profile's picture
-(`.profilepics` in `ProfilePage.vue`, from its picture at its page's top: `.choices`).
+(`.profilepics` in `settings/ProfilePage.vue`, from its picture at its page's top: `.choices`).
 
 A menu's row that opens a field (New Profile…) gives it the keyboard with `focusAfterMenu(el)` (`lib/menu.ts`): the
 menu, closing, would give it back to its button.
+
+## Clusters
+
+A part of several files with a state of its own is a folder of `components/` (the author, 2026-10-17: against
+spaghetti), reached from outside only through its entries; `npm run deps` refuses any other import (`clusters` in
+`.dependency-cruiser.ts`: a new cluster is a line there). Its state is a module in it, provided to its files (Vue's
+`provide`/`inject`), not in `lib/store.ts`; what it shares with the rest of the window (`Modal.vue`,
+`InstallProgress.vue`, `AccountSignIn.vue`, `lib/`) stays outside it; its actions are the core's, over IPC, as
+every handle's (CLAUDE.md, "One core"). A single component is no cluster.
+
+| Folder | Its entries | What |
+|---|---|---|
+| `settings/` | `Settings.vue` | Settings' window: the tree, a project's, an agent's and a profile's page |
+| `newproject/` | `Wizard.vue`, `NewProject.vue` | New Project's steps (Code, Agents, Profiles; `wizard.ts` their state): the empty window's with no project (`Empty.vue`) and the dialog |
+| `newtab/` | `Board.vue` | the board: every project a column (an island, as the grid's panels) with its tasks as `.item` rows, a new tab's and the empty window's |
+
+New Project's steps (`.wizard`) are a form: the steps over it (`.steps`, the one shown `aria-current`), one step at a
+time, its buttons in a dialog's `footer` (Back at the start, Cancel in the dialog, Next, Create last); the fields' look
+is a dialog's (`components.css`, what a dialog holds).
 
 ## Adding something
 

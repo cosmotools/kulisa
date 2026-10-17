@@ -4,7 +4,7 @@
 // (the tests read some).
 import type { Result } from './result.ts';
 import type {
-  AccountsInfo, AgentInfo, ClosedProfile, LanguageInfo, Profile, ProjectAgent, ProjectChoices, ProjectProfile, ProjectRepo,
+  AccountsInfo, AgentInfo, ClosedProfile, LanguageInfo, NewProjectSetup, Profile, ProjectAgent, ProjectChoices, ProjectProfile, ProjectRepo,
   ProjectSettings, ProjectsInfo, Question, SettingsProfile, Shortcut, SignedIn, Terminals, Voice,
 } from './types.ts';
 
@@ -35,7 +35,7 @@ export interface Invoke {
   'project:new-defaults': I<[], ProjectChoices & { location: string; sep: string }>;
   'project:pick-location': I<[{ location?: string; existing?: boolean }], string | null>;
   'project:folder-state': I<[{ from?: string; location?: string; name?: string; folder?: string }], { folder: string; state: string; project?: string } | null>;
-  'project:new': I<[{ from?: string; name?: string; location?: string; folders?: string[]; urls?: string[]; git?: boolean }], Result<{ id: string }>>;
+  'project:new': I<[{ from?: string; name?: string; location?: string; folders?: string[]; urls?: string[]; git?: boolean } & NewProjectSetup], Result<{ id: string; problems?: string[] }>>;
   'project:settings-get': I<[{ id: string }], Result<ProjectSettings>>;
   'project:settings': I<[{ id: string; name?: string; local?: string[] }], Result<{ id: string }>>;
   'project:profile-new': I<[{ id: string; name?: string }], Result<ProjectProfiles>>;

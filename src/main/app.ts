@@ -182,11 +182,10 @@ function start(options: Options = {}) {
     const file = favicons.get(p.id);
     return file ? picture(file) : null;
   };
-  // And its tasks (the bar's + lists the closed ones): those open, as made, then the closed ones, the one closed last first.
+  // And its tasks (the board lists them: newtab/): those open, as made, then the closed ones, the one closed last first.
   const tasksOf = (p: ProjectEntry) => {
     const list = store.tasksOf(p).list.map(({ n, name, branch, closed, closedAt, merged, about }) => ({ n, name, branch, closed: !!closed, closedAt, merged: !!merged, about }));
-    return [...list.filter((t) => !t.closed), ...list.filter((t) => t.closed).sort((a, b) => (b.closedAt || 0) - (a.closedAt || 0))]
-      .map(({ closedAt, ...t }) => t);
+    return [...list.filter((t) => !t.closed), ...list.filter((t) => t.closed).sort((a, b) => (b.closedAt || 0) - (a.closedAt || 0))];
   };
   shell.projects = () => store.projects().map((p) => {
     const favicon = faviconPicture(p);

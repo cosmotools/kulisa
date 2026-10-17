@@ -45,15 +45,26 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
     for that). A 👥 on the shown task's tab had their menu until then (before it, a Profiles ▾ button in the title
     bar), and every tab a number of its open profiles until 2026-10-11 (profiles are the agent's hands: how many are
     open says nothing).
-  - **The button after the islands is +**, a new task (Ctrl+Shift+A; `NewTask.vue`; the author, 2026-10-11): a task
-    is made of a project (its profiles, agents and code), so its menu lists every project, with its icon in its
-    color; a click makes a task of it with its default agent ("Choosing the agent") and shows it, a tab at the end
-    of this window's bar. Under each project its **closed tasks**, set in
-    (the one closed last first, its branch, merged): a click opens one again, the same way; it is the one place
-    they are listed (until 2026-10-14 a group's menu listed them too). New Project… last. One + for every project (each group had
-    its own until 2026-10-11, its right-click New Task with another agent; another agent is the project's default
-    one, or the island's + after), and it replaced Search Tasks (a panel of every project's tasks with a search
-    field, from the morning of 2026-10-11 until its evening).
+  - **The button after the tabs is +, a new tab**, as a browser's (Ctrl+Shift+A, again or Esc goes back; `NewTask.vue`;
+    the author, 2026-10-17): a tab "New Tab" at the end of the bar, chosen, and in the grid's place **the board**
+    (`newtab/`): every project a column (the author, 2026-10-17: all in sight, any task one click away), the one
+    worked in last first (an open task, else the one closed last). A column: its project's icon in its color, its
+    name, its **+** (a new task of it with its default agent: "Choosing the agent"); then its tasks, those open first,
+    marked "open" and not to choose (in this window's bar or another's), then those closed, the one closed last first,
+    each with its branch (when its name is another), when it was closed, "merged"; a click opens one again; its 🗑 (on
+    the row under the pointer or the keyboard) or Delete deletes it after Delete Task…'s question. A project without
+    tasks says so. New Project… after the columns. More tasks than a column holds scroll in it, more columns than the
+    window holds scroll sideways. The task chosen or made is shown in the new tab's place, a tab at the end of the
+    bar; the new tab closed (×, + again, Esc, a click on another tab) shows the task under it again, which ran on
+    meanwhile, its pages hidden (a native view would draw over the board). The grid stays laid out under it, unseen:
+    its terminals keep their size. A new tab is the window's alone: the main process does not know it, it is not
+    saved, and it moves to no other window. Until 2026-10-17 + was a menu of the projects with their closed tasks under
+    them (from 2026-10-11, one + for every project; each group had its own before), and it replaced Search Tasks (a
+    panel of every project's tasks with a search field, from the morning of 2026-10-11 until its evening).
+  - **The window's pages** (`page` in `lib/store.ts`): what the window shows in the grid's place, one at a time: the
+    shown task's grid (`task`), a new tab over it (`newtab`), the board with no task open (`board`), New Project's steps
+    with no project at all (`wizard`). One switch, not a router: what is shown is the main process's (its current
+    task), and the grid under a new tab must stay as it is.
 - **Settings** (the button in the title bar, left of ☰; the author, 2026-10-11), as JetBrains' Settings (the author,
   2026-10-11: the dialogs read as a web page's, not a desktop app's; docs/ui.md, Desktop, not a web page), a window of
   its own since 2026-10-16, not modal (a dialog until then; how it opens and closes, and which window it acts for:
@@ -87,13 +98,17 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   from: the menu and the Welcome screen (JetBrains' way, 2026-10-07) showed no project's configuration without opening
   it. A dialog, not a window of the OS, no process more, until 2026-10-16: a window of its own then (the author: as a
   desktop app's, the pages not hidden under it), its process only while it is open.
-- **New Project** (a dialog of a tasks' window, `NewProject.vue`: New Project… in the bar's + and in the empty window;
-  by itself at the first start, no project yet; Create opens Settings at it; Settings' + until 2026-10-16), as JetBrains': on the left
-  what its code comes from, on the right the form (**Name:**, **Location:**). **Its code first** (the author,
+- **New Project**, in three steps (the author, 2026-10-17: a newcomer went through five steps in three places, New
+  Project, Settings' agents and profiles, the bar's +, with nothing saying what came next): **Code**, **Agents**,
+  **Profiles**, then Create, which makes the project with them and opens its first task. Next checks a step as Create
+  would, nothing made before Create (but an agent's account signed in to on the way: accounts live on their own); Back
+  keeps what was typed. It is the empty window with no project at all, in the grid's place (below), and else a dialog
+  (New Project… after the board's columns; Settings' + until 2026-10-16), the same steps (`newproject/`). The first step, as
+  JetBrains' New Project: on the left what its code comes from, on the right the form (**Name:**, **Location:**). **Its code first** (the author,
   2026-10-11: a folder made in `~/Kulisa` first, git on, was in the way of code already on the disk or at a URL: with
   a repository added after it, every task got a copy of the empty one too, or the empty folder stayed as a former one):
   - **New folder**: a name and a location, `~/Kulisa` (every new project's place, as JetBrains' `~/PycharmProjects`)
-    unless they type or browse to another; the dialog shows the folder it makes (`<location>/<name>`), so the human
+    unless they type or browse to another; the step shows the folder it makes (`<location>/<name>`), so the human
     knows where the agent's files are. A folder there already is taken as it is, its files kept.
   - **Folders on disk**: one folder or several (a frontend and a backend: typed and Add, or + over the list, which
     browses; each a row with "git" or "no git", − leaves the selected one out), taken as they are, nothing made: their files and, for repositories, their history kept.
@@ -107,14 +122,28 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
     meanwhile; a URL git cannot clone leaves nothing, the clones before it neither.
 
   The name is the first folder's or repository's until the human types one. A folder or URL typed and not yet added
-  counts when Create is pressed. The dialog says what will happen as it is typed ("… is there already", "… is a git repository", "The repository
+  counts when Next is pressed. The step says what will happen as it is typed ("… is there already", "… is a git repository", "The repository
   will be cloned into …"; refused: a file, or a folder a project has). Its color and icon are not asked
   (below). Create Git repository is on by default, not shown for repositories or clones: `git init` and an empty
   first commit ("Initial commit"; nothing of the folder is in it), as a worktree needs one, so the first task already
   has a copy of its own. Without git's user name and email set there is no commit, and tasks work in the folder. More
   repositories are added on its page (Code).
-  **Create makes no task**: Settings opens on its page (its agents' accounts: New
-  Account…; its code, profiles); its first task is made from the bar's + (the project is in its menu).
+  - **Agents**: the accounts there are first, ticked (one or several), one of them the default (★; the first ticked
+    unless another is starred): a new task starts it, the others open beside it ("Choosing the agent"). The terminal
+    is no choice: every project has it, and a project with none ticked starts its tasks with it (the author,
+    2026-10-17). Under them **Add account**, one button per agent an account can be made of (Claude Code, Codex):
+    its sign-in, as New Account…, and the account ticked. An agent not on the computer is installed first, by itself,
+    with its maker's installer, the sign-in after it (the author, 2026-10-17: seamless); a line says it installs, and
+    Details shows the installer at work (`InstallProgress.vue`, as Settings → Agents).
+  - **Profiles**: new ones, a name and who it is each (the agent chooses by it), and any of the human's other
+    profiles, ticked; none: the agent makes those it needs. No signing in there: real accounts are signed in when the
+    agent asks, or with Sign In… in Settings → Profiles.
+  - **Create**: one call (`project:new`), the core making it all (`createProject` in `projects.ts`: its code, its
+    agents in order, the default first, its profiles); what could not be added of the agents and profiles is logged,
+    the project being made. Then its first task opens in this window (`project:open`), its default agent in it. Until
+    2026-10-17 Create made no task and opened Settings on the project's page, where its agents and profiles were set;
+    now the first task opens where the project was made, nothing asked (the author, 2026-10-11: a question where to
+    open it, right after Create, came unasked).
 - **Showing another task** slides the grid towards its tab, as macOS desktops do (a view transition on the compositor, the
   pages as pictures meanwhile; not with reduced motion); the window builds the other grid in place, so nothing jumps.
   Out past the window's edge, with Material's standard easing: until 2026-10-15 the grid going out stopped at the
@@ -129,7 +158,7 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   same way, one after another. **Dragging a tab** does the same with the mouse: within the bar it changes the order
   (kept); let go on another window's bar, the task moves there, where it was let go; let go outside every Kulisa
   window, it opens in a new window there (the window appears when the mouse is let go, as in VS Code). Each window has
-  its bar and its + (every project; a task opens in the window whose + was pressed). The OS's × on a window closes
+  its bar and its + (the board; a task opens in the window whose + was pressed). The OS's × on a window closes
   its tasks, as × on each would, after one question ("Close the window?", naming them); on the last
   window it quits Kulisa, and the windows with their tasks come again at the next start, where they were: nothing
   is lost, so it asks only when that would stop a working agent ("Quit Kulisa?"). On macOS the last window's × hides
@@ -138,7 +167,11 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   Kulisa) quits, asking as above, the hidden window shown for the question. A window whose last tab is
   closed closes too, unless it is the only one: then it is the empty window.
 - **Each project has a color and an icon**, to tell projects apart at a glance: the color is the shown one's glow from
-  the middle of the window and the title bar logo's curtain; the icon is on its tasks' tabs in the bar, in its color. **Both
+  the middle of the window (seen in the title bar and the gaps between the islands; only while a task is shown, a new
+  tab over it too: it fades in with the first task, out with the last, and from one project's color to the next as
+  another task is shown; a blot, never a circle: three soft spots, each its own size, drifting and stretching at its own pace, still with reduced
+  motion: the author, 2026-10-17; `App.vue`, its transform alone animated, five times a second: about 2 % of a core while a task is shown, 11 % at the screen's rate) and the title bar
+  logo's curtain; the icon is on its tasks' tabs in the bar, in its color. **Both
   are Kulisa's, nothing to choose** (the author, 2026-10-12: a project is made to work in, not to be set up; until then
   a panel at its page's top chose among eight colors, Kulisa's ten icons and a picture file, and the colors did not
   go with the favicons, a red mark on a green project):
@@ -167,8 +200,8 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
 - **Its agents**: a list of its agents' accounts and the terminal only ("Choosing the agent", Accounts). Its
   **+** adds the terminal only or any account (made in another project or in Settings → Agents), or, under New Account,
   makes one of an agent, signed in right there; − lets go of the selected one at once (the account stays: Settings →
-  Agents deletes it); the first is the default, marked "default" (**★**, or Make Default in a row's right-click, on another): the
-  bar's + runs it; others in a task: the island's + ("Several agents in a task"). **★** on the default one (No Default
+  Agents deletes it); the first is the default, marked "default" (**★**, or Make Default in a row's right-click, on another): a
+  new task runs it; others in a task: the island's + ("Several agents in a task"). **★** on the default one (No Default
   in its right-click) leaves none the default (`noDefaultAgent` in `projects.json`; the author, 2026-10-12): its new
   tasks start with nothing, the island's big buttons in the empty grid instead ([window.md](window.md), The terminal).
   None: its tasks start with the terminal only; closed, the Terminal button alone (the author, 2026-10-12).
@@ -183,12 +216,15 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   repository is added; then it is its **former folder**: new tasks no longer work in it, those that did go on there,
   and the settings say so, with Show, while it exists (the human moves its files, or asks an agent).
 - **The empty window** (the term: CLAUDE.md) is what a window is with no task open: at the first start, and after
-  the last task is closed (×, Close All Tasks, deleting the project). The title bar and
-  the tasks' bar as always (no tabs; + there) and, in the grid's place, an
-  empty island: "No task is open", New Task (+'s menu), New Project…. At the first start (no project at all: nothing to do in Kulisa
-  without one) New Project opens by itself (`shell.firstStart`). It replaced the Welcome
-  screen (the author, 2026-10-11: once the bar listed the tasks, it was not needed): its list of tasks is the bar's
-  + (the closed ones), the links and Kulisa's version are ☰'s, New Project the manager's. Later starts
+  the last task is closed (×, Close All Tasks, deleting the project). The title bar, no tasks' bar (no tab, and its +
+  would show the board the window shows already: the author, 2026-10-17), and in the grid's place (`Empty.vue`) the
+  board, as a new tab shows it
+  (above); with no project at all, New Project's steps instead, as a dialog without its backdrop: the first start,
+  where what to do is plain (the author, 2026-10-17; until then an island with "No task is open", New Task and New
+  Project…, two clicks from anything to do). The steps are made each time they are shown, anew, and are not there
+  otherwise (their fields' ids are the dialog's too). At the first start they get the keyboard (`shell.firstStart`).
+  It replaced the Welcome screen (the author, 2026-10-11: once the bar listed the tasks, it was not needed); the
+  board brought its list of tasks back (2026-10-17); the links and Kulisa's version are ☰'s. Later starts
   open the windows that were open, each with its tasks' tabs in their order, showing the one shown last (`windows` in
   `settings.json`, the tasks by key); an open task no window names (a crash; windows saved before 2026-10-14 named
   projects) goes into the first window's bar, so none is lost. `KULISA_PROJECT=<folder> npm start` shows a task of that
@@ -271,7 +307,7 @@ Example: the project `~/IdeaProjects/myshop`, its second task, named "Checkout-r
   (working, waiting for you, done; from its hooks: "Choosing the agent"), its name. A click shows that task: the grid
   slides towards its tab, the pages as pictures meanwhile, live again once the new grid is laid out (Projects,
   above). The one left keeps running.
-- **The bar's +** (a project in its menu; Ctrl+Shift+N, or New Task in the project's submenu, for the shown task's or
+- **The bar's +** (a project's + in its column; Ctrl+Shift+N, or New Task in the project's submenu, for the shown task's or
   that project) makes a task at once, no dialog,
   from the project's configuration alone, nothing taken from the task on screen: the human describes the task to its
   agent in the terminal. It runs the project's default agent; with none, the terminal only, nothing asked ("Choosing the agent"). **No profile opens by itself**, the first task's
@@ -281,18 +317,18 @@ Example: the project `~/IdeaProjects/myshop`, its second task, named "Checkout-r
   a task opened those open in the task on screen before (the first one all), each a browser's processes and memory
   whether the task needed it or not.
 - **×** on a task's tab closes it: its agent stops, its tabs close; its code, branch, profiles and conversation stay,
-  and the bar's + lists it as closed under its project. Opening it there shows it again and resumes its agent's
+  and the bar's + lists it in its project's column. Opening it there shows it again and resumes its agent's
   conversation. It asks only when the agent is working (closing would stop it); nothing else is lost. The last open
   task of a project closed lets the project go (nothing of it runs), nothing asked.
 - **Delete Task…** in its tab's menu deletes it, after a question saying what goes for good: its folder, its branch,
   its profiles, its agent's conversations, and any work not in main and not pushed (commits of its own, uncommitted
   files). With git a task goes whole (worktree, branch, conversation); without, its files stay in the project's folder.
-  A closed task is deleted from its row in the bar's +: its 🗑 (on the row under the pointer) or Delete, the same
+  A closed task is deleted from its row in the bar's + (the board): its 🗑 (on the row under the pointer) or Delete, the same
   question, its project loaded or not (the author,
   2026-10-12: they piled up, and only an open one had Delete Task…). Closed tasks stay on disk until the human deletes them; Kulisa
   offers it once a closed task's PR is merged: each of its copies has commits of its own, all in its remote's default
   branch (`origin/HEAD`, fetched as the project is shown and as a task is closed, in the background), and nothing
-  uncommitted, so deleting it loses nothing. The bar's + marks it "merged", and the project's submenu has **Delete
+  uncommitted, so deleting it loses nothing. Its row in the board says "merged", and the project's submenu has **Delete
   Merged Tasks…**, one question naming them. A squash merge makes new commits, so it is not seen: Delete Task… as for any other.
 - **The island's +** opens another of the project's agents in the task, a new conversation in a tab of its own, or a
   shell; **the agent's icon on its tab** hands the task to an agent of the project, which goes on with that
@@ -305,10 +341,11 @@ to the human; the window's IPC (`ipc/`) and the MCP tools are handles on it:
 
 | Action | The human | The agent | The core |
 |---|---|---|---|
-| Open a task (its project loaded with it, when it was not) | the bar's + (a closed one, or a new one) | none: it works inside one task | `openProject` (`open-tasks.ts`): the task opened again and shown, or a new one (`createTask`) |
+| Open a task (its project loaded with it, when it was not) | the bar's + (the board: a closed one, or a new one) | none: it works inside one task | `openProject` (`open-tasks.ts`): the task opened again and shown, or a new one (`createTask`) |
 | Close a project's tasks | Close All Tasks in its submenu | none: it would stop itself | `closeTasks` (`open-tasks.ts`) in every window, asking once when an agent works |
 | Close a window, quit | the OS's ×, ☰ → Exit | none | `closeTasks` for the window's tabs; `quit` (`open-tasks.ts`), asking only when an agent works |
 | Move a task | Move to New Window, Move to Window, dragging its tab; Move All Tasks to … for a project's | none: where the human sees it is the human's | `moveTask`, `moveAll` (`open-tasks.ts`) |
+| Make a project, with its agents and profiles | New Project (the empty window with no project; New Project… on the board) | none: what a project is made of is the human's | `createProject` (`projects.ts`); its first task: `openProject` |
 | Delete a project | Delete Project… in the projects' manager | none: it deletes sign-ins, the human's to decide | `deleteProject` (`open-tasks.ts`), `askDeleteProject`, `deleteProjectData` (`projects.ts`) |
 | Make a task | the bar's +, Ctrl+Shift+N, New Task in its project's submenu | not yet (ROADMAP, "Tasks, rest") | `Project.createTask` |
 | Close a task, open it again | ×, the middle button on its tab, Close in its menu; the bar's + | none: what runs is the human's to stop | `closeTask` (`open-tasks.ts`), `Project.closeTask`, `reopen` |
@@ -802,15 +839,17 @@ temporary forks), and again on 2026-10-10 (tasks; ROADMAP, "Projects and tasks")
 | `src/main/open-tasks.ts` | open, close and move tasks, load and let go projects (one change at a time, `serial`) |
 | `src/main/ipc/tasks.ts`, `projects.ts`, `agents.ts` | the windows' handles on tasks, projects, agents and accounts |
 | `src/main/window.ts` | a window: its tabs (tasks), show one, the grid's state, its questions |
-| `src/main/projects.ts` | a loaded project: its tasks; making, closing, opening again, deleting one (with the question); deleting a project's data |
+| `src/main/projects.ts` | a loaded project: its tasks; making, closing, opening again, deleting one (with the question); making a project (`createProject`), deleting a project's data |
 | `src/main/tasks.ts` | a task: its profiles, its terminals and agents (open, hand over, close, environment), renaming, copies of its profiles for a new task, ports |
 | `src/main/worktrees.ts` | git: a task's worktree and branch, files outside git, direnv, changes, renaming the branch, removal |
 | `src/main/agents/` | the agents to choose from: find, install, start, resume; a folder's trust carried to a task's copy |
 | `src/main/store.ts` | the data folder above |
 | `src/main/terminal.ts` | the task's terminals' ptys (window.md, The terminal) |
-| `src/renderer/components/TaskBar.vue`, `NewTask.vue`, `Empty.vue`, `ProjectEditor.vue` | the tasks' bar (a tab per open task); its + (every project, their closed tasks); the empty window's island; the projects' manager |
+| `src/renderer/components/TaskBar.vue`, `NewTask.vue`, `Empty.vue`, `settings/ProjectEditor.vue` | the tasks' bar (a tab per open task, a new tab); its + (a new tab); the grid's place when no task's grid is shown (the window's pages); the projects' manager |
+| `src/renderer/components/newtab/` | the board, a new tab's and the empty window's: `Board.vue` (the columns, New Project…), `ProjectColumn.vue` (a project and its tasks) |
+| `src/renderer/components/newproject/` | New Project's steps: `Wizard.vue` (the steps, the buttons; the empty window's and the dialog's), `wizard.ts` (their state and rules, one per wizard), `CodeStep.vue`, `AgentStep.vue`, `ProfilesStep.vue`, `NewProject.vue` (the dialog) |
 | `src/renderer/components/TaskTab.vue`, `TaskRename.vue` | a task's tab in the bar, its menu, the Rename Task dialog |
-| `src/renderer/components/AgentPicker.vue`, `AgentPage.vue`, `AgentList.vue` | choosing an agent when the one to open is not there; an agent's page in Settings, its details and accounts; the radios of agents with Install that choosing shows |
+| `src/renderer/components/AgentPicker.vue`, `settings/AgentPage.vue`, `AgentList.vue`, `InstallProgress.vue` | choosing an agent when the one to open is not there; an agent's page in Settings, its details and accounts; the radios of agents with Install that choosing shows; an install's line and its Details |
 | `src/main/favicons.ts` | a project's icon: its site's favicon in its code (Projects, "Each project has a color and an icon") |
 | `src/shared/names.ts` | the one rule for names (projects, tasks, profiles) and slugs |
 | `src/main/accounts.ts`, `src/renderer/components/AccountSignIn.vue` | the agents' accounts, one store; a new one's sign-in in Settings (a project's page, or Agents) |
