@@ -510,7 +510,9 @@ shortcuts carry (`com.squirrel.kulisa.kulisa`), or Windows would not pin it to t
 
 | File | What |
 |---|---|
+| `src/main/index.ts` | the entry: the environment's variables (README, Run) into `start`; Squirrel's events first (`updates.ts`) |
 | `src/main/app.ts` | the app put together: the shell, the Kulisa zoom, the theme, the language, the agents; start and quit |
+| `src/main/shell.ts` | `Shell`, the app every module of the main process is given: types only |
 | `src/main/open-tasks.ts` | the windows' open tasks: open, show, create, move, close, delete (one change after another, `serial`) |
 | `src/main/ipc/*.ts` | the windows' handles, a file a domain: `tasks`, `projects`, `profiles` (Settings → Profiles), `agents`, `panes` (the shown task's profiles, tabs, terminals), `window` (its zoom, theme, bar, language) |
 | `src/main/shortcuts.ts` | the keys as they are typed (Keys), the hold keys changed |

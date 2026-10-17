@@ -297,24 +297,8 @@ unasked. This paragraph is removed when the rewrite is finished.
 
 ## Commands
 
-```sh
-npm start   # the app: the tasks open last, plus one of $KULISA_PROJECT's (at first start none: New Project)
-npm test    # unit tests, knip, ESLint, actionlint (when installed), then the e2e groups in parallel, each the real app against a local test site, then restarted
-npm run test:unit     # the unit tests alone (plain Node, a second)
-npm run knip  # no file, export or dependency nothing uses: once a step, before showing it (docs/testing.md, Dead code)
-npm run lint  # ESLint: a promise awaited or `void`, no needless `as` or `!` (docs/testing.md, Lint); with knip; then deps
-npm run deps  # dependency-cruiser: no import against the layers, no cycle (docs/testing.md, Layers)
-npm run test:visible  # e2e on your screen, to watch them (npm test uses Xvfb on Linux when installed)
-npm run make  # installers for this platform with Electron Forge (forge.config.ts), in out/make/
-npm run publish  # the same, into a draft release on GitHub: the CI's, on a merge into main (Releases below)
-npm run icons # renders assets/icon.svg to icon.png/.ico/.icns (committed; run after changing the SVG)
-npm run build # type checks (tsc: the main process and the tests; vue-tsc: the window), then Vite into dist/renderer
-npm run watch # the window built again on every change; then reload it (Ctrl+R in its DevTools) or restart
-```
-
-- **Node 24.12+ and npm 11** (type stripping is stable from 24.12). npm 11 runs dependencies' install scripts only when listed in `allowScripts` in
-  package.json (`npm install-scripts approve <pkg>`). Approving `node-pty` builds it for Node, not Electron;
-  run `npm run postinstall` after that.
+The npm scripts, what each does, and what to install first (Node 24.12+, npm 11 and its `allowScripts`): README, Run
+(one list, kept there). When to run which: Conventions, "Every behavior change comes with a test".
 
 - **Sandbox and native module.** On Linux Electron needs `--no-sandbox` (`chrome-sandbox` in `node_modules` is
   not setuid); `npm start` (`scripts/electron.ts`) and `npm test` pass it there only. `npm install` rebuilds `node-pty` for Electron (postinstall, `scripts/postinstall.ts`; not on macOS, where its prebuilt binary is loaded).
@@ -322,12 +306,12 @@ npm run watch # the window built again on every change; then reload it (Ctrl+R i
   parent session's `CLAUDE_*` variables, take itself for a child session and not save its history. Unset them all
   except `CLAUDE_CONFIG_DIR`, and run it in the background:
   `env $(env | grep -o '^CLAUDE[A-Z_]*' | grep -v '^CLAUDE_CONFIG_DIR$' | sed 's/^/-u /') npm start`.
-- **Code intelligence.** Claude Code's `LSP` tool (the `kulisa-dev` plugin; README, Developing with Claude Code):
+- **Code intelligence.** Claude Code's `LSP` tool (the `kulisa-dev` plugin; docs/testing.md, Claude Code's checks):
   references, definitions and types through the language server, `.ts` and `.vue` together; prefer it to grep when
   renaming or finding who uses a symbol (it misses the tests: grep `test/` too). No `LSP` tool in the session: the
   plugin is not installed in this `CLAUDE_CONFIG_DIR`; say so, install it (`claude plugin install
   kulisa-dev@kulisa-dev --scope project`) and ask the human for `/reload-plugins`.
-- **The Stop hook** (README, Developing with Claude Code) runs `npm run lint` and `npm run test:unit` on uncommitted
+- **The Stop hook** (docs/testing.md, Claude Code's checks) runs `npm run lint` and `npm run test:unit` on uncommitted
   code before a turn ends; when it sends you back, fix what it reports, or tell the human why it cannot be fixed now.
 - **Looking at the window.** `KULISA_SHOT=/tmp/kulisa.png npm start` saves a screenshot of the whole window,
   profile views included, about 4 s after start (`KULISA_SHOT_DELAY` in ms). In tests: `shell.screenshot(file)`.

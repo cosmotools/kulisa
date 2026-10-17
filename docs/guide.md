@@ -1,6 +1,6 @@
 # Kulisa user guide
 
-![Kulisa: three profiles of a shop (buyer, seller, admin) side by side, the agent outlining the new orders in two of them, and Claude Code in the terminal below](images/kulisa.png)
+![Kulisa: three profiles of a shop (buyer, seller, admin) side by side, the agent outlining the buyer's new order in the seller's and the admin's, and Claude Code in the terminal below](images/kulisa.png)
 
 Kulisa is a desktop app where the AI agent you choose (Claude Code, Codex) works in your signed-in browser profiles,
 side by side. It builds, checks the result as every user of your app, fixes, and goes again until it works, while you

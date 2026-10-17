@@ -158,6 +158,30 @@ a Go program, not an npm package (the ones on npm are old wrappers), so it is th
 its releases into a folder on `PATH` (`~/.local/bin`), or `brew install actionlint`. With shellcheck installed it
 checks the workflows' `run:` scripts too. The CI's own runs do not have it: the check is before the push.
 
+## Claude Code's checks
+
+For Claude Code sessions working on Kulisa (README, Developing with Claude Code).
+
+**A language server for TypeScript and Vue** (the `kulisa-dev` plugin, `.claude/dev-plugins/`): Claude sees the type
+errors of its edits as it makes them, and finds definitions and references through its `LSP` tool instead of searching
+the text. `.claude/settings.json` registers and enables it, but Claude Code does not install a project's plugin by
+itself: a session without the `LSP` tool installs it, once per `CLAUDE_CONFIG_DIR`, and asks for `/reload-plugins`
+(CLAUDE.md, Commands). Why it is built so (its config is JSON, so here):
+
+- Not the official `typescript-lsp`: it has no `.vue` (references from `lib/` missed every use in the components),
+  and it answers references from the syntax-only `tsserver`, which knows only the open files (a symbol used in 12
+  files had 1 reference); `useSyntaxServer: "never"` sends everything to the full one.
+- It runs the project's own `typescript-language-server` and `@vue/typescript-plugin` (devDependencies, the versions of
+  `vue-tsc`) from `${CLAUDE_PROJECT_DIR}`, so nothing is installed globally and a worktree uses the repository's
+  `node_modules`. The Vue plugin's `location` is not a path Claude Code fills in: `tsserver` finds it next to itself.
+- About 700 MB a session. References from `src/` miss the tests (`test/tsconfig.json` loads only once a test file is
+  open); `tsc -p test` still checks them.
+
+**A Stop hook** (`.claude/hooks/stop.ts`; how it works, in its comments) runs `npm run lint` and `npm run test:unit`
+(about 14 s) before a session ends its turn, when `.ts`, `.mts` or `.vue` files have changes not committed, and sends
+the session back with what failed. Not `npm run build` and the e2e groups: the language server shows type errors as
+they are made, and the whole suite runs when the work is done (CLAUDE.md, Conventions).
+
 ## Running them
 
 The full suite runs once, when the work is done, before the commit (CLAUDE.md); while building, the unit tests
