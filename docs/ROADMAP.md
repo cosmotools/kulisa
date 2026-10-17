@@ -642,86 +642,58 @@ here; what is left of it stays.
      auto-update", macOS), with the Apple Developer account. Until then an unsigned build downloaded on another Mac
      is refused by Gatekeeper and does not update, and kulisa.app says "coming soon" for macOS.
 
-  Known gaps:
-  - Drag regions left by a page (Workarounds of Electron bugs, above): seen on Linux; whether macOS and Windows
-    have the bug, and whether the workaround is enough there, is not known. Open Teams in a pane and click its page.
-  - Signing in to Google and GoDaddy (Kasada) in a profile: passed on Linux with Electron's own User-Agent
-    (2026-10-12); without its `Electron/<version>` (2026-10-16, [profiles.md](profiles.md), What sites see) Google, GoDaddy and
-    Microsoft passed on macOS (the author, 2026-10-16); check again on Linux, and on Windows.
+  Known gaps (what macOS passed by hand: [testing.md](testing.md), "On macOS"):
+  - Drag regions left by a page (Workarounds of Electron bugs, above): seen on Linux, not on macOS. Windows: open Teams
+    in a pane and click its page.
+  - Signing in to Google, GoDaddy (Kasada) and Microsoft with the User-Agent without `Electron/<version>` (2026-10-16,
+    [profiles.md](profiles.md), What sites see): check on Linux and Windows.
   - The sandbox on Linux, packaged: the `.deb` installs `chrome-sandbox` setuid root; the unpacked `out/` folder needs
     `--no-sandbox` to try it. Other Linux formats (AppImage, rpm, snap) are not set up.
   - Starting the agent (`terminal.ts`): on Linux and macOS it is typed into the user's shell started in the
     project's folder, so the project's environment applies (direnv's `.envrc`, nvm, mise) and `PATH` is the
-    user's even when Kulisa was started from a menu. Checked on Linux with bash only.
-    - macOS: a login shell (`$SHELL -l`, zsh by default; `os.userInfo().shell` when started from the Dock without
-      `SHELL`). Checked on the author's Mac (2026-10-16, `startTerminal` run alone in Electron, their own `.zshrc`):
-      with no `SHELL` and the system's `PATH`, as from the Dock, the login zsh finds `claude`; direnv's hook in
-      `.zshrc` loads the project's `.envrc`, and the account's `CLAUDE_CONFIG_DIR` typed before the command wins
-      over the one it sets; arguments with spaces, `'`, `$`, `*`, `!` and JSON reach the agent as they were; the shell
-      stays after the agent exits. Not checked: fish (not installed there).
+    user's even when Kulisa was started from a menu. macOS: fish not checked.
     - Windows: the agent starts directly, without a shell, so no project environment; `claude` from npm is a
       `.cmd` that node-pty may not find. Proposed: type it into PowerShell (`pwsh -NoExit`, falling back to
       `powershell.exe`) in the project's folder, as on the other systems: the PowerShell profile applies, `.cmd`
       resolves, the shell stays after the agent exits. Without an agent command the terminal falls back to
       `COMSPEC` (untested). SIGINT and SIGTERM work differently there (quit handling in `app.ts`). The other
       terminals (`terminal_run`, +) type their command into `COMSPEC` there: untested; PowerShell as above would
-      serve them too, and `terminal_stop`'s Ctrl+C in cmd asks "Terminate batch job?".
-    - Both: closing a task and opening it again (`claude --resume`) and the project folder dialog
-      (New Project…'s Browse…, native) are untested.
-  - `safeStorage` (Keychain, DPAPI) for session cookies: works on macOS (2026-10-16: the author's profiles' files
-    encrypted, Chromium's `v10`; the key in the Keychain as "kulisa Safe Storage"; the tests of sign-ins after a
-    restart pass on the Mac and the CI's). Windows: untested.
-  - Dictation (the right ⌘ held, or the terminals' microphone): the agent records itself. macOS: the system asks for the
-    microphone for Kulisa (`NSMicrophoneUsageDescription` in `forge.config.ts`); check that it asks and that `claude`'s `/voice`
-    then records, packaged and from `npm start` (the Terminal app's permission may be the one asked then); signed
-    with the hardened runtime it also needs the `com.apple.security.device.audio-input` entitlement; that the right ⌘ is
-    seen as one (`MetaRight`, `location` 2: tested with sent events only). Windows: the microphone privacy setting for
+      serve them too, and `terminal_stop`'s Ctrl+C in cmd asks "Terminate batch job?". Closing a task and opening it
+      again (`claude --resume`) and the project folder dialog (New Project…'s Browse…): untested.
+  - `safeStorage` (DPAPI) for session cookies on Windows: untested.
+  - Dictation (the right ⌘ held, or the terminals' microphone): the agent records itself. macOS packaged: that the
+    system asks for the microphone for Kulisa (`NSMicrophoneUsageDescription` in `forge.config.ts`); signed with the
+    hardened runtime it also needs the `com.apple.security.device.audio-input` entitlement. Windows: the microphone privacy setting for
     desktop apps; the right Ctrl of a keyboard with AltGr (it sends a Ctrl before AltGr on Windows: check that a typed
     AltGr character does not start a recording).
-  - macOS: the window screenshot (`KULISA_SHOT`) needs the screen-recording permission, which macOS checks on the app
-    that started Kulisa (a terminal: [testing.md](testing.md), "On macOS"; started by `open`, Electron.app itself, which
-    had it before Electron's upgrade to 44.8.0 and was refused after it, 2026-10-16: probably because ad hoc signed, a
-    new binary is a new app to macOS); distribution to users needs code signing and
-    notarization (the second macOS goal, above). Windows: code signing certificate.
-  - The first start: a packaged app opens no task (the empty window: New Project's steps), later the windows' tasks open as they were left.
-    macOS (2026-10-16, `npm run package`, unsigned, ad hoc): it starts from Finder's way (`open`), the first start as
-    above; the Kulisa plugin and the skill sit outside the asar, node-pty's `spawn-helper` is executable, the icon is
-    Kulisa's. Its update check fails ("The server sent an invalid response": no macOS release to serve) and is only
-    logged. Not checked packaged: the later starts, an agent started in a task.
-  - The one-row title bar (`titleBarStyle: 'hidden'` + `titleBarOverlay`, Window Controls Overlay): checked on
-    Linux/X11 only. Check the window buttons, dragging and double-click to maximize on macOS (traffic lights on the
-    left), Windows and Wayland (Electron 44 runs natively there by default; the author's GNOME is X11: "Ubuntu on
-    Wayland" at the login screen). macOS: the traffic lights centered in the bar at 80%, 100% and 150% when the window
-    is made at them, and moved to the middle as the zoom changes ([window.md](window.md), The title bar; screenshots,
-    2026-10-16); not checked by hand: a click on them after a zoom change (150%, 300%), dragging, double-click to
-    maximize. Ask Electron for `setTitleBarOverlay` on macOS: with it they would follow any zoom.
+  - Distribution to users needs code signing: macOS with notarization (the second macOS goal, above), Windows a
+    certificate.
+  - A packaged app's later starts (the windows' tasks open as they were left) and an agent started in a task of it: untested packaged. Its
+    update check fails while there is no release for its OS ("The server sent an invalid response" on macOS) and is
+    only logged.
+  - The one-row title bar (`titleBarStyle: 'hidden'` + `titleBarOverlay`, Window Controls Overlay): the window
+    buttons, dragging and double-click to maximize on Windows and Wayland (Electron 44 runs natively there by default;
+    the author's GNOME is X11: "Ubuntu on Wayland" at the login screen). Ask
+    Electron for `setTitleBarOverlay` on macOS: with it the traffic lights would follow any zoom ([window.md](window.md),
+    The title bar).
   - Windows at a display scale of 125% or 150%: the profiles' native views placed from the window's CSS boxes
     (`window.ts` scales them): check that no page is a pixel off its pane or leaves a gap at its edge, and that the
     scrollbars follow the dark theme (`color-scheme`).
-  - Keyboard shortcuts ([window.md](window.md), Keys): checked on Linux only (with Latin and Russian layouts). macOS:
-    ⌘ for Kulisa's and Chrome's keys, ⌘⌥1…9 for tasks, ⌘[ / ⌘] back and forward (the tests pass there with sent
-    events, 2026-10-16), its own menu bar (built: Settings… ⌘,, Quit, Edit, Window); by hand: check that a page does
-    not get ⌘-keys before Kulisa (on Linux
-    `before-input-event` comes first, and the app menu after the page: [window.md](window.md), Keys), and that Ctrl
-    stays the terminal's. Windows: Alt+D and F6 to the address bar, Ctrl+F4; the keys with AltGr layouts (Polish,
-    German), where AltGr is Ctrl+Alt.
-  - The window's menus and dialogs (Reka UI, [ui.md](ui.md), Menus and Dialogs): checked on Linux only. A right-click
-    menu opens on the press on Linux and macOS but on the release on Windows: check that it opens at the pointer and
-    that the release does not choose a row (`MenuButton.vue` takes the left button only); a button's menu opening on
-    the press, and press, drag and let go on a row (macOS menus do it too); a window's blur closing a menu; Esc in a
+  - Keyboard shortcuts ([window.md](window.md), Keys) on Windows: Alt+D and F6 to the address bar, Ctrl+F4; the keys
+    with AltGr layouts (Polish, German), where AltGr is Ctrl+Alt.
+  - The window's menus and dialogs (Reka UI, [ui.md](ui.md), Menus and Dialogs) on Windows, where a right-click menu
+    opens on the release: that it opens at the pointer and the release does not choose a row (`MenuButton.vue` takes
+    the left button only); press, drag and let go on a row; a window's blur closing a menu. On every OS: Esc in a
     field edited in place (a profile's name) not closing its dialog; Select's list over a dialog.
-  - Copy and paste in the terminal (`clipboardKey` in `terminal.ts`): checked on Linux only. Windows: Ctrl+V pastes
-    once, Ctrl+C copies a selection and interrupts without one. macOS: ⌘C / ⌘V through the app menu's Edit roles
-    (`app.ts`; tested by what they do, not by the keys: [testing.md](testing.md), "On macOS"); by hand: the keys, and
-    Ctrl+V reaching the agent.
+  - Copy and paste in the terminal (`clipboardKey` in `terminal.ts`) on Windows: Ctrl+V pastes once, Ctrl+C copies a
+    selection and interrupts without one. macOS: Ctrl+V reaching the agent.
   - Several windows (Move to New Window): a profile's native views moved from one window to another, and a window's
     place restored (`getNormalBounds`, maximized); checked on Linux/X11 only. Dragging a project's label: tested with
     synthetic events only, not yet by hand; a project let go outside the windows is told from a cancelled drag by where the
     pointer is (`screen.getCursorScreenPoint`), which Wayland may not report.
   - The theme (☰ → Theme): the OS buttons' strip recolored (`setTitleBarOverlay`) and System following the OS
-    (`nativeTheme.shouldUseDarkColors`, `updated`; on Linux through GTK or the desktop portal): checked on
-    Linux/X11 (GNOME) by the tests only, not by changing the OS's setting by hand. macOS draws its own window
-    buttons.
+    (`nativeTheme.shouldUseDarkColors`, `updated`; on Linux through GTK or the desktop portal): on Linux/X11 (GNOME)
+    checked by the tests only, not by changing the OS's setting by hand; Windows untested.
   - Tests run often on Linux only; on macOS and Windows before a release (the author's decision, 2026-10-09). The CI
     runs them on all three at every pull request into `develop` or `main` ([testing.md](testing.md), CI); Windows not failing the
     workflow until the bench passes there (macOS does since 2026-10-16): fixed by a Claude session on Windows. On a computer they run on the human's

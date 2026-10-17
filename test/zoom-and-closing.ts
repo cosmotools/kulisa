@@ -2,7 +2,7 @@
 import { session } from 'electron';
 import fs from 'fs';
 import path from 'path';
-import { assert, userData, pfile, savedTabs, panel, SITE, waitFor, who, menuRows, choose, manageProfiles, closeSettings, chooseProfile, setProfileField, menuOpen, taskMenu, viewOn, ctrl, near, closeMenu, plusMenu, closeBoard, PORT, MAC } from './helpers.ts';
+import { assert, userData, pfile, savedTabs, panel, SITE, waitFor, who, menuRows, choose, manageProfiles, closeSettings, chooseProfile, setProfileField, menuOpen, taskMenu, viewOn, ctrl, near, closeMenu, plusMenu, closeBoard, PORT, MAC, sleep } from './helpers.ts';
 import type { Test } from './run.ts';
 
 // Files of the sites' Cache API in a profile's folder, wherever Chromium's layout puts them (`WebStorage/<bucket>/CacheStorage/`).
@@ -38,10 +38,19 @@ export default (test: Test) => {
     // the window was made with, where they would not take a click (docs/window.md, The title bar).
     if (MAC) {
       assert.deepEqual(shell.win.getWindowButtonPosition(), { x: 7, y: 21 }, '125%: a 55 pt bar');
-      shell.setUiZoom(3);
-      assert.deepEqual(shell.win.getWindowButtonPosition(), { x: 7, y: 30 }, '300%: at the bottom of the 44 pt it was made with');
+      shell.setUiZoom(2);
+      assert.deepEqual(shell.win.getWindowButtonPosition(), { x: 7, y: 30 }, '200%: at the bottom of the 44 pt it was made with');
       shell.setUiZoom(1.25);
     }
+    // At most 200% (docs/window.md, Zoom): the window's minimum grows with it, and at 300% passed a laptop's screen.
+    shell.setUiZoom(2);
+    ctrl(win, '=');
+    await sleep(300); // nothing to wait for: that it stays
+    assert.ok(near(win.getZoomFactor(), 2) && shell.uiZoom === 2, 'Ctrl+= at 200% leaves it there');
+    shell.setUiZoom(3);
+    assert.equal(shell.uiZoom, 2, 'nor anything else takes it further');
+    shell.setUiZoom(1.25);
+    await waitFor(() => near(win.getZoomFactor(), 1.25));
   });
   test('the window\'s minimum follows the Kulisa zoom; a window at the minimum grows with it, and keeps its size back; New Project fits the smallest', async ({ shell, ui }) => {
     const win = shell.win, size = win.getSize();

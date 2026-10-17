@@ -202,8 +202,12 @@ function start(options: Options = {}) {
 
   // The Kulisa zoom: the whole UI of every window (window.ts), and the profiles' pages, which follow it (profiles.ts).
   // The panes' boxes come in CSS pixels (window.ts, layout).
-  shell.uiZoom = store.settings().uiZoom || 1;
+  // At most 200% (the author, 2026-10-17): the window's minimum grows with it (window.ts), and at 300% passed a laptop's
+  // screen; macOS's window buttons stop following it past 175%. The pages' own zoom goes on to 300%, as in Chrome.
+  const UI_ZOOM_MAX = 2;
+  shell.uiZoom = Math.min(store.settings().uiZoom || 1, UI_ZOOM_MAX);
   shell.setUiZoom = (z) => {
+    z = Math.min(z, UI_ZOOM_MAX);
     shell.uiZoom = z;
     for (const w of shell.windows) w.setZoom(z);
     shell.settings?.setZoom(z);
