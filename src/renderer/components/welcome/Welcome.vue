@@ -18,7 +18,7 @@ kulisa.on('project:new', () => void focus()); // the first start: the keyboard h
   <div id="welcome">
     <Tour v-if="!steps" ref="tour" v-model="slide" @done="show(true)" />
     <div v-else class="box">
-      <Wizard ref="wizard" leavable @leave="show(false)">
+      <Wizard ref="wizard" leavable single @leave="show(false)">
         <template #head="{ step, count }">
           <header class="question">
             <ol class="dots" aria-label="Steps"><li v-for="n in count" :key="n" :class="{ on: n <= step + 1 }" /></ol>
@@ -31,7 +31,7 @@ kulisa.on('project:new', () => void focus()); // the first start: the keyboard h
 </template>
 
 <style>
-#welcome { display: grid; place-items: center; width: 100%; min-height: 100%; padding: calc(var(--pad) * 2); box-sizing: border-box;
+#welcome { display: grid; place-items: safe center; width: 100%; min-height: 100%; padding: calc(var(--pad) * 2); box-sizing: border-box;
   /* New Project's steps: a dialog's look, no backdrop: nothing else is in the window to cover */
   .box { display: flex; flex-direction: column; width: min(760px, 100%); min-height: min(520px, 100%); border-radius: var(--island-radius);
     background: var(--island); border: 1px solid var(--line); box-shadow: 0 12px 40px var(--shadow); overflow: hidden; }

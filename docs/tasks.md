@@ -120,6 +120,11 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
     project's folder the one that holds them (no former folder: tasks never worked in it), the first the default.
     Clone on its page puts the next one there too. Refused: a folder there with files. Create says Cloning…
     meanwhile; a URL git cannot clone leaves nothing, the clones before it neither.
+  - In the welcome, one folder or one URL, in a field (and Browse…) rather than a list, a line under it saying the other
+    is added later in Settings (the author, 2026-10-17: a first project made simply; several are the dialog's). Its
+    name is asked only for a new folder (Project name:); code from the disk or a URL has one, the folder's or the
+    repository's, said in the line under it ("The project shop takes … as it is"), its field shown only when it will
+    not do (empty, a folder there already, a name Create refuses), to correct it; renamed later in Settings.
 
   The name is the first folder's or repository's until the human types one. A folder or URL typed and not yet added
   counts when Next is pressed. The step says what will happen as it is typed ("… is there already", "… is a git repository", "The repository
@@ -223,7 +228,7 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   2026-10-17): what Kulisa does in three slides (its agent in your browsers; checking as every user; Pick), with Skip,
   then New Project's steps, a question each ("Where is the code?"), as a dialog without its backdrop, Kulisa's red glow
   behind them until the first task's project's color takes its place. Back on the first step goes back to the slides.
-  New Project's own steps, not a second wizard: the dialog's, under another head (docs/ui.md, Clusters). Until then
+  In a low window the slides' picture is smaller, and in one both narrow and low it is left out: the welcome fits the window's least size (640 × 400) without scrolling. New Project's own steps, not a second wizard: the dialog's, under another head (docs/ui.md, Clusters). Until then
   (2026-10-17, the morning) the steps alone, as a dialog without its backdrop; before, an island with "No task is
   open", New Task and New Project…, two clicks from anything to do. The steps are made each time they are shown, anew,
   and are not there otherwise (their fields' ids are the dialog's too). At the first start the keyboard is on Next

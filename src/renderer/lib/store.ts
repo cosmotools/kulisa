@@ -13,7 +13,7 @@ export const store = reactive({
   // task is shown, or closed.
   newTab: false,
   // The projects and the window's tabs (the open tasks, each with its agent's state), from the projects' news.
-  projects: (initialProjects || { current: null, project: null, projects: [], tabs: [], open: [] }) as ProjectsInfo,
+  projects: (initialProjects || { current: null, project: null, projects: [], tabs: [], open: [], settings: false }) as ProjectsInfo,
   // The shown task's profiles, open (as Profile.info) and closed; its terminals' island.
   profiles: [] as Profile[],
   closedProfiles: [] as ClosedProfile[],

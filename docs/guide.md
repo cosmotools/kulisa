@@ -46,7 +46,7 @@ More tasks: **+** in the bar at the bottom, then **+** in your project's column.
 ## The window
 
 - **The title bar**: the Kulisa logo in the shown project's color (not on a Mac, where Kulisa's icon is in the Dock),
-  **Settings** (the gear), and **☰**, the window's menu: zoom, theme, where the tasks' bar is, language, Arrange
+  **Settings** (the gear; not at the very first start, while there is nothing to set yet), and **☰**, the window's menu: zoom, theme, where the tasks' bar is, language, Arrange
   panels, Keyboard Shortcuts, links, Exit. On a Mac there is no Exit: **⌘Q** quits Kulisa, and closing the last
   window only hides it, while your agents go on working; click Kulisa's icon in the Dock to bring it back.
 - **Settings** (on a Mac also ⌘, or Kulisa → Settings… in the menu bar) opens in a window of its own, as in other desktop apps: set what you need and close it (**Esc** or its
@@ -77,6 +77,10 @@ back with what you typed kept, and nothing is made before **Create**.
 - **Folders on disk**: code you already have, one folder or several (a frontend and a backend). Nothing in them is
   changed.
 - **Clone from URL**: one repository or several, cloned with your own git (its keys and credentials).
+
+At the very first start it takes one folder or one repository; add the others (a frontend and a backend) later, in
+Settings. There the project is named after its folder or repository (the line under it says so; rename it in
+Settings); only a new folder asks for a name.
 
 The step says what will happen as you type. Its color and icon are not asked: Kulisa finds its site's favicon in
 its code and takes the color from it, so a red logo makes a red project. A project whose code has no favicon gets the

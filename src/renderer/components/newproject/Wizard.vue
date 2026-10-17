@@ -9,9 +9,9 @@ import { DialogClose } from 'reka-ui';
 import { nextTick, ref } from 'vue';
 import { STEPS, provideWizard } from './wizard';
 
-defineProps<{ cancelable?: boolean; leavable?: boolean }>();
+const props = defineProps<{ cancelable?: boolean; leavable?: boolean; single?: boolean }>();
 const emit = defineEmits<{ done: []; leave: [] }>();
-const w = provideWizard();
+const w = provideWizard(props.single);
 const loaded = w.reset(); // anew each time it is shown: its component is made then
 const code = ref<InstanceType<typeof CodeStep>>();
 const next = async () => { if (await w.next()) emit('done'); };
@@ -22,7 +22,7 @@ defineExpose({ focus, saving: w.saving });
 </script>
 
 <template>
-  <form v-if="w.ready.value" id="npform" class="wizard" @submit.prevent="next">
+  <form v-if="w.ready.value" id="npform" class="wizard" :class="{ single }" @submit.prevent="next">
     <slot name="head" :step="w.step.value" :count="STEPS.length">
       <ol class="steps" aria-label="Steps">
         <li v-for="(s, i) in STEPS" :key="s" :class="{ now: i === w.step.value, done: i < w.step.value }" :aria-current="i === w.step.value ? 'step' : undefined">
@@ -44,6 +44,7 @@ defineExpose({ focus, saving: w.saving });
 <style>
 .wizard { flex: 1; display: flex; flex-direction: column; min-height: 0;
   --label: 72px; /* its labels are short (Location: the longest) */
+  &.single { --label: 100px; } /* the welcome's: Project name: */
   .steps { display: flex; gap: calc(var(--gap) * 3); margin: 0; padding: var(--inset) var(--pad); list-style: none;
     border-bottom: 1px solid var(--island-hi); color: var(--text-muted);
     li { display: flex; align-items: center; gap: 6px; }

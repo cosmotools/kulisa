@@ -66,6 +66,7 @@ export function registerAgents(ipc: Ipc) {
       return { error: cancelled ? null : `Not signed in: ${own.name} ended with code ${code}.` };
     }
     shell.accounts.create(id, r.id, agentId, got.email);
+    shell.sendProjects(); // the first account at the first start: Settings has it
     return id ? addAgent(shell, id, r.id) : accountsInfo();
   });
   handle('account:signin-cancel', (_e, { key }) => cancel(key));

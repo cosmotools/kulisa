@@ -248,7 +248,10 @@ the work:
 
 - **One for the whole app.** The gear (on macOS also Kulisa → Settings… in the menu bar, ⌘,, where Mac apps have it), a task tab's Manage Profiles… and Project Settings…, a pane's About this
   profile… and a project's Add Profile… tile open it at that page (a project's: none named, the
-  shown task's); open already, it comes to the front at that page.
+  shown task's); open already, it comes to the front at that page. No gear while Settings would be empty: no project,
+  no account, no profile, as at the first start, where the welcome makes them (the author, 2026-10-17: a window saying
+  "No projects yet" is no use there); it comes with the first account signed in to. An account or a profile left
+  after the last project is deleted keeps it: Settings is where they are removed (`settings` in the projects' news).
 - **Not modal** (the author, 2026-10-16), as macOS apps' settings, VS Code's and Chrome's are: the tasks' windows go on
   taking clicks and keys beside it, and either comes in front of the other. Until then it held them, as JetBrains'
   Settings holds its IDE (`setEnabled(false)`); on macOS Electron disables a window by putting a half-black sheet over

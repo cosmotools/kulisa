@@ -18,7 +18,7 @@ useStrip(row, () => null); // no tile is the active one
   <nav v-if="shown" id="closedprofiles" ref="row" class="tabstrip" aria-label="Open a profile">
     <button v-for="p in profileLaunchers()" :key="p.id" class="launcher small" :data-profile="p.id" :title="p.title" @click="p.run()">
       <img v-if="p.avatar" class="avatar" :src="avatarSrc(p.avatar)" alt=""><Icon v-else name="i-plus" />
-      <span class="name">{{ p.name }}</span><small v-if="p.sub">{{ p.sub }}</small>
+      <span class="name">{{ p.name }}</span>
     </button>
   </nav>
 </template>
