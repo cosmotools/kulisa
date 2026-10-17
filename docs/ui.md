@@ -28,7 +28,9 @@ pointer, read as a web page's and were hard to read). So:
   (`@fontsource-variable/inter`, `main.ts`), so the window looks the same on every OS; until 2026-10-13 it was the OS's
   own (`system-ui`: on Linux Noto Sans at 14 px, wide, read as a web page's). The terminal keeps JetBrains Mono.
 - **Two text sizes** (`--font`, `--font-small` for group titles and a dialog's title), two weights; nothing bigger.
-  Weight and color carry what matters, not size.
+  Weight and color carry what matters, not size. The one exception, the welcome (`welcome/`), the one place the window
+  speaks to a new user rather than being worked in: its questions and slides' titles `--font-hero`, the words under
+  them `--font-lead` (the author, 2026-10-17).
 - **Dense**: rows and controls `--control` high (`--row` the same), toolbar buttons 24 px, corners `--radius` (4 px)
   on controls and `--island-radius` on windows and dialogs.
 - **One scrollbar everywhere** (`components.css`, `--scrollbar`): a rounded thumb on no track, no arrows, as JetBrains'
@@ -58,7 +60,7 @@ pointer, read as a web page's and were hard to read). So:
   and when it has not: JetBrains'); `--page-button`, `--on-page-button`, `--page-pad` (Chrome's blue and room, a page's
   dialog: `.pagedialog`); `--page`, `--backdrop`, `--shadow`; `--hover` (under the
   pointer, on any background); `--project` (the shown task's project's color, set by `lib/store.ts`), `--glow` (the window's glow, the same color, kept as the last task closes so the glow fades in it; registered as a color, `@property`, so it changes softly: `App.vue`).
-- Sizes: `--sans` (the window's font, Inter), `--font` (all text, the terminal too), `--font-small` (a group's title, a dialog's title), `--control` (the
+- Sizes: `--sans` (the window's font, Inter), `--font` (all text, the terminal too), `--font-small` (a group's title, a dialog's title), `--font-hero` and `--font-lead` (the welcome's alone, above), `--control` (the
   height of buttons and fields), `--tab` (a tab's: a step taller), `--radius`,
   `--tab-radius` (a pane's tab's and a task's), `--island-radius`, `--gap` (the space between and inside islands, between the
   window's rows, between the tasks' tabs; also dockview's `gap` in `Grid.vue`), `--bartab` (a task's tab's height), `--title` (the title bar's: `--gap`,
@@ -150,6 +152,8 @@ every other `<svg>` uses the sprite.
   large as two rows, its `.name`, a `small` line under it (an account's email, who a profile is), on an island's color,
   lit under the pointer. The empty grid's agents and profiles (`Terminals.vue`); `.small`, beside what is looked at:
   the closed profiles over the terminal (`ClosedProfiles.vue`).
+- `.dots`: where one is in a few slides or steps, a short bar each, lit up to the one shown (an `ol`, `li.on`): the
+  welcome's slides and its steps.
 - `.chip`: a thing named in a pill, its icon first (14 px, muted), `--font-small`: what goes along to another agent
   (Change Agent), a task's repositories at the end of its terminals' row (`TaskRepos.vue`). A name the human gave (a
   folder, a branch) goes in a `.name` inside it: cut with … past 14em, the whole in the chip's tooltip; a row of chips
@@ -308,12 +312,15 @@ every handle's (CLAUDE.md, "One core"). A single component is no cluster.
 | Folder | Its entries | What |
 |---|---|---|
 | `settings/` | `Settings.vue` | Settings' window: the tree, a project's, an agent's and a profile's page |
-| `newproject/` | `Wizard.vue`, `NewProject.vue` | New Project's steps (Code, Agents, Profiles; `wizard.ts` their state): the empty window's with no project (`Empty.vue`) and the dialog |
+| `newproject/` | `Wizard.vue`, `NewProject.vue` | New Project's steps (Code, Agents, Profiles; `wizard.ts` their state): the welcome's and the dialog |
+| `welcome/` | `Welcome.vue` | the first start, no project at all: what Kulisa does in three slides (`Tour.vue`), then New Project's steps (`Wizard.vue`, its head a question each); the empty window's (`Empty.vue`) |
 | `newtab/` | `Board.vue` | the board: every project a column (an island, as the grid's panels) with its tasks as `.item` rows, a new tab's and the empty window's |
 
-New Project's steps (`.wizard`) are a form: the steps over it (`.steps`, the one shown `aria-current`), one step at a
-time, its buttons in a dialog's `footer` (Back at the start, Cancel in the dialog, Next, Create last); the fields' look
-is a dialog's (`components.css`, what a dialog holds).
+New Project's steps (`.wizard`) are a form: the steps over it (`.steps`, the one shown `aria-current`; the welcome puts
+its own head there, the `head` slot), one step at a time, its buttons in a dialog's `footer` (Back at the start, Cancel
+in the dialog, Next, Create last); the fields' look is a dialog's (`components.css`, what a dialog holds). A view of
+them is one more cluster taking `Wizard.vue`, never a copy of the steps: the welcome is the dialog's steps under its
+questions, `leavable` (Back on the first step goes back to its slides).
 
 ## Adding something
 

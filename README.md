@@ -59,7 +59,7 @@ approving `node-pty` builds it for Node, not Electron: run `npm run postinstall`
 
 ```sh
 npm install           # the dependencies; node-pty built for Electron (scripts/postinstall.ts)
-npm start             # builds the window, then opens the windows and tasks open last; at first start New Project
+npm start             # builds the window, then opens the windows and tasks open last; at first start the welcome, then New Project
 npm run build         # type checks (tsc, vue-tsc), then the window built by Vite into dist/renderer
 npm run watch         # the window built again on every change; reload it (Ctrl+R in its DevTools) or restart
 npm test              # unit tests, knip, ESLint, actionlint (when installed), then the e2e groups in parallel, each the

@@ -40,6 +40,9 @@
   --fade: 32px; /* the faded edge of a strip of tabs with tabs past it (.tabstrip) */
   /* A form's labels ("Name:"), in one column before their fields (.field), and what lines up with the fields under them */
   --label: 120px;
+  /* The welcome's (welcome/): a question or a slide's title, and the words under it; the one place the window speaks
+     to a new user rather than being worked in */
+  --font-hero: 30px; --font-lead: 16px;
   color-scheme: dark;
   &[data-theme="light"] { color-scheme: light; }
   &[data-theme="system"] { color-scheme: light dark; }
