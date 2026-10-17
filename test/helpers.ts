@@ -52,7 +52,7 @@ const menuOpen = (ui: UI) => ui(`!!document.querySelector('.menu[data-state="ope
 // The rows of the open menu (menu: SUBMENU for a submenu's), each as its words.
 const menuRows = async (ui: UI, menu = MENU) => {
   await waitFor(() => menuOpen(ui));
-  return ui(`(() => { const row = (r) => r.matches('[role="separator"]') ? '-' : r.matches('.heading') ? '# ' + r.textContent : r.matches('.note') ? '~ ' + r.textContent
+  return ui(`(() => { const row = (r) => r.matches('[role="separator"]') ? '-' : r.matches('.heading') ? '# ' + r.textContent
     : r.matches('.zoomrow') ? 'zoom' : r.matches('.themerow') ? 'theme' : r.matches('.barrow') ? 'bar' : r.matches('.arrange') ? 'arrange: ' + [...r.querySelectorAll('span')].map((s) => s.textContent).join(', ')
     : r.matches('[role="group"]') ? [...r.children].map(row)
     : (r.matches('.inset') ? '  ' : '') + r.querySelector('.label').textContent + ((r.matches('.item') ? r : r.querySelector('.item')).matches('[data-disabled]') ? ' (off)' : '');

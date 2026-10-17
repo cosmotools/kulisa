@@ -50,7 +50,7 @@ More tasks: **+** in the bar at the bottom, then **+** in your project's column.
 
 - **The title bar**: the Kulisa logo in the shown project's color (not on a Mac, where Kulisa's icon is in the Dock),
   **Settings** (the gear; not at the very first start, while there is nothing to set yet), and **☰**, the window's menu: zoom, theme, where the tasks' bar is, language, Arrange
-  panels, Keyboard Shortcuts, links, Exit. On a Mac there is no Exit: **⌘Q** quits Kulisa, and closing the last
+  panels, Keyboard Shortcuts, links, About Kulisa, Exit. On a Mac there is no Exit: **⌘Q** quits Kulisa, and closing the last
   window only hides it, while your agents go on working; click Kulisa's icon in the Dock to bring it back.
 - **Settings** (on a Mac also ⌘, or Kulisa → Settings… in the menu bar) opens in a window of its own, as in other desktop apps: set what you need and close it (**Esc** or its
   ×; what you typed is saved as you go). You can also leave it open and go on working in your task windows: it stays
@@ -317,14 +317,20 @@ In the terminal every other key is the agent's.
 
 ## Where Kulisa keeps things
 
+**☰ → About Kulisa** (on a Mac also Kulisa → About Kulisa in the menu bar) shows Kulisa's version and the exact
+folders on your computer: the data folder, the projects' folder and the program's, each with a button that opens it in
+your file manager, its path there to copy. Look there rather than guess: where the folders are depends on your OS and
+its settings. Usually:
+
 - Your projects' folders hold only your code: Kulisa writes nothing there (except the first commit of a project it
   made).
 - Tasks' copies of the code are next to the project's folder (`myshop@task-2`), or in the KulisaProjects folder in your
   home folder (`C:\Users\<you>\KulisaProjects` on Windows, `/Users/<you>/KulisaProjects` on macOS, `/home/<you>/KulisaProjects` on Linux) for a
   project of several repositories, as `<project>@task-<n>`. They go when the task is deleted. New projects' folders
   are made there too.
-- Profiles, sign-ins, accounts and settings are in Kulisa's data folder: `~/.config/Kulisa` on Linux,
-  `~/Library/Application Support/Kulisa` on macOS, `%APPDATA%\Kulisa` on Windows. Session cookies and test passwords
+- Profiles, sign-ins, accounts and settings are in Kulisa's data folder: `~/.config/Kulisa` on Linux (or under
+  `$XDG_CONFIG_HOME` when that is set), `~/Library/Application Support/Kulisa` on macOS, `%APPDATA%\Kulisa` on
+  Windows. Session cookies and test passwords
   are encrypted with your OS's keyring. **Show Data Folder** in a task tab's right-click menu, under the project's name, opens that project's.
 - Deleting a task, a profile or a project removes what Kulisa made for it.
 
@@ -335,7 +341,8 @@ on macOS) removes the program only (on Ubuntu and Debian, `apt purge kulisa` als
 from). Everything you made stays where it is listed above, so installing Kulisa again
 brings it all back: your projects, tasks, profiles with their sign-ins, agents' accounts and settings.
 
-To remove everything, do it before uninstalling, in Kulisa, so that it cleans up after itself: delete every project
+To remove everything, do it before uninstalling, in Kulisa, so that it cleans up after itself. First note the folders
+in **☰ → About Kulisa**: once the program is gone, nothing shows them. Then delete every project
 (**⋯ → Delete Project…** on its page: its tasks go with it, with their copies of the code and their branches),
 every profile (Settings → Profiles) and every agent's account (Settings → Agents: − on the account, which signs it
 out). Then uninstall the program and delete the data folder (above). What remains and is yours to keep or remove:

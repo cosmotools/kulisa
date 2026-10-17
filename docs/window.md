@@ -210,8 +210,8 @@ pages are pictures of themselves meanwhile; afterwards the keyboard is back wher
   and closed profiles, Manage Profiles…: Settings → Profiles; Rename…, Show Folder, Delete Task…), ☰ (as Chrome's ⋮, each row with its icon: the zoom row, the theme row, the
   tasks' bar's row, Language (a menu beside it), Arrange panels, Keyboard Shortcuts, the links
   (Documentation, the user guide on kulisa.app; GitHub; Report an issue; one list in `lib/common.ts`; until 2026-10-14 also
-  Agents…, Settings at its agents: the author, agents are set up in Settings, the gear beside ☰), and Exit, which quits as the last window's × does; not on macOS, where
-  Cmd+Q and the app's menu quit; under them all Kulisa's version, small and dim: words, not a row, as nothing happens on a click);
+  Agents…, Settings at its agents: the author, agents are set up in Settings, the gear beside ☰), About Kulisa (below), and Exit, which quits as the last window's × does; not on macOS, where
+  Cmd+Q and the app's menu quit; until 2026-10-18 Kulisa's version stood under them all as dim words, About's now);
 - right-click on a pane's header (New tab, About this profile… (Settings at it), Sign In to Master…, Refresh
   from Master…, Close profile, Remove from Project…), a tab (Reload, Duplicate, Close tab, Close other tabs), a terminal (Copy, Paste, Select all, Clear;
   then what its tab's has) and a terminal's tab (Change agent…, the Change Agent dialog as its icon opens, and New Conversation in an agent's; Close).
@@ -219,6 +219,16 @@ pages are pictures of themselves meanwhile; afterwards the keyboard is back wher
 A project label's right-click opens its group's menu, as Chrome's tab groups have it ([tasks.md](tasks.md), Projects).
 
 A row whose command has a key shows it at its end (Keys, below).
+
+**About Kulisa** (`About.vue`; on macOS also first in the app menu, where Mac apps have it, in place of Electron's own
+panel: `about:show` to the tasks' window in front): Kulisa's version (package.json's: run from source `app.getVersion()`
+is Electron's), Electron's and Chromium's (for a bug report, and What sites see), kulisa.app and the license; then the
+folders Kulisa writes in on this computer, as the OS and its variables make them (`about:get`, `ipc/window.ts`): the
+data folder, the projects' folder (`KulisaProjects`) and the program's (the checkout; packaged, what the installer put
+there: the `.app`, Squirrel's root), each its path to select and copy and a button that opens it in the file manager
+(`about:show-folder`, by the folder's id: the window names no path), disabled while the folder is not made yet. The
+author, 2026-10-18: the docs name the usual places, but only the app knows the exact ones (issue #67); so the guide
+points here, and still lists the usual places for whoever reads it after uninstalling.
 
 Native menus were tried first (2026-10-05): rows of text only, no buttons in a row; and a native menu in a page had
 frozen the desktop (ROADMAP, Deferred ideas, "A right-click menu in pages"). There is no menu in the pages yet.
@@ -246,7 +256,7 @@ apart from the work): the OS's title bar ("Settings — Kulisa"), its own size a
 `settingsWindow`), at least 640 × 420 times the Kulisa zoom. Open it, set things, close it; or leave it open beside
 the work:
 
-- **One for the whole app.** The gear (on macOS also Kulisa → Settings… in the menu bar, ⌘,, where Mac apps have it), a task tab's Manage Profiles… and Project Settings…, a pane's About this
+- **One for the whole app.** The gear (on macOS also Kulisa → Settings… in the menu bar, ⌘,, where Mac apps have it, under About Kulisa), a task tab's Manage Profiles… and Project Settings…, a pane's About this
   profile… and a project's Add Profile… tile open it at that page (a project's: none named, the
   shown task's); open already, it comes to the front at that page. No gear while Settings would be empty: no project,
   no account, no profile, as at the first start, where the welcome makes them (the author, 2026-10-17: a window saying

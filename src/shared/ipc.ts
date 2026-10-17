@@ -4,7 +4,7 @@
 // (the tests read some).
 import type { Result } from './result.ts';
 import type {
-  AccountsInfo, AgentInfo, ClosedProfile, LanguageInfo, NewProjectSetup, Profile, ProjectAgent, ProjectChoices, ProjectProfile, ProjectRepo,
+  AboutFolder, AboutInfo, AccountsInfo, AgentInfo, ClosedProfile, LanguageInfo, NewProjectSetup, Profile, ProjectAgent, ProjectChoices, ProjectProfile, ProjectRepo,
   ProjectSettings, ProjectsInfo, Question, SettingsProfile, Shortcut, SignedIn, Terminals, Voice,
 } from './types.ts';
 
@@ -108,6 +108,8 @@ export interface Invoke {
   'tab:devtools': I<[OnTab]>;
   'tab:zoom': I<[OnTab & { dir: number }]>;
   'zoom:get': I<[], number>;
+  'about:get': I<[], AboutInfo>;
+  'about:show-folder': I<[id: AboutFolder]>;
   'zoom:ui': I<[dir: number]>;
   'language:get': I<[], LanguageInfo>;
   'language:set': I<[code: string], Result<{ language: string }>>;
@@ -164,6 +166,7 @@ export interface Events {
   'project:new': void;
   'master:url': string;
   'settings:show': SettingsAt;
+  'about:show': void; // macOS's app menu, About Kulisa
   'settings:closing': void; // asked to close (its ×): its page saves, then closes it
   'settings:changed': void; // the profiles changed elsewhere (a tasks' window, the agent): its lists read again
   'window:blur': void; // a tasks' window left (another window, another app): its menus close (lib/cover.ts)
