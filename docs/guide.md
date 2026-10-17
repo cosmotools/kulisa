@@ -28,7 +28,9 @@ Download Kulisa from its [latest release](https://github.com/cosmotools/kulisa/r
   It installs for you alone, with no questions, and starts. From then on it updates itself: a new version is
   downloaded in the background and starts the next time you start Kulisa.
 - **Linux:** the `.deb` for Ubuntu and Debian (`sudo apt install ./kulisa_<version>_amd64.deb`), the `.rpm` for
-  Fedora. Kulisa is then in your apps. It does not update itself: install a new version the same way.
+  Fedora. Kulisa is then in your apps. On Ubuntu and Debian it then updates with the system: a new version comes in
+  Software Updater, or with `sudo apt update && sudo apt upgrade`. The `.rpm` does not update itself: install a new
+  version the same way.
 - **macOS:** to come.
 
 Kulisa is tested on Linux (Ubuntu) and on macOS (by its developers, there is no installer for it yet); on Windows it is
@@ -328,7 +330,8 @@ In the terminal every other key is the agent's.
 ### Reinstalling and removing Kulisa
 
 Uninstalling Kulisa (your OS's way: Apps on Windows, `apt remove kulisa` or `dnf remove kulisa` on Linux, the Trash
-on macOS) removes the program only. Everything you made stays where it is listed above, so installing Kulisa again
+on macOS) removes the program only (on Ubuntu and Debian, `apt purge kulisa` also removes where its updates come
+from). Everything you made stays where it is listed above, so installing Kulisa again
 brings it all back: your projects, tasks, profiles with their sign-ins, agents' accounts and settings.
 
 To remove everything, do it before uninstalling, in Kulisa, so that it cleans up after itself: delete every project

@@ -501,8 +501,15 @@ Kulisa stays open for days), downloads a newer release in the background, and st
 It never restarts by itself nor asks with the OS's dialog (the module's, off: `notifyUser: false`): Kulisa asks in its
 own (Dialogs and questions), and that dialog's Restart (`quitAndInstall`) closes the windows before `before-quit`,
 where session cookies and tabs are saved. Not from source (`app.isPackaged`), nor on Linux, where Electron has no
-updater: a `.deb` or an `.rpm` is installed again by hand, or by the distribution's package manager once there is a
-repository (ROADMAP). Each format updates its own way only, never one put over another. A check sends
+updater: there the distribution's package manager updates it, as Electron's docs advise. The `.deb` adds Kulisa's apt
+repository and its key as Chrome's and VS Code's do (`assets/deb/postinst`; gone with `purge`, `postrm`), so a new
+release comes with the system's updates. The repository is a flat one on GitHub Releases, nothing else to host
+(GitHub Pages takes no file over 100 MB, and the `.deb` is about that): its index, signed with the key in the secret
+`APT_SIGNING_KEY`, is the files of the release `apt` (a prerelease, never the latest: kulisa.app's buttons are the
+latest's files), naming the newest `.deb` by its path in its own release, `v<version>/kulisa_<version>_amd64.deb`,
+whose address GitHub answers with a redirect apt follows. `release.yml` writes it once the release is published, then
+installs the `.deb`, Kulisa again from the repository, and purges it. An `.rpm` is still installed again by hand
+(a dnf repository: ROADMAP). Each format updates its own way only, never one put over another. A check sends
 update.electronjs.org the version, the OS and the IP; the download comes from GitHub.
 
 On Windows, Squirrel starts the app while installing, updating and removing it (`--squirrel-install` …), to make or
