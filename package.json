@@ -78,7 +78,8 @@
     "package": "electron-forge package",
     "make": "electron-forge make",
     "publish": "electron-forge publish",
-    "icons": "node scripts/icons.ts"
+    "icons": "node scripts/icons.ts",
+    "version": "node scripts/version.ts"
   },
   "main": "src/main/index.ts",
   "author": "Orudzhali Nagaev",

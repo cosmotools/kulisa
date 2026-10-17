@@ -112,6 +112,10 @@ every other `<svg>` uses the sprite.
 
 ## Components (`components.css`)
 
+What is `hidden` is off the screen, whatever `display` its component sets (`[hidden] { display: none !important }`,
+the browser's own `until-found` apart): a component's rule beat the browser's `[hidden]`, and the title bar's gear stayed
+on screen at the first start (2026-10-17). Tests check what is on screen (`checkVisibility()`), not the attribute.
+
 ### Buttons
 
 - `<button>`: a framed button with text, `--control` high. `.primary` (blue, the main action of a dialog, last in its

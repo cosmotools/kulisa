@@ -1124,7 +1124,8 @@ export default (test: Test) => {
     await sleep(100); // that nothing happens
     assert.equal(await ui(`document.documentElement.dataset.page`), 'board', 'projects there: nothing');
     const projectsOf = shell.store.projects, sent = shell.projects, accountsOf = shell.accounts.all, profilesOf = shell.profileStore.all;
-    assert.equal(await ui(`document.getElementById('manageProjects').hidden`), false);
+    const gear = () => ui(`document.getElementById('manageProjects').checkVisibility()`);
+    assert.equal(await gear(), true);
     shell.store.projects = () => []; shell.projects = () => [];
     try {
       shell.sendProjects();
@@ -1133,10 +1134,10 @@ export default (test: Test) => {
       assert.equal(await ui(`document.documentElement.dataset.page`), 'welcome');
       // Settings' gear: there while it has anything to show (an account, a profile left after their projects), none
       // at the first start.
-      assert.equal(await ui(`document.getElementById('manageProjects').hidden`), false, 'accounts and profiles there');
+      assert.equal(await gear(), true, 'accounts and profiles there');
       shell.accounts.all = () => accountsOf.call(shell.accounts).filter((a) => a.own); shell.profileStore.all = () => [];
       shell.sendProjects();
-      await waitFor(() => ui(`document.getElementById('manageProjects').hidden`));
+      await waitFor(async () => !(await gear())); // not on screen: hidden alone passed while the button's own display beat it (2026-10-17)
       await waitFor(() => ui(`getComputedStyle(document.getElementById('glow')).opacity === '1'`));
       const slide = () => ui(`[document.querySelector('#tour h1').textContent, document.getElementById('tournext').textContent]`);
       assert.deepEqual(await slide(), ['Your agent, in your browsers', 'Next']);
