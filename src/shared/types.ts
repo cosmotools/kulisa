@@ -71,7 +71,7 @@ export interface ProjectSettings extends ProjectChoices {
 // Kulisa's keyboard shortcuts (main/keys.ts), as this OS shows them.
 export interface Shortcut { id: string; group: string; label: string; keys: string[]; hold?: boolean } // hold: a key held alone, the human may change it
 // A question from the main process (shell.ask) or the window.
-export interface Question { message: string; detail?: string; ok?: string; other?: string; danger?: boolean }
+export interface Question { message: string; detail?: string; ok?: string; other?: string; cancel?: string; danger?: boolean }
 // An agent or account in a list to choose from or install (main/ipc/agents.ts; renderer's lib/agents.ts).
 export interface AgentInfo {
   id: string; name: string; maker?: string; needs?: string; site?: string; install?: string | null; installed?: boolean;

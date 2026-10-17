@@ -46,6 +46,7 @@ interface Shell {
   taskChanged(task: Task, now?: boolean, agentState?: boolean): void;
   projects(): SentProject[];
   askWhich(q: Question, w?: Asker | null): Promise<string | null>;
+  restart(apply?: () => void): Promise<void>; // into a new version: everything saved as at quitting (updates.ts)
   ask(q: Question, w?: Asker | null): Promise<boolean>;
   front(): AppWindow | null; // the tasks' window last in front: the one Settings acts for (settings-window.ts)
   saveWindows(): void;

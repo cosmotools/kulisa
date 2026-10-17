@@ -258,7 +258,8 @@ Every dialog is `Modal.vue`, Reka UI's Dialog (`reka-ui`) with the same parts:
   `received`; none with reduced motion), its progress under them; the accounts under them as `.radio` rows.
 - Questions before something that cannot be undone, before closing, or between two ways to go (a second button,
   `other`), are not new dialogs: `shell.ask` (main process) or `ask(q)` (`lib/ask.ts`) → `Ask.vue`, Reka's AlertDialog
-  in the same look: Cancel has the keyboard, Esc is Cancel, a click outside does nothing (it waits for an answer);
+  in the same look: Cancel (named by the question when the word is another: Later) has the keyboard, Esc is Cancel, a
+  click outside does nothing (it waits for an answer);
   `other` adds the second way's button before the main one.
 
 ### Menus

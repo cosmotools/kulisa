@@ -85,7 +85,10 @@ setTimeout(() => { console.error('the whole run took over 5 minutes: stopped'); 
 const sitePromise = ensureSite(Number(PORT));
 // The restart phase runs as a packaged build would as to DevTools: Kulisa's own are off (appDevTools).
 // After the restart no project is named: the one opened last opens.
-start({ userData, project: restart ? undefined : project, projectsHome: path.join(root, 'KulisaProjects'), agent, agents, mcpPort: 0, signinHosts: ['localhost'], appDevTools: !restart })
+// The folder of the app archive the window tests replace as apt does (installed): watched from the start, as a packaged
+// Kulisa's own is.
+fs.mkdirSync(path.join(root, 'installed'), { recursive: true });
+start({ userData, project: restart ? undefined : project, projectsHome: path.join(root, 'KulisaProjects'), agent, agents, mcpPort: 0, signinHosts: ['localhost'], appDevTools: !restart, installed: path.join(root, 'installed', 'app.asar') })
   .then(async (shell) => {
     await sitePromise;
     // macOS gives the keyboard only to the active app's windows, and the run starts from another (a terminal): the
