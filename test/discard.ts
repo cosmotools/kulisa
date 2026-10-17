@@ -35,7 +35,7 @@ export default (test: Test) => {
     await waitFor(async () => (await strip()).includes('board')); // the strip shows it as before, drawn after the tab's change (GitHub's runner, 2026-10-16)
     await waitFor(() => savedTabs('sam-admin').includes(`${SITE}/board`)); // saved with the others, to come back after a restart
     // The agent: the tab listed as any, and a tool on it loads it first.
-    const listed = JSON.parse((await call('browser_profiles', {})).text).find((p: { id: string }) => p.id === 'sam-admin').tabs;
+    const listed = JSON.parse((await call('profile_list', {})).text).find((p: { id: string }) => p.id === 'sam-admin').tabs;
     assert.deepEqual(listed.find((t: { id: string }) => t.id === board.id), { id: board.id, title: 'board', url: `${SITE}/board` });
     assert.match((await call('browser_snapshot', { profile: 'sam-admin', tab: board.id })).text, /Title: board/);
     assert.ok(!board.discarded && !board.wc.isDestroyed() && board.wc.getURL() === `${SITE}/board`, 'loaded again at its address');

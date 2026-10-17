@@ -250,7 +250,7 @@ export default (test: Test) => {
     const r = await call('profile_create', { name: 'Ann.admin', description: 'the shop\'s admin' });
     assert.match(r.text, /Created profile ann-admin/);
     assert.ok(shell.profiles.has('ann-admin'));
-    const list: { id: string; avatar: string; description: string | null }[] = JSON.parse((await call('browser_profiles', {})).text);
+    const list: { id: string; avatar: string; description: string | null }[] = JSON.parse((await call('profile_list', {})).text);
     assert.deepEqual(list.map((p) => p.id), ['sam-seller', 'elon-buyer', 'ann-admin']);
     assert.deepEqual(list.map((p) => [p.avatar, p.description]), [['fox', 'seller in the test shop'], ['penguin', null], ['frog', 'the shop\'s admin']]);
     await waitFor(async () => (await ui(`document.querySelectorAll('.pane').length`)) === 3);
