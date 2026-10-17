@@ -85,6 +85,7 @@ export function agentList(opts: { choose?: boolean; details?: boolean; installed
     if (opts.details && a.installed) await fetchAgents();
     await focus();
   }
-  return { ...opts, state, chosen, load, install };
+  const openDetails = (open: boolean) => { state.detailsOpen = open; };
+  return { ...opts, state, chosen, load, install, openDetails };
 }
 export type AgentList = ReturnType<typeof agentList>;

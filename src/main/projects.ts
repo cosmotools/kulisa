@@ -4,19 +4,20 @@
 // project's open tasks were a group in one window). What happens to a project's tasks whatever the windows show:
 // making one, closing and opening it again, renaming, deleting, and removing a project's data for good. Nothing runs
 // when it loads: a task loads when it is first shown.
-import { nativeImage } from 'electron';
+import { app, nativeImage } from 'electron';
 import fs from 'fs';
 import path from 'path';
 import { Task } from './tasks.ts';
-import { freeBranch, createWorktree, removeWorktree, merged, repoOf, changes, clone } from './worktrees.ts';
-import { repoName } from '../shared/names.ts';
+import { freeBranch, createWorktree, removeWorktree, merged, repoOf, changes, clone, initRepo } from './worktrees.ts';
+import { nameError, repoName } from '../shared/names.ts';
+import { refused } from '../shared/result.ts';
 import type { Result } from '../shared/result.ts';
 import type { Shell } from './shell.ts';
 import type { ProjectEntry, TaskEntry, Copy, Store } from './store.ts';
 import type { StoredProfile } from './profile-store.ts';
 import type { ProfileConfig } from './profiles.ts';
 import type { AppWindow, Asker } from './window.ts';
-import type { Question, ProjectAgent, ProjectRepo } from '../shared/types.ts';
+import type { Question, ProjectAgent, ProjectRepo, NewProjectSetup } from '../shared/types.ts';
 import type { GitError } from './worktrees.ts';
 
 type Git = 'ok' | 'no-commit' | 'none';
@@ -360,6 +361,97 @@ function defaultAgent(shell: Shell, id: string, agent: string | null): Result<{ 
   if (!p.agents?.includes(agent)) return { error: `${agent} is not in the project` };
   return changeAgents(shell, id, [agent, ...p.agents.filter((a) => a !== agent)], false);
 }
+// New Project (docs/tasks.md, Projects), as JetBrains': its code first (the author, 2026-10-11: a folder made in ~/Kulisa
+// was in the way of code already on the disk or at a URL), one repository or several (a frontend and a backend): from
+// 'new', <location>/<name>, the location ~/Kulisa unless the human picks another, so they know where the agent's files
+// are; 'folder', the folders given, nothing made, the first the project's; 'clone', one repository cloned into
+// <location>/<name>, several into <location>/<name>/<repo> each. git init when asked, with an empty first commit:
+// tasks get copies of their own (worktrees) from it. Then its agents (accounts, the first the default) and profiles
+// (made in it, or taken from the others), as New Project's steps chose them: what could not be done of those is logged
+// and said (problems), the rest done, the project being there already.
+type NewProject = { from?: string; name?: string; location?: string; folders?: string[]; urls?: string[]; git?: boolean } & NewProjectSetup;
+async function createProject(shell: Shell, { from = 'new', name, location, folders = [], urls = [], git, agents = [], profiles = [] }: NewProject): Promise<Result<{ id: string; problems?: string[] }>> {
+  name = name?.trim();
+  const bad = nameError(name);
+  if (bad) return { error: bad };
+  let folder: string, repos: string[] | null = null;
+  if (from === 'folder') {
+    const given = [...new Set(folders.map((f) => full(f)))];
+    if (!given.length || given.includes(null)) return { error: given.length ? 'each folder must be a full path' : 'no folder' };
+    const states = await Promise.all(given.map((f) => folderState(shell, f!)));
+    for (const [i, f] of given.entries()) {
+      const s = states[i]!;
+      if (s.state === 'new') return { error: `${f} is not there` };
+      const no = refusal(f!, s);
+      if (no) return { error: no };
+    }
+    for (const [i, f] of given.entries()) {
+      if (git && states[i]!.state !== 'repo') await initRepo(f!).catch((err: GitError) => console.error('[git]', err.stderr || err.message));
+    }
+    folder = given[0]!;
+    if (given.length > 1) repos = given as string[];
+  } else {
+    const made = newFolder({ location, name });
+    if (!made) return { error: 'the location must be the full path of a folder' };
+    folder = made;
+    const there = await folderState(shell, folder);
+    const no = refusal(folder, there);
+    if (no) return { error: no };
+    if (from === 'clone') {
+      urls = [...new Set(urls.map((u) => u?.trim()).filter((u) => !!u))];
+      if (!urls.length) return { error: 'no repository URL' };
+      if (!['new', 'empty'].includes(there.state)) return { error: `${folder} is there already: choose another name or location` };
+      const intos = urls.length === 1 ? [folder] : urls.map((u) => path.join(folder, repoName(u)));
+      if (intos.includes(folder) && urls.length > 1 || new Set(intos).size < intos.length) return { error: 'two repositories of the same name' };
+      fs.mkdirSync(urls.length === 1 ? path.dirname(folder) : folder, { recursive: true }); // git runs there
+      for (const [i, u] of urls.entries()) {
+        try { await clone(u, intos[i]!); } catch (e) {
+          const err = e as GitError;
+          // None of it kept: a project with half its code would look made.
+          for (const f of intos.slice(0, i + 1)) if (f !== folder || there.state === 'new') fs.rmSync(f, { recursive: true, force: true });
+          if (there.state === 'new') fs.rmSync(folder, { recursive: true, force: true });
+          return { error: `${u}: ${err.stderr || err.message}` };
+        }
+      }
+      if (urls.length > 1) repos = intos;
+    } else {
+      fs.mkdirSync(folder, { recursive: true });
+      if (git && there.state !== 'repo') await initRepo(folder).catch((err: GitError) => console.error('[git]', err.stderr || err.message));
+    }
+  }
+  let entry = shell.store.projectFor(folder, name);
+  if (repos) entry = shell.store.updateProject(entry.id, { repos })!;
+  const problems: string[] = [];
+  for (const agent of agents) { const r = addAgent(shell, entry.id, agent); if (refused(r)) problems.push(r.error); }
+  for (const p of profiles) {
+    const r = 'id' in p ? shell.profileStore.addTo(p.id, entry.id) : shell.profileStore.create(entry.id, p);
+    if (refused(r)) problems.push('id' in p ? r.error : `${p.name}: ${r.error}`);
+  }
+  if (profiles.length) shell.profilesChanged();
+  if (problems.length) console.error(`[project] ${entry.id} made, but: ${problems.join('; ')}`);
+  return { id: entry.id, ...(problems.length && { problems }) };
+}
+// What a new project's folder is now (New Project says it as it is typed): not there, there (taken as it is, its
+// files kept), a repository (git init skipped), or a project's already (refused).
+async function folderState(shell: Shell, folder: string): Promise<{ state: string; project?: string }> {
+  if (!fs.existsSync(folder)) return { state: 'new' };
+  if (!fs.statSync(folder).isDirectory()) return { state: 'file' };
+  const of = shell.store.projectOf(folder);
+  if (of) return { state: 'project', project: of.name };
+  return { state: (await repoOf(folder)) ? 'repo' : fs.readdirSync(folder).length ? 'files' : 'empty' };
+}
+const full = (f: string | undefined): string | null => {
+  f = f?.trim().replace(/^~(?=$|[\\/])/, app.getPath('home'));
+  return f && path.isAbsolute(f) ? path.normalize(f) : null;
+};
+const newFolder = ({ from, location, name, folder }: { from?: string; location?: string; name?: string; folder?: string }) => (from === 'folder' ? full(folder)
+  : full(location) && name?.trim() ? path.join(full(location)!, name.trim()) : null);
+const refusal = (folder: string, there: { state: string; project?: string }) => ({ file: `${folder} is a file, not a folder`, project: `${folder} is the project ${there.project}'s already` } as Record<string, string>)[there.state];
+// The folder a new project's form names (folders on disk: the one typed; else <location>/<name>), and what it is.
+async function folderStateOf(shell: Shell, args: { from?: string; location?: string; name?: string; folder?: string }) {
+  const folder = newFolder(args);
+  return folder ? { folder, ...await folderState(shell, folder) } : null;
+}
 // Let go by the project, at once, nothing asked: an account stays in the store (accounts.ts), and a task of the project
 // running it keeps it, as one running an agent without accounts does.
 function removeAgent(shell: Shell, id: string, agent: string): Result<{ agents: ProjectAgent[] }> {
@@ -447,4 +539,4 @@ function pictureOf(file: string) {
 }
 
 export { Project, askDeleteProject, deleteClosedTask, deleteProjectData, pictureOf, addRepo, cloneRepo, defaultRepo, removeRepo, reposInfo,
-  askDropProfile, dropProfile, deleteProfile, agentsInfo, addAgent, defaultAgent, removeAgent, deleteAccount };
+  askDropProfile, dropProfile, deleteProfile, agentsInfo, addAgent, defaultAgent, removeAgent, deleteAccount, createProject, folderStateOf };

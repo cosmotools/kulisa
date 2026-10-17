@@ -3,7 +3,7 @@ import electron, { clipboard } from 'electron';
 import fs from 'fs';
 import pkg from '../package.json' with { type: 'json' };
 import path from 'path';
-import { MAC, CMD, shot, assert, root, userData, project, pfile, SITE, sleep, waitFor, who, menuRows, choose, MENU, SUBMENU, menuOpen, rightClick, box, pageBox, viewOn, dock, press, projectTabs, projectTab, showProject, closeProject, savedWindows, closeMenu, plusMenu, focusWindow } from './helpers.ts';
+import { MAC, CMD, shot, assert, root, userData, project, pfile, SITE, sleep, waitFor, who, menuRows, choose, MENU, SUBMENU, menuOpen, rightClick, box, pageBox, viewOn, dock, press, projectTabs, projectTab, showProject, closeProject, savedWindows, closeMenu, plusMenu, closeBoard, focusWindow } from './helpers.ts';
 import type { Test } from './run.ts';
 import type { UI } from './helpers.ts';
 
@@ -122,20 +122,25 @@ export default (test: Test) => {
     await ctx.call('browser_navigate', { profile: 'sam-seller', url: `${SITE}/app` });
     assert.equal(await who(ctx, 'sam-seller'), 'Signed out', "the first project's sign-ins stay there");
 
-    // The button after the islands: +, a task of which project: every project, open or not (a task is made of one),
-    // its closed tasks under it (none here: both open), New Project… last.
+    // The button after the tabs: +, a new tab, as a browser's, at the end of the bar: every project, a column each
+    // (a task is made of one), its tasks in it (both open here: shown, not to choose), New Project… last. The task
+    // under it stays as it is, its pages hidden.
     const names = shell.store.projects().map((p) => p.name);
-    assert.deepEqual(await plusMenu(ui), ['# New Task of', ...names, '-', 'New Project…']);
-    const over = await ui(`(() => { const b = document.getElementById('newTask').getBoundingClientRect(), m = document.querySelector('.menu[data-state="open"]').getBoundingClientRect();
-      return m.bottom <= b.top && m.bottom > b.top - 10 && Math.abs(m.right - b.right) < 2; })()`);
-    assert.ok(over, 'over the button, its end at the bar\'s: the bar is at the bottom of the window');
-    assert.equal(await ui(`document.querySelectorAll('#projectTabs .add').length`), 0);
-    await closeMenu(ui);
+    const rows: string[] = await plusMenu(ui);
+    assert.deepEqual(rows.filter((r) => !r.startsWith('  ')), [...names, 'New Project…']);
+    assert.ok(rows.includes('  task-1 (open)'), 'an open task: shown, not to choose');
+    assert.equal(await ui(`[...document.querySelectorAll('#projectTabs .striptab')].at(-1).id`), 'newtabtab', 'its tab last, chosen');
+    assert.equal(await ui(`document.querySelector('#projectTabs .striptab.active').id`), 'newtabtab');
+    const pages = () => [...shell.profiles.values()].map((p) => p.get().view.getVisible());
+    await waitFor(() => pages().length && pages().every((v) => !v)); // the task's pages hidden under it
+    await closeBoard(ui);
+    await waitFor(() => pages().every((v) => v));
     // Ctrl+Shift+A opens it too, from anywhere; again closes it.
     press(shell.win.webContents, 'A', CMD, 'shift');
-    await waitFor(() => menuOpen(ui));
+    await waitFor(() => ui(`document.documentElement.dataset.page === 'newtab'`));
     press(shell.win.webContents, 'A', CMD, 'shift');
-    await waitFor(async () => !(await menuOpen(ui)));
+    await waitFor(() => ui(`document.documentElement.dataset.page === 'task'`));
+    await ui('__islands.clear(); 0'); // a new tab is a tab more in the bar, as a task's: watched from here on
     await showProject(ui, 'other');
     await waitFor(() => shell.current?.folder === other && !shell.windows[0].switching);
     // The tab's right-click: the task's rows, then its project's in a submenu of its name (the project has no tab of
@@ -281,9 +286,9 @@ export default (test: Test) => {
     await shot(second, path.join(root, 'second-window.png'));
     await ctx.call('browser_navigate', { profile: 'sam-seller', url: `${SITE}/app?moved` }, task);
     assert.match(seller.get().wc.getURL(), /\?moved$/);
-    // The bar's + in either window lists every project.
-    assert.deepEqual(await plusMenu(ui2), ['# New Task of', ...shell.store.projects().map((p) => p.name), '-', 'New Project…']);
-    await closeMenu(ui2);
+    // The bar's + in either window: every project.
+    assert.deepEqual((await plusMenu(ui2) as string[]).filter((r) => !r.startsWith('  ')), [...shell.store.projects().map((p) => p.name), 'New Project…']);
+    await closeBoard(ui2);
     // Questions about its project are asked in its window.
     ctx.answer = false;
     await ui2(`act('profile:delete', { profile: 'sam-seller' })`);

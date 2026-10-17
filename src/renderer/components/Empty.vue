@@ -1,27 +1,32 @@
 <script setup lang="ts">
-// The empty window's island (CLAUDE.md, Terminology; tasks.md, Projects).
-import { dialog } from '../lib/dialogs';
-import { withKeys } from '../lib/common';
-import { toggleNewTask } from '../lib/menu';
+// What the window shows in the grid's place when it is not a task's grid (lib/store.ts, page): with no project at all,
+// New Project's steps (the first start: what to do is plain); else every project with its tasks (newtab/), the empty
+// window's and a new tab's (the bar's +).
+import { ref } from 'vue';
+import Wizard from './newproject/Wizard.vue';
+import Board from './newtab/Board.vue';
+import { page } from '../lib/store';
 
-kulisa.on('project:new', () => dialog('newproject').then((d) => d.open()));
+const wizard = ref<InstanceType<typeof Wizard>>();
+kulisa.on('project:new', () => void wizard.value?.focus()); // the first start: the keyboard there
 </script>
 
 <template>
   <section id="empty">
-    <h2>No task is open</h2>
-    <div class="start">
-      <button id="emptynewtask" class="primary" :title="withKeys('Of which project, or a closed one', 'task.menu')" @click.stop="toggleNewTask">New Task</button>
-      <button id="emptynew" @click="dialog('newproject').then((d) => d.open())">New Project…</button>
+    <div v-if="page === 'wizard'" class="box">
+      <header><h2>New Project</h2></header>
+      <Wizard ref="wizard" />
     </div>
+    <Board v-else-if="page !== 'task'" />
   </section>
 </template>
 
 <style>
-#empty { display: none; place-content: center; justify-items: center; gap: calc(var(--gap) * 2);
-  margin-inline: var(--gap); border-radius: var(--island-radius); background: var(--island);
-  .noproject & { display: grid; }
-  h2 { margin: 0; font-size: 1.3em; color: var(--text-dim); }
-  .start { display: flex; gap: var(--gap); }
+#empty { display: none; place-items: center; overflow: auto; margin-inline: var(--gap);
+  :is([data-page="wizard"], [data-page="board"], [data-page="newtab"]) & { display: grid; }
+  /* New Project: a dialog's look in the grid's place, no backdrop: nothing else is in the window to cover */
+  .box { display: flex; flex-direction: column; width: min(760px, 100%); min-height: min(480px, 100%); border-radius: var(--island-radius);
+    background: var(--island); box-shadow: var(--shadow); overflow: hidden; }
+  header { padding: var(--inset) var(--pad); border-bottom: 1px solid var(--island-hi); h2 { margin: 0; font-size: var(--font); font-weight: 600; } }
 }
 </style>

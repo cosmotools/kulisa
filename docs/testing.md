@@ -118,7 +118,8 @@ dead.
 ## Layers
 
 `npm run deps` ([dependency-cruiser](https://github.com/sverweij/dependency-cruiser), about a second; `npm run lint`
-runs it after ESLint) fails on an import against the layers (CLAUDE.md, Architecture) or a cycle. The rules are
+runs it after ESLint) fails on an import against the layers (CLAUDE.md, Architecture), into a window's cluster past its entries
+(docs/ui.md, Clusters), or a cycle. The rules are
 `.dependency-cruiser.ts`, each with why.
 
 - Runtime imports only: an `import type` crosses the layers freely, as it is gone once the types are stripped.

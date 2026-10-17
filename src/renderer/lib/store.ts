@@ -1,5 +1,5 @@
 // The window's state, as the main process sends it (window.ts), for the components to draw.
-import { reactive, watch } from 'vue';
+import { computed, reactive, watch } from 'vue';
 import type { ClosedProfile, LanguageInfo, Profile, ProjectsInfo, Terminals } from '../../shared/types';
 import type { Invoke, OnTask } from '../../shared/ipc';
 import { initialProjects } from './common';
@@ -9,6 +9,9 @@ const root = document.documentElement;
 export const store = reactive({
   // The shown task's key ("<project id>/<n>"); null with no task open (Empty.vue).
   current: null as string | null,
+  // A new tab over the shown task (the bar's +, as a browser's): the projects and their tasks (newtab/); gone once a
+  // task is shown, or closed.
+  newTab: false,
   // The projects and the window's tabs (the open tasks, each with its agent's state), from the projects' news.
   projects: (initialProjects || { current: null, project: null, projects: [], tabs: [], open: [] }) as ProjectsInfo,
   // The shown task's profiles, open (as Profile.info) and closed; its terminals' island.
@@ -43,8 +46,18 @@ export const act = <C extends OnTaskChannel>(channel: C, ...args: {} extends Res
 
 kulisa.on('projects', (info) => {
   store.projects = info;
+  if (info.current !== store.current) store.newTab = false; // a task shown: the new tab became it, or another was chosen
   store.current = info.current;
 });
+
+// What the window shows in the grid's place, one page at a time (docs/window.md, The window's pages): the shown task's
+// grid; a new tab over it; with no task open, every project's tasks; with no project at all, New Project's steps. Its
+// own switch, not a router's: what is shown is the main process's (current), and the grid under a new tab must stay
+// as it is (its terminals, the pages' places).
+export const page = computed(() => (store.current === null ? (store.projects.projects.length ? 'board' : 'wizard')
+  : store.newTab ? 'newtab' : 'task'));
+// The bar's + (and Ctrl+Shift+A): a new tab, or away from it; the empty window has no bar, the board is there already.
+export const toggleNewTab = () => { if (store.current !== null) store.newTab = !store.newTab; };
 kulisa.on('closed-profiles', (list) => { store.closedProfiles = list; });
 kulisa.on('zoom', (z) => { store.zoom = z; });
 void kulisa.invoke('zoom:get').then((z) => { store.zoom = z; });
@@ -58,8 +71,10 @@ void kulisa.invoke('language:get').then((info) => { store.language = info; });
 watch(() => store.theme, (t) => { root.dataset.theme = t; });
 watch(() => store.bar, (b) => { root.dataset.bar = b; });
 watch(() => store.current === null, (none) => root.classList.toggle('noproject', none), { immediate: true });
+watch(page, (p) => { root.dataset.page = p; }, { immediate: true });
 watch(() => { const p = shownProject(); return p && projectColor(p); }, (color) => {
   if (color) root.style.setProperty('--project', color); else root.style.removeProperty('--project');
+  if (color) root.style.setProperty('--glow', color); // the glow's (App.vue): kept when the last task closes, as it fades
 }, { immediate: true });
 
 // The agent's activity: a caption over the pane (the cursor itself is drawn inside the page, ghost.ts). A sticky one

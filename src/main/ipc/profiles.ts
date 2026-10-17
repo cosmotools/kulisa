@@ -1,6 +1,5 @@
 // The windows' handles on the profiles in Settings → Profiles (docs/profiles.md; profile-store.ts): who each is, its
 // master, deleting it.
-import { nextAvatar } from '../../shared/avatars.ts';
 import { deleteProfile } from '../projects.ts';
 import { refused } from '../../shared/result.ts';
 import { handle } from '../ipc.ts';
@@ -22,10 +21,8 @@ export function registerProfiles(ipc: Ipc) {
   const profileChange = (r: Result<{ id: string }>) => { if (refused(r)) return r; shell.profilesChanged(); return { ...profilesInfo(), id: r.id }; };
   handle('profiles:list', () => profilesInfo());
   handle('profiles:new', (_e, { name }) => {
-    const bad = shell.profileStore.check({ name });
-    if (bad) return { error: bad };
-    const g = shell.profileStore.create(null, { name: name.trim(), avatar: nextAvatar(shell.profileStore.all().map((x) => x.avatar)) });
-    return { ...profilesInfo(), id: g.id };
+    const g = shell.profileStore.create(null, { name });
+    return refused(g) ? g : { ...profilesInfo(), id: g.id };
   });
   handle('profiles:rename', (_e, { profile, name }) => profileChange(shell.profileStore.rename(profile, name)));
   handle('profiles:describe', (_e, { profile, description }) => profileChange(shell.profileStore.describe(profile, description)));

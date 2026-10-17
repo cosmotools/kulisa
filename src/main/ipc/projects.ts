@@ -1,29 +1,20 @@
 // The windows' handles on projects (docs/tasks.md, Projects): New Project, and a project's page in Settings: its
 // name, local addresses, code, agents and profiles (projects.ts).
-import { app, BrowserWindow, dialog, shell as electronShell } from 'electron';
+import { BrowserWindow, dialog, shell as electronShell } from 'electron';
 import path from 'path';
-import fs from 'fs';
-import { nextAvatar } from '../../shared/avatars.ts';
-import { addRepo, cloneRepo, defaultRepo, removeRepo, reposInfo, askDropProfile, dropProfile, agentsInfo, addAgent, defaultAgent, removeAgent } from '../projects.ts';
-import { repoOf, initRepo, clone } from '../worktrees.ts';
-import { nameError, repoName } from '../../shared/names.ts';
+import { addRepo, cloneRepo, defaultRepo, removeRepo, reposInfo, askDropProfile, dropProfile, agentsInfo, addAgent, defaultAgent, removeAgent, createProject, folderStateOf } from '../projects.ts';
+import { nameError } from '../../shared/names.ts';
 import { refused } from '../../shared/result.ts';
 import { handle } from '../ipc.ts';
 import type { Ipc } from '../ipc.ts';
 import type { ProjectEntry } from '../store.ts';
-import type { GitError } from '../worktrees.ts';
 import type { Result } from '../../shared/result.ts';
 
 export function registerProjects(ipc: Ipc, { lookForFavicon }: { lookForFavicon: (p: ProjectEntry) => Promise<void> }) {
   const { shell, at, asker, serial } = ipc;
   const store = shell.store;
   const sendProjects = () => shell.sendProjects();
-  // New Project…, as JetBrains': its code first (below), then a new or cloned one's folder <location>/<name>, the
-  // location ~/Kulisa (every new project's place, as JetBrains' ~/PycharmProjects) unless the human picks another, so
-  // they know where the agent's files are. git init when asked, with an empty first commit: tasks get copies of their
-  // own (worktrees) from it. Made, not opened: the manager goes on to its configuration (its agents' accounts, its
-  // code, its profiles), and New Task there makes its first task (the author, 2026-10-11: a question where to open it,
-  // right after Create, came unasked).
+  // New Project (projects.ts, createProject); the window then opens its first task (project:open).
   // agents: every account, the agents' own first; clis: the agents a new account can be made of (New Account…).
   const choices = () => {
     const all = shell.accounts.all().filter((a) => !a.agent.custom);
@@ -37,83 +28,11 @@ export function registerProjects(ipc: Ipc, { lookForFavicon }: { lookForFavicon:
       properties: existing ? ['openDirectory'] : ['openDirectory', 'createDirectory'] });
     return r.canceled ? null : r.filePaths[0] || null;
   });
-  // What a new project's folder is now (the New Project form says it as it is typed): not there, there (taken as it
-  // is, its files kept), a repository (git init skipped), or a project's already (refused).
-  const folderState = async (folder: string): Promise<{ state: string; project?: string }> => {
-    if (!fs.existsSync(folder)) return { state: 'new' };
-    if (!fs.statSync(folder).isDirectory()) return { state: 'file' };
-    const of = store.projectOf(folder);
-    if (of) return { state: 'project', project: of.name };
-    return { state: (await repoOf(folder)) ? 'repo' : fs.readdirSync(folder).length ? 'files' : 'empty' };
-  };
-  const full = (f: string | undefined): string | null => {
-    f = f?.trim().replace(/^~(?=$|[\\/])/, app.getPath('home'));
-    return f && path.isAbsolute(f) ? path.normalize(f) : null;
-  };
-  // The code comes first (the author, 2026-10-11: a folder made in ~/Kulisa was in the way of code already on the
-  // disk or at a URL), one repository or several (a frontend and a backend): from 'new', <location>/<name>; 'folder',
-  // the folders given, nothing made, the first the project's; 'clone', one repository cloned into <location>/<name>,
-  // several into <location>/<name>/<repo> each.
-  const newFolder = ({ from, location, name, folder }: { from?: string; location?: string; name?: string; folder?: string }) => (from === 'folder' ? full(folder)
-    : full(location) && name?.trim() ? path.join(full(location)!, name.trim()) : null);
-  handle('project:folder-state', async (_e, args) => {
-    const folder = newFolder(args);
-    return folder ? { folder, ...await folderState(folder) } : null;
-  });
-  const refusal = (folder: string, there: { state: string; project?: string }) => ({ file: `${folder} is a file, not a folder`, project: `${folder} is the project ${there.project}'s already` } as Record<string, string>)[there.state];
-  handle('project:new', async (_e, { from = 'new', name, location, folders = [], urls = [], git }) => {
-    name = name?.trim();
-    const bad = nameError(name);
-    if (bad) return { error: bad };
-    let folder: string, repos: string[] | null = null;
-    if (from === 'folder') {
-      const given = [...new Set(folders.map((f) => full(f)))];
-      if (!given.length || given.includes(null)) return { error: given.length ? 'each folder must be a full path' : 'no folder' };
-      const states = await Promise.all(given.map((f) => folderState(f!)));
-      for (const [i, f] of given.entries()) {
-        const s = states[i]!;
-        if (s.state === 'new') return { error: `${f} is not there` };
-        const no = refusal(f!, s);
-        if (no) return { error: no };
-      }
-      for (const [i, f] of given.entries()) {
-        if (git && states[i]!.state !== 'repo') await initRepo(f!).catch((err: GitError) => console.error('[git]', err.stderr || err.message));
-      }
-      folder = given[0]!;
-      if (given.length > 1) repos = given as string[];
-    } else {
-      const made = newFolder({ location, name });
-      if (!made) return { error: 'the location must be the full path of a folder' };
-      folder = made;
-      const there = await folderState(folder);
-      const no = refusal(folder, there);
-      if (no) return { error: no };
-      if (from === 'clone') {
-        urls = [...new Set(urls.map((u) => u?.trim()).filter((u) => !!u))];
-        if (!urls.length) return { error: 'no repository URL' };
-        if (!['new', 'empty'].includes(there.state)) return { error: `${folder} is there already: choose another name or location` };
-        const intos = urls.length === 1 ? [folder] : urls.map((u) => path.join(folder, repoName(u)));
-        if (intos.includes(folder) && urls.length > 1 || new Set(intos).size < intos.length) return { error: 'two repositories of the same name' };
-        fs.mkdirSync(urls.length === 1 ? path.dirname(folder) : folder, { recursive: true }); // git runs there
-        for (const [i, u] of urls.entries()) {
-          try { await clone(u, intos[i]!); } catch (e) {
-            const err = e as GitError;
-            // None of it kept: a project with half its code would look made.
-            for (const f of intos.slice(0, i + 1)) if (f !== folder || there.state === 'new') fs.rmSync(f, { recursive: true, force: true });
-            if (there.state === 'new') fs.rmSync(folder, { recursive: true, force: true });
-            return { error: `${u}: ${err.stderr || err.message}` };
-          }
-        }
-        if (urls.length > 1) repos = intos;
-      } else {
-        fs.mkdirSync(folder, { recursive: true });
-        if (git && there.state !== 'repo') await initRepo(folder).catch((err: GitError) => console.error('[git]', err.stderr || err.message));
-      }
-    }
-    let entry = store.projectFor(folder, name);
-    if (repos) entry = store.updateProject(entry.id, { repos })!;
-    sendProjects(); // the bar's + lists it
-    return { id: entry.id };
+  handle('project:folder-state', (_e, args) => folderStateOf(shell, args));
+  handle('project:new', async (_e, spec) => {
+    const r = await createProject(shell, spec);
+    if (!refused(r)) sendProjects(); // the board lists it
+    return r;
   });
   // A project's configuration in the projects' manager (ProjectEditor.vue): its name, agents,
   // repositories, profiles and local addresses; its folder is shown, not changed (its tasks' copies are made from it).
@@ -135,10 +54,8 @@ export function registerProjects(ipc: Ipc, { lookForFavicon }: { lookForFavicon:
     return { profiles: all.filter((g) => g.projects.includes(id)).map(view), others: all.filter((g) => !g.projects.includes(id)).map(view) };
   };
   handle('project:profile-new', (_e, { id, name }) => {
-    name = name?.trim();
-    const bad = nameError(name);
-    if (bad) return { error: bad };
-    shell.profileStore.create(id, { name: name!, avatar: nextAvatar(shell.profileStore.of(id).map((g) => g.avatar)) });
+    const g = shell.profileStore.create(id, { name: name ?? '' });
+    if (refused(g)) return g;
     shell.profilesChanged();
     return profilesOf(id);
   });

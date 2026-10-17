@@ -5,20 +5,20 @@
 // tasks' window (New Project…), which then opens it here.
 import { computed, nextTick, ref, watch } from 'vue';
 import { ListboxContent, ListboxItem, ListboxRoot, TreeItem, TreeRoot } from 'reka-ui';
-import Icon from './Icon.vue';
-import ButtonMenu from './menu/ButtonMenu.vue';
-import RightClickMenu from './menu/RightClickMenu.vue';
-import AccountSignIn from './AccountSignIn.vue';
+import Icon from '../Icon.vue';
+import ButtonMenu from '../menu/ButtonMenu.vue';
+import RightClickMenu from '../menu/RightClickMenu.vue';
+import AccountSignIn from '../AccountSignIn.vue';
 import AgentPage from './AgentPage.vue';
 import ProfilePage from './ProfilePage.vue';
-import ProjectIcon from './ProjectIcon.vue';
-import { avatarSrc } from '../lib/common';
-import { projectColor } from '../lib/project-color';
-import { focusAfterMenu, type MenuItem } from '../lib/menu';
-import { agentList, agentMark, type Agent } from '../lib/agents';
-import { refused } from '../../shared/result';
-import type { Result } from '../../shared/result';
-import type { Account, AccountsInfo, ProjectAgent, ProjectChoices, ProjectEntry, ProjectProfile, ProjectRepo, SettingsProfile, SignedIn } from '../../shared/types';
+import ProjectIcon from '../ProjectIcon.vue';
+import { avatarSrc } from '../../lib/common';
+import { projectColor } from '../../lib/project-color';
+import { focusAfterMenu, type MenuItem } from '../../lib/menu';
+import { agentList, agentMark, type Agent } from '../../lib/agents';
+import { refused } from '../../../shared/result';
+import type { Result } from '../../../shared/result';
+import type { Account, AccountsInfo, ProjectAgent, ProjectChoices, ProjectEntry, ProjectProfile, ProjectRepo, SettingsProfile, SignedIn } from '../../../shared/types';
 
 // The page shown, of the tree's section; the agents' list lives here, so an install goes on while a project is shown,
 // and the window stays open while it runs (close).

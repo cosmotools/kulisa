@@ -2,7 +2,7 @@
 import { session } from 'electron';
 import fs from 'fs';
 import path from 'path';
-import { assert, userData, pfile, savedTabs, panel, SITE, waitFor, who, menuRows, choose, manageProfiles, closeSettings, chooseProfile, setProfileField, menuOpen, taskMenu, viewOn, ctrl, near, closeMenu, PORT, MAC } from './helpers.ts';
+import { assert, userData, pfile, savedTabs, panel, SITE, waitFor, who, menuRows, choose, manageProfiles, closeSettings, chooseProfile, setProfileField, menuOpen, taskMenu, viewOn, ctrl, near, closeMenu, plusMenu, closeBoard, PORT, MAC } from './helpers.ts';
 import type { Test } from './run.ts';
 
 // Files of the sites' Cache API in a profile's folder, wherever Chromium's layout puts them (`WebStorage/<bucket>/CacheStorage/`).
@@ -59,8 +59,9 @@ export default (test: Test) => {
     // The smallest window has 640×400 for the UI at any zoom: New Project keeps its buttons and Browse… in it, each kind.
     win.setSize(800, 500);
     await waitFor(async () => (await ui(`innerHeight`)) === 400);
-    shell.win.webContents.send('project:new');
-    await waitFor(() => ui(`document.getElementById('newproject')?.dataset.state === 'open'`));
+    await plusMenu(ui);
+    await ui(`document.getElementById('boardnewproject').click()`);
+    await waitFor(() => ui(`document.getElementById('newproject')?.dataset.state === 'open' && !!document.getElementById('npname')`));
     for (const from of ['new', 'folder', 'clone']) {
       await ui(`document.querySelector('#npfrom [data-value="${from}"]').click()`);
       await waitFor(() => ui(`document.querySelector('#npfrom [data-value="${from}"]').ariaSelected === 'true'`));
@@ -71,6 +72,7 @@ export default (test: Test) => {
     }
     await ui(`document.querySelector('#newproject .x').click()`);
     await waitFor(async () => !(await ui(`document.getElementById('newproject')?.dataset.state === 'open'`)));
+    await closeBoard(ui);
     win.setSize(size[0], size[1]);
     await waitFor(() => win.getSize()[0] === size[0] && viewOn(shell, ui, 'sam-admin'));
   });

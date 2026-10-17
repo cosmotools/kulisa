@@ -34,18 +34,13 @@ Download Kulisa from its [latest release](https://github.com/cosmotools/kulisa/r
 Kulisa is tested on Linux (Ubuntu) and on macOS (by its developers, there is no installer for it yet); on Windows it is
 newer and less tried.
 
-1. **Make a project.** At the first start New Project opens by itself. Choose where its code comes from (below), give
-   it a name, Create. Settings opens on the new project's page.
-2. **Choose its agent.** On the project's page, under Agents, **+** → New Account → Claude Code (or Codex). Kulisa
-   starts the agent's own sign-in, which opens your browser; sign in there, with the account you mean. If the agent is not installed
-   yet, install it first in **Settings → Agents** (Install: Kulisa runs its maker's installer for you).
-3. **Make a profile** for each user of your app: on the project's page, under Profiles, **+** → New Profile…, a name
-   (`ann@shop.com`). Say in **Settings → Profiles** who it is ("seller; can approve refunds"): the agent chooses
-   profiles by it.
-4. **Make a task**: **+** in the bar at the bottom, then your project. The agent starts in a terminal; tell it what to
-   do. It opens the profiles it needs itself.
-5. **Sign in** where your app needs a real account: when the agent asks, or ahead of time with **Sign In…** in
+1. **Make a project.** At the first start the window is New Project, in three steps (below): its code, its agent,
+   the users of your app. **Create** makes it and opens its first task.
+2. **Tell the agent what to do** in the terminal. It opens the profiles it needs itself.
+3. **Sign in** where your app needs a real account: when the agent asks, or ahead of time with **Sign In…** in
    Settings → Profiles. You sign in once, for every task.
+
+More tasks: **+** in the bar at the bottom, then **+** in your project's column.
 
 ## The window
 
@@ -62,14 +57,17 @@ newer and less tried.
 - **The tasks' bar**, under the grid (or in the title bar, as a browser's tabs: **☰ → Tasks bar**): a tab per open task,
   of any project, with its project's icon and its agent's state, and **+** after them. When there are more tabs than
   fit, the mouse wheel over the bar scrolls them, and a faded edge shows that more are past it.
-- **No task open** (at the first start, or after you close the last task): the window shows New Task and New
-  Project….
+- **No task open** (after you close the last task): the window shows every project with its tasks, as **+** does
+  (Tasks, below). At the very first start, with no project yet, it shows New Project.
 
 ## Projects
 
 ### New Project
 
-**New Project…** in the bar's **+** (or in an empty window). Its code first, on the left:
+In a window with no task open, or **New Project…** in the bar's **+**. Three steps; **Next** goes on, **Back** goes
+back with what you typed kept, and nothing is made before **Create**.
+
+**1. Code.** Where its code comes from, on the left:
 
 - **New folder**: a new, empty project. Kulisa makes the folder (in the Kulisa folder in your home folder unless you choose another place) and,
   with Create Git repository on, a git repository in it, so tasks can have copies of their own.
@@ -77,9 +75,21 @@ newer and less tried.
   changed.
 - **Clone from URL**: one repository or several, cloned with your own git (its keys and credentials).
 
-The dialog says what will happen as you type. Its color and icon are not asked: Kulisa finds its site's favicon in
+The step says what will happen as you type. Its color and icon are not asked: Kulisa finds its site's favicon in
 its code and takes the color from it, so a red logo makes a red project. A project whose code has no favicon gets the
 curtain and a color of its own.
+
+**2. Agents.** Who works in its tasks: tick your agents' accounts, one or several; **★** marks the one a new task
+starts (the first you ticked, unless you star another). **Add account** → Claude Code or Codex signs in to a new one in
+your browser; an agent not on your computer yet is installed first, by itself (**Details** shows the installer at
+work). Tick none and its tasks start with a terminal, where you run what you like.
+
+**3. Profiles.** The users of your app: **Add Profile**, a name (`ann@shop.com`) and who it is ("seller; can approve
+refunds"): the agent chooses profiles by it. Tick any of your other profiles to have them here too. None now is fine:
+the agent makes those it needs.
+
+**Create** makes the project and opens its first task, its agent in the terminal. All of it can be changed later on
+its page in Settings.
 
 ### A project's page
 
@@ -130,7 +140,12 @@ the right Ctrl: **☰ → Keyboard Shortcuts**, Change on its row, then press th
 
 ## Tasks
 
-- **A new task**: **+** in the tasks' bar, then a project (or Ctrl+Shift+N for the shown project). It runs the
+- **+ in the tasks' bar** (or Ctrl+Shift+A) opens a new tab, as in a browser: every project in a column, with its
+  tasks. The project you worked in last is first. Open tasks are marked "open"; closed ones show when you closed them,
+  and "merged" once their work is merged. Click a task to open it again, **+** in a column for a new task of that
+  project, or **New Project…** after the columns. Close the new tab (its ×, **+** again, or Esc) to go back to your
+  task, which kept running.
+- **A new task**: **+** in a project's column (or Ctrl+Shift+N for the shown project). It runs the
   project's default agent with a new conversation; describe the task to it. With no default agent, you choose one
   with the buttons in the middle (Ctrl+` puts the keyboard on them). Its profiles are all closed: the agent
   opens those it needs, or you do: while none is open, each has a tile over the terminal (click it), and the task's
@@ -157,12 +172,12 @@ the right Ctrl: **☰ → Keyboard Shortcuts**, Change on its row, then press th
   check, until you look at the task).
 - **Switch** by clicking a tab, of any project. The other tasks keep running: their agents and pages go on.
 - **× closes a task** (or the middle button on its tab, or **Close** in its menu): its agent stops and its tabs close;
-  its code, branch, profiles and conversation stay. Open it again from **+** (under its project): the agent continues
+  its code, branch, profiles and conversation stay. Open it again from **+** (in its project's column): the agent continues
   the conversation.
 - **Delete Task…** (its tab's right-click menu) deletes it for good: its copy of the code, its branch, its profiles'
   copies, its conversation. The question says what would be lost (work not merged and not pushed). A closed task is
   deleted from its row in **+**: the trash can at the row's end (or the Delete key). Once a closed
-  task's work is merged, **+** marks it "merged", and the project's submenu offers **Delete Merged Tasks…**.
+  task's work is merged, its row says "merged", and the project's submenu offers **Delete Merged Tasks…**.
 - **The project's submenu**, at the end of a tab's right-click menu under the project's name: New Task, Move All
   Tasks to New Window or to another window, Project Settings…, Show Data Folder, Delete Merged Tasks…, Close All
   Tasks (asks only when an agent is working).
@@ -280,7 +295,7 @@ A pane is a small Chrome: a tab strip, an address bar, back, forward and reload.
 |---|---|
 | Ctrl+` | The terminal in front, and back to the page |
 | Ctrl+Shift+` | A new terminal |
-| Ctrl+Shift+A | New task: of which project, or a closed one |
+| Ctrl+Shift+A | A new tab: every project with its tasks |
 | Ctrl+Shift+N | New task of the same project |
 | Ctrl+Shift+1…9 | The first to ninth tab |
 | Ctrl+Shift+PgDn / PgUp | The next or previous task |

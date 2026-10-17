@@ -3,9 +3,9 @@
 // (Ask.vue). Esc closes it, as a dialog's; the OS's ×
 // asks first (settings:closing): either way the page saves what is typed, then closes it.
 import { ref } from 'vue';
-import Sprite from './Sprite.vue';
+import Sprite from '../Sprite.vue';
 import ProjectEditor from './ProjectEditor.vue';
-import Ask from './Ask.vue';
+import Ask from '../Ask.vue';
 
 const editor = ref<InstanceType<typeof ProjectEditor>>();
 const close = () => editor.value?.close();

@@ -4,14 +4,14 @@
 // tree makes and deletes profiles (ProjectEditor.vue); a project's page adds and removes them there.
 import { ref, watch } from 'vue';
 import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka-ui';
-import Icon from './Icon.vue';
+import Icon from '../Icon.vue';
 import Avatars from './Avatars.vue';
-import { avatarSrc } from '../lib/common';
-import { covered } from '../lib/cover';
-import { focusBack } from '../lib/menu';
-import { refused } from '../../shared/result';
-import type { Result } from '../../shared/result';
-import type { SettingsProfile } from '../../shared/types';
+import { avatarSrc } from '../../lib/common';
+import { covered } from '../../lib/cover';
+import { focusBack } from '../../lib/menu';
+import { refused } from '../../../shared/result';
+import type { Result } from '../../../shared/result';
+import type { SettingsProfile } from '../../../shared/types';
 
 const props = defineProps<{ profile: SettingsProfile }>();
 // changed: the profiles as they are now, and its id (renamed: a new one).

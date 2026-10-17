@@ -103,13 +103,17 @@ unasked. This paragraph is removed when the rewrite is finished.
   until 2026-10-11: its tabs are tasks; earlier commits say so.
 - **Terminology: "Settings"**: the window behind the title bar's gear (a dialog until 2026-10-16), as JetBrains' Settings: a tree of Projects (every
   project, each its page), Agents (the agents, their accounts) and Profiles (every profile, who it is). It was "the projects' manager" alone until 2026-10-11,
-  then tabs; a project's page is still the manager in code (`ProjectEditor.vue`; its window `settings-window.ts`,
-  `openSettings()`). New Project is a dialog of a tasks' window (`NewProject.vue`).
+  then tabs; a project's page is still the manager in code (`settings/ProjectEditor.vue`; its window `settings-window.ts`,
+  `openSettings()`). New Project is steps (Code, Agents, Profiles; `newproject/`): the empty window, and a dialog of a
+  tasks' window.
 - **Terminology: "the empty window"**: what a window is with no task open (at first start, after its last
-  tab is closed): the title bar and the tasks' bar as always (no tabs, its + there) and, in the
-  grid's place, an empty island: "No task is open", New Task (the bar's + menu), New Project…. `Empty.vue`. It replaced
-  the Welcome screen (JetBrains' name; 2026-10-11), whose list of tasks is the bar's + now (the closed ones; Search
-  Tasks for a few hours before it); earlier commits say Welcome screen.
+  tab is closed): the title bar, no tasks' bar (nothing to show in it, since 2026-10-17), and in the
+  grid's place, the board (every project a column with its tasks, as the bar's + shows it in a new tab), or New
+  Project's steps with no project at all (since 2026-10-17; an island with New Task and New Project… before).
+  `Empty.vue`. It replaced the Welcome screen (JetBrains' name; 2026-10-11); earlier commits say Welcome screen.
+- **Terminology: "a new tab"**: the bar's + (since 2026-10-17; a menu of the projects before), as a browser's: a tab
+  "New Tab" showing the board (`newtab/`) over the shown task, until a task is chosen or made there, or it is closed.
+  Not a task, and not saved. The window's pages: `page` in `lib/store.ts`.
 - **Terminology: "task"** for one line of work inside a project: its agents (each in a terminal of its island,
   with a conversation of its own; any agent CLI), a branch of the code, profiles and a grid. It replaced "workspace" (the word of tools for parallel agents,
   e.g. Conductor) on 2026-10-10; earlier commits say workspace. Each works in a git worktree of its own next to the
@@ -167,6 +171,11 @@ unasked. This paragraph is removed when the rewrite is finished.
     questions, the keys), is a TypeScript module in `src/renderer/lib/` with a small interface (`covered('hide')`,
     `ask(q)`, `dialog('projects')`). State the main process sends lives in `lib/store.ts` (Vue's `reactive`) and
     components draw from it; no DOM built by hand where a template does it. `types.ts`: the shapes the main process sends.
+  - **A cluster is a folder** (the author, 2026-10-17: against spaghetti): a part of several files with a state of its
+    own (New Project's steps, Settings) is a folder of `components/`, its state in a module there (provided to its
+    files, not in `lib/store.ts`), reached from outside only through its entries; `npm run deps` refuses another import
+    (`clusters` in `.dependency-cruiser.ts`; `docs/ui.md`, Clusters). Its actions are the core's, over IPC, as the
+    other handles': a cluster is one more view, not a second core.
   - **Generic UI is Reka UI's** (`reka-ui`, the author's decision, 2026-10-11): menus, dialogs, and the controls Reka
     has (choices, radios, selects, checkboxes, lists, tabs …), in Kulisa's look (Reka has no look of its own); nothing
     of our own where Reka has it, and every new part built on it. Its documentation for agents:

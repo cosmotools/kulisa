@@ -39,4 +39,3 @@ export function focusBack(e: Event, el: Element | null) {
   if (!document.querySelector('.menu[data-state="open"]') && el instanceof HTMLElement && el.isConnected) el.focus();
 }
 // The bar's + menu (NewTask.vue) opened or closed as a click on it does: Ctrl+Shift+A, the empty window's New Task.
-export const toggleNewTask = () => document.getElementById('newTask')?.click();

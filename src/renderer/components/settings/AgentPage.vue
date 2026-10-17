@@ -4,14 +4,15 @@
 // a project is shown. Every agent's details are in the page, the chosen one's shown: a few agents, and an install's
 // row keeps its state as another is looked at.
 import { computed, ref, watch } from 'vue';
-import { CollapsibleContent, CollapsibleRoot, CollapsibleTrigger, ListboxContent, ListboxItem, ListboxRoot } from 'reka-ui';
-import Icon from './Icon.vue';
-import AccountSignIn from './AccountSignIn.vue';
-import RightClickMenu from './menu/RightClickMenu.vue';
-import type { MenuItem } from '../lib/menu';
-import type { Agent, AgentList as List } from '../lib/agents';
-import type { Account, AccountsInfo, SignedIn } from '../../shared/types';
-import { refused } from '../../shared/result';
+import { ListboxContent, ListboxItem, ListboxRoot } from 'reka-ui';
+import Icon from '../Icon.vue';
+import AccountSignIn from '../AccountSignIn.vue';
+import InstallProgress from '../InstallProgress.vue';
+import RightClickMenu from '../menu/RightClickMenu.vue';
+import type { MenuItem } from '../../lib/menu';
+import type { Agent, AgentList as List } from '../../lib/agents';
+import type { Account, AccountsInfo, SignedIn } from '../../../shared/types';
+import { refused } from '../../../shared/result';
 
 const props = defineProps<{ list: List; chosen?: string; accounts: Account[]; clis: string[] }>();
 const emit = defineEmits<{ accounts: [r: Partial<AccountsInfo>] }>();
@@ -84,11 +85,7 @@ defineExpose({ newAccount, busy });
       </template>
     </section>
     <p v-if="s.looking" class="empty">Looking for agents on this computer…</p>
-    <p class="progress hint">{{ s.progress }}</p>
-    <CollapsibleRoot v-model:open="s.detailsOpen" class="details" :hidden="!s.showDetails" :unmount-on-hide="false">
-      <CollapsibleTrigger class="disclose"><Icon name="i-down" />Details</CollapsibleTrigger><CollapsibleContent><pre>{{ s.log }}</pre></CollapsibleContent>
-    </CollapsibleRoot>
-    <p class="error">{{ s.error }}</p>
+    <InstallProgress :list />
     <p id="agentpageerror" class="error">{{ error }}</p>
   </div>
 </template>
@@ -102,9 +99,6 @@ defineExpose({ newAccount, busy });
     .install-line { margin: 0 0 0 calc(var(--label) + var(--inset)); font-family: "JetBrains Mono", monospace; overflow-wrap: anywhere; &:empty { display: none; } }
     .site { color: var(--text-muted); &:hover { color: var(--text); } }
     .list { --cols: fit-content(50%) minmax(0, 1fr); } } /* an account's email, its projects */
-  :is(.progress, .error) { margin: 0; &:empty { display: none; } }
-  .details[hidden] { display: none; }
-  pre { max-height: 180px; overflow: auto; margin: 6px 0 0; padding: 8px; border-radius: var(--radius); background: var(--window);
-    font: var(--font) "JetBrains Mono", monospace; white-space: pre-wrap; user-select: text; }
+  :is(.progress, .error) { margin: 0; }
 }
 </style>
