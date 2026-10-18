@@ -1,9 +1,10 @@
 // The window: the terminal, the app icon, the top bar, screenshots.
-import { Menu, nativeTheme } from 'electron';
+import electron, { Menu, nativeTheme } from 'electron';
 import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { closeSettings, canShoot, NO_SHOT, shot, assert, root, userData, sleep, waitFor, menuRows, choose, menuOpen, rightClick, box, viewOn, closeMenu, click, noNode, press } from './helpers.ts';
+import { createPackage } from '@electron/asar';
 import forge from '../forge.config.ts';
 import type { Test } from './run.ts';
 import type { TaskTerminal } from '../src/main/tasks.ts';
@@ -375,7 +376,8 @@ export default (test: Test) => {
       taskrename: () => fromMenu('Rename…', '#projectTabs .tasktab .name'),
       agentpick: async () => { void shell.chooseAgent(shell.task, null); }, // asked when a task's agent is not there
       shortcuts: () => fromMenu('Keyboard Shortcuts'),
-    };
+    }; // About: a page of Settings since 2026-10-18, no longer a dialog
+
     assert.equal(await ui(`document.querySelectorAll('.dialog').length`), 0, 'none in the page while closed');
     for (const [id, open] of Object.entries(openers)) {
       await open();
@@ -433,5 +435,76 @@ export default (test: Test) => {
     await ui(`document.querySelector('#ask .cancel').click()`);
     assert.equal(await second, false, 'Cancel says no');
     ctx.answer = true;
+  });
+  test("About Kulisa (☰; on macOS the app menu's) is a page of Settings: the versions, and the folders Kulisa writes in on this computer, each shown in the file manager, one not made yet told so", async (ctx) => {
+    const { shell, ui, sui } = ctx;
+    const pkg = JSON.parse(fs.readFileSync(path.join(import.meta.dirname, '..', 'package.json'), 'utf8'));
+    if (process.platform === 'darwin') {
+      const item = Menu.getApplicationMenu().items[0].submenu.items[0];
+      assert.equal(item.label, 'About Kulisa', "first in the app menu, where Mac apps have it");
+      item.click(undefined, shell.win);
+    } else {
+      await ui(`document.getElementById('windowMenu').click()`);
+      await menuRows(ui);
+      await choose(ui, 'About Kulisa');
+    }
+    const shown = () => sui(`document.querySelector('#pjlist [data-page="about"]')?.ariaSelected === 'true' && document.getElementById('abconfig').checkVisibility() && !!document.querySelector('#aboutpage .who')`);
+    await waitFor(shown);
+    assert.equal(shell.settings.win.getTitle(), 'Settings — Kulisa', 'a page of Settings, as Chrome\'s About');
+    const a = await sui(`(() => { const d = document.getElementById('aboutpage'); return { title: d.querySelector('.who h3').textContent, line: [...d.querySelectorAll('.who .hint')].map((p) => p.textContent).join(' / '),
+      folders: [...d.querySelectorAll('.paths dd')].map((dd) => ({ id: dd.dataset.folder, path: dd.querySelector('.path').textContent, missing: dd.classList.contains('missing'), disabled: dd.querySelector('.show').disabled })) }; })()`);
+    assert.equal(a.title, `Kulisa ${pkg.version}`);
+    assert.equal(a.line, `Electron ${process.versions.electron} · Chromium ${process.versions.chrome} / kulisa.app · GPL-3.0-or-later`);
+    const projectsHome = path.join(root, 'KulisaProjects'), made = fs.existsSync(projectsHome);
+    assert.deepEqual(a.folders, [{ id: 'data', path: userData, missing: false, disabled: false }, { id: 'projects', path: projectsHome, missing: !made, disabled: !made },
+      { id: 'program', path: path.join(import.meta.dirname, '..'), missing: false, disabled: false }]);
+    // Show: the folder in the file manager, by its id (the window names no path).
+    const openPath = electron.shell.openPath, shownDirs: string[] = [];
+    electron.shell.openPath = async (dir) => { shownDirs.push(dir); return ''; };
+    try {
+      await sui(`document.querySelector('#aboutpage dd[data-folder="data"] .show').click()`);
+      await waitFor(() => shownDirs.length === 1);
+    } finally { electron.shell.openPath = openPath; }
+    assert.deepEqual(shownDirs, [userData]);
+    await closeSettings(ctx);
+    // The main process opens it too (macOS's menu, whichever OS): the same window at that page.
+    shell.openSettings({ section: 'about', id: null });
+    await waitFor(shown);
+    await closeSettings(ctx);
+  });
+  // The app archive the test's Kulisa watches (run.ts, installed) replaced as apt does: a new one written beside and
+  // renamed over. The archive made as Forge packs it (@electron/asar).
+  test('a new version installed while Kulisa runs is offered once, in its own dialog: Later leaves it to the next start, Restart saves everything and starts it', async (ctx) => {
+    const { shell, ui } = ctx;
+    const asar = path.join(root, 'installed', 'app.asar'), src = path.join(root, 'installed-src');
+    const install = async (version: string) => {
+      fs.mkdirSync(src, { recursive: true }); fs.mkdirSync(path.dirname(asar), { recursive: true });
+      fs.writeFileSync(path.join(src, 'package.json'), JSON.stringify({ name: 'kulisa', version }));
+      await createPackage(src, `${asar}.dpkg-new`);
+      fs.renameSync(`${asar}.dpkg-new`, asar);
+    };
+    const open = () => ui(`document.getElementById('ask')?.dataset.state === 'open'`);
+    const restart = shell.restart;
+    let restarted: string | null = null;
+    shell.restart = async (apply) => { restarted = apply ? 'squirrel' : 'relaunch'; };
+    try {
+      ctx.answer = false; // Later
+      await install('9.9.9');
+      await waitFor(() => ctx.asked.some((q) => q.message === 'Kulisa 9.9.9 is ready'), 10000);
+      const q = ctx.asked.pop();
+      assert.equal(q.ok, 'Restart'); assert.equal(q.cancel, 'Later');
+      assert.match(q.detail, /Restart to use it: the windows, their tasks and conversations come back\. Later: the next start is 9\.9\.9\.$/);
+      await waitFor(async () => !(await open()));
+      assert.equal(restarted, null, 'Later: nothing');
+      // Restart: the way to quit that keeps everything, then the new version (the test's Kulisa stays: a stub).
+      ctx.answer = true;
+      await install('9.9.10');
+      await waitFor(() => restarted, 10000);
+      assert.equal(restarted, 'relaunch');
+      assert.equal(ctx.asked.pop().message, 'Kulisa 9.9.10 is ready');
+    } finally {
+      shell.restart = restart; ctx.answer = true;
+      fs.rmSync(src, { recursive: true, force: true });
+    }
   });
 };

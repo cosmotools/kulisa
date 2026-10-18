@@ -1,7 +1,7 @@
 // Kulisa, the app: the shell every module gets (shell.ts) put together, its windows with their open tasks
 // (open-tasks.ts), the agents, the CDP proxy and the MCP server, the windows' handles (ipc/), quitting. start(options)
 // is used by the entry point (index.ts) and by the tests.
-import { app, nativeTheme, Menu, safeStorage } from 'electron';
+import { app, crashReporter, nativeTheme, Menu, safeStorage } from 'electron';
 import { EventEmitter } from 'events';
 import path from 'path';
 import fs from 'fs';
@@ -25,6 +25,8 @@ import { startDiscarding } from './discard.ts';
 import { installMasters } from './master.ts';
 import { installSettings } from './settings-window.ts';
 import { openTasks } from './open-tasks.ts';
+import { environment, log, startLog } from './log.ts';
+import { updateNotices } from './updates.ts';
 import { installShortcuts } from './shortcuts.ts';
 import { registerTasks } from './ipc/tasks.ts';
 import { registerProjects } from './ipc/projects.ts';
@@ -40,7 +42,7 @@ import type { ProjectEntry } from './store.ts';
 // What start takes (below).
 interface Options {
   userData?: string; project?: string; projectsHome?: string; mcpPort?: number; signinHosts?: string[];
-  appDevTools?: boolean; agents?: Agent[];
+  appDevTools?: boolean; agents?: Agent[]; installed?: string;
   agent?: { name?: string; command: string; args?: string[]; resume?: (sessionId: string) => string[]; shell?: Agent['shell']; voice?: Agent['voice']; conversation?: Agent['conversation'] };
 }
 
@@ -64,6 +66,8 @@ const AGENT_PACKAGES = app.isPackaged ? process.resourcesPath : path.join(import
 //              asking (KULISA_AGENT, the tests); resume(sessionId) gives the arguments that continue a session.
 //              Default: the human chooses from agents (agents/) per task, in the window.
 //   agents     the agents to choose from, instead of agents/index.ts's (tests)
+//   installed  the app archive to watch for a new version installed on disk (updates.ts); default: a packaged
+//              Kulisa's own on Linux, none otherwise (tests)
 //   mcpPort    port of the MCP server (default 4450)
 //   signinHosts  extra sign-in hosts (sign-in pause, tab restore)
 function start(options: Options = {}) {
@@ -77,6 +81,11 @@ function start(options: Options = {}) {
   app.userAgentFallback = app.userAgentFallback.replace(/ Electron\/\S+/, '');
   const userData = options.userData || path.join(app.getPath('appData'), 'Kulisa');
   app.setPath('userData', userData);
+  const { previousRunQuit } = startLog(userData, app.isPackaged);
+  log.info(`[kulisa] start ${environment()}, data ${userData}`);
+  // A crash of the main process writes no line: Crashpad keeps its minidump in crashDumps (Crashpad prunes them itself:
+  // 90 days, 128 MB), to ask a user for. No server (docs/window.md, The log).
+  crashReporter.start({ uploadToServer: false });
   // One Kulisa per data folder (Electron's lock is the userData's; KULISA_DATA for another): a second one on the same
   // data ran beside the first, without its MCP server, and the two wrote over each other's saved tabs, cookies and
   // tasks (2026-10-12). It shows the first one's window and goes, before anything is read or written.
@@ -85,6 +94,9 @@ function start(options: Options = {}) {
     app.quit();
     return new Promise<never>(() => {});
   }
+  // The run before is known to have crashed (or been killed, or the computer went down) by its log not saying it quit
+  // (log.ts, quitSaid). Said once the lock is ours: a second Kulisa on the same data reads the first one's log, still open.
+  if (previousRunQuit === false) log.warn(`[kulisa] the previous run did not quit by itself (a crash, a kill, or the computer went down); a crash leaves its dump in ${app.getPath('crashDumps')}`);
   const store = new Store(userData);
   // The windows open at the start, each with its tasks' tabs and the one it shows: those open last (KULISA_PROJECT's
   // task in the first: ready, below); one with none at first start.
@@ -265,6 +277,7 @@ function start(options: Options = {}) {
   // The windows' open tasks (open-tasks.ts): one change to them after another, in all windows.
   const tasks = openTasks(shell, { appDevTools });
   const { serial, newWindow, loadProject, unloadIdle, openProject } = tasks;
+  updateNotices(shell, options.installed);
   // The windows' handles (ipc/): each message acts in the window it comes from.
   const ipc: Ipc = { shell, at, owner, asker, serial, tasks };
   registerTasks(ipc);
@@ -274,8 +287,13 @@ function start(options: Options = {}) {
   registerPanes(ipc);
   registerWindow(ipc);
   const ready = app.whenReady().then(async () => {
+    // Whether the OS keeps Kulisa's key (session cookies, test passwords: profiles.md); on Linux which keyring, basic_text
+    // being none (a fixed key: Electron's safe-storage.md). The classic Linux bug report, with nothing to read until now.
+    const backend = process.platform === 'linux' ? safeStorage.getSelectedStorageBackend() : null;
+    const encryption = `[kulisa] encryption ${safeStorage.isEncryptionAvailable() ? 'available' : 'not available'}${backend ? ` (${backend})` : ''}`;
+    if (safeStorage.isEncryptionAvailable() && backend !== 'basic_text') log.info(encryption); else log.warn(`${encryption}: no keyring found`);
     // macOS keeps a menu bar for the app: Electron's default one would reload Kulisa's own page with ⌘R. Its own
-    // menu: Settings… (⌘,, where Mac apps have it: the author, 2026-10-16), Quit, Hide (the app's), Copy and Paste
+    // menu: About Kulisa (Settings at its About page, not Electron's panel), Settings… (⌘,, where Mac apps have it: the author, 2026-10-16), Quit, Hide (the app's), Copy and Paste
     // (the Edit menu's roles: ⌘C, ⌘V in fields and the terminal), the windows. Kulisa's keys are taken before it
     // (onKey). Elsewhere the windows have no menu (window.ts). Its app menu as Electron's own, Settings… added
     // (tutorial/application-menu.md, 44.5.1).
@@ -283,7 +301,7 @@ function start(options: Options = {}) {
       // At the project of the tasks' window last in front (shell.front), Settings' own in front too.
       const settings = () => shell.openSettings({ section: 'projects', id: null });
       Menu.setApplicationMenu(Menu.buildFromTemplate([
-        { role: 'appMenu', submenu: [{ role: 'about' }, { type: 'separator' }, { label: 'Settings…', accelerator: 'Command+,', click: settings },
+        { role: 'appMenu', submenu: [{ label: 'About Kulisa', click: () => shell.openSettings({ section: 'about', id: null }) }, { type: 'separator' }, { label: 'Settings…', accelerator: 'Command+,', click: settings },
           { type: 'separator' }, { role: 'services' }, { type: 'separator' }, { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' },
           { type: 'separator' }, { label: 'Quit Kulisa', accelerator: 'Command+Q', click: () => void tasks.serial(() => tasks.quit(shell.front() ?? first())) }] },
         { role: 'editMenu' }, { role: 'windowMenu' }]));
@@ -376,7 +394,21 @@ function start(options: Options = {}) {
   // their tabs open again at the next start.
   app.on('before-quit', async (e) => {
     if (quitting) return;
-    e.preventDefault(); quitting = true;
+    log.info('[kulisa] quitting');
+    e.preventDefault();
+    await shutdown();
+    app.quit();
+  });
+  // Into a new version (updates.ts): saved as at quitting, then Squirrel's apply (quitAndInstall, which closes the
+  // windows before before-quit: Electron's api/auto-updater.md; quitting is set already, so they close without a
+  // question) or the one on disk (relaunch: the same path, its files replaced).
+  shell.restart = async (apply) => {
+    await shutdown();
+    if (apply) apply();
+    else { app.relaunch(); app.quit(); }
+  };
+  async function shutdown() {
+    quitting = true;
     for (const w of shell.windows) w.pushState();
     for (const task of allTasks()) if (task !== task.window?.task && task.loaded) task.list.saveTabs();
     shell.saveWindows();
@@ -389,8 +421,7 @@ function start(options: Options = {}) {
       await p.disconnect();
     }
     for (const task of allTasks()) for (const t of task.terminals.values()) if (t.pty) stopTerminal(t.pty);
-    app.quit();
-  });
+  }
   process.on('SIGINT', () => app.quit());
   process.on('SIGTERM', () => app.quit());
   app.on('window-all-closed', () => app.quit());

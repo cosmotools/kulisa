@@ -3,6 +3,7 @@
 import { app, screen } from 'electron';
 import { Project, askDeleteProject, deleteProjectData } from './projects.ts';
 import { AppWindow } from './window.ts';
+import { log } from './log.ts';
 import { refused } from '../shared/result.ts';
 import type { Shell } from './shell.ts';
 import type { ProjectEntry } from './store.ts';
@@ -25,7 +26,7 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
   // Opening, showing, creating, moving and closing run one after another, in all windows.
   let queue: Promise<unknown> = Promise.resolve();
   const serial = <T>(fn: () => T | Promise<T>): Promise<T> => { const r = queue.then(fn); queue = r.catch(() => {}); return r; };
-  const newWindow = (place: Place) => { const w = new AppWindow(shell, place, { appDevTools }); shell.windows.push(w); return w; };
+  const newWindow = (place: Place) => { const w = new AppWindow(shell, place, { appDevTools }); shell.windows.push(w); log.info(`[window] new wc=${w.win.webContents.id}`); return w; };
   const loadProject = (p: ProjectEntry) => shell.open.get(p.id) || shell.open.set(p.id, new Project(shell, p)).get(p.id)!;
   // A project with no open task left is let go: nothing of it runs.
   const unloadIdle = () => { for (const [id, p] of shell.open) if (!p.open().length) shell.open.delete(id); };
@@ -33,6 +34,7 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
   // Task n of project p shown (the bar's +), opened again if it was closed; none: a new task of it. In the window it
   // is open in, brought to the front; a closed or new one at the end of window w's bar.
   async function openProject(p: ProjectEntry, w: AppWindow, n?: number | null): Promise<Result<{ n: number; key: string }>> {
+    log.info(`[task] open ${p.id}${n != null ? `/${n}` : ''} wc=${w.win.webContents.id}`);
     const project = loadProject(p);
     const task = n != null && project.tasks.get(n);
     if (!task) {
@@ -54,6 +56,7 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
   // another (as a browser's). A project with no open task left is let go.
   async function closeTasks(w: AppWindow, tasks: Task[], { asked = false, window = false } = {}): Promise<Result<{ keys: string[] }>> {
     if (!asked && !await askClosing(w, tasks, { window })) return { error: 'the human said no' };
+    log.info(`[task] closing ${tasks.map((t) => t.key).join(' ')}${window ? ' (window)' : ''} wc=${w.win.webContents.id}`);
     for (const task of [...tasks.filter((t) => t !== w.current), ...tasks.filter((t) => t === w.current)]) {
       const win = task.window;
       if (!win) continue;
@@ -71,22 +74,19 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
   // agents are still working; or before quitting (quit), when the tasks come back at the next start: asked only
   // when that would stop a working agent. True: go on.
   function askClosing(w: AppWindow | null, tasks: Task[], { quit = false, window = false } = {}) {
-    const projects = new Set(tasks.map((t) => t.project));
-    const named = (task: Task) => (projects.size > 1 ? `${task.project.name}: ${task.name}` : task.name);
-    const working = tasks.filter((task) => task.working).map(named);
-    const busy = working.length ? `${working.length > 1 ? 'Agents are' : 'An agent is'} still working (${working.join(', ')}): ` : '';
-    const it = working.length > 1 ? 'them' : 'it';
+    const projects = new Set(tasks.map((t) => t.project)), named = nameAmong(tasks);
+    const working = tasks.some((task) => task.working);
     if (quit) {
-      return !working.length || shell.ask({ message: 'Quit Kulisa?', ok: 'Quit',
-        detail: `${busy}quitting stops ${it}. The windows, their tasks and conversations come back at the next start.` }, w);
+      return !working || shell.ask({ message: 'Quit Kulisa?', ok: 'Quit',
+        detail: `${stillWorking(tasks, 'quitting')}The windows, their tasks and conversations come back at the next start.` }, w);
     }
     if (!window) {
       const what = tasks.length === 1 ? `the task ${tasks[0]!.name}` : `the ${tasks.length} tasks of ${[...projects].map((p) => p.name).join(', ')}`;
-      return !working.length || shell.ask({ message: `Close ${what}?`, ok: 'Close',
-        detail: `${busy}closing stops ${it}. ${tasks.length === 1 ? 'Its conversation, code and profiles stay' : 'Their conversations, code and profiles stay'}: open ${tasks.length === 1 ? 'it' : 'them'} again from the bar's +.` }, w);
+      return !working || shell.ask({ message: `Close ${what}?`, ok: 'Close',
+        detail: `${stillWorking(tasks, 'closing')}${tasks.length === 1 ? 'Its conversation, code and profiles stay' : 'Their conversations, code and profiles stay'}: open ${tasks.length === 1 ? 'it' : 'them'} again from the bar's +.` }, w);
     }
     return shell.ask({ message: 'Close the window?', ok: 'Close',
-      detail: `Its tasks close: ${tasks.map(named).join(', ')}. ${busy ? `${busy}closing stops ${it}. ` : ''}`
+      detail: `Its tasks close: ${tasks.map(named).join(', ')}. ${stillWorking(tasks, 'closing')}`
         + 'Their conversations, code and profiles stay: open them again from the bar\'s +.' }, w);
   }
   // A task into another window (to, its tab at index; none: a window of its own next to its window, or at the
@@ -173,11 +173,12 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
   // Quitting Kulisa (the last window's ×, ☰ → Exit, ⌘Q on macOS): every window and task comes back at the next start,
   // so it asks only when an agent works; w: the window to ask in, shown first when hidden (macOS).
   async function quit(w: AppWindow | null) {
+    log.info('[kulisa] quit asked');
     const tasks = allTasks().filter((t) => t.window);
     if (w && !w.win.isVisible() && tasks.some((t) => t.working)) w.focus();
     if (await askClosing(w, tasks, { quit: true })) app.quit();
   }
-  function dropWindow(w: AppWindow) { shell.windows.splice(shell.windows.indexOf(w), 1); w.destroy(); }
+  function dropWindow(w: AppWindow) { log.info(`[window] dropped wc=${w.win.webContents.id}`); shell.windows.splice(shell.windows.indexOf(w), 1); w.destroy(); }
   // A new task of a project (the bar's +, New Task: projects.ts), with its default agent, at the end of window w's
   // bar, then shown. Without git it would work in the folder another open task works in: the human is told first.
   async function createTask(project: Project | null | undefined, w: AppWindow | null): Promise<Result<{ n: number; key: string }>> {
@@ -188,7 +189,8 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
       return { error: 'the human said no' };
     }
     const task = await project.createTask();
-    if (refused(task)) return task;
+    if (refused(task)) { log.info(`[task] not created in ${project.id}: ${task.error}`); return task; }
+    log.info(`[task] created ${task.key} in ${task.folder} wc=${w.win.webContents.id}`);
     w.add(task);
     await showTask(task);
     return { n: task.n, key: task.key };
@@ -213,6 +215,7 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
   async function deleteTask(task: Task): Promise<Result<{ n: number }>> {
     const project = task.project, w = task.window;
     if (!await project.askDeleteTask(task)) return { error: 'the human said no' };
+    log.info(`[task] deleting ${task.key}`);
     if (w) await w.leave(task);
     await project.deleteTask(task);
     if (w) {
@@ -252,3 +255,16 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
   return { serial, newWindow, loadProject, unloadIdle, openTasksOf, openProject, closeTasks, askClosing, moveTask, moveAll, dropTask, dragOut, quit, createTask, showTask, closeTask, deleteTask, deleteMerged, deleteProject };
 }
 export type OpenTasks = ReturnType<typeof openTasks>;
+
+// A task's name among tasks: with its project's when they are of several.
+const nameAmong = (tasks: Task[]) => {
+  const several = new Set(tasks.map((t) => t.project)).size > 1;
+  return (task: Task) => (several ? `${task.project.name}: ${task.name}` : task.name);
+};
+// The sentence of a question before doing (closing, quitting, restarting) what stops the agents still working among
+// tasks, ending in a space; nothing when none works.
+export function stillWorking(tasks: Task[], doing: string) {
+  const working = tasks.filter((task) => task.working).map(nameAmong(tasks));
+  if (!working.length) return '';
+  return `${working.length > 1 ? 'Agents are' : 'An agent is'} still working (${working.join(', ')}): ${doing} stops ${working.length > 1 ? 'them' : 'it'}. `;
+}

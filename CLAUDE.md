@@ -102,7 +102,8 @@ unasked. This paragraph is removed when the rewrite is finished.
   as a browser's tabs (☰ → Tasks bar; `TaskBar.vue`, `#taskbar`). Not "taskbar", the OS's. It was "the projects' bar" (`ProjectBar.vue`)
   until 2026-10-11: its tabs are tasks; earlier commits say so.
 - **Terminology: "Settings"**: the window behind the title bar's gear (a dialog until 2026-10-16), as JetBrains' Settings: a tree of Projects (every
-  project, each its page), Agents (the agents, their accounts) and Profiles (every profile, who it is). It was "the projects' manager" alone until 2026-10-11,
+  project, each its page), Agents (the agents, their accounts) and Profiles (every profile, who it is), and under them
+  the Log and About pages (since 2026-10-18; ☰ → Report a Problem…, ☰ → About Kulisa). It was "the projects' manager" alone until 2026-10-11,
   then tabs; a project's page is still the manager in code (`settings/ProjectEditor.vue`; its window `settings-window.ts`,
   `openSettings()`). New Project is steps (Code, Agents, Profiles; `newproject/`): the welcome's, and a dialog of a
   tasks' window.
@@ -216,6 +217,11 @@ unasked. This paragraph is removed when the rewrite is finished.
     when it goes, and its removal is tested.
   - The same in development: tests write only in their temp folder; screenshots, logs and scripts made while working
     go into the session's scratch folder and are deleted when the task is done.
+- **Every action of the core is logged** (`src/main/log.ts`; docs/window.md, The log; since 2026-10-18): a window's
+  channel (`handle()`, `on()`), an agent's tool (`registerTool`), a key, a hook, a task or a window made or closed, a
+  terminal started: through those, by itself. A line elsewhere (`log.info('[part] what')`) says what happened and who
+  asked, never what was typed or a secret (`summary`). The log is where a user's bug is read (by the user too: Settings →
+  Log, with the ways to send it): when a new kind of thing can happen, make sure it leaves a line.
 - **Every behavior change comes with a test.** **Read `docs/testing.md` before writing one**: the two layers (unit
   tests in plain Node, e2e in the real app), the groups of e2e files, and how a test is written (wait for a state,
   never for time).
@@ -250,8 +256,8 @@ unasked. This paragraph is removed when the rewrite is finished.
     request, merged by the author** (2026-10-12; Claude Code's auto mode refuses a local merge too, "Merge Without
     Review"): when the author asks for the commit, push the branch (`git push -u origin <name>`) and open its pull
     request into `develop` (GitHub's API, below), its body what the change does and its cost line (Working with the
-    author). `develop` is protected as `main` is (Releases), its required check `test (ubuntu-latest)`: tell the
-    author when it is green. Never merge into `develop` or `main` here, nor push them.
+    author). `develop` is protected as `main` is (Releases), its required checks `test (ubuntu-latest)`,
+    `test (macos-latest)` and `dependencies`: tell the author when it is green. Never merge into `develop` or `main` here, nor push them.
   - `npm test` runs from several worktrees at once: each checkout has its own test folder and test site
     (`test/start.ts`). The author's Kulisa runs one checkout at a time: the `run-kulisa` skill, from the worktree
     while its work is shown, from the repository's folder (`develop`) once it is merged.
@@ -280,17 +286,19 @@ unasked. This paragraph is removed when the rewrite is finished.
 
 - **`main` is protected on GitHub** (a ruleset, no one bypassing it): no push, no force push; only a pull request
   from `develop`, merged with a merge commit (not squash or rebase: `develop` would part from `main`), by the author,
-  once its required checks pass: `test (ubuntu-latest)` and `version` (`.github/workflows/test.yml`). Never push to
-  `main`, merge into it, or merge `main` back into `develop`. Supporting an OS makes its tests required: macOS's
-  (`test (macos-latest)`) once the macOS support for development is reached (the author, 2026-10-16; ROADMAP, "macOS
-  and Windows are untested"), on `develop` and `main`; the author adds it to the rulesets, the session says when it is time.
+  once its required checks pass: `test (ubuntu-latest)`, `test (macos-latest)`, `dependencies` and `version`
+  (`.github/workflows/test.yml`). Never push to `main`, merge into it, or merge `main` back into `develop`.
+  Supporting an OS makes its tests required, on `develop` and `main` (macOS's since 2026-10-18; Windows's once it
+  passes: ROADMAP, "macOS and Windows are untested"); the author adds it to the rulesets, the session says when it is
+  time.
 - **The version** in `package.json` is the truth; the app shows it (☰) and the updater compares it. Each pull
   request into `main` raises it (the `version` check refuses one that does not; once, the first release, the same
   number passes while no release of it exists). `npm version <patch|minor> --no-git-tag-version`: no tag by hand,
   the CI makes it. While 0.x: `patch` by default, `minor` when the author says so or for a large change (say which).
 - **A merge into `main` is published by itself** (the author, 2026-10-13: no users yet, no manual step):
   `.github/workflows/release.yml` makes a draft `v<version>` at that commit, its notes the pull request's text;
-  builds the installers on Ubuntu (`.deb`, `.rpm`) and Windows (Squirrel's `.exe`) into it; installs the `.deb` and
+  builds the installers on Ubuntu (`.deb`, `.rpm`) and Windows (Squirrel's `.exe`) into it, each with its signed
+  provenance (`actions/attest`; docs/window.md); installs the `.deb` and
   starts it; then publishes it, the tag made then. update.electronjs.org serves it and installed copies update
   (docs/window.md, "The app icon, installers and updates"); kulisa.app is built again, its download buttons and
   its guide then the release's (`SITE_DEPLOY_TOKEN`, a secret: a token that may only run `kulisa-site`'s workflows;

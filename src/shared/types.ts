@@ -71,11 +71,16 @@ export interface ProjectSettings extends ProjectChoices {
 // Kulisa's keyboard shortcuts (main/keys.ts), as this OS shows them.
 export interface Shortcut { id: string; group: string; label: string; keys: string[]; hold?: boolean } // hold: a key held alone, the human may change it
 // A question from the main process (shell.ask) or the window.
-export interface Question { message: string; detail?: string; ok?: string; other?: string; danger?: boolean }
+export interface Question { message: string; detail?: string; ok?: string; other?: string; cancel?: string; danger?: boolean }
 // An agent or account in a list to choose from or install (main/ipc/agents.ts; renderer's lib/agents.ts).
 export interface AgentInfo {
   id: string; name: string; maker?: string; needs?: string; site?: string; install?: string | null; installed?: boolean;
   account?: string | null; agent?: string; path?: string | null; onPath?: boolean | null; version?: string | null;
 }
+// About Kulisa (settings/AboutPage.vue): the versions and the folders Kulisa writes in, each with whether it is there yet.
+export type AboutFolder = 'data' | 'projects' | 'program';
+export interface AboutInfo { version: string; electron: string; chrome: string; folders: { id: AboutFolder; path: string; exists: boolean }[] }
+// The log as the Log page reads it (main/log.ts, readLog): the file's text and size, its limit, when the old one is from.
+export interface LogInfo { text: string; size: number; max: number; old: string | null }
 // A task's dictation (Task.voice): its agent has one, and whether it records; null: none.
 export interface Voice { recording: boolean }

@@ -4,7 +4,6 @@ import { reactive } from 'vue';
 import type { ProjectsInfo, Shortcut } from '../../shared/types';
 
 const query = new URLSearchParams(location.search);
-export const version: string = query.get('version') || '';
 // The projects open in this window, before the first paint; later the main process sends them (store.ts).
 export const initialProjects: ProjectsInfo | null = query.get('projects') ? JSON.parse(query.get('projects')!) : null;
 // Kulisa's keyboard shortcuts (main/keys.ts), as this OS shows them. keyText(id): a command's first key, for menus
@@ -21,7 +20,6 @@ export const avatarSrc = (a: string): string => `avatars/${a}.svg`;
 export const LINKS = [
   { label: 'Documentation', href: 'https://kulisa.app/docs', icon: 'i-docs' },
   { label: 'GitHub', href: 'https://github.com/cosmotools/kulisa', icon: 'i-github' },
-  { label: 'Report an issue', href: 'https://github.com/cosmotools/kulisa/issues', icon: 'i-bug' },
 ];
 
 export const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? '' : 's'}`;

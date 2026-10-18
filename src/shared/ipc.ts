@@ -4,7 +4,7 @@
 // (the tests read some).
 import type { Result } from './result.ts';
 import type {
-  AccountsInfo, AgentInfo, ClosedProfile, LanguageInfo, NewProjectSetup, Profile, ProjectAgent, ProjectChoices, ProjectProfile, ProjectRepo,
+  AboutFolder, AboutInfo, AccountsInfo, AgentInfo, ClosedProfile, LanguageInfo, LogInfo, NewProjectSetup, Profile, ProjectAgent, ProjectChoices, ProjectProfile, ProjectRepo,
   ProjectSettings, ProjectsInfo, Question, SettingsProfile, Shortcut, SignedIn, Terminals, Voice,
 } from './types.ts';
 
@@ -18,8 +18,9 @@ export type TerminalContents = Record<string, { data: string; cols: number; rows
 type Grid = Record<string, Partial<{ x: number; y: number; width: number; height: number }> & { shown?: boolean }>;
 export type Theme = 'dark' | 'light' | 'system';
 export type Bar = 'top' | 'bottom';
-// Where Settings opens (its window: main/settings-window.ts): a project's page (none: the shown task's), a profile's.
-export type SettingsAt = { section: 'projects' | 'profiles'; id?: string | null };
+// Where Settings opens (its window: main/settings-window.ts): a project's page (none: the shown task's), a profile's, the
+// log (☰ → Report a Problem…), About (☰ → About Kulisa; macOS's app menu).
+export type SettingsAt = { section: 'projects' | 'profiles' | 'log' | 'about'; id?: string | null };
 // A project's code as its manager shows it (projects.ts, reposInfo).
 type Repos = { repos: ProjectRepo[]; former?: string | null };
 type ProjectAgents = { agents: ProjectAgent[] };
@@ -108,6 +109,14 @@ export interface Invoke {
   'tab:devtools': I<[OnTab]>;
   'tab:zoom': I<[OnTab & { dir: number }]>;
   'zoom:get': I<[], number>;
+  'about:get': I<[], AboutInfo>;
+  'about:show-folder': I<[id: AboutFolder]>;
+  // The Log page (window.md, The log): the file whole, then followed (log:lines); saved as a file to attach anywhere
+  // (null: not saved); its folder shown; a new issue on GitHub with the environment filled in.
+  'log:get': I<[], LogInfo>;
+  'log:save': I<[], Result<{ file: string | null }>>;
+  'log:show-folder': I<[]>;
+  'log:report': I<[]>;
   'zoom:ui': I<[dir: number]>;
   'language:get': I<[], LanguageInfo>;
   'language:set': I<[code: string], Result<{ language: string }>>;
@@ -166,6 +175,7 @@ export interface Events {
   'settings:show': SettingsAt;
   'settings:closing': void; // asked to close (its ×): its page saves, then closes it
   'settings:changed': void; // the profiles changed elsewhere (a tasks' window, the agent): its lists read again
+  'log:lines': { text: string } | { reset: true }; // what the log got since it was read; turned over: read it again
   'window:blur': void; // a tasks' window left (another window, another app): its menus close (lib/cover.ts)
 }
 

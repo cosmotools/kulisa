@@ -26,12 +26,16 @@ Download Kulisa from its [latest release](https://github.com/cosmotools/kulisa/r
 
 - **Windows:** `Kulisa-<version>.Setup.exe`. It is not signed yet, so Windows warns about it: More info → Run anyway.
   It installs for you alone, with no questions, and starts. From then on it updates itself: a new version is
-  downloaded in the background and starts the next time you start Kulisa.
+  downloaded in the background; Kulisa offers to restart into it, or it starts the next time you start Kulisa.
 - **Linux:** the `.deb` for Ubuntu and Debian (`sudo apt install ./kulisa_<version>_amd64.deb`), the `.rpm` for
   Fedora. Kulisa is then in your apps. On Ubuntu and Debian it then updates with the system: a new version comes in
-  Software Updater, or with `sudo apt update && sudo apt upgrade`. The `.rpm` does not update itself: install a new
+  Software Updater, or with `sudo apt update && sudo apt upgrade`; installed while Kulisa is open, it offers to restart
+  (everything comes back as it was), or starts next time. The `.rpm` does not update itself: install a new
   version the same way.
 - **macOS:** to come.
+
+Every installer is built by GitHub from Kulisa's published code, and GitHub keeps a signed record of it. To check a
+file you downloaded, with GitHub's command-line tool: `gh attestation verify <file> -R cosmotools/kulisa`.
 
 Kulisa is tested on Linux (Ubuntu) and on macOS (by its developers, there is no installer for it yet); on Windows it is
 newer and less tried.
@@ -49,7 +53,7 @@ More tasks: **+** in the bar at the bottom, then **+** in your project's column.
 
 - **The title bar**: the Kulisa logo in the shown project's color (not on a Mac, where Kulisa's icon is in the Dock),
   **Settings** (the gear; not at the very first start, while there is nothing to set yet), and **☰**, the window's menu: zoom, theme, where the tasks' bar is, language, Arrange
-  panels, Keyboard Shortcuts, links, Exit. On a Mac there is no Exit: **⌘Q** quits Kulisa, and closing the last
+  panels, Keyboard Shortcuts, links, About Kulisa, Exit. On a Mac there is no Exit: **⌘Q** quits Kulisa, and closing the last
   window only hides it, while your agents go on working; click Kulisa's icon in the Dock to bring it back.
 - **Settings** (on a Mac also ⌘, or Kulisa → Settings… in the menu bar) opens in a window of its own, as in other desktop apps: set what you need and close it (**Esc** or its
   ×; what you typed is saved as you go). You can also leave it open and go on working in your task windows: it stays
@@ -316,16 +320,39 @@ In the terminal every other key is the agent's.
 
 ## Where Kulisa keeps things
 
+**☰ → About Kulisa** (on a Mac also Kulisa → About Kulisa in the menu bar) opens Settings at its **About** page: Kulisa's version and the exact
+folders on your computer: the data folder, the projects' folder and the program's, each with a button that opens it in
+your file manager, its path there to copy. Look there rather than guess: where the folders are depends on your OS and
+its settings. Usually:
+
 - Your projects' folders hold only your code: Kulisa writes nothing there (except the first commit of a project it
   made).
 - Tasks' copies of the code are next to the project's folder (`myshop@task-2`), or in the KulisaProjects folder in your
   home folder (`C:\Users\<you>\KulisaProjects` on Windows, `/Users/<you>/KulisaProjects` on macOS, `/home/<you>/KulisaProjects` on Linux) for a
   project of several repositories, as `<project>@task-<n>`. They go when the task is deleted. New projects' folders
   are made there too.
-- Profiles, sign-ins, accounts and settings are in Kulisa's data folder: `~/.config/Kulisa` on Linux,
-  `~/Library/Application Support/Kulisa` on macOS, `%APPDATA%\Kulisa` on Windows. Session cookies and test passwords
+- Profiles, sign-ins, accounts and settings are in Kulisa's data folder: `~/.config/Kulisa` on Linux (or under
+  `$XDG_CONFIG_HOME` when that is set), `~/Library/Application Support/Kulisa` on macOS, `%APPDATA%\Kulisa` on
+  Windows. Session cookies and test passwords
   are encrypted with your OS's keyring. **Show Data Folder** in a task tab's right-click menu, under the project's name, opens that project's.
 - Deleting a task, a profile or a project removes what Kulisa made for it.
+- Kulisa keeps a log of what it did (the buttons and tools used, tasks opened and closed, errors), never what you
+  typed or your passwords: the `logs` folder in the data folder, two files of 1 MB at most. Read it in **Settings →
+  Log** (below, Reporting a problem).
+
+### Reporting a problem
+
+When something goes wrong, **☰ → Report a Problem…** opens Settings at its **Log** page: what Kulisa did, line by
+line, as it happens (**Follow** keeps the end in view). **Errors** shows the warnings and errors alone; **Agent**,
+**Human** and **Tasks** what the agent did, what you did, and tasks and windows opened and closed; the field beside
+them narrows it further (a task's name, a word). The log holds your project and task folders, profile names and the
+pages' addresses without their queries; never what you typed, passwords, tokens or cookies. Then pass it on any way
+you like:
+
+- **Report… → On GitHub…** opens a new issue in your browser with your Kulisa's version and OS filled in; attach the
+  log to it (**Save As…** first). The issue is public: look through the log before attaching it.
+- **Save As…** saves the log as a file to attach to a message or a chat; **Copy All** copies it; **Open Folder** shows
+  the file in your file manager.
 
 ### Reinstalling and removing Kulisa
 
@@ -334,7 +361,8 @@ on macOS) removes the program only (on Ubuntu and Debian, `apt purge kulisa` als
 from). Everything you made stays where it is listed above, so installing Kulisa again
 brings it all back: your projects, tasks, profiles with their sign-ins, agents' accounts and settings.
 
-To remove everything, do it before uninstalling, in Kulisa, so that it cleans up after itself: delete every project
+To remove everything, do it before uninstalling, in Kulisa, so that it cleans up after itself. First note the folders
+in **☰ → About Kulisa** (Settings → About): once the program is gone, nothing shows them. Then delete every project
 (**⋯ → Delete Project…** on its page: its tasks go with it, with their copies of the code and their branches),
 every profile (Settings → Profiles) and every agent's account (Settings → Agents: − on the account, which signs it
 out). Then uninstall the program and delete the data folder (above). What remains and is yours to keep or remove:

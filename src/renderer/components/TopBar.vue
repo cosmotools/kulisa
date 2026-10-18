@@ -11,7 +11,7 @@ import ChoiceRow from './menu/ChoiceRow.vue';
 import LanguageRow from './menu/LanguageRow.vue';
 import ArrangeRow from './menu/ArrangeRow.vue';
 import { store } from '../lib/store';
-import { keyText, LINKS, version } from '../lib/common';
+import { keyText, LINKS } from '../lib/common';
 import type { MenuItem } from '../lib/menu';
 import type { Bar, Theme } from '../../shared/ipc';
 import { dialog, openSettings } from '../lib/dialogs';
@@ -29,8 +29,9 @@ const windowMenu = (): MenuItem[] => [
     '-', { heading: 'Arrange panels', icon: 'i-arrange' }, { component: ArrangeRow }, '-',
     { label: 'Keyboard Shortcuts', icon: 'i-keyboard', keys: keyText('shortcuts'), run: async () => (await dialog('shortcuts')).showShortcuts() },
     '-', ...LINKS.map((l) => ({ label: l.label, icon: l.icon, run: () => open(l.href) })),
-    ...(mac ? [] : ['-' as const, { label: 'Exit', icon: 'i-exit', run: () => kulisa.invoke('app:quit') }]),
-    { note: `Kulisa ${version}` }];
+    { label: 'Report a Problem…', icon: 'i-bug', title: 'The log of what Kulisa did, and how to send it', run: () => openSettings('log') },
+    { label: 'About Kulisa', icon: 'i-logo', run: () => openSettings('about') },
+    ...(mac ? [] : ['-' as const, { label: 'Exit', icon: 'i-exit', run: () => kulisa.invoke('app:quit') }])];
 </script>
 
 <template>

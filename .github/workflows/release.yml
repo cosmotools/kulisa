@@ -42,6 +42,11 @@ jobs:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
+    # id-token and attestations for the provenance below; contents as the workflow's (a job's permissions replace them).
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -54,6 +59,16 @@ jobs:
       - run: npm run publish
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Each file's provenance, signed (Sigstore) and kept by GitHub: that this workflow built it from this commit, for
+      # whoever asks where an installer came from (docs/window.md, "The app icon, installers and updates"). The
+      # updater's .nupkg too. Not a release asset: `gh attestation verify <file> -R cosmotools/kulisa` reads it.
+      - uses: actions/attest@v4
+        with:
+          subject-path: |
+            out/make/**/*.deb
+            out/make/**/*.rpm
+            out/make/**/*.exe
+            out/make/**/*.nupkg
       # The app as a user gets it, installed and started: the tests run it from source, and what breaks only when it is
       # packaged (a path in the asar, a native module) would reach every installed copy by its updater; one that fails
       # at start could not update itself again. Started: its MCP server listens, nothing uncaught, still running.

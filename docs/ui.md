@@ -86,7 +86,7 @@ Each icon is drawn once, as a `<symbol id="i-…">` in the sprite (`Sprite.vue`,
 | `i-settings` | Settings in the title bar (Lucide's settings) |
 | `i-projects` | ☰'s Tasks bar row (Lucide's folder-open) |
 | `i-logo` | the app icon with its curtain in `currentColor`: the title bar's (`--project`; not on macOS, whose apps show their icon in the Dock), and a project's label in the tasks' bar (its `--color`). The folds are a shadow over the color, one for every color: a `<use>` takes the sprite's gradient, not one of its own |
-| `i-docs`, `i-github`, `i-bug` | the links (Documentation, GitHub, Report an issue), rows of ☰ (`data-icon` on each link; Lucide's book-open, github, bug) |
+| `i-docs`, `i-github`, `i-bug` | the links (Documentation, GitHub) and Report a Problem…, rows of ☰ (`data-icon` on each link; Lucide's book-open, github, bug); `i-docs` also the Log node of Settings' tree |
 | `i-menu` | ☰, the window's menu |
 | `i-more` | ⋮, a pane's menu |
 | `i-back`, `i-forward`, `i-reload` | a pane's toolbar (Chrome's) |
@@ -111,6 +111,10 @@ are drawn in place; the profiles' pictures are files of their own
 every other `<svg>` uses the sprite.
 
 ## Components (`components.css`)
+
+What is `hidden` is off the screen, whatever `display` its component sets (`[hidden] { display: none !important }`,
+the browser's own `until-found` apart): a component's rule beat the browser's `[hidden]`, and the title bar's gear stayed
+on screen at the first start (2026-10-17). Tests check what is on screen (`checkVisibility()`), not the attribute.
 
 ### Buttons
 
@@ -173,6 +177,8 @@ The window's controls are Reka UI's, in this look (CLAUDE.md, Window UI):
   `i-down` (a profile's picture).
 - `.choices`: icon buttons (`.icon`) to choose one of, the chosen one ringed in `--accent`: a profile's pictures
   (Reka's `ToggleGroup`, one always chosen).
+- `.chips`: a row of `.chip`s to choose one of (Reka's `ToggleGroup`, one always chosen), the chosen one in `--chosen`
+  with the accent's edge: the log's preset filters (`settings/LogPage.vue`).
 - `.editable`: a value edited in place (Reka's `Editable`: a profile's name, who it is, its test login): text in a
   field's box (`.preview`), a click or Tab edits it; Enter or leaving saves, Shift+Enter is a new line where it has
   lines, Esc puts it back (and leaves the dialog open).
@@ -258,7 +264,8 @@ Every dialog is `Modal.vue`, Reka UI's Dialog (`reka-ui`) with the same parts:
   `received`; none with reduced motion), its progress under them; the accounts under them as `.radio` rows.
 - Questions before something that cannot be undone, before closing, or between two ways to go (a second button,
   `other`), are not new dialogs: `shell.ask` (main process) or `ask(q)` (`lib/ask.ts`) → `Ask.vue`, Reka's AlertDialog
-  in the same look: Cancel has the keyboard, Esc is Cancel, a click outside does nothing (it waits for an answer);
+  in the same look: Cancel (named by the question when the word is another: Later) has the keyboard, Esc is Cancel, a
+  click outside does nothing (it waits for an answer);
   `other` adds the second way's button before the main one.
 
 ### Menus

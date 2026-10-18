@@ -1,6 +1,9 @@
 /* Components: the parts the window is built of, each defined once (docs/ui.md). A part's own <style> places them and
    lays it out; it does not make its own buttons, icons, rows or dialogs. */
 *, *::before, *::after { box-sizing: border-box; }
+/* hidden hides, whatever display a component sets (its rule beats the browser's [hidden]: the title bar's gear stayed
+   on screen at the first start, 2026-10-17); until-found is the browser's own */
+[hidden]:not([hidden="until-found"]) { display: none !important; }
 /* Scrollbars: one for every part (the author, 2026-10-15: the OS's, with arrows, in menus, Settings and dialogs), a
    rounded thumb on no track, as JetBrains'. Chromium's own pseudo-elements: the standard scrollbar-color and
    scrollbar-width (which turn them off) left arrows at the ends. Where a part has none (a tabs' strip), its own
@@ -33,7 +36,7 @@ button.danger { background: var(--danger); border-color: var(--danger); color: v
 /* A profile's picture (avatars.ts): --avatar, its size where a place needs another */
 .avatar { width: var(--avatar, 16px); height: var(--avatar, 16px); flex: none; }
 /* Icon buttons to choose one of (.icon each; Reka's ToggleGroup): a profile's pictures; the chosen one ringed */
-.choices { display: flex; flex-wrap: wrap; gap: 2px; outline: none; &[hidden] { display: none; }
+.choices { display: flex; flex-wrap: wrap; gap: 2px; outline: none;
   :is([aria-pressed="true"], [aria-selected="true"]) { background: var(--island-hi); box-shadow: inset 0 0 0 2px var(--accent); }
   [data-highlighted] { background: var(--hover); } }
 /* A radio (Reka's RadioGroupItem, its RadioGroupIndicator the dot): the agent to start, a new project's code */
@@ -65,6 +68,10 @@ button.danger { background: var(--danger); border-color: var(--danger); color: v
   background: var(--island); white-space: nowrap; font-size: var(--font-small);
   > svg { --icon: 14px; width: var(--icon); height: var(--icon); flex: none; color: var(--text-dim); }
   > .name { min-width: 0; max-width: 14em; overflow: hidden; text-overflow: ellipsis; } }
+/* A row of chips to choose one of (Reka's ToggleGroup, one always chosen): the log's filters */
+.chips { display: flex; flex-wrap: wrap; gap: 4px; outline: none;
+  .chip { height: 24px; padding: 0 10px; background: var(--button); color: var(--text);
+    &[data-state="on"] { background: var(--chosen); border-color: var(--accent); color: var(--text-strong); } } }
 /* A tile: big, for the hand to find at once where nothing else is (an empty grid's agents and profiles), its icon or
    a profile's picture as large as two rows, a .name, a small line under it */
 .launcher { --icon: calc(var(--row) * 1.25); display: flex; flex-direction: column; align-items: center; justify-content: start;
@@ -109,7 +116,6 @@ button.danger { background: var(--danger); border-color: var(--danger); color: v
    reach the <use>s then. An icon hidden (hidden, which an <svg> does not get from the browser's own styles) is not
    shown. */
 .sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
-svg[hidden] { display: none; }
 svg:has(> use) { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.5;
   stroke-linecap: round; stroke-linejoin: round; }
 /* An icon button: the icon alone, square with rounded corners as JetBrains' toolbars, lit under the pointer. --icon:
@@ -220,8 +226,6 @@ svg:has(> use) { width: 16px; height: 16px; flex: none; fill: none; stroke: curr
   .field > .hint { grid-column: 2; margin: 0; overflow-wrap: anywhere; &:empty { display: none; } }
   /* A list's line when it has none ("No accounts yet.") */
   .empty { margin: var(--inset) 0; color: var(--text-dim); }
-  /* A field, a check or a row a dialog leaves out in one of its uses (hidden) */
-  :is(.field, .check, .row)[hidden] { display: none; }
   button:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 70%, transparent); outline-offset: 1px; }
 }
 
@@ -239,7 +243,6 @@ svg:has(> use) { width: 16px; height: 16px; flex: none; fill: none; stroke: curr
   [role="separator"] { border-top: 1px solid var(--line); margin: 6px var(--inset); }
   .heading { display: flex; align-items: center; gap: var(--inset); min-height: var(--row); padding: 0 var(--inset); color: var(--text-dim); }
   /* { note }: words under the rows, not one of them (☰'s version) */
-  .note { display: block; padding: 6px var(--inset) 2px; color: var(--text-muted); text-align: end; }
   .check { margin-inline-start: auto; color: var(--accent); }
 }
 

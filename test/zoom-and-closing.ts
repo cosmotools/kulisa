@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { assert, userData, pfile, savedTabs, panel, SITE, waitFor, who, menuRows, choose, manageProfiles, closeSettings, chooseProfile, setProfileField, menuOpen, taskMenu, viewOn, ctrl, near, closeMenu, plusMenu, closeBoard, PORT, MAC, sleep } from './helpers.ts';
 import type { Test } from './run.ts';
+import { SESSION_COOKIES_FILE } from '../src/main/store.ts';
 
 // Files of the sites' Cache API in a profile's folder, wherever Chromium's layout puts them (`WebStorage/<bucket>/CacheStorage/`).
 // A folder Chromium removes while it is read is not counted yet (NaN): asked again (GitHub's macOS runner, 2026-10-16).
@@ -174,6 +175,13 @@ export default (test: Test) => {
     await call('profile_close', { profile: 'cleo' });
     await call('profile_open', { profile: 'cleo' });
     assert.equal(await who(ctx, 'cleo'), 'Signed in as cleo');
+    // Its saved session cookies unreadable (another keyring key): the log says so (after a restart the profile would
+    // come back signed out; within one run Electron's session keeps them, so it is still signed in here).
+    await call('profile_close', { profile: 'cleo' });
+    fs.writeFileSync(path.join(cleoDir, SESSION_COOKIES_FILE), 'not what safeStorage wrote');
+    await call('profile_open', { profile: 'cleo' });
+    assert.equal(await who(ctx, 'cleo'), 'Signed in as cleo');
+    assert.match(fs.readFileSync(path.join(userData, 'logs', 'kulisa.log'), 'utf8'), /\[session-cookies\] .*: the saved session cookies cannot be read \(saved with another keyring key\?\): not put back/);
 
     // The agent removes it from the project: the human is asked; no keeps it, yes removes it (closed ones too); the
     // profile stays in Settings → Profiles.
@@ -273,6 +281,21 @@ export default (test: Test) => {
     await call('browser_type_login', { profile: 'tess', locator: "locator('#user')", field: 'login' });
     await call('browser_type_login', { profile: 'tess', locator: "locator('#pass')", field: 'password', submit: true });
     assert.equal(await who(ctx, 'tess'), 'Signed in as tess', "the human's pair");
+    // The log (window.md, The log): the agent's tool and the human's field are there, their passwords not.
+    const logged = fs.readFileSync(path.join(userData, 'logs', 'kulisa.log'), 'utf8');
+    assert.match(logged, /\[mcp\] profile_set_login project\/1 \{"profile":"tess","login":"tester","password":"…"\}/, 'the tool call, its password left out');
+    assert.match(logged, /\[ipc\] profiles:login wc=\d+ \{"profile":"tess","user":"tester","password":"…"\}/, "the human's field, the same");
+    assert.ok(!/secret-tes/.test(logged), 'no password in the log');
+    // Nothing of a profile's page: an address that fails to load leaves no line with it (electron-log's events are named
+    // one by one: log.ts); what the agent types into a page is left out; an address is logged without its query.
+    await call('browser_type', { profile: 'tess', locator: "locator('body')", text: 'typed-by-agent' }).catch(() => {});
+    await call('browser_navigate', { profile: 'tess', url: 'http://nowhere.invalid/x?code=abc' }).catch(() => {});
+    const later = fs.readFileSync(path.join(userData, 'logs', 'kulisa.log'), 'utf8');
+    assert.match(later, /\[mcp\] browser_type project\/1 \{"profile":"tess","locator":"locator\('body'\)","text":"…"\}/);
+    assert.match(later, /\[mcp\] browser_navigate project\/1 \{"profile":"tess","url":"http:\/\/nowhere\.invalid\/x\?…"\}/);
+    assert.ok(!/typed-by-agent|code=abc|did-fail|certificate-error/.test(later), "nothing of the page's address or the typed text");
+    // But that it would not load, the address bare (the page says so after the tool has answered).
+    await waitFor(() => /\[warn\] \[profile\] tess page failed to load http:\/\/nowhere\.invalid\/x\?…: ERR_NAME_NOT_RESOLVED \(-105\)/.test(fs.readFileSync(path.join(userData, 'logs', 'kulisa.log'), 'utf8')));
     ctx.answer = true;
     await call('profile_delete', { profile: 'tess' });
     ctx.asked.length = 0;

@@ -15,7 +15,6 @@ defineProps<{ items: MenuItem[] }>();
   <template v-for="(it, i) in items" :key="i">
     <DropdownMenuSeparator v-if="it === '-'" />
     <DropdownMenuLabel v-else-if="'heading' in it" class="heading"><Icon v-if="it.icon" class="ico" :name="it.icon" />{{ it.heading }}</DropdownMenuLabel>
-    <DropdownMenuLabel v-else-if="'note' in it" class="note">{{ it.note }}</DropdownMenuLabel>
     <DropdownMenuSub v-else-if="'submenu' in it">
       <DropdownMenuSubTrigger class="item" :text-value="it.submenu">
         <ProjectIcon v-if="it.project" :p="it.project" :style="{ '--color': projectColor(it.project) }" />

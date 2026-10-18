@@ -89,13 +89,13 @@ deleted since is not restored at all: a profile deleted, then another task shown
 arrangement; 2026-10-13).
 The island is one panel however many terminals it holds ("The terminal").
 
-A window made narrower or wider changes every panel in its share, as VS Code's and JetBrains' do. Until 2026-10-15
-the last panel of a row took it all, down to a sliver while the first kept its size, for two reasons:
-dockview-vue declares dockview's `proportionalLayout` (on by default) a Boolean prop, which Vue makes false when left
-out (`Grid.vue` sets it; dockview issue [1691](https://github.com/dockview/dockview/issues/1691)); and in dockview (8.4, 8.5) a row with a panel below it, built again after the grid was
-cleared (an arrangement; a saved grid restored clears it too), keeps no shares. After a change of its panels the grid
-takes its shares again on the next frame (`lib/grid.ts`, turning the option off and on), until dockview fixes it
-([1692](https://github.com/dockview/dockview/issues/1692)).
+A window made narrower or wider changes every panel in its share, as VS Code's and JetBrains' do (dockview's
+`proportionalLayout`, on by default). Until 2026-10-15 the last panel of a row took it all, down to a sliver while
+the first kept its size, for two bugs of dockview's, reported and fixed in 8.6.0 (2026-10-16): dockview-vue made
+the option false when left out ([1691](https://github.com/dockview/dockview/issues/1691)), and a row with a panel
+below it, built again after the grid was cleared (an arrangement; a saved grid restored clears it too), kept no
+shares ([1692](https://github.com/dockview/dockview/issues/1692)). Until 8.6.0 Kulisa set the option itself and
+took the shares again after every change of the panels, by turning it off and on.
 
 A pane's header (its profile's picture, name and ×) shrinks with the pane: a name longer than the pane is wide is cut
 with …, the whole of it and the profile's description in its tooltip, and the × stays, as on every tab
@@ -209,9 +209,11 @@ pages are pictures of themselves meanwhile; afterwards the keyboard is back wher
 - a task tab's right-click menu (the shown one's open
   and closed profiles, Manage Profiles…: Settings → Profiles; Rename…, Show Folder, Delete Task…), ☰ (as Chrome's ⋮, each row with its icon: the zoom row, the theme row, the
   tasks' bar's row, Language (a menu beside it), Arrange panels, Keyboard Shortcuts, the links
-  (Documentation, the user guide on kulisa.app; GitHub; Report an issue; one list in `lib/common.ts`; until 2026-10-14 also
-  Agents…, Settings at its agents: the author, agents are set up in Settings, the gear beside ☰), and Exit, which quits as the last window's × does; not on macOS, where
-  Cmd+Q and the app's menu quit; under them all Kulisa's version, small and dim: words, not a row, as nothing happens on a click);
+  (Documentation, the user guide on kulisa.app; GitHub; one list in `lib/common.ts`; until 2026-10-14 also
+  Agents…, Settings at its agents: the author, agents are set up in Settings, the gear beside ☰), Report a Problem… (Settings at
+  its Log page: The log; until 2026-10-18 Report an issue, GitHub's issues in the browser: not everyone has a GitHub
+  account, and an issue without the log says little), About Kulisa (below), and Exit, which quits as the last window's × does; not on macOS, where
+  Cmd+Q and the app's menu quit; until 2026-10-18 Kulisa's version stood under them all as dim words, About's now);
 - right-click on a pane's header (New tab, About this profile… (Settings at it), Sign In to Master…, Refresh
   from Master…, Close profile, Remove from Project…), a tab (Reload, Duplicate, Close tab, Close other tabs), a terminal (Copy, Paste, Select all, Clear;
   then what its tab's has) and a terminal's tab (Change agent…, the Change Agent dialog as its icon opens, and New Conversation in an agent's; Close).
@@ -219,6 +221,17 @@ pages are pictures of themselves meanwhile; afterwards the keyboard is back wher
 A project label's right-click opens its group's menu, as Chrome's tab groups have it ([tasks.md](tasks.md), Projects).
 
 A row whose command has a key shows it at its end (Keys, below).
+
+**About Kulisa** (a page of Settings, `settings/AboutPage.vue`, under Log; ☰ → About Kulisa opens Settings at it, on
+macOS also first in the app menu, where Mac apps have it, in place of Electron's own panel; a dialog until 2026-10-18:
+the author, as Chrome's About is a page of its settings, one place for what is about the app, one dialog fewer): Kulisa's version (package.json's: run from source `app.getVersion()`
+is Electron's), Electron's and Chromium's (for a bug report, and What sites see), kulisa.app and the license; then the
+folders Kulisa writes in on this computer, as the OS and its variables make them (`about:get`, `ipc/window.ts`): the
+data folder, the projects' folder (`KulisaProjects`) and the program's (the checkout; packaged, what the installer put
+there: the `.app`, Squirrel's root), each its path to select and copy and a button that opens it in the file manager
+(`about:show-folder`, by the folder's id: the window names no path), disabled while the folder is not made yet. The
+author, 2026-10-18: the docs name the usual places, but only the app knows the exact ones (issue #67); so the guide
+points here, and still lists the usual places for whoever reads it after uninstalling.
 
 Native menus were tried first (2026-10-05): rows of text only, no buttons in a row; and a native menu in a page had
 frozen the desktop (ROADMAP, Deferred ideas, "A right-click menu in pages"). There is no menu in the pages yet.
@@ -240,13 +253,13 @@ could not mark the deleting button or lay out what goes. The OS's own dialogs st
 
 ## Settings
 
-Settings (a tree of Projects, Agents and Profiles: [tasks.md](tasks.md), Projects) is a window of its own, as a desktop
+Settings (a tree of Projects, Agents and Profiles: [tasks.md](tasks.md), Projects; under them the Log page, The log below, and About, Menus above) is a window of its own, as a desktop
 app's settings are (JetBrains', macOS apps'; the author, 2026-10-16: what users of desktop apps expect, and settings
 apart from the work): the OS's title bar ("Settings — Kulisa"), its own size and place, kept (`settings.json`:
 `settingsWindow`), at least 640 × 420 times the Kulisa zoom. Open it, set things, close it; or leave it open beside
 the work:
 
-- **One for the whole app.** The gear (on macOS also Kulisa → Settings… in the menu bar, ⌘,, where Mac apps have it), a task tab's Manage Profiles… and Project Settings…, a pane's About this
+- **One for the whole app.** The gear (on macOS also Kulisa → Settings… in the menu bar, ⌘,, where Mac apps have it, under About Kulisa), a task tab's Manage Profiles… and Project Settings…, a pane's About this
   profile… and a project's Add Profile… tile open it at that page (a project's: none named, the
   shown task's); open already, it comes to the front at that page. No gear while Settings would be empty: no project,
   no account, no profile, as at the first start, where the welcome makes them (the author, 2026-10-17: a window saying
@@ -449,6 +462,83 @@ A pane's ⋮ menu (where more of a pane's actions will go, as in Chrome), or F12
 the active tab's DevTools in a window of their own. Kulisa's own DevTools (F12 outside the pages) exist only when
 running from source (`appDevTools`, off when `app.isPackaged`).
 
+## The log
+
+What happened and who asked, for a bug the author cannot watch (a user's, another OS's; the first: a task that opened by
+itself at a click, 2026-10-17, three times, with nothing to read): `logs/kulisa.log` in the data folder
+([tasks.md](tasks.md), "What is on the computer"), written by electron-log (MIT, the most used: the file and its
+turnover, Electron's own events) with lines of Kulisa's own (`log.ts`). At 1 MB it becomes `kulisa.old.log` and a new
+one starts: 2 MB at most, nothing piling up. The same place on every OS (electron-log would put macOS's in
+`~/Library/Logs`): one path to name in the guide, and the tests' log in their own folder. Each line has the time (ISO
+8601 with the computer's offset, `stamp`: a user's log is read next to an issue's or a message's time from another
+zone; electron-log's own has no offset), the level and a tag:
+
+- `[kulisa]`: the start (the version, Electron's, the OS and its session, X11 or Wayland, packaged or from source,
+  the data folder), whether the OS keeps Kulisa's key (`encryption available`, on Linux which keyring; `basic_text`
+  is none: a warning), quitting. And, at a start, that the run before did not say it quit (`quitSaid`, from the
+  file's end): a crash of the main process, a kill or the computer going down, which nothing else can write; a crash
+  leaves its minidump in `crashDumps` (Electron's crashReporter, `uploadToServer: false`: Crashpad keeps them, pruned
+  by itself, 90 days or 128 MB; no server), to ask a user for.
+- `[ipc]`: every channel a window sends (`ipc.ts`, `handle` and `on`), the sender's webContents id (`wc=`: a window's,
+  Settings', a master's; `[window] new wc=` says which) and its arguments; an answer refused, with its reason. Not the
+  terminal's keystrokes and size (never: what is typed), nor what comes at every change or draw (`QUIET`: the grid's
+  boxes, layouts, lists read again), and a question's answer without the answer.
+- `[mcp]`: every tool the agent calls (`mcp-server.ts`), its task and terminal, its arguments; one that failed, with
+  its error.
+- `[key]`: a key of Kulisa's taken (`shortcuts.ts`), where the keyboard was.
+- `[hook]`: an agent's hook event (`agent-hooks.ts`), its task and terminal.
+- `[task]`, `[window]`, `[settings]`, `[terminal]`: a project's task opened, a task created (where), closed, deleted;
+  a window made, showing a task, dropped; Settings opened (at what) and closed; a terminal started (the agent and
+  whether its session is resumed, or a shell), gone, its exit code.
+- `[page wc=…]`: an error or a warning in one of Kulisa's own pages (its console: an uncaught error is one); never a
+  profile's page.
+- `[profile]`: a profile's page that would not load (`did-fail-load`, the main frame; a white pane is a common report):
+  the profile, the address bare, Chromium's error. The one kind of line about a profile's page.
+- `[session-cookies]`: a profile's saved session cookies that cannot be read (saved with another keyring key: after
+  a restart it comes back signed out), or not saved (the error).
+- `[electron]`: Electron's own events, named one by one in `startLog` and written by `electronEvent` (electron-log's own
+  line appends the page's address in full): a renderer gone (its page's address, bare: where it crashed is worth
+  knowing), a child process (the GPU) gone, a page unresponsive, a preload error. Not its defaults,
+  which listen on every webContents, the profiles' pages too, and log their failed loads and certificate errors with
+  the address (every cancelled navigation, an OAuth callback's `?code=`), and their console.
+
+Never there: what is typed into a terminal or a page, passwords, tokens, cookies, an address's user and query.
+`summary` writes an action's arguments in one short line: a value left out by its key (password, secret, token,
+cookie, credential; `text` and `values`, what the agent types into a page) or by what the text says of itself
+(`token=…`, `Bearer …`), an address without its user and password (`https://…@github.com/…`) and without its query
+and fragment (`?…`: an OAuth code, a magic link; the addresses in a refusal's or a failed tool's message too, `bare`), long
+strings and the whole cut. A second Kulisa started on the same
+data writes its start line and "already running" into the same file: two starts in a row are not a restart. What the code says with
+`console.*` goes to the file too (`startLog`). A new action of the core goes through `handle()` or the MCP server's
+`registerTool`, so it is logged by itself; a line elsewhere says what happened and who asked, never what was typed.
+
+**The Log page** (Settings → Log, under Profiles; ☰ → Report a Problem… opens it; `settings/LogPage.vue`; issue #73) is
+where the human reads it and passes it on, by any means: not everyone has a GitHub account (the author, 2026-10-18), so
+GitHub is one way of several, not the way.
+
+- The file whole (1 MB at most), read when the page is first shown, not as Settings opens (`log:get`); then followed
+  (`log:lines`): a hook of electron-log's runs before its file transport, which writes at once, so what came since is
+  read from the file at the end of the same tick and sent, a burst of lines as one (`readLog` in `log.ts`; the last
+  page that read is the one followed). The file turned over under it (shorter than what was read): the page reads it
+  again. Nothing of this is logged: a line of its own would send it again.
+- A line each with its time (the date in its tooltip) and its tag, the tag in the color of who acted (`--log-agent`,
+  `--log-human`, `--log-tasks`), warnings and errors in red; what is not a line of that shape (an object's lines under
+  an `[electron]` event) hangs under the line before it. **Follow** keeps the end in view, as a terminal does, lets go
+  when the log is scrolled up, and goes back to the end when checked again.
+- The chips (`.chips`, [ui.md](ui.md)), one always chosen, and a text filter on top of the chosen one (a task's key,
+  `wc=1`, a tag): **All**; **Errors** (warn and error lines, `[page]`, `[electron]`, an action refused or failed);
+  **Agent** (`[mcp]`, `[hook]`, `[terminal]`); **Human** (`[ipc]`, `[key]`, `[settings]`); **Tasks** (`[task]`,
+  `[window]`, `[kulisa]`). Nothing left says so.
+- Under it: the file's size of its 1 MB, when `kulisa.old.log` is from, and what is never in the log.
+- **Copy All** (the whole log to the clipboard), **Save As…** (a copy of the file where the human says, their Downloads
+  by default: to attach to a message, a chat, an issue; `log:save`), **Open Folder** (the file picked out in the file
+  manager; `log:show-folder`), **Report…**: *On GitHub…* opens the user's browser on a new issue from the repository's
+  bug template (`.github/ISSUE_TEMPLATE/bug.yml`), its environment filled in (the start line's facts: `environment`,
+  `issueUrl`; GitHub takes a form's fields by their id in the query); the template asks for the file and says what is
+  in it and that the issue is public. *By email…* comes when there is an address on the kulisa.app domain (the
+  author's personal address is not put into released versions). No sending by itself and no crash server: no server,
+  and a log without the human's words says little; back to it when there are users and a crash the log did not explain.
+
 ## IPC
 
 A window's page and the main process talk by named channels: `invoke` (an answer comes back), `send` (none), and the
@@ -486,7 +576,10 @@ into `main` (a pull request from `develop`, its version raised: CLAUDE.md, Relea
 Actions (`.github/workflows/release.yml`; macOS once its secrets are set): the workflow first makes the draft
 `v<version>` at the merged commit, its notes the pull request's text (Forge's own would name no commit, and GitHub
 would tag whatever `main` is when the draft is published); Ubuntu and Windows build and Forge uploads into it, finding
-it by its name; the `.deb` is installed on Ubuntu and started under Xvfb (its MCP server listening, nothing uncaught,
+it by its name, and each file's provenance is attested (`actions/attest`, since 2026-10-18: a statement signed through
+Sigstore and kept by GitHub, not in the release, that this workflow built this very file from this commit; the `.nupkg`
+the Windows updater downloads too; whoever has a file checks it with `gh attestation verify <file> -R cosmotools/kulisa`);
+the `.deb` is installed on Ubuntu and started under Xvfb (its MCP server listening, nothing uncaught,
 still running after 5 s: the tests run Kulisa from source, and what breaks only packaged would reach every installed
 copy, one failing at start never able to update again); then the draft is published, the tag made at that commit.
 Until then, and when a step fails, it is a draft nobody is served. A version released before stops it. Once
@@ -498,10 +591,21 @@ left is there too.
 Electron team's `update-electron-app`, from update.electronjs.org, which serves a public repository's published
 GitHub releases. A packaged Kulisa on Windows or macOS checks at start and every 6 hours (its 10 minutes by default:
 Kulisa stays open for days), downloads a newer release in the background, and starts it the next time it is started.
-It never restarts by itself nor asks with the OS's dialog (the module's, off: `notifyUser: false`): Kulisa asks in its
-own (Dialogs and questions), and that dialog's Restart (`quitAndInstall`) closes the windows before `before-quit`,
-where session cookies and tabs are saved. Not from source (`app.isPackaged`), nor on Linux, where Electron has no
-updater: there the distribution's package manager updates it, as Electron's docs advise. The `.deb` adds Kulisa's apt
+It never restarts by itself nor asks with the OS's dialog (the module's, off: `notifyUser: false`). Not from source
+(`app.isPackaged`), nor on Linux, where Electron has no updater: there the distribution's package manager updates it,
+as Electron's docs advise, under the running Kulisa, which goes on from the old files (dpkg and rpm write each file
+beside and rename it over).
+
+**A new version ready while Kulisa runs** (`updateNotices` in `updates.ts`, since 2026-10-17): downloaded by the updater
+(`update-downloaded`), or installed on disk (Linux: the app archive's folder watched, `installed.ts`: the version read
+from the archive as it is on disk, `process.noAsar` for that read, since Electron's own reads go to the file it opened
+at start) is asked about once per version, in Kulisa's own dialog (Dialogs and questions), in the tasks' window in
+front: "Kulisa 0.1.4 is ready", Restart or Later, saying which agents it would stop, as quitting does. Restart
+(`shell.restart`) saves everything as `before-quit` does (session cookies, tabs, the windows), then Squirrel's
+`quitAndInstall` (which closes the windows before `before-quit`, Electron's `api/auto-updater.md`: `quitting` is set
+already, so they close without a question) or, on disk, `app.relaunch` (the same path, its files replaced) and quit;
+the windows and their tasks come back in the new version. Later: nothing more; the next start is the new version
+anyway. The `.deb` adds Kulisa's apt
 repository and its key as Chrome's and VS Code's do (`assets/deb/postinst`; gone with `purge`, `postrm`), so a new
 release comes with the system's updates. The repository is a flat one on GitHub Releases, nothing else to host
 (GitHub Pages takes no file over 100 MB, and the `.deb` is about that): its index, signed with the key in the secret
@@ -532,8 +636,10 @@ shortcuts carry (`com.squirrel.kulisa.kulisa`), or Windows would not pin it to t
 | `src/main/window.ts` | a window: its BrowserWindow, the native views' places, its questions, screenshot |
 | `src/main/settings-window.ts`, `src/renderer/settings.html`, `components/settings/` | Settings' window (Settings); its page is `ProjectEditor.vue` |
 | `src/preload/index.cjs` | the window's bridge to the main process: the windows' pages are sandboxed (no Node: about 15 MB less a window, PSS; 2026-10-12), so it is a few lines of plain JavaScript; the window imports what it shares with the main process from `src/shared/` (`names.ts`, `avatars.ts`, `result.ts`) |
+| `src/main/log.ts` | the log: the file (electron-log), `summary` of an action's arguments, the Log page's reading and following of it, the issue's address (The log) |
+| `components/settings/LogPage.vue`, `AboutPage.vue` | the Log and About pages of Settings (The log; Menus, About Kulisa) |
 | `src/main/keys.ts` | the keyboard shortcuts: the table, which key an input event is; `shortcuts.ts` takes them (Keys) |
-| `src/main/updates.ts`, `forge.config.ts` | updates, Squirrel's events; the installers and the release |
+| `src/main/updates.ts`, `installed.ts`, `forge.config.ts` | updates, Squirrel's events, a new version ready while Kulisa runs (the version installed on disk); the installers and the release |
 | `src/main/terminal.ts` | the ptys of the tasks' terminals; each shell's screen for `terminal_read` |
 | `src/renderer/components/Grid.vue`, `grid/*.vue`, `lib/grid.ts` | the grid (dockview), the panes and their headers, the island of terminals (`Terminals.vue`, its row of tabs `TerminalTabs.vue`), the closed profiles' tiles over it (`ClosedProfiles.vue`), Arrange panels |
 | `src/renderer/components/TopBar.vue`, `menu/*.vue` | the title bar, ☰ and its own rows |

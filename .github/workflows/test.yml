@@ -31,6 +31,20 @@ jobs:
           then echo "$base → $head"; exit 0; fi
           if [ "$head" = "$base" ] && ! gh release view "v$base" >/dev/null 2>&1; then echo "$head: not released yet"; exit 0; fi
           echo "::error::The version is $head, not above main's ($base): raise it (CLAUDE.md, Releases)"; exit 1
+  # The pull request's new dependencies (the lockfile's diff against its base, by GitHub's dependency graph): none with a
+  # known vulnerability, and each under a license that may be part of a GPL-3.0 program (docs/LICENSING.md, which
+  # keeps this list; one not on it is a conversation, not a fix). One it cannot tell is reported, not refused.
+  dependencies:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/dependency-review-action@v5
+        with:
+          allow-licenses: >-
+            GPL-3.0-or-later, GPL-3.0-only, GPL-2.0-or-later, LGPL-2.1-or-later, LGPL-3.0-or-later, MIT, ISC, 0BSD,
+            BSD-2-Clause, BSD-3-Clause, Apache-2.0, MPL-2.0, BlueOak-1.0.0, Unlicense, CC0-1.0, Zlib, BSL-1.0,
+            Python-2.0, OFL-1.1
   test:
     strategy:
       fail-fast: false

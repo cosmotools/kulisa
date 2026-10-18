@@ -38,15 +38,18 @@ async function newTask(ctx: Ctx) {
 // A project's submenu (a tab's right-click, then the row of the project's name, the one row opening a menu): its
 // rows, a row of it chosen. tab: the tab to open it on (the shown task's).
 async function projectMenu(ui: UI, label?: string, tab = '#projectTabs .tasktab.active .name') {
-  // Right-clicked again until its menu opens: one right after Settings or another menu closed opened none now and
-  // then (GitHub's runner, 2026-10-16), as the window's focus came back.
+  // Right-clicked again until its menu opens and its submenu with it: right after Settings or another menu closed,
+  // the menu opened none now and then (GitHub's runner, 2026-10-16), or opened and closed at once (2026-10-18), as
+  // the window's focus went and came back late (a blur closes a menu, as the OS's own close).
   await waitFor(async () => {
     if (!(await menuOpen(ui))) await rightClick(ui, tab);
-    return waitFor(() => menuOpen(ui), 1000).then(() => true, () => false);
+    try {
+      await waitFor(() => menuOpen(ui), 1000);
+      await ui(`${MENU}.querySelector('.item[aria-haspopup]').click()`);
+      await waitFor(async () => (await ui(`document.querySelectorAll('.menu[data-state="open"]').length`)) === 2, 1000);
+      return true;
+    } catch { return false; }
   }, 10000);
-  await menuRows(ui);
-  await ui(`${MENU}.querySelector('.item[aria-haspopup]').click()`);
-  await waitFor(async () => (await ui(`document.querySelectorAll('.menu[data-state="open"]').length`)) === 2);
   const rows = await menuRows(ui, SUBMENU);
   if (label) await choose(ui, label, SUBMENU);
   else await closeMenu(ui);
@@ -265,6 +268,75 @@ export default (test: Test) => {
     await waitFor(() => !shell.masters.size);
     await closeSettings(ctx);
     assert.ok(win.isDestroyed(), 'its window gone, with its process');
+  });
+
+  test("the log: ☰ → Report a Problem… opens Settings at the Log page: the log so far and live, each line with its time and tag; chips and a text filter; Copy All, Save As… (a file), Open Folder; Report… → On GitHub… opens a new issue with the environment filled in", async (ctx) => {
+    const { ui, sui } = ctx;
+    await ui(`document.getElementById('windowMenu').click()`);
+    await menuRows(ui);
+    await choose(ui, 'Report a Problem…');
+    const lines = (): Promise<string[]> => sui(`[...document.querySelectorAll('#logpage .line')].map((l) => l.textContent)`);
+    await waitFor(() => sui(`document.querySelector('#pjlist [data-page="log"]')?.ariaSelected === 'true' && document.getElementById('lgconfig').checkVisibility() && document.querySelectorAll('#logpage .line').length > 0`));
+    const first = (await lines())[0];
+    assert.match(first, /^\d\d:\d\d:\d\d\.\d{3}\[kulisa\]start \d+\.\d+\.\d+, electron /, 'the time and the tag, the date in the tooltip');
+    assert.match(await sui(`document.querySelector('#logpage .line').title`), /^\d{4}-\d\d-\d\d [+-]\d\d:\d\d$/, 'the date and the time zone');
+    assert.ok(await sui(`document.querySelector('#logpage .line[data-tag="kulisa"]').classList.contains('tasks')`), "the tag in its group's color");
+    // Live: what is logged now comes at the end, Follow keeping it in view.
+    await ui(`kulisa.invoke('theme:set', 'dark')`);
+    await waitFor(async () => (await lines()).at(-1)?.includes('[ipc]theme:set wc='));
+    assert.ok(await sui(`(() => { const b = document.querySelector('#logpage .lines'); return b.scrollHeight - b.scrollTop - b.clientHeight < 4; })()`), 'the end in view');
+    // Errors: a page's error is a warning line, in red; the chip shows those alone.
+    await ui(`console.error('boom-for-the-log')`);
+    await waitFor(async () => (await lines()).some((l) => l.includes('boom-for-the-log')));
+    const chip = (id: string) => sui(`document.querySelector('#logchips [data-chip="${id}"]').click()`);
+    const typeFilter = (text: string) => sui(`(() => { const f = document.getElementById('logfilter'); f.value = ${JSON.stringify(text)}; f.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+    await chip('errors');
+    await waitFor(async () => (await lines()).some((x) => x.includes('boom-for-the-log')) && await sui(`[...document.querySelectorAll('#logpage .line')].every((l) => l.classList.contains('bad'))`));
+    assert.ok(await sui(`document.querySelector('#logpage .line[data-tag="page"]').classList.contains('bad')`), 'in red');
+    // A chip and the text filter on top of it; nothing left says so.
+    await chip('tasks');
+    await typeFilter('[kulisa] start');
+    await waitFor(async () => { const l = await lines(); return l.length > 0 && l.length < 5 && l.every((x) => x.includes('[kulisa]start')); }); // two: a second Kulisa's start, told it is running already
+    await typeFilter('nothing-like-this');
+    await waitFor(() => sui(`document.querySelector('#logpage .empty')?.textContent === 'Nothing matches.'`));
+    await typeFilter('');
+    await chip('all');
+    await waitFor(async () => (await lines()).length > 10);
+    // Under it: the file's size, and what is never in it.
+    assert.match(await sui(`document.querySelector('#logpage .about').textContent`), /^kulisa\.log, \d+ KB of 1 MB\. Never here: what you typed, passwords, tokens, cookies, the pages' queries\.$/);
+    // Save As…: where the human says, the file as it is.
+    const showSaveDialog = electron.dialog.showSaveDialog, saved = path.join(root, 'saved.log');
+    electron.dialog.showSaveDialog = async () => ({ canceled: false, filePath: saved });
+    try {
+      await sui(`document.getElementById('logsave').click()`);
+      await waitFor(() => fs.existsSync(saved));
+    } finally { electron.dialog.showSaveDialog = showSaveDialog; }
+    assert.equal(fs.readFileSync(saved, 'utf8').split('\n')[0], fs.readFileSync(path.join(userData, 'logs', 'kulisa.log'), 'utf8').split('\n')[0]);
+    await waitFor(() => sui(`document.querySelector('#logpage .note').textContent.startsWith('Saved as ')`));
+    fs.rmSync(saved);
+    // Open Folder: the file picked out in the file manager.
+    const showItemInFolder = electron.shell.showItemInFolder, shownItems: string[] = [];
+    electron.shell.showItemInFolder = (p) => { shownItems.push(p); };
+    try {
+      await sui(`document.getElementById('logfolder').click()`);
+      await waitFor(() => shownItems.length === 1);
+    } finally { electron.shell.showItemInFolder = showItemInFolder; }
+    assert.equal(shownItems[0], path.join(userData, 'logs', 'kulisa.log'));
+    // Report… → On GitHub…: a new issue from the template in the user's browser, the environment filled in (the start line's facts).
+    const openExternal = electron.shell.openExternal, opened: string[] = [];
+    electron.shell.openExternal = async (url) => { opened.push(url); };
+    try {
+      await sui(`document.getElementById('logreport').click()`);
+      assert.deepEqual(await menuRows(sui), ['On GitHub…']);
+      await choose(sui, 'On GitHub…');
+      await waitFor(() => opened.length === 1);
+    } finally { electron.shell.openExternal = openExternal; }
+    const u = new URL(opened[0]);
+    assert.equal(u.origin + u.pathname, 'https://github.com/cosmotools/kulisa/issues/new');
+    assert.equal(u.searchParams.get('template'), 'bug.yml');
+    assert.match(u.searchParams.get('environment'), /^Kulisa \d+\.\d+\.\d+, electron \d+\.\d+\.\d+, \w+ \S+.*, from source$/);
+    assert.match(fs.readFileSync(path.join(import.meta.dirname, '..', '.github', 'ISSUE_TEMPLATE', 'bug.yml'), 'utf8'), /id: environment/, 'the template with that field');
+    await closeSettings(ctx);
   });
 
   // About 5 s: its tab waits for a site that never answers, by design (profiles.ts).
@@ -1107,7 +1179,7 @@ export default (test: Test) => {
     await waitFor(() => ui(`document.documentElement.classList.contains('noproject')`));
     await ui(`document.getElementById('windowMenu').click()`);
     const links = await menuRows(ui);
-    assert.deepEqual(links.slice(links.indexOf('Documentation'), links.indexOf('Documentation') + 3), ['Documentation', 'GitHub', 'Report an issue']);
+    assert.deepEqual(links.slice(links.indexOf('Documentation'), links.indexOf('Documentation') + 3), ['Documentation', 'GitHub', 'Report a Problem…']);
     const openExternal = electron.shell.openExternal, opened: string[] = [];
     electron.shell.openExternal = async (url) => { opened.push(url); };
     try {
@@ -1124,7 +1196,8 @@ export default (test: Test) => {
     await sleep(100); // that nothing happens
     assert.equal(await ui(`document.documentElement.dataset.page`), 'board', 'projects there: nothing');
     const projectsOf = shell.store.projects, sent = shell.projects, accountsOf = shell.accounts.all, profilesOf = shell.profileStore.all;
-    assert.equal(await ui(`document.getElementById('manageProjects').hidden`), false);
+    const gear = () => ui(`document.getElementById('manageProjects').checkVisibility()`);
+    assert.equal(await gear(), true);
     shell.store.projects = () => []; shell.projects = () => [];
     try {
       shell.sendProjects();
@@ -1133,10 +1206,10 @@ export default (test: Test) => {
       assert.equal(await ui(`document.documentElement.dataset.page`), 'welcome');
       // Settings' gear: there while it has anything to show (an account, a profile left after their projects), none
       // at the first start.
-      assert.equal(await ui(`document.getElementById('manageProjects').hidden`), false, 'accounts and profiles there');
+      assert.equal(await gear(), true, 'accounts and profiles there');
       shell.accounts.all = () => accountsOf.call(shell.accounts).filter((a) => a.own); shell.profileStore.all = () => [];
       shell.sendProjects();
-      await waitFor(() => ui(`document.getElementById('manageProjects').hidden`));
+      await waitFor(async () => !(await gear())); // not on screen: hidden alone passed while the button's own display beat it (2026-10-17)
       await waitFor(() => ui(`getComputedStyle(document.getElementById('glow')).opacity === '1'`));
       const slide = () => ui(`[document.querySelector('#tour h1').textContent, document.getElementById('tournext').textContent]`);
       assert.deepEqual(await slide(), ['Your agent, in your browsers', 'Next']);
@@ -1257,6 +1330,16 @@ export default (test: Test) => {
     assert.equal(ctx.asked.length, 0, 'nothing asked');
     assert.deepEqual(shell.profileStore.of('shop').map((p) => [p.name, p.description]), [['Shop-buyer', 'buys things']]);
     assert.ok(fs.existsSync(path.join(made, 'Shop', '.git')), 'git init in it');
+    // The log (window.md, The log): the start, the task and the channel that made it, a key taken; nothing typed into a
+    // terminal (the keys' tests did).
+    const logged = fs.readFileSync(path.join(userData, 'logs', 'kulisa.log'), 'utf8');
+    assert.match(logged, /^\[\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}[+-]\d\d:\d\d\] \[info\] \[kulisa\] start \d+\.\d+\.\d+, electron \d+\./m, 'the time as ISO 8601 with its offset');
+    assert.match(logged, /\[kulisa\] encryption (available|not available)/);
+    assert.ok(!/did not quit by itself/.test(logged), 'the run before quit as asked (the tests quit with app.quit)');
+    assert.match(logged, /\[ipc\] project:open wc=\d+ \{"id":"shop"\}/);
+    assert.match(logged, /\[task\] created shop\/1 in \S*Shop@task-1 wc=\d+/);
+    assert.match(logged, /\[key\] tab\.new zone=/);
+    assert.ok(!/pty:in/.test(logged), 'what is typed into a terminal is never logged');
     const shop = shell.store.projects().find((p) => p.id === 'shop');
     assert.deepEqual([shop.color, shop.agents], [color, undefined]);
     // No favicon in its code: the curtain, in the next free color, the window's too.

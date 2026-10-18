@@ -11,6 +11,8 @@ import RightClickMenu from '../menu/RightClickMenu.vue';
 import AccountSignIn from '../AccountSignIn.vue';
 import AgentPage from './AgentPage.vue';
 import ProfilePage from './ProfilePage.vue';
+import LogPage from './LogPage.vue';
+import AboutPage from './AboutPage.vue';
 import ProjectIcon from '../ProjectIcon.vue';
 import { avatarSrc } from '../../lib/common';
 import { projectColor } from '../../lib/project-color';
@@ -20,9 +22,9 @@ import { refused } from '../../../shared/result';
 import type { Result } from '../../../shared/result';
 import type { Account, AccountsInfo, ProjectAgent, ProjectChoices, ProjectEntry, ProjectProfile, ProjectRepo, SettingsProfile, SignedIn } from '../../../shared/types';
 
-// The page shown, of the tree's section; the agents' list lives here, so an install goes on while a project is shown,
-// and the window stays open while it runs (close).
-type Section = 'projects' | 'agents' | 'profiles';
+// The page shown, of the tree's section (the log and About are pages of their own, under them); the agents' list lives here, so an
+// install goes on while a project is shown, and the window stays open while it runs (close).
+type Section = 'projects' | 'agents' | 'profiles' | 'log' | 'about';
 const tab = ref<Section>('projects');
 const agentAt = ref<string>(), profileAt = ref<string>(); // the agent, the profile shown
 const agentPage = ref<InstanceType<typeof AgentPage>>();
@@ -56,15 +58,16 @@ async function lists() {
   allProfiles.value = p.profiles; showAccounts(a);
 }
 
-// The tree: the three sections, each with its own under it; a section only opens and closes.
-type Node = { key: string; label: string; section?: Section; project?: ProjectEntry; agent?: Agent; profile?: SettingsProfile; children?: Node[] };
+// The tree: the three sections, each with its own under it (a section only opens and closes), then the Log and About pages.
+type Node = { key: string; label: string; section?: Section; page?: 'log' | 'about'; project?: ProjectEntry; agent?: Agent; profile?: SettingsProfile; children?: Node[] };
 const tree = computed<Node[]>(() => [
   { key: 'projects', label: 'Projects', section: 'projects', children: projects.value.map((p) => ({ key: `p:${p.id}`, label: p.name, project: p })) },
   { key: 'agents', label: 'Agents', section: 'agents', children: agentsList.state.agents.map((a) => ({ key: `a:${a.id}`, label: a.name, agent: a })) },
-  { key: 'profiles', label: 'Profiles', section: 'profiles', children: allProfiles.value.map((p) => ({ key: `f:${p.id}`, label: p.name, profile: p })) }]);
+  { key: 'profiles', label: 'Profiles', section: 'profiles', children: allProfiles.value.map((p) => ({ key: `f:${p.id}`, label: p.name, profile: p })) },
+  { key: 'log', label: 'Log', page: 'log' }, { key: 'about', label: 'About', page: 'about' }]);
 const expanded = ref<string[]>(['projects', 'agents', 'profiles']);
-const chosenKey = computed(() => ({ projects: editing.value && `p:${editing.value}`, agents: agentAt.value && `a:${agentAt.value}`, profiles: profileAt.value && `f:${profileAt.value}` })[tab.value]);
-const chosenNode = computed(() => tree.value.flatMap((n) => [n, ...n.children!]).find((n) => n.key === chosenKey.value));
+const chosenKey = computed(() => ({ projects: editing.value && `p:${editing.value}`, agents: agentAt.value && `a:${agentAt.value}`, profiles: profileAt.value && `f:${profileAt.value}`, log: 'log', about: 'about' })[tab.value]);
+const chosenNode = computed(() => tree.value.flatMap((n) => [n, ...(n.children ?? [])]).find((n) => n.key === chosenKey.value));
 const shownAgent = computed(() => agentsList.state.agents.find((a) => a.id === agentAt.value));
 const shownProfile = computed(() => allProfiles.value.find((p) => p.id === profileAt.value));
 // An agent or a profile gone (deleted, not found again): the first one shown instead.
@@ -74,6 +77,7 @@ function show(n: Node) {
   if (n.project) { tab.value = 'projects'; if (n.project.id !== editing.value) void edit(n.project.id); }
   else if (n.agent) { tab.value = 'agents'; agentAt.value = n.agent.id; }
   else if (n.profile) { tab.value = 'profiles'; profileAt.value = n.profile.id; }
+  else if (n.page) tab.value = n.page;
 }
 function choose(e: { detail: { value?: Node }; preventDefault(): void }) {
   const n = e.detail.value;
@@ -103,13 +107,13 @@ async function edit(id: string) {
   await showList();
   document.getElementById('pjconfig')?.scrollTo(0, 0); // at its top, not where the last one was scrolled
 }
-// Opened at a project, or on Agents or Profiles (at one: About this profile…). The agents are looked for behind it: the
+// Opened at a project, on Agents or Profiles (at one: About this profile…), at the log (Report a Problem…) or About. The agents are looked for behind it: the
 // user's shell, their --version (lib/agents.ts). The section first: the window is on screen while the rest loads, and
 // a row clicked meanwhile stays chosen.
 async function openProjects(id?: string, on: Section = 'projects', at?: string) {
   tab.value = on;
   if (on === 'profiles') profileAt.value = at ?? profileAt.value;
-  if (!expanded.value.includes(on)) expanded.value = [...expanded.value, on];
+  if (on !== 'log' && on !== 'about' && !expanded.value.includes(on)) expanded.value = [...expanded.value, on];
   // The agents as last found (or, the first time, after a moment saying so), then looked for again behind them.
   const agentsShown = new Promise<void>((shown) => { void agentsList.load(undefined, async () => shown()); });
   await lists(); // a profile gone: the first one shown instead (watch, above)
@@ -128,7 +132,7 @@ kulisa.on('settings:changed', async () => {
 // Opened, or brought to the front, at a page (settings-window.ts).
 // Its window is shown once all of it is there, its fonts too (settings:ready).
 kulisa.on('settings:show', async ({ section, id }) => {
-  await (section === 'profiles' ? openProjects(undefined, 'profiles', id ?? undefined) : openProjects(id ?? undefined));
+  await (section === 'profiles' ? openProjects(undefined, 'profiles', id ?? undefined) : section === 'log' || section === 'about' ? openProjects(undefined, section) : openProjects(id ?? undefined));
   await document.fonts.ready;
   kulisa.send('settings:ready');
 });
@@ -204,13 +208,14 @@ const actions = (n: Node): MenuItem[] => {
   if (n.section === 'profiles') return [{ label: 'New Profile…', run: startNewProfile }];
   if (n.project) return [{ label: 'Delete Project…', run: () => deleteProject(n.project!.id) }];
   if (n.profile) return [{ label: 'Delete Profile…', run: () => deleteProfile(n.profile!.id) }];
+  if (n.page) return [];
   const a = n.agent!;
   return [{ label: 'Install', enabled: !a.installed && !!a.install && !agentsList.state.installing, run: () => agentsList.install(a.id) },
     { label: 'New Account…', enabled: clis.value.includes(a.id) && !!a.installed && !agentPage.value?.busy, run: () => newAccount(a) }];
 };
 const more = () => (chosenNode.value ? actions(chosenNode.value) : []);
 const nodeMenu = (e: MouseEvent): MenuItem[] | null => {
-  const key = rowAt(e, 'data-key'), n = tree.value.flatMap((x) => [x, ...x.children!]).find((x) => x.key === key);
+  const key = rowAt(e, 'data-key'), n = tree.value.flatMap((x) => [x, ...(x.children ?? [])]).find((x) => x.key === key);
   if (!n) return null;
   if (!n.section) show(n);
   const items = actions(n);
@@ -325,10 +330,10 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
         <TreeRoot id="pjlist" v-slot="{ flattenItems }" v-model:expanded="expanded" :items="tree" :get-key="(n: Node) => n.key" :model-value="chosenNode"
           selection-behavior="replace"
           aria-label="Settings" @keydown.delete="deleteChosen">
-          <TreeItem v-for="it in flattenItems" :key="it._id" v-bind="it.bind" class="item" :data-key="it.value.key" :data-section="it.value.section"
+          <TreeItem v-for="it in flattenItems" :key="it._id" v-bind="it.bind" class="item" :data-key="it.value.key" :data-section="it.value.section" :data-page="it.value.page"
             :data-project="it.value.project?.id" :data-agent="it.value.agent?.id" :data-profile="it.value.profile?.id"
             :style="{ '--color': it.value.project && projectColor(it.value.project) }" @select="choose">
-            <Icon v-if="it.value.section" class="twist" name="i-down" /><ProjectIcon v-if="it.value.project" :p="it.value.project" />
+            <Icon v-if="it.value.section" class="twist" name="i-down" /><Icon v-else-if="it.value.page" class="twist" :name="it.value.page === 'log' ? 'i-docs' : 'i-logo'" /><ProjectIcon v-if="it.value.project" :p="it.value.project" />
             <template v-if="it.value.agent"><Icon v-if="mark(it.value.agent)" class="logo" :name="mark(it.value.agent)!" /></template>
             <img v-if="it.value.profile" class="avatar" alt="" :src="avatarSrc(it.value.profile.avatar)">
             <span class="text"><span class="label" :title="it.value.section ? undefined : it.value.label">{{ it.value.label }}</span></span>
@@ -484,6 +489,14 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
       </div>
       <AgentPage ref="agentPage" :list="agentsList" :chosen="agentAt" :accounts :clis @accounts="showAccounts" />
     </div>
+    <div v-show="tab === 'log'" id="lgconfig">
+      <div class="crumbs"><b>Log</b></div>
+      <LogPage :shown="tab === 'log'" />
+    </div>
+    <div v-show="tab === 'about'" id="abconfig">
+      <div class="crumbs"><b>About</b></div>
+      <AboutPage :shown="tab === 'about'" />
+    </div>
   </main>
 </template>
 
@@ -496,7 +509,7 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
   #pjlist { margin: 0; padding: 0; outline: none;
     .item { min-height: var(--row); padding: 0 4px 0 8px; gap: var(--gap); border-radius: var(--radius); padding-inline-start: calc(8px + (var(--level, 1) - 1) * 18px); }
     [aria-level="2"] { --level: 2; }
-    [data-section]:not(:first-child) { margin-top: var(--inset); }
+    :is([data-section], [data-page="log"]):not(:first-child) { margin-top: var(--inset); } /* the pages together, under the sections */
     .twist { width: 12px; height: 12px; color: var(--text-dim); } [aria-expanded="false"] .twist { rotate: -90deg; }
     .picon, .logo { flex: none; width: 16px; height: 16px; } .picon { color: var(--color); } .avatar { --avatar: 16px; }
     .label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } kbd { flex: none; }
@@ -504,9 +517,11 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
     &:focus-within [aria-selected="true"] { background: var(--chosen); } }
   /* More room than a dialog's, as JetBrains' Settings: along the sides, and between the groups, whose lists ran into
      the next one's title (the author, 2026-10-16) */
-  :is(#pjconfig, #agconfig, #prconfig) { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--inset); overflow: hidden auto;
+  :is(#pjconfig, #agconfig, #prconfig, #lgconfig, #abconfig) { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--inset); overflow: hidden auto;
     padding: 0 calc(1.5 * var(--pad)) var(--pad);
     > * { flex: none; } }
+  /* The log scrolls inside its box, the page not at all: its tools and buttons stay in sight */
+  #lgconfig { overflow: hidden; > #logpage { flex: 1; min-height: 0; } }
   /* Where the page is in the tree, and what acts on it at its end */
   .crumbs { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: var(--gap); min-height: calc(var(--control) + 12px);
     background: var(--island); color: var(--text-muted);
