@@ -374,11 +374,6 @@ moves there over time: what has an issue is removed from here, the issue being t
       agent to read events and trigger them ("the buyer pays, the seller sees the order").
     - **Feature flags** (LaunchDarkly, Unleash, GrowthBook, PostHog): each profile's flags in a panel, switched
       per profile; a tool for the agent to set them, to check a feature with the flag on and off, per role.
-- **One panel in its own OS window** (e.g. the buyer's profile on a second monitor, the terminal and the other
-  profiles staying in the main window). Today a task moves to another window whole (Move to New Window).
-  dockview has popout windows, and a profile's native views can move between windows (`Profile.moveTo`), but a
-  window shows one task's grid today: a window holding a part of another window's task is a new model
-  (the views' bounds, closing, restoring after a restart). Medium work; to discuss.
 - **A right-click menu in pages** (copy, paste, open a link in a new tab of the profile, Inspect Element; more items
   later). Tried with electron-context-menu (native GTK menu) on 2026-10-05 and removed:
   - On Ubuntu GNOME (X11) a right-click in a profile's page froze the whole desktop, twice: gnome-shell logged a
