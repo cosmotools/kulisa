@@ -20,7 +20,6 @@ export const avatarSrc = (a: string): string => `avatars/${a}.svg`;
 export const LINKS = [
   { label: 'Documentation', href: 'https://kulisa.app/docs', icon: 'i-docs' },
   { label: 'GitHub', href: 'https://github.com/cosmotools/kulisa', icon: 'i-github' },
-  { label: 'Report an issue', href: 'https://github.com/cosmotools/kulisa/issues', icon: 'i-bug' },
 ];
 
 export const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? '' : 's'}`;

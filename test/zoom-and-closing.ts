@@ -286,6 +286,8 @@ export default (test: Test) => {
     assert.match(later, /\[mcp\] browser_type project\/1 \{"profile":"tess","locator":"locator\('body'\)","text":"…"\}/);
     assert.match(later, /\[mcp\] browser_navigate project\/1 \{"profile":"tess","url":"http:\/\/nowhere\.invalid\/x\?…"\}/);
     assert.ok(!/typed-by-agent|code=abc|did-fail|certificate-error/.test(later), "nothing of the page's address or the typed text");
+    // But that it would not load, the address bare (the page says so after the tool has answered).
+    await waitFor(() => /\[warn\] \[profile\] tess page failed to load http:\/\/nowhere\.invalid\/x\?…: ERR_NAME_NOT_RESOLVED \(-105\)/.test(fs.readFileSync(path.join(userData, 'logs', 'kulisa.log'), 'utf8')));
     ctx.answer = true;
     await call('profile_delete', { profile: 'tess' });
     ctx.asked.length = 0;

@@ -86,7 +86,7 @@ Each icon is drawn once, as a `<symbol id="i-…">` in the sprite (`Sprite.vue`,
 | `i-settings` | Settings in the title bar (Lucide's settings) |
 | `i-projects` | ☰'s Tasks bar row (Lucide's folder-open) |
 | `i-logo` | the app icon with its curtain in `currentColor`: the title bar's (`--project`; not on macOS, whose apps show their icon in the Dock), and a project's label in the tasks' bar (its `--color`). The folds are a shadow over the color, one for every color: a `<use>` takes the sprite's gradient, not one of its own |
-| `i-docs`, `i-github`, `i-bug` | the links (Documentation, GitHub, Report an issue), rows of ☰ (`data-icon` on each link; Lucide's book-open, github, bug) |
+| `i-docs`, `i-github`, `i-bug` | the links (Documentation, GitHub) and Report a Problem…, rows of ☰ (`data-icon` on each link; Lucide's book-open, github, bug); `i-docs` also the Log node of Settings' tree |
 | `i-menu` | ☰, the window's menu |
 | `i-more` | ⋮, a pane's menu |
 | `i-back`, `i-forward`, `i-reload` | a pane's toolbar (Chrome's) |
@@ -177,6 +177,8 @@ The window's controls are Reka UI's, in this look (CLAUDE.md, Window UI):
   `i-down` (a profile's picture).
 - `.choices`: icon buttons (`.icon`) to choose one of, the chosen one ringed in `--accent`: a profile's pictures
   (Reka's `ToggleGroup`, one always chosen).
+- `.chips`: a row of `.chip`s to choose one of (Reka's `ToggleGroup`, one always chosen), the chosen one in `--chosen`
+  with the accent's edge: the log's preset filters (`settings/LogPage.vue`).
 - `.editable`: a value edited in place (Reka's `Editable`: a profile's name, who it is, its test login): text in a
   field's box (`.preview`), a click or Tab edits it; Enter or leaving saves, Shift+Enter is a new line where it has
   lines, Esc puts it back (and leaves the dialog open).

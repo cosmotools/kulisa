@@ -334,8 +334,22 @@ its settings. Usually:
   are encrypted with your OS's keyring. **Show Data Folder** in a task tab's right-click menu, under the project's name, opens that project's.
 - Deleting a task, a profile or a project removes what Kulisa made for it.
 - Kulisa keeps a log of what it did (the buttons and tools used, tasks opened and closed, errors), never what you
-  typed or your passwords: the `logs` folder in the data folder, two files of 1 MB at most. When something goes wrong,
-  send `kulisa.log` with your report.
+  typed or your passwords: the `logs` folder in the data folder, two files of 1 MB at most. Read it in **Settings →
+  Log** (below, Reporting a problem).
+
+### Reporting a problem
+
+When something goes wrong, **☰ → Report a Problem…** opens Settings at its **Log** page: what Kulisa did, line by
+line, as it happens (**Follow** keeps the end in view). **Errors** shows the warnings and errors alone; **Agent**,
+**Human** and **Tasks** what the agent did, what you did, and tasks and windows opened and closed; the field beside
+them narrows it further (a task's name, a word). The log holds your project and task folders, profile names and the
+pages' addresses without their queries; never what you typed, passwords, tokens or cookies. Then pass it on any way
+you like:
+
+- **Report… → On GitHub…** opens a new issue in your browser with your Kulisa's version and OS filled in; attach the
+  log to it (**Save As…** first). The issue is public: look through the log before attaching it.
+- **Save As…** saves the log as a file to attach to a message or a chat; **Copy All** copies it; **Open Folder** shows
+  the file in your file manager.
 
 ### Reinstalling and removing Kulisa
 

@@ -11,6 +11,7 @@ import fs from 'fs';
 import path from 'path';
 import type * as Sent from '../shared/types.ts'; // what the window gets: its one definition
 import { allowFocus, guardFocus } from './page-focus.ts';
+import { bare, log } from './log.ts';
 // Taken from the module, not imported by name: unit tests load this in plain Node, where 'electron' is only a path
 // (docs/testing.md, Two layers).
 const { session, WebContentsView } = electron;
@@ -188,7 +189,13 @@ class Profile extends EventEmitter {
     };
     for (const e of ['did-start-loading', 'did-stop-loading', 'page-title-updated', 'did-navigate', 'did-navigate-in-page']) (wc as unknown as Internal).on(e, update);
     wc.on('did-navigate', () => this._applyZoom(tab));
-    wc.on('did-fail-load', (_e, code, desc, url, mainFrame) => { if (mainFrame && code !== -3) showError(wc, desc, url); }); // -3: replaced by another navigation
+    // -3: replaced by another navigation. A page that would not load is a common report (a white pane), so it is logged,
+    // its address bare (log.ts): the one kind of line about a profile's page.
+    wc.on('did-fail-load', (_e, code, desc, url, mainFrame) => {
+      if (!mainFrame || code === -3) return;
+      log.warn(`[profile] ${this.id} page failed to load ${bare(url)}: ${desc} (${code})`);
+      showError(wc, desc, url);
+    });
     // A page never moves the window, as in Chrome. Kulisa's window has no system title bar, and Electron takes
     // app-region: drag from its views too: Teams declares one, and it stays after the page has gone, taking every
     // click and wheel over the panes (docs/window.md). Each document gets no-drag everywhere, which also replaces a
