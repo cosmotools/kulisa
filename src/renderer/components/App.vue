@@ -10,7 +10,6 @@ import TaskRename from './TaskRename.vue';
 import AgentPicker from './AgentPicker.vue';
 import HandOver from './HandOver.vue';
 import Shortcuts from './Shortcuts.vue';
-import About from './About.vue';
 import Ask from './Ask.vue';
 import PointMenu from './menu/PointMenu.vue';
 import { store } from '../lib/store';
@@ -30,7 +29,6 @@ import { store } from '../lib/store';
   <AgentPicker />
   <HandOver />
   <Shortcuts />
-  <About />
   <Ask />
   <PointMenu />
 </template>

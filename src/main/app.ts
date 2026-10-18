@@ -293,7 +293,7 @@ function start(options: Options = {}) {
     const encryption = `[kulisa] encryption ${safeStorage.isEncryptionAvailable() ? 'available' : 'not available'}${backend ? ` (${backend})` : ''}`;
     if (safeStorage.isEncryptionAvailable() && backend !== 'basic_text') log.info(encryption); else log.warn(`${encryption}: no keyring found`);
     // macOS keeps a menu bar for the app: Electron's default one would reload Kulisa's own page with ⌘R. Its own
-    // menu: About Kulisa (Kulisa's own dialog, not Electron's panel), Settings… (⌘,, where Mac apps have it: the author, 2026-10-16), Quit, Hide (the app's), Copy and Paste
+    // menu: About Kulisa (Settings at its About page, not Electron's panel), Settings… (⌘,, where Mac apps have it: the author, 2026-10-16), Quit, Hide (the app's), Copy and Paste
     // (the Edit menu's roles: ⌘C, ⌘V in fields and the terminal), the windows. Kulisa's keys are taken before it
     // (onKey). Elsewhere the windows have no menu (window.ts). Its app menu as Electron's own, Settings… added
     // (tutorial/application-menu.md, 44.5.1).
@@ -301,7 +301,7 @@ function start(options: Options = {}) {
       // At the project of the tasks' window last in front (shell.front), Settings' own in front too.
       const settings = () => shell.openSettings({ section: 'projects', id: null });
       Menu.setApplicationMenu(Menu.buildFromTemplate([
-        { role: 'appMenu', submenu: [{ label: 'About Kulisa', click: () => (shell.front() ?? first())?.send('about:show') }, { type: 'separator' }, { label: 'Settings…', accelerator: 'Command+,', click: settings },
+        { role: 'appMenu', submenu: [{ label: 'About Kulisa', click: () => shell.openSettings({ section: 'about', id: null }) }, { type: 'separator' }, { label: 'Settings…', accelerator: 'Command+,', click: settings },
           { type: 'separator' }, { role: 'services' }, { type: 'separator' }, { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' },
           { type: 'separator' }, { label: 'Quit Kulisa', accelerator: 'Command+Q', click: () => void tasks.serial(() => tasks.quit(shell.front() ?? first())) }] },
         { role: 'editMenu' }, { role: 'windowMenu' }]));

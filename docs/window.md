@@ -222,8 +222,9 @@ A project label's right-click opens its group's menu, as Chrome's tab groups hav
 
 A row whose command has a key shows it at its end (Keys, below).
 
-**About Kulisa** (`About.vue`; on macOS also first in the app menu, where Mac apps have it, in place of Electron's own
-panel: `about:show` to the tasks' window in front): Kulisa's version (package.json's: run from source `app.getVersion()`
+**About Kulisa** (a page of Settings, `settings/AboutPage.vue`, under Log; ☰ → About Kulisa opens Settings at it, on
+macOS also first in the app menu, where Mac apps have it, in place of Electron's own panel; a dialog until 2026-10-18:
+the author, as Chrome's About is a page of its settings, one place for what is about the app, one dialog fewer): Kulisa's version (package.json's: run from source `app.getVersion()`
 is Electron's), Electron's and Chromium's (for a bug report, and What sites see), kulisa.app and the license; then the
 folders Kulisa writes in on this computer, as the OS and its variables make them (`about:get`, `ipc/window.ts`): the
 data folder, the projects' folder (`KulisaProjects`) and the program's (the checkout; packaged, what the installer put
@@ -252,7 +253,7 @@ could not mark the deleting button or lay out what goes. The OS's own dialogs st
 
 ## Settings
 
-Settings (a tree of Projects, Agents and Profiles: [tasks.md](tasks.md), Projects; under them the Log page: The log, below) is a window of its own, as a desktop
+Settings (a tree of Projects, Agents and Profiles: [tasks.md](tasks.md), Projects; under them the Log page, The log below, and About, Menus above) is a window of its own, as a desktop
 app's settings are (JetBrains', macOS apps'; the author, 2026-10-16: what users of desktop apps expect, and settings
 apart from the work): the OS's title bar ("Settings — Kulisa"), its own size and place, kept (`settings.json`:
 `settingsWindow`), at least 640 × 420 times the Kulisa zoom. Open it, set things, close it; or leave it open beside
@@ -631,7 +632,7 @@ shortcuts carry (`com.squirrel.kulisa.kulisa`), or Windows would not pin it to t
 | `src/main/settings-window.ts`, `src/renderer/settings.html`, `components/settings/` | Settings' window (Settings); its page is `ProjectEditor.vue` |
 | `src/preload/index.cjs` | the window's bridge to the main process: the windows' pages are sandboxed (no Node: about 15 MB less a window, PSS; 2026-10-12), so it is a few lines of plain JavaScript; the window imports what it shares with the main process from `src/shared/` (`names.ts`, `avatars.ts`, `result.ts`) |
 | `src/main/log.ts` | the log: the file (electron-log), `summary` of an action's arguments, the Log page's reading and following of it, the issue's address (The log) |
-| `components/settings/LogPage.vue` | the Log page of Settings (The log) |
+| `components/settings/LogPage.vue`, `AboutPage.vue` | the Log and About pages of Settings (The log; Menus, About Kulisa) |
 | `src/main/keys.ts` | the keyboard shortcuts: the table, which key an input event is; `shortcuts.ts` takes them (Keys) |
 | `src/main/updates.ts`, `installed.ts`, `forge.config.ts` | updates, Squirrel's events, a new version ready while Kulisa runs (the version installed on disk); the installers and the release |
 | `src/main/terminal.ts` | the ptys of the tasks' terminals; each shell's screen for `terminal_read` |
