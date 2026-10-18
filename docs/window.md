@@ -567,7 +567,7 @@ Installers are made with Electron Forge (`npm run make`, `forge.config.ts`), eac
 Linux (the `.deb` checked: it installs `chrome-sandbox` setuid root, a menu entry and the icon, and the app starts;
 99 MB, about 280 of its 320 MB installed being Electron itself, as VS Code's or Slack's; measured 2026-10-18),
 Squirrel `.exe` on Windows, `.dmg` and `.zip` on macOS (signed and notarized when the Apple secrets are set; without
-them unsigned, which runs on the Mac it was built on: ROADMAP, "macOS and Windows are untested"). On macOS node-pty is
+them unsigned, which runs on the Mac it was built on: ROADMAP, "Windows is untested; macOS has gaps left"). On macOS node-pty is
 not built again: its own prebuilt binary is packaged (N-API, the one `npm start` loads), so no compiler is needed, and
 its `spawn-helper`, the program it starts a shell with, is kept outside the archive, where it runs it from (in it, a
 packaged Kulisa's terminal failed). **What the package holds** is what the main process runs: its `dependencies`, the

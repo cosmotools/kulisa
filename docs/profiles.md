@@ -371,7 +371,13 @@ ids (Playwright needs them) and fans out a tab's events to all clients. Playwrig
 behind the active tab and under another task (issue #52, tabs asleep). A tab opening a URL is shown to clients only
 once the site has answered (its page or an error page, `tab.answered`): until then Chromium holds CDP commands to it,
 and a site that never answers made Playwright's connection, and opening the task, hang. It and the MCP server listen on 127.0.0.1
-only and refuse requests from web pages (`local-only.ts`).
+only and refuse requests from web pages (`local-only.ts`). Why the tools are Kulisa's own and not a bridge to
+`@playwright/mcp` (the author's question, 2026-10-08): it has no profile argument (a server per profile, its 25 tools
+each, while profiles come and go and an agent's servers are fixed at its start); the core's rules live in the tools
+(the sign-in pause, dialogs, captions and highlights over the pane, the human's tabs); and a tool running the agent's
+own Playwright code cannot run in Electron's main process (`vm` is no boundary), while in a process of its own it is
+what the agent already does with a script through the proxy. Each tool is a few lines of Playwright; most of their size
+is the descriptions the agent reads. If agents often write their own scripts, that names a missing tool.
 
 ## What is on the computer
 

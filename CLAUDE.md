@@ -30,8 +30,8 @@ unasked. This paragraph is removed when the rewrite is finished.
   not), Sign-ins that last, What sites see.
 - `docs/ROADMAP.md`: only what is planned: ideas and details of features to build, deferred ideas, open issues.
   **Since 2026-10-17 planned features go to GitHub issues** (`enhancement`; the author's decision), and the ROADMAP
-  moves there over time: an entry moved leaves one line pointing to its issue, and the issue is the one source (its
-  text written in full there, not in a comment). When a feature is built, document it in the docs below (how it works,
+  moves there over time: what has an issue is removed from the ROADMAP, the issue being the one source (its text
+  written in full there, not in a comment; nothing of it kept in the repository). When a feature is built, document it in the docs below (how it works,
   and why it is built so) and remove it from the ROADMAP and close its issue, keeping only what is left of it. **Before
   building something, look for it in both** (the open issues: `GET /repos/cosmotools/kulisa/issues?state=open`,
   GitHub's API below; the ROADMAP's Deferred ideas and Open issues): it may have been tried and put off, with
@@ -291,7 +291,7 @@ unasked. This paragraph is removed when the rewrite is finished.
   once its required checks pass: `test (ubuntu-latest)`, `test (macos-latest)`, `dependencies` and `version`
   (`.github/workflows/test.yml`). Never push to `main`, merge into it, or merge `main` back into `develop`.
   Supporting an OS makes its tests required, on `develop` and `main` (macOS's since 2026-10-18; Windows's once it
-  passes: ROADMAP, "macOS and Windows are untested"); the author adds it to the rulesets, the session says when it is
+  passes: ROADMAP, "Windows is untested; macOS has gaps left"); the author adds it to the rulesets, the session says when it is
   time.
 - **The version** in `package.json` is the truth; the app shows it (☰) and the updater compares it. Each pull
   request into `main` raises it (the `version` check refuses one that does not; once, the first release, the same
