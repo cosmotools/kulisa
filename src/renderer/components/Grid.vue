@@ -21,9 +21,7 @@ const tabComponents = markRaw({ profile: ProfileHeader, terminal: TerminalTabs }
 <template>
   <main id="dock">
     <ClosedProfiles />
-    <!-- proportional-layout is dockview's default, but dockview-vue declares it a Boolean prop, which Vue makes false
-         when left out: a narrower window then took from the last panel alone (github.com/dockview/dockview/issues/1691). -->
-    <DockviewVue id="grid" :theme :disable-floating-groups="true" :proportional-layout="true" single-tab-mode="fullwidth" :components :tab-components="tabComponents"
+    <DockviewVue id="grid" :theme :disable-floating-groups="true" single-tab-mode="fullwidth" :components :tab-components="tabComponents"
       @ready="(e) => gridMounted(e.api)" />
   </main>
 </template>
