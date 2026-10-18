@@ -2,6 +2,10 @@
 // left out, an address bare, the rest cut short.
 import { test } from 'node:test';
 import assert from 'assert/strict';
+import { spawn } from 'child_process';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
 import { electronEvent, environment, issueUrl, quitSaid, stamp, summary } from '../../src/main/log.ts';
 
 test('log: summary leaves out secrets, typed text and addresses\' queries, and cuts the rest short', () => {
@@ -47,4 +51,28 @@ test('log: the time as ISO 8601 with the offset; whether the run before said it 
   assert.equal(quitSaid(start + running + quit), true, 'a second Kulisa\'s start and exit, then the first one\'s quitting');
   assert.equal(quitSaid(start + running), false);
   assert.equal(quitSaid('[x] [task] open\n' + quit + '[x] [window] dropped\n'), true, 'a long run: its start past the tail');
+});
+
+// A console nobody reads any more (`npm start | head`, a closed terminal): the first failed write is an uncaught
+// exception, and app.ts logs those to the console: without log.ts handling it, that loop hung the author's Kulisa
+// (2026-10-18). The child is that shape: the log, app.ts's handler, lines written; its reader goes after the first.
+test('log: a console whose reader is gone does not hang the app; the file goes on', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kulisa-log-'));
+  const script = `
+    import { startLog } from ${JSON.stringify(path.resolve('src/main/log.ts'))};
+    startLog(${JSON.stringify(dir)}, false);
+    process.on('uncaughtException', (e) => console.error('[kulisa] uncaught', e));
+    let n = 0;
+    const t = setInterval(() => { console.log('line', n++); if (n === 40) { clearInterval(t); console.error('[kulisa] quitting'); } }, 5);`;
+  const child = spawn(process.execPath, ['--input-type=module', '-e', script], { stdio: ['ignore', 'pipe', 'pipe'] });
+  child.stdout.once('data', () => { child.stdout.destroy(); child.stderr.destroy(); });
+  const code = await new Promise<number | null>((ok) => {
+    const kill = setTimeout(() => { child.kill('SIGKILL'); }, 5000);
+    child.on('exit', (c) => { clearTimeout(kill); ok(c); });
+  });
+  const log = fs.readFileSync(path.join(dir, 'logs', 'kulisa.log'), 'utf8');
+  fs.rmSync(dir, { recursive: true });
+  assert.equal(code, 0, 'the child ended by itself (null: killed, looping on the dead console)');
+  assert.match(log, /line 39\n.*\[kulisa\] quitting\n$/s, 'the file got every line after the console went');
+  assert.doesNotMatch(log, /uncaught/, 'no error reached the uncaught handler');
 });

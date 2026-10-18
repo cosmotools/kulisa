@@ -24,7 +24,8 @@ After each change, restart it without asking, so the author sees it (the author 
 2. `.claude/skills/run-kulisa/kulisa.sh start`. It runs without the parent Claude session's `CLAUDE_*` variables
    (except `CLAUDE_CONFIG_DIR`), or the `claude` inside would take itself for a child session.
    - Linux: with the Bash tool's `run_in_background`: the app keeps running after the turn. A few seconds later, read
-     the background output: `[kulisa] MCP server: …` means it is up.
+     the background output: `[kulisa] MCP server: …` means it is up. Never into a pipe that ends (`| head -20`,
+     `| grep -m1`): its output then has no reader, and until 2026-10-18 that hung the app (docs/window.md, The log).
    - macOS: in the foreground. It starts the app through LaunchServices (`open`), so the app is its own and not the
      terminal's (the screen recording permission, `KULISA_SHOT`, is the responsible app's: `docs/testing.md`, "On
      macOS"), and without the terminal's variables either (`TERM_PROGRAM` made zsh in its terminals load Terminal.app's

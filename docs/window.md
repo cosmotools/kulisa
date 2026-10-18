@@ -469,7 +469,11 @@ itself at a click, 2026-10-17, three times, with nothing to read): `logs/kulisa.
 ([tasks.md](tasks.md), "What is on the computer"), written by electron-log (MIT, the most used: the file and its
 turnover, Electron's own events) with lines of Kulisa's own (`log.ts`). At 1 MB it becomes `kulisa.old.log` and a new
 one starts: 2 MB at most, nothing piling up. The same place on every OS (electron-log would put macOS's in
-`~/Library/Logs`): one path to name in the guide, and the tests' log in their own folder. Each line has the time (ISO
+`~/Library/Logs`): one path to name in the guide, and the tests' log in their own folder. The lines go to the console too
+(`npm start`'s terminal, the tests' output), until it has no reader (the terminal closed, `npm start | head`): then the
+console transport goes off at its first failed write, and the file goes on. Left to Node, that write is an uncaught
+exception, which `app.ts` logs to the console again, and so on, in nextTicks that let nothing else run: on 2026-10-18 the
+author's Kulisa stopped answering the OS so, started by a session that piped its output into `head`. Each line has the time (ISO
 8601 with the computer's offset, `stamp`: a user's log is read next to an issue's or a message's time from another
 zone; electron-log's own has no offset), the level and a tag:
 
