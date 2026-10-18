@@ -151,9 +151,8 @@ unasked. This paragraph is removed when the rewrite is finished.
     (`page.pickLocator`), snapshots (`ariaSnapshot`), action annotations (`page.screencast.showActions`),
     highlights (`locator.highlight`), recent console messages and requests (`page.consoleMessages`, `requests`).
     Check `@playwright/mcp` and the MCP SDK the same way. Read the API of the installed version, not what you
-    remember: it is a 1.64 alpha, whose newest APIs are younger than your training. Its documentation is in
-    `node_modules/playwright-core/types/types.d.ts` (playwright.dev describes the stable release); name what you read
-    in the plan.
+    remember: its newest APIs are younger than your training. Its documentation is in
+    `node_modules/playwright-core/types/types.d.ts`; name what you read in the plan.
   - Window layout (panels, splits, drag and drop, tabs of panels, saving the grid) is dockview's; use its API
     before adding layout code.
   - Before building anything that touches Electron, look it up in Electron's documentation for the installed version
@@ -363,9 +362,9 @@ The npm scripts, what each does, and what to install first (Node 24.12+, npm 11 
   interface: they control signed-in browser profiles. `local-only.ts` also refuses requests from web pages (a
   foreign Host: DNS rebinding; any Origin: a page's fetch or WebSocket); keep every new endpoint behind it. Local
   processes are not authenticated yet (open issue in ROADMAP).
-- **Do not downgrade `playwright-core`.** It is pinned to `1.64.0-alpha-…` because Kulisa uses APIs that exist
-  only there: `page.pickLocator()` (the picker), `page.screencast.showActions()` (the agent's actions in the
-  page), `page.consoleMessages()`/`requests()`. Move to the stable release once it ships with them.
+- **Do not downgrade `playwright-core`** below 1.64: Kulisa uses APIs that first shipped there: `page.pickLocator()`
+  (the picker), `page.screencast.showActions()` (the agent's actions in the page), `page.consoleMessages()`/`requests()`.
+  Until 2026-10-18 it was pinned to a 1.64 alpha, the only release with them then.
 - **Killing processes:** `pkill -f <pattern>` also matches the shell running it. Select Electron by
   `ps -eo pid,comm,args` with `comm == "electron"`.
 

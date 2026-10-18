@@ -4,7 +4,18 @@
 //   npm run publish   made and uploaded to a draft release on GitHub (GITHUB_TOKEN; the CI does it on a tag)
 // Each platform's installers are built on that platform. docs/window.md, "The app icon, installers and updates".
 import { execSync } from 'child_process';
+import fs from 'fs';
+import path from 'path';
 import type { ForgeConfig } from '@electron-forge/shared-types';
+
+// node-pty ships prebuilt binaries for macOS and Windows (58 MB, the Windows ones 28 MB each) and loads only the one of
+// the platform and architecture it runs on (its lib/utils.js; on Linux the one built at install, build/Release): the
+// others are left out of the package. docs/window.md, "The app icon, installers and updates".
+export function prunePrebuilds(buildPath: string, platform: string, arch: string) {
+  const dir = path.join(buildPath, 'node_modules/node-pty/prebuilds');
+  if (!fs.existsSync(dir)) return;
+  for (const d of fs.readdirSync(dir)) if (d !== `${platform}-${arch}`) fs.rmSync(path.join(dir, d), { recursive: true });
+}
 
 // macOS signed and notarized only when its secrets are there: an unsigned app does not update (Squirrel.Mac).
 const apple = process.env.APPLE_API_KEY ? {
@@ -34,8 +45,9 @@ const config: ForgeConfig = {
     extraResource: ['src/agent/claude-plugin', 'src/agent/skills'],
     // macOS asks for the microphone on Kulisa's behalf when the agent in its terminal records (dictation).
     extendInfo: { NSMicrophoneUsageDescription: 'The agent in Kulisa\'s terminal listens when you dictate a task to it.' },
-    // Only what the app runs; Forge also leaves out devDependencies. The window is its build (dist/renderer), not its
-    // sources (src/renderer), without source maps.
+    // Only what the app runs; Forge also leaves out devDependencies, which is where the window's libraries are (Vite
+    // bundles them into dist/renderer; the main process imports none of them, @xterm/headless apart). The window is its
+    // build (dist/renderer), not its sources (src/renderer), without source maps.
     ignore: [/^\/(test|docs|out|scripts)(\/|$)/, /^\/\.kulisa(\/|$)/, /^\/src\/renderer(\/|$)/, /^\/(forge\.config\.ts|vite\.config\.mts|tsconfig\.json|knip\.jsonc|\.dependency-cruiser\.ts)$/, /\.map$/],
   },
   makers: [
@@ -49,7 +61,10 @@ const config: ForgeConfig = {
   // A draft: the author publishes it, and update.electronjs.org takes only published releases (update-electron-app).
   publishers: [{ name: '@electron-forge/publisher-github', config: { repository: { owner: 'cosmotools', name: 'kulisa' }, draft: true } }],
   // The window built (type checked, then Vite: vite.config.mts) before it is packaged.
-  hooks: { generateAssets: async () => { execSync('npm run build', { stdio: 'inherit' }); } },
+  hooks: {
+    generateAssets: async () => { execSync('npm run build', { stdio: 'inherit' }); },
+    packageAfterCopy: async (_config, buildPath, _electronVersion, platform, arch) => prunePrebuilds(buildPath, platform, arch),
+  },
   // node-pty is native: keep its .node files outside the asar archive so they can be loaded.
   plugins: [{ name: '@electron-forge/plugin-auto-unpack-natives', config: {} }],
   // macOS: node-pty's own prebuilt binary (N-API, for any Electron; npm start loads it too), not built again: building
