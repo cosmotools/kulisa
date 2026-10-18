@@ -719,4 +719,3 @@ moves there over time: an entry moved leaves one line here pointing to its issue
     on screen at once (other windows). VS Code too keeps an xterm per terminal.
 - **No performance numbers taken with the monitor on** (CPU, RAM, many profiles): measured when a decision needs them,
   on the version then current (`ps`, `app.getAppMetrics()`), not written down.
-- **`playwright-core` is pinned to a 1.64 alpha.** Move to the stable release once it ships with the same APIs.
