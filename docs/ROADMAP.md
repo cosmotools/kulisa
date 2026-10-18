@@ -374,15 +374,6 @@ moves there over time: what has an issue is removed from here, the issue being t
       agent to read events and trigger them ("the buyer pays, the seller sees the order").
     - **Feature flags** (LaunchDarkly, Unleash, GrowthBook, PostHog): each profile's flags in a panel, switched
       per profile; a tool for the agent to set them, to check a feature with the flag on and off, per role.
-- **A translucent, blurred window background** (the author's idea, 2026-10-06; Windows 7's Aero glass): the
-  desktop blurred behind the gaps between the islands, the title bar and the project's glow; the islands stay
-  opaque. The blur is the OS's, not Kulisa's: Electron's `vibrancy` on macOS, `backgroundMaterial: 'acrylic'` (or
-  `'mica'`) on Windows 11; on Linux only a transparent window (KDE can blur it, GNOME cannot: the desktop would show
-  through sharp, worse than now), nothing reliable on Windows 10. Deferred: the author works on GNOME and would not
-  see it. If built: only where it is real (macOS, Windows 11), opaque elsewhere; a few lines where the window is made
-  (`app.ts`) and a translucent background color for those systems (`tokens.css`). Check transparent windows'
-  known issues there (resizing, maximizing, the title bar overlay, profile views above the HTML). Faking the blur
-  (a picture of the wallpaper, blurred) was rejected: a workaround, and it lags when the window moves.
 - **One panel in its own OS window** (e.g. the buyer's profile on a second monitor, the terminal and the other
   profiles staying in the main window). Today a task moves to another window whole (Move to New Window).
   dockview has popout windows, and a profile's native views can move between windows (`Profile.moveTo`), but a
