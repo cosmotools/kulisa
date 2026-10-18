@@ -46,6 +46,7 @@ actors, the panes the stage, and the developer watches from the audience and sto
 - **For developers:**
   - [docs/profiles.md](docs/profiles.md), [docs/tasks.md](docs/tasks.md), [docs/window.md](docs/window.md),
     [docs/transcripts.md](docs/transcripts.md), [docs/ui.md](docs/ui.md): how it works and why it is built so;
+  - [docs/packages.md](docs/packages.md): Kulisa packages, parts of Kulisa in folders of their own (the terminal);
   - [docs/ROADMAP.md](docs/ROADMAP.md): what is planned, open issues;
   - [docs/testing.md](docs/testing.md) and [CONTRIBUTING.md](CONTRIBUTING.md): the tests, contributing.
 
@@ -112,6 +113,7 @@ Code's checks.
 | `src/preload/` | the window's bridge to the main process |
 | `src/shared/` | what the main process and the window both import: the shapes and channels they send, names, `Result` |
 | `src/agent/` | what Kulisa gives the agents: the profiles skill, Claude Code's plugin |
+| `src/terminal/` | the terminal, a Kulisa package: both its halves, its channels, its doc (docs/packages.md) |
 | `test/` | unit tests and the e2e groups, the test site (docs/testing.md) |
 | `scripts/` | `electron.ts` (npm start: Electron, `--no-sandbox` on Linux only), `postinstall.ts` (node-pty for Electron), `icons.ts` (npm run icons), `version.ts` (Claude Code's plugin manifest's version from package.json's, at npm version) |
 | `assets/` | the app icon: `icon.svg` and what each OS needs, rendered from it |

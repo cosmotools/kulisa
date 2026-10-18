@@ -1,4 +1,4 @@
-// An argument of a command typed into the user's shell (terminal.ts), quoted as that shell reads it.
+// An argument of a command typed into the user's shell (index.ts), quoted as that shell reads it.
 import path from 'path';
 
 // sh's quoting (bash, zsh): nothing is special inside '…', a ' ends it. fish reads `\\` and `\'` there: quoted the sh
