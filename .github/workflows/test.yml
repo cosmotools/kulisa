@@ -54,7 +54,9 @@ jobs:
     # Windows is not passing yet (ROADMAP, "macOS and Windows are untested"): its runs report, but do not mark main red.
     # It comes off this once its first run passes, as macOS did (2026-10-16).
     continue-on-error: ${{ matrix.os == 'windows-latest' }}
-    timeout-minutes: 30
+    # Windows's run hangs (2026-10-18): cut at 15 minutes, three times what Ubuntu and macOS take, so it is reported
+    # sooner than at the 30 of the others.
+    timeout-minutes: ${{ matrix.os == 'windows-latest' && 15 || 30 }}
     defaults:
       run:
         shell: bash
