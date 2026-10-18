@@ -38,15 +38,18 @@ async function newTask(ctx: Ctx) {
 // A project's submenu (a tab's right-click, then the row of the project's name, the one row opening a menu): its
 // rows, a row of it chosen. tab: the tab to open it on (the shown task's).
 async function projectMenu(ui: UI, label?: string, tab = '#projectTabs .tasktab.active .name') {
-  // Right-clicked again until its menu opens: one right after Settings or another menu closed opened none now and
-  // then (GitHub's runner, 2026-10-16), as the window's focus came back.
+  // Right-clicked again until its menu opens and its submenu with it: right after Settings or another menu closed,
+  // the menu opened none now and then (GitHub's runner, 2026-10-16), or opened and closed at once (2026-10-18), as
+  // the window's focus went and came back late (a blur closes a menu, as the OS's own close).
   await waitFor(async () => {
     if (!(await menuOpen(ui))) await rightClick(ui, tab);
-    return waitFor(() => menuOpen(ui), 1000).then(() => true, () => false);
+    try {
+      await waitFor(() => menuOpen(ui), 1000);
+      await ui(`${MENU}.querySelector('.item[aria-haspopup]').click()`);
+      await waitFor(async () => (await ui(`document.querySelectorAll('.menu[data-state="open"]').length`)) === 2, 1000);
+      return true;
+    } catch { return false; }
   }, 10000);
-  await menuRows(ui);
-  await ui(`${MENU}.querySelector('.item[aria-haspopup]').click()`);
-  await waitFor(async () => (await ui(`document.querySelectorAll('.menu[data-state="open"]').length`)) === 2);
   const rows = await menuRows(ui, SUBMENU);
   if (label) await choose(ui, label, SUBMENU);
   else await closeMenu(ui);
