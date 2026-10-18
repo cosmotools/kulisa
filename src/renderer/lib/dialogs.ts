@@ -11,6 +11,7 @@ export interface Dialogs {
   // New Project (newproject/NewProject.vue).
   newproject: { open(): Promise<void> };
   shortcuts: { showShortcuts(): void };
+  about: { open(): void };
   // Change Agent (HandOver.vue): an agent's tab handed over.
   handover: { open(t: Terminal): Promise<void> };
 }

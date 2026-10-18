@@ -7,7 +7,6 @@
 import { BrowserWindow, desktopCapturer, screen, shell as electronShell } from 'electron';
 import path from 'path';
 import fs from 'fs';
-import pkg from '../../package.json' with { type: 'json' };
 import { page } from './pages.ts';
 import { log } from './log.ts';
 import type { Rectangle, Point } from 'electron';
@@ -124,7 +123,7 @@ class AppWindow {
   // the keyboard shortcuts (keys.ts: for menus and tooltips) come along in the URL, so the window is drawn right at once. The profiles' views stay hidden until the renderer has the grid laid out (views:hidden).
   async load(shown: Task | null) {
     await this.win.loadFile(page('index.html'), { query: {
-      version: pkg.version, theme: this.shell.theme, bar: this.shell.bar, keys: JSON.stringify(this.shell.keys()),
+      theme: this.shell.theme, bar: this.shell.bar, keys: JSON.stringify(this.shell.keys()),
       projects: JSON.stringify(this.info(shown)) } });
     this.loaded = true;
     for (const [channel, data] of this.pending.splice(0)) this.win.webContents.send(channel, ...data);

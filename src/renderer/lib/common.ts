@@ -4,7 +4,6 @@ import { reactive } from 'vue';
 import type { ProjectsInfo, Shortcut } from '../../shared/types';
 
 const query = new URLSearchParams(location.search);
-export const version: string = query.get('version') || '';
 // The projects open in this window, before the first paint; later the main process sends them (store.ts).
 export const initialProjects: ProjectsInfo | null = query.get('projects') ? JSON.parse(query.get('projects')!) : null;
 // Kulisa's keyboard shortcuts (main/keys.ts), as this OS shows them. keyText(id): a command's first key, for menus
