@@ -621,8 +621,8 @@ moves there over time: an entry moved leaves one line here pointing to its issue
     checked by the tests only, not by changing the OS's setting by hand; Windows untested.
   - Tests run often on Linux only; on macOS and Windows before a release (the author's decision, 2026-10-09). The CI
     runs them on all three at every pull request into `develop` or `main` ([testing.md](testing.md), CI); Windows not failing the
-    workflow until the bench passes there (macOS does since 2026-10-16): its job hangs and is cancelled at its 30
-    minutes every run (2026-10-18; `continue-on-error`, so it marks nothing red); the author adapts Kulisa to Windows
+    workflow until the bench passes there (macOS does since 2026-10-16): its job hangs and is cancelled at its
+    timeout every run (2026-10-18; `continue-on-error`, so it marks nothing red); the author adapts Kulisa to Windows
     next (2026-10-18: a day or two). On a computer they run on the human's
     screen there (Xvfb is Linux's), taking its focus.
     The test bench was made on Linux; adapted on each OS where it can be run (the author's decision, 2026-10-08). macOS:
