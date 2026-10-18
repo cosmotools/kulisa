@@ -317,7 +317,7 @@ In the terminal every other key is the agent's.
 
 ## Where Kulisa keeps things
 
-**☰ → About Kulisa** (on a Mac also Kulisa → About Kulisa in the menu bar) shows Kulisa's version and the exact
+**☰ → About Kulisa** (on a Mac also Kulisa → About Kulisa in the menu bar) opens Settings at its **About** page: Kulisa's version and the exact
 folders on your computer: the data folder, the projects' folder and the program's, each with a button that opens it in
 your file manager, its path there to copy. Look there rather than guess: where the folders are depends on your OS and
 its settings. Usually:
@@ -359,7 +359,7 @@ from). Everything you made stays where it is listed above, so installing Kulisa 
 brings it all back: your projects, tasks, profiles with their sign-ins, agents' accounts and settings.
 
 To remove everything, do it before uninstalling, in Kulisa, so that it cleans up after itself. First note the folders
-in **☰ → About Kulisa**: once the program is gone, nothing shows them. Then delete every project
+in **☰ → About Kulisa** (Settings → About): once the program is gone, nothing shows them. Then delete every project
 (**⋯ → Delete Project…** on its page: its tasks go with it, with their copies of the code and their branches),
 every profile (Settings → Profiles) and every agent's account (Settings → Agents: − on the account, which signs it
 out). Then uninstall the program and delete the data folder (above). What remains and is yours to keep or remove:

@@ -376,8 +376,8 @@ export default (test: Test) => {
       taskrename: () => fromMenu('Rename…', '#projectTabs .tasktab .name'),
       agentpick: async () => { void shell.chooseAgent(shell.task, null); }, // asked when a task's agent is not there
       shortcuts: () => fromMenu('Keyboard Shortcuts'),
-      about: () => fromMenu('About Kulisa'),
-    };
+    }; // About: a page of Settings since 2026-10-18, no longer a dialog
+
     assert.equal(await ui(`document.querySelectorAll('.dialog').length`), 0, 'none in the page while closed');
     for (const [id, open] of Object.entries(openers)) {
       await open();
@@ -436,9 +436,9 @@ export default (test: Test) => {
     assert.equal(await second, false, 'Cancel says no');
     ctx.answer = true;
   });
-  test("About Kulisa (☰; on macOS the app menu's): the versions, and the folders Kulisa writes in on this computer, each shown in the file manager, one not made yet told so", async ({ shell, ui }) => {
+  test("About Kulisa (☰; on macOS the app menu's) is a page of Settings: the versions, and the folders Kulisa writes in on this computer, each shown in the file manager, one not made yet told so", async (ctx) => {
+    const { shell, ui, sui } = ctx;
     const pkg = JSON.parse(fs.readFileSync(path.join(import.meta.dirname, '..', 'package.json'), 'utf8'));
-    const isOpen = () => ui(`document.getElementById('about')?.dataset.state === 'open'`);
     if (process.platform === 'darwin') {
       const item = Menu.getApplicationMenu().items[0].submenu.items[0];
       assert.equal(item.label, 'About Kulisa', "first in the app menu, where Mac apps have it");
@@ -448,8 +448,10 @@ export default (test: Test) => {
       await menuRows(ui);
       await choose(ui, 'About Kulisa');
     }
-    await waitFor(isOpen);
-    const a = await ui(`(() => { const d = document.getElementById('about'); return { title: d.querySelector('.who h3').textContent, line: [...d.querySelectorAll('.who .hint')].map((p) => p.textContent).join(' / '),
+    const shown = () => sui(`document.querySelector('#pjlist [data-page="about"]')?.ariaSelected === 'true' && document.getElementById('abconfig').checkVisibility() && !!document.querySelector('#aboutpage .who')`);
+    await waitFor(shown);
+    assert.equal(shell.settings.win.getTitle(), 'Settings — Kulisa', 'a page of Settings, as Chrome\'s About');
+    const a = await sui(`(() => { const d = document.getElementById('aboutpage'); return { title: d.querySelector('.who h3').textContent, line: [...d.querySelectorAll('.who .hint')].map((p) => p.textContent).join(' / '),
       folders: [...d.querySelectorAll('.paths dd')].map((dd) => ({ id: dd.dataset.folder, path: dd.querySelector('.path').textContent, missing: dd.classList.contains('missing'), disabled: dd.querySelector('.show').disabled })) }; })()`);
     assert.equal(a.title, `Kulisa ${pkg.version}`);
     assert.equal(a.line, `Electron ${process.versions.electron} · Chromium ${process.versions.chrome} / kulisa.app · GPL-3.0-or-later`);
@@ -457,20 +459,18 @@ export default (test: Test) => {
     assert.deepEqual(a.folders, [{ id: 'data', path: userData, missing: false, disabled: false }, { id: 'projects', path: projectsHome, missing: !made, disabled: !made },
       { id: 'program', path: path.join(import.meta.dirname, '..'), missing: false, disabled: false }]);
     // Show: the folder in the file manager, by its id (the window names no path).
-    const openPath = electron.shell.openPath, shown: string[] = [];
-    electron.shell.openPath = async (dir) => { shown.push(dir); return ''; };
+    const openPath = electron.shell.openPath, shownDirs: string[] = [];
+    electron.shell.openPath = async (dir) => { shownDirs.push(dir); return ''; };
     try {
-      await ui(`document.querySelector('#about dd[data-folder="data"] .show').click()`);
-      await waitFor(() => shown.length === 1);
+      await sui(`document.querySelector('#aboutpage dd[data-folder="data"] .show').click()`);
+      await waitFor(() => shownDirs.length === 1);
     } finally { electron.shell.openPath = openPath; }
-    assert.deepEqual(shown, [userData]);
-    await ui(`document.querySelector('#about .x').click()`);
-    await waitFor(async () => !(await isOpen()));
-    // The main process opens it too (macOS's menu, whichever OS): the same dialog.
-    shell.windows[0].send('about:show');
-    await waitFor(isOpen);
-    await ui(`document.querySelector('#about .x').click()`);
-    await waitFor(async () => !(await isOpen()));
+    assert.deepEqual(shownDirs, [userData]);
+    await closeSettings(ctx);
+    // The main process opens it too (macOS's menu, whichever OS): the same window at that page.
+    shell.openSettings({ section: 'about', id: null });
+    await waitFor(shown);
+    await closeSettings(ctx);
   });
   // The app archive the test's Kulisa watches (run.ts, installed) replaced as apt does: a new one written beside and
   // renamed over. The archive made as Forge packs it (@electron/asar).

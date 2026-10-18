@@ -19,8 +19,8 @@ type Grid = Record<string, Partial<{ x: number; y: number; width: number; height
 export type Theme = 'dark' | 'light' | 'system';
 export type Bar = 'top' | 'bottom';
 // Where Settings opens (its window: main/settings-window.ts): a project's page (none: the shown task's), a profile's, the
-// log (☰ → Report a Problem…).
-export type SettingsAt = { section: 'projects' | 'profiles' | 'log'; id?: string | null };
+// log (☰ → Report a Problem…), About (☰ → About Kulisa; macOS's app menu).
+export type SettingsAt = { section: 'projects' | 'profiles' | 'log' | 'about'; id?: string | null };
 // A project's code as its manager shows it (projects.ts, reposInfo).
 type Repos = { repos: ProjectRepo[]; former?: string | null };
 type ProjectAgents = { agents: ProjectAgent[] };
@@ -173,7 +173,6 @@ export interface Events {
   'project:new': void;
   'master:url': string;
   'settings:show': SettingsAt;
-  'about:show': void; // macOS's app menu, About Kulisa
   'settings:closing': void; // asked to close (its ×): its page saves, then closes it
   'settings:changed': void; // the profiles changed elsewhere (a tasks' window, the agent): its lists read again
   'log:lines': { text: string } | { reset: true }; // what the log got since it was read; turned over: read it again

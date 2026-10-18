@@ -1,31 +1,25 @@
 <script setup lang="ts">
-// About Kulisa (docs/window.md, Menus; the guide, "Where Kulisa keeps things"): the versions, and the folders Kulisa
-// writes in as this computer has them (the OS and its variables decide where appData is: issue #67), each opened in the
-// file manager, its path there to copy. Asked of the main process when opened, so a folder made since shows.
-import { ref } from 'vue';
-import { DialogClose } from 'reka-ui';
-import Modal from './Modal.vue';
-import Icon from './Icon.vue';
-import { registerDialog } from '../lib/dialogs';
-import type { AboutInfo, AboutFolder } from '../../shared/types';
+// The About page of Settings (docs/window.md, Menus, About Kulisa; the guide, "Where Kulisa keeps things"): the versions,
+// and the folders Kulisa writes in as this computer has them (the OS and its variables decide where appData is: issue
+// #67), each opened in the file manager, its path there to copy. Asked of the main process each time the page is
+// shown, so a folder made since shows. A dialog until 2026-10-18 (About.vue): as Chrome's About, a page of the
+// settings, one place for what is about the app.
+import { ref, watch } from 'vue';
+import Icon from '../Icon.vue';
+import type { AboutInfo, AboutFolder } from '../../../shared/types';
 
+const props = defineProps<{ shown: boolean }>(); // the page chosen in the tree
 const FOLDERS: Record<AboutFolder, { label: string; hint: string }> = {
-  data: { label: 'Data', hint: 'Profiles with their sign-ins, agents\' accounts, projects\' tasks, settings.' },
+  data: { label: 'Data', hint: 'Profiles with their sign-ins, agents\' accounts, projects\' tasks, settings, the log.' },
   projects: { label: 'Projects', hint: 'New projects, and the copies of the code of tasks of a project of several repositories.' },
   program: { label: 'Program', hint: 'The program as installed, or the checkout it runs from. Uninstalling removes it; the folders above stay.' },
 };
-const modal = ref<InstanceType<typeof Modal>>();
 const info = ref<AboutInfo | null>(null);
-async function open() {
-  info.value = await kulisa.invoke('about:get');
-  await modal.value!.open();
-}
-registerDialog('about', { open });
-kulisa.on('about:show', open);
+watch(() => props.shown, async (s) => { if (s) info.value = await kulisa.invoke('about:get'); }, { immediate: true });
 </script>
 
 <template>
-  <Modal id="about" ref="modal" title="About Kulisa">
+  <div id="aboutpage">
     <template v-if="info">
       <div class="who">
         <Icon name="i-logo" />
@@ -48,13 +42,11 @@ kulisa.on('about:show', open);
         </template>
       </dl>
     </template>
-    <template #footer><DialogClose class="primary">Close</DialogClose></template>
-  </Modal>
+  </div>
 </template>
 
 <style>
-#about {
-  width: 560px;
+#aboutpage { max-width: 640px;
   .who { display: flex; align-items: center; gap: var(--gap); margin-bottom: calc(var(--gap) * 2);
     > svg { width: 48px; height: 48px; flex: none; color: var(--project); }
     h3 { margin: 0 0 2px; font-size: var(--font-lead); font-weight: 600; color: var(--text-strong); }
