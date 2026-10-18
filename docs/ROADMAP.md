@@ -4,14 +4,19 @@ What is planned: ideas and the details of features still to build, deferred idea
 [profiles.md](profiles.md), [tasks.md](tasks.md), [window.md](window.md), [ui.md](ui.md)) and removed from
 here; what is left of it stays.
 
+**Since 2026-10-17 planned features go to GitHub issues** (`enhancement`; the author's decision), and what is here
+moves there over time: an entry moved leaves one line here pointing to its issue, and the issue is the one source
+(CLAUDE.md, `docs/ROADMAP.md`). Before building something, look in both.
+
 ## Next
 
 - **Projects and tasks: Kulisa rebuilt around them** (designed with the author 2026-10-10). It replaced the model of
   workspaces: a project is the configuration its tasks are made from, and the work is done in **tasks**; how it
   works: [tasks.md](tasks.md), [profiles.md](profiles.md). No migration: the new layout does not read the old data
   (one data format only: old data is deleted, never read or migrated).
-  - **Status** (keep it current: a new session reads it first). 2026-10-11: all eight steps are built and in `main`,
-    the branch the stabilization goes on from, and so is what came after them: the window in Vue 3 and Reka UI, the
+  - **Status** (keep it current: a new session reads it first). 2026-10-11: all eight steps are built and merged
+    (into `main` then; since 2026-10-12 work goes into `develop` and `main` is what is released: CLAUDE.md,
+    Releases), and so is what came after them: the window in Vue 3 and Reka UI, the
     groups and the tasks' bar as Chrome's tab groups with one + after the islands, the empty window, Settings as
     JetBrains' (a tree of Projects, Agents and Profiles; [ui.md](ui.md), Desktop, not a web page), the whole project
     in TypeScript; 2026-10-12, a task's island of terminals with several agents in it ("Several agents in a task, rest",
@@ -22,13 +27,18 @@ here; what is left of it stays.
     submenu of its menu; [tasks.md](tasks.md), Projects), the grid sliding between any two tabs; 2026-10-17, New
     Project in three steps (code, agents, profiles) opening the project's first task, the bar's + a new tab with every
     project's tasks in columns (the empty window shows them too), the project's glow only while a task is shown, and
-    the window's clusters ([ui.md](ui.md), Clusters). The author tests it by hand. Next: fix what the author's testing finds; then what is left of the
+    the window's clusters ([ui.md](ui.md), Clusters); 2026-10-18, the log (`logs/kulisa.log`) and its page in
+    Settings with ☰ → Report a Problem… ([window.md](window.md), The log; #73), About moved into Settings, each release
+    file's provenance attested and macOS's tests a required check (CLAUDE.md, Releases). The author tests it by hand.
+    Next: fix what the author's testing finds; then what is left of the
     steps (below), only once the author has decided it.
   - **Open, for the author to decide:** Refresh from Master… now matters only for a local app's cookies (keep or
     drop); a script the agent runs in a page (`browser_evaluate`) could read a test password back from its field
     (only the skill forbids it: close it or not). For the author's real accounts, not testable by Claude:
     device-bound cookies (DBSC, Google) and MSAL's sign-ins kept in step. Not discussed, so not to build unasked: tabs
-    in a master's window, tasks in a former folder getting copies.
+    in a master's window, tasks in a former folder getting copies. Written down to discuss when their turn comes: the
+    pages (Settings, Log, About, the board) as tabs of the bar, [#74](https://github.com/cosmotools/kulisa/issues/74);
+    where the data folder lives (Windows Roaming, `XDG_CONFIG_HOME`), [#67](https://github.com/cosmotools/kulisa/issues/67).
   - **Left of the steps:**
     - Tasks: a squash merge is not seen as merged (Kulisa offers to delete a closed task only once its commits are
       in the remote's default branch).
@@ -39,7 +49,8 @@ here; what is left of it stays.
     - Profiles: the master's window has one tab shown at a time (a sign-in's popup takes it, the tab before comes
       back when it closes); Refresh from Master… brings cookies only, not the sites' storage.
     - Sign-ins kept in step: device-bound session cookies (DBSC) to check with a real Google account in this
-      Electron; sign-ins in a site's storage (MSAL) are not kept in step.
+      Electron; sign-ins in a site's storage (MSAL) are not kept in step. What the log says of sign-ins and cookies
+      (counts and domains, never values), agreed 2026-10-18: [#75](https://github.com/cosmotools/kulisa/issues/75).
     - "Sign in with Google" on a local app: the human signs in once to a test Google account in the profile's
       master, and the agent goes the whole way itself (account chooser, consent) with no sign-in pause on that path,
       never typing a Google password. The pause part goes into the author's replacement of `signin-pause.ts`.
@@ -111,68 +122,10 @@ here; what is left of it stays.
   - Next to it, small: `browser_emulate_media` (dark or light, print, reduced motion; Playwright's
     `page.emulateMedia`): the profiles' pages follow the OS's theme, so the agent cannot check the site's other one.
   - Estimate: code +200 (the core ~80, the pane ~60, MCP ~60), tests +90, docs +40.
-- **Ideas for Kulisa: what agents could not do, sent to us** (designed with the author 2026-10-08; to build as one
-  feature). Agents on users' computers meet what Kulisa cannot do (a tool missing, a tool that does not work); they
-  note it, the human sends what they want, without leaving Kulisa. Nothing leaves the computer without the human's
-  click: a page could make the agent "report an idea" with the user's data in it (prompt injection), and Kulisa's
-  promise is that everything stays on the user's computer.
-  - **The agent notes** (`kulisa_idea` in `mcp-server.ts`, any agent): `kind` (`missing`: no tool for it; `bug`: a
-    tool did not do what it says), `need` (what it had to do, in general words: "read an invitation email"),
-    `missing`, `instead` (what it did instead: its own script through the proxy, `curl`, asked the human, gave up),
-    `adds_to` (an earlier note of the same gap: its count grows). The tool's description lists the notes there are
-    (as `profileArg` lists profiles), so the agent sees what is noted. Written without addresses, names, page
-    contents or the project's name ("a chat app"); after it, one line to the human ("noted an idea for Kulisa"). The
-    rule in the tool's description, one sentence in `INSTRUCTIONS` (agents without the skill), a section in the skill.
-    It only notes; it never asks the human: how often an agent asks would be the agent's choice, and a question in
-    the middle of a task breaks it.
-  - **Kulisa notices by itself:**
-    - The agent going around the tools: the shell's own connection to the CDP proxy sends a header
-      (`connectOverCDP(endpoint, { headers })`), any other client of a profile's proxy is the agent's script or
-      `@playwright/mcp`. The next kulisa tool's answer in that task gets one line ("a program of yours drove
-      profile X directly: if a Kulisa tool was missing, note it with kulisa_idea"), at most once an hour per
-      task. No note without the agent: only it knows what for.
-    - Its own bugs: errors the tools throw on purpose (no such element, a closed profile) are the agent's; an
-      unexpected exception inside a tool (`TypeError` …) is Kulisa's, and becomes a `bug` note by itself: the tool,
-      the message, the stack without the user's paths.
-  - **Kept** (`ideas.ts` in main: the core; `add` is the agent's only handle, sending and deleting the human's):
-    `ideas.json` in the data folder, `[{ id, at, kind, project, agent, need, missing, instead, count }]`, at most 30
-    (the oldest go), written whole. A note goes when sent, deleted, or with its project (Delete Project…). Listed in
-    "What is on the computer" (tasks.md), its removal tested.
-  - **The human: a question, at most once a day.** Kulisa, not the agent, asks, and its core decides when: only
-    after the agent's turn ended (done, from its hooks), never about a note it asked about before, at most once a
-    day. A bar at the bottom of the window, not a dialog (nothing covered, gone by itself after a minute): "The agent
-    noticed: no tool to read emails. Send · Later · Don't ask". Don't ask turns the questions off for good; notes
-    still gather in the list. No system notification: not urgent.
-  - **The human: the list**, ☰ → Ideas for Kulisa… (the number of notes in its row, a dot on ☰ while some are
-    unseen). A dialog (a component, `Modal.vue`): what Kulisa's developers get
-    from the notes (a link to the page on kulisa.app); each note as it will be sent, editable, × deletes it, Send.
-    A checkbox at the footer's start, "Agents note ideas" (on by default: nothing leaves without a click): off, the
-    tool is not registered and the proxy's reminder is off.
-  - **Sending, without leaving Kulisa:** the main process POSTs the note (the fields, the count, Kulisa's version,
-    the agent and its version, the OS) to `https://ideas.kulisa.app`; on a network error the note stays and the
-    dialog says so. Then it is deleted. `KULISA_IDEAS_URL` replaces the address; the tests run a receiver of their
-    own and send nothing out.
-  - **The receiver:** a Cloudflare Worker (free plan, ~60 lines) checks the note (its fields, at most 8 KB, how
-    often from one IP; IPs not kept) and creates an issue through a GitHub App (only Issues: write, installed on
-    one repository; its key only in the Worker's secrets) in the private `cosmotools/kulisa-ideas`, labelled
-    `missing` or `bug`, by `kulisa-ideas[bot]`. The author sorts them and transfers good ones to `kulisa`. The
-    Worker's code lives in the same repository. Why so: a token in Kulisa's public code would be anyone's; a GitHub
-    App rather than the author's own token, so issues are the bot's and it can do nothing else; a private
-    repository, as the receiver is open to anyone and a note may hold what its user did not see. Not chosen: opening
-    a prefilled GitHub issue in the user's browser (the author: no leaving Kulisa; needs a GitHub account; public);
-    a GitHub sign-in in Kulisa (device flow: GitHub opens once, notes public and under the user's name); Sentry's
-    user feedback (no server of ours, but a third company sees users' data, and its SDK collects crashes too).
-  - **The author does** (outward-facing): the private repository, the GitHub App and its key, a Cloudflare account,
-    `ideas.kulisa.app` in DNS, the Worker's secrets (`wrangler secret put`). **Claude writes:** the Worker with
-    `wrangler.toml`, Kulisa's part, the page on what is received on kulisa.app (`kulisa-site`).
-  - **Tests** (`test/agent.ts`, `test/window.ts`): the tool notes, `adds_to` counts, the limit of 30, removing a
-    project removes its notes; a foreign proxy client brings the reminder once, the shell's does not; an unexpected
-    exception in a tool becomes a `bug` note, an error thrown on purpose does not; the question comes after done, not
-    twice for a note, not twice a day, never after Don't ask; the list edits, deletes and sends (to the test's
-    receiver), keeps the note when sending fails; the checkbox removes the tool.
-  - Docs when built: profiles.md (the tool, the table of actions), tasks.md (`ideas.json`), window.md (☰, the
-    bar, the dialog), ui.md (the bar at the bottom, the dot on ☰), the skill, the user guide (guide.md), LICENSING (a service of
-    Kulisa's: its own terms). Estimate: code +350, tests +100, docs +60; the Worker apart.
+- **Ideas for Kulisa: what agents could not do, sent to us** (designed with the author 2026-10-08): moved to
+  [#84](https://github.com/cosmotools/kulisa/issues/84) (2026-10-18), the design and what is open there. A feature,
+  not a way to report bugs (that is the Log page: [window.md](window.md), The log); the requirement that the human
+  never leaves Kulisa to send was dropped by the author on 2026-10-18.
 - **Kulisa plugin: running the app, rest** (designed 2026-10-06 with the tasks; the terminals it runs in built
   2026-10-09: [window.md](window.md), "The terminal"). Any agent is told its task's ports in the MCP server's
   instructions and runs the app with `terminal_run`, where the human sees it.
@@ -229,7 +182,8 @@ here; what is left of it stays.
     - Codex's sandbox (bubblewrap) needs unprivileged user namespaces, which Ubuntu's AppArmor refuses by default:
       then it asks before every command. The machine's matter, as without Kulisa.
   - More agents (Gemini CLI, …): an entry each in `agents/`.
-  - Windows: the installers run in PowerShell, untested; macOS untested.
+  - Windows: the installers run in PowerShell, untested. macOS: the installers untested (what was checked by hand
+    there: [testing.md](testing.md), "On macOS").
 - **Tasks, rest** (how they work now, and why: [tasks.md](tasks.md)).
   - Helping the agent run the app ("Kulisa plugin: running the app", above). Today the agent gets
     `KULISA_PORT_OFFSET` and a line about it at session start.
@@ -240,7 +194,8 @@ here; what is left of it stays.
     `--resume` after a restart, `task_rename` called by Claude Code.
   - Other tools that, like direnv, want a folder allowed before they apply (mise's `trust`): not handled yet.
   - Windows: copying an open profile (locked files are skipped and logged), removing a deleted task's profile
-    folders while their sessions are open (left for the next start). macOS and Windows untested.
+    folders while their sessions are open (left for the next start): untested there. macOS: the agent in the user's
+    zsh and `--resume` checked by hand ([testing.md](testing.md), "On macOS"), the rest untested.
   - A task's start point is the remote's default branch: local commits not pushed yet are not in it (as with Claude
     Code's `--worktree`). If that surprises, an option as Claude's `worktree.baseRef: "head"`.
   - The agent making tasks itself (an MCP tool on `Project.createTask`), e.g. to hand parallel parts of a task to
@@ -258,7 +213,9 @@ here; what is left of it stays.
     cookies (`safeStorage`; what if the OS keyring is unavailable).
   - **Electron hardening:** the windows are sandboxed (since 2026-10-12) with a preload that forwards any IPC
     channel; profile pages are sandboxed and have no preload. Check against Electron's security checklist.
-  - **Distribution:** code signing, notarization, auto-update channel, the `.deb`'s setuid `chrome-sandbox`.
+  - **Distribution:** code signing (Windows a certificate, macOS notarization: "Releases and auto-update") and the
+    `.deb`'s setuid `chrome-sandbox`. Built: the update channel ("Releases and auto-update") and each release file's
+    signed provenance ([window.md](window.md), "The app icon, installers and updates"; 2026-10-18).
 - **Accessibility** (a11y; before a public release, as security). Kulisa should work for people who see poorly, do
   not use a mouse, or use a screen reader, as the big IDEs do; for software bought by public bodies and large companies
   it is also a requirement (Section 508 in the US, EN 301 549 in the EU, both on WCAG). Start from Electron's guide
@@ -341,14 +298,9 @@ here; what is left of it stays.
     ([window.md](window.md), "The app icon, installers and updates"). 2. The CI's
     workflows (`.github/workflows/`: `test.yml`, `release.yml`): built and run; `develop` and `main`'s ruleset
     (CLAUDE.md, Releases) set up by the author; the Apple secrets at step 4. 3. The first release, `v0.1.0`: built and
-    published (2026-10-13); then
-    `v0.1.1`: the update checked by hand on the author's Windows machine, by a Claude session there (below). 4.
+    published (2026-10-13), and the releases since (`v0.1.4` on 2026-10-18). Whether the update is checked on
+    Windows is seen when Kulisa is adapted to it (the author, 2026-10-18: next, a day or two). 4.
     macOS, once the account and its secrets exist.
-  - **Check on Windows** (step 3): install `Kulisa-0.1.0.Setup.exe` from the release: it installs to
-    `%LocalAppData%\kulisa`, makes its shortcuts and starts once, not more (Squirrel's events); publish `v0.1.1`;
-    within 6 hours, or at a restart of Kulisa, it downloads (Squirrel's log: `%LocalAppData%\kulisa\SquirrelSetup.log`);
-    quit and start again: 0.1.1 (☰ shows the version), the data folder (`%APPDATA%\Kulisa`) as it was, the session
-    cookies kept; uninstall leaves the data folder.
   - **Later, each discussed apart:** a dnf repository for the `.rpm`, as the apt one; "Restart to update" in ☰ once
     Later was chosen (through Kulisa's own quit, asking when an agent works); a switch to turn the checks off; delta updates (Squirrel
     downloads the whole app each time); winget.
@@ -551,12 +503,13 @@ here; what is left of it stays.
 
 ## Open issues
 
-- **The window jumps after it is restored, on Linux** (found 2026-10-12; left so, the author's decision). Restored
-  from minimized, it shows about 16 px right and 10 px down, then jumps back up and left. Chromium's frame around a
-  window without the system's (its shadow and resize border) is counted only after the window is shown again; bare
-  Electron 44.5.1 does it too (`titleBarStyle: 'hidden'` or `frame: false`, X11, GNOME), `hasShadow: false` only makes
-  the jump smaller. The system's title bar has no jump but is a second row over Kulisa's, and no app can put buttons
-  into it. Check at an Electron upgrade: minimize and restore a window made with `titleBarStyle: 'hidden'`.
+- **The window jumps after it is restored, on Linux with X11** (found 2026-10-12; not Kulisa's: the author,
+  2026-10-18). Restored from minimized, it shows about 16 px right and 10 px down, then jumps back up and left.
+  Chromium's frame around a window without the system's (its shadow and resize border) is counted only after the
+  window is shown again; bare Electron 44.5.1 does it too (`titleBarStyle: 'hidden'` or `frame: false`, X11, GNOME),
+  `hasShadow: false` only makes the jump smaller. The system's title bar has no jump but is a second row over
+  Kulisa's, and no app can put buttons into it. On Wayland (Ubuntu 26, GNOME) the latest release has no jump (the
+  author, 2026-10-18). Left so.
 
 - **The OS's window buttons are not dimmed under a dialog** (the author, 2026-10-11; put off). They are drawn by the
   OS over the window (`titleBarOverlay`, `window.ts`), so the dialog's backdrop, HTML, cannot cover them: under a
@@ -594,37 +547,9 @@ here; what is left of it stays.
     gone (Electron's message box comes back instead of the pane's dialog). Ask Electron for a public event
     (`webContents` 'dialog', as `select-bluetooth-device` takes a callback), then use it. The file is the same in
     44.5.1 and 44.8.0 (2026-10-16).
-- **Tabs never sleep: Playwright keeps every page "visible".** Chrome treats a tab in the background in three
-  steps, each cheaper for the computer: its page gets `document.visibilityState: "hidden"` at once (no animation
-  frames, timers at most once a second, once a minute after 5 minutes); after 5 minutes it is frozen (no JS at all,
-  its memory kept, back in an instant); under memory pressure it is unloaded. Kulisa has only the third
-  (profiles.md, "Tabs unloaded"). The first Electron does by itself: a `WebContentsView` after `setVisible(false)`,
-  or removed from the window, tells its page it is hidden, and Chromium throttles it (bare Electron 44.8.0, Linux,
-  2026-10-16: `hidden`, no frames, timers once a second, after 4–5 minutes once a minute). What keeps Kulisa's pages
-  awake is Playwright: on attaching to a page it sends `Emulation.setFocusEmulationEnabled` once (`crPage.ts`,
-  `FrameSession._initialize`; skipped only with `connectOverCDP`'s `noDefaults`), which Chromium implements as a
-  capture of the page (`EmulationHandler::SetFocusEmulationEnabled` → `IncrementCapturerCount`), and a captured page
-  is visible always, even in a hidden window. Bare Electron with that one command behaves as Kulisa does; in Kulisa
-  a tab behind the active one, or under another task, says `visible` and draws 60 frames a second (measured in the
-  app, 2026-10-16). With the command dropped in the proxy the tabs sleep, but the agent's tools on a tab behind the
-  active one hang: a hidden page draws no frames and Playwright waits for the element to be stable
-  (`browser_highlight`, `scrollIntoViewIfNeeded`; test "tools on a tab other than the active one"). Freezing Electron
-  does not do by itself (no `freeze` in 6 minutes: Chrome's rule is its performance manager's), but
-  `Page.setWebLifecycleState: frozen` over the debugger freezes a hidden page at once (same measurement; a page kept
-  visible ignored it). Planned (2026-10-16, with the author):
-  1. **A tab is awake only while the agent works in it.** The proxy answers Playwright's command itself, without
-     forwarding it, and sends it to a tab with `enabled: true` at the agent's first command to that tab, with
-     `false` once its profile has had no command for a minute (`busyAt`, the clock of `discard.ts`). The active tab
-     and the visibility are not touched: the agent keeps working behind the human's tab, and in the panes of tasks
-     not shown (their agents cannot switch tasks, so a hidden pane must wake for them). The sign-in pause detaches
-     the debugger, which drops the capture by itself. Tests in the profiles group: a tab behind the active one says
-     `hidden` and draws no frames; the agent's tool on it works; after the idle time it is `hidden` again.
-  2. **Freezing before unloading**: a step in `discard.ts` (`Page.setWebLifecycleState: frozen` over the debugger,
-     `active` when shown or used), possible once the page is hidden.
-  Open for the author, apart: whether the agent brings the tab it acts in to the front in the task the human is
-  looking at (as a human at a browser would, and the human sees what it does): a rule over step 1. Related in
-  Electron: [#41233](https://github.com/electron/electron/issues/41233) (a page always "visible" with
-  `backgroundThrottling` off; ours is on), [#50250](https://github.com/electron/electron/issues/50250).
+- **Tabs never sleep: Playwright keeps every page "visible"**: moved to
+  [#52](https://github.com/cosmotools/kulisa/issues/52) (2026-10-18): the measurements, the options, the prototype
+  (branch `tabs-asleep`) and freezing before unloading; the author decides. The fact itself: CLAUDE.md, Hard-won facts.
 - **The MCP server and the CDP proxy do not authenticate local processes.** Web pages are refused
   (`local-only.ts`: Host and Origin checks), but any local process can drive the signed-in profiles. Needs a
   per-launch token (passed to the agent through the environment, like `KULISA_MCP_URL`) at least.
@@ -634,8 +559,8 @@ here; what is left of it stays.
   support is the goal**, in two (the author, 2026-10-16):
   1. **For development**, the goal now: Kulisa works on a Mac from source and from a build made there, unsigned (one's
      own machines need no Apple Developer account; a build made on the Mac is not quarantined, so Gatekeeper lets it
-     run), its tests pass, and the gaps below are checked. Then `test (macos-latest)` becomes a required check of
-     `develop` and `main` (CLAUDE.md, Releases); its CI job passes and fails the workflow since that day, not required yet.
+     run), its tests pass, and the gaps below are checked. `test (macos-latest)` is a required check of `develop` and
+     `main` since 2026-10-18 (CLAUDE.md, Releases).
   2. **For users**, later, once there are some: signed and notarized, `.dmg` and `.zip`, updates ("Releases and
      auto-update", macOS), with the Apple Developer account. Until then an unsigned build downloaded on another Mac
      is refused by Gatekeeper and does not update, and kulisa.app says "coming soon" for macOS.
@@ -669,6 +594,8 @@ here; what is left of it stays.
   - A packaged app's later starts (the windows' tasks open as they were left) and an agent started in a task of it: untested packaged. Its
     update check fails while there is no release for its OS ("The server sent an invalid response" on macOS) and is
     only logged.
+  - Wayland: the agent's sign-in page opens behind Kulisa ("Chrome is ready"; Ubuntu 26, GNOME):
+    [#70](https://github.com/cosmotools/kulisa/issues/70).
   - The one-row title bar (`titleBarStyle: 'hidden'` + `titleBarOverlay`, Window Controls Overlay): the window
     buttons, dragging and double-click to maximize on Windows and Wayland (Electron 44 runs natively there by default;
     the author's GNOME is X11: "Ubuntu on Wayland" at the login screen). Ask
@@ -694,7 +621,9 @@ here; what is left of it stays.
     checked by the tests only, not by changing the OS's setting by hand; Windows untested.
   - Tests run often on Linux only; on macOS and Windows before a release (the author's decision, 2026-10-09). The CI
     runs them on all three at every pull request into `develop` or `main` ([testing.md](testing.md), CI); Windows not failing the
-    workflow until the bench passes there (macOS does since 2026-10-16): fixed by a Claude session on Windows. On a computer they run on the human's
+    workflow until the bench passes there (macOS does since 2026-10-16): its job hangs and is cancelled at its
+    timeout every run (2026-10-18; `continue-on-error`, so it marks nothing red); the author adapts Kulisa to Windows
+    next (2026-10-18: a day or two). On a computer they run on the human's
     screen there (Xvfb is Linux's), taking its focus.
     The test bench was made on Linux; adapted on each OS where it can be run (the author's decision, 2026-10-08). macOS:
     passes since 2026-10-16 (on the author's Mac, twice in a row; [testing.md](testing.md), "On macOS"). Known for Windows:
@@ -702,22 +631,6 @@ here; what is left of it stays.
       `sh` only (`printf`, `chmod`; the real agents have a `win32` one), the hooks' test runs commands with `bash`
       (`test/agent.ts`). A Node script as the agent would run everywhere.
     - What one OS alone has: skipped with the reason, not left to fail.
-- **A profile dropped from its list, its folder left behind** (found 2026-10-07; to come back to). The author's
-  data held a `Profile 2` in a main workspace (the model before tasks), in no `profiles.json` and not in `deleted-folders.json`.
-  - Not deleted: deleting a profile, open or closed, removes its folder at the next start (tried 2026-10-07), and
-    removes its session cookies file at once; that file is still there.
-  - Its timestamps: created 2026-10-06 22:17; session cookies and storage written 22:42:12, as closing a profile
-    does; at 22:42:41 `Profile 3` was created and `profiles.json` written without `Profile 2`. So it was closed and
-    then dropped from the list without being deleted. The code path is not found; ask the author what they did then.
-  - Whatever the cause, a folder no `profiles.json` names: proposed to add it back to the list as a closed profile
-    (nothing signed in is lost; the human deletes it if not needed), rather than remove it at start, which would
-    destroy sign-ins of a profile dropped by a bug. The author's decision.
-  - The author started over with fresh data on 2026-10-08: watched, not fixed. To look for it (read only): every
-    `Profile N` folder of a task that its `profiles.json` does not name and `deleted-folders.json` does not list:
-    `for d in ~/.config/Kulisa/projects/*/*/; do for f in "$d"Profile\ *; do [ -d "$f" ] || continue;
-    cat "$d/profiles.json" ~/.config/Kulisa/deleted-folders.json 2>/dev/null | grep -qF "\"$(basename "$f")\"" ||
-    echo "$f"; done; done` (one `grep` over several files, one of them missing, fails here: `grep` is ugrep).
-    When one shows up, ask the author what they did just before.
 - **Profiles' caches** (2026-10-08: a closed profile's caches are cleared, [profiles.md](profiles.md), "What is on
   the computer"; to decide for good, the author; since 2026-10-16 the sites' Cache API too). Chromium's HTTP cache, Code Cache and GPU caches per profile (on
   the author's main profiles 47 and 78 MB after a few days; a task's copy used in Teams 430 MB, half of it the Cache API); Chromium sets the HTTP cache's limit itself from the
@@ -726,6 +639,7 @@ here; what is left of it stays.
     ready): every profile's HTTP cache at most that, open ones too; not the code and GPU caches.
   - Or both, or clearing when a task is closed as well. Cost of clearing: the first load of a
     reopened profile's sites is slower (no cache), which matters little for profiles set aside.
+  - Where the data folder lives (Windows Roaming, cloud backups): [#67](https://github.com/cosmotools/kulisa/issues/67).
 - **Tests that failed now and then.** Fixed 2026-10-12: the first point-and-tell test (pick mode reaches the page a
   moment after it starts and says nothing when: a click before went to the page; the test clicks again until the pick
   comes), "DevTools in a pane's ⋮ menu" (DevTools' window took the focus after the test's 3 s wait, closing the menu
