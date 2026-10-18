@@ -199,12 +199,12 @@ class Profile extends EventEmitter {
     // A page never moves the window, as in Chrome. Kulisa's window has no system title bar, and Electron takes
     // app-region: drag from its views too: Teams declares one, and it stays after the page has gone, taking every
     // click and wheel over the panes (docs/window.md). Each document gets no-drag everywhere, which also replaces a
-    // region left behind. A workaround of electron/electron#54743: remove when fixed (ROADMAP, "Workarounds of Electron bugs").
+    // region left behind. A workaround of electron/electron#54743: remove when fixed (docs/testing.md, "Upgrading Electron").
     wc.on('did-navigate', () => wc.insertCSS('html, html * { app-region: no-drag !important; }', { cssOrigin: 'user' }).catch(() => {}));
     // alert and confirm in the tab's pane, as Chrome shows them in the page, not Electron's message box in the middle of
     // the window, which did not say which page asked (Electron shows no prompt(): it throws in the page). Electron's
     // handler is a listener of its internal event (lib/browser/api/web-contents.ts, Electron 44), replaced here: check
-    // it at every Electron upgrade (ROADMAP, "Workarounds of Electron bugs"). Answered by the human (answerDialog), by
+    // it at every Electron upgrade (docs/testing.md, "Upgrading Electron"). Answered by the human (answerDialog), by
     // an action of the agent (tab.agentDialogs, mcp-server.ts), or by another client over CDP. Chromium holds a
     // navigation while a dialog is open; as Chrome does, it is dismissed when one starts (the address bar, reload).
     const internal = wc as unknown as Internal;

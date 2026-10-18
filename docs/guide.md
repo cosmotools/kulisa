@@ -20,6 +20,20 @@ computer. Everything stays on your computer.
   and a grid of panes. Several tasks of one project run at once, each building something else.
 - **Tab**: an open task in the tasks' bar (under the grid, or in the title bar), as a browser's tab; its project's icon is on it.
 
+## Systems
+
+Kulisa is made for Linux, Windows and macOS. Its installers are for 64-bit Intel and AMD processors (x64), not yet
+for ARM ones.
+
+- **Linux:** Ubuntu, Debian and Fedora, in the versions their makers still support. Kulisa is made on Ubuntu, and
+  tested there the most.
+- **Windows:** Windows 10 and later. Newer there, and less tried.
+- **macOS:** Ventura (13) and later. Tested by its developers, run from its code; no installer yet.
+
+Not as an AppImage, Snap or Flatpak, on purpose: on recent Ubuntu an AppImage runs only with the browser's protection
+of your signed-in pages turned off, and Snap and Flatpak would keep Kulisa from your terminal, git and agents, which it
+works with.
+
 ## Getting started
 
 Download Kulisa from its [latest release](https://github.com/cosmotools/kulisa/releases/latest):
@@ -36,9 +50,6 @@ Download Kulisa from its [latest release](https://github.com/cosmotools/kulisa/r
 
 Every installer is built by GitHub from Kulisa's published code, and GitHub keeps a signed record of it. To check a
 file you downloaded, with GitHub's command-line tool: `gh attestation verify <file> -R cosmotools/kulisa`.
-
-Kulisa is tested on Linux (Ubuntu) and on macOS (by its developers, there is no installer for it yet); on Windows it is
-newer and less tried.
 
 1. **Make a project.** At the first start Kulisa shows in three short slides what it does (**Skip** passes them),
    then New Project, in three steps (below): its code, its agents, the users of your app. **Create** makes it and

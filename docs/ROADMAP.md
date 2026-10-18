@@ -10,33 +10,11 @@ moves there over time: what has an issue is removed from here, the issue being t
 
 ## Next
 
-- **Projects and tasks: Kulisa rebuilt around them** (designed with the author 2026-10-10). It replaced the model of
-  workspaces: a project is the configuration its tasks are made from, and the work is done in **tasks**; how it
-  works: [tasks.md](tasks.md), [profiles.md](profiles.md). No migration: the new layout does not read the old data
-  (one data format only: old data is deleted, never read or migrated).
-  - **Status** (keep it current: a new session reads it first). 2026-10-11: all eight steps are built and merged
-    (into `main` then; since 2026-10-12 work goes into `develop` and `main` is what is released: CLAUDE.md,
-    Releases), and so is what came after them: the window in Vue 3 and Reka UI, the
-    groups and the tasks' bar as Chrome's tab groups with one + after the islands, the empty window, Settings as
-    JetBrains' (a tree of Projects, Agents and Profiles; [ui.md](ui.md), Desktop, not a web page), the whole project
-    in TypeScript; 2026-10-12, a task's island of terminals with several agents in it ("Several agents in a task, rest",
-    below); 2026-10-13, a repository added to a task when its work needs it (the human's menu or the agent's tool,
-    [tasks.md](tasks.md), Tasks), dictation by a key held anywhere, the right Ctrl ([window.md](window.md), The terminal) and one
-    language for every agent (☰ → Language, [window.md](window.md), Language); 2026-10-14, the tasks' bar a tab per
-    task, of its own (no groups: each tab its project's icon, moved and ordered alone, its project's rows in a
-    submenu of its menu; [tasks.md](tasks.md), Projects), the grid sliding between any two tabs; 2026-10-17, New
-    Project in three steps (code, agents, profiles) opening the project's first task, the bar's + a new tab with every
-    project's tasks in columns (the empty window shows them too), the project's glow only while a task is shown, and
-    the window's clusters ([ui.md](ui.md), Clusters); 2026-10-18, the log (`logs/kulisa.log`) and its page in
-    Settings with ☰ → Report a Problem… ([window.md](window.md), The log; #73), About moved into Settings, each release
-    file's provenance attested and macOS's tests a required check (CLAUDE.md, Releases). The author tests it by hand.
-    Next: fix what the author's testing finds; then what is left of the
-    steps (below), only once the author has decided it.
+- **Projects and tasks, rest** (how they work: [tasks.md](tasks.md), [profiles.md](profiles.md)).
   - **Open, for the author to decide:** Refresh from Master… now matters only for a local app's cookies (keep or
     drop); a script the agent runs in a page (`browser_evaluate`) could read a test password back from its field
     (only the skill forbids it: close it or not). For the author's real accounts, not testable by Claude:
-    device-bound cookies (DBSC, Google) and MSAL's sign-ins kept in step. Not discussed, so not to build unasked: tabs
-    in a master's window, tasks in a former folder getting copies.
+    device-bound cookies (DBSC, Google) and MSAL's sign-ins kept in step.
   - **Left of the steps:**
     - Tasks: a squash merge is not seen as merged (Kulisa offers to delete a closed task only once its commits are
       in the remote's default branch).
@@ -44,8 +22,6 @@ moves there over time: what has an issue is removed from here, the issue being t
     - A repository added to a task (2026-10-13, [tasks.md](tasks.md), Tasks), to try in a real task: whether Claude
       Code reads the project's other repositories without asking; `/add-dir` sent in a turn and held while it waits
       for the human (checked with 2.1.296 alone, not through Kulisa's hooks); Codex given a line in its turn.
-    - Profiles: the master's window has one tab shown at a time (a sign-in's popup takes it, the tab before comes
-      back when it closes); Refresh from Master… brings cookies only, not the sites' storage.
     - Sign-ins kept in step: device-bound session cookies (DBSC) to check with a real Google account in this
       Electron; sign-ins in a site's storage (MSAL) are not kept in step.
     - "Sign in with Google" on a local app: the human signs in once to a test Google account in the profile's
@@ -163,8 +139,6 @@ moves there over time: what has an issue is removed from here, the issue being t
   - Windows: the installers run in PowerShell, untested. macOS: the installers untested (what was checked by hand
     there: [testing.md](testing.md), "On macOS").
 - **Tasks, rest** (how they work now, and why: [tasks.md](tasks.md)).
-  - Helping the agent run the app ("Kulisa plugin: running the app", above). Today the agent gets
-    `KULISA_PORT_OFFSET` and a line about it at session start.
   - The agent's state on the task tab for CLIs without hooks (Claude Code's and Codex's report it), e.g. from MCP
     calls and terminal output (working while they come, idle after a quiet while). After a permission answered, both
     show waiting until a tool finishes (no hook says it was answered): a long command run after it shows waiting.
@@ -178,15 +152,15 @@ moves there over time: what has an issue is removed from here, the issue being t
     Code's `--worktree`). If that surprises, an option as Claude's `worktree.baseRef: "head"`.
   - The agent making tasks itself (an MCP tool on `Project.createTask`), e.g. to hand parallel parts of a task to
     agents of their own, as Conductor does: a gap in the table of actions ([tasks.md](tasks.md), "Actions"). To
-    discuss with "Several agents in one task" (Deferred ideas); deleting stays the human's.
+    discuss with Ensemble (#49); deleting stays the human's.
 - **Discuss security for the end user** (with the author, before a public release). Kulisa holds signed-in work
   accounts and lets an agent act in them. Topics, each to decide or document for users:
   - **What the agent can do in signed-in accounts:** read private data (it saw passwords in a Teams chat), send
     messages, delete things. Confirmation for risky actions? Per-profile read-only mode?
   - **Prompt injection from pages:** text on a page the agent reads (snapshots, console messages) can carry
     instructions to the agent.
-  - **Local access:** any local process can drive the profiles through the MCP server or the CDP proxy (see Open
-    issues; a per-launch token).
+  - **Local access:** any local process can drive the profiles through the MCP server or the CDP proxy (issue #90,
+    a token per task).
   - **Data at rest:** browser profiles in the user-data folder (Chromium's own cookie encryption), saved session
     cookies (`safeStorage`; what if the OS keyring is unavailable).
   - **Electron hardening:** the windows are sandboxed (since 2026-10-12) with a preload that forwards any IPC
@@ -222,7 +196,8 @@ moves there over time: what has an issue is removed from here, the issue being t
   - Moving the keyboard between the panels and the tabs of the bar without a mouse (with Accessibility, above).
   - Find in a page (Ctrl+F, as Chrome's: `webContents.findInPage`), a bar of its own over the page.
   - Remapping: the keys in `settings.json` over the table's (VS Code's `keybindings.json`).
-  - A closed tab comes back with its address only, not its history (Chrome's keeps it): Electron has no API for that.
+  - A closed tab comes back with its address only, not its history (Chrome's keeps it): Electron 44's
+    `navigationHistory.getAllEntries()` and `restore()` could keep it ("Tabs unloaded, rest", Deferred ideas).
 - **A desktop app's ways, not only buttons** (talked over with the author 2026-10-08, who liked them all). A web page
   puts a button on every action; a desktop app gives an action several ways in: a visible one for a newcomer, quick
   ones for daily use (keys above, a right-click, dragging). Kulisa has some, here and there (the menus of a task's
@@ -235,12 +210,8 @@ moves there over time: what has an issue is removed from here, the issue being t
   - **Undo rather than "are you sure?"** for what can be undone: closing a profile, a task's tab, a project shows
     "Closed · Undo" for a few seconds, and Ctrl+Z brings it back. Deleting (a task, a profile with its sign-ins) is
     for good and keeps its question.
-  - **A right-click menu on every object, as a rule** (a profile's pane, a task's tab, a project's island, the
-    terminal): all of its actions there, so the window shows only one or two buttons and the rest lives in menus.
   - **Dragging from the system**: a folder from the file manager onto Kulisa opens it as a project; a link onto a
     profile's pane opens it in a tab there; a file onto the terminal types its path, as terminals do.
-  - Not swipes (a phone's gesture; on a laptop's touchpad a sideways swipe is the OS's and the pages' back and
-    forward), nor a double-click as the only way to anything (nobody sees it; only a shortcut to a menu's item).
 - **Releases and auto-update, rest** (built: [window.md](window.md), "The app icon, installers and updates").
   - **macOS** only once signed and notarized (Squirrel.Mac does not update an unsigned app): `.dmg` and `.zip`, x64
     and arm64. The author has no Apple Developer account yet: an Individual one ($99 a year), then a Developer ID
@@ -252,18 +223,8 @@ moves there over time: what has an issue is removed from here, the issue being t
     grows again (its size: [window.md](window.md), "The app icon, installers and updates"); a dnf repository for the `.rpm`, as the apt one; "Restart to update" in ☰ once
     Later was chosen (through Kulisa's own quit, asking when an agent works); a switch to turn the checks off; delta updates (Squirrel
     downloads the whole app each time); winget.
-  - **Not now, and why:** AppImage (on Ubuntu 24.04 and later Electron in an AppImage starts only with
-    `--no-sandbox`: its FUSE mount is `nosuid` and AppArmor restricts unprivileged user namespaces; Kulisa's pages
-    hold real accounts; no maker of Forge's own); Snap and Flatpak (their sandbox is in the way of what Kulisa
-    does: the user's shell, agent CLIs, git, direnv, agents installed in `~/.local/bin`; Snap only with classic
-    confinement, reviewed by hand); Velopack and electron-updater (one leaves Forge's makers and has AppImage only on
-    Linux, the other needs electron-builder).
-- **Profile reset and creation, rest.** A clean profile for sign-up tests; reset a profile to a clean state (keeping its
-  name); seeded test users (the agent writes the seed for the project).
 - **Timeline.** One feed of DOM (rrweb-like), network, console and agent actions, recorded in step across all profiles;
   scrub back to the moment a bug happened, pick an element in the past, tell the agent to fix it.
-  - A Vue component as the rest of the window (CLAUDE.md, Window UI). Not Tailwind (styles are tiny); its generic parts
-    Reka UI's (no look of its own: Kulisa keeps its IDE look), no kit with a look of its own.
 - **Profile mail.** A local mail catcher (Mailpit-like) with a mailbox per profile, shown next to the panes and readable
   by the agent.
 - **Run to test.** A multi-profile run the agent did by hand, saved as a Playwright test.
@@ -358,8 +319,6 @@ moves there over time: what has an issue is removed from here, the issue being t
     - Tests: an extension's unit tests in plain Node, and e2e in the same harness (`run.ts`), with switches it needs
       (the fake microphone) and a cache of its downloads in the tests' folder.
     - Development: an extension loaded from a folder (as `claude --plugin-dir`), restarted when its files change.
-  - Esc clearing the agent's working state, found on the branch, is in main since 2026-10-09
-    (`Task.interrupted`): when rewriting, take main's.
   - Other extensions:
     - **Stripe:** a panel with the project's test-mode events and webhooks, test cards in one click; tools for the
       agent to read events and trigger them ("the buyer pays, the seller sees the order").
@@ -379,8 +338,8 @@ moves there over time: what has an issue is removed from here, the issue being t
   a closed tab's do. Electron 44 can keep them: `navigationHistory.getAllEntries()` gives the entries with their
   `pageState`, and `restore()` takes them (`electron.d.ts`; checked 2026-10-13), so the tab could come back as Chrome's
   does, with Back and its place in the page. To watch in use: whether 5 minutes is the right time, and a tab loading
-  again at a bad moment. The two steps Chrome takes before unloading (throttling, freezing) wait on the tabs sleeping: Open
-  issues, "Tabs never sleep".
+  again at a bad moment. The two steps Chrome takes before unloading (throttling, freezing) wait on the tabs sleeping: issue
+  #52.
 - **A Kulisa profile as a real Chrome profile.** Wanted: the profile's folder in Chrome's own format, so one button
   opens the same profile in the installed Google Chrome with the same tabs and sign-ins, and the storage layout
   is simply Chrome's. Wanted natively, without workarounds, so deferred until there is a clean way. Why it does
@@ -420,26 +379,6 @@ moves there over time: what has an issue is removed from here, the issue being t
   panes shrink to a `minimumWidth` per panel (dockview) and views too small to use are hidden, or a narrow grid
   turns into tabs.
 
-- **Workarounds of Electron bugs: check at every Electron upgrade** whether they are still needed, and remove them
-  when not.
-  - Drag regions (`app-region: drag`) of a view's page stay after the page has gone, in a window without a system
-    title bar; they took every click over the panes after Teams (window.md, "The title bar"). Workaround:
-    `app-region: no-drag` in every profile page (`profiles.ts`, `_add`). Electron issue: [electron/electron#54743](https://github.com/electron/electron/issues/54743) (2026-10-08).
-    Check: remove the workaround, open Teams (or a page with `app-region: drag`, then another page) in a pane, and
-    click the page with a real mouse (`debug-kulisa` skill). Linux only so far; macOS and Windows draw frameless
-    windows their own way (see "Windows is untested; macOS has gaps left"). Still needed in 44.8.0 (2026-10-16: a click where
-    the page before had its drag region did not reach the page; the issue open).
-  - A page's alert and confirm in its pane (profiles.md, "Dialogs"): Electron has no API for them, so Kulisa replaces
-    the listener of its internal `-run-dialog` event (`lib/browser/api/web-contents.ts`, Electron 44; `-cancel-dialogs`
-    too). Check: that file at the new version's tag; the test of dialogs in `test/agent.ts` fails when the event is
-    gone (Electron's message box comes back instead of the pane's dialog). Ask Electron for a public event
-    (`webContents` 'dialog', as `select-bluetooth-device` takes a callback), then use it. The file is the same in
-    44.5.1 and 44.8.0 (2026-10-16).
-- **The MCP server and the CDP proxy do not authenticate local processes.** Web pages are refused
-  (`local-only.ts`: Host and Origin checks), but any local process can drive the signed-in profiles. Needs a
-  per-launch token (passed to the agent through the environment, like `KULISA_MCP_URL`) at least.
-- **`signin-pause.ts` is a temporary implementation** to be replaced by the author. It recognizes sign-in pages
-  only by host and pauses the whole profile.
 - **Windows is untested; macOS has gaps left** (Linux is where Kulisa is developed; it targets all three: CLAUDE.md,
   Conventions). **The macOS support** in two (the author, 2026-10-16):
   1. **For development**: reached on 2026-10-16 and 17. Kulisa works on a Mac from source and from a build made there,
@@ -451,7 +390,7 @@ moves there over time: what has an issue is removed from here, the issue being t
      is refused by Gatekeeper and does not update, and kulisa.app says "coming soon" for macOS.
 
   Known gaps:
-  - Drag regions left by a page (Workarounds of Electron bugs, above): seen on Linux, not on macOS. Windows: open Teams
+  - Drag regions left by a page ([testing.md](testing.md), Upgrading Electron): seen on Linux, not on macOS. Windows: open Teams
     in a pane and click its page.
   - Signing in to Google, GoDaddy (Kasada) and Microsoft with the User-Agent without `Electron/<version>` (2026-10-16,
     [profiles.md](profiles.md), What sites see): check on Linux and Windows.
@@ -496,8 +435,8 @@ moves there over time: what has an issue is removed from here, the issue being t
   - Copy and paste in the terminal (`clipboardKey` in `terminal.ts`) on Windows: Ctrl+V pastes once, Ctrl+C copies a
     selection and interrupts without one. macOS: Ctrl+V reaching the agent.
   - Several windows (Move to New Window): a profile's native views moved from one window to another, and a window's
-    place restored (`getNormalBounds`, maximized); checked on Linux/X11 only. Dragging a project's label: tested with
-    synthetic events only, not yet by hand; a project let go outside the windows is told from a cancelled drag by where the
+    place restored (`getNormalBounds`, maximized); checked on Linux/X11 only. Dragging a task's tab out of its window: tested
+    with synthetic events only, not yet by hand; a tab let go outside the windows is told from a cancelled drag by where the
     pointer is (`screen.getCursorScreenPoint`), which Wayland may not report.
   - The theme (☰ → Theme): the OS buttons' strip recolored (`setTitleBarOverlay`) and System following the OS
     (`nativeTheme.shouldUseDarkColors`, `updated`; on Linux through GTK or the desktop portal): on Linux/X11 (GNOME)
@@ -522,15 +461,11 @@ moves there over time: what has an issue is removed from here, the issue being t
     ready): every profile's HTTP cache at most that, open ones too; not the code and GPU caches.
   - Or both, or clearing when a task is closed as well. Cost of clearing: the first load of a
     reopened profile's sites is slower (no cache), which matters little for profiles set aside.
-- **The agent gets a passing size when its project moves to a new window** (found 2026-10-13, on the runner: the
+- **The agent gets a passing size when its task moves to a new window** (found 2026-10-13, on the runner: the
   test above). The new window's page fits the terminal as soon as it opens, at the whole window's height (46 rows),
   and again once its grid is laid out (17): both go to the agent (`pty:resize`, `renderer/lib/xterm.ts`), which
   draws its prompt for each. A fix: fit only once the grid has laid out; the test then refuses a passing height as it
   does a width (`__ptySizes`).
-- **The test "after a restart: a task's other terminal comes back …" takes 5.6 s** (`restart-tasks.ts`;
-  found 2026-10-09, to come back to). Most of it is showing the project `other` until its task has loaded and
-  the terminal's shell runs; it looks like another 5 s wait (as a tab's `ready` held a profile on a refused site:
-  `profiles.ts`). To find: time the steps of loading `other` after a restart (its profiles' tabs, its terminals).
 - **The GPU renderer only on terminals in sight** (discussed with the author 2026-10-09; the author builds it later).
   Today every terminal loads xterm's WebGL addon when made (`makeTerminal` in `src/renderer/lib/xterm.ts`), hidden ones
   too (other tasks and projects, terminals behind another tab of their island): each keeps a WebGL context and its

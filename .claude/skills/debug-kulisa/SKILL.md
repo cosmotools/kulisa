@@ -6,7 +6,7 @@ description: How to find the cause of a Kulisa bug that tests and screenshots do
 # Debugging Kulisa
 
 What worked on 2026-10-08, when panes stopped taking clicks after Teams (the cause: a page's drag region,
-ROADMAP "Workarounds of Electron bugs"): look inside the running app instead of guessing, make the bug happen on
+docs/testing.md, "Upgrading Electron"): look inside the running app instead of guessing, make the bug happen on
 demand, then take away one difference at a time until it goes.
 
 ## 1. Look inside the author's running Kulisa, without restarting it
@@ -91,5 +91,5 @@ the cause; that script is also the reproduction for an Electron issue.
 
 - The fix with a test that fails without it (CLAUDE.md); when real input is the only way to see the bug, test the
   mechanism instead and say so.
-- A workaround of an Electron or Chromium bug: in ROADMAP, "Workarounds of Electron bugs", with how to check it.
+- A workaround of an Electron or Chromium bug: in docs/testing.md, "Upgrading Electron", with how to check it.
 - Stop the scratch app, the inspector goes with a restart; delete the scratch folder's files.

@@ -788,7 +788,7 @@ rm -rf ~/.config/Kulisa/projects/myshop   # all its tasks with their profiles' c
 ## Why it is built this way
 
 Designed with the author on 2026-10-06 and 2026-10-07 (workspaces: a permanent main in the project's folder and
-temporary forks), and again on 2026-10-10 (tasks; ROADMAP, "Projects and tasks").
+temporary forks), and again on 2026-10-10 (tasks).
 
 - **Every task a copy, the project's folder the human's.** With a main in the folder, one agent worked where the
   human works, and its unfinished edits were in the way of the human's own; now every agent has its worktree, and the

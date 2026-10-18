@@ -45,11 +45,12 @@ A profile is an Electron session on a folder of its own (`session.fromPath`), la
   Ids and branches keep letters of any language.
 - **Sign in by hand**, once for every task, in its master: **Sign In to Master…** in the pane's right-click menu, or
   **Sign In…** in Settings → Profiles (no task needed: right after making it), opens
-  a window of its own on the master (`master.ts`): its page under a small bar (the address, Back, Forward, Reload),
+  a window of its own on the master (`master.ts`): its page under a small bar (the address, Back, Forward, Reload), one tab shown at a time (a sign-in's popup takes
+  its place, the tab before comes back when it closes),
   its session cookies kept, and nothing automated attached to it (no CDP proxy, so no agent's
   tool, Playwright or picker reaches it, and no sign-in pause is needed). Closed, its tabs and sign-ins are saved;
   its cookies reach every task's copy of the profile (below, "Sign-ins kept in step"). **Refresh from Master…** (the
-  same menu, asked first) replaces a copy's cookies with all of the master's, a local app's included, and reloads its
+  same menu, asked first) replaces a copy's cookies with all of the master's (cookies only, not the sites' storage), a local app's included, and reloads its
   tabs. Sign-ins a site keeps in its storage (Microsoft's MSAL, in localStorage) are not brought: sign in again in that
   copy. Signing in to a real account in a task's pane reaches the master and the other tasks too; to a local app, that
   task only. Only the human signs in: Kulisa never types
@@ -129,7 +130,7 @@ What the tools are for, beyond acting as one user:
   the message, OK (and Cancel for confirm), at the top of a dimmed picture of the page (a page is still while its
   dialog is open), Enter and Esc as in Chrome. Electron showed its own message box in the middle of the window, which
   did not say which page asked; its handler is a listener of an internal event (`-run-dialog`), replaced for every
-  tab (`Profile._dialog`; ROADMAP, "Workarounds of Electron bugs"). A dialog of a tab in the background shows when the
+  tab (`Profile._dialog`; [testing.md](testing.md), Upgrading Electron). A dialog of a tab in the background shows when the
   tab is chosen. Electron has no `prompt()` (it throws in the page). Starting a navigation (the address bar, reload)
   dismisses an open dialog, as Chrome does: Chromium holds the navigation until it is answered. The dialogs an
   agent's click, key or navigation opens are answered as it asks (`dialog: accept`), else dismissed, the safe
@@ -146,8 +147,8 @@ What the tools are for, beyond acting as one user:
   agent.
 - **`browser_evaluate`** runs a function the agent writes in the page: made there from its source (no eval in the
   main process; CDP's evaluation is not held to the page's CSP) and called with the element, if one is given. The
-  skill forbids reading cookies or tokens with it; the profile's CDP proxy is open to local processes anyway (open
-  issue in ROADMAP). The console and network tools (Playwright's `page.consoleMessages()`,
+  skill forbids reading cookies or tokens with it; the profile's CDP proxy is open to local processes anyway (issue
+  #90). The console and network tools (Playwright's `page.consoleMessages()`,
 `pageErrors()`, `requests()`) give errors or failures only when asked. `@playwright/mcp` works too, through the
 profile's CDP proxy (below).
 

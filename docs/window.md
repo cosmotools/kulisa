@@ -598,6 +598,13 @@ published, kulisa.app is built again (`kulisa-site`'s deploy, run with the secre
 download buttons lead to this release's files. Releases are built and the updates checked as ROADMAP's "Releases and auto-update" plans them; what is
 left is there too.
 
+**Not made, and why** (the guide, Systems, says it to users): AppImage (on Ubuntu 24.04 and later Electron in an
+AppImage starts only with `--no-sandbox`: its FUSE mount is `nosuid` and AppArmor restricts unprivileged user
+namespaces; Kulisa's pages hold real accounts; no maker of Forge's own); Snap and Flatpak (their sandbox is in the way
+of what Kulisa does: the user's shell, agent CLIs, git, direnv, agents installed in `~/.local/bin`; Snap only with
+classic confinement, reviewed by hand). Not Velopack or electron-updater for updates: one leaves Forge's makers and has
+AppImage only on Linux, the other needs electron-builder.
+
 **Updates**, Forge's way (`updates.ts`, called by `index.ts`): Electron's `autoUpdater` (Squirrel) through the
 Electron team's `update-electron-app`, from update.electronjs.org, which serves a public repository's published
 GitHub releases. A packaged Kulisa on Windows or macOS checks at start and every 6 hours (its 10 minutes by default:
