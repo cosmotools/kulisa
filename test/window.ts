@@ -30,6 +30,34 @@ export default (test: Test) => {
       return { above: r.top - h.top, below: h.bottom - r.bottom }; })()`);
     assert.ok(Math.abs(above - below) <= 1, `the rows in the middle: ${above} above, ${below} below`);
   });
+  test('terminal: one xterm shows the terminal in front; another shown and back keeps its text, its scroll and the modes serializing leaves out', async ({ shell, ui, termText }) => {
+    // An xterm each cost its renderer and a WebGL context, of which Chromium keeps 16 a page: the 17th took the
+    // oldest terminal's, which then drew slower for good, silently (src/terminal/README.md; measured 2026-10-18).
+    const agent = [...shell.task.terminals.values()][0];
+    // Opened as the island's + does, without its menu: a menu's pictures of the pages, put back late on a slow machine,
+    // took the keyboard from the page the next test had put it in.
+    await ui(`act('terminal:open')`);
+    await waitFor(() => (shell.task.terminal('Terminal') as TaskTerminal)?.pty);
+    const sh = shell.task.terminal('Terminal') as TaskTerminal;
+    assert.equal(await ui(`document.querySelectorAll('.xterm').length`), 1, 'one xterm for both terminals');
+    // The mouse in SGR and the cursor hidden, as Claude Code's fullscreen has them: serializing leaves both out.
+    const cmd = "printf '%s-%s\\n' shell marker; seq 300; printf '\\033[?1000h\\033[?1006h\\033[?25l'\r";
+    await ui(`kulisa.send('pty:in', ${JSON.stringify({ task: sh.key, data: cmd })})`);
+    const modes = () => ui(`(() => { const t = window.__term, c = t._core;
+      return { mouse: t.modes.mouseTrackingMode, encoding: c.coreMouseService.activeEncoding, hidden: c.coreService.isCursorHidden }; })()`);
+    const set = { mouse: 'vt200', encoding: 'SGR', hidden: true };
+    await waitFor(async () => (await termText()).includes('shell-marker') && JSON.stringify(await modes()) === JSON.stringify(set));
+    await ui(`window.__term.scrollToLine(5)`);
+    await ui(`act('terminal:show', { id: ${agent.id} })`);
+    await waitFor(async () => (await termText()).includes('agent: rc of') && !(await termText()).includes('shell-marker'));
+    assert.deepEqual(await modes(), { mouse: 'none', encoding: 'DEFAULT', hidden: false }, "the agent's own, not the shell's");
+    await ui(`act('terminal:show', { id: ${sh.id} })`);
+    await waitFor(async () => (await termText()).includes('shell-marker'));
+    await waitFor(() => ui(`window.__term.buffer.active.viewportY === 5`));
+    assert.deepEqual(await modes(), set, 'the modes are back');
+    await ui(`document.querySelector('.termtab[data-id="${sh.id}"] .close').click()`);
+    await waitFor(() => shell.task.terminals.size === 1);
+  });
   test("terminal: dictation where the agent has its own: the right Ctrl held anywhere records, let go stops, pressed once it records until the next; the microphone at the end of the terminals' row shows it and does the same by the mouse; with a shell in front the agent comes to the front; the key is the human's to change in Keyboard Shortcuts", async ({ shell, ui, termText }) => {
     await waitFor(() => ui(`!document.querySelector('.dictation .mic').disabled`));
     // At the row's end, after + and the task's repositories, inside the row: no row of its own.

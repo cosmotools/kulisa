@@ -241,7 +241,7 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   started with. When it exits, the shell stays. Its account's variable (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`) is typed
   before the command (`CLAUDE_CONFIG_DIR=… claude …`), so the task's account wins over a project's `.envrc` that sets
   it too (the author, 2026-10-12: one of them ran a task as another Claude account, silently).
-  Each argument is quoted as the shell reads it (`shell-quote.ts`): the sh way for bash and zsh, fish's own for fish,
+  Each argument is quoted as the shell reads it (`src/terminal/main/shell-quote.ts`): the sh way for bash and zsh, fish's own for fish,
   which reads `\\` and `\'` inside `'…'` (a prompt with `\'` left the quote open, and the agent did not start).
   direnv's state in Kulisa's own environment (started from a terminal in a folder direnv had loaded) is dropped at
   start: a task's shell took it for that folder left and undid its `.envrc`, an account's `CLAUDE_CONFIG_DIR` with it.
@@ -858,7 +858,7 @@ temporary forks), and again on 2026-10-10 (tasks).
 | `src/main/worktrees.ts` | git: a task's worktree and branch, files outside git, direnv, changes, renaming the branch, removal |
 | `src/main/agents/` | the agents to choose from: find, install, start, resume; a folder's trust carried to a task's copy |
 | `src/main/store.ts` | the data folder above |
-| `src/main/terminal.ts` | the task's terminals' ptys (window.md, The terminal) |
+| `src/terminal/` | the terminals: their ptys, buffers and the xterm shown ([README](../src/terminal/README.md)) |
 | `src/renderer/components/TaskBar.vue`, `NewTask.vue`, `Empty.vue`, `settings/ProjectEditor.vue` | the tasks' bar (a tab per open task, a new tab); its + (a new tab); the grid's place when no task's grid is shown (the window's pages); the projects' manager |
 | `src/renderer/components/newtab/` | the board, a new tab's and the empty window's: `Board.vue` (the columns, New Project…), `ProjectColumn.vue` (a project and its tasks) |
 | `src/renderer/components/welcome/` | the first start's welcome: `Welcome.vue` (the slides, then New Project's steps under a question each), `Tour.vue` (the slides, their pictures drawn in HTML) |

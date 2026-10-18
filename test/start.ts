@@ -1,4 +1,4 @@
-// `npm test`: the unit tests (test/unit, plain Node, a second), knip (npm run knip: no file, export or dependency
+// `npm test`: the unit tests (test/unit and the parts' own, plain Node, a second), knip (npm run knip: no file, export or dependency
 // nothing uses; docs/testing.md, Dead code), ESLint (npm run lint; docs/testing.md, Lint), actionlint on the CI's workflows when installed, the window built (npm run build: its types checked,
 // then Vite), then the groups of e2e files, in parallel where each has a screen of its own (below). Each group
 // runs in an app of its own (run.ts), in its own folder, its files in order (later ones build on earlier ones), then
@@ -80,7 +80,8 @@ async function group(name: string) {
 }
 
 void (async () => {
-  const unit = spawnSync(process.execPath, ['--test', 'test/unit/*.test.ts'], { cwd: path.join(import.meta.dirname, '..'), stdio: 'inherit' });
+  // The same as npm run test:unit: Kulisa packages' unit tests are in their folders (docs/packages.md).
+  const unit = spawnSync(process.execPath, ['--test', 'test/unit/*.test.ts', 'src/*/*.test.ts'], { cwd: path.join(import.meta.dirname, '..'), stdio: 'inherit' });
   if (unit.status !== 0) process.exit(unit.status ?? 1);
   const knip = spawnSync('npm', ['run', 'knip'], { cwd: path.join(import.meta.dirname, '..'), stdio: 'inherit', shell: process.platform === 'win32' });
   if (knip.status !== 0) process.exit(knip.status ?? 1);

@@ -297,7 +297,7 @@ A task's terminals are an **island** of the grid, one panel: the terminal in fro
 from it as a browser's tabs (the row in the toolbar's color, the tab in front in the terminal's, as if part of it;
 `TerminalTabs.vue`, `Terminals.vue`). One terminal is shown at a time (the author, 2026-10-12: two side by side are
 not needed): a terminal is not split off into a panel of its own. Each is the user's shell in the task's folder
-(xterm.js in the window, node-pty in the main process: `terminal.ts`), an agent the human chose started in it
+(`src/terminal/`), an agent the human chose started in it
 ([tasks.md](tasks.md), "Several agents in a task") or not. Each tab: the agent's icon (a shell's, for a shell), its
 name, its state (an agent's: working, waiting for you, done), ×; each its name whole (not shrunk), more than fit
 scroll, as a strip of tabs does (`.tabstrip`, [ui.md](ui.md); 2026-10-15: 36 terminals ran past the island, cut off
@@ -333,14 +333,9 @@ tab goes. A task opening sends its tabs with its first state, each starting (`Wi
 `Task.loadTerminals`): until 2026-10-15 the window got none until each agent was found, and showed the folded island's
 buttons for that second. A pick or a dictation meanwhile goes nowhere: the human gives it again.
 
-Unicode 11 widths (the cursor stays put after an emoji), a bundled font, the GPU renderer. Copy and paste take the
-keys of the OS's own terminal, so hands need nothing new: Ctrl+Shift+C / V (GNOME Terminal, Konsole); on Windows also
-Ctrl+V, and Ctrl+C copies a selection, else interrupts (Windows Terminal); on macOS ⌘C / ⌘V (the app menu's). xterm
-leaves those keys to the app, as VS Code sets its own; otherwise Ctrl+C and Ctrl+V go to the agent (Claude Code
-pastes an image with Ctrl+V, with Alt+V on Windows). The paste itself is Chromium's, which xterm takes (pasting again
-from Kulisa had doubled it). With nothing selected in xterm, copying keeps the clipboard: Claude Code's fullscreen
-rendering selects with its own mouse and copies on release itself (code.claude.com/docs/en/fullscreen; an empty copy
-had wiped it); Shift held while dragging selects in xterm instead.
+The terminal itself, the same wherever it is shown (a pty in the user's shell, its output in a buffer, one xterm a
+place that shows it, the keys of the OS's own terminal, its size), is a Kulisa package, `src/terminal/` ([packages.md](packages.md)): how it works
+and why in its [README](../src/terminal/README.md). The island is the task's: its tabs, its agents, its shells.
 
 **Shells**: the human's (+ → Terminal, `Terminal`, `Terminal 2` …) and what an agent keeps running for the human to
 see (`terminal_run`: the app's dev server, `docker compose up`), behind the tab in front so the human goes on
@@ -352,11 +347,7 @@ running (Codex waits on it), and the human does not see what runs there. The tas
 in an IDE, the terminals are kept (`terminals.json`): when the task loads again (a restart, its task opened again)
 each comes back in its tab, the one in front too, an agent's conversation resumed, a shell with nothing running; the
 agent runs its command again. ×, the menu's Close, `terminal_stop` with close, or the shell's `exit` ends one for good
-(`Task.openTerminal`, `openAgent`, `runInTerminal`, `interruptTerminal`, `readTerminal`, `closeTab`). The main process
-keeps each shell's screen for the agent, in memory: a terminal without a window (`@xterm/headless`, xterm's own
-parser), its last 500 lines, so what a program redraws in place (a progress, a container's state) is read as it
-became, not as every frame it went through (the output with its codes left out, until 2026-10-12). About 1 MB a shell
-at 200 columns; an agent's terminal keeps none (`terminal_read` does not read it).
+(`Task.openTerminal`, `openAgent`, `runInTerminal`, `interruptTerminal`, `readTerminal`, `closeTab`).
 
 **Dictation**, where the agent in front has its own ([tasks.md](tasks.md), "Choosing the agent"), is a key held:
 the **right Ctrl** (the right ⌘ on macOS: Apple keyboards have no right Ctrl), anywhere in the window: in a profile's
@@ -390,13 +381,7 @@ addon), open with Ctrl+click (⌘ on macOS), and always ask where, in a menu at 
 shown task's open profiles, or the user's browser. Asked every time, so a link never lands somewhere the human
 did not expect (the author's choice, 2026-10-08: which profile a link belongs to cannot be told, and a rule such as
 "where that site is open" was not obvious). Only `http` and `https`; the address shows on hover. xterm's own handler
-asked with the browser's `confirm()`, an OS dialog. Keys are known by `keyCode` too, as ibus with a Cyrillic layout leaves
-`code` out. An agent starts once the island is laid out, at its real
-size (a terminal behind another tab takes the island's), however long that takes: until 2026-10-15 it started at a
-default size after 5 s, which GitHub's runner reached. The rows that fit sit in the middle of the panel, what is left under a whole row shared above and below them:
-at the bottom, it was a row's height under the agent's status line in one task and nothing in another, whose
-grids differed by a pixel (2026-10-08). When a task moves to another window, what its terminals show moves along (xterm's serialize addon, as VS
-Code keeps terminals), at the same size.
+asked with the browser's `confirm()`, an OS dialog.
 
 ## Keys
 
@@ -651,10 +636,9 @@ shortcuts carry (`com.squirrel.kulisa.kulisa`), or Windows would not pin it to t
 | `components/settings/LogPage.vue`, `AboutPage.vue` | the Log and About pages of Settings (The log; Menus, About Kulisa) |
 | `src/main/keys.ts` | the keyboard shortcuts: the table, which key an input event is; `shortcuts.ts` takes them (Keys) |
 | `src/main/updates.ts`, `installed.ts`, `forge.config.ts` | updates, Squirrel's events, a new version ready while Kulisa runs (the version installed on disk); the installers and the release |
-| `src/main/terminal.ts` | the ptys of the tasks' terminals; each shell's screen for `terminal_read` |
-| `src/main/shell-quote.ts` | an argument quoted as the user's shell reads it (sh, fish) |
+| `src/terminal/` | the terminal, a Kulisa package: its pty, its buffers, the xterm shown ([README](../src/terminal/README.md)) |
 | `src/renderer/components/Grid.vue`, `grid/*.vue`, `lib/grid.ts` | the grid (dockview), the panes and their headers, the island of terminals (`Terminals.vue`, its row of tabs `TerminalTabs.vue`), the closed profiles' tiles over it (`ClosedProfiles.vue`), Arrange panels |
 | `src/renderer/components/TopBar.vue`, `menu/*.vue` | the title bar, ☰ and its own rows |
-| `src/renderer/components/menu/*.vue`, `Modal.vue`, `Ask.vue`, `lib/menu.ts`, `cover.ts`, `views.ts`, `ask.ts`, `xterm.ts`, `terminals.ts`, `voice.ts` | the menus, the dialogs and questions (Reka UI's: `cover.ts`), the pages under them in a tasks' window (`views.ts`), a terminal in any window (`xterm.ts`), a tasks' window's terminals, dictation |
+| `src/renderer/components/menu/*.vue`, `Modal.vue`, `Ask.vue`, `lib/menu.ts`, `cover.ts`, `views.ts`, `ask.ts`, `terminals.ts`, `voice.ts` | the menus, the dialogs and questions (Reka UI's: `cover.ts`), the pages under them in a tasks' window (`views.ts`), a tasks' window's island (`terminals.ts`), dictation |
 | `src/renderer/lib/keys.ts`, `components/Shortcuts.vue` | where the keyboard is, the commands the keys run; Keyboard Shortcuts |
 | `test/window.ts`, `grid.ts`, `keys.ts`, `zoom-and-closing.ts`, `unit/keys.test.ts` | the tests |

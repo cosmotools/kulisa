@@ -3,14 +3,14 @@
 import { app } from 'electron';
 import { addAgent, deleteAccount } from '../projects.ts';
 import { findAgent, accountEmail, signOut, agentVersion, installLine, installAgent } from '../agents/index.ts';
-import { startTerminal, stopTerminal, forgetTerminal } from '../terminal.ts';
+import { startTerminal, stopTerminal, forgetTerminal } from '../../terminal/main/index.ts';
 import { refused } from '../../shared/result.ts';
 import { handle, on } from '../ipc.ts';
 import type { Ipc } from '../ipc.ts';
 import type { Shell, AgentChoice } from '../shell.ts';
 import type { Agent } from '../agents/index.ts';
 import type { Task } from '../tasks.ts';
-import type { Pty } from '../terminal.ts';
+import type { Pty } from '../../terminal/main/index.ts';
 import type * as Sent from '../../shared/types.ts'; // what the window gets: its one definition
 
 export function registerAgents(ipc: Ipc) {

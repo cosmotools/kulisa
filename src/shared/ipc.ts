@@ -3,6 +3,7 @@
 // act). docs/window.md, IPC. An answer the window does not read is `void`: the main process may answer anything there
 // (the tests read some).
 import type { Result } from './result.ts';
+import type { TerminalContents, TerminalEvents, TerminalSend } from '../terminal/ipc.ts';
 import type {
   AboutFolder, AboutInfo, AccountsInfo, AgentInfo, ClosedProfile, LanguageInfo, LogInfo, NewProjectSetup, Profile, ProjectAgent, ProjectChoices, ProjectProfile, ProjectRepo,
   ProjectSettings, ProjectsInfo, Question, SettingsProfile, Shortcut, SignedIn, Terminals, Voice,
@@ -13,8 +14,6 @@ import type {
 export interface OnTask { task: string | null }
 export type OnProfile = OnTask & { profile: string };
 export type OnTab = OnProfile & { tab?: string | null }; // none: the active one
-// The terminals' contents a window sends when a task moves, by key ("<task key>#<id>"), to the window it goes to.
-export type TerminalContents = Record<string, { data: string; cols: number; rows: number }>;
 type Grid = Record<string, Partial<{ x: number; y: number; width: number; height: number }> & { shown?: boolean }>;
 export type Theme = 'dark' | 'light' | 'system';
 export type Bar = 'top' | 'bottom';
@@ -133,9 +132,7 @@ export interface Invoke {
 }
 
 // ipcRenderer.send / ipcMain.on: what is sent, no answer.
-export interface Send {
-  'pty:in': { task: string; data: string };
-  'pty:resize': { task: string; cols: number; rows: number };
+export interface Send extends TerminalSend {
   'layout': { task: string | null; rects: Grid };
   'layout:save': { task: string | null; layout: unknown };
   'ask:answer': { id: number; answer: string };
@@ -147,15 +144,12 @@ export interface Send {
 }
 
 // webContents.send (AppWindow.send) / the window's kulisa.on: what the main process tells a window.
-export interface Events {
+export interface Events extends TerminalEvents {
   'projects': ProjectsInfo;
   'state': Profile[];
   'closed-profiles': ClosedProfile[];
   'terminals': Terminals;
-  'terminals:restore': TerminalContents;
-  'terminals:gone': string[];
   'terminal:focus': void;
-  'pty:out': { task: string; data: string };
   'grid:closing': { dir: number; task?: string; pics: Record<string, string> | null };
   'tasks:closed': string[];
   'zoom': number;

@@ -18,7 +18,7 @@
 // keys: shown in the window (menus, the shortcuts' dialog); also: matched, not shown; mac: instead of keys on macOS.
 // range: keys standing for 1, 2, 3 … (the match says which: n). window: the keyboard goes to the window first (the
 // command puts it in the window's HTML). always: also while a dialog is open. main: done in the main process.
-// display: only shown, the window does it (the terminal's copy and paste: terminal.ts).
+// display: only shown, the window does it (the terminal's copy and paste: src/terminal/renderer).
 // The zoom's and DevTools' keys mean the nearest: a page's own in a page, Kulisa's elsewhere.
 import type { Shortcut } from '../shared/types.ts';
 
