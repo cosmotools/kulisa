@@ -34,20 +34,6 @@ moves there over time: what has an issue is removed from here, the issue being t
     default); rights on profiles, when real accounts come (one flag, "view only": reading allowed, clicks and typing
     refused; today the agent's own modes cover test users).
 
-- **Several agents in a task, rest** (built 2026-10-12: [tasks.md](tasks.md), "Several agents in a task";
-  [window.md](window.md), The terminal; [transcripts.md](transcripts.md)).
-  - **Codex**: its transcript is read (2026-10-12, [transcripts.md](transcripts.md)); to try with a real Codex: a
-    task handed to Claude Code after a Codex conversation, and one to Codex (its first prompt as an argument is built;
-    tried by the author on 2026-10-12: it read the history). Two Codex conversations in one task: one without a
-    session reported (no hooks trusted) resumes with `codex resume --last` after a restart, which may be the other's.
-  - To try with a real Claude Code: handing over end to end (the tests run fake agents); `conversation_rename` asked
-    for by the instructions and the skill: does it name its tab, and when (loaded with the session since 2026-10-12:
-    behind the tool search `task_rename` was not called).
-  - The island folded at a side (by its width) is built, not tested; nor a terminal's tabs too many for the row (they
-    scroll, without arrows).
-  - **Open, for the author:** Kulisa offering to hand the task over when an agent stops on its limit (`StopFailure`),
-    and to whom (another vendor bypasses nothing; a second subscription of the same vendor may: tasks.md, "Several
-    agents in a task").
 - **Kulisa plugin: more the agent can do in the browsers** (tools in `mcp-server.ts`, each described in the skill;
   what is built: [profiles.md](profiles.md), "What the agent does"). What else an agent needs comes from using it
   (the author moves to working in Kulisa, 2026-10-08): where the agent goes around the tools (its own Playwright

@@ -855,6 +855,17 @@ export default (test: Test) => {
     await ui(`document.querySelector('.termtab .close').click()`);
     await waitFor(async () => task.terminals.size === 0 && (await folded()) && (await island()).height <= 40);
     assert.equal(ctx.asked.length, 0);
+    // At a side (the preset "grid" puts it right of the profiles): folded along the grid's width instead, a strip of its
+    // + as tall as the grid; its + unfolds it to a width of its own, and the last terminal closed folds it again.
+    await ui(`window.__layoutPreset('grid')`);
+    await waitFor(async () => { const r = await island(); return r.width <= 40 && r.height > 100 && (await middle()); });
+    await ui(`document.getElementById('termUnfold').click()`);
+    await choose(ui, 'Terminal');
+    await waitFor(async () => task.terminals.size === 1 && !(await folded()) && (await island()).width >= 200);
+    await ui(`document.querySelector('.termtab .close').click()`);
+    await waitFor(async () => task.terminals.size === 0 && (await folded()) && (await island()).width <= 40);
+    await ui(`window.__layoutPreset('columns')`);
+    await waitFor(async () => (await island()).height <= 40 && (await middle()));
     // Ctrl+` there: the task's agent, a new conversation.
     await focusWindow(shell.win, ui);
     press(shell.win.webContents, '`', 'control');
