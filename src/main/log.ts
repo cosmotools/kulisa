@@ -44,6 +44,10 @@ export function startLog(userData: string, isPackaged: boolean) {
   elog.hooks.push((m, _t, name) => { if (name === 'file') pending(); return m; });
   elog.transports.console.format = '{text}'; // stdout as it was (the tests' output): the time is the file's
   Object.assign(console, elog.functions); // what the code says on stdout goes to the file too
+  // A console nobody reads any more (`npm start | head`, a terminal closed, a parent gone): its first failed write (EPIPE)
+  // is an uncaught exception, which app.ts logs, to the console again, and so on, each round a nextTick that lets nothing
+  // else run. The author's Kulisa stopped answering the OS so on 2026-10-18, until the inspector turned the transport off.
+  for (const s of [process.stdout, process.stderr]) s.on('error', () => { elog.transports.console.level = false; });
   // Electron's own events, named one by one: electron-log's defaults listen on every webContents, the profiles' pages
   // too, and would log their failed loads and certificate errors with their addresses, and their console. The line is
   // ours (electronEvent): electron-log's own appends the page's address in full to every webContents event.
