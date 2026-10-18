@@ -256,8 +256,8 @@ unasked. This paragraph is removed when the rewrite is finished.
     request, merged by the author** (2026-10-12; Claude Code's auto mode refuses a local merge too, "Merge Without
     Review"): when the author asks for the commit, push the branch (`git push -u origin <name>`) and open its pull
     request into `develop` (GitHub's API, below), its body what the change does and its cost line (Working with the
-    author). `develop` is protected as `main` is (Releases), its required check `test (ubuntu-latest)`: tell the
-    author when it is green. Never merge into `develop` or `main` here, nor push them.
+    author). `develop` is protected as `main` is (Releases), its required checks `test (ubuntu-latest)`,
+    `test (macos-latest)` and `dependencies`: tell the author when it is green. Never merge into `develop` or `main` here, nor push them.
   - `npm test` runs from several worktrees at once: each checkout has its own test folder and test site
     (`test/start.ts`). The author's Kulisa runs one checkout at a time: the `run-kulisa` skill, from the worktree
     while its work is shown, from the repository's folder (`develop`) once it is merged.
@@ -286,10 +286,11 @@ unasked. This paragraph is removed when the rewrite is finished.
 
 - **`main` is protected on GitHub** (a ruleset, no one bypassing it): no push, no force push; only a pull request
   from `develop`, merged with a merge commit (not squash or rebase: `develop` would part from `main`), by the author,
-  once its required checks pass: `test (ubuntu-latest)` and `version` (`.github/workflows/test.yml`). Never push to
-  `main`, merge into it, or merge `main` back into `develop`. Supporting an OS makes its tests required: macOS's
-  (`test (macos-latest)`) once the macOS support for development is reached (the author, 2026-10-16; ROADMAP, "macOS
-  and Windows are untested"), on `develop` and `main`; the author adds it to the rulesets, the session says when it is time.
+  once its required checks pass: `test (ubuntu-latest)`, `test (macos-latest)`, `dependencies` and `version`
+  (`.github/workflows/test.yml`). Never push to `main`, merge into it, or merge `main` back into `develop`.
+  Supporting an OS makes its tests required, on `develop` and `main` (macOS's since 2026-10-18; Windows's once it
+  passes: ROADMAP, "macOS and Windows are untested"); the author adds it to the rulesets, the session says when it is
+  time.
 - **The version** in `package.json` is the truth; the app shows it (☰) and the updater compares it. Each pull
   request into `main` raises it (the `version` check refuses one that does not; once, the first release, the same
   number passes while no release of it exists). `npm version <patch|minor> --no-git-tag-version`: no tag by hand,
