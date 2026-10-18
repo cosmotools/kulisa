@@ -494,6 +494,8 @@ zone; electron-log's own has no offset), the level and a tag:
   profile's page.
 - `[profile]`: a profile's page that would not load (`did-fail-load`, the main frame; a white pane is a common report):
   the profile, the address bare, Chromium's error. The one kind of line about a profile's page.
+- `[session-cookies]`: a profile's saved session cookies that cannot be read (saved with another keyring key: after
+  a restart it comes back signed out), or not saved (the error).
 - `[electron]`: Electron's own events, named one by one in `startLog` and written by `electronEvent` (electron-log's own
   line appends the page's address in full): a renderer gone (its page's address, bare: where it crashed is worth
   knowing), a child process (the GPU) gone, a page unresponsive, a preload error. Not its defaults,

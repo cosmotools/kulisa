@@ -27,8 +27,11 @@ class SessionCookies {
   }
 
   async restore(profile: Holder) {
-    let data: Saved[];
-    try { data = JSON.parse(safeStorage.decryptString(fs.readFileSync(this.file(profile)))); } catch { return 0; }
+    let data: Saved[], raw: Buffer;
+    try { raw = fs.readFileSync(this.file(profile)); } catch { return 0; } // none saved: nothing to put back
+    // Saved with another key (the keyring's changed, or two Kulisas made one at once): after a restart the sign-ins
+    // are gone, and the log says why a profile came back signed out.
+    try { data = JSON.parse(safeStorage.decryptString(raw)); } catch { console.warn(`[session-cookies] ${profile.dir}: the saved session cookies cannot be read (saved with another keyring key?): not put back`); return 0; }
     let restored = 0;
     for (const c of data) {
       const host = c.domain!.replace(/^\./, '');

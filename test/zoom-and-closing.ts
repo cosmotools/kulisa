@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { assert, userData, pfile, savedTabs, panel, SITE, waitFor, who, menuRows, choose, manageProfiles, closeSettings, chooseProfile, setProfileField, menuOpen, taskMenu, viewOn, ctrl, near, closeMenu, plusMenu, closeBoard, PORT, MAC, sleep } from './helpers.ts';
 import type { Test } from './run.ts';
+import { SESSION_COOKIES_FILE } from '../src/main/store.ts';
 
 // Files of the sites' Cache API in a profile's folder, wherever Chromium's layout puts them (`WebStorage/<bucket>/CacheStorage/`).
 // A folder Chromium removes while it is read is not counted yet (NaN): asked again (GitHub's macOS runner, 2026-10-16).
@@ -174,6 +175,13 @@ export default (test: Test) => {
     await call('profile_close', { profile: 'cleo' });
     await call('profile_open', { profile: 'cleo' });
     assert.equal(await who(ctx, 'cleo'), 'Signed in as cleo');
+    // Its saved session cookies unreadable (another keyring key): the log says so (after a restart the profile would
+    // come back signed out; within one run Electron's session keeps them, so it is still signed in here).
+    await call('profile_close', { profile: 'cleo' });
+    fs.writeFileSync(path.join(cleoDir, SESSION_COOKIES_FILE), 'not what safeStorage wrote');
+    await call('profile_open', { profile: 'cleo' });
+    assert.equal(await who(ctx, 'cleo'), 'Signed in as cleo');
+    assert.match(fs.readFileSync(path.join(userData, 'logs', 'kulisa.log'), 'utf8'), /\[session-cookies\] .*: the saved session cookies cannot be read \(saved with another keyring key\?\): not put back/);
 
     // The agent removes it from the project: the human is asked; no keeps it, yes removes it (closed ones too); the
     // profile stays in Settings → Profiles.
