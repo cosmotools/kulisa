@@ -41,18 +41,19 @@ const freePort = () => new Promise<number>((resolve) => {
 });
 let site: { url: string; child?: ChildProcess };
 
-// One run of the app, its output kept until it ends (groups side by side would mix their lines).
-function app(group: string, args: string[]) {
+// One run of the app (run.ts, or another script), its output kept until it ends (groups side by side would mix
+// their lines).
+function app(group: string, args: string[], script = run) {
   const env = { ...process.env, KULISA_TEST_ROOT: folder(group), KULISA_TEST_SITE: site.url };
   // In plain Node the electron package is the path of Electron's binary.
   // Linux only: chrome-sandbox in node_modules is not setuid there (README, Run).
   const sandbox = process.platform === 'linux' ? ['--no-sandbox'] : [];
-  let cmd = electron as unknown as string, argv = [...sandbox, run, ...args];
+  let cmd = electron as unknown as string, argv = [...sandbox, script, ...args];
   if (hidden) {
     // A screen as large as a monitor (tests open windows beside each other; -a: a free display), with a window
     // manager: without one, windows are not listed for capture (screenshots) and focus differs from a desktop.
     // No GPU there: WebGL on Chromium's software renderer, as the terminal uses it on a real one.
-    const line = [cmd, ...sandbox, '--ignore-gpu-blocklist', run, ...args].map((a) => `'${a}'`).join(' ');
+    const line = [cmd, ...sandbox, '--ignore-gpu-blocklist', script, ...args].map((a) => `'${a}'`).join(' ');
     cmd = 'xvfb-run'; argv = ['-a', '-s', '-screen 0 1920x1080x24', 'sh', '-c', `openbox >/dev/null 2>&1 & sleep 0.5; exec ${line}`];
   }
   return new Promise<{ code: number; out: string }>((resolve) => {
@@ -100,7 +101,12 @@ void (async () => {
   // In parallel only on screens of their own: on one screen (macOS, Windows, --visible) the groups' windows took each
   // other's focus, and tests waiting for it failed (2026-10-16, macOS).
   if (!hidden) for (const n of chosen) codes.push(await group(n));
-  else codes.push(...await Promise.all(chosen.map(group)));
+  else {
+    // The keyring's key first, by one Electron alone (keyring.ts): the groups' two made it at once on a fresh keyring,
+    // and the one whose key the keyring did not keep lost its session cookies at its restart (GitHub's runner).
+    await app('keyring', [], path.join(import.meta.dirname, 'keyring.ts'));
+    codes.push(...await Promise.all(chosen.map(group)));
+  }
   site.child?.kill();
   try { fs.rmdirSync(base); } catch {} // empty once every group passed
   process.exit(codes.some(Boolean) ? 1 : 0);

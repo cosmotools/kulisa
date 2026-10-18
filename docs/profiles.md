@@ -272,7 +272,9 @@ author, 2026-10-10). How it is kept safe, each line with its reason:
 - **Session cookies** (no expiry; Entra's ESTSAUTH, federated sign-ins) die with the process in Electron. Kulisa
   saves them encrypted with the OS keyring (`safeStorage`) in the profile's folder, on quit, before a profile
   closes, and every 30 s, and puts them back before its first tab loads (`session-cookies.ts`). Never written in
-  the clear: without a keyring they are not saved.
+  the clear: without a keyring they are not saved. A file the keyring's key no longer opens (the key changed, or two
+  Kulisas made one at once on a fresh keyring) leaves the profile signed out at the next start, with a
+  `[session-cookies]` line in the log saying so.
 - **Tabs on sign-in pages** are saved as where the sign-in started (sign-in URLs are one-time): the last other page
   in the tab's history, else the origin of the return address in the URL, else not at all (`signin-pages.ts`).
 

@@ -227,7 +227,10 @@ its runs report but do not fail the workflow (`continue-on-error`) until it pass
 
 On Linux the runner has no desktop: `npm test` runs in a D-Bus session with gnome-keyring made and unlocked, and
 `XDG_CURRENT_DESKTOP=GNOME`, else `safeStorage` encrypts nothing and Kulisa keeps no session cookies nor test passwords
-(the first run, 2026-10-12: five tests failed so). Its test folders are in the runner's temp, inside the home folder:
+(the first run, 2026-10-12: five tests failed so). The keyring's key is made once before the groups start side by
+side (`test/keyring.ts`, one Electron alone): Chromium looks it up and, finding none, stores a new one, so the two
+groups starting at once on the runner's fresh keyring each made their own, the keyring kept the last, and the other
+group's restart could not read the session cookies it had saved ("Signed out", one run in three; 2026-10-18). Its test folders are in the runner's temp, inside the home folder:
 a test that reads a path as the window shows it shortens it to `~` as Kulisa does. Lines end in LF on every OS
 (`.gitattributes`): git on Windows checked out CRLF, and a test comparing a file failed.
 
