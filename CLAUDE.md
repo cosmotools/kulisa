@@ -296,7 +296,8 @@ unasked. This paragraph is removed when the rewrite is finished.
   the CI makes it. While 0.x: `patch` by default, `minor` when the author says so or for a large change (say which).
 - **A merge into `main` is published by itself** (the author, 2026-10-13: no users yet, no manual step):
   `.github/workflows/release.yml` makes a draft `v<version>` at that commit, its notes the pull request's text;
-  builds the installers on Ubuntu (`.deb`, `.rpm`) and Windows (Squirrel's `.exe`) into it; installs the `.deb` and
+  builds the installers on Ubuntu (`.deb`, `.rpm`) and Windows (Squirrel's `.exe`) into it, each with its signed
+  provenance (`actions/attest`; docs/window.md); installs the `.deb` and
   starts it; then publishes it, the tag made then. update.electronjs.org serves it and installed copies update
   (docs/window.md, "The app icon, installers and updates"); kulisa.app is built again, its download buttons and
   its guide then the release's (`SITE_DEPLOY_TOKEN`, a secret: a token that may only run `kulisa-site`'s workflows;

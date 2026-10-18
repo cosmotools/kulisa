@@ -219,7 +219,9 @@ script run in a window that closes before its result is back never answers (Elec
 closes a window without waiting for the script that closes it (`closeSettings`).
 
 **CI** (`.github/workflows/test.yml`): `npm test` on GitHub Actions at every pull request into `develop` or `main` and
-every push to `develop` (CLAUDE.md, Releases; into `main` its `version` job checks the version raised), on Ubuntu (with Xvfb
+every push to `develop` (CLAUDE.md, Releases; into `main` its `version` job checks the version raised; its
+`dependencies` job, on pull requests, refuses a new dependency with a known vulnerability or a license not on its list:
+`docs/LICENSING.md`), on Ubuntu (with Xvfb
 and openbox, as on the author's machine), Windows and macOS (on the runner's own screen), git given a name (tasks
 commit). A failed run keeps the groups' folders (their screenshots) as an artifact per OS for a week. Ubuntu and macOS
 pass (macOS since 2026-10-16: "On macOS", above); Windows does not yet (ROADMAP, "macOS and Windows are untested"):
