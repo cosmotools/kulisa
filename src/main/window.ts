@@ -9,6 +9,7 @@ import path from 'path';
 import fs from 'fs';
 import { page } from './pages.ts';
 import { log } from './log.ts';
+import { Thumbnails } from '../screenshots/main/index.ts';
 import type { Rectangle, Point } from 'electron';
 import type { Shell } from './shell.ts';
 import type { Task } from './tasks.ts';
@@ -35,10 +36,13 @@ const minSize = (z: number) => ({ width: Math.round(MIN_SIZE.width * z), height:
 const NONE = new Map<string, never>(); // the profiles when no task is open
 let windows = 0;
 
+const PRELOAD = path.join(import.meta.dirname, '..', 'preload', 'index.cjs');
+
 class AppWindow {
   shell: Shell; id: number; tabs: Task[]; current: Task | null; viewsHidden: boolean; switching: boolean;
   stateTimer: NodeJS.Timeout | undefined; picking: Map<string, { profile: Profile; page: import('playwright-core').Page; cancel: () => unknown }>;
   questions: Questions; loaded: boolean; pending: [string, unknown[]][]; keyZone: string;
+  thumbnails: Thumbnails; // a screenshot's, in its pane's corner (src/screenshots)
   win: Electron.BrowserWindow; place: { bounds: Rectangle; maximized: boolean }; barHeight: number; // the title bar's, as the window was made
   // shell: the app (app.ts). place: where it was ({ bounds, maximized }, settings.json), or { near: a window } for a
   // new one of its size next to it, or under the pointer (at: a point on the screen, where a tab was let go).
@@ -74,11 +78,13 @@ class AppWindow {
       // the window's own top bar (left on macOS). The page lays out around them (Window Controls Overlay).
       titleBarStyle: 'hidden', titleBarOverlay: { color: COLORS[shell.shade()].window, symbolColor: COLORS[shell.shade()].text, height: this.barHeight },
       // DevTools of Kulisa's own UI only while developing it; a packaged build has none (profiles' tabs still do).
-      webPreferences: { preload: path.join(import.meta.dirname, '..', 'preload', 'index.cjs'), sandbox: true, devTools: appDevTools,
+      webPreferences: { preload: PRELOAD, sandbox: true, devTools: appDevTools,
         zoomFactor: shell.uiZoom },
     }));
     if (maximized) win.maximize();
     this.place = this.where();
+    // Send to Agent: its file's path into the prompt of the shown task's agent.
+    this.thumbnails = new Thumbnails(win, { page: page('thumbnail.html'), preload: PRELOAD, send: (text) => this.task?.typeForAgent(text) });
     // Electron's default File/Edit/View/Window menu adds a row on Linux and Windows and gives nothing (its Ctrl+R
     // reloads the shell). On macOS the menu lives in the system bar and stays (Cmd+C/V need its Edit roles).
     win.removeMenu();
@@ -117,7 +123,7 @@ class AppWindow {
     const wc = this.win.webContents;
     if (wc.isDevToolsOpened()) wc.closeDevTools(); else wc.openDevTools({ mode: 'detach', title: 'Kulisa · DevTools' });
   }
-  destroy() { this.unanswered(); if (!this.win.isDestroyed()) this.win.destroy(); }
+  destroy() { this.unanswered(); this.thumbnails.destroy(); if (!this.win.isDestroyed()) this.win.destroy(); }
 
   // Its page, loaded once; its tabs, the one to be shown (shown), the theme, where the tasks' bar is and
   // the keyboard shortcuts (keys.ts: for menus and tooltips) come along in the URL, so the window is drawn right at once. The profiles' views stay hidden until the renderer has the grid laid out (views:hidden).
@@ -218,6 +224,7 @@ class AppWindow {
     this.switching = true;
     clearTimeout(this.stateTimer);
     for (const { cancel } of this.picking.values()) cancel();
+    this.thumbnails.close(); // its pane goes
     const pics = dir ? await this.pictures() : null;
     this.viewsHidden = true;
     for (const p of this.profiles.values()) p.setHidden(true);
@@ -260,6 +267,7 @@ class AppWindow {
     // again); the page shows them once it has the next grid laid out.
     this.viewsHidden = !!hidden || this.switching;
     for (const p of this.profiles.values()) p.setHidden(this.viewsHidden);
+    this.thumbnails.setHidden(this.viewsHidden);
     return pics;
   }
   // JPEG: a picture shown for a moment, encoded three times faster than PNG (measured 2026-10-07). A page that draws no
@@ -293,7 +301,10 @@ class AppWindow {
     if (key !== this.task?.key) return; // a task no longer on screen
     const z = this.win.webContents.getZoomFactor();
     for (const [id, r] of Object.entries(rects)) this.profiles.get(id)?.layout(r.shown === false ? r : Object.fromEntries(Object.entries(r).map(([k, v]) => [k, Math.round((v as number) * z)])));
+    this.thumbnails.place(this.paneBox);
   }
+  // Where a profile's pane shows its page in the window; null: not on screen.
+  paneBox = (id: string) => { const p = this.profiles.get(id); return p?.shown ? p.bounds : null; };
   // Any loaded task of this window: the grid's last change comes as it is taken down, and reaches here once the window
   // shows the next task.
   saveLayout(key: string | null, layout: unknown) {

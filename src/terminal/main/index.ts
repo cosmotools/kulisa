@@ -43,7 +43,13 @@ on('pty:resize', (_e, { task, cols, rows }) => {
   t.size = island.size = { cols, rows }; t.sized(); island.sized();
   try { t.pty?.resize(cols, rows); t.pty?.screen?.resize(cols, rows); } catch {}
 });
-on('pty:in', (_e, { task, data }) => terms.get(task)?.pty?.write(data));
+// Esc typed by the human into a terminal (its key): what it means is the caller's (an agent's turn ended: tasks.ts).
+const escapes: ((key: string) => void)[] = [];
+const onEscape = (fn: (key: string) => void) => { escapes.push(fn); };
+on('pty:in', (_e, { task, data }) => {
+  terms.get(task)?.pty?.write(data);
+  if (data === '\x1b') for (const fn of escapes) fn(task);
+});
 
 // The user's shell as a terminal app starts it (login shell on macOS, as Terminal and VS Code do). An app started
 // from the Dock or a menu may have no SHELL; the account's shell is the same then.
@@ -128,6 +134,11 @@ function terminalTail(p: Pty, lines: number) {
   return rows.map((l) => l.trimEnd()).join('\n').trimEnd().split('\n').slice(-lines).join('\n');
 }
 
+// Ctrl+C, as the human would press it: what runs there stops, the shell stays.
+const interrupt = (p: IPty) => p.write('\x03');
+// A command line typed into the shell and run, as the human would type it.
+const typeLine = (p: IPty, line: string) => p.write(`${line}\r`);
+
 // Put text into the agent's prompt as a paste (bracketed: one block, nothing in it is taken as a key), not sent.
 function typeIntoPrompt(p: IPty, text: string) {
   p.write(`\x1b[200~${text}\x1b[201~`);
@@ -158,4 +169,4 @@ async function sendToPrompt(p: Pty, text: string, confirm?: string) {
 }
 
 export type { Pty };
-export { startTerminal, stopTerminal, forgetTerminal, terminalTail, typeIntoPrompt, sendToPrompt };
+export { startTerminal, stopTerminal, forgetTerminal, terminalTail, typeIntoPrompt, sendToPrompt, interrupt, typeLine, onEscape };

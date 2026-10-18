@@ -4,6 +4,7 @@ import type { ClosedProfile, LanguageInfo, Profile, ProjectsInfo, Terminals } fr
 import type { Invoke, OnTask } from '../../shared/ipc';
 import { initialProjects } from './common';
 import { projectColor } from './project-color';
+import { refused } from '../../shared/result';
 
 const root = document.documentElement;
 export const store = reactive({
@@ -101,4 +102,16 @@ export async function togglePick(profile: string) {
   const res = await kulisa.invoke('pick:start', { profile });
   store.picking[profile] = false;
   store.captions[profile] = res && res.error ? `Pick failed: ${res.error}` : '';
+}
+
+// Screenshot (⋮ → Screenshot; its key: Element): the picture goes to the clipboard and the OS's folder of screenshots
+// (src/screenshots/README.md). Element: chosen as Pick chooses; Esc, Pick or the key again cancels.
+export async function screenshot(profile: string, kind: 'element' | 'visible' | 'full') {
+  if (store.picking[profile]) return kulisa.invoke('pick:cancel', { profile });
+  if (kind === 'element') { store.captions[profile] = 'Click an element for its screenshot · Esc to cancel'; store.picking[profile] = true; }
+  const res = await act('tab:screenshot', { profile, kind });
+  store.picking[profile] = false;
+  store.captions[profile] = refused(res) ? `Screenshot failed: ${res.error}` : res.file ? 'Screenshot copied and saved' : '';
+  clearTimeout(captionTimers.get(profile));
+  captionTimers.set(profile, window.setTimeout(() => { store.captions[profile] = ''; }, 4000));
 }

@@ -2,7 +2,7 @@
 // process has to know where the keyboard is in this page to know whose a key is; it sends the commands back here, with
 // the profile and tab they act on.
 import { watch } from 'vue';
-import { act, store, toggleNewTab } from './store';
+import { act, screenshot, store, toggleNewTab } from './store';
 import { paneOfProfile } from './grid';
 import { shownTerm } from './terminals';
 import { dialog } from './dialogs';
@@ -63,6 +63,7 @@ const run: Record<string, (c: Command) => unknown> = {
   'tab.last': (c) => toTab(c, (_i, n) => n - 1),
   // As a click on Pick: off on an empty tab; again cancels.
   pick: ({ p }) => document.querySelector<HTMLButtonElement>(`.pane[data-profile="${CSS.escape(p!.id)}"] .pick`)?.click(),
+  screenshot: ({ p }) => screenshot(p!.id, 'element'),
 };
 // The bar's tasks, in its order.
 function stepTask(dir: number) {

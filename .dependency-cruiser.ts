@@ -34,6 +34,7 @@ const cluster = (name: string, entries: string[]) => {
 // window. A new Kulisa package is a line here.
 const packages: Record<string, { main: string[] }> = {
   terminal: { main: ['ipc', 'log'] }, // a terminal: its pty, its buffers and the xterm shown
+  screenshots: { main: ['ipc', 'log'] }, // a picture of a page: an element, the visible part, the whole page
 };
 const packageRules = (name: string, { main: uses }: { main: string[] }) => {
   const dir = `^src/${name}/`;

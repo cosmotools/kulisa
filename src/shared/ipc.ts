@@ -4,6 +4,7 @@
 // (the tests read some).
 import type { Result } from './result.ts';
 import type { TerminalContents, TerminalEvents, TerminalSend } from '../terminal/ipc.ts';
+import type { ThumbnailEvents, ThumbnailInvoke, ThumbnailSend } from '../screenshots/ipc.ts';
 import type {
   AboutFolder, AboutInfo, AccountsInfo, AgentInfo, ClosedProfile, LanguageInfo, LogInfo, NewProjectSetup, Profile, ProjectAgent, ProjectChoices, ProjectProfile, ProjectRepo,
   ProjectSettings, ProjectsInfo, Question, SettingsProfile, Shortcut, SignedIn, Terminals, Voice,
@@ -28,7 +29,7 @@ type Profiles = { profiles: SettingsProfile[] };
 
 // ipcRenderer.invoke / ipcMain.handle: args, the answer.
 type I<A extends unknown[], R = void> = { args: A; result: R };
-export interface Invoke {
+export interface Invoke extends ThumbnailInvoke {
   'projects:list': I<[], ProjectsInfo | undefined>;
   'tasks:get': I<[]>;
   'project:open': I<[{ id?: string; folder?: string; task?: number }]>;
@@ -107,6 +108,9 @@ export interface Invoke {
   'tab:dialog': I<[OnTab & { dialog: number; ok: boolean }]>;
   'tab:devtools': I<[OnTab]>;
   'tab:zoom': I<[OnTab & { dir: number }]>;
+  // A picture of the tab, on the clipboard and in the OS's folder of screenshots (src/screenshots): its file; null when
+  // no element was chosen (Esc).
+  'tab:screenshot': I<[OnTab & { kind: 'element' | 'visible' | 'full' }], Result<{ file: string | null }>>;
   'zoom:get': I<[], number>;
   'about:get': I<[], AboutInfo>;
   'about:show-folder': I<[id: AboutFolder]>;
@@ -132,7 +136,7 @@ export interface Invoke {
 }
 
 // ipcRenderer.send / ipcMain.on: what is sent, no answer.
-export interface Send extends TerminalSend {
+export interface Send extends TerminalSend, ThumbnailSend {
   'layout': { task: string | null; rects: Grid };
   'layout:save': { task: string | null; layout: unknown };
   'ask:answer': { id: number; answer: string };
@@ -144,7 +148,7 @@ export interface Send extends TerminalSend {
 }
 
 // webContents.send (AppWindow.send) / the window's kulisa.on: what the main process tells a window.
-export interface Events extends TerminalEvents {
+export interface Events extends TerminalEvents, ThumbnailEvents {
   'projects': ProjectsInfo;
   'state': Profile[];
   'closed-profiles': ClosedProfile[];

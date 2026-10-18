@@ -259,6 +259,21 @@ A pane is a small Chrome: a tab strip, an address bar, back, forward and reload.
 - **Zoom** a site with Ctrl + / − / 0 in its page; it is kept for that site in that profile and shown in the address
   bar (a click resets it).
 - **DevTools** of a tab: the pane's ⋮ menu, or F12.
+- **Screenshots** of a tab: the pane's ⋮ menu → **Screenshot**:
+  - **Element**: click an element on the page (or press Ctrl+Shift+S in the page); Esc cancels;
+  - **Visible Part**: what the pane shows;
+  - **Full Page**: the whole page down to its end. A page that scrolls inside a box of its own (many mail and admin
+    apps) gives what is visible; take that box as an element instead. Pictures further down may still be empty if
+    the page loads them only when you scroll there.
+
+  The picture goes both to the clipboard (paste it into a message, or into the agent's input with Ctrl+V) and as a
+  file into your computer's own folder of screenshots: Pictures/Screenshots on Windows and Linux, on a Mac the folder
+  chosen for screenshots (the Desktop unless you changed it). The agent's marks are not in it. They are your files:
+  Kulisa does not delete them.
+
+  A **thumbnail** of the picture shows in the pane's corner for a few seconds, as on a Mac; it stays while the pointer
+  is over it. Click it to open the picture; drag it into a message, a mail or a folder; right-click it for **Show in
+  Folder**, **Copy**, **Send to Agent** (the picture into the agent's input), **Delete** and **Close**.
 - A page's alert or confirm shows in its pane, as in Chrome. A page that does not load says why, as Chrome's error
   page does.
 - **Pages no one looks at are unloaded** after five minutes, as Chrome's Memory Saver does, to give the memory back:
@@ -324,6 +339,7 @@ A pane is a small Chrome: a tab strip, an address bar, back, forward and reload.
 | Ctrl+Shift+1…9 | The first to ninth tab |
 | Ctrl+Shift+PgDn / PgUp | The next or previous task |
 | Ctrl+Shift+C (in a page) | Pick an element for the agent |
+| Ctrl+Shift+S (in a page) | Screenshot of an element |
 | Ctrl+T, Ctrl+W, Ctrl+Shift+T (in a page) | New tab, close the tab, open the tab closed last |
 | Ctrl+L (in a page) | The address bar |
 
@@ -347,6 +363,8 @@ its settings. Usually:
   Windows. Session cookies and test passwords
   are encrypted with your OS's keyring. **Show Data Folder** in a task tab's right-click menu, under the project's name, opens that project's.
 - Deleting a task, a profile or a project removes what Kulisa made for it.
+- Screenshots you take are yours, in your computer's folder of screenshots (A profile's pane, above): Kulisa does
+  not remove them.
 - Kulisa keeps a log of what it did (the buttons and tools used, tasks opened and closed, errors), never what you
   typed or your passwords: the `logs` folder in the data folder, two files of 1 MB at most. Read it in **Settings →
   Log** (below, Reporting a problem).

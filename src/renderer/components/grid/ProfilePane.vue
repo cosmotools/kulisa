@@ -8,7 +8,7 @@ import { DialogContent, DialogDescription, DialogRoot, DialogTitle, TabsList, Ta
 import Icon from '../Icon.vue';
 import ButtonMenu from '../menu/ButtonMenu.vue';
 import RightClickMenu from '../menu/RightClickMenu.vue';
-import { act, store, togglePick } from '../../lib/store';
+import { act, screenshot, store, togglePick } from '../../lib/store';
 import { keyText, reducedMotion, withKeys } from '../../lib/common';
 import type { MenuItem } from '../../lib/menu';
 import { panes, scheduleLayout, type PaneHandle } from '../../lib/grid';
@@ -85,7 +85,13 @@ const more = (): MenuItem[] => {
       { label: 'Forward', keys: keyText('tab.forward'), enabled: !!active.value?.canFwd, run: () => act('tab:forward', { profile: id(), tab: tab() }) }] : [],
     ...hidden('reload') ? [{ label: 'Reload', keys: keyText('tab.reload'), run: () => act('tab:reload', { profile: id(), tab: tab() }) }] : [],
   ];
+  // Nothing to take on an empty tab, as nothing to pick.
+  const blank = !active.value?.url || active.value.url === 'about:blank';
   return [...nav, ...nav.length ? ['-' as const] : [],
+    { submenu: 'Screenshot', items: [
+      { label: 'Element', keys: keyText('screenshot'), enabled: !blank, run: () => screenshot(id(), 'element') },
+      { label: 'Visible Part', enabled: !blank, run: () => screenshot(id(), 'visible') },
+      { label: 'Full Page', enabled: !blank, run: () => screenshot(id(), 'full') }] },
     { label: 'DevTools', keys: keyText('devtools.tab'), run: () => act('tab:devtools', { profile: id(), tab: tab() }) }];
 };
 const picking = computed(() => !!profile.value && !!store.picking[profile.value.id]);

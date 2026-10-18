@@ -517,12 +517,26 @@ function buildServer(task: Task, t: TaskTerminal | null) {
     return text(result === undefined ? 'undefined' : JSON.stringify(result, null, 1) ?? String(result));
   });
 
-  server.registerTool('browser_screenshot', { description: "Screenshot of a profile's tab (default: the active one).", inputSchema: { profile: profileArg, tab: onTab } },
-    async ({ profile, tab }) => {
-      const page = await pageOf(profile, tab);
-      const buf = await page.screenshot({ type: 'jpeg', quality: 70 });
-      return { content: [{ type: 'image', data: buf.toString('base64'), mimeType: 'image/jpeg' }] };
-    });
+  server.registerTool('browser_screenshot', {
+    description: "Screenshot of a profile's tab (default: the active one): its visible part, one element (ref or locator), or the whole page (fullPage).",
+    inputSchema: { profile: profileArg, tab: onTab, ...element,
+      fullPage: z.boolean().optional().describe('The whole page, scrolled to its end; a page scrolling inside a container of its own gives its visible part: take the container by locator'),
+      also: z.array(z.string()).optional().describe('More profile ids: their active tabs too, in one call (with locator: the same element in each), e.g. to compare what each user sees') },
+  }, async ({ profile, tab, ref, locator, fullPage, also = [] }) => {
+    if (ref && also.length) throw new Error('A ref is one page\'s: with also, pass a locator');
+    // At CSS pixels: at a screen's density the picture is several times larger and costs the agent's context for nothing.
+    const shoot = async (id: string, tabId?: string) => {
+      const found = tabOf(id, tabId);
+      const el = ref || locator ? { element: (page: Page) => target(page, { ref, locator }) } : {};
+      return found.profile.screenshot(found.tab, { ...el, fullPage, scale: 'css', type: 'jpeg', by: 'agent' });
+    };
+    const image = (buf: Buffer) => ({ type: 'image' as const, data: buf.toString('base64'), mimeType: 'image/jpeg' });
+    if (!also.length) return { content: [image(await shoot(profile, tab))] };
+    // One profile that cannot be taken (signing in, closed) does not hide the others.
+    const parts = await Promise.all([[profile, tab] as const, ...also.map((id) => [id, undefined as string | undefined] as const)].map(([id, t]) =>
+      shoot(id, t).then((buf) => [{ type: 'text' as const, text: `- Profile: ${id}` }, image(buf)], (e: Error) => [{ type: 'text' as const, text: `- Profile: ${id}\n- ${e.message}` }])));
+    return { content: parts.flat() };
+  });
 
   // What a tab reported recently, as Playwright keeps it for every page of the shell's connection (the last ones,
   // since the connection was made: after a sign-in pause, only what came after it).

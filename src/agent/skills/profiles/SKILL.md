@@ -22,7 +22,7 @@ human sees everything you do there: your cursor and a caption are drawn in the p
 | `browser_tab_select`, `browser_tab_close` | Switch to a tab (by id from `profile_list`), close a tab. |
 | `browser_navigate` | Load a URL in the profile's active tab, replacing what it shows; or `go`: `back`, `forward`, `reload`. |
 | `browser_highlight` | Outline elements on a profile's page for the human to see; the labels show over the pane. They go when the human clicks or types there; an empty list clears them. |
-| `browser_screenshot` | See the page when the snapshot is not enough (layout, images, colors). |
+| `browser_screenshot` | See the page when the snapshot is not enough (layout, images, colors): its visible part; one element by `ref` or `locator`; `fullPage` down to its end (a page scrolling inside a container of its own: take the container by `locator`). `also`: more profiles' active tabs in the same call (with `locator`, the same element in each). |
 | `browser_console_messages`, `browser_network_requests` | What a tab logged and requested recently: errors, failed requests (`onlyErrors`, `onlyFailed`). |
 | `profile_open` | Open a closed profile (`closed: true` in `profile_list`): its pane and tabs come back, still signed in. |
 | `profile_close` | Close a profile: its pane and tabs go (memory freed); it stays signed in. |

@@ -31,6 +31,10 @@ nothing of them: a terminal is a key, `<task key>#<id>` for a task's, any string
 - **Typing to an agent.** `typeIntoPrompt` pastes text into its prompt (bracketed: nothing in it is taken as a key),
   not sent; `sendToPrompt` sends a line as the human would, once its command was typed, and answers the question the
   agent asks then (Claude Code's `/add-dir`).
+- **Typing to a shell.** `typeLine` types a command line and runs it; `interrupt` is Ctrl+C, as the human presses it
+  (what runs stops, the shell stays).
+- **Esc typed by the human** reaches whoever asked (`onEscape`, with the terminal's key): what it means is theirs (an
+  agent's turn ended: `Task.interrupted`, docs/tasks.md). Nothing outside listens to `pty:in` itself.
 - `stopTerminal` ends it (its output reaches no window after); `forgetTerminal` drops its size once it is gone.
 
 ## The window (`renderer/`)
@@ -77,7 +81,8 @@ ibus with a Cyrillic layout leaves `code` out.
 
 Links (OSC 8, as Claude Code marks them, and addresses in plain text: xterm's web-links addon) open with Ctrl+click (⌘
 on macOS), `http` and `https` only, the address shown on hover, through `termHooks.open`, which the island sets (a menu:
-one of the task's profiles, or the user's browser; docs/window.md, The terminal).
+one of the task's profiles, or the user's browser; docs/window.md, The terminal). xterm's own handler asked with the
+browser's `confirm()`, an OS dialog.
 
 ## Its channels (`ipc.ts`)
 
@@ -89,7 +94,7 @@ one of the task's profiles, or the user's browser; docs/window.md, The terminal)
 
 | File | What |
 |---|---|
-| `main/index.ts` | the main process's entry: the pty, typed into the user's shell; its size; a shell's screen; typing to an agent |
+| `main/index.ts` | the main process's entry: the pty, typed into the user's shell; its size; a shell's screen; typing to an agent or a shell; Esc |
 | `main/shell-quote.ts` | an argument quoted as the user's shell reads it (sh, fish) |
 | `renderer/index.ts` | the window's entry: the buffers, `View` (the xterm a place shows), copy and paste, links |
 | `renderer/tsconfig.json` | the window half checked as the window is (ESLint finds it by it) |

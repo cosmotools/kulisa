@@ -6,7 +6,7 @@ import fs from 'fs';
 import { deleteClosedTask } from '../projects.ts';
 import type { AppWindow } from '../window.ts';
 import { refused } from '../../shared/result.ts';
-import { handle, on } from '../ipc.ts';
+import { handle } from '../ipc.ts';
 import type { Ipc } from '../ipc.ts';
 import type { ProjectEntry } from '../store.ts';
 import type { Task } from '../tasks.ts';
@@ -72,8 +72,6 @@ export function registerTasks(ipc: Ipc) {
   handle('task:remove-repo', (_e, { key, repo }) => taskAt(key, (task) => task.removeRepository(repo)));
   handle('project:delete-merged', (e, { id }) => serial(() => { const p = shell.open.get(id); return p ? deleteMerged(p, at(e)) : { error: 'the project is not open' }; }));
   // The dictation: its key held (holdKey, above in onKey) and the microphone (Dictation.vue; Task.voice, dictate).
-  // Esc typed into an agent's terminal (its key: "<task>#<id>"): Task.interrupted.
-  on('pty:in', (_e, { task, data }) => { if (data === '\x1b') shell.taskByKey(task.split('#')[0]!)?.interrupted(task); });
   handle('voice:get', (_e, key) => shell.taskByKey(key)?.voice() ?? null);
   handle('voice:record', (_e, { task, on }) => shell.taskByKey(task)?.dictate(on) ?? { recording: false });
   handle('task:show-folder', (_e, key) => { const task = shell.taskByKey(key); return task && electronShell.openPath(task.folder); });
