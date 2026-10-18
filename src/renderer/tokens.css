@@ -16,6 +16,8 @@
   --on-accent: #ffffff; /* text on --accent and --danger */
   /* The agent's caption on a pane: what it does now, quiet, in the accent's hue (not --note: that is "waiting for you") */
   --agent: light-dark(#2f63c9, #8fb3f7);
+  /* The log's tags by who acted (settings/LogPage.vue): the agent's in the agent's color, the human's, the tasks' */
+  --log-agent: var(--agent); --log-human: light-dark(#7a3e9d, #c792ea); --log-tasks: light-dark(#8a5a00, #d7a86e);
   --selection: light-dark(#a6d2ff, #214283); /* selected text in the terminal */
   /* The selected row of a list (.list), JetBrains': while the list has the keyboard, and when it has not */
   --chosen: light-dark(#d5e1ff, #2e436e); --chosen-idle: light-dark(#dfe1e5, #393b40);

@@ -1,0 +1,26 @@
+name: Bug report
+description: Something in Kulisa went wrong. Kulisa fills this in from Settings → Log → Report… → On GitHub….
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what you did before it
+      placeholder: Clicked Add Profile… above the terminal; a new task opened by itself.
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Filled in by Kulisa; or the first line of kulisa.log (the version, Electron, the OS).
+      placeholder: Kulisa 0.1.4, electron 44.8.0, linux 7.0.0 (wayland), packaged
+  - type: textarea
+    id: log
+    attributes:
+      label: The log
+      description: >
+        Attach kulisa.log, saved in Kulisa with Settings → Log → Save As… (drop the file here). It holds your project and
+        task folders, profile names and the pages' addresses without their queries; never what you typed or your
+        passwords. Look through it before attaching: this issue is public.
+      placeholder: Drop kulisa.log here.

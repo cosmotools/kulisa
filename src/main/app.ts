@@ -1,10 +1,9 @@
 // Kulisa, the app: the shell every module gets (shell.ts) put together, its windows with their open tasks
 // (open-tasks.ts), the agents, the CDP proxy and the MCP server, the windows' handles (ipc/), quitting. start(options)
 // is used by the entry point (index.ts) and by the tests.
-import { app, nativeTheme, Menu, safeStorage } from 'electron';
+import { app, crashReporter, nativeTheme, Menu, safeStorage } from 'electron';
 import { EventEmitter } from 'events';
 import path from 'path';
-import os from 'os';
 import fs from 'fs';
 import { CdpProxy } from './cdp-proxy.ts';
 import { Store } from './store.ts';
@@ -26,8 +25,7 @@ import { startDiscarding } from './discard.ts';
 import { installMasters } from './master.ts';
 import { installSettings } from './settings-window.ts';
 import { openTasks } from './open-tasks.ts';
-import { log, startLog } from './log.ts';
-import pkg from '../../package.json' with { type: 'json' };
+import { environment, log, startLog } from './log.ts';
 import { updateNotices } from './updates.ts';
 import { installShortcuts } from './shortcuts.ts';
 import { registerTasks } from './ipc/tasks.ts';
@@ -83,8 +81,11 @@ function start(options: Options = {}) {
   app.userAgentFallback = app.userAgentFallback.replace(/ Electron\/\S+/, '');
   const userData = options.userData || path.join(app.getPath('appData'), 'Kulisa');
   app.setPath('userData', userData);
-  startLog(userData);
-  log.info(`[kulisa] start ${pkg.version}, electron ${process.versions.electron}, ${process.platform} ${os.release()}${process.env.XDG_SESSION_TYPE ? ` (${process.env.XDG_SESSION_TYPE})` : ''}, ${app.isPackaged ? 'packaged' : 'from source'}, data ${userData}`);
+  const { previousRunQuit } = startLog(userData, app.isPackaged);
+  log.info(`[kulisa] start ${environment()}, data ${userData}`);
+  // A crash of the main process writes no line: Crashpad keeps its minidump in crashDumps (Crashpad prunes them itself:
+  // 90 days, 128 MB), to ask a user for. No server (docs/window.md, The log).
+  crashReporter.start({ uploadToServer: false });
   // One Kulisa per data folder (Electron's lock is the userData's; KULISA_DATA for another): a second one on the same
   // data ran beside the first, without its MCP server, and the two wrote over each other's saved tabs, cookies and
   // tasks (2026-10-12). It shows the first one's window and goes, before anything is read or written.
@@ -93,6 +94,9 @@ function start(options: Options = {}) {
     app.quit();
     return new Promise<never>(() => {});
   }
+  // The run before is known to have crashed (or been killed, or the computer went down) by its log not saying it quit
+  // (log.ts, quitSaid). Said once the lock is ours: a second Kulisa on the same data reads the first one's log, still open.
+  if (previousRunQuit === false) log.warn(`[kulisa] the previous run did not quit by itself (a crash, a kill, or the computer went down); a crash leaves its dump in ${app.getPath('crashDumps')}`);
   const store = new Store(userData);
   // The windows open at the start, each with its tasks' tabs and the one it shows: those open last (KULISA_PROJECT's
   // task in the first: ready, below); one with none at first start.
@@ -283,6 +287,11 @@ function start(options: Options = {}) {
   registerPanes(ipc);
   registerWindow(ipc);
   const ready = app.whenReady().then(async () => {
+    // Whether the OS keeps Kulisa's key (session cookies, test passwords: profiles.md); on Linux which keyring, basic_text
+    // being none (a fixed key: Electron's safe-storage.md). The classic Linux bug report, with nothing to read until now.
+    const backend = process.platform === 'linux' ? safeStorage.getSelectedStorageBackend() : null;
+    const encryption = `[kulisa] encryption ${safeStorage.isEncryptionAvailable() ? 'available' : 'not available'}${backend ? ` (${backend})` : ''}`;
+    if (safeStorage.isEncryptionAvailable() && backend !== 'basic_text') log.info(encryption); else log.warn(`${encryption}: no keyring found`);
     // macOS keeps a menu bar for the app: Electron's default one would reload Kulisa's own page with ⌘R. Its own
     // menu: About Kulisa (Kulisa's own dialog, not Electron's panel), Settings… (⌘,, where Mac apps have it: the author, 2026-10-16), Quit, Hide (the app's), Copy and Paste
     // (the Edit menu's roles: ⌘C, ⌘V in fields and the terminal), the windows. Kulisa's keys are taken before it

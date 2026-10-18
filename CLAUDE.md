@@ -102,7 +102,8 @@ unasked. This paragraph is removed when the rewrite is finished.
   as a browser's tabs (☰ → Tasks bar; `TaskBar.vue`, `#taskbar`). Not "taskbar", the OS's. It was "the projects' bar" (`ProjectBar.vue`)
   until 2026-10-11: its tabs are tasks; earlier commits say so.
 - **Terminology: "Settings"**: the window behind the title bar's gear (a dialog until 2026-10-16), as JetBrains' Settings: a tree of Projects (every
-  project, each its page), Agents (the agents, their accounts) and Profiles (every profile, who it is). It was "the projects' manager" alone until 2026-10-11,
+  project, each its page), Agents (the agents, their accounts) and Profiles (every profile, who it is), and under them
+  the Log page (since 2026-10-18; ☰ → Report a Problem…). It was "the projects' manager" alone until 2026-10-11,
   then tabs; a project's page is still the manager in code (`settings/ProjectEditor.vue`; its window `settings-window.ts`,
   `openSettings()`). New Project is steps (Code, Agents, Profiles; `newproject/`): the welcome's, and a dialog of a
   tasks' window.
@@ -219,8 +220,8 @@ unasked. This paragraph is removed when the rewrite is finished.
 - **Every action of the core is logged** (`src/main/log.ts`; docs/window.md, The log; since 2026-10-18): a window's
   channel (`handle()`, `on()`), an agent's tool (`registerTool`), a key, a hook, a task or a window made or closed, a
   terminal started: through those, by itself. A line elsewhere (`log.info('[part] what')`) says what happened and who
-  asked, never what was typed or a secret (`summary`). The log is where a user's bug is read: when a new kind of
-  thing can happen, make sure it leaves a line.
+  asked, never what was typed or a secret (`summary`). The log is where a user's bug is read (by the user too: Settings →
+  Log, with the ways to send it): when a new kind of thing can happen, make sure it leaves a line.
 - **Every behavior change comes with a test.** **Read `docs/testing.md` before writing one**: the two layers (unit
   tests in plain Node, e2e in the real app), the groups of e2e files, and how a test is written (wait for a state,
   never for time).

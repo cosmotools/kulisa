@@ -627,7 +627,7 @@ export default (test: Test) => {
     // No Exit on macOS: ⌘Q and the app menu's Quit there (TopBar.vue).
     const exit = MAC ? [] : ['-', 'Exit'];
     assert.deepEqual((await menuRows(ui)).slice(3), ['Language', '-', '# Arrange panels', 'arrange: Columns, Two by two, One at a time', '-', 'Keyboard Shortcuts', '-',
-      'Documentation', 'GitHub', 'Report an issue', 'About Kulisa', ...exit]);
+      'Documentation', 'GitHub', 'Report a Problem…', 'About Kulisa', ...exit]);
     assert.deepEqual(await ui(`[...document.querySelectorAll('.menu[data-state="open"] svg:not([hidden]) > use')].map((u) => u.getAttribute('href'))`),
       ['#i-zoom', '#i-theme', '#i-projects', '#i-language', '#i-chevron', '#i-arrange', '#i-keyboard', '#i-docs', '#i-github', '#i-bug', '#i-logo', ...(MAC ? [] : ['#i-exit'])], 'each row with its icon');
     const pics = await ui(`[...document.querySelectorAll('.menu[data-state="open"] .arrange [role="menuitem"]')].map((b) => ({ title: b.title,
