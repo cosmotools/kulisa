@@ -301,21 +301,10 @@ moves there over time: an entry moved leaves one line here pointing to its issue
     published (2026-10-13), and the releases since (`v0.1.4` on 2026-10-18). Whether the update is checked on
     Windows is seen when Kulisa is adapted to it (the author, 2026-10-18: next, a day or two). 4.
     macOS, once the account and its secrets exist.
-  - **Later, each discussed apart:** a dnf repository for the `.rpm`, as the apt one; "Restart to update" in ☰ once
+  - **Later, each discussed apart:** a size limit on the release's files in `release.yml`, to tell when the package
+    grows again (its size: [window.md](window.md), "The app icon, installers and updates"); a dnf repository for the `.rpm`, as the apt one; "Restart to update" in ☰ once
     Later was chosen (through Kulisa's own quit, asking when an agent works); a switch to turn the checks off; delta updates (Squirrel
     downloads the whole app each time); winget.
-  - **The package's size** (measured on v0.1.1, 2026-10-13): the `.deb` is 109 MB, 413 MB installed. About 280 MB
-    of that is Electron itself (Chromium and Node; VS Code's, Slack's, Discord's `.deb`s are 90–110 MB too), which
-    stays. The app's own `app.asar` is 129 MB, mostly what it never loads:
-    - node-pty's prebuilt binaries for the other platforms, 58 MB (`prebuilds/`: darwin-arm64, darwin-x64,
-      win32-arm64, win32-x64; Linux's is built at install): left out of each OS's package (`forge.config.ts`,
-      `packagerConfig.ignore` or a packaging hook).
-    - The window's libraries, about 40 MB, which Vite already bundles into `dist/renderer` (2 MB): `reka-ui`,
-      `dockview`, `vue`, `@vue`, the `@xterm` addons and `@xterm/xterm`, the fonts, and with them `@babel`, `@swc`.
-      In `dependencies`, so Forge packs them again; moved to `devDependencies`, all but `@xterm/headless` (the main
-      process keeps each terminal's screen with it: `terminal.ts`). Each checked first: the main process imports none.
-    - Expected: a `.deb` of about 80 MB, about 300 MB installed, and Windows' update lighter as much. Checked by
-      the release's start of the installed `.deb`; a size limit there would tell when it grows again.
   - **Not now, and why:** AppImage (on Ubuntu 24.04 and later Electron in an AppImage starts only with
     `--no-sandbox`: its FUSE mount is `nosuid` and AppArmor restricts unprivileged user namespaces; Kulisa's pages
     hold real accounts; no maker of Forge's own); Snap and Flatpak (their sandbox is in the way of what Kulisa
