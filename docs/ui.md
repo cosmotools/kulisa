@@ -44,6 +44,10 @@ pointer, read as a web page's and were hard to read). So:
   then rows of facts, each in its column (what it is, its path or email muted, a state at its end in words: "default",
   "no commit yet"), the columns at the same places in every row (the author, 2026-10-16: values one after another read
   as chaos); no buttons that show under the pointer, no pills.
+- **Every object has a right-click menu with all its actions** (a profile's pane, a task's tab, the terminal), so the
+  window shows one or two buttons and the rest is in menus. Not swipes (a phone's gesture; on a laptop's touchpad a
+  sideways swipe is the OS's and the pages' back and forward), nor a double-click as the only way to anything (nobody
+  sees it; only a shortcut to a menu's item). Talked over with the author 2026-10-08.
 - **A dialog asks one thing and ends with its buttons** (`Modal.vue`); what is browsed (Settings, a window of its own:
   [window.md](window.md), Settings) is a tree on the left and a page on the right, under its path. No search field over the tree (the author, 2026-10-11).
 

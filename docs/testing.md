@@ -73,8 +73,8 @@ and is not checked again until something it depends on changes (an OS, an Electr
   its conversation (`claude --resume`).
 - **Sign-ins**: Google, GoDaddy and Microsoft (profiles.md, What sites see); session cookies encrypted with the
   Keychain (`safeStorage`: Chromium's `v10`, "kulisa Safe Storage").
-- **Pages**: Teams' takes every click, its top strip too (the drag regions' workaround in: ROADMAP, Workarounds of
-  Electron bugs).
+- **Pages**: Teams' takes every click, its top strip too (the drag regions' workaround in: Upgrading Electron,
+  below).
 - **Keys** with a real keyboard: ⌘T, ⌘W, ⌘L, ⌘[ / ⌘] in a page are Kulisa's, not the site's; Ctrl+C and Ctrl+R stay the
   terminal's; ⌘C / ⌘V in the terminal.
 - **Menus** with a trackpad: a right-click opens at the pointer and its release chooses nothing; press, drag and let go
@@ -176,6 +176,24 @@ every `any` from JSON and IPC and the templates' formatting, about 2400 places a
 - No `as` or `!` TypeScript does not need (`no-unnecessary-type-assertion`; `npx eslint . --fix` removes them). Not in
   the window: it took `{} as Record<…>` inside `reactive({ … })` for needless, the only type of a store's field.
 - Vue's `essential` rules for the templates, without multi-word component names (Kulisa's are one word: `Modal`).
+
+## Upgrading Electron
+
+Kulisa works around two Electron bugs. At every upgrade, check whether each is still needed, and remove it when not.
+
+- Drag regions (`app-region: drag`) of a view's page stay after the page has gone, in a window without a system
+  title bar; they took every click over the panes after Teams ([window.md](window.md), "The title bar"). Workaround:
+  `app-region: no-drag` in every profile page (`profiles.ts`, `_add`). Electron issue: [electron/electron#54743](https://github.com/electron/electron/issues/54743) (2026-10-08).
+  Check: remove the workaround, open Teams (or a page with `app-region: drag`, then another page) in a pane, and
+  click the page with a real mouse (`debug-kulisa` skill). Linux only so far; macOS and Windows draw frameless
+  windows their own way (ROADMAP, "Windows is untested; macOS has gaps left"). Still needed in 44.8.0 (2026-10-16: a click where
+  the page before had its drag region did not reach the page; the issue open).
+- A page's alert and confirm in its pane ([profiles.md](profiles.md), "Dialogs"): Electron has no API for them, so Kulisa replaces
+  the listener of its internal `-run-dialog` event (`lib/browser/api/web-contents.ts`, Electron 44; `-cancel-dialogs`
+  too). Check: that file at the new version's tag; the test of dialogs in `test/agent.ts` fails when the event is
+  gone (Electron's message box comes back instead of the pane's dialog). Ask Electron for a public event
+  (`webContents` 'dialog', as `select-bluetooth-device` takes a callback), then use it. The file is the same in
+  44.5.1 and 44.8.0 (2026-10-16).
 
 ## Workflows
 

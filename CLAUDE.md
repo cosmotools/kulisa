@@ -13,19 +13,6 @@ any work in web apps (several clients' tenants, admin and support work). Not a b
 accounts or getting past bot detection (the author despises those): the human's own accounts, signed in by hand.
 Everything happens inside Kulisa; no external Chrome windows.
 
-**Being rewritten (since 2026-10-10; merged on 2026-10-11, being stabilized on `develop`).** Kulisa is being rebuilt around projects and tasks: tasks
-replace workspaces; projects are composites (repositories, agents with accounts, profiles); profiles live in one
-store with a master each and a copy per task; test users sign in with saved pairs on local pages; real accounts'
-cookies are kept in step between a master and its copies. The design, the steps and what is left of each: ROADMAP,
-"Projects and tasks: Kulisa rebuilt around them"; how the built parts work: `docs/tasks.md`, `docs/profiles.md`.
-Where it stands, what is next and what is open for the author: that section's **Status**; read it first, and keep it
-current when something is built or decided. Until it is done, some parts of the app, the docs and the tests may be
-outdated (still written for workspaces, main and forks), unfinished or unstable: check the ROADMAP section before
-trusting one, and say so when you find one. How the author wants it built: a step at a time, a plan first, then the
-code with its tests and docs, a commit per step (the author asked for them), the author's Kulisa restarted after it;
-only what was discussed and written down as decided, no open questions built over and no ideas of one's own added
-unasked. This paragraph is removed when the rewrite is finished.
-
 - Before changing sign-in, identity or persistence code, read in `docs/profiles.md`: Sign-in pause (what it is and is
   not), Sign-ins that last, What sites see.
 - `docs/ROADMAP.md`: only what is planned: ideas and details of features to build, deferred ideas, open issues.
@@ -67,6 +54,10 @@ unasked. This paragraph is removed when the rewrite is finished.
   (the workarounds in Hard-won facts and the docs, behavior no test covers) is not a reason against it either, but
   a part of the plan: named, and kept with tests first. Not about when a feature is built: what is put off for its
   turn ("later") stays put off.
+- **How the author wants it built:** a step at a time, a plan first, then the code with its tests and docs, a commit
+  per step, the author's Kulisa restarted after it; only what was discussed and written down as decided, no open
+  questions built over and no ideas of one's own added unasked. No data migrations (the author, 2026-10-10): one data
+  format only, old data deleted, never read or migrated.
 - **What a change cost, at its commit.** When code becomes part of the project (a feature, a fix; not experiments),
   say in one line how many lines were added and removed, apart for code, tests and docs (not `package-lock.json` or
   pictures): `code +203 −95 · tests +52 −13 · docs +23 −8`. When it is more than the task should take, say why in a
@@ -124,7 +115,7 @@ unasked. This paragraph is removed when the rewrite is finished.
   with a conversation of its own; any agent CLI), a branch of the code, profiles and a grid. It replaced "workspace" (the word of tools for parallel agents,
   e.g. Conductor) on 2026-10-10; earlier commits say workspace. Each works in a git worktree of its own next to the
   project (`myshop@task-2`); the project's folder is the human's. Several tasks build several features at once. How
-  they work and why: `docs/tasks.md`; what is left: ROADMAP, "Projects and tasks" and "Tasks, rest".
+  they work and why: `docs/tasks.md`; what is left: ROADMAP, "Projects and tasks, rest" and "Tasks, rest".
 - **Not tied to one agent or LLM vendor.** The user chooses the agent CLI (Claude Code, Codex, others); Kulisa must
   not require Claude Code or any one model provider. When planning a feature, design it for any agent CLI:
   - The core of a feature works through what every agent has: a terminal, the MCP server, files, git. Kulisa's
@@ -361,7 +352,7 @@ The npm scripts, what each does, and what to install first (Node 24.12+, npm 11 
 - **The MCP server and the CDP proxy listen on 127.0.0.1 only.** Never bind them to 0.0.0.0 or another
   interface: they control signed-in browser profiles. `local-only.ts` also refuses requests from web pages (a
   foreign Host: DNS rebinding; any Origin: a page's fetch or WebSocket); keep every new endpoint behind it. Local
-  processes are not authenticated yet (open issue in ROADMAP).
+  processes are not authenticated yet (issue #90).
 - **Do not downgrade `playwright-core`** below 1.64: Kulisa uses APIs that first shipped there: `page.pickLocator()`
   (the picker), `page.screencast.showActions()` (the agent's actions in the page), `page.consoleMessages()`/`requests()`.
   Until 2026-10-18 it was pinned to a 1.64 alpha, the only release with them then.

@@ -42,7 +42,7 @@ actors, the panes the stage, and the developer watches from the audience and sto
 ## Documentation
 
 - **Using Kulisa:** the [user guide](https://kulisa.app/docs) on the website, also here as
-  [docs/guide.md](docs/guide.md): projects, tasks, agents, profiles, signing in, the window, keys.
+  [docs/guide.md](docs/guide.md): the systems it runs on, projects, tasks, agents, profiles, signing in, the window, keys.
 - **For developers:**
   - [docs/profiles.md](docs/profiles.md), [docs/tasks.md](docs/tasks.md), [docs/window.md](docs/window.md),
     [docs/transcripts.md](docs/transcripts.md), [docs/ui.md](docs/ui.md): how it works and why it is built so;
