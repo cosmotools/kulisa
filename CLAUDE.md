@@ -291,7 +291,7 @@ unasked. This paragraph is removed when the rewrite is finished.
   once its required checks pass: `test (ubuntu-latest)`, `test (macos-latest)`, `dependencies` and `version`
   (`.github/workflows/test.yml`). Never push to `main`, merge into it, or merge `main` back into `develop`.
   Supporting an OS makes its tests required, on `develop` and `main` (macOS's since 2026-10-18; Windows's once it
-  passes: ROADMAP, "macOS and Windows are untested"); the author adds it to the rulesets, the session says when it is
+  passes: ROADMAP, "Windows is untested; macOS has gaps left"); the author adds it to the rulesets, the session says when it is
   time.
 - **The version** in `package.json` is the truth; the app shows it (☰) and the updater compares it. Each pull
   request into `main` raises it (the `version` check refuses one that does not; once, the first release, the same

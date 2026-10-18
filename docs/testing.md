@@ -224,7 +224,7 @@ every push to `develop` (CLAUDE.md, Releases; into `main` its `version` job chec
 `docs/LICENSING.md`), on Ubuntu (with Xvfb
 and openbox, as on the author's machine), Windows and macOS (on the runner's own screen), git given a name (tasks
 commit). A failed run keeps the groups' folders (their screenshots) as an artifact per OS for a week. Ubuntu and macOS
-pass (macOS since 2026-10-16: "On macOS", above); Windows does not yet (ROADMAP, "macOS and Windows are untested"):
+pass (macOS since 2026-10-16: "On macOS", above); Windows does not yet (ROADMAP, "Windows is untested; macOS has gaps left"):
 its runs report but do not fail the workflow (`continue-on-error`) until it passes once, fixed by a Claude session there.
 Flaky, on a loaded machine or the runner (2026-10-11 to 16; each fixed one is in its test's comment): "Move to New
 Window puts a project in a window of its own" still times out now and then under the runner's conditions, not looked

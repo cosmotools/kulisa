@@ -270,17 +270,6 @@ moves there over time: what has an issue is removed from here, the issue being t
 
 ## Deferred ideas
 
-- **Delete all data** (the author, 2026-10-16: put off; the guide tells the human what stays and how to remove it,
-  "Reinstalling and removing Kulisa"). An action in Settings, "Delete All Data…", asked first with what goes: every
-  project with its tasks (their copies, branches and git records, by `deleteTask`), every profile, every account (signed
-  out), then the data folder; then Kulisa quits and the human uninstalls the program. Only while no agent runs. Its
-  question must say that the tasks' branches go with their copies: the agents' work not merged. Not in the
-  uninstaller: a checkbox there, as Chrome's "Also delete your browsing data", was wanted first, but no OS allows it.
-  Squirrel.Windows starts the app with `--squirrel-uninstall` and cancels after 10 seconds (`FullUninstall` in
-  `UpdateManager.ApplyReleases.cs`, "failed to run cleanup hook, continuing"): a dialog the human reads and gigabytes
-  of profiles, a `git worktree remove` per task and the agents' sign-outs do not fit; a process spawned to outlive
-  it would run from the `app-<version>` folder Squirrel is deleting. `apt remove` runs the package's scripts as
-  root without a window, and Debian's policy forbids them to touch home folders. macOS has no uninstaller.
 - **The agent tests calls and voice: a profile's microphone and what it hears** (the author's idea, 2026-10-08,
   after dictation was tried with a virtual microphone). Calls need several people at once, which is what profiles
   are: the buyer calls, the seller hears; mute silences; the sound comes back after a reconnect; voice messages
@@ -374,19 +363,14 @@ moves there over time: what has an issue is removed from here, the issue being t
       agent to read events and trigger them ("the buyer pays, the seller sees the order").
     - **Feature flags** (LaunchDarkly, Unleash, GrowthBook, PostHog): each profile's flags in a panel, switched
       per profile; a tool for the agent to set them, to check a feature with the flag on and off, per role.
-- **A right-click menu in pages** (copy, paste, open a link in a new tab of the profile, Inspect Element; more items
-  later). Tried with electron-context-menu (native GTK menu) on 2026-10-05 and removed:
-  - On Ubuntu GNOME (X11) a right-click in a profile's page froze the whole desktop, twice: gnome-shell logged a
-    menu window with a NaN position and a size of -2147483648 (the invisible menu kept the pointer and keyboard
-    grab). Likely not the menu itself: the same log came on 2026-10-12 from a right-click on the title bar, GNOME's
-    own window menu for a drag region ([window.md](window.md), The title bar), and Teams' pages declared drag
-    regions then (before `no-drag` was forced on pages). Not checked again.
-  - The menu also took the right button from sites that have their own context menu (Teams, Google Docs).
-  - Before trying again: show it only where the page did not handle the right-click, and either find the cause of
-    the freeze in a minimal window first or draw the menu in HTML (a small view above the page, as VS Code draws
-    its menus on Linux).
-  - The window's menus are HTML now, Reka UI's ([window.md](window.md), Menus); a page menu could be one too
-    (`RightClickMenu.vue`), over a picture of the page.
+- **A right-click menu in pages** (copy, paste, open a link in a new tab of the profile, Inspect Element). Tried with
+  electron-context-menu (a native GTK menu) on 2026-10-05 and removed: on Ubuntu GNOME (X11) a right-click in a page
+  froze the whole desktop, twice (gnome-shell logged a menu window at a NaN position holding the pointer and keyboard
+  grab), and the menu took the right button from sites with a menu of their own (Teams, Google Docs). The likely cause
+  was not the menu: the same freeze came on 2026-10-12 from GNOME's own window menu for a drag region
+  ([window.md](window.md), The title bar), and pages' drag regions are forced off since; not checked again. If built
+  again: an HTML menu as the window's ([window.md](window.md), Menus: `RightClickMenu.vue`) over a picture of the page,
+  shown only where the page did not handle the right-click.
 - **Tabs unloaded, rest** (built 2026-10-13: [profiles.md](profiles.md), "Tabs unloaded"). A pane whose tab loads
   again is empty meanwhile: a picture of the page taken at the unload could stand there (a JPEG per tab in memory, as
   the pictures under menus); a tab's history (Back, Forward), its scroll position and its forms go with its process, as
@@ -441,7 +425,7 @@ moves there over time: what has an issue is removed from here, the issue being t
     `app-region: no-drag` in every profile page (`profiles.ts`, `_add`). Electron issue: [electron/electron#54743](https://github.com/electron/electron/issues/54743) (2026-10-08).
     Check: remove the workaround, open Teams (or a page with `app-region: drag`, then another page) in a pane, and
     click the page with a real mouse (`debug-kulisa` skill). Linux only so far; macOS and Windows draw frameless
-    windows their own way (see "macOS and Windows are untested"). Still needed in 44.8.0 (2026-10-16: a click where
+    windows their own way (see "Windows is untested; macOS has gaps left"). Still needed in 44.8.0 (2026-10-16: a click where
     the page before had its drag region did not reach the page; the issue open).
   - A page's alert and confirm in its pane (profiles.md, "Dialogs"): Electron has no API for them, so Kulisa replaces
     the listener of its internal `-run-dialog` event (`lib/browser/api/web-contents.ts`, Electron 44; `-cancel-dialogs`
@@ -454,17 +438,17 @@ moves there over time: what has an issue is removed from here, the issue being t
   per-launch token (passed to the agent through the environment, like `KULISA_MCP_URL`) at least.
 - **`signin-pause.ts` is a temporary implementation** to be replaced by the author. It recognizes sign-in pages
   only by host and pauses the whole profile.
-- **macOS and Windows are untested** (only Linux so far; Kulisa targets all three: CLAUDE.md, Conventions). **The macOS
-  support is the goal**, in two (the author, 2026-10-16):
-  1. **For development**, the goal now: Kulisa works on a Mac from source and from a build made there, unsigned (one's
-     own machines need no Apple Developer account; a build made on the Mac is not quarantined, so Gatekeeper lets it
-     run), its tests pass, and the gaps below are checked. `test (macos-latest)` is a required check of `develop` and
-     `main` since 2026-10-18 (CLAUDE.md, Releases).
+- **Windows is untested; macOS has gaps left** (Linux is where Kulisa is developed; it targets all three: CLAUDE.md,
+  Conventions). **The macOS support** in two (the author, 2026-10-16):
+  1. **For development**: reached on 2026-10-16 and 17. Kulisa works on a Mac from source and from a build made there,
+     unsigned (one's own machines need no Apple Developer account; a build made on the Mac is not quarantined, so
+     Gatekeeper lets it run), its tests pass and are a required check of `develop` and `main` since 2026-10-18
+     (CLAUDE.md, Releases); what was checked by hand: [testing.md](testing.md), "On macOS". Left, marked macOS below.
   2. **For users**, later, once there are some: signed and notarized, `.dmg` and `.zip`, updates ("Releases and
      auto-update", macOS), with the Apple Developer account. Until then an unsigned build downloaded on another Mac
      is refused by Gatekeeper and does not update, and kulisa.app says "coming soon" for macOS.
 
-  Known gaps (what macOS passed by hand: [testing.md](testing.md), "On macOS"):
+  Known gaps:
   - Drag regions left by a page (Workarounds of Electron bugs, above): seen on Linux, not on macOS. Windows: open Teams
     in a pane and click its page.
   - Signing in to Google, GoDaddy (Kasada) and Microsoft with the User-Agent without `Electron/<version>` (2026-10-16,
