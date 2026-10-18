@@ -12,7 +12,7 @@ import type { AboutInfo, AboutFolder } from '../../shared/types';
 const FOLDERS: Record<AboutFolder, { label: string; hint: string }> = {
   data: { label: 'Data', hint: 'Profiles with their sign-ins, agents\' accounts, projects\' tasks, settings.' },
   projects: { label: 'Projects', hint: 'New projects, and the copies of the code of tasks of a project of several repositories.' },
-  program: { label: 'Program', hint: 'Kulisa itself.' },
+  program: { label: 'Program', hint: 'The program as installed, or the checkout it runs from. Uninstalling removes it; the folders above stay.' },
 };
 const modal = ref<InstanceType<typeof Modal>>();
 const info = ref<AboutInfo | null>(null);
