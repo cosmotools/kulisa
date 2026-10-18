@@ -34,6 +34,9 @@ Download Kulisa from its [latest release](https://github.com/cosmotools/kulisa/r
   version the same way.
 - **macOS:** to come.
 
+Every installer is built by GitHub from Kulisa's published code, and GitHub keeps a signed record of it. To check a
+file you downloaded, with GitHub's command-line tool: `gh attestation verify <file> -R cosmotools/kulisa`.
+
 Kulisa is tested on Linux (Ubuntu) and on macOS (by its developers, there is no installer for it yet); on Windows it is
 newer and less tried.
 

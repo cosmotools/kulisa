@@ -576,7 +576,10 @@ into `main` (a pull request from `develop`, its version raised: CLAUDE.md, Relea
 Actions (`.github/workflows/release.yml`; macOS once its secrets are set): the workflow first makes the draft
 `v<version>` at the merged commit, its notes the pull request's text (Forge's own would name no commit, and GitHub
 would tag whatever `main` is when the draft is published); Ubuntu and Windows build and Forge uploads into it, finding
-it by its name; the `.deb` is installed on Ubuntu and started under Xvfb (its MCP server listening, nothing uncaught,
+it by its name, and each file's provenance is attested (`actions/attest`, since 2026-10-18: a statement signed through
+Sigstore and kept by GitHub, not in the release, that this workflow built this very file from this commit; the `.nupkg`
+the Windows updater downloads too; whoever has a file checks it with `gh attestation verify <file> -R cosmotools/kulisa`);
+the `.deb` is installed on Ubuntu and started under Xvfb (its MCP server listening, nothing uncaught,
 still running after 5 s: the tests run Kulisa from source, and what breaks only packaged would reach every installed
 copy, one failing at start never able to update again); then the draft is published, the tag made at that commit.
 Until then, and when a step fails, it is a draft nobody is served. A version released before stops it. Once
