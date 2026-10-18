@@ -13,7 +13,7 @@ any work in web apps (several clients' tenants, admin and support work). Not a b
 accounts or getting past bot detection (the author despises those): the human's own accounts, signed in by hand.
 Everything happens inside Kulisa; no external Chrome windows.
 
-**Being rewritten (since 2026-10-10; on `main` since 2026-10-11, being stabilized there).** Kulisa is being rebuilt around projects and tasks: tasks
+**Being rewritten (since 2026-10-10; merged on 2026-10-11, being stabilized on `develop`).** Kulisa is being rebuilt around projects and tasks: tasks
 replace workspaces; projects are composites (repositories, agents with accounts, profiles); profiles live in one
 store with a master each and a copy per task; test users sign in with saved pairs on local pages; real accounts'
 cookies are kept in step between a master and its copies. The design, the steps and what is left of each: ROADMAP,
@@ -29,9 +29,12 @@ unasked. This paragraph is removed when the rewrite is finished.
 - Before changing sign-in, identity or persistence code, read in `docs/profiles.md`: Sign-in pause (what it is and is
   not), Sign-ins that last, What sites see.
 - `docs/ROADMAP.md`: only what is planned: ideas and details of features to build, deferred ideas, open issues.
-  When a feature is built, document it in the docs below (how it works, and why it is built so) and remove it from
-  the ROADMAP, keeping only what is left of it. **Before
-  building something, look for it there** (Deferred ideas, Open issues): it may have been tried and put off, with
+  **Since 2026-10-17 planned features go to GitHub issues** (`enhancement`; the author's decision), and the ROADMAP
+  moves there over time: an entry moved leaves one line pointing to its issue, and the issue is the one source (its
+  text written in full there, not in a comment). When a feature is built, document it in the docs below (how it works,
+  and why it is built so) and remove it from the ROADMAP and close its issue, keeping only what is left of it. **Before
+  building something, look for it in both** (the open issues: `GET /repos/cosmotools/kulisa/issues?state=open`,
+  GitHub's API below; the ROADMAP's Deferred ideas and Open issues): it may have been tried and put off, with
   the reason (a native menu in pages froze the desktop, and was built again without reading this).
 - `docs/profiles.md`, `docs/tasks.md`, `docs/window.md`: how profiles, projects with their tasks, and the
   window work now: what the human and the agent do, what Kulisa creates on the computer and removes, why it is built
@@ -487,4 +490,4 @@ What must hold in the window:
 - **Playwright keeps every page it attaches to "visible".** Its first command to a page,
   `Emulation.setFocusEmulationEnabled`, is a capture to Chromium: the page stays visible, unthrottled and unfreezable
   behind other tabs and in a hidden window. Electron's `setVisible(false)` does hide a page. Days went to Electron
-  before the command was found, with bare Electron and one difference at a time (ROADMAP, "Tabs never sleep").
+  before the command was found, with bare Electron and one difference at a time (issue #52, tabs asleep).
