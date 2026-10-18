@@ -561,6 +561,11 @@ first): always a **new conversation**. Each sees the task's code and profiles, a
   and what is next. Its first answer is the check: what it missed shows at once. The tab it came from stays: the
   human closes it (they may copy from it first). **New Conversation** (the same menus) opens the same agent anew,
   told nothing.
+- **Checked with real agents** (2026-10-18, Claude Code 2.1.302 and Codex 0.160.1, a task of a scratch project in
+  the author's Kulisa): Codex's conversation handed to Claude Code, and Claude Code's to Claude Code afresh. Each read
+  the conversation it came from in `task_history` before anything else, named its tab with `conversation_rename`, and
+  told in its first answer what was done and that nothing was left; the dialog went once the one part was read. What did not work well, and whether several agents at once are worth
+  it: issue #93.
 - **Closing an agent's tab asks first, always**, whatever it is doing; its conversation stays in the task's history.
   A shell closes without a question, as a terminal's tab does. The last one closed folds the island to its +.
 - **After a restart** each tab comes back where it was, the one in front too: an agent's conversation resumed
