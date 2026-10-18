@@ -226,6 +226,11 @@ and openbox, as on the author's machine), Windows and macOS (on the runner's own
 commit). A failed run keeps the groups' folders (their screenshots) as an artifact per OS for a week. Ubuntu and macOS
 pass (macOS since 2026-10-16: "On macOS", above); Windows does not yet (ROADMAP, "macOS and Windows are untested"):
 its runs report but do not fail the workflow (`continue-on-error`) until it passes once, fixed by a Claude session there.
+Flaky, on a loaded machine or the runner (2026-10-11 to 16; each fixed one is in its test's comment): "Move to New
+Window puts a project in a window of its own" still times out now and then under the runner's conditions, not looked
+into; on GitHub's macOS runner the window's page lost the keyboard to a profile's page about one run in six, fixed
+where seen (`page-focus.ts`, the tests' `focusWindow`). Slow but not flaky: deleting a task (git's work, up to 11 s), a
+site that never answers (10 s, by design).
 
 On Linux the runner has no desktop: `npm test` runs in a D-Bus session with gnome-keyring made and unlocked, and
 `XDG_CURRENT_DESKTOP=GNOME`, else `safeStorage` encrypts nothing and Kulisa keeps no session cookies nor test passwords

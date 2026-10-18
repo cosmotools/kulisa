@@ -30,8 +30,8 @@ unasked. This paragraph is removed when the rewrite is finished.
   not), Sign-ins that last, What sites see.
 - `docs/ROADMAP.md`: only what is planned: ideas and details of features to build, deferred ideas, open issues.
   **Since 2026-10-17 planned features go to GitHub issues** (`enhancement`; the author's decision), and the ROADMAP
-  moves there over time: an entry moved leaves one line pointing to its issue, and the issue is the one source (its
-  text written in full there, not in a comment). When a feature is built, document it in the docs below (how it works,
+  moves there over time: what has an issue is removed from the ROADMAP, the issue being the one source (its text
+  written in full there, not in a comment; nothing of it kept in the repository). When a feature is built, document it in the docs below (how it works,
   and why it is built so) and remove it from the ROADMAP and close its issue, keeping only what is left of it. **Before
   building something, look for it in both** (the open issues: `GET /repos/cosmotools/kulisa/issues?state=open`,
   GitHub's API below; the ROADMAP's Deferred ideas and Open issues): it may have been tried and put off, with
