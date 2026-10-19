@@ -1,7 +1,7 @@
 # Testing
 
-How Kulisa's tests are built and how to write one. **Read this before writing a test.** Every behavior change comes
-with a test (CLAUDE.md); a bug is first reproduced by a failing test, then fixed.
+How Kulisa's tests are built and how to write one. **Read this before writing a test.** What can break comes with
+a test (CLAUDE.md: not a removal or a cosmetic change); a bug is first reproduced by a failing test, then fixed.
 
 ## Two layers
 
@@ -245,7 +245,7 @@ they are made, and the whole suite runs when the work is done (CLAUDE.md, Conven
 
 ## Running them
 
-When to run what: CLAUDE.md, Conventions ("Every behavior change comes with a test"). A whole run stops by itself after 5 minutes (`run.ts`), a test
+When to run what: CLAUDE.md, Conventions ("What can break comes with a test"). A whole run stops by itself after 5 minutes (`run.ts`), a test
 after 30 s, naming the call or script it began last (`ctx.step`): a step that hangs has no stack to read, and a
 script run in a window that closes before its result is back never answers (Electron drops the reply), so a test
 closes a window without waiting for the script that closes it (`closeSettings`).

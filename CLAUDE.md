@@ -221,9 +221,11 @@ Everything happens inside Kulisa; no external Chrome windows.
   terminal started: through those, by itself. A line elsewhere (`log.info('[part] what')`) says what happened and who
   asked, never what was typed or a secret (`summary`). The log is where a user's bug is read (by the user too: Settings →
   Log, with the ways to send it): when a new kind of thing can happen, make sure it leaves a line.
-- **Every behavior change comes with a test.** **Read `docs/testing.md` before writing one**: the two layers (unit
-  tests in plain Node, e2e in the real app), the groups of e2e files, and how a test is written (wait for a state,
-  never for time).
+- **What can break comes with a test**: a behavior, its logic, a bug fixed. Not every change (the author,
+  2026-10-19): no test that something removed is gone (what is removed simply is not there, as a feature never
+  built), nor of a cosmetic change (a symbol, a label, a color). Ask what regression a test would catch; none, no
+  test. **Read `docs/testing.md` before writing one**: the two layers (unit tests in plain Node, e2e in the real
+  app), the groups of e2e files, and how a test is written (wait for a state, never for time).
   - Fix a bug by first reproducing it as a failing test, then making it pass (the session-cookie bug was done
     this way).
   - **The full suite (`npm test`, about a minute) runs once, when the author says the work is done** ("всё ок",
@@ -316,7 +318,7 @@ Everything happens inside Kulisa; no external Chrome windows.
 ## Commands
 
 The npm scripts, what each does, and what to install first (Node 24.12+, npm 11 and its `allowScripts`): README, Run
-(one list, kept there). When to run which: Conventions, "Every behavior change comes with a test".
+(one list, kept there). When to run which: Conventions, "What can break comes with a test".
 
 - **Sandbox and native module.** On Linux Electron needs `--no-sandbox` (`chrome-sandbox` in `node_modules` is
   not setuid); `npm start` (`scripts/electron.ts`) and `npm test` pass it there only. `npm install` rebuilds `node-pty` for Electron (postinstall, `scripts/postinstall.ts`; not on macOS, where its prebuilt binary is loaded).
