@@ -9,6 +9,7 @@ import type { IPty } from 'node-pty';
 import xterm from '@xterm/headless';
 import type { Terminal } from '@xterm/headless';
 import { READ_MAX } from './kulisa-plugin/mcp-server.ts';
+import { shellQuote } from './shell-quote.ts';
 
 
 interface Size { cols: number; rows: number }
@@ -49,7 +50,6 @@ on('pty:in', (_e, { task, data }) => terms.get(task)?.pty?.write(data));
 // from the Dock or a menu may have no SHELL; the account's shell is the same then.
 const userShell = () => (process.platform === 'win32' ? null
   : { command: process.env.SHELL || os.userInfo().shell || '/bin/sh', args: process.platform === 'darwin' ? ['-l'] : [] });
-const shQuote = (a: string) => (/^[\w@%+=:,./-]+$/.test(a) ? a : `'${a.replace(/'/g, `'\\''`)}'`);
 
 // cfg: { command, args, cwd, env, shell, line, size, sizeOf }. The agent is typed into the user's shell started in cwd, as if the human
 // opened a terminal in the project and ran it: the shell's startup sets the project's environment (direnv's .envrc,
@@ -74,8 +74,9 @@ async function startTerminal(send: Send, cfg: TerminalConfig, key: string): Prom
   p.typed = Promise.resolve();
   if (cfg.line) p.typed = typeWhenReady(p, `${cfg.line}\r`);
   else if (sh && cfg.command) {
-    const vars = Object.entries(cfg.pinned || {}).map(([k, v]) => `${k}=${shQuote(v)}`);
-    p.typed = typeWhenReady(p, ` ${[...vars, ...[cfg.command, ...(cfg.args || [])].map(shQuote)].join(' ')}\r`);
+    const quote = (a: string) => shellQuote(sh.command, a);
+    const vars = Object.entries(cfg.pinned || {}).map(([k, v]) => `${k}=${quote(v)}`);
+    p.typed = typeWhenReady(p, ` ${[...vars, ...[cfg.command, ...(cfg.args || [])].map(quote)].join(' ')}\r`);
   }
   p.spawnSize = { cols: p.cols, rows: p.rows };
   p.spawnArgs = cfg.args || [];

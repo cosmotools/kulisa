@@ -72,7 +72,8 @@ and is not checked again until something it depends on changes (an OS, an Electr
   `*`, `!` and JSON arrive as they were; the shell stays after the agent exits. A task closed and opened again resumes
   its conversation (`claude --resume`). fish 4.9, the command typed as `startTerminal` types it behind a headless
   xterm (fish asks the terminal and waits for its answer: in a bare pty it never reads a line): spaces, `'`, `$`,
-  `*`, `!`, JSON and a pinned `VAR=…` arrive as they were; the shell stays.
+  `*`, `!`, JSON, `\'`, `\\` and a pinned `VAR=…` arrive as they were; the shell stays. The quoting of every shell
+  installed is a unit test too (`shell-quote.test.ts`; fish skipped where it is not, as on GitHub's runners).
 - **Agents**: Codex installed by Kulisa (its maker's installer, 0.163.0) and signed in to a real account; its tools
   from Kulisa's MCP server (`/mcp`: `kulisa`, connected). Claude Code's account signed in to again, refused as one
   already there: `auth logout` removed its Keychain entry (`Claude Code-credentials-<the first 8 hex digits of
