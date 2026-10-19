@@ -59,10 +59,14 @@ class ProjectProfiles {
       .catch((err: Error) => console.error(`[profiles] ${e.cfg.id} did not open: ${err.message}`))))
       .then(() => { for (const e of this.entries) delete e.closed; this.save(); });
   }
-  // The task closes (another project opens, it is deleted): the open profiles are unloaded and the list goes.
+  // The task closes (another project opens, it is deleted): the open profiles are unloaded, their caches cleared as
+  // `close` does, and the list goes.
   async unloadAll() {
     await this.started; // a profile still opening, once it is open
-    for (const e of this.entries) if (e.profile) await this.hooks.unload(e.profile);
+    for (const e of this.entries) if (e.profile) {
+      await this.hooks.unload(e.profile);
+      await clearCaches(e.profile.session).catch((err: Error) => console.error(`[kulisa] ${e.cfg.id}: caches not cleared: ${err.message}`));
+    }
     this.entries = []; this._sync();
   }
   // Who its profiles are, read again after a change made elsewhere (another task, Project Settings…): names, ids,

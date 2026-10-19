@@ -3,9 +3,8 @@
 A **Kulisa package** is a part of Kulisa that knows nothing of the rest, with all of it in one folder `src/<package>/`,
 reached from outside only through its entries. The term is the author's (2026-10-18), after "Kulisa plugin": an npm
 package's idea (one folder, its own doc, a public API and nothing else seen) in Kulisa's own context. Always the two
-words: a bare "package" is an npm package (a dependency) or the app's package (Forge's build, the installers). Not an
-extension (what the user may turn off; a Kulisa package is built in), nor a cluster (a folder of the window's
-components, [ui.md](ui.md), Clusters). The first is the terminal, `src/terminal/` (its
+words: a bare "package" is an npm package (a dependency) or the app's package (Forge's build, the installers). Not a
+cluster (a folder of the window's components, [ui.md](ui.md), Clusters). The first is the terminal, `src/terminal/` (its
 [README](../src/terminal/README.md)): the example this doc points to.
 
 Why (the author, 2026-10-18): code smeared over `src/` is hard to keep in hand. In one folder a part is read, changed

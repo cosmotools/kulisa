@@ -219,32 +219,6 @@ moves there over time: what has an issue is removed from here, the issue being t
   - Nearly no RAM (the sound is handled in the tab already open), no new process. First: the permissions (issue
     #109, pages get the microphone and camera without asking), so the agent can test the site's own request too.
 
-- **A public skill: "read the documentation of the installed version"** (2026-10-07; to judge around 2026-11-07,
-  after a few features built with Electron). An agent builds from what it learned in training, older than the
-  libraries in use; Kulisa's agent got the dark mode wrong until it read Electron's guide. Today it is a rule in
-  CLAUDE.md (Conventions): before building anything that touches Electron, look it up in the installed version's
-  documentation (the guides and `breaking-changes.md` at the version's tag, the API in `electron.d.ts`); the same for playwright-core's `types.d.ts`; and name what was read in
-  the plan. To judge: did plans name what was read, did features need redoing for an outdated API. If it works,
-  publish it as a skill for any Electron project (an agent skill, `SKILL.md`; check Codex reads it): none of the
-  Electron skills found (2026-10-07: electron-apps, full-stack-skills, gentleman-skills) points to the installed
-  version's docs, they retell Electron in text that ages as training does. If plans skip it, a hook instead.
-- **Who a profile is, shared by a team** (cast had it: a slot per role with its description in a file committed to
-  the project, each developer signing it in to their own account). Kulisa keeps descriptions in its own data
-  ([profiles.md](profiles.md), "Who it is"), as it writes nothing into the project's folder. If a team needs it: a
-  file in the project that Kulisa only reads (the developer's own description wins).
-- **A store of extensions** (the author's idea, 2026-10-06). Installs four kinds of things: agent plugins (Claude Code,
-  Codex), MCP servers, skills, and Kulisa extensions: features of the IDE that not everyone needs (a heavy
-  dependency, a model to download, a microphone always on, one service's panel), installed, turned off and removed by
-  the user. Not a Kulisa package: that is built in ([packages.md](packages.md)). Ideas for extensions:
-  - **Voice commands**: "Эй, Кулиса" holds the agent's dictation key, "Кулиса, отправь" is Enter, "Кулиса, стоп" is
-    Esc; recognized on the computer (sherpa-onnx's keyword spotter, a 30 MB model, Silero VAD) in a utility process
-    alive only while they are on. A working prototype on the branch `worktree-voice-trigger` (tried by the author,
-    2026-10-09), its window part to be redone in Vue. Before it is installed, its icon could stay by the dictation's
-    microphone, opening the store at it.
-  - **Stripe:** a panel with the project's test-mode events and webhooks, test cards in one click; tools for the
-    agent to read events and trigger them ("the buyer pays, the seller sees the order").
-  - **Feature flags** (LaunchDarkly, Unleash, GrowthBook, PostHog): each profile's flags in a panel, switched per
-    profile; a tool for the agent to set them, to check a feature with the flag on and off, per role.
 - **A right-click menu in pages** (copy, paste, open a link in a new tab of the profile, Inspect Element). Tried with
   electron-context-menu (a native GTK menu) on 2026-10-05 and removed: on Ubuntu GNOME (X11) a right-click in a page
   froze the whole desktop, twice (gnome-shell logged a menu window at a NaN position holding the pointer and keyboard
@@ -359,11 +333,3 @@ moves there over time: what has an issue is removed from here, the issue being t
       `sh` only (`printf`, `chmod`; the real agents have a `win32` one), the hooks' test runs commands with `bash`
       (`test/agent.ts`). A Node script as the agent would run everywhere.
     - What one OS alone has: skipped with the reason, not left to fail.
-- **Profiles' caches** (2026-10-08: a closed profile's caches are cleared, [profiles.md](profiles.md), "What is on
-  the computer"; to decide for good, the author; since 2026-10-16 the sites' Cache API too). Chromium's HTTP cache, Code Cache and GPU caches per profile (on
-  the author's main profiles 47 and 78 MB after a few days; a task's copy used in Teams 430 MB, half of it the Cache API); Chromium sets the HTTP cache's limit itself from the
-  free disk space, and open profiles still grow to it. Several profiles in several projects add up.
-  - Alternative: a limit for the whole app, `--disk-cache-size=<bytes>` (`app.commandLine.appendSwitch` before
-    ready): every profile's HTTP cache at most that, open ones too; not the code and GPU caches.
-  - Or both, or clearing when a task is closed as well. Cost of clearing: the first load of a
-    reopened profile's sites is slower (no cache), which matters little for profiles set aside.
