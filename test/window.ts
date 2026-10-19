@@ -427,7 +427,7 @@ export default (test: Test) => {
       taskrename: () => fromMenu('Rename…', '#projectTabs .tasktab .name'),
       agentpick: async () => { void shell.chooseAgent(shell.task, null); }, // asked when a task's agent is not there
       shortcuts: () => fromMenu('Keyboard Shortcuts'),
-    }; // About: a page of Settings since 2026-10-18, no longer a dialog
+    };
 
     assert.equal(await ui(`document.querySelectorAll('.dialog').length`), 0, 'none in the page while closed');
     for (const [id, open] of Object.entries(openers)) {

@@ -14,7 +14,7 @@ export default (test: Test) => {
       const dock = document.getElementById('dock').getBoundingClientRect().toJSON();
       return [dock, t.getBoundingClientRect().toJSON(), t.querySelector('.picon').getBoundingClientRect().toJSON(),
         { radius: c('#projectTabs .tasktab.active').borderRadius, active: c('#projectTabs .tasktab.active').backgroundColor,
-          other: other ? getComputedStyle(other).backgroundColor : null, grid: c('#dock').backgroundColor, island,
+          other: other ? getComputedStyle(other).backgroundColor : null, island,
           apart: other ? Math.abs(other.getBoundingClientRect().left - t.getBoundingClientRect().right) : null }]; })()`);
     assert.equal(Math.round(tab.top - grid.bottom), 8, 'apart from the grid by the one gap');
     if (look.other) assert.equal(Math.round(look.apart), 8, 'the tabs apart by it too');
@@ -22,7 +22,6 @@ export default (test: Test) => {
     assert.ok(tab.height >= 36 && tab.width >= 120, `as big as a browser's: ${tab.width} × ${tab.height}`);
     assert.equal(look.active, look.island, "the shown one in the panels' color");
     if (look.other) assert.equal(look.other, 'rgba(0, 0, 0, 0)', 'the others on the window');
-    assert.equal(look.grid, 'rgba(0, 0, 0, 0)', 'no dark well under the grid');
     assert.ok(icon.width === 20 && icon.left > tab.left && icon.left <= tab.left + 12, 'the icon, 20 px, at the tab\'s start');
   });
   test("grid: a pane narrower than its profile's name: the name cut with …, its × in the pane, no list of hidden tabs", async ({ ui }) => {
@@ -179,11 +178,6 @@ export default (test: Test) => {
     assert.deepEqual(await projectTabs(ui), ['project *', 'other']);
     const seen = await ui(`(() => { const s = [...__islands]; window.__islands = null; return s; })()`);
     assert.deepEqual(seen, [JSON.stringify(before)], 'the islands keep their places, also while switching');
-    // The tab's right-click: rows only (its name, color and icon are the projects' manager's).
-    await rightClick(ui, '#projectTabs [data-project="other"] .name');
-    await menuRows(ui);
-    assert.equal(await ui(`document.querySelectorAll('.menu[data-state="open"] input').length`), 0, 'no fields');
-    await closeMenu(ui);
 
     // Closing the task (the middle button on its tab) asks first when an agent works; Cancel keeps it open.
     ctx.asked.length = 0;

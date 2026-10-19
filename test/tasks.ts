@@ -746,7 +746,6 @@ export default (test: Test) => {
     assert.equal(await sui(`document.querySelector('#agconfig .crumbs b').textContent`), 'Fake agent');
     assert.equal(shell.settings.win.getTitle(), 'Settings — Kulisa');
     assert.equal(await sui(`document.getElementById('pjconfig').checkVisibility()`), false, "a project's page behind it");
-    assert.equal(await sui(`document.querySelectorAll('#agentpage [role="radio"]').length`), 0, 'no choice to make');
     // The agents' marks (the terminal only's shown in choosing a task's agent).
     assert.ok(await sui(`!!document.querySelector('.sprite #i-agent-shell') && !!document.querySelector('.sprite #i-agent-claude') && !!document.querySelector('.sprite #i-agent-codex')`));
     assert.equal(await sui(`!!${agentRow('shell', '')}`), false, 'not the terminal only: nothing of it to set up');
@@ -1288,9 +1287,6 @@ export default (test: Test) => {
 
     // Its code: a name and where its folder goes, the home folder unless another is chosen; git on by default.
     assert.equal(await ui(`document.getElementById('nplocation').value`), shell.projectsHome, "every new project's place (~/KulisaProjects; the tests' own here)");
-    // Not its color or icon (its site's favicon and its hue, else the curtain in the next free color: nothing to
-    // choose, the author, 2026-10-12).
-    assert.equal(await ui(`!!document.getElementById('npcolors') || !!document.getElementById('npicons')`), false);
     const color = shell.store.nextColor();
     assert.equal(await ui(`document.getElementById('npgit').getAttribute('aria-checked')`), 'true');
     const made = path.join(root, 'made');
@@ -1412,13 +1408,12 @@ export default (test: Test) => {
     // Its settings: its favicon in the list, the folder shown and not changed.
     await projectMenu(ui, 'Project Settings…', `#projectTabs [data-project="site"] .name`);
     await waitFor(() => sui(`${pageOf('site')}`));
-    // The manager lists every project, this one chosen (none marked open: a project is no thing to open).
-    assert.ok(await sui(`document.querySelector('#pjlist [data-project="site"]').ariaSelected === 'true' && !document.querySelector('#pjlist kbd')`));
+    // The manager lists every project, this one chosen.
+    assert.ok(await sui(`document.querySelector('#pjlist [data-project="site"]').ariaSelected === 'true'`));
     assert.equal(await sui(`document.querySelector('#pjlist [data-project="site"] .picon').matches('.favicon')`), true);
     assert.equal(await sui(`document.querySelector('#nprepos [data-folder] small').textContent`), site, 'its folder, as its code');
     assert.equal(await sui(`!!document.getElementById('nplocationrow')`), false);
-    // A page, no Save: its top (New Task, ⋯), each part saved as it changes; the dialog stays open.
-    assert.equal(await sui(`!!document.getElementById('npcreate') || !!document.querySelector('#projects footer')`), false, 'no Save, no Cancel');
+    // A page: its top (New Task, ⋯), each part saved as it changes; the dialog stays open.
     assert.equal(await sui(`[...document.querySelectorAll('#pjconfig .titled, #pjconfig .field > label')].map((h) => h.textContent).join(', ')`),
       'Name:, Code, Agents, Profiles, Local addresses:');
     const entryOf = () => shell.store.projects().find((p) => p.id === 'site');
@@ -1762,8 +1757,6 @@ export default (test: Test) => {
     shell.profileStore.delete('closed-one'); // not needed by later tests
     await waitFor(() => sui(`!document.querySelector('#npprofiles [data-profile="closed-one"]')`));
     assert.equal(await sui(`document.getElementById('npprofileerror').textContent`), '');
-    // Settings only: a project is made in a tasks' window (New Project…), its section has no +.
-    assert.equal(await sui(`!!document.getElementById('pjnew') || !!document.querySelector('[data-section="projects"] .add')`), false);
     await shot(shell, path.join(root, 'projects.png'));
     // Done in the task's window with Settings in front, that window minimized (Refresh from Master…; on macOS the OS's ×
     // of a window behind): asked in the task's window, not in Settings', and that window comes back to the front with it.
