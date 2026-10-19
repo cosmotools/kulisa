@@ -219,10 +219,6 @@ moves there over time: what has an issue is removed from here, the issue being t
   - Nearly no RAM (the sound is handled in the tab already open), no new process. First: the permissions (issue
     #109, pages get the microphone and camera without asking), so the agent can test the site's own request too.
 
-- **Who a profile is, shared by a team** (cast had it: a slot per role with its description in a file committed to
-  the project, each developer signing it in to their own account). Kulisa keeps descriptions in its own data
-  ([profiles.md](profiles.md), "Who it is"), as it writes nothing into the project's folder. If a team needs it: a
-  file in the project that Kulisa only reads (the developer's own description wins).
 - **A store of extensions** (the author's idea, 2026-10-06). Installs four kinds of things: agent plugins (Claude Code,
   Codex), MCP servers, skills, and Kulisa extensions: features of the IDE that not everyone needs (a heavy
   dependency, a model to download, a microphone always on, one service's panel), installed, turned off and removed by
