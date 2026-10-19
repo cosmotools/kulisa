@@ -219,15 +219,6 @@ moves there over time: what has an issue is removed from here, the issue being t
   - Nearly no RAM (the sound is handled in the tab already open), no new process. First: the permissions (issue
     #109, pages get the microphone and camera without asking), so the agent can test the site's own request too.
 
-- **A public skill: "read the documentation of the installed version"** (2026-10-07; to judge around 2026-11-07,
-  after a few features built with Electron). An agent builds from what it learned in training, older than the
-  libraries in use; Kulisa's agent got the dark mode wrong until it read Electron's guide. Today it is a rule in
-  CLAUDE.md (Conventions): before building anything that touches Electron, look it up in the installed version's
-  documentation (the guides and `breaking-changes.md` at the version's tag, the API in `electron.d.ts`); the same for playwright-core's `types.d.ts`; and name what was read in
-  the plan. To judge: did plans name what was read, did features need redoing for an outdated API. If it works,
-  publish it as a skill for any Electron project (an agent skill, `SKILL.md`; check Codex reads it): none of the
-  Electron skills found (2026-10-07: electron-apps, full-stack-skills, gentleman-skills) points to the installed
-  version's docs, they retell Electron in text that ages as training does. If plans skip it, a hook instead.
 - **Who a profile is, shared by a team** (cast had it: a slot per role with its description in a file committed to
   the project, each developer signing it in to their own account). Kulisa keeps descriptions in its own data
   ([profiles.md](profiles.md), "Who it is"), as it writes nothing into the project's folder. If a team needs it: a
