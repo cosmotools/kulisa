@@ -216,8 +216,8 @@ moves there over time: what has an issue is removed from here, the issue being t
   - The agent cannot hear (Claude Code and Codex take no audio): check with tones, not speech, e.g. 440 Hz one way,
     880 Hz the other, as calls are usually tested. What was said (speech to text: Whisper or a cloud service) only for
     voice bots and assistants, later.
-  - Nearly no RAM (the sound is handled in the tab already open), no new process. First: the permissions (Open
-    issues, "Pages get the microphone and camera without asking"), so the agent can test the site's own request too.
+  - Nearly no RAM (the sound is handled in the tab already open), no new process. First: the permissions (issue
+    #109, pages get the microphone and camera without asking), so the agent can test the site's own request too.
 
 - **A public skill: "read the documentation of the installed version"** (2026-10-07; to judge around 2026-11-07,
   after a few features built with Electron). An agent builds from what it learned in training, older than the
@@ -288,16 +288,6 @@ moves there over time: what has an issue is removed from here, the issue being t
   OS over the window (`titleBarOverlay`, `window.ts`), so the dialog's backdrop, HTML, cannot cover them: under a
   dialog they stay bright. To look at: dim them with `setTitleBarOverlay` while a dialog is open (Windows and Linux;
   macOS's traffic lights have no such color), or leave them, as many desktop apps do.
-
-- **Pages get the microphone and camera without asking** (found 2026-10-08, talking about calls). Profiles' sessions
-  set no `setPermissionRequestHandler` / `setPermissionCheckHandler` (`session` in `electron.d.ts`, Electron 44), and
-  Electron then approves a page's requests by itself (its security checklist: "Handle session permission requests
-  from remote content"; check that it still says so for 44): any site in a profile can use the real microphone and
-  camera, and notifications, geolocation and the rest, with no question as Chrome asks. To build: ask as Chrome does,
-  in the profile's pane (an HTML bar over the page, as Chrome's bubble under the address bar; the pane's native view
-  draws over HTML, so the view is moved down or hidden meanwhile), remember the answer per site in that profile, and
-  let the human change it (a site's permissions in the pane's menu). The agent: grants nothing itself; a test that
-  needs the microphone asks the human, or uses the agent's own microphone (Deferred ideas, calls).
 
 - **The grid in a small window** (not decided; the window's own minimum is built: window.md, "The window's size"). When the panes do not fit,
   dockview overflows and cuts them, the profiles' native views get boxes near 0, and the terminal may get 0 columns
