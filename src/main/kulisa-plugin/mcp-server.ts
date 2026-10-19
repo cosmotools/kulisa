@@ -141,9 +141,9 @@ function buildServer(task: Task, t: TaskTerminal | null) {
       ...[...task.profiles.values()].map(({ id, name, description, avatar, login, hasPassword, signinMode, active, tabs }) =>
         ({ id, name, description: description || null, avatar, ...(login && { testLogin: login, testPassword: hasPassword }), signinMode, active,
           tabs: tabs.filter((t) => t.discarded || !t.wc.isDestroyed()).map((t) => ({ id: t.id, title: t.title, url: t.url })) })),
-      ...[...task.closed.values()].map(({ cfg, urls }) => ({ id: cfg.id, name: cfg.name, description: cfg.description || null, avatar: cfg.avatar,
+      ...[...task.closed.values()].map(({ cfg, tabs }) => ({ id: cfg.id, name: cfg.name, description: cfg.description || null, avatar: cfg.avatar,
         ...(cfg.login && { testLogin: cfg.login, testPassword: cfg.hasPassword }),
-        closed: true, tabs: urls.length })),
+        closed: true, tabs: tabs.urls.length })),
     ], null, 1)));
 
   server.registerTool('profile_open', {

@@ -7,10 +7,8 @@
 // One window per master; asked again, it comes to the front. Closed, its tabs and sign-ins are saved.
 import { BrowserWindow } from 'electron';
 import { handle } from './ipc.ts';
-import fs from 'fs';
-import path from 'path';
 import { Profile, toUrl } from './profiles.ts';
-import { writeFileAtomic } from './store.ts';
+import { readTabs, writeTabs } from './store.ts';
 import { page } from './pages.ts';
 import type { Shell } from './shell.ts';
 
@@ -47,8 +45,7 @@ function installMasters(shell: Shell, { preload, colors }: { preload: string; co
     // Its tabs open; the bar's controls wait for them (an address typed while a tab loads was overwritten).
     m.ready = (async () => {
       await shell.sessionCookies.restore(profile); // before the first request
-      const urls = readTabs(dir);
-      await Promise.all((urls.length ? urls : ['about:blank']).map((u, i) => profile.newTab(u, { activate: i === 0 }).ready));
+      await profile.openTabs(readTabs(dir));
     })();
     await m.ready;
     if (m.closing) return { folder };
@@ -58,8 +55,7 @@ function installMasters(shell: Shell, { preload, colors }: { preload: string; co
   async function close(m: Master): Promise<void> {
     if (m.closing) return m.closing;
     m.closing = (async () => {
-      const urls = m.profile.tabs.filter((t) => !t.wc.isDestroyed()).map((t) => t.wc.getURL()).filter((u) => u && u !== 'about:blank');
-      writeTabs(m.profile.dir, urls);
+      writeTabs(m.profile.dir, m.profile.savedTabs((t) => (t.wc.isDestroyed() ? '' : t.wc.getURL())));
       await shell.sessionCookies.persist(m.profile);
       await m.profile.close();
       shell.masters.delete(m.profile.folder);
@@ -79,11 +75,6 @@ function installMasters(shell: Shell, { preload, colors }: { preload: string; co
   handle('master:forward', async (e) => { const m = await of(e); if (m?.profile.get()!.wc.navigationHistory.canGoForward()) m.profile.forward(); });
   handle('master:reload', async (e) => (await of(e))?.profile.reload());
 }
-
-// A master's tabs, in its folder as a copy's are (store.ts, Kulisa Tabs.json): a task's copy starts with them.
-const TABS = 'Kulisa Tabs.json';
-function readTabs(dir: string): string[] { try { return JSON.parse(fs.readFileSync(path.join(dir, TABS), 'utf8')); } catch { return []; } }
-function writeTabs(dir: string, urls: string[]) { fs.mkdirSync(dir, { recursive: true }); writeFileAtomic(path.join(dir, TABS), JSON.stringify(urls)); }
 
 export type { Master };
 export { installMasters };

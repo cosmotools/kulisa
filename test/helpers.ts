@@ -20,7 +20,10 @@ const project = path.join(root, 'project');
 // A file of the test project's own data, of its first task (or of task n) (store.ts; the project's id is its folder's name).
 const pfile = (f: string, task = 1) => path.join(userData, 'projects', 'project', String(task), f);
 // The tabs saved for a profile (in its folder).
-const savedTabs = (id: string, task = 1): string[] => {
+const savedTabs = (id: string, task = 1): string[] => savedFile(id, task).urls;
+// The place of the tab saved as the one in front.
+const savedActive = (id: string, task = 1): number => savedFile(id, task).active;
+const savedFile = (id: string, task: number) => {
   const { folder } = JSON.parse(fs.readFileSync(pfile('profiles.json', task), 'utf8')).find((p: { id: string }) => p.id === id);
   return JSON.parse(fs.readFileSync(pfile(path.join(folder, 'Kulisa Tabs.json'), task), 'utf8'));
 };
@@ -196,6 +199,6 @@ const near = (a: number, b: number) => Math.abs(a - b) < 1e-6;
 const noNode = async (wc: WebContents) => await wc.executeJavaScriptInIsolatedWorld(999, [{ code: 'typeof process' }]) === 'undefined';
 
 export type { UI };
-export { MAC, CMD, canShoot, NO_SHOT, shot, focusWindow, MENU, SUBMENU, noNode, hooksOf, plusMenu, closeBoard, assert, root, userData, project, pfile, savedTabs, savedWindows, panel, SITE, PORT, sleep, waitFor, who, menuRows, choose, projectTabs, projectTab, showProject, closeProject, manageProfiles, closeSettings, settingsClosed, chooseProfile, setProfileField, menuOpen, closeMenu, rightClick, taskMenu,
+export { MAC, CMD, canShoot, NO_SHOT, shot, focusWindow, MENU, SUBMENU, noNode, hooksOf, plusMenu, closeBoard, assert, root, userData, project, pfile, savedTabs, savedActive, savedWindows, panel, SITE, PORT, sleep, waitFor, who, menuRows, choose, projectTabs, projectTab, showProject, closeProject, manageProfiles, closeSettings, settingsClosed, chooseProfile, setProfileField, menuOpen, closeMenu, rightClick, taskMenu,
   click,
   box, pageBox, viewOn, dock, press, ctrl, near };

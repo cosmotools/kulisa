@@ -128,11 +128,11 @@ class Task {
         installSigninPause(profile, shell.signin.isSigninUrl);
         return profile;
       },
-      start: async (profile, urls) => {
+      start: async (profile, tabs) => {
         await shell.sessionCookies.restore(profile); // before the first request of any tab
         // Real accounts: the master's non-local cookies, then kept in step with it and the other tasks (cookie-sync.ts).
         await shell.cookieSync.attach(profile.folder, profile.session, this.project.entry.local || []);
-        await Promise.all(urls.map((u, i) => profile.newTab(u, { activate: i === 0 }).ready));
+        await profile.openTabs(tabs);
         // The window opens even if the shell's connection fails; the agent's tools say so for this profile.
         if (!profile.signinMode) await profile.connect(profile.endpoint!).catch((e: Error) => console.error(`[kulisa] ${profile.id}: no Playwright connection: ${e.message.split('\n')[0]}`));
         shell.bus.emit('profile-added', profile);
@@ -153,10 +153,11 @@ class Task {
       copy: async (e) => {
         await shell.flushMaster(e.cfg.folder); // open to sign in to: what was done there is on disk
         await copyProfile(shell.profileStore.masterDir(e.cfg.folder), e.cfg.dir);
-        e.urls = this.store.tabs(e.cfg.folder).filter((u) => u && u !== 'about:blank').map((u) => withOffset(u, this.offset));
-        this.store.saveTabs(e.cfg.folder, e.urls);
+        const { urls, active } = this.store.tabs(e.cfg.folder);
+        e.tabs = { urls: urls.map((u) => withOffset(u, this.offset)), active };
+        this.store.saveTabs(e.cfg.folder, e.tabs);
       },
-      urlsOf: (p) => p.tabs.map((t) => this.urlOf(t)).filter((u) => u && u !== 'about:blank'),
+      tabsOf: (p) => p.savedTabs((t) => this.urlOf(t)),
       renamed: (p, oldId) => { shell.proxy.renamed(p, oldId); p.endpoint = shell.proxy.endpoint(p); },
       remove: async ({ cfg, profile }: Entry) => {
         shell.sessionCookies.forget(cfg);

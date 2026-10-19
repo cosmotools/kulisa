@@ -11,10 +11,10 @@ import { ProjectProfiles } from '../../src/main/project-profiles.ts';
 import { AVATARS, nextAvatar } from '../../src/shared/avatars.ts';
 import type { StoredProfile } from '../../src/main/profile-store.ts';
 import type { Profile, ProfileConfig } from '../../src/main/profiles.ts';
-import type { TaskProfile, TaskStore } from '../../src/main/store.ts';
+import type { SavedTabs, TaskProfile, TaskStore } from '../../src/main/store.ts';
 
 // What the tests make for a profile instead of a Profile (no Electron here): its settings and the tabs it opened.
-type Fake = Profile & { urls: string[] };
+type Fake = Profile & { saved: SavedTabs };
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'kulisa-unit-'));
 after(() => fs.rmSync(root, { recursive: true, force: true }));
@@ -63,6 +63,16 @@ test('store: a write cut short leaves the file as it was', async () => {
   assert.deepEqual(task.profiles().map((p) => p.id), ['sam']);
   assert.deepEqual(fs.readdirSync(task.dir).filter((f) => f.endsWith('.tmp')), [], 'no half-written file left');
 });
+test("store: a profile's tabs come back with the one in front; the list saved before 2026-10-19 is not read", () => {
+  const store = new Store(path.join(root, 'tabs-data'));
+  const task = store.taskOf(store.projectFor('/work/shop'), 1);
+  assert.deepEqual(task.tabs('Profile 1'), { urls: [], active: 0 }, 'none saved');
+  task.saveTabs('Profile 1', { urls: ['https://a/', 'https://b/'], active: 1 });
+  assert.deepEqual(task.tabs('Profile 1'), { urls: ['https://a/', 'https://b/'], active: 1 });
+  fs.writeFileSync(path.join(task.profileDir('Profile 1'), 'Kulisa Tabs.json'), JSON.stringify(['https://a/']));
+  assert.deepEqual(task.tabs('Profile 1'), { urls: [], active: 0 }, 'one data format only (CLAUDE.md)');
+});
+
 test('profiles: one store, a profile in several projects or none; it lives until deleted, its master with it', () => {
   const marked: string[] = [];
   const all = new ProfileStore(path.join(root, 'profiles-data'), (d) => { marked.push(d); });
@@ -108,11 +118,11 @@ test('project profiles: a task has its own copy of each, made at its first open;
     const dir = path.join(root, 'pp-data', 'task', String(n));
     let saved: TaskProfile[] = null;
     const copied: string[] = [];
-    const store = { profiles: () => saved, saveProfiles: (l: TaskProfile[]) => { saved = l; }, tabs: (f: string) => (f === 'Profile 2' ? ['https://b/'] : []), saveTabs() {},
+    const store = { profiles: () => saved, saveProfiles: (l: TaskProfile[]) => { saved = l; }, tabs: (f: string) => ({ urls: f === 'Profile 2' ? ['https://b/'] : [], active: 0 }), saveTabs() {},
       profileDir: (f: string) => path.join(dir, f), markDeleted() {} } as unknown as TaskStore;
-    const list = new ProjectProfiles(store, all, 'shop', { make: (cfg: ProfileConfig) => ({ ...cfg, siteZoom: cfg.zoom, urls: [] }) as unknown as Profile,
-      copy: async (e) => { copied.push(e.cfg.folder); fs.mkdirSync(e.cfg.dir, { recursive: true }); e.urls = store.tabs(e.cfg.folder); },
-      start: async (p, urls) => { (p as Fake).urls = urls; }, unload: async () => {}, urlsOf: (p) => (p as Fake).urls, renamed() {}, remove: async () => {}, changed() {}, everywhere() {} });
+    const list = new ProjectProfiles(store, all, 'shop', { make: (cfg: ProfileConfig) => ({ ...cfg, siteZoom: cfg.zoom }) as unknown as Profile,
+      copy: async (e) => { copied.push(e.cfg.folder); fs.mkdirSync(e.cfg.dir, { recursive: true }); e.tabs = store.tabs(e.cfg.folder); },
+      start: async (p, tabs) => { (p as Fake).saved = tabs; }, unload: async () => {}, tabsOf: (p) => (p as Fake).saved, renamed() {}, remove: async () => {}, changed() {}, everywhere() {} });
     return { list, copied, saved: () => saved };
   };
   // A task with nothing saved opens none (a new task has them all closed: projects.ts, createTask); opened, each
@@ -124,7 +134,7 @@ test('project profiles: a task has its own copy of each, made at its first open;
   assert.deepEqual(a.copied, [], 'nothing copied before it is opened');
   await a.list.open('ann'); await a.list.open('bob');
   assert.deepEqual(a.copied, ['Profile 1', 'Profile 2']);
-  assert.deepEqual((a.list.profiles.get('bob') as Fake).urls, ['https://b/'], "the master's tabs");
+  assert.deepEqual((a.list.profiles.get('bob') as Fake).saved.urls, ['https://b/'], "the master's tabs");
   await a.list.close('ann');
   await a.list.open('ann');
   assert.equal(a.copied.length, 2, 'opened again: its copy is there');
@@ -152,19 +162,19 @@ test('project profiles: a task has its own copy of each, made at its first open;
   // opening, not none. Kulisa quit right then lost every profile's tabs (2026-10-08).
   const one = new ProfileStore(path.join(root, 'pp-slow'));
   one.create('p', { name: 'Dan', avatar: 'fox' });
-  const tabsSaved: Record<string, string[]> = {};
+  const tabsSaved: Record<string, SavedTabs> = {};
   let opened: () => void;
-  const slow = new ProjectProfiles({ profiles: () => [{ folder: 'Profile 1', id: 'dan' }], saveProfiles() {}, tabs: () => ['https://d/'], saveTabs: (f: string, urls: string[]) => { tabsSaved[f] = urls; },
+  const slow = new ProjectProfiles({ profiles: () => [{ folder: 'Profile 1', id: 'dan' }], saveProfiles() {}, tabs: () => ({ urls: ['https://d/'], active: 0 }), saveTabs: (f: string, tabs: SavedTabs) => { tabsSaved[f] = tabs; },
     profileDir: () => root, markDeleted() {} } as unknown as TaskStore, one, 'p', {
-    make: (cfg: ProfileConfig) => ({ ...cfg, urls: [] }) as unknown as Profile, start: (p, urls) => new Promise<void>((r) => { opened = () => { (p as Fake).urls = urls; r(); }; }), unload: async () => {},
-    copy: async () => {}, urlsOf: (p) => (p as Fake).urls, renamed() {}, remove: async () => {}, changed() {}, everywhere() {} });
+    make: (cfg: ProfileConfig) => ({ ...cfg }) as unknown as Profile, start: (p, tabs) => new Promise<void>((r) => { opened = () => { (p as Fake).saved = tabs; r(); }; }), unload: async () => {},
+    copy: async () => {}, tabsOf: (p) => (p as Fake).saved, renamed() {}, remove: async () => {}, changed() {}, everywhere() {} });
   slow.load();
   await new Promise((r) => setImmediate(r));
   slow.saveTabs();
-  assert.deepEqual(tabsSaved['Profile 1'], ['https://d/'], 'while it opens');
+  assert.deepEqual(tabsSaved['Profile 1'].urls, ['https://d/'], 'while it opens');
   opened(); await slow.started;
   slow.saveTabs();
-  assert.deepEqual(tabsSaved['Profile 1'], ['https://d/'], 'once open');
+  assert.deepEqual(tabsSaved['Profile 1'].urls, ['https://d/'], 'once open');
   // More profiles than pictures: round again, nothing breaks.
   assert.equal(nextAvatar(AVATARS), 'fox');
   assert.equal(nextAvatar([...AVATARS, 'fox']), 'frog');

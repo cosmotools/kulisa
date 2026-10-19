@@ -9,6 +9,7 @@ import type { Browser, BrowserContext, Page } from 'playwright-core';
 import type { BrowserWindow, Rectangle, Session, WebContents, WebContentsView as View } from 'electron';
 import fs from 'fs';
 import path from 'path';
+import type { SavedTabs } from './store.ts';
 import type * as Sent from '../shared/types.ts'; // what the window gets: its one definition
 import { allowFocus, guardFocus } from './page-focus.ts';
 import { bare, log } from './log.ts';
@@ -131,6 +132,22 @@ class Profile extends EventEmitter {
     const ready = this._open(tab, url && toUrl(url));
     if (activate) this.activate(tab.id);
     return Object.assign(tab, { ready }); // every tab it opens has one, unlike a page's popup
+  }
+  // Its tabs saved (urlOf: the address a tab comes back on, '' for none) and opened again: the one in front in front.
+  savedTabs(urlOf: (t: Tab) => string): SavedTabs {
+    const urls: string[] = []; let active = 0;
+    for (const t of this.tabs) {
+      const u = urlOf(t);
+      if (!u || u === 'about:blank') continue;
+      if (t.id === this.active) active = urls.length;
+      urls.push(u);
+    }
+    return { urls, active };
+  }
+  openTabs({ urls, active }: SavedTabs) {
+    if (!urls.length) urls = ['about:blank'];
+    if (!urls[active]) active = 0;
+    return Promise.all(urls.map((u, i) => this.newTab(u, { activate: i === active }).ready));
   }
 
   // A tab's page opened in its fresh webContents (newTab; load, a discarded tab's new one): its ready.
