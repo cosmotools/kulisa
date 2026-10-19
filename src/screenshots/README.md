@@ -58,12 +58,16 @@ Electron 44's clipboard is the W3C Clipboard API's (`clipboard.write([new Clipbo
 ### The thumbnail
 
 As macOS shows one in the screen's corner (the author, 2026-10-19): the picture just taken, in the bottom right corner
-of its pane, at most 200 × 150 CSS pixels (a taller picture, as a whole page, its top only), for about 5 s; the
+of its pane, 20 CSS pixels from its edges, at most 240 × 180 (a taller picture, as a whole page, its top only), framed
+by a thin ring and a shadow so that it stands out of the page under it, for about 5 s; the
 pointer over it, or its menu open, holds it. One a window (`Thumbnails`, `main/thumbnail.ts`): the next takes its
 place. The window makes it and tells it three things: where its panes are after every change of the grid (`place`,
 with `AppWindow.paneBox`), that its pages are covered (`setHidden`), and that a task goes (`close`); it goes when its
 pane is off screen.
 
+- It fades in, and out when it goes by itself, by its × (in its top left corner, while the pointer is over it) or by
+  its menu's Close or Delete (`fade`: its page's `thumbnail:fade`, then its view goes after `FADE`); taken away by
+  Kulisa (the next picture, its pane off screen, its task going) it goes at once.
 - A click opens the file in the OS's app for it (`shell.openPath`).
 - Dragged, it carries the file itself (`webContents.startDrag`, as Electron's `tutorial/native-file-drag-drop.md`):
   into a messenger, a mail, the file manager.
@@ -80,7 +84,8 @@ to a window's 116 MB and a page's 57 MB. Weighed and not chosen: a window of its
 a window be placed); the pages turned into pictures for its seconds (the human could not use the page meanwhile);
 Electron's `ImageView` (a `View` drawing a `NativeImage`, no process: experimental in 44, and it gets no mouse, so no
 click, menu or drag; issue #107). Its page gets a small picture (`preview`: twice the thumbnail's size), not the
-whole page's megabytes.
+whole page's megabytes. A view draws nothing outside its bounds, so its view is 12 px larger on every side than the
+picture, transparent there, for the shadow (`PAD`): that band takes the page's clicks while it shows.
 
 While a menu or a dialog covers the pages, they are pictures and the native views hidden, the thumbnail's too; the
 window draws it in HTML over the pictures meanwhile (`renderer/Thumbnail.vue`, `#shotthumb`, from `thumbnail:place`),

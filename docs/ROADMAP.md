@@ -216,8 +216,8 @@ moves there over time: what has an issue is removed from here, the issue being t
   - The agent cannot hear (Claude Code and Codex take no audio): check with tones, not speech, e.g. 440 Hz one way,
     880 Hz the other, as calls are usually tested. What was said (speech to text: Whisper or a cloud service) only for
     voice bots and assistants, later.
-  - Nearly no RAM (the sound is handled in the tab already open), no new process. First: the permissions (Open
-    issues, "Pages get the microphone and camera without asking"), so the agent can test the site's own request too.
+  - Nearly no RAM (the sound is handled in the tab already open), no new process. First: the permissions (issue
+    #109, pages get the microphone and camera without asking), so the agent can test the site's own request too.
 
 - **A public skill: "read the documentation of the installed version"** (2026-10-07; to judge around 2026-11-07,
   after a few features built with Electron). An agent builds from what it learned in training, older than the
@@ -232,13 +232,6 @@ moves there over time: what has an issue is removed from here, the issue being t
   the project, each developer signing it in to their own account). Kulisa keeps descriptions in its own data
   ([profiles.md](profiles.md), "Who it is"), as it writes nothing into the project's folder. If a team needs it: a
   file in the project that Kulisa only reads (the developer's own description wins).
-- **A screenshot taken at a pick** (point and tell), if a transient element (a tooltip, an open menu, a toast) turns
-  out to need it: today the pick is a locator only, and the agent looks at the live page.
-- **The agent's label in the page, by its outline** (found 2026-10-15 taking the site's pictures; left so, the
-  author's decision). `browser_highlight`'s outline is Playwright's `locator.highlight()`, which writes the locator
-  next to it (`locator('aria-ref=f2e20')`); its only option is the style (1.64), and the label is in a closed shadow
-  root. The agent's label shows over the pane meanwhile. When Playwright lets the text be set, put the label there; not
-  an outline of our own.
 - **A store of extensions** (the author's idea, 2026-10-06). Installs four kinds of things: agent plugins (Claude Code,
   Codex), MCP servers, skills, and Kulisa extensions: features of the IDE that not everyone needs (a heavy
   dependency, a model to download, a microphone always on, one service's panel), installed, turned off and removed by
@@ -286,21 +279,6 @@ moves there over time: what has an issue is removed from here, the issue being t
 
 ## Open issues
 
-- **The OS's window buttons are not dimmed under a dialog** (the author, 2026-10-11; put off). They are drawn by the
-  OS over the window (`titleBarOverlay`, `window.ts`), so the dialog's backdrop, HTML, cannot cover them: under a
-  dialog they stay bright. To look at: dim them with `setTitleBarOverlay` while a dialog is open (Windows and Linux;
-  macOS's traffic lights have no such color), or leave them, as many desktop apps do.
-
-- **Pages get the microphone and camera without asking** (found 2026-10-08, talking about calls). Profiles' sessions
-  set no `setPermissionRequestHandler` / `setPermissionCheckHandler` (`session` in `electron.d.ts`, Electron 44), and
-  Electron then approves a page's requests by itself (its security checklist: "Handle session permission requests
-  from remote content"; check that it still says so for 44): any site in a profile can use the real microphone and
-  camera, and notifications, geolocation and the rest, with no question as Chrome asks. To build: ask as Chrome does,
-  in the profile's pane (an HTML bar over the page, as Chrome's bubble under the address bar; the pane's native view
-  draws over HTML, so the view is moved down or hidden meanwhile), remember the answer per site in that profile, and
-  let the human change it (a site's permissions in the pane's menu). The agent: grants nothing itself; a test that
-  needs the microphone asks the human, or uses the agent's own microphone (Deferred ideas, calls).
-
 - **The grid in a small window** (not decided; the window's own minimum is built: window.md, "The window's size"). When the panes do not fit,
   dockview overflows and cuts them, the profiles' native views get boxes near 0, and the terminal may get 0 columns
   (`pty.resize` is in a `try` in `src/terminal/main/index.ts`, but the agent's CLI draws garbage at a tiny size). Ways to weigh:
@@ -335,6 +313,8 @@ moves there over time: what has an issue is removed from here, the issue being t
       serve them too, and `terminal_stop`'s Ctrl+C in cmd asks "Terminate batch job?". Closing a task and opening it
       again (`claude --resume`) and the project folder dialog (New Project…'s Browse…): untested.
   - `safeStorage` (DPAPI) for session cookies on Windows: untested.
+  - The OS buttons' see-through strip ([window.md](window.md), The title bar) on Windows: no strip of the theme's
+    color behind them, their hover still shown, the strip dimmed under a dialog (the test checks it on Linux).
   - Screenshots ([src/screenshots](../src/screenshots/README.md)), tested on Linux (X11) only: the folder of
     screenshots on macOS (the one ⇧⌘5 chose, read by `defaults`) and Windows (`Pictures\Screenshots`); the image on the
     clipboard and the thumbnail's file dragged out on Wayland, macOS and Windows; the thumbnail's view at a Retina

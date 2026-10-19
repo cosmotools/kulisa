@@ -7,15 +7,19 @@ import type { BrowserWindow, Rectangle, WebContents, WebContentsView } from 'ele
 import type { ThumbnailAction } from '../ipc.ts';
 
 // Its size and place in CSS pixels, times the Kulisa zoom: at most this wide and tall, this far from the pane's corner.
-const WIDTH = 200, HEIGHT = 150, MARGIN = 12;
+const WIDTH = 240, HEIGHT = 180, MARGIN = 20;
+// Room around the picture in its view for its shadow: a view draws nothing outside its bounds (renderer/thumbnail.ts).
+const PAD = 12;
 // How long it stays, as macOS's; the pointer over it or its menu open hold it.
 const STAYS = 5000;
+// How long its page fades out (renderer/thumbnail.ts) before its view goes.
+const FADE = 200;
 
 // The window's (one each), by the window's page and by the thumbnail's own page: the messages of both find it.
 const byWindow = new Map<WebContents, Thumbnails>();
 const byPage = new Map<WebContents, Thumbnails>();
 
-interface Shown { owner: string; file: string; view: WebContentsView; src: string; size: { width: number; height: number }; bounds: Rectangle | null }
+interface Shown { owner: string; file: string; view: WebContentsView; src: string; size: { width: number; height: number }; bounds: Rectangle | null; fading?: boolean }
 
 // A window's thumbnail: one at a time, the next taking its place. The window says where its panes are (place) and
 // when its pages are covered (setHidden); the rest is here.
@@ -43,7 +47,6 @@ class Thumbnails {
     const zoom = this.zoom();
     const view = new electron.WebContentsView({ webPreferences: { preload: this.preload, sandbox: true, zoomFactor: zoom } });
     view.setBackgroundColor('#00000000');
-    view.setBorderRadius(Math.round(4 * zoom)); // the window's --radius (tokens.css), as its own drawing of it
     view.setVisible(false);
     const { src, size } = preview(png);
     this.shown = { owner, file, view, src, size, bounds: null };
@@ -63,13 +66,13 @@ class Thumbnails {
     if (!s) return;
     const box = boxOf(s.owner);
     if (!box || box.width <= 0 || box.height <= 0) return this.close();
-    const z = this.zoom(), width = Math.round(s.size.width * z), height = Math.round(s.size.height * z), m = Math.round(MARGIN * z);
+    const z = this.zoom(), width = Math.round((s.size.width + 2 * PAD) * z), height = Math.round((s.size.height + 2 * PAD) * z), m = Math.round((MARGIN - PAD) * z);
     s.bounds = { x: box.x + box.width - width - m, y: box.y + box.height - height - m, width, height };
     s.view.setBounds(s.bounds);
     this.win.contentView.addChildView(s.view);
     s.view.setVisible(!this.hidden);
     // The window draws it too, seen while its pages are pictures (renderer/index.ts), in CSS pixels.
-    this.tell('thumbnail:place', { src: s.src, x: s.bounds.x / z, y: s.bounds.y / z, width: s.size.width, height: s.size.height });
+    this.tell('thumbnail:place', { src: s.src, x: s.bounds.x / z + PAD, y: s.bounds.y / z + PAD, width: s.size.width, height: s.size.height });
   }
   // Under a menu or a dialog of the window, with its pages: their pictures and the window's drawing of it show then.
   setHidden(hidden: boolean) {
@@ -87,6 +90,16 @@ class Thumbnails {
     if (!s.view.webContents.isDestroyed()) s.view.webContents.close();
     this.tell('thumbnail:place', null);
   }
+  // Gone by the human's wish or its time: faded out first. Taken away by Kulisa (the next picture, its pane off screen,
+  // its window going): at once, by close.
+  fade() {
+    const s = this.shown;
+    if (!s || s.fading) return;
+    s.fading = true;
+    clearTimeout(this.timer);
+    if (!s.view.webContents.isDestroyed()) s.view.webContents.send('thumbnail:fade');
+    setTimeout(() => { if (this.shown === s) this.close(); }, FADE);
+  }
   // The window going: nothing more to tell it.
   destroy() { this.close(); byWindow.delete(this.win.webContents); }
 
@@ -98,11 +111,11 @@ class Thumbnails {
     log.info(`[screenshot] thumbnail: ${action}`);
     if (action === 'show') electron.shell.showItemInFolder(s.file);
     else if (action === 'copy') await copyFile(s.file);
-    else if (action === 'close') this.close();
+    else if (action === 'close') this.fade();
     else if (action === 'send') this.send(agentText(s.file));
     else if (action === 'delete') {
       try { await electron.shell.trashItem(s.file); } catch (e) { log.info(`[screenshot] not moved to the trash: ${(e as Error).message}`); }
-      if (this.shown === s) this.close();
+      if (this.shown === s) this.fade();
     }
   }
 
@@ -110,7 +123,7 @@ class Thumbnails {
   open() { const f = this.file; if (f) void electron.shell.openPath(f).then((error) => { if (error) log.info(`[screenshot] not opened: ${error}`); }); }
   // A drag carries the file itself, as the OS's file manager's (tutorial/native-file-drag-drop.md).
   drag() { const s = this.shown; if (s) s.view.webContents.startDrag({ file: s.file, icon: electron.nativeImage.createFromPath(s.file).resize({ width: 64 }) }); }
-  hover(over: boolean) { this.over = over; this.wait(); }
+  hover(over: boolean) { if (this.shown?.fading) return; this.over = over; this.wait(); }
   // Its right-click gave its own page the keyboard: the window's menu needs it back.
   menu(x: number, y: number) {
     const s = this.shown;
@@ -125,7 +138,7 @@ class Thumbnails {
   private tell(channel: 'thumbnail:place' | 'thumbnail:open-menu', data: unknown) { if (!this.win.isDestroyed()) this.win.webContents.send(channel, data); }
   private wait() {
     clearTimeout(this.timer);
-    if (this.shown && !this.over && !this.held) this.timer = setTimeout(() => this.close(), STAYS);
+    if (this.shown && !this.shown.fading && !this.over && !this.held) this.timer = setTimeout(() => this.fade(), STAYS);
   }
 }
 
@@ -152,6 +165,7 @@ function install() {
   on('thumbnail:drag', (e) => byPage.get(e.sender)?.drag());
   on('thumbnail:menu', (e, { x, y }) => byPage.get(e.sender)?.menu(x, y));
   on('thumbnail:hover', (e, over) => byPage.get(e.sender)?.hover(over));
+  on('thumbnail:close', (e) => byPage.get(e.sender)?.act('close'));
   handle('thumbnail:act', (e, { action }) => byWindow.get(e.sender)?.act(action));
 }
 
