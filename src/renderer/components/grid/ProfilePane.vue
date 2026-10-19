@@ -130,7 +130,7 @@ onBeforeUnmount(() => { observer.disconnect(); if (panes.get(key) === handle) pa
         <TabsTrigger v-for="t in profile.tabs" :key="t.id" :value="t.id" as-child>
           <div class="tab" :class="{ active: t.id === profile.active, opening: opening.has(t.id) }" :data-tab="t.id" :title="t.url" @animationend="grown(t.id)">
             <img alt="" :hidden="!t.favicon" :src="t.favicon || undefined"><Icon class="globe" name="i-globe" />
-            <span class="title">{{ (t.loading ? '⟳ ' : '') + (t.title || t.url || 'New tab') }}</span>
+            <span class="title">{{ t.title || t.url || 'New tab' }}</span>
             <!-- Not a press on the tab: it is not chosen first. -->
             <span class="x icon small" title="Close tab" @mousedown.prevent @click="act('tab:close', { profile: profile.id, tab: t.id })"><Icon name="i-close" /></span>
           </div>
