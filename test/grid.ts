@@ -240,6 +240,8 @@ export default (test: Test) => {
     await waitFor(async () => (await ctx.termText()).includes(LINE));
     const size = { cols: pty.cols, rows: pty.rows };
     assert.ok(size.cols > 150, 'the terminal is wide enough for it');
+    const sizes: number[][] = [], resize = pty.resize; // every size the agent gets from here on
+    pty.resize = (cols: number, rows: number) => { sizes.push([cols, rows]); return resize.call(pty, cols, rows); };
     await rightClick(ui, '#projectTabs [data-project="other"] .name');
     await menuRows(ui);
     await choose(ui, 'Move to New Window');
@@ -270,15 +272,16 @@ export default (test: Test) => {
     const lines = await ui2(`(() => { const b = window.__term.buffer.active;
       return Array.from({ length: b.length }, (_, i) => b.getLine(i)).filter((l) => l.translateToString(true).includes('===')).map((l) => [l.translateToString(true).length, l.isWrapped]); })()`);
     assert.deepEqual(lines.filter(([n, wrapped]: [number, boolean]) => n !== 150 || wrapped), [], `whole lines: ${JSON.stringify(lines)}`);
-    assert.deepEqual(await ui2('window.__ptySizes.filter((s) => s.cols < 100)'), [], 'no default size sent to the agent');
-    // The window is the same size, so the agent ends up with the same one. The new window's page fits the terminal
-    // as soon as it opens, before its grid is laid out (at the window's whole height: 46 rows for 17 on the runner,
-    // now and then, 2026-10-12), then again in its panel: wait for the last fit; a size still different names both
-    // windows' sizes.
+    // The window is the same size, so the agent keeps its size, and gets no other on the way: each one makes it draw
+    // its prompt again. The new window's page fitted the terminal before its grid was laid out, at the window's whole
+    // height (46 rows for 17 on the runner, now and then, 2026-10-12; not seen since tasks open at once, 2026-10-15).
     await waitFor(() => pty.cols === size.cols && pty.rows === size.rows, 5000).catch(() => {
       throw new Error(`the same size: ${JSON.stringify({ cols: pty.cols, rows: pty.rows })}, expected ${JSON.stringify(size)}; `
         + `windows ${JSON.stringify([first.win.getContentSize(), second.win.getContentSize()])}`);
     });
+    pty.resize = resize;
+    assert.deepEqual(sizes.filter(([cols, rows]) => cols !== size.cols || rows !== size.rows), [],
+      `no other size on the way: ${JSON.stringify(sizes)}, windows ${JSON.stringify([first.win.getContentSize(), second.win.getContentSize()])}`);
     // The agent's output and its tools go on there.
     pty.write('moved along\r');
     await waitFor(async () => (await termText2()).includes('moved along'));
