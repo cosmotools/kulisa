@@ -387,8 +387,3 @@ moves there over time: what has an issue is removed from here, the issue being t
     ready): every profile's HTTP cache at most that, open ones too; not the code and GPU caches.
   - Or both, or clearing when a task is closed as well. Cost of clearing: the first load of a
     reopened profile's sites is slower (no cache), which matters little for profiles set aside.
-- **The agent gets a passing size when its task moves to a new window** (found 2026-10-13, on the runner: the
-  test above). The new window's page fits the terminal as soon as it opens, at the whole window's height (46 rows),
-  and again once its grid is laid out (17): both go to the agent (`pty:resize`, `src/terminal/renderer/`), which
-  draws its prompt for each. A fix: fit only once the grid has laid out; the test then refuses a passing height as it
-  does a width (`__ptySizes`).
