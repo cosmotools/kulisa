@@ -47,8 +47,9 @@ const config: ForgeConfig = {
     extendInfo: { NSMicrophoneUsageDescription: 'The agent in Kulisa\'s terminal listens when you dictate a task to it.' },
     // Only what the app runs; Forge also leaves out devDependencies, which is where the window's libraries are (Vite
     // bundles them into dist/renderer; the main process imports none of them, @xterm/headless apart). The window is its
-    // build (dist/renderer), not its sources (src/renderer), without source maps.
-    ignore: [/^\/(test|docs|out|scripts)(\/|$)/, /^\/\.kulisa(\/|$)/, /^\/src\/renderer(\/|$)/, /^\/(forge\.config\.ts|vite\.config\.mts|tsconfig\.json|knip\.jsonc|\.dependency-cruiser\.ts)$/, /\.map$/],
+    // build (dist/renderer), not its sources (src/renderer, a Kulisa package's renderer/), without source maps; a Kulisa
+    // package without its tests and docs (docs/packages.md).
+    ignore: [/^\/(test|docs|out|scripts)(\/|$)/, /^\/\.kulisa(\/|$)/, /^\/src\/([^/]+\/)?renderer(\/|$)/, /\.test\.ts$/, /^\/src\/[^/]+\/(README|CLAUDE)\.md$/, /^\/(forge\.config\.ts|vite\.config\.mts|tsconfig\.json|knip\.jsonc|\.dependency-cruiser\.ts)$/, /\.map$/],
   },
   makers: [
     { name: '@electron-forge/maker-squirrel', platforms: ['win32'], config: { setupIcon: 'assets/icon.ico' } },

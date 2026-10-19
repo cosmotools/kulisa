@@ -8,7 +8,7 @@ import { act, setLoading, store } from './store';
 import { forgetFrozen, freeze, livePages, showViews, unfreeze } from './views';
 import { closeLayers } from './cover';
 import { reducedMotion } from './common';
-import { forgetTerminals } from './xterm';
+import { forgetTerminals } from '../../terminal/renderer';
 
 const panelId = (key: string) => `profile:${key}`;
 // What the window does with a mounted pane (ProfilePane.vue), by its profile's key.

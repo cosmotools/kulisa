@@ -9,7 +9,8 @@ import path from 'path';
 import { Profile, wipeSession } from './profiles.ts';
 import { ProjectProfiles } from './project-profiles.ts';
 import { installSigninPause } from './signin-pause.ts';
-import { startTerminal, stopTerminal, forgetTerminal, terminalTail, sendToPrompt } from './terminal.ts';
+import { startTerminal, stopTerminal, forgetTerminal, terminalTail, sendToPrompt } from '../terminal/main/index.ts';
+import { READ_MAX } from './kulisa-plugin/mcp-server.ts';
 import { copyProfile } from './store.ts';
 import { renameBranch } from './worktrees.ts';
 import { extendTrust } from './agents/index.ts';
@@ -22,7 +23,7 @@ import type { Entry, Hooks } from './project-profiles.ts';
 import type { Project } from './projects.ts';
 import type { AppWindow } from './window.ts';
 import type { Conversation, Copy, TaskEntry, TaskStore } from './store.ts';
-import type { Pty } from './terminal.ts';
+import type { Pty } from '../terminal/main/index.ts';
 import type { GitError } from './worktrees.ts';
 import type { Shell, AgentChoice } from './shell.ts';
 import type * as Sent from '../shared/types.ts'; // what the window gets: its one definition
@@ -466,7 +467,7 @@ class Task {
     this.terminals.set(id, t);
     if (front || this.front === null) this.show(id); else { this.saveTerminals(); this.changedTerminals(); }
     t.pty = await startTerminal((channel, data) => this.window?.send(channel, data),
-      { line: command, cwd: this.folder, env: this.env(), sizeOf: this.key, screen: true }, t.key);
+      { line: command, cwd: this.folder, env: this.env(), sizeOf: this.key, screen: READ_MAX }, t.key);
     if (this.terminals.get(id) !== t) { stopTerminal(t.pty); return { error: 'the terminal was closed' }; }
     t.pty.onExit(() => { if (!t.pty!.stopped) this.dropTerminal(t); });
     log.info(`[terminal] ${t.key} started: a shell${by === 'agent' ? " (the agent's)" : ''}`);

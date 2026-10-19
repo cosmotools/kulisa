@@ -7,7 +7,7 @@ with a test (CLAUDE.md); a bug is first reproduced by a failing test, then fixed
 
 | Layer | Where | Runs in | For |
 |---|---|---|---|
-| Unit | `test/unit/*.test.ts` (`node:test`) | plain Node, about a second: `npm run test:unit` | logic that needs no window: names, the data folder, a task's profiles in order, the agents' files |
+| Unit | `test/unit/*.test.ts`, a Kulisa package's in its folder (`src/<package>/*.test.ts`) (`node:test`) | plain Node, about a second: `npm run test:unit` | logic that needs no window: names, the data folder, a task's profiles in order, the agents' files |
 | End to end | `test/*.ts` (`run.ts`) | the real app, against the local test site (`fixtures/site.ts`) | everything the human or the agent does: the window, profiles' pages, MCP tools, restarts |
 
 A check goes into the cheapest layer that can show the behavior: a rule about names is a unit test; that the name
@@ -166,6 +166,9 @@ runs it after ESLint) fails on an import against the layers (CLAUDE.md, Architec
   (layer 4), which may import anything. Below layer 1, the base (`worktrees.ts`, `local.ts`): used by every layer, using
   none of them. `src/shared/` is what the main process and the window both import (`names.ts`, `avatars.ts`,
   `result.ts`); it imports nothing else of `src/`. The window's page never imports `src/main`.
+- A Kulisa package (`src/terminal/`; [packages.md](packages.md)) is reached only through its entries
+  (`main/index.ts`, `renderer/index.ts`, `ipc.ts`); its `main/` uses of `src/main` only what its line in `packages`
+  allows, its `renderer/` nothing of the window; the window takes its `renderer/`, the main process its `main/`.
 - A new file of a lower layer goes into its list. An import the rules refuse is moved, not allowed: what the lower
   file needs belongs below (the tab's target id went into `profiles.ts`), or the core says it on `shell.bus` and the
   handle listens (a profile unloaded: the MCP server clears its highlights).

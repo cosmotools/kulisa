@@ -26,7 +26,7 @@ import type { Tab } from '../profiles.ts';
 
 type Element = { ref?: string; locator?: string };
 
-// What an agent can read back of a shell (terminal_read; terminalTail in terminal.ts): its last lines as the screen shows them, kept
+// What an agent can read back of a shell (terminal_read; terminalTail in src/terminal/main): its last lines as the screen shows them, kept
 // by a terminal without a window (xterm's own parser), so lines a program redraws in place (a progress, a container's
 // state) are what they became; the output with its codes left out had every frame. Its scrollback is what the agent
 // may ask for at most: the memory is lines × columns × 12 bytes (about 1 MB at 200 columns). Its buffer is a proposed

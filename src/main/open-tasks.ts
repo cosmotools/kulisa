@@ -10,7 +10,7 @@ import type { ProjectEntry } from './store.ts';
 import type { Task } from './tasks.ts';
 import type { Asker, Place } from './window.ts';
 import type { Result } from '../shared/result.ts';
-import type { TerminalContents } from '../shared/ipc.ts';
+import type { TerminalContents } from '../terminal/ipc.ts';
 
 export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean }) {
   const store = shell.store;

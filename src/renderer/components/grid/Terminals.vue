@@ -12,8 +12,8 @@ import ButtonMenu from '../menu/ButtonMenu.vue';
 import RightClickMenu from '../menu/RightClickMenu.vue';
 import { store } from '../../lib/store';
 import { profileLaunchers } from '../../lib/profiles';
-import { launchers, newTerminalItems, tabItems, terminalMenu } from '../../lib/terminals';
-import { termFocus, termHost } from '../../lib/xterm';
+import { island, launchers, newTerminalItems, tabItems, terminalMenu } from '../../lib/terminals';
+import { termFocus } from '../../../terminal/renderer';
 import { avatarSrc, withKeys } from '../../lib/common';
 
 const props = defineProps<{ params: { api: DockviewPanelApi; containerApi: DockviewApi } }>();
@@ -24,16 +24,11 @@ const grid = props.params.containerApi, alone = ref(true);
 const count = () => { alone.value = grid.panels.length < 2; };
 const subs = [grid.onDidAddPanel(count), grid.onDidRemovePanel(count)];
 
-// The shown task's terminals in the panel, the one in front shown.
+// The window's one xterm in the panel, showing the terminal in front.
 function place() {
-  const el = root.value!;
-  const keys = store.terminals.list.map((t) => keyOf(t.id));
-  for (const host of [...el.querySelectorAll<HTMLElement>(':scope > .term')]) if (!keys.some((k) => termHost(k) === host)) host.remove();
-  for (const t of store.terminals.list) {
-    const host = termHost(keyOf(t.id));
-    if (host.parentElement !== el) el.append(host);
-    host.hidden = t.id !== store.terminals.front;
-  }
+  if (island.el.parentElement !== root.value) root.value!.append(island.el);
+  const front = store.terminals.list.find((t) => t.id === store.terminals.front);
+  island.show(front ? keyOf(front.id) : null);
 }
 
 // Folding: the island's group held at one button's size along the grid's axis it lies across (dockview's constraints),
@@ -71,7 +66,7 @@ watch(() => [store.terminals.task, store.terminals.front] as const, ([task, fron
   if (task === before && front !== was && front !== null) void termFocus(keyOf(front));
 }, { flush: 'post' });
 watch([folded, strip, alone], () => fold(strip.value), { flush: 'post' });
-onBeforeUnmount(() => { for (const s of subs) s.dispose(); for (const host of [...root.value!.children]) host.remove(); });
+onBeforeUnmount(() => { for (const s of subs) s.dispose(); if (island.el.parentElement === root.value) island.el.remove(); });
 
 // The buttons in an empty grid, each a Tab stop (Tab to the next, Enter opens it; the author, 2026-10-12): the first,
 // the project's default agent, gets the keyboard when the keyboard was in the terminal just closed or nowhere (not
@@ -86,7 +81,7 @@ watch(() => folded.value && alone.value, async (on) => {
 }, { immediate: true, flush: 'post' });
 
 const menu = (e: MouseEvent) => {
-  const host = (e.target as Element).closest('.term'), t = store.terminals.list.find((x) => host && termHost(keyOf(x.id)) === host);
+  const t = (e.target as Element).closest('.term') && store.terminals.list.find((x) => x.id === store.terminals.front);
   return t ? terminalMenu(keyOf(t.id), tabItems(t)) : null;
 };
 </script>

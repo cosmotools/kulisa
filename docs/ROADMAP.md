@@ -249,63 +249,19 @@ moves there over time: what has an issue is removed from here, the issue being t
   next to it (`locator('aria-ref=f2e20')`); its only option is the style (1.64), and the label is in a closed shadow
   root. The agent's label shows over the pane meanwhile. When Playwright lets the text be set, put the label there; not
   an outline of our own.
-- **A store of extensions** (the author's idea, 2026-10-06; on 2026-10-09 the author decided to design it next, with
-  voice commands as its first extension). Installs four kinds of things: agent plugins (Claude Code, Codex),
-  MCP servers, skills, and Kulisa extensions (code that extends the IDE: a panel and its tools).
-  - **Why** (the author): the project stays manageable to support. What not everyone needs (heavy dependencies, a
-    microphone always on, one service's panel) lives outside the core, installed by whoever wants it, and can be
-    turned off or removed. A feature built into the core first would have to be cut out of it later. The installer
-    stays small: an extension's native modules and models come with it.
-  - **The order** (decided 2026-10-09): first the store and the extension API are designed, on their own; then the
-    voice commands branch is rewritten as the first extension, which tests the API on real code. A second one
-    (Stripe, below) before the API is called stable: an API drawn from one example is usually wrong.
-  - **The first extension: voice commands**, a working prototype on the branch `worktree-voice-trigger` (worktree
-    `.claude/worktrees/voice-trigger`; tried by the author with their own voice, 2026-10-09: it works). With them
-    on, Kulisa listens for its name: "Эй, Кулиса" holds the agent's dictation key (the agent records and recognizes
-    the task itself), a pause lets go; "Кулиса, отправь" is Enter, "Кулиса, стоп" is Esc. The phrases are
-    recognized on the computer (sherpa-onnx's keyword spotter, a 30 MB model downloaded the first time, Silero VAD)
-    in a utility process alive only while they are on (about 100 MB). Why it fits an extension: a 32 MB native
-    module per platform, a downloaded model, an always-on microphone, and Russian only so far. In the core today it
-    touches: `app.ts` (its IPC, a `voiceModel` option), `tasks.ts` (`press`), the renderer's dictation (now
-    `Dictation.vue`, rewritten in Vue since: the branch's window part is to be redone), `forge.config.ts` (`asar.unpack` for the native module),
-    `package.json`, the tests' `run.ts` (Chromium's fake microphone). Its own files: `listen.js`,
-    `listen-worker.js`, the renderer's `listen.js` and `listen-worklet.js`, `test/unit/listen.test.ts`,
-    `test/fixtures/hey-kulisa.wav`. The branch's docs say how it works (`docs/window.md`, Voice commands) and what is
-    left (its ROADMAP, "Voice commands, rest").
-  - **Before it is installed** (the author's idea): the ear stays in the terminal's header; a click opens the store
-    at voice commands, with Install. So the core shows suggested extensions where they would be used.
-  - **The Kulisa plugin as a built-in extension**, on by default and not to be turned off (the author's idea,
-    2026-10-09; to decide when the store is designed). Claude's objection: the Kulisa plugin is the core's second
-    handle (the MCP tools call the same `Task` and `Profile` as the window), and the rules on it (the sign-in
-    pause, 127.0.0.1 only, `local-only.ts`) are the core's; as an extension the API would have to expose nearly the
-    whole core, and a boundary that cannot be turned off separates little. Proposed instead: extensions may add
-    MCP tools and lines to the skill (Stripe needs it), and the Kulisa plugin stays in the core.
-  - **What the API should give, as voice commands need it** (Claude's list, for rewriting the branch):
-    - A manifest: id, name, version, description; its main-process entry and its window module; what it adds to
-      the window; what it uses (the microphone, the network, MCP tools), shown before Install; its platforms when it
-      has native code.
-    - Main process: `activate(kulisa)` and `deactivate()`, without a restart (turned off, its processes end and its
-      button goes). The windows and the task each shows, with an event when that changes. The core's actions
-      only, never a terminal's pty: `dictate(on)`, `press(key)`, `voice()` (the agent's dictation), as the window's
-      and the agent's handles call them (CLAUDE.md, "One core"). Its own data folder (`<data>/extensions/<id>/`),
-      removed with it ("Nothing piles up"). `utilityProcess.fork` of its own files, ended by Kulisa when it is
-      turned off. Its own IPC channels (`ext:<id>:…`) between its two halves. A download with a SHA-256 check, for
-      models. A log line prefix.
-    - Window: places to add to: the terminals' row (by the dictation's microphone), ☰, a panel in the grid (Stripe); its icons
-      added to the sprite; the window's components (`.icon`, `ButtonMenu.vue`, `Modal.vue`, `ask`; [ui.md](ui.md)) rather than its own; its module
-      loaded with `import()` when it is turned on. The microphone for the window only for an extension that asked
-      for it (today the window's session grants media to all of its own pages).
-    - MCP: tools added to every task's server and lines to the skill, behind `local-only.ts` as the others.
-    - Native modules: N-API only (no rebuild per Electron version); the store downloads the platform's package
-      (sherpa-onnx-node's per-platform packages) and keeps it outside the asar.
-    - Tests: an extension's unit tests in plain Node, and e2e in the same harness (`run.ts`), with switches it needs
-      (the fake microphone) and a cache of its downloads in the tests' folder.
-    - Development: an extension loaded from a folder (as `claude --plugin-dir`), restarted when its files change.
-  - Other extensions:
-    - **Stripe:** a panel with the project's test-mode events and webhooks, test cards in one click; tools for the
-      agent to read events and trigger them ("the buyer pays, the seller sees the order").
-    - **Feature flags** (LaunchDarkly, Unleash, GrowthBook, PostHog): each profile's flags in a panel, switched
-      per profile; a tool for the agent to set them, to check a feature with the flag on and off, per role.
+- **A store of extensions** (the author's idea, 2026-10-06). Installs four kinds of things: agent plugins (Claude Code,
+  Codex), MCP servers, skills, and Kulisa extensions: features of the IDE that not everyone needs (a heavy
+  dependency, a model to download, a microphone always on, one service's panel), installed, turned off and removed by
+  the user. Not a Kulisa package: that is built in ([packages.md](packages.md)). Ideas for extensions:
+  - **Voice commands**: "Эй, Кулиса" holds the agent's dictation key, "Кулиса, отправь" is Enter, "Кулиса, стоп" is
+    Esc; recognized on the computer (sherpa-onnx's keyword spotter, a 30 MB model, Silero VAD) in a utility process
+    alive only while they are on. A working prototype on the branch `worktree-voice-trigger` (tried by the author,
+    2026-10-09), its window part to be redone in Vue. Before it is installed, its icon could stay by the dictation's
+    microphone, opening the store at it.
+  - **Stripe:** a panel with the project's test-mode events and webhooks, test cards in one click; tools for the
+    agent to read events and trigger them ("the buyer pays, the seller sees the order").
+  - **Feature flags** (LaunchDarkly, Unleash, GrowthBook, PostHog): each profile's flags in a panel, switched per
+    profile; a tool for the agent to set them, to check a feature with the flag on and off, per role.
 - **A right-click menu in pages** (copy, paste, open a link in a new tab of the profile, Inspect Element). Tried with
   electron-context-menu (a native GTK menu) on 2026-10-05 and removed: on Ubuntu GNOME (X11) a right-click in a page
   froze the whole desktop, twice (gnome-shell logged a menu window at a NaN position holding the pointer and keyboard
@@ -357,7 +313,7 @@ moves there over time: what has an issue is removed from here, the issue being t
 
 - **The grid in a small window** (not decided; the window's own minimum is built: window.md, "The window's size"). When the panes do not fit,
   dockview overflows and cuts them, the profiles' native views get boxes near 0, and the terminal may get 0 columns
-  (`pty.resize` is in a `try` in `src/main/terminal.ts`, but the agent's CLI draws garbage at a tiny size). Ways to weigh:
+  (`pty.resize` is in a `try` in `src/terminal/main/index.ts`, but the agent's CLI draws garbage at a tiny size). Ways to weigh:
   panes shrink to a `minimumWidth` per panel (dockview) and views too small to use are hidden, or a narrow grid
   turns into tabs.
 
@@ -378,7 +334,7 @@ moves there over time: what has an issue is removed from here, the issue being t
     [profiles.md](profiles.md), What sites see): check on Linux and Windows.
   - The sandbox on Linux, packaged: the `.deb` installs `chrome-sandbox` setuid root; the unpacked `out/` folder needs
     `--no-sandbox` to try it. Other Linux formats (AppImage, rpm, snap) are not set up.
-  - Starting the agent (`terminal.ts`; on Linux and macOS typed into the user's shell: [tasks.md](tasks.md),
+  - Starting the agent (`src/terminal/main/`; on Linux and macOS typed into the user's shell: [tasks.md](tasks.md),
     Projects, "An agent"):
     - Windows: the agent starts directly, without a shell, so no project environment; `claude` from npm is a
       `.cmd` that node-pty may not find. Proposed: type it into PowerShell (`pwsh -NoExit`, falling back to
@@ -389,6 +345,8 @@ moves there over time: what has an issue is removed from here, the issue being t
       serve them too, and `terminal_stop`'s Ctrl+C in cmd asks "Terminate batch job?". Closing a task and opening it
       again (`claude --resume`) and the project folder dialog (New Project…'s Browse…): untested.
   - `safeStorage` (DPAPI) for session cookies on Windows: untested.
+  - One xterm a place ([window.md](window.md), The terminal): the RAM it saves where the GPU's memory is the RAM (a
+    Mac's, a laptop's integrated GPU): measured on Linux with a GeForce only (the video memory 472 → 178 MB, 20 terminals).
   - Dictation (the right ⌘ held, or the terminals' microphone): the agent records itself. macOS: signed with the
     hardened runtime, the packaged app also needs the `com.apple.security.device.audio-input` entitlement. Windows: the microphone privacy setting for
     desktop apps; the right Ctrl of a keyboard with AltGr (it sends a Ctrl before AltGr on Windows: check that a typed
@@ -410,7 +368,7 @@ moves there over time: what has an issue is removed from here, the issue being t
     opens on the release: that it opens at the pointer and the release does not choose a row (`MenuButton.vue` takes
     the left button only); press, drag and let go on a row; a window's blur closing a menu. On every OS: Esc in a
     field edited in place (a profile's name) not closing its dialog; Select's list over a dialog.
-  - Copy and paste in the terminal (`clipboardKey` in `terminal.ts`) on Windows: Ctrl+V pastes once, Ctrl+C copies a
+  - Copy and paste in the terminal (`clipboardKey` in `src/terminal/renderer/`) on Windows: Ctrl+V pastes once, Ctrl+C copies a
     selection and interrupts without one.
   - Several windows (Move to New Window): a profile's native views moved from one window to another, and a window's
     place restored (`getNormalBounds`, maximized); checked on Linux/X11 only. Dragging a task's tab out of its window: tested
@@ -437,31 +395,6 @@ moves there over time: what has an issue is removed from here, the issue being t
     reopened profile's sites is slower (no cache), which matters little for profiles set aside.
 - **The agent gets a passing size when its task moves to a new window** (found 2026-10-13, on the runner: the
   test above). The new window's page fits the terminal as soon as it opens, at the whole window's height (46 rows),
-  and again once its grid is laid out (17): both go to the agent (`pty:resize`, `renderer/lib/xterm.ts`), which
+  and again once its grid is laid out (17): both go to the agent (`pty:resize`, `src/terminal/renderer/`), which
   draws its prompt for each. A fix: fit only once the grid has laid out; the test then refuses a passing height as it
   does a width (`__ptySizes`).
-- **The GPU renderer only on terminals in sight** (discussed with the author 2026-10-09; the author builds it later).
-  Today every terminal loads xterm's WebGL addon when made (`makeTerminal` in `src/renderer/lib/xterm.ts`), hidden ones
-  too (other tasks and projects, terminals behind another tab of their island): each keeps a WebGL context and its
-  glyph atlas. With several agents in a task (each a terminal) the limit below comes sooner.
-  Chromium keeps at most 16 contexts per page; the 17th takes the oldest one's, and that terminal falls back to the DOM
-  renderer for good (`onContextLoss`), drawing slower. Nothing breaks: at about 5 projects × 3 tasks it starts.
-  - The fix: a terminal gets the WebGL addon when it comes into sight and disposes of it when hidden (its tab in front
-    of the shown task's island: `Terminals.vue`, `place`), so only the terminals on screen hold a context.
-    The buffer (the text, scrollback) is untouched: it is xterm's, not the renderer's. About 15 lines. Test
-    (`test/window.ts`, next to "GPU renderer"): the shown terminal is `webgl`, a hidden one has none and gets it back
-    when shown; `window.__termRenderer` reports the shown one already.
-  - Measured 2026-10-09 (bare Electron 44 with the same xterm 6.0.0, addons and options; 173×43, scrollback full;
-    Xvfb, so the GPU was software (llvmpipe) and its memory is RAM there). GPU process now → with the fix: 5
-    terminals 85 → 37 MB, 10: 155 → 47, 20: 228 → 47 (4 contexts lost), 30: 243 → 54 (14 of 30 fell back to DOM).
-    The window's renderer barely changes (10: 96 → 92 MB): most of a terminal's memory is its buffer, about 5 MB with
-    a full scrollback. Cost: showing a terminal takes ~35 ms more (69 ms instead of 33: a context and an atlas
-    made again). The author had 4 terminals then: a gain of ~25 MB, so not urgent. To check on a real GPU when
-    built: the switch's time and the video memory.
-  - Not chosen: **one xterm for all terminals**, switched between tasks as YouTube reuses one player (the
-    author's idea). A player keeps no state (the video is on the server); a terminal's state is its buffer, kept only
-    in xterm (the pty in the main process passes bytes on; since 2026-10-12 a shell's screen is kept there too, its
-    last 500 lines for `terminal_read`, not an agent's: window.md, The terminal). It would have to live elsewhere anyway (`@xterm/headless`
-    per pty: the same memory, plus serializing and writing it again at every switch, losing the scroll position and
-    the selection; or the raw output replayed: a log that grows, slow for a long session), and several terminals are
-    on screen at once (other windows). VS Code too keeps an xterm per terminal.
