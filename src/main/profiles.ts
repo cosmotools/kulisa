@@ -417,6 +417,14 @@ class Profile extends EventEmitter {
     if (t.wc.isDevToolsOpened()) t.wc.closeDevTools();
     else t.wc.openDevTools({ mode: 'detach', title: `${this.name} · DevTools` });
   }
+  // The element at a point of the tab's page in its DevTools (the page's right-click menu, Inspect): opened first as
+  // toggleDevTools opens them, else inspectElement opens them in its own way.
+  inspect(id: string, x: number, y: number) {
+    const t = this.get(id);
+    if (!t || t.discarded) return;
+    if (!t.wc.isDevToolsOpened()) t.wc.openDevTools({ mode: 'detach', title: `${this.name} · DevTools` });
+    t.wc.inspectElement(x, y);
+  }
 
   // Where the window's grid puts the pane's page; { shown: false } when the pane is not on screen.
   layout({ shown = true, ...bounds }: Partial<Bounds> & { shown?: boolean }) {

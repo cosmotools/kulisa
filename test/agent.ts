@@ -16,6 +16,7 @@ const CLAUDE_PLUGIN = path.join(AGENT_PACKAGES, 'claude-plugin');
 import { MARK } from '../src/main/kulisa-plugin/ghost.ts';
 import { hookCommand } from '../src/main/agents/agent.ts';
 import { highlights } from '../src/main/kulisa-plugin/mcp-server.ts';
+import { shownMenu } from '../src/main/page-menu.ts';
 import type { Test } from './run.ts';
 import type { StoredProfile } from '../src/main/profile-store.ts';
 
@@ -726,6 +727,59 @@ export default (test: Test) => {
     await waitFor(async () => elon.active === tab && (await disabled()));
     elon.closeTab(tab);
     await waitFor(async () => !(await disabled()));
+  });
+
+  test("a right-click in a page shows Chrome's menu for what is under it; a site's own menu stays the site's; the agent's right-click opens none", async ({ shell }) => {
+    const elon = shell.profiles.get('elon-buyer');
+    const page = await elon.page();
+    await page.goto(`${SITE}/menu`);
+    const wc = elon.get().wc;
+    const at = async (sel: string) => { const b = await page.locator(sel).boundingBox(); return { x: Math.round(b.x + b.width / 2), y: Math.round(b.y + b.height / 2) }; };
+    // The human's right-click: as the mouse sends it, through the window.
+    const rightClick = async (sel: string) => {
+      const { x, y } = await at(sel);
+      wc.sendInputEvent({ type: 'mouseMove', x, y });
+      wc.sendInputEvent({ type: 'mouseDown', x, y, button: 'right', clickCount: 1 });
+      wc.sendInputEvent({ type: 'mouseUp', x, y, button: 'right', clickCount: 1 });
+    };
+    const rows = () => shownMenu().rows.map((r) => ('id' in r ? r.id : 'role' in r ? r.role : '-'));
+    const close = async () => { shownMenu().menu.closePopup(shell.win); await waitFor(() => !shownMenu()); };
+    const choose = (label: string) => shownMenu().menu.items.find((i) => i.label === label).click();
+
+    await rightClick('#link');
+    await waitFor(() => !!shownMenu());
+    assert.deepEqual(rows(), ['link.open', 'link.copy', '-', 'pick', 'screenshot', '-', 'inspect']);
+    const tabs = elon.tabs.length, active = elon.active;
+    choose('Open Link in New Tab'); // the row's action, as its click: the menu itself stays until closed
+    await close();
+    await waitFor(() => elon.tabs.length === tabs + 1);
+    const opened = elon.tabs.at(-1);
+    assert.equal(elon.active, active, 'opened behind, as Chrome does');
+    await waitFor(() => opened.url === `${SITE}/app`);
+    elon.closeTab(opened.id);
+
+    await rightClick('#field');
+    await waitFor(() => !!shownMenu());
+    assert.deepEqual(rows(), ['undo', 'redo', '-', 'cut', 'copy', 'paste', 'selectAll', '-', 'pick', 'screenshot', '-', 'inspect']);
+    await close();
+
+    await rightClick('#blank');
+    await waitFor(() => !!shownMenu());
+    assert.deepEqual(rows(), ['tab.back', 'tab.forward', 'tab.reload', '-', 'pick', 'screenshot', '-', 'inspect']);
+    assert.deepEqual(shownMenu().menu.items.slice(0, 2).map((i) => i.enabled), [true, false], 'Back after a page, no Forward');
+    await close();
+
+    // A site with a menu of its own (Teams, Google Docs) keeps it: Chromium asks for none.
+    await rightClick('#own');
+    await waitFor(async () => (await page.locator('#own').textContent()) === 'its own menu');
+    await sleep(300); // nothing to wait for: that no menu comes
+    assert.ok(!shownMenu(), 'none over a site\'s own menu');
+
+    // The agent's right-click (Playwright, as its own scripts may do) opens nothing that would hold the human's pointer.
+    await page.locator('#link').click({ button: 'right' });
+    await sleep(300); // nothing to wait for: that no menu comes
+    assert.ok(!shownMenu(), 'none for the agent');
+    await page.goBack(); // where the later tests expect it: /errors
   });
 
   // task_history (history.ts): the task's runs read from their transcripts, for an agent taking the task over or one

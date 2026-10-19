@@ -20,6 +20,7 @@ import { AGENTS, findAgent, signOut } from './agents/index.ts';
 import { onEscape, stopTerminal } from '../terminal/main/index.ts';
 import { startMcpServer } from './kulisa-plugin/mcp-server.ts';
 import { installPicker } from './picker.ts';
+import { installPageMenu } from './page-menu.ts';
 import { installGhost } from './kulisa-plugin/ghost.ts';
 import { startDiscarding } from './discard.ts';
 import { installMasters } from './master.ts';
@@ -154,6 +155,14 @@ function start(options: Options = {}) {
   shell.taskByKey = (key) => { for (const p of shell.open.values()) { const task = p.taskByKey(key); if (task) return task; } return null; };
   // The window a page's message comes from (IPC: event.sender).
   shell.windowOf = (sender) => shell.windows.find((w) => !w.win.isDestroyed() && w.win.webContents === sender) || null;
+  // A profile's tab by its page, of a task shown in a window (its keys, its right-click menu).
+  shell.tabOf = (wc) => {
+    for (const w of shell.windows) for (const profile of w.profiles.values()) {
+      const tab = profile.tabs.find((t) => t.wc === wc);
+      if (tab) return { w, profile, tab };
+    }
+    return null;
+  };
   const at = (e: IpcEvent) => shell.windowOf(e.sender);
   // The tasks' window a message is about: its own, or for Settings (settings-window.ts) the tasks' window last in front:
   // its shown task's project and folder. Where a question about it is asked: in the window it came from, Settings' too.
@@ -332,6 +341,7 @@ function start(options: Options = {}) {
     await windows[0]!.w.load(windows[0]!.shown);
     shell.mcp = await startMcpServer(shell, { port: options.mcpPort ?? 4450 });
     installPicker(shell);
+    installPageMenu(shell);
     installGhost(shell);
     installMasters(shell, { preload: path.join(import.meta.dirname, '..', 'preload', 'index.cjs'), colors: () => COLORS[shell.shade()] });
     installSettings(shell, { preload: path.join(import.meta.dirname, '..', 'preload', 'index.cjs'), appDevTools });

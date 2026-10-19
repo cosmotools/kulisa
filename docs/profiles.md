@@ -211,7 +211,7 @@ methods; who a profile is changes and is checked in the store (`ProfileStore.ren
 | Back, forward, reload | the toolbar, tab menu, their keys | `browser_navigate` with `go` (Playwright, so it is shown) | `Profile.back`, `forward`, `reload`; the history's `canGoBack` |
 | Reload, not from the cache | Ctrl+Shift+R | none yet: a gap, when an agent needs it | `Profile.reload` with `ignoreCache` |
 | Zoom a site | Ctrl + / − / 0 | none: how the human sees the page | `Profile.zoomSite` |
-| DevTools | ⋮, F12 | none: the agent has console and network tools | `Profile.toggleDevTools` |
+| DevTools | ⋮, F12; Inspect in a page's right-click menu (at the element) | none: the agent has console and network tools | `Profile.toggleDevTools`, `inspect` |
 | Point at an element | Pick, Ctrl+Shift+C (into the agent's prompt) | `browser_highlight` (outlined for the human) | `picker.ts`; the MCP server |
 | Read a page | looks at it | `browser_snapshot`, `browser_screenshot`, console, network | Playwright |
 | Take a screenshot (an element, the visible part, the whole page) | ⋮ → Screenshot, Ctrl+Shift+S (an element); to the clipboard and the OS's folder of screenshots | `browser_screenshot` (`ref`/`locator`, `fullPage`, `also`) | `Profile.screenshot`, the screenshots' Kulisa package ([README](../src/screenshots/README.md)) |
