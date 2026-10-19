@@ -63,14 +63,22 @@ Run from a terminal, as anywhere; what differs there (2026-10-16):
   motion, and the tests of a tab growing in and the grid's slide waited for what never moved there. Reduced motion is
   checked where Kulisa does something else for it, emulated (`Emulation.setEmulatedMedia`).
 
-What the tests cannot do there was checked by hand on the author's Mac (macOS 15, Apple silicon; 2026-10-16 and 17),
+What the tests cannot do there was checked by hand on the author's Mac (macOS 15, Apple silicon; 2026-10-16 to 19),
 and is not checked again until something it depends on changes (an OS, an Electron, the part's code):
 
 - **The agent in the user's zsh** (`startTerminal` run alone in Electron, with their `.zshrc`): with no `SHELL` and the
   system's `PATH`, as from the Dock, the login zsh finds `claude`; direnv's hook loads the project's `.envrc`, and the
   account's `CLAUDE_CONFIG_DIR` typed before the command wins over the one it sets; arguments with spaces, `'`, `$`,
   `*`, `!` and JSON arrive as they were; the shell stays after the agent exits. A task closed and opened again resumes
-  its conversation (`claude --resume`).
+  its conversation (`claude --resume`). fish 4.9, the command typed as `startTerminal` types it behind a headless
+  xterm (fish asks the terminal and waits for its answer: in a bare pty it never reads a line): spaces, `'`, `$`,
+  `*`, `!`, JSON and a pinned `VAR=…` arrive as they were; the shell stays.
+- **Agents**: Codex installed by Kulisa (its maker's installer, 0.163.0) and signed in to a real account; its tools
+  from Kulisa's MCP server (`/mcp`: `kulisa`, connected). Claude Code's account signed in to again, refused as one
+  already there: `auth logout` removed its Keychain entry (`Claude Code-credentials-<the first 8 hex digits of
+  SHA-256 of its folder>`; the kept account's stays).
+- **Ctrl+V in a terminal** reaches Claude Code: an image on the clipboard (⌃⇧⌘4; ⇧⌘4 saves a file, no image there)
+  comes in as `[Image #n]`.
 - **Sign-ins**: Google, GoDaddy and Microsoft (profiles.md, What sites see); session cookies encrypted with the
   Keychain (`safeStorage`: Chromium's `v10`, "kulisa Safe Storage").
 - **Pages**: Teams' takes every click, its top strip too (the drag regions' workaround in: Upgrading Electron,
@@ -86,7 +94,10 @@ and is not checked again until something it depends on changes (an OS, an Electr
   click (window.md, The title bar); the bar's empty part drags the window and a double click zooms it; New Project's Browse… is the system's folder dialog.
 - **A build made there** (`npm run package`, unsigned, ad hoc): it starts by `open`; the first start is the empty
   window with the welcome; the Kulisa plugin and the skill sit outside the asar, node-pty's `spawn-helper` is
-  executable, the icon is Kulisa's.
+  executable, the icon is Kulisa's. Started again on the author's data, several times: the task shown before
+  comes back with its terminals, the one in front too, Claude Code and Codex resuming their conversations, a shell
+  with nothing running; the right ⌘ held asks macOS for the microphone for
+  Kulisa, and dictation then types.
 - Screenshots of a Kulisa started by `open` need the permission on Electron.app itself: macOS took it back when
   Electron was upgraded (ad hoc signed, a new binary is a new app to it), and it was granted again.
 

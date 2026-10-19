@@ -27,8 +27,7 @@ moves there over time: what has an issue is removed from here, the issue being t
     - "Sign in with Google" on a local app: the human signs in once to a test Google account in the profile's
       master, and the agent goes the whole way itself (account chooser, consent) with no sign-in pause on that path,
       never typing a Google password. The pause part goes into the author's replacement of `signin-pause.ts`.
-    - Agents' accounts: the sign-in tried with a real Claude account (the tests use a fake agent); whether Claude
-      Code's Keychain entry on macOS goes with `auth logout` (a macOS check). Codex's is shown by its id: `codex
+    - Agents' accounts: Codex's is shown by its id: `codex
       login status` does not say the email (it is in `auth.json`'s token, which Kulisa does not read).
   - **Put off**: ongoing tasks ("watch the feedback for a month") with Kulisa kept in the tray (none in GNOME by
     default); rights on profiles, when real accounts come (one flag, "view only": reading allowed, clicks and typing
@@ -122,18 +121,16 @@ moves there over time: what has an issue is removed from here, the issue being t
   - Codex (0.160.1, tried by the author 2026-10-12): not tried the sign-in pause, a project without git, Windows (the
     hooks' command is sh's: `commandWindows` for PowerShell).
   - More agents (Gemini CLI, …): an entry each in `agents/`.
-  - Windows: the installers run in PowerShell, untested. macOS: the installers untested (what was checked by hand
-    there: [testing.md](testing.md), "On macOS").
+  - Windows: the installers run in PowerShell, untested. macOS: Claude Code's installer untested.
 - **Tasks, rest** (how they work now, and why: [tasks.md](tasks.md)).
   - The agent's state on the task tab for CLIs without hooks (Claude Code's and Codex's report it), e.g. from MCP
     calls and terminal output (working while they come, idle after a quiet while). After a permission answered, both
     show waiting until a tool finishes (no hook says it was answered): a long command run after it shows waiting.
-  - To check with Claude Code in a task's copy (the tests run `cat` as the agent): the hooks (session, state),
-    `--resume` after a restart, `task_rename` called by Claude Code.
+  - To check with Claude Code in a task's copy (the tests run `cat` as the agent): the state hooks, `task_rename`
+    called by Claude Code.
   - Other tools that, like direnv, want a folder allowed before they apply (mise's `trust`): not handled yet.
   - Windows: copying an open profile (locked files are skipped and logged), removing a deleted task's profile
-    folders while their sessions are open (left for the next start): untested there. macOS: the agent in the user's
-    zsh and `--resume` checked by hand ([testing.md](testing.md), "On macOS"), the rest untested.
+    folders while their sessions are open (left for the next start): untested there.
   - A task's start point is the remote's default branch: local commits not pushed yet are not in it (as with Claude
     Code's `--worktree`). If that surprises, an option as Claude's `worktree.baseRef: "head"`.
   - The agent making tasks itself (an MCP tool on `Project.createTask`), e.g. to hand parallel parts of a task to
@@ -197,7 +194,7 @@ moves there over time: what has an issue is removed from here, the issue being t
     "Closed · Undo" for a few seconds, and Ctrl+Z brings it back. Deleting (a task, a profile with its sign-ins) is
     for good and keeps its question.
   - **Dragging from the system**: a folder from the file manager onto Kulisa opens it as a project; a link onto a
-    profile's pane opens it in a tab there; a file onto the terminal types its path, as terminals do.
+    profile's pane opens it in a tab there.
 - **Releases and auto-update, rest** (built: [window.md](window.md), "The app icon, installers and updates").
   - **macOS** only once signed and notarized (Squirrel.Mac does not update an unsigned app): `.dmg` and `.zip`, x64
     and arm64. The author has no Apple Developer account yet: an Individual one ($99 a year), then a Developer ID
@@ -330,7 +327,7 @@ moves there over time: what has an issue is removed from here, the issue being t
   opens the same profile in the installed Google Chrome with the same tabs and sign-ins, and the storage layout
   is simply Chrome's. Wanted natively, without workarounds, so deferred until there is a clean way. Why it does
   not work as a shared folder today:
-  - Cookies are encrypted with different keys: Chrome's "Chrome Safe Storage" vs Electron's "Kulisa Safe
+  - Cookies are encrypted with different keys: Chrome's "Chrome Safe Storage" vs Electron's "kulisa Safe
     Storage" (keyring, Keychain); on Windows, Chrome 127+ also binds cookies to Chrome itself (App-Bound
     Encryption). Only Linux with `--password-store=basic` on both sides would share a key.
   - Chromium versions differ (Electron's vs the installed Chrome); each side may migrate the databases into a
@@ -376,15 +373,15 @@ moves there over time: what has an issue is removed from here, the issue being t
      is refused by Gatekeeper and does not update, and kulisa.app says "coming soon" for macOS.
 
   Known gaps:
-  - Drag regions left by a page ([testing.md](testing.md), Upgrading Electron): seen on Linux, not on macOS. Windows: open Teams
-    in a pane and click its page.
+  - Drag regions left by a page ([testing.md](testing.md), Upgrading Electron) on Windows: open Teams in a pane and
+    click its page.
   - Signing in to Google, GoDaddy (Kasada) and Microsoft with the User-Agent without `Electron/<version>` (2026-10-16,
     [profiles.md](profiles.md), What sites see): check on Linux and Windows.
   - The sandbox on Linux, packaged: the `.deb` installs `chrome-sandbox` setuid root; the unpacked `out/` folder needs
     `--no-sandbox` to try it. Other Linux formats (AppImage, rpm, snap) are not set up.
   - Starting the agent (`terminal.ts`): on Linux and macOS it is typed into the user's shell started in the
     project's folder, so the project's environment applies (direnv's `.envrc`, nvm, mise) and `PATH` is the
-    user's even when Kulisa was started from a menu. macOS: fish not checked.
+    user's even when Kulisa was started from a menu.
     - Windows: the agent starts directly, without a shell, so no project environment; `claude` from npm is a
       `.cmd` that node-pty may not find. Proposed: type it into PowerShell (`pwsh -NoExit`, falling back to
       `powershell.exe`) in the project's folder, as on the other systems: the PowerShell profile applies, `.cmd`
@@ -394,14 +391,13 @@ moves there over time: what has an issue is removed from here, the issue being t
       serve them too, and `terminal_stop`'s Ctrl+C in cmd asks "Terminate batch job?". Closing a task and opening it
       again (`claude --resume`) and the project folder dialog (New Project…'s Browse…): untested.
   - `safeStorage` (DPAPI) for session cookies on Windows: untested.
-  - Dictation (the right ⌘ held, or the terminals' microphone): the agent records itself. macOS packaged: that the
-    system asks for the microphone for Kulisa (`NSMicrophoneUsageDescription` in `forge.config.ts`); signed with the
-    hardened runtime it also needs the `com.apple.security.device.audio-input` entitlement. Windows: the microphone privacy setting for
+  - Dictation (the right ⌘ held, or the terminals' microphone): the agent records itself. macOS: signed with the
+    hardened runtime, the packaged app also needs the `com.apple.security.device.audio-input` entitlement. Windows: the microphone privacy setting for
     desktop apps; the right Ctrl of a keyboard with AltGr (it sends a Ctrl before AltGr on Windows: check that a typed
     AltGr character does not start a recording).
   - Distribution to users needs code signing: macOS with notarization (the second macOS goal, above), Windows a
     certificate.
-  - A packaged app's later starts (the windows' tasks open as they were left) and an agent started in a task of it: untested packaged. Its
+  - A packaged app's later starts and an agent started in a task of it: untested packaged on Linux and Windows. Its
     update check fails while there is no release for its OS ("The server sent an invalid response" on macOS) and is
     only logged.
   - The one-row title bar (`titleBarStyle: 'hidden'` + `titleBarOverlay`, Window Controls Overlay): the window
@@ -419,7 +415,7 @@ moves there over time: what has an issue is removed from here, the issue being t
     the left button only); press, drag and let go on a row; a window's blur closing a menu. On every OS: Esc in a
     field edited in place (a profile's name) not closing its dialog; Select's list over a dialog.
   - Copy and paste in the terminal (`clipboardKey` in `terminal.ts`) on Windows: Ctrl+V pastes once, Ctrl+C copies a
-    selection and interrupts without one. macOS: Ctrl+V reaching the agent.
+    selection and interrupts without one.
   - Several windows (Move to New Window): a profile's native views moved from one window to another, and a window's
     place restored (`getNormalBounds`, maximized); checked on Linux/X11 only. Dragging a task's tab out of its window: tested
     with synthetic events only, not yet by hand; a tab let go outside the windows is told from a cancelled drag by where the
@@ -429,12 +425,11 @@ moves there over time: what has an issue is removed from here, the issue being t
     checked by the tests only, not by changing the OS's setting by hand; Windows untested.
   - Tests run often on Linux only; on macOS and Windows before a release (the author's decision, 2026-10-09). The CI
     runs them on all three at every pull request into `develop` or `main` ([testing.md](testing.md), CI); Windows not failing the
-    workflow until the bench passes there (macOS does since 2026-10-16): its job hangs and is cancelled at its
+    workflow until the bench passes there: its job hangs and is cancelled at its
     timeout every run (2026-10-18; `continue-on-error`, so it marks nothing red); the author adapts Kulisa to Windows
     next (2026-10-18: a day or two). On a computer they run on the human's
     screen there (Xvfb is Linux's), taking its focus.
-    The test bench was made on Linux; adapted on each OS where it can be run (the author's decision, 2026-10-08). macOS:
-    passes since 2026-10-16 (on the author's Mac, twice in a row; [testing.md](testing.md), "On macOS"). Known for Windows:
+    The test bench was made on Linux; adapted on each OS where it can be run (the author's decision, 2026-10-08). Known for Windows:
     - Windows: the agent is `bash -c '… exec cat -v'` with a `bashrc` (`test/run.ts`), the fake agent's installer is
       `sh` only (`printf`, `chmod`; the real agents have a `win32` one), the hooks' test runs commands with `bash`
       (`test/agent.ts`). A Node script as the agent would run everywhere.
