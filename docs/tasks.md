@@ -23,10 +23,8 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
 - **The tasks' bar**: a tab per open task, in the bar's order, tasks of any projects side by side: its project's
   icon (its site's favicon, or the app's curtain in the project's color, as a browser's tab shows its site's), its
   agent's state (below), its name, ×; the project's name in its tooltip. A click on any shows it; the
-  others keep running, their agents and pages. The bar is in the middle under the grid, where the hand goes for the
-  terminal anyway, or in the title bar after the logo, as a browser's tabs (☰ → Tasks bar: Top, Bottom; saved). The
-  tabs are Firefox's: rounded rectangles apart from the grid, the shown one filled, as big as a browser's
-  ([window.md](window.md), The tasks' bar).
+  others keep running, their agents and pages. Where the bar is and how its tabs look: [window.md](window.md), The
+  tasks' bar.
   - **Nothing in it moves** when another task is shown: every tab keeps its width (the room of its ×).
     Tabs that moved under the mouse made the human miss (the author, 2026-10-08).
   - **The middle button on a tab closes the task**, as a browser's tab.
@@ -96,8 +94,7 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   what Save and Cancel were for); the name on Enter or leaving its field, also when the manager closes or another
   project is chosen with one typed. Decided with the author on 2026-10-10, when a project became the configuration its tasks are made
   from: the menu and the Welcome screen (JetBrains' way, 2026-10-07) showed no project's configuration without opening
-  it. A dialog, not a window of the OS, no process more, until 2026-10-16: a window of its own then (the author: as a
-  desktop app's, the pages not hidden under it), its process only while it is open.
+  it.
 - **New Project**, in three steps (the author, 2026-10-17: a newcomer went through five steps in three places, New
   Project, Settings' agents and profiles, the bar's +, with nothing saying what came next): **Code**, **Agents**,
   **Profiles**, then Create, which makes the project with them and opens its first task. Next checks a step as Create
@@ -314,16 +311,13 @@ Example: the project `~/IdeaProjects/myshop`, its second task, named "Checkout-r
 ## What the human does
 
 - **Its tab** in the tasks' bar: its project's icon, the agent's state as an icon
-  (working, waiting for you, done; from its hooks: "Choosing the agent"), its name. A click shows that task: the grid
-  slides towards its tab, the pages as pictures meanwhile, live again once the new grid is laid out (Projects,
+  (working, waiting for you, done; from its hooks: "Choosing the agent"), its name. A click shows that task (the slide: Projects,
   above). The one left keeps running.
 - **The bar's +** (a project's + in its column; Ctrl+Shift+N, or New Task in the project's submenu, for the shown task's or
   that project) makes a task at once, no dialog,
   from the project's configuration alone, nothing taken from the task on screen: the human describes the task to its
   agent in the terminal. It runs the project's default agent; with none, the terminal only, nothing asked ("Choosing the agent"). **No profile opens by itself**, the first task's
-  neither: all the project's are listed closed, and the agent opens one when it needs it (`profile_open`), the human
-  from a tile over the terminal while none is open ([window.md](window.md), The grid) or the task's tab's right-click
-  menu; each a copy of its master made then ([profiles.md](profiles.md)). Decided with the author on 2026-10-10:
+  neither ([profiles.md](profiles.md), What a profile is). Decided with the author on 2026-10-10:
   a task opened those open in the task on screen before (the first one all), each a browser's processes and memory
   whether the task needed it or not.
 - **×** on a task's tab closes it: its agent stops, its tabs close; its code, branch, profiles and conversation stay,
@@ -468,8 +462,6 @@ are not programmers); its accounts are made there too, or in a project's page.
     naming the projects that let go of it): signed out with its agent's own command (`auth logout`: what it keeps
     outside its folder goes too, the Keychain's entry on macOS), then its folder, with its sign-in, settings and
     conversations.
-  The task's account wins over the project's own environment (a `.envrc` setting `CLAUDE_CONFIG_DIR`): its variable
-  is typed with the agent's command ("The agent", above).
 - The dialogs are part of the window, not windows of their own: no extra process. `AgentPicker.vue` (choosing) and
   Settings → Agents (`AgentPage.vue`, its state kept by Settings, so an install goes on behind a project's page and
   Settings stays open while it runs) share the state of one list of agents with Install (`lib/agents.ts`), each with
@@ -653,8 +645,10 @@ asks where it is or what takes the disk; nothing in it is for editing by hand, s
 
 ```
 projects.json                     the projects: id, name, folder, repos, color (the one it has while its favicon gives none), agents (accounts, the default first), noDefaultAgent
-profiles.json                     the profiles, one store: who each is, its projects, a test user's pair (profiles.md)
-profiles/Profile <k>/             a profile's master, where the human signs in once for every task
+profiles.json                     the profiles, one store (profiles.md): { next, list: [{ id, name, avatar, description,
+                                  folder, projects, login }] }
+profiles/Profile <k>/             a profile's master, a Chromium profile, where the human signs in once for every task;
+                                  kept in no project too, gone when the human deletes the profile (Settings → Profiles)
 agents.json                       the agents' accounts (accounts.ts): { next, list: [{ id, agent, email, folder, projects }] }
 agents/<agent>-<n>/               an account's config folder (CLAUDE_CONFIG_DIR, CODEX_HOME): its sign-in, settings,
                                   conversations; Kulisa's profiles skill (skills/kulisa-profiles/) and Claude Code's
@@ -775,8 +769,6 @@ agents' accounts, let go of (Settings → Agents deletes one: "Choosing the agen
   percent-encoded: ids have letters of any language); its agent gets them in its environment (`KULISA_MCP_URL`,
   `KULISA_URL`) and sees only its task's profiles. Profile ids repeat across tasks; inside Kulisa a profile
   is `<project id>/<n>/<id>` (CDP proxy, highlights).
-- Closing a task stops its agent; opening it again resumes its agent where the agent can (Claude `--resume`,
-  Codex `resume`). Restarting brings back every window's tasks, in their order.
 
 ## Removing everything by hand
 

@@ -58,8 +58,7 @@ tabs, a step taller than a button, were out of scale), a target for a quick thro
 tabs are not a handle to drag the window by (`app-region: no-drag`). Nothing in the bar moves when another task is
 shown.
 
-More tabs than the bar holds scroll, as every strip of tabs does ([ui.md](ui.md), Controls: `.tabstrip`): by a
-mouse's wheel, an edge with tabs past it faded, the shown tab in sight (the author, 2026-10-15, found with thirty
+More tabs than the bar holds scroll, as every strip of tabs does ([ui.md](ui.md), Controls: `.tabstrip`; the author, 2026-10-15, found with thirty
 tasks: the wheel scrolled nothing, nothing said 17 were out of sight). In the title bar the tabs give way before at least 40 px after + (`--drag`), where the
 window is dragged however many tabs there are, as Chrome's space after its +; by the logo too. Chromium takes the tabs
 scrolled past the bar's edges as no-drag over both (it does not clip them to the bar, `overflow`, `contain` or
@@ -108,7 +107,7 @@ task tab's right-click menu alone, which no one found). A `.launcher.small` per 
 picture over its name, who it is under it; a click opens it, its pane over the terminal, and the row goes. A project
 with no profiles has one tile, Add Profile…, its page in Settings. The tiles are outside dockview: the grid's room is
 what is left under them (`room()`, `lib/grid.ts`). More than fit scroll, as a strip of tabs does (`.tabstrip`,
-[ui.md](ui.md)): by the wheel, the edge with tiles past it faded (2026-10-15: 19 profiles stretched the window's column,
+[ui.md](ui.md); 2026-10-15: 19 profiles stretched the window's column,
 the terminal and the tasks' bar past its edge, the last ones out of reach; `#dock` keeps `min-width: 0` for it). With
 no terminal either, they are the second row of the big buttons
 ("The terminal"). As the folded island, the row is a part of the window, nothing opens by itself: the agent opens a
@@ -202,12 +201,10 @@ without it. Saved (`settings.json`), the same in every window.
 
 ## Menus
 
-Kulisa draws its menus in HTML, as Chrome does (Reka UI's menus: `components/menu/`; [ui.md](ui.md), Menus): a
-button's opens on the press (press, drag to a row, let go there), a right-click's at the pointer, one at a time; the
-pages are pictures of themselves meanwhile; afterwards the keyboard is back where it was:
+Kulisa draws its menus in HTML, as Chrome does (Reka UI's menus: `components/menu/`; how they open, close and are
+built: [ui.md](ui.md), Menus):
 
-- a task tab's right-click menu (the shown one's open
-  and closed profiles, Manage Profiles…: Settings → Profiles; Rename…, Show Folder, Delete Task…), ☰ (as Chrome's ⋮, each row with its icon: the zoom row, the theme row, the
+- a task tab's right-click menu ([tasks.md](tasks.md), Projects, "A tab's right-click menu"), ☰ (as Chrome's ⋮, each row with its icon: the zoom row, the theme row, the
   tasks' bar's row, Language (a menu beside it), Arrange panels, Keyboard Shortcuts, the links
   (Documentation, the user guide on kulisa.app; GitHub; one list in `lib/common.ts`; until 2026-10-14 also
   Agents…, Settings at its agents: the author, agents are set up in Settings, the gear beside ☰), Report a Problem… (Settings at
@@ -217,8 +214,6 @@ pages are pictures of themselves meanwhile; afterwards the keyboard is back wher
 - right-click on a pane's header (New tab, About this profile… (Settings at it), Sign In to Master…, Refresh
   from Master…, Close profile, Remove from Project…), a tab (Reload, Duplicate, Close tab, Close other tabs), a terminal (Copy, Paste, Select all, Clear;
   then what its tab's has) and a terminal's tab (Change agent…, the Change Agent dialog as its icon opens, and New Conversation in an agent's; Close).
-
-A project label's right-click opens its group's menu, as Chrome's tab groups have it ([tasks.md](tasks.md), Projects).
 
 A row whose command has a key shows it at its end (Keys, below).
 
@@ -238,12 +233,10 @@ frozen the desktop (ROADMAP, Deferred ideas, "A right-click menu in pages"). The
 
 ## Dialogs and questions
 
-Every dialog has one look, as in JetBrains: the title with × on top, the content, the buttons at the bottom right,
-the main one last (blue; red when it deletes) ([ui.md](ui.md), Dialogs). Questions before something that cannot be
+Every dialog has one look, as in JetBrains ([ui.md](ui.md), Dialogs). Questions before something that cannot be
 undone (deleting a profile, a task, a project), before closing (a task while an agent works, a window,
 quitting while an agent works: [tasks.md](tasks.md)) or between two ways to go (a second button, `other`) are asked
-in that dialog too (`shell.ask` → `lib/ask.ts`, `Ask.vue`, queued, Cancel focused; Esc is Cancel, a click outside
-does nothing: it waits for an answer), in the window the action is in: Settings' for what is done in Settings, a tasks'
+in that dialog too (`shell.ask` → `lib/ask.ts`, `Ask.vue`, queued; its keys: [ui.md](ui.md), Dialogs), in the window the action is in: Settings' for what is done in Settings, a tasks'
 window's for what is done there, the agent's in its task's window (`asker` in `ipc/`; `Asker` in `window.ts`). A tasks'
 window asked in comes to the front with its question, restored when minimized, while another of Kulisa's windows has
 the focus (Settings, another tasks' window): left behind, it looked as if nothing happened (on macOS a window's × works

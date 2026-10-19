@@ -77,8 +77,7 @@ A profile is an Electron session on a folder of its own (`session.fromPath`), la
 - **Tabs**: a tab strip and an address bar per pane, drawn as Chrome's (the active tab of a piece with the toolbar;
   back, forward, reload as Chrome's icons; the address without `https://` and `www.` until it is clicked, then all
   of it, selected; a tab opened with + gets the focus in its empty address; many tabs shrink to their icon and × (each keeps its ×), then the
-  strip scrolls, by the wheel too, its edges faded where tabs are past them, the active tab in sight: [ui.md](ui.md),
-  `.tabstrip`); `target=_blank` and `window.open` open tabs of the same
+  strip scrolls: [ui.md](ui.md), `.tabstrip`); `target=_blank` and `window.open` open tabs of the same
   profile. Right-click a tab: reload, duplicate, close, close others. DevTools of a tab: the pane's ⋮ menu (where more of a pane's actions will go, as in Chrome) or F12.
   A narrow pane gives up back and forward (under 260 px), then reload (under 200), into ⋮, their keys staying; never
   Pick or ⋮, which went out of reach first when the buttons kept their order (2026-10-16; `.bar`'s container queries).
@@ -202,7 +201,6 @@ methods; who a profile is changes and is checked in the store (`ProfileStore.ren
 | Rename a profile | Settings → Profiles | `profile_rename` | `ProfileStore.rename`; `Task.renameProfile` |
 | Say who a profile is | Settings → Profiles | `profile_describe`, `profile_create` (the human's words only) | `ProfileStore.describe`; `Task.describeProfile` |
 | Change its picture | Settings → Profiles | none: how the human tells panes apart | `ProfileStore.setAvatar` |
-| A test user's pair | Settings → Profiles | `profile_set_login` | `ProfileStore.setLogin` (`shell.loginSecret` encrypts) |
 | Close, open a profile | ×; a tile while none is open, a task tab's menu | `profile_close`, `profile_open` | `Task.closeProfile`, `openProfile` |
 | Remove a profile from the project | Remove from Project…, − on its page | `profile_delete` | `Task.deleteProfile(id, by)`: asks the human either way |
 | Delete a profile | Settings → Profiles | none: its sign-ins are the human's | `deleteProfile` (`projects.ts`) |
@@ -386,20 +384,9 @@ is the descriptions the agent reads. If agents often write their own scripts, th
 
 ## What is on the computer
 
-In Kulisa's data folder ([tasks.md](tasks.md), "What is on the computer"): the masters at its top, each task's copies
-in the task's folder:
-
-```
-profiles.json                   { next, list: [{ id, name, avatar, description, folder, projects }] }: the profiles
-profiles/Profile 1/             a profile's master, a Chromium profile: Cookies, Local Storage, IndexedDB …;
-                                kept in no project too, gone when the human deletes the profile (Settings → Profiles)
-projects/<project id>/<task>/
-  profiles.json                 what the task has of them: { folder, id, zoom (per site), closed }
-  Profile 1/                    its copy of the master, made at its first open here: a Chromium profile
-    Kulisa Tabs.json            the URLs of its tabs and which is in front, to open them again
-    Kulisa Session Cookies.bin  its session cookies, encrypted
-  Profile 2/ …
-```
+In Kulisa's data folder, laid out in [tasks.md](tasks.md), "What is on the computer": the masters at its top
+(`profiles/Profile <k>/`), each task's copies in the task's folder, with Kulisa's own files in each (its tabs, its
+session cookies).
 
 The folder is named as Chrome names its profiles, fixed at creation, the same for the master and every copy; a new
 profile never takes a number used before (`next`: a task's copy of a deleted one may still be on disk, its session

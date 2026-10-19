@@ -39,7 +39,7 @@ e2e files in parallel (`GROUPS` in `start.ts`):
 not listed for screenshots and focus differs from a desktop), so they never take the human's focus or clipboard.
 `npm run test:visible` runs them on the human's screen, one group after another; so do macOS and Windows, where
 there is no screen of their own (in parallel, the groups' windows took each other's focus: 2026-10-16). No GPU there:
-`--ignore-gpu-blocklist` lets WebGL run on Chromium's software renderer. macOS and Windows run them on the screen.
+`--ignore-gpu-blocklist` lets WebGL run on Chromium's software renderer.
 
 ### On macOS
 
@@ -241,8 +241,7 @@ they are made, and the whole suite runs when the work is done (CLAUDE.md, Conven
 
 ## Running them
 
-The full suite runs once, when the work is done, before the commit (CLAUDE.md); while building, the unit tests
-and the group of the files changed, or a screenshot, and `npm run knip` once at the end of a step. A whole run stops by itself after 5 minutes (`run.ts`), a test
+When to run what: CLAUDE.md, Conventions ("Every behavior change comes with a test"). A whole run stops by itself after 5 minutes (`run.ts`), a test
 after 30 s, naming the call or script it began last (`ctx.step`): a step that hangs has no stack to read, and a
 script run in a window that closes before its result is back never answers (Electron drops the reply), so a test
 closes a window without waiting for the script that closes it (`closeSettings`).
