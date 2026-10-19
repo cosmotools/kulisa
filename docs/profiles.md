@@ -281,11 +281,15 @@ author, 2026-10-10). How it is kept safe, each line with its reason:
 
 ## Tabs that come back
 
-Each profile's tabs are saved in its folder (`Kulisa Tabs.json`) after every change of its task and as Kulisa
-quits, and opened again at the next start. Saving often means a moment with no tabs, saved, loses them all: the
-profiles come back on `about:blank`. It happened twice on 2026-10-08, each time from another path; when it happens
-again, look for a third such moment first (which file went `[]`, and when: log a stack where
-`TaskStore.saveTabs` gets `[]`, as the second time was found):
+Each profile's tabs are saved in its folder (`Kulisa Tabs.json`: their addresses and which one is in front) after
+every change of its task and as Kulisa quits, and opened again at the next start, the one in front again in front,
+as Chrome does (a master's the same; `Profile.savedTabs`, `openTabs`). Until 2026-10-19 only the addresses were kept,
+and the first tab came back in front (issue #97).
+
+Saving often means a moment with no tabs, saved, loses them all: the profiles come back on `about:blank`. It
+happened twice on 2026-10-08, each time from another path; when it happens again, look for a third such moment first
+(which file's `urls` went empty, and when: log a stack where `TaskStore.saveTabs` gets none, as the second time was
+found):
 
 1. **A profile still opening** (its session cookies restored before its tabs open) was saved with no tabs; Kulisa
    quitting right after a start lost every profile's. Now one opening is saved as what it opens
@@ -392,7 +396,7 @@ profiles/Profile 1/             a profile's master, a Chromium profile: Cookies,
 projects/<project id>/<task>/
   profiles.json                 what the task has of them: { folder, id, zoom (per site), closed }
   Profile 1/                    its copy of the master, made at its first open here: a Chromium profile
-    Kulisa Tabs.json            the URLs of its tabs, to open them again
+    Kulisa Tabs.json            the URLs of its tabs and which is in front, to open them again
     Kulisa Session Cookies.bin  its session cookies, encrypted
   Profile 2/ …
 ```

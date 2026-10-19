@@ -5,7 +5,7 @@ import { assert, userData, pfile, SITE, sleep, waitFor, who } from './helpers.ts
 import type { Test } from './run.ts';
 
 export default (test: Test) => {
-  test('after a restart: profiles, sign-ins and tabs are back', async (ctx) => {
+  test('after a restart: profiles, sign-ins and tabs are back, the one in front in front', async (ctx) => {
     assert.deepEqual([...ctx.shell.profiles.keys()], ['sam-admin', 'elon-buyer']);
     assert.deepEqual([...ctx.shell.profiles.values()].map((p) => [p.avatar, p.description]), [['fox', 'seller in the test shop'], ['owl', '']]);
     for (const dir of ['Profile 3', 'Profile 4', 'Profile 5']) assert.ok(!fs.existsSync(pfile(dir)), `${dir} (deleted) removed`);
@@ -14,6 +14,7 @@ export default (test: Test) => {
     assert.equal(await who(ctx, 'sam-admin'), 'Signed in as sam');
     const elon = ctx.shell.profiles.get('elon-buyer');
     assert.deepEqual(elon.tabs.map((t) => t.wc.getURL()), [`${SITE}/errors`, `${SITE}/app?n=5`, `${SITE}/`]);
+    assert.equal(elon.active, elon.tabs[1].id, 'the tab in front as it was left');
     assert.equal(elon.signinMode, false);
   });
   test('after a restart: a closed profile is still closed, and opens signed in', async (ctx) => {

@@ -32,6 +32,8 @@ const SESSION_COOKIES_FILE = 'Kulisa Session Cookies.bin';
 // Chromium's caches inside a profile: rebuilt by themselves, so a copy of a profile goes without them.
 const CACHES = new Set(['Cache', 'Code Cache', 'GPUCache', 'DawnGraphiteCache', 'DawnWebGPUCache', 'GrShaderCache', 'ShaderCache']);
 
+// A profile's tabs as saved: their URLs, in the strip's order, and the place of the one in front.
+interface SavedTabs { urls: string[]; active: number }
 // A project in projects.json.
 interface ProjectEntry {
   id: string; name: string; folder: string; color: string; agents?: string[]; repos?: string[];
@@ -150,14 +152,13 @@ class TaskStore {
   saveProfiles(list: TaskProfile[]) {
     writeJSON(this.file('profiles.json'), list.map(({ folder, id, zoom, closed }) => ({ folder, id, zoom, ...(closed && { closed }) })));
   }
-  // A profile's tabs (their URLs), in its own folder.
-  tabs(folder: string): string[] { return readJSON(path.join(this.profileDir(folder), TABS_FILE)) || []; }
-  saveTabs(folder: string, urls: string[]) {
-    const json = JSON.stringify(urls);
+  // A profile's tabs, in its own folder.
+  tabs(folder: string): SavedTabs { return readTabs(this.profileDir(folder)); }
+  saveTabs(folder: string, tabs: SavedTabs) {
+    const json = JSON.stringify(tabs);
     if ((this.saved ??= new Map()).get(folder) === json) return; // written after every change of the window's state
     this.saved.set(folder, json);
-    fs.mkdirSync(this.profileDir(folder), { recursive: true });
-    writeJSON(path.join(this.profileDir(folder), TABS_FILE), urls);
+    writeTabs(this.profileDir(folder), tabs);
   }
   markDeleted(folder: string) { this.store.markDeleted(this.profileDir(folder)); }
   // A profile its project let go while the task is not loaded: gone from its list, its copy removed (listed for the
@@ -198,6 +199,12 @@ async function copyProfile(from: string, to: string) {
 
 const nextColor = (list: ProjectEntry[]) => PROJECT_COLORS.find((c) => !list.some((p) => p.color === c)) || PROJECT_COLORS[list.length % PROJECT_COLORS.length]!;
 const samePath = (a: string, b: string) => (process.platform === 'linux' ? path.resolve(a) === path.resolve(b) : path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase());
+// A profile's tabs (Kulisa Tabs.json, in its folder: a master's and a task's copy alike), to open them again.
+function readTabs(dir: string): SavedTabs {
+  const v = readJSON(path.join(dir, TABS_FILE));
+  return Array.isArray(v?.urls) ? { urls: v.urls, active: Number.isInteger(v.active) ? v.active : 0 } : { urls: [], active: 0 };
+}
+function writeTabs(dir: string, tabs: SavedTabs) { fs.mkdirSync(dir, { recursive: true }); writeJSON(path.join(dir, TABS_FILE), tabs); }
 function readJSON(f: string) { try { return JSON.parse(fs.readFileSync(f, 'utf8')); } catch { return null; } }
 function writeJSON(f: string, v: unknown) { try { writeFileAtomic(f, JSON.stringify(v, null, 2)); } catch (e) { console.error('[store]', (e as Error).message); } }
 // Written whole or not at all: to a file next to it, then renamed over it. Kulisa may be killed or the computer lose
@@ -214,5 +221,5 @@ function writeFileAtomic(file: string, data: string | Uint8Array, options?: { mo
   } catch (e) { fs.rmSync(tmp, { force: true }); throw e; }
 }
 
-export { Store, copyProfile, writeFileAtomic, SESSION_COOKIES_FILE, PROJECT_COLORS };
-export type { TaskStore, ProjectEntry, TaskEntry, Copy, TaskProfile, TasksFile, Conversation };
+export { Store, copyProfile, writeFileAtomic, readTabs, writeTabs, SESSION_COOKIES_FILE, PROJECT_COLORS };
+export type { SavedTabs, TaskStore, ProjectEntry, TaskEntry, Copy, TaskProfile, TasksFile, Conversation };

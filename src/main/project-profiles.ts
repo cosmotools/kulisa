@@ -7,9 +7,9 @@
 // What it takes to run a profile is the task's (tasks.ts), given as hooks:
 //   make(cfg) -> Profile        a Profile for the settings, not started yet
 //   copy(entry)                 its folder made from its master (the first open in this task), its tabs set
-//   start(profile, urls)        its tabs open, automation connected
+//   start(profile, tabs)        its tabs open, automation connected
 //   unload(profile)             its tabs closed, its sign-ins saved
-//   urlsOf(profile)             where its tabs are, to open them again
+//   tabsOf(profile)             where its tabs are, to open them again
 //   renamed(profile, oldId)     its id changed (the proxy's endpoint)
 //   remove({ cfg, profile })    its copy gone for good (profile: when it is open)
 //   changed()                   after any change: the window's state and the tabs are saved
@@ -17,19 +17,19 @@
 import fs from 'fs';
 import { clearCaches } from './profiles.ts';
 import type { Profile, ProfileConfig } from './profiles.ts';
-import type { TaskStore, TaskProfile } from './store.ts';
+import type { SavedTabs, TaskStore, TaskProfile } from './store.ts';
 import type { ProfileStore, StoredProfile } from './profile-store.ts';
 import type { Result } from '../shared/result.ts';
 import { refused } from '../shared/result.ts';
 
-// A profile of the task: who it is (cfg), its tabs' addresses while closed, its Profile while open.
-interface Entry { cfg: ProfileConfig; urls: string[]; profile: Profile | null; closed?: boolean; starting?: Promise<unknown> | null }
+// A profile of the task: who it is (cfg), its tabs while closed, its Profile while open.
+interface Entry { cfg: ProfileConfig; tabs: SavedTabs; profile: Profile | null; closed?: boolean; starting?: Promise<unknown> | null }
 interface Hooks {
   make(cfg: ProfileConfig): Profile;
   copy(entry: Entry): Promise<void>;
-  start(profile: Profile, urls: string[]): Promise<unknown>;
+  start(profile: Profile, tabs: SavedTabs): Promise<unknown>;
   unload(profile: Profile): Promise<void>;
-  urlsOf(profile: Profile): string[];
+  tabsOf(profile: Profile): SavedTabs;
   renamed(profile: Profile, oldId: string): void;
   remove(entry: Entry): Promise<void>;
   changed(): void;
@@ -38,7 +38,7 @@ interface Hooks {
 
 class ProjectProfiles {
   store: TaskStore; all: ProfileStore; project: string; hooks: Hooks;
-  entries: Entry[] = []; // { cfg: { id, name, avatar, description, folder, dir, zoom }, urls, profile }
+  entries: Entry[] = []; // { cfg: { id, name, avatar, description, folder, dir, zoom }, tabs, profile }
   profiles = new Map<string, Profile>(); closed = new Map<string, Entry>();
   started: Promise<void> = Promise.resolve(); // the open ones' starts as the task loaded (load), awaited by its agents
   // store: the task's (TaskStore); profiles: the store of profiles (ProfileStore); project: its project's id.
@@ -52,7 +52,7 @@ class ProjectProfiles {
   // for none of them, as it waited for each in turn until 2026-10-15. Saved once they have started.
   load() {
     const state = new Map((this.store.profiles() || []).map((x) => [x.folder, x]));
-    this.entries = this.all.of(this.project).map((g) => ({ cfg: this._cfg(g, state.get(g.folder)), urls: this.store.tabs(g.folder),
+    this.entries = this.all.of(this.project).map((g) => ({ cfg: this._cfg(g, state.get(g.folder)), tabs: this.store.tabs(g.folder),
       profile: null as Profile | null, closed: !state.has(g.folder) || !!state.get(g.folder)!.closed }));
     this._sync();
     this.started = Promise.all(this.entries.filter((e) => !e.closed).map((e) => this._start(e)
@@ -71,7 +71,7 @@ class ProjectProfiles {
     const list = this.all.of(this.project);
     for (const g of list) {
       const e = this.entries.find((x) => x.cfg.folder === g.folder);
-      if (!e) { this.entries.push({ cfg: this._cfg(g), urls: [], profile: null }); continue; }
+      if (!e) { this.entries.push({ cfg: this._cfg(g), tabs: { urls: [], active: 0 }, profile: null }); continue; }
       const oldId = e.cfg.id;
       Object.assign(e.cfg, { id: g.id, name: g.name, avatar: g.avatar, description: g.description || '', ...loginOf(g) });
       if (e.profile) {
@@ -88,7 +88,7 @@ class ProjectProfiles {
   async create(name: string, description = '', avatar?: string): Promise<Result<{ id: string }>> {
     const g = this.all.create(this.project, { name, description, avatar });
     if (refused(g)) return g;
-    const e: Entry = { cfg: this._cfg(g), urls: [], profile: null };
+    const e: Entry = { cfg: this._cfg(g), tabs: { urls: [], active: 0 }, profile: null };
     this.entries.push(e);
     await this._start(e);
     this._changed();
@@ -103,7 +103,7 @@ class ProjectProfiles {
     await e.starting?.catch(() => {}); // closed right as it opens: once it is open
     if (!e.profile) return { id };
     const p = e.profile;
-    e.urls = this.hooks.urlsOf(p);
+    e.tabs = this.hooks.tabsOf(p);
     e.cfg = this._cfgOf(e);
     e.profile = null;
     this._sync();
@@ -156,7 +156,7 @@ class ProjectProfiles {
   saveTabs() {
     for (const e of this.entries) {
       if (!e.profile && !fs.existsSync(e.cfg.dir)) continue;
-      this.store.saveTabs(e.cfg.folder, e.profile && !e.starting ? this.hooks.urlsOf(e.profile) : e.urls);
+      this.store.saveTabs(e.cfg.folder, e.profile && !e.starting ? this.hooks.tabsOf(e.profile) : e.tabs);
     }
   }
   save() { this.store.saveProfiles(this.entries.map((e): TaskProfile => (e.profile ? this._cfgOf(e) : { ...e.cfg, closed: true }))); }
@@ -167,7 +167,7 @@ class ProjectProfiles {
     if (!fs.existsSync(e.cfg.dir)) await this.hooks.copy(e);
     e.profile = this.hooks.make(e.cfg);
     this._sync();
-    e.starting = this.hooks.start(e.profile, e.urls.length ? e.urls : ['about:blank']);
+    e.starting = this.hooks.start(e.profile, e.tabs);
     try { await e.starting; } finally { e.starting = null; }
   }
   _cfg(g: StoredProfile, state?: TaskProfile): ProfileConfig {

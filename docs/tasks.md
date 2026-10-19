@@ -684,7 +684,7 @@ projects/<project id>/
                                   again when it loads; one goes when closed; an empty list: the island folded
     Profile 1/                    its copy of a master, made at its first open here: a Chromium profile
                                   (session.fromPath), with Kulisa's own files in it:
-      Kulisa Tabs.json              the URLs of its tabs
+      Kulisa Tabs.json              the URLs of its tabs and which is in front
       Kulisa Session Cookies.bin    its session cookies, encrypted with the OS keyring
     Profile 2/ …
 ```

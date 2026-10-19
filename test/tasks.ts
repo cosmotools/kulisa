@@ -229,7 +229,7 @@ export default (test: Test) => {
     await waitFor(async () => (await m.win.webContents.executeJavaScript(`document.getElementById('address').value`)).endsWith('/app'), 3000);
     m.win.close();
     await waitFor(() => !shell.masters.size);
-    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(m.profile.dir, 'Kulisa Tabs.json'), 'utf8')), [`${SITE}/app`], 'its tabs kept');
+    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(m.profile.dir, 'Kulisa Tabs.json'), 'utf8')), { urls: [`${SITE}/app`], active: 0 }, 'its tabs kept');
     // This task's copy was made before: still its own sign-in, until Refresh from Master… (asked first).
     assert.equal(await who(ctx, 'sam-admin'), 'Signed in as sam');
     await ui(`act('profile:refresh', { profile: 'sam-admin' })`);
@@ -344,7 +344,7 @@ export default (test: Test) => {
     const { shell, ui } = ctx;
     const { folder } = shell.profileStore.get('sam-admin');
     const tabs = path.join(userData, 'profiles', folder, 'Kulisa Tabs.json'), before = fs.readFileSync(tabs, 'utf8');
-    fs.writeFileSync(tabs, JSON.stringify([`${SITE}/hang`]));
+    fs.writeFileSync(tabs, JSON.stringify({ urls: [`${SITE}/hang`], active: 0 }));
     const answer = ui(`kulisa.invoke('profiles:master', { profile: 'sam-admin' })`);
     await waitFor(() => shell.masters.size === 1 && shell.masters.values().next().value.profile.get());
     shell.masters.values().next().value.win.close();

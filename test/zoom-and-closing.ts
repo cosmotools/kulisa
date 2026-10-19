@@ -2,7 +2,7 @@
 import { session } from 'electron';
 import fs from 'fs';
 import path from 'path';
-import { assert, userData, pfile, savedTabs, panel, SITE, waitFor, who, menuRows, choose, manageProfiles, closeSettings, chooseProfile, setProfileField, menuOpen, taskMenu, viewOn, ctrl, near, closeMenu, plusMenu, closeBoard, PORT, MAC, sleep } from './helpers.ts';
+import { assert, userData, pfile, savedTabs, savedActive, panel, SITE, waitFor, who, menuRows, choose, manageProfiles, closeSettings, chooseProfile, setProfileField, menuOpen, taskMenu, viewOn, ctrl, near, closeMenu, plusMenu, closeBoard, PORT, MAC, sleep } from './helpers.ts';
 import type { Test } from './run.ts';
 import { SESSION_COOKIES_FILE } from '../src/main/store.ts';
 
@@ -119,6 +119,9 @@ export default (test: Test) => {
     const expected = [`${SITE}/errors`, `${SITE}/app?n=5`, `${SITE}/`];
     await waitFor(() => JSON.stringify(savedTabs('elon-buyer')) === JSON.stringify(expected)).catch(() => {});
     assert.deepEqual(savedTabs('elon-buyer'), expected);
+    // The one in front, not the first, comes back in front (restart-profiles.ts); the one on a sign-in page left behind.
+    elon.activate(viaHistory.id);
+    await waitFor(() => savedActive('elon-buyer') === 1);
   });
   test('close a profile (its × or the agent) and open it again (👥 or the agent): signed in, same tabs; the agent removes it from the project only when the human confirms', async (ctx) => {
     const { shell, ui, call } = ctx;
@@ -169,7 +172,7 @@ export default (test: Test) => {
     const [opened, closed] = await Promise.all([shell.task.openProfile('cleo'), shell.task.closeProfile('cleo')]);
     assert.deepEqual([opened, closed], [{ id: 'cleo' }, { id: 'cleo' }]);
     assert.ok(shell.closed.has('cleo') && !shell.profiles.has('cleo'));
-    assert.deepEqual(shell.closed.get('cleo').urls, [`${SITE}/app`, `${SITE}/app?second`], 'its tabs kept');
+    assert.deepEqual(shell.closed.get('cleo').tabs.urls, [`${SITE}/app`, `${SITE}/app?second`], 'its tabs kept');
     await call('profile_open', { profile: 'cleo' });
     // And the agent closes and opens it.
     await call('profile_close', { profile: 'cleo' });

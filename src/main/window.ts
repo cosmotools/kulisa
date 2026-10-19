@@ -154,8 +154,8 @@ class AppWindow {
     if (!task || this.switching) return;
     this.sendTerminals();
     this.send('state', [...task.profiles.values()].map((p) => p.info()));
-    this.send('closed-profiles', [...task.closed.values()].map(({ cfg, urls }): Sent.ClosedProfile =>
-      ({ key: cfg.folder, id: cfg.id, name: cfg.name, avatar: cfg.avatar, description: cfg.description ?? '', tabs: urls.length })));
+    this.send('closed-profiles', [...task.closed.values()].map(({ cfg, tabs }): Sent.ClosedProfile =>
+      ({ key: cfg.folder, id: cfg.id, name: cfg.name, avatar: cfg.avatar, description: cfg.description ?? '', tabs: tabs.urls.length })));
     task.list.saveTabs();
   }
   sendTerminals() { if (this.task && !this.switching) this.send('terminals', { task: this.task.key, ...this.task.terminalsInfo() }); }
