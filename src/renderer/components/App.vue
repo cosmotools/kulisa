@@ -12,7 +12,11 @@ import HandOver from './HandOver.vue';
 import Shortcuts from './Shortcuts.vue';
 import Ask from './Ask.vue';
 import PointMenu from './menu/PointMenu.vue';
+import { Thumbnail, thumbnailMenu } from '../../screenshots/renderer';
+import { menuAtPoint } from '../lib/menu';
 import { store } from '../lib/store';
+
+thumbnailMenu(menuAtPoint);
 </script>
 
 <template>
@@ -30,6 +34,7 @@ import { store } from '../lib/store';
   <HandOver />
   <Shortcuts />
   <Ask />
+  <Thumbnail />
   <PointMenu />
 </template>
 

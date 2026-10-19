@@ -13,6 +13,8 @@ import type { SavedTabs } from './store.ts';
 import type * as Sent from '../shared/types.ts'; // what the window gets: its one definition
 import { allowFocus, guardFocus } from './page-focus.ts';
 import { bare, log } from './log.ts';
+import { capture } from '../screenshots/main/index.ts';
+import type { Shot } from '../screenshots/main/index.ts';
 // Taken from the module, not imported by name: unit tests load this in plain Node, where 'electron' is only a path
 // (docs/testing.md, Two layers).
 const { session, WebContentsView } = electron;
@@ -122,6 +124,18 @@ class Profile extends EventEmitter {
       await new Promise((r) => setTimeout(r, 100));
     }
     throw new Error(`no Playwright page for tab ${id}`);
+  }
+
+  // A picture of a tab, the human's or the agent's (src/screenshots/README.md). Not while the human signs in: the
+  // pause has Playwright detached.
+  async screenshot(tab: Tab, shot: Omit<Shot, 'human'> & { by: 'human' | 'agent' }): Promise<Buffer> {
+    if (this.signinMode) throw new Error(`${this.name} is signing in: no screenshot until the sign-in is done.`);
+    if (tab.dialog) throw new Error(`Tab ${tab.id} of ${this.id} shows a ${tab.dialog.type} ("${tab.dialog.message}") for the human to answer; until then its page does nothing.`);
+    if (!tab.discarded && (!tab.url || tab.url === 'about:blank')) throw new Error(`Tab ${tab.id} of ${this.id} is empty: nothing to take.`);
+    const { by, ...rest } = shot;
+    const png = await capture(await this.page(tab.id), { ...rest, ...(by === 'human' && { human: `${this.task}/${this.id}` }) });
+    log.info(`[screenshot] ${this.id} ${shot.element ? 'element' : shot.fullPage ? 'whole page' : 'visible part'}, by the ${by}`);
+    return png;
   }
 
   get(id?: string | null) { id = id || this.active; return this.tabs.find((t) => t.id === id || t.targetId === id); }

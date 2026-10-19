@@ -67,6 +67,7 @@ const KEYS: Binding[] = [
   { id: 'tab.n', group: 'page', label: 'Tab 1 to 8', range: true, keys: digits('CommandOrControl+', 1, 8) },
   { id: 'tab.last', group: 'page', label: 'The last tab', keys: ['CommandOrControl+9'] },
   { id: 'pick', group: 'page', label: 'Pick an element for the agent', keys: ['CommandOrControl+Shift+C'] },
+  { id: 'screenshot', group: 'page', label: 'Screenshot of an element', keys: ['CommandOrControl+Shift+S'] },
   { id: 'site.zoomIn', group: 'page', label: 'Zoom the site in', ...ZOOM_IN },
   { id: 'site.zoomOut', group: 'page', label: 'Zoom the site out', ...ZOOM_OUT },
   { id: 'site.zoomReset', group: 'page', label: 'The site\'s zoom back', ...ZOOM_RESET },

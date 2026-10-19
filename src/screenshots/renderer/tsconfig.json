@@ -1,0 +1,5 @@
+// The thumbnail's page: checked as the window is (src/renderer's build checks it too, as it imports it).
+{
+  "extends": "../../renderer/tsconfig.json",
+  "include": [".", "../ipc.ts", "../../renderer/env.d.ts"]
+}

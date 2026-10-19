@@ -7,6 +7,7 @@
 // The agent's marks in the pages are in Kulisa's accent (tokens.css, --accent), the same in every profile: the pane says
 // whose page it is.
 const MARK = '#3574f0';
+import { takenByHuman } from '../../screenshots/main/index.ts';
 import type { Page } from 'playwright-core';
 import type { Shell } from '../shell.ts';
 import type { Command } from '../cdp-proxy.ts';
@@ -20,6 +21,8 @@ function installGhost(shell: Shell) {
   shell.bus.on('agent-command', (c: Command) => {
     // A test user's password being typed (browser_type_login): that something is typed, not what.
     const secret = shell.typingSecret?.has(`${c.task}/${c.profile}`) && /^Input\.(insertText|dispatchKeyEvent)$/.test(c.method);
+    // The human's screenshot goes through the same connection: not the agent's action.
+    if (c.method === 'Page.captureScreenshot' && takenByHuman(`${c.task}/${c.profile}`)) return;
     const a: Action | null = secret ? (c.method === 'Input.insertText' || c.params.type === 'keyDown' ? { caption: 'type ••••••' } : null) : describe(c);
     if (!a) return;
     send({ task: c.task, profile: c.profile, ...a });

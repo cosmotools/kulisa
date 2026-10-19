@@ -57,6 +57,8 @@ function handler(req: IncomingMessage, res: ServerResponse) {
 <button onclick="window.open('/app?n=${+n + 1}')">window.open()</button></p>
 <p><button onclick="this.textContent='Checked out ✓'">Checkout</button></p>`));
   }
+  // A box of a known size and color on a page taller than any pane (screenshots: an element, the whole page).
+  if (u.pathname === '/tall') return send(200, page('tall', `<div id="box" style="width: 200px; height: 120px; margin: 40px; background: #d00"></div><div style="height: 3000px"></div><p>end</p>`));
   if (u.pathname === '/strict') {
     return send(200, page('strict', `<h3>Strict page</h3><p><button>Sign in</button> <a href="/app">a link</a></p>`), undefined,
       { 'content-security-policy': "require-trusted-types-for 'script'" });

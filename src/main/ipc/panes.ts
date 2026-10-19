@@ -3,6 +3,8 @@
 import { refused } from '../../shared/result.ts';
 import { handle, on } from '../ipc.ts';
 import { focusWindow } from '../page-focus.ts';
+import { chooseElement } from '../picker.ts';
+import { keep } from '../../screenshots/main/index.ts';
 import type { Ipc, IpcEvent } from '../ipc.ts';
 import type { IpcMainInvokeEvent } from 'electron';
 import type { Profile, Tab } from '../profiles.ts';
@@ -60,5 +62,19 @@ export function registerPanes(ipc: Ipc) {
   handle('tab:dialog', onTab((p, t, { dialog, ok }) => p.answerDialog(t.id, dialog, ok)));
   handle('tab:devtools', onTab((p, t) => p.toggleDevTools(t.id)));
   handle('tab:zoom', onTab((p, t, { dir }) => p.zoomSite(t.id, dir)));
+  // Screenshot (⋮, its key): the core's picture (Profile.screenshot), at the screen's density, kept as the human's
+  // (src/screenshots); an element chosen as Pick chooses.
+  handle('tab:screenshot', async (e, { task, profile, tab, kind }) => {
+    const w = at(e), r = (w && onScreen(e, task)?.findTab(profile, tab)) || noTask;
+    if (refused(r)) return r;
+    try {
+      const chosen = kind === 'element' ? await chooseElement(w!, r.profile, r.tab) : null;
+      if (kind === 'element' && !chosen) return { file: null };
+      const png = await r.profile.screenshot(r.tab, { ...chosen && { element: () => chosen }, fullPage: kind === 'full', scale: 'device', type: 'png', by: 'human' });
+      const file = await keep(png, r.profile.name);
+      w!.thumbnails.show(r.profile.id, file, png, w!.paneBox(r.profile.id));
+      return { file };
+    } catch (err) { return { error: (err as Error).message }; }
+  });
 
 }

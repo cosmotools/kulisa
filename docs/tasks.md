@@ -241,8 +241,7 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   started with. When it exits, the shell stays. Its account's variable (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`) is typed
   before the command (`CLAUDE_CONFIG_DIR=… claude …`), so the task's account wins over a project's `.envrc` that sets
   it too (the author, 2026-10-12: one of them ran a task as another Claude account, silently).
-  Each argument is quoted as the shell reads it (`src/terminal/main/shell-quote.ts`): the sh way for bash and zsh, fish's own for fish,
-  which reads `\\` and `\'` inside `'…'` (a prompt with `\'` left the quote open, and the agent did not start).
+  Each argument is quoted as that shell reads it ([src/terminal](../src/terminal/README.md)).
   direnv's state in Kulisa's own environment (started from a terminal in a folder direnv had loaded) is dropped at
   start: a task's shell took it for that folder left and undid its `.envrc`, an account's `CLAUDE_CONFIG_DIR` with it.
   On Windows it starts directly, without a shell (ROADMAP, Open issues).

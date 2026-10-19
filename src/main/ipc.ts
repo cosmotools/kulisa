@@ -1,6 +1,7 @@
 // The main process's ends of the windows' channels, checked against their table (src/shared/ipc.ts; docs/window.md,
-// IPC). The window's ends: renderer/env.d.ts.
-import { ipcMain } from 'electron';
+// IPC). The window's ends: renderer/env.d.ts. Electron's objects from the module, not by name: a unit test loads what
+// imports this (a Kulisa package's main half: docs/testing.md).
+import electron from 'electron';
 import type { IpcMainEvent, IpcMainInvokeEvent } from 'electron';
 import type { Invoke, Send } from '../shared/ipc.ts';
 import type { Shell } from './shell.ts';
@@ -24,7 +25,7 @@ function line(channel: string, e: IpcEvent, args: unknown[]) {
 type Answer<R> = [R] extends [void] ? unknown : R | Promise<R>;
 
 export function handle<C extends keyof Invoke>(channel: C, fn: (e: IpcMainInvokeEvent, ...args: Invoke[C]['args']) => Answer<Invoke[C]['result']>) {
-  ipcMain.handle(channel, async (e: IpcMainInvokeEvent, ...args: unknown[]) => {
+  electron.ipcMain.handle(channel, async (e: IpcMainInvokeEvent, ...args: unknown[]) => {
     line(channel, e, args);
     const r = await (fn as (e: IpcMainInvokeEvent, ...args: unknown[]) => unknown)(e, ...args);
     const error = (r as { error?: unknown } | null)?.error;
@@ -34,7 +35,7 @@ export function handle<C extends keyof Invoke>(channel: C, fn: (e: IpcMainInvoke
 }
 
 export function on<C extends keyof Send>(channel: C, fn: (e: IpcMainEvent, arg: Send[C]) => void) {
-  ipcMain.on(channel, (e, arg) => { line(channel, e, [arg]); fn(e, arg); });
+  electron.ipcMain.on(channel, (e, arg) => { line(channel, e, [arg]); fn(e, arg); });
 }
 
 export type IpcEvent = IpcMainEvent | IpcMainInvokeEvent;

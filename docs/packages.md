@@ -28,6 +28,20 @@ agent's state, dictation) and the agent's tools (`terminal_run`, `terminal_read`
 what the agent sees lives in the Kulisa plugin, CLAUDE.md, Architecture). Drawn so, the island would have pulled half
 of `src/renderer/lib` into the folder, and the boundary would have meant nothing.
 
+**The caller stays thin: it states facts, the package does the work.** What the package's things are and do (their
+life, their timers, their views, their places, their files) is the package's, behind a small API; the code outside
+gives it what only the rest knows and calls it. The screenshots' thumbnail (2026-10-19) was first built with its place,
+its HTML drawing and its menu's actions in `window.ts` and `ipc/panes.ts`, and moved: the window now makes it
+(`new Thumbnails(win, …)`) and says three things, where its panes are after a change of the grid (`place`), that its
+pages are covered (`setHidden`), that a task goes (`close`). What only the rest can do comes in as a function:
+- the window's own components (its menus, dialogs: one set of components, `docs/ui.md`): the window passes the opener
+  (`thumbnailMenu(menuAtPoint)`), the package gives the rows and what they do;
+- what belongs to tasks or agents (Send to Agent: `send`, the window's `Task.typeForAgent`).
+
+An action outside that a package needs and another part does already (typing for the agent: Pick did) is written
+once, outside, and passed in: not copied into a handle. Before a package's step is shown, every file outside it that
+it touched is listed with why that line cannot be in the package (the screenshots' README, The code).
+
 ## How one is laid out
 
 ```
@@ -38,10 +52,21 @@ src/<package>/
   main/index.ts      the main process's half: its entry
   main/…             its other files
   renderer/index.ts  the window's half: its entry
-  renderer/…         its other files (.ts; .vue when it has parts of the window of its own)
+  renderer/…         its other files (.ts; .vue when it has parts of the window of its own; a page of its own,
+                     as the screenshots' thumbnail: its script here, its .html a shell in src/renderer that only
+                     loads it, as Vite builds no page outside its root)
   renderer/tsconfig.json   extends src/renderer's; ESLint finds the half's types by it
   *.test.ts          its unit tests, plain Node (docs/testing.md)
 ```
+
+**Its channels are all in its `ipc.ts`**, those of its own pages and those between the window's page and the main
+process about its things, and handled inside it (its main half through `ipc.ts`'s `handle`, `on`); nothing outside
+listens to a package's channel. A channel of a pane or a task that only calls the package (the human's
+`tab:screenshot`: find the tab, call the core) is the window's, in `src/shared/ipc.ts`.
+
+**Imports** name the entry's file in the main process (`'../screenshots/main/index.ts'`): it runs from source, and
+Node's ES modules resolve no folder to its `index` (`ERR_UNSUPPORTED_DIR_IMPORT`). The window's side goes through Vite,
+which does (`'../../terminal/renderer'`).
 
 A half it does not have is left out. Its e2e tests stay in `test/`, in the group whose state they need (a group is one
 app: [testing.md](testing.md)); its README names which files.
@@ -52,6 +77,9 @@ app: [testing.md](testing.md)); its README names which files.
   main process its `main/`; its two halves share only types (they run in two processes); its `main/` uses of
   `src/main` only what its line allows; its `renderer/` nothing of the window or the main process. `npm run deps`
   (`packages` in `.dependency-cruiser.ts`: a new package is a line there, what its main half may use).
+- A unit test may load its main half (`profiles.ts` imports the screenshots' `Profile.screenshot`'s capture; the unit
+  tests load `profiles.ts`): its files and what they import from `src/main` (`ipc.ts`, `log.ts`) take Electron's
+  objects from the module, not by name (docs/testing.md). `npm run test:unit` fails at load otherwise.
 - `tsc` and `vue-tsc` check both halves: `tsconfig.json` takes every `src/*/main`, `src/*/ipc.ts` and
   `src/*/*.test.ts`, `src/renderer/tsconfig.json` every `src/*/renderer` (the window's build imports it anyway).
 - `npm run test:unit` and `npm test` run `src/*/*.test.ts` (`package.json`, `test/start.ts`: the same two globs).
@@ -66,6 +94,11 @@ them does not take it (a check that silently skips it is the danger), fix the co
 - `README.md`: what it is and who uses it (and that it knows nothing of them), how each half works and why, its
   channels, "The code" (its files, its e2e test files), as the docs in `docs/` are written (CLAUDE.md, Conventions).
   The paragraphs of `docs/` about it move there; `docs/` keeps a sentence and a link where the topic was.
+- **Outside the package, only what a reader outside needs, never a retelling**: the guide (`docs/guide.md`: for the
+  user, and it may not link to other docs), the lists that hold all of a kind with a word and a link each (the table
+  of actions in `profiles.md`, the keys in `window.md`, the environment variables in the README, "The code" tables,
+  the ROADMAP's platform gaps), and a sentence where a doc's topic leads into the package. How it works and why is
+  only in its README.
 - `CLAUDE.md`, short: that it is a Kulisa package (and this doc), its entries and what its halves may use, what stays
   outside and so where a rule about that belongs, where its tests are. Claude Code reads a folder's `CLAUDE.md` when
   it reads the folder's files; other agents read the root one, which points here.
@@ -85,7 +118,9 @@ The terminal's move (2026-10-18) is the example; each step says what it found.
    other docs; the old paths searched for in `docs/`, `CLAUDE.md`, `README.md` and the code's comments.
 6. **Its unit tests** into the folder; then the full `npm test`, and the number of unit tests the same as before (the
    terminal's was not run by `npm test` at first: `test/start.ts` had a glob of its own).
-7. **The app's package**: `npm run package`, then its archive listed (`npx asar list out/*/resources/app.asar`): its
+7. **What is left outside**: each file outside the package that it touches, and why that line is not in it (the
+   caller states facts, above); a check, a timer, a state or a channel outside is moved in.
+8. **The app's package**: `npm run package`, then its archive listed (`npx asar list out/*/resources/app.asar`): its
    `main/` and `ipc.ts` in, its `renderer/`, tests and docs out (the terminal's docs went in at first); `out/`
    removed after.
 
@@ -94,3 +129,4 @@ The terminal's move (2026-10-18) is the example; each step says what it found.
 | Folder | What | Its main half uses |
 |---|---|---|
 | `src/terminal/` | a terminal: its pty in the user's shell, its buffers and the xterm a place shows ([README](../src/terminal/README.md)) | `ipc.ts`, `log.ts` |
+| `src/screenshots/` | a picture of a page (an element, the visible part, the whole page), kept as the human's, its thumbnail ([README](../src/screenshots/README.md)) | `ipc.ts`, `log.ts` |

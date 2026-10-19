@@ -1,7 +1,8 @@
 // Renaming and deleting profiles; DevTools.
+import electron from 'electron';
 import fs from 'fs';
 import path from 'path';
-import { assert, userData, pfile, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, closeSettings, chooseProfile, setProfileField, rightClick, menuOpen } from './helpers.ts';
+import { assert, userData, pfile, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, closeSettings, chooseProfile, setProfileField, rightClick, menuOpen, closeMenu, press, CMD, MENU, SUBMENU, panel } from './helpers.ts';
 import type { Test } from './run.ts';
 
 export default (test: Test) => {
@@ -127,7 +128,7 @@ export default (test: Test) => {
         await ui(`document.querySelector('.pane[data-profile="sam-admin"] .more').click()`);
         await waitFor(() => menuOpen(ui), 1500).catch(() => {});
       }
-      assert.deepEqual(await menuRows(ui), ['DevTools']);
+      assert.deepEqual(await menuRows(ui), ['Screenshot', 'DevTools']);
       // As Chrome's ⋮: under the button, its right edge at the button's, so it stays over its own pane.
       const [m, b] = await ui(`[document.querySelector('.menu[data-state="open"]'), document.querySelector('.pane[data-profile="sam-admin"] .more')].map((e) => e.getBoundingClientRect().toJSON())`);
       assert.ok(Math.abs(m.right - b.right) < 1 && m.top >= b.bottom, JSON.stringify({ m, b }));
@@ -157,5 +158,137 @@ export default (test: Test) => {
     await waitFor(() => !shell.win.isFocused(), 3000).catch(() => {});
     await click();
     await waitFor(() => !wc.isDevToolsOpened());
+  });
+
+  // The human's pictures (src/screenshots): on the clipboard and in the OS's folder of screenshots (the group's folder
+  // here: KULISA_SCREENSHOTS), at the screen's density, an element chosen as Pick chooses; not the agent's action.
+  test("a pane's ⋮ → Screenshot takes an element, the visible part or the whole page, to the clipboard and the folder of screenshots", async ({ shell, ui }) => {
+    const dir = process.env.KULISA_SCREENSHOTS, admin = shell.profiles.get('sam-admin'), wc = () => admin.get().wc;
+    fs.rmSync(dir, { recursive: true, force: true });
+    const files = () => (fs.existsSync(dir) ? fs.readdirSync(dir).sort() : []);
+    const page = await admin.page(), was = page.url();
+    await page.goto(`${SITE}/tall`);
+    const dpr = await page.evaluate(() => devicePixelRatio);
+    const actions: string[] = [];
+    const watch = (a: { caption: string }) => { actions.push(a.caption); };
+    shell.bus.on('agent-action', watch);
+    const caption = () => ui(`document.querySelector('.ptab[data-panel="${panel(shell, 'sam-admin')}"] .caption').textContent`);
+    const fromMenu = async (label: string) => {
+      for (let i = 0; !(await menuOpen(ui)) && i < 5; i++) {
+        await ui(`document.querySelector('.pane[data-profile="sam-admin"] .more').click()`);
+        await waitFor(() => menuOpen(ui), 1500).catch(() => {});
+      }
+      await ui(`${MENU}.querySelector('.item[aria-haspopup]').click()`);
+      await waitFor(async () => (await ui(`document.querySelectorAll('.menu[data-state="open"]').length`)) === 2);
+      assert.deepEqual(await menuRows(ui, SUBMENU), ['Element', 'Visible Part', 'Full Page']);
+      await choose(ui, label, SUBMENU);
+    };
+    await fromMenu('Full Page');
+    await waitFor(() => files().length === 1);
+    const [full] = files();
+    assert.match(full, /^Kulisa Sam\.admin \d{4}-\d\d-\d\d \d\d\.\d\d\.\d\d\.png$/);
+    const fullImage = electron.nativeImage.createFromPath(path.join(dir, full));
+    assert.ok(fullImage.getSize().height > 3000 * dpr - 1, `the whole page (${fullImage.getSize().height})`);
+    const [item] = await electron.clipboard.read();
+    assert.ok(item.types.includes('image/png'), `on the clipboard too (${item.types})`);
+    await waitFor(async () => (await caption()) === 'Screenshot copied and saved');
+    // The element: its key, then a click on it in the page, as Pick (which reaches the page a moment after it starts:
+    // clicked again until it comes, as in Pick's test).
+    press(wc(), 'S', CMD, 'shift');
+    await waitFor(() => shell.windows[0].picking.has('sam-admin'));
+    const b = await page.locator('#box').boundingBox();
+    const x = Math.round(b.x + b.width / 2), y = Math.round(b.y + b.height / 2);
+    for (let i = 0; files().length < 2 && i < 20; i++) {
+      wc().sendInputEvent({ type: 'mouseMove', x, y });
+      wc().sendInputEvent({ type: 'mouseDown', x, y, button: 'left', clickCount: 1 });
+      wc().sendInputEvent({ type: 'mouseUp', x, y, button: 'left', clickCount: 1 });
+      await waitFor(() => files().length === 2, 500).catch(() => {});
+    }
+    const element = electron.nativeImage.createFromPath(path.join(dir, files().find((f) => f !== full)));
+    assert.deepEqual(element.getSize(), { width: Math.round(200 * dpr), height: Math.round(120 * dpr) }, 'the element alone, at the screen\'s density');
+    // Esc while choosing: nothing taken.
+    press(wc(), 'S', CMD, 'shift');
+    await waitFor(() => shell.windows[0].picking.has('sam-admin'));
+    press(wc(), 'Escape');
+    await waitFor(() => !shell.windows[0].picking.has('sam-admin'));
+    await fromMenu('Visible Part');
+    await waitFor(() => files().length === 3);
+    shell.bus.off('agent-action', watch);
+    assert.ok(!actions.includes('screenshot'), `not captioned as the agent's (${actions})`);
+    // An empty tab: nothing to take, its rows off.
+    const blank = admin.newTab('about:blank').id;
+    await waitFor(() => ui(`document.querySelector('.pane[data-profile="sam-admin"] .pick').disabled`)); // the window knows it: Pick off too
+    await assert.rejects(admin.screenshot(admin.get(), { scale: 'device', type: 'png', by: 'human' }), /is empty/);
+    await ui(`document.querySelector('.pane[data-profile="sam-admin"] .more').click()`);
+    await waitFor(() => menuOpen(ui));
+    await ui(`${MENU}.querySelector('.item[aria-haspopup]').click()`);
+    await waitFor(async () => (await ui(`document.querySelectorAll('.menu[data-state="open"]').length`)) === 2);
+    assert.deepEqual(await menuRows(ui, SUBMENU), ['Element (off)', 'Visible Part (off)', 'Full Page (off)']);
+    await closeMenu(ui);
+    admin.closeTab(blank);
+    await page.goto(was); // as later files expect it
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  // The thumbnail (src/screenshots, The thumbnail): what the OS would do with the file is stubbed (a file manager, an
+  // app, the trash: outside the tests' folder).
+  test('a screenshot shows its thumbnail in its pane\'s corner: a click opens it, it drags out, its menu shows, copies, sends it to the agent, deletes; it goes by itself unless the pointer is over it', async ({ shell, ui, ptyOutput }) => {
+    const dir = process.env.KULISA_SCREENSHOTS, admin = shell.profiles.get('sam-admin'), w = shell.windows[0];
+    const page = await admin.page(), was = page.url();
+    await page.goto(`${SITE}/tall`);
+    const did: string[] = [];
+    const os = electron.shell, real = { openPath: os.openPath, showItemInFolder: os.showItemInFolder, trashItem: os.trashItem };
+    os.openPath = async (f) => { did.push(`open ${f}`); return ''; };
+    os.showItemInFolder = (f) => { did.push(`show ${f}`); };
+    os.trashItem = async (f) => { did.push(`trash ${f}`); fs.rmSync(f); };
+    try {
+      const take = async () => {
+        assert.equal((await ui(`act('tab:screenshot', { profile: 'sam-admin', kind: 'visible' })`)).error, undefined);
+        await waitFor(() => w.thumbnails.bounds);
+        return { file: w.thumbnails.file, view: w.thumbnails.view, bounds: w.thumbnails.bounds };
+      };
+      const t = await take(), file = t.file, wc = t.view.webContents;
+      // In the pane's bottom right corner, the picture shown in its page, and drawn by the window too.
+      const p = admin.bounds, b = t.bounds;
+      assert.ok(b.x > p.x && b.y > p.y && b.x + b.width < p.x + p.width && b.y + b.height < p.y + p.height && p.x + p.width - (b.x + b.width) < 40 && p.y + p.height - (b.y + b.height) < 40, JSON.stringify({ p, b }));
+      await waitFor(() => wc.executeJavaScript(`document.querySelector('img').src.startsWith('data:image/png')`));
+      await waitFor(() => ui(`!!document.getElementById('shotthumb')`));
+      await wc.executeJavaScript(`document.querySelector('img').click()`);
+      await waitFor(() => did.includes(`open ${file}`));
+      let dragged: Electron.Item | undefined;
+      wc.startDrag = (item) => { dragged = item; };
+      await wc.executeJavaScript(`document.querySelector('img').dispatchEvent(new DragEvent('dragstart', { bubbles: true, cancelable: true })); 0`);
+      await waitFor(() => dragged?.file === file);
+      // Its menu, the window's, where it was right-clicked; the thumbnail stays while it is open.
+      const menu = async (label: string) => {
+        await wc.executeJavaScript(`document.dispatchEvent(new MouseEvent('contextmenu', { clientX: 20, clientY: 10, bubbles: true, cancelable: true })); 0`);
+        assert.deepEqual(await menuRows(ui), ['Show in Folder', 'Copy', 'Send to Agent', '-', 'Delete', 'Close']);
+        await choose(ui, label);
+        await waitFor(async () => !(await menuOpen(ui)));
+      };
+      await menu('Show in Folder');
+      await waitFor(() => did.includes(`show ${file}`));
+      await electron.clipboard.writeText('something else');
+      await menu('Copy');
+      await waitFor(async () => (await electron.clipboard.read())[0]?.types.includes('image/png'));
+      await menu('Send to Agent');
+      await waitFor(() => ptyOutput().includes(`'${file}' `));
+      shell.pty.write('\x15'); // Ctrl+U: clear the line for the next tests
+      await menu('Delete');
+      await waitFor(() => did.includes(`trash ${file}`) && !w.thumbnails.file && wc.isDestroyed());
+      await waitFor(async () => !(await ui(`!!document.getElementById('shotthumb')`)));
+      // It goes by itself after 5 s (the time macOS gives one), and stays while the pointer is over it: the test waits
+      // that long, twice.
+      const held = await take();
+      await held.view.webContents.executeJavaScript(`document.documentElement.dispatchEvent(new MouseEvent('mouseenter')); 0`);
+      await sleep(5500);
+      assert.equal(w.thumbnails.view, held.view, 'held while the pointer is over it');
+      await held.view.webContents.executeJavaScript(`document.documentElement.dispatchEvent(new MouseEvent('mouseleave')); 0`);
+      await waitFor(() => !w.thumbnails.file, 7000);
+    } finally {
+      Object.assign(os, real);
+      await page.goto(was); // as later files expect it
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   });
 };

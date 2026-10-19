@@ -17,7 +17,7 @@ import { COLORS } from './window.ts';
 import type { AppWindow } from './window.ts';
 import { findFavicon } from './favicons.ts';
 import { AGENTS, findAgent, signOut } from './agents/index.ts';
-import { stopTerminal } from '../terminal/main/index.ts';
+import { onEscape, stopTerminal } from '../terminal/main/index.ts';
 import { startMcpServer } from './kulisa-plugin/mcp-server.ts';
 import { installPicker } from './picker.ts';
 import { installGhost } from './kulisa-plugin/ghost.ts';
@@ -281,6 +281,8 @@ function start(options: Options = {}) {
   // The windows' handles (ipc/): each message acts in the window it comes from.
   const ipc: Ipc = { shell, at, owner, asker, serial, tasks };
   registerTasks(ipc);
+  // Esc typed into an agent's terminal (its key: "<task>#<id>"): the agent's turn ended (Task.interrupted).
+  onEscape((key) => shell.taskByKey(key.split('#')[0]!)?.interrupted(key));
   registerProjects(ipc, { lookForFavicon });
   registerProfiles(ipc);
   registerAgents(ipc);

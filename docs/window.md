@@ -195,9 +195,7 @@ without it. Saved (`settings.json`), the same in every window.
   `--append-system-prompt`; a project's CLAUDE.md won. So one setting for dictation and answers, not two. With it
   set to Russian and no rule, Claude Code wrote a file's comments in Russian too: which language code and comments
   are in is the project's to say, in its CLAUDE.md or AGENTS.md, which the tooltip says too.
-- The terminal takes the panels' colors (`term.options.theme`, set again on a change); the programs' own colors stay
-  xterm's, made readable on either background by its `minimumContrastRatio` (as VS Code does), with no palette of
-  Kulisa's own.
+- The terminal takes the panels' colors ([src/terminal](../src/terminal/README.md)).
 
 ## Menus
 
@@ -376,12 +374,11 @@ module, or `arecord`/SoX on Linux); on macOS the system asks for the microphone 
 (`NSMicrophoneUsageDescription`, `forge.config.ts`). The voice bar, an island of its own under the terminals with
 the microphone in its middle (2026-10-13, for a day): a whole row for one button.
 
-Links in the terminal, those an agent marks (OSC 8, as Claude Code does) and addresses in plain text (xterm's web-links
-addon), open with Ctrl+click (⌘ on macOS), and always ask where, in a menu at the pointer: a new tab in one of the
-shown task's open profiles, or the user's browser. Asked every time, so a link never lands somewhere the human
-did not expect (the author's choice, 2026-10-08: which profile a link belongs to cannot be told, and a rule such as
-"where that site is open" was not obvious). Only `http` and `https`; the address shows on hover. xterm's own handler
-asked with the browser's `confirm()`, an OS dialog.
+Links in the terminal open with Ctrl+click (⌘ on macOS; which links: [src/terminal](../src/terminal/README.md)), and
+always ask where, in a menu at the pointer (the island's `termHooks.open`): a new tab in one of the shown task's open
+profiles, or the user's browser. Asked every time, so a link never lands somewhere the human did not expect (the
+author's choice, 2026-10-08: which profile a link belongs to cannot be told, and a rule such as "where that site is
+open" was not obvious).
 
 ## Keys
 
@@ -401,7 +398,7 @@ it, before or after.
 - **In a profile's page, or its pane** (its address bar, its toolbar): Chrome's keys, for that pane, as the hands know
   them: Ctrl+T a new tab with the address to type in, Ctrl+W, Ctrl+Shift+T (the tab closed last: its address, kept in
   memory, ten at most), Ctrl+L / Alt+D / F6, Ctrl+R / F5, Ctrl+Shift+R (not from the cache), Alt+← / →, Ctrl+Tab,
-  Ctrl+PgDn / PgUp, Ctrl+1…8, Ctrl+9; and Ctrl+Shift+C for Pick (Chrome's Inspect). The site does not get them, as in
+  Ctrl+PgDn / PgUp, Ctrl+1…8, Ctrl+9; Ctrl+Shift+C for Pick (Chrome's Inspect), Ctrl+Shift+S for a screenshot of an element ([src/screenshots](../src/screenshots/README.md)). The site does not get them, as in
   Chrome. Closing or switching a tab from the page leaves the keyboard in the page shown next.
 - **Everywhere, the terminal too**: Ctrl+` to the terminal in front and back to the page used last (on the folded
   island, a new conversation of the task's agent), Ctrl+Shift+` a new terminal, Ctrl+Shift+1…9 the bar's first to ninth tab, Ctrl+Shift+PgDn / PgUp the next or previous

@@ -9,7 +9,7 @@ import path from 'path';
 import { Profile, wipeSession } from './profiles.ts';
 import { ProjectProfiles } from './project-profiles.ts';
 import { installSigninPause } from './signin-pause.ts';
-import { startTerminal, stopTerminal, forgetTerminal, terminalTail, sendToPrompt } from '../terminal/main/index.ts';
+import { startTerminal, stopTerminal, forgetTerminal, terminalTail, sendToPrompt, typeIntoPrompt, typeLine, interrupt } from '../terminal/main/index.ts';
 import { READ_MAX } from './kulisa-plugin/mcp-server.ts';
 import { copyProfile } from './store.ts';
 import { renameBranch } from './worktrees.ts';
@@ -306,6 +306,17 @@ class Task {
     return this.shownAgent() || (last?.agent ? last : null) || this.agentTerminals().at(-1) || null;
   }
   get pty() { return this.promptTarget()?.pty || null; }
+  // Words for the human's next message to the agent (Pick's reference, a screenshot's path): typed without Enter into
+  // the agent's prompt, its tab brought to the front, the keyboard there, so the human writes the rest around them.
+  typeForAgent(text: string) {
+    const to = this.promptTarget();
+    if (!to?.pty) return false;
+    typeIntoPrompt(to.pty, text);
+    if (to.id !== this.front) this.show(to.id);
+    const w = this.window;
+    if (w && !w.win.isDestroyed()) { w.win.webContents.focus(); w.send('terminal:focus'); }
+    return true;
+  }
   // A tab's name: a shell's own; an agent's, the name it gave its conversation (nameConversation), else its agent's,
   // numbered when another agent's tab has it too.
   label(t: TaskTerminal) {
@@ -481,7 +492,7 @@ class Task {
     const t = this.terminal(name);
     if (refused(t)) return t.agent ? t : this.openTerminal({ name, command, by: 'agent' });
     t.command = command;
-    t.pty?.write(`${command}\r`);
+    if (t.pty) typeLine(t.pty, command);
     this.changedTerminals();
     return { id: t.id, name: t.name, again: true };
   }
@@ -489,7 +500,7 @@ class Task {
   interruptTerminal(which: number | string): Result<{ id: number }> {
     const t = this.terminal(which);
     if (refused(t)) return t;
-    t.pty?.write('\x03');
+    if (t.pty) interrupt(t.pty);
     return { id: t.id };
   }
   readTerminal(which: number | string, lines = 50): Result<{ text: string }> {

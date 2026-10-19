@@ -1,5 +1,5 @@
 // What a menu holds, as the window's parts build their menus (docs/ui.md, Menus).
-import { shallowRef, type Component } from 'vue';
+import { shallowRef, watch, type Component } from 'vue';
 
 export interface MenuRow {
   label: string; sub?: string; keys?: string;
@@ -21,6 +21,11 @@ export type MenuItem = '-' | MenuRow
 // A menu at a point with no button or area of its own: a link in the terminal (Ctrl+click). PointMenu.vue shows it.
 export const pointMenu = shallowRef<{ x: number; y: number; items: MenuItem[] } | null>(null);
 export const menuAt = (e: MouseEvent, items: MenuItem[]) => { pointMenu.value = { x: e.clientX, y: e.clientY, items }; };
+// The same at a point the main process names (a screenshot's thumbnail, a native view of its own): done once it closes.
+export const menuAtPoint = (x: number, y: number, items: MenuItem[]) => new Promise<void>((closed) => {
+  pointMenu.value = { x, y, items };
+  const stop = watch(pointMenu, (m) => { if (m?.items !== items) { stop(); closed(); } });
+});
 // A row whose action opens a field for the keyboard (New Profile…): the menu, closing, gives it there instead (forgotten
 // soon after, when the menu had closed before the field came).
 let given: HTMLElement | null = null;

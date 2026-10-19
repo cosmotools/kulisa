@@ -1,6 +1,6 @@
 // Profiles and the agent: the editor, the MCP server and the plugin, tabs, isolation, the Chrome identity, the
 // sign-in pause, the agent's cursor, point and tell, @playwright/mcp.
-import { app } from 'electron';
+import { app, nativeImage } from 'electron';
 import { spawnSync, spawn } from 'child_process';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
@@ -311,6 +311,30 @@ export default (test: Test) => {
     await call('browser_click', { profile: 'sam-seller', locator: "getByRole('button', { name: 'Checkout' })" });
     const shot = await call('browser_screenshot', { profile: 'sam-seller' });
     assert.equal(shot.content[0].type, 'image');
+  });
+
+  // The agent's marks (its pointer, browser_highlight's outline) are Kulisa's, not the site's: not in the picture.
+  test('agent: screenshots of an element, the visible part and the whole page, at CSS pixels, without the agent\'s marks; several profiles in one call', async ({ call }) => {
+    const img = (part: { data?: string }) => nativeImage.createFromBuffer(Buffer.from(part.data, 'base64'));
+    await call('browser_navigate', { profile: 'sam-seller', url: `${SITE}/tall` });
+    const box = { profile: 'sam-seller', locator: "locator('#box')" };
+    const el = img((await call('browser_screenshot', box)).content[0]);
+    assert.deepEqual(el.getSize(), { width: 200, height: 120 }, 'the element alone, at its CSS size');
+    const [b, g, r] = el.crop({ x: 100, y: 60, width: 1, height: 1 }).toBitmap();
+    assert.ok(r > 180 && g < 60 && b < 60, `the element's own color (${[r, g, b]})`);
+    const visible = (await call('browser_screenshot', { profile: 'sam-seller' })).content[0];
+    const inner = JSON.parse((await call('browser_evaluate', { profile: 'sam-seller', function: '() => [innerWidth, innerHeight]' })).text);
+    assert.deepEqual(Object.values(img(visible).getSize()), inner, 'the visible part, at CSS pixels');
+    await call('browser_highlight', { profile: 'sam-seller', elements: [{ locator: "locator('#box')" }] });
+    assert.equal((await call('browser_screenshot', { profile: 'sam-seller' })).content[0].data, visible.data, 'the outline is not in the picture');
+    await call('browser_highlight', { profile: 'sam-seller', elements: [] });
+    const full = img((await call('browser_screenshot', { profile: 'sam-seller', fullPage: true })).content[0]);
+    assert.ok(full.getSize().height > 3000, `the whole page, down to its end (${full.getSize().height})`);
+    await call('browser_navigate', { profile: 'elon-buyer', url: `${SITE}/tall` });
+    const both = (await call('browser_screenshot', { ...box, also: ['elon-buyer'] })).content.slice(0, 4); // then an unnamed task's note
+    assert.deepEqual(both.map((c: { type: string; text?: string }) => c.text || c.type), ['- Profile: sam-seller', 'image', '- Profile: elon-buyer', 'image']);
+    assert.deepEqual(img(both[3]).getSize(), { width: 200, height: 120 }, 'the same element in the other profile');
+    await assert.rejects(call('browser_screenshot', { profile: 'sam-seller', ref: 'e1', also: ['elon-buyer'] }), /pass a locator/);
   });
 
   test('agent: typing goes key by key, as a person types, replacing what the field held; a long text at once', async ({ call }) => {

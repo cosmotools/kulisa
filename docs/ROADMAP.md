@@ -39,16 +39,6 @@ moves there over time: what has an issue is removed from here, the issue being t
   scripts, `curl`, asking the human to do it) is a tool missing; from every user's computer through Ideas for
   Kulisa (#84). Thought of, not built: console and requests since the agent's last action only; a button over the
   pane for the human to say they signed in, for sign-ins that keep the address.
-- **Screenshots the agent can use** (the author's idea, 2026-10-09; to discuss with the author before building).
-  `browser_screenshot` today takes the visible part of a tab, JPEG at the screen's pixel density (`mcp-server.ts`).
-  Proposed, on the same tool, so every agent gets it through the MCP server (the skill and a line in `INSTRUCTIONS`
-  describe it):
-  - `ref` / `locator`: one element (`locator.screenshot`); `fullPage`: the whole page, scrolled;
-  - `also`: several profiles' active tabs in one call, as `browser_snapshot` has it ("what the buyer sees, what the
-    seller sees");
-  - `scale: 'css'` by default (playwright-core's `screenshot` option): at a device's pixel density the picture is
-    several times larger and costs the agent's context for nothing.
-  - Small, independent of the device views below. Estimate: code +30, tests +30, docs +10.
 - **Phone, tablet and desktop views of a site** (the author's idea, 2026-10-09; to discuss with the author before
   building). Responsive layouts are checked today only by resizing the pane.
   - A device view **per tab**, as Chrome DevTools' device mode, written once in the core (the tab), with both handles:
@@ -345,6 +335,10 @@ moves there over time: what has an issue is removed from here, the issue being t
       serve them too, and `terminal_stop`'s Ctrl+C in cmd asks "Terminate batch job?". Closing a task and opening it
       again (`claude --resume`) and the project folder dialog (New Project…'s Browse…): untested.
   - `safeStorage` (DPAPI) for session cookies on Windows: untested.
+  - Screenshots ([src/screenshots](../src/screenshots/README.md)), tested on Linux (X11) only: the folder of
+    screenshots on macOS (the one ⇧⌘5 chose, read by `defaults`) and Windows (`Pictures\Screenshots`); the image on the
+    clipboard and the thumbnail's file dragged out on Wayland, macOS and Windows; the thumbnail's view at a Retina
+    screen's density; Send to Agent and Ctrl+V of an image in Codex.
   - One xterm a place ([window.md](window.md), The terminal): the RAM it saves where the GPU's memory is the RAM (a
     Mac's, a laptop's integrated GPU): measured on Linux with a GeForce only (the video memory 472 → 178 MB, 20 terminals).
   - Dictation (the right ⌘ held, or the terminals' microphone): the agent records itself. macOS: signed with the

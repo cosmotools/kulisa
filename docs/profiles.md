@@ -214,6 +214,7 @@ methods; who a profile is changes and is checked in the store (`ProfileStore.ren
 | DevTools | ⋮, F12 | none: the agent has console and network tools | `Profile.toggleDevTools` |
 | Point at an element | Pick, Ctrl+Shift+C (into the agent's prompt) | `browser_highlight` (outlined for the human) | `picker.ts`; the MCP server |
 | Read a page | looks at it | `browser_snapshot`, `browser_screenshot`, console, network | Playwright |
+| Take a screenshot (an element, the visible part, the whole page) | ⋮ → Screenshot, Ctrl+Shift+S (an element); to the clipboard and the OS's folder of screenshots | `browser_screenshot` (`ref`/`locator`, `fullPage`, `also`) | `Profile.screenshot`, the screenshots' Kulisa package ([README](../src/screenshots/README.md)) |
 | Act in a page | mouse, keyboard | `browser_click`, `browser_type`, `browser_press_key`, `browser_hover`, `browser_select_option`, `browser_file_upload`, `browser_evaluate` | the page itself; Playwright over the proxy |
 | Answer a dialog | the dialog in the pane | `dialog` on the action that opened it | `Profile._dialog`, `answerDialog` |
 | Sign in | by hand, in its master (Sign In to Master…) or a task's pane | never (Rules); asks with `profile_ask_signin` | `master.ts`; the sign-in pause |

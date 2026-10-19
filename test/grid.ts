@@ -59,10 +59,10 @@ export default (test: Test) => {
       await waitFor(async () => JSON.stringify(await bar()) === JSON.stringify(shown), 3000).catch(async () => assert.deepEqual(await bar(), shown, `${w} px`));
     };
     await at(400, ['back', 'fwd', 'reload', 'addr', 'pick', 'more']);
-    assert.deepEqual(await more(), ['DevTools']);
+    assert.deepEqual(await more(), ['Screenshot', 'DevTools']);
     await at(240, ['reload', 'addr', 'pick', 'more']);
     await at(100, ['addr', 'pick', 'more']);
-    assert.deepEqual((await more()).map((r: string) => r.replace(' (off)', '')), ['Back', 'Forward', 'Reload', '-', 'DevTools']);
+    assert.deepEqual((await more()).map((r: string) => r.replace(' (off)', '')), ['Back', 'Forward', 'Reload', '-', 'Screenshot', 'DevTools']);
     await dock(ui, `api.getPanel('profile:Profile 1').group.api.setSize({ width: ${width} })`);
   });
   test('grid: a pane stacked behind another as a tab hides its page until chosen', async ({ shell, ui }) => {
