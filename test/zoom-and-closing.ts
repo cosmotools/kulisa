@@ -206,9 +206,12 @@ export default (test: Test) => {
     await call('browser_navigate', { profile: 'dora', url: `${SITE}/app/login?name=dora` });
     await call('profile_close', { profile: 'dora' });
   });
-  test('a profile with a tab on a site that never answers opens anyway, and the agent can use it', async ({ shell, call }) => {
+  test('a profile with a tab on a site that never answers opens anyway, and the agent can use it', async ({ shell, call, ui }) => {
     await call('profile_create', { name: 'Hung' });
     await call('browser_tab_new', { profile: 'hung', url: `${SITE}/hang` }); // returns after 5 s without a page
+    // Still loading: its title as it is, no ⟳ before it (the author, 2026-10-19).
+    const title = await ui(`document.querySelector('.pane[data-profile="hung"] .tab.active .title').textContent`);
+    assert.ok(shell.profiles.get('hung').get().loading && !title.includes('⟳'), title);
     await shell.task.closeProfile('hung');
     await waitFor(() => savedTabs('hung').some((u) => u.endsWith('/hang')));
     const started = Date.now();
