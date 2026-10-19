@@ -601,7 +601,7 @@ Why so, and what was not chosen (2026-10-11, 2026-10-12):
   conversation, gigabytes of memory, and it misses what a coding agent would find.
 - A proxy giving the old CLI another vendor's model (`ANTHROPIC_BASE_URL` to a gateway such as LiteLLM; the author's
   idea, the one truly seamless way): it needs that vendor's API key (a subscription's sign-in is the CLI's own, and
-  Kulisa reads no tokens), a gateway process of another's, and drops signed reasoning. A candidate for an extension.
+  Kulisa reads no tokens), a gateway process of another's, and drops signed reasoning.
 - Anthropic's Consumer Terms (read 2026-10-11): several accounts are not forbidden; "bypassing any of our systems or
   protective measures" is. Going on with another vendor bypasses nothing; a second subscription of the same vendor
   to get around a limit may count as bypassing: the human's choice, so Kulisa never offers a switch on its own.

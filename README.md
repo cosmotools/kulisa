@@ -141,5 +141,5 @@ version 3 or (at your option) any later version ([LICENSE](LICENSE)). It comes w
 - **The name and the logo** are not covered by the license: a fork must be called otherwise and not look like the
   official Kulisa.
 
-What the license covers and what it does not (agents, their plugins, MCP servers, extensions, services):
+What the license covers and what it does not (agents, their plugins, MCP servers, services):
 [docs/LICENSING.md](docs/LICENSING.md). Contributing: [CONTRIBUTING.md](CONTRIBUTING.md).

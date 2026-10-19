@@ -84,14 +84,12 @@ Everything happens inside Kulisa; no external Chrome windows.
   way (for Claude Code also a plugin with the MCP config, `src/agent/claude-plugin/`).
   Giving the agent more it can do in the browsers is one of Kulisa's features: extend the MCP server, then describe
   it in the skill.
-- **Terminology: "plugin" vs "extension".** A plugin is always an agent's (Claude Code's, Codex's), the Kulisa plugin
-  being one. Code that extends Kulisa itself (panels, features of the IDE) is an "extension", as in VS Code and
-  Chrome. Not "module": that is a file of code.
+- **Terminology: "plugin"**: always an agent's (Claude Code's, Codex's), the Kulisa plugin being one.
 - **Terminology: "Kulisa package"** (the author, 2026-10-18, after "Kulisa plugin": an npm package's idea in Kulisa's
   own context) for a part of Kulisa that knows nothing of the rest, all of it in one folder `src/<package>/`, reached
   only through its entries: the terminal first (`docs/packages.md`). Always the two words: a bare "package" is an npm
-  package (a dependency) or the app's package (Forge's build, the installers). Not an extension (what the user may
-  turn off), nor a cluster (a folder of the window's components, `docs/ui.md`).
+  package (a dependency) or the app's package (Forge's build, the installers). Not a cluster (a folder of the
+  window's components, `docs/ui.md`).
 - **The agent is the human's choice, per task** (`agents/`): never assume `claude` is installed. Kulisa
   installs a missing agent itself with its maker's installer when the human asks, without steps for them to type.
 - **Terminology: "tab"**: an open task in a window's tasks' bar, as a browser's tab (since 2026-10-14: its project's

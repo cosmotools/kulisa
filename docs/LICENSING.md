@@ -25,12 +25,6 @@ They work with Kulisa through a terminal, a protocol (MCP, HTTP, CDP) or files, 
 - the web apps tested in Kulisa's profiles;
 - services Kulisa may talk to (a cloud service of Kulisa's one day: its own terms).
 
-## Extensions
-
-Kulisa has no API for extensions yet (ROADMAP, Deferred ideas: a store). Code that runs inside Kulisa is part of it
-and comes under the GPL. When the API is built, the author means to add an exception to the license so that
-extensions using it may be under any license, free or paid (as GCC's Runtime Library Exception does).
-
 ## The name and the logo
 
 "Kulisa" and its logo (`assets/icon.svg`) are not licensed under the GPL. A fork or a product built on Kulisa's code
