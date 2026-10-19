@@ -332,6 +332,29 @@ export default (test: Test) => {
     assert.equal(png.subarray(1, 4).toString(), 'PNG');
     assert.ok(png.length > 10000, `${png.length} bytes`);
   });
+  test('the OS buttons\' strip shows the top bar under it: dimmed with it under a dialog', async ({ shell, ui }) => {
+    if (process.platform === 'darwin') return console.log('      (skipped: macOS draws no strip under its buttons)');
+    if (!canShoot()) return console.log(`      (skipped: ${NO_SHOT})`);
+    // The strip's first pixel and the top bar's just left of it, in the screenshot (the strip is the OS's, not the page's).
+    const { x, y } = await ui(`(() => { const r = navigator.windowControlsOverlay.getTitlebarAreaRect(); return { x: r.right * devicePixelRatio, y: 2 * devicePixelRatio }; })()`);
+    const pixels = async (name: string) => {
+      const file = path.join(root, name);
+      await shell.screenshot(file);
+      const img = electron.nativeImage.createFromPath(file), { width } = img.getSize(), bgra = img.toBitmap();
+      const at = (px: number) => [...bgra.subarray((y * width + px) * 4, (y * width + px) * 4 + 3)];
+      return { bar: at(Math.round(x) - 3), strip: at(Math.round(x) + 3) };
+    };
+    const near = ({ bar, strip }: { bar: number[]; strip: number[] }) => bar.every((c, i) => Math.abs(c - strip[i]) <= 2);
+    const plain = await pixels('buttons.png');
+    assert.ok(near(plain), `the strip as the bar: ${JSON.stringify(plain)}`);
+    await ui(`document.getElementById('windowMenu').click()`); await choose(ui, 'Keyboard Shortcuts');
+    await waitFor(() => ui(`(document.getElementById('shortcuts')?.dataset.state === 'open')`));
+    let dimmed = plain; // the screen catches up with the page a frame later
+    await waitFor(async () => { dimmed = await pixels('buttons-dialog.png'); return dimmed.bar[0] < plain.bar[0]; });
+    assert.ok(near(dimmed), `dimmed as the bar: ${JSON.stringify(dimmed)}`);
+    await ui(`document.querySelector('#shortcuts .x').click()`);
+    await waitFor(() => ui(`!document.getElementById('shortcuts')`));
+  });
   test('theme: Dark by default, Light or System in ☰; the window, the terminal and the OS buttons follow, the pages keep the OS\'s; saved', async ({ shell, ui }) => {
     // What is shown: a panel's color, the terminal's; the controls' own scheme (color-scheme).
     const DARK = 'rgb(30, 31, 34)', LIGHT = 'rgb(255, 255, 255)';

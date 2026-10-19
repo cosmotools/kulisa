@@ -33,6 +33,7 @@ const COLORS: Record<Shade, { window: string; text: string }> = { dark: { window
 // the constructor's bounds and setSize pass below it, so a window is raised to it here.
 const MIN_SIZE = { width: 640, height: 400 };
 const minSize = (z: number) => ({ width: Math.round(MIN_SIZE.width * z), height: Math.round(MIN_SIZE.height * z) });
+const CLEAR = '#0000'; // the OS buttons' strip
 const NONE = new Map<string, never>(); // the profiles when no task is open
 let windows = 0;
 
@@ -76,7 +77,9 @@ class AppWindow {
       icon: path.join(import.meta.dirname, '..', '..', 'assets', 'icon.png'), // taskbar and window switcher on Linux and Windows
       // One row on top, as in VS Code: no system title bar; the OS window buttons are drawn over the right end of
       // the window's own top bar (left on macOS). The page lays out around them (Window Controls Overlay).
-      titleBarStyle: 'hidden', titleBarOverlay: { color: COLORS[shell.shade()].window, symbolColor: COLORS[shell.shade()].text, height: this.barHeight },
+      // Its color is see-through, as macOS's traffic lights have no strip of their own: the top bar under it shows, and a
+      // dialog's backdrop dims it with the rest (it stayed bright under one, 2026-10-19).
+      titleBarStyle: 'hidden', titleBarOverlay: { color: CLEAR, symbolColor: COLORS[shell.shade()].text, height: this.barHeight },
       // DevTools of Kulisa's own UI only while developing it; a packaged build has none (profiles' tabs still do).
       webPreferences: { preload: PRELOAD, sandbox: true, devTools: appDevTools,
         zoomFactor: shell.uiZoom },
@@ -327,11 +330,11 @@ class AppWindow {
     this.send('zoom', z);
   }
   // The theme (app.ts): the page's colors (tokens.css: theme, as chosen), the window's background and the OS buttons'
-  // strip in the colors shown (shade: dark or light).
+  // symbols in the colors shown (shade: dark or light); their strip is see-through (CLEAR).
   setTheme(theme: string, shade: Shade) {
     if (this.win.isDestroyed()) return;
     this.win.setBackgroundColor(COLORS[shade].window);
-    if (process.platform !== 'darwin') this.win.setTitleBarOverlay({ color: COLORS[shade].window, symbolColor: COLORS[shade].text });
+    if (process.platform !== 'darwin') this.win.setTitleBarOverlay({ symbolColor: COLORS[shade].text });
     this.send('theme', theme);
   }
 

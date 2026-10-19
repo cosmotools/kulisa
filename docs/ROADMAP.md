@@ -284,11 +284,6 @@ moves there over time: what has an issue is removed from here, the issue being t
 
 ## Open issues
 
-- **The OS's window buttons are not dimmed under a dialog** (the author, 2026-10-11; put off). They are drawn by the
-  OS over the window (`titleBarOverlay`, `window.ts`), so the dialog's backdrop, HTML, cannot cover them: under a
-  dialog they stay bright. To look at: dim them with `setTitleBarOverlay` while a dialog is open (Windows and Linux;
-  macOS's traffic lights have no such color), or leave them, as many desktop apps do.
-
 - **The grid in a small window** (not decided; the window's own minimum is built: window.md, "The window's size"). When the panes do not fit,
   dockview overflows and cuts them, the profiles' native views get boxes near 0, and the terminal may get 0 columns
   (`pty.resize` is in a `try` in `src/terminal/main/index.ts`, but the agent's CLI draws garbage at a tiny size). Ways to weigh:
@@ -323,6 +318,8 @@ moves there over time: what has an issue is removed from here, the issue being t
       serve them too, and `terminal_stop`'s Ctrl+C in cmd asks "Terminate batch job?". Closing a task and opening it
       again (`claude --resume`) and the project folder dialog (New Project…'s Browse…): untested.
   - `safeStorage` (DPAPI) for session cookies on Windows: untested.
+  - The OS buttons' see-through strip ([window.md](window.md), The title bar) on Windows: no strip of the theme's
+    color behind them, their hover still shown, the strip dimmed under a dialog (the test checks it on Linux).
   - Screenshots ([src/screenshots](../src/screenshots/README.md)), tested on Linux (X11) only: the folder of
     screenshots on macOS (the one ⇧⌘5 chose, read by `defaults`) and Windows (`Pictures\Screenshots`); the image on the
     clipboard and the thumbnail's file dragged out on Wayland, macOS and Windows; the thumbnail's view at a Retina

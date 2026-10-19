@@ -9,7 +9,9 @@ next: [ROADMAP.md](ROADMAP.md). Keep this file current when the window changes.
 ## The title bar
 
 One row: the app's logo (the shown task's project's color on its curtain), Settings (a window of its own: below), ☰, and the OS's window buttons drawn over its right end (`titleBarStyle: 'hidden'` with
-`titleBarOverlay`); no menu bar. On macOS the window buttons are at the left end, and there is no logo: Mac apps
+`titleBarOverlay`); no menu bar. Their strip is see-through (`CLEAR` in `window.ts`), as macOS's traffic lights have
+none: the bar under it shows, and a dialog's backdrop dims it with the rest of the window (with the theme's color it
+stayed bright under one); their symbols are the theme's, and stay as they are under a dialog, as macOS's do. On macOS the window buttons are at the left end, and there is no logo: Mac apps
 show their icon in the Dock, not by the window's buttons (the author, 2026-10-16). macOS centers them in the bar
 the window is made with (its zoom then); Electron there cannot change that strip's height later (`setTitleBarOverlay`
 is Windows' and Linux's), so when the zoom changes `setZoom` moves them to the new bar's middle
