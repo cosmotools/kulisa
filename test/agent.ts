@@ -742,43 +742,47 @@ export default (test: Test) => {
       wc.sendInputEvent({ type: 'mouseDown', x, y, button: 'right', clickCount: 1 });
       wc.sendInputEvent({ type: 'mouseUp', x, y, button: 'right', clickCount: 1 });
     };
+    // On macOS a menu asked for while the last one is still closing is not shown: right-clicked again until one is.
+    const menuAt = (sel: string) => waitFor(async () => { await rightClick(sel); await sleep(250); return !!shownMenu(); });
     const rows = () => shownMenu().rows.map((r) => ('id' in r ? r.id : 'role' in r ? r.role : '-'));
     const close = async () => { shownMenu().menu.closePopup(shell.win); await waitFor(() => !shownMenu()); };
     const choose = (label: string) => shownMenu().menu.items.find((i) => i.label === label).click();
 
-    await rightClick('#link');
-    await waitFor(() => !!shownMenu());
-    assert.deepEqual(rows(), ['link.open', 'link.copy', '-', 'pick', 'screenshot', '-', 'inspect']);
-    const tabs = elon.tabs.length, active = elon.active;
-    choose('Open Link in New Tab'); // the row's action, as its click: the menu itself stays until closed
-    await close();
-    await waitFor(() => elon.tabs.length === tabs + 1);
-    const opened = elon.tabs.at(-1);
-    assert.equal(elon.active, active, 'opened behind, as Chrome does');
-    await waitFor(() => opened.url === `${SITE}/app`);
-    elon.closeTab(opened.id);
+    // A menu left open holds the main process's events on macOS (its menu's own loop): every later test failed with it.
+    try {
+      await menuAt('#link');
+      // macOS selects the word under a right-click, and a selection has its Copy, as in Chrome there.
+      const selected = await page.evaluate(() => !!getSelection().toString());
+      assert.deepEqual(rows(), ['link.open', 'link.copy', '-', ...(selected ? ['copy', '-'] : []), 'pick', 'screenshot', '-', 'inspect']);
+      const tabs = elon.tabs.length, active = elon.active;
+      choose('Open Link in New Tab'); // the row's action, as its click: the menu itself stays until closed
+      await close();
+      await waitFor(() => elon.tabs.length === tabs + 1);
+      const opened = elon.tabs.at(-1);
+      assert.equal(elon.active, active, 'opened behind, as Chrome does');
+      await waitFor(() => opened.url === `${SITE}/app`);
+      elon.closeTab(opened.id);
 
-    await rightClick('#field');
-    await waitFor(() => !!shownMenu());
-    assert.deepEqual(rows(), ['undo', 'redo', '-', 'cut', 'copy', 'paste', 'selectAll', '-', 'pick', 'screenshot', '-', 'inspect']);
-    await close();
+      await menuAt('#field');
+      assert.deepEqual(rows(), ['undo', 'redo', '-', 'cut', 'copy', 'paste', 'selectAll', '-', 'pick', 'screenshot', '-', 'inspect']);
+      await close();
 
-    await rightClick('#blank');
-    await waitFor(() => !!shownMenu());
-    assert.deepEqual(rows(), ['tab.back', 'tab.forward', 'tab.reload', '-', 'pick', 'screenshot', '-', 'inspect']);
-    assert.deepEqual(shownMenu().menu.items.slice(0, 2).map((i) => i.enabled), [true, false], 'Back after a page, no Forward');
-    await close();
+      await menuAt('#blank');
+      assert.deepEqual(rows(), ['tab.back', 'tab.forward', 'tab.reload', '-', 'pick', 'screenshot', '-', 'inspect']);
+      assert.deepEqual(shownMenu().menu.items.slice(0, 2).map((i) => i.enabled), [true, false], 'Back after a page, no Forward');
+      await close();
 
-    // A site with a menu of its own (Teams, Google Docs) keeps it: Chromium asks for none.
-    await rightClick('#own');
-    await waitFor(async () => (await page.locator('#own').textContent()) === 'its own menu');
-    await sleep(300); // nothing to wait for: that no menu comes
-    assert.ok(!shownMenu(), 'none over a site\'s own menu');
+      // A site with a menu of its own (Teams, Google Docs) keeps it: Chromium asks for none.
+      await rightClick('#own');
+      await waitFor(async () => (await page.locator('#own').textContent()) === 'its own menu');
+      await sleep(300); // nothing to wait for: that no menu comes
+      assert.ok(!shownMenu(), 'none over a site\'s own menu');
 
-    // The agent's right-click (Playwright, as its own scripts may do) opens nothing that would hold the human's pointer.
-    await page.locator('#link').click({ button: 'right' });
-    await sleep(300); // nothing to wait for: that no menu comes
-    assert.ok(!shownMenu(), 'none for the agent');
+      // The agent's right-click (Playwright, as its own scripts may do) opens nothing that would hold the human's pointer.
+      await page.locator('#link').click({ button: 'right' });
+      await sleep(300); // nothing to wait for: that no menu comes
+      assert.ok(!shownMenu(), 'none for the agent');
+    } finally { shownMenu()?.menu.closePopup(shell.win); }
     await page.goBack(); // where the later tests expect it: /errors
   });
 

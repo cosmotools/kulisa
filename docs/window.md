@@ -234,7 +234,8 @@ Native menus were tried first for the window (2026-10-05): rows of text only, no
 `tutorial/context-menu.md`, 44.8.0): drawn above the pages by the OS, it needs no pictures of them, and a page's menu is
 the OS's in Chrome too. Its rows are Chrome's for what is under the pointer (the `context-menu` event's `params`): a
 link (Open Link in New Tab, behind, in the same profile; Copy Link Address), an image (Open Image in New Tab, Copy
-Image), a field (Undo, Redo, Cut, Copy, Paste, Select All: Electron's roles), a selection (Copy), else the page's (Back,
+Image), a field (Undo, Redo, Cut, Copy, Paste, Select All: Electron's roles), a selection (Copy; macOS selects the word
+under a right-click, so a link's menu has it there, as Chrome's), else the page's (Back,
 Forward, Reload); then Pick an Element for the Agent and Screenshot of an Element (they start choosing an element, as
 their keys do), and Inspect (the element in the tab's DevTools, `Profile.inspect`). Back, Forward, Reload, Pick and the
 screenshot are sent to the window as their keys' commands, so each is done one way. A site with a menu of its own

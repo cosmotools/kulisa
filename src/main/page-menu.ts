@@ -60,7 +60,8 @@ function installPageMenu(shell: Shell) {
       };
       const items = rows.map((r): MenuItemConstructorOptions => ('id' in r ? { label: r.label, enabled: r.enabled ?? true, click: () => run(r.id) } : r));
       const menu = Menu.buildFromTemplate(items);
-      shown = { menu, rows };
+      // Once it is open: on macOS popup() opens it a moment later, and closePopup() before then closed nothing.
+      menu.on('menu-will-show', () => { shown = { menu, rows }; });
       menu.popup({ window: w.win, frame: p.frame ?? undefined, sourceType: p.menuSourceType, callback: () => { if (shown?.menu === menu) shown = null; } });
     });
   });
