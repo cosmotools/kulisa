@@ -381,7 +381,7 @@ out). Then uninstall the program and delete the data folder (above). What remain
 - Agents Kulisa installed for you (Claude Code, Codex): programs of your own, updated by their makers. Settings →
   Agents shows where each one is; remove them their way.
 - A project's repository that Kulisa cloned for you: your code.
-- Kulisa's key in your OS's keyring, "Kulisa Safe Storage": on Windows nothing to remove; on macOS in Keychain
+- Kulisa's key in your OS's keyring, "kulisa Safe Storage": on Windows nothing to remove; on macOS in Keychain
   Access; on Linux in your keyring app (Passwords and Keys). On Linux and macOS also direnv's permissions for
   tasks' folders, if you use direnv.
 
