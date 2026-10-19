@@ -2,11 +2,11 @@
 import { test } from 'node:test';
 import assert from 'assert/strict';
 import { execFileSync } from 'child_process';
-import { shellQuote } from '../../src/main/shell-quote.ts';
+import { shellQuote } from './main/shell-quote.ts';
 
 const ARGS = ['plain', '', 'two words', "it's", '$HOME', '*', '!x', '{"a":"b \\"c\\""}', 'back\\slash', 'back\\\\two',
   "q\\'x", 'end\\', "'", 'line\nbreak', 'café ✓'];
-const where = (shell: string) => { try { return execFileSync('/bin/sh', ['-c', `command -v ${shell}`]).toString().trim(); } catch { return null; } };
+const where = (shell: string) => { try { return execFileSync('/bin/sh', ['-c', `command -v ${shell}`]).toString().trim(); } catch { return ''; } };
 
 for (const name of ['sh', 'bash', 'zsh', 'fish']) {
   const shell = where(name);

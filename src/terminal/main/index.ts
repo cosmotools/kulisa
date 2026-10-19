@@ -1,14 +1,13 @@
 // xterm.js in the renderer, node-pty here running the agent CLI unchanged. A task's terminals (tasks.ts) are
 // "<task key>#<id>". The window shows the shown task's, the others keep running (and the window keeps their output).
-import { on } from './ipc.ts';
-import { log } from './log.ts';
-import type { Events } from '../shared/ipc.ts';
+import { on } from '../../main/ipc.ts';
+import { log } from '../../main/log.ts';
+import type { TerminalEvents } from '../ipc.ts';
 import os from 'os';
 import pty from 'node-pty';
 import type { IPty } from 'node-pty';
 import xterm from '@xterm/headless';
 import type { Terminal } from '@xterm/headless';
-import { READ_MAX } from './kulisa-plugin/mcp-server.ts';
 import { shellQuote } from './shell-quote.ts';
 
 
@@ -19,9 +18,9 @@ type Pty = IPty & { spawnSize: Size; spawnArgs: string[]; key: string; screen?: 
 interface TerminalConfig {
   command?: string | null; args?: string[]; cwd?: string; env?: Record<string, string | undefined>;
   shell?: { command: string; args?: string[] } | false | null; line?: string; size?: Size | null; sizeOf?: string;
-  pinned?: Record<string, string>; screen?: boolean;
+  pinned?: Record<string, string>; screen?: number;
 }
-type Send = (channel: 'pty:out', data: Events['pty:out']) => void;
+type Send = (channel: 'pty:out', data: TerminalEvents['pty:out']) => void;
 interface Term { pty: Pty | null; size: Size | null; firstSize: Promise<void>; sized: () => void }
 
 // The terminal's size as the window measures it, per terminal and per task (its island's, which all its terminals
@@ -59,7 +58,7 @@ const userShell = () => (process.platform === 'win32' ? null
 // fish 3.1+): the task's account, which a project's .envrc setting CLAUDE_CONFIG_DIR replaced (2026-10-12).
 // line: a command line typed into the shell as it is (a shell's; none: the shell alone), on Windows into cmd. size:
 // start at it rather than wait for the window's; sizeOf: or at that key's (the task's island: a terminal behind another
-// tab has none of its own), whichever comes first. screen: kept for the agent to read (a shell's). key: the terminal's; the window sends its input and size, and gets
+// tab has none of its own), whichever comes first. screen: its last lines kept for the agent to read (a shell's). key: the terminal's; the window sends its input and size, and gets
 // its output, under it. send(channel, data): to the task's window, whichever it is then.
 async function startTerminal(send: Send, cfg: TerminalConfig, key: string): Promise<Pty> {
   const t = termOf(key), like = cfg.sizeOf ? termOf(cfg.sizeOf) : null;
@@ -82,7 +81,7 @@ async function startTerminal(send: Send, cfg: TerminalConfig, key: string): Prom
   p.spawnArgs = cfg.args || [];
   p.key = key;
   // An agent that was replaced says nothing more in the window.
-  if (cfg.screen) p.screen = new xterm.Terminal({ cols: p.cols, rows: p.rows, scrollback: READ_MAX, allowProposedApi: true });
+  if (cfg.screen) p.screen = new xterm.Terminal({ cols: p.cols, rows: p.rows, scrollback: cfg.screen, allowProposedApi: true });
   const out = (data: string) => { p.screen?.write(data); if (t.pty === p) send('pty:out', { task: key, data }); };
   p.onData(out);
   p.onExit(({ exitCode }) => { log.info(`[terminal] ${key} exited ${exitCode}`); out(`\r\n[process exited ${exitCode}]\r\n`); });

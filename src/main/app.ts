@@ -17,7 +17,7 @@ import { COLORS } from './window.ts';
 import type { AppWindow } from './window.ts';
 import { findFavicon } from './favicons.ts';
 import { AGENTS, findAgent, signOut } from './agents/index.ts';
-import { stopTerminal } from './terminal.ts';
+import { stopTerminal } from '../terminal/main/index.ts';
 import { startMcpServer } from './kulisa-plugin/mcp-server.ts';
 import { installPicker } from './picker.ts';
 import { installGhost } from './kulisa-plugin/ghost.ts';

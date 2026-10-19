@@ -28,6 +28,9 @@ Everything happens inside Kulisa; no external Chrome windows.
   so, the code. Read the one for the part you change; keep it current.
 - `docs/transcripts.md`: the task's history for its agent (`task_history`) and how each agent CLI's transcript is
   read for it, field by field. Check it when an agent CLI is updated: the formats are undocumented.
+- `docs/packages.md`: Kulisa packages, parts of Kulisa in folders of their own (`src/terminal/`): what makes code
+  one, how one is laid out and checked, and moving code into one step by step. Read it before making one or moving
+  code into one; a package's own `README.md` and `CLAUDE.md` are its docs.
 - `docs/ui.md`: what the window's UI is built of: tokens, icons, components (buttons, rows, dialogs, menus). Look
   there before making a button, an icon, a row or a dialog; keep it current.
 - `docs/guide.md`: the user guide, for everyone who uses Kulisa, not only developers: what they do and see, in their
@@ -84,6 +87,11 @@ Everything happens inside Kulisa; no external Chrome windows.
 - **Terminology: "plugin" vs "extension".** A plugin is always an agent's (Claude Code's, Codex's), the Kulisa plugin
   being one. Code that extends Kulisa itself (panels, features of the IDE) is an "extension", as in VS Code and
   Chrome. Not "module": that is a file of code.
+- **Terminology: "Kulisa package"** (the author, 2026-10-18, after "Kulisa plugin": an npm package's idea in Kulisa's
+  own context) for a part of Kulisa that knows nothing of the rest, all of it in one folder `src/<package>/`, reached
+  only through its entries: the terminal first (`docs/packages.md`). Always the two words: a bare "package" is an npm
+  package (a dependency) or the app's package (Forge's build, the installers). Not an extension (what the user may
+  turn off), nor a cluster (a folder of the window's components, `docs/ui.md`).
 - **The agent is the human's choice, per task** (`agents/`): never assume `claude` is installed. Kulisa
   installs a missing agent itself with its maker's installer when the human asks, without steps for them to type.
 - **Terminology: "tab"**: an open task in a window's tasks' bar, as a browser's tab (since 2026-10-14: its project's
@@ -229,7 +237,7 @@ Everything happens inside Kulisa; no external Chrome windows.
     focus.
 - **Kulisa runs on macOS, Windows and Linux.** Write code for all three: no shell commands, Unix-only paths or
   signals, or Linux-only flags without a branch for the others. Keep platform branches few and in one place per
-  concern (e.g. the shell fallback in `terminal.ts`). What is untested on a platform goes into ROADMAP.
+  concern (e.g. the shell fallback in `src/terminal/main/`). What is untested on a platform goes into ROADMAP.
 - Ask before anything outward-facing: pushing, publishing, registering domains.
 - Commit only when asked. The repo is public on GitHub (`origin`, github.com/cosmotools/kulisa); push only when
   asked (a commit the author asks for goes up as a pull request: below), and never print the remote URL (`git remote
@@ -391,7 +399,7 @@ what the main process and the window both import (the rule for names, the profil
    - Do not add agent-facing behavior elsewhere (e.g. in `profiles.ts` or the renderer); what the agent sees of
      Kulisa lives in `src/agent/` (the skill, Claude Code's plugin: packaged as resources), its code in this folder.
 4. **Window** (`app.ts`, `open-tasks.ts`, `ipc/`, `window.ts`, `keys.ts`, `projects.ts`, `tasks.ts`, `agents/`, `renderer/`, `picker.ts`,
-   `terminal.ts`, every other file of `src/main`): what the human sees and does.
+   every other file of `src/main`): what the human sees and does.
 
 **One core, with handles for the human and for the agent.** The human (the window) and the agent (the Kulisa
 plugin) do the same things to profiles, tabs and tasks: open a tab, go to an address, close or delete a profile.
@@ -410,8 +418,15 @@ check, a rule or a way of doing an action is never written in a handle, nor twic
 - What only the window needs (where the keyboard focus goes, pictures of the pages under a menu) stays in the
   window.
 
-Modules: each part's doc lists its files ("The code", its last section; `docs/ui.md` at its top); the code's own
-names (LSP, grep) find the rest. Where a kind of code goes:
+**Kulisa packages** (the author, 2026-10-18: code smeared over `src/` is hard to keep in hand). A part that knows
+nothing of the rest is a folder `src/<package>/` holding all of it: both its halves (`main/`, `renderer/`), its IPC
+channels, its unit tests, its doc (`README.md`) and a `CLAUDE.md` on working in it, reached from outside only through
+its entries; `npm run deps` checks it. What uses it stays outside and goes through its API. Kulisa moves to this
+gradually: a part at a time, when it is worked on and found self-contained; no big move. What makes code one, the
+layout, the rules and moving code into one: `docs/packages.md`. The first: `src/terminal/`.
+
+Modules: each part's doc lists its files ("The code", its last section; `docs/ui.md` at its top; a Kulisa package's own
+`README.md`); the code's own names (LSP, grep) find the rest. Where a kind of code goes:
 
 - Agent-specific code goes into its agent's file in `agents/` (`claude.ts`, `codex.ts`: everything Kulisa knows of
   that agent, its transcript's reader too), nowhere else; a new agent is a new file there.
@@ -421,7 +436,7 @@ names (LSP, grep) find the rest. Where a kind of code goes:
   change to the open tasks after another (`serial`). `shell.win`, `shell.task`, `shell.profiles`, `shell.closed`,
   `shell.pty` are the first window's (the tests').
 - Git for tasks is the user's git, never a shell (`worktrees.ts`); an agent is typed into the user's shell in its
-  folder, so the project's own environment applies (direnv, nvm, mise; `terminal.ts`).
+  folder, so the project's own environment applies (direnv, nvm, mise; `src/terminal/`).
 
 What must hold in the window:
 

@@ -29,6 +29,30 @@ const cluster = (name: string, entries: string[]) => {
     from: { pathNot: dir }, to: { path: dir, pathNot: `${dir}(${entries.join('|')})\\.vue$` } };
 };
 
+// Kulisa packages (docs/packages.md): all of one in src/<package>/, reached from outside only
+// through its entries; its main process half uses only the main process's IPC and log, its window half nothing of the
+// window. A new Kulisa package is a line here.
+const packages: Record<string, { main: string[] }> = {
+  terminal: { main: ['ipc', 'log'] }, // a terminal: its pty, its buffers and the xterm shown
+};
+const packageRules = (name: string, { main: uses }: { main: string[] }) => {
+  const dir = `^src/${name}/`;
+  return [
+    { name: `${name}-entries`, severity: 'error' as const, comment: `${name}/ is reached through main/index.ts, renderer/index.ts and ipc.ts only.`,
+      from: { pathNot: dir }, to: { path: dir, pathNot: `${dir}(main/index|renderer/index|ipc)\\.ts$` } },
+    { name: `${name}-main`, severity: 'error' as const, comment: `${name}/main uses nothing of src/main but ${uses.join(', ')}.`,
+      from: { path: `${dir}main/` }, to: { path: main, pathNot: `^src/main/(${uses.join('|')})\\.ts$` } },
+    { name: `${name}-renderer`, severity: 'error' as const, comment: `${name}/renderer uses nothing of the window, nor of the main process.`,
+      from: { path: `${dir}renderer/` }, to: { path: '^src/(renderer|main|preload)/' } },
+    { name: `${name}-sides`, severity: 'error' as const, comment: `${name}'s two halves run in two processes: only types between them.`,
+      from: { path: `${dir}(main|renderer)/` }, to: { path: `${dir}(main|renderer)/`, pathNot: `${dir}$1/` } },
+    { name: `${name}-window-side`, severity: 'error' as const, comment: `The window takes ${name}/renderer, the main process ${name}/main.`,
+      from: { path: '^src/renderer/' }, to: { path: `${dir}main/` } },
+    { name: `${name}-main-side`, severity: 'error' as const, comment: `The window takes ${name}/renderer, the main process ${name}/main.`,
+      from: { path: '^src/main/' }, to: { path: `${dir}renderer/` } },
+  ];
+};
+
 const config: IConfiguration = {
   forbidden: [
     only('base', base, [base], 'Git and what is local are used by every layer and use none of them.'),
@@ -42,6 +66,7 @@ const config: IConfiguration = {
     { name: 'main-not-page', severity: 'error', comment: 'The main process takes only types of the window\'s page.',
       from: { path: '^src/main/' }, to: { path: '^src/renderer/' } },
     ...Object.entries(clusters).map(([name, entries]) => cluster(name, entries)),
+    ...Object.entries(packages).flatMap(([name, p]) => packageRules(name, p)),
     { name: 'no-circular', severity: 'error', comment: 'A cycle at run time: one of its modules is loaded half done.',
       // grid.ts and views.ts call each other's functions only after both have loaded (the pages live again, then
       // the grid's boxes sent): a cycle without that danger, and passing one of them in would be code for the tool.

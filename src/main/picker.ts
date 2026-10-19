@@ -3,7 +3,7 @@
 // the message around it and sends it. Nothing is saved: the agent looks at the element on the live page with its
 // tools (snapshot, screenshot, console, requests of that tab), so Kulisa writes nothing into the project.
 import { handle } from './ipc.ts';
-import { typeIntoPrompt } from './terminal.ts';
+import { typeIntoPrompt } from '../terminal/main/index.ts';
 import { refused } from '../shared/result.ts';
 import type { Shell } from './shell.ts';
 

@@ -7,7 +7,7 @@ with a test (CLAUDE.md); a bug is first reproduced by a failing test, then fixed
 
 | Layer | Where | Runs in | For |
 |---|---|---|---|
-| Unit | `test/unit/*.test.ts` (`node:test`) | plain Node, about a second: `npm run test:unit` | logic that needs no window: names, the data folder, a task's profiles in order, the agents' files |
+| Unit | `test/unit/*.test.ts`, a Kulisa package's in its folder (`src/<package>/*.test.ts`) (`node:test`) | plain Node, about a second: `npm run test:unit` | logic that needs no window: names, the data folder, a task's profiles in order, the agents' files |
 | End to end | `test/*.ts` (`run.ts`) | the real app, against the local test site (`fixtures/site.ts`) | everything the human or the agent does: the window, profiles' pages, MCP tools, restarts |
 
 A check goes into the cheapest layer that can show the behavior: a rule about names is a unit test; that the name
@@ -39,7 +39,7 @@ e2e files in parallel (`GROUPS` in `start.ts`):
 not listed for screenshots and focus differs from a desktop), so they never take the human's focus or clipboard.
 `npm run test:visible` runs them on the human's screen, one group after another; so do macOS and Windows, where
 there is no screen of their own (in parallel, the groups' windows took each other's focus: 2026-10-16). No GPU there:
-`--ignore-gpu-blocklist` lets WebGL run on Chromium's software renderer. macOS and Windows run them on the screen.
+`--ignore-gpu-blocklist` lets WebGL run on Chromium's software renderer.
 
 ### On macOS
 
@@ -166,6 +166,9 @@ runs it after ESLint) fails on an import against the layers (CLAUDE.md, Architec
   (layer 4), which may import anything. Below layer 1, the base (`worktrees.ts`, `local.ts`): used by every layer, using
   none of them. `src/shared/` is what the main process and the window both import (`names.ts`, `avatars.ts`,
   `result.ts`); it imports nothing else of `src/`. The window's page never imports `src/main`.
+- A Kulisa package (`src/terminal/`; [packages.md](packages.md)) is reached only through its entries
+  (`main/index.ts`, `renderer/index.ts`, `ipc.ts`); its `main/` uses of `src/main` only what its line in `packages`
+  allows, its `renderer/` nothing of the window; the window takes its `renderer/`, the main process its `main/`.
 - A new file of a lower layer goes into its list. An import the rules refuse is moved, not allowed: what the lower
   file needs belongs below (the tab's target id went into `profiles.ts`), or the core says it on `shell.bus` and the
   handle listens (a profile unloaded: the MCP server clears its highlights).
@@ -242,8 +245,7 @@ they are made, and the whole suite runs when the work is done (CLAUDE.md, Conven
 
 ## Running them
 
-The full suite runs once, when the work is done, before the commit (CLAUDE.md); while building, the unit tests
-and the group of the files changed, or a screenshot, and `npm run knip` once at the end of a step. A whole run stops by itself after 5 minutes (`run.ts`), a test
+When to run what: CLAUDE.md, Conventions ("Every behavior change comes with a test"). A whole run stops by itself after 5 minutes (`run.ts`), a test
 after 30 s, naming the call or script it began last (`ctx.step`): a step that hangs has no stack to read, and a
 script run in a window that closes before its result is back never answers (Electron drops the reply), so a test
 closes a window without waiting for the script that closes it (`closeSettings`).

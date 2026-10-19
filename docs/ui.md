@@ -11,11 +11,11 @@ the look below:
 | Where | What |
 |---|---|
 | `src/renderer/components/*.vue` | the window's parts, each its markup, behavior and own look (`<style>`, rooted at its id or class): `App.vue` puts a tasks' window together; `grid/` the grid's panels and headers, `menu/` the menus (`ButtonMenu`, `RightClickMenu`, `PointMenu`, `MenuRows`) and ☰'s own rows; `Modal.vue` the dialogs; the clusters (below): `settings/` Settings' window (`Settings.vue`, its pages `ProjectEditor.vue`, `AgentPage.vue`, `ProfilePage.vue`), `newproject/` New Project's steps |
-| `src/renderer/lib/*.ts` | what parts share or what outlives a component: `store.ts` (what the main process sends, `act`), `grid.ts`, `xterm.ts` (a terminal, in any window), `terminals.ts` (a tasks' window's), `menu.ts` (what a menu holds), `agents.ts` (the agents' list of a dialog, and an install under way), `ask.ts`, `dialogs.ts`, `keys.ts`, `voice.ts`, `cover.ts` (`covered()` for every menu and dialog: one menu at a time, all closed at once), `views.ts` (a tasks' window's profiles' pages under them: hidden, or pictures), `profiles.ts` (the profiles' menu), `names.ts` (name fields), `strip.ts` (a strip of tabs that scrolls), `common.ts`, `test-hooks.ts` (what the tests reach by name) |
+| `src/renderer/lib/*.ts` | what parts share or what outlives a component: `store.ts` (what the main process sends, `act`), `grid.ts`, `terminals.ts` (a tasks' window's island; the terminal itself is `src/terminal/`), `menu.ts` (what a menu holds), `agents.ts` (the agents' list of a dialog, and an install under way), `ask.ts`, `dialogs.ts`, `keys.ts`, `voice.ts`, `cover.ts` (`covered()` for every menu and dialog: one menu at a time, all closed at once), `views.ts` (a tasks' window's profiles' pages under them: hidden, or pictures), `profiles.ts` (the profiles' menu), `names.ts` (name fields), `strip.ts` (a strip of tabs that scrolls), `common.ts`, `test-hooks.ts` (what the tests reach by name) |
 | `src/shared/types.ts`, `ipc.ts`; `env.d.ts` | the shapes the main process sends, the channels they come by (docs/window.md, IPC); the bridge to it (`src/preload`) typed by them, and Vite's types |
 | `src/renderer/tokens.css` | every color and size (`:root`); no literal color anywhere else |
 | `src/renderer/components.css` | the shared components below, global |
-| `src/renderer/index.html`, `main.ts`; `settings.html`, `settings.ts`; `master.html`, `master.ts` | a tasks' window's page, Settings' window's and a master's window's: the theme before the first paint, then the app. Settings' loads nothing of a tasks' window (no grid, no store of its tasks): `cover.ts` and `xterm.ts` are what the two share of `views.ts` and `terminals.ts` |
+| `src/renderer/index.html`, `main.ts`; `settings.html`, `settings.ts`; `master.html`, `master.ts` | a tasks' window's page, Settings' window's and a master's window's: the theme before the first paint, then the app. Settings' loads nothing of a tasks' window (no grid, no store of its tasks): `cover.ts` and the terminal (`src/terminal/renderer/`) are what the two share of `views.ts` and `terminals.ts` |
 | `src/renderer/public/avatars/` | the profiles' pictures, copied as they are |
 
 ## Desktop, not a web page
@@ -54,7 +54,7 @@ pointer, read as a web page's and were hard to read). So:
 ## Tokens (`tokens.css`)
 
 - Colors for both themes ([window.md](window.md), Theme): each is `light-dark(light, dark)`, so a new color gets
-  both values. JS reads a color as shown through an element that uses it (`lib/xterm.ts`), not the token's text.
+  both values. JS reads a color as shown through an element that uses it (`src/terminal/renderer/`), not the token's text.
   JetBrains' themes: `--window` (the title bar, under the grid and the tasks' bar), `--island` (panels, dialogs, menus), `--island-hi`
   (a lit row, a divider), `--toolbar` (a pane's toolbar and active tab), `--field`, `--button`, `--line` (borders);
   text `--text`, `--text-strong`, `--text-dim`, `--text-muted`; `--accent` (main button, focus), `--danger`,
