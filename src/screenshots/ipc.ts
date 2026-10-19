@@ -10,6 +10,7 @@ export interface ThumbnailSend {
   'thumbnail:drag': void; // a drag started: the file dragged out
   'thumbnail:menu': { x: number; y: number }; // a right-click, where in its page
   'thumbnail:hover': boolean; // the pointer over it, or gone
+  'thumbnail:close': void; // its ×
 }
 
 // ipcRenderer.invoke / ipcMain.handle (args, the answer): the window's menu of it.
@@ -21,6 +22,7 @@ export interface ThumbnailInvoke {
 // where its menu opens.
 export interface ThumbnailEvents {
   'thumbnail:image': string; // a data: URL
+  'thumbnail:fade': void; // going: it fades out before its view is destroyed
   'thumbnail:place': { src: string; x: number; y: number; width: number; height: number } | null;
   'thumbnail:open-menu': { x: number; y: number };
 }

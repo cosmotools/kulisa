@@ -273,7 +273,8 @@ A pane is a small Chrome: a tab strip, an address bar, back, forward and reload.
 
   A **thumbnail** of the picture shows in the pane's corner for a few seconds, as on a Mac; it stays while the pointer
   is over it. Click it to open the picture; drag it into a message, a mail or a folder; right-click it for **Show in
-  Folder**, **Copy**, **Send to Agent** (the picture into the agent's input), **Delete** and **Close**.
+  Folder**, **Copy**, **Send to Agent** (the picture into the agent's input), **Delete** and **Close**. The × in its
+  corner, shown while the pointer is over it, closes it at once.
 - A page's alert or confirm shows in its pane, as in Chrome. A page that does not load says why, as Chrome's error
   page does.
 - **Pages no one looks at are unloaded** after five minutes, as Chrome's Memory Saver does, to give the memory back:

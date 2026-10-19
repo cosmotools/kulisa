@@ -232,7 +232,7 @@ export default (test: Test) => {
 
   // The thumbnail (src/screenshots, The thumbnail): what the OS would do with the file is stubbed (a file manager, an
   // app, the trash: outside the tests' folder).
-  test('a screenshot shows its thumbnail in its pane\'s corner: a click opens it, it drags out, its menu shows, copies, sends it to the agent, deletes; it goes by itself unless the pointer is over it', async ({ shell, ui, ptyOutput }) => {
+  test('a screenshot shows its thumbnail in its pane\'s corner: a click opens it, it drags out, its menu shows, copies, sends it to the agent, deletes; its × closes it; it fades in and out; it goes by itself unless the pointer is over it', async ({ shell, ui, ptyOutput }) => {
     const dir = process.env.KULISA_SCREENSHOTS, admin = shell.profiles.get('sam-admin'), w = shell.windows[0];
     const page = await admin.page(), was = page.url();
     await page.goto(`${SITE}/tall`);
@@ -251,7 +251,7 @@ export default (test: Test) => {
       // In the pane's bottom right corner, the picture shown in its page, and drawn by the window too.
       const p = admin.bounds, b = t.bounds;
       assert.ok(b.x > p.x && b.y > p.y && b.x + b.width < p.x + p.width && b.y + b.height < p.y + p.height && p.x + p.width - (b.x + b.width) < 40 && p.y + p.height - (b.y + b.height) < 40, JSON.stringify({ p, b }));
-      await waitFor(() => wc.executeJavaScript(`document.querySelector('img').src.startsWith('data:image/png')`));
+      await waitFor(() => wc.executeJavaScript(`document.querySelector('img').src.startsWith('data:image/png') && document.body.classList.contains('in')`));
       await waitFor(() => ui(`!!document.getElementById('shotthumb')`));
       await wc.executeJavaScript(`document.querySelector('img').click()`);
       await waitFor(() => did.includes(`open ${file}`));
@@ -277,6 +277,12 @@ export default (test: Test) => {
       await menu('Delete');
       await waitFor(() => did.includes(`trash ${file}`) && !w.thumbnails.file && wc.isDestroyed());
       await waitFor(async () => !(await ui(`!!document.getElementById('shotthumb')`)));
+      // Its ×: it fades out first, then goes.
+      const x = await take(), xwc = x.view.webContents;
+      await waitFor(() => xwc.executeJavaScript(`document.body.classList.contains('in')`));
+      await xwc.executeJavaScript(`document.querySelector('button').click()`);
+      await waitFor(() => xwc.isDestroyed() || xwc.executeJavaScript(`document.body.classList.contains('out')`));
+      await waitFor(() => !w.thumbnails.file && xwc.isDestroyed());
       // It goes by itself after 5 s (the time macOS gives one), and stays while the pointer is over it: the test waits
       // that long, twice.
       const held = await take();

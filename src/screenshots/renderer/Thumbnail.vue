@@ -15,5 +15,6 @@ kulisa.on('thumbnail:place', (t) => { thumbnail.value = t; });
 
 <style>
 /* Over the pages' pictures, under the window's dialogs and menus (their z-index: 20, 30). */
-#shotthumb { position: fixed; z-index: 10; object-fit: cover; object-position: top; border-radius: var(--radius); pointer-events: none; }
+#shotthumb { position: fixed; z-index: 10; object-fit: cover; object-position: top; border-radius: var(--radius); pointer-events: none;
+  outline: 1px solid var(--shot-edge); outline-offset: -1px; box-shadow: 0 0 0 1px var(--shot-ring), 0 3px 10px var(--shot-shadow); } /* as its own page's (thumbnail.ts) */
 </style>
