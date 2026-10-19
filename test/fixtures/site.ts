@@ -7,6 +7,7 @@
 //   /board    messages shared by every profile, polled (one profile posts, another waits to see it)
 //   /headers  echoes the User-Agent and Sec-CH-UA* request headers as JSON
 //   /draft    a page that holds its unload (beforeunload), as a form with unsaved changes does: never discarded
+//   /menu     a link, a field, an empty place and a block with its own right-click menu (as Teams has)
 // It runs in its own process: inside Electron's main process it can deadlock, because a synchronous Electron call
 // waits for a renderer that waits for a response from this (then blocked) server.
 import { spawn } from 'child_process';
@@ -59,6 +60,11 @@ function handler(req: IncomingMessage, res: ServerResponse) {
   }
   // A box of a known size and color on a page taller than any pane (screenshots: an element, the whole page).
   if (u.pathname === '/tall') return send(200, page('tall', `<div id="box" style="width: 200px; height: 120px; margin: 40px; background: #d00"></div><div style="height: 3000px"></div><p>end</p>`));
+  if (u.pathname === '/menu') {
+    return send(200, page('menu', `<p><a id="link" href="/app">a link</a></p><p><input id="field" value="some text"></p>
+<div id="blank" style="height:60px"></div><div id="own" style="padding:20px">a block with its own menu</div>
+<script>own.addEventListener('contextmenu', (e) => { e.preventDefault(); own.textContent = 'its own menu'; });</script>`));
+  }
   if (u.pathname === '/strict') {
     return send(200, page('strict', `<h3>Strict page</h3><p><button>Sign in</button> <a href="/app">a link</a></p>`), undefined,
       { 'content-security-policy': "require-trusted-types-for 'script'" });

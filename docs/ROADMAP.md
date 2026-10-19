@@ -219,14 +219,6 @@ moves there over time: what has an issue is removed from here, the issue being t
   - Nearly no RAM (the sound is handled in the tab already open), no new process. First: the permissions (issue
     #109, pages get the microphone and camera without asking), so the agent can test the site's own request too.
 
-- **A right-click menu in pages** (copy, paste, open a link in a new tab of the profile, Inspect Element). Tried with
-  electron-context-menu (a native GTK menu) on 2026-10-05 and removed: on Ubuntu GNOME (X11) a right-click in a page
-  froze the whole desktop, twice (gnome-shell logged a menu window at a NaN position holding the pointer and keyboard
-  grab), and the menu took the right button from sites with a menu of their own (Teams, Google Docs). The likely cause
-  was not the menu: the same freeze came on 2026-10-12 from GNOME's own window menu for a drag region
-  ([window.md](window.md), The title bar), and pages' drag regions are forced off since; not checked again. If built
-  again: an HTML menu as the window's ([window.md](window.md), Menus: `RightClickMenu.vue`) over a picture of the page,
-  shown only where the page did not handle the right-click.
 - **Tabs unloaded, rest** (built 2026-10-13: [profiles.md](profiles.md), "Tabs unloaded"). A pane whose tab loads
   again is empty meanwhile: a picture of the page taken at the unload could stand there (a JPEG per tab in memory, as
   the pictures under menus); a tab's history (Back, Forward), its scroll position and its forms go with its process, as

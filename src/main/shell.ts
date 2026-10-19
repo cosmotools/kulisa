@@ -8,7 +8,7 @@ import type { SessionCookies } from './session-cookies.ts';
 import type { CdpProxy } from './cdp-proxy.ts';
 import type { Accounts, Account } from './accounts.ts';
 import type { Agent, Found } from './agents/index.ts';
-import type { Profile } from './profiles.ts';
+import type { Profile, Tab } from './profiles.ts';
 import type { Project } from './projects.ts';
 import type { Task } from './tasks.ts';
 import type { AppWindow, Asker } from './window.ts';
@@ -43,6 +43,7 @@ interface Shell {
   taskOf(id: string, n: number): Task | null;
   taskByKey(key: string): Task | null;
   windowOf(sender: WebContents): AppWindow | null;
+  tabOf(wc: WebContents): { w: AppWindow; profile: Profile; tab: Tab } | null;
   taskChanged(task: Task, now?: boolean, agentState?: boolean): void;
   projects(): SentProject[];
   askWhich(q: Question, w?: Asker | null): Promise<string | null>;

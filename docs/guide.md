@@ -258,6 +258,9 @@ A pane is a small Chrome: a tab strip, an address bar, back, forward and reload.
 - Chrome's keys work in a page: Ctrl+T, Ctrl+W, Ctrl+Shift+T, Ctrl+L, Ctrl+Tab, Ctrl+1…9 (Keyboard shortcuts, below).
 - **Zoom** a site with Ctrl + / − / 0 in its page; it is kept for that site in that profile and shown in the address
   bar (a click resets it).
+- **Right-click in a page** for Chrome's menu: open a link in a new tab of the same profile or copy its address, copy
+  or open an image, cut, copy and paste in a field, back, forward and reload; Pick an element for the agent, a
+  screenshot of an element, and Inspect. Sites with a menu of their own (Teams, Google Docs) show theirs.
 - **DevTools** of a tab: the pane's ⋮ menu, or F12.
 - **Screenshots** of a tab: the pane's ⋮ menu → **Screenshot**:
   - **Element**: click an element on the page (or press Ctrl+Shift+S in the page); Esc cancels;

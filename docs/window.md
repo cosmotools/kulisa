@@ -228,8 +228,22 @@ there: the `.app`, Squirrel's root), each its path to select and copy and a butt
 author, 2026-10-18: the docs name the usual places, but only the app knows the exact ones (issue #67); so the guide
 points here, and still lists the usual places for whoever reads it after uninstalling.
 
-Native menus were tried first (2026-10-05): rows of text only, no buttons in a row; and a native menu in a page had
-frozen the desktop (ROADMAP, Deferred ideas, "A right-click menu in pages"). There is no menu in the pages yet.
+Native menus were tried first for the window (2026-10-05): rows of text only, no buttons in a row.
+
+**The right-click menu in a profile's page** is the one native menu (`page-menu.ts`; Electron's
+`tutorial/context-menu.md`, 44.8.0): drawn above the pages by the OS, it needs no pictures of them, and a page's menu is
+the OS's in Chrome too. Its rows are Chrome's for what is under the pointer (the `context-menu` event's `params`): a
+link (Open Link in New Tab, behind, in the same profile; Copy Link Address), an image (Open Image in New Tab, Copy
+Image), a field (Undo, Redo, Cut, Copy, Paste, Select All: Electron's roles), a selection (Copy; macOS selects the word
+under a right-click, so a link's menu has it there, as Chrome's), else the page's (Back,
+Forward, Reload); then Pick an Element for the Agent and Screenshot of an Element (they start choosing an element, as
+their keys do), and Inspect (the element in the tab's DevTools, `Profile.inspect`). Back, Forward, Reload, Pick and the
+screenshot are sent to the window as their keys' commands, so each is done one way. A site with a menu of its own
+(Teams, Google Docs) keeps it: it cancels the page's `contextmenu`, and Chromium asks for none. The agent's
+right-click opens none, so no menu holds the human's pointer while the agent works: Electron reports the agent's input
+through Playwright as the human's (`before-mouse-event`), so its right press is told by the CDP proxy it passes. Tried again on 2026-10-19 after a native menu in a page,
+through the electron-context-menu library, had frozen the GNOME desktop twice on 2026-10-05 (Electron 44.5.1): not
+reproduced in bare Electron 44.8.0 in a window like Kulisa's, nor in Kulisa on the author's GNOME 46 (X11).
 
 ## Dialogs and questions
 
@@ -467,6 +481,7 @@ zone; electron-log's own has no offset), the level and a tag:
 - `[mcp]`: every tool the agent calls (`mcp-server.ts`), its task and terminal, its arguments; one that failed, with
   its error.
 - `[key]`: a key of Kulisa's taken (`shortcuts.ts`), where the keyboard was.
+- `[page-menu]`: a row of a page's right-click menu chosen (`page-menu.ts`), its profile and tab.
 - `[hook]`: an agent's hook event (`agent-hooks.ts`), its task and terminal.
 - `[task]`, `[window]`, `[settings]`, `[terminal]`: a project's task opened, a task created (where), closed, deleted;
   a window made, showing a task, dropped; Settings opened (at what) and closed; a terminal started (the agent and
@@ -627,6 +642,7 @@ shortcuts carry (`com.squirrel.kulisa.kulisa`), or Windows would not pin it to t
 | `src/main/open-tasks.ts` | the windows' open tasks: open, show, create, move, close, delete (one change after another, `serial`) |
 | `src/main/ipc/*.ts` | the windows' handles, a file a domain: `tasks`, `projects`, `profiles` (Settings → Profiles), `agents`, `panes` (the shown task's profiles, tabs, terminals), `window` (its zoom, theme, bar, language) |
 | `src/main/shortcuts.ts` | the keys as they are typed (Keys), the hold keys changed |
+| `src/main/page-menu.ts` | the right-click menu in a profile's page (Menus) |
 | `src/shared/ipc.ts`, `src/main/ipc.ts` | the channels between a page and the main process; `handle` and `on`, checked against them (IPC) |
 | `src/main/window.ts` | a window: its BrowserWindow, the native views' places, its questions, screenshot |
 | `src/main/settings-window.ts`, `src/renderer/settings.html`, `components/settings/` | Settings' window (Settings); its page is `ProjectEditor.vue` |
