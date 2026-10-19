@@ -354,7 +354,8 @@ export default (test: Test) => {
     assert.deepEqual([long.value.length, long.keys], [400, 1], 'filled at once');
     const most = await typed('y'.repeat(300));
     assert.equal(most.keys, 1 + 300);
-    assert.ok(most.ms < 5000, `300 keys in ${most.ms} ms`);
+    // Faster for a longer text: 40 ms a key would be 12 s. Not 5 s: GitHub's macOS runner takes 4.5 to 6 (2026-10-19).
+    assert.ok(most.ms < 9000, `300 keys in ${most.ms} ms`);
   });
   test('agent: keys, hover, select, files, waiting, evaluate, back and forward; dialogs answered as asked, the human\'s left in the pane', async ({ shell, ui, call }) => {
     const p = { profile: 'sam-seller' };
