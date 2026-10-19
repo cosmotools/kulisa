@@ -69,8 +69,7 @@ moves there over time: what has an issue is removed from here, the issue being t
     Safari (WebKit is not in Electron; a separate question).
   - A mobile UA and touch (CDP `Emulation.setUserAgentOverride` with `mobile: true`,
     `Emulation.setTouchEmulationEnabled`), else sites that choose by the UA on the server (`m.site`) send the desktop
-    one: an Android variant of the profile's own User-Agent, put back after the pause (`Profile.setSigninMode`), which
-    detaches the debugger and with it every CDP override; during the pause the desktop one: a strict sign-in
+    one: an Android variant of the profile's own User-Agent, put back after the pause (`Profile.setSigninMode`); during the pause the desktop one: a strict sign-in
     (GoDaddy's Kasada) may not take an Android UA from a Linux machine. Not Google Chrome's: presenting as Chrome got
     a profile refused by Google ([profiles.md](profiles.md), What sites see).
   - Kept with the tab across restarts (a field in `Kulisa Tabs.json`). No RAM: no process, no buffers.
@@ -179,8 +178,8 @@ moves there over time: what has an issue is removed from here, the issue being t
   - Moving the keyboard between the panels and the tabs of the bar without a mouse (with Accessibility, above).
   - Find in a page (Ctrl+F, as Chrome's: `webContents.findInPage`), a bar of its own over the page.
   - Remapping: the keys in `settings.json` over the table's (VS Code's `keybindings.json`).
-  - A closed tab comes back with its address only, not its history (Chrome's keeps it): Electron 44's
-    `navigationHistory.getAllEntries()` and `restore()` could keep it ("Tabs unloaded, rest", Deferred ideas).
+  - A closed tab comes back with its address only, not its history (Chrome's keeps it): how it could be kept,
+    "Tabs unloaded, rest" (Deferred ideas).
 - **A desktop app's ways, not only buttons** (talked over with the author 2026-10-08, who liked them all). A web page
   puts a button on every action; a desktop app gives an action several ways in: a visible one for a newcomer, quick
   ones for daily use (keys above, a right-click, dragging). Kulisa has some, here and there (the menus of a task's
@@ -379,9 +378,8 @@ moves there over time: what has an issue is removed from here, the issue being t
     [profiles.md](profiles.md), What sites see): check on Linux and Windows.
   - The sandbox on Linux, packaged: the `.deb` installs `chrome-sandbox` setuid root; the unpacked `out/` folder needs
     `--no-sandbox` to try it. Other Linux formats (AppImage, rpm, snap) are not set up.
-  - Starting the agent (`terminal.ts`): on Linux and macOS it is typed into the user's shell started in the
-    project's folder, so the project's environment applies (direnv's `.envrc`, nvm, mise) and `PATH` is the
-    user's even when Kulisa was started from a menu.
+  - Starting the agent (`terminal.ts`; on Linux and macOS typed into the user's shell: [tasks.md](tasks.md),
+    Projects, "An agent"):
     - Windows: the agent starts directly, without a shell, so no project environment; `claude` from npm is a
       `.cmd` that node-pty may not find. Proposed: type it into PowerShell (`pwsh -NoExit`, falling back to
       `powershell.exe`) in the project's folder, as on the other systems: the PowerShell profile applies, `.cmd`
@@ -395,8 +393,6 @@ moves there over time: what has an issue is removed from here, the issue being t
     hardened runtime, the packaged app also needs the `com.apple.security.device.audio-input` entitlement. Windows: the microphone privacy setting for
     desktop apps; the right Ctrl of a keyboard with AltGr (it sends a Ctrl before AltGr on Windows: check that a typed
     AltGr character does not start a recording).
-  - Distribution to users needs code signing: macOS with notarization (the second macOS goal, above), Windows a
-    certificate.
   - A packaged app's later starts and an agent started in a task of it: untested packaged on Linux and Windows. Its
     update check fails while there is no release for its OS ("The server sent an invalid response" on macOS) and is
     only logged.
@@ -423,12 +419,9 @@ moves there over time: what has an issue is removed from here, the issue being t
   - The theme (☰ → Theme): the OS buttons' strip recolored (`setTitleBarOverlay`) and System following the OS
     (`nativeTheme.shouldUseDarkColors`, `updated`; on Linux through GTK or the desktop portal): on Linux/X11 (GNOME)
     checked by the tests only, not by changing the OS's setting by hand; Windows untested.
-  - Tests run often on Linux only; on macOS and Windows before a release (the author's decision, 2026-10-09). The CI
-    runs them on all three at every pull request into `develop` or `main` ([testing.md](testing.md), CI); Windows not failing the
-    workflow until the bench passes there: its job hangs and is cancelled at its
-    timeout every run (2026-10-18; `continue-on-error`, so it marks nothing red); the author adapts Kulisa to Windows
-    next (2026-10-18: a day or two). On a computer they run on the human's
-    screen there (Xvfb is Linux's), taking its focus.
+  - Tests on Windows ([testing.md](testing.md), CI): its job hangs and is cancelled at its timeout every run
+    (2026-10-18; `continue-on-error`, so it marks nothing red); the author adapts Kulisa to Windows next (2026-10-18: a
+    day or two).
     The test bench was made on Linux; adapted on each OS where it can be run (the author's decision, 2026-10-08). Known for Windows:
     - Windows: the agent is `bash -c '… exec cat -v'` with a `bashrc` (`test/run.ts`), the fake agent's installer is
       `sh` only (`printf`, `chmod`; the real agents have a `win32` one), the hooks' test runs commands with `bash`
