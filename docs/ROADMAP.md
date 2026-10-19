@@ -232,11 +232,6 @@ moves there over time: what has an issue is removed from here, the issue being t
   the project, each developer signing it in to their own account). Kulisa keeps descriptions in its own data
   ([profiles.md](profiles.md), "Who it is"), as it writes nothing into the project's folder. If a team needs it: a
   file in the project that Kulisa only reads (the developer's own description wins).
-- **The agent's label in the page, by its outline** (found 2026-10-15 taking the site's pictures; left so, the
-  author's decision). `browser_highlight`'s outline is Playwright's `locator.highlight()`, which writes the locator
-  next to it (`locator('aria-ref=f2e20')`); its only option is the style (1.64), and the label is in a closed shadow
-  root. The agent's label shows over the pane meanwhile. When Playwright lets the text be set, put the label there; not
-  an outline of our own.
 - **A store of extensions** (the author's idea, 2026-10-06). Installs four kinds of things: agent plugins (Claude Code,
   Codex), MCP servers, skills, and Kulisa extensions: features of the IDE that not everyone needs (a heavy
   dependency, a model to download, a microphone always on, one service's panel), installed, turned off and removed by
