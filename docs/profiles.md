@@ -398,10 +398,10 @@ leaves the caches out (Cache, Code Cache, GPUCache, Dawn*).
 Memory: each tab is a Chromium process (`ps` shows each); closing a profile frees its tabs, and a tab no one looks at
 frees its own after a while ("Tabs unloaded").
 
-Disk: closing a profile clears its caches (HTTP, compiled code, shaders, and the sites' Cache API, their service
+Disk: closing a profile, or its task (× on its tab), clears its caches (HTTP, compiled code, shaders, and the sites' Cache API, their service
 workers' copies of their bundles, which Chromium counts as storage and which was most of a copy's size, 200 MB for
 Teams: `clearCaches` in `profiles.ts`); its sign-ins and the sites' other storage stay. An open profile's HTTP cache has the limit Chromium sets from the free disk
-space (ROADMAP, "Profiles' caches").
+space (issue #113, a task manager).
 
 ## The code
 
