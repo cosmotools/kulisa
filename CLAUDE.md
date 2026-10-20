@@ -418,6 +418,13 @@ check, a rule or a way of doing an action is never written in a handle, nor twic
 - What only the window needs (where the keyboard focus goes, pictures of the pages under a menu) stays in the
   window.
 
+**Tools for the agent, not the work's logic in Kulisa** (the author, 2026-10-21, for all of Kulisa: the agent then
+solves what comes up its own way). Kulisa does what only it can: the window, notifications, waking an agent, typing
+into its terminal, reading for it what it cannot reach. The steps of the work (open a pull request first, push before
+asking, where a fix goes) are the agent's: Kulisa gives it the tools and says in the skill how they fit, and a tool
+that cannot act says back what is missing instead of doing it itself. Not against One core: a core action still keeps
+its own checks and rules; what Kulisa does not do is decide the agent's way through the work.
+
 **Kulisa packages** (the author, 2026-10-18: code smeared over `src/` is hard to keep in hand). A part that knows
 nothing of the rest is a folder `src/<package>/` holding all of it: both its halves (`main/`, `renderer/`), its IPC
 channels, its unit tests, its doc (`README.md`) and a `CLAUDE.md` on working in it, reached from outside only through
