@@ -12,7 +12,7 @@ import { ProfileStore } from './profile-store.ts';
 import { CookieSync } from './cookie-sync.ts';
 import { signinPages } from './signin-pages.ts';
 import { SessionCookies } from './session-cookies.ts';
-import { pictureOf } from './projects.ts';
+import { pictureOf, githubUsers, forgetGithub } from './projects.ts';
 import { COLORS } from './window.ts';
 import type { AppWindow } from './window.ts';
 import { findFavicon } from './favicons.ts';
@@ -35,6 +35,8 @@ import { registerProfiles } from './ipc/profiles.ts';
 import { registerAgents } from './ipc/agents.ts';
 import { registerPanes } from './ipc/panes.ts';
 import { registerWindow } from './ipc/window.ts';
+import { Github } from '../github/main/index.ts';
+import { watchPartners } from './partners.ts';
 import type { Ipc, IpcEvent } from './ipc.ts';
 import type { Shell } from './shell.ts';
 import type { Agent } from './agents/index.ts';
@@ -297,12 +299,19 @@ function start(options: Options = {}) {
   registerAgents(ipc);
   registerPanes(ipc);
   registerWindow(ipc);
+  // The GitHub accounts (src/github): Settings → GitHub, a repository's on its row. KULISA_GITHUB: the tests' fake GitHub,
+  // its site there and its API under /api.
+  const fake = process.env.KULISA_GITHUB;
+  shell.github = new Github({ dir: userData, secrets: shell.secrets, hosts: fake ? { web: fake, api: `${fake}/api`, mcp: `${fake}/mcp` } : undefined,
+    usedBy: (id) => githubUsers(shell, id).map((p) => p.name), ask: (e, q) => shell.ask(q, asker(e)), deleted: (id) => forgetGithub(shell, id) });
   const ready = app.whenReady().then(async () => {
     // Whether the OS keeps Kulisa's key (session cookies, test passwords: profiles.md); on Linux which keyring, basic_text
     // being none (a fixed key: Electron's safe-storage.md). The classic Linux bug report, with nothing to read until now.
     const backend = process.platform === 'linux' ? safeStorage.getSelectedStorageBackend() : null;
     const encryption = `[kulisa] encryption ${safeStorage.isEncryptionAvailable() ? 'available' : 'not available'}${backend ? ` (${backend})` : ''}`;
     if (safeStorage.isEncryptionAvailable() && backend !== 'basic_text') log.info(encryption); else log.warn(`${encryption}: no keyring found`);
+    void shell.github.loadTools(); // GitHub's tools for the agents (src/github), with an account's token: the keyring's now
+    watchPartners(shell); // the threads of tasks with partners on the human's other computers (partners.ts)
     // macOS keeps a menu bar for the app: Electron's default one would reload Kulisa's own page with ⌘R. Its own
     // menu: About Kulisa (Settings at its About page, not Electron's panel), Settings… (⌘,, where Mac apps have it: the author, 2026-10-16), Quit, Hide (the app's), Copy and Paste
     // (the Edit menu's roles: ⌘C, ⌘V in fields and the terminal), the windows. Kulisa's keys are taken before it

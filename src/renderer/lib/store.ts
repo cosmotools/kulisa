@@ -18,7 +18,7 @@ export const store = reactive({
   // The shown task's profiles, open (as Profile.info) and closed; its terminals' island.
   profiles: [] as Profile[],
   closedProfiles: [] as ClosedProfile[],
-  terminals: { front: null, list: [] } as Terminals,
+  terminals: { front: null, list: [], closed: [] } as Terminals,
   zoom: 1, // the Kulisa zoom
   theme: root.dataset.theme || 'dark', // Dark, Light or System (index.html sets it from the URL before the first paint)
   bar: root.dataset.bar || 'bottom', // where the tasks' bar is

@@ -18,4 +18,7 @@ case "$1 $2" in
   "auth logout") rm -f "$FAKE_CONFIG_DIR/account"; echo "$FAKE_CONFIG_DIR" >> "$FAKE_LOGOUTS"; exit;;
 esac
 echo "fake agent in $PWD, ports + $KULISA_PORT_OFFSET, config [$FAKE_CONFIG_DIR]"
+model=; prev=
+for a in "$@"; do [ "$prev" = --model ] && model=$a; prev=$a; done
+[ -n "$model" ] && echo "fake agent model [$model]"
 exec cat

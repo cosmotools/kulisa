@@ -107,6 +107,7 @@ function projectItems(p: ProjectEntry): MenuItem[] {
   const merged = p.tasks.some((t) => t.closed && t.merged); // its PR merged, nothing uncommitted: deleting loses nothing (projects.ts, checkMerged)
   const terminals = () => Object.assign({}, ...mine.map((t) => terminalsOf(t.key)));
   return [{ label: 'New Task', keys: id === store.projects.project ? keyText('task.new') : undefined, run: () => kulisa.invoke('task:new', { project: id }) },
+    { label: 'New Task from a Branch…', run: () => dialog('frombranch').then((d) => d.open(id, p.name)) },
     '-', ...moveRows((to) => kulisa.invoke('project:move-all', { id, to, terminals: terminals() }), { enabled: mine.length < store.projects.tabs.length })
       .map((r) => (typeof r === 'object' && 'label' in r ? { ...r, label: r.label.replace('Move to', 'Move All Tasks to') } : r)),
     '-', { label: 'Project Settings…', run: () => manage(id) },

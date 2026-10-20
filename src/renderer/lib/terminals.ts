@@ -2,12 +2,12 @@
 // "<task>#<id>" as in the main process; here the island's side: the shown task's terminal in front (Terminals.vue),
 // links into its profiles, terminals moving to another window, their menus.
 import { act, store } from './store';
-import { keyText } from './common';
-import { menuAt, type MenuItem } from './menu';
+import { ago, keyText } from './common';
+import { menuAt, modelItems, type MenuItem } from './menu';
 import { agentMark } from './agents';
 import { dialog } from './dialogs';
 import { restoreTerminal, serialized, termCopy, termHooks, termPaste, View, xtermKeys } from '../../terminal/renderer';
-import type { Terminal as TerminalInfo } from '../../shared/types';
+import type { ClosedConversation, Terminal as TerminalInfo } from '../../shared/types';
 
 // The terminal in front of the shown task's island: where the keyboard goes (Ctrl+`), what the tests read.
 const frontKey = () => (store.current && store.terminals.front !== null ? `${store.current}#${store.terminals.front}` : null);
@@ -54,27 +54,40 @@ export function terminalMenu(key: string, more: MenuItem[]): MenuItem[] | null {
   ];
 }
 
-// The island's menus (Terminals.vue). The shown task's project's agents (its accounts), the default first; the terminal
-// only is the Terminal row.
-const projectAgents = () => (store.projects.open.find((o) => o.id === store.projects.project)?.agents || []).filter((a) => a.cli !== 'shell');
-// The same as big buttons, the island alone in the grid: an account's name is its agent's · its email, on two lines.
+// The island's menus (Terminals.vue). The shown task's project's team (its roles), the default first, each by its name
+// and the account playing it; the terminal only is the Terminal row.
+const projectRoles = () => (store.projects.open.find((o) => o.id === store.projects.project)?.roles || []).filter((r) => r.cli !== 'shell');
+const roleLabel = (r: ReturnType<typeof projectRoles>[number]) => (r.role ? `${r.role} · ${r.name}` : r.name);
+// The task's closed conversations, gone on with (Task.closedConversations): its name, its account and when, a doubt
+// said where the agent may take another of its own.
+const closedTitle = (c: ClosedConversation) => `Go on with "${c.name}" (${c.account}, closed ${ago(c.closedAt)})` +
+  (c.unsure ? `: its session is not known, so ${c.account} may go on with its conversation closed last instead` : '');
+const continueIt = (c: ClosedConversation) => act('terminal:open', { conversation: c.i });
+// The same as big buttons, the island alone in the grid: an account's name is its agent's · its email, on two lines;
+// first the conversation closed last, which the keyboard is on (Terminals.vue).
 export const launchers = () => [
-  ...projectAgents().map((a) => {
-    const [name, sub = ''] = a.name.split(' · ');
-    return { id: a.id, name, sub, icon: agentMark(a.cli)!, title: a.name, run: () => act('terminal:open', { agent: a.id }) };
+  ...store.terminals.closed.slice(0, 1).map((c) => ({ id: `closed-${c.i}`, name: `Continue: ${c.name}`, sub: ago(c.closedAt),
+    icon: agentMark(c.cli)!, title: closedTitle(c), run: () => continueIt(c) })),
+  ...projectRoles().map((r) => {
+    const [name, sub = ''] = r.role ? [r.role, r.name] : r.name.split(' · ');
+    return { id: r.id, name, sub, icon: agentMark(r.cli)!, title: [roleLabel(r), r.about].filter(Boolean).join('\n'), run: () => act('terminal:open', { role: r.id }) };
   }),
   { id: 'shell', name: 'Terminal', sub: '', icon: 'i-agent-shell', title: 'Terminal', run: () => act('terminal:open') },
 ];
-// +: a new conversation of one of them, or a shell.
+// +: a closed conversation gone on with, a new conversation of one of the agents, or a shell.
 export const newTerminalItems = (): MenuItem[] => [
-  ...projectAgents().map((a) => ({ label: a.name, icon: agentMark(a.cli)!, run: () => act('terminal:open', { agent: a.id }) })),
-  ...(projectAgents().length ? ['-' as const] : []),
+  ...(store.terminals.closed.length ? [{ heading: 'Closed Conversations' },
+    ...store.terminals.closed.map((c) => ({ label: c.name, sub: `${c.account} · ${ago(c.closedAt)}`, icon: agentMark(c.cli)!, title: closedTitle(c),
+      run: () => continueIt(c) })), '-' as const] : []),
+  ...projectRoles().map((r) => ({ label: roleLabel(r), icon: agentMark(r.cli)!, title: r.about, run: () => act('terminal:open', { role: r.id }) })),
+  ...(projectRoles().length ? ['-' as const] : []),
   { label: 'Terminal', icon: 'i-agent-shell', keys: keyText('terminal.new'), run: () => act('terminal:open') },
 ];
-// What a tab's menu and its terminal's end with.
+// What a tab's menu and its terminal's end with: another model goes on with the same conversation in the same tab.
 export const tabItems = (t: TerminalInfo): MenuItem[] => [
   ...(t.agent ? [
     { label: 'Change agent…', run: () => { void dialog('handover').then((d) => d.open(t)); } },
+    ...(t.agent.models.length ? [{ submenu: 'Model', items: modelItems(t.agent.models, t.agent.model, (model) => act('agent:model', { id: t.id, model })) }] : []),
     { label: 'New Conversation', run: () => act('agent:new-conversation', { id: t.id }) },
     '-' as const,
   ] : []),

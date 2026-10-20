@@ -82,6 +82,50 @@ async function createWorktree(folder: string, branch: string, at: string | null 
   return { repo: folder, worktree, branch, base, folder: path.join(worktree, repo.sub) };
 }
 
+// The address of its remote (origin), or null: which GitHub repository it is (the projects' Code). It may hold a token:
+// never logged or shown.
+const remoteOf = (folder: string) => git(folder, ['config', '--get', 'remote.origin.url']).catch((): null => null);
+
+// The branches a task can work on (a task on a branch, docs/tasks.md): the repository's own and its remote's (fetched
+// first, gone ones pruned), each once, newest first; not one checked out already (the project's folder, another task's
+// copy: git takes a branch in one worktree only). { name, remote (only on the remote), at (its last commit, ms),
+// subject }.
+async function branches(folder: string) {
+  const repo = await repoOf(folder);
+  if (!repo?.commit) return [];
+  await git(repo.top, ['fetch', '--quiet', '--prune', 'origin'], { timeout: 20000 }).catch((e: GitError) => console.warn('[worktrees] fetch:', e.stderr || e.message));
+  const out = await git(repo.top, ['for-each-ref', '--sort=-committerdate', '--format=%(refname)%09%(committerdate:unix)%09%(subject)', 'refs/heads', 'refs/remotes/origin']);
+  const busy = new Set((await git(repo.top, ['worktree', 'list', '--porcelain'])).split('\n').filter((l) => l.startsWith('branch ')).map((l) => l.slice('branch refs/heads/'.length)));
+  const found = new Map<string, { name: string; remote: boolean; at: number; subject: string }>();
+  for (const line of out.split('\n').filter(Boolean)) {
+    const [ref, at, subject = ''] = line.split('\t'), remote = ref!.startsWith('refs/remotes/origin/');
+    const name = ref!.replace(remote ? 'refs/remotes/origin/' : 'refs/heads/', '');
+    if (name === 'HEAD' || busy.has(name)) continue;
+    const had = found.get(name);
+    if (!had) found.set(name, { name, remote, at: Number(at) * 1000, subject });
+    else if (!remote) had.remote = false;
+  }
+  return [...found.values()];
+}
+
+// A copy on a branch there is already (a task on a branch): the repository's own, or its remote's with a local branch
+// made to follow it (--track: pushing goes back to it); at `at` or next to the repository (<repo>@<folder name>). Its
+// base is where the branch is now: what the task does is what comes after. Files outside git copied as for a new one.
+async function adoptWorktree(folder: string, branch: string, at: string | null | undefined, agentFiles: string[]): Promise<Copy> {
+  const repo = await repoOf(folder);
+  if (!repo?.commit) throw new Error(repo ? `${folder}: the repository has no commit yet` : `${folder} is not in git`);
+  const local = await ok(git(repo.top, ['rev-parse', '--verify', '--quiet', `refs/heads/${branch}`]));
+  if (!local && !await ok(git(repo.top, ['rev-parse', '--verify', '--quiet', `refs/remotes/origin/${branch}`]))) throw new Error(`no branch ${branch}`);
+  const worktree = at || freeFolder(`${repo.top}@${slug(branch)}`);
+  fs.mkdirSync(path.dirname(worktree), { recursive: true });
+  await git(repo.top, ['worktree', 'add', ...(local ? [worktree, branch] : ['--track', '-b', branch, worktree, `origin/${branch}`])]);
+  const base = await git(worktree, ['rev-parse', 'HEAD']);
+  const copied = await copyIgnored(repo.top, worktree, agentFiles);
+  await allowEnvrc(repo.top, worktree, copied);
+  return { repo: folder, worktree, branch, base, folder: path.join(worktree, repo.sub), existing: local ? 'local' : 'remote' };
+}
+const freeFolder = (f: string) => { let at = f, n = 2; while (fs.existsSync(at)) at = `${f}-${n++}`; return at; };
+
 // Untracked files that git ignores and the patterns name, copied from the repository into the worktree.
 async function copyIgnored(top: string, worktree: string, agentFiles: string[]) {
   const include = path.join(top, '.worktreeinclude');
@@ -143,6 +187,37 @@ async function merged({ repo, worktree, branch, base }: Copy) {
   return !fs.existsSync(worktree) || !(await git(worktree, ['status', '--porcelain']).catch(() => 'x'));
 }
 
+// A task's card (#49, partners on the human's other computers; docs/tasks.md, The team): a commit of one file,
+// card.json, at refs/kulisa/tasks/<branch>, next to the branch on the remote: GitHub does not show such refs, and every
+// git host takes them (a commit, not a bare file: a ref to a blob some hosts refuse). Rewritten, not added to (no
+// parent); the other computers' fetched into refs/kulisa/theirs/. Pushed with the human's own git, as the branch is.
+const CARDS = 'refs/kulisa/tasks/', THEIRS = 'refs/kulisa/theirs/';
+async function pushCard(repo: string, branch: string, card: object) {
+  const blob = await git(repo, ['hash-object', '-w', '--stdin'], { input: `${JSON.stringify(card, null, 2)}\n` });
+  const tree = await git(repo, ['mktree'], { input: `100644 blob ${blob}\tcard.json\n` });
+  const commit = await git(repo, ['-c', 'user.name=Kulisa', '-c', 'user.email=kulisa@localhost', 'commit-tree', tree, '-m', `Kulisa: the task on ${branch}`]);
+  await git(repo, ['update-ref', CARDS + branch, commit]);
+  await git(repo, ['push', '--quiet', '--force', 'origin', `${CARDS}${branch}:${CARDS}${branch}`], { timeout: 20000 });
+}
+// The cards on the remote, fetched (one gone there goes here too), each as its JSON; one that is not is left out.
+async function fetchCards(repo: string): Promise<Record<string, unknown>[]> {
+  await git(repo, ['fetch', '--quiet', '--prune', 'origin', `+${CARDS}*:${THEIRS}*`], { timeout: 20000 });
+  const refs = (await git(repo, ['for-each-ref', '--format=%(refname)', THEIRS])).split('\n').filter(Boolean);
+  return (await Promise.all(refs.map((r) => git(repo, ['cat-file', '-p', `${r}:card.json`]).then((t) => JSON.parse(t), (): null => null)))).filter((c) => c && typeof c === 'object');
+}
+// One branch's card as the remote has it now; null: none.
+async function cardOf(repo: string, branch: string): Promise<Record<string, unknown> | null> {
+  await git(repo, ['fetch', '--quiet', 'origin', `+${CARDS}${branch}:${THEIRS}${branch}`], { timeout: 20000 }).catch(() => {});
+  return git(repo, ['cat-file', '-p', `${THEIRS}${branch}:card.json`]).then((t) => JSON.parse(t), (): null => null);
+}
+// The card gone from the remote and here (the task deleted, no other computer on it).
+async function dropCard(repo: string, branch: string) {
+  await git(repo, ['push', '--quiet', 'origin', `:${CARDS}${branch}`], { timeout: 20000 }).catch(() => {});
+  for (const r of [CARDS, THEIRS]) await git(repo, ['update-ref', '-d', r + branch]).catch(() => {});
+}
+// Whether the branch is on the remote, as git here last saw it (an agent's push updates it, no fetch needed).
+const onRemote = (repo: string, branch: string) => ok(git(repo, ['rev-parse', '--verify', '--quiet', `refs/remotes/origin/${branch}`]));
+
 // direnv's records allowing the task's .envrc (allowEnvrc), removed: one file per content it was allowed with, in
 // <XDG data>/direnv/allow/, holding the .envrc's path. Not `direnv deny`: newer direnv keeps a record of that too.
 function forgetEnvrc(worktree: string) {
@@ -154,22 +229,24 @@ function forgetEnvrc(worktree: string) {
 }
 
 // The worktree and its branch, gone, and whatever was made for them (direnv's permission). A copy of the branch
-// already pushed stays on the remote.
-async function removeWorktree({ repo, worktree, branch }: Copy) {
+// already pushed stays on the remote; a branch the repository had before the task stays (existing: 'local').
+async function removeWorktree({ repo, worktree, branch, existing }: Copy) {
   forgetEnvrc(worktree);
   await git(repo, ['worktree', 'remove', '--force', '--force', worktree]).catch(async (e: GitError) => {
     console.warn('[worktrees] remove:', e.stderr || e.message);
     fs.rmSync(worktree, { recursive: true, force: true });
     await git(repo, ['worktree', 'prune']).catch(() => {});
   });
-  await git(repo, ['branch', '-D', branch]).catch((e: GitError) => console.warn('[worktrees] branch:', e.stderr || e.message));
+  if (existing !== 'local') await git(repo, ['branch', '-D', branch]).catch((e: GitError) => console.warn('[worktrees] branch:', e.stderr || e.message));
 }
 
 // A task renamed (its name is the agent's or the human's): the branch of each of its copies takes the name, one
 // free in all of them (freeBranch); the folders stay, an agent may be working in them. The new branch; each copy's
 // branch is set to it.
+// A branch there was already (existing) keeps its name: it is its pull request's, its remote's.
 async function renameBranch(copies: Copy[], name: string) {
   const keep = copies[0]?.branch;
+  if (copies.some((c) => c.existing)) return keep!;
   const next = await freeBranch(copies.map((c) => c.worktree), name, { keep });
   for (const c of copies) {
     if (c.branch !== next) await git(c.worktree, ['branch', '-m', c.branch, next]);
@@ -191,4 +268,4 @@ async function initRepo(folder: string) {
 }
 
 export type { GitError };
-export { git, repoOf, freeBranch, createWorktree, changes, progress, merged, renameBranch, removeWorktree, clone, initRepo };
+export { git, repoOf, remoteOf, pushCard, fetchCards, cardOf, dropCard, onRemote, freeBranch, createWorktree, branches, adoptWorktree, changes, progress, merged, renameBranch, removeWorktree, clone, initRepo };

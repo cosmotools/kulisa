@@ -7,7 +7,7 @@ import { MAX, nameChar, repoName } from '../../../shared/names';
 import { refused } from '../../../shared/result';
 import type { Account, NewProjectSetup, SettingsProfile, SignedIn } from '../../../shared/types';
 
-export const STEPS = ['Code', 'Agents', 'Profiles'] as const;
+export const STEPS = ['Code', 'Team', 'Profiles'] as const;
 type From = 'new' | 'folder' | 'clone';
 
 // single: one folder or one URL, in a field of its own, not a list (the welcome's: a first project made simply; more are
@@ -102,20 +102,21 @@ function wizard(single: boolean) {
     return true;
   }
 
-  // 2. Its agents: any of the accounts (signed in to before, or a new one, here), one the default, which its tasks
-  // start with (as on the project's page: tasks.md, Choosing the agent). None: its tasks start with a terminal, which
-  // every project has, so it is no choice here (the author, 2026-10-17). A new account's agent not on the computer is
-  // installed first, by itself (the author, 2026-10-17: seamless; Details shows the installer at work).
+  // 2. Its team (docs/tasks.md, The team): roles, each an account (signed in to before, or a new one, here) and the
+  // human's words for it, one the default, which its tasks start with. A role ready (the first account), so a newcomer
+  // goes on at once; the roles' editor for whoever sets up a team (the author, 2026-10-20). None: its tasks start with a
+  // terminal, which every project has, so it is no choice here (the author, 2026-10-17). A new account's agent not on
+  // the computer is installed first, by itself (the author, 2026-10-17: seamless; Details shows the installer at work).
   const accounts = ref<Account[]>([]), clis = ref<string[]>([]);
-  const chosen = ref<string[]>([]), main = ref('');
+  type Row = { key: number; account: string; role: string; about: string };
+  const roles = ref<Row[]>([]), main = ref(0); // main: the default's key
+  let keys = 0;
   const installs = agentList({ details: true, installed: (a) => `${a.name} is installed` }); // details: the agents themselves, as Settings → Agents
   const signing = ref<{ id: string; name: string } | null>(null);
   const addable = computed(() => installs.state.agents.filter((a) => clis.value.includes(a.id)));
-  const isDefault = (id: string) => (main.value || chosen.value[0]) === id;
-  function choose(id: string, on: boolean) {
-    chosen.value = on ? [...chosen.value.filter((x) => x !== id), id] : chosen.value.filter((x) => x !== id);
-    if (!chosen.value.includes(main.value)) main.value = '';
-  }
+  const isDefault = (key: number) => (roles.value.some((r) => r.key === main.value) ? main.value : roles.value[0]?.key) === key;
+  const addRole = (account: string) => { roles.value = [...roles.value, { key: ++keys, account, role: '', about: '' }]; };
+  const removeRole = (key: number) => { roles.value = roles.value.filter((r) => r.key !== key); };
   async function addAccount(a: { id: string; name: string; installed?: boolean }) {
     if (!a.installed) {
       await installs.install(a.id);
@@ -124,12 +125,12 @@ function wizard(single: boolean) {
     }
     signing.value = { id: a.id, name: a.name };
   }
-  // Signed in: the new account is chosen.
+  // Signed in: a role played by the new account.
   function signedIn(r: SignedIn) {
     const before = new Set(accounts.value.map((a) => a.id));
     if (r.accounts) accounts.value = r.accounts;
     const made = accounts.value.find((a) => !before.has(a.id))?.id;
-    if (made) choose(made, true);
+    if (made) addRole(made);
     signing.value = null;
   }
 
@@ -147,8 +148,9 @@ function wizard(single: boolean) {
   const back = () => { error.value = ''; if (step.value) step.value--; };
   // Create: one call (a clone takes a while), then its first task opened in this window.
   async function create() {
-    const first = chosen.value.find(isDefault);
-    const setup: NewProjectSetup = { agents: [...(first ? [first] : []), ...chosen.value.filter((x) => x !== first)],
+    const first = roles.value.find((r) => isDefault(r.key));
+    const setup: NewProjectSetup = { team: [...(first ? [first] : []), ...roles.value.filter((r) => r !== first)]
+      .map(({ account, role, about }) => ({ account, role: role.trim(), about: about.trim() })),
       // plain objects: IPC does not take Vue's proxies
       profiles: [...[...taken].map((id) => ({ id })), ...fresh.value.filter((f) => f.name.trim()).map(({ name, description }) => ({ name, description }))] };
     saving.value = true;
@@ -165,7 +167,8 @@ function wizard(single: boolean) {
     const [c, a, p] = await Promise.all([kulisa.invoke('project:new-defaults'), kulisa.invoke('accounts:list'), kulisa.invoke('profiles:list')]);
     Object.assign(code, { from: 'new', name: '', place: c.location, sep: c.sep, git: true, sources: [], urls: [], typed: '' });
     named = ''; step.value = 0; error.value = ''; nameTrouble.value = false;
-    accounts.value = a.accounts; clis.value = a.clis; chosen.value = []; main.value = ''; signing.value = null;
+    accounts.value = a.accounts; clis.value = a.clis; roles.value = []; main.value = 0; signing.value = null;
+    if (a.accounts[0]) addRole(a.accounts[0].id);
     others.value = p.profiles; taken.clear(); fresh.value = [];
     ready.value = true;
     // The agents behind it: looking for them runs the user's login shell and each one's --version (seconds with a heavy
@@ -175,7 +178,7 @@ function wizard(single: boolean) {
 
   return { single, step, last, saving, error, ready, next, back, reset,
     code, addSource, removeSource, where, askGit, askName, browse,
-    accounts, chosen, main, isDefault, choose, installs, signing, addable, addAccount, signedIn,
+    accounts, roles, main, isDefault, addRole, removeRole, installs, signing, addable, addAccount, signedIn,
     others, taken, fresh };
 }
 

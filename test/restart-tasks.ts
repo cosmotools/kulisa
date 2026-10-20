@@ -31,6 +31,9 @@ export default (test: Test) => {
     await waitFor(() => shell.task.n === 1);
     await waitFor(async () => (await viewOn(shell, ui, 'sam-admin')) && viewOn(shell, ui, 'elon-buyer'));
   });
+  test("after a restart: GitHub's tools are listed again with the account signed in (its token read once the keyring is there)", async ({ shell }) => {
+    await waitFor(() => shell.github.tools().some((t) => t.name === 'create_issue'));
+  });
   test('after a restart: the open tasks are as they were left; one in the background loads when shown', async ({ shell, ui }) => {
     await waitFor(async () => JSON.stringify(await projectTabs(ui)) === '["project *","project","other"]');
     assert.equal(shell.open.get('other').tasks.get(1).loaded, false);

@@ -8,11 +8,16 @@
 //   /headers  echoes the User-Agent and Sec-CH-UA* request headers as JSON
 //   /draft    a page that holds its unload (beforeunload), as a form with unsaved changes does: never discarded
 //   /menu     a link, a field, an empty place and a block with its own right-click menu (as Teams has)
+//   /github/  a fake GitHub (KULISA_GITHUB): Kulisa App's device flow and refresh, /user, /user/repos, /repos/…, and its
+//             MCP server with a tool that reads and one that writes (githubMcp); pull requests and their comments
 // It runs in its own process: inside Electron's main process it can deadlock, because a synchronous Electron call
 // waits for a renderer that waits for a response from this (then blocked) server.
 import { spawn } from 'child_process';
 import http from 'http';
 import type { IncomingMessage, ServerResponse } from 'http';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { z } from 'zod';
 
 function page(title: string, body: string, color = '#4a7') {
   const icon = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="${color}"/></svg>`)}`;
@@ -21,12 +26,122 @@ function page(title: string, body: string, color = '#4a7') {
 
 const board: string[] = [];
 
+// The fake GitHub: its users and what each reaches; a code entered by a test as the human does on GitHub
+// (/github/test/approve?code=…&user=…); the
+// tokens it gave, by token: the user, the refresh token's own; a user's sign-ins revoked (/github/test/revoke?user=…).
+const USERS: Record<string, { id: number; name: string; repos: string[] }> = {
+  octo: { id: 101, name: 'Octo Cat', repos: ['octo/shop', 'acme/web'] },
+  mona: { id: 102, name: 'Mona', repos: ['mona/lib'] },
+};
+const PUBLIC = new Set(['octo/public']); // the others are private
+// Pull requests by '<repo>#<branch>' -> number, and each one's comments; a test opens one and comments as anyone
+// (/github/test/pull?repo=…&branch=…, POST /github/test/comment?repo=…&n=…&user=… with the body).
+const pulls = new Map<string, number>(), comments = new Map<string, { id: number; body: string; user: { login: string } }[]>();
+let commentN = 1000;// Its MCP server, stateless as GitHub's answers any request: what the tools did, as whom (the token's user).
+async function githubMcp(req: IncomingMessage, res: ServerResponse, body: unknown) {
+  const token = (req.headers.authorization || '').replace(/^Bearer /, '');
+  const user = token.startsWith('github_pat_') ? token.slice('github_pat_'.length) : issued.get(token);
+  if (!user) { res.writeHead(401); return res.end(); }
+  const server = new McpServer({ name: 'github', version: '1' });
+  const repo = { owner: z.string(), repo: z.string() };
+  server.registerTool('list_issues', { description: 'List issues of a repository', inputSchema: repo, annotations: { readOnlyHint: true } },
+    async ({ owner, repo }) => ({ content: [{ type: 'text', text: `issues of ${owner}/${repo} as ${user}` }] }));
+  server.registerTool('create_issue', { description: 'Open an issue', inputSchema: { ...repo, title: z.string() }, annotations: { readOnlyHint: false } },
+    async ({ owner, repo, title }) => ({ content: [{ type: 'text', text: `opened "${title}" in ${owner}/${repo} as ${user}` }] }));
+  server.registerTool('search_repositories', { description: 'Search repositories', inputSchema: { query: z.string() }, annotations: { readOnlyHint: true } },
+    async ({ query }) => ({ content: [{ type: 'text', text: `found ${query} as ${user}` }] }));
+  const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true });
+  res.on('close', () => { void transport.close(); void server.close(); });
+  await server.connect(transport);
+  await transport.handleRequest(req, res, body);
+}
+const codes = new Map<string, { user: string; device: string; approved?: string }>(); // user code -> its sign-in
+const issued = new Map<string, string>(); // access or refresh token -> its user
+let issuedN = 0;
+function tokensFor(user: string) {
+  const n = ++issuedN, access = `ghu_${user}_${n}`, refresh = `ghr_${user}_${n}`;
+  issued.set(access, user); issued.set(refresh, user);
+  return { access_token: access, token_type: 'bearer', expires_in: 28800, refresh_token: refresh, refresh_token_expires_in: 15897600 };
+}
+function github(req: IncomingMessage, u: URL, json: (code: number, body: unknown, headers?: Record<string, string>) => void, body: Record<string, string>) {
+  const p = u.pathname.slice('/github'.length);
+  if (p === '/login/device/code') {
+    const n = codes.size + 1, code = `CODE-${String(n).padStart(4, '0')}`;
+    codes.set(code, { user: '', device: `dc${n}` });
+    return json(200, { device_code: `dc${n}`, user_code: code, verification_uri: `http://${req.headers.host}/github/login/device`, expires_in: 900, interval: 0.1 });
+  }
+  if (p === '/login/oauth/access_token') {
+    if (body.grant_type === 'refresh_token') {
+      const user = issued.get(body.refresh_token);
+      if (!user || !body.refresh_token.startsWith('ghr_')) return json(200, { error: 'bad_refresh_token' });
+      issued.delete(body.refresh_token); // each refresh replaces it
+      return json(200, tokensFor(user));
+    }
+    const c = [...codes.values()].find((x) => x.device === body.device_code);
+    if (!c) return json(200, { error: 'expired_token' });
+    if (c.approved === 'deny') return json(200, { error: 'access_denied' });
+    if (!c.approved) return json(200, { error: 'authorization_pending' });
+    c.device = '';
+    return json(200, tokensFor(c.approved));
+  }
+  if (p === '/test/approve') {
+    const c = codes.get(u.searchParams.get('code') || '');
+    if (!c) return json(404, {});
+    c.approved = u.searchParams.get('user') || 'deny';
+    return json(200, {});
+  }
+  if (p === '/test/pull') {
+    const key = `${u.searchParams.get('repo')}#${u.searchParams.get('branch')}`;
+    if (!pulls.has(key)) pulls.set(key, pulls.size + 1);
+    return json(200, { number: pulls.get(key) });
+  }
+  if (p === '/test/comment') {
+    const key = `${u.searchParams.get('repo')}#${u.searchParams.get('n')}`;
+    comments.set(key, [...(comments.get(key) || []), { id: ++commentN, body: body.body, user: { login: u.searchParams.get('user') } }]);
+    return json(200, {});
+  }
+  if (p === '/test/comments') return json(200, comments.get(`${u.searchParams.get('repo')}#${u.searchParams.get('n')}`) || []);
+  if (p === '/test/revoke') {
+    for (const [t, user] of issued) if (user === u.searchParams.get('user')) issued.delete(t);
+    return json(200, {});
+  }
+  const token = (req.headers.authorization || '').replace(/^Bearer /, '');
+  const user = token.startsWith('github_pat_') ? token.slice('github_pat_'.length) : token.startsWith('ghu_') ? issued.get(token) : undefined;
+  if (!user || !USERS[user]) return json(401, { message: 'Bad credentials' });
+  const expiry = token.startsWith('github_pat_') ? { 'github-authentication-token-expiration': '2027-01-31 12:00:00 UTC' } : {};
+  if (p === '/api/user') return json(200, { login: user, id: USERS[user].id, name: USERS[user].name }, expiry);
+  const pullsOf = /^\/api\/repos\/([^/]+\/[^/]+)\/pulls$/.exec(p)?.[1];
+  if (pullsOf) {
+    const n = pulls.get(`${pullsOf}#${(u.searchParams.get('head') || '').split(':')[1]}`);
+    return json(200, n ? [{ number: n }] : []);
+  }
+  const thread = /^\/api\/repos\/([^/]+\/[^/]+)\/issues\/(\d+)\/comments$/.exec(p);
+  if (thread) {
+    const key = `${thread[1]}#${thread[2]}`;
+    if (req.method === 'POST') return json(201, comments.set(key, [...(comments.get(key) || []), { id: ++commentN, body: body.body, user: { login: user } }]) && {});
+    const list = comments.get(key) || [], etag = `"${list.length}"`;
+    if (req.headers['if-none-match'] === etag) return json(304, null);
+    return json(200, list, { etag });
+  }
+  const named = /^\/api\/repos\/([^/]+\/[^/]+)$/.exec(p)?.[1];
+  if (named) return json(200, { full_name: named, private: !PUBLIC.has(named) });
+  if (p === '/api/user/repos') return json(200, u.searchParams.get('page') === '1' ? USERS[user].repos.map((full_name) => ({ full_name })) : []);
+  return json(404, { message: 'Not Found' });
+}
+
 function handler(req: IncomingMessage, res: ServerResponse) {
   const u = new URL(req.url, 'http://x');
   const send = (code: number, body: string, type = 'text/html; charset=utf-8', headers = {}) => {
     res.writeHead(code, { 'content-type': type, ...headers });
     res.end(body);
   };
+  if (u.pathname.startsWith('/github/')) {
+    let raw = '';
+    req.on('data', (c) => { raw += c; });
+    req.on('end', () => (u.pathname.startsWith('/github/mcp') ? void githubMcp(req, res, raw ? JSON.parse(raw) : undefined)
+      : github(req, u, (code, body, headers) => send(code, JSON.stringify(body), 'application/json', headers), raw ? JSON.parse(raw) : {})));
+    return;
+  }
   const user = Object.fromEntries((req.headers.cookie || '').split(/;\s*/).filter(Boolean).map((c) => c.split('='))).user;
   if (u.pathname === '/hang') return; // a site that never answers (Kulisa must open a profile with such a tab anyway)
   if (u.pathname === '/headers') {

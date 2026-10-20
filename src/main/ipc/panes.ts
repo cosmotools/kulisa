@@ -29,16 +29,18 @@ export function registerPanes(ipc: Ipc) {
   // A profile's master, to sign in to (master.ts), and its cookies brought to this task's copy (tasks.ts).
   handle('profile:master', (e, { task, profile }) => onScreen(e, task)?.openMaster(profile) || noTask);
   handle('profile:refresh', (e, { task, profile }) => onScreen(e, task)?.refreshProfile(profile) || noTask);
-  // The island's tabs (Terminals.vue): + (an agent of the project, a new conversation; or a shell; own: the task's own
-  // agent, Ctrl+` on the folded island), the one in front,
+  // The island's tabs (Terminals.vue): + (a role of the project's team, a new conversation; a closed conversation gone
+  // on with; or a shell; own: Ctrl+` on the folded island; agent: an account, as tests open one), the one in front,
   // ×, an agent's tab handed over to another agent (Task.handOver).
-  handle('terminal:open', (e, { task, agent, own }) => {
+  handle('terminal:open', (e, { task, agent, role, own, conversation }) => {
     const w = onScreen(e, task);
-    return !w ? noTask : own ? w.openOwn() : agent ? w.openAgent(agent) : w.openTerminal();
+    return !w ? noTask : own ? w.openOwn() : conversation !== undefined ? w.continueConversation(conversation) : role ? w.openRole(role)
+      : agent ? w.openAgent(agent) : w.openTerminal();
   });
   handle('terminal:show', (e, { task, id }) => onScreen(e, task)?.show(id) || noTask);
   handle('terminal:close', (e, { task, id }) => onScreen(e, task)?.closeTab(id) || noTask);
   handle('agent:new-conversation', (e, { task, id }) => onScreen(e, task)?.newConversation(id) || noTask);
+  handle('agent:model', (e, { task, id, model }) => onScreen(e, task)?.changeModel(id, model) || noTask);
   handle('agent:hand-over', (e, { task, id, agent }) => onScreen(e, task)?.handOver(id, agent) || noTask);
   on('layout:save', (e, { task, layout }) => at(e)?.saveLayout(task, layout));
   on('layout', (e, { task, rects }) => at(e)?.layout(task, rects));

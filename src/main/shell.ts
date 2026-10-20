@@ -17,6 +17,7 @@ import type { Master } from './master.ts';
 import type { SettingsWindow } from './settings-window.ts';
 import type { SettingsAt } from '../shared/ipc.ts';
 import type { Pty } from '../terminal/main/index.ts';
+import type { Github } from '../github/main/index.ts';
 import type { signinPages } from './signin-pages.ts';
 import type { Result } from '../shared/result.ts';
 import type { Discarder } from './discard.ts';
@@ -31,7 +32,7 @@ type AgentChoice = Agent & { agentId: string; cli: string; configDir: string | n
 interface Shell {
   bus: EventEmitter; store: Store; proxy: CdpProxy; mcp: { base: string; srv: import('http').Server };
   open: Map<string, Project>; windows: AppWindow[]; signin: ReturnType<typeof signinPages>;
-  profileStore: ProfileStore; cookieSync: CookieSync; sessionCookies: SessionCookies; accounts: Accounts;
+  profileStore: ProfileStore; cookieSync: CookieSync; sessionCookies: SessionCookies; accounts: Accounts; github: Github;
   secrets: { available(): boolean; encrypt(s: string): string; decrypt(b: string): string };
   loginSecret(password?: string): Result<{ secret?: string }>;
   typingSecret: Set<string>; // '<task key>/<profile id>'

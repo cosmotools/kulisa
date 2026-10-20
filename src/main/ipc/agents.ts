@@ -1,7 +1,7 @@
 // The windows' handles on the agents and their accounts (docs/tasks.md, Agents, Accounts): Settings → Agents, a new
 // account's sign-in, Choose the Agent, the installer.
 import { app } from 'electron';
-import { addAgent, deleteAccount } from '../projects.ts';
+import { joinTeam, deleteAccount } from '../projects.ts';
 import { findAgent, accountEmail, signOut, agentVersion, installLine, installAgent } from '../agents/index.ts';
 import { startTerminal, stopTerminal, forgetTerminal } from '../../terminal/main/index.ts';
 import { refused } from '../../shared/result.ts';
@@ -62,12 +62,12 @@ export function registerAgents(ipc: Ipc) {
     if (cancelled || !got || existing) {
       if (got) await signOut(own.agent, found, r.dir);
       shell.accounts.remove(r.dir);
-      if (existing) return id ? addAgent(shell, id, existing.id) : { error: `${existing.name} is an account already` };
+      if (existing) return id ? joinTeam(shell, id, existing.id) : { error: `${existing.name} is an account already` };
       return { error: cancelled ? null : `Not signed in: ${own.name} ended with code ${code}.` };
     }
     shell.accounts.create(id, r.id, agentId, got.email);
     shell.sendProjects(); // the first account at the first start: Settings has it
-    return id ? addAgent(shell, id, r.id) : accountsInfo();
+    return id ? joinTeam(shell, id, r.id) : accountsInfo();
   });
   handle('account:signin-cancel', (_e, { key }) => cancel(key));
   const choosing = new Map<string, (agent: AgentChoice | null) => void>(); // task key -> resolve(agent or null)

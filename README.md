@@ -95,6 +95,7 @@ computer).
 | `KULISA_DATA` | Data folder instead of the one above (e.g. to try a build next to your real one: one Kulisa runs per data folder, a second on the same one shows the first's window) |
 | `KULISA_MCP_PORT` | MCP server port (default 4450; `0` picks a free one) |
 | `KULISA_SCREENSHOTS` | The folder the human's screenshots go to, instead of the OS's own folder of screenshots (the tests' own) |
+| `KULISA_GITHUB` | A fake GitHub at this address in GitHub's place (the tests' own: `src/github/README.md`) |
 | `KULISA_SHOT` | Save a screenshot of the whole window to this PNG file ~4 s after start (`KULISA_SHOT_DELAY`, ms) |
 
 ### Developing with Claude Code

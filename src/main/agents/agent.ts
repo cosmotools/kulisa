@@ -47,10 +47,15 @@
 //   voice                    dictation, when the agent has its own (the window's microphone button; none without):
 //                            key, repeat  what is typed into its terminal again and again while it records, every
 //                                  repeat ms, as a held key repeats (a terminal tells no key's release)
+//   model                    the model it runs with, a role's or chosen on its tab (docs/tasks.md, The team): args(model),
+//                            the arguments that start it so, a conversation resumed too; list(configDir), the models
+//                            it offers, as it says them itself (its documented aliases, or what it caches of its
+//                            maker's list): { id (what args takes), name, about }, the first its default's equal
 //   language                 its own language setting, which Kulisa's one language (☰ → Language) is written into,
 //                            in every account of it (app.ts, setLanguage; tasks.ts, at its start): languages, the
 //                            codes it takes; set(dir, code), into an account's config folder
 import type { Conversation } from '../kulisa-plugin/transcripts.ts';
+import type { Model } from '../../shared/types.ts';
 
 // Kulisa's MCP tools that keep the agent's own approval (the author, 2026-10-12; docs/profiles.md, The agent's tools):
 // terminal_run runs any command in the human's shell, around the agent's approval of commands (and Codex's sandbox);
@@ -87,6 +92,7 @@ interface Agent {
   config?: { env: string; home: () => string; login: () => string[]; status: string[]; email: (out: string) => string | null; logout: string[] };
   voice?: { key: string; repeat: number };
   language?: { languages: string[]; set: (dir: string, code: string) => { error?: string } };
+  model?: { args: (model: string) => string[]; list: (configDir: string | null) => Model[] };
   shell?: { command: string; args?: string[] };
 }
 
@@ -103,7 +109,7 @@ const hookSeconds = (e: HookEvent) => (e === 'session-end' ? 1 : e === 'interrup
 const hookCommand = (e: HookEvent) => `curl -sf --max-time ${hookSeconds(e)} --data-binary @- "$KULISA_URL/hooks/${e}" || true`;
 
 // What Kulisa does with an agent beyond starting it, each an entry's field: an agent has it or says why not (lacks).
-const CAPABILITIES = ['config', 'hooks', 'skills', 'resume', 'prompt', 'dirs', 'addDir', 'trust', 'localFiles', 'conversation', 'forget', 'voice', 'language'] as const;
+const CAPABILITIES = ['config', 'hooks', 'skills', 'resume', 'prompt', 'dirs', 'addDir', 'trust', 'localFiles', 'conversation', 'forget', 'voice', 'language', 'model'] as const;
 type Capability = typeof CAPABILITIES[number];
 
 export type { Agent, Found, Where, ForgetContext, Hook, HookEvent };

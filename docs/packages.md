@@ -129,3 +129,5 @@ The terminal's move (2026-10-18) is the example; each step says what it found.
 |---|---|---|
 | `src/terminal/` | a terminal: its pty in the user's shell, its buffers and the xterm a place shows ([README](../src/terminal/README.md)) | `ipc.ts`, `log.ts` |
 | `src/screenshots/` | a picture of a page (an element, the visible part, the whole page), kept as the human's, its thumbnail ([README](../src/screenshots/README.md)) | `ipc.ts`, `log.ts` |
+| `src/github/` | the GitHub accounts: their sign-ins (Kulisa App, a fine-grained token), what each reaches, a repository's account ([README](../src/github/README.md)) | `ipc.ts`, `log.ts` |
+| `src/project-file/` | a project's file in its repository, `.kulisa/project.json`: its sections read and written, what it does not know kept ([README](../src/project-file/README.md)) | nothing |

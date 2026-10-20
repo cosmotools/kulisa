@@ -9,7 +9,7 @@ import { z } from 'zod';
 import http from 'http';
 import path from 'path';
 import vm from 'vm';
-import { handleHookRequest, taskContext, unnamed, ONLY_BROWSER } from './agent-hooks.ts';
+import { handleHookRequest, taskContext, teamContext, githubContext, teamList, unnamed, ONLY_BROWSER } from './agent-hooks.ts';
 import { historyPart } from './history.ts';
 import { fromLocalTool } from '../local-only.ts';
 import { toUrl } from '../profiles.ts';
@@ -70,7 +70,7 @@ const INSTRUCTIONS = 'Kulisa profiles are the users of the app under test, each 
 const UPFRONT = { 'anthropic/alwaysLoad': true };
 // task: the task (tasks.ts) whose profiles the tools act on; t: the agent's terminal, when it came by its own URL.
 function buildServer(task: Task, t: TaskTerminal | null) {
-  const server = new McpServer({ name: 'kulisa', version: pkg.version }, { instructions: `${INSTRUCTIONS} ${taskContext(task)}` });
+  const server = new McpServer({ name: 'kulisa', version: pkg.version }, { instructions: [INSTRUCTIONS, taskContext(task), teamContext(task, t), githubContext(task)].filter(Boolean).join(' ') });
   // Profiles can be created while the agent runs, so this is a string checked at call time, not an enum.
   const closed = [...task.closed.values()].map(({ cfg }) => `${cfg.id} (${cfg.name}, closed)`);
   const profileArg = z.string().describe(`Profile id. Current: ${[...[...task.profiles.values()].map((p) => `${p.id} (${p.name})`), ...closed].join(', ') || 'none yet'}; call profile_list for the live list`);
@@ -79,13 +79,14 @@ function buildServer(task: Task, t: TaskTerminal | null) {
   // hooks or whose hooks the human has not trusted (Codex).
   type Handler = (...a: unknown[]) => Promise<CallToolResult>;
   const register = server.registerTool.bind(server) as unknown as (name: string, config: object, cb: Handler) => unknown;
-  server.registerTool = ((name: string, config: object, cb: Handler) => register(name, config, async (...a) => {
+  const names = new Set<string>(); // Kulisa's own tools: GitHub's of the same name are left out
+  server.registerTool = ((name: string, config: object, cb: Handler) => { names.add(name); return register(name, config, async (...a) => {
     log.info(`[mcp] ${name} ${task.key}${t ? `#${t.id}` : ''} ${summary(a[0])}`);
     let r: CallToolResult;
     try { r = await cb(...a); } catch (e) { log.info(`[mcp] ${name} failed: ${bare((e as Error).message)}`); throw e; }
     if (task.unnamed && name !== 'task_rename') r.content.push({ type: 'text', text: unnamed(task) });
     return r;
-  })) as unknown as typeof server.registerTool;
+  }); }) as unknown as typeof server.registerTool;
   // The agent's handles on the core: profiles and tabs found as the window finds them (tasks.ts), plus what only
   // automation keeps to: no agent while the human signs in.
   const profileOf = (id: string) => {
@@ -195,11 +196,11 @@ function buildServer(task: Task, t: TaskTerminal | null) {
   });
 
   server.registerTool('task_rename', {
-    description: 'Rename your Kulisa task once you know what it is about (it starts as task-<n>), silently: never ask the human for a name or mention it. Its name on its tab changes, and its git branch, which takes the name. Its folder stays. Letters, digits and @ . _ + -, no spaces, e.g. checkout-redesign.',
+    description: 'Name your Kulisa task once you know what it is about, while it has its first name (task-<n>): it is named once, the next agents of its team keep the name. Silently: never ask the human for a name or mention it. Its name on its tab changes, and its git branch, which takes the name. Its folder stays. Letters, digits and @ . _ + -, no spaces, e.g. checkout-redesign.',
     inputSchema: { name: z.string().describe('The new name, e.g. checkout-redesign') },
     _meta: UPFRONT,
   }, async ({ name }) => {
-    const r = await task.rename(name);
+    const r = await task.rename(name, 'agent');
     if (refused(r)) throw new Error(r.error);
     return text(`The task is now "${r.name}"${r.branch ? `, on branch ${r.branch}` : ''}.`);
   });
@@ -236,6 +237,19 @@ function buildServer(task: Task, t: TaskTerminal | null) {
   });
 
   if (t?.agent) {
+    const from = t;
+    server.registerTool('team_list', {
+      description: "The task's team: each role of the project, what it does (the human's words), who plays it, and whether it is open in the task now and what it is doing. Your partners are messaged with agent_message.",
+      inputSchema: {},
+    }, async () => text(teamList(task, from) || 'The project has no team: no roles.'));
+    server.registerTool('agent_message', {
+      description: "Message a partner of your team in this task (team_list), by its role: it gets your message as a prompt, saying it is from you, once its turn is over (never while it waits for the human). Only when it must do or know something: the human sees the talk in both terminals. Answer a partner's message (\"From <role> (<agent>): …\") with this tool, not to the human.",
+      inputSchema: { to: z.string().describe("The partner's role (or its tab's name), as team_list gives it"), text: z.string().describe('The message, as you would write it to a colleague') },
+    }, async ({ to, text: said }) => {
+      const r = await task.message(from, to, said);
+      if (refused(r)) throw new Error(r.error);
+      return text(r.queued ? `Sent to ${r.to}: it is busy, so it gets it once its turn is over.` : `Sent to ${r.to}.`);
+    });
     server.registerTool('conversation_rename', {
       description: 'Name your conversation in 1 to 3 words once you know what it is about, e.g. "Checkout discounts": the name of your tab in Kulisa, by which the human and other agents tell it from the others (task_history lists it so). Name it again when the work turns to something else.',
       inputSchema: { name: z.string().describe('1 to 3 words') },
@@ -593,6 +607,16 @@ function buildServer(task: Task, t: TaskTerminal | null) {
     done(close ? task.closeTerminal(name) : task.interruptTerminal(name));
     return text(close ? `Closed terminal "${name}".` : `Pressed Ctrl+C in terminal "${name}".`);
   });
+  // GitHub's own tools (src/github: its MCP server's, the toolsets Kulisa passes on), as the human's account of each
+  // of the project's repositories; none until one is signed in. Their names and schemas are GitHub's; the rule of
+  // where they write is the core's (Github.call).
+  for (const g of task.shell.github.tools()) {
+    if (names.has(g.name)) continue;
+    let inputSchema;
+    try { inputSchema = z.fromJSONSchema(g.inputSchema as Parameters<typeof z.fromJSONSchema>[0]); } catch (e) { log.warn(`[mcp] GitHub's ${g.name} left out: ${(e as Error).message}`); continue; }
+    server.registerTool(g.name, { title: g.title, description: g.description, inputSchema, annotations: g.annotations },
+      async (args) => task.shell.github.call(await task.project.githubRepos(), g.name, args as Record<string, unknown>));
+  }
   return server;
 }
 

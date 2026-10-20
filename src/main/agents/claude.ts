@@ -19,6 +19,12 @@ const CLAUDE_LANGUAGES = ['en', 'es', 'fr', 'ja', 'de', 'pt', 'it', 'ko', 'hi', 
 // permission or a question (Notification, not its idle_prompt, sent a minute after an answer: done says that already)
 // or a turn ends with an API error (StopFailure: a limit, a sign-in). Given in --settings with the plugin (checked with
 // 2.1.296: both are taken), so they run in Kulisa's sessions only.
+const CLAUDE_MODELS = [
+  { id: 'fable', name: 'Fable', about: 'for the hardest, longest-running tasks' },
+  { id: 'opus', name: 'Opus', about: 'the latest Opus, for complex reasoning' },
+  { id: 'sonnet', name: 'Sonnet', about: 'the latest Sonnet, for daily coding' },
+  { id: 'haiku', name: 'Haiku', about: 'fast and efficient, for simple tasks' },
+];
 const CLAUDE_HOOKS: Hook[] = [
   { on: 'SessionStart', sends: 'session-start' },
   { on: 'UserPromptSubmit', sends: 'prompt' },
@@ -67,6 +73,9 @@ const claude: Agent = {
     login: () => ['auth', 'login'], status: ['auth', 'status', '--json'],
     email: (out) => { try { return JSON.parse(out).email || null; } catch { return null; } }, logout: ['auth', 'logout'] },
   resume: ({ sessionId, transcript }) => sessionId && transcript && fs.existsSync(transcript) && ['--resume', sessionId],
+  // Its documented aliases, each the latest of its kind, so the list does not go out of date with its releases
+  // (code.claude.com/docs/en/model-config, read 2026-10-20; `--model`, 2.1.304); no command lists its models.
+  model: { args: (m) => ['--model', m], list: () => CLAUDE_MODELS },
   // The task's other repositories, with their CLAUDE.md read as its own folder's (checked with 2.1.296).
   dirs: (folders) => ({ args: folders.flatMap((f) => ['--add-dir', f]), env: { CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD: '1' } }),
   // It asks then: "Add directory to workspace", 1. Yes, for this session (checked with 2.1.296).

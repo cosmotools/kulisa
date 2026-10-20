@@ -323,7 +323,7 @@ every handle's (CLAUDE.md, "One core"). A single component is no cluster.
 | Folder | Its entries | What |
 |---|---|---|
 | `settings/` | `Settings.vue` | Settings' window: the tree, a project's, an agent's and a profile's page |
-| `newproject/` | `Wizard.vue`, `NewProject.vue` | New Project's steps (Code, Agents, Profiles; `wizard.ts` their state): the welcome's and the dialog |
+| `newproject/` | `Wizard.vue`, `NewProject.vue` | New Project's steps (Code, Team, Profiles; `wizard.ts` their state): the welcome's and the dialog |
 | `welcome/` | `Welcome.vue` | the first start, no project at all: what Kulisa does in three slides (`Tour.vue`), then New Project's steps (`Wizard.vue`, its head a question each); the empty window's (`Empty.vue`) |
 | `newtab/` | `Board.vue` | the board: every project a column (an island, as the grid's panels) with its tasks as `.item` rows, a new tab's and the empty window's |
 

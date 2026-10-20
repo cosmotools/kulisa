@@ -193,6 +193,21 @@ test("agents: a task's other folders go to Claude Code and Codex as --add-dir (C
   assert.equal(agent('codex').addDir, undefined, 'others: a line saying so (tasks.ts)');
 });
 
+// Codex's own list is a cache of its maker's in its folder, undocumented: read as 0.160.1 writes it (agents/codex.ts).
+test("agents: the models each offers, started with --model or -m: Claude Code's aliases; Codex's list as it caches it, in its order, those it lists itself", () => {
+  const agent = (id: string) => AGENTS.find((a) => a.id === id);
+  assert.deepEqual(agent('claude').model.list(null).map((m) => m.id), ['fable', 'opus', 'sonnet', 'haiku']);
+  assert.deepEqual([agent('claude').model.args('opus'), agent('codex').model.args('gpt-6-sol')], [['--model', 'opus'], ['-m', 'gpt-6-sol']]);
+  const home = path.join(root, 'codex-models');
+  fs.mkdirSync(home);
+  assert.deepEqual(agent('codex').model.list(home), [], 'not run there yet: none');
+  fs.writeFileSync(path.join(home, 'models_cache.json'), JSON.stringify({ models: [
+    { slug: 'b', display_name: 'B', description: 'the second', visibility: 'list', priority: 2 },
+    { slug: 'hidden', display_name: 'Hidden', visibility: 'hide', priority: 0 },
+    { slug: 'a', display_name: 'A', visibility: 'list', priority: 1 }] }));
+  assert.deepEqual(agent('codex').model.list(home), [{ id: 'a', name: 'A' }, { id: 'b', name: 'B', about: 'the second' }]);
+});
+
 test("agents: one not installed is not found, so the window offers to install it", async () => {
   for (const a of AGENTS.filter((x) => x.command)) assert.equal(await findAgent({ ...a, command: 'kulisa-no-such-agent' }, root), null, a.name);
 });

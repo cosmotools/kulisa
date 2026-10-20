@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // Settings, as JetBrains' (docs/tasks.md, Projects; docs/ui.md), the whole of its window (Settings.vue): a tree on the
-// left (Projects, Agents, Profiles, each with its own under it, Agents and Profiles with a + beside them), the chosen
+// left (Projects, Agents, Profiles, each with its own under it, Agents and Profiles with a + beside them; GitHub's page), the chosen
 // one's page on the right under its path. Saved as it changes (no OK, no Cancel). Settings only: a project is made in a
 // tasks' window (New Project…), which then opens it here.
 import { computed, nextTick, ref, watch } from 'vue';
@@ -10,24 +10,27 @@ import ButtonMenu from '../menu/ButtonMenu.vue';
 import RightClickMenu from '../menu/RightClickMenu.vue';
 import AccountSignIn from '../AccountSignIn.vue';
 import AgentPage from './AgentPage.vue';
+import GithubPage from './GithubPage.vue';
 import ProfilePage from './ProfilePage.vue';
 import LogPage from './LogPage.vue';
 import AboutPage from './AboutPage.vue';
 import ProjectIcon from '../ProjectIcon.vue';
 import { avatarSrc } from '../../lib/common';
 import { projectColor } from '../../lib/project-color';
-import { focusAfterMenu, type MenuItem } from '../../lib/menu';
+import { focusAfterMenu, modelItems, type MenuItem } from '../../lib/menu';
 import { agentList, agentMark, type Agent } from '../../lib/agents';
 import { refused } from '../../../shared/result';
 import type { Result } from '../../../shared/result';
-import type { Account, AccountsInfo, ProjectAgent, ProjectChoices, ProjectEntry, ProjectProfile, ProjectRepo, SettingsProfile, SignedIn } from '../../../shared/types';
+import type { GithubAccount } from '../../../github/ipc';
+import type { RepoTeam } from '../../../shared/types';
+import type { Account, AccountsInfo, ProjectRole, ProjectChoices, ProjectEntry, ProjectProfile, ProjectRepo, SettingsProfile, SignedIn } from '../../../shared/types';
 
 // The page shown, of the tree's section (the log and About are pages of their own, under them); the agents' list lives here, so an
 // install goes on while a project is shown, and the window stays open while it runs (close).
-type Section = 'projects' | 'agents' | 'profiles' | 'log' | 'about';
+type Section = 'projects' | 'agents' | 'github' | 'profiles' | 'log' | 'about';
 const tab = ref<Section>('projects');
 const agentAt = ref<string>(), profileAt = ref<string>(); // the agent, the profile shown
-const agentPage = ref<InstanceType<typeof AgentPage>>();
+const agentPage = ref<InstanceType<typeof AgentPage>>(), githubPage = ref<InstanceType<typeof GithubPage>>();
 const agentsList = agentList({ details: true, installed: (a) => `${a.name} is installed. Make an account of it below: + under Accounts.` });
 const newProfile = ref<HTMLInputElement>(), url = ref<HTMLInputElement>();
 const adding = ref<'' | 'clone' | 'profile'>('');
@@ -40,11 +43,14 @@ const projects = ref<ProjectEntry[]>([]);
 const editing = ref<string | null>(null);
 const name = ref(''), local = ref(''), error = ref('');
 const choices = ref<ProjectChoices>({ agents: [], clis: [] });
+const ghAccounts = ref<GithubAccount[]>([]); // for its repositories' rows
 const repos = ref<ProjectRepo[]>([]), former = ref<string | null>(null), cloneUrl = ref(''), codeError = ref(''), cloning = ref(false);
-const mine = ref<ProjectAgent[]>([]), agentError = ref('');
+const mine = ref<ProjectRole[]>([]), agentError = ref('');
+const repoTeam = ref<RepoTeam>({ file: null, exists: false, can: false, used: null }); // its repository's file (issue #112)
+const roleName = ref(''), roleAbout = ref(''); // the selected role's words, edited under the list
 const signing = ref<{ id: string; name: string } | null>(null); // New Account…: the agent it is of, while signing in
 const profiles = ref<ProjectProfile[]>([]), others = ref<ProjectProfile[]>([]), newName = ref(''), profileError = ref('');
-// The selected row of each list: what −, ★, Delete and its right-click act on. The default repository and agent are
+// The selected row of each list: what −, ★, Delete and its right-click act on. The default repository and role are
 // the first ones: the main process keeps them in that order.
 const repoSel = ref<string>(), agentSel = ref<string>(), profileSel = ref<string>();
 const base = (f: string) => f.split(/[\\/]/).pop()!;
@@ -59,14 +65,15 @@ async function lists() {
 }
 
 // The tree: the three sections, each with its own under it (a section only opens and closes), then the Log and About pages.
-type Node = { key: string; label: string; section?: Section; page?: 'log' | 'about'; project?: ProjectEntry; agent?: Agent; profile?: SettingsProfile; children?: Node[] };
+type Node = { key: string; label: string; section?: Section; page?: 'github' | 'log' | 'about'; project?: ProjectEntry; agent?: Agent; profile?: SettingsProfile; children?: Node[] };
 const tree = computed<Node[]>(() => [
   { key: 'projects', label: 'Projects', section: 'projects', children: projects.value.map((p) => ({ key: `p:${p.id}`, label: p.name, project: p })) },
   { key: 'agents', label: 'Agents', section: 'agents', children: agentsList.state.agents.map((a) => ({ key: `a:${a.id}`, label: a.name, agent: a })) },
+  { key: 'github', label: 'GitHub', page: 'github' },
   { key: 'profiles', label: 'Profiles', section: 'profiles', children: allProfiles.value.map((p) => ({ key: `f:${p.id}`, label: p.name, profile: p })) },
   { key: 'log', label: 'Log', page: 'log' }, { key: 'about', label: 'About', page: 'about' }]);
 const expanded = ref<string[]>(['projects', 'agents', 'profiles']);
-const chosenKey = computed(() => ({ projects: editing.value && `p:${editing.value}`, agents: agentAt.value && `a:${agentAt.value}`, profiles: profileAt.value && `f:${profileAt.value}`, log: 'log', about: 'about' })[tab.value]);
+const chosenKey = computed(() => ({ projects: editing.value && `p:${editing.value}`, agents: agentAt.value && `a:${agentAt.value}`, profiles: profileAt.value && `f:${profileAt.value}`, github: 'github', log: 'log', about: 'about' })[tab.value]);
 const chosenNode = computed(() => tree.value.flatMap((n) => [n, ...(n.children ?? [])]).find((n) => n.key === chosenKey.value));
 const shownAgent = computed(() => agentsList.state.agents.find((a) => a.id === agentAt.value));
 const shownProfile = computed(() => allProfiles.value.find((p) => p.id === profileAt.value));
@@ -102,7 +109,8 @@ async function edit(id: string) {
   local.value = (c.local || []).join(' ');
   saved = lookNow();
   repos.value = c.repos; former.value = c.former || null;
-  mine.value = c.projectAgents;
+  ghAccounts.value = (await kulisa.invoke('github:accounts')).accounts;
+  mine.value = c.team; repoTeam.value = c.repoTeam;
   profiles.value = c.profiles; others.value = c.others;
   await showList();
   document.getElementById('pjconfig')?.scrollTo(0, 0); // at its top, not where the last one was scrolled
@@ -113,7 +121,7 @@ async function edit(id: string) {
 async function openProjects(id?: string, on: Section = 'projects', at?: string) {
   tab.value = on;
   if (on === 'profiles') profileAt.value = at ?? profileAt.value;
-  if (on !== 'log' && on !== 'about' && !expanded.value.includes(on)) expanded.value = [...expanded.value, on];
+  if (on !== 'log' && on !== 'about' && on !== 'github' && !expanded.value.includes(on)) expanded.value = [...expanded.value, on];
   // The agents as last found (or, the first time, after a moment saying so), then looked for again behind them.
   const agentsShown = new Promise<void>((shown) => { void agentsList.load(undefined, async () => shown()); });
   await lists(); // a profile gone: the first one shown instead (watch, above)
@@ -201,6 +209,13 @@ async function newAccount(a: Agent) {
 const newAccountMenu = (): MenuItem[] => [{ heading: 'New Account' }, ...agentsList.state.agents.filter((a) => clis.value.includes(a.id))
   .map((a) => ({ label: `${a.name}…`, sub: a.installed ? undefined : 'not installed', enabled: !!a.installed && !agentPage.value?.busy, run: () => newAccount(a) }))];
 
+// GitHub's +: Add Account… on its page.
+async function newGithub() {
+  tab.value = 'github';
+  await nextTick();
+  void githubPage.value!.signIn();
+}
+
 // What acts on a node: its page's ⋯, its right-click, and a section's +.
 const actions = (n: Node): MenuItem[] => {
   if (n.section === 'projects') return [];
@@ -208,6 +223,7 @@ const actions = (n: Node): MenuItem[] => {
   if (n.section === 'profiles') return [{ label: 'New Profile…', run: startNewProfile }];
   if (n.project) return [{ label: 'Delete Project…', run: () => deleteProject(n.project!.id) }];
   if (n.profile) return [{ label: 'Delete Profile…', run: () => deleteProfile(n.profile!.id) }];
+  if (n.page === 'github') return [{ label: 'Add Account…', run: newGithub }];
   if (n.page) return [];
   const a = n.agent!;
   return [{ label: 'Install', enabled: !a.installed && !!a.install && !agentsList.state.installing, run: () => agentsList.install(a.id) },
@@ -247,9 +263,18 @@ const repoMenu = (e: MouseEvent): MenuItem[] | null => {
   const f = rowAt(e, 'data-folder');
   if (!f) return null;
   repoSel.value = f;
+  const gh = repos.value.find((r) => r.folder === f)?.github;
   return [{ label: 'Make Default', enabled: repos.value[0]?.folder !== f, run: () => defaultRepo(f) },
+    ...(gh ? [{ submenu: 'GitHub Account', items: githubItems(f, gh) }] : []),
     { label: 'Remove from the Project', run: () => removeRepo(f) }];
 };
+// The GitHub account a repository's agent work goes as (src/github/README.md): the one Kulisa suggests (one that reaches it),
+// or one chosen.
+const githubItems = (folder: string, gh: NonNullable<ProjectRepo['github']>): MenuItem[] => [
+  { label: 'Suggested', sub: 'one that reaches it', icon: gh.chosen ? undefined : 'i-done', run: () => code(kulisa.invoke('project:repo-github', { id: id(), folder, account: null })) },
+  ...(ghAccounts.value.length ? ['-' as const] : [{ heading: 'No accounts yet: Settings → GitHub' }]),
+  ...ghAccounts.value.map((a) => ({ label: a.login, icon: gh.chosen && gh.account === a.id ? 'i-done' : undefined,
+    run: () => code(kulisa.invoke('project:repo-github', { id: id(), folder, account: a.id })) }))];
 // Cloning takes a while (the repository comes over the network): the button says so meanwhile.
 async function clone() {
   if (!cloneUrl.value.trim()) return url.value!.focus();
@@ -260,41 +285,69 @@ async function clone() {
 const codeMenu = (): MenuItem[] => [{ label: 'Add Folder…', run: () => code(kulisa.invoke('project:repo-add', { id: id() })) },
   { label: 'Clone from URL…', run: () => startAdding('clone') }];
 
-// Its agents (the agents and their accounts: main/accounts.ts), the default first: + runs it.
-async function agents(answer: Promise<Result<{ agents: ProjectAgent[] }>>) {
+// Its team (docs/tasks.md, The team): its roles, each an account and the human's words, the default first: a new task
+// starts it. An account may play several roles, so + offers every account.
+async function agents(answer: Promise<Result<{ team: ProjectRole[]; repoTeam?: RepoTeam }>>) {
   agentError.value = '';
   const r = await answer;
-  if (refused(r)) agentError.value = r.error; else mine.value = r.agents;
+  if (refused(r)) agentError.value = r.error; else { mine.value = r.team; if (r.repoTeam) repoTeam.value = r.repoTeam; }
 }
-const removeAgent = (agent = agentSel.value) => agent && agents(kulisa.invoke('project:agent-remove', { id: id(), agent }))
+const removeAgent = (role = agentSel.value) => role && agents(kulisa.invoke('project:role-remove', { id: id(), role }))
   .then(() => { if (!mine.value.some((a) => a.id === agentSel.value)) agentSel.value = undefined; });
-// agent null: none is the default (its tasks start with the island's buttons).
-const defaultAgent = (agent: string | null) => agents(kulisa.invoke('project:agent-default', { id: id(), agent }));
-const isDefault = (agent?: string) => !!agent && !!mine.value.find((a) => a.id === agent)?.default;
+// role null: none is the default (its tasks start with the island's buttons).
+const defaultAgent = (role: string | null) => agents(kulisa.invoke('project:role-default', { id: id(), role }));
+const isDefault = (role?: string) => !!role && !!mine.value.find((a) => a.id === role)?.default;
 const starAgent = () => agentSel.value && defaultAgent(isDefault(agentSel.value) ? null : agentSel.value);
 const agentRowMenu = (e: MouseEvent): MenuItem[] | null => {
-  const a = rowAt(e, 'data-agent');
+  const a = rowAt(e, 'data-role');
   if (!a) return null;
   agentSel.value = a;
   return [isDefault(a) ? { label: 'No Default', run: () => defaultAgent(null) } : { label: 'Make Default', run: () => defaultAgent(a) },
-    { label: 'Remove from the Project', run: () => removeAgent(a) }];
+    { label: 'Remove from the Team', run: () => removeAgent(a) }];
 };
-const addable = computed(() => choices.value.agents.filter((x) => !mine.value.some((m) => m.id === x.id)));
+const addable = computed(() => choices.value.agents);
 const agentMenu = (): MenuItem[] => [
-  ...addable.value.map((x) => ({ label: x.name, run: () => agents(kulisa.invoke('project:agent-add', { id: id(), agent: x.id })) })),
+  ...(addable.value.length ? [{ heading: 'New Role, Played by' }] : []),
+  ...addable.value.map((x) => ({ label: x.name, run: () => agents(kulisa.invoke('project:role-add', { id: id(), account: x.id }))
+    .then(() => { agentSel.value = mine.value.at(-1)?.id; void nextTick(() => document.getElementById('nprolename')?.focus()); }) })),
   ...(choices.value.clis.length ? [...(addable.value.length ? ['-' as const] : []), { heading: 'New Account' },
     ...choices.value.clis.map((c) => ({ label: `${c.name}…`, run: () => { agentError.value = ''; signing.value = c; } }))] : [])];
-// Signed in: the project's agents with it, and it among the accounts to add to other projects.
+// The selected role's words, saved as they change (Enter or leaving the field), as the rest of the page.
+const shownRole = computed(() => mine.value.find((a) => a.id === agentSel.value));
+watch(shownRole, (r) => { roleName.value = r?.role ?? ''; roleAbout.value = r?.about ?? ''; }, { immediate: true });
+const saveRole = () => {
+  const r = shownRole.value;
+  if (r && (roleName.value !== r.role || roleAbout.value !== r.about)) void agents(kulisa.invoke('project:role-update', { id: id(), role: r.id, name: roleName.value, about: roleAbout.value }));
+};
+// The model it starts with: one its agent offers, or the agent's own ('').
+const roleModel = computed(() => { const r = shownRole.value; return r?.models.find((m) => m.id === r.model)?.name ?? r?.model ?? 'The agent\'s own'; });
+const modelMenu = (): MenuItem[] => { const r = shownRole.value!; return modelItems(r.models, r.model, (model) => agents(kulisa.invoke('project:role-update', { id: id(), role: r.id, model: model ?? '' }))); };
+// Where it is kept (issue #112): the repository's file, the same on every computer, or this computer; moved at once.
+const PLACES = { project: 'Project: the repository', computer: 'This computer' } as const;
+const placeMenu = (): MenuItem[] => { const r = shownRole.value!; return (['project', 'computer'] as const).map((place) => ({ label: PLACES[place],
+  icon: r.place === place ? 'i-done' : undefined, enabled: place === r.place || place === 'computer' || repoTeam.value.can,
+  run: () => agents(kulisa.invoke('project:role-update', { id: id(), role: r.id, place })) })); };
+// Who plays one of the file's here: an account of its agent on this computer.
+const playerMenu = (): MenuItem[] => { const r = shownRole.value!; return r.players.length ? r.players.map((x) => ({ label: x.name, icon: x.id === r.account ? 'i-done' : undefined,
+  run: () => agents(kulisa.invoke('project:role-update', { id: id(), role: r.id, account: x.id })) })) : [{ heading: `No account of ${r.agent} here: + beside Agents` }]; };
+// The OS it works on (#49: partners on the human's other computers): any, or one.
+const OS_NAMES = { linux: 'Linux', macos: 'macOS', windows: 'Windows' } as const;
+const osMenu = (): MenuItem[] => { const r = shownRole.value!; return [{ label: 'Any OS', icon: r.os ? undefined : 'i-done', run: () => agents(kulisa.invoke('project:role-update', { id: id(), role: r.id, os: '' })) },
+  ...(['linux', 'macos', 'windows'] as const).map((os) => ({ label: OS_NAMES[os], icon: r.os === os ? 'i-done' : undefined,
+    run: () => agents(kulisa.invoke('project:role-update', { id: id(), role: r.id, os })) }))]; };
+const useRepoTeam = (use: boolean) => agents(kulisa.invoke('project:repo-team', { id: id(), use }));
+// Signed in: the project's team with it, and it among the accounts to add to other projects.
 async function signedIn(r: SignedIn) {
-  signing.value = null; mine.value = r.agents ?? mine.value;
+  signing.value = null; mine.value = r.team ?? mine.value;
   await Promise.all([agentsNow(), lists()]);
 }
 // The accounts and profiles to add, and the project's own, as they are now: one made, renamed or deleted (Settings →
-// Agents, → Profiles) meanwhile.
+// Agents, → GitHub, → Profiles) meanwhile.
 async function agentsNow() {
   if (!editing.value) return;
-  const c = await kulisa.invoke('project:settings-get', { id: editing.value });
-  if (!refused(c)) { choices.value = { ...choices.value, agents: c.agents }; mine.value = c.projectAgents; profiles.value = c.profiles; others.value = c.others; }
+  const [c, gh] = await Promise.all([kulisa.invoke('project:settings-get', { id: editing.value }), kulisa.invoke('github:accounts')]);
+  if (!refused(c)) { choices.value = { ...choices.value, agents: c.agents }; mine.value = c.team; repoTeam.value = c.repoTeam; profiles.value = c.profiles; others.value = c.others; repos.value = c.repos; }
+  ghAccounts.value = gh.accounts;
 }
 watch(tab, (t) => (t === 'projects' ? agentsNow() : lists()));
 
@@ -333,7 +386,7 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
           <TreeItem v-for="it in flattenItems" :key="it._id" v-bind="it.bind" class="item" :data-key="it.value.key" :data-section="it.value.section" :data-page="it.value.page"
             :data-project="it.value.project?.id" :data-agent="it.value.agent?.id" :data-profile="it.value.profile?.id"
             :style="{ '--color': it.value.project && projectColor(it.value.project) }" @select="choose">
-            <Icon v-if="it.value.section" class="twist" name="i-down" /><Icon v-else-if="it.value.page" class="twist" :name="it.value.page === 'log' ? 'i-docs' : 'i-logo'" /><ProjectIcon v-if="it.value.project" :p="it.value.project" />
+            <Icon v-if="it.value.section" class="twist" name="i-down" /><Icon v-else-if="it.value.page" class="twist" :name="({ github: 'i-github', log: 'i-docs', about: 'i-logo' } as const)[it.value.page]" /><ProjectIcon v-if="it.value.project" :p="it.value.project" />
             <template v-if="it.value.agent"><Icon v-if="mark(it.value.agent)" class="logo" :name="mark(it.value.agent)!" /></template>
             <img v-if="it.value.profile" class="avatar" alt="" :src="avatarSrc(it.value.profile.avatar)">
             <span class="text"><span class="label" :title="it.value.section ? undefined : it.value.label">{{ it.value.label }}</span></span>
@@ -341,6 +394,8 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
             <!-- The same as the section's right-click, which the keyboard has -->
             <ButtonMenu v-if="it.value.section === 'agents'" :items="newAccountMenu"><button id="agentnew" class="icon small add" type="button" tabindex="-1"
               title="New Account…: of an agent, signed in with its own sign-in" aria-label="New Account" :disabled="!clis.length" @click.stop><Icon name="i-plus" /></button></ButtonMenu>
+            <button v-else-if="it.value.page === 'github'" id="githubnew" class="icon small add" type="button" tabindex="-1" title="Add Account…: a GitHub account"
+              aria-label="Add a GitHub account" @click.stop="newGithub"><Icon name="i-plus" /></button>
             <button v-else-if="it.value.section === 'profiles'" id="profilenew" class="icon small add" type="button" tabindex="-1" title="New Profile…" aria-label="New Profile"
               @click.stop="startNewProfile"><Icon name="i-plus" /></button>
           </TreeItem>
@@ -373,11 +428,12 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
                 <button id="nprepodefault" class="icon small" type="button" title="Make Default: new tasks' agents start in its copy" aria-label="Make Default"
                   :disabled="!repoSel || repoSel === repos[0]?.folder" @click="defaultRepo()"><Icon name="i-star" /></button>
               </div>
-              <div v-if="repos.length" class="head" aria-hidden="true"><span>Name</span><span>Folder</span><span /></div>
+              <div v-if="repos.length" class="head" aria-hidden="true"><span>Name</span><span>Folder</span><span>GitHub</span><span /></div>
               <ListboxRoot selection-behavior="replace" v-if="repos.length" id="nprepos" v-model="repoSel" aria-label="Code" @keydown.delete="removeRepo()">
                 <ListboxContent>
                   <ListboxItem v-for="(r, i) in repos" :key="r.folder" :value="r.folder" class="item" :data-folder="r.folder">
                     <span class="cell label" :title="base(r.folder)">{{ base(r.folder) }}</span><small class="cell" :title="r.folder">{{ r.folder }}</small>
+                    <small class="cell github" :title="r.github ? `${r.github.repo}: ${r.github.login ? `as ${r.github.login}` : 'no account reaches it'}` : 'Not on GitHub'">{{ r.github?.login ?? '' }}</small>
                     <span class="cell end"><kbd v-if="r.git !== 'ok'" class="warn">{{ r.git === 'none' ? 'no git' : 'no commit yet' }}</kbd>
                       <kbd v-if="!i && repos.length > 1" class="default" title="New tasks' agents start in its copy">default</kbd></span>
                   </ListboxItem>
@@ -399,30 +455,56 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
         </section>
 
         <section id="npagentsrow" class="group">
-          <h3 class="titled">Agents</h3>
+          <h3 class="titled">Team</h3>
           <RightClickMenu :items="agentRowMenu">
             <div class="list">
               <div class="tools">
-                <ButtonMenu :items="agentMenu"><button id="npagentadd" class="icon small" type="button" title="Add an agent" aria-label="Add an agent"
+                <ButtonMenu :items="agentMenu"><button id="npagentadd" class="icon small" type="button" title="Add a role: an account and what it does" aria-label="Add a role"
                   :disabled="!!signing || (!addable.length && !choices.clis.length)"><Icon name="i-plus" /></button></ButtonMenu>
-                <button id="npagentdel" class="icon small" type="button" title="Remove from the project (its tasks keep it)" aria-label="Remove from the project" :disabled="!agentSel" @click="removeAgent()"><Icon name="i-minus" /></button>
+                <button id="npagentdel" class="icon small" type="button" title="Remove from the team (its tasks keep it)" aria-label="Remove from the team" :disabled="!agentSel" @click="removeAgent()"><Icon name="i-minus" /></button>
                 <button id="npagentdefault" class="icon small" type="button" :disabled="!agentSel" @click="starAgent()"
-                  :title="isDefault(agentSel) ? 'No Default: a new task starts with no agent, you choose one there' : 'Make Default: + makes a task with it'"
+                  :title="isDefault(agentSel) ? 'No Default: a new task starts with no agent, you choose one there' : 'Make Default: a new task starts with it'"
                   :aria-label="isDefault(agentSel) ? 'No Default' : 'Make Default'"><Icon name="i-star" /></button>
               </div>
-              <div v-if="mine.length" class="head" aria-hidden="true"><span>Agent</span><span>Account</span><span /></div>
-              <ListboxRoot selection-behavior="replace" v-if="mine.length" id="npagents" v-model="agentSel" aria-label="Agents" @keydown.delete="removeAgent()">
+              <div v-if="mine.length" class="head" aria-hidden="true"><span>Role</span><span>Agent</span><span>Account</span><span /></div>
+              <ListboxRoot selection-behavior="replace" v-if="mine.length" id="npagents" v-model="agentSel" aria-label="Team" @keydown.delete="removeAgent()">
                 <ListboxContent>
-                  <ListboxItem v-for="a in mine" :key="a.id" :value="a.id" class="item" :data-agent="a.id" :title="a.name">
-                    <span class="cell label"><Icon v-if="agentMark(a.cli, null)" :name="agentMark(a.cli, null)!" />{{ a.agent }}</span>
-                    <small class="cell account">{{ a.email ?? '—' }}</small>
-                    <span class="cell end"><kbd v-if="a.default" class="default" title="+ makes a task with it; the others are in +'s right-click menu">default</kbd></span>
+                  <ListboxItem v-for="a in mine" :key="a.id" :value="a.id" class="item" :data-role="a.id" :data-agent="a.account"
+                    :title="[a.role || a.name, a.about].filter(Boolean).join('\n')">
+                    <span class="cell label role">{{ a.role || '—' }}</span>
+                    <small class="cell"><Icon v-if="agentMark(a.cli, null)" :name="agentMark(a.cli, null)!" />{{ a.agent }}</small>
+                    <small class="cell account" :class="{ warn: !a.account }">{{ a.account ? a.email ?? '—' : 'nobody here: Played by' }}</small>
+                    <span class="cell end"><kbd v-if="a.place === 'project'" title="Kept in the repository (.kulisa/project.json): the same on every computer">shared</kbd>
+                      <kbd v-if="a.default" class="default" title="A new task starts with it; the others are in the island's +">default</kbd></span>
                   </ListboxItem>
                 </ListboxContent>
               </ListboxRoot>
-              <p v-if="!mine.length && !signing" class="empty">No agents yet: its tasks get the terminal only.</p>
+              <p v-if="!mine.length && !signing" class="empty">No team yet: its tasks get the terminal only.</p>
             </div>
           </RightClickMenu>
+          <div v-if="shownRole" class="roleform">
+            <div class="field"><label for="nprolename">Role:</label><input id="nprolename" v-model="roleName" maxlength="40" spellcheck="false"
+              placeholder="Its name on its tab, e.g. Builder, Checker (optional)" @change="saveRole" @keydown.enter.prevent="saveRole"></div>
+            <div class="field top"><label for="nproleabout">It does:</label><textarea id="nproleabout" v-model="roleAbout" rows="2" maxlength="500"
+              placeholder="In your words, e.g. checks every change on macOS and reports bugs to the builder (optional)" @change="saveRole" /></div>
+            <div class="field"><label for="nproleplace">Kept in:</label>
+              <ButtonMenu :items="placeMenu"><button id="nproleplace" type="button" class="select"
+                title="Project: in the repository's .kulisa/project.json, the same on every computer once you commit it; This computer: here only">
+                {{ PLACES[shownRole.place] }}<Icon name="i-down" /></button></ButtonMenu></div>
+            <div v-if="shownRole.place === 'project'" class="field"><label for="nproleplayer">Played by:</label>
+              <ButtonMenu :items="playerMenu"><button id="nproleplayer" type="button" class="select" title="Its account on this computer: each computer has its own">
+                {{ shownRole.account ? shownRole.email ?? shownRole.name : 'Choose an account' }}<Icon name="i-down" /></button></ButtonMenu></div>
+            <div class="field"><label for="nproleos">Works on:</label>
+              <ButtonMenu :items="osMenu"><button id="nproleos" type="button" class="select" title="The OS it checks on: on your other computers, the one with it takes this role (Join Task)">
+                {{ shownRole.os ? OS_NAMES[shownRole.os] : 'Any OS' }}<Icon name="i-down" /></button></ButtonMenu></div>
+            <div v-if="shownRole.models.length" class="field"><label for="nprolemodel">Model:</label>
+              <ButtonMenu :items="modelMenu"><button id="nprolemodel" type="button" class="select" title="The model it starts with; a tab's menu changes it for one conversation">
+                {{ roleModel }}<Icon name="i-down" /></button></ButtonMenu></div>
+          </div>
+          <p v-if="repoTeam.exists" id="nprepoteam" class="hint">
+            <span>{{ repoTeam.used ? `The roles marked shared are in ${repoTeam.file}: commit it, and your other computers have them.`
+              : `The repository has ${repoTeam.file}${repoTeam.used === false ? ', not used here' : ''}: the words of its roles go to the agents as what they do. Use it if you trust who wrote it.` }}</span>
+            <button id="nprepoteamuse" type="button" @click="useRepoTeam(!repoTeam.used)">{{ repoTeam.used ? 'Stop Using' : 'Use It' }}</button></p>
           <AccountSignIn v-if="signing && editing" :project="editing" :agent="signing" @done="signedIn" @close="signing = null" />
           <p id="npagenterror" class="error">{{ agentError }}</p>
         </section>
@@ -489,6 +571,11 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
       </div>
       <AgentPage ref="agentPage" :list="agentsList" :chosen="agentAt" :accounts :clis @accounts="showAccounts" />
     </div>
+    <div v-show="tab === 'github'" id="ghconfig">
+      <div class="crumbs"><b>GitHub</b>
+        <ButtonMenu :items="more" end><button id="githubmore" class="icon small" type="button" title="More" aria-label="More"><Icon name="i-more" /></button></ButtonMenu></div>
+      <GithubPage ref="githubPage" :shown="tab === 'github'" />
+    </div>
     <div v-show="tab === 'log'" id="lgconfig">
       <div class="crumbs"><b>Log</b></div>
       <LogPage :shown="tab === 'log'" />
@@ -509,7 +596,7 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
   #pjlist { margin: 0; padding: 0; outline: none;
     .item { min-height: var(--row); padding: 0 4px 0 8px; gap: var(--gap); border-radius: var(--radius); padding-inline-start: calc(8px + (var(--level, 1) - 1) * 18px); }
     [aria-level="2"] { --level: 2; }
-    :is([data-section], [data-page="log"]):not(:first-child) { margin-top: var(--inset); } /* the pages together, under the sections */
+    :is([data-section], [data-page]):not([data-page="about"], :first-child) { margin-top: var(--inset); } /* Log and About together, under the rest */
     .twist { width: 12px; height: 12px; color: var(--text-dim); } [aria-expanded="false"] .twist { rotate: -90deg; }
     .picon, .logo { flex: none; width: 16px; height: 16px; } .picon { color: var(--color); } .avatar { --avatar: 16px; }
     .label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } kbd { flex: none; }
@@ -517,7 +604,7 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
     &:focus-within [aria-selected="true"] { background: var(--chosen); } }
   /* More room than a dialog's, as JetBrains' Settings: along the sides, and between the groups, whose lists ran into
      the next one's title (the author, 2026-10-16) */
-  :is(#pjconfig, #agconfig, #prconfig, #lgconfig, #abconfig) { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--inset); overflow: hidden auto;
+  :is(#pjconfig, #agconfig, #ghconfig, #prconfig, #lgconfig, #abconfig) { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--inset); overflow: hidden auto;
     padding: 0 calc(1.5 * var(--pad)) var(--pad);
     > * { flex: none; } }
   /* The log scrolls inside its box, the page not at all: its tools and buttons stay in sight */
@@ -531,9 +618,11 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
     > .error, > .hint { margin: 0; } > .hint:not([hidden]) { margin-inline-start: calc(var(--label) + var(--inset)); } }
   .list [role="listbox"] { max-height: calc(6 * var(--row)); overflow: auto; }
   /* The columns: the name as wide as it needs (at most about half), what it is in the rest, its state at the end */
-  #npreposrow .list, #npagentsrow .list { --cols: fit-content(45%) minmax(0, 1fr) auto; }
+  #npreposrow .list { --cols: fit-content(40%) minmax(0, 1fr) fit-content(20%) auto; }
+  #npagentsrow .list { --cols: fit-content(30%) fit-content(30%) minmax(0, 1fr) auto; }
+  .roleform { margin-top: var(--inset); }
   #npprofilesrow .list { --cols: fit-content(45%) minmax(0, 1fr) fit-content(30%); }
-  #npformer button { margin-inline-start: var(--gap); }
+  :is(#npformer, #nprepoteam) button { margin-inline-start: var(--gap); }
   .none { display: flex; flex-direction: column; align-items: start; gap: var(--gap); padding-top: var(--pad); .empty { margin: 0; } }
 }
 </style>

@@ -1,5 +1,6 @@
 // What a menu holds, as the window's parts build their menus (docs/ui.md, Menus).
 import { shallowRef, watch, type Component } from 'vue';
+import type { Model } from '../../shared/types';
 
 export interface MenuRow {
   label: string; sub?: string; keys?: string;
@@ -42,4 +43,8 @@ export function focusBack(e: Event, el: Element | null) {
   given = null;
   if (!document.querySelector('.menu[data-state="open"]') && el instanceof HTMLElement && el.isConnected) el.focus();
 }
+// The models an agent offers, the chosen one checked; '' (null) its own. A role's (Settings) and a tab's (its menu).
+export const modelItems = (models: Model[], chosen: string | null, pick: (model: string | null) => unknown): MenuItem[] => [
+  { label: 'The agent\'s own', icon: chosen ? undefined : 'i-done', run: () => pick(null) },
+  ...models.map((m) => ({ label: m.name, sub: m.about, icon: m.id === chosen ? 'i-done' : undefined, run: () => pick(m.id) }))];
 // The bar's + menu (NewTask.vue) opened or closed as a click on it does: Ctrl+Shift+A, the empty window's New Task.

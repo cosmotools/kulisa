@@ -6,7 +6,7 @@ import { nextTick, ref } from 'vue';
 import Tour from './Tour.vue';
 import Wizard from '../newproject/Wizard.vue';
 
-const QUESTIONS = ['Where is the code?', 'Who writes the code?', 'Who uses your app?'];
+const QUESTIONS = ['Where is the code?', 'Who works on it?', 'Who uses your app?'];
 const steps = ref(false), slide = ref(0);
 const tour = ref<InstanceType<typeof Tour>>(), wizard = ref<InstanceType<typeof Wizard>>();
 async function focus() { await nextTick(); if (steps.value) await wizard.value?.focus(); else tour.value?.focus(); }

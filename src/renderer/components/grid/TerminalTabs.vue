@@ -19,7 +19,7 @@ import type { Terminal } from '../../../shared/types';
 const STATES = { working: 'is working', waiting: 'waits for you', done: 'is done' };
 const tabOf = (e: MouseEvent) => store.terminals.list.find((t) => String(t.id) === (e.target as Element).closest<HTMLElement>('.termtab')?.dataset.id);
 const menu = (e: MouseEvent) => { const t = tabOf(e); return t ? tabItems(t) : null; };
-const title = (t: Terminal) => (t.agent ? `${t.agent.name}${t.state ? `: it ${STATES[t.state]}` : ''}` : t.command || 'Your shell in the task\'s folder');
+const title = (t: Terminal) => (t.agent ? [`${t.agent.name}${t.state ? `: it ${STATES[t.state]}` : ''}`, t.agent.about].filter(Boolean).join('\n') : t.command || 'Your shell in the task\'s folder');
 const show = (id: string | number) => act('terminal:show', { id: Number(id) });
 // More tabs than fit scroll (lib/strip.ts): they were cut off at the island's edge, its + and microphone with them.
 const strip = ref<HTMLElement>();
@@ -40,7 +40,7 @@ useStrip(strip, () => store.terminals.front);
             <Icon v-else class="shellmark" name="i-agent-shell" />
             <span class="name">{{ t.name }}</span>
             <span class="state" :data-state="t.state || ''"><Icon :name="`i-${t.state || 'done'}`" /></span>
-            <button class="close icon quiet small" aria-label="Close" :title="t.agent ? 'Close: the agent stops (asked first); its conversation stays in the task\'s history' : 'Close: what runs there stops'"
+            <button class="close icon quiet small" aria-label="Close" :title="t.agent ? 'Close: the agent stops (asked first while it works); its conversation goes on from +' : 'Close: what runs there stops'"
               @mousedown.prevent.stop @click="act('terminal:close', { id: t.id })"><Icon name="i-close" /></button>
           </div>
         </TabsTrigger>

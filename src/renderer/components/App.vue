@@ -7,6 +7,7 @@ import TaskBar from './TaskBar.vue';
 import Empty from './Empty.vue';
 import NewProject from './newproject/NewProject.vue';
 import TaskRename from './TaskRename.vue';
+import FromBranch from './FromBranch.vue';
 import AgentPicker from './AgentPicker.vue';
 import HandOver from './HandOver.vue';
 import Shortcuts from './Shortcuts.vue';
@@ -30,6 +31,7 @@ thumbnailMenu(menuAtPoint);
   <TaskBar v-if="store.bar !== 'top' && store.current !== null" />
   <NewProject />
   <TaskRename />
+  <FromBranch />
   <AgentPicker />
   <HandOver />
   <Shortcuts />

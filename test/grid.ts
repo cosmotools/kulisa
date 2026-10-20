@@ -147,7 +147,7 @@ export default (test: Test) => {
     assert.deepEqual(await menuRows(ui), ['# Profiles', 'Sam.seller', '-', 'Manage Profiles…', '-', 'Rename…', 'Show Folder', '-', 'Move to New Window', '-', 'Close', 'Delete Task…', '-', 'other']);
     await choose(ui, 'other');
     await waitFor(async () => (await ui(`document.querySelectorAll('.menu[data-state="open"]').length`)) === 2);
-    assert.deepEqual(await menuRows(ui, SUBMENU), ['New Task', '-', 'Move All Tasks to New Window', '-', 'Project Settings…', 'Show Data Folder', '-', 'Close All Tasks']);
+    assert.deepEqual(await menuRows(ui, SUBMENU), ['New Task', 'New Task from a Branch…', '-', 'Move All Tasks to New Window', '-', 'Project Settings…', 'Show Data Folder', '-', 'Close All Tasks']);
     // Show Data Folder: Kulisa's folder of that project, in the file manager.
     const openPath = electron.shell.openPath, shown: string[] = [];
     electron.shell.openPath = async (dir) => { shown.push(dir); return ''; };

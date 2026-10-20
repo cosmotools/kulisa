@@ -46,6 +46,8 @@ function sessionStart(task: Task, t: TaskTerminal | null, input: Input) {
       : closed.length ? 'No Kulisa profile is open.' : "Kulisa has no profiles in this project yet. The human makes them in Settings (the gear at the top right) → Profiles and adds them on the project's page, or use profile_create when a task needs one.",
     closed.length && `Closed profiles (signed in, no pane; profile_open opens one when the task needs it):\n${closed.join('\n')}`,
     taskContext(task),
+    teamContext(task, t),
+    githubContext(task),
   ].filter(Boolean).join('\n\n');
   return { hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: context } };
 }
@@ -91,6 +93,36 @@ function handleHookRequest(task: Task, t: TaskTerminal | null, url: string, req:
   return true;
 }
 
+// Its role in the task's team and its partners (docs/tasks.md, The team), for every agent (the MCP server's
+// instructions, and at the session's start); nothing when the team is one role saying nothing, as before teams.
+const STATES: Record<string, string> = { working: 'working', waiting: 'waiting for the human', done: 'done' };
+const OS_NAMES = { linux: 'Linux', macos: 'macOS', windows: 'Windows' } as const;
+function teamList(task: Task, t: TaskTerminal | null) {
+  return task.team().map(({ role, terminal }) => `- ${task.roleName(role)}${terminal === t ? ' (you)' : ''}${role.os ? ` (works on ${OS_NAMES[role.os]})` : ''}, played by ` +
+    `${task.shell.agentFor(role.account)?.name}: ${role.about ? role.about.replace(/\s+/g, ' ') : 'what it does is not said'}; ` +
+    (terminal ? `open in the task${terminal.state ? `, ${STATES[terminal.state]}` : ''}`
+      : task.elsewhere(role.id) ? `on the human's other computer ${task.elsewhere(role.id)}: agent_message reaches it through the task's pull request` : 'not open (the human opens it)')).join('\n');
+}
+function teamContext(task: Task, t: TaskTerminal | null) {
+  const team = task.team(), mine = t && task.roleOf(t);
+  if (!t?.agent || (team.length < 2 && !mine?.name && !mine?.about && !mine?.os)) return '';
+  return `${mine ? `In this task you are the ${task.roleName(mine)}${mine.about ? `: ${mine.about.replace(/\s+/g, ' ')}` : ''}.${mine.os ? ` You work on ${OS_NAMES[mine.os]}: check what is about it here.` : ''}` : 'In this task you play no role of its team.'} ` +
+    `Its team (team_list gives it as it is now):\n${teamList(task, t)}\n` +
+    'Message a partner with agent_message, by its role, when it must do or know something, and only then: it reads your ' +
+    'message as a prompt. Partners\' messages come into your prompt as "From <role> (<agent>): …": answer them with ' +
+    'agent_message, not to the human. Change only what your role says; a bug in a partner\'s part, tell its author ' +
+    'instead of fixing it.';
+}
+
+// GitHub's tools (src/github): the project's repositories there, which they change, as the human's account.
+function githubContext(task: Task) {
+  const repos = task.project.github;
+  if (!task.shell.github.tools().length || !repos.length) return '';
+  return `The project's repositories on GitHub: ${repos.map((r) => `${r.repo}${r.account ? '' : " (no GitHub account of the human's reaches it yet)"}`).join(', ')}. ` +
+    "GitHub's own tools here (pull requests, issues, files, branches) act there as the human's GitHub account; they change " +
+    'only these repositories, and read others only when they are public.';
+}
+
 // Where the agent works, for every agent (the MCP server's instructions, and at the session's start): its task, its
 // folder and branch, the project's folder that is the human's, its ports, naming the task (tasks.md).
 function taskContext(task: Task) {
@@ -119,4 +151,4 @@ function taskContext(task: Task) {
     '(node_modules and the like are not copied).';
 }
 
-export { handleHookRequest, sessionStart, taskContext, unnamed, ONLY_BROWSER };
+export { handleHookRequest, sessionStart, taskContext, teamContext, githubContext, teamList, unnamed, ONLY_BROWSER };

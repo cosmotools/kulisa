@@ -51,6 +51,10 @@ const codex: Agent = {
     login: () => ['login'], status: ['login', 'status'], email: () => null, logout: ['logout'] },
   // The conversation its SessionStart hook reported, else its last one in this folder (each task has its own).
   resume: ({ started, sessionId }) => started && ['resume', sessionId || '--last'],
+  // `-m`, on `resume` too (0.160.1); its models as it caches its maker's list in the account's folder
+  // (models_cache.json, undocumented: { models: [{ slug, display_name, description, visibility, priority }] }, 0.160.1),
+  // those it lists in its own picker (visibility "list"), in its order; none until it has run once there.
+  model: { args: (m) => ['-m', m], list: (dir) => codexModels(dir || codexHome({})) },
   // The task's other repositories, writable as its own folder (checked with 0.160.1).
   dirs: (folders) => ({ args: folders.flatMap((f) => ['--add-dir', f]) }),
   trust: { has: (where, folder) => codexTrusted(codexHome(where), folder), set: (where, folder) => codexTrust(codexHome(where), folder) },
@@ -59,6 +63,14 @@ const codex: Agent = {
   // `codex [PROMPT]` (its --help, 0.160.1).
   prompt: (text) => [text],
 };
+
+function codexModels(home: string) {
+  try {
+    const { models } = JSON.parse(fs.readFileSync(path.join(home, 'models_cache.json'), 'utf8')) as { models?: { slug?: string; display_name?: string; description?: string; visibility?: string; priority?: number }[] };
+    return (models || []).filter((m) => m.slug && m.visibility === 'list').sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0))
+      .map((m) => ({ id: m.slug!, name: m.display_name || m.slug!, ...(m.description && { about: m.description }) }));
+  } catch { return []; }
+}
 
 // Codex keeps its answer in its config.toml: a table [projects."<folder>"] with trust_level = "trusted" (0.160.1;
 // "untrusted" when the human said no, which is never carried).

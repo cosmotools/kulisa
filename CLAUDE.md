@@ -102,7 +102,8 @@ Everything happens inside Kulisa; no external Chrome windows.
   as a browser's tabs (☰ → Tasks bar; `TaskBar.vue`, `#taskbar`). Not "taskbar", the OS's. It was "the projects' bar" (`ProjectBar.vue`)
   until 2026-10-11: its tabs are tasks; earlier commits say so.
 - **Terminology: "Settings"**: the window behind the title bar's gear (a dialog until 2026-10-16), as JetBrains' Settings: a tree of Projects (every
-  project, each its page), Agents (the agents, their accounts) and Profiles (every profile, who it is), and under them
+  project, each its page), Agents (the agents, their accounts), the GitHub page (the GitHub accounts, since 2026-10-20;
+  `src/github/`) and Profiles (every profile, who it is), and under them
   the Log and About pages (since 2026-10-18; ☰ → Report a Problem…, ☰ → About Kulisa). It was "the projects' manager" alone until 2026-10-11,
   then tabs; a project's page is still the manager in code (`settings/ProjectEditor.vue`; its window `settings-window.ts`,
   `openSettings()`). New Project is steps (Code, Agents, Profiles; `newproject/`): the welcome's, and a dialog of a

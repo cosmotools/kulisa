@@ -20,9 +20,11 @@
 //   deleted-folders.json     folders of deleted profiles and tasks, removed at the next start (a session keeps
 //                            its files open while Kulisa runs)
 // Nothing goes into the project's own folder: sign-ins must not end up in its git.
+import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { slugOf } from '../shared/names.ts';
+import type { Os } from '../shared/types.ts';
 
 // Muted, to sit on the dark window; a new project takes the first one no project has (its favicon's own hue, in their
 // lightness and chroma, replaces it in the window: renderer/lib/project-color.ts).
@@ -34,17 +36,30 @@ const CACHES = new Set(['Cache', 'Code Cache', 'GPUCache', 'DawnGraphiteCache', 
 
 // A profile's tabs as saved: their URLs, in the strip's order, and the place of the one in front.
 interface SavedTabs { urls: string[]; active: number }
-// A project in projects.json.
+// A role of a project's team (docs/tasks.md, The team): the account playing it (an account may play several), its name
+// and what it does, in the human's words, the model it starts with (none: the agent's own); none of them said, it is
+// the account alone.
+// A role of a project's team (docs/tasks.md, The team). In projects.json: its id, account and words. One of the
+// repository's file (src/project-file) comes with place 'project', its agent, its account here ('' when none plays it
+// yet) and whether the file makes it the default (fileDefault): never written here.
+interface Role { id: string; account: string; name?: string; about?: string; model?: string; os?: Os; place?: 'project'; agent?: string; fileDefault?: boolean }
+// A project in projects.json. team: its roles of this computer; repoTeam: whether the repository's file (its team)
+// is used (none: not asked yet); roleAccounts: who plays each of the file's roles here; defaultRole: the one a new
+// task starts, as chosen here (none: the file's, else the first); noDefaultAgent: none starts.
 interface ProjectEntry {
-  id: string; name: string; folder: string; color: string; agents?: string[]; repos?: string[];
-  local?: string[]; noDefaultAgent?: boolean;
+  id: string; name: string; folder: string; color: string; team?: Role[]; repos?: string[];
+  local?: string[]; noDefaultAgent?: boolean; repoTeam?: boolean; roleAccounts?: Record<string, string>; defaultRole?: string;
+  github?: Record<string, string>; // a repository's folder -> the GitHub account chosen for it (none: the one suggested)
 }
-// A task's copy of one repository (worktrees.ts, createWorktree).
-interface Copy { repo: string; worktree: string; branch: string; base: string | null; folder: string }
+// A task's copy of one repository (worktrees.ts, createWorktree). existing: on a branch there was already (a task on
+// a branch: worktrees.ts, adoptWorktree), the repository's own ('local': never deleted nor renamed with the task) or
+// its remote's, a local branch made to follow it ('remote': deleted with the task, as its own, never renamed).
+interface Copy { repo: string; worktree: string; branch: string; base: string | null; folder: string; existing?: 'local' | 'remote' }
 // A task in its project's tasks.json.
 interface TaskEntry {
   n: number; name: string; branch?: string | null; offset: number; folder?: string; copies?: Copy[]; home?: string;
   closed?: boolean; closedAt?: number; merged?: boolean;
+  prSeen?: { pr: number; id: number }; // its pull request's last comment read, for its partners on other computers (partners.ts)
   about?: string; // the human's first prompt's first line, until it is named (Task.noteAbout)
 }
 interface TasksFile { next: number; list: TaskEntry[] }
@@ -52,16 +67,18 @@ interface TasksFile { next: number; list: TaskEntry[] }
 // one (until 2026-10-14 its projects by id, each with every open task of it: such a saved window names no task).
 interface SavedWindow { tabs: string[]; shown: string | null; bounds?: Electron.Rectangle; maximized?: boolean }
 interface Settings { uiZoom?: number; theme?: 'dark' | 'light' | 'system'; bar?: 'top' | 'bottom'; language?: string; keys?: Record<string, string>; windows?: SavedWindow[];
-  settingsWindow?: Electron.Rectangle } // where Settings' window was (settings-window.ts)
+  settingsWindow?: Electron.Rectangle; // where Settings' window was (settings-window.ts)
+  computer?: string } // this computer's id among the human's (partners.ts: a task's card), made once
 // A profile as a task keeps it in profiles.json (project-profiles.ts).
 interface TaskProfile { folder: string; id: string; zoom?: Record<string, number>; closed?: boolean }
-// A task's agents (tasks.ts): the one it was made with (opened when its island has never had a terminal), and every
+// A task's agents (tasks.ts): the one it was made with and its role (opened when its island has never had a terminal), and every
 // conversation an agent had in it, oldest first, numbered from 1 in task_history: its account, its session as its
-// hooks reported it (agent-hooks.ts), when, the name the agent gave it, and the terminal it is open in (none: closed).
+// hooks reported it (agent-hooks.ts), the role it played, the model it was given on its tab, when, the name the agent gave it, and the terminal it is open in
+// (none: closed).
 interface Conversation {
-  agent: string; sessionId?: string; transcript?: string; started?: boolean; from: number; to?: number; title?: string; terminal?: number;
+  agent: string; role?: string; model?: string; sessionId?: string; transcript?: string; started?: boolean; from: number; to?: number; title?: string; terminal?: number;
 }
-interface AgentFile { agent?: string | null; conversations?: Conversation[] }
+interface AgentFile { agent?: string | null; role?: string; conversations?: Conversation[] }
 // Its island's terminals, in their tabs' order, and the one in front (tasks.ts): a shell has its name; an agent's, its
 // conversation's index in agent.json.
 interface SavedTerminal { id: number; name?: string; by?: 'human' | 'agent'; conversation?: number }
@@ -83,19 +100,19 @@ class Store {
   // The project a folder is (its own or one of its repositories), or null.
   projectOf(folder: string): ProjectEntry | null { return this.projects().find((p) => [p.folder, ...(p.repos || [])].some((f) => samePath(f, folder))) || null; }
   // The project of a folder; a new one if no project has it, with the next free color (and its first agent, given).
-  projectFor(folder: string, name = path.basename(folder) || folder, { agent }: { agent?: string } = {}): ProjectEntry {
+  projectFor(folder: string, name = path.basename(folder) || folder): ProjectEntry {
     const found = this.projectOf(folder);
     if (found) return found;
     const list = this.projects();
     const base = slugOf(name, 'project');
     let id = base, n = 2;
     while (list.some((p) => p.id === id)) id = `${base}-${n++}`;
-    const p: ProjectEntry = { id, name, folder, color: this.nextColor(), ...(agent && { agents: [agent] }) };
+    const p: ProjectEntry = { id, name, folder, color: this.nextColor() };
     writeJSON(this.projectsFile, [...list, p]);
     return p;
   }
   nextColor() { return nextColor(this.projects()); }
-  // A project's name, agents or repositories changed (the projects' manager); its id and folder stay.
+  // A project's name, team or repositories changed (the projects' manager); its id and folder stay.
   // null fields go.
   updateProject(id: string, fields: { [K in keyof ProjectEntry]?: ProjectEntry[K] | null }): ProjectEntry | null {
     const list = this.projects(), i = list.findIndex((p) => p.id === id);
@@ -138,6 +155,12 @@ class Store {
   // Kulisa's own settings: { uiZoom, theme, bar, windows }.
   settings(): Settings { return readJSON(this.settingsFile) || {}; }
   saveSettings(s: Settings) { writeJSON(this.settingsFile, s); }
+  // This computer's id on the tasks' cards (partners.ts), random, made the first time it is asked for.
+  computer() {
+    const s = this.settings();
+    if (!s.computer) this.saveSettings({ ...s, computer: crypto.randomBytes(4).toString('hex') });
+    return this.settings().computer!;
+  }
 }
 
 // One task's data: its profiles (each a folder), grid and agent session.
@@ -222,4 +245,4 @@ function writeFileAtomic(file: string, data: string | Uint8Array, options?: { mo
 }
 
 export { Store, copyProfile, writeFileAtomic, readTabs, writeTabs, SESSION_COOKIES_FILE, PROJECT_COLORS };
-export type { SavedTabs, TaskStore, ProjectEntry, TaskEntry, Copy, TaskProfile, TasksFile, Conversation };
+export type { SavedTabs, TaskStore, ProjectEntry, Role, TaskEntry, Copy, TaskProfile, TasksFile, Conversation };

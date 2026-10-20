@@ -1,31 +1,36 @@
 <script setup lang="ts">
 // A project's column (Board.vue): its name with + (a new task of it), then its tasks: those open first, shown and not
 // to choose ("open": in this window's tabs or another's), then those closed, the one closed last first, each opened
-// again with a click, deleted with its 🗑 (or Delete) after Delete Task…'s question.
-import { computed } from 'vue';
+// again with a click, deleted with its 🗑 (or Delete) after Delete Task…'s question; under them its tasks on the human's
+// other computers (partners.ts: their cards on the remote, fetched as the board shows), each joined with a click.
+import { computed, onMounted, ref } from 'vue';
 import Icon from '../Icon.vue';
 import ProjectIcon from '../ProjectIcon.vue';
 import { projectColor } from '../../lib/project-color';
-import type { ProjectEntry, ProjectTask } from '../../../shared/types';
+import { ago } from '../../lib/common';
+import { dialog } from '../../lib/dialogs';
+import RightClickMenu from '../menu/RightClickMenu.vue';
+import type { ProjectEntry, ProjectTask, TaskElsewhere } from '../../../shared/types';
 
 const { p } = defineProps<{ p: ProjectEntry }>();
 const tasks = computed(() => [...p.tasks.filter((t) => !t.closed), ...p.tasks.filter((t) => t.closed)]); // closed: the last first (main)
-// When it was closed, as a person says it.
-function ago(at?: number) {
-  if (!at) return '';
-  const m = Math.round((Date.now() - at) / 60000);
-  return m < 1 ? 'just now' : m < 60 ? `${m} min ago` : m < 60 * 24 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 60 / 24)} days ago`;
-}
 const line = (t: ProjectTask) => [t.branch && t.branch !== t.name && t.branch, t.closed ? ago(t.closedAt) : ''].filter(Boolean).join(' · ');
 const newTask = () => kulisa.invoke('project:open', { id: p.id });
+// Its right-click: a new task, or one on a branch there is already.
+const headerMenu = () => [{ label: 'New Task', run: newTask }, { label: 'New Task from a Branch…', run: () => dialog('frombranch').then((d) => d.open(p.id, p.name)) }];
 const open = (t: ProjectTask) => { if (t.closed) void kulisa.invoke('project:open', { id: p.id, task: t.n }); };
 const remove = (t: ProjectTask) => kulisa.invoke('task:delete-closed', { project: p.id, n: t.n });
+const away = ref<TaskElsewhere[]>([]);
+onMounted(async () => { away.value = await kulisa.invoke('project:elsewhere', { id: p.id }); });
+const OS = { linux: 'Linux', macos: 'macOS', windows: 'Windows' } as const;
+const where = (t: TaskElsewhere) => [t.computers.map((c) => `${c.name} (${OS[c.os]})${c.roles.length ? `: ${c.roles.join(', ')}` : ''}`).join('; '), ago(t.at)].join(' · ');
+const join = (t: TaskElsewhere) => kulisa.invoke('project:open', { id: p.id, branch: t.branch, join: true });
 </script>
 
 <template>
   <section class="column" :data-project="p.id" :style="{ '--color': projectColor(p) }">
-    <header><ProjectIcon :p /><span class="name" :title="p.folder">{{ p.name }}</span>
-      <button class="icon small" type="button" :title="`New Task of ${p.name}`" aria-label="New Task" @click="newTask"><Icon name="i-plus" /></button></header>
+    <RightClickMenu :items="headerMenu"><header><ProjectIcon :p /><span class="name" :title="p.folder">{{ p.name }}</span>
+      <button class="icon small" type="button" :title="`New Task of ${p.name}`" aria-label="New Task" @click="newTask"><Icon name="i-plus" /></button></header></RightClickMenu>
     <ul>
       <!-- A row is no <button>: its 🗑 is one, and a button holds no other -->
       <li v-for="t in tasks" :key="t.n"><div class="item" :class="{ open: !t.closed }" :data-task="`${p.id}/${t.n}`" role="button"
@@ -36,6 +41,13 @@ const remove = (t: ProjectTask) => kulisa.invoke('task:delete-closed', { project
         <button v-if="t.closed" type="button" class="remove icon quiet small" tabindex="-1" aria-label="Delete Task…" title="Delete Task…" @click.stop="remove(t)"><Icon name="i-trash" /></button>
       </div></li>
       <li v-if="!tasks.length" class="empty">No tasks yet</li>
+      <template v-if="away.length">
+        <li class="heading">On Your Other Computers</li>
+        <li v-for="t in away" :key="t.branch"><div class="item away" :data-branch="t.branch" role="button" tabindex="0" :title="`Join Task: work on it here too, on its branch ${t.branch}`"
+          @click="join(t)" @keydown.enter.space.prevent="join(t)">
+          <span class="text"><span class="label">{{ t.name }}</span><small>{{ where(t) }}</small></span><kbd>join</kbd>
+        </div></li>
+      </template>
     </ul>
   </section>
 </template>
@@ -48,5 +60,6 @@ const remove = (t: ProjectTask) => kulisa.invoke('task:delete-closed', { project
   ul { margin: 0; padding: 4px; list-style: none; overflow: auto; }
   .item { border-radius: var(--radius); &.open { opacity: .6; &:hover { background: none; } } }
   .empty { padding: var(--inset); color: var(--text-dim); }
+  .heading { padding: var(--inset) var(--inset) 4px; color: var(--text-muted); font-size: var(--font-small); }
 }
 </style>

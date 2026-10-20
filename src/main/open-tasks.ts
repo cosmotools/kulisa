@@ -1,7 +1,8 @@
 // The windows' open tasks (docs/tasks.md, Tasks; the term: CLAUDE.md): opening, showing, creating, moving and closing
 // them, one change after another (serial), in all windows. The windows' handles on them: ipc/tasks.ts.
 import { app, screen } from 'electron';
-import { Project, askDeleteProject, deleteProjectData } from './projects.ts';
+import { Project, askDeleteProject, deleteProjectData, askRepoTeam } from './projects.ts';
+import { shareQuietly } from './partners.ts';
 import { AppWindow } from './window.ts';
 import { log } from './log.ts';
 import { refused } from '../shared/result.ts';
@@ -33,12 +34,13 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
   const openTasksOf = (project: Project, w: AppWindow) => w.tabs.filter((t) => t.project === project);
   // Task n of project p shown (the bar's +), opened again if it was closed; none: a new task of it. In the window it
   // is open in, brought to the front; a closed or new one at the end of window w's bar.
-  async function openProject(p: ProjectEntry, w: AppWindow, n?: number | null): Promise<Result<{ n: number; key: string }>> {
-    log.info(`[task] open ${p.id}${n != null ? `/${n}` : ''} wc=${w.win.webContents.id}`);
+  // on: a new task on a branch there is already (New Task from a Branch…).
+  async function openProject(p: ProjectEntry, w: AppWindow, n?: number | null, on?: string, join?: boolean): Promise<Result<{ n: number; key: string }>> {
+    log.info(`[task] open ${p.id}${n != null ? `/${n}` : ''}${on ? ` on ${on}` : ''} wc=${w.win.webContents.id}`);
     const project = loadProject(p);
     const task = n != null && project.tasks.get(n);
     if (!task) {
-      const r = await createTask(project, w);
+      const r = await createTask(project, w, on, join);
       unloadIdle();
       return r;
     }
@@ -181,16 +183,18 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
   function dropWindow(w: AppWindow) { log.info(`[window] dropped wc=${w.win.webContents.id}`); shell.windows.splice(shell.windows.indexOf(w), 1); w.destroy(); }
   // A new task of a project (the bar's +, New Task: projects.ts), with its default agent, at the end of window w's
   // bar, then shown. Without git it would work in the folder another open task works in: the human is told first.
-  async function createTask(project: Project | null | undefined, w: AppWindow | null): Promise<Result<{ n: number; key: string }>> {
+  async function createTask(project: Project | null | undefined, w: AppWindow | null, on?: string, join?: boolean): Promise<Result<{ n: number; key: string }>> {
     if (!project || !w) return { error: 'the project is not open' };
     await project.checkGit();
     if (project.sharesFolder() && !await shell.ask({ message: `Another task of ${project.name} works in its folder`, ok: 'Create Anyway',
       detail: `Without git, tasks have no copies of their own: both agents would work in ${project.folder}, and may get in each other's way.` }, w)) {
       return { error: 'the human said no' };
     }
-    const task = await project.createTask();
+    await askRepoTeam(shell, project.id, w); // a team in its repository, seen here for the first time: used?
+    const task = await project.createTask({ on, join });
     if (refused(task)) { log.info(`[task] not created in ${project.id}: ${task.error}`); return task; }
-    log.info(`[task] created ${task.key} in ${task.folder} wc=${w.win.webContents.id}`);
+    log.info(`[task] created ${task.key} in ${task.folder} wc=${w.win.webContents.id}${join ? ' (joined)' : ''}`);
+    if (join) void shareQuietly(task); // the other computer sees it joined
     w.add(task);
     await showTask(task);
     return { n: task.n, key: task.key };

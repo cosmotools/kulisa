@@ -42,12 +42,13 @@ test('projects: at first start none is opened; each gets its own color', async (
   later.saveWindows([]);
   assert.deepEqual(later.settings(), { uiZoom: 1, windows: [] }, 'the other settings kept');
 });
-test('projects: made with the next free color and a first agent; settings change them, never the id or folder', async () => {
+test('projects: made with the next free color; settings change them, never the id or folder', async () => {
   const store = new Store(path.join(root, 'look-data'));
-  const p = store.projectFor('/work/app', 'app', { agent: 'codex' });
-  assert.deepEqual(p, { id: 'app', name: 'app', folder: '/work/app', color: PROJECT_COLORS[0], agents: ['codex'] });
+  const p = store.projectFor('/work/app', 'app');
+  assert.deepEqual(p, { id: 'app', name: 'app', folder: '/work/app', color: PROJECT_COLORS[0] });
   assert.equal(store.nextColor(), PROJECT_COLORS[1], 'the next new one: the first color no project has');
-  const changed = store.updateProject('app', { name: 'App-2', agents: null, id: 'app', folder: '/work/app' });
+  assert.deepEqual(store.updateProject('app', { team: [{ id: 'r1', account: 'codex' }] }).team, [{ id: 'r1', account: 'codex' }]);
+  const changed = store.updateProject('app', { name: 'App-2', team: null, id: 'app', folder: '/work/app' });
   assert.deepEqual(changed, { id: 'app', name: 'App-2', folder: '/work/app', color: PROJECT_COLORS[0] });
   assert.deepEqual(new Store(path.join(root, 'look-data')).projects(), [changed]);
   assert.equal(store.updateProject('gone', { name: 'x' }), null);

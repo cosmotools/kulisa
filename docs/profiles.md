@@ -103,7 +103,8 @@ tools act in one, each taking a profile id: `browser_snapshot`, `browser_click`,
 Profiles (`profile_*`, the profile as a thing): `profile_create`, `profile_rename`, `profile_describe`, `profile_open`, `profile_close`, `profile_ask_signin`,
 `profile_set_login`, and `profile_delete`, which asks the human first. Tasks: `task_rename`, `task_add_repository` (another of the project's repositories, once the human agreed: [tasks.md](tasks.md), Tasks),
 `task_remove_repository` (one added, no longer needed, once the human agreed), `task_history` (what was
-said and done in the task before: [transcripts.md](transcripts.md)), `conversation_rename` (its tab). Terminals:
+said and done in the task before: [transcripts.md](transcripts.md)), `conversation_rename` (its tab). Its team
+([tasks.md](tasks.md), The team): `team_list`, `agent_message` (a partner, by its role). Terminals:
 `terminal_run`, `terminal_read`, `terminal_stop` (shells only, [window.md](window.md), The terminal).
 
 **The agent does not ask the human before Kulisa's tools** (the author, 2026-10-12): it works in the profiles while the
@@ -224,6 +225,7 @@ methods; who a profile is changes and is checked in the store (`ProfileStore.ren
 | Open a shell in the task's island, run in it | the island's + → Terminal, then types | `terminal_run` (a name and a command; never in another agent's tab) | `Task.openTerminal`, `runInTerminal` |
 | Read a terminal, stop what runs there | looks at it, Ctrl+C | `terminal_read`, `terminal_stop` | `Task.readTerminal`, `interruptTerminal` |
 | Close a terminal | ×, Close in its menu, `exit` | `terminal_stop` with `close` | `Task.closeTerminal`; a shell's exit too |
+| Work with GitHub (pull requests, issues, files) | GitHub's site, in their own browser | GitHub's own MCP server's tools, as the human's account; changing only the project's repositories, reading others only when public | `Github.call`, the GitHub Kulisa package ([README](../src/github/README.md)) |
 
 ## Sign-ins kept in step
 

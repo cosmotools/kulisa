@@ -151,7 +151,8 @@ class AppWindow {
     return { current: shown?.key ?? null, project: shown?.project.id ?? null, projects: shell.projects(),
       tabs: this.tabs.map((t) => t.info()),
       open: [...shell.open.values()].map((p) => ({ id: p.id,
-        agents: p.agents().map((a) => { const c = shell.agentFor(a)!; return { id: a, name: c.name, cli: c.agentId }; }) })), // the default first: + runs it
+        agents: p.agents().map((a) => { const c = shell.agentFor(a)!; return { id: a, name: c.name, cli: c.agentId }; }),
+        roles: p.team().map((r) => { const c = shell.agentFor(r.account)!; return { id: r.id, account: r.account, name: c.name, role: r.name ?? '', about: r.about ?? '', cli: c.agentId }; }) })), // the default first
       windows: others.map((w) => ({ id: w.id, name: w.label() })),
       settings: shell.projects().length > 0 || shell.accounts.all().some((a) => !a.own) || shell.profileStore.all().length > 0 };
   }

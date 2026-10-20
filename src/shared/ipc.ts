@@ -5,8 +5,9 @@
 import type { Result } from './result.ts';
 import type { TerminalContents, TerminalEvents, TerminalSend } from '../terminal/ipc.ts';
 import type { ThumbnailEvents, ThumbnailInvoke, ThumbnailSend } from '../screenshots/ipc.ts';
+import type { GithubEvents, GithubInvoke } from '../github/ipc.ts';
 import type {
-  AboutFolder, AboutInfo, AccountsInfo, AgentInfo, ClosedProfile, LanguageInfo, LogInfo, NewProjectSetup, Profile, ProjectAgent, ProjectChoices, ProjectProfile, ProjectRepo,
+  AboutFolder, AboutInfo, AccountsInfo, AgentInfo, ClosedProfile, LanguageInfo, LogInfo, Branch, NewProjectSetup, NewRole, Profile, ProjectRole, ProjectChoices, ProjectProfile, ProjectRepo, RepoTeam, Os, TaskElsewhere,
   ProjectSettings, ProjectsInfo, Question, SettingsProfile, Shortcut, SignedIn, Terminals, Voice,
 } from './types.ts';
 
@@ -23,16 +24,17 @@ export type Bar = 'top' | 'bottom';
 export type SettingsAt = { section: 'projects' | 'profiles' | 'log' | 'about'; id?: string | null };
 // A project's code as its manager shows it (projects.ts, reposInfo).
 type Repos = { repos: ProjectRepo[]; former?: string | null };
-type ProjectAgents = { agents: ProjectAgent[] };
+type ProjectTeam = { team: ProjectRole[]; repoTeam?: RepoTeam };
 type ProjectProfiles = { profiles: ProjectProfile[]; others: ProjectProfile[] };
 type Profiles = { profiles: SettingsProfile[] };
 
 // ipcRenderer.invoke / ipcMain.handle: args, the answer.
 type I<A extends unknown[], R = void> = { args: A; result: R };
-export interface Invoke extends ThumbnailInvoke {
+export interface Invoke extends ThumbnailInvoke, GithubInvoke {
   'projects:list': I<[], ProjectsInfo | undefined>;
   'tasks:get': I<[]>;
-  'project:open': I<[{ id?: string; folder?: string; task?: number }]>;
+  'project:open': I<[{ id?: string; folder?: string; task?: number; branch?: string; join?: boolean }]>;
+  'project:branches': I<[{ id: string }], Result<{ branches: Branch[] }>>;
   'project:new-defaults': I<[], ProjectChoices & { location: string; sep: string }>;
   'project:pick-location': I<[{ location?: string; existing?: boolean }], string | null>;
   'project:folder-state': I<[{ from?: string; location?: string; name?: string; folder?: string }], { folder: string; state: string; project?: string } | null>;
@@ -46,10 +48,14 @@ export interface Invoke extends ThumbnailInvoke {
   'project:repo-clone': I<[{ id: string; url: string }], Result<Repos>>;
   'project:repo-default': I<[{ id: string; folder: string }], Result<Repos>>;
   'project:repo-remove': I<[{ id: string; folder: string }], Result<Repos>>;
+  'project:repo-github': I<[{ id: string; folder: string; account: string | null }], Result<Repos>>; // its GitHub account; null: the one Kulisa suggests
   'project:show-former': I<[{ id: string }]>;
-  'project:agent-add': I<[{ id: string; agent: string }], Result<ProjectAgents>>;
-  'project:agent-default': I<[{ id: string; agent: string | null }], Result<ProjectAgents>>;
-  'project:agent-remove': I<[{ id: string; agent: string }], Result<ProjectAgents>>;
+  'project:role-add': I<[{ id: string } & NewRole], Result<ProjectTeam>>;
+  'project:role-update': I<[{ id: string; role: string; name?: string; about?: string; model?: string; os?: Os | ''; account?: string; place?: 'project' | 'computer' }], Result<ProjectTeam>>;
+  'project:role-default': I<[{ id: string; role: string | null }], Result<ProjectTeam>>;
+  'project:role-remove': I<[{ id: string; role: string }], Result<ProjectTeam>>;
+  'project:elsewhere': I<[{ id: string }], TaskElsewhere[]>; // its tasks on the human's other computers (the board)
+  'project:repo-team': I<[{ id: string; use: boolean }], Result<ProjectTeam>>; // the repository's team used, or not
   'project:close-tasks': I<[{ id: string }]>;
   'project:move-all': I<[{ id: string; to?: number | null; terminals: TerminalContents }]>;
   'project:show-data': I<[{ id: string }]>;
@@ -91,9 +97,10 @@ export interface Invoke extends ThumbnailInvoke {
   'profile:refresh': I<[OnProfile]>;
   'views:hidden': I<[hidden: boolean, opts?: { snapshots?: boolean }], Record<string, string> | undefined>;
   'layout:load': I<[OnTask], unknown>; // the grid as the window saved it (layout:save)
-  'terminal:open': I<[OnTask & { agent?: string; own?: boolean }], Result<{ id: number } | { none: true }>>;
+  'terminal:open': I<[OnTask & { agent?: string; role?: string; own?: boolean; conversation?: number }], Result<{ id: number } | { none: true }>>;
   'terminal:show': I<[OnTask & { id: number }]>;
   'terminal:close': I<[OnTask & { id: number }]>;
+  'agent:model': I<[OnTask & { id: number; model: string | null }], Result<{ id: number }>>;
   'agent:new-conversation': I<[OnTask & { id: number }]>;
   'agent:hand-over': I<[OnTask & { id: number; agent: string }], Result<{ id: number }>>;
   'tab:new': I<[OnProfile & { url?: string }], string | { error: string }>; // the new tab's id
@@ -148,7 +155,7 @@ export interface Send extends TerminalSend, ThumbnailSend {
 }
 
 // webContents.send (AppWindow.send) / the window's kulisa.on: what the main process tells a window.
-export interface Events extends TerminalEvents, ThumbnailEvents {
+export interface Events extends TerminalEvents, ThumbnailEvents, GithubEvents {
   'projects': ProjectsInfo;
   'state': Profile[];
   'closed-profiles': ClosedProfile[];

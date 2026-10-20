@@ -35,6 +35,8 @@ const cluster = (name: string, entries: string[]) => {
 const packages: Record<string, { main: string[] }> = {
   terminal: { main: ['ipc', 'log'] }, // a terminal: its pty, its buffers and the xterm shown
   screenshots: { main: ['ipc', 'log'] }, // a picture of a page: an element, the visible part, the whole page
+  github: { main: ['ipc', 'log'] }, // the GitHub accounts: their sign-ins, what each reaches
+  'project-file': { main: [] }, // a project's file in its repository, .kulisa/project.json
 };
 const packageRules = (name: string, { main: uses }: { main: string[] }) => {
   const dir = `^src/${name}/`;

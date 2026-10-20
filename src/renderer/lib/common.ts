@@ -22,5 +22,11 @@ export const LINKS = [
   { label: 'GitHub', href: 'https://github.com/cosmotools/kulisa', icon: 'i-github' },
 ];
 
+// When something happened, as a person says it.
+export function ago(at?: number): string {
+  if (!at) return '';
+  const m = Math.round((Date.now() - at) / 60000);
+  return m < 1 ? 'just now' : m < 60 ? `${m} min ago` : m < 60 * 24 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 60 / 24)} days ago`;
+}
 export const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? '' : 's'}`;
 export const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');

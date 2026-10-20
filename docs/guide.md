@@ -52,7 +52,7 @@ Every installer is built by GitHub from Kulisa's published code, and GitHub keep
 file you downloaded, with GitHub's command-line tool: `gh attestation verify <file> -R cosmotools/kulisa`.
 
 1. **Make a project.** At the first start Kulisa shows in three short slides what it does (**Skip** passes them),
-   then New Project, in three steps (below): its code, its agents, the users of your app. **Create** makes it and
+   then New Project, in three steps (below): its code, its team of agents, the users of your app. **Create** makes it and
    opens its first task.
 2. **Tell the agent what to do** in the terminal. It opens the profiles it needs itself.
 3. **Sign in** where your app needs a real account: when the agent asks, or ahead of time with **Sign In…** in
@@ -103,10 +103,12 @@ The step says what will happen as you type. Its color and icon are not asked: Ku
 its code and takes the color from it, so a red logo makes a red project. A project whose code has no favicon gets the
 curtain and a color of its own.
 
-**2. Agents.** Who works in its tasks: tick your agents' accounts, one or several; **★** marks the one a new task
-starts (the first you ticked, unless you star another). **Add account** → Claude Code or Codex signs in to a new one in
-your browser; an agent not on your computer yet is installed first, by itself (**Details** shows the installer at
-work). Tick none and its tasks start with a terminal, where you run what you like.
+**2. Team.** Who works in its tasks. One agent is ready, your first account: press **Next** and go on. Or give the
+project a team (A task's team, below): each role an account, a name for it ("Checker") and what it does in your words,
+both optional; **Add role** adds another, one account may play several; **★** marks the role a new task starts; ×
+leaves one out. **Add account** → Claude Code or Codex signs in to a new one in your browser; an agent not on your
+computer yet is installed first, by itself (**Details** shows the installer at work). With no role at all, its tasks
+start with a terminal, where you run what you like.
 
 **3. Profiles.** The users of your app: **Add Profile**, a name (`ann@shop.com`) and who it is ("seller; can approve
 refunds"): the agent chooses profiles by it. Tick any of your other profiles to have them here too. None now is fine:
@@ -123,10 +125,13 @@ Everything is saved as you change it; there is no Save button.
 - **Name**.
 - **Code**: its repositories or folders. **+** adds one (Add Folder…, Clone from URL…), **−** removes the selected
   one from the project (its folder stays), **★** makes it the default: a new task gets a copy of it, and the agent
-  starts there; a task adds the others when it needs them (Tasks, below).
-- **Agents**: the accounts its tasks run. **★** makes one the default, the one a new task runs; **★** on the default
-  one again leaves the project with no default: a new task then starts with nothing running, and big buttons in the
-  middle let you open the agent you want, or a terminal. With no agents at all, a new task starts with a terminal.
+  starts there; a task adds the others when it needs them (Tasks, below). A repository on GitHub shows the GitHub
+  account it goes as (GitHub accounts, below); right-click it → **GitHub Account** to choose another.
+- **Team**: its roles, each an account and what it does (A task's team, below). **+** adds a role played by one of
+  your accounts (or a new one); click a role to give it a name and say what it does, in the fields under the list;
+  **−** takes it out. **★** makes one the default, the one a new task runs; **★** on the default one again leaves the
+  project with no default: a new task then starts with nothing running, and big buttons in the middle let you open the
+  role you want, or a terminal. With no roles at all, a new task starts with a terminal.
 - **Profiles**: which profiles its tasks have. **+** makes a new one or adds one you have; **−** lets go of one (the
   profile stays in Settings → Profiles).
 - **Local addresses**: addresses of your app besides `localhost` (a tunnel, a dev domain), where the agent may type a
@@ -144,10 +149,41 @@ Make one with the **+** beside Agents (then the agent), the **+** over its accou
 project's page. Each account starts clean: your own settings of the
 agent outside Kulisa are not used. It is shown by its email, and stays until you delete it here (**−**).
 
+### A task's team
+
+A task can have a team: a builder, a checker, a reviewer… Each role is one of your agents' accounts with a name and
+what it does, in your words ("Checker: checks every change as every user and reports bugs to the builder"). You
+describe the team once, on the project's page (or in New Project), and open any role in a task with **+** at the end of
+the terminals' row. Each agent knows its role and its partners: it does what its role says, and tells the partner
+whose part has a bug rather than fixing it. Partners message each other: a message comes into the other's terminal
+as if typed ("From Builder (Claude Code): …"), once it has finished what it is doing, so you read their talk in both
+terminals. A role's tab has its name; what it does is in its tooltip.
+
+**A team for all your computers.** A role is kept in the project, in the file `.kulisa/project.json` of its
+repository, when its code is in git: commit the file, and the team is there on your other computers too (marked
+**shared**). Each computer plays it with an account of its own: the one account of that agent there, or the one you
+choose in **Played by**. **Kept in** moves a role to **This computer** (here only) and back. When a repository's file
+is new to this computer, Kulisa shows its roles and asks once whether to use them: their words go to your agents as
+what they do, so say yes only for a repository whose authors you trust. **Use It** and **Stop Using**, under the team
+on the project's page, change it.
+
+**Partners on your other computers.** Give a role the OS it works on (**Works on**: say, the builder on Linux, the
+checker on macOS). Once a task's agent has pushed its branch, your other computers see the task on the board, under
+the project: **On Your Other Computers**. Click it there to join: the task opens on its branch with the role of that
+computer's OS. The partners talk through the task's pull request, so open one: a message from one goes there as a
+comment under your GitHub account, saying who and where it is from, and Kulisa on the other computer types it to its
+partner. Your own comment on the pull request reaches every agent of the task. A comment of anyone else never reaches
+an agent. Each computer keeps its own profiles (you sign in on each) and its own agents' accounts.
+
+A role can have its own model (**Model** on the project's page, under the role's words): Opus for the builder, a
+cheaper one for the checker. To change the model of an agent already working, right-click its tab → **Model**: it goes
+on with the same conversation with the model you chose, in the same tab (it restarts for that, so it asks first while
+the agent is working).
+
 A task may have several agents at once, each in a tab of its own (Terminals, below): Claude Code next to Codex, two of
 your accounts, or one agent twice. Each starts a new conversation and names its tab in a few words once it knows what
-it works on. To pass the work on (when one runs out of its limit, or for a fresh start), click the agent's icon on its
-tab (or **Change agent…** in its right-click menu). **Change Agent** shows what goes along to the next one: the
+it works on, unless its role has a name. To pass the work on (when one runs out of its limit, or for a fresh start),
+click the agent's icon on its tab (or **Change agent…** in its right-click menu): the role stays, another agent plays it. **Change Agent** shows what goes along to the next one: the
 task's branch, its profiles still signed in, their tabs, the terminals running, the whole conversation; and what stays
 behind. Choose the agent and **Hand over**: it reads what was said and done in that conversation while you watch the work go
 over to it, then its tab opens and it tells you in a few lines where it stands. If it needs you first (a permission, a
@@ -162,6 +198,32 @@ works the same way by the mouse: hold it, or click to start and again to stop. W
 dictation in front, the key brings the agent back in front; the microphone is greyed out then. Another key instead of
 the right Ctrl: **☰ → Keyboard Shortcuts**, Change on its row, then press the key.
 
+## GitHub accounts
+
+**Settings → GitHub** keeps your GitHub accounts, several if you have them (work, personal). Kulisa keeps their
+sign-ins encrypted with your OS's keyring; the agents never see them.
+
+- **+** (or the **+** beside GitHub in the tree) signs one in with **Kulisa App**: Kulisa shows a code; **Copy Code and
+  Open GitHub** copies it and opens GitHub in your browser, where you paste it and authorize Kulisa App. GitHub shows
+  you there what Kulisa App may do: read your code, work with pull requests and issues, read checks. Nothing else: it
+  cannot change a repository's settings or delete one.
+- Kulisa App reaches only the repositories you install it on: **Choose Repositories on GitHub**, under the list. In a
+  work organization its owner installs it; you may only request it.
+- **Use a Token Instead**, for an organization that does not let Kulisa App in: make a fine-grained token on GitHub
+  for its repositories, with the permissions the page lists, and paste it. A classic token is refused: it reaches all
+  your repositories.
+- The list says what each account reaches and in which projects it is used. One GitHub no longer takes (revoked
+  there, or not used for six months) is **signed out**: right-click it → **Sign In Again**.
+- **−** deletes one, after a question. Kulisa forgets it; to revoke Kulisa App on GitHub too, do it there: Settings →
+  Applications.
+
+Each repository of a project goes as one account: the one that reaches it, or the one you choose on its row (A
+project's page, above).
+
+With an account signed in, every agent works with GitHub through Kulisa: it opens pull requests, reads and comments
+on issues, reads files and checks, as that account. It changes only the project's repositories, and reads others
+only when they are public, so a page or an issue it reads cannot make it write elsewhere in your name.
+
 ## Tasks
 
 - **+ in the tasks' bar** (or Ctrl+Shift+A) opens a new tab, as in a browser: every project in a column, with its
@@ -174,6 +236,11 @@ the right Ctrl: **☰ → Keyboard Shortcuts**, Change on its row, then press th
   with the buttons in the middle (Ctrl+` puts the keyboard on them). Its profiles are all closed: the agent
   opens those it needs, or you do: while none is open, each has a tile over the terminal (click it), and the task's
   tab lists them on a right-click. A project with no profiles has one tile there, **Add Profile…**.
+- **A task on a branch there is already**: **New Task from a Branch…** (a right-click on the project's column, or in
+  the project's submenu of a tab's right-click menu) lists its branches, the newest first: one pushed from your other
+  computer, a colleague's, or one of your own. The task works on the branch you choose and is named after it. The
+  branch is not the task's: renaming the task leaves it as it is, and deleting the task leaves a branch your repository
+  had before (one only on the remote stays there).
 - **Its own copy of the code.** In a project with git, every task works in a copy of its own (a git worktree) on a
   branch of its own, next to your project's folder (`myshop@task-2`). Your project's folder stays yours: the agent
   merges its work into it only when you ask (and checks first that you have no unsaved changes there), or opens a pull
@@ -202,7 +269,7 @@ the right Ctrl: **☰ → Keyboard Shortcuts**, Change on its row, then press th
   copies, its conversation. The question says what would be lost (work not merged and not pushed). A closed task is
   deleted from its row in **+**: the trash can at the row's end (or the Delete key). Once a closed
   task's work is merged, its row says "merged", and the project's submenu offers **Delete Merged Tasks…**.
-- **The project's submenu**, at the end of a tab's right-click menu under the project's name: New Task, Move All
+- **The project's submenu**, at the end of a tab's right-click menu under the project's name: New Task, New Task from a Branch…, Move All
   Tasks to New Window or to another window, Project Settings…, Show Data Folder, Delete Merged Tasks…, Close All
   Tasks (asks only when an agent is working).
 
@@ -307,18 +374,20 @@ A pane is a small Chrome: a tab strip, an address bar, back, forward and reload.
   the task's folder, an agent started in it or not, as if you had typed it: your project's environment applies. Its
   tab shows the agent's icon, its name and what it is doing (working, waiting for you, done).
 - **+** at the row's end opens one of the project's agents, a new conversation, or **Terminal**, a shell. Closing an
-  agent's tab (**×**) asks first; its conversation stays in the task's history. A shell closes at once, or with `exit`.
+  agent's tab (**×**) loses nothing: it asks only while the agent is working, and its conversation can be continued
+  later: **+** lists the closed ones first, under **Closed Conversations**. A shell closes at once, or with `exit`.
 - Close the last one and the island folds to a thin strip with **+** in its middle, which opens one again (Ctrl+`
-  opens the task's agent). With no profile open either, big buttons in the middle of the window do what **+** does:
-  one for each of the project's agents, then **Terminal**. Tab moves between them and Enter opens one. Under them, a
+  continues the conversation closed last, or opens the task's agent). With no profile open either, big buttons in the
+  middle of the window do what **+** does: first **Continue** with the conversation closed last, then one for each of
+  the project's agents, then **Terminal**. Tab moves between them and Enter opens one. Under them, a
   tile for each of the project's profiles opens it.
 - Terminals come back after a restart in their tabs: an agent continues its conversation, a shell starts fresh. An
   agent's tab shows "Starting…" for a moment while its agent starts.
 - Copy and paste as in your OS's terminal: Ctrl+Shift+C / Ctrl+Shift+V on Linux, Ctrl+C / Ctrl+V on Windows, ⌘C / ⌘V
   on macOS.
 - Ctrl+click a link to open it: Kulisa asks where, in one of the task's profiles or in your own browser.
-- Right-click: Copy, Paste, Select all, Clear; in an agent's, Change agent… (the same as its icon) and New
-  Conversation (the same agent, from nothing); Close.
+- Right-click: Copy, Paste, Select all, Clear; in an agent's, Change agent… (the same as its icon), Model (the same
+  conversation with another model) and New Conversation (the same agent, from nothing); Close.
 
 ## Look and zoom
 
@@ -356,15 +425,15 @@ folders on your computer: the data folder, the projects' folder and the program'
 your file manager, its path there to copy. Look there rather than guess: where the folders are depends on your OS and
 its settings. Usually:
 
-- Your projects' folders hold only your code: Kulisa writes nothing there (except the first commit of a project it
-  made).
+- Your projects' folders hold only your code: Kulisa writes nothing there, except the first commit of a project it
+  made, and `.kulisa/project.json` when you change a role kept in the project (A task's team, above).
 - Tasks' copies of the code are next to the project's folder (`myshop@task-2`), or in the KulisaProjects folder in your
   home folder (`C:\Users\<you>\KulisaProjects` on Windows, `/Users/<you>/KulisaProjects` on macOS, `/home/<you>/KulisaProjects` on Linux) for a
   project of several repositories, as `<project>@task-<n>`. They go when the task is deleted. New projects' folders
   are made there too.
 - Profiles, sign-ins, accounts and settings are in Kulisa's data folder: `~/.config/Kulisa` on Linux (or under
   `$XDG_CONFIG_HOME` when that is set), `~/Library/Application Support/Kulisa` on macOS, `%APPDATA%\Kulisa` on
-  Windows. Session cookies and test passwords
+  Windows. Session cookies, test passwords and GitHub sign-ins
   are encrypted with your OS's keyring. **Show Data Folder** in a task tab's right-click menu, under the project's name, opens that project's.
 - Deleting a task, a profile or a project removes what Kulisa made for it.
 - Screenshots you take are yours, in your computer's folder of screenshots (A profile's pane, above): Kulisa does
@@ -398,7 +467,7 @@ To remove everything, do it before uninstalling, in Kulisa, so that it cleans up
 in **☰ → About Kulisa** (Settings → About): once the program is gone, nothing shows them. Then delete every project
 (**⋯ → Delete Project…** on its page: its tasks go with it, with their copies of the code and their branches),
 every profile (Settings → Profiles) and every agent's account (Settings → Agents: − on the account, which signs it
-out). Then uninstall the program and delete the data folder (above). What remains and is yours to keep or remove:
+out), and revoke Kulisa App on GitHub (its Settings → Applications) if you signed in with it. Then uninstall the program and delete the data folder (above). What remains and is yours to keep or remove:
 
 - Agents Kulisa installed for you (Claude Code, Codex): programs of your own, updated by their makers. Settings →
   Agents shows where each one is; remove them their way.

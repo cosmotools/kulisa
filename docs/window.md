@@ -213,7 +213,7 @@ built: [ui.md](ui.md), Menus):
   Cmd+Q and the app's menu quit; until 2026-10-18 Kulisa's version stood under them all as dim words, About's now);
 - right-click on a pane's header (New tab, About this profile… (Settings at it), Sign In to Master…, Refresh
   from Master…, Close profile, Remove from Project…), a tab (Reload, Duplicate, Close tab, Close other tabs), a terminal (Copy, Paste, Select all, Clear;
-  then what its tab's has) and a terminal's tab (Change agent…, the Change Agent dialog as its icon opens, and New Conversation in an agent's; Close).
+  then what its tab's has) and a terminal's tab (Change agent…, the Change Agent dialog as its icon opens, Model (the agent's models, the same conversation resumed with the one chosen: [tasks.md](tasks.md), The team) and New Conversation in an agent's; Close).
 
 A row whose command has a key shows it at its end (Keys, below).
 
@@ -260,7 +260,7 @@ could not mark the deleting button or lay out what goes. The OS's own dialogs st
 
 ## Settings
 
-Settings (a tree of Projects, Agents and Profiles: [tasks.md](tasks.md), Projects; under them the Log page, The log below, and About, Menus above) is a window of its own, as a desktop
+Settings (a tree of Projects, Agents and Profiles: [tasks.md](tasks.md), Projects; the GitHub page, its accounts: [src/github](../src/github/README.md); under them the Log page, The log below, and About, Menus above) is a window of its own, as a desktop
 app's settings are (JetBrains', macOS apps'; the author, 2026-10-16: what users of desktop apps expect, and settings
 apart from the work): the OS's title bar ("Settings — Kulisa"), its own size and place, kept (`settings.json`:
 `settingsWindow`), at least 640 × 420 times the Kulisa zoom. Open it, set things, close it; or leave it open beside
@@ -316,15 +316,18 @@ not needed): a terminal is not split off into a panel of its own. Each is the us
 name, its state (an agent's: working, waiting for you, done), ×; each its name whole (not shrunk), more than fit
 scroll, as a strip of tabs does (`.tabstrip`, [ui.md](ui.md); 2026-10-15: 36 terminals ran past the island, cut off
 there with + and the microphone, dockview's tab growing to its content until `min-width: 0`). After the tabs, the island's own **+**, whatever
-tab is in front (a menu of the project's accounts, the default first, each a new conversation; then Terminal, a
-shell). At the row's end, in a project of several repositories, the task's copies of them, a `.chip` each (its
+tab is in front (a menu: the task's closed conversations, the one closed last first, each gone on with; then the
+project's team, the default first, each role by its name and its account, a new conversation playing it
+([tasks.md](tasks.md), The team); then Terminal, a shell). At the row's end, in a project of several repositories, the task's copies of them, a `.chip` each (its
 name; its folder and branch in its tooltip; `TaskRepos.vue`): which repositories it works in, seen without asking. One
 added (Add Repository, or its agent's `task_add_repository`) comes in from the right, lit in the accent color for a
 moment (`.fresh`; not with reduced motion), so the human sees it arrive; another task shown is no news. An added one's
 right-click menu: Remove Repository (the task's own folder has none). Last in the row, the dictation's microphone
 (Dictation, below). The agent's icon opens **Change Agent**, a dialog
 (the project's accounts: the one chosen opens in a new tab, told to go on with this conversation; [tasks.md](tasks.md),
-"Several agents in a task"). An agent's × asks first; a shell's closes it.
+"Several agents in a task"). An agent's × asks first only while it works, as a task's: nothing else is lost, its
+conversation goes on from the + (issue #119: it was the one × of Kulisa that lost something, its conversation then
+read only by another agent); a shell's closes it.
 
 **The last terminal closed folds the island** to a strip of one button, + in its middle (the author's choice,
 2026-10-12, as JetBrains' tool windows go but with their button kept in place): by its height under or over the grid,
@@ -332,10 +335,12 @@ by its width at a side (dockview's constraints hold it there; the row goes). Alo
 buttons in a line in the grid's middle, whatever the arrangement (its group fills the grid there, so it is not drawn;
 until then the strip was drawn at the grid's bottom, the room above it empty; the author, 2026-10-12: quick to open an
 agent or a shell in an empty task): `.launch`, a `.launcher` each, the agent's icon over its name, an account's email
-under it, no keys (Ctrl+` opens the task's agent, which the window does not show: a key on one of them read as a
-mistake). Each is a Tab stop, Enter opens it; the first, the project's default agent, gets the keyboard when they come,
+under it, no keys (Ctrl+` goes on with the conversation closed last, or opens the task's agent, which the window does
+not show: a key on one of them read as a mistake). First, **Continue: <its name>**, the conversation closed last, when
+there is one: an empty task is mostly one whose agent was closed, and what is wanted is that back. Each is a Tab stop,
+Enter opens it; the first (Continue, else the project's default agent) gets the keyboard when they come,
 unless the keyboard is in something else (a field, a dialog). Under them, a second row: the task's closed profiles,
-a `.launcher` each, its picture over its name ("The grid": No profile open). A terminal opened unfolds it to the size it had. Ctrl+` there opens a new conversation of the task's agent; a task with none (its project had no default agent:
+a `.launcher` each, its picture over its name ("The grid": No profile open). A terminal opened unfolds it to the size it had. Ctrl+` there goes on with the conversation closed last, else opens a new conversation of the task's agent; a task with neither (its project had no default agent:
 [tasks.md](tasks.md), "Choosing the agent") gives the keyboard to the buttons, or opens the +. A task that never had a
 terminal opens its agent, or nothing (the buttons).
 
@@ -417,7 +422,7 @@ it, before or after.
   Ctrl+PgDn / PgUp, Ctrl+1…8, Ctrl+9; Ctrl+Shift+C for Pick (Chrome's Inspect), Ctrl+Shift+S for a screenshot of an element ([src/screenshots](../src/screenshots/README.md)). The site does not get them, as in
   Chrome. Closing or switching a tab from the page leaves the keyboard in the page shown next.
 - **Everywhere, the terminal too**: Ctrl+` to the terminal in front and back to the page used last (on the folded
-  island, a new conversation of the task's agent), Ctrl+Shift+` a new terminal, Ctrl+Shift+1…9 the bar's first to ninth tab, Ctrl+Shift+PgDn / PgUp the next or previous
+  island, the conversation closed last, else a new one of the task's agent), Ctrl+Shift+` a new terminal, Ctrl+Shift+1…9 the bar's first to ninth tab, Ctrl+Shift+PgDn / PgUp the next or previous
   one (in the bar's order), Ctrl+Shift+N a new task of the shown task's project, Ctrl+Shift+A the bar's + (a new tab: the board; again, back),
   Ctrl+Shift+/ the list; the right Ctrl (right ⌘ on macOS) held alone, speak to the agent (The terminal, Dictation:
   the one key the human may change, in the list). Ctrl+Shift+… and Ctrl+` are

@@ -45,7 +45,7 @@ let site: { url: string; child?: ChildProcess };
 // their lines).
 function app(group: string, args: string[], script = run) {
   // The human's screenshots go into the group's folder, never the user's own (src/screenshots, KULISA_SCREENSHOTS).
-  const env = { ...process.env, KULISA_TEST_ROOT: folder(group), KULISA_TEST_SITE: site.url, KULISA_SCREENSHOTS: path.join(folder(group), 'screenshots') };
+  const env = { ...process.env, KULISA_TEST_ROOT: folder(group), KULISA_TEST_SITE: site.url, KULISA_GITHUB: `${site.url}/github`, KULISA_SCREENSHOTS: path.join(folder(group), 'screenshots') };
   // In plain Node the electron package is the path of Electron's binary.
   // Linux only: chrome-sandbox in node_modules is not setuid there (README, Run).
   const sandbox = process.platform === 'linux' ? ['--no-sandbox'] : [];

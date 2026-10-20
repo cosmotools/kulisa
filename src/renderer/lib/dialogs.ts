@@ -13,6 +13,8 @@ export interface Dialogs {
   shortcuts: { showShortcuts(): void };
   // Change Agent (HandOver.vue): an agent's tab handed over.
   handover: { open(t: Terminal): Promise<void> };
+  // New Task from a Branch… (FromBranch.vue): a project's branches, one opened as a new task.
+  frombranch: { open(project: string, name: string): Promise<void> };
 }
 type Name = keyof Dialogs;
 

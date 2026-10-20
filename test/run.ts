@@ -67,7 +67,9 @@ const agents: Agent[] = [
     config: { env: 'FAKE_CONFIG_DIR', home: () => path.join(root, 'fake-config'), login: () => ['auth', 'login'],
       status: ['auth', 'status'], email: (out) => JSON.parse(out).email, logout: ['auth', 'logout'] },
     install: { posix: `echo "installing the fake agent"; mkdir -p '${bin}' && cp '${path.join(import.meta.dirname, 'fixtures', 'fake-agent.sh')}' '${bin}/kulisa-fake-agent' && chmod +x '${bin}/kulisa-fake-agent' && printf '\\033[32mdone\\033]8;;https://kulisa.app\\007\\033]8;;\\007\\033[0m\\n'` }, // colored, a link: as installers print
-    args: () => [], shell: agent.shell, ...claudeLike() },
+    args: () => [], shell: agent.shell, ...claudeLike(),
+    // Its models (agents/, model): it says the one it was started with (fixtures/fake-agent.sh).
+    model: { args: (m) => ['--model', m], list: () => [{ id: 'big', name: 'Big', about: 'for the hard parts' }, { id: 'small', name: 'Small' }] } },
   { id: 'shell', name: 'Terminal only', maker: '', command: null, needs: 'No agent' },
 ];
 

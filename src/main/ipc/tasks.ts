@@ -19,13 +19,15 @@ export function registerTasks(ipc: Ipc) {
   handle('projects:list', (e) => owner(e)?.info());
   // The switch runs on its own; the window hears about it through grid:closing, projects and state. No question
   // where (the author, 2026-10-11): a tab in this window, which Move to New Window takes away.
-  const openLater = (p: ProjectEntry, w: AppWindow, n?: number) => {
-    setImmediate(() => serial(() => (shell.windows.includes(w) ? openProject(p, w, n) : null)).catch((err) => console.error('[project:open]', err)));
+  const openLater = (p: ProjectEntry, w: AppWindow, n?: number, on?: string, join?: boolean) => {
+    setImmediate(() => serial(() => (shell.windows.includes(w) ? openProject(p, w, n, on, join) : null)).catch((err) => console.error('[project:open]', err)));
     return w.info();
   };
-  handle('project:open', (e, { id, folder, task }) => {
+  // branch: a new task on a branch there is already (New Task from a Branch…); join: the task of another computer of
+  // the human's on it (the board's Join Task: partners.ts), with the role of this computer's OS.
+  handle('project:open', (e, { id, folder, task, branch, join }) => {
     const p = id ? store.projects().find((x) => x.id === id) : folder && fs.existsSync(folder) ? store.projectFor(path.resolve(folder)) : null;
-    return p ? openLater(p, at(e)!, task) : { error: 'no such project' };
+    return p ? openLater(p, at(e)!, task, branch, join) : { error: 'no such project' };
   });
   // Close All Tasks (a project's menu): its open tasks in every window, asked once in the window it came from.
   handle('project:close-tasks', (e, { id }) => serial(async () => {
