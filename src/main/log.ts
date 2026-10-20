@@ -53,6 +53,10 @@ export function startLog(userData: string, isPackaged: boolean) {
   // ours (electronEvent): electron-log's own appends the page's address in full to every webContents event.
   elog.eventLogger.startLogging({ events: { app: { 'child-process-gone': true, 'render-process-gone': true }, webContents: { unresponsive: true, 'preload-error': true } },
     format: electronEvent });
+  // Node prints every process warning through console.error, into the file too, and Electron warns of each failed load
+  // of any page with its address in full (electron_api_web_contents.cc: "Failed to load URL: …"): [profile] logs it bare.
+  process.removeAllListeners('warning');
+  process.on('warning', (w) => { if (!w.message.startsWith('Failed to load URL: ')) console.warn(`[warning] ${w.name}: ${w.message}`); });
   return { previousRunQuit };
 }
 
