@@ -20,21 +20,21 @@ the look below:
 
 ## Desktop, not a web page
 
-Kulisa is a desktop app, an IDE: its window looks like one, JetBrains' Settings its model (the author, 2026-10-11:
-the dialogs, with big titles, framed cards, a paragraph each, pills and rows that showed their buttons under the
-pointer, read as a web page's and were hard to read). So:
+Kulisa is a desktop app, an IDE: its window looks like one, JetBrains' Settings its model (not big
+titles, framed cards, a paragraph each, pills and rows that show their buttons under the pointer: those read as a
+web page's and are hard to read). So:
 
-- **JetBrains' UI font and size**: Inter at 14 px (a step above their UI Guidelines' 13, Typography: the author found 13 small, 2026-10-13), bundled
-  (`@fontsource-variable/inter`, `main.ts`), so the window looks the same on every OS; until 2026-10-13 it was the OS's
-  own (`system-ui`: on Linux Noto Sans at 14 px, wide, read as a web page's). The terminal keeps JetBrains Mono.
+- **JetBrains' UI font and size**: Inter at 14 px (a step above their UI Guidelines' 13, Typography: 13 reads small), bundled
+  (`@fontsource-variable/inter`, `main.ts`), so the window looks the same on every OS (the OS's own, on Linux Noto
+  Sans, is wide and reads as a web page's). The terminal keeps JetBrains Mono.
 - **Two text sizes** (`--font`, `--font-small` for group titles and a dialog's title), two weights; nothing bigger.
   Weight and color carry what matters, not size. The one exception, the welcome (`welcome/`), the one place the window
   speaks to a new user rather than being worked in: its questions and slides' titles `--font-hero`, the words under
-  them `--font-lead` (the author, 2026-10-17).
+  them `--font-lead`.
 - **Dense**: rows and controls `--control` high (`--row` the same), toolbar buttons 24 px, corners `--radius` (4 px)
   on controls and `--island-radius` on windows and dialogs.
 - **One scrollbar everywhere** (`components.css`, `--scrollbar`): a rounded thumb on no track, no arrows, as JetBrains'
-  (the author, 2026-10-15: the OS's, with arrows, in menus, Settings and dialogs). Chromium's `::-webkit-scrollbar`:
+  (not the OS's, with arrows, in menus, Settings and dialogs). Chromium's `::-webkit-scrollbar`:
   the standard `scrollbar-color` and `scrollbar-width: thin` left the arrows. A tabs' strip has none
   (`scrollbar-width: none`): it scrolls by the wheel.
 - **Forms are "Label: field"**, the labels in one column (`.field`); a comment under a field only when needed.
@@ -42,14 +42,14 @@ pointer, read as a web page's and were hard to read). So:
 - **A list has a toolbar over it** (`.list`: + adds, − removes the selected row, ★ makes it the default), and
   its actions act on the selected row (also Delete, and its right-click). It is a table: the names of its columns,
   then rows of facts, each in its column (what it is, its path or email muted, a state at its end in words: "default",
-  "no commit yet"), the columns at the same places in every row (the author, 2026-10-16: values one after another read
+  "no commit yet"), the columns at the same places in every row (values one after another read
   as chaos); no buttons that show under the pointer, no pills.
 - **Every object has a right-click menu with all its actions** (a profile's pane, a task's tab, the terminal), so the
   window shows one or two buttons and the rest is in menus. Not swipes (a phone's gesture; on a laptop's touchpad a
   sideways swipe is the OS's and the pages' back and forward), nor a double-click as the only way to anything (nobody
-  sees it; only a shortcut to a menu's item). Talked over with the author 2026-10-08.
+  sees it; only a shortcut to a menu's item).
 - **A dialog asks one thing and ends with its buttons** (`Modal.vue`); what is browsed (Settings, a window of its own:
-  [window.md](window.md), Settings) is a tree on the left and a page on the right, under its path. No search field over the tree (the author, 2026-10-11).
+  [window.md](window.md), Settings) is a tree on the left and a page on the right, under its path. No search field over the tree (the author's choice).
 
 ## Tokens (`tokens.css`)
 
@@ -58,8 +58,8 @@ pointer, read as a web page's and were hard to read). So:
   JetBrains' themes: `--window` (the title bar, under the grid and the tasks' bar), `--island` (panels, dialogs, menus), `--island-hi`
   (a lit row, a divider), `--toolbar` (a pane's toolbar and active tab), `--field`, `--button`, `--line` (borders);
   text `--text`, `--text-strong`, `--text-dim`, `--text-muted`; `--accent` (main button, focus), `--danger`,
-  `--error`, `--note` (what waits for the human), `--agent` (the agent's caption on a pane, in the accent's hue: until
-  2026-10-13 it was `--note`'s, the color of "waiting for you"), `--done`; `--on-accent` (text on `--accent` and `--danger`),
+  `--error`, `--note` (what waits for the human), `--agent` (the agent's caption on a pane, in the accent's hue, not
+  `--note`'s, the color of "waiting for you"), `--done`; `--on-accent` (text on `--accent` and `--danger`),
   `--selection` (the terminal's); `--chosen`, `--chosen-idle` (a list's selected row, while the list has the keyboard
   and when it has not: JetBrains'); `--page-button`, `--on-page-button`, `--page-pad` (Chrome's blue and room, a page's
   dialog: `.pagedialog`); `--page`, `--backdrop`, `--shadow`; `--hover` (under the
@@ -70,8 +70,8 @@ pointer, read as a web page's and were hard to read). So:
   window's rows, between the tasks' tabs; also dockview's `gap` in `Grid.vue`), `--bartab` (a task's tab's height), `--title` (the title bar's: `--gap`,
   `--control`, `--gap`; the OS buttons' strip is as tall, `window.ts`); room as Chrome's menus and dialogs have it: `--row` (a row of a menu or a list), `--inset` (inside
   a row, between its icon and text, between a dialog's fields), `--pad` (inside a dialog along its edges), `--label` (a form's labels' column, "Name:", `.field`, and what lines up
-  with its fields). Things
-  set close together were the author's complaint (2026-10-07): space comes from these, not from new numbers. The
+  with its fields). Space
+  comes from these, not from new numbers (things set close together). The
   Kulisa zoom scales them all.
 
 ## Icons
@@ -97,7 +97,7 @@ Each icon is drawn once, as a `<symbol id="i-…">` in the sprite (`Sprite.vue`,
 | `i-pick` | Pick (DevTools' inspect icon) |
 | `i-globe` | a tab whose site has no icon |
 | `i-zoom`, `i-theme`, `i-language`, `i-arrange`, `i-keyboard`, `i-exit` | ☰'s rows: Zoom, Theme, Language, Arrange panels, Keyboard Shortcuts, Exit |
-| `i-agent` | an agent without a mark of its own (`agentMark`, `lib/agents.ts`; until 2026-10-14 also ☰'s Agents… row) |
+| `i-agent` | an agent without a mark of its own (`agentMark`, `lib/agents.ts`) |
 | `i-chevron` | a row that opens a menu beside it (☰'s Language; Lucide's chevron-right) |
 | `i-mic` | dictation's microphone at the end of the terminals' row of tabs (Lucide's mic) |
 | `i-working`, `i-waiting`, `i-done` | an agent's state on a tab (`.state`); `i-done` also checks the chosen row of a menu, and a checkbox |
@@ -117,8 +117,7 @@ every other `<svg>` uses the sprite.
 ## Components (`components.css`)
 
 What is `hidden` is off the screen, whatever `display` its component sets (`[hidden] { display: none !important }`,
-the browser's own `until-found` apart): a component's rule beat the browser's `[hidden]`, and the title bar's gear stayed
-on screen at the first start (2026-10-17). Tests check what is on screen (`checkVisibility()`), not the attribute.
+the browser's own `until-found` apart): a component's `display` beats the browser's own `[hidden]` rule. Tests check what is on screen (`checkVisibility()`), not the attribute.
 
 ### Buttons
 
@@ -157,7 +156,7 @@ on screen at the first start (2026-10-17). Tests check what is on screen (`check
 - `.item[aria-selected="true"]`: the chosen row of a list (Reka's Listbox, Tree), lit.
 - `.dot`: a 10 px circle in `--color`, a project's.
 - `.launcher`: a tile, big, for the hand to find at once where nothing else is: an icon or a profile's picture as
-  large as two rows, its `.name`, a `small` line under it (an account's email; none under a profile's: who it is is in its tooltip, under the name it was cut off by the tile's edge, 2026-10-17), on an island's color,
+  large as two rows, its `.name`, a `small` line under it (an account's email; none under a profile's: who it is is in its tooltip, as under the name the tile's edge would cut it), on an island's color,
   lit under the pointer. The empty grid's agents and profiles (`Terminals.vue`); `.small`, beside what is looked at:
   the closed profiles over the terminal (`ClosedProfiles.vue`).
 - `.dots`: where one is in a few slides or steps, a short bar each, lit up to the one shown (an `ol`, `li.on`): the
@@ -165,7 +164,7 @@ on screen at the first start (2026-10-17). Tests check what is on screen (`check
 - `.chip`: a thing named in a pill, its icon first (14 px, muted), `--font-small`: what goes along to another agent
   (Change Agent), a task's repositories at the end of its terminals' row (`TaskRepos.vue`). A name the human gave (a
   folder, a branch) goes in a `.name` inside it: cut with … past 14em, the whole in the chip's tooltip; a row of chips
-  gives way before what is beside it (2026-10-15: three repositories' whole names pushed the terminals' tabs out).
+  gives way before what is beside it (the terminals' tabs).
 
 ### Controls
 
@@ -173,8 +172,7 @@ The window's controls are Reka UI's, in this look (CLAUDE.md, Window UI):
 
 - `.radio`: a radio (Reka's `RadioGroupItem`, its `RadioGroupIndicator` the dot), in a `RadioGroupRoot`: at a row's
   start (the row a `<label>`), exactly one of a list: the agent to start (`AgentList.vue`). The arrows move between
-  them. Not for a list's default, whose rows are what the list is about: a radio there read as choosing the row (the
-  projects' manager until 2026-10-11); that is "default" at the row's end and ★. Not for a few big choices either
+  them. Not for a list's default, whose rows are what the list is about: a radio there reads as choosing the row; that is "default" at the row's end and ★. Not for a few big choices either
   (New Project's code: a list on the dialog's left, Reka's Listbox, as JetBrains' New Project).
 - `.checkbox`: a checkbox (Reka's `CheckboxRoot`, its `CheckboxIndicator` the check, `i-done`): Create Git repository.
 - `.select`: a button that opens what to choose from below it (Reka's `Popover`), as a field: the chosen one and
@@ -192,12 +190,12 @@ The window's controls are Reka UI's, in this look (CLAUDE.md, Window UI):
   browser's (not on their ×), one Tab stop for the strip, the arrows move and Enter chooses. A task's is shown on
   the release, or as its drag begins ([window.md](window.md), The tasks' bar).
 - A strip of tabs that do not all fit (the tasks' bar, a pane's tabs, the closed profiles' tiles, the terminals' tabs) is `.tabstrip` (`components.css`) with
-  `useStrip` (`lib/strip.ts`), one for every strip (2026-10-15: each scrolled its own way, two with the same bugs):
+  `useStrip` (`lib/strip.ts`), one for every strip, so all scroll one way:
   no scrollbar; a mouse's wheel scrolls it sideways (Shift and a touchpad's swipe are the browser's: with Shift both
-  scrolled, twice as far); an edge with tabs past it fades (`--fade`; two classes from the scroll: CSS's
-  scroll-driven animations left an edge faded when little was out of sight); the active tab is brought into sight,
-  clear of the fade, when another is chosen, a tab grows in or the strip is resized, and only then: on every update
-  (a title, a page loading, an agent's state) it took the strip back from where the human had scrolled it.
+  would scroll, twice as far); an edge with tabs past it fades (`--fade`; two classes from the scroll: CSS's
+  scroll-driven animations leave an edge faded when little is out of sight); the active tab is brought into sight,
+  clear of the fade, when another is chosen, a tab grows in or the strip is resized, and only then, so an update
+  (a title, a page loading, an agent's state) leaves the strip where the human scrolled it.
 - `Toggle`: a button that stays on (Pick, `[data-state="on"]`).
 - `Collapsible`: something shown on demand (a profile's pictures to choose from; Details: `button.disclose` its trigger, an
   installer's output, an agent's sign-in's terminal).
@@ -205,7 +203,7 @@ The window's controls are Reka UI's, in this look (CLAUDE.md, Window UI):
   another size (22 px in a profile's row, `ProfileRow.vue`).
 - `.striptab`: a tab of a strip on an island, as a browser's: the agent's `.state`, `.name`, × at the end
   (`button.close.icon.quiet.small`), on every tab, always, as
-  Chrome's (the author, 2026-10-12: until then only under the pointer and on the shown tab). A
+  Chrome's. A
   step taller than a button (`--tab`, `--control` + 4 px) and at least 64 px wide: a target for a quick throw of the mouse.
   Lit under the pointer; `.active`: the shown one, in the panels' color (`--island`) on the dark island. A
   task's tab (`TaskTab.vue`); a terminal's (`TerminalTabs.vue`: the agent's icon before its name, its row in
@@ -213,7 +211,7 @@ The window's controls are Reka UI's, in this look (CLAUDE.md, Window UI):
 - `.state`: an agent's state by `data-state` (from its hooks), an icon each so that color is not the only sign (some
   people do not tell yellow from green): working (sparkles in `--accent`, twinkling; not with reduced motion), waiting
   for you (a bell in `--note`), done (a check in `--done`: come and see, until the human sees that task); nothing otherwise, as nothing asks for
-  the human then (the author's rule). On a task's tab (`TaskTab.vue`), with its tooltip.
+  the human then. On a task's tab (`TaskTab.vue`), with its tooltip.
 
 ### Dialogs
 
@@ -241,7 +239,7 @@ Every dialog is `Modal.vue`, Reka UI's Dialog (`reka-ui`) with the same parts:
   only closes is Reka's `DialogClose`. What is saved as it changes (Settings' window) has none: Esc or × closes it.
 - A part of what it edits: a `.titled` line, then its `.list` or fields, a `.row` under the list for what is being
   added in place (a URL to clone, a new profile's name). Not framed cards or sections with a + in their heading
-  (until 2026-10-11: a frame in a dialog in a split was a frame in a frame in a frame, and it read as a web page).
+  (a frame in a dialog in a split is a frame in a frame in a frame, and reads as a web page).
 - `.empty`: a list's line when it has none ("No accounts yet."), dim.
 - What is browsed (Settings' window, `settings/ProjectEditor.vue`) is a tree on the left (Reka's `Tree`, `#pjlist`: its rows
   `.item`, `data-section`, `data-project`, `data-agent` or `data-profile`; a section opens and closes, it is not
@@ -249,12 +247,12 @@ Every dialog is `Modal.vue`, Reka UI's Dialog (`reka-ui`) with the same parts:
   page on the right under its path (`.crumbs`: "Projects › shop", its ⋯ at the end). Each thing is a row of the tree
   with a page of its own, not a list inside a page. A row the column cuts (…) has its whole name in its tooltip, and
   so has a list's row in a page (a project's profiles: the name, its description); not a wider or resizable column,
-  as names past any width still come (2026-10-15: two profiles alike to their 20th letter looked the same). A dialog of a few big choices and a form (New
+  as names past any width still come (two profiles alike to their 20th letter). A dialog of a few big choices and a form (New
   Project) has the choices as a list on its left (Reka's Listbox), the form on its right.
 - With `form` the content and the buttons are a form: Enter submits.
 - Its ref: `await open()` (shown, the keyboard in its `[autofocus]` field or on it; the profiles' pages hidden while it
   is open: `covered('hide')`, `lib/cover.ts`, `views.ts`), `close()`, `isOpen()`. Its content is in the page only while it is open
-  (Reka's default; kept closed, the dialogs' parts took about 2.5 MB of the window's memory), so it opens first and
+  (Reka's default; kept closed, the dialogs' parts would take about 2.5 MB of the window's memory), so it opens first and
   is filled after; what must outlive it lives in the dialog's component or in `lib/` (the agents' list and an install
   under way: `lib/agents.ts`). When it closes, the keyboard goes back where it was.
 - Every dialog is in `App.vue` from the start and registers what it does (`registerDialog`); anything opens one by
@@ -281,12 +279,11 @@ Reka UI's menus, the rows built as one opens: a button's (`ButtonMenu.vue`: ☰,
 press, a drag to a row and the release there chooses it, as the OS's menus; Enter, Space or ↓ on the button open it.
 Rows are chosen with the left button only (on Linux a right-click menu opens on the press, and the release must not
 choose a row). A menu taller than the window has scrolls, reaching as far as its edge (Reka's room for it,
-`--reka-popper-available-height`; the bar's + with thirty closed tasks ran past the window, 2026-10-15). One menu at a time; Esc, a press outside, the same button, a chosen row or leaving the window closes
+`--reka-popper-available-height`). One menu at a time; Esc, a press outside, the same button, a chosen row or leaving the window closes
 it, and the keyboard goes back where it was. Leaving is the window's blur (`window:blur`, from the main process), not
-its page's: a profile's page in the window taking the keyboard as it loads (macOS) closed a menu under the hand
-(2026-10-16); Settings' window, with no pages in it, goes by its page's (`lib/cover.ts`). Nor does the keyboard moving
+its page's: a profile's page in the window taking the keyboard as it loads (macOS) would close a menu under the hand; Settings' window, with no pages in it, goes by its page's (`lib/cover.ts`). Nor does the keyboard moving
 within the window close one (Reka's focus outside, prevented): the window's page getting the keyboard back after a
-menu opened puts it on what had it before, the terminal (2026-10-16). While one is open, the pages are pictures of themselves
+menu opened puts it on what had it before, the terminal. While one is open, the pages are pictures of themselves
 (`covered('pictures')`); it shows once they are.
 
 Items (`lib/menu.ts`, laid out by `menu/MenuRows.vue`) are `{ label, sub, keys, title, icon, color, avatar, project, inset,
@@ -313,7 +310,7 @@ menu, closing, would give it back to its button.
 
 ## Clusters
 
-A part of several files with a state of its own is a folder of `components/` (the author, 2026-10-17: against
+A part of several files with a state of its own is a folder of `components/` (against
 spaghetti), reached from outside only through its entries; `npm run deps` refuses any other import (`clusters` in
 `.dependency-cruiser.ts`: a new cluster is a line there). Its state is a module in it, provided to its files (Vue's
 `provide`/`inject`), not in `lib/store.ts`; what it shares with the rest of the window (`Modal.vue`,

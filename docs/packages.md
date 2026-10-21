@@ -1,13 +1,13 @@
 # Kulisa packages
 
 A **Kulisa package** is a part of Kulisa that knows nothing of the rest, with all of it in one folder `src/<package>/`,
-reached from outside only through its entries. The term is the author's (2026-10-18), after "Kulisa plugin": an npm
+reached from outside only through its entries. The term follows "Kulisa plugin": an npm
 package's idea (one folder, its own doc, a public API and nothing else seen) in Kulisa's own context. Always the two
 words: a bare "package" is an npm package (a dependency) or the app's package (Forge's build, the installers). Not a
 cluster (a folder of the window's components, [ui.md](ui.md), Clusters). The first is the terminal, `src/terminal/` (its
 [README](../src/terminal/README.md)): the example this doc points to.
 
-Why (the author, 2026-10-18): code smeared over `src/` is hard to keep in hand. In one folder a part is read, changed
+Why: code smeared over `src/` is hard to keep in hand. In one folder a part is read, changed
 and reviewed in one place; its boundary is checked, not remembered; and Claude Code, working in it, reads its own
 `CLAUDE.md` by itself. Kulisa moves to it gradually: a part at a time, when it is worked on and found self-contained;
 no big move.
@@ -29,15 +29,14 @@ of `src/renderer/lib` into the folder, and the boundary would have meant nothing
 
 **The caller stays thin: it states facts, the package does the work.** What the package's things are and do (their
 life, their timers, their views, their places, their files) is the package's, behind a small API; the code outside
-gives it what only the rest knows and calls it. The screenshots' thumbnail (2026-10-19) was first built with its place,
-its HTML drawing and its menu's actions in `window.ts` and `ipc/panes.ts`, and moved: the window now makes it
+gives it what only the rest knows and calls it. The screenshots' thumbnail, for one: the window makes it
 (`new Thumbnails(win, …)`) and says three things, where its panes are after a change of the grid (`place`), that its
 pages are covered (`setHidden`), that a task goes (`close`). What only the rest can do comes in as a function:
 - the window's own components (its menus, dialogs: one set of components, `docs/ui.md`): the window passes the opener
   (`thumbnailMenu(menuAtPoint)`), the package gives the rows and what they do;
 - what belongs to tasks or agents (Send to Agent: `send`, the window's `Task.typeForAgent`).
 
-An action outside that a package needs and another part does already (typing for the agent: Pick did) is written
+An action outside that a package needs and another part does already (typing for the agent: Pick does) is written
 once, outside, and passed in: not copied into a handle. Before a package's step is shown, every file outside it that
 it touched is listed with why that line cannot be in the package (the screenshots' README, The code).
 
@@ -104,10 +103,8 @@ them does not take it (a check that silently skips it is the danger), fix the co
 
 ## Moving code into one, step by step
 
-The terminal's move (2026-10-18) is the example; each step says what it found.
-
 1. **Draw the line by dependencies**, reading the code: what imports tasks, agents, profiles or the window's store
-   stays outside. Say the line to the author before moving: the island was in the first sketch and came out on reading.
+   stays outside. Say the line to the author before moving.
 2. **Move without changing behavior**: `git mv` (so git keeps the history), the imports fixed; what the package took
    from outside becomes a parameter of its API. Not a rewrite: the e2e tests passing unchanged is the proof.
 3. **Its channels** into `ipc.ts`, `src/shared/ipc.ts` extending its interfaces.
@@ -115,13 +112,12 @@ The terminal's move (2026-10-18) is the example; each step says what it found.
    see `npm run deps` refuse it, remove it.
 5. **Its docs**: `README.md` from the paragraphs of `docs/`, a link left there; `CLAUDE.md`; "The code" tables of the
    other docs; the old paths searched for in `docs/`, `CLAUDE.md`, `README.md` and the code's comments.
-6. **Its unit tests** into the folder; then the full `npm test`, and the number of unit tests the same as before (the
-   terminal's was not run by `npm test` at first: `test/start.ts` had a glob of its own).
+6. **Its unit tests** into the folder; then the full `npm test`, and the number of unit tests the same as before (a glob
+   of its own in `test/start.ts` would miss them).
 7. **What is left outside**: each file outside the package that it touches, and why that line is not in it (the
    caller states facts, above); a check, a timer, a state or a channel outside is moved in.
 8. **The app's package**: `npm run package`, then its archive listed (`npx asar list out/*/resources/app.asar`): its
-   `main/` and `ipc.ts` in, its `renderer/`, tests and docs out (the terminal's docs went in at first); `out/`
-   removed after.
+   `main/` and `ipc.ts` in, its `renderer/`, tests and docs out; `out/` removed after.
 
 ## The Kulisa packages
 

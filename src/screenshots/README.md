@@ -3,7 +3,7 @@
 A Kulisa package ([packages.md](../../docs/packages.md)): a picture of a page, one element, its visible part, or the
 whole page down to its end. The OS's tools take pixels of the screen only; Chrome has element and full-page pictures
 hidden in DevTools, Firefox in its own Take Screenshot. The human takes one to send it to someone or to show the
-agent; the agent to check its work. Planned and decided in issue #102 (the author, 2026-10-19), built a step at a time; what is left: masking (issue
+agent; the agent to check its work. Decided in issue #102; what is left: masking (issue
 #106), a native thumbnail (issue #107).
 
 It knows nothing of profiles, tasks or agents: it is given a Playwright page. The core's action is
@@ -40,7 +40,7 @@ the screen's density (`scale: 'device'`), sharp on a Retina screen. The window's
 
 ### Where it goes
 
-**Both to the clipboard and to a file** (`keep`, `main/folder.ts`; the author, 2026-10-19), as Windows 11's
+**Both to the clipboard and to a file** (`keep`, `main/folder.ts`), as Windows 11's
 Win+Shift+S does: the clipboard for a message or the agent's prompt (Ctrl+V: Claude Code takes an image so); the file
 in the OS's own folder of screenshots, as ⇧⌘4 saves one: Windows' `Pictures\Screenshots` (Win+PrtScn's), Linux's
 `~/Pictures/Screenshots` (GNOME's, KDE's), on macOS the folder chosen in ⇧⌘5's options (`defaults read
@@ -52,12 +52,12 @@ file name may not have on any of the three.
 The file is the user's, made by their action as a download is: it stays, and they keep the folder as they keep the
 OS's screenshots (CLAUDE.md's "Nothing piles up" is about Kulisa's own data). No Save dialog.
 
-Electron 44's clipboard is the W3C Clipboard API's (`clipboard.write([new ClipboardItem({ 'image/png': blob })])`;
-`breaking-changes.md`): `writeImage` is gone.
+Electron's clipboard is the W3C Clipboard API's (`clipboard.write([new ClipboardItem({ 'image/png': blob })])`;
+`breaking-changes.md`): it has no `writeImage`.
 
 ### The thumbnail
 
-As macOS shows one in the screen's corner (the author, 2026-10-19): the picture just taken, in the bottom right corner
+As macOS shows one in the screen's corner: the picture just taken, in the bottom right corner
 of its pane, 20 CSS pixels from its edges, at most 240 × 180 (a taller picture, as a whole page, its top only), framed
 by a thin ring and a shadow so that it stands out of the page under it, for about 5 s; the
 pointer over it, or its menu open, holds it. One a window (`Thumbnails`, `main/thumbnail.ts`): the next takes its
@@ -79,7 +79,7 @@ pane is off screen.
 **How it is drawn.** The pages are native views above the window's HTML (CLAUDE.md, "What must hold in the window"):
 HTML over a pane is under its page. So the thumbnail is a `WebContentsView` of its own page (`renderer/thumbnail.ts`;
 its `src/renderer/thumbnail.html` only loads it: Vite builds no page outside its root), made when it shows and destroyed when it goes: one more process for those seconds,
-about 21 MB (PSS; 10 MB of it its own; 94 MB RSS, Chromium's shared libraries mostly), measured 2026-10-19 on Linux next
+about 21 MB (PSS; 10 MB of it its own; 94 MB RSS, Chromium's shared libraries mostly), next
 to a window's 116 MB and a page's 57 MB. Weighed and not chosen: a window of its own over Kulisa's (Wayland does not let
 a window be placed); the pages turned into pictures for its seconds (the human could not use the page meanwhile);
 Electron's `ImageView` (a `View` drawing a `NativeImage`, no process: experimental in 44, and it gets no mouse, so no

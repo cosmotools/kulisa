@@ -5,9 +5,8 @@ description: How to find the cause of a Kulisa bug that tests and screenshots do
 
 # Debugging Kulisa
 
-What worked on 2026-10-08, when panes stopped taking clicks after Teams (the cause: a page's drag region,
-docs/testing.md, "Upgrading Electron"): look inside the running app instead of guessing, make the bug happen on
-demand, then take away one difference at a time until it goes.
+Look inside the running app instead of guessing, make the bug happen on demand, then take away one difference at a
+time until it goes.
 
 ## 1. Look inside the author's running Kulisa, without restarting it
 
@@ -54,8 +53,8 @@ Some bugs need the OS's own mouse; `sendInputEvent` goes around the OS.
 ```
 
 - It clicks only if exactly one visible window has that title and it is the active one after raising it. The mouse
-  is the author's: a click elsewhere lands in their windows. On 2026-10-08 a search by process id found the author's
-  window instead, and clicks went into their screen; never click by a window found another way.
+  is the author's: a click elsewhere lands in their windows. A search by process id can find the author's window
+  instead: never click by a window found another way.
 - The scratch window is "myshop — Kulisa"; the author's is "<project> — Kulisa": do not click theirs unless they
   ask. Tell the author before a series of clicks: their windows lose the focus for a few seconds.
 - A point in the window: the view's bounds (`view.getBounds()`, content coordinates) plus the frame's offset (the
