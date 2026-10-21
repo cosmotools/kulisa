@@ -1,7 +1,6 @@
 // What Kulisa asks GitHub (README, How it signs in): the device flow's code and token, a refresh, who a token is,
-// whether it reaches a repository, where Kulisa App is installed. Through @octokit/request (GitHub's own; its REST,
-// whose ETag answers cost nothing when nothing changed) over the fetch the caller gives (Electron's net.fetch:
-// Chromium's network, the system's proxy). Nothing here logs: what goes and comes holds tokens.
+// whether it reaches a repository, where Kulisa App is installed. Through @octokit/request over the fetch the caller
+// gives (README, How it signs in: why it). Nothing here logs: what goes and comes holds tokens.
 import { request } from '@octokit/request';
 
 // Kulisa App (https://github.com/apps/kulisa-app): its client ID is public, no secret (a desktop app cannot keep one).
@@ -17,8 +16,7 @@ interface Tokens { access: string; ends?: number; refresh?: string; refreshEnds?
 // GitHub's OAuth answer: a token pair, or an error's code (authorization_pending, slow_down, bad_refresh_token …).
 type OAuth = { tokens: Tokens } | { error: string; interval?: number };
 
-// github.com's OAuth endpoints answer an error with 200 and its code in the body, as JSON when asked so. Not
-// @octokit/oauth-methods: its refresh requires the client secret, which a device flow's token does without.
+// github.com's OAuth endpoints answer an error with 200 and its code in the body, as JSON when asked so.
 async function oauth(fetch: Fetch, path: string, params: Record<string, string>) {
   const r = await request(`POST ${web()}${path}`, { ...params, headers: { accept: 'application/json' }, request: { fetch } });
   return r.data as Record<string, unknown>;
@@ -30,10 +28,11 @@ const tokensOf = (j: Record<string, unknown>, now: number): Tokens => ({ access:
 const answer = (j: Record<string, unknown>, now: number): OAuth => (typeof j.access_token === 'string' ? { tokens: tokensOf(j, now) }
   : { error: String(j.error || 'no token'), ...(typeof j.interval === 'number' && { interval: j.interval }) });
 
-// The device flow's first step: the code the human enters on GitHub's page, how long it lives and how often to ask.
+// The device flow's first step: the code the human enters on GitHub's page, how long it lives and how often to ask; or
+// why GitHub gave none.
 async function deviceCode(fetch: Fetch) {
   const j = await oauth(fetch, '/login/device/code', { client_id: CLIENT_ID });
-  if (typeof j.device_code !== 'string' || typeof j.user_code !== 'string') throw new Error(`GitHub gave no code${j.error ? `: ${String(j.error)}` : ''}`);
+  if (typeof j.device_code !== 'string' || typeof j.user_code !== 'string') return { error: `GitHub gave no code${j.error ? `: ${String(j.error)}` : ''}` };
   return { device: j.device_code, code: j.user_code, url: String(j.verification_uri || `${web()}/login/device`),
     expires: Number(j.expires_in) || 900, interval: Number(j.interval ?? 5) };
 }

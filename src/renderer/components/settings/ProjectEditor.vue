@@ -257,16 +257,6 @@ async function githubNow(answer?: Promise<Result<ProjectGitHub>>) {
 }
 const githubOf = (folder: string) => github.value?.repos.find((g) => g.folder === folder);
 const bindGitHub = (remote: string, account: string) => githubNow(kulisa.invoke('project:github-set', { id: id(), remote, account }));
-// A repository's GitHub state in words, when it needs the human: why its account cannot reach it.
-type GitHubRepo = ProjectGitHub['repos'][number];
-const loginOf = (account: string | null) => github.value?.accounts.find((a) => a.id === account);
-function githubLine(g: GitHubRepo) {
-  const a = loginOf(g.account);
-  if (g.state === 'not-reached') return g.install ? `Kulisa App is not installed on ${g.owner}.` : a ? `${a.login}'s token does not reach ${g.repo}.` : `No account reaches ${g.repo}.`;
-  if (g.state === 'signed-out') return `${a ? `${a.login} is` : 'Its accounts are'} signed out: Sign in Again in Settings → GitHub.`;
-  if (g.state === 'unreachable') return 'GitHub could not be reached.';
-  return '';
-}
 const id = () => editing.value!; // the project shown: every change is made on its page
 // The selection goes with its row, not when the row stays (refused, or a no to the question).
 const removeRepo = (folder = repoSel.value) => folder && code(kulisa.invoke('project:repo-remove', { id: id(), folder }))
@@ -428,8 +418,8 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
             <button id="npclone" class="primary" type="button" :disabled="cloning" @click="clone">{{ cloning ? 'Cloning…' : 'Clone' }}</button>
           </div>
           <!-- Why a repository's account cannot reach it, a line each -->
-          <div v-if="github?.repos.some(githubLine)" id="npgithub">
-            <p v-for="g in github.repos.filter(githubLine)" :key="g.folder" class="hint" :data-folder="g.folder">{{ base(g.folder) }}: {{ githubLine(g) }}
+          <div v-if="github?.repos.some((g) => g.why)" id="npgithub">
+            <p v-for="g in github.repos.filter((g) => g.why)" :key="g.folder" class="hint" :data-folder="g.folder">{{ base(g.folder) }}: {{ g.why }}
               <a v-if="g.install" :href="g.install" target="_blank">Install it on {{ g.owner }}</a><template v-if="g.install"> (or ask its owner to)</template></p>
           </div>
           <p id="npformer" class="hint" :hidden="!former"><span>{{ former ? `Former folder ${former}: new tasks work in the repositories; move its files into one.` : '' }}</span>

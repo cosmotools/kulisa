@@ -18,6 +18,7 @@ interface Secrets { kept(): boolean; encrypt(s: string): string; decrypt(s: stri
 // A refresh that GitHub may still turn down is done before the token is used, this long before it ends: a call with
 // a token about to end would fail on the way.
 const EARLY = 5 * 60_000;
+const signedOut = (login: string) => new Error(`${login} is signed out: Sign in Again in Settings → GitHub`);
 
 class Accounts {
   file: string; secrets: Secrets; fetch: Fetch; now: () => number;
@@ -89,7 +90,7 @@ class Accounts {
   // time: refreshing). Throws, saying why, when there is none: signed out (a refresh refused), or GitHub not reached.
   async token(id: string): Promise<string> {
     const t = this.tokens(id);
-    if (!t || !this.signedIn(id)) throw new Error(`${this.get(id)?.login ?? id} is signed out: Sign in Again in Settings → GitHub`);
+    if (!t || !this.signedIn(id)) throw signedOut(this.get(id)?.login ?? id);
     if (!t.refresh || !t.ends || t.ends - EARLY > this.now()) return t.access;
     let p = this.refreshing.get(id);
     if (!p) {
@@ -105,7 +106,7 @@ class Accounts {
       log.warn(`[github] refresh failed ${this.label(id)}: ${(e as Error).message}`);
       throw new Error('GitHub could not be reached', { cause: e });
     }
-    if (!('tokens' in r)) { this.signOut(id, `refresh refused (${r.error})`); throw new Error(`${this.get(id)?.login ?? id} is signed out: Sign in Again in Settings → GitHub`); }
+    if (!('tokens' in r)) { this.signOut(id, `refresh refused (${r.error})`); throw signedOut(this.get(id)?.login ?? id); }
     // Written first, used after: the old refresh token works no more, and a pair lost to a crash after GitHub's answer
     // would leave only a sign-in again.
     const list = this.list(), a = list.find((x) => x.id === id);

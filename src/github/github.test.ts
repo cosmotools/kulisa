@@ -111,10 +111,11 @@ test("github: a repository's account: the one bound, else the first that reaches
   assert.equal((await gh.repo('github.com/acme/shop', null)).state, 'no-account');
   const ann = gh.accounts.add('ann', 'app', { access: 'ghu_1' }) as { id: string };
   const r = await gh.repo('github.com/acme/shop', null);
-  assert.deepEqual([r.state, r.owner, !!r.install], ['not-reached', 'acme', true], 'Kulisa App not installed on acme');
+  assert.deepEqual([r.state, r.owner, !!r.install, r.why], ['not-reached', 'acme', true, 'Kulisa App is not installed on acme.'], 'Kulisa App not installed on acme');
   const bob = await gh.addToken('github_pat_b') as { id: string };
-  assert.deepEqual(await gh.repo('github.com/acme/shop', null), { account: bob.id, suggested: true, state: 'ok', owner: 'acme', repo: 'acme/shop', install: null });
-  assert.deepEqual([(await gh.repo('github.com/acme/shop', ann.id)).state], ['not-reached'], 'bound: that one, even when another reaches it');
+  assert.deepEqual(await gh.repo('github.com/acme/shop', null), { account: bob.id, suggested: true, state: 'ok', owner: 'acme', repo: 'acme/shop', install: null, why: null });
+  const bound = await gh.repo('github.com/acme/shop', ann.id);
+  assert.deepEqual([bound.state, bound.why], ['not-reached', 'Kulisa App is not installed on acme.'], 'bound: that one, even when another reaches it');
   assert.equal((await gh.repo('gitlab.com/acme/shop', null)).state, 'not-github');
   assert.equal((await gh.repo(null, null)).state, 'not-github');
   // A classic token reaches all of its user's repositories: refused, as a token GitHub does not know.

@@ -3,7 +3,8 @@
 The human's GitHub accounts, signed in to Kulisa, several of them (work, personal), each until the human deletes it,
 and which account each repository of a project goes as. A Kulisa package ([docs/packages.md](../../docs/packages.md)):
 it knows nothing of projects, tasks or the window; the main process gives it its data folder, the OS keyring and a
-fetch, and tells it what only the rest knows (which projects use an account, where a question is asked). Only GitHub,
+fetch, and tells it what only the rest knows (which projects use an account, deleting one: its question and its
+projects). Only GitHub,
 not GitLab or another host: another would be a package of its own.
 
 Kulisa holds the tokens; the agent never gets one. The agent reads pages strangers write (issues, comments, the
@@ -80,7 +81,8 @@ restart costs less than a token any program of theirs could read.
 the App's client secret, which Kulisa has not, so the tokens live on GitHub until they end (8 hours; the refresh token
 6 months), of use only to one who took them before; the question before deleting links where the human revokes it
 (the App's authorization, https://github.com/settings/apps/authorizations; a token's list,
-https://github.com/settings/personal-access-tokens).
+https://github.com/settings/personal-access-tokens). The action is the core's, `deleteGitHub` (`projects.ts`), as an
+agent's account's is (`deleteAccount`): it knows the projects; the channel only calls it.
 
 ## A repository's account
 
@@ -94,7 +96,8 @@ leaving the project unless another of its repositories has the same remote (`rem
 as stays the same whatever accounts come later, until the human chooses another on its row (Reka's Select). The row
 says why none can: not a GitHub address (another host, or an SSH alias ssh cannot name); Kulisa App is not installed
 on its owner, linking where it is installed or requested; a token that does not reach it; signed out; GitHub not
-reached. The core of it is `GitHub.repo` (here) and `githubOf` (`projects.ts`, which knows the projects).
+reached. The words are the core's (`why`), so the window and the agent say the same. The core of it is `GitHub.repo`
+(here) and `githubOf` (`projects.ts`, which knows the projects).
 
 ## The window
 
@@ -126,8 +129,8 @@ repositories' accounts are the window's channels, about a project: `project:gith
 | `github.test.ts` | the store, the refresh, no keyring, a repository's account (`npm run test:unit`) |
 
 Outside it, each because it knows the rest: `src/main/remotes.ts` (a remote's key: the base, for #127's import too),
-`projects.ts` (`githubOf`, `setGitHub`, `githubUsers`, `forgetGitHub`: the bindings in `projects.json`), `app.ts`
-(making it: the keyring, `net.fetch`, `openExternal`, the question), `ipc/projects.ts` (the project's channels),
+`projects.ts` (`githubOf`, `setGitHub`, `githubUsers`, `deleteGitHub`: the bindings in `projects.json`), `app.ts`
+(making it: the keyring, `net.fetch`, `openExternal`), `ipc/projects.ts` (the project's channels),
 `settings/GitHubPage.vue` and `RepoAccount.vue`, `ProjectEditor.vue` (the tree's node, the rows), `Ask.vue` (a
 question's link). Its e2e tests are in `test/github.ts` (the profiles group), against the test site's fake GitHub
 (`test/fixtures/site.ts`, `/github`), and `restart-profiles.ts` (a sign-in kept with the keyring).

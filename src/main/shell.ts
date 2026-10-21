@@ -34,7 +34,8 @@ interface Shell {
   open: Map<string, Project>; windows: AppWindow[]; signin: ReturnType<typeof signinPages>;
   profileStore: ProfileStore; cookieSync: CookieSync; sessionCookies: SessionCookies; accounts: Accounts;
   github: GitHub; // the GitHub accounts (src/github)
-  secrets: { available(): boolean; encrypt(s: string): string; decrypt(b: string): string };
+  // available: encryption works; kept: by a keyring (not Linux's basic_text, Electron's fixed key: as good as plain text)
+  secrets: { available(): boolean; kept(): boolean; encrypt(s: string): string; decrypt(b: string): string };
   loginSecret(password?: string): Result<{ secret?: string }>;
   typingSecret: Set<string>; // '<task key>/<profile id>'
   profilesChanged(from?: Task): void;

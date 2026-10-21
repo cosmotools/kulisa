@@ -6,6 +6,7 @@ import { deviceCode, deviceToken, installations, reaches, user } from './api.ts'
 import { INSTALL } from '../ipc.ts';
 import type { Secrets } from './accounts.ts';
 import type { Fetch, Tokens } from './api.ts';
+import type { Result } from '../../shared/result.ts';
 import type { GitHubAccount, RepoGitHub, RepoState } from '../ipc.ts';
 
 // A device flow under way: its code, until the human has entered it, denied it or it expired, or it is cancelled.
@@ -37,6 +38,7 @@ class GitHub {
   async startFlow(again: string | null = null) {
     this.cancelFlow();
     const d = await deviceCode(this.fetch);
+    if ('error' in d) return d;
     this.flow = { device: d.device, code: d.code, url: d.url, interval: d.interval, until: Date.now() + d.expires * 1000, again };
     return { code: d.code, url: d.url };
   }
@@ -54,7 +56,7 @@ class GitHub {
       let r;
       try { r = await deviceToken(this.fetch, f.device); } catch { await sleep(1000); continue; } // the network: asked again
       if (f.cancelled) break;
-      if ('tokens' in r) { this.done(f); return this.signedIn(r.tokens, 'app', f.again); }
+      if ('tokens' in r) { this.done(f); return this.keepAccount(r.tokens, 'app', f.again); }
       if (r.error === 'authorization_pending') continue;
       if (r.error === 'slow_down') { f.interval = r.interval ?? f.interval + 5; continue; }
       this.done(f);
@@ -67,13 +69,13 @@ class GitHub {
 
   // A fine-grained token pasted: checked with GitHub (who it is, its end), then kept. again: the account it is a new
   // token for.
-  async addToken(token: string, again: string | null = null) {
+  async addToken(token: string, again: string | null = null): Promise<Result<{ id: string }>> {
     token = token.trim();
     if (!FINE_GRAINED.test(token)) return { error: 'not a fine-grained token (github_pat_…): make one on GitHub, as the link above says' };
-    return this.signedIn({ access: token }, 'pat', again);
+    return this.keepAccount({ access: token }, 'pat', again);
   }
   // Who the tokens are (GET /user), then the account kept.
-  private async signedIn(tokens: Tokens, kind: 'app' | 'pat', again: string | null) {
+  private async keepAccount(tokens: Tokens, kind: 'app' | 'pat', again: string | null): Promise<Result<{ id: string }>> {
     let who;
     try { who = await user(this.fetch, tokens.access); } catch { return { error: 'GitHub could not be reached' }; }
     if (!who) return { error: kind === 'pat' ? 'GitHub refused this token' : 'GitHub refused the sign-in' };
@@ -82,10 +84,18 @@ class GitHub {
   }
 
   // What a repository's remote (its key: remotes.ts) is to the accounts: bound to one (account), or the first that
-  // reaches it suggested. Its owner/repo for the window's words.
+  // reaches it suggested; why none can, in words the window and the agent both show.
   async repo(key: string | null, bound: string | null): Promise<RepoGitHub> {
+    const r = await this.reachOf(key, bound);
+    const login = this.accounts.list().find((a) => a.id === r.account)?.login;
+    const why = r.state === 'not-reached' ? (r.install ? `Kulisa App is not installed on ${r.owner}.` : login ? `${login}'s token does not reach ${r.repo}.` : `No account reaches ${r.repo}.`)
+      : r.state === 'signed-out' ? `${login ? `${login} is` : 'Its accounts are'} signed out: Sign in Again in Settings → GitHub.`
+        : r.state === 'unreachable' ? 'GitHub could not be reached.' : null;
+    return { ...r, why };
+  }
+  private async reachOf(key: string | null, bound: string | null): Promise<Omit<RepoGitHub, 'why'>> {
     const m = key && /^github\.com\/([^/]+)\/([^/]+)$/.exec(key);
-    const none: Omit<RepoGitHub, 'state'> = { account: null, suggested: false, owner: null, repo: null, install: null };
+    const none: Omit<RepoGitHub, 'state' | 'why'> = { account: null, suggested: false, owner: null, repo: null, install: null };
     if (!m) return { ...none, state: 'not-github' };
     const owner = m[1]!, repo = `${m[1]}/${m[2]}`, list = this.accounts.list();
     const of = { ...none, owner, repo };

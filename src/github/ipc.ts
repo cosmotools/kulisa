@@ -25,9 +25,10 @@ interface GitHubCode { code: string; url: string }
 // account (bound, or the first that reaches it: suggested), its owner/repo, and its state: ok; not-github (not
 // github.com, or an SSH alias ssh cannot name); not-reached (its account, or none of them, reaches it: Kulisa App not
 // installed on its owner, or a token for another owner; install: where the App is installed); signed-out (its account,
-// or every one); no-account (none at all); unreachable (GitHub not reached).
+// or every one); no-account (none at all); unreachable (GitHub not reached); why: what keeps it from its account, in
+// words (null: nothing).
 export type RepoState = 'ok' | 'not-github' | 'not-reached' | 'signed-out' | 'no-account' | 'unreachable';
-export interface RepoGitHub { account: string | null; suggested: boolean; state: RepoState; owner: string | null; repo: string | null; install: string | null }
+export interface RepoGitHub { account: string | null; suggested: boolean; state: RepoState; owner: string | null; repo: string | null; install: string | null; why: string | null }
 
 type I<A extends unknown[], R = void> = { args: A; result: R };
 export interface GitHubInvoke {
