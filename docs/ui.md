@@ -174,7 +174,7 @@ The window's controls are Reka UI's, in this look (CLAUDE.md, Window UI):
   start (the row a `<label>`), exactly one of a list: the agent to start (`AgentList.vue`). The arrows move between
   them. Not for a list's default, whose rows are what the list is about: a radio there reads as choosing the row; that is "default" at the row's end and ★. Not for a few big choices either
   (New Project's code: a list on the dialog's left, Reka's Listbox, as JetBrains' New Project).
-- `.checkbox`: a checkbox (Reka's `CheckboxRoot`, its `CheckboxIndicator` the check, `i-done`): Create Git repository.
+- `.checkbox`: a checkbox (Reka's `CheckboxRoot`, its `CheckboxIndicator` the check, `i-done`): New Project's agents and profiles, the log's Follow.
 - `.select`: a button that opens what to choose from below it (Reka's `Popover`), as a field: the chosen one and
   `i-down` (a profile's picture).
 - `.choices`: icon buttons (`.icon`) to choose one of, the chosen one ringed in `--accent`: a profile's pictures

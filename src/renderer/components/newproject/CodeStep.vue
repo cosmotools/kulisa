@@ -2,7 +2,7 @@
 // New Project's first step: what its code comes from, as JetBrains' New Project: the kinds on the left, the form on the
 // right (wizard.ts has the rules).
 import { computed, ref } from 'vue';
-import { CheckboxIndicator, CheckboxRoot, ListboxContent, ListboxItem, ListboxRoot } from 'reka-ui';
+import { ListboxContent, ListboxItem, ListboxRoot } from 'reka-ui';
 import Icon from '../Icon.vue';
 import { useWizard } from './wizard';
 
@@ -61,8 +61,6 @@ defineExpose({ focus: () => nameField.value?.focus() });
         spellcheck="false" @input="w.error.value = ''"><button id="npbrowse" type="button" title="Browse…" @click="w.browse()">Browse…</button></span></div>
       <p id="npwhere" class="hint">{{ w.where.value }}</p>
       <p v-if="w.single && c.from !== 'new'" id="npmore" class="hint">A frontend and a backend? Add the other {{ c.from === 'folder' ? 'folder' : 'repository' }} later in Settings.</p>
-      <label id="npgitrow" class="check" :hidden="!w.askGit.value"><CheckboxRoot id="npgit" v-model="c.git" class="checkbox"><CheckboxIndicator as-child><Icon name="i-done" /></CheckboxIndicator></CheckboxRoot>
-        Create Git repository</label>
     </div>
   </div>
 </template>

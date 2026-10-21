@@ -20,7 +20,7 @@ function wizard(single: boolean) {
   // 1. Its code, asked first (the code is often on the disk or at a URL already): a new folder, folders on the disk (nothing made), or
   // repositories cloned from URLs; several for a project of several (a frontend and a backend). Its name follows the
   // first folder's or repository's until the human types one.
-  const code = reactive({ from: 'new' as From, name: '', place: '', sep: '/', git: true,
+  const code = reactive({ from: 'new' as From, name: '', place: '', sep: '/',
     sources: [] as { folder: string; state: string }[], urls: [] as string[], typed: '' });
   let named = '';
   const nameOf = (s = '') => [...repoName(s)].filter(nameChar).join('').replace(/^[^\p{L}\p{N}]+/u, '').slice(0, MAX);
@@ -85,9 +85,6 @@ function wizard(single: boolean) {
     return ({ files: `${t} is there already: the project takes it as it is, its files kept`,
       repo: `${t} is a git repository: the project takes it as it is` } as Record<string, string>)[state] ?? `The project will be created in ${t}`;
   });
-  // Create Git repository: not for a repository or a clone; on the disk, in the folders that are none.
-  const askGit = computed(() => (code.from === 'folder' ? code.sources.some((x) => x.state !== 'repo')
-    : code.from === 'new' && there.value?.state !== 'repo'));
   async function browse(existing = false) {
     const picked = await kulisa.invoke('project:pick-location', { location: code.place.trim(), existing });
     if (picked && existing) await addSource(picked); else if (picked) code.place = picked;
@@ -154,7 +151,7 @@ function wizard(single: boolean) {
     saving.value = true;
     try {
       const r = await kulisa.invoke('project:new', { from: code.from, name: code.name, location: code.place,
-        folders: code.sources.map((x) => x.folder), urls: [...code.urls], git: code.git && askGit.value, ...setup });
+        folders: code.sources.map((x) => x.folder), urls: [...code.urls], ...setup });
       if (refused(r)) { error.value = r.error; step.value = 0; nameTrouble.value = true; return false; }
       await kulisa.invoke('project:open', { id: r.id });
       return true;
@@ -163,7 +160,7 @@ function wizard(single: boolean) {
   // Its defaults, and the accounts and profiles there are (Wizard.vue, as it is made).
   async function reset() {
     const [c, a, p] = await Promise.all([kulisa.invoke('project:new-defaults'), kulisa.invoke('accounts:list'), kulisa.invoke('profiles:list')]);
-    Object.assign(code, { from: 'new', name: '', place: c.location, sep: c.sep, git: true, sources: [], urls: [], typed: '' });
+    Object.assign(code, { from: 'new', name: '', place: c.location, sep: c.sep, sources: [], urls: [], typed: '' });
     named = ''; step.value = 0; error.value = ''; nameTrouble.value = false;
     accounts.value = a.accounts; clis.value = a.clis; chosen.value = []; main.value = ''; signing.value = null;
     others.value = p.profiles; taken.clear(); fresh.value = [];
@@ -174,7 +171,7 @@ function wizard(single: boolean) {
   }
 
   return { single, step, last, saving, error, ready, next, back, reset,
-    code, addSource, removeSource, where, askGit, askName, browse,
+    code, addSource, removeSource, where, askName, browse,
     accounts, chosen, main, isDefault, choose, installs, signing, addable, addAccount, signedIn,
     others, taken, fresh };
 }

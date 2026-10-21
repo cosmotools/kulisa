@@ -89,8 +89,9 @@ back with what you typed kept, and nothing is made before **Create**.
 
 **1. Code.** Where its code comes from, on the left:
 
-- **New folder**: a new, empty project. Kulisa makes the folder (in the KulisaProjects folder in your home folder unless you choose another place) and,
-  with Create Git repository on, a git repository in it, so tasks can have copies of their own.
+- **New folder**: a new, empty project. Kulisa makes the folder (in the KulisaProjects folder in your home folder unless you choose another place),
+  a plain folder: tasks work right in it. Want git? Ask the agent to set it up; the tasks you make after that each
+  get a copy of their own.
 - **Folders on disk**: code you already have, one folder or several (a frontend and a backend). Nothing in them is
   changed.
 - **Clone from URL**: one repository or several, cloned with your own git (its keys and credentials).
@@ -356,8 +357,7 @@ folders on your computer: the data folder, the projects' folder and the program'
 your file manager, its path there to copy. Look there rather than guess: where the folders are depends on your OS and
 its settings. Usually:
 
-- Your projects' folders hold only your code: Kulisa writes nothing there (except the first commit of a project it
-  made).
+- Your projects' folders hold only your code: Kulisa writes nothing there.
 - Tasks' copies of the code are next to the project's folder (`myshop@task-2`), or in the KulisaProjects folder in your
   home folder (`C:\Users\<you>\KulisaProjects` on Windows, `/Users/<you>/KulisaProjects` on macOS, `/home/<you>/KulisaProjects` on Linux) for a
   project of several repositories, as `<project>@task-<n>`. They go when the task is deleted. New projects' folders

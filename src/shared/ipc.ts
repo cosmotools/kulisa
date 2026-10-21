@@ -36,7 +36,7 @@ export interface Invoke extends ThumbnailInvoke {
   'project:new-defaults': I<[], ProjectChoices & { location: string; sep: string }>;
   'project:pick-location': I<[{ location?: string; existing?: boolean }], string | null>;
   'project:folder-state': I<[{ from?: string; location?: string; name?: string; folder?: string }], { folder: string; state: string; project?: string } | null>;
-  'project:new': I<[{ from?: string; name?: string; location?: string; folders?: string[]; urls?: string[]; git?: boolean } & NewProjectSetup], Result<{ id: string; problems?: string[] }>>;
+  'project:new': I<[{ from?: string; name?: string; location?: string; folders?: string[]; urls?: string[] } & NewProjectSetup], Result<{ id: string; problems?: string[] }>>;
   'project:settings-get': I<[{ id: string }], Result<ProjectSettings>>;
   'project:settings': I<[{ id: string; name?: string; local?: string[] }], Result<{ id: string }>>;
   'project:profile-new': I<[{ id: string; name?: string }], Result<ProjectProfiles>>;

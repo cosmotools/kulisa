@@ -1262,7 +1262,6 @@ export default (test: Test) => {
       await ui(`(() => { const i = document.getElementById('npsource'); i.value = ${JSON.stringify(single)}; i.dispatchEvent(new Event('input')); i.dispatchEvent(new Event('change')); })()`);
       await waitFor(async () => (await ui(`document.getElementById('npwhere').textContent`)) === `The project Shop takes ${single} as it is`);
       assert.equal(await ui(`!!document.getElementById('npname')`), false, 'its name: the folder\'s');
-      assert.equal(await ui(`document.getElementById('npgitrow').hidden`), false, 'Create Git repository: it is none');
       await kind('clone');
       assert.equal(await ui(`document.querySelector('#npsingle label').textContent`), 'URL:');
       // A clone whose folder is there already, with files: its name to change, in its field.
@@ -1285,10 +1284,9 @@ export default (test: Test) => {
     await ui(`document.getElementById('boardnewproject').click()`);
     await waitFor(() => ui(`document.getElementById('newproject')?.dataset.state === 'open' && !!document.getElementById('npname')`));
 
-    // Its code: a name and where its folder goes, the home folder unless another is chosen; git on by default.
+    // Its code: a name and where its folder goes, the home folder unless another is chosen.
     assert.equal(await ui(`document.getElementById('nplocation').value`), shell.projectsHome, "every new project's place (~/KulisaProjects; the tests' own here)");
     const color = shell.store.nextColor();
-    assert.equal(await ui(`document.getElementById('npgit').getAttribute('aria-checked')`), 'true');
     const made = path.join(root, 'made');
     fs.mkdirSync(path.join(made, 'Taken'), { recursive: true });
     fs.writeFileSync(path.join(made, 'Taken', 'notes.txt'), '');
@@ -1303,7 +1301,6 @@ export default (test: Test) => {
     // A folder there already would be taken as it is (the form says so as it is typed); a file is refused at Next.
     await named('Taken');
     await waitFor(async () => (await ui(`document.getElementById('npwhere').textContent`)) === `${path.join(made, 'Taken')} is there already: the project takes it as it is, its files kept`);
-    assert.equal(await ui(`document.getElementById('npgitrow').hidden`), false, 'Create Git repository: it is none');
     fs.writeFileSync(path.join(made, 'note'), '');
     await named('note');
     await waitFor(async () => /is a file, not a folder/.test(await ui(`document.getElementById('npwhere').textContent`)));
@@ -1339,7 +1336,7 @@ export default (test: Test) => {
     await waitFor(() => shell.current?.folder === path.join(made, 'Shop') && shell.task?.loaded && shell.pty);
     assert.equal(ctx.asked.length, 0, 'nothing asked');
     assert.deepEqual(shell.profileStore.of('shop').map((p) => [p.name, p.description]), [['Shop-buyer', 'buys things']]);
-    assert.ok(fs.existsSync(path.join(made, 'Shop', '.git')), 'git init in it');
+    assert.ok(!fs.existsSync(path.join(made, 'Shop', '.git')), 'a plain folder: Kulisa makes no repository');
     // The log (window.md, The log): the start, the task and the channel that made it, a key taken; nothing typed into a
     // terminal (the keys' tests did).
     const logged = fs.readFileSync(path.join(userData, 'logs', 'kulisa.log'), 'utf8');
@@ -1347,7 +1344,7 @@ export default (test: Test) => {
     assert.match(logged, /\[kulisa\] encryption (available|not available)/);
     assert.ok(!/did not quit by itself/.test(logged), 'the run before quit as asked (the tests quit with app.quit)');
     assert.match(logged, /\[ipc\] project:open wc=\d+ \{"id":"shop"\}/);
-    assert.match(logged, /\[task\] created shop\/1 in \S*Shop@task-1 wc=\d+/);
+    assert.match(logged, /\[task\] created shop\/1 in \S*Shop wc=\d+/);
     assert.match(logged, /\[key\] tab\.new zone=/);
     assert.ok(!/pty:in/.test(logged), 'what is typed into a terminal is never logged');
     const shop = shell.store.projects().find((p) => p.id === 'shop');
@@ -1359,8 +1356,7 @@ export default (test: Test) => {
     await waitFor(() => ui(`getComputedStyle(document.getElementById('glow')).opacity === '1'`));
     assert.equal(await ui(`document.documentElement.style.getPropertyValue('--glow')`), color);
     assert.deepEqual(await ui(`[...document.querySelectorAll('#glow i')].map((i) => getComputedStyle(i).animationName)`), ['blot-a', 'blot-b', 'blot-c']);
-    assert.equal(git(path.join(made, 'Shop'), 'log', '--format=%s'), 'Initial commit', 'an empty first commit');
-    assert.equal(shell.task.folder, path.join(made, 'Shop@task-1'), 'so its first task has a copy of its own');
+    assert.equal(shell.task.folder, path.join(made, 'Shop'), 'its first task works in it');
     assert.equal(shell.settings, null);
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
     await plusMenu(ui, 'project', 'task-1'); // a closed task in the bar's +: its group opens again on it
@@ -1975,7 +1971,6 @@ export default (test: Test) => {
       await waitFor(async () => (await ui(`document.getElementById('npname').value`)) === 'gone');
     } finally { electron.dialog.showOpenDialog = showOpenDialog; }
     assert.equal(await ui(`document.querySelector('#npsources .item kbd').textContent`), 'git');
-    assert.equal(await ui(`document.getElementById('npgitrow').hidden`), true, 'no Create Git repository: it is one');
     ctx.asked.length = 0;
     await create('gone');
     assert.equal(shell.current.folder, gone);
@@ -1994,7 +1989,7 @@ export default (test: Test) => {
     assert.deepEqual(savedWindows(), [{ tabs: ['project/1', 'project/2'], shown: 'project/2' }]);
 
     // Folder on disk, several (a frontend and a backend): taken as they are, the first the default and the project's
-    // folder; Create Git repository in the one without git only.
+    // folder; the one without git left so.
     const back = path.join(root, 'back');
     fs.mkdirSync(back); fs.writeFileSync(path.join(back, 'b.txt'), 'b');
     await newProject('folder');
@@ -2002,11 +1997,10 @@ export default (test: Test) => {
     await add(back);
     await waitFor(async () => (await ui(`[...document.querySelectorAll('#npsources .item')].map((r) => r.dataset.source + ' ' + r.querySelector('kbd').textContent + ' ' + !!r.querySelector('.default')).join()`))
       === `${gone} git true,${back} no git false`);
-    assert.equal(await ui(`document.getElementById('npgitrow').hidden`), false, 'Create Git repository: for the one without');
     await create('gone');
     const both = shell.store.projects().find((x) => x.id === 'gone');
     assert.deepEqual([both.folder, both.repos], [gone, [gone, back]]);
-    assert.equal(git(back, 'log', '--format=%s'), 'Initial commit', 'git init in the one without');
+    assert.ok(!fs.existsSync(path.join(back, '.git')), 'the one without git left so');
     assert.equal(git(gone, 'log', '--format=%s'), 'mine', 'the repository as it was');
     await removeRow('gone');
     await waitFor(() => !projects().includes('gone'));
@@ -2014,10 +2008,10 @@ export default (test: Test) => {
     // Clone from URL (a local one here): cloned into <location>/<name>, named after the repository, and that clone is
     // the project's folder: no empty one beside it, no git init. A folder with files there is refused.
     const bare = path.join(root, 'cloned.git'), backBare = path.join(root, 'back.git');
+    git(back, 'init', '-q'); git(back, 'add', '-A'); git(back, 'commit', '-qm', 'back');
     git(root, 'clone', '-q', '--bare', gone, bare);
     git(root, 'clone', '-q', '--bare', back, backBare);
     await newProject('clone');
-    assert.equal(await ui(`document.getElementById('npgitrow').hidden`), true, 'no Create Git repository: it is one');
     await fill('npsource', bare);
     await ui(`document.getElementById('npaddsource').click()`);
     await waitFor(async () => (await ui(`document.getElementById('npname').value`)) === 'cloned');
