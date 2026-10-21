@@ -54,6 +54,12 @@ As GitHub's docs say it ("Generating a user access token for a GitHub App", "Ref
   is that account (GitHub gives a user one authorization of an app); a token is an account of its own even for the same
   login, as each token is for one owner.
 - Requests go through Electron's `net.fetch` (Chromium's network: the system's proxy, as the profiles' pages have it).
+  They are made with `@octokit/request`, GitHub's own (`request('GET /repos/{owner}/{repo}', …)`, typed), REST rather
+  than GraphQL: what Kulisa will watch on GitHub (a task's pull request, its comments) is asked again and again, and a
+  REST answer with an ETag costs nothing of the hourly limit when nothing changed. Not `@octokit/rest`: its table of
+  every endpoint is loaded whole for the few Kulisa asks. Not `@octokit/oauth-methods`: its refresh requires the client
+  secret, which a device flow's token does without, so the device flow and the refresh are the few lines of
+  `main/api.ts`.
   `KULISA_GITHUB`, for the tests only, puts github.com and api.github.com (under `/api`) on the test site's fake GitHub.
 
 ## The accounts (`main/accounts.ts`)
@@ -115,7 +121,7 @@ repositories' accounts are the window's channels, about a project: `project:gith
 | `main/index.ts` | the main process's entry: `GitHub`, and `installGitHub` (its channels, with what the caller says) |
 | `main/github.ts` | signing in (the device flow, a token), the accounts as listed, a repository's account |
 | `main/accounts.ts` | `github.json`, the tokens (encrypted, in memory without a keyring), one refresh at a time |
-| `main/api.ts` | GitHub's endpoints, Kulisa App's client ID, `KULISA_GITHUB` |
+| `main/api.ts` | GitHub's endpoints (`@octokit/request`), Kulisa App's client ID, `KULISA_GITHUB` |
 | `ipc.ts` | its channels, what they answer, GitHub's pages |
 | `github.test.ts` | the store, the refresh, no keyring, a repository's account (`npm run test:unit`) |
 

@@ -1,6 +1,8 @@
 // What Kulisa asks GitHub (README, How it signs in): the device flow's code and token, a refresh, who a token is,
-// whether it reaches a repository, where Kulisa App is installed. Through the fetch the caller gives (Electron's
-// net.fetch: Chromium's network, the system's proxy). Nothing here logs: what goes and comes holds tokens.
+// whether it reaches a repository, where Kulisa App is installed. Through @octokit/request (GitHub's own; its REST,
+// whose ETag answers cost nothing when nothing changed) over the fetch the caller gives (Electron's net.fetch:
+// Chromium's network, the system's proxy). Nothing here logs: what goes and comes holds tokens.
+import { request } from '@octokit/request';
 
 // Kulisa App (https://github.com/apps/kulisa-app): its client ID is public, no secret (a desktop app cannot keep one).
 const CLIENT_ID = 'Iv23li0yj4qNx88KBUcq';
@@ -15,12 +17,11 @@ interface Tokens { access: string; ends?: number; refresh?: string; refreshEnds?
 // GitHub's OAuth answer: a token pair, or an error's code (authorization_pending, slow_down, bad_refresh_token …).
 type OAuth = { tokens: Tokens } | { error: string; interval?: number };
 
-// A form posted to github.com's OAuth endpoints, the answer as JSON (they answer as a form without Accept).
-async function oauth(fetch: Fetch, path: string, form: Record<string, string>) {
-  const r = await fetch(`${web()}${path}`, { method: 'POST', headers: { accept: 'application/json', 'content-type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams(form).toString() });
-  if (!r.ok) throw new Error(`GitHub answered ${r.status}`);
-  return await r.json() as Record<string, unknown>;
+// github.com's OAuth endpoints answer an error with 200 and its code in the body, as JSON when asked so. Not
+// @octokit/oauth-methods: its refresh requires the client secret, which a device flow's token does without.
+async function oauth(fetch: Fetch, path: string, params: Record<string, string>) {
+  const r = await request(`POST ${web()}${path}`, { ...params, headers: { accept: 'application/json' }, request: { fetch } });
+  return r.data as Record<string, unknown>;
 }
 const tokensOf = (j: Record<string, unknown>, now: number): Tokens => ({ access: String(j.access_token),
   ...(typeof j.expires_in === 'number' && { ends: now + j.expires_in * 1000 }),
@@ -43,28 +44,32 @@ const deviceToken = async (fetch: Fetch, device: string, now = Date.now()) => an
 const refresh = async (fetch: Fetch, token: string, now = Date.now()) => answer(await oauth(fetch, '/login/oauth/access_token',
   { client_id: CLIENT_ID, grant_type: 'refresh_token', refresh_token: token }), now);
 
-// A REST call as the token's account: its status and its JSON (null when it is not).
-async function get(fetch: Fetch, path: string, token: string) {
-  const r = await fetch(`${api()}${path}`, { headers: { authorization: `Bearer ${token}`, accept: 'application/vnd.github+json' } });
-  return { status: r.status, headers: r.headers, json: await r.json().catch((): null => null) as Record<string, unknown> | null };
-}
+// GitHub's REST as the token's account; an answer of 4xx or 5xx is thrown (RequestError, its status), a network
+// failure too (no status).
+const rest = (fetch: Fetch, token: string) => request.defaults({ baseUrl: api(), headers: { authorization: `Bearer ${token}` }, request: { fetch } });
+const statusOf = (e: unknown): number => { const s = (e as { status?: unknown }).status; if (typeof s === 'number') return s; throw e; };
+// GitHub's refusal as null; a network failure still thrown.
+const refused = (e: unknown): null => { statusOf(e); return null; };
+
 // Who a token is: its login, and a fine-grained token's end, which GitHub says in a header of every answer
 // ("2027-01-01 00:00:00 UTC"); null: GitHub refused it.
 async function user(fetch: Fetch, token: string) {
-  const r = await get(fetch, '/user', token);
-  if (r.status !== 200 || typeof r.json?.login !== 'string') return null;
-  const end = r.headers.get('github-authentication-token-expiration');
-  const ends = end ? Date.parse(end.trim().replace(' UTC', 'Z').replace(' ', 'T')) : NaN;
-  return { login: r.json.login, ends: Number.isNaN(ends) ? undefined : ends };
+  const r = await rest(fetch, token)('GET /user').catch(refused);
+  if (!r) return null;
+  const end = r.headers['github-authentication-token-expiration'];
+  const ends = typeof end === 'string' ? Date.parse(end.trim().replace(' UTC', 'Z').replace(' ', 'T')) : NaN;
+  return { login: r.data.login, ends: Number.isNaN(ends) ? undefined : ends };
 }
 // Whether the token reaches the repository (owner/repo): GitHub answers 404 for one it may not see, as for one not there.
 // 401: the token itself is refused.
-const reaches = async (fetch: Fetch, token: string, repo: string) => (await get(fetch, `/repos/${repo}`, token)).status;
+async function reaches(fetch: Fetch, token: string, repo: string) {
+  const [owner = '', name = ''] = repo.split('/');
+  return rest(fetch, token)('GET /repos/{owner}/{repo}', { owner, repo: name }).then((r) => r.status, statusOf);
+}
 // The accounts Kulisa App is installed on that this user may use (a user token's alone), or null when GitHub did not say.
 async function installations(fetch: Fetch, token: string) {
-  const r = await get(fetch, '/user/installations?per_page=100', token);
-  const list = r.status === 200 && Array.isArray(r.json?.installations) ? r.json.installations as { account?: { login?: string; slug?: string } }[] : null;
-  return list && list.map((i) => i.account?.login || i.account?.slug || '').filter(Boolean);
+  const r = await rest(fetch, token)('GET /user/installations', { per_page: 100 }).catch(refused);
+  return r && r.data.installations.map((i) => (i.account && ('login' in i.account ? i.account.login : i.account.slug)) || '').filter(Boolean);
 }
 
 export type { Fetch, Tokens };

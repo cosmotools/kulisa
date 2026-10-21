@@ -55,6 +55,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.0",
+    "@octokit/request": "^10.0.16",
     "@xterm/headless": "^6.0.0",
     "electron-log": "^5.4.4",
     "electron-squirrel-startup": "^1.0.1",

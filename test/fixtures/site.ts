@@ -32,7 +32,7 @@ const tokens = new Map<string, string>(); // a user token -> its login
 let issued = 0;
 function github(u: URL, req: IncomingMessage, res: ServerResponse, body: string) {
   const json = (v: unknown, code = 200, headers = {}) => { res.writeHead(code, { 'content-type': 'application/json', ...headers }); res.end(JSON.stringify(v)); };
-  const p = u.pathname.slice('/github'.length), form = new URLSearchParams(body);
+  const p = u.pathname.slice('/github'.length), form = new Map<string, string>(Object.entries(body ? JSON.parse(body) as Record<string, string> : {}));
   const pair = (login: string) => { const t = `ghu_${login}_${++issued}`; tokens.set(t, login);
     return { access_token: t, expires_in: 28800, refresh_token: `ghr_${login}_${issued}`, refresh_token_expires_in: 15897600, token_type: 'bearer', scope: '' }; };
   if (p === '/login/device/code') {

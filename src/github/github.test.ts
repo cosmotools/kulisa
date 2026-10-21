@@ -15,7 +15,7 @@ const folder = () => { const d = path.join(root, String(++n)); fs.mkdirSync(d); 
 // A keyring that marks what it encrypts, so a test sees a secret is no token in the clear.
 const keyring = (kept = true) => ({ kept: () => kept, encrypt: (s: string) => `enc:${Buffer.from(s).toString('base64')}`,
   decrypt: (s: string) => Buffer.from(s.replace(/^enc:/, ''), 'base64').toString() });
-const json = (body: unknown, status = 200, headers: Record<string, string> = {}) => new Response(JSON.stringify(body), { status, headers });
+const json = (body: unknown, status = 200, headers: Record<string, string> = {}) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', ...headers } });
 // GitHub, as far as these tests ask it: who a token is, a refresh (each answered when released), a repository reached.
 function fakeGitHub({ users = { ghu_1: 'ann' }, repos = {} }: { users?: Record<string, string>; repos?: Record<string, string[]> } = {}) {
   const calls: string[] = [];
@@ -24,7 +24,7 @@ function fakeGitHub({ users = { ghu_1: 'ann' }, repos = {} }: { users?: Record<s
     const u = new URL(url), token = String(new Headers(init?.headers).get('authorization') ?? '').replace('Bearer ', '');
     calls.push(u.pathname);
     if (u.pathname === '/login/oauth/access_token') {
-      const form = new URLSearchParams(String(init?.body));
+      const form = new Map<string, string>(Object.entries(JSON.parse(String(init?.body)) as Record<string, string>));
       await new Promise<void>((r) => pending.push(r));
       if (form.get('refresh_token') !== `ghr_${refreshes}`) return json({ error: 'bad_refresh_token' });
       refreshes++;
