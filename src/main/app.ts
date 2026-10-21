@@ -1,7 +1,7 @@
 // Kulisa, the app: the shell every module gets (shell.ts) put together, its windows with their open tasks
 // (open-tasks.ts), the agents, the CDP proxy and the MCP server, the windows' handles (ipc/), quitting. start(options)
 // is used by the entry point (index.ts) and by the tests.
-import { app, crashReporter, nativeTheme, Menu, safeStorage } from 'electron';
+import { app, crashReporter, nativeTheme, Menu, net, safeStorage, shell as electronShell } from 'electron';
 import { EventEmitter } from 'events';
 import path from 'path';
 import fs from 'fs';
@@ -12,7 +12,8 @@ import { ProfileStore } from './profile-store.ts';
 import { CookieSync } from './cookie-sync.ts';
 import { signinPages } from './signin-pages.ts';
 import { SessionCookies } from './session-cookies.ts';
-import { pictureOf } from './projects.ts';
+import { pictureOf, githubUsers, deleteGitHub } from './projects.ts';
+import { GitHub, installGitHub } from '../github/main/index.ts';
 import { COLORS } from './window.ts';
 import type { AppWindow } from './window.ts';
 import { findFavicon } from './favicons.ts';
@@ -120,9 +121,14 @@ function start(options: Options = {}) {
   // Test users' passwords, encrypted with the OS keyring (tasks.ts, setLogin); never kept in the clear.
   shell.secrets = {
     available: () => safeStorage.isEncryptionAvailable(),
+    kept: () => safeStorage.isEncryptionAvailable() && (process.platform !== 'linux' || safeStorage.getSelectedStorageBackend() !== 'basic_text'),
     encrypt: (s: string) => safeStorage.encryptString(s).toString('base64'),
     decrypt: (b: string) => safeStorage.decryptString(Buffer.from(b, 'base64')),
   };
+  // The GitHub accounts (src/github): their tokens kept with the OS keyring, and only in memory without one. Its
+  // requests through Chromium's network (net.fetch), which keeps the system's proxy.
+  shell.github = new GitHub({ dir: userData, fetch: (url, init) => net.fetch(url, init), secrets: shell.secrets });
+  shell.github.accounts.logAll();
   // A test user's password as it is kept: encrypted, or why not; none given: the one kept stays (profile-store.ts).
   shell.loginSecret = (password) => {
     if (!password) return {};
@@ -298,12 +304,14 @@ function start(options: Options = {}) {
   registerAgents(ipc);
   registerPanes(ipc);
   registerWindow(ipc);
+  installGitHub(shell.github, { usedBy: (id) => githubUsers(shell, id), remove: (e, id) => deleteGitHub(shell, id, asker(e)),
+    open: (url) => { void electronShell.openExternal(url); } });
   const ready = app.whenReady().then(async () => {
     // Whether the OS keeps Kulisa's key (session cookies, test passwords: profiles.md); on Linux which keyring, basic_text
     // being none (a fixed key: Electron's safe-storage.md). The classic Linux bug report, with nothing to read until now.
     const backend = process.platform === 'linux' ? safeStorage.getSelectedStorageBackend() : null;
     const encryption = `[kulisa] encryption ${safeStorage.isEncryptionAvailable() ? 'available' : 'not available'}${backend ? ` (${backend})` : ''}`;
-    if (safeStorage.isEncryptionAvailable() && backend !== 'basic_text') log.info(encryption); else log.warn(`${encryption}: no keyring found`);
+    if (shell.secrets.kept()) log.info(encryption); else log.warn(`${encryption}: no keyring found`);
     // macOS keeps a menu bar for the app: Electron's default one would reload Kulisa's own page with ⌘R. Its own
     // menu: About Kulisa (Settings at its About page, not Electron's panel), Settings… (⌘,, where Mac apps have it), Quit, Hide (the app's), Copy and Paste
     // (the Edit menu's roles: ⌘C, ⌘V in fields and the terminal), the windows. Kulisa's keys are taken before it

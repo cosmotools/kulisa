@@ -369,11 +369,11 @@ interface Asker { ask(q: Question): Promise<string | null> }
 class Questions {
   send: (q: Question & { id: number }) => void; answers = new Map<number, (answer: string | null) => void>();
   constructor(send: (q: Question & { id: number }) => void) { this.send = send; }
-  ask({ message, detail, ok, other, danger }: Question) {
+  ask({ message, detail, ok, other, danger, link }: Question) {
     return new Promise<string | null>((resolve) => {
       const id = ++asked;
       this.answers.set(id, resolve);
-      this.send({ id, message, detail, ok, other, danger });
+      this.send({ id, message, detail, ok, other, danger, link });
     });
   }
   answer(id: number, answer: string) { this.answers.get(id)?.(answer === 'ok' || answer === 'other' ? answer : null); this.answers.delete(id); }

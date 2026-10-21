@@ -7,7 +7,9 @@
 //                            Kulisa made), and the repositories or folders added to it (repos, the default first);
 //                            color: the one it has while its favicon gives none (docs/tasks.md, Projects); agents:
 //                            the agents' accounts its tasks run, the default (+'s) first; profiles: its profiles by
-//                            their ids, in order. What a project is made of is said here alone
+//                            their ids, in order; github: its repositories' GitHub accounts, by remote (remotes.ts:
+//                            "github.com/acme/shop" -> an account's id, src/github). What a project is made of is said
+//                            here alone
 //   projects/<id>/
 //     tasks.json             the project's tasks: { next, list: [{ n, name, branch, offset, folder,
 //                            copies: [{ repo, worktree, branch, base, folder }], home, closed, closedAt }] }; one
@@ -48,7 +50,7 @@ interface SavedTabs { urls: string[]; active: number }
 // A project in projects.json.
 interface ProjectEntry {
   id: string; name: string; folder: string; color: string; agents?: string[]; repos?: string[];
-  profiles?: string[]; local?: string[]; noDefaultAgent?: boolean;
+  profiles?: string[]; local?: string[]; noDefaultAgent?: boolean; github?: Record<string, string>;
 }
 // A task's copy of one repository (worktrees.ts, createWorktree).
 interface Copy { repo: string; worktree: string; branch: string; base: string | null; folder: string }

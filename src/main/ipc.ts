@@ -13,7 +13,7 @@ import { bare, log, summary } from './log.ts';
 // and what comes on every change or draw (the grid's boxes, layouts, lists read again), which would fill the log with
 // nothing. An answer to a question is logged without the answer: it may be anything the human typed.
 const QUIET = new Set<string>(['pty:in', 'pty:resize', 'layout', 'layout:save', 'layout:load', 'views:hidden', 'keys:zone', 'zoom:get', 'voice:get', 'voice:record',
-  'language:get', 'tasks:get', 'projects:list', 'accounts:list', 'profiles:list', 'agents:list', 'settings:ready']);
+  'language:get', 'tasks:get', 'projects:list', 'accounts:list', 'profiles:list', 'agents:list', 'settings:ready', 'github:accounts', 'project:github-get']);
 const BARE = new Set<string>(['ask:answer']);
 function line(channel: string, e: IpcEvent, args: unknown[]) {
   if (QUIET.has(channel)) return;

@@ -8,6 +8,8 @@
 //   /headers  echoes the User-Agent and Sec-CH-UA* request headers as JSON
 //   /draft    a page that holds its unload (beforeunload), as a form with unsaved changes does: never discarded
 //   /menu     a link, a field, an empty place and a block with its own right-click menu (as Teams has)
+//   /github   a fake GitHub (KULISA_GITHUB, run.ts), as Kulisa asks it: the device flow, a refresh, who a token is, a
+//             repository reached, Kulisa App's installations (github, below)
 // It runs in its own process: inside Electron's main process it can deadlock, because a synchronous Electron call
 // waits for a renderer that waits for a response from this (then blocked) server.
 import { spawn } from 'child_process';
@@ -21,6 +23,48 @@ function page(title: string, body: string, color = '#4a7') {
 
 const board: string[] = [];
 
+// The fake GitHub. A device flow's code is entered by the test as the human would on GitHub's page
+// (/github/login/device/enter?code=…&login=…), or denied (&deny=1). Kulisa App's user token of a login reaches its
+// own repositories, where it is "installed"; a fine-grained token github_pat_<login>_<owner> is <login>'s and reaches
+// <owner>'s, and ends at the time GitHub's header says.
+const codes = new Map<string, { device: string; login?: string; denied?: boolean }>();
+const tokens = new Map<string, string>(); // a user token -> its login
+let issued = 0;
+function github(u: URL, req: IncomingMessage, res: ServerResponse, body: string) {
+  const json = (v: unknown, code = 200, headers = {}) => { res.writeHead(code, { 'content-type': 'application/json', ...headers }); res.end(JSON.stringify(v)); };
+  const p = u.pathname.slice('/github'.length), form = new Map<string, string>(Object.entries(body ? JSON.parse(body) as Record<string, string> : {}));
+  const pair = (login: string) => { const t = `ghu_${login}_${++issued}`; tokens.set(t, login);
+    return { access_token: t, expires_in: 28800, refresh_token: `ghr_${login}_${issued}`, refresh_token_expires_in: 15897600, token_type: 'bearer', scope: '' }; };
+  if (p === '/login/device/code') {
+    const code = `KUL${++issued}-TEST`, device = `dev-${issued}`;
+    codes.set(code, { device });
+    return json({ device_code: device, user_code: code, verification_uri: `http://${req.headers.host}/github/login/device`, expires_in: 900, interval: 0.2 }); // GitHub says 5 s: a test waits less
+  }
+  if (p === '/login/device/enter') {
+    const c = codes.get(u.searchParams.get('code') || '');
+    if (!c) return json({ error: 'no such code' }, 404);
+    if (u.searchParams.get('deny')) c.denied = true; else c.login = u.searchParams.get('login') || 'ann';
+    return json({ ok: true });
+  }
+  if (p === '/login/oauth/access_token') {
+    if (form.get('grant_type') === 'refresh_token') return json(/^ghr_(\w+?)_\d+$/.test(form.get('refresh_token') || '') ? pair(form.get('refresh_token').split('_')[1]) : { error: 'bad_refresh_token' });
+    const c = [...codes.values()].find((x) => x.device === form.get('device_code'));
+    if (!c) return json({ error: 'incorrect_device_code' });
+    if (c.denied) return json({ error: 'access_denied' });
+    return json(c.login ? pair(c.login) : { error: 'authorization_pending' });
+  }
+  const token = (req.headers.authorization || '').replace(/^Bearer /, '');
+  const pat = /^github_pat_([a-z]+)_([a-z]+)$/.exec(token);
+  const login = tokens.get(token) ?? pat?.[1];
+  if (!login) return json({ message: 'Bad credentials' }, 401);
+  const ends = pat ? { 'github-authentication-token-expiration': '2027-03-01 12:00:00 UTC' } : {};
+  if (p === '/api/user') return json({ login }, 200, ends);
+  if (p === '/api/user/installations') return json({ total_count: 1, installations: [{ account: { login } }] });
+  const repo = /^\/api\/repos\/([^/]+)\/([^/]+)$/.exec(p);
+  if (repo) return json({}, repo[1].toLowerCase() === (pat ? pat[2] : login) ? 200 : 404, ends);
+  json({ message: 'Not Found' }, 404);
+}
+
 function handler(req: IncomingMessage, res: ServerResponse) {
   const u = new URL(req.url, 'http://x');
   const send = (code: number, body: string, type = 'text/html; charset=utf-8', headers = {}) => {
@@ -28,6 +72,11 @@ function handler(req: IncomingMessage, res: ServerResponse) {
     res.end(body);
   };
   const user = Object.fromEntries((req.headers.cookie || '').split(/;\s*/).filter(Boolean).map((c) => c.split('='))).user;
+  if (u.pathname.startsWith('/github/')) {
+    let body = '';
+    req.on('data', (d) => (body += d)).on('end', () => github(u, req, res, body));
+    return;
+  }
   if (u.pathname === '/hang') return; // a site that never answers (Kulisa must open a profile with such a tab anyway)
   if (u.pathname === '/headers') {
     const h = Object.fromEntries(Object.entries(req.headers).filter(([k]) => k === 'user-agent' || k.startsWith('sec-ch-ua')));

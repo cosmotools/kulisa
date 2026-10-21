@@ -377,7 +377,7 @@ tell), `docs/tasks.md` (projects, tasks, agents, windows, what is on the compute
 change; keep it current. Here: the layers, where a kind of code goes, and what must hold.
 
 Layers, each using only the ones below it (`npm run deps`, in `npm run lint`, refuses an import against them:
-`.dependency-cruiser.ts`; docs/testing.md, Layers). Under them all, `worktrees.ts` and `local.ts`; `src/shared/`
+`.dependency-cruiser.ts`; docs/testing.md, Layers). Under them all, `worktrees.ts`, `remotes.ts` and `local.ts`; `src/shared/`
 what the main process and the window both import (the rule for names, the profiles' pictures, `Result`).
 
 1. **Profiles** (`profiles.ts`, `project-profiles.ts`, `profile-store.ts`, `store.ts`, `session-cookies.ts`,

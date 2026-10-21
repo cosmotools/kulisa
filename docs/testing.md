@@ -163,7 +163,7 @@ runs it after ESLint) fails on an import against the layers (CLAUDE.md, Architec
 
 - Runtime imports only: an `import type` crosses the layers freely, as it is gone once the types are stripped.
 - Layers 1 and 2 are lists of `src/main`'s files, layer 3 its folder `kulisa-plugin/`; a file in none of them is the window's
-  (layer 4), which may import anything. Below layer 1, the base (`worktrees.ts`, `local.ts`): used by every layer, using
+  (layer 4), which may import anything. Below layer 1, the base (`worktrees.ts`, `remotes.ts`, `local.ts`): used by every layer, using
   none of them. `src/shared/` is what the main process and the window both import (`names.ts`, `avatars.ts`,
   `result.ts`); it imports nothing else of `src/`. The window's page never imports `src/main`.
 - A Kulisa package (`src/terminal/`; [packages.md](packages.md)) is reached only through its entries
@@ -285,4 +285,4 @@ env -i PATH=$(dirname $(which node)):/usr/bin:/bin HOME=$H TMPDIR=$H XDG_CURRENT
 | `test/run.ts` | one app: starts Kulisa (`app.start`) with a fake agent (`cat`), runs the files it is given |
 | `test/helpers.ts` | the group's folder, waiting, driving the window like the human |
 | `test/setup.ts` | the fixture of a group that does not start with `agent.ts` |
-| `test/fixtures/site.ts` | the local test site (sign-in by cookie, dialogs, a board shared by profiles, a site that never answers) |
+| `test/fixtures/site.ts` | the local test site (sign-in by cookie, dialogs, a board shared by profiles, a site that never answers, a fake GitHub) |

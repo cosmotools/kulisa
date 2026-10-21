@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // Settings, as JetBrains' (docs/tasks.md, Projects; docs/ui.md), the whole of its window (Settings.vue): a tree on the
-// left (Projects, Agents, Profiles, each with its own under it, Agents and Profiles with a + beside them), the chosen
-// one's page on the right under its path. Saved as it changes (no OK, no Cancel). Settings only: a project is made in a
+// left (Projects, Agents, Profiles, each with its own under it, Agents and Profiles with a + beside them; GitHub's page after
+// Agents), the chosen one's page on the right under its path. Saved as it changes (no OK, no Cancel). Settings only: a project is made in a
 // tasks' window (New Project…), which then opens it here.
 import { computed, nextTick, ref, watch } from 'vue';
 import { ListboxContent, ListboxItem, ListboxRoot, TreeItem, TreeRoot } from 'reka-ui';
@@ -13,6 +13,8 @@ import AgentPage from './AgentPage.vue';
 import ProfilePage from './ProfilePage.vue';
 import LogPage from './LogPage.vue';
 import AboutPage from './AboutPage.vue';
+import GitHubPage from './GitHubPage.vue';
+import RepoAccount from './RepoAccount.vue';
 import ProjectIcon from '../ProjectIcon.vue';
 import { avatarSrc } from '../../lib/common';
 import { projectColor } from '../../lib/project-color';
@@ -20,11 +22,12 @@ import { focusAfterMenu, type MenuItem } from '../../lib/menu';
 import { agentList, agentMark, type Agent } from '../../lib/agents';
 import { refused } from '../../../shared/result';
 import type { Result } from '../../../shared/result';
-import type { Account, AccountsInfo, ProjectAgent, ProjectChoices, ProjectEntry, ProjectProfile, ProjectRepo, SettingsProfile, SignedIn } from '../../../shared/types';
+import type { Account, AccountsInfo, ProjectAgent, ProjectChoices, ProjectEntry, ProjectGitHub, ProjectProfile, ProjectRepo, SettingsProfile, SignedIn } from '../../../shared/types';
 
 // The page shown, of the tree's section (the log and About are pages of their own, under them); the agents' list lives here, so an
 // install goes on while a project is shown, and the window stays open while it runs (close).
-type Section = 'projects' | 'agents' | 'profiles' | 'log' | 'about';
+type Section = 'projects' | 'agents' | 'profiles' | 'github' | 'log' | 'about';
+type Page = 'github' | 'log' | 'about';
 const tab = ref<Section>('projects');
 const agentAt = ref<string>(), profileAt = ref<string>(); // the agent, the profile shown
 const agentPage = ref<InstanceType<typeof AgentPage>>();
@@ -41,6 +44,8 @@ const editing = ref<string | null>(null);
 const name = ref(''), local = ref(''), error = ref('');
 const choices = ref<ProjectChoices>({ agents: [], clis: [] });
 const repos = ref<ProjectRepo[]>([]), former = ref<string | null>(null), cloneUrl = ref(''), codeError = ref(''), cloning = ref(false);
+// Its repositories' GitHub accounts (src/github), asked of GitHub after the page is shown: null until they come.
+const github = ref<ProjectGitHub | null>(null);
 const mine = ref<ProjectAgent[]>([]), agentError = ref('');
 const signing = ref<{ id: string; name: string } | null>(null); // New Account…: the agent it is of, while signing in
 const profiles = ref<ProjectProfile[]>([]), others = ref<ProjectProfile[]>([]), newName = ref(''), profileError = ref('');
@@ -58,15 +63,17 @@ async function lists() {
   allProfiles.value = p.profiles; showAccounts(a);
 }
 
-// The tree: the three sections, each with its own under it (a section only opens and closes), then the Log and About pages.
-type Node = { key: string; label: string; section?: Section; page?: 'log' | 'about'; project?: ProjectEntry; agent?: Agent; profile?: SettingsProfile; children?: Node[] };
+// The tree: the three sections, each with its own under it (a section only opens and closes), GitHub's page after Agents,
+// then the Log and About pages.
+type Node = { key: string; label: string; section?: Section; page?: Page; project?: ProjectEntry; agent?: Agent; profile?: SettingsProfile; children?: Node[] };
 const tree = computed<Node[]>(() => [
   { key: 'projects', label: 'Projects', section: 'projects', children: projects.value.map((p) => ({ key: `p:${p.id}`, label: p.name, project: p })) },
   { key: 'agents', label: 'Agents', section: 'agents', children: agentsList.state.agents.map((a) => ({ key: `a:${a.id}`, label: a.name, agent: a })) },
+  { key: 'github', label: 'GitHub', page: 'github' },
   { key: 'profiles', label: 'Profiles', section: 'profiles', children: allProfiles.value.map((p) => ({ key: `f:${p.id}`, label: p.name, profile: p })) },
   { key: 'log', label: 'Log', page: 'log' }, { key: 'about', label: 'About', page: 'about' }]);
 const expanded = ref<string[]>(['projects', 'agents', 'profiles']);
-const chosenKey = computed(() => ({ projects: editing.value && `p:${editing.value}`, agents: agentAt.value && `a:${agentAt.value}`, profiles: profileAt.value && `f:${profileAt.value}`, log: 'log', about: 'about' })[tab.value]);
+const chosenKey = computed(() => ({ projects: editing.value && `p:${editing.value}`, agents: agentAt.value && `a:${agentAt.value}`, profiles: profileAt.value && `f:${profileAt.value}`, github: 'github', log: 'log', about: 'about' })[tab.value]);
 const chosenNode = computed(() => tree.value.flatMap((n) => [n, ...(n.children ?? [])]).find((n) => n.key === chosenKey.value));
 const shownAgent = computed(() => agentsList.state.agents.find((a) => a.id === agentAt.value));
 const shownProfile = computed(() => allProfiles.value.find((p) => p.id === profileAt.value));
@@ -102,6 +109,7 @@ async function edit(id: string) {
   local.value = (c.local || []).join(' ');
   saved = lookNow();
   repos.value = c.repos; former.value = c.former || null;
+  github.value = null; void githubNow();
   mine.value = c.projectAgents;
   profiles.value = c.profiles; others.value = c.others;
   await showList();
@@ -113,7 +121,7 @@ async function edit(id: string) {
 async function openProjects(id?: string, on: Section = 'projects', at?: string) {
   tab.value = on;
   if (on === 'profiles') profileAt.value = at ?? profileAt.value;
-  if (on !== 'log' && on !== 'about' && !expanded.value.includes(on)) expanded.value = [...expanded.value, on];
+  if (on !== 'log' && on !== 'about' && on !== 'github' && !expanded.value.includes(on)) expanded.value = [...expanded.value, on];
   // The agents as last found (or, the first time, after a moment saying so), then looked for again behind them.
   const agentsShown = new Promise<void>((shown) => { void agentsList.load(undefined, async () => shown()); });
   await lists(); // a profile gone: the first one shown instead (watch, above)
@@ -235,9 +243,20 @@ async function code(answer: Promise<Result<{ repos?: ProjectRepo[]; former?: str
   codeError.value = '';
   const r = await answer;
   if (refused(r)) codeError.value = r.error;
-  else if (r.repos) { repos.value = r.repos; if ('former' in r) former.value = r.former || null; }
+  else if (r.repos) { repos.value = r.repos; if ('former' in r) former.value = r.former || null; void githubNow(); }
   return r;
 }
+// The repositories' GitHub accounts as they are now (accounts added or signed out in Settings → GitHub meanwhile); one
+// chosen on a row binds its remote.
+async function githubNow(answer?: Promise<Result<ProjectGitHub>>) {
+  const id = editing.value;
+  if (!id) return;
+  const r = await (answer ?? kulisa.invoke('project:github-get', { id }));
+  if (editing.value !== id) return;
+  if (refused(r)) codeError.value = r.error; else github.value = r;
+}
+const githubOf = (folder: string) => github.value?.repos.find((g) => g.folder === folder);
+const bindGitHub = (remote: string, account: string) => githubNow(kulisa.invoke('project:github-set', { id: id(), remote, account }));
 const id = () => editing.value!; // the project shown: every change is made on its page
 // The selection goes with its row, not when the row stays (refused, or a no to the question).
 const removeRepo = (folder = repoSel.value) => folder && code(kulisa.invoke('project:repo-remove', { id: id(), folder }))
@@ -333,7 +352,7 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
           <TreeItem v-for="it in flattenItems" :key="it._id" v-bind="it.bind" class="item" :data-key="it.value.key" :data-section="it.value.section" :data-page="it.value.page"
             :data-project="it.value.project?.id" :data-agent="it.value.agent?.id" :data-profile="it.value.profile?.id"
             :style="{ '--color': it.value.project && projectColor(it.value.project) }" @select="choose">
-            <Icon v-if="it.value.section" class="twist" name="i-down" /><Icon v-else-if="it.value.page" class="twist" :name="it.value.page === 'log' ? 'i-docs' : 'i-logo'" /><ProjectIcon v-if="it.value.project" :p="it.value.project" />
+            <Icon v-if="it.value.section" class="twist" name="i-down" /><Icon v-else-if="it.value.page" class="twist" :name="({ github: 'i-github', log: 'i-docs', about: 'i-logo' } as const)[it.value.page]" /><ProjectIcon v-if="it.value.project" :p="it.value.project" />
             <template v-if="it.value.agent"><Icon v-if="mark(it.value.agent)" class="logo" :name="mark(it.value.agent)!" /></template>
             <img v-if="it.value.profile" class="avatar" alt="" :src="avatarSrc(it.value.profile.avatar)">
             <span class="text"><span class="label" :title="it.value.section ? undefined : it.value.label">{{ it.value.label }}</span></span>
@@ -373,11 +392,16 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
                 <button id="nprepodefault" class="icon small" type="button" title="Make Default: new tasks' agents start in its copy" aria-label="Make Default"
                   :disabled="!repoSel || repoSel === repos[0]?.folder" @click="defaultRepo()"><Icon name="i-star" /></button>
               </div>
-              <div v-if="repos.length" class="head" aria-hidden="true"><span>Name</span><span>Folder</span><span /></div>
+              <div v-if="repos.length" class="head" aria-hidden="true"><span>Name</span><span>Folder</span><span>GitHub</span><span /></div>
               <ListboxRoot selection-behavior="replace" v-if="repos.length" id="nprepos" v-model="repoSel" aria-label="Code" @keydown.delete="removeRepo()">
                 <ListboxContent>
                   <ListboxItem v-for="(r, i) in repos" :key="r.folder" :value="r.folder" class="item" :data-folder="r.folder">
                     <span class="cell label" :title="base(r.folder)">{{ base(r.folder) }}</span><small class="cell" :title="r.folder">{{ r.folder }}</small>
+                    <span class="cell github"><template v-if="githubOf(r.folder)?.remote">
+                      <small v-if="githubOf(r.folder)!.state === 'not-github'" class="notgithub" title="Its origin is not on github.com (or an SSH name ssh cannot tell)">not a GitHub address</small>
+                      <small v-else-if="!github!.accounts.length" title="Add an account in Settings → GitHub">no account</small>
+                      <RepoAccount v-else :repo="githubOf(r.folder)!" :accounts="github!.accounts" @choose="(a) => bindGitHub(githubOf(r.folder)!.remote!, a)" />
+                    </template></span>
                     <span class="cell end"><kbd v-if="r.git !== 'ok'" class="warn">{{ r.git === 'none' ? 'no git' : 'no commit yet' }}</kbd>
                       <kbd v-if="!i && repos.length > 1" class="default" title="New tasks' agents start in its copy">default</kbd></span>
                   </ListboxItem>
@@ -392,6 +416,11 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
               @keydown.enter.prevent="clone" @keydown.esc.stop.prevent="stopAdding">
             <button type="button" @click="stopAdding">Cancel</button>
             <button id="npclone" class="primary" type="button" :disabled="cloning" @click="clone">{{ cloning ? 'Cloning…' : 'Clone' }}</button>
+          </div>
+          <!-- Why a repository's account cannot reach it, a line each -->
+          <div v-if="github?.repos.some((g) => g.why)" id="npgithub">
+            <p v-for="g in github.repos.filter((g) => g.why)" :key="g.folder" class="hint" :data-folder="g.folder">{{ base(g.folder) }}: {{ g.why }}
+              <a v-if="g.install" :href="g.install" target="_blank">Install it on {{ g.owner }}</a><template v-if="g.install"> (or ask its owner to)</template></p>
           </div>
           <p id="npformer" class="hint" :hidden="!former"><span>{{ former ? `Former folder ${former}: new tasks work in the repositories; move its files into one.` : '' }}</span>
             <button id="npshowformer" type="button" @click="kulisa.invoke('project:show-former', { id: editing })">Show</button></p>
@@ -489,6 +518,10 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
       </div>
       <AgentPage ref="agentPage" :list="agentsList" :chosen="agentAt" :accounts :clis @accounts="showAccounts" />
     </div>
+    <div v-show="tab === 'github'" id="ghconfig">
+      <div class="crumbs"><b>GitHub</b></div>
+      <GitHubPage :shown="tab === 'github'" />
+    </div>
     <div v-show="tab === 'log'" id="lgconfig">
       <div class="crumbs"><b>Log</b></div>
       <LogPage :shown="tab === 'log'" />
@@ -509,7 +542,7 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
   #pjlist { margin: 0; padding: 0; outline: none;
     .item { min-height: var(--row); padding: 0 4px 0 8px; gap: var(--gap); border-radius: var(--radius); padding-inline-start: calc(8px + (var(--level, 1) - 1) * 18px); }
     [aria-level="2"] { --level: 2; }
-    :is([data-section], [data-page="log"]):not(:first-child) { margin-top: var(--inset); } /* the pages together, under the sections */
+    :is([data-section], [data-page="github"], [data-page="log"]):not(:first-child) { margin-top: var(--inset); } /* the pages together, under the sections */
     .twist { width: 12px; height: 12px; color: var(--text-dim); } [aria-expanded="false"] .twist { rotate: -90deg; }
     .picon, .logo { flex: none; width: 16px; height: 16px; } .picon { color: var(--color); } .avatar { --avatar: 16px; }
     .label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } kbd { flex: none; }
@@ -517,7 +550,7 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
     &:focus-within [aria-selected="true"] { background: var(--chosen); } }
   /* More room than a dialog's, as JetBrains' Settings: along the sides, and between the groups, so a list does not run
      into the next one's title */
-  :is(#pjconfig, #agconfig, #prconfig, #lgconfig, #abconfig) { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--inset); overflow: hidden auto;
+  :is(#pjconfig, #agconfig, #prconfig, #ghconfig, #lgconfig, #abconfig) { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--inset); overflow: hidden auto;
     padding: 0 calc(1.5 * var(--pad)) var(--pad);
     > * { flex: none; } }
   /* The log scrolls inside its box, the page not at all: its tools and buttons stay in sight */
@@ -531,7 +564,10 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
     > .error, > .hint { margin: 0; } > .hint:not([hidden]) { margin-inline-start: calc(var(--label) + var(--inset)); } }
   .list [role="listbox"] { max-height: calc(6 * var(--row)); overflow: auto; }
   /* The columns: the name as wide as it needs (at most about half), what it is in the rest, its state at the end */
-  #npreposrow .list, #npagentsrow .list { --cols: fit-content(45%) minmax(0, 1fr) auto; }
+  #npagentsrow .list { --cols: fit-content(45%) minmax(0, 1fr) auto; }
+  #npreposrow .list { --cols: fit-content(30%) minmax(0, 1fr) fit-content(30%) auto; } /* its name, folder, GitHub account, state */
+  .github { display: flex; align-items: center; min-width: 0; .select { height: calc(var(--control) - 6px); max-width: 100%; } small { color: var(--text-muted); } }
+  #npgithub .hint { margin: 0; .hint + & { margin-top: 2px; } }
   #npprofilesrow .list { --cols: fit-content(45%) minmax(0, 1fr) fit-content(30%); }
   #npformer button { margin-inline-start: var(--gap); }
   .none { display: flex; flex-direction: column; align-items: start; gap: var(--gap); padding-top: var(--pad); .empty { margin: 0; } }

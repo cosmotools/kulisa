@@ -2,7 +2,7 @@
 // name, local addresses, code, agents and profiles (projects.ts).
 import { BrowserWindow, dialog, shell as electronShell } from 'electron';
 import path from 'path';
-import { addRepo, cloneRepo, defaultRepo, removeRepo, reposInfo, askDropProfile, dropProfile, agentsInfo, addAgent, defaultAgent, removeAgent, createProject, folderStateOf } from '../projects.ts';
+import { addRepo, cloneRepo, defaultRepo, removeRepo, reposInfo, askDropProfile, dropProfile, agentsInfo, addAgent, defaultAgent, removeAgent, createProject, folderStateOf, githubOf, setGitHub } from '../projects.ts';
 import { nameError } from '../../shared/names.ts';
 import { refused } from '../../shared/result.ts';
 import { handle } from '../ipc.ts';
@@ -94,6 +94,9 @@ export function registerProjects(ipc: Ipc, { lookForFavicon }: { lookForFavicon:
   handle('project:agent-add', (_e, { id, agent }) => addAgent(shell, id, agent));
   handle('project:agent-default', (_e, { id, agent }) => defaultAgent(shell, id, agent));
   handle('project:agent-remove', (_e, { id, agent }) => removeAgent(shell, id, agent));
+  // Its repositories' GitHub accounts (projects.ts, githubOf): asked of GitHub, after the page is shown.
+  handle('project:github-get', (_e, { id }) => githubOf(shell, id));
+  handle('project:github-set', (_e, { id, remote, account }) => setGitHub(shell, id, remote, account));
   // Its name and local addresses.
   handle('project:settings', (_e, { id, name, local = store.projects().find((p) => p.id === id)?.local }) => {
     name = name?.trim();

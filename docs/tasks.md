@@ -192,6 +192,10 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   names those tasks (deleting a copy would delete their work). A project whose own folder has no git keeps it until a
   repository is added; then it is its **former folder**: new tasks work in copies of the repository, those that worked in it go on there,
   and the settings say so, with Show, while it exists (the human moves its files, or asks an agent).
+  Each repository's row has its **GitHub account**: the one its origin's remote is bound to, by what the remote points to
+  (`remotes.ts`, the same on every computer), else the first account that reaches it, bound then; under the list, a line
+  for one no account can reach, or whose account is signed out ([src/github](../src/github/README.md), A repository's
+  account).
 - **The empty window** (the term: CLAUDE.md) is what a window is with no task open: at the first start, and after
   the last task is closed (×, Close All Tasks, deleting the project). The title bar, no tasks' bar (no tab, and its +
   would show the board the window shows already), and in the grid's place (`Empty.vue`) the
@@ -333,6 +337,8 @@ to the human; the window's IPC (`ipc/`) and the MCP tools are handles on it:
 | Add, make the default (or none the default), remove an agent of the project | the projects' manager | none: what the project is made of is the human's | `addAgent`, `defaultAgent`, `removeAgent` (`projects.ts`) |
 | Make an account of an agent | New Account… in Settings → Agents or a project's page | none: signing in is the human's (Rules) | `account:signin` (`app.ts`), `Accounts.prepare`, `create` |
 | Delete an account | − in Settings → Agents | none: it deletes a sign-in and conversations, the human's to decide | `deleteAccount` (`projects.ts`), `shell.dropAccount` |
+| Add a GitHub account, sign it in again, delete it | Settings → GitHub | none: signing in is the human's (Rules) | `GitHub.startFlow`, `addToken`, `deleteGitHub` (`projects.ts`; [src/github](../src/github/README.md)) |
+| Choose a repository's GitHub account | its row on the project's page | none: what the project is made of is the human's | `setGitHub` (`projects.ts`) |
 | Open an agent in the task, a new conversation | the island's +, New Conversation (a tab's menu), Ctrl+` on the folded island | none: which agents work is the human's | `Task.openAgent`, `newConversation` |
 | Hand the task to an agent, the work kept | the agent's icon on its tab, Change agent… (a tab's menu) | none: the human's choice | `Task.handOver` |
 | Close an agent's tab | × on it, Close in its menu (asked first) | none: it would stop another agent | `Task.closeTab` |
@@ -600,7 +606,8 @@ asks where it is or what takes the disk; nothing in it is for editing by hand, s
 
 ```
 projects.json                     the projects, { list: [...] } (as profiles.json and agents.json: a field can sit beside
-                                  the list): id, name, folder, repos, color (the one it has while its favicon gives none), agents (accounts, the default first), profiles (their ids, in order), noDefaultAgent;
+                                  the list): id, name, folder, repos, color (the one it has while its favicon gives none), agents (accounts, the default first), profiles (their ids, in order), noDefaultAgent,
+                                  github (its repositories' GitHub accounts by remote: src/github; one goes with its account, or its repository);
                                   id: six random lowercase letters and digits (k3f9a2), made with the project and never
                                   changed, so a rename leaves its data folder, its tasks' keys (k3f9a2/1) and their agents'
                                   MCP address as they are; no name in it to go stale, and the log names the project
@@ -611,6 +618,9 @@ profiles.json                     the profiles, one store (profiles.md): { list:
 profiles/<id>/                    a profile's master, a Chromium profile, where the human signs in once for every task;
                                   kept in no project too, gone when the human deletes the profile (Settings → Profiles)
 agents.json                       the agents' accounts (accounts.ts): { list: [{ id, agent, email }] }
+github.json                       the GitHub accounts (src/github): { list: [{ id, login, kind, secret }] }; secret: its
+                                  tokens encrypted with the OS keyring, none without one (kept in memory then) or when
+                                  signed out; an account goes when the human deletes it (Settings → GitHub)
 agents/<agent>-<id>/              an account's config folder (CLAUDE_CONFIG_DIR, CODEX_HOME): its sign-in, settings,
                                   conversations; Kulisa's profiles skill (skills/kulisa-profiles/) and Claude Code's
                                   settings for Kulisa (kulisa-settings.json), written at each start; gone, signed out first, when the human deletes it (Settings →

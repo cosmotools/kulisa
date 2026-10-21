@@ -124,7 +124,9 @@ Everything is saved as you change it; there is no Save button.
 - **Name**.
 - **Code**: its repositories or folders. **+** adds one (Add Folder…, Clone from URL…), **−** removes the selected
   one from the project (its folder stays), **★** makes it the default: a new task gets a copy of it, and the agent
-  starts there; a task adds the others when it needs them (Tasks, below).
+  starts there; a task adds the others when it needs them (Tasks, below). Each repository on GitHub shows the GitHub
+  account it goes as (GitHub, below): Kulisa picks the first of yours that can reach it, and you can choose another
+  there. A line under the list says when none can, and why.
 - **Agents**: the accounts its tasks run. **★** makes one the default, the one a new task runs; **★** on the default
   one again leaves the project with no default: a new task then starts with nothing running, and big buttons in the
   middle let you open the agent you want, or a terminal. With no agents at all, a new task starts with a terminal.
@@ -162,6 +164,33 @@ chosen in **☰ → Language**. The microphone at the end of the terminals' row 
 works the same way by the mouse: hold it, or click to start and again to stop. With a terminal or an agent without
 dictation in front, the key brings the agent back in front; the microphone is greyed out then. Another key instead of
 the right Ctrl: **☰ → Keyboard Shortcuts**, Change on its row, then press the key.
+
+## GitHub
+
+**Settings → GitHub** holds your GitHub accounts, as many as you have (work, personal). Kulisa keeps their sign-ins
+itself, encrypted with your computer's keyring; your agents never see them. **+** adds one, two ways:
+
+- **With GitHub…**: Kulisa shows a code and opens GitHub's page in your browser; enter the code there and allow
+  **Kulisa App**. Then install Kulisa App on the accounts or organizations whose repositories you work on
+  (github.com/apps/kulisa-app): it reaches only those, and only what it asks for (reading code, pull requests and
+  issues, checks). **Enter a code on GitHub only when Kulisa has just shown it to you**: a code someone else gives you
+  would sign them in as you.
+- **With a Token…**, for an organization that does not install Kulisa App: make a fine-grained personal access token
+  on GitHub (the link there fills in the permissions Kulisa needs), choose the organization as its resource owner and
+  its repositories, and paste it. A classic token is refused: it reaches all of your repositories.
+
+In an organization you are a member of, only its owner can install Kulisa App: GitHub lets you request it, and the
+owner decides. Ask them to install Kulisa App on the repositories you work on; or, if they will not, make a
+fine-grained token for the organization, which its owner may also have to approve (and, where the organization signs
+in through its company's single sign-on, authorize for it). A repository no account can reach says so on its row in
+the project, with a link to install Kulisa App.
+
+The list shows each account, where Kulisa App is installed, the projects using it and until when it is signed in. A
+sign-in with GitHub lasts six months from the last time Kulisa used it; a token, until it ends. When one ends, or
+GitHub turns it down, the account says **signed out**: **Sign in Again…** in its right-click menu. On a Linux computer
+without a keyring, Kulisa cannot keep a sign-in safely, so it keeps none: you sign in again after Kulisa restarts, and
+the page says so. **−** deletes an account after a question; Kulisa forgets its sign-in, which GitHub still knows until
+it ends: the question links the GitHub page where you revoke it at once.
 
 ## Tasks
 
@@ -365,7 +394,7 @@ its settings. Usually:
   are made there too.
 - Profiles, sign-ins, accounts and settings are in Kulisa's data folder: `~/.config/Kulisa` on Linux (or under
   `$XDG_CONFIG_HOME` when that is set), `~/Library/Application Support/Kulisa` on macOS, `%APPDATA%\Kulisa` on
-  Windows. Session cookies and test passwords
+  Windows. Session cookies, test passwords and GitHub sign-ins
   are encrypted with your OS's keyring. **Show Data Folder** in a task tab's right-click menu, under the project's name, opens that project's.
 - Deleting a task, a profile or a project removes what Kulisa made for it.
 - Screenshots you take are yours, in your computer's folder of screenshots (A profile's pane, above): Kulisa does
