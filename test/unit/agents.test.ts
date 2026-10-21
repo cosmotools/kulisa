@@ -7,6 +7,7 @@ import path from 'path';
 import os from 'os';
 import { extendTrust, AGENTS, findAgent } from '../../src/main/agents/index.ts';
 import { claudeConfigOf } from '../../src/main/agents/claude.ts';
+import { codex } from '../../src/main/agents/codex.ts';
 import { CAPABILITIES } from '../../src/main/agents/agent.ts';
 import { installSkill } from '../../src/main/agents/files.ts';
 import { Accounts } from '../../src/main/accounts.ts';
@@ -195,6 +196,16 @@ test("agents: a task's other folders go to Claude Code and Codex as --add-dir (C
 
 test("agents: one not installed is not found, so the window offers to install it", async () => {
   for (const a of AGENTS.filter((x) => x.command)) assert.equal(await findAgent({ ...a, command: 'kulisa-no-such-agent' }, root), null, a.name);
+});
+
+test("Codex: the email is its auth.json id token's; none without one", () => {
+  const dir = fs.mkdtempSync(path.join(root, 'codex-auth-')), email = codex.config.email;
+  const jwt = (claims: object) => ['e30', Buffer.from(JSON.stringify(claims)).toString('base64url'), 'sig'].join('.');
+  assert.equal(email('Logged in using ChatGPT', dir), null, 'no auth.json');
+  fs.writeFileSync(path.join(dir, 'auth.json'), JSON.stringify({ auth_mode: 'chatgpt', tokens: { id_token: jwt({ email: 'ann@shop.com' }) } }));
+  assert.equal(email('Logged in using ChatGPT', dir), 'ann@shop.com');
+  fs.writeFileSync(path.join(dir, 'auth.json'), JSON.stringify({ auth_mode: 'apikey', OPENAI_API_KEY: 'k' }));
+  assert.equal(email('Logged in using an API key', dir), null, 'an API key: no email');
 });
 
 test("accounts: one store, kept until deleted; its folder a fixed id, never a number used before, the email kept; an agent with accounts is no account itself", () => {

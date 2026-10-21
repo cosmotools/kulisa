@@ -77,7 +77,7 @@ function accountEmail(agent: Agent, found: Found | null, dir: string): Promise<{
   if (!found?.path || !config?.status) return Promise.resolve(null);
   return new Promise((resolve) => {
     const p = execFile(found.path!, config.status, { timeout: 20000, windowsHide: true, env: { ...process.env, [config.env]: dir } },
-      (e, out) => resolve(e ? null : { email: config.email(String(out))?.toLowerCase() ?? null }));
+      (e, out) => resolve(e ? null : { email: config.email(String(out), dir)?.toLowerCase() ?? null }));
     p.stdin?.end();
   });
 }

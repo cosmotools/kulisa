@@ -405,7 +405,9 @@ are not programmers); its accounts are made there too, or in a project's page.
     before: a removed one's folder may wait for the next start), never renamed: Claude Code names its macOS Keychain
     entry after a hash of the config folder's path, so a folder renamed after the sign-in would
     lose it. The email it signed in to is read after it (`auth status`) and kept in `agents.json`: the account is
-    shown as "Claude Code · ann@shop.com"; Codex's status does not say it ("Logged in using ChatGPT"), so it is shown by its id.
+    shown as "Claude Code · ann@shop.com". Codex's status does not say it ("Logged in using ChatGPT"): its email is read
+    from its `auth.json`, the email of its ChatGPT id token (undocumented, so read with care: none there, as signed in
+    with an API key, and the account is shown by its id); only the email, never the token.
     An email the store has already is that account: the new folder is signed out and removed, the existing one added
     to the project (made in Settings → Agents: said so). Cancel, Settings closed, or a sign-in ended without an account
     keeps nothing.
