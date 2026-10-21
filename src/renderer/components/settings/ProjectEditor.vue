@@ -157,7 +157,7 @@ async function close() {
   kulisa.send('settings:close');
 }
 defineExpose({ close });
-// Delete Project…, here alone (the author, 2026-10-11): asked first (projects.ts, askDeleteProject), closed if open;
+// Delete Project…, here alone (the author's choice): asked first (projects.ts, askDeleteProject), closed if open;
 // then Settings goes on to the one shown, or another project.
 async function deleteProject(id: string) {
   const r = await kulisa.invoke('project:delete', { id });
@@ -393,7 +393,7 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
             <button type="button" @click="stopAdding">Cancel</button>
             <button id="npclone" class="primary" type="button" :disabled="cloning" @click="clone">{{ cloning ? 'Cloning…' : 'Clone' }}</button>
           </div>
-          <p id="npformer" class="hint" :hidden="!former"><span>{{ former ? `Former folder ${former}: tasks no longer work in it; move its files into a repository.` : '' }}</span>
+          <p id="npformer" class="hint" :hidden="!former"><span>{{ former ? `Former folder ${former}: new tasks work in the repositories; move its files into one.` : '' }}</span>
             <button id="npshowformer" type="button" @click="kulisa.invoke('project:show-former', { id: editing })">Show</button></p>
           <p id="npcodeerror" class="error">{{ codeError }}</p>
         </section>
@@ -515,8 +515,8 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
     .label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } kbd { flex: none; }
     [aria-selected="true"] { background: var(--chosen-idle); color: var(--text-strong); }
     &:focus-within [aria-selected="true"] { background: var(--chosen); } }
-  /* More room than a dialog's, as JetBrains' Settings: along the sides, and between the groups, whose lists ran into
-     the next one's title (the author, 2026-10-16) */
+  /* More room than a dialog's, as JetBrains' Settings: along the sides, and between the groups, so a list does not run
+     into the next one's title */
   :is(#pjconfig, #agconfig, #prconfig, #lgconfig, #abconfig) { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--inset); overflow: hidden auto;
     padding: 0 calc(1.5 * var(--pad)) var(--pad);
     > * { flex: none; } }

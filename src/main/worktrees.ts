@@ -28,7 +28,7 @@ const ok = (p: Promise<unknown>) => p.then(() => true, () => false);
 // The repository the folder is in: { top (its root), sub (the folder inside it), commit (has one) }; null without git.
 // git answers with the real path, and the folder may be named through a symlink (macOS's /var and /tmp are
 // /private's): the sub is the real folder's, and the top named as the folder is, so a task's copy goes next to it under
-// the name the human knows (with the two mixed, a task got the project's own folder: 2026-10-16). Only when that name
+// the name the human knows (with the two mixed, a task would get the project's own folder). Only when that name
 // is the top's: going up from a link into the repository (a monorepo's app) reached a folder outside it.
 async function repoOf(folder: string) {
   const out = await git(folder, ['rev-parse', '--show-toplevel']).catch((): null => null);

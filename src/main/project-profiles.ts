@@ -49,7 +49,7 @@ class ProjectProfiles {
   // The project's profiles, with what this task has of each; the closed ones stay closed. A new task has them all
   // closed (projects.ts, createTask); one the project got later comes closed. The open ones are made at once (in the
   // maps) and started behind, together (their cookies, tabs, automation: a site's answer away): the task's grid waits
-  // for none of them, as it waited for each in turn until 2026-10-15. Saved once they have started.
+  // for none of them. Saved once they have started.
   load() {
     const state = new Map((this.store.profiles() || []).map((x) => [x.folder, x]));
     this.entries = this.all.of(this.project).map((g) => ({ cfg: this._cfg(g, state.get(g.folder)), tabs: this.store.tabs(g.folder),

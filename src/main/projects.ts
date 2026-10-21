@@ -1,7 +1,6 @@
 // A project loaded while a task of it is open in some window (app.ts, shell.open): its repositories or folders, and
 // its tasks (tasks.ts), each with its code (a worktree of each repository, or a folder itself without git), profiles,
-// grid and agent; each open task is a tab of a window (window.ts), of its own, since 2026-10-14 (until then a
-// project's open tasks were a group in one window). What happens to a project's tasks whatever the windows show:
+// grid and agent; each open task is a tab of a window (window.ts), of its own. What happens to a project's tasks whatever the windows show:
 // making one, closing and opening it again, renaming, deleting, and removing a project's data for good. Nothing runs
 // when it loads: a task loads when it is first shown.
 import { app, nativeImage } from 'electron';
@@ -64,8 +63,8 @@ class Project {
     this.store.saveTasksOf(this, { next: this.next, list: [...this.tasks.values()].map((t) => t.entry) });
   }
   // A new task, named task-<n> until the agent or the human renames it. Its code: a worktree of the default repository
-  // on a branch of the task's name (worktrees.ts), the others added when its work needs them (addCopy; the author,
-  // 2026-10-13): next to its repository when the project has one, else in one folder for them all,
+  // on a branch of the task's name (worktrees.ts), the others added when its work needs them (addCopy):
+  // next to its repository when the project has one, else in one folder for them all,
   // <projects' home>/<project>@task-<n>/<repo>/ (shell.projectsHome), so that one added later goes beside it; with a port offset no other task
   // has (100, 200, …: the project's own folder keeps the usual ports). A folder without git is used as it is: the
   // task works right in it. Made from the project's configuration alone (the projects' manager), nothing from the
@@ -116,7 +115,7 @@ class Project {
       return c;
     } catch (e) { return { error: (e as GitError).stderr || (e as Error).message }; }
   }
-  // A copy taken out of a task again (Task.removeRepository; the author, 2026-10-13: one added by mistake, or not needed
+  // A copy taken out of a task again (Task.removeRepository: one added by mistake, or not needed
   // after all): asked first only when it holds work not in main and not pushed, which goes with it. True when it may go.
   async askRemoveCopy(task: Task, c: Copy) {
     const what = changesText(await changes(c));
@@ -328,7 +327,7 @@ async function deleteProfile(shell: Shell, id: string, w: Asker | null): Promise
 }
 
 // The agents' accounts a project's tasks run (the projects' manager), whether it is open or not: added, made the
-// default (+ runs it) or none the default (the author, 2026-10-12: its tasks start with the island's buttons), removed.
+// default (+ runs it) or none the default (its tasks start with the island's buttons), removed.
 // The default is the first, unless noDefaultAgent; with no agents left, the next one added is the default. A task keeps
 // the agent it started with. The accounts' store (accounts.ts) lists the projects each is in. { agents } or { error }.
 function changeAgents(shell: Shell, id: string, list: string[], noDefault?: boolean) {
@@ -361,8 +360,8 @@ function defaultAgent(shell: Shell, id: string, agent: string | null): Result<{ 
   if (!p.agents?.includes(agent)) return { error: `${agent} is not in the project` };
   return changeAgents(shell, id, [agent, ...p.agents.filter((a) => a !== agent)], false);
 }
-// New Project (docs/tasks.md, Projects), as JetBrains': its code first (the author, 2026-10-11: a folder made in ~/Kulisa
-// was in the way of code already on the disk or at a URL), one repository or several (a frontend and a backend): from
+// New Project (docs/tasks.md, Projects), as JetBrains': its code first (the code is often on the
+// disk or at a URL already), one repository or several (a frontend and a backend): from
 // 'new', <location>/<name>, the location the projects' home (shell.projectsHome) unless the human picks another, so they know where the agent's files
 // are; 'folder', the folders given, nothing made, the first the project's; 'clone', one repository cloned into
 // <location>/<name>, several into <location>/<name>/<repo> each. git init when asked, with an empty first commit:

@@ -7,7 +7,7 @@ import type { Test } from './run.ts';
 import { SESSION_COOKIES_FILE } from '../src/main/store.ts';
 
 // Files of the sites' Cache API in a profile's folder, wherever Chromium's layout puts them (`WebStorage/<bucket>/CacheStorage/`).
-// A folder Chromium removes while it is read is not counted yet (NaN): asked again (GitHub's macOS runner, 2026-10-16).
+// A folder Chromium removes while it is read is not counted yet (NaN): asked again.
 const cacheStorageFiles = (dir: string) => {
   try { return fs.readdirSync(dir, { recursive: true, withFileTypes: true }).filter((f) => f.isFile() && f.parentPath.includes('CacheStorage')).length; }
   catch (e) { if ((e as NodeJS.ErrnoException).code === 'ENOENT') return NaN; throw e; }

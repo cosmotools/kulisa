@@ -39,8 +39,8 @@ async function saveFile(png: Buffer, profile: string): Promise<string> {
   }
 }
 
-// On the clipboard: into a message or the agent's prompt. Electron 44's clipboard is the W3C Clipboard API's
-// (breaking-changes.md): writeImage is gone.
+// On the clipboard: into a message or the agent's prompt. Electron's clipboard is the W3C Clipboard API's
+// (breaking-changes.md): it has no writeImage.
 const copy = (png: Buffer) => electron.clipboard.write([new electron.ClipboardItem({ 'image/png': new Blob([new Uint8Array(png)], { type: 'image/png' }) })]);
 // The human's picture: on the clipboard and in the folder. Its file.
 async function keep(png: Buffer, profile: string): Promise<string> {

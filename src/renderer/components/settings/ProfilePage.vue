@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// A profile's page in Settings (docs/profiles.md; the author, 2026-10-11): who it is, each field saved as it changes (on
+// A profile's page in Settings (docs/profiles.md): who it is, each field saved as it changes (on
 // Enter or leaving it). Sign In… opens its master's window (master.ts), to sign in once for every task. Settings'
 // tree makes and deletes profiles (ProjectEditor.vue); a project's page adds and removes them there.
 import { ref, watch } from 'vue';

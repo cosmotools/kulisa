@@ -47,7 +47,7 @@ html { height: 100%; overflow: hidden; }
    under the grid. One gap, --gap: the title bar holds it above and below what is in it (its height, --title in
    tokens.css: its buttons, or the tasks' tabs), so the grid starts at its edge; the grid keeps it from the sides; the
    bar keeps it from the grid (TaskBar.vue) and the window's bottom edge keeps it from the last row. Nothing else adds
-   to it (the author, 2026-10-14: a gap of the title bar's and one of the grid's added up, and showed). */
+   to it (a gap of the title bar's and one of the grid's would add up, and show). */
 body {
   margin: 0; height: 100%; overflow: clip; box-sizing: border-box;
   display: grid; grid-template-rows: auto minmax(0, 1fr) auto; padding-block-end: var(--gap);
@@ -57,11 +57,11 @@ body {
 }
 /* The shown task's project's color as a glow, seen in the title bar and the gaps between the islands, fading towards
    the edges; only while a task is shown (a new tab over it too), coming and going softly, and from one project's color
-   to the next as another task is shown (the author, 2026-10-17). A blot, never a circle: three soft spots of it, each
+   to the next as another task is shown (the author's choice). A blot, never a circle: three soft spots of it, each
    its own size, off the middle, stretched, drifting and turning at its own pace (19, 27, 37 s: they never line up into
    a circle again), so their sum keeps changing shape. Only their transform moves (the compositor's work, no paint, no
    blur), five times a second: at the screen's rate the window with a task's grid over it cost 11 % of a core (the GPU's
-   process 9, the window's 2), all the time a task is shown; ten times a second 7 %; five times 2.3 % (2026-10-17), a
+   process 9, the window's 2), all the time a task is shown; ten times a second 7 %; five times 2.3 %, a
    step a few pixels of a soft edge. Still with reduced motion. At the first start (the welcome) it is Kulisa's own
    red, until the first task's project's color takes its place. */
 @property --glow { syntax: '<color>'; inherits: true; initial-value: transparent; }

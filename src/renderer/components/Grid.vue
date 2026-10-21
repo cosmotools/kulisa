@@ -28,8 +28,8 @@ const tabComponents = markRaw({ profile: ProfileHeader, terminal: TerminalTabs }
 
 <style>
 #dock {
-  /* min-width: a row wider than the window (19 closed profiles over the terminal) stretched the window's column, the
-     terminal and the tasks' bar past its edge (2026-10-15) */
+  /* min-width: a row wider than the window (many closed profiles over the terminal) would stretch the window's column,
+     the terminal and the tasks' bar past its edge */
   display: flex; flex-direction: column; min-width: 0; margin-inline: var(--gap); transition: opacity .15s;
   #grid { flex: 1; min-height: 0; }
   .loading & { opacity: 0; transition: none; } /* until the grid is laid out (lib/grid.ts, reveal) */
@@ -56,8 +56,7 @@ const tabComponents = markRaw({ profile: ProfileHeader, terminal: TerminalTabs }
   :active-view-transition & { transition: none; } /* the next grid comes in sliding, not fading */
 }
 /* Switching (lib/grid.ts, grid:closing): the grid slides towards the next task's tab, as macOS desktops do (types
-   next and previous say which way; until 2026-10-14 only between projects, replaced at once between a project's own
-   tasks). Pictures, so the compositor moves them. */
+   next and previous say which way). Pictures, so the compositor moves them. */
 /* Longhands: Vite's CSS minifier (Lightning CSS) made the shorthand with no name `animation: none`, and nothing slid.
    Material's standard easing: an ease-out (.2, .8, .2, 1) crept over its last few percent, the grid going out lingering
    at the window's edge. */

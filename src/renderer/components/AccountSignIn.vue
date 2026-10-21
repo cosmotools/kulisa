@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // A new account of an agent, signed in with the agent's own sign-in (docs/tasks.md, Accounts).
-// Its terminal is under Details: the address it prints, with the sign-in window open, only confused (the author,
-// 2026-10-11); it is there for a failure and for what the window does not show (a code the agent asks for).
+// Its terminal is under Details: the address it prints, with the sign-in window open, only confuses; it
+// is there for a failure and for what the window does not show (a code the agent asks for).
 import { CollapsibleContent, CollapsibleRoot, CollapsibleTrigger } from 'reka-ui';
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 import Icon from './Icon.vue';

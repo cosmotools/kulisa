@@ -88,7 +88,7 @@ export function registerProjects(ipc: Ipc, { lookForFavicon }: { lookForFavicon:
   handle('project:repo-clone', (_e, { id, url }) => serial(async () => settingsOf(id, await cloneRepo(shell, id, url))));
   handle('project:repo-default', (_e, { id, folder }) => serial(async () => settingsOf(id, await defaultRepo(shell, id, folder))));
   handle('project:repo-remove', (_e, { id, folder }) => serial(async () => settingsOf(id, await removeRepo(shell, id, folder))));
-  // Its former folder (no git; tasks no longer work in it), in the OS's file manager: the human moves its files.
+  // Its former folder (no git; new tasks work in the repositories), in the OS's file manager: the human moves its files.
   handle('project:show-former', (_e, { id }) => { const p = store.projects().find((x) => x.id === id); return p && electronShell.openPath(p.folder); });
   // Its agents (projects.ts): one added, made the default (+ runs it), removed. At once, not on Save.
   handle('project:agent-add', (_e, { id, agent }) => addAgent(shell, id, agent));

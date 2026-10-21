@@ -3,12 +3,11 @@
 // variable (agents/, config: CLAUDE_CONFIG_DIR, CODEX_HOME), so one human can use a work and a personal Claude side
 // by side. Each is made with the agent's own sign-in, as /login (app.ts), in Settings → Agents or in a project, and
 // listed in the projects that have it (projects.json's agents: store.ts). It stays when its last project lets it go (a sign-in is the human's, made again
-// only by signing in again; the author, 2026-10-11): it goes only when the human deletes it (Settings → Agents, Delete
+// only by signing in again): it goes only when the human deletes it (Settings → Agents, Delete
 // Account…). Its folder has a fixed id
 // (agents/claude-<n>/), never renamed: Claude Code names its macOS Keychain entry after a hash of the folder's path, so
 // a folder renamed after the sign-in would lose it; the email it signed in to is kept here and shown. The human's own
-// folder (~/.claude, ~/.codex) is no account: every one is made in Kulisa, each a clean agent (the author's decision,
-// 2026-10-11). An agent without accounts (the terminal only) is chosen as itself. Plain Node (no Electron): unit-tested.
+// folder (~/.claude, ~/.codex) is no account: every one is made in Kulisa, each a clean agent. An agent without accounts (the terminal only) is chosen as itself. Plain Node (no Electron): unit-tested.
 //   agents.json     { next, list: [{ id, agent, email, folder }] }: next, the number of the
 //                   next folder, never one used before (a removed one's folder may wait for the next start to go)
 //   agents/<folder>/  an account's config folder

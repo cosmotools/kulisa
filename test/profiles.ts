@@ -117,8 +117,8 @@ export default (test: Test) => {
   });
   test("DevTools in a pane's ⋮ menu opens and closes the DevTools of its active tab", async ({ shell, ui }) => {
     const wc = shell.profiles.get('sam-admin').get().wc;
-    // ⋮ as tall as the bar's other buttons, its dots upright, its menu open or not: the Details' trigger's rule (then
-    // .more) took its height and turned its dots until its menu opened (2026-10-15).
+    // ⋮ as tall as the bar's other buttons, its dots upright, its menu open or not: the Details' trigger's rule must
+    // not take its height or turn its dots.
     const looks = () => ui(`[...document.querySelectorAll('.pane[data-profile="sam-admin"] .bar .icon')].map((b) => [Math.round(b.getBoundingClientRect().height), getComputedStyle(b.querySelector('svg')).rotate])`);
     const closed = await looks();
     assert.deepEqual(closed, closed.map(() => [closed[0][0], 'none']), 'its menu closed');
@@ -137,7 +137,7 @@ export default (test: Test) => {
         [b.className, b.textContent.trim(), !!b.querySelector('svg'), !!b.ariaLabel, getComputedStyle(b).borderTopWidth])`),
       ['back', 'fwd', 'reload', 'pick', 'more'].map((c) => [`${c} icon`, '', true, true, '0px']));
       assert.deepEqual(await looks(), closed, 'its menu open');
-      // The same inset from the island's edges for the controls in it; the page reaches its edges (the author's choice, 2026-10-08).
+      // The same inset from the island's edges for the controls in it; the page reaches its edges (the author's choice).
       const inset = await ui(`(() => {
         const pane = document.querySelector('.pane[data-profile="sam-admin"]'), island = pane.closest('.dv-groupview').getBoundingClientRect();
         const header = document.querySelector('.ptab[data-panel="' + pane.closest('.dv-groupview').querySelector('.ptab').dataset.panel + '"]');

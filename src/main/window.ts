@@ -23,7 +23,7 @@ interface Place { bounds?: Rectangle | null; maximized?: boolean; near?: Electro
 type Shade = 'dark' | 'light';
 
 const TITLE_BAR_HEIGHT = 44; // --title in tokens.css: keep in step
-// macOS's window buttons: their height and Electron's place for them from the left, in pt (measured, Electron 44.8.0).
+// macOS's window buttons: their height and Electron's place for them from the left, in pt (measured).
 const MAC_BUTTONS = { height: 14, x: 7 };
 // The window's background and the OS buttons' strip, in each theme: --window and --text in tokens.css.
 const COLORS: Record<Shade, { window: string; text: string }> = { dark: { window: '#2b2d30', text: '#dfe1e5' }, light: { window: '#ebecf0', text: '#1e1f22' } };
@@ -78,7 +78,7 @@ class AppWindow {
       // One row on top, as in VS Code: no system title bar; the OS window buttons are drawn over the right end of
       // the window's own top bar (left on macOS). The page lays out around them (Window Controls Overlay).
       // Its color is see-through, as macOS's traffic lights have no strip of their own: the top bar under it shows, and a
-      // dialog's backdrop dims it with the rest (it stayed bright under one, 2026-10-19).
+      // dialog's backdrop dims it with the rest.
       titleBarStyle: 'hidden', titleBarOverlay: { color: CLEAR, symbolColor: COLORS[shell.shade()].text, height: this.barHeight },
       // DevTools of Kulisa's own UI only while developing it; a packaged build has none (profiles' tabs still do).
       webPreferences: { preload: PRELOAD, sandbox: true, devTools: appDevTools,
@@ -273,11 +273,10 @@ class AppWindow {
     this.thumbnails.setHidden(this.viewsHidden);
     return pics;
   }
-  // JPEG: a picture shown for a moment, encoded three times faster than PNG (measured 2026-10-07). A page that draws no
-  // frame (covered, the monitor off, busy) gives none: its pane is empty meanwhile. Waiting for it held every menu
-  // after it closed (the menus' tests failed now and then, 2026-10-07), and half a second it held a task's slide after
-  // the click. How long a picture takes is the computer's (2–7 ms on the author's, over a hundred on GitHub's runner,
-  // where a fixed tenth of a second left every pane empty, 2026-10-15), so the pages set the pace: once the first has
+  // JPEG: a picture shown for a moment, encoded three times faster than PNG. A page that draws no
+  // frame (covered, the monitor off, busy) gives none: its pane is empty meanwhile. Waiting for it would hold every menu
+  // after it closed, and a task's slide after the click. How long a picture takes is the computer's (a few ms, or
+  // over a hundred on a loaded one, where a fixed tenth of a second leaves every pane empty), so the pages set the pace: once the first has
   // answered, the rest get three times as long, a tenth of a second at least; none answering, half a second.
   async pictures() {
     const pics: Record<string, string> = {}, t0 = Date.now();
@@ -339,7 +338,7 @@ class AppWindow {
   }
 
   // Brought to the front with it while another of Kulisa's windows has the focus (Settings, another tasks' window): left
-  // behind, it looked as if nothing happened (the OS's × behind Settings on macOS, 2026-10-16). Never from another app.
+  // behind, it would look as if nothing happened (the OS's × works behind Settings on macOS). Never from another app.
   ask(q: Question) {
     const focused = BrowserWindow.getFocusedWindow();
     if (focused && focused !== this.win) this.focus();

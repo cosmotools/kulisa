@@ -75,7 +75,7 @@ const click = (ui: UI, el: string) => ui(`(() => { const e = ${el}, r = e.getBou
   const at = { bubbles: true, cancelable: true, composed: true, button: 0, clientX: r.x + r.width / 2, clientY: r.y + r.height / 2 };
   for (const t of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click']) e.dispatchEvent(new (t.startsWith('pointer') ? PointerEvent : MouseEvent)(t, { ...at, pointerType: 'mouse', isPrimary: true, buttons: /down/.test(t) ? 1 : 0 })); })()`);
 // A project shown again as the human does it: a click on its first tab in the bar.
-// Once its tab is drawn: the bar is drawn again as projects load (seen after a restart, on a slow screen).
+// Once its tab is drawn: the bar is drawn again as projects load (after a restart, on a slow screen).
 const showProject = async (ui: UI, id: string) => {
   const tab = projectTab(id);
   await waitFor(() => ui(`!!${tab}`));
@@ -115,10 +115,10 @@ const manageProfiles = async ({ ui, sui }: Pick<Ctx, 'ui' | 'sui'>) => {
   await waitFor(() => sui(`!!document.getElementById('prconfig')?.checkVisibility()`));
 };
 // Settings closed as the human does it with Esc (its window: settings-window.ts), what was typed saved; its window gone,
-// the keyboard back in the task's window, the window's and its page's (a menu opened there before it came closed as the
-// window got it; on GitHub's runner the window manager's focus came after the page's, 2026-10-16). The Esc's script is
+// the keyboard back in the task's window, the window's and its page's (a menu opened there before it comes closes as the
+// window gets it; on a loaded machine the window manager's focus comes after the page's). The Esc's script is
 // not waited for: its page asks for the window to close before its result is back, and a script whose window closes
-// first never answers (Electron drops the reply: a test hung for its 30 s on GitHub's runner, 2026-10-16).
+// first never answers (Electron drops the reply).
 const closeSettings = async (ctx: Pick<Ctx, 'shell' | 'ui' | 'sui'>) => {
   await ctx.sui('0'); // its window open and its page loaded
   void ctx.shell.settings.win.webContents.executeJavaScript(`dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); 0`).catch(() => {});
@@ -127,7 +127,7 @@ const closeSettings = async (ctx: Pick<Ctx, 'shell' | 'ui' | 'sui'>) => {
 // However it closed (Esc, the OS's ×).
 const settingsClosed = async ({ shell, ui }: Pick<Ctx, 'shell' | 'ui'>) => {
   await waitFor(() => !shell.settings);
-  // Not focused in time: which window is, and the windows there are, said (a run on GitHub's macOS runner, 2026-10-16).
+  // Not focused in time: which window is, and the windows there are, said.
   await waitFor(async () => shell.win.isFocused() && await ui(`document.hasFocus()`)).catch(async (e: Error) => {
     const all = electron.BaseWindow.getAllWindows().map((w) => `${w.getTitle()}${w.isVisible() ? '' : ' (hidden)'}${w.isFocused() ? ' (focused)' : ''}`);
     const keys = electron.webContents.getFocusedWebContents(), page = shell.win.webContents;
@@ -151,15 +151,15 @@ const rightClick = (ui: UI, sel: string) => ui(`(() => { const e = document.quer
   e.dispatchEvent(new PointerEvent('pointerdown', { ...at, pointerType: 'mouse', isPrimary: true }));
   e.dispatchEvent(new MouseEvent('contextmenu', at)); })()`);
 
-// The window given the keyboard, as the human's click gives it, once its page has it. On a loaded machine (GitHub's
-// runner, 2026-10-12) the window manager focuses the window, and its page learns it later: a key sent then reached
-// Kulisa, but the page's focus, coming after, went back to where it had been, over what the key had focused.
+// The window given the keyboard, as the human's click gives it, once its page has it. On a loaded machine the
+// window manager focuses the window, and its page learns it later: a key sent then reaches Kulisa, but the page's
+// focus, coming after, goes back to where it had been, over what the key had focused.
 const focusWindow = async (win: { focus(): void; webContents: { focus(): void } }, ui: UI) => {
   // On macOS a click also brings the app to the front, and only the front app's windows take the keyboard.
   if (MAC) electron.app.focus({ steal: true });
   win.focus(); win.webContents.focus();
   // macOS makes the window key a moment later and gives the keyboard back to the view that had it (a profile's page),
-  // over this: given again until the page has it, as the click into it would (GitHub's macOS runner, 2026-10-16).
+  // over this: given again until the page has it, as the click into it would.
   await waitFor(async () => { if (await ui(`document.hasFocus()`)) return true; win.webContents.focus(); return false; });
 };
 

@@ -3,7 +3,7 @@
 // (profiles/Profile <k>/) that the human signs in to and no one works in; each task of its projects works in a copy of
 // it, made when the profile is first opened there (project-profiles.ts). Who it is (name, id, picture, description) is
 // the store's, the same in every project and task; what a task has of it (open or closed, its tabs, sites' zoom) is the
-// task's. A profile lives until the human deletes it (Settings → Profiles; the author, 2026-10-11, as an agent's
+// task's. A profile lives until the human deletes it (Settings → Profiles, as an agent's
 // account): a project letting it go keeps it, in no project then. Who it is changes here, checked here, for every
 // handle (a task, Settings, the agent). Plain Node (no Electron): unit-tested.
 //   profiles.json         { next, list: [{ id, name, avatar, description, folder, login }] }:

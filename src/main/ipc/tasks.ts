@@ -18,7 +18,7 @@ export function registerTasks(ipc: Ipc) {
   const sendProjects = () => shell.sendProjects();
   handle('projects:list', (e) => owner(e)?.info());
   // The switch runs on its own; the window hears about it through grid:closing, projects and state. No question
-  // where (the author, 2026-10-11): a tab in this window, which Move to New Window takes away.
+  // where: a tab in this window, which Move to New Window takes away.
   const openLater = (p: ProjectEntry, w: AppWindow, n?: number) => {
     setImmediate(() => serial(() => (shell.windows.includes(w) ? openProject(p, w, n) : null)).catch((err) => console.error('[project:open]', err)));
     return w.info();

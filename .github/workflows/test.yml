@@ -1,5 +1,5 @@
 # npm test on every pull request into develop or main and every push to develop, on each OS Kulisa targets
-# (docs/testing.md, CI). Linux as on the author's machine: Ubuntu, Xvfb and openbox. A pull request into main also
+# (docs/testing.md, CI). Linux: Ubuntu, Xvfb and openbox. A pull request into main also
 # needs its version raised: a merge into main is a release (CLAUDE.md, Releases).
 name: test
 on:
@@ -52,7 +52,7 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     # Windows is not passing yet (ROADMAP, "Windows is untested; macOS has gaps left"): its runs report, but do not mark main red.
-    # It comes off this once its first run passes, as macOS did (2026-10-16).
+    # It comes off this once its first run passes.
     continue-on-error: ${{ matrix.os == 'windows-latest' }}
     timeout-minutes: 30
     defaults:
@@ -61,7 +61,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       # The test folders in one known place on every OS (os.tmpdir() reads these), for the artifact below. Through
-      # GITHUB_ENV: the job's env cannot read the runner context (GitHub refused the whole file).
+      # GITHUB_ENV: the job's env cannot read the runner context (GitHub refuses the whole file).
       - run: printf 'TMPDIR=%s\nTEMP=%s\nTMP=%s\n' "$RUNNER_TEMP" "$RUNNER_TEMP" "$RUNNER_TEMP" >> "$GITHUB_ENV"
       - uses: actions/setup-node@v7
         with:
@@ -72,8 +72,8 @@ jobs:
       - if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y xvfb openbox gnome-keyring dbus-x11 libsecret-1-0
       - run: npm ci
-      # The macOS runner's screen is 1024×768, smaller than a laptop's: the tests' windows did not fit as they lay them
-      # out (2026-10-16). Its virtual screen has 1920×1080, as Linux's Xvfb (displayplacer, MIT: the runner's only).
+      # The macOS runner's screen is 1024×768, smaller than a laptop's: the tests' windows do not fit as they lay them
+      # out. Its virtual screen has 1920×1080, as Linux's Xvfb (displayplacer, MIT: the runner's only).
       - if: runner.os == 'macOS'
         run: |
           brew tap jakehilborn/jakehilborn && brew install displayplacer

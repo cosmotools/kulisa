@@ -21,8 +21,8 @@ async function pack(version: string) {
   fs.writeFileSync(path.join(src, 'package.json'), JSON.stringify({ name: 'kulisa', version, main: 'index.js' }));
   fs.mkdirSync(path.dirname(asar), { recursive: true });
   await createPackage(src, `${asar}.dpkg-new`);
-  // createPackage resolves before its file is all written (@electron/asar 3.4.1 ends its stream without waiting for
-  // it): read back half written on a busy disk, it had no version, now and then.
+  // createPackage resolves before its file is all written (@electron/asar ends its stream without waiting for
+  // it): read back half written on a busy disk, it has no version, now and then.
   for (const end = Date.now() + 5000; installedVersion(`${asar}.dpkg-new`) !== version && Date.now() < end;) await new Promise((r) => setTimeout(r, 20));
   fs.renameSync(`${asar}.dpkg-new`, asar);
 }
