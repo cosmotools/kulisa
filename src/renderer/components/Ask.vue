@@ -24,7 +24,8 @@ watch(open, (o) => {
       <AlertDialogOverlay class="backdrop" />
       <AlertDialogContent id="ask" class="dialog question">
         <header><AlertDialogTitle>{{ q?.message }}</AlertDialogTitle></header>
-        <div class="body"><AlertDialogDescription class="detail">{{ q?.detail }}</AlertDialogDescription></div>
+        <div class="body"><AlertDialogDescription class="detail">{{ q?.detail }}</AlertDialogDescription>
+          <a v-if="q?.link" class="link" target="_blank" :href="q.link.url">{{ q.link.label }}</a></div>
         <footer>
           <AlertDialogCancel class="cancel">{{ q?.cancel || 'Cancel' }}</AlertDialogCancel>
           <AlertDialogAction v-if="q?.other" class="other" @click="answer = 'other'">{{ q.other }}</AlertDialogAction>
@@ -37,5 +38,6 @@ watch(open, (o) => {
 
 <style>
 #ask { width: 480px;
-  .detail { margin: 0; white-space: pre-line; overflow-wrap: anywhere; user-select: text; &:empty { display: none; } } }
+  .detail { margin: 0; white-space: pre-line; overflow-wrap: anywhere; user-select: text; &:empty { display: none; } }
+  .link { display: block; margin-top: var(--inset); color: var(--accent); } }
 </style>

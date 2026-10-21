@@ -238,7 +238,8 @@ cannot mark the deleting button or lay out what goes. The OS's own dialogs stay 
 
 ## Settings
 
-Settings (a tree of Projects, Agents and Profiles: [tasks.md](tasks.md), Projects; under them the Log page, The log below, and About, Menus above) is a window of its own, as a desktop
+Settings (a tree of Projects, Agents and Profiles: [tasks.md](tasks.md), Projects; GitHub's page after Agents:
+[src/github](../src/github/README.md), The window; under them the Log page, The log below, and About, Menus above) is a window of its own, as a desktop
 app's settings are (JetBrains', macOS apps'; what users of desktop apps expect, and settings
 apart from the work): the OS's title bar ("Settings — Kulisa"), its own size and place, kept (`settings.json`:
 `settingsWindow`), at least 640 × 420 times the Kulisa zoom. Open it, set things, close it; or leave it open beside
@@ -463,6 +464,9 @@ zone; electron-log's own has no offset), the level and a tag:
   `[task] created k3f9a2/1 (shop) in ~/IdeaProjects/shop@task-1`), closed, deleted;
   a window made, showing a task, dropped; Settings opened (at what) and closed; a terminal started (the agent and
   whether its session is resumed, or a shell), gone, its exit code.
+- `[github]`: a GitHub account, its id with its login beside it (`, token` for a fine-grained token's), at every start
+  and as it is added, signed in again, signed out (and why: a refresh refused, its token refused) and deleted; a refresh
+  that did not reach GitHub. Never a token, a code or an address with a token ([src/github](../src/github/README.md)).
 - `[accounts]`: an agent's account, its id named by its agent and its email shortened (three letters of the name, at
   most half of it: a log goes with a bug report; none without an email), at every start and as it is made and
   deleted: `[accounts] k3x9ab (Claude Code, mar…@shop.com)`; a terminal started names it so too. Its id is random,

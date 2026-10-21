@@ -10,7 +10,7 @@ the look below:
 
 | Where | What |
 |---|---|
-| `src/renderer/components/*.vue` | the window's parts, each its markup, behavior and own look (`<style>`, rooted at its id or class): `App.vue` puts a tasks' window together; `grid/` the grid's panels and headers, `menu/` the menus (`ButtonMenu`, `RightClickMenu`, `PointMenu`, `MenuRows`) and ☰'s own rows; `Modal.vue` the dialogs; the clusters (below): `settings/` Settings' window (`Settings.vue`, its pages `ProjectEditor.vue`, `AgentPage.vue`, `ProfilePage.vue`), `newproject/` New Project's steps |
+| `src/renderer/components/*.vue` | the window's parts, each its markup, behavior and own look (`<style>`, rooted at its id or class): `App.vue` puts a tasks' window together; `grid/` the grid's panels and headers, `menu/` the menus (`ButtonMenu`, `RightClickMenu`, `PointMenu`, `MenuRows`) and ☰'s own rows; `Modal.vue` the dialogs; the clusters (below): `settings/` Settings' window (`Settings.vue`, its pages `ProjectEditor.vue`, `AgentPage.vue`, `ProfilePage.vue`, `GitHubPage.vue`), `newproject/` New Project's steps |
 | `src/renderer/lib/*.ts` | what parts share or what outlives a component: `store.ts` (what the main process sends, `act`), `grid.ts`, `terminals.ts` (a tasks' window's island; the terminal itself is `src/terminal/`), `menu.ts` (what a menu holds), `agents.ts` (the agents' list of a dialog, and an install under way), `ask.ts`, `dialogs.ts`, `keys.ts`, `voice.ts`, `cover.ts` (`covered()` for every menu and dialog: one menu at a time, all closed at once), `views.ts` (a tasks' window's profiles' pages under them: hidden, or pictures), `profiles.ts` (the profiles' menu), `names.ts` (name fields), `strip.ts` (a strip of tabs that scrolls), `common.ts`, `test-hooks.ts` (what the tests reach by name) |
 | `src/shared/types.ts`, `ipc.ts`; `env.d.ts` | the shapes the main process sends, the channels they come by (docs/window.md, IPC); the bridge to it (`src/preload`) typed by them, and Vite's types |
 | `src/renderer/tokens.css` | every color and size (`:root`); no literal color anywhere else |
@@ -90,7 +90,7 @@ Each icon is drawn once, as a `<symbol id="i-…">` in the sprite (`Sprite.vue`,
 | `i-settings` | Settings in the title bar (Lucide's settings) |
 | `i-projects` | ☰'s Tasks bar row (Lucide's folder-open) |
 | `i-logo` | the app icon with its curtain in `currentColor`: the title bar's (`--project`; not on macOS, whose apps show their icon in the Dock), and a project's label in the tasks' bar (its `--color`). The folds are a shadow over the color, one for every color: a `<use>` takes the sprite's gradient, not one of its own |
-| `i-docs`, `i-github`, `i-bug` | the links (Documentation, GitHub) and Report a Problem…, rows of ☰ (`data-icon` on each link; Lucide's book-open, github, bug); `i-docs` also the Log node of Settings' tree |
+| `i-docs`, `i-github`, `i-bug` | the links (Documentation, GitHub) and Report a Problem…, rows of ☰ (`data-icon` on each link; Lucide's book-open, github, bug); `i-docs` also the Log node of Settings' tree, `i-github` its GitHub node |
 | `i-menu` | ☰, the window's menu |
 | `i-more` | ⋮, a pane's menu |
 | `i-back`, `i-forward`, `i-reload` | a pane's toolbar (Chrome's) |
@@ -176,7 +176,8 @@ The window's controls are Reka UI's, in this look (CLAUDE.md, Window UI):
   (New Project's code: a list on the dialog's left, Reka's Listbox, as JetBrains' New Project).
 - `.checkbox`: a checkbox (Reka's `CheckboxRoot`, its `CheckboxIndicator` the check, `i-done`): New Project's agents and profiles, the log's Follow.
 - `.select`: a button that opens what to choose from below it (Reka's `Popover`), as a field: the chosen one and
-  `i-down` (a profile's picture).
+  `i-down` (a profile's picture); or Reka's `Select`, where the choices are rows of words, in a menu's look (`.menu`, its
+  rows `.item`, the chosen one checked: `i-done`): a repository's GitHub account (`settings/RepoAccount.vue`).
 - `.choices`: icon buttons (`.icon`) to choose one of, the chosen one ringed in `--accent`: a profile's pictures
   (Reka's `ToggleGroup`, one always chosen).
 - `.chips`: a row of `.chip`s to choose one of (Reka's `ToggleGroup`, one always chosen), the chosen one in `--chosen`
@@ -268,7 +269,8 @@ Every dialog is `Modal.vue`, Reka UI's Dialog (`reka-ui`) with the same parts:
   `other`), are not new dialogs: `shell.ask` (main process) or `ask(q)` (`lib/ask.ts`) → `Ask.vue`, Reka's AlertDialog
   in the same look: Cancel (named by the question when the word is another: Later) has the keyboard, Esc is Cancel, a
   click outside does nothing (it waits for an answer);
-  `other` adds the second way's button before the main one.
+  `other` adds the second way's button before the main one; `link`, a page the answer may need, under the detail
+  (where to revoke a GitHub sign-in), opened in the user's browser.
 
 ### Menus
 
@@ -319,7 +321,7 @@ every handle's (CLAUDE.md, "One core"). A single component is no cluster.
 
 | Folder | Its entries | What |
 |---|---|---|
-| `settings/` | `Settings.vue` | Settings' window: the tree, a project's, an agent's and a profile's page |
+| `settings/` | `Settings.vue` | Settings' window: the tree, a project's, an agent's and a profile's page, GitHub's |
 | `newproject/` | `Wizard.vue`, `NewProject.vue` | New Project's steps (Code, Agents, Profiles; `wizard.ts` their state): the welcome's and the dialog |
 | `welcome/` | `Welcome.vue` | the first start, no project at all: what Kulisa does in three slides (`Tour.vue`), then New Project's steps (`Wizard.vue`, its head a question each); the empty window's (`Empty.vue`) |
 | `newtab/` | `Board.vue` | the board: every project a column (an island, as the grid's panels) with its tasks as `.item` rows, a new tab's and the empty window's |

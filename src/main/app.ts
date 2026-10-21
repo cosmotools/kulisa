@@ -1,7 +1,7 @@
 // Kulisa, the app: the shell every module gets (shell.ts) put together, its windows with their open tasks
 // (open-tasks.ts), the agents, the CDP proxy and the MCP server, the windows' handles (ipc/), quitting. start(options)
 // is used by the entry point (index.ts) and by the tests.
-import { app, crashReporter, nativeTheme, Menu, safeStorage } from 'electron';
+import { app, crashReporter, nativeTheme, Menu, net, safeStorage, shell as electronShell } from 'electron';
 import { EventEmitter } from 'events';
 import path from 'path';
 import fs from 'fs';
@@ -12,7 +12,8 @@ import { ProfileStore } from './profile-store.ts';
 import { CookieSync } from './cookie-sync.ts';
 import { signinPages } from './signin-pages.ts';
 import { SessionCookies } from './session-cookies.ts';
-import { pictureOf } from './projects.ts';
+import { pictureOf, githubUsers, forgetGitHub } from './projects.ts';
+import { GitHub, installGitHub } from '../github/main/index.ts';
 import { COLORS } from './window.ts';
 import type { AppWindow } from './window.ts';
 import { findFavicon } from './favicons.ts';
@@ -123,6 +124,13 @@ function start(options: Options = {}) {
     encrypt: (s: string) => safeStorage.encryptString(s).toString('base64'),
     decrypt: (b: string) => safeStorage.decryptString(Buffer.from(b, 'base64')),
   };
+  // The GitHub accounts (src/github): their tokens kept with the OS keyring, and only in memory without one (Linux's
+  // basic_text: Electron's fixed key, as good as plain text). Its requests through Chromium's network (net.fetch),
+  // which keeps the system's proxy.
+  shell.github = new GitHub({ dir: userData, fetch: (url, init) => net.fetch(url, init),
+    secrets: { kept: () => shell.secrets.available() && (process.platform !== 'linux' || safeStorage.getSelectedStorageBackend() !== 'basic_text'),
+      encrypt: (s) => shell.secrets.encrypt(s), decrypt: (b) => shell.secrets.decrypt(b) } });
+  shell.github.accounts.logAll();
   // A test user's password as it is kept: encrypted, or why not; none given: the one kept stays (profile-store.ts).
   shell.loginSecret = (password) => {
     if (!password) return {};
@@ -298,6 +306,8 @@ function start(options: Options = {}) {
   registerAgents(ipc);
   registerPanes(ipc);
   registerWindow(ipc);
+  installGitHub(shell.github, { usedBy: (id) => githubUsers(shell, id), ask: (e, q) => shell.ask(q, asker(e)), forget: (id) => forgetGitHub(shell, id),
+    open: (url) => { void electronShell.openExternal(url); } });
   const ready = app.whenReady().then(async () => {
     // Whether the OS keeps Kulisa's key (session cookies, test passwords: profiles.md); on Linux which keyring, basic_text
     // being none (a fixed key: Electron's safe-storage.md). The classic Linux bug report, with nothing to read until now.

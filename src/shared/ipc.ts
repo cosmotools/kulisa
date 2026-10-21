@@ -5,8 +5,9 @@
 import type { Result } from './result.ts';
 import type { TerminalContents, TerminalEvents, TerminalSend } from '../terminal/ipc.ts';
 import type { ThumbnailEvents, ThumbnailInvoke, ThumbnailSend } from '../screenshots/ipc.ts';
+import type { GitHubInvoke } from '../github/ipc.ts';
 import type {
-  AboutFolder, AboutInfo, AccountsInfo, AgentInfo, ClosedProfile, LanguageInfo, LogInfo, NewProjectSetup, Profile, ProjectAgent, ProjectChoices, ProjectProfile, ProjectRepo,
+  AboutFolder, AboutInfo, AccountsInfo, AgentInfo, ClosedProfile, LanguageInfo, LogInfo, NewProjectSetup, Profile, ProjectAgent, ProjectChoices, ProjectGitHub, ProjectProfile, ProjectRepo,
   ProjectSettings, ProjectsInfo, Question, SettingsProfile, Shortcut, SignedIn, Terminals, Voice,
 } from './types.ts';
 
@@ -29,7 +30,7 @@ type Profiles = { profiles: SettingsProfile[] };
 
 // ipcRenderer.invoke / ipcMain.handle: args, the answer.
 type I<A extends unknown[], R = void> = { args: A; result: R };
-export interface Invoke extends ThumbnailInvoke {
+export interface Invoke extends ThumbnailInvoke, GitHubInvoke {
   'projects:list': I<[], ProjectsInfo | undefined>;
   'tasks:get': I<[]>;
   'project:open': I<[{ id?: string; folder?: string; task?: number }]>;
@@ -50,6 +51,9 @@ export interface Invoke extends ThumbnailInvoke {
   'project:agent-add': I<[{ id: string; agent: string }], Result<ProjectAgents>>;
   'project:agent-default': I<[{ id: string; agent: string | null }], Result<ProjectAgents>>;
   'project:agent-remove': I<[{ id: string; agent: string }], Result<ProjectAgents>>;
+  // Its repositories' GitHub accounts (src/github): read, and one bound to a repository's remote (null: none).
+  'project:github-get': I<[{ id: string }], Result<ProjectGitHub>>;
+  'project:github-set': I<[{ id: string; remote: string; account: string | null }], Result<ProjectGitHub>>;
   'project:close-tasks': I<[{ id: string }]>;
   'project:move-all': I<[{ id: string; to?: number | null; terminals: TerminalContents }]>;
   'project:show-data': I<[{ id: string }]>;

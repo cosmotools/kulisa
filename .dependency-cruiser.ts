@@ -5,7 +5,7 @@ import type { IConfiguration } from 'dependency-cruiser';
 
 // Layers 1 and 2 are lists of src/main's files, layer 3 a folder. A file in none of them is the window's (layer 4).
 // Base: git and what is local, used by every layer; nothing of src/main above them.
-const base = '^src/main/(worktrees|local|log)\\.ts$';
+const base = '^src/main/(worktrees|remotes|local|log)\\.ts$';
 const layer1 = '^src/main/(profiles|page-focus|project-profiles|profile-store|store|session-cookies|cookie-sync|signin-[a-z]+)\\.ts$';
 const layer2 = '^src/main/(cdp-proxy|local-only)\\.ts$';
 const layer3 = '^src/main/kulisa-plugin/';
@@ -35,6 +35,8 @@ const cluster = (name: string, entries: string[]) => {
 const packages: Record<string, { main: string[] }> = {
   terminal: { main: ['ipc', 'log'] }, // a terminal: its pty, its buffers and the xterm shown
   screenshots: { main: ['ipc', 'log'] }, // a picture of a page: an element, the visible part, the whole page
+  // GitHub accounts and their sign-ins; store for its file's id and its atomic write, the data folder's own.
+  github: { main: ['ipc', 'log', 'store'] },
 };
 const packageRules = (name: string, { main: uses }: { main: string[] }) => {
   const dir = `^src/${name}/`;

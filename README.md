@@ -95,6 +95,7 @@ computer).
 | `KULISA_DATA` | Data folder instead of the one above (e.g. to try a build next to your real one: one Kulisa runs per data folder, a second on the same one shows the first's window) |
 | `KULISA_MCP_PORT` | MCP server port (default 4450; `0` picks a free one) |
 | `KULISA_SCREENSHOTS` | The folder the human's screenshots go to, instead of the OS's own folder of screenshots (the tests' own) |
+| `KULISA_GITHUB` | GitHub's address instead of github.com, its API under `/api` (the tests' own: their fake GitHub; src/github) |
 | `KULISA_SHOT` | Save a screenshot of the whole window to this PNG file ~4 s after start (`KULISA_SHOT_DELAY`, ms) |
 
 ### Developing with Claude Code
@@ -115,6 +116,7 @@ Code's checks.
 | `src/shared/` | what the main process and the window both import: the shapes and channels they send, names, `Result` |
 | `src/agent/` | what Kulisa gives the agents: the profiles skill, Claude Code's plugin |
 | `src/terminal/` | the terminal, a Kulisa package: both its halves, its channels, its doc (docs/packages.md) |
+| `src/github/` | the GitHub accounts, a Kulisa package (docs/packages.md) |
 | `test/` | unit tests and the e2e groups, the test site (docs/testing.md) |
 | `scripts/` | `electron.ts` (npm start: Electron, `--no-sandbox` on Linux only), `postinstall.ts` (node-pty for Electron), `icons.ts` (npm run icons), `version.ts` (Claude Code's plugin manifest's version from package.json's, at npm version) |
 | `assets/` | the app icon: `icon.svg` and what each OS needs, rendered from it |

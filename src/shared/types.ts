@@ -1,3 +1,5 @@
+import type { GitHubKind, RepoGitHub } from '../github/ipc.ts';
+
 // What the main process sends the window (window.ts, profiles.ts, tasks.ts), as the window uses it: the one
 // definition, which the main process's answers are typed with too; the channels it comes by: ipc.ts.
 
@@ -63,6 +65,12 @@ export interface SignedIn extends Partial<AccountsInfo> { agents?: ProjectAgent[
 export interface NewProjectSetup { agents?: string[]; profiles?: ({ id: string } | { name: string; description?: string })[] }
 export interface ProjectChoices { agents: { id: string; name: string }[]; clis: { id: string; name: string }[] }
 export interface ProjectRepo { folder: string; git: 'ok' | 'none' | 'no-commit' }
+// Its repositories' GitHub accounts (projects.ts, githubOf: src/github): each one's remote by its key (null: no git or
+// no origin), what it is to the accounts; the accounts to choose from.
+export interface ProjectGitHub {
+  repos: (RepoGitHub & { folder: string; remote: string | null })[];
+  accounts: { id: string; login: string; kind: GitHubKind }[];
+}
 export interface ProjectProfile { id: string; name: string; avatar: string; description?: string; also: string[] }
 export interface ProjectSettings extends ProjectChoices {
   name: string; folder: string; local?: string[]; repos: ProjectRepo[]; former?: string | null;
@@ -71,7 +79,8 @@ export interface ProjectSettings extends ProjectChoices {
 // Kulisa's keyboard shortcuts (main/keys.ts), as this OS shows them.
 export interface Shortcut { id: string; group: string; label: string; keys: string[]; hold?: boolean } // hold: a key held alone, the human may change it
 // A question from the main process (shell.ask) or the window.
-export interface Question { message: string; detail?: string; ok?: string; other?: string; cancel?: string; danger?: boolean }
+// link: a page the answer may need, under the detail (opened in the user's browser).
+export interface Question { message: string; detail?: string; ok?: string; other?: string; cancel?: string; danger?: boolean; link?: { url: string; label: string } }
 // An agent or account in a list to choose from or install (main/ipc/agents.ts; renderer's lib/agents.ts).
 export interface AgentInfo {
   id: string; name: string; maker?: string; needs?: string; site?: string; install?: string | null; installed?: boolean;

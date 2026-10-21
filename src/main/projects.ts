@@ -8,6 +8,7 @@ import fs from 'fs';
 import path from 'path';
 import { Task } from './tasks.ts';
 import { freeBranch, createWorktree, removeWorktree, merged, repoOf, changes, clone } from './worktrees.ts';
+import { originKey } from './remotes.ts';
 import { nameError, repoName, slugOf } from '../shared/names.ts';
 import { refused } from '../shared/result.ts';
 import type { Result } from '../shared/result.ts';
@@ -16,7 +17,7 @@ import type { ProjectEntry, TaskEntry, Copy, Store } from './store.ts';
 import type { StoredProfile } from './profile-store.ts';
 import type { ProfileConfig } from './profiles.ts';
 import type { AppWindow, Asker } from './window.ts';
-import type { Question, ProjectAgent, ProjectRepo, NewProjectSetup } from '../shared/types.ts';
+import type { Question, ProjectAgent, ProjectGitHub, ProjectRepo, NewProjectSetup } from '../shared/types.ts';
 import type { GitError } from './worktrees.ts';
 
 type Git = 'ok' | 'no-commit' | 'none';
@@ -291,7 +292,14 @@ async function removeRepo(shell: Shell, id: string, repo: string): Promise<Resul
   if (repos.length === 1) return { error: 'a project needs a folder: add another one first' };
   const using = shell.store.tasksOf(p!).list.filter((e) => e.copies?.some((c) => c.repo === repo) || (!e.copies && e.folder === repo));
   if (using.length) return { error: `Tasks work in it: ${using.map((e) => e.name).join(', ')}. Delete them first (Delete Task… in a task's menu).` };
-  return changeRepos(shell, id, repos.filter((r) => r !== repo));
+  const left = repos.filter((r) => r !== repo);
+  // Its GitHub account goes with it, unless another of the project's repositories has the same remote.
+  const remote = p!.github && await originKey(repo);
+  if (remote && p!.github?.[remote] && !(await Promise.all(left.map((r) => originKey(r)))).includes(remote)) {
+    const { [remote]: _, ...github } = p!.github;
+    shell.store.updateProject(id, { github: Object.keys(github).length ? github : null });
+  }
+  return changeRepos(shell, id, left);
 }
 // A profile a project lets go (− on its page, the agent's profile_delete), whether it is open or not: asked first,
 // saying what goes: its copies in the project's tasks. The profile stays, with its master (its sign-ins): Settings →
@@ -483,6 +491,41 @@ async function reposInfo(p: ProjectEntry): Promise<{ repos: ProjectRepo[]; forme
   return { repos, former };
 }
 
+// Its repositories' GitHub accounts (src/github/README.md, A repository's account), whether it is open or not: each
+// repository's origin by its key (remotes.ts), its account the one bound to that remote in projects.json (github),
+// else the first account that reaches it, which is then bound: the account a repository's work goes as stays the
+// same, whatever accounts come later, until the human chooses another on its row.
+async function githubOf(shell: Shell, id: string): Promise<Result<ProjectGitHub>> {
+  const p = shell.store.projects().find((x) => x.id === id);
+  if (!p) return { error: `no project ${id}` };
+  const repos = await Promise.all(reposOf(p).map(async (folder) => {
+    const remote = await originKey(folder);
+    return { folder, remote, ...(await shell.github.repo(remote, (remote && p.github?.[remote]) || null)) };
+  }));
+  const suggested = Object.fromEntries(repos.filter((r) => r.suggested && r.remote && r.account).map((r) => [r.remote!, r.account!]));
+  if (Object.keys(suggested).length) shell.store.updateProject(id, { github: { ...p.github, ...suggested } });
+  return { repos, accounts: shell.github.accounts.list().map(({ id, login, kind }) => ({ id, login, kind })) };
+}
+// The human's choice on a repository's row: an account for its remote, or none (null: Kulisa suggests one again).
+async function setGitHub(shell: Shell, id: string, remote: string, account: string | null): Promise<Result<ProjectGitHub>> {
+  const p = shell.store.projects().find((x) => x.id === id);
+  if (!p) return { error: `no project ${id}` };
+  if (account && !shell.github.accounts.get(account)) return { error: `no GitHub account ${account}` };
+  const github = { ...p.github };
+  if (account) github[remote] = account; else delete github[remote];
+  shell.store.updateProject(id, { github: Object.keys(github).length ? github : null });
+  return githubOf(shell, id);
+}
+// The projects bound to a GitHub account (their names), and letting go of it when it is deleted.
+const githubUsers = (shell: Shell, account: string) => shell.store.projects().filter((p) => Object.values(p.github || {}).includes(account)).map((p) => p.name);
+function forgetGitHub(shell: Shell, account: string) {
+  for (const p of shell.store.projects()) {
+    if (!Object.values(p.github || {}).includes(account)) continue;
+    const github = Object.fromEntries(Object.entries(p.github!).filter(([, a]) => a !== account));
+    shell.store.updateProject(p.id, { github: Object.keys(github).length ? github : null });
+  }
+}
+
 // Removing a project: the question first, told what goes and which tasks have work not in main (the window closes the
 // project if it is open in between), then each of its tasks deleted and what is the project's as a whole (store.ts:
 // its entry, its data folder). Never the project's own folder. p: its entry; w: the window that asks.
@@ -531,4 +574,5 @@ function pictureOf(file: string) {
 }
 
 export { Project, askDeleteProject, deleteClosedTask, deleteProjectData, pictureOf, addRepo, cloneRepo, defaultRepo, removeRepo, reposInfo,
-  askDropProfile, dropProfile, deleteProfile, agentsInfo, addAgent, defaultAgent, removeAgent, deleteAccount, createProject, folderStateOf };
+  askDropProfile, dropProfile, deleteProfile, agentsInfo, addAgent, defaultAgent, removeAgent, deleteAccount, createProject, folderStateOf,
+  githubOf, setGitHub, githubUsers, forgetGitHub };

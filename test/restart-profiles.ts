@@ -1,4 +1,4 @@
-// After a restart, what agent.ts, profiles.ts and zoom-and-closing.ts left: profiles, sign-ins, tabs, zoom.
+// After a restart, what agent.ts, profiles.ts, zoom-and-closing.ts and github.ts left: profiles, sign-ins, tabs, zoom, a GitHub account.
 import fs from 'fs';
 import path from 'path';
 import { assert, userData, pfile, idOf, SITE, sleep, waitFor, who } from './helpers.ts';
@@ -43,5 +43,11 @@ export default (test: Test) => {
     await tab.ready;
     await waitFor(() => near(tab.wc.getZoomFactor(), 1.25 * 1.1), 3000);
     tab.wc.close();
+  });
+  // github.ts left bob's token: kept with the keyring, else (no keyring: basic_text) only while Kulisa ran.
+  test('after a restart: a GitHub sign-in is kept with the keyring, or signed out without one', async ({ shell }) => {
+    const [bob] = shell.github.accounts.list();
+    assert.equal(bob.login, 'bob');
+    assert.equal(shell.github.accounts.signedIn(bob.id), shell.github.kept());
   });
 };

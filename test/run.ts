@@ -4,7 +4,7 @@
 //   electron test/run.ts --files=agent,profiles             the tests in these files
 //   electron test/run.ts --restart --files=restart-profiles  after a restart: what the group left is still there
 // `npm test` runs every group, in parallel (start.ts). Shared helpers: helpers.ts.
-import { app } from 'electron';
+import electron, { app } from 'electron';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import path from 'path';
@@ -56,6 +56,11 @@ process.env.FAKE_LOGOUTS = path.join(root, 'logouts'); // the accounts the fake 
 // Kulisa started from a folder direnv had loaded, as from a terminal in the repository: its state in the environment.
 Object.assign(process.env, { DIRENV_DIR: `-${root}`, DIRENV_FILE: path.join(root, '.envrc'), DIRENV_DIFF: 'eJyrrgUAAXUA-Q', DIRENV_WATCHES: 'eJyLjgUAARUAuQ' });
 process.env.FAKE_SIGNIN_PAGE = `${SITE}/app?signin`; // the page its sign-in opens (the test site)
+// GitHub: the test site's fake one (src/github), never the real one; the pages Kulisa opens in the user's browser
+// (GitHub's device page) noted, not opened.
+process.env.KULISA_GITHUB = `${SITE}/github`;
+const openedExternally: string[] = [];
+electron.shell.openExternal = async (url: string) => { openedExternally.push(url); };
 // The user's browser, which an agent's own sign-in opens (tasks.md, Accounts): it notes the page, opens nothing.
 Object.assign(process.env, { BROWSER: path.join(import.meta.dirname, 'fixtures', 'browser.sh'), FAKE_OPENED: path.join(root, 'opened') });
 const agents: Agent[] = [
@@ -165,7 +170,7 @@ async function setup(shell: Shell) {
   const instructions = async (task: Task = shell.task) => (await mcpOf(task.env().KULISA_MCP_URL)).getInstructions();
   // The tools the MCP server lists to the agent of task task, as its client gets them.
   const tools = async (task: Task = shell.task) => (await (await mcpOf(task.env().KULISA_MCP_URL)).listTools()).tools;
-  const ctx = { shell, call, instructions, tools, ui, sui, ptyOutput: () => pty, watchPty, termText, asked, answer: true as boolean | 'other' | null, get step() { return step; } };
+  const ctx = { shell, call, instructions, tools, ui, sui, ptyOutput: () => pty, watchPty, termText, asked, openedExternally, answer: true as boolean | 'other' | null, get step() { return step; } };
   const ask = shell.askWhich;
   // Asked where w is (a tasks' window, Settings': app.ts, askWhich), the first window when none is named; shell.ask
   // asks through it.

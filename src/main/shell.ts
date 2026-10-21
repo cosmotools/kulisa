@@ -20,6 +20,7 @@ import type { Pty } from '../terminal/main/index.ts';
 import type { signinPages } from './signin-pages.ts';
 import type { Result } from '../shared/result.ts';
 import type { Discarder } from './discard.ts';
+import type { GitHub } from '../github/main/index.ts';
 
 
 // An agent or account a task runs (shell.agentFor): its agent's entry, with the account's id, name and folder; cli:
@@ -32,6 +33,7 @@ interface Shell {
   bus: EventEmitter; store: Store; proxy: CdpProxy; mcp: { base: string; srv: import('http').Server };
   open: Map<string, Project>; windows: AppWindow[]; signin: ReturnType<typeof signinPages>;
   profileStore: ProfileStore; cookieSync: CookieSync; sessionCookies: SessionCookies; accounts: Accounts;
+  github: GitHub; // the GitHub accounts (src/github)
   secrets: { available(): boolean; encrypt(s: string): string; decrypt(b: string): string };
   loginSecret(password?: string): Result<{ secret?: string }>;
   typingSecret: Set<string>; // '<task key>/<profile id>'
