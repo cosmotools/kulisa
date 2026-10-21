@@ -39,11 +39,11 @@
 //   forget(ctx)              a task's copy is deleted: everything the agent keeps of its folder goes (conversations,
 //                            the folder's trust, history); ctx { folder, saved (a conversation of it), project (the
 //                            project's folder, and a conversation of one of its tasks with a transcript) }
-//   config                   its accounts (accounts.ts): { env, home(), login(), status, email(out), logout }:
+//   config                   its accounts (accounts.ts): { env, home(), login(), status, email(out, dir), logout }:
 //                            the variable naming its config folder; the human's own folder (where it keeps its sign-in
 //                            without that variable); the arguments of its own sign-in (run in a terminal, it ends when
-//                            signed in), of its status (ends with 0 when signed in) and the email in what that says
-//                            (none: not known), and of signing out (accountEmail, signOut)
+//                            signed in), of its status (ends with 0 when signed in) and the email in what that says or
+//                            in the config folder dir (none: not known), and of signing out (accountEmail, signOut)
 //   voice                    dictation, when the agent has its own (the window's microphone button; none without):
 //                            key, repeat  what is typed into its terminal again and again while it records, every
 //                                  repeat ms, as a held key repeats (a terminal tells no key's release)
@@ -84,7 +84,7 @@ interface Agent {
   lacks?: Partial<Record<Capability, string>>;
   prompt?: (text: string) => string[];
   skills?: string;
-  config?: { env: string; home: () => string; login: () => string[]; status: string[]; email: (out: string) => string | null; logout: string[] };
+  config?: { env: string; home: () => string; login: () => string[]; status: string[]; email: (out: string, dir: string) => string | null; logout: string[] };
   voice?: { key: string; repeat: number };
   language?: { languages: string[]; set: (dir: string, code: string) => { error?: string } };
   shell?: { command: string; args?: string[] };

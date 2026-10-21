@@ -46,9 +46,10 @@ const codex: Agent = {
     language: 'Codex 0.160.1 has no language setting',
   },
   // Its own sign-in: `login`, `login status`, `logout`. Its status does not say the email ("Logged in
-  // using ChatGPT"): the account is shown by its id.
+  // using ChatGPT"), its auth.json does: the email claim of its ChatGPT id token (undocumented; signed in with an API
+  // key it has none, and the account is shown by its id). Only the email is read; the token is never kept or logged.
   config: { env: 'CODEX_HOME', home: () => process.env.CODEX_HOME || path.join(os.homedir(), '.codex'),
-    login: () => ['login'], status: ['login', 'status'], email: () => null, logout: ['logout'] },
+    login: () => ['login'], status: ['login', 'status'], email: (_out, dir) => tokenEmail(dir), logout: ['logout'] },
   // The conversation its SessionStart hook reported, else its last one in this folder (each task has its own).
   resume: ({ started, sessionId }) => started && ['resume', sessionId || '--last'],
   // The task's other repositories, writable as its own folder.
@@ -63,6 +64,13 @@ const codex: Agent = {
 // Codex keeps its answer in its config.toml: a table [projects."<folder>"] with trust_level = "trusted"
 // ("untrusted" when the human said no, which is never carried).
 const codexHome = ({ configDir }: Where) => configDir || process.env.CODEX_HOME || path.join(os.homedir(), '.codex');
+// The email in its auth.json's id token (a JWT: its middle part, base64url JSON), or null.
+function tokenEmail(dir: string): string | null {
+  try {
+    const token = JSON.parse(fs.readFileSync(path.join(dir, 'auth.json'), 'utf8')).tokens?.id_token;
+    return JSON.parse(Buffer.from(String(token).split('.')[1] ?? '', 'base64url').toString()).email || null;
+  } catch { return null; }
+}
 const tomlKey = (folder: string) => `"${folder.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
 function codexTrusted(home: string, folder: string) {
   let text: string;
