@@ -454,11 +454,19 @@ zone; electron-log's own has no offset), the level and a tag:
 - `[key]`: a key of Kulisa's taken (`shortcuts.ts`), where the keyboard was.
 - `[page-menu]`: a row of a page's right-click menu chosen (`page-menu.ts`), its profile and tab.
 - `[hook]`: an agent's hook event (`agent-hooks.ts`), its task and terminal.
-- `[task]`, `[window]`, `[settings]`, `[terminal]`: a project's task opened, a task created (where), closed, deleted;
+- `[project]`: a project loaded, its id named by the project's name and folder (the home folder as `~`):
+  `[project] k3f9a2 loaded: shop (~/IdeaProjects/shop)`; a project renamed, by whoever renamed it, only when its name
+  changed (a save writes every field): `[project] k3f9a2 renamed: Shop-2`. Its id is random (tasks.md, What is on the
+  computer): where it first appears in a run it comes with the name, and the lines after it name it by the id alone,
+  the key a line is found by.
+- `[task]`, `[window]`, `[settings]`, `[terminal]`: a project's task opened, a task created (its project's name, where:
+  `[task] created k3f9a2/1 (shop) in ~/IdeaProjects/shop@task-1`), closed, deleted;
   a window made, showing a task, dropped; Settings opened (at what) and closed; a terminal started (the agent and
   whether its session is resumed, or a shell), gone, its exit code.
 - `[page wc=…]`: an error or a warning in one of Kulisa's own pages (its console: an uncaught error is one); never a
   profile's page.
+- `[profiles]`: a profile renamed, by both its ids (its id goes with its name: profiles.md), so the lines before and
+  after it go together: `[profiles] ann renamed: anna`.
 - `[profile]`: a profile's page that would not load (`did-fail-load`, the main frame; a white pane is a common report):
   the profile, the address bare, Chromium's error. The one kind of line about a profile's page.
 - `[session-cookies]`: a profile's saved session cookies that cannot be read (saved with another keyring key: after

@@ -26,31 +26,46 @@ test('projects: at first start none is opened; each gets its own color', async (
   assert.notEqual(shop.color, blog.color);
   // The project a folder is: its own, or one of its repositories (New Project… refuses a folder a project has).
   store.updateProject(shop.id, { repos: ['/work/shop-api'] });
-  assert.deepEqual([store.projectOf('/work/shop/')?.id, store.projectOf('/work/shop-api')?.id, store.projectOf('/work/other')], ['shop', 'shop', null]);
+  assert.deepEqual([store.projectOf('/work/shop/')?.id, store.projectOf('/work/shop-api')?.id, store.projectOf('/work/other')], [shop.id, shop.id, null]);
   store.updateProject(shop.id, { repos: null });
   const bounds = { x: 10, y: 20, width: 900, height: 700 };
-  store.saveWindows([{ tabs: ['blog/1', 'shop/2'], shown: 'shop/2', bounds }, { tabs: ['gone/1'], shown: 'gone/1' }]);
+  store.saveWindows([{ tabs: [`${blog.id}/1`, `${shop.id}/2`], shown: `${shop.id}/2`, bounds }, { tabs: ['gone/1'], shown: 'gone/1' }]);
   const later = new Store(path.join(root, 'fresh-data'));
   const [w, gone] = later.windows();
-  assert.deepEqual(w.tabs, ['blog/1', 'shop/2'], 'later: the tabs open last, tasks by key');
-  assert.deepEqual([w.shown, w.bounds], ['shop/2', bounds], 'the one shown, where the window was');
+  assert.deepEqual(w.tabs, [`${blog.id}/1`, `${shop.id}/2`], 'later: the tabs open last, tasks by key');
+  assert.deepEqual([w.shown, w.bounds], [`${shop.id}/2`, bounds], 'the one shown, where the window was');
   assert.deepEqual([gone.tabs, gone.shown], [['gone/1'], 'gone/1'], 'as saved: a task no longer there is left out when the windows open (app.ts)');
   // A project deleted: its tasks out of every window.
   later.removeProject(blog);
-  assert.deepEqual(later.windows()[0].tabs, ['shop/2']);
+  assert.deepEqual(later.windows()[0].tabs, [`${shop.id}/2`]);
   later.saveSettings({ ...later.settings(), uiZoom: 1 });
   later.saveWindows([]);
   assert.deepEqual(later.settings(), { uiZoom: 1, windows: [] }, 'the other settings kept');
 });
 test('projects: made with the next free color and a first agent; settings change them, never the id or folder', async () => {
   const store = new Store(path.join(root, 'look-data'));
-  const p = store.projectFor('/work/app', 'app', { agent: 'codex' });
-  assert.deepEqual(p, { id: 'app', name: 'app', folder: '/work/app', color: PROJECT_COLORS[0], agents: ['codex'] });
+  const p = store.projectFor('/work/app', 'app', { agent: 'codex' }), id = p.id;
+  assert.deepEqual(p, { id, name: 'app', folder: '/work/app', color: PROJECT_COLORS[0], agents: ['codex'] });
   assert.equal(store.nextColor(), PROJECT_COLORS[1], 'the next new one: the first color no project has');
-  const changed = store.updateProject('app', { name: 'App-2', agents: null, id: 'app', folder: '/work/app' });
-  assert.deepEqual(changed, { id: 'app', name: 'App-2', folder: '/work/app', color: PROJECT_COLORS[0] });
+  const changed = store.updateProject(id, { name: 'App-2', agents: null, id, folder: '/work/app' });
+  assert.deepEqual(changed, { id, name: 'App-2', folder: '/work/app', color: PROJECT_COLORS[0] });
   assert.deepEqual(new Store(path.join(root, 'look-data')).projects(), [changed]);
   assert.equal(store.updateProject('gone', { name: 'x' }), null);
+});
+
+test("projects: an id is six random letters and digits, none a project's name, unique; any old id is read as it is", () => {
+  const dir = path.join(root, 'ids-data'), store = new Store(dir);
+  const ids = Array.from({ length: 50 }, (_, i) => store.projectFor(`/work/app-${i}`, 'app').id);
+  for (const id of ids) assert.match(id, /^[a-z0-9]{6}$/);
+  assert.equal(new Set(ids).size, ids.length, 'one each, though their names are the same');
+  const [first] = store.projects();
+  store.updateProject(first.id, { name: 'Renamed' });
+  assert.equal(store.projectOf('/work/app-0').id, first.id, 'kept when the project is renamed');
+  // A project of an earlier format, its id made from its name: an opaque string as any other.
+  fs.writeFileSync(store.projectsFile, JSON.stringify([...store.projects(), { id: 'd', name: 'ddd', folder: '/work/d', color: PROJECT_COLORS[0] }]));
+  assert.equal(store.projectFor('/work/d').id, 'd');
+  assert.equal(store.updateProject('d', { name: 'eee' }).id, 'd');
+  assert.deepEqual(store.taskOf({ id: 'd' }, 1).dir, path.join(dir, 'projects', 'd', '1'));
 });
 
 test('store: a write cut short leaves the file as it was', async () => {
@@ -73,10 +88,11 @@ test("store: a profile's tabs come back with the one in front; a bare list of ad
   assert.deepEqual(task.tabs('Profile 1'), { urls: [], active: 0 }, 'one data format only (CLAUDE.md)');
 });
 
-// A profile store over a data folder with these projects (store.ts: the projects list their profiles).
+// A profile store over a data folder with these projects, each its name as its id, to be read (store.ts: the
+// projects list their profiles; ids are opaque).
 const profileStore = (dir: string, ...projects: string[]) => {
   const store = new Store(dir);
-  for (const p of projects) store.projectFor(`/work/${p}`, p);
+  fs.writeFileSync(store.projectsFile, JSON.stringify(projects.map((p, i) => ({ id: p, name: p, folder: `/work/${p}`, color: PROJECT_COLORS[i] }))));
   return new ProfileStore(store);
 };
 

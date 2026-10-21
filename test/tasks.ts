@@ -7,7 +7,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import http from 'http';
-import { MAC, CMD, shot, assert, root, userData, project, pfile, panel, SITE, sleep, waitFor, who, menuRows, choose, rightClick, viewOn, press, projectTabs, projectTab, showProject, savedWindows, closeMenu, click, plusMenu, closeBoard, PORT, hooksOf, MENU, SUBMENU, menuOpen, noNode, focusWindow, chooseProfile, closeSettings, settingsClosed } from './helpers.ts';
+import { MAC, CMD, shot, assert, root, userData, project, pid, tkey, named, pfile, panel, SITE, sleep, waitFor, who, menuRows, choose, rightClick, viewOn, press, projectTabs, projectTab, showProject, savedWindows, closeMenu, click, plusMenu, closeBoard, PORT, hooksOf, MENU, SUBMENU, menuOpen, noNode, focusWindow, chooseProfile, closeSettings, settingsClosed } from './helpers.ts';
 import { withOffset } from '../src/main/tasks.ts';
 import { createWorktree } from '../src/main/worktrees.ts';
 import { sessionStart } from '../src/main/kulisa-plugin/agent-hooks.ts';
@@ -25,7 +25,7 @@ const git = (cwd: string, ...args: string[]) => execFileSync('git', ['-c', 'user
 const ACTIVE_PROJECT = `document.querySelector('#projectTabs .tasktab.active').dataset.project`;
 const tabs = (ui: UI) => ui(`[...document.querySelectorAll('#projectTabs .tasktab[data-project="' + ${ACTIVE_PROJECT} + '"]')].map((t) => t.querySelector('.name').textContent + (t.classList.contains('active') ? ' *' : ''))`);
 const taskTab = (n: number) => `document.querySelector('#projectTabs .tasktab[data-task="' + ${ACTIVE_PROJECT} + '/${n}"]')`;
-const tasksFile = (): TasksFile => JSON.parse(fs.readFileSync(path.join(userData, 'projects', 'project', 'tasks.json'), 'utf8'));
+const tasksFile = (): TasksFile => JSON.parse(fs.readFileSync(path.join(userData, 'projects', pid('project'), 'tasks.json'), 'utf8'));
 // The bar's +, the shown project in its menu; resolves once the new task is shown, its agent started.
 async function newTask(ctx: Ctx) {
   const { shell, ui } = ctx;
@@ -146,7 +146,7 @@ export default (test: Test) => {
       assert.equal(execFileSync('direnv', ['exec', wt, 'sh', '-c', 'echo $FROM_ENVRC'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim(), `envrc of ${wt}`);
     }
     await waitFor(async () => (await ctx.termText()).includes(`agent: rc of ${wt}`)); // its agent, in its folder
-    assert.deepEqual(task.env(), { KULISA_MCP_URL: `${shell.mcp.base}/task/project/2/mcp`, KULISA_URL: `${shell.mcp.base}/task/project/2`, KULISA_TASK: 'task-2', KULISA_PORT_OFFSET: '100' });
+    assert.deepEqual(task.env(), { KULISA_MCP_URL: `${shell.mcp.base}/task/${tkey('project', 2)}/mcp`, KULISA_URL: `${shell.mcp.base}/task/${tkey('project', 2)}`, KULISA_TASK: 'task-2', KULISA_PORT_OFFSET: '100' });
     assert.equal(shell.resumedSession, null, 'a new conversation');
     const told = await ctx.instructions(task);
     assert.match(told, /This is the Kulisa task "task-2": a git worktree of its own, .*project@task-2, on branch task-2/, 'where it works, told to any agent');
@@ -163,7 +163,7 @@ export default (test: Test) => {
     await waitFor(() => shell.profiles.has('sam-admin') && shell.profiles.has('elon-buyer'));
     assert.deepEqual(['sam-admin', 'elon-buyer'].map((id) => [shell.profiles.get(id).avatar, shell.profiles.get(id).description]),
       [['fox', 'seller in the test shop'], ['owl', '']], 'with their pictures and who they are');
-    assert.ok(shell.profiles.get('sam-admin').dir.startsWith(path.join(userData, 'projects', 'project', '2')));
+    assert.ok(shell.profiles.get('sam-admin').dir.startsWith(path.join(userData, 'projects', pid('project'), '2')));
     assert.ok(!fs.existsSync(pfile('Profile 3', 2)), 'a closed one is copied when it is first opened');
     await call('browser_navigate', { profile: 'sam-admin', url: `${SITE}/app` });
     assert.equal(await who(ctx, 'sam-admin'), 'Signed out', 'its master was never signed in');
@@ -356,7 +356,7 @@ export default (test: Test) => {
 
   test("profiles: a real account's sign-in kept in step: signed in to a site (not local) in one task, it is in the others and the master; signed out, out everywhere; a local app's stays each task's", async (ctx) => {
     const { shell, call } = ctx;
-    const first = shell.taskOf('project', 1), shop = `http://shop.example:${PORT}`;
+    const first = shell.taskOf(pid('project'), 1), shop = `http://shop.example:${PORT}`;
     const inFirst = { call: (n: string, a: Record<string, unknown>) => call(n, a, first) };
     await call('browser_navigate', { profile: 'sam-admin', url: `${shop}/app/login?name=real` });
     assert.equal(await who(ctx, 'sam-admin'), 'Signed in as real');
@@ -472,7 +472,7 @@ export default (test: Test) => {
       document.startViewTransition = (o) => { const t = start(o); t.ready.then(() => { seen = { types: [...t.types],
         animations: document.getAnimations().filter((a) => ['::view-transition-old(grid)', '::view-transition-new(grid)'].includes(a.effect?.pseudoElement) && a.effect.getTiming().duration > 0)
           .map((a) => { const [from, to] = a.effect.getKeyframes(); return [a.animationName, from.translate === 'none' ? to.translate : from.translate, from.easing].join(' '); }).sort() }; }); return t; };
-      await kulisa.invoke('task:show', 'project/${n}');
+      await kulisa.invoke('task:show', '${pid('project')}/${n}');
       await new Promise((r) => setTimeout(r, 800));
       delete document.startViewTransition; // the document's own again
       return seen;
@@ -502,7 +502,7 @@ export default (test: Test) => {
     await ui(`(() => {
       const start = document.startViewTransition.bind(document);
       document.startViewTransition = (o) => { const t = start(o); delete document.startViewTransition; document.getElementById('windowMenu').click(); return t; };
-      void kulisa.invoke('task:show', 'project/2');
+      void kulisa.invoke('task:show', '${pid('project')}/2');
     })()`);
     await waitFor(sliding);
     await waitFor(() => menuOpen(ui));
@@ -632,7 +632,7 @@ export default (test: Test) => {
     // Its profiles' caches cleared, as a profile closed alone (zoom-and-closing.ts): kept, they stayed until it was deleted.
     await waitFor(async () => (await sam.session.getCacheSize()) === 0);
     assert.equal(ctx.asked.length, 0, 'not asked: nothing is lost');
-    assert.ok(fs.existsSync(task.folder) && git(project, 'branch', '--list', 'task-3') && fs.existsSync(path.join(userData, 'projects', 'project', '3')), 'its code and data stay');
+    assert.ok(fs.existsSync(task.folder) && git(project, 'branch', '--list', 'task-3') && fs.existsSync(path.join(userData, 'projects', pid('project'), '3')), 'its code and data stay');
     assert.equal(tasksFile().list.find((e) => e.n === 3).closed, true);
     await waitFor(async () => JSON.stringify(await tabs(ui)) === '["task-1","Feature-X *"]');
     // The bar's + (a new tab) lists it in its project's column, after the open ones; opening it shows it again, its
@@ -662,7 +662,7 @@ export default (test: Test) => {
   test('tasks: Delete Task… asks first, saying what goes and any work not in main and not pushed; it goes with its branch, folder and profiles', async (ctx) => {
     const { shell, ui } = ctx;
     const empty = shell.task;
-    const dir = path.join(userData, 'projects', 'project', '3');
+    const dir = path.join(userData, 'projects', pid('project'), '3');
     await rightClick(ui, `#projectTabs .tasktab[data-task="${empty.key}"] .name`);
     await menuRows(ui);
     await choose(ui, 'Delete Task…');
@@ -915,8 +915,8 @@ export default (test: Test) => {
   });
 
   // The project's settings (Project Settings… in its submenu), with its agents.
-  const projectSettings = async ({ ui, sui }: Pick<Ctx, 'ui' | 'sui'>, id = 'project') => {
-    await projectMenu(ui, 'Project Settings…', `#projectTabs [data-project="${id}"] .name`);
+  const projectSettings = async ({ ui, sui }: Pick<Ctx, 'ui' | 'sui'>, folder = 'project') => {
+    await projectMenu(ui, 'Project Settings…', `#projectTabs [data-project="${pid(folder)}"] .name`);
     await waitFor(() => sui(`!!document.getElementById('npagentsrow')`));
   };
   // A new profile on a project's page: + → New Profile…, its name typed in place, Create.
@@ -971,7 +971,7 @@ export default (test: Test) => {
     assert.deepEqual(await sui(`[...document.querySelectorAll('#npagents [data-agent="fake-1"] .cell')].slice(0, 2).map((c) => c.textContent.trim())`), ['Fake agent', 'work@shop.com']);
     assert.deepEqual(JSON.parse(fs.readFileSync(path.join(userData, 'agents.json'), 'utf8')),
       { next: 2, list: [{ id: 'fake-1', agent: 'fake', email: 'work@shop.com', folder: 'fake-1' }] });
-    assert.ok(ctx.shell.store.projects().find((x) => x.id === 'project').agents.includes('fake-1'), 'the project lists it');
+    assert.ok(ctx.shell.store.projects().find((x) => x.id === pid('project')).agents.includes('fake-1'), 'the project lists it');
     // Signed in to an email it has already: that account, the new folder signed out and gone.
     p = await signIn(ctx);
     p.write('work@shop.com\r');
@@ -1092,7 +1092,7 @@ export default (test: Test) => {
     await waitFor(() => sui(`!!${row('fake-5')} && !document.getElementById('npsignin')`));
     assert.equal(await sui(`${row('fake-5')}.querySelector('.label').textContent`), 'home@shop.com');
     assert.deepEqual(shell.store.projectsWith('agents', 'fake-5').map((p) => p.id), []);
-    await click(sui, `document.querySelector('#pjlist [data-project="project"]')`);
+    await click(sui, `document.querySelector('#pjlist [data-project="${pid('project')}"]')`);
     await waitFor(() => sui(`document.getElementById('pjconfig').checkVisibility() && !document.getElementById('npagentadd').disabled`));
     // The accounts to add are asked for again as the tab is shown: the menu may open before they come.
     await waitFor(async () => {
@@ -1121,7 +1121,7 @@ export default (test: Test) => {
     await ui(`${taskTab(2)}.querySelector('.close').click()`);
     // The project goes once its task is unloaded: its agent stopped, each profile's sign-ins written out and its
     // tabs closed. On a loaded machine, with the other project running beside it, that takes over 5 s now and then.
-    await waitFor(() => shell.task === null && !shell.current && !shell.open.has('project'), 15000);
+    await waitFor(() => shell.task === null && !shell.current && !shell.open.has(pid('project')), 15000);
     assert.equal(ctx.asked.length, 0, 'no agent works: nothing asked');
     assert.ok(second.profiles.size === 0 && !second.pty, 'every task of the project stopped');
     assert.deepEqual(tasksFile().list.map((e) => [e.n, !!e.closed]), [[1, true], [2, true], [5, true]]);
@@ -1148,10 +1148,10 @@ export default (test: Test) => {
     assert.equal(rows[0], 'project', 'worked in last');
     assert.deepEqual(await ui(`[...document.querySelectorAll('#board .column header .picon')].map((i) => [i.closest('.column').dataset.project, i.querySelector('use')?.getAttribute('href') ?? null])`),
       await ui(`[...document.querySelectorAll('#board .column')].map((c) => c.dataset.project)`).then((ids: string[]) => ids.map((id) => [id, shell.projects().find((p) => p.id === id).favicon ? null : '#i-logo'])), 'its favicon, else the curtain');
-    assert.match(await ui(`document.querySelector('#board .column[data-project="project"] li .item small').textContent`), /ago|just now/);
+    assert.match(await ui(`document.querySelector('#board .column[data-project="${pid('project')}"] li .item small').textContent`), /ago|just now/);
     // A closed task's 🗑 asks as Delete Task… does (Cancel here: the tests after need it).
     ctx.answer = false;
-    await ui(`document.querySelector('#board [data-task="project/5"] .remove').click()`);
+    await ui(`document.querySelector('#board [data-task="${tkey('project', 5)}"] .remove').click()`);
     await waitFor(() => ctx.asked.length);
     assert.equal(ctx.asked.pop().message, 'Delete the task task-5?');
     await waitFor(async () => !(await ui(`document.getElementById('ask')?.dataset.state === 'open'`)));
@@ -1166,7 +1166,7 @@ export default (test: Test) => {
     // In a new tab now (the bar's +): the open one shown, not to choose; the others, the one closed last first.
     const plus: string[] = await plusMenu(ui);
     assert.deepEqual(plus.slice(plus.indexOf('project'), plus.indexOf('project') + 4), ['project', '  Feature-X (open)', '  task-1', '  task-5']);
-    assert.equal(await ui(`document.querySelector('#board [data-task="project/2"]').ariaDisabled`), 'true');
+    assert.equal(await ui(`document.querySelector('#board [data-task="${tkey('project', 2)}"]').ariaDisabled`), 'true');
     await plusMenu(ui, 'project', 'task-1');
     await waitFor(() => shell.task?.n === 1 && shell.task.loaded && shell.pty);
     ctx.watchPty(shell.pty);
@@ -1335,7 +1335,7 @@ export default (test: Test) => {
     await ui(`document.getElementById('npform').requestSubmit()`);
     await waitFor(() => shell.current?.folder === path.join(made, 'Shop') && shell.task?.loaded && shell.pty);
     assert.equal(ctx.asked.length, 0, 'nothing asked');
-    assert.deepEqual(shell.profileStore.of('shop').map((p) => [p.name, p.description]), [['Shop-buyer', 'buys things']]);
+    assert.deepEqual(shell.profileStore.of(pid('shop')).map((p) => [p.name, p.description]), [['Shop-buyer', 'buys things']]);
     assert.ok(!fs.existsSync(path.join(made, 'Shop', '.git')), 'a plain folder: Kulisa makes no repository');
     // The log (window.md, The log): the start, the task and the channel that made it, a key taken; nothing typed into a
     // terminal (the keys' tests did).
@@ -1343,11 +1343,14 @@ export default (test: Test) => {
     assert.match(logged, /^\[\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}[+-]\d\d:\d\d\] \[info\] \[kulisa\] start \d+\.\d+\.\d+, electron \d+\./m, 'the time as ISO 8601 with its offset');
     assert.match(logged, /\[kulisa\] encryption (available|not available)/);
     assert.ok(!/did not quit by itself/.test(logged), 'the run before quit as asked (the tests quit with app.quit)');
-    assert.match(logged, /\[ipc\] project:open wc=\d+ \{"id":"shop"\}/);
-    assert.match(logged, /\[task\] created shop\/1 in \S*Shop wc=\d+/);
+    const shopId = pid('shop');
+    assert.match(logged, new RegExp(`\\[ipc\\] project:open wc=\\d+ \\{"id":"${shopId}"\\}`));
+    // The project named beside its id where it first appears (its id is random: store.ts).
+    assert.match(logged, new RegExp(`\\[project\\] ${shopId} loaded: Shop \\(\\S*Shop\\)`));
+    assert.match(logged, new RegExp(`\\[task\\] created ${shopId}/1 \\(Shop\\) in \\S*Shop wc=\\d+`));
     assert.match(logged, /\[key\] tab\.new zone=/);
     assert.ok(!/pty:in/.test(logged), 'what is typed into a terminal is never logged');
-    const shop = shell.store.projects().find((p) => p.id === 'shop');
+    const shop = shell.store.projects().find((p) => p.id === pid('shop'));
     assert.deepEqual([shop.color, shop.agents], [color, undefined]);
     // No favicon in its code: the curtain, in the next free color, the window's too.
     assert.equal(await ui(`${projectTab('shop')}.querySelector('.picon use').getAttribute('href')`), '#i-logo');
@@ -1372,16 +1375,16 @@ export default (test: Test) => {
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
     assert.deepEqual(await projectTabs(ui), ['shop', 'project *', 'project']);
     // Another project's task: a click shows it.
-    await click(ui, `document.querySelector('#projectTabs .tasktab[data-task="shop/1"]')`);
-    await waitFor(() => shell.current?.id === 'shop' && shell.task?.key === 'shop/1' && shell.task.loaded && !shell.windows[0].switching);
+    await click(ui, `document.querySelector('#projectTabs .tasktab[data-task="${tkey('shop', 1)}"]')`);
+    await waitFor(() => shell.current?.id === pid('shop') && shell.task?.key === tkey('shop', 1) && shell.task.loaded && !shell.windows[0].switching);
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
     assert.deepEqual(await projectTabs(ui), ['shop *', 'project', 'project']);
     await showProject(ui, 'project');
-    await waitFor(() => shell.current?.id === 'project' && shell.task.loaded);
+    await waitFor(() => shell.current?.id === pid('project') && shell.task.loaded);
     // A tab in the background has its × too: the last one of its project lets the project go.
-    await ui(`document.querySelector('#projectTabs .tasktab[data-task="shop/1"] .close').click()`);
-    await waitFor(() => !shell.open.has('shop'));
-    assert.equal(shell.current?.id, 'project', 'the shown project stays');
+    await ui(`document.querySelector('#projectTabs .tasktab[data-task="${tkey('shop', 1)}"] .close').click()`);
+    await waitFor(() => !shell.open.has(pid('shop')));
+    assert.equal(shell.current?.id, pid('project'), 'the shown project stays');
     ctx.asked.length = 0;
   });
 
@@ -1391,7 +1394,7 @@ export default (test: Test) => {
     fs.mkdirSync(path.join(site, 'public'), { recursive: true });
     fs.writeFileSync(path.join(site, 'public', 'favicon.svg'), '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><circle cx="8" cy="8" r="8" fill="red"/></svg>');
     await ui(`kulisa.invoke('project:open', { folder: ${JSON.stringify(site)} })`);
-    await waitFor(() => shell.current?.id === 'site' && shell.task?.loaded && shell.pty);
+    await waitFor(() => shell.current?.id === pid('site') && shell.task?.loaded && shell.pty);
     ctx.watchPty(shell.pty);
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
     await waitFor(() => ui(`${projectTab('site')}.querySelector('.favicon').src.startsWith('data:image/svg+xml;base64,')`));
@@ -1402,22 +1405,22 @@ export default (test: Test) => {
       return ${projectTab('site')}.style.getPropertyValue('--color') === c && (${typeof hue === 'number'} ? Math.abs(h - ${JSON.stringify(hue)}) <= 4 : c === ${JSON.stringify(hue)}); })()`);
     await waitFor(() => shown(29));
     // Its settings: its favicon in the list, the folder shown and not changed.
-    await projectMenu(ui, 'Project Settings…', `#projectTabs [data-project="site"] .name`);
+    await projectMenu(ui, 'Project Settings…', `#projectTabs [data-project="${pid('site')}"] .name`);
     await waitFor(() => sui(`${pageOf('site')}`));
     // The manager lists every project, this one chosen.
-    assert.ok(await sui(`document.querySelector('#pjlist [data-project="site"]').ariaSelected === 'true'`));
-    assert.equal(await sui(`document.querySelector('#pjlist [data-project="site"] .picon').matches('.favicon')`), true);
+    assert.ok(await sui(`document.querySelector('#pjlist [data-project="${pid('site')}"]').ariaSelected === 'true'`));
+    assert.equal(await sui(`document.querySelector('#pjlist [data-project="${pid('site')}"] .picon').matches('.favicon')`), true);
     assert.equal(await sui(`document.querySelector('#nprepos [data-folder] small').textContent`), site, 'its folder, as its code');
     assert.equal(await sui(`!!document.getElementById('nplocationrow')`), false);
     // A page: its top (New Task, ⋯), each part saved as it changes; the dialog stays open.
     assert.equal(await sui(`[...document.querySelectorAll('#pjconfig .titled, #pjconfig .field > label')].map((h) => h.textContent).join(', ')`),
       'Name:, Code, Agents, Profiles, Local addresses:');
-    const entryOf = () => shell.store.projects().find((p) => p.id === 'site');
+    const entryOf = () => shell.store.projects().find((p) => p.id === pid('site'));
     // Its favicon changed: read again as its settings open. Mostly blue with a red dot: the hue of the most (264°).
     const favicon = (svg: string) => fs.writeFileSync(path.join(site, 'public', 'favicon.svg'), `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">${svg}</svg>`);
     const reopen = async () => {
       await closeSettings(ctx);
-      await projectMenu(ui, 'Project Settings…', `#projectTabs [data-project="site"] .name`);
+      await projectMenu(ui, 'Project Settings…', `#projectTabs [data-project="${pid('site')}"] .name`);
       await waitFor(() => sui(`${pageOf('site')}`));
     };
     favicon('<rect width="16" height="16" fill="#00f"/><circle cx="8" cy="8" r="2" fill="red"/>');
@@ -1437,10 +1440,13 @@ export default (test: Test) => {
     await waitFor(() => entryOf().name === 'Site-2');
     const entry = entryOf();
     assert.deepEqual([entry.name, entry.folder], ['Site-2', site]);
+    // Said in the log once, though the page saves every field at each change (store.ts, updateProject).
+    const renames = fs.readFileSync(path.join(userData, 'logs', 'kulisa.log'), 'utf8').match(new RegExp(`\\[project\\] ${entry.id} renamed: .*`, 'g'));
+    assert.deepEqual(renames, [`[project] ${entry.id} renamed: Site-2`]);
     assert.deepEqual(entry.local, ['abc.ngrok.app', 'shop.dev'], "its own local addresses, where test users' pairs may be typed (local.ts)");
     await waitFor(async () => (await projectTabs(ui)).includes('site *') && shell.win.getTitle() === `${shell.task.name} · Site-2 — Kulisa`);
     // Its profiles: a new one; one of another project, the same person (its master, its sign-ins); × lets go of one.
-    await projectMenu(ui, 'Project Settings…', `#projectTabs [data-project="site"] .name`);
+    await projectMenu(ui, 'Project Settings…', `#projectTabs [data-project="${pid('site')}"] .name`);
     await waitFor(() => sui(`!!document.getElementById('npprofilesrow')`));
     assert.equal(await sui(`document.querySelectorAll('#npprofiles .item').length`), 0);
     await newProfileHere(sui, 'Site-user');
@@ -1460,17 +1466,17 @@ export default (test: Test) => {
     // Opened in this task: a copy of its master, here.
     await ui(`act('profile:open', { profile: 'sam-admin' })`);
     await waitFor(() => shell.profiles.has('sam-admin'));
-    assert.equal(shell.profiles.get('sam-admin').dir, path.join(userData, 'projects', 'site', '1', shell.profileStore.get('sam-admin').folder));
+    assert.equal(shell.profiles.get('sam-admin').dir, path.join(userData, 'projects', pid('site'), '1', shell.profileStore.get('sam-admin').folder));
     // Let go here: it stays in project, with its master.
     ctx.answer = true;
     await ui(`act('profile:delete', { profile: 'sam-admin' })`);
     assert.equal(ctx.asked.pop().message, 'Remove the profile Sam.admin from Site-2?');
     await waitFor(() => !shell.profiles.has('sam-admin'));
-    assert.deepEqual(shell.profileStore.projectsOf(shell.profileStore.get('sam-admin')), ['project']);
+    assert.deepEqual(shell.profileStore.projectsOf(shell.profileStore.get('sam-admin')), [pid('project')]);
     // Its agents: a list, added from the agents without accounts and the accounts in the store (one made in Settings →
     // Agents, in no project), one the default (a radio); at once, not on Save.
     const ann = shell.accounts.create((shell.accounts.prepare('fake') as { id: string }).id, 'fake', 'ann@shop.com');
-    await projectMenu(ui, 'Project Settings…', `#projectTabs [data-project="site"] .name`);
+    await projectMenu(ui, 'Project Settings…', `#projectTabs [data-project="${pid('site')}"] .name`);
     await waitFor(() => sui(`!!document.getElementById('npagentsrow')`));
     await sui(`document.getElementById('npagentadd').click()`);
     assert.ok(!(await menuRows(sui)).includes('Fake agent'), 'an agent with accounts: one of its accounts');
@@ -1489,8 +1495,8 @@ export default (test: Test) => {
     assert.deepEqual(await sui(`(() => { const list = document.querySelector('#npagentsrow .list'), x = (e) => Math.round(e.getBoundingClientRect().left);
       const rows = [list.querySelector('.head'), ...list.querySelectorAll('.item')].map((r) => [...r.children].map(x).join());
       return [[...list.querySelector('.head').children].map((h) => h.textContent), rows.every((r) => r === rows[0])]; })()`), [['Agent', 'Account', ''], true]);
-    assert.deepEqual(shell.store.projects().find((p) => p.id === 'site').agents, ['shell', ann.id]);
-    assert.deepEqual(shell.store.projectsWith('agents', ann.id).map((p) => p.id), ['site'], 'the projects list their agents');
+    assert.deepEqual(shell.store.projects().find((p) => p.id === pid('site')).agents, ['shell', ann.id]);
+    assert.deepEqual(shell.store.projectsWith('agents', ann.id).map((p) => p.id), [pid('site')], 'the projects list their agents');
     await onRow(sui, `#npagents [data-agent="${ann.id}"]`, 'npagentdefault');
     await waitFor(async () => JSON.stringify(await agentRows()) === '["Fake agent · ann@shop.com true","Terminal only false"]');
     // Its right-click has the same: Make Default.
@@ -1505,10 +1511,10 @@ export default (test: Test) => {
     assert.deepEqual(await menuRows(sui), ['No Default', 'Remove from the Project']);
     await choose(sui, 'No Default');
     await waitFor(async () => JSON.stringify(await agentRows()) === '["Terminal only false","Fake agent · ann@shop.com false"]');
-    assert.equal(shell.store.projects().find((p) => p.id === 'site').noDefaultAgent, true);
+    assert.equal(shell.store.projects().find((p) => p.id === pid('site')).noDefaultAgent, true);
     await onRow(sui, `#npagents [data-agent="shell"]`, 'npagentdefault');
     await waitFor(async () => JSON.stringify(await agentRows()) === '["Terminal only true","Fake agent · ann@shop.com false"]');
-    assert.equal(shell.store.projects().find((p) => p.id === 'site').noDefaultAgent, undefined);
+    assert.equal(shell.store.projects().find((p) => p.id === pid('site')).noDefaultAgent, undefined);
     await onRow(sui, `#npagents [data-agent="shell"]`, 'npagentdefault');
     await waitFor(async () => JSON.stringify(await agentRows()) === '["Terminal only false","Fake agent · ann@shop.com false"]');
     await onRow(sui, `#npagents [data-agent="shell"]`, 'npagentdefault');
@@ -1518,9 +1524,9 @@ export default (test: Test) => {
     ctx.answer = true; // no git: a second task in the folder, after the question
     const task = await newTask(ctx);
     ctx.asked.length = 0;
-    assert.equal(JSON.parse(fs.readFileSync(path.join(userData, 'projects', 'site', String(task.n), 'agent.json'), 'utf8')).agent, 'shell');
+    assert.equal(JSON.parse(fs.readFileSync(path.join(userData, 'projects', pid('site'), String(task.n), 'agent.json'), 'utf8')).agent, 'shell');
     // Another agent: made the default on the project's page (Make Default), + runs it.
-    await ui(`kulisa.invoke('project:agent-default', { id: 'site', agent: '${ann.id}' })`);
+    await ui(`kulisa.invoke('project:agent-default', { id: '${pid('site')}', agent: '${ann.id}' })`);
     const before = shell.task;
     await newTask(ctx);
     ctx.asked.length = 0;
@@ -1528,7 +1534,7 @@ export default (test: Test) => {
     assert.equal(shell.task.profiles.size, 0, 'no profile opens by itself');
     const annTask = shell.task;
     // None the default: a new task starts nothing, the island's buttons instead; Ctrl+` there gives them the keyboard.
-    await ui(`kulisa.invoke('project:agent-default', { id: 'site', agent: null })`);
+    await ui(`kulisa.invoke('project:agent-default', { id: '${pid('site')}', agent: null })`);
     await plusMenu(ui, shell.current.name);
     // Shown, not only loaded: a key while the window still switches acts for the task before (docs/testing.md; on a
     // loaded machine Ctrl+` below may do nothing).
@@ -1540,10 +1546,10 @@ export default (test: Test) => {
     // A project with no profiles: one tile, Add Profile…, its page in Settings.
     assert.deepEqual(await ui(`[...document.querySelectorAll('.launch .profiles .name')].map((n) => n.textContent)`), ['Add Profile…']);
     await ui(`document.querySelector('.launch .profiles .launcher').click()`);
-    await waitFor(() => sui(`document.querySelector('#pjlist [data-project="site"]')?.ariaSelected === 'true'`));
+    await waitFor(() => sui(`document.querySelector('#pjlist [data-project="${pid('site')}"]')?.ariaSelected === 'true'`));
     await closeSettings(ctx);
     assert.equal(bare.terminals.size, 0);
-    assert.equal(JSON.parse(fs.readFileSync(path.join(userData, 'projects', 'site', String(bare.n), 'agent.json'), 'utf8')).agent, null);
+    assert.equal(JSON.parse(fs.readFileSync(path.join(userData, 'projects', pid('site'), String(bare.n), 'agent.json'), 'utf8')).agent, null);
     await ui(`document.activeElement.blur()`);
     await focusWindow(shell.win, ui);
     // Once more until the launcher has it: on a loaded machine the + menu, closed just before, may give the keyboard
@@ -1568,14 +1574,14 @@ export default (test: Test) => {
     shell.profileStore.delete(shell.profileStore.get('bo-bare').id);
     ctx.asked.length = 0;
     // Let go of at once, an account as an agent without accounts: its tasks keep it, and the account stays in the store.
-    await ui(`kulisa.invoke('project:agent-remove', { id: 'site', agent: '${ann.id}' })`);
-    await ui(`kulisa.invoke('project:agent-remove', { id: 'site', agent: 'shell' })`);
-    assert.equal(shell.store.projects().find((p) => p.id === 'site').agents, undefined, 'none left');
+    await ui(`kulisa.invoke('project:agent-remove', { id: '${pid('site')}', agent: '${ann.id}' })`);
+    await ui(`kulisa.invoke('project:agent-remove', { id: '${pid('site')}', agent: 'shell' })`);
+    assert.equal(shell.store.projects().find((p) => p.id === pid('site')).agents, undefined, 'none left');
     assert.deepEqual(shell.store.projectsWith('agents', ann.id).map((p) => p.id), []);
     assert.equal(annTask.promptTarget().agent.id, ann.id);
     assert.deepEqual([...before.terminals.values()].map((t) => [t.name, !!t.agent]), [['Terminal', false]], 'the terminal only: a shell');
-    await ui(`kulisa.invoke('project:close-tasks', { id: 'site' })`);
-    await waitFor(() => !shell.open.has('site'));
+    await ui(`kulisa.invoke('project:close-tasks', { id: '${pid('site')}' })`);
+    await waitFor(() => !shell.open.has(pid('site')));
     ctx.asked.length = 0;
   });
 
@@ -1588,7 +1594,7 @@ export default (test: Test) => {
     };
     const api = repo('api'), web = repo('web');
     await ui(`kulisa.invoke('project:open', { folder: ${JSON.stringify(api)} })`);
-    await waitFor(() => shell.current?.id === 'api' && shell.task?.loaded && shell.pty);
+    await waitFor(() => shell.current?.id === pid('api') && shell.task?.loaded && shell.pty);
     ctx.watchPty(shell.pty);
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
     const first = shell.task;
@@ -1601,7 +1607,7 @@ export default (test: Test) => {
     const lit = () => ui(`[...window.__fresh]`);
     assert.deepEqual(await chips(), [], 'one repository: nothing to tell');
     // Added in Project Settings… while task-1 runs: no copy, only offered on its tab.
-    const added = await ui(`kulisa.invoke('project:repo-add', { id: 'api', folder: ${JSON.stringify(web)} })`);
+    const added = await ui(`kulisa.invoke('project:repo-add', { id: '${pid('api')}', folder: ${JSON.stringify(web)} })`);
     assert.deepEqual(added.repos.map((r: { folder: string }) => r.folder), [api, web]);
     assert.equal(first.entry.copies.length, 1);
     assert.deepEqual([first.dirs(), first.addable()], [[], [web]]);
@@ -1658,7 +1664,7 @@ export default (test: Test) => {
     await call('task_rename', { name: 'Checkout' });
     for (const r of ['api', 'web']) assert.equal(git(path.join(home, r), 'rev-parse', '--abbrev-ref', 'HEAD'), 'checkout');
     // Project Settings… shows them, the default first; × on one tasks have copies of is refused, naming them.
-    await projectMenu(ui, 'Project Settings…', `#projectTabs [data-project="api"] .name`);
+    await projectMenu(ui, 'Project Settings…', `#projectTabs [data-project="${pid('api')}"] .name`);
     await waitFor(() => sui(`document.querySelectorAll('#nprepos .item').length === 2`));
     assert.deepEqual(await sui(`[...document.querySelectorAll('#nprepos .item')].map((r) => r.querySelector('.label').textContent + ' ' + !!r.querySelector('.default'))`), ['api true', 'web false']);
     await onRow(sui, `#nprepos [data-folder="${web}"]`, 'nprepodel');
@@ -1693,10 +1699,10 @@ export default (test: Test) => {
     // Cloned from a URL (a local one here) next to the project's folder, offered to task-1; made the default.
     const bare = path.join(root, 'docs.git');
     git(root, 'clone', '-q', '--bare', web, bare);
-    const cloned = await ui(`kulisa.invoke('project:repo-clone', { id: 'api', url: ${JSON.stringify(bare)} })`);
+    const cloned = await ui(`kulisa.invoke('project:repo-clone', { id: '${pid('api')}', url: ${JSON.stringify(bare)} })`);
     assert.deepEqual(cloned.repos.map((r: { folder: string }) => r.folder), [api, web, path.join(root, 'docs')]);
     assert.deepEqual(first.addable(), [path.join(root, 'docs')]);
-    assert.equal((await ui(`kulisa.invoke('project:repo-default', { id: 'api', folder: ${JSON.stringify(web)} })`)).repos[0].folder, web);
+    assert.equal((await ui(`kulisa.invoke('project:repo-default', { id: '${pid('api')}', folder: ${JSON.stringify(web)} })`)).repos[0].folder, web);
     // The human removes task-1's web on its tab, a file not committed there: asked first, told what goes with it.
     fs.writeFileSync(path.join(webCopy, 'b.txt'), 'work');
     const removeWeb = async () => {
@@ -1715,12 +1721,12 @@ export default (test: Test) => {
     ctx.answer = true;
     await removeWeb();
     await waitFor(() => !fs.existsSync(webCopy) && git(web, 'branch', '--list', 'task-1') === ''); // the folder goes first, then the branch
-    await ui(`kulisa.invoke('project:close-tasks', { id: 'api' })`);
-    await waitFor(() => !shell.open.has('api'));
+    await ui(`kulisa.invoke('project:close-tasks', { id: '${pid('api')}' })`);
+    await waitFor(() => !shell.open.has(pid('api')));
     ctx.asked.length = 0;
     // A project without git (Site-2, closed) getting a repository: its folder is a former one, shown in its settings.
-    await ui(`kulisa.invoke('project:repo-add', { id: 'site', folder: ${JSON.stringify(path.join(root, 'docs'))} })`);
-    const site = await ui(`kulisa.invoke('project:settings-get', { id: 'site' })`);
+    await ui(`kulisa.invoke('project:repo-add', { id: '${pid('site')}', folder: ${JSON.stringify(path.join(root, 'docs'))} })`);
+    const site = await ui(`kulisa.invoke('project:settings-get', { id: '${pid('site')}' })`);
     assert.deepEqual([site.repos.map((r: { folder: string }) => r.folder), site.former], [[path.join(root, 'docs')], path.join(root, 'site')]);
   });
 
@@ -1739,9 +1745,9 @@ export default (test: Test) => {
     await waitFor(() => shell.task.profiles.get('sam-admin').get().view.getVisible());
     // Site-2 is closed: its configuration all the same; a profile made and let go there (asked first, in Settings' window,
     // where it was done).
-    await sui(`document.querySelector('#pjlist [data-project="site"]').click()`);
+    await sui(`document.querySelector('#pjlist [data-project="${pid('site')}"]').click()`);
     await waitFor(() => sui(pageOf('Site-2')));
-    assert.ok(!shell.open.has('site'));
+    assert.ok(!shell.open.has(pid('site')));
     await newProfileHere(sui, 'Closed-one');
     await waitFor(() => sui(`!!document.querySelector('#npprofiles [data-profile="closed-one"]')`));
     ctx.answer = true;
@@ -1788,7 +1794,7 @@ export default (test: Test) => {
     git(dir, 'add', '-A'); git(dir, 'commit', '-qm', 'a'); git(dir, 'remote', 'add', 'origin', origin);
     git(dir, 'push', '-q', 'origin', 'main'); git(dir, 'remote', 'set-head', 'origin', 'main');
     await ui(`kulisa.invoke('project:open', { folder: ${JSON.stringify(dir)} })`);
-    await waitFor(() => shell.current?.id === 'merge' && shell.task?.loaded && shell.pty);
+    await waitFor(() => shell.current?.id === pid('merge') && shell.task?.loaded && shell.pty);
     ctx.watchPty(shell.pty);
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
     const first = shell.task;
@@ -1807,8 +1813,8 @@ export default (test: Test) => {
     assert.equal(ctx.asked.pop().message, 'Delete the task task-1?');
     await waitFor(() => !shell.current.tasks.has(1) && !fs.existsSync(first.folder));
     assert.ok(shell.current.tasks.has(second.n) && !second.entry.merged, 'one not merged stays');
-    await ui(`kulisa.invoke('project:close-tasks', { id: 'merge' })`);
-    await waitFor(() => !shell.open.has('merge'));
+    await ui(`kulisa.invoke('project:close-tasks', { id: '${pid('merge')}' })`);
+    await waitFor(() => !shell.open.has(pid('merge')));
     ctx.asked.length = 0;
   });
 
@@ -1832,10 +1838,10 @@ export default (test: Test) => {
   test("tasks: a closed task is deleted from its row, 🗑 or Delete, in the board (the bar's +), its project loaded or not, after the question Delete Task… asks", async (ctx) => {
     // About 2 s: git's work (worktrees made and removed).
     const { shell, ui } = ctx;
-    const p = shell.store.projects().find((x) => x.id === 'merge');
+    const p = shell.store.projects().find((x) => x.id === pid('merge'));
     const entry = (n: number) => shell.store.tasksOf(p).list.find((e) => e.n === n);
     // A task's row in its project's column of the board (a new tab, the bar's +; the empty window).
-    const row = (name: string, project = 'merge') => `[...document.querySelectorAll('#board .column[data-project="${project}"] li .item')].find((r) => r.querySelector('.label').textContent === ${JSON.stringify(name)})`;
+    const row = (name: string, project = 'merge') => `[...document.querySelectorAll('#board .column[data-project="${pid(project)}"] li .item')].find((r) => r.querySelector('.label').textContent === ${JSON.stringify(name)})`;
     // merge (above) is not loaded now; its task-2 is closed, with a commit not merged.
     const folder = entry(2).folder;
     await plusMenu(ui);
@@ -1851,14 +1857,14 @@ export default (test: Test) => {
     ctx.answer = true;
     await click(ui, `${row('task-2')}.querySelector('.remove')`);
     await waitFor(() => !entry(2) && !fs.existsSync(folder));
-    assert.ok(!shell.open.has('merge'), 'not opened for it');
+    assert.ok(!shell.open.has(pid('merge')), 'not opened for it');
     const rows: string[] = await plusMenu(ui), after = rows.slice(rows.indexOf('merge') + 1);
     assert.ok(!after[0].startsWith('  '), 'merge has no closed task left');
     await closeBoard(ui);
 
     // A task of it open: the same row in the +.
-    await ui(`kulisa.invoke('project:open', { id: 'merge' })`);
-    await waitFor(() => shell.current?.id === 'merge' && shell.task?.loaded && shell.pty);
+    await ui(`kulisa.invoke('project:open', { id: '${pid('merge')}' })`);
+    await waitFor(() => shell.current?.id === pid('merge') && shell.task?.loaded && shell.pty);
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
     const closing = shell.task;
     await newTask(ctx);
@@ -1868,15 +1874,15 @@ export default (test: Test) => {
     await click(ui, `${row(closing.name)}.querySelector('.remove')`);
     await waitFor(() => !entry(closing.n) && !fs.existsSync(closing.folder));
     assert.ok(!shell.current.tasks.has(closing.n) && shell.task.loaded, 'the open one stays');
-    await ui(`kulisa.invoke('project:close-tasks', { id: 'merge' })`);
-    await waitFor(() => !shell.open.has('merge'));
+    await ui(`kulisa.invoke('project:close-tasks', { id: '${pid('merge')}' })`);
+    await waitFor(() => !shell.open.has(pid('merge')));
     ctx.asked.length = 0;
   });
 
   test("projects: Delete Project… (the projects' manager alone) asks, closes the project when open, deletes its data and its tasks' copies, never its folder; New Project takes its code from folders on the disk or clones it from URLs, one or several, making no other folder", async (ctx) => {
     // About 3 s: git's work (a worktree, a clone) and closing an open project.
     const { shell, ui, sui } = ctx;
-    const projects = () => shell.store.projects().map((p) => p.id);
+    const projects = () => shell.store.projects().map((p) => path.basename(p.folder)); // each by its folder's name (pid)
     // A project that is not open, with a task that has a commit of its own, as Kulisa lays them out.
     const spare = path.join(root, 'spare');
     fs.mkdirSync(spare);
@@ -1896,11 +1902,12 @@ export default (test: Test) => {
     shell.sendProjects(); // made behind the windows' back: they are told, as when a project is made
 
     // In the projects' manager, its Delete Project…: the human is told what goes, says no, then yes.
-    const removeRow = async (id = 'spare') => {
+    const removeRow = async (folder = 'spare') => {
+      const { id, name } = shell.store.projects().find((x) => x.id === pid(folder));
       if (!shell.settings) await ui(`document.getElementById('manageProjects').click()`);
       await waitFor(() => sui(`!!document.querySelector('#pjlist [data-project="${id}"]')`));
       await sui(`document.querySelector('#pjlist [data-project="${id}"]').click()`);
-      await waitFor(() => sui(`${pageOf(id)} && !!document.getElementById('pjmore')`));
+      await waitFor(() => sui(`${pageOf(name)} && !!document.getElementById('pjmore')`));
       await sui(`document.getElementById('pjmore').click()`); // ⋯ at its top
       await menuRows(sui);
       await choose(sui, 'Delete Project…');
@@ -1914,10 +1921,10 @@ export default (test: Test) => {
     assert.match(q.detail, /Its profiles stay, with their sign-ins/);
     assert.doesNotMatch(q.detail, /accounts/, 'its accounts stay');
     assert.ok(q.detail.includes(wt.worktree) && q.detail.includes('Idea: 1 commit of its own') && q.detail.includes(`Its folders stay as they are: ${spare}.`));
-    assert.ok(projects().includes(p.id) && fs.existsSync(data) && fs.existsSync(wt.worktree), 'kept when the human says no');
+    assert.ok(projects().includes('spare') && fs.existsSync(data) && fs.existsSync(wt.worktree), 'kept when the human says no');
     ctx.answer = true;
     await removeRow();
-    await waitFor(() => !projects().includes(p.id));
+    await waitFor(() => !projects().includes('spare'));
     ctx.asked.length = 0;
     await waitFor(() => !fs.existsSync(data) && !fs.existsSync(wt.worktree));
     assert.ok(fs.existsSync(shell.profileStore.masterDir(own.folder)) && shell.profileStore.projectsOf(shell.profileStore.get('spare-user')).length === 0,
@@ -1927,8 +1934,8 @@ export default (test: Test) => {
     assert.deepEqual(shell.store.projectsWith('agents', account.id).map((p) => p.id), []);
     assert.equal(git(spare, 'branch', '--list', wt.branch), '', "the task's branch");
     assert.equal(fs.readFileSync(path.join(spare, 'a.txt'), 'utf8'), 'a', "the project's own folder stays");
-    assert.ok(shell.task?.loaded && shell.current?.id === 'project', 'another project: the open one stays open');
-    await waitFor(() => sui(`!document.querySelector('#pjlist [data-project="spare"]')`));
+    assert.ok(shell.task?.loaded && shell.current?.id === pid('project'), 'another project: the open one stays open');
+    await waitFor(() => sui(`!document.querySelector('#pjlist [data-project="${p.id}"]')`));
     await closeSettings(ctx);
 
     // New Project… asks for its code first (the code is often on the disk already). Folder on disk, a repository: taken as it is, its files and its history kept, no git init,
@@ -1946,13 +1953,13 @@ export default (test: Test) => {
       await waitFor(() => ui(`document.querySelector('#npfrom [data-value="${from}"]').ariaSelected === 'true'`));
     };
     // Its steps gone through (no agent, no profile chosen), then Create: made, its first task opened in this window.
-    const create = async (id: string) => {
+    const create = async (folder: string) => {
       for (const s of ['Agents', 'Profiles']) {
         await ui(`document.getElementById('npform').requestSubmit()`);
         await waitFor(() => ui(`document.querySelector('#newproject .steps [aria-current="step"]')?.textContent.slice(1) === '${s}'`));
       }
       await ui(`document.getElementById('npform').requestSubmit()`);
-      await waitFor(() => shell.current?.id === id && shell.task?.loaded && shell.pty && !shell.windows[0].switching, 10000); // a clone takes a while
+      await waitFor(() => shell.current && named(shell.current.id) === folder && shell.task?.loaded && shell.pty && !shell.windows[0].switching, 10000); // a clone takes a while
       await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
     };
     await newProject('folder');
@@ -1978,6 +1985,7 @@ export default (test: Test) => {
     assert.equal(fs.readFileSync(path.join(gone, 'a.txt'), 'utf8'), 'a');
     assert.equal(ctx.asked.length, 0, 'its task in this window, nothing asked where');
     // The open one: closed, then deleted; the tab next to it shown.
+    const goneData = path.join(userData, 'projects', pid('gone'));
     await removeRow('gone');
     await waitFor(() => !projects().includes('gone'));
     // Its grid taken down closes the window's dialogs, the manager too (lib/views.ts, closeLayers).
@@ -1985,7 +1993,7 @@ export default (test: Test) => {
     ctx.asked.length = 0;
     await waitFor(() => shell.current?.folder === project && shell.task?.loaded);
     assert.deepEqual(await projectTabs(ui), ['project', 'project *'], 'the tab next to it shown');
-    assert.ok(fs.existsSync(gone) && !fs.existsSync(path.join(userData, 'projects', 'gone')));
+    assert.ok(fs.existsSync(gone) && !fs.existsSync(goneData));
     assert.deepEqual(savedWindows(), [{ tabs: ['project/1', 'project/2'], shown: 'project/2' }]);
 
     // Folder on disk, several (a frontend and a backend): taken as they are, the first the default and the project's
@@ -1998,7 +2006,7 @@ export default (test: Test) => {
     await waitFor(async () => (await ui(`[...document.querySelectorAll('#npsources .item')].map((r) => r.dataset.source + ' ' + r.querySelector('kbd').textContent + ' ' + !!r.querySelector('.default')).join()`))
       === `${gone} git true,${back} no git false`);
     await create('gone');
-    const both = shell.store.projects().find((x) => x.id === 'gone');
+    const both = shell.store.projects().find((x) => x.id === pid('gone'));
     assert.deepEqual([both.folder, both.repos], [gone, [gone, back]]);
     assert.ok(!fs.existsSync(path.join(back, '.git')), 'the one without git left so');
     assert.equal(git(gone, 'log', '--format=%s'), 'mine', 'the repository as it was');
@@ -2023,7 +2031,7 @@ export default (test: Test) => {
     await fill('nplocation', shell.projectsHome);
     await fill('npname', 'cloned');
     await create('cloned');
-    const cloned = shell.store.projects().find((x) => x.id === 'cloned');
+    const cloned = shell.store.projects().find((x) => x.id === pid('cloned'));
     assert.equal(cloned.folder, into);
     assert.equal(git(into, 'log', '--format=%s'), 'mine', 'its history');
     await removeRow('cloned');
@@ -2037,9 +2045,9 @@ export default (test: Test) => {
     await fill('npsource', backBare);
     const stack = path.join(shell.projectsHome, 'fullstack');
     await create('fullstack');
-    const full = shell.store.projects().find((x) => x.id === 'fullstack');
+    const full = shell.store.projects().find((x) => x.id === pid('fullstack'));
     assert.deepEqual([full.folder, full.repos], [stack, [path.join(stack, 'cloned'), path.join(stack, 'back')]]);
-    assert.equal((await ui(`kulisa.invoke('project:settings-get', { id: 'fullstack' })`)).former, null, 'it holds them: no former folder');
+    assert.equal((await ui(`kulisa.invoke('project:settings-get', { id: '${pid('fullstack')}' })`)).former, null, 'it holds them: no former folder');
     await removeRow('fullstack');
     await waitFor(() => !projects().includes('fullstack'));
     if (shell.settings) await closeSettings(ctx);
@@ -2050,11 +2058,11 @@ export default (test: Test) => {
 
     // Close All Tasks in its submenu: the last tasks, so the empty window; its tasks closed.
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
-    await projectMenu(ui, 'Close All Tasks', '#projectTabs [data-project="project"] .name');
+    await projectMenu(ui, 'Close All Tasks', `#projectTabs [data-project="${pid('project')}"] .name`);
     await waitFor(() => shell.task === null && shell.open.size === 0);
     ctx.asked.length = 0;
     await waitFor(() => ui(`document.documentElement.classList.contains('noproject')`));
-    assert.ok(shell.store.tasksOf({ id: 'project' }).list.every((e) => e.closed), 'its tasks closed');
+    assert.ok(shell.store.tasksOf({ id: pid('project') }).list.every((e) => e.closed), 'its tasks closed');
 
     // A closed task in the bar's +: opened again, a tab at the end; another one of it after it. Back on task-1 with
     // Feature-X, as the tests after and the restart phase expect.
@@ -2112,7 +2120,7 @@ export default (test: Test) => {
       shell.accounts.create(r.id, 'fake', `${x}@switch.test`);
       return { id: r.id, dir: r.dir };
     });
-    for (const x of [a, b]) await ui(`kulisa.invoke('project:agent-add', { id: 'project', agent: '${x.id}' })`);
+    for (const x of [a, b]) await ui(`kulisa.invoke('project:agent-add', { id: '${pid('project')}', agent: '${x.id}' })`);
     const tabs = () => ui(`[...document.querySelectorAll('.termtab')].map((t) => t.querySelector('.name').textContent + (t.classList.contains('active') ? ' *' : ''))`);
     const tabState = (id: number) => ui(`document.querySelector('.termtab[data-id="${id}"] .state').dataset.state`);
     const taskState = () => ui(`${taskTab(task.n)}.querySelector('.state').dataset.state`);
@@ -2254,7 +2262,7 @@ export default (test: Test) => {
     assert.ok(!fs.existsSync(file), "the fake agent's, in its account");
     ctx.asked.length = 0;
     for (const x of [a, b]) {
-      await ui(`kulisa.invoke('project:agent-remove', { id: 'project', agent: '${x.id}' })`);
+      await ui(`kulisa.invoke('project:agent-remove', { id: '${pid('project')}', agent: '${x.id}' })`);
       shell.accounts.drop(x.id); fs.rmSync(x.dir, { recursive: true, force: true });
     }
     await waitFor(() => !shell.windows[0].switching && ui(`!document.documentElement.classList.contains('loading')`));
@@ -2265,26 +2273,26 @@ export default (test: Test) => {
   // Last in phase 1: the tabs the restart phase finds (restart-tasks.ts).
   test('projects: another tab left in the background, with a terminal its agent ran something in', async ({ shell, ui, call }) => {
     await ui(`kulisa.invoke('project:open', { folder: ${JSON.stringify(path.join(root, 'other'))}, task: 1 })`);
-    await waitFor(() => shell.current?.id === 'other' && shell.task.loaded);
+    await waitFor(() => shell.current?.id === pid('other') && shell.task.loaded);
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
     await call('terminal_run', { name: 'dev server', command: 'echo "served before"; sleep 60' });
     await waitFor(async () => /^served before$/m.test((await call('terminal_read', { name: 'dev server' })).text));
     await showProject(ui, 'project');
-    await waitFor(() => shell.current?.id === 'project' && shell.task.loaded);
+    await waitFor(() => shell.current?.id === pid('project') && shell.task.loaded);
     assert.deepEqual(await projectTabs(ui), ['project *', 'project', 'other']);
   });
   test('projects: one left in a window of its own (restart-tasks.ts: the windows come back)', async ({ shell, ui }) => {
     const third = path.join(root, 'third');
     fs.mkdirSync(third, { recursive: true });
     await ui(`kulisa.invoke('project:open', { folder: ${JSON.stringify(third)} })`);
-    await waitFor(() => shell.current?.id === 'third' && shell.task.loaded);
+    await waitFor(() => shell.current?.id === pid('third') && shell.task.loaded);
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
-    await ui(`kulisa.invoke('task:move', { key: 'third/1', terminals: {} })`);
-    await waitFor(() => shell.windows[1]?.current?.key === 'third/1' && !shell.windows[1].switching);
+    await ui(`kulisa.invoke('task:move', { key: '${pid('third')}/1', terminals: {} })`);
+    await waitFor(() => shell.windows[1]?.current?.key === tkey('third', 1) && !shell.windows[1].switching);
     // Smaller than the window's minimum (setBounds passes below it, the human's drag does not): it comes back at it.
     shell.windows[1].win.setBounds({ x: 40, y: 50, width: 10, height: 10 });
     await showProject(ui, 'project');
-    await waitFor(() => shell.current?.id === 'project' && shell.task.loaded);
+    await waitFor(() => shell.current?.id === pid('project') && shell.task.loaded);
     assert.deepEqual(await projectTabs(ui), ['project *', 'project', 'other']);
   });
   test("projects: Settings, not modal, acts for the tasks' window last in front; its lists follow the profiles the agent makes and lets go meanwhile", async (ctx) => {
@@ -2307,7 +2315,7 @@ export default (test: Test) => {
     // opened again.
     await waitFor(() => there(`document.getElementById('ask')?.dataset.state !== 'open'`));
     await focusWindow(shell.win, ui);
-    await waitFor(async () => (await sui(`kulisa.invoke('projects:list')`)).project === 'project');
+    await waitFor(async () => (await sui(`kulisa.invoke('projects:list')`)).project === pid('project'));
     await closeSettings(ctx);
   });
 };

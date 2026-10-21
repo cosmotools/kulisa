@@ -21,6 +21,8 @@ export function summary(v: unknown, max = 200): string {
     : SECRET_TEXT.test(x) ? '[…]' : bare(x).length > 80 ? `${bare(x).slice(0, 80)}…` : bare(x)));
   return s === undefined ? '' : s.length > max ? `${s.slice(0, max)}…` : s;
 }
+// A folder with the home folder as ~: a user's log shared holds their name less often.
+export const tilde = (p: string, home = os.homedir()) => (p === home || p.startsWith(home + path.sep) ? `~${p.slice(home.length)}` : p);
 
 export const log = elog;
 let file = '', packaged = false;

@@ -2,7 +2,7 @@
 import electron, { clipboard } from 'electron';
 import fs from 'fs';
 import path from 'path';
-import { MAC, CMD, shot, assert, root, userData, project, pfile, SITE, sleep, waitFor, who, menuRows, choose, MENU, SUBMENU, menuOpen, rightClick, box, pageBox, viewOn, dock, press, projectTabs, projectTab, showProject, closeProject, savedWindows, closeMenu, plusMenu, closeBoard, focusWindow } from './helpers.ts';
+import { MAC, CMD, shot, assert, root, userData, project, pid, tkey, pfile, SITE, sleep, waitFor, who, menuRows, choose, MENU, SUBMENU, menuOpen, rightClick, box, pageBox, viewOn, dock, press, projectTabs, projectTab, showProject, closeProject, savedWindows, closeMenu, plusMenu, closeBoard, focusWindow } from './helpers.ts';
 import type { Test } from './run.ts';
 import type { UI } from './helpers.ts';
 
@@ -97,7 +97,7 @@ export default (test: Test) => {
     assert.equal((await ctx.termText()).split('exec cat -v').length - 1, 1, 'the command that starts the agent shows once');
     assert.equal(shell.profiles.size, 0);
     assert.ok(sam.tabs.every((t) => !t.wc.isDestroyed()) && !sam.get().view.getVisible(), "the first project's pages keep running, hidden");
-    assert.equal(shell.open.get('project').tasks.get(1).pty, firstPty, "and its agent");
+    assert.equal(shell.open.get(pid('project')).tasks.get(1).pty, firstPty, "and its agent");
     assert.equal(shell.win.getTitle(), 'task-1 · other — Kulisa');
     assert.equal(shell.resumedSession, null, 'a new project has no conversation to resume');
     await waitFor(async () => JSON.stringify(await projectTabs(ui)) === '["project","other *"]' && ui(`!!window.__dock.getPanel('terminal')`));
@@ -114,9 +114,9 @@ export default (test: Test) => {
     const seller = shell.profiles.get('sam-seller');
     // A copy in the task's data, of its master in the store of profiles, numbered as every profile is (Sam, Elon, Dora
     // came first).
-    assert.equal(seller.dir, path.join(userData, 'projects', 'other', '1', 'Profile 4'), "a task's copy is in its task's data");
+    assert.equal(seller.dir, path.join(userData, 'projects', pid('other'), '1', 'Profile 4'), "a task's copy is in its task's data");
     assert.ok(fs.existsSync(path.join(userData, 'profiles', 'Profile 4')), 'its master');
-    assert.equal(seller.endpoint.endsWith('/other/1/sam-seller'), true, 'the CDP proxy knows it by its project too');
+    assert.equal(seller.endpoint.endsWith(`/${tkey('other', 1)}/sam-seller`), true, 'the CDP proxy knows it by its project too');
     await ctx.call('browser_navigate', { profile: 'sam-seller', url: `${SITE}/app` });
     assert.equal(await who(ctx, 'sam-seller'), 'Signed out', "the first project's sign-ins stay there");
 
@@ -143,7 +143,7 @@ export default (test: Test) => {
     await waitFor(() => shell.current?.folder === other && !shell.windows[0].switching);
     // The tab's right-click: the task's rows, then its project's in a submenu of its name (the project has no tab of
     // its own).
-    await rightClick(ui, '#projectTabs [data-project="other"] .name');
+    await rightClick(ui, `#projectTabs [data-project="${pid('other')}"] .name`);
     assert.deepEqual(await menuRows(ui), ['# Profiles', 'Sam.seller', '-', 'Manage Profiles…', '-', 'Rename…', 'Show Folder', '-', 'Move to New Window', '-', 'Close', 'Delete Task…', '-', 'other']);
     await choose(ui, 'other');
     await waitFor(async () => (await ui(`document.querySelectorAll('.menu[data-state="open"]').length`)) === 2);
@@ -155,7 +155,7 @@ export default (test: Test) => {
       await choose(ui, 'Show Data Folder', SUBMENU);
       await waitFor(() => shown.length === 1);
     } finally { electron.shell.openPath = openPath; }
-    assert.equal(shown[0], path.join(userData, 'projects', 'other'));
+    assert.equal(shown[0], path.join(userData, 'projects', pid('other')));
     assert.deepEqual(await ui(`[...__islands]`), [JSON.stringify(before)], 'the islands keep their places while another project opens');
     await ui('__islands.clear(); 0');
     // A click on the first project's task: it comes back as it was left, its agent the same; no page shows before
@@ -187,15 +187,15 @@ export default (test: Test) => {
     await closeProject(ui, 'project');
     await waitFor(() => ctx.asked.length && ui(`!(document.getElementById('ask')?.dataset.state === 'open')`));
     assert.equal(ctx.asked.pop().message, 'Close the task task-1?');
-    assert.ok(shell.open.has('project') && shell.current?.folder === project, 'still open when the human says no');
+    assert.ok(shell.open.has(pid('project')) && shell.current?.folder === project, 'still open when the human says no');
     ctx.answer = true;
     working.promptTarget().state = null;
     // Close: no agent works, no question; the task closes (tabs and sign-ins kept), the project let go, the tab next to
     // it shown.
     await closeProject(ui, 'project');
-    await waitFor(() => shell.current?.folder === other && !shell.open.has('project'));
+    await waitFor(() => shell.current?.folder === other && !shell.open.has(pid('project')));
     assert.equal(ctx.asked.length, 0, 'nothing asked');
-    assert.ok(shell.store.tasksOf({ id: 'project' }).list.every((e) => e.closed), 'its tasks closed');
+    assert.ok(shell.store.tasksOf({ id: pid('project') }).list.every((e) => e.closed), 'its tasks closed');
     assert.ok(sam.tabs.every((t) => t.wc.isDestroyed()), "the closed project's tabs are closed");
     assert.deepEqual(await projectTabs(ui), ['other *']);
     // Opened again from the bar's +, on its task: the conversation goes on, the profiles signed in.
@@ -211,7 +211,7 @@ export default (test: Test) => {
     assert.deepEqual(await projectTabs(ui), ['other', 'project *'], 'a tab opens at the end');
     // × on a tab in the background: that project closes, the one on screen stays.
     await closeProject(ui, 'other');
-    await waitFor(() => !shell.open.has('other'));
+    await waitFor(() => !shell.open.has(pid('other')));
     ctx.asked.length = 0;
     assert.ok(seller.tabs.every((t) => t.wc.isDestroyed()));
     assert.deepEqual(await projectTabs(ui), ['project *']);
@@ -223,7 +223,7 @@ export default (test: Test) => {
     const { shell, ui } = ctx;
     const other = path.join(root, 'other');
     await ui(`kulisa.invoke('project:open', { folder: ${JSON.stringify(other)}, task: 1 })`);
-    await waitFor(() => shell.current?.id === 'other' && shell.task.loaded && shell.pty);
+    await waitFor(() => shell.current?.id === pid('other') && shell.task.loaded && shell.pty);
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
     const task = shell.task, moved = task, pty = task.pty, seller = task.profiles.get('sam-seller');
     await waitFor(async () => (await ctx.termText()).includes(`agent: rc of ${other}`));
@@ -236,7 +236,7 @@ export default (test: Test) => {
     assert.ok(size.cols > 150, 'the terminal is wide enough for it');
     const sizes: number[][] = [], resize = pty.resize; // every size the agent gets from here on
     pty.resize = (cols: number, rows: number) => { sizes.push([cols, rows]); return resize.call(pty, cols, rows); };
-    await rightClick(ui, '#projectTabs [data-project="other"] .name');
+    await rightClick(ui, `#projectTabs [data-project="${pid('other')}"] .name`);
     await menuRows(ui);
     await choose(ui, 'Move to New Window');
     await waitFor(() => shell.windows.length === 2 && shell.windows[1].current === moved && !shell.windows[1].switching);
@@ -245,7 +245,7 @@ export default (test: Test) => {
 
     // The first window keeps its other tab; the new one has the task, as it was: the same agent, the same pages
     // (moved into it, not loaded again), what the terminal showed.
-    await waitFor(() => shell.current?.id === 'project' && shell.task.loaded);
+    await waitFor(() => shell.current?.id === pid('project') && shell.task.loaded);
     assert.deepEqual(await projectTabs(ui), ['project *']);
     assert.equal(moved.window, second);
     await waitFor(async () => JSON.stringify(await projectTabs(ui2)) === '["other *"]');
@@ -294,7 +294,7 @@ export default (test: Test) => {
 
     // Back into the first window (Move to Window, as a browser moves a tab; the other window named by its shown
     // task): the only tab of the second, so it closes.
-    await rightClick(ui2, '#projectTabs [data-project="other"] .name');
+    await rightClick(ui2, `#projectTabs [data-project="${pid('other')}"] .name`);
     assert.deepEqual(await menuRows(ui2), ['# Profiles', 'Sam.seller', '-', 'Manage Profiles…', '-', 'Rename…', 'Show Folder', '-', 'Move to New Window (off)', 'Move to Window: task-1', '-', 'Close', 'Delete Task…', '-', 'other']);
     // Chosen once the script has answered: the choice closes this window, and a script still running in a window that
     // goes never answers.
@@ -307,18 +307,18 @@ export default (test: Test) => {
     assert.deepEqual(await projectTabs(ui), ['project', 'other *']);
     assert.deepEqual(savedWindows(), [{ tabs: ['project/1', 'other/1'], shown: 'other/1' }]);
     await closeProject(ui, 'other');
-    await waitFor(() => !shell.open.has('other') && shell.current?.id === 'project' && !first.switching);
+    await waitFor(() => !shell.open.has(pid('other')) && shell.current?.id === pid('project') && !first.switching);
 
     // A closed task opened again: a tab in this window, nothing asked where; Move to New Window takes it away.
     ctx.asked.length = 0;
     await plusMenu(ui, 'other', 'task-1');
-    await waitFor(() => shell.current?.id === 'other' && shell.task?.n === 1 && shell.task.pty && !first.switching);
+    await waitFor(() => shell.current?.id === pid('other') && shell.task?.n === 1 && shell.task.pty && !first.switching);
     assert.equal(ctx.asked.length, 0, 'no question where');
     assert.deepEqual(await projectTabs(ui), ['project', 'other *']);
-    await rightClick(ui, '#projectTabs [data-project="other"] .name');
+    await rightClick(ui, `#projectTabs [data-project="${pid('other')}"] .name`);
     await menuRows(ui);
     await choose(ui, 'Move to New Window');
-    await waitFor(() => shell.windows.length === 2 && shell.windows[1].current?.project.id === 'other' && !shell.windows[1].switching);
+    await waitFor(() => shell.windows.length === 2 && shell.windows[1].current?.project.id === pid('other') && !shell.windows[1].switching);
     const third = shell.windows[1], reopenedTask = third.current;
     await waitFor(() => reopenedTask.pty);
     assert.deepEqual(await projectTabs(ui), ['project *'], 'nothing else in the first window');
@@ -332,10 +332,10 @@ export default (test: Test) => {
     const q = ctx.asked.pop();
     assert.equal(q.message, 'Close the window?');
     assert.match(q.detail, /Its tasks close: task-1\./);
-    assert.ok(!third.win.isDestroyed() && shell.open.has('other'), 'still open when the human says no');
+    assert.ok(!third.win.isDestroyed() && shell.open.has(pid('other')), 'still open when the human says no');
     ctx.answer = true;
     third.win.close();
-    await waitFor(() => shell.windows.length === 1 && !shell.open.has('other'));
+    await waitFor(() => shell.windows.length === 1 && !shell.open.has(pid('other')));
     ctx.asked.length = 0;
     assert.ok(third.win.isDestroyed() && reopenedTask.profiles.size === 0 && reopenedTask.pty === null);
     assert.deepEqual(savedWindows(), [{ tabs: ['project/1'], shown: 'project/1' }]);
@@ -348,7 +348,7 @@ export default (test: Test) => {
       const pty = shell.task.pty;
       shell.win.close();
       await waitFor(() => !shell.win.isVisible());
-      assert.ok(!shell.win.isDestroyed() && shell.open.has('project') && shell.task.pty === pty && !ctx.asked.length, 'hidden, asked nothing, its agent goes on');
+      assert.ok(!shell.win.isDestroyed() && shell.open.has(pid('project')) && shell.task.pty === pty && !ctx.asked.length, 'hidden, asked nothing, its agent goes on');
       electron.app.emit('activate');
       await waitFor(() => shell.win.isVisible());
       shell.task.promptTarget().state = null;
@@ -362,7 +362,7 @@ export default (test: Test) => {
     const quit = ctx.asked.pop();
     assert.equal(quit.message, 'Quit Kulisa?');
     assert.match(quit.detail, /^An agent is still working \(task-1\): quitting stops it\./);
-    assert.ok(!shell.win.isDestroyed() && shell.open.has('project'), 'Kulisa goes on when the human says no');
+    assert.ok(!shell.win.isDestroyed() && shell.open.has(pid('project')), 'Kulisa goes on when the human says no');
     shell.task.promptTarget().state = null;
     ctx.answer = true;
   });
@@ -370,7 +370,7 @@ export default (test: Test) => {
     const { shell, ui } = ctx;
     const other = path.join(root, 'other'), DRAG = 'application/x-kulisa-task';
     await ui(`kulisa.invoke('project:open', { folder: ${JSON.stringify(other)}, task: 1 })`);
-    await waitFor(() => shell.current?.id === 'other' && shell.task.loaded && shell.pty && !shell.windows[0].switching);
+    await waitFor(() => shell.current?.id === pid('other') && shell.task.loaded && shell.pty && !shell.windows[0].switching);
     ctx.asked.length = 0;
     const moved = shell.task, pty = moved.pty;
     // Synthetic drag events, as the human's mouse would send them; a drop gets what the drag carried.
@@ -391,7 +391,7 @@ export default (test: Test) => {
 
     // Within the tabs: another order, kept.
     let data = await dragStart(ui, 'other');
-    assert.equal(JSON.parse(data).key, 'other/1');
+    assert.equal(JSON.parse(data).key, tkey('other', 1));
     assert.ok(await ui(`${projectTab('other')}.classList.contains('dragging')`));
     assert.ok(await dropOn(ui, 'project', 'before', data), 'where it would go is marked');
     await dragEnd(ui, 'other', 'move');
@@ -434,7 +434,7 @@ export default (test: Test) => {
     assert.deepEqual(await projectTabs(ui), ['project', 'other *']);
     assert.equal(moved.pty, pty);
     await closeProject(ui, 'other');
-    await waitFor(() => !shell.open.has('other') && shell.current?.id === 'project' && !shell.windows[0].switching);
+    await waitFor(() => !shell.open.has(pid('other')) && shell.current?.id === pid('project') && !shell.windows[0].switching);
     ctx.asked.length = 0;
   });
   test('grid presets: columns, grid, focus; each fits the window, nothing cut off', async ({ shell, ui }) => {

@@ -2,12 +2,13 @@
 // profile), so what is known about Chrome's storage applies:
 //   settings.json            the Kulisa zoom, the theme, where the tasks' bar is; the windows: the projects open
 //                            in each (its tabs, in order), the one shown, where it was on screen
-//   projects.json            the projects: { id, name, folder, repos, color, agents, profiles }; a project is a folder
-//                            (a repository, or one Kulisa made), and the repositories or folders added to it (repos,
-//                            the default first); color: the one it has while its favicon gives none (docs/tasks.md,
-//                            Projects); agents: the agents' accounts its tasks run, the default (+'s) first; profiles:
-//                            its profiles by their folders (fixed, as an id is not), in order. What a project is made
-//                            of is said here alone
+//   projects.json            the projects: { id, name, folder, repos, color, agents, profiles }; id: six random
+//                            characters, made once (projectFor); a project is a folder (a repository, or one
+//                            Kulisa made), and the repositories or folders added to it (repos, the default first);
+//                            color: the one it has while its favicon gives none (docs/tasks.md, Projects); agents:
+//                            the agents' accounts its tasks run, the default (+'s) first; profiles: its profiles by
+//                            their folders (fixed, as an id is not), in order. What a project is made of is said
+//                            here alone
 //   projects/<id>/
 //     tasks.json             the project's tasks: { next, list: [{ n, name, branch, offset, folder,
 //                            copies: [{ repo, worktree, branch, base, folder }], home, closed, closedAt }] }; one
@@ -24,11 +25,15 @@
 // Nothing goes into the project's own folder: sign-ins must not end up in its git.
 import fs from 'fs';
 import path from 'path';
-import { slugOf } from '../shared/names.ts';
+import { randomInt } from 'crypto';
+import { log } from './log.ts';
 
 // Muted, to sit on the dark window; a new project takes the first one no project has (its favicon's own hue, in their
 // lightness and chroma, replaces it in the window: renderer/lib/project-color.ts).
 const PROJECT_COLORS = ['#4a7bd0', '#3f9a7a', '#b4823a', '#9a5fc0', '#c0584f', '#3c9fb0', '#b0607f', '#7d9a3f'];
+// A project's id: six lowercase letters and digits, about two billion of them.
+const ID_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789';
+const newId = () => Array.from({ length: 6 }, () => ID_CHARS[randomInt(ID_CHARS.length)]).join('');
 const TABS_FILE = 'Kulisa Tabs.json';
 const SESSION_COOKIES_FILE = 'Kulisa Session Cookies.bin';
 // Chromium's caches inside a profile: rebuilt by themselves, so a copy of a profile goes without them.
@@ -85,13 +90,14 @@ class Store {
   // The project a folder is (its own or one of its repositories), or null.
   projectOf(folder: string): ProjectEntry | null { return this.projects().find((p) => [p.folder, ...(p.repos || [])].some((f) => samePath(f, folder))) || null; }
   // The project of a folder; a new one if no project has it, with the next free color (and its first agent, given).
+  // Its id is random and kept for good: its data folder, its tasks' keys and their agents' MCP address stand on it, and
+  // one made from the name would mislead once the project is renamed (docs/tasks.md, What is on the computer).
   projectFor(folder: string, name = path.basename(folder) || folder, { agent }: { agent?: string } = {}): ProjectEntry {
     const found = this.projectOf(folder);
     if (found) return found;
     const list = this.projects();
-    const base = slugOf(name, 'project');
-    let id = base, n = 2;
-    while (list.some((p) => p.id === id)) id = `${base}-${n++}`;
+    let id: string;
+    do id = newId(); while (list.some((p) => p.id === id) || fs.existsSync(path.join(this.dir, 'projects', id)));
     const p: ProjectEntry = { id, name, folder, color: this.nextColor(), ...(agent && { agents: [agent] }) };
     writeJSON(this.projectsFile, [...list, p]);
     return p;
@@ -104,8 +110,11 @@ class Store {
   updateProject(id: string, fields: { [K in keyof ProjectEntry]?: ProjectEntry[K] | null }): ProjectEntry | null {
     const list = this.projects(), i = list.findIndex((p) => p.id === id);
     if (i < 0) return null;
+    const before = list[i]!.name;
     list[i] = Object.fromEntries(Object.entries({ ...list[i], ...fields }).filter(([, v]) => v != null)) as unknown as ProjectEntry;
     writeJSON(this.projectsFile, list);
+    // Here, whoever renames it: a save writes every field, renamed or not.
+    if (list[i].name !== before) log.info(`[project] ${id} renamed: ${list[i].name}`);
     return list[i];
   }
   // The windows open last, each with its tasks' keys in order; none at first start.

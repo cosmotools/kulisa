@@ -17,8 +17,19 @@ const root = process.env.KULISA_TEST_ROOT || path.join(os.tmpdir(), 'kulisa-test
 const userData = path.join(root, 'data');
 const project = path.join(root, 'project');
 
-// A file of the test project's own data, of its first task (or of task n) (store.ts; the project's id is its folder's name).
-const pfile = (f: string, task = 1) => path.join(userData, 'projects', 'project', String(task), f);
+// A project's id is random (store.ts): a test names a project by its folder's name ('project', 'other'). pid('other')
+// is its id; tkey('other', 1) its task's key; named(key) a key, or an id, back by the folder's name, to compare.
+const projectsSaved = (): { id: string; folder: string }[] => JSON.parse(fs.readFileSync(path.join(userData, 'projects.json'), 'utf8'));
+const folderName = (p: { folder: string }) => path.basename(p.folder).toLowerCase();
+const pid = (folder: string) => {
+  const found = projectsSaved().filter((p) => folderName(p) === folder);
+  assert.equal(found.length, 1, `one project in a folder named ${folder}`);
+  return found[0].id;
+};
+const tkey = (folder: string, n: number) => `${pid(folder)}/${n}`;
+const named = (key: string) => key.replace(/^[^/ ]+/, (id) => { const p = projectsSaved().find((x) => x.id === id); return p ? folderName(p) : id; });
+// A file of the test project's own data, of its first task (or of task n) (store.ts).
+const pfile = (f: string, task = 1) => path.join(userData, 'projects', pid('project'), String(task), f);
 // The tabs saved for a profile (in its folder).
 const savedTabs = (id: string, task = 1): string[] => savedFile(id, task).urls;
 // The place of the tab saved as the one in front.
@@ -33,7 +44,8 @@ const panel = (shell: Shell, id: string) => `profile:${(shell.profiles.get(id) |
 const SITE = process.env.KULISA_TEST_SITE || 'http://127.0.0.1:4417';
 const PORT = new URL(SITE).port;
 // The windows as settings.json keeps them for the next start: each one's tabs and the one shown.
-const savedWindows = () => JSON.parse(fs.readFileSync(path.join(userData, 'settings.json'), 'utf8')).windows.map(({ tabs, shown }: { tabs: string[]; shown: string | null }) => ({ tabs, shown }));
+// Its tasks' keys named by their projects' folders (named).
+const savedWindows = () => JSON.parse(fs.readFileSync(path.join(userData, 'settings.json'), 'utf8')).windows.map(({ tabs, shown }: { tabs: string[]; shown: string | null }) => ({ tabs: tabs.map(named), shown: shown && named(shown) }));
 // Where an agent's hooks report (tasks.ts, env): the agent's terminal of task, the one picks go to.
 const hooksOf = (task: Task) => `${task.env(task.promptTarget()).KULISA_URL}/hooks`;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -65,10 +77,10 @@ const closeMenu = async (ui: UI) => {
   await ui(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); 0`);
   await waitFor(async () => !(await ui(`!!document.querySelector('[data-state="open"]:is(.menu, [role="listbox"])')`)));
 };
-// The tasks' bar's tabs (one per open task): each its project's id, the shown one with ' *'.
-const projectTabs = (ui: UI) => ui(`[...document.querySelectorAll('#projectTabs .tasktab')].map((t) => t.dataset.project + (t.classList.contains('active') ? ' *' : ''))`);
-// A project's first tab in the bar.
-const projectTab = (id: string) => `document.querySelector('#projectTabs .tasktab[data-project="${id}"]')`;
+// The tasks' bar's tabs (one per open task): each its project, by its folder's name (named), the shown one with ' *'.
+const projectTabs = async (ui: UI): Promise<string[]> => (await ui(`[...document.querySelectorAll('#projectTabs .tasktab')].map((t) => t.dataset.project + (t.classList.contains('active') ? ' *' : ''))`)).map(named);
+// A project's first tab in the bar, the project by its folder's name.
+const projectTab = (folder: string) => `document.querySelector('#projectTabs .tasktab[data-project="${pid(folder)}"]')`;
 // A click as the mouse makes it (the press, the release, the click) on an element: tabs are chosen on the press
 // (Reka's Tabs, as a browser's).
 const click = (ui: UI, el: string) => ui(`(() => { const e = ${el}, r = e.getBoundingClientRect();
@@ -76,14 +88,14 @@ const click = (ui: UI, el: string) => ui(`(() => { const e = ${el}, r = e.getBou
   for (const t of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click']) e.dispatchEvent(new (t.startsWith('pointer') ? PointerEvent : MouseEvent)(t, { ...at, pointerType: 'mouse', isPrimary: true, buttons: /down/.test(t) ? 1 : 0 })); })()`);
 // A project shown again as the human does it: a click on its first tab in the bar.
 // Once its tab is drawn: the bar is drawn again as projects load (after a restart, on a slow screen).
-const showProject = async (ui: UI, id: string) => {
-  const tab = projectTab(id);
+const showProject = async (ui: UI, folder: string) => {
+  const tab = projectTab(folder);
   await waitFor(() => ui(`!!${tab}`));
   return click(ui, tab);
 };
 // A project's open tasks closed as the human does it: the middle button on each tab (its menu has Close and Close
 // All Tasks too).
-const closeProject = (ui: UI, id: string) => ui(`for (const t of document.querySelectorAll('#projectTabs .tasktab[data-project="${id}"]')) t.dispatchEvent(new MouseEvent('auxclick', { button: 1, bubbles: true })); 0`);
+const closeProject = (ui: UI, folder: string) => ui(`for (const t of document.querySelectorAll('#projectTabs .tasktab[data-project="${pid(folder)}"]')) t.dispatchEvent(new MouseEvent('auxclick', { button: 1, bubbles: true })); 0`);
 const choose = (ui: UI, label: string, menu = MENU) => ui(`[...${menu}.querySelectorAll('.item')].find((b) => b.querySelector('.label').textContent === ${JSON.stringify(label)}).click()`);
 // The bar's + (NewTask.vue): a new tab of every project with its tasks (newtab/Board.vue); the empty window shows it.
 // plusMenu(ui) its rows: each column's project by its name, its tasks under it as '  name', those open as
@@ -199,6 +211,6 @@ const near = (a: number, b: number) => Math.abs(a - b) < 1e-6;
 const noNode = async (wc: WebContents) => await wc.executeJavaScriptInIsolatedWorld(999, [{ code: 'typeof process' }]) === 'undefined';
 
 export type { UI };
-export { MAC, CMD, canShoot, NO_SHOT, shot, focusWindow, MENU, SUBMENU, noNode, hooksOf, plusMenu, closeBoard, assert, root, userData, project, pfile, savedTabs, savedActive, savedWindows, panel, SITE, PORT, sleep, waitFor, who, menuRows, choose, projectTabs, projectTab, showProject, closeProject, manageProfiles, closeSettings, settingsClosed, chooseProfile, setProfileField, menuOpen, closeMenu, rightClick, taskMenu,
+export { MAC, CMD, canShoot, NO_SHOT, shot, focusWindow, MENU, SUBMENU, noNode, hooksOf, plusMenu, closeBoard, assert, root, userData, project, pid, tkey, named, pfile, savedTabs, savedActive, savedWindows, panel, SITE, PORT, sleep, waitFor, who, menuRows, choose, projectTabs, projectTab, showProject, closeProject, manageProfiles, closeSettings, settingsClosed, chooseProfile, setProfileField, menuOpen, closeMenu, rightClick, taskMenu,
   click,
   box, pageBox, viewOn, dock, press, ctrl, near };

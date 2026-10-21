@@ -16,6 +16,7 @@ import fs from 'fs';
 import path from 'path';
 import { slugOf, nameError } from '../shared/names.ts';
 import { writeFileAtomic } from './store.ts';
+import { log } from './log.ts';
 import type { Store } from './store.ts';
 import { AVATARS, nextAvatar } from '../shared/avatars.ts';
 import type { Result } from '../shared/result.ts';
@@ -88,8 +89,10 @@ class ProfileStore {
     if (!p) return { error: `no profile ${id}` };
     const bad = nameError(name?.trim());
     if (bad) return { error: bad };
-    const now = this.idFor(name!, id);
+    const now = this.idFor(name!, id), was = p.name;
     this.update(p.folder, { id: now, name: name!.trim() });
+    // Both ids, so the lines before and after it go together.
+    if (name!.trim() !== was) log.info(`[profiles] ${id} renamed: ${now}`);
     return { id: now };
   }
   describe(id: string, description: unknown): Result<{ id: string }> {

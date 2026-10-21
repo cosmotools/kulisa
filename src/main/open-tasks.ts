@@ -3,7 +3,7 @@
 import { app, screen } from 'electron';
 import { Project, askDeleteProject, deleteProjectData } from './projects.ts';
 import { AppWindow } from './window.ts';
-import { log } from './log.ts';
+import { log, tilde } from './log.ts';
 import { refused } from '../shared/result.ts';
 import type { Shell } from './shell.ts';
 import type { ProjectEntry } from './store.ts';
@@ -26,7 +26,12 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
   let queue: Promise<unknown> = Promise.resolve();
   const serial = <T>(fn: () => T | Promise<T>): Promise<T> => { const r = queue.then(fn); queue = r.catch(() => {}); return r; };
   const newWindow = (place: Place) => { const w = new AppWindow(shell, place, { appDevTools }); shell.windows.push(w); log.info(`[window] new wc=${w.win.webContents.id}`); return w; };
-  const loadProject = (p: ProjectEntry) => shell.open.get(p.id) || shell.open.set(p.id, new Project(shell, p)).get(p.id)!;
+  // Loaded, the log names it beside its id: the lines after it name it by its id alone.
+  const loadProject = (p: ProjectEntry) => {
+    if (shell.open.has(p.id)) return shell.open.get(p.id)!;
+    log.info(`[project] ${p.id} loaded: ${p.name} (${tilde(p.folder)})`);
+    return shell.open.set(p.id, new Project(shell, p)).get(p.id)!;
+  };
   // A project with no open task left is let go: nothing of it runs.
   const unloadIdle = () => { for (const [id, p] of shell.open) if (!p.open().length) shell.open.delete(id); };
   const openTasksOf = (project: Project, w: AppWindow) => w.tabs.filter((t) => t.project === project);
@@ -189,7 +194,7 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
     }
     const task = await project.createTask();
     if (refused(task)) { log.info(`[task] not created in ${project.id}: ${task.error}`); return task; }
-    log.info(`[task] created ${task.key} in ${task.folder} wc=${w.win.webContents.id}`);
+    log.info(`[task] created ${task.key} (${project.name}) in ${tilde(task.folder)} wc=${w.win.webContents.id}`);
     w.add(task);
     await showTask(task);
     return { n: task.n, key: task.key };

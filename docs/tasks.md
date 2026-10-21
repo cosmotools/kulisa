@@ -597,7 +597,11 @@ project's submenu (a task tab's right-click menu) opens its `projects/<id>` in t
 asks where it is or what takes the disk; nothing in it is for editing by hand, so it is no button in sight:
 
 ```
-projects.json                     the projects: id, name, folder, repos, color (the one it has while its favicon gives none), agents (accounts, the default first), profiles (their folders, in order), noDefaultAgent
+projects.json                     the projects: id, name, folder, repos, color (the one it has while its favicon gives none), agents (accounts, the default first), profiles (their folders, in order), noDefaultAgent;
+                                  id: six random lowercase letters and digits (k3f9a2), made with the project and never
+                                  changed, so a rename leaves its data folder, its tasks' keys (k3f9a2/1) and their agents'
+                                  MCP address as they are; no name in it to go stale, and the log names the project
+                                  beside it (window.md, The log). An id of any other shape is read as it is
 profiles.json                     the profiles, one store (profiles.md): { next, list: [{ id, name, avatar, description,
                                   folder, login }] }
 profiles/Profile <k>/             a profile's master, a Chromium profile, where the human signs in once for every task;
@@ -615,7 +619,7 @@ logs/kulisa.old.log               kulisa.old.log and a new one starts: 2 MB at m
 Crashpad/                         Electron's crash dumps (crashReporter, no server; window.md, The log), to ask a user for
                                   after a crash; Crashpad prunes them itself (90 days, 128 MB)
 deleted-folders.json              folders to remove at the next start (a session keeps its files open)
-projects/<project id>/
+projects/<project id>/            a project's data, by its id (projects.json), gone with the project
   tasks.json                      { next, current, list: [{ n, name, branch, offset, folder (its agent's),
                                   copies: [{ repo, worktree, branch, base, folder }], home (its folder of copies),
                                   closed, closedAt, about }] }; base: the commit a copy started from; about: its first

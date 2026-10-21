@@ -8,7 +8,7 @@ import fs from 'fs';
 import path from 'path';
 import { Task } from './tasks.ts';
 import { freeBranch, createWorktree, removeWorktree, merged, repoOf, changes, clone } from './worktrees.ts';
-import { nameError, repoName } from '../shared/names.ts';
+import { nameError, repoName, slugOf } from '../shared/names.ts';
 import { refused } from '../shared/result.ts';
 import type { Result } from '../shared/result.ts';
 import type { Shell } from './shell.ts';
@@ -65,7 +65,7 @@ class Project {
   // A new task, named task-<n> until the agent or the human renames it. Its code: a worktree of the default repository
   // on a branch of the task's name (worktrees.ts), the others added when its work needs them (addCopy):
   // next to its repository when the project has one, else in one folder for them all,
-  // <projects' home>/<project>@task-<n>/<repo>/ (shell.projectsHome), so that one added later goes beside it; with a port offset no other task
+  // <projects' home>/<project's name>@task-<n>/<repo>/ (shell.projectsHome; a folder the human sees: the name, not the id), so that one added later goes beside it; with a port offset no other task
   // has (100, 200, …: the project's own folder keeps the usual ports). A folder without git is used as it is: the
   // task works right in it. Made from the project's configuration alone (the projects' manager), nothing from the
   // task on screen: its agent the project's default one; none: nothing starts, the island shows what can. No profile opens by itself: all its project's are listed closed, and the agent (profile_open)
@@ -79,7 +79,7 @@ class Project {
     if (gits.length) {
       const beside = repos.length === 1;
       const branch = await freeBranch(gits, name, { beside });
-      const home = beside ? null : freeFolder(path.join(this.shell.projectsHome, `${this.id}@${name}`));
+      const home = beside ? null : freeFolder(path.join(this.shell.projectsHome, `${slugOf(this.name, 'project')}@${name}`));
       const copies: Copy[] = [];
       try {
         for (const r of gits) copies.push(await createWorktree(r, branch, home && path.join(home, copyName(copies, r)), this.shell.agentFiles));
@@ -103,10 +103,11 @@ class Project {
     return task;
   }
   // Another of its repositories added to a task (Task.addRepository): copied on the task's branch (or the next free
-  // name there) into its folder of copies, <projects' home>/<project>@task-<n>/. The copy, or { error }.
+  // name there) into its folder of copies, <projects' home>/<project's name>@task-<n>/ (a folder the human sees: the
+  // name, not the id). The copy, or { error }.
   async addCopy(task: Task, repo: string): Promise<Result<Copy>> {
     const { entry } = task;
-    entry.home ??= freeFolder(path.join(this.shell.projectsHome, `${this.id}@task-${task.n}`));
+    entry.home ??= freeFolder(path.join(this.shell.projectsHome, `${slugOf(this.name, 'project')}@task-${task.n}`));
     const branch = await freeBranch([repo], entry.branch ?? `task-${task.n}`);
     try {
       const c = await createWorktree(repo, branch, path.join(entry.home, copyName(entry.copies!, repo)), this.shell.agentFiles);
