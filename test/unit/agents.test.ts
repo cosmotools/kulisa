@@ -11,6 +11,7 @@ import { codex } from '../../src/main/agents/codex.ts';
 import { CAPABILITIES } from '../../src/main/agents/agent.ts';
 import { installSkill } from '../../src/main/agents/files.ts';
 import { Accounts } from '../../src/main/accounts.ts';
+import { drawing } from './drawing.ts';
 import type { Agent } from '../../src/main/agents/index.ts';
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'kulisa-unit-'));
 after(() => fs.rmSync(root, { recursive: true, force: true }));
@@ -208,7 +209,7 @@ test("Codex: the email is its auth.json id token's; none without one", () => {
   assert.equal(email('Logged in using an API key', dir), null, 'an API key: no email');
 });
 
-test("accounts: one store, kept until deleted; its folder a fixed id, never a number used before, the email kept; an agent with accounts is no account itself", () => {
+test("accounts: one store, kept until deleted; its folder a fixed id, random, the email kept; an agent with accounts is no account itself", () => {
   const data = path.join(root, 'accounts-data');
   const defs = [{ id: 'claude', name: 'Claude Code', config: { env: 'CLAUDE_CONFIG_DIR', home: () => '/nowhere', login: (): string[] => [] } }, { id: 'shell', name: 'Terminal only' }] as Agent[];
   const marked: string[] = [];
@@ -216,22 +217,32 @@ test("accounts: one store, kept until deleted; its folder a fixed id, never a nu
   assert.deepEqual(accounts.all().map((a) => [a.id, a.own, a.choosable]), [['claude', true, false], ['shell', true, true]], "the human's own ~/.claude is no account");
   assert.deepEqual(accounts.choosable().map((a) => a.id), ['shell']);
   const r = accounts.prepare('claude') as { id: string; dir: string };
-  assert.deepEqual(r, { id: 'claude-1', dir: path.join(data, 'agents', 'claude-1') });
+  assert.match(r.id, /^claude-[a-z0-9]{6}$/);
+  assert.equal(r.dir, path.join(data, 'agents', r.id));
   assert.ok(fs.existsSync(r.dir), 'its folder made before the sign-in');
   assert.match(accounts.prepare('shell').error, /has no accounts/);
   const ann = accounts.create(r.id, 'claude', 'ann@shop.com');
-  assert.deepEqual([ann.id, ann.name, ann.dir, ann.own, ann.choosable], ['claude-1', 'Claude Code · ann@shop.com', r.dir, false, true]);
-  assert.equal(accounts.byEmail('claude', 'ann@shop.com').id, 'claude-1', 'an email it has already: that account');
+  assert.deepEqual([ann.id, ann.name, ann.dir, ann.own, ann.choosable], [r.id, 'Claude Code · ann@shop.com', r.dir, false, true]);
+  assert.equal(accounts.byEmail('claude', 'ann@shop.com').id, r.id, 'an email it has already: that account');
   assert.equal(accounts.byEmail('claude', null), null);
-  assert.deepEqual(new Accounts(data, defs).all().map((a) => a.id), ['claude', 'claude-1', 'shell'], 'kept');
-  assert.ok(accounts.create((accounts.prepare('claude') as { id: string }).id, 'claude', 'cy@shop.com'));
+  assert.deepEqual(new Accounts(data, defs).all().map((a) => a.id), ['claude', r.id, 'shell'], 'kept');
+  const cy = accounts.create((accounts.prepare('claude') as { id: string }).id, 'claude', 'cy@shop.com');
+  assert.notEqual(cy.id, r.id);
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(data, 'agents.json'), 'utf8')).list.map((x: { folder: string }) => x.folder), [r.id, cy.id], 'its folder its id');
   // Deleted, it goes (a sign-in is made again only by signing in again).
-  accounts.drop('claude-1');
-  accounts.drop('claude-2');
-  assert.equal(accounts.find('claude-1'), null);
+  accounts.drop(r.id);
+  accounts.drop(cy.id);
+  assert.equal(accounts.find(r.id), null);
   accounts.remove(r.dir);
   assert.ok(!fs.existsSync(r.dir) && marked.includes(r.dir), 'its folder gone');
-  assert.equal((accounts.prepare('claude') as { id: string }).id, 'claude-3', 'never a number used before: a removed folder may wait for the next start');
+  // Drawn again while an account has the id or its folder is there (a removed one's may wait for the next start).
+  accounts.create('claude-aaaaaa', 'claude', 'dee@shop.com');
+  fs.mkdirSync(path.join(data, 'agents', 'claude-bbbbbb'));
+  const undraw = drawing('aaaaaa', 'bbbbbb', 'cccccc');
+  try { assert.equal((accounts.prepare('claude') as { id: string }).id, 'claude-cccccc'); } finally { undraw(); }
+  accounts.drop('claude-aaaaaa');
+  fs.writeFileSync(path.join(data, 'agents.json'), '{}');
+  assert.deepEqual(accounts.stored(), [], 'a file without a list: none');
   // At start: a sign-in that did not end, and the format before (accounts.json), go.
   fs.writeFileSync(path.join(data, 'accounts.json'), '[]');
   const bob = accounts.create((accounts.prepare('claude') as { id: string }).id, 'claude', 'bob@shop.com');

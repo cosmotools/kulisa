@@ -401,8 +401,8 @@ are not programmers); its accounts are made there too, or in a project's page.
     its `/login` does (Claude Code `auth login`, Codex `login`), in a terminal there (`AccountSignIn.vue`),
     and ends once signed in. The terminal is under Details, closed (the address it prints, with
     the browser open, only confuses); it opens by itself when the sign-in fails, and is there for what the browser does
-    not show (the address, when no browser opened; a code the agent asks for). Its folder in Kulisa's data has a fixed id (`agents/claude-<n>/`, never a number used
-    before: a removed one's folder may wait for the next start), never renamed: Claude Code names its macOS Keychain
+    not show (the address, when no browser opened; a code the agent asks for). Its folder in Kulisa's data is its id, random and fixed (`agents/claude-k3x9ab/`, one
+    no account and no folder has: a removed one's folder may wait for the next start to go), never renamed: Claude Code names its macOS Keychain
     entry after a hash of the config folder's path, so a folder renamed after the sign-in would
     lose it. The email it signed in to is read after it (`auth status`) and kept in `agents.json`: the account is
     shown as "Claude Code · ann@shop.com". Codex's status does not say it ("Logged in using ChatGPT"): its email is read
@@ -604,12 +604,12 @@ projects.json                     the projects: id, name, folder, repos, color (
                                   changed, so a rename leaves its data folder, its tasks' keys (k3f9a2/1) and their agents'
                                   MCP address as they are; no name in it to go stale, and the log names the project
                                   beside it (window.md, The log). An id of any other shape is read as it is
-profiles.json                     the profiles, one store (profiles.md): { next, list: [{ id, name, avatar, description,
+profiles.json                     the profiles, one store (profiles.md): { list: [{ id, name, avatar, description,
                                   folder, login }] }
-profiles/Profile <k>/             a profile's master, a Chromium profile, where the human signs in once for every task;
-                                  kept in no project too, gone when the human deletes the profile (Settings → Profiles)
-agents.json                       the agents' accounts (accounts.ts): { next, list: [{ id, agent, email, folder }] }
-agents/<agent>-<n>/               an account's config folder (CLAUDE_CONFIG_DIR, CODEX_HOME): its sign-in, settings,
+profiles/<folder>/                a profile's master, a Chromium profile, where the human signs in once for every task;
+                                  folder: six random lowercase letters and digits (m2q7xd); kept in no project too, gone when the human deletes the profile (Settings → Profiles)
+agents.json                       the agents' accounts (accounts.ts): { list: [{ id, agent, email, folder }] }
+agents/<agent>-<random>/          an account's config folder (CLAUDE_CONFIG_DIR, CODEX_HOME): its sign-in, settings,
                                   conversations; Kulisa's profiles skill (skills/kulisa-profiles/) and Claude Code's
                                   settings for Kulisa (kulisa-settings.json), written at each start; gone, signed out first, when the human deletes it (Settings →
                                   Agents); one a sign-in left
@@ -635,11 +635,10 @@ projects/<project id>/            a project's data, by its id (projects.json), g
                                   (Several agents in a task), kept with the task
     terminals.json                { front, list: [{ id, name, by } | { id, conversation }] }: its island's tabs, opened
                                   again when it loads; one goes when closed; an empty list: the island folded
-    Profile 1/                    its copy of a master, made at its first open here: a Chromium profile
+    <folder>/                     its copy of a master, named as it, made at its first open here: a Chromium profile
                                   (session.fromPath), with Kulisa's own files in it:
       Kulisa Tabs.json              the URLs of its tabs and which is in front
       Kulisa Session Cookies.bin    its session cookies, encrypted with the OS keyring
-    Profile 2/ …
 ```
 
 Outside it:
@@ -654,7 +653,7 @@ Outside it:
 | direnv's permission for the task's `.envrc` | direnv's data (`~/.local/share/direnv/allow/`) | creating a task, if the project's is allowed |
 | The agent's trust of the task's folder | Claude Code: `<CLAUDE_CONFIG_DIR>/.claude.json`, else `~/.claude.json`, `projects["<task folder>"]`; Codex: `<CODEX_HOME>/config.toml`, `[projects."<task folder>"]` | the task's agent starts, if the project's folder or another task's copy is trusted |
 | Claude Code's language, Kulisa's one | `<account folder>/settings.json`, `language` (as its `/config` sets it) | ☰ → Language, and an agent's start; goes with the account's folder |
-| An agent's conversation | the agent's own data (Claude: `<config dir>/projects/…/<session>.jsonl`; Codex: `<config dir>/sessions/`), in its account's folder (`agents/<agent>-<n>/`) | the agent runs |
+| An agent's conversation | the agent's own data (Claude: `<config dir>/projects/…/<session>.jsonl`; Codex: `<config dir>/sessions/`), in its account's folder (`agents/<agent>-<random>/`) | the agent runs |
 | The agent itself, when Kulisa installed it | its maker's place (`~/.local/bin/claude`, `~/.local/bin/codex`, …) | Install in Settings → Agents |
 | Kulisa itself, installed (Windows) | `%LocalAppData%\kulisa\`: `app-<version>\` (Squirrel keeps the one before too, removing older ones), `packages\` (the update downloaded), `Update.exe` | the installer; an update; gone when Kulisa is uninstalled (the data folder stays) |
 | Kulisa itself, installed (Linux) | `/usr/lib/kulisa/` (the app, `chrome-sandbox` setuid root), `/usr/bin/kulisa` (a link), `/usr/share/applications/kulisa.desktop`, its icon under `/usr/share/icons/`, `/usr/share/doc/kulisa/` (Forge's deb and rpm makers) | the package; gone with `apt remove` or `dnf remove` (the data folder stays: a package may not touch a home folder) |

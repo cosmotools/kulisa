@@ -10,7 +10,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import http from 'http';
 import WebSocket from 'ws';
-import { focusWindow, shot, assert, root, project, pid, tkey, pfile, panel, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, closeSettings, chooseProfile, setProfileField, closeMenu, taskMenu, box, pageBox, click, PORT } from './helpers.ts';
+import { focusWindow, shot, assert, root, project, pid, tkey, pfile, folderOf, panel, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, closeSettings, chooseProfile, setProfileField, closeMenu, taskMenu, box, pageBox, click, PORT } from './helpers.ts';
 import { AGENT_PACKAGES } from '../src/main/app.ts';
 const CLAUDE_PLUGIN = path.join(AGENT_PACKAGES, 'claude-plugin');
 import { MARK } from '../src/main/kulisa-plugin/ghost.ts';
@@ -714,7 +714,7 @@ export default (test: Test) => {
         wc.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' }); wc.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
       }
       await waitFor(async () => !(await ui(`${button}.dataset.state === 'on'`)) && !shell.windows[0].picking.has('elon-buyer'));
-      assert.equal(await ui(`document.querySelector('.ptab[data-panel="profile:Profile 2"] .caption').textContent`), '', cancel);
+      assert.equal(await ui(`document.querySelector('.ptab[data-panel="profile:${folderOf('elon-buyer')}"] .caption').textContent`), '', cancel);
     }
     await sleep(300); // nothing to wait for: that nothing comes
     assert.equal(ptyOutput().slice(before).includes('kulisa pick'), false);

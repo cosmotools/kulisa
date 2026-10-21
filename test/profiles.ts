@@ -36,7 +36,7 @@ export default (test: Test) => {
     const { shell, ui, sui, call } = ctx;
     await shell.task.createProfile('Temp'); // in the project, open in its task (the agent's profile_create; Settings: tested above)
     const temp = shell.profiles.get('temp');
-    assert.equal(temp.folder, 'Profile 4'); // after Sam, Elon and Ann (the profile_create test)
+    const folder = temp.folder;
     await call('browser_navigate', { profile: 'temp', url: `${SITE}/app/login?name=tim` });
     assert.equal(await who(ctx, 'temp'), 'Signed in as tim');
     await shell.sessionCookies.save(temp);
@@ -71,15 +71,16 @@ export default (test: Test) => {
     const savedIds = () => JSON.parse(fs.readFileSync(pfile('profiles.json'), 'utf8')).map((p: { id: string }) => p.id).join();
     await waitFor(() => savedIds() === 'sam-admin,elon-buyer');
     assert.equal(shell.profileStore.get('temp'), null, 'gone from the store');
-    // Profile 3: Ann, the profile_create test; each its task's copy and its master.
+    // Its task's copy and its master, after Ann's (the profile_create test).
     const master = (f: string) => path.join(userData, 'profiles', f);
-    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(userData, 'deleted-folders.json'), 'utf8')), [pfile('Profile 3'), master('Profile 3'), pfile('Profile 4'), master('Profile 4')]);
+    const marked = JSON.parse(fs.readFileSync(path.join(userData, 'deleted-folders.json'), 'utf8'));
+    assert.deepEqual([marked.length, ...marked.slice(-2)], [4, pfile(folder), master(folder)]);
     await assert.rejects(call('browser_snapshot', { profile: 'temp' }), /No profile "temp"/);
     await waitFor(async () => (await ui(`document.querySelectorAll('.pane').length`)) === 2);
 
     // Same name again: a new folder (the old one goes at the next start), signed out.
     await shell.task.createProfile('Temp');
-    assert.equal(shell.profiles.get('temp').folder, 'Profile 5');
+    assert.notEqual(shell.profiles.get('temp').folder, folder);
     await call('browser_navigate', { profile: 'temp', url: `${SITE}/app` });
     assert.equal(await who(ctx, 'temp'), 'Signed out');
     await ui(`kulisa.invoke('profiles:delete', { profile: 'temp' })`);

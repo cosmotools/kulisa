@@ -7,13 +7,14 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import http from 'http';
-import { MAC, CMD, shot, assert, root, userData, project, pid, tkey, named, pfile, panel, SITE, sleep, waitFor, who, menuRows, choose, rightClick, viewOn, press, projectTabs, projectTab, showProject, savedWindows, closeMenu, click, plusMenu, closeBoard, PORT, hooksOf, MENU, SUBMENU, menuOpen, noNode, focusWindow, chooseProfile, closeSettings, settingsClosed } from './helpers.ts';
+import { MAC, CMD, shot, assert, root, userData, project, pid, tkey, named, pfile, folderOf, panel, SITE, sleep, waitFor, who, menuRows, choose, rightClick, viewOn, press, projectTabs, projectTab, showProject, savedWindows, closeMenu, click, plusMenu, closeBoard, PORT, hooksOf, MENU, SUBMENU, menuOpen, noNode, focusWindow, chooseProfile, closeSettings, settingsClosed } from './helpers.ts';
 import { withOffset } from '../src/main/tasks.ts';
 import { createWorktree } from '../src/main/worktrees.ts';
 import { sessionStart } from '../src/main/kulisa-plugin/agent-hooks.ts';
 import { refused } from '../src/shared/result.ts';
 import type { Test, Ctx } from './run.ts';
 import type { UI } from './helpers.ts';
+import type { Shell } from '../src/main/shell.ts';
 import type { TaskTerminal } from '../src/main/tasks.ts';
 import type { Task } from '../src/main/tasks.ts';
 import type { TasksFile } from '../src/main/store.ts';
@@ -157,14 +158,14 @@ export default (test: Test) => {
     // of its master (not of the first task's copy: what was signed in there stays there; a master's sign-ins come with it).
     assert.deepEqual([...shell.profiles.keys()], []);
     assert.deepEqual([...shell.closed.keys()], ['sam-admin', 'elon-buyer', 'dora']);
-    assert.ok(!fs.existsSync(pfile('Profile 1', 2)), 'no copy before it is opened');
+    assert.ok(!fs.existsSync(pfile(folderOf('sam-admin'), 2)), 'no copy before it is opened');
     await call('profile_open', { profile: 'sam-admin' });
     await call('profile_open', { profile: 'elon-buyer' });
     await waitFor(() => shell.profiles.has('sam-admin') && shell.profiles.has('elon-buyer'));
     assert.deepEqual(['sam-admin', 'elon-buyer'].map((id) => [shell.profiles.get(id).avatar, shell.profiles.get(id).description]),
       [['fox', 'seller in the test shop'], ['owl', '']], 'with their pictures and who they are');
     assert.ok(shell.profiles.get('sam-admin').dir.startsWith(path.join(userData, 'projects', pid('project'), '2')));
-    assert.ok(!fs.existsSync(pfile('Profile 3', 2)), 'a closed one is copied when it is first opened');
+    assert.ok(!fs.existsSync(pfile(folderOf('dora'), 2)), 'a closed one is copied when it is first opened');
     await call('browser_navigate', { profile: 'sam-admin', url: `${SITE}/app` });
     assert.equal(await who(ctx, 'sam-admin'), 'Signed out', 'its master was never signed in');
     // Signed in in this task's copy: there only (restart-tasks.ts: it stays).
@@ -953,51 +954,62 @@ export default (test: Test) => {
   let opens = 0;
   const opened = () => { try { return fs.readFileSync(path.join(root, 'opened'), 'utf8').trim().split('\n'); } catch { return []; } };
   const accountDir = (id: string) => path.join(userData, 'agents', id);
+  // The folder a sign-in under way was given (its id random: accounts.ts), the one no account stores yet.
+  const signingIn = (shell: Shell) => {
+    const found = fs.readdirSync(path.join(userData, 'agents')).filter((f) => !shell.accounts.find(f));
+    assert.equal(found.length, 1, `one sign-in's folder: ${found}`);
+    return accountDir(found[0]);
+  };
+  let work = ''; // the account the first test makes, the next ones use
   const logouts = () => { try { return fs.readFileSync(path.join(root, 'logouts'), 'utf8').trim().split('\n'); } catch { return []; } };
   test("agents: a new account is made in the project's settings: the agent's own sign-in at once, in a terminal there (under Details), its page in the user's own browser (Google refuses an embedded one); named by the email it signed in to; a task runs it with its folder, over a folder the project's environment sets", async (ctx) => {
-    const { ui, sui } = ctx;
+    const { shell, ui, sui } = ctx;
     await projectSettings(ctx);
     const windows = electron.BrowserWindow.getAllWindows().length;
     let p = await signIn(ctx);
-    const dir = accountDir('fake-1');
-    assert.ok(fs.existsSync(dir), 'its folder, a fixed id: never renamed');
+    const dir = signingIn(shell);
+    work = path.basename(dir);
+    assert.match(work, /^fake-[a-z0-9]{6}$/, 'its folder, a fixed id: never renamed');
     assert.ok(await sui(`!!document.querySelector('#npsigninterm .xterm') && !document.getElementById('npsigninterm').checkVisibility()`),
       'the sign-in in a terminal of the dialog, under Details: what it says the window shows');
     // Its page in the user's browser (the BROWSER Kulisa was started with), not a window of Kulisa's.
     assert.equal(electron.BrowserWindow.getAllWindows().length, windows, 'no window of its own');
     p.write('Work@Shop.com\r');
-    await waitFor(() => sui(`!!document.querySelector('#npagents [data-agent="fake-1"]') && !document.getElementById('npsignin')`));
+    await waitFor(() => sui(`!!document.querySelector('#npagents [data-agent="${work}"]') && !document.getElementById('npsignin')`));
     // Its agent and its email, each in its column (a table).
-    assert.deepEqual(await sui(`[...document.querySelectorAll('#npagents [data-agent="fake-1"] .cell')].slice(0, 2).map((c) => c.textContent.trim())`), ['Fake agent', 'work@shop.com']);
+    assert.deepEqual(await sui(`[...document.querySelectorAll('#npagents [data-agent="${work}"] .cell')].slice(0, 2).map((c) => c.textContent.trim())`), ['Fake agent', 'work@shop.com']);
     assert.deepEqual(JSON.parse(fs.readFileSync(path.join(userData, 'agents.json'), 'utf8')),
-      { next: 2, list: [{ id: 'fake-1', agent: 'fake', email: 'work@shop.com', folder: 'fake-1' }] });
-    assert.ok(ctx.shell.store.projects().find((x) => x.id === pid('project')).agents.includes('fake-1'), 'the project lists it');
+      { list: [{ id: work, agent: 'fake', email: 'work@shop.com', folder: work }] });
+    assert.ok(ctx.shell.store.projects().find((x) => x.id === pid('project')).agents.includes(work), 'the project lists it');
     // Signed in to an email it has already: that account, the new folder signed out and gone.
     p = await signIn(ctx);
+    let again = signingIn(shell);
     p.write('work@shop.com\r');
     await waitFor(async () => /is in the project already/.test(await sui(`document.getElementById('npsigninerror').textContent`)));
-    assert.ok(!fs.existsSync(accountDir('fake-2')) && logouts().includes(accountDir('fake-2')));
+    assert.ok(!fs.existsSync(again) && logouts().includes(again));
     await sui(`document.getElementById('npsignincancel').click()`);
     await waitFor(() => sui(`!document.getElementById('npsignin')`));
     // Cancelled: nothing kept; + adds again (not while a sign-in is shown).
     p = await signIn(ctx);
+    again = signingIn(shell);
     assert.equal(await sui(`document.getElementById('npagentadd').disabled`), true);
     await sui(`document.getElementById('npsignincancel').click()`);
-    await waitFor(async () => !fs.existsSync(accountDir('fake-3')) && !(await sui(`!!document.getElementById('npsignin') || document.getElementById('npagentadd').disabled`)));
+    await waitFor(async () => !fs.existsSync(again) && !(await sui(`!!document.getElementById('npsignin') || document.getElementById('npagentadd').disabled`)));
     // Not signed in (the agent's sign-in ended without it): said so, Try Again.
     p = await signIn(ctx);
+    again = signingIn(shell);
     p.write('\r');
     await waitFor(async () => /Not signed in/.test(await sui(`document.getElementById('npsigninerror').textContent`)));
     assert.equal(await sui(`document.getElementById('npsigninstart').hidden`), false);
     assert.ok(await sui(`document.getElementById('npsigninterm').checkVisibility() && !!document.querySelector('#npsigninterm .xterm')`),
       'its Details open by itself, with what the agent said');
-    assert.ok(!fs.existsSync(accountDir('fake-4')));
+    assert.ok(!fs.existsSync(again));
     await sui(`document.getElementById('npsignincancel').click()`);
     await closeSettings(ctx);
     // A task runs it: the agent with its folder in its variable, though the project's environment set it to another
     // (run.ts: its shell's startup, as a project's .envrc). Choosing a task's agent lists the project's accounts.
     const task = await newTask(ctx);
-    await waitFor(() => task.promptTarget()?.agent.id === 'fake-1', 20000); // the project's default: its one account
+    await waitFor(() => task.promptTarget()?.agent.id === work, 20000); // the project's default: its one account
     ctx.watchPty(task.pty);
     await waitFor(async () => (await ctx.termText()).includes(`config [${dir}]`));
     // Its shell gets none of direnv's state from where Kulisa was started: else the user's direnv hook takes the task's
@@ -1017,7 +1029,7 @@ export default (test: Test) => {
   test("language: one for every agent (☰ → Language): written into the agents' own setting in each account's folder, at an agent's start and when chosen, never into the human's own", async ({ ui, shell }) => {
     const own = (id: string) => path.join(accountDir(id), 'settings.json');
     const read = (f: string) => JSON.parse(fs.readFileSync(f, 'utf8'));
-    assert.deepEqual(read(own('fake-1')), { language: 'English' }, 'at its start (the test before): English, the default');
+    assert.deepEqual(read(own(work)), { language: 'English' }, 'at its start (the test before): English, the default');
     await ui(`document.getElementById('windowMenu').click()`);
     assert.ok((await menuRows(ui)).includes('Language'));
     const row = `${MENU}.querySelector('.languagerow')`;
@@ -1029,33 +1041,33 @@ export default (test: Test) => {
     assert.equal(await ui(`document.querySelector('.menu.languages [data-language]').dataset.language`), system, "the system's first");
     await ui(`document.querySelector('.menu.languages [data-language="ru"]').click()`);
     await waitFor(() => read(path.join(userData, 'settings.json')).language === 'ru');
-    await waitFor(() => read(own('fake-1')).language === 'Russian');
+    await waitFor(() => read(own(work)).language === 'Russian');
     assert.ok(!fs.existsSync(path.join(root, 'fake-config', 'settings.json')), "the human's own folder untouched");
     await closeMenu(ui);
     assert.ok(refused(shell.setLanguage('xx')), 'only one an agent takes');
     shell.setLanguage('en');
-    assert.equal(read(own('fake-1')).language, 'English');
+    assert.equal(read(own(work)).language, 'English');
   });
 
   test("agents: an account lives until deleted in Settings → Agents: let go by its project at once, kept; not deleted while a task runs it; deleted after a question, signed out, with its folder; one made there is in no project", async (ctx) => {
     const { shell, ui, sui } = ctx;
-    const task = shell.task, dir = accountDir('fake-1');
+    const task = shell.task, dir = accountDir(work);
     const row = (id: string) => `document.querySelector('#agentpage [data-account="${id}"]')`;
     // An account deleted: its row selected, then − over its list.
     const deleteAccount = (id: string) => onRow(sui, `#agentpage [data-account="${id}"]`, null, `#agentpage .list:has([data-account="${id}"]) .accountdel`);
     // × in the project lets go of it at once, nothing asked; the account stays, and the task running it keeps it.
     await projectSettings(ctx);
-    await onRow(sui, '#npagents [data-agent="fake-1"]', 'npagentdel');
-    await waitFor(() => sui(`!document.querySelector('#npagents [data-agent="fake-1"]')`));
+    await onRow(sui, `#npagents [data-agent="${work}"]`, 'npagentdel');
+    await waitFor(() => sui(`!document.querySelector('#npagents [data-agent="${work}"]')`));
     assert.equal(ctx.asked.length, 0);
-    assert.deepEqual(shell.store.projectsWith('agents', 'fake-1').map((p) => p.id), [], 'kept, in no project');
-    assert.equal(task.promptTarget().agent.id, 'fake-1');
+    assert.deepEqual(shell.store.projectsWith('agents', work).map((p) => p.id), [], 'kept, in no project');
+    assert.equal(task.promptTarget().agent.id, work);
     assert.ok(fs.existsSync(dir));
     // Its agent's page: the account in no project; Delete refused while a task runs it.
     await showAgent(sui, 'fake');
-    await waitFor(() => sui(`!!${row('fake-1')}`));
-    assert.equal(await sui(`${row('fake-1')}.querySelector('small').textContent`), 'in no project');
-    await deleteAccount('fake-1');
+    await waitFor(() => sui(`!!${row(work)}`));
+    assert.equal(await sui(`${row(work)}.querySelector('small').textContent`), 'in no project');
+    await deleteAccount(work);
     const said = () => sui(`document.getElementById('agentpageerror').textContent`);
     await waitFor(async () => !!(await said()));
     assert.match(await said(), new RegExp(`^Tasks run it: ${task.entry.name} \\(project\\)`));
@@ -1066,17 +1078,17 @@ export default (test: Test) => {
     ctx.asked.length = 0;
     // Deleted after a question; no: kept.
     await openAgents(ctx);
-    await waitFor(() => sui(`!!${row('fake-1')}`));
+    await waitFor(() => sui(`!!${row(work)}`));
     ctx.answer = false;
-    await deleteAccount('fake-1');
+    await deleteAccount(work);
     await waitFor(() => ctx.asked.length);
     assert.equal(ctx.asked.pop().message, 'Delete the account Fake agent · work@shop.com?');
     assert.ok(fs.existsSync(dir), 'kept when the human says no');
     ctx.answer = true;
-    await deleteAccount('fake-1');
-    await waitFor(async () => !fs.existsSync(dir) && !(await sui(`!!${row('fake-1')}`)));
+    await deleteAccount(work);
+    await waitFor(async () => !fs.existsSync(dir) && !(await sui(`!!${row(work)}`)));
     assert.ok(logouts().includes(dir), 'signed out first, with its agent\'s own command');
-    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(userData, 'agents.json'), 'utf8')), { next: 5, list: [] });
+    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(userData, 'agents.json'), 'utf8')), { list: [] });
     ctx.asked.length = 0;
     // New Account… there (the + beside Agents in the tree, an agent): signed in on its page, in no project; a project's
     // Add Agent… takes it.
@@ -1088,10 +1100,11 @@ export default (test: Test) => {
     await waitFor(() => sui(`document.querySelector('#pjlist [data-agent="fake"]').ariaSelected === 'true'`));
     await waitFor(() => shell.signins.size);
     const p = [...shell.signins.values()][0];
+    const home = path.basename(signingIn(shell));
     p.write('home@shop.com\r'); // kept by the pty until the agent reads it
-    await waitFor(() => sui(`!!${row('fake-5')} && !document.getElementById('npsignin')`));
-    assert.equal(await sui(`${row('fake-5')}.querySelector('.label').textContent`), 'home@shop.com');
-    assert.deepEqual(shell.store.projectsWith('agents', 'fake-5').map((p) => p.id), []);
+    await waitFor(() => sui(`!!${row(home)} && !document.getElementById('npsignin')`));
+    assert.equal(await sui(`${row(home)}.querySelector('.label').textContent`), 'home@shop.com');
+    assert.deepEqual(shell.store.projectsWith('agents', home).map((p) => p.id), []);
     await click(sui, `document.querySelector('#pjlist [data-project="${pid('project')}"]')`);
     await waitFor(() => sui(`document.getElementById('pjconfig').checkVisibility() && !document.getElementById('npagentadd').disabled`));
     // The accounts to add are asked for again as the tab is shown: the menu may open before they come.
@@ -1103,9 +1116,9 @@ export default (test: Test) => {
     });
     // In no project and no task: deleted at once after the question.
     await showAgent(sui, 'fake');
-    await waitFor(() => sui(`!!${row('fake-5')}`));
-    await deleteAccount('fake-5');
-    await waitFor(() => !fs.existsSync(accountDir('fake-5')) && !shell.accounts.find('fake-5'));
+    await waitFor(() => sui(`!!${row(home)}`));
+    await deleteAccount(home);
+    await waitFor(() => !fs.existsSync(accountDir(home)) && !shell.accounts.find(home));
     ctx.asked.length = 0;
     await closeSettings(ctx);
   });
