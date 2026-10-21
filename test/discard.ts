@@ -2,7 +2,7 @@
 // discard.ts: the rule and the sweep; docs/profiles.md, "Tabs unloaded"). Run after profiles.ts: Sam's and Elon's tabs
 // as they left them, and left so (restart-profiles.ts counts on Elon's).
 import { webContents } from 'electron';
-import { assert, savedTabs, SITE, waitFor, viewOn, click, hooksOf } from './helpers.ts';
+import { assert, savedTabs, SITE, waitFor, viewOn, click, hooksOf, idOf } from './helpers.ts';
 import http from 'http';
 import type { Test } from './run.ts';
 import type { Tab } from '../src/main/profiles.ts';
@@ -14,12 +14,12 @@ const aged = (tab: Tab) => { tab.offScreenSince = Date.now() - LONG_AGO; };
 export default (test: Test) => {
   test('a tab no one looks at loses its process after the time; the strip and the saved tabs keep it; the agent and the human get it back where it was', async (ctx) => {
     const { shell, call, ui } = ctx;
-    const sam = shell.profiles.get('sam-admin'), before = sam.tabs.map((t) => t.id);
+    const sam = shell.profiles.get(idOf('Sam.admin')), before = sam.tabs.map((t) => t.id);
     const board = sam.newTab(`${SITE}/board`), form = sam.newTab(`${SITE}/form`); // form is the active one, on screen
     await Promise.all([board.ready, form.ready]);
     await waitFor(() => board.title === 'board' && !board.loading && !board.pendingUrl); // a page still loading is kept
     await waitFor(() => !shell.task.agentTerminals().some((t) => t.state === 'working' || t.state === 'waiting')); // the tests before may leave the agent's last hook on its way
-    const strip = () => ui(`[...document.querySelectorAll('.pane[data-profile="sam-admin"] .tabs .tab .title')].map((t) => t.textContent)`);
+    const strip = () => ui(`[...document.querySelectorAll('.pane[data-profile="${idOf('Sam.admin')}"] .tabs .tab .title')].map((t) => t.textContent)`);
     const wcs = () => webContents.getAllWebContents().length;
     const n = wcs();
     // The sweep dates what is off screen; nothing goes before the time.
@@ -33,27 +33,27 @@ export default (test: Test) => {
     assert.ok(!form.discarded && !sam.tabs.find((t) => t.id === before[0]).discarded, 'the active tab stays; the others were dated only now');
     assert.equal(board.url, `${SITE}/board`); assert.equal(board.title, 'board');
     await waitFor(async () => (await strip()).includes('board')); // the strip shows it as before, drawn after the tab's change
-    await waitFor(() => savedTabs('sam-admin').includes(`${SITE}/board`)); // saved with the others, to come back after a restart
+    await waitFor(() => savedTabs('Sam.admin').includes(`${SITE}/board`)); // saved with the others, to come back after a restart
     // The agent: the tab listed as any, and a tool on it loads it first.
-    const listed = JSON.parse((await call('profile_list', {})).text).find((p: { id: string }) => p.id === 'sam-admin').tabs;
+    const listed = JSON.parse((await call('profile_list', {})).text).find((p: { name: string }) => p.name === 'Sam.admin').tabs;
     assert.deepEqual(listed.find((t: { id: string }) => t.id === board.id), { id: board.id, title: 'board', url: `${SITE}/board` });
-    assert.match((await call('browser_snapshot', { profile: 'sam-admin', tab: board.id })).text, /Title: board/);
+    assert.match((await call('browser_snapshot', { profile: 'Sam.admin', tab: board.id })).text, /Title: board/);
     assert.ok(!board.discarded && !board.wc.isDestroyed() && board.wc.getURL() === `${SITE}/board`, 'loaded again at its address');
     assert.equal(sam.active, form.id, 'the active tab is still the one the human had');
     // The human: a click on its tab in the strip brings it back on screen.
     aged(board); sam.busyAt = Date.now() - LONG_AGO;
     assert.equal(shell.discard.sweep(), 1);
     await waitFor(() => board.discarded);
-    await click(ui, `document.querySelector('.pane[data-profile="sam-admin"] .tabs .tab[data-tab="${board.id}"]')`);
+    await click(ui, `document.querySelector('.pane[data-profile="${idOf('Sam.admin')}"] .tabs .tab[data-tab="${board.id}"]')`);
     await waitFor(() => sam.active === board.id && !board.discarded && !board.wc.isDestroyed());
     await waitFor(() => board.wc.getURL() === `${SITE}/board` && !board.wc.isLoading());
-    await waitFor(async () => viewOn(shell, ui, 'sam-admin'));
+    await waitFor(async () => viewOn(shell, ui, 'Sam.admin'));
     // Closed while discarded (the agent's or the human's ×): gone from the strip, nothing to close.
     sam.activate(form.id);
     aged(board); sam.busyAt = Date.now() - LONG_AGO;
     assert.equal(shell.discard.sweep(), 1);
     await waitFor(() => board.discarded);
-    await call('browser_tab_close', { profile: 'sam-admin', tab: board.id });
+    await call('browser_tab_close', { profile: 'Sam.admin', tab: board.id });
     assert.ok(!sam.tabs.includes(board));
     await waitFor(async () => !(await strip()).includes('board'));
     sam.closeTab(form.id);
@@ -63,7 +63,7 @@ export default (test: Test) => {
 
   test('not while an agent of the task works or waits, nor while automation drives the profile, nor a page holding its unload', async (ctx) => {
     const { shell, call } = ctx, task = shell.task;
-    const sam = shell.profiles.get('sam-admin');
+    const sam = shell.profiles.get(idOf('Sam.admin'));
     const post = (event: string) => new Promise((r) => http.request(`${hooksOf(task)}/${event}`, { method: 'POST' }, (res) => { res.resume(); res.on('end', r); }).end('{}'));
     const idle = sam.newTab(`${SITE}/app`, { activate: false });
     await idle.ready;
@@ -85,7 +85,7 @@ export default (test: Test) => {
     const draft = sam.newTab(`${SITE}/draft`);
     await draft.ready;
     await waitFor(() => !draft.loading);
-    await call('browser_click', { profile: 'sam-admin', tab: draft.id, locator: "getByRole('button', { name: 'Draft' })" });
+    await call('browser_click', { profile: 'Sam.admin', tab: draft.id, locator: "getByRole('button', { name: 'Draft' })" });
     sam.activate(sam.tabs[0].id);
     aged(draft); sam.busyAt = Date.now() - LONG_AGO;
     assert.equal(shell.discard.sweep(), 1, 'tried');

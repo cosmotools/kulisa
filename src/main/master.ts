@@ -18,26 +18,26 @@ interface Master { win: BrowserWindow; profile: Profile; closing: Promise<void> 
 const BAR = 44; // keep in sync with #bar in Master.vue
 
 function installMasters(shell: Shell, { preload, colors }: { preload: string; colors: () => { window: string } }) {
-  shell.masters = new Map(); // folder -> { win, profile }
+  shell.masters = new Map(); // id -> { win, profile }
   // tasks.ts: before a copy is made of it, what the human did there is on disk.
-  shell.flushMaster = async (folder) => { const m = shell.masters.get(folder); if (m) await shell.sessionCookies.persist(m.profile); };
-  shell.closeMaster = async (folder) => { const m = shell.masters.get(folder); if (m) await close(m); };
-  shell.openMaster = async (folder) => {
-    const g = shell.profileStore.byFolder(folder);
-    if (!g) return { error: 'no such profile' };
-    const open = shell.masters.get(folder);
-    if (open) { open.win.focus(); return { folder }; }
+  shell.flushMaster = async (id) => { const m = shell.masters.get(id); if (m) await shell.sessionCookies.persist(m.profile); };
+  shell.closeMaster = async (id) => { const m = shell.masters.get(id); if (m) await close(m); };
+  shell.openMaster = async (id) => {
+    const g = shell.profileStore.get(id);
+    if (!g) return { error: `no profile ${id}` };
+    const open = shell.masters.get(id);
+    if (open) { open.win.focus(); return { id }; }
     const win = new BrowserWindow({ width: 1100, height: 800, title: `${g.name}: sign in once for every task — Kulisa`, backgroundColor: colors().window,
       autoHideMenuBar: true, webPreferences: { preload, sandbox: true } });
     win.removeMenu();
-    const dir = shell.profileStore.masterDir(folder);
-    const profile = new Profile(win, { id: g.id, name: g.name, avatar: g.avatar, folder, dir }, { task: `master/${folder}` });
+    const dir = shell.profileStore.masterDir(id);
+    const profile = new Profile(win, { id, name: g.name, avatar: g.avatar, dir }, { task: `master/${id}` });
     const m: Master = { win, profile, closing: null };
-    shell.masters.set(folder, m);
+    shell.masters.set(id, m);
     win.on('close', (e) => { if (!m.closed && !shell.quitting) { e.preventDefault(); void close(m); } });
     // Closed meanwhile (its page, or a slow sign-in page, still loading): nothing to lay out, the window is gone.
     await win.loadFile(page('master.html'), { query: { name: g.name, theme: shell.shade() } }).catch((e) => { if (!m.closing) throw e; });
-    if (m.closing) return { folder };
+    if (m.closing) return { id };
     const place = () => { const [width = 0, height = 0] = win.getContentSize(); profile.layout({ x: 0, y: BAR, width, height: Math.max(0, height - BAR) }); };
     const tell = () => { const t = profile.get(); if (!win.isDestroyed() && t && !t.wc.isDestroyed()) win.webContents.send('master:url', t.wc.getURL()); };
     profile.on('changed', () => { place(); tell(); });
@@ -48,9 +48,9 @@ function installMasters(shell: Shell, { preload, colors }: { preload: string; co
       await profile.openTabs(readTabs(dir));
     })();
     await m.ready;
-    if (m.closing) return { folder };
+    if (m.closing) return { id };
     place(); tell();
-    return { folder };
+    return { id };
   };
   async function close(m: Master): Promise<void> {
     if (m.closing) return m.closing;
@@ -58,7 +58,7 @@ function installMasters(shell: Shell, { preload, colors }: { preload: string; co
       writeTabs(m.profile.dir, m.profile.savedTabs((t) => (t.wc.isDestroyed() ? '' : t.wc.getURL())));
       await shell.sessionCookies.persist(m.profile);
       await m.profile.close();
-      shell.masters.delete(m.profile.folder);
+      shell.masters.delete(m.profile.id);
       m.closed = true;
       if (!m.win.isDestroyed()) m.win.destroy();
     })();

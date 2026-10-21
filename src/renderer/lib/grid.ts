@@ -10,14 +10,10 @@ import { closeLayers } from './cover';
 import { reducedMotion } from './common';
 import { forgetTerminals } from '../../terminal/renderer';
 
-const panelId = (key: string) => `profile:${key}`;
-// What the window does with a mounted pane (ProfilePane.vue), by its profile's key.
+const panelId = (id: string) => `profile:${id}`;
+// What the window does with a mounted pane (ProfilePane.vue), by its profile's id.
 export interface PaneHandle { content: HTMLElement; focusAddress(): void; newTab(): void }
 export const panes = new Map<string, PaneHandle>();
-export const paneOfProfile = (id: string) => {
-  const p = store.profiles.find((x) => x.id === id);
-  return p && panes.get(p.key);
-};
 
 let api: DockviewApi | null = null;
 let gotApi: (a: DockviewApi) => void;
@@ -58,7 +54,7 @@ document.addEventListener('drop', () => setTimeout(unfreeze), true);
 kulisa.on('state', async (s) => {
   await leaving;
   // A profile leaving sign-in mode: the words over its pane go.
-  for (const p of s) if (!p.signinMode && store.profiles.find((x) => x.key === p.key)?.signinMode) store.captions[p.id] = '';
+  for (const p of s) if (!p.signinMode && store.profiles.find((x) => x.id === p.id)?.signinMode) store.captions[p.id] = '';
   store.profiles = s;
   const first = !gridReady;
   await (gridReady ??= restoreGrid());
@@ -90,7 +86,7 @@ export function scheduleLayout() { cancelAnimationFrame(layoutFrame); layoutFram
 function sendLayout() {
   const rects: Record<string, { shown: false } | { x: number; y: number; width: number; height: number }> = {};
   for (const p of store.profiles) {
-    const panel = api?.getPanel(panelId(p.key)), c = panes.get(p.key)?.content;
+    const panel = api?.getPanel(panelId(p.id)), c = panes.get(p.id)?.content;
     if (!panel || !panel.api.isVisible || !c?.isConnected || !c.offsetWidth) { rects[p.id] = { shown: false }; continue; }
     const r = c.getBoundingClientRect();
     rects[p.id] = { x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height) };
@@ -99,7 +95,7 @@ function sendLayout() {
 }
 
 const addProfilePanel = (p: Profile, position?: AddPanelPositionOptions, extra: { inactive?: boolean } = {}) =>
-  api!.addPanel({ id: panelId(p.key), component: 'profile', tabComponent: 'profile', title: p.name, position, ...extra });
+  api!.addPanel({ id: panelId(p.id), component: 'profile', tabComponent: 'profile', title: p.name, position, ...extra });
 const addTerminal = (position: AddPanelPositionOptions) =>
   api!.addPanel({ id: 'terminal', component: 'terminal', tabComponent: 'terminal', title: 'Terminal', renderer: 'always', position });
 
@@ -108,19 +104,19 @@ const TERMINAL_SHARE = 0.35;
 // Ready-made arrangements (☰); after one, panels move freely again. Each says the terminal's share of the window.
 const presets: Record<'columns' | 'grid' | 'focus', (s: Profile[]) => { height?: number; width?: number }> = {
   columns(s) {
-    s.forEach((p, i) => addProfilePanel(p, i ? { referencePanel: panelId(s[i - 1]!.key), direction: 'right' } : undefined));
+    s.forEach((p, i) => addProfilePanel(p, i ? { referencePanel: panelId(s[i - 1]!.id), direction: 'right' } : undefined));
     addTerminal({ direction: 'below' });
     return { height: TERMINAL_SHARE };
   },
   grid(s) {
     s.forEach((p, i) => addProfilePanel(p, i === 0 ? undefined
-      : i === 1 ? { referencePanel: panelId(s[0]!.key), direction: 'right' }
-        : { referencePanel: panelId(s[i - 2]!.key), direction: 'below' }));
+      : i === 1 ? { referencePanel: panelId(s[0]!.id), direction: 'right' }
+        : { referencePanel: panelId(s[i - 2]!.id), direction: 'below' }));
     addTerminal({ direction: 'right' });
     return { width: TERMINAL_SHARE };
   },
   focus(s) {
-    s.forEach((p, i) => addProfilePanel(p, i ? { referencePanel: panelId(s[0]!.key), direction: 'within' } : undefined, { inactive: i > 0 }));
+    s.forEach((p, i) => addProfilePanel(p, i ? { referencePanel: panelId(s[0]!.id), direction: 'within' } : undefined, { inactive: i > 0 }));
     addTerminal({ direction: 'below' });
     return { height: TERMINAL_SHARE };
   },
@@ -197,7 +193,7 @@ async function restoreGrid() {
   const a = await apiReady;
   const saved = await act('layout:load') as { panels?: Record<string, unknown> } | null | undefined; // as the window saved it
   // A saved grid may name profiles deleted since; dockview needs a component for every panel in it.
-  const known = (id: string) => id === 'terminal' || store.profiles.some((p) => panelId(p.key) === id);
+  const known = (id: string) => id === 'terminal' || store.profiles.some((p) => panelId(p.id) === id);
   if (saved && Object.keys(saved.panels || {}).every(known)) {
     try { a.fromJSON(saved as Parameters<DockviewApi['fromJSON']>[0]); } catch (e) { console.warn('[layout] saved grid not restored:', (e as Error).message); a.clear(); }
   }
@@ -208,9 +204,9 @@ async function restoreGrid() {
 // goes away.
 function syncGrid() {
   const a = api!;
-  for (const panel of a.panels.filter((x) => x.id.startsWith('profile:') && !store.profiles.some((p) => panelId(p.key) === x.id))) a.removePanel(panel);
+  for (const panel of a.panels.filter((x) => x.id.startsWith('profile:') && !store.profiles.some((p) => panelId(p.id) === x.id))) a.removePanel(panel);
   for (const p of store.profiles) {
-    if (a.getPanel(panelId(p.key))) continue;
+    if (a.getPanel(panelId(p.id))) continue;
     const last = a.panels.filter((x) => x.id !== 'terminal').at(-1);
     addProfilePanel(p, last ? { referencePanel: last.id, direction: 'right' } : { referencePanel: 'terminal', direction: 'above' });
     // The first page over the terminal alone: dockview halves the room; the terminal keeps its share, as in the
@@ -232,4 +228,4 @@ kulisa.on('terminals', async (t) => {
 kulisa.on('terminals:gone', forgetTerminals);
 
 // Bring an open profile's pane to the front (it may be stacked behind another).
-export const showPane = (key: string) => api?.getPanel(panelId(key))?.api.setActive();
+export const showPane = (id: string) => api?.getPanel(panelId(id))?.api.setActive();

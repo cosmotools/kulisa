@@ -10,10 +10,16 @@ cookies, storage, sign-ins and tabs, shown as a pane in the grid. One profile is
 ("sam@shop.com", "ann.admin"); several profiles side by side are several users at once.
 
 **One store, a master and copies** (`profile-store.ts`, `project-profiles.ts`). A profile is a
-person, the same in every project it is listed in: its name, id, picture and description are one, changed anywhere,
-seen everywhere. A project lists its profiles, in order, by their folders (`projects.json`'s `profiles`; a folder is
-fixed, an id changes with the name). What a project is made of (its repositories, agents, profiles) is said in the
-project alone: one place to read it and to change it. Its **master** is a folder in Kulisa's data (`profiles/<folder>/`) that no one works in. Each task
+person, the same in every project it is listed in: its name, picture and description are one, changed anywhere,
+seen everywhere. Its **id** is six random lowercase letters and digits (`m2q7xd`), made once and never changed, as a
+project's and an agent's account's: inside Kulisa a profile is its id (its folders, a project's list, a task's file, its
+pane in the grid, what the window and the main process say of it). The agent knows it by its **name** (the tools'
+`profile`, matched whatever its case), never by its id, so a name is unique within a project, whatever its case:
+made in a project, renamed, or added to one, a profile whose name another profile there has is refused, saying so
+(`ProfileStore.nameTaken`; a profile in no project is checked when a project takes it). A project lists its profiles,
+in order, by their ids (`projects.json`'s `profiles`). What a project is made of (its repositories, agents, profiles)
+is said in the project alone: one place to read it and to change it. Its **master** is a folder in Kulisa's data
+(`profiles/<id>/`) that no one works in. Each task
 ([tasks.md](tasks.md)) of its projects works in a **copy** of the master, made when the profile is first opened in
 that task (not all at once: a closed one costs nothing), its tabs the master's moved to the task's ports. What a task
 has of a profile is its own: its copy (what is signed in there stays there), its tabs, open or closed, its sites'
@@ -57,7 +63,7 @@ A profile is an Electron session on a folder of its own (`session.fromPath`), la
   copy. Signing in to a real account in a task's pane reaches the master and the other tasks too; to a local app, that
   task only. Only the human signs in: Kulisa never types
   passwords or automates a sign-in, and never prints or logs cookies or tokens (CLAUDE.md, Rules).
-- **Rename**: Settings → Profiles, its Name. Only the name and id change; the folder (sign-ins), tabs and place stay.
+- **Rename**: Settings → Profiles, its Name. Only the name changes; the id, the folders (sign-ins), tabs and place stay.
 - **Who it is** (the description): a few words on who the profile is in the app under test, its role, what it can do
   ("seller in the Acme shop; can approve refunds"), Settings → Profiles' About. Agents
   choose profiles by it: a name says which account is signed in, not who that is in the tests. Optional, and the
@@ -97,8 +103,8 @@ A profile is an Electron session on a folder of its own (`session.fromPath`), la
 
 ## What the agent does
 
-Through Kulisa's MCP server (`mcp-server.ts`). `profile_list` lists the profiles, their ids and tabs; the `browser_*`
-tools act in one, each taking a profile id: `browser_snapshot`, `browser_click`, `browser_type`, `browser_press_key`, `browser_hover`, `browser_select_option`,
+Through Kulisa's MCP server (`mcp-server.ts`). `profile_list` lists the profiles, their names and tabs; the `browser_*`
+tools act in one, each taking a profile's name (the handle finds its id: `Task.named`): `browser_snapshot`, `browser_click`, `browser_type`, `browser_press_key`, `browser_hover`, `browser_select_option`,
 `browser_file_upload`, `browser_wait_for`, `browser_evaluate`, `browser_navigate` (also back, forward, reload),
 `browser_tab_new` / `_select` / `_close`, `browser_highlight`, `browser_screenshot`, `browser_console_messages`,
 `browser_network_requests`, `browser_type_login`; the tools reading or acting on a page take an optional `tab`.
@@ -192,15 +198,17 @@ at the element on the live page with its tools.
 ## Actions: the human's and the agent's
 
 Both act on one core (CLAUDE.md, Architecture): the window and the MCP tools find profiles and tabs with
-`Task.find` / `findTab` (the same refusals: no such profile, a closed one, no such tab) and call the same
+`Task.find` / `findTab` by id (the same refusals: no such profile, a closed one, no such tab; said with the profile's
+name), the agent's handle first finding the id of the name it was given (`Task.named`), and call the same
 methods; who a profile is changes and is checked in the store (`ProfileStore.rename`, `describe`, `setAvatar`,
 `setLogin`), which Settings → Profiles calls directly (no task needed) and a task's methods through its list
 (`ProjectProfiles`). A row with one side empty says why, or is a gap to fill.
 
 | Action | The human | The agent | The core |
 |---|---|---|---|
-| Create a profile | Settings → Profiles (in no project), a project's page (in it) | `profile_create` (in its project) | `ProfileStore.create`; `Task.createProfile` |
-| Rename a profile | Settings → Profiles | `profile_rename` | `ProfileStore.rename`; `Task.renameProfile` |
+| Create a profile | Settings → Profiles (in no project), a project's page (in it) | `profile_create` (in its project) | `ProfileStore.create`; `Task.createProfile`; its name one the project has not (`nameTaken`) |
+| Add a profile to the project | its page's + → Other Profiles | none: the agent makes one (`profile_create`) | `ProfileStore.addTo`; its name one the project has not (`nameTaken`) |
+| Rename a profile | Settings → Profiles | `profile_rename` | `ProfileStore.rename`; `Task.renameProfile`; its name one none of its projects has (`nameTaken`) |
 | Say who a profile is | Settings → Profiles | `profile_describe`, `profile_create` (the human's words only) | `ProfileStore.describe`; `Task.describeProfile` |
 | Change its picture | Settings → Profiles | none: how the human tells panes apart | `ProfileStore.setAvatar` |
 | Close, open a profile | ×; a tile while none is open, a task tab's menu | `profile_close`, `profile_open` | `Task.closeProfile`, `openProfile` |
@@ -382,12 +390,12 @@ is the descriptions the agent reads. If agents often write their own scripts, th
 ## What is on the computer
 
 In Kulisa's data folder, laid out in [tasks.md](tasks.md), "What is on the computer": the masters at its top
-(`profiles/<folder>/`), each task's copies in the task's folder, with Kulisa's own files in each (its tabs, its
+(`profiles/<id>/`), each task's copies in the task's folder (`<id>/`), with Kulisa's own files in each (its tabs, its
 session cookies).
 
-The folder is six random lowercase letters and digits (`m2q7xd`), fixed at creation, the same for the master and
-every copy; a new profile's is one no profile, no master and no folder waiting in `deleted-folders.json` has (a task's
-copy of a deleted one may still be on disk, its session open, and would pass for the new one's copy). A deleted profile's data is wiped at once; its folder is removed at the next start
+The folder is the profile's id, the same for the master and every copy; a new profile's id is one no profile, no
+master and no folder waiting in `deleted-folders.json` has (a task's copy of a deleted one may still be on disk, its
+session open, and would pass for the new one's copy). A deleted profile's data is wiped at once; its folder is removed at the next start
 (`deleted-folders.json`), because the session keeps its files open while Kulisa runs. Copying a master (a profile's first open in a task)
 leaves the caches out (Cache, Code Cache, GPUCache, Dawn*).
 
@@ -411,7 +419,7 @@ space (issue #113, a task manager).
 | `src/main/master.ts`, `src/renderer/master.html`, `master.ts`, `components/Master.vue` | a master's window, to sign in to it |
 | `src/main/project-profiles.ts` | a task's profiles: copies of their masters made at their first open, open and closed; create, rename, describe, close, open, let go |
 | `src/shared/avatars.ts`, `src/renderer/public/avatars/` | the profiles' pictures (Noto Emoji) |
-| `src/main/store.ts` | `profiles.json`, the profile folders, their tabs |
+| `src/main/store.ts` | a task's `profiles.json`, the profiles' folders, their tabs |
 | `src/main/session-cookies.ts` | session cookies across restarts |
 | `src/main/signin-pages.ts`, `signin-pause.ts` | sign-in pages; the pause |
 | `src/main/cdp-proxy.ts` | the CDP endpoint per profile |

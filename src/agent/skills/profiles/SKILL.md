@@ -12,7 +12,7 @@ human sees everything you do there: your cursor and a caption are drawn in the p
 
 | Tool | Use |
 |---|---|
-| `profile_list` | List profiles: id, name, `description` (who it is in the app; `null`: not said), `avatar` (its picture: the human may call a pane "the fox"), `signinMode`, tabs; closed ones as `closed: true` with their number of tabs. Call it first; the human may add profiles at any time. |
+| `profile_list` | List profiles: `name`, `description` (who it is in the app; `null`: not said), `avatar` (its picture: the human may call a pane "the fox"), `signinMode`, tabs; closed ones as `closed: true` with their number of tabs. Call it first; the human may add profiles at any time. |
 | `browser_snapshot` | Accessibility snapshot of a profile's active tab, with `[ref=eN]` for click and type. `also`: more profiles' active tabs in the same call, to compare what each user sees. |
 | `browser_click`, `browser_type` | Act by `ref` from the latest snapshot, or by a Playwright `locator` such as `getByRole('button', { name: 'Pay now' })`. `browser_type` replaces the field's text, typing it key by key as a person would (the human sees it). |
 | `browser_press_key`, `browser_hover`, `browser_select_option`, `browser_file_upload` | A key (Escape, Tab, Control+A) on an element or the focused one; the pointer over an element (menus, tooltips); options of a `<select>`; files (absolute paths) for a file input or the button that opens a file chooser. |
@@ -26,8 +26,8 @@ human sees everything you do there: your cursor and a caption are drawn in the p
 | `browser_console_messages`, `browser_network_requests` | What a tab logged and requested recently: errors, failed requests (`onlyErrors`, `onlyFailed`). |
 | `profile_open` | Open a closed profile (`closed: true` in `profile_list`): its pane and tabs come back, still signed in. |
 | `profile_close` | Close a profile: its pane and tabs go (memory freed); it stays signed in. |
-| `profile_create` | A new, empty profile for a user the task needs and no profile has. |
-| `profile_rename` | Rename a profile (its id follows), e.g. after the human signed it in to another account. |
+| `profile_create` | A new, empty profile for a user the task needs and no profile has, by a name no other profile of the project has (in any case). |
+| `profile_rename` | Rename a profile, e.g. after the human signed it in to another account; the tools take its new name from then on. |
 | `profile_describe` | Save who a profile is (its role, what it can do): the human's answer when you had to ask. |
 | `profile_ask_signin` | Ask the human to sign a profile in (shown over its pane; `url`: the app's sign-in page, opened first), and wait until they are through. |
 | `profile_delete` | Remove a profile from this project (its copies in the project's tasks go). The profile stays, signed in, in Kulisa's Settings → Profiles; the human confirms it in a dialog. |
@@ -40,8 +40,8 @@ human sees everything you do there: your cursor and a caption are drawn in the p
 | `task_history` | Where the task stands (git, profiles, terminals) and its conversations, each agent's, numbered, with its tab's name and what it was about; with `conversation`, that one whole, the latest chapter first. In parts: 1, then the next. |
 | `conversation_rename` | Name your conversation in 1 to 3 words once you know what it is about: your tab in Kulisa, by which the human and other agents tell it from the others. |
 
-Every browser tool takes `profile`: the id from `profile_list`, not the display name. Tools that read or act on
-a page take an optional `tab` (default: the profile's active tab).
+Every browser tool takes `profile`: its name, as `profile_list` gives it (in any case: a name is unique within the
+project). Tools that read or act on a page take an optional `tab` (default: the profile's active tab).
 
 ## How to work
 
@@ -130,10 +130,10 @@ The human can click Pick on a pane and then an element on its page. A reference 
 the human's message, and they write around it what they want, e.g.:
 
 ```
-[kulisa pick: elon-buyer tab k7 getByRole('button', { name: 'Pay now' })] does nothing
+[kulisa pick: elon@shop.com tab k7 getByRole('button', { name: 'Pay now' })] does nothing
 ```
 
-- After `pick:` come the profile id, the tab and a Playwright locator for the element. Pass the tab as `tab` and the
+- After `pick:` come the profile's name, the tab and a Playwright locator for the element. Pass the tab as `tab` and the
   locator as `locator` to the browser tools (the human may have switched to another tab since), or use the locator
   to find the element in the app's source code.
 - Look at the element on the live page before changing code: `browser_snapshot` of that tab, `browser_screenshot`

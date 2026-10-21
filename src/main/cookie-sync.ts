@@ -37,45 +37,45 @@ const ids = new WeakMap<Session, number>(); let nextId = 0;
 const sessionKey = (s: Session) => { if (!ids.has(s)) ids.set(s, ++nextId); return ids.get(s)!; };
 const listened = new WeakSet<Session>(); // the sessions _listen listens to
 
-// masterDir(folder): a profile's master (profile-store.ts); restore({ session, dir }): its session cookies put back
+// masterDir(id): a profile's master (profile-store.ts); restore({ session, dir }): its session cookies put back
 // from its file (session-cookies.ts), as a master not open in a window keeps them only there.
 class CookieSync {
-  masterDir: (folder: string) => string; restore: (holder: Holder) => Promise<unknown>; groups: Map<string, Group>; echoes: Set<string>;
-  constructor({ masterDir, restore = async () => {} }: { masterDir: (folder: string) => string; restore?: (holder: Holder) => Promise<unknown> }) {
+  masterDir: (id: string) => string; restore: (holder: Holder) => Promise<unknown>; groups: Map<string, Group>; echoes: Set<string>;
+  constructor({ masterDir, restore = async () => {} }: { masterDir: (id: string) => string; restore?: (holder: Holder) => Promise<unknown> }) {
     this.masterDir = masterDir; this.restore = restore;
-    this.groups = new Map(); // folder -> { master: session, copies: Map(session -> project's local list) }
+    this.groups = new Map(); // profile id -> { master: session, copies: Map(session -> project's local list) }
     this.echoes = new Set(); // changes this made, not to be taken back from where they were made
   }
   // A copy opening (tasks.ts: before its first tab loads): the master's non-local cookies first, then kept in step.
-  async attach(folder: string, copy: Session, local: string[] = []) {
-    const g = await this._group(folder);
+  async attach(id: string, copy: Session, local: string[] = []) {
+    const g = await this._group(id);
     if (g.copies.has(copy)) return;
     await this._bring(g.master, copy, local, { replace: true });
     g.copies.set(copy, local);
-    this._listen(copy, folder);
+    this._listen(copy, id);
   }
-  detach(folder: string, copy: Session) { this.groups.get(folder)?.copies.delete(copy); }
-  async _group(folder: string) {
-    let g = this.groups.get(folder);
+  detach(id: string, copy: Session) { this.groups.get(id)?.copies.delete(copy); }
+  async _group(id: string) {
+    let g = this.groups.get(id);
     if (!g) {
-      g = { master: session.fromPath(this.masterDir(folder)), dir: this.masterDir(folder), copies: new Map() };
-      this.groups.set(folder, g);
+      g = { master: session.fromPath(this.masterDir(id)), dir: this.masterDir(id), copies: new Map() };
+      this.groups.set(id, g);
       g.ready = this.restore({ session: g.master, dir: g.dir }).catch(() => {});
-      this._listen(g.master, folder);
+      this._listen(g.master, id);
     }
     await g.ready;
     return g;
   }
   // The masters kept in step, as Kulisa quits: their session cookies to save (session-cookies.ts).
   masters(): Holder[] { return [...this.groups.values()].map((g) => ({ session: g.master, dir: g.dir })); }
-  forget(folder: string) { this.groups.delete(folder); } // its profile deleted
-  _listen(s: Session, folder: string) {
+  forget(id: string) { this.groups.delete(id); } // its profile deleted
+  _listen(s: Session, id: string) {
     if (listened.has(s)) return;
     listened.add(s);
     s.cookies.on('changed', (_e, cookie, cause, removed) => {
       const echo = keyOf(s, cookie, removed);
       if (this.echoes.delete(echo)) return; // ours
-      const g = this.groups.get(folder);
+      const g = this.groups.get(id);
       if (!g) return;
       const others = [g.master, ...g.copies.keys()].filter((x) => x !== s);
       for (const t of others) {

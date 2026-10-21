@@ -31,7 +31,7 @@ const unnamed = (task: Task) => `This Kulisa task has no name yet (${task.name})
 // SessionStart: the profiles as they are now, so the agent knows them before its first tool call. Also notes the
 // session, so that opening the project again resumes it (tasks.ts).
 // Each profile with who it is (its description, the human's words) or that it is not said: the agent then asks.
-const who = ({ id, name, description }: { id: string; name: string; description?: string }) => `- ${id} ("${name}"): ${description ? description.replace(/\s+/g, ' ') : 'who it is is not said'}`;
+const who = ({ name, description }: { name: string; description?: string }) => `- ${name}: ${description ? description.replace(/\s+/g, ' ') : 'who it is is not said'}`;
 function sessionStart(task: Task, t: TaskTerminal | null, input: Input) {
   if (input?.session_id && t) task.saveSession(t, { sessionId: input.session_id, transcript: input.transcript_path });
   const lines = [...task.profiles.values()].map((p) => {

@@ -132,7 +132,7 @@ class Task {
       start: async (profile, tabs) => {
         await shell.sessionCookies.restore(profile); // before the first request of any tab
         // Real accounts: the master's non-local cookies, then kept in step with it and the other tasks (cookie-sync.ts).
-        await shell.cookieSync.attach(profile.folder, profile.session, this.project.entry.local || []);
+        await shell.cookieSync.attach(profile.id, profile.session, this.project.entry.local || []);
         await profile.openTabs(tabs);
         // The window opens even if the shell's connection fails; the agent's tools say so for this profile.
         if (!profile.signinMode) await profile.connect(profile.endpoint!).catch((e: Error) => console.error(`[kulisa] ${profile.id}: no Playwright connection: ${e.message.split('\n')[0]}`));
@@ -145,21 +145,20 @@ class Task {
         if (pick?.profile === p) pick.cancel();
         shell.bus.emit('profile-unloading', `${this.key}/${p.id}`);
         await shell.sessionCookies.persist(p);
-        shell.cookieSync.detach(p.folder, p.session);
+        shell.cookieSync.detach(p.id, p.session);
         shell.proxy.removeProfile(p);
         await p.close();
       },
       // Its first open in this task: a copy of its master (sign-ins included, caches left out: store.ts), its tabs those
       // of the master moved to this task's ports. Masters are not worked in, so nothing is open in one to flush.
       copy: async (e) => {
-        await shell.flushMaster(e.cfg.folder); // open to sign in to: what was done there is on disk
-        await copyProfile(shell.profileStore.masterDir(e.cfg.folder), e.cfg.dir);
-        const { urls, active } = this.store.tabs(e.cfg.folder);
+        await shell.flushMaster(e.cfg.id); // open to sign in to: what was done there is on disk
+        await copyProfile(shell.profileStore.masterDir(e.cfg.id), e.cfg.dir);
+        const { urls, active } = this.store.tabs(e.cfg.id);
         e.tabs = { urls: urls.map((u) => withOffset(u, this.offset)), active };
-        this.store.saveTabs(e.cfg.folder, e.tabs);
+        this.store.saveTabs(e.cfg.id, e.tabs);
       },
       tabsOf: (p) => p.savedTabs((t) => this.urlOf(t)),
-      renamed: (p, oldId) => { shell.proxy.renamed(p, oldId); p.endpoint = shell.proxy.endpoint(p); },
       remove: async ({ cfg, profile }: Entry) => {
         shell.sessionCookies.forget(cfg);
         if (!profile) { if (fs.existsSync(cfg.dir)) await wipeSession(session.fromPath(cfg.dir)); return; } // never opened here: no copy
@@ -651,19 +650,21 @@ class Task {
   // Profiles and their tabs: the one core the human (the window, ipc/) and the agent (mcp-server.ts) both act on.
   // Each side only translates (CLAUDE.md, Architecture): the checks, the questions and what an action does are here
   // and in Profile, so both get the same. A refusal is { error } saying why. Closed profiles stay closed across
-  // restarts.
+  // restarts. A profile is its id here; the agent names it (named), and what is refused names it as the agent does.
   find(id: string): Found {
     const profile = this.profiles.get(id);
     if (profile) return { profile };
-    if (this.closed.has(id)) return { error: `Profile "${id}" is closed (it is still signed in): open it first.`, closed: true };
-    return { error: `No profile "${id}". Profiles: ${[...this.profiles.keys(), ...this.closed.keys()].join(', ') || 'none yet'}` };
+    const closed = this.closed.get(id);
+    if (closed) return { error: `Profile "${closed.cfg.name}" is closed (it is still signed in): open it first.`, closed: true };
+    return { error: `No profile "${id}"` };
   }
+  named(name: string) { return this.list.named(name); }
   // A tab of an open profile; no tabId: its active tab.
   findTab(id: string, tabId?: string | null): Result<{ profile: Profile; tab: Tab }> {
     const r = this.find(id);
     if (refused(r)) return r;
     const tab = r.profile.get(tabId);
-    return tab && (tab.discarded || !tab.wc.isDestroyed()) ? { profile: r.profile, tab } : { error: tabId ? `No tab ${tabId} in ${id}` : `Profile "${id}" has no tab` };
+    return tab && (tab.discarded || !tab.wc.isDestroyed()) ? { profile: r.profile, tab } : { error: tabId ? `No tab ${tabId} in ${r.profile.name}` : `Profile "${r.profile.name}" has no tab` };
   }
   createProfile(name: string, description?: string, avatar?: string) { return this.list.create(name, description, avatar); }
   renameProfile(id: string, name: string | undefined) { return this.list.rename(id, name); }
@@ -679,7 +680,7 @@ class Task {
     const p = this.profiles.get(id) || this.closed.get(id)?.cfg;
     if (!p) return { error: `No profile "${id}"` };
     if (!await this.project.askDropProfile(p, by)) return { error: 'the human said no' };
-    await this.project.dropProfile(p.folder);
+    await this.project.dropProfile(id);
     return { id };
   }
   // A caption over a profile's pane (ghost.ts, browser_highlight); sticky ones stay until the next caption.
@@ -697,7 +698,7 @@ class Task {
   loginFor(id: string, tabId: string | null | undefined, field: 'login' | 'password'): Result<{ profile: Profile; tab: Tab; value: string }> {
     const r = this.findTab(id, tabId);
     if (refused(r)) return r;
-    const pair = this.shell.profileStore.byFolder(r.profile.folder)?.login;
+    const pair = this.shell.profileStore.get(id)?.login;
     if (!pair?.user || (field === 'password' && !pair.secret)) {
       return { error: `${r.profile.name} has no test login${pair?.user ? ' password' : ''} saved: ask the human to set one (Settings → Profiles), or save the one you signed it up with (profile_set_login).` };
     }
@@ -712,7 +713,7 @@ class Task {
   openMaster(id: string) {
     const r = this.find(id);
     const p = r.profile || this.closed.get(id)?.cfg;
-    return p ? this.shell.openMaster(p.folder) : r;
+    return p ? this.shell.openMaster(p.id) : r;
   }
   // Refresh from Master…: the master's cookies (its sign-ins) brought to this task's copy, made before the master was
   // signed in to; what was signed in only in this copy goes, so the human is asked first. Its open tabs reload.
@@ -724,14 +725,14 @@ class Task {
       detail: "This task's copy of the profile takes its master's cookies: what was signed in only here goes. Sign-ins kept in a site's storage (as Microsoft's are) are not brought: sign in here again for those." }, this.window)) {
       return { error: 'the human said no' };
     }
-    await this.shell.flushMaster(p.folder);
-    const master = { session: session.fromPath(this.shell.profileStore.masterDir(p.folder)), dir: this.shell.profileStore.masterDir(p.folder) };
+    await this.shell.flushMaster(p.id);
+    const master = { session: session.fromPath(this.shell.profileStore.masterDir(p.id)), dir: this.shell.profileStore.masterDir(p.id) };
     const set = await this.shell.sessionCookies.copy(master, p);
     for (const t of p.tabs) if (!t.wc.isDestroyed()) t.wc.reload();
     return { id, cookies: set };
   }
   // A profile its project let go (projects.ts, dropProfile): its copy gone; a task not loaded loses it from its file.
-  async dropProfile(folder: string) { return this.loaded ? this.list.drop(folder) : this.store.dropProfile(folder); }
+  async dropProfile(id: string) { return this.loaded ? this.list.drop(id) : this.store.dropProfile(id); }
 
   info(): Sent.TaskInfo {
     const { n, key, name, tabState: state, folder, offset } = this;

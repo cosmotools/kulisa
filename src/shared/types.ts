@@ -7,13 +7,13 @@ interface Tab {
   id: string; title: string; url: string; favicon: string | null; loading: boolean; canBack?: boolean; canFwd?: boolean;
   zoom: number; dialog?: PageDialog | null;
 }
-// An open profile of the shown task (Profile.info): key is its folder, stable across renames.
+// An open profile of the shown task (Profile.info).
 export interface Profile {
-  key: string; id: string; name: string; avatar: string; description: string | null; login: string | null;
+  id: string; name: string; avatar: string; description: string | null; login: string | null;
   hasPassword: boolean; active: string | null; signinMode: boolean; tabs: Tab[];
 }
 // A closed one (window.ts, pushState): tabs is how many it had.
-export interface ClosedProfile { key: string; id: string; name: string; avatar: string; description: string | null; tabs: number }
+export interface ClosedProfile { id: string; name: string; avatar: string; description: string | null; tabs: number }
 type AgentState = 'working' | 'waiting' | 'done' | null;
 // A tab of the task's island (Task.terminalsInfo): a shell (the human's, or what the agent runs: by, its command) or an
 // agent (its account; cli: its agent, for its icon), with its state.

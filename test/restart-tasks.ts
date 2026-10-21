@@ -2,7 +2,7 @@
 // the grid, the terminals.
 import fs from 'fs';
 import path from 'path';
-import { assert, userData, project, pid, tkey, SITE, sleep, waitFor, who, viewOn, projectTabs, showProject, click } from './helpers.ts';
+import { assert, userData, project, pid, tkey, SITE, sleep, waitFor, who, viewOn, projectTabs, showProject, click, idOf } from './helpers.ts';
 import type { Test } from './run.ts';
 import type { TaskTerminal } from '../src/main/tasks.ts';
 
@@ -24,12 +24,12 @@ export default (test: Test) => {
     await click(ui, `document.querySelector('#projectTabs .tasktab[data-task="${tkey('project', 2)}"]')`);
     await waitFor(() => shell.task === second && second.loaded && second.pty);
     assert.equal(second.folder, `${project}@task-2`);
-    assert.deepEqual([...shell.profiles.keys()], ['sam-admin', 'elon-buyer']);
-    await ctx.call('browser_navigate', { profile: 'sam-admin', url: `${SITE}/app` });
-    assert.equal(await who(ctx, 'sam-admin'), 'Signed in as master'); // its master's, brought by Refresh from Master…
+    assert.deepEqual([...shell.profiles.keys()], [idOf('Sam.admin'), idOf('Elon.buyer')]);
+    await ctx.call('browser_navigate', { profile: 'Sam.admin', url: `${SITE}/app` });
+    assert.equal(await who(ctx, 'Sam.admin'), 'Signed in as master'); // its master's, brought by Refresh from Master…
     await click(ui, `document.querySelector('#projectTabs .tasktab[data-task="${tkey('project', 1)}"]')`);
     await waitFor(() => shell.task.n === 1);
-    await waitFor(async () => (await viewOn(shell, ui, 'sam-admin')) && viewOn(shell, ui, 'elon-buyer'));
+    await waitFor(async () => (await viewOn(shell, ui, 'Sam.admin')) && viewOn(shell, ui, 'Elon.buyer'));
   });
   test('after a restart: the open tasks are as they were left; one in the background loads when shown', async ({ shell, ui }) => {
     await waitFor(async () => JSON.stringify(await projectTabs(ui)) === '["project *","project","other"]');
@@ -48,8 +48,8 @@ export default (test: Test) => {
     const box = (sel: string) => ui(`(() => { const r = document.querySelector(${JSON.stringify(sel)})?.getBoundingClientRect(); return r ? { x: r.x, width: r.width } : { x: -1, width: 0 }; })()`);
     // Once the grid is laid out: the test before may end while the second's panes (the same profile ids) are still going.
     const columns = async () => {
-      if (!(await ui(`document.querySelectorAll('.pane[data-profile="sam-admin"], .pane[data-profile="elon-buyer"]').length === 2`))) return false;
-      const sam = await box('.pane[data-profile="sam-admin"] .content'), elon = await box('.pane[data-profile="elon-buyer"] .content');
+      if (!(await ui(`document.querySelectorAll('.pane[data-profile="${idOf('Sam.admin')}"], .pane[data-profile="${idOf('Elon.buyer')}"]').length === 2`))) return false;
+      const sam = await box(`.pane[data-profile="${idOf('Sam.admin')}"] .content`), elon = await box(`.pane[data-profile="${idOf('Elon.buyer')}"] .content`);
       const term = await box('.term:not([hidden])');
       return sam.width > 0 && sam.x < elon.x && term.x > elon.x + elon.width - 1;
     };

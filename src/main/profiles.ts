@@ -36,7 +36,7 @@ interface Tab {
 }
 // Who a profile is and where its data is (project-profiles.ts; master.ts: a session of its own).
 interface ProfileConfig {
-  id: string; name: string; avatar: string; description?: string; login?: string; hasPassword?: boolean; folder: string;
+  id: string; name: string; avatar: string; description?: string; login?: string; hasPassword?: boolean;
   dir: string; session?: Session; zoom?: Record<string, number>;
 }
 type Bounds = Rectangle;
@@ -70,20 +70,20 @@ const PAGE_RADIUS = 8; // a little less than the island's corners, which the pag
 
 class Profile extends EventEmitter {
   win: BrowserWindow; id: string; name: string; avatar: string; description: string; login: string; hasPassword: boolean;
-  folder: string; dir: string; task: string; baseZoom: number; siteZoom: Record<string, number>; session: Session;
+  dir: string; task: string; baseZoom: number; siteZoom: Record<string, number>; session: Session;
   tabs: Tab[]; active: string | null; closedUrls: string[]; bounds: Bounds;
   browser: Browser | null; context: BrowserContext | null; endpoint: string | null; signinMode: boolean; resuming?: boolean;
   hidden: boolean; shown: boolean; deleted: boolean;
   busyAt: number; // when automation last sent this profile a command (cdp-proxy.ts): its tabs are in use (discard.ts)
-  // cfg: { id, name, avatar, description, folder, dir, session }. The folder (cookies, storage; dir is its absolute path) is fixed at
-  // creation; a rename changes id and name only.
+  // cfg: { id, name, avatar, description, dir, session }. The id and the folder (cookies, storage; dir is its absolute
+  // path) are fixed at creation; a rename changes the name only.
   // win: the window it shows in (moveTo). task: its task's key (profiles of different tasks share ids).
   constructor(win: BrowserWindow, cfg: ProfileConfig, { task }: { task: string }) {
     super();
     this.win = win;
     this.id = cfg.id; this.name = cfg.name; this.avatar = cfg.avatar; this.description = cfg.description || '';
     this.login = cfg.login || ''; this.hasPassword = !!cfg.hasPassword; // a test user's pair (profile-store.ts): its login
-    this.folder = cfg.folder; this.dir = cfg.dir; this.task = task;
+    this.dir = cfg.dir; this.task = task;
     // Page zoom: pages follow the Kulisa zoom (baseZoom, set by the window); a site the human zoomed with Ctrl + / -
     // in a page keeps its own factor on top of it, per host, in this profile only (saved in profiles.json).
     this.baseZoom = 1;
@@ -486,8 +486,7 @@ class Profile extends EventEmitter {
   }
 
   info(): Sent.Profile {
-    // key: stable across renames (the folder), for the UI to keep the same pane.
-    return { key: this.folder, id: this.id, name: this.name, avatar: this.avatar, description: this.description, login: this.login, hasPassword: this.hasPassword, active: this.active,
+    return { id: this.id, name: this.name, avatar: this.avatar, description: this.description, login: this.login, hasPassword: this.hasPassword, active: this.active,
       signinMode: this.signinMode,
       tabs: this.tabs.map((t) => ({ id: t.id, title: t.title, url: t.url, favicon: t.favicon, loading: t.loading, canBack: t.canBack, canFwd: t.canFwd,
         zoom: this.pageZoom(t), dialog: t.dialog && { id: t.dialog.id, type: t.dialog.type, message: t.dialog.message, from: t.dialog.from, picture: t.dialog.picture } })) };
