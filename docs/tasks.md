@@ -452,7 +452,7 @@ are not programmers); its accounts are made there too, or in a project's page.
     a browser presenting as Chrome without being it, and it lets Electron's own Chromium in ([profiles.md](profiles.md),
     "What sites see"). The system's browser was kept (the author, 2026-10-12): as desktop apps sign in, and less code.
   - **One store** (`agents.json`), as the profiles': the projects list the accounts they have (`projects.json`'s
-    `agents`), an account no projects; the Agents' **+** of another project takes it there too. The island's + and choosing an agent that is not there (Choose the Agent) list the project's accounts
+    `agents`); the Agents' **+** of another project takes it there too. The island's + and choosing an agent that is not there (Choose the Agent) list the project's accounts
     and the agents themselves, never another project's: the project's page says who works in its tasks.
   - **An account lives until the human deletes it** (the author, 2026-10-11: with every project deleted, every account
     went, and the next project had none; a sign-in is made again only by signing in again). − on an account in a

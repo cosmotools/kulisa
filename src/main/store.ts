@@ -7,7 +7,7 @@
 //                            the default first); color: the one it has while its favicon gives none (docs/tasks.md,
 //                            Projects); agents: the agents' accounts its tasks run, the default (+'s) first; profiles:
 //                            its profiles by their folders (fixed, as an id is not), in order. What a project is made
-//                            of is said once, here: profiles.json and agents.json list no projects
+//                            of is said here alone
 //   projects/<id>/
 //     tasks.json             the project's tasks: { next, list: [{ n, name, branch, offset, folder,
 //                            copies: [{ repo, worktree, branch, base, folder }], home, closed, closedAt }] }; one
