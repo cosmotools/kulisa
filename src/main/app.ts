@@ -73,12 +73,12 @@ const AGENT_PACKAGES = app.isPackaged ? process.resourcesPath : path.join(import
 //   signinHosts  extra sign-in hosts (sign-in pause, tab restore)
 function start(options: Options = {}) {
   // direnv's state from where Kulisa was started (a terminal in a folder direnv had loaded) is not Kulisa's: a task's
-  // shell took the task's folder for that folder left and undid its .envrc's changes, an agent's account variable
-  // with them (its CLAUDE_CONFIG_DIR gone: the agent ran with the user's own sign-in, 2026-10-11). Without it, direnv
+  // shell would take the task's folder for that folder left and undo its .envrc's changes, an agent's account variable
+  // with them (its CLAUDE_CONFIG_DIR gone: the agent runs with the user's own sign-in). Without it, direnv
   // in each terminal starts clean and loads the task's own .envrc; git and direnv run by Kulisa too.
   for (const k of Object.keys(process.env)) if (k.startsWith('DIRENV_')) delete process.env[k];
-  // What sites see (docs/profiles.md): Kulisa on Chromium, without Electron's word. Teams took a Mac's or Windows'
-  // Electron for its own retired desktop app and showed "Classic Teams is no longer available" (2026-10-16).
+  // What sites see (docs/profiles.md): Kulisa on Chromium, without Electron's word. Teams takes a Mac's or Windows'
+  // Electron for its own retired desktop app and shows "Classic Teams is no longer available".
   app.userAgentFallback = app.userAgentFallback.replace(/ Electron\/\S+/, '');
   const userData = options.userData || path.join(app.getPath('appData'), 'Kulisa');
   app.setPath('userData', userData);
@@ -88,8 +88,8 @@ function start(options: Options = {}) {
   // 90 days, 128 MB), to ask a user for. No server (docs/window.md, The log).
   crashReporter.start({ uploadToServer: false });
   // One Kulisa per data folder (Electron's lock is the userData's; KULISA_DATA for another): a second one on the same
-  // data ran beside the first, without its MCP server, and the two wrote over each other's saved tabs, cookies and
-  // tasks (2026-10-12). It shows the first one's window and goes, before anything is read or written.
+  // data would run beside the first, without its MCP server, and the two write over each other's saved tabs, cookies and
+  // tasks. It shows the first one's window and goes, before anything is read or written.
   if (!app.requestSingleInstanceLock()) {
     console.log(`[kulisa] already running with ${userData}: its window is shown`);
     app.quit();
@@ -138,7 +138,7 @@ function start(options: Options = {}) {
   };
   // Where new projects go, and the folders of copies of tasks with several repositories (projects.ts).
   // New projects' place, and the folders of copies of tasks of several repositories: KulisaProjects, as JetBrains'
-  // IdeaProjects (the author, 2026-10-17; ~/Kulisa until then, easily taken for Kulisa's data folder: %APPDATA%\Kulisa).
+  // IdeaProjects: a name not taken for Kulisa's data folder (%APPDATA%\Kulisa).
   shell.projectsHome = options.projectsHome || path.join(app.getPath('home'), 'KulisaProjects');
   Object.defineProperties(shell, {
     win: { get: () => first()?.win ?? null },
@@ -177,8 +177,8 @@ function start(options: Options = {}) {
   let quitting = false; // from before-quit on (below): closing a window asks nothing, tabs closing save nothing
   Object.defineProperty(shell, 'quitting', { get: () => quitting });
   // A task's profiles changed (now: right away), or its agent's state (tasks.ts): its window shows it. Not
-  // once quitting: the tabs are saved then, and each one closing as Kulisa quits saved its task's tabs again,
-  // fewer each time, at last none (one in the background at once: 2026-10-08, the author's tabs all about:blank).
+  // once quitting: the tabs are saved then, and each one closing as Kulisa quits would save its task's tabs again,
+  // fewer each time, at last none (one in the background at once).
   shell.taskChanged = (task, now, agentState) => quitting || task.window?.changed(task, now, agentState);
   // A project for a folder opened (KULISA_PROJECT, project:open with a folder).
   function projectOfFolder(folder: string) { return store.projectFor(folder); }
@@ -225,7 +225,7 @@ function start(options: Options = {}) {
 
   // The Kulisa zoom: the whole UI of every window (window.ts), and the profiles' pages, which follow it (profiles.ts).
   // The panes' boxes come in CSS pixels (window.ts, layout).
-  // At most 200% (the author, 2026-10-17): the window's minimum grows with it (window.ts), and at 300% passed a laptop's
+  // At most 200%: the window's minimum grows with it (window.ts), and at 300% passes a laptop's
   // screen; macOS's window buttons stop following it past 175%. The pages' own zoom goes on to 300%, as in Chrome.
   const UI_ZOOM_MAX = 2;
   shell.uiZoom = Math.min(store.settings().uiZoom || 1, UI_ZOOM_MAX);
@@ -251,8 +251,8 @@ function start(options: Options = {}) {
   nativeTheme.on('updated', () => { if (shell.theme === 'system') shell.setTheme(); });
   // The language the human speaks with the agents (☰ → Language; docs/window.md, Language): Kulisa's one, written into
   // each agent's own language setting (agents/, language) in every account of it, here and at an agent's start
-  // (tasks.ts), never into the human's own folder. Agents without one are not told it otherwise (the author,
-  // 2026-10-13: Kulisa gives the agents' own settings a place and keeps them in step, it adds no behavior).
+  // (tasks.ts), never into the human's own folder. Agents without one are not told it otherwise (Kulisa
+  // gives the agents' own settings a place and keeps them in step, it adds no behavior).
   // English by default, as the agents are without it.
   const agentKinds = () => shell.accounts.all().filter((a) => a.own).map((a) => a.agent);
   shell.language = store.settings().language || 'en';
@@ -304,10 +304,10 @@ function start(options: Options = {}) {
     const encryption = `[kulisa] encryption ${safeStorage.isEncryptionAvailable() ? 'available' : 'not available'}${backend ? ` (${backend})` : ''}`;
     if (safeStorage.isEncryptionAvailable() && backend !== 'basic_text') log.info(encryption); else log.warn(`${encryption}: no keyring found`);
     // macOS keeps a menu bar for the app: Electron's default one would reload Kulisa's own page with ⌘R. Its own
-    // menu: About Kulisa (Settings at its About page, not Electron's panel), Settings… (⌘,, where Mac apps have it: the author, 2026-10-16), Quit, Hide (the app's), Copy and Paste
+    // menu: About Kulisa (Settings at its About page, not Electron's panel), Settings… (⌘,, where Mac apps have it), Quit, Hide (the app's), Copy and Paste
     // (the Edit menu's roles: ⌘C, ⌘V in fields and the terminal), the windows. Kulisa's keys are taken before it
     // (onKey). Elsewhere the windows have no menu (window.ts). Its app menu as Electron's own, Settings… added
-    // (tutorial/application-menu.md, 44.5.1).
+    // (tutorial/application-menu.md).
     if (process.platform === 'darwin') {
       // At the project of the tasks' window last in front (shell.front), Settings' own in front too.
       const settings = () => shell.openSettings({ section: 'projects', id: null });

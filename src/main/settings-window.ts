@@ -1,5 +1,5 @@
 // Settings in a window of its own (docs/window.md, Settings), as a desktop app's: one for the whole app, with the OS's
-// title bar, at a page. Not modal (the author, 2026-10-16): the tasks' windows go on taking input beside it, as macOS
+// title bar, at a page. Not modal: the tasks' windows go on taking input beside it, as macOS
 // apps', VS Code's and Chrome's settings do; on macOS a window could not be held without Electron's half-black sheet
 // over it. Its page: settings.html (components/settings/Settings.vue).
 import { BrowserWindow } from 'electron';
@@ -36,8 +36,8 @@ function installSettings(shell: Shell, { preload, appDevTools }: { preload: stri
     const win = new BrowserWindow({ ...scaled(SIZE, z), ...(saved && onScreen(saved) ? saved : {}), useContentSize: !saved,
       // Not a child of a tasks' window: on macOS a child stays above its parent, which then never came in front of it.
       minWidth: scaled(MIN, z).width, minHeight: scaled(MIN, z).height, title: 'Settings — Kulisa',
-      // Never full screen itself: opened from a full-screen tasks' window, macOS made it a full-screen window in a Space
-      // of its own (2026-10-16); not full-screenable, it opens over that window, in its Space, as Mac apps' settings do.
+      // Never full screen itself: opened from a full-screen tasks' window, macOS would make it a full-screen window in a
+      // Space of its own; not full-screenable, it opens over that window, in its Space, as Mac apps' settings do.
       fullscreenable: false,
       show: false, // until its page is filled (settings:ready): shown empty, its tree and page jumped as they came
       backgroundColor: COLORS[shell.shade()].window, icon: path.join(import.meta.dirname, '..', '..', 'assets', 'icon.png'),
@@ -83,8 +83,7 @@ function installSettings(shell: Shell, { preload, appDevTools }: { preload: stri
       if (shell.settings === s) shell.settings = null;
       // The keyboard to the tasks' window last in front, its own page; not as Kulisa quits, its windows going too (one gone
       // meanwhile threw). macOS makes that window key a moment later and then gives the keyboard back to the view that had
-      // it there (a profile's page), over ours: given again once it is key ('focus' comes after; GitHub's runner,
-      // 2026-10-16, about one run in three).
+      // it there (a profile's page), over ours: given again once it is key ('focus' comes after).
       const w = shell.front();
       if (!shell.quitting && w && !w.win.webContents.isDestroyed()) {
         const page = () => { if (!w.win.webContents.isDestroyed()) w.win.webContents.focus(); };

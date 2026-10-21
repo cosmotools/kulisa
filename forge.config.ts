@@ -32,7 +32,7 @@ const config: ForgeConfig = {
     ...apple,
     name: 'Kulisa',
     executableName: 'kulisa',
-    // macOS's id of the app (the author's, 2026-10-06), its helpers' after it (app.kulisa.helper …): what the OS keys
+    // macOS's id of the app (the author's choice), its helpers' after it (app.kulisa.helper …): what the OS keys
     // the app's preferences, caches, permissions (the microphone) and signing by. Packager's default is com.electron.kulisa.
     appBundleId: 'app.kulisa',
     // node-pty starts a shell through its spawn-helper, a program run from outside the archive (unixTerminal.js:
@@ -69,7 +69,7 @@ const config: ForgeConfig = {
   // node-pty is native: keep its .node files outside the asar archive so they can be loaded.
   plugins: [{ name: '@electron-forge/plugin-auto-unpack-natives', config: {} }],
   // macOS: node-pty's own prebuilt binary (N-API, for any Electron; npm start loads it too), not built again: building
-  // needs a working compiler, and a Mac's Command Line Tools may have none (the author's, 2026-10-16).
+  // needs a working compiler, and a Mac's Command Line Tools may have none.
   rebuildConfig: process.platform === 'darwin' ? { ignoreModules: ['node-pty'] } : {},
 };
 

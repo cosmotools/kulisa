@@ -1,8 +1,7 @@
 <script setup lang="ts">
 // A task's tab in the bar (TaskBar.vue, which puts the project's id and color, dragging and the drop marks on it as
-// attributes; tasks.md, Projects): its project's icon, as a browser's tab shows its site's (the project had a label and
-// an island of its own until 2026-10-14), its agent's state, its name, ×. No profiles' button: the tab's right-click
-// menu has them, Settings edits them (the author, 2026-10-12).
+// attributes; tasks.md, Projects): its project's icon, as a browser's tab shows its site's, its agent's state, its name, ×. No profiles' button: the tab's right-click
+// menu has them, Settings edits them (the author's choice).
 //   active: the one on screen
 import { computed } from 'vue';
 import { TabsTrigger } from 'reka-ui';

@@ -139,7 +139,7 @@ export class View {
     b.term.write('', () => {
       if (this.key !== key || this.pending !== pending) return; // another shown meanwhile
       // At the buffer's own size: the fit (below) gives both the room laid out, as for any change of size. Fitted to
-      // the room here, a window just opened, its grid not laid out, wrapped the buffer at 9 columns (2026-10-18).
+      // the room here, a window just opened, its grid not laid out, would wrap the buffer at 9 columns.
       this.term.resize(b.term.cols, b.term.rows);
       this.term.write(serialized(key)!.data + pending.join(''), () => {
         if (b.scroll !== undefined) this.term.scrollToLine(b.scroll);
@@ -165,7 +165,7 @@ export class View {
   // panel is not laid out): again a moment later, so the agent gets its real size, never xterm's default.
   // Measured in a frame about to be drawn, never between: a task's slide (a view transition) builds the next grid while
   // nothing is drawn, and its room then is passing (954 px for 293), while no ResizeObserver tells of the room it ends
-  // with, the same as before: the agent kept 52 rows in a panel of 16 (2026-10-18).
+  // with, the same as before: the agent would keep 52 rows in a panel of 16.
   private fitTimer = 0;
   private fitSoon(tries = 50) {
     clearTimeout(this.fitTimer);

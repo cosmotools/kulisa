@@ -234,7 +234,7 @@ class Profile extends EventEmitter {
     wc.on('did-navigate', () => wc.insertCSS('html, html * { app-region: no-drag !important; }', { cssOrigin: 'user' }).catch(() => {}));
     // alert and confirm in the tab's pane, as Chrome shows them in the page, not Electron's message box in the middle of
     // the window, which did not say which page asked (Electron shows no prompt(): it throws in the page). Electron's
-    // handler is a listener of its internal event (lib/browser/api/web-contents.ts, Electron 44), replaced here: check
+    // handler is a listener of its internal event (lib/browser/api/web-contents.ts), replaced here: check
     // it at every Electron upgrade (docs/testing.md, "Upgrading Electron"). Answered by the human (answerDialog), by
     // an action of the agent (tab.agentDialogs, mcp-server.ts), or by another client over CDP. Chromium holds a
     // navigation while a dialog is open; as Chrome does, it is dismissed when one starts (the address bar, reload).
@@ -268,7 +268,7 @@ class Profile extends EventEmitter {
     // tab takes its place, so the pane is never left without a page (its address and toolbar acting on nothing). Not
     // for a tab destroyed otherwise: Kulisa quitting (a new tab then crashes Electron), its profile closing. Not from
     // within this 'destroyed' event either: Chromium is still taking the old tab down, and a new one made meanwhile
-    // crashed the main process now and then (CHECK(!frame_tree_->IsBeingDestroyed()) in RenderFrameCreated, 2026-10-09).
+    // crashes the main process now and then (CHECK(!frame_tree_->IsBeingDestroyed()) in RenderFrameCreated).
     if (!this.tabs.length && !this.deleted && tab.closing) setImmediate(() => { if (!this.tabs.length && !this.deleted) this.newTab('about:blank'); });
   }
   // Out of the list (i: its place); the one before it active in its place.

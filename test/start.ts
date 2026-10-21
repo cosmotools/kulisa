@@ -100,12 +100,12 @@ void (async () => {
   const chosen = names.length ? names : Object.keys(GROUPS);
   site = await ensureSite(await freePort()); // one for every group: a group's own would go with it while others still use it
   const codes = [];
-  // In parallel only on screens of their own: on one screen (macOS, Windows, --visible) the groups' windows took each
-  // other's focus, and tests waiting for it failed (2026-10-16, macOS).
+  // In parallel only on screens of their own: on one screen (macOS, Windows, --visible) the groups' windows would take each
+  // other's focus, and tests waiting for it fail.
   if (!hidden) for (const n of chosen) codes.push(await group(n));
   else {
-    // The keyring's key first, by one Electron alone (keyring.ts): the groups' two made it at once on a fresh keyring,
-    // and the one whose key the keyring did not keep lost its session cookies at its restart (GitHub's runner).
+    // The keyring's key first, by one Electron alone (keyring.ts): the groups' two would make it at once on a fresh
+    // keyring, and the one whose key the keyring does not keep lose its session cookies at its restart.
     await app('keyring', [], path.join(import.meta.dirname, 'keyring.ts'));
     codes.push(...await Promise.all(chosen.map(group)));
   }

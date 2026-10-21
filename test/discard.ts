@@ -32,7 +32,7 @@ export default (test: Test) => {
     assert.equal(wcs(), n - 1, 'its process is gone');
     assert.ok(!form.discarded && !sam.tabs.find((t) => t.id === before[0]).discarded, 'the active tab stays; the others were dated only now');
     assert.equal(board.url, `${SITE}/board`); assert.equal(board.title, 'board');
-    await waitFor(async () => (await strip()).includes('board')); // the strip shows it as before, drawn after the tab's change (GitHub's runner, 2026-10-16)
+    await waitFor(async () => (await strip()).includes('board')); // the strip shows it as before, drawn after the tab's change
     await waitFor(() => savedTabs('sam-admin').includes(`${SITE}/board`)); // saved with the others, to come back after a restart
     // The agent: the tab listed as any, and a tool on it loads it first.
     const listed = JSON.parse((await call('profile_list', {})).text).find((p: { id: string }) => p.id === 'sam-admin').tabs;

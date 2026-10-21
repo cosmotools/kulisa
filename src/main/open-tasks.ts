@@ -17,8 +17,7 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
   const allTasks = () => [...shell.open.values()].flatMap((p) => [...p.tasks.values()]);
   const sendProjects = () => shell.sendProjects();
   // ---------- windows, projects and tasks ----------
-  // A project is a folder with its tasks (store.ts); a task is open as a tab of a window, as a browser's (since
-  // 2026-10-14: until then a window had a tab per project, its open tasks a group in it). Each task has its profiles,
+  // A project is a folder with its tasks (store.ts); a task is open as a tab of a window, as a browser's. Each task has its profiles,
   // grid and agent (tasks.ts); a window shows one, the others keep running (their agents and pages), until the human
   // closes their tab. Showing another task hides this one's pages, and the window builds the next grid in place
   // (the page is not loaded again). A task loads (profiles, agent) the first time it is shown. A project is loaded

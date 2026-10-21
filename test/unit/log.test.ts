@@ -54,8 +54,7 @@ test('log: the time as ISO 8601 with the offset; whether the run before said it 
 });
 
 // A console nobody reads any more (`npm start | head`, a closed terminal): the first failed write is an uncaught
-// exception, and app.ts logs those to the console: without log.ts handling it, that loop hung the author's Kulisa
-// (2026-10-18). The child is that shape: the log, app.ts's handler, lines written; its reader goes after the first.
+// exception, and app.ts logs those to the console: without log.ts handling it, that loop hangs Kulisa. The child is that shape: the log, app.ts's handler, lines written; its reader goes after the first.
 test('log: a console whose reader is gone does not hang the app; the file goes on', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kulisa-log-'));
   const script = `

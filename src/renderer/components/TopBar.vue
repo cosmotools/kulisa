@@ -3,7 +3,7 @@
 // title bar, Menus). env(titlebar-area-*) leaves room for the OS
 // window buttons on every platform (titleBarOverlay in window.ts). Exit only where the OS has no menu bar
 // with Quit (not macOS: Cmd+Q there). No logo on macOS: its apps show their icon in the Dock, not by the window's
-// buttons (the author, 2026-10-16).
+// buttons.
 import Icon from './Icon.vue';
 import ButtonMenu from './menu/ButtonMenu.vue';
 import ZoomRow from './menu/ZoomRow.vue';
@@ -57,7 +57,7 @@ const windowMenu = (): MenuItem[] => [
   /* The logo and the space after the tasks' bar are where the window is dragged by, however many tabs. Chromium takes
      the tabs scrolled past the bar's edges as no-drag too, over them (not clipped by the bar), and the regions in the
      page's order, the last one winning: so both come after the tasks' bar in the page, the logo put back first by
-     order (the author, 2026-10-15: neither dragged the window with the bar full). The space is at least --drag, as
+     order (else neither drags the window with the bar full). The space is at least --drag, as
      Chrome's after its +, and takes what the tabs leave. */
   .logo { order: -1; width: 26px; height: 26px; color: var(--project); }
   .drag { flex: 1 0 var(--drag); align-self: stretch; }

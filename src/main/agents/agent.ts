@@ -52,7 +52,7 @@
 //                            codes it takes; set(dir, code), into an account's config folder
 import type { Conversation } from '../kulisa-plugin/transcripts.ts';
 
-// Kulisa's MCP tools that keep the agent's own approval (the author, 2026-10-12; docs/profiles.md, The agent's tools):
+// Kulisa's MCP tools that keep the agent's own approval (docs/profiles.md, The agent's tools):
 // terminal_run runs any command in the human's shell, around the agent's approval of commands (and Codex's sandbox);
 // browser_file_upload sends a file of the disk to a site, what a prompt injection would use. Every other tool runs
 // without a question, a new one too unless it is added here: what acts on real accounts asks the human in Kulisa itself.

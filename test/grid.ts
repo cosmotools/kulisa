@@ -267,8 +267,8 @@ export default (test: Test) => {
       return Array.from({ length: b.length }, (_, i) => b.getLine(i)).filter((l) => l.translateToString(true).includes('===')).map((l) => [l.translateToString(true).length, l.isWrapped]); })()`);
     assert.deepEqual(lines.filter(([n, wrapped]: [number, boolean]) => n !== 150 || wrapped), [], `whole lines: ${JSON.stringify(lines)}`);
     // The window is the same size, so the agent keeps its size, and gets no other on the way: each one makes it draw
-    // its prompt again. The new window's page fitted the terminal before its grid was laid out, at the window's whole
-    // height (46 rows for 17 on the runner, now and then, 2026-10-12; not seen since tasks open at once, 2026-10-15).
+    // its prompt again. The new window's page must not fit the terminal before its grid is laid out, at the window's
+    // whole height (46 rows for 17).
     await waitFor(() => pty.cols === size.cols && pty.rows === size.rows, 5000).catch(() => {
       throw new Error(`the same size: ${JSON.stringify({ cols: pty.cols, rows: pty.rows })}, expected ${JSON.stringify(size)}; `
         + `windows ${JSON.stringify([first.win.getContentSize(), second.win.getContentSize()])}`);
@@ -297,7 +297,7 @@ export default (test: Test) => {
     await rightClick(ui2, '#projectTabs [data-project="other"] .name');
     assert.deepEqual(await menuRows(ui2), ['# Profiles', 'Sam.seller', '-', 'Manage Profiles…', '-', 'Rename…', 'Show Folder', '-', 'Move to New Window (off)', 'Move to Window: task-1', '-', 'Close', 'Delete Task…', '-', 'other']);
     // Chosen once the script has answered: the choice closes this window, and a script still running in a window that
-    // goes never answers (the test hung so on a loaded machine, 2026-10-12).
+    // goes never answers.
     await ui2(`setTimeout(() => [...${MENU}.querySelectorAll('.item')].find((b) => b.querySelector('.label').textContent === 'Move to Window: task-1').click()); 0`);
     await waitFor(() => shell.windows.length === 1 && shell.task === moved && !first.switching);
     assert.ok(second.win.isDestroyed());
@@ -341,7 +341,7 @@ export default (test: Test) => {
     assert.deepEqual(savedWindows(), [{ tabs: ['project/1'], shown: 'project/1' }]);
     assert.equal(await viewOn(shell, ui, 'sam-admin'), true);
 
-    // macOS: the last window's × hides it, as Mac apps' windows (the author, 2026-10-17): Kulisa stays in the Dock, its
+    // macOS: the last window's × hides it, as Mac apps' windows: Kulisa stays in the Dock, its
     // agents go on; a click on the Dock (activate) shows it again as it was. ⌘Q quits (below).
     if (MAC) {
       shell.task.promptTarget().state = 'working';
@@ -405,7 +405,7 @@ export default (test: Test) => {
     assert.equal(shell.windows.length, 1);
     // Let go beside the window, on the side with more room on the screen: where the window manager put the test's
     // window varies, and a point off the screen gives a window the OS pulls back next to the first one. A window as
-    // wide as the screen (a laptop's: 1680 px on the author's Mac) is made narrower meanwhile, or no point is beside it.
+    // wide as the screen (a laptop's) is made narrower meanwhile, or no point is beside it.
     const area = electron.screen.getDisplayMatching(b).workArea;
     const narrowed = Math.max(area.x + area.width - (b.x + b.width), b.x - area.x) < 400;
     if (narrowed) {
@@ -510,8 +510,8 @@ export default (test: Test) => {
     assert.equal(await ui(`document.querySelectorAll('img.snapshot').length`), 0);
 
     await waitFor(() => ui(`document.querySelectorAll('.pane[data-profile="elon-buyer"] .tabs .tab').length === ${n + 1}`));
-    // Once more until it opens: on GitHub's slower runner this right-click, right after the menu before closed, opened
-    // nothing once (2026-10-12; not seen here, on two cores either: ROADMAP, "Tests that failed now and then").
+    // Once more until it opens: on a loaded machine this right-click, right after the menu before closed, may open
+    // nothing.
     for (let i = 0; i < 3 && !(await menuOpen(ui)); i++) {
       await rightClick(ui, '.pane[data-profile="elon-buyer"] .tabs .tab');
       await waitFor(() => menuOpen(ui), 1500).catch(() => {});
@@ -561,8 +561,7 @@ export default (test: Test) => {
     await clipboard.writeText('kulisa-paste');
     const before = ctx.ptyOutput().length;
     // Pressed again while nothing is pasted: the page reads the clipboard only while it has the focus, and on a loaded
-    // machine the window manager's focus, coming late after another window went, took it away for a moment (GitHub's
-    // runner, 2026-10-13); a read refused pastes nothing, so a second press cannot paste twice.
+    // machine the window manager's focus, coming late after another window went, may take it away for a moment; a read refused pastes nothing, so a second press cannot paste twice.
     for (let i = 0; ; i++) {
       await focusWindow(shell.win, ui); await ui(`window.__term.focus()`);
       paste();
@@ -724,7 +723,7 @@ export default (test: Test) => {
     assert.ok(await ui(`!!document.activeElement.closest('.term:not([hidden])')`), 'the keyboard back in the terminal');
 
     // A profile's page in the window taking the keyboard (as one loading did on macOS) leaves a menu open: the window is
-    // not left, and the page's blur closed the menu under the hand (GitHub's macOS runner, 2026-10-16).
+    // not left, and the page's blur would close the menu under the hand.
     mouse('mouseDown', menuButton); mouse('mouseUp', menuButton);
     await waitFor(() => menuOpen(ui));
     const pageOf = shell.profiles.values().next().value.get().wc;
@@ -747,7 +746,7 @@ export default (test: Test) => {
     } finally { other.destroy(); }
     // The window has the keyboard again before the tests after: a menu opened while it has not closes at once. The
     // OS's focus waited for too: the page had it at once and the window manager's came later, its blur closing the
-    // menu the next test had opened (the bar's +, on a loaded machine, 2026-10-12).
+    // menu the next test opens (on a loaded machine).
     shell.win.focus();
     await waitFor(() => shell.win.isFocused());
     await focusWindow(shell.win, ui);

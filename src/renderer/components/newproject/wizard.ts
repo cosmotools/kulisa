@@ -11,13 +11,13 @@ export const STEPS = ['Code', 'Agents', 'Profiles'] as const;
 type From = 'new' | 'folder' | 'clone';
 
 // single: one folder or one URL, in a field of its own, not a list (the welcome's: a first project made simply; more are
-// added in Settings, the author, 2026-10-17).
+// added in Settings).
 function wizard(single: boolean) {
   const step = ref(0), saving = ref(false), error = ref('');
   const ready = ref(false); // its defaults there: shown only then, or a choice made at once was undone by them
   const last = computed(() => step.value === STEPS.length - 1);
 
-  // 1. Its code, asked first (the author, 2026-10-11): a new folder, folders on the disk (nothing made), or
+  // 1. Its code, asked first (the code is often on the disk or at a URL already): a new folder, folders on the disk (nothing made), or
   // repositories cloned from URLs; several for a project of several (a frontend and a backend). Its name follows the
   // first folder's or repository's until the human types one.
   const code = reactive({ from: 'new' as From, name: '', place: '', sep: '/', git: true,
@@ -56,7 +56,7 @@ function wizard(single: boolean) {
   }
   // A new or cloned project's folder, and what it is (main/ipc/projects.ts, project:folder-state), asked again as it
   // is typed. What it is is kept with the folder it was asked for: until the answer for the folder typed comes, the one
-  // before is not said of it (Shop "is a file, not a folder" for a moment, after a file named note: GitHub's runner, 2026-10-16).
+  // before is not said of it (Shop "is a file, not a folder" for a moment, after a file named note).
   const target = computed(() => (code.from === 'folder' ? '' : `${code.place.trim().replace(/[\\/]+$/, '')}${code.sep}${code.name.trim()}`));
   const asked = ref<{ folder: string; state: string; project?: string } | null>(null);
   const there = computed(() => (asked.value?.folder === target.value ? asked.value : null));
@@ -70,7 +70,7 @@ function wizard(single: boolean) {
     return ({ project: `${t} is the project ${there.value?.project}'s already`, file: `${t} is a file, not a folder` } as Record<string, string>)[state]
       ?? (code.from === 'clone' && ['files', 'repo'].includes(state) ? `${t} is there already: choose another name or location` : '');
   });
-  // The welcome's asks no name for code that has one (the folder's, the repository's: the author, 2026-10-17), only
+  // The welcome's asks no name for code that has one (the folder's, the repository's), only
   // when it will not do: then its field, to correct it.
   const nameTrouble = ref(false);
   const askName = computed(() => !single || code.from === 'new' || nameTrouble.value || !!refusal.value);
@@ -104,8 +104,8 @@ function wizard(single: boolean) {
 
   // 2. Its agents: any of the accounts (signed in to before, or a new one, here), one the default, which its tasks
   // start with (as on the project's page: tasks.md, Choosing the agent). None: its tasks start with a terminal, which
-  // every project has, so it is no choice here (the author, 2026-10-17). A new account's agent not on the computer is
-  // installed first, by itself (the author, 2026-10-17: seamless; Details shows the installer at work).
+  // every project has, so it is no choice here. A new account's agent not on the computer is
+  // installed first, by itself (seamless; Details shows the installer at work).
   const accounts = ref<Account[]>([]), clis = ref<string[]>([]);
   const chosen = ref<string[]>([]), main = ref('');
   const installs = agentList({ details: true, installed: (a) => `${a.name} is installed` }); // details: the agents themselves, as Settings → Agents

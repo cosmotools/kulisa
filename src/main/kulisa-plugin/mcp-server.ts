@@ -65,8 +65,8 @@ const INSTRUCTIONS = 'Kulisa profiles are the users of the app under test, each 
   'yours when you need details your context lost. Name your conversation with conversation_rename once you know what ' +
   'it is about.';
 // The naming tools load with the session (Claude Code's alwaysLoad; other agents ignore _meta): deferred behind its
-// tool search, as every MCP tool is, the agent skipped the extra step and never named the task when the reply was text
-// only (a task of the author's, 2026-10-12, told at both prompts).
+// tool search, as every MCP tool is, the agent skips the extra step and never names the task when the reply is text
+// only.
 const UPFRONT = { 'anthropic/alwaysLoad': true };
 // task: the task (tasks.ts) whose profiles the tools act on; t: the agent's terminal, when it came by its own URL.
 function buildServer(task: Task, t: TaskTerminal | null) {

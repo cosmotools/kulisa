@@ -39,8 +39,8 @@ async function newTask(ctx: Ctx) {
 // rows, a row of it chosen. tab: the tab to open it on (the shown task's).
 async function projectMenu(ui: UI, label?: string, tab = '#projectTabs .tasktab.active .name') {
   // Right-clicked again until its menu opens and its submenu with it: right after Settings or another menu closed,
-  // the menu opened none now and then (GitHub's runner, 2026-10-16), or opened and closed at once (2026-10-18), as
-  // the window's focus went and came back late (a blur closes a menu, as the OS's own close).
+  // the menu may open none, or open and close at once, as
+  // the window's focus goes and comes back late (a blur closes a menu, as the OS's own close).
   await waitFor(async () => {
     if (!(await menuOpen(ui))) await rightClick(ui, tab);
     try {
@@ -110,16 +110,16 @@ export default (test: Test) => {
     await call('browser_navigate', { profile: 'sam-admin', url: `${SITE}/app?task` });
     const firstSam = first.profiles.get('sam-admin');
     // The island's buttons are for a task with nothing open: a task opening shows its agent's tab at once, starting,
-    // not them for the second its agent is looked for (they did, 2026-10-15).
+    // not them for the second its agent is looked for.
     await ui(`window.__launch = false; window.__starting = ''; new MutationObserver(() => { window.__launch ||= !!document.querySelector('#dock .launch');
       window.__starting ||= document.querySelector('#dock .starting')?.textContent; })
       .observe(document.body, { childList: true, subtree: true })`);
     const find = shell.findAgent; // looking for it takes the user's login shell, slower on the human's computer than here
     let found = false;
     shell.findAgent = async (...a) => { await sleep(1000); const r = await find(...a); found = true; return r; };
-    // Its agent waits for its terminal's size however late the window lays the island out: it started at a default one
-    // after 5 s, which GitHub's runner reached (2026-10-15). The island hidden for 6 s after the agent is found: what is
-    // tested is that it waits longer than it used to, which only time shows.
+    // Its agent waits for its terminal's size however late the window lays the island out: not at a default one
+    // after 5 s, which a loaded machine reaches. The island hidden for 6 s after the agent is found: what is
+    // tested is that it waits longer than that, which only time shows.
     await ui(`document.head.append(Object.assign(document.createElement('style'), { id: 'lateIsland', textContent: '.term { display: none !important; }' }))`);
     const sent = await ui('window.__ptySizes.length');
     const late = (async () => { await waitFor(() => found, 10000); await sleep(6000); await ui(`document.getElementById('lateIsland').remove()`); })();
@@ -185,7 +185,7 @@ export default (test: Test) => {
     assert.match(await ui(`${taskTab(2)}.title`), /branch task-2 in .*project@task-2; the app's ports \+ 100/);
 
     // Until named, its agent is told to name it itself at the human's every prompt and in every tool's result: told only
-    // at session start, it forgot (7 of the author's 8 tasks stayed task-<n>).
+    // at session start, it is forgotten.
     const prompt = (text = '') => new Promise<string>((r) => http.request(`${task.env().KULISA_URL}/hooks/prompt`, { method: 'POST' }, (res) => {
       let body = ''; res.on('data', (d) => { body += d; }); res.on('end', () => r(body));
     }).end(JSON.stringify({ prompt: text })));
@@ -381,7 +381,7 @@ export default (test: Test) => {
     const { shell, ui } = ctx;
     const second = shell.task, sam = second.profiles.get('sam-admin');
     // No profiles' button on a task's tab, its right-click menu has them; the × on every tab, as Chrome's, not only
-    // the shown one's (the author, 2026-10-12).
+    // the shown one's (the author's choice).
     assert.deepEqual(await ui(`[...document.querySelectorAll('#projectTabs .tasktab')].map((t) => [...t.querySelectorAll('button')].map((b) => b.ariaLabel + ' ' + getComputedStyle(b).visibility))`),
       [['Close visible'], ['Close visible']]);
     const widths = () => ui(`[...document.querySelectorAll('#projectTabs .tasktab')].map((t) => t.getBoundingClientRect().width)`);
@@ -429,8 +429,8 @@ export default (test: Test) => {
     await post('prompt');
     await post('interrupt');
     await waitFor(async () => (await state()) === ' #i-done false');
-    // Esc in its terminal: Claude Code stops the turn and runs no hook, so working was shown on and on (found trying
-    // voice commands, 2026-10-09). A done one stays done.
+    // Esc in its terminal: Claude Code stops the turn and runs no hook, so working would be shown on and on. A done
+    // one stays done.
     const esc = () => ui(`kulisa.send('pty:in', { task: '${second.promptTarget().key}', data: '\\x1b' })`); // its agent's terminal
     for (const s of ['prompt', 'waiting']) {
       await post(s);
@@ -482,8 +482,8 @@ export default (test: Test) => {
     assert.deepEqual(seen.types, ['next']); assert.deepEqual(seen.animations, ['grid-from-right calc(100% + 8px) cubic-bezier(0.4, 0, 0.2, 1)', 'grid-to-left calc(-100% - 8px) cubic-bezier(0.4, 0, 0.2, 1)'], 'it slides');
     await waitFor(live);
     // A page that draws no frame (busy, covered) holds the slide's start no longer than three times what the others
-    // take (a tenth of a second at least), its pane then empty: half a second was felt after each click (2026-10-15).
-    // Their pace, not a fixed time: GitHub's runner took over a tenth of a second for a picture, and no pane had one.
+    // take (a tenth of a second at least), its pane then empty: half a second is felt after each click.
+    // Their pace, not a fixed time: a loaded machine takes over a tenth of a second for a picture.
     const tab = shell.profiles.get('sam-admin').get(), elon = shell.profiles.get('elon-buyer').get().wc, its = elon.capturePage;
     let took = 0;
     tab.wc.capturePage = () => new Promise(() => {});
@@ -495,9 +495,9 @@ export default (test: Test) => {
     seen = await swap(1);
     assert.deepEqual(seen.types, ['previous']); assert.deepEqual(seen.animations, ['grid-from-left calc(-100% - 8px) cubic-bezier(0.4, 0, 0.2, 1)', 'grid-to-right calc(100% + 8px) cubic-bezier(0.4, 0, 0.2, 1)']);
     await waitFor(live);
-    // A menu opened while the grid still slides keeps the pages under it pictures: the slide's end showed them over it.
+    // A menu opened while the grid still slides keeps the pages under it pictures, not shown over it at the slide's end.
     // Opened as soon as the slide starts, before the grid left is taken down (the transition's update, a frame later,
-    // later still on a loaded runner): taking it down forgot the menu's pictures (GitHub's runners, 2026-10-16).
+    // later still on a loaded machine): taking it down must not forget the menu's pictures.
     const sliding = () => ui(`document.documentElement.matches(':active-view-transition')`);
     await ui(`(() => {
       const start = document.startViewTransition.bind(document);
@@ -530,8 +530,7 @@ export default (test: Test) => {
     await shown(1);
   });
   test("tasks: more tabs than the bar holds: each keeps its name readable, a mouse's wheel scrolls them, a faded edge says some are past it, the shown one stays in sight; in the title bar the window is still dragged after +", async ({ shell, ui }) => {
-    // Two tabs, the bar narrowed to less than they take: as thirty tabs in a window (found with 30 tasks, 2026-10-15:
-    // every tab read "task…", the wheel did nothing, nothing said 17 were out of sight).
+    // Two tabs, the bar narrowed to less than they take: as thirty tabs in a window.
     const strip = `document.querySelector('#projectTabs')`;
     const bar = () => ui(`(() => { const s = ${strip}, a = s.querySelector('.active').getBoundingClientRect(), b = s.getBoundingClientRect();
       return { left: Math.round(s.scrollLeft), max: s.scrollWidth - s.clientWidth, fade: ['past-start', 'past-end'].filter((e) => s.classList.contains(e)).join(' '), inSight: a.left >= b.left && a.right <= b.right }; })()`);
@@ -556,7 +555,7 @@ export default (test: Test) => {
     // In the title bar: the tabs give way before the space after + that drags the window (Chrome's), however many. The
     // tabs scrolled past the bar's edges are no-drag over the logo and that space too (Chromium does not clip them to
     // the bar) and the last region in the page wins: so both come after the bar, the logo shown first all the same (a
-    // window not dragged by either, 2026-10-15: a real drag of the window is the OS's, out of a test's reach).
+    // real drag of the window is the OS's, out of a test's reach).
     await ui(`kulisa.invoke('bar:set', 'top')`);
     await waitFor(() => ui(`!!document.querySelector('#topbar #projectTabs')`));
     await ui(`document.querySelectorAll('#projectTabs .tasktab').forEach((t) => { t.style.minWidth = t.style.maxWidth = '1000px'; })`); // the bar drawn anew: tabs as wide as many
@@ -572,8 +571,8 @@ export default (test: Test) => {
     await waitFor(() => shell.task.n === 1 && !shell.windows[0].switching);
   });
   test("tasks: a press on a tab not shown chooses it at once, as Chrome's; its task is shown when the button is let go or the tab starts being dragged, so it can be dragged", async ({ shell, ui }) => {
-    // The slide that showing a task starts made Chromium drop a drag about to begin: a tab not shown could not be
-    // dragged, its press only showed it (2026-10-15). One begun goes on through the slide.
+    // The slide that showing a task starts makes Chromium drop a drag about to begin: a tab not shown would not be
+    // dragged, its press only showing it. One begun goes on through the slide.
     const wc = shell.win.webContents, z = wc.getZoomFactor();
     const press = async (type: 'mouseDown' | 'mouseUp', n: number) => {
       const b = await ui(`${taskTab(n)}.querySelector('.name').getBoundingClientRect().toJSON()`);
@@ -585,8 +584,8 @@ export default (test: Test) => {
     await waitFor(async () => (await chosen()) === '2');
     await sleep(200); // nothing to wait for: that it is not shown yet
     assert.equal(shell.task.n, 1, 'not shown while the button is down');
-    // Lit on the press, it stays lit: let go of, it went dark while the main process took the pictures for the slide
-    // and lit again with the new state, the tab left going on and off with it (the author, 2026-10-16: the tabs blinked).
+    // Lit on the press, it stays lit: let go of, it would go dark while the main process takes the pictures for the slide
+    // and light again with the new state, the tab blinking.
     await ui(`window.__lit = [${chosenJs}]; window.__litObs = new MutationObserver(() => window.__lit.push(${chosenJs})); window.__litObs.observe(document.getElementById('projectTabs'), { attributes: true, attributeFilter: ['class'], subtree: true })`);
     await press('mouseUp', 2);
     await waitFor(() => shell.task.n === 2 && !shell.windows[0].switching);
@@ -642,7 +641,7 @@ export default (test: Test) => {
     assert.deepEqual(rows.slice(rows.indexOf('project'), rows.indexOf('project') + 4), ['project', '  task-1 (open)', '  Feature-X (open)', '  task-3']);
     await closeBoard(ui);
     // Its grid comes before its profiles have started (their cookies, tabs, automation: a site's answer away), its agent
-    // after them, as it finds them ready; the window waited for them all, one after another (2026-10-15).
+    // after them, as it finds them ready; the window does not wait for them all.
     const restore = shell.sessionCookies.restore;
     let started = false;
     shell.sessionCookies.restore = async (p) => { await sleep(1500); const n = await restore.call(shell.sessionCookies, p); started = true; return n; };
@@ -722,8 +721,8 @@ export default (test: Test) => {
     assert.deepEqual(tasksFile().list.map((e) => e.name), ['task-1', 'Feature-X']);
   });
 
-  // Settings (the title bar's gear) at the first agent: the agents in its tree (☰ had an Agents… row to them until
-  // 2026-10-14: the author, agents are set up in Settings); it closes as the human closes it (closeSettings).
+  // Settings (the title bar's gear) at the first agent: the agents in its tree (agents are
+  // set up in Settings); it closes as the human closes it (closeSettings).
   const openAgents = async ({ ui, sui }: Pick<Ctx, 'ui' | 'sui'>, rows = 2) => {
     await ui(`document.getElementById('manageProjects').click()`);
     await waitFor(() => sui(`document.querySelectorAll('#pjlist [data-agent]').length === ${rows}`), 20000);
@@ -822,15 +821,15 @@ export default (test: Test) => {
     await waitFor(tiles);
     assert.deepEqual(await tiles(), { names: PROFILES, above: true });
     // A tile: the profile's picture and name, a long name in one line ending in …, who it is only in the tooltip: under
-    // the name it was cut off by the tile's edge (2026-10-17).
+    // the name it would be cut off by the tile's edge.
     assert.deepEqual(await ui(`(() => { const t = document.querySelector('#closedprofiles .launcher'), n = t.querySelector('.name'), was = n.textContent;
       n.textContent = 'orudzhali@insvgna.org';
       const s = getComputedStyle(n), r = [s.whiteSpace, s.textOverflow, !!t.querySelector('small'),
         [...t.children].every((c) => c.getBoundingClientRect().bottom <= t.getBoundingClientRect().bottom)];
       n.textContent = was; return r; })()`), ['nowrap', 'ellipsis', false, true]);
     assert.match(await ui(`document.querySelector('#closedprofiles [data-profile="sam-admin"]').title`), /^Open Sam\.admin: ./);
-    // More than fit (19 profiles): the row scrolls, its end faded, the window as wide as before: the row stretched the
-    // window's column, the terminal and the tasks' bar past its edge, the last profiles out of reach (2026-10-15).
+    // More than fit (19 profiles): the row scrolls, its end faded, the window as wide as before, not its column, the
+    // terminal and the tasks' bar stretched past its edge, the last profiles out of reach.
     await ui(`(() => { const s = document.getElementById('closedprofiles'); for (let i = 0; i < 20; i++) s.append(s.querySelector('.launcher').cloneNode(true)); })()`);
     await waitFor(() => ui(`document.getElementById('closedprofiles').classList.contains('past-end')`));
     assert.deepEqual(await ui(`(() => { const s = document.getElementById('closedprofiles'), r = (e) => e.getBoundingClientRect();
@@ -891,8 +890,8 @@ export default (test: Test) => {
       `1.2.3 · ${bin.startsWith(home) ? '~' + bin.slice(home.length - 1) : bin} · not on your PATH: Kulisa runs it from here`);
     assert.equal(await sui(agentRow('fake', '.install-line') + '.textContent'), '');
     await showAgent(sui, 'fake');
-    // A click on the row already shown keeps it chosen: Reka's Tree toggled it off, its page still shown (seen on
-    // GitHub's runner, 2026-10-12, where the tests reach this row already chosen).
+    // A click on the row already shown keeps it chosen: Reka's Tree toggles it off, its page still shown (the tests
+    // may reach this row already chosen).
     await showAgent(sui, 'fake');
     await shot(ctx.shell, path.join(root, 'agents.png'));
     await closeSettings(ctx);
@@ -968,7 +967,7 @@ export default (test: Test) => {
     assert.equal(electron.BrowserWindow.getAllWindows().length, windows, 'no window of its own');
     p.write('Work@Shop.com\r');
     await waitFor(() => sui(`!!document.querySelector('#npagents [data-agent="fake-1"]') && !document.getElementById('npsignin')`));
-    // Its agent and its email, each in its column (a table, the author, 2026-10-16).
+    // Its agent and its email, each in its column (a table).
     assert.deepEqual(await sui(`[...document.querySelectorAll('#npagents [data-agent="fake-1"] .cell')].slice(0, 2).map((c) => c.textContent.trim())`), ['Fake agent', 'work@shop.com']);
     assert.deepEqual(JSON.parse(fs.readFileSync(path.join(userData, 'agents.json'), 'utf8')),
       { next: 2, list: [{ id: 'fake-1', agent: 'fake', email: 'work@shop.com', folder: 'fake-1' }] });
@@ -1001,9 +1000,9 @@ export default (test: Test) => {
     await waitFor(() => task.promptTarget()?.agent.id === 'fake-1', 20000); // the project's default: its one account
     ctx.watchPty(task.pty);
     await waitFor(async () => (await ctx.termText()).includes(`config [${dir}]`));
-    // Its shell gets none of direnv's state from where Kulisa was started: the user's direnv hook took the task's folder
-    // for a folder left, undid that .envrc's changes and with them the account's variable, and the agent ran with the
-    // user's own sign-in (2026-10-11, Kulisa started from the repository's folder).
+    // Its shell gets none of direnv's state from where Kulisa was started: else the user's direnv hook takes the task's
+    // folder for a folder left, undoes that .envrc's changes and with them the account's variable, and the agent runs
+    // with the user's own sign-in (Kulisa started from the repository's folder).
     if (process.platform === 'linux') {
       assert.deepEqual(fs.readFileSync(`/proc/${task.pty.pid}/environ`, 'utf8').split('\0').filter((v) => v.startsWith('DIRENV_')), []);
     }
@@ -1121,7 +1120,7 @@ export default (test: Test) => {
     assert.equal(ctx.asked.length, 0);
     await ui(`${taskTab(2)}.querySelector('.close').click()`);
     // The project goes once its task is unloaded: its agent stopped, each profile's sign-ins written out and its
-    // tabs closed. On the runner, with the other project running beside it, that took over 5 s now and then (2026-10-12).
+    // tabs closed. On a loaded machine, with the other project running beside it, that takes over 5 s now and then.
     await waitFor(() => shell.task === null && !shell.current && !shell.open.has('project'), 15000);
     assert.equal(ctx.asked.length, 0, 'no agent works: nothing asked');
     assert.ok(second.profiles.size === 0 && !second.pty, 'every task of the project stopped');
@@ -1223,7 +1222,7 @@ export default (test: Test) => {
       assert.equal(await gear(), true, 'accounts and profiles there');
       shell.accounts.all = () => accountsOf.call(shell.accounts).filter((a) => a.own); shell.profileStore.all = () => [];
       shell.sendProjects();
-      await waitFor(async () => !(await gear())); // not on screen: hidden alone passed while the button's own display beat it (2026-10-17)
+      await waitFor(async () => !(await gear())); // not on screen: hidden alone passes while the button's own display beats it
       await waitFor(() => ui(`getComputedStyle(document.getElementById('glow')).opacity === '1'`));
       const slide = () => ui(`[document.querySelector('#tour h1').textContent, document.getElementById('tournext').textContent]`);
       assert.deepEqual(await slide(), ['Your agent, in your browsers', 'Next']);
@@ -1232,8 +1231,8 @@ export default (test: Test) => {
       assert.deepEqual(await slide(), ['Point at it, and say what is wrong', 'Set Up a Project']);
       await ui(`document.getElementById('tourback').click()`);
       assert.deepEqual(await slide(), ['It checks the result as every user', 'Next']);
-      // A low window, wide or at the least size: the slide fits, nothing to scroll to (its top was cut off above the
-      // window's edge, out of scrolling's reach, 2026-10-17).
+      // A low window, wide or at the least size: the slide fits, nothing to scroll to (its top not cut off above the
+      // window's edge, out of scrolling's reach).
       const size = shell.win.getContentSize();
       for (const [w, h] of [[1100, 400], [640, 400]]) {
         shell.win.setContentSize(w, h);
@@ -1330,7 +1329,7 @@ export default (test: Test) => {
     await waitFor(async () => (await step()) === 'Agents');
     await ui(`document.getElementById('npform').requestSubmit()`);
     // Its profiles: a new one, named and said who it is; Create makes the project with it and opens its first task,
-    // nothing asked, no Settings (the author, 2026-10-17).
+    // nothing asked, no Settings.
     await waitFor(async () => (await step()) === 'Profiles' && (await ui(`document.getElementById('npcreate').textContent`)) === 'Create');
     await ui(`document.getElementById('npprofileadd').click()`);
     await ui(`(() => { const [n, d] = document.querySelectorAll('.npprofile input'); n.value = 'Shop-buyer'; n.dispatchEvent(new Event('input'));
@@ -1489,8 +1488,8 @@ export default (test: Test) => {
     // The default marked, Make Default on the others.
     const agentRows = () => sui(`[...document.querySelectorAll('#npagents .item')].map((r) => r.title + ' ' + !!r.querySelector('.default'))`);
     assert.deepEqual(await agentRows(), ['Terminal only true', 'Fake agent · ann@shop.com false'], 'the first added, the default');
-    // A table: each value in its column, under its name, the columns at the same places in every row (the author,
-    // 2026-10-16: values one after another, each row its own rhythm, read as chaos).
+    // A table: each value in its column, under its name, the columns at the same places in every row (values
+    // one after another, each row in its own rhythm, read as chaos).
     assert.deepEqual(await sui(`(() => { const list = document.querySelector('#npagentsrow .list'), x = (e) => Math.round(e.getBoundingClientRect().left);
       const rows = [list.querySelector('.head'), ...list.querySelectorAll('.item')].map((r) => [...r.children].map(x).join());
       return [[...list.querySelector('.head').children].map((h) => h.textContent), rows.every((r) => r === rows[0])]; })()`), [['Agent', 'Account', ''], true]);
@@ -1499,8 +1498,8 @@ export default (test: Test) => {
     await onRow(sui, `#npagents [data-agent="${ann.id}"]`, 'npagentdefault');
     await waitFor(async () => JSON.stringify(await agentRows()) === '["Fake agent · ann@shop.com true","Terminal only false"]');
     // Its right-click has the same: Make Default.
-    // The row not chosen yet: Reka's list takes the keyboard to it just after the menu opens, which closed the menu
-    // (RightClickMenu.vue; first seen in Settings' window, 2026-10-16).
+    // The row not chosen yet: Reka's list takes the keyboard to it just after the menu opens, which would close the
+    // menu (RightClickMenu.vue).
     await rightClick(sui, '#npagents [data-agent="shell"] .label');
     assert.deepEqual(await menuRows(sui), ['Make Default', 'Remove from the Project']);
     await choose(sui, 'Make Default');
@@ -1536,7 +1535,7 @@ export default (test: Test) => {
     await ui(`kulisa.invoke('project:agent-default', { id: 'site', agent: null })`);
     await plusMenu(ui, shell.current.name);
     // Shown, not only loaded: a key while the window still switches acts for the task before (docs/testing.md; on a
-    // loaded machine, as GitHub's runner, Ctrl+` below did nothing now and then, 2026-10-12).
+    // loaded machine Ctrl+` below may do nothing).
     await waitFor(async () => shell.task !== annTask && shell.task.loaded && !shell.windows[0].switching
       && (await ui(`!document.documentElement.classList.contains('loading')`)));
     const bare = shell.task;
@@ -1551,8 +1550,8 @@ export default (test: Test) => {
     assert.equal(JSON.parse(fs.readFileSync(path.join(userData, 'projects', 'site', String(bare.n), 'agent.json'), 'utf8')).agent, null);
     await ui(`document.activeElement.blur()`);
     await focusWindow(shell.win, ui);
-    // Once more until the launcher has it: on GitHub's runner the + menu, closed just before, gave the keyboard back
-    // where it was after Ctrl+` had given it to the launcher, now and then (2026-10-12). Opens nothing: no agent.
+    // Once more until the launcher has it: on a loaded machine the + menu, closed just before, may give the keyboard
+    // back where it was after Ctrl+` had given it to the launcher. Opens nothing: no agent.
     const onLauncher = () => ui(`document.activeElement === document.querySelector('.launcher')`);
     for (let i = 0; i < 3 && !(await onLauncher()); i++) {
       press(shell.win.webContents, '`', 'control');
@@ -1599,8 +1598,7 @@ export default (test: Test) => {
     const first = shell.task;
     assert.equal(first.folder, `${api}@task-1`, 'one repository: its copy next to it');
     const chips = () => ui(`[...document.querySelectorAll('.taskrepos .chip')].map((c) => c.textContent)`);
-    // The chips lit as they came (.fresh, for 1.8 s), seen as it happens: read after, a loaded runner missed it
-    // (GitHub's macOS runner, 2026-10-16).
+    // The chips lit as they came (.fresh, for 1.8 s), seen as it happens: read after, a loaded machine misses it.
     const watchFresh = () => ui(`(() => { window.__fresh = new Set(); window.__freshSeen?.disconnect();
       const seen = () => document.querySelectorAll('.taskrepos .chip.fresh').forEach((c) => __fresh.add(c.textContent));
       window.__freshSeen = new MutationObserver(seen); __freshSeen.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] }); })()`);
@@ -1741,7 +1739,7 @@ export default (test: Test) => {
     assert.deepEqual(await filled, [true, true, true]);
     await waitFor(() => sui(pageOf(shell.current.name)));
     assert.equal(await sui(`document.querySelector('#pjlist [aria-selected="true"]').dataset.project`), shell.current.id);
-    // Pages on screen under Settings' window (once live again after the last menu's pictures: on GitHub's runner later).
+    // Pages on screen under Settings' window (once live again after the last menu's pictures: on a loaded machine later).
     await waitFor(() => shell.task.profiles.get('sam-admin').get().view.getVisible());
     // Site-2 is closed: its configuration all the same; a profile made and let go there (asked first, in Settings' window,
     // where it was done).
@@ -1769,7 +1767,7 @@ export default (test: Test) => {
     const said = await ui(`kulisa.invoke('profile:refresh', { task: ${JSON.stringify(shell.task.key)}, profile: 'sam-admin' })`);
     assert.deepEqual([said, ctx.asked.pop().message], [{ error: 'the human said no' }, "Bring the sign-ins of Sam.admin's master to this task?"]);
     assert.equal(await sui(`!!document.getElementById('ask')`), false, "not in Settings' window");
-    // Waited for: macOS restores a minimized window with its animation, and makes it key at its end (GitHub's runner).
+    // Waited for: macOS restores a minimized window with its animation, and makes it key at its end.
     await waitFor(() => !shell.win.isMinimized() && shell.win.isFocused()); // the task's window in front with its question
     ctx.answer = true;
     // The theme and the Kulisa zoom are every window's: its too.
@@ -1819,8 +1817,8 @@ export default (test: Test) => {
   });
 
   test("menus: one longer than the window has stays in it and scrolls; the board's column with more tasks than fit scrolls in itself, more columns than fit sideways", async ({ ui }) => {
-    // The bar's + with thirty closed tasks, a menu until 2026-10-17, ran past the window's edge: under the grid its
-    // project's row, the new task, out of reach above (2026-10-15). Any menu: ☰'s here.
+    // A menu longer than the window (thirty closed tasks) must not run past its edge, its first rows out of reach
+    // above. Any menu: ☰'s here.
     await ui(`document.getElementById('windowMenu').click()`);
     await menuRows(ui);
     await ui(`(() => { const m = ${MENU}, row = m.querySelector('.item'); for (let i = 0; i < 60; i++) m.append(row.cloneNode(true)); })()`); // as many rows as thirty closed tasks and more
@@ -1937,8 +1935,7 @@ export default (test: Test) => {
     await waitFor(() => sui(`!document.querySelector('#pjlist [data-project="spare"]')`));
     await closeSettings(ctx);
 
-    // New Project… asks for its code first (the author, 2026-10-11: a folder made in ~/Kulisa was in the way of code
-    // already on the disk). Folder on disk, a repository: taken as it is, its files and its history kept, no git init,
+    // New Project… asks for its code first (the code is often on the disk already). Folder on disk, a repository: taken as it is, its files and its history kept, no git init,
     // nothing made; named after its folder; Create opens its first task, as for any new project.
     const gone = path.join(root, 'gone');
     fs.mkdirSync(gone); git(gone, 'init', '-q'); fs.writeFileSync(path.join(gone, 'a.txt'), 'a'); git(gone, 'add', '-A'); git(gone, 'commit', '-qm', 'mine');
@@ -2196,8 +2193,8 @@ export default (test: Test) => {
     await ui(`document.getElementById('handoverstart').click()`);
     await waitFor(async () => JSON.stringify(await tabs()) === '["bash","Pay with cards","Fake agent *"]' && newest().pty, 20000);
     const handed = newest();
-    // In front under the dialog from its start, as + opens one: a tab behind has no size, and its xterm laid out what
-    // the agent drew for the island's size in 80 columns (broken, 2026-10-12).
+    // In front under the dialog from its start, as + opens one: a tab behind has no size, and its xterm would lay out what
+    // the agent drew for the island's size in 80 columns, broken.
     await waitFor(async () => (await ui('window.__term?.cols')) === handed.pty.spawnSize.cols);
     assert.equal(handed.agent.id, b.id);
     assert.equal(handed.pty.spawnArgs.at(-1), 'Go on with the work of conversation 2 of this task ("Pay with cards"). Read it whole with the kulisa task_history tool (conversation 2) before anything else. Then tell me in a few lines what is done and what is next, and go on with it.');

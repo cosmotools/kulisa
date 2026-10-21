@@ -5,7 +5,7 @@ import type { Shell } from './shell.ts';
 import type { Task } from './tasks.ts';
 import type { Profile, Tab } from './profiles.ts';
 
-// Off screen, and no automation on the profile, for this long: 5 minutes (the author, 2026-10-13). Switching tasks
+// Off screen, and no automation on the profile, for this long: 5 minutes (the author's choice). Switching tasks
 // back and forth within it reloads nothing.
 const DISCARD_AFTER = 5 * 60_000;
 const SWEEP_EVERY = 30_000;

@@ -9,7 +9,7 @@ A **profile** (the word Chrome uses; not "persona", "user" or "account") is one 
 cookies, storage, sign-ins and tabs, shown as a pane in the grid. One profile is one user of the app under test
 ("sam@shop.com", "ann.admin"); several profiles side by side are several users at once.
 
-**One store, a master and copies** (`profile-store.ts`, `project-profiles.ts`; built 2026-10-10). A profile is a
+**One store, a master and copies** (`profile-store.ts`, `project-profiles.ts`). A profile is a
 person, the same in every project it is listed in: its name, id, picture and description are one, changed anywhere,
 seen everywhere. A project lists its profiles, in order, by their folders (`projects.json`'s `profiles`; a folder is
 fixed, an id changes with the name). What a project is made of (its repositories, agents, profiles) is said in the
@@ -20,7 +20,7 @@ has of a profile is its own: its copy (what is signed in there stays there), its
 zoom. A new task opens none of them (the first one neither): the agent opens one when it needs it (`profile_open`),
 the human from a tile over the terminal while none is open, or the task tab's right-click menu ([tasks.md](tasks.md),
 What the human does).
-**A profile lives until the human deletes it** (Settings → Profiles; the author, 2026-10-11, as the agents' accounts):
+**A profile lives until the human deletes it** (Settings → Profiles; as the agents' accounts):
 a profile in no project is kept, with its master and sign-ins. A project gets a profile when one is made in it
 (`profile_create`, its page in Settings → Profiles' + → New Profile…) or taken from the others (its page's + → Other
 Profiles: made in Settings → Profiles, or another project's); it lets go of one (− on its page, Remove from Project…
@@ -33,7 +33,7 @@ A profile is an Electron session on a folder of its own (`session.fromPath`), la
 ## What the human does
 
 - **Settings → Profiles** (the gear's Settings, its tree; Manage Profiles… in a task tab's right-click menu and About this profile… in the
-  pane's menu open it, the latter at that profile; `settings/ProfilePage.vue`; it replaced the task's profile editor, 2026-10-11): every
+  pane's menu open it, the latter at that profile; `settings/ProfilePage.vue`): every
   profile in Settings' tree, under Profiles, the chosen one's page on the right, each field saved on Enter or
   leaving it: **Picture**, **Name**, **About**, **Test login** and **Test password**, **Sign In…** (its master's
   window, below) and the projects it is in. It is the human's one place for who a profile is: a profile is the same
@@ -42,7 +42,7 @@ A profile is an Electron session on a folder of its own (`session.fromPath`), la
   out; a project's page adds it (+ → Other Profiles). Or on a project's page (+ → New Profile…: in that project).
   Names of profiles, projects and tasks take letters (any language), digits and `@ . _ + -`, as an email
   address does, starting with a letter or a digit (not `@` alone, `.x`, `..`, `-x`), at most 64, so a profile can be
-  named after its account (`ann+test@shop.com`); no spaces (`names.ts`, the author's rule). Name fields leave other
+  named after its account (`ann+test@shop.com`); no spaces (`names.ts`, the author's choice). Name fields leave other
   characters out as they are typed or pasted, and the main process checks again (the agent's `profile_create` too).
   Ids and branches keep letters of any language.
 - **Sign in by hand**, once for every task, in its master: **Sign In to Master…** in the pane's right-click menu, or
@@ -63,8 +63,8 @@ A profile is an Electron session on a folder of its own (`session.fromPath`), la
   choose profiles by it: a name says which account is signed in, not who that is in the tests. Optional, and the
   dialog says so, with what it is for: left empty, the agent asks the human when a task needs to know and saves the
   answer (below). At most 500 characters; shown under the name in the task tab's right-click menu and when pointing at the pane's name.
-  The human's own words: a button to have an AI rewrite them was proposed and not built (2026-10-08): the reader is
-  an agent, which understands them as they are, and a rewrite would add what the human did not say.
+  The human's own words, never rewritten by an AI: the reader is an agent, which understands them as they are, and a
+  rewrite would add what the human did not say.
 - **Picture**: an animal, as Chrome's profile avatars and Google's anonymous animals, each profile of a task its
   own unless the human picks one twice; Settings → Profiles' Picture shows the others. It tells panes apart by shape and colors, not by a color alone
   (some people do not tell colors apart), and can be named ("the fox"). The pictures are Noto Emoji's (Google,
@@ -82,7 +82,7 @@ A profile is an Electron session on a folder of its own (`session.fromPath`), la
   strip scrolls: [ui.md](ui.md), `.tabstrip`); `target=_blank` and `window.open` open tabs of the same
   profile. Right-click a tab: reload, duplicate, close, close others. DevTools of a tab: the pane's ⋮ menu (where more of a pane's actions will go, as in Chrome) or F12.
   A narrow pane gives up back and forward (under 260 px), then reload (under 200), into ⋮, their keys staying; never
-  Pick or ⋮, which went out of reach first when the buttons kept their order (2026-10-16; `.bar`'s container queries).
+  Pick or ⋮ (`.bar`'s container queries).
   Chrome's keys work in a page for its pane: Ctrl+T, Ctrl+W, Ctrl+Shift+T, Ctrl+L, Ctrl+Tab, Ctrl+1…9 and the rest
   ([window.md](window.md), Keys).
 - **Zoom**: Ctrl + / − / 0 in a page zooms that site in that profile, on top of the Kulisa zoom (saved per profile,
@@ -91,8 +91,8 @@ A profile is an Electron session on a folder of its own (`session.fromPath`), la
   found, refused to connect (a local app whose server is not running), took too long, no internet, an untrusted
   certificate; with Chromium's code (`ERR_…`). The address stays the one that failed, so reload tries it again; the
   agent's snapshot reads the same words (`error-page.html`, filled in by `profiles.ts`). A tab whose site refuses to connect
-  (a new task's tabs on its ports before its dev server runs) is ready at once with that page: it held its profile's
-  opening 5 s until 2026-10-09.
+  (a new task's tabs on its ports before its dev server runs) is ready at once with that page, so its profile opens
+  without waiting for it.
 - **Pick** (DevTools' inspect icon, at the end of the address bar): click an element on the page; a reference to it goes into the agent's prompt (below). Off on an empty tab (`about:blank`): nothing to point at.
 
 ## What the agent does
@@ -108,7 +108,7 @@ Profiles (`profile_*`, the profile as a thing): `profile_create`, `profile_renam
 said and done in the task before: [transcripts.md](transcripts.md)), `conversation_rename` (its tab). Terminals:
 `terminal_run`, `terminal_read`, `terminal_stop` (shells only, [window.md](window.md), The terminal).
 
-**The agent does not ask the human before Kulisa's tools** (the author, 2026-10-12): it works in the profiles while the
+**The agent does not ask the human before Kulisa's tools**: it works in the profiles while the
 human watches or is away, and a question at every click undoes that; what acts on real accounts asks in Kulisa itself
 (`profile_delete`, the sign-in pause). But two keep the agent's own approval (`KULISA_ASKS`, `agents/`):
 `terminal_run`, any command in the human's shell, which would get around the agent's approval of commands (and
@@ -129,8 +129,8 @@ What the tools are for, beyond acting as one user:
   `browser_snapshot` with `also` reads several profiles' active tabs in one call, to compare what each user sees.
 - **Dialogs** (alert, confirm). A page's dialog is shown in its pane, as Chrome shows it in the page: "<site> says",
   the message, OK (and Cancel for confirm), at the top of a dimmed picture of the page (a page is still while its
-  dialog is open), Enter and Esc as in Chrome. Electron showed its own message box in the middle of the window, which
-  did not say which page asked; its handler is a listener of an internal event (`-run-dialog`), replaced for every
+  dialog is open), Enter and Esc as in Chrome. Electron's own message box, in the middle of the window, does not say
+  which page asked; its handler is a listener of an internal event (`-run-dialog`), replaced for every
   tab (`Profile._dialog`; [testing.md](testing.md), Upgrading Electron). A dialog of a tab in the background shows when the
   tab is chosen. Electron has no `prompt()` (it throws in the page). Starting a navigation (the address bar, reload)
   dismisses an open dialog, as Chrome does: Chromium holds the navigation until it is answered. The dialogs an
@@ -177,7 +177,7 @@ not the one the human sees, and not signed in. Not blocked (`--disallowedTools` 
 and would refuse it also when the human asks for it). Codex gets the MCP server and the hooks as config overrides (its `SessionStart` brings the open profiles).
 
 The human sees what the agent does (`ghost.ts`): Playwright's action annotations in the page, each shown 500 ms,
-which every action waits for (1.2 s until 2026-10-09 cost an agent a minute every 50 clicks): a mark at the action
+which every action waits for (so it is kept short: a longer one adds up over an agent's clicks): a mark at the action
 point, the element outlined, and the agent's own pointer, moving from one action to the next and staying at the last
 (Playwright's `cursor: 'pointer'`; not the OS's: the human's mouse stays theirs; no test of its pixels, Playwright
 draws it); and a caption over the pane for every command through the proxy. The marks and
@@ -229,7 +229,7 @@ methods; who a profile is changes and is checked in the store (`ProfileStore.ren
 
 ## Sign-ins kept in step
 
-A real account is signed in to once, for every task (`cookie-sync.ts`; built 2026-10-10): the cookies of sites that
+A real account is signed in to once, for every task (`cookie-sync.ts`): the cookies of sites that
 are not local (`local.ts`) are kept in step between a profile's master and its copies open in tasks, both ways, as
 they change (Electron's cookies `changed` event, then `cookies.set` or `remove` in the others; a change it made itself
 is not taken back). A copy opening takes the master's first (its own non-local cookies give way). So a sign-in, a
@@ -248,8 +248,7 @@ two tasks changing the same cookie at once end with the one that came last.
 ## Test users' sign-ins
 
 Real accounts are the human's to sign in to (Rules); a **test user of the app under test on this computer** is the
-agent's, so it can sign up, sign in and sign out as many users as the tests need without asking (designed with the
-author, 2026-10-10). How it is kept safe, each line with its reason:
+agent's, so it can sign up, sign in and sign out as many users as the tests need without asking. How it is kept safe, each line with its reason:
 
 - **A pair per profile** (`profile-store.ts`, `login`): a login and a password. Set by the human (Settings → Profiles'
   Test login and Test password) or the agent (`profile_set_login`, after it signed that user up). The password is
@@ -284,38 +283,35 @@ author, 2026-10-10). How it is kept safe, each line with its reason:
 
 Each profile's tabs are saved in its folder (`Kulisa Tabs.json`: their addresses and which one is in front) after
 every change of its task and as Kulisa quits, and opened again at the next start, the one in front again in front,
-as Chrome does (a master's the same; `Profile.savedTabs`, `openTabs`). Until 2026-10-19 only the addresses were kept,
-and the first tab came back in front (issue #97).
+as Chrome does (a master's the same; `Profile.savedTabs`, `openTabs`).
 
-Saving often means a moment with no tabs, saved, loses them all: the profiles come back on `about:blank`. It
-happened twice on 2026-10-08, each time from another path; when it happens again, look for a third such moment first
-(which file's `urls` went empty, and when: log a stack where `TaskStore.saveTabs` gets none, as the second time was
-found):
+Saving often means a moment with no tabs, saved, loses them all: the profiles come back on `about:blank`. Two such
+moments are kept from being saved:
 
-1. **A profile still opening** (its session cookies restored before its tabs open) was saved with no tabs; Kulisa
-   quitting right after a start lost every profile's. Now one opening is saved as what it opens
-   (`ProjectProfiles.saveTabs`; test in `grid.ts`).
-2. **Tabs closing as Kulisa quits**: after the tabs were saved, each one destroyed saved its task again, one
-   fewer each time, none at last. A task in the background (shown before, then left) saved at once and lost
-   all; the shown one's save waited 30 ms and missed the exit. Now nothing is saved from then on (`quitting` in
-   `shell.taskChanged`, `app.ts`; test in `restart-tasks.ts`: the task left loaded in the background keeps its tabs).
+1. **A profile still opening** (its session cookies restored before its tabs open) is saved as what it opens, not as
+   the none it has yet (`ProjectProfiles.saveTabs`; test in `grid.ts`).
+2. **Tabs closing as Kulisa quits**: the tabs are saved first, and each one destroyed after would save its task again,
+   one fewer each time, none at last; so nothing is saved from then on (`quitting` in `shell.taskChanged`, `app.ts`;
+   test in `restart-tasks.ts`: the task left loaded in the background keeps its tabs).
+
+When profiles come back on `about:blank`, look for a third such moment first: which file's `urls` went empty, and
+when (log a stack where `TaskStore.saveTabs` gets none).
 
 What is lost cannot be recovered from Kulisa's files; Chromium's own history in the profile's folder still has the
 pages.
 
 ## Tabs unloaded
 
-A tab no one looks at loses its process after a while, as Chrome's Memory Saver discards tabs (built 2026-10-13: the
-author's RAM went with several projects open, each with several profiles, every tab of them a Chromium process whether
-anyone looked at it or not). What stays is the tab's entry in the strip: its address, title and icon, as before, nothing
+A tab no one looks at loses its process after a while, as Chrome's Memory Saver discards tabs (with several projects open, each with several profiles, every tab of them is a Chromium process whether anyone looks
+at it or not). What stays is the tab's entry in the strip: its address, title and icon, as they were, nothing
 marks it (Chrome marks none either). Looked at or used again, its page loads again at that address.
 
 - **Off screen** is a tab that is not the active tab of a pane on screen in the task shown in some window: a tab behind
-  the active one, a pane stacked behind another, every tab of a task not shown (a group in the background too).
+  the active one, a pane stacked behind another, every tab of a task not shown.
 - **Unused** is a task whose agents are neither working nor waiting for the human (their hooks: an agent waiting on a
   permission goes on in its tabs, with their state, once answered), and a profile that no automation sent a command
   for that long (every command passes the CDP proxy, `Profile.busyAt`: agents without hooks, the agent's own scripts).
-- **The time**: 5 minutes for both (`DISCARD_AFTER`, `discard.ts`; the author, 2026-10-13), so switching tasks back and
+- **The time**: 5 minutes for both (`DISCARD_AFTER`, `discard.ts`), so switching tasks back and
   forth reloads nothing; a task left to a working agent keeps every page as long as it works. A sweep every 30 s dates
   what it sees off screen and discards what has been so, and unused, for the time.
 - **Never**: a page loading, one showing a dialog, one with its DevTools open, one playing sound, a profile the human is
@@ -343,11 +339,11 @@ While any tab of a profile is on a sign-in page (or navigating to one), nothing 
 profile: Playwright disconnects, every tab's debugger is detached, the proxy refuses clients, the MCP tools answer
 that the human is signing in. When no tab is on one, the shell's connection comes back. Sign-in pages are known by
 host (`signin-pages.ts`: Microsoft, Google, GoDaddy, Okta, OneLogin, Auth0, Duo, PingOne, Salesforce; more with
-`KULISA_SIGNIN_HOSTS`). Some sign-ins (GoDaddy SSO behind Kasada) pass only so: Kasada judged the sign-in itself, with
-automation attached at that moment; once signed in, the agent reattached and worked in the session without being blocked
-(2026-10-05). `signin-pause.ts` is a deliberately temporary implementation; the author will replace it (CLAUDE.md, Rules).
+`KULISA_SIGNIN_HOSTS`). Some sign-ins (GoDaddy SSO behind Kasada) pass only so: Kasada judges the sign-in itself, with
+automation attached at that moment; once signed in, the agent reattaches and works in the session without being
+blocked. `signin-pause.ts` is a deliberately temporary implementation; the author will replace it (CLAUDE.md, Rules).
 
-Why so, and why temporary (the author, 2026-10-05): the agent's presence in a profile is not automation of a sign-in
+Why so, and why temporary: the agent's presence in a profile is not automation of a sign-in
 (Kulisa is not a bot: [README](../README.md), Why); the pause exists only because such a service refuses a sign-in with
 automation attached at that moment, and goes once it is understood how the embedded browser passes it with the agent
 attached. Not by hiding the agent from bot detection: Kulisa does not get past it.
@@ -356,15 +352,13 @@ attached. Not by hiding the agent from bot detection: Kulisa does not get past i
 
 Profiles present themselves as what they are: Kulisa on Chromium, Electron's User-Agent without its `Electron/<version>`
 (`… kulisa/<version> Chrome/<version> Safari/537.36`; `app.userAgentFallback`, `app.ts`) and Electron's brands
-(Chromium, not Google Chrome); `navigator.webdriver` stays false, as no automation port is open. Electron's word went on
-2026-10-16: Teams took a Mac's or Windows' User-Agent with it for its own retired desktop app (built on Electron) and
-showed "Classic Teams is no longer available" (`/error/eoa`) instead of its sign-in; Linux's, and a Mac's without
-it, got the sign-in (tried in a bare Electron, one change at a time).
-From 2026-10-05 to 2026-10-12 they presented as Google Chrome (`mimic-chrome.ts`: the User-Agent, `Sec-CH-UA*`
-headers, `navigator.userAgentData`), on reasons not tested one at a time: Google was said to block embedded browsers,
-and GoDaddy's Kasada passed once the sign-in pause and the mimicry were both in. Tried with the author on 2026-10-12:
-Google refused to sign in that profile ("This browser or app may not be secure") and let Electron's own Chromium in,
-with a debugger attached too; GoDaddy's sign-in passed without it (the pause is what it needs). Dropped then.
+(Chromium, not Google Chrome); `navigator.webdriver` stays false, as no automation port is open. Without Electron's
+word: Teams takes a Mac's or Windows' User-Agent with it for its own retired desktop app (built on Electron) and
+shows "Classic Teams is no longer available" (`/error/eoa`) instead of its sign-in; Linux's, and a Mac's without it,
+get the sign-in (checked in a bare Electron, one change at a time).
+Not as Google Chrome: Google refuses to sign in a profile that presents as Chrome ("This browser or app may not be
+secure") and lets Electron's own Chromium in, with a debugger attached too; GoDaddy's Kasada needs only the sign-in
+pause.
 
 ## How automation reaches the pages
 
@@ -376,9 +370,9 @@ ids (Playwright needs them) and fans out a tab's events to all clients. Playwrig
 `Emulation.setFocusEmulationEnabled`, is a capture to Chromium: the page stays visible, unthrottled and unfrozen
 behind the active tab and under another task (issue #52, tabs asleep). A tab opening a URL is shown to clients only
 once the site has answered (its page or an error page, `tab.answered`): until then Chromium holds CDP commands to it,
-and a site that never answers made Playwright's connection, and opening the task, hang. It and the MCP server listen on 127.0.0.1
+and a site that never answers would make Playwright's connection, and opening the task, hang. It and the MCP server listen on 127.0.0.1
 only and refuse requests from web pages (`local-only.ts`). Why the tools are Kulisa's own and not a bridge to
-`@playwright/mcp` (the author's question, 2026-10-08): it has no profile argument (a server per profile, its 25 tools
+`@playwright/mcp`: it has no profile argument (a server per profile, its 25 tools
 each, while profiles come and go and an agent's servers are fixed at its start); the core's rules live in the tools
 (the sign-in pause, dialogs, captions and highlights over the pane, the human's tabs); and a tool running the agent's
 own Playwright code cannot run in Electron's main process (`vm` is no boundary), while in a process of its own it is
@@ -401,7 +395,7 @@ Memory: each tab is a Chromium process (`ps` shows each); closing a profile free
 frees its own after a while ("Tabs unloaded").
 
 Disk: closing a profile, or its task (× on its tab), clears its caches (HTTP, compiled code, shaders, and the sites' Cache API, their service
-workers' copies of their bundles, which Chromium counts as storage and which was most of a copy's size, 200 MB for
+workers' copies of their bundles, which Chromium counts as storage and which are most of a copy's size, 200 MB for
 Teams: `clearCaches` in `profiles.ts`); its sign-ins and the sites' other storage stay. An open profile's HTTP cache has the limit Chromium sets from the free disk
 space (issue #113, a task manager).
 

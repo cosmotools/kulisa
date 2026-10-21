@@ -1,5 +1,5 @@
 // The right-click menu in a profile's page, as Chrome's (docs/window.md, Menus): Electron's native menu
-// (tutorial/context-menu.md, Electron 44), its rows from what is under the pointer.
+// (tutorial/context-menu.md), its rows from what is under the pointer.
 import { app, clipboard, Menu } from 'electron';
 import { log } from './log.ts';
 import type { ContextMenuParams, MenuItemConstructorOptions } from 'electron';
@@ -32,7 +32,7 @@ let shown: { menu: Menu; rows: Row[] } | null = null;
 
 function installPageMenu(shell: Shell) {
   // Not for the agent's right-click: through Playwright it is a page's event too, and a menu it opened would hold the
-  // human's pointer. Electron reports the agent's input as the human's (before-mouse-event: seen in the test), so it is
+  // human's pointer. Electron reports the agent's input as the human's (before-mouse-event; the test checks it), so it is
   // told by the CDP proxy every command of the agent passes (a profile of a task: its key): a menu within this long of
   // its right press is the agent's. Bounded, as a site with its own menu asks for none after the agent's press.
   const agentPressed = new Map<string, number>();

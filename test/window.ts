@@ -31,8 +31,8 @@ export default (test: Test) => {
     assert.ok(Math.abs(above - below) <= 1, `the rows in the middle: ${above} above, ${below} below`);
   });
   test('terminal: one xterm shows the terminal in front; another shown and back keeps its text, its scroll and the modes serializing leaves out', async ({ shell, ui, termText }) => {
-    // An xterm each cost its renderer and a WebGL context, of which Chromium keeps 16 a page: the 17th took the
-    // oldest terminal's, which then drew slower for good, silently (src/terminal/README.md; measured 2026-10-18).
+    // An xterm each cost its renderer and a WebGL context, of which Chromium keeps 16 a page: the 17th takes the
+    // oldest terminal's, which then draws slower for good, silently (src/terminal/README.md).
     const agent = [...shell.task.terminals.values()][0];
     // Opened as the island's + does, without its menu: a menu's pictures of the pages, put back late on a slow machine,
     // took the keyboard from the page the next test had put it in.
@@ -208,8 +208,7 @@ export default (test: Test) => {
     }
     assert.deepEqual(await tabs(), ['bash', 'Terminal *', 'dev server']);
     // More than fit (36 terminals): the row scrolls, its end faded; each tab its name whole; + and the microphone at its
-    // end stay in the island: the row ran past the island, cut off there with them, then its tabs shrank to no name
-    // (2026-10-15).
+    // end stay in the island, not cut off past it; its tabs do not shrink to no name.
     await ui(`(() => { const n = document.querySelector('.termtabs nav'); for (let i = 0; i < 40; i++) n.append(n.querySelector('.termtab').cloneNode(true)); })()`);
     await waitFor(() => ui(`document.querySelector('.termtabs nav').matches('.past-start, .past-end')`));
     assert.deepEqual(await ui(`(() => { const n = document.querySelector('.termtabs nav'), island = n.closest('.dv-groupview').getBoundingClientRect(), r = (q) => document.querySelector(q).getBoundingClientRect();
@@ -453,7 +452,7 @@ export default (test: Test) => {
         focused: document.activeElement.textContent }; })()`);
     assert.deepEqual(q, { title: 'Delete the thing?', lines: 3, ok: 'Delete', order: true, right: 16, focused: 'Cancel' });
     assert.equal(await ui(`getComputedStyle(document.querySelector('#ask .ok')).backgroundColor`), 'rgb(201, 79, 79)', 'red');
-    // Its buttons answer the hand: lit under the pointer, another color while pressed (they looked dead, the author, 2026-10-11).
+    // Its buttons answer the hand: lit under the pointer, another color while pressed (still, they look dead).
     const wc = shell.win.webContents, z = wc.getZoomFactor();
     const bg = (sel: string) => ui(`getComputedStyle(document.querySelector('${sel}')).backgroundColor`);
     for (const sel of ['#ask footer button:not(.ok)', '#ask .ok']) {

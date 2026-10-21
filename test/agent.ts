@@ -136,8 +136,8 @@ export default (test: Test) => {
     await waitFor(() => elon.tabs.length === 1);
   });
   test('the keyboard stays where the human put it: a tab the agent opens, its page loading, does not take it', async ({ shell, ui, call }) => {
-    // The human typing to the agent in the terminal: on macOS each tab the agent opened took the keyboard as its page
-    // loaded, and the next keys went to the site (2026-10-16; page-focus.ts).
+    // The human typing to the agent in the terminal: on macOS a tab the agent opens takes the keyboard as its page
+    // loads, and the next keys go to the site, unless kept (page-focus.ts).
     const elon = shell.profiles.get('elon-buyer');
     await focusWindow(shell.win, ui);
     await ui(`window.__term.focus()`);
@@ -354,7 +354,7 @@ export default (test: Test) => {
     assert.deepEqual([long.value.length, long.keys], [400, 1], 'filled at once');
     const most = await typed('y'.repeat(300));
     assert.equal(most.keys, 1 + 300);
-    // Faster for a longer text: 40 ms a key would be 12 s. Not 5 s: GitHub's macOS runner takes 4.5 to 6 (2026-10-19).
+    // Faster for a longer text: 40 ms a key would be 12 s. Not 5 s: a loaded machine takes 4.5 to 6.
     assert.ok(most.ms < 9000, `300 keys in ${most.ms} ms`);
   });
   test('agent: keys, hover, select, files, waiting, evaluate, back and forward; dialogs answered as asked, the human\'s left in the pane', async ({ shell, ui, call }) => {
@@ -474,8 +474,8 @@ export default (test: Test) => {
     await waitFor(() => ui(`!${strip}.querySelector('.tab.opening')`));
     await waitFor(() => ui(`(() => { const a = document.querySelector('.pane[data-profile="elon-buyer"] .addr'); return document.activeElement === a && a.value === ''; })()`));
     // The keys go there, not to the new tab's page (a native view that would take the focus as it loads). Where the
-    // keys go inside the window; when another app on the desktop is active (it took the focus while the tests ran:
-    // seen 2 times in 15), no view has them, and Kulisa rightly leaves it so.
+    // keys go inside the window; when another app on the desktop is active (it may take the focus while the tests
+    // run), no view has them, and Kulisa rightly leaves it so.
     const page = elon.get(elon.active).wc;
     const keys = () => (!shell.win.isFocused() ? 'another app' : shell.win.webContents.isFocused() ? 'window' : page.isFocused() ? 'page' : 'none');
     await elon.get(elon.active).ready; await sleep(500); // nothing to wait for: that the page does not take them
@@ -492,7 +492,7 @@ export default (test: Test) => {
     await ui(`${strip}.querySelector('.tab:last-of-type .x').click()`);
     await waitFor(() => elon.tabs.length === n);
     // With reduced motion (the OS's setting, emulated) it does not grow, and is not left growing: no animation ends
-    // there, and the tab stayed .opening (GitHub's macOS runner, 2026-10-16).
+    // there, and the tab would stay .opening.
     const dbg = shell.win.webContents.debugger;
     dbg.attach();
     try {
@@ -520,7 +520,7 @@ export default (test: Test) => {
         group: p.closest('.dv-groupview').scrollWidth <= p.closest('.dv-groupview').clientWidth }; })()`);
     assert.deepEqual(fit, { pane: true, tabs: true, add: true, more: true, group: true });
     // The active one (the last opened) in sight; every one its icon and × (not the active one alone, as Chrome's: the
-    // author, 2026-10-15).
+    // author's choice).
     const strip = await ui(`(() => { const s = document.querySelector('${pane} .tabs'), r = s.getBoundingClientRect(), a = s.querySelector('.tab.active').getBoundingClientRect();
       const other = s.querySelector('.tab:not(.active)'), shown = (e) => getComputedStyle(e).display !== 'none';
       return { activeInSight: a.left >= r.left && a.right <= s.querySelector('.add').getBoundingClientRect().left,
@@ -532,8 +532,8 @@ export default (test: Test) => {
     assert.deepEqual(strip, { activeInSight: true, nothingUnderAdd: true, activeX: true, otherIcon: true, otherTitle: false, otherX: true });
     assert.deepEqual(await pageBox(ui, 'elon-buyer'), before, 'the page keeps its place and size');
     // Past that the strip scrolls (lib/strip.ts): the edge with tabs past it fades; a mouse's wheel scrolls it; a tab
-    // not shown that changes (its page loads, its title) leaves it where the human scrolled it: on every update it went
-    // back to the active one, 2026-10-15.
+    // not shown that changes (its page loads, its title) leaves it where the human scrolled it, not back at the active
+    // one.
     const s = `document.querySelector('${pane} .strip')`;
     const at = () => ui(`(() => { const e = ${s}; return [Math.round(e.scrollLeft), e.scrollWidth - e.clientWidth, ['past-start', 'past-end'].filter((c) => e.classList.contains(c)).join(' ')]; })()`);
     await waitFor(async () => { const [left, max, faded] = await at(); return max > 0 && left === max && faded === 'past-start'; }); // scrolled to the active one at the end, the start faded
@@ -556,7 +556,7 @@ export default (test: Test) => {
     await ui(`[...document.querySelectorAll('.pane')][0].querySelector('.back').click()`);
     await waitFor(async () => JSON.stringify(await buttons()) === '[false,false]');
     // The buttons change as the back navigation starts; the next test reads the address, so wait until it has
-    // landed, in the tab and in the pane (on a slow runner the pane showed n=2 while the tab was on n=1).
+    // landed, in the tab and in the pane (on a slow machine the pane may show n=2 while the tab is on n=1).
     await waitFor(async () => shell.profiles.get('sam-seller').get().url.endsWith('n=1')
       && (await ui(`document.querySelector('.pane[data-profile="sam-seller"] .addr').value`)).endsWith('n=1'));
   });
@@ -605,9 +605,9 @@ export default (test: Test) => {
     await waitFor(() => sam.tabs.length === 1);
   });
 
-  // Not presenting as Google Chrome: Google refused to sign in a browser that did and was not (docs/profiles.md, What
-  // sites see), and let Electron's own Chromium in. Without Electron's word: Teams took a Mac's or Windows' Electron
-  // for its own retired app and showed "Classic Teams is no longer available" (2026-10-16).
+  // Not presenting as Google Chrome: Google refuses to sign in a browser that does and is not (docs/profiles.md, What
+  // sites see), and lets Electron's own Chromium in. Without Electron's word: Teams takes a Mac's or Windows' Electron
+  // for its own retired app and shows "Classic Teams is no longer available".
   test('profiles present themselves as what they are, Kulisa on Chromium, in pages and popups alike', async ({ shell }) => {
     const elon = shell.profiles.get('elon-buyer');
     const page = await elon.page();

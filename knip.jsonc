@@ -7,7 +7,7 @@
     // The windows' preload, loaded by its path (window.js, master.js).
     "src/preload/index.cjs",
     // The master window's and Settings' pages, vite.config.mts's other inputs: knip finds them there on Linux, not on
-    // Windows (the CI's first runs, 2026-10-12). On Linux knip hints they are redundant: keep them, Windows needs them.
+    // Windows. On Linux knip hints they are redundant: keep them, Windows needs them.
     "src/renderer/master.ts",
     "src/renderer/settings.ts",
     // The e2e groups, which run.js requires by name (start.js → run.js --files=…).

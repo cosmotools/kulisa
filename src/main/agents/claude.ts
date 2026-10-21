@@ -10,15 +10,15 @@ import { readJSON, headLines, rewriteLines, writeChanged } from './files.ts';
 import { KULISA_ASKS, hookCommand, hookSeconds } from './agent.ts';
 import type { Agent, Hook, Where, ForgetContext } from './agent.ts';
 
-const CLAUDE_KULISA = 'mcp__plugin_kulisa_kulisa'; // the plugin's server, as Claude Code names its tools (2.1.296)
+const CLAUDE_KULISA = 'mcp__plugin_kulisa_kulisa'; // the plugin's server, as Claude Code names its tools
 
-// The languages Claude Code's dictation understands (as of 2.1.294).
+// The languages Claude Code's dictation understands.
 const CLAUDE_LANGUAGES = ['en', 'es', 'fr', 'ja', 'de', 'pt', 'it', 'ko', 'hi', 'id', 'ru', 'pl', 'tr', 'nl', 'uk', 'el', 'cs', 'da', 'sv', 'no'];
 
-// Its hooks (checked with 2.1.293, 2026-10-08; docs/tasks.md, "Choosing the agent"): waiting when it asks for a
+// Its hooks (docs/tasks.md, "Choosing the agent"): waiting when it asks for a
 // permission or a question (Notification, not its idle_prompt, sent a minute after an answer: done says that already)
-// or a turn ends with an API error (StopFailure: a limit, a sign-in). Given in --settings with the plugin (checked with
-// 2.1.296: both are taken), so they run in Kulisa's sessions only.
+// or a turn ends with an API error (StopFailure: a limit, a sign-in). Given in --settings with the plugin (both are
+// taken), so they run in Kulisa's sessions only.
 const CLAUDE_HOOKS: Hook[] = [
   { on: 'SessionStart', sends: 'session-start' },
   { on: 'UserPromptSubmit', sends: 'prompt' },
@@ -51,25 +51,25 @@ const claude: Agent = {
     const settings = JSON.stringify({
       permissions: { allow: [CLAUDE_KULISA], ask: KULISA_ASKS.map((t) => `${CLAUDE_KULISA}__${t}`) },
       hooks: claudeHooks(),
-      // voiceEnabled too: 2.1.302 took dictation for off without it (its /voice writes both; the object alone, as
-      // before, left the space typing spaces, 2026-10-17).
+      // voiceEnabled too: without it dictation is taken for off (its /voice writes both; the object alone leaves the
+      // space typing spaces).
       voiceEnabled: true, voice: { enabled: true, mode: 'hold', autoSubmit: false } }, null, 2);
     const file = account && path.join(account, 'kulisa-settings.json');
     if (file) writeChanged(file, `${settings}\n`);
     return ['--plugin-dir', path.join(packages, 'claude-plugin'), '--settings', file || settings];
   },
   hooks: CLAUDE_HOOKS,
-  // Its personal skills: <CLAUDE_CONFIG_DIR>/skills/<name>/SKILL.md (checked with 2.1.296).
+  // Its personal skills: <CLAUDE_CONFIG_DIR>/skills/<name>/SKILL.md.
   skills: 'skills',
-  // Its own commands for its sign-in (checked with 2.1.296): `auth login` as its /login, `auth status --json` says the
+  // Its own commands for its sign-in: `auth login` as its /login, `auth status --json` says the
   // email, `auth logout` also clears it from the macOS Keychain.
   config: { env: 'CLAUDE_CONFIG_DIR', home: () => process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude'),
     login: () => ['auth', 'login'], status: ['auth', 'status', '--json'],
     email: (out) => { try { return JSON.parse(out).email || null; } catch { return null; } }, logout: ['auth', 'logout'] },
   resume: ({ sessionId, transcript }) => sessionId && transcript && fs.existsSync(transcript) && ['--resume', sessionId],
-  // The task's other repositories, with their CLAUDE.md read as its own folder's (checked with 2.1.296).
+  // The task's other repositories, with their CLAUDE.md read as its own folder's.
   dirs: (folders) => ({ args: folders.flatMap((f) => ['--add-dir', f]), env: { CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD: '1' } }),
-  // It asks then: "Add directory to workspace", 1. Yes, for this session (checked with 2.1.296).
+  // It asks then: "Add directory to workspace", 1. Yes, for this session.
   addDir: { command: (folder) => `/add-dir ${folder}`, confirm: 'Add directory to workspace' },
   trust: {
     has: (where, folder) => { const f = claudeConfigWhere(where); return !!f && readJSON(f)?.projects?.[folder]?.hasTrustDialogAccepted === true; },
@@ -77,17 +77,17 @@ const claude: Agent = {
   },
   forget: (ctx) => forgetClaude(ctx),
   conversation: claudeConversation,
-  // `claude [prompt]`: its interactive mode, the prompt sent (its --help, 2.1.296).
+  // `claude [prompt]`: its interactive mode, the prompt sent (its --help).
   prompt: (text) => [text],
   // Its voice mode (needs a Claude.ai account), on for Kulisa's sessions only (not the user's settings): space held
   // (its repeats coming) records, the text put where the cursor is, also after text already there, and left in the
-  // input for the human to send. Its tap mode (a tap starts, another stops) was tried first: it records only with
-  // the input empty (checked in 2.1.294's code), so a second sentence could not be added.
+  // input for the human to send. Not its tap mode (a tap starts, another stops): it records only with the input
+  // empty (its code), so a second sentence cannot be added.
   voice: { key: ' ', repeat: 33 }, // a keyboard's repeat rate; Claude Code takes it for held after a few, and let go after a pause
   // Its `language` setting: the language it dictates in and answers in (and may write comments in: the project's
   // CLAUDE.md decides that). Read again at each recording, and the settings file is read again when it changes, so a
-  // language set holds at once in every session of the account (checked with 2.1.294). Kulisa's instruction to answer
-  // in another language than it lost to it (2.1.296, 2026-10-13): one setting for both.
+  // language set holds at once in every session of the account. Kulisa's instruction to answer
+  // in another language loses to it: one setting for both.
   language: { languages: CLAUDE_LANGUAGES, set: (dir, code) => setClaudeLanguage(path.join(dir, 'settings.json'), code) },
 };
 
@@ -191,7 +191,7 @@ function call(name: string, input: Record<string, unknown> = {}) {
   return `${name} ${JSON.stringify(input)}`;
 }
 
-// Claude Code's transcript (checked with 2.1.296): a JSON record per line; `user` and `assistant` records with
+// Claude Code's transcript: a JSON record per line; `user` and `assistant` records with
 // `message.content`, a string or blocks; a tool call's `id` is its result's `tool_use_id`. What the agent remembered
 // in the task's folder is next to it (projects/<folder>/memory/).
 function claudeConversation(transcript: string): Conversation {

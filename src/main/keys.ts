@@ -1,8 +1,8 @@
 // Kulisa's keyboard shortcuts: one table of what each key does, and which key an input event is. The main process
 // takes every key before the page it was typed in (before-input-event on the window and on every tab: shortcuts.ts), so a
 // site or the terminal never gets a key that is Kulisa's, and a key that is not Kulisa's is left to them, untouched.
-// Electron's application menu was tried for it and left (docs/window.md, Keys): on Linux it gets a key only after the
-// page, and not at all when the page handled it, as xterm and many web apps do.
+// Not Electron's application menu (docs/window.md, Keys): on Linux it gets a key only after the page, and not at all
+// when the page handled it, as xterm and many web apps do.
 //
 // Who gets a key depends on where the keyboard focus is (zone):
 //   page      a profile's page, or its pane (address bar, toolbar): Chrome's keys act on that pane, as in Chrome

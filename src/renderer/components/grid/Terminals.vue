@@ -68,7 +68,7 @@ watch(() => [store.terminals.task, store.terminals.front] as const, ([task, fron
 watch([folded, strip, alone], () => fold(strip.value), { flush: 'post' });
 onBeforeUnmount(() => { for (const s of subs) s.dispose(); if (island.el.parentElement === root.value) island.el.remove(); });
 
-// The buttons in an empty grid, each a Tab stop (Tab to the next, Enter opens it; the author, 2026-10-12): the first,
+// The buttons in an empty grid, each a Tab stop (Tab to the next, Enter opens it): the first,
 // the project's default agent, gets the keyboard when the keyboard was in the terminal just closed or nowhere (not
 // taken from a field or a dialog). No keys on them: Ctrl+` opens the task's agent, which the window does not show.
 const launch = ref<HTMLElement>();
@@ -121,6 +121,6 @@ const menu = (e: MouseEvent) => {
 .termpanel { height: 100%; &[hidden] { display: none; } }
 .term { height: 100%; padding: 2px 4px 2px 8px; &[hidden] { display: none; } }
 /* The rows that fit, in the middle: what is left under a whole row (the panel's height is any) shared above and
-   below, so no edge gets a row's height of it and a pixel more or less never costs a row (2026-10-08). */
+   below, so no edge gets a row's height of it and a pixel more or less never costs a row. */
 .xterm-host { height: 100%; display: flex; flex-direction: column; justify-content: center; }
 </style>

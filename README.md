@@ -126,7 +126,7 @@ At the root, the tools' configs: `forge.config.ts` (packaging), `vite.config.mts
 `eslint.config.ts`, `knip.jsonc`, `.dependency-cruiser.ts` (the layers). Each part's files, with what each does, are
 in its document, next to how the part works: in "The code", its last section, of docs/profiles.md, docs/tasks.md,
 docs/window.md and docs/transcripts.md; the UI's at the top of docs/ui.md, the tests' in docs/testing.md. The
-experiments behind the design (E1–E8, 2026-10-05) are in git history at commit `9fe8661`.
+experiments behind the design (E1–E8) are in git history at commit `9fe8661`.
 
 ## License
 

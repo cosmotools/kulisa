@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Every project with its tasks, a column each (tasks.md, Projects; the author, 2026-10-17: all in sight, any task one
+// Every project with its tasks, a column each (tasks.md, Projects: all in sight, any task one
 // click away): a new tab's (the bar's +, as a browser's) and the empty window's. The project worked in last first:
 // its open task, else the one closed last. New Project… after them. Esc leaves a new tab.
 import { computed, onMounted, ref } from 'vue';

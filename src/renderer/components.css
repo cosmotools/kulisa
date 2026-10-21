@@ -1,10 +1,10 @@
 /* Components: the parts the window is built of, each defined once (docs/ui.md). A part's own <style> places them and
    lays it out; it does not make its own buttons, icons, rows or dialogs. */
 *, *::before, *::after { box-sizing: border-box; }
-/* hidden hides, whatever display a component sets (its rule beats the browser's [hidden]: the title bar's gear stayed
-   on screen at the first start, 2026-10-17); until-found is the browser's own */
+/* hidden hides, whatever display a component sets (a component's display beats the browser's [hidden]);
+   until-found is the browser's own */
 [hidden]:not([hidden="until-found"]) { display: none !important; }
-/* Scrollbars: one for every part (the author, 2026-10-15: the OS's, with arrows, in menus, Settings and dialogs), a
+/* Scrollbars: one for every part (not the OS's, with arrows, in menus, Settings and dialogs), a
    rounded thumb on no track, as JetBrains'. Chromium's own pseudo-elements: the standard scrollbar-color and
    scrollbar-width (which turn them off) left arrows at the ends. Where a part has none (a tabs' strip), its own
    scrollbar-width: none says so. */
@@ -92,7 +92,7 @@ button.danger { background: var(--danger); border-color: var(--danger); color: v
   mask-image: linear-gradient(to right, transparent, #000 var(--fade-start, 0px), #000 calc(100% - var(--fade-end, 0px)), transparent);
   &.past-start { --fade-start: var(--fade); } &.past-end { --fade-end: var(--fade); } }
 /* A tab of a strip on an island, as a browser's (TaskTab.vue): the agent's .state, the .name, × at the end
-   (button.close.icon.quiet.small), always shown, as Chrome's (the author, 2026-10-12). A
+   (button.close.icon.quiet.small), always shown, as Chrome's (the author's choice). A
    step taller than a button and never narrow: a target for a quick throw of the mouse. Lit under the pointer;
    .active: the shown one, in the panels' color on the dark island. */
 .striptab { display: flex; align-items: center; gap: 6px; flex: 0 1 auto; height: var(--tab); min-width: 64px;
@@ -155,7 +155,7 @@ svg:has(> use) { width: 16px; height: 16px; flex: none; fill: none; stroke: curr
    others acting on it), then its columns' names (.head), then its rows, Reka's Listbox items: each value in a cell of
    its column (.cell: the .label first, with its icon or picture; its facts muted, small; a state at the end, .end: kbd,
    .warn when it needs the human), cut with … (the whole in its title), the columns the same in every row and the head
-   (the author, 2026-10-16: values one after another, each row its own rhythm, read as chaos). The list sets its
+   (values one after another, each row in its own rhythm, read as chaos). The list sets its
    columns (--cols: e.g. fit-content(45%) minmax(0, 1fr) auto); the head and the rows take them (subgrid). The selected
    row lit (--chosen while the list has the keyboard, else --chosen-idle); Delete removes it, a right-click has its
    actions. .empty when it has none. */
@@ -232,8 +232,8 @@ svg:has(> use) { width: 16px; height: 16px; flex: none; fill: none; stroke: curr
 /* Menus (ButtonMenu.vue, RightClickMenu.vue, PointMenu.vue on Reka's menus): under their button (or its end edge at
    the button's) or at the pointer, flipped to stay in the window; shown once the pages under it are pictures (.ready).
    Rows are .item; a menu's own rows are in their files. One longer than the window has, as far as to its edge (Reka's
-   room for it), scrolls: the bar's + with thirty closed tasks ran past the window's edge, its first rows or its last
-   out of reach (2026-10-15). */
+   room for it), scrolls: otherwise a long one (the bar's + with thirty closed tasks) runs past the window's edge, its
+   first rows or its last out of reach. */
 .menu {
   z-index: 30; min-width: 260px; max-width: 420px; max-height: var(--reka-popper-available-height); overflow-y: auto; padding: 6px; border: 1px solid var(--line); border-radius: var(--island-radius);
   background: var(--island); color: var(--text); box-shadow: 0 8px 24px var(--shadow); outline: none;
@@ -246,7 +246,7 @@ svg:has(> use) { width: 16px; height: 16px; flex: none; fill: none; stroke: curr
   .check { margin-inline-start: auto; color: var(--accent); }
 }
 
-/* Details' trigger (Reka's Collapsible). Its own name: as .more it took a pane's ⋮ (More) too, its height gone and its
-   dots turned, lying until its menu opened (2026-10-15). */
+/* Details' trigger (Reka's Collapsible). Its own name: as .more it would take a pane's ⋮ (More) too, its height gone and
+   its dots turned. */
 button.disclose { display: flex; align-items: center; gap: 4px; height: auto; padding: 0; border: none; background: none; color: var(--text-muted);
   &:hover { color: var(--text); } svg { rotate: -90deg; } &[data-state="open"] svg { rotate: none; } }

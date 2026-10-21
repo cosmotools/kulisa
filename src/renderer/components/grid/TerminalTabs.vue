@@ -59,10 +59,10 @@ useStrip(strip, () => store.terminals.front);
 .termtabs { display: flex; align-items: center; gap: 4px; height: 100%; min-width: 0; padding-inline: calc(var(--gap) - 2px);
   &[hidden] { display: none; }
   nav { display: flex; align-items: center; gap: 2px; min-width: 0; } /* .tabstrip: more tabs than fit scroll */
-  .termtab { flex: none; padding-inline-start: 4px; max-width: 220px; } /* its name whole, the row scrolls: shrunk to 64 px, 36 tabs showed no name (the author, 2026-10-15, for the tasks' bar too) */
+  .termtab { flex: none; padding-inline-start: 4px; max-width: 220px; } /* its name whole, the row scrolls: shrunk to 64 px, many tabs show no name (the tasks' bar too) */
   .shellmark { margin-inline: 6px; color: var(--text-dim); } }
 #dock .dv-groupview:has(.termtabs) .dv-tabs-and-actions-container { background: var(--toolbar); }
-/* The row is as wide as the island, not as its tabs: dockview's tab grows to its content (min-width: auto), and the row
-   of 36 terminals ran past the island, cut off there, its + and microphone with it (2026-10-15). */
+/* The row is as wide as the island, not as its tabs: dockview's tab grows to its content (min-width: auto), and a row
+   of many terminals would run past the island, cut off there, its + and microphone with it. */
 #dock .dv-tab:has(.termtabs) { min-width: 0; flex-shrink: 1; }
 </style>

@@ -63,7 +63,7 @@ test('store: a write cut short leaves the file as it was', async () => {
   assert.deepEqual(task.profiles().map((p) => p.id), ['sam']);
   assert.deepEqual(fs.readdirSync(task.dir).filter((f) => f.endsWith('.tmp')), [], 'no half-written file left');
 });
-test("store: a profile's tabs come back with the one in front; the list saved before 2026-10-19 is not read", () => {
+test("store: a profile's tabs come back with the one in front; a bare list of addresses, another format, is not read", () => {
   const store = new Store(path.join(root, 'tabs-data'));
   const task = store.taskOf(store.projectFor('/work/shop'), 1);
   assert.deepEqual(task.tabs('Profile 1'), { urls: [], active: 0 }, 'none saved');
@@ -172,7 +172,7 @@ test('project profiles: a task has its own copy of each, made at its first open;
   assert.match(a.list.setAvatar('bob', 'dragon').error, /no picture/);
   assert.match(a.list.describe('bob', 'x'.repeat(501)).error, /at most 500/);
   // Tabs saved while a profile is still opening (its session cookies restored before its tabs): the addresses it is
-  // opening, not none. Kulisa quit right then lost every profile's tabs (2026-10-08).
+  // opening, not none: Kulisa quitting right then would lose every profile's tabs.
   const one = profileStore(path.join(root, 'pp-slow'), 'p');
   one.create('p', { name: 'Dan', avatar: 'fox' });
   const tabsSaved: Record<string, SavedTabs> = {};

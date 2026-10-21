@@ -160,8 +160,8 @@ Object.assign(window, { __layoutPreset: applyPreset }); // for tests
 kulisa.on('grid:closing', ({ dir, task, pics }) => {
   closeLayers(); // its dialogs and menus are for the grid that goes
   // A freeze under way (a drag) no longer matters; now, not when the grid is taken down (the slide's update, a frame or
-  // more later): a menu opened in between, for the next grid, lost its pictures, and the slide's end showed the pages
-  // over it (2026-10-16).
+  // more later): a menu opened in between, for the next grid, would lose its pictures, and the slide's end show the
+  // pages over it.
   forgetFrozen();
   // Its last change saved now, not dropped: a pane closed (its profile deleted) just before the task was left stayed in
   // its saved grid, and a saved grid naming a profile no longer there is not restored at all (restoreGrid).

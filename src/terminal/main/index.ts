@@ -26,7 +26,7 @@ interface Term { pty: Pty | null; size: Size | null; firstSize: Promise<void>; s
 // The terminal's size as the window measures it, per terminal and per task (its island's, which all its terminals
 // share: one is shown at a time). An agent starts only once its size is known: Claude Code draws its prompt for the
 // size it starts with and does not fully redraw on the first resize. However long the window takes to lay the island
-// out: a default size after 5 s (120×30, until 2026-10-15) is what GitHub's runner got, its window slower than that.
+// out: a loaded machine lays it out slower than any fixed wait would allow for.
 // The size comes: a task loads its terminals when it is first shown (docs/tasks.md). Listening from require time, so
 // a size sent while the window loads is not missed.
 const terms = new Map<string, Term>(); // key -> { pty, size, sized (resolves the first size) }
@@ -61,7 +61,7 @@ const userShell = () => (process.platform === 'win32' ? null
 // nvm, mise …), which Kulisa's own environment (where Kulisa was started) is not. When the agent exits, the shell
 // stays. shell: { command, args } instead of the user's, or false to start the agent directly (as on Windows).
 // pinned: variables of env the shell's startup must not change, typed before the command too (`VAR=… cmd`: bash, zsh,
-// fish 3.1+): the task's account, which a project's .envrc setting CLAUDE_CONFIG_DIR replaced (2026-10-12).
+// fish 3.1+): the task's account, which a project's .envrc setting CLAUDE_CONFIG_DIR would replace.
 // line: a command line typed into the shell as it is (a shell's; none: the shell alone), on Windows into cmd. size:
 // start at it rather than wait for the window's; sizeOf: or at that key's (the task's island: a terminal behind another
 // tab has none of its own), whichever comes first. screen: its last lines kept for the agent to read (a shell's). key: the terminal's; the window sends its input and size, and gets

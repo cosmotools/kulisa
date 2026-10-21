@@ -11,7 +11,7 @@ const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kulisa-worktrees-'));
 after(() => fs.rmSync(dir, { recursive: true, force: true }));
 
 // macOS names its temporary folders through a symlink (/var is /private/var), and a human's folder may be one too:
-// git answers with the real path, and a task got the project's own folder for its copy (2026-10-16).
+// git answers with the real path, and a task must not get the project's own folder for its copy.
 test('a repository named through a symlink: its top as the folder is named, the folder at its top', async () => {
   const real = path.join(dir, 'real'), link = path.join(dir, 'link');
   fs.mkdirSync(path.join(real, 'web'), { recursive: true });

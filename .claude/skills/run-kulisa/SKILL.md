@@ -25,10 +25,10 @@ After each change, restart it without asking, so the author sees it (the author 
    (except `CLAUDE_CONFIG_DIR`), or the `claude` inside would take itself for a child session.
    - Linux: with the Bash tool's `run_in_background`: the app keeps running after the turn. A few seconds later, read
      the background output: `[kulisa] MCP server: …` means it is up. Never into a pipe that ends (`| head -20`,
-     `| grep -m1`): its output then has no reader, and until 2026-10-18 that hung the app (docs/window.md, The log).
+     `| grep -m1`): its output then has no reader (docs/window.md, The log).
    - macOS: in the foreground. It starts the app through LaunchServices (`open`), so the app is its own and not the
      terminal's (the screen recording permission, `KULISA_SHOT`, is the responsible app's: `docs/testing.md`, "On
-     macOS"), and without the terminal's variables either (`TERM_PROGRAM` made zsh in its terminals load Terminal.app's
+     macOS"), and without the terminal's variables either (`TERM_PROGRAM` makes zsh in its terminals load Terminal.app's
      own startup). It returns once `[kulisa] MCP server: …` is in the app's output, `dist/kulisa.log` of the checkout.
 
 Do not start a second one while one runs: stop first. `kulisa.sh start` refuses then and names the checkout it runs

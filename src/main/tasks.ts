@@ -188,7 +188,7 @@ class Task {
     return copies ? this.project.repos().filter((r) => this.project.gits.get(r) === 'ok' && !copies.some((c) => c.repo === r)) : [];
   }
   // Another of the project's repositories added to it, when its work turns out to need it (the human's Add Repository
-  // on its tab, the agent's task_add_repository once the human agreed; the author, 2026-10-13): a copy on its branch,
+  // on its tab, the agent's task_add_repository once the human agreed): a copy on its branch,
   // given to its running agents (giveDirs); at their next start they get it as the others (dirs). The copy's
   // { folder, branch }.
   async addRepository(repo: string): Promise<Result<{ folder: string; branch: string }>> {
@@ -204,7 +204,7 @@ class Task {
     return { folder: c.folder, branch: c.branch };
   }
   // One of them taken out again (the human's Remove Repository, the agent's task_remove_repository once the human
-  // agreed; the author, 2026-10-13), by its repository's folder or name, or its copy's folder: asked first when it holds
+  // agreed), by its repository's folder or name, or its copy's folder: asked first when it holds
   // work not pushed (askRemoveCopy). Not its own folder, where its agents work: that goes with the task. Its running
   // agents told; one not told yet of it being added is told nothing. The copy's folder.
   async removeRepository(repo: string): Promise<Result<{ folder: string }>> {
@@ -222,10 +222,10 @@ class Task {
     this.window?.sendProjects();
     return { folder: c.folder };
   }
-  // Copies added to the task, sent to a running agent by Kulisa as the human would type them (the author, 2026-10-13:
-  // the human sending a typed /add-dir was a step easily missed). Never while it waits for the human: Enter answered
-  // Claude Code's permission question with Yes, the pasted line lost (2.1.296). Claude Code's /add-dir goes into a
-  // turn too: it runs at once, its question over the turn, which goes on (2.1.296); others get a line saying so once
+  // Copies added to the task, sent to a running agent by Kulisa as the human would type them (a
+  // typed /add-dir is a step easily missed). Never while it waits for the human: Enter answered
+  // Claude Code's permission question with Yes, the pasted line lost. Claude Code's /add-dir goes into a
+  // turn too: it runs at once, its question over the turn, which goes on; others get a line saying so once
   // the turn is over (agents/, addDir). A copy removed: a line for every agent, once its turn is over (no agent has a
   // command to drop a folder). A draft the human is typing there then gets the line too.
   async giveDirs(t: TaskTerminal) {

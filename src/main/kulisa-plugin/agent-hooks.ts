@@ -20,10 +20,10 @@ const ONLY_BROWSER = 'Kulisa profiles are the only browser here: drive them with
   'when their tools have the same names: that browser is not the one the human sees, and it is not signed in.';
 
 // An unnamed task, told at the human's every prompt (and in the MCP tools' results: mcp-server.ts, for an agent whose
-// hooks do not run) until it is named. Told only at session start, before the agent knew what the task was about, it
-// was forgotten: 7 of the author's 8 tasks stayed task-<n> (2026-10-12). The agent names it itself: asking the human
-// would stop their work for a name (the author). Silently: Kulisa is to be invisible in the agent's answers, which
-// said "I'll name the task once it is clear" to a "how are you" (the author, 2026-10-12).
+// hooks do not run) until it is named. Told only at session start, before the agent knows what the task is about, it
+// is forgotten. The agent names it itself: asking the human
+// would stop their work for a name. Silently: Kulisa is to be invisible in the agent's answers (no "I'll name the
+// task once it is clear" to a "how are you").
 const unnamed = (task: Task) => `This Kulisa task has no name yet (${task.name}). When the human's request says what the ` +
   'task is about, name it with task_rename (checkout-redesign) before anything else; until then do nothing about it. ' +
   'Silently: never ask the human for a name or mention naming it.';

@@ -52,7 +52,7 @@ function go() { void act('tab:navigate', { profile: id(), tab: tab(), url: addr.
 // and Enter chooses. A tab opened in a strip already shown grows in from the left, as Chrome's (.tab.opening); the
 // active tab in sight, as Chrome scrolls to it (lib/strip.ts, with the wheel and the faded edges). Tabs are kept by
 // id: an element stays as its tab does. With reduced motion it does not grow, so no animation ends: brought into sight
-// at once (it stayed .opening, and out of sight, 2026-10-16).
+// at once (else it stays .opening, and out of sight).
 const opening = reactive(new Set<string>());
 let known: Set<string> | null = null;
 watch(() => profile.value?.tabs.map((t) => t.id) || [], (ids) => {
@@ -174,7 +174,7 @@ onBeforeUnmount(() => { observer.disconnect(); if (panes.get(key) === handle) pa
   .add { align-self: center; margin-inline-start: 4px; }
 }
 /* Many tabs shrink as Chrome's, to their icon and × (64 px): every tab keeps its ×, not the active one alone as
-   Chrome's (the author, 2026-10-15, as in the tasks' bar); past that the strip scrolls (.tabstrip). */
+   Chrome's (the author's choice, as in the tasks' bar); past that the strip scrolls (.tabstrip). */
 .tab { position: relative; display: flex; align-items: center; gap: 6px; width: 220px; flex: 0 1 auto; min-width: 64px; /* a width, not a basis: size containment leaves it no other */ height: 32px; padding: 0 8px 0 12px;
   container-type: inline-size;
   border-radius: var(--tab-radius) var(--tab-radius) 0 0; color: var(--text-dim);
@@ -193,8 +193,8 @@ onBeforeUnmount(() => { observer.disconnect(); if (panes.get(key) === handle) pa
 }
 @keyframes tab-open { from { width: 0; min-width: 0; padding-inline: 0; } }
 @container (max-width: 80px) { .tab .title { display: none; } }
-/* A narrow pane gives up Back and Forward, then Reload (into ⋮; their keys stay), never Pick or ⋮: in order, the
-   buttons at the end went out of reach first (2026-10-16). The widths are the pane's less the bar's padding. */
+/* A narrow pane gives up Back and Forward, then Reload (into ⋮; their keys stay), never Pick or ⋮: in order, else the
+   buttons at the end go out of reach first. The widths are the pane's less the bar's padding. */
 .bar { display: flex; align-items: center; gap: 2px; padding: 4px var(--gap); flex: none; container: bar / inline-size;
   /* the site's zoom, when not 100% */
   .tool { padding: 0 8px; background: none; color: var(--text-dim); &:hover { background: var(--hover); } }

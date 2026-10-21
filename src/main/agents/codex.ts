@@ -10,7 +10,7 @@ import { headLines, rewriteLines } from './files.ts';
 import { KULISA_ASKS, hookCommand, hookSeconds } from './agent.ts';
 import type { Agent, Hook, Where } from './agent.ts';
 
-// Codex's hooks (its docs, learn.chatgpt.com/docs/hooks; tried in a session with 0.160.1), as config overrides. Codex
+// Codex's hooks (its docs, learn.chatgpt.com/docs/hooks), as config overrides. Codex
 // runs no hook the human has not trusted (/hooks), keeping the trust under one key per event for every task, and
 // Kulisa never passes --dangerously-bypass-hook-trust (it would run any project's hooks unreviewed too): a hook changed
 // here is asked about once again. Its MCP tools' questions come as PermissionRequest too.
@@ -31,37 +31,37 @@ const codex: Agent = {
   needs: 'A ChatGPT plan (Plus, Pro, Business, Enterprise) or an OpenAI API key',
   install: { posix: 'curl -fsSL https://chatgpt.com/codex/install.sh | sh', win32: 'irm https://chatgpt.com/codex/install.ps1 | iex' },
   // Kulisa's MCP server and hooks as config overrides (TOML values), not written into the user's ~/.codex/config.toml;
-  // its tools approved but KULISA_ASKS (its MCP docs, 0.160.1: `approve` runs a tool without a question).
+  // its tools approved but KULISA_ASKS (its MCP docs: `approve` runs a tool without a question).
   args: ({ env }) => ['-c', `mcp_servers.kulisa.url="${env.KULISA_MCP_URL}"`, '-c', `hooks=${codexHooks()}`,
     '-c', 'mcp_servers.kulisa.default_tools_approval_mode="approve"',
     ...KULISA_ASKS.flatMap((t) => ['-c', `mcp_servers.kulisa.tools.${t}.approval_mode="prompt"`])],
   hooks: CODEX_HOOKS,
-  // A project's own config of it (repository-scoped, 0.160.1): a task's copy gets it when git ignores it.
+  // A project's own config of it (repository-scoped): a task's copy gets it when git ignores it.
   localFiles: ['/.codex/config.toml'],
-  // Its skills: <CODEX_HOME>/skills/<name>/SKILL.md, the same format as Claude Code's (0.160.1).
+  // Its skills: <CODEX_HOME>/skills/<name>/SKILL.md, the same format as Claude Code's.
   skills: 'skills',
   lacks: {
     addDir: 'Codex 0.160.1 has no command to add a folder in a session (only --add-dir at its start): told in a line instead, its changes there asking for approval until its next start',
     voice: 'Codex 0.160.1 has no dictation of its own, only a realtime voice conversation',
     language: 'Codex 0.160.1 has no language setting',
   },
-  // Its own sign-in (0.160.1): `login`, `login status`, `logout`. Its status does not say the email ("Logged in
-  // using ChatGPT", checked 2026-10-12): the account is shown by its id.
+  // Its own sign-in: `login`, `login status`, `logout`. Its status does not say the email ("Logged in
+  // using ChatGPT"): the account is shown by its id.
   config: { env: 'CODEX_HOME', home: () => process.env.CODEX_HOME || path.join(os.homedir(), '.codex'),
     login: () => ['login'], status: ['login', 'status'], email: () => null, logout: ['logout'] },
   // The conversation its SessionStart hook reported, else its last one in this folder (each task has its own).
   resume: ({ started, sessionId }) => started && ['resume', sessionId || '--last'],
-  // The task's other repositories, writable as its own folder (checked with 0.160.1).
+  // The task's other repositories, writable as its own folder.
   dirs: (folders) => ({ args: folders.flatMap((f) => ['--add-dir', f]) }),
   trust: { has: (where, folder) => codexTrusted(codexHome(where), folder), set: (where, folder) => codexTrust(codexHome(where), folder) },
   forget: ({ folder, configDir }) => forgetCodex(folder, configDir ?? undefined),
   conversation: codexConversation,
-  // `codex [PROMPT]` (its --help, 0.160.1).
+  // `codex [PROMPT]` (its --help).
   prompt: (text) => [text],
 };
 
-// Codex keeps its answer in its config.toml: a table [projects."<folder>"] with trust_level = "trusted" (0.160.1;
-// "untrusted" when the human said no, which is never carried).
+// Codex keeps its answer in its config.toml: a table [projects."<folder>"] with trust_level = "trusted"
+// ("untrusted" when the human said no, which is never carried).
 const codexHome = ({ configDir }: Where) => configDir || process.env.CODEX_HOME || path.join(os.homedir(), '.codex');
 const tomlKey = (folder: string) => `"${folder.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
 function codexTrusted(home: string, folder: string) {
@@ -113,7 +113,7 @@ function forgetCodex(folder: string, home: string = process.env.CODEX_HOME || pa
   return true;
 }
 
-// Codex's transcript (checked with 0.160.1: sessions/…/rollout-*.jsonl in its CODEX_HOME): a JSON record per line,
+// Codex's transcript (sessions/…/rollout-*.jsonl in its CODEX_HOME): a JSON record per line,
 // { type, payload }. What was said and done is in `response_item`s (the model's own items); `event_msg`s repeat them
 // for its screen. It calls tools from scripts (`exec`, a custom tool: Kulisa's as tools.mcp__kulisa__<name>(…)), so
 // a call is its script, its result what the script printed. A compaction keeps its summary encrypted: a chapter starts
