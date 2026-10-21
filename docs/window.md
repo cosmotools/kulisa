@@ -469,8 +469,9 @@ zone; electron-log's own has no offset), the level and a tag:
   as a project's.
 - `[page wc=…]`: an error or a warning in one of Kulisa's own pages (its console: an uncaught error is one); never a
   profile's page.
-- `[profiles]`: a profile renamed, by both its ids (its id goes with its name: profiles.md), so the lines before and
-  after it go together: `[profiles] ann renamed: anna`.
+- `[profiles]`: a profile, its id with its name beside it, at every start and as it is made and deleted
+  (`[profiles] m2q7xd (ann@shop.com)`), and renamed (`[profiles] m2q7xd renamed: anna@shop.com`). Its id is random, as
+  a project's: a later line naming it is found by these.
 - `[profile]`: a profile's page that would not load (`did-fail-load`, the main frame; a white pane is a common report):
   the profile, the address bare, Chromium's error. The one kind of line about a profile's page.
 - `[session-cookies]`: a profile's saved session cookies that cannot be read (saved with another keyring key: after

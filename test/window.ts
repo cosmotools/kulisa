@@ -388,7 +388,7 @@ export default (test: Test) => {
     await closeMenu(ui);
   });
   test('the tasks\' bar: under the grid by default; in the title bar, after the logo, when Top is chosen in ☰; the grid and its pages take the room left; saved', async ({ shell, ui }) => {
-    const id = shell.profiles.keys().next().value;
+    const name = shell.profiles.values().next().value.name;
     // Where the bar is: in the title bar's row between the logo and Settings (top), or under the grid (bottom).
     const where = () => ui(`(() => { const r = (q) => document.querySelector(q).getBoundingClientRect(), bar = r('#taskbar'), grid = r('#dock'), top = r('#topbar');
       const inTitle = bar.top >= top.top && bar.bottom <= top.bottom && bar.left >= (document.querySelector('#topbar .logo') ? r('#topbar .logo').right : top.left) && bar.right <= r('#manageProjects').left;
@@ -414,7 +414,7 @@ export default (test: Test) => {
       assert.deepEqual(await where(), { bar, drag: bar === 'top' ? 'no-drag' : 'none', above: bar === 'top' ? 4 : 8, over: bar === 'top' ? 4 : 8, end: 8, title: 44, below: 8, between: 8, edge: 0, rows: bar === 'top' ? [44, 'grid', 0] : [44, 'grid', 36 + 8], level: true, tall: 36, chosen: [bar] }, 'one gap: over what is in the title bar and from it to the panels, from the grid to the bar and under it; in the title bar the tabs do not drag the window');
       assert.equal(await menuOpen(ui), true, 'the menu stays open: the other one can be tried');
       await closeMenu(ui);
-      await waitFor(() => viewOn(shell, ui, id), 3000); // the pages follow the grid
+      await waitFor(() => viewOn(shell, ui, name), 3000); // the pages follow the grid
     }
   });
   test('dialogs: one look (title and ×, content, buttons at the bottom right, the main one last), in the page only while open; a question is asked in it', async (ctx) => {

@@ -7,17 +7,16 @@
 //                            Kulisa made), and the repositories or folders added to it (repos, the default first);
 //                            color: the one it has while its favicon gives none (docs/tasks.md, Projects); agents:
 //                            the agents' accounts its tasks run, the default (+'s) first; profiles: its profiles by
-//                            their folders (fixed, as an id is not), in order. What a project is made of is said
-//                            here alone
+//                            their ids, in order. What a project is made of is said here alone
 //   projects/<id>/
 //     tasks.json             the project's tasks: { next, list: [{ n, name, branch, offset, folder,
 //                            copies: [{ repo, worktree, branch, base, folder }], home, closed, closedAt }] }; one
 //                            without copies works in a folder of the project (tasks.md)
-//     <n>/                   a task (TaskStore): profiles.json (what it has of its project's profiles: folder,
-//                            sites' zoom, closed), layout.json (the window's grid), agent.json (its agents'
-//                            conversations, to resume and read them), terminals.json (its island's tabs), and a copy
-//                            of a profile's master per profile opened here, named as the master:
-//       <folder>/            a Chromium profile (session.fromPath) with Kulisa's own files in it: Kulisa Tabs.json
+//     <n>/                   a task (TaskStore): profiles.json (what it has of its project's profiles: id, sites'
+//                            zoom, closed), layout.json (the window's grid), agent.json (its agents' conversations,
+//                            to resume and read them), terminals.json (its island's tabs), and a copy of a profile's
+//                            master per profile opened here, named by the profile's id:
+//       <id>/                a Chromium profile (session.fromPath) with Kulisa's own files in it: Kulisa Tabs.json
 //                            (its tabs' URLs), Kulisa Session Cookies.bin (session-cookies.ts)
 //   profiles.json, profiles/ the profiles and their masters (profile-store.ts)
 //   deleted-folders.json     folders of deleted profiles and tasks, removed at the next start (a session keeps
@@ -31,7 +30,7 @@ import { log } from './log.ts';
 // Muted, to sit on the dark window; a new project takes the first one no project has (its favicon's own hue, in their
 // lightness and chroma, replaces it in the window: renderer/lib/project-color.ts).
 const PROJECT_COLORS = ['#4a7bd0', '#3f9a7a', '#b4823a', '#9a5fc0', '#c0584f', '#3c9fb0', '#b0607f', '#7d9a3f'];
-// An id of a project, an agent's account or a profile's folder: six lowercase letters and digits, about two billion
+// An id of a project, an agent's account or a profile: six lowercase letters and digits, about two billion
 // of them, drawn again while taken.
 const ID_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789';
 function newId(taken: (id: string) => boolean) {
@@ -66,7 +65,7 @@ interface SavedWindow { tabs: string[]; shown: string | null; bounds?: Electron.
 interface Settings { uiZoom?: number; theme?: 'dark' | 'light' | 'system'; bar?: 'top' | 'bottom'; language?: string; keys?: Record<string, string>; windows?: SavedWindow[];
   settingsWindow?: Electron.Rectangle } // where Settings' window was (settings-window.ts)
 // A profile as a task keeps it in profiles.json (project-profiles.ts).
-interface TaskProfile { folder: string; id: string; zoom?: Record<string, number>; closed?: boolean }
+interface TaskProfile { id: string; zoom?: Record<string, number>; closed?: boolean }
 // A task's agents (tasks.ts): the one it was made with (opened when its island has never had a terminal), and every
 // conversation an agent had in it, oldest first, numbered from 1 in task_history: its account, its session as its
 // hooks reported it (agent-hooks.ts), when, the name the agent gave it, and the terminal it is open in (none: closed).
@@ -107,7 +106,7 @@ class Store {
     return p;
   }
   nextColor() { return nextColor(this.projects()); }
-  // The projects that have an agent's account (by its id) or a profile (by its folder).
+  // The projects that have an agent's account or a profile (by its id).
   projectsWith(list: 'agents' | 'profiles', item: string) { return this.projects().filter((p) => p[list]?.includes(item)); }
   // A project's name, agents or repositories changed (the projects' manager); its id and folder stay.
   // null fields go.
@@ -157,35 +156,35 @@ class Store {
   saveSettings(s: Settings) { writeJSON(this.settingsFile, s); }
 }
 
-// One task's data: its profiles (each a folder), grid and agent session.
+// One task's data: its profiles (each a folder, named by its id), grid and agent session.
 class TaskStore {
   dir: string; store: Store; saved?: Map<string, string>;
   constructor(dir: string, store: Store) { this.dir = dir; this.store = store; fs.mkdirSync(dir, { recursive: true }); }
   file(name: string) { return path.join(this.dir, name); }
-  profileDir(folder: string) { return path.join(this.dir, folder); }
-  // What the task has of its project's profiles (project-profiles.ts): [{ folder, id, zoom, closed }] (the id, as it
-  // was then, only to read the file by; who a profile is: profile-store.ts); null before the task first loads.
+  profileDir(id: string) { return path.join(this.dir, id); }
+  // What the task has of its project's profiles (project-profiles.ts): [{ id, zoom, closed }] (who a profile is:
+  // profile-store.ts); null before the task first loads.
   profiles(): TaskProfile[] | null { return readJSON(this.file('profiles.json')); }
   saveProfiles(list: TaskProfile[]) {
-    writeJSON(this.file('profiles.json'), list.map(({ folder, id, zoom, closed }) => ({ folder, id, zoom, ...(closed && { closed }) })));
+    writeJSON(this.file('profiles.json'), list.map(({ id, zoom, closed }) => ({ id, zoom, ...(closed && { closed }) })));
   }
   // A profile's tabs, in its own folder.
-  tabs(folder: string): SavedTabs { return readTabs(this.profileDir(folder)); }
-  saveTabs(folder: string, tabs: SavedTabs) {
+  tabs(id: string): SavedTabs { return readTabs(this.profileDir(id)); }
+  saveTabs(id: string, tabs: SavedTabs) {
     const json = JSON.stringify(tabs);
-    if ((this.saved ??= new Map()).get(folder) === json) return; // written after every change of the window's state
-    this.saved.set(folder, json);
-    writeTabs(this.profileDir(folder), tabs);
+    if ((this.saved ??= new Map()).get(id) === json) return; // written after every change of the window's state
+    this.saved.set(id, json);
+    writeTabs(this.profileDir(id), tabs);
   }
-  markDeleted(folder: string) { this.store.markDeleted(this.profileDir(folder)); }
+  markDeleted(id: string) { this.store.markDeleted(this.profileDir(id)); }
   // A profile its project let go while the task is not loaded: gone from its list, its copy removed (listed for the
   // next start too, in case a file of it is still open).
-  dropProfile(folder: string) {
+  dropProfile(id: string) {
     const saved = this.profiles();
-    if (saved) this.saveProfiles(saved.filter((x) => x.folder !== folder));
-    if (!fs.existsSync(this.profileDir(folder))) return;
-    this.markDeleted(folder);
-    fs.rmSync(this.profileDir(folder), { recursive: true, force: true });
+    if (saved) this.saveProfiles(saved.filter((x) => x.id !== id));
+    if (!fs.existsSync(this.profileDir(id))) return;
+    this.markDeleted(id);
+    fs.rmSync(this.profileDir(id), { recursive: true, force: true });
   }
   // The window's grid as dockview serializes it (the renderer's lib/grid.ts).
   layout(): unknown { return readJSON(this.file('layout.json')); }

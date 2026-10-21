@@ -33,8 +33,8 @@ async function standing(task: Task) {
       `Not committed:\n${status || '(nothing)'}`,
       ...(stat ? [`Changed since the task started:\n${stat}`] : []));
   }
-  const open = [...task.profiles.values()].map((p) => `${p.id} ("${p.name}")`);
-  const closed = [...task.closed.values()].map(({ cfg }) => `${cfg.id} ("${cfg.name}")`);
+  const open = [...task.profiles.values()].map((p) => p.name);
+  const closed = [...task.closed.values()].map(({ cfg }) => cfg.name);
   lines.push('', '## Profiles', `Open: ${open.join(', ') || 'none'}. Closed: ${closed.join(', ') || 'none'}.`);
   const shells = task.terminalsInfo().list.filter((t) => !t.agent);
   if (shells.length) lines.push('', '## Terminals', ...shells.map((t) => `- ${t.name}: ${t.command || 'a shell'}`));

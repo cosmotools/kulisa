@@ -20,7 +20,7 @@ import type { Question, ProjectAgent, ProjectRepo, NewProjectSetup } from '../sh
 import type { GitError } from './worktrees.ts';
 
 type Git = 'ok' | 'no-commit' | 'none';
-// What asks the window's human about a profile a project lets go: its name and folder.
+// What asks the window's human about a profile a project lets go: its name.
 type Named = Pick<StoredProfile | ProfileConfig, 'name'>;
 
 class Project {
@@ -93,7 +93,7 @@ class Project {
       entry = { n, name, branch, offset, copies, ...(home && { home }), folder: copies.find((c) => c.repo === this.folder)?.folder };
     }
     const data = this.store.taskOf(this, n);
-    data.saveProfiles(this.shell.profileStore.of(this.id).map((g) => ({ folder: g.folder, id: g.id, closed: true })));
+    data.saveProfiles(this.shell.profileStore.of(this.id).map((g) => ({ id: g.id, closed: true })));
     // null: the project has agents and none is the default; a project with none leaves it out: a shell starts.
     if (agent || this.agents().length) data.saveAgent({ agent });
     this.next = n + 1;
@@ -132,7 +132,7 @@ class Project {
   }
   // A profile let go by the project (the editor's Delete, the agent's profile_delete): asked first (askDropProfile).
   askDropProfile(p: Named, by: 'human' | 'agent' = 'human') { return askDropProfile(this.shell, this.entry, p, by, this.window); }
-  dropProfile(folder: string) { return dropProfile(this.shell, this.entry, folder); }
+  dropProfile(id: string) { return dropProfile(this.shell, this.entry, id); }
   // Two open tasks in the project's folder (no git: no copies) edit the same files: the human is told, and may go on.
   sharesFolder() { return this.git !== 'ok' && this.open().some((t) => !t.entry.copies && t.folder === this.folder); }
   // × on its tab: its agent stops and its tabs close; everything else stays, and it is listed as closed. Once it is
@@ -302,11 +302,11 @@ function askDropProfile(shell: Shell, entry: ProjectEntry, p: Named, by: 'human'
     detail: "Its copies in this project's tasks go, with their tabs and what was signed in only there. The profile stays, with its sign-ins: Settings → Profiles deletes it." }, w);
 }
 // Its copy goes from each of the project's tasks: a loaded one closes it, the others lose it from their files.
-async function dropProfile(shell: Shell, entry: ProjectEntry, folder: string) {
-  const g = shell.profileStore.byFolder(folder), open = shell.open.get(entry.id);
-  if (open) for (const t of open.tasks.values()) await t.dropProfile(folder);
-  else for (const e of shell.store.tasksOf(entry).list) shell.store.taskOf(entry, e.n).dropProfile(folder);
-  if (g) shell.profileStore.removeFrom(g.id, entry.id);
+async function dropProfile(shell: Shell, entry: ProjectEntry, id: string) {
+  const open = shell.open.get(entry.id);
+  if (open) for (const t of open.tasks.values()) await t.dropProfile(id);
+  else for (const e of shell.store.tasksOf(entry).list) shell.store.taskOf(entry, e.n).dropProfile(id);
+  shell.profileStore.removeFrom(id, entry.id);
   shell.profilesChanged();
 }
 // Deleting a profile (Settings → Profiles), after a question: its copies in every project's tasks, then its master
@@ -314,13 +314,13 @@ async function dropProfile(shell: Shell, entry: ProjectEntry, folder: string) {
 async function deleteProfile(shell: Shell, id: string, w: Asker | null): Promise<{ ok: true; error?: undefined } | { error: string | null; ok?: undefined }> {
   const g = shell.profileStore.get(id);
   if (!g) return { error: `no profile ${id}` };
-  const projects = shell.store.projectsWith('profiles', g.folder);
+  const projects = shell.store.projectsWith('profiles', id);
   if (!await shell.ask({ message: `Delete the profile ${g.name}?`, ok: 'Delete', danger: true,
     detail: ['Its sign-ins, cookies, storage and tabs are removed for good, here and in every task.',
       projects.length && `The projects ${projects.map((p) => p.name).join(', ')} let go of it.`].filter(Boolean).join(' ') }, w)) return { error: null };
-  for (const p of projects) await dropProfile(shell, p, g.folder);
-  await shell.closeMaster(g.folder);
-  shell.cookieSync.forget(g.folder);
+  for (const p of projects) await dropProfile(shell, p, id);
+  await shell.closeMaster(id);
+  shell.cookieSync.forget(id);
   shell.profileStore.delete(id);
   shell.profilesChanged();
   shell.sendProjects(); // the last of all: nothing left for Settings

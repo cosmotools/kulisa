@@ -1,4 +1,5 @@
-// Kulisa's MCP server for the agent. Every tool takes `profile`; implemented with playwright-core through the
+// Kulisa's MCP server for the agent. Every tool takes `profile`, a profile's name (Kulisa's own ids stay inside it:
+// tasks.ts, named); implemented with playwright-core through the
 // CDP proxy, so every action also reaches the pane's caption and action annotations (ghost.ts).
 // Streamable HTTP, one URL per task: http://127.0.0.1:<port>/task/<project>/<n>/mcp (the parts
 // percent-encoded); its agents see that task's profiles only. Each agent's terminal has its own under it
@@ -33,7 +34,7 @@ type Element = { ref?: string; locator?: string };
 // API in the headless build (allowProposedApi), the one xterm's serialize addon reads too.
 const READ_MAX = 500;
 
-// The agent's highlights per profile (by '<task>/<profile id>'): { disposables, tab, onInput }; kept across MCP
+// The agent's highlights per profile (by '<task key>/<profile id>'): { disposables, tab, onInput }; kept across MCP
 // requests (a server is built per request). They go when replaced, cleared, or on the first click or key press in
 // that tab.
 const highlights = new Map<string, { disposables: AsyncDisposable[]; tab: Tab; onInput: (e: Electron.Event, input: Electron.InputEvent) => void }>();
@@ -44,7 +45,7 @@ async function clearHighlights(profile: string) {
   for (const d of h.disposables) await Promise.resolve(d[Symbol.asyncDispose]()).catch(() => {});
 }
 
-// profile_ask_signin's requests per profile ('<task>/<profile id>'): { at, page, wentIn }, kept across calls.
+// profile_ask_signin's requests per profile ('<task key>/<profile id>'): { at, page, wentIn }, kept across calls.
 const signinAsks = new Map<string, { at: number; page: string; wentIn: boolean }>();
 const pageKey = (u: string) => { try { const x = new URL(u); return x.origin + x.pathname; } catch { return u; } };
 
@@ -72,8 +73,8 @@ const UPFRONT = { 'anthropic/alwaysLoad': true };
 function buildServer(task: Task, t: TaskTerminal | null) {
   const server = new McpServer({ name: 'kulisa', version: pkg.version }, { instructions: `${INSTRUCTIONS} ${taskContext(task)}` });
   // Profiles can be created while the agent runs, so this is a string checked at call time, not an enum.
-  const closed = [...task.closed.values()].map(({ cfg }) => `${cfg.id} (${cfg.name}, closed)`);
-  const profileArg = z.string().describe(`Profile id. Current: ${[...[...task.profiles.values()].map((p) => `${p.id} (${p.name})`), ...closed].join(', ') || 'none yet'}; call profile_list for the live list`);
+  const closed = [...task.closed.values()].map(({ cfg }) => `${cfg.name} (closed)`);
+  const profileArg = z.string().describe(`The profile's name. Current: ${[...[...task.profiles.values()].map((p) => p.name), ...closed].join(', ') || 'none yet'}; call profile_list for the live list`);
   const text = (t: string) => ({ content: [{ type: 'text' as const, text: t }] });
   // Every tool's result in an unnamed task says so: the prompt hook does (agent-hooks.ts), but not for an agent without
   // hooks or whose hooks the human has not trusted (Codex).
@@ -87,23 +88,27 @@ function buildServer(task: Task, t: TaskTerminal | null) {
     return r;
   })) as unknown as typeof server.registerTool;
   // The agent's handles on the core: profiles and tabs found as the window finds them (tasks.ts), plus what only
-  // automation keeps to: no agent while the human signs in.
-  const profileOf = (id: string) => {
-    const r = task.find(id);
+  // automation keeps to: no agent while the human signs in. The agent names a profile; the core takes its id.
+  const idOf = (name: string) => {
+    const r = task.named(name);
+    if (refused(r)) throw new Error(r.error);
+    return r.id;
+  };
+  const profileOf = (name: string) => {
+    const r = task.find(idOf(name));
     if (refused(r)) throw new Error(r.closed ? `${r.error} With profile_open, if the task needs it.` : r.error);
-    if (r.profile.signinMode) throw new Error(`Profile "${id}" is in sign-in mode: the human is signing in. Wait and try again later.`);
+    if (r.profile.signinMode) throw new Error(`Profile "${r.profile.name}" is in sign-in mode: the human is signing in. Wait and try again later.`);
     return r.profile;
   };
-  const tabOf = (id: string, tabId?: string) => {
-    profileOf(id);
-    const r = task.findTab(id, tabId);
+  const tabOf = (name: string, tabId?: string) => {
+    const r = task.findTab(profileOf(name).id, tabId);
     if (refused(r)) throw new Error(r.error);
     return r;
   };
   // A page showing a dialog is still until it is answered (Profile._dialog): acting on it would wait for nothing.
-  const pageOf = (id: string, tabId?: string) => {
-    const { profile, tab } = tabOf(id, tabId);
-    if (tab.dialog) throw new Error(`Tab ${tab.id} of ${id} shows a ${tab.dialog.type} ("${tab.dialog.message}") for the human to answer; until then its page does nothing. Ask the human, or wait and try again.`);
+  const pageOf = (name: string, tabId?: string) => {
+    const { profile, tab } = tabOf(name, tabId);
+    if (tab.dialog) throw new Error(`Tab ${tab.id} of ${profile.name} shows a ${tab.dialog.type} ("${tab.dialog.message}") for the human to answer; until then its page does nothing. Ask the human, or wait and try again.`);
     return profile.page(tab.id);
   };
   // The element for a ref or a locator. Waits a second for it to appear, then fails with what to do instead:
@@ -136,39 +141,39 @@ function buildServer(task: Task, t: TaskTerminal | null) {
 
   // description: who the profile is (the human's words), or not said; avatar: its picture, which the human knows the
   // pane by ("the fox").
-  server.registerTool('profile_list', { description: 'List profiles: id, name, description (who it is in the app; null: not said, ask the human), picture (avatar), whether the human is signing in (signinMode), tabs; closed ones (closed: true) need profile_open first.', inputSchema: {} },
+  server.registerTool('profile_list', { description: 'List profiles: name (by which the tools take a profile), description (who it is in the app; null: not said, ask the human), picture (avatar), whether the human is signing in (signinMode), tabs; closed ones (closed: true) need profile_open first.', inputSchema: {} },
     async () => text(JSON.stringify([
-      ...[...task.profiles.values()].map(({ id, name, description, avatar, login, hasPassword, signinMode, active, tabs }) =>
-        ({ id, name, description: description || null, avatar, ...(login && { testLogin: login, testPassword: hasPassword }), signinMode, active,
+      ...[...task.profiles.values()].map(({ name, description, avatar, login, hasPassword, signinMode, active, tabs }) =>
+        ({ name, description: description || null, avatar, ...(login && { testLogin: login, testPassword: hasPassword }), signinMode, active,
           tabs: tabs.filter((t) => t.discarded || !t.wc.isDestroyed()).map((t) => ({ id: t.id, title: t.title, url: t.url })) })),
-      ...[...task.closed.values()].map(({ cfg, tabs }) => ({ id: cfg.id, name: cfg.name, description: cfg.description || null, avatar: cfg.avatar,
+      ...[...task.closed.values()].map(({ cfg, tabs }) => ({ name: cfg.name, description: cfg.description || null, avatar: cfg.avatar,
         ...(cfg.login && { testLogin: cfg.login, testPassword: cfg.hasPassword }),
         closed: true, tabs: tabs.urls.length })),
     ], null, 1)));
 
   server.registerTool('profile_open', {
     description: 'Open a closed profile: its pane comes back with its tabs, still signed in. Costs memory: open one only when the task needs it.',
-    inputSchema: { profile: z.string().describe('Id of a closed profile (profile_list)') },
+    inputSchema: { profile: z.string().describe('The name of a closed profile (profile_list)') },
   }, async ({ profile }) => {
-    const r = await task.openProfile(profile);
-    if (refused(r)) throw new Error(`${r.error}. Profiles: ${[...task.profiles.keys(), ...task.closed.keys()].join(', ')}`);
+    const id = idOf(profile), r = await task.openProfile(id);
+    if (refused(r)) throw new Error(r.error);
     const page = await pageOf(profile); // its active tab loaded, for the next snapshot
     await page.waitForLoadState('domcontentloaded').catch(() => {});
-    return text(`Profile ${profile} is open, with ${task.profiles.get(profile)!.tabs.length} tab(s); active: ${page.url()}`);
+    return text(`Profile ${profile} is open, with ${task.profiles.get(id)!.tabs.length} tab(s); active: ${page.url()}`);
   });
   server.registerTool('profile_close', {
     description: "Close a profile: its pane and tabs go and free their memory; it stays signed in, and profile_open brings it back with the same tabs. Close profiles you opened when you are done with them, others only when the human asks.",
-    inputSchema: { profile: z.string().describe('Id of an open profile') },
+    inputSchema: { profile: z.string().describe('The name of an open profile') },
   }, async ({ profile }) => {
-    const r = await task.closeProfile(profile);
+    const r = await task.closeProfile(idOf(profile));
     if (refused(r)) throw new Error(r.error);
     return text(`Closed profile ${profile}; it is still signed in.`);
   });
   server.registerTool('profile_delete', {
     description: "Remove a profile from this project: its copies in the project's tasks go (their tabs, and what was signed in only there); the profile itself stays, with its sign-ins, in Kulisa's Settings → Profiles, where only the human deletes profiles. The human is asked to confirm. Only when the human asks, or a profile you created is no longer needed.",
-    inputSchema: { profile: z.string().describe('Profile id, open or closed') },
+    inputSchema: { profile: z.string().describe("The profile's name, open or closed") },
   }, async ({ profile }) => {
-    const r = await task.deleteProfile(profile, 'agent');
+    const r = await task.deleteProfile(idOf(profile), 'agent');
     if (refused(r)) throw new Error(r.error);
     return text(`Removed profile ${profile} from the project; it stays in Settings → Profiles.`);
   });
@@ -176,22 +181,22 @@ function buildServer(task: Task, t: TaskTerminal | null) {
   server.registerTool('profile_create', {
     description: 'Create a new, empty profile (a separate browser profile with its own pane) for a user the task needs and no profile has. The human then signs it in by hand. Costs memory: reuse a profile when one fits.',
     inputSchema: {
-      name: z.string().describe('Who this profile is: letters, digits and @ . _ + - only, e.g. "ann@shop.com" (the account it signs in to) or "ann.admin"'),
+      name: z.string().describe('Who this profile is: letters, digits and @ . _ + - only, e.g. "ann@shop.com" (the account it signs in to) or "ann.admin"; no other profile of the project has it, whatever its case'),
       description: z.string().optional().describe('As in profile_describe: only what the human said'),
     },
   }, async ({ name, description }) => {
     const r = await task.createProfile(name, description);
     if (refused(r)) throw new Error(r.error);
-    return text(`Created profile ${r.id} ("${name}"). It is signed out: ask the human to sign it in (profile_ask_signin).`);
+    return text(`Created profile ${name.trim()}. It is signed out: ask the human to sign it in (profile_ask_signin).`);
   });
 
   server.registerTool('profile_rename', {
-    description: 'Rename a profile, e.g. after the human signed it in to another account. Its id follows the name.',
+    description: 'Rename a profile, e.g. after the human signed it in to another account. The tools take it by its new name from then on.',
     inputSchema: { profile: profileArg, name: z.string().describe('As in profile_create') },
   }, async ({ profile, name }) => {
-    const r = task.renameProfile(profile, name);
+    const r = task.renameProfile(idOf(profile), name);
     if (refused(r)) throw new Error(r.error);
-    return text(`Renamed ${profile} to "${name.trim()}"; its id is now ${r.id}.`);
+    return text(`Renamed ${profile} to ${name.trim()}.`);
   });
 
   server.registerTool('task_rename', {
@@ -251,7 +256,7 @@ function buildServer(task: Task, t: TaskTerminal | null) {
     description: "Save who a profile is in the app under test (its role, what it can do), which agents choose profiles by. Only the human's words: when no description tells which profile a task means, ask the human, then save their answer. An empty description clears it.",
     inputSchema: { profile: profileArg, description: z.string().describe('e.g. "seller in the Acme shop; can approve refunds"') },
   }, async ({ profile, description }) => {
-    const r = task.describeProfile(profile, description);
+    const r = task.describeProfile(idOf(profile), description);
     if (refused(r)) throw new Error(r.error);
     return text(description.trim() ? `Saved: ${profile} is "${description.trim()}".` : `Cleared ${profile}'s description.`);
   });
@@ -291,9 +296,9 @@ function buildServer(task: Task, t: TaskTerminal | null) {
       "url: the app's sign-in page, opened first. Up to 45 s a call; \"not yet\": call again to keep waiting. Then check with browser_snapshot.",
     inputSchema: { profile: profileArg, url: z.string().optional(), why: z.string().optional().describe('A few words: as whom, for what') },
   }, async ({ profile, url, why }) => {
-    const r = task.find(profile);
+    const r = task.find(idOf(profile));
     if (refused(r)) throw new Error(r.error);
-    const p = r.profile, key = `${task.key}/${profile}`;
+    const p = r.profile, key = `${task.key}/${p.id}`;
     let ask = signinAsks.get(key);
     if (!ask || Date.now() - ask.at > 10 * 60_000) {
       if (url) {
@@ -305,13 +310,13 @@ function buildServer(task: Task, t: TaskTerminal | null) {
       ask = { at: Date.now(), page: pageKey(p.get()!.wc.getURL()), wentIn: p.signinMode };
       signinAsks.set(key, ask);
     }
-    task.caption(profile, `sign in, please${why ? `: ${why}` : ''}`, true);
+    task.caption(p.id, `sign in, please${why ? `: ${why}` : ''}`, true);
     for (const until = Date.now() + 45_000; Date.now() < until; await new Promise((ok) => setTimeout(ok, 300))) {
       if (p.deleted) throw new Error(`Profile ${profile} was deleted.`);
       if (p.signinMode || p.resuming) { ask.wentIn = true; continue; }
       if (ask.wentIn || pageKey(p.get()!.wc.getURL()) !== ask.page) {
         signinAsks.delete(key);
-        task.caption(profile, '');
+        task.caption(p.id, '');
         return text(`The human is through: ${profile} is at ${p.get()!.wc.getURL()}. Check with browser_snapshot that it is signed in.`);
       }
     }
@@ -332,8 +337,8 @@ function buildServer(task: Task, t: TaskTerminal | null) {
       })).describe('Elements by ref (from browser_snapshot) or Playwright locator'),
     },
   }, async ({ profile, tab: tabId, elements }) => {
-    const page = await pageOf(profile, tabId);
-    const hkey = `${task.key}/${profile}`;
+    const page = await pageOf(profile, tabId), id = profileOf(profile).id;
+    const hkey = `${task.key}/${id}`;
     await clearHighlights(hkey);
     const shown: AsyncDisposable[] = [];
     for (const el of elements) {
@@ -346,12 +351,12 @@ function buildServer(task: Task, t: TaskTerminal | null) {
       const { tab } = tabOf(profile, tabId);
       const onInput = (_e: Electron.Event, input: Electron.InputEvent) => {
         if (!['mouseDown', 'keyDown', 'rawKeyDown'].includes(input.type)) return;
-        void clearHighlights(hkey); task.caption(profile, '');
+        void clearHighlights(hkey); task.caption(id, '');
       };
       tab.wc.on('input-event', onInput);
       highlights.set(hkey, { disposables: shown, tab, onInput });
     }
-    task.caption(profile, elements.length ? `points at: ${elements.map((e, i) => e.label || `${i + 1}`).join(' · ')}` : '', elements.length > 0);
+    task.caption(id, elements.length ? `points at: ${elements.map((e, i) => e.label || `${i + 1}`).join(' · ')}` : '', elements.length > 0);
     return text(elements.length ? `Highlighted ${elements.length} element(s) in ${profile}` : `Cleared highlights in ${profile}`);
   });
 
@@ -374,11 +379,11 @@ function buildServer(task: Task, t: TaskTerminal | null) {
 
   server.registerTool('browser_snapshot', {
     description: "Accessibility snapshot of a profile's tab (default: the active one), with [ref=eN] for click/type.",
-    inputSchema: { profile: profileArg, tab: onTab, also: z.array(z.string()).optional().describe("More profile ids: their active tabs too, in one call, e.g. to compare what each user sees") },
+    inputSchema: { profile: profileArg, tab: onTab, also: z.array(z.string()).optional().describe("More profiles, by name: their active tabs too, in one call, e.g. to compare what each user sees") },
   }, async ({ profile, tab, also = [] }) => {
-    const snap = async (id: string, tabId?: string) => {
-      const page = await pageOf(id, tabId);
-      return `- Profile: ${id}\n- URL: ${page.url()}\n- Title: ${await page.title()}\n\n${await page.ariaSnapshot({ mode: 'ai' })}`;
+    const snap = async (name: string, tabId?: string) => {
+      const page = await pageOf(name, tabId);
+      return `- Profile: ${name}\n- URL: ${page.url()}\n- Title: ${await page.title()}\n\n${await page.ariaSnapshot({ mode: 'ai' })}`;
     };
     if (!also.length) return text(await snap(profile, tab));
     // One profile that cannot be read (signing in, closed) does not hide the others.
@@ -418,7 +423,7 @@ function buildServer(task: Task, t: TaskTerminal | null) {
     description: "Type a test user's saved login or password into a field (by ref or locator), replacing what it holds, to sign in to the app under test: only on a local page (localhost, *.test, a private network, the project's own list) or one the tab reached from it, never on Google, Microsoft or another account provider. You never see the password. The pair is saved by the human (Settings → Profiles) or by you (profile_set_login).",
     inputSchema: { profile: profileArg, tab: onTab, ...element, field: z.enum(['login', 'password']), submit: z.boolean().optional(), dialog: dialogArg },
   }, async ({ profile, tab, ref, locator, field, submit, dialog }) => {
-    const r = task.loginFor(profile, tab, field);
+    const r = task.loginFor(idOf(profile), tab, field);
     if (refused(r)) throw new Error(r.error);
     const page = await pageOf(profile, tab);
     const loc = await target(page, { ref, locator });
@@ -432,7 +437,7 @@ function buildServer(task: Task, t: TaskTerminal | null) {
     description: "Save a test user's login-password pair for a profile, e.g. after you signed that user up in the app under test, so you (and later tasks) sign in with browser_type_login. Only for test users of the app on this computer: never a real account's password.",
     inputSchema: { profile: profileArg, login: z.string().describe('The user name or email'), password: z.string() },
   }, async ({ profile, login, password }) => {
-    const r = task.setLogin(profile, login, password);
+    const r = task.setLogin(idOf(profile), login, password);
     if (refused(r)) throw new Error(r.error);
     return text(`Saved ${profile}'s test login ${login.trim()}; its password is kept encrypted.`);
   });
@@ -521,7 +526,7 @@ function buildServer(task: Task, t: TaskTerminal | null) {
     description: "Screenshot of a profile's tab (default: the active one): its visible part, one element (ref or locator), or the whole page (fullPage).",
     inputSchema: { profile: profileArg, tab: onTab, ...element,
       fullPage: z.boolean().optional().describe('The whole page, scrolled to its end; a page scrolling inside a container of its own gives its visible part: take the container by locator'),
-      also: z.array(z.string()).optional().describe('More profile ids: their active tabs too, in one call (with locator: the same element in each), e.g. to compare what each user sees') },
+      also: z.array(z.string()).optional().describe('More profiles, by name: their active tabs too, in one call (with locator: the same element in each), e.g. to compare what each user sees') },
   }, async ({ profile, tab, ref, locator, fullPage, also = [] }) => {
     if (ref && also.length) throw new Error('A ref is one page\'s: with also, pass a locator');
     // At CSS pixels: at a screen's density the picture is several times larger and costs the agent's context for nothing.

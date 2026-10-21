@@ -10,7 +10,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import http from 'http';
 import WebSocket from 'ws';
-import { focusWindow, shot, assert, root, project, pid, tkey, pfile, folderOf, panel, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, closeSettings, chooseProfile, setProfileField, closeMenu, taskMenu, box, pageBox, click, PORT } from './helpers.ts';
+import { focusWindow, shot, assert, root, project, pid, tkey, pfile, idOf, panel, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, closeSettings, chooseProfile, setProfileField, closeMenu, taskMenu, box, pageBox, click, PORT } from './helpers.ts';
 import { AGENT_PACKAGES } from '../src/main/app.ts';
 const CLAUDE_PLUGIN = path.join(AGENT_PACKAGES, 'claude-plugin');
 import { MARK } from '../src/main/kulisa-plugin/ghost.ts';
@@ -40,9 +40,9 @@ export default (test: Test) => {
     };
     await make('Sam.seller');
     await setProfileField(sui, 'profileabout', ' seller in the test shop ');
-    await waitFor(() => shell.profileStore.get('sam-seller')?.description === 'seller in the test shop');
+    await waitFor(() => shell.profileStore.get(idOf('Sam.seller'))?.description === 'seller in the test shop');
     await make('Elon.buyer');
-    assert.equal(shell.profileStore.get('elon-buyer').avatar, 'frog', 'the next picture free');
+    assert.equal(shell.profileStore.get(idOf('Elon.buyer')).avatar, 'frog', 'the next picture free');
     // Its picture's button looks as a field to choose from (.select): the chosen one, a chevron, the fields' background.
     assert.deepEqual(await sui(`(() => { const b = getComputedStyle(document.getElementById('profilepic')), f = document.body.appendChild(document.createElement('i'));
       f.style.background = 'var(--field)'; const field = getComputedStyle(f).backgroundColor; f.remove(); return [b.display, b.backgroundColor === field]; })()`), ['flex', true]);
@@ -50,11 +50,11 @@ export default (test: Test) => {
     await waitFor(() => sui(`!!document.querySelector('.profilepics.ready')`));
     assert.equal(await sui(`document.querySelectorAll('.profilepics [data-avatar]').length`), 16, 'all of them to choose from, at once');
     await sui(`document.querySelector('.profilepics [data-avatar="penguin"]').click()`);
-    await waitFor(() => shell.profileStore.get('elon-buyer').avatar === 'penguin');
+    await waitFor(() => shell.profileStore.get(idOf('Elon.buyer')).avatar === 'penguin');
     // Who they are: in the store of profiles (profile-store.ts), the same in every task; in no project yet.
     assert.deepEqual(shell.profileStore.all().map((g: StoredProfile & { color?: string }) => ({ id: g.id, avatar: g.avatar, description: g.description, projects: shell.profileStore.projectsOf(g), color: g.color })),
-      [{ id: 'sam-seller', avatar: 'fox', description: 'seller in the test shop', projects: [], color: undefined },
-        { id: 'elon-buyer', avatar: 'penguin', description: undefined, projects: [], color: undefined }], 'pictures, not colors; who it is when said');
+      [{ id: idOf('Sam.seller'), avatar: 'fox', description: 'seller in the test shop', projects: [], color: undefined },
+        { id: idOf('Elon.buyer'), avatar: 'penguin', description: undefined, projects: [], color: undefined }], 'pictures, not colors; who it is when said');
     assert.equal(await sui(`document.querySelector('#profilepage .projects').textContent`), "none: add it on a project's page");
     // Added on the project's page (+ → its other profiles), closed in its task; opened there (👥).
     await waitFor(() => sui(`!!document.querySelector('#pjlist [data-project="${shell.current.id}"]')`)); // the projects come as it opens
@@ -72,13 +72,13 @@ export default (test: Test) => {
       // A row cuts its name and description: the whole in its tooltip.
       assert.equal((await sui(`[...document.querySelectorAll('#npprofiles .item')].find((r) => r.querySelector('.label').textContent === ${JSON.stringify(name)}).title`)).split('\n')[0], name);
     }
-    await waitFor(() => shell.closed.has('sam-seller') && shell.closed.has('elon-buyer'));
-    await ui(`act('profile:open', { profile: 'sam-seller' })`);
-    await ui(`act('profile:open', { profile: 'elon-buyer' })`);
-    assert.deepEqual([...shell.profiles.keys()], ['sam-seller', 'elon-buyer']);
-    await waitFor(() => shell.profiles.get('elon-buyer').get()); // its first tab comes after it is opened
+    await waitFor(() => shell.closed.has(idOf('Sam.seller')) && shell.closed.has(idOf('Elon.buyer')));
+    await ui(`act('profile:open', { profile: '${idOf('Sam.seller')}' })`);
+    await ui(`act('profile:open', { profile: '${idOf('Elon.buyer')}' })`);
+    assert.deepEqual([...shell.profiles.keys()], [idOf('Sam.seller'), idOf('Elon.buyer')]);
+    await waitFor(() => shell.profiles.get(idOf('Elon.buyer')).get()); // its first tab comes after it is opened
     // Settings is a window of its own: the task's pages stay on screen and live (a dialog had hidden them).
-    await waitFor(() => shell.profiles.get('elon-buyer').get().view.getVisible());
+    await waitFor(() => shell.profiles.get(idOf('Elon.buyer')).get().view.getVisible());
     await closeSettings(ctx);
     assert.equal(await ui(`document.querySelectorAll('.pane').length`), 2);
     // The first page over the terminal alone took half the grid (dockview's split); the terminal keeps its share.
@@ -92,7 +92,7 @@ export default (test: Test) => {
       r.on('error', () => resolve('error')); r.end(method === 'POST' ? body : undefined);
     });
     const url = shell.task.env().KULISA_MCP_URL;
-    const mcp = new URL(url), proxy = new URL(shell.profiles.get('sam-seller').endpoint);
+    const mcp = new URL(url), proxy = new URL(shell.profiles.get(idOf('Sam.seller')).endpoint);
     const json = { 'content-type': 'application/json', accept: 'application/json, text/event-stream' };
     // DNS rebinding: a page on evil.example resolving to 127.0.0.1 sends its own Host.
     assert.equal(await status(url, { ...json, host: `evil.example:${mcp.port}` }, 'POST'), 403);
@@ -101,7 +101,7 @@ export default (test: Test) => {
     // A page's own requests carry Origin.
     assert.equal(await status(url, { ...json, origin: 'https://evil.example' }, 'POST'), 403);
     const task = (origin?: string) => new Promise((resolve) => {
-      const s = new WebSocket(`ws://127.0.0.1:${proxy.port}/${tkey('project', 1)}/sam-seller`, origin ? { origin } : {});
+      const s = new WebSocket(`ws://127.0.0.1:${proxy.port}/${tkey('project', 1)}/${idOf('Sam.seller')}`, origin ? { origin } : {});
       s.on('open', () => { s.close(); resolve('open'); }); s.on('error', () => resolve('refused'));
     });
     assert.equal(await task('https://evil.example'), 'refused');
@@ -123,53 +123,53 @@ export default (test: Test) => {
     if (!v.error) assert.equal(v.status, 0, v.stdout + v.stderr);
   });
   test('agent: open, switch and close tabs', async ({ shell, call }) => {
-    const elon = shell.profiles.get('elon-buyer');
+    const elon = shell.profiles.get(idOf('Elon.buyer'));
     const first = elon.active;
-    const r = await call('browser_tab_new', { profile: 'elon-buyer', url: `${SITE}/app` });
+    const r = await call('browser_tab_new', { profile: 'Elon.buyer', url: `${SITE}/app` });
     const id = r.text.match(/Opened tab (\w+)/)[1];
     assert.equal(elon.active, id);
     assert.equal(elon.tabs.length, 2);
-    assert.match((await call('browser_snapshot', { profile: 'elon-buyer' })).text, /Signed/);
-    await call('browser_tab_select', { profile: 'elon-buyer', tab: first });
+    assert.match((await call('browser_snapshot', { profile: 'Elon.buyer' })).text, /Signed/);
+    await call('browser_tab_select', { profile: 'Elon.buyer', tab: first });
     assert.equal(elon.active, first);
-    await call('browser_tab_close', { profile: 'elon-buyer', tab: id });
+    await call('browser_tab_close', { profile: 'Elon.buyer', tab: id });
     await waitFor(() => elon.tabs.length === 1);
   });
   test('the keyboard stays where the human put it: a tab the agent opens, its page loading, does not take it', async ({ shell, ui, call }) => {
     // The human typing to the agent in the terminal: on macOS a tab the agent opens takes the keyboard as its page
     // loads, and the next keys go to the site, unless kept (page-focus.ts).
-    const elon = shell.profiles.get('elon-buyer');
+    const elon = shell.profiles.get(idOf('Elon.buyer'));
     await focusWindow(shell.win, ui);
     await ui(`window.__term.focus()`);
     await waitFor(() => shell.windows[0].keyZone === 'terminal');
-    const id = (await call('browser_tab_new', { profile: 'elon-buyer', url: 'data:text/html,<input autofocus>' })).text.match(/Opened tab (\w+)/)[1];
+    const id = (await call('browser_tab_new', { profile: 'Elon.buyer', url: 'data:text/html,<input autofocus>' })).text.match(/Opened tab (\w+)/)[1];
     await elon.get(id).ready;
     await sleep(500); // nothing to wait for: that the keyboard is not taken (page-focus.ts gives it back after 150 ms)
     assert.deepEqual([await ui(`document.hasFocus()`), await ui(`!!document.activeElement.closest('.term')`)], [true, true], 'still in the terminal');
-    await call('browser_tab_close', { profile: 'elon-buyer', tab: id });
+    await call('browser_tab_close', { profile: 'Elon.buyer', tab: id });
     await waitFor(() => elon.tabs.length === 1);
   });
   test('the window and the agent act on one core: an address read the same way, the same refusals', async ({ shell, call, ui }) => {
-    const sam = shell.profiles.get('sam-seller');
+    const sam = shell.profiles.get(idOf('Sam.seller'));
     const host = SITE.replace('http://', ''); // 127.0.0.1:<port>, a host and a port (not a scheme)
-    await ui(`act('tab:navigate', { profile: 'sam-seller', tab: '${sam.active}', url: '${host}/app?by=human' })`);
+    await ui(`act('tab:navigate', { profile: '${idOf('Sam.seller')}', tab: '${sam.active}', url: '${host}/app?by=human' })`);
     await waitFor(() => sam.get().wc.getURL() === `${SITE}/app?by=human`);
-    await call('browser_navigate', { profile: 'sam-seller', url: `${host}/app?by=agent` });
+    await call('browser_navigate', { profile: 'Sam.seller', url: `${host}/app?by=agent` });
     assert.equal(sam.get().wc.getURL(), `${SITE}/app?by=agent`);
-    const id = (await call('browser_tab_new', { profile: 'sam-seller', url: `${host}/app?tab` })).text.match(/Opened tab (\w+)/)[1];
+    const id = (await call('browser_tab_new', { profile: 'Sam.seller', url: `${host}/app?tab` })).text.match(/Opened tab (\w+)/)[1];
     assert.equal(sam.get(id).wc.getURL(), `${SITE}/app?tab`);
-    await ui(`act('tab:close', { profile: 'sam-seller', tab: '${id}' })`);
+    await ui(`act('tab:close', { profile: '${idOf('Sam.seller')}', tab: '${id}' })`);
     await waitFor(() => !sam.get(id));
 
     assert.match((await ui(`act('tab:reload', { profile: 'nobody' })`)).error, /No profile "nobody"/);
     await assert.rejects(call('browser_snapshot', { profile: 'nobody' }), /No profile "nobody"/);
-    assert.match((await ui(`act('tab:close', { profile: 'sam-seller', tab: 'k999' })`)).error, /No tab k999 in sam-seller/);
-    await assert.rejects(call('browser_tab_close', { profile: 'sam-seller', tab: 'k999' }), /No tab k999 in sam-seller/);
+    assert.match((await ui(`act('tab:close', { profile: '${idOf('Sam.seller')}', tab: 'k999' })`)).error, /No tab k999 in Sam\.seller/);
+    await assert.rejects(call('browser_tab_close', { profile: 'sam.SELLER', tab: 'k999' }), /No tab k999 in Sam\.seller/, 'its name in any case');
     // An action of the window names its task: one sent for a task no longer shown (the human just switched)
     // is refused, not done in the one shown now.
     const tabs = sam.tabs.length;
-    assert.match((await ui(`kulisa.invoke('tab:new', { task: '${pid('project')}/2', profile: 'sam-seller' })`)).error, /not on screen/);
-    assert.match((await ui(`kulisa.invoke('tab:new', { profile: 'sam-seller' })`)).error, /not on screen/);
+    assert.match((await ui(`kulisa.invoke('tab:new', { task: '${pid('project')}/2', profile: '${idOf('Sam.seller')}' })`)).error, /not on screen/);
+    assert.match((await ui(`kulisa.invoke('tab:new', { profile: '${idOf('Sam.seller')}' })`)).error, /not on screen/);
     assert.equal(sam.tabs.length, tabs);
   });
   test('agent bridge: at session start the plugin hook tells the agent which profiles are open, and Kulisa notes the session', async ({ shell, instructions }) => {
@@ -190,8 +190,8 @@ export default (test: Test) => {
       [{ agent: 'custom', started: true, terminal: agent.id, sessionId: 'session-1', transcript }]);
     assert.equal(inKulisa.code, 0);
     const context = JSON.parse(inKulisa.out).hookSpecificOutput.additionalContext;
-    assert.match(context, /- sam-seller \("Sam.seller"\): seller in the test shop/);
-    assert.match(context, /- elon-buyer \("Elon.buyer"\): who it is is not said/);
+    assert.match(context, /- Sam\.seller: seller in the test shop/);
+    assert.match(context, /- Elon\.buyer: who it is is not said/);
     assert.match(context, /tab k\d+ \(active\)/);
     // Another browser's tools may sit next to Kulisa's with the same names (cast's browser_click, Playwright MCP's):
     // every agent is told which browser is the human's, Claude Code again next to the profiles.
@@ -202,7 +202,7 @@ export default (test: Test) => {
     assert.deepEqual(outside, { code: 0, out: '' }, 'without its URL the hook does nothing and fails nothing');
   });
   test('agent: highlight elements for the human (also on Trusted Types pages), then clear', async ({ shell, call }) => {
-    const sam = shell.profiles.get('sam-seller');
+    const sam = shell.profiles.get(idOf('Sam.seller'));
     // Pixels of the agent's marks' color in the tab's own rendering: the outline and label are really drawn.
     const colored = async () => {
       const img = await sam.get().wc.capturePage(); const px = img.toBitmap(); // BGRA
@@ -211,58 +211,60 @@ export default (test: Test) => {
       return n;
     };
     for (const url of [`${SITE}/app`, `${SITE}/strict`]) {
-      await call('browser_navigate', { profile: 'sam-seller', url });
-      const r = await call('browser_highlight', { profile: 'sam-seller', elements: [
+      await call('browser_navigate', { profile: 'Sam.seller', url });
+      const r = await call('browser_highlight', { profile: 'Sam.seller', elements: [
         { locator: "getByRole('button', { name: 'Sign in' })", label: 'Sign in is here' },
         { locator: 'locator("a").first()' }] });
       assert.match(r.text, /Highlighted 2 element/);
       await waitFor(async () => (await colored()) > 300).catch(() => {});
       assert.ok(await colored() > 300, `${url}: outline and label visible (${await colored()} px)`);
       if (url.endsWith('/app')) await shot(shell, path.join(root, 'highlight.png'));
-      await call('browser_highlight', { profile: 'sam-seller', elements: [] });
+      await call('browser_highlight', { profile: 'Sam.seller', elements: [] });
       await waitFor(async () => (await colored()) < 50).catch(() => {});
       assert.ok(await colored() < 50, `${url}: cleared (${await colored()} px)`);
     }
   });
   test('highlights go away when the human clicks or types in the page', async ({ shell, call }) => {
-    const sam = shell.profiles.get('sam-seller');
-    await call('browser_navigate', { profile: 'sam-seller', url: `${SITE}/app` });
+    const sam = shell.profiles.get(idOf('Sam.seller'));
+    await call('browser_navigate', { profile: 'Sam.seller', url: `${SITE}/app` });
     for (const input of [[{ type: 'mouseDown', x: 300, y: 300, button: 'left', clickCount: 1 }, { type: 'mouseUp', x: 300, y: 300, button: 'left', clickCount: 1 }],
       [{ type: 'keyDown', keyCode: 'Shift' }, { type: 'keyUp', keyCode: 'Shift' }]] as (Electron.MouseInputEvent | Electron.KeyboardInputEvent)[][]) {
-      await call('browser_highlight', { profile: 'sam-seller', elements: [{ locator: "getByRole('button', { name: 'Sign in' })", label: 'here' }] });
-      assert.equal(highlights.has(`${tkey('project', 1)}/sam-seller`), true);
+      await call('browser_highlight', { profile: 'Sam.seller', elements: [{ locator: "getByRole('button', { name: 'Sign in' })", label: 'here' }] });
+      assert.equal(highlights.has(`${tkey('project', 1)}/${sam.id}`), true);
       const wc = sam.get().wc; wc.focus();
       for (const e of input) wc.sendInputEvent(e);
-      await waitFor(() => !highlights.has(`${tkey('project', 1)}/sam-seller`));
+      await waitFor(() => !highlights.has(`${tkey('project', 1)}/${sam.id}`));
     }
   });
   // 1 s each: how long a tool looks for an element before it says there is none (by design).
   test('agent: an element that is not there fails fast, with what to do instead', async ({ call }) => {
-    await call('browser_navigate', { profile: 'sam-seller', url: `${SITE}/app` });
+    await call('browser_navigate', { profile: 'Sam.seller', url: `${SITE}/app` });
     for (const [tool, args] of [['browser_highlight', { elements: [{ locator: "getByRole('button', { name: 'New chat' })" }] }],
       ['browser_click', { locator: "getByRole('button', { name: 'New chat' })" }], ['browser_type', { locator: "getByRole('textbox', { name: 'Nope' })", text: 'x' }]] as [string, object][]) {
       const t0 = Date.now();
-      await assert.rejects(call(tool, { profile: 'sam-seller', ...args }), /No element matches .* browser_snapshot/);
+      await assert.rejects(call(tool, { profile: 'Sam.seller', ...args }), /No element matches .* browser_snapshot/);
       assert.ok(Date.now() - t0 < 2500, `${tool} took ${Date.now() - t0} ms`);
     }
   });
   test('agent: create a profile with profile_create; removed from the project, it stays in Settings → Profiles until deleted there', async (ctx) => {
     const { shell, call, ui } = ctx;
     const r = await call('profile_create', { name: 'Ann.admin', description: 'the shop\'s admin' });
-    assert.match(r.text, /Created profile ann-admin/);
-    assert.ok(shell.profiles.has('ann-admin'));
-    const list: { id: string; avatar: string; description: string | null }[] = JSON.parse((await call('profile_list', {})).text);
-    assert.deepEqual(list.map((p) => p.id), ['sam-seller', 'elon-buyer', 'ann-admin']);
+    assert.match(r.text, /Created profile Ann\.admin\./);
+    const ann = idOf('Ann.admin');
+    assert.ok(shell.profiles.has(ann));
+    const list: { name: string; avatar: string; description: string | null }[] = JSON.parse((await call('profile_list', {})).text);
+    assert.deepEqual(list.map((p) => p.name), ['Sam.seller', 'Elon.buyer', 'Ann.admin'], 'by name: the agent never sees an id');
+    assert.ok(list.every((p) => !('id' in p)));
     assert.deepEqual(list.map((p) => [p.avatar, p.description]), [['fox', 'seller in the test shop'], ['penguin', null], ['frog', 'the shop\'s admin']]);
     await waitFor(async () => (await ui(`document.querySelectorAll('.pane').length`)) === 3);
     ctx.answer = true;
-    await ui(`act('profile:delete', { profile: 'ann-admin' })`); // Remove from Project… in its pane's menu
+    await ui(`act('profile:delete', { profile: '${ann}' })`); // Remove from Project… in its pane's menu
     assert.match(ctx.asked.pop().message, /^Remove the profile Ann\.admin from /);
-    await waitFor(() => !shell.profiles.has('ann-admin'));
-    assert.deepEqual(shell.profileStore.projectsOf(shell.profileStore.get('ann-admin')), [], 'kept, in no project');
-    await ui(`kulisa.invoke('profiles:delete', { profile: 'ann-admin' })`);
+    await waitFor(() => !shell.profiles.has(ann));
+    assert.deepEqual(shell.profileStore.projectsOf(shell.profileStore.get(ann)), [], 'kept, in no project');
+    await ui(`kulisa.invoke('profiles:delete', { profile: '${ann}' })`);
     assert.equal(ctx.asked.pop().message, 'Delete the profile Ann.admin?');
-    await waitFor(() => !shell.profileStore.get('ann-admin'));
+    await waitFor(() => !shell.profileStore.get(ann));
   });
   test('who a profile is: the agent is told to choose by it and to ask; it saves the human\'s answer, Settings → Profiles shows it', async (ctx) => {
     const { shell, call, ui, sui } = ctx;
@@ -270,10 +272,10 @@ export default (test: Test) => {
     await c.connect(new StreamableHTTPClientTransport(new URL(shell.task.env().KULISA_MCP_URL)));
     assert.match(c.getInstructions(), /by its description .* ask the human once .* profile_describe/s, 'every agent, also without the skill');
     await c.close();
-    const elon = shell.profiles.get('elon-buyer');
-    assert.match((await call('profile_describe', { profile: 'elon-buyer', description: 'buyer; pays by card' })).text, /Saved/);
+    const elon = shell.profiles.get(idOf('Elon.buyer'));
+    assert.match((await call('profile_describe', { profile: 'Elon.buyer', description: 'buyer; pays by card' })).text, /Saved/);
     assert.equal(elon.description, 'buyer; pays by card');
-    await assert.rejects(call('profile_describe', { profile: 'elon-buyer', description: 'x'.repeat(501) }), /at most 500/);
+    await assert.rejects(call('profile_describe', { profile: 'Elon.buyer', description: 'x'.repeat(501) }), /at most 500/);
     // The editor shows it and the human changes it there; the pane's name tells it on hover (under the whole name, which a
     // narrow pane cuts), the task's tab's menu under the name.
     const header = `[...document.querySelectorAll('.ptab')].find((t) => t.querySelector('.pname')?.textContent === 'Elon.buyer')`;
@@ -286,7 +288,7 @@ export default (test: Test) => {
     await closeMenu(ui);
     // Settings → Profiles shows it and the human changes it there.
     await manageProfiles(ctx);
-    await chooseProfile(sui, 'elon-buyer');
+    await chooseProfile(sui, 'Elon.buyer');
     await waitFor(async () => (await sui(`document.getElementById('profileabout').value`)) === 'buyer; pays by card');
     assert.deepEqual(await sui(`(() => { const a = document.getElementById('profileabout'); return [a.localName, a.rows, getComputedStyle(a).resize]; })()`),
       ['textarea', 2, 'vertical'], 'two lines, made taller by hand');
@@ -299,48 +301,48 @@ export default (test: Test) => {
     await waitFor(() => elon.avatar === 'owl');
     await waitFor(() => sui(`!document.querySelector('.profilepics')`));
     await waitFor(async () => (await sui(`document.querySelector('#profilepic .avatar').getAttribute('src')`)) === 'avatars/owl.svg');
-    assert.match((await sui(`kulisa.invoke('profiles:avatar', { profile: 'elon-buyer', avatar: 'dragon' })`)).error, /no picture/);
+    assert.match((await sui(`kulisa.invoke('profiles:avatar', { profile: '${idOf('Elon.buyer')}', avatar: 'dragon' })`)).error, /no picture/);
     await closeSettings(ctx);
   });
   // Each action of the agent waits while it is shown in the page (0.5 s, ghost.ts): the agent's tests take seconds.
   test('agent: navigate, snapshot, type by ref, click by locator, screenshot', async ({ call }) => {
-    await call('browser_navigate', { profile: 'sam-seller', url: `${SITE}/app` });
-    const snap = await call('browser_snapshot', { profile: 'sam-seller' });
+    await call('browser_navigate', { profile: 'Sam.seller', url: `${SITE}/app` });
+    const snap = await call('browser_snapshot', { profile: 'Sam.seller' });
     const ref = snap.text.match(/textbox "Name"[^\n]*\[ref=(\w+)\]/)[1];
-    await call('browser_type', { profile: 'sam-seller', ref, text: 'sam', submit: true });
-    await call('browser_wait_for', { profile: 'sam-seller', text: 'Signed in as sam' });
-    await call('browser_click', { profile: 'sam-seller', locator: "getByRole('button', { name: 'Checkout' })" });
-    const shot = await call('browser_screenshot', { profile: 'sam-seller' });
+    await call('browser_type', { profile: 'Sam.seller', ref, text: 'sam', submit: true });
+    await call('browser_wait_for', { profile: 'Sam.seller', text: 'Signed in as sam' });
+    await call('browser_click', { profile: 'Sam.seller', locator: "getByRole('button', { name: 'Checkout' })" });
+    const shot = await call('browser_screenshot', { profile: 'Sam.seller' });
     assert.equal(shot.content[0].type, 'image');
   });
 
   // The agent's marks (its pointer, browser_highlight's outline) are Kulisa's, not the site's: not in the picture.
   test('agent: screenshots of an element, the visible part and the whole page, at CSS pixels, without the agent\'s marks; several profiles in one call', async ({ call }) => {
     const img = (part: { data?: string }) => nativeImage.createFromBuffer(Buffer.from(part.data, 'base64'));
-    await call('browser_navigate', { profile: 'sam-seller', url: `${SITE}/tall` });
-    const box = { profile: 'sam-seller', locator: "locator('#box')" };
+    await call('browser_navigate', { profile: 'Sam.seller', url: `${SITE}/tall` });
+    const box = { profile: 'Sam.seller', locator: "locator('#box')" };
     const el = img((await call('browser_screenshot', box)).content[0]);
     assert.deepEqual(el.getSize(), { width: 200, height: 120 }, 'the element alone, at its CSS size');
     const [b, g, r] = el.crop({ x: 100, y: 60, width: 1, height: 1 }).toBitmap();
     assert.ok(r > 180 && g < 60 && b < 60, `the element's own color (${[r, g, b]})`);
-    const visible = (await call('browser_screenshot', { profile: 'sam-seller' })).content[0];
-    const inner = JSON.parse((await call('browser_evaluate', { profile: 'sam-seller', function: '() => [innerWidth, innerHeight]' })).text);
+    const visible = (await call('browser_screenshot', { profile: 'Sam.seller' })).content[0];
+    const inner = JSON.parse((await call('browser_evaluate', { profile: 'Sam.seller', function: '() => [innerWidth, innerHeight]' })).text);
     assert.deepEqual(Object.values(img(visible).getSize()), inner, 'the visible part, at CSS pixels');
-    await call('browser_highlight', { profile: 'sam-seller', elements: [{ locator: "locator('#box')" }] });
-    assert.equal((await call('browser_screenshot', { profile: 'sam-seller' })).content[0].data, visible.data, 'the outline is not in the picture');
-    await call('browser_highlight', { profile: 'sam-seller', elements: [] });
-    const full = img((await call('browser_screenshot', { profile: 'sam-seller', fullPage: true })).content[0]);
+    await call('browser_highlight', { profile: 'Sam.seller', elements: [{ locator: "locator('#box')" }] });
+    assert.equal((await call('browser_screenshot', { profile: 'Sam.seller' })).content[0].data, visible.data, 'the outline is not in the picture');
+    await call('browser_highlight', { profile: 'Sam.seller', elements: [] });
+    const full = img((await call('browser_screenshot', { profile: 'Sam.seller', fullPage: true })).content[0]);
     assert.ok(full.getSize().height > 3000, `the whole page, down to its end (${full.getSize().height})`);
-    await call('browser_navigate', { profile: 'elon-buyer', url: `${SITE}/tall` });
-    const both = (await call('browser_screenshot', { ...box, also: ['elon-buyer'] })).content.slice(0, 4); // then an unnamed task's note
-    assert.deepEqual(both.map((c: { type: string; text?: string }) => c.text || c.type), ['- Profile: sam-seller', 'image', '- Profile: elon-buyer', 'image']);
+    await call('browser_navigate', { profile: 'Elon.buyer', url: `${SITE}/tall` });
+    const both = (await call('browser_screenshot', { ...box, also: ['Elon.buyer'] })).content.slice(0, 4); // then an unnamed task's note
+    assert.deepEqual(both.map((c: { type: string; text?: string }) => c.text || c.type), ['- Profile: Sam.seller', 'image', '- Profile: Elon.buyer', 'image']);
     assert.deepEqual(img(both[3]).getSize(), { width: 200, height: 120 }, 'the same element in the other profile');
-    await assert.rejects(call('browser_screenshot', { profile: 'sam-seller', ref: 'e1', also: ['elon-buyer'] }), /pass a locator/);
+    await assert.rejects(call('browser_screenshot', { profile: 'Sam.seller', ref: 'e1', also: ['Elon.buyer'] }), /pass a locator/);
   });
 
   test('agent: typing goes key by key, as a person types, replacing what the field held; a long text at once', async ({ call }) => {
-    const p = { profile: 'sam-seller', locator: "getByLabel('Name')" };
-    await call('browser_navigate', { profile: 'sam-seller', url: `${SITE}/app` });
+    const p = { profile: 'Sam.seller', locator: "getByLabel('Name')" };
+    await call('browser_navigate', { profile: 'Sam.seller', url: `${SITE}/app` });
     // Each change of the field: one for each key typed, one for a fill (clearing it first is one too).
     const typed = async (text: string) => {
       await call('browser_evaluate', { ...p, function: "(el) => { el.value = 'old'; window.keys = 0; el.oninput = () => window.keys++; }" });
@@ -358,13 +360,13 @@ export default (test: Test) => {
     assert.ok(most.ms < 9000, `300 keys in ${most.ms} ms`);
   });
   test('agent: keys, hover, select, files, waiting, evaluate, back and forward; dialogs answered as asked, the human\'s left in the pane', async ({ shell, ui, call }) => {
-    const p = { profile: 'sam-seller' };
+    const p = { profile: 'Sam.seller' };
     const out = async () => JSON.parse((await call('browser_evaluate', { ...p, function: '() => out.textContent' })).text);
     await call('browser_navigate', { ...p, url: `${SITE}/form` });
     const del = { ...p, locator: "getByRole('button', { name: 'Delete' })" };
     // The agent's action answers its own dialog: none is shown.
-    const view = () => shell.profiles.get('sam-seller').get().view.getVisible();
-    const paneDialog = `document.querySelector('.pane[data-profile="sam-seller"] .pagedialog')`;
+    const view = () => shell.profiles.get(idOf('Sam.seller')).get().view.getVisible();
+    const paneDialog = `document.querySelector('.pane[data-profile="${idOf('Sam.seller')}"] .pagedialog')`;
     assert.match((await call('browser_click', del)).text, /asked: confirm "Delete the draft\?"; dismissed/);
     assert.equal(await out(), 'kept');
     assert.match((await call('browser_click', { ...del, dialog: 'accept' })).text, /accepted/);
@@ -382,9 +384,9 @@ export default (test: Test) => {
     assert.equal(view(), false, 'the page drawn as a picture under its dialog');
     // The page does nothing until it is answered: the agent's tools say so at once rather than wait.
     await assert.rejects(call('browser_snapshot', p), /shows a confirm \("Yours\?\nReally\."\) for the human to answer/);
-    assert.match(await ui(`document.querySelector('.pane[data-profile="sam-seller"] .content').style.getPropertyValue('--picture')`), /^url\("data:image\/jpeg/);
+    assert.match(await ui(`document.querySelector('.pane[data-profile="${idOf('Sam.seller')}"] .content').style.getPropertyValue('--picture')`), /^url\("data:image\/jpeg/);
     // Gone from the pane, and the answer in the main process (it goes there after the pane has closed it).
-    const closed = () => waitFor(async () => !(await ui(`${paneDialog}?.dataset.state === 'open'`)) && !shell.profiles.get('sam-seller').get().dialog);
+    const closed = () => waitFor(async () => !(await ui(`${paneDialog}?.dataset.state === 'open'`)) && !shell.profiles.get(idOf('Sam.seller')).get().dialog);
     await ui(`${paneDialog}.querySelector('.primary').click()`);
     await closed();
     assert.equal(await out(), 'true');
@@ -397,13 +399,13 @@ export default (test: Test) => {
     // navigation until then).
     await ask("alert('Saved')");
     assert.equal(await ui(`!${paneDialog}.querySelector('.cancel')`), true);
-    await ui(`document.querySelector('.pane[data-profile="sam-seller"] .reload').click()`);
+    await ui(`document.querySelector('.pane[data-profile="${idOf('Sam.seller')}"] .reload').click()`);
     await closed();
     await waitFor(async () => (await out()) === 'nothing yet');
     assert.equal(view(), true);
     // Answered over CDP by another client (an agent's own script): the pane's dialog goes too.
     await ask("confirm('Script?')");
-    await shell.profiles.get('sam-seller').get().wc.debugger.sendCommand('Page.handleJavaScriptDialog', { accept: true });
+    await shell.profiles.get(idOf('Sam.seller')).get().wc.debugger.sendCommand('Page.handleJavaScriptDialog', { accept: true });
     await closed();
     assert.equal(await out(), 'true');
     await call('browser_select_option', { ...p, locator: "getByLabel('Size')", values: ['L'] });
@@ -426,26 +428,28 @@ export default (test: Test) => {
     await call('browser_navigate', { ...p, go: 'back' });
   });
   test('agent: one profile acts, another waits to see it; several profiles read in one call', async ({ call }) => {
-    const tab = (await call('browser_tab_new', { profile: 'elon-buyer', url: `${SITE}/board` })).text.match(/Opened tab (\w+)/)[1];
-    const mine = (await call('browser_tab_new', { profile: 'sam-seller', url: `${SITE}/board` })).text.match(/Opened tab (\w+)/)[1];
-    await call('browser_type', { profile: 'sam-seller', locator: "getByLabel('Message')", text: 'hello elon', submit: true });
-    await call('browser_wait_for', { profile: 'elon-buyer', text: 'hello elon', seconds: 5 });
+    const tab = (await call('browser_tab_new', { profile: 'Elon.buyer', url: `${SITE}/board` })).text.match(/Opened tab (\w+)/)[1];
+    const mine = (await call('browser_tab_new', { profile: 'Sam.seller', url: `${SITE}/board` })).text.match(/Opened tab (\w+)/)[1];
+    await call('browser_type', { profile: 'Sam.seller', locator: "getByLabel('Message')", text: 'hello elon', submit: true });
+    await call('browser_wait_for', { profile: 'Elon.buyer', text: 'hello elon', seconds: 5 });
     // The poster's page too: reloaded by the post, it shows the board at its next poll (the snapshot came before).
-    await call('browser_wait_for', { profile: 'sam-seller', text: 'hello elon', seconds: 5 });
-    const both = (await call('browser_snapshot', { profile: 'sam-seller', also: ['elon-buyer', 'nobody'] })).text;
-    assert.match(both, /Profile: sam-seller[\s\S]*hello elon[\s\S]*Profile: elon-buyer[\s\S]*hello elon[\s\S]*Profile: nobody\n- No profile "nobody"/);
-    await call('browser_tab_close', { profile: 'sam-seller', tab: mine });
-    await call('browser_tab_close', { profile: 'elon-buyer', tab });
+    await call('browser_wait_for', { profile: 'Sam.seller', text: 'hello elon', seconds: 5 });
+    const both = (await call('browser_snapshot', { profile: 'Sam.seller', also: ['Elon.buyer', 'nobody'] })).text;
+    assert.match(both, /Profile: Sam\.seller[\s\S]*hello elon[\s\S]*Profile: Elon\.buyer[\s\S]*hello elon[\s\S]*Profile: nobody\n- No profile "nobody"/);
+    await call('browser_tab_close', { profile: 'Sam.seller', tab: mine });
+    await call('browser_tab_close', { profile: 'Elon.buyer', tab });
   });
   test('agent: rename a profile; ask the human to sign one in and wait until they are through', async ({ shell, call, ui }) => {
-    const name = shell.profiles.get('elon-buyer').name;
-    assert.match((await call('profile_rename', { profile: 'elon-buyer', name: 'elon.payer' })).text, /id is now elon-payer/);
-    assert.ok(shell.profiles.has('elon-payer'));
-    await call('profile_rename', { profile: 'elon-payer', name });
-    const elon = shell.profiles.get('elon-buyer');
+    const elon = shell.profiles.get(idOf('Elon.buyer')), name = elon.name;
+    assert.match((await call('profile_rename', { profile: 'elon.BUYER', name: 'elon.payer' })).text, /Renamed elon\.BUYER to elon\.payer\./);
+    assert.equal(elon.name, 'elon.payer', 'the same profile');
+    assert.match((await call('browser_snapshot', { profile: 'Elon.payer' })).text, /Profile: Elon\.payer/, 'by its new name');
+    await assert.rejects(call('browser_snapshot', { profile: 'Elon.buyer' }), /No profile "Elon\.buyer"\. Profiles: Sam\.seller, elon\.payer/);
+    await assert.rejects(call('profile_rename', { profile: 'elon.payer', name: 'SAM.seller' }), /a profile SAM\.seller is in the project .* already/, 'names are unique in a project, whatever their case');
+    await call('profile_rename', { profile: 'elon.payer', name });
     const back = elon.get().wc.getURL();
-    const asking = call('profile_ask_signin', { profile: 'elon-buyer', url: `${SITE}/form`, why: 'as Elon' });
-    const cap = `document.querySelector('.ptab[data-panel="${panel(shell, 'elon-buyer')}"] .caption').textContent`;
+    const asking = call('profile_ask_signin', { profile: 'Elon.buyer', url: `${SITE}/form`, why: 'as Elon' });
+    const cap = `document.querySelector('.ptab[data-panel="${panel('Elon.buyer')}"] .caption').textContent`;
     await waitFor(async () => (await ui(cap)).includes('sign in, please: as Elon'));
     assert.match(elon.get().wc.getURL(), /\/form$/, 'the sign-in page opened');
     void elon.get().wc.loadURL(back); // the human signs in and lands elsewhere
@@ -454,16 +458,16 @@ export default (test: Test) => {
   });
 
   test('a page that does not load says why, as Chrome\'s error page (Electron leaves it blank); the agent reads it too', async ({ shell, call, ui }) => {
-    const sam = shell.profiles.get('sam-seller'), wc = sam.get().wc, back = wc.getURL();
-    await ui(`act('tab:navigate', { profile: 'sam-seller', tab: '${sam.active}', url: 'http://127.0.0.1:4419/' })`); // nothing listens there
+    const sam = shell.profiles.get(idOf('Sam.seller')), wc = sam.get().wc, back = wc.getURL();
+    await ui(`act('tab:navigate', { profile: '${idOf('Sam.seller')}', tab: '${sam.active}', url: 'http://127.0.0.1:4419/' })`); // nothing listens there
     await waitFor(async () => /refused to connect/.test(await wc.executeJavaScript('document.body?.innerText || ""')));
     assert.equal(wc.getURL(), 'http://127.0.0.1:4419/', 'the address stays the one that failed');
-    assert.match((await call('browser_snapshot', { profile: 'sam-seller' })).text, /This site can’t be reached[\s\S]*ERR_CONNECTION_REFUSED/);
+    assert.match((await call('browser_snapshot', { profile: 'Sam.seller' })).text, /This site can’t be reached[\s\S]*ERR_CONNECTION_REFUSED/);
     await wc.loadURL(back);
   });
   test('tab strip: + opens a tab with the focus in its empty address, a click on a tab makes it active, × closes it', async ({ shell, ui }) => {
-    const elon = shell.profiles.get('elon-buyer');
-    const strip = `document.querySelector('.pane[data-profile="elon-buyer"] .tabs')`;
+    const elon = shell.profiles.get(idOf('Elon.buyer'));
+    const strip = `document.querySelector('.pane[data-profile="${idOf('Elon.buyer')}"] .tabs')`;
     const first = elon.active, n = elon.tabs.length;
     await ui(`window.__firstTab = ${strip}.querySelector('.tab[data-tab="${first}"]')`);
     await ui(`${strip}.querySelector('.add').click()`);
@@ -472,7 +476,7 @@ export default (test: Test) => {
     await waitFor(() => ui(`!!${strip}.querySelector('.tab[data-tab="${elon.active}"]')`));
     assert.equal(await ui(`${strip}.querySelector('.tab[data-tab="${first}"]') === window.__firstTab`), true, 'the first tab\'s element stays');
     await waitFor(() => ui(`!${strip}.querySelector('.tab.opening')`));
-    await waitFor(() => ui(`(() => { const a = document.querySelector('.pane[data-profile="elon-buyer"] .addr'); return document.activeElement === a && a.value === ''; })()`));
+    await waitFor(() => ui(`(() => { const a = document.querySelector('.pane[data-profile="${idOf('Elon.buyer')}"] .addr'); return document.activeElement === a && a.value === ''; })()`));
     // The keys go there, not to the new tab's page (a native view that would take the focus as it loads). Where the
     // keys go inside the window; when another app on the desktop is active (it may take the focus while the tests
     // run), no view has them, and Kulisa rightly leaves it so.
@@ -507,12 +511,12 @@ export default (test: Test) => {
     } finally { dbg.detach(); }
   });
   test('many tabs: they shrink as in Chrome; the strip, the toolbar and the page stay inside the pane', async ({ shell, ui }) => {
-    const elon = shell.profiles.get('elon-buyer'), n = elon.tabs.length;
-    const pane = '.pane[data-profile="elon-buyer"]';
-    const before = await pageBox(ui, 'elon-buyer');
+    const elon = shell.profiles.get(idOf('Elon.buyer')), n = elon.tabs.length;
+    const pane = `.pane[data-profile="${idOf('Elon.buyer')}"]`;
+    const before = await pageBox(ui, 'Elon.buyer');
     // A lone tab has its full width (220px, as Chrome's), not shrunk while there is room.
-    assert.equal(await ui(`Math.round(document.querySelector('.pane[data-profile="sam-seller"] .tabs .tab').getBoundingClientRect().width)`), 220);
-    for (let i = 0; i < 24; i++) await ui(`act('tab:new', { profile: 'elon-buyer' })`);
+    assert.equal(await ui(`Math.round(document.querySelector('.pane[data-profile="${idOf('Sam.seller')}"] .tabs .tab').getBoundingClientRect().width)`), 220);
+    for (let i = 0; i < 24; i++) await ui(`act('tab:new', { profile: '${idOf('Elon.buyer')}' })`);
     await waitFor(async () => (await ui(`document.querySelectorAll('${pane} .tabs .tab').length`)) === n + 24);
     await waitFor(() => ui(`!document.querySelector('${pane} .tabs .tab.opening')`)); // grown in
     const fit = await ui(`(() => { const p = document.querySelector('${pane}'), r = (q) => p.querySelector(q).getBoundingClientRect(), pr = p.getBoundingClientRect();
@@ -530,7 +534,7 @@ export default (test: Test) => {
     // + and a tab's × are the same icon size.
     assert.deepEqual(await ui(`['.tab.active .x svg', '.add svg'].map((q) => document.querySelector('${pane} .tabs ' + q).getBoundingClientRect().width)`), [14, 14]);
     assert.deepEqual(strip, { activeInSight: true, nothingUnderAdd: true, activeX: true, otherIcon: true, otherTitle: false, otherX: true });
-    assert.deepEqual(await pageBox(ui, 'elon-buyer'), before, 'the page keeps its place and size');
+    assert.deepEqual(await pageBox(ui, 'Elon.buyer'), before, 'the page keeps its place and size');
     // Past that the strip scrolls (lib/strip.ts): the edge with tabs past it fades; a mouse's wheel scrolls it; a tab
     // not shown that changes (its page loads, its title) leaves it where the human scrolled it, not back at the active
     // one.
@@ -550,18 +554,18 @@ export default (test: Test) => {
   });
   test('back and forward buttons are enabled only when there is somewhere to go', async ({ call, ui, shell }) => {
     const buttons = () => ui(`[...document.querySelectorAll('.pane')][0].querySelectorAll('.back, .fwd').values().map((b) => b.disabled).toArray()`);
-    await call('browser_navigate', { profile: 'sam-seller', url: `${SITE}/app?n=1` });
-    await call('browser_navigate', { profile: 'sam-seller', url: `${SITE}/app?n=2` });
+    await call('browser_navigate', { profile: 'Sam.seller', url: `${SITE}/app?n=1` });
+    await call('browser_navigate', { profile: 'Sam.seller', url: `${SITE}/app?n=2` });
     await waitFor(async () => JSON.stringify(await buttons()) === '[false,true]');
     await ui(`[...document.querySelectorAll('.pane')][0].querySelector('.back').click()`);
     await waitFor(async () => JSON.stringify(await buttons()) === '[false,false]');
     // The buttons change as the back navigation starts; the next test reads the address, so wait until it has
     // landed, in the tab and in the pane (on a slow machine the pane may show n=2 while the tab is on n=1).
-    await waitFor(async () => shell.profiles.get('sam-seller').get().url.endsWith('n=1')
-      && (await ui(`document.querySelector('.pane[data-profile="sam-seller"] .addr').value`)).endsWith('n=1'));
+    await waitFor(async () => shell.profiles.get(idOf('Sam.seller')).get().url.endsWith('n=1')
+      && (await ui(`document.querySelector('.pane[data-profile="${idOf('Sam.seller')}"] .addr').value`)).endsWith('n=1'));
   });
   test('the address as in Chrome: shown without http(s)://, a click shows all of it selected; a second click places the caret', async ({ shell, ui }) => {
-    const addr = '.pane[data-profile="sam-seller"] .addr';
+    const addr = `.pane[data-profile="${idOf('Sam.seller')}"] .addr`;
     const z = shell.win.webContents.getZoomFactor(), b = await box(ui, addr);
     shell.win.webContents.focus(); // the last test left the focus in a page
     const click = () => {
@@ -570,7 +574,7 @@ export default (test: Test) => {
     };
     const sel = () => ui(`(() => { const a = document.querySelector('${addr}'); return [document.activeElement === a, a.selectionStart, a.selectionEnd, a.value.length]; })()`);
     const value = () => ui(`document.querySelector('${addr}').value`);
-    const full = shell.profiles.get('sam-seller').get().wc.getURL();
+    const full = shell.profiles.get(idOf('Sam.seller')).get().wc.getURL();
     assert.ok(full.startsWith('http://'), full);
     assert.equal(await value(), full.replace('http://', ''));
     click();
@@ -583,19 +587,19 @@ export default (test: Test) => {
     assert.equal(await value(), full.replace('http://', ''));
   });
   test('profiles are isolated', async (ctx) => {
-    await ctx.call('browser_navigate', { profile: 'elon-buyer', url: `${SITE}/app` });
-    assert.equal(await who(ctx, 'sam-seller'), 'Signed in as sam');
-    assert.equal(await who(ctx, 'elon-buyer'), 'Signed out');
+    await ctx.call('browser_navigate', { profile: 'Elon.buyer', url: `${SITE}/app` });
+    assert.equal(await who(ctx, 'Sam.seller'), 'Signed in as sam');
+    assert.equal(await who(ctx, 'Elon.buyer'), 'Signed out');
   });
 
   test('target=_blank and window.open open tabs of the same profile', async ({ shell, call }) => {
-    const sam = shell.profiles.get('sam-seller');
+    const sam = shell.profiles.get(idOf('Sam.seller'));
     const before = sam.tabs.length;
     const waitTabs = async (n: number) => { await waitFor(() => sam.tabs.length >= n).catch(() => {}); assert.equal(sam.tabs.length, n); };
-    await call('browser_click', { profile: 'sam-seller', locator: "getByRole('link', { name: 'target=_blank link' })" });
+    await call('browser_click', { profile: 'Sam.seller', locator: "getByRole('link', { name: 'target=_blank link' })" });
     await waitTabs(before + 1);
     // the new tab is now the active one; it has the same buttons
-    await call('browser_click', { profile: 'sam-seller', locator: "getByRole('button', { name: 'window.open()' })" });
+    await call('browser_click', { profile: 'Sam.seller', locator: "getByRole('button', { name: 'window.open()' })" });
     await waitTabs(before + 2);
     const popup = await sam.page(sam.tabs.at(-1).id);
     await popup.waitForLoadState();
@@ -609,7 +613,7 @@ export default (test: Test) => {
   // sites see), and lets Electron's own Chromium in. Without Electron's word: Teams takes a Mac's or Windows' Electron
   // for its own retired app and shows "Classic Teams is no longer available".
   test('profiles present themselves as what they are, Kulisa on Chromium, in pages and popups alike', async ({ shell }) => {
-    const elon = shell.profiles.get('elon-buyer');
+    const elon = shell.profiles.get(idOf('Elon.buyer'));
     const page = await elon.page();
     await page.goto(`${SITE}/headers`);
     assert.equal(JSON.parse(await page.locator('body').innerText())['user-agent'], app.userAgentFallback);
@@ -625,35 +629,35 @@ export default (test: Test) => {
   });
 
   test('the agent pauses on sign-in pages and comes back after', async ({ shell, call }) => {
-    const elon = shell.profiles.get('elon-buyer');
+    const elon = shell.profiles.get(idOf('Elon.buyer'));
     const wc = elon.get().wc;
     await wc.loadURL(`http://localhost:${PORT}/app`); // localhost is a sign-in host in this test
     await waitFor(() => elon.signinMode);
-    await assert.rejects(call('browser_snapshot', { profile: 'elon-buyer' }), /sign-in mode/);
+    await assert.rejects(call('browser_snapshot', { profile: 'Elon.buyer' }), /sign-in mode/);
     assert.equal(await wc.executeJavaScript('navigator.webdriver'), false);
     await wc.loadURL(`${SITE}/app`);
     await waitFor(() => !elon.signinMode);
-    assert.equal(await who({ call }, 'elon-buyer'), 'Signed out');
+    assert.equal(await who({ call }, 'Elon.buyer'), 'Signed out');
   });
 
   test('ghost cursor: agent clicks are seen with coordinates', async ({ shell, call }) => {
     const actions: Action[] = [];
     const on = (a: Action) => { actions.push(a); };
     shell.bus.on('agent-action', on);
-    await call('browser_click', { profile: 'sam-seller', locator: "getByRole('button', { name: /Checkout|Checked/ })" });
+    await call('browser_click', { profile: 'Sam.seller', locator: "getByRole('button', { name: /Checkout|Checked/ })" });
     shell.bus.off('agent-action', on);
     const click = actions.find((a) => a.caption === 'click');
     assert.ok(click && click.x > 0 && click.y > 0, JSON.stringify(actions));
   });
 
   test('point and tell: a pick puts a reference into the agent\'s prompt, not sent', async ({ shell, ui, ptyOutput }) => {
-    const elon = shell.profiles.get('elon-buyer');
+    const elon = shell.profiles.get(idOf('Elon.buyer'));
     const page = await elon.page();
     await page.goto(`${SITE}/errors`);
     await page.locator('#pay').click();
     await page.getByText('HTTP 500').waitFor(); // its error logged, its request failed: for the next test
-    const pending = ui(`kulisa.invoke('pick:start', { profile: 'elon-buyer' })`);
-    await waitFor(() => shell.windows[0].picking.has('elon-buyer'));
+    const pending = ui(`kulisa.invoke('pick:start', { profile: '${idOf('Elon.buyer')}' })`);
+    await waitFor(() => shell.windows[0].picking.has(idOf('Elon.buyer')));
     const b = await page.locator('#pay').boundingBox();
     const x = Math.round(b.x + b.width / 2), y = Math.round(b.y + b.height / 2);
     const wc = elon.get().wc;
@@ -672,7 +676,7 @@ export default (test: Test) => {
     assert.equal(pick.locator, "getByRole('button', { name: 'Pay now' })");
     assert.equal(pick.tab, elon.active);
     assert.ok(!fs.existsSync(path.join(project, '.kulisa')), 'nothing is written into the project');
-    const ref = `[kulisa pick: elon-buyer tab ${pick.tab} getByRole('button', { name: 'Pay now' })]`;
+    const ref = `[kulisa pick: Elon.buyer tab ${pick.tab} getByRole('button', { name: 'Pay now' })]`;
     await waitFor(() => ptyOutput().includes(ref));
     await sleep(300); // nothing to wait for: that it is not sent (cat would print it again)
     // The agent here is `cat`: the terminal echoes typed input, and cat prints it again only after Enter. Once
@@ -683,55 +687,55 @@ export default (test: Test) => {
   });
 
   test("agent: the picked tab's console and requests, and tools on a tab other than the active one", async ({ shell, call }) => {
-    const elon = shell.profiles.get('elon-buyer');
+    const elon = shell.profiles.get(idOf('Elon.buyer'));
     const picked = elon.active; // the /errors page, after a click on Pay now
-    const other = (await call('browser_tab_new', { profile: 'elon-buyer', url: `${SITE}/app` })).text.match(/Opened tab (\w+)/)[1];
+    const other = (await call('browser_tab_new', { profile: 'Elon.buyer', url: `${SITE}/app` })).text.match(/Opened tab (\w+)/)[1];
     assert.equal(elon.active, other);
-    const errors = (await call('browser_console_messages', { profile: 'elon-buyer', tab: picked, onlyErrors: true })).text;
+    const errors = (await call('browser_console_messages', { profile: 'Elon.buyer', tab: picked, onlyErrors: true })).text;
     assert.match(errors, /error: .*PaymentError/); // Playwright's page.consoleMessages()
-    const failed = (await call('browser_network_requests', { profile: 'elon-buyer', tab: picked, onlyFailed: true })).text;
+    const failed = (await call('browser_network_requests', { profile: 'Elon.buyer', tab: picked, onlyFailed: true })).text;
     assert.match(failed, new RegExp(`POST http://127\\.0\\.0\\.1:${PORT}/api/pay → 500`)); // page.requests()
     assert.doesNotMatch(failed, /GET .*\/errors /, 'only failed ones');
-    assert.match((await call('browser_snapshot', { profile: 'elon-buyer', tab: picked })).text, /URL: .*\/errors/);
-    assert.match((await call('browser_snapshot', { profile: 'elon-buyer' })).text, /URL: .*\/app/, 'default: the active tab');
-    await call('browser_highlight', { profile: 'elon-buyer', tab: picked, elements: [{ locator: "getByRole('button', { name: 'Pay now' })" }] });
-    await call('browser_highlight', { profile: 'elon-buyer', tab: picked, elements: [] });
-    await call('browser_tab_close', { profile: 'elon-buyer', tab: other });
+    assert.match((await call('browser_snapshot', { profile: 'Elon.buyer', tab: picked })).text, /URL: .*\/errors/);
+    assert.match((await call('browser_snapshot', { profile: 'Elon.buyer' })).text, /URL: .*\/app/, 'default: the active tab');
+    await call('browser_highlight', { profile: 'Elon.buyer', tab: picked, elements: [{ locator: "getByRole('button', { name: 'Pay now' })" }] });
+    await call('browser_highlight', { profile: 'Elon.buyer', tab: picked, elements: [] });
+    await call('browser_tab_close', { profile: 'Elon.buyer', tab: other });
     await waitFor(() => elon.active === picked);
   });
 
   test('point and tell: Pick again or Esc in the page cancels it; nothing goes to the prompt', async ({ shell, ui, ptyOutput }) => {
-    const elon = shell.profiles.get('elon-buyer');
-    const button = `document.querySelector('.pane[data-profile="elon-buyer"] .pick')`;
+    const elon = shell.profiles.get(idOf('Elon.buyer'));
+    const button = `document.querySelector('.pane[data-profile="${idOf('Elon.buyer')}"] .pick')`;
     const before = ptyOutput().length;
     for (const cancel of ['button', 'esc']) {
       await ui(`${button}.click()`);
-      await waitFor(async () => (await ui(`${button}.dataset.state === 'on'`)) && shell.windows[0].picking.has('elon-buyer'));
+      await waitFor(async () => (await ui(`${button}.dataset.state === 'on'`)) && shell.windows[0].picking.has(idOf('Elon.buyer')));
       if (cancel === 'button') await ui(`${button}.click()`);
       else {
         const wc = elon.get().wc;
         wc.focus();
         wc.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' }); wc.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
       }
-      await waitFor(async () => !(await ui(`${button}.dataset.state === 'on'`)) && !shell.windows[0].picking.has('elon-buyer'));
-      assert.equal(await ui(`document.querySelector('.ptab[data-panel="profile:${folderOf('elon-buyer')}"] .caption').textContent`), '', cancel);
+      await waitFor(async () => !(await ui(`${button}.dataset.state === 'on'`)) && !shell.windows[0].picking.has(idOf('Elon.buyer')));
+      assert.equal(await ui(`document.querySelector('.ptab[data-panel="profile:${idOf('Elon.buyer')}"] .caption').textContent`), '', cancel);
     }
     await sleep(300); // nothing to wait for: that nothing comes
     assert.equal(ptyOutput().slice(before).includes('kulisa pick'), false);
   });
 
   test('point and tell: Pick is off on an empty tab (about:blank)', async ({ shell, ui }) => {
-    const elon = shell.profiles.get('elon-buyer');
-    const disabled = () => ui(`document.querySelector('.pane[data-profile="elon-buyer"] .pick').disabled`);
+    const elon = shell.profiles.get(idOf('Elon.buyer'));
+    const disabled = () => ui(`document.querySelector('.pane[data-profile="${idOf('Elon.buyer')}"] .pick').disabled`);
     assert.equal(await disabled(), false);
-    const tab = await ui(`act('tab:new', { profile: 'elon-buyer' })`);
+    const tab = await ui(`act('tab:new', { profile: '${idOf('Elon.buyer')}' })`);
     await waitFor(async () => elon.active === tab && (await disabled()));
     elon.closeTab(tab);
     await waitFor(async () => !(await disabled()));
   });
 
   test("a right-click in a page shows Chrome's menu for what is under it; a site's own menu stays the site's; the agent's right-click opens none", async ({ shell }) => {
-    const elon = shell.profiles.get('elon-buyer');
+    const elon = shell.profiles.get(idOf('Elon.buyer'));
     const page = await elon.page();
     await page.goto(`${SITE}/menu`);
     const wc = elon.get().wc;
@@ -836,7 +840,7 @@ export default (test: Test) => {
   test('@playwright/mcp works through the CDP proxy', async ({ shell }) => {
     const cli = path.join(path.dirname(fileURLToPath(import.meta.resolve('@playwright/mcp/package.json'))), 'cli.js');
     const c = new Client({ name: 'kulisa-test', version: '0' });
-    await c.connect(new StdioClientTransport({ command: 'node', args: [cli, '--cdp-endpoint', shell.profiles.get('sam-seller').endpoint, '--output-dir', path.join(root, 'pw-mcp')], stderr: 'ignore' }));
+    await c.connect(new StdioClientTransport({ command: 'node', args: [cli, '--cdp-endpoint', shell.profiles.get(idOf('Sam.seller')).endpoint, '--output-dir', path.join(root, 'pw-mcp')], stderr: 'ignore' }));
     try {
       const nav = await c.callTool({ name: 'browser_navigate', arguments: { url: `${SITE}/app` } });
       assert.ok(!nav.isError, JSON.stringify(nav.content));

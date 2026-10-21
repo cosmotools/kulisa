@@ -30,18 +30,20 @@ const tkey = (folder: string, n: number) => `${pid(folder)}/${n}`;
 const named = (key: string) => key.replace(/^[^/ ]+/, (id) => { const p = projectsSaved().find((x) => x.id === id); return p ? folderName(p) : id; });
 // A file of the test project's own data, of its first task (or of task n) (store.ts).
 const pfile = (f: string, task = 1) => path.join(userData, 'projects', pid('project'), String(task), f);
-// The tabs saved for a profile (in its folder).
-const savedTabs = (id: string, task = 1): string[] => savedFile(id, task).urls;
-// The place of the tab saved as the one in front.
-const savedActive = (id: string, task = 1): number => savedFile(id, task).active;
-const savedFile = (id: string, task: number) => {
-  const { folder } = JSON.parse(fs.readFileSync(pfile('profiles.json', task), 'utf8')).find((p: { id: string }) => p.id === id);
-  return JSON.parse(fs.readFileSync(pfile(path.join(folder, 'Kulisa Tabs.json'), task), 'utf8'));
+// A profile's id is random (profile-store.ts): a test names a profile by its name, as the agent does (any case), and
+// idOf gives its id, by which the window and the core know it (its folders, its panel, data-profile).
+const idOf = (name: string): string => {
+  const found = JSON.parse(fs.readFileSync(path.join(userData, 'profiles.json'), 'utf8')).list.filter((p: { name: string }) => p.name.toLowerCase() === name.toLowerCase());
+  assert.equal(found.length, 1, `one profile named ${name}`);
+  return found[0].id;
 };
-// A profile's folder (random, fixed: profile-store.ts), for its copy's or master's path and its panel.
-const folderOf = (id: string): string => JSON.parse(fs.readFileSync(path.join(userData, 'profiles.json'), 'utf8')).list.find((p: { id: string }) => p.id === id).folder;
-// The id of a profile's panel in the grid (its folder: stable across renames).
-const panel = (shell: Shell, id: string) => `profile:${(shell.profiles.get(id) || shell.closed.get(id)?.cfg).folder}`;
+// The tabs saved for a profile (in its folder).
+const savedTabs = (name: string, task = 1): string[] => savedFile(name, task).urls;
+// The place of the tab saved as the one in front.
+const savedActive = (name: string, task = 1): number => savedFile(name, task).active;
+const savedFile = (name: string, task: number) => JSON.parse(fs.readFileSync(pfile(path.join(idOf(name), 'Kulisa Tabs.json'), task), 'utf8'));
+// The id of a profile's panel in the grid.
+const panel = (name: string) => `profile:${idOf(name)}`;
 // The test site: the run's own (start.ts gives each run a free port), else 4417.
 const SITE = process.env.KULISA_TEST_SITE || 'http://127.0.0.1:4417';
 const PORT = new URL(SITE).port;
@@ -150,7 +152,8 @@ const settingsClosed = async ({ shell, ui }: Pick<Ctx, 'shell' | 'ui'>) => {
   });
 };
 // A profile in Settings' tree chosen (a click), its page shown.
-const chooseProfile = async (sui: UI, id: string) => {
+const chooseProfile = async (sui: UI, name: string) => {
+  const id = idOf(name);
   await waitFor(() => sui(`!!document.querySelector('#pjlist [data-profile="${id}"]')`)); // the profiles come as it opens
   await sui(`document.querySelector('#pjlist [data-profile="${id}"]').click()`);
   await waitFor(() => sui(`document.querySelector('#pjlist [data-profile="${id}"]')?.ariaSelected === 'true' && document.getElementById('profilepage')?.checkVisibility()`));
@@ -189,11 +192,11 @@ const who = async (ctx: Pick<Ctx, 'call'>, profile: string) => (await ctx.call('
 const box = (ui: UI, sel: string) => ui(`(() => { const e = document.querySelector(${JSON.stringify(sel)});
   if (!e || !e.isConnected || !e.offsetWidth) return null;
   const r = e.getBoundingClientRect(); return { x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width), height: Math.round(r.height) }; })()`);
-const pageBox = (ui: UI, id: string) => box(ui, `.pane[data-profile="${id}"] .content`);
+const pageBox = (ui: UI, name: string) => box(ui, `.pane[data-profile="${idOf(name)}"] .content`);
 // The box is in CSS pixels of the window's page; the view is placed in window pixels (times the Kulisa zoom).
-const viewOn = async (shell: Shell, ui: UI, id: string) => {
-  const t = shell.profiles.get(id).get();
-  const b = await pageBox(ui, id);
+const viewOn = async (shell: Shell, ui: UI, name: string) => {
+  const t = shell.profiles.get(idOf(name)).get();
+  const b = await pageBox(ui, name);
   const z = shell.win.webContents.getZoomFactor();
   const scaled = b && Object.fromEntries(Object.entries(b).map(([k, v]) => [k, Math.round((v as number) * z)]));
   return !!b && t.view.getVisible() && JSON.stringify(t.view.getBounds()) === JSON.stringify(scaled);
@@ -213,6 +216,6 @@ const near = (a: number, b: number) => Math.abs(a - b) < 1e-6;
 const noNode = async (wc: WebContents) => await wc.executeJavaScriptInIsolatedWorld(999, [{ code: 'typeof process' }]) === 'undefined';
 
 export type { UI };
-export { MAC, CMD, canShoot, NO_SHOT, shot, focusWindow, MENU, SUBMENU, noNode, hooksOf, plusMenu, closeBoard, assert, root, userData, project, pid, tkey, named, pfile, folderOf, savedTabs, savedActive, savedWindows, panel, SITE, PORT, sleep, waitFor, who, menuRows, choose, projectTabs, projectTab, showProject, closeProject, manageProfiles, closeSettings, settingsClosed, chooseProfile, setProfileField, menuOpen, closeMenu, rightClick, taskMenu,
+export { MAC, CMD, canShoot, NO_SHOT, shot, focusWindow, MENU, SUBMENU, noNode, hooksOf, plusMenu, closeBoard, assert, root, userData, project, pid, tkey, named, pfile, idOf, savedTabs, savedActive, savedWindows, panel, SITE, PORT, sleep, waitFor, who, menuRows, choose, projectTabs, projectTab, showProject, closeProject, manageProfiles, closeSettings, settingsClosed, chooseProfile, setProfileField, menuOpen, closeMenu, rightClick, taskMenu,
   click,
   box, pageBox, viewOn, dock, press, ctrl, near };

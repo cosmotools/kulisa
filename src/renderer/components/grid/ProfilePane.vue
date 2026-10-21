@@ -16,7 +16,7 @@ import { useStrip } from '../../lib/strip';
 
 const props = defineProps<{ params: { api: DockviewPanelApi } }>();
 const key = props.params.api.id.slice('profile:'.length);
-const profile = computed(() => store.profiles.find((p) => p.key === key));
+const profile = computed(() => store.profiles.find((p) => p.id === key));
 const active = computed(() => profile.value?.tabs.find((t) => t.id === profile.value!.active));
 const content = ref<HTMLElement>(), addr = ref<HTMLInputElement>(), strip = ref<HTMLElement>();
 const id = () => profile.value!.id;

@@ -3,7 +3,7 @@
 // the profile and tab they act on.
 import { watch } from 'vue';
 import { act, screenshot, store, toggleNewTab } from './store';
-import { paneOfProfile } from './grid';
+import { panes } from './grid';
 import { shownTerm } from './terminals';
 import { dialog } from './dialogs';
 import { dialogsOpen } from './cover';
@@ -49,10 +49,10 @@ const run: Record<string, (c: Command) => unknown> = {
   'task.new': () => kulisa.invoke('task:new'),
   'task.menu': () => toggleNewTab(), // as a press on +: again closes it
   shortcuts: async () => (await dialog('shortcuts')).showShortcuts(),
-  'tab.new': ({ p }) => paneOfProfile(p!.id)?.newTab(),
+  'tab.new': ({ p }) => panes.get(p!.id)?.newTab(),
   'tab.close': ({ p, tab, page }) => act('tab:close', { profile: p!.id, tab, focus: page }),
   'tab.reopen': ({ p }) => act('tab:reopen', { profile: p!.id }),
-  'tab.address': ({ p }) => paneOfProfile(p!.id)?.focusAddress(),
+  'tab.address': ({ p }) => panes.get(p!.id)?.focusAddress(),
   'tab.reload': ({ p, tab }) => act('tab:reload', { profile: p!.id, tab }),
   'tab.reloadAll': ({ p, tab }) => act('tab:reload', { profile: p!.id, tab, ignoreCache: true }),
   'tab.back': ({ p, tab }) => act('tab:back', { profile: p!.id, tab }),
@@ -80,7 +80,7 @@ const focusPage = (id: string) => { const p = store.profiles.find((x) => x.id ==
 kulisa.on('command', ({ id, n, profile, tab, task, page }) => {
   if (task !== store.current || !run[id]) return; // a key typed as another task was coming
   const p = profile ? store.profiles.find((x) => x.id === profile) : undefined;
-  if (profile && (!p || !paneOfProfile(profile))) return;
+  if (profile && (!p || !panes.get(profile))) return;
   if (page) lastPane = profile!;
   run[id]({ n, page, p, tab: tab || p?.active || undefined });
 });

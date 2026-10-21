@@ -8,7 +8,7 @@ import type { MenuItem } from './menu';
 
 export const profilesMenu = (): MenuItem[] => [
   ...store.profiles.map((p) => ({ label: p.name, sub: p.description || plural(p.tabs.length, 'tab'), avatar: p.avatar,
-    run: () => showPane(p.key) })),
+    run: () => showPane(p.id) })),
   ...store.closedProfiles.map((p) => ({ label: p.name, sub: `closed · click to open${p.description ? ` · ${p.description}` : ''}`, avatar: p.avatar,
     run: () => act('profile:open', { profile: p.id }) })),
   ...(store.profiles.length || store.closedProfiles.length ? ['-' as const] : []),

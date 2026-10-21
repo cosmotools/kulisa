@@ -600,15 +600,16 @@ asks where it is or what takes the disk; nothing in it is for editing by hand, s
 
 ```
 projects.json                     the projects, { list: [...] } (as profiles.json and agents.json: a field can sit beside
-                                  the list): id, name, folder, repos, color (the one it has while its favicon gives none), agents (accounts, the default first), profiles (their folders, in order), noDefaultAgent;
+                                  the list): id, name, folder, repos, color (the one it has while its favicon gives none), agents (accounts, the default first), profiles (their ids, in order), noDefaultAgent;
                                   id: six random lowercase letters and digits (k3f9a2), made with the project and never
                                   changed, so a rename leaves its data folder, its tasks' keys (k3f9a2/1) and their agents'
                                   MCP address as they are; no name in it to go stale, and the log names the project
                                   beside it (window.md, The log). An id of any other shape is read as it is
 profiles.json                     the profiles, one store (profiles.md): { list: [{ id, name, avatar, description,
-                                  folder, login }] }
-profiles/<folder>/                a profile's master, a Chromium profile, where the human signs in once for every task;
-                                  folder: six random lowercase letters and digits (m2q7xd); kept in no project too, gone when the human deletes the profile (Settings → Profiles)
+                                  login }] }; id: six random lowercase letters and digits (m2q7xd), made with the
+                                  profile and never changed; its name unique within each of its projects
+profiles/<id>/                    a profile's master, a Chromium profile, where the human signs in once for every task;
+                                  kept in no project too, gone when the human deletes the profile (Settings → Profiles)
 agents.json                       the agents' accounts (accounts.ts): { list: [{ id, agent, email }] }
 agents/<agent>-<id>/              an account's config folder (CLAUDE_CONFIG_DIR, CODEX_HOME): its sign-in, settings,
                                   conversations; Kulisa's profiles skill (skills/kulisa-profiles/) and Claude Code's
@@ -629,14 +630,14 @@ projects/<project id>/            a project's data, by its id (projects.json), g
                                   prompt's first line, until it is named; no copies: it works in
                                   a folder of the project
   1/, 2/ …                        a task
-    profiles.json                 what it has of its project's profiles, in order: folder, id, sites' zoom, closed
+    profiles.json                 what it has of its project's profiles, in order: id, sites' zoom, closed
     layout.json                   its grid (dockview)
     agent.json                    { agent, conversations: [{ agent, sessionId, transcript, started, from, to, title,
                                   terminal }] }: the agent it was made with; every conversation an agent had in it
                                   (Several agents in a task), kept with the task
     terminals.json                { front, list: [{ id, name, by } | { id, conversation }] }: its island's tabs, opened
                                   again when it loads; one goes when closed; an empty list: the island folded
-    <folder>/                     its copy of a master, named as it, made at its first open here: a Chromium profile
+    <id>/                         its copy of a master, named by the profile's id, made at its first open here: a Chromium profile
                                   (session.fromPath), with Kulisa's own files in it:
       Kulisa Tabs.json              the URLs of its tabs and which is in front
       Kulisa Session Cookies.bin    its session cookies, encrypted with the OS keyring
@@ -765,8 +766,8 @@ rm -rf ~/.config/Kulisa/projects/myshop   # all its tasks with their profiles' c
   master and every copy, so the human signs in once ([profiles.md](profiles.md), "Sign-ins kept in step"); a copy of
   another task's copy would sign that one out with rotating tokens. `session.fromPath` keeps the
   caches inside the profile (they cannot live elsewhere), so a copy skips them.
-- **Storage as Chrome lays it out**, so what is known about Chrome's storage applies. `Profile N` folders are fixed
-  at creation: a rename touches only `profiles.json`.
+- **Storage as Chrome lays it out**, so what is known about Chrome's storage applies. A profile's folders are named by
+  its id, fixed at creation: a rename touches only `profiles.json`.
 - **One port offset per task** moves any number of services with one number. Cookies do not depend on the
   port, so the copies stay signed in to the app (separate hostnames such as `checkout.localhost` would lose that).
   The local database is the developer's matter (`docker compose` already names containers after the folder, so a

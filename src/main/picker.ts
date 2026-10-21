@@ -46,7 +46,7 @@ function installPicker(shell: Shell) {
       const locator = normal.toString();
       // One line, short, so the agent CLI shows it in its prompt as typed text (not a collapsed paste). The tab: the
       // human may switch tabs before sending, and the agent's tools act on the active one unless told.
-      const reference = `[kulisa pick: ${profile.id} tab ${tab.id} ${locator}] `;
+      const reference = `[kulisa pick: ${profile.name} tab ${tab.id} ${locator}] `;
       task.typeForAgent(reference);
       return { tab: tab.id, locator, reference };
     } catch (e) { return { error: (e as Error).message }; }

@@ -114,6 +114,7 @@ function start(options: Options = {}) {
   // The profiles and their masters (profile-store.ts); after who one is changed, or a project got or let go of one,
   // every loaded task shows it (project-profiles.ts, refresh), but the one it was changed in, which did.
   shell.profileStore = new ProfileStore(store);
+  shell.profileStore.logAll();
   // Real accounts signed in once, in every task: non-local cookies kept in step between masters and copies.
   shell.cookieSync = new CookieSync({ masterDir: (f) => shell.profileStore.masterDir(f), restore: (p) => shell.sessionCookies.restore(p) });
   // Test users' passwords, encrypted with the OS keyring (tasks.ts, setLogin); never kept in the clear.

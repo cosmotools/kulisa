@@ -76,9 +76,9 @@ interface Shell {
   openSettings(at: SettingsAt): void;
   // master.ts
   masters: Map<string, Master>;
-  flushMaster(folder: string): Promise<void>;
-  closeMaster(folder: string): Promise<void>;
-  openMaster(folder: string): Promise<Result<{ folder: string }>>;
+  flushMaster(id: string): Promise<void>;
+  closeMaster(id: string): Promise<void>;
+  openMaster(id: string): Promise<Result<{ id: string }>>;
 }
 
 export type { Shell, AgentChoice };

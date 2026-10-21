@@ -49,7 +49,7 @@ export function registerProjects(ipc: Ipc, { lookForFavicon }: { lookForFavicon:
   // Its profiles (profile-store.ts): those it has, and those of other projects it can take. A new one comes closed in
   // its tasks (opened in a task, a copy of its master is made there); one let go asks first (projects.ts).
   const profilesOf = (id: string) => {
-    const also = (g: StoredProfile) => store.projectsWith('profiles', g.folder).filter((p) => p.id !== id).map((p) => p.name);
+    const also = (g: StoredProfile) => store.projectsWith('profiles', g.id).filter((p) => p.id !== id).map((p) => p.name);
     const view = (g: StoredProfile) => ({ id: g.id, name: g.name, avatar: g.avatar, description: g.description || '', also: also(g) });
     const mine = shell.profileStore.of(id);
     return { profiles: mine.map(view), others: shell.profileStore.all().filter((g) => !mine.includes(g)).map(view) };
@@ -71,7 +71,7 @@ export function registerProjects(ipc: Ipc, { lookForFavicon }: { lookForFavicon:
     const entry = store.projects().find((x) => x.id === id), g = shell.profileStore.get(profile);
     if (!entry || !g) return { error: entry ? `no profile ${profile}` : `no project ${id}` };
     if (!await askDropProfile(shell, entry, g, 'human', asker(e))) return { error: 'the human said no' };
-    await dropProfile(shell, entry, g.folder);
+    await dropProfile(shell, entry, g.id);
     return profilesOf(id);
   }));
   // Its repositories or folders (projects.ts): one picked in the OS's dialog (or given: the tests), cloned from a URL,

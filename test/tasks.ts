@@ -7,7 +7,7 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import http from 'http';
-import { MAC, CMD, shot, assert, root, userData, project, pid, tkey, named, pfile, folderOf, panel, SITE, sleep, waitFor, who, menuRows, choose, rightClick, viewOn, press, projectTabs, projectTab, showProject, savedWindows, closeMenu, click, plusMenu, closeBoard, PORT, hooksOf, MENU, SUBMENU, menuOpen, noNode, focusWindow, chooseProfile, closeSettings, settingsClosed } from './helpers.ts';
+import { MAC, CMD, shot, assert, root, userData, project, pid, tkey, named, pfile, idOf, panel, SITE, sleep, waitFor, who, menuRows, choose, rightClick, viewOn, press, projectTabs, projectTab, showProject, savedWindows, closeMenu, click, plusMenu, closeBoard, PORT, hooksOf, MENU, SUBMENU, menuOpen, noNode, focusWindow, chooseProfile, closeSettings, settingsClosed } from './helpers.ts';
 import { withOffset } from '../src/main/tasks.ts';
 import { createWorktree } from '../src/main/worktrees.ts';
 import { sessionStart } from '../src/main/kulisa-plugin/agent-hooks.ts';
@@ -108,8 +108,8 @@ export default (test: Test) => {
   test('tasks: + makes task-<n> from the project\'s configuration: its worktree and branch, files outside git, its profiles closed until opened (each a copy of its master), its ports; the agent renames it', async (ctx) => {
     const { shell, ui, call } = ctx;
     const first = shell.task;
-    await call('browser_navigate', { profile: 'sam-admin', url: `${SITE}/app?task` });
-    const firstSam = first.profiles.get('sam-admin');
+    await call('browser_navigate', { profile: 'Sam.admin', url: `${SITE}/app?task` });
+    const firstSam = first.profiles.get(idOf('Sam.admin'));
     // The island's buttons are for a task with nothing open: a task opening shows its agent's tab at once, starting,
     // not them for the second its agent is looked for.
     await ui(`window.__launch = false; window.__starting = ''; new MutationObserver(() => { window.__launch ||= !!document.querySelector('#dock .launch');
@@ -157,31 +157,31 @@ export default (test: Test) => {
     // Profiles: none opens by itself, nothing taken from the task on screen; the agent opens those it needs, each a copy
     // of its master (not of the first task's copy: what was signed in there stays there; a master's sign-ins come with it).
     assert.deepEqual([...shell.profiles.keys()], []);
-    assert.deepEqual([...shell.closed.keys()], ['sam-admin', 'elon-buyer', 'dora']);
-    assert.ok(!fs.existsSync(pfile(folderOf('sam-admin'), 2)), 'no copy before it is opened');
-    await call('profile_open', { profile: 'sam-admin' });
-    await call('profile_open', { profile: 'elon-buyer' });
-    await waitFor(() => shell.profiles.has('sam-admin') && shell.profiles.has('elon-buyer'));
-    assert.deepEqual(['sam-admin', 'elon-buyer'].map((id) => [shell.profiles.get(id).avatar, shell.profiles.get(id).description]),
+    assert.deepEqual([...shell.closed.keys()], [idOf('Sam.admin'), idOf('Elon.buyer'), idOf('Dora')]);
+    assert.ok(!fs.existsSync(pfile(idOf('Sam.admin'), 2)), 'no copy before it is opened');
+    await call('profile_open', { profile: 'Sam.admin' });
+    await call('profile_open', { profile: 'Elon.buyer' });
+    await waitFor(() => shell.profiles.has(idOf('Sam.admin')) && shell.profiles.has(idOf('Elon.buyer')));
+    assert.deepEqual([idOf('Sam.admin'), idOf('Elon.buyer')].map((id) => [shell.profiles.get(id).avatar, shell.profiles.get(id).description]),
       [['fox', 'seller in the test shop'], ['owl', '']], 'with their pictures and who they are');
-    assert.ok(shell.profiles.get('sam-admin').dir.startsWith(path.join(userData, 'projects', pid('project'), '2')));
-    assert.ok(!fs.existsSync(pfile(folderOf('dora'), 2)), 'a closed one is copied when it is first opened');
-    await call('browser_navigate', { profile: 'sam-admin', url: `${SITE}/app` });
-    assert.equal(await who(ctx, 'sam-admin'), 'Signed out', 'its master was never signed in');
+    assert.ok(shell.profiles.get(idOf('Sam.admin')).dir.startsWith(path.join(userData, 'projects', pid('project'), '2')));
+    assert.ok(!fs.existsSync(pfile(idOf('Dora'), 2)), 'a closed one is copied when it is first opened');
+    await call('browser_navigate', { profile: 'Sam.admin', url: `${SITE}/app` });
+    assert.equal(await who(ctx, 'Sam.admin'), 'Signed out', 'its master was never signed in');
     // Signed in in this task's copy: there only (restart-tasks.ts: it stays).
-    await call('browser_navigate', { profile: 'sam-admin', url: `${SITE}/app/login?name=sam` });
-    assert.equal(await who(ctx, 'sam-admin'), 'Signed in as sam');
-    assert.equal(await who({ call: (n, a) => call(n, a, first) }, 'sam-admin'), 'Signed in as sam', "the first task's own sign-in");
+    await call('browser_navigate', { profile: 'Sam.admin', url: `${SITE}/app/login?name=sam` });
+    assert.equal(await who(ctx, 'Sam.admin'), 'Signed in as sam');
+    assert.equal(await who({ call: (n, a) => call(n, a, first) }, 'Sam.admin'), 'Signed in as sam', "the first task's own sign-in");
     // The first task's profiles keep running, hidden; its agent sees its own.
     assert.ok(firstSam.tabs.every((t) => !t.wc.isDestroyed()) && !firstSam.get().view.getVisible());
     assert.equal(firstSam.get().wc.getURL(), `${SITE}/app?task`, "the new task's agent acts in its own copy");
-    assert.match((await call('browser_snapshot', { profile: 'sam-admin' }, first)).text, /URL: .*\/app\?task/);
+    assert.match((await call('browser_snapshot', { profile: 'Sam.admin' }, first)).text, /URL: .*\/app\?task/);
     assert.ok(first.pty && first.pty !== shell.pty);
     assert.equal(JSON.parse(fs.readFileSync(pfile('agent.json', 2), 'utf8')).conversations[0].agent, 'custom', "no agent in the project: the one there is (the tests' own)");
 
     // The window: the task's grid with its panes; the bar shows it.
     await waitFor(async () => JSON.stringify(await tabs(ui)) === '["task-1","task-2 *"]');
-    await waitFor(() => viewOn(shell, ui, 'sam-admin'));
+    await waitFor(() => viewOn(shell, ui, 'Sam.admin'));
     assert.equal(await ui(`document.querySelectorAll('.pane').length`), 2);
     assert.match(await ui(`${taskTab(2)}.title`), /branch task-2 in .*project@task-2; the app's ports \+ 100/);
 
@@ -215,13 +215,13 @@ export default (test: Test) => {
 
   test("profiles: Sign In to Master… opens its master in a window of its own, nothing automated on it; Refresh from Master… brings its sign-ins to this task's copy", async (ctx) => {
     const { shell, ui, call } = ctx;
-    await rightClick(ui, `.ptab[data-panel="${panel(shell, 'sam-admin')}"] b`);
+    await rightClick(ui, `.ptab[data-panel="${panel('Sam.admin')}"] b`);
     const rows = await menuRows(ui);
     assert.ok(rows.includes('Sign In to Master…') && rows.includes('Refresh from Master…'));
     await choose(ui, 'Sign In to Master…');
     await waitFor(() => shell.masters.size === 1 && shell.masters.values().next().value.profile.get());
     const m = shell.masters.values().next().value;
-    assert.equal(m.profile.dir, path.join(userData, 'profiles', shell.profileStore.get('sam-admin').folder));
+    assert.equal(m.profile.dir, path.join(userData, 'profiles', idOf('Sam.admin')));
     assert.ok(![...shell.proxy.profiles.keys()].some((k) => k.startsWith('master/')), 'no CDP proxy for it: nothing automated reaches it');
     assert.equal(await noNode(m.win.webContents), true, 'its page sandboxed, as the window\'s');
     // The human signs in there, by hand (here: its bar's address).
@@ -232,22 +232,22 @@ export default (test: Test) => {
     await waitFor(() => !shell.masters.size);
     assert.deepEqual(JSON.parse(fs.readFileSync(path.join(m.profile.dir, 'Kulisa Tabs.json'), 'utf8')), { urls: [`${SITE}/app`], active: 0 }, 'its tabs kept');
     // This task's copy was made before: still its own sign-in, until Refresh from Master… (asked first).
-    assert.equal(await who(ctx, 'sam-admin'), 'Signed in as sam');
-    await ui(`act('profile:refresh', { profile: 'sam-admin' })`);
+    assert.equal(await who(ctx, 'Sam.admin'), 'Signed in as sam');
+    await ui(`act('profile:refresh', { profile: '${idOf('Sam.admin')}' })`);
     assert.match(ctx.asked.pop().message, /^Bring the sign-ins of Sam.admin's master to this task\?/);
     // Its tabs reload with them: once that is over (a navigation now would be cut by the reload).
-    await waitFor(() => !shell.task.profiles.get('sam-admin').get().wc.isLoading());
-    await call('browser_navigate', { profile: 'sam-admin', url: `${SITE}/app` });
-    assert.equal(await who(ctx, 'sam-admin'), 'Signed in as master');
+    await waitFor(() => !shell.task.profiles.get(idOf('Sam.admin')).get().wc.isLoading());
+    await call('browser_navigate', { profile: 'Sam.admin', url: `${SITE}/app` });
+    assert.equal(await who(ctx, 'Sam.admin'), 'Signed in as master');
   });
 
   test("profiles: About this profile… opens Settings' window at it (one, not modal: the task's window takes input and comes in front of it, its pages on screen); its Sign In… opens the same master window, once", async (ctx) => {
     const { shell, ui, sui } = ctx;
-    await rightClick(ui, `.ptab[data-panel="${panel(shell, 'sam-admin')}"] b`);
+    await rightClick(ui, `.ptab[data-panel="${panel('Sam.admin')}"] b`);
     await menuRows(ui);
     await choose(ui, 'About this profile…');
-    await waitFor(() => sui(`document.querySelector('#pjlist [data-profile="sam-admin"]')?.ariaSelected === 'true' && document.getElementById('profilename').value === 'Sam.admin'`));
-    assert.equal(await sui(`document.querySelector('#pjlist [data-profile="sam-admin"] .label').title`), 'Sam.admin', "the tree's narrow column cuts a name: the whole in its tooltip");
+    await waitFor(() => sui(`document.querySelector('#pjlist [data-profile="${idOf('Sam.admin')}"]')?.ariaSelected === 'true' && document.getElementById('profilename').value === 'Sam.admin'`));
+    assert.equal(await sui(`document.querySelector('#pjlist [data-profile="${idOf('Sam.admin')}"] .label').title`), 'Sam.admin', "the tree's narrow column cuts a name: the whole in its tooltip");
     // A window of its own, not a child of the task's (on macOS a child stays above its parent), which goes on taking input
     // and comes in front of it, Settings left as it is; the task's pages stay on screen.
     const win = shell.settings.win;
@@ -256,15 +256,15 @@ export default (test: Test) => {
     assert.equal(win.isFullScreenable(), false);
     await focusWindow(shell.win, ui);
     assert.ok(shell.settings?.win === win && !win.isFocused(), 'Settings stays open behind it');
-    assert.ok(shell.task.profiles.get('sam-admin').get().view.getVisible(), 'pages on screen');
+    assert.ok(shell.task.profiles.get(idOf('Sam.admin')).get().view.getVisible(), 'pages on screen');
     // Asked again (another profile's About…): the same window, at that page.
-    await ui(`kulisa.send('settings:open', { section: 'profiles', id: 'elon-buyer' })`);
+    await ui(`kulisa.send('settings:open', { section: 'profiles', id: '${idOf('Elon.buyer')}' })`);
     await waitFor(() => sui(`document.getElementById('profilename')?.value === 'Elon.buyer'`));
     assert.equal(shell.settings.win, win);
-    await chooseProfile(sui, 'sam-admin');
+    await chooseProfile(sui, 'Sam.admin');
     for (let i = 0; i < 2; i++) await sui(`document.getElementById('profilesignin').click()`);
     await waitFor(() => shell.masters.size === 1 && shell.masters.values().next().value.profile.get());
-    assert.equal(shell.masters.values().next().value.profile.dir, path.join(userData, 'profiles', shell.profileStore.get('sam-admin').folder));
+    assert.equal(shell.masters.values().next().value.profile.dir, path.join(userData, 'profiles', idOf('Sam.admin')));
     shell.masters.values().next().value.win.close();
     await waitFor(() => !shell.masters.size);
     await closeSettings(ctx);
@@ -343,15 +343,15 @@ export default (test: Test) => {
   // About 5 s: its tab waits for a site that never answers, by design (profiles.ts).
   test("profiles: a master's window closed while its page still loads (a slow sign-in) goes cleanly, Sign In… answering without an error", async (ctx) => {
     const { shell, ui } = ctx;
-    const { folder } = shell.profileStore.get('sam-admin');
-    const tabs = path.join(userData, 'profiles', folder, 'Kulisa Tabs.json'), before = fs.readFileSync(tabs, 'utf8');
+    const id = idOf('Sam.admin');
+    const tabs = path.join(userData, 'profiles', id, 'Kulisa Tabs.json'), before = fs.readFileSync(tabs, 'utf8');
     fs.writeFileSync(tabs, JSON.stringify({ urls: [`${SITE}/hang`], active: 0 }));
-    const answer = ui(`kulisa.invoke('profiles:master', { profile: 'sam-admin' })`);
+    const answer = ui(`kulisa.invoke('profiles:master', { profile: '${id}' })`);
     await waitFor(() => shell.masters.size === 1 && shell.masters.values().next().value.profile.get());
     shell.masters.values().next().value.win.close();
     await waitFor(() => !shell.masters.size);
     // It laid out its page in the window closed meanwhile: "Object has been destroyed".
-    assert.deepEqual(await answer, { folder });
+    assert.deepEqual(await answer, { id });
     fs.writeFileSync(tabs, before);
   });
 
@@ -359,28 +359,28 @@ export default (test: Test) => {
     const { shell, call } = ctx;
     const first = shell.taskOf(pid('project'), 1), shop = `http://shop.example:${PORT}`;
     const inFirst = { call: (n: string, a: Record<string, unknown>) => call(n, a, first) };
-    await call('browser_navigate', { profile: 'sam-admin', url: `${shop}/app/login?name=real` });
-    assert.equal(await who(ctx, 'sam-admin'), 'Signed in as real');
-    await waitFor(async () => (await first.profiles.get('sam-admin').session.cookies.get({ domain: 'shop.example' })).some((c) => c.value === 'real'));
-    await call('browser_navigate', { profile: 'sam-admin', url: `${shop}/app` }, first);
-    assert.equal(await who(inFirst, 'sam-admin'), 'Signed in as real', 'in the other task too');
-    const master = electron.session.fromPath(shell.profileStore.masterDir(shell.profileStore.get('sam-admin').folder));
+    await call('browser_navigate', { profile: 'Sam.admin', url: `${shop}/app/login?name=real` });
+    assert.equal(await who(ctx, 'Sam.admin'), 'Signed in as real');
+    await waitFor(async () => (await first.profiles.get(idOf('Sam.admin')).session.cookies.get({ domain: 'shop.example' })).some((c) => c.value === 'real'));
+    await call('browser_navigate', { profile: 'Sam.admin', url: `${shop}/app` }, first);
+    assert.equal(await who(inFirst, 'Sam.admin'), 'Signed in as real', 'in the other task too');
+    const master = electron.session.fromPath(shell.profileStore.masterDir(idOf('Sam.admin')));
     assert.ok((await master.cookies.get({ domain: 'shop.example' })).some((c) => c.value === 'real'), 'and in its master');
     // Signed out in the first task: out in this one too.
-    await call('browser_navigate', { profile: 'sam-admin', url: `${shop}/app/logout` }, first);
-    await waitFor(async () => !(await shell.task.profiles.get('sam-admin').session.cookies.get({ domain: 'shop.example' })).length);
-    await call('browser_navigate', { profile: 'sam-admin', url: `${shop}/app` });
-    assert.equal(await who(ctx, 'sam-admin'), 'Signed out');
+    await call('browser_navigate', { profile: 'Sam.admin', url: `${shop}/app/logout` }, first);
+    await waitFor(async () => !(await shell.task.profiles.get(idOf('Sam.admin')).session.cookies.get({ domain: 'shop.example' })).length);
+    await call('browser_navigate', { profile: 'Sam.admin', url: `${shop}/app` });
+    assert.equal(await who(ctx, 'Sam.admin'), 'Signed out');
     // A local app (127.0.0.1): each task's own sign-in, as before.
-    await call('browser_navigate', { profile: 'sam-admin', url: `${SITE}/app` });
-    assert.equal(await who(ctx, 'sam-admin'), 'Signed in as master');
-    await call('browser_navigate', { profile: 'sam-admin', url: `${SITE}/app` }, first);
-    assert.equal(await who(inFirst, 'sam-admin'), 'Signed in as sam');
+    await call('browser_navigate', { profile: 'Sam.admin', url: `${SITE}/app` });
+    assert.equal(await who(ctx, 'Sam.admin'), 'Signed in as master');
+    await call('browser_navigate', { profile: 'Sam.admin', url: `${SITE}/app` }, first);
+    assert.equal(await who(inFirst, 'Sam.admin'), 'Signed in as sam');
   });
 
   test('tasks: switching shows the other grid and terminal; the one left keeps running; the agent\'s state shows on its tab', async (ctx) => {
     const { shell, ui } = ctx;
-    const second = shell.task, sam = second.profiles.get('sam-admin');
+    const second = shell.task, sam = second.profiles.get(idOf('Sam.admin'));
     // No profiles' button on a task's tab, its right-click menu has them; the × on every tab, as Chrome's, not only
     // the shown one's (the author's choice).
     assert.deepEqual(await ui(`[...document.querySelectorAll('#projectTabs .tasktab')].map((t) => [...t.querySelectorAll('button')].map((b) => b.ariaLabel + ' ' + getComputedStyle(b).visibility))`),
@@ -407,7 +407,7 @@ export default (test: Test) => {
     await click(ui, taskTab(1));
     await waitFor(() => shell.task.n === 1);
     assert.deepEqual(await widths(), before, 'the tabs keep their widths');
-    await waitFor(async () => (await viewOn(shell, ui, 'sam-admin')) && viewOn(shell, ui, 'elon-buyer'));
+    await waitFor(async () => (await viewOn(shell, ui, 'Sam.admin')) && viewOn(shell, ui, 'Elon.buyer'));
     assert.equal(sam.get().view.getVisible(), false, "the second task's pages are hidden");
     assert.ok(sam.tabs.every((t) => !t.wc.isDestroyed()) && second.pty, 'and alive, its agent too');
     await waitFor(async () => (await ctx.termText()).includes(`agent: rc of ${project}\n`), 3000);
@@ -450,9 +450,9 @@ export default (test: Test) => {
     await post('session-end');
     await sleep(300); // nothing to wait for: that it stays
     assert.equal(await state(), 'done #i-done true');
-    second.caption('sam-admin', 'from the second task');
+    second.caption(idOf('Sam.admin'), 'from the second task');
     await sleep(200); // nothing to wait for: that it does not show
-    assert.equal(await ui(`document.querySelector('.ptab[data-panel="${panel(shell, 'sam-admin')}"] .caption').textContent`), '');
+    assert.equal(await ui(`document.querySelector('.ptab[data-panel="${panel('Sam.admin')}"] .caption').textContent`), '');
     // Done says "come and see" until the human sees that task.
     await post('stop');
     await waitFor(async () => (await state()) === 'done #i-done true');
@@ -460,7 +460,7 @@ export default (test: Test) => {
     await waitFor(async () => shell.task === second && (await state()) === ' #i-done false');
     assert.equal(second.promptTarget().state, 'done', 'the agent is still done: only its tab says nothing');
     await click(ui, taskTab(1));
-    await waitFor(async () => shell.task.n === 1 && (await viewOn(shell, ui, 'sam-admin')) && viewOn(shell, ui, 'elon-buyer')
+    await waitFor(async () => shell.task.n === 1 && (await viewOn(shell, ui, 'Sam.admin')) && viewOn(shell, ui, 'Elon.buyer')
       && ui(`!document.documentElement.matches(':active-view-transition')`)); // its slide over before the next test watches one
   });
 
@@ -478,21 +478,21 @@ export default (test: Test) => {
       delete document.startViewTransition; // the document's own again
       return seen;
     })()`);
-    const live = async () => (await ui(`document.querySelectorAll('img.snapshot').length`)) === 0 && viewOn(shell, ui, 'sam-admin');
+    const live = async () => (await ui(`document.querySelectorAll('img.snapshot').length`)) === 0 && viewOn(shell, ui, 'Sam.admin');
     let seen = await swap(2);
     assert.deepEqual(seen.types, ['next']); assert.deepEqual(seen.animations, ['grid-from-right calc(100% + 8px) cubic-bezier(0.4, 0, 0.2, 1)', 'grid-to-left calc(-100% - 8px) cubic-bezier(0.4, 0, 0.2, 1)'], 'it slides');
     await waitFor(live);
     // A page that draws no frame (busy, covered) holds the slide's start no longer than three times what the others
     // take (a tenth of a second at least), its pane then empty: half a second is felt after each click.
     // Their pace, not a fixed time: a loaded machine takes over a tenth of a second for a picture.
-    const tab = shell.profiles.get('sam-admin').get(), elon = shell.profiles.get('elon-buyer').get().wc, its = elon.capturePage;
+    const tab = shell.profiles.get(idOf('Sam.admin')).get(), elon = shell.profiles.get(idOf('Elon.buyer')).get().wc, its = elon.capturePage;
     let took = 0;
     tab.wc.capturePage = () => new Promise(() => {});
     elon.capturePage = (...a) => its.apply(elon, a).then((img) => { took = Date.now() - t0; return img; });
     const t0 = Date.now(), pics = await shell.windows[0].pictures(), all = Date.now() - t0;
     delete tab.wc.capturePage; delete elon.capturePage; // their prototypes' again
     assert.ok(took && all < Math.max(100, 3 * took) + 150, `pictures in ${all} ms, the other's in ${took} ms`);
-    assert.ok(!pics['sam-admin'] && pics['elon-buyer'], 'the others taken');
+    assert.ok(!pics[idOf('Sam.admin')] && pics[idOf('Elon.buyer')], 'the others taken');
     seen = await swap(1);
     assert.deepEqual(seen.types, ['previous']); assert.deepEqual(seen.animations, ['grid-from-left calc(-100% - 8px) cubic-bezier(0.4, 0, 0.2, 1)', 'grid-to-right calc(100% + 8px) cubic-bezier(0.4, 0, 0.2, 1)']);
     await waitFor(live);
@@ -621,11 +621,11 @@ export default (test: Test) => {
     ctx.answer = true;
     await hook(task, 'stop'); // its turn over: closing asks nothing
     await waitFor(() => task.promptTarget()?.state === 'done');
-    await call('profile_open', { profile: 'sam-admin' }); // a new task opens none by itself
-    const sam = task.profiles.get('sam-admin');
+    await call('profile_open', { profile: 'Sam.admin' }); // a new task opens none by itself
+    const sam = task.profiles.get(idOf('Sam.admin'));
     // A copy of the master made after it was signed in to: signed in.
-    await call('browser_navigate', { profile: 'sam-admin', url: `${SITE}/app` });
-    assert.equal(await who(ctx, 'sam-admin'), 'Signed in as master');
+    await call('browser_navigate', { profile: 'Sam.admin', url: `${SITE}/app` });
+    assert.equal(await who(ctx, 'Sam.admin'), 'Signed in as master');
     assert.ok(await sam.session.getCacheSize() > 0, 'pages were cached');
     await ui(`${taskTab(3)}.querySelector('.close').click()`);
     // Its agent and tabs gone.
@@ -650,7 +650,7 @@ export default (test: Test) => {
       await plusMenu(ui, 'project', 'task-3');
       await waitFor(() => shell.task === task && !shell.windows[0].switching); // its state sent to the window
       assert.equal(started, false, 'the grid before its profiles started');
-      await waitFor(() => ui(`!!document.querySelector('.pane[data-profile="sam-admin"]') && !document.documentElement.classList.contains('loading')`));
+      await waitFor(() => ui(`!!document.querySelector('.pane[data-profile="${idOf('Sam.admin')}"]') && !document.documentElement.classList.contains('loading')`));
       await waitFor(() => task.loaded && shell.pty, 10000);
       assert.equal(started, true, 'its agent after them');
     } finally { shell.sessionCookies.restore = restore; }
@@ -828,7 +828,7 @@ export default (test: Test) => {
       const s = getComputedStyle(n), r = [s.whiteSpace, s.textOverflow, !!t.querySelector('small'),
         [...t.children].every((c) => c.getBoundingClientRect().bottom <= t.getBoundingClientRect().bottom)];
       n.textContent = was; return r; })()`), ['nowrap', 'ellipsis', false, true]);
-    assert.match(await ui(`document.querySelector('#closedprofiles [data-profile="sam-admin"]').title`), /^Open Sam\.admin: ./);
+    assert.match(await ui(`document.querySelector('#closedprofiles [data-profile="${idOf('Sam.admin')}"]').title`), /^Open Sam\.admin: ./);
     // More than fit (19 profiles): the row scrolls, its end faded, the window as wide as before, not its column, the
     // terminal and the tasks' bar stretched past its edge, the last profiles out of reach.
     await ui(`(() => { const s = document.getElementById('closedprofiles'); for (let i = 0; i < 20; i++) s.append(s.querySelector('.launcher').cloneNode(true)); })()`);
@@ -837,15 +837,15 @@ export default (test: Test) => {
       return [s.scrollWidth > s.clientWidth, r(s).right <= innerWidth, r(document.querySelector('.terminals')).right <= innerWidth, document.documentElement.scrollWidth <= innerWidth]; })()`),
       [true, true, true, true]);
     await ui(`document.querySelectorAll('#closedprofiles .launcher').forEach((t, i) => { if (i >= ${PROFILES.length}) t.remove(); })`);
-    await ui(`document.querySelector('#closedprofiles [data-profile="sam-admin"]').click()`);
-    await waitFor(async () => task.profiles.has('sam-admin') && !(await tiles()));
-    await ctx.call('profile_close', { profile: 'sam-admin' });
+    await ui(`document.querySelector('#closedprofiles [data-profile="${idOf('Sam.admin')}"]').click()`);
+    await waitFor(async () => task.profiles.has(idOf('Sam.admin')) && !(await tiles()));
+    await ctx.call('profile_close', { profile: 'Sam.admin' });
     await waitFor(tiles);
     await ui(`document.querySelector('.termtab .close').click()`);
     await waitFor(async () => task.terminals.size === 0 && !!(await launch()) && !(await tiles()));
     // With a profile open (its tile among the big buttons): folded to a strip of its +, along the grid's height (the
     // island is under the grid); kept so.
-    await ui(`document.querySelector('.launch .profiles [data-profile="sam-admin"]').click()`);
+    await ui(`document.querySelector('.launch .profiles [data-profile="${idOf('Sam.admin')}"]').click()`);
     await waitFor(async () => (await island()).height <= 40 && (await middle()));
     assert.equal((await island()).width, before.width);
     // Its + opens a terminal: the island unfolds.
@@ -954,7 +954,7 @@ export default (test: Test) => {
   let opens = 0;
   const opened = () => { try { return fs.readFileSync(path.join(root, 'opened'), 'utf8').trim().split('\n'); } catch { return []; } };
   const accountDir = (id: string) => path.join(userData, 'agents', `fake-${id}`);
-  const idOf = (dir: string) => path.basename(dir).replace(/^fake-/, '');
+  const accountOf = (dir: string) => path.basename(dir).replace(/^fake-/, '');
   // The folder a sign-in under way was given (its id random: accounts.ts), the one no account stores yet.
   const signingIn = (shell: Shell) => {
     const found = fs.readdirSync(path.join(userData, 'agents')).filter((f) => !shell.accounts.find(f.replace(/^fake-/, '')));
@@ -969,7 +969,7 @@ export default (test: Test) => {
     const windows = electron.BrowserWindow.getAllWindows().length;
     let p = await signIn(ctx);
     const dir = signingIn(shell);
-    work = idOf(dir);
+    work = accountOf(dir);
     assert.match(work, /^[a-z0-9]{6}$/, 'its folder its agent and a fixed id: never renamed');
     assert.ok(await sui(`!!document.querySelector('#npsigninterm .xterm') && !document.getElementById('npsigninterm').checkVisibility()`),
       'the sign-in in a terminal of the dialog, under Details: what it says the window shows');
@@ -1101,7 +1101,7 @@ export default (test: Test) => {
     await waitFor(() => sui(`document.querySelector('#pjlist [data-agent="fake"]').ariaSelected === 'true'`));
     await waitFor(() => shell.signins.size);
     const p = [...shell.signins.values()][0];
-    const home = idOf(signingIn(shell));
+    const home = accountOf(signingIn(shell));
     p.write('home@shop.com\r'); // kept by the pty until the agent reads it
     await waitFor(() => sui(`!!${row(home)} && !document.getElementById('npsignin')`));
     assert.equal(await sui(`${row(home)}.querySelector('.label').textContent`), 'home@shop.com');
@@ -1186,7 +1186,7 @@ export default (test: Test) => {
     ctx.watchPty(shell.pty);
     await waitFor(async () => JSON.stringify(await tabs(ui)) === '["Feature-X","task-1 *"]'); // a tab opens at the end
     assert.equal(shell.current.tasks.get(2).loaded, true, 'the other open one stays loaded');
-    await waitFor(async () => (await viewOn(shell, ui, 'sam-admin')) && viewOn(shell, ui, 'elon-buyer'));
+    await waitFor(async () => (await viewOn(shell, ui, 'Sam.admin')) && viewOn(shell, ui, 'Elon.buyer'));
   });
 
   test('tasks: a double click on a task\'s tab is its Rename…', async (ctx) => {
@@ -1380,7 +1380,7 @@ export default (test: Test) => {
     await waitFor(() => shell.current?.folder === project && shell.task?.n === 1 && shell.task.loaded && shell.pty);
     ctx.watchPty(shell.pty);
     await waitFor(() => ui(`!document.documentElement.classList.contains('noproject') && !document.documentElement.classList.contains('loading')`));
-    await waitFor(async () => (await viewOn(shell, ui, 'sam-admin')) && viewOn(shell, ui, 'elon-buyer'));
+    await waitFor(async () => (await viewOn(shell, ui, 'Sam.admin')) && viewOn(shell, ui, 'Elon.buyer'));
     // Feature-X, closed with the others, opened again from the + (the tests after and the restart expect it).
     await plusMenu(ui, 'project', 'Feature-X');
     await waitFor(() => shell.task?.n === 2 && shell.task.loaded && !shell.windows[0].switching);
@@ -1464,29 +1464,30 @@ export default (test: Test) => {
     await waitFor(() => sui(`!!document.getElementById('npprofilesrow')`));
     assert.equal(await sui(`document.querySelectorAll('#npprofiles .item').length`), 0);
     await newProfileHere(sui, 'Site-user');
-    await waitFor(() => sui(`!!document.querySelector('#npprofiles [data-profile="site-user"]')`));
+    const siteUser = idOf('Site-user');
+    await waitFor(() => sui(`!!document.querySelector('#npprofiles [data-profile="${siteUser}"]')`));
     await sui(`document.getElementById('npprofileadd').click()`);
     assert.ok((await menuRows(sui)).join('|').includes('# Other Profiles|Sam.admin'));
     await choose(sui, 'Sam.admin');
-    await waitFor(async () => JSON.stringify(await sui(`[...document.querySelectorAll('#npprofiles [data-profile="sam-admin"] .cell')].map((c) => c.textContent)`)) === '["Sam.admin","seller in the test shop","project"]');
-    await waitFor(() => shell.closed.has('sam-admin') && shell.closed.has('site-user')); // its task lists them, closed
-    await onRow(sui, '#npprofiles [data-profile="site-user"]', 'npprofiledel');
+    await waitFor(async () => JSON.stringify(await sui(`[...document.querySelectorAll('#npprofiles [data-profile="${idOf('Sam.admin')}"] .cell')].map((c) => c.textContent)`)) === '["Sam.admin","seller in the test shop","project"]');
+    await waitFor(() => shell.closed.has(idOf('Sam.admin')) && shell.closed.has(siteUser)); // its task lists them, closed
+    await onRow(sui, `#npprofiles [data-profile="${siteUser}"]`, 'npprofiledel');
     await waitFor(() => ctx.asked.length);
     assert.equal(ctx.asked.pop().message, 'Remove the profile Site-user from Site-2?');
-    await waitFor(() => !shell.closed.has('site-user'));
-    assert.deepEqual(shell.profileStore.projectsOf(shell.profileStore.get('site-user')), [], 'in no other project: kept all the same, until deleted in Settings → Profiles');
-    shell.profileStore.delete('site-user'); // not needed by later tests
+    await waitFor(() => !shell.closed.has(siteUser));
+    assert.deepEqual(shell.profileStore.projectsOf(shell.profileStore.get(siteUser)), [], 'in no other project: kept all the same, until deleted in Settings → Profiles');
+    shell.profileStore.delete(siteUser); // not needed by later tests
     await closeSettings(ctx);
     // Opened in this task: a copy of its master, here.
-    await ui(`act('profile:open', { profile: 'sam-admin' })`);
-    await waitFor(() => shell.profiles.has('sam-admin'));
-    assert.equal(shell.profiles.get('sam-admin').dir, path.join(userData, 'projects', pid('site'), '1', shell.profileStore.get('sam-admin').folder));
+    await ui(`act('profile:open', { profile: '${idOf('Sam.admin')}' })`);
+    await waitFor(() => shell.profiles.has(idOf('Sam.admin')));
+    assert.equal(shell.profiles.get(idOf('Sam.admin')).dir, path.join(userData, 'projects', pid('site'), '1', idOf('Sam.admin')));
     // Let go here: it stays in project, with its master.
     ctx.answer = true;
-    await ui(`act('profile:delete', { profile: 'sam-admin' })`);
+    await ui(`act('profile:delete', { profile: '${idOf('Sam.admin')}' })`);
     assert.equal(ctx.asked.pop().message, 'Remove the profile Sam.admin from Site-2?');
-    await waitFor(() => !shell.profiles.has('sam-admin'));
-    assert.deepEqual(shell.profileStore.projectsOf(shell.profileStore.get('sam-admin')), [pid('project')]);
+    await waitFor(() => !shell.profiles.has(idOf('Sam.admin')));
+    assert.deepEqual(shell.profileStore.projectsOf(shell.profileStore.get(idOf('Sam.admin'))), [pid('project')]);
     // Its agents: a list, added from the agents without accounts and the accounts in the store (one made in Settings →
     // Agents, in no project), one the default (a radio); at once, not on Save.
     const ann = shell.accounts.create((shell.accounts.prepare('fake') as { id: string }).id, 'fake', 'ann@shop.com');
@@ -1583,9 +1584,9 @@ export default (test: Test) => {
     assert.deepEqual(await menuRows(ui), ['Fake agent · ann@shop.com', '-', 'Terminal']);
     await closeMenu(ui);
     assert.equal(bare.terminals.size, 0, 'nothing opened');
-    await ui(`act('profile:delete', { profile: 'bo-bare' })`);
-    await waitFor(() => !bare.profiles.has('bo-bare'));
-    shell.profileStore.delete(shell.profileStore.get('bo-bare').id);
+    await ui(`act('profile:delete', { profile: '${idOf('Bo.bare')}' })`);
+    await waitFor(() => !bare.profiles.has(idOf('Bo.bare')));
+    shell.profileStore.delete(shell.profileStore.get(idOf('Bo.bare')).id);
     ctx.asked.length = 0;
     // Let go of at once, an account as an agent without accounts: its tasks keep it, and the account stays in the store.
     await ui(`kulisa.invoke('project:agent-remove', { id: '${pid('site')}', agent: '${ann.id}' })`);
@@ -1756,21 +1757,22 @@ export default (test: Test) => {
     await waitFor(() => sui(pageOf(shell.current.name)));
     assert.equal(await sui(`document.querySelector('#pjlist [aria-selected="true"]').dataset.project`), shell.current.id);
     // Pages on screen under Settings' window (once live again after the last menu's pictures: on a loaded machine later).
-    await waitFor(() => shell.task.profiles.get('sam-admin').get().view.getVisible());
+    await waitFor(() => shell.task.profiles.get(idOf('Sam.admin')).get().view.getVisible());
     // Site-2 is closed: its configuration all the same; a profile made and let go there (asked first, in Settings' window,
     // where it was done).
     await sui(`document.querySelector('#pjlist [data-project="${pid('site')}"]').click()`);
     await waitFor(() => sui(pageOf('Site-2')));
     assert.ok(!shell.open.has(pid('site')));
     await newProfileHere(sui, 'Closed-one');
-    await waitFor(() => sui(`!!document.querySelector('#npprofiles [data-profile="closed-one"]')`));
+    const closedOne = idOf('Closed-one');
+    await waitFor(() => sui(`!!document.querySelector('#npprofiles [data-profile="${closedOne}"]')`));
     ctx.answer = true;
-    await onRow(sui, '#npprofiles [data-profile="closed-one"]', 'npprofiledel');
-    await waitFor(() => ctx.asked.length && !shell.store.projectsWith('profiles', shell.profileStore.get('closed-one')?.folder).length);
+    await onRow(sui, `#npprofiles [data-profile="${closedOne}"]`, 'npprofiledel');
+    await waitFor(() => ctx.asked.length && !shell.store.projectsWith('profiles', closedOne).length);
     assert.equal(ctx.asked.pop().message, 'Remove the profile Closed-one from Site-2?');
     assert.equal(await ui(`!!document.getElementById('ask')`), false, "not in the task's window");
-    shell.profileStore.delete('closed-one'); // not needed by later tests
-    await waitFor(() => sui(`!document.querySelector('#npprofiles [data-profile="closed-one"]')`));
+    shell.profileStore.delete(closedOne); // not needed by later tests
+    await waitFor(() => sui(`!document.querySelector('#npprofiles [data-profile="${closedOne}"]')`));
     assert.equal(await sui(`document.getElementById('npprofileerror').textContent`), '');
     await shot(shell, path.join(root, 'projects.png'));
     // Done in the task's window with Settings in front, that window minimized (Refresh from Master…; on macOS the OS's ×
@@ -1780,7 +1782,7 @@ export default (test: Test) => {
     shell.settings.win.focus();
     await waitFor(() => shell.settings.win.isFocused());
     ctx.answer = false;
-    const said = await ui(`kulisa.invoke('profile:refresh', { task: ${JSON.stringify(shell.task.key)}, profile: 'sam-admin' })`);
+    const said = await ui(`kulisa.invoke('profile:refresh', { task: ${JSON.stringify(shell.task.key)}, profile: '${idOf('Sam.admin')}' })`);
     assert.deepEqual([said, ctx.asked.pop().message], [{ error: 'the human said no' }, "Bring the sign-ins of Sam.admin's master to this task?"]);
     assert.equal(await sui(`!!document.getElementById('ask')`), false, "not in Settings' window");
     // Waited for: macOS restores a minimized window with its animation, and makes it key at its end.
@@ -1907,7 +1909,7 @@ export default (test: Test) => {
     const data = path.join(userData, 'projects', p.id);
     // A profile of its own (in no other project): its master goes with it.
     const own = shell.profileStore.create(p.id, { name: 'Spare-user', avatar: 'fox' }) as StoredProfile;
-    fs.mkdirSync(path.join(data, '1', own.folder), { recursive: true });
+    fs.mkdirSync(path.join(data, '1', own.id), { recursive: true });
     // An agent's account in no other project: it stays, let go of (Settings → Agents deletes one).
     const account = shell.accounts.create((shell.accounts.prepare('fake') as { id: string }).id, 'fake', 'spare@shop.com');
     shell.store.updateProject(p.id, { agents: [account.id] });
@@ -1941,9 +1943,9 @@ export default (test: Test) => {
     await waitFor(() => !projects().includes('spare'));
     ctx.asked.length = 0;
     await waitFor(() => !fs.existsSync(data) && !fs.existsSync(wt.worktree));
-    assert.ok(fs.existsSync(shell.profileStore.masterDir(own.folder)) && shell.profileStore.projectsOf(shell.profileStore.get('spare-user')).length === 0,
+    assert.ok(fs.existsSync(shell.profileStore.masterDir(own.id)) && shell.profileStore.projectsOf(shell.profileStore.get(own.id)).length === 0,
       'its profile kept, with its sign-ins, in no project (as its account)');
-    shell.profileStore.delete('spare-user'); // not needed by later tests
+    shell.profileStore.delete(own.id); // not needed by later tests
     assert.ok(fs.existsSync(account.dir) && !fs.readFileSync(path.join(root, 'logouts'), 'utf8').includes(account.dir), 'its account kept, signed in');
     assert.deepEqual(shell.store.projectsWith('agents', account.id).map((p) => p.id), []);
     assert.equal(git(spare, 'branch', '--list', wt.branch), '', "the task's branch");
@@ -2092,7 +2094,7 @@ export default (test: Test) => {
     assert.deepEqual(await tabs(ui), ['task-1 *', 'Feature-X']);
     ctx.watchPty(shell.pty);
     await waitFor(() => ui(`!document.documentElement.classList.contains('noproject') && !document.documentElement.classList.contains('loading')`));
-    await waitFor(async () => (await viewOn(shell, ui, 'sam-admin')) && viewOn(shell, ui, 'elon-buyer'));
+    await waitFor(async () => (await viewOn(shell, ui, 'Sam.admin')) && viewOn(shell, ui, 'Elon.buyer'));
   });
   test('the CDP proxy takes ids in any letters (percent-encoded in its URLs); the grid changed just before its task is left is saved so', async ({ shell, ui }) => {
     // Last: a profile made and deleted here would take a folder number the tests before count on.
@@ -2319,12 +2321,12 @@ export default (test: Test) => {
     // Made and let go by that task's agent (asked in its window): the project's page shows it, then not. Not in the first
     // window's task: its grid is checked after the restart, and a pane come and gone could leave it saved otherwise.
     await call('profile_create', { name: 'Fay' }, second.current);
-    await waitFor(() => sui(`!!document.querySelector('#npprofiles [data-profile="fay"]') && !!document.querySelector('#pjlist [data-profile="fay"]')`));
+    await waitFor(() => sui(`!!document.querySelector('#npprofiles [data-profile="${idOf('Fay')}"]') && !!document.querySelector('#pjlist [data-profile="${idOf('Fay')}"]')`));
     ctx.answer = true;
-    await call('profile_delete', { profile: 'fay' }, second.current);
+    await call('profile_delete', { profile: 'Fay' }, second.current);
     assert.equal(ctx.asked.pop().message, `The agent asks to remove the profile Fay from ${second.current.project.name}.`);
-    await waitFor(() => sui(`!document.querySelector('#npprofiles [data-profile="fay"]')`));
-    shell.profileStore.delete('fay'); // not needed by the restart
+    await waitFor(() => sui(`!document.querySelector('#npprofiles [data-profile="${idOf('Fay')}"]')`));
+    shell.profileStore.delete(idOf('Fay')); // not needed by the restart
     // The first one in front (the question's dialog in the second gone first): Settings acts for it now, without being
     // opened again.
     await waitFor(() => there(`document.getElementById('ask')?.dataset.state !== 'open'`));

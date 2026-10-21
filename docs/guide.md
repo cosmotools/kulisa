@@ -222,7 +222,8 @@ profile under Profiles to see its page.
 
 - The **+** beside Profiles makes one: type its name, Enter (or + → New Profile… on a project's page, to make it in
   that project).
-- **Name**: letters, digits and `@ . _ + -`, so it can be the account's email (`ann+test@shop.com`).
+- **Name**: letters, digits and `@ . _ + -`, so it can be the account's email (`ann+test@shop.com`). The agent calls
+  the profile by it, so two profiles of one project cannot have the same name (`Ann` and `ann` are the same).
 - **About**: who it is in your app and what it can do. The agent picks profiles by it; if it is empty, the agent
   asks you and saves your answer.
 - **Picture**: an animal, to tell the panes apart at a glance.

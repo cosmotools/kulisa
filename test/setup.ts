@@ -3,7 +3,7 @@
 import fs from 'fs';
 import path from 'path';
 import http from 'http';
-import { assert, project, pfile, SITE, waitFor, who, hooksOf } from './helpers.ts';
+import { assert, project, pfile, SITE, waitFor, who, hooksOf, idOf } from './helpers.ts';
 import type { Test } from './run.ts';
 
 export default (test: Test) => {
@@ -11,13 +11,13 @@ export default (test: Test) => {
     const { shell, call, ui } = ctx, task = shell.task;
     await task.createProfile('Sam.admin', 'seller in the test shop', 'fox');
     await task.createProfile('Elon.buyer', '', 'owl');
-    task.describeProfile('elon-buyer', ''); // said, and left empty by the human
-    await call('browser_navigate', { profile: 'sam-admin', url: `${SITE}/app/login?name=sam` });
-    await call('browser_navigate', { profile: 'elon-buyer', url: `${SITE}/app` });
-    assert.equal(await who(ctx, 'sam-admin'), 'Signed in as sam');
+    task.describeProfile(idOf('Elon.buyer'), ''); // said, and left empty by the human
+    await call('browser_navigate', { profile: 'Sam.admin', url: `${SITE}/app/login?name=sam` });
+    await call('browser_navigate', { profile: 'Elon.buyer', url: `${SITE}/app` });
+    assert.equal(await who(ctx, 'Sam.admin'), 'Signed in as sam');
     await task.createProfile('Dora');
-    await call('browser_navigate', { profile: 'dora', url: `${SITE}/app/login?name=dora` });
-    await task.closeProfile('dora');
+    await call('browser_navigate', { profile: 'Dora', url: `${SITE}/app/login?name=dora` });
+    await task.closeProfile(idOf('Dora'));
     // Its SessionStart hook, as Claude Code sends it: Kulisa resumes this session when the project opens again.
     const transcript = path.join(project, 'transcript.jsonl');
     fs.writeFileSync(transcript, '');
