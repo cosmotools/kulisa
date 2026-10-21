@@ -13,7 +13,7 @@ cookies, storage, sign-ins and tabs, shown as a pane in the grid. One profile is
 person, the same in every project it is listed in: its name, id, picture and description are one, changed anywhere,
 seen everywhere. A project lists its profiles, in order, by their folders (`projects.json`'s `profiles`; a folder is
 fixed, an id changes with the name). What a project is made of (its repositories, agents, profiles) is said in the
-project alone: one place to read it and to change it. Its **master** is a folder in Kulisa's data (`profiles/Profile <k>/`) that no one works in. Each task
+project alone: one place to read it and to change it. Its **master** is a folder in Kulisa's data (`profiles/<folder>/`) that no one works in. Each task
 ([tasks.md](tasks.md)) of its projects works in a **copy** of the master, made when the profile is first opened in
 that task (not all at once: a closed one costs nothing), its tabs the master's moved to the task's ports. What a task
 has of a profile is its own: its copy (what is signed in there stays there), its tabs, open or closed, its sites'
@@ -382,12 +382,12 @@ is the descriptions the agent reads. If agents often write their own scripts, th
 ## What is on the computer
 
 In Kulisa's data folder, laid out in [tasks.md](tasks.md), "What is on the computer": the masters at its top
-(`profiles/Profile <k>/`), each task's copies in the task's folder, with Kulisa's own files in each (its tabs, its
+(`profiles/<folder>/`), each task's copies in the task's folder, with Kulisa's own files in each (its tabs, its
 session cookies).
 
-The folder is named as Chrome names its profiles, fixed at creation, the same for the master and every copy; a new
-profile never takes a number used before (`next`: a task's copy of a deleted one may still be on disk, its session
-open, and would pass for the new one's copy). A deleted profile's data is wiped at once; its folder is removed at the next start
+The folder is six random lowercase letters and digits (`m2q7xd`), fixed at creation, the same for the master and
+every copy; a new profile's is one no profile, no master and no folder waiting in `deleted-folders.json` has (a task's
+copy of a deleted one may still be on disk, its session open, and would pass for the new one's copy). A deleted profile's data is wiped at once; its folder is removed at the next start
 (`deleted-folders.json`), because the session keeps its files open while Kulisa runs. Copying a master (a profile's first open in a task)
 leaves the caches out (Cache, Code Cache, GPUCache, Dawn*).
 

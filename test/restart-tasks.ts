@@ -15,7 +15,7 @@ export default (test: Test) => {
     assert.equal(second.loaded, false);
     // Left loaded in the background: its tabs saved as Kulisa quit, not again as they closed (none left at last).
     const secondDir = path.join(userData, 'projects', pid('project'), '2');
-    const saved = fs.readdirSync(secondDir).filter((d) => d.startsWith('Profile '))
+    const saved = fs.readdirSync(secondDir).filter((d) => fs.existsSync(path.join(secondDir, d, 'Kulisa Tabs.json')))
       .map((d) => JSON.parse(fs.readFileSync(path.join(secondDir, d, 'Kulisa Tabs.json'), 'utf8')).urls);
     assert.ok(saved.some((urls) => urls.length), `its tabs kept: ${JSON.stringify(saved)}`);
     // Once the first has loaded: a click while the window still builds it is not taken.

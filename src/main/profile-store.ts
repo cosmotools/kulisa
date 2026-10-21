@@ -1,21 +1,19 @@
 // The profiles, one flat store (profiles.md, "What a profile is"): each a person with their sign-ins, in the projects
 // that list it (projects.json's profiles: store.ts). Its master is a Chromium profile folder in Kulisa's data
-// (profiles/Profile <k>/) that the human signs in to and no one works in; each task of its projects works in a copy of
+// (profiles/<folder>/) that the human signs in to and no one works in; each task of its projects works in a copy of
 // it, made when the profile is first opened there (project-profiles.ts). Who it is (name, id, picture, description) is
 // the store's, the same in every project and task; what a task has of it (open or closed, its tabs, sites' zoom) is the
 // task's. A profile lives until the human deletes it (Settings → Profiles, as an agent's
 // account): a project letting it go keeps it, in no project then. Who it is changes here, checked here, for every
 // handle (a task, Settings, the agent). Plain Node (no Electron): unit-tested.
-//   profiles.json         { next, list: [{ id, name, avatar, description, folder, login }] }:
-//                         login: a test user's pair, { user, secret } (the password encrypted with the OS keyring:
-//                         safeStorage; never in the clear, never logged); next,
-//                         the number of the next folder, never one used before (a task's copy of a deleted profile
-//                         stays on disk while its session is open, and a new profile must not find it)
-//   profiles/Profile <k>/ its master
+//   profiles.json         { list: [{ id, name, avatar, description, folder, login }] }: folder, six random characters,
+//                         fixed (its id goes with its name); login: a test user's pair, { user, secret } (the password
+//                         encrypted with the OS keyring: safeStorage; never in the clear, never logged)
+//   profiles/<folder>/    its master
 import fs from 'fs';
 import path from 'path';
 import { slugOf, nameError } from '../shared/names.ts';
-import { writeFileAtomic } from './store.ts';
+import { newId, writeFileAtomic } from './store.ts';
 import { log } from './log.ts';
 import type { Store } from './store.ts';
 import { AVATARS, nextAvatar } from '../shared/avatars.ts';
@@ -40,9 +38,8 @@ class ProfileStore {
     this.dir = store.dir; this.store = store;
     this.file = path.join(this.dir, 'profiles.json');
   }
-  read(): { next: number; list: StoredProfile[] } { try { return JSON.parse(fs.readFileSync(this.file, 'utf8')); } catch { return { next: 1, list: [] }; } }
-  all() { return this.read().list; }
-  save(list: StoredProfile[], next = this.read().next) { writeFileAtomic(this.file, JSON.stringify({ next, list }, null, 2)); }
+  all(): StoredProfile[] { try { return JSON.parse(fs.readFileSync(this.file, 'utf8')).list || []; } catch { return []; } }
+  save(list: StoredProfile[]) { writeFileAtomic(this.file, JSON.stringify({ list }, null, 2)); }
   get(id: string): StoredProfile | null { return this.all().find((p) => p.id === id) || null; }
   byFolder(folder: string): StoredProfile | null { return this.all().find((p) => p.folder === folder) || null; }
   // A project's profiles, in its order.
@@ -55,19 +52,19 @@ class ProfileStore {
   masterDir(folder: string) { return path.join(this.dir, 'profiles', folder); }
   // A new profile, in a project or in none (Settings → Profiles), whoever makes it (a task, the agent, Settings, New
   // Project): its fields checked, its picture the next one free among its project's (among all, in none) unless one is
-  // given; its master folder, empty, numbered as Chrome numbers its profiles, never a number used before.
+  // given; its master folder, empty, random: a name no profile, master or folder waiting to be removed has (a task's copy
+  // of a deleted profile, named as its master, stays on disk while its session is open, and a new profile must not
+  // find it).
   create(project: string | null, { name, avatar, description = '' }: { name: string; avatar?: string; description?: string }): Result<StoredProfile> {
     const bad = this.check({ name, description, avatar });
     if (bad) return { error: bad };
     name = name.trim(); description = description.trim();
     avatar ||= nextAvatar((project ? this.of(project) : this.all()).map((p) => p.avatar));
-    const { next, list } = this.read();
-    let n = next;
-    while (fs.existsSync(this.masterDir(`Profile ${n}`))) n++;
-    const folder = `Profile ${n}`;
+    const list = this.all(), deleted = this.store.deleted().map((d) => path.basename(d));
+    const folder = newId((f) => list.some((p) => p.folder === f) || deleted.includes(f) || fs.existsSync(this.masterDir(f)));
     const p: StoredProfile = { id: this.idFor(name), name, avatar, ...(description && { description }), folder };
     fs.mkdirSync(this.masterDir(folder), { recursive: true });
-    this.save([...list, p], n + 1);
+    this.save([...list, p]);
     return project ? this.addTo(p.id, project) : p;
   }
   // An id from a name, one no other profile has (except: the profile being renamed).

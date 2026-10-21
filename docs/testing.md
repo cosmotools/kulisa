@@ -129,7 +129,7 @@ the part's code):
 - **Names say what the human sees or gets**, as a sentence ("deleting a task asks first, saying what goes"); the
   comments say why it matters (the bug it once was).
 - **Leave what later files need, say so** ("left closed for the restart phase"), and clean up the rest (a
-  profile made for one test is deleted at its end: folder numbers are counted by later tests).
+  profile made for one test is deleted at its end).
 - **What it writes stays in its folder** (`root`, `userData`, `project` from `helpers.ts`); nothing in the user's
   data or home. A unit test makes its own temporary folder and removes it (`after`).
 - **Budget**: a test that takes over 2 s says why in a comment (git's work, a wait by design). Each action of the

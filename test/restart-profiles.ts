@@ -1,15 +1,17 @@
 // After a restart, what agent.ts, profiles.ts and zoom-and-closing.ts left: profiles, sign-ins, tabs, zoom.
 import fs from 'fs';
 import path from 'path';
-import { assert, userData, pfile, SITE, sleep, waitFor, who } from './helpers.ts';
+import { assert, userData, pfile, folderOf, SITE, sleep, waitFor, who } from './helpers.ts';
 import type { Test } from './run.ts';
 
 export default (test: Test) => {
   test('after a restart: profiles, sign-ins and tabs are back, the one in front in front', async (ctx) => {
     assert.deepEqual([...ctx.shell.profiles.keys()], ['sam-admin', 'elon-buyer']);
     assert.deepEqual([...ctx.shell.profiles.values()].map((p) => [p.avatar, p.description]), [['fox', 'seller in the test shop'], ['owl', '']]);
-    for (const dir of ['Profile 3', 'Profile 4', 'Profile 5']) assert.ok(!fs.existsSync(pfile(dir)), `${dir} (deleted) removed`);
-    assert.ok(fs.existsSync(pfile('Profile 1')), 'live profiles keep their folders');
+    // The deleted ones' copies and masters removed; the live ones keep their folders.
+    const live = ctx.shell.profileStore.all().map((p) => p.folder), dirs = (d: string) => fs.readdirSync(d, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name);
+    assert.deepEqual([dirs(pfile('')).filter((f) => !live.includes(f)), dirs(path.join(userData, 'profiles')).filter((f) => !live.includes(f))], [[], []]);
+    assert.ok(fs.existsSync(pfile(folderOf('sam-admin'))));
     assert.ok(!fs.existsSync(path.join(userData, 'deleted-folders.json')));
     assert.equal(await who(ctx, 'sam-admin'), 'Signed in as sam');
     const elon = ctx.shell.profiles.get('elon-buyer');

@@ -2,7 +2,7 @@
 import electron, { clipboard } from 'electron';
 import fs from 'fs';
 import path from 'path';
-import { MAC, CMD, shot, assert, root, userData, project, pid, tkey, pfile, SITE, sleep, waitFor, who, menuRows, choose, MENU, SUBMENU, menuOpen, rightClick, box, pageBox, viewOn, dock, press, projectTabs, projectTab, showProject, closeProject, savedWindows, closeMenu, plusMenu, closeBoard, focusWindow } from './helpers.ts';
+import { MAC, CMD, shot, assert, root, userData, project, pid, tkey, pfile, folderOf, SITE, sleep, waitFor, who, menuRows, choose, MENU, SUBMENU, menuOpen, rightClick, box, pageBox, viewOn, dock, press, projectTabs, projectTab, showProject, closeProject, savedWindows, closeMenu, plusMenu, closeBoard, focusWindow } from './helpers.ts';
 import type { Test } from './run.ts';
 import type { UI } from './helpers.ts';
 
@@ -26,24 +26,24 @@ export default (test: Test) => {
   });
   test("grid: a pane narrower than its profile's name: the name cut with …, its × in the pane, no list of hidden tabs", async ({ ui }) => {
     // A name longer than any pane is wide (names have no spaces to wrap at), put in place of Sam's.
-    const was = await ui(`(() => { const n = document.querySelector('.ptab[data-panel="profile:Profile 1"] .pname'), was = n.textContent;
+    const was = await ui(`(() => { const n = document.querySelector('.ptab[data-panel="profile:${folderOf('sam-admin')}"] .pname'), was = n.textContent;
       n.textContent = 'administrator.international-tenant@enterprise-customers.example'.repeat(3); return was; })()`);
-    const fits = () => ui(`(() => { const t = document.querySelector('.ptab[data-panel="profile:Profile 1"]'), g = t.closest('.dv-groupview').getBoundingClientRect();
+    const fits = () => ui(`(() => { const t = document.querySelector('.ptab[data-panel="profile:${folderOf('sam-admin')}"]'), g = t.closest('.dv-groupview').getBoundingClientRect();
       const n = t.querySelector('.pname'), x = t.querySelector('.close').getBoundingClientRect(), more = t.closest('.dv-groupview').querySelector('.dv-tabs-overflow-dropdown-root');
       return n.scrollWidth > n.clientWidth && getComputedStyle(n).textOverflow === 'ellipsis' && x.width > 0 && x.right <= g.right && x.left >= g.left
         && !(more && more.checkVisibility()); })()`);
     await waitFor(fits, 3000);
-    await ui(`document.querySelector('.ptab[data-panel="profile:Profile 1"] .pname').textContent = ${JSON.stringify(was)}`);
+    await ui(`document.querySelector('.ptab[data-panel="profile:${folderOf('sam-admin')}"] .pname').textContent = ${JSON.stringify(was)}`);
   });
   test('grid: a pane moved next to the terminal takes its page along', async ({ shell, ui }) => {
-    await dock(ui, `api.getPanel('profile:Profile 1').api.moveTo({ group: api.getPanel('terminal').group, position: 'right' })`);
+    await dock(ui, `api.getPanel('profile:${folderOf('sam-admin')}').api.moveTo({ group: api.getPanel('terminal').group, position: 'right' })`);
     await waitFor(() => viewOn(shell, ui, 'sam-admin'));
     await waitFor(() => viewOn(shell, ui, 'elon-buyer'));
     const sam = await pageBox(ui, 'sam-admin'), term = await box(ui, '.term:not([hidden])');
     assert.ok(sam.x > term.x + term.width - 1 && sam.y + sam.height > term.y, 'Sam is right of the terminal');
   });
   test("grid: a narrow pane's bar gives up Back and Forward, then Reload, into ⋮; Pick and ⋮ stay in it down to dockview's narrowest", async ({ ui }) => {
-    const pane = '.pane[data-profile="sam-admin"]', width = await dock(ui, `return api.getPanel('profile:Profile 1').group.api.width`);
+    const pane = '.pane[data-profile="sam-admin"]', width = await dock(ui, `return api.getPanel('profile:${folderOf('sam-admin')}').group.api.width`);
     const bar = () => ui(`(() => { const p = document.querySelector('${pane}').getBoundingClientRect();
       return [...document.querySelectorAll('${pane} .bar > :is(button, input):not([hidden])')].filter((e) => e.checkVisibility()).map((e) => {
         const r = e.getBoundingClientRect(); return e.classList[0] + (r.left >= p.left && r.right <= p.right ? '' : ' out'); }); })()`);
@@ -54,7 +54,7 @@ export default (test: Test) => {
       return rows;
     };
     const at = async (w: number, shown: string[]) => {
-      await dock(ui, `api.getPanel('profile:Profile 1').group.api.setSize({ width: ${w} })`);
+      await dock(ui, `api.getPanel('profile:${folderOf('sam-admin')}').group.api.setSize({ width: ${w} })`);
       await waitFor(async () => JSON.stringify(await bar()) === JSON.stringify(shown), 3000).catch(async () => assert.deepEqual(await bar(), shown, `${w} px`));
     };
     await at(400, ['back', 'fwd', 'reload', 'addr', 'pick', 'more']);
@@ -62,14 +62,14 @@ export default (test: Test) => {
     await at(240, ['reload', 'addr', 'pick', 'more']);
     await at(100, ['addr', 'pick', 'more']);
     assert.deepEqual((await more()).map((r: string) => r.replace(' (off)', '')), ['Back', 'Forward', 'Reload', '-', 'Screenshot', 'DevTools']);
-    await dock(ui, `api.getPanel('profile:Profile 1').group.api.setSize({ width: ${width} })`);
+    await dock(ui, `api.getPanel('profile:${folderOf('sam-admin')}').group.api.setSize({ width: ${width} })`);
   });
   test('grid: a pane stacked behind another as a tab hides its page until chosen', async ({ shell, ui }) => {
     const sam = shell.profiles.get('sam-admin'), elon = shell.profiles.get('elon-buyer');
-    await dock(ui, `api.getPanel('profile:Profile 1').api.moveTo({ group: api.getPanel('profile:Profile 2').group, position: 'center' })`);
+    await dock(ui, `api.getPanel('profile:${folderOf('sam-admin')}').api.moveTo({ group: api.getPanel('profile:${folderOf('elon-buyer')}').group, position: 'center' })`);
     await waitFor(() => viewOn(shell, ui, 'sam-admin'));
     assert.equal(elon.get().view.getVisible(), false);
-    await dock(ui, `api.getPanel('profile:Profile 2').api.setActive()`);
+    await dock(ui, `api.getPanel('profile:${folderOf('elon-buyer')}').api.setActive()`);
     await waitFor(() => viewOn(shell, ui, 'elon-buyer'));
     assert.equal(sam.get().view.getVisible(), false);
   });
@@ -77,10 +77,10 @@ export default (test: Test) => {
     await dock(ui, `api.fromJSON(api.toJSON())`); // fresh, nothing stacked
     await ui(`window.__layoutPreset('columns')`);
     await waitFor(() => viewOn(shell, ui, 'sam-admin'));
-    await ui(`document.querySelector('.ptab[data-panel="profile:Profile 2"]').dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: new DataTransfer() }))`);
+    await ui(`document.querySelector('.ptab[data-panel="profile:${folderOf('elon-buyer')}"]').dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: new DataTransfer() }))`);
     await waitFor(() => [...shell.profiles.values()].every((p) => !p.get().view.getVisible()));
     await waitFor(async () => (await ui(`document.querySelectorAll('.pane .content img.snapshot').length`)) === 2);
-    await ui(`document.querySelector('.ptab[data-panel="profile:Profile 2"]').dispatchEvent(new DragEvent('dragend', { bubbles: true }))`);
+    await ui(`document.querySelector('.ptab[data-panel="profile:${folderOf('elon-buyer')}"]').dispatchEvent(new DragEvent('dragend', { bubbles: true }))`);
     await waitFor(async () => (await viewOn(shell, ui, 'sam-admin')) && viewOn(shell, ui, 'elon-buyer'));
     assert.equal(await ui(`document.querySelectorAll('.pane .content img.snapshot').length`), 0);
   });
@@ -112,10 +112,9 @@ export default (test: Test) => {
       .map((t) => { const r = t.getBoundingClientRect(); return [r.x, r.width]; }))); if (window.__islands) requestAnimationFrame(tick); }; tick(); }`);
     await shell.task.createProfile('Sam.seller'); // the same name as in the first project (the agent's profile_create)
     const seller = shell.profiles.get('sam-seller');
-    // A copy in the task's data, of its master in the store of profiles, numbered as every profile is (Sam, Elon, Dora
-    // came first).
-    assert.equal(seller.dir, path.join(userData, 'projects', pid('other'), '1', 'Profile 4'), "a task's copy is in its task's data");
-    assert.ok(fs.existsSync(path.join(userData, 'profiles', 'Profile 4')), 'its master');
+    // A copy in the task's data, named as its master in the store of profiles.
+    assert.equal(seller.dir, path.join(userData, 'projects', pid('other'), '1', folderOf('sam-seller')), "a task's copy is in its task's data");
+    assert.ok(fs.existsSync(path.join(userData, 'profiles', folderOf('sam-seller'))), 'its master');
     assert.equal(seller.endpoint.endsWith(`/${tkey('other', 1)}/sam-seller`), true, 'the CDP proxy knows it by its project too');
     await ctx.call('browser_navigate', { profile: 'sam-seller', url: `${SITE}/app` });
     assert.equal(await who(ctx, 'sam-seller'), 'Signed out', "the first project's sign-ins stay there");
@@ -476,7 +475,7 @@ export default (test: Test) => {
     const wc = shell.profiles.get('elon-buyer').get().wc;
     wc.capturePage = () => new Promise(() => {}); // never
     try {
-      await rightClick(ui, '.ptab[data-panel="profile:Profile 2"]');
+      await rightClick(ui, `.ptab[data-panel="profile:${folderOf('elon-buyer')}"]`);
       await waitFor(() => menuOpen(ui), 2000);
       assert.equal(await ui(`!!document.querySelector('.pane[data-profile="elon-buyer"] .content img.snapshot')`), false, 'no picture, the pane is empty meanwhile');
       await closeMenu(ui);
@@ -486,7 +485,7 @@ export default (test: Test) => {
   test('context menus: a pane\'s header, a tab, the terminal; pages are pictures while a menu is open; Arrange panels in ☰; Exit', async (ctx) => {
     const { shell, ui } = ctx;
     const elon = shell.profiles.get('elon-buyer');
-    const header = '.ptab[data-panel="profile:Profile 2"]';
+    const header = `.ptab[data-panel="profile:${folderOf('elon-buyer')}"]`;
     await rightClick(ui, header);
     assert.deepEqual(await menuRows(ui), ['New tab', 'About this profile…', 'Sign In to Master…', 'Refresh from Master…', 'Close profile', '-', 'Remove from Project…']);
     const at = await ui(`(() => { const h = document.querySelector('${header}').getBoundingClientRect(), m = document.querySelector('.menu[data-state="open"]').getBoundingClientRect();

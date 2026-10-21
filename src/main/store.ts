@@ -16,8 +16,8 @@
 //     <n>/                   a task (TaskStore): profiles.json (what it has of its project's profiles: folder,
 //                            sites' zoom, closed), layout.json (the window's grid), agent.json (its agents'
 //                            conversations, to resume and read them), terminals.json (its island's tabs), and a copy
-//                            of a profile's master per profile opened here:
-//       Profile <k>/         a Chromium profile (session.fromPath) with Kulisa's own files in it: Kulisa Tabs.json
+//                            of a profile's master per profile opened here, named as the master:
+//       <folder>/            a Chromium profile (session.fromPath) with Kulisa's own files in it: Kulisa Tabs.json
 //                            (its tabs' URLs), Kulisa Session Cookies.bin (session-cookies.ts)
 //   profiles.json, profiles/ the profiles and their masters (profile-store.ts)
 //   deleted-folders.json     folders of deleted profiles and tasks, removed at the next start (a session keeps
@@ -31,9 +31,14 @@ import { log } from './log.ts';
 // Muted, to sit on the dark window; a new project takes the first one no project has (its favicon's own hue, in their
 // lightness and chroma, replaces it in the window: renderer/lib/project-color.ts).
 const PROJECT_COLORS = ['#4a7bd0', '#3f9a7a', '#b4823a', '#9a5fc0', '#c0584f', '#3c9fb0', '#b0607f', '#7d9a3f'];
-// A project's id: six lowercase letters and digits, about two billion of them.
+// An id of a project, an agent's account or a profile's folder: six lowercase letters and digits, about two billion
+// of them, drawn again while taken.
 const ID_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789';
-const newId = () => Array.from({ length: 6 }, () => ID_CHARS[randomInt(ID_CHARS.length)]).join('');
+function newId(taken: (id: string) => boolean) {
+  let id: string;
+  do id = Array.from({ length: 6 }, () => ID_CHARS[randomInt(ID_CHARS.length)]).join(''); while (taken(id));
+  return id;
+}
 const TABS_FILE = 'Kulisa Tabs.json';
 const SESSION_COOKIES_FILE = 'Kulisa Session Cookies.bin';
 // Chromium's caches inside a profile: rebuilt by themselves, so a copy of a profile goes without them.
@@ -96,8 +101,7 @@ class Store {
     const found = this.projectOf(folder);
     if (found) return found;
     const list = this.projects();
-    let id: string;
-    do id = newId(); while (list.some((p) => p.id === id) || fs.existsSync(path.join(this.dir, 'projects', id)));
+    const id = newId((id) => list.some((p) => p.id === id) || fs.existsSync(path.join(this.dir, 'projects', id)));
     const p: ProjectEntry = { id, name, folder, color: this.nextColor(), ...(agent && { agents: [agent] }) };
     writeJSON(this.projectsFile, [...list, p]);
     return p;
@@ -234,5 +238,5 @@ function writeFileAtomic(file: string, data: string | Uint8Array, options?: { mo
   } catch (e) { fs.rmSync(tmp, { force: true }); throw e; }
 }
 
-export { Store, copyProfile, writeFileAtomic, readTabs, writeTabs, SESSION_COOKIES_FILE, PROJECT_COLORS };
+export { Store, newId, copyProfile, writeFileAtomic, readTabs, writeTabs, SESSION_COOKIES_FILE, PROJECT_COLORS };
 export type { SavedTabs, TaskStore, ProjectEntry, TaskEntry, Copy, TaskProfile, TasksFile, Conversation };

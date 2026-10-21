@@ -38,6 +38,8 @@ const savedFile = (id: string, task: number) => {
   const { folder } = JSON.parse(fs.readFileSync(pfile('profiles.json', task), 'utf8')).find((p: { id: string }) => p.id === id);
   return JSON.parse(fs.readFileSync(pfile(path.join(folder, 'Kulisa Tabs.json'), task), 'utf8'));
 };
+// A profile's folder (random, fixed: profile-store.ts), for its copy's or master's path and its panel.
+const folderOf = (id: string): string => JSON.parse(fs.readFileSync(path.join(userData, 'profiles.json'), 'utf8')).list.find((p: { id: string }) => p.id === id).folder;
 // The id of a profile's panel in the grid (its folder: stable across renames).
 const panel = (shell: Shell, id: string) => `profile:${(shell.profiles.get(id) || shell.closed.get(id)?.cfg).folder}`;
 // The test site: the run's own (start.ts gives each run a free port), else 4417.
@@ -211,6 +213,6 @@ const near = (a: number, b: number) => Math.abs(a - b) < 1e-6;
 const noNode = async (wc: WebContents) => await wc.executeJavaScriptInIsolatedWorld(999, [{ code: 'typeof process' }]) === 'undefined';
 
 export type { UI };
-export { MAC, CMD, canShoot, NO_SHOT, shot, focusWindow, MENU, SUBMENU, noNode, hooksOf, plusMenu, closeBoard, assert, root, userData, project, pid, tkey, named, pfile, savedTabs, savedActive, savedWindows, panel, SITE, PORT, sleep, waitFor, who, menuRows, choose, projectTabs, projectTab, showProject, closeProject, manageProfiles, closeSettings, settingsClosed, chooseProfile, setProfileField, menuOpen, closeMenu, rightClick, taskMenu,
+export { MAC, CMD, canShoot, NO_SHOT, shot, focusWindow, MENU, SUBMENU, noNode, hooksOf, plusMenu, closeBoard, assert, root, userData, project, pid, tkey, named, pfile, folderOf, savedTabs, savedActive, savedWindows, panel, SITE, PORT, sleep, waitFor, who, menuRows, choose, projectTabs, projectTab, showProject, closeProject, manageProfiles, closeSettings, settingsClosed, chooseProfile, setProfileField, menuOpen, closeMenu, rightClick, taskMenu,
   click,
   box, pageBox, viewOn, dock, press, ctrl, near };
