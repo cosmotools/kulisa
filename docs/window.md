@@ -497,6 +497,8 @@ zone; electron-log's own has no offset), the level and a tag:
   knowing), a child process (the GPU) gone, a page unresponsive, a preload error. Not its defaults,
   which listen on every webContents, the profiles' pages too, and log their failed loads and certificate errors with
   the address (every cancelled navigation, an OAuth callback's `?code=`), and their console.
+- `[warning]`: a process warning (Node's, a deprecation), in place of Node's own line. Not Electron's warning of every
+  failed load, which carries the address in full (`[profile]` has it bare).
 
 Never there: what is typed into a terminal or a page, passwords, tokens, cookies, an address's user and query.
 `summary` writes an action's arguments in one short line: a value left out by its key (password, secret, token,
