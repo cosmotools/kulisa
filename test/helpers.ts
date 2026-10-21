@@ -19,7 +19,7 @@ const project = path.join(root, 'project');
 
 // A project's id is random (store.ts): a test names a project by its folder's name ('project', 'other'). pid('other')
 // is its id; tkey('other', 1) its task's key; named(key) a key, or an id, back by the folder's name, to compare.
-const projectsSaved = (): { id: string; folder: string }[] => JSON.parse(fs.readFileSync(path.join(userData, 'projects.json'), 'utf8'));
+const projectsSaved = (): { id: string; folder: string }[] => JSON.parse(fs.readFileSync(path.join(userData, 'projects.json'), 'utf8')).list;
 const folderName = (p: { folder: string }) => path.basename(p.folder).toLowerCase();
 const pid = (folder: string) => {
   const found = projectsSaved().filter((p) => folderName(p) === folder);

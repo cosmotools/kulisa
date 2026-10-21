@@ -463,6 +463,10 @@ zone; electron-log's own has no offset), the level and a tag:
   `[task] created k3f9a2/1 (shop) in ~/IdeaProjects/shop@task-1`), closed, deleted;
   a window made, showing a task, dropped; Settings opened (at what) and closed; a terminal started (the agent and
   whether its session is resumed, or a shell), gone, its exit code.
+- `[accounts]`: an agent's account, its id named by its agent and its email shortened (three letters of the name, at
+  most half of it: a log goes with a bug report; none without an email), at every start and as it is made and
+  deleted: `[accounts] k3x9ab (Claude Code, mar…@shop.com)`; a terminal started names it so too. Its id is random,
+  as a project's.
 - `[page wc=…]`: an error or a warning in one of Kulisa's own pages (its console: an uncaught error is one); never a
   profile's page.
 - `[profiles]`: a profile renamed, by both its ids (its id goes with its name: profiles.md), so the lines before and

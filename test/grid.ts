@@ -215,7 +215,7 @@ export default (test: Test) => {
     assert.ok(seller.tabs.every((t) => t.wc.isDestroyed()));
     assert.deepEqual(await projectTabs(ui), ['project *']);
     assert.equal(await viewOn(shell, ui, 'sam-admin'), true);
-    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(userData, 'projects.json'), 'utf8')).map((p: { folder: string }) => p.folder), [project, other]);
+    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(userData, 'projects.json'), 'utf8')).list.map((p: { folder: string }) => p.folder), [project, other]);
     assert.deepEqual(savedWindows(), [{ tabs: ['project/1'], shown: 'project/1' }]);
   });
   test('tasks: Move to New Window puts a task in a window of its own, still running; closing that window closes it', async (ctx) => {

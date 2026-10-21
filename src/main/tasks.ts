@@ -401,7 +401,7 @@ class Task {
     if (this.terminals.get(t.id) !== t) { stopTerminal(t.pty); return { error: 'the terminal was closed' }; }
     // Its shell exited by itself (exit), not stopped by Kulisa (closing, quitting: the terminal is kept then).
     t.pty.onExit(() => { if (!t.pty!.stopped) this.dropTerminal(t); });
-    log.info(`[terminal] ${t.key} started ${a.id}${resume ? ' (resumed)' : ''}: ${command}`);
+    log.info(`[terminal] ${t.key} started ${shell.accounts.label(a.id)}${resume ? ' (resumed)' : ''}: ${command}`);
     this.changedTerminals(); // started
     this.updateConversation(conversation, { started: true });
     this.sendVoice();
