@@ -314,7 +314,7 @@ async function dropProfile(shell: Shell, entry: ProjectEntry, folder: string) {
 async function deleteProfile(shell: Shell, id: string, w: Asker | null): Promise<{ ok: true; error?: undefined } | { error: string | null; ok?: undefined }> {
   const g = shell.profileStore.get(id);
   if (!g) return { error: `no profile ${id}` };
-  const projects = shell.store.projects().filter((p) => g.projects.includes(p.id));
+  const projects = shell.store.projectsWith('profiles', g.folder);
   if (!await shell.ask({ message: `Delete the profile ${g.name}?`, ok: 'Delete', danger: true,
     detail: ['Its sign-ins, cookies, storage and tabs are removed for good, here and in every task.',
       projects.length && `The projects ${projects.map((p) => p.name).join(', ')} let go of it.`].filter(Boolean).join(' ') }, w)) return { error: null };
@@ -351,7 +351,6 @@ function addAgent(shell: Shell, id: string, agent: string): Result<{ agents: Pro
   if (!p) return { error: `no project ${id}` };
   if (!shell.agentFor(agent) || shell.agentFor(agent)!.custom) return { error: `no agent ${agent}` };
   if (p.agents?.includes(agent)) return { error: `${shell.agentFor(agent)!.name} is in the project already` };
-  shell.accounts.addTo(agent, id);
   return changeAgents(shell, id, [...(p.agents || []), agent]);
 }
 // agent null: none is the default.
@@ -458,9 +457,7 @@ async function folderStateOf(shell: Shell, args: { from?: string; location?: str
 function removeAgent(shell: Shell, id: string, agent: string): Result<{ agents: ProjectAgent[] }> {
   const p = shell.store.projects().find((x) => x.id === id);
   if (!p?.agents?.includes(agent)) return { error: `${agent} is not in the project` };
-  const r = changeAgents(shell, id, p.agents.filter((x) => x !== agent));
-  shell.accounts.removeFrom(agent, id);
-  return r;
+  return changeAgents(shell, id, p.agents.filter((x) => x !== agent));
 }
 // Delete Account… (Settings → Agents): only while no task, of any project, open or closed, runs it (its conversation is
 // in its folder); asked first, naming the projects it is in; let go by them, signed out with its agent's own command,
@@ -507,9 +504,7 @@ async function askDeleteProject(shell: Shell, p: ProjectEntry, w: Asker | null) 
 }
 async function deleteProjectData(shell: Shell, p: ProjectEntry) {
   for (const e of shell.store.tasksOf(p).list) await deleteTask(shell, p, e);
-  // Its profiles and its agents' accounts stay, let go of (Settings → Profiles and → Agents delete them).
-  for (const g of shell.profileStore.of(p.id)) shell.profileStore.removeFrom(g.id, p.id);
-  for (const a of shell.accounts.all().filter((x) => !x.own && x.projects!.includes(p.id))) shell.accounts.removeFrom(a.id, p.id);
+  // Its profiles and its agents' accounts stay, in no project maybe (Settings → Profiles and → Agents delete them).
   shell.store.removeProject(p);
 }
 

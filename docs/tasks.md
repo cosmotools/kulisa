@@ -451,8 +451,8 @@ are not programmers); its accounts are made there too, or in a project's page.
     It was then moved to the system's browser, as desktop apps sign in (RFC 8252); found after: what Google refused was
     a browser presenting as Chrome without being it, and it lets Electron's own Chromium in ([profiles.md](profiles.md),
     "What sites see"). The system's browser was kept (the author, 2026-10-12): as desktop apps sign in, and less code.
-  - **One store** (`agents.json`), as the profiles': each account lists the projects it is in; the Agents' **+** of another
-    project takes it there too. The island's + and choosing an agent that is not there (Choose the Agent) list the project's accounts
+  - **One store** (`agents.json`), as the profiles': the projects list the accounts they have (`projects.json`'s
+    `agents`), an account no projects; the Agents' **+** of another project takes it there too. The island's + and choosing an agent that is not there (Choose the Agent) list the project's accounts
     and the agents themselves, never another project's: the project's page says who works in its tasks.
   - **An account lives until the human deletes it** (the author, 2026-10-11: with every project deleted, every account
     went, and the next project had none; a sign-in is made again only by signing in again). − on an account in a
@@ -645,12 +645,12 @@ project's submenu (a task tab's right-click menu) opens its `projects/<id>` in t
 asks where it is or what takes the disk; nothing in it is for editing by hand, so it is no button in sight:
 
 ```
-projects.json                     the projects: id, name, folder, repos, color (the one it has while its favicon gives none), agents (accounts, the default first), noDefaultAgent
+projects.json                     the projects: id, name, folder, repos, color (the one it has while its favicon gives none), agents (accounts, the default first), profiles (their folders, in order), noDefaultAgent
 profiles.json                     the profiles, one store (profiles.md): { next, list: [{ id, name, avatar, description,
-                                  folder, projects, login }] }
+                                  folder, login }] }
 profiles/Profile <k>/             a profile's master, a Chromium profile, where the human signs in once for every task;
                                   kept in no project too, gone when the human deletes the profile (Settings → Profiles)
-agents.json                       the agents' accounts (accounts.ts): { next, list: [{ id, agent, email, folder, projects }] }
+agents.json                       the agents' accounts (accounts.ts): { next, list: [{ id, agent, email, folder }] }
 agents/<agent>-<n>/               an account's config folder (CLAUDE_CONFIG_DIR, CODEX_HOME): its sign-in, settings,
                                   conversations; Kulisa's profiles skill (skills/kulisa-profiles/) and Claude Code's
                                   settings for Kulisa (kulisa-settings.json), written at each start; gone, signed out first, when the human deletes it (Settings →

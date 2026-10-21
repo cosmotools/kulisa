@@ -2,10 +2,12 @@
 // profile), so what is known about Chrome's storage applies:
 //   settings.json            the Kulisa zoom, the theme, where the tasks' bar is; the windows: the projects open
 //                            in each (its tabs, in order), the one shown, where it was on screen
-//   projects.json            the projects: { id, name, folder, repos, color, agents }; a project is a folder
+//   projects.json            the projects: { id, name, folder, repos, color, agents, profiles }; a project is a folder
 //                            (a repository, or one Kulisa made), and the repositories or folders added to it (repos,
 //                            the default first); color: the one it has while its favicon gives none (docs/tasks.md,
-//                            Projects); agents: the agents' accounts its tasks run, the default (+'s) first
+//                            Projects); agents: the agents' accounts its tasks run, the default (+'s) first; profiles:
+//                            its profiles by their folders (fixed, as an id is not), in order. What a project is made
+//                            of is said once, here: profiles.json and agents.json list no projects
 //   projects/<id>/
 //     tasks.json             the project's tasks: { next, list: [{ n, name, branch, offset, folder,
 //                            copies: [{ repo, worktree, branch, base, folder }], home, closed, closedAt }] }; one
@@ -37,7 +39,7 @@ interface SavedTabs { urls: string[]; active: number }
 // A project in projects.json.
 interface ProjectEntry {
   id: string; name: string; folder: string; color: string; agents?: string[]; repos?: string[];
-  local?: string[]; noDefaultAgent?: boolean;
+  profiles?: string[]; local?: string[]; noDefaultAgent?: boolean;
 }
 // A task's copy of one repository (worktrees.ts, createWorktree).
 interface Copy { repo: string; worktree: string; branch: string; base: string | null; folder: string }
@@ -95,6 +97,8 @@ class Store {
     return p;
   }
   nextColor() { return nextColor(this.projects()); }
+  // The projects that have an agent's account (by its id) or a profile (by its folder).
+  projectsWith(list: 'agents' | 'profiles', item: string) { return this.projects().filter((p) => p[list]?.includes(item)); }
   // A project's name, agents or repositories changed (the projects' manager); its id and folder stay.
   // null fields go.
   updateProject(id: string, fields: { [K in keyof ProjectEntry]?: ProjectEntry[K] | null }): ProjectEntry | null {

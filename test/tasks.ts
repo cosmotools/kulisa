@@ -971,7 +971,8 @@ export default (test: Test) => {
     // Its agent and its email, each in its column (a table, the author, 2026-10-16).
     assert.deepEqual(await sui(`[...document.querySelectorAll('#npagents [data-agent="fake-1"] .cell')].slice(0, 2).map((c) => c.textContent.trim())`), ['Fake agent', 'work@shop.com']);
     assert.deepEqual(JSON.parse(fs.readFileSync(path.join(userData, 'agents.json'), 'utf8')),
-      { next: 2, list: [{ id: 'fake-1', agent: 'fake', email: 'work@shop.com', folder: 'fake-1', projects: ['project'] }] });
+      { next: 2, list: [{ id: 'fake-1', agent: 'fake', email: 'work@shop.com', folder: 'fake-1' }] });
+    assert.ok(ctx.shell.store.projects().find((x) => x.id === 'project').agents.includes('fake-1'), 'the project lists it');
     // Signed in to an email it has already: that account, the new folder signed out and gone.
     p = await signIn(ctx);
     p.write('work@shop.com\r');
@@ -1048,7 +1049,7 @@ export default (test: Test) => {
     await onRow(sui, '#npagents [data-agent="fake-1"]', 'npagentdel');
     await waitFor(() => sui(`!document.querySelector('#npagents [data-agent="fake-1"]')`));
     assert.equal(ctx.asked.length, 0);
-    assert.deepEqual(shell.accounts.find('fake-1').projects, [], 'kept, in no project');
+    assert.deepEqual(shell.store.projectsWith('agents', 'fake-1').map((p) => p.id), [], 'kept, in no project');
     assert.equal(task.promptTarget().agent.id, 'fake-1');
     assert.ok(fs.existsSync(dir));
     // Its agent's page: the account in no project; Delete refused while a task runs it.
@@ -1091,7 +1092,7 @@ export default (test: Test) => {
     p.write('home@shop.com\r'); // kept by the pty until the agent reads it
     await waitFor(() => sui(`!!${row('fake-5')} && !document.getElementById('npsignin')`));
     assert.equal(await sui(`${row('fake-5')}.querySelector('.label').textContent`), 'home@shop.com');
-    assert.deepEqual(shell.accounts.find('fake-5').projects, []);
+    assert.deepEqual(shell.store.projectsWith('agents', 'fake-5').map((p) => p.id), []);
     await click(sui, `document.querySelector('#pjlist [data-project="project"]')`);
     await waitFor(() => sui(`document.getElementById('pjconfig').checkVisibility() && !document.getElementById('npagentadd').disabled`));
     // The accounts to add are asked for again as the tab is shown: the menu may open before they come.
@@ -1458,7 +1459,7 @@ export default (test: Test) => {
     await waitFor(() => ctx.asked.length);
     assert.equal(ctx.asked.pop().message, 'Remove the profile Site-user from Site-2?');
     await waitFor(() => !shell.closed.has('site-user'));
-    assert.deepEqual(shell.profileStore.get('site-user').projects, [], 'in no other project: kept all the same, until deleted in Settings → Profiles');
+    assert.deepEqual(shell.profileStore.projectsOf(shell.profileStore.get('site-user')), [], 'in no other project: kept all the same, until deleted in Settings → Profiles');
     shell.profileStore.delete('site-user'); // not needed by later tests
     await closeSettings(ctx);
     // Opened in this task: a copy of its master, here.
@@ -1470,10 +1471,10 @@ export default (test: Test) => {
     await ui(`act('profile:delete', { profile: 'sam-admin' })`);
     assert.equal(ctx.asked.pop().message, 'Remove the profile Sam.admin from Site-2?');
     await waitFor(() => !shell.profiles.has('sam-admin'));
-    assert.deepEqual(shell.profileStore.get('sam-admin').projects, ['project']);
-    // Its agents: a list, added from the agents without accounts and the accounts other projects have (one made in
-    // project, as New Account… makes it), one the default (a radio); at once, not on Save.
-    const ann = shell.accounts.create('project', (shell.accounts.prepare('fake') as { id: string }).id, 'fake', 'ann@shop.com');
+    assert.deepEqual(shell.profileStore.projectsOf(shell.profileStore.get('sam-admin')), ['project']);
+    // Its agents: a list, added from the agents without accounts and the accounts in the store (one made in Settings →
+    // Agents, in no project), one the default (a radio); at once, not on Save.
+    const ann = shell.accounts.create((shell.accounts.prepare('fake') as { id: string }).id, 'fake', 'ann@shop.com');
     await projectMenu(ui, 'Project Settings…', `#projectTabs [data-project="site"] .name`);
     await waitFor(() => sui(`!!document.getElementById('npagentsrow')`));
     await sui(`document.getElementById('npagentadd').click()`);
@@ -1494,7 +1495,7 @@ export default (test: Test) => {
       const rows = [list.querySelector('.head'), ...list.querySelectorAll('.item')].map((r) => [...r.children].map(x).join());
       return [[...list.querySelector('.head').children].map((h) => h.textContent), rows.every((r) => r === rows[0])]; })()`), [['Agent', 'Account', ''], true]);
     assert.deepEqual(shell.store.projects().find((p) => p.id === 'site').agents, ['shell', ann.id]);
-    assert.deepEqual(shell.accounts.find(ann.id).projects, ['project', 'site'], 'the account lists the projects it is in');
+    assert.deepEqual(shell.store.projectsWith('agents', ann.id).map((p) => p.id), ['site'], 'the projects list their agents');
     await onRow(sui, `#npagents [data-agent="${ann.id}"]`, 'npagentdefault');
     await waitFor(async () => JSON.stringify(await agentRows()) === '["Fake agent · ann@shop.com true","Terminal only false"]');
     // Its right-click has the same: Make Default.
@@ -1575,7 +1576,7 @@ export default (test: Test) => {
     await ui(`kulisa.invoke('project:agent-remove', { id: 'site', agent: '${ann.id}' })`);
     await ui(`kulisa.invoke('project:agent-remove', { id: 'site', agent: 'shell' })`);
     assert.equal(shell.store.projects().find((p) => p.id === 'site').agents, undefined, 'none left');
-    assert.deepEqual(shell.accounts.find(ann.id).projects, ['project']);
+    assert.deepEqual(shell.store.projectsWith('agents', ann.id).map((p) => p.id), []);
     assert.equal(annTask.promptTarget().agent.id, ann.id);
     assert.deepEqual([...before.terminals.values()].map((t) => [t.name, !!t.agent]), [['Terminal', false]], 'the terminal only: a shell');
     await ui(`kulisa.invoke('project:close-tasks', { id: 'site' })`);
@@ -1751,7 +1752,7 @@ export default (test: Test) => {
     await waitFor(() => sui(`!!document.querySelector('#npprofiles [data-profile="closed-one"]')`));
     ctx.answer = true;
     await onRow(sui, '#npprofiles [data-profile="closed-one"]', 'npprofiledel');
-    await waitFor(() => ctx.asked.length && !shell.profileStore.get('closed-one')?.projects.length);
+    await waitFor(() => ctx.asked.length && !shell.store.projectsWith('profiles', shell.profileStore.get('closed-one')?.folder).length);
     assert.equal(ctx.asked.pop().message, 'Remove the profile Closed-one from Site-2?');
     assert.equal(await ui(`!!document.getElementById('ask')`), false, "not in the task's window");
     shell.profileStore.delete('closed-one'); // not needed by later tests
@@ -1894,7 +1895,8 @@ export default (test: Test) => {
     const own = shell.profileStore.create(p.id, { name: 'Spare-user', avatar: 'fox' }) as StoredProfile;
     fs.mkdirSync(path.join(data, '1', own.folder), { recursive: true });
     // An agent's account in no other project: it stays, let go of (Settings → Agents deletes one).
-    const account = shell.accounts.create(p.id, (shell.accounts.prepare('fake') as { id: string }).id, 'fake', 'spare@shop.com');
+    const account = shell.accounts.create((shell.accounts.prepare('fake') as { id: string }).id, 'fake', 'spare@shop.com');
+    shell.store.updateProject(p.id, { agents: [account.id] });
     fs.mkdirSync(account.dir, { recursive: true });
     fs.writeFileSync(path.join(data, 'tasks.json'), JSON.stringify({ next: 3, current: 1, list: [{ n: 1, name: 'task-1', offset: 0, folder: spare }, { n: 2, name: 'Idea', branch: wt.branch, offset: 100, copies: [wt], folder: wt.folder }] }));
     shell.sendProjects(); // made behind the windows' back: they are told, as when a project is made
@@ -1924,11 +1926,11 @@ export default (test: Test) => {
     await waitFor(() => !projects().includes(p.id));
     ctx.asked.length = 0;
     await waitFor(() => !fs.existsSync(data) && !fs.existsSync(wt.worktree));
-    assert.ok(fs.existsSync(shell.profileStore.masterDir(own.folder)) && shell.profileStore.get('spare-user').projects.length === 0,
+    assert.ok(fs.existsSync(shell.profileStore.masterDir(own.folder)) && shell.profileStore.projectsOf(shell.profileStore.get('spare-user')).length === 0,
       'its profile kept, with its sign-ins, in no project (as its account)');
     shell.profileStore.delete('spare-user'); // not needed by later tests
     assert.ok(fs.existsSync(account.dir) && !fs.readFileSync(path.join(root, 'logouts'), 'utf8').includes(account.dir), 'its account kept, signed in');
-    assert.deepEqual(shell.accounts.find(account.id).projects, []);
+    assert.deepEqual(shell.store.projectsWith('agents', account.id).map((p) => p.id), []);
     assert.equal(git(spare, 'branch', '--list', wt.branch), '', "the task's branch");
     assert.equal(fs.readFileSync(path.join(spare, 'a.txt'), 'utf8'), 'a', "the project's own folder stays");
     assert.ok(shell.task?.loaded && shell.current?.id === 'project', 'another project: the open one stays open');
@@ -2116,7 +2118,7 @@ export default (test: Test) => {
     const [a, b] = ['a', 'b'].map((x) => {
       const r = shell.accounts.prepare('fake');
       if (refused(r)) throw new Error(r.error);
-      shell.accounts.create('project', r.id, 'fake', `${x}@switch.test`);
+      shell.accounts.create(r.id, 'fake', `${x}@switch.test`);
       return { id: r.id, dir: r.dir };
     });
     for (const x of [a, b]) await ui(`kulisa.invoke('project:agent-add', { id: 'project', agent: '${x.id}' })`);

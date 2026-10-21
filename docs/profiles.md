@@ -11,7 +11,10 @@ cookies, storage, sign-ins and tabs, shown as a pane in the grid. One profile is
 
 **One store, a master and copies** (`profile-store.ts`, `project-profiles.ts`; built 2026-10-10). A profile is a
 person, the same in every project it is listed in: its name, id, picture and description are one, changed anywhere,
-seen everywhere. Its **master** is a folder in Kulisa's data (`profiles/Profile <k>/`) that no one works in. Each task
+seen everywhere. A project lists its profiles, in order, by their folders (`projects.json`'s `profiles`; a folder is
+fixed, an id changes with the name); the profile lists no projects: what a project is made of (its repositories,
+agents, profiles) is said once, in the project (the author, 2026-10-21: links kept on both sides, or each on its
+own side, were confusing, and the agents' were kept twice). Its **master** is a folder in Kulisa's data (`profiles/Profile <k>/`) that no one works in. Each task
 ([tasks.md](tasks.md)) of its projects works in a **copy** of the master, made when the profile is first opened in
 that task (not all at once: a closed one costs nothing), its tabs the master's moved to the task's ports. What a task
 has of a profile is its own: its copy (what is signed in there stays there), its tabs, open or closed, its sites'
