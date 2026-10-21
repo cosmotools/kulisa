@@ -23,13 +23,11 @@ After each change, restart it without asking, so the author sees it (the author 
    saved. Never `kill -9`, never `pkill -f` (it matches the shell running it).
 2. `.claude/skills/run-kulisa/kulisa.sh start`. It runs without the parent Claude session's `CLAUDE_*` variables
    (except `CLAUDE_CONFIG_DIR`), or the `claude` inside would take itself for a child session.
-   - Linux: with the Bash tool's `run_in_background`: the app keeps running after the turn. A few seconds later, read
-     the background output: `[kulisa] MCP server: …` means it is up. Never into a pipe that ends (`| head -20`,
-     `| grep -m1`): its output then has no reader (docs/window.md, The log).
-   - macOS: in the foreground. It starts the app through LaunchServices (`open`), so the app is its own and not the
-     terminal's (the screen recording permission, `KULISA_SHOT`, is the responsible app's: `docs/testing.md`, "On
-     macOS"), and without the terminal's variables either (`TERM_PROGRAM` makes zsh in its terminals load Terminal.app's
-     own startup). It returns once `[kulisa] MCP server: …` is in the app's output, `dist/kulisa.log` of the checkout.
+   In the foreground, on every OS. The app is its own, not the terminal's: a Claude session's terminal closed takes no
+   Kulisa with it (its SIGHUP would end it unsaved). Linux: in a session of its own (`setsid`). macOS: through
+   LaunchServices (`open`), so the screen recording permission, `KULISA_SHOT`, is its own too (`docs/testing.md`, "On
+   macOS"), and without the terminal's variables either (`TERM_PROGRAM` makes zsh in its terminals load Terminal.app's
+   own startup). It returns once `[kulisa] MCP server: …` is in the app's output, `dist/kulisa.log` of the checkout.
 
 Do not start a second one while one runs: stop first. `kulisa.sh start` refuses then and names the checkout it runs
 from (Kulisa itself lets one run per data folder: a second one shows the first one's window and quits); another
@@ -44,7 +42,7 @@ Only when the author asks for it in their message: it deletes their profiles and
    `~/Kulisa/<project>@task-<n>/`), worktrees, branches. Remove a task's copy (`git worktree remove --force <folder>`,
    `git branch -D <branch>`) only if they say so; a task may hold their work. Deleting the data does not remove them.
 3. `rm -rf` the data folder (`~/.config/Kulisa`; macOS: `~/Library/Application Support/Kulisa`; what they asked for), then `kulisa.sh check` again: no data, ports free.
-4. `kulisa.sh start` in the background, as above. At first start it opens no task: the empty window, the welcome
+4. `kulisa.sh start`, as above. At first start it opens no task: the empty window, the welcome
    (three slides, then New Project's steps), the keyboard on Next.
 
 Leave alone what is not Kulisa's: installed agents (`~/.local/bin/claude`, `codex`), their own data (`~/.codex`,

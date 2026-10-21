@@ -3,12 +3,12 @@
 #   kulisa.sh stop     stop it gracefully (SIGINT to the main Electron process: session cookies and tabs get saved)
 #   kulisa.sh check    what a fresh start would find: no Kulisa running, its data, tasks' copies, worktrees, branches, ports
 #   kulisa.sh start    start it (refused while one runs, saying from which checkout), without the parent Claude session's
-#                      CLAUDE_* variables except CLAUDE_CONFIG_DIR (CLAUDE.md, Commands). Linux: in the foreground (run
-#                      this in the background from Claude Code). macOS: through LaunchServices (`open`), so the app is
-#                      its own, not the terminal's (the screen recording permission is the responsible app's:
-#                      docs/testing.md, "On macOS"), without the terminal's variables either; it returns once the app
-#                      is up, its output in dist/kulisa.log (the checkout's, ignored by git, gone with a worktree;
-#                      rewritten at each start).
+#                      CLAUDE_* variables except CLAUDE_CONFIG_DIR (CLAUDE.md, Commands), as an app of its own, not the
+#                      terminal's: a Claude session's terminal closed takes no Kulisa with it, unsaved (its SIGHUP).
+#                      Linux: in a session of its own (setsid). macOS: through LaunchServices (`open`), so the screen
+#                      recording permission is its own too (docs/testing.md, "On macOS"), without the terminal's
+#                      variables either. It returns once the app is up, its output in dist/kulisa.log (the checkout's,
+#                      ignored by git, gone with a worktree; rewritten at each start).
 set -u
 repo="$(cd "$(dirname "$0")/../../.." && pwd)"
 mac=false; [ "$(uname)" = Darwin ] && mac=true
@@ -61,11 +61,15 @@ case "${1:-}" in
     pid="$(main_pid)"
     if [ -n "$pid" ]; then echo "already running ($pid) from $(checkout_of "$pid"): stop it first" >&2; exit 1; fi
     cd "$repo" || exit 1
-    if ! $mac; then exec env $(env | grep -o '^CLAUDE[A-Z_]*' | grep -v '^CLAUDE_CONFIG_DIR$' | sed 's/^/-u /') npm start; fi
     npx vite build --logLevel warn || exit 1 # what npm start builds first
     log="$repo/dist/kulisa.log"; : > "$log"
-    env $(env | grep -oE '^(CLAUDE[A-Z_]*|TERM_PROGRAM[A-Z_]*|TERM_SESSION_ID)' | grep -v '^CLAUDE_CONFIG_DIR$' | sed 's/^/-u /') \
-      open -n -a "$repo/node_modules/electron/dist/Electron.app" --stdout "$log" --stderr "$log" --args "$repo"
+    if $mac; then
+      env $(env | grep -oE '^(CLAUDE[A-Z_]*|TERM_PROGRAM[A-Z_]*|TERM_SESSION_ID)' | grep -v '^CLAUDE_CONFIG_DIR$' | sed 's/^/-u /') \
+        open -n -a "$repo/node_modules/electron/dist/Electron.app" --stdout "$log" --stderr "$log" --args "$repo"
+    else
+      env $(env | grep -o '^CLAUDE[A-Z_]*' | grep -v '^CLAUDE_CONFIG_DIR$' | sed 's/^/-u /') \
+        setsid -f node scripts/electron.ts . >"$log" 2>&1 </dev/null
+    fi
     for _ in $(seq 1 120); do grep -q 'MCP server' "$log" && { grep 'MCP server' "$log"; echo "log: $log"; exit 0; }; sleep 0.5; done
     cat "$log"; echo "not up after 60 s (log: $log)" >&2; exit 1 ;;
   *) echo "usage: $0 stop|check|start" >&2; exit 2 ;;
