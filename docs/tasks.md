@@ -92,8 +92,8 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
     knows where the agent's files are. A folder there already is taken as it is, its files kept.
   - **Folders on disk**: one folder or several (a frontend and a backend: typed and Add, or + over the list, which
     browses; each a row with "git" or "no git", − leaves the selected one out), taken as they are, nothing made: their files and, for repositories, their history kept.
-    The first is the default repository and the project's folder. Create Git repository runs in those
-    without git. A folder that is not there, or a project's, is refused as it is added.
+    The first is the default repository and the project's folder. A folder that is not there, or a project's, is
+    refused as it is added.
   - **Clone from URL**: one URL or several, cloned with the user's own git (as Clone on a project's page). One is cloned
     into `<location>/<name>`, and that clone is the project's folder; several into `<location>/<name>/<repo>` each, the
     project's folder the one that holds them (no former folder), the first the default.
@@ -108,10 +108,9 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   The name is the first folder's or repository's until the human types one. A folder or URL typed and not yet added
   counts when Next is pressed. The step says what will happen as it is typed ("… is there already", "… is a git repository", "The repository
   will be cloned into …"; refused: a file, or a folder a project has). Its color and icon are not asked
-  (below). Create Git repository is on by default, not shown for repositories or clones: `git init` and an empty
-  first commit ("Initial commit"; nothing of the folder is in it), as a worktree needs one, so the first task already
-  has a copy of its own. Without git's user name and email set there is no commit, and tasks work in the folder. More
-  repositories are added on its page (Code).
+  (below). Git is not asked of: a new folder, or one without git, is a plain folder, its tasks working in it ("Without
+  git", below); a developer who wants git asks the agent for it, and the tasks made once it has a commit have copies of
+  their own. More repositories are added on its page (Code).
   - **Agents**: the accounts there are first, ticked (one or several), one of them the default (★; the first ticked
     unless another is starred): a new task starts it, the others open beside it ("Choosing the agent"). The terminal
     is no choice: every project has it, and a project with none ticked starts its tasks with it. Under them **Add account**, one button per agent an account can be made of (Claude Code, Codex):
@@ -646,7 +645,6 @@ Outside it:
 | The task's branch | each repository (`git branch`) | creating a task; renamed with the task |
 | git's worktree record | `<repo>/.git/worktrees/<copy>/` | creating a task |
 | A cloned repository | `<location>/<name>/`, or `<location>/<name>/<repo>/` for several (New Project, Clone from URL); `~/KulisaProjects/<project>/<repo>/` or next to the project's folder (Clone on its page) | cloning; stays, as the human's (removing it from the project, or the project, leaves it) |
-| An empty first commit | the project's repository | New Project… with Create Git repository |
 | direnv's permission for the task's `.envrc` | direnv's data (`~/.local/share/direnv/allow/`) | creating a task, if the project's is allowed |
 | The agent's trust of the task's folder | Claude Code: `<CLAUDE_CONFIG_DIR>/.claude.json`, else `~/.claude.json`, `projects["<task folder>"]`; Codex: `<CODEX_HOME>/config.toml`, `[projects."<task folder>"]` | the task's agent starts, if the project's folder or another task's copy is trusted |
 | Claude Code's language, Kulisa's one | `<account folder>/settings.json`, `language` (as its `/config` sets it) | ☰ → Language, and an agent's start; goes with the account's folder |
@@ -660,7 +658,7 @@ Outside it:
 | An update downloaded (macOS) | Squirrel.Mac's cache, `~/Library/Caches/app.kulisa.ShipIt/` (no update downloaded yet: no signed build) | the packaged app's update check; an update replaced by the next |
 | macOS's own for the app (packaged) | `~/Library/Preferences/app.kulisa.plist` (the system's defaults for it), `~/Library/Caches/app.kulisa/` and `~/Library/HTTPStorages/app.kulisa/` (the update check's requests), under its id (`appBundleId`, `forge.config.ts`) | the packaged app's first start; macOS's, as every app's: they stay when the app is moved to the Trash |
 
-Nothing is written into the project's own folder (but the first commit of a project Kulisa made).
+Nothing is written into the project's own folder.
 
 **Uninstalling removes the program only**: the data folder, the tasks' copies and
 branches, the agents Kulisa installed and the keyring key stay, so that installing Kulisa again brings everything back,
@@ -749,9 +747,9 @@ rm -rf ~/.config/Kulisa/projects/myshop   # all its tasks with their profiles' c
   human) knows what the task is about. The branch follows the name; the folder does not, as an agent may be working
   in it.
 - **Code through git only.** The task's folder is next to the project (`myshop@task-2`): visible, and it opens in an
-  IDE; inside the project, IDEs and tools would see the code twice. A project without git has no copies; `git init`
-  runs only on the human's click (New Project…): run without asking, it could put secrets into history, or a huge
-  folder, or nest a repository. Its first commit is empty for the same reason.
+  IDE; inside the project, IDEs and tools would see the code twice. A project without git has no copies, and Kulisa
+  runs no `git init`: run without asking, it could put secrets into history, or a huge folder, or nest a repository;
+  the agent does it when the human asks.
 - **A new conversation for a task**, not a fork of another's (`--fork-session`): its code starts clean, and an agent
   remembering another task's unfinished edits would be misled. Started in the task's folder, it has no questions about
   access outside it.

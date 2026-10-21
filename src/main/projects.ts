@@ -7,7 +7,7 @@ import { app, nativeImage } from 'electron';
 import fs from 'fs';
 import path from 'path';
 import { Task } from './tasks.ts';
-import { freeBranch, createWorktree, removeWorktree, merged, repoOf, changes, clone, initRepo } from './worktrees.ts';
+import { freeBranch, createWorktree, removeWorktree, merged, repoOf, changes, clone } from './worktrees.ts';
 import { nameError, repoName } from '../shared/names.ts';
 import { refused } from '../shared/result.ts';
 import type { Result } from '../shared/result.ts';
@@ -368,8 +368,8 @@ function defaultAgent(shell: Shell, id: string, agent: string | null): Result<{ 
 // tasks get copies of their own (worktrees) from it. Then its agents (accounts, the first the default) and profiles
 // (made in it, or taken from the others), as New Project's steps chose them: what could not be done of those is logged
 // and said (problems), the rest done, the project being there already.
-type NewProject = { from?: string; name?: string; location?: string; folders?: string[]; urls?: string[]; git?: boolean } & NewProjectSetup;
-async function createProject(shell: Shell, { from = 'new', name, location, folders = [], urls = [], git, agents = [], profiles = [] }: NewProject): Promise<Result<{ id: string; problems?: string[] }>> {
+type NewProject = { from?: string; name?: string; location?: string; folders?: string[]; urls?: string[] } & NewProjectSetup;
+async function createProject(shell: Shell, { from = 'new', name, location, folders = [], urls = [], agents = [], profiles = [] }: NewProject): Promise<Result<{ id: string; problems?: string[] }>> {
   name = name?.trim();
   const bad = nameError(name);
   if (bad) return { error: bad };
@@ -383,9 +383,6 @@ async function createProject(shell: Shell, { from = 'new', name, location, folde
       if (s.state === 'new') return { error: `${f} is not there` };
       const no = refusal(f!, s);
       if (no) return { error: no };
-    }
-    for (const [i, f] of given.entries()) {
-      if (git && states[i]!.state !== 'repo') await initRepo(f!).catch((err: GitError) => console.error('[git]', err.stderr || err.message));
     }
     folder = given[0]!;
     if (given.length > 1) repos = given as string[];
@@ -415,7 +412,6 @@ async function createProject(shell: Shell, { from = 'new', name, location, folde
       if (urls.length > 1) repos = intos;
     } else {
       fs.mkdirSync(folder, { recursive: true });
-      if (git && there.state !== 'repo') await initRepo(folder).catch((err: GitError) => console.error('[git]', err.stderr || err.message));
     }
   }
   let entry = shell.store.projectFor(folder, name);

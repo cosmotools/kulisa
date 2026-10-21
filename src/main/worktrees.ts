@@ -183,12 +183,5 @@ async function renameBranch(copies: Copy[], name: string) {
 // own words.
 const clone = (url: string, into: string) => git(path.dirname(into), ['clone', '--quiet', '--', url, into], { timeout: 10 * 60_000 });
 
-// git init in the project's folder, only when the human asks for it (New Project), with an empty first commit: a
-// worktree needs one. Nothing of the folder is committed. Without the user's name and email set in git, no commit.
-async function initRepo(folder: string) {
-  await git(folder, ['init']);
-  await git(folder, ['commit', '--allow-empty', '-m', 'Initial commit']);
-}
-
 export type { GitError };
-export { git, repoOf, freeBranch, createWorktree, changes, progress, merged, renameBranch, removeWorktree, clone, initRepo };
+export { git, repoOf, freeBranch, createWorktree, changes, progress, merged, renameBranch, removeWorktree, clone };
