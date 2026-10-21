@@ -9,6 +9,8 @@ export default (test: Test) => {
   test('rename keeps the profile and the sign-in', async (ctx) => {
     const r = await ctx.ui(`kulisa.invoke('profiles:rename', { profile: 'sam-seller', name: 'Sam.admin' })`);
     assert.equal(r.id, 'sam-admin');
+    // Its id goes with its name: the log names both, so the lines before and after it go together.
+    assert.match(fs.readFileSync(path.join(userData, 'logs', 'kulisa.log'), 'utf8'), /\[profiles\] sam-seller renamed: sam-admin$/m);
     assert.equal(await who(ctx, 'sam-admin'), 'Signed in as sam');
     await waitFor(async () => JSON.stringify(await ctx.ui(`[...document.querySelectorAll('.pname')].map((e) => e.textContent)`)) === '["Sam.admin","Elon.buyer"]');
   });

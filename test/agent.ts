@@ -10,7 +10,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import http from 'http';
 import WebSocket from 'ws';
-import { focusWindow, shot, assert, root, project, pfile, panel, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, closeSettings, chooseProfile, setProfileField, closeMenu, taskMenu, box, pageBox, click, PORT } from './helpers.ts';
+import { focusWindow, shot, assert, root, project, pid, tkey, pfile, panel, SITE, sleep, waitFor, who, menuRows, choose, manageProfiles, closeSettings, chooseProfile, setProfileField, closeMenu, taskMenu, box, pageBox, click, PORT } from './helpers.ts';
 import { AGENT_PACKAGES } from '../src/main/app.ts';
 const CLAUDE_PLUGIN = path.join(AGENT_PACKAGES, 'claude-plugin');
 import { MARK } from '../src/main/kulisa-plugin/ghost.ts';
@@ -101,13 +101,13 @@ export default (test: Test) => {
     // A page's own requests carry Origin.
     assert.equal(await status(url, { ...json, origin: 'https://evil.example' }, 'POST'), 403);
     const task = (origin?: string) => new Promise((resolve) => {
-      const s = new WebSocket(`ws://127.0.0.1:${proxy.port}/project/1/sam-seller`, origin ? { origin } : {});
+      const s = new WebSocket(`ws://127.0.0.1:${proxy.port}/${tkey('project', 1)}/sam-seller`, origin ? { origin } : {});
       s.on('open', () => { s.close(); resolve('open'); }); s.on('error', () => resolve('refused'));
     });
     assert.equal(await task('https://evil.example'), 'refused');
     assert.equal(await task(), 'open'); // Playwright and other local tools send no Origin
     assert.equal(await status(`${shell.task.env().KULISA_URL}/hooks/session-start`, {}), 200);
-    assert.equal(await status(`${shell.mcp.base}/task/project/9/hooks/session-start`, {}), 404, 'no such task');
+    assert.equal(await status(`${shell.mcp.base}/task/${tkey('project', 9)}/hooks/session-start`, {}), 404, 'no such task');
     // The MCP SDK's transport reads the body: a malformed one is refused, and one over its limit (4 MB) is not kept.
     assert.equal(await status(url, json, 'POST', '{not json'), 400);
     assert.equal(await status(url, json, 'POST', 'x'.repeat(5 << 20)), 413);
@@ -117,7 +117,7 @@ export default (test: Test) => {
     assert.ok(fs.existsSync(path.join(AGENT_PACKAGES, 'skills', 'profiles', 'SKILL.md')), "the profiles skill, every agent's");
     const mcp = JSON.parse(fs.readFileSync(path.join(CLAUDE_PLUGIN, '.mcp.json'), 'utf8'));
     assert.equal(mcp.mcpServers.kulisa.url, '${KULISA_MCP_URL}');
-    assert.equal(shell.task.env().KULISA_MCP_URL, `${shell.mcp.base}/task/project/1/mcp`);
+    assert.equal(shell.task.env().KULISA_MCP_URL, `${shell.mcp.base}/task/${tkey('project', 1)}/mcp`);
     // With Claude Code installed, check the plugin the way it loads it.
     const v = spawnSync('claude', ['plugin', 'validate', CLAUDE_PLUGIN], { encoding: 'utf8' });
     if (!v.error) assert.equal(v.status, 0, v.stdout + v.stderr);
@@ -168,7 +168,7 @@ export default (test: Test) => {
     // An action of the window names its task: one sent for a task no longer shown (the human just switched)
     // is refused, not done in the one shown now.
     const tabs = sam.tabs.length;
-    assert.match((await ui(`kulisa.invoke('tab:new', { task: 'project/2', profile: 'sam-seller' })`)).error, /not on screen/);
+    assert.match((await ui(`kulisa.invoke('tab:new', { task: '${pid('project')}/2', profile: 'sam-seller' })`)).error, /not on screen/);
     assert.match((await ui(`kulisa.invoke('tab:new', { profile: 'sam-seller' })`)).error, /not on screen/);
     assert.equal(sam.tabs.length, tabs);
   });
@@ -230,10 +230,10 @@ export default (test: Test) => {
     for (const input of [[{ type: 'mouseDown', x: 300, y: 300, button: 'left', clickCount: 1 }, { type: 'mouseUp', x: 300, y: 300, button: 'left', clickCount: 1 }],
       [{ type: 'keyDown', keyCode: 'Shift' }, { type: 'keyUp', keyCode: 'Shift' }]] as (Electron.MouseInputEvent | Electron.KeyboardInputEvent)[][]) {
       await call('browser_highlight', { profile: 'sam-seller', elements: [{ locator: "getByRole('button', { name: 'Sign in' })", label: 'here' }] });
-      assert.equal(highlights.has('project/1/sam-seller'), true);
+      assert.equal(highlights.has(`${tkey('project', 1)}/sam-seller`), true);
       const wc = sam.get().wc; wc.focus();
       for (const e of input) wc.sendInputEvent(e);
-      await waitFor(() => !highlights.has('project/1/sam-seller'));
+      await waitFor(() => !highlights.has(`${tkey('project', 1)}/sam-seller`));
     }
   });
   // 1 s each: how long a tool looks for an element before it says there is none (by design).
