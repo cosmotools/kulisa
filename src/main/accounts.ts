@@ -2,14 +2,14 @@
 // CLI with a config folder of its own, where it keeps its sign-in, settings and conversations, given to it by its
 // variable (agents/, config: CLAUDE_CONFIG_DIR, CODEX_HOME), so one human can use a work and a personal Claude side
 // by side. Each is made with the agent's own sign-in, as /login (app.ts), in Settings → Agents or in a project, and
-// listed in the projects that have it. It stays when its last project lets it go (a sign-in is the human's, made again
+// listed in the projects that have it (projects.json's agents: store.ts). It stays when its last project lets it go (a sign-in is the human's, made again
 // only by signing in again; the author, 2026-10-11): it goes only when the human deletes it (Settings → Agents, Delete
 // Account…). Its folder has a fixed id
 // (agents/claude-<n>/), never renamed: Claude Code names its macOS Keychain entry after a hash of the folder's path, so
 // a folder renamed after the sign-in would lose it; the email it signed in to is kept here and shown. The human's own
 // folder (~/.claude, ~/.codex) is no account: every one is made in Kulisa, each a clean agent (the author's decision,
 // 2026-10-11). An agent without accounts (the terminal only) is chosen as itself. Plain Node (no Electron): unit-tested.
-//   agents.json     { next, list: [{ id, agent, email, folder, projects: [project id] }] }: next, the number of the
+//   agents.json     { next, list: [{ id, agent, email, folder }] }: next, the number of the
 //                   next folder, never one used before (a removed one's folder may wait for the next start to go)
 //   agents/<folder>/  an account's config folder
 import fs from 'fs';
@@ -17,11 +17,10 @@ import path from 'path';
 import { writeFileAtomic } from './store.ts';
 import type { Agent } from './agents/index.ts';
 
-interface Stored { id: string; agent: string; email: string | null; folder: string; projects: string[] }
+interface Stored { id: string; agent: string; email: string | null; folder: string }
 // An agent itself (own) or one of its accounts, as all() lists them.
 interface Account {
   id: string; agent: Agent; name: string; dir: string | null; own: boolean; choosable: boolean; email?: string | null;
-  projects?: string[];
 }
 
 class Accounts {
@@ -38,13 +37,13 @@ class Accounts {
   folderOf(folder: string) { return path.join(this.dir, 'agents', folder); }
   // Every agent with its accounts after it: the agent itself (own: what is installed, Install; chosen for a task only
   // when it has no accounts: choosable), then its accounts. { id, agent (its entry), name (shown), email, dir, own,
-  // choosable, projects }.
+  // choosable }.
   all(): Account[] {
     const stored = this.stored();
     return this.agents.flatMap((a) => [
       { id: a.id, agent: a, name: a.name, dir: null as string | null, own: true, choosable: !a.config },
       ...stored.filter((x) => x.agent === a.id).map((x) => ({ id: x.id, agent: a, name: `${a.name} · ${x.email || x.id}`, email: x.email,
-        dir: this.folderOf(x.folder), own: false, choosable: true, projects: x.projects })),
+        dir: this.folderOf(x.folder), own: false, choosable: true })),
     ]);
   }
   // The agents and accounts a task or a project may run.
@@ -65,23 +64,11 @@ class Accounts {
     this.save(list, n + 1);
     return { id, dir };
   }
-  // Signed in (email: as its status says it, or null when it does not say): stored, in the project it was made in
-  // (none: made in Settings → Agents).
-  create(project: string | null | undefined, id: string, agentId: string, email: string | null) {
-    this.save([...this.stored().filter((x) => x.id !== id), { id, agent: agentId, email: email || null, folder: id, projects: project ? [project] : [] }]);
+  // Signed in (email: as its status says it, or null when it does not say): stored; a project it was made in lists it
+  // (projects.ts, addAgent).
+  create(id: string, agentId: string, email: string | null) {
+    this.save([...this.stored().filter((x) => x.id !== id), { id, agent: agentId, email: email || null, folder: id }]);
     return this.find(id);
-  }
-  // Listed in another project too (the Agents' + on a project's page). The own ones are not stored.
-  addTo(id: string, project: string) {
-    const list = this.stored(), x = list.find((a) => a.id === id);
-    if (!x) return this.find(id);
-    if (!x.projects.includes(project)) { x.projects.push(project); this.save(list); }
-    return this.find(id);
-  }
-  // Let go by a project; it stays in the store, in no project maybe.
-  removeFrom(id: string, project: string) {
-    const list = this.stored(), x = list.find((a) => a.id === id);
-    if (x?.projects.includes(project)) { x.projects = x.projects.filter((p) => p !== project); this.save(list); }
   }
   // Deleted by the human: out of the store (its folder: remove, once its agent signed out of it).
   drop(id: string) { this.save(this.stored().filter((x) => x.id !== id)); }

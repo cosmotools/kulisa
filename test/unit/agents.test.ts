@@ -197,7 +197,7 @@ test("agents: one not installed is not found, so the window offers to install it
   for (const a of AGENTS.filter((x) => x.command)) assert.equal(await findAgent({ ...a, command: 'kulisa-no-such-agent' }, root), null, a.name);
 });
 
-test("accounts: one store, each listing its projects, kept in none until deleted; its folder a fixed id, never a number used before, the email kept; an agent with accounts is no account itself", () => {
+test("accounts: one store, kept until deleted; its folder a fixed id, never a number used before, the email kept; an agent with accounts is no account itself", () => {
   const data = path.join(root, 'accounts-data');
   const defs = [{ id: 'claude', name: 'Claude Code', config: { env: 'CLAUDE_CONFIG_DIR', home: () => '/nowhere', login: (): string[] => [] } }, { id: 'shell', name: 'Terminal only' }] as Agent[];
   const marked: string[] = [];
@@ -208,17 +208,13 @@ test("accounts: one store, each listing its projects, kept in none until deleted
   assert.deepEqual(r, { id: 'claude-1', dir: path.join(data, 'agents', 'claude-1') });
   assert.ok(fs.existsSync(r.dir), 'its folder made before the sign-in');
   assert.match(accounts.prepare('shell').error, /has no accounts/);
-  const ann = accounts.create('shop', r.id, 'claude', 'ann@shop.com');
-  assert.deepEqual([ann.id, ann.name, ann.dir, ann.own, ann.choosable, ann.projects], ['claude-1', 'Claude Code · ann@shop.com', r.dir, false, true, ['shop']]);
+  const ann = accounts.create(r.id, 'claude', 'ann@shop.com');
+  assert.deepEqual([ann.id, ann.name, ann.dir, ann.own, ann.choosable], ['claude-1', 'Claude Code · ann@shop.com', r.dir, false, true]);
   assert.equal(accounts.byEmail('claude', 'ann@shop.com').id, 'claude-1', 'an email it has already: that account');
   assert.equal(accounts.byEmail('claude', null), null);
-  accounts.addTo('claude-1', 'blog');
-  assert.deepEqual(new Accounts(data, defs).all().map((a) => [a.id, a.projects]), [['claude', undefined], ['claude-1', ['shop', 'blog']], ['shell', undefined]], 'kept');
-  // Let go by its last project, it stays (a sign-in is made again only by signing in again); deleted, it goes.
-  accounts.removeFrom('claude-1', 'shop');
-  accounts.removeFrom('claude-1', 'blog');
-  assert.deepEqual(accounts.find('claude-1').projects, [], 'in no project, kept');
-  assert.deepEqual(accounts.create(null, (accounts.prepare('claude') as { id: string }).id, 'claude', 'cy@shop.com').projects, [], 'made in Settings → Agents: in no project');
+  assert.deepEqual(new Accounts(data, defs).all().map((a) => a.id), ['claude', 'claude-1', 'shell'], 'kept');
+  assert.ok(accounts.create((accounts.prepare('claude') as { id: string }).id, 'claude', 'cy@shop.com'));
+  // Deleted, it goes (a sign-in is made again only by signing in again).
   accounts.drop('claude-1');
   accounts.drop('claude-2');
   assert.equal(accounts.find('claude-1'), null);
@@ -227,7 +223,7 @@ test("accounts: one store, each listing its projects, kept in none until deleted
   assert.equal((accounts.prepare('claude') as { id: string }).id, 'claude-3', 'never a number used before: a removed folder may wait for the next start');
   // At start: a sign-in that did not end, and the format before (accounts.json), go.
   fs.writeFileSync(path.join(data, 'accounts.json'), '[]');
-  const bob = accounts.create('shop', (accounts.prepare('claude') as { id: string }).id, 'claude', 'bob@shop.com');
+  const bob = accounts.create((accounts.prepare('claude') as { id: string }).id, 'claude', 'bob@shop.com');
   new Accounts(data, defs, (d) => { marked.push(d); }).clean();
   assert.deepEqual(fs.readdirSync(path.join(data, 'agents')), [bob.id]);
   assert.ok(!fs.existsSync(path.join(data, 'accounts.json')));

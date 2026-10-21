@@ -8,6 +8,7 @@ import { refused } from '../../shared/result.ts';
 import { handle } from '../ipc.ts';
 import type { Ipc } from '../ipc.ts';
 import type { ProjectEntry } from '../store.ts';
+import type { StoredProfile } from '../profile-store.ts';
 import type { Result } from '../../shared/result.ts';
 
 export function registerProjects(ipc: Ipc, { lookForFavicon }: { lookForFavicon: (p: ProjectEntry) => Promise<void> }) {
@@ -48,10 +49,10 @@ export function registerProjects(ipc: Ipc, { lookForFavicon }: { lookForFavicon:
   // Its profiles (profile-store.ts): those it has, and those of other projects it can take. A new one comes closed in
   // its tasks (opened in a task, a copy of its master is made there); one let go asks first (projects.ts).
   const profilesOf = (id: string) => {
-    const names = (ids: string[]) => ids.filter((x) => x !== id).map((x) => store.projects().find((p) => p.id === x)?.name || x);
-    const view = (g: import('../profile-store.ts').StoredProfile) => ({ id: g.id, name: g.name, avatar: g.avatar, description: g.description || '', also: names(g.projects) });
-    const all = shell.profileStore.all();
-    return { profiles: all.filter((g) => g.projects.includes(id)).map(view), others: all.filter((g) => !g.projects.includes(id)).map(view) };
+    const also = (g: StoredProfile) => store.projectsWith('profiles', g.folder).filter((p) => p.id !== id).map((p) => p.name);
+    const view = (g: StoredProfile) => ({ id: g.id, name: g.name, avatar: g.avatar, description: g.description || '', also: also(g) });
+    const mine = shell.profileStore.of(id);
+    return { profiles: mine.map(view), others: shell.profileStore.all().filter((g) => !mine.includes(g)).map(view) };
   };
   handle('project:profile-new', (_e, { id, name }) => {
     const g = shell.profileStore.create(id, { name: name ?? '' });

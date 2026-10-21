@@ -73,19 +73,30 @@ test("store: a profile's tabs come back with the one in front; the list saved be
   assert.deepEqual(task.tabs('Profile 1'), { urls: [], active: 0 }, 'one data format only (CLAUDE.md)');
 });
 
-test('profiles: one store, a profile in several projects or none; it lives until deleted, its master with it', () => {
-  const marked: string[] = [];
-  const all = new ProfileStore(path.join(root, 'profiles-data'), (d) => { marked.push(d); });
+// A profile store over a data folder with these projects (store.ts: the projects list their profiles).
+const profileStore = (dir: string, ...projects: string[]) => {
+  const store = new Store(dir);
+  for (const p of projects) store.projectFor(`/work/${p}`, p);
+  return new ProfileStore(store);
+};
+
+test('profiles: one store, a profile in several projects or none, each project listing its own in order; it lives until deleted, its master with it', () => {
+  const all = profileStore(path.join(root, 'profiles-data'), 'shop', 'blog');
   const ann = all.create('shop', { name: 'Ann', avatar: 'fox', description: 'seller' });
-  assert.deepEqual(ann, { id: 'ann', name: 'Ann', avatar: 'fox', description: 'seller', folder: 'Profile 1', projects: ['shop'] });
+  assert.deepEqual(ann, { id: 'ann', name: 'Ann', avatar: 'fox', description: 'seller', folder: 'Profile 1' });
+  assert.deepEqual(all.store.projects().find((p) => p.id === 'shop').profiles, ['Profile 1'], 'the project lists it, by its folder');
   assert.ok(fs.existsSync(all.masterDir('Profile 1')), 'its master, empty');
   assert.equal((all.create('blog', { name: 'Ann', avatar: 'owl' }) as StoredProfile).id, 'ann-2', 'ids unique across projects');
-  assert.deepEqual((all.addTo('ann', 'blog') as StoredProfile).projects, ['shop', 'blog']);
-  assert.deepEqual(all.of('blog').map((p) => p.id), ['ann', 'ann-2']);
+  all.addTo('ann', 'blog');
+  assert.deepEqual(all.projectsOf(all.get('ann')), ['shop', 'blog']);
+  assert.deepEqual(all.of('blog').map((p) => p.id), ['ann-2', 'ann'], "in the project's order");
+  assert.match((all.addTo('ann', 'nowhere') as { error: string }).error, /no project/);
   assert.equal(all.idFor('Ann', 'ann'), 'ann', 'its own id is free for it');
-  assert.deepEqual(all.update('Profile 1', { id: 'anna', name: 'Anna', description: '' }), { id: 'anna', name: 'Anna', avatar: 'fox', folder: 'Profile 1', projects: ['shop', 'blog'] });
+  assert.deepEqual(all.update('Profile 1', { id: 'anna', name: 'Anna', description: '' }), { id: 'anna', name: 'Anna', avatar: 'fox', folder: 'Profile 1' });
+  assert.deepEqual(all.of('shop').map((p) => p.id), ['anna'], 'renamed, still listed: by its folder, fixed');
   all.removeFrom('anna', 'shop');
-  assert.deepEqual((all.removeFrom('anna', 'blog') as { profile: StoredProfile }).profile.projects, [], 'in no project');
+  all.removeFrom('anna', 'blog');
+  assert.deepEqual(all.projectsOf(all.get('anna')), [], 'in no project');
   assert.ok(fs.existsSync(all.masterDir('Profile 1')) && all.get('anna'), 'kept with its sign-ins: let go is not deleted');
   // Who it is, changed and checked in the store, for every handle (a task, Settings, the agent).
   assert.deepEqual(all.rename('anna', 'Ann'), { id: 'ann' });
@@ -98,10 +109,12 @@ test('profiles: one store, a profile in several projects or none; it lives until
   assert.equal(all.get('ann').login.secret, 'enc', 'the password kept when only the login is set again');
   all.setLogin('ann', '', undefined);
   assert.equal(all.get('ann').login, undefined, 'an empty login takes the pair away');
-  assert.deepEqual((all.create(null, { name: 'Free', avatar: 'cat' }) as StoredProfile).projects, [], 'made in no project (Settings → Profiles)');
-  // Deleted: gone with its master.
+  assert.deepEqual(all.projectsOf(all.create(null, { name: 'Free', avatar: 'cat' }) as StoredProfile), [], 'made in no project (Settings → Profiles)');
+  // Deleted: gone with its master, and from the projects listing it.
+  all.addTo('ann', 'blog');
   assert.equal((all.delete('ann') as { profile: StoredProfile }).profile.folder, 'Profile 1');
-  assert.ok(!all.get('ann') && !fs.existsSync(all.masterDir('Profile 1')) && marked.includes(all.masterDir('Profile 1')), 'its master gone');
+  assert.ok(!all.get('ann') && !fs.existsSync(all.masterDir('Profile 1')) && all.store.deleted().includes(all.masterDir('Profile 1')), 'its master gone');
+  assert.deepEqual(all.store.projects().find((p) => p.id === 'blog').profiles, ['Profile 2'], 'no project lists it');
   assert.equal((all.create('shop', { name: 'Bo', avatar: 'cat' }) as StoredProfile).folder, 'Profile 4', 'never a folder number used before');
   // Checked where it is made, whoever makes it; its picture the next free one of its project's unless given.
   assert.match((all.create('shop', { name: 'Ann admin' }) as { error: string }).error, /only/);
@@ -111,7 +124,7 @@ test('profiles: one store, a profile in several projects or none; it lives until
 });
 
 test('project profiles: a task has its own copy of each, made at its first open; who a profile is, the same in every task', async () => {
-  const all = new ProfileStore(path.join(root, 'pp-data'));
+  const all = profileStore(path.join(root, 'pp-data'), 'shop');
   all.create('shop', { name: 'Ann', avatar: 'fox' });
   all.create('shop', { name: 'Bob', avatar: 'owl' });
   const task = (n: number) => {
@@ -160,7 +173,7 @@ test('project profiles: a task has its own copy of each, made at its first open;
   assert.match(a.list.describe('bob', 'x'.repeat(501)).error, /at most 500/);
   // Tabs saved while a profile is still opening (its session cookies restored before its tabs): the addresses it is
   // opening, not none. Kulisa quit right then lost every profile's tabs (2026-10-08).
-  const one = new ProfileStore(path.join(root, 'pp-slow'));
+  const one = profileStore(path.join(root, 'pp-slow'), 'p');
   one.create('p', { name: 'Dan', avatar: 'fox' });
   const tabsSaved: Record<string, SavedTabs> = {};
   let opened: () => void;

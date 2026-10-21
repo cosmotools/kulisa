@@ -199,7 +199,7 @@ export default (test: Test) => {
     assert.ok(!shell.profiles.has('cleo') && !shell.closed.has('cleo'));
     assert.ok(!saved('profiles.json').some((p) => p.id === 'cleo'));
     assert.ok(JSON.parse(fs.readFileSync(path.join(userData, 'deleted-folders.json'), 'utf8')).includes(cleoDir));
-    assert.deepEqual(shell.profileStore.get('cleo').projects, [], 'kept, in no project');
+    assert.deepEqual(shell.profileStore.projectsOf(shell.profileStore.get('cleo')), [], 'kept, in no project');
 
     // Left closed for the restart phase.
     await call('profile_create', { name: 'Dora' });

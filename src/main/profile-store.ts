@@ -1,12 +1,12 @@
 // The profiles, one flat store (profiles.md, "What a profile is"): each a person with their sign-ins, in the projects
-// it is listed in. Its master is a Chromium profile folder in Kulisa's data (profiles/Profile <k>/) that the human
-// signs in to and no one works in; each task of its projects works in a copy of it, made when the profile is first
-// opened there (project-profiles.ts). Who it is (name, id, picture, description) is the store's, the same in every
-// project and task; what a task has of it (open or closed, its tabs, sites' zoom) is the task's. A profile lives until
-// the human deletes it (Settings → Profiles; the author, 2026-10-11, as an agent's account): a project letting it go
-// keeps it, in no project then. Who it is changes here, checked here, for every handle (a task, Settings, the agent).
-// Plain Node (no Electron): unit-tested.
-//   profiles.json         { next, list: [{ id, name, avatar, description, folder, projects: [project id], login }] }:
+// that list it (projects.json's profiles: store.ts). Its master is a Chromium profile folder in Kulisa's data
+// (profiles/Profile <k>/) that the human signs in to and no one works in; each task of its projects works in a copy of
+// it, made when the profile is first opened there (project-profiles.ts). Who it is (name, id, picture, description) is
+// the store's, the same in every project and task; what a task has of it (open or closed, its tabs, sites' zoom) is the
+// task's. A profile lives until the human deletes it (Settings → Profiles; the author, 2026-10-11, as an agent's
+// account): a project letting it go keeps it, in no project then. Who it is changes here, checked here, for every
+// handle (a task, Settings, the agent). Plain Node (no Electron): unit-tested.
+//   profiles.json         { next, list: [{ id, name, avatar, description, folder, login }] }:
 //                         login: a test user's pair, { user, secret } (the password encrypted with the OS keyring:
 //                         safeStorage; never in the clear, never logged); next,
 //                         the number of the next folder, never one used before (a task's copy of a deleted profile
@@ -16,12 +16,13 @@ import fs from 'fs';
 import path from 'path';
 import { slugOf, nameError } from '../shared/names.ts';
 import { writeFileAtomic } from './store.ts';
+import type { Store } from './store.ts';
 import { AVATARS, nextAvatar } from '../shared/avatars.ts';
 import type { Result } from '../shared/result.ts';
 
 // A profile as the store keeps it.
 interface StoredProfile {
-  id: string; name: string; avatar: string; description?: string; folder: string; projects: string[];
+  id: string; name: string; avatar: string; description?: string; folder: string;
   login?: { user: string; secret?: string };
 }
 
@@ -32,19 +33,24 @@ const aboutError = (d: unknown) => (typeof d !== 'string' ? 'a description is te
   : d.trim().length > ABOUT_MAX ? `a description is at most ${ABOUT_MAX} characters` : null);
 
 class ProfileStore {
-  dir: string; markDeleted: (dir: string) => void; file: string;
-  // dir: Kulisa's data folder; markDeleted: a folder for the next start to remove when it cannot go now (store.ts).
-  constructor(dir: string, markDeleted: (dir: string) => void = () => {}) {
-    this.dir = dir; this.markDeleted = markDeleted;
-    this.file = path.join(dir, 'profiles.json');
+  dir: string; store: Store; file: string;
+  // store: Kulisa's data (store.ts): its folder, the projects that list the profiles, the folders the next start removes.
+  constructor(store: Store) {
+    this.dir = store.dir; this.store = store;
+    this.file = path.join(this.dir, 'profiles.json');
   }
   read(): { next: number; list: StoredProfile[] } { try { return JSON.parse(fs.readFileSync(this.file, 'utf8')); } catch { return { next: 1, list: [] }; } }
   all() { return this.read().list; }
   save(list: StoredProfile[], next = this.read().next) { writeFileAtomic(this.file, JSON.stringify({ next, list }, null, 2)); }
   get(id: string): StoredProfile | null { return this.all().find((p) => p.id === id) || null; }
   byFolder(folder: string): StoredProfile | null { return this.all().find((p) => p.folder === folder) || null; }
-  // A project's profiles, in the order they were made.
-  of(project: string) { return this.all().filter((p) => p.projects.includes(project)); }
+  // A project's profiles, in its order.
+  of(project: string) {
+    const all = this.all();
+    return (this.store.projects().find((p) => p.id === project)?.profiles || []).flatMap((f): StoredProfile[] => all.filter((p) => p.folder === f));
+  }
+  // The ids of the projects that list it.
+  projectsOf(p: StoredProfile) { return this.store.projectsWith('profiles', p.folder).map((x) => x.id); }
   masterDir(folder: string) { return path.join(this.dir, 'profiles', folder); }
   // A new profile, in a project or in none (Settings → Profiles), whoever makes it (a task, the agent, Settings, New
   // Project): its fields checked, its picture the next one free among its project's (among all, in none) unless one is
@@ -58,10 +64,10 @@ class ProfileStore {
     let n = next;
     while (fs.existsSync(this.masterDir(`Profile ${n}`))) n++;
     const folder = `Profile ${n}`;
-    const p: StoredProfile = { id: this.idFor(name), name, avatar, ...(description && { description }), folder, projects: project ? [project] : [] };
+    const p: StoredProfile = { id: this.idFor(name), name, avatar, ...(description && { description }), folder };
     fs.mkdirSync(this.masterDir(folder), { recursive: true });
     this.save([...list, p], n + 1);
-    return p;
+    return project ? this.addTo(p.id, project) : p;
   }
   // An id from a name, one no other profile has (except: the profile being renamed).
   idFor(name: string, except?: string) {
@@ -118,18 +124,17 @@ class ProfileStore {
   }
   // Listed in another project too (Project Settings…, From another project).
   addTo(id: string, project: string): Result<StoredProfile> {
-    const list = this.all(), p = list.find((x) => x.id === id);
+    const p = this.get(id), x = this.store.projects().find((e) => e.id === project);
     if (!p) return { error: `no profile ${id}` };
-    if (!p.projects.includes(project)) p.projects.push(project);
-    this.save(list);
+    if (!x) return { error: `no project ${project}` };
+    if (!x.profiles?.includes(p.folder)) this.store.updateProject(project, { profiles: [...(x.profiles || []), p.folder] });
     return p;
   }
   // Let go by a project: it stays, with its master (its sign-ins), in no project when that was its last.
   removeFrom(id: string, project: string): Result<{ profile: StoredProfile }> {
-    const list = this.all(), p = list.find((x) => x.id === id);
+    const p = this.get(id), x = this.store.projects().find((e) => e.id === project);
     if (!p) return { error: `no profile ${id}` };
-    p.projects = p.projects.filter((x) => x !== project);
-    this.save(list);
+    if (x?.profiles?.includes(p.folder)) this.store.updateProject(project, { profiles: x.profiles.filter((f) => f !== p.folder) });
     return { profile: p };
   }
   // Deleted (Settings → Profiles, after a question): gone with its master. Its copies in tasks are the caller's
@@ -137,9 +142,10 @@ class ProfileStore {
   delete(id: string): Result<{ profile: StoredProfile }> {
     const list = this.all(), p = list.find((x) => x.id === id);
     if (!p) return { error: `no profile ${id}` };
+    for (const x of this.store.projectsWith('profiles', p.folder)) this.removeFrom(id, x.id);
     this.save(list.filter((x) => x !== p));
     const dir = this.masterDir(p.folder);
-    this.markDeleted(dir);
+    this.store.markDeleted(dir);
     try { fs.rmSync(dir, { recursive: true, force: true }); } catch (e) { console.warn('[profiles]', (e as Error).message); }
     return { profile: p };
   }

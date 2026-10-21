@@ -52,7 +52,7 @@ export default (test: Test) => {
     await sui(`document.querySelector('.profilepics [data-avatar="penguin"]').click()`);
     await waitFor(() => shell.profileStore.get('elon-buyer').avatar === 'penguin');
     // Who they are: in the store of profiles (profile-store.ts), the same in every task; in no project yet.
-    assert.deepEqual(shell.profileStore.all().map(({ id, avatar, description, projects, color }: StoredProfile & { color?: string }) => ({ id, avatar, description, projects, color })),
+    assert.deepEqual(shell.profileStore.all().map((g: StoredProfile & { color?: string }) => ({ id: g.id, avatar: g.avatar, description: g.description, projects: shell.profileStore.projectsOf(g), color: g.color })),
       [{ id: 'sam-seller', avatar: 'fox', description: 'seller in the test shop', projects: [], color: undefined },
         { id: 'elon-buyer', avatar: 'penguin', description: undefined, projects: [], color: undefined }], 'pictures, not colors; who it is when said');
     assert.equal(await sui(`document.querySelector('#profilepage .projects').textContent`), "none: add it on a project's page");
@@ -259,7 +259,7 @@ export default (test: Test) => {
     await ui(`act('profile:delete', { profile: 'ann-admin' })`); // Remove from Project… in its pane's menu
     assert.match(ctx.asked.pop().message, /^Remove the profile Ann\.admin from /);
     await waitFor(() => !shell.profiles.has('ann-admin'));
-    assert.deepEqual(shell.profileStore.get('ann-admin').projects, [], 'kept, in no project');
+    assert.deepEqual(shell.profileStore.projectsOf(shell.profileStore.get('ann-admin')), [], 'kept, in no project');
     await ui(`kulisa.invoke('profiles:delete', { profile: 'ann-admin' })`);
     assert.equal(ctx.asked.pop().message, 'Delete the profile Ann.admin?');
     await waitFor(() => !shell.profileStore.get('ann-admin'));

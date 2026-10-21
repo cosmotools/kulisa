@@ -18,9 +18,8 @@ export function registerAgents(ipc: Ipc) {
   const store = shell.store;
   // The accounts (Settings → Agents), each with the projects it is in; clis: the agents an account can be made of.
   const accountsInfo = (): Sent.AccountsInfo => {
-    const names = new Map(store.projects().map((p) => [p.id, p.name]));
-    return { accounts: shell.accounts.all().filter((a) => !a.own).map(({ id, agent, name, email, projects }) => ({ id, agent: agent.id, name, email: email ?? null,
-      projects: projects!.map((p) => names.get(p)).filter((n) => n !== undefined) })),
+    return { accounts: shell.accounts.all().filter((a) => !a.own).map(({ id, agent, name, email }) => ({ id, agent: agent.id, name, email: email ?? null,
+      projects: store.projectsWith('agents', id).map((p) => p.name) })),
     clis: shell.accounts.all().filter((a) => a.own && a.agent.config?.login).map((a) => a.id) };
   };
   handle('accounts:list', () => accountsInfo());
@@ -65,7 +64,7 @@ export function registerAgents(ipc: Ipc) {
       if (existing) return id ? addAgent(shell, id, existing.id) : { error: `${existing.name} is an account already` };
       return { error: cancelled ? null : `Not signed in: ${own.name} ended with code ${code}.` };
     }
-    shell.accounts.create(id, r.id, agentId, got.email);
+    shell.accounts.create(r.id, agentId, got.email);
     shell.sendProjects(); // the first account at the first start: Settings has it
     return id ? addAgent(shell, id, r.id) : accountsInfo();
   });
