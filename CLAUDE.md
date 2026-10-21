@@ -75,6 +75,12 @@ Everything happens inside Kulisa; no external Chrome windows.
   the docs' (`docs/`) and the code's own; a file's header is a line saying what it is, and the doc to read. Types are
   TypeScript's, not a comment's. When a term or a part is renamed, look for the old word in the code's comments too,
   not only in the docs.
+- **Docs and comments say how it is, not how it came to be** (the author, 2026-10-21). They describe the last state
+  only; how it was before and what replaced what is git's: the commit message, the pull request's text. No "was",
+  "until", "no longer", "replaced", nor a negation that only makes sense against the old shape ("lists no projects").
+  The reason is said as a property of what is there now ("one place to read and change it"), not as its story; "the
+  author, <date>" names whose decision it is. The one exception, the terms here: the word earlier commits used, so
+  that they can be read.
 - **Terminology: "profile"**, the word Chrome uses, for one embedded browser identity (cookies, storage, tabs) and
   its pane. Not "persona", "user" or "account" (an account is what a profile signs in to). Early commits and
   experiments said "persona".
