@@ -953,12 +953,13 @@ export default (test: Test) => {
   };
   let opens = 0;
   const opened = () => { try { return fs.readFileSync(path.join(root, 'opened'), 'utf8').trim().split('\n'); } catch { return []; } };
-  const accountDir = (id: string) => path.join(userData, 'agents', id);
+  const accountDir = (id: string) => path.join(userData, 'agents', `fake-${id}`);
+  const idOf = (dir: string) => path.basename(dir).replace(/^fake-/, '');
   // The folder a sign-in under way was given (its id random: accounts.ts), the one no account stores yet.
   const signingIn = (shell: Shell) => {
-    const found = fs.readdirSync(path.join(userData, 'agents')).filter((f) => !shell.accounts.find(f));
+    const found = fs.readdirSync(path.join(userData, 'agents')).filter((f) => !shell.accounts.find(f.replace(/^fake-/, '')));
     assert.equal(found.length, 1, `one sign-in's folder: ${found}`);
-    return accountDir(found[0]);
+    return path.join(userData, 'agents', found[0]);
   };
   let work = ''; // the account the first test makes, the next ones use
   const logouts = () => { try { return fs.readFileSync(path.join(root, 'logouts'), 'utf8').trim().split('\n'); } catch { return []; } };
@@ -968,8 +969,8 @@ export default (test: Test) => {
     const windows = electron.BrowserWindow.getAllWindows().length;
     let p = await signIn(ctx);
     const dir = signingIn(shell);
-    work = path.basename(dir);
-    assert.match(work, /^fake-[a-z0-9]{6}$/, 'its folder, a fixed id: never renamed');
+    work = idOf(dir);
+    assert.match(work, /^[a-z0-9]{6}$/, 'its folder its agent and a fixed id: never renamed');
     assert.ok(await sui(`!!document.querySelector('#npsigninterm .xterm') && !document.getElementById('npsigninterm').checkVisibility()`),
       'the sign-in in a terminal of the dialog, under Details: what it says the window shows');
     // Its page in the user's browser (the BROWSER Kulisa was started with), not a window of Kulisa's.
@@ -979,7 +980,7 @@ export default (test: Test) => {
     // Its agent and its email, each in its column (a table).
     assert.deepEqual(await sui(`[...document.querySelectorAll('#npagents [data-agent="${work}"] .cell')].slice(0, 2).map((c) => c.textContent.trim())`), ['Fake agent', 'work@shop.com']);
     assert.deepEqual(JSON.parse(fs.readFileSync(path.join(userData, 'agents.json'), 'utf8')),
-      { list: [{ id: work, agent: 'fake', email: 'work@shop.com', folder: work }] });
+      { list: [{ id: work, agent: 'fake', email: 'work@shop.com' }] });
     assert.ok(ctx.shell.store.projects().find((x) => x.id === pid('project')).agents.includes(work), 'the project lists it');
     // Signed in to an email it has already: that account, the new folder signed out and gone.
     p = await signIn(ctx);
@@ -1100,7 +1101,7 @@ export default (test: Test) => {
     await waitFor(() => sui(`document.querySelector('#pjlist [data-agent="fake"]').ariaSelected === 'true'`));
     await waitFor(() => shell.signins.size);
     const p = [...shell.signins.values()][0];
-    const home = path.basename(signingIn(shell));
+    const home = idOf(signingIn(shell));
     p.write('home@shop.com\r'); // kept by the pty until the agent reads it
     await waitFor(() => sui(`!!${row(home)} && !document.getElementById('npsignin')`));
     assert.equal(await sui(`${row(home)}.querySelector('.label').textContent`), 'home@shop.com');

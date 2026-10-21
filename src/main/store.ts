@@ -2,7 +2,7 @@
 // profile), so what is known about Chrome's storage applies:
 //   settings.json            the Kulisa zoom, the theme, where the tasks' bar is; the windows: the projects open
 //                            in each (its tabs, in order), the one shown, where it was on screen
-//   projects.json            the projects: { id, name, folder, repos, color, agents, profiles }; id: six random
+//   projects.json            the projects: { list: [{ id, name, folder, repos, color, agents, profiles }] }; id: six random
 //                            characters, made once (projectFor); a project is a folder (a repository, or one
 //                            Kulisa made), and the repositories or folders added to it (repos, the default first);
 //                            color: the one it has while its favicon gives none (docs/tasks.md, Projects); agents:
@@ -90,7 +90,7 @@ class Store {
     this.purgeDeleted();
   }
 
-  projects(): ProjectEntry[] { return readJSON(this.projectsFile) || []; }
+  projects(): ProjectEntry[] { return readJSON(this.projectsFile)?.list || []; }
   dirOf(p: { id: string }) { const d = path.join(this.dir, 'projects', p.id); fs.mkdirSync(d, { recursive: true }); return d; }
   // The project a folder is (its own or one of its repositories), or null.
   projectOf(folder: string): ProjectEntry | null { return this.projects().find((p) => [p.folder, ...(p.repos || [])].some((f) => samePath(f, folder))) || null; }
@@ -103,7 +103,7 @@ class Store {
     const list = this.projects();
     const id = newId((id) => list.some((p) => p.id === id) || fs.existsSync(path.join(this.dir, 'projects', id)));
     const p: ProjectEntry = { id, name, folder, color: this.nextColor(), ...(agent && { agents: [agent] }) };
-    writeJSON(this.projectsFile, [...list, p]);
+    writeJSON(this.projectsFile, { list: [...list, p] });
     return p;
   }
   nextColor() { return nextColor(this.projects()); }
@@ -116,7 +116,7 @@ class Store {
     if (i < 0) return null;
     const before = list[i]!.name;
     list[i] = Object.fromEntries(Object.entries({ ...list[i], ...fields }).filter(([, v]) => v != null)) as unknown as ProjectEntry;
-    writeJSON(this.projectsFile, list);
+    writeJSON(this.projectsFile, { list });
     // Here, whoever renames it: a save writes every field, renamed or not.
     if (list[i].name !== before) log.info(`[project] ${id} renamed: ${list[i].name}`);
     return list[i];
@@ -134,7 +134,7 @@ class Store {
   // A project gone from Kulisa: from the list, and its data (profiles with their sign-ins, tasks); never its
   // folder. Its profiles' sessions may still be open: what cannot go now goes at the next start.
   removeProject(p: ProjectEntry) {
-    writeJSON(this.projectsFile, this.projects().filter((x) => x.id !== p.id));
+    writeJSON(this.projectsFile, { list: this.projects().filter((x) => x.id !== p.id) });
     const its = (key: string) => key.startsWith(`${p.id}/`);
     this.saveWindows(this.windows().map((w) => ({ ...w, tabs: w.tabs.filter((key) => !its(key)), shown: w.shown && !its(w.shown) ? w.shown : null })));
     const dir = path.join(this.dir, 'projects', p.id);

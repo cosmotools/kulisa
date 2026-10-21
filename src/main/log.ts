@@ -21,6 +21,12 @@ export function summary(v: unknown, max = 200): string {
     : SECRET_TEXT.test(x) ? '[…]' : bare(x).length > 80 ? `${bare(x).slice(0, 80)}…` : bare(x)));
   return s === undefined ? '' : s.length > max ? `${s.slice(0, max)}…` : s;
 }
+// An email as the log keeps it: enough of the name to tell one's accounts apart (three letters, at most half of it), not
+// all of it, for a log sent with a bug report.
+export const shortEmail = (email: string) => {
+  const at = email.lastIndexOf('@'), name = email.slice(0, Math.max(at, 0));
+  return at < 1 ? '…' : `${name.slice(0, Math.min(3, Math.ceil(name.length / 2)))}…${email.slice(at)}`;
+};
 // A folder with the home folder as ~: a user's log shared holds their name less often.
 export const tilde = (p: string, home = os.homedir()) => (p === home || p.startsWith(home + path.sep) ? `~${p.slice(home.length)}` : p);
 

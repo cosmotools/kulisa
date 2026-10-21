@@ -63,7 +63,7 @@ test("projects: an id is six random letters and digits, none a project's name, u
   store.updateProject(first.id, { name: 'Renamed' });
   assert.equal(store.projectOf('/work/app-0').id, first.id, 'kept when the project is renamed');
   // A project of an earlier format, its id made from its name: an opaque string as any other.
-  fs.writeFileSync(store.projectsFile, JSON.stringify([...store.projects(), { id: 'd', name: 'ddd', folder: '/work/d', color: PROJECT_COLORS[0] }]));
+  fs.writeFileSync(store.projectsFile, JSON.stringify({ list: [...store.projects(), { id: 'd', name: 'ddd', folder: '/work/d', color: PROJECT_COLORS[0] }] }));
   assert.equal(store.projectFor('/work/d').id, 'd');
   assert.equal(store.updateProject('d', { name: 'eee' }).id, 'd');
   assert.deepEqual(store.taskOf({ id: 'd' }, 1).dir, path.join(dir, 'projects', 'd', '1'));
@@ -93,7 +93,7 @@ test("store: a profile's tabs come back with the one in front; a bare list of ad
 // projects list their profiles; ids are opaque).
 const profileStore = (dir: string, ...projects: string[]) => {
   const store = new Store(dir);
-  fs.writeFileSync(store.projectsFile, JSON.stringify(projects.map((p, i) => ({ id: p, name: p, folder: `/work/${p}`, color: PROJECT_COLORS[i] }))));
+  fs.writeFileSync(store.projectsFile, JSON.stringify({ list: projects.map((p, i) => ({ id: p, name: p, folder: `/work/${p}`, color: PROJECT_COLORS[i] })) }));
   return new ProfileStore(store);
 };
 
