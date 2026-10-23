@@ -1,6 +1,6 @@
 ---
 name: kulisa-profiles
-description: You are running inside Kulisa, a window for building and testing web apps as several users at once. The browser panes above your terminal are Kulisa profiles, separate browser profiles (own cookies, tabs, sign-ins) that the human signed in to by hand. Use this skill whenever you need to open, read, click or type in a web app, check something as one user or several, or when a message holds [kulisa pick: …] (an element the human pointed at). Use it instead of any other browser tool.
+description: You are running inside Kulisa, a window for building and testing web apps as several users at once. This skill is how you work through Kulisa. The browser panes above your terminal are Kulisa profiles, separate browser profiles (own cookies, tabs, sign-ins) that the human signed in to by hand. Use it whenever you open, read, click or type in a web app, check something as one user or several, or a message holds [kulisa pick: …] (an element the human pointed at); and whenever you set up or run the task (its git worktree, repositories, the app's dev server) or read what was done in it before. Use its browser tools instead of any other browser tool.
 ---
 
 # Working with Kulisa profiles
@@ -8,40 +8,13 @@ description: You are running inside Kulisa, a window for building and testing we
 A **profile** is one user of the app under test: its own browser profile, shown as a pane above your terminal. The
 human sees everything you do there: your cursor and a caption are drawn in the pane.
 
-## Tools (the kulisa MCP server)
+## Tools
 
-| Tool | Use |
-|---|---|
-| `profile_list` | List profiles: `name`, `description` (who it is in the app; `null`: not said), `avatar` (its picture: the human may call a pane "the fox"), `signinMode`, tabs; closed ones as `closed: true` with their number of tabs. Call it first; the human may add profiles at any time. |
-| `browser_snapshot` | Accessibility snapshot of a profile's active tab, with `[ref=eN]` for click and type. `also`: more profiles' active tabs in the same call, to compare what each user sees. |
-| `browser_click`, `browser_type` | Act by `ref` from the latest snapshot, or by a Playwright `locator` such as `getByRole('button', { name: 'Pay now' })`. `browser_type` replaces the field's text, typing it key by key as a person would (the human sees it). |
-| `browser_press_key`, `browser_hover`, `browser_select_option`, `browser_file_upload` | A key (Escape, Tab, Control+A) on an element or the focused one; the pointer over an element (menus, tooltips); options of a `<select>`; files (absolute paths) for a file input or the button that opens a file chooser. |
-| `browser_wait_for` | Wait until text or an element appears, or text is gone, in a profile's tab: up to 45 s a call. |
-| `browser_evaluate` | Run a JavaScript function in the page (`() => …`, or `(el) => …` with `ref` or `locator`) for what the other tools do not do. |
-| `browser_tab_new` | Open a URL in a new tab of a profile; it becomes the active tab. |
-| `browser_tab_select`, `browser_tab_close` | Switch to a tab (by id from `profile_list`), close a tab. |
-| `browser_navigate` | Load a URL in the profile's active tab, replacing what it shows; or `go`: `back`, `forward`, `reload`. |
-| `browser_highlight` | Outline elements on a profile's page for the human to see; the labels show over the pane. They go when the human clicks or types there; an empty list clears them. |
-| `browser_screenshot` | See the page when the snapshot is not enough (layout, images, colors): its visible part; one element by `ref` or `locator`; `fullPage` down to its end (a page scrolling inside a container of its own: take the container by `locator`). `also`: more profiles' active tabs in the same call (with `locator`, the same element in each). |
-| `browser_console_messages`, `browser_network_requests` | What a tab logged and requested recently: errors, failed requests (`onlyErrors`, `onlyFailed`). |
-| `profile_open` | Open a closed profile (`closed: true` in `profile_list`): its pane and tabs come back, still signed in. |
-| `profile_close` | Close a profile: its pane and tabs go (memory freed); it stays signed in. |
-| `profile_create` | A new, empty profile for a user the task needs and no profile has, by a name no other profile of the project has (in any case). |
-| `profile_rename` | Rename a profile, e.g. after the human signed it in to another account; the tools take its new name from then on. |
-| `profile_describe` | Save who a profile is (its role, what it can do): the human's answer when you had to ask. |
-| `profile_ask_signin` | Ask the human to sign a profile in (shown over its pane; `url`: the app's sign-in page, opened first), and wait until they are through. |
-| `profile_delete` | Remove a profile from this project (its copies in the project's tasks go). The profile stays, signed in, in Kulisa's Settings → Profiles; the human confirms it in a dialog. |
-| `terminal_run` | Run what keeps running (the app's dev server, `docker compose up`, a watcher) in a terminal of its own next to yours, by a name ("dev server"): the human sees it there. The same name again types into it. |
-| `terminal_read` | The last lines a terminal shows, as plain text (errors, the address the server listens on); without a name, the terminals open, the agents' and the human's. Not other agents' tabs: what they did is in `task_history`. |
-| `terminal_stop` | Ctrl+C in a terminal (`close: true` closes it). The human's own terminals only when they ask. |
-| `browser_type_login` | Type a test user's saved login or password into a field of the local app (never shown to you). |
-| `profile_set_login` | Save a test user's pair (after you signed it up), for you and later tasks. |
-| `task_rename` | Name your task once you know what it is about, silently (never ask the human or mention it): its tab, and its git branch. |
-| `task_history` | Where the task stands (git, profiles, terminals) and its conversations, each agent's, numbered, with its tab's name and what it was about; with `conversation`, that one whole, the latest chapter first. In parts: 1, then the next. |
-| `conversation_rename` | Name your conversation in 1 to 3 words once you know what it is about: your tab in Kulisa, by which the human and other agents tell it from the others. |
-
-Every browser tool takes `profile`: its name, as `profile_list` gives it (in any case: a name is unique within the
-project). Tools that read or act on a page take an optional `tab` (default: the profile's active tab).
+The tools are the kulisa MCP server's; its listing gives each one's description and inputs (`profile_*` for profiles,
+`browser_*` for their pages, `terminal_*` for terminals next to yours, `task_*` and `conversation_rename` for the
+task). This skill is how they fit together; what each one does is in its own description. Every browser tool takes
+`profile` — a profile's name, as `profile_list` gives it (unique within the project, in any case) — and an optional
+`tab` (default: the profile's active tab).
 
 ## How to work
 

@@ -38,7 +38,7 @@ replace a region left by the page before.
 ## The tasks' bar
 
 Under the grid, in the middle: a tab per open task (its project's icon, its agent's state, its name, ×:
-[tasks.md](tasks.md), Projects), then +, a new tab: the board, every project's tasks, where one is made or opened again (tasks.md, Projects). ☰ → **Tasks bar: Top, Bottom** puts it in the
+[tasks.md](tasks.md), Projects), then +, the new-task menu: every project's tasks, where one is made or opened again (tasks.md, Projects). ☰ → **Tasks bar: Top, Bottom** puts it in the
 title bar instead, after the logo, as a browser's tabs are (no row of its own; `settings.json`: `bar`; the page gets it in its URL, so it is drawn in its place at once;
 `App.vue` puts `TaskBar.vue` in `TopBar.vue`'s slot or under the grid). Bottom is the
 default, on macOS too: the hand goes to the terminal under the grid all the time, so the tabs are where it already is,
@@ -388,7 +388,7 @@ it, before or after.
   Chrome. Closing or switching a tab from the page leaves the keyboard in the page shown next.
 - **Everywhere, the terminal too**: Ctrl+` to the terminal in front and back to the page used last (on the folded
   island, a new conversation of the task's agent), Ctrl+Shift+` a new terminal, Ctrl+Shift+1…9 the bar's first to ninth tab, Ctrl+Shift+PgDn / PgUp the next or previous
-  one (in the bar's order), Ctrl+Shift+N a new task of the shown task's project, Ctrl+Shift+A the bar's + (a new tab: the board; again, back),
+  one (in the bar's order), Ctrl+Shift+N a new task of the shown task's project, Ctrl+Shift+A the bar's + (the new-task menu; again, back),
   Ctrl+Shift+/ the list; the right Ctrl (right ⌘ on macOS) held alone, speak to the agent (The terminal, Dictation:
   the one key the human may change, in the list). Ctrl+Shift+… and Ctrl+` are
   what agents and sites leave alone; Alt+letters are Claude Code's (Alt+V, Alt+P, Alt+T), Ctrl+Alt+arrows GNOME's,

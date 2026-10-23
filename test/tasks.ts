@@ -1866,6 +1866,51 @@ export default (test: Test) => {
     ctx.asked.length = 0;
   });
 
+  test("tasks: the bar's + with several projects — a click on a project makes it a new task, and a task's 🗑 deletes it after the question", async (ctx) => {
+    // About 1 s: git's work (a second project made and deleted).
+    const { shell, ui } = ctx;
+    // A second project, open, so the + nests each project as a submenu (one project shows its tasks inline).
+    const plus2 = path.join(root, 'plus2');
+    fs.mkdirSync(plus2); git(plus2, 'init', '-q'); fs.writeFileSync(path.join(plus2, 'a.txt'), 'a'); git(plus2, 'add', '-A'); git(plus2, 'commit', '-qm', 'mine');
+    const made = await ui(`kulisa.invoke('project:new', { from: 'folder', folders: [${JSON.stringify(plus2)}], name: 'Plus2' })`);
+    assert.ok(made.id, 'the second project is made');
+    await ui(`kulisa.invoke('project:open', { id: ${JSON.stringify(made.id)} })`);
+    await waitFor(() => shell.current?.id === made.id && shell.task?.loaded && shell.pty && !shell.windows[0].switching, 10000);
+    await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
+    const tasks2 = () => shell.store.tasksOf(shell.store.projects().find((x) => x.id === made.id)).list;
+    const trigger = (name: string) => `[...document.querySelectorAll('.menu[data-state="open"] [role="menuitem"]')].find((r) => r.querySelector('.label')?.textContent === ${JSON.stringify(name)} && r.getAttribute('aria-haspopup'))`;
+
+    // A left release on the project row itself makes a new task of it and closes the menu (its tasks still open on hover).
+    await plusMenu(ui);
+    const before = tasks2().length;
+    await click(ui, trigger('Plus2'));
+    await waitFor(() => tasks2().length === before + 1 && shell.current?.id === made.id && shell.task?.loaded && !shell.windows[0].switching, 10000);
+    await waitFor(async () => !(await menuOpen(ui)));
+
+    // Each task row carries a 🗑 that deletes the task after the Delete Task… question (Cancel keeps it).
+    ctx.answer = false;
+    const projName = shell.store.projects().find((x) => x.id === pid('project')).name;
+    await plusMenu(ui);
+    const projSub = trigger(projName);
+    await waitFor(async () => { await ui(`(${projSub})?.click()`); return (await ui(`document.querySelectorAll('.menu[data-state="open"]').length`)) >= 2; });
+    const fxRemove = `[...[...document.querySelectorAll('.menu[data-state="open"]')].at(-1).querySelectorAll('[role="menuitem"]')].find((r) => r.querySelector('.label')?.textContent === 'Feature-X')?.querySelector('.remove')`;
+    assert.ok(await ui(`!!(${fxRemove})`), 'a task row has a 🗑');
+    await click(ui, fxRemove);
+    await waitFor(() => ctx.asked.length);
+    assert.equal(ctx.asked.pop().message, 'Delete the task Feature-X?');
+    await waitFor(async () => !(await ui(`document.getElementById('ask')?.dataset.state === 'open'`)));
+
+    // The second project removed; back to project's task-1 shown, as the tests after expect.
+    ctx.answer = true;
+    await ui(`kulisa.invoke('project:delete', { id: ${JSON.stringify(made.id)} })`);
+    await waitFor(() => !shell.open.has(made.id));
+    fs.rmSync(plus2, { recursive: true, force: true });
+    await waitFor(() => shell.current?.id === pid('project') && shell.task?.loaded);
+    await click(ui, taskTab(1));
+    await waitFor(() => shell.task?.n === 1 && !shell.windows[0].switching);
+    ctx.asked.length = 0;
+  });
+
   test("projects: Delete Project… (the projects' manager alone) asks, closes the project when open, deletes its data and its tasks' copies, never its folder; New Project takes its code from folders on the disk or clones it from URLs, one or several, making no other folder", async (ctx) => {
     // About 3 s: git's work (a worktree, a clone) and closing an open project.
     const { shell, ui, sui } = ctx;

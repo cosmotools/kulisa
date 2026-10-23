@@ -194,12 +194,12 @@ it ends: the question links the GitHub page where you revoke it at once.
 
 ## Tasks
 
-- **+ in the tasks' bar** (or Ctrl+Shift+A) opens a new tab, as in a browser: every project in a column, with its
-  tasks. The project you worked in last is first. Open tasks are marked "open"; closed ones show when you closed them,
-  and "merged" once their work is merged. Click a task to open it again, **+** in a column for a new task of that
-  project, or **New Project…** after the columns. Close the new tab (its ×, **+** again, or Esc) to go back to your
-  task, which kept running.
-- **A new task**: **+** in a project's column (or Ctrl+Shift+N for the shown project). It runs the
+- **+ in the tasks' bar** (or Ctrl+Shift+A) is the new-task menu: every project with its tasks — the one you worked
+  in last first — open ones to switch to, closed ones to open again (they show when you closed them, and "merged" once
+  their work is merged) — and New Task of each, then **New Project…**. Click a project to start a new task of it; a
+  task's trash can deletes it. With no task open at all, the window shows the same projects and tasks as a board of
+  columns instead.
+- **A new task**: click a project in the **+** menu, or **+** in a project's column (or Ctrl+Shift+N for the shown project). It runs the
   project's default agent with a new conversation; describe the task to it. With no default agent, you choose one
   with the buttons in the middle (Ctrl+` puts the keyboard on them). Its profiles are all closed: the agent
   opens those it needs, or you do: while none is open, each has a tile over the terminal (click it), and the task's
@@ -229,8 +229,8 @@ it ends: the question links the GitHub page where you revoke it at once.
   its code, branch, profiles and conversation stay. Open it again from **+** (in its project's column): the agent continues
   the conversation.
 - **Delete Task…** (its tab's right-click menu) deletes it for good: its copy of the code, its branch, its profiles'
-  copies, its conversation. The question says what would be lost (work not merged and not pushed). A closed task is
-  deleted from its row in **+**: the trash can at the row's end (or the Delete key). Once a closed
+  copies, its conversation. The question says what would be lost (work not merged and not pushed). A task is
+  deleted from its row in **+**: the trash can at the row's end (or the Delete key), open or closed. Once a closed
   task's work is merged, its row says "merged", and the project's submenu offers **Delete Merged Tasks…**.
 - **The project's submenu**, at the end of a tab's right-click menu under the project's name: New Task, Move All
   Tasks to New Window or to another window, Project Settings…, Show Data Folder, Delete Merged Tasks…, Close All
@@ -369,7 +369,7 @@ A pane is a small Chrome: a tab strip, an address bar, back, forward and reload.
 |---|---|
 | Ctrl+` | The terminal in front, and back to the page |
 | Ctrl+Shift+` | A new terminal |
-| Ctrl+Shift+A | A new tab: every project with its tasks |
+| Ctrl+Shift+A | The new-task menu: every project with its tasks |
 | Ctrl+Shift+N | New task of the same project |
 | Ctrl+Shift+1…9 | The first to ninth tab |
 | Ctrl+Shift+PgDn / PgUp | The next or previous task |

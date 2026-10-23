@@ -39,23 +39,16 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
     projects' manager's alone to change.
   - **A task's tab shows nothing of its profiles** (the bar is no place to edit profiles,
     Settings is for that; profiles are the agent's hands: how many are open says nothing).
-  - **The button after the tabs is +, a new tab**, as a browser's (Ctrl+Shift+A, again or Esc goes back; `NewTask.vue`): a tab "New Tab" at the end of the bar, chosen, and in the grid's place **the board**
-    (`newtab/`): every project a column (all in sight, any task one click away), the one
-    worked in last first (an open task, else the one closed last). A column: its project's icon in its color, its
-    name, its **+** (a new task of it with its default agent: "Choosing the agent"); then its tasks, those open first,
-    marked "open" and not to choose (in this window's bar or another's), then those closed, the one closed last first,
-    each with its branch (when its name is another), when it was closed, "merged"; a click opens one again; its 🗑 (on
-    the row under the pointer or the keyboard) or Delete deletes it after Delete Task…'s question. A project without
-    tasks says so. New Project… after the columns. More tasks than a column holds scroll in it, more columns than the
-    window holds scroll sideways. The task chosen or made is shown in the new tab's place, a tab at the end of the
-    bar; the new tab closed (×, + again, Esc, a click on another tab) shows the task under it again, which ran on
-    meanwhile, its pages hidden (a native view would draw over the board). The grid stays laid out under it, unseen:
-    its terminals keep their size. A new tab is the window's alone: the main process does not know it, it is not
-    saved, and it moves to no other window.
+  - **The button after the tabs is +** (`NewTask.vue`; Ctrl+Shift+A, Esc closes it): a dropdown menu for a new task
+    of any project, or a closed one opened again — nothing of the shown task is taken. Every project, the one worked
+    in last first (an open task, else the one closed last); one project shows its tasks at the top, several nest each
+    as a submenu under its icon and name. A project's tasks: the open ones (a click switches to one, marked "open"),
+    then the closed (a click opens one again); a click on the project itself makes it a new task. New Task of each,
+    then New Project… at the end. A task's row has its 🗑 (on the row under the pointer or the keyboard, or Delete)
+    that deletes it after Delete Task…'s question, open or closed.
   - **The window's pages** (`page` in `lib/store.ts`): what the window shows in the grid's place, one at a time: the
-    shown task's grid (`task`), a new tab over it (`newtab`), the board with no task open (`board`), the welcome
-    with no project at all (`welcome`). One switch, not a router: what is shown is the main process's (its current
-    task), and the grid under a new tab must stay as it is.
+    shown task's grid (`task`), the board with no task open (`board`), the welcome with no project at all (`welcome`).
+    One switch, not a router: what is shown follows the main process's current task.
 - **Settings** (the button in the title bar, left of ☰), as JetBrains' Settings (a dialog reads as a web page's, not a desktop app's; docs/ui.md, Desktop, not a web page), a window of
   its own, not modal (how it opens and closes, and which window it acts for: [window.md](window.md), Settings): a tree
   on the
@@ -136,7 +129,7 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   same way, one after another. **Dragging a tab** does the same with the mouse: within the bar it changes the order
   (kept); let go on another window's bar, the task moves there, where it was let go; let go outside every Kulisa
   window, it opens in a new window there (the window appears when the mouse is let go, as in VS Code). Each window has
-  its bar and its + (the board; a task opens in the window whose + was pressed). The OS's × on a window closes
+  its bar and its + (the new-task menu; a task opens in the window whose + was pressed). The OS's × on a window closes
   its tasks, as × on each would, after one question ("Close the window?", naming them); on the last
   window it quits Kulisa, and the windows with their tasks come again at the next start, where they were: nothing
   is lost, so it asks only when that would stop a working agent ("Quit Kulisa?"). On macOS the last window's × hides
@@ -197,10 +190,15 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   for one no account can reach, or whose account is signed out ([src/github](../src/github/README.md), A repository's
   account).
 - **The empty window** (the term: CLAUDE.md) is what a window is with no task open: at the first start, and after
-  the last task is closed (×, Close All Tasks, deleting the project). The title bar, no tasks' bar (no tab, and its +
-  would show the board the window shows already), and in the grid's place (`Empty.vue`) the
-  board, as a new tab shows it
-  (above); with no project at all, the **welcome** instead (`welcome/`), the first thing a new user meets: what Kulisa does in three slides (its agent in your browsers; checking as every user; Pick), with Skip,
+  the last task is closed (×, Close All Tasks, deleting the project). The title bar, no tasks' bar, and in the grid's
+  place (`Empty.vue`) **the board** (`newtab/`): every project a column (all in sight, any task one click away), the
+  one worked in last first (an open task, else the one closed last). A column: its project's icon in its color, its
+  name, its **+** (a new task of it with its default agent: "Choosing the agent"); then its tasks, those open first,
+  marked "open" and not to choose (in this window's bar or another's), then the closed, the one closed last first,
+  each with its branch (when its name is another), when it was closed, "merged"; a click opens one again; its 🗑 (on
+  the row under the pointer or the keyboard) or Delete deletes it after Delete Task…'s question. A project without
+  tasks says so. New Project… after the columns. More tasks than a column holds scroll in it, more columns than the
+  window holds scroll sideways. With no project at all, the **welcome** instead (`welcome/`), the first thing a new user meets: what Kulisa does in three slides (its agent in your browsers; checking as every user; Pick), with Skip,
   then New Project's steps, a question each ("Where is the code?"), as a dialog without its backdrop, Kulisa's red glow
   behind them until the first task's project's color takes its place. Back on the first step goes back to the slides.
   In a low window the slides' picture is smaller, and in one both narrow and low it is left out: the welcome fits the window's least size (640 × 400) without scrolling. New Project's own steps, not a second wizard: the dialog's, under another head (docs/ui.md, Clusters).
@@ -302,8 +300,8 @@ deleted.
 - **Its tab** in the tasks' bar: its project's icon, the agent's state as an icon
   (working, waiting for you, done; from its hooks: "Choosing the agent"), its name. A click shows that task (the slide: Projects,
   above). The one left keeps running.
-- **The bar's +** (a project's + in its column; Ctrl+Shift+N, or New Task in the project's submenu, for the shown task's or
-  that project) makes a task at once, no dialog,
+- **The bar's +** (a project's + in its column; Ctrl+Shift+N, New Task in the project's submenu, or a click on the
+  project itself in the bar's + menu — its tasks show on hover — for the shown task's or that project) makes a task at once, no dialog,
   from the project's configuration alone, nothing taken from the task on screen: the human describes the task to its
   agent in the terminal. It runs the project's default agent; with none, the terminal only, nothing asked ("Choosing the agent"). **No profile opens by itself**, the first task's
   neither ([profiles.md](profiles.md), What a profile is): each is a browser's processes and
@@ -315,7 +313,8 @@ deleted.
 - **Delete Task…** in its tab's menu deletes it, after a question saying what goes for good: its folder, its branch,
   its profiles, its agent's conversations, and any work not in main and not pushed (commits of its own, uncommitted
   files). With git a task goes whole (worktree, branch, conversation); without, its files stay in the project's folder.
-  A closed task is deleted from its row in the bar's + (the board): its 🗑 (on the row under the pointer) or Delete, the same
+  Every task's row in the bar's + menu carries the same delete (on the row under the pointer or the keyboard, or Delete), open or closed.
+  A closed task is also deleted from its row in the empty window's board: its 🗑 (on the row under the pointer) or Delete, the same
   question, its project loaded or not (closed tasks are not to pile up). Closed tasks stay on disk until the human deletes them; Kulisa
   offers it once a closed task's PR is merged: each of its copies has commits of its own, all in its remote's default
   branch (`origin/HEAD`, fetched as the project is shown and as a task is closed, in the background), and nothing
@@ -332,7 +331,7 @@ to the human; the window's IPC (`ipc/`) and the MCP tools are handles on it:
 
 | Action | The human | The agent | The core |
 |---|---|---|---|
-| Open a task (its project loaded with it, when it was not) | the bar's + (the board: a closed one, or a new one) | none: it works inside one task | `openProject` (`open-tasks.ts`): the task opened again and shown, or a new one (`createTask`) |
+| Open a task (its project loaded with it, when it was not) | the bar's + menu, or the empty window's board (a closed one, or a new one) | none: it works inside one task | `openProject` (`open-tasks.ts`): the task opened again and shown, or a new one (`createTask`) |
 | Close a project's tasks | Close All Tasks in its submenu | none: it would stop itself | `closeTasks` (`open-tasks.ts`) in every window, asking once when an agent works |
 | Close a window, quit | the OS's ×, ☰ → Exit | none | `closeTasks` for the window's tabs; `quit` (`open-tasks.ts`), asking only when an agent works |
 | Move a task | Move to New Window, Move to Window, dragging its tab; Move All Tasks to … for a project's | none: where the human sees it is the human's | `moveTask`, `moveAll` (`open-tasks.ts`) |
@@ -842,8 +841,8 @@ rm -rf ~/.config/Kulisa/projects/myshop   # all its tasks with their profiles' c
 | `src/main/agents/` | the agents to choose from: find, install, start, resume; a folder's trust carried to a task's copy |
 | `src/main/store.ts` | the data folder above |
 | `src/terminal/` | the terminals: their ptys, buffers and the xterm shown ([README](../src/terminal/README.md)) |
-| `src/renderer/components/TaskBar.vue`, `NewTask.vue`, `Empty.vue`, `settings/ProjectEditor.vue` | the tasks' bar (a tab per open task, a new tab); its + (a new tab); the grid's place when no task's grid is shown (the window's pages); the projects' manager |
-| `src/renderer/components/newtab/` | the board, a new tab's and the empty window's: `Board.vue` (the columns, New Project…), `ProjectColumn.vue` (a project and its tasks) |
+| `src/renderer/components/TaskBar.vue`, `NewTask.vue`, `Empty.vue`, `settings/ProjectEditor.vue` | the tasks' bar (a tab per open task); its + (the new-task menu); the grid's place when no task's grid is shown (the window's pages: the board, the welcome); the projects' manager |
+| `src/renderer/components/newtab/` | the board, the empty window's: `Board.vue` (the columns, New Project…), `ProjectColumn.vue` (a project and its tasks) |
 | `src/renderer/components/welcome/` | the first start's welcome: `Welcome.vue` (the slides, then New Project's steps under a question each), `Tour.vue` (the slides, their pictures drawn in HTML) |
 | `src/renderer/components/newproject/` | New Project's steps: `Wizard.vue` (the steps, the buttons; the welcome's and the dialog's), `wizard.ts` (their state and rules, one per wizard), `CodeStep.vue`, `AgentStep.vue`, `ProfilesStep.vue`, `NewProject.vue` (the dialog) |
 | `src/renderer/components/TaskTab.vue`, `TaskRename.vue` | a task's tab in the bar, its menu, the Rename Task dialog |

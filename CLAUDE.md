@@ -53,6 +53,11 @@ Everything happens inside Kulisa; no external Chrome windows.
   existing code is no reason to keep a wrong shape. Where a change meets code that is wrong (a leaky boundary, a
   shortcut, a workaround without a reason), be intolerant of it: fix it as part of the change, not around it. Say what
   the right way is and do it, rather than settle for what is expedient.
+- **A convention here is not beyond challenge.** A rule in this file is the author's decision, not proof it is right.
+  Where one — or any the author states — goes against a design or coding standard, or against plain sense (a second
+  source of truth, a leaky boundary, needless duplication), say so plainly: that it is wrong, why, and what the
+  standard holds instead. Do not follow it silently because it is written down. This is the one settled question that
+  is reopened; the author still has the last word, but decides on the merits, having heard the case.
 - **The time to rewrite is not an argument** (with AI a rewrite costs nothing). When
   weighing a tool or a library, or replacing one with another, the better one is chosen on its merits (what it does,
   RAM, how well it is maintained, its license, how it fits); the time a move takes, the agent's to write it and the
@@ -62,8 +67,9 @@ Everything happens inside Kulisa; no external Chrome windows.
   turn ("later") stays put off.
 - **How the author wants it built:** a step at a time, a plan first, then the code with its tests and docs, a commit
   per step, the author's Kulisa restarted after it; only what was discussed and written down as decided, no open
-  questions built over and no ideas of one's own added unasked. No data migrations (the author's choice): one data
-  format only, old data deleted, never read or migrated.
+  questions built over and no ideas of one's own added unasked. No data migrations (the author's choice, while 0.x and
+  before Kulisa has real users: one data format only, old data deleted, never read or migrated) — revisit once there
+  are users whose data must survive a format change.
 - **What a change cost, at its commit.** When code becomes part of the project (a feature, a fix; not experiments),
   say in one line how many lines were added and removed, apart for code, tests and docs (not `package-lock.json` or
   pictures): `code +203 −95 · tests +52 −13 · docs +23 −8`. When it is more than the task should take, say why in a
@@ -82,7 +88,9 @@ Everything happens inside Kulisa; no external Chrome windows.
   "until", "no longer", "replaced", nor a negation that only makes sense against the old shape ("lists no projects").
   The reason is said as a property of what is there now ("one place to read and change it"), not as its story. No
   dates and no "the author" beside a reason: the reason shows the decision is meant; only a choice of taste with no
-  reason to give is marked "(the author's choice)", so that it is not argued again on the merits. What they keep of a
+  reason to give is marked "(the author's choice)": not argued again on the merits as it stands, yet not frozen — a
+  taste decision goes stale too (a better option appears, the context shifts), and then it is raised again, as any
+  convention here (Working with the author, "A convention here is not beyond challenge"). What they keep of a
   failure is the constraint today's code keeps to, next to that code; a story of an attempt is git's: it goes stale unseen, and the next session believes it. Nor where
   or when something was seen, nor the versions it was checked with: they go stale at once, and the tests hold what
   must stay true (a version Kulisa requires, `>=`, is a constraint, not a record). The one
@@ -94,8 +102,9 @@ Everything happens inside Kulisa; no external Chrome windows.
   MCP server with the browser tools (agent-agnostic, where new abilities go), the profiles skill (one text for every
   agent, `src/agent/skills/profiles/`) and the hooks (each agent's table in `agents/`), brought to each agent its own
   way (for Claude Code also a plugin with the MCP config, `src/agent/claude-plugin/`).
-  Giving the agent more it can do in the browsers is one of Kulisa's features: extend the MCP server, then describe
-  it in the skill.
+  Giving the agent more it can do in the browsers is one of Kulisa's features: add the tool to the MCP server, its
+  `registerTool` description saying what it does (the agent gets that from the server's tool listing, the one source).
+  The skill does not catalogue the tools; it says how they fit together (the order, the rules, when to use which).
 - **Terminology: "plugin"**: always an agent's (Claude Code's, Codex's), the Kulisa plugin being one.
 - **Terminology: "Kulisa package"** (after "Kulisa plugin": an npm package's idea in Kulisa's
   own context) for a part of Kulisa that knows nothing of the rest, all of it in one folder `src/<package>/`, reached
@@ -104,34 +113,24 @@ Everything happens inside Kulisa; no external Chrome windows.
   window's components, `docs/ui.md`).
 - **The agent is the human's choice, per task** (`agents/`): never assume `claude` is installed. Kulisa
   installs a missing agent itself with its maker's installer when the human asks, without steps for them to type.
-- **Terminology: "tab"**: an open task in a window's tasks' bar, as a browser's tab (its project's
-  icon on it, moved and ordered alone, its project's rows in a submenu of its menu). A project is no thing to open
-  (it is what its tasks are made of: profiles, agents, repositories); not "open project" or
-  "Close Project". In code a project is loaded (`Project` in `shell.open`) while a task of it is open in any window.
-  Earlier commits say **group** (Close Group) for a project's open tasks in the bar.
+- **Terminology: "tab"**: an open task in a window's tasks' bar, as a browser's tab (`docs/tasks.md`). A project is
+  no thing to open (it is what its tasks are made of); not "open project" or "Close Project". In code a project is
+  loaded (`Project` in `shell.open`) while a task of it is open in any window. Earlier commits say **group** (Close
+  Group).
 - **Terminology: "the tasks' bar"**: the bar of the tasks' tabs, under the grid or in the title bar after the logo,
   as a browser's tabs (☰ → Tasks bar; `TaskBar.vue`, `#taskbar`). Not "taskbar", the OS's. Earlier commits say "the
   projects' bar" (`ProjectBar.vue`).
-- **Terminology: "Settings"**: the window behind the title bar's gear, as JetBrains' Settings: a tree of Projects (every
-  project, each its page), Agents (the agents, their accounts) and Profiles (every profile, who it is), and under them
-  the Log and About pages (☰ → Report a Problem…, ☰ → About Kulisa); in code `settings/` (a project's page
-  `ProjectEditor.vue`; its window `settings-window.ts`, `openSettings()`). Earlier commits say "the projects' manager". New Project is steps (Code, Agents, Profiles; `newproject/`): the welcome's, and a dialog of a
-  tasks' window.
-- **Terminology: "the empty window"**: what a window is with no task open (at first start, after its last
-  tab is closed): the title bar, no tasks' bar (nothing to show in it), and in the
-  grid's place, the board (every project a column with its tasks, as the bar's + shows it in a new tab), or the
-  welcome with no project at all. `Empty.vue`.
-- **Terminology: "the welcome"**: the first start's (`welcome/`): what Kulisa does in three slides,
-  then New Project's steps under a question each. Earlier commits say "Welcome screen" (JetBrains' name) for a list
-  of projects, not this.
-- **Terminology: "a new tab"**: the bar's +, as a browser's: a tab
-  "New Tab" showing the board (`newtab/`) over the shown task, until a task is chosen or made there, or it is closed.
-  Not a task, and not saved. The window's pages: `page` in `lib/store.ts`.
-- **Terminology: "task"** for one line of work inside a project: its agents (each in a terminal of its island,
-  with a conversation of its own; any agent CLI), a branch of the code, profiles and a grid. Earlier commits say "workspace" (the word of tools for parallel
-  agents, e.g. Conductor). Each works in a git worktree of its own next to the
-  project (`myshop@task-2`); the project's folder is the human's. Several tasks build several features at once. How
-  they work and why: `docs/tasks.md`; what is left: ROADMAP, "Projects and tasks, rest" and "Tasks, rest".
+- **Terminology: "Settings"**: the window behind the title bar's gear, as JetBrains' Settings (its tree and pages:
+  `docs/window.md`); in code `settings/`. Earlier commits say "the projects' manager". New Project is steps
+  (`newproject/`): the welcome's, and a dialog of a tasks' window.
+- **Terminology: "the empty window"**: what a window is with no task open (`Empty.vue`; `docs/window.md`): the title
+  bar, no tasks' bar, and in the grid's place the board (every project a column with its tasks) or, with no project at
+  all, the welcome.
+- **Terminology: "the welcome"**: the first start's (`welcome/`; `docs/window.md`). Earlier commits say "Welcome
+  screen" (JetBrains' name) for a list of projects, not this.
+- **Terminology: "task"** for one line of work inside a project: its agents, a branch of the code, profiles and a
+  grid, each in a git worktree of its own next to the project (`myshop@task-2`). Earlier commits say "workspace" (the
+  word of tools for parallel agents, e.g. Conductor). How they work and why: `docs/tasks.md`; what is left: ROADMAP.
 - **Not tied to one agent or LLM vendor.** The user chooses the agent CLI (Claude Code, Codex, others); Kulisa must
   not require Claude Code or any one model provider. When planning a feature, design it for any agent CLI:
   - The core of a feature works through what every agent has: a terminal, the MCP server, files, git. Kulisa's
