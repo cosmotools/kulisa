@@ -26,14 +26,6 @@ export function pathsAt(term: Terminal, y: number): PathLink[] {
   }).slice(0, MAX);
 }
 
-// A path an agent marks as a link (OSC 8: Claude Code gives a file's path as it is, others a file:// address), or
-// null for any other address.
-export function fileOf(uri: string): string | null {
-  if (/^file:\/\//i.test(uri)) {
-    try {
-      const p = decodeURIComponent(new URL(uri).pathname);
-      return /^\/[A-Za-z]:/.test(p) ? p.slice(1) : p; // file:///C:/… on Windows
-    } catch { return null; }
-  }
-  return /^[a-z][\w+.-]+:/i.test(uri) ? null : uri; // a scheme of its own (javascript:, mailto:); C:\ is a drive
-}
+// What an agent marks as a link (OSC 8) that may be a file: a path as it is (Claude Code's), or a file:// address
+// (whether its host is this computer is for termHooks.files to tell); null for any other address.
+export const fileOf = (uri: string) => (/^file:\/\//i.test(uri) || !/^[a-z][\w+.-]+:/i.test(uri) ? uri : null); // C:\ is a drive

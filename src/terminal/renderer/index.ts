@@ -62,6 +62,8 @@ export const termLinks = {
   },
   hover(e: MouseEvent, uri: string) { (e.target as HTMLElement).title = uri; },
   leave(e: MouseEvent) { (e.target as HTMLElement).title = ''; },
+  // OSC 8 links to files too (xterm drops all but http and https by default); activate keeps only those two and paths.
+  allowNonHttpProtocols: true,
 };
 
 // The paths in a line that exist (termHooks.files), as links: Ctrl+click (⌘ on macOS) hands one to openFile, its

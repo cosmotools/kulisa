@@ -34,7 +34,7 @@ test('not paths', async () => {
   assert.deepEqual(await paths('version 1.5 at https://example.com/a.html, a / b, ~ . .. 3:12 done'), []);
 });
 
-test("an agent's link to a file (OSC 8): a path as it is, or a file:// address", () => {
-  assert.deepEqual(['/tmp/a b.png', 'src/x.ts', 'C:\\x.txt', 'file:///tmp/a%20b.png', 'file:///C:/x.txt', 'javascript:alert(1)', 'mailto:a@b.c'].map(fileOf),
-    ['/tmp/a b.png', 'src/x.ts', 'C:\\x.txt', '/tmp/a b.png', 'C:/x.txt', null, null]);
+test("an agent's link that may be a file (OSC 8): a path as it is, or a file:// address", () => {
+  assert.deepEqual(['/tmp/a b.png', 'src/x.ts', 'C:\\x.txt', 'file://host/tmp/a%20b.png', 'javascript:alert(1)', 'mailto:a@b.c'].map(fileOf),
+    ['/tmp/a b.png', 'src/x.ts', 'C:\\x.txt', 'file://host/tmp/a%20b.png', null, null]);
 });

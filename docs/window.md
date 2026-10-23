@@ -371,7 +371,9 @@ relative to the task's folder, `~/` from the home folder: `file-links.ts`, its c
 comes on every hover). Ctrl+click asks in the same menu: Open (the OS's app for it, `shell.openPath`) or Show in
 Folder (`shell.showItemInFolder`). What would run when opened (a file with `+x` on Linux and macOS; by its extension a
 Windows program or script, a `.desktop`, a macOS `.app`) is only shown in its folder, checked again in the main process
-when opened, as the window's answer may be stale.
+when opened, as the window's answer may be stale. A `file://` address opens only when its host is this computer (none,
+`localhost`, or its name): one of another host, as `ls --hyperlink` gives in an ssh session, never opens the same
+path here (the OSC 8 spec, gist.github.com/egmontkob/eb114294efbcd5adb1944c9f3cb5feda).
 
 ## Keys
 

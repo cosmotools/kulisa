@@ -91,8 +91,9 @@ pattern (the addon keeps only what `new URL()` takes, and exports nothing else),
 so a path broken by the width is one link, and counts wide characters (Claude Code's ⏺). Whether one exists, and what
 is done with it, is the window's, through `termHooks.files` (a line's candidates asked at once, as the pointer comes
 over it; without the hook a path is no link) and `termHooks.openFile` (Ctrl+click, ⌘ on macOS); the full path shown on
-hover. A file an agent marks as a link (OSC 8) goes to `openFile` too: Claude Code gives its path as it is, without
-`file://`.
+hover. A file an agent marks as a link (OSC 8) goes to `openFile` too: Claude Code gives its path as it is, others a
+`file://` address. xterm drops an OSC 8 link that is not `http(s)` unless `allowNonHttpProtocols` is set, so it is, and
+`termLinks.activate` keeps only those two and paths (`javascript:` and the like go nowhere).
 
 ## Its channels (`ipc.ts`)
 

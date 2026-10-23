@@ -1,7 +1,9 @@
 // The grid of panels, projects, layouts, menus.
 import electron, { clipboard } from 'electron';
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
+import url from 'url';
 import { MAC, CMD, shot, assert, root, userData, project, pid, tkey, pfile, idOf, SITE, sleep, waitFor, who, menuRows, choose, MENU, SUBMENU, menuOpen, rightClick, box, pageBox, viewOn, dock, press, projectTabs, projectTab, showProject, closeProject, savedWindows, closeMenu, plusMenu, plusRows, closeBoard, focusWindow } from './helpers.ts';
 import type { Test } from './run.ts';
 import type { UI } from './helpers.ts';
@@ -650,15 +652,22 @@ export default (test: Test) => {
       await pressAt(`kl-links/${long.slice(0, 10)}`, 1);
       assert.deepEqual(await menuRows(ui), [`# ${path.join(dir, long)}`, 'Open', 'Show in Folder'], 'wrapped over two rows: one link');
       await closeMenu(ui);
-      // A file an agent marks as a link (OSC 8): Claude Code gives its path as it is, others a file:// address.
-      for (const uri of [path.join(dir, 'a.txt'), `file://${path.join(dir, 'a.txt').replaceAll('\\', '/').replace(/^(?!\/)/, '/')}`]) {
-        await click(uri, ctrlKey);
+      // A file an agent marks as a link (OSC 8): Claude Code gives its path as it is, others a file:// address, with no
+      // host or this computer's; another host's is no file here (below).
+      const fileUrl = (host: string) => `file://${host}${url.pathToFileURL(path.join(dir, 'a.txt')).pathname}`;
+      for (const uri of [path.join(dir, 'a.txt'), fileUrl(''), fileUrl(os.hostname())]) {
+        await ui(`new Promise((r) => window.__term.write(${JSON.stringify(`\x1b]8;;${uri}\x07marked-file\x1b]8;;\x07\r\n`)}, r))`);
+        await pressAt('marked-file');
         assert.deepEqual(await menuRows(ui), [`# ${path.join(dir, 'a.txt')}`, 'Open', 'Show in Folder'], uri);
         await closeMenu(ui);
       }
       await pressAt('kl-links/missing.txt');
       await sleep(200); // nothing to wait for: that no menu opens
       assert.equal(await menuOpen(ui), false, 'a path that does not exist is no link');
+      await ui(`new Promise((r) => window.__term.write(${JSON.stringify(`\x1b]8;;${fileUrl('elsewhere.example')}\x07other-host\x1b]8;;\x07\r\n`)}, r))`);
+      await pressAt('other-host');
+      await sleep(200); // nothing to wait for: that no menu opens
+      assert.equal(await menuOpen(ui), false, "another computer's file is not opened here");
       assert.deepEqual(files, [`open ${path.join(dir, 'a.txt')}`, `show ${run}`]);
     } finally {
       Object.assign(electron.shell, { openPath, showItemInFolder });
