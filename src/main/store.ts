@@ -14,9 +14,7 @@
 //     tasks.json             the project's tasks: { next, list: [{ n, name, named, branch, folder,
 //                            copies: [{ repo, worktree, branch, base, folder }], home, closed, closedAt }] }; one
 //                            without copies works in a folder of the project (tasks.md); name "New Task" and named
-//                            unset until the agent or the human names it. The app runs on a free port the agent picks,
-//                            no offset of Kulisa's
-
+//                            unset until the agent or the human names it
 //     <n>/                   a task (TaskStore): profiles.json (what it has of its project's profiles: id, sites'
 //                            zoom, closed), layout.json (the window's grid), agent.json (its agents' conversations,
 //                            to resume and read them), terminals.json (its island's tabs), and a copy of a profile's

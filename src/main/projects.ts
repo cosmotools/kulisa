@@ -89,11 +89,11 @@ class Project {
   // The task's own worktree of the default repository, made on demand (the agent's task_worktree) when it reaches
   // code: a git worktree on a branch of a slug of the task's name (worktrees.ts), beside the repository
   // (<repo>@<branch>) for a single-repo project, else under the task's folder of copies
-  // (<projects' home>/<project>@<task>/<repo>/, so a repository added later goes beside it). Idempotent: the same copy
-  // when it is there already. The default repository must be in git with a commit; otherwise the task keeps working in
+  // (<projects' home>/<project>@<branch>/<repo>/, so a repository added later goes beside it). Idempotent: the same copy
+  // when it is there already (Task.ownCopy, the one it works in, whatever the default is now). The default repository must be in git with a commit; otherwise the task keeps working in
   // the project's folder. The default repository's Copy, or { error }.
   async ensureWorktree(task: Task): Promise<Result<Copy>> {
-    const have = task.entry.copies?.find((c) => c.repo === this.folder);
+    const have = task.ownCopy;
     if (have) return have;
     await this.checkGit();
     if (this.git !== 'ok') return { error: this.git === 'no-commit' ? `${this.folder} has no git commit yet to branch from` : `${this.folder} is not in git` };
@@ -101,24 +101,25 @@ class Project {
     // Named: a slug of the task's name; still "New Task": task-<n> (a later task_rename renames the branch).
     const label = task.entry.named ? task.name : `task-${task.n}`;
     const branch = await freeBranch([this.folder], label, { beside });
-    const home = beside ? null : (task.entry.home ??= freeFolder(path.join(this.shell.projectsHome, `${slugOf(this.name, 'project')}@${slugOf(label, `task-${task.n}`)}`)));
-    const copies = (task.entry.copies ??= []);
+    const home = beside ? null : task.entry.home ?? freeFolder(path.join(this.shell.projectsHome, `${slugOf(this.name, 'project')}@${branch}`));
+    const copies = task.entry.copies ?? [];
     try {
       const c = await createWorktree(this.folder, branch, home && path.join(home, copyName(copies, this.folder)), this.shell.agentFiles);
-      copies.push(c);
-      task.entry.branch = branch;
-      task.entry.folder = c.folder;
+      Object.assign(task.entry, { copies: [...copies, c], branch, folder: c.folder }, home && { home });
       this.save();
       return c;
-    } catch (e) { return { error: (e as GitError).stderr || (e as Error).message }; }
+    } catch (e) {
+      if (home && !task.entry.home) fs.rmSync(home, { recursive: true, force: true }); // made for it: nothing left behind
+      return { error: (e as GitError).stderr || (e as Error).message };
+    }
   }
-  // Another of its repositories added to a task (Task.addRepository): copied on the task's branch (or the next free
-  // name there) into its folder of copies, <projects' home>/<project's name>@task-<n>/ (a folder the human sees: the
-  // name, not the id). The copy, or { error }.
+  // Another of its repositories added to a task that has its own worktree (Task.addRepository): copied on the task's
+  // branch (or the next free name there) into its folder of copies (ensureWorktree), made now when its own worktree went
+  // beside its repository, the project having had one repository then. The copy, or { error }.
   async addCopy(task: Task, repo: string): Promise<Result<Copy>> {
     const { entry } = task;
-    entry.home ??= freeFolder(path.join(this.shell.projectsHome, `${slugOf(this.name, 'project')}@task-${task.n}`));
-    const branch = await freeBranch([repo], entry.branch ?? `task-${task.n}`);
+    entry.home ??= freeFolder(path.join(this.shell.projectsHome, `${slugOf(this.name, 'project')}@${entry.branch}`));
+    const branch = await freeBranch([repo], entry.branch!);
     try {
       const c = await createWorktree(repo, branch, path.join(entry.home, copyName(entry.copies!, repo)), this.shell.agentFiles);
       entry.copies!.push(c);

@@ -173,8 +173,16 @@ export default (test: Test) => {
 
     // It makes its own worktree, naming the task in the same call (task_worktree's name, since it is still "New Task"):
     // the tab and the branch take the name, the folder becomes the worktree; the project's folder stays the human's.
-    const wt = `${project}@feature-x`;
-    assert.match((await call('task_worktree', { name: 'Feature-X' })).text, /works in its own worktree .*project@feature-x, on branch feature-x/);
+    // The Resources island: the main working tree until it has its own worktree, then the worktree on its branch.
+    const resources = () => ui(`[...document.querySelectorAll('#resources .resource')].map((r) => r.textContent.trim())`);
+    assert.deepEqual(await resources(), ['projectmain working tree']);
+    // Two of its agents at once (each a call) get the one worktree, not one each.
+    const wt = `${project}@feature-x`, trees = () => git(project, 'worktree', 'list').split('\n').length, before = trees();
+    const both = await Promise.all([call('task_worktree', { name: 'Feature-X' }), call('task_worktree', {})]);
+    for (const r of both) assert.match(r.text, /works in its own worktree .*project@feature-x, on branch feature-x/);
+    assert.equal(trees(), before + 1, 'one worktree');
+    await waitFor(async () => JSON.stringify(await resources()) === '["projectbranch feature-x"]');
+    assert.equal(await ui(`kulisa.invoke('task:open-folder', { key: '${task.key}', folder: '/' })`), undefined, 'only a folder of the task');
     await waitFor(async () => (await ui(`${taskTab(2)}.querySelector('.name').textContent`)) === 'Feature-X');
     assert.equal(task.name, 'Feature-X');
     assert.equal(task.entry.named, true);
@@ -188,11 +196,6 @@ export default (test: Test) => {
     assert.ok(!fs.existsSync(path.join(wt, '.kulisa')), 'nothing of Kulisa in the folder');
     if (hasDirenv) assert.equal(execFileSync('direnv', ['exec', wt, 'sh', '-c', 'echo $FROM_ENVRC'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim(), `envrc of ${wt}`);
     assert.deepEqual([tasksFile().list[1].name, tasksFile().list[1].named], ['Feature-X', true]);
-    // Named: no naming note is injected into prompts any more.
-    const prompt = () => new Promise<string>((r) => http.request(`${task.env().KULISA_URL}/hooks/prompt`, { method: 'POST' }, (res) => {
-      let body = ''; res.on('data', (d) => { body += d; }); res.on('end', () => r(body));
-    }).end('{}'));
-    assert.equal(await prompt(), '{}', 'no naming note in prompts');
     await shot(shell, path.join(root, 'task.png'));
   });
 
@@ -1593,7 +1596,7 @@ export default (test: Test) => {
     const first = shell.task;
     // The Resources island (Resources.vue): each row its label, its branch line (or 'main working tree'), and whether it
     // can be removed (an added repository's worktree can; the main tree and the task's own worktree cannot).
-    const rows = () => ui(`[...document.querySelectorAll('#resources .resource')].map((r) => [r.querySelector('.label').textContent, r.querySelector('.meta').textContent, !!r.querySelector('.danger')])`);
+    const rows = () => ui(`[...document.querySelectorAll('#resources .resource')].map((r) => [r.querySelector('.label').textContent, r.querySelector('small').textContent, !!r.querySelector('.remove')])`);
     const copyOf = (name: string) => first.entry.copies.find((c) => path.basename(c.repo) === name).folder;
     // At open: the project's main working tree (the human's folder), no worktree of its own yet (worktree-on-demand).
     assert.equal(first.folder, api, 'the main working tree until it makes its own');
@@ -1683,12 +1686,12 @@ export default (test: Test) => {
     await waitFor(() => !fs.existsSync(home));
     assert.equal(git(web, 'branch', '--list', 'checkout') + git(api, 'branch', '--list', 'checkout'), '');
     ctx.asked.length = 0;
-    // Back on task-1, shown again: the human removes its web by the Resources island's Remove (nothing uncommitted in
+    // Back on task-1, shown again: the human removes its web by the Resources island's 🗑 (nothing uncommitted in
     // it: not asked); its own worktree's row has no Remove.
     await ui(`kulisa.invoke('task:show', '${first.key}')`);
     await waitFor(() => shell.task === first);
     await waitFor(async () => (await rows()).length === 2);
-    await ui(`[...document.querySelectorAll('#resources .resource')].find((r) => r.querySelector('.label').textContent === 'web').querySelector('.danger').click()`);
+    await ui(`[...document.querySelectorAll('#resources .resource')].find((r) => r.querySelector('.label').textContent === 'web').querySelector('.remove').click()`);
     await waitFor(() => !fs.existsSync(webCopy));
     await waitFor(async () => (await rows()).length === 1);
     assert.deepEqual(await rows(), [['api', 'branch task-1', false]]);

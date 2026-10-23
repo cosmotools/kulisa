@@ -6,17 +6,11 @@ import { computed } from 'vue';
 import Icon from '../Icon.vue';
 import ProjectIcon from '../ProjectIcon.vue';
 import { projectColor } from '../../lib/project-color';
+import { taskLine } from '../../lib/common';
 import type { ProjectEntry, ProjectTask } from '../../../shared/types';
 
 const { p } = defineProps<{ p: ProjectEntry }>();
 const tasks = computed(() => [...p.tasks.filter((t) => !t.closed), ...p.tasks.filter((t) => t.closed)]); // closed: the last first (main)
-// When it was closed, as a person says it.
-function ago(at?: number) {
-  if (!at) return '';
-  const m = Math.round((Date.now() - at) / 60000);
-  return m < 1 ? 'just now' : m < 60 ? `${m} min ago` : m < 60 * 24 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 60 / 24)} days ago`;
-}
-const line = (t: ProjectTask) => [t.branch && t.branch !== t.name && t.branch, t.closed ? ago(t.closedAt) : ''].filter(Boolean).join(' · ');
 const newTask = () => kulisa.invoke('project:open', { id: p.id });
 const open = (t: ProjectTask) => { if (t.closed) void kulisa.invoke('project:open', { id: p.id, task: t.n }); };
 const remove = (t: ProjectTask) => kulisa.invoke('task:delete-closed', { project: p.id, n: t.n });
@@ -31,7 +25,7 @@ const remove = (t: ProjectTask) => kulisa.invoke('task:delete-closed', { project
       <li v-for="t in tasks" :key="t.n"><div class="item" :class="{ open: !t.closed }" :data-task="`${p.id}/${t.n}`" role="button"
         :tabindex="t.closed ? 0 : -1" :aria-disabled="!t.closed" :title="t.name"
         @click="open(t)" @keydown.enter.space.prevent="open(t)" @keydown.delete="t.closed && remove(t)">
-        <span class="text"><span class="label">{{ t.name }}</span><small>{{ line(t) }}</small></span>
+        <span class="text"><span class="label">{{ t.name }}</span><small>{{ taskLine(t) }}</small></span>
         <kbd v-if="!t.closed">open</kbd><kbd v-else-if="t.merged">merged</kbd>
         <button v-if="t.closed" type="button" class="remove icon quiet small" tabindex="-1" aria-label="Delete Task…" title="Delete Task…" @click.stop="remove(t)"><Icon name="i-trash" /></button>
       </div></li>

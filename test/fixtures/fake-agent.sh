@@ -17,5 +17,5 @@ case "$1 $2" in
     printf '{"loggedIn":true,"email":"%s"}\n' "$(cat "$FAKE_CONFIG_DIR/account")"; exit;;
   "auth logout") rm -f "$FAKE_CONFIG_DIR/account"; echo "$FAKE_CONFIG_DIR" >> "$FAKE_LOGOUTS"; exit;;
 esac
-echo "fake agent in $PWD, ports + $KULISA_PORT_OFFSET, config [$FAKE_CONFIG_DIR]"
+echo "fake agent in $PWD, config [$FAKE_CONFIG_DIR]"
 exec cat

@@ -8,21 +8,15 @@ import ButtonMenu from './menu/ButtonMenu.vue';
 import { store } from '../lib/store';
 import { dialog } from '../lib/dialogs';
 import { projectColor } from '../lib/project-color';
-import { lastWorked, withKeys } from '../lib/common';
+import { lastWorked, taskLine, withKeys } from '../lib/common';
 import type { MenuItem } from '../lib/menu';
-import type { ProjectEntry, ProjectTask } from '../../shared/types';
-function ago(at?: number) {
-  if (!at) return '';
-  const m = Math.round((Date.now() - at) / 60000);
-  return m < 1 ? 'just now' : m < 60 ? `${m} min ago` : m < 60 * 24 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 60 / 24)} days ago`;
-}
-const sub = (t: ProjectTask) => [t.branch && t.branch !== t.name && t.branch, t.closed ? ago(t.closedAt) : ''].filter(Boolean).join(' · ');
+import type { ProjectEntry } from '../../shared/types';
 // A project's rows: its tasks (open first, then closed last-first), each opened (an open one shown, a closed one again),
 // then New Task.
 function projectItems(p: ProjectEntry): MenuItem[] {
   const tasks = [...p.tasks.filter((t) => !t.closed), ...p.tasks.filter((t) => t.closed)];
   return [
-    ...tasks.map((t): MenuItem => ({ label: t.name, sub: sub(t), title: t.name,
+    ...tasks.map((t): MenuItem => ({ label: t.name, sub: taskLine(t), title: t.name,
       run: () => (t.closed ? kulisa.invoke('project:open', { id: p.id, task: t.n }) : kulisa.invoke('task:show', `${p.id}/${t.n}`)),
       remove: { label: 'Delete Task…', run: () => (t.closed ? kulisa.invoke('task:delete-closed', { project: p.id, n: t.n }) : kulisa.invoke('task:delete', `${p.id}/${t.n}`)) } })),
     // project:open with no task loads the project (open or not) and makes it a new task; task:new needs it already open.

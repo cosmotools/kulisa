@@ -262,8 +262,10 @@ build several features of one project at once.
 - **Without git** (or before a first commit) a task works right in the project's folder: there is nothing to copy it
   with. A second open task there is made only after a question ("two agents may get in each other's way").
 - **Its name** on its tab is the one it was given — by its agent (`task_rename`) or the human (Rename… in its tab's
-  menu, or a double click on its tab); the branch takes the name too (`git branch -m`, `-2` when the branch is taken),
-  while the folder stays `<repo>@task-<n>`, not moved under a running agent. Until it is named it is "New Task", and
+  menu, or a double click on its tab), a label a person reads ("Fix header": any one line with a letter or a digit,
+  `labelError` in `names.ts`; a project's or a profile's name keeps to the stricter rule, as it becomes a folder or an
+  id). The branch takes a slug of it (`fix-header`; `git branch -m`, `-2` when the branch is taken), while the folder
+  stays where the worktree was made (`<repo>@<its branch then>`), not moved under a running agent. Until it is named it is "New Task", and
   the tab shows instead its first agent conversation's name when the agent keeps one of its own: the agent's auto-title
   for the conversation, read from its transcript at a turn's end and at session start (`Task.noteAutoTitle`, the agent's
   `title`; [transcripts.md](transcripts.md)). An agent without such a title (Codex) leaves it "New Task" until named.
@@ -272,7 +274,8 @@ build several features of one project at once.
   the auto-title and is never a guess from the prompt: the auto-title is shown only, never written as the task's name
   or made into a branch slug.
 
-Example: the project `~/IdeaProjects/myshop`, its second task, named "Checkout-redesign" by its agent:
+Example: the project `~/IdeaProjects/myshop`, its second task, its worktree made while it was still "New Task", then
+named "Checkout redesign" by its agent:
 
 ```
 ~/IdeaProjects/myshop/          the project's own folder: the human's
@@ -286,10 +289,10 @@ each a row with its own actions (`Resources.vue`, in the terminal island `Termin
 task's info). What it shows now:
 
 - A **worktree** per repository the task has made its own (`task_worktree` for the default one, `task_add_repository`
-  for another of the project's): its name and branch, with **Open folder**. A worktree made for an added repository is
-  removed here (**Remove**, `task_remove_repository`); the task's own worktree goes only with the task.
+  for another of the project's): its name and branch; a click on the row opens its folder. A worktree made for an
+  added repository is removed with its 🗑 (`task_remove_repository`); the task's own worktree goes only with the task.
 - The **main working tree** until the task makes its own worktree for the default repository: the project's folder (the
-  human's), with **Open folder**, never removed (every task shares it). A task on a folder without git stays here.
+  human's), its folder opened with a click, never removed (every task shares it). A task on a folder without git stays here.
 
 More kinds grow over time (the app's URL, a pull request). Ownership decides the actions and the cleanup: the main
 working tree is the human's and is never removed; a worktree the task made is the task's and goes when the task is
@@ -343,7 +346,7 @@ to the human; the window's IPC (`ipc/`) and the MCP tools are handles on it:
 | Read what was said and done in the task before | its terminal, scrolled back | `task_history` ([transcripts.md](transcripts.md)) | `historyPart` (`history.ts`) |
 | Delete a task | Delete Task… in its tab's menu; a closed one's 🗑 in the bar's + | none: it deletes work and sign-ins, the human's to decide | `askDeleteTask`, `deleteTask`, `deleteClosedTask` (`projects.ts`) |
 | Show a task | a click on its tab, of any project | none: what the human looks at is theirs | `AppWindow.show` (`window.ts`) |
-| Open a resource's folder | Open folder on its row in the Resources island | none: the agent opens folders through its own tools | `task:open-folder` (`ipc/tasks.ts`) |
+| Open a resource's folder | a click on its row in the Resources island | none: the agent opens folders through its own tools | `task:open-folder` (`ipc/tasks.ts`) |
 | Make the task's worktree | none: its agent makes it before writing code | `task_worktree` | `Task.makeWorktree`, `Project.ensureWorktree` |
 | Add, clone, make the default, remove a repository | the projects' manager | none: what the project is made of is the human's | `addRepo`, `cloneRepo`, `defaultRepo`, `removeRepo` (`projects.ts`) |
 | Add a project's repository to a task | Add Repository in its tab's menu | `task_add_repository`, once the human agreed in the conversation | `Task.addRepository`, `Project.addCopy` |
@@ -586,7 +589,7 @@ Why so, and what is not chosen:
 Opening a task creates nothing: its terminal starts in the project's main working tree (the human's folder), its tab
 reads "New Task", its profiles are listed closed. The worktree below is made on demand, when the agent calls
 `task_worktree` (`Task.makeWorktree`, `Project.ensureWorktree`; idempotent, one worktree per task shared by its
-agents) — before it writes code, unless the human wants it to work right in the folder. The agent may pass the task's
+agents: the task makes its copies one at a time, so two agents calling it at once get the one worktree) — before it writes code, unless the human wants it to work right in the folder. The agent may pass the task's
 name to `task_worktree` to name it at the same time when it is still "New Task" (the branch then takes a slug of that
 name, naming and the worktree in one call). A task on a folder without git has no worktree and works right in the
 project's folder.
@@ -595,7 +598,8 @@ project's folder.
    starts one: from the remote's default branch after `git fetch` (`origin/main`), else from `HEAD`. Uncommitted
    changes of the project's folder are not carried. The branch is a slug of the task's name (`fix-header`), or
    `task-<n>` until it is named, one name free in every repository (`-2`, `-3` if taken), the copy next to its
-   repository (or, with several repositories in the task, in `~/KulisaProjects/<project>@task-<n>/`):
+   repository (or, with several repositories in the project, in `~/KulisaProjects/<project>@<branch>/`, where a
+   repository added later goes beside it; a repository is added only once the task has its own worktree):
    `git worktree add --no-track -b <branch> <copy> <start>`. `--no-track`: pushing the task's branch
    never goes to the default branch.
 2. **Files outside git** are copied from the project's folder when git ignores them and they are untracked: `.env*`
@@ -848,7 +852,7 @@ rm -rf ~/.config/Kulisa/projects/myshop   # all its tasks with their profiles' c
 | `src/renderer/components/TaskTab.vue`, `TaskRename.vue` | a task's tab in the bar, its menu, the Rename Task dialog |
 | `src/renderer/components/AgentPicker.vue`, `settings/AgentPage.vue`, `AgentList.vue`, `InstallProgress.vue` | choosing an agent when the one to open is not there; an agent's page in Settings, its details and accounts; the radios of agents with Install that choosing shows; an install's line and its Details |
 | `src/main/favicons.ts` | a project's icon: its site's favicon in its code (Projects, "Each project has a color and an icon") |
-| `src/shared/names.ts` | the one rule for names (projects, tasks, profiles) and slugs |
+| `src/shared/names.ts` | the rules for names (projects and profiles; a task's, a label) and slugs |
 | `src/main/accounts.ts`, `src/renderer/components/AccountSignIn.vue` | the agents' accounts, one store; a new one's sign-in in Settings (a project's page, or Agents) |
 | `src/renderer/lib/grid.ts`, `components/Grid.vue` | building a task's grid; the slide (a view transition) |
 | `test/tasks.ts` | the tests; `test/restart-tasks.ts` after a restart; `test/unit/agents.test.ts` |

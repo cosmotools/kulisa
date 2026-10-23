@@ -1,14 +1,16 @@
-// The one rule for names (names.ts): a readable label (spaces allowed), the characters of an email address, letters
-// of any language; slugs for ids.
+// The rules for names (names.ts): the characters of an email address, letters of any language; a task's, a label;
+// slugs for ids.
 import { test } from 'node:test';
 import assert from 'assert/strict';
-import { nameError, slugOf } from '../../src/shared/names.ts';
+import { nameError, labelError, slugOf } from '../../src/shared/names.ts';
 import { isLocal, loginAllowed } from '../../src/main/local.ts';
 import { takes, details } from '../../src/main/cookie-sync.ts';
 
-test('names: a readable label with spaces, the characters of an email address, letters of any language', () => {
-  for (const ok of ['ann+test@shop.com', 'ann_lee.admin', 'Анна', '花子', 'Fix header', 'x'.repeat(64)]) assert.equal(nameError(ok), null, ok);
-  for (const bad of ['', '@', '-', '_x', '-x', '.x', ' x', 'Sam · seller', 'a/b', '..', '.', 'x'.repeat(65)]) assert.ok(nameError(bad), bad);
+test("names: the characters of an email address, letters of any language; a task's, any one line with a letter or a digit", () => {
+  for (const ok of ['ann+test@shop.com', 'ann_lee.admin', 'Анна', '花子', 'x'.repeat(64)]) assert.equal(nameError(ok), null, ok);
+  for (const bad of ['', '@', '-', '_x', '-x', '.x', 'Ann admin', 'Sam · seller', 'a/b', '..', '.', 'x'.repeat(65)]) assert.ok(nameError(bad), bad);
+  for (const ok of ['Fix header', 'Checkout: 3-D Secure (EU)', 'Анна', 'x'.repeat(64)]) assert.equal(labelError(ok), null, ok);
+  for (const bad of ['', '--', '…', 'a\nb', 'a\tb', 'x'.repeat(65)]) assert.ok(labelError(bad), bad);
   assert.equal(slugOf('Fix header', 'p'), 'fix-header');
   assert.equal(slugOf('花子@Shop.com', 'p'), '花子-shop-com');
 });

@@ -26,9 +26,9 @@ async function save() {
 
 <template>
   <Modal id="taskrename" ref="modal" title="Rename Task" form form-id="taskform" :errors="error ? { name: error } : undefined" @submit="save">
-    <FieldRoot class="field" name="name"><FieldLabel>Name:</FieldLabel><FieldControl id="taskname" ref="field" data-name maxlength="64"
-      placeholder="e.g. checkout-redesign" spellcheck="false" /><FieldError class="error" /></FieldRoot>
-    <p class="hint">What the task is about. Its git branch takes the name too; its folder stays. The agent names it as well,
+    <FieldRoot class="field" name="name"><FieldLabel>Name:</FieldLabel><FieldControl id="taskname" ref="field" maxlength="64"
+      placeholder="e.g. Fix header" spellcheck="false" /><FieldError class="error" /></FieldRoot>
+    <p class="hint">What the task is about. Its git branch takes it too (fix-header); its folder stays. The agent names it as well,
       once it knows.</p>
     <template #footer>
       <DialogClose>Cancel</DialogClose><button id="taskrenamed" class="primary">Rename</button>

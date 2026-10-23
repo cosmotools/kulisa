@@ -36,7 +36,8 @@
 //   prompt(text)             the arguments that start it with a first message (the task handed to it: tasks.ts, handOver)
 //   conversation(transcript) its transcript read as the task's history (task_history; the entries: transcripts.ts): { entries,
 //                            plan, stopped, memory }; without, its runs give the history nothing but Kulisa's part
-//   title(transcript)        the agent's own auto-title for the conversation, from wherever it keeps one, or null: the
+//   title(transcript)        the agent's own auto-title for the conversation, from wherever it keeps one, or null (none
+//                            in its transcript's end, where it is read: not blocking, the whole may be hundreds of MB): the
 //                            conversation's and (while the task is unnamed) the task's shown name until one is given
 //                            explicitly (conversation_rename, task_rename); without, the tab stays the default
 //   forget(ctx)              a task's copy is deleted: everything the agent keeps of its folder goes (conversations,
@@ -83,7 +84,7 @@ interface Agent {
   trust?: { has: (where: Where, folder: string) => boolean; set: (where: Where, folder: string) => boolean };
   forget?: (ctx: ForgetContext) => boolean;
   conversation?: (transcript: string) => Conversation;
-  title?: (transcript: string) => string | null;
+  title?: (transcript: string) => Promise<string | null>;
   hooks?: Hook[];
   lacks?: Partial<Record<Capability, string>>;
   prompt?: (text: string) => string[];

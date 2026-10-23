@@ -4,7 +4,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { writeFileAtomic } from '../store.ts';
-import { cut, ownTool, lines } from '../kulisa-plugin/transcripts.ts';
+import { cut, ownTool, lines, tailLines } from '../kulisa-plugin/transcripts.ts';
 import type { Conversation, Entry } from '../kulisa-plugin/transcripts.ts';
 import { readJSON, headLines, rewriteLines, writeChanged } from './files.ts';
 import { KULISA_ASKS, hookCommand, hookSeconds } from './agent.ts';
@@ -77,7 +77,7 @@ const claude: Agent = {
   },
   forget: (ctx) => forgetClaude(ctx),
   conversation: claudeConversation,
-  title: (transcript) => claudeTitle(transcript),
+  title: claudeTitle,
   // `claude [prompt]`: its interactive mode, the prompt sent (its --help).
   prompt: (text) => [text],
   // Its voice mode (needs a Claude.ai account), on for Kulisa's sessions only (not the user's settings): space held
@@ -93,11 +93,11 @@ const claude: Agent = {
 };
 
 // Claude Code's own name for the conversation, the one its /status shows: an "ai-title" line in the transcript, which
-// it regenerates as the conversation goes, so the last non-empty one wins. A name derived from the folder
-// (its sessions file, nameSource "derived") is not a real title and is not read here.
-function claudeTitle(transcript: string): string | null {
+// it writes again every few records as the conversation goes, so the last non-empty one in the transcript's end wins. A
+// name derived from the folder (its sessions file, nameSource "derived") is not a real title and is not read here.
+async function claudeTitle(transcript: string): Promise<string | null> {
   let title: string | null = null;
-  for (const r of lines(transcript)) if (r.type === 'ai-title' && typeof r.aiTitle === 'string' && r.aiTitle.trim()) title = r.aiTitle.trim();
+  for (const r of await tailLines(transcript, 1 << 20)) if (r.type === 'ai-title' && typeof r.aiTitle === 'string' && r.aiTitle.trim()) title = r.aiTitle.trim();
   return title;
 }
 
