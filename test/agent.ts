@@ -837,12 +837,16 @@ export default (test: Test) => {
   test('agent: a request with no answer yet is listed as pending at once', async ({ shell, call }) => {
     const elon = shell.profiles.get(idOf('Elon.buyer')), before = elon.active;
     const tab = (await call('browser_tab_new', { profile: 'Elon.buyer', url: `${SITE}/pending` })).text.match(/Opened tab (\w+)/)[1];
-    // The request to /hang never gets an answer: listing it must not wait for one (it held the agent's turn for minutes).
-    const listed = call('browser_network_requests', { profile: 'Elon.buyer', tab });
-    const r = await Promise.race([listed, sleep(5000).then((): null => null)]);
-    assert.ok(r, 'answered within 5 s');
-    assert.match(r.text, /GET .*\/hang → pending/);
-    await call('browser_tab_close', { profile: 'Elon.buyer', tab });
+    try {
+      // Loaded again: what a new tab asks for before Playwright is attached to it is not listed (docs/profiles.md).
+      await call('browser_navigate', { profile: 'Elon.buyer', tab, url: `${SITE}/pending` });
+      // The request to /hang never gets an answer: listing it must not wait for one (it held the agent's turn for minutes).
+      await waitFor(async () => {
+        const r = await Promise.race([call('browser_network_requests', { profile: 'Elon.buyer', tab }), sleep(5000).then((): null => null)]);
+        assert.ok(r, 'answered within 5 s');
+        return /GET .*\/hang → pending/.test(r.text);
+      });
+    } finally { await call('browser_tab_close', { profile: 'Elon.buyer', tab }); }
     await waitFor(() => elon.active === before);
   });
 
