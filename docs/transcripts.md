@@ -81,7 +81,9 @@ The cut's size is one constant, to be tuned on real handoffs.
 **The conversation's name**: apart from the history, Claude Code's own auto-title is read by the entry's `title`
 (`claudeTitle`): the last non-empty `aiTitle` of the `ai-title` records in the transcript's last MB, read without
 blocking (it writes one again every few records as the conversation goes, and a transcript runs to hundreds of MB,
-too much to read whole at every turn's end; none there keeps the title read before). It names the conversation's tab, and the task's while the task is unnamed, until a name is given
+too much to read whole at every turn's end; none there keeps the title read before). It is read at a session's start
+and at a turn's end, then again 5, 15 and 30 s later until it changes (`Task.followAutoTitle`): an agent may name the
+session only once its turn is over. It names the conversation's tab, and the task's while the task is unnamed, until a name is given
 explicitly (`conversation_rename`, `task_rename`; [tasks.md](tasks.md)). A name derived from the folder (Claude Code's
 sessions file, `nameSource: "derived"`) is not a title and is not read. A unit test on a transcript made here catches
 the field being renamed in a new version.
@@ -114,8 +116,13 @@ The reader (`codexConversation`, `agents/codex.ts`), record by record:
 | reasoning | `payload.type: "reasoning"` (`encrypted_content`) | | left out |
 | the rest | `session_meta`, `turn_context`, `world_state`, `token_usage_record`, every other `event_msg` (`item_completed`, with `McpToolCall`s, repeats what the scripts printed) | | left out |
 
-No memory: Codex keeps its own in a database of its format (`memories_*.sqlite`). No auto-title either (its `session_meta`
-holds only the cwd and id), so its entry has no `title` and a task on Codex keeps "New Task" until it is named.
+No memory: Codex keeps its own in a database of its format (`memories_*.sqlite`).
+
+**The conversation's name** (`codexTitle`): not in the transcript, but in `session_index.jsonl` of its `CODEX_HOME`
+(the folder holding the transcript's `sessions/`): a line `{ id, thread_name, updated_at }` appended each time Codex
+names a session, a title it generates seconds after a turn is over, or `/rename`; the session's last line wins, found
+by the session id its SessionStart hook reported (none without its hooks: then no title). Used as Claude Code's is
+(above); a unit test on an index made here in its format.
 
 ## The code
 

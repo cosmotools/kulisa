@@ -267,8 +267,9 @@ build several features of one project at once.
   id). The branch takes a slug of it (`fix-header`; `git branch -m`, `-2` when the branch is taken), while the folder
   stays where the worktree was made (`<repo>@<its branch then>`), not moved under a running agent. Until it is named it is "New Task", and
   the tab shows instead its first agent conversation's name when the agent keeps one of its own: the agent's auto-title
-  for the conversation, read from its transcript at a turn's end and at session start (`Task.noteAutoTitle`, the agent's
-  `title`; [transcripts.md](transcripts.md)). An agent without such a title (Codex) leaves it "New Task" until named.
+  for the conversation, read where its agent keeps it at session start and after a turn's end (`Task.followAutoTitle`, the agent's
+  `title`; [transcripts.md](transcripts.md)): Claude Code's and Codex's. An agent without such a title leaves it "New
+  Task" until named.
   The task is not nagged into a name: `task_rename` is a tool the agent uses when it wants to, mentioned once in the
   profiles skill and the MCP server's instructions, never injected turn after turn. A name given explicitly wins over
   the auto-title and is never a guess from the prompt: the auto-title is shown only, never written as the task's name

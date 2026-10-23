@@ -54,7 +54,7 @@ const handlers: Record<HookEvent, (task: Task, t: TaskTerminal | null, input: In
   prompt: state('working'),
   waiting: state('waiting'),
   'tool-done': state('working', (t) => t.state === 'waiting'),
-  stop: (task, t) => { if (t) { task.setState(t, 'done'); void task.noteAutoTitle(t); } return {}; }, // the auto-title is in the transcript by now
+  stop: (task, t) => { if (t) { task.setState(t, 'done'); task.followAutoTitle(t); } return {}; },
   interrupt: state(null),
   'session-end': state(null, (t) => t.state !== 'done'),
 };
