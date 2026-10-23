@@ -1,8 +1,10 @@
 # The agent's tools: how they are designed
 
-The Kulisa plugin's MCP tools (`mcp-server.ts`) are how any agent works in the profiles, the tasks and the terminals.
-This file says what makes a tool right, and why. How each part works: `docs/profiles.md` (What the agent does;
-Actions) and the profiles skill (`src/agent/skills/profiles/SKILL.md`).
+The Kulisa plugin's MCP tools are how any agent works in the profiles, the tasks and the terminals. They are in
+`tools/`, a file a group (`profile.ts`, `browser.ts`, `task.ts`, `terminal.ts`; what they share, `handles.ts`), a new
+tool in its group's file; the server that gathers them is `mcp-server.ts`. This file says what makes a tool right, and
+why. How each part works: `docs/profiles.md` (What the agent does; Actions) and the profiles skill
+(`src/agent/skills/profiles/SKILL.md`).
 
 ## Principles
 

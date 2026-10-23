@@ -15,7 +15,7 @@ import { AGENT_PACKAGES } from '../src/main/app.ts';
 const CLAUDE_PLUGIN = path.join(AGENT_PACKAGES, 'claude-plugin');
 import { MARK } from '../src/main/kulisa-plugin/ghost.ts';
 import { hookCommand } from '../src/main/agents/agent.ts';
-import { highlights } from '../src/main/kulisa-plugin/mcp-server.ts';
+import { highlights } from '../src/main/kulisa-plugin/tools/browser.ts';
 import { shownMenu } from '../src/main/page-menu.ts';
 import type { Test } from './run.ts';
 import type { StoredProfile } from '../src/main/profile-store.ts';

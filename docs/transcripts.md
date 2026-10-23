@@ -7,7 +7,7 @@ the transcripts' formats are the agents' own and undocumented.
 
 ## What the agent gets
 
-**`task_history(conversation, part)`**, a tool of Kulisa's MCP server (`mcp-server.ts`, `history.ts`), gives a text
+**`task_history(conversation, part)`**, a tool of Kulisa's MCP server (`tools/task.ts`, `history.ts`), gives a text
 in parts of about 40,000 characters (10,000 tokens: under what agents take from one tool's result). Part 1 says how
 many there are; the agent calls the next ones in turn. The whole text is made at part 1 and kept (in memory, with the
 task) for the next parts, so they stay the same while the agent reads them: its own transcript grows meanwhile.
@@ -125,5 +125,5 @@ version that adds one is read there.
 | `src/main/kulisa-plugin/transcripts.ts` | the entries a transcript is read as (`human`, `agent`, `call`, `result`, `error`, `summary`), its plan, where it stopped, its memory; what is cut |
 | `src/main/agents/claude.ts`, `codex.ts` | each agent's reader (`claudeConversation`, `codexConversation`), its entry's `conversation` |
 | `src/main/worktrees.ts` | `progress`: a copy's commits, files not committed, `diff --stat` |
-| `src/main/kulisa-plugin/mcp-server.ts` | the `task_history` tool, and a sentence of the instructions |
+| `src/main/kulisa-plugin/tools/task.ts`, `mcp-server.ts` | the `task_history` tool; a sentence of the instructions |
 | `test/unit/transcripts.test.ts`, `test/agent.ts` | the tests: the reader record by record; the tool's order and parts |

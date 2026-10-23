@@ -136,7 +136,7 @@ function start(options: Options = {}) {
     if (password.length > 500) return { error: 'a password is at most 500 characters' };
     return { secret: shell.secrets.encrypt(password) };
   };
-  // Profiles whose test password is being typed (mcp-server.ts, browser_type_login): ghost.ts shows no text for them.
+  // Profiles whose test password is being typed (kulisa-plugin/tools/browser.ts, browser_type_login): ghost.ts shows no text for them.
   shell.typingSecret = new Set<string>();
   // Settings too: not modal, it is open beside the windows where profiles are made and let go (settings-window.ts).
   shell.profilesChanged = (from) => {

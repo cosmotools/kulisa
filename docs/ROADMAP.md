@@ -33,7 +33,7 @@ moves there over time: what has an issue is removed from here, the issue being t
     default); rights on profiles, when real accounts come (one flag, "view only": reading allowed, clicks and typing
     refused; today the agent's own modes cover test users).
 
-- **Kulisa plugin: more the agent can do in the browsers** (tools in `mcp-server.ts`, each described in its
+- **Kulisa plugin: more the agent can do in the browsers** (tools in `kulisa-plugin/tools/`, each described in its
   `registerTool`; what is built: [profiles.md](profiles.md), "What the agent does"). What else an agent needs comes from using it
   ([src/main/kulisa-plugin/CLAUDE.md](../src/main/kulisa-plugin/CLAUDE.md), "A missing tool shows itself"). Thought of, not built: console and requests since the agent's last action only; a button over the
   pane for the human to say they signed in, for sign-ins that keep the address.
@@ -201,7 +201,7 @@ moves there over time: what has an issue is removed from here, the issue being t
 - **The agent tests calls and voice: a profile's microphone and what it hears**.
   Calls need several people at once, which is what profiles
   are: the buyer calls, the seller hears; mute silences; the sound comes back after a reconnect; voice messages
-  arrive. Tools of the Kulisa plugin (`mcp-server.ts`, any agent), e.g. one for what plays into a profile's
+  arrive. Tools of the Kulisa plugin (`kulisa-plugin/tools/`, any agent), e.g. one for what plays into a profile's
   microphone (an audio file, or a tone) and one for what a profile hears (whether there is sound, its level, when).
   - Per tab, when the agent asks: in that tab `getUserMedia` gets a stream made with WebAudio, and incoming sound
     (`RTCPeerConnection`, `<audio>`) is taken with WebAudio too, by a script put into the page through Playwright over
