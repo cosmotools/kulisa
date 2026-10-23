@@ -82,7 +82,7 @@ function handleHookRequest(task: Task, t: TaskTerminal | null, url: string, req:
 // Where the agent works, for every agent (the MCP server's instructions, and at the session's start): its task, its
 // folder and branch, the project's folder that is the human's, its ports, naming the task (tasks.md).
 function taskContext(task: Task) {
-  const { entry } = task, copies = entry.copies || [];
+  const copies = task.worktrees;
   const name = `Name the task with task_rename once you know what it is about${copies.length ? ' (its branches take the name)' : ''}, ` +
     'silently: never ask the human for a name or mention it. These notes are for you: act on them without recounting them to the human.';
   const shared = task.dirs().filter((d) => !copies.some((c) => c.folder === d));
@@ -107,7 +107,7 @@ function taskContext(task: Task) {
       `profiles' tabs at it with browser_navigate.${more} ${name}`;
   }
   const repos = [...new Set(copies.map((c) => c.repo))];
-  return `This is the Kulisa task "${task.name}": a git worktree of its own, ${task.folder}, on branch ${entry.branch}.${more} The ` +
+  return `This is the Kulisa task "${task.name}": a git worktree of its own, ${task.folder}, on branch ${task.branch}.${more} The ` +
     `project's ${repos.length > 1 ? `folders ${repos.join(', ')} are` : `folder ${repos[0]} is`} the human's: never change ${repos.length > 1 ? 'them' : 'it'} on your own. Asked to merge your work into main ` +
     "there, first check for the human's uncommitted changes (git status) and stop if there are any. " + name +
     ' Run the app under test on a free port you pick (Kulisa assigns none; another task may hold the usual one), through ' +

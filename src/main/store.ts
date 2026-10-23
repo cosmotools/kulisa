@@ -11,10 +11,9 @@
 //                            "github.com/acme/shop" -> an account's id, src/github). What a project is made of is said
 //                            here alone
 //   projects/<id>/
-//     tasks.json             the project's tasks: { next, list: [{ n, name, named, branch, folder,
-//                            copies: [{ repo, worktree, branch, base, folder }], home, closed, closedAt }] }; one
-//                            without copies works in a folder of the project (tasks.md); name "New Task" and named
-//                            unset until the agent or the human names it
+//     tasks.json             the project's tasks: { next, list: [{ n, name, named, resources, closed, closedAt,
+//                            merged }] }; name "New Task" and named unset until the agent or the human names it;
+//                            resources what it has (TaskEntry), the first where it works
 //     <n>/                   a task (TaskStore): profiles.json (what it has of its project's profiles: id, sites'
 //                            zoom, closed), layout.json (the window's grid), agent.json (its agents' conversations,
 //                            to resume and read them), terminals.json (its island's tabs), and a copy of a profile's
@@ -55,11 +54,28 @@ interface ProjectEntry {
 }
 // A task's copy of one repository (worktrees.ts, createWorktree).
 interface Copy { repo: string; worktree: string; branch: string; base: string | null; folder: string }
-// A task in its project's tasks.json.
+// What a task has (docs/tasks.md, The Resources island), the first where it works: the project's folder it opened in
+// (maintree: the human's, kept as it was then, though the project's default may change), until its own worktree takes
+// that place (task_worktree); then the worktrees of the other repositories it added. More kinds come over time.
+type Resource = { kind: 'maintree'; folder: string } | ({ kind: 'worktree' } & Copy);
+// A task in its project's tasks.json. Where it works, its branch and its folder of copies are its resources'.
 interface TaskEntry {
-  n: number; name: string; named?: boolean; branch?: string | null; folder?: string; copies?: Copy[]; home?: string;
+  n: number; name: string; named?: boolean; resources?: Resource[];
   closed?: boolean; closedAt?: number; merged?: boolean;
 }
+type Worktree = Extract<Resource, { kind: 'worktree' }>;
+const worktreesOf = (e: TaskEntry) => (e.resources || []).filter((r): r is Worktree => r.kind === 'worktree');
+// Its own worktree, where it works, once it made one.
+const ownWorktree = (e: TaskEntry) => { const r = e.resources?.[0]; return r?.kind === 'worktree' ? r : null; };
+// Where it works; fallback: its project's folder, for an entry with no resources.
+const folderOf = (e: TaskEntry, fallback: string) => e.resources?.[0]?.folder ?? fallback;
+const branchOf = (e: TaskEntry) => ownWorktree(e)?.branch ?? null;
+// Its folder of copies (<projects' home>/<project>@<branch>/, projects.ts), or null: the folder holding a copy that is
+// not beside its repository (<repo>@<branch>). Its repository's top: the copy's folder is the same subfolder of both.
+const homeOf = (e: TaskEntry) => {
+  const inHome = worktreesOf(e).find((c) => path.dirname(c.worktree) !== path.dirname(path.resolve(c.repo, path.relative(c.folder, c.worktree))));
+  return inHome ? path.dirname(inHome.worktree) : null;
+};
 interface TasksFile { next: number; list: TaskEntry[] }
 // A window as settings.json keeps it: its tasks by key ("<project id>/<n>", tasks.ts) in the bar's order, the shown
 // one.
@@ -240,5 +256,5 @@ function writeFileAtomic(file: string, data: string | Uint8Array, options?: { mo
   } catch (e) { fs.rmSync(tmp, { force: true }); throw e; }
 }
 
-export { Store, newId, copyProfile, writeFileAtomic, readTabs, writeTabs, SESSION_COOKIES_FILE, PROJECT_COLORS };
-export type { SavedTabs, TaskStore, ProjectEntry, TaskEntry, Copy, TaskProfile, TasksFile, Conversation };
+export { Store, newId, copyProfile, writeFileAtomic, readTabs, writeTabs, SESSION_COOKIES_FILE, PROJECT_COLORS, worktreesOf, ownWorktree, folderOf, branchOf, homeOf };
+export type { SavedTabs, TaskStore, ProjectEntry, TaskEntry, Copy, Worktree, TaskProfile, TasksFile, Conversation };

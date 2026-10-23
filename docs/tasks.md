@@ -293,7 +293,12 @@ task's info). What it shows now:
   for another of the project's): its name and branch; a click on the row opens its folder. A worktree made for an
   added repository is removed with its 🗑 (`task_remove_repository`); the task's own worktree goes only with the task.
 - The **main working tree** until the task makes its own worktree for the default repository: the project's folder (the
-  human's), its folder opened with a click, never removed (every task shares it). A task on a folder without git stays here.
+  human's) it opened in, its folder opened with a click, never removed (every task shares it). A task on a folder
+  without git stays here. It is kept as a resource, not worked out from the project: the project's default repository
+  may change while the task works there, and its terminal stays where it is.
+
+The island shows the task's resources as `tasks.json` keeps them, the first where it works (store.ts, `Resource`): its
+folder, its branch and its folder of copies are worked out from them, never kept twice.
 
 More kinds grow over time (the app's URL, a pull request). Ownership decides the actions and the cleanup: the main
 working tree is the human's and is never removed; a worktree the task made is the task's and goes when the task is
@@ -661,10 +666,12 @@ Crashpad/                         Electron's crash dumps (crashReporter, no serv
                                   after a crash; Crashpad prunes them itself (90 days, 128 MB)
 deleted-folders.json              folders to remove at the next start (a session keeps its files open)
 projects/<project id>/            a project's data, by its id (projects.json), gone with the project
-  tasks.json                      { next, current, list: [{ n, name, named, branch, folder (its agent's),
-                                  copies: [{ repo, worktree, branch, base, folder }], home (its folder of copies),
-                                  closed, closedAt }] }; base: the commit a copy started from; name "New Task" and named
-                                  unset until it is named; no copies: it works in the project's main working tree
+  tasks.json                      { next, list: [{ n, name, named, resources, closed, closedAt, merged }] }; name "New
+                                  Task" and named unset until it is named; resources what it has, the first where it
+                                  works: { kind: "maintree", folder } (the project's folder it opened in) until its own
+                                  { kind: "worktree", repo, worktree, branch, base, folder } takes its place, then the
+                                  worktrees of repositories it added; base: the commit a worktree started from. Its
+                                  folder, branch and folder of copies are its resources' (store.ts)
   1/, 2/ …                        a task
     profiles.json                 what it has of its project's profiles, in order: id, sites' zoom, closed
     layout.json                   its grid (dockview)

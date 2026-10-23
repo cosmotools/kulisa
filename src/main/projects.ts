@@ -14,7 +14,8 @@ import { nameError, repoName, slugOf } from '../shared/names.ts';
 import { refused } from '../shared/result.ts';
 import type { Result } from '../shared/result.ts';
 import type { Shell } from './shell.ts';
-import type { ProjectEntry, TaskEntry, Copy, Store } from './store.ts';
+import { worktreesOf, ownWorktree, folderOf, branchOf, homeOf } from './store.ts';
+import type { ProjectEntry, TaskEntry, Copy, Worktree, Store } from './store.ts';
 import type { StoredProfile } from './profile-store.ts';
 import type { ProfileConfig } from './profiles.ts';
 import type { AppWindow, Asker } from './window.ts';
@@ -75,7 +76,7 @@ class Project {
     const agent = this.defaultAgent();
     await this.checkGit();
     const n = this.next;
-    const entry: TaskEntry = { n, name: 'New Task', folder: this.folder };
+    const entry: TaskEntry = { n, name: 'New Task', resources: [{ kind: 'maintree', folder: this.folder }] };
     const data = this.store.taskOf(this, n);
     data.saveProfiles(this.shell.profileStore.of(this.id).map((g) => ({ id: g.id, closed: true })));
     // null: the project has agents and none is the default; a project with none leaves it out: a shell starts.
@@ -90,10 +91,11 @@ class Project {
   // code: a git worktree on a branch of a slug of the task's name (worktrees.ts), beside the repository
   // (<repo>@<branch>) for a single-repo project, else under the task's folder of copies
   // (<projects' home>/<project>@<branch>/<repo>/, so a repository added later goes beside it). Idempotent: the same copy
-  // when it is there already (Task.ownCopy, the one it works in, whatever the default is now). The default repository must be in git with a commit; otherwise the task keeps working in
-  // the project's folder. The default repository's Copy, or { error }.
-  async ensureWorktree(task: Task): Promise<Result<Copy>> {
-    const have = task.ownCopy;
+  // when it is there already (ownWorktree, where it works, whatever the default is now). It takes the main tree's place
+  // as the task's first resource. The default repository must be in git with a commit; otherwise the task keeps
+  // working in the project's folder. Its worktree, or { error }.
+  async ensureWorktree(task: Task): Promise<Result<Worktree>> {
+    const have = ownWorktree(task.entry);
     if (have) return have;
     await this.checkGit();
     if (this.git !== 'ok') return { error: this.git === 'no-commit' ? `${this.folder} has no git commit yet to branch from` : `${this.folder} is not in git` };
@@ -101,33 +103,36 @@ class Project {
     // Named: a slug of the task's name; still "New Task": task-<n> (a later task_rename renames the branch).
     const label = task.entry.named ? task.name : `task-${task.n}`;
     const branch = await freeBranch([this.folder], label, { beside });
-    const home = beside ? null : task.entry.home ?? freeFolder(path.join(this.shell.projectsHome, `${slugOf(this.name, 'project')}@${branch}`));
-    const copies = task.entry.copies ?? [];
+    const had = homeOf(task.entry), copies = worktreesOf(task.entry);
+    const home = beside ? null : had ?? freeFolder(path.join(this.shell.projectsHome, `${slugOf(this.name, 'project')}@${branch}`));
     try {
-      const c = await createWorktree(this.folder, branch, home && path.join(home, copyName(copies, this.folder)), this.shell.agentFiles);
-      Object.assign(task.entry, { copies: [...copies, c], branch, folder: c.folder }, home && { home });
+      const c: Worktree = { kind: 'worktree', ...await createWorktree(this.folder, branch, home && path.join(home, copyName(copies, this.folder)), this.shell.agentFiles) };
+      task.entry.resources = [c, ...copies];
       this.save();
       return c;
     } catch (e) {
       // Made for it, and empty after a failed git worktree add: nothing left behind. Not recursive: another task naming
       // its folder of copies the same at the same moment may have its worktree there.
-      if (home && !task.entry.home) try { fs.rmdirSync(home); } catch { /* not ours, or not empty */ }
+      if (home && !had) try { fs.rmdirSync(home); } catch { /* not ours, or not empty */ }
       return { error: (e as GitError).stderr || (e as Error).message };
     }
   }
   // Another of its repositories added to a task that has its own worktree (Task.addRepository): copied on the task's
   // branch (or the next free name there) into its folder of copies (ensureWorktree), made now when its own worktree went
   // beside its repository, the project having had one repository then. The copy, or { error }.
-  async addCopy(task: Task, repo: string): Promise<Result<Copy>> {
-    const { entry } = task;
-    entry.home ??= freeFolder(path.join(this.shell.projectsHome, `${slugOf(this.name, 'project')}@${entry.branch}`));
-    const branch = await freeBranch([repo], entry.branch!);
+  async addCopy(task: Task, repo: string): Promise<Result<Worktree>> {
+    const { entry } = task, own = branchOf(entry)!, had = homeOf(entry);
+    const home = had ?? freeFolder(path.join(this.shell.projectsHome, `${slugOf(this.name, 'project')}@${own}`));
+    const branch = await freeBranch([repo], own);
     try {
-      const c = await createWorktree(repo, branch, path.join(entry.home, copyName(entry.copies!, repo)), this.shell.agentFiles);
-      entry.copies!.push(c);
+      const c: Worktree = { kind: 'worktree', ...await createWorktree(repo, branch, path.join(home, copyName(worktreesOf(entry), repo)), this.shell.agentFiles) };
+      entry.resources!.push(c);
       this.save();
       return c;
-    } catch (e) { return { error: (e as GitError).stderr || (e as Error).message }; }
+    } catch (e) {
+      if (!had) try { fs.rmdirSync(home); } catch { /* not ours, or not empty */ }
+      return { error: (e as GitError).stderr || (e as Error).message };
+    }
   }
   // A copy taken out of a task again (Task.removeRepository: one added by mistake, or not needed
   // after all): asked first only when it holds work not in main and not pushed, which goes with it. True when it may go.
@@ -137,17 +142,19 @@ class Project {
       goes: [`its folder ${c.worktree}, its branch ${c.branch}`], notInMain: [what], stays: `The repository ${c.repo} stays in the project.` }), this.window);
   }
   // Its folder and branch gone as a deleted task's are (removeWorktree), and what the task's agents keep of it.
-  async removeCopy(task: Task, c: Copy) {
+  async removeCopy(task: Task, c: Worktree) {
+    const home = homeOf(task.entry);
     await removeWorktree(c);
     forgetFolder(this.shell, this.entry, task.entry, c.folder);
-    task.entry.copies = task.entry.copies!.filter((x) => x !== c);
+    task.entry.resources = task.entry.resources!.filter((x) => x !== c);
+    if (home && !homeOf(task.entry)) try { fs.rmdirSync(home); } catch { /* not empty */ } // its last copy there
     this.save();
   }
   // A profile let go by the project (the editor's Delete, the agent's profile_delete): asked first (askDropProfile).
   askDropProfile(p: Named, by: 'human' | 'agent' = 'human') { return askDropProfile(this.shell, this.entry, p, by, this.window); }
   dropProfile(id: string) { return dropProfile(this.shell, this.entry, id); }
   // Two open tasks in the project's folder (no git: no copies) edit the same files: the human is told, and may go on.
-  sharesFolder() { return this.git !== 'ok' && this.open().some((t) => !t.entry.copies && t.folder === this.folder); }
+  sharesFolder() { return this.git !== 'ok' && this.open().some((t) => !ownWorktree(t.entry) && t.folder === this.folder); }
   // × on its tab: its agent stops and its tabs close; everything else stays, and it is listed as closed. Once it is
   // not shown.
   async closeTask(task: Task) {
@@ -161,8 +168,9 @@ class Project {
   async checkMerged() {
     let found = false;
     for (const t of this.closedTasks()) {
-      if (t.entry.merged || !t.entry.copies?.length) continue;
-      if ((await Promise.all(t.entry.copies.map((c) => merged(c)))).every(Boolean)) { t.entry.merged = true; found = true; }
+      const copies = worktreesOf(t.entry);
+      if (t.entry.merged || !copies.length) continue;
+      if ((await Promise.all(copies.map((c) => merged(c)))).every(Boolean)) { t.entry.merged = true; found = true; }
     }
     if (found) this.save();
     return found;
@@ -204,7 +212,7 @@ const changesOf = async (copies: Copy[]) => (await Promise.all(copies.map((c) =>
 // Deleting a task asks first, told what goes for good, with the work not in its repositories' main branches and not
 // pushed that goes with it. folder: where it works (Task.folder).
 async function askDeleteTask(shell: Shell, entry: TaskEntry, folder: string, w: Asker | null) {
-  const copies = entry.copies || [];
+  const copies = worktreesOf(entry);
   const what = changesText(await changesOf(copies));
   const goes = [...copies.map((c) => `its folder ${c.worktree}, its branch ${c.branch}`), 'its profiles with their sign-ins',
     ...(copies.length ? ["its agent's conversations in its folder"] : [])];
@@ -215,7 +223,7 @@ async function askDeleteTask(shell: Shell, entry: TaskEntry, folder: string, w: 
 async function deleteClosedTask(shell: Shell, p: ProjectEntry, n: number, w: AppWindow): Promise<Result<{ n: number }>> {
   const entry = shell.store.tasksOf(p).list.find((e) => e.n === n && e.closed);
   if (!entry) return { error: `no closed task ${n}` };
-  if (!await askDeleteTask(shell, entry, entry.folder || p.folder, w)) return { error: 'the human said no' };
+  if (!await askDeleteTask(shell, entry, folderOf(entry, p.folder), w)) return { error: 'the human said no' };
   await deleteTask(shell, p, entry);
   const file = shell.store.tasksOf(p);
   shell.store.saveTasksOf(p, { ...file, list: file.list.filter((e) => e.n !== n) });
@@ -233,7 +241,7 @@ function forgetFolder(shell: Shell, p: ProjectEntry, entry: TaskEntry, folder: s
   for (const saved of conversations(entry)) {
     try {
       const a = shell.agentFor(saved.agent, { any: true });
-      a?.forget?.({ folder, saved: folder === entry.folder ? saved : { transcript: saved.transcript }, project, configDir: a.configDir });
+      a?.forget?.({ folder, saved: folder === folderOf(entry, '') ? saved : { transcript: saved.transcript }, project, configDir: a.configDir });
     } catch (e) { console.warn('[agents] forget:', (e as Error).message); }
   }
 }
@@ -246,9 +254,10 @@ function forgetFolder(shell: Shell, p: ProjectEntry, entry: TaskEntry, folder: s
 async function deleteTask(shell: Shell, p: ProjectEntry, entry: TaskEntry) {
   const { store } = shell;
   const data = store.taskOf(p, entry.n);
-  for (const c of entry.copies || []) await removeWorktree(c);
-  if (entry.home) fs.rmSync(entry.home, { recursive: true, force: true });
-  for (const c of entry.copies || []) forgetFolder(shell, p, entry, c.folder);
+  const copies = worktreesOf(entry), home = homeOf(entry);
+  for (const c of copies) await removeWorktree(c);
+  if (home) fs.rmSync(home, { recursive: true, force: true });
+  for (const c of copies) forgetFolder(shell, p, entry, c.folder);
   // Its profiles' sessions stay open in Electron until Kulisa quits: whatever cannot go now goes at the next start.
   store.markDeleted(data.dir);
   try { fs.rmSync(data.dir, { recursive: true, force: true }); } catch (e) { console.warn('[tasks]', (e as Error).message); }
@@ -302,7 +311,7 @@ async function removeRepo(shell: Shell, id: string, repo: string): Promise<Resul
   const repos = p && reposOf(p);
   if (!repos?.includes(repo)) return { error: `${repo} is not in the project` };
   if (repos.length === 1) return { error: 'a project needs a folder: add another one first' };
-  const using = shell.store.tasksOf(p!).list.filter((e) => e.copies?.some((c) => c.repo === repo) || (!e.copies && e.folder === repo));
+  const using = shell.store.tasksOf(p!).list.filter((e) => e.resources?.some((r) => (r.kind === 'worktree' ? r.repo : r.folder) === repo));
   if (using.length) return { error: `Tasks work in it: ${using.map((e) => e.name).join(', ')}. Delete them first (Delete Task… in a task's menu).` };
   const left = repos.filter((r) => r !== repo);
   // Its GitHub account goes with it, unless another of the project's repositories has the same remote.
@@ -551,15 +560,15 @@ async function deleteGitHub(shell: Shell, id: string, w: Asker | null): Promise<
 // project if it is open in between), then each of its tasks deleted and what is the project's as a whole (store.ts:
 // its entry, its data folder). Never the project's own folder. p: its entry; w: the window that asks.
 async function askDeleteProject(shell: Shell, p: ProjectEntry, w: Asker | null) {
-  const withCopies = shell.store.tasksOf(p).list.filter((e) => e.copies?.length);
+  const withCopies = shell.store.tasksOf(p).list.filter((e) => worktreesOf(e).length);
   const changed = [];
   for (const e of withCopies) {
-    const what = changesText(await changesOf(e.copies!));
+    const what = changesText(await changesOf(worktreesOf(e)));
     if (what) changed.push(`${e.name}: ${what}`);
   }
   return shell.ask(deleteQuestion({ message: `Delete the project ${p.name}?`, ok: 'Delete', goes: [
     "its tasks' copies of its profiles, and its layouts",
-    ...withCopies.map((e) => `its task ${e.name}: ${e.copies!.map((c) => `the folder ${c.worktree}`).join(', ')}, the branch ${e.branch}, its agent's conversations`)],
+    ...withCopies.map((e) => `its task ${e.name}: ${worktreesOf(e).map((c) => `the folder ${c.worktree}`).join(', ')}, the branch ${branchOf(e)}, its agent's conversations`)],
   notInMain: changed, stays: `Its folders stay as they are: ${[...new Set([p.folder, ...reposOf(p)])].join(', ')}. Its profiles stay, with their sign-ins (Settings → Profiles).` }), w);
 }
 async function deleteProjectData(shell: Shell, p: ProjectEntry) {
