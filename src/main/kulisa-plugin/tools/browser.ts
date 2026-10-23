@@ -284,7 +284,8 @@ function browserTools(server: McpServer, h: Handles) {
     const lines: string[] = [];
     for (const r of await page.requests()) {
       const failure = r.failure()?.errorText;
-      const status = failure ? null : (await r.response().catch((): null => null))?.status();
+      // Not response(): it waits for the answer, and a request that never gets one held the call for good.
+      const status = failure ? null : r.existingResponse()?.status();
       if (!onlyFailed || failure || (status ?? 0) >= 400) lines.push(`${r.method()} ${clip(r.url())} → ${failure || status || 'pending'}`);
     }
     return text(lines.length ? lines.slice(-100).join('\n') : `No ${onlyFailed ? 'failed ' : ''}requests in ${profile}'s tab ${page.url()}`);

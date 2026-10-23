@@ -704,6 +704,18 @@ export default (test: Test) => {
     await waitFor(() => elon.active === picked);
   });
 
+  test('agent: a request with no answer yet is listed as pending at once', async ({ shell, call }) => {
+    const elon = shell.profiles.get(idOf('Elon.buyer')), before = elon.active;
+    const tab = (await call('browser_tab_new', { profile: 'Elon.buyer', url: `${SITE}/pending` })).text.match(/Opened tab (\w+)/)[1];
+    // The request to /hang never gets an answer: listing it must not wait for one (it held the agent's turn for minutes).
+    const listed = call('browser_network_requests', { profile: 'Elon.buyer', tab });
+    const r = await Promise.race([listed, sleep(5000).then((): null => null)]);
+    assert.ok(r, 'answered within 5 s');
+    assert.match(r.text, /GET .*\/hang → pending/);
+    await call('browser_tab_close', { profile: 'Elon.buyer', tab });
+    await waitFor(() => elon.active === before); // the picked page, for point and tell's tests below
+  });
+
   test('point and tell: Pick again or Esc in the page cancels it; nothing goes to the prompt', async ({ shell, ui, ptyOutput }) => {
     const elon = shell.profiles.get(idOf('Elon.buyer'));
     const button = `document.querySelector('.pane[data-profile="${idOf('Elon.buyer')}"] .pick')`;
