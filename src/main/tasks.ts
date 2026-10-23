@@ -38,6 +38,7 @@ interface TaskTerminal {
   id: number; key: string; name: string; command: string; by: 'human' | 'agent'; pty?: Pty;
   agent?: AgentChoice; conversation?: number; state: AgentState; seen: boolean; error?: undefined;
   handedFrom?: number; // the conversation it was handed (handOver), its number from 1, while it reads it
+  titleTimer?: NodeJS.Timeout; // its auto-title read again after a turn's end (followAutoTitle)
   newDirs?: { copy: Copy; removed?: true }[]; giving?: boolean; // copies added to the task or removed, told once its turn is over (giveDirs)
 }
 type Found = { profile: Profile; error?: undefined } | { error: string; closed?: boolean; profile?: undefined };
@@ -470,19 +471,33 @@ class Task {
     this.changedTerminals();
     return { name: words.join(' ') };
   }
-  // The agent's own auto-title for a conversation, read from its transcript at a turn's end and at session start
+  // The agent's own auto-title for a conversation, read where its agent keeps it at session start and at a turn's end
   // (agent-hooks.ts): shown on its tab, and on the task's tab while the task is unnamed, until a name is given
-  // explicitly. Best effort: never stored as the task's name, never a branch slug.
+  // explicitly. Best effort: never stored as the task's name, never a branch slug. True when it changed.
   async noteAutoTitle(t: TaskTerminal) {
     const n = t.conversation, c = n === undefined ? null : this.conversations()[n];
-    if (!t.agent?.title || !c || c.title || !c.transcript) return; // an explicit name wins; nothing to read yet
+    if (!t.agent?.title || !c || c.title || !c.transcript) return false; // an explicit name wins; nothing to read yet
     let title: string | null = null;
-    try { title = await t.agent.title(c.transcript); } catch (e) { console.warn('[agents] title:', (e as Error).message); }
+    try { title = await t.agent.title({ transcript: c.transcript, sessionId: c.sessionId }); } catch (e) { console.warn('[agents] title:', (e as Error).message); }
     const now = this.conversations()[n!];
-    if (!title || !now || now.title || title === now.autoTitle) return;
+    if (!title || !now || now.title || title === now.autoTitle) return false;
     this.updateConversation(n!, { autoTitle: title });
     this.changedTerminals();
     this.window?.sendProjects();
+    return true;
+  }
+  // At a turn's end: its auto-title read then, and again a few times after until it changes, since an agent may name
+  // the session only once its turn is over (Codex: seconds after its Stop hook). Another turn's end starts over.
+  followAutoTitle(t: TaskTerminal) {
+    clearTimeout(t.titleTimer);
+    const at = [0, 5000, 15000, 30000];
+    const next = (i: number) => {
+      t.titleTimer = setTimeout(async () => {
+        if (this.terminals.get(t.id) !== t || await this.noteAutoTitle(t)) return;
+        if (i + 1 < at.length) next(i + 1);
+      }, at[i]! - (at[i - 1] ?? 0));
+    };
+    next(0);
   }
 
   // The tab in front, chosen by the human, or a new one they opened.

@@ -77,7 +77,7 @@ const claude: Agent = {
   },
   forget: (ctx) => forgetClaude(ctx),
   conversation: claudeConversation,
-  title: claudeTitle,
+  title: ({ transcript }) => claudeTitle(transcript),
   // `claude [prompt]`: its interactive mode, the prompt sent (its --help).
   prompt: (text) => [text],
   // Its voice mode (needs a Claude.ai account), on for Kulisa's sessions only (not the user's settings): space held

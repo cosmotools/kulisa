@@ -57,6 +57,7 @@ const codex: Agent = {
   trust: { has: (where, folder) => codexTrusted(codexHome(where), folder), set: (where, folder) => codexTrust(codexHome(where), folder) },
   forget: ({ folder, configDir }) => forgetCodex(folder, configDir ?? undefined),
   conversation: codexConversation,
+  title: codexTitle,
   // `codex [PROMPT]` (its --help).
   prompt: (text) => [text],
 };
@@ -119,6 +120,23 @@ function forgetCodex(folder: string, home: string = process.env.CODEX_HOME || pa
     return !skipping;
   });
   return true;
+}
+
+// Codex's own name for a session, as its resume list shows it: session_index.jsonl in its CODEX_HOME (the folder
+// holding the transcript's sessions/), a line { id, thread_name, updated_at } appended each time it names the session
+// (a title it generates once a turn is over, or /rename), so the last one of the session wins. Its session's id from the
+// SessionStart hook; small enough a file to read whole.
+async function codexTitle({ transcript, sessionId }: { transcript: string; sessionId?: string }): Promise<string | null> {
+  const parts = transcript.split(path.sep), at = parts.findLastIndex((p) => p === 'sessions' || p === 'archived_sessions');
+  if (!sessionId || at < 1) return null;
+  const text = await fs.promises.readFile(path.join(parts.slice(0, at).join(path.sep) || path.sep, 'session_index.jsonl'), 'utf8').catch(() => '');
+  let title: string | null = null;
+  for (const l of text.split('\n')) {
+    let r: { id?: string; thread_name?: unknown };
+    try { r = JSON.parse(l); } catch { continue; }
+    if (r.id === sessionId && typeof r.thread_name === 'string' && r.thread_name.trim()) title = r.thread_name.trim();
+  }
+  return title;
 }
 
 // Codex's transcript (sessions/…/rollout-*.jsonl in its CODEX_HOME): a JSON record per line,
