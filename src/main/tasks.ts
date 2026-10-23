@@ -11,7 +11,7 @@ import { ProjectProfiles } from './project-profiles.ts';
 import { installSigninPause } from './signin-pause.ts';
 import { startTerminal, stopTerminal, forgetTerminal, terminalTail, sendToPrompt, typeIntoPrompt, typeLine, interrupt } from '../terminal/main/index.ts';
 import { READ_MAX } from './kulisa-plugin/tools/terminal.ts';
-import { copyProfile } from './store.ts';
+import { copyProfile, worktreesOf, ownWorktree, folderOf, branchOf } from './store.ts';
 import { renameBranch } from './worktrees.ts';
 import { extendTrust } from './agents/index.ts';
 import { installSkill } from './agents/index.ts';
@@ -22,7 +22,7 @@ import type { Tab } from './profiles.ts';
 import type { Entry, Hooks } from './project-profiles.ts';
 import type { Project } from './projects.ts';
 import type { AppWindow } from './window.ts';
-import type { Conversation, Copy, TaskEntry, TaskStore } from './store.ts';
+import type { Conversation, TaskEntry, TaskStore, Worktree } from './store.ts';
 import type { Pty } from '../terminal/main/index.ts';
 import type { GitError } from './worktrees.ts';
 import type { Shell, AgentChoice } from './shell.ts';
@@ -39,7 +39,7 @@ interface TaskTerminal {
   agent?: AgentChoice; conversation?: number; state: AgentState; seen: boolean; error?: undefined;
   handedFrom?: number; // the conversation it was handed (handOver), its number from 1, while it reads it
   titleTimer?: NodeJS.Timeout; // its auto-title read again after a turn's end (followAutoTitle)
-  newDirs?: { copy: Copy; removed?: true }[]; giving?: boolean; // copies added to the task or removed, told once its turn is over (giveDirs)
+  newDirs?: { copy: Worktree; removed?: true }[]; giving?: boolean; // copies added to the task or removed, told once its turn is over (giveDirs)
 }
 type Found = { profile: Profile; error?: undefined } | { error: string; closed?: boolean; profile?: undefined };
 
@@ -92,20 +92,19 @@ class Task {
     const first = this.agentTerminals()[0];
     return (first && this.conversationName(first)) || this.entry.name;
   }
-  // Where its agent works: its own worktree once it has one (ensureWorktree), else the project's folder (the human's;
-  // a task without git stays there). It changes when the agent makes the worktree (task_worktree).
-  get folder() { return this.entry.folder || this.project.folder; }
-  // Its own worktree, the copy it works in, once it has made one: by where it works, not by the project's default
-  // repository, which the human may change under it.
-  get ownCopy() { return this.entry.copies?.find((c) => c.folder === this.folder) ?? null; }
+  // Where its agent works: its first resource, its own worktree once it has one (ensureWorktree), else the project's
+  // folder it opened in (the human's; a task without git stays there). It changes when the agent makes the worktree.
+  get folder() { return folderOf(this.entry, this.project.folder); }
+  get branch() { return branchOf(this.entry); }
+  get worktrees() { return worktreesOf(this.entry); }
   // The task's own git worktree, made on demand (the agent's task_worktree), idempotent: created the first time (a
   // branch of its own, so the agent's work does not touch the human's folder), the same one after. Its running agents
   // are given the new folder (giveDirs), as an added repository is. name: the task's name when it is still unnamed, so
   // the agent names it and makes the worktree in one call; the branch takes a slug of the name. Its { folder, branch }.
   makeWorktree(name?: string) { return this.copying(() => this._makeWorktree(name)); }
   async _makeWorktree(name?: string): Promise<Result<{ folder: string; branch: string }>> {
-    if (name && !this.entry.named) { const r = await this.rename(name); if (refused(r)) return r; }
-    const had = !!this.ownCopy;
+    if (name && !this.entry.named) { const r = await this._rename(name); if (refused(r)) return r; }
+    const had = !!ownWorktree(this.entry);
     const c = await this.project.ensureWorktree(this);
     if (refused(c)) return c;
     if (!had) {
@@ -116,20 +115,21 @@ class Task {
   }
   // A new name, the agent's (task_rename) or the human's (Rename… on its tab): the name in the bar and its branch
   // of each of its copies (git branch -m; -2, -3 when another branch has it). Its folders stay: its agent may be
-  // working there.
-  async rename(name: string | undefined): Promise<Result<{ name: string; branch: string | null }>> {
+  // working there. One of the copying (copying): a branch renamed while a copy is being made would miss it.
+  rename(name: string | undefined) { return this.copying(() => this._rename(name)); }
+  async _rename(name: string | undefined): Promise<Result<{ name: string; branch: string | null }>> {
     name = name?.trim();
     const bad = labelError(name);
     if (bad) return { error: bad };
-    const { entry } = this;
-    if (entry.copies?.length) {
-      try { entry.branch = await renameBranch(entry.copies, name!); } catch (e) { return { error: (e as GitError).stderr || (e as Error).message }; }
+    const { entry } = this, copies = worktreesOf(entry);
+    if (copies.length) {
+      try { await renameBranch(copies, name!); } catch (e) { return { error: (e as GitError).stderr || (e as Error).message }; }
     }
     entry.name = name!;
     entry.named = true;
     this.project.save();
     this.window?.sendProjects();
-    return { name: name!, branch: entry.branch || null };
+    return { name: name!, branch: this.branch };
   }
 
   // What it takes to run a profile of this task (project-profiles.ts).
@@ -195,13 +195,13 @@ class Task {
   // the repositories it may add (addable): the agent reads those in the project's folders, changing nothing there.
   dirs() {
     const addable = this.addable();
-    return [...new Set(this.project.repos().filter((r) => !addable.includes(r)).map((r) => this.entry.copies?.find((c) => c.repo === r)?.folder || r))]
+    return [...new Set(this.project.repos().filter((r) => !addable.includes(r)).map((r) => worktreesOf(this.entry).find((c) => c.repo === r)?.folder || r))]
       .filter((d) => d !== this.folder);
   }
-  // The project's repositories in git it has no copy of yet; none for a task without git (it works in a folder).
+  // The project's repositories in git it has no copy of yet; none before it has its own worktree (beside which they go).
   addable() {
-    const { copies } = this.entry;
-    return copies ? this.project.repos().filter((r) => this.project.gits.get(r) === 'ok' && !copies.some((c) => c.repo === r)) : [];
+    const copies = worktreesOf(this.entry);
+    return copies.length ? this.project.repos().filter((r) => this.project.gits.get(r) === 'ok' && !copies.some((c) => c.repo === r)) : [];
   }
   // Another of the project's repositories added to it, when its work turns out to need it (the human's Add Repository
   // on its tab, the agent's task_add_repository once the human agreed): a copy on its branch,
@@ -209,13 +209,13 @@ class Task {
   // { folder, branch }.
   addRepository(repo: string) { return this.copying(() => this._addRepository(repo)); }
   async _addRepository(repo: string): Promise<Result<{ folder: string; branch: string }>> {
-    if (!this.ownCopy) {
+    if (!ownWorktree(this.entry)) {
       return { error: this.project.git === 'ok' ? 'the task has no worktree of its own yet to add a copy beside: make it with task_worktree first'
         : "this task works in the project's folder (no git): it has no copies to add to" };
     }
     const found = this.project.repos().find((r) => r === repo || path.basename(r) === repo);
     if (!found) return { error: `${repo} is not one of the project's repositories: ${this.project.repos().join(', ')}` };
-    if (this.entry.copies!.some((c) => c.repo === found)) return { error: `the task has ${found} already` };
+    if (worktreesOf(this.entry).some((c) => c.repo === found)) return { error: `the task has ${found} already` };
     if (!this.addable().includes(found)) return { error: `${found} has no git commit to copy` };
     const c = await this.project.addCopy(this, found);
     if (refused(c)) return c;
@@ -223,8 +223,9 @@ class Task {
     this.window?.sendProjects();
     return { folder: c.folder, branch: c.branch };
   }
-  // Its copies made one after another: two agents of the task calling task_worktree at once get the one worktree (the
-  // second finds it made), not one each; a repository added meanwhile goes beside it.
+  // Its copies made, and its branch renamed, one after another: two agents of the task calling task_worktree at once
+  // get the one worktree (the second finds it made), not one each; a repository added meanwhile goes beside it; a
+  // rename meanwhile renames the new copy's branch too.
   copying<T>(make: () => Promise<T>): Promise<T> {
     const done = this._copying.then(make);
     this._copying = done.catch(() => {});
@@ -235,8 +236,8 @@ class Task {
   // work not pushed (askRemoveCopy). Not its own folder, where its agents work: that goes with the task. Its running
   // agents told; one not told yet of it being added is told nothing. The copy's folder.
   async removeRepository(repo: string): Promise<Result<{ folder: string }>> {
-    const c = this.entry.copies?.find((x) => x.repo === repo || x.folder === repo || path.basename(x.repo) === repo);
-    if (!c) return { error: `the task has no copy of ${repo}; its copies: ${(this.entry.copies || []).map((x) => x.folder).join(', ') || 'none'}` };
+    const c = worktreesOf(this.entry).find((x) => x.repo === repo || x.folder === repo || path.basename(x.repo) === repo);
+    if (!c) return { error: `the task has no copy of ${repo}; its copies: ${worktreesOf(this.entry).map((x) => x.folder).join(', ') || 'none'}` };
     if (c.folder === this.folder) return { error: `${c.folder} is the task's own folder, where its agents work: it goes only with the task` };
     if (!await this.project.askRemoveCopy(this, c)) return { error: 'the human said no' };
     await this.project.removeCopy(this, c);
@@ -413,8 +414,8 @@ class Task {
     const env = this.env(t), dirs = this.dirs(), more: { args?: string[]; env?: Record<string, string> } = (dirs.length && a.dirs?.(dirs)) || {};
     // Each copy trusted as the human trusted the project's code, in its folder or another task's copy (extendTrust).
     const where = { configDir: a.configDir, transcript: (this.project.agentData() as { transcript?: string }).transcript };
-    const copies = this.shell.store.tasksOf(this.project.entry).list.flatMap((e) => e.copies || []);
-    for (const c of this.entry.copies || []) {
+    const copies = this.shell.store.tasksOf(this.project.entry).list.flatMap(worktreesOf);
+    for (const c of worktreesOf(this.entry)) {
       extendTrust(a, where, c.folder, [c.repo, ...copies.filter((o) => o.repo === c.repo && o.folder !== c.folder).map((o) => o.folder)]);
     }
     // Kulisa's profiles skill where the agent reads it, and Kulisa's language (☰ → Language: app.ts, setLanguage) in its
@@ -798,23 +799,16 @@ class Task {
 
   info(): Sent.TaskInfo {
     const { n, key, displayName: name, tabState: state, folder } = this;
-    return { n, key, project: this.project.id, name, state, folder, branch: this.entry.branch || null, closed: !!this.entry.closed, merged: !!this.entry.merged,
+    return { n, key, project: this.project.id, name, state, folder, branch: this.branch, closed: !!this.entry.closed, merged: !!this.entry.merged,
       repos: this.addable(), resources: this.resources() };
   }
-  // The task's resources, for the Resources island (Resources.vue): the task's own worktree, the one it works in
-  // (this.folder), if it has made one, else the main working tree it still works in; then each added repository's
-  // worktree (task_add_repository). The main working tree and the task's own worktree are not removed from here (the
-  // latter goes with the task, as removeRepository guards this.folder); an added repository's worktree is
-  // (task_remove_repository). Its own: ownCopy.
+  // Its resources as the Resources island (Resources.vue) shows them: the first, where it works, is not removed there
+  // (the main tree is the human's, its own worktree goes with the task); an added repository's worktree is
+  // (task_remove_repository).
   resources(): Sent.TaskResource[] {
-    const copies = this.entry.copies || [], own = this.ownCopy;
-    const rows: Sent.TaskResource[] = [own
-      ? { kind: 'worktree', label: path.basename(own.repo), folder: own.folder, branch: own.branch, removable: false }
-      : { kind: 'maintree', label: path.basename(this.project.folder), folder: this.project.folder, branch: null, removable: false }];
-    for (const c of copies.filter((c) => c.folder !== this.folder)) {
-      rows.push({ kind: 'worktree', label: path.basename(c.repo), folder: c.folder, branch: c.branch, removable: true });
-    }
-    return rows;
+    return (this.entry.resources || []).map((r, i): Sent.TaskResource => (r.kind === 'maintree'
+      ? { kind: r.kind, label: path.basename(r.folder), folder: r.folder, branch: null, removable: false }
+      : { kind: r.kind, label: path.basename(r.repo), folder: r.folder, branch: r.branch, removable: i > 0 }));
   }
 }
 

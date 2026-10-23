@@ -23,10 +23,9 @@ const quote = (s: string) => JSON.stringify(s.length > QUOTE ? `${s.slice(0, QUO
 
 // Where the work stands, what no transcript says: the code, the profiles, the terminals.
 async function standing(task: Task) {
-  const { entry } = task;
   const lines = [`# Where the task stands (from Kulisa)`, '',
-    `The task "${task.name}", in ${task.folder}${entry.branch ? `, on branch ${entry.branch}` : ''}.`];
-  for (const c of entry.copies || []) {
+    `The task "${task.name}", in ${task.folder}${task.branch ? `, on branch ${task.branch}` : ''}.`];
+  for (const c of task.worktrees) {
     const { log, status, stat } = await progress(c);
     lines.push('', `## The code: ${c.folder} (a copy of ${c.repo})`,
       `Commits since the task started:\n${log || '(none)'}`,

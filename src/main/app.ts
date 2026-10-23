@@ -6,7 +6,7 @@ import { EventEmitter } from 'events';
 import path from 'path';
 import fs from 'fs';
 import { CdpProxy } from './cdp-proxy.ts';
-import { Store } from './store.ts';
+import { Store, branchOf } from './store.ts';
 import { Accounts } from './accounts.ts';
 import { ProfileStore } from './profile-store.ts';
 import { CookieSync } from './cookie-sync.ts';
@@ -214,7 +214,7 @@ function start(options: Options = {}) {
   };
   // And its tasks (the board lists them: newtab/): those open, as made, then the closed ones, the one closed last first.
   const tasksOf = (p: ProjectEntry) => {
-    const list = store.tasksOf(p).list.map(({ n, name, branch, closed, closedAt, merged }) => ({ n, name, branch, closed: !!closed, closedAt, merged: !!merged }));
+    const list = store.tasksOf(p).list.map((e) => ({ n: e.n, name: e.name, branch: branchOf(e), closed: !!e.closed, closedAt: e.closedAt, merged: !!e.merged }));
     return [...list.filter((t) => !t.closed), ...list.filter((t) => t.closed).sort((a, b) => (b.closedAt || 0) - (a.closedAt || 0))];
   };
   shell.projects = () => store.projects().map((p) => {

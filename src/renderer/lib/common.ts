@@ -1,6 +1,7 @@
 // What several parts of the window use: what came in its URL (window.ts, load), the keys as this OS shows them,
 // the pictures' and icons' names.
 import { reactive } from 'vue';
+import { slugOf } from '../../shared/names';
 import type { ProjectEntry, ProjectTask, ProjectsInfo, Shortcut } from '../../shared/types';
 
 const query = new URLSearchParams(location.search);
@@ -31,6 +32,7 @@ function ago(at?: number) {
   const m = Math.round((Date.now() - at) / 60000);
   return m < 1 ? 'just now' : m < 60 ? `${m} min ago` : m < 60 * 24 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 60 / 24)} days ago`;
 }
-// A task's line under its name (the board's rows, the bar's + menu): its branch when the name is not it, when it closed.
-export const taskLine = (t: ProjectTask): string => [t.branch && t.branch !== t.name && t.branch, t.closed ? ago(t.closedAt) : ''].filter(Boolean).join(' · ');
+// A task's line under its name (the board's rows, the bar's + menu): its branch when it is not the name's slug, when it
+// closed.
+export const taskLine = (t: ProjectTask): string => [t.branch && t.branch !== slugOf(t.name, '') && t.branch, t.closed ? ago(t.closedAt) : ''].filter(Boolean).join(' · ');
 export const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');

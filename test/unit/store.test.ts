@@ -5,7 +5,8 @@ import assert from 'assert/strict';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { Store, PROJECT_COLORS } from '../../src/main/store.ts';
+import { Store, PROJECT_COLORS, folderOf, branchOf, homeOf } from '../../src/main/store.ts';
+import type { TaskEntry } from '../../src/main/store.ts';
 import { ProfileStore } from '../../src/main/profile-store.ts';
 import { ProjectProfiles } from '../../src/main/project-profiles.ts';
 import { AVATARS, nextAvatar } from '../../src/shared/avatars.ts';
@@ -244,4 +245,19 @@ test('project profiles: a task has its own copy of each, made at its first open;
   // More profiles than pictures: round again, nothing breaks.
   assert.equal(nextAvatar(AVATARS), 'fox');
   assert.equal(nextAvatar([...AVATARS, 'fox']), 'frog');
+});
+
+test("a task's folder, branch and folder of copies are its resources': the first where it works; the folder of copies never a repository's parent", () => {
+  const wt = (repo: string, worktree: string, sub = '') => ({ kind: 'worktree' as const, repo: path.join(repo, sub), worktree, branch: 'fix', base: null as string | null, folder: path.join(worktree, sub) });
+  const main: TaskEntry = { n: 1, name: 'New Task', resources: [{ kind: 'maintree', folder: '/src/api' }] };
+  assert.deepEqual([folderOf(main, '/src/web'), branchOf(main), homeOf(main)], ['/src/api', null, null], 'where it opened, whatever the default is now');
+  assert.equal(folderOf({ n: 2, name: 'x' }, '/src/web'), '/src/web');
+  // Beside its repository (<repo>@<branch>): no folder of copies, even for a repository in a subfolder of its git.
+  const beside: TaskEntry = { n: 3, name: 'Fix', resources: [wt('/src/api', '/src/api@fix')] };
+  assert.deepEqual([folderOf(beside, ''), branchOf(beside), homeOf(beside)], ['/src/api@fix', 'fix', null]);
+  assert.equal(homeOf({ n: 4, name: 'Fix', resources: [wt('/src/mono', '/src/mono@fix', 'app')] }), null, 'never /src');
+  // In a folder of copies, its own and one added; an added one beside a worktree made beside its repository.
+  const home: TaskEntry = { n: 5, name: 'Fix', resources: [wt('/src/api', '/home/K/shop@fix/api'), wt('/src/web', '/home/K/shop@fix/web')] };
+  assert.equal(homeOf(home), '/home/K/shop@fix');
+  assert.equal(homeOf({ n: 6, name: 'Fix', resources: [wt('/src/api', '/src/api@fix'), wt('/src/web', '/home/K/api@fix/web')] }), '/home/K/api@fix');
 });

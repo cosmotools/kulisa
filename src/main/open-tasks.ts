@@ -237,7 +237,7 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
     const list = project.closedTasks().filter((t) => t.entry.merged);
     if (!list.length) return { error: 'no closed task of it is merged' };
     if (!await shell.ask({ message: `Delete ${list.length === 1 ? `the task ${list[0]!.name}` : `${list.length} merged tasks`}?`, ok: 'Delete', danger: true,
-      detail: `Merged on the remote, nothing uncommitted: ${list.map((t) => `${t.name} (${t.entry.branch})`).join(', ')}. Their folders, branches, profiles' copies and agents' conversations go.` }, w)) {
+      detail: `Merged on the remote, nothing uncommitted: ${list.map((t) => `${t.name} (${t.branch})`).join(', ')}. Their folders, branches, profiles' copies and agents' conversations go.` }, w)) {
       return { error: 'the human said no' };
     }
     for (const t of list) await project.deleteTask(t);

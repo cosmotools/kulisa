@@ -17,6 +17,7 @@ import type { Shell } from '../src/main/shell.ts';
 import type { TaskTerminal } from '../src/main/tasks.ts';
 import type { Task } from '../src/main/tasks.ts';
 import type { TasksFile } from '../src/main/store.ts';
+import { worktreesOf } from '../src/main/store.ts';
 import type { StoredProfile } from '../src/main/profile-store.ts';
 const hasDirenv = (() => { try { execFileSync('direnv', ['version']); return true; } catch { return false; } })();
 
@@ -130,8 +131,8 @@ export default (test: Test) => {
     assert.equal(task.n, 2);
     assert.equal(task.name, 'New Task');
     assert.equal(task.folder, project, 'the main working tree until it makes its own');
-    assert.equal(task.entry.branch ?? null, null);
-    assert.ok(!task.entry.copies?.length, 'no worktree yet');
+    assert.equal(task.branch, null);
+    assert.deepEqual(task.entry.resources, [{ kind: 'maintree', folder: project }], 'the main tree, no worktree yet');
     assert.deepEqual(task.env(), { KULISA_MCP_URL: `${shell.mcp.base}/task/${tkey('project', 2)}/mcp`, KULISA_URL: `${shell.mcp.base}/task/${tkey('project', 2)}`, KULISA_TASK: 'New Task' });
     assert.equal(shell.resumedSession, null, 'a new conversation');
     const told = await ctx.instructions(task);
@@ -677,7 +678,7 @@ export default (test: Test) => {
     await wc.insertText('Spike');
     for (const type of ['keyDown', 'char', 'keyUp'] as const) wc.sendInputEvent({ type, keyCode: type === 'char' ? '\r' : 'Enter' });
     await waitFor(async () => spike.name === 'Spike' && !(await ui(`(document.getElementById('taskrename')?.dataset.state === 'open')`)));
-    assert.equal(spike.entry.branch, 'spike');
+    assert.equal(spike.branch, 'spike');
     assert.equal(spike.folder, `${project}@task-${spike.n}`, 'the folder stays');
     fs.writeFileSync(path.join(spike.folder, 'idea.txt'), 'x');
     git(spike.folder, 'add', '-A'); git(spike.folder, 'commit', '-qm', 'idea');
@@ -1597,10 +1598,10 @@ export default (test: Test) => {
     // The Resources island (Resources.vue): each row its label, its branch line (or 'main working tree'), and whether it
     // can be removed (an added repository's worktree can; the main tree and the task's own worktree cannot).
     const rows = () => ui(`[...document.querySelectorAll('#resources .resource')].map((r) => [r.querySelector('.label').textContent, r.querySelector('small').textContent, !!r.querySelector('.remove')])`);
-    const copyOf = (name: string) => first.entry.copies.find((c) => path.basename(c.repo) === name).folder;
+    const copyOf = (name: string) => first.worktrees.find((c) => path.basename(c.repo) === name).folder;
     // At open: the project's main working tree (the human's folder), no worktree of its own yet (worktree-on-demand).
     assert.equal(first.folder, api, 'the main working tree until it makes its own');
-    assert.ok(!first.entry.copies?.length, 'no worktree yet');
+    assert.equal(first.worktrees.length, 0, 'no worktree yet');
     await waitFor(async () => (await rows()).length === 1);
     assert.deepEqual(await rows(), [['api', 'main working tree', false]], 'one row: the main working tree');
     assert.deepEqual(first.addable(), [], 'no copies yet: nothing to add');
@@ -1608,7 +1609,7 @@ export default (test: Test) => {
     const own = `${api}@task-1`;
     assert.match((await call('task_worktree', {})).text, new RegExp(`works in its own worktree ${own}, on branch task-1`));
     assert.equal(first.folder, own);
-    assert.equal(first.entry.copies.length, 1);
+    assert.equal(first.worktrees.length, 1);
     await waitFor(async () => (await rows())[0]?.[1] === 'branch task-1');
     assert.deepEqual(await rows(), [['api', 'branch task-1', false]]);
     assert.deepEqual(first.addable(), []);
@@ -1630,7 +1631,7 @@ export default (test: Test) => {
     const menu = await menuRows(ui);
     assert.deepEqual(menu.slice(menu.indexOf('# Add Repository'), menu.indexOf('Rename…')), ['# Add Repository', 'web', '-']);
     await choose(ui, 'web');
-    await waitFor(() => first.entry.copies.length === 2);
+    await waitFor(() => first.worktrees.length === 2);
     const webCopy = copyOf('web');
     assert.equal(git(webCopy, 'rev-parse', '--abbrev-ref', 'HEAD'), 'task-1', 'on the task\'s branch');
     // Resources shows the added worktree too, removable; its own worktree and the main tree are not.
@@ -1645,7 +1646,7 @@ export default (test: Test) => {
     // repository, to read it there and ask before adding it.
     const task = await newTask(ctx);
     assert.equal(task.folder, api, 'a new task opens in the main working tree too');
-    assert.deepEqual([task.entry.copies ?? [], task.addable()], [[], []]);
+    assert.deepEqual([task.worktrees, task.addable()], [[], []]);
     await ctx.call('task_worktree', {});
     const home = path.join(shell.projectsHome, 'api@task-2');
     assert.equal(task.folder, path.join(home, 'api'));
@@ -1702,11 +1703,13 @@ export default (test: Test) => {
     const cloned = await ui(`kulisa.invoke('project:repo-clone', { id: '${pid('api')}', url: ${JSON.stringify(bare)} })`);
     assert.deepEqual(cloned.repos.map((r: { folder: string }) => r.folder), [api, web, path.join(root, 'docs')]);
     assert.deepEqual(first.addable(), [web, path.join(root, 'docs')], 'web is addable again, and the clone');
+    const inMain = await newTask(ctx); // in the main tree, api's, when web becomes the default: it stays there
     assert.equal((await ui(`kulisa.invoke('project:repo-default', { id: '${pid('api')}', folder: ${JSON.stringify(web)} })`)).repos[0].folder, web);
+    assert.equal(inMain.folder, api, 'where it opened, though the default is web now');
     // The human adds web back on its tab, then removes it with a file not committed there: asked first, told what goes.
     await rightClick(ui, `#projectTabs .tasktab[data-task="${first.key}"] .name`);
     await choose(ui, 'web');
-    await waitFor(() => first.entry.copies.length === 2);
+    await waitFor(() => first.worktrees.length === 2);
     const webCopy2 = copyOf('web');
     fs.writeFileSync(path.join(webCopy2, 'b.txt'), 'work');
     const removeWeb = async () => {
@@ -1808,7 +1811,7 @@ export default (test: Test) => {
     await ctx.call('task_worktree', {}); // second's worktree, branch task-2
     // task-1's work pushed, and merged into main on the remote; task-2 has a commit not merged.
     fs.writeFileSync(path.join(first.folder, 'b.txt'), 'b'); git(first.folder, 'add', '-A'); git(first.folder, 'commit', '-qm', 'b');
-    git(first.folder, 'push', '-q', 'origin', `${first.entry.branch}:main`);
+    git(first.folder, 'push', '-q', 'origin', `${first.branch}:main`);
     fs.writeFileSync(path.join(second.folder, 'c.txt'), 'c'); git(second.folder, 'add', '-A'); git(second.folder, 'commit', '-qm', 'c');
     await ui(`${taskTab(1)}.querySelector('.close').click()`);
     await waitFor(() => first.entry.closed && first.entry.merged, 10000); // a fetch from the remote
@@ -1843,7 +1846,7 @@ export default (test: Test) => {
     // A task's row in its project's column of the board (a new tab, the bar's +; the empty window).
     const row = (name: string, project = 'merge') => `[...document.querySelectorAll('#board .column[data-project="${pid(project)}"] li .item')].find((r) => r.querySelector('.label').textContent === ${JSON.stringify(name)})`;
     // merge (above) is not loaded now; its task-2 is closed, with a commit not merged.
-    const folder = entry(2).folder;
+    const folder = entry(2).resources[0].folder;
     // The board is the empty window's (not a menu over a task): close the open tasks to get there.
     ctx.answer = true;
     for (const id of [...shell.open.keys()]) await ui(`kulisa.invoke('project:close-tasks', { id: '${id}' })`);
@@ -1939,7 +1942,7 @@ export default (test: Test) => {
     const account = shell.accounts.create((shell.accounts.prepare('fake') as { id: string }).id, 'fake', 'spare@shop.com');
     shell.store.updateProject(p.id, { agents: [account.id] });
     fs.mkdirSync(account.dir, { recursive: true });
-    fs.writeFileSync(path.join(data, 'tasks.json'), JSON.stringify({ next: 3, current: 1, list: [{ n: 1, name: 'task-1', named: true, folder: spare }, { n: 2, name: 'Idea', named: true, branch: wt.branch, copies: [wt], folder: wt.folder }] }));
+    fs.writeFileSync(path.join(data, 'tasks.json'), JSON.stringify({ next: 3, current: 1, list: [{ n: 1, name: 'task-1', named: true, resources: [{ kind: 'maintree', folder: spare }] }, { n: 2, name: 'Idea', named: true, resources: [{ kind: 'worktree', ...wt }] }] }));
     shell.sendProjects(); // made behind the windows' back: they are told, as when a project is made
 
     // In the projects' manager, its Delete Project…: the human is told what goes, says no, then yes.
@@ -2175,7 +2178,7 @@ export default (test: Test) => {
     const bash = task.promptTarget();
     // The human trusted the project's code in another task's copy (a's config, as Claude Code keeps it): an agent of
     // that account opened here finds this copy trusted too, and does not ask (agents/, extendTrust).
-    const copy = task.entry.copies[0], other = shell.store.tasksOf(task.project.entry).list.find((e) => e.n !== task.n && e.copies?.length).copies[0];
+    const copy = task.worktrees[0], other = worktreesOf(shell.store.tasksOf(task.project.entry).list.find((e) => e.n !== task.n && worktreesOf(e).length))[0];
     fs.writeFileSync(path.join(a.dir, '.claude.json'), JSON.stringify({ projects: { [other.folder]: { hasTrustDialogAccepted: true } } }));
 
     // +: the project's accounts, then Terminal; one chosen opens in a tab of its own, in front, a new conversation.
