@@ -822,9 +822,12 @@ export default (test: Test) => {
     assert.match((await call('browser_snapshot', { profile: 'Elon.buyer', tab, find: 'find me' })).text, /button "Find me" \[ref=\w+\]$/, 'a part fits: in the answer');
     const again = (await call('browser_snapshot', { profile: 'Elon.buyer', tab })).text.match(/, in (.+-snapshot\.yml)\. Read/)[1];
     assert.ok(again !== file && fs.existsSync(file), 'the next one a file of its own: the first kept, to compare');
-    const n = (await call('browser_network_requests', { profile: 'Elon.buyer', tab, filter: '/large$' })).text.match(/#(\d+) GET/)[1];
+    // Loaded again: the body of what a new tab loaded before Playwright came to it is not kept.
+    await call('browser_navigate', { profile: 'Elon.buyer', go: 'reload' });
+    const n = [...(await call('browser_network_requests', { profile: 'Elon.buyer', tab, filter: '/large$' })).text.matchAll(/#(\d+) GET/g)].at(-1)[1];
     const body = (await call('browser_network_request', { profile: 'Elon.buyer', tab, number: Number(n) })).text;
-    const html = body.match(/Response body \(\d+ bytes, text\/html; charset=utf-8\): in (.+-response\.txt)$/m)[1];
+    const html = body.match(/Response body \(\d+ bytes, text\/html; charset=utf-8\): in (.+-response\.txt)$/m)?.[1];
+    assert.ok(html, body);
     assert.equal(path.dirname(html), shell.task.store.artifacts);
     assert.match(fs.readFileSync(html, 'utf8'), /Item 1499/);
     await call('browser_tab_close', { profile: 'Elon.buyer', tab });
