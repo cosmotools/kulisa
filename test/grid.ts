@@ -638,28 +638,28 @@ export default (test: Test) => {
     electron.shell.openPath = async (p) => { files.push(`open ${p}`); return ''; };
     electron.shell.showItemInFolder = (p) => { files.push(`show ${p}`); };
     try {
+      // The menu has no heading: the path is in the terminal. Which file a link is, by what the OS is handed.
+      const chooseFile = async (row: string) => { const had = files.length; await choose(ui, row); await waitFor(() => files.length === had + 1); };
       await pressAt('kl-links/a.txt');
-      assert.deepEqual(await menuRows(ui), [`# ${path.join(dir, 'a.txt')}`, 'Open', 'Show in Folder'], 'relative, with :line');
-      await choose(ui, 'Open');
-      await waitFor(() => files.length === 1);
+      assert.deepEqual(await menuRows(ui), ['Open', 'Show in Folder'], 'relative, with :line');
+      await chooseFile('Open');
       await pressAt(run);
-      assert.deepEqual(await menuRows(ui), [`# ${run}`, 'Show in Folder'], 'it would run: shown only');
-      await choose(ui, 'Show in Folder');
-      await waitFor(() => files.length === 2);
+      assert.deepEqual(await menuRows(ui), ['Show in Folder'], 'it would run: shown only');
+      await chooseFile('Show in Folder');
       await pressAt(`${dir} here`);
-      assert.deepEqual(await menuRows(ui), [`# ${dir}`, 'Open', 'Show in Folder'], 'a folder');
-      await closeMenu(ui);
+      assert.deepEqual(await menuRows(ui), ['Open', 'Show in Folder'], 'a folder');
+      await chooseFile('Show in Folder');
       await pressAt(`kl-links/${long.slice(0, 10)}`, 1);
-      assert.deepEqual(await menuRows(ui), [`# ${path.join(dir, long)}`, 'Open', 'Show in Folder'], 'wrapped over two rows: one link');
-      await closeMenu(ui);
+      assert.deepEqual(await menuRows(ui), ['Open', 'Show in Folder'], 'wrapped over two rows: one link');
+      await chooseFile('Show in Folder');
       // A file an agent marks as a link (OSC 8): Claude Code gives its path as it is, others a file:// address, with no
       // host or this computer's; another host's is no file here (below).
       const fileUrl = (host: string) => `file://${host}${url.pathToFileURL(path.join(dir, 'a.txt')).pathname}`;
       for (const uri of [path.join(dir, 'a.txt'), fileUrl(''), fileUrl(os.hostname())]) {
         await ui(`new Promise((r) => window.__term.write(${JSON.stringify(`\x1b]8;;${uri}\x07marked-file\x1b]8;;\x07\r\n`)}, r))`);
         await pressAt('marked-file');
-        assert.deepEqual(await menuRows(ui), [`# ${path.join(dir, 'a.txt')}`, 'Open', 'Show in Folder'], uri);
-        await closeMenu(ui);
+        assert.deepEqual(await menuRows(ui), ['Open', 'Show in Folder'], uri);
+        await chooseFile('Show in Folder');
       }
       await pressAt('kl-links/missing.txt');
       await sleep(200); // nothing to wait for: that no menu opens
@@ -668,7 +668,8 @@ export default (test: Test) => {
       await pressAt('other-host');
       await sleep(200); // nothing to wait for: that no menu opens
       assert.equal(await menuOpen(ui), false, "another computer's file is not opened here");
-      assert.deepEqual(files, [`open ${path.join(dir, 'a.txt')}`, `show ${run}`]);
+      const a = path.join(dir, 'a.txt');
+      assert.deepEqual(files, [`open ${a}`, `show ${run}`, `show ${dir}`, `show ${path.join(dir, long)}`, `show ${a}`, `show ${a}`, `show ${a}`]);
     } finally {
       Object.assign(electron.shell, { openPath, showItemInFolder });
       fs.rmSync(dir, { recursive: true });
