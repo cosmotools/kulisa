@@ -34,7 +34,12 @@ task). This skill is how they fit together; what each one does is in its own des
   Close only tabs you opened, unless asked.
 - **Snapshot before acting**, and act by `ref` from the latest snapshot. Refs go stale after the page changes. Do
   not guess element names (apps name things their own way: Teams' "new chat" is "New message"); a snapshot is
-  fast, a wrong guess is an error and a retry.
+  fast, a wrong guess is an error and a retry. On a large page take only what you need (`find`, an element, a
+  `depth`); a snapshot too large for an answer is written to a file, and the answer says where: read the part you
+  need there.
+- **When an action's answer counts errors** ("Since: 2 console errors, 1 failed request"), look before going on:
+  `browser_console_messages` and `browser_network_requests` with `since: action`, and what the server answered with
+  `browser_network_request`.
 - **Show, don't only tell.** When the human asks where something is, or you explain what you found or changed on a
   page, outline it with `browser_highlight` (a label of a few words each) and refer to it in your answer. Clear the
   highlights when they are no longer relevant.
@@ -113,6 +118,6 @@ the human's message, and they write around it what they want, e.g.:
   locator as `locator` to the browser tools (the human may have switched to another tab since), or use the locator
   to find the element in the app's source code.
 - Look at the element on the live page before changing code: `browser_snapshot` of that tab, `browser_screenshot`
-  when the look matters, and when something does not work, `browser_console_messages` (errors) and
-  `browser_network_requests` (failed requests) of that tab.
+  when the look matters, and when something does not work, `browser_console_messages` (`level: error`) and
+  `browser_network_requests` (`onlyFailed`) of that tab.
 - One message can hold several picks, also from different profiles ("sent here, did not appear there").

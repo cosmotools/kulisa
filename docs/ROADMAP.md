@@ -35,7 +35,7 @@ moves there over time: what has an issue is removed from here, the issue being t
 
 - **Kulisa plugin: more the agent can do in the browsers** (tools in `kulisa-plugin/tools/`, each described in its
   `registerTool`; what is built: [profiles.md](profiles.md), "What the agent does"). What else an agent needs comes from using it
-  ([src/main/kulisa-plugin/CLAUDE.md](../src/main/kulisa-plugin/CLAUDE.md), "A missing tool shows itself"). Thought of, not built: console and requests since the agent's last action only; a button over the
+  ([src/main/kulisa-plugin/CLAUDE.md](../src/main/kulisa-plugin/CLAUDE.md), "A missing tool shows itself"). Thought of, not built: a button over the
   pane for the human to say they signed in, for sign-ins that keep the address.
 - **Phone, tablet and desktop views of a site** (to discuss with the author before
   building). Responsive layouts are checked today only by resizing the pane.
@@ -273,6 +273,8 @@ moves there over time: what has an issue is removed from here, the issue being t
       serve them too, and `terminal_stop`'s Ctrl+C in cmd asks "Terminate batch job?". Closing a task and opening it
       again (`claude --resume`) and the project folder dialog (New Project…'s Browse…): untested.
   - `safeStorage` (DPAPI) for session cookies on Windows: untested.
+  - Claude Code reading the large pages' files without asking on Windows (its rule's path in POSIX form,
+    `//c/…`: `agents/claude.ts`): untested.
   - The OS buttons' see-through strip ([window.md](window.md), The title bar) on Windows: no strip of the theme's
     color behind them, their hover still shown, the strip dimmed under a dialog (the test checks it on Linux).
   - Screenshots ([src/screenshots](../src/screenshots/README.md)), tested on Linux (X11) only: the folder of

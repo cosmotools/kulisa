@@ -148,9 +148,19 @@ What the tools are for, beyond acting as one user:
 - **`browser_evaluate`** runs a function the agent writes in the page: made there from its source (no eval in the
   main process; CDP's evaluation is not held to the page's CSP) and called with the element, if one is given. The
   skill forbids reading cookies or tokens with it; the profile's CDP proxy is open to local processes anyway (issue
-  #90). The console and network tools (Playwright's `page.consoleMessages()`,
-`pageErrors()`, `requests()`) give errors or failures only when asked. `@playwright/mcp` works too, through the
-profile's CDP proxy (below).
+  #90). `@playwright/mcp` works too, through the profile's CDP proxy (below).
+- **Reading a page without filling the agent's context** ([the tools' design](../src/main/kulisa-plugin/CLAUDE.md),
+  "Saving the agent's context"). `browser_snapshot` takes a part: an element (ref or locator, its subtree:
+  `locator.ariaSnapshot()`), a depth, or `find`, the lines that match under their ancestors. One larger than about
+  10k tokens (Claude Code warns of a tool's answer from there) goes to a file in the task's `pages/` (tasks.md, What
+  is on the computer), one a tab, rewritten each time; the answer gives its path and its top levels. Claude Code is
+  let read there in its settings (`agents/claude.ts`), or it would ask each time; Codex reads the whole disk. What a
+  page reported is Playwright's (`page.consoleMessages()`, `pageErrors()`, `requests()`: the last 200, 200 and 100):
+  the console by level, the requests without the static files that loaded, by address, numbered (a request keeps its
+  number), one whole by its number (`browser_network_request`: headers and bodies, a large body to a file as a
+  snapshot; cookie and credential headers hidden, as Rules says). An action of the agent marks its page: its answer
+  counts the console errors and failed requests since, and `since: action` reads only those; a request still waiting
+  for its answer is pending, never waited for.
 
 **The agent points back**: `browser_highlight` outlines elements on a profile's page (Playwright's
 `locator.highlight()`, following the element; it works on Trusted Types pages too) and shows its labels in the pane
