@@ -57,9 +57,10 @@ one less for thinking.
    MCP) is worth a look; what to take is decided on its merits.
 2. **A part, not the whole.** A screenshot of an element or a region, not of the page; a snapshot of a subtree, not
    of the document.
-3. **Large goes to disk.** A snapshot, a screenshot or a response's body over a limit is written to a file in the
-   task's data folder (never the project's folder: nothing of Kulisa's in the agent's `git status`), one per tab,
-   rewritten each time. The answer gives its path and a short outline, and the agent reads the part it needs.
+3. **Large goes to disk.** A snapshot or a response's body over a limit is written to a file in the task's artifacts
+   (`artifacts.ts`; never the project's folder: nothing of Kulisa's in the agent's `git status`), each its own, never
+   replaced (two to compare), the oldest gone past a limit; a screenshot is kept there too. The answer gives its path
+   and a short outline, and the agent reads the part it needs.
 4. **A signal before the content.** An action's answer carries counts (2 console errors, 1 failed request), so the
    agent reads the details only when there are some.
 5. **An action answers in a line**: what was done and where the page is now. A snapshot only when asked for.

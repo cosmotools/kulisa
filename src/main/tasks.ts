@@ -431,7 +431,7 @@ class Task {
     const command = found.onPath ? a.command : found.path;
     t.pty = await startTerminal((channel, data) => this.window?.send(channel, data), { command, shell: a.shell, cwd: this.folder,
       env: { ...env, ...more.env, ...a.env }, pinned: a.env, sizeOf: this.key,
-      args: [...(resume || []), ...(a.args?.({ env, packages: shell.packages, account: Object.keys(a.env).length ? a.configDir : null }) || []), ...(more.args || []), ...((!resume && first && a.prompt?.(first)) || [])] }, t.key);
+      args: [...(resume || []), ...(a.args?.({ env, packages: shell.packages, account: Object.keys(a.env).length ? a.configDir : null, artifacts: shell.store.artifactsGlob() }) || []), ...(more.args || []), ...((!resume && first && a.prompt?.(first)) || [])] }, t.key);
     if (this.terminals.get(t.id) !== t) { stopTerminal(t.pty); return { error: 'the terminal was closed' }; }
     // Its shell exited by itself (exit), not stopped by Kulisa (closing, quitting: the terminal is kept then).
     t.pty.onExit(() => { if (!t.pty!.stopped) this.dropTerminal(t); });
