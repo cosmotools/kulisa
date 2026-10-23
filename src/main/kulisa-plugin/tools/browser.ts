@@ -6,7 +6,7 @@ import path from 'path';
 import { toUrl } from '../../profiles.ts';
 import { MARK } from '../ghost.ts';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import type { Page } from 'playwright-core';
+import type { ConsoleMessage, Page, Request } from 'playwright-core';
 import type { Tab } from '../../profiles.ts';
 import type { Handles } from './handles.ts';
 
@@ -24,6 +24,65 @@ async function clearHighlights(profile: string) {
 // browser_type: a text longer than this is filled at once, not typed key by key.
 const TYPED_MAX = 300;
 
+// What a page reported, as playwright-core keeps it: the console (200), uncaught errors (200), requests (100). The
+// agent's last action in a page is marked: "since action" starts there, and the action's answer counts what came
+// after it (2 console errors, 1 failed request), so the agent reads the details only when there are some.
+type Mark = { at: number; request: Request | undefined; errors: number };
+const marks = new WeakMap<Page, Mark>();
+// Uncaught errors carry no time: those seen are counted, from the page's first mark.
+const errorsSeen = new WeakMap<Page, { n: number }>();
+async function mark(page: Page) {
+  let seen = errorsSeen.get(page);
+  if (!seen) {
+    const s = { n: 0 };
+    errorsSeen.set(page, seen = s);
+    page.on('pageerror', () => { s.n++; });
+  }
+  marks.set(page, { at: Date.now(), request: (await page.requests()).at(-1), errors: seen.n });
+}
+type Since = 'action' | 'navigation' | undefined;
+async function reportedOf(page: Page, since: Since) {
+  const filter = since === 'navigation' ? 'since-navigation' : 'all';
+  const messages = await page.consoleMessages({ filter }), errors = await page.pageErrors({ filter });
+  const m = since === 'action' && marks.get(page);
+  if (!m) return { messages, errors };
+  const after = errorsSeen.get(page)!.n - m.errors;
+  return { messages: messages.filter((x) => x.timestamp() >= m.at), errors: after ? errors.slice(-after) : [] };
+}
+// A request's number in its page, given when it is first listed and kept, so the agent can ask for one by it.
+const numbers = new WeakMap<Request, number>(), numbered = new WeakMap<Page, number>();
+async function requestsOf(page: Page, since?: Since) {
+  const all = await page.requests();
+  let n = numbered.get(page) ?? 0;
+  for (const r of all) if (!numbers.has(r)) numbers.set(r, ++n);
+  numbered.set(page, n);
+  if (since === 'navigation') {
+    const i = all.findLastIndex((r) => r.isNavigationRequest() && r.frame() === page.mainFrame());
+    return i < 0 ? all : all.slice(i);
+  }
+  const m = since === 'action' && marks.get(page);
+  if (!m || !m.request) return all;
+  // The mark's request evicted (over 100 since): all there is came after it.
+  const i = all.indexOf(m.request);
+  return i < 0 ? all : all.slice(i + 1);
+}
+const failed = (r: Request) => !!r.failure() || (r.existingResponse()?.status() ?? 0) >= 400;
+const LEVELS = ['error', 'warning', 'info', 'debug'] as const;
+const levelOf = (m: ConsoleMessage) => (['error', 'assert'].includes(m.type()) ? 0 : m.type() === 'warning' ? 1 : m.type() === 'debug' ? 3 : 2);
+// What an action's answer adds: the errors and failed requests since the action began, when there are some.
+async function signals(page: Page) {
+  const { messages, errors } = await reportedOf(page, 'action');
+  const e = messages.filter((m) => levelOf(m) === 0).length + errors.length, f = (await requestsOf(page, 'action')).filter(failed).length;
+  const said = [e && `${e} console error${e > 1 ? 's' : ''}`, f && `${f} failed request${f > 1 ? 's' : ''}`].filter(Boolean);
+  return said.length ? ` Since: ${said.join(', ')}.` : '';
+}
+// Left out of the requests unless asked for (they fail, they show).
+const STATIC = new Set(['image', 'font', 'script', 'stylesheet', 'media']);
+// Never given to the agent (CLAUDE.md, Rules): the values of the headers that carry cookies and credentials.
+const CREDENTIAL = /^(cookie|set-cookie|authorization|proxy-authorization)$|token|secret|api-?key|session|csrf|xsrf/i;
+const TEXT = /^text\/|json|xml|javascript|x-www-form-urlencoded|graphql/;
+const bodyOf = (b: Buffer, type = '') => ` (${b.length} bytes${type ? `, ${type}` : ''})${TEXT.test(type) ? `:\n${b.toString('utf8')}` : ': not text'}`;
+
 function browserTools(server: McpServer, h: Handles) {
   const { task, profileArg, text, done, idOf, profileOf, tabOf, pageOf, locate, target, element, dialogArg, answering, tabArg, onTab } = h;
 
@@ -36,7 +95,7 @@ function browserTools(server: McpServer, h: Handles) {
     await tab.ready;
     const page = await p.page(tab.id);
     await page.waitForLoadState('domcontentloaded').catch(() => {});
-    return text(`Opened tab ${tab.id} in ${profile}: ${page.url()} — "${await page.title()}"`);
+    return text(`Opened tab ${tab.id} in ${profile}: ${page.url()} — "${await page.title()}".${await signals(page)}`);
   });
   server.registerTool('browser_tab_select', { description: 'Make a tab the active one in its profile (the pane shows it; other tools act on it).', inputSchema: { profile: profileArg, tab: tabArg } },
     async ({ profile, tab }) => {
@@ -98,11 +157,12 @@ function browserTools(server: McpServer, h: Handles) {
     const page = await pageOf(profile);
     const { tab } = tabOf(profile), history = tab.wc.navigationHistory;
     if (go === 'back' ? !history.canGoBack() : go === 'forward' && !history.canGoForward()) return text(`Nowhere to go ${go} in ${profile}'s tab; still at ${page.url()}.`);
+    await mark(page);
     const said = await answering(tab, dialog, async () => {
       const opts = { waitUntil: 'domcontentloaded' as const };
       await (url ? page.goto(toUrl(url), opts) : go === 'back' ? page.goBack(opts) : go === 'forward' ? page.goForward(opts) : page.reload(opts));
     });
-    return text(`${go ? `Went ${go}` : 'Navigated'}: ${profile} is at ${page.url()} — "${await page.title()}".${said}`);
+    return text(`${go ? `Went ${go}` : 'Navigated'}: ${profile} is at ${page.url()} — "${await page.title()}".${said}${await signals(page)}`);
   });
 
   server.registerTool('browser_snapshot', {
@@ -124,11 +184,12 @@ function browserTools(server: McpServer, h: Handles) {
   async ({ profile, tab, ref, locator, dialog }) => {
     const page = await pageOf(profile, tab);
     const loc = await target(page, { ref, locator });
+    await mark(page);
     const said = await answering(tabOf(profile, tab).tab, dialog, async () => {
       await loc.click({ timeout: 5000 });
       await page.waitForLoadState('domcontentloaded').catch(() => {});
     });
-    return text(`Clicked ${locator || ref} as ${profile}. Now at ${page.url()}.${said}`);
+    return text(`Clicked ${locator || ref} as ${profile}. Now at ${page.url()}.${said}${await signals(page)}`);
   });
 
   server.registerTool('browser_type', { description: 'Type text into an element by ref or locator, replacing what it holds, key by key as a person types (a long text at once); submit presses Enter.',
@@ -136,13 +197,14 @@ function browserTools(server: McpServer, h: Handles) {
   async ({ profile, tab, ref, locator, text: value, submit, dialog }) => {
     const page = await pageOf(profile, tab);
     const loc = await target(page, { ref, locator });
+    await mark(page);
     // Key by key, so the human sees it typed and the page gets the keys a person's typing sends (suggestions,
     // checks as one types): 40 ms a key, faster for a longer text, about 1.5 s at most; a long one (a pasted
     // paragraph) filled at once.
     await loc.fill(value.length > TYPED_MAX ? value : '', { timeout: 5000 });
     if (value && value.length <= TYPED_MAX) await loc.pressSequentially(value, { delay: Math.min(40, 1500 / value.length), timeout: 15000 });
     const said = submit ? await answering(tabOf(profile, tab).tab, dialog, () => loc.press('Enter')) : '';
-    return text(`Typed into ${locator || ref} as ${profile}.${said}`);
+    return text(`Typed into ${locator || ref} as ${profile}.${said}${await signals(page)}`);
   });
 
   // A test user's sign-in (profiles.md, "Test users' sign-ins"): its saved login or password typed by Kulisa into a field
@@ -155,10 +217,11 @@ function browserTools(server: McpServer, h: Handles) {
     const page = await pageOf(profile, tab);
     const loc = await target(page, { ref, locator });
     const key = `${task.key}/${r.profile.id}`;
+    await mark(page);
     task.shell.typingSecret.add(key);
     try { await loc.fill(r.value, { timeout: 5000 }); } finally { task.shell.typingSecret.delete(key); }
     const said = submit ? await answering(r.tab, dialog, () => loc.press('Enter')) : '';
-    return text(`Typed ${r.profile.name}'s ${field} into ${locator || ref}.${said}`);
+    return text(`Typed ${r.profile.name}'s ${field} into ${locator || ref}.${said}${await signals(page)}`);
   });
 
   server.registerTool('browser_press_key', {
@@ -167,15 +230,18 @@ function browserTools(server: McpServer, h: Handles) {
   }, async ({ profile, tab, key, ref, locator, dialog }) => {
     const page = await pageOf(profile, tab);
     const loc = ref || locator ? await target(page, { ref, locator }) : null;
+    await mark(page);
     const said = await answering(tabOf(profile, tab).tab, dialog, () => (loc ? loc.first().press(key, { timeout: 5000 }) : page.keyboard.press(key)));
-    return text(`Pressed ${key} as ${profile}.${said}`);
+    return text(`Pressed ${key} as ${profile}.${said}${await signals(page)}`);
   });
 
   server.registerTool('browser_hover', { description: 'Move the pointer over an element (menus, tooltips) by ref or locator.', inputSchema: { profile: profileArg, tab: onTab, ...element } },
     async ({ profile, tab, ref, locator }) => {
       const page = await pageOf(profile, tab);
-      await (await target(page, { ref, locator })).first().hover({ timeout: 5000 });
-      return text(`Hovered ${locator || ref} as ${profile}`);
+      const loc = (await target(page, { ref, locator })).first();
+      await mark(page);
+      await loc.hover({ timeout: 5000 });
+      return text(`Hovered ${locator || ref} as ${profile}.${await signals(page)}`);
     });
 
   server.registerTool('browser_select_option', {
@@ -183,8 +249,10 @@ function browserTools(server: McpServer, h: Handles) {
     inputSchema: { profile: profileArg, tab: onTab, ...element, values: z.array(z.string()) },
   }, async ({ profile, tab, ref, locator, values }) => {
     const page = await pageOf(profile, tab);
-    const chosen = await (await target(page, { ref, locator })).first().selectOption(values, { timeout: 5000 });
-    return text(`Selected ${chosen.join(', ')} in ${locator || ref} as ${profile}`);
+    const loc = (await target(page, { ref, locator })).first();
+    await mark(page);
+    const chosen = await loc.selectOption(values, { timeout: 5000 });
+    return text(`Selected ${chosen.join(', ')} in ${locator || ref} as ${profile}.${await signals(page)}`);
   });
 
   server.registerTool('browser_file_upload', {
@@ -194,12 +262,13 @@ function browserTools(server: McpServer, h: Handles) {
     if (!paths.every((f) => path.isAbsolute(f))) throw new Error('paths must be absolute');
     const page = await pageOf(profile, tab);
     const el = (await target(page, { ref, locator })).first();
+    await mark(page);
     if (await el.evaluate((e) => e instanceof HTMLInputElement && e.type === 'file')) await el.setInputFiles(paths, { timeout: 5000 });
     else {
       const [chooser] = await Promise.all([page.waitForEvent('filechooser', { timeout: 5000 }), el.click({ timeout: 5000 })]);
       await chooser.setFiles(paths);
     }
-    return text(`Gave ${paths.map((f) => path.basename(f)).join(', ')} to ${locator || ref} as ${profile}`);
+    return text(`Gave ${paths.map((f) => path.basename(f)).join(', ')} to ${locator || ref} as ${profile}.${await signals(page)}`);
   });
 
   // Waiting in one profile for what another one did is the point of Kulisa (several users at once). At most 45 s a
@@ -265,30 +334,64 @@ function browserTools(server: McpServer, h: Handles) {
   // What a tab reported recently, as Playwright keeps it for every page of the shell's connection (the last ones,
   // since the connection was made: after a sign-in pause, only what came after it).
   const clip = (s: string, n = 300) => (s.length > n ? `${s.slice(0, n)}…` : s);
+  const since = z.enum(['action', 'navigation']).optional()
+    .describe('Only what came since your last action in this tab (a click, typing, navigating), or since its page loaded; default: all that is kept');
   server.registerTool('browser_console_messages', {
-    description: "Recent console messages and uncaught errors of a profile's tab (default: the active one). Look here when something on the page does not work.",
-    inputSchema: { profile: profileArg, tab: onTab, onlyErrors: z.boolean().optional().describe('Errors and warnings only') },
-  }, async ({ profile, tab, onlyErrors }) => {
+    description: "Recent console messages and uncaught errors of a profile's tab (default: the active one), the last 200. Look here when something on the page does not work.",
+    inputSchema: { profile: profileArg, tab: onTab, level: z.enum(LEVELS).optional().describe('This level and the more severe ones; default debug: all'), since },
+  }, async ({ profile, tab, level = 'debug', since }) => {
     const page = await pageOf(profile, tab);
+    const { messages, errors } = await reportedOf(page, since);
     const lines = [
-      ...(await page.consoleMessages()).filter((m) => !onlyErrors || ['error', 'warning'].includes(m.type())).map((m) => `${m.type()}: ${clip(m.text())}`),
-      ...(await page.pageErrors()).map((e) => `uncaught: ${clip(String(e.stack || e), 1000)}`),
+      ...messages.filter((m) => levelOf(m) <= LEVELS.indexOf(level)).map((m) => `${m.type()}: ${clip(m.text())}`),
+      ...errors.map((e) => `uncaught: ${clip(String(e.stack || e), 1000)}`),
     ].slice(-100);
-    return text(lines.length ? lines.join('\n') : `No ${onlyErrors ? 'errors' : 'console messages'} in ${profile}'s tab ${page.url()}`);
+    return text(lines.length ? lines.join('\n') : `No ${level === 'debug' ? 'console messages' : `${level}s`} in ${profile}'s tab ${page.url()}`);
   });
   server.registerTool('browser_network_requests', {
-    description: "Recent network requests of a profile's tab (default: the active one): method, URL, status or failure.",
-    inputSchema: { profile: profileArg, tab: onTab, onlyFailed: z.boolean().optional().describe('Failed requests and HTTP errors (4xx, 5xx) only') },
-  }, async ({ profile, tab, onlyFailed }) => {
+    description: "Recent network requests of a profile's tab (default: the active one), the last 100, numbered: method, URL, status or failure. " +
+      'Successful images, fonts, scripts and styles are left out unless static. Headers and bodies of one: browser_network_request with its number.',
+    inputSchema: {
+      profile: profileArg, tab: onTab, onlyFailed: z.boolean().optional().describe('Failed requests and HTTP errors (4xx, 5xx) only'),
+      filter: z.string().optional().describe('A regular expression the URL matches, e.g. /api/'),
+      static: z.boolean().optional().describe('Also the successful images, fonts, scripts and styles'), since,
+    },
+  }, async ({ profile, tab, onlyFailed, filter, static: statics, since }) => {
     const page = await pageOf(profile, tab);
+    let match: RegExp | undefined;
+    try { match = filter === undefined ? undefined : new RegExp(filter); } catch { throw new Error(`filter is not a regular expression: ${filter}`); }
     const lines: string[] = [];
-    for (const r of await page.requests()) {
-      const failure = r.failure()?.errorText;
-      // Not response(): it waits for the answer, and a request that never gets one held the call for good.
-      const status = failure ? null : r.existingResponse()?.status();
-      if (!onlyFailed || failure || (status ?? 0) >= 400) lines.push(`${r.method()} ${clip(r.url())} → ${failure || status || 'pending'}`);
+    for (const r of await requestsOf(page, since)) {
+      const failure = r.failure()?.errorText, status = r.existingResponse()?.status();
+      if (onlyFailed && !failed(r)) continue;
+      if (!statics && !failed(r) && status && STATIC.has(r.resourceType())) continue;
+      if (match && !match.test(r.url())) continue;
+      lines.push(`#${numbers.get(r)} ${r.method()} ${clip(r.url())} → ${failure || status || 'pending'}`);
     }
-    return text(lines.length ? lines.slice(-100).join('\n') : `No ${onlyFailed ? 'failed ' : ''}requests in ${profile}'s tab ${page.url()}`);
+    return text(lines.length ? lines.join('\n') : `No ${onlyFailed ? 'failed ' : ''}requests${filter ? ` matching ${filter}` : ''} in ${profile}'s tab ${page.url()}`);
+  });
+  server.registerTool('browser_network_request', {
+    description: "One request of a profile's tab (default: the active one) by its number from browser_network_requests: its method, URL, status, headers and bodies. Cookies and credentials in headers are hidden.",
+    inputSchema: { profile: profileArg, tab: onTab, number: z.number().int().positive() },
+  }, async ({ profile, tab, number }) => {
+    const page = await pageOf(profile, tab);
+    const r = (await requestsOf(page)).find((x) => numbers.get(x) === number);
+    if (!r) throw new Error(`No request #${number} in ${profile}'s tab: the page keeps its last 100. Call browser_network_requests for the numbers there are.`);
+    const res = r.existingResponse(), failure = r.failure()?.errorText;
+    const headers = (h: Record<string, string>) => Object.entries(h).map(([k, v]) => `  ${k}: ${CREDENTIAL.test(k) ? '(hidden)' : v}`).join('\n');
+    const parts = [
+      `#${number} ${r.method()} ${r.url()} → ${failure || (res ? `${res.status()} ${res.statusText()}` : 'pending')} (${r.resourceType()})`,
+      `Request headers:\n${headers(await r.allHeaders())}`,
+    ];
+    const sent = r.postDataBuffer();
+    if (sent) parts.push(`Request body${bodyOf(sent, (await r.allHeaders())['content-type'])}`);
+    if (res) {
+      parts.push(`Response headers:\n${headers(await res.allHeaders())}`);
+      // A body still coming (a stream, a long download) is not waited for.
+      const got = await Promise.race([res.body(), new Promise<'later'>((ok) => setTimeout(() => ok('later'), 2000))]).catch((): null => null);
+      parts.push(got === 'later' ? 'Response body: still loading' : got ? `Response body${bodyOf(got, res.headers()['content-type'])}` : 'Response body: none, or no longer kept by the browser');
+    }
+    return text(parts.join('\n\n'));
   });
 }
 

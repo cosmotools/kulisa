@@ -691,10 +691,10 @@ export default (test: Test) => {
     const picked = elon.active; // the /errors page, after a click on Pay now
     const other = (await call('browser_tab_new', { profile: 'Elon.buyer', url: `${SITE}/app` })).text.match(/Opened tab (\w+)/)[1];
     assert.equal(elon.active, other);
-    const errors = (await call('browser_console_messages', { profile: 'Elon.buyer', tab: picked, onlyErrors: true })).text;
+    const errors = (await call('browser_console_messages', { profile: 'Elon.buyer', tab: picked, level: 'error' })).text;
     assert.match(errors, /error: .*PaymentError/); // Playwright's page.consoleMessages()
     const failed = (await call('browser_network_requests', { profile: 'Elon.buyer', tab: picked, onlyFailed: true })).text;
-    assert.match(failed, new RegExp(`POST http://127\\.0\\.0\\.1:${PORT}/api/pay → 500`)); // page.requests()
+    assert.match(failed, new RegExp(`#\\d+ POST http://127\\.0\\.0\\.1:${PORT}/api/pay → 500`)); // page.requests()
     assert.doesNotMatch(failed, /GET .*\/errors /, 'only failed ones');
     assert.match((await call('browser_snapshot', { profile: 'Elon.buyer', tab: picked })).text, /URL: .*\/errors/);
     assert.match((await call('browser_snapshot', { profile: 'Elon.buyer' })).text, /URL: .*\/app/, 'default: the active tab');
@@ -702,6 +702,48 @@ export default (test: Test) => {
     await call('browser_highlight', { profile: 'Elon.buyer', tab: picked, elements: [] });
     await call('browser_tab_close', { profile: 'Elon.buyer', tab: other });
     await waitFor(() => elon.active === picked);
+  });
+
+  test("agent: what a page reported: the console by level, requests without static files, by address, since the last action or the page's load; one request whole, its credentials hidden; an action's answer counts the errors", async ({ shell, call }) => {
+    const elon = shell.profiles.get(idOf('Elon.buyer')), before = elon.active;
+    const tab = (await call('browser_tab_new', { profile: 'Elon.buyer', url: `${SITE}/report` })).text.match(/Opened tab (\w+)/)[1];
+    const read = async (tool: string, args = {}) => (await call(tool, { profile: 'Elon.buyer', tab, ...args })).text;
+    await waitFor(async () => (await read('browser_console_messages')).includes('slow config'));
+    const all = await read('browser_console_messages');
+    for (const m of ['info: app loaded', 'debug: debug detail', 'warning: slow config']) assert.ok(all.includes(m), all);
+    const warnings = await read('browser_console_messages', { level: 'warning' });
+    assert.match(warnings, /warning: slow config/);
+    assert.doesNotMatch(warnings, /app loaded|debug detail/, 'a level and the more severe ones only');
+    assert.doesNotMatch(await read('browser_network_requests'), /app\.js/, 'a script that loaded is left out');
+    assert.match(await read('browser_network_requests', { static: true }), /GET .*\/static\/app\.js → 200/);
+
+    // The answer counts what the action brought; since action, only that.
+    const clicked = (await call('browser_click', { profile: 'Elon.buyer', tab, locator: "getByRole('button', { name: 'Pay' })" })).text;
+    assert.match(clicked, /Since: 1 console error/);
+    await waitFor(async () => (await read('browser_network_requests', { since: 'action' })).includes('→ 500'));
+    const since = await read('browser_console_messages', { since: 'action' });
+    assert.match(since, /PaymentError/);
+    assert.doesNotMatch(since, /app loaded/);
+    const failed = await read('browser_network_requests', { filter: '/api/' });
+    assert.doesNotMatch(failed, /\/report/, 'by address');
+    const n = Number(failed.match(/#(\d+) POST .*\/api\/pay → 500/)[1]);
+    assert.equal(Number((await read('browser_network_requests', { onlyFailed: true })).match(/#(\d+) POST/)[1]), n, 'a request keeps its number');
+    const one = await read('browser_network_request', { number: n });
+    assert.match(one, /POST .*\/api\/pay → 500/);
+    assert.match(one, /authorization: \(hidden\)/);
+    assert.doesNotMatch(one, /secret-token/, 'credentials never reach the agent');
+    assert.match(one, /Request body \(15 bytes, application\/json\):\n\{"card":"4242"\}/);
+    assert.match(one, /Response body \(24 bytes, application\/json\):\n\{"error":"stub failure"\}/);
+    await assert.rejects(read('browser_network_request', { number: 99999 }), /No request #99999.*browser_network_requests/);
+
+    // Since the page's load: what came before it is left out.
+    assert.doesNotMatch((await call('browser_navigate', { profile: 'Elon.buyer', url: `${SITE}/report` })).text, /Since:/, 'nothing to count');
+    await waitFor(async () => (await read('browser_console_messages', { since: 'navigation' })).includes('slow config'));
+    assert.doesNotMatch(await read('browser_console_messages', { since: 'navigation' }), /PaymentError/);
+    assert.doesNotMatch(await read('browser_network_requests', { since: 'navigation' }), /api\/pay/);
+    assert.equal((await read('browser_console_messages')).split('app loaded').length - 1, 2, 'all that is kept: both loads');
+    await call('browser_tab_close', { profile: 'Elon.buyer', tab });
+    await waitFor(() => elon.active === before);
   });
 
   test('agent: a request with no answer yet is listed as pending at once', async ({ shell, call }) => {
