@@ -25,8 +25,7 @@ const ONLY_BROWSER = 'Kulisa profiles are the only browser here: drive them with
 const who = ({ name, description }: { name: string; description?: string }) => `- ${name}: ${description ? description.replace(/\s+/g, ' ') : 'who it is is not said'}`;
 function sessionStart(task: Task, t: TaskTerminal | null, input: Input) {
   if (input?.session_id && t) task.saveSession(t, { sessionId: input.session_id, transcript: input.transcript_path });
-  if (t) task.noteAutoTitle(t); // a resumed conversation already has its auto-title
-
+  if (t) void task.noteAutoTitle(t); // a resumed conversation already has its auto-title
   const lines = [...task.profiles.values()].map((p) => {
     const tabs = p.tabs.filter((t) => t.discarded || !t.wc.isDestroyed()).map((t) =>
       `    - tab ${t.id}${t.id === p.active ? ' (active)' : ''}: "${t.title}" ${t.url}`);
@@ -55,8 +54,7 @@ const handlers: Record<HookEvent, (task: Task, t: TaskTerminal | null, input: In
   prompt: state('working'),
   waiting: state('waiting'),
   'tool-done': state('working', (t) => t.state === 'waiting'),
-  stop: (task, t) => { if (t) { task.setState(t, 'done'); task.noteAutoTitle(t); } return {}; }, // the auto-title is in the transcript by now
-
+  stop: (task, t) => { if (t) { task.setState(t, 'done'); void task.noteAutoTitle(t); } return {}; }, // the auto-title is in the transcript by now
   interrupt: state(null),
   'session-end': state(null, (t) => t.state !== 'done'),
 };

@@ -144,11 +144,9 @@ async function setup(shell: Shell) {
     const mcp = await mcpOf(task.env(terminal).KULISA_MCP_URL);
     const r = await mcp.callTool({ name, arguments: args });
     const content = r.content as { type: string; text?: string; data?: string }[];
-    // An unnamed task's note, a block of its own after the tool's (agent-hooks.ts, unnamed): note, not text.
-    const last = content.at(-1), note = last?.text?.startsWith('This Kulisa task has no name yet') ? last.text : undefined;
-    const text = (note ? content.slice(0, -1) : content).filter((c) => c.type === 'text').map((c) => c.text).join('\n');
+    const text = content.filter((c) => c.type === 'text').map((c) => c.text).join('\n');
     if (r.isError) throw new Error(`${name}: ${text}`);
-    return { ...r, content, text, note };
+    return { ...r, content, text };
   };
   // A script that throws says which it was (Electron's error names none).
   const ui = (js: string) => { step = `ui ${js.slice(0, 120)}`; return shell.win.webContents.executeJavaScript(js).catch((e: Error) => { throw new Error(`${e.message}: ${js.slice(0, 300)}`); }); };

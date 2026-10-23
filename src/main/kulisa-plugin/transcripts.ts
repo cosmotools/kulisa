@@ -19,5 +19,22 @@ const lines = (file: string) => fs.readFileSync(file, 'utf8').split('\n').flatMa
   try { return [JSON.parse(l)]; } catch { return []; }
 });
 
-export { CUT, cut, ownTool, lines };
+// The records of a transcript's last bytes, read without blocking: what an agent appends as it goes (its title) is
+// there, and a transcript runs to hundreds of MB, too much to read whole at every turn's end. The first line, cut, is
+// dropped.
+async function tailLines(file: string, bytes: number) {
+  const fh = await fs.promises.open(file, 'r');
+  try {
+    const { size } = await fh.stat();
+    const start = Math.max(0, size - bytes), buf = Buffer.alloc(size - start);
+    await fh.read(buf, 0, buf.length, start);
+    const text = buf.toString('utf8');
+    return (start ? text.slice(text.indexOf('\n') + 1) : text).split('\n').flatMap((l) => {
+      if (!l) return [];
+      try { return [JSON.parse(l)]; } catch { return []; }
+    });
+  } finally { await fh.close(); }
+}
+
+export { CUT, cut, ownTool, lines, tailLines };
 export type { Entry, Conversation };

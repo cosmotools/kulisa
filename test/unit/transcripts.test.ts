@@ -139,16 +139,19 @@ test('history: where a Codex turn stopped: interrupted, a call with no result, o
     "the human's last message got no answer");
 });
 
-test("title: Claude Code's own ai-title names the conversation, the last one winning; an empty one or none is null; Codex has none", () => {
+test("title: Claude Code's own ai-title names the conversation, the last one winning, read from the transcript's end; an empty one or none is null; Codex has none", async () => {
   const file = write('claude-title', [
     user('help me refactor'),
     { type: 'ai-title', aiTitle: 'Refactoring', sessionId: 's' },
     assistant({ type: 'text', text: 'ok' }),
     { type: 'ai-title', aiTitle: 'Refactor checkout', sessionId: 's' }, // regenerated: the last wins
   ]);
-  assert.equal(claude.title(file), 'Refactor checkout');
+  assert.equal(await claude.title(file), 'Refactor checkout');
+  // A long transcript: only its end is read, the record cut there skipped.
+  const long = write('claude-long', [user('x'.repeat(3 << 20)), { type: 'ai-title', aiTitle: 'Late title', sessionId: 's' }, assistant({ type: 'text', text: 'y'.repeat(1000) })]);
+  assert.equal(await claude.title(long), 'Late title');
   // No ai-title, or an empty one: nothing to show.
-  assert.equal(claude.title(write('claude-none', [user('hi'), { type: 'ai-title', aiTitle: '', sessionId: 's' }])), null);
+  assert.equal(await claude.title(write('claude-none', [user('hi'), { type: 'ai-title', aiTitle: '', sessionId: 's' }])), null);
   // Codex keeps no auto-title.
-  assert.equal(codex.title(write('codex-title', [said('user', 'hi')])), null);
+  assert.equal(codex.title, undefined);
 });
