@@ -24,6 +24,23 @@ async function clearHighlights(profile: string) {
 // browser_type: a text longer than this is filled at once, not typed key by key.
 const TYPED_MAX = 300;
 
+// browser_snapshot's find: a regular expression, or the text itself when it is not one ("Pay (card)").
+function patternOf(find: string) {
+  try { return new RegExp(find, 'i'); } catch { return new RegExp(find.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'); }
+}
+// The snapshot's lines that match, each under its ancestors (the lines less indented above it), so the agent sees
+// where it is on the page and gets its ref.
+function found(yaml: string, pattern: RegExp) {
+  const lines = yaml.split('\n'), keep = new Set<number>();
+  const indent = (l: string) => l.length - l.trimStart().length;
+  lines.forEach((line, i) => {
+    if (!pattern.test(line)) return;
+    keep.add(i);
+    for (let j = i - 1, d = indent(line); j >= 0 && d > 0; j--) if (indent(lines[j]!) < d) { keep.add(j); d = indent(lines[j]!); }
+  });
+  return [...keep].sort((a, b) => a - b).map((i) => lines[i]).join('\n');
+}
+
 // What a page reported, as playwright-core keeps it: the console (200), uncaught errors (200), requests (100). The
 // agent's last action in a page is marked: "since action" starts there, and the action's answer counts what came
 // after it (2 console errors, 1 failed request), so the agent reads the details only when there are some.
@@ -166,12 +183,21 @@ function browserTools(server: McpServer, h: Handles) {
   });
 
   server.registerTool('browser_snapshot', {
-    description: "Accessibility snapshot of a profile's tab (default: the active one), with [ref=eN] for click/type.",
-    inputSchema: { profile: profileArg, tab: onTab, also: z.array(z.string()).optional().describe("More profiles, by name: their active tabs too, in one call, e.g. to compare what each user sees") },
-  }, async ({ profile, tab, also = [] }) => {
+    description: "Accessibility snapshot of a profile's tab (default: the active one), with [ref=eN] for click/type. " +
+      'A whole page can be large: take a part (an element by ref or locator, a depth) or find what you look for.',
+    inputSchema: { profile: profileArg, tab: onTab, ...element,
+      depth: z.number().int().positive().optional().describe('Only this many levels'),
+      find: z.string().optional().describe('Only the nodes whose line matches this (a regular expression, case-insensitive), each under its ancestors'),
+      also: z.array(z.string()).optional().describe("More profiles, by name: their active tabs too, in one call (with locator: the same element in each), e.g. to compare what each user sees") },
+  }, async ({ profile, tab, ref, locator, depth, find, also = [] }) => {
+    if (ref && also.length) throw new Error('A ref is one page\'s: with also, pass a locator');
+    const pattern = find === undefined ? undefined : patternOf(find);
     const snap = async (name: string, tabId?: string) => {
       const page = await pageOf(name, tabId);
-      return `- Profile: ${name}\n- URL: ${page.url()}\n- Title: ${await page.title()}\n\n${await page.ariaSnapshot({ mode: 'ai' })}`;
+      const root = ref || locator ? (await target(page, { ref, locator })).first() : page;
+      let yaml = await root.ariaSnapshot({ mode: 'ai', depth });
+      if (pattern) yaml = found(yaml, pattern) || `Nothing matches ${find}.`;
+      return `- Profile: ${name}\n- URL: ${page.url()}\n- Title: ${await page.title()}\n\n${yaml}`;
     };
     if (!also.length) return text(await snap(profile, tab));
     // One profile that cannot be read (signing in, closed) does not hide the others.

@@ -719,7 +719,8 @@ export default (test: Test) => {
 
     // The answer counts what the action brought; since action, only that.
     const clicked = (await call('browser_click', { profile: 'Elon.buyer', tab, locator: "getByRole('button', { name: 'Pay' })" })).text;
-    assert.match(clicked, /Since: 1 console error/);
+    // The page's error, and Chromium's for the 500 when it came back before the answer.
+    assert.match(clicked, /Since: [12] console errors?/);
     await waitFor(async () => (await read('browser_network_requests', { since: 'action' })).includes('→ 500'));
     const since = await read('browser_console_messages', { since: 'action' });
     assert.match(since, /PaymentError/);
@@ -742,6 +743,30 @@ export default (test: Test) => {
     assert.doesNotMatch(await read('browser_console_messages', { since: 'navigation' }), /PaymentError/);
     assert.doesNotMatch(await read('browser_network_requests', { since: 'navigation' }), /api\/pay/);
     assert.equal((await read('browser_console_messages')).split('app loaded').length - 1, 2, 'all that is kept: both loads');
+    await call('browser_tab_close', { profile: 'Elon.buyer', tab });
+    await waitFor(() => elon.active === before);
+  });
+
+  test('agent: a part of a snapshot: an element, a depth, what matches under its ancestors; its refs act', async ({ shell, call }) => {
+    const elon = shell.profiles.get(idOf('Elon.buyer')), before = elon.active;
+    const tab = (await call('browser_tab_new', { profile: 'Elon.buyer', url: `${SITE}/form` })).text.match(/Opened tab (\w+)/)[1];
+    const snap = async (args = {}) => (await call('browser_snapshot', { profile: 'Elon.buyer', tab, ...args })).text;
+    const whole = await snap();
+    const select = await snap({ locator: "getByRole('combobox', { name: 'Size' })" });
+    assert.match(select, /option "M"/);
+    assert.doesNotMatch(select, /Delete/, 'that element only');
+    assert.doesNotMatch(await snap({ depth: 1 }), /option "M"/, 'to a depth');
+    assert.ok(whole.includes('option "M"'));
+    const delButton = await snap({ find: 'delete' });
+    assert.match(delButton, /button "Delete" \[ref=\w+\]/);
+    assert.doesNotMatch(delButton, /Later|option/, 'only what matches');
+    assert.match(await snap({ find: 'no such thing' }), /Nothing matches no such thing\./);
+    // A ref from a part is the page's: the action finds it.
+    const ref = select.match(/combobox "Size" \[ref=(\w+)\]/)[1];
+    await call('browser_select_option', { profile: 'Elon.buyer', tab, ref, values: ['L'] });
+    await call('browser_navigate', { profile: 'Elon.buyer', url: `${SITE}/app` });
+    // Its ancestors: where on the page it is.
+    assert.match(await snap({ find: 'checkout' }), /- Title: .*\n\n- generic .*\n {2}- paragraph \[ref=\w+\]:\n {4}- button "Checkout" \[ref=\w+\]$/);
     await call('browser_tab_close', { profile: 'Elon.buyer', tab });
     await waitFor(() => elon.active === before);
   });
