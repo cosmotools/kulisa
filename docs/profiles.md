@@ -381,7 +381,7 @@ each, while profiles come and go and an agent's servers are fixed at its start);
 (the sign-in pause, dialogs, captions and highlights over the pane, the human's tabs); and a tool running the agent's
 own Playwright code cannot run in Electron's main process (`vm` is no boundary), while in a process of its own it is
 what the agent already does with a script through the proxy. Each tool is a few lines of Playwright; most of their size
-is the descriptions the agent reads. If agents often write their own scripts, that names a missing tool.
+is the descriptions the agent reads.
 
 ## What is on the computer
 
