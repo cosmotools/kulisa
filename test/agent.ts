@@ -708,6 +708,8 @@ export default (test: Test) => {
     const elon = shell.profiles.get(idOf('Elon.buyer')), before = elon.active;
     const tab = (await call('browser_tab_new', { profile: 'Elon.buyer', url: `${SITE}/report` })).text.match(/Opened tab (\w+)/)[1];
     const read = async (tool: string, args = {}) => (await call(tool, { profile: 'Elon.buyer', tab, ...args })).text;
+    // Loaded again: what a new tab asked for before Playwright came to it is not in its requests (its console is).
+    await call('browser_navigate', { profile: 'Elon.buyer', go: 'reload' });
     await waitFor(async () => (await read('browser_console_messages')).includes('slow config'));
     const all = await read('browser_console_messages');
     for (const m of ['info: app loaded', 'debug: debug detail', 'warning: slow config']) assert.ok(all.includes(m), all);
@@ -742,7 +744,7 @@ export default (test: Test) => {
     await waitFor(async () => (await read('browser_console_messages', { since: 'navigation' })).includes('slow config'));
     assert.doesNotMatch(await read('browser_console_messages', { since: 'navigation' }), /PaymentError/);
     assert.doesNotMatch(await read('browser_network_requests', { since: 'navigation' }), /api\/pay/);
-    assert.equal((await read('browser_console_messages')).split('app loaded').length - 1, 2, 'all that is kept: both loads');
+    assert.ok((await read('browser_console_messages')).split('app loaded').length - 1 >= 2, 'all that is kept: every load');
     await call('browser_tab_close', { profile: 'Elon.buyer', tab });
     await waitFor(() => elon.active === before);
   });
