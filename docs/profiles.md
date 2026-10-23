@@ -103,16 +103,12 @@ A profile is an Electron session on a folder of its own (`session.fromPath`), la
 
 ## What the agent does
 
-Through Kulisa's MCP server (`mcp-server.ts`). `profile_list` lists the profiles, their names and tabs; the `browser_*`
-tools act in one, each taking a profile's name (the handle finds its id: `Task.named`): `browser_snapshot`, `browser_click`, `browser_type`, `browser_press_key`, `browser_hover`, `browser_select_option`,
-`browser_file_upload`, `browser_wait_for`, `browser_evaluate`, `browser_navigate` (also back, forward, reload),
-`browser_tab_new` / `_select` / `_close`, `browser_highlight`, `browser_screenshot`, `browser_console_messages`,
-`browser_network_requests`, `browser_type_login`; the tools reading or acting on a page take an optional `tab`.
-Profiles (`profile_*`, the profile as a thing): `profile_create`, `profile_rename`, `profile_describe`, `profile_open`, `profile_close`, `profile_ask_signin`,
-`profile_set_login`, and `profile_delete`, which asks the human first. Tasks: `task_rename`, `task_add_repository` (another of the project's repositories, once the human agreed: [tasks.md](tasks.md), Tasks),
-`task_remove_repository` (one added, no longer needed, once the human agreed), `task_history` (what was
-said and done in the task before: [transcripts.md](transcripts.md)), `conversation_rename` (its tab). Terminals:
-`terminal_run`, `terminal_read`, `terminal_stop` (shells only, [window.md](window.md), The terminal).
+Through Kulisa's MCP server (`mcp-server.ts`), in four groups: the profiles as things (`profile_*`), their pages
+(`browser_*`, each taking a profile's name, which the handle turns into its id with `Task.named`, and an optional
+`tab`), the task (`task_*`, `conversation_rename`; its repositories: [tasks.md](tasks.md), Tasks; its history:
+[transcripts.md](transcripts.md)) and the shells next to the agent (`terminal_*`: [window.md](window.md), The
+terminal). What each tool does is its description in the server's listing, the one source; how a tool is designed:
+[src/main/kulisa-plugin/CLAUDE.md](../src/main/kulisa-plugin/CLAUDE.md).
 
 **The agent does not ask the human before Kulisa's tools**: it works in the profiles while the
 human watches or is away, and a question at every click undoes that; what acts on real accounts asks in Kulisa itself

@@ -102,9 +102,7 @@ Everything happens inside Kulisa; no external Chrome windows.
   MCP server with the browser tools (agent-agnostic, where new abilities go), the profiles skill (one text for every
   agent, `src/agent/skills/profiles/`) and the hooks (each agent's table in `agents/`), brought to each agent its own
   way (for Claude Code also a plugin with the MCP config, `src/agent/claude-plugin/`).
-  Giving the agent more it can do in the browsers is one of Kulisa's features: add the tool to the MCP server, its
-  `registerTool` description saying what it does (the agent gets that from the server's tool listing, the one source).
-  The skill does not catalogue the tools; it says how they fit together (the order, the rules, when to use which).
+  Giving the agent more it can do is one of Kulisa's features: how a tool is designed, `src/main/kulisa-plugin/CLAUDE.md`.
 - **Terminology: "plugin"**: always an agent's (Claude Code's, Codex's), the Kulisa plugin being one.
 - **Terminology: "Kulisa package"** (after "Kulisa plugin": an npm package's idea in Kulisa's
   own context) for a part of Kulisa that knows nothing of the rest, all of it in one folder `src/<package>/`, reached
@@ -402,7 +400,8 @@ what the main process and the window both import (the rule for names, the profil
    everything that lets an unchanged agent CLI understand and use profiles: tools, knowledge (skill) and hooks, the
    same for every agent.
    - `mcp-server.ts` is the functional part and is agent-agnostic: any capability for the agent is an MCP tool
-     there, so Codex and other CLIs get it too. One URL per task (`/task/<project>/<n>/mcp`).
+     there, so Codex and other CLIs get it too. One URL per task (`/task/<project>/<n>/mcp`). How a tool is
+     designed: `src/main/kulisa-plugin/CLAUDE.md`.
    - The profiles skill, `src/agent/skills/profiles/SKILL.md` (change it when a tool or a rule changes), is one text
      for every agent, written as `kulisa-profiles` into each account's folder where its agent reads skills
      (`installSkill`, an entry's `skills`). Claude Code's package is `src/agent/claude-plugin/` (`claude
