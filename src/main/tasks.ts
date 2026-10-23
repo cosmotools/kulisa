@@ -770,17 +770,19 @@ class Task {
     return { n, key, project: this.project.id, name, state, folder, branch: this.entry.branch || null, closed: !!this.entry.closed, merged: !!this.entry.merged,
       repos: this.addable(), resources: this.resources() };
   }
-  // The task's resources, for the Resources island (Resources.vue): the default repository's worktree if it has made
-  // one, else the main working tree it still works in; then each added repository's worktree (task_add_repository).
-  // The main working tree and the task's own worktree are not removed from here (the latter goes with the task); an
-  // added repository's worktree is (task_remove_repository).
+  // The task's resources, for the Resources island (Resources.vue): the task's own worktree, the one it works in
+  // (this.folder), if it has made one, else the main working tree it still works in; then each added repository's
+  // worktree (task_add_repository). The main working tree and the task's own worktree are not removed from here (the
+  // latter goes with the task, as removeRepository guards this.folder); an added repository's worktree is
+  // (task_remove_repository). "Own" is keyed off where the task works, not the project's default repository, which the
+  // human may change under it.
   resources(): Sent.TaskResource[] {
     const copies = this.entry.copies || [];
-    const own = copies.find((c) => c.repo === this.project.folder);
+    const own = copies.find((c) => c.folder === this.folder);
     const rows: Sent.TaskResource[] = [own
       ? { kind: 'worktree', label: path.basename(own.repo), folder: own.folder, branch: own.branch, removable: false }
       : { kind: 'maintree', label: path.basename(this.project.folder), folder: this.project.folder, branch: null, removable: false }];
-    for (const c of copies.filter((c) => c.repo !== this.project.folder)) {
+    for (const c of copies.filter((c) => c.folder !== this.folder)) {
       rows.push({ kind: 'worktree', label: path.basename(c.repo), folder: c.folder, branch: c.branch, removable: true });
     }
     return rows;

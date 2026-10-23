@@ -1578,9 +1578,7 @@ export default (test: Test) => {
     ctx.asked.length = 0;
   });
 
-  // HELD (task-as-session): rewrite for worktree-on-demand (no copy of the default repo at open) and the Resources
-  // island (its rows, not the removed `.taskrepos` chips) once the Resources UI is settled.
-  test.skip('projects: several repositories: a task gets a copy of the default one, another added when it needs it (the human on its tab, the agent with task_add_repository), on its branch, its agent told; one with copies is not removed', async (ctx) => {
+  test('projects: several repositories: a task works in the main tree until it makes its worktree (task_worktree); another repository is added when it needs it (the human on its tab, the agent with task_add_repository), on its branch, its agent told; a repository tasks have a worktree of is not removed', async (ctx) => {
     const { shell, ui, sui, call } = ctx;
     const repo = (name: string) => {
       const d = path.join(root, name);
@@ -1593,57 +1591,63 @@ export default (test: Test) => {
     ctx.watchPty(shell.pty);
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
     const first = shell.task;
-    assert.equal(first.folder, `${api}@task-1`, 'one repository: its copy next to it');
-    const chips = () => ui(`[...document.querySelectorAll('.taskrepos .chip')].map((c) => c.textContent)`);
-    // The chips lit as they came (.fresh, for 1.8 s), seen as it happens: read after, a loaded machine misses it.
-    const watchFresh = () => ui(`(() => { window.__fresh = new Set(); window.__freshSeen?.disconnect();
-      const seen = () => document.querySelectorAll('.taskrepos .chip.fresh').forEach((c) => __fresh.add(c.textContent));
-      window.__freshSeen = new MutationObserver(seen); __freshSeen.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] }); })()`);
-    const lit = () => ui(`[...window.__fresh]`);
-    assert.deepEqual(await chips(), [], 'one repository: nothing to tell');
-    // Added in Project Settings… while task-1 runs: no copy, only offered on its tab.
+    // The Resources island (Resources.vue): each row its label, its branch line (or 'main working tree'), and whether it
+    // can be removed (an added repository's worktree can; the main tree and the task's own worktree cannot).
+    const rows = () => ui(`[...document.querySelectorAll('#resources .resource')].map((r) => [r.querySelector('.label').textContent, r.querySelector('.meta').textContent, !!r.querySelector('.danger')])`);
+    const copyOf = (name: string) => first.entry.copies.find((c) => path.basename(c.repo) === name).folder;
+    // At open: the project's main working tree (the human's folder), no worktree of its own yet (worktree-on-demand).
+    assert.equal(first.folder, api, 'the main working tree until it makes its own');
+    assert.ok(!first.entry.copies?.length, 'no worktree yet');
+    await waitFor(async () => (await rows()).length === 1);
+    assert.deepEqual(await rows(), [['api', 'main working tree', false]], 'one row: the main working tree');
+    assert.deepEqual(first.addable(), [], 'no copies yet: nothing to add');
+    // The agent makes its worktree: the row becomes the worktree on its branch; still one repository, nothing to tell.
+    const own = `${api}@task-1`;
+    assert.match((await call('task_worktree', {})).text, new RegExp(`works in its own worktree ${own}, on branch task-1`));
+    assert.equal(first.folder, own);
+    assert.equal(first.entry.copies.length, 1);
+    await waitFor(async () => (await rows())[0]?.[1] === 'branch task-1');
+    assert.deepEqual(await rows(), [['api', 'branch task-1', false]]);
+    assert.deepEqual(first.addable(), []);
+    // A second repository added to the project (Project Settings…, project:repo-add): the task may add it, not copied
+    // yet; its agent told it is there to read, to ask before changing it.
     const added = await ui(`kulisa.invoke('project:repo-add', { id: '${pid('api')}', folder: ${JSON.stringify(web)} })`);
     assert.deepEqual(added.repos.map((r: { folder: string }) => r.folder), [api, web]);
-    assert.equal(first.entry.copies.length, 1);
     assert.deepEqual([first.dirs(), first.addable()], [[], [web]]);
-    // The terminals' row names its repositories once the project has several; one added comes in lit.
-    await waitFor(async () => (await chips()).length === 1);
-    assert.deepEqual(await chips(), ['api']);
-    // Add Repository on its tab: a copy into its folder of copies, on its branch; its agent given it (an agent without
-    // /add-dir: a line saying so, sent; Claude Code's question after /add-dir: checked by hand), not while it waits for
-    // the human (Enter would answer the question), once it no longer does.
+    // Its agent is told of the other repository live, at a session's start (the MCP server's instructions are frozen at
+    // open, before the project had it): to read it there and ask before changing it.
+    assert.match(sessionStart(first, null, null).hookSpecificOutput.additionalContext, new RegExp(`repositories, not in this task: ${web}\\. Read them there freely.*first ask the human.*task_add_repository`));
+    assert.deepEqual(await rows(), [['api', 'branch task-1', false]], 'still only its own worktree until it adds one');
+    // Add Repository on its tab: a copy on its branch, into the task's folder of copies; its agent given it (an agent
+    // without /add-dir: a line saying so, sent; Claude Code's question after /add-dir: checked by hand), not while it
+    // waits for the human (Enter would answer the question), once it no longer does.
     const firstAgent = first.agentTerminals()[0];
     first.setState(firstAgent, 'waiting');
     await rightClick(ui, `#projectTabs .tasktab[data-task="${first.key}"] .name`);
-    const rows = await menuRows(ui);
-    assert.deepEqual(rows.slice(rows.indexOf('# Add Repository'), rows.indexOf('Rename…')), ['# Add Repository', 'web', '-']);
-    await watchFresh();
+    const menu = await menuRows(ui);
+    assert.deepEqual(menu.slice(menu.indexOf('# Add Repository'), menu.indexOf('Rename…')), ['# Add Repository', 'web', '-']);
     await choose(ui, 'web');
-    const webCopy = path.join(shell.projectsHome, 'api@task-1', 'web');
     await waitFor(() => first.entry.copies.length === 2);
-    await waitFor(async () => (await chips()).length === 2);
-    assert.deepEqual([await chips(), await lit()], [['api', 'web'], ['web']], 'it comes in lit');
-    // Long names are cut, the whole in the tooltip; the terminals' tabs and the microphone stay in the panel.
-    assert.deepEqual(await ui(`(() => { const names = [...document.querySelectorAll('.taskrepos .chip .name')], was = names.map((n) => n.textContent);
-      for (const n of names) n.textContent = 'customer-notifications-delivery-pipeline-with-templates'.repeat(3);
-      const row = document.querySelector('.termtabs').closest('.dv-groupview').getBoundingClientRect(), inRow = (e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.left >= row.left && r.right <= row.right; };
-      const r = { cut: names.every((n) => n.scrollWidth > n.clientWidth), tab: inRow(document.querySelector('.termtab')), mic: inRow(document.querySelector('.termtabs .dictation')),
-        tooltip: document.querySelector('.taskrepos .chip').title.startsWith(${JSON.stringify(first.folder)}) };
-      names.forEach((n, i) => n.textContent = was[i]);
-      return r; })()`), { cut: true, tab: true, mic: true, tooltip: true });
-    assert.equal(git(webCopy, 'rev-parse', '--abbrev-ref', 'HEAD'), 'task-1');
-    assert.ok(!(await ctx.termText()).includes('Kulisa added'), 'not while it waits for the human');
+    const webCopy = copyOf('web');
+    assert.equal(git(webCopy, 'rev-parse', '--abbrev-ref', 'HEAD'), 'task-1', 'on the task\'s branch');
+    // Resources shows the added worktree too, removable; its own worktree and the main tree are not.
+    await waitFor(async () => (await rows()).length === 2);
+    assert.deepEqual(await rows(), [['api', 'branch task-1', false], ['web', 'branch task-1', true]]);
+    assert.deepEqual([first.dirs(), first.addable()], [[webCopy], []]);
+    assert.ok(!(await ctx.termText()).includes(`Kulisa added ${webCopy}`), 'not while it waits for the human');
     first.setState(firstAgent, 'done');
     // Sent, not left in its prompt: shown as typed, then again as the agent (cat) read the line on Enter.
     await waitFor(async () => (await ctx.termText()).split(`Kulisa added ${webCopy} to this task`).length === 3);
-    assert.deepEqual([first.dirs(), first.addable()], [[webCopy], []]);
-    // A new task: a copy of the default one alone, in a folder for them all; the agent told of the other, to read it
-    // there and ask before adding it.
+    // A new task: the main working tree again (no copy); once it makes its own worktree it is told of the other
+    // repository, to read it there and ask before adding it.
     const task = await newTask(ctx);
+    assert.equal(task.folder, api, 'a new task opens in the main working tree too');
+    assert.deepEqual([task.entry.copies ?? [], task.addable()], [[], []]);
+    await ctx.call('task_worktree', {});
     const home = path.join(shell.projectsHome, 'api@task-2');
     assert.equal(task.folder, path.join(home, 'api'));
     assert.deepEqual([task.dirs(), fs.existsSync(path.join(home, 'web'))], [[], false]);
-    assert.match(await ctx.instructions(task), new RegExp(`repositories, not in this task: ${web}\\. .*first ask the human.*task_add_repository`));
+    assert.match(sessionStart(task, null, null).hookSpecificOutput.additionalContext, new RegExp(`repositories, not in this task: ${web}\\. Read them there freely.*first ask the human.*task_add_repository`));
     // The agent adds it in its turn, once the human agreed: a copy on its branch, given to it in the turn by an agent's
     // own command (Claude Code's /add-dir: it runs at once); the same refused again.
     const agent = task.agentTerminals()[0];
@@ -1658,12 +1662,12 @@ export default (test: Test) => {
     // Its agent names it: the branch of each copy.
     await call('task_rename', { name: 'Checkout' });
     for (const r of ['api', 'web']) assert.equal(git(path.join(home, r), 'rev-parse', '--abbrev-ref', 'HEAD'), 'checkout');
-    // Project Settings… shows them, the default first; × on one tasks have copies of is refused, naming them.
+    // Project Settings… shows them, the default first; × on one tasks have a worktree of is refused, naming them.
     await projectMenu(ui, 'Project Settings…', `#projectTabs [data-project="${pid('api')}"] .name`);
     await waitFor(() => sui(`document.querySelectorAll('#nprepos .item').length === 2`));
     assert.deepEqual(await sui(`[...document.querySelectorAll('#nprepos .item')].map((r) => r.querySelector('.label').textContent + ' ' + !!r.querySelector('.default'))`), ['api true', 'web false']);
     await onRow(sui, `#nprepos [data-folder="${web}"]`, 'nprepodel');
-    await waitFor(async () => /Tasks work in it: task-1, Checkout/.test(await sui(`document.getElementById('npcodeerror').textContent`)));
+    await waitFor(async () => /Tasks work in it: New Task, Checkout/.test(await sui(`document.getElementById('npcodeerror').textContent`)));
     await closeSettings(ctx);
     // Removed again by its agent once the human agreed: nothing of its own in it, so not asked; its folder and branch
     // gone, the agent told once its turn is over. Its own folder is refused.
@@ -1674,48 +1678,50 @@ export default (test: Test) => {
     assert.ok(!(await ctx.termText()).includes('Kulisa removed'), 'not while it works');
     task.setState(agent, 'done');
     await waitFor(async () => (await ctx.termText()).split(`Kulisa removed ${path.join(home, 'web')}`).length === 3);
-    await waitFor(async () => (await chips()).length === 1);
-    // Added again, it comes in lit; the human removes it by its chip's menu.
-    await watchFresh();
-    await call('task_add_repository', { repository: 'web' });
-    await waitFor(async () => (await chips()).length === 2);
-    assert.deepEqual([await chips(), await lit()], [['api', 'web'], ['web']], 'it comes in lit');
-    await rightClick(ui, `.taskrepos .chip[data-folder="${path.join(home, 'web')}"]`);
-    assert.deepEqual(await menuRows(ui), ['Remove Repository']);
-    await choose(ui, 'Remove Repository');
-    await waitFor(() => !fs.existsSync(path.join(home, 'web')));
-    await waitFor(async () => (await chips()).length === 1);
-    assert.equal(ctx.asked.length, 0, 'nothing of its own: not asked');
     // Deleting the task: both copies, both branches and its folder go.
     await ui(`kulisa.invoke('task:delete', '${task.key}')`);
     await waitFor(() => !fs.existsSync(home));
     assert.equal(git(web, 'branch', '--list', 'checkout') + git(api, 'branch', '--list', 'checkout'), '');
     ctx.asked.length = 0;
+    // Back on task-1, shown again: the human removes its web by the Resources island's Remove (nothing uncommitted in
+    // it: not asked); its own worktree's row has no Remove.
+    await ui(`kulisa.invoke('task:show', '${first.key}')`);
+    await waitFor(() => shell.task === first);
+    await waitFor(async () => (await rows()).length === 2);
+    await ui(`[...document.querySelectorAll('#resources .resource')].find((r) => r.querySelector('.label').textContent === 'web').querySelector('.danger').click()`);
+    await waitFor(() => !fs.existsSync(webCopy));
+    await waitFor(async () => (await rows()).length === 1);
+    assert.deepEqual(await rows(), [['api', 'branch task-1', false]]);
+    assert.equal(ctx.asked.length, 0, 'nothing of its own: not asked');
     // Cloned from a URL (a local one here) next to the project's folder, offered to task-1; made the default.
     const bare = path.join(root, 'docs.git');
     git(root, 'clone', '-q', '--bare', web, bare);
     const cloned = await ui(`kulisa.invoke('project:repo-clone', { id: '${pid('api')}', url: ${JSON.stringify(bare)} })`);
     assert.deepEqual(cloned.repos.map((r: { folder: string }) => r.folder), [api, web, path.join(root, 'docs')]);
-    assert.deepEqual(first.addable(), [path.join(root, 'docs')]);
+    assert.deepEqual(first.addable(), [web, path.join(root, 'docs')], 'web is addable again, and the clone');
     assert.equal((await ui(`kulisa.invoke('project:repo-default', { id: '${pid('api')}', folder: ${JSON.stringify(web)} })`)).repos[0].folder, web);
-    // The human removes task-1's web on its tab, a file not committed there: asked first, told what goes with it.
-    fs.writeFileSync(path.join(webCopy, 'b.txt'), 'work');
+    // The human adds web back on its tab, then removes it with a file not committed there: asked first, told what goes.
+    await rightClick(ui, `#projectTabs .tasktab[data-task="${first.key}"] .name`);
+    await choose(ui, 'web');
+    await waitFor(() => first.entry.copies.length === 2);
+    const webCopy2 = copyOf('web');
+    fs.writeFileSync(path.join(webCopy2, 'b.txt'), 'work');
     const removeWeb = async () => {
       await rightClick(ui, `#projectTabs .tasktab[data-task="${first.key}"] .name`);
-      const rows = await menuRows(ui);
-      assert.deepEqual(rows.slice(rows.indexOf('# Remove Repository'), rows.indexOf('Rename…')), ['# Remove Repository', 'web', '-']);
+      const menu = await menuRows(ui);
+      assert.deepEqual(menu.slice(menu.indexOf('# Remove Repository'), menu.indexOf('Rename…')), ['# Remove Repository', 'web', '-']);
       await choose(ui, 'web');
       await waitFor(() => ctx.asked.length);
       return ctx.asked.pop();
     };
     ctx.answer = false;
     const q = await removeWeb();
-    assert.equal(q.message, 'Remove web from the task task-1?');
-    assert.match(q.detail, new RegExp(`its folder ${webCopy}, its branch task-1.*1 uncommitted file`, 's'));
-    assert.ok(fs.existsSync(webCopy), 'kept when the human says no');
+    assert.equal(q.message, 'Remove web from the task New Task?');
+    assert.match(q.detail, new RegExp(`its folder ${webCopy2}, its branch task-1.*1 uncommitted file`, 's'));
+    assert.ok(fs.existsSync(webCopy2), 'kept when the human says no');
     ctx.answer = true;
     await removeWeb();
-    await waitFor(() => !fs.existsSync(webCopy) && git(web, 'branch', '--list', 'task-1') === ''); // the folder goes first, then the branch
+    await waitFor(() => !fs.existsSync(webCopy2) && git(web, 'branch', '--list', 'task-1') === ''); // the folder goes first, then the branch
     await ui(`kulisa.invoke('project:close-tasks', { id: '${pid('api')}' })`);
     await waitFor(() => !shell.open.has(pid('api')));
     ctx.asked.length = 0;
