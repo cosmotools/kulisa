@@ -228,8 +228,8 @@ code on a branch, browser profiles, a grid of panels and an agent in a terminal.
 build several features of one project at once.
 
 - **Always a copy.** With git (and a first commit), every task is a git worktree of the project's default repository
-  on a branch of its own, the first task too: next to its repository when the project has one (`myshop@task-2`), else
-  in one folder of the task's (`~/KulisaProjects/<project>@task-<n>/<repo>/`, one place to see and delete), where the others'
+  on a branch of its own, the first task too: next to its repository when the project has one (`myshop@task-k3x9q2`), else
+  in one folder of the task's (`~/KulisaProjects/<project>@<branch>/<repo>/`, one place to see and delete), where the others'
   copies go too. Its agent starts there.
 - **Another repository when the work needs it** (a task on the backend may turn out to need
   the frontend, and a copy no task needs is made for nothing; the ones a task has are named at the end of its
@@ -275,12 +275,12 @@ build several features of one project at once.
   the auto-title and is never a guess from the prompt: the auto-title is shown only, never written as the task's name
   or made into a branch slug.
 
-Example: the project `~/IdeaProjects/myshop`, its second task, its worktree made while it was still "New Task", then
-named "Checkout redesign" by its agent:
+Example: the project `~/IdeaProjects/myshop`, a task of it (id `k3x9q2`), its worktree made while it was still "New
+Task", then named "Checkout redesign" by its agent:
 
 ```
-~/IdeaProjects/myshop/          the project's own folder: the human's
-~/IdeaProjects/myshop@task-2/   the task: a worktree on the branch checkout-redesign
+~/IdeaProjects/myshop/                the project's own folder: the human's
+~/IdeaProjects/myshop@task-k3x9q2/    the task: a worktree on the branch checkout-redesign
 ```
 
 ### The Resources island
@@ -520,7 +520,7 @@ first): always a **new conversation**. Each sees the task's code and profiles.
   account, its session as its hooks report it, when, the name it gave it, the terminal it is open in); a shell has
   its name and the command typed in.
 - **Each agent reports for itself.** Its terminal has URLs of its own under the task's
-  (`/task/<project>/<n>/t/<id>/mcp`, `…/hooks/<event>`: `KULISA_MCP_URL`, `KULISA_URL` in its environment), so its
+  (`/task/<project>/<task id>/t/<id>/mcp`, `…/hooks/<event>`: `KULISA_MCP_URL`, `KULISA_URL` in its environment), so its
   hooks give its own state, shown on its tab, and its session goes to its own conversation. The task's tab in the
   tasks' bar shows the most urgent of its agents: waiting for the human, else working, else done and not seen.
 - **Each names its own tab**, in 1 to 3 words, with `conversation_rename` (as `task_rename` names the task); without an
@@ -603,7 +603,7 @@ project's folder.
 1. **Code** (`worktrees.ts`), a copy of the repository with a commit. The branch starts as Claude Code's `--worktree`
    starts one: from the remote's default branch after `git fetch` (`origin/main`), else from `HEAD`. Uncommitted
    changes of the project's folder are not carried. The branch is a slug of the task's name (`fix-header`), or
-   `task-<n>` until it is named, one name free in every repository (`-2`, `-3` if taken), the copy next to its
+   `task-<task id>` until it is named, one name free in every repository (`-2`, `-3` if taken), the copy next to its
    repository (or, with several repositories in the project, in `~/KulisaProjects/<project>@<branch>/`, where a
    repository added later goes beside it; a repository is added only once the task has its own worktree):
    `git worktree add --no-track -b <branch> <copy> <start>`. `--no-track`: pushing the task's branch
@@ -693,8 +693,8 @@ Outside it:
 
 | What | Where | Made when |
 |---|---|---|
-| The task's copy | `<repo>@task-<n>/`, next to the repository (one repository) | creating a task |
-| The task's folder of copies | `~/KulisaProjects/<project>@task-<n>/<repo>/` (several repositories, or one added later) | creating a task; adding a repository |
+| The task's copy | `<repo>@<branch>/`, next to the repository (one repository) | its agent making its worktree |
+| The task's folder of copies | `~/KulisaProjects/<project>@<branch>/<repo>/` (several repositories, or one added later) | its agent making its worktree; adding a repository |
 | The task's branch | each repository (`git branch`) | creating a task; renamed with the task |
 | git's worktree record | `<repo>/.git/worktrees/<copy>/` | creating a task |
 | A cloned repository | `<location>/<name>/`, or `<location>/<name>/<repo>/` for several (New Project, Clone from URL); `~/KulisaProjects/<project>/<repo>/` or next to the project's folder (Clone on its page) | cloning; stays, as the human's (removing it from the project, or the project, leaves it) |
@@ -731,7 +731,7 @@ its agent and closes its profiles, then deletes:
   already pushed stays on the remote;
 - direnv's permission for its `.envrc`: the records in `<XDG data>/direnv/allow/` naming it (`worktrees.ts`; not
   `direnv deny`, which newer direnv records too);
-- its data folder `projects/<id>/<n>/`, profiles with their sign-ins (also listed in `deleted-folders.json`,
+- its data folder `projects/<project id>/<task id>/`, profiles with their sign-ins (also listed in `deleted-folders.json`,
   removed at the next start if a file was still open);
 - what its agent keeps of the task's folders (`agents/`, each agent's `forget`, `forgetFolder` in `projects.ts`;
   undocumented layouts, so what is not found is skipped): its own folder's conversations and records, and the other
@@ -769,11 +769,11 @@ agents' accounts, let go of (Settings → Agents deletes one: "Choosing the agen
 - Each window shows one of its tasks. The others keep running, the other windows' too: their
   pages and agent go on, their pages hidden.
 - A task loads (its profiles start, its agent starts) the first time it is shown, also after a restart.
-- A task is known among all open ones by its key, `<project id>/<n>` (the window, the terminals). Each has its own
-  MCP URL, `http://127.0.0.1:4450/task/<project id>/<n>/mcp`, and hooks under `/task/<project id>/<n>/hooks/` (each part
+- A task is known among all open ones by its key, `<project id>/<task id>` (the window, the terminals); a task's id is six random letters and digits, as a project's and a profile's (store.ts, `newId`). Each has its own
+  MCP URL, `http://127.0.0.1:4450/task/<project id>/<task id>/mcp`, and hooks under `/task/<project id>/<task id>/hooks/` (each part
   percent-encoded: ids have letters of any language); its agent gets them in its environment (`KULISA_MCP_URL`,
   `KULISA_URL`) and sees only its task's profiles. Profile ids repeat across tasks; inside Kulisa a profile
-  is `<project id>/<n>/<id>` (CDP proxy, highlights).
+  is `<project id>/<task id>/<id>` (CDP proxy, highlights).
 
 ## Removing everything by hand
 
@@ -781,8 +781,8 @@ Quit Kulisa first (it writes its data on quit). Then, for a project:
 
 ```sh
 cd ~/IdeaProjects/myshop
-git worktree list                         # the tasks: <repo>@task-<n>, each with its branch
-git worktree remove --force ../myshop@task-2
+git worktree list                         # the tasks: <repo>@<branch>, each with its branch
+git worktree remove --force ../myshop@task-k3x9q2
 git branch -D checkout-redesign
 rm -rf ~/.config/Kulisa/projects/myshop   # all its tasks with their profiles' copies (the masters stay)
 ```
@@ -796,10 +796,10 @@ rm -rf ~/.config/Kulisa/projects/myshop   # all its tasks with their profiles' c
 - **× closes, Delete deletes.** A task is often put aside and taken up again (waiting for a review, a question to
   the client), so × keeps everything and stops only what costs memory (its agent, its tabs); deleting is a menu item
   with its question. Closed tasks stay until the human deletes them.
-- **Named by the agent.** A name asked for before the work starts is a guess; `task-<n>` until the agent (or the
+- **Named by the agent.** A name asked for before the work starts is a guess; "New Task" until the agent (or the
   human) knows what the task is about. The branch follows the name; the folder does not, as an agent may be working
   in it.
-- **Code through git only.** The task's folder is next to the project (`myshop@task-2`): visible, and it opens in an
+- **Code through git only.** The task's folder is next to the project (`myshop@task-k3x9q2`): visible, and it opens in an
   IDE; inside the project, IDEs and tools would see the code twice. A project without git has no copies, and Kulisa
   runs no `git init`: run without asking, it could put secrets into history, or a huge folder, or nest a repository;
   the agent does it when the human asks.

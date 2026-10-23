@@ -67,12 +67,12 @@ test("projects: an id is six random letters and digits, none a project's name, u
   fs.writeFileSync(store.projectsFile, JSON.stringify({ list: [...store.projects(), { id: 'd', name: 'ddd', folder: '/work/d', color: PROJECT_COLORS[0] }] }));
   assert.equal(store.projectFor('/work/d').id, 'd');
   assert.equal(store.updateProject('d', { name: 'eee' }).id, 'd');
-  assert.deepEqual(store.taskOf({ id: 'd' }, 1).dir, path.join(dir, 'projects', 'd', '1'));
+  assert.deepEqual(store.taskOf({ id: 'd' }, 'k3x9ab').dir, path.join(dir, 'projects', 'd', 'k3x9ab'));
 });
 
 test('store: a write cut short leaves the file as it was', async () => {
   const store = new Store(path.join(root, 'fresh-data'));
-  const task = store.taskOf(store.projectFor('/work/shop'), 1);
+  const task = store.taskOf(store.projectFor('/work/shop'), 'k3x9ab');
   task.saveProfiles([{ id: 'sam' }]);
   const writeFileSync = fs.writeFileSync;
   fs.writeFileSync = ((f: number, data: string) => { writeFileSync(f, String(data).slice(0, 10)); throw new Error('the computer went off'); }) as typeof fs.writeFileSync;
@@ -82,7 +82,7 @@ test('store: a write cut short leaves the file as it was', async () => {
 });
 test("store: a profile's tabs come back with the one in front; a bare list of addresses, another format, is not read", () => {
   const store = new Store(path.join(root, 'tabs-data'));
-  const task = store.taskOf(store.projectFor('/work/shop'), 1);
+  const task = store.taskOf(store.projectFor('/work/shop'), 'k3x9ab');
   assert.deepEqual(task.tabs('k3x9ab'), { urls: [], active: 0 }, 'none saved');
   task.saveTabs('k3x9ab', { urls: ['https://a/', 'https://b/'], active: 1 });
   assert.deepEqual(task.tabs('k3x9ab'), { urls: ['https://a/', 'https://b/'], active: 1 });
@@ -249,15 +249,15 @@ test('project profiles: a task has its own copy of each, made at its first open;
 
 test("a task's folder, branch and folder of copies are its resources': the first where it works; the folder of copies never a repository's parent", () => {
   const wt = (repo: string, worktree: string, sub = '') => ({ kind: 'worktree' as const, repo: path.join(repo, sub), worktree, branch: 'fix', base: null as string | null, folder: path.join(worktree, sub) });
-  const main: TaskEntry = { n: 1, name: 'New Task', resources: [{ kind: 'maintree', folder: '/src/api' }] };
+  const main: TaskEntry = { id: 't1', name: 'New Task', resources: [{ kind: 'maintree', folder: '/src/api' }] };
   assert.deepEqual([folderOf(main, '/src/web'), branchOf(main), homeOf(main)], ['/src/api', null, null], 'where it opened, whatever the default is now');
-  assert.equal(folderOf({ n: 2, name: 'x' }, '/src/web'), '/src/web');
+  assert.equal(folderOf({ id: 't2', name: 'x' }, '/src/web'), '/src/web');
   // Beside its repository (<repo>@<branch>): no folder of copies, even for a repository in a subfolder of its git.
-  const beside: TaskEntry = { n: 3, name: 'Fix', resources: [wt('/src/api', '/src/api@fix')] };
+  const beside: TaskEntry = { id: 't3', name: 'Fix', resources: [wt('/src/api', '/src/api@fix')] };
   assert.deepEqual([folderOf(beside, ''), branchOf(beside), homeOf(beside)], ['/src/api@fix', 'fix', null]);
-  assert.equal(homeOf({ n: 4, name: 'Fix', resources: [wt('/src/mono', '/src/mono@fix', 'app')] }), null, 'never /src');
+  assert.equal(homeOf({ id: 't4', name: 'Fix', resources: [wt('/src/mono', '/src/mono@fix', 'app')] }), null, 'never /src');
   // In a folder of copies, its own and one added; an added one beside a worktree made beside its repository.
-  const home: TaskEntry = { n: 5, name: 'Fix', resources: [wt('/src/api', '/home/K/shop@fix/api'), wt('/src/web', '/home/K/shop@fix/web')] };
+  const home: TaskEntry = { id: 't5', name: 'Fix', resources: [wt('/src/api', '/home/K/shop@fix/api'), wt('/src/web', '/home/K/shop@fix/web')] };
   assert.equal(homeOf(home), '/home/K/shop@fix');
-  assert.equal(homeOf({ n: 6, name: 'Fix', resources: [wt('/src/api', '/src/api@fix'), wt('/src/web', '/home/K/api@fix/web')] }), '/home/K/api@fix');
+  assert.equal(homeOf({ id: 't6', name: 'Fix', resources: [wt('/src/api', '/src/api@fix'), wt('/src/web', '/home/K/api@fix/web')] }), '/home/K/api@fix');
 });

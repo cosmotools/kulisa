@@ -401,7 +401,7 @@ what the main process and the window both import (the rule for names, the profil
    same for every agent.
    - The MCP server is the functional part and is agent-agnostic: any capability for the agent is an MCP tool
      (`tools/`, a file a group; the server `mcp-server.ts`), so Codex and other CLIs get it too. One URL per task
-     (`/task/<project>/<n>/mcp`). How a tool is designed: `src/main/kulisa-plugin/CLAUDE.md`.
+     (`/task/<project>/<task>/mcp`). How a tool is designed: `src/main/kulisa-plugin/CLAUDE.md`.
    - The profiles skill, `src/agent/skills/profiles/SKILL.md` (change it when a tool or a rule changes), is one text
      for every agent, written as `kulisa-profiles` into each account's folder where its agent reads skills
      (`installSkill`, an entry's `skills`). Claude Code's package is `src/agent/claude-plugin/` (`claude

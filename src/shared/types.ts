@@ -39,14 +39,14 @@ export interface TaskResource {
 }
 // A task, for its tab (Task.info).
 export interface TaskInfo {
-  n: number; key: string; project: string; name: string; state: AgentState; folder: string; branch: string | null;
+  id: string; key: string; project: string; name: string; state: AgentState; folder: string; branch: string | null;
   closed: boolean; merged: boolean;
   repos: string[]; // the project's repositories it may add (Add Repository)
   resources: TaskResource[]; // what the task has/created (Resources.vue)
 }
 export interface ProjectEntry { id: string; name: string; folder: string; color: string; favicon?: string; tasks: ProjectTask[] }
 // A task of a project, open or not (app.ts, shell.projects): the bar's + lists the closed ones (NewTask.vue).
-export interface ProjectTask { n: number; name: string; branch?: string | null; closed: boolean; closedAt?: number; merged: boolean }
+export interface ProjectTask { id: string; name: string; branch?: string | null; closed: boolean; closedAt?: number; merged: boolean }
 // The window's tasks' bar (AppWindow.info): every project, the window's tabs in the bar's order, the shown task (its
 // key) and its project (its id), the loaded projects' agents (the island's +), the other windows (Move to Window).
 export interface ProjectsInfo {

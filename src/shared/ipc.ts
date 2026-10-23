@@ -33,7 +33,7 @@ type I<A extends unknown[], R = void> = { args: A; result: R };
 export interface Invoke extends ThumbnailInvoke, GitHubInvoke {
   'projects:list': I<[], ProjectsInfo | undefined>;
   'tasks:get': I<[]>;
-  'project:open': I<[{ id?: string; folder?: string; task?: number }]>;
+  'project:open': I<[{ id?: string; folder?: string; task?: string }]>;
   'project:new-defaults': I<[], ProjectChoices & { location: string; sep: string }>;
   'project:pick-location': I<[{ location?: string; existing?: boolean }], string | null>;
   'project:folder-state': I<[{ from?: string; location?: string; name?: string; folder?: string }], { folder: string; state: string; project?: string } | null>;
@@ -78,7 +78,7 @@ export interface Invoke extends ThumbnailInvoke, GitHubInvoke {
   'task:new': I<[{ project?: string }?]>;
   'task:close': I<[key: string]>;
   'task:delete': I<[key: string]>;
-  'task:delete-closed': I<[{ project: string; n: number }]>;
+  'task:delete-closed': I<[{ project: string; id: string }]>;
   'task:rename': I<[{ key: string; name: string }], Result<{ name: string; branch: string | null }>>;
   'task:add-repo': I<[{ key: string; repo: string }]>;
   'task:remove-repo': I<[{ key: string; repo: string }]>;

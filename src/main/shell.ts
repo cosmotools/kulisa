@@ -43,7 +43,7 @@ interface Shell {
   readonly win: BrowserWindow | null; readonly current: Project | null; readonly task: Task | null; // current: the shown task's project
   readonly profiles: Map<string, Profile>; readonly closed: Task['closed']; readonly pty: Pty | null;
   readonly resumedSession: string | null; readonly quitting: boolean;
-  taskOf(id: string, n: number): Task | null;
+  taskOf(project: string, id: string): Task | null;
   taskByKey(key: string): Task | null;
   windowOf(sender: WebContents): AppWindow | null;
   tabOf(wc: WebContents): { w: AppWindow; profile: Profile; tab: Tab } | null;

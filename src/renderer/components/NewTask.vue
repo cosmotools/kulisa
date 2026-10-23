@@ -17,8 +17,8 @@ function projectItems(p: ProjectEntry): MenuItem[] {
   const tasks = [...p.tasks.filter((t) => !t.closed), ...p.tasks.filter((t) => t.closed)];
   return [
     ...tasks.map((t): MenuItem => ({ label: t.name, sub: taskLine(t), title: t.name,
-      run: () => (t.closed ? kulisa.invoke('project:open', { id: p.id, task: t.n }) : kulisa.invoke('task:show', `${p.id}/${t.n}`)),
-      remove: { label: 'Delete Task…', run: () => (t.closed ? kulisa.invoke('task:delete-closed', { project: p.id, n: t.n }) : kulisa.invoke('task:delete', `${p.id}/${t.n}`)) } })),
+      run: () => (t.closed ? kulisa.invoke('project:open', { id: p.id, task: t.id }) : kulisa.invoke('task:show', `${p.id}/${t.id}`)),
+      remove: { label: 'Delete Task…', run: () => (t.closed ? kulisa.invoke('task:delete-closed', { project: p.id, id: t.id }) : kulisa.invoke('task:delete', `${p.id}/${t.id}`)) } })),
     // project:open with no task loads the project (open or not) and makes it a new task; task:new needs it already open.
     '-', { label: 'New Task', icon: 'i-plus', run: () => kulisa.invoke('project:open', { id: p.id }) },
   ];
