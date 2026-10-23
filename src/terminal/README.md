@@ -86,9 +86,11 @@ A path is a link too, when it names a file or folder that exists (JetBrains' and
 agent's answer names its files): absolute (`/…`, `~/…`, `C:\…`, `\\server\share\…`) or relative (`src/main/tasks.ts`),
 a `:line[:column]` after it kept in the link and left out of the path, a quoted one with spaces in it. Finding the
 candidates in a line is here (`renderer/paths.ts`, xterm's `registerLinkProvider` beside the web-links addon), in the
-line as its program wrote it: `xterm-link-provider`'s `computeLink`, the web-links addon's own matching for any
-pattern (the addon keeps only what `new URL()` takes, and exports nothing else), joins the rows xterm wrapped it into,
-so a path broken by the width is one link, and counts wide characters (Claude Code's ⏺). Whether one exists, and what
+line as its program wrote it: the rows xterm wrapped it into joined (`isWrapped`), each character with its cell, so a
+path broken by the width is one link and wide characters before it (Claude Code's ⏺) do not shift it. xterm leaves
+this to the app (its `registerLinkProvider` asks where a line's links are; what is one, and what opening it means, is
+the app's: it alone knows the disk and the folder); the web-links addon does it for addresses only (what `new URL()`
+takes), and exports nothing else. Whether one exists, and what
 is done with it, is the window's, through `termHooks.files` (a line's candidates asked at once, as the pointer comes
 over it; without the hook a path is no link) and `termHooks.openFile` (Ctrl+click, ⌘ on macOS); the full path shown on
 hover. A file an agent marks as a link (OSC 8) goes to `openFile` too: Claude Code gives its path as it is, others a
