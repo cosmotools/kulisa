@@ -1,5 +1,5 @@
 // The window's handles on its shown task's panes (docs/profiles.md, the table of actions): profiles, tabs, terminals,
-// the grid's layout. Each only translates to the task's own (tasks.ts), as the agent's tools do (mcp-server.ts).
+// the grid's layout. Each only translates to the task's own (tasks.ts), as the agent's tools do (kulisa-plugin/tools/).
 import { refused } from '../../shared/result.ts';
 import { handle, on } from '../ipc.ts';
 import { focusWindow } from '../page-focus.ts';
@@ -13,7 +13,7 @@ import type { OnProfile, OnTab } from '../../shared/ipc.ts';
 export function registerPanes(ipc: Ipc) {
   const { at } = ipc;
   // A window's handles on the profiles of its shown task (the editor, the panes): each only translates to the
-  // task's own (tasks.ts), the same the agent's tools use (mcp-server.ts). A refusal answers { error }.
+  // task's own (tasks.ts), the same the agent's tools use (kulisa-plugin/tools/). A refusal answers { error }.
   // Each names its task (renderer, tasks.ts: act): one sent just as the human switches tasks or
   // projects is refused, not done in the task shown by then.
   const noTask = { error: 'that task is not on screen' };

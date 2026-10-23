@@ -31,7 +31,7 @@ interface Tab {
   // the address it comes back to, while its page may still hold its unload; offScreenSince: since when no one sees it
   // (discard.ts).
   discarded?: boolean; discarding?: string; offScreenSince?: number;
-  // The agent's own action answers the dialogs it opens (mcp-server.ts).
+  // The agent's own action answers the dialogs it opens (kulisa-plugin/tools/handles.ts, answering).
   agentDialogs?: { asked: string[]; accept: boolean };
 }
 // Who a profile is and where its data is (project-profiles.ts; master.ts: a session of its own).
@@ -103,7 +103,7 @@ class Profile extends EventEmitter {
     this.browser = await chromium.connectOverCDP(endpoint);
     this.context = this.browser.contexts()[0]!; // connectOverCDP's default context, always there
     // With no listener Playwright dismisses every dialog (alert, confirm), the human's too; with one they stay for
-    // the human. The agent's tools answer those its own actions open (mcp-server.ts).
+    // the human. The agent's tools answer those its own actions open (kulisa-plugin/tools/handles.ts, answering).
     this.context.on('dialog', () => {});
   }
   async disconnect() {
@@ -236,7 +236,7 @@ class Profile extends EventEmitter {
     // the window, which did not say which page asked (Electron shows no prompt(): it throws in the page). Electron's
     // handler is a listener of its internal event (lib/browser/api/web-contents.ts), replaced here: check
     // it at every Electron upgrade (docs/testing.md, "Upgrading Electron"). Answered by the human (answerDialog), by
-    // an action of the agent (tab.agentDialogs, mcp-server.ts), or by another client over CDP. Chromium holds a
+    // an action of the agent (tab.agentDialogs, kulisa-plugin/tools/handles.ts), or by another client over CDP. Chromium holds a
     // navigation while a dialog is open; as Chrome does, it is dismissed when one starts (the address bar, reload).
     const internal = wc as unknown as Internal;
     internal.removeAllListeners('-run-dialog');

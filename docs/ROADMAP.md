@@ -33,11 +33,9 @@ moves there over time: what has an issue is removed from here, the issue being t
     default); rights on profiles, when real accounts come (one flag, "view only": reading allowed, clicks and typing
     refused; today the agent's own modes cover test users).
 
-- **Kulisa plugin: more the agent can do in the browsers** (tools in `mcp-server.ts`, each described in the skill;
-  what is built: [profiles.md](profiles.md), "What the agent does"). What else an agent needs comes from using it
-  (the author works in Kulisa): where the agent goes around the tools (its own Playwright
-  scripts, `curl`, asking the human to do it) is a tool missing; from every user's computer through Ideas for
-  Kulisa (#84). Thought of, not built: console and requests since the agent's last action only; a button over the
+- **Kulisa plugin: more the agent can do in the browsers** (tools in `kulisa-plugin/tools/`, each described in its
+  `registerTool`; what is built: [profiles.md](profiles.md), "What the agent does"). What else an agent needs comes from using it
+  ([src/main/kulisa-plugin/CLAUDE.md](../src/main/kulisa-plugin/CLAUDE.md), "A missing tool shows itself"). Thought of, not built: console and requests since the agent's last action only; a button over the
   pane for the human to say they signed in, for sign-ins that keep the address.
 - **Phone, tablet and desktop views of a site** (to discuss with the author before
   building). Responsive layouts are checked today only by resizing the pane.
@@ -114,8 +112,6 @@ moves there over time: what has an issue is removed from here, the issue being t
   - The agent's state on the task tab for CLIs without hooks (Claude Code's and Codex's report it), e.g. from MCP
     calls and terminal output (working while they come, idle after a quiet while). After a permission answered, both
     show waiting until a tool finishes (no hook says it was answered): a long command run after it shows waiting.
-  - To check with Claude Code in a task's copy (the tests run `cat` as the agent): the state hooks, `task_rename`
-    called by Claude Code.
   - Other tools that, like direnv, want a folder allowed before they apply (mise's `trust`): not handled yet.
   - Windows: copying an open profile (locked files are skipped and logged), removing a deleted task's profile
     folders while their sessions are open (left for the next start): untested there.
@@ -205,7 +201,7 @@ moves there over time: what has an issue is removed from here, the issue being t
 - **The agent tests calls and voice: a profile's microphone and what it hears**.
   Calls need several people at once, which is what profiles
   are: the buyer calls, the seller hears; mute silences; the sound comes back after a reconnect; voice messages
-  arrive. Tools of the Kulisa plugin (`mcp-server.ts`, any agent), e.g. one for what plays into a profile's
+  arrive. Tools of the Kulisa plugin (`kulisa-plugin/tools/`, any agent), e.g. one for what plays into a profile's
   microphone (an audio file, or a tone) and one for what a profile hears (whether there is sound, its level, when).
   - Per tab, when the agent asks: in that tab `getUserMedia` gets a stream made with WebAudio, and incoming sound
     (`RTCPeerConnection`, `<audio>`) is taken with WebAudio too, by a script put into the page through Playwright over

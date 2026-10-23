@@ -103,16 +103,9 @@ A profile is an Electron session on a folder of its own (`session.fromPath`), la
 
 ## What the agent does
 
-Through Kulisa's MCP server (`mcp-server.ts`). `profile_list` lists the profiles, their names and tabs; the `browser_*`
-tools act in one, each taking a profile's name (the handle finds its id: `Task.named`): `browser_snapshot`, `browser_click`, `browser_type`, `browser_press_key`, `browser_hover`, `browser_select_option`,
-`browser_file_upload`, `browser_wait_for`, `browser_evaluate`, `browser_navigate` (also back, forward, reload),
-`browser_tab_new` / `_select` / `_close`, `browser_highlight`, `browser_screenshot`, `browser_console_messages`,
-`browser_network_requests`, `browser_type_login`; the tools reading or acting on a page take an optional `tab`.
-Profiles (`profile_*`, the profile as a thing): `profile_create`, `profile_rename`, `profile_describe`, `profile_open`, `profile_close`, `profile_ask_signin`,
-`profile_set_login`, and `profile_delete`, which asks the human first. Tasks: `task_rename`, `task_add_repository` (another of the project's repositories, once the human agreed: [tasks.md](tasks.md), Tasks),
-`task_remove_repository` (one added, no longer needed, once the human agreed), `task_history` (what was
-said and done in the task before: [transcripts.md](transcripts.md)), `conversation_rename` (its tab). Terminals:
-`terminal_run`, `terminal_read`, `terminal_stop` (shells only, [window.md](window.md), The terminal).
+Through Kulisa's MCP server. A tool takes a profile by its name, which the handle turns into its id
+(`Task.named`), and one acting in a page an optional `tab`. What each tool does is its description in the server's
+listing, the one source; how a tool is designed: [src/main/kulisa-plugin/CLAUDE.md](../src/main/kulisa-plugin/CLAUDE.md).
 
 **The agent does not ask the human before Kulisa's tools**: it works in the profiles while the
 human watches or is away, and a question at every click undoes that; what acts on real accounts asks in Kulisa itself
@@ -166,7 +159,7 @@ header, until the human clicks or types in that tab.
 **The agent types as a person does**: `browser_type` clears the field and types its text key by key (Playwright's
 `pressSequentially`), 40 ms a key, faster for a longer text (about 1.5 s at most), so the human sees it typed and the
 page gets the keys typing sends (suggestions, checks as one types). A text over 300 characters (a pasted paragraph)
-is filled at once (`TYPED_MAX`, `mcp-server.ts`). Letters not on a US keyboard come as typed text, without key codes
+is filled at once (`TYPED_MAX`, `kulisa-plugin/tools/browser.ts`). Letters not on a US keyboard come as typed text, without key codes
 (Playwright's way).
 
 The agent learns how to work with profiles from the Kulisa plugin (CLAUDE.md, Architecture):
@@ -385,7 +378,7 @@ each, while profiles come and go and an agent's servers are fixed at its start);
 (the sign-in pause, dialogs, captions and highlights over the pane, the human's tabs); and a tool running the agent's
 own Playwright code cannot run in Electron's main process (`vm` is no boundary), while in a process of its own it is
 what the agent already does with a script through the proxy. Each tool is a few lines of Playwright; most of their size
-is the descriptions the agent reads. If agents often write their own scripts, that names a missing tool.
+is the descriptions the agent reads.
 
 ## What is on the computer
 
@@ -427,7 +420,9 @@ space (issue #113, a task manager).
 | `src/main/kulisa-plugin/agent-hooks.ts` | the answers to the agents' hooks: the open profiles, the session, the agent's state |
 | `src/main/page-focus.ts` | the keyboard stays where the human put it: a page taking it by itself gives it back ([window.md](window.md), Keys) |
 | `src/main/discard.ts` | tabs no one looks at losing their process: the rule, the sweep (`Profile.discard`, `load` in `profiles.ts`) |
-| `src/main/kulisa-plugin/mcp-server.ts`, `ghost.ts`; `src/main/picker.ts` | the agent's tools, its actions shown; point and tell |
+| `src/main/kulisa-plugin/mcp-server.ts` | the agent's MCP server: a URL per task, its instructions, every call logged |
+| `src/main/kulisa-plugin/tools/` | the agent's tools, a file a group: `profile.ts`, `browser.ts` (the pages), `task.ts` (its repositories: [tasks.md](tasks.md), Tasks; its history: [transcripts.md](transcripts.md)), `terminal.ts` ([window.md](window.md), The terminal); `handles.ts`, what they share |
+| `src/main/kulisa-plugin/ghost.ts`; `src/main/picker.ts` | the agent's actions shown in the page; point and tell |
 | `src/agent/skills/profiles/SKILL.md`, `src/agent/claude-plugin/` | the profiles skill, every agent's; Claude Code's plugin (`.mcp.json`: the task's MCP URL) |
 | `src/renderer/components/grid/ProfilePane.vue`, `ProfileHeader.vue`, `lib/profiles.ts`; `settings/ProfilePage.vue`, `settings/Avatars.vue` | the panes and the profiles' menu (a task tab's right-click); a profile's page in Settings and its pictures |
 | `test/agent.ts`, `profiles.ts`, `discard.ts`, `zoom-and-closing.ts`, `restart-profiles.ts`, `unit/store.test.ts`, `unit/discard.test.ts` | the tests |

@@ -23,7 +23,7 @@ needs from them comes in through its API, passed by the caller (the terminal's s
 Code that is *about* the thing but knows the rest stays outside, using the package: for the terminal, the island
 (`Terminals.vue`, `TerminalTabs.vue`, `lib/terminals.ts`: its agents' buttons, the closed profiles' tiles, Change
 agent…, the project's accounts in its +), the agents in terminals (`tasks.ts`: conversations, handing over, the
-agent's state, dictation) and the agent's tools (`terminal_run`, `terminal_read`, `terminal_stop` in `mcp-server.ts`:
+agent's state, dictation) and the agent's tools (`terminal_run`, `terminal_read`, `terminal_stop` in `kulisa-plugin/tools/terminal.ts`:
 what the agent sees lives in the Kulisa plugin, CLAUDE.md, Architecture). Drawn so, the island would have pulled half
 of `src/renderer/lib` into the folder, and the boundary would have meant nothing.
 

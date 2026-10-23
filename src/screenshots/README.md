@@ -95,7 +95,7 @@ not fit in the small view); its rows come back as `thumbnail:act`. All its chann
 
 ## The agent
 
-`browser_screenshot` (`kulisa-plugin/mcp-server.ts`): the visible part; `ref` or `locator` for one element;
+`browser_screenshot` (`kulisa-plugin/tools/browser.ts`): the visible part; `ref` or `locator` for one element;
 `fullPage`; `also`, more profiles' active tabs in one call, each picture after its profile's name (with a `locator`,
 the same element in each; a `ref` is one page's, refused with `also`). JPEG at CSS pixels (`scale: 'css'`): at a
 screen's density the picture is several times larger and costs the agent's context for nothing. The pane's caption
@@ -117,7 +117,7 @@ same connection, are not captioned: `ghost.ts` asks `takenByHuman`.
 | `folder.test.ts` | the files' names |
 
 Outside, using it: `Profile.screenshot` (`src/main/profiles.ts`), `browser_screenshot`
-(`src/main/kulisa-plugin/mcp-server.ts`), `takenByHuman` in `ghost.ts`; the human's `tab:screenshot`
+(`src/main/kulisa-plugin/tools/browser.ts`), `takenByHuman` in `ghost.ts`; the human's `tab:screenshot`
 (`src/main/ipc/panes.ts`), `chooseElement` (`picker.ts`), the key (`keys.ts`), ⋮ → Screenshot (`ProfilePane.vue`) and
 `screenshot` (`src/renderer/lib/store.ts`); the window's `thumbnails` (`window.ts`: made, placed, hidden, closed),
 `<Thumbnail />` and `thumbnailMenu(menuAtPoint)` (`App.vue`), `Task.typeForAgent` (Send to Agent, as Pick), the page's
