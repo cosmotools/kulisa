@@ -11,10 +11,10 @@
 //                            "github.com/acme/shop" -> an account's id, src/github). What a project is made of is said
 //                            here alone
 //   projects/<id>/
-//     tasks.json             the project's tasks: { next, list: [{ n, name, named, resources, closed, closedAt,
+//     tasks.json             the project's tasks: { list: [{ id, name, named, resources, closed, closedAt,
 //                            merged }] }; name "New Task" and named unset until the agent or the human names it;
 //                            resources what it has (TaskEntry), the first where it works
-//     <n>/                   a task (TaskStore): profiles.json (what it has of its project's profiles: id, sites'
+//     <task id>/             a task (TaskStore): profiles.json (what it has of its project's profiles: id, sites'
 //                            zoom, closed), layout.json (the window's grid), agent.json (its agents' conversations,
 //                            to resume and read them), terminals.json (its island's tabs), and a copy of a profile's
 //                            master per profile opened here, named by the profile's id:
@@ -32,7 +32,7 @@ import { log } from './log.ts';
 // Muted, to sit on the dark window; a new project takes the first one no project has (its favicon's own hue, in their
 // lightness and chroma, replaces it in the window: renderer/lib/project-color.ts).
 const PROJECT_COLORS = ['#4a7bd0', '#3f9a7a', '#b4823a', '#9a5fc0', '#c0584f', '#3c9fb0', '#b0607f', '#7d9a3f'];
-// An id of a project, an agent's account or a profile: six lowercase letters and digits, about two billion
+// An id of a project, a task, an agent's account or a profile: six lowercase letters and digits, about two billion
 // of them, drawn again while taken.
 const ID_CHARS = 'abcdefghijklmnopqrstuvwxyz0123456789';
 function newId(taken: (id: string) => boolean) {
@@ -60,7 +60,7 @@ interface Copy { repo: string; worktree: string; branch: string; base: string | 
 type Resource = { kind: 'maintree'; folder: string } | ({ kind: 'worktree' } & Copy);
 // A task in its project's tasks.json. Where it works, its branch and its folder of copies are its resources'.
 interface TaskEntry {
-  n: number; name: string; named?: boolean; resources?: Resource[];
+  id: string; name: string; named?: boolean; resources?: Resource[];
   closed?: boolean; closedAt?: number; merged?: boolean;
 }
 type Worktree = Extract<Resource, { kind: 'worktree' }>;
@@ -76,8 +76,8 @@ const homeOf = (e: TaskEntry) => {
   const inHome = worktreesOf(e).find((c) => path.dirname(c.worktree) !== path.dirname(path.resolve(c.repo, path.relative(c.folder, c.worktree))));
   return inHome ? path.dirname(inHome.worktree) : null;
 };
-interface TasksFile { next: number; list: TaskEntry[] }
-// A window as settings.json keeps it: its tasks by key ("<project id>/<n>", tasks.ts) in the bar's order, the shown
+interface TasksFile { list: TaskEntry[] }
+// A window as settings.json keeps it: its tasks by key ("<project id>/<task id>", tasks.ts) in the bar's order, the shown
 // one.
 interface SavedWindow { tabs: string[]; shown: string | null; bounds?: Electron.Rectangle; maximized?: boolean }
 interface Settings { uiZoom?: number; theme?: 'dark' | 'light' | 'system'; bar?: 'top' | 'bottom'; language?: string; keys?: Record<string, string>; windows?: SavedWindow[];
@@ -145,10 +145,12 @@ class Store {
 
   // A project's tasks (tasks.json) and each one's data.
   tasksOf(p: { id: string }): TasksFile {
-    return readJSON(path.join(this.dir, 'projects', p.id, 'tasks.json')) || { next: 1, list: [] };
+    return readJSON(path.join(this.dir, 'projects', p.id, 'tasks.json')) || { list: [] };
   }
   saveTasksOf(p: { id: string }, w: TasksFile) { writeJSON(path.join(this.dirOf(p), 'tasks.json'), w); }
-  taskOf(p: { id: string }, n: number) { return new TaskStore(path.join(this.dir, 'projects', p.id, String(n)), this); }
+  // A task's data folder; taskOf makes it, taskDir only names it (an id still to be found free: Project.createTask).
+  taskDir(p: { id: string }, id: string) { return path.join(this.dir, 'projects', p.id, id); }
+  taskOf(p: { id: string }, id: string) { return new TaskStore(this.taskDir(p, id), this); }
   // A project gone from Kulisa: from the list, and its data (profiles with their sign-ins, tasks); never its
   // folder. Its profiles' sessions may still be open: what cannot go now goes at the next start.
   removeProject(p: ProjectEntry) {

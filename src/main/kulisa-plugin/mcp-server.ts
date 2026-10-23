@@ -1,7 +1,7 @@
 // Kulisa's MCP server for the agent: the tools of every group (tools/), each taking a profile by its name (Kulisa's
-// own ids stay inside: tasks.ts, named). Streamable HTTP, one URL per task: http://127.0.0.1:<port>/task/<project>/<n>/mcp
+// own ids stay inside: tasks.ts, named). Streamable HTTP, one URL per task: http://127.0.0.1:<port>/task/<project>/<task>/mcp
 // (the parts percent-encoded); its agents see that task's profiles only. Each agent's terminal has its own under it
-// (/task/<project>/<n>/t/<id>/mcp), the same tools and its own tab to name. Stateless (a new server per request).
+// (/task/<project>/<task>/t/<id>/mcp), the same tools and its own tab to name. Stateless (a new server per request).
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import http from 'http';
@@ -58,9 +58,9 @@ async function startMcpServer(shell: Shell, cfg: { port?: number }) {
   shell.bus.on('profile-unloading', (key: string) => void clearHighlights(key));
   const srv = http.createServer(async (req, res) => {
     if (!fromLocalTool(req)) { res.writeHead(403); return res.end(); }
-    // /task/<project>/<n>[/t/<terminal id>]/…: a task of an open project, loaded; an agent's terminal of it.
-    const m = req.url!.match(/^\/task\/([^/]+)\/(\d+)(?:\/t\/(\d+))?(\/.*)$/);
-    const task = m && shell.taskOf(safeDecode(m[1]!), Number(m[2]));
+    // /task/<project>/<task id>[/t/<terminal id>]/…: a task of an open project, loaded; an agent's terminal of it.
+    const m = req.url!.match(/^\/task\/([^/]+)\/([^/]+)(?:\/t\/(\d+))?(\/.*)$/);
+    const task = m && shell.taskOf(safeDecode(m[1]!), safeDecode(m[2]!));
     if (!task?.loaded) { res.writeHead(404); return res.end(); }
     const t = (m![3] && task.terminals.get(Number(m![3]))) || null;
     if (handleHookRequest(task, t, m![4]!, req, res)) return;
@@ -74,7 +74,7 @@ async function startMcpServer(shell: Shell, cfg: { port?: number }) {
   });
   await new Promise<void>((r) => srv.listen(cfg.port || 0, '127.0.0.1', r));
   const base = `http://127.0.0.1:${(srv.address() as AddressInfo).port}`;
-  console.log('[kulisa] MCP server:', `${base}/task/<project>/<n>/mcp`);
+  console.log('[kulisa] MCP server:', `${base}/task/<project>/<task>/mcp`);
   return { base, srv };
 }
 

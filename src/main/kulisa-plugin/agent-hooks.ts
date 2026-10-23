@@ -1,4 +1,4 @@
-// What agents' hooks tell Kulisa and ask it for, served next to the MCP server at /task/<project>/<n>/t/<id>/hooks/<event>
+// What agents' hooks tell Kulisa and ask it for, served next to the MCP server at /task/<project>/<task>/t/<id>/hooks/<event>
 // (KULISA_URL is the agent's terminal's: tasks.ts, env). The events are Kulisa's own (HookEvent); which of an agent's
 // hooks sends which is the agent's, a table in its file (agents/claude.ts, codex.ts: hooks). The hook's input (the
 // agent's JSON: Codex's hooks take Claude Code's shape) comes as the request body; answers are hook output (JSON on

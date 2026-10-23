@@ -289,7 +289,7 @@ export default (test: Test) => {
     assert.equal(await who(ctx, 'Tess'), 'Signed in as tess', "the human's pair");
     // The log (window.md, The log): the agent's tool and the human's field are there, their passwords not.
     const logged = fs.readFileSync(path.join(userData, 'logs', 'kulisa.log'), 'utf8');
-    assert.match(logged, /\[mcp\] profile_set_login \S+\/1 \{"profile":"Tess","login":"tester","password":"…"\}/, 'the tool call, its password left out');
+    assert.match(logged, /\[mcp\] profile_set_login \S+\/[a-z0-9]{6} \{"profile":"Tess","login":"tester","password":"…"\}/, 'the tool call, its password left out');
     assert.ok(logged.includes(`profiles:login`) && new RegExp(`\\[ipc\\] profiles:login wc=\\d+ \\{"profile":"${idOf('Tess')}","user":"tester","password":"…"\\}`).test(logged), "the human's field, the same");
     assert.ok(!/secret-tes/.test(logged), 'no password in the log');
     // Nothing of a profile's page: an address that fails to load leaves no line with it (electron-log's events are named
@@ -300,8 +300,8 @@ export default (test: Test) => {
     // of it, with the address in full, comes just before).
     await waitFor(() => new RegExp(`\\[warn\\] \\[profile\\] ${idOf('Tess')} page failed to load http://nowhere\\.invalid/x\\?…: ERR_NAME_NOT_RESOLVED \\(-105\\)`).test(fs.readFileSync(path.join(userData, 'logs', 'kulisa.log'), 'utf8')));
     const later = fs.readFileSync(path.join(userData, 'logs', 'kulisa.log'), 'utf8');
-    assert.match(later, /\[mcp\] browser_type \S+\/1 \{"profile":"Tess","locator":"locator\('body'\)","text":"…"\}/);
-    assert.match(later, /\[mcp\] browser_navigate \S+\/1 \{"profile":"Tess","url":"http:\/\/nowhere\.invalid\/x\?…"\}/);
+    assert.match(later, /\[mcp\] browser_type \S+\/[a-z0-9]{6} \{"profile":"Tess","locator":"locator\('body'\)","text":"…"\}/);
+    assert.match(later, /\[mcp\] browser_navigate \S+\/[a-z0-9]{6} \{"profile":"Tess","url":"http:\/\/nowhere\.invalid\/x\?…"\}/);
     assert.ok(!/typed-by-agent|code=abc|did-fail|certificate-error/.test(later), "nothing of the page's address or the typed text");
     ctx.answer = true;
     await call('profile_delete', { profile: 'Tess' });

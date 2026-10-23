@@ -35,12 +35,12 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
   // A project with no open task left is let go: nothing of it runs.
   const unloadIdle = () => { for (const [id, p] of shell.open) if (!p.open().length) shell.open.delete(id); };
   const openTasksOf = (project: Project, w: AppWindow) => w.tabs.filter((t) => t.project === project);
-  // Task n of project p shown (the bar's +), opened again if it was closed; none: a new task of it. In the window it
+  // Task id of project p shown (the bar's +), opened again if it was closed; none: a new task of it. In the window it
   // is open in, brought to the front; a closed or new one at the end of window w's bar.
-  async function openProject(p: ProjectEntry, w: AppWindow, n?: number | null): Promise<Result<{ n: number; key: string }>> {
-    log.info(`[task] open ${p.id}${n != null ? `/${n}` : ''} wc=${w.win.webContents.id}`);
+  async function openProject(p: ProjectEntry, w: AppWindow, id?: string | null): Promise<Result<{ id: string; key: string }>> {
+    log.info(`[task] open ${p.id}${id != null ? `/${id}` : ''} wc=${w.win.webContents.id}`);
     const project = loadProject(p);
-    const task = n != null && project.tasks.get(n);
+    const task = id != null && project.tasks.get(id);
     if (!task) {
       const r = await createTask(project, w);
       unloadIdle();
@@ -50,7 +50,7 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
     if (!task.window) w.add(task);
     await showTask(task);
     sendProjects();
-    return { n: task.n, key: task.key };
+    return { id: task.id, key: task.key };
   }
   // Closing tasks, wherever it starts (× on a tab, the middle button on it, Close All Tasks, deleting a project, a
   // window's ×): one function, so one rule. The human is asked first in their window w, only when an agent works (a
@@ -185,7 +185,7 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
   function dropWindow(w: AppWindow) { log.info(`[window] dropped wc=${w.win.webContents.id}`); shell.windows.splice(shell.windows.indexOf(w), 1); w.destroy(); }
   // A new task of a project (the bar's +, New Task: projects.ts), with its default agent, at the end of window w's
   // bar, then shown. Without git it would work in the folder another open task works in: the human is told first.
-  async function createTask(project: Project | null | undefined, w: AppWindow | null): Promise<Result<{ n: number; key: string }>> {
+  async function createTask(project: Project | null | undefined, w: AppWindow | null): Promise<Result<{ id: string; key: string }>> {
     if (!project || !w) return { error: 'the project is not open' };
     await project.checkGit();
     if (project.sharesFolder() && !await shell.ask({ message: `Another task of ${project.name} works in its folder`, ok: 'Create Anyway',
@@ -197,7 +197,7 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
     log.info(`[task] created ${task.key} (${project.name}) in ${tilde(task.folder)} wc=${w.win.webContents.id}`);
     w.add(task);
     await showTask(task);
-    return { n: task.n, key: task.key };
+    return { id: task.id, key: task.key };
   }
   // A task shown, in its window (brought to the front when the ask came from another).
   async function showTask(task: Task) {
@@ -216,7 +216,7 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
   }
   // Delete in a task's menu (open or closed), after the human says yes: everything of it goes (projects.ts). An open
   // one leaves its window first.
-  async function deleteTask(task: Task): Promise<Result<{ n: number }>> {
+  async function deleteTask(task: Task): Promise<Result<{ id: string }>> {
     const project = task.project, w = task.window;
     if (!await project.askDeleteTask(task)) return { error: 'the human said no' };
     log.info(`[task] deleting ${task.key}`);
@@ -229,7 +229,7 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
     unloadIdle();
     shell.saveWindows();
     sendProjects();
-    return { n: task.n };
+    return { id: task.id };
   }
   // Delete Merged Tasks… (a project's menu, from window w): its closed tasks whose PR is merged, after one question naming them;
   // nothing of them is lost (projects.ts, checkMerged).
@@ -242,7 +242,7 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
     }
     for (const t of list) await project.deleteTask(t);
     sendProjects();
-    return { deleted: list.map((t) => t.n) };
+    return { deleted: list.map((t) => t.id) };
   }
   // Removing a project, from wherever a window asks for it (w): the human confirms, then its open tasks are closed
   // in every window, and its data deleted (projects.ts).

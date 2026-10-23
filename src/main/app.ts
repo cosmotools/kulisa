@@ -158,7 +158,7 @@ function start(options: Options = {}) {
   });
   // A task of an open project: by the project's id and its number (the MCP server's URLs), or by its key (the
   // windows', the CDP proxy's).
-  shell.taskOf = (id, n) => shell.open.get(id)?.tasks.get(n) || null;
+  shell.taskOf = (project, id) => shell.open.get(project)?.tasks.get(id) || null;
   shell.taskByKey = (key) => { for (const p of shell.open.values()) { const task = p.taskByKey(key); if (task) return task; } return null; };
   // The window a page's message comes from (IPC: event.sender).
   shell.windowOf = (sender) => shell.windows.find((w) => !w.win.isDestroyed() && w.win.webContents === sender) || null;
@@ -214,7 +214,7 @@ function start(options: Options = {}) {
   };
   // And its tasks (the board lists them: newtab/): those open, as made, then the closed ones, the one closed last first.
   const tasksOf = (p: ProjectEntry) => {
-    const list = store.tasksOf(p).list.map((e) => ({ n: e.n, name: e.name, branch: branchOf(e), closed: !!e.closed, closedAt: e.closedAt, merged: !!e.merged }));
+    const list = store.tasksOf(p).list.map((e) => ({ id: e.id, name: e.name, branch: branchOf(e), closed: !!e.closed, closedAt: e.closedAt, merged: !!e.merged }));
     return [...list.filter((t) => !t.closed), ...list.filter((t) => t.closed).sort((a, b) => (b.closedAt || 0) - (a.closedAt || 0))];
   };
   shell.projects = () => store.projects().map((p) => {
@@ -365,7 +365,7 @@ function start(options: Options = {}) {
     if (options.project) {
       const p = projectOfFolder(path.resolve(options.project)), project = loadProject(p), w = windows[0]!.w;
       const task = project.open()[0] || project.closedTasks()[0];
-      await serial(() => openProject(p, w, task?.n ?? null));
+      await serial(() => openProject(p, w, task?.id ?? null));
     }
     shell.firstStart(windows[0]!.w);
     shell.saveWindows();

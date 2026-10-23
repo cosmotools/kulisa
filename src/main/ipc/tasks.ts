@@ -19,8 +19,8 @@ export function registerTasks(ipc: Ipc) {
   handle('projects:list', (e) => owner(e)?.info());
   // The switch runs on its own; the window hears about it through grid:closing, projects and state. No question
   // where: a tab in this window, which Move to New Window takes away.
-  const openLater = (p: ProjectEntry, w: AppWindow, n?: number) => {
-    setImmediate(() => serial(() => (shell.windows.includes(w) ? openProject(p, w, n) : null)).catch((err) => console.error('[project:open]', err)));
+  const openLater = (p: ProjectEntry, w: AppWindow, task?: string) => {
+    setImmediate(() => serial(() => (shell.windows.includes(w) ? openProject(p, w, task) : null)).catch((err) => console.error('[project:open]', err)));
     return w.info();
   };
   handle('project:open', (e, { id, folder, task }) => {
@@ -58,12 +58,12 @@ export function registerTasks(ipc: Ipc) {
   handle('task:close', (_e, key) => taskAt(key, closeTask));
   handle('task:delete', (_e, key) => taskAt(key, deleteTask));
   // 🗑 on a closed task's row (the bar's +): its project need not be loaded.
-  handle('task:delete-closed', (e, { project, n }) => serial(async () => {
-    const open = shell.open.get(project)?.tasks.get(n);
-    if (open) return open.entry.closed ? deleteTask(open) : { error: `task ${n} is open` };
+  handle('task:delete-closed', (e, { project, id }) => serial(async () => {
+    const open = shell.open.get(project)?.tasks.get(id);
+    if (open) return open.entry.closed ? deleteTask(open) : { error: `task ${id} is open` };
     const p = store.projects().find((x) => x.id === project);
     if (!p) return { error: 'no such project' };
-    const r = await deleteClosedTask(shell, p, n, at(e)!);
+    const r = await deleteClosedTask(shell, p, id, at(e)!);
     if (!refused(r)) sendProjects();
     return r;
   }));

@@ -14,7 +14,7 @@ import { nameError, repoName, slugOf } from '../shared/names.ts';
 import { refused } from '../shared/result.ts';
 import type { Result } from '../shared/result.ts';
 import type { Shell } from './shell.ts';
-import { worktreesOf, ownWorktree, folderOf, branchOf, homeOf } from './store.ts';
+import { newId, worktreesOf, ownWorktree, folderOf, branchOf, homeOf } from './store.ts';
 import type { ProjectEntry, TaskEntry, Copy, Worktree, Store } from './store.ts';
 import type { StoredProfile } from './profile-store.ts';
 import type { ProfileConfig } from './profiles.ts';
@@ -28,7 +28,7 @@ type Named = Pick<StoredProfile | ProfileConfig, 'name'>;
 
 class Project {
   shell: Shell; store: Store; id: string; entry!: ProjectEntry; name!: string; folder!: string;
-  git: Git | null; gits: Map<string, Git>; tasks: Map<number, Task>; next: number;
+  git: Git | null; gits: Map<string, Git>; tasks: Map<string, Task>;
   // entry: the project in projects.json (store.ts): { id, name, folder, repos, color, agents }. shell: the app
   // (app.ts), as Task takes it.
   constructor(shell: Shell, entry: ProjectEntry) {
@@ -36,10 +36,8 @@ class Project {
     this.id = entry.id; this.update(entry);
     this.git = null; // its default repository's: 'ok', 'no-commit' (no copies before a first commit), 'none'
     this.gits = new Map(); // each of its repositories', for what a task may add (Task.addable)
-    this.tasks = new Map(); // by number, open and closed
-    const { next, list } = this.store.tasksOf(entry);
-    this.next = next;
-    for (const e of list) this.tasks.set(e.n, new Task(shell, this, e));
+    this.tasks = new Map(); // by id, open and closed, as made
+    for (const e of this.store.tasksOf(entry).list) this.tasks.set(e.id, new Task(shell, this, e));
   }
   // A window of one of its open tasks, for a question about the project (none: the app's first).
   get window(): AppWindow | null { return this.open().find((t) => t.window)?.window ?? null; }
@@ -54,7 +52,7 @@ class Project {
   // Its open tasks, in the order they were made (the bar's); the closed ones, the one closed last first.
   open() { return [...this.tasks.values()].filter((t) => !t.entry.closed); }
   closedTasks() { return [...this.tasks.values()].filter((t) => t.entry.closed).sort((a, b) => (b.entry.closedAt ?? 0) - (a.entry.closedAt ?? 0)); }
-  // Its task with this key ("<project id>/<n>", tasks.ts), or null.
+  // Its task with this key ("<project id>/<task id>", tasks.ts), or null.
   taskByKey(key: string) { return [...this.tasks.values()].find((t) => t.key === key) || null; }
   // A conversation of one of its tasks with a transcript: where its agents keep their data (agents/: Claude's config).
   agentData() { return [...this.tasks.values()].flatMap((t) => t.conversations()).find((c) => c.transcript) || {}; }
@@ -63,7 +61,7 @@ class Project {
     this.git = this.gits.get(this.folder)!;
   }
   save() {
-    this.store.saveTasksOf(this, { next: this.next, list: [...this.tasks.values()].map((t) => t.entry) });
+    this.store.saveTasksOf(this, { list: [...this.tasks.values()].map((t) => t.entry) });
   }
   // A new task, "New Task" until the agent or the human names it. It opens with no worktree: its terminal starts in
   // the project's folder (the human's), and its agent makes the task its own git worktree with task_worktree
@@ -75,15 +73,15 @@ class Project {
   async createTask(): Promise<Result<Task>> {
     const agent = this.defaultAgent();
     await this.checkGit();
-    const n = this.next;
-    const entry: TaskEntry = { n, name: 'New Task', resources: [{ kind: 'maintree', folder: this.folder }] };
-    const data = this.store.taskOf(this, n);
+    // An id as profiles' and projects' (store.ts, newId): none of its tasks', nor a deleted one's folder still there.
+    const id = newId((x) => this.tasks.has(x) || fs.existsSync(this.store.taskDir(this, x)));
+    const entry: TaskEntry = { id, name: 'New Task', resources: [{ kind: 'maintree', folder: this.folder }] };
+    const data = this.store.taskOf(this, id);
     data.saveProfiles(this.shell.profileStore.of(this.id).map((g) => ({ id: g.id, closed: true })));
     // null: the project has agents and none is the default; a project with none leaves it out: a shell starts.
     if (agent || this.agents().length) data.saveAgent({ agent });
-    this.next = n + 1;
     const task = new Task(this.shell, this, entry);
-    this.tasks.set(n, task);
+    this.tasks.set(id, task);
     this.save();
     return task;
   }
@@ -100,8 +98,8 @@ class Project {
     await this.checkGit();
     if (this.git !== 'ok') return { error: this.git === 'no-commit' ? `${this.folder} has no git commit yet to branch from` : `${this.folder} is not in git` };
     const beside = this.repos().length === 1;
-    // Named: a slug of the task's name; still "New Task": task-<n> (a later task_rename renames the branch).
-    const label = task.entry.named ? task.name : `task-${task.n}`;
+    // Named: a slug of the task's name; still "New Task": task-<id> (a later task_rename renames the branch).
+    const label = task.entry.named ? task.name : `task-${task.id}`;
     const branch = await freeBranch([this.folder], label, { beside });
     const had = homeOf(task.entry), copies = worktreesOf(task.entry);
     const home = beside ? null : had ?? freeFolder(path.join(this.shell.projectsHome, `${slugOf(this.name, 'project')}@${branch}`));
@@ -184,7 +182,7 @@ class Project {
   // Once it is not shown.
   async deleteTask(task: Task) {
     await task.unload();
-    this.tasks.delete(task.n);
+    this.tasks.delete(task.id);
     this.save();
     await deleteTask(this.shell, this.entry, task.entry);
   }
@@ -220,14 +218,14 @@ async function askDeleteTask(shell: Shell, entry: TaskEntry, folder: string, w: 
     stays: !copies.length && `It worked in ${folder}: its files stay, and so does its agent's conversation there.` }), w);
 }
 // A closed task of a project not loaded (the bar's + lists them): nothing of it is loaded, its entry is all there is.
-async function deleteClosedTask(shell: Shell, p: ProjectEntry, n: number, w: AppWindow): Promise<Result<{ n: number }>> {
-  const entry = shell.store.tasksOf(p).list.find((e) => e.n === n && e.closed);
-  if (!entry) return { error: `no closed task ${n}` };
+async function deleteClosedTask(shell: Shell, p: ProjectEntry, id: string, w: AppWindow): Promise<Result<{ id: string }>> {
+  const entry = shell.store.tasksOf(p).list.find((e) => e.id === id && e.closed);
+  if (!entry) return { error: `no closed task ${id}` };
   if (!await askDeleteTask(shell, entry, folderOf(entry, p.folder), w)) return { error: 'the human said no' };
   await deleteTask(shell, p, entry);
   const file = shell.store.tasksOf(p);
-  shell.store.saveTasksOf(p, { ...file, list: file.list.filter((e) => e.n !== n) });
-  return { n };
+  shell.store.saveTasksOf(p, { list: file.list.filter((e) => e.id !== id) });
+  return { id };
 }
 
 // What the agents that worked in a task keep of a folder of its copies (agents/, forget): its conversations there, its
@@ -236,7 +234,7 @@ async function deleteClosedTask(shell: Shell, p: ProjectEntry, n: number, w: App
 function forgetFolder(shell: Shell, p: ProjectEntry, entry: TaskEntry, folder: string) {
   const { store } = shell;
   // Each of its conversations: the agents that worked in it, each its account's (tasks.ts).
-  const conversations = (e: TaskEntry) => store.taskOf(p, e.n).agent().conversations || [];
+  const conversations = (e: TaskEntry) => store.taskOf(p, e.id).agent().conversations || [];
   const project = { folder: reposOf(p)[0], ...store.tasksOf(p).list.flatMap(conversations).find((c) => c.transcript) };
   for (const saved of conversations(entry)) {
     try {
@@ -253,7 +251,7 @@ function forgetFolder(shell: Shell, p: ProjectEntry, entry: TaskEntry, folder: s
 // project's entry (open or not).
 async function deleteTask(shell: Shell, p: ProjectEntry, entry: TaskEntry) {
   const { store } = shell;
-  const data = store.taskOf(p, entry.n);
+  const data = store.taskOf(p, entry.id);
   const copies = worktreesOf(entry), home = homeOf(entry);
   for (const c of copies) await removeWorktree(c);
   if (home) fs.rmSync(home, { recursive: true, force: true });
@@ -331,7 +329,7 @@ function askDropProfile(shell: Shell, entry: ProjectEntry, p: Named, by: 'human'
 async function dropProfile(shell: Shell, entry: ProjectEntry, id: string) {
   const open = shell.open.get(entry.id);
   if (open) for (const t of open.tasks.values()) await t.dropProfile(id);
-  else for (const e of shell.store.tasksOf(entry).list) shell.store.taskOf(entry, e.n).dropProfile(id);
+  else for (const e of shell.store.tasksOf(entry).list) shell.store.taskOf(entry, e.id).dropProfile(id);
   shell.profileStore.removeFrom(id, entry.id);
   shell.profilesChanged();
 }
@@ -488,7 +486,7 @@ async function deleteAccount(shell: Shell, agent: string, w: Asker | null): Prom
   const a = shell.accounts.find(agent);
   if (!a || a.own) return { error: `no account ${agent}` };
   const using = shell.store.projects().flatMap((p) => shell.store.tasksOf(p).list
-    .filter((e) => shell.store.taskOf(p, e.n).agent().conversations?.some((c) => c.agent === agent && c.terminal !== undefined)).map((e) => `${e.name} (${p.name})`));
+    .filter((e) => shell.store.taskOf(p, e.id).agent().conversations?.some((c) => c.agent === agent && c.terminal !== undefined)).map((e) => `${e.name} (${p.name})`));
   if (using.length) return { error: `Tasks run it: ${using.join(', ')}. Close its tabs there first, or delete the tasks (Delete Task… in a task's menu).` };
   const projects = shell.store.projects().filter((p) => p.agents?.includes(agent));
   if (!await shell.ask({ message: `Delete the account ${a.name}?`, ok: 'Delete', danger: true,

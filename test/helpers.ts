@@ -18,7 +18,7 @@ const userData = path.join(root, 'data');
 const project = path.join(root, 'project');
 
 // A project's id is random (store.ts): a test names a project by its folder's name ('project', 'other'). pid('other')
-// is its id; tkey('other', 1) its task's key; named(key) a key, or an id, back by the folder's name, to compare.
+// is its id; tkey('other', 1) its first task's key; named(key) a key, or an id, back by the folder's name (and its task's place), to compare.
 const projectsSaved = (): { id: string; folder: string }[] => JSON.parse(fs.readFileSync(path.join(userData, 'projects.json'), 'utf8')).list;
 const folderName = (p: { folder: string }) => path.basename(p.folder).toLowerCase();
 const pid = (folder: string) => {
@@ -26,10 +26,25 @@ const pid = (folder: string) => {
   assert.equal(found.length, 1, `one project in a folder named ${folder}`);
   return found[0].id;
 };
-const tkey = (folder: string, n: number) => `${pid(folder)}/${n}`;
-const named = (key: string) => key.replace(/^[^/ ]+/, (id) => { const p = projectsSaved().find((x) => x.id === id); return p ? folderName(p) : id; });
-// A file of the test project's own data, of its first task (or of task n) (store.ts).
-const pfile = (f: string, task = 1) => path.join(userData, 'projects', pid('project'), String(task), f);
+// A task's id is random too: a test names a task by its place among its project's tasks, as made (tasks.json).
+const tid = (folder: string, i: number): string => {
+  const list = JSON.parse(fs.readFileSync(path.join(userData, 'projects', pid(folder), 'tasks.json'), 'utf8')).list;
+  assert.ok(list[i - 1], `a task ${i} of ${folder}`);
+  return list[i - 1].id;
+};
+const tkey = (folder: string, i: number) => `${pid(folder)}/${tid(folder, i)}`;
+// A loaded project's task by its place, as made; whether a task is that one.
+const taskAt = (p: { tasks: Map<string, Task> }, i: number): Task => [...p.tasks.values()][i - 1];
+const isNth = (t: Task | null | undefined, i: number) => !!t && taskAt(t.project, i) === t;
+const named = (key: string) => key.replace(/^([^/ ]+)(?:\/([^/ ]+))?/, (all, id: string, task?: string) => {
+  const p = projectsSaved().find((x) => x.id === id);
+  if (!p) return all;
+  if (!task) return folderName(p);
+  const at = JSON.parse(fs.readFileSync(path.join(userData, 'projects', id, 'tasks.json'), 'utf8')).list.findIndex((e: { id: string }) => e.id === task);
+  return `${folderName(p)}/${at < 0 ? task : at + 1}`;
+});
+// A file of the test project's own data, of its first task (or of its task by place, or by id) (store.ts).
+const pfile = (f: string, task: number | string = 1) => path.join(userData, 'projects', pid('project'), typeof task === 'string' ? task : tid('project', task), f);
 // A profile's id is random (profile-store.ts): a test names a profile by its name, as the agent does (any case), and
 // idOf gives its id, by which the window and the core know it (its folders, its panel, data-profile).
 const idOf = (name: string): string => {
@@ -233,6 +248,6 @@ const near = (a: number, b: number) => Math.abs(a - b) < 1e-6;
 const noNode = async (wc: WebContents) => await wc.executeJavaScriptInIsolatedWorld(999, [{ code: 'typeof process' }]) === 'undefined';
 
 export type { UI };
-export { MAC, CMD, canShoot, NO_SHOT, shot, focusWindow, MENU, SUBMENU, noNode, hooksOf, plusMenu, plusRows, closeBoard, assert, root, userData, project, pid, tkey, named, pfile, idOf, savedTabs, savedActive, savedWindows, panel, SITE, PORT, sleep, waitFor, who, menuRows, choose, projectTabs, projectTab, showProject, closeProject, manageProfiles, closeSettings, settingsClosed, chooseProfile, setProfileField, menuOpen, closeMenu, rightClick, taskMenu,
+export { MAC, CMD, canShoot, NO_SHOT, shot, tid, taskAt, isNth, focusWindow, MENU, SUBMENU, noNode, hooksOf, plusMenu, plusRows, closeBoard, assert, root, userData, project, pid, tkey, named, pfile, idOf, savedTabs, savedActive, savedWindows, panel, SITE, PORT, sleep, waitFor, who, menuRows, choose, projectTabs, projectTab, showProject, closeProject, manageProfiles, closeSettings, settingsClosed, chooseProfile, setProfileField, menuOpen, closeMenu, rightClick, taskMenu,
   click,
   box, pageBox, viewOn, dock, press, ctrl, near };
