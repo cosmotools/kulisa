@@ -2,10 +2,10 @@
 // over the CDP proxy, so the human sees every action (ghost.ts) and the sign-in pause holds. How a tool is designed:
 // ../CLAUDE.md.
 import { z } from 'zod';
-import fs from 'fs';
 import path from 'path';
 import { toUrl } from '../../profiles.ts';
 import { MARK } from '../ghost.ts';
+import { saveArtifact } from '../artifacts.ts';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { ConsoleMessage, Page, Request } from 'playwright-core';
 import type { Tab } from '../../profiles.ts';
@@ -118,12 +118,11 @@ const bodyOf = (b: Buffer, type = '') => ` (${b.length} bytes${type ? `, ${type}
 
 function browserTools(server: McpServer, h: Handles) {
   const { task, profileArg, text, done, idOf, profileOf, tabOf, pageOf, locate, target, element, dialogArg, answering, tabArg, onTab } = h;
-  // Into the task's pages folder (TaskStore.pages), never the project's: nothing of Kulisa's in the agent's git status.
-  const toFile = async (name: string, content: string | Buffer) => {
-    await fs.promises.mkdir(task.store.pages, { recursive: true });
-    const file = path.join(task.store.pages, name);
-    await fs.promises.writeFile(file, content);
-    return file;
+  // Into the task's artifacts (../artifacts.ts), never the project's folder: nothing of Kulisa's in the agent's git
+  // status. Named by the profile and tab it came from.
+  const toFile = (profile: string, tabId: string | undefined, kind: string, content: string | Buffer) => {
+    const { profile: p, tab: t } = tabOf(profile, tabId);
+    return saveArtifact(task.store.artifacts, `${p.id}-${t.id}-${kind}`, content);
   };
 
   server.registerTool('browser_tab_new', {
@@ -222,9 +221,8 @@ function browserTools(server: McpServer, h: Handles) {
       if (pattern) yaml = found(yaml, pattern) || `Nothing matches ${find}.`;
       const head = `- Profile: ${name}\n- URL: ${page.url()}\n- Title: ${await page.title()}`;
       if (yaml.length <= LARGE) return `${head}\n\n${yaml}`;
-      const { profile: p, tab: t } = tabOf(name, tabId);
-      const file = await toFile(`${p.id}-${t.id}.yml`, yaml);
-      return `${head}\n- Snapshot: ${yaml.length} characters (about ${Math.round(yaml.length / 4000)}k tokens), in ${file}, rewritten at this tab's next large snapshot. ` +
+      const file = await toFile(name, tabId, 'snapshot.yml', yaml);
+      return `${head}\n- Snapshot: ${yaml.length} characters (about ${Math.round(yaml.length / 4000)}k tokens), in ${file}. ` +
         `Read the part you need there, or take one here: an element by ref or locator, a depth, or find. Its top levels:\n\n${outline(yaml)}`;
     };
     if (!also.length) return text(await snap(profile, tab));
@@ -365,7 +363,7 @@ function browserTools(server: McpServer, h: Handles) {
   });
 
   server.registerTool('browser_screenshot', {
-    description: "Screenshot of a profile's tab (default: the active one): its visible part, one element (ref or locator), or the whole page (fullPage).",
+    description: "Screenshot of a profile's tab (default: the active one): its visible part, one element (ref or locator), or the whole page (fullPage). Also saved as a file, its path in the answer.",
     inputSchema: { profile: profileArg, tab: onTab, ...element,
       fullPage: z.boolean().optional().describe('The whole page, scrolled to its end; a page scrolling inside a container of its own gives its visible part: take the container by locator'),
       also: z.array(z.string()).optional().describe('More profiles, by name: their active tabs too, in one call (with locator: the same element in each), e.g. to compare what each user sees') },
@@ -375,13 +373,17 @@ function browserTools(server: McpServer, h: Handles) {
     const shoot = async (id: string, tabId?: string) => {
       const found = tabOf(id, tabId);
       const el = ref || locator ? { element: (page: Page) => target(page, { ref, locator }) } : {};
-      return found.profile.screenshot(found.tab, { ...el, fullPage, scale: 'css', type: 'jpeg', by: 'agent' });
+      const buf = await found.profile.screenshot(found.tab, { ...el, fullPage, scale: 'css', type: 'jpeg', by: 'agent' });
+      return { buf, file: await toFile(id, tabId, 'screenshot.jpg', buf) };
     };
     const image = (buf: Buffer) => ({ type: 'image' as const, data: buf.toString('base64'), mimeType: 'image/jpeg' });
-    if (!also.length) return { content: [image(await shoot(profile, tab))] };
+    if (!also.length) {
+      const { buf, file } = await shoot(profile, tab);
+      return { content: [{ type: 'text' as const, text: `Saved as ${file}` }, image(buf)] };
+    }
     // One profile that cannot be taken (signing in, closed) does not hide the others.
     const parts = await Promise.all([[profile, tab] as const, ...also.map((id) => [id, undefined as string | undefined] as const)].map(([id, t]) =>
-      shoot(id, t).then((buf) => [{ type: 'text' as const, text: `- Profile: ${id}` }, image(buf)], (e: Error) => [{ type: 'text' as const, text: `- Profile: ${id}\n- ${e.message}` }])));
+      shoot(id, t).then(({ buf, file }) => [{ type: 'text' as const, text: `- Profile: ${id}\n- Saved as ${file}` }, image(buf)], (e: Error) => [{ type: 'text' as const, text: `- Profile: ${id}\n- ${e.message}` }])));
     return { content: parts.flat() };
   });
 
@@ -437,11 +439,10 @@ function browserTools(server: McpServer, h: Handles) {
       `#${number} ${r.method()} ${r.url()} → ${failure || (res ? `${res.status()} ${res.statusText()}` : 'pending')} (${r.resourceType()})`,
       `Request headers:\n${headers(await r.allHeaders())}`,
     ];
-    // A large body to a file, as a snapshot; one a tab, rewritten each time.
+    // A large body to a file, as a snapshot.
     const body = async (b: Buffer, type: string | undefined, which: string) => {
       if (!TEXT.test(type ?? '') || b.length <= LARGE) return bodyOf(b, type);
-      const { profile: p, tab: t } = tabOf(profile, tab);
-      return ` (${b.length} bytes, ${type}): in ${await toFile(`${p.id}-${t.id}-${which}.txt`, b)}, rewritten at this tab's next large ${which}`;
+      return ` (${b.length} bytes, ${type}): in ${await toFile(profile, tab, `${which}.txt`, b)}`;
     };
     const sent = r.postDataBuffer();
     if (sent) parts.push(`Request body${await body(sent, (await r.allHeaders())['content-type'], 'request')}`);

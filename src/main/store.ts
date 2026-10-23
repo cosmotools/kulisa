@@ -149,8 +149,8 @@ class Store {
   }
   saveTasksOf(p: { id: string }, w: TasksFile) { writeJSON(path.join(this.dirOf(p), 'tasks.json'), w); }
   taskOf(p: { id: string }, n: number) { return new TaskStore(path.join(this.dir, 'projects', p.id, String(n)), this); }
-  // Every task's pages folder (TaskStore.pages), as a glob: what an agent is let read there (agents/claude.ts).
-  pagesGlob() { return path.join(this.dir, 'projects', '*', '*', 'pages'); }
+  // Every task's artifacts folder (TaskStore.artifacts), as a glob: what an agent is let read there (agents/claude.ts).
+  artifactsGlob() { return path.join(this.dir, 'projects', '*', '*', 'artifacts'); }
   // A project gone from Kulisa: from the list, and its data (profiles with their sign-ins, tasks); never its
   // folder. Its profiles' sessions may still be open: what cannot go now goes at the next start.
   removeProject(p: ProjectEntry) {
@@ -183,9 +183,8 @@ class TaskStore {
   constructor(dir: string, store: Store) { this.dir = dir; this.store = store; fs.mkdirSync(dir, { recursive: true }); }
   file(name: string) { return path.join(this.dir, name); }
   profileDir(id: string) { return path.join(this.dir, id); }
-  // What the agent read of its pages, too large for a tool's answer (kulisa-plugin/tools/browser.ts): a file a tab,
-  // rewritten each time; gone when the task unloads or loads again (Task.dropPages).
-  get pages() { return path.join(this.dir, 'pages'); }
+  // What the agent's tools keep of its pages: large snapshots and bodies, screenshots (kulisa-plugin/artifacts.ts).
+  get artifacts() { return path.join(this.dir, 'artifacts'); }
   // What the task has of its project's profiles (project-profiles.ts): [{ id, zoom, closed }] (who a profile is:
   // profile-store.ts); null before the task first loads.
   profiles(): TaskProfile[] | null { return readJSON(this.file('profiles.json')); }

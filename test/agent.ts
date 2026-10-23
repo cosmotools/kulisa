@@ -313,29 +313,34 @@ export default (test: Test) => {
     await call('browser_wait_for', { profile: 'Sam.seller', text: 'Signed in as sam' });
     await call('browser_click', { profile: 'Sam.seller', locator: "getByRole('button', { name: 'Checkout' })" });
     const shot = await call('browser_screenshot', { profile: 'Sam.seller' });
-    assert.equal(shot.content[0].type, 'image');
+    assert.equal(shot.content[1].type, 'image');
   });
 
   // The agent's marks (its pointer, browser_highlight's outline) are Kulisa's, not the site's: not in the picture.
-  test('agent: screenshots of an element, the visible part and the whole page, at CSS pixels, without the agent\'s marks; several profiles in one call', async ({ call }) => {
+  test('agent: screenshots of an element, the visible part and the whole page, at CSS pixels, without the agent\'s marks, each also a file of the task\'s; several profiles in one call', async ({ shell, call }) => {
     const img = (part: { data?: string }) => nativeImage.createFromBuffer(Buffer.from(part.data, 'base64'));
     await call('browser_navigate', { profile: 'Sam.seller', url: `${SITE}/tall` });
     const box = { profile: 'Sam.seller', locator: "locator('#box')" };
-    const el = img((await call('browser_screenshot', box)).content[0]);
+    const first = await call('browser_screenshot', box);
+    const file = first.text.match(/^Saved as (.+\.jpg)$/)[1];
+    assert.equal(path.dirname(file), shell.task.store.artifacts, "the task's, never the project's");
+    assert.equal(fs.readFileSync(file).toString('base64'), first.content[1].data, 'the picture the agent got');
+    const el = img(first.content[1]);
     assert.deepEqual(el.getSize(), { width: 200, height: 120 }, 'the element alone, at its CSS size');
     const [b, g, r] = el.crop({ x: 100, y: 60, width: 1, height: 1 }).toBitmap();
     assert.ok(r > 180 && g < 60 && b < 60, `the element's own color (${[r, g, b]})`);
-    const visible = (await call('browser_screenshot', { profile: 'Sam.seller' })).content[0];
+    const visible = (await call('browser_screenshot', { profile: 'Sam.seller' })).content[1];
     const inner = JSON.parse((await call('browser_evaluate', { profile: 'Sam.seller', function: '() => [innerWidth, innerHeight]' })).text);
     assert.deepEqual(Object.values(img(visible).getSize()), inner, 'the visible part, at CSS pixels');
     await call('browser_highlight', { profile: 'Sam.seller', elements: [{ locator: "locator('#box')" }] });
-    assert.equal((await call('browser_screenshot', { profile: 'Sam.seller' })).content[0].data, visible.data, 'the outline is not in the picture');
+    assert.equal((await call('browser_screenshot', { profile: 'Sam.seller' })).content[1].data, visible.data, 'the outline is not in the picture');
     await call('browser_highlight', { profile: 'Sam.seller', elements: [] });
-    const full = img((await call('browser_screenshot', { profile: 'Sam.seller', fullPage: true })).content[0]);
+    const full = img((await call('browser_screenshot', { profile: 'Sam.seller', fullPage: true })).content[1]);
     assert.ok(full.getSize().height > 3000, `the whole page, down to its end (${full.getSize().height})`);
     await call('browser_navigate', { profile: 'Elon.buyer', url: `${SITE}/tall` });
     const both = (await call('browser_screenshot', { ...box, also: ['Elon.buyer'] })).content.slice(0, 4); // then an unnamed task's note
-    assert.deepEqual(both.map((c: { type: string; text?: string }) => c.text || c.type), ['- Profile: Sam.seller', 'image', '- Profile: Elon.buyer', 'image']);
+    assert.deepEqual(both.map((c: { type: string; text?: string }) => c.text?.replace(/Saved as .*-screenshot\.jpg$/, 'Saved') || c.type),
+      ['- Profile: Sam.seller\n- Saved', 'image', '- Profile: Elon.buyer\n- Saved', 'image']);
     assert.deepEqual(img(both[3]).getSize(), { width: 200, height: 120 }, 'the same element in the other profile');
     await assert.rejects(call('browser_screenshot', { profile: 'Sam.seller', ref: 'e1', also: ['Elon.buyer'] }), /pass a locator/);
   });
@@ -704,6 +709,36 @@ export default (test: Test) => {
     await waitFor(() => elon.active === picked);
   });
 
+  test('point and tell: Pick again or Esc in the page cancels it; nothing goes to the prompt', async ({ shell, ui, ptyOutput }) => {
+    const elon = shell.profiles.get(idOf('Elon.buyer'));
+    const button = `document.querySelector('.pane[data-profile="${idOf('Elon.buyer')}"] .pick')`;
+    const before = ptyOutput().length;
+    for (const cancel of ['button', 'esc']) {
+      await ui(`${button}.click()`);
+      await waitFor(async () => (await ui(`${button}.dataset.state === 'on'`)) && shell.windows[0].picking.has(idOf('Elon.buyer')));
+      if (cancel === 'button') await ui(`${button}.click()`);
+      else {
+        const wc = elon.get().wc;
+        wc.focus();
+        wc.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' }); wc.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
+      }
+      await waitFor(async () => !(await ui(`${button}.dataset.state === 'on'`)) && !shell.windows[0].picking.has(idOf('Elon.buyer')));
+      assert.equal(await ui(`document.querySelector('.ptab[data-panel="profile:${idOf('Elon.buyer')}"] .caption').textContent`), '', cancel);
+    }
+    await sleep(300); // nothing to wait for: that nothing comes
+    assert.equal(ptyOutput().slice(before).includes('kulisa pick'), false);
+  });
+
+  test('point and tell: Pick is off on an empty tab (about:blank)', async ({ shell, ui }) => {
+    const elon = shell.profiles.get(idOf('Elon.buyer'));
+    const disabled = () => ui(`document.querySelector('.pane[data-profile="${idOf('Elon.buyer')}"] .pick').disabled`);
+    assert.equal(await disabled(), false);
+    const tab = await ui(`act('tab:new', { profile: '${idOf('Elon.buyer')}' })`);
+    await waitFor(async () => elon.active === tab && (await disabled()));
+    elon.closeTab(tab);
+    await waitFor(async () => !(await disabled()));
+  });
+
   test("agent: what a page reported: the console by level, requests without static files, by address, since the last action or the page's load; one request whole, its credentials hidden; an action's answer counts the errors", async ({ shell, call }) => {
     const elon = shell.profiles.get(idOf('Elon.buyer')), before = elon.active;
     const tab = (await call('browser_tab_new', { profile: 'Elon.buyer', url: `${SITE}/report` })).text.match(/Opened tab (\w+)/)[1];
@@ -773,22 +808,24 @@ export default (test: Test) => {
     await waitFor(() => elon.active === before);
   });
 
-  test("agent: a snapshot or a body too large for an answer goes to a file in the task's data, the answer its path and outline", async ({ shell, call }) => {
+  test("agent: a snapshot or a body too large for an answer goes to a file of the task's, each its own, the answer its path and outline", async ({ shell, call }) => {
     const elon = shell.profiles.get(idOf('Elon.buyer')), before = elon.active;
     const tab = (await call('browser_tab_new', { profile: 'Elon.buyer', url: `${SITE}/large` })).text.match(/Opened tab (\w+)/)[1];
     const answer = (await call('browser_snapshot', { profile: 'Elon.buyer', tab })).text;
-    const file = answer.match(/, in (.+\.yml), rewritten/)[1];
-    assert.equal(path.dirname(file), shell.task.store.pages, "the task's, never the project's");
+    const file = answer.match(/, in (.+-snapshot\.yml)\. Read/)[1];
+    assert.equal(path.dirname(file), shell.task.store.artifacts, "the task's, never the project's");
     assert.ok(answer.length < 6000, `the answer stays small: ${answer.length}`);
     assert.match(answer, /- URL: .*\/large\n- Title: large\n- Snapshot: \d+ characters \(about \d+k tokens\)/);
     assert.match(answer, /main \[ref=\w+\]:[\s\S]*navigation "Index"/, 'its top levels');
     assert.doesNotMatch(answer, /Item 1499/);
     assert.match(fs.readFileSync(file, 'utf8'), /link "Item 1499 with a longer name"/, 'the whole snapshot in the file');
     assert.match((await call('browser_snapshot', { profile: 'Elon.buyer', tab, find: 'find me' })).text, /button "Find me" \[ref=\w+\]$/, 'a part fits: in the answer');
+    const again = (await call('browser_snapshot', { profile: 'Elon.buyer', tab })).text.match(/, in (.+-snapshot\.yml)\. Read/)[1];
+    assert.ok(again !== file && fs.existsSync(file), 'the next one a file of its own: the first kept, to compare');
     const n = (await call('browser_network_requests', { profile: 'Elon.buyer', tab, filter: '/large$' })).text.match(/#(\d+) GET/)[1];
     const body = (await call('browser_network_request', { profile: 'Elon.buyer', tab, number: Number(n) })).text;
-    const html = body.match(/Response body \(\d+ bytes, text\/html; charset=utf-8\): in (.+-response\.txt), rewritten/)[1];
-    assert.equal(path.dirname(html), shell.task.store.pages);
+    const html = body.match(/Response body \(\d+ bytes, text\/html; charset=utf-8\): in (.+-response\.txt)$/m)[1];
+    assert.equal(path.dirname(html), shell.task.store.artifacts);
     assert.match(fs.readFileSync(html, 'utf8'), /Item 1499/);
     await call('browser_tab_close', { profile: 'Elon.buyer', tab });
     await waitFor(() => elon.active === before);
@@ -803,37 +840,7 @@ export default (test: Test) => {
     assert.ok(r, 'answered within 5 s');
     assert.match(r.text, /GET .*\/hang → pending/);
     await call('browser_tab_close', { profile: 'Elon.buyer', tab });
-    await waitFor(() => elon.active === before); // the picked page, for point and tell's tests below
-  });
-
-  test('point and tell: Pick again or Esc in the page cancels it; nothing goes to the prompt', async ({ shell, ui, ptyOutput }) => {
-    const elon = shell.profiles.get(idOf('Elon.buyer'));
-    const button = `document.querySelector('.pane[data-profile="${idOf('Elon.buyer')}"] .pick')`;
-    const before = ptyOutput().length;
-    for (const cancel of ['button', 'esc']) {
-      await ui(`${button}.click()`);
-      await waitFor(async () => (await ui(`${button}.dataset.state === 'on'`)) && shell.windows[0].picking.has(idOf('Elon.buyer')));
-      if (cancel === 'button') await ui(`${button}.click()`);
-      else {
-        const wc = elon.get().wc;
-        wc.focus();
-        wc.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' }); wc.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' });
-      }
-      await waitFor(async () => !(await ui(`${button}.dataset.state === 'on'`)) && !shell.windows[0].picking.has(idOf('Elon.buyer')));
-      assert.equal(await ui(`document.querySelector('.ptab[data-panel="profile:${idOf('Elon.buyer')}"] .caption').textContent`), '', cancel);
-    }
-    await sleep(300); // nothing to wait for: that nothing comes
-    assert.equal(ptyOutput().slice(before).includes('kulisa pick'), false);
-  });
-
-  test('point and tell: Pick is off on an empty tab (about:blank)', async ({ shell, ui }) => {
-    const elon = shell.profiles.get(idOf('Elon.buyer'));
-    const disabled = () => ui(`document.querySelector('.pane[data-profile="${idOf('Elon.buyer')}"] .pick').disabled`);
-    assert.equal(await disabled(), false);
-    const tab = await ui(`act('tab:new', { profile: '${idOf('Elon.buyer')}' })`);
-    await waitFor(async () => elon.active === tab && (await disabled()));
-    elon.closeTab(tab);
-    await waitFor(async () => !(await disabled()));
+    await waitFor(() => elon.active === before);
   });
 
   test("a right-click in a page shows Chrome's menu for what is under it; a site's own menu stays the site's; the agent's right-click opens none", async ({ shell }) => {

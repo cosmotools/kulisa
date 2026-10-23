@@ -152,9 +152,10 @@ What the tools are for, beyond acting as one user:
 - **Reading a page without filling the agent's context** ([the tools' design](../src/main/kulisa-plugin/CLAUDE.md),
   "Saving the agent's context"). `browser_snapshot` takes a part: an element (ref or locator, its subtree:
   `locator.ariaSnapshot()`), a depth, or `find`, the lines that match under their ancestors. One larger than about
-  10k tokens (Claude Code warns of a tool's answer from there) goes to a file in the task's `pages/` (tasks.md, What
-  is on the computer), one a tab, rewritten each time; the answer gives its path and its top levels. Claude Code is
-  let read there in its settings (`agents/claude.ts`), or it would ask each time; Codex reads the whole disk. What a
+  10k tokens (Claude Code warns of a tool's answer from there) goes to a file in the task's `artifacts/` (tasks.md, What
+  is on the computer), each its own, never replaced, so two can be compared (`kulisa-plugin/artifacts.ts`); the answer
+  gives its path and its top levels. A screenshot is kept there too, its path beside the picture. Claude Code is let
+  read there in its settings (`agents/claude.ts`), or it would ask each time; Codex reads the whole disk. What a
   page reported is Playwright's (`page.consoleMessages()`, `pageErrors()`, `requests()`: the last 200, 200 and 100):
   the console by level, the requests without the static files that loaded, by address, numbered (a request keeps its
   number), one whole by its number (`browser_network_request`: headers and bodies, a large body to a file as a
@@ -432,6 +433,7 @@ space (issue #113, a task manager).
 | `src/main/discard.ts` | tabs no one looks at losing their process: the rule, the sweep (`Profile.discard`, `load` in `profiles.ts`) |
 | `src/main/kulisa-plugin/mcp-server.ts` | the agent's MCP server: a URL per task, its instructions, every call logged |
 | `src/main/kulisa-plugin/tools/` | the agent's tools, a file a group: `profile.ts`, `browser.ts` (the pages), `task.ts` (its repositories: [tasks.md](tasks.md), Tasks; its history: [transcripts.md](transcripts.md)), `terminal.ts` ([window.md](window.md), The terminal); `handles.ts`, what they share |
+| `src/main/kulisa-plugin/artifacts.ts` | what the tools keep of the pages in the task's `artifacts/`: numbered files, the oldest gone past 100 MB |
 | `src/main/kulisa-plugin/ghost.ts`; `src/main/picker.ts` | the agent's actions shown in the page; point and tell |
 | `src/agent/skills/profiles/SKILL.md`, `src/agent/claude-plugin/` | the profiles skill, every agent's; Claude Code's plugin (`.mcp.json`: the task's MCP URL) |
 | `src/renderer/components/grid/ProfilePane.vue`, `ProfileHeader.vue`, `lib/profiles.ts`; `settings/ProfilePage.vue`, `settings/Avatars.vue` | the panes and the profiles' menu (a task tab's right-click); a profile's page in Settings and its pictures |
