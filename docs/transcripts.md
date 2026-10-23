@@ -78,6 +78,13 @@ version loses nothing else; the unit test, on a transcript in this format made b
 
 The cut's size is one constant, to be tuned on real handoffs.
 
+**The conversation's name**: apart from the history, Claude Code's own auto-title is read by the entry's `title`
+(`claudeTitle`): the last non-empty `aiTitle` of the transcript's `ai-title` records (it regenerates one as the
+conversation goes). It names the conversation's tab, and the task's while the task is unnamed, until a name is given
+explicitly (`conversation_rename`, `task_rename`; [tasks.md](tasks.md)). A name derived from the folder (Claude Code's
+sessions file, `nameSource: "derived"`) is not a title and is not read. A unit test on a transcript made here catches
+the field being renamed in a new version.
+
 **What it remembered**: Claude Code's memory of a folder is next to its transcripts, `projects/<folder>/memory/`
 (`MEMORY.md`, its index, and a file per fact), written by the model while it had budget; the reader gives it, the
 index first.
@@ -106,7 +113,9 @@ The reader (`codexConversation`, `agents/codex.ts`), record by record:
 | reasoning | `payload.type: "reasoning"` (`encrypted_content`) | | left out |
 | the rest | `session_meta`, `turn_context`, `world_state`, `token_usage_record`, every other `event_msg` (`item_completed`, with `McpToolCall`s, repeats what the scripts printed) | | left out |
 
-No memory: Codex keeps its own in a database of its format (`memories_*.sqlite`).
+No memory: Codex keeps its own in a database of its format (`memories_*.sqlite`). No auto-title either (its `session_meta`
+holds only the cwd and id), so its `title` is null and a task on Codex keeps "New Task" until it is named; a Codex
+version that adds one is read there.
 
 ## The code
 

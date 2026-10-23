@@ -64,36 +64,18 @@ class Project {
   save() {
     this.store.saveTasksOf(this, { next: this.next, list: [...this.tasks.values()].map((t) => t.entry) });
   }
-  // A new task, named task-<n> until the agent or the human renames it. Its code: a worktree of the default repository
-  // on a branch of the task's name (worktrees.ts), the others added when its work needs them (addCopy):
-  // next to its repository when the project has one, else in one folder for them all,
-  // <projects' home>/<project's name>@task-<n>/<repo>/ (shell.projectsHome; a folder the human sees: the name, not the id), so that one added later goes beside it; with a port offset no other task
-  // has (100, 200, …: the project's own folder keeps the usual ports). A folder without git is used as it is: the
-  // task works right in it. Made from the project's configuration alone (the projects' manager), nothing from the
-  // task on screen: its agent the project's default one; none: nothing starts, the island shows what can. No profile opens by itself: all its project's are listed closed, and the agent (profile_open)
-  // or the human (a task tab's menu) opens one when it is needed, a copy of its master made then. The new Task, or { error }.
+  // A new task, "New Task" until the agent or the human names it. It opens with no worktree: its terminal starts in
+  // the project's folder (the human's), and its agent makes the task its own git worktree with task_worktree
+  // (ensureWorktree) when it reaches code — or the human has it work right in the folder. A project without git works
+  // in its folder as it is. Made from the project's configuration alone (the projects' manager), nothing from the task
+  // on screen: its agent the project's default one; none: nothing starts, the island shows what can. No profile opens
+  // by itself: all its project's are listed closed, and the agent (profile_open) or the human (a task tab's menu)
+  // opens one when it is needed, a copy of its master made then. The new Task, or { error }.
   async createTask(): Promise<Result<Task>> {
     const agent = this.defaultAgent();
     await this.checkGit();
-    const n = this.next, name = `task-${n}`, repos = this.repos();
-    const gits = this.git === 'ok' ? [this.folder] : [];
-    let entry: TaskEntry = { n, name, offset: 0, folder: this.folder };
-    if (gits.length) {
-      const beside = repos.length === 1;
-      const branch = await freeBranch(gits, name, { beside });
-      const home = beside ? null : freeFolder(path.join(this.shell.projectsHome, `${slugOf(this.name, 'project')}@${name}`));
-      const copies: Copy[] = [];
-      try {
-        for (const r of gits) copies.push(await createWorktree(r, branch, home && path.join(home, copyName(copies, r)), this.shell.agentFiles));
-      } catch (e) {
-        for (const c of copies) await removeWorktree(c);
-        if (home) fs.rmSync(home, { recursive: true, force: true });
-        return { error: (e as GitError).stderr || (e as Error).message };
-      }
-      let offset = 100;
-      while ([...this.tasks.values()].some((t) => t.offset === offset)) offset += 100;
-      entry = { n, name, branch, offset, copies, ...(home && { home }), folder: copies.find((c) => c.repo === this.folder)?.folder };
-    }
+    const n = this.next;
+    const entry: TaskEntry = { n, name: 'New Task', folder: this.folder };
     const data = this.store.taskOf(this, n);
     data.saveProfiles(this.shell.profileStore.of(this.id).map((g) => ({ id: g.id, closed: true })));
     // null: the project has agents and none is the default; a project with none leaves it out: a shell starts.
@@ -103,6 +85,32 @@ class Project {
     this.tasks.set(n, task);
     this.save();
     return task;
+  }
+  // The task's own worktree of the default repository, made on demand (the agent's task_worktree) when it reaches
+  // code: a git worktree on a branch of a slug of the task's name (worktrees.ts), beside the repository
+  // (<repo>@<branch>) for a single-repo project, else under the task's folder of copies
+  // (<projects' home>/<project>@<task>/<repo>/, so a repository added later goes beside it). Idempotent: the same copy
+  // when it is there already. The default repository must be in git with a commit; otherwise the task keeps working in
+  // the project's folder. The default repository's Copy, or { error }.
+  async ensureWorktree(task: Task): Promise<Result<Copy>> {
+    const have = task.entry.copies?.find((c) => c.repo === this.folder);
+    if (have) return have;
+    await this.checkGit();
+    if (this.git !== 'ok') return { error: this.git === 'no-commit' ? `${this.folder} has no git commit yet to branch from` : `${this.folder} is not in git` };
+    const beside = this.repos().length === 1;
+    // Named: a slug of the task's name; still "New Task": task-<n> (a later task_rename renames the branch).
+    const label = task.entry.named ? task.name : `task-${task.n}`;
+    const branch = await freeBranch([this.folder], label, { beside });
+    const home = beside ? null : (task.entry.home ??= freeFolder(path.join(this.shell.projectsHome, `${slugOf(this.name, 'project')}@${slugOf(label, `task-${task.n}`)}`)));
+    const copies = (task.entry.copies ??= []);
+    try {
+      const c = await createWorktree(this.folder, branch, home && path.join(home, copyName(copies, this.folder)), this.shell.agentFiles);
+      copies.push(c);
+      task.entry.branch = branch;
+      task.entry.folder = c.folder;
+      this.save();
+      return c;
+    } catch (e) { return { error: (e as GitError).stderr || (e as Error).message }; }
   }
   // Another of its repositories added to a task (Task.addRepository): copied on the task's branch (or the next free
   // name there) into its folder of copies, <projects' home>/<project's name>@task-<n>/ (a folder the human sees: the

@@ -162,9 +162,8 @@ the browser's own `until-found` apart): a component's `display` beats the browse
 - `.dots`: where one is in a few slides or steps, a short bar each, lit up to the one shown (an `ol`, `li.on`): the
   welcome's slides and its steps.
 - `.chip`: a thing named in a pill, its icon first (14 px, muted), `--font-small`: what goes along to another agent
-  (Change Agent), a task's repositories at the end of its terminals' row (`TaskRepos.vue`). A name the human gave (a
-  folder, a branch) goes in a `.name` inside it: cut with … past 14em, the whole in the chip's tooltip; a row of chips
-  gives way before what is beside it (the terminals' tabs).
+  (Change Agent). A name the human gave (a folder, a branch) goes in a `.name` inside it: cut with … past 14em, the
+  whole in the chip's tooltip; a row of chips gives way before what is beside it (the terminals' tabs).
 
 ### Controls
 

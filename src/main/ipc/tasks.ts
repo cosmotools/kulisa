@@ -75,6 +75,10 @@ export function registerTasks(ipc: Ipc) {
   handle('voice:get', (_e, key) => shell.taskByKey(key)?.voice() ?? null);
   handle('voice:record', (_e, { task, on }) => shell.taskByKey(task)?.dictate(on) ?? { recording: false });
   handle('task:show-folder', (_e, key) => { const task = shell.taskByKey(key); return task && electronShell.openPath(task.folder); });
+  handle('task:open-folder', (_e, { key, folder }) => {
+    const task = shell.taskByKey(key); // only a folder the task owns (a resource), not any path the renderer names
+    return task && task.resources().some((r) => r.folder === folder) ? electronShell.openPath(folder) : undefined;
+  });
   handle('tasks:get', (e) => at(e)?.sendProjects());
 
 }

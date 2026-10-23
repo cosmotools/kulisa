@@ -263,19 +263,16 @@ build several features of one project at once.
   instructions), or to open a pull request.
 - **Without git** (or before a first commit) a task works right in the project's folder: there is nothing to copy it
   with. A second open task there is made only after a question ("two agents may get in each other's way").
-- **Its name** is `task-<n>` until its agent names it (`task_rename`) or the human does (Rename… in its tab's menu, or a double click on its tab):
-  the tab and the branch take the name (`git branch -m`, `-2` when the branch is taken); the folder stays
-  `<repo>@task-<n>`, not moved under a running agent. Until it is named, its agent is told to name it once the human's
-  request says what it is about, before anything else and silently (never asking the human or mentioning it: Kulisa
-  is to be invisible in the agent's answers), at every prompt the human sends (the `prompt`
-  hook's answer) and in every Kulisa tool's result (for an agent whose hooks do not run: Codex's not trusted yet):
-  told only at the session's start, before the agent knows what the task is about, it forgets; and asking the human
-  would stop them for a name. `task_rename` and
-  `conversation_rename` load with Claude Code's session (`_meta` `anthropic/alwaysLoad`; other agents ignore it): behind
-  its tool search, as every MCP tool is, the agent skips the extra step and does not name the task when its answer
-  is text only. Until it is named the human's first
-  prompt in it (its first line, from the same hook) is over its tab and its row among the closed tasks (their
-  tooltips), what it is about when its agent did not name it; a name puts it away.
+- **Its name** on its tab is the one it was given — by its agent (`task_rename`) or the human (Rename… in its tab's
+  menu, or a double click on its tab); the branch takes the name too (`git branch -m`, `-2` when the branch is taken),
+  while the folder stays `<repo>@task-<n>`, not moved under a running agent. Until it is named it is "New Task", and
+  the tab shows instead its first agent conversation's name when the agent keeps one of its own: the agent's auto-title
+  for the conversation, read from its transcript at a turn's end and at session start (`Task.noteAutoTitle`, the agent's
+  `title`; [transcripts.md](transcripts.md)). An agent without such a title (Codex) leaves it "New Task" until named.
+  The task is not nagged into a name: `task_rename` is a tool the agent uses when it wants to, mentioned once in the
+  profiles skill and the MCP server's instructions, never injected turn after turn. A name given explicitly wins over
+  the auto-title and is never a guess from the prompt: the auto-title is shown only, never written as the task's name
+  or made into a branch slug.
 
 Example: the project `~/IdeaProjects/myshop`, its second task, named "Checkout-redesign" by its agent:
 
@@ -283,6 +280,22 @@ Example: the project `~/IdeaProjects/myshop`, its second task, named "Checkout-r
 ~/IdeaProjects/myshop/          the project's own folder: the human's
 ~/IdeaProjects/myshop@task-2/   the task: a worktree on the branch checkout-redesign
 ```
+
+### The Resources island
+
+Beside the terminal, at the island's height, a list of the task's **resources** — the things it has, uses or created —
+each a row with its own actions (`Resources.vue`, in the terminal island `Terminals.vue`; `Task.resources`, sent in the
+task's info). What it shows now:
+
+- A **worktree** per repository the task has made its own (`task_worktree` for the default one, `task_add_repository`
+  for another of the project's): its name and branch, with **Open folder**. A worktree made for an added repository is
+  removed here (**Remove**, `task_remove_repository`); the task's own worktree goes only with the task.
+- The **main working tree** until the task makes its own worktree for the default repository: the project's folder (the
+  human's), with **Open folder**, never removed (every task shares it). A task on a folder without git stays here.
+
+More kinds grow over time (the app's URL, a pull request). Ownership decides the actions and the cleanup: the main
+working tree is the human's and is never removed; a worktree the task made is the task's and goes when the task is
+deleted.
 
 ## What the human does
 
@@ -331,6 +344,8 @@ to the human; the window's IPC (`ipc/`) and the MCP tools are handles on it:
 | Read what was said and done in the task before | its terminal, scrolled back | `task_history` ([transcripts.md](transcripts.md)) | `historyPart` (`history.ts`) |
 | Delete a task | Delete Task… in its tab's menu; a closed one's 🗑 in the bar's + | none: it deletes work and sign-ins, the human's to decide | `askDeleteTask`, `deleteTask`, `deleteClosedTask` (`projects.ts`) |
 | Show a task | a click on its tab, of any project | none: what the human looks at is theirs | `AppWindow.show` (`window.ts`) |
+| Open a resource's folder | Open folder on its row in the Resources island | none: the agent opens folders through its own tools | `task:open-folder` (`ipc/tasks.ts`) |
+| Make the task's worktree | none: its agent makes it before writing code | `task_worktree` | `Task.makeWorktree`, `Project.ensureWorktree` |
 | Add, clone, make the default, remove a repository | the projects' manager | none: what the project is made of is the human's | `addRepo`, `cloneRepo`, `defaultRepo`, `removeRepo` (`projects.ts`) |
 | Add a project's repository to a task | Add Repository in its tab's menu | `task_add_repository`, once the human agreed in the conversation | `Task.addRepository`, `Project.addCopy` |
 | Remove one added | Remove Repository in its tab's menu, or on its chip | `task_remove_repository`, once the human agreed | `Task.removeRepository`, `Project.askRemoveCopy`, `removeCopy` |
@@ -500,8 +515,9 @@ first): always a **new conversation**. Each sees the task's code and profiles.
   (`/task/<project>/<n>/t/<id>/mcp`, `…/hooks/<event>`: `KULISA_MCP_URL`, `KULISA_URL` in its environment), so its
   hooks give its own state, shown on its tab, and its session goes to its own conversation. The task's tab in the
   tasks' bar shows the most urgent of its agents: waiting for the human, else working, else done and not seen.
-- **Each names its own tab**, in 1 to 3 words, with `conversation_rename` (as `task_rename` names the task); until then
-  its tab has its agent's name (`Claude Code`, `Claude Code 2` when two have it).
+- **Each names its own tab**, in 1 to 3 words, with `conversation_rename` (as `task_rename` names the task); without an
+  explicit name its tab shows the agent's own auto-title for the conversation when it keeps one (Claude Code's,
+  `Task.noteAutoTitle`), else its agent's name (`Claude Code`, `Claude Code 2` when two have it).
 - **No handoff by itself.** An agent opened with + is told nothing: a second agent is opened as often for a task of
   its own (check the layout on a phone) as to take over, and Kulisa cannot tell which. The human says it in their own
   words ("go on with what Claude did"), and the agent finds that conversation in `task_history`: where the task
@@ -566,14 +582,22 @@ Why so, and what is not chosen:
   protective measures" is. Going on with another vendor bypasses nothing; a second subscription of the same vendor
   to get around a limit may count as bypassing: the human's choice, so Kulisa never offers a switch on its own.
 
-## Creating a task, step by step
+## Making the task's worktree, step by step
 
-1. **Code** (`worktrees.ts`), a copy of each of the project's repositories with a commit; a folder without git is
-   used as it is (the task works right in it, and the next two steps skip it). Each branch starts as Claude Code's
-   `--worktree` starts one: from the remote's default branch after `git fetch` (`origin/main`), else from `HEAD`.
-   Uncommitted changes of the project's folders are not carried. The branch is `task-<n>`, one name free in every
-   repository (`-2`, `-3` if taken), the copies next to their repository with one, in `~/KulisaProjects/<project>@task-<n>/`
-   with several: `git worktree add --no-track -b <branch> <copy> <start>`. `--no-track`: pushing the task's branch
+Opening a task creates nothing: its terminal starts in the project's main working tree (the human's folder), its tab
+reads "New Task", its profiles are listed closed. The worktree below is made on demand, when the agent calls
+`task_worktree` (`Task.makeWorktree`, `Project.ensureWorktree`; idempotent, one worktree per task shared by its
+agents) — before it writes code, unless the human wants it to work right in the folder. The agent may pass the task's
+name to `task_worktree` to name it at the same time when it is still "New Task" (the branch then takes a slug of that
+name, naming and the worktree in one call). A task on a folder without git has no worktree and works right in the
+project's folder.
+
+1. **Code** (`worktrees.ts`), a copy of the repository with a commit. The branch starts as Claude Code's `--worktree`
+   starts one: from the remote's default branch after `git fetch` (`origin/main`), else from `HEAD`. Uncommitted
+   changes of the project's folder are not carried. The branch is a slug of the task's name (`fix-header`), or
+   `task-<n>` until it is named, one name free in every repository (`-2`, `-3` if taken), the copy next to its
+   repository (or, with several repositories in the task, in `~/KulisaProjects/<project>@task-<n>/`):
+   `git worktree add --no-track -b <branch> <copy> <start>`. `--no-track`: pushing the task's branch
    never goes to the default branch.
 2. **Files outside git** are copied from the project's folder when git ignores them and they are untracked: `.env*`
    at the top, each agent's own local settings (its `localFiles`: Claude Code's `.claude/settings.local.json`), and
@@ -584,10 +608,9 @@ Why so, and what is not chosen:
    and its agent would run with another account).
 4. **Profiles**: all the project's, closed; each is a copy of its master made when it is first opened, without
    Chromium's caches, its tabs the master's ([profiles.md](profiles.md)). The grid starts with the agent's terminal.
-5. **Ports.** A task with a worktree gets a port offset no other task of the project has: 100, 200, …; 0 stays the
-   project's folder's (the human's own dev server; a task without git works there). Copied tabs on local addresses
-   move by the difference (`localhost:3000/cart` → `localhost:3100/cart`); cookies do not depend on the port, so they
-   stay signed in. The agent gets the offset as `KULISA_PORT_OFFSET`.
+5. **Ports.** Kulisa assigns no port offset. The agent runs the app under test on a free port it picks itself (the
+   skill and the session's context say so) and points the profiles' tabs at it with `browser_navigate`; cookies do not
+   depend on the port, so the profiles stay signed in.
 6. **The agent.** A new conversation in the task's folder, with the project's default agent or the one chosen. Every
    agent asks once per folder whether it may work there, and keeps the answer in its config. When the human said yes
    for the project's folder or another task's copy of it, the task's copy is marked trusted too, so the agent asks
@@ -634,11 +657,10 @@ Crashpad/                         Electron's crash dumps (crashReporter, no serv
                                   after a crash; Crashpad prunes them itself (90 days, 128 MB)
 deleted-folders.json              folders to remove at the next start (a session keeps its files open)
 projects/<project id>/            a project's data, by its id (projects.json), gone with the project
-  tasks.json                      { next, current, list: [{ n, name, branch, offset, folder (its agent's),
+  tasks.json                      { next, current, list: [{ n, name, named, branch, folder (its agent's),
                                   copies: [{ repo, worktree, branch, base, folder }], home (its folder of copies),
-                                  closed, closedAt, about }] }; base: the commit a copy started from; about: its first
-                                  prompt's first line, until it is named; no copies: it works in
-                                  a folder of the project
+                                  closed, closedAt }] }; base: the commit a copy started from; name "New Task" and named
+                                  unset until it is named; no copies: it works in the project's main working tree
   1/, 2/ …                        a task
     profiles.json                 what it has of its project's profiles, in order: id, sites' zoom, closed
     layout.json                   its grid (dockview)
@@ -778,11 +800,12 @@ rm -rf ~/.config/Kulisa/projects/myshop   # all its tasks with their profiles' c
   caches inside the profile (they cannot live elsewhere), so a copy skips them.
 - **Storage as Chrome lays it out**, so what is known about Chrome's storage applies. A profile's folders are named by
   its id, fixed at creation: a rename touches only `profiles.json`.
-- **One port offset per task** moves any number of services with one number. Cookies do not depend on the
-  port, so the copies stay signed in to the app (separate hostnames such as `checkout.localhost` would lose that).
-  The local database is the developer's matter (`docker compose` already names containers after the folder, so a
+- **The agent picks the app's port**, a free one per task; Kulisa assigns no offset (give the agent tools, leave the
+  work's decisions to it: CLAUDE.md). Cookies do not depend on the port, so a profile stays signed in when the agent
+  points its tab at the chosen port (`browser_navigate`; separate hostnames such as `checkout.localhost` would lose
+  that). The local database is the developer's matter (`docker compose` already names containers after the folder, so a
   task gets its own; only published ports clash). An app that cannot change its port (hard-coded, OAuth bound to
-  `localhost:3000`) cannot run in a task's copy; the agent says so.
+  `localhost:3000`) cannot run beside another task's; the agent tells the human.
 - **Every task asks before it is deleted**, also one without changes (unlike Claude Code's `--worktree`): its
   conversation and profile copies go too.
 - **A task loads when first shown**, not at the start: after a restart nothing works in the background anyway,
@@ -814,7 +837,7 @@ rm -rf ~/.config/Kulisa/projects/myshop   # all its tasks with their profiles' c
 | `src/main/ipc/tasks.ts`, `projects.ts`, `agents.ts` | the windows' handles on tasks, projects, agents and accounts |
 | `src/main/window.ts` | a window: its tabs (tasks), show one, the grid's state, its questions |
 | `src/main/projects.ts` | a loaded project: its tasks; making, closing, opening again, deleting one (with the question); making a project (`createProject`), deleting a project's data |
-| `src/main/tasks.ts` | a task: its profiles, its terminals and agents (open, hand over, close, environment), renaming, copies of its profiles for a new task, ports |
+| `src/main/tasks.ts` | a task: its profiles, its terminals and agents (open, hand over, close, environment), naming, its worktree on demand and resources, copies of its profiles for a new task |
 | `src/main/worktrees.ts` | git: a task's worktree and branch, files outside git, direnv, changes, renaming the branch, removal |
 | `src/main/agents/` | the agents to choose from: find, install, start, resume; a folder's trust carried to a task's copy |
 | `src/main/store.ts` | the data folder above |

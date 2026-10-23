@@ -19,21 +19,14 @@ const ONLY_BROWSER = 'Kulisa profiles are the only browser here: drive them with
   'another browser\'s tools (Playwright MCP with its own browser, chrome-devtools, Claude in Chrome, cast, others), even ' +
   'when their tools have the same names: that browser is not the one the human sees, and it is not signed in.';
 
-// An unnamed task, told at the human's every prompt (and in the MCP tools' results: mcp-server.ts, for an agent whose
-// hooks do not run) until it is named. Told only at session start, before the agent knows what the task is about, it
-// is forgotten. The agent names it itself: asking the human
-// would stop their work for a name. Silently: Kulisa is to be invisible in the agent's answers (no "I'll name the
-// task once it is clear" to a "how are you").
-const unnamed = (task: Task) => `This Kulisa task has no name yet (${task.name}). When the human's request says what the ` +
-  'task is about, name it with task_rename (checkout-redesign) before anything else; until then do nothing about it. ' +
-  'Silently: never ask the human for a name or mention naming it.';
-
 // SessionStart: the profiles as they are now, so the agent knows them before its first tool call. Also notes the
 // session, so that opening the project again resumes it (tasks.ts).
 // Each profile with who it is (its description, the human's words) or that it is not said: the agent then asks.
 const who = ({ name, description }: { name: string; description?: string }) => `- ${name}: ${description ? description.replace(/\s+/g, ' ') : 'who it is is not said'}`;
 function sessionStart(task: Task, t: TaskTerminal | null, input: Input) {
   if (input?.session_id && t) task.saveSession(t, { sessionId: input.session_id, transcript: input.transcript_path });
+  if (t) task.noteAutoTitle(t); // a resumed conversation already has its auto-title
+
   const lines = [...task.profiles.values()].map((p) => {
     const tabs = p.tabs.filter((t) => t.discarded || !t.wc.isDestroyed()).map((t) =>
       `    - tab ${t.id}${t.id === p.active ? ' (active)' : ''}: "${t.title}" ${t.url}`);
@@ -59,14 +52,11 @@ type State = TaskTerminal['state'];
 const state = (s: State, when: (t: TaskTerminal) => boolean = () => true) => (task: Task, t: TaskTerminal | null) => { if (t && when(t)) task.setState(t, s); return {}; };
 const handlers: Record<HookEvent, (task: Task, t: TaskTerminal | null, input: Input) => object | Promise<object>> = {
   'session-start': sessionStart,
-  prompt: (task, t, input) => {
-    if (t) task.setState(t, 'working');
-    if (input?.prompt) task.noteAbout(input.prompt);
-    return task.unnamed ? { hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: unnamed(task) } } : {};
-  },
+  prompt: state('working'),
   waiting: state('waiting'),
   'tool-done': state('working', (t) => t.state === 'waiting'),
-  stop: state('done'),
+  stop: (task, t) => { if (t) { task.setState(t, 'done'); task.noteAutoTitle(t); } return {}; }, // the auto-title is in the transcript by now
+
   interrupt: state(null),
   'session-end': state(null, (t) => t.state !== 'done'),
 };
@@ -106,17 +96,25 @@ function taskContext(task: Task) {
     `repositories, not in this task: ${addable.join(', ')}. Read them there freely; to change one, first ask the human, saying ` +
     'why the task needs it, and once they agree add it with task_add_repository: a copy on your branch, where you change it.' : '');
   if (!copies.length) {
-    return `This is the Kulisa task "${task.name}", working right in the project's folder ${task.folder} (no git, so no copy ` +
-      `of its own); the app under test runs on its usual ports.${more} ${name}`;
+    if (task.project.git === 'ok') {
+      return `This is the Kulisa task "${task.name}". Your terminal is in the project's folder ${task.folder}, which is ` +
+        'the human\'s: do not change it on your own. Before you start writing code, make the task its own git worktree ' +
+        'with task_worktree (a branch of its own, so your work does not touch the human\'s folder; pass its name to name ' +
+        'the task at the same time if it is still "New Task"), unless the human wants you to work right here. Run the app ' +
+        'under test on a free port you pick (Kulisa assigns none) and point the profiles\' tabs at it with ' +
+        `browser_navigate.${more} ${name}`;
+    }
+    return `This is the Kulisa task "${task.name}", working right in the project's folder ${task.folder} (no git, so no ` +
+      `worktree of its own). Run the app under test on a free port you pick (Kulisa assigns none) and point the ` +
+      `profiles' tabs at it with browser_navigate.${more} ${name}`;
   }
   const repos = [...new Set(copies.map((c) => c.repo))];
   return `This is the Kulisa task "${task.name}": a git worktree of its own, ${task.folder}, on branch ${entry.branch}.${more} The ` +
     `project's ${repos.length > 1 ? `folders ${repos.join(', ')} are` : `folder ${repos[0]} is`} the human's: never change ${repos.length > 1 ? 'them' : 'it'} on your own. Asked to merge your work into main ` +
     "there, first check for the human's uncommitted changes (git status) and stop if there are any. " + name +
-    ` Run the app under test on its usual ports plus ${task.offset} (3000 → ${3000 + task.offset}; $KULISA_PORT_OFFSET), through ` +
-    "PORT, a --port flag, .env.local or the published ports of docker compose; the profiles' tabs on local addresses already " +
-    'point there. If the app cannot run on other ports, tell the human. Install dependencies first if the worktree has none ' +
-    '(node_modules and the like are not copied).';
+    ' Run the app under test on a free port you pick (Kulisa assigns none; another task may hold the usual one), through ' +
+    "PORT, a --port flag, .env.local or the published ports of docker compose, and point the profiles' tabs at it with " +
+    'browser_navigate. Install dependencies first if the worktree has none (node_modules and the like are not copied).';
 }
 
-export { handleHookRequest, sessionStart, taskContext, unnamed, ONLY_BROWSER };
+export { handleHookRequest, sessionStart, taskContext, ONLY_BROWSER };

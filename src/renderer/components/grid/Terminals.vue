@@ -10,6 +10,7 @@ import type { DockviewApi, DockviewPanelApi } from 'dockview-vue';
 import Icon from '../Icon.vue';
 import ButtonMenu from '../menu/ButtonMenu.vue';
 import RightClickMenu from '../menu/RightClickMenu.vue';
+import Resources from '../Resources.vue';
 import { store } from '../../lib/store';
 import { profileLaunchers } from '../../lib/profiles';
 import { island, launchers, newTerminalItems, tabItems, terminalMenu } from '../../lib/terminals';
@@ -104,12 +105,14 @@ const menu = (e: MouseEvent) => {
     <div v-else-if="folded" class="strip"><ButtonMenu :items="newTerminalItems"><button id="termUnfold" class="add icon quiet"
       :title="withKeys('New conversation of an agent, or a terminal', 'terminal.new')" aria-label="New terminal"><Icon name="i-plus" /></button></ButtonMenu></div>
     <RightClickMenu :items="menu"><div ref="root" class="termpanel" :hidden="folded" /></RightClickMenu>
+    <Resources v-if="!folded" />
     <p v-if="starting" class="starting"><span class="state" data-state="working"><Icon name="i-working" /></span>Starting {{ starting.name }}…</p>
   </div>
 </template>
 
 <style>
 .terminals { height: 100%; position: relative;
+  &:not(.folded) { display: flex; } /* the terminal in front, Resources beside it at the island's height */
   .starting { position: absolute; inset: 0; margin: 0; display: flex; align-items: center; justify-content: center; gap: 6px;
     background: var(--island); color: var(--text-muted); }
   &.folded { display: flex; flex-direction: column; justify-content: center; }
@@ -118,7 +121,7 @@ const menu = (e: MouseEvent) => {
     nav { display: flex; flex-wrap: wrap; justify-content: center; gap: calc(var(--gap) * 2); } }
 }
 #dock .termalone { --dv-group-view-background-color: transparent; --dv-tabs-and-actions-container-background-color: transparent; }
-.termpanel { height: 100%; &[hidden] { display: none; } }
+.termpanel { height: 100%; flex: 1; min-width: 0; &[hidden] { display: none; } }
 .term { height: 100%; padding: 2px 4px 2px 8px; &[hidden] { display: none; } }
 /* The rows that fit, in the middle: what is left under a whole row (the panel's height is any) shared above and
    below, so no edge gets a row's height of it and a pixel more or less never costs a row. */

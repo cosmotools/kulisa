@@ -117,7 +117,7 @@ class AppWindow {
   // How another window's menu names it (Move to Window: …): its shown task, and how many more it holds.
   label() {
     const more = this.tabs.length - 1;
-    return this.current ? `${this.current.name}${more > 0 ? ` (+${more})` : ''}` : 'empty';
+    return this.current ? `${this.current.displayName}${more > 0 ? ` (+${more})` : ''}` : 'empty';
   }
   focus() { if (this.win.isMinimized()) this.win.restore(); if (!this.win.isVisible()) this.win.show(); this.win.focus(); }
   // Kulisa's own DevTools (only when running from source: appDevTools), detached like the profiles' DevTools: docked
@@ -199,7 +199,7 @@ class AppWindow {
     if (this.current) await this.leaveGrid(Math.sign(this.tabs.indexOf(task) - this.tabs.indexOf(this.current)));
     this.current = task;
     this.shell.saveWindows();
-    this.win.setTitle(`${task.name} · ${task.project.name} — Kulisa`);
+    this.win.setTitle(`${task.displayName} · ${task.project.name} — Kulisa`);
     this.sendProjects();
     task.project.checkMerged().then((found) => found && this.shell.sendProjects()).catch(() => {}); // its closed tasks whose PR is merged
     await this.showLoaded();

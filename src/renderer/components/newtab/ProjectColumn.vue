@@ -29,7 +29,7 @@ const remove = (t: ProjectTask) => kulisa.invoke('task:delete-closed', { project
     <ul>
       <!-- A row is no <button>: its 🗑 is one, and a button holds no other -->
       <li v-for="t in tasks" :key="t.n"><div class="item" :class="{ open: !t.closed }" :data-task="`${p.id}/${t.n}`" role="button"
-        :tabindex="t.closed ? 0 : -1" :aria-disabled="!t.closed" :title="t.about || t.name"
+        :tabindex="t.closed ? 0 : -1" :aria-disabled="!t.closed" :title="t.name"
         @click="open(t)" @keydown.enter.space.prevent="open(t)" @keydown.delete="t.closed && remove(t)">
         <span class="text"><span class="label">{{ t.name }}</span><small>{{ line(t) }}</small></span>
         <kbd v-if="!t.closed">open</kbd><kbd v-else-if="t.merged">merged</kbd>

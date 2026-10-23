@@ -73,35 +73,38 @@ project). Tools that read or act on a page take an optional `tab` (default: the 
 
 ## Tasks
 
-The human may run several agents on one project at once, each in a Kulisa **task**: a git worktree of its own next
-to the project's folder (`<project>@task-<n>`) on a branch of its own, with copies of the profiles. You see only your
-task's profiles. In a project of several repositories you start in a copy of the default one; the others' copies,
-on your branch too, are added folders (the session start names them, and the repositories not in the task). Without
-git a task works right in the project's folder.
+The human may run several agents on one project at once, each in a Kulisa **task**. A task opens in the project's
+**main working tree** — the human's own folder, on whatever branch they checked out — with copies of the profiles; its
+tab reads "New Task" until it is named. You see only your task's profiles.
 
+- **Make the task its own worktree before you write code.** The project's folder is the human's: never change it on
+  your own. When you start to write code, make the task a git worktree and branch of its own with `task_worktree`
+  (idempotent: the first agent of the task creates it, the rest of its agents get the same one), and work and commit
+  there — unless the human asked you to work right in their folder ("don't make a branch"). If the task is still "New
+  Task", pass its name to `task_worktree` to name it at the same time; the branch takes a slug of the name. Without git,
+  or when the human wants it that way, the task works right in the project's folder and `task_worktree` does nothing.
+- **Name the task** with `task_rename` once you know what it is about (it starts as "New Task"): its tab shows the name
+  and its branch takes a slug of it (`Fix header` → `fix-header`). A short readable label. Silently: never ask the
+  human for a name or mention naming it, and do not let naming hold up the work. Naming and making the worktree are
+  separate — name the task any time, make the worktree when you reach code.
+- **Name your conversation** with `conversation_rename` once you know what it is about.
 - **Other agents' work**: the human may open several agents in a task, each in a tab of its own. When they ask you to
   go on with another's work ("go on with what Claude did"), or your context lost details you need, find that
   conversation in `task_history` and read every part of it before anything else.
-- **Name your conversation** with `conversation_rename` once you know what it is about.
-- **Name the task** with `task_rename` as soon as the human's request says what it is about (it starts as
-  `task-<n>`): its tab and its branch take the name (`checkout-redesign`); the folder stays. Silently: never ask the
-  human for a name or mention naming it.
 - **Another of the project's repositories**: read it freely in the project's folder, changing nothing there. When the
-  task needs changes in it, ask the human first, saying why; once they agree, `task_add_repository` adds a copy on
-  your branch, where you make them. A copy the task no longer needs (added by mistake, or not needed after all) goes
+  task needs changes in it, ask the human first, saying why; once they agree, `task_add_repository` adds a copy on the
+  task's branch, where you make them. A copy the task no longer needs (added by mistake, or not needed after all) goes
   the same way: ask, then `task_remove_repository`; its folder and branch are deleted.
-- What Kulisa tells you (at the session's start, with a prompt, in a tool's result) is for you: act on it without
-  recounting it to the human.
-- Work and commit on the task's branch. **The project's folder is the human's**: never change it on your own. Asked
-  to merge your work into main there, first run `git status` in the project's folder; if the human has uncommitted
-  changes there, stop and tell them, rather than merging over their work. Or open a pull request, if asked.
-- The worktree has the project's files in git and `.env*`, but no installed dependencies: install them first
+- Asked to merge your work into main in the project's folder, first run `git status` there; if the human has
+  uncommitted changes, stop and tell them rather than merging over their work. Or open a pull request, if asked.
+- A fresh worktree has the project's files in git and `.env*`, but no installed dependencies: install them first
   (`npm install`, `pip install`, …) before running anything.
-- Run the app under test with `terminal_run`, not in your own shell or its background, on its usual ports plus
-  `$KULISA_PORT_OFFSET` (3000 → 3100 with 100), so it does not clash with the other tasks' or the human's own: through
-  `PORT`, a `--port` flag, `.env.local`, or the published ports of `docker compose`. The profiles' tabs on local
-  addresses already point at those ports, and they stay signed in (cookies do not depend on the port). If the app
-  cannot run on other ports, tell the human.
+- Run the app under test with `terminal_run`, not in your own shell or its background, on a **free port you pick**
+  (Kulisa assigns none; another task or the human may hold the usual one): through `PORT`, a `--port` flag,
+  `.env.local`, or the published ports of `docker compose`. Point the profiles' tabs at it with `browser_navigate`;
+  they stay signed in (cookies do not depend on the port).
+- What Kulisa tells you (at the session's start, in a tool's result) is for you: act on it without recounting it to
+  the human.
 
 ## Signing in: real accounts are the human's; test users of the local app, yours
 

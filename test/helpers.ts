@@ -101,23 +101,40 @@ const showProject = async (ui: UI, folder: string) => {
 // All Tasks too).
 const closeProject = (ui: UI, folder: string) => ui(`for (const t of document.querySelectorAll('#projectTabs .tasktab[data-project="${pid(folder)}"]')) t.dispatchEvent(new MouseEvent('auxclick', { button: 1, bubbles: true })); 0`);
 const choose = (ui: UI, label: string, menu = MENU) => ui(`[...${menu}.querySelectorAll('.item')].find((b) => b.querySelector('.label').textContent === ${JSON.stringify(label)}).click()`);
-// The bar's + (NewTask.vue): a new tab of every project with its tasks (newtab/Board.vue); the empty window shows it.
-// plusMenu(ui) its rows: each column's project by its name, its tasks under it as '  name', those open as
-// '  name (open)', New Project… last; plusMenu(ui, project) a new task of that project (its column's +, by its name);
-// plusMenu(ui, project, task) its closed task of that name opened again.
+// The bar's + (NewTask.vue): a dropdown menu of every project with its tasks. One project shows its tasks inline;
+// several nest each project as a submenu. plusMenu(ui) opens it and returns its top rows' labels; plusMenu(ui, project)
+// makes a new task of that project (its New Task row); plusMenu(ui, project, task) opens that task again (a closed one)
+// or shows it (an open one).
+const labelsIn = (ui: UI, scope: string) => ui(`[...(${scope})?.querySelectorAll(':scope > [role="menuitem"]') ?? []].map((r) => r.querySelector('.label')?.textContent ?? '')`);
 async function plusMenu(ui: UI, project?: string, task?: string) {
-  if (!(await ui(`!!document.getElementById('board')`))) await ui(`document.getElementById('newTask').click()`);
-  await waitFor(() => ui(`!!document.getElementById('board')`));
-  if (project === undefined) return ui(`[...document.querySelectorAll('#board .column')].flatMap((c) => [c.querySelector('header .name').textContent,
-    ...[...c.querySelectorAll('li .item')].map((r) => '  ' + r.querySelector('.label').textContent + (r.ariaDisabled === 'true' ? ' (open)' : ''))]).concat('New Project…')`);
-  const column = `[...document.querySelectorAll('#board .column')].find((c) => c.querySelector('header .name').textContent === ${JSON.stringify(project)})`;
-  await ui(task === undefined ? `${column}.querySelector('header button').click()`
-    : `[...${column}.querySelectorAll('li .item')].find((r) => r.querySelector('.label').textContent === ${JSON.stringify(task)}).click()`);
+  if (!(await ui(`!!document.querySelector('.menu[data-state="open"]')`))) await ui(`document.getElementById('newTask').click()`);
+  await waitFor(() => ui(`!!document.querySelector('.menu[data-state="open"]')`));
+  if (project === undefined) return labelsIn(ui, `document.querySelector('.menu[data-state="open"]')`);
+  // Several projects: the project is a submenu to open first (its subtrigger opens on the pointer, so click until it
+  // does, as the tab's project submenu); one project: its tasks and New Task are the top menu's own.
+  const trigger = `[...document.querySelectorAll('.menu[data-state="open"] [role="menuitem"]')].find((r) => r.querySelector('.label')?.textContent === ${JSON.stringify(project)} && r.getAttribute('aria-haspopup'))`;
+  const sub = await ui(`!!(${trigger})`);
+  if (sub) await waitFor(async () => { await ui(`(${trigger})?.click()`); return (await ui(`document.querySelectorAll('.menu[data-state="open"]').length`)) >= 2; });
+  const scope = sub ? `[...document.querySelectorAll('.menu[data-state="open"]')].at(-1)` : `document.querySelector('.menu[data-state="open"]')`;
+  const label = task ?? 'New Task';
+  await ui(`[...(${scope}).querySelectorAll('[role="menuitem"]')].find((r) => r.querySelector('.label')?.textContent === ${JSON.stringify(label)}).click()`);
 }
-// Back from a new tab to the task under it (its ×); the empty window's board stays.
+// The + menu's rows for one project (its tasks, then New Task): the submenu when several projects are open, the top
+// menu's own rows when only one. Opens the menu, reads the rows and closes it again.
+async function plusRows(ui: UI, project: string) {
+  await plusMenu(ui);
+  const sub = `[...document.querySelectorAll('.menu[data-state="open"] [role="menuitem"]')].find((r) => r.querySelector('.label')?.textContent === ${JSON.stringify(project)} && r.getAttribute('aria-haspopup'))`;
+  const multi = await ui(`!!(${sub})`);
+  // Several projects: the project is a submenu to open; its subtrigger opens on the pointer, so click until it does.
+  if (multi) await waitFor(async () => { await ui(`(${sub})?.click()`); return (await ui(`document.querySelectorAll('.menu[data-state="open"]').length`)) >= 2; });
+  const rows = await labelsIn(ui, multi ? `[...document.querySelectorAll('.menu[data-state="open"]')].at(-1)` : `document.querySelector('.menu[data-state="open"]')`);
+  await closeBoard(ui);
+  return rows;
+}
+// Close the + menu (or any open menu): Escape, as a click away would.
 const closeBoard = async (ui: UI) => {
-  if (await ui(`!!document.getElementById('newtabtab')`)) await ui(`document.querySelector('#newtabtab .close').click()`);
-  await waitFor(async () => (await ui(`document.documentElement.dataset.page`)) !== 'newtab');
+  if (await ui(`!!document.querySelector('.menu[data-state="open"]')`)) await ui(`document.querySelector('.menu[data-state="open"]').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))`);
+  await waitFor(async () => !(await ui(`!!document.querySelector('.menu[data-state="open"]')`)));
 };
 // The shown task's tab's right-click menu, where its profiles are: its rows (menuRows).
 const taskMenu = async (ui: UI) => {
@@ -216,6 +233,6 @@ const near = (a: number, b: number) => Math.abs(a - b) < 1e-6;
 const noNode = async (wc: WebContents) => await wc.executeJavaScriptInIsolatedWorld(999, [{ code: 'typeof process' }]) === 'undefined';
 
 export type { UI };
-export { MAC, CMD, canShoot, NO_SHOT, shot, focusWindow, MENU, SUBMENU, noNode, hooksOf, plusMenu, closeBoard, assert, root, userData, project, pid, tkey, named, pfile, idOf, savedTabs, savedActive, savedWindows, panel, SITE, PORT, sleep, waitFor, who, menuRows, choose, projectTabs, projectTab, showProject, closeProject, manageProfiles, closeSettings, settingsClosed, chooseProfile, setProfileField, menuOpen, closeMenu, rightClick, taskMenu,
+export { MAC, CMD, canShoot, NO_SHOT, shot, focusWindow, MENU, SUBMENU, noNode, hooksOf, plusMenu, plusRows, closeBoard, assert, root, userData, project, pid, tkey, named, pfile, idOf, savedTabs, savedActive, savedWindows, panel, SITE, PORT, sleep, waitFor, who, menuRows, choose, projectTabs, projectTab, showProject, closeProject, manageProfiles, closeSettings, settingsClosed, chooseProfile, setProfileField, menuOpen, closeMenu, rightClick, taskMenu,
   click,
   box, pageBox, viewOn, dock, press, ctrl, near };

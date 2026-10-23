@@ -10,7 +10,7 @@ import { z } from 'zod';
 import http from 'http';
 import path from 'path';
 import vm from 'vm';
-import { handleHookRequest, taskContext, unnamed, ONLY_BROWSER } from './agent-hooks.ts';
+import { handleHookRequest, taskContext, ONLY_BROWSER } from './agent-hooks.ts';
 import { historyPart } from './history.ts';
 import { fromLocalTool } from '../local-only.ts';
 import { toUrl } from '../profiles.ts';
@@ -65,10 +65,6 @@ const INSTRUCTIONS = 'Kulisa profiles are the users of the app under test, each 
   'task_history: read the one the human points you to ("go on with what Claude did") before anything else, and read ' +
   'yours when you need details your context lost. Name your conversation with conversation_rename once you know what ' +
   'it is about.';
-// The naming tools load with the session (Claude Code's alwaysLoad; other agents ignore _meta): deferred behind its
-// tool search, as every MCP tool is, the agent skips the extra step and never names the task when the reply is text
-// only.
-const UPFRONT = { 'anthropic/alwaysLoad': true };
 // task: the task (tasks.ts) whose profiles the tools act on; t: the agent's terminal, when it came by its own URL.
 function buildServer(task: Task, t: TaskTerminal | null) {
   const server = new McpServer({ name: 'kulisa', version: pkg.version }, { instructions: `${INSTRUCTIONS} ${taskContext(task)}` });
@@ -76,16 +72,12 @@ function buildServer(task: Task, t: TaskTerminal | null) {
   const closed = [...task.closed.values()].map(({ cfg }) => `${cfg.name} (closed)`);
   const profileArg = z.string().describe(`The profile's name. Current: ${[...[...task.profiles.values()].map((p) => p.name), ...closed].join(', ') || 'none yet'}; call profile_list for the live list`);
   const text = (t: string) => ({ content: [{ type: 'text' as const, text: t }] });
-  // Every tool's result in an unnamed task says so: the prompt hook does (agent-hooks.ts), but not for an agent without
-  // hooks or whose hooks the human has not trusted (Codex).
+  // Every tool call is logged (its name, the task, a summary of its first argument), as the core's actions are.
   type Handler = (...a: unknown[]) => Promise<CallToolResult>;
   const register = server.registerTool.bind(server) as unknown as (name: string, config: object, cb: Handler) => unknown;
   server.registerTool = ((name: string, config: object, cb: Handler) => register(name, config, async (...a) => {
     log.info(`[mcp] ${name} ${task.key}${t ? `#${t.id}` : ''} ${summary(a[0])}`);
-    let r: CallToolResult;
-    try { r = await cb(...a); } catch (e) { log.info(`[mcp] ${name} failed: ${bare((e as Error).message)}`); throw e; }
-    if (task.unnamed && name !== 'task_rename') r.content.push({ type: 'text', text: unnamed(task) });
-    return r;
+    try { return await cb(...a); } catch (e) { log.info(`[mcp] ${name} failed: ${bare((e as Error).message)}`); throw e; }
   })) as unknown as typeof server.registerTool;
   // The agent's handles on the core: profiles and tabs found as the window finds them (tasks.ts), plus what only
   // automation keeps to: no agent while the human signs in. The agent names a profile; the core takes its id.
@@ -200,13 +192,21 @@ function buildServer(task: Task, t: TaskTerminal | null) {
   });
 
   server.registerTool('task_rename', {
-    description: 'Rename your Kulisa task once you know what it is about (it starts as task-<n>), silently: never ask the human for a name or mention it. Its name on its tab changes, and its git branch, which takes the name. Its folder stays. Letters, digits and @ . _ + -, no spaces, e.g. checkout-redesign.',
-    inputSchema: { name: z.string().describe('The new name, e.g. checkout-redesign') },
-    _meta: UPFRONT,
+    description: 'Name your Kulisa task once you know what it is about (it starts as "New Task"), silently: never ask the human for a name or mention it. Its name on its tab changes, and its git branch, which takes a slug of the name. Its folder stays. A short readable label, e.g. "Fix header".',
+    inputSchema: { name: z.string().describe('The new name, a short readable label, e.g. "Fix header"') },
   }, async ({ name }) => {
     const r = await task.rename(name);
     if (refused(r)) throw new Error(r.error);
     return text(`The task is now "${r.name}"${r.branch ? `, on branch ${r.branch}` : ''}.`);
+  });
+
+  server.registerTool('task_worktree', {
+    description: "Make this task its own git worktree of the project's default repository — a branch of its own — so your code changes do not touch the project's folder, which is the human's. Call it before you start writing code, unless the human wants you to work right in the project's folder. Idempotent: the same worktree after the first call. You stay in the same terminal; work in the folder it returns. Pass name to name the task at the same time when it is still \"New Task\" (the branch takes a slug of it). (A project without a git commit has no worktree: you work in the project's folder.)",
+    inputSchema: { name: z.string().optional().describe('Name the task now if it is still "New Task": a short readable label, e.g. "Fix header"; the branch takes a slug of it. Leave out if it is already named.') },
+  }, async ({ name }) => {
+    const r = await task.makeWorktree(name);
+    if (refused(r)) throw new Error(r.error);
+    return text(`The task works in its own worktree ${r.folder}, on branch ${r.branch}; make your changes there. Kulisa gives you the folder as a working one (at once for some agents, once your turn is over for others); until then your changes there may ask for the human's permission.`);
   });
 
   server.registerTool('task_add_repository', {
@@ -244,7 +244,6 @@ function buildServer(task: Task, t: TaskTerminal | null) {
     server.registerTool('conversation_rename', {
       description: 'Name your conversation in 1 to 3 words once you know what it is about, e.g. "Checkout discounts": the name of your tab in Kulisa, by which the human and other agents tell it from the others (task_history lists it so). Name it again when the work turns to something else.',
       inputSchema: { name: z.string().describe('1 to 3 words') },
-      _meta: UPFRONT,
     }, async ({ name }) => {
       const r = task.nameConversation(t, name);
       if (refused(r)) throw new Error(r.error);

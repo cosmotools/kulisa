@@ -2,7 +2,7 @@
 // process has to know where the keyboard is in this page to know whose a key is; it sends the commands back here, with
 // the profile and tab they act on.
 import { watch } from 'vue';
-import { act, screenshot, store, toggleNewTab } from './store';
+import { act, screenshot, store } from './store';
 import { panes } from './grid';
 import { shownTerm } from './terminals';
 import { dialog } from './dialogs';
@@ -47,7 +47,7 @@ const run: Record<string, (c: Command) => unknown> = {
   'task.next': () => stepTask(1),
   'task.previous': () => stepTask(-1),
   'task.new': () => kulisa.invoke('task:new'),
-  'task.menu': () => toggleNewTab(), // as a press on +: again closes it
+  'task.menu': () => document.getElementById('newTask')?.click(), // the bar's + menu (ButtonMenu: Reka's trigger opens on the click too)
   shortcuts: async () => (await dialog('shortcuts')).showShortcuts(),
   'tab.new': ({ p }) => panes.get(p!.id)?.newTab(),
   'tab.close': ({ p, tab, page }) => act('tab:close', { profile: p!.id, tab, focus: page }),

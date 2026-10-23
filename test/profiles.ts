@@ -24,16 +24,16 @@ export default (test: Test) => {
     await manageProfiles(ctx);
     await sui(`document.getElementById('profilenew').click()`);
     await waitFor(() => sui(`document.activeElement?.id === 'profilenewname'`));
-    void shell.settings.win.webContents.insertText('ann admin·@shop.com');
-    await waitFor(async () => (await sui(`document.getElementById('profilenewname').value`)) === 'annadmin@shop.com');
+    void shell.settings.win.webContents.insertText('ann admin·@shop.com'); // spaces are kept (a readable label), · is not
+    await waitFor(async () => (await sui(`document.getElementById('profilenewname').value`)) === 'ann admin@shop.com');
     await closeSettings(ctx);
     // Checked again where names are made: the agent, a rename, a project, a task.
-    await assert.rejects(call('profile_create', { name: 'Ann admin' }), /letters, digits and @ \. _ \+ - only/);
+    await assert.rejects(call('profile_create', { name: 'Ann·admin' }), /letters, digits, spaces and @ \. _ \+ - only/);
     await assert.rejects(call('profile_create', { name: '@' }), /starting with a letter or a digit/);
-    assert.match((await ui(`kulisa.invoke('profiles:rename', { profile: '${idOf('Sam.admin')}', name: 'Sam admin' })`)).error, /only/);
+    assert.match((await ui(`kulisa.invoke('profiles:rename', { profile: '${idOf('Sam.admin')}', name: 'Sam·admin' })`)).error, /only/);
     assert.match((await ui(`kulisa.invoke('project:new', { name: '..' })`)).error, /starting with a letter or a digit/);
     assert.match((await ui(`kulisa.invoke('task:rename', { key: tasks.current, name: '@' })`)).error, /starting with a letter or a digit/);
-    assert.match((await ui(`kulisa.invoke('task:rename', { key: tasks.current, name: 'a b' })`)).error, /only/);
+    assert.match((await ui(`kulisa.invoke('task:rename', { key: tasks.current, name: 'a·b' })`)).error, /only/);
     assert.deepEqual([...shell.profiles.values()].map((p) => p.name), ['Sam.admin', 'Elon.buyer'], 'none made');
   });
   test("delete a profile in Settings (its page's ⋯, its row's right-click): sign-ins and data gone, everywhere; a new one of the same name starts clean", async (ctx) => {

@@ -12,7 +12,7 @@ import type { ProjectEntry, TaskInfo } from '../../shared/types';
 const props = defineProps<{ t: TaskInfo; p: Pick<ProjectEntry, 'name' | 'favicon'>; active: boolean }>();
 const STATES = { working: 'is working', waiting: 'waits for you', done: 'is done' };
 // The project's name is in the tooltip alone: the bar shows its icon (tasks.md, Projects).
-const title = computed(() => `${props.p.name}\n` + (props.t.about ? `“${props.t.about}”\n` : '') + (props.t.branch ? `branch ${props.t.branch} in ${props.t.folder}; the app's ports + ${props.t.offset}`
+const title = computed(() => `${props.p.name}\n` + (props.t.branch ? `branch ${props.t.branch} in ${props.t.folder}`
   : `in the project's folder ${props.t.folder} (no git: no copy of its own)`));
 
 </script>
