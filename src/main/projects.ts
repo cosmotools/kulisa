@@ -109,7 +109,9 @@ class Project {
       this.save();
       return c;
     } catch (e) {
-      if (home && !task.entry.home) fs.rmSync(home, { recursive: true, force: true }); // made for it: nothing left behind
+      // Made for it, and empty after a failed git worktree add: nothing left behind. Not recursive: another task naming
+      // its folder of copies the same at the same moment may have its worktree there.
+      if (home && !task.entry.home) try { fs.rmdirSync(home); } catch { /* not ours, or not empty */ }
       return { error: (e as GitError).stderr || (e as Error).message };
     }
   }

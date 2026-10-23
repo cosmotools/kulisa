@@ -104,7 +104,7 @@ class Task {
   // the agent names it and makes the worktree in one call; the branch takes a slug of the name. Its { folder, branch }.
   makeWorktree(name?: string) { return this.copying(() => this._makeWorktree(name)); }
   async _makeWorktree(name?: string): Promise<Result<{ folder: string; branch: string }>> {
-    if (name && !this.entry.named) { const r = await this.rename(name); if (refused(r)) return r; }
+    if (name && !this.entry.named) { const r = await this._rename(name); if (refused(r)) return r; }
     const had = !!this.ownCopy;
     const c = await this.project.ensureWorktree(this);
     if (refused(c)) return c;
@@ -116,8 +116,9 @@ class Task {
   }
   // A new name, the agent's (task_rename) or the human's (Rename… on its tab): the name in the bar and its branch
   // of each of its copies (git branch -m; -2, -3 when another branch has it). Its folders stay: its agent may be
-  // working there.
-  async rename(name: string | undefined): Promise<Result<{ name: string; branch: string | null }>> {
+  // working there. One of the copying (copying): a branch renamed while a copy is being made would miss it.
+  rename(name: string | undefined) { return this.copying(() => this._rename(name)); }
+  async _rename(name: string | undefined): Promise<Result<{ name: string; branch: string | null }>> {
     name = name?.trim();
     const bad = labelError(name);
     if (bad) return { error: bad };
@@ -223,8 +224,9 @@ class Task {
     this.window?.sendProjects();
     return { folder: c.folder, branch: c.branch };
   }
-  // Its copies made one after another: two agents of the task calling task_worktree at once get the one worktree (the
-  // second finds it made), not one each; a repository added meanwhile goes beside it.
+  // Its copies made, and its branch renamed, one after another: two agents of the task calling task_worktree at once
+  // get the one worktree (the second finds it made), not one each; a repository added meanwhile goes beside it; a
+  // rename meanwhile renames the new copy's branch too.
   copying<T>(make: () => Promise<T>): Promise<T> {
     const done = this._copying.then(make);
     this._copying = done.catch(() => {});

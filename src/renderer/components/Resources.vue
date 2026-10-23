@@ -16,7 +16,7 @@ const remove = (folder: string) => kulisa.invoke('task:remove-repo', { key: task
     <ul>
       <!-- A row is no <button>: its 🗑 is one, and a button holds no other -->
       <li v-for="r in task?.resources" :key="r.folder"><div class="item resource" role="button" tabindex="0" :title="`Open Folder: ${r.folder}`"
-        @click="open(r.folder)" @keydown.enter.space.prevent="open(r.folder)">
+        @click="open(r.folder)" @keydown.enter.space.self.prevent="open(r.folder)">
         <Icon class="ico" :name="r.kind === 'maintree' ? 'i-folder' : 'i-git'" />
         <span class="text"><span class="label">{{ r.label }}</span><small>{{ r.branch ? `branch ${r.branch}` : 'main working tree' }}</small></span>
         <button v-if="r.removable" type="button" class="remove icon quiet small" aria-label="Remove Repository" title="Remove Repository"
