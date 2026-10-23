@@ -63,6 +63,7 @@ function toUrl(u: string) {
   return 'https://www.google.com/search?q=' + encodeURIComponent(u);
 }
 const CLOSED_KEPT = 10; // closed tabs' addresses kept to open again
+const LAYOUT_WAIT = 3000; // ms a screenshot waits for a pane just opened to be laid out
 let dialogs = 0; // pages' dialogs, numbered: the human's answer goes to the one they saw
 // What Electron gives a page's dialog (its internal -run-dialog event).
 interface DialogInfo { dialogType: 'alert' | 'confirm'; messageText: string; frame: { url: string; parent: unknown } }
@@ -132,6 +133,22 @@ class Profile extends EventEmitter {
     if (this.signinMode) throw new Error(`${this.name} is signing in: no screenshot until the sign-in is done.`);
     if (tab.dialog) throw new Error(`Tab ${tab.id} of ${this.id} shows a ${tab.dialog.type} ("${tab.dialog.message}") for the human to answer; until then its page does nothing.`);
     if (!tab.discarded && (!tab.url || tab.url === 'about:blank')) throw new Error(`Tab ${tab.id} of ${this.id} is empty: nothing to take.`);
+    // A page's size is its pane's, and Chromium gives no picture of a page with none. A pane just opened gets its size
+    // a moment later (the window lays out its grid); a tab gets it when it comes to the front, as a hidden view passes
+    // no size to its page.
+    if (!this.bounds.width) {
+      await new Promise<void>((done) => {
+        const laid = () => { clearTimeout(t); done(); };
+        const t = setTimeout(() => { this.off('laid-out', laid); done(); }, LAYOUT_WAIT);
+        this.once('laid-out', laid);
+      });
+    }
+    if (!this.bounds.width) throw new Error(`${this.name}'s pane has not been on screen yet: its page has no size to take a picture of.`);
+    if (!tab.discarded && !tab.view.getBounds().width) throw new Error(`Tab ${tab.id} of ${this.name} has not been in front yet: its page has no size to take a picture of until it is.`);
+    // The page takes its pane's size on its next frame.
+    for (const end = Date.now() + LAYOUT_WAIT; !tab.discarded && Date.now() < end && !await tab.wc.executeJavaScript('innerWidth').catch(() => 0);) {
+      await new Promise((r) => setTimeout(r, 50));
+    }
     const { by, ...rest } = shot;
     const png = await capture(await this.page(tab.id), { ...rest, ...(by === 'human' && { human: `${this.task}/${this.id}` }) });
     log.info(`[screenshot] ${this.id} ${shot.element ? 'element' : shot.fullPage ? 'whole page' : 'visible part'}, by the ${by}`);
@@ -431,6 +448,7 @@ class Profile extends EventEmitter {
     this.shown = shown;
     if (shown) { this.bounds = bounds as Bounds; const t = this.get(); if (t) t.view.setBounds(this.bounds); }
     this._show();
+    if (this.bounds.width) this.emit('laid-out');
   }
   // On a discarded tab: loaded again at the address (navigate, reload); its history is gone with its process (back,
   // forward: nothing), as a closed tab's is.

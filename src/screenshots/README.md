@@ -28,7 +28,10 @@ its glass (`x-pw-glass`, a popover in the page's top layer); a stylesheet given 
 while the picture is taken. They are Kulisa's, not the site's.
 
 **Not** (`Profile.screenshot`) while the human signs in (the sign-in pause: Playwright is detached), of a tab
-showing a dialog (its page does nothing until it is answered), or of an empty tab.
+showing a dialog (its page does nothing until it is answered), or of an empty tab. A page's size is its pane's, and
+Chromium gives no picture of a page with none: a pane just opened is waited for while the window lays it out (a few
+seconds at most), then the page's next frame; a pane never on screen yet, or a tab never in front (a hidden view
+passes no size to its page), is refused saying so.
 
 ## The human
 

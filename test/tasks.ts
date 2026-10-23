@@ -617,8 +617,6 @@ export default (test: Test) => {
     assert.ok(await sam.session.getCacheSize() > 0, 'pages were cached');
     // What the agent's tools keep of its pages (a screenshot), in the task's data: kept while the task is closed, gone
     // when it is deleted (below).
-    // Once its pane is laid out: a page with no width yet (the profile just opened) gives no picture.
-    await waitFor(async () => (await sam.get().wc.executeJavaScript('innerWidth')) > 0);
     await call('browser_screenshot', { profile: 'Sam.admin' });
     assert.equal(fs.readdirSync(task.store.artifacts).length, 1);
     await ui(`${taskTab(taskAt(shell.current, 3))}.querySelector('.close').click()`);
