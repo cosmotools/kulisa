@@ -8,8 +8,8 @@ export default (test: Test) => {
   test('after a restart: profiles, sign-ins and tabs are back, the one in front in front', async (ctx) => {
     assert.deepEqual([...ctx.shell.profiles.keys()], [idOf('Sam.admin'), idOf('Elon.buyer')]);
     assert.deepEqual([...ctx.shell.profiles.values()].map((p) => [p.avatar, p.description]), [['fox', 'seller in the test shop'], ['owl', '']]);
-    // The deleted ones' copies and masters removed; the live ones keep their folders.
-    const live = ctx.shell.profileStore.all().map((p) => p.id), dirs = (d: string) => fs.readdirSync(d, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name);
+    // The deleted ones' copies and masters removed; the live ones keep their folders (beside the task's artifacts).
+    const live = [...ctx.shell.profileStore.all().map((p) => p.id), 'artifacts'], dirs = (d: string) => fs.readdirSync(d, { withFileTypes: true }).filter((e) => e.isDirectory()).map((e) => e.name);
     assert.deepEqual([dirs(pfile('')).filter((f) => !live.includes(f)), dirs(path.join(userData, 'profiles')).filter((f) => !live.includes(f))], [[], []]);
     assert.ok(fs.existsSync(pfile(idOf('Sam.admin'))));
     assert.ok(!fs.existsSync(path.join(userData, 'deleted-folders.json')));

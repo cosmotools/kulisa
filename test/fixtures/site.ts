@@ -1,6 +1,10 @@
 // Local test site for the tests. Pages:
 //   /app      a fake multi-user app: a name cookie (no password; our own test site), links and buttons that open tabs
 //   /errors   a page that logs console errors and makes failing requests (for point and tell)
+//   /pending  a page whose request never gets an answer (/hang)
+//   /large    a page whose snapshot and HTML are too large for a tool's answer
+//   /report   a page that logs at every level, loads a script and makes a failing request with a body (what a page
+//             reported: the console, the requests, one request's details)
 //   /strict   like /app's buttons, with Trusted Types enforced (as Microsoft 365 apps do): no HTML from strings
 //   /form     controls for the agent's tools: dialogs, a select, a file input, a hover, keys, text shown later
 //   /drag     a header with app-region: drag, as Teams has (a page must never move Kulisa's window)
@@ -126,6 +130,16 @@ function handler(req: IncomingMessage, res: ServerResponse) {
 function pay() { console.error('PaymentError: card declined by stub'); fetch('/api/pay', { method: 'POST' }).then((r) => { document.getElementById('status').textContent = 'HTTP ' + r.status; }); }
 </script>`));
   }
+  if (u.pathname === '/report') {
+    return send(200, page('report', `<h3>Report</h3><script src="/static/app.js"></script>
+<button onclick="console.error('PaymentError: card declined'); fetch('/api/pay', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer secret-token' }, body: JSON.stringify({ card: '4242' }) })">Pay</button>`));
+  }
+  if (u.pathname === '/static/app.js') return send(200, "console.info('app loaded'); console.debug('debug detail'); console.warn('slow config');", 'text/javascript');
+  if (u.pathname === '/large') {
+    const items = Array.from({ length: 1500 }, (_, i) => `<li><a href="/app?n=${i}">Item ${i} with a longer name</a></li>`).join('');
+    return send(200, page('large', `<main><h1>Large</h1><button>Find me</button></main><nav aria-label="Index"><ul>${items}</ul></nav>`));
+  }
+  if (u.pathname === '/pending') return send(200, page('pending', `<h3>Waiting</h3><script>fetch('/hang');</script>`));
   if (u.pathname === '/form') {
     return send(200, page('form', `
 <h3>Form</h3><p id="out">nothing yet</p>

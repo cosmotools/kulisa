@@ -313,29 +313,34 @@ export default (test: Test) => {
     await call('browser_wait_for', { profile: 'Sam.seller', text: 'Signed in as sam' });
     await call('browser_click', { profile: 'Sam.seller', locator: "getByRole('button', { name: 'Checkout' })" });
     const shot = await call('browser_screenshot', { profile: 'Sam.seller' });
-    assert.equal(shot.content[0].type, 'image');
+    assert.equal(shot.content[1].type, 'image');
   });
 
   // The agent's marks (its pointer, browser_highlight's outline) are Kulisa's, not the site's: not in the picture.
-  test('agent: screenshots of an element, the visible part and the whole page, at CSS pixels, without the agent\'s marks; several profiles in one call', async ({ call }) => {
+  test('agent: screenshots of an element, the visible part and the whole page, at CSS pixels, without the agent\'s marks, each also a file of the task\'s; several profiles in one call', async ({ shell, call }) => {
     const img = (part: { data?: string }) => nativeImage.createFromBuffer(Buffer.from(part.data, 'base64'));
     await call('browser_navigate', { profile: 'Sam.seller', url: `${SITE}/tall` });
     const box = { profile: 'Sam.seller', locator: "locator('#box')" };
-    const el = img((await call('browser_screenshot', box)).content[0]);
+    const first = await call('browser_screenshot', box);
+    const file = first.text.match(/^Saved as (.+\.jpg)$/)[1];
+    assert.equal(path.dirname(file), shell.task.store.artifacts, "the task's, never the project's");
+    assert.equal(fs.readFileSync(file).toString('base64'), first.content[1].data, 'the picture the agent got');
+    const el = img(first.content[1]);
     assert.deepEqual(el.getSize(), { width: 200, height: 120 }, 'the element alone, at its CSS size');
     const [b, g, r] = el.crop({ x: 100, y: 60, width: 1, height: 1 }).toBitmap();
     assert.ok(r > 180 && g < 60 && b < 60, `the element's own color (${[r, g, b]})`);
-    const visible = (await call('browser_screenshot', { profile: 'Sam.seller' })).content[0];
+    const visible = (await call('browser_screenshot', { profile: 'Sam.seller' })).content[1];
     const inner = JSON.parse((await call('browser_evaluate', { profile: 'Sam.seller', function: '() => [innerWidth, innerHeight]' })).text);
     assert.deepEqual(Object.values(img(visible).getSize()), inner, 'the visible part, at CSS pixels');
     await call('browser_highlight', { profile: 'Sam.seller', elements: [{ locator: "locator('#box')" }] });
-    assert.equal((await call('browser_screenshot', { profile: 'Sam.seller' })).content[0].data, visible.data, 'the outline is not in the picture');
+    assert.equal((await call('browser_screenshot', { profile: 'Sam.seller' })).content[1].data, visible.data, 'the outline is not in the picture');
     await call('browser_highlight', { profile: 'Sam.seller', elements: [] });
-    const full = img((await call('browser_screenshot', { profile: 'Sam.seller', fullPage: true })).content[0]);
+    const full = img((await call('browser_screenshot', { profile: 'Sam.seller', fullPage: true })).content[1]);
     assert.ok(full.getSize().height > 3000, `the whole page, down to its end (${full.getSize().height})`);
     await call('browser_navigate', { profile: 'Elon.buyer', url: `${SITE}/tall` });
     const both = (await call('browser_screenshot', { ...box, also: ['Elon.buyer'] })).content.slice(0, 4); // then an unnamed task's note
-    assert.deepEqual(both.map((c: { type: string; text?: string }) => c.text || c.type), ['- Profile: Sam.seller', 'image', '- Profile: Elon.buyer', 'image']);
+    assert.deepEqual(both.map((c: { type: string; text?: string }) => c.text?.replace(/Saved as .*-screenshot\.jpg$/, 'Saved') || c.type),
+      ['- Profile: Sam.seller\n- Saved', 'image', '- Profile: Elon.buyer\n- Saved', 'image']);
     assert.deepEqual(img(both[3]).getSize(), { width: 200, height: 120 }, 'the same element in the other profile');
     await assert.rejects(call('browser_screenshot', { profile: 'Sam.seller', ref: 'e1', also: ['Elon.buyer'] }), /pass a locator/);
   });
@@ -691,10 +696,10 @@ export default (test: Test) => {
     const picked = elon.active; // the /errors page, after a click on Pay now
     const other = (await call('browser_tab_new', { profile: 'Elon.buyer', url: `${SITE}/app` })).text.match(/Opened tab (\w+)/)[1];
     assert.equal(elon.active, other);
-    const errors = (await call('browser_console_messages', { profile: 'Elon.buyer', tab: picked, onlyErrors: true })).text;
+    const errors = (await call('browser_console_messages', { profile: 'Elon.buyer', tab: picked, level: 'error' })).text;
     assert.match(errors, /error: .*PaymentError/); // Playwright's page.consoleMessages()
     const failed = (await call('browser_network_requests', { profile: 'Elon.buyer', tab: picked, onlyFailed: true })).text;
-    assert.match(failed, new RegExp(`POST http://127\\.0\\.0\\.1:${PORT}/api/pay → 500`)); // page.requests()
+    assert.match(failed, new RegExp(`#\\d+ POST http://127\\.0\\.0\\.1:${PORT}/api/pay → 500`)); // page.requests()
     assert.doesNotMatch(failed, /GET .*\/errors /, 'only failed ones');
     assert.match((await call('browser_snapshot', { profile: 'Elon.buyer', tab: picked })).text, /URL: .*\/errors/);
     assert.match((await call('browser_snapshot', { profile: 'Elon.buyer' })).text, /URL: .*\/app/, 'default: the active tab');
@@ -732,6 +737,113 @@ export default (test: Test) => {
     await waitFor(async () => elon.active === tab && (await disabled()));
     elon.closeTab(tab);
     await waitFor(async () => !(await disabled()));
+  });
+
+  test("agent: what a page reported: the console by level, requests without static files, by address, since the last action or the page's load; one request whole, its credentials hidden; an action's answer counts the errors", async ({ shell, call }) => {
+    const elon = shell.profiles.get(idOf('Elon.buyer')), before = elon.active;
+    const tab = (await call('browser_tab_new', { profile: 'Elon.buyer', url: `${SITE}/report` })).text.match(/Opened tab (\w+)/)[1];
+    const read = async (tool: string, args = {}) => (await call(tool, { profile: 'Elon.buyer', tab, ...args })).text;
+    // Loaded again: what a new tab asked for before Playwright came to it is not in its requests (its console is).
+    await call('browser_navigate', { profile: 'Elon.buyer', go: 'reload' });
+    await waitFor(async () => (await read('browser_console_messages')).includes('slow config'));
+    const all = await read('browser_console_messages');
+    for (const m of ['info: app loaded', 'debug: debug detail', 'warning: slow config']) assert.ok(all.includes(m), all);
+    const warnings = await read('browser_console_messages', { level: 'warning' });
+    assert.match(warnings, /warning: slow config/);
+    assert.doesNotMatch(warnings, /app loaded|debug detail/, 'a level and the more severe ones only');
+    assert.doesNotMatch(await read('browser_network_requests'), /app\.js/, 'a script that loaded is left out');
+    assert.match(await read('browser_network_requests', { static: true }), /GET .*\/static\/app\.js → 200/);
+
+    // The answer counts what the action brought; since action, only that.
+    const clicked = (await call('browser_click', { profile: 'Elon.buyer', tab, locator: "getByRole('button', { name: 'Pay' })" })).text;
+    // The page's error, and Chromium's for the 500 when it came back before the answer.
+    assert.match(clicked, /Since: [12] console errors?/);
+    await waitFor(async () => (await read('browser_network_requests', { since: 'action' })).includes('→ 500'));
+    const since = await read('browser_console_messages', { since: 'action' });
+    assert.match(since, /PaymentError/);
+    assert.doesNotMatch(since, /app loaded/);
+    const failed = await read('browser_network_requests', { filter: '/api/' });
+    assert.doesNotMatch(failed, /\/report/, 'by address');
+    const n = Number(failed.match(/#(\d+) POST .*\/api\/pay → 500/)[1]);
+    assert.equal(Number((await read('browser_network_requests', { onlyFailed: true })).match(/#(\d+) POST/)[1]), n, 'a request keeps its number');
+    const one = await read('browser_network_request', { number: n });
+    assert.match(one, /POST .*\/api\/pay → 500/);
+    assert.match(one, /authorization: \(hidden\)/);
+    assert.doesNotMatch(one, /secret-token/, 'credentials never reach the agent');
+    assert.match(one, /Request body \(15 bytes, application\/json\):\n\{"card":"4242"\}/);
+    assert.match(one, /Response body \(24 bytes, application\/json\):\n\{"error":"stub failure"\}/);
+    await assert.rejects(read('browser_network_request', { number: 99999 }), /No request #99999.*browser_network_requests/);
+
+    // Since the page's load: what came before it is left out.
+    assert.doesNotMatch((await call('browser_navigate', { profile: 'Elon.buyer', url: `${SITE}/report` })).text, /Since:/, 'nothing to count');
+    await waitFor(async () => (await read('browser_console_messages', { since: 'navigation' })).includes('slow config'));
+    assert.doesNotMatch(await read('browser_console_messages', { since: 'navigation' }), /PaymentError/);
+    assert.doesNotMatch(await read('browser_network_requests', { since: 'navigation' }), /api\/pay/);
+    assert.ok((await read('browser_console_messages')).split('app loaded').length - 1 >= 2, 'all that is kept: every load');
+    await call('browser_tab_close', { profile: 'Elon.buyer', tab });
+    await waitFor(() => elon.active === before);
+  });
+
+  test('agent: a part of a snapshot: an element, a depth, what matches under its ancestors; its refs act', async ({ shell, call }) => {
+    const elon = shell.profiles.get(idOf('Elon.buyer')), before = elon.active;
+    const tab = (await call('browser_tab_new', { profile: 'Elon.buyer', url: `${SITE}/form` })).text.match(/Opened tab (\w+)/)[1];
+    const snap = async (args = {}) => (await call('browser_snapshot', { profile: 'Elon.buyer', tab, ...args })).text;
+    const whole = await snap();
+    const select = await snap({ locator: "getByRole('combobox', { name: 'Size' })" });
+    assert.match(select, /option "M"/);
+    assert.doesNotMatch(select, /Delete/, 'that element only');
+    assert.doesNotMatch(await snap({ depth: 1 }), /option "M"/, 'to a depth');
+    assert.ok(whole.includes('option "M"'));
+    const delButton = await snap({ find: 'delete' });
+    assert.match(delButton, /button "Delete" \[ref=\w+\]/);
+    assert.doesNotMatch(delButton, /Later|option/, 'only what matches');
+    assert.match(await snap({ find: 'no such thing' }), /Nothing matches no such thing\./);
+    // A ref from a part is the page's: the action finds it.
+    const ref = select.match(/combobox "Size" \[ref=(\w+)\]/)[1];
+    await call('browser_select_option', { profile: 'Elon.buyer', tab, ref, values: ['L'] });
+    await call('browser_navigate', { profile: 'Elon.buyer', url: `${SITE}/app` });
+    // Its ancestors: where on the page it is.
+    assert.match(await snap({ find: 'checkout' }), /- Title: .*\n\n- generic .*\n {2}- paragraph \[ref=\w+\]:\n {4}- button "Checkout" \[ref=\w+\]$/);
+    await call('browser_tab_close', { profile: 'Elon.buyer', tab });
+    await waitFor(() => elon.active === before);
+  });
+
+  test("agent: a snapshot or a body too large for an answer goes to a file of the task's, each its own, the answer its path and outline", async ({ shell, call }) => {
+    const elon = shell.profiles.get(idOf('Elon.buyer')), before = elon.active;
+    const tab = (await call('browser_tab_new', { profile: 'Elon.buyer', url: `${SITE}/large` })).text.match(/Opened tab (\w+)/)[1];
+    const answer = (await call('browser_snapshot', { profile: 'Elon.buyer', tab })).text;
+    const file = answer.match(/, in (.+-snapshot\.yml)\. Read/)[1];
+    assert.equal(path.dirname(file), shell.task.store.artifacts, "the task's, never the project's");
+    assert.ok(answer.length < 6000, `the answer stays small: ${answer.length}`);
+    assert.match(answer, /- URL: .*\/large\n- Title: large\n- Snapshot: \d+ characters \(about \d+k tokens\)/);
+    assert.match(answer, /main \[ref=\w+\]:[\s\S]*navigation "Index"/, 'its top levels');
+    assert.doesNotMatch(answer, /Item 1499/);
+    assert.match(fs.readFileSync(file, 'utf8'), /link "Item 1499 with a longer name"/, 'the whole snapshot in the file');
+    assert.match((await call('browser_snapshot', { profile: 'Elon.buyer', tab, find: 'find me' })).text, /button "Find me" \[ref=\w+\]$/, 'a part fits: in the answer');
+    const again = (await call('browser_snapshot', { profile: 'Elon.buyer', tab })).text.match(/, in (.+-snapshot\.yml)\. Read/)[1];
+    assert.ok(again !== file && fs.existsSync(file), 'the next one a file of its own: the first kept, to compare');
+    // Loaded again: the body of what a new tab loaded before Playwright came to it is not kept.
+    await call('browser_navigate', { profile: 'Elon.buyer', go: 'reload' });
+    const n = [...(await call('browser_network_requests', { profile: 'Elon.buyer', tab, filter: '/large$' })).text.matchAll(/#(\d+) GET/g)].at(-1)[1];
+    const body = (await call('browser_network_request', { profile: 'Elon.buyer', tab, number: Number(n) })).text;
+    const html = body.match(/Response body \(\d+ bytes, text\/html; charset=utf-8\): in (.+-response\.txt)$/m)?.[1];
+    assert.ok(html, body);
+    assert.equal(path.dirname(html), shell.task.store.artifacts);
+    assert.match(fs.readFileSync(html, 'utf8'), /Item 1499/);
+    await call('browser_tab_close', { profile: 'Elon.buyer', tab });
+    await waitFor(() => elon.active === before);
+  });
+
+  test('agent: a request with no answer yet is listed as pending at once', async ({ shell, call }) => {
+    const elon = shell.profiles.get(idOf('Elon.buyer')), before = elon.active;
+    const tab = (await call('browser_tab_new', { profile: 'Elon.buyer', url: `${SITE}/pending` })).text.match(/Opened tab (\w+)/)[1];
+    // The request to /hang never gets an answer: listing it must not wait for one (it held the agent's turn for minutes).
+    const listed = call('browser_network_requests', { profile: 'Elon.buyer', tab });
+    const r = await Promise.race([listed, sleep(5000).then((): null => null)]);
+    assert.ok(r, 'answered within 5 s');
+    assert.match(r.text, /GET .*\/hang → pending/);
+    await call('browser_tab_close', { profile: 'Elon.buyer', tab });
+    await waitFor(() => elon.active === before);
   });
 
   test("a right-click in a page shows Chrome's menu for what is under it; a site's own menu stays the site's; the agent's right-click opens none", async ({ shell }) => {

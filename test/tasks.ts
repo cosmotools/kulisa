@@ -615,11 +615,16 @@ export default (test: Test) => {
     await call('browser_navigate', { profile: 'Sam.admin', url: `${SITE}/app` });
     assert.equal(await who(ctx, 'Sam.admin'), 'Signed in as master');
     assert.ok(await sam.session.getCacheSize() > 0, 'pages were cached');
+    // What the agent's tools keep of its pages (a screenshot), in the task's data: kept while the task is closed, gone
+    // when it is deleted (below).
+    await call('browser_screenshot', { profile: 'Sam.admin' });
+    assert.equal(fs.readdirSync(task.store.artifacts).length, 1);
     await ui(`${taskTab(taskAt(shell.current, 3))}.querySelector('.close').click()`);
     // Its agent and tabs gone.
     await waitFor(() => task.entry.closed && !task.pty && sam.tabs.every((t) => t.wc.isDestroyed()) && isNth(shell.task, 2));
     // Its profiles' caches cleared, as a profile closed alone (zoom-and-closing.ts): kept, they stayed until it was deleted.
     await waitFor(async () => (await sam.session.getCacheSize()) === 0);
+    assert.equal(fs.readdirSync(task.store.artifacts).length, 1, "the agent's screenshot kept");
     assert.equal(ctx.asked.length, 0, 'not asked: nothing is lost');
     assert.ok(fs.existsSync(task.folder) && git(project, 'branch', '--list', 'task-3') && fs.existsSync(path.join(userData, 'projects', pid('project'), task.id)), 'its code and data stay');
     assert.equal(tasksFile().list.find((e) => e.id === task.id).closed, true);
