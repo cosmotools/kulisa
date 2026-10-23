@@ -52,7 +52,7 @@ const HANDOVER = (n: number, name: string) => `Go on with the work of conversati
   'is done and what is next, and go on with it.';
 
 class Task {
-  shell: Shell; project: Project; entry: TaskEntry; n: number; key: string; store: TaskStore;
+  shell: Shell; project: Project; entry: TaskEntry; id: string; key: string; store: TaskStore;
   window: AppWindow | null; // the one whose tab it is (window.ts)
   loaded: boolean; terminalsLoaded: boolean;
   gitChecked: Promise<void>; // its project's repositories looked at as it loads (Project.checkGit), awaited by its agents
@@ -63,16 +63,16 @@ class Task {
   resumedSession?: string | null; dictating?: { t: TaskTerminal; timer: NodeJS.Timeout } | null; held?: number;
   // project: its project (projects.ts); entry: its record in its tasks.json (store.ts, TaskEntry); one without a
   // worktree works in the project's folder. key: the task among all open ones
-  // ("<project id>/<n>"): the windows, the terminals, the CDP proxy and the MCP server's URLs know it by that.
+  // ("<project id>/<task id>"): the windows, the terminals, the CDP proxy and the MCP server's URLs know it by that.
   // shell: the app (app.ts): store, proxy, mcp, sessionCookies, signin, uiZoom, bus, ask; the agents
   // (agentFor, findAgent, chooseAgent, plugin); and taskChanged(task, now, agentState), called after any change of its
   // profiles or its agent's state. Its window is the one whose tab it is (window.ts: add, drop; win, viewsHidden,
   // picking, send), none while it is closed; it changes when the task moves to another window (moveTo).
   constructor(shell: Shell, project: Project, entry: TaskEntry) {
     this.shell = shell; this.project = project; this.entry = entry; this.window = null;
-    this.n = entry.n;
-    this.key = `${project.id}/${this.n}`;
-    this.store = shell.store.taskOf(project, this.n);
+    this.id = entry.id;
+    this.key = `${project.id}/${this.id}`;
+    this.store = shell.store.taskOf(project, this.id);
     this.loaded = false; this.terminalsLoaded = false; this.gitChecked = Promise.resolve(); this._copying = Promise.resolve();
     this.terminals = new Map(); this.terminalSeq = 0; // its island's terminals, by id, in their tabs' order
     this.front = null; this.lastAgent = null;
@@ -664,7 +664,7 @@ class Task {
   // plugin reads them, other agent CLIs can too), and its name. An agent's terminal has URLs of its own (t), so its
   // hooks report its own state and it names its own tab.
   env(t?: TaskTerminal) {
-    const base = `${this.shell.mcp.base}/task/${encodeURIComponent(this.project.id)}/${this.n}${t ? `/t/${t.id}` : ''}`;
+    const base = `${this.shell.mcp.base}/task/${encodeURIComponent(this.project.id)}/${this.id}${t ? `/t/${t.id}` : ''}`;
     return { KULISA_MCP_URL: `${base}/mcp`, KULISA_URL: base, KULISA_TASK: this.name };
   }
   // Its terminals stopped (kept for when it loads again), its profiles saved and closed (its project closes, or the task
@@ -798,8 +798,8 @@ class Task {
   async dropProfile(id: string) { return this.loaded ? this.list.drop(id) : this.store.dropProfile(id); }
 
   info(): Sent.TaskInfo {
-    const { n, key, displayName: name, tabState: state, folder } = this;
-    return { n, key, project: this.project.id, name, state, folder, branch: this.branch, closed: !!this.entry.closed, merged: !!this.entry.merged,
+    const { id, key, displayName: name, tabState: state, folder } = this;
+    return { id, key, project: this.project.id, name, state, folder, branch: this.branch, closed: !!this.entry.closed, merged: !!this.entry.merged,
       repos: this.addable(), resources: this.resources() };
   }
   // Its resources as the Resources island (Resources.vue) shows them: the first, where it works, is not removed there

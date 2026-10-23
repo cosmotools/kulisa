@@ -2,7 +2,7 @@
 // the grid, the terminals.
 import fs from 'fs';
 import path from 'path';
-import { assert, userData, project, pid, tkey, SITE, sleep, waitFor, who, viewOn, projectTabs, showProject, click, idOf } from './helpers.ts';
+import { assert, userData, project, pid, tkey, SITE, sleep, waitFor, who, viewOn, projectTabs, showProject, click, idOf, isNth, taskAt, tid } from './helpers.ts';
 import type { Test } from './run.ts';
 import type { TaskTerminal } from '../src/main/tasks.ts';
 
@@ -10,11 +10,11 @@ export default (test: Test) => {
   test('after a restart: the other task waits in the bar with its tabs, loads when shown, still signed in; a closed one stays closed', async (ctx) => {
     const { shell, ui } = ctx;
     await waitFor(async () => (await ui(`[...document.querySelectorAll('#projectTabs .tasktab[data-project="${pid('project')}"]')].map((t) => t.querySelector('.name').textContent).join()`)) === 'task-1,Feature-X');
-    assert.equal(shell.current.tasks.get(5).entry.closed, true);
-    const second = shell.current.tasks.get(2);
+    assert.equal(taskAt(shell.current, 3).entry.closed, true);
+    const second = taskAt(shell.current, 2);
     assert.equal(second.loaded, false);
     // Left loaded in the background: its tabs saved as Kulisa quit, not again as they closed (none left at last).
-    const secondDir = path.join(userData, 'projects', pid('project'), '2');
+    const secondDir = path.join(userData, 'projects', pid('project'), tid('project', 2));
     const saved = fs.readdirSync(secondDir).filter((d) => fs.existsSync(path.join(secondDir, d, 'Kulisa Tabs.json')))
       .map((d) => JSON.parse(fs.readFileSync(path.join(secondDir, d, 'Kulisa Tabs.json'), 'utf8')).urls);
     assert.ok(saved.some((urls) => urls.length), `its tabs kept: ${JSON.stringify(saved)}`);
@@ -28,12 +28,12 @@ export default (test: Test) => {
     await ctx.call('browser_navigate', { profile: 'Sam.admin', url: `${SITE}/app` });
     assert.equal(await who(ctx, 'Sam.admin'), 'Signed in as master'); // its master's, brought by Refresh from Master…
     await click(ui, `document.querySelector('#projectTabs .tasktab[data-task="${tkey('project', 1)}"]')`);
-    await waitFor(() => shell.task.n === 1);
+    await waitFor(() => isNth(shell.task, 1));
     await waitFor(async () => (await viewOn(shell, ui, 'Sam.admin')) && viewOn(shell, ui, 'Elon.buyer'));
   });
   test('after a restart: the open tasks are as they were left; one in the background loads when shown', async ({ shell, ui }) => {
     await waitFor(async () => JSON.stringify(await projectTabs(ui)) === '["project *","project","other"]');
-    assert.equal(shell.open.get(pid('other')).tasks.get(1).loaded, false);
+    assert.equal(taskAt(shell.open.get(pid('other')), 1).loaded, false);
   });
   test('after a restart: a window of its own comes back where it was, with its project shown; saved smaller than the minimum, at the minimum', async ({ shell }) => {
     await waitFor(() => shell.windows.length === 2 && shell.windows[1].current?.project.id === pid('third') && shell.windows[1].task.loaded);

@@ -388,9 +388,9 @@ your file manager, its path there to copy. Look there rather than guess: where t
 its settings. Usually:
 
 - Your projects' folders hold only your code: Kulisa writes nothing there.
-- Tasks' copies of the code are next to the project's folder (`myshop@task-2`), or in the KulisaProjects folder in your
+- Tasks' copies of the code are next to the project's folder (`myshop@fix-header`, after the task's branch), or in the KulisaProjects folder in your
   home folder (`C:\Users\<you>\KulisaProjects` on Windows, `/Users/<you>/KulisaProjects` on macOS, `/home/<you>/KulisaProjects` on Linux) for a
-  project of several repositories, as `<project>@task-<n>`. They go when the task is deleted. New projects' folders
+  project of several repositories, as `<project>@<branch>`. They go when the task is deleted. New projects' folders
   are made there too.
 - Profiles, sign-ins, accounts and settings are in Kulisa's data folder: `~/.config/Kulisa` on Linux (or under
   `$XDG_CONFIG_HOME` when that is set), `~/Library/Application Support/Kulisa` on macOS, `%APPDATA%\Kulisa` on

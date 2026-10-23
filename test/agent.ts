@@ -107,7 +107,7 @@ export default (test: Test) => {
     assert.equal(await task('https://evil.example'), 'refused');
     assert.equal(await task(), 'open'); // Playwright and other local tools send no Origin
     assert.equal(await status(`${shell.task.env().KULISA_URL}/hooks/session-start`, {}), 200);
-    assert.equal(await status(`${shell.mcp.base}/task/${tkey('project', 9)}/hooks/session-start`, {}), 404, 'no such task');
+    assert.equal(await status(`${shell.mcp.base}/task/${pid('project')}/nosuch/hooks/session-start`, {}), 404, 'no such task');
     // The MCP SDK's transport reads the body: a malformed one is refused, and one over its limit (4 MB) is not kept.
     assert.equal(await status(url, json, 'POST', '{not json'), 400);
     assert.equal(await status(url, json, 'POST', 'x'.repeat(5 << 20)), 413);

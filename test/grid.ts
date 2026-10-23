@@ -2,7 +2,7 @@
 import electron, { clipboard } from 'electron';
 import fs from 'fs';
 import path from 'path';
-import { MAC, CMD, shot, assert, root, userData, project, pid, tkey, pfile, idOf, SITE, sleep, waitFor, who, menuRows, choose, MENU, SUBMENU, menuOpen, rightClick, box, pageBox, viewOn, dock, press, projectTabs, projectTab, showProject, closeProject, savedWindows, closeMenu, plusMenu, plusRows, closeBoard, focusWindow } from './helpers.ts';
+import { MAC, CMD, shot, assert, root, userData, project, pid, tkey, pfile, idOf, SITE, sleep, waitFor, who, menuRows, choose, MENU, SUBMENU, menuOpen, rightClick, box, pageBox, viewOn, dock, press, projectTabs, projectTab, showProject, closeProject, savedWindows, closeMenu, plusMenu, plusRows, closeBoard, focusWindow, isNth, taskAt, tid } from './helpers.ts';
 import type { Test } from './run.ts';
 import type { UI } from './helpers.ts';
 
@@ -97,7 +97,7 @@ export default (test: Test) => {
     assert.equal((await ctx.termText()).split('exec cat -v').length - 1, 1, 'the command that starts the agent shows once');
     assert.equal(shell.profiles.size, 0);
     assert.ok(sam.tabs.every((t) => !t.wc.isDestroyed()) && !sam.get().view.getVisible(), "the first project's pages keep running, hidden");
-    assert.equal(shell.open.get(pid('project')).tasks.get(1).pty, firstPty, "and its agent");
+    assert.equal(taskAt(shell.open.get(pid('project')), 1).pty, firstPty, "and its agent");
     assert.equal(shell.win.getTitle(), 'New Task · other — Kulisa');
     assert.equal(shell.resumedSession, null, 'a new project has no conversation to resume');
     await waitFor(async () => JSON.stringify(await projectTabs(ui)) === '["project","other *"]' && ui(`!!window.__dock.getPanel('terminal')`));
@@ -113,7 +113,7 @@ export default (test: Test) => {
     await shell.task.createProfile('Sam.seller'); // the same name as in the first project (the agent's profile_create)
     const seller = shell.profiles.get(idOf('Sam.seller'));
     // A copy in the task's data, named as its master in the store of profiles.
-    assert.equal(seller.dir, path.join(userData, 'projects', pid('other'), '1', idOf('Sam.seller')), "a task's copy is in its task's data");
+    assert.equal(seller.dir, path.join(userData, 'projects', pid('other'), tid('other', 1), idOf('Sam.seller')), "a task's copy is in its task's data");
     assert.ok(fs.existsSync(path.join(userData, 'profiles', idOf('Sam.seller'))), 'its master');
     assert.equal(seller.endpoint.endsWith(`/${tkey('other', 1)}/${seller.id}`), true, 'the CDP proxy knows it by its project too');
     await ctx.call('browser_navigate', { profile: 'Sam.seller', url: `${SITE}/app` });
@@ -212,7 +212,7 @@ export default (test: Test) => {
   test('tasks: Move to New Window puts a task in a window of its own, still running; closing that window closes it', async (ctx) => {
     const { shell, ui } = ctx;
     const other = path.join(root, 'other');
-    await ui(`kulisa.invoke('project:open', { folder: ${JSON.stringify(other)}, task: 1 })`);
+    await ui(`kulisa.invoke('project:open', { folder: ${JSON.stringify(other)}, task: '${tid('other', 1)}' })`);
     await waitFor(() => shell.current?.id === pid('other') && shell.task.loaded && shell.pty);
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
     const task = shell.task, moved = task, pty = task.pty, seller = task.profiles.get(idOf('Sam.seller'));
@@ -302,7 +302,7 @@ export default (test: Test) => {
     // A closed task opened again: a tab in this window, nothing asked where; Move to New Window takes it away.
     ctx.asked.length = 0;
     await plusMenu(ui, 'other', 'New Task');
-    await waitFor(() => shell.current?.id === pid('other') && shell.task?.n === 1 && shell.task.pty && !first.switching);
+    await waitFor(() => shell.current?.id === pid('other') && isNth(shell.task, 1) && shell.task.pty && !first.switching);
     assert.equal(ctx.asked.length, 0, 'no question where');
     assert.deepEqual(await projectTabs(ui), ['project', 'other *']);
     await rightClick(ui, `#projectTabs [data-project="${pid('other')}"] .name`);
@@ -359,7 +359,7 @@ export default (test: Test) => {
   test('tasks: a tab dragged changes the order, goes out into a new window and back into the first', async (ctx) => {
     const { shell, ui } = ctx;
     const other = path.join(root, 'other'), DRAG = 'application/x-kulisa-task';
-    await ui(`kulisa.invoke('project:open', { folder: ${JSON.stringify(other)}, task: 1 })`);
+    await ui(`kulisa.invoke('project:open', { folder: ${JSON.stringify(other)}, task: '${tid('other', 1)}' })`);
     await waitFor(() => shell.current?.id === pid('other') && shell.task.loaded && shell.pty && !shell.windows[0].switching);
     ctx.asked.length = 0;
     const moved = shell.task, pty = moved.pty;

@@ -8,7 +8,7 @@ import { refused } from '../../shared/result';
 
 const root = document.documentElement;
 export const store = reactive({
-  // The shown task's key ("<project id>/<n>"); null with no task open (Empty.vue).
+  // The shown task's key ("<project id>/<task id>"); null with no task open (Empty.vue).
   current: null as string | null,
   // The projects and the window's tabs (the open tasks, each with its agent's state), from the projects' news.
   projects: (initialProjects || { current: null, project: null, projects: [], tabs: [], open: [], settings: false }) as ProjectsInfo,

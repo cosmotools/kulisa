@@ -12,8 +12,8 @@ import type { ProjectEntry, ProjectTask } from '../../../shared/types';
 const { p } = defineProps<{ p: ProjectEntry }>();
 const tasks = computed(() => [...p.tasks.filter((t) => !t.closed), ...p.tasks.filter((t) => t.closed)]); // closed: the last first (main)
 const newTask = () => kulisa.invoke('project:open', { id: p.id });
-const open = (t: ProjectTask) => { if (t.closed) void kulisa.invoke('project:open', { id: p.id, task: t.n }); };
-const remove = (t: ProjectTask) => kulisa.invoke('task:delete-closed', { project: p.id, n: t.n });
+const open = (t: ProjectTask) => { if (t.closed) void kulisa.invoke('project:open', { id: p.id, task: t.id }); };
+const remove = (t: ProjectTask) => kulisa.invoke('task:delete-closed', { project: p.id, id: t.id });
 </script>
 
 <template>
@@ -22,7 +22,7 @@ const remove = (t: ProjectTask) => kulisa.invoke('task:delete-closed', { project
       <button class="icon small" type="button" :title="`New Task of ${p.name}`" aria-label="New Task" @click="newTask"><Icon name="i-plus" /></button></header>
     <ul>
       <!-- A row is no <button>: its 🗑 is one, and a button holds no other -->
-      <li v-for="t in tasks" :key="t.n"><div class="item" :class="{ open: !t.closed }" :data-task="`${p.id}/${t.n}`" role="button"
+      <li v-for="t in tasks" :key="t.id"><div class="item" :class="{ open: !t.closed }" :data-task="`${p.id}/${t.id}`" role="button"
         :tabindex="t.closed ? 0 : -1" :aria-disabled="!t.closed" :title="t.name"
         @click="open(t)" @keydown.enter.space.prevent="open(t)" @keydown.delete="t.closed && remove(t)">
         <span class="text"><span class="label">{{ t.name }}</span><small>{{ taskLine(t) }}</small></span>
