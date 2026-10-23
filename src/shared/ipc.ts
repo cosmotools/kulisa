@@ -3,7 +3,7 @@
 // act). docs/window.md, IPC. An answer the window does not read is `void`: the main process may answer anything there
 // (the tests read some).
 import type { Result } from './result.ts';
-import type { TerminalContents, TerminalEvents, TerminalSend } from '../terminal/ipc.ts';
+import type { FileLink, TerminalContents, TerminalEvents, TerminalSend } from '../terminal/ipc.ts';
 import type { ThumbnailEvents, ThumbnailInvoke, ThumbnailSend } from '../screenshots/ipc.ts';
 import type { GitHubInvoke } from '../github/ipc.ts';
 import type {
@@ -99,6 +99,9 @@ export interface Invoke extends ThumbnailInvoke, GitHubInvoke {
   'terminal:open': I<[OnTask & { agent?: string; own?: boolean }], Result<{ id: number } | { none: true }>>;
   'terminal:show': I<[OnTask & { id: number }]>;
   'terminal:close': I<[OnTask & { id: number }]>;
+  'terminal:files': I<[OnTask & { paths: string[] }], Result<(FileLink | null)[]>>;
+  'file:open': I<[string]>;
+  'file:show': I<[string]>;
   'agent:new-conversation': I<[OnTask & { id: number }]>;
   'agent:hand-over': I<[OnTask & { id: number; agent: string }], Result<{ id: number }>>;
   'tab:new': I<[OnProfile & { url?: string }], string | { error: string }>; // the new tab's id

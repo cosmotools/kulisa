@@ -4,6 +4,9 @@
 // The terminals' contents a window sends when a task moves, by key, to the window it goes to.
 export type TerminalContents = Record<string, { data: string; cols: number; rows: number }>;
 
+// A path a terminal names that exists (README, Links): as the window found it, and whether opening it would run it.
+export interface FileLink { path: string; executable: boolean }
+
 // ipcRenderer.send / ipcMain.on: what is sent, no answer.
 export interface TerminalSend {
   'pty:in': { task: string; data: string };

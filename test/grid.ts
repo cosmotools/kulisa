@@ -608,6 +608,63 @@ export default (test: Test) => {
       assert.deepEqual(opened, ['https://example.com/docs']);
     } finally { electron.shell.openExternal = openExternal; }
 
+    // A path that exists is a link too: absolute or relative to the task's folder, with :line, a folder, one wrapped
+    // over two rows. Ctrl+click asks: Open (the OS's app) or Show in Folder; what would run when opened, only shown.
+    const dir = path.join(shell.task.folder, 'kl-links'), long = `${'x'.repeat(await ui(`window.__term.cols`))}.txt`;
+    fs.mkdirSync(dir);
+    for (const f of ['a.txt', long]) fs.writeFileSync(path.join(dir, f), '');
+    const run = path.join(dir, process.platform === 'win32' ? 'run.cmd' : 'run.sh'); // Windows: by its extension
+    fs.writeFileSync(run, '#!/bin/sh\n', { mode: 0o755 });
+    const lines = ['see kl-links/a.txt:12.', run, 'kl-links/missing.txt', `${dir} here`, `kl-links/${long}`];
+    await ui(`new Promise((r) => window.__term.write(${JSON.stringify(`\r\n${lines.join('\r\n')}\r\n`)}, r))`);
+    // Where a text starts on the screen (in a line as written, its wrapped rows joined; at the cell's middle, a row
+    // lower with below), and a press there with Ctrl (⌘).
+    const spot = (text: string, below = 0) => ui(`(() => { const t = window.__term, b = t.buffer.active, s = document.querySelector('.term:not([hidden]) .xterm-screen').getBoundingClientRect();
+      for (let row = t.rows - 1; row >= 0; row--) { if (b.getLine(b.viewportY + row).isWrapped) continue;
+        let line = '', r = row; do line += b.getLine(b.viewportY + r).translateToString(); while (b.getLine(b.viewportY + ++r)?.isWrapped);
+        const i = line.indexOf(${JSON.stringify(text)});
+        if (i >= 0) return { x: s.x + (i % t.cols + 1.5) * s.width / t.cols, y: s.y + (row + Math.floor(i / t.cols) + ${below} + 0.5) * s.height / t.rows }; } })()`);
+    const mods: ('control' | 'meta')[] = [MAC ? 'meta' : 'control'];
+    const pressAt = async (text: string, below = 0) => {
+      const p = await spot(text, below), x = Math.round(p.x * z), y = Math.round(p.y * z), wc = shell.win.webContents;
+      wc.sendInputEvent({ type: 'mouseMove', x, y, modifiers: mods });
+      await sleep(300); // nothing to wait for: the link is found as the pointer stops over it (the main process asked)
+      wc.sendInputEvent({ type: 'mouseDown', x, y, button: 'left', clickCount: 1, modifiers: mods });
+      wc.sendInputEvent({ type: 'mouseUp', x, y, button: 'left', clickCount: 1, modifiers: mods });
+    };
+    const openPath = electron.shell.openPath, showItemInFolder = electron.shell.showItemInFolder, files: string[] = [];
+    electron.shell.openPath = async (p) => { files.push(`open ${p}`); return ''; };
+    electron.shell.showItemInFolder = (p) => { files.push(`show ${p}`); };
+    try {
+      await pressAt('kl-links/a.txt');
+      assert.deepEqual(await menuRows(ui), [`# ${path.join(dir, 'a.txt')}`, 'Open', 'Show in Folder'], 'relative, with :line');
+      await choose(ui, 'Open');
+      await waitFor(() => files.length === 1);
+      await pressAt(run);
+      assert.deepEqual(await menuRows(ui), [`# ${run}`, 'Show in Folder'], 'it would run: shown only');
+      await choose(ui, 'Show in Folder');
+      await waitFor(() => files.length === 2);
+      await pressAt(`${dir} here`);
+      assert.deepEqual(await menuRows(ui), [`# ${dir}`, 'Open', 'Show in Folder'], 'a folder');
+      await closeMenu(ui);
+      await pressAt(`kl-links/${long.slice(0, 10)}`, 1);
+      assert.deepEqual(await menuRows(ui), [`# ${path.join(dir, long)}`, 'Open', 'Show in Folder'], 'wrapped over two rows: one link');
+      await closeMenu(ui);
+      // A file an agent marks as a link (OSC 8): Claude Code gives its path as it is, others a file:// address.
+      for (const uri of [path.join(dir, 'a.txt'), `file://${path.join(dir, 'a.txt').replaceAll('\\', '/').replace(/^(?!\/)/, '/')}`]) {
+        await click(uri, ctrlKey);
+        assert.deepEqual(await menuRows(ui), [`# ${path.join(dir, 'a.txt')}`, 'Open', 'Show in Folder'], uri);
+        await closeMenu(ui);
+      }
+      await pressAt('kl-links/missing.txt');
+      await sleep(200); // nothing to wait for: that no menu opens
+      assert.equal(await menuOpen(ui), false, 'a path that does not exist is no link');
+      assert.deepEqual(files, [`open ${path.join(dir, 'a.txt')}`, `show ${run}`]);
+    } finally {
+      Object.assign(electron.shell, { openPath, showItemInFolder });
+      fs.rmSync(dir, { recursive: true });
+    }
+
     await ui(`document.getElementById('windowMenu').click()`);
     // The arrangements as pictures, a short name under each, the full words in the tooltip.
     // No Exit on macOS: ⌘Q and the app menu's Quit there (TopBar.vue).
