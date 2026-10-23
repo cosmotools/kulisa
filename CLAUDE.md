@@ -49,6 +49,10 @@ Everything happens inside Kulisa; no external Chrome windows.
   recommendation ("I would do X, because …"), not a list of options. Then do what the author decides: it is their
   product, the last word is theirs, and a settled question is not raised again. Take part in the design: point out
   what the author did not ask about but should know.
+- **Do it right, never a compromise.** Build the correct shape, not one bent around code that is already there:
+  existing code is no reason to keep a wrong shape. Where a change meets code that is wrong (a leaky boundary, a
+  shortcut, a workaround without a reason), be intolerant of it: fix it as part of the change, not around it. Say what
+  the right way is and do it, rather than settle for what is expedient.
 - **The time to rewrite is not an argument** (with AI a rewrite costs nothing). When
   weighing a tool or a library, or replacing one with another, the better one is chosen on its merits (what it does,
   RAM, how well it is maintained, its license, how it fits); the time a move takes, the agent's to write it and the
@@ -148,6 +152,15 @@ Everything happens inside Kulisa; no external Chrome windows.
   so no type stripping and no `require` of Kulisa's modules. What the window shares with the main process (the rule
   for names, the profiles' pictures) it imports itself. No build of the main
   process (Vite, esbuild): it runs from source, packaged and from the asar.
+- **A folder's `index.ts` is its public API.** Where a folder stands for one thing with an entry file (a Kulisa
+  package's `main/`, `renderer/`; a window cluster; `src/main/agents/`), code outside imports from that entry alone,
+  never from the folder's other files, so its inside is free to change behind it. A rule in `.dependency-cruiser.ts`
+  (`npm run deps`) refuses the rest; it sees run-time imports only, so a contract's `import type` from inside the
+  folder crosses freely and needs no entry. Inside the folder, each file imports its siblings directly, never the
+  folder's own `index.ts`: a barrel a module of the folder imports is a cycle, and it runs the other modules' top-level
+  code before its own. Keep module load free of side effects (define and export; do not act), the more so for anything
+  an `index.ts` re-exports. Re-export the names used outside, as named exports (`export`, `export type` for types),
+  not `export *`: the surface is then what is written, not whatever a file happens to hold.
 - **Keep the amount of own code minimal, so the project stays under control.** Prefer maintained open-source
   libraries to writing our own.
   - Before writing browser or CDP code, check whether playwright-core already does it: picker
@@ -330,8 +343,10 @@ The npm scripts, what each does, and what to install first (Node 24.12+, npm 11 
   except `CLAUDE_CONFIG_DIR`, and run it in the background:
   `env $(env | grep -o '^CLAUDE[A-Z_]*' | grep -v '^CLAUDE_CONFIG_DIR$' | sed 's/^/-u /') npm start`.
 - **Code intelligence.** Claude Code's `LSP` tool (the `kulisa-dev` plugin; docs/testing.md, Claude Code's checks):
-  references, definitions and types through the language server, `.ts` and `.vue` together; prefer it to grep when
-  renaming or finding who uses a symbol (it misses the tests: grep `test/` too). No `LSP` tool in the session: the
+  references, definitions and types through the language server, `.ts` and `.vue` together. For a symbol — who
+  defines it, who uses it, its type, what it calls or calls it — the `LSP` tool, never grep: it reads the types, so it
+  neither misses a use nor matches the name in a comment or an unrelated scope (it does miss the tests: grep `test/`
+  for those too). grep is for text that is not a symbol (a string, a config key, a path). No `LSP` tool in the session: the
   plugin is not installed in this `CLAUDE_CONFIG_DIR`; say so, install it (`claude plugin install
   kulisa-dev@kulisa-dev --scope project`) and ask the human for `/reload-plugins`.
 - **The Stop hook** (docs/testing.md, Claude Code's checks) runs `npm run lint` and `npm run test:unit` on uncommitted

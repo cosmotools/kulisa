@@ -14,7 +14,7 @@ import { READ_MAX } from './kulisa-plugin/mcp-server.ts';
 import { copyProfile } from './store.ts';
 import { renameBranch } from './worktrees.ts';
 import { extendTrust } from './agents/index.ts';
-import { installSkill } from './agents/files.ts';
+import { installSkill } from './agents/index.ts';
 import { nameError } from '../shared/names.ts';
 import { loginAllowed } from './local.ts';
 import { log } from './log.ts';
