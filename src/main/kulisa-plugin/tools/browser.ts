@@ -2,6 +2,7 @@
 // over the CDP proxy, so the human sees every action (ghost.ts) and the sign-in pause holds. How a tool is designed:
 // ../CLAUDE.md.
 import { z } from 'zod';
+import fs from 'fs';
 import path from 'path';
 import { toUrl } from '../../profiles.ts';
 import { MARK } from '../ghost.ts';
@@ -28,11 +29,11 @@ const TYPED_MAX = 300;
 function patternOf(find: string) {
   try { return new RegExp(find, 'i'); } catch { return new RegExp(find.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'); }
 }
+const indent = (line: string) => line.length - line.trimStart().length;
 // The snapshot's lines that match, each under its ancestors (the lines less indented above it), so the agent sees
 // where it is on the page and gets its ref.
 function found(yaml: string, pattern: RegExp) {
   const lines = yaml.split('\n'), keep = new Set<number>();
-  const indent = (l: string) => l.length - l.trimStart().length;
   lines.forEach((line, i) => {
     if (!pattern.test(line)) return;
     keep.add(i);
@@ -40,6 +41,21 @@ function found(yaml: string, pattern: RegExp) {
   });
   return [...keep].sort((a, b) => a - b).map((i) => lines[i]).join('\n');
 }
+
+// A snapshot or a body larger than this goes to a file (../CLAUDE.md, "Large goes to disk"): about 10k tokens, where
+// Claude Code starts to warn of a tool's answer. The answer then gives its outline, the snapshot's top levels.
+const LARGE = 40_000, OUTLINE = 4_000;
+function outline(yaml: string) {
+  const lines = yaml.split('\n');
+  let out = '';
+  for (let d = 0; d <= Math.max(...lines.map(indent)); d += 2) {
+    const next = lines.filter((l) => indent(l) <= d).join('\n');
+    if (next.length > OUTLINE) break;
+    out = next;
+  }
+  return out || clipped(lines.filter((l) => !indent(l)).join('\n'), OUTLINE);
+}
+const clipped = (s: string, n: number) => (s.length > n ? `${s.slice(0, n)}…` : s);
 
 // What a page reported, as playwright-core keeps it: the console (200), uncaught errors (200), requests (100). The
 // agent's last action in a page is marked: "since action" starts there, and the action's answer counts what came
@@ -102,6 +118,13 @@ const bodyOf = (b: Buffer, type = '') => ` (${b.length} bytes${type ? `, ${type}
 
 function browserTools(server: McpServer, h: Handles) {
   const { task, profileArg, text, done, idOf, profileOf, tabOf, pageOf, locate, target, element, dialogArg, answering, tabArg, onTab } = h;
+  // Into the task's pages folder (TaskStore.pages), never the project's: nothing of Kulisa's in the agent's git status.
+  const toFile = async (name: string, content: string | Buffer) => {
+    await fs.promises.mkdir(task.store.pages, { recursive: true });
+    const file = path.join(task.store.pages, name);
+    await fs.promises.writeFile(file, content);
+    return file;
+  };
 
   server.registerTool('browser_tab_new', {
     description: "Open a URL in a new tab of the profile and make it the active tab. Use it instead of browser_navigate to keep the page the human has open.",
@@ -197,7 +220,12 @@ function browserTools(server: McpServer, h: Handles) {
       const root = ref || locator ? (await target(page, { ref, locator })).first() : page;
       let yaml = await root.ariaSnapshot({ mode: 'ai', depth });
       if (pattern) yaml = found(yaml, pattern) || `Nothing matches ${find}.`;
-      return `- Profile: ${name}\n- URL: ${page.url()}\n- Title: ${await page.title()}\n\n${yaml}`;
+      const head = `- Profile: ${name}\n- URL: ${page.url()}\n- Title: ${await page.title()}`;
+      if (yaml.length <= LARGE) return `${head}\n\n${yaml}`;
+      const { profile: p, tab: t } = tabOf(name, tabId);
+      const file = await toFile(`${p.id}-${t.id}.yml`, yaml);
+      return `${head}\n- Snapshot: ${yaml.length} characters (about ${Math.round(yaml.length / 4000)}k tokens), in ${file}, rewritten at this tab's next large snapshot. ` +
+        `Read the part you need there, or take one here: an element by ref or locator, a depth, or find. Its top levels:\n\n${outline(yaml)}`;
     };
     if (!also.length) return text(await snap(profile, tab));
     // One profile that cannot be read (signing in, closed) does not hide the others.
@@ -359,7 +387,7 @@ function browserTools(server: McpServer, h: Handles) {
 
   // What a tab reported recently, as Playwright keeps it for every page of the shell's connection (the last ones,
   // since the connection was made: after a sign-in pause, only what came after it).
-  const clip = (s: string, n = 300) => (s.length > n ? `${s.slice(0, n)}…` : s);
+  const clip = (s: string, n = 300) => clipped(s, n);
   const since = z.enum(['action', 'navigation']).optional()
     .describe('Only what came since your last action in this tab (a click, typing, navigating), or since its page loaded; default: all that is kept');
   server.registerTool('browser_console_messages', {
@@ -409,13 +437,19 @@ function browserTools(server: McpServer, h: Handles) {
       `#${number} ${r.method()} ${r.url()} → ${failure || (res ? `${res.status()} ${res.statusText()}` : 'pending')} (${r.resourceType()})`,
       `Request headers:\n${headers(await r.allHeaders())}`,
     ];
+    // A large body to a file, as a snapshot; one a tab, rewritten each time.
+    const body = async (b: Buffer, type: string | undefined, which: string) => {
+      if (!TEXT.test(type ?? '') || b.length <= LARGE) return bodyOf(b, type);
+      const { profile: p, tab: t } = tabOf(profile, tab);
+      return ` (${b.length} bytes, ${type}): in ${await toFile(`${p.id}-${t.id}-${which}.txt`, b)}, rewritten at this tab's next large ${which}`;
+    };
     const sent = r.postDataBuffer();
-    if (sent) parts.push(`Request body${bodyOf(sent, (await r.allHeaders())['content-type'])}`);
+    if (sent) parts.push(`Request body${await body(sent, (await r.allHeaders())['content-type'], 'request')}`);
     if (res) {
       parts.push(`Response headers:\n${headers(await res.allHeaders())}`);
       // A body still coming (a stream, a long download) is not waited for.
       const got = await Promise.race([res.body(), new Promise<'later'>((ok) => setTimeout(() => ok('later'), 2000))]).catch((): null => null);
-      parts.push(got === 'later' ? 'Response body: still loading' : got ? `Response body${bodyOf(got, res.headers()['content-type'])}` : 'Response body: none, or no longer kept by the browser');
+      parts.push(got === 'later' ? 'Response body: still loading' : got ? `Response body${await body(got, res.headers()['content-type'], 'response')}` : 'Response body: none, or no longer kept by the browser');
     }
     return text(parts.join('\n\n'));
   });

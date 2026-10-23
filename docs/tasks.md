@@ -680,6 +680,9 @@ projects/<project id>/            a project's data, by its id (projects.json), g
                                   (Several agents in a task), kept with the task
     terminals.json                { front, list: [{ id, name, by } | { id, conversation }] }: its island's tabs, opened
                                   again when it loads; one goes when closed; an empty list: the island folded
+    pages/                        what the agent read of its tabs, too large for a tool's answer (profiles.md, What the
+                                  agent does): a snapshot (<profile id>-<tab id>.yml) or a body (…-response.txt,
+                                  …-request.txt), one each a tab, rewritten; gone when the task closes or loads again
     <id>/                         its copy of a master, named by the profile's id, made at its first open here: a Chromium profile
                                   (session.fromPath), with Kulisa's own files in it:
       Kulisa Tabs.json              the URLs of its tabs and which is in front

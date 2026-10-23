@@ -274,7 +274,10 @@ class Task {
     this.gitChecked = this.project.checkGit().then(() => this.shell.sendProjects(), (e: Error) => console.error('[git]', e));
     this.list.load();
     this.loaded = true;
+    this.dropPages(); // left by a Kulisa that quit: its tabs were reloaded since
   }
+  // What the agent read of its tabs, too large for an answer (TaskStore.pages): stale once they go.
+  dropPages() { fs.rmSync(this.store.pages, { recursive: true, force: true }); }
 
   // Its island (docs/window.md, The terminal): the terminals in tabs, one shown at a time. Each the user's shell in the
   // task's folder, with an agent started in it or not. A shell is for what keeps running where the human sees it (the
@@ -431,7 +434,7 @@ class Task {
     const command = found.onPath ? a.command : found.path;
     t.pty = await startTerminal((channel, data) => this.window?.send(channel, data), { command, shell: a.shell, cwd: this.folder,
       env: { ...env, ...more.env, ...a.env }, pinned: a.env, sizeOf: this.key,
-      args: [...(resume || []), ...(a.args?.({ env, packages: shell.packages, account: Object.keys(a.env).length ? a.configDir : null }) || []), ...(more.args || []), ...((!resume && first && a.prompt?.(first)) || [])] }, t.key);
+      args: [...(resume || []), ...(a.args?.({ env, packages: shell.packages, account: Object.keys(a.env).length ? a.configDir : null, pages: shell.store.pagesGlob() }) || []), ...(more.args || []), ...((!resume && first && a.prompt?.(first)) || [])] }, t.key);
     if (this.terminals.get(t.id) !== t) { stopTerminal(t.pty); return { error: 'the terminal was closed' }; }
     // Its shell exited by itself (exit), not stopped by Kulisa (closing, quitting: the terminal is kept then).
     t.pty.onExit(() => { if (!t.pty!.stopped) this.dropTerminal(t); });
@@ -680,6 +683,7 @@ class Task {
     if (this.loaded) this.list.saveTabs();
     this.loaded = false;
     await this.list.unloadAll();
+    this.dropPages();
   }
   // An agent's session, as its hooks report it (agent-hooks.ts).
   saveSession(t: TaskTerminal, s: { sessionId?: string; transcript?: string }) { if (this.terminals.get(t.id) === t) this.updateConversation(t.conversation!, s); }

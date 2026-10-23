@@ -771,6 +771,27 @@ export default (test: Test) => {
     await waitFor(() => elon.active === before);
   });
 
+  test("agent: a snapshot or a body too large for an answer goes to a file in the task's data, the answer its path and outline", async ({ shell, call }) => {
+    const elon = shell.profiles.get(idOf('Elon.buyer')), before = elon.active;
+    const tab = (await call('browser_tab_new', { profile: 'Elon.buyer', url: `${SITE}/large` })).text.match(/Opened tab (\w+)/)[1];
+    const answer = (await call('browser_snapshot', { profile: 'Elon.buyer', tab })).text;
+    const file = answer.match(/, in (.+\.yml), rewritten/)[1];
+    assert.equal(path.dirname(file), shell.task.store.pages, "the task's, never the project's");
+    assert.ok(answer.length < 6000, `the answer stays small: ${answer.length}`);
+    assert.match(answer, /- URL: .*\/large\n- Title: large\n- Snapshot: \d+ characters \(about \d+k tokens\)/);
+    assert.match(answer, /main \[ref=\w+\]:[\s\S]*navigation "Index"/, 'its top levels');
+    assert.doesNotMatch(answer, /Item 1499/);
+    assert.match(fs.readFileSync(file, 'utf8'), /link "Item 1499 with a longer name"/, 'the whole snapshot in the file');
+    assert.match((await call('browser_snapshot', { profile: 'Elon.buyer', tab, find: 'find me' })).text, /button "Find me" \[ref=\w+\]$/, 'a part fits: in the answer');
+    const n = (await call('browser_network_requests', { profile: 'Elon.buyer', tab, filter: '/large$' })).text.match(/#(\d+) GET/)[1];
+    const body = (await call('browser_network_request', { profile: 'Elon.buyer', tab, number: Number(n) })).text;
+    const html = body.match(/Response body \(\d+ bytes, text\/html; charset=utf-8\): in (.+-response\.txt), rewritten/)[1];
+    assert.equal(path.dirname(html), shell.task.store.pages);
+    assert.match(fs.readFileSync(html, 'utf8'), /Item 1499/);
+    await call('browser_tab_close', { profile: 'Elon.buyer', tab });
+    await waitFor(() => elon.active === before);
+  });
+
   test('agent: a request with no answer yet is listed as pending at once', async ({ shell, call }) => {
     const elon = shell.profiles.get(idOf('Elon.buyer')), before = elon.active;
     const tab = (await call('browser_tab_new', { profile: 'Elon.buyer', url: `${SITE}/pending` })).text.match(/Opened tab (\w+)/)[1];

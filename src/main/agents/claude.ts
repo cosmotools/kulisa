@@ -28,6 +28,8 @@ const CLAUDE_HOOKS: Hook[] = [
   { on: 'StopFailure', sends: 'waiting' },
   { on: 'SessionEnd', sends: 'session-end' },
 ];
+// A path as Claude Code's permission rules take an absolute one, //path; on Windows its POSIX form (C:\a: //c/a).
+const claudePath = (p: string) => (/^[a-z]:[\\/]/i.test(p) ? `//${p[0]!.toLowerCase()}${p.slice(2).replace(/\\/g, '/')}` : `/${p}`);
 const claudeHooks = () => {
   const out: Record<string, object[]> = {};
   for (const h of CLAUDE_HOOKS) {
@@ -44,12 +46,13 @@ const claude: Agent = {
   localFiles: ['/.claude/settings.local.json'],
   // The Kulisa plugin (claude-plugin/ among Kulisa's packages): its MCP config (KULISA_MCP_URL). Settings for Kulisa's sessions only, in one
   // --settings (two are not documented to merge): its tools allowed but KULISA_ASKS (an ask rule wins over an allow
-  // rule), its hooks, and the dictation (voice, below).
+  // rule), reading the files of large pages Kulisa writes outside its folders (else it asks each time), its hooks,
+  // and the dictation (voice, below).
   // The settings go as a file in its account's folder (kulisa-settings.json, rewritten at each start): the command
   // typed into the terminal stays short. Without an account, the same JSON on the command line.
-  args: ({ packages, account }) => {
+  args: ({ packages, account, pages }) => {
     const settings = JSON.stringify({
-      permissions: { allow: [CLAUDE_KULISA], ask: KULISA_ASKS.map((t) => `${CLAUDE_KULISA}__${t}`) },
+      permissions: { allow: [CLAUDE_KULISA, `Read(${claudePath(pages)}/**)`], ask: KULISA_ASKS.map((t) => `${CLAUDE_KULISA}__${t}`) },
       hooks: claudeHooks(),
       // voiceEnabled too: without it dictation is taken for off (its /voice writes both; the object alone leaves the
       // space typing spaces).
