@@ -95,5 +95,6 @@ function signOut(agent: Agent, found: Found | null, dir: string) {
 // The command line the window shows before installing.
 const installLine = (agent: Agent) => agent.install?.[process.platform === 'win32' ? 'win32' : 'posix'] || null;
 
-export type { Agent, Found };
+export type { Agent, Found, HookEvent } from './agent.ts';
+export { installSkill } from './files.ts';
 export { AGENTS, findAgent, agentVersion, accountEmail, signOut, installAgent, installLine, extendTrust };

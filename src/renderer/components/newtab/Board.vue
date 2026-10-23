@@ -1,23 +1,19 @@
 <script setup lang="ts">
-// Every project with its tasks, a column each (tasks.md, Projects: all in sight, any task one
-// click away): a new tab's (the bar's +, as a browser's) and the empty window's. The project worked in last first:
-// its open task, else the one closed last. New Project… after them. Esc leaves a new tab.
-import { computed, onMounted, ref } from 'vue';
+// Every project with its tasks, a column each (tasks.md, Projects: all in sight, any task one click away): what the
+// empty window shows. The project worked in last first: its open task, else the one closed last. New Project… after
+// them.
+import { computed } from 'vue';
 import Icon from '../Icon.vue';
 import ProjectColumn from './ProjectColumn.vue';
-import { page, store } from '../../lib/store';
+import { store } from '../../lib/store';
 import { dialog } from '../../lib/dialogs';
-import type { ProjectEntry } from '../../../shared/types';
+import { lastWorked } from '../../lib/common';
 
-const last = (p: ProjectEntry) => (p.tasks.some((t) => !t.closed) ? Infinity : Math.max(0, ...p.tasks.map((t) => t.closedAt ?? 0)));
-const projects = computed(() => [...store.projects.projects].sort((a, b) => last(b) - last(a)));
-const el = ref<HTMLElement>();
-onMounted(() => { if (page.value === 'newtab') el.value?.focus(); }); // its Esc
-const esc = () => { if (page.value === 'newtab') store.newTab = false; };
+const projects = computed(() => [...store.projects.projects].sort((a, b) => lastWorked(b) - lastWorked(a)));
 </script>
 
 <template>
-  <div id="board" ref="el" tabindex="-1" @keydown.esc="esc">
+  <div id="board">
     <ProjectColumn v-for="p in projects" :key="p.id" :p />
     <button id="boardnewproject" type="button" class="launcher" title="New Project…: its code, its agents, its profiles"
       @click="dialog('newproject').then((d) => d.open())"><Icon name="i-folder-plus" /><span class="name">New Project…</span></button>

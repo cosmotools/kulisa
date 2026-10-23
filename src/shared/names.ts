@@ -1,14 +1,16 @@
-// Names the human or the agent gives: projects, tasks, profiles. The characters of an email address, with the
-// letters of any language: a profile is often named after the account it signs in to (ann+test@shop.com), and the
-// names become folders, git branches and ids, where spaces and other signs get in the way.
+// Names the human or the agent gives: projects, tasks, profiles. A readable label (a task is "Fix header"), so
+// spaces inside are allowed; also the characters of an email address, with the letters of any language, since a
+// profile is often named after the account it signs in to (ann+test@shop.com). A name is shown as given; where it
+// becomes a folder, a git branch or an id, slugOf turns it into a safe form (lower case, runs of other signs as -),
+// so spaces and the like never reach the disk or git.
 // Checked where names are made (app.ts, project-profiles.ts); the window keeps other characters out of name fields
 // as they are typed (the renderer's lib/names.ts, importing this).
-const CHAR = /^[\p{L}\p{M}\p{N}@._+-]$/u;
-// Starting with a letter or a digit, as an email address does: not signs alone (@, -), no hidden folder (.x), no
-// other folder (. and ..), no command-line option (-x).
-const NAME = /^[\p{L}\p{N}][\p{L}\p{M}\p{N}@._+-]*$/u;
+const CHAR = /^[\p{L}\p{M}\p{N}@._+ -]$/u;
+// Starting with a letter or a digit, as an email address does: not signs or a space alone (@, -, " "), no hidden
+// folder (.x), no other folder (. and ..), no command-line option (-x).
+const NAME = /^[\p{L}\p{N}][\p{L}\p{M}\p{N}@._+ -]*$/u;
 const MAX = 64;
-const RULE = 'letters, digits and @ . _ + - only, starting with a letter or a digit, as an email address';
+const RULE = 'letters, digits, spaces and @ . _ + - only, starting with a letter or a digit';
 
 // Why a name cannot be used, or null.
 function nameError(name: string | undefined): string | null {

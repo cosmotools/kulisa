@@ -9,6 +9,7 @@ import type { Test } from './run.ts';
 export default (test: Test) => {
   test('setup: Sam signed in, Elon signed out, Dora closed; the agent reported its session', async (ctx) => {
     const { shell, call, ui } = ctx, task = shell.task;
+    await task.rename('task-1'); // named for the tests to refer to it by (the default is "New Task")
     await task.createProfile('Sam.admin', 'seller in the test shop', 'fox');
     await task.createProfile('Elon.buyer', '', 'owl');
     task.describeProfile(idOf('Elon.buyer'), ''); // said, and left empty by the human

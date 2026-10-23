@@ -170,7 +170,7 @@ export default (test: Test) => {
     const tabs = () => ui(`[...document.querySelectorAll('.termtab')].map((t) => t.querySelector('.name').textContent + (t.classList.contains('active') ? ' *' : ''))`);
     const shown = () => ui(`[...document.querySelectorAll('.terminals .term')].filter((t) => !t.hidden).length`);
     const color = (sel: string) => ui(`getComputedStyle(document.querySelector(${JSON.stringify(sel)})).backgroundColor`);
-    assert.match(await instructions(), /terminal_run, not in your own shell.*This is the Kulisa task "task-1", working right in the project's folder .* the app under test runs on its usual ports\. Name the task with task_rename once you know what it is about, silently: never ask the human for a name or mention it\. These notes are for you/s);
+    assert.match(await instructions(), /terminal_run, not in your own shell.*This is the Kulisa task "task-1", working right in the project's folder .* \(no git, so no worktree of its own\)\. Run the app under test on a free port you pick \(Kulisa assigns none\).*Name the task with task_rename once you know what it is about, silently: never ask the human for a name or mention it\. These notes are for you/s);
     assert.deepEqual(await tabs(), ['bash *'], "the agent's tab, named after its agent");
     // The row is apart from the terminal: its own color, the tab in front in the terminal's.
     const row = '.dv-groupview:has(.termtabs) .dv-tabs-and-actions-container';
@@ -190,17 +190,17 @@ export default (test: Test) => {
     assert.equal(task.promptTarget().agent.cli, 'bash');
     await waitFor(async () => (await shown()) === 1 && ui(`window.__term === window.__term && document.activeElement.closest('.term') !== null`));
 
-    // The agent's: its environment (the port offset), behind (the human watches what is in front), read back as plain text.
-    assert.match((await call('terminal_run', { name: 'dev server', command: 'echo "ready at offset $KULISA_PORT_OFFSET"; sleep 30' })).text, /^Started in terminal "dev server"/);
+    // The agent's: its environment (KULISA_TASK), behind (the human watches what is in front), read back as plain text.
+    assert.match((await call('terminal_run', { name: 'dev server', command: 'echo "ready in $KULISA_TASK"; sleep 30' })).text, /^Started in terminal "dev server"/);
     const dev = task.terminal('dev server') as TaskTerminal;
-    await waitFor(async () => (await call('terminal_read', { name: 'dev server' })).text.includes('ready at offset 0'));
+    await waitFor(async () => (await call('terminal_read', { name: 'dev server' })).text.includes('ready in task-1'));
     assert.deepEqual(await tabs(), ['bash', 'Terminal *', 'dev server'], 'behind');
     assert.equal(await shown(), 1);
     // Laid out while behind, it does not make the window scrollable: the agent's state on its tab (the tasks' bar brings
     // its tab into view) had moved the grid up by a window's height.
     await ui(`document.querySelector('#projectTabs > *').scrollIntoView()`);
     assert.deepEqual(await ui(`[document.documentElement.scrollTop, document.documentElement.scrollHeight <= innerHeight]`), [0, true]);
-    assert.equal((await call('terminal_read', {})).text, `"Terminal" (the human's)\n"dev server" (an agent's): echo "ready at offset $KULISA_PORT_OFFSET"; sleep 30`);
+    assert.equal((await call('terminal_read', {})).text, `"Terminal" (the human's)\n"dev server" (an agent's): echo "ready in $KULISA_TASK"; sleep 30`);
     await assert.rejects(call('terminal_stop', { name: 'nope' }), /no terminal "nope"; open now: "Terminal", "dev server"/);
     // An agent's tab is no terminal to run in, read or stop: a command there would be a message to that agent.
     for (const [tool, args] of [['terminal_run', { command: 'hi' }], ['terminal_read', {}], ['terminal_stop', { close: true }]] as const) {

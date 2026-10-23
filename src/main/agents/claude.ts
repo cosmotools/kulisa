@@ -77,6 +77,7 @@ const claude: Agent = {
   },
   forget: (ctx) => forgetClaude(ctx),
   conversation: claudeConversation,
+  title: (transcript) => claudeTitle(transcript),
   // `claude [prompt]`: its interactive mode, the prompt sent (its --help).
   prompt: (text) => [text],
   // Its voice mode (needs a Claude.ai account), on for Kulisa's sessions only (not the user's settings): space held
@@ -90,6 +91,15 @@ const claude: Agent = {
   // in another language loses to it: one setting for both.
   language: { languages: CLAUDE_LANGUAGES, set: (dir, code) => setClaudeLanguage(path.join(dir, 'settings.json'), code) },
 };
+
+// Claude Code's own name for the conversation, the one its /status shows: an "ai-title" line in the transcript, which
+// it regenerates as the conversation goes, so the last non-empty one wins. A name derived from the folder
+// (its sessions file, nameSource "derived") is not a real title and is not read here.
+function claudeTitle(transcript: string): string | null {
+  let title: string | null = null;
+  for (const r of lines(transcript)) if (r.type === 'ai-title' && typeof r.aiTitle === 'string' && r.aiTitle.trim()) title = r.aiTitle.trim();
+  return title;
+}
 
 const english = new Intl.DisplayNames(['en'], { type: 'language' });
 // Its `language`, as its /config sets it (the language's name in English, which it answers in too); the rest of the file

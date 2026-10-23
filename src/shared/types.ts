@@ -28,16 +28,25 @@ export interface Terminal {
 // Kulisa's language (☰ → Language): the codes the agents' own settings take, and which agents have one.
 export interface LanguageInfo { language: string; languages: string[]; agents: { name: string; has: boolean }[] }
 export interface Terminals { task?: string; front: number | null; list: Terminal[] }
+// Something the task has, uses or created, a row in the Resources island (Resources.vue): a repository's worktree, or
+// the main working tree it works in before it makes one. More kinds come over time (the app's URL, a pull request).
+export interface TaskResource {
+  kind: 'worktree' | 'maintree';
+  label: string; // the repository's name
+  folder: string; // the folder to open
+  branch: string | null; // a worktree's branch; none for the main working tree
+  removable: boolean; // an added repository's worktree (task_remove_repository); not the task's own or the main tree
+}
 // A task, for its tab (Task.info).
 export interface TaskInfo {
-  n: number; key: string; project: string; name: string; state: AgentState; folder: string; offset: number; branch: string | null;
-  closed: boolean; merged: boolean; about?: string; // what it is about while it has no name: its first prompt
+  n: number; key: string; project: string; name: string; state: AgentState; folder: string; branch: string | null;
+  closed: boolean; merged: boolean;
   repos: string[]; // the project's repositories it may add (Add Repository)
-  copies: { name: string; folder: string; branch: string }[]; // its copies of the project's repositories (TaskRepos.vue)
+  resources: TaskResource[]; // what the task has/created (Resources.vue)
 }
 export interface ProjectEntry { id: string; name: string; folder: string; color: string; favicon?: string; tasks: ProjectTask[] }
 // A task of a project, open or not (app.ts, shell.projects): the bar's + lists the closed ones (NewTask.vue).
-export interface ProjectTask { n: number; name: string; branch?: string | null; closed: boolean; closedAt?: number; merged: boolean; about?: string }
+export interface ProjectTask { n: number; name: string; branch?: string | null; closed: boolean; closedAt?: number; merged: boolean }
 // The window's tasks' bar (AppWindow.info): every project, the window's tabs in the bar's order, the shown task (its
 // key) and its project (its id), the loaded projects' agents (the island's +), the other windows (Move to Window).
 export interface ProjectsInfo {

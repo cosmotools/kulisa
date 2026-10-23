@@ -6,8 +6,8 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { CUT } from '../../src/main/kulisa-plugin/transcripts.ts';
-import { claudeConversation } from '../../src/main/agents/claude.ts';
-import { codexConversation } from '../../src/main/agents/codex.ts';
+import { claude, claudeConversation } from '../../src/main/agents/claude.ts';
+import { codex, codexConversation } from '../../src/main/agents/codex.ts';
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'kulisa-unit-'));
 after(() => fs.rmSync(root, { recursive: true, force: true }));
 
@@ -137,4 +137,18 @@ test('history: where a Codex turn stopped: interrupted, a call with no result, o
     'its last turn was cut off while it ran exec, with no result');
   assert.equal(codexConversation(write('codex-unanswered', [said('user', 'hi'), said('assistant', 'hello'), said('user', 'now the cart')])).stopped,
     "the human's last message got no answer");
+});
+
+test("title: Claude Code's own ai-title names the conversation, the last one winning; an empty one or none is null; Codex has none", () => {
+  const file = write('claude-title', [
+    user('help me refactor'),
+    { type: 'ai-title', aiTitle: 'Refactoring', sessionId: 's' },
+    assistant({ type: 'text', text: 'ok' }),
+    { type: 'ai-title', aiTitle: 'Refactor checkout', sessionId: 's' }, // regenerated: the last wins
+  ]);
+  assert.equal(claude.title(file), 'Refactor checkout');
+  // No ai-title, or an empty one: nothing to show.
+  assert.equal(claude.title(write('claude-none', [user('hi'), { type: 'ai-title', aiTitle: '', sessionId: 's' }])), null);
+  // Codex keeps no auto-title.
+  assert.equal(codex.title(write('codex-title', [said('user', 'hi')])), null);
 });

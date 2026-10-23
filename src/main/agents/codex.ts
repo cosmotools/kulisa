@@ -57,6 +57,9 @@ const codex: Agent = {
   trust: { has: (where, folder) => codexTrusted(codexHome(where), folder), set: (where, folder) => codexTrust(codexHome(where), folder) },
   forget: ({ folder, configDir }) => forgetCodex(folder, configDir ?? undefined),
   conversation: codexConversation,
+  // Codex 0.160 keeps no auto-title for a session (its rollout holds only the cwd and id): nothing to read, so the
+  // conversation keeps the default tab until it is named. Where to read one goes here when a Codex version adds it.
+  title: () => null,
   // `codex [PROMPT]` (its --help).
   prompt: (text) => [text],
 };

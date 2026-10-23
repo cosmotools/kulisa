@@ -67,7 +67,7 @@ body {
 @property --glow { syntax: '<color>'; inherits: true; initial-value: transparent; }
 :root { transition: --glow .8s ease; }
 #glow { position: fixed; inset: 0; z-index: -1; pointer-events: none; opacity: 0; transition: opacity .8s ease;
-  :root:is([data-page="task"], [data-page="newtab"], [data-page="welcome"]) & { opacity: 1; }
+  :root:is([data-page="task"], [data-page="welcome"]) & { opacity: 1; }
   :root[data-page="welcome"] & { --glow: var(--project); }
   /* steps(n): a fifth of a second each, n = a quarter of its cycle (its keyframes' spans) × 5 */
   i { position: absolute; left: 50%; top: 50%; width: 90vmax; height: 90vmax; will-change: transform;
@@ -98,8 +98,7 @@ body {
   100% { transform: translate(-50%, -50%) translate(-18vw, 14vh) rotate(-45deg) scale(1.1, 1); }
 }
 @media (prefers-reduced-motion: reduce) { #glow i { animation: none; transform: translate(-50%, -50%); } }
-/* The parts lay out in body's column; the grid and what is shown in its place (Empty.vue) in one cell: a new tab lies
-   over the task's grid */
+/* The parts lay out in body's column; the grid and what is shown in its place (Empty.vue) in one cell */
 #app { display: contents; }
 :is(#dock, #empty) { grid-row: 2; grid-column: 1; }
 </style>

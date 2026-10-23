@@ -78,9 +78,11 @@ const agents: Agent[] = [
 
 // Each test gets the running app and the means to drive it (setup, below).
 type Ctx = Awaited<ReturnType<typeof setup>>;
-type Test = (name: string, fn: (ctx: Ctx) => Promise<void>) => void;
-const tests: { name: string; fn: (ctx: Ctx) => Promise<void> }[] = [];
-const test: Test = (name, fn) => { tests.push({ name, fn }); };
+type Run = (name: string, fn: (ctx: Ctx) => Promise<void>) => void;
+type Test = Run & { skip: Run }; // test.skip: held, not run (counted apart), for a test waiting on work not done yet
+const tests: { name: string; fn: (ctx: Ctx) => Promise<void>; skip?: boolean }[] = [];
+const test = ((name, fn) => { tests.push({ name, fn }); }) as Test;
+test.skip = (name, fn) => { tests.push({ name, fn, skip: true }); };
 // A file that does not load (a syntax error) ends the run at once: Electron would wait, its app never ready.
 try { for (const f of FILES) (await import(`./${f}.ts`)).default(test); } catch (e) { console.error(e); app.exit(2); }
 
@@ -100,8 +102,9 @@ start({ userData, project: restart ? undefined : project, projectsHome: path.joi
     // tests' focus would be the human's last click's. It takes the screen's focus, as docs/testing.md says.
     if (process.platform === 'darwin') app.focus({ steal: true });
     const ctx = await setup(shell);
-    let failed = 0;
+    let failed = 0, held = 0;
     for (const t of tests) {
+      if (t.skip) { held++; console.log(`  ↓ ${t.name} (held)`); continue; }
       const t0 = Date.now();
       try {
         await Promise.race([t.fn(ctx), sleep(30000).then(() => { throw new Error(`timeout 30 s, in ${ctx.step}`); })]);
@@ -112,7 +115,7 @@ start({ userData, project: restart ? undefined : project, projectsHome: path.joi
         console.log(`  ✗ ${t.name}\n      ${(err.code === 'ERR_ASSERTION' ? err.message : String(err.stack || err).split('\n').slice(0, 4).join('\n')).replace(/\n/g, '\n      ')}`);
       }
     }
-    console.log(failed ? `\n${failed} of ${tests.length} failed` : `\nall ${tests.length} passed`);
+    console.log(`${failed ? `\n${failed} of ${tests.length} failed` : `\nall ${tests.length - held} passed`}${held ? ` (${held} held)` : ''}`);
     // Quit the way a user closes the window (before-quit saves session cookies, kills the pty), then set the code.
     app.on('will-quit', (e) => {
       e.preventDefault();

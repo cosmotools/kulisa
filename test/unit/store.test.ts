@@ -142,7 +142,7 @@ test('profiles: one store, a profile in several projects or none, each project l
   const undraw = drawing(bo.id, id, 'aaaaaa', 'bbbbbb', 'cccccc');
   try { assert.equal((all.create('shop', { name: 'Ben', avatar: 'cat' }) as StoredProfile).id, 'cccccc'); } finally { undraw(); }
   // Checked where it is made, whoever makes it; its picture the next free one of its project's unless given.
-  assert.match((all.create('shop', { name: 'Ann admin' }) as { error: string }).error, /only/);
+  assert.match((all.create('shop', { name: 'Ann/admin' }) as { error: string }).error, /only/);
   assert.match((all.create('shop', { name: 'Cy', description: 'x'.repeat(501) }) as { error: string }).error, /at most 500/);
   const cy = all.create('shop', { name: ' Cy ' }) as StoredProfile;
   assert.notEqual(cy.avatar, 'cat', "not the project's taken one (Ben's)");

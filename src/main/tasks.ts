@@ -14,7 +14,7 @@ import { READ_MAX } from './kulisa-plugin/mcp-server.ts';
 import { copyProfile } from './store.ts';
 import { renameBranch } from './worktrees.ts';
 import { extendTrust } from './agents/index.ts';
-import { installSkill } from './agents/files.ts';
+import { installSkill } from './agents/index.ts';
 import { nameError } from '../shared/names.ts';
 import { loginAllowed } from './local.ts';
 import { log } from './log.ts';
@@ -51,7 +51,7 @@ const HANDOVER = (n: number, name: string) => `Go on with the work of conversati
   'is done and what is next, and go on with it.';
 
 class Task {
-  shell: Shell; project: Project; entry: TaskEntry; n: number; key: string; folder: string; offset: number; store: TaskStore;
+  shell: Shell; project: Project; entry: TaskEntry; n: number; key: string; store: TaskStore;
   window: AppWindow | null; // the one whose tab it is (window.ts)
   loaded: boolean; terminalsLoaded: boolean;
   gitChecked: Promise<void>; // its project's repositories looked at as it loads (Project.checkGit), awaited by its agents
@@ -70,8 +70,6 @@ class Task {
     this.shell = shell; this.project = project; this.entry = entry; this.window = null;
     this.n = entry.n;
     this.key = `${project.id}/${this.n}`;
-    this.folder = entry.folder || project.folder; // its agent's: the copy of the default repository
-    this.offset = entry.offset || 0;
     this.store = shell.store.taskOf(project, this.n);
     this.loaded = false; this.terminalsLoaded = false; this.gitChecked = Promise.resolve();
     this.terminals = new Map(); this.terminalSeq = 0; // its island's terminals, by id, in their tabs' order
@@ -84,8 +82,32 @@ class Task {
   // lays them out; its agents' output goes there (window: send).
   moveTo(w: AppWindow) { for (const p of this.profiles.values()) p.moveTo(w.win); }
   get name() { return this.entry.name; }
-  // Still its first name (projects.ts): neither its agent nor the human has named it.
-  get unnamed() { return this.entry.name === `task-${this.n}`; }
+  // The name shown in the bar: the one it was given (task_rename / Rename…), or, until then, its first agent
+  // conversation's name (the agent's own auto-title, noteAutoTitle), falling back to its stored name ("New Task").
+  // Not entry.name, which a branch's slug is made from.
+  get displayName() {
+    if (this.entry.named) return this.entry.name;
+    const first = this.agentTerminals()[0];
+    return (first && this.conversationName(first)) || this.entry.name;
+  }
+  // Where its agent works: its own worktree once it has one (ensureWorktree), else the project's folder (the human's;
+  // a task without git stays there). It changes when the agent makes the worktree (task_worktree).
+  get folder() { return this.entry.folder || this.project.folder; }
+  // The task's own git worktree, made on demand (the agent's task_worktree), idempotent: created the first time (a
+  // branch of its own, so the agent's work does not touch the human's folder), the same one after. Its running agents
+  // are given the new folder (giveDirs), as an added repository is. name: the task's name when it is still unnamed, so
+  // the agent names it and makes the worktree in one call; the branch takes a slug of the name. Its { folder, branch }.
+  async makeWorktree(name?: string): Promise<Result<{ folder: string; branch: string }>> {
+    if (name && !this.entry.named) { const r = await this.rename(name); if (refused(r)) return r; }
+    const had = this.entry.copies?.some((c) => c.repo === this.project.folder) ?? false;
+    const c = await this.project.ensureWorktree(this);
+    if (refused(c)) return c;
+    if (!had) {
+      for (const t of this.agentTerminals()) if (t.pty) { (t.newDirs ??= []).push({ copy: c }); void this.giveDirs(t); }
+      this.window?.sendProjects();
+    }
+    return { folder: c.folder, branch: c.branch };
+  }
   // A new name, the agent's (task_rename) or the human's (Rename… on its tab): the name in the bar and its branch
   // of each of its copies (git branch -m; -2, -3 when another branch has it). Its folders stay: its agent may be
   // working there.
@@ -98,20 +120,10 @@ class Task {
       try { entry.branch = await renameBranch(entry.copies, name!); } catch (e) { return { error: (e as GitError).stderr || (e as Error).message }; }
     }
     entry.name = name!;
-    delete entry.about;
+    entry.named = true;
     this.project.save();
     this.window?.sendProjects();
     return { name: name!, branch: entry.branch || null };
-  }
-
-  // An unnamed task's first prompt (its first line), shown with its name until it has one: what it is about when its
-  // agent did not name it.
-  noteAbout(prompt: string) {
-    const line = prompt.split('\n').map((l) => l.trim()).find(Boolean);
-    if (!this.unnamed || this.entry.about || !line) return;
-    this.entry.about = line.length > 120 ? `${line.slice(0, 119)}…` : line;
-    this.project.save();
-    this.window?.sendProjects();
   }
 
   // What it takes to run a profile of this task (project-profiles.ts).
@@ -149,13 +161,12 @@ class Task {
         shell.proxy.removeProfile(p);
         await p.close();
       },
-      // Its first open in this task: a copy of its master (sign-ins included, caches left out: store.ts), its tabs those
-      // of the master moved to this task's ports. Masters are not worked in, so nothing is open in one to flush.
+      // Its first open in this task: a copy of its master (sign-ins included, caches left out: store.ts), with the
+      // master's tabs. Masters are not worked in, so nothing is open in one to flush.
       copy: async (e) => {
         await shell.flushMaster(e.cfg.id); // open to sign in to: what was done there is on disk
         await copyProfile(shell.profileStore.masterDir(e.cfg.id), e.cfg.dir);
-        const { urls, active } = this.store.tabs(e.cfg.id);
-        e.tabs = { urls: urls.map((u) => withOffset(u, this.offset)), active };
+        e.tabs = this.store.tabs(e.cfg.id);
         this.store.saveTabs(e.cfg.id, e.tabs);
       },
       tabsOf: (p) => p.savedTabs((t) => this.urlOf(t)),
@@ -316,13 +327,19 @@ class Task {
     if (w && !w.win.isDestroyed()) { w.win.webContents.focus(); w.send('terminal:focus'); }
     return true;
   }
-  // A tab's name: a shell's own; an agent's, the name it gave its conversation (nameConversation), else its agent's,
-  // numbered when another agent's tab has it too.
+  // An agent conversation's name: the one it was given (conversation_rename), else its own auto-title read from the
+  // transcript (noteAutoTitle); null when it has neither.
+  conversationName(t: TaskTerminal) {
+    const c = this.conversations()[t.conversation!];
+    return c?.title || c?.autoTitle || null;
+  }
+  // A tab's name: a shell's own; an agent's, its conversation's name, else its agent's, numbered when another agent's
+  // tab has it too.
   label(t: TaskTerminal) {
     if (!t.agent) return t.name;
-    const own = this.conversations()[t.conversation!]?.title;
+    const own = this.conversationName(t);
     if (own) return own;
-    const same = this.agentTerminals().filter((x) => !this.conversations()[x.conversation!]?.title && x.agent!.cli === t.agent!.cli);
+    const same = this.agentTerminals().filter((x) => !this.conversationName(x) && x.agent!.cli === t.agent!.cli);
     const n = same.indexOf(t) + 1;
     return n > 1 ? `${t.agent.cli} ${n}` : t.agent.cli;
   }
@@ -436,6 +453,20 @@ class Task {
     this.updateConversation(t.conversation!, { title: words.join(' ') });
     this.changedTerminals();
     return { name: words.join(' ') };
+  }
+  // The agent's own auto-title for a conversation, read from its transcript at a turn's end and at session start
+  // (agent-hooks.ts): shown on its tab, and on the task's tab while the task is unnamed, until a name is given
+  // explicitly. Best effort: never stored as the task's name, never a branch slug.
+  noteAutoTitle(t: TaskTerminal) {
+    if (!t.agent || t.conversation === undefined) return;
+    const c = this.conversations()[t.conversation];
+    if (!c || c.title || !c.transcript) return; // an explicit name wins; nothing to read yet
+    let title: string | null = null;
+    try { title = t.agent.title?.(c.transcript) ?? null; } catch (e) { console.warn('[agents] title:', (e as Error).message); }
+    if (!title || title === c.autoTitle) return;
+    this.updateConversation(t.conversation, { autoTitle: title });
+    this.changedTerminals();
+    this.window?.sendProjects();
   }
 
   // The tab in front, chosen by the human, or a new one they opened.
@@ -598,11 +629,11 @@ class Task {
   }
 
   // What its terminals get in their environment: where Kulisa's MCP server and hooks are for this task (the Kulisa
-  // plugin reads them, other agent CLIs can too), its name, and the offset for the ports of the app it runs. An agent's
-  // terminal has URLs of its own (t), so its hooks report its own state and it names its own tab.
+  // plugin reads them, other agent CLIs can too), and its name. An agent's terminal has URLs of its own (t), so its
+  // hooks report its own state and it names its own tab.
   env(t?: TaskTerminal) {
     const base = `${this.shell.mcp.base}/task/${encodeURIComponent(this.project.id)}/${this.n}${t ? `/t/${t.id}` : ''}`;
-    return { KULISA_MCP_URL: `${base}/mcp`, KULISA_URL: base, KULISA_TASK: this.name, KULISA_PORT_OFFSET: String(this.offset) };
+    return { KULISA_MCP_URL: `${base}/mcp`, KULISA_URL: base, KULISA_TASK: this.name };
   }
   // Its terminals stopped (kept for when it loads again), its profiles saved and closed (its project closes, or the task
   // is deleted). Its tabs are saved first, as they are: closing them one by one changes the profiles, and nothing is
@@ -735,24 +766,26 @@ class Task {
   async dropProfile(id: string) { return this.loaded ? this.list.drop(id) : this.store.dropProfile(id); }
 
   info(): Sent.TaskInfo {
-    const { n, key, name, tabState: state, folder, offset } = this;
-    return { n, key, project: this.project.id, name, state, folder, offset, branch: this.entry.branch || null, closed: !!this.entry.closed, merged: !!this.entry.merged,
-      about: this.entry.about, repos: this.addable(),
-      copies: (this.entry.copies || []).map((c) => ({ name: path.basename(c.repo), folder: c.folder, branch: c.branch })) };
+    const { n, key, displayName: name, tabState: state, folder } = this;
+    return { n, key, project: this.project.id, name, state, folder, branch: this.entry.branch || null, closed: !!this.entry.closed, merged: !!this.entry.merged,
+      repos: this.addable(), resources: this.resources() };
+  }
+  // The task's resources, for the Resources island (Resources.vue): the default repository's worktree if it has made
+  // one, else the main working tree it still works in; then each added repository's worktree (task_add_repository).
+  // The main working tree and the task's own worktree are not removed from here (the latter goes with the task); an
+  // added repository's worktree is (task_remove_repository).
+  resources(): Sent.TaskResource[] {
+    const copies = this.entry.copies || [];
+    const own = copies.find((c) => c.repo === this.project.folder);
+    const rows: Sent.TaskResource[] = [own
+      ? { kind: 'worktree', label: path.basename(own.repo), folder: own.folder, branch: own.branch, removable: false }
+      : { kind: 'maintree', label: path.basename(this.project.folder), folder: this.project.folder, branch: null, removable: false }];
+    for (const c of copies.filter((c) => c.repo !== this.project.folder)) {
+      rows.push({ kind: 'worktree', label: path.basename(c.repo), folder: c.folder, branch: c.branch, removable: true });
+    }
+    return rows;
   }
 }
 
-// A URL of the app under test moved to another task's ports: a local address with a port moves by shift, the
-// difference of the two tasks' offsets (localhost:3000 → localhost:3100). Cookies do not depend on the port, so the profile stays signed in to the app.
-function withOffset(url: string, shift: number) {
-  if (!shift) return url;
-  try {
-    const u = new URL(url);
-    if (!u.port || !/^(localhost|127(\.\d+){3}|\[::1\])$|\.localhost$/.test(u.hostname)) return url;
-    u.port = String(Number(u.port) + shift);
-    return u.href;
-  } catch { return url; }
-}
-
 export type { TaskTerminal };
-export { Task, withOffset };
+export { Task };

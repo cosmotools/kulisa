@@ -38,7 +38,7 @@ replace a region left by the page before.
 ## The tasks' bar
 
 Under the grid, in the middle: a tab per open task (its project's icon, its agent's state, its name, ×:
-[tasks.md](tasks.md), Projects), then +, a new tab: the board, every project's tasks, where one is made or opened again (tasks.md, Projects). ☰ → **Tasks bar: Top, Bottom** puts it in the
+[tasks.md](tasks.md), Projects), then +, the new-task menu: every project's tasks, where one is made or opened again (tasks.md, Projects). ☰ → **Tasks bar: Top, Bottom** puts it in the
 title bar instead, after the logo, as a browser's tabs are (no row of its own; `settings.json`: `bar`; the page gets it in its URL, so it is drawn in its place at once;
 `App.vue` puts `TaskBar.vue` in `TopBar.vue`'s slot or under the grid). Bottom is the
 default, on macOS too: the hand goes to the terminal under the grid all the time, so the tabs are where it already is,
@@ -294,11 +294,8 @@ name, its state (an agent's: working, waiting for you, done), ×; each its name 
 scroll, as a strip of tabs does (`.tabstrip`, [ui.md](ui.md); dockview's tab keeps `min-width: 0`, or it grows to its
 content and the tabs run past the island, + and the microphone with them). After the tabs, the island's own **+**, whatever
 tab is in front (a menu of the project's accounts, the default first, each a new conversation; then Terminal, a
-shell). At the row's end, in a project of several repositories, the task's copies of them, a `.chip` each (its
-name; its folder and branch in its tooltip; `TaskRepos.vue`): which repositories it works in, seen without asking. One
-added (Add Repository, or its agent's `task_add_repository`) comes in from the right, lit in the accent color for a
-moment (`.fresh`; not with reduced motion), so the human sees it arrive; another task shown is no news. An added one's
-right-click menu: Remove Repository (the task's own folder has none). Last in the row, the dictation's microphone
+shell). What repositories the task works in and where is in the Resources island beside the terminal (`Resources.vue`;
+tasks.md), not in this row. Last in the row, the dictation's microphone
 (Dictation, below). The agent's icon opens **Change Agent**, a dialog
 (the project's accounts: the one chosen opens in a new tab, told to go on with this conversation; [tasks.md](tasks.md),
 "Several agents in a task"). An agent's × asks first; a shell's closes it.
@@ -329,7 +326,7 @@ and why in its [README](../src/terminal/README.md). The island is the task's: it
 **Shells**: the human's (+ → Terminal, `Terminal`, `Terminal 2` …) and what an agent keeps running for the human to
 see (`terminal_run`: the app's dev server, `docker compose up`), behind the tab in front so the human goes on
 watching the agent. Each is the user's shell in the task's folder with the agent's environment
-(`KULISA_PORT_OFFSET`), the command typed in, so the human can stop it, type into it and read it as in their own
+(`KULISA_MCP_URL`, `KULISA_URL`, `KULISA_TASK`), the command typed in, so the human can stop it, type into it and read it as in their own
 terminal; an agent reads its last lines as the screen shows them (`terminal_read`, colors left out) and presses Ctrl+C (`terminal_stop`), in
 shells only, never another agent's tab. Why not the agent's own background shell: some agents cannot keep a process
 running (Codex waits on it), and the human does not see what runs there. The task closing ends what runs in it. As
@@ -353,7 +350,7 @@ window told (`keys:set`, `shell.keys()`; `Shortcuts.vue`). With a shell in front
 goes to in front first (`Task.holdKey`, `promptTarget`), so it always means "speak to the agent".
 
 The key's indicator, and the way by the mouse, is the round microphone at the end of the terminals' row of tabs
-(`Dictation.vue`, after the task's repositories): its tooltip names the key and the language it hears (Language,
+(`Dictation.vue`): its tooltip names the key and the language it hears (Language,
 above); while the agent records it is red and breathes with a ring (`mic-breathe`; not with reduced motion), so the
 eye catches from across the window that the agent is listening. It works as a voice message's button too: held, or
 a click to start and another to stop. With a shell in front, or an agent without dictation, it is disabled, its
@@ -391,7 +388,7 @@ it, before or after.
   Chrome. Closing or switching a tab from the page leaves the keyboard in the page shown next.
 - **Everywhere, the terminal too**: Ctrl+` to the terminal in front and back to the page used last (on the folded
   island, a new conversation of the task's agent), Ctrl+Shift+` a new terminal, Ctrl+Shift+1…9 the bar's first to ninth tab, Ctrl+Shift+PgDn / PgUp the next or previous
-  one (in the bar's order), Ctrl+Shift+N a new task of the shown task's project, Ctrl+Shift+A the bar's + (a new tab: the board; again, back),
+  one (in the bar's order), Ctrl+Shift+N a new task of the shown task's project, Ctrl+Shift+A the bar's + (the new-task menu; again, back),
   Ctrl+Shift+/ the list; the right Ctrl (right ⌘ on macOS) held alone, speak to the agent (The terminal, Dictation:
   the one key the human may change, in the list). Ctrl+Shift+… and Ctrl+` are
   what agents and sites leave alone; Alt+letters are Claude Code's (Alt+V, Alt+P, Alt+T), Ctrl+Alt+arrows GNOME's,
@@ -643,6 +640,7 @@ shortcuts carry (`com.squirrel.kulisa.kulisa`), or Windows would not pin it to t
 | `src/main/updates.ts`, `installed.ts`, `forge.config.ts` | updates, Squirrel's events, a new version ready while Kulisa runs (the version installed on disk); the installers and the release |
 | `src/terminal/` | the terminal, a Kulisa package: its pty, its buffers, the xterm shown ([README](../src/terminal/README.md)) |
 | `src/renderer/components/Grid.vue`, `grid/*.vue`, `lib/grid.ts` | the grid (dockview), the panes and their headers, the island of terminals (`Terminals.vue`, its row of tabs `TerminalTabs.vue`), the closed profiles' tiles over it (`ClosedProfiles.vue`), Arrange panels |
+| `src/renderer/components/Resources.vue` | the Resources island beside the terminal: the shown task's resources (its worktree(s) or the main working tree), each with its actions (tasks.md) |
 | `src/renderer/components/TopBar.vue`, `menu/*.vue` | the title bar, ☰ and its own rows |
 | `src/renderer/components/menu/*.vue`, `Modal.vue`, `Ask.vue`, `lib/menu.ts`, `cover.ts`, `views.ts`, `ask.ts`, `terminals.ts`, `voice.ts` | the menus, the dialogs and questions (Reka UI's: `cover.ts`), the pages under them in a tasks' window (`views.ts`), a tasks' window's island (`terminals.ts`), dictation |
 | `src/renderer/lib/keys.ts`, `components/Shortcuts.vue` | where the keyboard is, the commands the keys run; Keyboard Shortcuts |

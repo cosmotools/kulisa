@@ -83,6 +83,7 @@ export interface Invoke extends ThumbnailInvoke, GitHubInvoke {
   'task:add-repo': I<[{ key: string; repo: string }]>;
   'task:remove-repo': I<[{ key: string; repo: string }]>;
   'task:show-folder': I<[key: string]>;
+  'task:open-folder': I<[{ key: string; folder: string }]>; // a resource's folder (Resources.vue), checked to be the task's
   'app:quit': I<[]>;
   'voice:get': I<[key: string], Voice | null>;
   'voice:record': I<[{ task: string; on: boolean }], Voice>;

@@ -11,9 +11,12 @@
 //                            "github.com/acme/shop" -> an account's id, src/github). What a project is made of is said
 //                            here alone
 //   projects/<id>/
-//     tasks.json             the project's tasks: { next, list: [{ n, name, branch, offset, folder,
+//     tasks.json             the project's tasks: { next, list: [{ n, name, named, branch, folder,
 //                            copies: [{ repo, worktree, branch, base, folder }], home, closed, closedAt }] }; one
-//                            without copies works in a folder of the project (tasks.md)
+//                            without copies works in a folder of the project (tasks.md); name "New Task" and named
+//                            unset until the agent or the human names it. The app runs on a free port the agent picks,
+//                            no offset of Kulisa's
+
 //     <n>/                   a task (TaskStore): profiles.json (what it has of its project's profiles: id, sites'
 //                            zoom, closed), layout.json (the window's grid), agent.json (its agents' conversations,
 //                            to resume and read them), terminals.json (its island's tabs), and a copy of a profile's
@@ -56,9 +59,8 @@ interface ProjectEntry {
 interface Copy { repo: string; worktree: string; branch: string; base: string | null; folder: string }
 // A task in its project's tasks.json.
 interface TaskEntry {
-  n: number; name: string; branch?: string | null; offset: number; folder?: string; copies?: Copy[]; home?: string;
+  n: number; name: string; named?: boolean; branch?: string | null; folder?: string; copies?: Copy[]; home?: string;
   closed?: boolean; closedAt?: number; merged?: boolean;
-  about?: string; // the human's first prompt's first line, until it is named (Task.noteAbout)
 }
 interface TasksFile { next: number; list: TaskEntry[] }
 // A window as settings.json keeps it: its tasks by key ("<project id>/<n>", tasks.ts) in the bar's order, the shown
@@ -70,9 +72,10 @@ interface Settings { uiZoom?: number; theme?: 'dark' | 'light' | 'system'; bar?:
 interface TaskProfile { id: string; zoom?: Record<string, number>; closed?: boolean }
 // A task's agents (tasks.ts): the one it was made with (opened when its island has never had a terminal), and every
 // conversation an agent had in it, oldest first, numbered from 1 in task_history: its account, its session as its
-// hooks reported it (agent-hooks.ts), when, the name the agent gave it, and the terminal it is open in (none: closed).
+// hooks reported it (agent-hooks.ts), when, the name the agent gave it (title) or its own auto-title read from its
+// transcript (autoTitle, shown until title is given), and the terminal it is open in (none: closed).
 interface Conversation {
-  agent: string; sessionId?: string; transcript?: string; started?: boolean; from: number; to?: number; title?: string; terminal?: number;
+  agent: string; sessionId?: string; transcript?: string; started?: boolean; from: number; to?: number; title?: string; autoTitle?: string; terminal?: number;
 }
 interface AgentFile { agent?: string | null; conversations?: Conversation[] }
 // Its island's terminals, in their tabs' order, and the one in front (tasks.ts): a shell has its name; an agent's, its

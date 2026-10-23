@@ -23,7 +23,7 @@ export default (test: Test) => {
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
     await click(ui, `document.querySelector('#projectTabs .tasktab[data-task="${tkey('project', 2)}"]')`);
     await waitFor(() => shell.task === second && second.loaded && second.pty);
-    assert.equal(second.folder, `${project}@task-2`);
+    assert.equal(second.folder, `${project}@feature-x`); // named Feature-X, its worktree made in the tasks group
     assert.deepEqual([...shell.profiles.keys()], [idOf('Sam.admin'), idOf('Elon.buyer')]);
     await ctx.call('browser_navigate', { profile: 'Sam.admin', url: `${SITE}/app` });
     assert.equal(await who(ctx, 'Sam.admin'), 'Signed in as master'); // its master's, brought by Refresh from Master…

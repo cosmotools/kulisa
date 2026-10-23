@@ -214,7 +214,7 @@ function start(options: Options = {}) {
   };
   // And its tasks (the board lists them: newtab/): those open, as made, then the closed ones, the one closed last first.
   const tasksOf = (p: ProjectEntry) => {
-    const list = store.tasksOf(p).list.map(({ n, name, branch, closed, closedAt, merged, about }) => ({ n, name, branch, closed: !!closed, closedAt, merged: !!merged, about }));
+    const list = store.tasksOf(p).list.map(({ n, name, branch, closed, closedAt, merged }) => ({ n, name, branch, closed: !!closed, closedAt, merged: !!merged }));
     return [...list.filter((t) => !t.closed), ...list.filter((t) => t.closed).sort((a, b) => (b.closedAt || 0) - (a.closedAt || 0))];
   };
   shell.projects = () => store.projects().map((p) => {

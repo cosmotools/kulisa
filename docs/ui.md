@@ -86,7 +86,7 @@ Each icon is drawn once, as a `<symbol id="i-…">` in the sprite (`Sprite.vue`,
 | Icon | Where |
 |---|---|
 | `i-close` | × of dialogs, profiles, tabs, tasks |
-| `i-plus` | a pane's new tab, the bar's + (a new tab: the board) and the New Tab's own icon, a project's new task (its column's +), a new terminal (the island's +); adding to a section of a dialog |
+| `i-plus` | a pane's new tab, the bar's + (the new-task menu), a project's new task (its column's + in the board), a new terminal (the island's +); adding to a section of a dialog |
 | `i-settings` | Settings in the title bar (Lucide's settings) |
 | `i-projects` | ☰'s Tasks bar row (Lucide's folder-open) |
 | `i-logo` | the app icon with its curtain in `currentColor`: the title bar's (`--project`; not on macOS, whose apps show their icon in the Dock), and a project's label in the tasks' bar (its `--color`). The folds are a shadow over the color, one for every color: a `<use>` takes the sprite's gradient, not one of its own |
@@ -162,9 +162,8 @@ the browser's own `until-found` apart): a component's `display` beats the browse
 - `.dots`: where one is in a few slides or steps, a short bar each, lit up to the one shown (an `ol`, `li.on`): the
   welcome's slides and its steps.
 - `.chip`: a thing named in a pill, its icon first (14 px, muted), `--font-small`: what goes along to another agent
-  (Change Agent), a task's repositories at the end of its terminals' row (`TaskRepos.vue`). A name the human gave (a
-  folder, a branch) goes in a `.name` inside it: cut with … past 14em, the whole in the chip's tooltip; a row of chips
-  gives way before what is beside it (the terminals' tabs).
+  (Change Agent). A name the human gave (a folder, a branch) goes in a `.name` inside it: cut with … past 14em, the
+  whole in the chip's tooltip; a row of chips gives way before what is beside it (the terminals' tabs).
 
 ### Controls
 
@@ -290,13 +289,14 @@ menu opened puts it on what had it before, the terminal. While one is open, the 
 
 Items (`lib/menu.ts`, laid out by `menu/MenuRows.vue`) are `{ label, sub, keys, title, icon, color, avatar, project, inset,
 enabled, run, remove }` (`MenuButton.vue`; `keys`: the row's key at its end, from the keys' table: `keyText(id)`, `lib/common.ts`), `'-'` (a divider), `{ heading, icon }`, `{ note }` (small dim words
-under the rows, not one of them: ☰'s version, so nothing looks clickable that is not), `{ submenu, items, project }` (a row with a chevron at its end
+under the rows, not one of them: ☰'s version, so nothing looks clickable that is not), `{ submenu, items, project, run }` (a row with a chevron at its end
 opening a menu of its own at its side, Reka's Sub parts, its rows the same items: a task tab's menu holds its project's
-rows so, under the project's icon and name) or `{ component, props }` (a row
+rows so, under the project's icon and name; `run` makes a click on the row itself act and close the menu, hover still
+opening the submenu — a project in the bar's +: click makes a new task of it, hover shows its tasks) or `{ component, props }` (a row
 of its own: ☰'s zoom, theme, tasks' bar, language (a menu beside it: Reka's submenu, its rows `MenuButton`s, the
 chosen one checked) and arrangements, `components/menu/`, built of Reka's menu items; − and + and the choices leave the menu open);
 `title` its tooltip (the native one, as every tooltip); `icon` is the sprite's id, at the row's start; `project` a project's icon in its color there (`ProjectIcon.vue`,
-`.picon`); `remove` puts a 🗑 at the row's end (`.remove`, on the row the pointer or the keyboard is on, `:focus-visible` too; Delete too) that runs it instead of `run`, the menu closing as for any row (a closed task's, deleted); `inset` sets a row in under the one above, its text under that one's; rows are `.item`, lit as Reka highlights them
+`.picon`); `remove` puts a 🗑 at the row's end (`.remove`, on the row the pointer or the keyboard is on, `:focus-visible` too; Delete too) that runs it instead of `run`, the menu closing as for any row (a task's, deleted); `inset` sets a row in under the one above, its text under that one's; rows are `.item`, lit as Reka highlights them
 (`[data-highlighted]`).
 
 ### Panels
@@ -324,7 +324,7 @@ every handle's (CLAUDE.md, "One core"). A single component is no cluster.
 | `settings/` | `Settings.vue` | Settings' window: the tree, a project's, an agent's and a profile's page, GitHub's |
 | `newproject/` | `Wizard.vue`, `NewProject.vue` | New Project's steps (Code, Agents, Profiles; `wizard.ts` their state): the welcome's and the dialog |
 | `welcome/` | `Welcome.vue` | the first start, no project at all: what Kulisa does in three slides (`Tour.vue`), then New Project's steps (`Wizard.vue`, its head a question each); the empty window's (`Empty.vue`) |
-| `newtab/` | `Board.vue` | the board: every project a column (an island, as the grid's panels) with its tasks as `.item` rows, a new tab's and the empty window's |
+| `newtab/` | `Board.vue` | the board: every project a column (an island, as the grid's panels) with its tasks as `.item` rows, the empty window's |
 
 New Project's steps (`.wizard`) are a form: the steps over it (`.steps`, the one shown `aria-current`; the welcome puts
 its own head there, the `head` slot), one step at a time, its buttons in a dialog's `footer` (Back at the start, Cancel

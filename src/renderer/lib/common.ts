@@ -1,7 +1,7 @@
 // What several parts of the window use: what came in its URL (window.ts, load), the keys as this OS shows them,
 // the pictures' and icons' names.
 import { reactive } from 'vue';
-import type { ProjectsInfo, Shortcut } from '../../shared/types';
+import type { ProjectEntry, ProjectsInfo, Shortcut } from '../../shared/types';
 
 const query = new URLSearchParams(location.search);
 // The projects open in this window, before the first paint; later the main process sends them (store.ts).
@@ -23,4 +23,6 @@ export const LINKS = [
 ];
 
 export const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? '' : 's'}`;
+// A project's sort key for "worked in last first" (NewTask.vue, Board.vue): an open task → Infinity, else its last close.
+export const lastWorked = (p: ProjectEntry): number => (p.tasks.some((t) => !t.closed) ? Infinity : Math.max(0, ...p.tasks.map((t) => t.closedAt ?? 0)));
 export const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');

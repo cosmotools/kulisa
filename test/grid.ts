@@ -2,7 +2,7 @@
 import electron, { clipboard } from 'electron';
 import fs from 'fs';
 import path from 'path';
-import { MAC, CMD, shot, assert, root, userData, project, pid, tkey, pfile, idOf, SITE, sleep, waitFor, who, menuRows, choose, MENU, SUBMENU, menuOpen, rightClick, box, pageBox, viewOn, dock, press, projectTabs, projectTab, showProject, closeProject, savedWindows, closeMenu, plusMenu, closeBoard, focusWindow } from './helpers.ts';
+import { MAC, CMD, shot, assert, root, userData, project, pid, tkey, pfile, idOf, SITE, sleep, waitFor, who, menuRows, choose, MENU, SUBMENU, menuOpen, rightClick, box, pageBox, viewOn, dock, press, projectTabs, projectTab, showProject, closeProject, savedWindows, closeMenu, plusMenu, plusRows, closeBoard, focusWindow } from './helpers.ts';
 import type { Test } from './run.ts';
 import type { UI } from './helpers.ts';
 
@@ -98,13 +98,13 @@ export default (test: Test) => {
     assert.equal(shell.profiles.size, 0);
     assert.ok(sam.tabs.every((t) => !t.wc.isDestroyed()) && !sam.get().view.getVisible(), "the first project's pages keep running, hidden");
     assert.equal(shell.open.get(pid('project')).tasks.get(1).pty, firstPty, "and its agent");
-    assert.equal(shell.win.getTitle(), 'task-1 · other — Kulisa');
+    assert.equal(shell.win.getTitle(), 'New Task · other — Kulisa');
     assert.equal(shell.resumedSession, null, 'a new project has no conversation to resume');
     await waitFor(async () => JSON.stringify(await projectTabs(ui)) === '["project","other *"]' && ui(`!!window.__dock.getPanel('terminal')`));
     assert.equal(await ui(`document.querySelectorAll('.pane').length`), 0);
     // A tab per task, its project's icon on it, its name in its tooltip.
     assert.deepEqual(await ui(`[...document.querySelectorAll('#projectTabs .tasktab')].map((g) => [g.querySelector('.picon use')?.getAttribute('href'), g.querySelector('.name').textContent, g.title.split('\\n')[0]])`),
-      [['#i-logo', 'task-1', 'project'], ['#i-logo', 'task-1', 'other']]);
+      [['#i-logo', 'task-1', 'project'], ['#i-logo', 'New Task', 'other']]);
     // Every island keeps its place and width whichever task is shown, also while it switches: nothing jumps.
     const islands = () => ui(`[...document.querySelectorAll('#projectTabs .tasktab')].map((t) => { const r = t.getBoundingClientRect(); return [r.x, r.width]; })`);
     const before = await islands();
@@ -119,24 +119,15 @@ export default (test: Test) => {
     await ctx.call('browser_navigate', { profile: 'Sam.seller', url: `${SITE}/app` });
     assert.equal(await who(ctx, 'Sam.seller'), 'Signed out', "the first project's sign-ins stay there");
 
-    // The button after the tabs: +, a new tab, as a browser's, at the end of the bar: every project, a column each
-    // (a task is made of one), its tasks in it (both open here: shown, not to choose), New Project… last. The task
-    // under it stays as it is, its pages hidden.
-    const names = shell.store.projects().map((p) => p.name);
-    const rows: string[] = await plusMenu(ui);
-    assert.deepEqual(rows.filter((r) => !r.startsWith('  ')), [...names, 'New Project…']);
-    assert.ok(rows.includes('  task-1 (open)'), 'an open task: shown, not to choose');
-    assert.equal(await ui(`[...document.querySelectorAll('#projectTabs .striptab')].at(-1).id`), 'newtabtab', 'its tab last, chosen');
-    assert.equal(await ui(`document.querySelector('#projectTabs .striptab.active').id`), 'newtabtab');
-    const pages = () => [...shell.profiles.values()].map((p) => p.get().view.getVisible());
-    await waitFor(() => pages().length && pages().every((v) => !v)); // the task's pages hidden under it
-    await closeBoard(ui);
-    await waitFor(() => pages().every((v) => v));
-    // Ctrl+Shift+A opens it too, from anywhere; again closes it.
+    // The bar's + (NewTask.vue): a dropdown menu — every project (a submenu each when several are open), New Project…
+    // last; a project's submenu lists its tasks (an open one shown, not to choose) and New Task.
+    assert.deepEqual([...await plusMenu(ui)].sort(), ['New Project…', 'other', 'project']);
+    assert.deepEqual(await plusRows(ui, 'project'), ['task-1', 'New Task']);
+    // Ctrl+Shift+A opens the + menu from anywhere; again closes it.
     press(shell.win.webContents, 'A', CMD, 'shift');
-    await waitFor(() => ui(`document.documentElement.dataset.page === 'newtab'`));
+    await waitFor(() => ui(`!!document.querySelector('.menu[data-state="open"]')`));
     press(shell.win.webContents, 'A', CMD, 'shift');
-    await waitFor(() => ui(`document.documentElement.dataset.page === 'task'`));
+    await waitFor(async () => !(await ui(`!!document.querySelector('.menu[data-state="open"]')`)));
     await ui('__islands.clear(); 0'); // a new tab is a tab more in the bar, as a task's: watched from here on
     await showProject(ui, 'other');
     await waitFor(() => shell.current?.folder === other && !shell.windows[0].switching);
@@ -248,7 +239,7 @@ export default (test: Test) => {
     assert.deepEqual(await projectTabs(ui), ['project *']);
     assert.equal(moved.window, second);
     await waitFor(async () => JSON.stringify(await projectTabs(ui2)) === '["other *"]');
-    assert.equal(second.win.getTitle(), 'task-1 · other — Kulisa');
+    assert.equal(second.win.getTitle(), 'New Task · other — Kulisa');
     assert.equal(task.pty, pty, 'the same agent');
     assert.equal(task.profiles.get(idOf('Sam.seller')), seller, 'the same profile');
     const view = seller.get().view;
@@ -310,7 +301,7 @@ export default (test: Test) => {
 
     // A closed task opened again: a tab in this window, nothing asked where; Move to New Window takes it away.
     ctx.asked.length = 0;
-    await plusMenu(ui, 'other', 'task-1');
+    await plusMenu(ui, 'other', 'New Task');
     await waitFor(() => shell.current?.id === pid('other') && shell.task?.n === 1 && shell.task.pty && !first.switching);
     assert.equal(ctx.asked.length, 0, 'no question where');
     assert.deepEqual(await projectTabs(ui), ['project', 'other *']);
@@ -330,7 +321,7 @@ export default (test: Test) => {
     await waitFor(() => ctx.asked.length && third.win.webContents.executeJavaScript(`!(document.getElementById('ask')?.dataset.state === 'open')`));
     const q = ctx.asked.pop();
     assert.equal(q.message, 'Close the window?');
-    assert.match(q.detail, /Its tasks close: task-1\./);
+    assert.match(q.detail, /Its tasks close: New Task\./);
     assert.ok(!third.win.isDestroyed() && shell.open.has(pid('other')), 'still open when the human says no');
     ctx.answer = true;
     third.win.close();

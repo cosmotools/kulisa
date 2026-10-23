@@ -69,8 +69,11 @@ export default (test: Test) => {
     // The smallest window has 640×400 for the UI at any zoom: New Project keeps its buttons and Browse… in it, each kind.
     win.setSize(800, 500);
     await waitFor(async () => (await ui(`innerHeight`)) === 400);
-    await plusMenu(ui);
-    await ui(`document.getElementById('boardnewproject').click()`);
+    // A task shown: New Project… in the bar's + dropdown; the empty window: the board's own button.
+    if (await ui(`!!document.getElementById('newTask')`)) {
+      await plusMenu(ui);
+      await ui(`[...document.querySelectorAll('.menu[data-state="open"] [role="menuitem"]')].find((r) => r.querySelector('.label')?.textContent === 'New Project…').click()`);
+    } else await ui(`document.getElementById('boardnewproject').click()`);
     await waitFor(() => ui(`document.getElementById('newproject')?.dataset.state === 'open' && !!document.getElementById('npname')`));
     for (const from of ['new', 'folder', 'clone']) {
       await ui(`document.querySelector('#npfrom [data-value="${from}"]').click()`);

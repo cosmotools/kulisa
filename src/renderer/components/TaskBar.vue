@@ -6,8 +6,7 @@
 // Under the grid, or in the title bar: App.vue puts it in one place or the other (☰ → Tasks bar).
 import { computed, ref, watch } from 'vue';
 import TaskTab from './TaskTab.vue';
-import { TabsList, TabsRoot, TabsTrigger } from 'reka-ui';
-import Icon from './Icon.vue';
+import { TabsList, TabsRoot } from 'reka-ui';
 import NewTask from './NewTask.vue';
 import RightClickMenu from './menu/RightClickMenu.vue';
 import { store } from '../lib/store';
@@ -27,7 +26,7 @@ const tabs = computed(() => {
 });
 // More tabs than fit: the wheel scrolls them, the edges with tabs past them fade, the shown one stays in sight
 // (lib/strip.ts).
-useStrip(strip, () => (store.newTab ? 'newtab' : store.current));
+useStrip(strip, () => store.current);
 
 // A press on another tab makes it the chosen one at once, as Chrome's; its task is shown when the button is let go or
 // the tab starts being dragged (pointercancel), whichever comes first: the grid's slide that showing it starts makes
@@ -39,7 +38,6 @@ const pressed = ref<string | null>(null);
 watch(() => store.current, (current) => { if (current === pressed.value) pressed.value = null; });
 function pointerdown(e: PointerEvent) {
   const at = e.button === 0 && !e.ctrlKey && e.pointerType === 'mouse' && !(e.target as Element).closest('button') && tabAt(e);
-  if (at && at.t.key === store.current) store.newTab = false; // back to it from a new tab
   if (!at || at.t.key === store.current) return;
   pressed.value = at.t.key;
   const done = new AbortController(), show = async () => {
@@ -50,11 +48,8 @@ function pointerdown(e: PointerEvent) {
   for (const type of ['pointerup', 'pointercancel']) addEventListener(type, show, { signal: done.signal });
 }
 const showTask = (key: string | number) => {
-  if (key === NEW) return;
-  if (key === store.current) store.newTab = false;
-  else if (key !== pressed.value) void kulisa.invoke('task:show', String(key));
+  if (key !== store.current && key !== pressed.value) void kulisa.invoke('task:show', String(key));
 };
-const NEW = 'newtab'; // the new tab's value among the tabs
 const manage = (id?: string) => openSettings('projects', id);
 
 // The task whose tab an event was on (TaskTab.vue handles a tab's own clicks).
@@ -83,14 +78,14 @@ const moveRows = (to: (id: number | null) => unknown, { enabled = true } = {}): 
   { label: 'Move to New Window', enabled: enabled && store.projects.tabs.length > 1, run: () => to(null) },
   ...(store.projects.windows || []).map((w) => ({ label: `Move to Window: ${w.name}`, enabled, run: () => to(w.id) })),
 ];
-const taskMenu = ({ key, name, repos, copies, folder }: TaskInfo): MenuItem[] => [
+const taskMenu = ({ key, name, repos, resources }: TaskInfo): MenuItem[] => [
   ...(key === store.current ? [{ heading: 'Profiles' }, ...profilesMenu(), '-' as const] : []),
   // The project's repositories it has no copy of, one added when its work needs it (tasks.md, Tasks).
   ...(repos.length ? [{ heading: 'Add Repository' }, ...repos.map((r) => ({ label: r.split(/[\\/]/).pop()!, title: r,
     run: () => kulisa.invoke('task:add-repo', { key, repo: r }) })), '-' as const] : []),
-  // Those added, not its own folder: that goes with the task.
-  ...(copies.some((c) => c.folder !== folder) ? [{ heading: 'Remove Repository' }, ...copies.filter((c) => c.folder !== folder)
-    .map((c) => ({ label: c.name, title: c.folder, run: () => kulisa.invoke('task:remove-repo', { key, repo: c.folder }) })), '-' as const] : []),
+  // Those added (removable resources), not the task's own worktree or the main tree: those are not removed here.
+  ...(resources.some((r) => r.removable) ? [{ heading: 'Remove Repository' }, ...resources.filter((r) => r.removable)
+    .map((r) => ({ label: r.label, title: r.folder, run: () => kulisa.invoke('task:remove-repo', { key, repo: r.folder }) })), '-' as const] : []),
   { label: 'Rename…', run: () => rename(key, name) },
   { label: 'Show Folder', run: () => kulisa.invoke('task:show-folder', key) },
   '-', ...moveRows((to) => kulisa.invoke('task:move', { key, to, terminals: terminalsOf(key) })),
@@ -159,16 +154,12 @@ function dragend(e: DragEvent) {
 <template>
   <nav id="taskbar" aria-label="Open tasks">
     <!-- Every open task a tab (Reka's Tabs): the shown one chosen; a press on another shows it. -->
-    <RightClickMenu :items="menu"><TabsRoot as-child :model-value="store.newTab ? NEW : store.current ?? undefined" activation-mode="manual"
+    <RightClickMenu :items="menu"><TabsRoot as-child :model-value="store.current ?? undefined" activation-mode="manual"
       @update:model-value="showTask"><TabsList as-child :loop="false">
       <div id="projectTabs" ref="strip" class="tabstrip" @dblclick="dblclick" @auxclick="auxclick" @pointerdown="pointerdown"
         @dragstart="dragstart" @dragover="dragover" @dragleave="dragleave" @drop="drop" @dragend="dragend">
-        <TaskTab v-for="{ p, t } in tabs" :key="t.key" :t :p :active="t.key === (pressed ?? (store.newTab ? null : store.current))" :data-project="p.id" :style="{ '--color': projectColor(p) }"
+        <TaskTab v-for="{ p, t } in tabs" :key="t.key" :t :p :active="t.key === (pressed ?? store.current)" :data-project="p.id" :style="{ '--color': projectColor(p) }"
           draggable="true" :class="{ dragging: dragged === t.key, 'drop-before': mark?.key === t.key && mark.side === 'before', 'drop-after': mark?.key === t.key && mark.side === 'after' }" />
-        <TabsTrigger v-if="store.newTab" :value="NEW" as-child><div id="newtabtab" class="tasktab striptab active">
-          <Icon class="picon" name="i-plus" /><span class="name">New Tab</span>
-          <button class="close icon quiet small" aria-label="Close" title="Close: back to the task" @mousedown.prevent @click="store.newTab = false"><Icon name="i-close" /></button>
-        </div></TabsTrigger>
       </div>
     </TabsList></TabsRoot></RightClickMenu>
     <NewTask />
