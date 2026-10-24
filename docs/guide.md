@@ -127,7 +127,8 @@ its page in Settings.
 Everything is saved as you change it; there is no Save button.
 
 - **Name**.
-- **Code**: its repositories or folders. **+** adds one (Add Folder…, Clone from URL…), **−** removes the selected
+- **Folders**: its repositories or plain folders, all alike, with git or without. **+** adds one (Add Folder…, Clone from URL…,
+  which clones next to the default folder), **−** removes the selected
   one from the project (its folder stays), **★** makes it the default: a new task gets a copy of it, and the agent
   starts there; a task adds the others when it needs them (Tasks, below). Each repository on GitHub shows the GitHub
   account it goes as (GitHub, below): Kulisa picks the first of yours that can reach it, and you can choose another
@@ -213,7 +214,7 @@ it ends: the question links the GitHub page where you revoke it at once.
   branch of its own, next to your project's folder (`myshop@task-2`). Your project's folder stays yours: the agent
   merges its work into it only when you ask (and checks first that you have no unsaved changes there), or opens a pull
   request. Files git ignores, such as `.env`, are copied into the task's copy too. Without git, tasks work right in
-  the project's folder.
+  the project's folder; such a task still adds the project's repositories (below), each copy on a branch of its own.
 - **Several repositories.** In a project of several repositories (a frontend and a backend), a new task gets a copy
   of the default one only. When the work needs another, add it: right-click the task's tab and choose it under **Add
   Repository**. The agent may ask you for one too, and adds it once you agree; to only read another repository it
@@ -269,7 +270,6 @@ profile under Profiles to see its page.
   **Sign In to Master…** in its pane's right-click menu, opens it in a window of its own. Sign in there; every task gets
   that sign-in. A sign-in, or a sign-out, of a real account in any task reaches the others too.
 - Signing in to your app on `localhost` stays in that task: each task runs its own copy of your app.
-- **Refresh from Master…** (the pane's right-click menu) gives a task's profile the master's sign-ins again.
 - **Test users of your app**: a profile's **Test login** and **Test password** (Settings → Profiles), or saved by the
   agent after it signs a user up. The agent then signs in as that user itself; Kulisa types the password, the agent
   never sees it, and only on your local app, never on a real site or an account provider (Google, Microsoft …).

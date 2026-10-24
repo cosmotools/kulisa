@@ -18,7 +18,7 @@ const remove = (t: ProjectTask) => kulisa.invoke('task:delete-closed', { project
 
 <template>
   <section class="column" :data-project="p.id" :style="{ '--color': projectColor(p) }">
-    <header><ProjectIcon :p /><span class="name" :title="p.folder">{{ p.name }}</span>
+    <header><ProjectIcon :p /><span class="name" :title="p.folders[0]">{{ p.name }}</span>
       <button class="icon small" type="button" :title="`New Task of ${p.name}`" aria-label="New Task" @click="newTask"><Icon name="i-plus" /></button></header>
     <ul>
       <!-- A row is no <button>: its 🗑 is one, and a button holds no other -->

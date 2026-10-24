@@ -4,7 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { execFileSync } from 'child_process';
 import { assert, root, userData, SITE, waitFor, click, choose, menuRows, rightClick, closeSettings } from './helpers.ts';
-import { removeRepo } from '../src/main/projects.ts';
+import { removeFolder } from '../src/main/projects.ts';
 import type { Ctx, Test } from './run.ts';
 
 const stored = () => JSON.parse(fs.readFileSync(path.join(userData, 'github.json'), 'utf8')).list as { id: string; login: string; kind: string; secret?: string }[];
@@ -92,7 +92,7 @@ export default (test: Test) => {
     const shop = repo('shop', 'https://x-access-token:ghp_leaked@github.com/Acme/Shop.git'), site = repo('site', 'https://github.com/ann/site'),
       lab = repo('lab', 'https://gitlab.com/acme/lab.git'), beta = repo('beta', 'https://github.com/beta/app.git');
     const p = shell.store.projectFor(shop, 'ghproject');
-    shell.store.updateProject(p.id, { repos: [shop, site, lab, beta] });
+    shell.store.updateProject(p.id, { folders: [shop, site, lab, beta] });
     shell.openSettings({ section: 'projects', id: p.id });
     const account = (remote: string) => sui(`document.querySelector('.ghaccount[data-remote="${remote}"]')?.textContent.trim() ?? null`);
     await waitFor(async () => (await account('github.com/acme/shop')) === 'bob (token)' && (await account('github.com/ann/site')) === 'ann');
@@ -114,11 +114,11 @@ export default (test: Test) => {
     assert.equal(shell.store.projects().find((x) => x.id === p.id).github['github.com/acme/shop'], ann);
     // A repository leaving the project takes its binding along, but not while another of its repositories has its remote.
     const again = repo('shop-again', 'git@github.com:acme/shop.git'), bound = shell.store.projects().find((x) => x.id === p.id).github;
-    shell.store.updateProject(p.id, { repos: [shop, site, lab, beta, again] });
-    assert.ok(!(await removeRepo(shell, p.id, site)).error);
-    assert.ok(!(await removeRepo(shell, p.id, shop)).error);
+    shell.store.updateProject(p.id, { folders: [shop, site, lab, beta, again] });
+    assert.ok(!(await removeFolder(shell, p.id, site)).error);
+    assert.ok(!(await removeFolder(shell, p.id, shop)).error);
     assert.deepEqual(shell.store.projects().find((x) => x.id === p.id).github, { 'github.com/acme/shop': ann });
-    shell.store.updateProject(p.id, { repos: [shop, site, lab, beta], github: bound }); // as the next tests take it
+    shell.store.updateProject(p.id, { folders: [shop, site, lab, beta], github: bound }); // as the next tests take it
   });
 
   test('GitHub: signed out (a refresh refused): said on the account and on its repositories; Sign in Again with a new token', async (ctx) => {

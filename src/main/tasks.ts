@@ -199,26 +199,28 @@ class Task {
   // the repositories it may add (addable): the agent reads those in the project's folders, changing nothing there.
   dirs() {
     const addable = this.addable();
-    return [...new Set(this.project.repos().filter((r) => !addable.includes(r)).map((r) => worktreesOf(this.entry).find((c) => c.repo === r)?.folder || r))]
+    return [...new Set(this.project.folders().filter((r) => !addable.includes(r)).map((r) => worktreesOf(this.entry).find((c) => c.repo === r)?.folder || r))]
       .filter((d) => d !== this.folder);
   }
-  // The project's repositories in git it has no copy of yet; none before it has its own worktree (beside which they go).
+  // The project's repositories in git it has no copy of yet; none while it works in a repository with no worktree of its
+  // own yet (beside which they go). One working in a folder without git has none to make: its copies go on a branch of
+  // their own (Project.addCopy).
   addable() {
     const copies = worktreesOf(this.entry);
-    return copies.length ? this.project.repos().filter((r) => this.project.gits.get(r) === 'ok' && !copies.some((c) => c.repo === r)) : [];
+    if (this.inGit()) return [];
+    return this.project.folders().filter((r) => this.project.gits.get(r) === 'ok' && !copies.some((c) => c.repo === r));
   }
+  // Working in a folder of the project that is in git (one it can have a worktree of), not yet in its own worktree.
+  inGit() { return !ownWorktree(this.entry) && this.project.gits.get(this.folder) !== 'none'; }
   // Another of the project's repositories added to it, when its work turns out to need it (the human's Add Repository
   // on its tab, the agent's task_add_repository once the human agreed): a copy on its branch,
   // given to its running agents (giveDirs); at their next start they get it as the others (dirs). The copy's
   // { folder, branch }.
   addRepository(repo: string) { return this.copying(() => this._addRepository(repo)); }
   async _addRepository(repo: string): Promise<Result<{ folder: string; branch: string }>> {
-    if (!ownWorktree(this.entry)) {
-      return { error: this.project.git === 'ok' ? 'the task has no worktree of its own yet to add a copy beside: make it with task_worktree first'
-        : "this task works in the project's folder (no git): it has no copies to add to" };
-    }
-    const found = this.project.repos().find((r) => r === repo || path.basename(r) === repo);
-    if (!found) return { error: `${repo} is not one of the project's repositories: ${this.project.repos().join(', ')}` };
+    if (this.inGit()) return { error: 'the task has no worktree of its own yet to add a copy beside: make it with task_worktree first' };
+    const found = this.project.folders().find((r) => r === repo || path.basename(r) === repo);
+    if (!found) return { error: `${repo} is not one of the project's folders: ${this.project.folders().join(', ')}` };
     if (worktreesOf(this.entry).some((c) => c.repo === found)) return { error: `the task has ${found} already` };
     if (!this.addable().includes(found)) return { error: `${found} has no git commit to copy` };
     const c = await this.project.addCopy(this, found);
@@ -781,22 +783,6 @@ class Task {
     const r = this.find(id);
     const p = r.profile || this.closed.get(id)?.cfg;
     return p ? this.shell.openMaster(p.id) : r;
-  }
-  // Refresh from Master…: the master's cookies (its sign-ins) brought to this task's copy, made before the master was
-  // signed in to; what was signed in only in this copy goes, so the human is asked first. Its open tabs reload.
-  async refreshProfile(id: string): Promise<Result<{ id: string; cookies: number }>> {
-    const r = this.find(id);
-    if (refused(r)) return r;
-    const p = r.profile;
-    if (!await this.shell.ask({ message: `Bring the sign-ins of ${p.name}'s master to this task?`, ok: 'Refresh',
-      detail: "This task's copy of the profile takes its master's cookies: what was signed in only here goes. Sign-ins kept in a site's storage (as Microsoft's are) are not brought: sign in here again for those." }, this.window)) {
-      return { error: 'the human said no' };
-    }
-    await this.shell.flushMaster(p.id);
-    const master = { session: session.fromPath(this.shell.profileStore.masterDir(p.id)), dir: this.shell.profileStore.masterDir(p.id) };
-    const set = await this.shell.sessionCookies.copy(master, p);
-    for (const t of p.tabs) if (!t.wc.isDestroyed()) t.wc.reload();
-    return { id, cookies: set };
   }
   // A profile its project let go (projects.ts, dropProfile): its copy gone; a task not loaded loses it from its file.
   async dropProfile(id: string) { return this.loaded ? this.list.drop(id) : this.store.dropProfile(id); }

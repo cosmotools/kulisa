@@ -169,7 +169,7 @@ svg:has(> use) { width: 16px; height: 16px; flex: none; fill: none; stroke: curr
   &:is(:hover, :focus-visible, [data-highlighted]) .remove { visibility: visible; }
   /* The chosen row of a list (a project in the projects' manager: Reka's Listbox) */
   &[aria-selected="true"] { background: var(--island-hi); color: var(--text-strong); } }
-/* A list a dialog edits (a project's code, agents and profiles; an agent's accounts; New Project's folders), as
+/* A list a dialog edits (a project's folders, agents and profiles; an agent's accounts; New Project's folders), as
    JetBrains' tables: framed, a toolbar over it (.tools: .icon.small buttons, + adding, − removing the selected row,
    others acting on it), then its columns' names (.head), then its rows, Reka's Listbox items: each value in a cell of
    its column (.cell: the .label first, with its icon or picture; its facts muted, small; a state at the end, .end: kbd,

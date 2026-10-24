@@ -56,24 +56,6 @@ class SessionCookies {
 
   forget(profile: { dir: string }) { fs.rmSync(this.file(profile), { force: true }); }
 
-  // A master's cookies into a task's copy made before it was signed in to (Refresh from Master…, tasks.ts): the copy's
-  // cookies are replaced by the master's, its session cookies (kept in its file while it is closed) included. Storage
-  // (localStorage: MSAL keeps its sign-ins there) is not copied. Returns how many were set.
-  async copy(from: Holder, to: Holder) {
-    await this.restore(from); // a closed master's session cookies, from its file
-    const cookies = await from.session.cookies.get({});
-    await to.session.clearStorageData({ storages: ['cookies'] });
-    let set = 0;
-    for (const c of cookies) {
-      const cookie: CookiesSetDetails = { url: `${c.secure ? 'https' : 'http'}://${c.domain!.replace(/^\./, '')}${c.path || '/'}`, name: c.name, value: c.value, path: c.path,
-        secure: c.secure, httpOnly: c.httpOnly, sameSite: c.sameSite, ...(c.hostOnly ? {} : { domain: c.domain }),
-        ...(c.session ? {} : { expirationDate: c.expirationDate }) };
-      await to.session.cookies.set(cookie).then(() => set++, () => {});
-    }
-    await to.session.cookies.flushStore().catch(() => {});
-    return set;
-  }
-
   // Save every profile periodically; returns a function that stops it.
   autosave(getProfiles: () => Holder[]) {
     const timer = setInterval(() => { for (const p of getProfiles()) this.save(p).catch((e: Error) => console.error('[session-cookies]', e.message)); }, SAVE_EVERY_MS);

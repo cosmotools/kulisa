@@ -132,15 +132,33 @@ async function progress({ worktree, branch, base }: Copy) {
 }
 
 // A task's copy merged on its remote (its PR merged): it has commits of its own, all of them in the remote's default
-// branch (origin/HEAD, fetched first), and no uncommitted files; deleting it then loses nothing. A squash merge makes
-// new commits, so it is not seen.
+// branch (origin/HEAD, fetched first), and no uncommitted files; deleting it then loses nothing. A squash or a rebase
+// merge makes new commits: they are told by their changes (git's patch ids), each commit's or the whole branch's in one.
 async function merged({ repo, worktree, branch, base }: Copy) {
   const remote = await git(repo, ['rev-parse', '--abbrev-ref', 'origin/HEAD']).catch((): null => null); // origin/main
   if (!remote) return false;
   await git(repo, ['fetch', '--quiet', 'origin', remote.replace(/^origin\//, '')], { timeout: 20000 }).catch(() => {});
   const count = async (...a: string[]) => Number(await git(repo, ['rev-list', '--count', ...a]).catch(() => -1));
-  if ((await count(branch, `^${base}`)) < 1 || (await count(branch, `^${remote}`)) !== 0) return false;
-  return !fs.existsSync(worktree) || !(await git(worktree, ['status', '--porcelain']).catch(() => 'x'));
+  if ((await count(branch, `^${base}`)) < 1) return false;
+  if (fs.existsSync(worktree) && await git(worktree, ['status', '--porcelain']).catch(() => 'x')) return false;
+  return (await count(branch, `^${remote}`)) === 0 || await rebased(repo, branch, base, remote) || await squashed(repo, branch, remote);
+}
+// Each of the branch's commits has one of the same change in the remote's branch ('-' in git cherry).
+async function rebased(repo: string, branch: string, base: string | null, remote: string) {
+  const out = await git(repo, ['cherry', remote, branch, ...(base ? [base] : [])]).catch(() => '+');
+  return !!out && !/^\+/m.test(out);
+}
+// The branch's whole change since it parted from the remote's branch is one commit there. The user's diff settings
+// (color, an external diff) are kept out: both patch ids come from the same plain diff.
+async function squashed(repo: string, branch: string, remote: string) {
+  const plain = ['--no-color', '--no-ext-diff'];
+  const ids = async (patch: string) => new Set((await git(repo, ['patch-id', '--stable'], { input: patch }).catch(() => ''))
+    .split('\n').filter(Boolean).map((l) => l.split(' ')[0]));
+  const from = await git(repo, ['merge-base', branch, remote]).catch((): null => null);
+  if (!from) return false;
+  const [own] = await ids(await git(repo, ['diff', ...plain, from, branch]).catch(() => ''));
+  if (!own) return false;
+  return (await ids(await git(repo, ['log', '-p', ...plain, '--no-merges', `${from}..${remote}`]).catch(() => ''))).has(own);
 }
 
 // direnv's records allowing the task's .envrc (allowEnvrc), removed: one file per content it was allowed with, in

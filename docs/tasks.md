@@ -33,7 +33,7 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
     task it shows and how many more it holds: "task-3 (+2)"); Close; Delete Task…; then **the project's submenu**,
     a row of its icon and name opening at its side (`{ submenu }`, [ui.md](ui.md), Menus; the project has no tab of
     its own to open a menu on): New Task, **Move All Tasks to New Window / to Window: …** (its open tasks of this
-    window, together), Project Settings… (what a task has not: the project's code, agents, profiles, local
+    window, together), Project Settings… (what a task has not: the project's folders, agents, profiles, local
     addresses), Show Data Folder, Delete Merged Tasks… (when a closed task's PR is merged: Tasks, below), **Close
     All Tasks** (its open tasks in every window, asked once when an agent works). The project's name is the
     projects' manager's alone to change.
@@ -63,9 +63,9 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   Delete…, asked first, as Delete on the chosen row; an agent's Install and New Account…), a section's what its +
   does. Project Settings… in a project's submenu (a task tab's menu) opens it at that project;
   a task tab's Manage Profiles… and About this profile… at a profile. **A project's page** (the projects' manager, in
-  the code's words): at its top its path and **⋯** (Delete Project…; tasks are made in the bar); then **Name:**, and a group each under a titled line (`.titled`): **Code**, **Agents**,
+  the code's words): at its top its path and **⋯** (Delete Project…; tasks are made in the bar); then **Name:**, and a group each under a titled line (`.titled`): **Folders**, **Agents**,
   **Profiles** (what its tasks are made of), each a list (`.list`) with a toolbar over it: **+** adds (a menu), **−**
-  removes the selected row (and Delete), **★** makes it the default (Code, Agents); a row's right-click has the same.
+  removes the selected row (and Delete), **★** makes it the default (Folders, Agents); a row's right-click has the same.
   Its Profiles are only which profiles its tasks have: + makes one in it or adds one of the others, − lets go of one
   (the profile stays); who a profile is, is Settings → Profiles'.
   What needs typing (a URL to clone, a new profile's name) opens a field in place, under the list (Esc puts it away).
@@ -85,12 +85,11 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
     knows where the agent's files are. A folder there already is taken as it is, its files kept.
   - **Folders on disk**: one folder or several (a frontend and a backend: typed and Add, or + over the list, which
     browses; each a row with "git" or "no git", − leaves the selected one out), taken as they are, nothing made: their files and, for repositories, their history kept.
-    The first is the default repository and the project's folder. A folder that is not there, or a project's, is
+    The first is the default. A folder that is not there, or a project's, is
     refused as it is added.
   - **Clone from URL**: one URL or several, cloned with the user's own git (as Clone on a project's page). One is cloned
-    into `<location>/<name>`, and that clone is the project's folder; several into `<location>/<name>/<repo>` each, the
-    project's folder the one that holds them (no former folder), the first the default.
-    Clone on its page puts the next one there too. Refused: a folder there with files. Create says Cloning…
+    into `<location>/<name>`; several into `<location>/<name>/<repo>` each, the first the default (the folder that holds
+    them is none of the project's). Clone on its page puts the next one there too. Refused: a folder there with files. Create says Cloning…
     meanwhile; a URL git cannot clone leaves nothing, the clones before it neither.
   - In the welcome, one folder or one URL, in a field (and Browse…) rather than a list, a line under it saying the other
     is added later in Settings (a first project made simply; several are the dialog's). Its
@@ -175,16 +174,16 @@ repositories (git worktrees), so the project's folders stay the human's. Kulisa 
   in its right-click) leaves none the default (`noDefaultAgent` in `projects.json`): its new
   tasks start with nothing, the island's big buttons in the empty grid instead ([window.md](window.md), The terminal).
   None: its tasks start with the terminal only; closed, the Terminal button alone.
-- **Its code**: the repositories or folders its tasks work on, the default one first (marked when there are several,
+- **Its folders**: the repositories or plain folders its tasks work on, the default one first (marked when there are several,
   **★** or Make Default in a row's right-click on another: new tasks get a copy of it, their agents start there; the others
   a task adds when it needs them: Tasks, below). Its **+**: **Add
   Folder…** adds one from the computer, **Clone from URL…** one from a URL with the user's own git (its credentials and keys; git asks for no password, so a
-  private repository it cannot reach fails with git's own words; cloned into the project's own folder when that has no
-  git, `~/KulisaProjects/<project>/<repo>`, else next to it, never inside a repository). A repository added is copied into no task: each adds it when it needs it. **−**
+  private repository it cannot reach fails with git's own words; cloned next to the default folder, never inside one of
+  the project's). A repository added is copied into no task: each adds it when it needs it. **−**
   (or Delete, or the right-click) removes the selected one from the project (its folder stays), only when no task has a copy of it or works in it: the refusal
-  names those tasks (deleting a copy would delete their work). A project whose own folder has no git keeps it until a
-  repository is added; then it is its **former folder**: new tasks work in copies of the repository, those that worked in it go on there,
-  and the settings say so, with Show, while it exists (the human moves its files, or asks an agent).
+  names those tasks (deleting a copy would delete their work). The folders are all alike, in git or not: one without git
+  stays one of them, the default too, when repositories are added (`projects.json` keeps the one list), and a task
+  working in it adds them as any task does (Tasks, below).
   Each repository's row has its **GitHub account**: the one its origin's remote is bound to, by what the remote points to
   (`remotes.ts`, the same on every computer), else the first account that reaches it, bound then; under the list, a line
   for one no account can reach, or whose account is signed out ([src/github](../src/github/README.md), A repository's
@@ -237,8 +236,9 @@ build several features of one project at once.
   in git are added to a task one at a time: by the human, Add Repository in its tab's right-click menu; by the agent,
   `task_add_repository`, once the human has agreed in the conversation (the profiles skill and the MCP server's
   instructions say so; no question of Kulisa's: the author's choice, the agent asks). A copy on the task's branch in
-  its folder of copies (`Task.addRepository`, `Project.addCopy`), given to its running agents by Kulisa, typed and
-  sent as the human would (`giveDirs`, `sendToPrompt`; a `/add-dir` for the human to type is
+  its folder of copies (`Task.addRepository`, `Project.addCopy`; a task working in a folder without git has no
+  worktree of its own: its first copy takes a branch named as that worktree would be, the next ones that branch),
+  given to its running agents by Kulisa, typed and sent as the human would (`giveDirs`, `sendToPrompt`; a `/add-dir` for the human to type is
   a step easily missed), never while the agent waits for the human: Enter there answers Claude Code's permission
   question with Yes, and the pasted line is lost. Claude Code gets `/add-dir <folder>` at once, in its turn
   too: it runs then, its question (Add directory to workspace) over the turn, which goes on, answered with its first
@@ -338,8 +338,11 @@ deleted.
   question, its project loaded or not (closed tasks are not to pile up). Closed tasks stay on disk until the human deletes them; Kulisa
   offers it once a closed task's PR is merged: each of its copies has commits of its own, all in its remote's default
   branch (`origin/HEAD`, fetched as the project is shown and as a task is closed, in the background), and nothing
-  uncommitted, so deleting it loses nothing. Its row in the board says "merged", and the project's submenu has **Delete
-  Merged Tasks…**, one question naming them. A squash merge makes new commits, so it is not seen: Delete Task… as for any other.
+  uncommitted, so deleting it loses nothing. A squash or a rebase merge (GitHub's other two buttons) puts new commits
+  there: they count by their changes, git's patch ids (each of the branch's commits has its like there, or the branch's
+  whole change since it parted from that branch is one commit there), so a change made after the merge keeps the task
+  unmerged. Its row in the board says "merged", and the project's submenu has **Delete Merged Tasks…**, one question
+  naming them.
 - **The island's +** opens another of the project's agents in the task, a new conversation in a tab of its own, or a
   shell; **the agent's icon on its tab** hands the task to an agent of the project, which goes on with that
   conversation ("Several agents in a task").
@@ -367,7 +370,7 @@ to the human; the window's IPC (`ipc/`) and the MCP tools are handles on it:
 | Open an artifact, show it in its folder | a click on its row in the Resources island, its menu | none: the tools' answers give the agent its path | `file:open`, `file:show` (`file-links.ts`) |
 | Delete an artifact | Delete in its row's menu | none: the oldest go by themselves past the limit | `Task.deleteArtifact` |
 | Make the task's worktree | none: its agent makes it before writing code | `task_worktree` | `Task.makeWorktree`, `Project.ensureWorktree` |
-| Add, clone, make the default, remove a repository | the projects' manager | none: what the project is made of is the human's | `addRepo`, `cloneRepo`, `defaultRepo`, `removeRepo` (`projects.ts`) |
+| Add, clone, make the default, remove a project's folder | the projects' manager | none: what the project is made of is the human's | `addFolder`, `cloneRepo`, `defaultFolder`, `removeFolder` (`projects.ts`) |
 | Add a project's repository to a task | Add Repository in its tab's menu | `task_add_repository`, once the human agreed in the conversation | `Task.addRepository`, `Project.addCopy` |
 | Remove one added | Remove Repository in its tab's menu, or on its chip | `task_remove_repository`, once the human agreed | `Task.removeRepository`, `Project.askRemoveCopy`, `removeCopy` |
 | Add, make the default (or none the default), remove an agent of the project | the projects' manager | none: what the project is made of is the human's | `addAgent`, `defaultAgent`, `removeAgent` (`projects.ts`) |
@@ -651,7 +654,7 @@ asks where it is or what takes the disk; nothing in it is for editing by hand, s
 
 ```
 projects.json                     the projects, { list: [...] } (as profiles.json and agents.json: a field can sit beside
-                                  the list): id, name, folder, repos, color (the one it has while its favicon gives none), agents (accounts, the default first), profiles (their ids, in order), noDefaultAgent,
+                                  the list): id, name, folders (the default first), color (the one it has while its favicon gives none), agents (accounts, the default first), profiles (their ids, in order), noDefaultAgent,
                                   github (its repositories' GitHub accounts by remote: src/github; one goes with its account, or its repository);
                                   id: six random lowercase letters and digits (k3f9a2), made with the project and never
                                   changed, so a rename leaves its data folder, its tasks' keys (k3f9a2/1) and their agents'

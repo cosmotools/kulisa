@@ -19,7 +19,7 @@ import type { ProjectEntry, TaskEntry, Copy, Worktree, Store } from './store.ts'
 import type { StoredProfile } from './profile-store.ts';
 import type { ProfileConfig } from './profiles.ts';
 import type { AppWindow, Asker } from './window.ts';
-import type { Question, ProjectAgent, ProjectGitHub, ProjectRepo, NewProjectSetup } from '../shared/types.ts';
+import type { Question, ProjectAgent, ProjectGitHub, ProjectFolder, NewProjectSetup } from '../shared/types.ts';
 import type { GitError } from './worktrees.ts';
 
 type Git = 'ok' | 'no-commit' | 'none';
@@ -29,7 +29,7 @@ type Named = Pick<StoredProfile | ProfileConfig, 'name'>;
 class Project {
   shell: Shell; store: Store; id: string; entry!: ProjectEntry; name!: string; folder!: string;
   git: Git | null; gits: Map<string, Git>; tasks: Map<string, Task>;
-  // entry: the project in projects.json (store.ts): { id, name, folder, repos, color, agents }. shell: the app
+  // entry: the project in projects.json (store.ts): { id, name, folders, color, agents }. shell: the app
   // (app.ts), as Task takes it.
   constructor(shell: Shell, entry: ProjectEntry) {
     this.shell = shell; this.store = shell.store;
@@ -43,8 +43,8 @@ class Project {
   get window(): AppWindow | null { return this.open().find((t) => t.window)?.window ?? null; }
   // Its name, agents and repositories, as the projects' manager left them (store.ts, updateProject).
   // folder: its default repository (or folder), where its tasks' agents start.
-  update(entry: ProjectEntry) { this.entry = entry; this.name = entry.name; this.folder = reposOf(entry)[0]!; }
-  repos() { return reposOf(this.entry); }
+  update(entry: ProjectEntry) { this.entry = entry; this.name = entry.name; this.folder = entry.folders[0]!; }
+  folders() { return this.entry.folders; }
   // The agents' accounts its tasks run, the default first.
   agents() { return agentsOf(this.shell, this.entry); }
   // The one a new task starts; none: its tasks start with nothing open (the island's buttons, Terminals.vue).
@@ -57,7 +57,7 @@ class Project {
   // A conversation of one of its tasks with a transcript: where its agents keep their data (agents/: Claude's config).
   agentData() { return [...this.tasks.values()].flatMap((t) => t.conversations()).find((c) => c.transcript) || {}; }
   async checkGit() {
-    this.gits = new Map(await Promise.all(this.repos().map(async (r) => [r, await gitOf(r)] as const)));
+    this.gits = new Map(await Promise.all(this.folders().map(async (r) => [r, await gitOf(r)] as const)));
     this.git = this.gits.get(this.folder)!;
   }
   save() {
@@ -97,10 +97,8 @@ class Project {
     if (have) return have;
     await this.checkGit();
     if (this.git !== 'ok') return { error: this.git === 'no-commit' ? `${this.folder} has no git commit yet to branch from` : `${this.folder} is not in git` };
-    const beside = this.repos().length === 1;
-    // Named: a slug of the task's name; still "New Task": task-<id> (a later task_rename renames the branch).
-    const label = task.entry.named ? task.name : `task-${task.id}`;
-    const branch = await freeBranch([this.folder], label, { beside });
+    const beside = this.folders().length === 1;
+    const branch = await freeBranch([this.folder], branchName(task), { beside });
     const had = homeOf(task.entry), copies = worktreesOf(task.entry);
     const home = beside ? null : had ?? freeFolder(path.join(this.shell.projectsHome, `${slugOf(this.name, 'project')}@${branch}`));
     try {
@@ -115,11 +113,12 @@ class Project {
       return { error: (e as GitError).stderr || (e as Error).message };
     }
   }
-  // Another of its repositories added to a task that has its own worktree (Task.addRepository): copied on the task's
-  // branch (or the next free name there) into its folder of copies (ensureWorktree), made now when its own worktree went
-  // beside its repository, the project having had one repository then. The copy, or { error }.
+  // Another of its repositories added to a task (Task.addRepository): copied on the task's branch (or the next free name
+  // there) into its folder of copies (ensureWorktree), made now when its own worktree went beside its repository, the
+  // project having had one repository then. A task working in a folder without git has no worktree of its own: its
+  // copies are on the branch of its first one, else on one named as its worktree would be. The copy, or { error }.
   async addCopy(task: Task, repo: string): Promise<Result<Worktree>> {
-    const { entry } = task, own = branchOf(entry)!, had = homeOf(entry);
+    const { entry } = task, own = branchOf(entry) ?? worktreesOf(entry)[0]?.branch ?? branchName(task), had = homeOf(entry);
     const home = had ?? freeFolder(path.join(this.shell.projectsHome, `${slugOf(this.name, 'project')}@${own}`));
     const branch = await freeBranch([repo], own);
     try {
@@ -188,9 +187,10 @@ class Project {
   }
 }
 
-// A project's repositories or folders, the default one first: those added in Project Settings…, else its own folder.
-const reposOf = (entry: ProjectEntry) => (entry.repos?.length ? entry.repos : [entry.folder]);
 const gitOf = async (folder: string): Promise<Git> => { const r = await repoOf(folder).catch((): null => null); return r?.commit ? 'ok' : r ? 'no-commit' : 'none'; };
+// A new branch's name for a task: a slug of its name (worktrees.ts, freeBranch); still "New Task": task-<id> (a later
+// task_rename renames the branch).
+const branchName = (task: Task) => (task.entry.named ? task.name : `task-${task.id}`);
 // A copy's folder name in a task's folder of copies: its repository's, -2 when another copy has it.
 function copyName(copies: Copy[], repo: string) {
   const base = path.basename(repo);
@@ -221,7 +221,7 @@ async function askDeleteTask(shell: Shell, entry: TaskEntry, folder: string, w: 
 async function deleteClosedTask(shell: Shell, p: ProjectEntry, id: string, w: AppWindow): Promise<Result<{ id: string }>> {
   const entry = shell.store.tasksOf(p).list.find((e) => e.id === id && e.closed);
   if (!entry) return { error: `no closed task ${id}` };
-  if (!await askDeleteTask(shell, entry, folderOf(entry, p.folder), w)) return { error: 'the human said no' };
+  if (!await askDeleteTask(shell, entry, folderOf(entry, p.folders[0]!), w)) return { error: 'the human said no' };
   await deleteTask(shell, p, entry);
   const file = shell.store.tasksOf(p);
   shell.store.saveTasksOf(p, { list: file.list.filter((e) => e.id !== id) });
@@ -235,7 +235,7 @@ function forgetFolder(shell: Shell, p: ProjectEntry, entry: TaskEntry, folder: s
   const { store } = shell;
   // Each of its conversations: the agents that worked in it, each its account's (tasks.ts).
   const conversations = (e: TaskEntry) => store.taskOf(p, e.id).agent().conversations || [];
-  const project = { folder: reposOf(p)[0], ...store.tasksOf(p).list.flatMap(conversations).find((c) => c.transcript) };
+  const project = { folder: p.folders[0], ...store.tasksOf(p).list.flatMap(conversations).find((c) => c.transcript) };
   for (const saved of conversations(entry)) {
     try {
       const a = shell.agentFor(saved.agent, { any: true });
@@ -261,61 +261,58 @@ async function deleteTask(shell: Shell, p: ProjectEntry, entry: TaskEntry) {
   try { fs.rmSync(data.dir, { recursive: true, force: true }); } catch (e) { console.warn('[tasks]', (e as Error).message); }
 }
 
-// A project's repositories or folders (Project Settings…), whether it is open or not: added, cloned, made the
-// default, removed. Its own folder stays one of them while it is in git; one without git becomes its former folder
-// once a repository is added: new tasks work in copies of the repositories, those working in it go on there. A task
-// gets a copy of one added only when it adds it (Task.addRepository). { repos } or { error }.
-async function addRepo(shell: Shell, id: string, folder: string): Promise<Result<{ repos: string[] }>> {
+// A project's folders (Project Settings…), repositories or not, whether it is open or not: added, cloned, made the
+// default, removed; all alike, in git or not. A task gets a copy of one added only when it adds it
+// (Task.addRepository). { folders } or { error }.
+async function addFolder(shell: Shell, id: string, folder: string): Promise<Result<{ folders: string[] }>> {
   const p = shell.store.projects().find((x) => x.id === id);
   if (!p) return { error: `no project ${id}` };
   folder = path.resolve(folder);
   if (!fs.statSync(folder, { throwIfNoEntry: false })?.isDirectory()) return { error: `${folder} is not a folder` };
-  const repos = p.repos?.length ? p.repos : (await gitOf(p.folder)) === 'none' ? [] : [p.folder];
-  if (repos.includes(folder)) return { error: `${folder} is in the project already` };
-  return changeRepos(shell, id, [...repos, folder]);
+  if (p.folders.includes(folder)) return { error: `${folder} is in the project already` };
+  return changeFolders(shell, id, [...p.folders, folder]);
 }
-async function changeRepos(shell: Shell, id: string, repos: string[]) {
-  const entry = shell.store.updateProject(id, { repos: repos.length ? repos : null })!;
+async function changeFolders(shell: Shell, id: string, folders: string[]) {
+  const entry = shell.store.updateProject(id, { folders })!;
   const open = shell.open.get(id);
   if (open) {
     open.update(entry);
     await open.checkGit();
     shell.sendProjects(); // what its tasks may add
   }
-  return { repos: reposOf(entry) };
+  return { folders: entry.folders };
 }
-// Cloned from a URL with the user's git (worktrees.ts, clone): into the project's own folder when it has no git
-// (<projects' home>/<project>/<repo>), else next to it, never inside a repository.
-async function cloneRepo(shell: Shell, id: string, url: string): Promise<Result<{ repos: string[] }>> {
+// Cloned from a URL with the user's git (worktrees.ts, clone): next to the project's default folder, never inside it
+// (a folder of the project holds no other).
+async function cloneRepo(shell: Shell, id: string, url: string): Promise<Result<{ folders: string[] }>> {
   const p = shell.store.projects().find((x) => x.id === id);
   if (!p) return { error: `no project ${id}` };
   const name = repoName(url);
   if (!name) return { error: 'not a repository URL' };
-  const into = path.join((await gitOf(p.folder)) === 'none' ? p.folder : path.dirname(p.folder), name);
+  const into = path.join(path.dirname(p.folders[0]!), name);
   if (fs.existsSync(into)) return { error: `${into} is already there` };
   try { await clone(url.trim(), into); } catch (e) { fs.rmSync(into, { recursive: true, force: true }); return { error: (e as GitError).stderr || (e as Error).message }; }
-  return addRepo(shell, id, into);
+  return addFolder(shell, id, into);
 }
 // Made the default (new tasks' agents start in its copy), or removed: only when no task has a copy of it or works in
 // it, as that would delete or strand their work; the error names them.
-async function defaultRepo(shell: Shell, id: string, repo: string): Promise<Result<{ repos: string[] }>> {
-  const p = shell.store.projects().find((x) => x.id === id);
-  const repos = p && reposOf(p);
-  if (!repos?.includes(repo)) return { error: `${repo} is not in the project` };
-  return changeRepos(shell, id, [repo, ...repos.filter((r) => r !== repo)]);
+async function defaultFolder(shell: Shell, id: string, folder: string): Promise<Result<{ folders: string[] }>> {
+  const folders = shell.store.projects().find((x) => x.id === id)?.folders;
+  if (!folders?.includes(folder)) return { error: `${folder} is not in the project` };
+  return changeFolders(shell, id, [folder, ...folders.filter((f) => f !== folder)]);
 }
-async function removeRepo(shell: Shell, id: string, repo: string): Promise<Result<{ repos: string[] }>> {
+async function removeFolder(shell: Shell, id: string, folder: string): Promise<Result<{ folders: string[] }>> {
   const p = shell.store.projects().find((x) => x.id === id);
-  const repos = p && reposOf(p);
-  if (!repos?.includes(repo)) return { error: `${repo} is not in the project` };
-  if (repos.length === 1) return { error: 'a project needs a folder: add another one first' };
-  const using = shell.store.tasksOf(p!).list.filter((e) => e.resources?.some((r) => (r.kind === 'worktree' ? r.repo : r.folder) === repo));
+  const folders = p?.folders;
+  if (!folders?.includes(folder)) return { error: `${folder} is not in the project` };
+  if (folders.length === 1) return { error: 'a project needs a folder: add another one first' };
+  const using = shell.store.tasksOf(p!).list.filter((e) => e.resources?.some((r) => (r.kind === 'worktree' ? r.repo : r.folder) === folder));
   if (using.length) return { error: `Tasks work in it: ${using.map((e) => e.name).join(', ')}. Delete them first (Delete Task… in a task's menu).` };
-  const left = repos.filter((r) => r !== repo);
+  const left = folders.filter((f) => f !== folder);
   // Its GitHub account goes with it, unless another of the project's repositories has the same remote.
-  const remote = p!.github && await originKey(repo);
-  if (remote && !(await Promise.all(left.map((r) => originKey(r)))).includes(remote)) bindGitHub(shell, p!, { [remote]: null });
-  return changeRepos(shell, id, left);
+  const remote = p!.github && await originKey(folder);
+  if (remote && !(await Promise.all(left.map((f) => originKey(f)))).includes(remote)) bindGitHub(shell, p!, { [remote]: null });
+  return changeFolders(shell, id, left);
 }
 // A profile a project lets go (− on its page, the agent's profile_delete), whether it is open or not: asked first,
 // saying what goes: its copies in the project's tasks. The profile stays, with its master (its sign-ins): Settings →
@@ -398,7 +395,7 @@ async function createProject(shell: Shell, { from = 'new', name, location, folde
   name = name?.trim();
   const bad = nameError(name);
   if (bad) return { error: bad };
-  let folder: string, repos: string[] | null = null;
+  let folder: string, several: string[] | null = null;
   if (from === 'folder') {
     const given = [...new Set(folders.map((f) => full(f)))];
     if (!given.length || given.includes(null)) return { error: given.length ? 'each folder must be a full path' : 'no folder' };
@@ -410,7 +407,7 @@ async function createProject(shell: Shell, { from = 'new', name, location, folde
       if (no) return { error: no };
     }
     folder = given[0]!;
-    if (given.length > 1) repos = given as string[];
+    if (given.length > 1) several = given as string[];
   } else {
     const made = newFolder({ location, name });
     if (!made) return { error: 'the location must be the full path of a folder' };
@@ -434,13 +431,13 @@ async function createProject(shell: Shell, { from = 'new', name, location, folde
           return { error: `${u}: ${err.stderr || err.message}` };
         }
       }
-      if (urls.length > 1) repos = intos;
+      if (urls.length > 1) several = intos;
     } else {
       fs.mkdirSync(folder, { recursive: true });
     }
   }
   let entry = shell.store.projectFor(folder, name);
-  if (repos) entry = shell.store.updateProject(entry.id, { repos })!;
+  if (several) entry = shell.store.updateProject(entry.id, { folders: several })!;
   const problems: string[] = [];
   for (const agent of agents) { const r = addAgent(shell, entry.id, agent); if (refused(r)) problems.push(r.error); }
   for (const p of profiles) {
@@ -498,13 +495,9 @@ async function deleteAccount(shell: Shell, agent: string, w: Asker | null): Prom
   return { ok: true };
 }
 
-// What the projects' manager shows of them: each with whether it is in git, and the former folder while it is there:
-// one tasks worked in before a repository came, not one that holds the project's repositories (New Project's clones).
-async function reposInfo(p: ProjectEntry): Promise<{ repos: ProjectRepo[]; former: string | null }> {
-  const repos = await Promise.all(reposOf(p).map(async (folder): Promise<ProjectRepo> => ({ folder, git: await gitOf(folder) })));
-  const holds = p.repos?.some((r) => { const rel = path.relative(p.folder, r); return rel && !rel.startsWith('..') && !path.isAbsolute(rel); });
-  const former = p.repos?.length && !p.repos.includes(p.folder) && !holds && fs.existsSync(p.folder) ? p.folder : null;
-  return { repos, former };
+// What the projects' manager shows of them: each with whether it is in git.
+async function foldersInfo(p: ProjectEntry): Promise<{ folders: ProjectFolder[] }> {
+  return { folders: await Promise.all(p.folders.map(async (folder): Promise<ProjectFolder> => ({ folder, git: await gitOf(folder) }))) };
 }
 
 // Its repositories' GitHub accounts (src/github/README.md, A repository's account), whether it is open or not: each
@@ -514,7 +507,7 @@ async function reposInfo(p: ProjectEntry): Promise<{ repos: ProjectRepo[]; forme
 async function githubOf(shell: Shell, id: string): Promise<Result<ProjectGitHub>> {
   const p = shell.store.projects().find((x) => x.id === id);
   if (!p) return { error: `no project ${id}` };
-  const repos = await Promise.all(reposOf(p).map(async (folder) => {
+  const repos = await Promise.all(p.folders.map(async (folder) => {
     const remote = await originKey(folder);
     return { folder, remote, ...(await shell.github.repo(remote, (remote && p.github?.[remote]) || null)) };
   }));
@@ -567,7 +560,7 @@ async function askDeleteProject(shell: Shell, p: ProjectEntry, w: Asker | null) 
   return shell.ask(deleteQuestion({ message: `Delete the project ${p.name}?`, ok: 'Delete', goes: [
     "its tasks' copies of its profiles, and its layouts",
     ...withCopies.map((e) => `its task ${e.name}: ${worktreesOf(e).map((c) => `the folder ${c.worktree}`).join(', ')}, the branch ${branchOf(e)}, its agent's conversations`)],
-  notInMain: changed, stays: `Its folders stay as they are: ${[...new Set([p.folder, ...reposOf(p)])].join(', ')}. Its profiles stay, with their sign-ins (Settings → Profiles).` }), w);
+  notInMain: changed, stays: `Its folders stay as they are: ${p.folders.join(', ')}. Its profiles stay, with their sign-ins (Settings → Profiles).` }), w);
 }
 async function deleteProjectData(shell: Shell, p: ProjectEntry) {
   for (const e of shell.store.tasksOf(p).list) await deleteTask(shell, p, e);
@@ -601,6 +594,6 @@ function pictureOf(file: string) {
   } catch { return null; }
 }
 
-export { Project, askDeleteProject, deleteClosedTask, deleteProjectData, pictureOf, addRepo, cloneRepo, defaultRepo, removeRepo, reposInfo,
+export { Project, askDeleteProject, deleteClosedTask, deleteProjectData, pictureOf, addFolder, cloneRepo, defaultFolder, removeFolder, foldersInfo,
   askDropProfile, dropProfile, deleteProfile, agentsInfo, addAgent, defaultAgent, removeAgent, deleteAccount, createProject, folderStateOf,
   githubOf, setGitHub, githubUsers, deleteGitHub };
