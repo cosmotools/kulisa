@@ -10,3 +10,4 @@ function installDictation(d: Dictation) {
 }
 
 export { Dictation, installDictation };
+export type { Recognizer } from './hidden.ts';

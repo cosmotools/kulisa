@@ -2,9 +2,11 @@
 # The fake agent the tests install (run.ts): it says where it runs and echoes what it is sent (cat), and has accounts
 # as Claude Code has (agents/, config): `auth login` opens its sign-in page ($FAKE_SIGNIN_PAGE) with $BROWSER, the
 # user's browser, as Claude Code does, and signs in to the email the human types (none: not signed in); `auth status` says the email
-# (ends with 1 when signed out); `auth logout` signs out, noted in $FAKE_LOGOUTS.
+# (ends with 1 when signed out); `auth logout` signs out, noted in $FAKE_LOGOUTS. --recognize: a dictation recognizing for
+# another agent ($FAKE_RECOGNIZER).
 case "$1 $2" in
   "--version "*) echo "kulisa-fake-agent 1.2.3"; exit;;
+  "--recognize "*) exec node "$FAKE_RECOGNIZER";;
   "auth login")
     [ -n "$BROWSER" ] && "$BROWSER" "$FAKE_SIGNIN_PAGE"
     echo "Sign in as? Type an email"

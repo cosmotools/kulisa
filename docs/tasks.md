@@ -411,15 +411,13 @@ are not programmers); its accounts are made there too, or in a project's page.
   with the MCP server and its hooks as config overrides, `-c mcp_servers.kulisa.url=…`, `-c hooks=…`), resume
   (`claude --resume` and `codex resume` with the session the `SessionStart` hook reported; else `codex resume
   --last`) and forget a deleted task's folder.
-- **Dictation**, where the agent has its own (its entry's `voice`: its key and how often it is typed; Claude
-  Code's voice mode, which needs a Claude.ai account; Codex has none, only a realtime voice conversation): a
-  key held anywhere in the window (the right Ctrl), and a microphone at the end of the terminals' row, for the agent in
-  front ([window.md](window.md), The terminal). The human needs to know neither the agent's command nor its key:
-  Kulisa turns it on for its own sessions (Claude Code: `--settings` with `voice: { enabled, mode: "hold",
-  autoSubmit: false }`, not the user's settings) and the button holds its key: space typed
-  again and again at a keyboard's repeat rate, as a terminal shows a held key (it tells no release), and Claude Code
-  records while they come, putting the text where the cursor is, after any text there. Not its `tap` mode (a tap
-  starts, another stops): it records only with the input empty, so no second sentence can be added.
+- **Dictation** ([src/dictation](../src/dictation/README.md)): where the agent has its own (its entry's `voice`: its
+  key and how often it is typed; Claude Code's voice mode, which needs a Claude.ai account), Kulisa holds its key;
+  for one without (Codex has only a realtime voice conversation), another agent's dictation recognizes in a session no
+  one sees (its entry's `recognizer`: Claude Code's, in hold mode with `autoSubmit`, its text posted by its
+  `UserPromptSubmit` hook and blocked there). Kulisa turns it on for its own sessions (Claude Code: `--settings` with
+  `voice: { enabled, mode: "hold", autoSubmit: false }`, not the user's settings). Not its `tap` mode (a tap starts,
+  another stops): it records only with the input empty, so no second sentence can be added.
 - **Language**, where the agent has a setting of its own (its entry's `language`: the codes it takes, and how one is
   written into an account's folder): Kulisa's one language (☰ → Language, [window.md](window.md), Language) goes
   into every account of it. Claude Code's is its `language` setting, which it dictates and answers in (it has none for
@@ -680,6 +678,9 @@ agents/<agent>-<id>/              an account's config folder (CLAUDE_CONFIG_DIR,
                                   settings for Kulisa (kulisa-settings.json), written at each start; gone, signed out first, when the human deletes it (Settings →
                                   Agents); one a sign-in left
                                   unfinished (Kulisa quit meanwhile) goes at the next start
+dictation/                        the folder the hidden session runs in (src/dictation: another agent's dictation
+                                  recognizing for one without), empty; it and what that session kept of it in its
+                                  account (its conversation, its trust) go when the session ends, or at the next start
 settings.json                     the Kulisa zoom, the theme, where the tasks' bar is, the language; the windows: each one's
                                   tasks by key (in the bar's order), the one shown, where it was
 logs/kulisa.log                   what happened and who asked (window.md, The log), for a bug report; at 1 MB it becomes
@@ -887,5 +888,6 @@ rm -rf ~/.config/Kulisa/projects/myshop   # all its tasks with their profiles' c
 | `src/main/favicons.ts` | a project's icon: its site's favicon in its code (Projects, "Each project has a color and an icon") |
 | `src/shared/names.ts` | the rules for names (projects and profiles; a task's, a label) and slugs |
 | `src/main/accounts.ts`, `src/renderer/components/AccountSignIn.vue` | the agents' accounts, one store; a new one's sign-in in Settings (a project's page, or Agents) |
+| `src/main/recognizer.ts` | which account recognizes speech for an agent without dictation of its own ([src/dictation](../src/dictation/README.md)), its session's folder |
 | `src/renderer/lib/grid.ts`, `components/Grid.vue` | building a task's grid; the slide (a view transition) |
 | `test/tasks.ts` | the tests; `test/restart-tasks.ts` after a restart; `test/unit/agents.test.ts` |

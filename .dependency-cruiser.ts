@@ -38,7 +38,7 @@ const packages: Record<string, { main: string[] }> = {
   // GitHub accounts and their sign-ins; store for its file's id and its atomic write, the data folder's own.
   github: { main: ['ipc', 'log', 'store'] },
   'activity-monitor': { main: [] }, // what Kulisa takes on the computer; told of the tasks by the caller
-  dictation: { main: ['ipc'] }, // dictation: what each task's microphone shows, and recording
+  dictation: { main: ['ipc', 'log'] }, // dictation: what each task's microphone shows, and recording
 };
 const packageRules = (name: string, { main: uses }: { main: string[] }) => {
   const dir = `^src/${name}/`;

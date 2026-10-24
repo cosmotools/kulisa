@@ -1048,6 +1048,27 @@ export default (test: Test) => {
     shell.setLanguage('en');
     assert.equal(read(own(work)).language, 'English');
   });
+  test("dictation: an agent without its own is recognized for by another agent's dictation in a hidden session (fixtures/fake-recognizer.mjs): the microphone getting ready, then recording; let go, the text it heard goes into that agent's input; ended, nothing of it is left", async ({ shell, ui, termText, watchPty }) => {
+    const task = shell.task, mic = `document.querySelector('.dictation .mic')`;
+    await waitFor(() => task.promptTarget()?.agent.id === work);
+    watchPty(task.pty);
+    await waitFor(() => ui(`!${mic}.disabled`));
+    assert.match(await ui(`${mic}.title`), /^Speak to the agent in English: hold/);
+    // The microphone held (the key's way is the window tests'), let go once it records.
+    const mouse = (type: string) => ui(`${mic}.dispatchEvent(new PointerEvent('${type}', { bubbles: true, button: 0, pointerId: 1 }))`);
+    await mouse('pointerdown');
+    await waitFor(() => ui(`${mic}.dataset.state === 'starting'`));
+    assert.equal(await ui(`${mic}.title`), 'Getting ready to listen: speak once the microphone is red');
+    await waitFor(() => ui(`${mic}.dataset.state === 'recording'`), 15000);
+    await sleep(500);
+    await mouse('pointerup');
+    await waitFor(async () => (await termText()).includes('Heard by the fake recognizer.'));
+    assert.equal(await ui(`${mic}.dataset.state`), 'ready');
+    const folder = path.join(userData, 'dictation');
+    assert.ok(fs.existsSync(folder), 'its session runs in a folder of Kulisa\'s');
+    shell.dictation.close();
+    await waitFor(() => !fs.existsSync(folder));
+  });
 
   test("agents: an account lives until deleted in Settings → Agents: let go by its project at once, kept; not deleted while a task runs it; deleted after a question, signed out, with its folder; one made there is in no project", async (ctx) => {
     const { shell, ui, sui } = ctx;

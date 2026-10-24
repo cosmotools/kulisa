@@ -620,7 +620,8 @@ class Task {
   // no use for a microphone. Its language is Kulisa's one (app.ts, setLanguage).
   voiceShown() {
     const t = this.shownAgent();
-    this.shell.dictation.shown(this.key, t ? { id: t.key, name: t.agent!.name, voice: t.agent!.voice, input: t.pty || null } : null);
+    this.shell.dictation.shown(this.key, t ? { id: t.key, name: t.agent!.name, voice: t.agent!.voice, input: t.pty || null,
+      type: (text) => { if (t.pty) typeIntoPrompt(t.pty, text); } } : null);
   }
   // The dictation key (keys.ts, voice.hold), as the microphone button. Pressed with a shell in front, the agent the
   // prompt goes to comes to the front first: the key means "speak to the agent", wherever the keyboard is.

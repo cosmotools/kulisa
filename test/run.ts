@@ -53,6 +53,7 @@ function claudeLike() {
 }
 const bin = path.join(root, 'bin');
 process.env.FAKE_LOGOUTS = path.join(root, 'logouts'); // the accounts the fake agent signed out of
+process.env.FAKE_RECOGNIZER = path.join(import.meta.dirname, 'fixtures', 'fake-recognizer.mjs');
 // Kulisa started from a folder direnv had loaded, as from a terminal in the repository: its state in the environment.
 Object.assign(process.env, { DIRENV_DIR: `-${root}`, DIRENV_FILE: path.join(root, '.envrc'), DIRENV_DIFF: 'eJyrrgUAAXUA-Q', DIRENV_WATCHES: 'eJyLjgUAARUAuQ' });
 process.env.FAKE_SIGNIN_PAGE = `${SITE}/app?signin`; // the page its sign-in opens (the test site)
@@ -72,7 +73,11 @@ const agents: Agent[] = [
     config: { env: 'FAKE_CONFIG_DIR', home: () => path.join(root, 'fake-config'), login: () => ['auth', 'login'],
       status: ['auth', 'status'], email: (out) => JSON.parse(out).email, logout: ['auth', 'logout'] },
     install: { posix: `echo "installing the fake agent"; mkdir -p '${bin}' && cp '${path.join(import.meta.dirname, 'fixtures', 'fake-agent.sh')}' '${bin}/kulisa-fake-agent' && chmod +x '${bin}/kulisa-fake-agent' && printf '\\033[32mdone\\033]8;;https://kulisa.app\\007\\033]8;;\\007\\033[0m\\n'` }, // colored, a link: as installers print
-    args: () => [], shell: agent.shell, ...claudeLike() },
+    args: () => [], shell: agent.shell, ...claudeLike(),
+    // Recognizing for an agent without dictation of its own (src/dictation's hidden session) when signed in, as
+    // Claude Code's dictation does: fixtures/fake-recognizer.mjs.
+    recognizer: { available: (dir) => fs.existsSync(path.join(dir, 'account')), args: () => ['--recognize'], env: (env) => ({ ...env }),
+      key: ' ', repeat: 30, clear: '\x15', submit: '\r' } },
   { id: 'shell', name: 'Terminal only', maker: '', command: null, needs: 'No agent' },
 ];
 

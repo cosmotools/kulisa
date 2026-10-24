@@ -5,7 +5,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import http from 'http';
-import { handleHookRequest, taskContext, ONLY_BROWSER } from './agent-hooks.ts';
+import { handleDictationHook, handleHookRequest, taskContext, ONLY_BROWSER } from './agent-hooks.ts';
 import { handles } from './tools/handles.ts';
 import { profileTools } from './tools/profile.ts';
 import { taskTools } from './tools/task.ts';
@@ -58,6 +58,7 @@ async function startMcpServer(shell: Shell, cfg: { port?: number }) {
   shell.bus.on('profile-unloading', (key: string) => void clearHighlights(key));
   const srv = http.createServer(async (req, res) => {
     if (!fromLocalTool(req)) { res.writeHead(403); return res.end(); }
+    if (handleDictationHook((text) => shell.dictation.dictated(text), req.url!, req, res)) return;
     // /task/<project>/<task id>[/t/<terminal id>]/…: a task of an open project, loaded; an agent's terminal of it.
     const m = req.url!.match(/^\/task\/([^/]+)\/([^/]+)(?:\/t\/(\d+))?(\/.*)$/);
     const task = m && shell.taskOf(safeDecode(m[1]!), safeDecode(m[2]!));

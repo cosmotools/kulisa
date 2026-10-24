@@ -1,8 +1,9 @@
 // The dictation's channels between a window's page and the main process (README), joined into all of them in
 // src/shared/ipc.ts. Keyed by the task's key.
 
-// What a task's microphone shows: none (disabled, why), ready, recording.
-export type Voice = { state: 'none'; why: string } | { state: 'ready' | 'recording' };
+// What a task's microphone shows: none (disabled, why), ready, starting (the hidden session getting ready to listen),
+// recording.
+export type Voice = { state: 'none'; why: string } | { state: 'ready' | 'starting' | 'recording' };
 
 // ipcRenderer.invoke / ipcMain.handle (args, the answer).
 export interface DictationInvoke {

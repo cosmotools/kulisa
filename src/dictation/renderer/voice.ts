@@ -6,9 +6,7 @@ export const voices = reactive<Record<string, Voice>>({}); // task key -> its mi
 
 kulisa.on('voice', ({ task, voice }) => { voices[task] = voice; });
 export async function record(task: string, on: boolean) {
-  const v = voices[task];
-  if (!v || v.state === 'none') return;
-  voices[task] = { state: on ? 'recording' : 'ready' }; // at once, as the button is pressed
+  if (!voices[task] || voices[task].state === 'none') return;
   voices[task] = await kulisa.invoke('voice:record', { task, on });
 }
 export async function read(task: string) { voices[task] = await kulisa.invoke('voice:get', task); }

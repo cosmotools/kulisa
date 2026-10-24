@@ -11,10 +11,11 @@ const props = defineProps<{ task: string | null; keyName: string; language: stri
 const emit = defineEmits<{ done: [] }>();
 
 const v = computed(() => (props.task ? voices[props.task] : undefined));
-const recording = computed(() => v.value?.state === 'recording');
+// Starting (the hidden session getting ready) is recording to the human: the key is down, a second press stops it.
+const recording = computed(() => v.value?.state === 'recording' || v.value?.state === 'starting');
 // A recording is not left on in a task out of sight.
 watch(() => props.task, async (task, before) => {
-  if (before && voices[before]?.state === 'recording') void record(before, false);
+  if (before && ['recording', 'starting'].includes(voices[before]?.state ?? '')) void record(before, false);
   if (task) await read(task);
 }, { immediate: true });
 
@@ -37,6 +38,7 @@ const key = (e: MouseEvent) => { if (!e.detail) void record(props.task!, !record
 const title = computed(() => {
   if (!v.value) return '';
   if (v.value.state === 'none') return v.value.why;
+  if (v.value.state === 'starting') return 'Getting ready to listen: speak once the microphone is red';
   if (recording.value) return `Recording: let go of ${props.keyName}, or click to stop`;
   return `Speak to the agent${props.language ? ` in ${props.language}` : ''}: hold ${props.keyName} anywhere, or press it once and again; or this button the same way`;
 });
@@ -45,7 +47,7 @@ const title = computed(() => {
 <template>
   <!-- The panel is not dragged by its row's buttons. -->
   <div class="dictation" @dragstart.prevent>
-    <button class="icon round mic" aria-label="Speak to the agent" :aria-pressed="recording" :disabled="!v || v.state === 'none'" :title="title"
+    <button class="icon round mic" aria-label="Speak to the agent" :aria-pressed="recording" :data-state="v?.state" :disabled="!v || v.state === 'none'" :title="title"
       @pointerdown="press" @pointerup="release" @pointercancel="release" @click="key"><slot /></button>
   </div>
 </template>
@@ -54,7 +56,9 @@ const title = computed(() => {
 /* At the row's end; red while it records, breathing with a ring, as a voice message's button does, so the eye catches
    from across the window that the agent is listening (not with reduced motion: red alone). */
 .dictation { display: grid; place-items: center; flex: none; margin-inline-start: auto;
-  .mic.round[aria-pressed="true"] { color: var(--on-accent); background: var(--danger); animation: mic-breathe 1.2s ease-in-out infinite; } }
+  .mic.round[aria-pressed="true"] { color: var(--on-accent); background: var(--danger); animation: mic-breathe 1.2s ease-in-out infinite; }
+  /* Getting ready (~1 s, the hidden session starting): lit, not red yet, so nobody speaks before it hears. */
+  .mic.round[data-state="starting"] { background: var(--accent); animation: none; } }
 .taskrepos + .dictation { margin-inline-start: 0; }
 @keyframes mic-breathe {
   0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 color-mix(in srgb, var(--danger) 55%, transparent); }

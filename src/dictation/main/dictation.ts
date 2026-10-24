@@ -1,24 +1,35 @@
-// The dictation of every task (../README.md): what each task's microphone shows, and recording, by the agent's own
-// dictation: its key held in its terminal.
+// The dictation of every task (../README.md): what each task's microphone shows, and recording, the first way there
+// is: the agent's own dictation (its key held in its terminal), else the hidden session (hidden.ts) recognizing for it.
 import type { Voice } from '../ipc.ts';
+import { Hidden } from './hidden.ts';
+import type { Hold, Recognizer, Spawn } from './hidden.ts';
 
 const LIMIT = 5 * 60_000; // a recording left on (a click and no second one)
 const HOLD = 400; // the key down longer is held (records until let go), shorter is a press (until the next)
 
-// The agent in front of a task, as the caller tells it. input: its terminal, where its key is typed (null: not
-// started yet); a new one is another program, and a recording there stops.
+// The agent in front of a task, as the caller tells it. input: its terminal, where its own dictation's key is typed
+// (null: not started yet); a new one is another program, and a recording there stops. type: text put into its input
+// for the human to read and send.
 interface Target {
   id: string; name: string;
   voice?: { key: string; repeat: number }; // its own dictation: the key typed again and again while it records
   input: { write(data: string): void } | null;
+  type(text: string): void;
 }
-interface State { task: string; target: Target | null; recording: { input: Target['input']; timer: NodeJS.Timeout } | null; held: number }
+// A recording: by the agent's own dictation, or by the hidden session (hold), heard from when it listens.
+interface Recording { input: Target['input']; timer: NodeJS.Timeout; hold?: Hold; listening?: boolean }
+interface State { task: string; target: Target | null; recording: Recording | null; held: number }
 
 class Dictation {
   tasks = new Map<string, State>();
   send: (task: string, voice: Voice) => void;
-  // send: a task's microphone changed, to the window that shows it.
-  constructor(send: (task: string, voice: Voice) => void) { this.send = send; }
+  hidden: Hidden | null;
+  // send: a task's microphone changed, to the window that shows it. recognizer: for agents without their own
+  // dictation (none: they have none). spawn: how its session starts (a unit test's fake).
+  constructor(send: (task: string, voice: Voice) => void, { recognizer, spawn }: { recognizer?: Recognizer; spawn?: Spawn } = {}) {
+    this.send = send;
+    this.hidden = recognizer ? new Hidden(recognizer, spawn) : null;
+  }
   of(task: string) {
     let s = this.tasks.get(task);
     if (!s) this.tasks.set(task, s = { task, target: null, recording: null, held: 0 });
@@ -27,8 +38,13 @@ class Dictation {
   state(task: string): Voice {
     const { target, recording } = this.of(task);
     if (!target) return { state: 'none', why: "Dictation is the agent's: a shell is in front" };
-    if (!target.voice) return { state: 'none', why: `${target.name} has no dictation of its own here` };
-    return { state: recording ? 'recording' : 'ready' };
+    if (!target.voice) {
+      if (!this.hidden) return { state: 'none', why: `${target.name} has no dictation of its own here` };
+      const why = this.hidden.available();
+      if (why !== null) return { state: 'none', why: `${target.name} has no dictation of its own, and ${why}` };
+    }
+    if (!recording) return { state: 'ready' };
+    return { state: recording.hold && !recording.listening ? 'starting' : 'recording' };
   }
   changed(task: string) { this.send(task, this.state(task)); }
   recording(task: string) { return !!this.tasks.get(task)?.recording; }
@@ -37,7 +53,7 @@ class Dictation {
   shown(task: string, target: Target | null) {
     const s = this.of(task), was = s.target;
     s.target = target;
-    if (s.recording && (target?.id !== was?.id || target?.input !== s.recording.input)) this.stop(s);
+    if (s.recording && (target?.id !== was?.id || (target?.voice && target.input !== s.recording.input))) this.stop(s);
     this.changed(task);
   }
   // The dictation's key, as the microphone: held, it records until let go; pressed once, until the next press, or a
@@ -73,23 +89,46 @@ class Dictation {
     if (s) this.stop(s);
     this.tasks.delete(task);
   }
+  // What the hidden session heard, posted by its hook.
+  dictated(text: string) { this.hidden?.dictated(text); }
+  // Kulisa quits: nothing records, the hidden session ends.
+  close() { for (const s of this.tasks.values()) this.stop(s); this.hidden?.close(); }
 
-  // Recording: the agent's key held, as a terminal shows a held key, its repeats. It stops when told, after LIMIT, or
-  // when that agent is no longer in front.
+  // Recording: the agent's key held, as a terminal shows a held key, its repeats; or the hidden session's. It stops
+  // when told, after LIMIT, or when that agent is no longer in front.
   start(s: State) {
     this.stop(s);
-    const v = s.target?.voice, input = s.target?.input;
-    if (!v || !input) return;
-    const until = Date.now() + LIMIT;
-    s.recording = { input, timer: setInterval(() => {
-      if (Date.now() < until) return input.write(v.key);
-      this.stop(s);
-      this.changed(s.task);
-    }, v.repeat) };
+    const t = s.target;
+    if (!t) return;
+    const v = t.voice, input = t.input;
+    if (v) {
+      if (!input) return;
+      const until = Date.now() + LIMIT;
+      s.recording = { input, timer: setInterval(() => {
+        if (Date.now() < until) return input.write(v.key);
+        this.stop(s);
+        this.changed(s.task);
+      }, v.repeat) };
+      return;
+    }
+    const hidden = this.hidden;
+    if (!hidden || hidden.available() !== null) return;
+    const hold: Hold = {
+      on: true,
+      listening: () => { if (s.recording?.hold === hold) { s.recording.listening = true; this.changed(s.task); } },
+      failed: () => { if (s.recording?.hold === hold) { this.stop(s); this.changed(s.task); } },
+      // The text goes to the agent it was spoken to, while it is in front.
+      text: (text) => { if (s.target?.id === t.id) s.target.type(text); },
+    };
+    s.recording = { input, hold, timer: setTimeout(() => { this.stop(s); this.changed(s.task); }, LIMIT) };
+    void hidden.start(hold);
   }
   stop(s: State) {
-    clearInterval(s.recording?.timer);
+    const r = s.recording;
+    if (!r) return;
+    clearInterval(r.timer);
     s.recording = null;
+    if (r.hold) this.hidden!.release(r.hold);
   }
 }
 

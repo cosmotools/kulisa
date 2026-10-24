@@ -79,6 +79,23 @@ function handleHookRequest(task: Task, t: TaskTerminal | null, url: string, req:
   return true;
 }
 
+// The hidden session's hook (src/dictation; its KULISA_URL is <server>/dictation): the text it heard goes to the
+// dictation, and the prompt is blocked: its model never gets it. Never logged: what the human said.
+function handleDictationHook(dictated: (text: string) => void, url: string, req: IncomingMessage, res: ServerResponse) {
+  if (url !== '/dictation/hooks/prompt') return false;
+  let body = '';
+  req.on('data', (d) => { if (body.length < 1e6) body += d; });
+  req.on('end', () => {
+    let input: Input = null;
+    try { input = body ? JSON.parse(body) : null; } catch {}
+    log.info('[hook] dictation');
+    if (typeof input?.prompt === 'string') dictated(input.prompt);
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ decision: 'block', reason: 'Dictated for Kulisa: not sent' }));
+  });
+  return true;
+}
+
 // Where the agent works, for every agent (the MCP server's instructions, and at the session's start): its task, its
 // folder and branch, the project's folder that is the human's, its ports, naming the task (tasks.md).
 function taskContext(task: Task) {
@@ -115,4 +132,4 @@ function taskContext(task: Task) {
     'browser_navigate. Install dependencies first if the worktree has none (node_modules and the like are not copied).';
 }
 
-export { handleHookRequest, sessionStart, taskContext, ONLY_BROWSER };
+export { handleHookRequest, handleDictationHook, sessionStart, taskContext, ONLY_BROWSER };
