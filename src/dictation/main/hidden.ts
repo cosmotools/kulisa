@@ -46,6 +46,19 @@ class Session {
     for (let i = 0; i < b.length; i++) lines.push(b.getLine(i)?.translateToString(true) ?? '');
     return lines.join('\n');
   }
+  // The words heard so far, as its input shows them while it records: the text after its prompt, without what is not
+  // heard words: its placeholder (dim) and its level meter (block glyphs at the end).
+  words() {
+    const b = this.screen.buffer.active, cell = b.getNullCell();
+    let y = -1;
+    for (let i = b.length - 1; i >= 0 && y < 0; i--) if (b.getLine(i)?.translateToString(true).startsWith('❯')) y = i;
+    if (y < 0) return null;
+    let text = '';
+    for (let line = b.getLine(y), first = true; line && (first || line.isWrapped); line = b.getLine(++y), first = false) {
+      for (let x = first ? 1 : 0; x < line.length; x++) { line.getCell(x, cell); if (!cell.isDim()) text += cell.getChars() || ' '; }
+    }
+    return text.replace(/[\u2581-\u2588]/g, '').trim();
+  }
   async until(test: (text: string) => boolean, ms: number) {
     const end = Date.now() + ms;
     while (Date.now() < end && !this.exited) { if (test(this.text())) return true; await sleep(20); }
@@ -53,15 +66,16 @@ class Session {
   }
 }
 
-// A held key's life: it records until let go; text: the transcript, once it comes.
-interface Hold { listening: () => void; failed: (why: string) => void; text: (text: string) => void; on: boolean }
+// A held key's life: it records until let go; words: what it has heard so far, as it hears it; text: the transcript,
+// once it comes.
+interface Hold { listening: () => void; failed: (why: string) => void; words: (text: string) => void; text: (text: string) => void; on: boolean }
 
 class Hidden {
   recognizer: Recognizer; spawn: Spawn;
   session: Session | null = null; opening: Promise<Session | { error: string }> | null = null;
   failed: string[] = []; // the accounts whose session failed since the last one ended
   broken: string | null = null; // every account failed: why, until the session's time is over (close)
-  hold: Hold | null = null; keys: NodeJS.Timeout | null = null; waiting: NodeJS.Timeout[] = []; idle: NodeJS.Timeout | null = null;
+  hold: Hold | null = null; keys: NodeJS.Timeout | null = null; watch: { dispose(): void } | null = null; waiting: NodeJS.Timeout[] = []; idle: NodeJS.Timeout | null = null;
   constructor(recognizer: Recognizer, spawn: Spawn = spawnPty) { this.recognizer = recognizer; this.spawn = spawn; }
 
   available() { return this.broken ?? this.recognizer.available(); }
@@ -107,7 +121,18 @@ class Hidden {
     for (let i = 0; i < 3; i++) s.proc.write(s.spec.clear); // the text of the last one, put back after its block
     this.keys = setInterval(() => s.proc.write(s.spec.key), s.spec.repeat);
     s.proc.write(s.spec.key);
-    if (await s.until((t) => /listening/i.test(t), LISTENING)) { if (this.hold === hold && hold.on) hold.listening(); return; }
+    if (await s.until((t) => /listening/i.test(t), LISTENING)) {
+      if (this.hold !== hold || !hold.on) return;
+      hold.listening();
+      // The words as they come, until its text does (dictated): its input then shows the blocked prompt put back.
+      let last = '';
+      this.watch = s.screen.onWriteParsed(() => {
+        const w = s.words();
+        // None at all is its input emptied as it submits, not words unsaid: the text comes next.
+        if (w && w !== last && this.hold === hold) { last = w; hold.words(w); }
+      });
+      return;
+    }
     if (this.hold !== hold || !hold.on) return;
     log.info(`[dictation] ${s.spec.id}'s session did not listen`);
     this.failed.push(s.spec.id);
@@ -128,7 +153,7 @@ class Hidden {
   }
   // Its time without a dictation starts again.
   rest() { clearTimeout(this.idle!); this.idle = setTimeout(() => this.close(), IDLE); }
-  cancel() { for (const t of this.waiting) clearTimeout(t); this.waiting = []; }
+  cancel() { for (const t of this.waiting) clearTimeout(t); this.waiting = []; this.watch?.dispose(); this.watch = null; }
   // What its hook posted: the text it heard, for the one that held the key.
   dictated(text: string) {
     const hold = this.hold;

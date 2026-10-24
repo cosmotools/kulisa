@@ -9,12 +9,13 @@ const HOLD = 400; // the key down longer is held (records until let go), shorter
 
 // The agent in front of a task, as the caller tells it. input: its terminal, where its own dictation's key is typed
 // (null: not started yet); a new one is another program, and a recording there stops. type: text put into its input
-// for the human to read and send.
+// for the human to read and send; erase: the last n characters typed there deleted.
 interface Target {
   id: string; name: string;
   voice?: { key: string; repeat: number }; // its own dictation: the key typed again and again while it records
   input: { write(data: string): void } | null;
   type(text: string): void;
+  erase(n: number): void;
 }
 // A recording: by the agent's own dictation, or by the hidden session (hold), heard from when it listens.
 interface Recording { input: Target['input']; timer: NodeJS.Timeout; hold?: Hold; listening?: boolean }
@@ -117,8 +118,20 @@ class Dictation {
       on: true,
       listening: () => { if (s.recording?.hold === hold) { s.recording.listening = true; this.changed(s.task); } },
       failed: () => { if (s.recording?.hold === hold) { this.stop(s); this.changed(s.task); } },
-      // The text goes to the agent it was spoken to, while it is in front.
-      text: (text) => { if (s.target?.id === t.id) s.target.type(text); },
+      // The words go into the input of the agent they were spoken to, while it is in front, as they are heard, then
+      // the text: each time only what changed is erased and typed again (punctuation and case change at the end).
+      words: (words) => put(words),
+      text: (text) => put(text),
+    };
+    let shown: string[] = [];
+    const put = (text: string) => {
+      if (s.target?.id !== t.id) return;
+      const next = [...text];
+      let same = 0;
+      while (same < shown.length && same < next.length && shown[same] === next[same]) same++;
+      if (shown.length > same) s.target.erase(shown.length - same);
+      if (next.length > same) s.target.type(next.slice(same).join(''));
+      shown = next;
     };
     s.recording = { input, hold, timer: setTimeout(() => { this.stop(s); this.changed(s.task); }, LIMIT) };
     void hidden.start(hold);

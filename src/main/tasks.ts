@@ -9,7 +9,7 @@ import path from 'path';
 import { Profile, wipeSession } from './profiles.ts';
 import { ProjectProfiles } from './project-profiles.ts';
 import { installSigninPause } from './signin-pause.ts';
-import { startTerminal, stopTerminal, forgetTerminal, terminalTail, sendToPrompt, typeIntoPrompt, typeLine, interrupt } from '../terminal/main/index.ts';
+import { startTerminal, stopTerminal, forgetTerminal, terminalTail, sendToPrompt, typeIntoPrompt, eraseInPrompt, typeLine, interrupt } from '../terminal/main/index.ts';
 import { READ_MAX } from './kulisa-plugin/tools/terminal.ts';
 import { listArtifacts } from './kulisa-plugin/artifacts.ts';
 import { copyProfile, worktreesOf, ownWorktree, folderOf, branchOf, taskKey } from './store.ts';
@@ -621,7 +621,7 @@ class Task {
   voiceShown() {
     const t = this.shownAgent();
     this.shell.dictation.shown(this.key, t ? { id: t.key, name: t.agent!.name, voice: t.agent!.voice, input: t.pty || null,
-      type: (text) => { if (t.pty) typeIntoPrompt(t.pty, text); } } : null);
+      type: (text) => { if (t.pty) typeIntoPrompt(t.pty, text); }, erase: (n) => { if (t.pty) eraseInPrompt(t.pty, n); } } : null);
   }
   // The dictation key (keys.ts, voice.hold), as the microphone button. Pressed with a shell in front, the agent the
   // prompt goes to comes to the front first: the key means "speak to the agent", wherever the keyboard is.

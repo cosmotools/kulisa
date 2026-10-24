@@ -143,6 +143,8 @@ const typeLine = (p: IPty, line: string) => p.write(`${line}\r`);
 function typeIntoPrompt(p: IPty, text: string) {
   p.write(`\x1b[200~${text}\x1b[201~`);
 }
+// Delete the last n characters before the cursor in the agent's prompt, as Backspace does.
+const eraseInPrompt = (p: IPty, n: number) => p.write('\x7f'.repeat(n));
 
 // What a terminal shows, without its escape codes and spaces: the words an agent's UI draws are split by moves of the
 // cursor, which take the spaces' place.
@@ -169,4 +171,4 @@ async function sendToPrompt(p: Pty, text: string, confirm?: string) {
 }
 
 export type { Pty };
-export { startTerminal, stopTerminal, forgetTerminal, terminalTail, typeIntoPrompt, sendToPrompt, interrupt, typeLine, onEscape };
+export { startTerminal, stopTerminal, forgetTerminal, terminalTail, typeIntoPrompt, eraseInPrompt, sendToPrompt, interrupt, typeLine, onEscape };

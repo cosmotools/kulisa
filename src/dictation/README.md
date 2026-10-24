@@ -47,13 +47,19 @@ gets its text, knowing no agent by name.
 - **One session for the whole of Kulisa**, started at the first dictation (~1 s; the microphone **starting**, blue,
   until it listens: it records from the microphone itself, so words before that are lost), ended after 10 minutes
   without one (~190 MB let go). Not one a task: every task and window dictates through it, one language for every
-  account. In a pty of its own (`node-pty`), a child of Kulisa's main process; its screen read by a headless xterm for
-  two things only: its prompt drawn (started) and "listening" (it hears).
+  account. In a pty of its own (`node-pty`), a child of Kulisa's main process; its screen read by a headless xterm: its prompt drawn
+  (started), "listening" (it hears), the words heard so far (below).
 - **The text comes by its hook, not off its screen**: it runs in hold mode with `autoSubmit`, so the text is submitted
   when the key is let go, and its `UserPromptSubmit` hook posts it to Kulisa (`<server>/dictation/hooks/prompt`,
   `agent-hooks.ts`), whose answer blocks it: its model never gets it, and it costs no tokens. The text goes into the
   input of the agent it was spoken to while that one is still in front (else it is dropped), as a paste, left there to
   read and send.
+- **The words as they are heard**: while it records, its input shows what it has heard so far (grey, a word or two
+  every half second, its level meter after them), and these words go into the agent's input as they come, as in its
+  own; the text from its hook then corrects them (punctuation and case change at the end). Each time only what changed
+  is erased (Backspace) and typed again. Its screen is read for them as a cell's look tells: its placeholder in an
+  empty input is dim, its level meter block glyphs; neither is a word. Read wrong after a change of Claude Code's
+  screen, the text from its hook still puts the input right; read not at all, the text comes whole.
 - **Its input emptied before each dictation**: a blocked prompt is put back in it. Its screen is wide, so its input is
   one line, which its clear key deletes (three times, to be sure).
 - **A short one** (under three words, which `autoSubmit` does not send) stays in its input: a second after the key is
