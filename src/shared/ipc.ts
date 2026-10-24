@@ -85,7 +85,7 @@ export interface Invoke extends ThumbnailInvoke, GitHubInvoke {
   'task:show-folder': I<[key: string]>;
   'task:open-folder': I<[{ key: string; folder: string }]>; // a resource's folder (Resources.vue), checked to be the task's
   'task:artifacts': I<[string]>; // the task's artifacts sent again (Resources.vue: the task shown)
-  'task:artifact-delete': I<[{ key: string; file: string }], Result>;
+  'task:artifacts-delete': I<[{ key: string; files: string[] | null }], Result>; // null: all
   'app:quit': I<[]>;
   'voice:get': I<[key: string], Voice | null>;
   'voice:record': I<[{ task: string; on: boolean }], Voice>;
@@ -163,7 +163,7 @@ export interface Events extends TerminalEvents, ThumbnailEvents {
   'state': Profile[];
   'closed-profiles': ClosedProfile[];
   'terminals': Terminals;
-  'artifacts': { task: string; list: Artifact[] };
+  'artifacts': { task: string; list: Artifact[]; bytes: number }; // bytes: all of them (Task.artifactsUsage)
   'terminal:focus': void;
   'grid:closing': { dir: number; task?: string; pics: Record<string, string> | null };
   'tasks:closed': string[];

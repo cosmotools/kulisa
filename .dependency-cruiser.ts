@@ -30,13 +30,14 @@ const cluster = (name: string, entries: string[]) => {
 };
 
 // Kulisa packages (docs/packages.md): all of one in src/<package>/, reached from outside only
-// through its entries; its main process half uses only the main process's IPC and log, its window half nothing of the
-// window. A new Kulisa package is a line here.
+// through its entries (other packages' too); its main process half uses of src/main only what its line names, its window
+// half nothing of the window. A new Kulisa package is a line here.
 const packages: Record<string, { main: string[] }> = {
   terminal: { main: ['ipc', 'log'] }, // a terminal: its pty, its buffers and the xterm shown
   screenshots: { main: ['ipc', 'log'] }, // a picture of a page: an element, the visible part, the whole page
   // GitHub accounts and their sign-ins; store for its file's id and its atomic write, the data folder's own.
   github: { main: ['ipc', 'log', 'store'] },
+  'activity-monitor': { main: [] }, // what Kulisa takes on the computer; told of the tasks by the caller
 };
 const packageRules = (name: string, { main: uses }: { main: string[] }) => {
   const dir = `^src/${name}/`;

@@ -117,6 +117,7 @@ Code's checks.
 | `src/agent/` | what Kulisa gives the agents: the profiles skill, Claude Code's plugin |
 | `src/terminal/` | the terminal, a Kulisa package: both its halves, its channels, its doc (docs/packages.md) |
 | `src/github/` | the GitHub accounts, a Kulisa package (docs/packages.md) |
+| `src/activity-monitor/` | what Kulisa takes on the computer, a Kulisa package (docs/packages.md) |
 | `test/` | unit tests and the e2e groups, the test site (docs/testing.md) |
 | `scripts/` | `electron.ts` (npm start: Electron, `--no-sandbox` on Linux only), `postinstall.ts` (node-pty for Electron), `icons.ts` (npm run icons), `version.ts` (Claude Code's plugin manifest's version from package.json's, at npm version) |
 | `assets/` | the app icon: `icon.svg` and what each OS needs, rendered from it |

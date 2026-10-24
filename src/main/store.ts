@@ -41,6 +41,10 @@ function newId(taken: (id: string) => boolean) {
   return id;
 }
 const TABS_FILE = 'Kulisa Tabs.json';
+const ARTIFACTS = 'artifacts';
+// A task among all of every project ("<project id>/<task id>"): the windows, the terminals, the CDP proxy and the MCP
+// server's URLs know it by that.
+const taskKey = (p: { id: string }, id: string) => `${p.id}/${id}`;
 const SESSION_COOKIES_FILE = 'Kulisa Session Cookies.bin';
 // Chromium's caches inside a profile: rebuilt by themselves, so a copy of a profile goes without them.
 const CACHES = new Set(['Cache', 'Code Cache', 'GPUCache', 'DawnGraphiteCache', 'DawnWebGPUCache', 'GrShaderCache', 'ShaderCache']);
@@ -151,8 +155,12 @@ class Store {
   // A task's data folder; taskOf makes it, taskDir only names it (an id still to be found free: Project.createTask).
   taskDir(p: { id: string }, id: string) { return path.join(this.dir, 'projects', p.id, id); }
   taskOf(p: { id: string }, id: string) { return new TaskStore(this.taskDir(p, id), this); }
-  // Every task's artifacts folder (TaskStore.artifacts), as a glob: what an agent is let read there (agents/claude.ts).
-  artifactsGlob() { return path.join(this.dir, 'projects', '*', '*', 'artifacts'); }
+  // A task's folder of what the agent's tools keep of its pages (kulisa-plugin/artifacts.ts).
+  artifactsOf(p: { id: string }, id: string) { return path.join(this.taskDir(p, id), ARTIFACTS); }
+  // Every task's, as a glob: what an agent is let read there (agents/claude.ts).
+  artifactsGlob() { return this.artifactsOf({ id: '*' }, '*'); }
+  // Every task of every project, loaded or not (the activity monitor's: app.ts).
+  allTasks() { return this.projects().flatMap((p) => this.tasksOf(p).list.map((entry) => ({ project: p, entry, key: taskKey(p, entry.id) }))); }
   // A project gone from Kulisa: from the list, and its data (profiles with their sign-ins, tasks); never its
   // folder. Its profiles' sessions may still be open: what cannot go now goes at the next start.
   removeProject(p: ProjectEntry) {
@@ -186,7 +194,7 @@ class TaskStore {
   file(name: string) { return path.join(this.dir, name); }
   profileDir(id: string) { return path.join(this.dir, id); }
   // What the agent's tools keep of its pages: large snapshots and bodies, screenshots (kulisa-plugin/artifacts.ts).
-  get artifacts() { return path.join(this.dir, 'artifacts'); }
+  get artifacts() { return path.join(this.dir, ARTIFACTS); }
   // What the task has of its project's profiles (project-profiles.ts): [{ id, zoom, closed }] (who a profile is:
   // profile-store.ts); null before the task first loads.
   profiles(): TaskProfile[] | null { return readJSON(this.file('profiles.json')); }
@@ -262,5 +270,5 @@ function writeFileAtomic(file: string, data: string | Uint8Array, options?: { mo
   } catch (e) { fs.rmSync(tmp, { force: true }); throw e; }
 }
 
-export { Store, newId, copyProfile, writeFileAtomic, readTabs, writeTabs, SESSION_COOKIES_FILE, PROJECT_COLORS, worktreesOf, ownWorktree, folderOf, branchOf, homeOf };
+export { Store, newId, copyProfile, writeFileAtomic, readTabs, writeTabs, SESSION_COOKIES_FILE, PROJECT_COLORS, worktreesOf, ownWorktree, folderOf, branchOf, homeOf, taskKey };
 export type { SavedTabs, TaskStore, ProjectEntry, TaskEntry, Copy, Worktree, TaskProfile, TasksFile, Conversation };

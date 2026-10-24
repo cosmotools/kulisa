@@ -170,8 +170,8 @@ class AppWindow {
   // The shown task's artifacts (Resources.vue): when it is shown, and when its agent makes one.
   async sendArtifacts(task = this.task) {
     if (!task || task !== this.task) return;
-    const list = await task.artifacts();
-    if (task === this.task) this.send('artifacts', { task: task.key, list });
+    const [list, { bytes }] = await Promise.all([task.artifacts(), task.artifactsUsage()]);
+    if (task === this.task) this.send('artifacts', { task: task.key, list, bytes });
   }
   sendTerminals() { if (this.task && !this.switching) this.send('terminals', { task: this.task.key, ...this.task.terminalsInfo() }); }
   scheduleState() { clearTimeout(this.stateTimer); this.stateTimer = setTimeout(() => this.pushState(), 30); }

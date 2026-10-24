@@ -33,12 +33,12 @@ test('artifacts: past the limit the oldest go, the one just written stays', asyn
   assert.deepEqual(fs.readdirSync(dir), ['4-big.txt'], 'one larger than the limit is kept alone');
 });
 
-test('artifacts: listed the newest first, whose and what each is from its name; a file of another name left out', async () => {
+test('artifacts: listed the newest first, whose and what each is from its name, its size; a file of another name left out', async () => {
   const dir = path.join(root, 'list');
   await saveArtifact(dir, 'p1-k1-screenshot.jpg', 'x');
   await saveArtifact(dir, 'p2-k3-snapshot.yml', 'y');
   fs.writeFileSync(path.join(dir, 'notes.txt'), '');
-  assert.deepEqual((await listArtifacts(dir)).map(({ file, profile, kind }) => [path.basename(file), profile, kind]),
-    [['2-p2-k3-snapshot.yml', 'p2', 'snapshot'], ['1-p1-k1-screenshot.jpg', 'p1', 'screenshot']]);
+  assert.deepEqual((await listArtifacts(dir)).map(({ file, profile, kind, bytes }) => [path.basename(file), profile, kind, bytes]),
+    [['2-p2-k3-snapshot.yml', 'p2', 'snapshot', 1], ['1-p1-k1-screenshot.jpg', 'p1', 'screenshot', 1]]);
   assert.deepEqual(await listArtifacts(path.join(root, 'none')), [], 'no folder yet: none');
 });

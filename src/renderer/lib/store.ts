@@ -17,7 +17,7 @@ export const store = reactive({
   closedProfiles: [] as ClosedProfile[],
   terminals: { front: null, list: [] } as Terminals,
   // The files the agent's tools kept of a task's pages, the newest first (Resources.vue), of the task named.
-  artifacts: { task: '', list: [] as Artifact[] },
+  artifacts: { task: '', list: [] as Artifact[], bytes: 0 },
   zoom: 1, // the Kulisa zoom
   theme: root.dataset.theme || 'dark', // Dark, Light or System (index.html sets it from the URL before the first paint)
   bar: root.dataset.bar || 'bottom', // where the tasks' bar is
