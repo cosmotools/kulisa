@@ -770,14 +770,14 @@ export default (test: Test) => {
     const before = await island();
     // × on an agent's tab asks, whatever it is doing; Cancel keeps it.
     ctx.answer = false;
-    await ui(`document.querySelector('.termtab .close').click()`);
+    await ui(`document.querySelector('.termtab .x').click()`);
     await waitFor(() => ctx.asked.length);
     const q = ctx.asked.pop();
     assert.equal(q.message, 'Close bash?');
     assert.match(q.detail, /^bash stops\. Its conversation stays in the task's history, where any agent of the task can read it\.$/);
     assert.equal(task.terminals.get(agent.id), agent, 'kept when the human says no');
     ctx.answer = true;
-    await ui(`document.querySelector('.termtab .close').click()`);
+    await ui(`document.querySelector('.termtab .x').click()`);
     await waitFor(() => task.terminals.size === 0);
     ctx.asked.length = 0;
     // No profile open: the +'s rows as big buttons in its middle, whatever the arrangement.
@@ -837,7 +837,7 @@ export default (test: Test) => {
     await waitFor(async () => task.profiles.has(idOf('Sam.admin')) && !(await tiles()));
     await ctx.call('profile_close', { profile: 'Sam.admin' });
     await waitFor(tiles);
-    await ui(`document.querySelector('.termtab .close').click()`);
+    await ui(`document.querySelector('.termtab .x').click()`);
     await waitFor(async () => task.terminals.size === 0 && !!(await launch()) && !(await tiles()));
     // With a profile open (its tile among the big buttons): folded to a strip of its +, along the grid's height (the
     // island is under the grid); kept so.
@@ -850,7 +850,7 @@ export default (test: Test) => {
     await choose(ui, 'Terminal');
     await waitFor(async () => task.terminals.size === 1 && !(await folded()) && (await island()).height >= 150);
     // A shell closes without a question; folded again.
-    await ui(`document.querySelector('.termtab .close').click()`);
+    await ui(`document.querySelector('.termtab .x').click()`);
     await waitFor(async () => task.terminals.size === 0 && (await folded()) && (await island()).height <= 40);
     assert.equal(ctx.asked.length, 0);
     // The preset "grid": right of the profiles, Resources under it in its column: folded along its height, a strip of its
@@ -864,12 +864,12 @@ export default (test: Test) => {
     // As tall as the grid (Resources moved under the pages): folded along the grid's width instead, a strip of its + as
     // tall as the grid; its + unfolds it to a width of its own, and the last terminal closed folds it again.
     await ui(`__dock.getPanel('resources').api.moveTo({ group: __dock.getPanel('profile:${idOf('Sam.admin')}').group, position: 'bottom' })`);
-    await ui(`document.querySelector('.termtab .close').click()`);
+    await ui(`document.querySelector('.termtab .x').click()`);
     await waitFor(async () => { const r = await island(); return task.terminals.size === 0 && r.width <= 40 && r.height > 100 && (await middle()); });
     await ui(`document.getElementById('termUnfold').click()`);
     await choose(ui, 'Terminal');
     await waitFor(async () => task.terminals.size === 1 && !(await folded()) && (await island()).width >= 200);
-    await ui(`document.querySelector('.termtab .close').click()`);
+    await ui(`document.querySelector('.termtab .x').click()`);
     await waitFor(async () => task.terminals.size === 0 && (await folded()) && (await island()).width <= 40);
     await ui(`window.__layoutPreset('columns')`);
     await waitFor(async () => (await island()).height <= 40 && (await middle()));
@@ -2188,7 +2188,7 @@ export default (test: Test) => {
       return { id: r.id, dir: r.dir };
     });
     for (const x of [a, b]) await ui(`kulisa.invoke('project:agent-add', { id: '${pid('project')}', agent: '${x.id}' })`);
-    const tabs = () => ui(`[...document.querySelectorAll('.termtab')].map((t) => t.querySelector('.name').textContent + (t.classList.contains('active') ? ' *' : ''))`);
+    const tabs = () => ui(`[...document.querySelectorAll('.termtab')].map((t) => t.querySelector('.title').textContent + (t.classList.contains('active') ? ' *' : ''))`);
     const tabState = (id: number) => ui(`document.querySelector('.termtab[data-id="${id}"] .state').dataset.state`);
     const taskState = () => ui(`${taskTab(task)}.querySelector('.state').dataset.state`);
     const conversations = () => JSON.parse(fs.readFileSync(pfile('agent.json', task.id), 'utf8')).conversations;
@@ -2277,7 +2277,7 @@ export default (test: Test) => {
     // permission, a sign-in, a limit) is shown at once; Show now shows it before it has read.
     ctx.answer = true; // closing an agent's tab asks
     for (const how of ['waiting', 'show']) {
-      await rightClick(ui, `.termtab[data-id="${fake.id}"] .name`);
+      await rightClick(ui, `.termtab[data-id="${fake.id}"] .title`);
       assert.deepEqual(await menuRows(ui), ['Change agent…', 'New Conversation', '-', 'Close']);
       await choose(ui, 'Change agent…');
       await waitFor(() => ui(`!!document.querySelector('#handover .choose .label')`));
@@ -2291,7 +2291,7 @@ export default (test: Test) => {
       await waitFor(async () => (await tabs()).length === 3);
     }
     // New Conversation: the same agent from nothing, in a tab of its own.
-    await rightClick(ui, `.termtab[data-id="${bash.id}"] .name`);
+    await rightClick(ui, `.termtab[data-id="${bash.id}"] .title`);
     await menuRows(ui);
     await choose(ui, 'New Conversation');
     await waitFor(async () => JSON.stringify(await tabs()) === '["bash","Pay with cards","Fake agent","bash 2 *"]' && newest().pty, 20000);

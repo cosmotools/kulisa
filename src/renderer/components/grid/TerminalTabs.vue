@@ -32,15 +32,16 @@ useStrip(strip, () => store.terminals.front);
       activation-mode="manual" @update:model-value="(v) => v !== undefined && show(v)"><TabsList as-child :loop="false">
       <nav ref="strip" class="tabstrip" aria-label="Terminals" @dragstart.prevent>
         <TabsTrigger v-for="t in store.terminals.list" :key="t.id" :value="String(t.id)" as-child>
-          <div class="termtab striptab" :class="{ active: t.id === store.terminals.front }" :data-id="t.id" :title="title(t)">
+          <div class="termtab tab" :class="{ active: t.id === store.terminals.front }" :data-id="t.id" :title="title(t)">
             <button v-if="t.agent" class="handover icon quiet small" :aria-label="`${t.agent.name}: change agent…`"
               title="Change agent: hand the task to another agent, or this one afresh; it goes on with this conversation" @mousedown.stop
               @click.stop="dialog('handover').then((d) => d.open(t))"><Icon :name="agentMark(t.agent.cli)!" /></button>
             <Icon v-else class="shellmark" name="i-agent-shell" />
-            <span class="name">{{ t.name }}</span>
+            <span class="title">{{ t.name }}</span>
             <span class="state" :data-state="t.state || ''"><Icon :name="`i-${t.state || 'done'}`" /></span>
-            <button class="close icon quiet small" aria-label="Close" :title="t.agent ? 'Close: the agent stops (asked first); its conversation stays in the task\'s history' : 'Close: what runs there stops'"
-              @mousedown.prevent.stop @click="act('terminal:close', { id: t.id })"><Icon name="i-close" /></button>
+            <!-- Not a press on the tab: it is not chosen first. -->
+            <span class="x icon small" :title="t.agent ? 'Close: the agent stops (asked first); its conversation stays in the task\'s history' : 'Close: what runs there stops'"
+              @mousedown.prevent @click="act('terminal:close', { id: t.id })"><Icon name="i-close" /></span>
           </div>
         </TabsTrigger>
       </nav>
@@ -52,15 +53,17 @@ useStrip(strip, () => store.terminals.front);
 </template>
 
 <style>
-/* The row over the terminal shown, apart from it as a browser's tabs: the row in the toolbar's color, the tab in front
-   in the terminal's (.striptab.active), as if part of it. */
-.termtabs { display: flex; align-items: center; gap: 4px; height: 100%; min-width: 0; padding-inline: calc(var(--gap) - 2px);
+/* The row over the terminal shown, as a pane's tabs (.tab): the row in the island's color, the tab in front in the
+   terminal's, joined to it. The tabs stand on the row's foot: the header's margin above them, none below. */
+.termtabs { display: flex; align-items: center; gap: 4px; height: 100%; min-width: 0; padding: 4px calc(var(--gap) - 2px) 0;
   &[hidden] { display: none; }
-  nav { display: flex; align-items: center; gap: 2px; min-width: 0; } /* .tabstrip: more tabs than fit scroll */
-  .termtab { flex: none; padding-inline-start: 4px; max-width: 220px; } /* its name whole, the row scrolls: shrunk to 64 px, many tabs show no name (the tasks' bar too) */
+  nav { display: flex; align-items: end; align-self: stretch; min-width: 0; } /* .tabstrip: more tabs than fit scroll */
+  /* its name whole, the row scrolls: shrunk, the tabs would show no name and look alike (an agent's mark is mostly the
+     same), so not shrunk as a pane's, nor as wide: as its name, up to a pane's tab's width */
+  .termtab { flex: none; width: auto; max-width: 220px; container-type: normal; padding-inline-start: 4px; }
   .shellmark { margin-inline: 6px; color: var(--text-dim); } }
-#dock .dv-groupview:has(.termtabs) .dv-tabs-and-actions-container { background: var(--toolbar); }
 /* The row is as wide as the island, not as its tabs: dockview's tab grows to its content (min-width: auto), and a row
-   of many terminals would run past the island, cut off there, its + and microphone with it. */
-#dock .dv-tab:has(.termtabs) { min-width: 0; flex-shrink: 1; }
+   of many terminals would run past the island, cut off there, its + and microphone with it. No margin above and
+   below: the row's own padding places the tabs, at its foot. */
+#dock .dv-tab:has(.termtabs) { min-width: 0; flex-shrink: 1; margin-block: 0; }
 </style>

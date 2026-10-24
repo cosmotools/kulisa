@@ -109,9 +109,11 @@ const menu = (e: MouseEvent) => {
 </template>
 
 <style>
+/* The terminal in the toolbar's color, as a pane's toolbar under its tabs: the tab in front joins it (TerminalTabs.vue) */
 .terminals { height: 100%; position: relative;
+  &:not(.folded) { background: var(--toolbar); border-radius: 0 0 var(--island-radius) var(--island-radius); }
   .starting { position: absolute; inset: 0; margin: 0; display: flex; align-items: center; justify-content: center; gap: 6px;
-    background: var(--island); color: var(--text-muted); }
+    border-radius: inherit; background: var(--toolbar); color: var(--text-muted); }
   &.folded { display: flex; flex-direction: column; justify-content: center; }
   .strip { display: grid; place-items: center; height: 100%; }
   .launch { display: flex; flex-direction: column; gap: calc(var(--gap) * 2); padding: var(--gap);

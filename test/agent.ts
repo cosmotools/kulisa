@@ -495,10 +495,10 @@ export default (test: Test) => {
     await ui(`window.__firstTab = ${strip}.querySelector('.tab[data-tab="${first}"]')`);
     await ui(`${strip}.querySelector('.add').click()`);
     await waitFor(() => elon.tabs.length === n + 1 && elon.active !== first);
-    // The strip keeps its tabs' elements; the new one grows in (.opening, until its animation ends), as Chrome's.
+    // The strip keeps its tabs' elements; the new one grows in (data-opening, until its animation ends), as Chrome's.
     await waitFor(() => ui(`!!${strip}.querySelector('.tab[data-tab="${elon.active}"]')`));
     assert.equal(await ui(`${strip}.querySelector('.tab[data-tab="${first}"]') === window.__firstTab`), true, 'the first tab\'s element stays');
-    await waitFor(() => ui(`!${strip}.querySelector('.tab.opening')`));
+    await waitFor(() => ui(`!${strip}.querySelector('.tab[data-opening]')`));
     await waitFor(() => ui(`(() => { const a = document.querySelector('.pane[data-profile="${idOf('Elon.buyer')}"] .addr'); return document.activeElement === a && a.value === ''; })()`));
     // The keys go there, not to the new tab's page (a native view that would take the focus as it loads). Where the
     // keys go inside the window; when another app on the desktop is active (it may take the focus while the tests
@@ -519,7 +519,7 @@ export default (test: Test) => {
     await ui(`${strip}.querySelector('.tab:last-of-type .x').click()`);
     await waitFor(() => elon.tabs.length === n);
     // With reduced motion (the OS's setting, emulated) it does not grow, and is not left growing: no animation ends
-    // there, and the tab would stay .opening.
+    // there, and the tab would stay opening.
     const dbg = shell.win.webContents.debugger;
     dbg.attach();
     try {
@@ -528,7 +528,7 @@ export default (test: Test) => {
       await waitFor(() => elon.tabs.length === n + 1);
       await waitFor(() => ui(`!!${strip}.querySelector('.tab[data-tab="${elon.active}"]')`));
       await sleep(300); // nothing to wait for: that it is not left growing
-      assert.equal(await ui(`!!${strip}.querySelector('.tab.opening')`), false);
+      assert.equal(await ui(`!!${strip}.querySelector('.tab[data-opening]')`), false);
       elon.closeTab(elon.active);
       await waitFor(() => elon.tabs.length === n);
     } finally { dbg.detach(); }
@@ -541,7 +541,7 @@ export default (test: Test) => {
     assert.equal(await ui(`Math.round(document.querySelector('.pane[data-profile="${idOf('Sam.seller')}"] .tabs .tab').getBoundingClientRect().width)`), 220);
     for (let i = 0; i < 24; i++) await ui(`act('tab:new', { profile: '${idOf('Elon.buyer')}' })`);
     await waitFor(async () => (await ui(`document.querySelectorAll('${pane} .tabs .tab').length`)) === n + 24);
-    await waitFor(() => ui(`!document.querySelector('${pane} .tabs .tab.opening')`)); // grown in
+    await waitFor(() => ui(`!document.querySelector('${pane} .tabs .tab[data-opening]')`)); // grown in
     const fit = await ui(`(() => { const p = document.querySelector('${pane}'), r = (q) => p.querySelector(q).getBoundingClientRect(), pr = p.getBoundingClientRect();
       return { pane: p.scrollWidth <= p.clientWidth, tabs: r('.tabs').right <= pr.right, add: r('.tabs .add').right <= pr.right, more: r('.more').right <= pr.right,
         group: p.closest('.dv-groupview').scrollWidth <= p.closest('.dv-groupview').clientWidth }; })()`);
