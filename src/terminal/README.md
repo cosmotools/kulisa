@@ -82,6 +82,21 @@ on macOS), `http` and `https` only, the address shown on hover, through `termHoo
 one of the task's profiles, or the user's browser; docs/window.md, The terminal), not xterm's own handler, which asks with the
 browser's `confirm()`, an OS dialog.
 
+A path is a link too, when it names a file or folder that exists (JetBrains' and VS Code's terminals do the same; an
+agent's answer names its files): absolute (`/…`, `~/…`, `C:\…`, `\\server\share\…`) or relative (`src/main/tasks.ts`),
+a `:line[:column]` after it kept in the link and left out of the path, a quoted one with spaces in it. Finding the
+candidates in a line is here (`renderer/paths.ts`, xterm's `registerLinkProvider` beside the web-links addon), in the
+line as its program wrote it: the rows xterm wrapped it into joined (`isWrapped`), each character with its cell, so a
+path broken by the width is one link and wide characters before it (Claude Code's ⏺) do not shift it. xterm leaves
+this to the app (its `registerLinkProvider` asks where a line's links are; what is one, and what opening it means, is
+the app's: it alone knows the disk and the folder); the web-links addon does it for addresses only (what `new URL()`
+takes), and exports nothing else. Whether one exists, and what
+is done with it, is the window's, through `termHooks.files` (a line's candidates asked at once, as the pointer comes
+over it; without the hook a path is no link) and `termHooks.openFile` (Ctrl+click, ⌘ on macOS); the full path shown on
+hover. A file an agent marks as a link (OSC 8) goes to `openFile` too: Claude Code gives its path as it is, others a
+`file://` address. xterm drops an OSC 8 link that is not `http(s)` unless `allowNonHttpProtocols` is set, so it is, and
+`termLinks.activate` keeps only those two and paths (`javascript:` and the like go nowhere).
+
 ## Its channels (`ipc.ts`)
 
 `pty:in` (keys), `pty:resize` (the size shown), `pty:out` (output, to the window of the task it is in),
@@ -95,9 +110,11 @@ browser's `confirm()`, an OS dialog.
 | `main/index.ts` | the main process's entry: the pty, typed into the user's shell; its size; a shell's screen; typing to an agent or a shell; Esc |
 | `main/shell-quote.ts` | an argument quoted as the user's shell reads it (sh, fish) |
 | `renderer/index.ts` | the window's entry: the buffers, `View` (the xterm a place shows), copy and paste, links |
+| `renderer/paths.ts` | the paths a line may name, each where it is in the line |
 | `renderer/tsconfig.json` | the window half checked as the window is (ESLint finds it by it) |
 | `ipc.ts` | its channels |
 | `shell-quote.test.ts` | quoting, in each shell installed (`npm run test:unit`) |
+| `paths.test.ts` | the paths found in a line and their cells (in `@xterm/headless`), what is no path, an agent's link to a file |
 
 Its e2e tests are in `test/` with the others (a group is one app): `window.ts` (the xterm's set-up; one xterm for the
 island, switching), `grid.ts` (copy and paste, links, moving to another window), `tasks.ts` (the island, shells).

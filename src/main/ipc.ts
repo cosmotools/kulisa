@@ -10,9 +10,9 @@ import type { OpenTasks } from './open-tasks.ts';
 import { bare, log, summary } from './log.ts';
 
 // Every channel is logged with who sent it (log.ts), but these: the terminal's keystrokes and size (never: what is typed),
-// and what comes on every change or draw (the grid's boxes, layouts, lists read again), which would fill the log with
+// and what comes on every change, draw or hover (the grid's boxes, layouts, lists read again, the paths under the pointer), which would fill the log with
 // nothing. An answer to a question is logged without the answer: it may be anything the human typed.
-const QUIET = new Set<string>(['pty:in', 'pty:resize', 'layout', 'layout:save', 'layout:load', 'views:hidden', 'keys:zone', 'zoom:get', 'voice:get', 'voice:record',
+const QUIET = new Set<string>(['pty:in', 'pty:resize', 'terminal:files', 'layout', 'layout:save', 'layout:load', 'views:hidden', 'keys:zone', 'zoom:get', 'voice:get', 'voice:record',
   'language:get', 'tasks:get', 'projects:list', 'accounts:list', 'profiles:list', 'agents:list', 'settings:ready', 'github:accounts', 'project:github-get']);
 const BARE = new Set<string>(['ask:answer']);
 function line(channel: string, e: IpcEvent, args: unknown[]) {

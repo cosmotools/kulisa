@@ -348,6 +348,8 @@ A pane is a small Chrome: a tab strip, an address bar, back, forward and reload.
 - Copy and paste as in your OS's terminal: Ctrl+Shift+C / Ctrl+Shift+V on Linux, Ctrl+C / Ctrl+V on Windows, ⌘C / ⌘V
   on macOS.
 - Ctrl+click a link to open it: Kulisa asks where, in one of the task's profiles or in your own browser.
+- A file or folder named in the terminal (a screenshot the agent saved, a file it changed) is a link too: Ctrl+click it
+  to open it in its app or show it in its folder. A program or script is only shown in its folder, never run.
 - Right-click: Copy, Paste, Select all, Clear; in an agent's, Change agent… (the same as its icon) and New
   Conversation (the same agent, from nothing); Close.
 

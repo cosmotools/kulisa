@@ -345,6 +345,24 @@ export default (test: Test) => {
     await assert.rejects(call('browser_screenshot', { profile: 'Sam.seller', ref: 'e1', also: ['Elon.buyer'] }), /pass a locator/);
   });
 
+  test("agent: a screenshot waits for a pane just opened to be laid out; a pane never on screen, or a tab never in front, says so (no size to take)", async ({ shell, call }) => {
+    const sam = shell.profiles.get(idOf('Sam.seller')), bounds = sam.bounds;
+    const width = (r: { content: { data?: string }[] }) => nativeImage.createFromBuffer(Buffer.from(r.content[1].data, 'base64')).getSize().width;
+    try {
+      sam.bounds = { ...bounds, width: 0 }; // as a pane just opened, before the window lays it out
+      const shot = call('browser_screenshot', { profile: 'Sam.seller' });
+      setTimeout(() => sam.layout(bounds), 300);
+      assert.ok(width(await shot) > 0, 'taken once laid out');
+      sam.bounds = { ...bounds, width: 0 };
+      await assert.rejects(call('browser_screenshot', { profile: 'Sam.seller' }), /Sam\.seller's pane has not been on screen yet/, 'never laid out');
+    } finally { sam.layout(bounds); }
+    const back = sam.newTab(`${SITE}/tall`, { activate: false });
+    await back.ready;
+    try {
+      await assert.rejects(call('browser_screenshot', { profile: 'Sam.seller', tab: back.id }), /Tab \w+ of Sam\.seller has not been in front yet/, 'never in front');
+    } finally { sam.closeTab(back.id); }
+  });
+
   test('agent: typing goes key by key, as a person types, replacing what the field held; a long text at once', async ({ call }) => {
     const p = { profile: 'Sam.seller', locator: "getByLabel('Name')" };
     await call('browser_navigate', { profile: 'Sam.seller', url: `${SITE}/app` });
@@ -837,12 +855,16 @@ export default (test: Test) => {
   test('agent: a request with no answer yet is listed as pending at once', async ({ shell, call }) => {
     const elon = shell.profiles.get(idOf('Elon.buyer')), before = elon.active;
     const tab = (await call('browser_tab_new', { profile: 'Elon.buyer', url: `${SITE}/pending` })).text.match(/Opened tab (\w+)/)[1];
-    // The request to /hang never gets an answer: listing it must not wait for one (it held the agent's turn for minutes).
-    const listed = call('browser_network_requests', { profile: 'Elon.buyer', tab });
-    const r = await Promise.race([listed, sleep(5000).then((): null => null)]);
-    assert.ok(r, 'answered within 5 s');
-    assert.match(r.text, /GET .*\/hang → pending/);
-    await call('browser_tab_close', { profile: 'Elon.buyer', tab });
+    try {
+      // Loaded again: what a new tab asks for before Playwright is attached to it is not listed (docs/profiles.md).
+      await call('browser_navigate', { profile: 'Elon.buyer', tab, url: `${SITE}/pending` });
+      // The request to /hang never gets an answer: listing it must not wait for one (it held the agent's turn for minutes).
+      await waitFor(async () => {
+        const r = await Promise.race([call('browser_network_requests', { profile: 'Elon.buyer', tab }), sleep(5000).then((): null => null)]);
+        assert.ok(r, 'answered within 5 s');
+        return /GET .*\/hang → pending/.test(r.text);
+      });
+    } finally { await call('browser_tab_close', { profile: 'Elon.buyer', tab }); }
     await waitFor(() => elon.active === before);
   });
 

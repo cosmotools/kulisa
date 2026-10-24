@@ -6,6 +6,7 @@ import { keyText } from './common';
 import { menuAt, type MenuItem } from './menu';
 import { agentMark } from './agents';
 import { dialog } from './dialogs';
+import { refused } from '../../shared/result';
 import { restoreTerminal, serialized, termCopy, termHooks, termPaste, View, xtermKeys } from '../../terminal/renderer';
 import type { Terminal as TerminalInfo } from '../../shared/types';
 
@@ -27,6 +28,15 @@ termHooks.fitted = (key, size) => { if (key === frontKey()) sizes.push(size); };
 termHooks.open = (e, uri) => menuAt(e, [{ heading: uri }, ...store.profiles.map((p) => ({ label: `Open in ${p.name}`, avatar: p.avatar,
   run: () => act('tab:new', { profile: p.id, url: uri }) })),
 '-', { label: 'Open in your browser', run: () => { window.open(uri); } }]);
+
+// Paths in the terminal that exist (the task's folder is the main process's), as links, and the files an agent marks
+// as links: Ctrl+click asks what to do, in the same menu: open it in the OS's app, or show it in its folder; what
+// would run when opened, shown only. Asked again on the click: the file may be gone, or changed, since the hover.
+const filesOf = (task: string | null, paths: string[]) => kulisa.invoke('terminal:files', { task, paths }).then((r) => (refused(r) ? paths.map(() => null) : r));
+termHooks.files = (key, paths) => filesOf(key.slice(0, key.lastIndexOf('#')), paths);
+termHooks.openFile = (e, path) => void filesOf(store.current, [path]).then(([file]) => file && menuAt(e, [
+  ...file.executable ? [] : [{ label: 'Open', run: () => kulisa.invoke('file:open', file.path) }],
+  { label: 'Show in Folder', run: () => kulisa.invoke('file:show', file.path) }]));
 
 // Their contents as escape sequences (xterm's serialize addon, as VS Code keeps terminals across reloads), which
 // another window writes into new terminals: a project moving there keeps what its agents showed. Each with its size:

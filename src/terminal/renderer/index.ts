@@ -5,12 +5,14 @@
 // Set up as VS Code does: Unicode 11 character widths (Claude Code draws ✅ ⏵ ✻ and the like; with the default Unicode 6
 // widths the cursor and the input line drift off the text), the WebGL renderer, and a bundled font so it looks and
 // measures the same on every OS.
-import { Terminal } from '@xterm/xterm';
+import { Terminal, type ILink } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { Unicode11Addon } from '@xterm/addon-unicode11';
 import { WebglAddon } from '@xterm/addon-webgl';
 import { SerializeAddon } from '@xterm/addon-serialize';
 import { WebLinksAddon } from '@xterm/addon-web-links';
+import { fileOf, pathsAt } from './paths';
+import type { FileLink } from '../ipc';
 
 // A terminal's buffer is an xterm never opened: its text, scrollback and modes with no renderer, every pty's output
 // written into it. A place that shows terminals (the island, an account's sign-in) has one shown xterm, a View, the
@@ -37,20 +39,44 @@ function themeTerminals() { for (const v of views) v.term.options.theme = termTh
 kulisa.on('theme', () => requestAnimationFrame(themeTerminals));
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', themeTerminals);
 
-// What a window adds: where a link opens (a tasks' window asks: one of its profiles or the browser), and a terminal
-// fitted to a size (the tests read the shown one's). By default a link opens in the user's browser on Ctrl+click (⌘ on
-// macOS), http and https only, its address shown on hover.
-export const termHooks: { open: (e: MouseEvent, uri: string) => void; fitted?: (key: string, size: { cols: number; rows: number }) => void } = {
+// What a window adds: where a link opens (a tasks' window asks: one of its profiles or the browser), which paths a
+// terminal names exist and what is done with one (files, openFile: the window knows the folder and the disk; without
+// them a path is no link), and a terminal fitted to a size (the tests read the shown one's). By default a link opens
+// in the user's browser on Ctrl+click (⌘ on macOS), http and https only, its address shown on hover; one to a file is
+// a path's.
+export const termHooks: {
+  open: (e: MouseEvent, uri: string) => void;
+  files?: (key: string, paths: string[]) => Promise<(FileLink | null)[]>;
+  openFile?: (e: MouseEvent, path: string) => void;
+  fitted?: (key: string, size: { cols: number; rows: number }) => void;
+} = {
   open: (_e, uri) => { window.open(uri); },
 };
+const withKey = (e: MouseEvent) => (kulisa.platform === 'darwin' ? e.metaKey : e.ctrlKey);
 export const termLinks = {
   activate(e: MouseEvent, uri: string) {
-    if (!(kulisa.platform === 'darwin' ? e.metaKey : e.ctrlKey) || !/^https?:\/\//i.test(uri)) return;
-    termHooks.open(e, uri);
+    if (!withKey(e)) return;
+    if (/^https?:\/\//i.test(uri)) return termHooks.open(e, uri);
+    const file = fileOf(uri); // an agent's link to a file (OSC 8)
+    if (file) termHooks.openFile?.(e, file);
   },
   hover(e: MouseEvent, uri: string) { (e.target as HTMLElement).title = uri; },
   leave(e: MouseEvent) { (e.target as HTMLElement).title = ''; },
+  // OSC 8 links to files too (xterm drops all but http and https by default); activate keeps only those two and paths.
+  allowNonHttpProtocols: true,
 };
+
+// The paths in a line that exist (termHooks.files), as links: Ctrl+click (⌘ on macOS) hands one to openFile, its
+// full path shown on hover.
+function fileLinks(term: Terminal, key: string | null, y: number, done: (links: ILink[] | undefined) => void) {
+  const files = termHooks.files, found = pathsAt(term, y);
+  if (!key || !files || !found.length) return done(undefined);
+  files(key, found.map((p) => p.path)).then((answer) => done(found.flatMap(({ text, range }, i) => {
+    const file = answer[i];
+    return file ? [{ range, text, activate: (e: MouseEvent) => { if (withKey(e)) termHooks.openFile?.(e, file.path); },
+      hover: (e: MouseEvent) => termLinks.hover(e, file.path), leave: termLinks.leave }] : [];
+  })), () => done(undefined));
+}
 
 // Modes serializing leaves out, followed in each buffer and written with it, each with its value whether set or not:
 // the shown xterm's reset() leaves a hidden cursor hidden. The cursor shown or hidden, and the mouse's encoding (SGR:
@@ -103,6 +129,7 @@ export class View {
     t.unicode.activeVersion = '11';
     t.loadAddon(this.fit);
     t.loadAddon(new WebLinksAddon(termLinks.activate, termLinks));
+    t.registerLinkProvider({ provideLinks: (y, done) => fileLinks(t, this.key, y, done) });
     views.add(this);
     this.seen.observe(this.el);
     void termFont.then(() => {

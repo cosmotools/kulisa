@@ -5,6 +5,7 @@ import { handle, on } from '../ipc.ts';
 import { focusWindow } from '../page-focus.ts';
 import { chooseElement } from '../picker.ts';
 import { keep } from '../../screenshots/main/index.ts';
+import { filesIn, openFile, showFile } from '../file-links.ts';
 import type { Ipc, IpcEvent } from '../ipc.ts';
 import type { IpcMainInvokeEvent } from 'electron';
 import type { Profile, Tab } from '../profiles.ts';
@@ -38,6 +39,10 @@ export function registerPanes(ipc: Ipc) {
   });
   handle('terminal:show', (e, { task, id }) => onScreen(e, task)?.show(id) || noTask);
   handle('terminal:close', (e, { task, id }) => onScreen(e, task)?.closeTab(id) || noTask);
+  // The paths a terminal names, relative to the task's folder; one Ctrl+clicked, opened or shown (file-links.ts).
+  handle('terminal:files', (e, { task, paths }) => { const w = onScreen(e, task); return w ? filesIn(w.folder, paths) : noTask; });
+  handle('file:open', (_e, file) => openFile(file));
+  handle('file:show', (_e, file) => showFile(file));
   handle('agent:new-conversation', (e, { task, id }) => onScreen(e, task)?.newConversation(id) || noTask);
   handle('agent:hand-over', (e, { task, id, agent }) => onScreen(e, task)?.handOver(id, agent) || noTask);
   on('layout:save', (e, { task, layout }) => at(e)?.saveLayout(task, layout));

@@ -366,6 +366,15 @@ always ask where, in a menu at the pointer (the island's `termHooks.open`): a ne
 profiles, or the user's browser. Asked every time, so a link never lands somewhere the human did not expect (which profile a link belongs to cannot be told, and a rule such as "where that site is
 open" is not obvious).
 
+A path that exists is a link the same way, and so is a file an agent marks as one (the terminal finds the candidates; the main process says which exist,
+relative to the task's folder, `~/` from the home folder: `file-links.ts`, its channel `terminal:files` not logged, as it
+comes on every hover). Ctrl+click asks in the same menu: Open (the OS's app for it, `shell.openPath`) or Show in
+Folder (`shell.showItemInFolder`). What would run when opened (a file with `+x` on Linux and macOS; by its extension a
+Windows program or script, a `.desktop`, a macOS `.app`) is only shown in its folder, checked again in the main process
+when opened, as the window's answer may be stale. A `file://` address opens only when its host is this computer (none,
+`localhost`, or its name): one of another host, as `ls --hyperlink` gives in an ssh session, never opens the same
+path here (the OSC 8 spec, gist.github.com/egmontkob/eb114294efbcd5adb1944c9f3cb5feda).
+
 ## Keys
 
 Kulisa's keyboard shortcuts, as an IDE has them, one table for all (`src/main/keys.ts`): the keys, the command each
@@ -639,6 +648,7 @@ shortcuts carry (`com.squirrel.kulisa.kulisa`), or Windows would not pin it to t
 | `src/main/keys.ts` | the keyboard shortcuts: the table, which key an input event is; `shortcuts.ts` takes them (Keys) |
 | `src/main/updates.ts`, `installed.ts`, `forge.config.ts` | updates, Squirrel's events, a new version ready while Kulisa runs (the version installed on disk); the installers and the release |
 | `src/terminal/` | the terminal, a Kulisa package: its pty, its buffers, the xterm shown ([README](../src/terminal/README.md)) |
+| `src/main/file-links.ts` | the paths a terminal names: which exist, opening one or showing it in its folder (The terminal) |
 | `src/renderer/components/Grid.vue`, `grid/*.vue`, `lib/grid.ts` | the grid (dockview), the panes and their headers, the island of terminals (`Terminals.vue`, its row of tabs `TerminalTabs.vue`), the closed profiles' tiles over it (`ClosedProfiles.vue`), Arrange panels |
 | `src/renderer/components/Resources.vue` | the Resources island beside the terminal: the shown task's resources (its worktree(s) or the main working tree), each with its actions (tasks.md) |
 | `src/renderer/components/TopBar.vue`, `menu/*.vue` | the title bar, ☰ and its own rows |
