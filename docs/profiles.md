@@ -433,7 +433,7 @@ space (issue #113, a task manager).
 | `src/main/discard.ts` | tabs no one looks at losing their process: the rule, the sweep (`Profile.discard`, `load` in `profiles.ts`) |
 | `src/main/kulisa-plugin/mcp-server.ts` | the agent's MCP server: a URL per task, its instructions, every call logged |
 | `src/main/kulisa-plugin/tools/` | the agent's tools, a file a group: `profile.ts`, `browser.ts` (the pages), `task.ts` (its repositories: [tasks.md](tasks.md), Tasks; its history: [transcripts.md](transcripts.md)), `terminal.ts` ([window.md](window.md), The terminal); `handles.ts`, what they share |
-| `src/main/kulisa-plugin/artifacts.ts` | what the tools keep of the pages in the task's `artifacts/`: numbered files, the oldest gone past 100 MB; listed for the Resources island |
+| `src/main/kulisa-plugin/artifacts.ts` | what the tools keep of the pages in the task's `artifacts/`: numbered files, the oldest gone past 100 MB; listed with their sizes for the Resources island and `task_artifacts` |
 | `src/main/kulisa-plugin/ghost.ts`; `src/main/picker.ts` | the agent's actions shown in the page; point and tell |
 | `src/agent/skills/profiles/SKILL.md`, `src/agent/claude-plugin/` | the profiles skill, every agent's; Claude Code's plugin (`.mcp.json`: the task's MCP URL) |
 | `src/renderer/components/grid/ProfilePane.vue`, `ProfileHeader.vue`, `lib/profiles.ts`; `settings/ProfilePage.vue`, `settings/Avatars.vue` | the panes and the profiles' menu (a task tab's right-click); a profile's page in Settings and its pictures |

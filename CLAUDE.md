@@ -105,8 +105,8 @@ Everything happens inside Kulisa; no external Chrome windows.
   Giving the agent more it can do is one of Kulisa's features: how a tool is designed, `src/main/kulisa-plugin/CLAUDE.md`.
 - **Terminology: "plugin"**: always an agent's (Claude Code's, Codex's), the Kulisa plugin being one.
 - **Terminology: "Kulisa package"** (after "Kulisa plugin": an npm package's idea in Kulisa's
-  own context) for a part of Kulisa that knows nothing of the rest, all of it in one folder `src/<package>/`, reached
-  only through its entries: the terminal first (`docs/packages.md`). Always the two words: a bare "package" is an npm
+  own context) for a part of Kulisa that does one thing and knows nothing of the core (other Kulisa packages only by
+  their entries), all of it in one folder `src/<package>/`, reached only through its entries: the terminal first (`docs/packages.md`). Always the two words: a bare "package" is an npm
   package (a dependency) or the app's package (Forge's build, the installers). Not a cluster (a folder of the
   window's components, `docs/ui.md`).
 - **The agent is the human's choice, per task** (`agents/`): never assume `claude` is installed. Kulisa
@@ -440,8 +440,8 @@ asking, where a fix goes) are the agent's: Kulisa gives it the tools and says in
 that cannot act says back what is missing instead of doing it itself. Not against One core: a core action still keeps
 its own checks and rules; what Kulisa does not do is decide the agent's way through the work.
 
-**Kulisa packages** (code smeared over `src/` is hard to keep in hand). A part that knows
-nothing of the rest is a folder `src/<package>/` holding all of it: both its halves (`main/`, `renderer/`), its IPC
+**Kulisa packages** (code smeared over `src/` is hard to keep in hand). A part that does one
+thing and knows nothing of the core (other Kulisa packages only by their entries) is a folder `src/<package>/` holding all of it: both its halves (`main/`, `renderer/`), its IPC
 channels, its unit tests, its doc (`README.md`) and a `CLAUDE.md` on working in it, reached from outside only through
 its entries; `npm run deps` checks it. What uses it stays outside and goes through its API. Kulisa moves to this
 gradually: a part at a time, when it is worked on and found self-contained; no big move. What makes code one, the

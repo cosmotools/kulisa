@@ -12,7 +12,7 @@ import { installSigninPause } from './signin-pause.ts';
 import { startTerminal, stopTerminal, forgetTerminal, terminalTail, sendToPrompt, typeIntoPrompt, typeLine, interrupt } from '../terminal/main/index.ts';
 import { READ_MAX } from './kulisa-plugin/tools/terminal.ts';
 import { listArtifacts } from './kulisa-plugin/artifacts.ts';
-import { copyProfile, worktreesOf, ownWorktree, folderOf, branchOf } from './store.ts';
+import { copyProfile, worktreesOf, ownWorktree, folderOf, branchOf, taskKey } from './store.ts';
 import { renameBranch } from './worktrees.ts';
 import { extendTrust } from './agents/index.ts';
 import { installSkill } from './agents/index.ts';
@@ -66,8 +66,7 @@ class Task {
   front: number | null; lastAgent: number | null; // the island's tab in front; the agent's tab in front last
   resumedSession?: string | null; dictating?: { t: TaskTerminal; timer: NodeJS.Timeout } | null; held?: number;
   // project: its project (projects.ts); entry: its record in its tasks.json (store.ts, TaskEntry); one without a
-  // worktree works in the project's folder. key: the task among all open ones
-  // ("<project id>/<task id>"): the windows, the terminals, the CDP proxy and the MCP server's URLs know it by that.
+  // worktree works in the project's folder. key: the task among all (store.ts, taskKey).
   // shell: the app (app.ts): store, proxy, mcp, sessionCookies, signin, uiZoom, bus, ask; the agents
   // (agentFor, findAgent, chooseAgent, plugin); and taskChanged(task, now, agentState), called after any change of its
   // profiles or its agent's state. Its window is the one whose tab it is (window.ts: add, drop; win, viewsHidden,
@@ -75,7 +74,7 @@ class Task {
   constructor(shell: Shell, project: Project, entry: TaskEntry) {
     this.shell = shell; this.project = project; this.entry = entry; this.window = null;
     this.id = entry.id;
-    this.key = `${project.id}/${this.id}`;
+    this.key = taskKey(project, this.id);
     this.store = shell.store.taskOf(project, this.id);
     this.loaded = false; this.terminalsLoaded = false; this.gitChecked = Promise.resolve(); this._copying = Promise.resolve();
     this.terminals = new Map(); this.terminalSeq = 0; // its island's terminals, by id, in their tabs' order
@@ -840,14 +839,25 @@ class Task {
     this.makingThumbs = false;
     this.artifactsChanged();
   }
-  // One made (or more gone past the limit): the window showing the task lists them again.
+  // One made (or more gone past the limit, or deleted): the window showing the task lists them again.
   artifactsChanged() { void this.window?.sendArtifacts(this); }
-  // Delete in its menu: only a file of the task's own folder, not any path the window names.
-  async deleteArtifact(file: string): Promise<Result> {
-    if (!(await listArtifacts(this.store.artifacts)).some((a) => a.file === file)) return { error: 'not an artifact of this task' };
-    await fs.promises.rm(file, { force: true });
+  // What its artifacts take, or those of its project's tasks or of every task, loaded or not (the activity monitor,
+  // src/activity-monitor): the Resources island's figure, task_artifacts. Each task with its name and its project's.
+  async artifactsUsage(scope: 'task' | 'project' | 'all' = 'task') {
+    const r = await this.shell.activity.query({ metrics: ['artifacts'], ...(scope === 'task' ? { tasks: [this.key] } : scope === 'project' ? { projects: [this.project.id] } : {}) });
+    const named = new Map(this.shell.store.allTasks().map((t) => [t.key, { name: this.shell.taskByKey(t.key)?.displayName ?? t.entry.name, project: t.project.name }]));
+    return { bytes: r.total.artifacts ?? 0, tasks: r.tasks.map((t) => ({ key: t.key, ...named.get(t.key)!, bytes: t.metrics.artifacts?.bytes ?? 0 })) };
+  }
+  // Delete in a row's menu, Delete All, task_artifacts_delete (files null: all): only files of the task's own folder,
+  // not any path the window or the agent names.
+  async deleteArtifacts(files: string[] | null): Promise<Result<{ deleted: number; bytes: number }>> {
+    const list = await listArtifacts(this.store.artifacts);
+    const chosen = files ? files.map((f) => list.find((a) => a.file === path.resolve(f))) : list;
+    const stranger = files?.find((_f, i) => !chosen[i]);
+    if (stranger !== undefined) return { error: `not an artifact of this task: ${stranger}` };
+    for (const a of chosen) await fs.promises.rm(a!.file, { force: true });
     this.artifactsChanged();
-    return {};
+    return { deleted: chosen.length, bytes: chosen.reduce((sum, a) => sum + a!.bytes, 0) };
   }
 }
 

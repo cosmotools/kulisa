@@ -80,7 +80,7 @@ export function registerTasks(ipc: Ipc) {
     return task && task.resources().some((r) => r.folder === folder) ? electronShell.openPath(folder) : undefined;
   });
   handle('task:artifacts', (e, key) => { const w = at(e); return w?.task?.key === key ? w.sendArtifacts() : undefined; });
-  handle('task:artifact-delete', (_e, { key, file }) => taskAt(key, (task) => task.deleteArtifact(file)));
+  handle('task:artifacts-delete', (_e, { key, files }) => taskAt(key, (task) => task.deleteArtifacts(files)));
   handle('tasks:get', (e) => at(e)?.sendProjects());
 
 }

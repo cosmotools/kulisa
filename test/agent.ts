@@ -875,8 +875,30 @@ export default (test: Test) => {
     assert.deepEqual(await menuRows(ui), ['Open', 'Show in Folder', '-', 'Delete']);
     await choose(ui, 'Delete');
     await waitFor(async () => !fs.existsSync(shot) && !(await rows()).some((r) => r[0] === shot));
-    assert.match((await ui(`kulisa.invoke('task:artifact-delete', { key: ${JSON.stringify(shell.task.key)}, file: ${JSON.stringify(path.join(root, 'package.json'))} })`)).error,
+    assert.match((await ui(`kulisa.invoke('task:artifacts-delete', { key: ${JSON.stringify(shell.task.key)}, files: [${JSON.stringify(path.join(root, 'package.json'))}] })`)).error,
       /not an artifact/, 'only a file of the task\'s own folder');
+  });
+
+  test("artifacts: what they take, in Resources' heading and for the agent, which explains and deletes them as the human does with Delete All", async ({ shell, ui, call }) => {
+    const dir = shell.task.store.artifacts, total = () => fs.readdirSync(dir).reduce((sum, f) => sum + fs.statSync(path.join(dir, f)).size, 0);
+    const heading = () => ui(`document.querySelector('#resources .titled .size')?.textContent ?? null`) as Promise<string | null>;
+    await call('browser_screenshot', { profile: 'Elon.buyer' });
+    const listed = (await call('task_artifacts', {})).text;
+    const size = listed.match(/^This task's artifacts: (\S+ [KMG]B) in (\d+) file\(s\)\./)[1];
+    assert.equal(Number(listed.match(/in (\d+) file/)[1]), fs.readdirSync(dir).length, listed);
+    const shot = listed.match(/^- (.+\.jpg): screenshot, Elon\.buyer, \d{4}-\d\d-\d\d \d\d:\d\d, \S+ [KMG]B$/m)?.[1];
+    assert.ok(shot && fs.existsSync(shot), `each file with its path, kind, profile, time and size: ${listed}`);
+    assert.ok(total() > 0);
+    await waitFor(async () => (await heading()) === size);
+    assert.match((await call('task_artifacts', { scope: 'all' })).text, new RegExp(`^- .+ / .+ \\(this task\\): ${size}$`, 'm'), "every task's total");
+    assert.match((await call('task_artifacts', { limit: 1 })).text, /older not listed \(limit\)\.$/);
+    // The agent deletes one, then the human all.
+    assert.match((await call('task_artifacts_delete', { files: [shot] })).text, /^Deleted 1 file\(s\), \S+ [KMG]B; \S+ [KMG]B left\.$/);
+    assert.ok(!fs.existsSync(shot));
+    await assert.rejects(call('task_artifacts_delete', { files: [path.join(root, 'package.json')] }), /not an artifact of this task/);
+    await ui(`document.querySelector('#resources .delete-all').click()`);
+    await waitFor(async () => !fs.readdirSync(dir).length && (await heading()) === null);
+    assert.match((await call('task_artifacts', {})).text, /^This task's artifacts: 0 KB in 0 file\(s\)\.$/);
   });
 
   test('agent: a request with no answer yet is listed as pending at once', async ({ shell, call }) => {

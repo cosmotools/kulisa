@@ -14,6 +14,7 @@ import { signinPages } from './signin-pages.ts';
 import { SessionCookies } from './session-cookies.ts';
 import { pictureOf, githubUsers, deleteGitHub } from './projects.ts';
 import { GitHub, installGitHub } from '../github/main/index.ts';
+import { ActivityMonitor } from '../activity-monitor/main/index.ts';
 import { COLORS } from './window.ts';
 import type { AppWindow } from './window.ts';
 import { findFavicon } from './favicons.ts';
@@ -129,6 +130,8 @@ function start(options: Options = {}) {
   // requests through Chromium's network (net.fetch), which keeps the system's proxy.
   shell.github = new GitHub({ dir: userData, fetch: (url, init) => net.fetch(url, init), secrets: shell.secrets });
   shell.github.accounts.logAll();
+  // What Kulisa takes on the computer (src/activity-monitor), told where every task's data is.
+  shell.activity = new ActivityMonitor({ list: () => store.allTasks().map(({ project, entry, key }) => ({ key, project: project.id, artifacts: store.artifactsOf(project, entry.id) })) });
   // A test user's password as it is kept: encrypted, or why not; none given: the one kept stays (profile-store.ts).
   shell.loginSecret = (password) => {
     if (!password) return {};

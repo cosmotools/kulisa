@@ -44,6 +44,7 @@ export interface Artifact {
   profile: string; // the id of the profile it came from
   kind: string; // screenshot, snapshot, request or response (a body)
   time: number;
+  bytes: number;
   thumb: string | null; // a screenshot's small picture, a data: URL
 }
 export interface TaskInfo {

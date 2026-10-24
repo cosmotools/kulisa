@@ -1,7 +1,7 @@
 # Kulisa packages
 
-A **Kulisa package** is a part of Kulisa that knows nothing of the rest, with all of it in one folder `src/<package>/`,
-reached from outside only through its entries. The term follows "Kulisa plugin": an npm
+A **Kulisa package** is a part of Kulisa that does one thing and knows nothing of the core (other Kulisa packages only
+by their entries), with all of it in one folder `src/<package>/`, reached from outside only through its entries. The term follows "Kulisa plugin": an npm
 package's idea (one folder, its own doc, a public API and nothing else seen) in Kulisa's own context. Always the two
 words: a bare "package" is an npm package (a dependency) or the app's package (Forge's build, the installers). Not a
 cluster (a folder of the window's components, [ui.md](ui.md), Clusters). The first is the terminal, `src/terminal/` (its
@@ -14,11 +14,19 @@ no big move.
 
 ## What makes code one
 
-**The direction of its dependencies.** A Kulisa package is used by the rest and uses none of it, but the little
+**The direction of its dependencies.** A Kulisa package is an abstraction that does one thing. It uses the open API
+of other Kulisa packages (their entries, never their other files), and of the rest of Kulisa only the little
 infrastructure its line in `.dependency-cruiser.ts` names (the terminal's main half: the main process's `ipc.ts`, for
-its channels, and `log.ts`). It knows nothing of tasks, agents, profiles or the window's state; they use it. What it
-needs from them comes in through its API, passed by the caller (the terminal's screen size: `screen` in
-`startTerminal`, the MCP server's `READ_MAX` passed by `tasks.ts`).
+its channels, and `log.ts`); the packages it uses do not use it back, so no cycle forms. Of what is not a package
+(tasks, agents, profiles, the window's state: the core) it imports nothing; they use it. What it needs from them comes
+in through its API, passed by the caller (the terminal's screen size: `screen` in `startTerminal`, the MCP server's
+`READ_MAX` passed by `tasks.ts`), or as a small interface the package declares and the caller implements; once that
+part is a package of its own, the package uses its API instead.
+
+**A package it uses lacks something:** that package's API is extended, when the extension is a general one, of use to
+any caller, in that package's own terms; not a crutch shaped for this one caller (a flag, an entry named after it), nor
+the same thing worked out again beside it. Where it is not clear which of the two an extension is, the author decides
+before it is built.
 
 Code that is *about* the thing but knows the rest stays outside, using the package: for the terminal, the island
 (`Terminals.vue`, `TerminalTabs.vue`, `lib/terminals.ts`: its agents' buttons, the closed profiles' tiles, Change
@@ -126,3 +134,4 @@ them does not take it (a check that silently skips it is the danger), fix the co
 | `src/terminal/` | a terminal: its pty in the user's shell, its buffers and the xterm a place shows ([README](../src/terminal/README.md)) | `ipc.ts`, `log.ts` |
 | `src/screenshots/` | a picture of a page (an element, the visible part, the whole page), kept as the human's, its thumbnail ([README](../src/screenshots/README.md)) | `ipc.ts`, `log.ts` |
 | `src/github/` | the GitHub accounts: Kulisa App's device flow or a fine-grained token, their tokens kept with the keyring, a repository's account ([README](../src/github/README.md)) | `ipc.ts`, `log.ts`, `store.ts` (`newId`, `writeFileAtomic`) |
+| `src/activity-monitor/` | what Kulisa takes on the computer: the tasks' artifacts on the disk, every task's or some ([README](../src/activity-monitor/README.md)) | nothing |

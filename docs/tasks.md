@@ -306,7 +306,12 @@ The grid; `Task.resources`, sent in the task's info). What it shows now:
   tens of milliseconds, and a task shown with many would hold up its terminals starting. The
   list comes when the task is shown and again whenever the agent keeps one (`Task.artifactsChanged`, the window's
   `artifacts`). A click opens the file in the OS's app for it; its right-click menu: Open, Show in Folder, Delete (at
-  once, no question: the agent's own copy of what a page showed, Kulisa's data, not the human's work).
+  once, no question: the agent's own copy of what a page showed, Kulisa's data, not the human's work). Their heading
+  says what they take, for the human to see a task gather them and ask its agent to clean up, or delete the task; its 🗑
+  deletes them all, as Delete does one. The figure is the activity monitor's ([src/activity-monitor](../src/activity-monitor/README.md);
+  `Task.artifactsUsage`), sent with the list. The agent has the same: `task_artifacts` lists them with their sizes (or
+  each task's total, of the project or of all), `task_artifacts_delete` deletes some or all, only of its own task: another
+  task's agent may be reading its own.
 
 The island shows the task's resources as `tasks.json` keeps them, the first where it works (store.ts, `Resource`): its
 folder, its branch and its folder of copies are worked out from them, never kept twice.
@@ -365,7 +370,8 @@ to the human; the window's IPC (`ipc/`) and the MCP tools are handles on it:
 | Show a task | a click on its tab, of any project | none: what the human looks at is theirs | `AppWindow.show` (`window.ts`) |
 | Open a resource's folder | a click on its row in the Resources island | none: the agent opens folders through its own tools | `task:open-folder` (`ipc/tasks.ts`) |
 | Open an artifact, show it in its folder | a click on its row in the Resources island, its menu | none: the tools' answers give the agent its path | `file:open`, `file:show` (`file-links.ts`) |
-| Delete an artifact | Delete in its row's menu | none: the oldest go by themselves past the limit | `Task.deleteArtifact` |
+| See what the artifacts take | the Artifacts heading in the Resources island (the shown task's) | `task_artifacts`: its task's files, or each task's total | `Task.artifactsUsage` (src/activity-monitor) |
+| Delete artifacts | Delete in a row's menu; the heading's 🗑, all | `task_artifacts_delete`: some or all of its task's | `Task.deleteArtifacts` |
 | Make the task's worktree | none: its agent makes it before writing code | `task_worktree` | `Task.makeWorktree`, `Project.ensureWorktree` |
 | Add, clone, make the default, remove a repository | the projects' manager | none: what the project is made of is the human's | `addRepo`, `cloneRepo`, `defaultRepo`, `removeRepo` (`projects.ts`) |
 | Add a project's repository to a task | Add Repository in its tab's menu | `task_add_repository`, once the human agreed in the conversation | `Task.addRepository`, `Project.addCopy` |
@@ -864,7 +870,7 @@ rm -rf ~/.config/Kulisa/projects/myshop   # all its tasks with their profiles' c
 | `src/main/ipc/tasks.ts`, `projects.ts`, `agents.ts` | the windows' handles on tasks, projects, agents and accounts |
 | `src/main/window.ts` | a window: its tabs (tasks), show one, the grid's state, its questions |
 | `src/main/projects.ts` | a loaded project: its tasks; making, closing, opening again, deleting one (with the question); making a project (`createProject`), deleting a project's data |
-| `src/main/tasks.ts` | a task: its profiles, its terminals and agents (open, hand over, close, environment), naming, its worktree on demand and resources, copies of its profiles for a new task |
+| `src/main/tasks.ts` | a task: its profiles, its terminals and agents (open, hand over, close, environment), naming, its worktree on demand and resources, its artifacts (what they take, deleting them), copies of its profiles for a new task |
 | `src/main/worktrees.ts` | git: a task's worktree and branch, files outside git, direnv, changes, renaming the branch, removal |
 | `src/main/agents/` | the agents to choose from: find, install, start, resume; a folder's trust carried to a task's copy |
 | `src/main/store.ts` | the data folder above |
