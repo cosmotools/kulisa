@@ -125,8 +125,9 @@ one after it, and a task's slide after the click. How long is the pages' own pac
 time: once the first has answered, the rest get three times as long, a tenth of a second at least (a live page
 answers in a few milliseconds on a fast machine, in over a hundred on a slow one); none answering, half a second (`AppWindow.pictures`).
 
-A pane's tab strip and toolbar move as Chrome's: a tab opened grows in from the left (`.tab.opening`; the strip keeps
-its tabs' elements by id, so only a new one animates), the address's hover fades in. Not with reduced motion.
+A pane's tab strip and toolbar move as Chrome's, the terminals' tabs too: a tab opened grows in from the left
+(`data-opening`, `useStrip` in `lib/strip.ts`; the strip keeps its tabs' elements by id, so only a new one animates),
+the address's hover fades in. Not with reduced motion.
 
 ## The window's size
 
@@ -294,8 +295,8 @@ the work:
 ## The terminal
 
 A task's terminals are an **island** of the grid, one panel: the terminal in front, a **row of tabs** over it, apart
-from it as a browser's tabs (the row in the toolbar's color, the tab in front in the terminal's, as if part of it;
-`TerminalTabs.vue`, `Terminals.vue`). One terminal is shown at a time (two side by side are
+from it as a pane's tabs from its toolbar (`.tab`, [ui.md](ui.md): the row in the island's color, the tab in front
+in the terminal's, `--toolbar`, joined to it; `TerminalTabs.vue`, `Terminals.vue`). One terminal is shown at a time (two side by side are
 not needed): a terminal is not split off into a panel of its own. Each is the user's shell in the task's folder
 (`src/terminal/`), an agent the human chose started in it
 ([tasks.md](tasks.md), "Several agents in a task") or not. Each tab: the agent's icon (a shell's, for a shell), its

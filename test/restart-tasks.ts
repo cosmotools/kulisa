@@ -64,7 +64,7 @@ export default (test: Test) => {
     const tabs = () => JSON.stringify(task.terminalsInfo().list.map(({ name, by, command, agent }) => ({ name, by, command, agent: agent?.account ?? null })));
     await waitFor(() => tabs() === JSON.stringify([{ name: 'bash', by: 'human', command: '', agent: 'custom' }, { name: 'dev server', by: 'agent', command: '', agent: null }]), 10000);
     const { id } = task.terminal('dev server') as TaskTerminal;
-    await waitFor(async () => JSON.stringify(await ui(`[...document.querySelectorAll('.termtab')].map((t) => t.querySelector('.name').textContent + (t.classList.contains('active') ? ' *' : ''))`)) === '["bash *","dev server"]');
+    await waitFor(async () => JSON.stringify(await ui(`[...document.querySelectorAll('.termtab')].map((t) => t.querySelector('.title').textContent + (t.classList.contains('active') ? ' *' : ''))`)) === '["bash *","dev server"]');
     await waitFor(() => (task.terminal('dev server') as TaskTerminal).pty && task.promptTarget()?.pty);
     assert.equal(task.terminals.get(id).by, 'agent');
     await sleep(500); // nothing to wait for: that nothing runs
