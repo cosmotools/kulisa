@@ -2,8 +2,8 @@
 // src/shared/ipc.ts. Keyed by the task's key.
 
 // What a task's microphone shows: none (disabled, why), ready, starting (the hidden session getting ready to listen),
-// recording.
-export type Voice = { state: 'none'; why: string } | { state: 'ready' | 'starting' | 'recording' };
+// recording, transcribing (let go, the text on its way into the input of the agent named).
+export type Voice = { state: 'none'; why: string } | { state: 'ready' | 'starting' | 'recording' } | { state: 'transcribing'; to: string };
 
 // ipcRenderer.invoke / ipcMain.handle (args, the answer).
 export interface DictationInvoke {

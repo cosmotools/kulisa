@@ -60,8 +60,9 @@ function setup(accounts = ['a1'], broken: string[] = [], heard: string[] = []) {
 }
 const held = async (d: Dictation, ms = 500) => { d.key('t', true); await sleep(ms); d.key('t', false); };
 
-test('dictation: an agent without its own is recognized for by the hidden session: getting ready, then recording once it listens; let go, the text it heard goes into that agent\'s input; its input emptied first', async () => {
+test('dictation: an agent without its own is recognized for by the hidden session: getting ready, then recording once it listens; let go, transcribing until the text it heard goes into that agent\'s input; its input emptied first', async () => {
   const { d, sessions, typed, state } = setup();
+  after(() => d.close());
   assert.equal(state(), 'ready');
   d.key('t', true);
   assert.equal(state(), 'starting', 'getting ready: nobody speaks before it hears');
@@ -70,12 +71,13 @@ test('dictation: an agent without its own is recognized for by the hidden sessio
   assert.deepEqual(s.got.slice(0, 4), ['\x15', '\x15', '\x15', ' '], 'the last text, put back after its block, deleted first');
   await sleep(450);
   d.key('t', false);
-  assert.equal(state(), 'ready');
+  assert.deepEqual(d.state('t'), { state: 'transcribing', to: 'Codex' });
   const keys = s.got.length;
   await sleep(50);
   assert.equal(s.got.length, keys, 'no more of its key once let go');
   d.dictated('Open the admin profile.');
   assert.deepEqual(typed, ['Open the admin profile.']);
+  assert.equal(state(), 'ready', 'the text in: done');
   d.dictated('Late.');
   assert.deepEqual(typed, ['Open the admin profile.'], 'nothing waits for it: dropped');
   // The next one: the same session, its input emptied again.

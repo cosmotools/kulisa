@@ -167,11 +167,14 @@ agent "go on with what Claude did": every agent of the task can read the others'
 **Dictation**: hold the **right Ctrl** key (the right ⌘ on a Mac) while you speak, wherever you are in Kulisa, a page
 or the terminal, and let go; or press it once to start and once more to stop. The text goes into the agent's input for
 you to read and send. It hears the language chosen in **☰ → Language**. The microphone at the end of the terminals' row
-shows that it is listening, and works the same way by the mouse: hold it, or click to start and again to stop. Claude
+shows that it is listening, and works the same way by the mouse: hold it, or click to start and again to stop. While
+you speak, a capsule at the top of the terminal shows your voice as a wave and how long you have spoken; when you let
+go it says it is transcribing, then that the text is in the agent's input. Claude
 Code listens itself; for Codex and any other agent without dictation of its own, Kulisa listens with Claude Code
 behind the scenes, so you need it installed and signed in with a Claude subscription (**Settings → Agents**); the
 words appear as you speak and are put right when you let go. The
-first time after a break, the microphone turns blue for about a second while it gets ready: speak once it is red. With
+first time after a break, the capsule says **Getting ready…** for about a second (the microphone turns blue): speak once
+it shows the wave. With
 a terminal in front, the key brings the agent back in front. Greyed out, its tooltip says why. Another key instead of
 the right Ctrl: **☰ → Keyboard Shortcuts**, Change on its row, then press the key.
 

@@ -1048,8 +1048,8 @@ export default (test: Test) => {
     shell.setLanguage('en');
     assert.equal(read(own(work)).language, 'English');
   });
-  test("dictation: an agent without its own is recognized for by another agent's dictation in a hidden session (fixtures/fake-recognizer.mjs): the microphone getting ready, then recording; let go, the text it heard goes into that agent's input; ended, nothing of it is left", async ({ shell, ui, termText, watchPty }) => {
-    const task = shell.task, mic = `document.querySelector('.dictation .mic')`;
+  test("dictation: an agent without its own is recognized for by another agent's dictation in a hidden session (fixtures/fake-recognizer.mjs): the pill at once, then recording; let go, the text it heard goes into that agent's input, the pill saying so; ended, nothing of it is left", async ({ shell, ui, termText, watchPty }) => {
+    const task = shell.task, mic = `document.querySelector('.dictation .mic')`, pill = `document.querySelector('.dictation-pill')`;
     await waitFor(() => task.promptTarget()?.agent.id === work);
     watchPty(task.pty);
     await waitFor(() => ui(`!${mic}.disabled`));
@@ -1057,13 +1057,17 @@ export default (test: Test) => {
     // The microphone held (the key's way is the window tests'), let go once it records.
     const mouse = (type: string) => ui(`${mic}.dispatchEvent(new PointerEvent('${type}', { bubbles: true, button: 0, pointerId: 1 }))`);
     await mouse('pointerdown');
-    await waitFor(() => ui(`${mic}.dataset.state === 'starting'`));
-    assert.equal(await ui(`${mic}.title`), 'Getting ready to listen: speak once the microphone is red');
-    await waitFor(() => ui(`${mic}.dataset.state === 'recording'`), 15000);
+    await waitFor(() => ui(`!!${pill}`)); // getting ready (when slow) or listening: as the key goes down
+    // Drawn as recording while it gets ready, unless that lasts (src/dictation/renderer/voice.ts): it listens first.
+    await waitFor(() => shell.dictation.state(task.key).state === 'recording', 15000);
+    assert.equal(await ui(`${mic}.dataset.state + ' ' + ${pill}.dataset.state`), 'recording listening');
     await sleep(500);
     await mouse('pointerup');
     await waitFor(async () => (await termText()).includes('Heard by the fake recognizer.'));
     assert.equal(await ui(`${mic}.dataset.state`), 'ready');
+    await waitFor(() => ui(`${pill}?.dataset.state === 'done'`));
+    assert.equal(await ui(`${pill}.querySelector('.label').textContent`), "In Fake agent's input");
+    await waitFor(() => ui(`!${pill}`));
     const folder = path.join(userData, 'dictation');
     assert.ok(fs.existsSync(folder), 'its session runs in a folder of Kulisa\'s');
     shell.dictation.close();

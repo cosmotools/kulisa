@@ -14,6 +14,7 @@ import { store } from '../../lib/store';
 import { profileLaunchers } from '../../lib/profiles';
 import { island, launchers, newTerminalItems, tabItems, terminalMenu } from '../../lib/terminals';
 import { termFocus } from '../../../terminal/renderer';
+import { Pill } from '../../../dictation/renderer';
 import { avatarSrc, withKeys } from '../../lib/common';
 
 const props = defineProps<{ params: { api: DockviewPanelApi; containerApi: DockviewApi } }>();
@@ -104,6 +105,7 @@ const menu = (e: MouseEvent) => {
     <div v-else-if="folded" class="strip"><ButtonMenu :items="newTerminalItems"><button id="termUnfold" class="add icon quiet"
       :title="withKeys('New conversation of an agent, or a terminal', 'terminal.new')" aria-label="New terminal"><Icon name="i-plus" /></button></ButtonMenu></div>
     <RightClickMenu :items="menu"><div ref="root" class="termpanel" :hidden="folded" /></RightClickMenu>
+    <Pill v-if="!folded" :task="store.current"><Icon name="i-done" /></Pill>
     <p v-if="starting" class="starting"><span class="state" data-state="working"><Icon name="i-working" /></span>Starting {{ starting.name }}…</p>
   </div>
 </template>
