@@ -804,29 +804,30 @@ export default (test: Test) => {
     // One opens what its row in + does: a terminal; closed, the buttons are back.
     await ui(`document.querySelector('.launcher').click()`);
     await waitFor(async () => task.terminals.size === 1 && !(await folded()));
-    // A terminal and no profile: the profiles' room a row of tiles over it, one for each; one opens its profile, and
+    // A terminal and no profile: the profiles' room a row of buttons over it, one for each; one opens its profile, and
     // the row goes.
     const tiles = () => ui(`(() => { const s = document.getElementById('closedprofiles');
       return s && { names: [...s.querySelectorAll('.name')].map((x) => x.textContent),
         above: s.getBoundingClientRect().bottom <= document.querySelector('.terminals').getBoundingClientRect().top }; })()`);
     await waitFor(tiles);
     assert.deepEqual(await tiles(), { names: PROFILES, above: true });
-    // A tile: the profile's picture and name, a long name in one line ending in …, who it is only in the tooltip: under
-    // the name it would be cut off by the tile's edge.
-    assert.deepEqual(await ui(`(() => { const t = document.querySelector('#closedprofiles .launcher'), n = t.querySelector('.name'), was = n.textContent;
-      n.textContent = 'orudzhali@insvgna.org';
-      const s = getComputedStyle(n), r = [s.whiteSpace, s.textOverflow, !!t.querySelector('small'),
-        [...t.children].every((c) => c.getBoundingClientRect().bottom <= t.getBoundingClientRect().bottom)];
-      n.textContent = was; return r; })()`), ['nowrap', 'ellipsis', false, true]);
+    // A button: the profile's picture, its name and the +; a long name cut with … in one row, the button no wider than
+    // before and the + still inside it; who it is only in the tooltip.
+    assert.deepEqual(await ui(`(() => { const t = document.querySelector('#closedprofiles .opener'), n = t.querySelector('.name'), was = n.textContent;
+      const w = t.getBoundingClientRect().width;
+      n.textContent = 'orudzhali.very.long.name@insvgna.org';
+      const s = getComputedStyle(n), r = t.getBoundingClientRect(), plus = t.querySelector('svg').getBoundingClientRect(),
+        res = [!!t.querySelector('.avatar'), s.whiteSpace, s.textOverflow, n.scrollWidth > n.clientWidth, r.width > w, plus.right <= r.right];
+      n.textContent = was; return res; })()`), [true, 'nowrap', 'ellipsis', true, true, true]);
     assert.match(await ui(`document.querySelector('#closedprofiles [data-profile="${idOf('Sam.admin')}"]').title`), /^Open Sam\.admin: ./);
     // More than fit (19 profiles): the row scrolls, its end faded, the window as wide as before, not its column, the
     // terminal and the tasks' bar stretched past its edge, the last profiles out of reach.
-    await ui(`(() => { const s = document.getElementById('closedprofiles'); for (let i = 0; i < 20; i++) s.append(s.querySelector('.launcher').cloneNode(true)); })()`);
+    await ui(`(() => { const s = document.getElementById('closedprofiles'); for (let i = 0; i < 20; i++) s.append(s.querySelector('.opener').cloneNode(true)); })()`);
     await waitFor(() => ui(`document.getElementById('closedprofiles').classList.contains('past-end')`));
     assert.deepEqual(await ui(`(() => { const s = document.getElementById('closedprofiles'), r = (e) => e.getBoundingClientRect();
       return [s.scrollWidth > s.clientWidth, r(s).right <= innerWidth, r(document.querySelector('.terminals')).right <= innerWidth, document.documentElement.scrollWidth <= innerWidth]; })()`),
       [true, true, true, true]);
-    await ui(`document.querySelectorAll('#closedprofiles .launcher').forEach((t, i) => { if (i >= ${PROFILES.length}) t.remove(); })`);
+    await ui(`document.querySelectorAll('#closedprofiles .opener').forEach((t, i) => { if (i >= ${PROFILES.length}) t.remove(); })`);
     await ui(`document.querySelector('#closedprofiles [data-profile="${idOf('Sam.admin')}"]').click()`);
     await waitFor(async () => task.profiles.has(idOf('Sam.admin')) && !(await tiles()));
     await ctx.call('profile_close', { profile: 'Sam.admin' });

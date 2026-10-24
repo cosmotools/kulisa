@@ -22,7 +22,8 @@ the look below:
 
 Kulisa is a desktop app, an IDE: its window looks like one, JetBrains' Settings its model (not big
 titles, framed cards, a paragraph each, pills and rows that show their buttons under the pointer: those read as a
-web page's and are hard to read). So:
+web page's and are hard to read). The one pill: the closed profiles' buttons over the terminal (`.opener`), the one
+place where a button is there to draw the eye, seen only while no profile is open. So:
 
 - **JetBrains' UI font and size**: Inter at 14 px (a step above their UI Guidelines' 13, Typography: 13 reads small), bundled
   (`@fontsource-variable/inter`, `main.ts`), so the window looks the same on every OS (the OS's own, on Linux Noto
@@ -158,8 +159,11 @@ the browser's own `until-found` apart): a component's `display` beats the browse
 - `.dot`: a 10 px circle in `--color`, a project's.
 - `.launcher`: a tile, big, for the hand to find at once where nothing else is: an icon or a profile's picture as
   large as two rows, its `.name`, a `small` line under it (an account's email; none under a profile's: who it is is in its tooltip, as under the name the tile's edge would cut it), on an island's color,
-  lit under the pointer. The empty grid's agents and profiles (`Terminals.vue`); `.small`, beside what is looked at:
-  the closed profiles over the terminal (`ClosedProfiles.vue`).
+  lit under the pointer. The empty grid's agents and profiles (`Terminals.vue`).
+- `.opener`: a button that names a thing it opens, in one row beside what is looked at: a pill, large and bold to
+  draw the eye (as high as 1¾ rows), a profile's `.avatar` (as the tiles'), its `.name`, the action's icon (20 px, muted) at the end; up to 18em wide, the name cut with … so that one long
+  name does not crowd out the rest, the whole in its tooltip. The closed profiles over the terminal
+  (`ClosedProfiles.vue`; Add Profile… with no picture).
 - `.dots`: where one is in a few slides or steps, a short bar each, lit up to the one shown (an `ol`, `li.on`): the
   welcome's slides and its steps.
 - `.chip`: a thing named in a pill, its icon first (14 px, muted), `--font-small`: what goes along to another agent

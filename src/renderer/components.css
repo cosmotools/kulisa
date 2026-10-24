@@ -82,9 +82,14 @@ button.danger { background: var(--danger); border-color: var(--danger); color: v
   &:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   :is(svg, .avatar) { width: var(--icon); height: var(--icon); flex: none; margin-block-end: 4px; }
   :is(.name, small) { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  small { color: var(--text-muted); font-size: var(--font-small); }
-  /* Smaller, beside what is looked at (the closed profiles over the terminal) */
-  &.small { --icon: var(--row); width: calc(var(--control) * 4); height: calc(var(--control) * 3.25); padding-block-start: var(--inset); } }
+  small { color: var(--text-muted); font-size: var(--font-small); } }
+/* A button that names a thing it opens, in one row beside what is looked at (the closed profiles over the terminal):
+   its picture, its .name cut with … so that one long name does not crowd out the rest, the action's icon at the end */
+.opener { display: flex; align-items: center; gap: 10px; flex: none; max-width: 18em; height: calc(var(--row) * 1.75);
+  padding: 0 18px 0 8px; border-radius: 999px; color: var(--text-strong); font-weight: 600;
+  > .avatar { width: calc(var(--row) * 1.25); height: calc(var(--row) * 1.25); flex: none; }
+  > .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  > svg { --icon: 20px; width: var(--icon); height: var(--icon); flex: none; margin-inline-start: auto; color: var(--text-dim); } }
 /* A strip of tabs that scrolls when they do not fit (lib/strip.ts: the wheel, the edges, the active one in sight): no
    scrollbar; an edge with tabs past it fades out (.past-start, .past-end; a mask takes alpha alone, hence the literal
    color), and a tab brought into view clears the fade. */
