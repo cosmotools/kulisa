@@ -31,10 +31,13 @@ Held (longer than 400 ms), the key records until it is let go; pressed once, unt
 recording left on. Another agent brought to the front, its terminal started again, the window losing the keyboard
 with the key down, or the task closing stops it too: a recording never goes on where the human does not see it.
 
-A task's microphone is in one of four states (`Voice`): **none** (disabled, with why: a shell in front, an agent
+A task's microphone is in one of five states (`Voice`): **none** (disabled, with why: a shell in front, an agent
 without dictation of its own and no account to recognize for it), **ready**, **starting** (the hidden session getting
-ready to listen), **recording**. Each change is sent to the window that shows the task
-(`send`, given by the caller).
+ready to listen), **recording**, **transcribing** (let go, the text on its way into the input of the agent it names).
+Transcribing lasts, for the hidden session, until its text comes (at most 6 s); the agent's own dictation tells no end,
+so for it about as long as Claude Code's takes (0.8 s). A recording stopped by anything but the human (another agent in
+front, the task closed) is not transcribed: its text goes nowhere. Each change is sent to the window that shows the
+task (`send`, given by the caller).
 
 ## For an agent without dictation
 
@@ -44,8 +47,8 @@ Agents' order, of an agent whose entry has a `recognizer` and whose sign-in give
 sign-in; its settings and keys are its entry's, `src/main/agents/claude.ts`). The package starts it, holds its key and
 gets its text, knowing no agent by name.
 
-- **One session for the whole of Kulisa**, started at the first dictation (~1 s; the microphone **starting**, blue,
-  until it listens: it records from the microphone itself, so words before that are lost), ended after 10 minutes
+- **One session for the whole of Kulisa**, started at the first dictation (~1 s; the microphone **starting** until it
+  listens: it records from the microphone itself, so words before that are lost), ended after 10 minutes
   without one (~190 MB let go). Not one a task: every task and window dictates through it, one language for every
   account. In a pty of its own (`node-pty`), a child of Kulisa's main process; its screen read by a headless xterm: its prompt drawn
   (started), "listening" (it hears), the words heard so far (below).
@@ -74,11 +77,34 @@ gets its text, knowing no agent by name.
 
 `Dictation.vue`, at the end of the terminals' row of tabs (`TerminalTabs.vue` places it): the key's indicator, and the
 way by the mouse. Its tooltip names the key and the language the agent hears (Kulisa's one, ☰ → Language); getting
-ready it is blue, while it records red and breathes with a ring (`mic-breathe`; not with reduced motion), so the eye catches from across the
+ready (once slow, below) it is blue, while it records red and breathes with a ring (`mic-breathe`; not with reduced motion), so the eye catches from across the
 window that the agent is listening. It works as a voice message's button too: held, or a click to start and another to
 stop; let go, the keyboard goes back to the terminal (`done`). Disabled when the task's dictation is none, its tooltip
 saying why: a button that came and went would resize the terminal, and Claude Code redraws badly after one. The window
 gives it the task shown, the key's name, the language and its icon (the window's sprite, as its slot).
+
+Starting is drawn as such (the microphone blue, the pill's Getting ready…) only once it has lasted 300 ms
+(`renderer/voice.ts`, `slow`): the hidden session mostly listens in a fifth of a second, and a flash of it before every
+recording reads as a glitch; until then it is drawn as recording.
+
+## The pill
+
+`Pill.vue`, over the top of the terminal, in its middle (`Terminals.vue` places it): what the dictation does, so it is
+seen where the eye is, not only at the row's end. Over the terminal, not above it: the terminal keeps its size (Claude
+Code redraws badly after a resize), and the pointer goes through it. It springs in as a recording starts and grows or
+shrinks to what it says:
+
+- **Getting ready…** (starting, once slow): a spinner, the agent's blue.
+- **Listening** (recording): a beating red dot, the voice as a live wave, the time spoken. The wave is the window's own
+  reading of the microphone (`getUserMedia`, its level only, nothing kept or sent), while it records: the agent hears
+  through its own program, which shows nothing outside its terminal. No microphone to read, the wave stays flat; the
+  dictation goes on.
+- **Transcribing…** (transcribing): a wave running through the bars, the label shimmering.
+- **In <agent>'s input**: transcribing ended with the task's agent unchanged; a check, the done green, for 1.6 s, then
+  it goes.
+
+With reduced motion, no spring, beat or wave running; the heard wave stays, being what is heard. Its check icon is the
+slot's (the window's sprite).
 
 ## Its channels
 
@@ -92,9 +118,10 @@ press), `voice` (a task's microphone changed).
 | `main/index.ts` | the main process half's entry: `Dictation`, `installDictation` (its channels) |
 | `main/dictation.ts` | every task's dictation: its state, the key, recording by the first way there is |
 | `main/hidden.ts` | the hidden session recognizing for an agent without dictation |
-| `renderer/index.ts` | the window half's entry: `Dictation` (the microphone) |
+| `renderer/index.ts` | the window half's entry: `Dictation` (the microphone), `Pill` |
 | `renderer/Dictation.vue` | the microphone |
-| `renderer/voice.ts` | each task's microphone as the main process tells it |
+| `renderer/Pill.vue` | the pill |
+| `renderer/voice.ts` | each task's microphone as the main process tells it, starting once slow |
 | `ipc.ts` | its channels |
 | `dictation.test.ts` | unit tests: the hidden session against a fake recognizer and program |
 

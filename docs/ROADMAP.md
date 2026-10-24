@@ -287,6 +287,8 @@ moves there over time: what has an issue is removed from here, the issue being t
     AltGr character does not start a recording).
     For an agent without its own (Codex: src/dictation's hidden Claude Code session): untested on macOS and Windows;
     on Windows, whether ConPTY puts a `conhost`/`OpenConsole` between Kulisa and the hidden `claude`.
+    The pill's wave (the window reading the microphone, `getUserMedia`): untested on macOS and Windows, whether the
+    system asks for the microphone for Kulisa's window as for the agent, and the wave is flat until it is allowed.
   - A packaged app's later starts and an agent started in a task of it: untested packaged on Linux and Windows. Its
     update check fails while there is no release for its OS ("The server sent an invalid response" on macOS) and is
     only logged.

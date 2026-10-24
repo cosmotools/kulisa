@@ -67,8 +67,8 @@ class Session {
 }
 
 // A held key's life: it records until let go; words: what it has heard so far, as it hears it; text: the transcript,
-// once it comes.
-interface Hold { listening: () => void; failed: (why: string) => void; words: (text: string) => void; text: (text: string) => void; on: boolean }
+// once it comes; end: none more comes (the text came, or not in time, or another took its place).
+interface Hold { listening: () => void; failed: (why: string) => void; words: (text: string) => void; text: (text: string) => void; end: () => void; on: boolean }
 
 class Hidden {
   recognizer: Recognizer; spawn: Spawn;
@@ -108,7 +108,9 @@ class Hidden {
   // The key held: it records until release. listening once it hears; failed when no account can.
   async start(hold: Hold) {
     if (this.hold) this.release(this.hold);
+    const was = this.hold;
     this.cancel();
+    if (was && was !== hold) { this.hold = null; was.end(); }
     this.hold = hold;
     clearTimeout(this.idle!);
     const s = await this.open();
@@ -149,7 +151,7 @@ class Hidden {
     this.rest();
     if (!s) return;
     this.waiting.push(setTimeout(() => { if (this.hold === hold) s.proc.write(s.spec.submit); }, SUBMIT),
-      setTimeout(() => { if (this.hold === hold) this.hold = null; }, TEXT));
+      setTimeout(() => { if (this.hold === hold) { this.hold = null; hold.end(); } }, TEXT));
   }
   // Its time without a dictation starts again.
   rest() { clearTimeout(this.idle!); this.idle = setTimeout(() => this.close(), IDLE); }
@@ -161,6 +163,7 @@ class Hidden {
     if (!hold || hold.on) return; // none waits for it: dropped
     this.hold = null;
     if (text.trim()) hold.text(text.trim());
+    hold.end();
   }
 
   end(s: Session) {
@@ -170,7 +173,9 @@ class Hidden {
   // Ended: no dictation for IDLE, or Kulisa quits.
   close() {
     clearTimeout(this.idle!); clearInterval(this.keys!); this.cancel();
-    this.hold = null; this.failed = []; this.broken = null;
+    const hold = this.hold;
+    this.hold = null;
+    hold?.end(); this.failed = []; this.broken = null;
     if (this.session) { log.info('[dictation] hidden session ended'); this.end(this.session); }
   }
 }

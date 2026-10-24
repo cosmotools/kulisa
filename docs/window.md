@@ -359,9 +359,10 @@ window told (`keys:set`, `shell.keys()`; `Shortcuts.vue`). With a shell in front
 goes to in front first (`Task.holdKey`, `promptTarget`), so it always means "speak to the agent".
 
 The key's indicator, and the way by the mouse, is the round microphone at the end of the terminals' row of tabs
-([src/dictation](../src/dictation/README.md), The microphone). The agent hears through its own program (Claude Code:
+([src/dictation](../src/dictation/README.md), The microphone); what the dictation does meanwhile is the pill at the
+terminal's top (the same, The pill). The agent hears through its own program (Claude Code:
 its audio module, or `arecord`/SoX on Linux); on macOS the system asks for the microphone on Kulisa's behalf
-(`NSMicrophoneUsageDescription`, `forge.config.ts`).
+(`NSMicrophoneUsageDescription`, `forge.config.ts`); the pill's wave is the window's own reading of it, the level only.
 
 Links in the terminal open with Ctrl+click (⌘ on macOS; which links: [src/terminal](../src/terminal/README.md)), and
 always ask where, in a menu at the pointer (the island's `termHooks.open`): a new tab in one of the shown task's open

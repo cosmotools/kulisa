@@ -5,7 +5,7 @@
 // task: the task shown; keyName: the key, as the window names it; language: what it hears; done: let go, the keyboard
 // goes back to the terminal; its icon is the slot's (the window's sprite).
 import { computed, watch } from 'vue';
-import { read, record, voices } from './voice';
+import { read, record, slow, voices } from './voice';
 
 const props = defineProps<{ task: string | null; keyName: string; language: string }>();
 const emit = defineEmits<{ done: [] }>();
@@ -13,6 +13,7 @@ const emit = defineEmits<{ done: [] }>();
 const v = computed(() => (props.task ? voices[props.task] : undefined));
 // Starting (the hidden session getting ready) is recording to the human: the key is down, a second press stops it.
 const recording = computed(() => v.value?.state === 'recording' || v.value?.state === 'starting');
+const state = computed(() => (v.value?.state === 'starting' && !slow[props.task!] ? 'recording' : v.value?.state));
 // A recording is not left on in a task out of sight.
 watch(() => props.task, async (task, before) => {
   if (before && ['recording', 'starting'].includes(voices[before]?.state ?? '')) void record(before, false);
@@ -47,7 +48,7 @@ const title = computed(() => {
 <template>
   <!-- The panel is not dragged by its row's buttons. -->
   <div class="dictation" @dragstart.prevent>
-    <button class="icon round mic" aria-label="Speak to the agent" :aria-pressed="recording" :data-state="v?.state" :disabled="!v || v.state === 'none'" :title="title"
+    <button class="icon round mic" aria-label="Speak to the agent" :aria-pressed="recording" :data-state="state" :disabled="!v || v.state === 'none'" :title="title"
       @pointerdown="press" @pointerup="release" @pointercancel="release" @click="key"><slot /></button>
   </div>
 </template>
