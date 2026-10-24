@@ -1,12 +1,12 @@
 // Keyboard shortcuts (main/keys.ts, docs/window.md "Keys"): Chrome's keys in a profile's page act on its pane, the
 // terminal keeps the agent's keys, Kulisa's own work everywhere, Keyboard Shortcuts lists them. Keys are sent as input
 // events into the page or the window, where the human's keyboard would put them.
-import { assert, SITE, sleep, waitFor, menuRows, choose, press, MAC, CMD } from './helpers.ts';
+import { assert, SITE, sleep, waitFor, menuRows, choose, press, MAC, CMD, idOf } from './helpers.ts';
 import type { Test } from './run.ts';
 
 export default (test: Test) => {
   test("keys in a profile's page are Chrome's, for its pane: Ctrl+T a tab with the address to type in, Ctrl+W, Ctrl+Shift+T, Ctrl+1 and Ctrl+Tab; the site never gets them", async ({ shell, ui }) => {
-    const sam = shell.profiles.get('sam-admin'), w = shell.windows[0];
+    const sam = shell.profiles.get(idOf('Sam.admin')), w = shell.windows[0];
     const first = sam.get();
     await first.ready;
     // What the site sees: keys with Ctrl (⌘ on macOS).
@@ -14,7 +14,7 @@ export default (test: Test) => {
     first.wc.focus();
     press(first.wc, 'T', CMD);
     await waitFor(() => sam.tabs.length === 2);
-    await waitFor(async () => w.keyZone === 'pane:sam-admin' && (await ui(`document.activeElement === document.querySelector('.pane[data-profile="sam-admin"] .addr')`)));
+    await waitFor(async () => w.keyZone === `pane:${idOf('Sam.admin')}` && (await ui(`document.activeElement === document.querySelector('.pane[data-profile="${idOf('Sam.admin')}"] .addr')`)));
     assert.equal(await first.wc.executeJavaScript('__ctrlKeys'), 0, 'the site did not get Ctrl+T');
     // From the address bar: Ctrl+W closes the new tab (empty: nothing to open again).
     press(shell.win.webContents, 'W', CMD);
@@ -41,7 +41,7 @@ export default (test: Test) => {
   });
 
   test("keys in the terminal are the agent's, but Kulisa's own: Ctrl+T reaches the agent; Ctrl+` goes to the page used last and back; Ctrl+Shift+/ lists the keys", async ({ shell, ui, termText }) => {
-    const w = shell.windows[0], win = shell.win.webContents, sam = shell.profiles.get('sam-admin');
+    const w = shell.windows[0], win = shell.win.webContents, sam = shell.profiles.get(idOf('Sam.admin'));
     win.focus();
     await ui(`window.__term.focus()`);
     await waitFor(() => w.keyZone === 'terminal');
@@ -78,7 +78,7 @@ export default (test: Test) => {
     await waitFor(() => ui(`(document.getElementById('shortcuts')?.dataset.state === 'open')`));
     await ui(`document.querySelector('#shortcuts .x').click()`);
     // The buttons say their keys, as Chrome's toolbar does; the menus too.
-    assert.equal(await ui(`document.querySelector('.pane[data-profile="sam-admin"] .reload').title`), MAC ? 'Reload (⌘R)' : 'Reload (Ctrl+R)');
-    assert.match(await ui(`document.querySelector('.pane[data-profile="sam-admin"] .pick').title`), MAC ? /\(⇧⌘C\)$/ : /\(Ctrl\+Shift\+C\)$/);
+    assert.equal(await ui(`document.querySelector('.pane[data-profile="${idOf('Sam.admin')}"] .reload').title`), MAC ? 'Reload (⌘R)' : 'Reload (Ctrl+R)');
+    assert.match(await ui(`document.querySelector('.pane[data-profile="${idOf('Sam.admin')}"] .pick').title`), MAC ? /\(⇧⌘C\)$/ : /\(Ctrl\+Shift\+C\)$/);
   });
 };

@@ -3,9 +3,13 @@
 // act). docs/window.md, IPC. An answer the window does not read is `void`: the main process may answer anything there
 // (the tests read some).
 import type { Result } from './result.ts';
+import type { FileLink, TerminalContents, TerminalEvents, TerminalSend } from '../terminal/ipc.ts';
+import type { ThumbnailEvents, ThumbnailInvoke, ThumbnailSend } from '../screenshots/ipc.ts';
+import type { GitHubInvoke } from '../github/ipc.ts';
+import type { DictationEvents, DictationInvoke } from '../dictation/ipc.ts';
 import type {
-  AboutFolder, AboutInfo, AccountsInfo, AgentInfo, ClosedProfile, LanguageInfo, LogInfo, NewProjectSetup, Profile, ProjectAgent, ProjectChoices, ProjectProfile, ProjectRepo,
-  ProjectSettings, ProjectsInfo, Question, SettingsProfile, Shortcut, SignedIn, Terminals, Voice,
+  AboutFolder, AboutInfo, Artifact, AccountsInfo, AgentInfo, ClosedProfile, LanguageInfo, LogInfo, NewProjectSetup, Profile, ProjectAgent, ProjectChoices, ProjectGitHub, ProjectProfile, ProjectFolder,
+  ProjectSettings, ProjectsInfo, Question, SettingsProfile, Shortcut, SignedIn, Terminals,
 } from './types.ts';
 
 // What a message about the shown task's profiles and tabs names (renderer's act: refused when that task is no longer
@@ -13,43 +17,43 @@ import type {
 export interface OnTask { task: string | null }
 export type OnProfile = OnTask & { profile: string };
 export type OnTab = OnProfile & { tab?: string | null }; // none: the active one
-// The terminals' contents a window sends when a task moves, by key ("<task key>#<id>"), to the window it goes to.
-export type TerminalContents = Record<string, { data: string; cols: number; rows: number }>;
 type Grid = Record<string, Partial<{ x: number; y: number; width: number; height: number }> & { shown?: boolean }>;
 export type Theme = 'dark' | 'light' | 'system';
 export type Bar = 'top' | 'bottom';
 // Where Settings opens (its window: main/settings-window.ts): a project's page (none: the shown task's), a profile's, the
 // log (☰ → Report a Problem…), About (☰ → About Kulisa; macOS's app menu).
 export type SettingsAt = { section: 'projects' | 'profiles' | 'log' | 'about'; id?: string | null };
-// A project's code as its manager shows it (projects.ts, reposInfo).
-type Repos = { repos: ProjectRepo[]; former?: string | null };
+// A project's folders as its manager shows them (projects.ts, foldersInfo).
+type Folders = { folders: ProjectFolder[] };
 type ProjectAgents = { agents: ProjectAgent[] };
 type ProjectProfiles = { profiles: ProjectProfile[]; others: ProjectProfile[] };
 type Profiles = { profiles: SettingsProfile[] };
 
 // ipcRenderer.invoke / ipcMain.handle: args, the answer.
 type I<A extends unknown[], R = void> = { args: A; result: R };
-export interface Invoke {
+export interface Invoke extends ThumbnailInvoke, GitHubInvoke, DictationInvoke {
   'projects:list': I<[], ProjectsInfo | undefined>;
   'tasks:get': I<[]>;
-  'project:open': I<[{ id?: string; folder?: string; task?: number }]>;
+  'project:open': I<[{ id?: string; folder?: string; task?: string }]>;
   'project:new-defaults': I<[], ProjectChoices & { location: string; sep: string }>;
   'project:pick-location': I<[{ location?: string; existing?: boolean }], string | null>;
   'project:folder-state': I<[{ from?: string; location?: string; name?: string; folder?: string }], { folder: string; state: string; project?: string } | null>;
-  'project:new': I<[{ from?: string; name?: string; location?: string; folders?: string[]; urls?: string[]; git?: boolean } & NewProjectSetup], Result<{ id: string; problems?: string[] }>>;
+  'project:new': I<[{ from?: string; name?: string; location?: string; folders?: string[]; urls?: string[] } & NewProjectSetup], Result<{ id: string; problems?: string[] }>>;
   'project:settings-get': I<[{ id: string }], Result<ProjectSettings>>;
   'project:settings': I<[{ id: string; name?: string; local?: string[] }], Result<{ id: string }>>;
   'project:profile-new': I<[{ id: string; name?: string }], Result<ProjectProfiles>>;
   'project:profile-add': I<[{ id: string; profile: string }], Result<ProjectProfiles>>;
   'project:profile-remove': I<[{ id: string; profile: string }], Result<ProjectProfiles>>;
-  'project:repo-add': I<[{ id: string; folder?: string }], Result<Partial<Repos>>>;
-  'project:repo-clone': I<[{ id: string; url: string }], Result<Repos>>;
-  'project:repo-default': I<[{ id: string; folder: string }], Result<Repos>>;
-  'project:repo-remove': I<[{ id: string; folder: string }], Result<Repos>>;
-  'project:show-former': I<[{ id: string }]>;
+  'project:folder-add': I<[{ id: string; folder?: string }], Result<Partial<Folders>>>;
+  'project:folder-clone': I<[{ id: string; url: string }], Result<Folders>>;
+  'project:folder-default': I<[{ id: string; folder: string }], Result<Folders>>;
+  'project:folder-remove': I<[{ id: string; folder: string }], Result<Folders>>;
   'project:agent-add': I<[{ id: string; agent: string }], Result<ProjectAgents>>;
   'project:agent-default': I<[{ id: string; agent: string | null }], Result<ProjectAgents>>;
   'project:agent-remove': I<[{ id: string; agent: string }], Result<ProjectAgents>>;
+  // Its repositories' GitHub accounts (src/github): read, and one bound to a repository's remote (null: none).
+  'project:github-get': I<[{ id: string }], Result<ProjectGitHub>>;
+  'project:github-set': I<[{ id: string; remote: string; account: string | null }], Result<ProjectGitHub>>;
   'project:close-tasks': I<[{ id: string }]>;
   'project:move-all': I<[{ id: string; to?: number | null; terminals: TerminalContents }]>;
   'project:show-data': I<[{ id: string }]>;
@@ -74,26 +78,29 @@ export interface Invoke {
   'task:new': I<[{ project?: string }?]>;
   'task:close': I<[key: string]>;
   'task:delete': I<[key: string]>;
-  'task:delete-closed': I<[{ project: string; n: number }]>;
+  'task:delete-closed': I<[{ project: string; id: string }]>;
   'task:rename': I<[{ key: string; name: string }], Result<{ name: string; branch: string | null }>>;
   'task:add-repo': I<[{ key: string; repo: string }]>;
   'task:remove-repo': I<[{ key: string; repo: string }]>;
   'task:show-folder': I<[key: string]>;
+  'task:open-folder': I<[{ key: string; folder: string }]>; // a resource's folder (Resources.vue), checked to be the task's
+  'task:artifacts': I<[string]>; // the task's artifacts sent again (Resources.vue: the task shown)
+  'task:artifacts-delete': I<[{ key: string; files: string[] | null }], Result>; // null: all
   'app:quit': I<[]>;
-  'voice:get': I<[key: string], Voice | null>;
-  'voice:record': I<[{ task: string; on: boolean }], Voice>;
   'agents:list': I<[{ check?: boolean; details?: boolean; cached?: boolean }?], { list: AgentInfo[]; home: string } | { list: null }>; // null: not looked for yet (cached)
   'agents:install': I<[{ id: string }], Result<{ code: number; installed: boolean; log: string }>>; // log: the whole output (the pieces streamed may still be on their way)
   'profile:close': I<[OnProfile]>;
   'profile:open': I<[OnProfile]>;
   'profile:delete': I<[OnProfile]>;
   'profile:master': I<[OnProfile]>;
-  'profile:refresh': I<[OnProfile]>;
   'views:hidden': I<[hidden: boolean, opts?: { snapshots?: boolean }], Record<string, string> | undefined>;
   'layout:load': I<[OnTask], unknown>; // the grid as the window saved it (layout:save)
   'terminal:open': I<[OnTask & { agent?: string; own?: boolean }], Result<{ id: number } | { none: true }>>;
   'terminal:show': I<[OnTask & { id: number }]>;
   'terminal:close': I<[OnTask & { id: number }]>;
+  'terminal:files': I<[OnTask & { paths: string[] }], Result<(FileLink | null)[]>>;
+  'file:open': I<[string]>;
+  'file:show': I<[string]>;
   'agent:new-conversation': I<[OnTask & { id: number }]>;
   'agent:hand-over': I<[OnTask & { id: number; agent: string }], Result<{ id: number }>>;
   'tab:new': I<[OnProfile & { url?: string }], string | { error: string }>; // the new tab's id
@@ -108,6 +115,9 @@ export interface Invoke {
   'tab:dialog': I<[OnTab & { dialog: number; ok: boolean }]>;
   'tab:devtools': I<[OnTab]>;
   'tab:zoom': I<[OnTab & { dir: number }]>;
+  // A picture of the tab, on the clipboard and in the OS's folder of screenshots (src/screenshots): its file; null when
+  // no element was chosen (Esc).
+  'tab:screenshot': I<[OnTab & { kind: 'element' | 'visible' | 'full' }], Result<{ file: string | null }>>;
   'zoom:get': I<[], number>;
   'about:get': I<[], AboutInfo>;
   'about:show-folder': I<[id: AboutFolder]>;
@@ -133,9 +143,7 @@ export interface Invoke {
 }
 
 // ipcRenderer.send / ipcMain.on: what is sent, no answer.
-export interface Send {
-  'pty:in': { task: string; data: string };
-  'pty:resize': { task: string; cols: number; rows: number };
+export interface Send extends TerminalSend, ThumbnailSend {
   'layout': { task: string | null; rects: Grid };
   'layout:save': { task: string | null; layout: unknown };
   'ask:answer': { id: number; answer: string };
@@ -147,15 +155,13 @@ export interface Send {
 }
 
 // webContents.send (AppWindow.send) / the window's kulisa.on: what the main process tells a window.
-export interface Events {
+export interface Events extends TerminalEvents, ThumbnailEvents, DictationEvents {
   'projects': ProjectsInfo;
   'state': Profile[];
   'closed-profiles': ClosedProfile[];
   'terminals': Terminals;
-  'terminals:restore': TerminalContents;
-  'terminals:gone': string[];
+  'artifacts': { task: string; list: Artifact[]; bytes: number }; // bytes: all of them (Task.artifactsUsage)
   'terminal:focus': void;
-  'pty:out': { task: string; data: string };
   'grid:closing': { dir: number; task?: string; pics: Record<string, string> | null };
   'tasks:closed': string[];
   'zoom': number;
@@ -169,7 +175,6 @@ export interface Events {
   'agent:choose': { task: string; selected: string | null };
   'agents:install-log': string;
   'handover:read': { task: string; id: number; part: number; parts: number };
-  'voice': { task: string; voice: Voice | null };
   'project:new': void;
   'master:url': string;
   'settings:show': SettingsAt;

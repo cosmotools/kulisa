@@ -1,8 +1,8 @@
 // CDP proxy: one fake "browser" endpoint per profile, backed by webContents.debugger of that profile's tabs.
 // No --remote-debugging-port: the shell UI is never exposed, only profile tabs. A profile is known by its task's
-// key (its project's id and its number) and its id; each part percent-encoded in the URL (ids may have any letters):
-//   http://127.0.0.1:<port>/<project>/<n>/<profile>/json/version
-//     -> webSocketDebuggerUrl ws://127.0.0.1:<port>/<project>/<n>/<profile>
+// key (its project's id and its number) and its id; each part percent-encoded in the URL:
+//   http://127.0.0.1:<port>/<project>/<task>/<profile>/json/version
+//     -> webSocketDebuggerUrl ws://127.0.0.1:<port>/<project>/<task>/<profile>
 // Clients: playwright-core chromium.connectOverCDP(), @playwright/mcp --cdp-endpoint.
 // Every command passes through here, so the shell can show it (ghost cursor, timeline).
 import { WebSocketServer } from 'ws';
@@ -53,10 +53,6 @@ class CdpProxy extends EventEmitter {
     return new Promise<number>((r) => this.server!.listen(port, '127.0.0.1', () => { this.port = (this.server!.address() as AddressInfo).port; r(this.port); }));
   }
   endpoint(profile: Profile) { return `http://127.0.0.1:${this.port}/${key(profile).split('/').map(encodeURIComponent).join('/')}`; }
-  // The profile's id changed: its endpoint too.
-  renamed(profile: Profile, oldId: string) {
-    this.profiles.delete(`${profile.task}/${oldId}`); this.addProfile(profile);
-  }
 }
 const key = (profile: Profile) => `${profile.task}/${profile.id}`;
 // The key a request's path names (its first three parts); '' when it is not one.

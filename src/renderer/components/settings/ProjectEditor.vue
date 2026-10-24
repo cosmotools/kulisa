@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // Settings, as JetBrains' (docs/tasks.md, Projects; docs/ui.md), the whole of its window (Settings.vue): a tree on the
-// left (Projects, Agents, Profiles, each with its own under it, Agents and Profiles with a + beside them), the chosen
-// one's page on the right under its path. Saved as it changes (no OK, no Cancel). Settings only: a project is made in a
+// left (Projects, Agents, Profiles, each with its own under it, Agents and Profiles with a + beside them; GitHub's page after
+// Agents), the chosen one's page on the right under its path. Saved as it changes (no OK, no Cancel). Settings only: a project is made in a
 // tasks' window (New Project…), which then opens it here.
 import { computed, nextTick, ref, watch } from 'vue';
 import { ListboxContent, ListboxItem, ListboxRoot, TreeItem, TreeRoot } from 'reka-ui';
@@ -13,6 +13,8 @@ import AgentPage from './AgentPage.vue';
 import ProfilePage from './ProfilePage.vue';
 import LogPage from './LogPage.vue';
 import AboutPage from './AboutPage.vue';
+import GitHubPage from './GitHubPage.vue';
+import RepoAccount from './RepoAccount.vue';
 import ProjectIcon from '../ProjectIcon.vue';
 import { avatarSrc } from '../../lib/common';
 import { projectColor } from '../../lib/project-color';
@@ -20,11 +22,12 @@ import { focusAfterMenu, type MenuItem } from '../../lib/menu';
 import { agentList, agentMark, type Agent } from '../../lib/agents';
 import { refused } from '../../../shared/result';
 import type { Result } from '../../../shared/result';
-import type { Account, AccountsInfo, ProjectAgent, ProjectChoices, ProjectEntry, ProjectProfile, ProjectRepo, SettingsProfile, SignedIn } from '../../../shared/types';
+import type { Account, AccountsInfo, ProjectAgent, ProjectChoices, ProjectEntry, ProjectGitHub, ProjectProfile, ProjectFolder, SettingsProfile, SignedIn } from '../../../shared/types';
 
 // The page shown, of the tree's section (the log and About are pages of their own, under them); the agents' list lives here, so an
 // install goes on while a project is shown, and the window stays open while it runs (close).
-type Section = 'projects' | 'agents' | 'profiles' | 'log' | 'about';
+type Section = 'projects' | 'agents' | 'profiles' | 'github' | 'log' | 'about';
+type Page = 'github' | 'log' | 'about';
 const tab = ref<Section>('projects');
 const agentAt = ref<string>(), profileAt = ref<string>(); // the agent, the profile shown
 const agentPage = ref<InstanceType<typeof AgentPage>>();
@@ -40,13 +43,15 @@ const projects = ref<ProjectEntry[]>([]);
 const editing = ref<string | null>(null);
 const name = ref(''), local = ref(''), error = ref('');
 const choices = ref<ProjectChoices>({ agents: [], clis: [] });
-const repos = ref<ProjectRepo[]>([]), former = ref<string | null>(null), cloneUrl = ref(''), codeError = ref(''), cloning = ref(false);
+const folders = ref<ProjectFolder[]>([]), cloneUrl = ref(''), foldersError = ref(''), cloning = ref(false);
+// Its repositories' GitHub accounts (src/github), asked of GitHub after the page is shown: null until they come.
+const github = ref<ProjectGitHub | null>(null);
 const mine = ref<ProjectAgent[]>([]), agentError = ref('');
 const signing = ref<{ id: string; name: string } | null>(null); // New Account…: the agent it is of, while signing in
 const profiles = ref<ProjectProfile[]>([]), others = ref<ProjectProfile[]>([]), newName = ref(''), profileError = ref('');
 // The selected row of each list: what −, ★, Delete and its right-click act on. The default repository and agent are
 // the first ones: the main process keeps them in that order.
-const repoSel = ref<string>(), agentSel = ref<string>(), profileSel = ref<string>();
+const folderSel = ref<string>(), agentSel = ref<string>(), profileSel = ref<string>();
 const base = (f: string) => f.split(/[\\/]/).pop()!;
 
 // Every profile and every account, as Settings → Profiles and → Agents show them (who each is, its projects).
@@ -58,15 +63,17 @@ async function lists() {
   allProfiles.value = p.profiles; showAccounts(a);
 }
 
-// The tree: the three sections, each with its own under it (a section only opens and closes), then the Log and About pages.
-type Node = { key: string; label: string; section?: Section; page?: 'log' | 'about'; project?: ProjectEntry; agent?: Agent; profile?: SettingsProfile; children?: Node[] };
+// The tree: the three sections, each with its own under it (a section only opens and closes), GitHub's page after Agents,
+// then the Log and About pages.
+type Node = { key: string; label: string; section?: Section; page?: Page; project?: ProjectEntry; agent?: Agent; profile?: SettingsProfile; children?: Node[] };
 const tree = computed<Node[]>(() => [
   { key: 'projects', label: 'Projects', section: 'projects', children: projects.value.map((p) => ({ key: `p:${p.id}`, label: p.name, project: p })) },
   { key: 'agents', label: 'Agents', section: 'agents', children: agentsList.state.agents.map((a) => ({ key: `a:${a.id}`, label: a.name, agent: a })) },
+  { key: 'github', label: 'GitHub', page: 'github' },
   { key: 'profiles', label: 'Profiles', section: 'profiles', children: allProfiles.value.map((p) => ({ key: `f:${p.id}`, label: p.name, profile: p })) },
   { key: 'log', label: 'Log', page: 'log' }, { key: 'about', label: 'About', page: 'about' }]);
 const expanded = ref<string[]>(['projects', 'agents', 'profiles']);
-const chosenKey = computed(() => ({ projects: editing.value && `p:${editing.value}`, agents: agentAt.value && `a:${agentAt.value}`, profiles: profileAt.value && `f:${profileAt.value}`, log: 'log', about: 'about' })[tab.value]);
+const chosenKey = computed(() => ({ projects: editing.value && `p:${editing.value}`, agents: agentAt.value && `a:${agentAt.value}`, profiles: profileAt.value && `f:${profileAt.value}`, github: 'github', log: 'log', about: 'about' })[tab.value]);
 const chosenNode = computed(() => tree.value.flatMap((n) => [n, ...(n.children ?? [])]).find((n) => n.key === chosenKey.value));
 const shownAgent = computed(() => agentsList.state.agents.find((a) => a.id === agentAt.value));
 const shownProfile = computed(() => allProfiles.value.find((p) => p.id === profileAt.value));
@@ -95,13 +102,14 @@ async function edit(id: string) {
   if (refused(c)) { editing.value = null; return showList(); }
   editing.value = id;
   name.value = c.name; error.value = '';
-  codeError.value = ''; agentError.value = ''; profileError.value = ''; signing.value = null; adding.value = '';
+  foldersError.value = ''; agentError.value = ''; profileError.value = ''; signing.value = null; adding.value = '';
   cloneUrl.value = ''; newName.value = '';
-  repoSel.value = agentSel.value = profileSel.value = undefined;
+  folderSel.value = agentSel.value = profileSel.value = undefined;
   choices.value = c;
   local.value = (c.local || []).join(' ');
   saved = lookNow();
-  repos.value = c.repos; former.value = c.former || null;
+  folders.value = c.folders;
+  github.value = null; void githubNow();
   mine.value = c.projectAgents;
   profiles.value = c.profiles; others.value = c.others;
   await showList();
@@ -113,7 +121,7 @@ async function edit(id: string) {
 async function openProjects(id?: string, on: Section = 'projects', at?: string) {
   tab.value = on;
   if (on === 'profiles') profileAt.value = at ?? profileAt.value;
-  if (on !== 'log' && on !== 'about' && !expanded.value.includes(on)) expanded.value = [...expanded.value, on];
+  if (on !== 'log' && on !== 'about' && on !== 'github' && !expanded.value.includes(on)) expanded.value = [...expanded.value, on];
   // The agents as last found (or, the first time, after a moment saying so), then looked for again behind them.
   const agentsShown = new Promise<void>((shown) => { void agentsList.load(undefined, async () => shown()); });
   await lists(); // a profile gone: the first one shown instead (watch, above)
@@ -157,7 +165,7 @@ async function close() {
   kulisa.send('settings:close');
 }
 defineExpose({ close });
-// Delete Project…, here alone (the author, 2026-10-11): asked first (projects.ts, askDeleteProject), closed if open;
+// Delete Project…, here alone (the author's choice): asked first (projects.ts, askDeleteProject), closed if open;
 // then Settings goes on to the one shown, or another project.
 async function deleteProject(id: string) {
   const r = await kulisa.invoke('project:delete', { id });
@@ -230,34 +238,45 @@ function deleteChosen() {
 // A list's row a right-click was on: selected, and its actions.
 const rowAt = (e: MouseEvent, attr: string) => (e.target as Element).closest<HTMLElement>(`[${attr}]`)?.getAttribute(attr) ?? null;
 
-// A change to its code, what the manager answers (main/ipc/projects.ts, project:repo-*).
-async function code(answer: Promise<Result<{ repos?: ProjectRepo[]; former?: string | null }>>) {
-  codeError.value = '';
+// A change to its folders, what the manager answers (main/ipc/projects.ts, project:folder-*).
+async function changeFolders(answer: Promise<Result<{ folders?: ProjectFolder[] }>>) {
+  foldersError.value = '';
   const r = await answer;
-  if (refused(r)) codeError.value = r.error;
-  else if (r.repos) { repos.value = r.repos; if ('former' in r) former.value = r.former || null; }
+  if (refused(r)) foldersError.value = r.error;
+  else if (r.folders) { folders.value = r.folders; void githubNow(); }
   return r;
 }
+// The repositories' GitHub accounts as they are now (accounts added or signed out in Settings → GitHub meanwhile); one
+// chosen on a row binds its remote.
+async function githubNow(answer?: Promise<Result<ProjectGitHub>>) {
+  const id = editing.value;
+  if (!id) return;
+  const r = await (answer ?? kulisa.invoke('project:github-get', { id }));
+  if (editing.value !== id) return;
+  if (refused(r)) foldersError.value = r.error; else github.value = r;
+}
+const githubOf = (folder: string) => github.value?.repos.find((g) => g.folder === folder);
+const bindGitHub = (remote: string, account: string) => githubNow(kulisa.invoke('project:github-set', { id: id(), remote, account }));
 const id = () => editing.value!; // the project shown: every change is made on its page
 // The selection goes with its row, not when the row stays (refused, or a no to the question).
-const removeRepo = (folder = repoSel.value) => folder && code(kulisa.invoke('project:repo-remove', { id: id(), folder }))
-  .then(() => { if (!repos.value.some((r) => r.folder === repoSel.value)) repoSel.value = undefined; });
-const defaultRepo = (folder = repoSel.value) => folder && code(kulisa.invoke('project:repo-default', { id: id(), folder }));
-const repoMenu = (e: MouseEvent): MenuItem[] | null => {
+const removeFolder = (folder = folderSel.value) => folder && changeFolders(kulisa.invoke('project:folder-remove', { id: id(), folder }))
+  .then(() => { if (!folders.value.some((r) => r.folder === folderSel.value)) folderSel.value = undefined; });
+const defaultFolder = (folder = folderSel.value) => folder && changeFolders(kulisa.invoke('project:folder-default', { id: id(), folder }));
+const folderMenu = (e: MouseEvent): MenuItem[] | null => {
   const f = rowAt(e, 'data-folder');
   if (!f) return null;
-  repoSel.value = f;
-  return [{ label: 'Make Default', enabled: repos.value[0]?.folder !== f, run: () => defaultRepo(f) },
-    { label: 'Remove from the Project', run: () => removeRepo(f) }];
+  folderSel.value = f;
+  return [{ label: 'Make Default', enabled: folders.value[0]?.folder !== f, run: () => defaultFolder(f) },
+    { label: 'Remove from the Project', run: () => removeFolder(f) }];
 };
 // Cloning takes a while (the repository comes over the network): the button says so meanwhile.
 async function clone() {
   if (!cloneUrl.value.trim()) return url.value!.focus();
   cloning.value = true;
-  if (!(await code(kulisa.invoke('project:repo-clone', { id: id(), url: cloneUrl.value })))?.error) { cloneUrl.value = ''; adding.value = ''; }
+  if (!(await changeFolders(kulisa.invoke('project:folder-clone', { id: id(), url: cloneUrl.value })))?.error) { cloneUrl.value = ''; adding.value = ''; }
   cloning.value = false;
 }
-const codeMenu = (): MenuItem[] => [{ label: 'Add Folder…', run: () => code(kulisa.invoke('project:repo-add', { id: id() })) },
+const addMenu = (): MenuItem[] => [{ label: 'Add Folder…', run: () => changeFolders(kulisa.invoke('project:folder-add', { id: id() })) },
   { label: 'Clone from URL…', run: () => startAdding('clone') }];
 
 // Its agents (the agents and their accounts: main/accounts.ts), the default first: + runs it.
@@ -333,7 +352,7 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
           <TreeItem v-for="it in flattenItems" :key="it._id" v-bind="it.bind" class="item" :data-key="it.value.key" :data-section="it.value.section" :data-page="it.value.page"
             :data-project="it.value.project?.id" :data-agent="it.value.agent?.id" :data-profile="it.value.profile?.id"
             :style="{ '--color': it.value.project && projectColor(it.value.project) }" @select="choose">
-            <Icon v-if="it.value.section" class="twist" name="i-down" /><Icon v-else-if="it.value.page" class="twist" :name="it.value.page === 'log' ? 'i-docs' : 'i-logo'" /><ProjectIcon v-if="it.value.project" :p="it.value.project" />
+            <Icon v-if="it.value.section" class="twist" name="i-down" /><Icon v-else-if="it.value.page" class="twist" :name="({ github: 'i-github', log: 'i-docs', about: 'i-logo' } as const)[it.value.page]" /><ProjectIcon v-if="it.value.project" :p="it.value.project" />
             <template v-if="it.value.agent"><Icon v-if="mark(it.value.agent)" class="logo" :name="mark(it.value.agent)!" /></template>
             <img v-if="it.value.profile" class="avatar" alt="" :src="avatarSrc(it.value.profile.avatar)">
             <span class="text"><span class="label" :title="it.value.section ? undefined : it.value.label">{{ it.value.label }}</span></span>
@@ -363,27 +382,31 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
           <input id="pjname" v-model="name" data-name maxlength="64" spellcheck="false" @input="error = ''" @change="saveLook" @keydown.enter.prevent="saveLook"></div>
         <p id="pjerror" class="error">{{ error }}</p>
 
-        <section id="npreposrow" class="group">
-          <h3 class="titled">Code</h3>
-          <RightClickMenu :items="repoMenu">
+        <section id="npfoldersrow" class="group">
+          <h3 class="titled">Folders</h3>
+          <RightClickMenu :items="folderMenu">
             <div class="list">
               <div class="tools">
-                <ButtonMenu :items="codeMenu"><button id="npreposadd" class="icon small" type="button" title="Add a repository or folder" aria-label="Add code"><Icon name="i-plus" /></button></ButtonMenu>
-                <button id="nprepodel" class="icon small" type="button" title="Remove from the project (its folder stays)" aria-label="Remove from the project" :disabled="!repoSel" @click="removeRepo()"><Icon name="i-minus" /></button>
-                <button id="nprepodefault" class="icon small" type="button" title="Make Default: new tasks' agents start in its copy" aria-label="Make Default"
-                  :disabled="!repoSel || repoSel === repos[0]?.folder" @click="defaultRepo()"><Icon name="i-star" /></button>
+                <ButtonMenu :items="addMenu"><button id="npfoldersadd" class="icon small" type="button" title="Add a folder or a repository" aria-label="Add a folder"><Icon name="i-plus" /></button></ButtonMenu>
+                <button id="npfolderdel" class="icon small" type="button" title="Remove from the project (its folder stays)" aria-label="Remove from the project" :disabled="!folderSel" @click="removeFolder()"><Icon name="i-minus" /></button>
+                <button id="npfolderdefault" class="icon small" type="button" title="Make Default: new tasks' agents start in its copy" aria-label="Make Default"
+                  :disabled="!folderSel || folderSel === folders[0]?.folder" @click="defaultFolder()"><Icon name="i-star" /></button>
               </div>
-              <div v-if="repos.length" class="head" aria-hidden="true"><span>Name</span><span>Folder</span><span /></div>
-              <ListboxRoot selection-behavior="replace" v-if="repos.length" id="nprepos" v-model="repoSel" aria-label="Code" @keydown.delete="removeRepo()">
+              <div v-if="folders.length" class="head" aria-hidden="true"><span>Name</span><span>Folder</span><span>GitHub</span><span /></div>
+              <ListboxRoot selection-behavior="replace" v-if="folders.length" id="npfolders" v-model="folderSel" aria-label="Folders" @keydown.delete="removeFolder()">
                 <ListboxContent>
-                  <ListboxItem v-for="(r, i) in repos" :key="r.folder" :value="r.folder" class="item" :data-folder="r.folder">
+                  <ListboxItem v-for="(r, i) in folders" :key="r.folder" :value="r.folder" class="item" :data-folder="r.folder">
                     <span class="cell label" :title="base(r.folder)">{{ base(r.folder) }}</span><small class="cell" :title="r.folder">{{ r.folder }}</small>
+                    <span class="cell github"><template v-if="githubOf(r.folder)?.remote">
+                      <small v-if="githubOf(r.folder)!.state === 'not-github'" class="notgithub" title="Its origin is not on github.com (or an SSH name ssh cannot tell)">not a GitHub address</small>
+                      <small v-else-if="!github!.accounts.length" title="Add an account in Settings → GitHub">no account</small>
+                      <RepoAccount v-else :repo="githubOf(r.folder)!" :accounts="github!.accounts" @choose="(a) => bindGitHub(githubOf(r.folder)!.remote!, a)" />
+                    </template></span>
                     <span class="cell end"><kbd v-if="r.git !== 'ok'" class="warn">{{ r.git === 'none' ? 'no git' : 'no commit yet' }}</kbd>
-                      <kbd v-if="!i && repos.length > 1" class="default" title="New tasks' agents start in its copy">default</kbd></span>
+                      <kbd v-if="!i && folders.length > 1" class="default" title="New tasks' agents start in its copy">default</kbd></span>
                   </ListboxItem>
                 </ListboxContent>
               </ListboxRoot>
-              <p v-if="!repos.length" class="empty">No code yet: its tasks work in an empty folder.</p>
             </div>
           </RightClickMenu>
           <!-- Enter in the URL clones; Esc puts it away -->
@@ -393,9 +416,12 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
             <button type="button" @click="stopAdding">Cancel</button>
             <button id="npclone" class="primary" type="button" :disabled="cloning" @click="clone">{{ cloning ? 'Cloning…' : 'Clone' }}</button>
           </div>
-          <p id="npformer" class="hint" :hidden="!former"><span>{{ former ? `Former folder ${former}: tasks no longer work in it; move its files into a repository.` : '' }}</span>
-            <button id="npshowformer" type="button" @click="kulisa.invoke('project:show-former', { id: editing })">Show</button></p>
-          <p id="npcodeerror" class="error">{{ codeError }}</p>
+          <!-- Why a repository's account cannot reach it, a line each -->
+          <div v-if="github?.repos.some((g) => g.why)" id="npgithub">
+            <p v-for="g in github.repos.filter((g) => g.why)" :key="g.folder" class="hint" :data-folder="g.folder">{{ base(g.folder) }}: {{ g.why }}
+              <a v-if="g.install" :href="g.install" target="_blank">Install it on {{ g.owner }}</a><template v-if="g.install"> (or ask its owner to)</template></p>
+          </div>
+          <p id="npfolderserror" class="error">{{ foldersError }}</p>
         </section>
 
         <section id="npagentsrow" class="group">
@@ -489,6 +515,10 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
       </div>
       <AgentPage ref="agentPage" :list="agentsList" :chosen="agentAt" :accounts :clis @accounts="showAccounts" />
     </div>
+    <div v-show="tab === 'github'" id="ghconfig">
+      <div class="crumbs"><b>GitHub</b></div>
+      <GitHubPage :shown="tab === 'github'" />
+    </div>
     <div v-show="tab === 'log'" id="lgconfig">
       <div class="crumbs"><b>Log</b></div>
       <LogPage :shown="tab === 'log'" />
@@ -509,15 +539,15 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
   #pjlist { margin: 0; padding: 0; outline: none;
     .item { min-height: var(--row); padding: 0 4px 0 8px; gap: var(--gap); border-radius: var(--radius); padding-inline-start: calc(8px + (var(--level, 1) - 1) * 18px); }
     [aria-level="2"] { --level: 2; }
-    :is([data-section], [data-page="log"]):not(:first-child) { margin-top: var(--inset); } /* the pages together, under the sections */
+    :is([data-section], [data-page="github"], [data-page="log"]):not(:first-child) { margin-top: var(--inset); } /* the pages together, under the sections */
     .twist { width: 12px; height: 12px; color: var(--text-dim); } [aria-expanded="false"] .twist { rotate: -90deg; }
     .picon, .logo { flex: none; width: 16px; height: 16px; } .picon { color: var(--color); } .avatar { --avatar: 16px; }
     .label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } kbd { flex: none; }
     [aria-selected="true"] { background: var(--chosen-idle); color: var(--text-strong); }
     &:focus-within [aria-selected="true"] { background: var(--chosen); } }
-  /* More room than a dialog's, as JetBrains' Settings: along the sides, and between the groups, whose lists ran into
-     the next one's title (the author, 2026-10-16) */
-  :is(#pjconfig, #agconfig, #prconfig, #lgconfig, #abconfig) { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--inset); overflow: hidden auto;
+  /* More room than a dialog's, as JetBrains' Settings: along the sides, and between the groups, so a list does not run
+     into the next one's title */
+  :is(#pjconfig, #agconfig, #prconfig, #ghconfig, #lgconfig, #abconfig) { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--inset); overflow: hidden auto;
     padding: 0 calc(1.5 * var(--pad)) var(--pad);
     > * { flex: none; } }
   /* The log scrolls inside its box, the page not at all: its tools and buttons stay in sight */
@@ -531,9 +561,11 @@ const stopAdding = () => { adding.value = ''; newName.value = ''; cloneUrl.value
     > .error, > .hint { margin: 0; } > .hint:not([hidden]) { margin-inline-start: calc(var(--label) + var(--inset)); } }
   .list [role="listbox"] { max-height: calc(6 * var(--row)); overflow: auto; }
   /* The columns: the name as wide as it needs (at most about half), what it is in the rest, its state at the end */
-  #npreposrow .list, #npagentsrow .list { --cols: fit-content(45%) minmax(0, 1fr) auto; }
+  #npagentsrow .list { --cols: fit-content(45%) minmax(0, 1fr) auto; }
+  #npfoldersrow .list { --cols: fit-content(30%) minmax(0, 1fr) fit-content(30%) auto; } /* its name, folder, GitHub account, state */
+  .github { display: flex; align-items: center; min-width: 0; .select { height: calc(var(--control) - 6px); max-width: 100%; } small { color: var(--text-muted); } }
+  #npgithub .hint { margin: 0; .hint + & { margin-top: 2px; } }
   #npprofilesrow .list { --cols: fit-content(45%) minmax(0, 1fr) fit-content(30%); }
-  #npformer button { margin-inline-start: var(--gap); }
   .none { display: flex; flex-direction: column; align-items: start; gap: var(--gap); padding-top: var(--pad); .empty { margin: 0; } }
 }
 </style>

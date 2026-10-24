@@ -7,16 +7,17 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import http from 'http';
-import { MAC, CMD, shot, assert, root, userData, project, pfile, panel, SITE, sleep, waitFor, who, menuRows, choose, rightClick, viewOn, press, projectTabs, projectTab, showProject, savedWindows, closeMenu, click, plusMenu, closeBoard, PORT, hooksOf, MENU, SUBMENU, menuOpen, noNode, focusWindow, chooseProfile, closeSettings, settingsClosed } from './helpers.ts';
-import { withOffset } from '../src/main/tasks.ts';
+import { MAC, CMD, shot, assert, root, userData, project, pid, tkey, named, pfile, idOf, panel, SITE, sleep, waitFor, who, menuRows, choose, rightClick, viewOn, press, projectTabs, projectTab, showProject, savedWindows, closeMenu, click, plusMenu, plusRows, PORT, hooksOf, MENU, SUBMENU, menuOpen, noNode, focusWindow, chooseProfile, closeSettings, settingsClosed, isNth, taskAt, tid } from './helpers.ts';
 import { createWorktree } from '../src/main/worktrees.ts';
 import { sessionStart } from '../src/main/kulisa-plugin/agent-hooks.ts';
 import { refused } from '../src/shared/result.ts';
 import type { Test, Ctx } from './run.ts';
 import type { UI } from './helpers.ts';
+import type { Shell } from '../src/main/shell.ts';
 import type { TaskTerminal } from '../src/main/tasks.ts';
 import type { Task } from '../src/main/tasks.ts';
 import type { TasksFile } from '../src/main/store.ts';
+import { worktreesOf } from '../src/main/store.ts';
 import type { StoredProfile } from '../src/main/profile-store.ts';
 const hasDirenv = (() => { try { execFileSync('direnv', ['version']); return true; } catch { return false; } })();
 
@@ -24,23 +25,28 @@ const git = (cwd: string, ...args: string[]) => execFileSync('git', ['-c', 'user
 // The shown task's project's tabs in the bar, the shown one with ' *'; its task n's tab.
 const ACTIVE_PROJECT = `document.querySelector('#projectTabs .tasktab.active').dataset.project`;
 const tabs = (ui: UI) => ui(`[...document.querySelectorAll('#projectTabs .tasktab[data-project="' + ${ACTIVE_PROJECT} + '"]')].map((t) => t.querySelector('.name').textContent + (t.classList.contains('active') ? ' *' : ''))`);
-const taskTab = (n: number) => `document.querySelector('#projectTabs .tasktab[data-task="' + ${ACTIVE_PROJECT} + '/${n}"]')`;
-const tasksFile = (): TasksFile => JSON.parse(fs.readFileSync(path.join(userData, 'projects', 'project', 'tasks.json'), 'utf8'));
-// The bar's +, the shown project in its menu; resolves once the new task is shown, its agent started.
-async function newTask(ctx: Ctx) {
+// A task's tab in the bar.
+const taskTab = (t: { key: string }) => `document.querySelector('#projectTabs .tasktab[data-task="${t.key}"]')`;
+const tasksFile = (): TasksFile => JSON.parse(fs.readFileSync(path.join(userData, 'projects', pid('project'), 'tasks.json'), 'utf8'));
+// The bar's +, the shown project in its menu; resolves once the new task is shown, its agent started. Names it for the
+// tests to refer to it by (the default is "New Task"): task-<its place among its project's tasks>, or the name given, or none with null (to test the
+// default and the agent naming it).
+async function newTask(ctx: Ctx, name?: string | null) {
   const { shell, ui } = ctx;
   const before = shell.task;
-  await plusMenu(ui, shell.current.name);
+  await ui(`kulisa.invoke('task:new', { project: ${JSON.stringify(shell.current.id)} })`); // the shown project's + (NewTask.vue tests the menu itself)
   await waitFor(() => shell.task !== before && shell.task.loaded && [...shell.task.terminals.values()].some((t) => t.pty), 20000);
+  const t = shell.task;
+  if (name !== null) await t.rename(name ?? `task-${[...t.project.tasks.values()].indexOf(t) + 1}`);
   if (shell.pty) ctx.watchPty(shell.pty);
-  return shell.task;
+  return t;
 }
 // A project's submenu (a tab's right-click, then the row of the project's name, the one row opening a menu): its
 // rows, a row of it chosen. tab: the tab to open it on (the shown task's).
 async function projectMenu(ui: UI, label?: string, tab = '#projectTabs .tasktab.active .name') {
   // Right-clicked again until its menu opens and its submenu with it: right after Settings or another menu closed,
-  // the menu opened none now and then (GitHub's runner, 2026-10-16), or opened and closed at once (2026-10-18), as
-  // the window's focus went and came back late (a blur closes a menu, as the OS's own close).
+  // the menu may open none, or open and close at once, as
+  // the window's focus goes and comes back late (a blur closes a menu, as the OS's own close).
   await waitFor(async () => {
     if (!(await menuOpen(ui))) await rightClick(ui, tab);
     try {
@@ -63,22 +69,12 @@ const hook = (task: Task, event: string, input = {}) => new Promise<any>((resolv
 const reportSession = (task: Task, id: string, transcript: string) => hook(task, 'session-start', { hook_event_name: 'SessionStart', session_id: id, transcript_path: transcript, source: 'startup' });
 
 export default (test: Test) => {
-  test('tasks: a port offset moves local addresses only, either way', async () => {
-    assert.equal(withOffset('http://localhost:3000/cart?x=1', 100), 'http://localhost:3100/cart?x=1');
-    assert.equal(withOffset('http://127.0.0.1:4417/app', 200), 'http://127.0.0.1:4617/app');
-    assert.equal(withOffset('http://localhost:3200/', -100), 'http://localhost:3100/', "from a task with a greater offset");
-    assert.equal(withOffset('http://shop.localhost:8080/', 100), 'http://shop.localhost:8180/');
-    assert.equal(withOffset('http://localhost/', 100), 'http://localhost/', 'no port: left alone');
-    assert.equal(withOffset('https://example.com:8443/', 100), 'https://example.com:8443/', 'not local');
-    assert.equal(withOffset('http://localhost:3000/', 0), 'http://localhost:3000/');
-  });
-
   test('tasks: without git a task works in the project\'s folder, and a second one there is asked about first', async (ctx) => {
     const { shell, ui } = ctx;
     await waitFor(async () => JSON.stringify(await tabs(ui)) === '["task-1 *"]');
     assert.equal(shell.task.folder, project);
     assert.equal((shell.task.entry as { worktree?: string }).worktree, undefined);
-    assert.match(await ui(`${taskTab(1)}.title`), /in the project's folder .*no git/);
+    assert.match(await ui(`${taskTab(taskAt(shell.current, 1))}.title`), /in the project's folder .*no git/);
     ctx.answer = false;
     await plusMenu(ui, shell.current.name);
     await waitFor(() => ctx.asked.length);
@@ -104,26 +100,26 @@ export default (test: Test) => {
     fs.writeFileSync(path.join(project, 'wip.txt'), 'not committed');
   });
 
-  test('tasks: + makes task-<n> from the project\'s configuration: its worktree and branch, files outside git, its profiles closed until opened (each a copy of its master), its ports; the agent renames it', async (ctx) => {
+  test('tasks: + opens a task in the project\'s main working tree ("New Task", no worktree, no port offset); its profiles closed until opened (each a copy of its master); the agent makes its worktree and names it with task_worktree', async (ctx) => {
     const { shell, ui, call } = ctx;
     const first = shell.task;
-    await call('browser_navigate', { profile: 'sam-admin', url: `${SITE}/app?task` });
-    const firstSam = first.profiles.get('sam-admin');
+    await call('browser_navigate', { profile: 'Sam.admin', url: `${SITE}/app?task` });
+    const firstSam = first.profiles.get(idOf('Sam.admin'));
     // The island's buttons are for a task with nothing open: a task opening shows its agent's tab at once, starting,
-    // not them for the second its agent is looked for (they did, 2026-10-15).
+    // not them for the second its agent is looked for.
     await ui(`window.__launch = false; window.__starting = ''; new MutationObserver(() => { window.__launch ||= !!document.querySelector('#dock .launch');
       window.__starting ||= document.querySelector('#dock .starting')?.textContent; })
       .observe(document.body, { childList: true, subtree: true })`);
     const find = shell.findAgent; // looking for it takes the user's login shell, slower on the human's computer than here
     let found = false;
     shell.findAgent = async (...a) => { await sleep(1000); const r = await find(...a); found = true; return r; };
-    // Its agent waits for its terminal's size however late the window lays the island out: it started at a default one
-    // after 5 s, which GitHub's runner reached (2026-10-15). The island hidden for 6 s after the agent is found: what is
-    // tested is that it waits longer than it used to, which only time shows.
+    // Its agent waits for its terminal's size however late the window lays the island out: not at a default one
+    // after 5 s, which a loaded machine reaches. The island hidden for 6 s after the agent is found: what is
+    // tested is that it waits longer than that, which only time shows.
     await ui(`document.head.append(Object.assign(document.createElement('style'), { id: 'lateIsland', textContent: '.term { display: none !important; }' }))`);
     const sent = await ui('window.__ptySizes.length');
     const late = (async () => { await waitFor(() => found, 10000); await sleep(6000); await ui(`document.getElementById('lateIsland').remove()`); })();
-    const task = await newTask(ctx);
+    const task = await newTask(ctx, null); // left "New Task": this test names it with task_worktree below
     await late;
     shell.findAgent = find;
     await waitFor(async () => (await ui('window.__ptySizes.length')) > sent);
@@ -131,96 +127,89 @@ export default (test: Test) => {
     assert.equal(await ui('window.__launch'), false, "no island's buttons while its agent starts");
     assert.match(await ui('window.__starting'), /^Starting .+…$/, 'its tab, starting');
     await waitFor(async () => !(await ui(`!!document.querySelector('.terminals .starting')`))); // then its terminal
-    const wt = `${project}@task-2`;
-    assert.equal(task.n, 2);
-    assert.equal(task.name, 'task-2');
+    // At open nothing is made: "New Task", the terminal in the project's main working tree (the human's folder), no
+    // worktree, no branch, no port offset. The agent makes the worktree itself (below).
+    assert.ok(isNth(task, 2));
+    assert.equal(task.name, 'New Task');
+    assert.equal(task.folder, project, 'the main working tree until it makes its own');
+    assert.equal(task.branch, null);
+    assert.deepEqual(task.entry.resources, [{ kind: 'maintree', folder: project }], 'the main tree, no worktree yet');
+    assert.deepEqual(task.env(), { KULISA_MCP_URL: `${shell.mcp.base}/task/${tkey('project', 2)}/mcp`, KULISA_URL: `${shell.mcp.base}/task/${tkey('project', 2)}`, KULISA_TASK: 'New Task' });
+    assert.equal(shell.resumedSession, null, 'a new conversation');
+    const told = await ctx.instructions(task);
+    assert.match(told, /This is the Kulisa task "New Task"\. Your terminal is in the project's folder .*project, which is the human's: do not change it on your own\./, 'where it works, told to any agent');
+    assert.match(told, /make the task its own git worktree with task_worktree .*pass its name to name the task at the same time if it is still "New Task"/);
+    assert.match(told, /Run the app under test on a free port you pick \(Kulisa assigns none\)/);
+    assert.match(told, /Name the task with task_rename once you know what it is about/);
+    assert.doesNotMatch(told, /KULISA_PORT_OFFSET|usual ports|plus 100/);
+
+    // Profiles: none opens by itself, nothing taken from the task on screen; the agent opens those it needs, each a copy
+    // of its master (not of the first task's copy: what was signed in there stays there; a master's sign-ins come with it).
+    assert.deepEqual([...shell.profiles.keys()], []);
+    assert.deepEqual([...shell.closed.keys()], [idOf('Sam.admin'), idOf('Elon.buyer'), idOf('Dora')]);
+    assert.ok(!fs.existsSync(pfile(idOf('Sam.admin'), 2)), 'no copy before it is opened');
+    await call('profile_open', { profile: 'Sam.admin' });
+    await call('profile_open', { profile: 'Elon.buyer' });
+    await waitFor(() => shell.profiles.has(idOf('Sam.admin')) && shell.profiles.has(idOf('Elon.buyer')));
+    assert.deepEqual([idOf('Sam.admin'), idOf('Elon.buyer')].map((id) => [shell.profiles.get(id).avatar, shell.profiles.get(id).description]),
+      [['fox', 'seller in the test shop'], ['owl', '']], 'with their pictures and who they are');
+    assert.ok(shell.profiles.get(idOf('Sam.admin')).dir.startsWith(path.join(userData, 'projects', pid('project'), task.id)));
+    assert.ok(!fs.existsSync(pfile(idOf('Dora'), 2)), 'a closed one is copied when it is first opened');
+    await call('browser_navigate', { profile: 'Sam.admin', url: `${SITE}/app` });
+    assert.equal(await who(ctx, 'Sam.admin'), 'Signed out', 'its master was never signed in');
+    // Signed in in this task's copy: there only (restart-tasks.ts: it stays).
+    await call('browser_navigate', { profile: 'Sam.admin', url: `${SITE}/app/login?name=sam` });
+    assert.equal(await who(ctx, 'Sam.admin'), 'Signed in as sam');
+    assert.equal(await who({ call: (n, a) => call(n, a, first) }, 'Sam.admin'), 'Signed in as sam', "the first task's own sign-in");
+    // The first task's profiles keep running, hidden; its agent sees its own.
+    assert.ok(firstSam.tabs.every((t) => !t.wc.isDestroyed()) && !firstSam.get().view.getVisible());
+    assert.equal(firstSam.get().wc.getURL(), `${SITE}/app?task`, "the new task's agent acts in its own copy");
+    assert.match((await call('browser_snapshot', { profile: 'Sam.admin' }, first)).text, /URL: .*\/app\?task/);
+    assert.ok(first.pty && first.pty !== shell.pty);
+    assert.equal(JSON.parse(fs.readFileSync(pfile('agent.json', 2), 'utf8')).conversations[0].agent, 'custom', "no agent in the project: the one there is (the tests' own)");
+
+    // The window: the task's grid with its panes; the bar shows it, "New Task" until it is named.
+    await waitFor(async () => (await ui(`${taskTab(taskAt(shell.current, 2))}.querySelector('.name').textContent`)) === 'New Task' && (await ui(`${taskTab(taskAt(shell.current, 2))}.classList.contains('active')`)));
+    await waitFor(() => viewOn(shell, ui, 'Sam.admin'));
+    assert.equal(await ui(`document.querySelectorAll('.pane').length`), 2);
+
+    // It makes its own worktree, naming the task in the same call (task_worktree's name, since it is still "New Task"):
+    // the tab and the branch take the name, the folder becomes the worktree; the project's folder stays the human's.
+    // The Resources island: the main working tree until it has its own worktree, then the worktree on its branch.
+    const resources = () => ui(`[...document.querySelectorAll('#resources .resource')].map((r) => r.textContent.trim())`);
+    assert.deepEqual(await resources(), ['projectmain working tree']);
+    // Two of its agents at once (each a call) get the one worktree, not one each.
+    const wt = `${project}@feature-x`, trees = () => git(project, 'worktree', 'list').split('\n').length, before = trees();
+    const both = await Promise.all([call('task_worktree', { name: 'Feature-X' }), call('task_worktree', {})]);
+    for (const r of both) assert.match(r.text, /works in its own worktree .*project@feature-x, on branch feature-x/);
+    assert.equal(trees(), before + 1, 'one worktree');
+    await waitFor(async () => JSON.stringify(await resources()) === '["projectbranch feature-x"]');
+    assert.equal(await ui(`kulisa.invoke('task:open-folder', { key: '${task.key}', folder: '/' })`), undefined, 'only a folder of the task');
+    await waitFor(async () => (await ui(`${taskTab(taskAt(shell.current, 2))}.querySelector('.name').textContent`)) === 'Feature-X');
+    assert.equal(task.name, 'Feature-X');
+    assert.equal(task.entry.named, true);
     assert.equal(task.folder, wt);
-    assert.equal(git(wt, 'rev-parse', '--abbrev-ref', 'HEAD'), 'task-2');
+    assert.equal(git(wt, 'rev-parse', '--abbrev-ref', 'HEAD'), 'feature-x');
     assert.equal(git(wt, 'rev-parse', 'HEAD'), git(project, 'rev-parse', 'HEAD'), 'from HEAD (no remote here)');
     assert.equal(fs.readFileSync(path.join(wt, '.env'), 'utf8'), 'SECRET=1\n');
     assert.equal(fs.readFileSync(path.join(wt, 'config', 'local.json'), 'utf8'), '{"db":"local"}', '.worktreeinclude');
     assert.equal(fs.readFileSync(path.join(wt, '.claude', 'settings.local.json'), 'utf8'), '{"model":"x"}', "an agent's local settings (its localFiles)");
     assert.ok(fs.existsSync(path.join(wt, 'README.md')) && !fs.existsSync(path.join(wt, 'wip.txt')), 'uncommitted changes are not carried');
     assert.ok(!fs.existsSync(path.join(wt, '.kulisa')), 'nothing of Kulisa in the folder');
-    if (hasDirenv) { // the project's .envrc is allowed, so the copy in the task is too: the project's environment is there
-      assert.equal(execFileSync('direnv', ['exec', wt, 'sh', '-c', 'echo $FROM_ENVRC'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim(), `envrc of ${wt}`);
-    }
-    await waitFor(async () => (await ctx.termText()).includes(`agent: rc of ${wt}`)); // its agent, in its folder
-    assert.deepEqual(task.env(), { KULISA_MCP_URL: `${shell.mcp.base}/task/project/2/mcp`, KULISA_URL: `${shell.mcp.base}/task/project/2`, KULISA_TASK: 'task-2', KULISA_PORT_OFFSET: '100' });
-    assert.equal(shell.resumedSession, null, 'a new conversation');
-    const told = await ctx.instructions(task);
-    assert.match(told, /This is the Kulisa task "task-2": a git worktree of its own, .*project@task-2, on branch task-2/, 'where it works, told to any agent');
-    assert.match(told, /folder .*project is the human's: never change it on your own\. Asked to merge your work into main there, first check for the human's uncommitted changes/);
-    assert.match(told, /usual ports plus 100 \(3000 → 3100; \$KULISA_PORT_OFFSET\)/);
-
-    // Profiles: none opens by itself, nothing taken from the task on screen; the agent opens those it needs, each a copy
-    // of its master (not of the first task's copy: what was signed in there stays there; a master's sign-ins come with it).
-    assert.deepEqual([...shell.profiles.keys()], []);
-    assert.deepEqual([...shell.closed.keys()], ['sam-admin', 'elon-buyer', 'dora']);
-    assert.ok(!fs.existsSync(pfile('Profile 1', 2)), 'no copy before it is opened');
-    await call('profile_open', { profile: 'sam-admin' });
-    await call('profile_open', { profile: 'elon-buyer' });
-    await waitFor(() => shell.profiles.has('sam-admin') && shell.profiles.has('elon-buyer'));
-    assert.deepEqual(['sam-admin', 'elon-buyer'].map((id) => [shell.profiles.get(id).avatar, shell.profiles.get(id).description]),
-      [['fox', 'seller in the test shop'], ['owl', '']], 'with their pictures and who they are');
-    assert.ok(shell.profiles.get('sam-admin').dir.startsWith(path.join(userData, 'projects', 'project', '2')));
-    assert.ok(!fs.existsSync(pfile('Profile 3', 2)), 'a closed one is copied when it is first opened');
-    await call('browser_navigate', { profile: 'sam-admin', url: `${SITE}/app` });
-    assert.equal(await who(ctx, 'sam-admin'), 'Signed out', 'its master was never signed in');
-    // Signed in in this task's copy: there only (restart-tasks.ts: it stays).
-    await call('browser_navigate', { profile: 'sam-admin', url: `${SITE}/app/login?name=sam` });
-    assert.equal(await who(ctx, 'sam-admin'), 'Signed in as sam');
-    assert.equal(await who({ call: (n, a) => call(n, a, first) }, 'sam-admin'), 'Signed in as sam', "the first task's own sign-in");
-    // The first task's profiles keep running, hidden; its agent sees its own.
-    assert.ok(firstSam.tabs.every((t) => !t.wc.isDestroyed()) && !firstSam.get().view.getVisible());
-    assert.equal(firstSam.get().wc.getURL(), `${SITE}/app?task`, "the new task's agent acts in its own copy");
-    assert.match((await call('browser_snapshot', { profile: 'sam-admin' }, first)).text, /URL: .*\/app\?task/);
-    assert.ok(first.pty && first.pty !== shell.pty);
-    assert.equal(JSON.parse(fs.readFileSync(pfile('agent.json', 2), 'utf8')).conversations[0].agent, 'custom', "no agent in the project: the one there is (the tests' own)");
-
-    // The window: the task's grid with its panes; the bar shows it.
-    await waitFor(async () => JSON.stringify(await tabs(ui)) === '["task-1","task-2 *"]');
-    await waitFor(() => viewOn(shell, ui, 'sam-admin'));
-    assert.equal(await ui(`document.querySelectorAll('.pane').length`), 2);
-    assert.match(await ui(`${taskTab(2)}.title`), /branch task-2 in .*project@task-2; the app's ports \+ 100/);
-
-    // Until named, its agent is told to name it itself at the human's every prompt and in every tool's result: told only
-    // at session start, it forgot (7 of the author's 8 tasks stayed task-<n>).
-    const prompt = (text = '') => new Promise<string>((r) => http.request(`${task.env().KULISA_URL}/hooks/prompt`, { method: 'POST' }, (res) => {
-      let body = ''; res.on('data', (d) => { body += d; }); res.on('end', () => r(body));
-    }).end(JSON.stringify({ prompt: text })));
-    const nameIt = /no name yet \(task-2\)\. When the human's request says what the task is about, name it with task_rename .* Silently: never ask the human for a name or mention naming it\./;
-    assert.match(JSON.parse(await prompt()).hookSpecificOutput.additionalContext, nameIt);
-    assert.match((await call('profile_list', {})).note, nameIt);
-    // The naming tools load with Claude Code's session, not behind its tool search: there the agent never named it.
-    assert.deepEqual((await ctx.tools(task)).filter((t) => t._meta?.['anthropic/alwaysLoad']).map((t) => t.name), ['task_rename']);
-    // Until then its first prompt's first line says what it is about, over its tab.
-    await prompt('\n  Sellers see their payouts  \nwith dates');
-    await prompt('Another request');
-    await waitFor(async () => (await ui(`${taskTab(2)}.title`)).startsWith('project\n“Sellers see their payouts”\nbranch task-2 in '));
-    // Its agent names it: the tab and the branch; the folder stays.
-    await assert.rejects(call('task_rename', { name: 'a b' }), /only/);
-    assert.match((await call('task_rename', { name: 'Feature-X' })).text, /now "Feature-X", on branch feature-x/);
-    await waitFor(async () => JSON.stringify(await tabs(ui)) === '["task-1","Feature-X *"]');
-    assert.equal(git(wt, 'rev-parse', '--abbrev-ref', 'HEAD'), 'feature-x');
-    assert.equal(task.folder, wt);
-    assert.deepEqual(tasksFile().list.map((e) => [e.name, e.branch]), [['task-1', undefined], ['Feature-X', 'feature-x']]);
-    assert.equal(await prompt(), '{}', 'named: not told again');
-    await waitFor(async () => (await ui(`${taskTab(2)}.title`)).startsWith('project\nbranch feature-x'));
-    assert.equal(tasksFile().list[1].about, undefined, 'its name says what it is about now');
-    assert.equal((await call('profile_list', {})).note, undefined);
+    if (hasDirenv) assert.equal(execFileSync('direnv', ['exec', wt, 'sh', '-c', 'echo $FROM_ENVRC'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim(), `envrc of ${wt}`);
+    assert.deepEqual([tasksFile().list[1].name, tasksFile().list[1].named], ['Feature-X', true]);
     await shot(shell, path.join(root, 'task.png'));
   });
 
-  test("profiles: Sign In to Master… opens its master in a window of its own, nothing automated on it; Refresh from Master… brings its sign-ins to this task's copy", async (ctx) => {
-    const { shell, ui, call } = ctx;
-    await rightClick(ui, `.ptab[data-panel="${panel(shell, 'sam-admin')}"] b`);
+  test("profiles: Sign In to Master… opens its master in a window of its own, nothing automated on it; a task's copy made before keeps its own sign-in to a local app", async (ctx) => {
+    const { shell, ui } = ctx;
+    await rightClick(ui, `.ptab[data-panel="${panel('Sam.admin')}"] b`);
     const rows = await menuRows(ui);
-    assert.ok(rows.includes('Sign In to Master…') && rows.includes('Refresh from Master…'));
+    assert.ok(rows.includes('Sign In to Master…'));
     await choose(ui, 'Sign In to Master…');
     await waitFor(() => shell.masters.size === 1 && shell.masters.values().next().value.profile.get());
     const m = shell.masters.values().next().value;
-    assert.equal(m.profile.dir, path.join(userData, 'profiles', shell.profileStore.get('sam-admin').folder));
+    assert.equal(m.profile.dir, path.join(userData, 'profiles', idOf('Sam.admin')));
     assert.ok(![...shell.proxy.profiles.keys()].some((k) => k.startsWith('master/')), 'no CDP proxy for it: nothing automated reaches it');
     assert.equal(await noNode(m.win.webContents), true, 'its page sandboxed, as the window\'s');
     // The human signs in there, by hand (here: its bar's address).
@@ -229,24 +218,18 @@ export default (test: Test) => {
     await waitFor(async () => (await m.win.webContents.executeJavaScript(`document.getElementById('address').value`)).endsWith('/app'), 3000);
     m.win.close();
     await waitFor(() => !shell.masters.size);
-    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(m.profile.dir, 'Kulisa Tabs.json'), 'utf8')), [`${SITE}/app`], 'its tabs kept');
-    // This task's copy was made before: still its own sign-in, until Refresh from Master… (asked first).
-    assert.equal(await who(ctx, 'sam-admin'), 'Signed in as sam');
-    await ui(`act('profile:refresh', { profile: 'sam-admin' })`);
-    assert.match(ctx.asked.pop().message, /^Bring the sign-ins of Sam.admin's master to this task\?/);
-    // Its tabs reload with them: once that is over (a navigation now would be cut by the reload).
-    await waitFor(() => !shell.task.profiles.get('sam-admin').get().wc.isLoading());
-    await call('browser_navigate', { profile: 'sam-admin', url: `${SITE}/app` });
-    assert.equal(await who(ctx, 'sam-admin'), 'Signed in as master');
+    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(m.profile.dir, 'Kulisa Tabs.json'), 'utf8')), { urls: [`${SITE}/app`], active: 0 }, 'its tabs kept');
+    // A local app's sign-ins are each task's own (profiles.md, "Sign-ins kept in step"): this task's copy, made before, keeps its.
+    assert.equal(await who(ctx, 'Sam.admin'), 'Signed in as sam');
   });
 
   test("profiles: About this profile… opens Settings' window at it (one, not modal: the task's window takes input and comes in front of it, its pages on screen); its Sign In… opens the same master window, once", async (ctx) => {
     const { shell, ui, sui } = ctx;
-    await rightClick(ui, `.ptab[data-panel="${panel(shell, 'sam-admin')}"] b`);
+    await rightClick(ui, `.ptab[data-panel="${panel('Sam.admin')}"] b`);
     await menuRows(ui);
     await choose(ui, 'About this profile…');
-    await waitFor(() => sui(`document.querySelector('#pjlist [data-profile="sam-admin"]')?.ariaSelected === 'true' && document.getElementById('profilename').value === 'Sam.admin'`));
-    assert.equal(await sui(`document.querySelector('#pjlist [data-profile="sam-admin"] .label').title`), 'Sam.admin', "the tree's narrow column cuts a name: the whole in its tooltip");
+    await waitFor(() => sui(`document.querySelector('#pjlist [data-profile="${idOf('Sam.admin')}"]')?.ariaSelected === 'true' && document.getElementById('profilename').value === 'Sam.admin'`));
+    assert.equal(await sui(`document.querySelector('#pjlist [data-profile="${idOf('Sam.admin')}"] .label').title`), 'Sam.admin', "the tree's narrow column cuts a name: the whole in its tooltip");
     // A window of its own, not a child of the task's (on macOS a child stays above its parent), which goes on taking input
     // and comes in front of it, Settings left as it is; the task's pages stay on screen.
     const win = shell.settings.win;
@@ -255,15 +238,15 @@ export default (test: Test) => {
     assert.equal(win.isFullScreenable(), false);
     await focusWindow(shell.win, ui);
     assert.ok(shell.settings?.win === win && !win.isFocused(), 'Settings stays open behind it');
-    assert.ok(shell.task.profiles.get('sam-admin').get().view.getVisible(), 'pages on screen');
+    assert.ok(shell.task.profiles.get(idOf('Sam.admin')).get().view.getVisible(), 'pages on screen');
     // Asked again (another profile's About…): the same window, at that page.
-    await ui(`kulisa.send('settings:open', { section: 'profiles', id: 'elon-buyer' })`);
+    await ui(`kulisa.send('settings:open', { section: 'profiles', id: '${idOf('Elon.buyer')}' })`);
     await waitFor(() => sui(`document.getElementById('profilename')?.value === 'Elon.buyer'`));
     assert.equal(shell.settings.win, win);
-    await chooseProfile(sui, 'sam-admin');
+    await chooseProfile(sui, 'Sam.admin');
     for (let i = 0; i < 2; i++) await sui(`document.getElementById('profilesignin').click()`);
     await waitFor(() => shell.masters.size === 1 && shell.masters.values().next().value.profile.get());
-    assert.equal(shell.masters.values().next().value.profile.dir, path.join(userData, 'profiles', shell.profileStore.get('sam-admin').folder));
+    assert.equal(shell.masters.values().next().value.profile.dir, path.join(userData, 'profiles', idOf('Sam.admin')));
     shell.masters.values().next().value.win.close();
     await waitFor(() => !shell.masters.size);
     await closeSettings(ctx);
@@ -342,53 +325,53 @@ export default (test: Test) => {
   // About 5 s: its tab waits for a site that never answers, by design (profiles.ts).
   test("profiles: a master's window closed while its page still loads (a slow sign-in) goes cleanly, Sign In… answering without an error", async (ctx) => {
     const { shell, ui } = ctx;
-    const { folder } = shell.profileStore.get('sam-admin');
-    const tabs = path.join(userData, 'profiles', folder, 'Kulisa Tabs.json'), before = fs.readFileSync(tabs, 'utf8');
-    fs.writeFileSync(tabs, JSON.stringify([`${SITE}/hang`]));
-    const answer = ui(`kulisa.invoke('profiles:master', { profile: 'sam-admin' })`);
+    const id = idOf('Sam.admin');
+    const tabs = path.join(userData, 'profiles', id, 'Kulisa Tabs.json'), before = fs.readFileSync(tabs, 'utf8');
+    fs.writeFileSync(tabs, JSON.stringify({ urls: [`${SITE}/hang`], active: 0 }));
+    const answer = ui(`kulisa.invoke('profiles:master', { profile: '${id}' })`);
     await waitFor(() => shell.masters.size === 1 && shell.masters.values().next().value.profile.get());
     shell.masters.values().next().value.win.close();
     await waitFor(() => !shell.masters.size);
     // It laid out its page in the window closed meanwhile: "Object has been destroyed".
-    assert.deepEqual(await answer, { folder });
+    assert.deepEqual(await answer, { id });
     fs.writeFileSync(tabs, before);
   });
 
   test("profiles: a real account's sign-in kept in step: signed in to a site (not local) in one task, it is in the others and the master; signed out, out everywhere; a local app's stays each task's", async (ctx) => {
     const { shell, call } = ctx;
-    const first = shell.taskOf('project', 1), shop = `http://shop.example:${PORT}`;
+    const first = shell.taskOf(pid('project'), tid('project', 1)), shop = `http://shop.example:${PORT}`;
     const inFirst = { call: (n: string, a: Record<string, unknown>) => call(n, a, first) };
-    await call('browser_navigate', { profile: 'sam-admin', url: `${shop}/app/login?name=real` });
-    assert.equal(await who(ctx, 'sam-admin'), 'Signed in as real');
-    await waitFor(async () => (await first.profiles.get('sam-admin').session.cookies.get({ domain: 'shop.example' })).some((c) => c.value === 'real'));
-    await call('browser_navigate', { profile: 'sam-admin', url: `${shop}/app` }, first);
-    assert.equal(await who(inFirst, 'sam-admin'), 'Signed in as real', 'in the other task too');
-    const master = electron.session.fromPath(shell.profileStore.masterDir(shell.profileStore.get('sam-admin').folder));
+    await call('browser_navigate', { profile: 'Sam.admin', url: `${shop}/app/login?name=real` });
+    assert.equal(await who(ctx, 'Sam.admin'), 'Signed in as real');
+    await waitFor(async () => (await first.profiles.get(idOf('Sam.admin')).session.cookies.get({ domain: 'shop.example' })).some((c) => c.value === 'real'));
+    await call('browser_navigate', { profile: 'Sam.admin', url: `${shop}/app` }, first);
+    assert.equal(await who(inFirst, 'Sam.admin'), 'Signed in as real', 'in the other task too');
+    const master = electron.session.fromPath(shell.profileStore.masterDir(idOf('Sam.admin')));
     assert.ok((await master.cookies.get({ domain: 'shop.example' })).some((c) => c.value === 'real'), 'and in its master');
     // Signed out in the first task: out in this one too.
-    await call('browser_navigate', { profile: 'sam-admin', url: `${shop}/app/logout` }, first);
-    await waitFor(async () => !(await shell.task.profiles.get('sam-admin').session.cookies.get({ domain: 'shop.example' })).length);
-    await call('browser_navigate', { profile: 'sam-admin', url: `${shop}/app` });
-    assert.equal(await who(ctx, 'sam-admin'), 'Signed out');
-    // A local app (127.0.0.1): each task's own sign-in, as before.
-    await call('browser_navigate', { profile: 'sam-admin', url: `${SITE}/app` });
-    assert.equal(await who(ctx, 'sam-admin'), 'Signed in as master');
-    await call('browser_navigate', { profile: 'sam-admin', url: `${SITE}/app` }, first);
-    assert.equal(await who(inFirst, 'sam-admin'), 'Signed in as sam');
+    await call('browser_navigate', { profile: 'Sam.admin', url: `${shop}/app/logout` }, first);
+    await waitFor(async () => !(await shell.task.profiles.get(idOf('Sam.admin')).session.cookies.get({ domain: 'shop.example' })).length);
+    await call('browser_navigate', { profile: 'Sam.admin', url: `${shop}/app` });
+    assert.equal(await who(ctx, 'Sam.admin'), 'Signed out');
+    // A local app (127.0.0.1): each task's own sign-in.
+    await call('browser_navigate', { profile: 'Sam.admin', url: `${SITE}/app/login?name=second` });
+    assert.equal(await who(ctx, 'Sam.admin'), 'Signed in as second');
+    await call('browser_navigate', { profile: 'Sam.admin', url: `${SITE}/app` }, first);
+    assert.equal(await who(inFirst, 'Sam.admin'), 'Signed in as sam');
   });
 
   test('tasks: switching shows the other grid and terminal; the one left keeps running; the agent\'s state shows on its tab', async (ctx) => {
     const { shell, ui } = ctx;
-    const second = shell.task, sam = second.profiles.get('sam-admin');
+    const second = shell.task, sam = second.profiles.get(idOf('Sam.admin'));
     // No profiles' button on a task's tab, its right-click menu has them; the × on every tab, as Chrome's, not only
-    // the shown one's (the author, 2026-10-12).
+    // the shown one's (the author's choice).
     assert.deepEqual(await ui(`[...document.querySelectorAll('#projectTabs .tasktab')].map((t) => [...t.querySelectorAll('button')].map((b) => b.ariaLabel + ' ' + getComputedStyle(b).visibility))`),
       [['Close visible'], ['Close visible']]);
     const widths = () => ui(`[...document.querySelectorAll('#projectTabs .tasktab')].map((t) => t.getBoundingClientRect().width)`);
     const before = await widths();
     // A tab's right-click menu: the shown one's has its profiles; then renaming, its folder, moving to another window,
     // closing, deleting, and its project's submenu. Show Folder opens the task's worktree in the file manager.
-    await rightClick(ui, `#projectTabs .tasktab[data-task$="/1"] .name`);
+    await rightClick(ui, `#projectTabs .tasktab[data-task="${taskAt(shell.current, 1).key}"] .name`);
     assert.deepEqual(await menuRows(ui), ['Rename…', 'Show Folder', '-', 'Move to New Window', '-', 'Close', 'Delete Task…', '-', 'project']);
     await closeMenu(ui);
     const openPath = electron.shell.openPath, shown: string[] = [];
@@ -403,10 +386,10 @@ export default (test: Test) => {
     } finally { electron.shell.openPath = openPath; }
     assert.equal(shown[0], second.folder);
     assert.notEqual(second.folder, project, "the task's own, not the project's");
-    await click(ui, taskTab(1));
-    await waitFor(() => shell.task.n === 1);
+    await click(ui, taskTab(taskAt(shell.current, 1)));
+    await waitFor(() => isNth(shell.task, 1));
     assert.deepEqual(await widths(), before, 'the tabs keep their widths');
-    await waitFor(async () => (await viewOn(shell, ui, 'sam-admin')) && viewOn(shell, ui, 'elon-buyer'));
+    await waitFor(async () => (await viewOn(shell, ui, 'Sam.admin')) && viewOn(shell, ui, 'Elon.buyer'));
     assert.equal(sam.get().view.getVisible(), false, "the second task's pages are hidden");
     assert.ok(sam.tabs.every((t) => !t.wc.isDestroyed()) && second.pty, 'and alive, its agent too');
     await waitFor(async () => (await ctx.termText()).includes(`agent: rc of ${project}\n`), 3000);
@@ -414,7 +397,7 @@ export default (test: Test) => {
     // What the second task's agent does reaches its tab (Claude Code's hooks); its captions do not show on the first's panes.
     const post = (event: string, input = {}) => new Promise((r) => http.request(`${hooksOf(second)}/${event}`, { method: 'POST' },
       (res) => { res.resume(); res.on('end', r); }).end(JSON.stringify(input)));
-    const state = () => ui(`(() => { const s = ${taskTab(2)}.querySelector('.state'); return s.dataset.state + ' ' + s.querySelector('use').getAttribute('href') + ' ' + s.checkVisibility(); })()`);
+    const state = () => ui(`(() => { const s = ${taskTab(taskAt(shell.current, 2))}.querySelector('.state'); return s.dataset.state + ' ' + s.querySelector('use').getAttribute('href') + ' ' + s.checkVisibility(); })()`);
     assert.equal(await state(), ' #i-done false', 'unknown: no icon');
     await post('prompt');
     await waitFor(async () => (await state()) === 'working #i-working true');
@@ -423,14 +406,14 @@ export default (test: Test) => {
     // A permission the agent asks for: waiting.
     await post('waiting');
     await waitFor(async () => (await state()) === 'waiting #i-waiting true');
-    assert.equal(await ui(`${taskTab(2)}.querySelector('.state').title`), 'The agent waits for you');
+    assert.equal(await ui(`${taskTab(taskAt(shell.current, 2))}.querySelector('.state').title`), 'The agent waits for you');
     // Interrupted by the human (Codex's Interrupt), or its session ended: unknown again; but a session ending after a
     // done turn (Codex: 30 minutes idle) leaves "come and see".
     await post('prompt');
     await post('interrupt');
     await waitFor(async () => (await state()) === ' #i-done false');
-    // Esc in its terminal: Claude Code stops the turn and runs no hook, so working was shown on and on (found trying
-    // voice commands, 2026-10-09). A done one stays done.
+    // Esc in its terminal: Claude Code stops the turn and runs no hook, so working would be shown on and on. A done
+    // one stays done.
     const esc = () => ui(`kulisa.send('pty:in', { task: '${second.promptTarget().key}', data: '\\x1b' })`); // its agent's terminal
     for (const s of ['prompt', 'waiting']) {
       await post(s);
@@ -449,17 +432,17 @@ export default (test: Test) => {
     await post('session-end');
     await sleep(300); // nothing to wait for: that it stays
     assert.equal(await state(), 'done #i-done true');
-    second.caption('sam-admin', 'from the second task');
+    second.caption(idOf('Sam.admin'), 'from the second task');
     await sleep(200); // nothing to wait for: that it does not show
-    assert.equal(await ui(`document.querySelector('.ptab[data-panel="${panel(shell, 'sam-admin')}"] .caption').textContent`), '');
+    assert.equal(await ui(`document.querySelector('.ptab[data-panel="${panel('Sam.admin')}"] .caption').textContent`), '');
     // Done says "come and see" until the human sees that task.
     await post('stop');
     await waitFor(async () => (await state()) === 'done #i-done true');
-    await click(ui, taskTab(2));
+    await click(ui, taskTab(taskAt(shell.current, 2)));
     await waitFor(async () => shell.task === second && (await state()) === ' #i-done false');
     assert.equal(second.promptTarget().state, 'done', 'the agent is still done: only its tab says nothing');
-    await click(ui, taskTab(1));
-    await waitFor(async () => shell.task.n === 1 && (await viewOn(shell, ui, 'sam-admin')) && viewOn(shell, ui, 'elon-buyer')
+    await click(ui, taskTab(taskAt(shell.current, 1)));
+    await waitFor(async () => isNth(shell.task, 1) && (await viewOn(shell, ui, 'Sam.admin')) && viewOn(shell, ui, 'Elon.buyer')
       && ui(`!document.documentElement.matches(':active-view-transition')`)); // its slide over before the next test watches one
   });
 
@@ -472,37 +455,37 @@ export default (test: Test) => {
       document.startViewTransition = (o) => { const t = start(o); t.ready.then(() => { seen = { types: [...t.types],
         animations: document.getAnimations().filter((a) => ['::view-transition-old(grid)', '::view-transition-new(grid)'].includes(a.effect?.pseudoElement) && a.effect.getTiming().duration > 0)
           .map((a) => { const [from, to] = a.effect.getKeyframes(); return [a.animationName, from.translate === 'none' ? to.translate : from.translate, from.easing].join(' '); }).sort() }; }); return t; };
-      await kulisa.invoke('task:show', 'project/${n}');
+      await kulisa.invoke('task:show', '${tkey('project', n)}');
       await new Promise((r) => setTimeout(r, 800));
       delete document.startViewTransition; // the document's own again
       return seen;
     })()`);
-    const live = async () => (await ui(`document.querySelectorAll('img.snapshot').length`)) === 0 && viewOn(shell, ui, 'sam-admin');
+    const live = async () => (await ui(`document.querySelectorAll('img.snapshot').length`)) === 0 && viewOn(shell, ui, 'Sam.admin');
     let seen = await swap(2);
     assert.deepEqual(seen.types, ['next']); assert.deepEqual(seen.animations, ['grid-from-right calc(100% + 8px) cubic-bezier(0.4, 0, 0.2, 1)', 'grid-to-left calc(-100% - 8px) cubic-bezier(0.4, 0, 0.2, 1)'], 'it slides');
     await waitFor(live);
     // A page that draws no frame (busy, covered) holds the slide's start no longer than three times what the others
-    // take (a tenth of a second at least), its pane then empty: half a second was felt after each click (2026-10-15).
-    // Their pace, not a fixed time: GitHub's runner took over a tenth of a second for a picture, and no pane had one.
-    const tab = shell.profiles.get('sam-admin').get(), elon = shell.profiles.get('elon-buyer').get().wc, its = elon.capturePage;
+    // take (a tenth of a second at least), its pane then empty: half a second is felt after each click.
+    // Their pace, not a fixed time: a loaded machine takes over a tenth of a second for a picture.
+    const tab = shell.profiles.get(idOf('Sam.admin')).get(), elon = shell.profiles.get(idOf('Elon.buyer')).get().wc, its = elon.capturePage;
     let took = 0;
     tab.wc.capturePage = () => new Promise(() => {});
     elon.capturePage = (...a) => its.apply(elon, a).then((img) => { took = Date.now() - t0; return img; });
     const t0 = Date.now(), pics = await shell.windows[0].pictures(), all = Date.now() - t0;
     delete tab.wc.capturePage; delete elon.capturePage; // their prototypes' again
     assert.ok(took && all < Math.max(100, 3 * took) + 150, `pictures in ${all} ms, the other's in ${took} ms`);
-    assert.ok(!pics['sam-admin'] && pics['elon-buyer'], 'the others taken');
+    assert.ok(!pics[idOf('Sam.admin')] && pics[idOf('Elon.buyer')], 'the others taken');
     seen = await swap(1);
     assert.deepEqual(seen.types, ['previous']); assert.deepEqual(seen.animations, ['grid-from-left calc(-100% - 8px) cubic-bezier(0.4, 0, 0.2, 1)', 'grid-to-right calc(100% + 8px) cubic-bezier(0.4, 0, 0.2, 1)']);
     await waitFor(live);
-    // A menu opened while the grid still slides keeps the pages under it pictures: the slide's end showed them over it.
+    // A menu opened while the grid still slides keeps the pages under it pictures, not shown over it at the slide's end.
     // Opened as soon as the slide starts, before the grid left is taken down (the transition's update, a frame later,
-    // later still on a loaded runner): taking it down forgot the menu's pictures (GitHub's runners, 2026-10-16).
+    // later still on a loaded machine): taking it down must not forget the menu's pictures.
     const sliding = () => ui(`document.documentElement.matches(':active-view-transition')`);
     await ui(`(() => {
       const start = document.startViewTransition.bind(document);
       document.startViewTransition = (o) => { const t = start(o); delete document.startViewTransition; document.getElementById('windowMenu').click(); return t; };
-      void kulisa.invoke('task:show', 'project/2');
+      void kulisa.invoke('task:show', '${tkey('project', 2)}');
     })()`);
     await waitFor(sliding);
     await waitFor(() => menuOpen(ui));
@@ -516,7 +499,7 @@ export default (test: Test) => {
   });
   test('tasks: Ctrl+Shift+2 shows the second, Ctrl+Shift+PgUp and PgDn the one before and after, from the terminal too', async ({ shell, ui }) => {
     const win = shell.win.webContents;
-    const shown = async (n: number) => { await waitFor(async () => shell.task.n === n && !shell.windows[0].switching && (await ui(`!document.documentElement.classList.contains('loading')`))); };
+    const shown = async (n: number) => { await waitFor(async () => isNth(shell.task, n) && !shell.windows[0].switching && (await ui(`!document.documentElement.classList.contains('loading')`))); };
     win.focus();
     await ui(`window.__term.focus()`);
     await waitFor(() => shell.windows[0].keyZone === 'terminal');
@@ -526,19 +509,18 @@ export default (test: Test) => {
     await shown(1);
     press(win, 'PageDown', CMD, 'shift');
     await shown(2);
-    await click(ui, taskTab(1));
+    await click(ui, taskTab(taskAt(shell.current, 1)));
     await shown(1);
   });
   test("tasks: more tabs than the bar holds: each keeps its name readable, a mouse's wheel scrolls them, a faded edge says some are past it, the shown one stays in sight; in the title bar the window is still dragged after +", async ({ shell, ui }) => {
-    // Two tabs, the bar narrowed to less than they take: as thirty tabs in a window (found with 30 tasks, 2026-10-15:
-    // every tab read "task…", the wheel did nothing, nothing said 17 were out of sight).
+    // Two tabs, the bar narrowed to less than they take: as thirty tabs in a window.
     const strip = `document.querySelector('#projectTabs')`;
     const bar = () => ui(`(() => { const s = ${strip}, a = s.querySelector('.active').getBoundingClientRect(), b = s.getBoundingClientRect();
       return { left: Math.round(s.scrollLeft), max: s.scrollWidth - s.clientWidth, fade: ['past-start', 'past-end'].filter((e) => s.classList.contains(e)).join(' '), inSight: a.left >= b.left && a.right <= b.right }; })()`);
     const frame = () => ui(`new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))`);
     assert.equal((await bar()).fade, '', 'all fit: no edge fades');
-    await click(ui, taskTab(2));
-    await waitFor(() => shell.task.n === 2 && !shell.windows[0].switching);
+    await click(ui, taskTab(taskAt(shell.current, 2)));
+    await waitFor(() => isNth(shell.task, 2) && !shell.windows[0].switching);
     await ui(`document.querySelector('#taskbar').style.maxWidth = '300px'`);
     await waitFor(async () => (await bar()).max > 0 && (await bar()).inSight);
     assert.deepEqual(await ui(`[...document.querySelectorAll('#projectTabs .tasktab')].map((t) => { const n = t.querySelector('.name'); return [t.getBoundingClientRect().width, n.scrollWidth <= n.clientWidth]; })`),
@@ -556,7 +538,7 @@ export default (test: Test) => {
     // In the title bar: the tabs give way before the space after + that drags the window (Chrome's), however many. The
     // tabs scrolled past the bar's edges are no-drag over the logo and that space too (Chromium does not clip them to
     // the bar) and the last region in the page wins: so both come after the bar, the logo shown first all the same (a
-    // window not dragged by either, 2026-10-15: a real drag of the window is the OS's, out of a test's reach).
+    // real drag of the window is the OS's, out of a test's reach).
     await ui(`kulisa.invoke('bar:set', 'top')`);
     await waitFor(() => ui(`!!document.querySelector('#topbar #projectTabs')`));
     await ui(`document.querySelectorAll('#projectTabs .tasktab').forEach((t) => { t.style.minWidth = t.style.maxWidth = '1000px'; })`); // the bar drawn anew: tabs as wide as many
@@ -568,78 +550,84 @@ export default (test: Test) => {
     assert.ok((await bar()).inSight, 'the shown one in sight, the bar drawn anew there');
     await ui(`kulisa.invoke('bar:set', 'bottom')`);
     await waitFor(() => ui(`!document.querySelector('#topbar #projectTabs') && !!document.querySelector('#projectTabs')`));
-    await click(ui, taskTab(1));
-    await waitFor(() => shell.task.n === 1 && !shell.windows[0].switching);
+    await click(ui, taskTab(taskAt(shell.current, 1)));
+    await waitFor(() => isNth(shell.task, 1) && !shell.windows[0].switching);
   });
   test("tasks: a press on a tab not shown chooses it at once, as Chrome's; its task is shown when the button is let go or the tab starts being dragged, so it can be dragged", async ({ shell, ui }) => {
-    // The slide that showing a task starts made Chromium drop a drag about to begin: a tab not shown could not be
-    // dragged, its press only showed it (2026-10-15). One begun goes on through the slide.
+    // The slide that showing a task starts makes Chromium drop a drag about to begin: a tab not shown would not be
+    // dragged, its press only showing it. One begun goes on through the slide.
     const wc = shell.win.webContents, z = wc.getZoomFactor();
     const press = async (type: 'mouseDown' | 'mouseUp', n: number) => {
-      const b = await ui(`${taskTab(n)}.querySelector('.name').getBoundingClientRect().toJSON()`);
+      const b = await ui(`${taskTab(taskAt(shell.current, n))}.querySelector('.name').getBoundingClientRect().toJSON()`);
       wc.sendInputEvent({ type, x: Math.round((b.x + b.width / 2) * z), y: Math.round((b.y + b.height / 2) * z), button: 'left', clickCount: 1 });
     };
-    const chosenJs = `document.querySelector('#projectTabs .tasktab.active')?.dataset.task.split('/').pop() ?? ''`, chosen = () => ui(chosenJs);
+    const chosenJs = `document.querySelector('#projectTabs .tasktab.active')?.dataset.task ?? ''`, chosen = () => ui(chosenJs);
     await waitFor(() => ui(`!document.documentElement.matches(':active-view-transition')`)); // the slide's pictures over the window take every event
     await press('mouseDown', 2);
-    await waitFor(async () => (await chosen()) === '2');
+    await waitFor(async () => (await chosen()) === taskAt(shell.current, 2).key);
     await sleep(200); // nothing to wait for: that it is not shown yet
-    assert.equal(shell.task.n, 1, 'not shown while the button is down');
-    // Lit on the press, it stays lit: let go of, it went dark while the main process took the pictures for the slide
-    // and lit again with the new state, the tab left going on and off with it (the author, 2026-10-16: the tabs blinked).
+    assert.ok(isNth(shell.task, 1), 'not shown while the button is down');
+    // Lit on the press, it stays lit: let go of, it would go dark while the main process takes the pictures for the slide
+    // and light again with the new state, the tab blinking.
     await ui(`window.__lit = [${chosenJs}]; window.__litObs = new MutationObserver(() => window.__lit.push(${chosenJs})); window.__litObs.observe(document.getElementById('projectTabs'), { attributes: true, attributeFilter: ['class'], subtree: true })`);
     await press('mouseUp', 2);
-    await waitFor(() => shell.task.n === 2 && !shell.windows[0].switching);
+    await waitFor(() => isNth(shell.task, 2) && !shell.windows[0].switching);
     await waitFor(() => ui(`!document.documentElement.matches(':active-view-transition')`));
-    assert.deepEqual([...new Set(await ui(`window.__litObs.disconnect(), window.__lit`))], ['2'], 'the tab lit from the press to the task shown, no other');
+    assert.deepEqual([...new Set(await ui(`window.__litObs.disconnect(), window.__lit`))], [taskAt(shell.current, 2).key], 'the tab lit from the press to the task shown, no other');
     // A drag begins: Chromium cancels the pointer (a real drag of a tab is the OS's, out of a test's reach).
     await press('mouseDown', 1);
-    await waitFor(async () => (await chosen()) === '1');
+    await waitFor(async () => (await chosen()) === taskAt(shell.current, 1).key);
     await ui(`dispatchEvent(new PointerEvent('pointercancel', { pointerType: 'mouse' }))`);
-    await waitFor(() => shell.task.n === 1 && !shell.windows[0].switching);
+    await waitFor(() => isNth(shell.task, 1) && !shell.windows[0].switching);
     await press('mouseUp', 1);
     await ui(`document.activeElement.blur()`); // a real press leaves the keyboard on the tab (Reka's); the next tests' dialogs take it from nothing
   });
   test('tasks: × closes a task: its agent stops and its tabs close, all else stays; asked first only while its agent works; its group\'s menu opens it again, its conversation resumed', async (ctx) => {
     const { shell, ui, call } = ctx;
     const task = await newTask(ctx);
-    assert.equal(task.n, 3);
-    assert.equal(task.offset, 200);
+    assert.ok(isNth(task, 3));
+    await call('task_worktree', {}); // its own worktree, so closing and deleting it have a folder and branch to keep or remove
     const transcript = path.join(root, 'task-3-transcript.jsonl');
     fs.writeFileSync(transcript, '');
     await reportSession(task, 's-3', transcript);
     assert.match(sessionStart(task, task.promptTarget(), { session_id: 's-3', transcript_path: transcript }).hookSpecificOutput.additionalContext,
-      /task "task-3".*branch task-3.*plus 200/s, 'where it works, at the session start too');
+      /task "task-3": a git worktree of its own, .*project@task-3, on branch task-3.*free port you pick/s, 'where it works, at the session start too');
     // Working: the human is asked, and may keep it.
     await hook(task, 'prompt');
     await waitFor(() => task.promptTarget()?.state === 'working');
     ctx.answer = false;
-    await ui(`${taskTab(3)}.querySelector('.close').click()`);
+    await ui(`${taskTab(taskAt(shell.current, 3))}.querySelector('.close').click()`);
     await waitFor(() => ctx.asked.length);
     assert.equal(ctx.asked.pop().message, 'Close the task task-3?');
     assert.ok(task.loaded && shell.task === task, 'kept open when the human says no');
     ctx.answer = true;
     await hook(task, 'stop'); // its turn over: closing asks nothing
     await waitFor(() => task.promptTarget()?.state === 'done');
-    await call('profile_open', { profile: 'sam-admin' }); // a new task opens none by itself
-    const sam = task.profiles.get('sam-admin');
+    await call('profile_open', { profile: 'Sam.admin' }); // a new task opens none by itself
+    const sam = task.profiles.get(idOf('Sam.admin'));
     // A copy of the master made after it was signed in to: signed in.
-    await call('browser_navigate', { profile: 'sam-admin', url: `${SITE}/app` });
-    assert.equal(await who(ctx, 'sam-admin'), 'Signed in as master');
-    await ui(`${taskTab(3)}.querySelector('.close').click()`);
+    await call('browser_navigate', { profile: 'Sam.admin', url: `${SITE}/app` });
+    assert.equal(await who(ctx, 'Sam.admin'), 'Signed in as master');
+    assert.ok(await sam.session.getCacheSize() > 0, 'pages were cached');
+    // What the agent's tools keep of its pages (a screenshot), in the task's data: kept while the task is closed, gone
+    // when it is deleted (below).
+    await call('browser_screenshot', { profile: 'Sam.admin' });
+    assert.equal(fs.readdirSync(task.store.artifacts).length, 1);
+    await ui(`${taskTab(taskAt(shell.current, 3))}.querySelector('.close').click()`);
     // Its agent and tabs gone.
-    await waitFor(() => task.entry.closed && !task.pty && sam.tabs.every((t) => t.wc.isDestroyed()) && shell.task?.n === 2);
+    await waitFor(() => task.entry.closed && !task.pty && sam.tabs.every((t) => t.wc.isDestroyed()) && isNth(shell.task, 2));
+    // Its profiles' caches cleared, as a profile closed alone (zoom-and-closing.ts): kept, they stayed until it was deleted.
+    await waitFor(async () => (await sam.session.getCacheSize()) === 0);
+    assert.equal(fs.readdirSync(task.store.artifacts).length, 1, "the agent's screenshot kept");
     assert.equal(ctx.asked.length, 0, 'not asked: nothing is lost');
-    assert.ok(fs.existsSync(task.folder) && git(project, 'branch', '--list', 'task-3') && fs.existsSync(path.join(userData, 'projects', 'project', '3')), 'its code and data stay');
-    assert.equal(tasksFile().list.find((e) => e.n === 3).closed, true);
+    assert.ok(fs.existsSync(task.folder) && git(project, 'branch', '--list', 'task-3') && fs.existsSync(path.join(userData, 'projects', pid('project'), task.id)), 'its code and data stay');
+    assert.equal(tasksFile().list.find((e) => e.id === task.id).closed, true);
     await waitFor(async () => JSON.stringify(await tabs(ui)) === '["task-1","Feature-X *"]');
     // The bar's + (a new tab) lists it in its project's column, after the open ones; opening it shows it again, its
     // agent resuming the conversation.
-    const rows: string[] = await plusMenu(ui);
-    assert.deepEqual(rows.slice(rows.indexOf('project'), rows.indexOf('project') + 4), ['project', '  task-1 (open)', '  Feature-X (open)', '  task-3']);
-    await closeBoard(ui);
+    assert.deepEqual(await plusRows(ui, 'project'), ['task-1', 'Feature-X', 'task-3', 'New Task']);
     // Its grid comes before its profiles have started (their cookies, tabs, automation: a site's answer away), its agent
-    // after them, as it finds them ready; the window waited for them all, one after another (2026-10-15).
+    // after them, as it finds them ready; the window does not wait for them all.
     const restore = shell.sessionCookies.restore;
     let started = false;
     shell.sessionCookies.restore = async (p) => { await sleep(1500); const n = await restore.call(shell.sessionCookies, p); started = true; return n; };
@@ -647,24 +635,24 @@ export default (test: Test) => {
       await plusMenu(ui, 'project', 'task-3');
       await waitFor(() => shell.task === task && !shell.windows[0].switching); // its state sent to the window
       assert.equal(started, false, 'the grid before its profiles started');
-      await waitFor(() => ui(`!!document.querySelector('.pane[data-profile="sam-admin"]') && !document.documentElement.classList.contains('loading')`));
+      await waitFor(() => ui(`!!document.querySelector('.pane[data-profile="${idOf('Sam.admin')}"]') && !document.documentElement.classList.contains('loading')`));
       await waitFor(() => task.loaded && shell.pty, 10000);
       assert.equal(started, true, 'its agent after them');
     } finally { shell.sessionCookies.restore = restore; }
     ctx.watchPty(shell.pty);
     assert.equal(shell.resumedSession, 's-3');
     await waitFor(async () => JSON.stringify(await tabs(ui)) === '["task-1","Feature-X","task-3 *"]');
-    assert.equal(tasksFile().list.find((e) => e.n === 3).closed, undefined);
+    assert.equal(tasksFile().list.find((e) => e.id === task.id).closed, undefined);
   });
 
   test('tasks: Delete Task… asks first, saying what goes and any work not in main and not pushed; it goes with its branch, folder and profiles', async (ctx) => {
     const { shell, ui } = ctx;
     const empty = shell.task;
-    const dir = path.join(userData, 'projects', 'project', '3');
+    const dir = path.join(userData, 'projects', pid('project'), empty.id);
     await rightClick(ui, `#projectTabs .tasktab[data-task="${empty.key}"] .name`);
     await menuRows(ui);
     await choose(ui, 'Delete Task…');
-    await waitFor(() => !shell.current.tasks.has(3) && shell.task?.n === 2);
+    await waitFor(() => !shell.current.tasks.has(empty.id) && isNth(shell.task, 2));
     const asked = ctx.asked.pop();
     assert.equal(asked.message, 'Delete the task task-3?', 'asked also without changes');
     assert.ok(asked.detail.startsWith('Deleted for good:') && asked.detail.includes(`${project}@task-3`) && asked.detail.includes('its branch task-3'));
@@ -678,7 +666,8 @@ export default (test: Test) => {
     await waitFor(async () => JSON.stringify(await tabs(ui)) === '["task-1","Feature-X *"]');
 
     // Renamed by the human (Rename… in its tab's menu), with a commit of its own and a file not committed.
-    const spike = await newTask(ctx);
+    const spike = await newTask(ctx), was = spike.name;
+    await ctx.call('task_worktree', {}); // its own worktree, to commit in and to delete with it
     await rightClick(ui, `#projectTabs .tasktab[data-task="${spike.key}"] .name`);
     await menuRows(ui);
     await choose(ui, 'Rename…');
@@ -689,8 +678,8 @@ export default (test: Test) => {
     await wc.insertText('Spike');
     for (const type of ['keyDown', 'char', 'keyUp'] as const) wc.sendInputEvent({ type, keyCode: type === 'char' ? '\r' : 'Enter' });
     await waitFor(async () => spike.name === 'Spike' && !(await ui(`(document.getElementById('taskrename')?.dataset.state === 'open')`)));
-    assert.equal(spike.entry.branch, 'spike');
-    assert.equal(spike.folder, `${project}@task-${spike.n}`, 'the folder stays');
+    assert.equal(spike.branch, 'spike');
+    assert.equal(spike.folder, `${project}@${was}`, 'the folder stays');
     fs.writeFileSync(path.join(spike.folder, 'idea.txt'), 'x');
     git(spike.folder, 'add', '-A'); git(spike.folder, 'commit', '-qm', 'idea');
     fs.writeFileSync(path.join(spike.folder, 'more.txt'), 'y');
@@ -703,7 +692,7 @@ export default (test: Test) => {
     let q = await remove(false);
     assert.equal(q.message, 'Delete the task Spike?');
     assert.match(q.detail, /Work not in main and not pushed, deleted with it:\n• 1 commit of its own and 1 uncommitted file/);
-    assert.ok(shell.current.tasks.has(spike.n) && fs.existsSync(spike.folder), 'kept when the human says no');
+    assert.ok(shell.current.tasks.has(spike.id) && fs.existsSync(spike.folder), 'kept when the human says no');
     // Pushed, its commit is on the remote: only the file not committed is lost.
     const remote = path.join(root, 'remote.git');
     git(root, 'init', '-q', '--bare', remote);
@@ -713,14 +702,14 @@ export default (test: Test) => {
     assert.match(q.detail, /not pushed, deleted with it:\n• 1 uncommitted file$/);
     git(project, 'remote', 'remove', 'backup');
     await remove(true);
-    await waitFor(() => !shell.current.tasks.has(spike.n) && shell.task?.n === 2);
+    await waitFor(() => !shell.current.tasks.has(spike.id) && isNth(shell.task, 2));
     // The folder goes first (git worktree remove), then the branch.
     await waitFor(() => !fs.existsSync(spike.folder) && git(project, 'branch', '--list', 'spike') === '');
     assert.deepEqual(tasksFile().list.map((e) => e.name), ['task-1', 'Feature-X']);
   });
 
-  // Settings (the title bar's gear) at the first agent: the agents in its tree (☰ had an Agents… row to them until
-  // 2026-10-14: the author, agents are set up in Settings); it closes as the human closes it (closeSettings).
+  // Settings (the title bar's gear) at the first agent: the agents in its tree (agents are
+  // set up in Settings); it closes as the human closes it (closeSettings).
   const openAgents = async ({ ui, sui }: Pick<Ctx, 'ui' | 'sui'>, rows = 2) => {
     await ui(`document.getElementById('manageProjects').click()`);
     await waitFor(() => sui(`document.querySelectorAll('#pjlist [data-agent]').length === ${rows}`), 20000);
@@ -743,7 +732,6 @@ export default (test: Test) => {
     assert.equal(await sui(`document.querySelector('#agconfig .crumbs b').textContent`), 'Fake agent');
     assert.equal(shell.settings.win.getTitle(), 'Settings — Kulisa');
     assert.equal(await sui(`document.getElementById('pjconfig').checkVisibility()`), false, "a project's page behind it");
-    assert.equal(await sui(`document.querySelectorAll('#agentpage [role="radio"]').length`), 0, 'no choice to make');
     // The agents' marks (the terminal only's shown in choosing a task's agent).
     assert.ok(await sui(`!!document.querySelector('.sprite #i-agent-shell') && !!document.querySelector('.sprite #i-agent-claude') && !!document.querySelector('.sprite #i-agent-codex')`));
     assert.equal(await sui(`!!${agentRow('shell', '')}`), false, 'not the terminal only: nothing of it to set up');
@@ -770,23 +758,23 @@ export default (test: Test) => {
     const folded = () => ui(`!!document.querySelector('.terminals.folded') && document.querySelector('.termtabs').hidden`);
     // The island's group (its content is laid over it: dockview's renderer 'always').
     const island = () => ui(`(() => { const r = document.querySelector('.termtabs').closest('.dv-groupview').getBoundingClientRect(); return { width: Math.round(r.width), height: Math.round(r.height) }; })()`);
-    const saved = () => JSON.parse(fs.readFileSync(pfile('terminals.json', task.n), 'utf8'));
-    const conversations = () => JSON.parse(fs.readFileSync(pfile('agent.json', task.n), 'utf8')).conversations;
+    const saved = () => JSON.parse(fs.readFileSync(pfile('terminals.json', task.id), 'utf8'));
+    const conversations = () => JSON.parse(fs.readFileSync(pfile('agent.json', task.id), 'utf8')).conversations;
     await waitFor(() => ui(`!!document.querySelector('.termtab')`));
     const before = await island();
     // × on an agent's tab asks, whatever it is doing; Cancel keeps it.
     ctx.answer = false;
-    await ui(`document.querySelector('.termtab .close').click()`);
+    await ui(`document.querySelector('.termtab .x').click()`);
     await waitFor(() => ctx.asked.length);
     const q = ctx.asked.pop();
     assert.equal(q.message, 'Close bash?');
     assert.match(q.detail, /^bash stops\. Its conversation stays in the task's history, where any agent of the task can read it\.$/);
     assert.equal(task.terminals.get(agent.id), agent, 'kept when the human says no');
     ctx.answer = true;
-    await ui(`document.querySelector('.termtab .close').click()`);
+    await ui(`document.querySelector('.termtab .x').click()`);
     await waitFor(() => task.terminals.size === 0);
     ctx.asked.length = 0;
-    // Alone in the grid (no profile open): the +'s rows as big buttons in its middle, whatever the arrangement.
+    // No profile open: the +'s rows as big buttons in its middle, whatever the arrangement.
     await waitFor(folded);
     assert.deepEqual(saved(), { front: null, list: [] });
     assert.equal(conversations()[0].terminal, undefined);
@@ -796,8 +784,12 @@ export default (test: Test) => {
       return { x: Math.round(b.x + b.width / 2 - (r.x + r.width / 2)), middle: Math.round(b.y + b.height / 2 - (r.y + r.height / 2)) }; })()`);
     const middle = async () => { const p = await plus(); return Math.abs(p.x) <= 1 && Math.abs(p.middle) <= 1; };
     const PROFILES = ['Sam.admin', 'Elon.buyer', 'Dora']; // the project's, all closed
-    // The island alone fills the grid: dockview's room, the closed profiles' tiles no longer over it.
-    const room = () => ui(`(() => { const r = document.getElementById('grid').getBoundingClientRect(); return { width: Math.round(r.width), height: Math.round(r.height) }; })()`);
+    // The island and the Resources island beside or under it fill the grid: dockview's room, the closed profiles' tiles no
+    // longer over it.
+    const fills = () => ui(`(() => { const g = document.getElementById('grid').getBoundingClientRect(), b = (e) => e.closest('.dv-groupview').getBoundingClientRect();
+      const t = b(document.querySelector('.termtabs')), r = b(document.getElementById('resources')), near = (a, c) => Math.abs(a - c) <= 1;
+      return near(Math.min(t.left, r.left), g.left) && near(Math.max(t.right, r.right), g.right) && near(Math.min(t.top, r.top), g.top)
+        && near(Math.max(t.bottom, r.bottom), g.bottom) && (r.left > t.right || r.top > t.bottom); })()`);
     const launch = () => ui(`(() => { const l = document.querySelector('.terminals .launch'), r = document.querySelector('.terminals').getBoundingClientRect();
       if (!l) return null; const b = l.getBoundingClientRect(), ys = [...l.querySelectorAll('.agents .launcher')].map((x) => Math.round(x.getBoundingClientRect().y));
       return { labels: [...l.querySelectorAll('.agents .name')].map((x) => x.textContent), oneLine: new Set(ys).size === 1,
@@ -806,55 +798,76 @@ export default (test: Test) => {
         empty: getComputedStyle(document.querySelector('.termtabs').closest('.dv-groupview').querySelector('.dv-content-container')).backgroundColor }; })()`);
     for (const preset of ['grid', 'focus', 'columns']) {
       await ui(`window.__layoutPreset('${preset}')`);
-      await waitFor(async () => JSON.stringify(await island()) === JSON.stringify(await room()) && (await launch())?.middle, 3000);
+      await waitFor(async () => (await fills()) && (await launch())?.middle, 3000);
       assert.deepEqual(await launch(), { labels: ['Terminal'], oneLine: true, profiles: PROFILES, middle: true, strip: false, empty: 'rgba(0, 0, 0, 0)' });
     }
     // One opens what its row in + does: a terminal; closed, the buttons are back.
     await ui(`document.querySelector('.launcher').click()`);
     await waitFor(async () => task.terminals.size === 1 && !(await folded()));
-    // A terminal and no profile: the profiles' room a row of tiles over it, one for each; one opens its profile, and
+    // A terminal and no profile: the profiles' room a row of buttons over it, one for each; one opens its profile, and
     // the row goes.
     const tiles = () => ui(`(() => { const s = document.getElementById('closedprofiles');
       return s && { names: [...s.querySelectorAll('.name')].map((x) => x.textContent),
         above: s.getBoundingClientRect().bottom <= document.querySelector('.terminals').getBoundingClientRect().top }; })()`);
     await waitFor(tiles);
     assert.deepEqual(await tiles(), { names: PROFILES, above: true });
-    // A tile: the profile's picture and name, a long name in one line ending in …, who it is only in the tooltip: under
-    // the name it was cut off by the tile's edge (2026-10-17).
-    assert.deepEqual(await ui(`(() => { const t = document.querySelector('#closedprofiles .launcher'), n = t.querySelector('.name'), was = n.textContent;
-      n.textContent = 'orudzhali@insvgna.org';
-      const s = getComputedStyle(n), r = [s.whiteSpace, s.textOverflow, !!t.querySelector('small'),
-        [...t.children].every((c) => c.getBoundingClientRect().bottom <= t.getBoundingClientRect().bottom)];
-      n.textContent = was; return r; })()`), ['nowrap', 'ellipsis', false, true]);
-    assert.match(await ui(`document.querySelector('#closedprofiles [data-profile="sam-admin"]').title`), /^Open Sam\.admin: ./);
-    // More than fit (19 profiles): the row scrolls, its end faded, the window as wide as before: the row stretched the
-    // window's column, the terminal and the tasks' bar past its edge, the last profiles out of reach (2026-10-15).
-    await ui(`(() => { const s = document.getElementById('closedprofiles'); for (let i = 0; i < 20; i++) s.append(s.querySelector('.launcher').cloneNode(true)); })()`);
+    // A button: the profile's picture, its name and the +; a long name cut with … in one row, the button no wider than
+    // before and the + still inside it; who it is only in the tooltip.
+    assert.deepEqual(await ui(`(() => { const t = document.querySelector('#closedprofiles .opener'), n = t.querySelector('.name'), was = n.textContent;
+      const w = t.getBoundingClientRect().width;
+      n.textContent = 'orudzhali.very.long.name@insvgna.org';
+      const s = getComputedStyle(n), r = t.getBoundingClientRect(), plus = t.querySelector('svg').getBoundingClientRect(),
+        res = [!!t.querySelector('.avatar'), s.whiteSpace, s.textOverflow, n.scrollWidth > n.clientWidth, r.width > w, plus.right <= r.right];
+      n.textContent = was; return res; })()`), [true, 'nowrap', 'ellipsis', true, true, true]);
+    assert.match(await ui(`document.querySelector('#closedprofiles [data-profile="${idOf('Sam.admin')}"]').title`), /^Open Sam\.admin: ./);
+    // More than fit (19 profiles): the row scrolls, its end faded, the window as wide as before, not its column, the
+    // terminal and the tasks' bar stretched past its edge, the last profiles out of reach.
+    await ui(`(() => { const s = document.getElementById('closedprofiles'); for (let i = 0; i < 20; i++) s.append(s.querySelector('.opener').cloneNode(true)); })()`);
     await waitFor(() => ui(`document.getElementById('closedprofiles').classList.contains('past-end')`));
     assert.deepEqual(await ui(`(() => { const s = document.getElementById('closedprofiles'), r = (e) => e.getBoundingClientRect();
       return [s.scrollWidth > s.clientWidth, r(s).right <= innerWidth, r(document.querySelector('.terminals')).right <= innerWidth, document.documentElement.scrollWidth <= innerWidth]; })()`),
       [true, true, true, true]);
-    await ui(`document.querySelectorAll('#closedprofiles .launcher').forEach((t, i) => { if (i >= ${PROFILES.length}) t.remove(); })`);
-    await ui(`document.querySelector('#closedprofiles [data-profile="sam-admin"]').click()`);
-    await waitFor(async () => task.profiles.has('sam-admin') && !(await tiles()));
-    await ctx.call('profile_close', { profile: 'sam-admin' });
+    await ui(`document.querySelectorAll('#closedprofiles .opener').forEach((t, i) => { if (i >= ${PROFILES.length}) t.remove(); })`);
+    await ui(`document.querySelector('#closedprofiles [data-profile="${idOf('Sam.admin')}"]').click()`);
+    await waitFor(async () => task.profiles.has(idOf('Sam.admin')) && !(await tiles()));
+    await ctx.call('profile_close', { profile: 'Sam.admin' });
     await waitFor(tiles);
-    await ui(`document.querySelector('.termtab .close').click()`);
+    await ui(`document.querySelector('.termtab .x').click()`);
     await waitFor(async () => task.terminals.size === 0 && !!(await launch()) && !(await tiles()));
     // With a profile open (its tile among the big buttons): folded to a strip of its +, along the grid's height (the
     // island is under the grid); kept so.
-    await ui(`document.querySelector('.launch .profiles [data-profile="sam-admin"]').click()`);
+    await ui(`document.querySelector('.launch .profiles [data-profile="${idOf('Sam.admin')}"]').click()`);
     await waitFor(async () => (await island()).height <= 40 && (await middle()));
-    assert.equal((await island()).width, before.width);
+    assert.ok(Math.abs((await island()).width - before.width) <= 5, 'as wide as before (Resources beside it takes its share as the grid changes)');
     // Its + opens a terminal: the island unfolds.
     await ui(`document.getElementById('termUnfold').click()`);
     assert.deepEqual(await menuRows(ui), ['Terminal']);
     await choose(ui, 'Terminal');
     await waitFor(async () => task.terminals.size === 1 && !(await folded()) && (await island()).height >= 150);
     // A shell closes without a question; folded again.
-    await ui(`document.querySelector('.termtab .close').click()`);
+    await ui(`document.querySelector('.termtab .x').click()`);
     await waitFor(async () => task.terminals.size === 0 && (await folded()) && (await island()).height <= 40);
     assert.equal(ctx.asked.length, 0);
+    // The preset "grid": right of the profiles, Resources under it in its column: folded along its height, a strip of its
+    // + over Resources.
+    await ui(`window.__layoutPreset('grid')`);
+    const resources = () => ui(`document.getElementById('resources').closest('.dv-groupview').getBoundingClientRect().height`);
+    await waitFor(async () => (await island()).height <= 40 && (await middle()) && (await resources()) > 300);
+    await ui(`document.getElementById('termUnfold').click()`);
+    await choose(ui, 'Terminal');
+    await waitFor(async () => task.terminals.size === 1 && !(await folded()) && (await island()).height >= 150);
+    // As tall as the grid (Resources moved under the pages): folded along the grid's width instead, a strip of its + as
+    // tall as the grid; its + unfolds it to a width of its own, and the last terminal closed folds it again.
+    await ui(`__dock.getPanel('resources').api.moveTo({ group: __dock.getPanel('profile:${idOf('Sam.admin')}').group, position: 'bottom' })`);
+    await ui(`document.querySelector('.termtab .x').click()`);
+    await waitFor(async () => { const r = await island(); return task.terminals.size === 0 && r.width <= 40 && r.height > 100 && (await middle()); });
+    await ui(`document.getElementById('termUnfold').click()`);
+    await choose(ui, 'Terminal');
+    await waitFor(async () => task.terminals.size === 1 && !(await folded()) && (await island()).width >= 200);
+    await ui(`document.querySelector('.termtab .x').click()`);
+    await waitFor(async () => task.terminals.size === 0 && (await folded()) && (await island()).width <= 40);
+    await ui(`window.__layoutPreset('columns')`);
+    await waitFor(async () => (await island()).height <= 40 && (await middle()));
     // Ctrl+` there: the task's agent, a new conversation.
     await focusWindow(shell.win, ui);
     press(shell.win.webContents, '`', 'control');
@@ -862,8 +875,8 @@ export default (test: Test) => {
     assert.equal(conversations().length, 2);
     assert.deepEqual([conversations()[1].agent, conversations()[1].terminal], ['custom', task.promptTarget().id]);
     // Left closed for the restart phase (restart-tasks.ts).
-    await ui(`${taskTab(task.n)}.querySelector('.close').click()`);
-    await waitFor(() => task.entry.closed && !task.loaded && shell.task.n === 2);
+    await ui(`${taskTab(task)}.querySelector('.close').click()`);
+    await waitFor(() => task.entry.closed && !task.loaded && isNth(shell.task, 2));
     assert.equal(ctx.asked.length, 0);
   });
 
@@ -878,8 +891,8 @@ export default (test: Test) => {
       `1.2.3 · ${bin.startsWith(home) ? '~' + bin.slice(home.length - 1) : bin} · not on your PATH: Kulisa runs it from here`);
     assert.equal(await sui(agentRow('fake', '.install-line') + '.textContent'), '');
     await showAgent(sui, 'fake');
-    // A click on the row already shown keeps it chosen: Reka's Tree toggled it off, its page still shown (seen on
-    // GitHub's runner, 2026-10-12, where the tests reach this row already chosen).
+    // A click on the row already shown keeps it chosen: Reka's Tree toggles it off, its page still shown (the tests
+    // may reach this row already chosen).
     await showAgent(sui, 'fake');
     await shot(ctx.shell, path.join(root, 'agents.png'));
     await closeSettings(ctx);
@@ -903,8 +916,8 @@ export default (test: Test) => {
   });
 
   // The project's settings (Project Settings… in its submenu), with its agents.
-  const projectSettings = async ({ ui, sui }: Pick<Ctx, 'ui' | 'sui'>, id = 'project') => {
-    await projectMenu(ui, 'Project Settings…', `#projectTabs [data-project="${id}"] .name`);
+  const projectSettings = async ({ ui, sui }: Pick<Ctx, 'ui' | 'sui'>, folder = 'project') => {
+    await projectMenu(ui, 'Project Settings…', `#projectTabs [data-project="${pid(folder)}"] .name`);
     await waitFor(() => sui(`!!document.getElementById('npagentsrow')`));
   };
   // A new profile on a project's page: + → New Profile…, its name typed in place, Create.
@@ -940,56 +953,69 @@ export default (test: Test) => {
   };
   let opens = 0;
   const opened = () => { try { return fs.readFileSync(path.join(root, 'opened'), 'utf8').trim().split('\n'); } catch { return []; } };
-  const accountDir = (id: string) => path.join(userData, 'agents', id);
+  const accountDir = (id: string) => path.join(userData, 'agents', `fake-${id}`);
+  const accountOf = (dir: string) => path.basename(dir).replace(/^fake-/, '');
+  // The folder a sign-in under way was given (its id random: accounts.ts), the one no account stores yet.
+  const signingIn = (shell: Shell) => {
+    const found = fs.readdirSync(path.join(userData, 'agents')).filter((f) => !shell.accounts.find(f.replace(/^fake-/, '')));
+    assert.equal(found.length, 1, `one sign-in's folder: ${found}`);
+    return path.join(userData, 'agents', found[0]);
+  };
+  let work = ''; // the account the first test makes, the next ones use
   const logouts = () => { try { return fs.readFileSync(path.join(root, 'logouts'), 'utf8').trim().split('\n'); } catch { return []; } };
   test("agents: a new account is made in the project's settings: the agent's own sign-in at once, in a terminal there (under Details), its page in the user's own browser (Google refuses an embedded one); named by the email it signed in to; a task runs it with its folder, over a folder the project's environment sets", async (ctx) => {
-    const { ui, sui } = ctx;
+    const { shell, ui, sui } = ctx;
     await projectSettings(ctx);
     const windows = electron.BrowserWindow.getAllWindows().length;
     let p = await signIn(ctx);
-    const dir = accountDir('fake-1');
-    assert.ok(fs.existsSync(dir), 'its folder, a fixed id: never renamed');
+    const dir = signingIn(shell);
+    work = accountOf(dir);
+    assert.match(work, /^[a-z0-9]{6}$/, 'its folder its agent and a fixed id: never renamed');
     assert.ok(await sui(`!!document.querySelector('#npsigninterm .xterm') && !document.getElementById('npsigninterm').checkVisibility()`),
       'the sign-in in a terminal of the dialog, under Details: what it says the window shows');
     // Its page in the user's browser (the BROWSER Kulisa was started with), not a window of Kulisa's.
     assert.equal(electron.BrowserWindow.getAllWindows().length, windows, 'no window of its own');
     p.write('Work@Shop.com\r');
-    await waitFor(() => sui(`!!document.querySelector('#npagents [data-agent="fake-1"]') && !document.getElementById('npsignin')`));
-    // Its agent and its email, each in its column (a table, the author, 2026-10-16).
-    assert.deepEqual(await sui(`[...document.querySelectorAll('#npagents [data-agent="fake-1"] .cell')].slice(0, 2).map((c) => c.textContent.trim())`), ['Fake agent', 'work@shop.com']);
+    await waitFor(() => sui(`!!document.querySelector('#npagents [data-agent="${work}"]') && !document.getElementById('npsignin')`));
+    // Its agent and its email, each in its column (a table).
+    assert.deepEqual(await sui(`[...document.querySelectorAll('#npagents [data-agent="${work}"] .cell')].slice(0, 2).map((c) => c.textContent.trim())`), ['Fake agent', 'work@shop.com']);
     assert.deepEqual(JSON.parse(fs.readFileSync(path.join(userData, 'agents.json'), 'utf8')),
-      { next: 2, list: [{ id: 'fake-1', agent: 'fake', email: 'work@shop.com', folder: 'fake-1', projects: ['project'] }] });
+      { list: [{ id: work, agent: 'fake', email: 'work@shop.com' }] });
+    assert.ok(ctx.shell.store.projects().find((x) => x.id === pid('project')).agents.includes(work), 'the project lists it');
     // Signed in to an email it has already: that account, the new folder signed out and gone.
     p = await signIn(ctx);
+    let again = signingIn(shell);
     p.write('work@shop.com\r');
     await waitFor(async () => /is in the project already/.test(await sui(`document.getElementById('npsigninerror').textContent`)));
-    assert.ok(!fs.existsSync(accountDir('fake-2')) && logouts().includes(accountDir('fake-2')));
+    assert.ok(!fs.existsSync(again) && logouts().includes(again));
     await sui(`document.getElementById('npsignincancel').click()`);
     await waitFor(() => sui(`!document.getElementById('npsignin')`));
     // Cancelled: nothing kept; + adds again (not while a sign-in is shown).
     p = await signIn(ctx);
+    again = signingIn(shell);
     assert.equal(await sui(`document.getElementById('npagentadd').disabled`), true);
     await sui(`document.getElementById('npsignincancel').click()`);
-    await waitFor(async () => !fs.existsSync(accountDir('fake-3')) && !(await sui(`!!document.getElementById('npsignin') || document.getElementById('npagentadd').disabled`)));
+    await waitFor(async () => !fs.existsSync(again) && !(await sui(`!!document.getElementById('npsignin') || document.getElementById('npagentadd').disabled`)));
     // Not signed in (the agent's sign-in ended without it): said so, Try Again.
     p = await signIn(ctx);
+    again = signingIn(shell);
     p.write('\r');
     await waitFor(async () => /Not signed in/.test(await sui(`document.getElementById('npsigninerror').textContent`)));
     assert.equal(await sui(`document.getElementById('npsigninstart').hidden`), false);
     assert.ok(await sui(`document.getElementById('npsigninterm').checkVisibility() && !!document.querySelector('#npsigninterm .xterm')`),
       'its Details open by itself, with what the agent said');
-    assert.ok(!fs.existsSync(accountDir('fake-4')));
+    assert.ok(!fs.existsSync(again));
     await sui(`document.getElementById('npsignincancel').click()`);
     await closeSettings(ctx);
     // A task runs it: the agent with its folder in its variable, though the project's environment set it to another
     // (run.ts: its shell's startup, as a project's .envrc). Choosing a task's agent lists the project's accounts.
     const task = await newTask(ctx);
-    await waitFor(() => task.promptTarget()?.agent.id === 'fake-1', 20000); // the project's default: its one account
+    await waitFor(() => task.promptTarget()?.agent.id === work, 20000); // the project's default: its one account
     ctx.watchPty(task.pty);
     await waitFor(async () => (await ctx.termText()).includes(`config [${dir}]`));
-    // Its shell gets none of direnv's state from where Kulisa was started: the user's direnv hook took the task's folder
-    // for a folder left, undid that .envrc's changes and with them the account's variable, and the agent ran with the
-    // user's own sign-in (2026-10-11, Kulisa started from the repository's folder).
+    // Its shell gets none of direnv's state from where Kulisa was started: else the user's direnv hook takes the task's
+    // folder for a folder left, undoes that .envrc's changes and with them the account's variable, and the agent runs
+    // with the user's own sign-in (Kulisa started from the repository's folder).
     if (process.platform === 'linux') {
       assert.deepEqual(fs.readFileSync(`/proc/${task.pty.pid}/environ`, 'utf8').split('\0').filter((v) => v.startsWith('DIRENV_')), []);
     }
@@ -1004,7 +1030,7 @@ export default (test: Test) => {
   test("language: one for every agent (☰ → Language): written into the agents' own setting in each account's folder, at an agent's start and when chosen, never into the human's own", async ({ ui, shell }) => {
     const own = (id: string) => path.join(accountDir(id), 'settings.json');
     const read = (f: string) => JSON.parse(fs.readFileSync(f, 'utf8'));
-    assert.deepEqual(read(own('fake-1')), { language: 'English' }, 'at its start (the test before): English, the default');
+    assert.deepEqual(read(own(work)), { language: 'English' }, 'at its start (the test before): English, the default');
     await ui(`document.getElementById('windowMenu').click()`);
     assert.ok((await menuRows(ui)).includes('Language'));
     const row = `${MENU}.querySelector('.languagerow')`;
@@ -1016,54 +1042,79 @@ export default (test: Test) => {
     assert.equal(await ui(`document.querySelector('.menu.languages [data-language]').dataset.language`), system, "the system's first");
     await ui(`document.querySelector('.menu.languages [data-language="ru"]').click()`);
     await waitFor(() => read(path.join(userData, 'settings.json')).language === 'ru');
-    await waitFor(() => read(own('fake-1')).language === 'Russian');
+    await waitFor(() => read(own(work)).language === 'Russian');
     assert.ok(!fs.existsSync(path.join(root, 'fake-config', 'settings.json')), "the human's own folder untouched");
     await closeMenu(ui);
     assert.ok(refused(shell.setLanguage('xx')), 'only one an agent takes');
     shell.setLanguage('en');
-    assert.equal(read(own('fake-1')).language, 'English');
+    assert.equal(read(own(work)).language, 'English');
+  });
+  test("dictation: an agent without its own is recognized for by another agent's dictation in a hidden session (fixtures/fake-recognizer.mjs): the pill at once, then recording; let go, the text it heard goes into that agent's input, the pill saying so; ended, nothing of it is left", async ({ shell, ui, termText, watchPty }) => {
+    const task = shell.task, mic = `document.querySelector('.dictation .mic')`, pill = `document.querySelector('.dictation-pill')`;
+    await waitFor(() => task.promptTarget()?.agent.id === work);
+    watchPty(task.pty);
+    await waitFor(() => ui(`!${mic}.disabled`));
+    assert.match(await ui(`${mic}.title`), /^Speak to the agent in English: hold/);
+    // The microphone held (the key's way is the window tests'), let go once it records.
+    const mouse = (type: string) => ui(`${mic}.dispatchEvent(new PointerEvent('${type}', { bubbles: true, button: 0, pointerId: 1 }))`);
+    await mouse('pointerdown');
+    await waitFor(() => ui(`!!${pill}`)); // getting ready (when slow) or listening: as the key goes down
+    // Drawn as recording while it gets ready, unless that lasts (src/dictation/renderer/voice.ts): it listens first.
+    await waitFor(() => shell.dictation.state(task.key).state === 'recording', 15000);
+    assert.equal(await ui(`${mic}.dataset.state + ' ' + ${pill}.dataset.state`), 'recording listening');
+    await sleep(500);
+    await mouse('pointerup');
+    await waitFor(async () => (await termText()).includes('Heard by the fake recognizer.'));
+    assert.equal(await ui(`${mic}.dataset.state`), 'ready');
+    await waitFor(() => ui(`${pill}?.dataset.state === 'done'`));
+    assert.equal(await ui(`${pill}.querySelector('.label').textContent`), "In Fake agent's input");
+    await waitFor(() => ui(`!${pill}`));
+    const folder = path.join(userData, 'dictation');
+    assert.ok(fs.existsSync(folder), 'its session runs in a folder of Kulisa\'s');
+    shell.dictation.close();
+    await waitFor(() => !fs.existsSync(folder));
   });
 
   test("agents: an account lives until deleted in Settings → Agents: let go by its project at once, kept; not deleted while a task runs it; deleted after a question, signed out, with its folder; one made there is in no project", async (ctx) => {
     const { shell, ui, sui } = ctx;
-    const task = shell.task, dir = accountDir('fake-1');
+    const task = shell.task, dir = accountDir(work);
     const row = (id: string) => `document.querySelector('#agentpage [data-account="${id}"]')`;
     // An account deleted: its row selected, then − over its list.
     const deleteAccount = (id: string) => onRow(sui, `#agentpage [data-account="${id}"]`, null, `#agentpage .list:has([data-account="${id}"]) .accountdel`);
     // × in the project lets go of it at once, nothing asked; the account stays, and the task running it keeps it.
     await projectSettings(ctx);
-    await onRow(sui, '#npagents [data-agent="fake-1"]', 'npagentdel');
-    await waitFor(() => sui(`!document.querySelector('#npagents [data-agent="fake-1"]')`));
+    await onRow(sui, `#npagents [data-agent="${work}"]`, 'npagentdel');
+    await waitFor(() => sui(`!document.querySelector('#npagents [data-agent="${work}"]')`));
     assert.equal(ctx.asked.length, 0);
-    assert.deepEqual(shell.accounts.find('fake-1').projects, [], 'kept, in no project');
-    assert.equal(task.promptTarget().agent.id, 'fake-1');
+    assert.deepEqual(shell.store.projectsWith('agents', work).map((p) => p.id), [], 'kept, in no project');
+    assert.equal(task.promptTarget().agent.id, work);
     assert.ok(fs.existsSync(dir));
     // Its agent's page: the account in no project; Delete refused while a task runs it.
     await showAgent(sui, 'fake');
-    await waitFor(() => sui(`!!${row('fake-1')}`));
-    assert.equal(await sui(`${row('fake-1')}.querySelector('small').textContent`), 'in no project');
-    await deleteAccount('fake-1');
+    await waitFor(() => sui(`!!${row(work)}`));
+    assert.equal(await sui(`${row(work)}.querySelector('small').textContent`), 'in no project');
+    await deleteAccount(work);
     const said = () => sui(`document.getElementById('agentpageerror').textContent`);
     await waitFor(async () => !!(await said()));
     assert.match(await said(), new RegExp(`^Tasks run it: ${task.entry.name} \\(project\\)`));
     assert.equal(ctx.asked.length, 0);
     await closeSettings(ctx);
     await ui(`kulisa.invoke('task:delete', '${task.key}')`);
-    await waitFor(() => !shell.current.tasks.has(task.n) && shell.task?.n === 2);
+    await waitFor(() => !shell.current.tasks.has(task.id) && isNth(shell.task, 2));
     ctx.asked.length = 0;
     // Deleted after a question; no: kept.
     await openAgents(ctx);
-    await waitFor(() => sui(`!!${row('fake-1')}`));
+    await waitFor(() => sui(`!!${row(work)}`));
     ctx.answer = false;
-    await deleteAccount('fake-1');
+    await deleteAccount(work);
     await waitFor(() => ctx.asked.length);
     assert.equal(ctx.asked.pop().message, 'Delete the account Fake agent · work@shop.com?');
     assert.ok(fs.existsSync(dir), 'kept when the human says no');
     ctx.answer = true;
-    await deleteAccount('fake-1');
-    await waitFor(async () => !fs.existsSync(dir) && !(await sui(`!!${row('fake-1')}`)));
+    await deleteAccount(work);
+    await waitFor(async () => !fs.existsSync(dir) && !(await sui(`!!${row(work)}`)));
     assert.ok(logouts().includes(dir), 'signed out first, with its agent\'s own command');
-    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(userData, 'agents.json'), 'utf8')), { next: 5, list: [] });
+    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(userData, 'agents.json'), 'utf8')), { list: [] });
     ctx.asked.length = 0;
     // New Account… there (the + beside Agents in the tree, an agent): signed in on its page, in no project; a project's
     // Add Agent… takes it.
@@ -1075,11 +1126,12 @@ export default (test: Test) => {
     await waitFor(() => sui(`document.querySelector('#pjlist [data-agent="fake"]').ariaSelected === 'true'`));
     await waitFor(() => shell.signins.size);
     const p = [...shell.signins.values()][0];
+    const home = accountOf(signingIn(shell));
     p.write('home@shop.com\r'); // kept by the pty until the agent reads it
-    await waitFor(() => sui(`!!${row('fake-5')} && !document.getElementById('npsignin')`));
-    assert.equal(await sui(`${row('fake-5')}.querySelector('.label').textContent`), 'home@shop.com');
-    assert.deepEqual(shell.accounts.find('fake-5').projects, []);
-    await click(sui, `document.querySelector('#pjlist [data-project="project"]')`);
+    await waitFor(() => sui(`!!${row(home)} && !document.getElementById('npsignin')`));
+    assert.equal(await sui(`${row(home)}.querySelector('.label').textContent`), 'home@shop.com');
+    assert.deepEqual(shell.store.projectsWith('agents', home).map((p) => p.id), []);
+    await click(sui, `document.querySelector('#pjlist [data-project="${pid('project')}"]')`);
     await waitFor(() => sui(`document.getElementById('pjconfig').checkVisibility() && !document.getElementById('npagentadd').disabled`));
     // The accounts to add are asked for again as the tab is shown: the menu may open before they come.
     await waitFor(async () => {
@@ -1090,28 +1142,28 @@ export default (test: Test) => {
     });
     // In no project and no task: deleted at once after the question.
     await showAgent(sui, 'fake');
-    await waitFor(() => sui(`!!${row('fake-5')}`));
-    await deleteAccount('fake-5');
-    await waitFor(() => !fs.existsSync(accountDir('fake-5')) && !shell.accounts.find('fake-5'));
+    await waitFor(() => sui(`!!${row(home)}`));
+    await deleteAccount(home);
+    await waitFor(() => !fs.existsSync(accountDir(home)) && !shell.accounts.find(home));
     ctx.asked.length = 0;
     await closeSettings(ctx);
   });
 
-  // Last in phase 1: task-1 is shown, Feature-X waits in the bar and task-5 is closed, for the restart phase.
+  // Last in phase 1: task-1 is shown, Feature-X waits in the bar and task-3 is closed, for the restart phase.
   test('tasks: × on the last open task of a project lets the project go, nothing asked: the empty window; a task of it opens it again', async (ctx) => {
     const { shell, ui } = ctx;
-    const first = shell.current.tasks.get(1), second = shell.current.tasks.get(2);
-    await ui(`${taskTab(1)}.querySelector('.close').click()`);
+    const first = taskAt(shell.current, 1), second = taskAt(shell.current, 2);
+    await ui(`${taskTab(taskAt(shell.current, 1))}.querySelector('.close').click()`);
     await waitFor(() => first.entry.closed && !first.loaded && shell.task === second);
     await waitFor(async () => JSON.stringify(await tabs(ui)) === '["Feature-X *"]');
     assert.equal(ctx.asked.length, 0);
-    await ui(`${taskTab(2)}.querySelector('.close').click()`);
+    await ui(`${taskTab(taskAt(shell.current, 2))}.querySelector('.close').click()`);
     // The project goes once its task is unloaded: its agent stopped, each profile's sign-ins written out and its
-    // tabs closed. On the runner, with the other project running beside it, that took over 5 s now and then (2026-10-12).
-    await waitFor(() => shell.task === null && !shell.current && !shell.open.has('project'), 15000);
+    // tabs closed. On a loaded machine, with the other project running beside it, that takes over 5 s now and then.
+    await waitFor(() => shell.task === null && !shell.current && !shell.open.has(pid('project')), 15000);
     assert.equal(ctx.asked.length, 0, 'no agent works: nothing asked');
     assert.ok(second.profiles.size === 0 && !second.pty, 'every task of the project stopped');
-    assert.deepEqual(tasksFile().list.map((e) => [e.n, !!e.closed]), [[1, true], [2, true], [5, true]]);
+    assert.deepEqual(tasksFile().list.map((e) => [e.name, !!e.closed]), [['task-1', true], ['Feature-X', true], ['task-3', true]]);
     await waitFor(() => ui(`document.documentElement.classList.contains('noproject')`));
     // The empty window, projects there: every project with its tasks, a column each (newtab/), as a new tab shows
     // them; no tasks' bar.
@@ -1127,39 +1179,35 @@ export default (test: Test) => {
     // Each column: its project's icon in its color, as on its tasks' tabs, its name, + (a new task of it); its tasks,
     // the one closed last first (all are closed here), each when it was closed; New Project… after the columns. The
     // project worked in last first.
-    const rows: string[] = await plusMenu(ui);
-    const byClosing = tasksFile().list.filter((e) => e.closed).sort((a, b) => (b.closedAt ?? 0) - (a.closedAt ?? 0)).map((e) => `  ${e.name}`);
-    assert.deepEqual(rows.slice(rows.indexOf('project') + 1, rows.indexOf('project') + 1 + byClosing.length), byClosing);
-    assert.equal(byClosing[0], '  Feature-X');
-    assert.equal(rows.at(-1), 'New Project…');
-    assert.equal(rows[0], 'project', 'worked in last');
+    const byClosing = tasksFile().list.filter((e) => e.closed).sort((a, b) => (b.closedAt ?? 0) - (a.closedAt ?? 0)).map((e) => e.name);
+    assert.equal(await ui(`document.querySelector('#board .column header .name').textContent`), 'project', 'worked in last');
+    assert.deepEqual(await ui(`[...document.querySelectorAll('#board .column[data-project="${pid('project')}"] .item .label')].map((l) => l.textContent)`), byClosing);
+    assert.equal(byClosing[0], 'Feature-X');
     assert.deepEqual(await ui(`[...document.querySelectorAll('#board .column header .picon')].map((i) => [i.closest('.column').dataset.project, i.querySelector('use')?.getAttribute('href') ?? null])`),
       await ui(`[...document.querySelectorAll('#board .column')].map((c) => c.dataset.project)`).then((ids: string[]) => ids.map((id) => [id, shell.projects().find((p) => p.id === id).favicon ? null : '#i-logo'])), 'its favicon, else the curtain');
-    assert.match(await ui(`document.querySelector('#board .column[data-project="project"] li .item small').textContent`), /ago|just now/);
+    assert.match(await ui(`document.querySelector('#board .column[data-project="${pid('project')}"] li .item small').textContent`), /ago|just now/);
     // A closed task's 🗑 asks as Delete Task… does (Cancel here: the tests after need it).
     ctx.answer = false;
-    await ui(`document.querySelector('#board [data-task="project/5"] .remove').click()`);
+    await ui(`document.querySelector('#board [data-task="${tkey('project', 3)}"] .remove').click()`);
     await waitFor(() => ctx.asked.length);
-    assert.equal(ctx.asked.pop().message, 'Delete the task task-5?');
+    assert.equal(ctx.asked.pop().message, 'Delete the task task-3?');
     await waitFor(async () => !(await ui(`document.getElementById('ask')?.dataset.state === 'open'`)));
     ctx.answer = true;
-    assert.ok(tasksFile().list.some((e) => e.n === 5), 'Cancel keeps it');
-    // A closed task of it opens it again, as that task's tab; the others wait in the +, the one closed last first.
-    await plusMenu(ui, 'project', 'Feature-X');
-    await waitFor(() => shell.task?.n === 2 && shell.task.loaded && shell.pty);
+    assert.ok(tasksFile().list.some((e) => e.name === 'task-3'), 'Cancel keeps it');
+    // A closed task in the board opens it again, as that task's tab.
+    await ui(`document.querySelector('#board [data-task="${tkey('project', 2)}"]').click()`);
+    await waitFor(() => isNth(shell.task, 2) && shell.task.loaded && shell.pty);
     ctx.watchPty(shell.pty);
     await waitFor(() => ui(`!document.documentElement.classList.contains('noproject') && !document.documentElement.classList.contains('loading')`));
     await waitFor(async () => JSON.stringify(await tabs(ui)) === '["Feature-X *"]');
-    // In a new tab now (the bar's +): the open one shown, not to choose; the others, the one closed last first.
-    const plus: string[] = await plusMenu(ui);
-    assert.deepEqual(plus.slice(plus.indexOf('project'), plus.indexOf('project') + 4), ['project', '  Feature-X (open)', '  task-1', '  task-5']);
-    assert.equal(await ui(`document.querySelector('#board [data-task="project/2"]').ariaDisabled`), 'true');
+    // Now a task is shown: the bar's + lists the project's tasks (the open one to switch to, the closed ones to reopen), then New Task.
+    assert.deepEqual(await plusRows(ui, 'project'), ['Feature-X', 'task-1', 'task-3', 'New Task']);
     await plusMenu(ui, 'project', 'task-1');
-    await waitFor(() => shell.task?.n === 1 && shell.task.loaded && shell.pty);
+    await waitFor(() => isNth(shell.task, 1) && shell.task.loaded && shell.pty);
     ctx.watchPty(shell.pty);
     await waitFor(async () => JSON.stringify(await tabs(ui)) === '["Feature-X","task-1 *"]'); // a tab opens at the end
-    assert.equal(shell.current.tasks.get(2).loaded, true, 'the other open one stays loaded');
-    await waitFor(async () => (await viewOn(shell, ui, 'sam-admin')) && viewOn(shell, ui, 'elon-buyer'));
+    assert.equal(taskAt(shell.current, 2).loaded, true, 'the other open one stays loaded');
+    await waitFor(async () => (await viewOn(shell, ui, 'Sam.admin')) && viewOn(shell, ui, 'Elon.buyer'));
   });
 
   test('tasks: a double click on a task\'s tab is its Rename…', async (ctx) => {
@@ -1209,7 +1257,7 @@ export default (test: Test) => {
       assert.equal(await gear(), true, 'accounts and profiles there');
       shell.accounts.all = () => accountsOf.call(shell.accounts).filter((a) => a.own); shell.profileStore.all = () => [];
       shell.sendProjects();
-      await waitFor(async () => !(await gear())); // not on screen: hidden alone passed while the button's own display beat it (2026-10-17)
+      await waitFor(async () => !(await gear())); // not on screen: hidden alone passes while the button's own display beats it
       await waitFor(() => ui(`getComputedStyle(document.getElementById('glow')).opacity === '1'`));
       const slide = () => ui(`[document.querySelector('#tour h1').textContent, document.getElementById('tournext').textContent]`);
       assert.deepEqual(await slide(), ['Your agent, in your browsers', 'Next']);
@@ -1218,8 +1266,8 @@ export default (test: Test) => {
       assert.deepEqual(await slide(), ['Point at it, and say what is wrong', 'Set Up a Project']);
       await ui(`document.getElementById('tourback').click()`);
       assert.deepEqual(await slide(), ['It checks the result as every user', 'Next']);
-      // A low window, wide or at the least size: the slide fits, nothing to scroll to (its top was cut off above the
-      // window's edge, out of scrolling's reach, 2026-10-17).
+      // A low window, wide or at the least size: the slide fits, nothing to scroll to (its top not cut off above the
+      // window's edge, out of scrolling's reach).
       const size = shell.win.getContentSize();
       for (const [w, h] of [[1100, 400], [640, 400]]) {
         shell.win.setContentSize(w, h);
@@ -1249,7 +1297,6 @@ export default (test: Test) => {
       await ui(`(() => { const i = document.getElementById('npsource'); i.value = ${JSON.stringify(single)}; i.dispatchEvent(new Event('input')); i.dispatchEvent(new Event('change')); })()`);
       await waitFor(async () => (await ui(`document.getElementById('npwhere').textContent`)) === `The project Shop takes ${single} as it is`);
       assert.equal(await ui(`!!document.getElementById('npname')`), false, 'its name: the folder\'s');
-      assert.equal(await ui(`document.getElementById('npgitrow').hidden`), false, 'Create Git repository: it is none');
       await kind('clone');
       assert.equal(await ui(`document.querySelector('#npsingle label').textContent`), 'URL:');
       // A clone whose folder is there already, with files: its name to change, in its field.
@@ -1272,13 +1319,9 @@ export default (test: Test) => {
     await ui(`document.getElementById('boardnewproject').click()`);
     await waitFor(() => ui(`document.getElementById('newproject')?.dataset.state === 'open' && !!document.getElementById('npname')`));
 
-    // Its code: a name and where its folder goes, the home folder unless another is chosen; git on by default.
+    // Its code: a name and where its folder goes, the home folder unless another is chosen.
     assert.equal(await ui(`document.getElementById('nplocation').value`), shell.projectsHome, "every new project's place (~/KulisaProjects; the tests' own here)");
-    // Not its color or icon (its site's favicon and its hue, else the curtain in the next free color: nothing to
-    // choose, the author, 2026-10-12).
-    assert.equal(await ui(`!!document.getElementById('npcolors') || !!document.getElementById('npicons')`), false);
     const color = shell.store.nextColor();
-    assert.equal(await ui(`document.getElementById('npgit').getAttribute('aria-checked')`), 'true');
     const made = path.join(root, 'made');
     fs.mkdirSync(path.join(made, 'Taken'), { recursive: true });
     fs.writeFileSync(path.join(made, 'Taken', 'notes.txt'), '');
@@ -1293,7 +1336,6 @@ export default (test: Test) => {
     // A folder there already would be taken as it is (the form says so as it is typed); a file is refused at Next.
     await named('Taken');
     await waitFor(async () => (await ui(`document.getElementById('npwhere').textContent`)) === `${path.join(made, 'Taken')} is there already: the project takes it as it is, its files kept`);
-    assert.equal(await ui(`document.getElementById('npgitrow').hidden`), false, 'Create Git repository: it is none');
     fs.writeFileSync(path.join(made, 'note'), '');
     await named('note');
     await waitFor(async () => /is a file, not a folder/.test(await ui(`document.getElementById('npwhere').textContent`)));
@@ -1319,7 +1361,7 @@ export default (test: Test) => {
     await waitFor(async () => (await step()) === 'Agents');
     await ui(`document.getElementById('npform').requestSubmit()`);
     // Its profiles: a new one, named and said who it is; Create makes the project with it and opens its first task,
-    // nothing asked, no Settings (the author, 2026-10-17).
+    // nothing asked, no Settings.
     await waitFor(async () => (await step()) === 'Profiles' && (await ui(`document.getElementById('npcreate').textContent`)) === 'Create');
     await ui(`document.getElementById('npprofileadd').click()`);
     await ui(`(() => { const [n, d] = document.querySelectorAll('.npprofile input'); n.value = 'Shop-buyer'; n.dispatchEvent(new Event('input'));
@@ -1328,19 +1370,22 @@ export default (test: Test) => {
     await ui(`document.getElementById('npform').requestSubmit()`);
     await waitFor(() => shell.current?.folder === path.join(made, 'Shop') && shell.task?.loaded && shell.pty);
     assert.equal(ctx.asked.length, 0, 'nothing asked');
-    assert.deepEqual(shell.profileStore.of('shop').map((p) => [p.name, p.description]), [['Shop-buyer', 'buys things']]);
-    assert.ok(fs.existsSync(path.join(made, 'Shop', '.git')), 'git init in it');
+    assert.deepEqual(shell.profileStore.of(pid('shop')).map((p) => [p.name, p.description]), [['Shop-buyer', 'buys things']]);
+    assert.ok(!fs.existsSync(path.join(made, 'Shop', '.git')), 'a plain folder: Kulisa makes no repository');
     // The log (window.md, The log): the start, the task and the channel that made it, a key taken; nothing typed into a
     // terminal (the keys' tests did).
     const logged = fs.readFileSync(path.join(userData, 'logs', 'kulisa.log'), 'utf8');
     assert.match(logged, /^\[\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}[+-]\d\d:\d\d\] \[info\] \[kulisa\] start \d+\.\d+\.\d+, electron \d+\./m, 'the time as ISO 8601 with its offset');
     assert.match(logged, /\[kulisa\] encryption (available|not available)/);
     assert.ok(!/did not quit by itself/.test(logged), 'the run before quit as asked (the tests quit with app.quit)');
-    assert.match(logged, /\[ipc\] project:open wc=\d+ \{"id":"shop"\}/);
-    assert.match(logged, /\[task\] created shop\/1 in \S*Shop@task-1 wc=\d+/);
+    const shopId = pid('shop');
+    assert.match(logged, new RegExp(`\\[ipc\\] project:open wc=\\d+ \\{"id":"${shopId}"\\}`));
+    // The project named beside its id where it first appears (its id is random: store.ts).
+    assert.match(logged, new RegExp(`\\[project\\] ${shopId} loaded: Shop \\(\\S*Shop\\)`));
+    assert.match(logged, new RegExp(`\\[task\\] created ${shopId}/[a-z0-9]{6} \\(Shop\\) in \\S*Shop wc=\\d+`));
     assert.match(logged, /\[key\] tab\.new zone=/);
     assert.ok(!/pty:in/.test(logged), 'what is typed into a terminal is never logged');
-    const shop = shell.store.projects().find((p) => p.id === 'shop');
+    const shop = shell.store.projects().find((p) => p.id === pid('shop'));
     assert.deepEqual([shop.color, shop.agents], [color, undefined]);
     // No favicon in its code: the curtain, in the next free color, the window's too.
     assert.equal(await ui(`${projectTab('shop')}.querySelector('.picon use').getAttribute('href')`), '#i-logo');
@@ -1349,33 +1394,32 @@ export default (test: Test) => {
     await waitFor(() => ui(`getComputedStyle(document.getElementById('glow')).opacity === '1'`));
     assert.equal(await ui(`document.documentElement.style.getPropertyValue('--glow')`), color);
     assert.deepEqual(await ui(`[...document.querySelectorAll('#glow i')].map((i) => getComputedStyle(i).animationName)`), ['blot-a', 'blot-b', 'blot-c']);
-    assert.equal(git(path.join(made, 'Shop'), 'log', '--format=%s'), 'Initial commit', 'an empty first commit');
-    assert.equal(shell.task.folder, path.join(made, 'Shop@task-1'), 'so its first task has a copy of its own');
+    assert.equal(shell.task.folder, path.join(made, 'Shop'), 'its first task works in it');
     assert.equal(shell.settings, null);
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
     await plusMenu(ui, 'project', 'task-1'); // a closed task in the bar's +: its group opens again on it
-    await waitFor(() => shell.current?.folder === project && shell.task?.n === 1 && shell.task.loaded && shell.pty);
+    await waitFor(() => shell.current?.folder === project && isNth(shell.task, 1) && shell.task.loaded && shell.pty);
     ctx.watchPty(shell.pty);
     await waitFor(() => ui(`!document.documentElement.classList.contains('noproject') && !document.documentElement.classList.contains('loading')`));
-    await waitFor(async () => (await viewOn(shell, ui, 'sam-admin')) && viewOn(shell, ui, 'elon-buyer'));
+    await waitFor(async () => (await viewOn(shell, ui, 'Sam.admin')) && viewOn(shell, ui, 'Elon.buyer'));
     // Feature-X, closed with the others, opened again from the + (the tests after and the restart expect it).
     await plusMenu(ui, 'project', 'Feature-X');
-    await waitFor(() => shell.task?.n === 2 && shell.task.loaded && !shell.windows[0].switching);
-    await click(ui, taskTab(1));
-    await waitFor(() => shell.task?.n === 1 && shell.task.loaded && !shell.windows[0].switching);
+    await waitFor(() => isNth(shell.task, 2) && shell.task.loaded && !shell.windows[0].switching);
+    await click(ui, taskTab(taskAt(shell.current, 1)));
+    await waitFor(() => isNth(shell.task, 1) && shell.task.loaded && !shell.windows[0].switching);
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
     assert.deepEqual(await projectTabs(ui), ['shop', 'project *', 'project']);
     // Another project's task: a click shows it.
-    await click(ui, `document.querySelector('#projectTabs .tasktab[data-task="shop/1"]')`);
-    await waitFor(() => shell.current?.id === 'shop' && shell.task?.key === 'shop/1' && shell.task.loaded && !shell.windows[0].switching);
+    await click(ui, `document.querySelector('#projectTabs .tasktab[data-task="${tkey('shop', 1)}"]')`);
+    await waitFor(() => shell.current?.id === pid('shop') && shell.task?.key === tkey('shop', 1) && shell.task.loaded && !shell.windows[0].switching);
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
     assert.deepEqual(await projectTabs(ui), ['shop *', 'project', 'project']);
     await showProject(ui, 'project');
-    await waitFor(() => shell.current?.id === 'project' && shell.task.loaded);
+    await waitFor(() => shell.current?.id === pid('project') && shell.task.loaded);
     // A tab in the background has its × too: the last one of its project lets the project go.
-    await ui(`document.querySelector('#projectTabs .tasktab[data-task="shop/1"] .close').click()`);
-    await waitFor(() => !shell.open.has('shop'));
-    assert.equal(shell.current?.id, 'project', 'the shown project stays');
+    await ui(`document.querySelector('#projectTabs .tasktab[data-task="${tkey('shop', 1)}"] .close').click()`);
+    await waitFor(() => !shell.open.has(pid('shop')));
+    assert.equal(shell.current?.id, pid('project'), 'the shown project stays');
     ctx.asked.length = 0;
   });
 
@@ -1385,7 +1429,7 @@ export default (test: Test) => {
     fs.mkdirSync(path.join(site, 'public'), { recursive: true });
     fs.writeFileSync(path.join(site, 'public', 'favicon.svg'), '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><circle cx="8" cy="8" r="8" fill="red"/></svg>');
     await ui(`kulisa.invoke('project:open', { folder: ${JSON.stringify(site)} })`);
-    await waitFor(() => shell.current?.id === 'site' && shell.task?.loaded && shell.pty);
+    await waitFor(() => shell.current?.id === pid('site') && shell.task?.loaded && shell.pty);
     ctx.watchPty(shell.pty);
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
     await waitFor(() => ui(`${projectTab('site')}.querySelector('.favicon').src.startsWith('data:image/svg+xml;base64,')`));
@@ -1396,23 +1440,22 @@ export default (test: Test) => {
       return ${projectTab('site')}.style.getPropertyValue('--color') === c && (${typeof hue === 'number'} ? Math.abs(h - ${JSON.stringify(hue)}) <= 4 : c === ${JSON.stringify(hue)}); })()`);
     await waitFor(() => shown(29));
     // Its settings: its favicon in the list, the folder shown and not changed.
-    await projectMenu(ui, 'Project Settings…', `#projectTabs [data-project="site"] .name`);
+    await projectMenu(ui, 'Project Settings…', `#projectTabs [data-project="${pid('site')}"] .name`);
     await waitFor(() => sui(`${pageOf('site')}`));
-    // The manager lists every project, this one chosen (none marked open: a project is no thing to open).
-    assert.ok(await sui(`document.querySelector('#pjlist [data-project="site"]').ariaSelected === 'true' && !document.querySelector('#pjlist kbd')`));
-    assert.equal(await sui(`document.querySelector('#pjlist [data-project="site"] .picon').matches('.favicon')`), true);
-    assert.equal(await sui(`document.querySelector('#nprepos [data-folder] small').textContent`), site, 'its folder, as its code');
+    // The manager lists every project, this one chosen.
+    assert.ok(await sui(`document.querySelector('#pjlist [data-project="${pid('site')}"]').ariaSelected === 'true'`));
+    assert.equal(await sui(`document.querySelector('#pjlist [data-project="${pid('site')}"] .picon').matches('.favicon')`), true);
+    assert.equal(await sui(`document.querySelector('#npfolders [data-folder] small').textContent`), site, 'its folder, as its code');
     assert.equal(await sui(`!!document.getElementById('nplocationrow')`), false);
-    // A page, no Save: its top (New Task, ⋯), each part saved as it changes; the dialog stays open.
-    assert.equal(await sui(`!!document.getElementById('npcreate') || !!document.querySelector('#projects footer')`), false, 'no Save, no Cancel');
+    // A page: its top (New Task, ⋯), each part saved as it changes; the dialog stays open.
     assert.equal(await sui(`[...document.querySelectorAll('#pjconfig .titled, #pjconfig .field > label')].map((h) => h.textContent).join(', ')`),
-      'Name:, Code, Agents, Profiles, Local addresses:');
-    const entryOf = () => shell.store.projects().find((p) => p.id === 'site');
+      'Name:, Folders, Agents, Profiles, Local addresses:');
+    const entryOf = () => shell.store.projects().find((p) => p.id === pid('site'));
     // Its favicon changed: read again as its settings open. Mostly blue with a red dot: the hue of the most (264°).
     const favicon = (svg: string) => fs.writeFileSync(path.join(site, 'public', 'favicon.svg'), `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16">${svg}</svg>`);
     const reopen = async () => {
       await closeSettings(ctx);
-      await projectMenu(ui, 'Project Settings…', `#projectTabs [data-project="site"] .name`);
+      await projectMenu(ui, 'Project Settings…', `#projectTabs [data-project="${pid('site')}"] .name`);
       await waitFor(() => sui(`${pageOf('site')}`));
     };
     favicon('<rect width="16" height="16" fill="#00f"/><circle cx="8" cy="8" r="2" fill="red"/>');
@@ -1431,41 +1474,45 @@ export default (test: Test) => {
     await settingsClosed(ctx);
     await waitFor(() => entryOf().name === 'Site-2');
     const entry = entryOf();
-    assert.deepEqual([entry.name, entry.folder], ['Site-2', site]);
+    assert.deepEqual([entry.name, entry.folders], ['Site-2', [site]]);
+    // Said in the log once, though the page saves every field at each change (store.ts, updateProject).
+    const renames = fs.readFileSync(path.join(userData, 'logs', 'kulisa.log'), 'utf8').match(new RegExp(`\\[project\\] ${entry.id} renamed: .*`, 'g'));
+    assert.deepEqual(renames, [`[project] ${entry.id} renamed: Site-2`]);
     assert.deepEqual(entry.local, ['abc.ngrok.app', 'shop.dev'], "its own local addresses, where test users' pairs may be typed (local.ts)");
     await waitFor(async () => (await projectTabs(ui)).includes('site *') && shell.win.getTitle() === `${shell.task.name} · Site-2 — Kulisa`);
     // Its profiles: a new one; one of another project, the same person (its master, its sign-ins); × lets go of one.
-    await projectMenu(ui, 'Project Settings…', `#projectTabs [data-project="site"] .name`);
+    await projectMenu(ui, 'Project Settings…', `#projectTabs [data-project="${pid('site')}"] .name`);
     await waitFor(() => sui(`!!document.getElementById('npprofilesrow')`));
     assert.equal(await sui(`document.querySelectorAll('#npprofiles .item').length`), 0);
     await newProfileHere(sui, 'Site-user');
-    await waitFor(() => sui(`!!document.querySelector('#npprofiles [data-profile="site-user"]')`));
+    const siteUser = idOf('Site-user');
+    await waitFor(() => sui(`!!document.querySelector('#npprofiles [data-profile="${siteUser}"]')`));
     await sui(`document.getElementById('npprofileadd').click()`);
     assert.ok((await menuRows(sui)).join('|').includes('# Other Profiles|Sam.admin'));
     await choose(sui, 'Sam.admin');
-    await waitFor(async () => JSON.stringify(await sui(`[...document.querySelectorAll('#npprofiles [data-profile="sam-admin"] .cell')].map((c) => c.textContent)`)) === '["Sam.admin","seller in the test shop","project"]');
-    await waitFor(() => shell.closed.has('sam-admin') && shell.closed.has('site-user')); // its task lists them, closed
-    await onRow(sui, '#npprofiles [data-profile="site-user"]', 'npprofiledel');
+    await waitFor(async () => JSON.stringify(await sui(`[...document.querySelectorAll('#npprofiles [data-profile="${idOf('Sam.admin')}"] .cell')].map((c) => c.textContent)`)) === '["Sam.admin","seller in the test shop","project"]');
+    await waitFor(() => shell.closed.has(idOf('Sam.admin')) && shell.closed.has(siteUser)); // its task lists them, closed
+    await onRow(sui, `#npprofiles [data-profile="${siteUser}"]`, 'npprofiledel');
     await waitFor(() => ctx.asked.length);
     assert.equal(ctx.asked.pop().message, 'Remove the profile Site-user from Site-2?');
-    await waitFor(() => !shell.closed.has('site-user'));
-    assert.deepEqual(shell.profileStore.get('site-user').projects, [], 'in no other project: kept all the same, until deleted in Settings → Profiles');
-    shell.profileStore.delete('site-user'); // not needed by later tests
+    await waitFor(() => !shell.closed.has(siteUser));
+    assert.deepEqual(shell.profileStore.projectsOf(shell.profileStore.get(siteUser)), [], 'in no other project: kept all the same, until deleted in Settings → Profiles');
+    shell.profileStore.delete(siteUser); // not needed by later tests
     await closeSettings(ctx);
     // Opened in this task: a copy of its master, here.
-    await ui(`act('profile:open', { profile: 'sam-admin' })`);
-    await waitFor(() => shell.profiles.has('sam-admin'));
-    assert.equal(shell.profiles.get('sam-admin').dir, path.join(userData, 'projects', 'site', '1', shell.profileStore.get('sam-admin').folder));
+    await ui(`act('profile:open', { profile: '${idOf('Sam.admin')}' })`);
+    await waitFor(() => shell.profiles.has(idOf('Sam.admin')));
+    assert.equal(shell.profiles.get(idOf('Sam.admin')).dir, path.join(userData, 'projects', pid('site'), tid('site', 1), idOf('Sam.admin')));
     // Let go here: it stays in project, with its master.
     ctx.answer = true;
-    await ui(`act('profile:delete', { profile: 'sam-admin' })`);
+    await ui(`act('profile:delete', { profile: '${idOf('Sam.admin')}' })`);
     assert.equal(ctx.asked.pop().message, 'Remove the profile Sam.admin from Site-2?');
-    await waitFor(() => !shell.profiles.has('sam-admin'));
-    assert.deepEqual(shell.profileStore.get('sam-admin').projects, ['project']);
-    // Its agents: a list, added from the agents without accounts and the accounts other projects have (one made in
-    // project, as New Account… makes it), one the default (a radio); at once, not on Save.
-    const ann = shell.accounts.create('project', (shell.accounts.prepare('fake') as { id: string }).id, 'fake', 'ann@shop.com');
-    await projectMenu(ui, 'Project Settings…', `#projectTabs [data-project="site"] .name`);
+    await waitFor(() => !shell.profiles.has(idOf('Sam.admin')));
+    assert.deepEqual(shell.profileStore.projectsOf(shell.profileStore.get(idOf('Sam.admin'))), [pid('project')]);
+    // Its agents: a list, added from the agents without accounts and the accounts in the store (one made in Settings →
+    // Agents, in no project), one the default (a radio); at once, not on Save.
+    const ann = shell.accounts.create((shell.accounts.prepare('fake') as { id: string }).id, 'fake', 'ann@shop.com');
+    await projectMenu(ui, 'Project Settings…', `#projectTabs [data-project="${pid('site')}"] .name`);
     await waitFor(() => sui(`!!document.getElementById('npagentsrow')`));
     await sui(`document.getElementById('npagentadd').click()`);
     assert.ok(!(await menuRows(sui)).includes('Fake agent'), 'an agent with accounts: one of its accounts');
@@ -1479,18 +1526,18 @@ export default (test: Test) => {
     // The default marked, Make Default on the others.
     const agentRows = () => sui(`[...document.querySelectorAll('#npagents .item')].map((r) => r.title + ' ' + !!r.querySelector('.default'))`);
     assert.deepEqual(await agentRows(), ['Terminal only true', 'Fake agent · ann@shop.com false'], 'the first added, the default');
-    // A table: each value in its column, under its name, the columns at the same places in every row (the author,
-    // 2026-10-16: values one after another, each row its own rhythm, read as chaos).
+    // A table: each value in its column, under its name, the columns at the same places in every row (values
+    // one after another, each row in its own rhythm, read as chaos).
     assert.deepEqual(await sui(`(() => { const list = document.querySelector('#npagentsrow .list'), x = (e) => Math.round(e.getBoundingClientRect().left);
       const rows = [list.querySelector('.head'), ...list.querySelectorAll('.item')].map((r) => [...r.children].map(x).join());
       return [[...list.querySelector('.head').children].map((h) => h.textContent), rows.every((r) => r === rows[0])]; })()`), [['Agent', 'Account', ''], true]);
-    assert.deepEqual(shell.store.projects().find((p) => p.id === 'site').agents, ['shell', ann.id]);
-    assert.deepEqual(shell.accounts.find(ann.id).projects, ['project', 'site'], 'the account lists the projects it is in');
+    assert.deepEqual(shell.store.projects().find((p) => p.id === pid('site')).agents, ['shell', ann.id]);
+    assert.deepEqual(shell.store.projectsWith('agents', ann.id).map((p) => p.id), [pid('site')], 'the projects list their agents');
     await onRow(sui, `#npagents [data-agent="${ann.id}"]`, 'npagentdefault');
     await waitFor(async () => JSON.stringify(await agentRows()) === '["Fake agent · ann@shop.com true","Terminal only false"]');
     // Its right-click has the same: Make Default.
-    // The row not chosen yet: Reka's list takes the keyboard to it just after the menu opens, which closed the menu
-    // (RightClickMenu.vue; first seen in Settings' window, 2026-10-16).
+    // The row not chosen yet: Reka's list takes the keyboard to it just after the menu opens, which would close the
+    // menu (RightClickMenu.vue).
     await rightClick(sui, '#npagents [data-agent="shell"] .label');
     assert.deepEqual(await menuRows(sui), ['Make Default', 'Remove from the Project']);
     await choose(sui, 'Make Default');
@@ -1500,10 +1547,10 @@ export default (test: Test) => {
     assert.deepEqual(await menuRows(sui), ['No Default', 'Remove from the Project']);
     await choose(sui, 'No Default');
     await waitFor(async () => JSON.stringify(await agentRows()) === '["Terminal only false","Fake agent · ann@shop.com false"]');
-    assert.equal(shell.store.projects().find((p) => p.id === 'site').noDefaultAgent, true);
+    assert.equal(shell.store.projects().find((p) => p.id === pid('site')).noDefaultAgent, true);
     await onRow(sui, `#npagents [data-agent="shell"]`, 'npagentdefault');
     await waitFor(async () => JSON.stringify(await agentRows()) === '["Terminal only true","Fake agent · ann@shop.com false"]');
-    assert.equal(shell.store.projects().find((p) => p.id === 'site').noDefaultAgent, undefined);
+    assert.equal(shell.store.projects().find((p) => p.id === pid('site')).noDefaultAgent, undefined);
     await onRow(sui, `#npagents [data-agent="shell"]`, 'npagentdefault');
     await waitFor(async () => JSON.stringify(await agentRows()) === '["Terminal only false","Fake agent · ann@shop.com false"]');
     await onRow(sui, `#npagents [data-agent="shell"]`, 'npagentdefault');
@@ -1513,9 +1560,9 @@ export default (test: Test) => {
     ctx.answer = true; // no git: a second task in the folder, after the question
     const task = await newTask(ctx);
     ctx.asked.length = 0;
-    assert.equal(JSON.parse(fs.readFileSync(path.join(userData, 'projects', 'site', String(task.n), 'agent.json'), 'utf8')).agent, 'shell');
+    assert.equal(JSON.parse(fs.readFileSync(path.join(userData, 'projects', pid('site'), task.id, 'agent.json'), 'utf8')).agent, 'shell');
     // Another agent: made the default on the project's page (Make Default), + runs it.
-    await ui(`kulisa.invoke('project:agent-default', { id: 'site', agent: '${ann.id}' })`);
+    await ui(`kulisa.invoke('project:agent-default', { id: '${pid('site')}', agent: '${ann.id}' })`);
     const before = shell.task;
     await newTask(ctx);
     ctx.asked.length = 0;
@@ -1523,10 +1570,10 @@ export default (test: Test) => {
     assert.equal(shell.task.profiles.size, 0, 'no profile opens by itself');
     const annTask = shell.task;
     // None the default: a new task starts nothing, the island's buttons instead; Ctrl+` there gives them the keyboard.
-    await ui(`kulisa.invoke('project:agent-default', { id: 'site', agent: null })`);
-    await plusMenu(ui, shell.current.name);
+    await ui(`kulisa.invoke('project:agent-default', { id: '${pid('site')}', agent: null })`);
+    await ui(`kulisa.invoke('task:new', { project: '${pid('site')}' })`); // + of the 'site' column (shown project is another here)
     // Shown, not only loaded: a key while the window still switches acts for the task before (docs/testing.md; on a
-    // loaded machine, as GitHub's runner, Ctrl+` below did nothing now and then, 2026-10-12).
+    // loaded machine Ctrl+` below may do nothing).
     await waitFor(async () => shell.task !== annTask && shell.task.loaded && !shell.windows[0].switching
       && (await ui(`!document.documentElement.classList.contains('loading')`)));
     const bare = shell.task;
@@ -1535,14 +1582,14 @@ export default (test: Test) => {
     // A project with no profiles: one tile, Add Profile…, its page in Settings.
     assert.deepEqual(await ui(`[...document.querySelectorAll('.launch .profiles .name')].map((n) => n.textContent)`), ['Add Profile…']);
     await ui(`document.querySelector('.launch .profiles .launcher').click()`);
-    await waitFor(() => sui(`document.querySelector('#pjlist [data-project="site"]')?.ariaSelected === 'true'`));
+    await waitFor(() => sui(`document.querySelector('#pjlist [data-project="${pid('site')}"]')?.ariaSelected === 'true'`));
     await closeSettings(ctx);
     assert.equal(bare.terminals.size, 0);
-    assert.equal(JSON.parse(fs.readFileSync(path.join(userData, 'projects', 'site', String(bare.n), 'agent.json'), 'utf8')).agent, null);
+    assert.equal(JSON.parse(fs.readFileSync(path.join(userData, 'projects', pid('site'), bare.id, 'agent.json'), 'utf8')).agent, null);
     await ui(`document.activeElement.blur()`);
     await focusWindow(shell.win, ui);
-    // Once more until the launcher has it: on GitHub's runner the + menu, closed just before, gave the keyboard back
-    // where it was after Ctrl+` had given it to the launcher, now and then (2026-10-12). Opens nothing: no agent.
+    // Once more until the launcher has it: on a loaded machine the + menu, closed just before, may give the keyboard
+    // back where it was after Ctrl+` had given it to the launcher. Opens nothing: no agent.
     const onLauncher = () => ui(`document.activeElement === document.querySelector('.launcher')`);
     for (let i = 0; i < 3 && !(await onLauncher()); i++) {
       press(shell.win.webContents, '`', 'control');
@@ -1558,23 +1605,23 @@ export default (test: Test) => {
     assert.deepEqual(await menuRows(ui), ['Fake agent · ann@shop.com', '-', 'Terminal']);
     await closeMenu(ui);
     assert.equal(bare.terminals.size, 0, 'nothing opened');
-    await ui(`act('profile:delete', { profile: 'bo-bare' })`);
-    await waitFor(() => !bare.profiles.has('bo-bare'));
-    shell.profileStore.delete(shell.profileStore.get('bo-bare').id);
+    await ui(`act('profile:delete', { profile: '${idOf('Bo.bare')}' })`);
+    await waitFor(() => !bare.profiles.has(idOf('Bo.bare')));
+    shell.profileStore.delete(shell.profileStore.get(idOf('Bo.bare')).id);
     ctx.asked.length = 0;
     // Let go of at once, an account as an agent without accounts: its tasks keep it, and the account stays in the store.
-    await ui(`kulisa.invoke('project:agent-remove', { id: 'site', agent: '${ann.id}' })`);
-    await ui(`kulisa.invoke('project:agent-remove', { id: 'site', agent: 'shell' })`);
-    assert.equal(shell.store.projects().find((p) => p.id === 'site').agents, undefined, 'none left');
-    assert.deepEqual(shell.accounts.find(ann.id).projects, ['project']);
+    await ui(`kulisa.invoke('project:agent-remove', { id: '${pid('site')}', agent: '${ann.id}' })`);
+    await ui(`kulisa.invoke('project:agent-remove', { id: '${pid('site')}', agent: 'shell' })`);
+    assert.equal(shell.store.projects().find((p) => p.id === pid('site')).agents, undefined, 'none left');
+    assert.deepEqual(shell.store.projectsWith('agents', ann.id).map((p) => p.id), []);
     assert.equal(annTask.promptTarget().agent.id, ann.id);
     assert.deepEqual([...before.terminals.values()].map((t) => [t.name, !!t.agent]), [['Terminal', false]], 'the terminal only: a shell');
-    await ui(`kulisa.invoke('project:close-tasks', { id: 'site' })`);
-    await waitFor(() => !shell.open.has('site'));
+    await ui(`kulisa.invoke('project:close-tasks', { id: '${pid('site')}' })`);
+    await waitFor(() => !shell.open.has(pid('site')));
     ctx.asked.length = 0;
   });
 
-  test('projects: several repositories: a task gets a copy of the default one, another added when it needs it (the human on its tab, the agent with task_add_repository), on its branch, its agent told; one with copies is not removed', async (ctx) => {
+  test('projects: several repositories: a task works in the main tree until it makes its worktree (task_worktree); another repository is added when it needs it (the human on its tab, the agent with task_add_repository), on its branch, its agent told; a repository tasks have a worktree of is not removed', async (ctx) => {
     const { shell, ui, sui, call } = ctx;
     const repo = (name: string) => {
       const d = path.join(root, name);
@@ -1583,62 +1630,67 @@ export default (test: Test) => {
     };
     const api = repo('api'), web = repo('web');
     await ui(`kulisa.invoke('project:open', { folder: ${JSON.stringify(api)} })`);
-    await waitFor(() => shell.current?.id === 'api' && shell.task?.loaded && shell.pty);
+    await waitFor(() => shell.current?.id === pid('api') && shell.task?.loaded && shell.pty);
     ctx.watchPty(shell.pty);
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
     const first = shell.task;
-    assert.equal(first.folder, `${api}@task-1`, 'one repository: its copy next to it');
-    const chips = () => ui(`[...document.querySelectorAll('.taskrepos .chip')].map((c) => c.textContent)`);
-    // The chips lit as they came (.fresh, for 1.8 s), seen as it happens: read after, a loaded runner missed it
-    // (GitHub's macOS runner, 2026-10-16).
-    const watchFresh = () => ui(`(() => { window.__fresh = new Set(); window.__freshSeen?.disconnect();
-      const seen = () => document.querySelectorAll('.taskrepos .chip.fresh').forEach((c) => __fresh.add(c.textContent));
-      window.__freshSeen = new MutationObserver(seen); __freshSeen.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['class'] }); })()`);
-    const lit = () => ui(`[...window.__fresh]`);
-    assert.deepEqual(await chips(), [], 'one repository: nothing to tell');
-    // Added in Project Settings… while task-1 runs: no copy, only offered on its tab.
-    const added = await ui(`kulisa.invoke('project:repo-add', { id: 'api', folder: ${JSON.stringify(web)} })`);
-    assert.deepEqual(added.repos.map((r: { folder: string }) => r.folder), [api, web]);
-    assert.equal(first.entry.copies.length, 1);
+    // The Resources island (Resources.vue): each row its label, its branch line (or 'main working tree'), and whether it
+    // can be removed (an added repository's worktree can; the main tree and the task's own worktree cannot).
+    const rows = () => ui(`[...document.querySelectorAll('#resources .resource')].map((r) => [r.querySelector('.label').textContent, r.querySelector('small').textContent, !!r.querySelector('.remove')])`);
+    const copyOf = (name: string) => first.worktrees.find((c) => path.basename(c.repo) === name).folder;
+    // At open: the project's main working tree (the human's folder), no worktree of its own yet (worktree-on-demand).
+    assert.equal(first.folder, api, 'the main working tree until it makes its own');
+    assert.equal(first.worktrees.length, 0, 'no worktree yet');
+    await waitFor(async () => (await rows()).length === 1);
+    assert.deepEqual(await rows(), [['api', 'main working tree', false]], 'one row: the main working tree');
+    assert.deepEqual(first.addable(), [], 'no copies yet: nothing to add');
+    // The agent makes its worktree: the row becomes the worktree on its branch; still one repository, nothing to tell.
+    const b1 = `task-${first.id}`, own = `${api}@${b1}`; // its branch while it is unnamed: task-<its id>
+    assert.match((await call('task_worktree', {})).text, new RegExp(`works in its own worktree ${own}, on branch ${b1}`));
+    assert.equal(first.folder, own);
+    assert.equal(first.worktrees.length, 1);
+    await waitFor(async () => (await rows())[0]?.[1] === `branch ${b1}`);
+    assert.deepEqual(await rows(), [['api', `branch ${b1}`, false]]);
+    assert.deepEqual(first.addable(), []);
+    // A second repository added to the project (Project Settings…, project:folder-add): the task may add it, not copied
+    // yet; its agent told it is there to read, to ask before changing it.
+    const added = await ui(`kulisa.invoke('project:folder-add', { id: '${pid('api')}', folder: ${JSON.stringify(web)} })`);
+    assert.deepEqual(added.folders.map((r: { folder: string }) => r.folder), [api, web]);
     assert.deepEqual([first.dirs(), first.addable()], [[], [web]]);
-    // The terminals' row names its repositories once the project has several; one added comes in lit.
-    await waitFor(async () => (await chips()).length === 1);
-    assert.deepEqual(await chips(), ['api']);
-    // Add Repository on its tab: a copy into its folder of copies, on its branch; its agent given it (an agent without
-    // /add-dir: a line saying so, sent; Claude Code's question after /add-dir: checked by hand), not while it waits for
-    // the human (Enter would answer the question), once it no longer does.
+    // Its agent is told of the other repository live, at a session's start (the MCP server's instructions are frozen at
+    // open, before the project had it): to read it there and ask before changing it.
+    assert.match(sessionStart(first, null, null).hookSpecificOutput.additionalContext, new RegExp(`repositories, not in this task: ${web}\\. Read them there freely.*first ask the human.*task_add_repository`));
+    assert.deepEqual(await rows(), [['api', `branch ${b1}`, false]], 'still only its own worktree until it adds one');
+    // Add Repository on its tab: a copy on its branch, into the task's folder of copies; its agent given it (an agent
+    // without /add-dir: a line saying so, sent; Claude Code's question after /add-dir: checked by hand), not while it
+    // waits for the human (Enter would answer the question), once it no longer does.
     const firstAgent = first.agentTerminals()[0];
     first.setState(firstAgent, 'waiting');
     await rightClick(ui, `#projectTabs .tasktab[data-task="${first.key}"] .name`);
-    const rows = await menuRows(ui);
-    assert.deepEqual(rows.slice(rows.indexOf('# Add Repository'), rows.indexOf('Rename…')), ['# Add Repository', 'web', '-']);
-    await watchFresh();
+    const menu = await menuRows(ui);
+    assert.deepEqual(menu.slice(menu.indexOf('# Add Repository'), menu.indexOf('Rename…')), ['# Add Repository', 'web', '-']);
     await choose(ui, 'web');
-    const webCopy = path.join(shell.projectsHome, 'api@task-1', 'web');
-    await waitFor(() => first.entry.copies.length === 2);
-    await waitFor(async () => (await chips()).length === 2);
-    assert.deepEqual([await chips(), await lit()], [['api', 'web'], ['web']], 'it comes in lit');
-    // Long names are cut, the whole in the tooltip; the terminals' tabs and the microphone stay in the panel.
-    assert.deepEqual(await ui(`(() => { const names = [...document.querySelectorAll('.taskrepos .chip .name')], was = names.map((n) => n.textContent);
-      for (const n of names) n.textContent = 'customer-notifications-delivery-pipeline-with-templates'.repeat(3);
-      const row = document.querySelector('.termtabs').closest('.dv-groupview').getBoundingClientRect(), inRow = (e) => { const r = e.getBoundingClientRect(); return r.width > 0 && r.left >= row.left && r.right <= row.right; };
-      const r = { cut: names.every((n) => n.scrollWidth > n.clientWidth), tab: inRow(document.querySelector('.termtab')), mic: inRow(document.querySelector('.termtabs .dictation')),
-        tooltip: document.querySelector('.taskrepos .chip').title.startsWith(${JSON.stringify(first.folder)}) };
-      names.forEach((n, i) => n.textContent = was[i]);
-      return r; })()`), { cut: true, tab: true, mic: true, tooltip: true });
-    assert.equal(git(webCopy, 'rev-parse', '--abbrev-ref', 'HEAD'), 'task-1');
-    assert.ok(!(await ctx.termText()).includes('Kulisa added'), 'not while it waits for the human');
+    await waitFor(() => first.worktrees.length === 2);
+    const webCopy = copyOf('web');
+    assert.equal(git(webCopy, 'rev-parse', '--abbrev-ref', 'HEAD'), b1, 'on the task\'s branch');
+    // Resources shows the added worktree too, removable; its own worktree and the main tree are not.
+    await waitFor(async () => (await rows()).length === 2);
+    assert.deepEqual(await rows(), [['api', `branch ${b1}`, false], ['web', `branch ${b1}`, true]]);
+    assert.deepEqual([first.dirs(), first.addable()], [[webCopy], []]);
+    assert.ok(!(await ctx.termText()).includes(`Kulisa added ${webCopy}`), 'not while it waits for the human');
     first.setState(firstAgent, 'done');
     // Sent, not left in its prompt: shown as typed, then again as the agent (cat) read the line on Enter.
     await waitFor(async () => (await ctx.termText()).split(`Kulisa added ${webCopy} to this task`).length === 3);
-    assert.deepEqual([first.dirs(), first.addable()], [[webCopy], []]);
-    // A new task: a copy of the default one alone, in a folder for them all; the agent told of the other, to read it
-    // there and ask before adding it.
+    // A new task: the main working tree again (no copy); once it makes its own worktree it is told of the other
+    // repository, to read it there and ask before adding it.
     const task = await newTask(ctx);
+    assert.equal(task.folder, api, 'a new task opens in the main working tree too');
+    assert.deepEqual([task.worktrees, task.addable()], [[], []]);
+    await ctx.call('task_worktree', {});
     const home = path.join(shell.projectsHome, 'api@task-2');
     assert.equal(task.folder, path.join(home, 'api'));
     assert.deepEqual([task.dirs(), fs.existsSync(path.join(home, 'web'))], [[], false]);
-    assert.match(await ctx.instructions(task), new RegExp(`repositories, not in this task: ${web}\\. .*first ask the human.*task_add_repository`));
+    assert.match(sessionStart(task, null, null).hookSpecificOutput.additionalContext, new RegExp(`repositories, not in this task: ${web}\\. Read them there freely.*first ask the human.*task_add_repository`));
     // The agent adds it in its turn, once the human agreed: a copy on its branch, given to it in the turn by an agent's
     // own command (Claude Code's /add-dir: it runs at once); the same refused again.
     const agent = task.agentTerminals()[0];
@@ -1653,12 +1705,12 @@ export default (test: Test) => {
     // Its agent names it: the branch of each copy.
     await call('task_rename', { name: 'Checkout' });
     for (const r of ['api', 'web']) assert.equal(git(path.join(home, r), 'rev-parse', '--abbrev-ref', 'HEAD'), 'checkout');
-    // Project Settings… shows them, the default first; × on one tasks have copies of is refused, naming them.
-    await projectMenu(ui, 'Project Settings…', `#projectTabs [data-project="api"] .name`);
-    await waitFor(() => sui(`document.querySelectorAll('#nprepos .item').length === 2`));
-    assert.deepEqual(await sui(`[...document.querySelectorAll('#nprepos .item')].map((r) => r.querySelector('.label').textContent + ' ' + !!r.querySelector('.default'))`), ['api true', 'web false']);
-    await onRow(sui, `#nprepos [data-folder="${web}"]`, 'nprepodel');
-    await waitFor(async () => /Tasks work in it: task-1, Checkout/.test(await sui(`document.getElementById('npcodeerror').textContent`)));
+    // Project Settings… shows them, the default first; × on one tasks have a worktree of is refused, naming them.
+    await projectMenu(ui, 'Project Settings…', `#projectTabs [data-project="${pid('api')}"] .name`);
+    await waitFor(() => sui(`document.querySelectorAll('#npfolders .item').length === 2`));
+    assert.deepEqual(await sui(`[...document.querySelectorAll('#npfolders .item')].map((r) => r.querySelector('.label').textContent + ' ' + !!r.querySelector('.default'))`), ['api true', 'web false']);
+    await onRow(sui, `#npfolders [data-folder="${web}"]`, 'npfolderdel');
+    await waitFor(async () => /Tasks work in it: New Task, Checkout/.test(await sui(`document.getElementById('npfolderserror').textContent`)));
     await closeSettings(ctx);
     // Removed again by its agent once the human agreed: nothing of its own in it, so not asked; its folder and branch
     // gone, the agent told once its turn is over. Its own folder is refused.
@@ -1669,55 +1721,74 @@ export default (test: Test) => {
     assert.ok(!(await ctx.termText()).includes('Kulisa removed'), 'not while it works');
     task.setState(agent, 'done');
     await waitFor(async () => (await ctx.termText()).split(`Kulisa removed ${path.join(home, 'web')}`).length === 3);
-    await waitFor(async () => (await chips()).length === 1);
-    // Added again, it comes in lit; the human removes it by its chip's menu.
-    await watchFresh();
-    await call('task_add_repository', { repository: 'web' });
-    await waitFor(async () => (await chips()).length === 2);
-    assert.deepEqual([await chips(), await lit()], [['api', 'web'], ['web']], 'it comes in lit');
-    await rightClick(ui, `.taskrepos .chip[data-folder="${path.join(home, 'web')}"]`);
-    assert.deepEqual(await menuRows(ui), ['Remove Repository']);
-    await choose(ui, 'Remove Repository');
-    await waitFor(() => !fs.existsSync(path.join(home, 'web')));
-    await waitFor(async () => (await chips()).length === 1);
-    assert.equal(ctx.asked.length, 0, 'nothing of its own: not asked');
     // Deleting the task: both copies, both branches and its folder go.
     await ui(`kulisa.invoke('task:delete', '${task.key}')`);
     await waitFor(() => !fs.existsSync(home));
     assert.equal(git(web, 'branch', '--list', 'checkout') + git(api, 'branch', '--list', 'checkout'), '');
     ctx.asked.length = 0;
+    // Back on task-1, shown again: the human removes its web by the Resources island's 🗑 (nothing uncommitted in
+    // it: not asked); its own worktree's row has no Remove.
+    await ui(`kulisa.invoke('task:show', '${first.key}')`);
+    await waitFor(() => shell.task === first);
+    await waitFor(async () => (await rows()).length === 2);
+    await ui(`[...document.querySelectorAll('#resources .resource')].find((r) => r.querySelector('.label').textContent === 'web').querySelector('.remove').click()`);
+    await waitFor(() => !fs.existsSync(webCopy));
+    await waitFor(async () => (await rows()).length === 1);
+    assert.deepEqual(await rows(), [['api', `branch ${b1}`, false]]);
+    assert.equal(ctx.asked.length, 0, 'nothing of its own: not asked');
     // Cloned from a URL (a local one here) next to the project's folder, offered to task-1; made the default.
     const bare = path.join(root, 'docs.git');
     git(root, 'clone', '-q', '--bare', web, bare);
-    const cloned = await ui(`kulisa.invoke('project:repo-clone', { id: 'api', url: ${JSON.stringify(bare)} })`);
-    assert.deepEqual(cloned.repos.map((r: { folder: string }) => r.folder), [api, web, path.join(root, 'docs')]);
-    assert.deepEqual(first.addable(), [path.join(root, 'docs')]);
-    assert.equal((await ui(`kulisa.invoke('project:repo-default', { id: 'api', folder: ${JSON.stringify(web)} })`)).repos[0].folder, web);
-    // The human removes task-1's web on its tab, a file not committed there: asked first, told what goes with it.
-    fs.writeFileSync(path.join(webCopy, 'b.txt'), 'work');
+    const cloned = await ui(`kulisa.invoke('project:folder-clone', { id: '${pid('api')}', url: ${JSON.stringify(bare)} })`);
+    assert.deepEqual(cloned.folders.map((r: { folder: string }) => r.folder), [api, web, path.join(root, 'docs')]);
+    assert.deepEqual(first.addable(), [web, path.join(root, 'docs')], 'web is addable again, and the clone');
+    const inMain = await newTask(ctx); // in the main tree, api's, when web becomes the default: it stays there
+    assert.equal((await ui(`kulisa.invoke('project:folder-default', { id: '${pid('api')}', folder: ${JSON.stringify(web)} })`)).folders[0].folder, web);
+    assert.equal(inMain.folder, api, 'where it opened, though the default is web now');
+    // The human adds web back on its tab, then removes it with a file not committed there: asked first, told what goes.
+    await rightClick(ui, `#projectTabs .tasktab[data-task="${first.key}"] .name`);
+    await choose(ui, 'web');
+    await waitFor(() => first.worktrees.length === 2);
+    const webCopy2 = copyOf('web');
+    fs.writeFileSync(path.join(webCopy2, 'b.txt'), 'work');
     const removeWeb = async () => {
       await rightClick(ui, `#projectTabs .tasktab[data-task="${first.key}"] .name`);
-      const rows = await menuRows(ui);
-      assert.deepEqual(rows.slice(rows.indexOf('# Remove Repository'), rows.indexOf('Rename…')), ['# Remove Repository', 'web', '-']);
+      const menu = await menuRows(ui);
+      assert.deepEqual(menu.slice(menu.indexOf('# Remove Repository'), menu.indexOf('Rename…')), ['# Remove Repository', 'web', '-']);
       await choose(ui, 'web');
       await waitFor(() => ctx.asked.length);
       return ctx.asked.pop();
     };
     ctx.answer = false;
     const q = await removeWeb();
-    assert.equal(q.message, 'Remove web from the task task-1?');
-    assert.match(q.detail, new RegExp(`its folder ${webCopy}, its branch task-1.*1 uncommitted file`, 's'));
-    assert.ok(fs.existsSync(webCopy), 'kept when the human says no');
+    assert.equal(q.message, 'Remove web from the task New Task?');
+    assert.match(q.detail, new RegExp(`its folder ${webCopy2}, its branch ${b1}.*1 uncommitted file`, 's'));
+    assert.ok(fs.existsSync(webCopy2), 'kept when the human says no');
     ctx.answer = true;
     await removeWeb();
-    await waitFor(() => !fs.existsSync(webCopy) && git(web, 'branch', '--list', 'task-1') === ''); // the folder goes first, then the branch
-    await ui(`kulisa.invoke('project:close-tasks', { id: 'api' })`);
-    await waitFor(() => !shell.open.has('api'));
+    await waitFor(() => !fs.existsSync(webCopy2) && git(web, 'branch', '--list', b1) === ''); // the folder goes first, then the branch
+    await ui(`kulisa.invoke('project:close-tasks', { id: '${pid('api')}' })`);
+    await waitFor(() => !shell.open.has(pid('api')));
     ctx.asked.length = 0;
-    // A project without git (Site-2, closed) getting a repository: its folder is a former one, shown in its settings.
-    await ui(`kulisa.invoke('project:repo-add', { id: 'site', folder: ${JSON.stringify(path.join(root, 'docs'))} })`);
-    const site = await ui(`kulisa.invoke('project:settings-get', { id: 'site' })`);
-    assert.deepEqual([site.repos.map((r: { folder: string }) => r.folder), site.former], [[path.join(root, 'docs')], path.join(root, 'site')]);
+    // A project without git (Site-2, closed) getting repositories: its folder stays one of its folders, the default; a
+    // clone goes next to it, not inside it.
+    const siteDir = path.join(root, 'site'), docs = path.join(root, 'docs'), notes = path.join(root, 'notes');
+    await ui(`kulisa.invoke('project:folder-add', { id: '${pid('site')}', folder: ${JSON.stringify(docs)} })`);
+    git(root, 'clone', '-q', '--bare', web, `${notes}.git`);
+    const site = await ui(`kulisa.invoke('project:folder-clone', { id: '${pid('site')}', url: ${JSON.stringify(`${notes}.git`)} })`);
+    assert.deepEqual(site.folders.map((r: { folder: string; git: string }) => `${r.folder} ${r.git}`), [`${siteDir} none`, `${docs} ok`, `${notes} ok`]);
+    // Its task, working in that folder, adds a repository: a copy on a branch of its own, the task staying where it works.
+    await ui(`kulisa.invoke('project:open', { folder: ${JSON.stringify(siteDir)} })`);
+    await waitFor(() => shell.current?.id === pid('site') && shell.task?.loaded);
+    const inSite = shell.task;
+    assert.equal(inSite.folder, siteDir);
+    assert.deepEqual(inSite.addable(), [docs, notes]);
+    assert.match((await call('task_add_repository', { repository: 'docs' })).text, new RegExp(`Added: .*site-2@task-\\w+/docs, on branch task-\\w+`));
+    assert.deepEqual([inSite.folder, inSite.worktrees.map((c) => c.repo), inSite.addable()], [siteDir, [docs], [notes]]);
+    assert.ok(git(docs, 'branch', '--list', inSite.worktrees[0].branch), 'its branch in docs');
+    await ui(`kulisa.invoke('project:close-tasks', { id: '${pid('site')}' })`);
+    await waitFor(() => !shell.open.has(pid('site')));
+    ctx.asked.length = 0;
   });
 
   test("projects: the title bar's gear opens Settings' window at the shown project; another one, not open, is configured there too, asked there; what is done in the task's window meanwhile is asked there; no New Project in it", async (ctx) => {
@@ -1731,37 +1802,37 @@ export default (test: Test) => {
     assert.deepEqual(await filled, [true, true, true]);
     await waitFor(() => sui(pageOf(shell.current.name)));
     assert.equal(await sui(`document.querySelector('#pjlist [aria-selected="true"]').dataset.project`), shell.current.id);
-    // Pages on screen under Settings' window (once live again after the last menu's pictures: on GitHub's runner later).
-    await waitFor(() => shell.task.profiles.get('sam-admin').get().view.getVisible());
+    // Pages on screen under Settings' window (once live again after the last menu's pictures: on a loaded machine later).
+    await waitFor(() => shell.task.profiles.get(idOf('Sam.admin')).get().view.getVisible());
     // Site-2 is closed: its configuration all the same; a profile made and let go there (asked first, in Settings' window,
     // where it was done).
-    await sui(`document.querySelector('#pjlist [data-project="site"]').click()`);
+    await sui(`document.querySelector('#pjlist [data-project="${pid('site')}"]').click()`);
     await waitFor(() => sui(pageOf('Site-2')));
-    assert.ok(!shell.open.has('site'));
+    assert.ok(!shell.open.has(pid('site')));
     await newProfileHere(sui, 'Closed-one');
-    await waitFor(() => sui(`!!document.querySelector('#npprofiles [data-profile="closed-one"]')`));
+    const closedOne = idOf('Closed-one');
+    await waitFor(() => sui(`!!document.querySelector('#npprofiles [data-profile="${closedOne}"]')`));
     ctx.answer = true;
-    await onRow(sui, '#npprofiles [data-profile="closed-one"]', 'npprofiledel');
-    await waitFor(() => ctx.asked.length && !shell.profileStore.get('closed-one')?.projects.length);
+    await onRow(sui, `#npprofiles [data-profile="${closedOne}"]`, 'npprofiledel');
+    await waitFor(() => ctx.asked.length && !shell.store.projectsWith('profiles', closedOne).length);
     assert.equal(ctx.asked.pop().message, 'Remove the profile Closed-one from Site-2?');
     assert.equal(await ui(`!!document.getElementById('ask')`), false, "not in the task's window");
-    shell.profileStore.delete('closed-one'); // not needed by later tests
-    await waitFor(() => sui(`!document.querySelector('#npprofiles [data-profile="closed-one"]')`));
+    shell.profileStore.delete(closedOne); // not needed by later tests
+    await waitFor(() => sui(`!document.querySelector('#npprofiles [data-profile="${closedOne}"]')`));
     assert.equal(await sui(`document.getElementById('npprofileerror').textContent`), '');
-    // Settings only: a project is made in a tasks' window (New Project…), its section has no +.
-    assert.equal(await sui(`!!document.getElementById('pjnew') || !!document.querySelector('[data-section="projects"] .add')`), false);
     await shot(shell, path.join(root, 'projects.png'));
-    // Done in the task's window with Settings in front, that window minimized (Refresh from Master…; on macOS the OS's ×
+    // Done in the task's window with Settings in front, that window minimized (a pane's Remove from Project…; on macOS the OS's ×
     // of a window behind): asked in the task's window, not in Settings', and that window comes back to the front with it.
     shell.win.minimize();
     await waitFor(() => shell.win.isMinimized());
     shell.settings.win.focus();
     await waitFor(() => shell.settings.win.isFocused());
     ctx.answer = false;
-    const said = await ui(`kulisa.invoke('profile:refresh', { task: ${JSON.stringify(shell.task.key)}, profile: 'sam-admin' })`);
-    assert.deepEqual([said, ctx.asked.pop().message], [{ error: 'the human said no' }, "Bring the sign-ins of Sam.admin's master to this task?"]);
+    const said = await ui(`kulisa.invoke('profile:delete', { task: ${JSON.stringify(shell.task.key)}, profile: '${idOf('Sam.admin')}' })`);
+    assert.deepEqual(said, { error: 'the human said no' });
+    assert.match(ctx.asked.pop().message, /^Remove the profile Sam\.admin from /);
     assert.equal(await sui(`!!document.getElementById('ask')`), false, "not in Settings' window");
-    // Waited for: macOS restores a minimized window with its animation, and makes it key at its end (GitHub's runner).
+    // Waited for: macOS restores a minimized window with its animation, and makes it key at its end.
     await waitFor(() => !shell.win.isMinimized() && shell.win.isFocused()); // the task's window in front with its question
     ctx.answer = true;
     // The theme and the Kulisa zoom are every window's: its too.
@@ -1786,16 +1857,18 @@ export default (test: Test) => {
     git(dir, 'add', '-A'); git(dir, 'commit', '-qm', 'a'); git(dir, 'remote', 'add', 'origin', origin);
     git(dir, 'push', '-q', 'origin', 'main'); git(dir, 'remote', 'set-head', 'origin', 'main');
     await ui(`kulisa.invoke('project:open', { folder: ${JSON.stringify(dir)} })`);
-    await waitFor(() => shell.current?.id === 'merge' && shell.task?.loaded && shell.pty);
+    await waitFor(() => shell.current?.id === pid('merge') && shell.task?.loaded && shell.pty);
     ctx.watchPty(shell.pty);
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
     const first = shell.task;
+    await ctx.call('task_worktree', { name: 'task-1' }); // its own worktree and branch to push and merge
     const second = await newTask(ctx);
+    await ctx.call('task_worktree', {}); // second's worktree, branch task-2
     // task-1's work pushed, and merged into main on the remote; task-2 has a commit not merged.
     fs.writeFileSync(path.join(first.folder, 'b.txt'), 'b'); git(first.folder, 'add', '-A'); git(first.folder, 'commit', '-qm', 'b');
-    git(first.folder, 'push', '-q', 'origin', `${first.entry.branch}:main`);
+    git(first.folder, 'push', '-q', 'origin', `${first.branch}:main`);
     fs.writeFileSync(path.join(second.folder, 'c.txt'), 'c'); git(second.folder, 'add', '-A'); git(second.folder, 'commit', '-qm', 'c');
-    await ui(`${taskTab(1)}.querySelector('.close').click()`);
+    await ui(`${taskTab(taskAt(shell.current, 1))}.querySelector('.close').click()`);
     await waitFor(() => first.entry.closed && first.entry.merged, 10000); // a fetch from the remote
     const rows = await groupMenu(ui);
     assert.ok(rows.includes('Delete Merged Tasks…'));
@@ -1803,40 +1876,36 @@ export default (test: Test) => {
     await groupMenu(ui, 'Delete Merged Tasks…');
     await waitFor(() => ctx.asked.length);
     assert.equal(ctx.asked.pop().message, 'Delete the task task-1?');
-    await waitFor(() => !shell.current.tasks.has(1) && !fs.existsSync(first.folder));
-    assert.ok(shell.current.tasks.has(second.n) && !second.entry.merged, 'one not merged stays');
-    await ui(`kulisa.invoke('project:close-tasks', { id: 'merge' })`);
-    await waitFor(() => !shell.open.has('merge'));
+    await waitFor(() => !shell.current.tasks.has(first.id) && !fs.existsSync(first.folder));
+    assert.ok(shell.current.tasks.has(second.id) && !second.entry.merged, 'one not merged stays');
+    await ui(`kulisa.invoke('project:close-tasks', { id: '${pid('merge')}' })`);
+    await waitFor(() => !shell.open.has(pid('merge')));
     ctx.asked.length = 0;
   });
 
-  test("menus: one longer than the window has stays in it and scrolls; the board's column with more tasks than fit scrolls in itself, more columns than fit sideways", async ({ ui }) => {
-    // The bar's + with thirty closed tasks, a menu until 2026-10-17, ran past the window's edge: under the grid its
-    // project's row, the new task, out of reach above (2026-10-15). Any menu: ☰'s here.
+  test("menus: one longer than the window has stays in it and scrolls", async ({ ui }) => {
+    // A menu longer than the window (thirty closed tasks) must not run past its edge, its first rows out of reach
+    // above. Any menu: ☰'s here.
     await ui(`document.getElementById('windowMenu').click()`);
     await menuRows(ui);
     await ui(`(() => { const m = ${MENU}, row = m.querySelector('.item'); for (let i = 0; i < 60; i++) m.append(row.cloneNode(true)); })()`); // as many rows as thirty closed tasks and more
     assert.deepEqual(await ui(`new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => { const m = ${MENU}, b = m.getBoundingClientRect();
       r([b.top >= 0, b.bottom <= innerHeight, m.scrollHeight > m.clientHeight]); })))`), [true, true, true]);
     await closeMenu(ui);
-    await plusMenu(ui);
-    await ui(`(() => { const c = document.querySelector('#board .column'), ul = c.querySelector('ul'), li = ul.querySelector('li');
-      for (let i = 0; i < 60; i++) ul.append(li.cloneNode(true)); const b = document.getElementById('board'); for (let i = 0; i < 10; i++) b.prepend(c.cloneNode(true)); })()`);
-    assert.deepEqual(await ui(`new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => { const b = document.getElementById('board'), c = b.querySelector('.column'),
-      ul = c.querySelector('ul'), at = c.getBoundingClientRect(), e = document.getElementById('empty').getBoundingClientRect();
-      r([at.bottom <= e.bottom + 1, ul.scrollHeight > ul.clientHeight, b.scrollWidth > b.clientWidth, document.body.scrollWidth <= innerWidth]); })))`), [true, true, true, true]);
-    await closeBoard(ui);
   });
   test("tasks: a closed task is deleted from its row, 🗑 or Delete, in the board (the bar's +), its project loaded or not, after the question Delete Task… asks", async (ctx) => {
     // About 2 s: git's work (worktrees made and removed).
     const { shell, ui } = ctx;
-    const p = shell.store.projects().find((x) => x.id === 'merge');
-    const entry = (n: number) => shell.store.tasksOf(p).list.find((e) => e.n === n);
+    const p = shell.store.projects().find((x) => x.id === pid('merge'));
+    const entry = (name: string) => shell.store.tasksOf(p).list.find((e) => e.name === name);
     // A task's row in its project's column of the board (a new tab, the bar's +; the empty window).
-    const row = (name: string, project = 'merge') => `[...document.querySelectorAll('#board .column[data-project="${project}"] li .item')].find((r) => r.querySelector('.label').textContent === ${JSON.stringify(name)})`;
+    const row = (name: string, project = 'merge') => `[...document.querySelectorAll('#board .column[data-project="${pid(project)}"] li .item')].find((r) => r.querySelector('.label').textContent === ${JSON.stringify(name)})`;
     // merge (above) is not loaded now; its task-2 is closed, with a commit not merged.
-    const folder = entry(2).folder;
-    await plusMenu(ui);
+    const folder = entry('task-2').resources[0].folder;
+    // The board is the empty window's (not a menu over a task): close the open tasks to get there.
+    ctx.answer = true;
+    for (const id of [...shell.open.keys()]) await ui(`kulisa.invoke('project:close-tasks', { id: '${id}' })`);
+    await waitFor(() => shell.open.size === 0 && ui(`document.documentElement.classList.contains('noproject') && !!document.getElementById('board')`));
     assert.equal(await ui(`getComputedStyle(${row('task-2')}.querySelector('.remove')).visibility`), 'hidden', 'shown on the row the pointer or the keyboard is on');
     ctx.answer = false;
     await ui(`${row('task-2')}.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true }))`);
@@ -1845,36 +1914,74 @@ export default (test: Test) => {
     assert.equal(q.message, 'Delete the task task-2?');
     assert.match(q.detail, /1 commit of its own/, 'its work not in main, as Delete Task… says');
     await waitFor(async () => !(await ui(`document.getElementById('ask')?.dataset.state === 'open'`)));
-    assert.ok(entry(2) && fs.existsSync(folder), 'Cancel keeps it');
+    assert.ok(entry('task-2') && fs.existsSync(folder), 'Cancel keeps it');
     ctx.answer = true;
     await click(ui, `${row('task-2')}.querySelector('.remove')`);
-    await waitFor(() => !entry(2) && !fs.existsSync(folder));
-    assert.ok(!shell.open.has('merge'), 'not opened for it');
-    const rows: string[] = await plusMenu(ui), after = rows.slice(rows.indexOf('merge') + 1);
-    assert.ok(!after[0].startsWith('  '), 'merge has no closed task left');
-    await closeBoard(ui);
+    await waitFor(() => !entry('task-2') && !fs.existsSync(folder));
+    assert.ok(!shell.open.has(pid('merge')), 'not opened for it');
+    assert.deepEqual(await ui(`[...document.querySelectorAll('#board .column[data-project="${pid('merge')}"] .item .label')].map((l) => l.textContent)`), [], 'merge has no closed task left in the board');
 
-    // A task of it open: the same row in the +.
-    await ui(`kulisa.invoke('project:open', { id: 'merge' })`);
-    await waitFor(() => shell.current?.id === 'merge' && shell.task?.loaded && shell.pty);
+    // Back to project's task-1 and Feature-X, as the tests after and the restart phase expect.
+    await ui(`document.querySelector('#board [data-task="${tkey('project', 1)}"]').click()`);
+    await waitFor(() => isNth(shell.task, 1) && shell.task.loaded && shell.pty && !shell.windows[0].switching);
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
-    const closing = shell.task;
-    await newTask(ctx);
-    await ui(`document.querySelector('#projectTabs .tasktab[data-task="${closing.key}"] .close').click()`);
-    await waitFor(() => closing.entry.closed);
+    await plusMenu(ui, 'project', 'Feature-X');
+    await waitFor(() => isNth(shell.task, 2) && shell.task.loaded && shell.pty && !shell.windows[0].switching);
+    await click(ui, taskTab(taskAt(shell.current, 1)));
+    await waitFor(() => isNth(shell.task, 1) && !shell.windows[0].switching);
+    ctx.watchPty(shell.pty);
+    ctx.asked.length = 0;
+  });
+
+  test("tasks: the bar's + with several projects — a click on a project makes it a new task, and a task's 🗑 deletes it after the question", async (ctx) => {
+    // About 1 s: git's work (a second project made and deleted).
+    const { shell, ui } = ctx;
+    // A second project, open, so the + nests each project as a submenu (one project shows its tasks inline).
+    const plus2 = path.join(root, 'plus2');
+    fs.mkdirSync(plus2); git(plus2, 'init', '-q'); fs.writeFileSync(path.join(plus2, 'a.txt'), 'a'); git(plus2, 'add', '-A'); git(plus2, 'commit', '-qm', 'mine');
+    const made = await ui(`kulisa.invoke('project:new', { from: 'folder', folders: [${JSON.stringify(plus2)}], name: 'Plus2' })`);
+    assert.ok(made.id, 'the second project is made');
+    await ui(`kulisa.invoke('project:open', { id: ${JSON.stringify(made.id)} })`);
+    await waitFor(() => shell.current?.id === made.id && shell.task?.loaded && shell.pty && !shell.windows[0].switching, 10000);
+    await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
+    const tasks2 = () => shell.store.tasksOf(shell.store.projects().find((x) => x.id === made.id)).list;
+    const trigger = (name: string) => `[...document.querySelectorAll('.menu[data-state="open"] [role="menuitem"]')].find((r) => r.querySelector('.label')?.textContent === ${JSON.stringify(name)} && r.getAttribute('aria-haspopup'))`;
+
+    // A left release on the project row itself makes a new task of it and closes the menu (its tasks still open on hover).
     await plusMenu(ui);
-    await click(ui, `${row(closing.name)}.querySelector('.remove')`);
-    await waitFor(() => !entry(closing.n) && !fs.existsSync(closing.folder));
-    assert.ok(!shell.current.tasks.has(closing.n) && shell.task.loaded, 'the open one stays');
-    await ui(`kulisa.invoke('project:close-tasks', { id: 'merge' })`);
-    await waitFor(() => !shell.open.has('merge'));
+    const before = tasks2().length;
+    await click(ui, trigger('Plus2'));
+    await waitFor(() => tasks2().length === before + 1 && shell.current?.id === made.id && shell.task?.loaded && !shell.windows[0].switching, 10000);
+    await waitFor(async () => !(await menuOpen(ui)));
+
+    // Each task row carries a 🗑 that deletes the task after the Delete Task… question (Cancel keeps it).
+    ctx.answer = false;
+    const projName = shell.store.projects().find((x) => x.id === pid('project')).name;
+    await plusMenu(ui);
+    const projSub = trigger(projName);
+    await waitFor(async () => { await ui(`(${projSub})?.click()`); return (await ui(`document.querySelectorAll('.menu[data-state="open"]').length`)) >= 2; });
+    const fxRemove = `[...[...document.querySelectorAll('.menu[data-state="open"]')].at(-1).querySelectorAll('[role="menuitem"]')].find((r) => r.querySelector('.label')?.textContent === 'Feature-X')?.querySelector('.remove')`;
+    assert.ok(await ui(`!!(${fxRemove})`), 'a task row has a 🗑');
+    await click(ui, fxRemove);
+    await waitFor(() => ctx.asked.length);
+    assert.equal(ctx.asked.pop().message, 'Delete the task Feature-X?');
+    await waitFor(async () => !(await ui(`document.getElementById('ask')?.dataset.state === 'open'`)));
+
+    // The second project removed; back to project's task-1 shown, as the tests after expect.
+    ctx.answer = true;
+    await ui(`kulisa.invoke('project:delete', { id: ${JSON.stringify(made.id)} })`);
+    await waitFor(() => !shell.open.has(made.id));
+    fs.rmSync(plus2, { recursive: true, force: true });
+    await waitFor(() => shell.current?.id === pid('project') && shell.task?.loaded);
+    await click(ui, taskTab(taskAt(shell.current, 1)));
+    await waitFor(() => isNth(shell.task, 1) && !shell.windows[0].switching);
     ctx.asked.length = 0;
   });
 
   test("projects: Delete Project… (the projects' manager alone) asks, closes the project when open, deletes its data and its tasks' copies, never its folder; New Project takes its code from folders on the disk or clones it from URLs, one or several, making no other folder", async (ctx) => {
     // About 3 s: git's work (a worktree, a clone) and closing an open project.
     const { shell, ui, sui } = ctx;
-    const projects = () => shell.store.projects().map((p) => p.id);
+    const projects = () => shell.store.projects().map((p) => path.basename(p.folders[0])); // each by its folder's name (pid)
     // A project that is not open, with a task that has a commit of its own, as Kulisa lays them out.
     const spare = path.join(root, 'spare');
     fs.mkdirSync(spare);
@@ -1885,19 +1992,21 @@ export default (test: Test) => {
     const data = path.join(userData, 'projects', p.id);
     // A profile of its own (in no other project): its master goes with it.
     const own = shell.profileStore.create(p.id, { name: 'Spare-user', avatar: 'fox' }) as StoredProfile;
-    fs.mkdirSync(path.join(data, '1', own.folder), { recursive: true });
+    fs.mkdirSync(path.join(data, 'aaaaa1', own.id), { recursive: true });
     // An agent's account in no other project: it stays, let go of (Settings → Agents deletes one).
-    const account = shell.accounts.create(p.id, (shell.accounts.prepare('fake') as { id: string }).id, 'fake', 'spare@shop.com');
+    const account = shell.accounts.create((shell.accounts.prepare('fake') as { id: string }).id, 'fake', 'spare@shop.com');
+    shell.store.updateProject(p.id, { agents: [account.id] });
     fs.mkdirSync(account.dir, { recursive: true });
-    fs.writeFileSync(path.join(data, 'tasks.json'), JSON.stringify({ next: 3, current: 1, list: [{ n: 1, name: 'task-1', offset: 0, folder: spare }, { n: 2, name: 'Idea', branch: wt.branch, offset: 100, copies: [wt], folder: wt.folder }] }));
+    fs.writeFileSync(path.join(data, 'tasks.json'), JSON.stringify({ list: [{ id: 'aaaaa1', name: 'task-1', named: true, resources: [{ kind: 'maintree', folder: spare }] }, { id: 'aaaaa2', name: 'Idea', named: true, resources: [{ kind: 'worktree', ...wt }] }] }));
     shell.sendProjects(); // made behind the windows' back: they are told, as when a project is made
 
     // In the projects' manager, its Delete Project…: the human is told what goes, says no, then yes.
-    const removeRow = async (id = 'spare') => {
+    const removeRow = async (folder = 'spare') => {
+      const { id, name } = shell.store.projects().find((x) => x.id === pid(folder));
       if (!shell.settings) await ui(`document.getElementById('manageProjects').click()`);
       await waitFor(() => sui(`!!document.querySelector('#pjlist [data-project="${id}"]')`));
       await sui(`document.querySelector('#pjlist [data-project="${id}"]').click()`);
-      await waitFor(() => sui(`${pageOf(id)} && !!document.getElementById('pjmore')`));
+      await waitFor(() => sui(`${pageOf(name)} && !!document.getElementById('pjmore')`));
       await sui(`document.getElementById('pjmore').click()`); // ⋯ at its top
       await menuRows(sui);
       await choose(sui, 'Delete Project…');
@@ -1911,25 +2020,24 @@ export default (test: Test) => {
     assert.match(q.detail, /Its profiles stay, with their sign-ins/);
     assert.doesNotMatch(q.detail, /accounts/, 'its accounts stay');
     assert.ok(q.detail.includes(wt.worktree) && q.detail.includes('Idea: 1 commit of its own') && q.detail.includes(`Its folders stay as they are: ${spare}.`));
-    assert.ok(projects().includes(p.id) && fs.existsSync(data) && fs.existsSync(wt.worktree), 'kept when the human says no');
+    assert.ok(projects().includes('spare') && fs.existsSync(data) && fs.existsSync(wt.worktree), 'kept when the human says no');
     ctx.answer = true;
     await removeRow();
-    await waitFor(() => !projects().includes(p.id));
+    await waitFor(() => !projects().includes('spare'));
     ctx.asked.length = 0;
     await waitFor(() => !fs.existsSync(data) && !fs.existsSync(wt.worktree));
-    assert.ok(fs.existsSync(shell.profileStore.masterDir(own.folder)) && shell.profileStore.get('spare-user').projects.length === 0,
+    assert.ok(fs.existsSync(shell.profileStore.masterDir(own.id)) && shell.profileStore.projectsOf(shell.profileStore.get(own.id)).length === 0,
       'its profile kept, with its sign-ins, in no project (as its account)');
-    shell.profileStore.delete('spare-user'); // not needed by later tests
+    shell.profileStore.delete(own.id); // not needed by later tests
     assert.ok(fs.existsSync(account.dir) && !fs.readFileSync(path.join(root, 'logouts'), 'utf8').includes(account.dir), 'its account kept, signed in');
-    assert.deepEqual(shell.accounts.find(account.id).projects, []);
+    assert.deepEqual(shell.store.projectsWith('agents', account.id).map((p) => p.id), []);
     assert.equal(git(spare, 'branch', '--list', wt.branch), '', "the task's branch");
     assert.equal(fs.readFileSync(path.join(spare, 'a.txt'), 'utf8'), 'a', "the project's own folder stays");
-    assert.ok(shell.task?.loaded && shell.current?.id === 'project', 'another project: the open one stays open');
-    await waitFor(() => sui(`!document.querySelector('#pjlist [data-project="spare"]')`));
+    assert.ok(shell.task?.loaded && shell.current?.id === pid('project'), 'another project: the open one stays open');
+    await waitFor(() => sui(`!document.querySelector('#pjlist [data-project="${p.id}"]')`));
     await closeSettings(ctx);
 
-    // New Project… asks for its code first (the author, 2026-10-11: a folder made in ~/Kulisa was in the way of code
-    // already on the disk). Folder on disk, a repository: taken as it is, its files and its history kept, no git init,
+    // New Project… asks for its code first (the code is often on the disk already). Folder on disk, a repository: taken as it is, its files and its history kept, no git init,
     // nothing made; named after its folder; Create opens its first task, as for any new project.
     const gone = path.join(root, 'gone');
     fs.mkdirSync(gone); git(gone, 'init', '-q'); fs.writeFileSync(path.join(gone, 'a.txt'), 'a'); git(gone, 'add', '-A'); git(gone, 'commit', '-qm', 'mine');
@@ -1937,20 +2045,23 @@ export default (test: Test) => {
     // In a tasks' window (the bar's +, a dialog), Settings closed first.
     const newProject = async (from: string) => {
       if (shell.settings) await closeSettings(ctx);
-      await plusMenu(ui);
-      await ui(`document.getElementById('boardnewproject').click()`);
+      // A task shown: New Project… in the bar's + dropdown; the empty window: the board's own button.
+      if (await ui(`!!document.getElementById('newTask')`)) {
+        await plusMenu(ui);
+        await ui(`[...document.querySelectorAll('.menu[data-state="open"] [role="menuitem"]')].find((r) => r.querySelector('.label')?.textContent === 'New Project…').click()`);
+      } else await ui(`document.getElementById('boardnewproject').click()`);
       await waitFor(() => ui(`!!document.querySelector('#newproject #npfrom [data-value="${from}"]')`));
       await ui(`document.querySelector('#npfrom [data-value="${from}"]').click()`);
       await waitFor(() => ui(`document.querySelector('#npfrom [data-value="${from}"]').ariaSelected === 'true'`));
     };
     // Its steps gone through (no agent, no profile chosen), then Create: made, its first task opened in this window.
-    const create = async (id: string) => {
+    const create = async (folder: string) => {
       for (const s of ['Agents', 'Profiles']) {
         await ui(`document.getElementById('npform').requestSubmit()`);
         await waitFor(() => ui(`document.querySelector('#newproject .steps [aria-current="step"]')?.textContent.slice(1) === '${s}'`));
       }
       await ui(`document.getElementById('npform').requestSubmit()`);
-      await waitFor(() => shell.current?.id === id && shell.task?.loaded && shell.pty && !shell.windows[0].switching, 10000); // a clone takes a while
+      await waitFor(() => shell.current && named(shell.current.id) === folder && shell.task?.loaded && shell.pty && !shell.windows[0].switching, 10000); // a clone takes a while
       await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
     };
     await newProject('folder');
@@ -1969,7 +2080,6 @@ export default (test: Test) => {
       await waitFor(async () => (await ui(`document.getElementById('npname').value`)) === 'gone');
     } finally { electron.dialog.showOpenDialog = showOpenDialog; }
     assert.equal(await ui(`document.querySelector('#npsources .item kbd').textContent`), 'git');
-    assert.equal(await ui(`document.getElementById('npgitrow').hidden`), true, 'no Create Git repository: it is one');
     ctx.asked.length = 0;
     await create('gone');
     assert.equal(shell.current.folder, gone);
@@ -1977,6 +2087,7 @@ export default (test: Test) => {
     assert.equal(fs.readFileSync(path.join(gone, 'a.txt'), 'utf8'), 'a');
     assert.equal(ctx.asked.length, 0, 'its task in this window, nothing asked where');
     // The open one: closed, then deleted; the tab next to it shown.
+    const goneData = path.join(userData, 'projects', pid('gone'));
     await removeRow('gone');
     await waitFor(() => !projects().includes('gone'));
     // Its grid taken down closes the window's dialogs, the manager too (lib/views.ts, closeLayers).
@@ -1984,11 +2095,11 @@ export default (test: Test) => {
     ctx.asked.length = 0;
     await waitFor(() => shell.current?.folder === project && shell.task?.loaded);
     assert.deepEqual(await projectTabs(ui), ['project', 'project *'], 'the tab next to it shown');
-    assert.ok(fs.existsSync(gone) && !fs.existsSync(path.join(userData, 'projects', 'gone')));
+    assert.ok(fs.existsSync(gone) && !fs.existsSync(goneData));
     assert.deepEqual(savedWindows(), [{ tabs: ['project/1', 'project/2'], shown: 'project/2' }]);
 
     // Folder on disk, several (a frontend and a backend): taken as they are, the first the default and the project's
-    // folder; Create Git repository in the one without git only.
+    // folder; the one without git left so.
     const back = path.join(root, 'back');
     fs.mkdirSync(back); fs.writeFileSync(path.join(back, 'b.txt'), 'b');
     await newProject('folder');
@@ -1996,11 +2107,10 @@ export default (test: Test) => {
     await add(back);
     await waitFor(async () => (await ui(`[...document.querySelectorAll('#npsources .item')].map((r) => r.dataset.source + ' ' + r.querySelector('kbd').textContent + ' ' + !!r.querySelector('.default')).join()`))
       === `${gone} git true,${back} no git false`);
-    assert.equal(await ui(`document.getElementById('npgitrow').hidden`), false, 'Create Git repository: for the one without');
     await create('gone');
-    const both = shell.store.projects().find((x) => x.id === 'gone');
-    assert.deepEqual([both.folder, both.repos], [gone, [gone, back]]);
-    assert.equal(git(back, 'log', '--format=%s'), 'Initial commit', 'git init in the one without');
+    const both = shell.store.projects().find((x) => x.id === pid('gone'));
+    assert.deepEqual(both.folders, [gone, back]);
+    assert.ok(!fs.existsSync(path.join(back, '.git')), 'the one without git left so');
     assert.equal(git(gone, 'log', '--format=%s'), 'mine', 'the repository as it was');
     await removeRow('gone');
     await waitFor(() => !projects().includes('gone'));
@@ -2008,10 +2118,10 @@ export default (test: Test) => {
     // Clone from URL (a local one here): cloned into <location>/<name>, named after the repository, and that clone is
     // the project's folder: no empty one beside it, no git init. A folder with files there is refused.
     const bare = path.join(root, 'cloned.git'), backBare = path.join(root, 'back.git');
+    git(back, 'init', '-q'); git(back, 'add', '-A'); git(back, 'commit', '-qm', 'back');
     git(root, 'clone', '-q', '--bare', gone, bare);
     git(root, 'clone', '-q', '--bare', back, backBare);
     await newProject('clone');
-    assert.equal(await ui(`document.getElementById('npgitrow').hidden`), true, 'no Create Git repository: it is one');
     await fill('npsource', bare);
     await ui(`document.getElementById('npaddsource').click()`);
     await waitFor(async () => (await ui(`document.getElementById('npname').value`)) === 'cloned');
@@ -2023,25 +2133,24 @@ export default (test: Test) => {
     await fill('nplocation', shell.projectsHome);
     await fill('npname', 'cloned');
     await create('cloned');
-    const cloned = shell.store.projects().find((x) => x.id === 'cloned');
-    assert.equal(cloned.folder, into);
+    const cloned = shell.store.projects().find((x) => x.id === pid('cloned'));
+    assert.deepEqual(cloned.folders, [into]);
     assert.equal(git(into, 'log', '--format=%s'), 'mine', 'its history');
     await removeRow('cloned');
     await waitFor(() => !projects().includes('cloned'));
-    // Several: one folder of the project's, each repository cloned into it, the first the default; that folder is
-    // no former one (it holds them). A URL typed and not yet added counts.
+    // Several: each repository cloned into a folder named after the project, the first the default; that folder is
+    // none of the project's. A URL typed and not yet added counts.
     await newProject('clone');
     await fill('npsource', bare);
     await ui(`document.getElementById('npaddsource').click()`);
     await fill('npname', 'fullstack');
     await fill('npsource', backBare);
     const stack = path.join(shell.projectsHome, 'fullstack');
-    await create('fullstack');
-    const full = shell.store.projects().find((x) => x.id === 'fullstack');
-    assert.deepEqual([full.folder, full.repos], [stack, [path.join(stack, 'cloned'), path.join(stack, 'back')]]);
-    assert.equal((await ui(`kulisa.invoke('project:settings-get', { id: 'fullstack' })`)).former, null, 'it holds them: no former folder');
-    await removeRow('fullstack');
-    await waitFor(() => !projects().includes('fullstack'));
+    await create('cloned'); // named by its first folder (helpers.ts, pid)
+    const full = shell.store.projects().find((x) => x.id === pid('cloned'));
+    assert.deepEqual([full.name, full.folders], ['fullstack', [path.join(stack, 'cloned'), path.join(stack, 'back')]]);
+    await removeRow('cloned');
+    await waitFor(() => !projects().includes('cloned'));
     if (shell.settings) await closeSettings(ctx);
     ctx.asked.length = 0;
     // A URL git cannot clone: git's own words, nothing left behind, the clones before it neither.
@@ -2050,27 +2159,27 @@ export default (test: Test) => {
 
     // Close All Tasks in its submenu: the last tasks, so the empty window; its tasks closed.
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
-    await projectMenu(ui, 'Close All Tasks', '#projectTabs [data-project="project"] .name');
+    await projectMenu(ui, 'Close All Tasks', `#projectTabs [data-project="${pid('project')}"] .name`);
     await waitFor(() => shell.task === null && shell.open.size === 0);
     ctx.asked.length = 0;
     await waitFor(() => ui(`document.documentElement.classList.contains('noproject')`));
-    assert.ok(shell.store.tasksOf({ id: 'project' }).list.every((e) => e.closed), 'its tasks closed');
+    assert.ok(shell.store.tasksOf({ id: pid('project') }).list.every((e) => e.closed), 'its tasks closed');
 
-    // A closed task in the bar's +: opened again, a tab at the end; another one of it after it. Back on task-1 with
-    // Feature-X, as the tests after and the restart phase expect.
-    await plusMenu(ui, 'project', 'task-1');
-    await waitFor(() => shell.task?.n === 1 && shell.task.loaded && shell.pty && !shell.windows[0].switching);
+    // A closed task opened again from the board (the empty window), a tab at the end; another from the bar's + after.
+    // Back on task-1 with Feature-X, as the tests after and the restart phase expect.
+    await ui(`document.querySelector('#board [data-task="${tkey('project', 1)}"]').click()`);
+    await waitFor(() => isNth(shell.task, 1) && shell.task.loaded && shell.pty && !shell.windows[0].switching);
     assert.ok(!shell.task.entry.closed, 'open again');
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
     await plusMenu(ui, 'project', 'Feature-X');
-    await waitFor(() => shell.task?.n === 2 && shell.task.loaded && shell.pty && !shell.windows[0].switching);
-    await click(ui, taskTab(1));
-    await waitFor(() => shell.task?.n === 1 && shell.task.loaded && !shell.windows[0].switching);
+    await waitFor(() => isNth(shell.task, 2) && shell.task.loaded && shell.pty && !shell.windows[0].switching);
+    await click(ui, taskTab(taskAt(shell.current, 1)));
+    await waitFor(() => isNth(shell.task, 1) && shell.task.loaded && !shell.windows[0].switching);
     assert.deepEqual(await projectTabs(ui), ['project *', 'project'], 'a tab each');
     assert.deepEqual(await tabs(ui), ['task-1 *', 'Feature-X']);
     ctx.watchPty(shell.pty);
     await waitFor(() => ui(`!document.documentElement.classList.contains('noproject') && !document.documentElement.classList.contains('loading')`));
-    await waitFor(async () => (await viewOn(shell, ui, 'sam-admin')) && viewOn(shell, ui, 'elon-buyer'));
+    await waitFor(async () => (await viewOn(shell, ui, 'Sam.admin')) && viewOn(shell, ui, 'Elon.buyer'));
   });
   test('the CDP proxy takes ids in any letters (percent-encoded in its URLs); the grid changed just before its task is left is saved so', async ({ shell, ui }) => {
     // Last: a profile made and deleted here would take a folder number the tests before count on.
@@ -2106,23 +2215,24 @@ export default (test: Test) => {
     const { shell, ui, call } = ctx;
     const shown = shell.task; // shown again at the end: the restart phase finds it so
     const task = await newTask(ctx);
+    await ctx.call('task_worktree', {}); // its own worktree (copies), for the cross-copy trust below
     const [a, b] = ['a', 'b'].map((x) => {
       const r = shell.accounts.prepare('fake');
       if (refused(r)) throw new Error(r.error);
-      shell.accounts.create('project', r.id, 'fake', `${x}@switch.test`);
+      shell.accounts.create(r.id, 'fake', `${x}@switch.test`);
       return { id: r.id, dir: r.dir };
     });
-    for (const x of [a, b]) await ui(`kulisa.invoke('project:agent-add', { id: 'project', agent: '${x.id}' })`);
-    const tabs = () => ui(`[...document.querySelectorAll('.termtab')].map((t) => t.querySelector('.name').textContent + (t.classList.contains('active') ? ' *' : ''))`);
+    for (const x of [a, b]) await ui(`kulisa.invoke('project:agent-add', { id: '${pid('project')}', agent: '${x.id}' })`);
+    const tabs = () => ui(`[...document.querySelectorAll('.termtab')].map((t) => t.querySelector('.title').textContent + (t.classList.contains('active') ? ' *' : ''))`);
     const tabState = (id: number) => ui(`document.querySelector('.termtab[data-id="${id}"] .state').dataset.state`);
-    const taskState = () => ui(`${taskTab(task.n)}.querySelector('.state').dataset.state`);
-    const conversations = () => JSON.parse(fs.readFileSync(pfile('agent.json', task.n), 'utf8')).conversations;
+    const taskState = () => ui(`${taskTab(task)}.querySelector('.state').dataset.state`);
+    const conversations = () => JSON.parse(fs.readFileSync(pfile('agent.json', task.id), 'utf8')).conversations;
     const newest = () => [...task.terminals.values()].at(-1);
     await waitFor(async () => JSON.stringify(await tabs()) === '["bash *"]');
     const bash = task.promptTarget();
     // The human trusted the project's code in another task's copy (a's config, as Claude Code keeps it): an agent of
     // that account opened here finds this copy trusted too, and does not ask (agents/, extendTrust).
-    const copy = task.entry.copies[0], other = shell.store.tasksOf(task.project.entry).list.find((e) => e.n !== task.n && e.copies?.length).copies[0];
+    const copy = task.worktrees[0], other = worktreesOf(shell.store.tasksOf(task.project.entry).list.find((e) => e.id !== task.id && worktreesOf(e).length))[0];
     fs.writeFileSync(path.join(a.dir, '.claude.json'), JSON.stringify({ projects: { [other.folder]: { hasTrustDialogAccepted: true } } }));
 
     // +: the project's accounts, then Terminal; one chosen opens in a tab of its own, in front, a new conversation.
@@ -2187,8 +2297,8 @@ export default (test: Test) => {
     await ui(`document.getElementById('handoverstart').click()`);
     await waitFor(async () => JSON.stringify(await tabs()) === '["bash","Pay with cards","Fake agent *"]' && newest().pty, 20000);
     const handed = newest();
-    // In front under the dialog from its start, as + opens one: a tab behind has no size, and its xterm laid out what
-    // the agent drew for the island's size in 80 columns (broken, 2026-10-12).
+    // In front under the dialog from its start, as + opens one: a tab behind has no size, and its xterm would lay out what
+    // the agent drew for the island's size in 80 columns, broken.
     await waitFor(async () => (await ui('window.__term?.cols')) === handed.pty.spawnSize.cols);
     assert.equal(handed.agent.id, b.id);
     assert.equal(handed.pty.spawnArgs.at(-1), 'Go on with the work of conversation 2 of this task ("Pay with cards"). Read it whole with the kulisa task_history tool (conversation 2) before anything else. Then tell me in a few lines what is done and what is next, and go on with it.');
@@ -2202,7 +2312,7 @@ export default (test: Test) => {
     // permission, a sign-in, a limit) is shown at once; Show now shows it before it has read.
     ctx.answer = true; // closing an agent's tab asks
     for (const how of ['waiting', 'show']) {
-      await rightClick(ui, `.termtab[data-id="${fake.id}"] .name`);
+      await rightClick(ui, `.termtab[data-id="${fake.id}"] .title`);
       assert.deepEqual(await menuRows(ui), ['Change agent…', 'New Conversation', '-', 'Close']);
       await choose(ui, 'Change agent…');
       await waitFor(() => ui(`!!document.querySelector('#handover .choose .label')`));
@@ -2216,7 +2326,7 @@ export default (test: Test) => {
       await waitFor(async () => (await tabs()).length === 3);
     }
     // New Conversation: the same agent from nothing, in a tab of its own.
-    await rightClick(ui, `.termtab[data-id="${bash.id}"] .name`);
+    await rightClick(ui, `.termtab[data-id="${bash.id}"] .title`);
     await menuRows(ui);
     await choose(ui, 'New Conversation');
     await waitFor(async () => JSON.stringify(await tabs()) === '["bash","Pay with cards","Fake agent","bash 2 *"]' && newest().pty, 20000);
@@ -2250,11 +2360,11 @@ export default (test: Test) => {
     // Deleting the task forgets every conversation, each in its account's folder.
     ctx.answer = true;
     await ui(`kulisa.invoke('task:delete', '${task.key}')`);
-    await waitFor(() => !shell.current.tasks.has(task.n));
+    await waitFor(() => !shell.current.tasks.has(task.id));
     assert.ok(!fs.existsSync(file), "the fake agent's, in its account");
     ctx.asked.length = 0;
     for (const x of [a, b]) {
-      await ui(`kulisa.invoke('project:agent-remove', { id: 'project', agent: '${x.id}' })`);
+      await ui(`kulisa.invoke('project:agent-remove', { id: '${pid('project')}', agent: '${x.id}' })`);
       shell.accounts.drop(x.id); fs.rmSync(x.dir, { recursive: true, force: true });
     }
     await waitFor(() => !shell.windows[0].switching && ui(`!document.documentElement.classList.contains('loading')`));
@@ -2264,27 +2374,27 @@ export default (test: Test) => {
 
   // Last in phase 1: the tabs the restart phase finds (restart-tasks.ts).
   test('projects: another tab left in the background, with a terminal its agent ran something in', async ({ shell, ui, call }) => {
-    await ui(`kulisa.invoke('project:open', { folder: ${JSON.stringify(path.join(root, 'other'))}, task: 1 })`);
-    await waitFor(() => shell.current?.id === 'other' && shell.task.loaded);
+    await ui(`kulisa.invoke('project:open', { folder: ${JSON.stringify(path.join(root, 'other'))}, task: '${tid('other', 1)}' })`);
+    await waitFor(() => shell.current?.id === pid('other') && shell.task.loaded);
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
     await call('terminal_run', { name: 'dev server', command: 'echo "served before"; sleep 60' });
     await waitFor(async () => /^served before$/m.test((await call('terminal_read', { name: 'dev server' })).text));
     await showProject(ui, 'project');
-    await waitFor(() => shell.current?.id === 'project' && shell.task.loaded);
+    await waitFor(() => shell.current?.id === pid('project') && shell.task.loaded);
     assert.deepEqual(await projectTabs(ui), ['project *', 'project', 'other']);
   });
   test('projects: one left in a window of its own (restart-tasks.ts: the windows come back)', async ({ shell, ui }) => {
     const third = path.join(root, 'third');
     fs.mkdirSync(third, { recursive: true });
     await ui(`kulisa.invoke('project:open', { folder: ${JSON.stringify(third)} })`);
-    await waitFor(() => shell.current?.id === 'third' && shell.task.loaded);
+    await waitFor(() => shell.current?.id === pid('third') && shell.task.loaded);
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
-    await ui(`kulisa.invoke('task:move', { key: 'third/1', terminals: {} })`);
-    await waitFor(() => shell.windows[1]?.current?.key === 'third/1' && !shell.windows[1].switching);
+    await ui(`kulisa.invoke('task:move', { key: '${tkey('third', 1)}', terminals: {} })`);
+    await waitFor(() => shell.windows[1]?.current?.key === tkey('third', 1) && !shell.windows[1].switching);
     // Smaller than the window's minimum (setBounds passes below it, the human's drag does not): it comes back at it.
     shell.windows[1].win.setBounds({ x: 40, y: 50, width: 10, height: 10 });
     await showProject(ui, 'project');
-    await waitFor(() => shell.current?.id === 'project' && shell.task.loaded);
+    await waitFor(() => shell.current?.id === pid('project') && shell.task.loaded);
     assert.deepEqual(await projectTabs(ui), ['project *', 'project', 'other']);
   });
   test("projects: Settings, not modal, acts for the tasks' window last in front; its lists follow the profiles the agent makes and lets go meanwhile", async (ctx) => {
@@ -2297,17 +2407,17 @@ export default (test: Test) => {
     // Made and let go by that task's agent (asked in its window): the project's page shows it, then not. Not in the first
     // window's task: its grid is checked after the restart, and a pane come and gone could leave it saved otherwise.
     await call('profile_create', { name: 'Fay' }, second.current);
-    await waitFor(() => sui(`!!document.querySelector('#npprofiles [data-profile="fay"]') && !!document.querySelector('#pjlist [data-profile="fay"]')`));
+    await waitFor(() => sui(`!!document.querySelector('#npprofiles [data-profile="${idOf('Fay')}"]') && !!document.querySelector('#pjlist [data-profile="${idOf('Fay')}"]')`));
     ctx.answer = true;
-    await call('profile_delete', { profile: 'fay' }, second.current);
+    await call('profile_delete', { profile: 'Fay' }, second.current);
     assert.equal(ctx.asked.pop().message, `The agent asks to remove the profile Fay from ${second.current.project.name}.`);
-    await waitFor(() => sui(`!document.querySelector('#npprofiles [data-profile="fay"]')`));
-    shell.profileStore.delete('fay'); // not needed by the restart
+    await waitFor(() => sui(`!document.querySelector('#npprofiles [data-profile="${idOf('Fay')}"]')`));
+    shell.profileStore.delete(idOf('Fay')); // not needed by the restart
     // The first one in front (the question's dialog in the second gone first): Settings acts for it now, without being
     // opened again.
     await waitFor(() => there(`document.getElementById('ask')?.dataset.state !== 'open'`));
     await focusWindow(shell.win, ui);
-    await waitFor(async () => (await sui(`kulisa.invoke('projects:list')`)).project === 'project');
+    await waitFor(async () => (await sui(`kulisa.invoke('projects:list')`)).project === pid('project'));
     await closeSettings(ctx);
   });
 };

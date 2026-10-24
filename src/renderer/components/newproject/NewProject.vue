@@ -22,7 +22,7 @@ registerDialog('newproject', { open });
 
 <style>
 /* Its height the dialog's, not the body's: the same for every step while the window has room; in a shorter one the
-   step scrolls and the buttons stay (a body's 320px pushed them out of a 640×400 window, 2026-10-16). */
+   step scrolls and the buttons stay (a body's 320px would push them out of a 640×400 window). */
 #newproject { width: min(760px, 92vw); min-height: min(480px, 85vh);
   .body { display: flex; padding: 0; }
 }

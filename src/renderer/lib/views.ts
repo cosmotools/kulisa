@@ -1,14 +1,13 @@
 // The profiles' pages are native views above the window's HTML (CLAUDE.md, "What must hold in the window"): they stay
 // hidden while a dialog is open or the grid is not laid out yet (store.loading), and become pictures of themselves
 // while a panel is dragged or a menu is open, so the HTML can be on top. The menus and dialogs themselves: cover.ts.
-import { watch } from 'vue';
 import { store } from './store';
 import { scheduleLayout } from './grid';
 import { coverUnder, dialogsOpen } from './cover';
 
 // A menu or a drag too (frozen): the pages stay pictures until it ends (unfreeze); a task's slide ending under a menu
 // showed them over it.
-const viewsCovered = () => dialogsOpen.value > 0 || store.loading || store.newTab || !!frozen; // a new tab: the task under it
+const viewsCovered = () => dialogsOpen.value > 0 || store.loading || !!frozen;
 export const showViews = () => kulisa.invoke('views:hidden', viewsCovered());
 
 // Pictures of the pages for a menu or a drag; live again after.
@@ -33,5 +32,4 @@ export async function livePages() {
 // A grid leaving: a freeze under way no longer matters (grid.ts, grid:closing).
 export const forgetFrozen = () => { frozen = null; };
 
-watch(() => store.newTab, () => void showViews());
 coverUnder({ hide: (hidden) => void (hidden ? kulisa.invoke('views:hidden', true) : showViews()), freeze, unfreeze });

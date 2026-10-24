@@ -3,34 +3,33 @@
 // in). What the task has of each is its own: a copy of the master, made when the profile is first opened here, its tabs,
 // open or closed, its sites' zoom (TaskStore: profiles.json, the copy's folder). Creates, renames, describes (for the
 // whole store), closes, opens and lets go of them. `profiles` (open ones: Profile) and `closed` (closed ones: their
-// entry) are maps by id, in the list's order, for everything that looks a profile up (Task: profiles, closed).
+// entry) are maps by id, in the list's order, for everything that looks a profile up (Task: profiles, closed); `named`
+// finds one by its name, as the agent gives it.
 // What it takes to run a profile is the task's (tasks.ts), given as hooks:
 //   make(cfg) -> Profile        a Profile for the settings, not started yet
 //   copy(entry)                 its folder made from its master (the first open in this task), its tabs set
-//   start(profile, urls)        its tabs open, automation connected
+//   start(profile, tabs)        its tabs open, automation connected
 //   unload(profile)             its tabs closed, its sign-ins saved
-//   urlsOf(profile)             where its tabs are, to open them again
-//   renamed(profile, oldId)     its id changed (the proxy's endpoint)
+//   tabsOf(profile)             where its tabs are, to open them again
 //   remove({ cfg, profile })    its copy gone for good (profile: when it is open)
 //   changed()                   after any change: the window's state and the tabs are saved
 //   everywhere()                who a profile is changed in the store: every task shows it
 import fs from 'fs';
 import { clearCaches } from './profiles.ts';
 import type { Profile, ProfileConfig } from './profiles.ts';
-import type { TaskStore, TaskProfile } from './store.ts';
+import type { SavedTabs, TaskStore, TaskProfile } from './store.ts';
 import type { ProfileStore, StoredProfile } from './profile-store.ts';
 import type { Result } from '../shared/result.ts';
 import { refused } from '../shared/result.ts';
 
-// A profile of the task: who it is (cfg), its tabs' addresses while closed, its Profile while open.
-interface Entry { cfg: ProfileConfig; urls: string[]; profile: Profile | null; closed?: boolean; starting?: Promise<unknown> | null }
+// A profile of the task: who it is (cfg), its tabs while closed, its Profile while open.
+interface Entry { cfg: ProfileConfig; tabs: SavedTabs; profile: Profile | null; closed?: boolean; starting?: Promise<unknown> | null }
 interface Hooks {
   make(cfg: ProfileConfig): Profile;
   copy(entry: Entry): Promise<void>;
-  start(profile: Profile, urls: string[]): Promise<unknown>;
+  start(profile: Profile, tabs: SavedTabs): Promise<unknown>;
   unload(profile: Profile): Promise<void>;
-  urlsOf(profile: Profile): string[];
-  renamed(profile: Profile, oldId: string): void;
+  tabsOf(profile: Profile): SavedTabs;
   remove(entry: Entry): Promise<void>;
   changed(): void;
   everywhere(): void;
@@ -38,7 +37,7 @@ interface Hooks {
 
 class ProjectProfiles {
   store: TaskStore; all: ProfileStore; project: string; hooks: Hooks;
-  entries: Entry[] = []; // { cfg: { id, name, avatar, description, folder, dir, zoom }, urls, profile }
+  entries: Entry[] = []; // { cfg: { id, name, avatar, description, dir, zoom }, tabs, profile }
   profiles = new Map<string, Profile>(); closed = new Map<string, Entry>();
   started: Promise<void> = Promise.resolve(); // the open ones' starts as the task loaded (load), awaited by its agents
   // store: the task's (TaskStore); profiles: the store of profiles (ProfileStore); project: its project's id.
@@ -49,35 +48,36 @@ class ProjectProfiles {
   // The project's profiles, with what this task has of each; the closed ones stay closed. A new task has them all
   // closed (projects.ts, createTask); one the project got later comes closed. The open ones are made at once (in the
   // maps) and started behind, together (their cookies, tabs, automation: a site's answer away): the task's grid waits
-  // for none of them, as it waited for each in turn until 2026-10-15. Saved once they have started.
+  // for none of them. Saved once they have started.
   load() {
-    const state = new Map((this.store.profiles() || []).map((x) => [x.folder, x]));
-    this.entries = this.all.of(this.project).map((g) => ({ cfg: this._cfg(g, state.get(g.folder)), urls: this.store.tabs(g.folder),
-      profile: null as Profile | null, closed: !state.has(g.folder) || !!state.get(g.folder)!.closed }));
+    const state = new Map((this.store.profiles() || []).map((x) => [x.id, x]));
+    this.entries = this.all.of(this.project).map((g) => ({ cfg: this._cfg(g, state.get(g.id)), tabs: this.store.tabs(g.id),
+      profile: null as Profile | null, closed: !state.has(g.id) || !!state.get(g.id)!.closed }));
     this._sync();
     this.started = Promise.all(this.entries.filter((e) => !e.closed).map((e) => this._start(e)
       .catch((err: Error) => console.error(`[profiles] ${e.cfg.id} did not open: ${err.message}`))))
       .then(() => { for (const e of this.entries) delete e.closed; this.save(); });
   }
-  // The task closes (another project opens, it is deleted): the open profiles are unloaded and the list goes.
+  // The task closes (another project opens, it is deleted): the open profiles are unloaded, their caches cleared as
+  // `close` does, and the list goes.
   async unloadAll() {
     await this.started; // a profile still opening, once it is open
-    for (const e of this.entries) if (e.profile) await this.hooks.unload(e.profile);
+    for (const e of this.entries) if (e.profile) {
+      await this.hooks.unload(e.profile);
+      await clearCaches(e.profile.session).catch((err: Error) => console.error(`[kulisa] ${e.cfg.id}: caches not cleared: ${err.message}`));
+    }
     this.entries = []; this._sync();
   }
-  // Who its profiles are, read again after a change made elsewhere (another task, Project Settings…): names, ids,
+  // Who its profiles are, read again after a change made elsewhere (another task, Project Settings…): names,
   // pictures, descriptions follow; one the project got comes closed; one it let go is gone (let go: drop).
   refresh() {
     const list = this.all.of(this.project);
     for (const g of list) {
-      const e = this.entries.find((x) => x.cfg.folder === g.folder);
-      if (!e) { this.entries.push({ cfg: this._cfg(g), urls: [], profile: null }); continue; }
-      const oldId = e.cfg.id;
-      Object.assign(e.cfg, { id: g.id, name: g.name, avatar: g.avatar, description: g.description || '', ...loginOf(g) });
-      if (e.profile) {
-        Object.assign(e.profile, { name: g.name, avatar: g.avatar, description: g.description || '', ...loginOf(g) });
-        if (g.id !== oldId) { e.profile.id = g.id; this.hooks.renamed(e.profile, oldId); }
-      }
+      const e = this._find(g.id);
+      if (!e) { this.entries.push({ cfg: this._cfg(g), tabs: { urls: [], active: 0 }, profile: null }); continue; }
+      const who = { name: g.name, avatar: g.avatar, description: g.description || '', ...loginOf(g) };
+      Object.assign(e.cfg, who);
+      if (e.profile) Object.assign(e.profile, who);
     }
     this._sync();
     this.save();
@@ -88,7 +88,7 @@ class ProjectProfiles {
   async create(name: string, description = '', avatar?: string): Promise<Result<{ id: string }>> {
     const g = this.all.create(this.project, { name, description, avatar });
     if (refused(g)) return g;
-    const e: Entry = { cfg: this._cfg(g), urls: [], profile: null };
+    const e: Entry = { cfg: this._cfg(g), tabs: { urls: [], active: 0 }, profile: null };
     this.entries.push(e);
     await this._start(e);
     this._changed();
@@ -99,11 +99,11 @@ class ProjectProfiles {
   // Close: the tabs go (their memory too); it stays in the project, signed in, and opens again with the same tabs.
   async close(id: string): Promise<Result<{ id: string }>> {
     const e = this._find(id);
-    if (!e?.profile) return { error: `no open profile ${id}` };
+    if (!e?.profile) return { error: e ? `${e.cfg.name} is not open` : `no profile ${id}` };
     await e.starting?.catch(() => {}); // closed right as it opens: once it is open
     if (!e.profile) return { id };
     const p = e.profile;
-    e.urls = this.hooks.urlsOf(p);
+    e.tabs = this.hooks.tabsOf(p);
     e.cfg = this._cfgOf(e);
     e.profile = null;
     this._sync();
@@ -119,7 +119,7 @@ class ProjectProfiles {
     return { id };
   }
 
-  // Who a profile of the project is, changed (the store checks and keeps it: profile-store.ts): its name and id (its
+  // Who a profile of the project is, changed (the store checks and keeps it: profile-store.ts): its name (its id,
   // folders, tabs, place in the list and the agent's connection stay), what it is in the app under test, its picture,
   // a test user's pair (its password as the caller encrypted it: tasks.ts). Here at once, the other tasks after.
   rename(id: string, name: string | undefined) { return this._change(id, () => this.all.rename(id, name)); }
@@ -138,14 +138,14 @@ class ProjectProfiles {
 
   // Let go of in this task (its project let it go: projects.ts, dropProfile): its copy's tabs, sign-ins and storage
   // are gone for good.
-  async drop(folder: string) {
-    const e = this.entries.find((x) => x.cfg.folder === folder);
+  async drop(id: string) {
+    const e = this._find(id);
     if (!e) return;
     await e.starting?.catch(() => {});
     if (!this.entries.includes(e)) return;
     this.entries.splice(this.entries.indexOf(e), 1);
     this._sync();
-    this.store.markDeleted(folder);
+    this.store.markDeleted(id);
     await this.hooks.remove(e);
     this._changed();
   }
@@ -156,7 +156,7 @@ class ProjectProfiles {
   saveTabs() {
     for (const e of this.entries) {
       if (!e.profile && !fs.existsSync(e.cfg.dir)) continue;
-      this.store.saveTabs(e.cfg.folder, e.profile && !e.starting ? this.hooks.urlsOf(e.profile) : e.urls);
+      this.store.saveTabs(e.cfg.id, e.profile && !e.starting ? this.hooks.tabsOf(e.profile) : e.tabs);
     }
   }
   save() { this.store.saveProfiles(this.entries.map((e): TaskProfile => (e.profile ? this._cfgOf(e) : { ...e.cfg, closed: true }))); }
@@ -167,14 +167,19 @@ class ProjectProfiles {
     if (!fs.existsSync(e.cfg.dir)) await this.hooks.copy(e);
     e.profile = this.hooks.make(e.cfg);
     this._sync();
-    e.starting = this.hooks.start(e.profile, e.urls.length ? e.urls : ['about:blank']);
+    e.starting = this.hooks.start(e.profile, e.tabs);
     try { await e.starting; } finally { e.starting = null; }
   }
   _cfg(g: StoredProfile, state?: TaskProfile): ProfileConfig {
-    return { id: g.id, name: g.name, avatar: g.avatar, description: g.description || '', ...loginOf(g), folder: g.folder, dir: this.store.profileDir(g.folder), zoom: state?.zoom };
+    return { id: g.id, name: g.name, avatar: g.avatar, description: g.description || '', ...loginOf(g), dir: this.store.profileDir(g.id), zoom: state?.zoom };
   }
   _cfgOf({ cfg, profile: p }: Entry): ProfileConfig {
-    return p ? { id: p.id, name: p.name, avatar: p.avatar, description: p.description, folder: p.folder, dir: p.dir, zoom: p.siteZoom } : cfg;
+    return p ? { id: p.id, name: p.name, avatar: p.avatar, description: p.description, dir: p.dir, zoom: p.siteZoom } : cfg;
+  }
+  // The profile of this name, whatever its case (names are unique within a project: profile-store.ts), or why none.
+  named(name: string): Result<{ id: string }> {
+    const lower = name.trim().toLowerCase(), e = this.entries.find((x) => x.cfg.name.toLowerCase() === lower);
+    return e ? { id: e.cfg.id } : { error: `No profile "${name}". Profiles: ${this.entries.map((x) => x.cfg.name).join(', ') || 'none yet'}` };
   }
   _changed() { this.save(); this.hooks.changed(); }
   _find(id: string) { return this.entries.find((e) => e.cfg.id === id); }

@@ -1,4 +1,4 @@
-// A tasks' window's terminals (docs/window.md, The terminal): the xterms themselves are xterm.ts's, keyed
+// A tasks' window's terminals (docs/window.md, The terminal): the terminals themselves are src/terminal's, keyed
 // "<task>#<id>" as in the main process; here the island's side: the shown task's terminal in front (Terminals.vue),
 // links into its profiles, terminals moving to another window, their menus.
 import { act, store } from './store';
@@ -6,15 +6,18 @@ import { keyText } from './common';
 import { menuAt, type MenuItem } from './menu';
 import { agentMark } from './agents';
 import { dialog } from './dialogs';
-import { makeTerminal, termCopy, termHooks, termPaste, xtermKeys, xtermOf } from './xterm';
+import { refused } from '../../shared/result';
+import { restoreTerminal, serialized, termCopy, termHooks, termPaste, View, xtermKeys } from '../../terminal/renderer';
 import type { Terminal as TerminalInfo } from '../../shared/types';
 
 // The terminal in front of the shown task's island: where the keyboard goes (Ctrl+`), what the tests read.
 const frontKey = () => (store.current && store.terminals.front !== null ? `${store.current}#${store.terminals.front}` : null);
-export const shownTerm = () => { const k = frontKey(); return (k && xtermOf(k)?.term) || null; };
+// The island's xterm, one for the window: Terminals.vue puts it in whichever grid is shown.
+export const island = new View({ background: '--toolbar' }); // a pane's toolbar's, under the tab in front
+export const shownTerm = () => (island.key && island.key === frontKey() ? island.term : null);
 const sizes: { cols: number; rows: number }[] = [];
 Object.defineProperty(window, '__term', { get: shownTerm }); // for tests
-Object.defineProperty(window, '__termRenderer', { get: () => { const k = frontKey(); return k && xtermOf(k)?.renderer; } }); // for tests
+Object.defineProperty(window, '__termRenderer', { get: () => shownTerm() && island.renderer }); // for tests
 Object.assign(window, { __ptySizes: sizes }); // for tests: the sizes sent for the shown task's terminals
 termHooks.fitted = (key, size) => { if (key === frontKey()) sizes.push(size); };
 
@@ -26,22 +29,29 @@ termHooks.open = (e, uri) => menuAt(e, [{ heading: uri }, ...store.profiles.map(
   run: () => act('tab:new', { profile: p.id, url: uri }) })),
 '-', { label: 'Open in your browser', run: () => { window.open(uri); } }]);
 
+// Paths in the terminal that exist (the task's folder is the main process's), as links, and the files an agent marks
+// as links: Ctrl+click asks what to do, in the same menu: open it in the OS's app, or show it in its folder; what
+// would run when opened, shown only. Asked again on the click: the file may be gone, or changed, since the hover.
+const filesOf = (task: string | null, paths: string[]) => kulisa.invoke('terminal:files', { task, paths }).then((r) => (refused(r) ? paths.map(() => null) : r));
+termHooks.files = (key, paths) => filesOf(key.slice(0, key.lastIndexOf('#')), paths);
+termHooks.openFile = (e, path) => void filesOf(store.current, [path]).then(([file]) => file && menuAt(e, [
+  ...file.executable ? [] : [{ label: 'Open', run: () => kulisa.invoke('file:open', file.path) }],
+  { label: 'Show in Folder', run: () => kulisa.invoke('file:show', file.path) }]));
+
 // Their contents as escape sequences (xterm's serialize addon, as VS Code keeps terminals across reloads), which
 // another window writes into new terminals: a project moving there keeps what its agents showed. Each with its size:
 // written into a terminal of another size (xterm's default before it fits its panel), the lines of an agent's screen
 // would be cut and its prompt drawn in pieces.
 export const terminalsOf = (task: string) => Object.fromEntries([...xtermKeys()].filter((key) => key.startsWith(`${task}#`))
-  .map((key) => { const e = xtermOf(key)!; return [key, { data: e.serialize.serialize(), cols: e.term.cols, rows: e.term.rows }]; }));
-kulisa.on('terminals:restore', (list) => {
-  for (const [key, { data, cols, rows }] of Object.entries(list)) (xtermOf(key)?.term || makeTerminal(key, { cols, rows }).term).write(data);
-});
+  .map((key) => [key, serialized(key)!]));
+kulisa.on('terminals:restore', (list) => { for (const [key, t] of Object.entries(list)) restoreTerminal(key, t); });
 
 kulisa.on('terminal:focus', () => shownTerm()?.focus());
 
 // The right-click menu of a terminal (its key): an agent's ends with what its tab's menu has (Terminals.vue), a
 // shell's with Close.
 export function terminalMenu(key: string, more: MenuItem[]): MenuItem[] | null {
-  const t = xtermOf(key)?.term;
+  const t = island.key === key ? island.term : null;
   if (!t) return null;
   return [
     { label: 'Copy', keys: keyText('terminal.copy'), enabled: t.hasSelection(), run: () => termCopy(t) },

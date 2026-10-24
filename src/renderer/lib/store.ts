@@ -1,23 +1,23 @@
 // The window's state, as the main process sends it (window.ts), for the components to draw.
 import { computed, reactive, watch } from 'vue';
-import type { ClosedProfile, LanguageInfo, Profile, ProjectsInfo, Terminals } from '../../shared/types';
+import type { Artifact, ClosedProfile, LanguageInfo, Profile, ProjectsInfo, Terminals } from '../../shared/types';
 import type { Invoke, OnTask } from '../../shared/ipc';
 import { initialProjects } from './common';
 import { projectColor } from './project-color';
+import { refused } from '../../shared/result';
 
 const root = document.documentElement;
 export const store = reactive({
-  // The shown task's key ("<project id>/<n>"); null with no task open (Empty.vue).
+  // The shown task's key ("<project id>/<task id>"); null with no task open (Empty.vue).
   current: null as string | null,
-  // A new tab over the shown task (the bar's +, as a browser's): the projects and their tasks (newtab/); gone once a
-  // task is shown, or closed.
-  newTab: false,
   // The projects and the window's tabs (the open tasks, each with its agent's state), from the projects' news.
   projects: (initialProjects || { current: null, project: null, projects: [], tabs: [], open: [], settings: false }) as ProjectsInfo,
   // The shown task's profiles, open (as Profile.info) and closed; its terminals' island.
   profiles: [] as Profile[],
   closedProfiles: [] as ClosedProfile[],
   terminals: { front: null, list: [] } as Terminals,
+  // The files the agent's tools kept of a task's pages, the newest first (Resources.vue), of the task named.
+  artifacts: { task: '', list: [] as Artifact[], bytes: 0 },
   zoom: 1, // the Kulisa zoom
   theme: root.dataset.theme || 'dark', // Dark, Light or System (index.html sets it from the URL before the first paint)
   bar: root.dataset.bar || 'bottom', // where the tasks' bar is
@@ -46,20 +46,15 @@ export const act = <C extends OnTaskChannel>(channel: C, ...args: {} extends Res
 
 kulisa.on('projects', (info) => {
   store.projects = info;
-  if (info.current !== store.current) store.newTab = false; // a task shown: the new tab became it, or another was chosen
   store.current = info.current;
 });
 
 // What the window shows in the grid's place, one page at a time (docs/window.md, The window's pages): the shown task's
-// grid; a new tab over it; with no task open, every project's tasks; with no project at all, the welcome (what Kulisa
-// does, then New Project's steps). Its
-// own switch, not a router's: what is shown is the main process's (current), and the grid under a new tab must stay
-// as it is (its terminals, the pages' places).
-export const page = computed(() => (store.current === null ? (store.projects.projects.length ? 'board' : 'welcome')
-  : store.newTab ? 'newtab' : 'task'));
-// The bar's + (and Ctrl+Shift+A): a new tab, or away from it; the empty window has no bar, the board is there already.
-export const toggleNewTab = () => { if (store.current !== null) store.newTab = !store.newTab; };
+// grid; with no task open, every project's tasks (the board); with no project at all, the welcome (what Kulisa does,
+// then New Project's steps). Its own switch, not a router's: what is shown is the main process's (current).
+export const page = computed(() => (store.current === null ? (store.projects.projects.length ? 'board' : 'welcome') : 'task'));
 kulisa.on('closed-profiles', (list) => { store.closedProfiles = list; });
+kulisa.on('artifacts', (a) => { store.artifacts = a; });
 kulisa.on('zoom', (z) => { store.zoom = z; });
 void kulisa.invoke('zoom:get').then((z) => { store.zoom = z; });
 kulisa.on('theme', (theme) => { store.theme = theme; });
@@ -101,4 +96,16 @@ export async function togglePick(profile: string) {
   const res = await kulisa.invoke('pick:start', { profile });
   store.picking[profile] = false;
   store.captions[profile] = res && res.error ? `Pick failed: ${res.error}` : '';
+}
+
+// Screenshot (⋮ → Screenshot; its key: Element): the picture goes to the clipboard and the OS's folder of screenshots
+// (src/screenshots/README.md). Element: chosen as Pick chooses; Esc, Pick or the key again cancels.
+export async function screenshot(profile: string, kind: 'element' | 'visible' | 'full') {
+  if (store.picking[profile]) return kulisa.invoke('pick:cancel', { profile });
+  if (kind === 'element') { store.captions[profile] = 'Click an element for its screenshot · Esc to cancel'; store.picking[profile] = true; }
+  const res = await act('tab:screenshot', { profile, kind });
+  store.picking[profile] = false;
+  store.captions[profile] = refused(res) ? `Screenshot failed: ${res.error}` : res.file ? 'Screenshot copied and saved' : '';
+  clearTimeout(captionTimers.get(profile));
+  captionTimers.set(profile, window.setTimeout(() => { store.captions[profile] = ''; }, 4000));
 }

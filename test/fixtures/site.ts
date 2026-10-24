@@ -1,12 +1,19 @@
 // Local test site for the tests. Pages:
 //   /app      a fake multi-user app: a name cookie (no password; our own test site), links and buttons that open tabs
 //   /errors   a page that logs console errors and makes failing requests (for point and tell)
+//   /pending  a page whose request never gets an answer (/hang)
+//   /large    a page whose snapshot and HTML are too large for a tool's answer
+//   /report   a page that logs at every level, loads a script and makes a failing request with a body (what a page
+//             reported: the console, the requests, one request's details)
 //   /strict   like /app's buttons, with Trusted Types enforced (as Microsoft 365 apps do): no HTML from strings
 //   /form     controls for the agent's tools: dialogs, a select, a file input, a hover, keys, text shown later
 //   /drag     a header with app-region: drag, as Teams has (a page must never move Kulisa's window)
 //   /board    messages shared by every profile, polled (one profile posts, another waits to see it)
 //   /headers  echoes the User-Agent and Sec-CH-UA* request headers as JSON
 //   /draft    a page that holds its unload (beforeunload), as a form with unsaved changes does: never discarded
+//   /menu     a link, a field, an empty place and a block with its own right-click menu (as Teams has)
+//   /github   a fake GitHub (KULISA_GITHUB, run.ts), as Kulisa asks it: the device flow, a refresh, who a token is, a
+//             repository reached, Kulisa App's installations (github, below)
 // It runs in its own process: inside Electron's main process it can deadlock, because a synchronous Electron call
 // waits for a renderer that waits for a response from this (then blocked) server.
 import { spawn } from 'child_process';
@@ -20,6 +27,48 @@ function page(title: string, body: string, color = '#4a7') {
 
 const board: string[] = [];
 
+// The fake GitHub. A device flow's code is entered by the test as the human would on GitHub's page
+// (/github/login/device/enter?code=…&login=…), or denied (&deny=1). Kulisa App's user token of a login reaches its
+// own repositories, where it is "installed"; a fine-grained token github_pat_<login>_<owner> is <login>'s and reaches
+// <owner>'s, and ends at the time GitHub's header says.
+const codes = new Map<string, { device: string; login?: string; denied?: boolean }>();
+const tokens = new Map<string, string>(); // a user token -> its login
+let issued = 0;
+function github(u: URL, req: IncomingMessage, res: ServerResponse, body: string) {
+  const json = (v: unknown, code = 200, headers = {}) => { res.writeHead(code, { 'content-type': 'application/json', ...headers }); res.end(JSON.stringify(v)); };
+  const p = u.pathname.slice('/github'.length), form = new Map<string, string>(Object.entries(body ? JSON.parse(body) as Record<string, string> : {}));
+  const pair = (login: string) => { const t = `ghu_${login}_${++issued}`; tokens.set(t, login);
+    return { access_token: t, expires_in: 28800, refresh_token: `ghr_${login}_${issued}`, refresh_token_expires_in: 15897600, token_type: 'bearer', scope: '' }; };
+  if (p === '/login/device/code') {
+    const code = `KUL${++issued}-TEST`, device = `dev-${issued}`;
+    codes.set(code, { device });
+    return json({ device_code: device, user_code: code, verification_uri: `http://${req.headers.host}/github/login/device`, expires_in: 900, interval: 0.2 }); // GitHub says 5 s: a test waits less
+  }
+  if (p === '/login/device/enter') {
+    const c = codes.get(u.searchParams.get('code') || '');
+    if (!c) return json({ error: 'no such code' }, 404);
+    if (u.searchParams.get('deny')) c.denied = true; else c.login = u.searchParams.get('login') || 'ann';
+    return json({ ok: true });
+  }
+  if (p === '/login/oauth/access_token') {
+    if (form.get('grant_type') === 'refresh_token') return json(/^ghr_(\w+?)_\d+$/.test(form.get('refresh_token') || '') ? pair(form.get('refresh_token').split('_')[1]) : { error: 'bad_refresh_token' });
+    const c = [...codes.values()].find((x) => x.device === form.get('device_code'));
+    if (!c) return json({ error: 'incorrect_device_code' });
+    if (c.denied) return json({ error: 'access_denied' });
+    return json(c.login ? pair(c.login) : { error: 'authorization_pending' });
+  }
+  const token = (req.headers.authorization || '').replace(/^Bearer /, '');
+  const pat = /^github_pat_([a-z]+)_([a-z]+)$/.exec(token);
+  const login = tokens.get(token) ?? pat?.[1];
+  if (!login) return json({ message: 'Bad credentials' }, 401);
+  const ends = pat ? { 'github-authentication-token-expiration': '2027-03-01 12:00:00 UTC' } : {};
+  if (p === '/api/user') return json({ login }, 200, ends);
+  if (p === '/api/user/installations') return json({ total_count: 1, installations: [{ account: { login } }] });
+  const repo = /^\/api\/repos\/([^/]+)\/([^/]+)$/.exec(p);
+  if (repo) return json({}, repo[1].toLowerCase() === (pat ? pat[2] : login) ? 200 : 404, ends);
+  json({ message: 'Not Found' }, 404);
+}
+
 function handler(req: IncomingMessage, res: ServerResponse) {
   const u = new URL(req.url, 'http://x');
   const send = (code: number, body: string, type = 'text/html; charset=utf-8', headers = {}) => {
@@ -27,6 +76,11 @@ function handler(req: IncomingMessage, res: ServerResponse) {
     res.end(body);
   };
   const user = Object.fromEntries((req.headers.cookie || '').split(/;\s*/).filter(Boolean).map((c) => c.split('='))).user;
+  if (u.pathname.startsWith('/github/')) {
+    let body = '';
+    req.on('data', (d) => (body += d)).on('end', () => github(u, req, res, body));
+    return;
+  }
   if (u.pathname === '/hang') return; // a site that never answers (Kulisa must open a profile with such a tab anyway)
   if (u.pathname === '/headers') {
     const h = Object.fromEntries(Object.entries(req.headers).filter(([k]) => k === 'user-agent' || k.startsWith('sec-ch-ua')));
@@ -57,6 +111,13 @@ function handler(req: IncomingMessage, res: ServerResponse) {
 <button onclick="window.open('/app?n=${+n + 1}')">window.open()</button></p>
 <p><button onclick="this.textContent='Checked out ✓'">Checkout</button></p>`));
   }
+  // A box of a known size and color on a page taller than any pane (screenshots: an element, the whole page).
+  if (u.pathname === '/tall') return send(200, page('tall', `<div id="box" style="width: 200px; height: 120px; margin: 40px; background: #d00"></div><div style="height: 3000px"></div><p>end</p>`));
+  if (u.pathname === '/menu') {
+    return send(200, page('menu', `<p><a id="link" href="/app">a link</a></p><p><input id="field" value="some text"></p>
+<div id="blank" style="height:60px"></div><div id="own" style="padding:20px">a block with its own menu</div>
+<script>own.addEventListener('contextmenu', (e) => { e.preventDefault(); own.textContent = 'its own menu'; });</script>`));
+  }
   if (u.pathname === '/strict') {
     return send(200, page('strict', `<h3>Strict page</h3><p><button>Sign in</button> <a href="/app">a link</a></p>`), undefined,
       { 'content-security-policy': "require-trusted-types-for 'script'" });
@@ -69,6 +130,16 @@ function handler(req: IncomingMessage, res: ServerResponse) {
 function pay() { console.error('PaymentError: card declined by stub'); fetch('/api/pay', { method: 'POST' }).then((r) => { document.getElementById('status').textContent = 'HTTP ' + r.status; }); }
 </script>`));
   }
+  if (u.pathname === '/report') {
+    return send(200, page('report', `<h3>Report</h3><script src="/static/app.js"></script>
+<button onclick="console.error('PaymentError: card declined'); fetch('/api/pay', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer secret-token' }, body: JSON.stringify({ card: '4242' }) })">Pay</button>`));
+  }
+  if (u.pathname === '/static/app.js') return send(200, "console.info('app loaded'); console.debug('debug detail'); console.warn('slow config');", 'text/javascript');
+  if (u.pathname === '/large') {
+    const items = Array.from({ length: 1500 }, (_, i) => `<li><a href="/app?n=${i}">Item ${i} with a longer name</a></li>`).join('');
+    return send(200, page('large', `<main><h1>Large</h1><button>Find me</button></main><nav aria-label="Index"><ul>${items}</ul></nav>`));
+  }
+  if (u.pathname === '/pending') return send(200, page('pending', `<h3>Waiting</h3><script>fetch('/hang');</script>`));
   if (u.pathname === '/form') {
     return send(200, page('form', `
 <h3>Form</h3><p id="out">nothing yet</p>

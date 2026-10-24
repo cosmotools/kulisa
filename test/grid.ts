@@ -1,8 +1,10 @@
 // The grid of panels, projects, layouts, menus.
 import electron, { clipboard } from 'electron';
 import fs from 'fs';
+import os from 'os';
 import path from 'path';
-import { MAC, CMD, shot, assert, root, userData, project, pfile, SITE, sleep, waitFor, who, menuRows, choose, MENU, SUBMENU, menuOpen, rightClick, box, pageBox, viewOn, dock, press, projectTabs, projectTab, showProject, closeProject, savedWindows, closeMenu, plusMenu, closeBoard, focusWindow } from './helpers.ts';
+import url from 'url';
+import { MAC, CMD, shot, assert, root, userData, project, pid, tkey, idOf, SITE, sleep, waitFor, who, menuRows, choose, MENU, SUBMENU, menuOpen, rightClick, box, pageBox, viewOn, resourcesHeight, savedResourcesHeight, dock, press, projectTabs, projectTab, showProject, closeProject, savedWindows, closeMenu, plusMenu, plusRows, closeBoard, focusWindow, isNth, taskAt, tid } from './helpers.ts';
 import type { Test } from './run.ts';
 import type { UI } from './helpers.ts';
 
@@ -14,7 +16,7 @@ export default (test: Test) => {
       const dock = document.getElementById('dock').getBoundingClientRect().toJSON();
       return [dock, t.getBoundingClientRect().toJSON(), t.querySelector('.picon').getBoundingClientRect().toJSON(),
         { radius: c('#projectTabs .tasktab.active').borderRadius, active: c('#projectTabs .tasktab.active').backgroundColor,
-          other: other ? getComputedStyle(other).backgroundColor : null, grid: c('#dock').backgroundColor, island,
+          other: other ? getComputedStyle(other).backgroundColor : null, island,
           apart: other ? Math.abs(other.getBoundingClientRect().left - t.getBoundingClientRect().right) : null }]; })()`);
     assert.equal(Math.round(tab.top - grid.bottom), 8, 'apart from the grid by the one gap');
     if (look.other) assert.equal(Math.round(look.apart), 8, 'the tabs apart by it too');
@@ -22,29 +24,28 @@ export default (test: Test) => {
     assert.ok(tab.height >= 36 && tab.width >= 120, `as big as a browser's: ${tab.width} × ${tab.height}`);
     assert.equal(look.active, look.island, "the shown one in the panels' color");
     if (look.other) assert.equal(look.other, 'rgba(0, 0, 0, 0)', 'the others on the window');
-    assert.equal(look.grid, 'rgba(0, 0, 0, 0)', 'no dark well under the grid');
     assert.ok(icon.width === 20 && icon.left > tab.left && icon.left <= tab.left + 12, 'the icon, 20 px, at the tab\'s start');
   });
   test("grid: a pane narrower than its profile's name: the name cut with …, its × in the pane, no list of hidden tabs", async ({ ui }) => {
     // A name longer than any pane is wide (names have no spaces to wrap at), put in place of Sam's.
-    const was = await ui(`(() => { const n = document.querySelector('.ptab[data-panel="profile:Profile 1"] .pname'), was = n.textContent;
+    const was = await ui(`(() => { const n = document.querySelector('.ptab[data-panel="profile:${idOf('Sam.admin')}"] .pname'), was = n.textContent;
       n.textContent = 'administrator.international-tenant@enterprise-customers.example'.repeat(3); return was; })()`);
-    const fits = () => ui(`(() => { const t = document.querySelector('.ptab[data-panel="profile:Profile 1"]'), g = t.closest('.dv-groupview').getBoundingClientRect();
+    const fits = () => ui(`(() => { const t = document.querySelector('.ptab[data-panel="profile:${idOf('Sam.admin')}"]'), g = t.closest('.dv-groupview').getBoundingClientRect();
       const n = t.querySelector('.pname'), x = t.querySelector('.close').getBoundingClientRect(), more = t.closest('.dv-groupview').querySelector('.dv-tabs-overflow-dropdown-root');
       return n.scrollWidth > n.clientWidth && getComputedStyle(n).textOverflow === 'ellipsis' && x.width > 0 && x.right <= g.right && x.left >= g.left
         && !(more && more.checkVisibility()); })()`);
     await waitFor(fits, 3000);
-    await ui(`document.querySelector('.ptab[data-panel="profile:Profile 1"] .pname').textContent = ${JSON.stringify(was)}`);
+    await ui(`document.querySelector('.ptab[data-panel="profile:${idOf('Sam.admin')}"] .pname').textContent = ${JSON.stringify(was)}`);
   });
   test('grid: a pane moved next to the terminal takes its page along', async ({ shell, ui }) => {
-    await dock(ui, `api.getPanel('profile:Profile 1').api.moveTo({ group: api.getPanel('terminal').group, position: 'right' })`);
-    await waitFor(() => viewOn(shell, ui, 'sam-admin'));
-    await waitFor(() => viewOn(shell, ui, 'elon-buyer'));
-    const sam = await pageBox(ui, 'sam-admin'), term = await box(ui, '.term:not([hidden])');
+    await dock(ui, `api.getPanel('profile:${idOf('Sam.admin')}').api.moveTo({ group: api.getPanel('terminal').group, position: 'right' })`);
+    await waitFor(() => viewOn(shell, ui, 'Sam.admin'));
+    await waitFor(() => viewOn(shell, ui, 'Elon.buyer'));
+    const sam = await pageBox(ui, 'Sam.admin'), term = await box(ui, '.term:not([hidden])');
     assert.ok(sam.x > term.x + term.width - 1 && sam.y + sam.height > term.y, 'Sam is right of the terminal');
   });
   test("grid: a narrow pane's bar gives up Back and Forward, then Reload, into ⋮; Pick and ⋮ stay in it down to dockview's narrowest", async ({ ui }) => {
-    const pane = '.pane[data-profile="sam-admin"]', width = await dock(ui, `return api.getPanel('profile:Profile 1').group.api.width`);
+    const pane = `.pane[data-profile="${idOf('Sam.admin')}"]`, width = await dock(ui, `return api.getPanel('profile:${idOf('Sam.admin')}').group.api.width`);
     const bar = () => ui(`(() => { const p = document.querySelector('${pane}').getBoundingClientRect();
       return [...document.querySelectorAll('${pane} .bar > :is(button, input):not([hidden])')].filter((e) => e.checkVisibility()).map((e) => {
         const r = e.getBoundingClientRect(); return e.classList[0] + (r.left >= p.left && r.right <= p.right ? '' : ' out'); }); })()`);
@@ -55,41 +56,41 @@ export default (test: Test) => {
       return rows;
     };
     const at = async (w: number, shown: string[]) => {
-      await dock(ui, `api.getPanel('profile:Profile 1').group.api.setSize({ width: ${w} })`);
+      await dock(ui, `api.getPanel('profile:${idOf('Sam.admin')}').group.api.setSize({ width: ${w} })`);
       await waitFor(async () => JSON.stringify(await bar()) === JSON.stringify(shown), 3000).catch(async () => assert.deepEqual(await bar(), shown, `${w} px`));
     };
     await at(400, ['back', 'fwd', 'reload', 'addr', 'pick', 'more']);
-    assert.deepEqual(await more(), ['DevTools']);
+    assert.deepEqual(await more(), ['Screenshot', 'DevTools']);
     await at(240, ['reload', 'addr', 'pick', 'more']);
     await at(100, ['addr', 'pick', 'more']);
-    assert.deepEqual((await more()).map((r: string) => r.replace(' (off)', '')), ['Back', 'Forward', 'Reload', '-', 'DevTools']);
-    await dock(ui, `api.getPanel('profile:Profile 1').group.api.setSize({ width: ${width} })`);
+    assert.deepEqual((await more()).map((r: string) => r.replace(' (off)', '')), ['Back', 'Forward', 'Reload', '-', 'Screenshot', 'DevTools']);
+    await dock(ui, `api.getPanel('profile:${idOf('Sam.admin')}').group.api.setSize({ width: ${width} })`);
   });
   test('grid: a pane stacked behind another as a tab hides its page until chosen', async ({ shell, ui }) => {
-    const sam = shell.profiles.get('sam-admin'), elon = shell.profiles.get('elon-buyer');
-    await dock(ui, `api.getPanel('profile:Profile 1').api.moveTo({ group: api.getPanel('profile:Profile 2').group, position: 'center' })`);
-    await waitFor(() => viewOn(shell, ui, 'sam-admin'));
+    const sam = shell.profiles.get(idOf('Sam.admin')), elon = shell.profiles.get(idOf('Elon.buyer'));
+    await dock(ui, `api.getPanel('profile:${idOf('Sam.admin')}').api.moveTo({ group: api.getPanel('profile:${idOf('Elon.buyer')}').group, position: 'center' })`);
+    await waitFor(() => viewOn(shell, ui, 'Sam.admin'));
     assert.equal(elon.get().view.getVisible(), false);
-    await dock(ui, `api.getPanel('profile:Profile 2').api.setActive()`);
-    await waitFor(() => viewOn(shell, ui, 'elon-buyer'));
+    await dock(ui, `api.getPanel('profile:${idOf('Elon.buyer')}').api.setActive()`);
+    await waitFor(() => viewOn(shell, ui, 'Elon.buyer'));
     assert.equal(sam.get().view.getVisible(), false);
   });
   test('grid: while a pane is dragged, pages are pictures (drop targets are HTML), live again after the drop', async ({ shell, ui }) => {
     await dock(ui, `api.fromJSON(api.toJSON())`); // fresh, nothing stacked
     await ui(`window.__layoutPreset('columns')`);
-    await waitFor(() => viewOn(shell, ui, 'sam-admin'));
-    await ui(`document.querySelector('.ptab[data-panel="profile:Profile 2"]').dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: new DataTransfer() }))`);
+    await waitFor(() => viewOn(shell, ui, 'Sam.admin'));
+    await ui(`document.querySelector('.ptab[data-panel="profile:${idOf('Elon.buyer')}"]').dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: new DataTransfer() }))`);
     await waitFor(() => [...shell.profiles.values()].every((p) => !p.get().view.getVisible()));
     await waitFor(async () => (await ui(`document.querySelectorAll('.pane .content img.snapshot').length`)) === 2);
-    await ui(`document.querySelector('.ptab[data-panel="profile:Profile 2"]').dispatchEvent(new DragEvent('dragend', { bubbles: true }))`);
-    await waitFor(async () => (await viewOn(shell, ui, 'sam-admin')) && viewOn(shell, ui, 'elon-buyer'));
+    await ui(`document.querySelector('.ptab[data-panel="profile:${idOf('Elon.buyer')}"]').dispatchEvent(new DragEvent('dragend', { bubbles: true }))`);
+    await waitFor(async () => (await viewOn(shell, ui, 'Sam.admin')) && viewOn(shell, ui, 'Elon.buyer'));
     assert.equal(await ui(`document.querySelectorAll('.pane .content img.snapshot').length`), 0);
   });
   test('projects: another folder opens in a tab of its own, with its own profiles and agent; the first keeps running', async (ctx) => {
     const { shell, ui } = ctx;
     const other = path.join(root, 'other');
     fs.mkdirSync(other, { recursive: true });
-    const sam = shell.profiles.get('sam-admin');
+    const sam = shell.profiles.get(idOf('Sam.admin'));
     const firstPty = shell.pty;
     await ui(`kulisa.invoke('project:open', { folder: ${JSON.stringify(other)} })`);
     await waitFor(() => shell.current?.folder === other && shell.pty && shell.pty !== firstPty);
@@ -98,53 +99,43 @@ export default (test: Test) => {
     assert.equal((await ctx.termText()).split('exec cat -v').length - 1, 1, 'the command that starts the agent shows once');
     assert.equal(shell.profiles.size, 0);
     assert.ok(sam.tabs.every((t) => !t.wc.isDestroyed()) && !sam.get().view.getVisible(), "the first project's pages keep running, hidden");
-    assert.equal(shell.open.get('project').tasks.get(1).pty, firstPty, "and its agent");
-    assert.equal(shell.win.getTitle(), 'task-1 · other — Kulisa');
+    assert.equal(taskAt(shell.open.get(pid('project')), 1).pty, firstPty, "and its agent");
+    assert.equal(shell.win.getTitle(), 'New Task · other — Kulisa');
     assert.equal(shell.resumedSession, null, 'a new project has no conversation to resume');
     await waitFor(async () => JSON.stringify(await projectTabs(ui)) === '["project","other *"]' && ui(`!!window.__dock.getPanel('terminal')`));
     assert.equal(await ui(`document.querySelectorAll('.pane').length`), 0);
     // A tab per task, its project's icon on it, its name in its tooltip.
     assert.deepEqual(await ui(`[...document.querySelectorAll('#projectTabs .tasktab')].map((g) => [g.querySelector('.picon use')?.getAttribute('href'), g.querySelector('.name').textContent, g.title.split('\\n')[0]])`),
-      [['#i-logo', 'task-1', 'project'], ['#i-logo', 'task-1', 'other']]);
+      [['#i-logo', 'task-1', 'project'], ['#i-logo', 'New Task', 'other']]);
     // Every island keeps its place and width whichever task is shown, also while it switches: nothing jumps.
     const islands = () => ui(`[...document.querySelectorAll('#projectTabs .tasktab')].map((t) => { const r = t.getBoundingClientRect(); return [r.x, r.width]; })`);
     const before = await islands();
     await ui(`window.__islands = new Set(); { const tick = () => { __islands.add(JSON.stringify([...document.querySelectorAll('#projectTabs .tasktab')]
       .map((t) => { const r = t.getBoundingClientRect(); return [r.x, r.width]; }))); if (window.__islands) requestAnimationFrame(tick); }; tick(); }`);
     await shell.task.createProfile('Sam.seller'); // the same name as in the first project (the agent's profile_create)
-    const seller = shell.profiles.get('sam-seller');
-    // A copy in the task's data, of its master in the store of profiles, numbered as every profile is (Sam, Elon, Dora
-    // came first).
-    assert.equal(seller.dir, path.join(userData, 'projects', 'other', '1', 'Profile 4'), "a task's copy is in its task's data");
-    assert.ok(fs.existsSync(path.join(userData, 'profiles', 'Profile 4')), 'its master');
-    assert.equal(seller.endpoint.endsWith('/other/1/sam-seller'), true, 'the CDP proxy knows it by its project too');
-    await ctx.call('browser_navigate', { profile: 'sam-seller', url: `${SITE}/app` });
-    assert.equal(await who(ctx, 'sam-seller'), 'Signed out', "the first project's sign-ins stay there");
+    const seller = shell.profiles.get(idOf('Sam.seller'));
+    // A copy in the task's data, named as its master in the store of profiles.
+    assert.equal(seller.dir, path.join(userData, 'projects', pid('other'), tid('other', 1), idOf('Sam.seller')), "a task's copy is in its task's data");
+    assert.ok(fs.existsSync(path.join(userData, 'profiles', idOf('Sam.seller'))), 'its master');
+    assert.equal(seller.endpoint.endsWith(`/${tkey('other', 1)}/${seller.id}`), true, 'the CDP proxy knows it by its project too');
+    await ctx.call('browser_navigate', { profile: 'Sam.seller', url: `${SITE}/app` });
+    assert.equal(await who(ctx, 'Sam.seller'), 'Signed out', "the first project's sign-ins stay there");
 
-    // The button after the tabs: +, a new tab, as a browser's, at the end of the bar: every project, a column each
-    // (a task is made of one), its tasks in it (both open here: shown, not to choose), New Project… last. The task
-    // under it stays as it is, its pages hidden.
-    const names = shell.store.projects().map((p) => p.name);
-    const rows: string[] = await plusMenu(ui);
-    assert.deepEqual(rows.filter((r) => !r.startsWith('  ')), [...names, 'New Project…']);
-    assert.ok(rows.includes('  task-1 (open)'), 'an open task: shown, not to choose');
-    assert.equal(await ui(`[...document.querySelectorAll('#projectTabs .striptab')].at(-1).id`), 'newtabtab', 'its tab last, chosen');
-    assert.equal(await ui(`document.querySelector('#projectTabs .striptab.active').id`), 'newtabtab');
-    const pages = () => [...shell.profiles.values()].map((p) => p.get().view.getVisible());
-    await waitFor(() => pages().length && pages().every((v) => !v)); // the task's pages hidden under it
-    await closeBoard(ui);
-    await waitFor(() => pages().every((v) => v));
-    // Ctrl+Shift+A opens it too, from anywhere; again closes it.
+    // The bar's + (NewTask.vue): a dropdown menu — every project (a submenu each when several are open), New Project…
+    // last; a project's submenu lists its tasks (an open one shown, not to choose) and New Task.
+    assert.deepEqual([...await plusMenu(ui)].sort(), ['New Project…', 'other', 'project']);
+    assert.deepEqual(await plusRows(ui, 'project'), ['task-1', 'New Task']);
+    // Ctrl+Shift+A opens the + menu from anywhere; again closes it.
     press(shell.win.webContents, 'A', CMD, 'shift');
-    await waitFor(() => ui(`document.documentElement.dataset.page === 'newtab'`));
+    await waitFor(() => ui(`!!document.querySelector('.menu[data-state="open"]')`));
     press(shell.win.webContents, 'A', CMD, 'shift');
-    await waitFor(() => ui(`document.documentElement.dataset.page === 'task'`));
+    await waitFor(async () => !(await ui(`!!document.querySelector('.menu[data-state="open"]')`)));
     await ui('__islands.clear(); 0'); // a new tab is a tab more in the bar, as a task's: watched from here on
     await showProject(ui, 'other');
     await waitFor(() => shell.current?.folder === other && !shell.windows[0].switching);
     // The tab's right-click: the task's rows, then its project's in a submenu of its name (the project has no tab of
     // its own).
-    await rightClick(ui, '#projectTabs [data-project="other"] .name');
+    await rightClick(ui, `#projectTabs [data-project="${pid('other')}"] .name`);
     assert.deepEqual(await menuRows(ui), ['# Profiles', 'Sam.seller', '-', 'Manage Profiles…', '-', 'Rename…', 'Show Folder', '-', 'Move to New Window', '-', 'Close', 'Delete Task…', '-', 'other']);
     await choose(ui, 'other');
     await waitFor(async () => (await ui(`document.querySelectorAll('.menu[data-state="open"]').length`)) === 2);
@@ -156,7 +147,7 @@ export default (test: Test) => {
       await choose(ui, 'Show Data Folder', SUBMENU);
       await waitFor(() => shown.length === 1);
     } finally { electron.shell.openPath = openPath; }
-    assert.equal(shown[0], path.join(userData, 'projects', 'other'));
+    assert.equal(shown[0], path.join(userData, 'projects', pid('other')));
     assert.deepEqual(await ui(`[...__islands]`), [JSON.stringify(before)], 'the islands keep their places while another project opens');
     await ui('__islands.clear(); 0');
     // A click on the first project's task: it comes back as it was left, its agent the same; no page shows before
@@ -169,9 +160,9 @@ export default (test: Test) => {
       }
     }, 5);
     await showProject(ui, 'project');
-    await waitFor(() => shell.current?.folder === project && shell.profiles.get('sam-admin') === sam);
+    await waitFor(() => shell.current?.folder === project && shell.profiles.get(idOf('Sam.admin')) === sam);
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
-    await waitFor(async () => (await viewOn(shell, ui, 'sam-admin')) && viewOn(shell, ui, 'elon-buyer'));
+    await waitFor(async () => (await viewOn(shell, ui, 'Sam.admin')) && viewOn(shell, ui, 'Elon.buyer'));
     clearInterval(watch);
     assert.deepEqual(jumps, [], 'pages shown before the grid placed them');
     assert.equal(shell.pty, firstPty, 'the same agent');
@@ -179,11 +170,6 @@ export default (test: Test) => {
     assert.deepEqual(await projectTabs(ui), ['project *', 'other']);
     const seen = await ui(`(() => { const s = [...__islands]; window.__islands = null; return s; })()`);
     assert.deepEqual(seen, [JSON.stringify(before)], 'the islands keep their places, also while switching');
-    // The tab's right-click: rows only (its name, color and icon are the projects' manager's).
-    await rightClick(ui, '#projectTabs [data-project="other"] .name');
-    await menuRows(ui);
-    assert.equal(await ui(`document.querySelectorAll('.menu[data-state="open"] input').length`), 0, 'no fields');
-    await closeMenu(ui);
 
     // Closing the task (the middle button on its tab) asks first when an agent works; Cancel keeps it open.
     ctx.asked.length = 0;
@@ -193,45 +179,45 @@ export default (test: Test) => {
     await closeProject(ui, 'project');
     await waitFor(() => ctx.asked.length && ui(`!(document.getElementById('ask')?.dataset.state === 'open')`));
     assert.equal(ctx.asked.pop().message, 'Close the task task-1?');
-    assert.ok(shell.open.has('project') && shell.current?.folder === project, 'still open when the human says no');
+    assert.ok(shell.open.has(pid('project')) && shell.current?.folder === project, 'still open when the human says no');
     ctx.answer = true;
     working.promptTarget().state = null;
     // Close: no agent works, no question; the task closes (tabs and sign-ins kept), the project let go, the tab next to
     // it shown.
     await closeProject(ui, 'project');
-    await waitFor(() => shell.current?.folder === other && !shell.open.has('project'));
+    await waitFor(() => shell.current?.folder === other && !shell.open.has(pid('project')));
     assert.equal(ctx.asked.length, 0, 'nothing asked');
-    assert.ok(shell.store.tasksOf({ id: 'project' }).list.every((e) => e.closed), 'its tasks closed');
+    assert.ok(shell.store.tasksOf({ id: pid('project') }).list.every((e) => e.closed), 'its tasks closed');
     assert.ok(sam.tabs.every((t) => t.wc.isDestroyed()), "the closed project's tabs are closed");
     assert.deepEqual(await projectTabs(ui), ['other *']);
     // Opened again from the bar's +, on its task: the conversation goes on, the profiles signed in.
     await plusMenu(ui, 'project', 'task-1');
-    await waitFor(() => shell.current?.folder === project && shell.profiles.has('elon-buyer') && shell.pty);
+    await waitFor(() => shell.current?.folder === project && shell.profiles.has(idOf('Elon.buyer')) && shell.pty);
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
     ctx.watchPty(shell.pty);
     await waitFor(async () => (await ctx.termText()).includes(`agent: rc of ${project}\n`));
-    assert.deepEqual([...shell.profiles.keys()], ['sam-admin', 'elon-buyer']);
+    assert.deepEqual([...shell.profiles.keys()], [idOf('Sam.admin'), idOf('Elon.buyer')]);
     assert.equal(shell.resumedSession, 'session-1', "the agent continues the project's conversation");
-    assert.equal(await who(ctx, 'sam-admin'), 'Signed in as sam');
-    await waitFor(async () => (await viewOn(shell, ui, 'sam-admin')) && viewOn(shell, ui, 'elon-buyer'));
+    assert.equal(await who(ctx, 'Sam.admin'), 'Signed in as sam');
+    await waitFor(async () => (await viewOn(shell, ui, 'Sam.admin')) && viewOn(shell, ui, 'Elon.buyer'));
     assert.deepEqual(await projectTabs(ui), ['other', 'project *'], 'a tab opens at the end');
     // × on a tab in the background: that project closes, the one on screen stays.
     await closeProject(ui, 'other');
-    await waitFor(() => !shell.open.has('other'));
+    await waitFor(() => !shell.open.has(pid('other')));
     ctx.asked.length = 0;
     assert.ok(seller.tabs.every((t) => t.wc.isDestroyed()));
     assert.deepEqual(await projectTabs(ui), ['project *']);
-    assert.equal(await viewOn(shell, ui, 'sam-admin'), true);
-    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(userData, 'projects.json'), 'utf8')).map((p: { folder: string }) => p.folder), [project, other]);
+    assert.equal(await viewOn(shell, ui, 'Sam.admin'), true);
+    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(userData, 'projects.json'), 'utf8')).list.map((p: { folders: string[] }) => p.folders[0]), [project, other]);
     assert.deepEqual(savedWindows(), [{ tabs: ['project/1'], shown: 'project/1' }]);
   });
   test('tasks: Move to New Window puts a task in a window of its own, still running; closing that window closes it', async (ctx) => {
     const { shell, ui } = ctx;
     const other = path.join(root, 'other');
-    await ui(`kulisa.invoke('project:open', { folder: ${JSON.stringify(other)}, task: 1 })`);
-    await waitFor(() => shell.current?.id === 'other' && shell.task.loaded && shell.pty);
+    await ui(`kulisa.invoke('project:open', { folder: ${JSON.stringify(other)}, task: '${tid('other', 1)}' })`);
+    await waitFor(() => shell.current?.id === pid('other') && shell.task.loaded && shell.pty);
     await waitFor(() => ui(`!document.documentElement.classList.contains('loading')`));
-    const task = shell.task, moved = task, pty = task.pty, seller = task.profiles.get('sam-seller');
+    const task = shell.task, moved = task, pty = task.pty, seller = task.profiles.get(idOf('Sam.seller'));
     await waitFor(async () => (await ctx.termText()).includes(`agent: rc of ${other}`));
     const first = shell.windows[0];
     // A line as wide as an agent's prompt box (Claude Code's), and the size the agent has.
@@ -240,7 +226,9 @@ export default (test: Test) => {
     await waitFor(async () => (await ctx.termText()).includes(LINE));
     const size = { cols: pty.cols, rows: pty.rows };
     assert.ok(size.cols > 150, 'the terminal is wide enough for it');
-    await rightClick(ui, '#projectTabs [data-project="other"] .name');
+    const sizes: number[][] = [], resize = pty.resize; // every size the agent gets from here on
+    pty.resize = (cols: number, rows: number) => { sizes.push([cols, rows]); return resize.call(pty, cols, rows); };
+    await rightClick(ui, `#projectTabs [data-project="${pid('other')}"] .name`);
     await menuRows(ui);
     await choose(ui, 'Move to New Window');
     await waitFor(() => shell.windows.length === 2 && shell.windows[1].current === moved && !shell.windows[1].switching);
@@ -249,17 +237,17 @@ export default (test: Test) => {
 
     // The first window keeps its other tab; the new one has the task, as it was: the same agent, the same pages
     // (moved into it, not loaded again), what the terminal showed.
-    await waitFor(() => shell.current?.id === 'project' && shell.task.loaded);
+    await waitFor(() => shell.current?.id === pid('project') && shell.task.loaded);
     assert.deepEqual(await projectTabs(ui), ['project *']);
     assert.equal(moved.window, second);
     await waitFor(async () => JSON.stringify(await projectTabs(ui2)) === '["other *"]');
-    assert.equal(second.win.getTitle(), 'task-1 · other — Kulisa');
+    assert.equal(second.win.getTitle(), 'New Task · other — Kulisa');
     assert.equal(task.pty, pty, 'the same agent');
-    assert.equal(task.profiles.get('sam-seller'), seller, 'the same profile');
+    assert.equal(task.profiles.get(idOf('Sam.seller')), seller, 'the same profile');
     const view = seller.get().view;
     assert.ok(second.win.contentView.children.includes(view) && !first.win.contentView.children.includes(view), 'its page moved');
     await waitFor(async () => {
-      const b = await ui2(`(() => { const r = document.querySelector('.pane[data-profile="sam-seller"] .content')?.getBoundingClientRect(); return r?.width ? { width: r.width } : null; })()`);
+      const b = await ui2(`(() => { const r = document.querySelector('.pane[data-profile="${idOf('Sam.seller')}"] .content')?.getBoundingClientRect(); return r?.width ? { width: r.width } : null; })()`);
       return b && view.getVisible() && Math.abs(view.getBounds().width - Math.round(b.width * second.win.webContents.getZoomFactor())) <= 1;
     });
     const termText2 = () => ui2(`(() => { const b = window.__term?.buffer.active; if (!b) return '';
@@ -270,58 +258,59 @@ export default (test: Test) => {
     const lines = await ui2(`(() => { const b = window.__term.buffer.active;
       return Array.from({ length: b.length }, (_, i) => b.getLine(i)).filter((l) => l.translateToString(true).includes('===')).map((l) => [l.translateToString(true).length, l.isWrapped]); })()`);
     assert.deepEqual(lines.filter(([n, wrapped]: [number, boolean]) => n !== 150 || wrapped), [], `whole lines: ${JSON.stringify(lines)}`);
-    assert.deepEqual(await ui2('window.__ptySizes.filter((s) => s.cols < 100)'), [], 'no default size sent to the agent');
-    // The window is the same size, so the agent ends up with the same one. The new window's page fits the terminal
-    // as soon as it opens, before its grid is laid out (at the window's whole height: 46 rows for 17 on the runner,
-    // now and then, 2026-10-12), then again in its panel: wait for the last fit; a size still different names both
-    // windows' sizes.
+    // The window is the same size, so the agent keeps its size, and gets no other on the way: each one makes it draw
+    // its prompt again. The new window's page must not fit the terminal before its grid is laid out, at the window's
+    // whole height (46 rows for 17).
     await waitFor(() => pty.cols === size.cols && pty.rows === size.rows, 5000).catch(() => {
       throw new Error(`the same size: ${JSON.stringify({ cols: pty.cols, rows: pty.rows })}, expected ${JSON.stringify(size)}; `
         + `windows ${JSON.stringify([first.win.getContentSize(), second.win.getContentSize()])}`);
     });
+    pty.resize = resize;
+    assert.deepEqual(sizes.filter(([cols, rows]) => cols !== size.cols || rows !== size.rows), [],
+      `no other size on the way: ${JSON.stringify(sizes)}, windows ${JSON.stringify([first.win.getContentSize(), second.win.getContentSize()])}`);
     // The agent's output and its tools go on there.
     pty.write('moved along\r');
     await waitFor(async () => (await termText2()).includes('moved along'));
     await shot(second, path.join(root, 'second-window.png'));
-    await ctx.call('browser_navigate', { profile: 'sam-seller', url: `${SITE}/app?moved` }, task);
+    await ctx.call('browser_navigate', { profile: 'Sam.seller', url: `${SITE}/app?moved` }, task);
     assert.match(seller.get().wc.getURL(), /\?moved$/);
     // The bar's + in either window: every project.
     assert.deepEqual((await plusMenu(ui2) as string[]).filter((r) => !r.startsWith('  ')), [...shell.store.projects().map((p) => p.name), 'New Project…']);
     await closeBoard(ui2);
     // Questions about its project are asked in its window.
     ctx.answer = false;
-    await ui2(`act('profile:delete', { profile: 'sam-seller' })`);
+    await ui2(`act('profile:delete', { profile: '${idOf('Sam.seller')}' })`);
     ctx.answer = true;
-    assert.ok(task.profiles.has('sam-seller'), 'kept: the human said no');
+    assert.ok(task.profiles.has(idOf('Sam.seller')), 'kept: the human said no');
     assert.deepEqual(savedWindows(), [{ tabs: ['project/1'], shown: 'project/1' }, { tabs: ['other/1'], shown: 'other/1' }]);
 
     // Back into the first window (Move to Window, as a browser moves a tab; the other window named by its shown
     // task): the only tab of the second, so it closes.
-    await rightClick(ui2, '#projectTabs [data-project="other"] .name');
+    await rightClick(ui2, `#projectTabs [data-project="${pid('other')}"] .name`);
     assert.deepEqual(await menuRows(ui2), ['# Profiles', 'Sam.seller', '-', 'Manage Profiles…', '-', 'Rename…', 'Show Folder', '-', 'Move to New Window (off)', 'Move to Window: task-1', '-', 'Close', 'Delete Task…', '-', 'other']);
     // Chosen once the script has answered: the choice closes this window, and a script still running in a window that
-    // goes never answers (the test hung so on a loaded machine, 2026-10-12).
+    // goes never answers.
     await ui2(`setTimeout(() => [...${MENU}.querySelectorAll('.item')].find((b) => b.querySelector('.label').textContent === 'Move to Window: task-1').click()); 0`);
     await waitFor(() => shell.windows.length === 1 && shell.task === moved && !first.switching);
     assert.ok(second.win.isDestroyed());
     assert.equal(task.pty, pty, 'the same agent');
     assert.ok(first.win.contentView.children.includes(view), 'its page back');
-    await waitFor(async () => (await viewOn(shell, ui, 'sam-seller')) && (await ctx.termText()).includes('moved along'));
+    await waitFor(async () => (await viewOn(shell, ui, 'Sam.seller')) && (await ctx.termText()).includes('moved along'));
     assert.deepEqual(await projectTabs(ui), ['project', 'other *']);
     assert.deepEqual(savedWindows(), [{ tabs: ['project/1', 'other/1'], shown: 'other/1' }]);
     await closeProject(ui, 'other');
-    await waitFor(() => !shell.open.has('other') && shell.current?.id === 'project' && !first.switching);
+    await waitFor(() => !shell.open.has(pid('other')) && shell.current?.id === pid('project') && !first.switching);
 
     // A closed task opened again: a tab in this window, nothing asked where; Move to New Window takes it away.
     ctx.asked.length = 0;
-    await plusMenu(ui, 'other', 'task-1');
-    await waitFor(() => shell.current?.id === 'other' && shell.task?.n === 1 && shell.task.pty && !first.switching);
+    await plusMenu(ui, 'other', 'New Task');
+    await waitFor(() => shell.current?.id === pid('other') && isNth(shell.task, 1) && shell.task.pty && !first.switching);
     assert.equal(ctx.asked.length, 0, 'no question where');
     assert.deepEqual(await projectTabs(ui), ['project', 'other *']);
-    await rightClick(ui, '#projectTabs [data-project="other"] .name');
+    await rightClick(ui, `#projectTabs [data-project="${pid('other')}"] .name`);
     await menuRows(ui);
     await choose(ui, 'Move to New Window');
-    await waitFor(() => shell.windows.length === 2 && shell.windows[1].current?.project.id === 'other' && !shell.windows[1].switching);
+    await waitFor(() => shell.windows.length === 2 && shell.windows[1].current?.project.id === pid('other') && !shell.windows[1].switching);
     const third = shell.windows[1], reopenedTask = third.current;
     await waitFor(() => reopenedTask.pty);
     assert.deepEqual(await projectTabs(ui), ['project *'], 'nothing else in the first window');
@@ -334,24 +323,24 @@ export default (test: Test) => {
     await waitFor(() => ctx.asked.length && third.win.webContents.executeJavaScript(`!(document.getElementById('ask')?.dataset.state === 'open')`));
     const q = ctx.asked.pop();
     assert.equal(q.message, 'Close the window?');
-    assert.match(q.detail, /Its tasks close: task-1\./);
-    assert.ok(!third.win.isDestroyed() && shell.open.has('other'), 'still open when the human says no');
+    assert.match(q.detail, /Its tasks close: New Task\./);
+    assert.ok(!third.win.isDestroyed() && shell.open.has(pid('other')), 'still open when the human says no');
     ctx.answer = true;
     third.win.close();
-    await waitFor(() => shell.windows.length === 1 && !shell.open.has('other'));
+    await waitFor(() => shell.windows.length === 1 && !shell.open.has(pid('other')));
     ctx.asked.length = 0;
     assert.ok(third.win.isDestroyed() && reopenedTask.profiles.size === 0 && reopenedTask.pty === null);
     assert.deepEqual(savedWindows(), [{ tabs: ['project/1'], shown: 'project/1' }]);
-    assert.equal(await viewOn(shell, ui, 'sam-admin'), true);
+    assert.equal(await viewOn(shell, ui, 'Sam.admin'), true);
 
-    // macOS: the last window's × hides it, as Mac apps' windows (the author, 2026-10-17): Kulisa stays in the Dock, its
+    // macOS: the last window's × hides it, as Mac apps' windows: Kulisa stays in the Dock, its
     // agents go on; a click on the Dock (activate) shows it again as it was. ⌘Q quits (below).
     if (MAC) {
       shell.task.promptTarget().state = 'working';
       const pty = shell.task.pty;
       shell.win.close();
       await waitFor(() => !shell.win.isVisible());
-      assert.ok(!shell.win.isDestroyed() && shell.open.has('project') && shell.task.pty === pty && !ctx.asked.length, 'hidden, asked nothing, its agent goes on');
+      assert.ok(!shell.win.isDestroyed() && shell.open.has(pid('project')) && shell.task.pty === pty && !ctx.asked.length, 'hidden, asked nothing, its agent goes on');
       electron.app.emit('activate');
       await waitFor(() => shell.win.isVisible());
       shell.task.promptTarget().state = null;
@@ -365,15 +354,15 @@ export default (test: Test) => {
     const quit = ctx.asked.pop();
     assert.equal(quit.message, 'Quit Kulisa?');
     assert.match(quit.detail, /^An agent is still working \(task-1\): quitting stops it\./);
-    assert.ok(!shell.win.isDestroyed() && shell.open.has('project'), 'Kulisa goes on when the human says no');
+    assert.ok(!shell.win.isDestroyed() && shell.open.has(pid('project')), 'Kulisa goes on when the human says no');
     shell.task.promptTarget().state = null;
     ctx.answer = true;
   });
   test('tasks: a tab dragged changes the order, goes out into a new window and back into the first', async (ctx) => {
     const { shell, ui } = ctx;
     const other = path.join(root, 'other'), DRAG = 'application/x-kulisa-task';
-    await ui(`kulisa.invoke('project:open', { folder: ${JSON.stringify(other)}, task: 1 })`);
-    await waitFor(() => shell.current?.id === 'other' && shell.task.loaded && shell.pty && !shell.windows[0].switching);
+    await ui(`kulisa.invoke('project:open', { folder: ${JSON.stringify(other)}, task: '${tid('other', 1)}' })`);
+    await waitFor(() => shell.current?.id === pid('other') && shell.task.loaded && shell.pty && !shell.windows[0].switching);
     ctx.asked.length = 0;
     const moved = shell.task, pty = moved.pty;
     // Synthetic drag events, as the human's mouse would send them; a drop gets what the drag carried.
@@ -394,7 +383,7 @@ export default (test: Test) => {
 
     // Within the tabs: another order, kept.
     let data = await dragStart(ui, 'other');
-    assert.equal(JSON.parse(data).key, 'other/1');
+    assert.equal(JSON.parse(data).key, tkey('other', 1));
     assert.ok(await ui(`${projectTab('other')}.classList.contains('dragging')`));
     assert.ok(await dropOn(ui, 'project', 'before', data), 'where it would go is marked');
     await dragEnd(ui, 'other', 'move');
@@ -408,7 +397,7 @@ export default (test: Test) => {
     assert.equal(shell.windows.length, 1);
     // Let go beside the window, on the side with more room on the screen: where the window manager put the test's
     // window varies, and a point off the screen gives a window the OS pulls back next to the first one. A window as
-    // wide as the screen (a laptop's: 1680 px on the author's Mac) is made narrower meanwhile, or no point is beside it.
+    // wide as the screen (a laptop's) is made narrower meanwhile, or no point is beside it.
     const area = electron.screen.getDisplayMatching(b).workArea;
     const narrowed = Math.max(area.x + area.width - (b.x + b.width), b.x - area.x) < 400;
     if (narrowed) {
@@ -437,74 +426,88 @@ export default (test: Test) => {
     assert.deepEqual(await projectTabs(ui), ['project', 'other *']);
     assert.equal(moved.pty, pty);
     await closeProject(ui, 'other');
-    await waitFor(() => !shell.open.has('other') && shell.current?.id === 'project' && !shell.windows[0].switching);
+    await waitFor(() => !shell.open.has(pid('other')) && shell.current?.id === pid('project') && !shell.windows[0].switching);
     ctx.asked.length = 0;
   });
   test('grid presets: columns, grid, focus; each fits the window, nothing cut off', async ({ shell, ui }) => {
-    const at = async () => ({ sam: await pageBox(ui, 'sam-admin'), elon: await pageBox(ui, 'elon-buyer'), term: await box(ui, '.term:not([hidden])') });
+    const at = async () => ({ sam: await pageBox(ui, 'Sam.admin'), elon: await pageBox(ui, 'Elon.buyer'), term: await box(ui, '.term:not([hidden])') });
     // Every panel inside the grid's room (#dock less its padding): none cut off at the right or the bottom.
     const fits = async () => assert.deepEqual(await ui(`(() => { const d = document.getElementById('dock'), r = d.getBoundingClientRect(), s = getComputedStyle(d);
       const right = r.right - parseFloat(s.paddingRight), bottom = r.bottom - parseFloat(s.paddingBottom);
       return [...d.querySelectorAll('.dv-groupview')].map((g) => g.getBoundingClientRect()).filter((g) => g.right > right + 1 || g.bottom > bottom + 1)
         .map((g) => ({ right: g.right - right, bottom: g.bottom - bottom })); })()`), [], 'panels cut off');
     await ui(`window.__layoutPreset('columns')`);
-    await waitFor(() => viewOn(shell, ui, 'elon-buyer'));
+    await waitFor(() => viewOn(shell, ui, 'Elon.buyer'));
     await fits();
     let b = await at();
     assert.ok(b.sam.x < b.elon.x && b.sam.y === b.elon.y && b.term.y > b.sam.y + b.sam.height - 1, 'profiles side by side, terminal below');
+    // Resources right of the terminal, in its row, a quarter of the grid (laid out maybe a frame after the pages).
+    const resources = () => box(ui, '#resources');
+    const placed = async () => { const r = await resources(), t = await box(ui, '.term:not([hidden])');
+      return r.x > t.x + t.width - 1 && r.y > b.sam.y + b.sam.height - 1 && Math.abs(r.width / (await ui(`__dock.width`)) - 0.25) < 0.02; };
+    await waitFor(placed, 3000).catch(async () => assert.ok(await placed(), 'Resources right of the terminal, a quarter of the grid'));
+    const side = await resources();
+    b = await at();
     // A narrower window takes from every panel in its share, not from the last one alone; wider gives back the same way.
     const size = shell.win.getSize(), both = (x: typeof b) => x.sam.width + x.elon.width, share = (x: typeof b) => x.sam.width / both(x);
-    const was = share(b), wide = both(b);
+    const was = share(b), wide = both(b), row = side.width / b.term.width;
     shell.win.setSize(size[0] - 300, size[1]);
     await waitFor(async () => { b = await at(); return b.sam && b.elon && both(b) < wide - 200; });
     assert.ok(Math.abs(share(b) - was) < 0.02, `shares kept: ${share(b)} vs ${was}`);
+    // The terminal's row too, laid out a frame later perhaps: Resources and the terminal keep theirs.
+    const kept = async () => { const r = await resources(), t = await box(ui, '.term:not([hidden])'); return r.width < side.width && Math.abs(r.width / t.width - row) < 0.02; };
+    await waitFor(kept, 3000).catch(async () => assert.ok(await kept(), 'the terminal and Resources keep their shares'));
     shell.win.setSize(size[0], size[1]);
-    await waitFor(async () => { b = await at(); return b.sam && b.elon && Math.abs(share(b) - was) < 0.02 && viewOn(shell, ui, 'elon-buyer'); });
+    await waitFor(async () => { b = await at(); return b.sam && b.elon && Math.abs(share(b) - was) < 0.02 && viewOn(shell, ui, 'Elon.buyer'); });
     await ui(`window.__layoutPreset('focus')`);
-    await waitFor(() => viewOn(shell, ui, 'sam-admin'));
+    await waitFor(() => viewOn(shell, ui, 'Sam.admin'));
     await fits();
     b = await at();
     assert.equal(b.elon, null, 'Elon is a tab behind Sam');
     assert.ok(b.term.y > b.sam.y + b.sam.height - 1);
     // Left in this layout for the restart phase.
     await ui(`window.__layoutPreset('grid')`);
-    await waitFor(async () => (await viewOn(shell, ui, 'sam-admin')) && viewOn(shell, ui, 'elon-buyer'));
+    await waitFor(async () => (await viewOn(shell, ui, 'Sam.admin')) && viewOn(shell, ui, 'Elon.buyer'));
     await fits();
     b = await at();
     assert.ok(b.sam.x < b.elon.x && b.term.x > b.elon.x + b.elon.width - 1, 'profiles in a row of two, terminal on the right');
-    await waitFor(() => fs.existsSync(pfile('layout.json')));
+    // Resources under the terminal, in its column; made taller, as its gap does: kept with the grid (restart-tasks.ts).
+    const res = await box(ui, '#resources'), term = await box(ui, '.termtabs');
+    assert.ok(res.y > term.y && Math.abs(res.x - term.x) < 20, 'Resources under the terminal');
+    await ui(`__dock.getPanel('resources').group.api.setSize({ height: 300 })`);
+    await waitFor(async () => { const h = await resourcesHeight(ui); return h > 280 && savedResourcesHeight() === h; });
   });
 
   test('a menu opens even when a page gives no picture (a page that draws no frames: covered, the monitor off, busy)', async ({ shell, ui }) => {
-    const wc = shell.profiles.get('elon-buyer').get().wc;
+    const wc = shell.profiles.get(idOf('Elon.buyer')).get().wc;
     wc.capturePage = () => new Promise(() => {}); // never
     try {
-      await rightClick(ui, '.ptab[data-panel="profile:Profile 2"]');
+      await rightClick(ui, `.ptab[data-panel="profile:${idOf('Elon.buyer')}"]`);
       await waitFor(() => menuOpen(ui), 2000);
-      assert.equal(await ui(`!!document.querySelector('.pane[data-profile="elon-buyer"] .content img.snapshot')`), false, 'no picture, the pane is empty meanwhile');
+      assert.equal(await ui(`!!document.querySelector('.pane[data-profile="${idOf('Elon.buyer')}"] .content img.snapshot')`), false, 'no picture, the pane is empty meanwhile');
       await closeMenu(ui);
       await waitFor(async () => !(await menuOpen(ui)));
     } finally { delete wc.capturePage; }
   });
   test('context menus: a pane\'s header, a tab, the terminal; pages are pictures while a menu is open; Arrange panels in ☰; Exit', async (ctx) => {
     const { shell, ui } = ctx;
-    const elon = shell.profiles.get('elon-buyer');
-    const header = '.ptab[data-panel="profile:Profile 2"]';
+    const elon = shell.profiles.get(idOf('Elon.buyer'));
+    const header = `.ptab[data-panel="profile:${idOf('Elon.buyer')}"]`;
     await rightClick(ui, header);
-    assert.deepEqual(await menuRows(ui), ['New tab', 'About this profile…', 'Sign In to Master…', 'Refresh from Master…', 'Close profile', '-', 'Remove from Project…']);
+    assert.deepEqual(await menuRows(ui), ['New tab', 'About this profile…', 'Sign In to Master…', 'Close profile', '-', 'Remove from Project…']);
     const at = await ui(`(() => { const h = document.querySelector('${header}').getBoundingClientRect(), m = document.querySelector('.menu[data-state="open"]').getBoundingClientRect();
       return Math.abs(m.left - (h.x + h.width / 2)) <= 4 && Math.abs(m.top - (h.y + h.height / 2)) <= 4; })()`);
     assert.ok(at, 'at the pointer');
     // The pages are native views above the menu: pictures of them stand in meanwhile.
     assert.equal(elon.get().view.getVisible(), false);
-    assert.ok(await ui(`!!document.querySelector('.pane[data-profile="elon-buyer"] .content img.snapshot')`));
+    assert.ok(await ui(`!!document.querySelector('.pane[data-profile="${idOf('Elon.buyer')}"] .content img.snapshot')`));
     // Another menu right from this one: the pages stay pictures.
     await ui(`document.getElementById('windowMenu').click()`);
     await waitFor(async () => (await menuRows(ui))[0] === 'zoom');
     assert.equal(elon.get().view.getVisible(), false, 'a page over the second menu');
     await rightClick(ui, header);
     await waitFor(async () => (await menuRows(ui))[0] === 'New tab');
-    assert.deepEqual(await menuRows(ui), ['New tab', 'About this profile…', 'Sign In to Master…', 'Refresh from Master…', 'Close profile', '-', 'Remove from Project…']);
+    assert.deepEqual(await menuRows(ui), ['New tab', 'About this profile…', 'Sign In to Master…', 'Close profile', '-', 'Remove from Project…']);
     assert.equal(elon.get().view.getVisible(), false, 'a page over the third menu');
     const n = elon.tabs.length;
     await choose(ui, 'New tab');
@@ -512,11 +515,11 @@ export default (test: Test) => {
     await waitFor(() => elon.get().view.getVisible());
     assert.equal(await ui(`document.querySelectorAll('img.snapshot').length`), 0);
 
-    await waitFor(() => ui(`document.querySelectorAll('.pane[data-profile="elon-buyer"] .tabs .tab').length === ${n + 1}`));
-    // Once more until it opens: on GitHub's slower runner this right-click, right after the menu before closed, opened
-    // nothing once (2026-10-12; not seen here, on two cores either: ROADMAP, "Tests that failed now and then").
+    await waitFor(() => ui(`document.querySelectorAll('.pane[data-profile="${idOf('Elon.buyer')}"] .tabs .tab').length === ${n + 1}`));
+    // Once more until it opens: on a loaded machine this right-click, right after the menu before closed, may open
+    // nothing.
     for (let i = 0; i < 3 && !(await menuOpen(ui)); i++) {
-      await rightClick(ui, '.pane[data-profile="elon-buyer"] .tabs .tab');
+      await rightClick(ui, `.pane[data-profile="${idOf('Elon.buyer')}"] .tabs .tab`);
       await waitFor(() => menuOpen(ui), 1500).catch(() => {});
     }
     assert.deepEqual(await menuRows(ui), ['Reload', 'Duplicate', '-', 'Close tab', 'Close other tabs']);
@@ -564,8 +567,7 @@ export default (test: Test) => {
     await clipboard.writeText('kulisa-paste');
     const before = ctx.ptyOutput().length;
     // Pressed again while nothing is pasted: the page reads the clipboard only while it has the focus, and on a loaded
-    // machine the window manager's focus, coming late after another window went, took it away for a moment (GitHub's
-    // runner, 2026-10-13); a read refused pastes nothing, so a second press cannot paste twice.
+    // machine the window manager's focus, coming late after another window went, may take it away for a moment; a read refused pastes nothing, so a second press cannot paste twice.
     for (let i = 0; ; i++) {
       await focusWindow(shell.win, ui); await ui(`window.__term.focus()`);
       paste();
@@ -622,6 +624,71 @@ export default (test: Test) => {
       assert.deepEqual(opened, ['https://example.com/docs']);
     } finally { electron.shell.openExternal = openExternal; }
 
+    // A path that exists is a link too: absolute or relative to the task's folder, with :line, a folder, one wrapped
+    // over two rows. Ctrl+click asks: Open (the OS's app) or Show in Folder; what would run when opened, only shown.
+    const dir = path.join(shell.task.folder, 'kl-links'), long = `${'x'.repeat(await ui(`window.__term.cols`))}.txt`;
+    fs.mkdirSync(dir);
+    for (const f of ['a.txt', long]) fs.writeFileSync(path.join(dir, f), '');
+    const run = path.join(dir, process.platform === 'win32' ? 'run.cmd' : 'run.sh'); // Windows: by its extension
+    fs.writeFileSync(run, '#!/bin/sh\n', { mode: 0o755 });
+    const lines = ['see kl-links/a.txt:12.', run, 'kl-links/missing.txt', `${dir} here`, `kl-links/${long}`];
+    await ui(`new Promise((r) => window.__term.write(${JSON.stringify(`\r\n${lines.join('\r\n')}\r\n`)}, r))`);
+    // Where a text starts on the screen (in a line as written, its wrapped rows joined; at the cell's middle, a row
+    // lower with below), and a press there with Ctrl (⌘).
+    const spot = (text: string, below = 0) => ui(`(() => { const t = window.__term, b = t.buffer.active, s = document.querySelector('.term:not([hidden]) .xterm-screen').getBoundingClientRect();
+      for (let row = t.rows - 1; row >= 0; row--) { if (b.getLine(b.viewportY + row).isWrapped) continue;
+        let line = '', r = row; do line += b.getLine(b.viewportY + r).translateToString(); while (b.getLine(b.viewportY + ++r)?.isWrapped);
+        const i = line.indexOf(${JSON.stringify(text)});
+        if (i >= 0) return { x: s.x + (i % t.cols + 1.5) * s.width / t.cols, y: s.y + (row + Math.floor(i / t.cols) + ${below} + 0.5) * s.height / t.rows }; } })()`);
+    const mods: ('control' | 'meta')[] = [MAC ? 'meta' : 'control'];
+    const pressAt = async (text: string, below = 0) => {
+      const p = await spot(text, below), x = Math.round(p.x * z), y = Math.round(p.y * z), wc = shell.win.webContents;
+      wc.sendInputEvent({ type: 'mouseMove', x, y, modifiers: mods });
+      await sleep(300); // nothing to wait for: the link is found as the pointer stops over it (the main process asked)
+      wc.sendInputEvent({ type: 'mouseDown', x, y, button: 'left', clickCount: 1, modifiers: mods });
+      wc.sendInputEvent({ type: 'mouseUp', x, y, button: 'left', clickCount: 1, modifiers: mods });
+    };
+    const openPath = electron.shell.openPath, showItemInFolder = electron.shell.showItemInFolder, files: string[] = [];
+    electron.shell.openPath = async (p) => { files.push(`open ${p}`); return ''; };
+    electron.shell.showItemInFolder = (p) => { files.push(`show ${p}`); };
+    try {
+      // The menu has no heading: the path is in the terminal. Which file a link is, by what the OS is handed.
+      const chooseFile = async (row: string) => { const had = files.length; await choose(ui, row); await waitFor(() => files.length === had + 1); };
+      await pressAt('kl-links/a.txt');
+      assert.deepEqual(await menuRows(ui), ['Open', 'Show in Folder'], 'relative, with :line');
+      await chooseFile('Open');
+      await pressAt(run);
+      assert.deepEqual(await menuRows(ui), ['Show in Folder'], 'it would run: shown only');
+      await chooseFile('Show in Folder');
+      await pressAt(`${dir} here`);
+      assert.deepEqual(await menuRows(ui), ['Open', 'Show in Folder'], 'a folder');
+      await chooseFile('Show in Folder');
+      await pressAt(`kl-links/${long.slice(0, 10)}`, 1);
+      assert.deepEqual(await menuRows(ui), ['Open', 'Show in Folder'], 'wrapped over two rows: one link');
+      await chooseFile('Show in Folder');
+      // A file an agent marks as a link (OSC 8): Claude Code gives its path as it is, others a file:// address, with no
+      // host or this computer's; another host's is no file here (below).
+      const fileUrl = (host: string) => `file://${host}${url.pathToFileURL(path.join(dir, 'a.txt')).pathname}`;
+      for (const uri of [path.join(dir, 'a.txt'), fileUrl(''), fileUrl(os.hostname())]) {
+        await ui(`new Promise((r) => window.__term.write(${JSON.stringify(`\x1b]8;;${uri}\x07marked-file\x1b]8;;\x07\r\n`)}, r))`);
+        await pressAt('marked-file');
+        assert.deepEqual(await menuRows(ui), ['Open', 'Show in Folder'], uri);
+        await chooseFile('Show in Folder');
+      }
+      await pressAt('kl-links/missing.txt');
+      await sleep(200); // nothing to wait for: that no menu opens
+      assert.equal(await menuOpen(ui), false, 'a path that does not exist is no link');
+      await ui(`new Promise((r) => window.__term.write(${JSON.stringify(`\x1b]8;;${fileUrl('elsewhere.example')}\x07other-host\x1b]8;;\x07\r\n`)}, r))`);
+      await pressAt('other-host');
+      await sleep(200); // nothing to wait for: that no menu opens
+      assert.equal(await menuOpen(ui), false, "another computer's file is not opened here");
+      const a = path.join(dir, 'a.txt');
+      assert.deepEqual(files, [`open ${a}`, `show ${run}`, `show ${dir}`, `show ${path.join(dir, long)}`, `show ${a}`, `show ${a}`, `show ${a}`]);
+    } finally {
+      Object.assign(electron.shell, { openPath, showItemInFolder });
+      fs.rmSync(dir, { recursive: true });
+    }
+
     await ui(`document.getElementById('windowMenu').click()`);
     // The arrangements as pictures, a short name under each, the full words in the tooltip.
     // No Exit on macOS: ⌘Q and the app menu's Quit there (TopBar.vue).
@@ -637,7 +704,7 @@ export default (test: Test) => {
     assert.ok(pics.every((p: Pic) => p.title && p.w >= 40), JSON.stringify(pics));
     await ui(`document.querySelector('.menu[data-state="open"] .arrange [data-preset="focus"]').click()`);
     assert.equal(await menuOpen(ui), false, 'a choice closes the menu');
-    await waitFor(async () => (await pageBox(ui, 'elon-buyer')) === null && viewOn(shell, ui, 'sam-admin'));
+    await waitFor(async () => (await pageBox(ui, 'Elon.buyer')) === null && viewOn(shell, ui, 'Sam.admin'));
     await ui(`window.__layoutPreset('grid')`); // as the grid presets test left it, for the restart phase
     // ☰'s links open in the user's browser.
     electron.shell.openExternal = async (url) => { opened.push(url); };
@@ -727,7 +794,7 @@ export default (test: Test) => {
     assert.ok(await ui(`!!document.activeElement.closest('.term:not([hidden])')`), 'the keyboard back in the terminal');
 
     // A profile's page in the window taking the keyboard (as one loading did on macOS) leaves a menu open: the window is
-    // not left, and the page's blur closed the menu under the hand (GitHub's macOS runner, 2026-10-16).
+    // not left, and the page's blur would close the menu under the hand.
     mouse('mouseDown', menuButton); mouse('mouseUp', menuButton);
     await waitFor(() => menuOpen(ui));
     const pageOf = shell.profiles.values().next().value.get().wc;
@@ -750,7 +817,7 @@ export default (test: Test) => {
     } finally { other.destroy(); }
     // The window has the keyboard again before the tests after: a menu opened while it has not closes at once. The
     // OS's focus waited for too: the page had it at once and the window manager's came later, its blur closing the
-    // menu the next test had opened (the bar's +, on a loaded machine, 2026-10-12).
+    // menu the next test opens (on a loaded machine).
     shell.win.focus();
     await waitFor(() => shell.win.isFocused());
     await focusWindow(shell.win, ui);

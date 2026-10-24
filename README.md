@@ -42,10 +42,11 @@ actors, the panes the stage, and the developer watches from the audience and sto
 ## Documentation
 
 - **Using Kulisa:** the [user guide](https://kulisa.app/docs) on the website, also here as
-  [docs/guide.md](docs/guide.md): projects, tasks, agents, profiles, signing in, the window, keys.
+  [docs/guide.md](docs/guide.md): the systems it runs on, projects, tasks, agents, profiles, signing in, the window, keys.
 - **For developers:**
   - [docs/profiles.md](docs/profiles.md), [docs/tasks.md](docs/tasks.md), [docs/window.md](docs/window.md),
     [docs/transcripts.md](docs/transcripts.md), [docs/ui.md](docs/ui.md): how it works and why it is built so;
+  - [docs/packages.md](docs/packages.md): Kulisa packages, parts of Kulisa in folders of their own (the terminal);
   - [docs/ROADMAP.md](docs/ROADMAP.md): what is planned, open issues;
   - [docs/testing.md](docs/testing.md) and [CONTRIBUTING.md](CONTRIBUTING.md): the tests, contributing.
 
@@ -93,6 +94,8 @@ computer).
 | `KULISA_SIGNIN_HOSTS` | More sign-in hosts for the automatic sign-in pause, comma-separated |
 | `KULISA_DATA` | Data folder instead of the one above (e.g. to try a build next to your real one: one Kulisa runs per data folder, a second on the same one shows the first's window) |
 | `KULISA_MCP_PORT` | MCP server port (default 4450; `0` picks a free one) |
+| `KULISA_SCREENSHOTS` | The folder the human's screenshots go to, instead of the OS's own folder of screenshots (the tests' own) |
+| `KULISA_GITHUB` | GitHub's address instead of github.com, its API under `/api` (the tests' own: their fake GitHub; src/github) |
 | `KULISA_SHOT` | Save a screenshot of the whole window to this PNG file ~4 s after start (`KULISA_SHOT_DELAY`, ms) |
 
 ### Developing with Claude Code
@@ -112,6 +115,9 @@ Code's checks.
 | `src/preload/` | the window's bridge to the main process |
 | `src/shared/` | what the main process and the window both import: the shapes and channels they send, names, `Result` |
 | `src/agent/` | what Kulisa gives the agents: the profiles skill, Claude Code's plugin |
+| `src/terminal/` | the terminal, a Kulisa package: both its halves, its channels, its doc (docs/packages.md) |
+| `src/github/` | the GitHub accounts, a Kulisa package (docs/packages.md) |
+| `src/activity-monitor/` | what Kulisa takes on the computer, a Kulisa package (docs/packages.md) |
 | `test/` | unit tests and the e2e groups, the test site (docs/testing.md) |
 | `scripts/` | `electron.ts` (npm start: Electron, `--no-sandbox` on Linux only), `postinstall.ts` (node-pty for Electron), `icons.ts` (npm run icons), `version.ts` (Claude Code's plugin manifest's version from package.json's, at npm version) |
 | `assets/` | the app icon: `icon.svg` and what each OS needs, rendered from it |
@@ -123,7 +129,7 @@ At the root, the tools' configs: `forge.config.ts` (packaging), `vite.config.mts
 `eslint.config.ts`, `knip.jsonc`, `.dependency-cruiser.ts` (the layers). Each part's files, with what each does, are
 in its document, next to how the part works: in "The code", its last section, of docs/profiles.md, docs/tasks.md,
 docs/window.md and docs/transcripts.md; the UI's at the top of docs/ui.md, the tests' in docs/testing.md. The
-experiments behind the design (E1–E8, 2026-10-05) are in git history at commit `9fe8661`.
+experiments behind the design (E1–E8) are in git history at commit `9fe8661`.
 
 ## License
 
@@ -138,5 +144,5 @@ version 3 or (at your option) any later version ([LICENSE](LICENSE)). It comes w
 - **The name and the logo** are not covered by the license: a fork must be called otherwise and not look like the
   official Kulisa.
 
-What the license covers and what it does not (agents, their plugins, MCP servers, extensions, services):
+What the license covers and what it does not (agents, their plugins, MCP servers, services):
 [docs/LICENSING.md](docs/LICENSING.md). Contributing: [CONTRIBUTING.md](CONTRIBUTING.md).

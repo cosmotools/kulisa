@@ -23,18 +23,17 @@ const quote = (s: string) => JSON.stringify(s.length > QUOTE ? `${s.slice(0, QUO
 
 // Where the work stands, what no transcript says: the code, the profiles, the terminals.
 async function standing(task: Task) {
-  const { entry } = task;
   const lines = [`# Where the task stands (from Kulisa)`, '',
-    `The task "${task.name}", in ${task.folder}${entry.branch ? `, on branch ${entry.branch}` : ''}.`];
-  for (const c of entry.copies || []) {
+    `The task "${task.name}", in ${task.folder}${task.branch ? `, on branch ${task.branch}` : ''}.`];
+  for (const c of task.worktrees) {
     const { log, status, stat } = await progress(c);
     lines.push('', `## The code: ${c.folder} (a copy of ${c.repo})`,
       `Commits since the task started:\n${log || '(none)'}`,
       `Not committed:\n${status || '(nothing)'}`,
       ...(stat ? [`Changed since the task started:\n${stat}`] : []));
   }
-  const open = [...task.profiles.values()].map((p) => `${p.id} ("${p.name}")`);
-  const closed = [...task.closed.values()].map(({ cfg }) => `${cfg.id} ("${cfg.name}")`);
+  const open = [...task.profiles.values()].map((p) => p.name);
+  const closed = [...task.closed.values()].map(({ cfg }) => cfg.name);
   lines.push('', '## Profiles', `Open: ${open.join(', ') || 'none'}. Closed: ${closed.join(', ') || 'none'}.`);
   const shells = task.terminalsInfo().list.filter((t) => !t.agent);
   if (shells.length) lines.push('', '## Terminals', ...shells.map((t) => `- ${t.name}: ${t.command || 'a shell'}`));

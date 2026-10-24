@@ -8,7 +8,7 @@ import type { SessionCookies } from './session-cookies.ts';
 import type { CdpProxy } from './cdp-proxy.ts';
 import type { Accounts, Account } from './accounts.ts';
 import type { Agent, Found } from './agents/index.ts';
-import type { Profile } from './profiles.ts';
+import type { Profile, Tab } from './profiles.ts';
 import type { Project } from './projects.ts';
 import type { Task } from './tasks.ts';
 import type { AppWindow, Asker } from './window.ts';
@@ -16,10 +16,13 @@ import type { Question, ProjectEntry as SentProject, LanguageInfo, Shortcut } fr
 import type { Master } from './master.ts';
 import type { SettingsWindow } from './settings-window.ts';
 import type { SettingsAt } from '../shared/ipc.ts';
-import type { Pty } from './terminal.ts';
+import type { Pty } from '../terminal/main/index.ts';
 import type { signinPages } from './signin-pages.ts';
 import type { Result } from '../shared/result.ts';
 import type { Discarder } from './discard.ts';
+import type { GitHub } from '../github/main/index.ts';
+import type { ActivityMonitor } from '../activity-monitor/main/index.ts';
+import type { Dictation } from '../dictation/main/index.ts';
 
 
 // An agent or account a task runs (shell.agentFor): its agent's entry, with the account's id, name and folder; cli:
@@ -32,7 +35,11 @@ interface Shell {
   bus: EventEmitter; store: Store; proxy: CdpProxy; mcp: { base: string; srv: import('http').Server };
   open: Map<string, Project>; windows: AppWindow[]; signin: ReturnType<typeof signinPages>;
   profileStore: ProfileStore; cookieSync: CookieSync; sessionCookies: SessionCookies; accounts: Accounts;
-  secrets: { available(): boolean; encrypt(s: string): string; decrypt(b: string): string };
+  github: GitHub; // the GitHub accounts (src/github)
+  activity: ActivityMonitor; // what Kulisa takes on the computer (src/activity-monitor)
+  dictation: Dictation; // every task's dictation (src/dictation)
+  // available: encryption works; kept: by a keyring (not Linux's basic_text, Electron's fixed key: as good as plain text)
+  secrets: { available(): boolean; kept(): boolean; encrypt(s: string): string; decrypt(b: string): string };
   loginSecret(password?: string): Result<{ secret?: string }>;
   typingSecret: Set<string>; // '<task key>/<profile id>'
   profilesChanged(from?: Task): void;
@@ -40,9 +47,10 @@ interface Shell {
   readonly win: BrowserWindow | null; readonly current: Project | null; readonly task: Task | null; // current: the shown task's project
   readonly profiles: Map<string, Profile>; readonly closed: Task['closed']; readonly pty: Pty | null;
   readonly resumedSession: string | null; readonly quitting: boolean;
-  taskOf(id: string, n: number): Task | null;
+  taskOf(project: string, id: string): Task | null;
   taskByKey(key: string): Task | null;
   windowOf(sender: WebContents): AppWindow | null;
+  tabOf(wc: WebContents): { w: AppWindow; profile: Profile; tab: Tab } | null;
   taskChanged(task: Task, now?: boolean, agentState?: boolean): void;
   projects(): SentProject[];
   askWhich(q: Question, w?: Asker | null): Promise<string | null>;
@@ -75,9 +83,9 @@ interface Shell {
   openSettings(at: SettingsAt): void;
   // master.ts
   masters: Map<string, Master>;
-  flushMaster(folder: string): Promise<void>;
-  closeMaster(folder: string): Promise<void>;
-  openMaster(folder: string): Promise<Result<{ folder: string }>>;
+  flushMaster(id: string): Promise<void>;
+  closeMaster(id: string): Promise<void>;
+  openMaster(id: string): Promise<Result<{ id: string }>>;
 }
 
 export type { Shell, AgentChoice };

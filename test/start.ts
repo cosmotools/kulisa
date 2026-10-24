@@ -1,4 +1,4 @@
-// `npm test`: the unit tests (test/unit, plain Node, a second), knip (npm run knip: no file, export or dependency
+// `npm test`: the unit tests (test/unit and the parts' own, plain Node, a second), knip (npm run knip: no file, export or dependency
 // nothing uses; docs/testing.md, Dead code), ESLint (npm run lint; docs/testing.md, Lint), actionlint on the CI's workflows when installed, the window built (npm run build: its types checked,
 // then Vite), then the groups of e2e files, in parallel where each has a screen of its own (below). Each group
 // runs in an app of its own (run.ts), in its own folder, its files in order (later ones build on earlier ones), then
@@ -19,7 +19,7 @@ import type { ChildProcess } from 'child_process';
 
 // A group starts from nothing, or from setup.ts (the profiles the first group makes on its way).
 const GROUPS: Record<string, { files: string[]; restart: string[] }> = {
-  profiles: { files: ['agent', 'profiles', 'discard', 'zoom-and-closing'], restart: ['restart-profiles'] },
+  profiles: { files: ['agent', 'profiles', 'discard', 'zoom-and-closing', 'github'], restart: ['restart-profiles'] },
   tasks: { files: ['setup', 'window', 'keys', 'grid', 'tasks'], restart: ['restart-tasks'] },
 };
 
@@ -44,7 +44,8 @@ let site: { url: string; child?: ChildProcess };
 // One run of the app (run.ts, or another script), its output kept until it ends (groups side by side would mix
 // their lines).
 function app(group: string, args: string[], script = run) {
-  const env = { ...process.env, KULISA_TEST_ROOT: folder(group), KULISA_TEST_SITE: site.url };
+  // The human's screenshots go into the group's folder, never the user's own (src/screenshots, KULISA_SCREENSHOTS).
+  const env = { ...process.env, KULISA_TEST_ROOT: folder(group), KULISA_TEST_SITE: site.url, KULISA_SCREENSHOTS: path.join(folder(group), 'screenshots') };
   // In plain Node the electron package is the path of Electron's binary.
   // Linux only: chrome-sandbox in node_modules is not setuid there (README, Run).
   const sandbox = process.platform === 'linux' ? ['--no-sandbox'] : [];
@@ -80,7 +81,8 @@ async function group(name: string) {
 }
 
 void (async () => {
-  const unit = spawnSync(process.execPath, ['--test', 'test/unit/*.test.ts'], { cwd: path.join(import.meta.dirname, '..'), stdio: 'inherit' });
+  // The same as npm run test:unit: Kulisa packages' unit tests are in their folders (docs/packages.md).
+  const unit = spawnSync(process.execPath, ['--test', 'test/unit/*.test.ts', 'src/*/*.test.ts'], { cwd: path.join(import.meta.dirname, '..'), stdio: 'inherit' });
   if (unit.status !== 0) process.exit(unit.status ?? 1);
   const knip = spawnSync('npm', ['run', 'knip'], { cwd: path.join(import.meta.dirname, '..'), stdio: 'inherit', shell: process.platform === 'win32' });
   if (knip.status !== 0) process.exit(knip.status ?? 1);
@@ -98,12 +100,12 @@ void (async () => {
   const chosen = names.length ? names : Object.keys(GROUPS);
   site = await ensureSite(await freePort()); // one for every group: a group's own would go with it while others still use it
   const codes = [];
-  // In parallel only on screens of their own: on one screen (macOS, Windows, --visible) the groups' windows took each
-  // other's focus, and tests waiting for it failed (2026-10-16, macOS).
+  // In parallel only on screens of their own: on one screen (macOS, Windows, --visible) the groups' windows would take each
+  // other's focus, and tests waiting for it fail.
   if (!hidden) for (const n of chosen) codes.push(await group(n));
   else {
-    // The keyring's key first, by one Electron alone (keyring.ts): the groups' two made it at once on a fresh keyring,
-    // and the one whose key the keyring did not keep lost its session cookies at its restart (GitHub's runner).
+    // The keyring's key first, by one Electron alone (keyring.ts): the groups' two would make it at once on a fresh
+    // keyring, and the one whose key the keyring does not keep lose its session cookies at its restart.
     await app('keyring', [], path.join(import.meta.dirname, 'keyring.ts'));
     codes.push(...await Promise.all(chosen.map(group)));
   }

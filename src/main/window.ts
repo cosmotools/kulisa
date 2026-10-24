@@ -9,6 +9,7 @@ import path from 'path';
 import fs from 'fs';
 import { page } from './pages.ts';
 import { log } from './log.ts';
+import { Thumbnails } from '../screenshots/main/index.ts';
 import type { Rectangle, Point } from 'electron';
 import type { Shell } from './shell.ts';
 import type { Task } from './tasks.ts';
@@ -22,7 +23,7 @@ interface Place { bounds?: Rectangle | null; maximized?: boolean; near?: Electro
 type Shade = 'dark' | 'light';
 
 const TITLE_BAR_HEIGHT = 44; // --title in tokens.css: keep in step
-// macOS's window buttons: their height and Electron's place for them from the left, in pt (measured, Electron 44.8.0).
+// macOS's window buttons: their height and Electron's place for them from the left, in pt (measured).
 const MAC_BUTTONS = { height: 14, x: 7 };
 // The window's background and the OS buttons' strip, in each theme: --window and --text in tokens.css.
 const COLORS: Record<Shade, { window: string; text: string }> = { dark: { window: '#2b2d30', text: '#dfe1e5' }, light: { window: '#ebecf0', text: '#1e1f22' } };
@@ -32,13 +33,17 @@ const COLORS: Record<Shade, { window: string; text: string }> = { dark: { window
 // the constructor's bounds and setSize pass below it, so a window is raised to it here.
 const MIN_SIZE = { width: 640, height: 400 };
 const minSize = (z: number) => ({ width: Math.round(MIN_SIZE.width * z), height: Math.round(MIN_SIZE.height * z) });
+const CLEAR = '#0000'; // the OS buttons' strip
 const NONE = new Map<string, never>(); // the profiles when no task is open
 let windows = 0;
+
+const PRELOAD = path.join(import.meta.dirname, '..', 'preload', 'index.cjs');
 
 class AppWindow {
   shell: Shell; id: number; tabs: Task[]; current: Task | null; viewsHidden: boolean; switching: boolean;
   stateTimer: NodeJS.Timeout | undefined; picking: Map<string, { profile: Profile; page: import('playwright-core').Page; cancel: () => unknown }>;
   questions: Questions; loaded: boolean; pending: [string, unknown[]][]; keyZone: string;
+  thumbnails: Thumbnails; // a screenshot's, in its pane's corner (src/screenshots)
   win: Electron.BrowserWindow; place: { bounds: Rectangle; maximized: boolean }; barHeight: number; // the title bar's, as the window was made
   // shell: the app (app.ts). place: where it was ({ bounds, maximized }, settings.json), or { near: a window } for a
   // new one of its size next to it, or under the pointer (at: a point on the screen, where a tab was let go).
@@ -72,13 +77,17 @@ class AppWindow {
       icon: path.join(import.meta.dirname, '..', '..', 'assets', 'icon.png'), // taskbar and window switcher on Linux and Windows
       // One row on top, as in VS Code: no system title bar; the OS window buttons are drawn over the right end of
       // the window's own top bar (left on macOS). The page lays out around them (Window Controls Overlay).
-      titleBarStyle: 'hidden', titleBarOverlay: { color: COLORS[shell.shade()].window, symbolColor: COLORS[shell.shade()].text, height: this.barHeight },
+      // Its color is see-through, as macOS's traffic lights have no strip of their own: the top bar under it shows, and a
+      // dialog's backdrop dims it with the rest.
+      titleBarStyle: 'hidden', titleBarOverlay: { color: CLEAR, symbolColor: COLORS[shell.shade()].text, height: this.barHeight },
       // DevTools of Kulisa's own UI only while developing it; a packaged build has none (profiles' tabs still do).
-      webPreferences: { preload: path.join(import.meta.dirname, '..', 'preload', 'index.cjs'), sandbox: true, devTools: appDevTools,
+      webPreferences: { preload: PRELOAD, sandbox: true, devTools: appDevTools,
         zoomFactor: shell.uiZoom },
     }));
     if (maximized) win.maximize();
     this.place = this.where();
+    // Send to Agent: its file's path into the prompt of the shown task's agent.
+    this.thumbnails = new Thumbnails(win, { page: page('thumbnail.html'), preload: PRELOAD, send: (text) => this.task?.typeForAgent(text) });
     // Electron's default File/Edit/View/Window menu adds a row on Linux and Windows and gives nothing (its Ctrl+R
     // reloads the shell). On macOS the menu lives in the system bar and stays (Cmd+C/V need its Edit roles).
     win.removeMenu();
@@ -95,7 +104,7 @@ class AppWindow {
     win.on('close', (e) => { this.place = this.where(); shell.windowClosing(this, e); });
     win.on('closed', () => this.unanswered());
     win.on('focus', () => this.seen());
-    win.on('blur', () => { this.task?.letGo(); this.send('window:blur'); });
+    win.on('blur', () => { if (this.task) this.shell.dictation.letGo(this.task.key); this.send('window:blur'); });
   }
   get task() { return this.current; }
   get profiles(): Map<string, Profile> { return this.task?.profiles || NONE; }
@@ -108,7 +117,7 @@ class AppWindow {
   // How another window's menu names it (Move to Window: …): its shown task, and how many more it holds.
   label() {
     const more = this.tabs.length - 1;
-    return this.current ? `${this.current.name}${more > 0 ? ` (+${more})` : ''}` : 'empty';
+    return this.current ? `${this.current.displayName}${more > 0 ? ` (+${more})` : ''}` : 'empty';
   }
   focus() { if (this.win.isMinimized()) this.win.restore(); if (!this.win.isVisible()) this.win.show(); this.win.focus(); }
   // Kulisa's own DevTools (only when running from source: appDevTools), detached like the profiles' DevTools: docked
@@ -117,7 +126,7 @@ class AppWindow {
     const wc = this.win.webContents;
     if (wc.isDevToolsOpened()) wc.closeDevTools(); else wc.openDevTools({ mode: 'detach', title: 'Kulisa · DevTools' });
   }
-  destroy() { this.unanswered(); if (!this.win.isDestroyed()) this.win.destroy(); }
+  destroy() { this.unanswered(); this.thumbnails.destroy(); if (!this.win.isDestroyed()) this.win.destroy(); }
 
   // Its page, loaded once; its tabs, the one to be shown (shown), the theme, where the tasks' bar is and
   // the keyboard shortcuts (keys.ts: for menus and tooltips) come along in the URL, so the window is drawn right at once. The profiles' views stay hidden until the renderer has the grid laid out (views:hidden).
@@ -154,9 +163,15 @@ class AppWindow {
     if (!task || this.switching) return;
     this.sendTerminals();
     this.send('state', [...task.profiles.values()].map((p) => p.info()));
-    this.send('closed-profiles', [...task.closed.values()].map(({ cfg, urls }): Sent.ClosedProfile =>
-      ({ key: cfg.folder, id: cfg.id, name: cfg.name, avatar: cfg.avatar, description: cfg.description ?? '', tabs: urls.length })));
+    this.send('closed-profiles', [...task.closed.values()].map(({ cfg, tabs }): Sent.ClosedProfile =>
+      ({ id: cfg.id, name: cfg.name, avatar: cfg.avatar, description: cfg.description ?? '', tabs: tabs.urls.length })));
     task.list.saveTabs();
+  }
+  // The shown task's artifacts (Resources.vue): when it is shown, and when its agent makes one.
+  async sendArtifacts(task = this.task) {
+    if (!task || task !== this.task) return;
+    const [list, { bytes }] = await Promise.all([task.artifacts(), task.artifactsUsage()]);
+    if (task === this.task) this.send('artifacts', { task: task.key, list, bytes });
   }
   sendTerminals() { if (this.task && !this.switching) this.send('terminals', { task: this.task.key, ...this.task.terminalsInfo() }); }
   scheduleState() { clearTimeout(this.stateTimer); this.stateTimer = setTimeout(() => this.pushState(), 30); }
@@ -190,7 +205,7 @@ class AppWindow {
     if (this.current) await this.leaveGrid(Math.sign(this.tabs.indexOf(task) - this.tabs.indexOf(this.current)));
     this.current = task;
     this.shell.saveWindows();
-    this.win.setTitle(`${task.name} · ${task.project.name} — Kulisa`);
+    this.win.setTitle(`${task.displayName} · ${task.project.name} — Kulisa`);
     this.sendProjects();
     task.project.checkMerged().then((found) => found && this.shell.sendProjects()).catch(() => {}); // its closed tasks whose PR is merged
     await this.showLoaded();
@@ -218,6 +233,7 @@ class AppWindow {
     this.switching = true;
     clearTimeout(this.stateTimer);
     for (const { cancel } of this.picking.values()) cancel();
+    this.thumbnails.close(); // its pane goes
     const pics = dir ? await this.pictures() : null;
     this.viewsHidden = true;
     for (const p of this.profiles.values()) p.setHidden(true);
@@ -260,13 +276,13 @@ class AppWindow {
     // again); the page shows them once it has the next grid laid out.
     this.viewsHidden = !!hidden || this.switching;
     for (const p of this.profiles.values()) p.setHidden(this.viewsHidden);
+    this.thumbnails.setHidden(this.viewsHidden);
     return pics;
   }
-  // JPEG: a picture shown for a moment, encoded three times faster than PNG (measured 2026-10-07). A page that draws no
-  // frame (covered, the monitor off, busy) gives none: its pane is empty meanwhile. Waiting for it held every menu
-  // after it closed (the menus' tests failed now and then, 2026-10-07), and half a second it held a task's slide after
-  // the click. How long a picture takes is the computer's (2–7 ms on the author's, over a hundred on GitHub's runner,
-  // where a fixed tenth of a second left every pane empty, 2026-10-15), so the pages set the pace: once the first has
+  // JPEG: a picture shown for a moment, encoded three times faster than PNG. A page that draws no
+  // frame (covered, the monitor off, busy) gives none: its pane is empty meanwhile. Waiting for it would hold every menu
+  // after it closed, and a task's slide after the click. How long a picture takes is the computer's (a few ms, or
+  // over a hundred on a loaded one, where a fixed tenth of a second leaves every pane empty), so the pages set the pace: once the first has
   // answered, the rest get three times as long, a tenth of a second at least; none answering, half a second.
   async pictures() {
     const pics: Record<string, string> = {}, t0 = Date.now();
@@ -293,7 +309,10 @@ class AppWindow {
     if (key !== this.task?.key) return; // a task no longer on screen
     const z = this.win.webContents.getZoomFactor();
     for (const [id, r] of Object.entries(rects)) this.profiles.get(id)?.layout(r.shown === false ? r : Object.fromEntries(Object.entries(r).map(([k, v]) => [k, Math.round((v as number) * z)])));
+    this.thumbnails.place(this.paneBox);
   }
+  // Where a profile's pane shows its page in the window; null: not on screen.
+  paneBox = (id: string) => { const p = this.profiles.get(id); return p?.shown ? p.bounds : null; };
   // Any loaded task of this window: the grid's last change comes as it is taken down, and reaches here once the window
   // shows the next task.
   saveLayout(key: string | null, layout: unknown) {
@@ -316,16 +335,16 @@ class AppWindow {
     this.send('zoom', z);
   }
   // The theme (app.ts): the page's colors (tokens.css: theme, as chosen), the window's background and the OS buttons'
-  // strip in the colors shown (shade: dark or light).
+  // symbols in the colors shown (shade: dark or light); their strip is see-through (CLEAR).
   setTheme(theme: string, shade: Shade) {
     if (this.win.isDestroyed()) return;
     this.win.setBackgroundColor(COLORS[shade].window);
-    if (process.platform !== 'darwin') this.win.setTitleBarOverlay({ color: COLORS[shade].window, symbolColor: COLORS[shade].text });
+    if (process.platform !== 'darwin') this.win.setTitleBarOverlay({ symbolColor: COLORS[shade].text });
     this.send('theme', theme);
   }
 
   // Brought to the front with it while another of Kulisa's windows has the focus (Settings, another tasks' window): left
-  // behind, it looked as if nothing happened (the OS's × behind Settings on macOS, 2026-10-16). Never from another app.
+  // behind, it would look as if nothing happened (the OS's × works behind Settings on macOS). Never from another app.
   ask(q: Question) {
     const focused = BrowserWindow.getFocusedWindow();
     if (focused && focused !== this.win) this.focus();
@@ -356,11 +375,11 @@ interface Asker { ask(q: Question): Promise<string | null> }
 class Questions {
   send: (q: Question & { id: number }) => void; answers = new Map<number, (answer: string | null) => void>();
   constructor(send: (q: Question & { id: number }) => void) { this.send = send; }
-  ask({ message, detail, ok, other, danger }: Question) {
+  ask({ message, detail, ok, other, danger, link }: Question) {
     return new Promise<string | null>((resolve) => {
       const id = ++asked;
       this.answers.set(id, resolve);
-      this.send({ id, message, detail, ok, other, danger });
+      this.send({ id, message, detail, ok, other, danger, link });
     });
   }
   answer(id: number, answer: string) { this.answers.get(id)?.(answer === 'ok' || answer === 'other' ? answer : null); this.answers.delete(id); }

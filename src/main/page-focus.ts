@@ -1,10 +1,10 @@
-// Where the keyboard is in a window stays where the human put it (the author, 2026-10-16; docs/window.md, Keys): a
+// Where the keyboard is in a window stays where the human put it (docs/window.md, Keys): a
 // profile's page takes it from a click or a key of the human's in it, or when Kulisa gives it there for the human
 // (allow: a tab chosen by a key, a dialog answered, Pick, an address from its pane's bar); a page taking it by itself
 // (loading, a tab the agent opened: on macOS every one did) gives it back to where it was in its window.
 import type { BrowserWindow, WebContents } from 'electron';
 
-// A real click's order on macOS (measured with the author's mouse, 2026-10-16): the page's focus, then its mouseDown
+// A real click's order on macOS: the page's focus, then its mouseDown
 // 2 ms later (input sent to a page, as the tests do, comes before). So the human's input in that page within this
 // long of its focus, before or after, makes the focus theirs; else it is given back after it. On a loaded machine the
 // gap can be longer.

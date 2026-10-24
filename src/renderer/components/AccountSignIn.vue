@@ -1,11 +1,11 @@
 <script setup lang="ts">
 // A new account of an agent, signed in with the agent's own sign-in (docs/tasks.md, Accounts).
-// Its terminal is under Details: the address it prints, with the sign-in window open, only confused (the author,
-// 2026-10-11); it is there for a failure and for what the window does not show (a code the agent asks for).
+// Its terminal is under Details: the address it prints, with the sign-in window open, only confuses; it
+// is there for a failure and for what the window does not show (a code the agent asks for).
 import { CollapsibleContent, CollapsibleRoot, CollapsibleTrigger } from 'reka-ui';
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 import Icon from './Icon.vue';
-import { forgetTerminals, termHost } from '../lib/xterm';
+import { forgetTerminals, View } from '../../terminal/renderer';
 import type { SignedIn } from '../../shared/types';
 
 const props = defineProps<{ project?: string | null; agent: { id: string; name: string } }>();
@@ -13,13 +13,15 @@ const emit = defineEmits<{ done: [r: SignedIn]; close: [] }>();
 let n = 0, shown = ''; // kept after its sign-in ends: a failure's Details show what the agent said
 const host = ref<HTMLElement>();
 const running = ref(''), error = ref(''), details = ref(false); // running: the sign-in terminal's key
+const view = new View({ background: '--island' }); // the dialog's
 
 async function start() {
   error.value = '';
   details.value = false;
   if (shown) forgetTerminals([shown]);
   const key = running.value = shown = `signin#${Date.now()}-${++n}`;
-  host.value!.replaceChildren(termHost(key));
+  if (view.el.parentElement !== host.value) host.value!.append(view.el);
+  view.show(key);
   const r = await kulisa.invoke('account:signin', { id: props.project ?? null, agent: props.agent.id, key });
   if (running.value === key) running.value = '';
   if (r.error) { error.value = r.error; details.value = true; }
@@ -32,7 +34,7 @@ async function stop() {
 }
 async function cancel() { await stop(); emit('close'); }
 onMounted(start);
-onBeforeUnmount(() => { void stop(); forgetTerminals([shown]); });
+onBeforeUnmount(() => { void stop(); forgetTerminals([shown]); view.dispose(); });
 </script>
 
 <template>

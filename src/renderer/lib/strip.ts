@@ -1,9 +1,10 @@
 // A strip of tabs that scrolls sideways when they do not fit (docs/ui.md, Controls): the tasks' bar, a pane's tabs, the
 // closed profiles over the terminal, the terminals' tabs.
 // The element has .tabstrip (components.css: no scrollbar, its edges faded); this module scrolls it by the wheel,
-// says which edges have tabs past them, and keeps its .active tab in sight.
+// says which edges have tabs past them, keeps its .active tab in sight, and grows a panel's tab (.tab) in as it opens.
 import { nextTick, onUnmounted, watch } from 'vue';
 import type { Ref } from 'vue';
+import { reducedMotion } from './common';
 
 // strip: the element; active: what changes when another tab is chosen (its key).
 export function useStrip(strip: Ref<HTMLElement | undefined>, active: () => unknown) {
@@ -26,6 +27,16 @@ export function useStrip(strip: Ref<HTMLElement | undefined>, active: () => unkn
     else if (a.right > b.right - pad) s.scrollLeft += a.right - (b.right - pad);
     edges(); // at once: the scroll event comes a frame later
   };
+  // A panel's tab added to a strip that has tabs (not the first ones, nor a strip drawn whole) grows in from the left,
+  // as Chrome's: data-opening until its animation ends, then brought into sight. An attribute, not a class: the tab's
+  // :class would write over a class. With reduced motion it does not grow, so no animation ends: in sight at once
+  // (else it stays opening, and out of sight).
+  const opened = (t: Element) => {
+    if (!t.matches('.tab')) return;
+    if (reducedMotion.matches) { void nextTick(reveal); return; }
+    t.setAttribute('data-opening', '');
+    t.addEventListener('animationend', () => { t.removeAttribute('data-opening'); reveal(); }, { once: true });
+  };
   // A mouse's wheel turns up and down, and the strip scrolls only sideways; Shift and a touchpad's sideways swipe are
   // the browser's (with Shift both scrolled, twice as far).
   const wheel = (e: WheelEvent) => {
@@ -36,11 +47,13 @@ export function useStrip(strip: Ref<HTMLElement | undefined>, active: () => unkn
   // how far the tabs reach: the edges again.
   const resized = new ResizeObserver(reveal);
   const grown = new ResizeObserver(edges);
+  let filled = false; // the strip had tabs before these changes
   const tabs = new MutationObserver((changes) => {
     for (const c of changes) {
-      for (const t of c.addedNodes) if (t instanceof Element) grown.observe(t);
+      for (const t of c.addedNodes) if (t instanceof Element) { grown.observe(t); if (filled) opened(t); }
       for (const t of c.removedNodes) if (t instanceof Element) grown.unobserve(t); // or the observer keeps it
     }
+    filled = !!strip.value?.children.length;
     edges();
   });
   const off = () => { resized.disconnect(); grown.disconnect(); tabs.disconnect(); };
@@ -52,6 +65,7 @@ export function useStrip(strip: Ref<HTMLElement | undefined>, active: () => unkn
     if (!s) return;
     resized.observe(s);
     for (const t of s.children) grown.observe(t);
+    filled = s.children.length > 0;
     tabs.observe(s, { childList: true });
     s.addEventListener('wheel', wheel, { passive: true });
     s.addEventListener('scroll', edges, { passive: true });

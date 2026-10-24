@@ -2,21 +2,21 @@
 // A profile's pane, as a Chrome window (docs/profiles.md; docs/window.md, The grid). The page itself is a native view
 // the main process lays over .content (lib/grid.ts tells it where); while a panel is dragged or a menu is open, a
 // picture of the page stands in for it.
-import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { DockviewPanelApi } from 'dockview-vue';
 import { DialogContent, DialogDescription, DialogRoot, DialogTitle, TabsList, TabsRoot, TabsTrigger, Toggle } from 'reka-ui';
 import Icon from '../Icon.vue';
 import ButtonMenu from '../menu/ButtonMenu.vue';
 import RightClickMenu from '../menu/RightClickMenu.vue';
-import { act, store, togglePick } from '../../lib/store';
-import { keyText, reducedMotion, withKeys } from '../../lib/common';
+import { act, screenshot, store, togglePick } from '../../lib/store';
+import { keyText, withKeys } from '../../lib/common';
 import type { MenuItem } from '../../lib/menu';
 import { panes, scheduleLayout, type PaneHandle } from '../../lib/grid';
 import { useStrip } from '../../lib/strip';
 
 const props = defineProps<{ params: { api: DockviewPanelApi } }>();
 const key = props.params.api.id.slice('profile:'.length);
-const profile = computed(() => store.profiles.find((p) => p.key === key));
+const profile = computed(() => store.profiles.find((p) => p.id === key));
 const active = computed(() => profile.value?.tabs.find((t) => t.id === profile.value!.active));
 const content = ref<HTMLElement>(), addr = ref<HTMLInputElement>(), strip = ref<HTMLElement>();
 const id = () => profile.value!.id;
@@ -49,18 +49,9 @@ function addrUp(e: MouseEvent) {
 function go() { void act('tab:navigate', { profile: id(), tab: tab(), url: addr.value!.value }); addr.value!.blur(); }
 
 // The tab strip, Reka's Tabs: a tab is chosen on the press, as in Chrome (not on its ×), the arrows move between them
-// and Enter chooses. A tab opened in a strip already shown grows in from the left, as Chrome's (.tab.opening); the
-// active tab in sight, as Chrome scrolls to it (lib/strip.ts, with the wheel and the faded edges). Tabs are kept by
-// id: an element stays as its tab does. With reduced motion it does not grow, so no animation ends: brought into sight
-// at once (it stayed .opening, and out of sight, 2026-10-16).
-const opening = reactive(new Set<string>());
-let known: Set<string> | null = null;
-watch(() => profile.value?.tabs.map((t) => t.id) || [], (ids) => {
-  if (known?.size) for (const t of ids) if (!known.has(t)) { if (reducedMotion.matches) void nextTick(() => reveal()); else opening.add(t); }
-  known = new Set(ids);
-}, { immediate: true });
-const { reveal } = useStrip(strip, () => profile.value?.active);
-const grown = (t: string) => { opening.delete(t); reveal(); };
+// and Enter chooses. A tab opened grows in, and the active tab is kept in sight, as Chrome's (lib/strip.ts, with the
+// wheel and the faded edges). Tabs are kept by id: an element stays as its tab does.
+useStrip(strip, () => profile.value?.active);
 const activate = (t: string | number) => act('tab:activate', { profile: id(), tab: String(t) });
 // A tab's right-click menu (the strip's: for the tab it was on).
 function tabMenu(e: MouseEvent): MenuItem[] | null {
@@ -85,7 +76,13 @@ const more = (): MenuItem[] => {
       { label: 'Forward', keys: keyText('tab.forward'), enabled: !!active.value?.canFwd, run: () => act('tab:forward', { profile: id(), tab: tab() }) }] : [],
     ...hidden('reload') ? [{ label: 'Reload', keys: keyText('tab.reload'), run: () => act('tab:reload', { profile: id(), tab: tab() }) }] : [],
   ];
+  // Nothing to take on an empty tab, as nothing to pick.
+  const blank = !active.value?.url || active.value.url === 'about:blank';
   return [...nav, ...nav.length ? ['-' as const] : [],
+    { submenu: 'Screenshot', items: [
+      { label: 'Element', keys: keyText('screenshot'), enabled: !blank, run: () => screenshot(id(), 'element') },
+      { label: 'Visible Part', enabled: !blank, run: () => screenshot(id(), 'visible') },
+      { label: 'Full Page', enabled: !blank, run: () => screenshot(id(), 'full') }] },
     { label: 'DevTools', keys: keyText('devtools.tab'), run: () => act('tab:devtools', { profile: id(), tab: tab() }) }];
 };
 const picking = computed(() => !!profile.value && !!store.picking[profile.value.id]);
@@ -122,9 +119,9 @@ onBeforeUnmount(() => { observer.disconnect(); if (panes.get(key) === handle) pa
     <TabsRoot as-child :model-value="profile.active ?? undefined" activation-mode="manual" @update:model-value="activate"><nav class="tabs">
       <RightClickMenu :items="tabMenu"><TabsList as-child :loop="false"><div ref="strip" class="strip tabstrip">
         <TabsTrigger v-for="t in profile.tabs" :key="t.id" :value="t.id" as-child>
-          <div class="tab" :class="{ active: t.id === profile.active, opening: opening.has(t.id) }" :data-tab="t.id" :title="t.url" @animationend="grown(t.id)">
+          <div class="tab" :class="{ active: t.id === profile.active }" :data-tab="t.id" :title="t.url">
             <img alt="" :hidden="!t.favicon" :src="t.favicon || undefined"><Icon class="globe" name="i-globe" />
-            <span class="title">{{ (t.loading ? '⟳ ' : '') + (t.title || t.url || 'New tab') }}</span>
+            <span class="title">{{ t.title || t.url || 'New tab' }}</span>
             <!-- Not a press on the tab: it is not chosen first. -->
             <span class="x icon small" title="Close tab" @mousedown.prevent @click="act('tab:close', { profile: profile.id, tab: t.id })"><Icon name="i-close" /></span>
           </div>
@@ -167,28 +164,14 @@ onBeforeUnmount(() => { observer.disconnect(); if (panes.get(key) === handle) pa
   .strip { display: flex; align-items: end; min-width: 0; }
   .add { align-self: center; margin-inline-start: 4px; }
 }
-/* Many tabs shrink as Chrome's, to their icon and × (64 px): every tab keeps its ×, not the active one alone as
-   Chrome's (the author, 2026-10-15, as in the tasks' bar); past that the strip scrolls (.tabstrip). */
-.tab { position: relative; display: flex; align-items: center; gap: 6px; width: 220px; flex: 0 1 auto; min-width: 64px; /* a width, not a basis: size containment leaves it no other */ height: 32px; padding: 0 8px 0 12px;
-  container-type: inline-size;
-  border-radius: var(--tab-radius) var(--tab-radius) 0 0; color: var(--text-dim);
-  &:hover:not(.active) { background: color-mix(in srgb, var(--toolbar) 50%, var(--island)); }
-  &.active { background: var(--toolbar); color: var(--text-strong); }
-  /* a short line between two tabs, as Chrome's, where neither is lit */
-  &:not(.active, :hover) + &:not(.active, :hover)::before { content: ''; position: absolute; inset-inline-start: 0; inset-block: 9px;
-    border-inline-start: 1px solid var(--line); }
-  /* opened: it grows in from the left, as Chrome's */
-  &.opening { overflow: hidden; animation: tab-open .2s cubic-bezier(.2, .8, .2, 1);
-    @media (prefers-reduced-motion: reduce) { animation: none; } }
+/* A page's icon, or the globe when its site has none */
+.pane .tab {
   img { width: 16px; height: 16px; flex: none; }
   .globe { stroke-width: 1.2; }
   img:not([hidden]) + .globe { display: none; }
-  .title { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 }
-@keyframes tab-open { from { width: 0; min-width: 0; padding-inline: 0; } }
-@container (max-width: 80px) { .tab .title { display: none; } }
-/* A narrow pane gives up Back and Forward, then Reload (into ⋮; their keys stay), never Pick or ⋮: in order, the
-   buttons at the end went out of reach first (2026-10-16). The widths are the pane's less the bar's padding. */
+/* A narrow pane gives up Back and Forward, then Reload (into ⋮; their keys stay), never Pick or ⋮: in order, else the
+   buttons at the end go out of reach first. The widths are the pane's less the bar's padding. */
 .bar { display: flex; align-items: center; gap: 2px; padding: 4px var(--gap); flex: none; container: bar / inline-size;
   /* the site's zoom, when not 100% */
   .tool { padding: 0 8px; background: none; color: var(--text-dim); &:hover { background: var(--hover); } }

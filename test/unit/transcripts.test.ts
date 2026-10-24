@@ -6,8 +6,8 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { CUT } from '../../src/main/kulisa-plugin/transcripts.ts';
-import { claudeConversation } from '../../src/main/agents/claude.ts';
-import { codexConversation } from '../../src/main/agents/codex.ts';
+import { claude, claudeConversation } from '../../src/main/agents/claude.ts';
+import { codex, codexConversation } from '../../src/main/agents/codex.ts';
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'kulisa-unit-'));
 after(() => fs.rmSync(root, { recursive: true, force: true }));
 
@@ -137,4 +137,36 @@ test('history: where a Codex turn stopped: interrupted, a call with no result, o
     'its last turn was cut off while it ran exec, with no result');
   assert.equal(codexConversation(write('codex-unanswered', [said('user', 'hi'), said('assistant', 'hello'), said('user', 'now the cart')])).stopped,
     "the human's last message got no answer");
+});
+
+test("title: Claude Code's own ai-title names the conversation, the last one winning, read from the transcript's end; an empty one or none is null", async () => {
+  const transcript = write('claude-title', [
+    user('help me refactor'),
+    { type: 'ai-title', aiTitle: 'Refactoring', sessionId: 's' },
+    assistant({ type: 'text', text: 'ok' }),
+    { type: 'ai-title', aiTitle: 'Refactor checkout', sessionId: 's' }, // regenerated: the last wins
+  ]);
+  assert.equal(await claude.title({ transcript }), 'Refactor checkout');
+  // A long transcript: only its end is read, the record cut there skipped.
+  const long = write('claude-long', [user('x'.repeat(3 << 20)), { type: 'ai-title', aiTitle: 'Late title', sessionId: 's' }, assistant({ type: 'text', text: 'y'.repeat(1000) })]);
+  assert.equal(await claude.title({ transcript: long }), 'Late title');
+  // No ai-title, or an empty one: nothing to show.
+  assert.equal(await claude.title({ transcript: write('claude-none', [user('hi'), { type: 'ai-title', aiTitle: '', sessionId: 's' }]) }), null);
+});
+
+test("title: Codex's thread_name in its session_index.jsonl next to the transcript's sessions/, the session's last one winning", async () => {
+  const home = path.join(root, 'codex-home'), day = path.join(home, 'sessions', '2026', '10', '23');
+  fs.mkdirSync(day, { recursive: true });
+  const transcript = path.join(day, 'rollout-2026-10-23T19-24-49-a1.jsonl');
+  fs.writeFileSync(transcript, `${JSON.stringify({ type: 'session_meta', payload: { id: 'a1' } })}\n`);
+  const index = (records: object[]) => fs.writeFileSync(path.join(home, 'session_index.jsonl'), records.map((r) => `${JSON.stringify(r)}\n`).join(''));
+  assert.equal(await codex.title({ transcript, sessionId: 'a1' }), null, 'no index yet');
+  index([
+    { id: 'a1', thread_name: 'Answer a question', updated_at: '2026-10-23T16:24:57Z' },
+    { id: 'b2', thread_name: 'Another session', updated_at: '2026-10-23T16:25:00Z' },
+    { id: 'a1', thread_name: 'Fix the header', updated_at: '2026-10-23T16:30:00Z' }, // renamed: the last wins
+  ]);
+  assert.equal(await codex.title({ transcript, sessionId: 'a1' }), 'Fix the header');
+  assert.equal(await codex.title({ transcript, sessionId: 'c3' }), null, 'not named');
+  assert.equal(await codex.title({ transcript }), null, 'no session id: nothing to look for');
 });

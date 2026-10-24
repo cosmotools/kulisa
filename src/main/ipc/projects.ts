@@ -2,12 +2,13 @@
 // name, local addresses, code, agents and profiles (projects.ts).
 import { BrowserWindow, dialog, shell as electronShell } from 'electron';
 import path from 'path';
-import { addRepo, cloneRepo, defaultRepo, removeRepo, reposInfo, askDropProfile, dropProfile, agentsInfo, addAgent, defaultAgent, removeAgent, createProject, folderStateOf } from '../projects.ts';
+import { addFolder, cloneRepo, defaultFolder, removeFolder, foldersInfo, askDropProfile, dropProfile, agentsInfo, addAgent, defaultAgent, removeAgent, createProject, folderStateOf, githubOf, setGitHub } from '../projects.ts';
 import { nameError } from '../../shared/names.ts';
 import { refused } from '../../shared/result.ts';
 import { handle } from '../ipc.ts';
 import type { Ipc } from '../ipc.ts';
 import type { ProjectEntry } from '../store.ts';
+import type { StoredProfile } from '../profile-store.ts';
 import type { Result } from '../../shared/result.ts';
 
 export function registerProjects(ipc: Ipc, { lookForFavicon }: { lookForFavicon: (p: ProjectEntry) => Promise<void> }) {
@@ -40,18 +41,18 @@ export function registerProjects(ipc: Ipc, { lookForFavicon }: { lookForFavicon:
   handle('project:settings-get', async (_e, { id }) => {
     const p = store.projects().find((x) => x.id === id);
     if (!p) return { error: `no project ${id}` };
-    const r = await reposInfo(p);
+    const r = await foldersInfo(p);
     await lookForFavicon(p);
     sendProjects();
-    return { name: p.name, folder: p.folder, projectAgents: agentsInfo(shell, p), local: p.local || [], ...r, ...profilesOf(id), ...choices() };
+    return { name: p.name, projectAgents: agentsInfo(shell, p), local: p.local || [], ...r, ...profilesOf(id), ...choices() };
   });
   // Its profiles (profile-store.ts): those it has, and those of other projects it can take. A new one comes closed in
   // its tasks (opened in a task, a copy of its master is made there); one let go asks first (projects.ts).
   const profilesOf = (id: string) => {
-    const names = (ids: string[]) => ids.filter((x) => x !== id).map((x) => store.projects().find((p) => p.id === x)?.name || x);
-    const view = (g: import('../profile-store.ts').StoredProfile) => ({ id: g.id, name: g.name, avatar: g.avatar, description: g.description || '', also: names(g.projects) });
-    const all = shell.profileStore.all();
-    return { profiles: all.filter((g) => g.projects.includes(id)).map(view), others: all.filter((g) => !g.projects.includes(id)).map(view) };
+    const also = (g: StoredProfile) => store.projectsWith('profiles', g.id).filter((p) => p.id !== id).map((p) => p.name);
+    const view = (g: StoredProfile) => ({ id: g.id, name: g.name, avatar: g.avatar, description: g.description || '', also: also(g) });
+    const mine = shell.profileStore.of(id);
+    return { profiles: mine.map(view), others: shell.profileStore.all().filter((g) => !mine.includes(g)).map(view) };
   };
   handle('project:profile-new', (_e, { id, name }) => {
     const g = shell.profileStore.create(id, { name: name ?? '' });
@@ -70,29 +71,30 @@ export function registerProjects(ipc: Ipc, { lookForFavicon }: { lookForFavicon:
     const entry = store.projects().find((x) => x.id === id), g = shell.profileStore.get(profile);
     if (!entry || !g) return { error: entry ? `no profile ${profile}` : `no project ${id}` };
     if (!await askDropProfile(shell, entry, g, 'human', asker(e))) return { error: 'the human said no' };
-    await dropProfile(shell, entry, g.folder);
+    await dropProfile(shell, entry, g.id);
     return profilesOf(id);
   }));
   // Its repositories or folders (projects.ts): one picked in the OS's dialog (or given: the tests), cloned from a URL,
   // made the default, removed. Each answers with the project's settings as they are then.
-  const settingsOf = async (id: string, r: Result) => (refused(r) ? r : { ...(await reposInfo(store.projects().find((x) => x.id === id)!)) });
-  handle('project:repo-add', async (e, { id, folder }) => {
+  const settingsOf = async (id: string, r: Result) => (refused(r) ? r : { ...(await foldersInfo(store.projects().find((x) => x.id === id)!)) });
+  handle('project:folder-add', async (e, { id, folder }) => {
     if (!folder) {
       const r = await dialog.showOpenDialog(BrowserWindow.fromWebContents(e.sender)!, { title: 'Add a repository or folder to the project', properties: ['openDirectory'] });
       if (r.canceled || !r.filePaths[0]) return {};
       folder = r.filePaths[0];
     }
-    return serial(async () => settingsOf(id, await addRepo(shell, id, folder)));
+    return serial(async () => settingsOf(id, await addFolder(shell, id, folder)));
   });
-  handle('project:repo-clone', (_e, { id, url }) => serial(async () => settingsOf(id, await cloneRepo(shell, id, url))));
-  handle('project:repo-default', (_e, { id, folder }) => serial(async () => settingsOf(id, await defaultRepo(shell, id, folder))));
-  handle('project:repo-remove', (_e, { id, folder }) => serial(async () => settingsOf(id, await removeRepo(shell, id, folder))));
-  // Its former folder (no git; tasks no longer work in it), in the OS's file manager: the human moves its files.
-  handle('project:show-former', (_e, { id }) => { const p = store.projects().find((x) => x.id === id); return p && electronShell.openPath(p.folder); });
+  handle('project:folder-clone', (_e, { id, url }) => serial(async () => settingsOf(id, await cloneRepo(shell, id, url))));
+  handle('project:folder-default', (_e, { id, folder }) => serial(async () => settingsOf(id, await defaultFolder(shell, id, folder))));
+  handle('project:folder-remove', (_e, { id, folder }) => serial(async () => settingsOf(id, await removeFolder(shell, id, folder))));
   // Its agents (projects.ts): one added, made the default (+ runs it), removed. At once, not on Save.
   handle('project:agent-add', (_e, { id, agent }) => addAgent(shell, id, agent));
   handle('project:agent-default', (_e, { id, agent }) => defaultAgent(shell, id, agent));
   handle('project:agent-remove', (_e, { id, agent }) => removeAgent(shell, id, agent));
+  // Its repositories' GitHub accounts (projects.ts, githubOf): asked of GitHub, after the page is shown.
+  handle('project:github-get', (_e, { id }) => githubOf(shell, id));
+  handle('project:github-set', (_e, { id, remote, account }) => setGitHub(shell, id, remote, account));
   // Its name and local addresses.
   handle('project:settings', (_e, { id, name, local = store.projects().find((p) => p.id === id)?.local }) => {
     name = name?.trim();

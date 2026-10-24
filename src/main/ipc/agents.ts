@@ -3,14 +3,14 @@
 import { app } from 'electron';
 import { addAgent, deleteAccount } from '../projects.ts';
 import { findAgent, accountEmail, signOut, agentVersion, installLine, installAgent } from '../agents/index.ts';
-import { startTerminal, stopTerminal, forgetTerminal } from '../terminal.ts';
+import { startTerminal, stopTerminal, forgetTerminal } from '../../terminal/main/index.ts';
 import { refused } from '../../shared/result.ts';
 import { handle, on } from '../ipc.ts';
 import type { Ipc } from '../ipc.ts';
 import type { Shell, AgentChoice } from '../shell.ts';
 import type { Agent } from '../agents/index.ts';
 import type { Task } from '../tasks.ts';
-import type { Pty } from '../terminal.ts';
+import type { Pty } from '../../terminal/main/index.ts';
 import type * as Sent from '../../shared/types.ts'; // what the window gets: its one definition
 
 export function registerAgents(ipc: Ipc) {
@@ -18,9 +18,8 @@ export function registerAgents(ipc: Ipc) {
   const store = shell.store;
   // The accounts (Settings → Agents), each with the projects it is in; clis: the agents an account can be made of.
   const accountsInfo = (): Sent.AccountsInfo => {
-    const names = new Map(store.projects().map((p) => [p.id, p.name]));
-    return { accounts: shell.accounts.all().filter((a) => !a.own).map(({ id, agent, name, email, projects }) => ({ id, agent: agent.id, name, email: email ?? null,
-      projects: projects!.map((p) => names.get(p)).filter((n) => n !== undefined) })),
+    return { accounts: shell.accounts.all().filter((a) => !a.own).map(({ id, agent, name, email }) => ({ id, agent: agent.id, name, email: email ?? null,
+      projects: store.projectsWith('agents', id).map((p) => p.name) })),
     clis: shell.accounts.all().filter((a) => a.own && a.agent.config?.login).map((a) => a.id) };
   };
   handle('accounts:list', () => accountsInfo());
@@ -34,7 +33,7 @@ export function registerAgents(ipc: Ipc) {
   // A new account of an agent, made in Settings → Agents or in a project (tasks.md, Accounts): a folder of its own
   // (accounts.ts), then the agent's own sign-in in it, as /login, in a terminal of the window (key), which ends once signed
   // in; its status says the email it signed in to. Its page opens in the user's own browser, the agent's default: Google
-  // refuses its sign-in in an embedded browser (2026-10-12, tasks.md, Accounts). An email stored already is that
+  // refuses its sign-in in an embedded browser (tasks.md, Accounts). An email stored already is that
   // account, added to the project. Not one change after another
   // (serial): a sign-in takes minutes. In a project (id): { agents } (the project's); in Settings → Agents (no id):
   // { accounts, clis }; or { error } (null: cancelled).
@@ -65,7 +64,7 @@ export function registerAgents(ipc: Ipc) {
       if (existing) return id ? addAgent(shell, id, existing.id) : { error: `${existing.name} is an account already` };
       return { error: cancelled ? null : `Not signed in: ${own.name} ended with code ${code}.` };
     }
-    shell.accounts.create(id, r.id, agentId, got.email);
+    shell.accounts.create(r.id, agentId, got.email);
     shell.sendProjects(); // the first account at the first start: Settings has it
     return id ? addAgent(shell, id, r.id) : accountsInfo();
   });
@@ -81,7 +80,7 @@ export function registerAgents(ipc: Ipc) {
   on('agent:chosen', (_e, { task, id }) => { if (!task) return; const r = choosing.get(task); choosing.delete(task); r?.(id ? shell.agentFor(id) : null); });
   // The agents to choose from; with check, whether each is installed (for the task's folder: its environment);
   // with details (the Agents window), also where it is and its version. Finding them runs the user's login shell and
-  // each agent's --version, tenths of a second or more (the author, 2026-10-11: the list should come at once): with
+  // each agent's --version, tenths of a second or more (the list should come at once): with
   // cached, what the last look in this folder found, kept in memory, or { list: null } before the first; the window
   // shows it and looks again.
   const seen = new Map<string, { found: import('../agents/index.ts').Found | null; version?: string | null }>(); // `${agent id}\n${folder}` -> { found, version }
@@ -98,7 +97,7 @@ export function registerAgents(ipc: Ipc) {
     const mine = w?.task?.project.agents() || [], rank = (id: string) => (mine.includes(id) ? mine.indexOf(id) : mine.length);
     // Choosing a task's: the project's accounts, and the agents without accounts (the terminal only); never another
     // project's account: it could go with that project while a task here runs it. The Agents window: the agents alone,
-    // not the terminal only: nothing of it to set up there (the author, 2026-10-11).
+    // not the terminal only: nothing of it to set up there.
     const accounts = shell.accounts.all().filter((a) => (details ? a.own && a.agent.command : a.choosable && (a.own || mine.includes(a.id))))
       .sort((x, y) => rank(x.id) - rank(y.id)); // stable: the others as they were
     const of = (a: Agent) => {

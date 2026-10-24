@@ -1,13 +1,13 @@
 # The task's history and the agents' transcripts
 
 How an agent reads what was said and done in its task, by itself or by other agents (`task_history`), and how Kulisa
-reads each agent CLI's transcript for it. Built 2026-10-12 for handing a task from one agent to another
+reads each agent CLI's transcript for it: for handing a task from one agent to another
 ([tasks.md](tasks.md), "Several agents in a task"). Keep this file current when a reader changes, and check it when an agent CLI is updated:
 the transcripts' formats are the agents' own and undocumented.
 
 ## What the agent gets
 
-**`task_history(conversation, part)`**, a tool of Kulisa's MCP server (`mcp-server.ts`, `history.ts`), gives a text
+**`task_history(conversation, part)`**, a tool of Kulisa's MCP server (`tools/task.ts`, `history.ts`), gives a text
 in parts of about 40,000 characters (10,000 tokens: under what agents take from one tool's result). Part 1 says how
 many there are; the agent calls the next ones in turn. The whole text is made at part 1 and kept (in memory, with the
 task) for the next parts, so they stay the same while the agent reads them: its own transcript grows meanwhile.
@@ -28,20 +28,19 @@ task) for the next parts, so they stay the same while the agent reads them: its 
 Why so:
 
 - **Nothing kept by Kulisa.** The agent's transcript is on disk already, written by the agent; the history is read
-  from it at the call. A copy kept as the work goes (after each turn), or notes the agent writes through a tool, were
-  weighed and not chosen: a copy adds code and no record, and notes cost tokens and depend on the model remembering
-  to write them (2026-10-12).
+  from it at the call. Not a copy kept as the work goes (after each turn), nor notes the agent writes through a tool:
+  a copy adds code and no record, and notes cost tokens and depend on the model remembering to write them.
 - **A tool, not a file.** The task's data folder holds its profiles' cookies, so no agent gets it; a file in the
   worktree is in the human's code; and every CLI reads a tool's result, Codex in its sandbox too.
-- **The whole conversation, lightly cut**, not a summary of it (the author, 2026-10-12: details that matter are
+- **The whole conversation, lightly cut**, not a summary of it (details that matter are
   spread through a long conversation, and a summary loses them). The next agent, a model of the same class, finds
   what matters better than rules do; the rules only take away what is of no use to anyone.
 - **The latest chapter first.** A compaction summary is the agent's own handoff to itself, written while it had
   budget and the details before it (what was asked, the decisions, the technical findings, the files), and after a
-  compaction the agent worked from that summary and what followed alone. So the latest chapter is the state the
+  compaction the agent works from that summary and what follows alone. So the latest chapter is the state the
   agent was in when it stopped; the earlier ones are where a summary's omission is found, and the agent is told to
   read every part.
-- **A list first, then one conversation** (the author, 2026-10-12): with several agents in a task, the one asked for is
+- **A list first, then one conversation**: with several agents in a task, the one asked for is
   read, not all of them.
 - **Useful beyond a handoff**: an agent whose context was compacted reads the details again.
 
@@ -53,7 +52,6 @@ The agent learns of it from the MCP server's instructions (every agent) and the 
 `type` at its top; `user` and `assistant` records with `message.content`, a string or an array of blocks each with
 its own `type`; `uuid`, `parentUuid`, `timestamp` on each; a tool call's `id` (`toolu_…`) is its result's
 `tool_use_id`. Large tool outputs are kept apart in `<session>/tool-results/`, with a reference in the transcript.
-Checked with Claude Code 2.1.296, on a session of the author's (56.7 MB, 14,529 records, 9 compaction summaries).
 
 The reader (`claudeConversation`, `agents/claude.ts`, its entry's `conversation`), record by
 record:
@@ -78,10 +76,17 @@ record:
 A record of a kind the reader does not know is skipped, and a line that is not JSON too, so a new kind in a new
 version loses nothing else; the unit test, on a transcript in this format made by the test, catches a renamed one.
 
-Measured on that session (300 ms): 3.6 MB of text (418 of the human's messages, 675 answers, 1,727 calls, 1,569
-results cut, 32 errors whole, 9 summaries; left out: 1,498 reasoning blocks, 126 files read, about 8,000 of the CLI's
-own records), in 10 chapters (704, 498, 301, 326, 393, 185, 523, 328, 325 and 20 KB). The cut's size is one constant,
-to be tuned on real handoffs.
+The cut's size is one constant, to be tuned on real handoffs.
+
+**The conversation's name**: apart from the history, Claude Code's own auto-title is read by the entry's `title`
+(`claudeTitle`): the last non-empty `aiTitle` of the `ai-title` records in the transcript's last MB, read without
+blocking (it writes one again every few records as the conversation goes, and a transcript runs to hundreds of MB,
+too much to read whole at every turn's end; none there keeps the title read before). It is read at a session's start
+and at a turn's end, then again 5, 15 and 30 s later until it changes (`Task.followAutoTitle`): an agent may name the
+session only once its turn is over. It names the conversation's tab, and the task's while the task is unnamed, until a name is given
+explicitly (`conversation_rename`, `task_rename`; [tasks.md](tasks.md)). A name derived from the folder (Claude Code's
+sessions file, `nameSource: "derived"`) is not a title and is not read. A unit test on a transcript made here catches
+the field being renamed in a new version.
 
 **What it remembered**: Claude Code's memory of a folder is next to its transcripts, `projects/<folder>/memory/`
 (`MEMORY.md`, its index, and a file per fact), written by the model while it had budget; the reader gives it, the
@@ -92,9 +97,7 @@ index first.
 `<CODEX_HOME>/sessions/<yyyy>/<mm>/<dd>/rollout-<time>-<session>.jsonl`: a JSON record per line, `{ timestamp, type,
 payload }`. The model's own items are `response_item`s; `event_msg`s repeat them for its screen, with its turns'
 starts, ends and interruptions. Codex calls tools from scripts: `exec`, a custom tool whose `input` is JavaScript
-calling `tools.<name>(…)` (Kulisa's as `tools.mcp__kulisa__<name>`), its output what the script printed. Checked with
-Codex 0.160.1, on a session made for it in a scratch Kulisa (2026-10-12: browser tools, `terminal_run`, an Esc, a
-`/compact`).
+calling `tools.<name>(…)` (Kulisa's as `tools.mcp__kulisa__<name>`), its output what the script printed.
 
 The reader (`codexConversation`, `agents/codex.ts`), record by record:
 
@@ -107,13 +110,19 @@ The reader (`codexConversation`, `agents/codex.ts`), record by record:
 | a call | `payload.type: "custom_tool_call"` (`exec`, `apply_patch`: `name`, `input`) or `"function_call"` (`wait` …: `name`, `arguments`); `call_id` | `<name>: <input or arguments>` | whole: the script, the patch |
 | its result | `custom_tool_call_output` or `function_call_output` with the same `call_id`; `output` a string or `input_text` blocks | `output` | its first and last 2 KB (`CUT`); Codex marks no error apart |
 | `task_history`'s own calls | an `exec` whose `tools.` calls are all `task_history` (or that only looks it up), and its output | | left out |
-| the agent's plan | a `function_call` named `update_plan`, `arguments.plan` (`step`, `status`) | the last one | at its conversation's end (not seen in the session checked: from Codex's tool's shape) |
-| a compaction | `type: "compacted"`: `replacement_history`, the human's messages and a `compaction` item with `encrypted_content` | | a chapter starts there, its summary said to be unreadable: Codex encrypts it (claude-codex-bridge found it first) |
+| the agent's plan | a `function_call` named `update_plan`, `arguments.plan` (`step`, `status`) | the last one | at its conversation's end (from Codex's tool's shape) |
+| a compaction | `type: "compacted"`: `replacement_history`, the human's messages and a `compaction` item with `encrypted_content` | | a chapter starts there, its summary said to be unreadable: Codex encrypts it |
 | an interruption (Esc) | `event_msg`, `payload.type: "turn_aborted"` | | where its last turn ended, when after the human's last message |
 | reasoning | `payload.type: "reasoning"` (`encrypted_content`) | | left out |
 | the rest | `session_meta`, `turn_context`, `world_state`, `token_usage_record`, every other `event_msg` (`item_completed`, with `McpToolCall`s, repeats what the scripts printed) | | left out |
 
 No memory: Codex keeps its own in a database of its format (`memories_*.sqlite`).
+
+**The conversation's name** (`codexTitle`): not in the transcript, but in `session_index.jsonl` of its `CODEX_HOME`
+(the folder holding the transcript's `sessions/`): a line `{ id, thread_name, updated_at }` appended each time Codex
+names a session, a title it generates seconds after a turn is over, or `/rename`; the session's last line wins, found
+by the session id its SessionStart hook reported (none without its hooks: then no title). Used as Claude Code's is
+(above); a unit test on an index made here in its format.
 
 ## The code
 
@@ -123,5 +132,5 @@ No memory: Codex keeps its own in a database of its format (`memories_*.sqlite`)
 | `src/main/kulisa-plugin/transcripts.ts` | the entries a transcript is read as (`human`, `agent`, `call`, `result`, `error`, `summary`), its plan, where it stopped, its memory; what is cut |
 | `src/main/agents/claude.ts`, `codex.ts` | each agent's reader (`claudeConversation`, `codexConversation`), its entry's `conversation` |
 | `src/main/worktrees.ts` | `progress`: a copy's commits, files not committed, `diff --stat` |
-| `src/main/kulisa-plugin/mcp-server.ts` | the `task_history` tool, and a sentence of the instructions |
+| `src/main/kulisa-plugin/tools/task.ts`, `mcp-server.ts` | the `task_history` tool; a sentence of the instructions |
 | `test/unit/transcripts.test.ts`, `test/agent.ts` | the tests: the reader record by record; the tool's order and parts |

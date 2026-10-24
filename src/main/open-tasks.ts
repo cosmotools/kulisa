@@ -3,22 +3,21 @@
 import { app, screen } from 'electron';
 import { Project, askDeleteProject, deleteProjectData } from './projects.ts';
 import { AppWindow } from './window.ts';
-import { log } from './log.ts';
+import { log, tilde } from './log.ts';
 import { refused } from '../shared/result.ts';
 import type { Shell } from './shell.ts';
 import type { ProjectEntry } from './store.ts';
 import type { Task } from './tasks.ts';
 import type { Asker, Place } from './window.ts';
 import type { Result } from '../shared/result.ts';
-import type { TerminalContents } from '../shared/ipc.ts';
+import type { TerminalContents } from '../terminal/ipc.ts';
 
 export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean }) {
   const store = shell.store;
   const allTasks = () => [...shell.open.values()].flatMap((p) => [...p.tasks.values()]);
   const sendProjects = () => shell.sendProjects();
   // ---------- windows, projects and tasks ----------
-  // A project is a folder with its tasks (store.ts); a task is open as a tab of a window, as a browser's (since
-  // 2026-10-14: until then a window had a tab per project, its open tasks a group in it). Each task has its profiles,
+  // A project is a folder with its tasks (store.ts); a task is open as a tab of a window, as a browser's. Each task has its profiles,
   // grid and agent (tasks.ts); a window shows one, the others keep running (their agents and pages), until the human
   // closes their tab. Showing another task hides this one's pages, and the window builds the next grid in place
   // (the page is not loaded again). A task loads (profiles, agent) the first time it is shown. A project is loaded
@@ -27,16 +26,21 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
   let queue: Promise<unknown> = Promise.resolve();
   const serial = <T>(fn: () => T | Promise<T>): Promise<T> => { const r = queue.then(fn); queue = r.catch(() => {}); return r; };
   const newWindow = (place: Place) => { const w = new AppWindow(shell, place, { appDevTools }); shell.windows.push(w); log.info(`[window] new wc=${w.win.webContents.id}`); return w; };
-  const loadProject = (p: ProjectEntry) => shell.open.get(p.id) || shell.open.set(p.id, new Project(shell, p)).get(p.id)!;
+  // Loaded, the log names it beside its id: the lines after it name it by its id alone.
+  const loadProject = (p: ProjectEntry) => {
+    if (shell.open.has(p.id)) return shell.open.get(p.id)!;
+    log.info(`[project] ${p.id} loaded: ${p.name} (${tilde(p.folders[0]!)})`);
+    return shell.open.set(p.id, new Project(shell, p)).get(p.id)!;
+  };
   // A project with no open task left is let go: nothing of it runs.
   const unloadIdle = () => { for (const [id, p] of shell.open) if (!p.open().length) shell.open.delete(id); };
   const openTasksOf = (project: Project, w: AppWindow) => w.tabs.filter((t) => t.project === project);
-  // Task n of project p shown (the bar's +), opened again if it was closed; none: a new task of it. In the window it
+  // Task id of project p shown (the bar's +), opened again if it was closed; none: a new task of it. In the window it
   // is open in, brought to the front; a closed or new one at the end of window w's bar.
-  async function openProject(p: ProjectEntry, w: AppWindow, n?: number | null): Promise<Result<{ n: number; key: string }>> {
-    log.info(`[task] open ${p.id}${n != null ? `/${n}` : ''} wc=${w.win.webContents.id}`);
+  async function openProject(p: ProjectEntry, w: AppWindow, id?: string | null): Promise<Result<{ id: string; key: string }>> {
+    log.info(`[task] open ${p.id}${id != null ? `/${id}` : ''} wc=${w.win.webContents.id}`);
     const project = loadProject(p);
-    const task = n != null && project.tasks.get(n);
+    const task = id != null && project.tasks.get(id);
     if (!task) {
       const r = await createTask(project, w);
       unloadIdle();
@@ -46,7 +50,7 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
     if (!task.window) w.add(task);
     await showTask(task);
     sendProjects();
-    return { n: task.n, key: task.key };
+    return { id: task.id, key: task.key };
   }
   // Closing tasks, wherever it starts (× on a tab, the middle button on it, Close All Tasks, deleting a project, a
   // window's ×): one function, so one rule. The human is asked first in their window w, only when an agent works (a
@@ -181,7 +185,7 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
   function dropWindow(w: AppWindow) { log.info(`[window] dropped wc=${w.win.webContents.id}`); shell.windows.splice(shell.windows.indexOf(w), 1); w.destroy(); }
   // A new task of a project (the bar's +, New Task: projects.ts), with its default agent, at the end of window w's
   // bar, then shown. Without git it would work in the folder another open task works in: the human is told first.
-  async function createTask(project: Project | null | undefined, w: AppWindow | null): Promise<Result<{ n: number; key: string }>> {
+  async function createTask(project: Project | null | undefined, w: AppWindow | null): Promise<Result<{ id: string; key: string }>> {
     if (!project || !w) return { error: 'the project is not open' };
     await project.checkGit();
     if (project.sharesFolder() && !await shell.ask({ message: `Another task of ${project.name} works in its folder`, ok: 'Create Anyway',
@@ -190,10 +194,10 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
     }
     const task = await project.createTask();
     if (refused(task)) { log.info(`[task] not created in ${project.id}: ${task.error}`); return task; }
-    log.info(`[task] created ${task.key} in ${task.folder} wc=${w.win.webContents.id}`);
+    log.info(`[task] created ${task.key} (${project.name}) in ${tilde(task.folder)} wc=${w.win.webContents.id}`);
     w.add(task);
     await showTask(task);
-    return { n: task.n, key: task.key };
+    return { id: task.id, key: task.key };
   }
   // A task shown, in its window (brought to the front when the ask came from another).
   async function showTask(task: Task) {
@@ -212,7 +216,7 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
   }
   // Delete in a task's menu (open or closed), after the human says yes: everything of it goes (projects.ts). An open
   // one leaves its window first.
-  async function deleteTask(task: Task): Promise<Result<{ n: number }>> {
+  async function deleteTask(task: Task): Promise<Result<{ id: string }>> {
     const project = task.project, w = task.window;
     if (!await project.askDeleteTask(task)) return { error: 'the human said no' };
     log.info(`[task] deleting ${task.key}`);
@@ -225,7 +229,7 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
     unloadIdle();
     shell.saveWindows();
     sendProjects();
-    return { n: task.n };
+    return { id: task.id };
   }
   // Delete Merged Tasks… (a project's menu, from window w): its closed tasks whose PR is merged, after one question naming them;
   // nothing of them is lost (projects.ts, checkMerged).
@@ -233,12 +237,12 @@ export function openTasks(shell: Shell, { appDevTools }: { appDevTools: boolean 
     const list = project.closedTasks().filter((t) => t.entry.merged);
     if (!list.length) return { error: 'no closed task of it is merged' };
     if (!await shell.ask({ message: `Delete ${list.length === 1 ? `the task ${list[0]!.name}` : `${list.length} merged tasks`}?`, ok: 'Delete', danger: true,
-      detail: `Merged on the remote, nothing uncommitted: ${list.map((t) => `${t.name} (${t.entry.branch})`).join(', ')}. Their folders, branches, profiles' copies and agents' conversations go.` }, w)) {
+      detail: `Merged on the remote, nothing uncommitted: ${list.map((t) => `${t.name} (${t.branch})`).join(', ')}. Their folders, branches, profiles' copies and agents' conversations go.` }, w)) {
       return { error: 'the human said no' };
     }
     for (const t of list) await project.deleteTask(t);
     sendProjects();
-    return { deleted: list.map((t) => t.n) };
+    return { deleted: list.map((t) => t.id) };
   }
   // Removing a project, from wherever a window asks for it (w): the human confirms, then its open tasks are closed
   // in every window, and its data deleted (projects.ts).

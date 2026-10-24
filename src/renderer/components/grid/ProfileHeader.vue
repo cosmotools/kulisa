@@ -13,7 +13,7 @@ import { deleteProfile } from '../../lib/profiles';
 
 const props = defineProps<{ params: { api: DockviewPanelApi } }>();
 const key = props.params.api.id.slice('profile:'.length);
-const profile = computed(() => store.profiles.find((p) => p.key === key));
+const profile = computed(() => store.profiles.find((p) => p.id === key));
 const caption = computed(() => (profile.value?.signinMode ? '🔒 Sign-in page — agent paused' : store.captions[profile.value?.id || ''] || ''));
 
 function menu(): MenuItem[] | null {
@@ -23,7 +23,6 @@ function menu(): MenuItem[] | null {
     { label: 'New tab', keys: keyText('tab.new'), run: () => panes.get(key)?.newTab() },
     { label: 'About this profile…', run: () => openSettings('profiles', p.id) },
     { label: 'Sign In to Master…', run: () => act('profile:master', { profile: p.id }) },
-    { label: 'Refresh from Master…', run: () => act('profile:refresh', { profile: p.id }) },
     { label: 'Close profile', run: () => act('profile:close', { profile: p.id }) },
     '-',
     { label: 'Remove from Project…', run: () => deleteProfile(p.id) },

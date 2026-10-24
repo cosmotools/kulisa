@@ -4,7 +4,7 @@
 //   electron test/run.ts --files=agent,profiles             the tests in these files
 //   electron test/run.ts --restart --files=restart-profiles  after a restart: what the group left is still there
 // `npm test` runs every group, in parallel (start.ts). Shared helpers: helpers.ts.
-import { app } from 'electron';
+import electron, { app } from 'electron';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import path from 'path';
@@ -25,8 +25,8 @@ import type { IPty } from 'node-pty';
 // A site that is not local (local.ts) for the tests of real accounts' sign-ins kept in step (cookie-sync.ts): the test
 // site under a name of its own.
 app.commandLine.appendSwitch('host-resolver-rules', 'MAP shop.example 127.0.0.1');
-// The motion the tests check (a tab growing in, the grid's slide) whatever the OS's setting: GitHub's macOS runner
-// reduces motion, and nothing moved there (2026-10-16). Reduced motion is checked where it matters, emulated.
+// The motion the tests check (a tab growing in, the grid's slide) whatever the OS's setting: a CI machine may
+// reduce motion, and nothing moves then. Reduced motion is checked where it matters, emulated.
 app.commandLine.appendSwitch('force-prefers-no-reduced-motion');
 
 const restart = process.argv.includes('--restart');
@@ -53,9 +53,15 @@ function claudeLike() {
 }
 const bin = path.join(root, 'bin');
 process.env.FAKE_LOGOUTS = path.join(root, 'logouts'); // the accounts the fake agent signed out of
+process.env.FAKE_RECOGNIZER = path.join(import.meta.dirname, 'fixtures', 'fake-recognizer.mjs');
 // Kulisa started from a folder direnv had loaded, as from a terminal in the repository: its state in the environment.
 Object.assign(process.env, { DIRENV_DIR: `-${root}`, DIRENV_FILE: path.join(root, '.envrc'), DIRENV_DIFF: 'eJyrrgUAAXUA-Q', DIRENV_WATCHES: 'eJyLjgUAARUAuQ' });
 process.env.FAKE_SIGNIN_PAGE = `${SITE}/app?signin`; // the page its sign-in opens (the test site)
+// GitHub: the test site's fake one (src/github), never the real one; the pages Kulisa opens in the user's browser
+// (GitHub's device page) noted, not opened.
+process.env.KULISA_GITHUB = `${SITE}/github`;
+const openedExternally: string[] = [];
+electron.shell.openExternal = async (url: string) => { openedExternally.push(url); };
 // The user's browser, which an agent's own sign-in opens (tasks.md, Accounts): it notes the page, opens nothing.
 Object.assign(process.env, { BROWSER: path.join(import.meta.dirname, 'fixtures', 'browser.sh'), FAKE_OPENED: path.join(root, 'opened') });
 const agents: Agent[] = [
@@ -67,15 +73,21 @@ const agents: Agent[] = [
     config: { env: 'FAKE_CONFIG_DIR', home: () => path.join(root, 'fake-config'), login: () => ['auth', 'login'],
       status: ['auth', 'status'], email: (out) => JSON.parse(out).email, logout: ['auth', 'logout'] },
     install: { posix: `echo "installing the fake agent"; mkdir -p '${bin}' && cp '${path.join(import.meta.dirname, 'fixtures', 'fake-agent.sh')}' '${bin}/kulisa-fake-agent' && chmod +x '${bin}/kulisa-fake-agent' && printf '\\033[32mdone\\033]8;;https://kulisa.app\\007\\033]8;;\\007\\033[0m\\n'` }, // colored, a link: as installers print
-    args: () => [], shell: agent.shell, ...claudeLike() },
+    args: () => [], shell: agent.shell, ...claudeLike(),
+    // Recognizing for an agent without dictation of its own (src/dictation's hidden session) when signed in, as
+    // Claude Code's dictation does: fixtures/fake-recognizer.mjs.
+    recognizer: { available: (dir) => fs.existsSync(path.join(dir, 'account')), args: () => ['--recognize'], env: (env) => ({ ...env }),
+      key: ' ', repeat: 30, clear: '\x15', submit: '\r' } },
   { id: 'shell', name: 'Terminal only', maker: '', command: null, needs: 'No agent' },
 ];
 
 // Each test gets the running app and the means to drive it (setup, below).
 type Ctx = Awaited<ReturnType<typeof setup>>;
-type Test = (name: string, fn: (ctx: Ctx) => Promise<void>) => void;
-const tests: { name: string; fn: (ctx: Ctx) => Promise<void> }[] = [];
-const test: Test = (name, fn) => { tests.push({ name, fn }); };
+type Run = (name: string, fn: (ctx: Ctx) => Promise<void>) => void;
+type Test = Run & { skip: Run }; // test.skip: held, not run (counted apart), for a test waiting on work not done yet
+const tests: { name: string; fn: (ctx: Ctx) => Promise<void>; skip?: boolean }[] = [];
+const test = ((name, fn) => { tests.push({ name, fn }); }) as Test;
+test.skip = (name, fn) => { tests.push({ name, fn, skip: true }); };
 // A file that does not load (a syntax error) ends the run at once: Electron would wait, its app never ready.
 try { for (const f of FILES) (await import(`./${f}.ts`)).default(test); } catch (e) { console.error(e); app.exit(2); }
 
@@ -95,8 +107,9 @@ start({ userData, project: restart ? undefined : project, projectsHome: path.joi
     // tests' focus would be the human's last click's. It takes the screen's focus, as docs/testing.md says.
     if (process.platform === 'darwin') app.focus({ steal: true });
     const ctx = await setup(shell);
-    let failed = 0;
+    let failed = 0, held = 0;
     for (const t of tests) {
+      if (t.skip) { held++; console.log(`  ↓ ${t.name} (held)`); continue; }
       const t0 = Date.now();
       try {
         await Promise.race([t.fn(ctx), sleep(30000).then(() => { throw new Error(`timeout 30 s, in ${ctx.step}`); })]);
@@ -107,7 +120,7 @@ start({ userData, project: restart ? undefined : project, projectsHome: path.joi
         console.log(`  ✗ ${t.name}\n      ${(err.code === 'ERR_ASSERTION' ? err.message : String(err.stack || err).split('\n').slice(0, 4).join('\n')).replace(/\n/g, '\n      ')}`);
       }
     }
-    console.log(failed ? `\n${failed} of ${tests.length} failed` : `\nall ${tests.length} passed`);
+    console.log(`${failed ? `\n${failed} of ${tests.length} failed` : `\nall ${tests.length - held} passed`}${held ? ` (${held} held)` : ''}`);
     // Quit the way a user closes the window (before-quit saves session cookies, kills the pty), then set the code.
     app.on('will-quit', (e) => {
       e.preventDefault();
@@ -136,11 +149,9 @@ async function setup(shell: Shell) {
     const mcp = await mcpOf(task.env(terminal).KULISA_MCP_URL);
     const r = await mcp.callTool({ name, arguments: args });
     const content = r.content as { type: string; text?: string; data?: string }[];
-    // An unnamed task's note, a block of its own after the tool's (agent-hooks.ts, unnamed): note, not text.
-    const last = content.at(-1), note = last?.text?.startsWith('This Kulisa task has no name yet') ? last.text : undefined;
-    const text = (note ? content.slice(0, -1) : content).filter((c) => c.type === 'text').map((c) => c.text).join('\n');
+    const text = content.filter((c) => c.type === 'text').map((c) => c.text).join('\n');
     if (r.isError) throw new Error(`${name}: ${text}`);
-    return { ...r, content, text, note };
+    return { ...r, content, text };
   };
   // A script that throws says which it was (Electron's error names none).
   const ui = (js: string) => { step = `ui ${js.slice(0, 120)}`; return shell.win.webContents.executeJavaScript(js).catch((e: Error) => { throw new Error(`${e.message}: ${js.slice(0, 300)}`); }); };
@@ -165,7 +176,7 @@ async function setup(shell: Shell) {
   const instructions = async (task: Task = shell.task) => (await mcpOf(task.env().KULISA_MCP_URL)).getInstructions();
   // The tools the MCP server lists to the agent of task task, as its client gets them.
   const tools = async (task: Task = shell.task) => (await (await mcpOf(task.env().KULISA_MCP_URL)).listTools()).tools;
-  const ctx = { shell, call, instructions, tools, ui, sui, ptyOutput: () => pty, watchPty, termText, asked, answer: true as boolean | 'other' | null, get step() { return step; } };
+  const ctx = { shell, call, instructions, tools, ui, sui, ptyOutput: () => pty, watchPty, termText, asked, openedExternally, answer: true as boolean | 'other' | null, get step() { return step; } };
   const ask = shell.askWhich;
   // Asked where w is (a tasks' window, Settings': app.ts, askWhich), the first window when none is named; shell.ask
   // asks through it.

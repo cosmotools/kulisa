@@ -1,5 +1,5 @@
 // What a menu holds, as the window's parts build their menus (docs/ui.md, Menus).
-import { shallowRef, type Component } from 'vue';
+import { shallowRef, watch, type Component, type InjectionKey } from 'vue';
 
 export interface MenuRow {
   label: string; sub?: string; keys?: string;
@@ -14,13 +14,23 @@ export interface MenuRow {
   remove?: { label: string; run: () => unknown }; // a 🗑 at its end, on hover or Delete (a closed task)
 }
 export type MenuItem = '-' | MenuRow
-  | { submenu: string; items: MenuItem[]; project?: { favicon?: string; color: string } } // a row opening a menu of its own at its side
+  // a row opening a menu of its own at its side (hover); run: a click on the row itself acts and closes the menu
+  | { submenu: string; items: MenuItem[]; project?: { favicon?: string; color: string }; run?: () => unknown }
   | { heading: string; icon?: string }
   | { component: Component; props?: Record<string, unknown> }; // a row of its own (☰'s zoom, theme …)
+
+// A menu closes itself from inside (a submenu row's click acts, then closes): the button's menu provides this, MenuRows
+// calls it. Absent (a point or right-click menu) it does nothing: those rows carry no such action.
+export const closeMenu: InjectionKey<() => void> = Symbol('closeMenu');
 
 // A menu at a point with no button or area of its own: a link in the terminal (Ctrl+click). PointMenu.vue shows it.
 export const pointMenu = shallowRef<{ x: number; y: number; items: MenuItem[] } | null>(null);
 export const menuAt = (e: MouseEvent, items: MenuItem[]) => { pointMenu.value = { x: e.clientX, y: e.clientY, items }; };
+// The same at a point the main process names (a screenshot's thumbnail, a native view of its own): done once it closes.
+export const menuAtPoint = (x: number, y: number, items: MenuItem[]) => new Promise<void>((closed) => {
+  pointMenu.value = { x, y, items };
+  const stop = watch(pointMenu, (m) => { if (m?.items !== items) { stop(); closed(); } });
+});
 // A row whose action opens a field for the keyboard (New Profile…): the menu, closing, gives it there instead (forgotten
 // soon after, when the menu had closed before the field came).
 let given: HTMLElement | null = null;
