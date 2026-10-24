@@ -441,9 +441,13 @@ export default (test: Test) => {
     await fits();
     let b = await at();
     assert.ok(b.sam.x < b.elon.x && b.sam.y === b.elon.y && b.term.y > b.sam.y + b.sam.height - 1, 'profiles side by side, terminal below');
-    const resources = () => box(ui, '#resources'), side = await resources();
-    assert.ok(side.x > b.term.x + b.term.width - 1 && side.y > b.sam.y + b.sam.height - 1, 'Resources right of the terminal, in its row');
-    assert.ok(Math.abs(side.width / (await ui(`__dock.width`)) - 0.25) < 0.02, `a quarter of the grid: ${side.width}`);
+    // Resources right of the terminal, in its row, a quarter of the grid (laid out maybe a frame after the pages).
+    const resources = () => box(ui, '#resources');
+    const placed = async () => { const r = await resources(), t = await box(ui, '.term:not([hidden])');
+      return r.x > t.x + t.width - 1 && r.y > b.sam.y + b.sam.height - 1 && Math.abs(r.width / (await ui(`__dock.width`)) - 0.25) < 0.02; };
+    await waitFor(placed, 3000).catch(async () => assert.ok(await placed(), 'Resources right of the terminal, a quarter of the grid'));
+    const side = await resources();
+    b = await at();
     // A narrower window takes from every panel in its share, not from the last one alone; wider gives back the same way.
     const size = shell.win.getSize(), both = (x: typeof b) => x.sam.width + x.elon.width, share = (x: typeof b) => x.sam.width / both(x);
     const was = share(b), wide = both(b), row = side.width / b.term.width;
